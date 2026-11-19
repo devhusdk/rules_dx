@@ -1,6 +1,6 @@
 """Analysis tests proving the shared platform probe."""
 
-load("//core:defs.bzl", "starlark_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
 load(":platform_subject.bzl", "platform_subject", "platforms_subject")
 
 def platform_probe_tests(name):

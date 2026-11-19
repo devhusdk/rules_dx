@@ -3756,7 +3756,7 @@ LANGS = json.decode("""{
       "typescript_bench",
       "typescript_fuzz_test",
       "typescript_playwright_test",
-      "ts_config",
+      "typescript_config",
       "typescript_doc_shard"
     ],
     "family": "core",

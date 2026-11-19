@@ -421,20 +421,6 @@ def rust_test(
         forward_kwargs["sharded"] = True
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, **kwargs)
 
-def _rust_benchmark_report_impl(ctx):
-    report = ctx.attr._report[DefaultInfo]
-    link = dx_symlink_executable(ctx, report.files_to_run.executable)
-    return [DefaultInfo(executable = link, files = depset([link]), runfiles = ctx.runfiles(files = [link]).merge(report.default_runfiles))]
-
-_rust_benchmark_report = rule(
-    implementation = _rust_benchmark_report_impl,
-    doc = "Provides the bench_report runner executable.",
-    executable = True,
-    attrs = {
-        "_report": attr.label(default = Label("//rust/private/tools/bench_report"), executable = True, cfg = "target"),
-    },
-)
-
 def rust_bench(
         name,
         *,
@@ -445,23 +431,16 @@ def rust_bench(
         visibility = None,
         **kwargs):
     """A rust_test run by `dx bench`; it reports its bencher output as dx-bench.json."""
-    _rust_benchmark_report(
-        name = name + "_bench_report",
-        testonly = True,
-        tags = dx_upstream_tags(tags),
-        target_compatible_with = kwargs.get("target_compatible_with"),
-        visibility = ["//visibility:private"],
-    )
     dx_bench_test(
         name,
         rust_test,
         native_test,
-        kwargs,
+        kwargs | {"env": {"DX_RUNTIME_TOOL": "bench_report"} | (kwargs.get("env") or {})},
         tags = tags,
         visibility = visibility,
         binary_kwargs = {"srcs": srcs, "crate": crate, "crate_features": (crate_features or []) + ["dx_bench"]},
         build_defaults = {"use_libtest_harness": False},
-        runner_kwargs = {"src": ":" + name + "_bench_report"},
+        runner_kwargs = {"src": Label("//cli/runtime:dx_runtime")},
         pass_binary = True,
         argv = ["--bench", "--output-format", "bencher"],
     )
@@ -707,7 +686,7 @@ def _rust_browser_test(name, wasm, **kwargs):
         **forward
     )
 
-_WASMTIME = Label("//tools/testing/wasi:wasmtime")
+_WASMTIME = Label("//rust:wasmtime")
 
 _EXTRA_EXEC = "//command_line_option:extra_execution_platforms"
 

@@ -22,6 +22,7 @@
   "//rust/tests/fixtures/wasi_guest:wasi_guest_test": [
     "dx-no-coverage-collector"
   ],
+  "//rust/tests:wasi_run_unit_test": [],
   "//swift/tests/fixtures/hello:xctest": [],
   "//tools/testing/hermetic:cpp_rust": [
     "exclusive",
@@ -70,6 +71,5 @@
   ],
   "//tools/testing/starters:starters_test": [
     "starter-consumer"
-  ],
-  "//tools/testing/wasi:wasi_run_unit_test": []
+  ]
 }

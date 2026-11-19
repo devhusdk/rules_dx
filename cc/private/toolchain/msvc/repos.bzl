@@ -32,7 +32,7 @@ def cell_files(vc_repo, sdk_repo, host, target):
 
 def hub_build(accepted, vc_repo = "", sdk_repo = "", msvc_version = MSVC_TOOLSET_VERSION, sdk_version = WINDOWS_SDK_INCLUDE_VERSION, redist_version = VC_REDIST_VERSION):
     """Returns the BUILD text of the hub repository."""
-    text = 'load("{}", "dx_native_runtime")\n\npackage(default_visibility = ["//visibility:public"])\n\n'.format(str(Label("//deploy/private:native_runtime.bzl")))
+    text = 'load("{}", "native_runtime")\n\npackage(default_visibility = ["//visibility:public"])\n\n'.format(str(Label("//deploy/private:native_runtime.bzl")))
     if accepted:
         text = 'load("{}", "msvc_cc_toolchain")\n'.format(str(Label(":toolchain.bzl"))) + text
     else:
@@ -57,7 +57,7 @@ def hub_build(accepted, vc_repo = "", sdk_repo = "", msvc_version = MSVC_TOOLSET
         text += 'filegroup(\n    name = "vcruntime_{}",\n    srcs = {},\n)\n\n'.format(arch, json.encode(files))
     text += 'config_setting(\n    name = "windows_arm64",\n    constraint_values = [\n        "@platforms//os:windows",\n        "@platforms//cpu:arm64",\n    ],\n)\n\n'
     if accepted:
-        text += 'dx_native_runtime(\n    name = "msvc_vcruntime",\n    srcs = select({{\n        ":windows_arm64": [":vcruntime_arm64"],\n        "//conditions:default": [":vcruntime_x64"],\n    }}),\n    notice = "{}",\n    redistribution = "app_local",\n    source = "Visual C++ Redistributable",\n    version = "{}",\n)\n\n'.format(str(Label("//cc/private/toolchain:msvc_vcruntime_notice")), redist_version)
+        text += 'native_runtime(\n    name = "msvc_vcruntime",\n    srcs = select({{\n        ":windows_arm64": [":vcruntime_arm64"],\n        "//conditions:default": [":vcruntime_x64"],\n    }}),\n    notice = "{}",\n    redistribution = "app_local",\n    source = "Visual C++ Redistributable",\n    version = "{}",\n)\n\n'.format(str(Label("//cc/private/toolchain:msvc_vcruntime_notice")), redist_version)
     else:
         text += 'cc_toolchain_unavailable(\n    name = "msvc_vcruntime",\n    error = {},\n)\n\n'.format(json.encode(UNACCEPTED))
     return text.rstrip("\n") + "\n"

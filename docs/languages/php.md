@@ -55,16 +55,18 @@ tools/dx test //...
 
 ### Autoloading
 
-Each `php_binary` and `php_test` runs one build action on the pinned PHP. The
-action copies the target's sources and the sources of all its `deps` into
-`<name>.php/`, then runs `composer dump-autoload --classmap-authoritative`
-offline. Composer gets no network, no git and an empty home directory. The
-binary loads the result with `auto_prepend_file`; the test loads it with
-PHPUnit's `--bootstrap`.
+Each `php_binary` and `php_test` runs one build action on the pinned PHP:
+
+1. It copies the target's sources and the sources of all its `deps` into
+   `<name>.php/`.
+2. It runs `composer dump-autoload --classmap-authoritative` offline, with
+   no network, no git and an empty home directory.
+3. The binary loads the result with `auto_prepend_file`. The test loads it
+   with PHPUnit's `--bootstrap`.
 
 The class map lists only classes from the target and its `deps`. A class
-from a library that is not in `deps` fails with `Class "..." not found`.
-PSR-4 layout is not required.
+from a library that is not in `deps` fails with `Class "..." not found`. You
+do not need a PSR-4 layout.
 
 ### Runfiles
 
@@ -78,101 +80,126 @@ use Bazel\Runfiles\Runfiles;
 $path = Runfiles::create()->rlocation('_main/app/data.txt');
 ```
 
-`rlocation` works with a runfiles directory and with a manifest only
-(`RUNFILES_MANIFEST_ONLY=1`). It returns `null` when the manifest does not
-list the path. An apparent repository name, like `my_dep/file.txt`, maps
-through the repo mapping. `envVars()` returns the environment a child Bazel
-program needs to find the same runfiles.
+- `rlocation` works with a runfiles directory and with a manifest only
+  (`RUNFILES_MANIFEST_ONLY=1`).
+- It returns `null` when the manifest does not list the path.
+- An apparent repository name, like `my_dep/file.txt`, maps through the repo
+  mapping.
+- `envVars()` returns the environment a child Bazel program needs to find
+  the same runfiles.
 
 ### Composer packages
 
-Packages come from `composer.lock.json`, which `bazel run @rules_dx//php/private/tools/lock -- --dir <dir>`
-writes beside `composer.json` from the Packagist API. It also writes the
-`composer.lock` that Composer reads. Bazel fetches every package through its
-repository cache; Composer never runs at fetch time.
+List your requirements in `composer.json`. Then:
 
-With `composer.lock.json` beside the root `composer.json`, `dx generate --apply` adds the `composer.lock` stanza for the `@composer` hub to `MODULE.bazel`.
+1. Run `dx update --apply`. It resolves the requirements from the Packagist
+   API and writes `composer.lock.json` beside `composer.json`. It also
+   writes the `composer.lock` that Composer reads.
+2. Run `dx generate --apply`. With `composer.lock.json` beside the root
+   `composer.json`, it adds the `composer.lock` stanza for the `@composer`
+   hub to `MODULE.bazel`. A hub is one Bazel repository that holds a target
+   for every locked package.
+3. Put a package in the `deps` of a `php_library`, `php_binary` or
+   `php_test` as `@composer//<vendor>/<name>`, for example
+   `@composer//psr/http-factory`.
 
-Each package is the label `@composer//<vendor>/<name>`, for example
-`@composer//psr/http-factory`; put it in the `deps` of a `php_library`,
-`php_binary` or `php_test`. Its `require`, `replace` and `provide` entries
-become deps, so a requirement that matches no package in the lock fails the
-build. A target stages its packages under
-`vendor/<name>/` and writes their lock entries into
-`vendor/composer/installed.json`; the same `composer dump-autoload` then builds
-the PSR-4, PSR-0, classmap and `files` autoload. A class whose package is not in
-`deps` still fails with `Class "..." not found`. Package files are not linted.
+Bazel fetches every package through its repository cache. Composer never
+runs at fetch time, and package scripts never run.
 
-The lock step keeps the locked version of a package while its requirements allow it and otherwise picks the newest stable release they allow. `dx update <set>:<package>` resolves that package afresh. It records
-the archive sha256 and the PSR-4 namespaces of every package, and reuses
-unchanged packages without downloading them. Branch constraints and a `minimum-stability` other than `stable` are refused.
+How packages load:
 
-Refused: `composer-plugin` packages, packages without a zip dist
-(source-only), and `ext-*` requirements the pinned PHP lacks. Scripts never
-run. Do not depend on `phpunit/phpunit` from the lock; `php_test` uses the
-pinned PHPUnit phar.
+- A package's `require`, `replace` and `provide` entries become its deps. A
+  requirement that matches no package in the lock fails the build.
+- A target stages its packages under `vendor/<name>/` and writes their lock
+  entries into `vendor/composer/installed.json`. The same
+  `composer dump-autoload` then builds the PSR-4, PSR-0, classmap and
+  `files` autoload.
+- A class whose package is not in `deps` fails with `Class "..." not found`.
+- Package files are not linted.
+
+How the lock picks versions:
+
+- It keeps a package's locked version while its requirements allow it.
+  Otherwise it picks the newest stable release they allow.
+- `dx update <set>:<package>` resolves that one package again.
+- It records each package's archive sha256 and PSR-4 namespaces, and reuses
+  unchanged packages without downloading them.
+
+The lock refuses:
+
+- branch constraints and a `minimum-stability` other than `stable`;
+- `composer-plugin` packages;
+- packages without a zip dist (source-only);
+- `ext-*` requirements the pinned PHP lacks.
+
+Do not depend on `phpunit/phpunit` from the lock. `php_test` uses the pinned
+PHPUnit phar.
 
 ## Generate
 
-`dx generate` writes `php_library` and `php_test` rules. Each package takes
-its own `.php` files plus every `.php` under `src/` that has no `BUILD` file of
-its own, and gets one `php_test` per `*Test.php` under `tests/` or `test/`
-(`GreeterTest.php` becomes `greeter_test`). One library holds a whole tree, so
-namespaces that refer to each other do not form dependency cycles.
+`dx generate` writes `php_library` and `php_test` rules.
+
+- Each package takes its own `.php` files plus every `.php` under `src/`
+  that has no `BUILD` file of its own. One library holds a whole tree, so
+  namespaces that refer to each other do not form dependency cycles.
+- Each `*Test.php` under `tests/` or `test/` gets one `php_test`:
+  `GreeterTest.php` becomes `greeter_test`.
 
 A class is found by what a file declares, not by its path, to match the
-classmap autoload: the parser indexes every class, interface, trait and enum
+classmap autoload. The parser indexes every class, interface, trait and enum
 declared at the top level of a file or namespace body, plus namespaced
-functions and constants. References come from `use` clauses and from the
-class positions of the code (`extends`, `implements`, `new`, `X::`,
-`instanceof`, `catch`, type declarations, attributes and `::class`). They
-resolve by PHP's lexical rules: the current namespace and the `use` aliases.
+functions and constants. References come from `use` clauses and from class
+positions in the code: `extends`, `implements`, `new`, `X::`, `instanceof`,
+`catch`, type declarations, attributes and `::class`. They resolve by PHP's
+own rules: the current namespace and the `use` aliases.
 
 - Classes, functions and constants that ship with PHP need no dep.
   `PHPUnit\` names need none in a `php_test`.
-- A Composer package is resolved from the lock's `provides`; no directive.
-- Unqualified function and constant names are skipped, because PHP falls back
-  to the global one. `require` and `include` are not read.
+- A Composer package resolves through the lock. You need no directive.
+- Unqualified function and constant names are skipped, because PHP falls
+  back to the global one. `require` and `include` are not read.
 - `php_binary` targets and `bin/` scripts stay hand-written. A hand-set
-  `autoload_files` stays out of `srcs` and its declarations are indexed.
+  `autoload_files` stays out of `srcs`, and its declarations are indexed.
 
 ## Quality
 
-PHP sources form the `php` class, so `dx check` sees them. Prettier with
-`@prettier/plugin-php` formats `php` targets. Select `prettier` in the `format`
-list of a `php` family.
+PHP sources form the `php` class, so `dx check` sees them. Select the tools
+in a `php` family in `dx.toml`:
 
-PHP_CodeSniffer 4.0.4 lints `php` targets against PSR12 or a bound ruleset.
-Select `phpcs` in a `php` family. The tool flag overrides the pinned binary:
-
-```sh
-dx lint -- --@rules_dx//config:tool_phpcs=@rules_dx//php/private/tools:phpcs
+```toml
+[families.php]
+format = ["prettier"]
+lint = ["phpcs"]
+typecheck = ["phpstan"]
 ```
 
-PHPStan 2.3.5 type checks `php` targets. Select `phpstan` in a `php` family.
-The tool flag overrides the pinned binary:
+| Tool | What it does | Override flag |
+| --- | --- | --- |
+| `prettier` | formats with `@prettier/plugin-php` | |
+| `phpcs` | PHP_CodeSniffer 4.0.4 lints against PSR12 or a ruleset you bind | `--@rules_dx//config:tool_phpcs` |
+| `phpstan` | PHPStan 2.3.5 type checks; dependencies are scanned, not run | `--@rules_dx//config:tool_phpstan` |
+
+Pass another binary's label to the override flag, for example:
 
 ```sh
-dx typecheck -- --@rules_dx//config:tool_phpstan=@rules_dx//php/private/tools:phpstan
+dx lint -- --@rules_dx//config:tool_phpcs=//tools:phpcs
 ```
 
-Dependencies are scanned, not run. See `docs/cli/commands/quality.md`.
+The [quality commands page](../cli/commands/quality.md) covers the
+flags and family setup.
 
 ## Coverage
 
-On Linux, macOS and Windows, `dx coverage` runs `php_test` with PCOV and writes
-LCOV. The pinned Linux PHP is the glibc `gnu-bulk` build and the pinned macOS PHP is
-the static-php.dev `bulk` build; both can load extensions. PCOV is built from source
-against the conda-forge PHP headers and records lines through user opcode handlers.
-On Windows, coverage runs on the official windows.php.net NTS build with the prebuilt
-`php_pcov.dll` and the MSVC runtime from `@dx_msvc_runtime`; every other Windows action
-uses the static `spc-max` build.
+On Linux, macOS and Windows, `dx coverage` runs `php_test` with PCOV and
+writes LCOV. On Windows, coverage runs on the official windows.php.net NTS
+build with the prebuilt `php_pcov.dll`. Every other Windows action uses the
+static `spc-max` build.
 
 ## License
 
 The PHP binary is under the PHP License 3.01. It links extension libraries
 that keep their own licenses, such as libxml2, OpenSSL, curl, SQLite and
-zlib; static-php-cli lists them in the `license/` folder next to each build.
+zlib. static-php-cli lists them in the `license/` folder next to each build.
 Composer and PHPUnit are under the MIT and BSD-3-Clause licenses.
 
 ## Rules
@@ -235,16 +262,15 @@ PHP builds and tests on:
 - macOS arm64
 - Windows x86_64
 
-See the [support matrix](../support-matrix.md).
+The [support matrix](../support-matrix.md) lists the platforms. There
+is no Windows arm64 build of PHP 8.5.
 
-No Windows arm64 PHP 8.5 build exists.
+Elsewhere the rules mark their targets incompatible, so a build fails
+instead of running the host PHP. Launchers start through a bash script. On
+Windows, a small native launcher starts PHP from a descriptor file beside
+the `.exe`.
 
-The rules mark their targets
-incompatible elsewhere, so a build fails instead of running the host PHP.
-Launchers start through a bash script, except on Windows, where a small
-native launcher starts PHP from a descriptor file beside the `.exe`.
-
-### Refreshing the PHP pins
+### Refresh the PHP pins
 
 1. Download each archive from `dl.static-php.dev`.
 2. Check its SHA-256 against the upstream `.sha256` sidecar.
@@ -269,9 +295,11 @@ php_doc_shard(name, lib, package = "", **kwargs)
 
 Declares the DocIr shard of one PHP library.
 
-`php_doc_shard` (`@rules_dx//tools/docs/php:defs.bzl`) turns the public API of a
-`php_library` into a DocIr shard. The pinned phpDocumentor 3.10.0 phar reads the
-library's own `srcs` on the pinned PHP, and `php_extract` converts its output.
-Public classes, interfaces, traits, enums, functions, methods, properties and
-constants are documented; `@internal` and `@ignore` elements are left out. The
-aspect skips cells with no pinned PHP.
+`php_doc_shard` from `@rules_dx//tools/docs/php:defs.bzl` turns the public
+API of a `php_library` into a DocIr shard. The pinned phpDocumentor 3.10.0
+phar reads the library's own `srcs` on the pinned PHP.
+
+- Public classes, interfaces, traits, enums, functions, methods, properties
+  and constants are documented.
+- `@internal` and `@ignore` elements are left out.
+- Platforms with no pinned PHP are skipped.

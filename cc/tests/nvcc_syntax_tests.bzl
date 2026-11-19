@@ -1,7 +1,7 @@
 """Unit tests for the nvcc_syntax argv rewrite."""
 
 load("//cc/private/quality:nvcc_syntax.bzl", "nvcc_syntax_argv", "nvcc_syntax_select", "nvcc_syntax_source")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 visibility("private")
 

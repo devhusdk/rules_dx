@@ -1,0 +1,9 @@
+include "b.fbs";
+
+namespace dx.chain;
+
+table C {
+  b: B;
+}
+
+root_type C;

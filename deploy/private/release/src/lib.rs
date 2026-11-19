@@ -64,10 +64,20 @@ fn basename(path: &Path) -> io::Result<String> {
 ///
 /// Returns an error when the value cannot be serialized as JSON.
 pub(crate) fn render_pretty<T: serde::Serialize + ?Sized>(value: &T) -> Result<String, String> {
+    pretty_json(value).map_err(|error| format!("cannot render JSON: {error}"))
+}
+
+/// Renders a value as pretty ASCII JSON with a trailing newline, keeping the typed error.
+///
+/// # Errors
+///
+/// Returns an error when the value cannot be serialized as JSON.
+pub(crate) fn pretty_json<T: serde::Serialize + ?Sized>(
+    value: &T,
+) -> Result<String, dx_fingerprint::FingerprintError> {
     serde_json::to_value(value)
         .map_err(dx_fingerprint::FingerprintError::from)
         .and_then(|value| dx_fingerprint::to_json_ascii_pretty(&value))
-        .map_err(|error| format!("cannot render JSON: {error}"))
 }
 
 #[must_use]
@@ -377,7 +387,7 @@ pub fn write_spdx_locked(
         crates.extend(lock_entries(kind, &text).map_err(io::Error::other)?);
     }
     let records = match runtimes {
-        Some(path) => runtimes::read_records(path)?,
+        Some(path) => runtimes::read_records(path).map_err(io::Error::other)?,
         None => Vec::new(),
     };
     std::fs::write(
@@ -1305,7 +1315,8 @@ pub fn write_notice(
     let joined = join_notice_entries(&manifest_text, text_files).map_err(io::Error::other)?;
     let mut notice = render_notice(root, &joined);
     if let Some(path) = runtimes {
-        notice.push_str(&runtimes::render_section(&runtimes::read_records(path)?));
+        let records = runtimes::read_records(path).map_err(io::Error::other)?;
+        notice.push_str(&runtimes::render_section(&records));
     }
     std::fs::write(dst, notice.as_bytes())?;
     Ok(())

@@ -49,6 +49,7 @@ rust_library(
         "src/reports/planning.rs",
         "src/reports/sarif.rs",
         "src/resolve.rs",
+        "src/resolve/base.rs",
         "src/resolve/changed.rs",
         "src/resolve/classify.rs",
         "src/resolve/codegen_expand.rs",
@@ -77,6 +78,7 @@ rust_library(
     visibility = VIS_QUALITY_CLI + [
         "//tools/api:__pkg__",
         "//tools/ci:__pkg__",
+        "//tools/testing:__pkg__",
     ],
     # keep
     deps = [
@@ -166,6 +168,7 @@ rust_test(
         "src/reports/planning.rs",
         "src/reports/sarif.rs",
         "src/resolve.rs",
+        "src/resolve/base.rs",
         "src/resolve/changed.rs",
         "src/resolve/classify.rs",
         "src/resolve/codegen_expand.rs",

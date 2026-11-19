@@ -1,5 +1,5 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/tests:no_coverage_tests.bzl", "no_coverage_build_scripts_test")
 load("//powershell:defs.bzl", "powershell_test")

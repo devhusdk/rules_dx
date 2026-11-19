@@ -37,7 +37,6 @@ cli/update/src/edit/request_tests.rs compat-word 6
 core/env/BUILD.bazel alias 2
 core/env/private/tools/env_shard/src/main.rs compat-word 2
 core/env/private/tools/env_shard/src/writer.rs compat-word 2
-core/quality/BUILD.bazel alias 1
 core/quality/adapter/src/commands.rs compat-word 2
 core/quality/adapter/src/commands_tests.rs compat-word 1
 core/quality/adapter/src/parsers/ldc.rs compat-word 1

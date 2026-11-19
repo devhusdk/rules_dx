@@ -91,7 +91,7 @@ def _dx_pins_impl(mctx):
                 type = archive_type,
                 urls = pin["urls"],
             )
-    hub_repo(name = "dx_pins_data", files = {"BUILD.bazel": "", "pins.bzl": "PINS = " + repr(data) + "\n\nDATA = " + repr(sources) + "\n\nARCHIVES = " + repr(archives) + "\n"})
+    hub_repo(name = "dx_pins_data", files = {"BUILD.bazel": "exports_files([\"pins.bzl\"])\n", "pins.bzl": "PINS = " + repr(data) + "\n\nDATA = " + repr(sources) + "\n\nARCHIVES = " + repr(archives) + "\n"})
     return mctx.extension_metadata(reproducible = True)
 
 dx_pins = module_extension(

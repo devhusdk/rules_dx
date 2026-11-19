@@ -13,17 +13,17 @@ real_source_target(
 
 exports_files([
     "defs.bzl",
+    "extensions.bzl",
     "lang.json",
     "pins.json",
 ])
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = glob(["*.bzl"]) + [
         "BUILD.bazel",
         "pins.json",
-    ]),
+    ],
     visibility = ["//:__subpackages__"],
 )
 

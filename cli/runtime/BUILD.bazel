@@ -8,11 +8,14 @@ rust_binary(
     srcs = ["src/main.rs"],
     crate_name = "dx_runtime",
     deps = [
+        "//android/private/packaging/ops",
         "//cli/fuzz_run:dx_fuzz_run",
+        "//cli/hpc_coverage:dx_hpc_coverage",
         "//d/private/tools/coverage:dx_d_coverage",
         "//dotnet/private/coverage:dx_coverlet",
         "//php/private/coverage:dx_php_coverage",
         "//rego/private/launcher:dx_opa_test",
+        "//rust/private/tools/bench_report:dx_bench_report",
     ],
 )
 

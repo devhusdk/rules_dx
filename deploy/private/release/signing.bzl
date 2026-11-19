@@ -4,7 +4,7 @@ load("@dx_pins_data//:pins.bzl", "DATA")
 load("//deploy/private/release:tool.bzl", "RELEASE_DEPLOY_TOOL")
 load("//deploy/private:config.bzl", "deploy_config")
 load("//core:rlocation.bzl", "rlocation_path")
-load("//deploy/private:deployment.bzl", "dx_deployment")
+load("//deploy/private:deployment.bzl", "deployment")
 
 SIGNING_TRUST_ROOT = "https://tuf-repo-cdn.sigstore.dev"
 SIGNING_ISSUER = "https://token.actions.githubusercontent.com"
@@ -158,7 +158,7 @@ def signed_release(name, artifacts, identity, issuer = SIGNING_ISSUER, build_mod
         identity = identity,
         issuer = issuer,
     )
-    dx_deployment(
+    deployment(
         name = name,
         config = ":" + config_target,
         deploy = RELEASE_DEPLOY_TOOL,

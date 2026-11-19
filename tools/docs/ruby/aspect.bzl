@@ -14,8 +14,8 @@ def _ruby_docs_shard(target, ctx):
     own = [f for f in getattr(ctx.rule.files, "srcs", []) if f.extension == "rb"]
     if not own or ctx.toolchains[_RUBY_TOOLCHAIN] == None:
         return None
-    yard = ctx.attr._ruby_yard[DefaultInfo].files.to_list()
-    return ruby_shard_action(ctx, own, target[_RubyFilesInfo].transitive_srcs.to_list(), [], ctx.label.name, "_dx_docs/" + ctx.label.name, yard, ctx.file._ruby_driver, ctx.executable._ruby_extract).shard
+    yard = ctx.attr._ruby_yard[DefaultInfo].files
+    return ruby_shard_action(ctx, own, target[_RubyFilesInfo].transitive_srcs, [], ctx.label.name, "_dx_docs/" + ctx.label.name, yard, ctx.file._ruby_yard_rb, ctx.file._ruby_driver, ctx.executable._ruby_extract).shard
 
 def _real_ruby_docs_aspect_impl(target, ctx):
     shard = _ruby_docs_shard(target, ctx)
@@ -38,6 +38,10 @@ real_ruby_docs_aspect = aspect(
         ),
         "_ruby_yard": attr.label(
             default = Label("@dx_yard//:lib"),
+        ),
+        "_ruby_yard_rb": attr.label(
+            allow_single_file = True,
+            default = Label("@dx_yard//:lib/yard.rb"),
         ),
     },
     fragments = ["cpp"],

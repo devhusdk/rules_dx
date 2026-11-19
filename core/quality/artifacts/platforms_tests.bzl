@@ -1,7 +1,7 @@
 """Unit tests for canonical platform identities."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
-load("//core:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":hub.bzl", "ARTIFACT_PLATFORMS", "TOOL_PLATFORMS")
 load(
     ":platforms.bzl",

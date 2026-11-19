@@ -1,7 +1,7 @@
 """Tests that a typescript_binary or typescript_test typechecks through the dx tsc gate."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 def _reads_exit_impl(ctx):
     env = analysistest.begin(ctx)

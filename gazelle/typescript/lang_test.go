@@ -355,6 +355,16 @@ func TestMergeStaleCleansBinary(t *testing.T) {
 	}
 }
 
+func TestMergeStaleOwnsLegacyTSConfig(t *testing.T) {
+	file := rule.EmptyFile("BUILD.bazel", "")
+	rule.NewRule(legacyConfigKind, configName).Insert(file)
+	rule.NewRule(legacyConfigKind, "other").Insert(file)
+	result := mergeStale(file, language.GenerateResult{})
+	if len(result.Empty) != 1 || result.Empty[0].Kind() != legacyConfigKind || result.Empty[0].Name() != configName {
+		t.Errorf("Empty = %v, want only ts_config(tsconfig) removed", result.Empty)
+	}
+}
+
 func TestImportsIndexesNonTestOnly(t *testing.T) {
 	lang := NewLanguage()
 	lib := rule.NewRule(libraryKind, "demo")
@@ -589,7 +599,7 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 func TestApparentLoadsDefault(t *testing.T) {
 	l := newLang()
 	got := l.ApparentLoads(func(string) string { return "" })
-	if len(got) != 2 || got[0].Name != "@rules_dx//typescript:defs.bzl" {
+	if len(got) != 3 || got[0].Name != "@rules_dx//typescript:defs.bzl" {
 		t.Fatalf("default apparent loads = %+v", got)
 	}
 	if !strings.Contains(strings.Join(got[0].Symbols, ","), "typescript_binary") {
@@ -1124,7 +1134,7 @@ func TestGenerateTSConfigTargetExtendsParent(t *testing.T) {
 	}
 	cfg := ruleOf(result, configKind, configName)
 	if cfg == nil || cfg.AttrString("src") != "tsconfig.json" || strings.Join(cfg.AttrStrings("deps"), ",") != "//:tsconfig" {
-		t.Fatalf("ts_config = %v", cfg)
+		t.Fatalf("typescript_config = %v", cfg)
 	}
 	lib := ruleOf(result, libraryKind, "index")
 	if lib == nil || lib.AttrString("tsconfig") != ":tsconfig" {
@@ -1132,7 +1142,7 @@ func TestGenerateTSConfigTargetExtendsParent(t *testing.T) {
 	}
 	root2, _ := generateAt(t, root, "")
 	if cfg := ruleOf(root2, configKind, configName); cfg == nil || cfg.Attr("deps") != nil {
-		t.Errorf("root ts_config = %v, want one without deps", cfg)
+		t.Errorf("root typescript_config = %v, want one without deps", cfg)
 	}
 }
 

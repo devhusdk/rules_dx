@@ -54,6 +54,16 @@ jobs:
             echo "common --config=rbe"
             echo "common $BB_ARGS"
           } >> user.bazelrc
+      # Rule-set floor raises get their own pull request, 0.x minors included,
+      # and never auto-merge: a rule-set API change needs edits in <lang>/.
+      # Run it first so the full run below leaves those modules out.
+      - name: Open rule-set floor-raise PRs
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          tools/dx update --pr --allow-major --automerge=none bazel:rules_php bazel:rules_lua bazel:rules_qt
       - name: Open update PRs
         env:
           GH_TOKEN: ${{ steps.app.outputs.token || github.token }}

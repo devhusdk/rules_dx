@@ -1,9 +1,9 @@
 """Tests for android_native_library attribute forwarding and API level selection."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
-load("//android/private/toolchain:cc_toolchain_config.bzl", "NdkToolchainLevelInfo")
 load("//android/private/library:kwargs.bzl", "android_split_native_kwargs")
+load("//android/private/toolchain:cc_toolchain_config.bzl", "NdkToolchainLevelInfo")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 def _split_checks():
     shared, rest = android_split_native_kwargs({
@@ -35,6 +35,38 @@ _selected_test = analysistest.make(
     attrs = _attrs,
     config_settings = {str(Label("//android:api_level")): 34},
 )
+
+def _ops_launcher_impl(ctx):
+    env = analysistest.begin(ctx)
+    lines = []
+    for action in analysistest.target_actions(env):
+        if any([output.basename.endswith(".launch") for output in action.outputs.to_list()]):
+            lines = action.content.splitlines()
+    asserts.true(env, len(lines) >= 2, str(lines))
+    asserts.true(env, lines[0].startswith("program=") and lines[0].removesuffix(".exe").endswith("cli/runtime/dx_runtime"), str(lines))
+    asserts.equals(env, "env=DX_RUNTIME_TOOL\tandroid_ops", lines[1])
+    asserts.true(env, "arg=adb" in lines, str(lines))
+    return analysistest.end(env)
+
+_ops_launcher_test = analysistest.make(_ops_launcher_impl)
+
+def _apk_set_action_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "DxApkSet"]
+    asserts.equals(env, 1, len(actions))
+    argv = actions[0].argv if actions else []
+    asserts.true(env, len(argv) >= 3, str(argv))
+    asserts.equals(env, "dx", argv[0].replace("\\", "/").split("/")[-1].removesuffix(".exe") if argv else "", str(argv))
+    asserts.equals(env, ["android_ops", "apk-set"], argv[1:3], str(argv))
+    return analysistest.end(env)
+
+_apk_set_action_test = analysistest.make(_apk_set_action_impl)
+
+def android_ops_tests(name, launcher, apk_set, size = "small"):
+    """Checks that adb launchers run dx-runtime's android_ops helper and APK sets run `dx android_ops`."""
+    _ops_launcher_test(name = name + "_launcher", size = size, target_under_test = launcher)
+    _apk_set_action_test(name = name + "_apk_set", size = size, target_under_test = apk_set)
+    native.test_suite(name = name, tests = [":" + name + "_launcher", ":" + name + "_apk_set"])
 
 def android_native_library_tests(name, size = "small"):
     """Declares the android_native_library tests."""

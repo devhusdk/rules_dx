@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
 load("//julia:defs.bzl", "julia_library")
 load("//tools/docs/julia:defs.bzl", "julia_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -27,10 +28,17 @@ julia_doc_shard(
     lib = ":Paint",
 )
 
-# Building both shards loads the libraries under Julia and reads their docstrings with Documenter.
+real_docs_shard_files(
+    name = "paint_aspect_shard",
+    testonly = True,
+    target = ":Paint",
+)
+
+# Building the shards loads the libraries under Julia and reads their docstrings with Documenter.
 build_test(
     name = "shards_build_test",
     targets = [
+        ":paint_aspect_shard",
         ":paint_docs",
         ":shapes_docs",
     ],

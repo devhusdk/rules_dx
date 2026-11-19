@@ -8,12 +8,18 @@ visibility(["//..."])
 
 HASKELL_TOOLCHAIN = "@rules_haskell//haskell:toolchain"
 
+def _manifest_line(f):
+    return srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source).rstrip("\n")
+
 def haskell_shard_action(ctx, info, package, config, stem, extract_tool):
     """Runs `haddock --hoogle` over a Haskell library's own sources and extracts its DocIr shard."""
     toolchain = ctx.toolchains[HASKELL_TOOLCHAIN]
-    own = sorted(info.source_files.to_list(), key = lambda f: f.path)
+    own = info.source_files
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own]))
+    lines = ctx.actions.args()
+    lines.set_param_file_format("multiline")
+    lines.add_all(own, map_each = _manifest_line)
+    ctx.actions.write(manifest, lines)
 
     css = ctx.actions.declare_file(stem + ".haddock.css")
     ctx.actions.write(css, "")
@@ -45,7 +51,8 @@ def haskell_shard_action(ctx, info, package, config, stem, extract_tool):
     ctx.actions.run(
         executable = toolchain.tools.haddock,
         arguments = [args],
-        inputs = depset(own + [css], transitive = [
+        inputs = depset([css], transitive = [
+            own,
             info.package_databases,
             info.interface_dirs,
             info.boot_files,
@@ -76,7 +83,7 @@ def haskell_shard_action(ctx, info, package, config, stem, extract_tool):
     ctx.actions.run(
         executable = extract_tool,
         arguments = [extract],
-        inputs = depset(own + [hoogle, manifest]),
+        inputs = depset([hoogle, manifest], transitive = [own]),
         outputs = [shard],
         mnemonic = "DxDocsHaskellExtract",
         toolchain = None,
@@ -86,7 +93,7 @@ def haskell_shard_action(ctx, info, package, config, stem, extract_tool):
 
 def _haskell_doc_shard_impl(ctx):
     lib = ctx.attr.lib
-    if not lib[HaskellInfo].source_files.to_list():
+    if not lib[HaskellInfo].source_files:
         fail("haskell_doc_shard " + str(ctx.label) + ": lib has no Haskell srcs")
     package = ctx.attr.package or lib.label.name
     action = haskell_shard_action(ctx, lib[HaskellInfo], package, ctx.attr.config, ctx.label.name, ctx.executable._extract)

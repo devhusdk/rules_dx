@@ -1,6 +1,6 @@
 """Unit tests for the CPAN publisher."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":validate_cpan.bzl", "cpan_dist_error", "cpan_name_error", "cpan_version_error")
 
 def cpan_unit_tests(name):

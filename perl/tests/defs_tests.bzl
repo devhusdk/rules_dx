@@ -1,7 +1,7 @@
 """Wrapper conformance tests for Perl."""
 
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_entry_quality_srcs")
 load("//core:wrapper.bzl", "dx_language_kwargs")
 load("//perl/private:defs.bzl", "PERL_DEFERRED_SKIP_TAGS", "PERL_QUALITY_TOOLS", "PERL_SOURCE_EXTS", "PERL_SOURCE_SPECS")

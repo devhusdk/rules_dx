@@ -1,6 +1,6 @@
 """Erlang toolchain pin, launcher and cell tests."""
 
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//erlang/private/toolchain:cells.bzl", "cell_cases", "cell_setting", "unknown_cells")
 load("//erlang/private/toolchain:pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "WINDOWS_DROPPED_PATHS")
 load("//erlang/private/toolchain:repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "is_windows_cell", "nif_compatible_cases", "nif_header_cases", "nif_include_dir")

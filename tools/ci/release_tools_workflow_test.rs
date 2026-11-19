@@ -23,13 +23,15 @@ const PYTHON_HOSTS: [&str; 5] = [
     "windows-arm64",
 ];
 
-const JARS: [&str; 6] = [
+const JARS: [&str; 8] = [
     "dx-avro-union-any.jar",
+    "dx-dokka-extract-any.jar",
     "dx-javac-check-any.jar",
     "dx-javadoc-extract-any.jar",
     "dx-jmh-generate-any.jar",
     "dx-kotlinc-check-any.jar",
     "dx-scalac-check-any.jar",
+    "dx-scaladoc-extract-any.jar",
 ];
 
 const ASSETS: [&str; 9] = [
@@ -112,8 +114,11 @@ fn go_job_cross_builds_every_host() {
     let workflow = document(TOOLS).unwrap();
     assert_eq!(workflow["jobs"]["go"]["runs-on"], "ubuntu-latest");
     let text = read_runfiles(TOOLS);
-    assert!(text.contains("//go/private/tools/analysis/dx_go:dx_go_${host//-/_}"));
-    assert!(text.contains("asset=\"$out/dx-go-$host\""));
+    assert!(text.contains("tools=(go:dx_go oapi-codegen:oapi_codegen)"));
+    assert!(text.contains("//go/private/tools/analysis/dx_go:${tool#*:}_${host//-/_}"));
+    assert!(text.contains("asset=\"$out/dx-${tool%%:*}-$host\""));
+    assert!(text.contains("\"$out/dx-oapi-codegen-LICENSE\""));
+    assert!(text.contains("\"$out/dx-oapi-codegen-linux-x86_64\" -version"));
     assert!(text.contains("cp \"$out/dx-go-linux-x86_64\" \"$check/dx_modfmt\""));
     assert!(text.contains("./dx_modfmt -c"));
     assert!(text.contains("name: release-tool-go"));
@@ -131,7 +136,7 @@ fn jars_job_builds_every_jar_asset() {
         assert!(tools.contains(jar), "{TOOLS} must build {jar}");
         assert!(release.contains(jar), "{RELEASE} must list {jar}");
     }
-    assert!(release.contains("test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq 6"));
+    assert!(release.contains("test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq 8"));
     assert!(release.contains("sha256sum -c dx-jar-sha256sums.txt"));
     assert!(release.contains("--manifest \"$PWD/out/dx-jar-sha256sums.txt\""));
 }
@@ -292,9 +297,10 @@ fn release_writes_and_checks_the_tool_manifest() {
         "for tool in dx-deadnix dx-selene; do\n            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do\n              tool_asset=\"$tool-$host\""
     ));
     assert!(text.contains("--manifest \"$PWD/out/dx-tool-sha256sums.txt\""));
-    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 52"));
-    assert!(text.contains("for tool in capnp flatc go thrift; do"));
-    assert!(text.contains(" dx-go-* "));
+    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 58"));
+    assert!(text.contains("for tool in capnp flatc go oapi-codegen thrift; do"));
+    assert!(text.contains("files=\"$files dx-oapi-codegen-LICENSE\""));
+    assert!(text.contains(" dx-go-* dx-oapi-codegen-* "));
     assert!(text.contains("cd out\n            for file in dx-sha256sums.txt "));
     assert!(text.contains("cp \"$file\" \"$SOURCE_DIR/\""));
 }

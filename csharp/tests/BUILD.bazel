@@ -1,5 +1,5 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//csharp/private:kwargs.bzl", "csharp_tfm_forward_kwargs", "csharp_tfm_with_defaults")
 load("//csharp/private:proto.bzl", "pascal_case")
 load("//csharp/private/lock:hub.bzl", "hub_name", "lock_hubs")

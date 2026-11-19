@@ -128,16 +128,28 @@ TOOLS = {
     "capnp": _native_exec("@dx_capnproto//src/capnp:capnp_tool"),
     "flatc": _native_exec("@dx_flatbuffers//:flatc"),
     "thrift": _native_exec("@dx_thrift//:thrift_compiler"),
+    # Upstream oapi-codegen, cross-built unmodified by the release-tools go job.
+    "oapi_codegen": struct(
+        asset = "dx-oapi-codegen-{os}-{cpu}",
+        role = "exec",
+        platforms = _NATIVE,
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = "@com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen",
+        member = "",
+        main_class = "",
+    ),
     "deadnix": _exec_native("deadnix"),
     "progenitor": _exec_native("progenitor"),
     "selene": _exec_native("selene"),
     "topiary": _exec_native("topiary"),
     "avro_union": _jar("avro_union", "@rules_dx//avro/private/tools/avro_union", "dx.avro.tools.AvroUnion"),
+    "dokka_extract": _jar("dokka_extract", "@rules_dx//tools/docs/jvm/dokka:dokka_extract", "dx.docs.dokka.Main"),
     "javac_check": _jar("javac_check", "@rules_dx//java/private/quality/tools/javac_check", "dx.quality.javac.Main"),
     "javadoc_extract": _jar("javadoc_extract", "@rules_dx//tools/docs/jvm/javadoc:javadoc_extract", "dx.docs.javadoc.Main"),
     "jmh_generate": _jar("jmh_generate", "@rules_dx//java/private/jmh:jmh_generate", "dx.bench.JmhGenerate"),
     "kotlinc_check": _jar("kotlinc_check", "@rules_dx//java/private/quality/tools/kotlinc_check", "dx.quality.kotlinc.Main"),
     "scalac_check": _jar("scalac_check", "@rules_dx//java/private/quality/tools/scalac_check", "dx.quality.scalac.Main"),
+    "scaladoc_extract": _jar("scaladoc_extract", "@rules_dx//tools/docs/jvm/scaladoc:scaladoc_extract", "dx.docs.scaladoc.Main"),
     "hpc_lcov": _haskell("hpc_lcov", "target", "@rules_dx//haskell/private/coverage:hpc_lcov_source"),
     "weeder": _haskell("weeder", "exec", "@rules_dx//haskell/private/tools/weeder/bin:source"),
     "hlint": _hackage("hlint", ["linux_arm64", "macos_arm64"]),
@@ -177,7 +189,7 @@ TOOLS = {
 DEV_SOURCE_FALLBACK = {"kcov": "@rules_dx//tools/coverage/kcov:none"}
 
 # The tools released as one native binary per platform.
-NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "ormolu", "progenitor", "selene", "thrift", "topiary", "weeder"]
+NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "selene", "thrift", "topiary", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])

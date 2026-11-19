@@ -24,24 +24,29 @@ const EVENTS_SCHEMA: &str = include_str!("../../cli/output/schema/events.schema.
 const CONFIG_SCHEMA: &str = include_str!("../../cli/dx_config/schema/dx.schema.json");
 const CONFIG_BUILD: &str = include_str!("../../config/BUILD.bazel");
 
-/// The rules in a language's `BUILD.bazel` whose public targets are part of the API, besides `*_binary`.
-const LANG_RULES: [&str; 2] = ["platform", "toolchain_type"];
-
 const PUBLIC: &str = "//visibility:public";
 
 /// The `tools/visibility` constant that names `//visibility:public`.
 const PUBLIC_CONSTANT: &str = "VIS_PUBLIC";
 
-/// Every file under `api/`, by name, as `update` writes it. `lang_builds` and `command_builds` hold each language
-/// or command package and the text of its `BUILD.bazel`; `starlark` holds the `starlark_doc_extract` binaryproto of
-/// each public `.bzl` file.
+/// Each package and the text of its `BUILD.bazel`, by the part of the API it feeds.
+pub struct Builds {
+    /// Language packages, for their platforms and toolchain types.
+    pub langs: Vec<(String, String)>,
+    /// Command packages, for every public target.
+    pub commands: Vec<(String, String)>,
+    /// Every package outside `private/`, `tests/` and `tools/`, for its runnable targets.
+    pub packages: Vec<(String, String)>,
+}
+
+/// Every file under `api/`, by name, as `update` writes it. `starlark` holds the `starlark_doc_extract` binaryproto
+/// of each public `.bzl` file.
 pub fn render(
-    lang_builds: &[(String, String)],
-    command_builds: &[(String, String)],
+    builds: &Builds,
     starlark: &[Vec<u8>],
 ) -> Result<BTreeMap<&'static str, String>, Box<dyn std::error::Error>> {
     let mut labels = labels_txt(CONFIG_BUILD)?;
-    labels.push_str(&target_labels_txt(lang_builds, command_builds)?);
+    labels.push_str(&target_labels_txt(builds)?);
     labels.push_str(&hub_labels_txt(dx_families::hubs()));
     Ok(BTreeMap::from([
         (FILES[0], cli_json()?),
@@ -218,6 +223,11 @@ pub fn command_build_paths() -> Result<Vec<String>, std::env::VarError> {
     build_paths("DX_API_COMMAND_BUILDS")
 }
 
+/// The `$(rootpaths)` of every public package `BUILD.bazel`, from `DX_API_PACKAGE_BUILDS`.
+pub fn package_build_paths() -> Result<Vec<String>, std::env::VarError> {
+    build_paths("DX_API_PACKAGE_BUILDS")
+}
+
 fn build_paths(var: &str) -> Result<Vec<String>, std::env::VarError> {
     Ok(std::env::var(var)?
         .split_whitespace()
@@ -236,27 +246,33 @@ pub fn package_of(path: &str) -> Result<String, String> {
         .ok_or_else(|| format!("{path} is not a package BUILD.bazel"))
 }
 
-/// One line per public target the API holds, with its label and rule: platforms, toolchain types and binaries
-/// other than `run_binary` in each language package, and every named target in each command package.
-fn target_labels_txt(
-    lang_builds: &[(String, String)],
-    command_builds: &[(String, String)],
-) -> Result<String, Box<dyn std::error::Error>> {
-    let lang_rule = |rule: &str| {
-        LANG_RULES.contains(&rule) || (rule.ends_with("_binary") && rule != "run_binary")
-    };
+/// One line per public target the API holds, with its label and rule, and for a flag its default and allowed
+/// values: every named target other than a runnable one in each language and command package, and
+/// `<label> runnable <rule>` for each runnable target in any public package.
+fn target_labels_txt(builds: &Builds) -> Result<String, Box<dyn std::error::Error>> {
     let mut rows = Vec::new();
-    for (package, build) in lang_builds {
-        rows.extend(public_targets(package, build, lang_rule)?);
+    for (package, build) in builds.langs.iter().chain(&builds.commands) {
+        rows.extend(public_targets(package, build, |rule| !runnable(rule))?);
     }
-    for (package, build) in command_builds {
-        rows.extend(public_targets(package, build, |_| true)?);
+    for (package, build) in &builds.packages {
+        rows.extend(
+            public_targets(package, build, runnable)?
+                .into_iter()
+                .map(|row| row.replacen(' ', " runnable ", 1)),
+        );
     }
     rows.sort();
     Ok(rows.into_iter().map(|row| format!("{row}\n")).collect())
 }
 
-/// `//<package>:<name> <rule>` for each public named target in `build` whose rule `keep` accepts.
+/// Whether `bazel run` runs targets of `rule`: every `*_binary` rule except `run_binary`, and
+/// the `write_source_files` regenerators.
+fn runnable(rule: &str) -> bool {
+    (rule.ends_with("_binary") && rule != "run_binary")
+        || matches!(rule, "write_source_files" | "write_source_file")
+}
+
+/// A row for each public named target in `build` whose rule `keep` accepts.
 fn public_targets(
     package: &str,
     build: &str,
@@ -273,7 +289,13 @@ fn public_targets(
         .iter()
         .filter(|call| keep(&call.name))
         .filter(|call| call.arg("visibility").map_or(default_public, lists_public))
-        .filter_map(|call| Some(format!("//{package}:{} {}", call.str("name")?, call.name)))
+        .filter_map(|call| {
+            let name = call.str("name")?;
+            if call.name.ends_with("_flag") {
+                return Some(flag_row(package, name, call));
+            }
+            Some(format!("//{package}:{name} {}", call.name))
+        })
         .collect())
 }
 
@@ -298,29 +320,31 @@ fn lists_public(visibility: &Arg) -> bool {
     }
 }
 
-/// One line per flag in `config/BUILD.bazel`: its label, rule, default (or alias target) and allowed values.
+/// One line per flag in `config/BUILD.bazel`.
 fn labels_txt(build: &str) -> Result<String, dx_module_bazel::ModuleError> {
     let file = ModuleFile::parse_build(build)?;
     let mut rows: Vec<String> = file
         .calls()
         .iter()
         .filter(|call| FLAG_RULES.contains(&call.name.as_str()))
-        .filter_map(|call| {
-            let name = call.str("name")?;
-            let default = call
-                .arg("build_setting_default")
-                .or_else(|| call.arg("actual"))
-                .map_or_else(String::new, literal);
-            let mut row = format!("//config:{name} {} {default}", call.name);
-            if let Some(values) = call.arg("values") {
-                row.push(' ');
-                row.push_str(&literal(values));
-            }
-            Some(row)
-        })
+        .filter_map(|call| Some(flag_row("config", call.str("name")?, call)))
         .collect();
     rows.sort();
     Ok(rows.into_iter().map(|row| format!("{row}\n")).collect())
+}
+
+/// A flag's label, rule, default (or alias target) and allowed values. Values the BUILD file computes are left out.
+fn flag_row(package: &str, name: &str, call: &dx_module_bazel::Call) -> String {
+    let default = call
+        .arg("build_setting_default")
+        .or_else(|| call.arg("actual"))
+        .map_or_else(String::new, literal);
+    let mut row = format!("//{package}:{name} {} {default}", call.name);
+    if let Some(values @ Arg::List(_)) = call.arg("values") {
+        row.push(' ');
+        row.push_str(&literal(values));
+    }
+    row
 }
 
 /// An argument as written in the BUILD file.
@@ -465,8 +489,8 @@ mod tests {
     };
 
     use super::{
-        FILES, hub_labels_txt, labels_txt, package_of, render, starlark_json, target_labels_txt,
-        unbumped_schemas,
+        Builds, FILES, hub_labels_txt, labels_txt, package_of, render, starlark_json,
+        target_labels_txt, unbumped_schemas,
     };
 
     fn attr(name: &str, default: &str, doc: &str) -> AttributeInfo {
@@ -612,7 +636,7 @@ filegroup(name = "not_a_flag")
     }
 
     #[test]
-    fn labels_list_public_platforms_and_toolchain_types() {
+    fn labels_list_every_public_language_target_and_flag() {
         let open = r#"
 package(default_visibility = ["//visibility:public"])
 
@@ -620,7 +644,15 @@ toolchain_type(name = "toolchain_type")
 
 platform(name = "windows_arm64", constraint_values = ["@platforms//os:windows"])
 
-filegroup(name = "not_api")
+filegroup(name = "srcs", visibility = ["//:__subpackages__"])
+
+alias(name = "runtime", actual = "//open/private:runtime")
+
+string_flag(name = "mode", build_setting_default = "fast", values = ["fast", "slow"])
+
+string_flag(name = "compiler", build_setting_default = "llvm", values = sorted(COMPILERS))
+
+config_setting(name = "is_fast", flag_values = {":mode": "fast"})
 "#;
         let closed = r#"
 package(default_visibility = ["//:__subpackages__"])
@@ -631,14 +663,22 @@ toolchain_type(name = "internal_toolchain_type")
 
 platform(name = "hidden", visibility = ["//visibility:private"])
 "#;
-        let builds = [
-            ("open".to_owned(), open.to_owned()),
-            ("closed".to_owned(), closed.to_owned()),
-        ];
+        let builds = Builds {
+            langs: vec![
+                ("open".to_owned(), open.to_owned()),
+                ("closed".to_owned(), closed.to_owned()),
+            ],
+            commands: Vec::new(),
+            packages: Vec::new(),
+        };
         assert_eq!(
-            target_labels_txt(&builds, &[]).expect("BUILD files parse"),
+            target_labels_txt(&builds).expect("BUILD files parse"),
             concat!(
                 "//closed:toolchain_type toolchain_type\n",
+                "//open:compiler string_flag \"llvm\"\n",
+                "//open:is_fast config_setting\n",
+                "//open:mode string_flag \"fast\" [\"fast\", \"slow\"]\n",
+                "//open:runtime alias\n",
                 "//open:toolchain_type toolchain_type\n",
                 "//open:windows_arm64 platform\n",
             )
@@ -679,21 +719,62 @@ rust_binary(name = "maintainer")
 
 alias(name = "shortcut", actual = ":maintainer")
 "#;
-        let langs = [("lang".to_owned(), lang.to_owned())];
-        let commands = [
-            (
-                package_of("BUILD.bazel").expect("root BUILD"),
-                root.to_owned(),
-            ),
-            ("cmd".to_owned(), constant.to_owned()),
-            ("cmd/private".to_owned(), private.to_owned()),
-        ];
+        let root_package = package_of("BUILD.bazel").expect("root BUILD");
+        let builds = Builds {
+            langs: vec![("lang".to_owned(), lang.to_owned())],
+            commands: vec![
+                (root_package.clone(), root.to_owned()),
+                ("cmd".to_owned(), constant.to_owned()),
+                ("cmd/private".to_owned(), private.to_owned()),
+            ],
+            packages: vec![
+                ("lang".to_owned(), lang.to_owned()),
+                (root_package, root.to_owned()),
+                ("cmd".to_owned(), constant.to_owned()),
+            ],
+        };
         assert_eq!(
-            target_labels_txt(&langs, &commands).expect("BUILD files parse"),
+            target_labels_txt(&builds).expect("BUILD files parse"),
             concat!(
                 "//:dx alias\n",
-                "//cmd:runnable rust_binary\n",
-                "//lang:tool rust_binary\n",
+                "//cmd:runnable runnable rust_binary\n",
+                "//lang:generated run_binary\n",
+                "//lang:lib rust_library\n",
+                "//lang:tool runnable rust_binary\n",
+            )
+        );
+    }
+
+    #[test]
+    fn labels_list_public_runnable_targets_of_every_package() {
+        let deploy = r#"
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+native_binary(name = "bootstrap_offline", src = ":bootstrap", visibility = VIS_PUBLIC)
+
+sh_binary(name = "release", srcs = ["release.sh"], visibility = ["//visibility:public"])
+
+rust_binary(name = "maintainer")
+
+write_source_files(name = "update_docs", files = {"a": "b"}, visibility = ["//visibility:public"])
+
+write_source_files(name = "update_private", files = {"a": "b"}, visibility = ["//visibility:private"])
+
+run_binary(name = "generated", tool = ":maintainer", visibility = ["//visibility:public"])
+
+filegroup(name = "srcs", visibility = ["//visibility:public"])
+"#;
+        let builds = Builds {
+            langs: Vec::new(),
+            commands: Vec::new(),
+            packages: vec![("deploy".to_owned(), deploy.to_owned())],
+        };
+        assert_eq!(
+            target_labels_txt(&builds).expect("BUILD files parse"),
+            concat!(
+                "//deploy:bootstrap_offline runnable native_binary\n",
+                "//deploy:release runnable sh_binary\n",
+                "//deploy:update_docs runnable write_source_files\n",
             )
         );
     }
@@ -749,8 +830,11 @@ alias(name = "shortcut", actual = ":maintainer")
         let root =
             "alias(name = \"dx\", actual = \"//cli:dx\", visibility = [\"//visibility:public\"])\n";
         let files = render(
-            &[("msix".to_owned(), msix.to_owned())],
-            &[(String::new(), root.to_owned())],
+            &Builds {
+                langs: vec![("msix".to_owned(), msix.to_owned())],
+                commands: vec![(String::new(), root.to_owned())],
+                packages: Vec::new(),
+            },
             &[module("[]", "Docs.")],
         )
         .expect("snapshot renders");

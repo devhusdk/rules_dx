@@ -91,9 +91,9 @@ pub fn output_path(out: &Path, env: Env<'_>, suffix: &str, what: &str) -> Result
         return Err(usage(format!("--out {} must name {what}", out.display())));
     }
     let parent = out.parent().unwrap_or_else(|| Path::new("."));
-    let dir = parent.canonicalize().map_err(|_| {
+    let dir = parent.canonicalize().map_err(|error| {
         usage(format!(
-            "--out directory {} does not exist",
+            "--out directory {} does not exist: {error}",
             parent.display()
         ))
     })?;
@@ -339,7 +339,12 @@ pub fn read_identity(
     let pem = work.join("identity.pem");
     let password = random(tools)?;
     let transfer = work.join("transfer.pass");
-    std::fs::write(&transfer, &password).map_err(|_| unreadable())?;
+    std::fs::write(&transfer, &password).map_err(|error| {
+        usage(format!(
+            "cannot write the transfer password for {}: {error}",
+            cert.display()
+        ))
+    })?;
     let read = tools.tool(
         OPENSSL,
         &[

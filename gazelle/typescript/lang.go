@@ -17,29 +17,39 @@ import (
 var npmManifestFile = common.ManifestName("npm")
 
 const (
-	languageName    = "typescript"
-	libraryKind     = "typescript_library"
-	testKind        = "typescript_test"
-	binaryKind      = "typescript_binary"
-	configKind      = "ts_config"
-	packageKind     = "npm_package"
-	configName      = "tsconfig"
-	packageName     = "pkg"
-	rootNodeModules = "//:node_modules"
-	rootPackageJSON = "//:package_json"
+	languageName     = "typescript"
+	libraryKind      = "typescript_library"
+	testKind         = "typescript_test"
+	binaryKind       = "typescript_binary"
+	configKind       = "typescript_config"
+	legacyConfigKind = "ts_config"
+	packageKind      = "npm_package"
+	configName       = "tsconfig"
+	packageName      = "pkg"
+	rootNodeModules  = "//:node_modules"
+	rootPackageJSON  = "//:package_json"
 )
 
 var typescriptKinds = map[string]rule.KindInfo{
 	libraryKind: libraryKindInfo(),
 	testKind:    testKindInfo(),
 	binaryKind:  binaryKindInfo(),
-	configKind: {
+	configKind:  configKindInfo(),
+	legacyConfigKind: {
 		MatchAttrs:     []string{"src"},
-		MergeableAttrs: map[string]bool{"deps": true},
+		NonEmptyAttrs:  map[string]bool{"src": true},
+		MergeableAttrs: map[string]bool{"src": true, "deps": true},
 	},
 	packageKind: {
 		MergeableAttrs: map[string]bool{"srcs": true},
 	},
+}
+
+func configKindInfo() rule.KindInfo {
+	return rule.KindInfo{
+		MatchAttrs:     []string{"src"},
+		MergeableAttrs: map[string]bool{"deps": true},
+	}
 }
 
 func libraryKindInfo() rule.KindInfo {
@@ -91,11 +101,12 @@ func newLang() *typescriptLang {
 	return &typescriptLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName: languageName,
 		LibraryKind:  libraryKind,
-		ExtraKinds:   []string{testKind, binaryKind, configKind, packageKind},
+		ExtraKinds:   []string{testKind, binaryKind, configKind, legacyConfigKind, packageKind},
 		Kinds:        typescriptKinds,
 		DefsPackage:  "typescript:defs.bzl",
 		KindDefs: map[string]string{
-			packageKind: "@aspect_rules_js//npm:defs.bzl",
+			legacyConfigKind: "@aspect_rules_ts//ts:defs.bzl",
+			packageKind:      "@aspect_rules_js//npm:defs.bzl",
 		},
 		ImportAttr: "srcs",
 		IsImportSource: func(src string) bool {
@@ -452,7 +463,7 @@ func importedEntries(rel string, plans []plan) map[string]bool {
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	return common.MergeStaleOwned(file, result, typescriptKinds, func(r *rule.Rule) bool {
 		switch r.Kind() {
-		case configKind:
+		case configKind, legacyConfigKind:
 			return r.Name() == configName
 		case packageKind:
 			return r.Name() == packageName

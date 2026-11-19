@@ -1,6 +1,6 @@
 """Unit tests for the opam publisher."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":validate_opam.bzl", "opam_file_error", "opam_name_error", "opam_version_error")
 
 def opam_unit_tests(name):

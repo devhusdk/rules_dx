@@ -1,6 +1,6 @@
 """Analysis probe that reports the tags of each listed target."""
 
-load("//core:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo")
 
 # Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")

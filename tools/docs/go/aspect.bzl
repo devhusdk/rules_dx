@@ -26,7 +26,7 @@ real_go_docs_aspect = aspect(
     attrs = {
         "_driver": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/go/godoc:godoc_json"),
+            default = Label("@dx_prebuilt//:dx_godoc_json"),
             executable = True,
         ),
         "_go_extract": attr.label(

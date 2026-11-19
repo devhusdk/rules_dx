@@ -1,5 +1,10 @@
 //! Runs one .NET test under coverlet and writes its LCOV report for Bazel coverage.
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -245,8 +250,8 @@ fn build_mirror(root: &Path, entries: &[Entry], copies: &BTreeSet<String>) -> io
 fn run() -> Result<i32, String> {
     let target_args: Vec<String> = env::args().skip(1).collect();
     let (entries, runfiles_dir) = runfiles_entries()?;
-    let config_rlocation =
-        env::var("DX_COVERLET_CONFIG").map_err(|_| "DX_COVERLET_CONFIG is not set".to_owned())?;
+    let config_rlocation = env::var("DX_COVERLET_CONFIG")
+        .map_err(|e| format!("DX_COVERLET_CONFIG is not set: {e}"))?;
     let config_path = resolve(&entries, &config_rlocation)?;
     let config_text = fs::read_to_string(&config_path)
         .map_err(|e| format!("cannot read {}: {e}", config_path.display()))?;
@@ -332,7 +337,8 @@ fn run() -> Result<i32, String> {
         prefixes.push(dir.join(&config.workspace).to_string_lossy().into_owned());
     }
     let (normalized, kept) = lcov::normalize(&report, &prefixes);
-    fs::create_dir_all(&coverage_dir).ok();
+    fs::create_dir_all(&coverage_dir)
+        .map_err(|e| format!("cannot create {}: {e}", coverage_dir.display()))?;
     let dat = coverage_dir.join("coverlet.dat");
     fs::write(&dat, normalized).map_err(|e| format!("cannot write {}: {e}", dat.display()))?;
     if code == 0 && kept == 0 {

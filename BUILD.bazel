@@ -403,7 +403,6 @@ filegroup(
         "//vue:lang.json",
         "//zig:lang.json",
     ],
-    visibility = ["//visibility:public"],
 )
 
 filegroup(
@@ -531,6 +530,7 @@ filegroup(
         "//core/modules:module_srcs",
         "//core/patchelf:module_srcs",
         "//core/private:module_srcs",
+        "//core/private/testing:module_srcs",
         "//core/quality:module_srcs",
         "//core/quality/adapter:module_srcs",
         "//core/quality/artifacts:module_srcs",
@@ -993,7 +993,6 @@ filegroup(
         "//zig/private/quality:module_srcs",
         "//zig/private/tools/lock:module_srcs",
     ],
-    visibility = ["//visibility:public"],
 )
 
 filegroup(

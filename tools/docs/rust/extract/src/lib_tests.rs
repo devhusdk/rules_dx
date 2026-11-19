@@ -2,7 +2,7 @@
 
 use serde_json::{Value, json};
 
-use super::{Options, Source, extract, map_source, parse, parse_sources, ty};
+use super::{Options, Source, extract, map_source, mark_generated, parse, parse_sources, ty};
 use documentation_ir::proto::SymbolKind;
 use rustdoc_types::{FORMAT_VERSION, Type};
 
@@ -185,6 +185,10 @@ fn parse_reads_every_flag() {
         "c",
         "--srcs-file",
         "s",
+        "--generated",
+        "g1",
+        "--generated",
+        "g2",
         "--out",
         "o",
     ]);
@@ -195,8 +199,23 @@ fn parse_reads_every_flag() {
             package: "p".to_string(),
             krate: "c".to_string(),
             srcs_file: "s".to_string(),
+            generated: vec!["g1".to_string(), "g2".to_string()],
             out: "o".to_string(),
         })
+    );
+}
+
+#[test]
+fn mark_generated_flags_listed_docs_paths_only() {
+    let marked = mark_generated(sources(), &["pkg/src/lib.rs".to_string()]);
+    assert_eq!(
+        marked.iter().map(|s| s.generated).collect::<Vec<_>>(),
+        vec![true, true]
+    );
+    let unmarked = mark_generated(sources(), &[]);
+    assert_eq!(
+        unmarked.iter().map(|s| s.generated).collect::<Vec<_>>(),
+        vec![false, true]
     );
 }
 

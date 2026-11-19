@@ -2,7 +2,7 @@
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//core:defs.bzl", "DxSubjectInfo", "starlark_test")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo", "starlark_test")
 load("//core/quality/testdata:all_languages.bzl", "upstream_direct_sources")
 
 visibility("private")

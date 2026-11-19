@@ -184,11 +184,38 @@ impl Driver {
     }
 
     fn run(&self, manifest: &Path, classpath: &Path) -> (i32, String) {
-        let output = Command::new(dx_testing::env_file("DX_DOKKA_EXTRACT"))
+        self.run_owning(manifest, classpath, &[])
+    }
+
+    fn run_with(&self, tool: &str, manifest: &Path, classpath: &Path) -> (i32, String) {
+        self.run_tool(tool, manifest, classpath, &[])
+    }
+
+    fn run_owning(&self, manifest: &Path, classpath: &Path, own_jars: &[&str]) -> (i32, String) {
+        self.run_tool("DX_DOKKA_EXTRACT", manifest, classpath, own_jars)
+    }
+
+    fn run_tool(
+        &self,
+        tool: &str,
+        manifest: &Path,
+        classpath: &Path,
+        own_jars: &[&str],
+    ) -> (i32, String) {
+        let own_jars_file = self.dir.join("own_jars.txt");
+        let text = own_jars
+            .iter()
+            .map(|jar| format!("{jar}\n"))
+            .collect::<Vec<_>>()
+            .concat();
+        std::fs::write(&own_jars_file, text).expect("write the own jars");
+        let output = Command::new(dx_testing::env_file(tool))
             .arg("--srcs-manifest")
             .arg(manifest)
             .arg("--classpath-file")
             .arg(classpath)
+            .arg("--own-jars-file")
+            .arg(&own_jars_file)
             .arg("--release")
             .arg("11")
             .arg("--out")
@@ -216,6 +243,16 @@ fn the_adapter_fails_on_an_unresolved_public_type_and_writes_nothing() {
 }
 
 #[test]
+fn the_adapter_drops_the_library_own_jars_from_the_classpath() {
+    let driver = Driver::new("kotlin-own");
+    let manifest = driver.manifest(&[dx_testing::env_file("DX_SHAPE_KT")]);
+    let (code, stderr) =
+        driver.run_owning(&manifest, &driver.classpath(&["own.jar"]), &["own.jar"]);
+    assert_eq!(code, 0, "{stderr}");
+    assert!(driver.out().exists());
+}
+
+#[test]
 fn the_adapter_fails_on_a_missing_source_or_classpath_jar() {
     let driver = Driver::new("kotlin-missing");
     let nope = driver.dir.join("Nope.kt");
@@ -235,6 +272,21 @@ fn an_empty_public_api_fails_and_writes_nothing() {
     let source = driver.source("Hidden.kt", "package hidden\n\ninternal class Hidden\n");
     let manifest = driver.manifest(&[source]);
     let (code, stderr) = driver.run(&manifest, &driver.classpath(&[]));
+    assert_eq!(code, 1, "{stderr}");
+    assert!(stderr.contains("no public declarations"), "{stderr}");
+    assert!(!driver.out().exists());
+}
+
+#[test]
+fn the_release_jar_fails_on_an_empty_public_api_and_writes_nothing() {
+    let driver = Driver::new("kotlin-release-empty");
+    let source = driver.source("Hidden.kt", "package hidden\n\ninternal class Hidden\n");
+    let manifest = driver.manifest(&[source]);
+    let (code, stderr) = driver.run_with(
+        "DX_DOKKA_EXTRACT_RELEASE",
+        &manifest,
+        &driver.classpath(&[]),
+    );
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.contains("no public declarations"), "{stderr}");
     assert!(!driver.out().exists());

@@ -1,6 +1,6 @@
 # gazelle:dx_rust_corpus false
 
-load("@rules_dx//core:defs.bzl", "starlark_test")
+load("@rules_dx//core/private/testing:defs.bzl", "starlark_test")
 load("@rules_dx//core:tag_probe.bzl", "tag_subject")
 load("@rules_dx//elixir:defs.bzl", "elixir_app")
 

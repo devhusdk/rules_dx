@@ -608,11 +608,7 @@ support_unit_tests(name = "support_unit")
 write_source_files(
     name = "tools_registry",
     files = {"tools_registry.bzl": "//tools/quality:tools_registry"},
-)
-
-alias(
-    name = "update_tools",
-    actual = "//core/quality/runner:update_tools",
+    visibility = ["//visibility:private"],
 )
 
 clang_syntax_analysis_tests(name = "clang_syntax_analysis")
@@ -679,6 +675,7 @@ native_binary(
         ":windows_x86_64": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
+    visibility = ["//visibility:private"],
 )
 
 rust_test(

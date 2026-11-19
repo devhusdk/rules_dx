@@ -165,6 +165,7 @@ rust_binary(
     # keep
     deps = [
         ":dx_cli",
+        "//android/private/packaging/ops",
         "//api_spec/private/codegen",
         "//capnproto/private/tools/capnpc_rust_dx",
         "//cli/adopt:dx_adopt",
@@ -184,6 +185,7 @@ rust_binary(
         "//core/quality/runner:quality_runner_lib",
         "//deploy/private:dx_deploy_tools",
         "//deploy/private/release:dx_release_tools",
+        "//qt/private/tools/rust:qt_rust_bridge",
         "//tools/coverage/collect:collect_native_lib",
         "//tools/docs/avro/extract:dx_docs_avro_extract",
         "//tools/docs/d/extract:dx_docs_d_extract",

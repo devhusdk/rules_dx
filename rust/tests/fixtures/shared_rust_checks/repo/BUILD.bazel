@@ -65,15 +65,15 @@ rust_test(
     data = [
         ":assets/board.txt",
         ":consumer_report_wasi",
-        "@rules_dx//tools/testing/wasi:wasmtime",
+        "@rules_dx//rust:wasmtime",
     ],
     env = {
         "BOARD": "$(rootpath :assets/board.txt)",
         "REPORT_WASM": "$(rootpath :consumer_report_wasi)",
-        "WASMTIME": "$(rootpath @rules_dx//tools/testing/wasi:wasmtime)",
+        "WASMTIME": "$(rootpath @rules_dx//rust:wasmtime)",
     },
     tags = ["block-network"],
-    deps = ["@rules_dx//tools/testing/wasi:wasi_run"],
+    deps = ["@rules_dx//rust:wasi_run"],
 )
 
 rust_binary(

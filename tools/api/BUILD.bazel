@@ -3,6 +3,7 @@ load("//core/modules:langs.bzl", "LANGS")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":bzl_srcs.bzl", "bzl_srcs")
+load(":public_builds.bzl", "public_builds")
 
 package(default_visibility = VIS_TOOLS)
 
@@ -38,29 +39,123 @@ _COMMAND_BUILDS = [
 _BUILDS_ENV = {
     "DX_API_COMMAND_BUILDS": " ".join(["$(rootpath %s)" % build for build in _COMMAND_BUILDS]),
     "DX_API_LANG_BUILDS": " ".join(["$(rootpath %s)" % build for build in _LANG_BUILDS]),
+    "DX_API_PACKAGE_BUILDS": "$(rootpaths :public_builds)",
 }
 
 _STARLARK_SRCS = [
+    "//ansible:defs.bzl",
+    "//ansible:extensions.bzl",
     "//api_spec:defs.bzl",
+    "//appimage:defs.bzl",
+    "//appimage:extensions.bzl",
+    "//apple:defs.bzl",
     "//apple:extensions.bzl",
+    "//asciidoc:defs.bzl",
+    "//astro:defs.bzl",
+    "//avro:defs.bzl",
     "//avro:extensions.bzl",
     "//bicep:defs.bzl",
     "//bicep:extensions.bzl",
-    "//core:defs.bzl",
+    "//capnproto:defs.bzl",
+    "//cc:defs.bzl",
+    "//cloudformation:defs.bzl",
+    "//cmake:defs.bzl",
     "//core:extensions.bzl",
+    "//csharp:defs.bzl",
+    "//csharp:extensions.bzl",
+    "//cuda:defs.bzl",
+    "//cuda:extensions.bzl",
+    "//d:defs.bzl",
+    "//d:extensions.bzl",
+    "//dockerfile:defs.bzl",
     "//dotnet:defs.bzl",
+    "//dotnet:extensions.bzl",
+    "//elixir:extensions.bzl",
+    "//erlang:extensions.bzl",
+    "//flatbuffers:defs.bzl",
+    "//fortran:defs.bzl",
+    "//fortran:extensions.bzl",
+    "//fsharp:defs.bzl",
+    "//go:defs.bzl",
+    "//go:extensions.bzl",
+    "//haskell:defs.bzl",
+    "//haskell:extensions.bzl",
     "//helm:defs.bzl",
+    "//java:defs.bzl",
+    "//javascript:defs.bzl",
+    "//javascript:extensions.bzl",
+    "//julia:defs.bzl",
+    "//julia:extensions.bzl",
+    "//kotlin:defs.bzl",
+    "//kubernetes:defs.bzl",
     "//lua:defs.bzl",
     "//lua:extensions.bzl",
+    "//make:defs.bzl",
+    "//mdx:defs.bzl",
+    "//msix:defs.bzl",
+    "//msix:extensions.bzl",
+    "//ocaml:extensions.bzl",
+    "//perl:defs.bzl",
+    "//perl:extensions.bzl",
     "//php:defs.bzl",
     "//php:extensions.bzl",
+    "//powershell:defs.bzl",
     "//powershell:extensions.bzl",
+    "//python:defs.bzl",
+    "//qt:defs.bzl",
     "//qt:extensions.bzl",
     "//rego:defs.bzl",
+    "//rst:defs.bzl",
+    "//ruby:defs.bzl",
+    "//ruby:extensions.bzl",
+    "//rust:defs.bzl",
+    "//rust:extensions.bzl",
     "//sql:defs.bzl",
+    "//svelte:defs.bzl",
+    "//swift:defs.bzl",
     "//terraform:defs.bzl",
     "//terraform:extensions.bzl",
+    "//thrift:defs.bzl",
+    "//typescript:defs.bzl",
+    "//vue:defs.bzl",
+    "//zig:defs.bzl",
     "//zig:extensions.bzl",
+]
+
+# Upstream bzl_library targets that cover the load closure of the public files.
+_UPSTREAM_BZL = [
+    "@aspect_rules_jest//jest:defs",
+    "@aspect_rules_js//npm:extensions",
+    "@aspect_rules_ts//ts:defs",
+    "@dx_pins_data//:pins.bzl",
+    "@gazelle//:extensions",
+    "@rules_apple//apple:apple",
+    "@rules_apple//apple:ios",
+    "@rules_apple//apple:macos",
+    "@rules_apple//apple:versioning",
+    "@rules_cuda//cuda:bzl_srcs",
+    "@rules_d//d:defs",
+    "@rules_dotnet//dotnet:defs",
+    "@rules_dotnet//dotnet:extensions",
+    "@rules_fortran//fortran:defs",
+    "@rules_go//go:def",
+    "@rules_haskell//haskell:haskell",
+    "@rules_java//java/private:proto_support",
+    "@rules_java//java:rules",
+    "@rules_julia//julia:defs_bzl",
+    "@rules_kotlin//kotlin/internal:internal",
+    "@rules_kotlin//kotlin:kotlin",
+    "@rules_perl//perl:defs_bzl",
+    "@rules_perl//perl:platforms_bzl",
+    "@rules_powershell//powershell:defs_bzl",
+    "@rules_py//py:defs",
+    "@rules_ruby//ruby:defs",
+    "@rules_ruby//ruby:deps",
+    "@rules_rust//cargo:bzl_lib",
+    "@rules_rust//crate_universe:bzl_lib",
+    "@rules_rust_wasm_bindgen//:bzl_lib",
+    "@rules_shell//shell:rules_bzl",
+    "@rules_zig//zig:defs",
 ]
 
 _STARLARK_DOCS = {
@@ -70,7 +165,23 @@ _STARLARK_DOCS = {
 
 bzl_srcs(
     name = "repo_bzl",
-    srcs = ["//:module_srcs"],
+    srcs = [
+        "//:module_srcs",
+        "//ansible/private:bzl_srcs",
+        "//ansible/private/lock:bzl_srcs",
+        "//asciidoc/private:bzl_srcs",
+        "//astro/private:bzl_srcs",
+        "//cloudformation/private:bzl_srcs",
+        "//cmake/private:bzl_srcs",
+        "//dockerfile/private:bzl_srcs",
+        "//fsharp/private:bzl_srcs",
+        "//kubernetes/private:bzl_srcs",
+        "//make/private:bzl_srcs",
+        "//mdx/private:bzl_srcs",
+        "//rst/private:bzl_srcs",
+        "//svelte/private:bzl_srcs",
+        "//vue/private:bzl_srcs",
+    ],
 )
 
 [
@@ -81,10 +192,15 @@ bzl_srcs(
         deps = [
             ":repo_bzl",
             "@bazel_tools//tools:bzl_srcs",
-        ],
+        ] + _UPSTREAM_BZL,
     )
     for name, src in _STARLARK_DOCS.items()
 ]
+
+public_builds(
+    name = "public_builds",
+    srcs = ["//:module_srcs"],
+)
 
 filegroup(
     name = "starlark_docs",
@@ -102,7 +218,10 @@ rust_binary(
     compile_data = _SNAPSHOT_SRCS,
     crate_name = "update",
     crate_root = "update.rs",
-    data = [":starlark_docs"] + _LANG_BUILDS + _COMMAND_BUILDS,
+    data = [
+        ":public_builds",
+        ":starlark_docs",
+    ] + _LANG_BUILDS + _COMMAND_BUILDS,
     env = _BUILDS_ENV | {"DX_API_STARLARK": "$(rlocationpaths :starlark_docs)"},
     deps = _DEPS + ["@rules_rust//rust/runfiles"],
 )
@@ -119,6 +238,7 @@ rust_test(
     crate_name = "api_test",
     crate_root = "api_test.rs",
     data = [
+        ":public_builds",
         ":starlark_docs",
         "//api:snapshot",
         "//docs:supported-surface.md",
@@ -142,6 +262,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "bzl_srcs.bzl",
+        "public_builds.bzl",
     ],
     tags = ["corpus"],
 )

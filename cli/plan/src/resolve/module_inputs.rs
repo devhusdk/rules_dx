@@ -65,8 +65,12 @@ pub(crate) fn updated_deps(
     base: &str,
     head: &str,
 ) -> Result<BTreeMap<String, String>, dx_error::DxError> {
-    let base_file = ModuleFile::parse(base).map_err(|_| module_input_error())?;
-    let head_file = ModuleFile::parse(head).map_err(|_| module_input_error())?;
+    let base_file = ModuleFile::parse(base)
+        .ok()
+        .ok_or_else(module_input_error)?;
+    let head_file = ModuleFile::parse(head)
+        .ok()
+        .ok_or_else(module_input_error)?;
     let base_versions = dep_versions(&base_file)?;
     let head_versions = dep_versions(&head_file)?;
     if base_versions.keys().ne(head_versions.keys()) {

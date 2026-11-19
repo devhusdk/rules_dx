@@ -2,7 +2,7 @@
 
 load("//cc/private:clang_syntax.bzl", "clang_syntax_argv", "clang_syntax_source", "clang_tidy_argv", "cuda_tidy_argv")
 load("//cc/private/toolchain:bindings.bzl", "cc_compiler_identity")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 _CLANG = "external/llvm/bin/clang"
 

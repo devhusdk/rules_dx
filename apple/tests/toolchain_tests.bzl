@@ -2,7 +2,7 @@
 
 load("//apple/private/ios:defs.bzl", "CELL_SETTINGS", "DEVICE_ENV", "SIMULATOR_ENV", "apple_extra_toolchains", "cell_platforms", "cell_settings", "deployment_env", "framework_linkopts", "ios_platform_errors", "platform_for", "platform_slice", "split_platform")
 load("//apple/private/ios:validate.bzl", "ios_arch_errors", "ios_arches", "ios_config_errors", "ios_default_config", "ios_deployment_errors", "ios_environment_errors", "ios_environments", "ios_framework_errors", "ios_sdk_errors", "ios_sdk_for", "ios_triple_errors", "ios_triple_for", "ios_xcode_errors")
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 
 _IOS_DEVICE = Label("@apple_support//platforms:ios_arm64")
 

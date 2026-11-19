@@ -1,4 +1,4 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag", "string_list_flag")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("//core/quality:default_policy.bzl", "default_workspace_policy")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:policy_subject.bzl", "policy_subject")
@@ -187,7 +187,7 @@ label_flag(
 
 label_flag(
     name = "tool_gofumpt",
-    build_setting_default = "@cc_mvdan_gofumpt//:gofumpt",
+    build_setting_default = "@dx_prebuilt//:dx_gofumpt",
     scope = "universal",
 )
 

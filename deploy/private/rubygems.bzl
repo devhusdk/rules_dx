@@ -2,7 +2,7 @@
 
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_rubygems.bzl", "rubygems_name_error", "rubygems_version_error")
 
 def _rubygems_config_impl(ctx):
@@ -72,7 +72,7 @@ def rubygems_deploy(name, gem, package = "", version = "", ruby = None, ruby_fil
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

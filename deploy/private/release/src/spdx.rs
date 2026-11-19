@@ -6,40 +6,97 @@ pub use dx_sbom::{
     purl_version, sha256_of,
 };
 
-pub fn document_error(document: &SpdxDocument, base: &str, digest: &str) -> Result<(), String> {
+use std::fmt;
+
+/// A release SPDX document that does not describe the artifact it ships with.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SpdxError {
+    Version,
+    DocumentId,
+    /// The license problem as `dx_sbom` words it.
+    License(String),
+    UnnamedPackage,
+    NoFile {
+        base: String,
+    },
+    FileDigest {
+        digest: String,
+        base: String,
+    },
+    NoPackage {
+        digest: String,
+    },
+    PackageDigest {
+        digest: String,
+        package: String,
+    },
+}
+
+impl fmt::Display for SpdxError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Version => f.write_str("sbom spdxVersion not SPDX-2.3"),
+            Self::DocumentId => write!(f, "sbom SPDX document id is not {DOCUMENT_ID}"),
+            Self::License(message) => f.write_str(message),
+            Self::UnnamedPackage => f.write_str("sbom SPDX names a package with no name"),
+            Self::NoFile { base } => write!(f, "sbom SPDX does not name artifact {base}"),
+            Self::FileDigest { digest, base } => write!(
+                f,
+                "sbom SPDX missing artifact digest {digest} for file {base}"
+            ),
+            Self::NoPackage { digest } => {
+                write!(f, "sbom SPDX names no package for artifact digest {digest}")
+            }
+            Self::PackageDigest { digest, package } => write!(
+                f,
+                "sbom SPDX missing artifact digest {digest} for package {package}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for SpdxError {}
+
+/// # Errors
+///
+/// Returns the first way the document fails to describe `base` with `digest`.
+pub fn document_error(document: &SpdxDocument, base: &str, digest: &str) -> Result<(), SpdxError> {
     if document.version != SPDX_VERSION {
-        return Err("sbom spdxVersion not SPDX-2.3".to_owned());
+        return Err(SpdxError::Version);
     }
     if document.id != DOCUMENT_ID {
-        return Err(format!("sbom SPDX document id is not {DOCUMENT_ID}"));
+        return Err(SpdxError::DocumentId);
     }
     if let Some(error) = license_error("dataLicense", &document.data_license) {
-        return Err(error);
+        return Err(SpdxError::License(error));
     }
     for package in &document.packages {
         if package.name.is_empty() {
-            return Err("sbom SPDX names a package with no name".to_owned());
+            return Err(SpdxError::UnnamedPackage);
         }
         if let Some(error) = license_error("licenseConcluded", &package.license_concluded) {
-            return Err(error);
+            return Err(SpdxError::License(error));
         }
         if let Some(error) = license_error("licenseDeclared", &package.license_declared) {
-            return Err(error);
+            return Err(SpdxError::License(error));
         }
     }
     identity_error(document, base, digest)
 }
 
-fn identity_error(document: &SpdxDocument, base: &str, digest: &str) -> Result<(), String> {
+fn identity_error(document: &SpdxDocument, base: &str, digest: &str) -> Result<(), SpdxError> {
     let file = document
         .files
         .iter()
         .find(|file| file_name(&file.name) == base)
-        .ok_or_else(|| format!("sbom SPDX does not name artifact {base}"))?;
+        .ok_or_else(|| SpdxError::NoFile {
+            base: base.to_owned(),
+        })?;
     if sha256_of(&file.checksums) != Some(digest) {
-        return Err(format!(
-            "sbom SPDX missing artifact digest {digest} for file {base}"
-        ));
+        return Err(SpdxError::FileDigest {
+            digest: digest.to_owned(),
+            base: base.to_owned(),
+        });
     }
     let package = document
         .packages
@@ -49,12 +106,14 @@ fn identity_error(document: &SpdxDocument, base: &str, digest: &str) -> Result<(
                 purl_version(purl) == Some(digest) && purl_name(purl) == Some(&package.name)
             })
         })
-        .ok_or_else(|| format!("sbom SPDX names no package for artifact digest {digest}"))?;
+        .ok_or_else(|| SpdxError::NoPackage {
+            digest: digest.to_owned(),
+        })?;
     if sha256_of(&package.checksums) != Some(digest) {
-        return Err(format!(
-            "sbom SPDX missing artifact digest {digest} for package {}",
-            package.name
-        ));
+        return Err(SpdxError::PackageDigest {
+            digest: digest.to_owned(),
+            package: package.name.clone(),
+        });
     }
     Ok(())
 }
@@ -128,11 +187,16 @@ mod tests {
         let doc = document("artifact.bin", digest);
         assert!(document_error(&doc, "artifact.bin", digest).is_ok());
         let err = document_error(&doc, "artifact.bin", "0").expect_err("wrong digest");
-        assert!(err.contains("missing artifact digest"), "got {err}");
+        assert!(matches!(err, SpdxError::FileDigest { .. }), "{err:?}");
+        assert_eq!(
+            err.to_string(),
+            "sbom SPDX missing artifact digest 0 for file artifact.bin"
+        );
         let err = document_error(&doc, "other.bin", digest).expect_err("wrong file");
-        assert!(
-            err.contains("does not name artifact other.bin"),
-            "got {err}"
+        assert!(matches!(err, SpdxError::NoFile { .. }), "{err:?}");
+        assert_eq!(
+            err.to_string(),
+            "sbom SPDX does not name artifact other.bin"
         );
     }
 
@@ -166,7 +230,8 @@ mod tests {
         let mut doc = document("artifact.bin", digest);
         doc.packages[0].license_concluded = "MIT AND".to_owned();
         let err = document_error(&doc, "artifact.bin", digest).expect_err("bad expression");
-        assert!(err.contains("licenseConcluded"), "got {err}");
+        assert!(matches!(err, SpdxError::License(_)), "{err:?}");
+        assert!(err.to_string().contains("licenseConcluded"), "got {err}");
         doc.packages[0].license_concluded = "MIT".to_owned();
         doc.packages[0].license_declared = NOASSERTION.to_owned();
         assert!(document_error(&doc, "artifact.bin", digest).is_ok());

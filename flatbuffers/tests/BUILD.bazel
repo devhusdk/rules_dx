@@ -1,4 +1,5 @@
 # gazelle:ignore
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//cc:defs.bzl", "cc_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
@@ -7,7 +8,7 @@ load("//flatbuffers:defs.bzl", "flatbuffers_cc_library", "flatbuffers_conform_te
 load("//flatbuffers/private:conform.bzl", "flatbuffers_conform")
 load("//java:defs.bzl", "java_test")
 load("//rust:defs.bzl", "rust_test")
-load(":failure_tests.bzl", "flatbuffers_cc_stage_test", "flatbuffers_java_stage_test", "flatbuffers_stage_args_test", "flatbuffers_undeclared_java_test", "flatbuffers_undeclared_rust_test")
+load(":failure_tests.bzl", "flatbuffers_cc_stage_test", "flatbuffers_chain_stage_test", "flatbuffers_java_stage_test", "flatbuffers_stage_args_test", "flatbuffers_undeclared_java_test", "flatbuffers_undeclared_rust_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -304,4 +305,37 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+# Three libraries in one package, each including the previous one by a relative path.
+flatbuffers_library(
+    name = "chain_a",
+    srcs = ["fixtures/chain/a.fbs"],
+)
+
+flatbuffers_library(
+    name = "chain_b",
+    srcs = ["fixtures/chain/b.fbs"],
+    deps = [":chain_a"],
+)
+
+flatbuffers_library(
+    name = "chain_c",
+    srcs = ["fixtures/chain/c.fbs"],
+    deps = [":chain_b"],
+)
+
+flatbuffers_chain_stage_test(
+    name = "chain_stage_test",
+    target_under_test = ":chain_c",
+)
+
+flatbuffers_cc_library(
+    name = "chain_cc",
+    deps = [":chain_c"],
+)
+
+build_test(
+    name = "chain_cc_test",
+    targets = [":chain_cc"],
 )

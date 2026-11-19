@@ -1,23 +1,30 @@
 """Julia API reference shards read from docstrings by the pinned Documenter.jl."""
 
 load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
-load("//core:rlocation.bzl", "repo_relative_path")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_row")
 
 visibility(["//..."])
 
+def _dirname(file):
+    return file.dirname
+
 def julia_shard_action(ctx, own, transitive_srcs, module, package, stem, driver, extract_tool):
-    """Runs the Documenter driver and the extractor for one Julia library."""
-    own = sorted([f for f in own if f.extension == "jl"], key = lambda f: f.path)
+    """Runs the Documenter driver and the extractor for one Julia library.
+
+    own and transitive_srcs are depsets of Files.
+    """
     if not own:
         fail("julia_doc_shard " + str(ctx.label) + ": lib lists no .jl srcs")
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own])))
-    dirs = {}
-    for f in transitive_srcs:
-        dirs[f.dirname] = True
+    rows = ctx.actions.args()
+    rows.set_param_file_format("multiline")
+    rows.add_all(own, map_each = srcs_manifest_row)
+    ctx.actions.write(manifest, rows)
     paths = ctx.actions.declare_file(stem + ".load_path.txt")
-    ctx.actions.write(paths, "".join([d + "\n" for d in sorted(dirs.keys())]))
+    dirs = ctx.actions.args()
+    dirs.set_param_file_format("multiline")
+    dirs.add_all(transitive_srcs, map_each = _dirname, uniquify = True)
+    ctx.actions.write(paths, dirs)
 
     doc_json = ctx.actions.declare_file(stem + ".doc.json")
     args = ctx.actions.args()
@@ -28,7 +35,7 @@ def julia_shard_action(ctx, own, transitive_srcs, module, package, stem, driver,
     ctx.actions.run(
         executable = driver,
         arguments = [args],
-        inputs = depset(own + [manifest, paths], transitive = [depset(transitive_srcs)]),
+        inputs = depset([manifest, paths], transitive = [own, transitive_srcs]),
         outputs = [doc_json],
         mnemonic = "DxDocsDocumenter",
         progress_message = "Reading Julia API docs for %{label}",
@@ -58,8 +65,8 @@ def _julia_doc_shard_impl(ctx):
     package = ctx.attr.package or module
     action = julia_shard_action(
         ctx,
-        info.srcs.to_list(),
-        info.transitive_srcs.to_list(),
+        info.srcs,
+        info.transitive_srcs,
         module,
         package,
         ctx.label.name,

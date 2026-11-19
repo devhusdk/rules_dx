@@ -23,14 +23,26 @@ const BUILD_SCRIPT: &str = ":_bs_";
 /// Registry tools served by `dx_gazelle` instead of `dx_prebuilt`.
 const GAZELLE_TOOLS: &[&str] = &["gazelle"];
 
-/// The allowlist: binary labels the consumer may compile, and registry tools no hub takes as an asset tag.
+/// The allowlist: binary labels the consumer may compile, each with the consumer languages it
+/// applies to (none: every language), and registry tools no hub takes as an asset tag.
 #[derive(Debug, Default, PartialEq)]
 struct Allowlist {
-    labels: BTreeSet<String>,
+    labels: BTreeMap<String, BTreeSet<String>>,
     untagged: BTreeSet<String>,
 }
 
-/// Reads `label <canonical label>` and `untagged <tool>` lines; each needs a `#` reason.
+impl Allowlist {
+    /// The labels a `lang` consumer may compile.
+    fn labels_for(&self, lang: &str) -> BTreeSet<String> {
+        self.labels
+            .iter()
+            .filter(|(_, langs)| langs.is_empty() || langs.contains(lang))
+            .map(|(label, _)| label.clone())
+            .collect()
+    }
+}
+
+/// Reads `label <canonical label> [<lang>...]` and `untagged <tool>` lines; each needs a `#` reason.
 fn allowlist(text: &str) -> Result<Allowlist, String> {
     let mut list = Allowlist::default();
     for (number, line) in text.lines().enumerate() {
@@ -43,15 +55,22 @@ fn allowlist(text: &str) -> Result<Allowlist, String> {
             return Err(format!("line {}: no `# reason`: {line}", number + 1));
         }
         match entry.split_whitespace().collect::<Vec<_>>()[..] {
-            ["label", label] => list.labels.insert(label.to_owned()),
-            ["untagged", tool] => list.untagged.insert(tool.to_owned()),
+            ["label", label, ref langs @ ..] => {
+                list.labels.insert(
+                    label.to_owned(),
+                    langs.iter().map(|lang| (*lang).to_owned()).collect(),
+                );
+            }
+            ["untagged", tool] => {
+                list.untagged.insert(tool.to_owned());
+            }
             _ => {
                 return Err(format!(
-                    "line {}: want `label <label>` or `untagged <tool>`: {line}",
+                    "line {}: want `label <label> [<lang>...]` or `untagged <tool>`: {line}",
                     number + 1
                 ));
             }
-        };
+        }
     }
     Ok(list)
 }
@@ -209,7 +228,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     ]);
     assert!(run.status.success(), "bazel cquery: {}", run.combined());
     let found = compiled_binaries(&run.stdout);
-    let problems = problems(&found, &list.labels);
+    let problems = problems(&found, &list.labels_for(lang));
     assert!(
         problems.is_empty(),
         "{lang} consumer with host pins for {}:\n{}",
@@ -220,14 +239,30 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
 
 #[test]
 fn allowlist_lines_need_a_kind_and_a_reason() {
-    let list = allowlist("# header\nlabel @@rules_dx+//a:b  # why\nuntagged avro_union # jar\n\n")
-        .expect("parses");
+    let list = allowlist(
+        "# header\nlabel @@rules_dx+//a:b  # why\nlabel @@rules_dx+//l:c lua  # lua only\nuntagged avro_union # jar\n\n",
+    )
+    .expect("parses");
     assert_eq!(
         list,
         Allowlist {
-            labels: BTreeSet::from(["@@rules_dx+//a:b".to_owned()]),
+            labels: BTreeMap::from([
+                ("@@rules_dx+//a:b".to_owned(), BTreeSet::new()),
+                (
+                    "@@rules_dx+//l:c".to_owned(),
+                    BTreeSet::from(["lua".to_owned()])
+                ),
+            ]),
             untagged: BTreeSet::from(["avro_union".to_owned()]),
         }
+    );
+    assert_eq!(
+        list.labels_for("go"),
+        BTreeSet::from(["@@rules_dx+//a:b".to_owned()])
+    );
+    assert_eq!(
+        list.labels_for("lua"),
+        BTreeSet::from(["@@rules_dx+//a:b".to_owned(), "@@rules_dx+//l:c".to_owned()])
     );
     assert!(allowlist("label @@rules_dx+//a:b\n").is_err());
     assert!(allowlist("tool x # why\n").is_err());

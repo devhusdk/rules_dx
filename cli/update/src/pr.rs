@@ -52,14 +52,24 @@ pub struct GroupPlan {
     pub items: Vec<Item>,
 }
 
-/// Splits items into one plan per set, in branch order.
+/// Splits items into one plan per set, or one per package for sets in `by_package`.
 #[must_use]
-pub fn plan(items: &[Item]) -> Vec<GroupPlan> {
+pub fn plan(items: &[Item], by_package: &[String]) -> Vec<GroupPlan> {
     let mut plans: BTreeMap<String, GroupPlan> = BTreeMap::new();
     for item in items {
         let set = &item.candidate.set;
-        let branch = format!("dx-update/{}", slug(set));
-        let title = format!("Update {set} dependencies");
+        let (branch, title) = if by_package.contains(set) {
+            let package = &item.candidate.package;
+            (
+                package_branch(set, package),
+                format!("Update {set}:{package}"),
+            )
+        } else {
+            (
+                format!("dx-update/{}", slug(set)),
+                format!("Update {set} dependencies"),
+            )
+        };
         plans
             .entry(branch.clone())
             .or_insert_with(|| GroupPlan {
@@ -71,6 +81,35 @@ pub fn plan(items: &[Item]) -> Vec<GroupPlan> {
             .push(item.clone());
     }
     plans.into_values().collect()
+}
+
+/// Names the branch of the pull request for one package of a set.
+#[must_use]
+pub fn package_branch(set: &str, package: &str) -> String {
+    format!("dx-update/{}--{}", slug(set), slug(package))
+}
+
+/// Drops packages that have their own open pull request on one of `open` branches.
+#[must_use]
+pub fn leave_out(plans: &[GroupPlan], open: &[String]) -> Vec<GroupPlan> {
+    plans
+        .iter()
+        .filter_map(|group| {
+            let items: Vec<Item> = group
+                .items
+                .iter()
+                .filter(|item| {
+                    let own = package_branch(&item.candidate.set, &item.candidate.package);
+                    own == group.branch || !open.contains(&own)
+                })
+                .cloned()
+                .collect();
+            (!items.is_empty()).then(|| GroupPlan {
+                items,
+                ..group.clone()
+            })
+        })
+        .collect()
 }
 
 fn slug(text: &str) -> String {
@@ -221,7 +260,7 @@ mod tests {
 
     #[test]
     fn set_groups_share_a_branch() {
-        let got = plan(&items());
+        let got = plan(&items(), &[]);
         let names: Vec<_> = got.iter().map(|p| p.branch.as_str()).collect();
         assert_eq!(names, ["dx-update/bazel", "dx-update/cargo"]);
         assert_eq!(got[1].items.len(), 2);
@@ -230,14 +269,40 @@ mod tests {
 
     #[test]
     fn odd_characters_become_dashes() {
-        let got = plan(&[item("c++/x", "pkg", "2.0.0", Registry::Npm)]);
+        let got = plan(&[item("c++/x", "pkg", "2.0.0", Registry::Npm)], &[]);
         assert_eq!(got[0].branch, "dx-update/c---x");
-        assert_eq!(plan(&[]), [] as [crate::pr::GroupPlan; 0]);
+        assert_eq!(plan(&[], &[]), [] as [crate::pr::GroupPlan; 0]);
+    }
+
+    #[test]
+    fn a_package_selector_gets_its_own_branch() {
+        let got = plan(&items(), &sets(&["bazel"]));
+        let names: Vec<_> = got.iter().map(|p| p.branch.as_str()).collect();
+        assert_eq!(names, ["dx-update/bazel--rules_go", "dx-update/cargo"]);
+        assert_eq!(got[0].title, "Update bazel:rules_go");
+        assert_eq!(package_branch("npm", "@s/pkg"), "dx-update/npm---s-pkg");
+        assert!(!Scope::new(sets(&["bazel"])).covers("dx-update/bazel--rules_go"));
+    }
+
+    #[test]
+    fn the_full_set_leaves_out_packages_with_their_own_pull_request() {
+        let full = plan(&items(), &[]);
+        let open = sets(&["dx-update/bazel--rules_go", "dx-update/cargo--serde"]);
+        let got = leave_out(&full, &open);
+        let names: Vec<_> = got.iter().map(|p| p.branch.as_str()).collect();
+        assert_eq!(names, ["dx-update/cargo"]);
+        assert_eq!(got[0].items.len(), 1);
+        assert_eq!(got[0].items[0].candidate.package, "anyhow");
+        let own = plan(&items(), &sets(&["bazel"]));
+        assert_eq!(
+            leave_out(&own, &open)[0].branch,
+            "dx-update/bazel--rules_go"
+        );
     }
 
     #[test]
     fn body_lists_packages_and_lock_changes() {
-        let got = plan(&items()[..1]);
+        let got = plan(&items()[..1], &[]);
         let text = body(&got[0], &[(cargo_lock().into(), 4, 2)]);
         assert!(text.contains(
             "- cargo:serde 1.0.0 -> 2.0.0 (https://crates.io/crates/serde, age unknown)"
@@ -248,18 +313,21 @@ mod tests {
 
     #[test]
     fn body_links_compare_and_release_when_the_repo_is_known() {
-        let mut one = plan(&[item("npm", "left-pad", "2.0.0", Registry::Npm)]);
+        let mut one = plan(&[item("npm", "left-pad", "2.0.0", Registry::Npm)], &[]);
         one[0].items[0].candidate.repo = Some("o/left-pad".into());
         assert!(body(&one[0], &[]).contains(
             ": [compare](https://github.com/o/left-pad/compare/1.0.0...2.0.0), [release](https://github.com/o/left-pad/releases/tag/2.0.0)\n"
         ));
-        let plain = plan(&[item("npm", "left-pad", "2.0.0", Registry::Npm)]);
+        let plain = plan(&[item("npm", "left-pad", "2.0.0", Registry::Npm)], &[]);
         assert!(!body(&plain[0], &[]).contains("compare"));
     }
 
     #[test]
     fn body_uses_the_tags_when_set() {
-        let mut one = plan(&[item("go", "github.com/o/r/sub", "2.0.0", Registry::Npm)]);
+        let mut one = plan(
+            &[item("go", "github.com/o/r/sub", "2.0.0", Registry::Npm)],
+            &[],
+        );
         one[0].items[0].candidate.repo = Some("o/r".into());
         one[0].items[0].candidate.tags = Some(("sub/v1.0.0".into(), "sub/v2.0.0".into()));
         assert!(body(&one[0], &[]).contains(
@@ -271,7 +339,7 @@ mod tests {
     fn body_marks_prereleases() {
         let mut one = items()[..1].to_vec();
         one[0].candidate.prerelease = true;
-        let got = plan(&one);
+        let got = plan(&one, &[]);
         assert!(body(&got[0], &[]).contains(", age unknown, prerelease)"));
     }
 

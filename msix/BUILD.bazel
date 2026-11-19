@@ -41,6 +41,7 @@ real_source_target(
     markdown_siblings = ["//msix/tests/fixtures/msix_app:README.md"],
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
+    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(
@@ -51,6 +52,7 @@ real_source_target(
         "extensions.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//:__subpackages__"],
 )
 
 filegroup(

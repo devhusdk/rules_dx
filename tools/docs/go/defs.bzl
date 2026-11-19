@@ -76,7 +76,7 @@ docs_go_shard = rule(
         "tags_go": attr.string_list(doc = "Go build tags the build constraints are evaluated with."),
         "_driver": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/go/godoc:godoc_json"),
+            default = Label("@dx_prebuilt//:dx_godoc_json"),
             executable = True,
         ),
         "_extract": attr.label(

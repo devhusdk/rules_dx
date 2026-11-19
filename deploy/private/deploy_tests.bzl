@@ -1,11 +1,11 @@
 """Unit and analysis tests for the deploy boundary."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":deployment.bzl", "VALID_DEPLOY_BUILD_MODES")
 
 def deploy_observations(label, app = "", artifacts = [], build_mode = "release", file = "deploy_tool"):
-    """Renders the expected analysis observations for one dx_deployment subject."""
+    """Renders the expected analysis observations for one deployment subject."""
     fields = {
         "app": app,
         "artifacts": ",".join(artifacts),
@@ -22,7 +22,7 @@ def deploy_observations(label, app = "", artifacts = [], build_mode = "release",
     return "\n".join(lines)
 
 def deploy_analysis_test(name, subject, app = "", artifacts = [], build_mode = "release", file = "deploy_tool"):
-    """Checks the DxDeployInfo one dx_deployment subject in this package exposes."""
+    """Checks the DeployInfo one deployment subject in this package exposes."""
     starlark_test(
         name = name,
         mode = "analysis",
@@ -117,7 +117,7 @@ def _no_config_env_test_impl(ctx):
 _no_config_env_test = analysistest.make(_no_config_env_test_impl)
 
 def deploy_config_tests(name):
-    """Checks that dx_deployment exposes its config through DX_DEPLOY_CONFIG."""
+    """Checks that deployment exposes its config through DX_DEPLOY_CONFIG."""
     _config_env_test(
         name = name + "_env",
         size = "small",

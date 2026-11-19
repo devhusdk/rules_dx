@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use crate::{
@@ -69,11 +69,33 @@ fn read_tool_directory(
     Ok(())
 }
 
-/// Builds the backend tool for one validated request entry.
+/// Reads one tool file, or every file under a tool directory, into `out` at `rel`.
+fn stage_tool_file(
+    tool_id: &str,
+    rel: &str,
+    exec: &str,
+    out: &mut Vec<(String, Vec<u8>)>,
+) -> Result<(), RunnerError> {
+    let unreadable = |error: std::io::Error| RunnerError::UnreadableToolFile {
+        rel: rel.to_owned(),
+        tool: tool_id.to_owned(),
+        detail: error.to_string(),
+    };
+    if Path::new(exec).is_dir() {
+        read_tool_directory(rel, Path::new(exec), out).map_err(unreadable)
+    } else {
+        out.push((rel.to_owned(), std::fs::read(exec).map_err(unreadable)?));
+        Ok(())
+    }
+}
+
+/// Builds the backend tool for one validated request entry. File-list entries whose rel is a
+/// checked source or already staged are skipped.
 fn real_tool(
     tool_id: &str,
     entry: &RequestTool,
     cwd: Option<&Path>,
+    sources: &BTreeSet<&str>,
 ) -> Result<RealTool, RunnerError> {
     let binary = entry
         .binary
@@ -81,16 +103,26 @@ fn real_tool(
         .map(|binary| absolute(cwd, binary))
         .unwrap_or_default();
     let mut tool_files = Vec::with_capacity(entry.files.len());
+    let mut staged: BTreeSet<String> = BTreeSet::new();
     for (rel, exec) in &entry.files {
-        let unreadable = |error: std::io::Error| RunnerError::UnreadableToolFile {
-            rel: rel.clone(),
+        stage_tool_file(tool_id, rel, exec, &mut tool_files)?;
+        staged.insert(rel.clone());
+    }
+    for list in &entry.file_lists {
+        let unreadable = |detail: String| RunnerError::UnreadableToolFile {
+            rel: list.display().to_string(),
             tool: tool_id.to_owned(),
-            detail: error.to_string(),
+            detail,
         };
-        if Path::new(exec).is_dir() {
-            read_tool_directory(rel, Path::new(exec), &mut tool_files).map_err(unreadable)?;
-        } else {
-            tool_files.push((rel.clone(), std::fs::read(exec).map_err(unreadable)?));
+        let text = std::fs::read_to_string(list).map_err(|error| unreadable(error.to_string()))?;
+        for line in text.lines().filter(|line| !line.is_empty()) {
+            let (rel, exec) = line
+                .split_once('\t')
+                .ok_or_else(|| unreadable(format!("line {line:?} is not rel<TAB>exec")))?;
+            if sources.contains(rel) || !staged.insert(rel.to_owned()) {
+                continue;
+            }
+            stage_tool_file(tool_id, rel, exec, &mut tool_files)?;
         }
     }
     Ok(RealTool {
@@ -142,8 +174,16 @@ pub fn run_request(
     let sibling_files = read_inputs(&request.siblings, unreadable_sibling)?;
     let resolve_files = read_inputs(&request.resolves, unreadable_resolve)?;
     let mut tools: BTreeMap<String, RealTool> = BTreeMap::new();
+    let source_rels: BTreeSet<&str> = request
+        .sources
+        .iter()
+        .map(|(workspace, _)| workspace.as_str())
+        .collect();
     for (tool_id, entry) in &request.tools {
-        tools.insert(tool_id.clone(), real_tool(tool_id, entry, cwd.as_deref())?);
+        tools.insert(
+            tool_id.clone(),
+            real_tool(tool_id, entry, cwd.as_deref(), &source_rels)?,
+        );
     }
     let scratch_parent = request
         .scratch_parent
@@ -382,8 +422,9 @@ mod tests {
             upstream: Vec::new(),
             search_paths: Vec::new(),
             path_tools: Vec::new(),
+            file_lists: Vec::new(),
         };
-        let tool = real_tool("dialyzer", &entry, None).expect("tool");
+        let tool = real_tool("dialyzer", &entry, None, &BTreeSet::new()).expect("tool");
         assert_eq!(
             tool.tool_files,
             [
@@ -392,6 +433,60 @@ mod tests {
                 ("owned/0/ebin/sub/c.beam".to_owned(), b"c".to_vec()),
             ]
         );
+    }
+
+    #[test]
+    fn file_lists_stage_each_rel_once_and_skip_sources() {
+        let dir = tempfile::tempdir().expect("scratch");
+        let types = dir.path().join("dep.d.ts");
+        std::fs::write(&types, b"export {};").expect("file");
+        let config = dir.path().join("tsconfig.json");
+        std::fs::write(&config, b"{}").expect("file");
+        let list = dir.path().join("eslint-staged.txt");
+        std::fs::write(
+            &list,
+            format!(
+                "pkg/a.ts\t{config}\npkg/dep.d.ts\t{types}\npkg/tsconfig.json\t{config}\npkg/dep.d.ts\t{config}\n",
+                config = config.display(),
+                types = types.display(),
+            ),
+        )
+        .expect("list");
+        let entry = RequestTool {
+            binary: None,
+            config_rel: None,
+            edition: None,
+            dialect: None,
+            args: Vec::new(),
+            files: vec![("pkg/tsconfig.json".to_owned(), types.display().to_string())],
+            env: Vec::new(),
+            upstream: vec![PathBuf::from("out/eslint.diag")],
+            search_paths: Vec::new(),
+            path_tools: Vec::new(),
+            file_lists: vec![list],
+        };
+        let tool = real_tool("eslint", &entry, None, &BTreeSet::from(["pkg/a.ts"])).expect("tool");
+        assert_eq!(
+            tool.tool_files,
+            [
+                ("pkg/tsconfig.json".to_owned(), b"export {};".to_vec()),
+                ("pkg/dep.d.ts".to_owned(), b"export {};".to_vec()),
+            ]
+        );
+        let bad = dir.path().join("bad.txt");
+        std::fs::write(&bad, b"no-tab\n").expect("list");
+        let entry = RequestTool {
+            file_lists: vec![bad],
+            files: Vec::new(),
+            ..entry
+        };
+        match real_tool("eslint", &entry, None, &BTreeSet::new()) {
+            Err(RunnerError::UnreadableToolFile { detail, .. }) => {
+                assert!(detail.contains("no-tab"), "{detail}");
+            }
+            Err(other) => panic!("unexpected error: {other:?}"),
+            Ok(_) => panic!("a malformed file list must fail"),
+        }
     }
 
     #[test]
@@ -417,8 +512,9 @@ mod tests {
             upstream: vec![PathBuf::from("out/ruff.diag")],
             search_paths: vec![venv.clone()],
             path_tools: Vec::new(),
+            file_lists: Vec::new(),
         };
-        let tool = real_tool("ruff", &entry, cwd.as_deref()).expect("tool");
+        let tool = real_tool("ruff", &entry, cwd.as_deref(), &BTreeSet::new()).expect("tool");
         assert_eq!(tool.binary, PathBuf::from("/work/bin/ruff"));
         assert_eq!(tool.config_rel.as_deref(), Some("ruff.toml"));
         assert_eq!(tool.edition.as_deref(), Some("3.9"));
@@ -449,8 +545,10 @@ mod tests {
             upstream: vec![PathBuf::from("/abs/ty.diag")],
             search_paths: Vec::new(),
             path_tools: Vec::new(),
+            file_lists: Vec::new(),
         };
-        let tool = real_tool("ty", &upstream_only, cwd.as_deref()).expect("upstream only");
+        let tool = real_tool("ty", &upstream_only, cwd.as_deref(), &BTreeSet::new())
+            .expect("upstream only");
         assert_eq!(tool.binary, PathBuf::new());
         assert_eq!(tool.upstream_diagnostics, [PathBuf::from("/abs/ty.diag")]);
         let missing = RequestTool {
@@ -460,7 +558,7 @@ mod tests {
             )],
             ..upstream_only
         };
-        match real_tool("ty", &missing, cwd.as_deref()) {
+        match real_tool("ty", &missing, cwd.as_deref(), &BTreeSet::new()) {
             Err(RunnerError::UnreadableToolFile { rel, tool, detail }) => {
                 assert_eq!(rel, "ty.toml");
                 assert_eq!(tool, "ty");

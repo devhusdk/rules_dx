@@ -2,7 +2,7 @@
 
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_packagist.bzl", "packagist_composer_error", "packagist_name_error", "packagist_repository_error")
 
 def _packagist_config_impl(ctx):
@@ -57,7 +57,7 @@ def packagist_deploy(name, package, composer_json, repository_url, build_mode = 
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

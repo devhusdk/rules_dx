@@ -26,7 +26,7 @@ You pin it to a rules_dx commit.
 
    - `.github/workflows/ci.yml`. When it already exists, init only updates the rules_dx commit in `uses:`.
    - `.github/workflows/dx-update.yml`, when missing.
-   - `.github/workflows/release.yml`, when missing and a BUILD file declares a `dx_deployment`.
+   - `.github/workflows/release.yml`, when missing and a BUILD file calls `deployment` or a `*_deploy` macro from `@rules_dx//deploy:defs.bzl`.
 
    See [`dx init`](cli/commands/init.md).
 

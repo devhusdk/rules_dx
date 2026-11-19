@@ -1,6 +1,6 @@
 //! Tests for the API aggregator.
 
-use super::{Options, api_path, code, parse, relative, render, title};
+use super::{AggregateError, ArgsError, Options, api_path, code, parse, relative, render, title};
 use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind};
 
 fn args(list: &[&str]) -> Vec<String> {
@@ -101,12 +101,18 @@ fn parse_needs_a_shard_and_every_output() {
             records: "r".to_string(),
         }
     );
-    assert_eq!(parse(&full[4..]), Err("--shard is required".to_string()));
-    assert_eq!(parse(&full[..12]), Err("--records is required".to_string()));
-    assert_eq!(
-        parse(&args(&["--x", "y"])),
-        Err("unknown argument '--x'".to_string())
-    );
+    let error = parse(&full[4..]).unwrap_err();
+    assert!(matches!(&error, ArgsError::Required { flag } if flag == "--shard"));
+    assert_eq!(error.to_string(), "--shard is required");
+    let error = parse(&full[..12]).unwrap_err();
+    assert!(matches!(&error, ArgsError::Required { flag } if flag == "--records"));
+    assert_eq!(error.to_string(), "--records is required");
+    let error = parse(&args(&["--x", "y"])).unwrap_err();
+    assert!(matches!(&error, ArgsError::Unknown { flag } if flag == "--x"));
+    assert_eq!(error.to_string(), "unknown argument '--x'");
+    let error = parse(&args(&["--shard"])).unwrap_err();
+    assert!(matches!(error, ArgsError::MissingValue { .. }));
+    assert_eq!(error.to_string(), "--shard needs a value");
 }
 
 #[test]
@@ -263,16 +269,17 @@ fn without_a_source_url_the_source_is_plain_text() {
 
 #[test]
 fn duplicate_pages_and_empty_shards_fail() {
+    let error = render(&[shard(), shard()], "").unwrap_err();
+    assert!(matches!(&error, AggregateError::DuplicatePage { id } if id == "rust:demo:VERSION"));
     assert_eq!(
-        render(&[shard(), shard()], ""),
-        Err("two shards define the API page for 'rust:demo:VERSION'".to_string())
+        error.to_string(),
+        "two shards define the API page for 'rust:demo:VERSION'"
     );
     let mut empty = shard();
     empty.symbols.clear();
-    assert_eq!(
-        render(&[empty], ""),
-        Err("the shards name no symbols".to_string())
-    );
+    let error = render(&[empty], "").unwrap_err();
+    assert!(matches!(error, AggregateError::NoSymbols));
+    assert_eq!(error.to_string(), "the shards name no symbols");
 }
 
 #[test]
@@ -483,6 +490,8 @@ fn pages_that_differ_only_in_case_fail() {
     let mut shard = java_shard("");
     shard.symbols[1].id = "java:demo:a.circle".to_string();
     let error = render(&[shard], "").expect_err("collision");
+    assert!(matches!(error, AggregateError::CaseCollision { .. }));
+    let error = error.to_string();
     assert!(error.contains("differ only in case"), "{error}");
     assert!(
         error.contains("a.Circle") && error.contains("a.circle"),
@@ -497,7 +506,8 @@ fn dotnet_pages_that_differ_only_in_case_fail() {
         shard.symbols[0].id = format!("{language}:demo:a.Circle");
         shard.symbols[1].id = format!("{language}:demo:a.circle");
         let error = render(&[shard], "").expect_err("collision");
-        assert!(error.contains("differ only in case"), "{error}");
+        assert!(matches!(error, AggregateError::CaseCollision { .. }));
+        assert!(error.to_string().contains("differ only in case"));
     }
 }
 

@@ -54,7 +54,7 @@ load("@rules_dx//thrift:defs.bzl", "thrift_library", "thrift_cc_library", "thrif
 
 ### `thrift_library`
 
-Owns Apache Thrift schemas for dx lint. Includes resolve only from deps, relative to the including file or from the workspace root.
+Owns Apache Thrift schemas for dx lint. Includes resolve only from deps, relative to the including file within its package or from the workspace root.
 
 | Attribute | Type | Required | Description |
 | --- | --- | --- | --- |

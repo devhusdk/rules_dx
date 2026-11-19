@@ -60,6 +60,7 @@ switch that takes no value.
 - \"Also\" lists the other spellings of a flag.
 - A build setting is a flag you pass to Bazel as `--<setting>=<value>`. For an `alias`, \"Default\" names the \
 setting it forwards to.
+- `pinned` in \"Default\" means the tool rules_dx pins. Set the flag to your own label to replace it.
 ";
 
 /// The module name users load rules_dx labels from.
@@ -156,12 +157,14 @@ fn labels_sections(page: &mut String, labels_txt: &str) -> Result<(), String> {
     let mut toolchain_types = Vec::new();
     let mut hubs = Vec::new();
     let mut targets = Vec::new();
+    let mut runnables = Vec::new();
     for row in &rows {
         match row.rule {
             "platform" => platforms.push(absolute(row.label)),
             "toolchain_type" => toolchain_types.push(absolute(row.label)),
             "hub" => hubs.push([code(row.label), code(&row.default)]),
-            _ if !row.label.starts_with("//config:") => {
+            "runnable" => runnables.push([code(&absolute(row.label)), code(&row.default)]),
+            _ if !row.label.starts_with("//config:") && !row.rule.ends_with("_flag") => {
                 targets.push([code(&absolute(row.label)), code(row.rule)]);
             }
             _ => self::row(
@@ -172,7 +175,7 @@ fn labels_sections(page: &mut String, labels_txt: &str) -> Result<(), String> {
                     if row.default.is_empty() {
                         String::new()
                     } else {
-                        code(&setting_value(row.label, &row.default))
+                        default_cell(&setting_value(row.label, &row.default))
                     },
                     list(&row.values, ""),
                 ],
@@ -193,6 +196,11 @@ fn labels_sections(page: &mut String, labels_txt: &str) -> Result<(), String> {
     page.push_str("\n## Targets\n\n");
     page.push_str("| Target | Kind |\n| --- | --- |\n");
     for cells in &targets {
+        row(page, cells);
+    }
+    page.push_str("\n## Runnable targets\n\nRun these with `bazel run <target>`.\n\n");
+    page.push_str("| Target | Kind |\n| --- | --- |\n");
+    for cells in &runnables {
         row(page, cells);
     }
     Ok(())
@@ -280,6 +288,15 @@ fn row(page: &mut String, cells: &[String]) {
     page.push_str(&format!("| {} |\n", cells.join(" | ")));
 }
 
+/// A setting's default cell: a default inside rules_dx's private packages shows as `pinned`.
+fn default_cell(value: &str) -> String {
+    if value.contains("/private/") {
+        "pinned".to_owned()
+    } else {
+        code(value)
+    }
+}
+
 /// A code span that is safe inside a table cell.
 fn code(text: &str) -> String {
     format!("`{}`", text.replace('|', "\\|"))
@@ -320,9 +337,11 @@ mod tests {
             "//config:tool_hlint label_flag \"//haskell/private/tools/hlint/bin\"\n",
             "//config:toolchains bool_flag False\n",
             "//apple:macos_arm64 platform\n",
+            "//cuda:gpu_driver string_flag \"auto\" [\"auto\", \"none\"]\n",
+            "//cuda:is_sm_90 config_setting\n",
             "//lua:toolchain_type toolchain_type\n",
             "//:dx alias\n",
-            "//deploy:bootstrap_offline rust_binary\n",
+            "//deploy:bootstrap_offline runnable native_binary\n",
             "@crates hub @rules_dx//rust:extensions.bzl%cargo\n",
         );
         let page = render(cli, labels, "events.schema.json 4.0 sha256:aa\n").expect("page renders");
@@ -339,31 +358,43 @@ mod tests {
             "| `@rules_dx//config:config_tier` | `string_flag` | `standard` | `standard`, `strict` |",
             "| `@rules_dx//config:tool_dart` | `label_flag` | `@rules_dx//config:no_dart` |  |",
             "| `@rules_dx//config:tool_ruff` | `label_flag` | `@dx_tools//:ruff` |  |",
-            "| `@rules_dx//config:tool_hlint` | `label_flag` | `@rules_dx//haskell/private/tools/hlint/bin` |  |",
+            "| `@rules_dx//config:tool_hlint` | `label_flag` | pinned |  |",
             "| `@rules_dx//config:toolchains` | `bool_flag` | `False` |  |",
             "- `@rules_dx//apple:macos_arm64`",
+            "| `@rules_dx//cuda:gpu_driver` | `string_flag` | `auto` | `auto`, `none` |",
+            "| `@rules_dx//cuda:is_sm_90` | `config_setting` |",
             "- `@rules_dx//lua:toolchain_type`",
             "| `events.schema.json` | `4.0` |",
             "| `@crates` | `@rules_dx//rust:extensions.bzl%cargo` |",
             "| `@rules_dx//:dx` | `alias` |",
-            "| `@rules_dx//deploy:bootstrap_offline` | `rust_binary` |",
         ] {
             assert!(
                 page.lines().any(|got| got == line),
                 "missing {line:?} in\n{page}"
             );
         }
+        assert!(!page.contains("/private/"), "{page}");
         let settings = page
             .split_once("## Build settings")
             .and_then(|(_, rest)| rest.split_once("\n## "))
             .map(|(table, _)| table)
             .expect("a Build settings section");
-        for label in ["@crates", "//:dx", "bootstrap_offline"] {
+        for label in ["@crates", "//:dx", "bootstrap_offline", "is_sm_90"] {
             assert!(
                 !settings.contains(label),
                 "{label} in Build settings:\n{settings}"
             );
         }
+        let runnables = page
+            .split_once("## Runnable targets")
+            .map(|(_, rest)| rest.split_once("\n## ").map_or(rest, |(table, _)| table))
+            .expect("a Runnable targets section");
+        assert!(
+            runnables
+                .lines()
+                .any(|line| line == "| `@rules_dx//deploy:bootstrap_offline` | `native_binary` |"),
+            "{runnables}"
+        );
     }
 
     #[test]

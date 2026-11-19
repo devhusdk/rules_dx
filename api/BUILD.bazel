@@ -18,6 +18,11 @@ exports_files(
     visibility = ["//tools/ci:__pkg__"],
 )
 
+exports_files(
+    ["starlark.json"],
+    visibility = ["//cli/tests/entrypoint:__pkg__"],
+)
+
 filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),

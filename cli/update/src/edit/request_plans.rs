@@ -215,7 +215,7 @@ pub(super) fn plan_package_json(
     };
     let unsupported = |reason: String| EditError::unsupported_manifest("npm", reason);
     let root: serde_json::Value = serde_json::from_str(content)
-        .map_err(|_| unsupported("manifest is not valid JSON".to_owned()))?;
+        .map_err(|error| unsupported(format!("manifest is not valid JSON: {error}")))?;
     if !root.is_object() {
         return Err(unsupported("manifest root is not an object".to_owned()));
     }
@@ -384,7 +384,8 @@ impl JsonScan<'_> {
             let end = self.string_end()?;
             let key: String =
                 serde_json::from_str(self.text.get(start..end).ok_or_else(Self::bad)?)
-                    .map_err(|_| Self::bad())?;
+                    .ok()
+                    .ok_or_else(Self::bad)?;
             self.skip_ws();
             if !self.rest()?.starts_with(':') {
                 return Err(Self::bad());

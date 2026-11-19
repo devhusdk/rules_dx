@@ -12,7 +12,7 @@ TscInfo = provider(
         "inputs": "depset of File: what the ts_project's tsc action reads, empty for js_library.",
         "logs": "list of File: tsc diagnostics (`--pretty false`) of each checker, cwd-relative to the bin directory.",
         "statuses": "list of File: tsc exit code of each checker, in the order of logs.",
-        "tsconfig": "File: the bin copy of the ts_project's tsconfig, None for js_library.",
+        "tsconfig": "str: bin-relative path of the bin copy of the ts_project's tsconfig, None for js_library.",
     },
 )
 
@@ -135,21 +135,15 @@ def _tsc_impl(target, ctx):
     if OutputGroupInfo not in target or not hasattr(target[OutputGroupInfo], "_action_inputs"):
         fail("tsc: " + str(target.label) + " exposes no _action_inputs output group; the dx tsc aspect needs " + _RULES_TS)
     inputs = target[OutputGroupInfo]._action_inputs
-    tsconfig_short = ctx.rule.file.tsconfig.short_path
-    tsconfig = None
-    for f in inputs.to_list():
-        if f.short_path == tsconfig_short and not f.is_source:
-            tsconfig = f
-            break
-    if tsconfig == None:
-        fail("tsc: " + str(target.label) + " has no bin copy of " + tsconfig_short + " in _action_inputs; the dx tsc aspect needs " + _RULES_TS)
+    tsconfig = ctx.rule.file.tsconfig
+    tsconfig_path = tsconfig.path if tsconfig.is_source else bin_relative(ctx, tsconfig)
 
     stdout = ctx.actions.declare_file("dx_tsc/%s.stdout" % target.label.name)
     status = ctx.actions.declare_file("dx_tsc/%s.exit" % target.label.name)
     args = ctx.actions.args()
     args.add_all([a for a in attrs._options[OptionsInfo].args if a not in _VERBOSE_FLAGS])
     args.add_all(attrs.args)
-    args.add("--project", bin_relative(ctx, tsconfig))
+    args.add("--project", tsconfig_path)
     args.add("--noEmit")
     args.add("--pretty", "false")
     js_binary_lib.run_binary_action(
@@ -166,7 +160,7 @@ def _tsc_impl(target, ctx):
         },
         resource_set = dx_heavy_resources,
     )
-    return [TscInfo(logs = [stdout], statuses = [status], inputs = inputs, tsconfig = tsconfig)]
+    return [TscInfo(logs = [stdout], statuses = [status], inputs = inputs, tsconfig = tsconfig_path)]
 
 tsc_aspect = aspect(
     implementation = _tsc_impl,

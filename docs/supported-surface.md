@@ -766,6 +766,30 @@ Exit codes: `0`, `1`, `2`.
 | `@rules_dx//config:toolchains` | `bool_flag` | `False` |  |
 | `@rules_dx//config:warnings_as_errors` | `bool_flag` | `True` |  |
 | `@rules_dx//config:workspace` | `label_flag` | `@rules_dx//config:default_workspace_policy` |  |
+| `@rules_dx@*` | `hub` | `@rules_dx//go:extensions.bzl%go` |  |
+| `@rules_dx@ansible_collections` | `hub` | `@rules_dx//ansible:extensions.bzl%ansible` |  |
+| `@rules_dx@bicep` | `hub` | `@rules_dx//bicep:extensions.bzl%bicep` |  |
+| `@rules_dx@composer` | `hub` | `@rules_dx//php:extensions.bzl%composer` |  |
+| `@rules_dx@cpan` | `hub` | `@rules_dx//perl:extensions.bzl%cpan` |  |
+| `@rules_dx@crates` | `hub` | `@rules_dx//rust:extensions.bzl%cargo` |  |
+| `@rules_dx@dub` | `hub` | `@rules_dx//d:extensions.bzl%dub` |  |
+| `@rules_dx@dx_terraform_providers` | `hub` | `@rules_dx//terraform:extensions.bzl%terraform` |  |
+| `@rules_dx@fpm` | `hub` | `@rules_dx//fortran:extensions.bzl%fpm` |  |
+| `@rules_dx@gems` | `hub` | `@rules_dx//ruby:extensions.bzl%ruby` |  |
+| `@rules_dx@hackage` | `hub` | `@rules_dx//haskell:extensions.bzl%cabal` |  |
+| `@rules_dx@hex` | `hub` | `@rules_dx//elixir:extensions.bzl%hex` |  |
+| `@rules_dx@julia` | `hub` | `@rules_dx//julia:extensions.bzl%julia` |  |
+| `@rules_dx@maven` | `hub` | `@rules_dx//java:extensions.bzl%maven` |  |
+| `@rules_dx@npm` | `hub` | `@rules_dx//javascript:extensions.bzl%npm` |  |
+| `@rules_dx@nuget` | `hub` | `@rules_dx//csharp:extensions.bzl%nuget` |  |
+| `@rules_dx@opam` | `hub` | `@rules_dx//ocaml:extensions.bzl%opam` |  |
+| `@rules_dx@pnpm` | `hub` | `@rules_dx//javascript:extensions.bzl%pnpm` |  |
+| `@rules_dx@psgallery` | `hub` | `@rules_dx//powershell:extensions.bzl%powershell` |  |
+| `@rules_dx@pub_deps` | `hub` | `@rules_dx//dart:extensions.bzl%pub` |  |
+| `@rules_dx@pypi` | `hub` | `@rules_dx//python:extensions.bzl%uv` |  |
+| `@rules_dx@rocks` | `hub` | `@rules_dx//lua:extensions.bzl%luarocks` |  |
+| `@rules_dx@swiftpkg` | `hub` | `@rules_dx//swift:extensions.bzl%swiftpm` |  |
+| `@rules_dx@zig` | `hub` | `@rules_dx//zig:extensions.bzl%zig` |  |
 
 ## Platforms
 

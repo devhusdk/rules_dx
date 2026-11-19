@@ -5,6 +5,7 @@ load("//apple/private/ios:simulator.bzl", "declared_simulator")
 exports_files([
     "README.md",
     "defs.bzl",
+    "extensions.bzl",
     "lang.json",
     "pins.json",
 ])

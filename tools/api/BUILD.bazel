@@ -1,6 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core/modules:langs.bzl", "LANGS")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
+load(":bzl_srcs.bzl", "bzl_srcs")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -12,8 +13,10 @@ _DEPS = [
     "//cli/module_bazel:dx_module_bazel",
     "//cli/output:dx_output",
     "//cli/plan:dx_plan",
+    "//tools/api/stardoc:stardoc_output_proto_rs",
     "@crates//:serde",
     "@crates//:serde_json",
+    "@rules_rust_prost//private/3rdparty/crates:prost",
 ]
 
 _SNAPSHOT_SRCS = [
@@ -26,6 +29,57 @@ _LANG_BUILDS = ["//%s:BUILD.bazel" % lang for lang in sorted(LANGS)]
 
 _LANG_ENV = {"DX_API_LANG_BUILDS": " ".join(["$(rootpath %s)" % build for build in _LANG_BUILDS])}
 
+_STARLARK_SRCS = [
+    "//api_spec:defs.bzl",
+    "//apple:extensions.bzl",
+    "//avro:extensions.bzl",
+    "//bicep:defs.bzl",
+    "//bicep:extensions.bzl",
+    "//core:defs.bzl",
+    "//core:extensions.bzl",
+    "//dotnet:defs.bzl",
+    "//helm:defs.bzl",
+    "//lua:defs.bzl",
+    "//lua:extensions.bzl",
+    "//php:defs.bzl",
+    "//php:extensions.bzl",
+    "//powershell:extensions.bzl",
+    "//qt:extensions.bzl",
+    "//rego:defs.bzl",
+    "//sql:defs.bzl",
+    "//terraform:defs.bzl",
+    "//terraform:extensions.bzl",
+    "//zig:extensions.bzl",
+]
+
+_STARLARK_DOCS = {
+    "doc_" + src.removeprefix("//").removesuffix(".bzl").replace(":", "_"): src
+    for src in _STARLARK_SRCS
+}
+
+bzl_srcs(
+    name = "repo_bzl",
+    srcs = ["//:module_srcs"],
+)
+
+[
+    starlark_doc_extract(
+        name = name,
+        src = src,
+        render_main_repo_name = True,
+        deps = [
+            ":repo_bzl",
+            "@bazel_tools//tools:bzl_srcs",
+        ],
+    )
+    for name, src in _STARLARK_DOCS.items()
+]
+
+filegroup(
+    name = "starlark_docs",
+    srcs = [":%s.binaryproto" % name for name in _STARLARK_DOCS],
+)
+
 # Rewrites api/ and docs/supported-surface.md from the code. Run it when api_test says the public API changed.
 rust_binary(
     name = "update",
@@ -37,9 +91,9 @@ rust_binary(
     compile_data = _SNAPSHOT_SRCS,
     crate_name = "update",
     crate_root = "update.rs",
-    data = _LANG_BUILDS,
-    env = _LANG_ENV,
-    deps = _DEPS,
+    data = [":starlark_docs"] + _LANG_BUILDS,
+    env = _LANG_ENV | {"DX_API_STARLARK": "$(rlocationpaths :starlark_docs)"},
+    deps = _DEPS + ["@rules_rust//rust/runfiles"],
 )
 
 rust_test(
@@ -56,8 +110,10 @@ rust_test(
     data = [
         "//api:snapshot",
         "//docs:supported-surface.md",
+        ":starlark_docs",
     ] + _LANG_BUILDS,
     env = _LANG_ENV | {
+        "DX_API_STARLARK": "$(rlocationpaths :starlark_docs)",
         "DX_API_SNAPSHOT": "$(rlocationpaths //api:snapshot)",
         "DX_SURFACE_PAGE": "$(rlocationpath //docs:supported-surface.md)",
     },

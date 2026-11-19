@@ -1,0 +1,1624 @@
+[
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [],
+    "load": "@rules_dx//api_spec:defs.bzl",
+    "macros": [],
+    "providers": [
+      {
+        "fields": [
+          "files",
+          "roots"
+        ],
+        "name": "ApiSpecInfo"
+      }
+    ],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "codegen_path",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "out",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "package",
+            "type": "STRING"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "root",
+            "type": "LABEL"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "spec",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "api_spec_go_client",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "refs",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "api_spec_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "codegen_path",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "out",
+            "type": "STRING"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "root",
+            "type": "LABEL"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "spec",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "api_spec_python_client",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "codegen_path",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "out",
+            "type": "STRING"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "root",
+            "type": "LABEL"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "spec",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "api_spec_rust_client",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "codegen_path",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "out",
+            "type": "STRING"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "root",
+            "type": "LABEL"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "spec",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "api_spec_typescript_client",
+        "test": false
+      }
+    ]
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "apple",
+        "tag_classes": []
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//apple:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "avro_cc",
+        "tag_classes": []
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//avro:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [],
+    "load": "@rules_dx//bicep:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "bicep_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "cache_root",
+            "type": "STRING"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "digest",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "ref",
+            "type": "STRING"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "bicep_registry_module",
+        "test": false
+      }
+    ]
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "bicep",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "lock"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//bicep:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [
+      {
+        "attrs": [],
+        "name": "dx_aspect_note"
+      }
+    ],
+    "extensions": [],
+    "functions": [
+      {
+        "name": "display_label",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "label"
+          }
+        ]
+      },
+      {
+        "name": "expect_contains",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "haystack"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "needle"
+          }
+        ]
+      },
+      {
+        "name": "expect_equal",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "actual"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "expected"
+          }
+        ]
+      },
+      {
+        "name": "expect_false",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "actual"
+          }
+        ]
+      },
+      {
+        "name": "expect_match",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "value"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "want"
+          }
+        ]
+      },
+      {
+        "name": "expect_true",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "actual"
+          }
+        ]
+      },
+      {
+        "name": "fake_file",
+        "params": [
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "fields"
+          }
+        ]
+      },
+      {
+        "name": "label_string",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "label"
+          }
+        ]
+      },
+      {
+        "name": "starlark_binary",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "mode"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "checks"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "subjects"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "expected_observations"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "windows_expected_observations"
+          },
+          {
+            "default": "{}",
+            "mandatory": false,
+            "name": "file_checks"
+          },
+          {
+            "default": "{}",
+            "mandatory": false,
+            "name": "file_blocks"
+          },
+          {
+            "default": "{}",
+            "mandatory": false,
+            "name": "file_line_endings"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "starlark_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "mode"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "checks"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "subjects"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "expected_observations"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "windows_expected_observations"
+          },
+          {
+            "default": "{}",
+            "mandatory": false,
+            "name": "file_checks"
+          },
+          {
+            "default": "{}",
+            "mandatory": false,
+            "name": "file_blocks"
+          },
+          {
+            "default": "{}",
+            "mandatory": false,
+            "name": "file_line_endings"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//core:defs.bzl",
+    "macros": [],
+    "providers": [
+      {
+        "fields": [
+          "fields"
+        ],
+        "name": "DxAspectInfo"
+      },
+      {
+        "fields": [
+          "fields"
+        ],
+        "name": "DxConfigInfo"
+      },
+      {
+        "fields": [
+          "fields"
+        ],
+        "name": "DxSubjectInfo"
+      }
+    ],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "dx_gazelle",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "cpu",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "os",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "sha256",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "url",
+                "type": "STRING"
+              }
+            ],
+            "name": "asset"
+          },
+          {
+            "attrs": [],
+            "name": "from_source"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "library",
+                "type": "LABEL"
+              }
+            ],
+            "name": "language"
+          }
+        ]
+      },
+      {
+        "name": "dx_licenses",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "ids",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "{}",
+                "mandatory": false,
+                "name": "terms_sha256",
+                "type": "STRING_DICT"
+              }
+            ],
+            "name": "accept"
+          }
+        ]
+      },
+      {
+        "name": "dx_pins",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "build",
+                "type": "LABEL"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "crlf",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "dropped",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "{}",
+                "mandatory": false,
+                "name": "files",
+                "type": "LABEL_DICT_UNARY"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "key",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "patches",
+                "type": "LABEL_LIST"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "pins",
+                "type": "LABEL"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "required",
+                "type": "STRING_LIST"
+              }
+            ],
+            "name": "archive"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "pins",
+                "type": "LABEL"
+              }
+            ],
+            "name": "data"
+          },
+          {
+            "attrs": [
+              {
+                "default": "{}",
+                "mandatory": false,
+                "name": "aliases",
+                "type": "STRING_DICT"
+              },
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "build",
+                "type": "LABEL"
+              },
+              {
+                "default": "\"exec\"",
+                "mandatory": false,
+                "name": "compatible_with",
+                "type": "STRING"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "exec_aliases",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "pins",
+                "type": "LABEL"
+              },
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "toolchain_type",
+                "type": "LABEL"
+              }
+            ],
+            "name": "pin"
+          }
+        ]
+      },
+      {
+        "name": "dx_prebuilt",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "cpu",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "os",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "sha256",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "url",
+                "type": "STRING"
+              }
+            ],
+            "name": "asset"
+          },
+          {
+            "attrs": [],
+            "name": "from_source"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//core:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [],
+    "load": "@rules_dx//dotnet:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [],
+    "load": "@rules_dx//helm:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "\"default\"",
+            "mandatory": false,
+            "name": "namespace",
+            "type": "STRING"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "release_name",
+            "type": "STRING"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "subcharts",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "values",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "helm_library",
+        "test": false
+      }
+    ]
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "name": "lua_bench",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "deps"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "lua_binary",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "lua_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "lua_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//lua:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "lua",
+        "tag_classes": []
+      },
+      {
+        "name": "luarocks",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "lock"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//lua:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "name": "php_bench",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "data"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "env"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "php_binary",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "php_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "php_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//php:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "composer",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "lock"
+          }
+        ]
+      },
+      {
+        "name": "php",
+        "tag_classes": []
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//php:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "powershell",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "lock"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//powershell:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "qt",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "constraints",
+                "type": "LABEL_LIST"
+              },
+              {
+                "default": "\"linux\"",
+                "mandatory": false,
+                "name": "layout",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "spec",
+                "type": "LABEL"
+              }
+            ],
+            "name": "cell"
+          },
+          {
+            "attrs": [
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "mirror",
+                "type": "STRING"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "runtime_mirror",
+                "type": "STRING"
+              },
+              {
+                "default": "\"6.12.0\"",
+                "mandatory": false,
+                "name": "version",
+                "type": "STRING"
+              }
+            ],
+            "name": "configure"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//qt:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "name": "rego_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//rego:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "rego_library",
+        "test": false
+      }
+    ]
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [],
+    "load": "@rules_dx//sql:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "dialect",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "sql_library",
+        "test": false
+      }
+    ]
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [],
+    "load": "@rules_dx//terraform:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "providers",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "terraform_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "source",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "target",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "version",
+            "type": "STRING"
+          }
+        ],
+        "executable": false,
+        "name": "terraform_provider",
+        "test": false
+      }
+    ]
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "terraform",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "lock"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//terraform:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "zig",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "lock"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//zig:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  }
+]

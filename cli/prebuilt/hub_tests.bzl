@@ -1,7 +1,7 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "GO_TOOLS", "LAUNCHER_SOURCE", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools")
+load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
 load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "TOOLS", "asset_name", "registry_lines")
 
@@ -48,13 +48,13 @@ def _checks():
     mirror = [a for a in mirrored if a.key == "macos_aarch64"][0]
     riscv = [a for a in mirrored if a.key == "linux_riscv64"][0]
     unpinned_build = consumer_build(unpinned)
-    launchers = plan_assets("launcher", "1.2.3", {"launcher": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {}, exe = "dx-launcher", repo_prefix = "dx_launcher_prebuilt_")
-    launcher_build = consumer_build(unpinned, launchers)
-    both_build = consumer_build(pinned, launchers)
-    launcher_root = plan_root([_mod("app", True, assets = [_tag(), _tag(name = "launcher")])], tools = ["dx", "launcher"])
-    go_root = plan_root([_mod("app", True, assets = [_tag(name = "go")])], tools = ["dx", "launcher", "go"])
+    launchers = plan_native_tools("1.2.3", {"launcher": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {})
+    launcher_build = with_native_tools(unpinned_build, launchers, consumer = True)
+    both_build = with_native_tools(pinned_build, launchers, consumer = True)
+    launcher_root = plan_root([_mod("app", True, assets = [_tag(), _tag(name = "launcher")])], tools = ["dx"] + NATIVE_TOOLS)
+    go_root = plan_root([_mod("app", True, assets = [_tag(name = "go")])], tools = ["dx", "go"])
     go_assets = plan_assets("go", "1.2.3", {}, URL_TEMPLATE, go_root.overrides["go"], exe = "dx-go", repo_prefix = "dx_go_prebuilt_")
-    go_build = consumer_build(unpinned, [], go_assets)
+    go_build = consumer_build(unpinned, go_assets)
     go_linux = [a for a in go_assets if a.key == "linux_x86_64"][0]
     go_all_pinned = plan_assets("go", "1.2.3", {"go": {key: _HASH for key in TOOLS["go"].platforms}}, URL_TEMPLATE, {}, exe = "dx-go", repo_prefix = "dx_go_prebuilt_")
     go_windows_arm = [a for a in go_all_pinned if a.key == "windows_aarch64"][0]
@@ -70,7 +70,7 @@ def _checks():
     native = plan_native_tools("1.2.3", {"topiary": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {})
     native_build = with_native_tools(pinned_build, native)
     flatc_build = with_native_tools(pinned_build, plan_native_tools("1.2.3", {"flatc": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {}))
-    flatc_root = plan_root([_mod("app", True, assets = [_tag(name = "flatc")])], tools = ["dx", "launcher", "go"] + NATIVE_TOOLS)
+    flatc_root = plan_root([_mod("app", True, assets = [_tag(name = "flatc")])], tools = ["dx", "go"] + NATIVE_TOOLS)
     release_tools = plan_native_tools("1.2.3", {"deadnix": {"windows_x86_64": _HASH}, "kcov": {"linux_arm64": _HASH, "linux_x86_64": _HASH}}, URL_TEMPLATE, {})
     release_tools_build = with_native_tools(alias_build(SOURCE_LABEL), release_tools)
     consumer_source = with_native_tools(alias_build(SOURCE_LABEL), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}), consumer = True)
@@ -83,11 +83,11 @@ def _checks():
     weeder_windows_arm = [a for a in pinned_haskell["weeder"] if a.key == "windows_aarch64"][0]
     runtime = plan_native_tools("1.2.3", {"runtime": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {})
     runtime_build = with_native_tools(pinned_build, runtime, consumer = True)
-    runtime_root = plan_root([_mod("app", True, assets = [_tag(name = "runtime")])], tools = ["dx", "launcher", "go"] + NATIVE_TOOLS)
+    runtime_root = plan_root([_mod("app", True, assets = [_tag(name = "runtime")])], tools = ["dx", "go"] + NATIVE_TOOLS)
     tree_sitter = plan_native_tools("1.2.3", {"tree_sitter": {"windows_arm64": _HASH}}, URL_TEMPLATE, {})
     tree_sitter_build = with_native_tools(alias_build(SOURCE_LABEL), tree_sitter, consumer = True)
     tree_sitter_windows_arm = tree_sitter["tree_sitter"][0]
-    tree_sitter_root = plan_root([_mod("app", True, assets = [_tag(name = "tree_sitter", os = "windows", cpu = "aarch64")])], tools = ["dx", "launcher", "go"] + NATIVE_TOOLS)
+    tree_sitter_root = plan_root([_mod("app", True, assets = [_tag(name = "tree_sitter", os = "windows", cpu = "aarch64")])], tools = ["dx", "go"] + NATIVE_TOOLS)
     return [
         expect_equal("tree-sitter assets", [asset_name(t, k) for t in ["tree_sitter", "tree_sitter_pkl"] for k in TOOLS[t].platforms], ["dx-tree-sitter-windows-arm64.dll", "dx-tree-sitter-pkl-windows-arm64.dll"]),
         expect_contains("the registry lists tree-sitter for fill_pins", registry_lines(), "tree_sitter windows_arm64 dx-tree-sitter-windows-arm64.dll"),
@@ -101,7 +101,7 @@ def _checks():
         expect_false("a tree-sitter download is not executable", tree_sitter_windows_arm.executable),
         expect_true("a native tool download is executable", topiary_windows_arm.executable),
         expect_equal("a root asset may name tree-sitter", tree_sitter_root.overrides.keys(), ["tree_sitter"]),
-        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]),
+        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]),
         expect_equal("runtime assets", [asset_name("runtime", k) for k in TOOLS["runtime"].platforms], ["dx-runtime-linux-arm64", "dx-runtime-linux-x86_64", "dx-runtime-macos-arm64", "dx-runtime-windows-arm64", "dx-runtime-windows-x86_64"]),
         expect_equal("the runtime runs on the target platform", TOOLS["runtime"].role, "target"),
         expect_contains("the registry lists the runtime for fill_pins", registry_lines(), "runtime windows_arm64 dx-runtime-windows-arm64"),
@@ -116,7 +116,7 @@ def _checks():
         expect_contains("the registry lists oapi-codegen for fill_pins", registry_lines(), "oapi_codegen linux_arm64 dx-oapi-codegen-linux-arm64"),
         expect_equal("capnp assets", [asset_name("capnp", k) for k in TOOLS["capnp"].platforms], ["dx-capnp-linux-arm64", "dx-capnp-linux-x86_64", "dx-capnp-macos-arm64", "dx-capnp-windows-arm64", "dx-capnp-windows-x86_64"]),
         expect_contains("the registry lists the code generators for fill_pins", registry_lines(), "thrift macos_arm64 dx-thrift-macos-arm64"),
-        expect_equal("native tools run on the exec platform except hpc_lcov, kcov and runtime", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov", "kcov", "runtime"]),
+        expect_equal("native tools run on the exec platform except hpc_lcov, kcov, launcher and runtime", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov", "kcov", "launcher", "runtime"]),
         expect_equal("release tool assets", [asset_name(t, k) for t in ["deadnix", "selene", "nixfmt", "kcov"] for k in TOOLS[t].platforms], ["dx-deadnix-linux-arm64", "dx-deadnix-linux-x86_64", "dx-deadnix-macos-arm64", "dx-deadnix-windows-x86_64", "dx-selene-linux-arm64", "dx-selene-linux-x86_64", "dx-selene-macos-arm64", "dx-selene-windows-x86_64", "dx-nixfmt-linux-arm64", "dx-nixfmt-macos-arm64", "dx-kcov-linux-arm64", "dx-kcov-linux-x86_64"]),
         expect_equal("python bundle assets", [asset_name("python_tools", k) for k in TOOLS["python_tools"].platforms], ["dx-python-tools-linux-arm64.tar.gz", "dx-python-tools-linux-x86_64.tar.gz", "dx-python-tools-macos-arm64.tar.gz", "dx-python-tools-windows-arm64.tar.gz", "dx-python-tools-windows-x86_64.tar.gz"]),
         expect_contains("the registry lists the python bundle for fill_pins", registry_lines(), "python_tools windows_arm64 dx-python-tools-windows-arm64.tar.gz"),
@@ -246,14 +246,15 @@ def _checks():
         expect_equal("a root launcher asset overrides only the launcher", sorted(launcher_root.overrides.keys()), ["dx", "launcher"]),
         expect_equal("the launcher is a target-platform asset", TOOLS["launcher"].role, "target"),
         expect_equal("launcher assets", [asset_name("launcher", k) for k in TOOLS["launcher"].platforms], ["dx-launcher-linux-arm64", "dx-launcher-linux-x86_64", "dx-launcher-macos-arm64", "dx-launcher-windows-arm64", "dx-launcher-windows-x86_64"]),
-        expect_contains("the root hub aliases the source launcher", alias_build(SOURCE_LABEL), 'name = "launcher",\n    actual = "@rules_dx//cli/launcher:exec_launcher",'),
-        expect_contains("an unpinned hub builds the launcher from source", unpinned_build, 'actual = "@rules_dx//cli/launcher:exec_launcher",'),
-        expect_contains("a pinned launcher runs its download", launcher_build, 'name = "launcher_linux_x86_64",\n    src = "@dx_launcher_prebuilt_linux_x86_64//file:dx-launcher",\n    out = "linux_x86_64/dx-launcher",'),
-        expect_contains("a windows launcher keeps .exe", launcher_build, 'out = "windows_x86_64/dx-launcher.exe",'),
-        expect_contains("the launcher selects its platform", launcher_build, '":linux_x86_64": ":launcher_linux_x86_64",'),
-        expect_contains("other targets build the launcher from source", launcher_build, '"//conditions:default": "{}",'.format(LAUNCHER_SOURCE)),
+        expect_contains("the root hub builds the launcher from source", source_native, 'name = "launcher",\n    actual = "@rules_dx//cli/launcher:exec_launcher",'),
+        expect_contains("an unpinned consumer hub builds the launcher from source", consumer_source, 'name = "launcher",\n    actual = "@rules_dx//cli/launcher:exec_launcher",'),
+        expect_equal("the hub serves the launcher once", both_build.count('name = "launcher",'), 1),
+        expect_contains("a pinned launcher runs its download", launcher_build, 'name = "launcher_linux_x86_64",\n    src = "@dx_launcher_prebuilt_linux_x86_64//file:launcher",\n    out = "linux_x86_64/launcher",'),
+        expect_contains("a windows launcher keeps .exe", launcher_build, 'out = "windows_x86_64/launcher.exe",'),
+        expect_contains("the launcher selects its platform", launcher_build, '":native_linux_x86_64": ":launcher_linux_x86_64",'),
+        expect_contains("other targets build the launcher from source", launcher_build, '"//conditions:default": "@rules_dx//cli/launcher:exec_launcher",'),
+        expect_equal("android and ios have no launcher download", [a.key for a in launchers["launcher"] if a.os in ["android", "ios"]], []),
         expect_false("an unpinned launcher platform downloads nothing", "dx_launcher_prebuilt_linux_aarch64" in launcher_build),
-        expect_equal("dx and launcher share one config_setting per platform", both_build.count('name = "linux_x86_64",\n    constraint_values'), 1),
         expect_equal("a valid root has no error", pinned_root.error, ""),
         expect_equal("a release builds dx-go for every platform", [line for line in registry_lines() if line.startswith("go ")], ["go linux_arm64 dx-go-linux-arm64", "go linux_x86_64 dx-go-linux-x86_64", "go macos_arm64 dx-go-macos-arm64", "go windows_arm64 dx-go-windows-arm64", "go windows_x86_64 dx-go-windows-x86_64"]),
         expect_equal("an unpinned go downloads only its overrides", [a.key for a in go_assets if a.repo], ["linux_x86_64"]),

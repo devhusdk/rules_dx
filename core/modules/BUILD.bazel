@@ -43,7 +43,9 @@ rust_test(
         "//:MODULE.bazel.lock",
         "//third_party/go:go.sum",
         "//tools/testing/hermetic:module_fragments",
+        "//tools/testing/nested_cache:all_locks",
     ],
+    env = {"DX_NESTED_LOCKS": "$(rlocationpaths //tools/testing/nested_cache:all_locks)"},
     deps = all_crate_deps(
         package_name = "core/modules_tests",
         normal = True,

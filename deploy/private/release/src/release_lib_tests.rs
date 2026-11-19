@@ -236,15 +236,19 @@ fn render_escapes_non_ascii_like_python() {
     let value = serde_json::json!({"name": "caf\u{e9}"});
     let central = dx_fingerprint::to_json_ascii_pretty(&value).expect("central pretty");
     assert!(central.contains("caf\\u00e9"));
-    assert_eq!(render_pretty(&value).expect("render"), central);
+    assert_eq!(pretty_json(&value).expect("render"), central);
 }
 
 #[test]
-fn render_pretty_reports_serialize_errors() {
-    let value = std::collections::BTreeMap::from([((1_u8, 2_u8), "pair")]);
-    let error = render_pretty(&value).expect_err("tuple keys are not JSON object keys");
-    assert!(error.starts_with("cannot render JSON: "), "{error}");
-    assert!(error.contains("key must be a string"), "{error}");
+fn bcr_render_errors_keep_their_source() {
+    let tuple_keys = std::collections::BTreeMap::from([((1_u8, 2_u8), "pair")]);
+    let error = BcrError::Render(
+        pretty_json(&tuple_keys).expect_err("tuple keys are not JSON object keys"),
+    );
+    let text = error.to_string();
+    assert!(text.starts_with("cannot render JSON: "), "{text}");
+    assert!(text.contains("key must be a string"), "{text}");
+    assert!(std::error::Error::source(&error).is_some());
 }
 
 #[test]
@@ -272,6 +276,9 @@ fn write_helpers_round_trip_digests() {
         std::fs::read_to_string(&bcr_out).expect("read bcr"),
         render_bcr_source("rules_dx", "1.2.3").expect("render")
     );
+    let err = write_bcr_source(&src.join("out.source.json"), "rules_dx", "1.2.3")
+        .expect_err("parent is a file");
+    assert!(matches!(err, BcrError::Io(_)), "got {err:?}");
     let err = write_spdx(&scratch.path().join("missing"), &spdx_out, "dx", "s")
         .expect_err("missing artifact");
     assert!(matches!(err, SbomError::Hash { .. }), "got {err:?}");
@@ -299,11 +306,22 @@ fn bcr_dry_run_matches_shell() {
     assert!(out.contains("presubmit: bazel test @rules_dx//..."));
     let ok = bcr_run("rules_dx", "0.0.0", &[], true, false).expect("dry");
     assert!(ok.contains("would submit, submitting nothing"));
-    assert!(bcr_run("other", "0.0.0", &[], true, false).is_err());
-    assert!(bcr_run("rules_dx", "0.0.0", &[], false, false).is_err());
+    let err = bcr_run("other", "0.0.0", &[], true, false).expect_err("other");
+    assert!(matches!(err, BcrError::InvalidModule { .. }), "got {err:?}");
+    let err = bcr_run("rules_dx", "0.0.0", &[], false, false).expect_err("0.0.0");
+    assert!(
+        matches!(err, BcrError::UnpublishableSubmission),
+        "got {err:?}"
+    );
     let err = bcr_run("rules_dx", "0.0.0", &[], false, true).expect_err("0.0.0");
-    assert!(err.contains("unpublishable (shape check only)"));
-    assert!(bcr_run("rules_dx", "1.2.3", &[], false, false).is_err());
+    assert!(
+        matches!(err, BcrError::UnpublishableSubmission),
+        "got {err:?}"
+    );
+    assert!(err.to_string().contains("unpublishable (shape check only)"));
+    let err = bcr_run("rules_dx", "1.2.3", &[], false, false).expect_err("unapproved");
+    assert!(matches!(err, BcrError::NotApproved), "got {err:?}");
+    assert!(err.to_string().contains("BCR_APPROVE=1"), "{err}");
     let live = bcr_run("rules_dx", "1.2.3", &["/x/y.json".to_owned()], false, true).expect("live");
     assert!(live.contains("\"schema\": \"release-ledger/v1\""));
     assert!(live.contains("\"subject\": \"rules_dx@1.2.3\""));
@@ -315,7 +333,14 @@ fn bcr_dry_run_matches_shell() {
 fn bcr_run_rejects_other_names() {
     for module in ["rules_dxx", "rules_dx_", "rules_dx_rust", "other"] {
         let err = bcr_run(module, "0.0.0", &[], true, false).expect_err(module);
-        assert!(err.contains("want 'rules_dx'"), "{module}: {err}");
+        assert!(
+            matches!(err, BcrError::InvalidModule { .. }),
+            "{module}: {err:?}"
+        );
+        assert!(
+            err.to_string().contains("want 'rules_dx'"),
+            "{module}: {err}"
+        );
     }
 }
 

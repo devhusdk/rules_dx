@@ -86,6 +86,9 @@ def javac_options(tokens):
 def _known_line(jar):
     return json.encode({"known": jar.path})
 
+def _jar_json(jar):
+    return json.encode(jar.path)
+
 def _classpath_line(jar):
     if not jar.owner:
         return None
@@ -93,24 +96,22 @@ def _classpath_line(jar):
 
 def _unused_deps_map(target, ctx, attrs, implicit = []):
     """Writes the direct dependencies with their compile jars, the known jars and the transitive classpath."""
-    deps = []
-    for dep in getattr(attrs, "deps", []):
-        if JavaInfo not in dep:
-            continue
-        jars = [j.path for j in dep[JavaInfo].compile_jars.to_list()]
-        if jars:
-            deps.append({"label": str(dep.label), "jars": jars})
     known = [android_sdk_jars(target)] + implicit
     toolchain = ctx.toolchains[_KT_TOOLCHAIN_TYPE]
     if toolchain:
         known.append(toolchain.jvm_stdlibs.transitive_compile_time_jars)
     name = target.label.name.removesuffix("_upstream")
-    header = {"package": target.label.package, "target": name, "label": str(target.label), "deps": deps}
+    header = {"package": target.label.package, "target": name, "label": str(target.label)}
 
     # Args expand the depsets only when the file is written, so analysis never flattens the classpath.
     content = ctx.actions.args()
     content.set_param_file_format("multiline")
     content.add(json.encode(header))
+    for dep in getattr(attrs, "deps", []):
+        if JavaInfo not in dep:
+            continue
+        line = '{"dep": %s, "jars": [%%s]}' % json.encode(str(dep.label)).replace("%", "%%")
+        content.add_joined(dep[JavaInfo].compile_jars, map_each = _jar_json, join_with = ",", format_joined = line, omit_if_empty = True)
     content.add_all(depset(transitive = known), map_each = _known_line)
     content.add_all(target[JavaInfo].transitive_compile_time_jars, map_each = _classpath_line)
     out = ctx.actions.declare_file("dx_jvm_deps/%s.unused_deps.jsonl" % target.label.name)
@@ -155,6 +156,7 @@ def _analyzer(target, ctx, attrs, library):
     direct_jars = []
     direct_targets = []
     for dep in deps:
+        # Bounded by the direct deps: each jar is paired with its dep's label.
         for jar in dep[JavaInfo].compile_jars.to_list():
             direct_jars.append(jar.path)
             direct_targets.append(str(dep.label))
@@ -218,6 +220,7 @@ def _kotlin_plugins(attrs):
     targets = list(getattr(attrs, "plugins", []))
     for dep in getattr(attrs, "deps", []):
         if KtJvmInfo in dep:
+            # Bounded by the direct deps' exported plugins: each needs its Target providers.
             targets += dep[KtJvmInfo].exported_compiler_plugins.to_list()
     plugins = {}
     configs = {}
@@ -243,6 +246,9 @@ def _kotlin_plugins(attrs):
         options += ["plugin:%s:%s=%s" % (plugin.id, o.key, o.value) for o in opts]
     return (depset(transitive = jars), options)
 
+def _kotlinc_jar(f):
+    return f.path if f.basename in _KOTLINC_JARS and f.dirname.endswith("/lib") else None
+
 def _kotlinc_check(target, ctx, attrs):
     toolchain = ctx.toolchains[_KT_TOOLCHAIN_TYPE]
     if toolchain == None or not hasattr(ctx.rule.files, "srcs"):
@@ -255,9 +261,7 @@ def _kotlinc_check(target, ctx, attrs):
     if plugin_data == None:
         return []
     (plugin_jars, plugin_options) = plugin_data
-    kotlin_home = [f for f in toolchain.kotlin_home.files.to_list() if f.basename in _KOTLINC_JARS and f.dirname.endswith("/lib")]
-    if not [f for f in kotlin_home if f.basename == "kotlin-compiler.jar"]:
-        return []
+    kotlin_home = toolchain.kotlin_home.files
     deps = [d for d in getattr(attrs, "deps", []) + getattr(attrs, "associates", []) if JavaInfo in d]
     classpath = depset(
         transitive = [d[JavaInfo].transitive_compile_time_jars for d in deps] +
@@ -275,7 +279,7 @@ def _kotlinc_check(target, ctx, attrs):
     args.add_all(sources, format_each = "source=%s")
     args.add_all(srcjars, format_each = "srcjar=%s")
     args.add_all(classpath, format_each = "classpath=%s")
-    args.add_all(kotlin_home, format_each = "compiler=%s")
+    args.add_all(kotlin_home, map_each = _kotlinc_jar, format_each = "compiler=%s")
     args.add_all(plugin_jars, format_each = "plugin=%s")
     args.add_all(plugin_options, format_each = "pluginopt=%s")
     args.add_all(friends, format_each = "friend=%s")
@@ -287,8 +291,8 @@ def _kotlinc_check(target, ctx, attrs):
         executable = ctx.attr._kotlinc_check.files_to_run,
         arguments = [args],
         inputs = depset(
-            sources + srcjars + kotlin_home,
-            transitive = [classpath, plugin_jars, friends],
+            sources + srcjars,
+            transitive = [kotlin_home, classpath, plugin_jars, friends],
         ),
         outputs = [log],
         execution_requirements = _WORKER,

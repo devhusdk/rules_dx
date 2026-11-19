@@ -260,6 +260,7 @@ def _prost_plan(target, ctx):
     groups = target[OutputGroupInfo]
     if "rust_generated_srcs" not in groups:
         return None
+    # Bounded by one prost library's generated sources.
     generated = groups.rust_generated_srcs.to_list()
     if len(generated) == 0:
         return None

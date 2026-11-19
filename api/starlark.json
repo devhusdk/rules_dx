@@ -1800,6 +1800,127 @@
   },
   {
     "aspects": [],
+    "extensions": [
+      {
+        "name": "cc",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "hosts",
+                "type": "STRING_LIST"
+              }
+            ],
+            "name": "host_tools"
+          },
+          {
+            "attrs": [
+              {
+                "default": "[\"x64\", \"arm64\"]",
+                "mandatory": false,
+                "name": "architectures",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "installer_manifest_integrity",
+                "type": "STRING"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "installer_manifest_sha256",
+                "type": "STRING"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "installer_manifest_url",
+                "type": "STRING"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "msvc_version",
+                "type": "STRING"
+              },
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "pins",
+                "type": "LABEL"
+              },
+              {
+                "default": "\"https://aka.ms/vs/stable/channel\"",
+                "mandatory": false,
+                "name": "visual_studio_channel_url",
+                "type": "STRING"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "visual_studio_installer_manifest_integrity",
+                "type": "STRING"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "visual_studio_installer_manifest_url",
+                "type": "STRING"
+              }
+            ],
+            "name": "msvc_runtime"
+          },
+          {
+            "attrs": [
+              {
+                "default": "[\"x64\", \"arm64\"]",
+                "mandatory": false,
+                "name": "architectures",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "pins",
+                "type": "LABEL"
+              },
+              {
+                "default": "{}",
+                "mandatory": false,
+                "name": "transformations",
+                "type": "STRING_DICT"
+              },
+              {
+                "default": "{}",
+                "mandatory": false,
+                "name": "windows_sdk_integrity",
+                "type": "STRING_DICT"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "windows_sdk_version",
+                "type": "STRING"
+              }
+            ],
+            "name": "windows_sdk"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//cc:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
     "extensions": [],
     "functions": [],
     "load": "@rules_dx//cloudformation:defs.bzl",
@@ -2990,6 +3111,2189 @@
     "providers": [],
     "repository_rules": [],
     "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "name": "archive_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "app"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "cloudflare_pages_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "account_id"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "project"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "branch"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "production_branch"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "site"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "wrangler"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "conan_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "recipe"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "remote"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "remote_url"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "conan"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "conan_files"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "consumer_archive",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "app"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "min_runtime"
+          },
+          {
+            "default": "\"dynamic\"",
+            "mandatory": false,
+            "name": "linkage"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "resources"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "runtime"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "notice"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "license_file"
+          },
+          {
+            "default": "True",
+            "mandatory": false,
+            "name": "check_imports"
+          },
+          {
+            "default": "\"tar.gz\"",
+            "mandatory": false,
+            "name": "format"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "platform"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "testonly"
+          }
+        ]
+      },
+      {
+        "name": "cpan_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "dist"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "crates_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "crate"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "\"fail\"",
+            "mandatory": false,
+            "name": "api_compat"
+          },
+          {
+            "default": "\"registry\"",
+            "mandatory": false,
+            "name": "api_baseline"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "dsym",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "binary"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "github_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "artifacts"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "release_tag"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "tag_from_head"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "\"commits\"",
+            "mandatory": false,
+            "name": "notes"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "notes_file"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "notes_diff"
+          },
+          {
+            "default": "\"fail\"",
+            "mandatory": false,
+            "name": "api_compat"
+          },
+          {
+            "default": "\"registry\"",
+            "mandatory": false,
+            "name": "api_baseline"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "go_modules"
+          },
+          {
+            "default": "\"auto\"",
+            "mandatory": false,
+            "name": "sign"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "registry_deploys"
+          },
+          {
+            "default": "True",
+            "mandatory": false,
+            "name": "attach"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "hackage_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "sdist"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "helm_chart_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "chart"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "registry"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "repository"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "hex_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "srcs"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "\"mix\"",
+            "mandatory": false,
+            "name": "tool"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "homebrew_tap_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "release"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "repo"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "tap"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "formula"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "binary"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "desc"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "homepage"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "linux_package_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "binary"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "version"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "[\"deb\", \"rpm\"]",
+            "mandatory": false,
+            "name": "formats"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "platform"
+          },
+          {
+            "default": "\"unknown <unknown@example.com>\"",
+            "mandatory": false,
+            "name": "maintainer"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "description"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "install_path"
+          },
+          {
+            "default": "{}",
+            "mandatory": false,
+            "name": "extra_files"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "release_tag"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "tag_from_head"
+          },
+          {
+            "default": "\"commits\"",
+            "mandatory": false,
+            "name": "notes"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "notes_file"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "luarocks_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "rockspec"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "maven_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "jar"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "pom"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "group"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "artifact"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sources"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "javadoc"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "\"fail\"",
+            "mandatory": false,
+            "name": "api_compat"
+          },
+          {
+            "default": "\"registry\"",
+            "mandatory": false,
+            "name": "api_baseline"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "npm_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"latest\"",
+            "mandatory": false,
+            "name": "dist_tag"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "\"https://registry.npmjs.org\"",
+            "mandatory": false,
+            "name": "registry_url"
+          },
+          {
+            "default": "\"public\"",
+            "mandatory": false,
+            "name": "access"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "provenance"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "\"fail\"",
+            "mandatory": false,
+            "name": "api_compat"
+          },
+          {
+            "default": "\"registry\"",
+            "mandatory": false,
+            "name": "api_baseline"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "nuget_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "nupkg"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "\"https://api.nuget.org/v3/index.json\"",
+            "mandatory": false,
+            "name": "registry_url"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "\"fail\"",
+            "mandatory": false,
+            "name": "api_compat"
+          },
+          {
+            "default": "\"registry\"",
+            "mandatory": false,
+            "name": "api_baseline"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "oci_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "image_tar"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "platform"
+          },
+          {
+            "default": "\"latest\"",
+            "mandatory": false,
+            "name": "image_tag"
+          },
+          {
+            "default": "\"ghcr.io\"",
+            "mandatory": false,
+            "name": "registry"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "repository"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "\"fail\"",
+            "mandatory": false,
+            "name": "scan"
+          },
+          {
+            "default": "\"HIGH\"",
+            "mandatory": false,
+            "name": "scan_severity"
+          },
+          {
+            "default": "\"auto\"",
+            "mandatory": false,
+            "name": "sign"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "oci_image_from_binary",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "binary"
+          },
+          {
+            "default": "\"static\"",
+            "mandatory": false,
+            "name": "base"
+          },
+          {
+            "default": "[\"@rules_dx//deploy:linux_amd64\"]",
+            "mandatory": false,
+            "name": "platforms"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main_class"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "runtime"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "structure_tests"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "testonly"
+          }
+        ]
+      },
+      {
+        "name": "octopus_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "srcs"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "project"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"Default\"",
+            "mandatory": false,
+            "name": "channel"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deploy_to"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "space"
+          },
+          {
+            "default": "\"https://octopus.example.invalid\"",
+            "mandatory": false,
+            "name": "registry_url"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "offline_bundle",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "advisory"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "launchers"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "advisory_meta"
+          }
+        ]
+      },
+      {
+        "name": "opam_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "package"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "version"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "opam_file"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "packagist_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "package"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "composer_json"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "repository_url"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "pdb",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "binary"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "pub_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "srcs"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "\"https://pub.dev\"",
+            "mandatory": false,
+            "name": "registry_url"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "\"fail\"",
+            "mandatory": false,
+            "name": "api_compat"
+          },
+          {
+            "default": "\"registry\"",
+            "mandatory": false,
+            "name": "api_baseline"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "name": "pypi_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "wheel"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sdist"
+          },
+          {
+            "default": "\"https://upload.pypi.org/legacy/\"",
+            "mandatory": false,
+            "name": "registry_url"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "\"fail\"",
+            "mandatory": false,
+            "name": "api_compat"
+          },
+          {
+            "default": "\"registry\"",
+            "mandatory": false,
+            "name": "api_baseline"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "api_package"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "api_src"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "qt_bundle_runtime",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "bundle"
+          },
+          {
+            "default": "\"@@+qt+dx_qt\"",
+            "mandatory": false,
+            "name": "qt"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "qt_consumer_archive",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "app"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "min_runtime"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "runtime"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "rubygems_deploy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "gem"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "ruby"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "ruby_files"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "size_budget"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_compatible_with"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "split_debug_info",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "binary"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//deploy:defs.bzl",
+    "macros": [],
+    "providers": [
+      {
+        "fields": [
+          "app",
+          "artifacts",
+          "build_mode",
+          "sbom",
+          "size_budget",
+          "size_stamp"
+        ],
+        "name": "DeployInfo"
+      },
+      {
+        "fields": [
+          "files",
+          "name",
+          "notice",
+          "provides",
+          "redistribution",
+          "source",
+          "version"
+        ],
+        "name": "NativeRuntimeInfo"
+      }
+    ],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "app",
+            "type": "LABEL"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "artifacts",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "\"release\"",
+            "mandatory": false,
+            "name": "build_mode",
+            "type": "STRING"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "config",
+            "type": "LABEL"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "deploy",
+            "type": "LABEL"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sbom",
+            "type": "LABEL"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "size_budget",
+            "type": "STRING"
+          }
+        ],
+        "executable": true,
+        "name": "deployment",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "notice",
+            "type": "LABEL"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "provides",
+            "type": "STRING_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "redistribution",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "source",
+            "type": "STRING"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "version",
+            "type": "STRING"
+          }
+        ],
+        "executable": false,
+        "name": "native_runtime",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "build_files",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "image",
+            "type": "LABEL"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "structure_tests",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "oci_image_quality",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "{}",
+            "mandatory": false,
+            "name": "mappings",
+            "type": "LABEL_STRING_DICT"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "processor",
+            "type": "LABEL"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "processor_args",
+            "type": "STRING_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "resources",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "artifact",
+            "type": "LABEL"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "go_mod",
+            "type": "LABEL"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "maven_lock",
+            "type": "LABEL"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "npm_lock",
+            "type": "LABEL"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package_name",
+            "type": "STRING"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "pip_lock",
+            "type": "LABEL"
+          },
+          {
+            "default": "\"rules_dx\"",
+            "mandatory": false,
+            "name": "supplier",
+            "type": "STRING"
+          }
+        ],
+        "executable": false,
+        "name": "sbom",
+        "test": false
+      }
+    ]
   },
   {
     "aspects": [],
@@ -4986,6 +7290,353 @@
       }
     ],
     "load": "@rules_dx//java:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "maven",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "coordinates",
+                "type": "STRING"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "exclusions",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "force_version",
+                "type": "STRING"
+              },
+              {
+                "default": "\"maven\"",
+                "mandatory": false,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "neverlink",
+                "type": "STRING"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "testonly",
+                "type": "STRING"
+              }
+            ],
+            "name": "amend_artifact"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "artifact",
+                "type": "STRING"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "classifier",
+                "type": "STRING"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "exclusions",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "force_version",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "group",
+                "type": "STRING"
+              },
+              {
+                "default": "\"maven\"",
+                "mandatory": false,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "neverlink",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "packaging",
+                "type": "STRING"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "testonly",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "version",
+                "type": "STRING"
+              }
+            ],
+            "name": "artifact"
+          },
+          {
+            "attrs": [
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "bom_modules",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "libs_versions_toml",
+                "type": "LABEL"
+              },
+              {
+                "default": "\"maven\"",
+                "mandatory": false,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "from_toml"
+          },
+          {
+            "attrs": [
+              {
+                "default": "\"@rules_android//rules:rules.bzl\"",
+                "mandatory": false,
+                "name": "aar_import_bzl_label",
+                "type": "STRING"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "additional_coursier_options",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "additional_netrc_lines",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "artifacts",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "boms",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "\"warn\"",
+                "mandatory": false,
+                "name": "duplicate_version_warning",
+                "type": "STRING"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "excluded_artifacts",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "exclusions",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "True",
+                "mandatory": false,
+                "name": "fail_if_repin_required",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "True",
+                "mandatory": false,
+                "name": "fail_on_missing_checksum",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "fetch_javadoc",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "fetch_sources",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "generate_compat_repositories",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "ignore_empty_files",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "index_file",
+                "type": "LABEL"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "known_contributing_modules",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "lock_file",
+                "type": "LABEL"
+              },
+              {
+                "default": "\"maven\"",
+                "mandatory": false,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "repin_instructions",
+                "type": "STRING"
+              },
+              {
+                "default": "[\"https://repo1.maven.org/maven2\"]",
+                "mandatory": false,
+                "name": "repositories",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "600",
+                "mandatory": false,
+                "name": "resolve_timeout",
+                "type": "INT"
+              },
+              {
+                "default": "\"coursier\"",
+                "mandatory": false,
+                "name": "resolver",
+                "type": "STRING"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "resolver_extra_dependencies",
+                "type": "LABEL_LIST"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "strict_visibility",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "[\"@rules_dx//visibility:private\"]",
+                "mandatory": false,
+                "name": "strict_visibility_value",
+                "type": "LABEL_LIST"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "use_credentials_from_home_netrc_file",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "use_starlark_android_rules",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "\"default\"",
+                "mandatory": false,
+                "name": "version_conflict_policy",
+                "type": "STRING"
+              }
+            ],
+            "name": "install"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "coordinates",
+                "type": "STRING"
+              },
+              {
+                "default": "\"maven\"",
+                "mandatory": false,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "target",
+                "type": "LABEL"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "visibility",
+                "type": "STRING_LIST"
+              }
+            ],
+            "name": "override"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//java:extensions.bzl",
     "macros": [],
     "providers": [],
     "repository_rules": [],
@@ -11745,6 +14396,25 @@
       }
     ],
     "load": "@rules_dx//typescript:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "typescript",
+        "tag_classes": []
+      },
+      {
+        "name": "typescript_playwright",
+        "tag_classes": []
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//typescript:extensions.bzl",
     "macros": [],
     "providers": [],
     "repository_rules": [],

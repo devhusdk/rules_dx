@@ -3,7 +3,7 @@ load("//core/modules:langs.bzl", "LANGS")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":bzl_srcs.bzl", "bzl_srcs")
-load(":public_builds.bzl", "public_builds")
+load(":public_builds.bzl", "public_builds", "public_bzl")
 
 package(default_visibility = VIS_TOOLS)
 
@@ -58,6 +58,7 @@ _STARLARK_SRCS = [
     "//bicep:extensions.bzl",
     "//capnproto:defs.bzl",
     "//cc:defs.bzl",
+    "//cc:extensions.bzl",
     "//cloudformation:defs.bzl",
     "//cmake:defs.bzl",
     "//core:extensions.bzl",
@@ -67,6 +68,7 @@ _STARLARK_SRCS = [
     "//cuda:extensions.bzl",
     "//d:defs.bzl",
     "//d:extensions.bzl",
+    "//deploy:defs.bzl",
     "//dockerfile:defs.bzl",
     "//dotnet:defs.bzl",
     "//dotnet:extensions.bzl",
@@ -84,6 +86,7 @@ _STARLARK_SRCS = [
     "//haskell:extensions.bzl",
     "//helm:defs.bzl",
     "//java:defs.bzl",
+    "//java:extensions.bzl",
     "//javascript:defs.bzl",
     "//javascript:extensions.bzl",
     "//julia:defs.bzl",
@@ -120,19 +123,38 @@ _STARLARK_SRCS = [
     "//terraform:extensions.bzl",
     "//thrift:defs.bzl",
     "//typescript:defs.bzl",
+    "//typescript:extensions.bzl",
     "//vue:defs.bzl",
     "//zig:defs.bzl",
     "//zig:extensions.bzl",
 ]
 
+# Public files whose upstream load closure has no visible bzl_library yet.
+_NOT_EXTRACTED = [
+    "//android:defs.bzl",
+    "//android:extensions.bzl",
+    "//dart:defs.bzl",
+    "//dart:extensions.bzl",
+    "//flutter:defs.bzl",
+    "//flutter:extensions.bzl",
+    "//python:extensions.bzl",
+    "//scala:defs.bzl",
+    "//swift:extensions.bzl",
+]
+
 # Upstream bzl_library targets that cover the load closure of the public files.
 _UPSTREAM_BZL = [
+    "@apple_support//configs:platforms",
+    "@apple_support//lib:apple_support",
     "@aspect_rules_jest//jest:defs",
     "@aspect_rules_js//npm:extensions",
+    "@aspect_rules_ts//ts:repositories",
     "@aspect_rules_ts//ts:defs",
     "@bazel_skylib//rules:copy_file",
     "@dx_pins_data//:pins.bzl",
+    "@dx_windows_support//windows:extensions",
     "@gazelle//:extensions",
+    "@llvm//platforms:common",
     "@rules_apple//apple:apple",
     "@rules_apple//apple:ios",
     "@rules_apple//apple:macos",
@@ -148,11 +170,15 @@ _UPSTREAM_BZL = [
     "@rules_haskell//haskell:haskell",
     "@rules_java//java/private:proto_support",
     "@rules_java//java:rules",
+    "@rules_jvm_external//:extensions.bzl",
+    "@rules_jvm_external//:implementation",
     "@rules_julia//julia:defs_bzl",
     "@rules_kotlin//kotlin/internal:internal",
     "@rules_kotlin//kotlin:kotlin",
+    "@rules_oci//oci:defs",
     "@rules_perl//perl:defs_bzl",
     "@rules_perl//perl:platforms_bzl",
+    "@rules_pkg//pkg:rules_pkg_lib",
     "@rules_powershell//powershell:defs_bzl",
     "@rules_ocaml//:dx_bzl_srcs",
     "@rules_py//py:defs",
@@ -206,6 +232,11 @@ bzl_srcs(
 
 public_builds(
     name = "public_builds",
+    srcs = ["//:module_srcs"],
+)
+
+public_bzl(
+    name = "public_bzl",
     srcs = ["//:module_srcs"],
 )
 
@@ -272,12 +303,16 @@ rust_test(
     data = [
         ":forwards",
         ":public_builds",
+        ":public_bzl",
         ":starlark_docs",
         "//api:snapshot",
         "//docs:supported-surface.md",
     ] + _LANG_BUILDS + _COMMAND_BUILDS,
     env = _BUILDS_ENV | {
         "DX_API_FORWARDS": "$(rlocationpaths :forwards)",
+        "DX_API_EXTRACTED": " ".join(_STARLARK_SRCS),
+        "DX_API_NOT_EXTRACTED": " ".join(_NOT_EXTRACTED),
+        "DX_API_PUBLIC_BZL": "$(rootpaths :public_bzl)",
         "DX_API_STARLARK": "$(rlocationpaths :starlark_docs)",
         "DX_API_SNAPSHOT": "$(rlocationpaths //api:snapshot)",
         "DX_SURFACE_PAGE": "$(rlocationpath //docs:supported-surface.md)",

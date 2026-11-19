@@ -24,8 +24,8 @@ def _real_rust_docs_aspect_impl(target, ctx):
     return [OutputGroupInfo(
         dx_results = depset([shard.shard]),
         dx_docs_shards = depset([shard.shard]),
-        rustdoc_json = depset(shard.outputs["rustdoc_json"].to_list()),
-        srcs_manifest = depset(shard.outputs["srcs_manifest"].to_list()),
+        rustdoc_json = shard.outputs["rustdoc_json"],
+        srcs_manifest = shard.outputs["srcs_manifest"],
     )]
 
 real_rust_docs_aspect = aspect(

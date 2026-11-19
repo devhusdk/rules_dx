@@ -20,10 +20,17 @@ filegroup(
     ], allow_empty = True),
     visibility = ["//visibility:public"],
 )
+
+filegroup(
+    name = "binary",
+    srcs = ["{binary}"],
+    visibility = ["//visibility:public"],
+)
 """
 
 def _doxygen_repo_impl(ctx):
     cell = json.decode(ctx.read(Label(":pins.json")))["cells"].get(host_cell(ctx))
+    binary = UNSUPPORTED_MARKER
     if cell == None:
         ctx.file(UNSUPPORTED_MARKER, UNSUPPORTED_REASON + "\n")
     else:
@@ -35,7 +42,8 @@ def _doxygen_repo_impl(ctx):
         )
         if not ctx.path(cell["binary"]).exists:
             fail("dx_doxygen: " + cell["urls"][0] + " does not ship " + cell["binary"])
-    ctx.file("BUILD.bazel", _BUILD)
+        binary = cell["binary"]
+    ctx.file("BUILD.bazel", _BUILD.format(binary = binary))
     return ctx.repo_metadata(reproducible = True)
 
 doxygen_repo = repository_rule(

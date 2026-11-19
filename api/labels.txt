@@ -60,29 +60,72 @@
 //:dx alias
 //:lang_json filegroup
 //:module_srcs filegroup
-//:package_json js_library
+//:package_json javascript_library
 //android:android_device platform
 //android:android_emulator platform
 //android:arm64-v8a platform
+//android:declared_emulator declared_emulator
+//android:emulator_serial string_flag ""
+//android:emulator_undeclared config_setting
+//android:is_device config_setting
+//android:is_emulator config_setting
+//android:llvm_readelf alias
 //android:x86_64 platform
+//apple:declared_simulator declared_simulator
+//apple:ios_arm64 alias
+//apple:ios_sim_arm64 alias
+//apple:ios_x86_64 alias
 //apple:macos_arm64 platform
 //apple:macos_x86_64 platform
+//apple:simulator_runtime string_flag ""
+//apple:simulator_undeclared config_setting
+//capnproto:runtime_java alias
+//capnproto:runtime_rust alias
+//capnproto:std filegroup
+//cc:compiler string_flag "llvm"
+//cc:gcc_linux_glibc alias
+//cc:gcc_linux_libstdcxx alias
+//cuda:cublas cuda_component_library
+//cuda:cufft cuda_component_library
+//cuda:curand cuda_component_library
+//cuda:gpu_compute_capability string_flag ""
+//cuda:gpu_driver string_flag ""
+//cuda:gpu_undeclared config_setting
+//d:coverage config_setting
+//dart:runfiles alias
 //deploy:bootstrap_offline rust_binary
 //deploy:linux_amd64 platform
 //deploy:linux_arm64 platform
 //erlang:toolchain_type toolchain_type
+//flatbuffers:reflection_fbs_schema alias
+//flatbuffers:runtime_java alias
+//flatbuffers:runtime_rust alias
+//fortran:kcov bool_flag False
+//fortran:kcov_build config_setting
+//haskell:base alias
 //lua:toolchain_type toolchain_type
 //msix:toolchain_type toolchain_type
 //msix:windows_arm64 platform
 //msix:windows_x86_32 platform
 //msix:windows_x86_64 platform
+//ocaml:bisect_ppx_rewriter alias
+//ocaml:dune alias
+//ocaml:emitter alias
 //php:exec_toolchain_type toolchain_type
+//php:runfiles php_library
 //php:toolchain_type toolchain_type
+//powershell:dx_coverage alias
+//powershell:pester alias
+//powershell:runfiles alias
 //qt:linux_arm64 platform
 //qt:linux_x86_64 platform
 //qt:macos_arm64 platform
 //qt:windows_arm64 platform
 //qt:windows_x86_64 platform
+//rust:build_script_cc_env build_script_cc_env
+//thrift:thrift_compiler alias
+//zig:kcov bool_flag False
+//zig:kcov_build config_setting
 @* hub @rules_dx//go:extensions.bzl%go
 @ansible_collections hub @rules_dx//ansible:extensions.bzl%ansible
 @bicep hub @rules_dx//bicep:extensions.bzl%bicep

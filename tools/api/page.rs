@@ -161,7 +161,7 @@ fn labels_sections(page: &mut String, labels_txt: &str) -> Result<(), String> {
             "platform" => platforms.push(absolute(row.label)),
             "toolchain_type" => toolchain_types.push(absolute(row.label)),
             "hub" => hubs.push([code(row.label), code(&row.default)]),
-            _ if !row.label.starts_with("//config:") => {
+            _ if !row.label.starts_with("//config:") && !row.rule.ends_with("_flag") => {
                 targets.push([code(&absolute(row.label)), code(row.rule)]);
             }
             _ => self::row(
@@ -320,6 +320,8 @@ mod tests {
             "//config:tool_hlint label_flag \"//haskell/private/tools/hlint/bin\"\n",
             "//config:toolchains bool_flag False\n",
             "//apple:macos_arm64 platform\n",
+            "//cuda:gpu_driver string_flag \"auto\" [\"auto\", \"none\"]\n",
+            "//cuda:is_sm_90 config_setting\n",
             "//lua:toolchain_type toolchain_type\n",
             "//:dx alias\n",
             "//deploy:bootstrap_offline rust_binary\n",
@@ -342,6 +344,8 @@ mod tests {
             "| `@rules_dx//config:tool_hlint` | `label_flag` | `@rules_dx//haskell/private/tools/hlint/bin` |  |",
             "| `@rules_dx//config:toolchains` | `bool_flag` | `False` |  |",
             "- `@rules_dx//apple:macos_arm64`",
+            "| `@rules_dx//cuda:gpu_driver` | `string_flag` | `auto` | `auto`, `none` |",
+            "| `@rules_dx//cuda:is_sm_90` | `config_setting` |",
             "- `@rules_dx//lua:toolchain_type`",
             "| `events.schema.json` | `4.0` |",
             "| `@crates` | `@rules_dx//rust:extensions.bzl%cargo` |",
@@ -358,7 +362,7 @@ mod tests {
             .and_then(|(_, rest)| rest.split_once("\n## "))
             .map(|(table, _)| table)
             .expect("a Build settings section");
-        for label in ["@crates", "//:dx", "bootstrap_offline"] {
+        for label in ["@crates", "//:dx", "bootstrap_offline", "is_sm_90"] {
             assert!(
                 !settings.contains(label),
                 "{label} in Build settings:\n{settings}"

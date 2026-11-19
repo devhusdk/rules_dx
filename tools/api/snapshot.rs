@@ -24,9 +24,6 @@ const EVENTS_SCHEMA: &str = include_str!("../../cli/output/schema/events.schema.
 const CONFIG_SCHEMA: &str = include_str!("../../cli/dx_config/schema/dx.schema.json");
 const CONFIG_BUILD: &str = include_str!("../../config/BUILD.bazel");
 
-/// The rules in a language's `BUILD.bazel` whose public targets are part of the API, besides `*_binary`.
-const LANG_RULES: [&str; 2] = ["platform", "toolchain_type"];
-
 const PUBLIC: &str = "//visibility:public";
 
 /// The `tools/visibility` constant that names `//visibility:public`.
@@ -236,32 +233,22 @@ pub fn package_of(path: &str) -> Result<String, String> {
         .ok_or_else(|| format!("{path} is not a package BUILD.bazel"))
 }
 
-/// One line per public target the API holds, with its label and rule: platforms, toolchain types and binaries
-/// other than `run_binary` in each language package, and every named target in each command package.
+/// One line per public named target in each language and command package, with its label and rule, and for a
+/// flag its default and allowed values.
 fn target_labels_txt(
     lang_builds: &[(String, String)],
     command_builds: &[(String, String)],
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let lang_rule = |rule: &str| {
-        LANG_RULES.contains(&rule) || (rule.ends_with("_binary") && rule != "run_binary")
-    };
     let mut rows = Vec::new();
-    for (package, build) in lang_builds {
-        rows.extend(public_targets(package, build, lang_rule)?);
-    }
-    for (package, build) in command_builds {
-        rows.extend(public_targets(package, build, |_| true)?);
+    for (package, build) in lang_builds.iter().chain(command_builds) {
+        rows.extend(public_targets(package, build)?);
     }
     rows.sort();
     Ok(rows.into_iter().map(|row| format!("{row}\n")).collect())
 }
 
-/// `//<package>:<name> <rule>` for each public named target in `build` whose rule `keep` accepts.
-fn public_targets(
-    package: &str,
-    build: &str,
-    keep: impl Fn(&str) -> bool,
-) -> Result<Vec<String>, String> {
+/// A row for each public named target in `build`.
+fn public_targets(package: &str, build: &str) -> Result<Vec<String>, String> {
     let file = ModuleFile::parse_build(build)
         .map_err(|error| format!("//{package}:BUILD.bazel: {error}"))?;
     let calls = file.calls();
@@ -271,9 +258,14 @@ fn public_targets(
         .any(|call| call.arg("default_visibility").is_some_and(lists_public));
     Ok(calls
         .iter()
-        .filter(|call| keep(&call.name))
         .filter(|call| call.arg("visibility").map_or(default_public, lists_public))
-        .filter_map(|call| Some(format!("//{package}:{} {}", call.str("name")?, call.name)))
+        .filter_map(|call| {
+            let name = call.str("name")?;
+            if call.name.ends_with("_flag") {
+                return Some(flag_row(package, name, call));
+            }
+            Some(format!("//{package}:{name} {}", call.name))
+        })
         .collect())
 }
 
@@ -298,29 +290,31 @@ fn lists_public(visibility: &Arg) -> bool {
     }
 }
 
-/// One line per flag in `config/BUILD.bazel`: its label, rule, default (or alias target) and allowed values.
+/// One line per flag in `config/BUILD.bazel`.
 fn labels_txt(build: &str) -> Result<String, dx_module_bazel::ModuleError> {
     let file = ModuleFile::parse_build(build)?;
     let mut rows: Vec<String> = file
         .calls()
         .iter()
         .filter(|call| FLAG_RULES.contains(&call.name.as_str()))
-        .filter_map(|call| {
-            let name = call.str("name")?;
-            let default = call
-                .arg("build_setting_default")
-                .or_else(|| call.arg("actual"))
-                .map_or_else(String::new, literal);
-            let mut row = format!("//config:{name} {} {default}", call.name);
-            if let Some(values) = call.arg("values") {
-                row.push(' ');
-                row.push_str(&literal(values));
-            }
-            Some(row)
-        })
+        .filter_map(|call| Some(flag_row("config", call.str("name")?, call)))
         .collect();
     rows.sort();
     Ok(rows.into_iter().map(|row| format!("{row}\n")).collect())
+}
+
+/// A flag's label, rule, default (or alias target) and allowed values. Values the BUILD file computes are left out.
+fn flag_row(package: &str, name: &str, call: &dx_module_bazel::Call) -> String {
+    let default = call
+        .arg("build_setting_default")
+        .or_else(|| call.arg("actual"))
+        .map_or_else(String::new, literal);
+    let mut row = format!("//{package}:{name} {} {default}", call.name);
+    if let Some(values @ Arg::List(_)) = call.arg("values") {
+        row.push(' ');
+        row.push_str(&literal(values));
+    }
+    row
 }
 
 /// An argument as written in the BUILD file.
@@ -612,7 +606,7 @@ filegroup(name = "not_a_flag")
     }
 
     #[test]
-    fn labels_list_public_platforms_and_toolchain_types() {
+    fn labels_list_every_public_language_target_and_flag() {
         let open = r#"
 package(default_visibility = ["//visibility:public"])
 
@@ -620,7 +614,15 @@ toolchain_type(name = "toolchain_type")
 
 platform(name = "windows_arm64", constraint_values = ["@platforms//os:windows"])
 
-filegroup(name = "not_api")
+filegroup(name = "srcs", visibility = ["//:__subpackages__"])
+
+alias(name = "runtime", actual = "//open/private:runtime")
+
+string_flag(name = "mode", build_setting_default = "fast", values = ["fast", "slow"])
+
+string_flag(name = "compiler", build_setting_default = "llvm", values = sorted(COMPILERS))
+
+config_setting(name = "is_fast", flag_values = {":mode": "fast"})
 "#;
         let closed = r#"
 package(default_visibility = ["//:__subpackages__"])
@@ -639,6 +641,10 @@ platform(name = "hidden", visibility = ["//visibility:private"])
             target_labels_txt(&builds, &[]).expect("BUILD files parse"),
             concat!(
                 "//closed:toolchain_type toolchain_type\n",
+                "//open:compiler string_flag \"llvm\"\n",
+                "//open:is_fast config_setting\n",
+                "//open:mode string_flag \"fast\" [\"fast\", \"slow\"]\n",
+                "//open:runtime alias\n",
                 "//open:toolchain_type toolchain_type\n",
                 "//open:windows_arm64 platform\n",
             )
@@ -693,6 +699,8 @@ alias(name = "shortcut", actual = ":maintainer")
             concat!(
                 "//:dx alias\n",
                 "//cmd:runnable rust_binary\n",
+                "//lang:generated run_binary\n",
+                "//lang:lib rust_library\n",
                 "//lang:tool rust_binary\n",
             )
         );

@@ -46,13 +46,12 @@ windows_select_test = analysistest.make(
 def _default_select_impl(ctx):
     env = analysistest.begin(ctx)
     executable = analysistest.target_under_test(env)[DefaultInfo].files_to_run.executable
-    asserts.equals(env, ctx.attr.basename, executable.basename)
+    asserts.equals(env, ctx.attr.tool.label, executable.owner)
     return analysistest.end(env)
 
 default_select_test = analysistest.make(
     _default_select_impl,
-    attrs = {"basename": attr.string(mandatory = True)},
-    # Pin a non-Windows platform: on a Windows host the default platform picks the shim.
+    attrs = {"tool": attr.label(default = "@npm_typescript//:tsc", executable = True, cfg = "target")},
     config_settings = {"//command_line_option:platforms": str(Label("//tools/platforms:linux_x86_64"))},
 )
 
@@ -60,10 +59,17 @@ _CASES = [
     ("tsc", "//typescript/private:tsc", "@npm_typescript//:tsc"),
     ("vite", "//javascript/private:vite_build_tool", "//javascript/private:vite_tool"),
     ("svelte_tsc", "//javascript/private/quality/bin:svelte_tsc_tool", "//javascript/private/quality/bin:svelte_tsc"),
+    ("protoc_gen_es", "//javascript/private/quality/bin:protoc_gen_es_tool", "//javascript/private/quality/bin:protoc_gen_es"),
+    ("typedoc", "//javascript/private/quality/bin:typedoc_tool", "//javascript/private/quality/bin:typedoc"),
+    ("svelte_component_meta", "//javascript/private/quality/bin:svelte_component_meta_tool", "//javascript/private/quality/bin:svelte_component_meta"),
 ]
 
 def windows_tool_tests(name):
-    """Defines shim, Windows select and default select tests for each wrapped tool."""
+    """Declares the shim and select tests for each js_build_tool case.
+
+    Args:
+        name: Name of the test suite.
+    """
     tests = []
     for case, alias, tool in _CASES:
         prefix = "{}_{}".format(name, case)
@@ -74,6 +80,6 @@ def windows_tool_tests(name):
             basename = Label(alias).name + "_windows.bat",
             size = "small",
         )
-        default_select_test(name = prefix + "_default_select", target_under_test = alias, basename = Label(tool).name, size = "small")
+        default_select_test(name = prefix + "_default_select", target_under_test = alias, tool = tool, size = "small")
         tests += [prefix + "_shim", prefix + "_windows_select", prefix + "_default_select"]
     native.test_suite(name = name, tests = tests)

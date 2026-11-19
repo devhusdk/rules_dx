@@ -57,6 +57,7 @@ rust_library(
         "//tools/ci/fill_pins:__pkg__",
         "//tools/docs/support_matrix:__pkg__",
         "//tools/testing:__pkg__",
+        "//tools/testing/consumer:__pkg__",
     ],
     # keep
     deps = [

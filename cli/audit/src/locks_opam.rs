@@ -12,6 +12,7 @@ enum Token {
 /// Reads the `depends:` list of an opam.locked file, keeping each package's `= "version"` pin.
 /// The OCaml compiler packages and `base-*` packages are skipped.
 pub fn parse_opam_locked(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let tokens = tokenize(text)?;
     let mut index = depends_start(&tokens)
         .ok_or_else(|| DxError::failure("invalid opam.locked: missing depends"))?;

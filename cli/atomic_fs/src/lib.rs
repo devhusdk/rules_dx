@@ -57,12 +57,17 @@ fn staging_prefix(path: &Path) -> String {
     format!(".{}.", truncated_name(path))
 }
 
+fn sibling_dir(path: &Path) -> std::path::PathBuf {
+    let parent = path.parent().map(dx_path::without_verbatim);
+    match parent {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => std::path::PathBuf::from("."),
+    }
+}
+
 /// True when candidate is a staging file that `write_atomic` makes next to target.
 pub fn is_staging_sibling(target: &Path, candidate: &Path) -> bool {
-    if candidate == target
-        || candidate.parent().map(dx_path::without_verbatim)
-            != target.parent().map(dx_path::without_verbatim)
-    {
+    if candidate == target || sibling_dir(candidate) != sibling_dir(target) {
         return false;
     }
     let Some(name) = candidate.file_name().and_then(|name| name.to_str()) else {
@@ -107,13 +112,8 @@ const STALE_STAGING_AGE: Duration = Duration::from_hours(1);
 /// Removes staging files next to target that an interrupted write left behind.
 /// Files younger than an hour are kept since another process may still be writing them.
 pub fn remove_stale_staging(target: &Path) {
-    let Some(parent) = target
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-    else {
-        return;
-    };
-    let Ok(entries) = std::fs::read_dir(parent) else {
+    let parent = sibling_dir(target);
+    let Ok(entries) = std::fs::read_dir(&parent) else {
         return;
     };
     for entry in entries.flatten() {
@@ -247,12 +247,19 @@ fn sync_parent(_path: &Path) -> io::Result<()> {
 }
 
 pub(crate) fn open_source(src: &Path) -> io::Result<File> {
-    File::open(src).map_err(|error| {
+    let file = File::open(src).map_err(|error| {
         io::Error::new(
             error.kind(),
             format!("cannot open {}: {error}", src.display()),
         )
-    })
+    })?;
+    if file.metadata()?.is_dir() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("cannot copy {}: it is a directory", src.display()),
+        ));
+    }
+    Ok(file)
 }
 
 pub(crate) fn persist_copy(
@@ -377,6 +384,35 @@ mod tests {
                     .into_owned()
             })
             .collect()
+    }
+
+    #[test]
+    fn copy_of_a_directory_names_the_source() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
+        let src = scratch.path().join("tree");
+        std::fs::create_dir_all(&src).expect("dir");
+        let dest = scratch.path().join("out").join("copy");
+        for result in [copy_atomic(&src, &dest), copy_scratch(&src, &dest)] {
+            let error = result.expect_err("a directory is not a file");
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+            assert!(error.to_string().contains("tree"), "{error}");
+        }
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn bare_file_names_share_a_directory_with_their_staging_files() {
+        let target = Path::new("a.txt");
+        assert!(is_staging_sibling(target, Path::new("./.a.txt.x1y2z3.tmp")));
+        assert!(is_staging_sibling(target, Path::new(".a.txt.x1y2z3.tmp")));
+        assert!(is_staging_sibling(
+            Path::new("./a.txt"),
+            Path::new(".a.txt.x1y2z3.tmp")
+        ));
+        assert!(!is_staging_sibling(
+            target,
+            Path::new("sub/.a.txt.x1y2z3.tmp")
+        ));
     }
 
     #[test]

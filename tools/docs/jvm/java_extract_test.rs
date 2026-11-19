@@ -339,6 +339,7 @@ fn the_adapter_fails_on_a_missing_source_or_classpath_jar() {
 
 fn convert(json: &Path, manifest: &Path, out: &Path) -> (i32, String) {
     let output = Command::new(dx_testing::env_file("DX_JVM_CONVERT"))
+        .arg("jvm_convert")
         .arg("--json")
         .arg(json)
         .arg("--language")

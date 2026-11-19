@@ -33,6 +33,7 @@ def _exec_native(tool):
         source = "@rules_dx//rust/private/quality/tools:" + tool + "_source",
         member = "",
         main_class = "",
+        library = "",
     )
 
 # Haskell tools: windows_arm64 runs the x86_64 build under emulation.
@@ -47,6 +48,7 @@ def _haskell(tool, role, source):
         source = source,
         member = "",
         main_class = "",
+        library = "",
     )
 
 # Hackage tools released only on the platforms with no upstream binary.
@@ -59,6 +61,7 @@ def _hackage(tool, platforms):
         source = "@rules_dx//haskell/private/tools/" + tool + "/bin:source",
         member = "",
         main_class = "",
+        library = "",
     )
 
 def _jar(tool, source, main_class):
@@ -70,6 +73,7 @@ def _jar(tool, source, main_class):
         source = source,
         member = "",
         main_class = main_class,
+        library = "",
     )
 
 def _native_exec(source):
@@ -81,6 +85,19 @@ def _native_exec(source):
         source = source,
         member = "",
         main_class = "",
+        library = "",
+    )
+
+def _library(tool, file, source):
+    return struct(
+        asset = "dx-" + tool.replace("_", "-") + "-{os}-{cpu}.dll",
+        role = "exec",
+        platforms = ["windows_arm64"],
+        fallbacks = {},
+        source = source,
+        member = "",
+        main_class = "",
+        library = file,
     )
 
 # Each tool:
@@ -94,6 +111,7 @@ def _native_exec(source):
 #   source: the label that builds the tool when there is no usable pin.
 #   member: the file to run inside an archive asset; "" for a bare binary.
 #   main_class: the entry point of a jar asset; "" for a native binary.
+#   library: the file name a shared library asset is loaded as; "" for an executable.
 TOOLS = {
     "dx": struct(
         asset = "dx-{os}-{cpu}",
@@ -103,6 +121,7 @@ TOOLS = {
         source = "@rules_dx//cli/cli:dx",
         member = "",
         main_class = "",
+        library = "",
     ),
     "gazelle": struct(
         asset = "dx-gazelle-{os}-{cpu}",
@@ -113,6 +132,7 @@ TOOLS = {
         source = "@dx_gazelle//:gazelle_source",
         member = "",
         main_class = "",
+        library = "",
     ),
     "go": _native_exec("@rules_dx//go/private/tools/analysis/dx_go:dx_go"),
     # Android and iOS targets have no asset and build the launcher from source.
@@ -124,6 +144,7 @@ TOOLS = {
         source = "@rules_dx//cli/launcher:exec_launcher",
         member = "",
         main_class = "",
+        library = "",
     ),
     # Android and iOS targets have no asset and build the runtime from source.
     "runtime": struct(
@@ -134,6 +155,7 @@ TOOLS = {
         source = "@rules_dx//cli/runtime:dx_runtime",
         member = "",
         main_class = "",
+        library = "",
     ),
     "capnp": _native_exec("@dx_capnproto//src/capnp:capnp_tool"),
     "flatc": _native_exec("@dx_flatbuffers//:flatc"),
@@ -147,6 +169,7 @@ TOOLS = {
         source = "@com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen",
         member = "",
         main_class = "",
+        library = "",
     ),
     "deadnix": _exec_native("deadnix"),
     "progenitor": _exec_native("progenitor"),
@@ -162,6 +185,8 @@ TOOLS = {
     "scaladoc_extract": _jar("scaladoc_extract", "@rules_dx//tools/docs/jvm/scaladoc:scaladoc_extract", "dx.docs.scaladoc.Main"),
     "hpc_lcov": _haskell("hpc_lcov", "target", "@rules_dx//haskell/private/coverage:hpc_lcov_source"),
     "weeder": _haskell("weeder", "exec", "@rules_dx//haskell/private/tools/weeder/bin:source"),
+    "tree_sitter": _library("tree_sitter", "tree-sitter.dll", "@jvm_tree_sitter//:tree-sitter.dll"),
+    "tree_sitter_pkl": _library("tree_sitter_pkl", "tree-sitter-pkl.dll", "@jvm_tree_sitter_pkl//:tree-sitter-pkl.dll"),
     "hlint": _hackage("hlint", ["linux_arm64", "macos_arm64"]),
     "ormolu": _hackage("ormolu", ["linux_arm64"]),
     "nixfmt": struct(
@@ -172,6 +197,7 @@ TOOLS = {
         source = "@rules_dx//core/quality/tools/nixfmt/bin:nixfmt_source",
         member = "",
         main_class = "",
+        library = "",
     ),
     "kcov": struct(
         asset = "dx-kcov-{os}-{cpu}",
@@ -181,6 +207,7 @@ TOOLS = {
         source = "@rules_dx//tools/coverage/kcov:kcov",
         member = "",
         main_class = "",
+        library = "",
     ),
     # Pinned only: the hub does not serve this bundle.
     "python_tools": struct(
@@ -191,6 +218,7 @@ TOOLS = {
         source = "",
         member = "",
         main_class = "",
+        library = "",
     ),
 }
 
@@ -198,8 +226,8 @@ TOOLS = {
 # this label on platforms with no pin instead.
 DEV_SOURCE_FALLBACK = {"kcov": "@rules_dx//tools/coverage/kcov:none"}
 
-# The tools released as one native binary per platform.
-NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "weeder"]
+# The tools released as one native binary or shared library per platform.
+NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])

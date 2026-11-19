@@ -7,10 +7,10 @@ load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 visibility(["//..."])
 
-_VUE_COMPONENT_META = Label("//javascript/private/quality/bin:vue_component_meta")
-_MDX_COMPONENT_META = Label("//javascript/private/quality/bin:mdx_component_meta")
-_SVELTE_COMPONENT_META = Label("//javascript/private/quality/bin:svelte_component_meta")
-_ASTRO_COMPONENT_META = Label("//javascript/private/quality/bin:astro_component_meta")
+_VUE_COMPONENT_META = Label("//javascript/private/quality/bin:vue_component_meta_tool")
+_MDX_COMPONENT_META = Label("//javascript/private/quality/bin:mdx_component_meta_tool")
+_SVELTE_COMPONENT_META = Label("//javascript/private/quality/bin:svelte_component_meta_tool")
+_ASTRO_COMPONENT_META = Label("//javascript/private/quality/bin:astro_component_meta_tool")
 _META_SCHEMA = "dx-component-meta/1"
 
 def _component_doc_shard_impl(ctx):
@@ -29,7 +29,7 @@ component_doc_shard = rule(
         "source_prefix": attr.string(doc = "Repo-relative directory of the project."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/components/extract:component_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

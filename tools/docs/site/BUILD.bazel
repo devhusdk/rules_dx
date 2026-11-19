@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
+load("//tools/docs/ir:dx_extract_test.bzl", "dx_extract_test")
 load("//tools/docs/rust:site.bzl", "rust_docs_api", "rust_docs_site")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":render.bzl", "mdbook_book", "mdbook_check", "mdbook_page_list")
@@ -214,15 +215,15 @@ rust_test(
         ":demo_polyglot_site",
         ":demo_site",
         ":user_site",
-        "//tools/docs/site/check:site_check",
         "@dx_docs_consumer//:site",
+        "@dx_prebuilt//:dx",
     ],
     env = {
         "DX_CONSUMER_SITE": "$(rootpath @dx_docs_consumer//:site)",
         "DX_DEMO_CHANGED_SITE": "$(rootpath :demo_changed_site)",
         "DX_DEMO_POLYGLOT_SITE": "$(rootpath :demo_polyglot_site)",
         "DX_DEMO_SITE": "$(rootpath :demo_site)",
-        "DX_SITE_CHECK": "$(rootpath //tools/docs/site/check:site_check)",
+        "DX_SITE_CHECK": "$(rootpath @dx_prebuilt//:dx)",
         "DX_USER_SITE": "$(rootpath :user_site)",
     },
     tags = ["no-coverage"],
@@ -245,8 +246,8 @@ rust_test(
     ),
     crate_name = "site_check_test",
     crate_root = "site_check_test.rs",
-    data = ["//tools/docs/site/check:site_check"],
-    env = {"DX_SITE_CHECK": "$(rootpath //tools/docs/site/check:site_check)"},
+    data = ["@dx_prebuilt//:dx"],
+    env = {"DX_SITE_CHECK": "$(rootpath @dx_prebuilt//:dx)"},
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
@@ -254,6 +255,31 @@ rust_test(
         "//tools/docs/ir/ir:documentation_ir",
         "//tools/testing:dx_testing",
     ],
+)
+
+dx_extract_test(
+    name = "demo_site_aggregate_dx_test",
+    size = "small",
+    mnemonic = "DxDocsAggregate",
+    subcommand = "site_aggregate",
+    target_under_test = ":demo_site_docs",
+)
+
+dx_extract_test(
+    name = "demo_site_check_dx_test",
+    size = "small",
+    mnemonic = "DxDocsCheck",
+    skip = 1,
+    subcommand = "site_check",
+    target_under_test = ":demo_site_docs",
+)
+
+dx_extract_test(
+    name = "demo_site_build_dx_test",
+    size = "small",
+    mnemonic = "DxMdBookSite",
+    subcommand = "site_build",
+    target_under_test = ":demo_site",
 )
 
 site_unit_tests(name = "site_unit")

@@ -168,6 +168,7 @@ def dotnet_shard_action(ctx, info, package, stem, driver, extract):
         executable = extract,
         arguments = [
             ctx.actions.args()
+                .add("dotnet_extract")
                 .add("--api", api_json)
                 .add("--language", language)
                 .add("--package", package)

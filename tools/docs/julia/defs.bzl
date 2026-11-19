@@ -44,6 +44,7 @@ def julia_shard_action(ctx, own, transitive_srcs, module, package, stem, driver,
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("julia_extract")
     extract.add("--json", doc_json)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -100,7 +101,7 @@ docs_julia_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/julia/extract:julia_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

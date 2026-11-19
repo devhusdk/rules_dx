@@ -6,6 +6,7 @@ pub const LUAROCKS_SET: &str = "luarocks";
 
 /// Reads the packages of a lock.
 pub fn parse_luarocks_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let invalid = |detail: &str| DxError::failure(format!("invalid lock: {detail}"));
     let lock: serde_json::Value =
         serde_json::from_str(text).map_err(|error| invalid(&error.to_string()))?;

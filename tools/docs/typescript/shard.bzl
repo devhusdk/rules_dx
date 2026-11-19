@@ -28,6 +28,7 @@ def typescript_shard_action(ctx, typedoc_json, package, source_prefix, config, s
     """Converts one project's TypeDoc JSON into a DocIr shard."""
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     args = ctx.actions.args()
+    args.add("typescript_extract")
     args.add("--typedoc", typedoc_json)
     args.add("--out", shard)
     args.add("--package", package)

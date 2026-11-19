@@ -113,6 +113,7 @@ def rust_shard_action(ctx, target, package, stem = None):
     _rustdoc_json(ctx, crate_info, target[LintsInfo] if LintsInfo in target else None, rustdoc_dir, features)
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     args = ctx.actions.args()
+    args.add("rust_extract")
     args.add("--json", rustdoc_dir.path + "/" + crate_info.name + ".json")
     args.add("--package", package)
     args.add("--crate", crate_info.name)

@@ -31,7 +31,7 @@ real_protobuf_docs_aspect = aspect(
         ),
         "_protobuf_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/protobuf/extract:protobuf_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -12,7 +12,6 @@ exports_files(
         "src/exports.rs",
         "src/lib.rs",
         "src/lib_tests.rs",
-        "src/main.rs",
         "src/types.rs",
     ],
     visibility = VIS_TOOLS,
@@ -32,32 +31,13 @@ rust_library(
     ),
     crate_name = "dx_docs_powershell_extract",
     crate_root = "src/lib.rs",
+    visibility = VIS_TOOLS_PUBLIC + ["//cli/cli:__pkg__"],
     deps = all_crate_deps(
         package_name = "tools/docs/powershell/powershell_extract",
         normal = True,
     ) + [
         "//tools/docs/ir/ir:documentation_ir",
         "@crates//:serde",
-    ],
-)
-
-rust_binary(
-    name = "powershell_extract",
-    srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "tools/docs/powershell/powershell_extract",
-        normal = True,
-    ),
-    crate_name = "powershell_extract",
-    crate_root = "src/main.rs",
-    deps = all_crate_deps(
-        package_name = "tools/docs/powershell/powershell_extract",
-        normal = True,
-    ) + [
-        ":dx_docs_powershell_extract",
-        "//tools/docs/ir/ir:documentation_ir",
-        "@crates//:serde",
-        "@crates//:serde_json",
     ],
 )
 

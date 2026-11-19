@@ -74,7 +74,7 @@ pub enum InstallError {
     },
     NoticeEmpty(String),
     NoticeManifest(dx_error::DxError),
-    Notice(String),
+    Notice(dx_release_tools::NoticeTextError),
 }
 
 impl fmt::Display for InstallError {
@@ -113,7 +113,7 @@ impl fmt::Display for InstallError {
             Self::Unreadable { input, path, .. } => write!(f, "{input} not readable: {path}"),
             Self::NoticeEmpty(path) => write!(f, "notice is empty: {path}"),
             Self::NoticeManifest(error) => error.fmt(f),
-            Self::Notice(detail) => f.write_str(detail),
+            Self::Notice(source) => source.fmt(f),
         }
     }
 }
@@ -131,8 +131,8 @@ impl std::error::Error for InstallError {
             | Self::CosignUnavailable { .. }
             | Self::SignatureFailed { .. }
             | Self::NoticeEmpty(_)
-            | Self::NoticeManifest(_)
-            | Self::Notice(_) => None,
+            | Self::NoticeManifest(_) => None,
+            Self::Notice(source) => Some(source),
         }
     }
 }
@@ -1301,9 +1301,16 @@ mod tests {
         .expect_err("no set")
         .to_string();
         assert!(err.contains("must be non-empty"), "got {err}");
-        let err = verify_notice(&notice, "demo-lib-a|cargo|1.0.0|MIT||\n")
-            .expect_err("no text file")
-            .to_string();
+        let err =
+            verify_notice(&notice, "demo-lib-a|cargo|1.0.0|MIT||\n").expect_err("no text file");
+        assert!(
+            matches!(
+                err,
+                InstallError::Notice(dx_release_tools::NoticeTextError::NoText { .. })
+            ),
+            "got {err:?}"
+        );
+        let err = err.to_string();
         assert!(err.contains("missing-notice-text"), "got {err}");
         let err = verify_notice(
             &notice,
@@ -1323,13 +1330,30 @@ mod tests {
             "got {err}"
         );
         let err = verify_notice("NOTICE for //demo:root\n", "# no packages\n")
-            .expect_err("empty manifest")
-            .to_string();
-        assert!(err.contains("lists no packages"), "got {err}");
-        let err = verify_notice("NOTICE for //demo:root\n", manifest)
-            .expect_err("missing entry")
-            .to_string();
-        assert!(err.contains("NOTICE missing entry"), "got {err}");
+            .expect_err("empty manifest");
+        assert!(
+            matches!(
+                err,
+                InstallError::Notice(dx_release_tools::NoticeTextError::NoEntries)
+            ),
+            "got {err:?}"
+        );
+        assert_eq!(
+            err.to_string(),
+            "dx_verify: notice manifest lists no packages; refusing empty NOTICE"
+        );
+        let err = verify_notice("NOTICE for //demo:root\n", manifest).expect_err("missing entry");
+        assert!(
+            matches!(
+                err,
+                InstallError::Notice(dx_release_tools::NoticeTextError::MissingHeader { .. })
+            ),
+            "got {err:?}"
+        );
+        assert_eq!(
+            err.to_string(),
+            "dx_verify: NOTICE missing entry header '=== demo-lib-a 1.0.0 (MIT) [cargo] ===' (fail closed before install)"
+        );
     }
 
     #[test]

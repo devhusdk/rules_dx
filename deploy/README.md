@@ -78,9 +78,12 @@ publishes only with `DX_DEPLOY_LIVE=1`.
 ## Attributes every rule takes
 
 `size_budget` is optional, such as `25MB`. Use a decimal `B`, `KB`, `MB` or
-`GB` amount. Every `*_deploy` macro that publishes files takes it. The build
-fails when those files together are larger, and prints both sizes in bytes.
-Empty means no budget.
+`GB` amount. Every `*_deploy` macro takes it except `homebrew_tap_deploy` and
+`linux_package_deploy`. The build fails when the published files together are
+larger, and prints both sizes in bytes. Empty means no budget.
+
+`sbom` is optional. It is a `dx_sbom` target, and every `*_deploy` macro takes
+it. `dx deploy` prints `SBOM of <label>: <file> <n> packages`.
 
 Every `*_deploy` macro ends with the same four attributes: `tags`,
 `visibility`, `testonly` and `target_compatible_with`. Each one is passed on
@@ -466,7 +469,8 @@ Examples: [Qt packaging](../qt/README.md#packaging) and
 
 ## crates_deploy
 
-Stages crate sources as a local vendor tree and publishes them to crates.io.
+Use `crates_deploy` to stage a crate as a local vendor tree and publish it to
+crates.io.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "crates_deploy")
@@ -477,33 +481,49 @@ crates_deploy(
 )
 ```
 
-- `name`: the crate name unless `package` is set.
-- `package`: the crate name when it differs from `name`.
 - `crate`: required. The crate files, including `Cargo.toml`.
+- `package`: the crate name. Defaults to `name`.
 - `version`: empty by default, which publishes the version in `Cargo.toml`.
-  When set, it must equal that version.
+  When you set it, it must equal that version.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
+- `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility).
 
-Default run stages `<name>-vendor/vendor/<name>/` and
-`<name>-vendor/registry/<name>/<version>/`. No credentials needed.
+Check it first. This needs no credentials and uploads nothing:
 
-Publish with `cargo` on `PATH`:
+```sh
+dx deploy //pkg:crates_demo
+```
+
+The dry run checks the staged `Cargo.toml` and stages
+`<name>-vendor/vendor/<name>/` and `<name>-vendor/registry/<name>/<version>/`.
+It runs `cargo package --list` when `cargo` is on `PATH`, and prints a skip
+line when it is not.
+
+Before you publish, you need:
+
+- `cargo` on `PATH`.
+- A crates.io API token for `CRATES_API_TOKEN`.
+
+Publish:
 
 ```sh
 CRATES_PUBLISH_APPROVED=1 CRATES_API_TOKEN=... \
 dx deploy --apply //pkg:crates_demo
 ```
 
-A live run refuses a `0.0.0` manifest version and `CRATES_ALLOW_DIRTY=1`.
-
-A default run checks the staged `Cargo.toml` and runs `cargo package --list`
-when `cargo` is on `PATH`. Without `cargo` it prints a skip line. It never
-uploads. Rerunning a published version: `cargo publish` fails with the
+If the version is already published, `cargo publish` fails with the
 registry's message and the run exits 1.
+
+A live run refuses, with exit code 1, when:
+
+- The version is `0.0.0`.
+- `CRATES_ALLOW_DIRTY=1` is set.
+- `CRATES_API_TOKEN` is missing.
+- `CRATES_PUBLISH_APPROVED=1` is missing.
 
 ## hex_deploy
 
-Stages an Elixir or Erlang package and publishes it to Hex.
+Use `hex_deploy` to stage an Elixir or Erlang package and publish it to Hex.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "hex_deploy")
@@ -515,33 +535,57 @@ hex_deploy(
 )
 ```
 
-- `name`: the target name, and the Hex package name unless `package` is set.
-- `srcs`: required. The package files, including `mix.exs` (`rebar.config` for `rebar3`).
+- `srcs`: required. The package files, including `mix.exs`, or
+  `rebar.config` for `rebar3`.
 - `package`: the Hex package name. Defaults to `name`.
 - `tool`: `mix` or `rebar3`. Defaults to `mix`.
-- `version`: defaults to empty, which publishes the version in `mix.exs` (the `vsn` in the `.app.src` for `rebar3`). When set, it must equal that version.
+- `version`: empty by default, which publishes the version in `mix.exs`, or
+  the `vsn` in the `.app.src` for `rebar3`. When you set it, it must equal
+  that version.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Default run stages `<name>-hex/package/`, checks the version, and runs
-`mix hex.build` (`rebar3 hex build`) when the tool is on `PATH`. Without it the
-run prints a skip line. `mix` also writes `<name>-hex/<name>-<version>.tar`.
-No credentials needed, nothing is uploaded.
+Check it first. This needs no credentials and uploads nothing:
 
-Publish with `mix` or `rebar3` on `PATH`:
+```sh
+dx deploy //pkg:hex_demo
+```
+
+The dry run stages `<name>-hex/package/` and checks the version. It runs
+`mix hex.build`, or `rebar3 hex build`, when the tool is on `PATH`, and
+prints a skip line when it is not. `mix` also writes
+`<name>-hex/<name>-<version>.tar`.
+
+Before you publish, you need:
+
+- `mix` or `rebar3` on `PATH`.
+- A Hex API key for `HEX_API_TOKEN`.
+
+Publish:
 
 ```sh
 HEX_PUBLISH_APPROVED=1 HEX_API_TOKEN=... \
 dx deploy --apply //pkg:hex_demo
 ```
 
-A live run refuses version `0.0.0`. It runs `mix hex.publish --yes`
-(`rebar3 hex publish --yes`) in a staged copy with an empty `HOME` and only
-`HEX_API_TOKEN` as the credential. `ERL_LIBS`, `ERL_ROOTDIR`, `HEX_HOME` and
-`MIX_HOME` pass through, so point them at the pinned OTP.
+This runs `mix hex.publish --yes`, or `rebar3 hex publish --yes`, in a
+staged copy with an empty `HOME`. `HEX_API_TOKEN` is the only credential it
+gets. These variables pass through, so point them at the pinned OTP:
+
+- `ERL_LIBS`
+- `ERL_ROOTDIR`
+- `HEX_HOME`
+- `MIX_HOME`
+
+A live run refuses, with exit code 1, when:
+
+- The version is `0.0.0`.
+- `HEX_API_TOKEN` is missing.
+- `HEX_PUBLISH_APPROVED=1` is missing.
 
 ## rubygems_deploy
 
-Builds a gem from its sources and pushes it to rubygems.org.
+Use `rubygems_deploy` to build a gem from its sources and push it to
+rubygems.org.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "rubygems_deploy")
@@ -552,38 +596,54 @@ rubygems_deploy(
 )
 ```
 
-- `name`: the gem name unless `package` is set. The gemspec must be
-  `<gem name>.gemspec`.
-- `package`: the gem name when it differs from `name`.
 - `gem`: required. The gemspec and the files it packs, such as a
-  `ruby_library`.
+  `ruby_library`. The gemspec must be `<gem name>.gemspec`.
+- `package`: the gem name. Defaults to `name`.
 - `version`: empty by default, which publishes `spec.version` from the
-  gemspec. When set, it must equal `spec.version`.
-- `ruby`: optional pinned `ruby` executable, such as `@ruby//:ruby_file`. The
-  `gem` next to it is used instead of the one on `PATH`.
-- `ruby_files`: the files that ruby needs, such as `@ruby//:files`.
+  gemspec. When you set it, it must equal `spec.version`.
+- `ruby`: optional. A pinned `ruby` executable, such as
+  `@ruby//:ruby_file`. The `gem` next to it is used instead of the one on
+  `PATH`.
+- `ruby_files`: the files that `ruby` needs, such as `@ruby//:files`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Default run needs `gem` on `PATH` unless `ruby` is set. It stages the sources, runs
-`gem build`, checks that the gemspec name and version match the target and
-that the gem packs exactly the sources (the gemspec itself excluded), then
-writes `<name>-<version>.gem` to the output directory. It never pushes. No
-credentials needed.
+Check it first. This needs no credentials and pushes nothing:
 
-Push with `gem` on `PATH` or from `ruby`:
+```sh
+dx deploy //pkg:rubygems_demo
+```
+
+The dry run needs `gem` on `PATH` unless `ruby` is set. It stages the
+sources and runs `gem build`. It checks that the gemspec name and version
+match the target, and that the gem packs exactly the sources, not counting
+the gemspec. It writes `<name>-<version>.gem` to the output directory.
+
+Before you publish, you need:
+
+- `gem` on `PATH`, or `ruby` set.
+- A rubygems.org API key for `RUBYGEMS_API_TOKEN`.
+
+Publish:
 
 ```sh
 RUBYGEMS_PUBLISH_APPROVED=1 RUBYGEMS_API_TOKEN=... \
 dx deploy --apply //pkg:rubygems_demo
 ```
 
-`RUBYGEMS_API_TOKEN` is sent to `gem push` as `GEM_HOST_API_KEY`. A live run
-refuses a `0.0.0` gemspec version. Rerunning a pushed version: rubygems.org refuses
-it, the run prints the last `gem` output lines and exits 1.
+The token reaches `gem push` as `GEM_HOST_API_KEY`. If the version is
+already pushed, rubygems.org refuses it. The run prints the last `gem`
+output lines and exits 1.
+
+A live run refuses, with exit code 1, when:
+
+- The gemspec version is `0.0.0`.
+- `RUBYGEMS_API_TOKEN` is missing.
+- `RUBYGEMS_PUBLISH_APPROVED=1` is missing.
 
 ## github_deploy
 
-Stages pinned files for a draft GitHub Release and creates the draft.
+Use `github_deploy` to stage pinned files for a draft GitHub Release and
+create the draft.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "github_deploy")
@@ -597,41 +657,76 @@ github_deploy(
 )
 ```
 
-- `artifacts`: files to attach. An empty list creates a draft with release notes only. Asset names must be unique.
-- `release_tag`: defaults to `v0.0.0-dryrun`. `tag_from_head = True` uses the tag that points at HEAD instead.
-- `notes`: `commits` (default) or `none`. `notes_file` is a markdown file used as the release body; it needs `notes = "none"`. `notes_diff` lists workspace paths, such as `["api/"]`; with `notes = "commits"` the body ends with their `git diff` since the previous tag, or their full content on the first release.
+- `artifacts`: required. The files to attach. Asset names must be unique.
+  An empty list creates a draft with release notes only.
+- `release_tag`: the tag. Defaults to `v0.0.0-dryrun`.
+- `tag_from_head`: `True` uses the tag that points at HEAD. Defaults to
+  `False`. You cannot set both `release_tag` and `tag_from_head`.
+- `notes`: `commits` or `none`. Defaults to `commits`.
+- `notes_file`: a markdown file used as the release body. It needs
+  `notes = "none"`.
+- `notes_diff`: workspace paths, such as `["api/"]`. With
+  `notes = "commits"` the body ends with their `git diff` since the previous
+  tag, or their full content on the first release.
+- `sign`: `auto`, `off` or `required`. Defaults to `auto`. A live run signs
+  each asset with the pinned cosign and uploads `<asset>.sigstore.json` when
+  `COSIGN_KEY` is set or the run has a GitHub OIDC token
+  (`ACTIONS_ID_TOKEN_REQUEST_URL`). `required` fails without either.
+- `registry_deploys`: `crates_deploy` and `maven_deploy` targets published
+  in the same release. The release body gets an `## Attestations` section
+  with one `gh attestation verify <file> -R <owner>/<repo>` line for each
+  `.crate` and each `maven_deploy` file.
+- `attach`: `True` also uploads the `maven_deploy` files as release assets.
+  Defaults to `True`.
+- `sbom`: also uploaded as a release asset.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
-- `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility). `go_modules` lists
-  the workspace-relative module directories to check; empty means the `go.mod` at the root.
-- `sign`: `auto` (default), `off` or `required`. A live run signs each asset with the pinned cosign and uploads
-  `<asset>.sigstore.json` when `COSIGN_KEY` is set or the run has a GitHub OIDC token
-  (`ACTIONS_ID_TOKEN_REQUEST_URL`); `required` fails without either.
-- `registry_deploys`: `crates_deploy` and `maven_deploy` targets published in the same release. The release body
-  gets a `## Attestations` section with one `gh attestation verify <file> -R <owner>/<repo>` line per `.crate`
-  and per `maven_deploy` file. The repository comes from `GITHUB_REPOSITORY`; a live run fails without it.
-- `attach`: `True` (default) also uploads the `maven_deploy` files as release assets.
+- `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility).
+- `go_modules`: the workspace-relative module directories that `api_compat`
+  checks. Empty means the `go.mod` at the root.
 
-Default run stages `<name>-release/` with the assets (none for a notes-only draft) and a `would-run.txt`
-holding their sha256 and the `gh release create` command. Nothing is
-published.
+Check it first. This publishes nothing:
 
-The run prints the identity it would sign with and each `<asset>.sigstore.json` it would upload.
+```sh
+dx deploy //pkg:github_demo
+```
 
-The run also prints each asset's size in the latest published release, read with `gh release view`,
-so a budget can be set from it. Without `gh` or network, it prints why that release is unavailable and still succeeds.
+The dry run stages `<name>-release/` with the assets, none for a notes-only
+draft, and a `would-run.txt` that holds their sha256 and the
+`gh release create` command. Its `sign:` line names the identity it would
+sign with, or `none`, and it lists each `<asset>.sigstore.json` it would
+upload.
 
-Create the draft with `gh` on `PATH` and logged in:
+It also prints each asset's size in the latest published release, read with
+`gh release view`, so you can set a budget from it. Without `gh` or a
+network, it prints why that release is unavailable and still succeeds.
+
+Before you publish, you need:
+
+- `gh` on `PATH` and logged in.
+- The tag already pushed to GitHub.
+- `GITHUB_REPOSITORY` set to `<owner>/<repo>` when `registry_deploys` is
+  set.
+
+Publish:
 
 ```sh
 GITHUB_PUBLISH_APPROVED=1 dx deploy --apply //pkg:github_demo
 ```
 
-This runs `gh release create <tag> <assets> --draft --verify-tag`, so the
-tag must already exist on GitHub. A live run refuses `v0.0.0-dryrun`.
+This runs `gh release create <tag> <assets> --draft --verify-tag`.
+
+A live run refuses, with exit code 1, when:
+
+- The tag is `v0.0.0-dryrun` or `v0.0.0`.
+- `GITHUB_PUBLISH_APPROVED=1` is missing.
+- `gh` is not on `PATH`.
+- `registry_deploys` is set and `GITHUB_REPOSITORY` is missing.
+- `sign = "required"` and there is neither `COSIGN_KEY` nor an OIDC token.
 
 ## homebrew_tap_deploy
 
-Renders a Homebrew formula from a `github_deploy` release and pushes it to a tap repository.
+Use `homebrew_tap_deploy` to render a Homebrew formula from a
+`github_deploy` release and push it to a tap repository.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "homebrew_tap_deploy")
@@ -645,30 +740,61 @@ homebrew_tap_deploy(
 )
 ```
 
-- `release`: the `github_deploy` target. Its tag gives the version; its `.tar.gz`, `.tgz` and `.zip` assets become the formula urls.
-- `repo`: GitHub `owner/repository` that hosts the release.
-- `tap`: GitHub `owner/repository` of the tap.
-- `formula`: formula name. Defaults to `name`.
-- `binary`: file at the top of each archive, installed into `bin`. Defaults to `formula`.
-- `desc`, `homepage`: formula fields. Default to the formula name and `https://github.com/<repo>`.
+- `release`: required. The `github_deploy` target. Its tag gives the
+  version. Its `.tar.gz`, `.tgz` and `.zip` assets become the formula urls.
+- `repo`: required. The GitHub `owner/repository` that hosts the release.
+- `tap`: required. The GitHub `owner/repository` of the tap.
+- `formula`: the formula name. Defaults to `name`.
+- `binary`: the file at the top of each archive, installed into `bin`.
+  Defaults to `formula`.
+- `desc`: the formula description. Defaults to the formula name.
+- `homepage`: the formula homepage. Defaults to `https://github.com/<repo>`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-An asset name must say its platform: `darwin`, `macos` or `apple`, or `linux`; and `arm64` or `aarch64`, or `x86_64`, `amd64` or `x64`. Other assets are ignored. The sha256 comes from the asset file and must match a sibling `<asset>.sha256` when the release has one.
+Each asset name must name its platform:
 
-Default run writes `<name>-tap/Formula/<formula>.rb` and `would-run.txt` into the output tree and runs `ruby -c` on the formula when `ruby` is on `PATH`. Nothing is pushed.
+- The OS: `darwin`, `macos` or `apple`, or `linux`.
+- The CPU: `arm64` or `aarch64`, or `x86_64`, `amd64` or `x64`.
 
-Push the formula with `gh` on `PATH`:
+Other assets are ignored. The sha256 comes from the asset file. When the
+release has a sibling `<asset>.sha256`, the two must match.
+
+Check it first. This pushes nothing:
+
+```sh
+dx deploy //pkg:tool_tap
+```
+
+The dry run writes `<name>-tap/Formula/<formula>.rb` and `would-run.txt`
+into the output tree. It runs `ruby -c` on the formula when `ruby` is on
+`PATH`, and prints `syntax: skipped, ruby not on PATH` when it is not.
+
+Before you publish, you need:
+
+- `gh` on `PATH`.
+- A token with write access to the tap for `HOMEBREW_TAP_API_TOKEN`.
+
+Publish:
 
 ```sh
 HOMEBREW_TAP_PUBLISH_APPROVED=1 HOMEBREW_TAP_API_TOKEN=... \
 dx deploy --apply //pkg:tool_tap
 ```
 
-This commits `Formula/<formula>.rb` to the tap's default branch through the contents API. The token needs write access to the tap. A live run refuses placeholder tags such as `v0.0.0-dryrun`.
+This commits `Formula/<formula>.rb` to the tap's default branch through the
+contents API.
+
+A live run refuses, with exit code 1, when:
+
+- The release tag is a placeholder, such as `v0.0.0-dryrun`.
+- `HOMEBREW_TAP_API_TOKEN` is missing.
+- `HOMEBREW_TAP_PUBLISH_APPROVED=1` is missing.
 
 ## linux_package_deploy
 
-Builds `.deb`, `.rpm` and `.apk` packages from one binary with a pinned
-`nfpm` and attaches them to a draft GitHub Release through `github_deploy`.
+Use `linux_package_deploy` to build `.deb`, `.rpm` and `.apk` packages from
+one binary with a pinned `nfpm`, and attach them to a draft GitHub Release
+through `github_deploy`.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "linux_package_deploy")
@@ -683,22 +809,55 @@ linux_package_deploy(
 )
 ```
 
-- `binary`: executable installed at `install_path`, default `/usr/bin/<package>`.
-- `formats`: any of `deb`, `rpm`, `apk`. Defaults to `["deb", "rpm"]`.
+- `binary`: required. The executable to install.
+- `version`: required. The package version, such as `1.2.3`. It must start
+  with a digit.
+- `install_path`: where `binary` is installed. Defaults to
+  `/usr/bin/<package>`.
+- `formats`: any of `deb`, `rpm` and `apk`. Defaults to `["deb", "rpm"]`.
 - `platform`: a Linux x86_64 or arm64 Bazel platform label, recorded as the
-  package architecture (`amd64` or `arm64`). Defaults to the current target
-  platform; other operating systems fail. The binary is not rebuilt for it.
-- `version`: required package version, such as `1.2.3`; it must start with a digit.
-- `package`: package name. Defaults to `name`, which need not be a valid package name when `package` is set.
-- `maintainer`, `description`: package metadata.
-- `extra_files`: more files, mapped to absolute install paths, installed as `0644`.
-- `release_tag`, `tag_from_head`, `notes`, `notes_file`, `build_mode`, `tags`: as for `github_deploy`.
+  package architecture, `amd64` or `arm64`. Defaults to the current target
+  platform. Other operating systems fail. The binary is not rebuilt for it.
+- `package`: the package name. Defaults to `name`. When you set it, `name`
+  need not be a valid package name.
+- `maintainer`: `Name <email>`. Defaults to
+  `unknown <unknown@example.com>`.
+- `description`: defaults to the package name.
+- `extra_files`: more files, mapped to absolute install paths. They are
+  installed as `0644`.
+- `release_tag`, `tag_from_head`, `notes`, `notes_file`, `build_mode`,
+  `sbom`: as for [`github_deploy`](#github_deploy).
 
-`bazel build //pkg:demo_deb` writes `demo_<version>_<arch>.deb`; each format
-has its own `<name>_<format>` target. `dx deploy //pkg:demo` stages the
-packages like `github_deploy`, and the live run (`GITHUB_PUBLISH_APPROVED=1 dx deploy
---apply`) attaches them to the draft release. `nfpm` runs on
-Linux x86_64, Linux arm64, macOS arm64 and Windows x86_64 hosts.
+`nfpm` runs on Linux x86_64, Linux arm64, macOS arm64 and Windows x86_64
+hosts.
+
+Build the files only:
+
+```sh
+bazel build //pkg:demo_deb
+```
+
+This writes `demo_<version>_<arch>.deb`. Each format has its own
+`<name>_<format>` target.
+
+Check it first. This publishes nothing:
+
+```sh
+dx deploy //pkg:demo
+```
+
+The dry run stages the packages as `github_deploy` does.
+
+Before you publish, you need what [`github_deploy`](#github_deploy) needs.
+
+Publish:
+
+```sh
+GITHUB_PUBLISH_APPROVED=1 dx deploy --apply //pkg:demo
+```
+
+This attaches the packages to the draft release. A live run refuses what a
+`github_deploy` live run refuses.
 
 ## pub_deploy
 

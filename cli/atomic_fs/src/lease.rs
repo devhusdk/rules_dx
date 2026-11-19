@@ -86,16 +86,16 @@ pub fn lease_path(root: &Path, kind: GenerationUse, hex: &str) -> io::Result<Pat
         .join(format!("{hex}{LEASE_FILE_SUFFIX}")))
 }
 
+fn with_path(path: &Path, error: &io::Error) -> io::Error {
+    io::Error::new(error.kind(), format!("{}: {error}", path.display()))
+}
+
 fn open_lease_file(path: &Path) -> io::Result<File> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    } // LCOV_EXCL_LINE - reason: lease paths always carry a parent, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
-    OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(path)
+    open_lock_file(path, true)
+}
+
+fn busy(path: &Path) -> io::Error {
+    with_path(path, &io::Error::from(io::ErrorKind::WouldBlock))
 }
 
 /// Holds a shared lease, waiting up to `timeout` for exclusive holders.
@@ -117,7 +117,7 @@ pub fn acquire_shared_at(path: &Path, timeout: Duration) -> io::Result<SharedLea
             Ok(()) => return Ok(SharedLease { file }),
             Err(std::fs::TryLockError::WouldBlock) => {
                 if start.elapsed() >= timeout {
-                    return Err(io::Error::from(io::ErrorKind::WouldBlock));
+                    return Err(busy(path));
                 }
                 std::thread::sleep(super::LOCK_POLL);
             }
@@ -143,7 +143,7 @@ pub fn try_acquire_exclusive(
 
 fn open_lock_file(path: &Path, create: bool) -> io::Result<File> {
     if create && let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
+        std::fs::create_dir_all(parent).map_err(|error| with_path(parent, &error))?;
     } // LCOV_EXCL_LINE - reason: lease paths always carry a parent, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
     OpenOptions::new()
         .read(true)
@@ -151,6 +151,7 @@ fn open_lock_file(path: &Path, create: bool) -> io::Result<File> {
         .create(create)
         .truncate(false)
         .open(path)
+        .map_err(|error| with_path(path, &error))
 }
 
 /// Locks the file at `path` exclusively without waiting; `None` means another holder has it.
@@ -178,7 +179,7 @@ pub fn acquire_exclusive_at(path: &Path, timeout: Duration) -> io::Result<Exclus
     let file = open_lease_file(path)?;
     match super::lock_exclusive(&file, timeout) {
         Ok(()) => Ok(ExclusiveLease { file }),
-        Err(std::fs::TryLockError::WouldBlock) => Err(io::Error::from(io::ErrorKind::WouldBlock)),
+        Err(std::fs::TryLockError::WouldBlock) => Err(busy(path)),
         Err(std::fs::TryLockError::Error(other)) => Err(other), // LCOV_EXCL_LINE - reason: non-contention lock error, issue: 2040, policy: docs/cli/commands/build-test-coverage.md
     }
 }
@@ -197,6 +198,29 @@ mod tests {
 
     fn root(scratch: &std::path::Path) -> PathBuf {
         dx_path::state::local_dir(scratch)
+    }
+
+    #[test]
+    fn lease_errors_name_the_path() {
+        let scratch = dx_test_scratch::scratch("dx-lease-context-").unwrap();
+        let _holding = dx_testing::holding();
+        let path = scratch.path().join("one.busy");
+        let held = acquire_exclusive_at(&path, Duration::ZERO).expect("free");
+        for error in [
+            acquire_shared_at(&path, Duration::ZERO).expect_err("busy"),
+            acquire_exclusive_at(&path, Duration::ZERO).expect_err("busy"),
+        ] {
+            assert_eq!(error.kind(), io::ErrorKind::WouldBlock);
+            assert!(error.to_string().contains("one.busy"), "{error}");
+        }
+        drop(held);
+        let blocked = scratch.path().join("one.busy").join("sub").join("x.lock");
+        let error = try_lock_file(&blocked, true).expect_err("under a file");
+        assert!(error.to_string().contains("one.busy"), "{error}");
+        let error = try_lock_file(&scratch.path().join("none.lock"), false).expect_err("missing");
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+        assert!(error.to_string().contains("none.lock"), "{error}");
+        scratch.close().expect("cleanup");
     }
 
     #[test]

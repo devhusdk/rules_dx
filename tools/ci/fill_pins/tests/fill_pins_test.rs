@@ -4,7 +4,7 @@ use std::path::Path;
 use tempfile::TempDir;
 
 /// The per-platform tools release.yml adds to the dx manifest, one asset per platform each.
-const PLATFORM_TOOLS: [&str; 5] = ["capnp", "flatc", "go", "oapi_codegen", "thrift"];
+const PLATFORM_TOOLS: [&str; 6] = ["capnp", "flatc", "go", "oapi_codegen", "runtime", "thrift"];
 
 const REPO: &str = "devhusdk/rules_dx";
 const NATIVE_TOOLS: [&str; 2] = ["progenitor", "topiary"];
@@ -35,7 +35,7 @@ fn assets(tool: &str) -> Vec<String> {
 }
 
 /// The dx manifest as release.yml writes it: each binary plus its launcher archive,
-/// Windows symbols and SBOMs, the native launcher assets, the native build tools and the oapi-codegen licence.
+/// Windows symbols and SBOMs, the native launcher assets, the native build tools, the dx runtime and the oapi-codegen licence.
 fn manifest() -> String {
     let mut lines = vec![format!("{}  dx-oapi-codegen-LICENSE\n", hash(9))];
     for (n, asset) in assets("dx").iter().enumerate() {

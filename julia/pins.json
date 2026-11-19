@@ -9,44 +9,52 @@
       ]
     },
     "julia_src": {
-      "version": "1.12.5",
-      "sha256": "9e0dee015ef631ce93ddcf8166a8f5f4cae39e923d8f38a54a832091d0475004",
-      "strip_prefix": "julia-1.12.5",
+      "version": "1.13.4",
+      "sha256": "38cddf7585580acdef453986d399da48f3f742cca2b727598ee93e4a548d2c65",
+      "strip_prefix": "julia-1.13.4",
       "urls": [
-        "https://github.com/JuliaLang/julia/releases/download/v1.12.5/julia-1.12.5.tar.gz"
+        "https://github.com/JuliaLang/julia/releases/download/v1.13.4/julia-1.13.4.tar.gz"
       ]
     },
     "julia_src_libllvm": {
-      "version": "18.1.7+5",
-      "sha256": "2b15e6ac13dbadaeee9051ab56ad170dae2c248c91a3f45ae8d170a7c0644baa",
+      "version": "20.1.8+2",
+      "sha256": "7fbae13f564f99afb9f8cc9ce8f95631f2eebf5f8bc84a225d4c441d7e245131",
       "type": "tar.gz",
       "urls": [
-        "https://github.com/JuliaBinaryWrappers/libLLVM_jll.jl/releases/download/libLLVM-v18.1.7%2B5/libLLVM.v18.1.7.x86_64-linux-gnu-cxx11-llvm_version%2B18.tar.gz"
+        "https://github.com/JuliaBinaryWrappers/libLLVM_jll.jl/releases/download/libLLVM-v20.1.8%2B2/libLLVM.v20.1.8.x86_64-linux-gnu-cxx11-llvm_version%2B20.tar.gz"
       ]
     },
     "julia_src_libunwind": {
-      "version": "1.8.1+2",
-      "sha256": "e5c9276edfcdb67efe6889a1e1ef3c1a41ac2b1477cc4d6688e2f973c2da1c12",
+      "version": "1.8.3+1",
+      "sha256": "8c45bece9657cf47c90dc97d007b4d1a4e5f70df5f9e68df7ac9fb91f38b1163",
       "type": "tar.gz",
       "urls": [
-        "https://github.com/JuliaBinaryWrappers/LibUnwind_jll.jl/releases/download/LibUnwind-v1.8.1%2B2/LibUnwind.v1.8.1.x86_64-linux-gnu.tar.gz"
+        "https://github.com/JuliaBinaryWrappers/LibUnwind_jll.jl/releases/download/LibUnwind-v1.8.3%2B1/LibUnwind.v1.8.3.x86_64-linux-gnu.tar.gz"
       ]
     },
     "julia_src_libuv": {
-      "version": "2.0.1+20",
-      "sha256": "32b888f95f857fcad8464e83bb799817e53f7e6b0dcf8ce668b8ba7767b83008",
+      "version": "2.0.1+22",
+      "sha256": "e1b328a509bedbe25f8426fee10e39e997bee10f5b141781c7a2c365e0bbb709",
       "type": "tar.gz",
       "urls": [
-        "https://github.com/JuliaBinaryWrappers/LibUV_jll.jl/releases/download/LibUV-v2.0.1%2B20/LibUV.v2.0.1.x86_64-linux-gnu.tar.gz"
+        "https://github.com/JuliaBinaryWrappers/LibUV_jll.jl/releases/download/LibUV-v2.0.1%2B22/LibUV.v2.0.1.x86_64-linux-gnu.tar.gz"
       ]
     },
     "julia_src_utf8proc": {
-      "version": "a1b99daa2a3393884220264c927a48ba1251a9c6",
-      "sha256": "6e1c5801d9d1cde8a9a68b5a8cc136508e790ee73428087469b3e73d01ba33ed",
-      "strip_prefix": "JuliaStrings-utf8proc-a1b99da",
+      "version": "e5e799221b45bbb90f5fdc5c69b6b8dfbf017e78",
+      "sha256": "3e01616be4c767492b084d5eaece31b5d007b846522a5e19783c438277e6b0e8",
+      "strip_prefix": "JuliaStrings-utf8proc-e5e7992",
       "type": "tar.gz",
       "urls": [
-        "https://api.github.com/repos/JuliaStrings/utf8proc/tarball/a1b99daa2a3393884220264c927a48ba1251a9c6"
+        "https://api.github.com/repos/JuliaStrings/utf8proc/tarball/e5e799221b45bbb90f5fdc5c69b6b8dfbf017e78"
+      ]
+    },
+    "julia_src_zstd": {
+      "version": "1.5.7+1",
+      "sha256": "8b2d56159d22748eca8137d4df63699be3e01e3d788bd36f92c65750f8168dc6",
+      "type": "tar.gz",
+      "urls": [
+        "https://github.com/JuliaBinaryWrappers/Zstd_jll.jl/releases/download/Zstd-v1.5.7%2B1/Zstd.v1.5.7.x86_64-linux-gnu.tar.gz"
       ]
     }
   }

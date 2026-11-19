@@ -1,4 +1,4 @@
-//! The source-built libjulia-internal stands in for the one Julia 1.12.5 ships.
+//! The source-built libjulia-internal stands in for the one the runtime's Julia release ships.
 
 use object::elf;
 use object::read::elf::{Dyn, ElfFile64, FileHeader};
@@ -6,7 +6,7 @@ use object::{Object, ObjectSymbol};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-const LIBRARY: &str = "libjulia-internal.so.1.12.5";
+const PREFIX: &str = "libjulia-internal.so.";
 
 fn julia() -> PathBuf {
     let rel = std::env::var("DX_JULIA").expect("DX_JULIA must be set");
@@ -26,19 +26,40 @@ fn built() -> PathBuf {
     let files = std::env::var("DX_LIBJULIA_INTERNAL").expect("DX_LIBJULIA_INTERNAL must be set");
     let rel = files
         .split_whitespace()
-        .find(|path| path.ends_with(LIBRARY))
+        .find(|path| {
+            Path::new(path)
+                .file_name()
+                .is_some_and(|name| name.to_string_lossy().starts_with(PREFIX))
+        })
         .expect("built library in DX_LIBJULIA_INTERNAL");
     dx_testing::resolve_runfiles(rel)
 }
 
+/// The library file name, `libjulia-internal.so.<major>.<minor>.<patch>`.
+fn library() -> String {
+    built()
+        .file_name()
+        .expect("library file name")
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// The library file name without its patch number.
+fn major_minor_alias() -> String {
+    let library = library();
+    let (alias, _patch) = library.rsplit_once('.').expect("versioned library name");
+    alias.to_owned()
+}
+
 fn shipped() -> PathBuf {
-    julia_root().join("lib/julia").join(LIBRARY)
+    julia_root().join("lib/julia").join(library())
 }
 
 struct Dynamic {
     soname: Option<String>,
     needed: BTreeSet<String>,
     exports: BTreeSet<String>,
+    versions: BTreeSet<String>,
 }
 
 fn dynamic(path: &Path) -> Dynamic {
@@ -67,6 +88,17 @@ fn dynamic(path: &Path) -> Dynamic {
             }
         }
     }
+    let mut versions = BTreeSet::new();
+    let verdef = sections.gnu_verdef(endian, &*data).expect("verdef section");
+    if let Some((mut verdefs, link)) = verdef {
+        let strings = sections.strings(endian, &*data, link).expect("verdef strings");
+        while let Some((_, mut auxs)) = verdefs.next().expect("verdef entry") {
+            if let Some(aux) = auxs.next().expect("verdaux entry") {
+                let name = aux.name(endian, strings).expect("version name");
+                versions.insert(String::from_utf8_lossy(name).into_owned());
+            }
+        }
+    }
     let exports = file
         .dynamic_symbols()
         .filter(|symbol| !symbol.is_undefined() && symbol.is_global())
@@ -76,6 +108,7 @@ fn dynamic(path: &Path) -> Dynamic {
         soname,
         needed,
         exports,
+        versions,
     }
 }
 
@@ -85,6 +118,7 @@ fn links_like_the_shipped_library() {
     let theirs = dynamic(&shipped());
     assert_eq!(ours.soname, theirs.soname);
     assert_eq!(ours.needed, theirs.needed);
+    assert_eq!(ours.versions, theirs.versions);
     let missing: Vec<_> = theirs.exports.difference(&ours.exports).collect();
     let extra: Vec<_> = ours.exports.difference(&theirs.exports).collect();
     assert!(
@@ -115,9 +149,10 @@ fn julia_starts_on_the_built_library() {
     }
     let private = tree.join("lib/julia");
     std::fs::create_dir_all(&private).expect("mkdir lib/julia");
-    copy(&built(), &private.join(LIBRARY));
-    for alias in ["libjulia-internal.so", "libjulia-internal.so.1.12"] {
-        std::os::unix::fs::symlink(LIBRARY, private.join(alias)).expect("link library alias");
+    let library = library();
+    copy(&built(), &private.join(&library));
+    for alias in ["libjulia-internal.so".to_owned(), major_minor_alias()] {
+        std::os::unix::fs::symlink(&library, private.join(alias)).expect("link library alias");
     }
     for entry in std::fs::read_dir(root.join("lib/julia")).expect("read lib/julia") {
         let entry = entry.expect("lib/julia entry");
@@ -147,7 +182,7 @@ fn julia_starts_on_the_built_library() {
     let mut lines = run.stdout.lines();
     assert_eq!(lines.next(), Some("2"), "stdout: {}", run.stdout);
     let loaded: Vec<_> = lines.collect();
-    let expected = std::fs::canonicalize(private.join(LIBRARY)).expect("resolve scratch library");
+    let expected = std::fs::canonicalize(private.join(&library)).expect("resolve scratch library");
     assert!(
         loaded
             .iter()

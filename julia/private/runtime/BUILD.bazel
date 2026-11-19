@@ -1,5 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_files")
+load("//core/modules:versions.bzl", "JULIA_RUNTIME_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":defs.bzl", "julia_runtime_files", "julia_shipped_libs")
@@ -13,6 +14,10 @@ _LINUX_X86_64 = [
 
 exports_files(glob(["*.BUILD.bazel"]))
 
+_MAJOR_MINOR = ".".join(JULIA_RUNTIME_VERSION.split(".")[:2])
+
+_LIBJULIA_INTERNAL = "libjulia-internal.so." + JULIA_RUNTIME_VERSION
+
 julia_runtime_files(
     name = "julia_runtime_files",
 )
@@ -20,23 +25,25 @@ julia_runtime_files(
 julia_shipped_libs(
     name = "shipped_libs",
     libraries = [
-        "libjulia.so.1.12",
+        "libjulia.so." + _MAJOR_MINOR,
         "libunwind.so.8",
         "libz.so.1",
+        "libzstd.so.1",
         "libatomic.so.1",
     ],
     target_compatible_with = _LINUX_X86_64,
 )
 
 cc_binary(
-    name = "libjulia-internal.so.1.12.5",
+    name = _LIBJULIA_INTERNAL,
     additional_linker_inputs = ["@julia_src//:julia_expmap"],
     linkopts = [
         "-Wl,--version-script=$(execpath @julia_src//:julia_expmap)",
-        "-Wl,-soname,libjulia-internal.so.1.12",
+        "-Wl,-soname,libjulia-internal.so." + _MAJOR_MINOR,
         "-Wl,-Bsymbolic-functions",
         "-Wl,--enable-new-dtags",
         "-Wl,-z,noexecstack",
+        "-Wl,--gc-sections",
         "-Wl,-rpath,$$ORIGIN",
         "-Wl,-rpath,$$ORIGIN/..",
         "-Wl,--no-as-needed",
@@ -44,8 +51,6 @@ cc_binary(
         "-lrt",
         "-lpthread",
         "-lm",
-        "-lstdc++",
-        "-lgcc_s",
     ],
     linkshared = True,
     target_compatible_with = _LINUX_X86_64,
@@ -57,9 +62,8 @@ cc_binary(
 
 cc_toolchain_files(
     name = "libjulia_internal",
-    srcs = [":libjulia-internal.so.1.12.5"],
+    srcs = [":" + _LIBJULIA_INTERNAL],
     compiler = "gcc",
-    extra_features = ["dynamic_libstdcxx"],
     platforms = ["//tools/platforms:linux_x86_64"],
     target_compatible_with = _LINUX_X86_64,
     visibility = ["//julia:__subpackages__"],

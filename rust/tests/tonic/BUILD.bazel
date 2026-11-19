@@ -19,9 +19,9 @@ rust_test(
     srcs = ["greeter_test.rs"],
     deps = [
         ":greeter_proto_rs",
-        "@rules_rust_prost//private/3rdparty/crates:tokio",
-        "@rules_rust_prost//private/3rdparty/crates:tokio-stream",
-        "@rules_rust_prost//private/3rdparty/crates:tonic",
+        "//rust:tokio",
+        "//rust:tokio_stream",
+        "//rust:tonic",
     ],
 )
 

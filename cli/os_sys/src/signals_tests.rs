@@ -15,6 +15,21 @@ fn blocked_signals_come_back_when_dropped() {
 }
 
 #[test]
+fn hold_stop_holds_sigint_and_sigterm_until_dropped() {
+    std::thread::spawn(|| {
+        {
+            let _held = hold_stop();
+            assert!(blocked(libc::SIGINT));
+            assert!(blocked(libc::SIGTERM));
+        }
+        assert!(!blocked(libc::SIGINT));
+        assert!(!blocked(libc::SIGTERM));
+    })
+    .join()
+    .expect("thread");
+}
+
+#[test]
 fn background_tty_writes_block_sigttou_in_this_thread() {
     std::thread::spawn(|| {
         allow_background_tty_writes();

@@ -170,17 +170,25 @@ fn persist(
     dest: &Path,
     durability: Durability,
 ) -> io::Result<()> {
+    let sealed = seal(staging, durability)?;
+    sealed.persist(long_path(dest)?).map_err(|err| err.error)?;
     match durability {
-        Durability::Synced => {
-            sync_outcome(staging.as_file().sync_all())?;
-            staging.persist(long_path(dest)?).map_err(|err| err.error)?;
-            sync_parent(dest)
-        }
-        Durability::Unsynced => {
-            staging.persist(long_path(dest)?).map_err(|err| err.error)?;
-            Ok(())
-        }
+        Durability::Synced => sync_parent(dest),
+        Durability::Unsynced => Ok(()),
     }
+}
+
+/// Flushes staging when Synced and closes its write handle, keeping the file on disk.
+/// The handle must close before the rename: Linux refuses to exec a file that is still
+/// open for writing (ETXTBSY), and another process may exec dest as soon as it appears.
+fn seal(
+    staging: tempfile::NamedTempFile,
+    durability: Durability,
+) -> io::Result<tempfile::TempPath> {
+    if matches!(durability, Durability::Synced) {
+        sync_outcome(staging.as_file().sync_all())?;
+    }
+    Ok(staging.into_temp_path())
 }
 
 /// The result of a sync, where a filesystem that cannot sync counts as done, as it did
@@ -422,6 +430,31 @@ mod tests {
         second.commit_as(&dest).expect("commit");
         assert_eq!(std::fs::read(&dest).expect("read"), b"blob");
         assert_eq!(dir_entries(scratch.path()), vec!["abc".to_owned()]);
+    }
+
+    /// Paths of the files this process holds open.
+    #[cfg(target_os = "linux")]
+    fn open_paths() -> Vec<PathBuf> {
+        std::fs::read_dir("/proc/self/fd")
+            .expect("list fds")
+            .filter_map(|entry| std::fs::read_link(entry.expect("fd").path()).ok())
+            .collect()
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn seal_closes_the_write_handle_before_the_rename() {
+        use std::io::Write as _;
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
+        for durability in [Durability::Synced, Durability::Unsynced] {
+            let mut staging = staging_for(&scratch.path().join("tool")).expect("stage");
+            staging.write_all(b"#!/bin/sh\n").expect("write");
+            let path = staging.path().canonicalize().expect("canonical");
+            assert!(open_paths().contains(&path));
+            let sealed = seal(staging, durability).expect("seal");
+            assert!(!open_paths().contains(&path));
+            assert_eq!(std::fs::read(&sealed).expect("read"), b"#!/bin/sh\n");
+        }
     }
 
     #[test]

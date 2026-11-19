@@ -144,6 +144,12 @@ pub fn unlink_on_stop(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// Holds SIGINT and SIGTERM in the calling thread until dropped; a held signal then lands.
+#[must_use = "the stop signals are released again when the guard drops"]
+pub fn hold_stop() -> Blocked {
+    Blocked::new(&[libc::SIGINT, libc::SIGTERM])
+}
+
 /// Stops [`unlink_on_stop`] from removing its path; the signals still exit the process.
 pub fn keep_on_stop() {
     UNLINK_ON_STOP.store(std::ptr::null_mut(), Ordering::SeqCst);

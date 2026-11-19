@@ -20,7 +20,6 @@ const OWN_TYPES: &[&str] = &[
 /// Registrations that carry `//config:toolchains_on` or `//cc:compiler` in `target_settings`.
 const GATED: &[&str] = &[
     "//java/private/toolchain:all",
-    "//kotlin/private/toolchain:unused_deps",
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",
     "@android_ndk_toolchain//:all",

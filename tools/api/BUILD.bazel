@@ -43,6 +43,8 @@ _BUILDS_ENV = {
 }
 
 _STARLARK_SRCS = [
+    "//android:defs.bzl",
+    "//android:extensions.bzl",
     "//ansible:defs.bzl",
     "//ansible:extensions.bzl",
     "//api_spec:defs.bzl",
@@ -136,8 +138,6 @@ _STARLARK_SRCS = [
 
 # Public files whose upstream load closure has no visible bzl_library yet.
 _NOT_EXTRACTED = [
-    "//android:defs.bzl",
-    "//android:extensions.bzl",
     "//flutter:defs.bzl",
     "//flutter:extensions.bzl",
 ]
@@ -158,6 +158,8 @@ _UPSTREAM_BZL = [
     "@dx_windows_support//windows:extensions",
     "@gazelle//:extensions",
     "@llvm//platforms:common",
+    "@rules_android//android:dx_bzl_srcs",
+    "@rules_android//rules:dx_bzl_srcs",
     "@rules_apple//apple:apple",
     "@rules_apple//apple:ios",
     "@rules_apple//apple:macos",
@@ -184,6 +186,7 @@ _UPSTREAM_BZL = [
     "@rules_jvm_external//:implementation",
     "@rules_julia//julia:defs_bzl",
     "@rules_kotlin//kotlin/internal:internal",
+    "@rules_kotlin//kotlin:dx_bzl_srcs",
     "@rules_kotlin//kotlin:kotlin",
     "@rules_oci//oci:defs",
     "@rules_perl//perl:defs_bzl",

@@ -709,6 +709,167 @@ Exit codes: `0`, `1`, `2`.
 
 Load a symbol in a `BUILD` or `.bzl` file with `load("<file>", "<symbol>")`. Use a module extension in `MODULE.bazel` with `use_extension("<file>", "<extension>")`.
 
+### `@rules_dx//android:defs.bzl`
+
+#### `android_apk_set`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `aab` | `label` | yes |  |
+| `device_spec` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+#### `android_adb_install`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `apk` | no | `None` |
+| `serial` | no | `""` |
+| `apk_set` | no | `None` |
+| `visibility` | no | `None` |
+
+#### `android_adb_log`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `serial` | no | `""` |
+| `visibility` | no | `None` |
+
+#### `android_adb_start`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app_id` | yes |  |
+| `activity` | no | `"android.app.NativeActivity"` |
+| `serial` | no | `""` |
+| `visibility` | no | `None` |
+
+#### `android_check`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `package` | yes |  |
+| `platforms` | no | `[]` |
+| `resources` | no | `[]` |
+| `size` | no | `"small"` |
+| `tags` | no | `None` |
+| `target_compatible_with` | no | `None` |
+| `visibility` | no | `None` |
+
+#### `android_java_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `kwargs` | no |  |
+
+#### `android_kotlin_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `kwargs` | no |  |
+
+#### `android_native_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `rust_srcs` | yes |  |
+| `c_srcs` | yes |  |
+| `hdrs` | no | `[]` |
+| `crate_name` | no | `None` |
+| `edition` | no | `"2024"` |
+| `platforms` | no | `None` |
+| `api_level` | no | `31` |
+| `crate_features` | no | `None` |
+| `rustc_flags` | no | `[]` |
+| `copts` | no | `[]` |
+| `linkopts` | no | `[]` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `android_rust_apk`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app_id` | yes |  |
+| `deps` | yes |  |
+| `platforms` | no | `[Label("@rules_dx//android:arm64-v8a"), Label("@rules_dx//android:x86_64")]` |
+| `activity` | no | `"android.app.NativeActivity"` |
+| `api_level` | no | `0` |
+| `assets` | no | `[]` |
+| `assets_dir` | no | `""` |
+| `custom_package` | no | `""` |
+| `manifest` | no | `None` |
+| `permissions` | no | `[]` |
+| `resource_files` | no | `[]` |
+| `version_code` | no | `1` |
+| `version_name` | no | `"1.0"` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `android_sign`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `package` | yes |  |
+| `schemes` | no | `None` |
+| `min_sdk` | no | `0` |
+| `visibility` | no | `None` |
+
+### `@rules_dx//android:extensions.bzl`
+
+#### `android`
+
+Module extension.
+
+Tag `android.configure`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `api_level` | `int` | no | `0` |
+| `enabled` | `boolean` | no | `True` |
+| `extra_packages` | `string_list` | no | `[]` |
+| `mirror` | `string` | no | `""` |
+
+#### `android_sdk_repository`
+
+Module extension.
+
+Tag `android_sdk_repository.configure`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `api_level` | `int` | no | `0` |
+| `build_tools_version` | `string` | no | `""` |
+| `path` | `string` | no | `""` |
+
 ### `@rules_dx//ansible:defs.bzl`
 
 #### `ansible_library`

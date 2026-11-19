@@ -25,7 +25,7 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "//core/quality/result/proto:result_proto_rs",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
+        "//rust:prost",
     ],
 )
 
@@ -44,7 +44,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/families:dx_families",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
+        "//rust:prost",
     ],
 )
 

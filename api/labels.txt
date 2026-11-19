@@ -148,6 +148,8 @@
 //qt:windows_arm64 platform
 //qt:windows_x86_64 platform
 //rust:build_script_cc_env build_script_cc_env
+//rust:prost alias
+//rust:prost_types alias
 //rust:tokio alias
 //rust:tokio_stream alias
 //rust:tonic alias

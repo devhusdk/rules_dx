@@ -14,10 +14,10 @@ _DEPS = [
     "//cli/module_bazel:dx_module_bazel",
     "//cli/output:dx_output",
     "//cli/plan:dx_plan",
+    "//rust:prost",
     "//tools/api/stardoc:stardoc_output_proto_rs",
     "@crates//:serde",
     "@crates//:serde_json",
-    "@rules_rust_prost//private/3rdparty/crates:prost",
 ]
 
 _SNAPSHOT_SRCS = [

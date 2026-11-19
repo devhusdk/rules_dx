@@ -130,7 +130,7 @@ Name | Holds
 A new language takes these steps only.
 
 1. Add `<lang>/lang.json`.
-2. Add `<lang>/BUILD.bazel`, `<lang>/defs.bzl`, `<lang>/private/defs.bzl` and `<lang>/tests/BUILD.bazel`.
+2. Add `<lang>/BUILD.bazel`, `<lang>/defs.bzl`, `<lang>/private/defs.bzl` and `<lang>/tests/BUILD.bazel`. List `<lang>/defs.bzl` and `<lang>/extensions.bzl` in `_STARLARK_SRCS` in `tools/api/BUILD.bazel`.
 3. Add `<lang>/tests/conformance/BUILD.bazel`, and `<lang>/tests/consumer/` when the manifest has `entry_points`.
 4. Add `<lang>/pins.json` when the language pins a toolchain, and `<lang>/extensions.bzl` when the toolchain takes consumer tags.
 5. Add the `dx_pins.pin`, `use_extension` and `register_toolchains` lines to `MODULE.bazel`.

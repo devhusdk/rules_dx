@@ -104,11 +104,17 @@ IN_GRAPH_GUARD_LANGS = [
     "zig",
 ]
 
+# The consumer fixtures the macos_arm64 leg of the in-graph-prebuilt-guard job of ci.yml passes to
+# //tools/testing/consumer:in_graph_prebuilt_guard with --langs.
+MACOS_IN_GRAPH_GUARD_LANGS = [
+    "apple",
+    "swift",
+]
+
 # The consumer fixtures no prebuilt guard covers yet.
 GUARD_PENDING = [
     "android",
     "appimage",
-    "apple",
     "asciidoc",
     "astro",
     "cmake",
@@ -127,7 +133,6 @@ GUARD_PENDING = [
     "qt",
     "rst",
     "svelte",
-    "swift",
     "typescript",
     "vue",
 ]

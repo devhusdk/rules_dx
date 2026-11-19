@@ -373,23 +373,38 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/testing:analysis_scaling_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/analysis_scaling"
   in-graph-prebuilt-guard:
-    name: in-graph-prebuilt-guard (IN_GRAPH_GUARD_LANGS consumer fixtures compile no rules_dx tool)
+    name: in-graph-prebuilt-guard (consumer fixtures compile no rules_dx tool on ${{ matrix.platform }})
     timeout-minutes: 60
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux_x86_64
+            runner: ubuntu-latest
+            langs: ""
+          - platform: macos_arm64
+            runner: macos-15
+            langs: apple swift
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
+      - name: Check out files in parallel
+        run: |
+          git init "$GITHUB_WORKSPACE"
+          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: false
       - name: Analyze the consumer fixtures with --//cli/prebuilt:guard_view
+        env:
+          LANGS: ${{ matrix.langs }}
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" //tools/testing/consumer:in_graph_prebuilt_guard -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/in_graph_prebuilt_guard"
+          bazel run "$@" //tools/testing/consumer:in_graph_prebuilt_guard -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/in_graph_prebuilt_guard" ${LANGS:+--langs "$LANGS"}
   gcc-cross-build:
     name: gcc-cross-build (gcc + llvm linux_x86_64 -> linux_arm64 fixtures)
     timeout-minutes: 45

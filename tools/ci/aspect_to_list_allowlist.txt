@@ -18,7 +18,6 @@ flatbuffers/private/codegen.bzl aspect-to-list 1
 haskell/private/quality/haskell.bzl aspect-to-list 1
 java/private/quality/jvm.bzl aspect-to-list 4
 java/private/quality/jvm_check.bzl aspect-to-list 2
-javascript/private/quality/js.bzl aspect-to-list 1
 julia/private/quality/julia.bzl aspect-to-list 4
 lua/private/quality/lua.bzl aspect-to-list 1
 powershell/private/quality/powershell.bzl aspect-to-list 2

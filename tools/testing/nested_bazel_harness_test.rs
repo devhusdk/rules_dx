@@ -316,6 +316,10 @@ fn a_consumer_that_loads_an_internal_bzl_fails() {
 
 #[test]
 fn a_root_only_tag_in_a_dependency_warns_and_is_ignored() {
+    // Its lock adds `mid` to the harness lock, so the plain harness consumer records the set.
+    if nested::recording() {
+        return;
+    }
     let case = nested::harness_consumer("root_only");
     let module = dx_testing::read_text(&case.root().join("MODULE.bazel"));
     case.write(

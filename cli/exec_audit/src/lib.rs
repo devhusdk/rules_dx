@@ -1,3 +1,15 @@
+#![deny(
+    clippy::indexing_slicing,
+    clippy::let_underscore_must_use,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok,
+    clippy::wildcard_enum_match_arm
+)]
+
+//! The `dx security` and `dx license` verbs: lockfile advisories, license
+//! policy, secret scanning, image scans and the SBOM reports.
+
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_error::DxError;
 use dx_exec_core::common::{
@@ -26,7 +38,7 @@ use dx_exec_core::audit_policy::{PolicyError, audit_tier, read_policy_text};
 mod tests;
 
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum AuditError {
+pub enum AuditError {
     #[error("no owning dependency set for {scope:?}; audited sets: {sets}")]
     NoOwningSet { scope: String, sets: String },
     #[error("could not read {rel}: {error}")]
@@ -101,7 +113,7 @@ impl From<PolicyError> for AuditError {
 
 impl AuditError {
     /// Returns the error code reported for this failure.
-    pub(crate) fn code(&self) -> &'static str {
+    pub fn code(&self) -> &'static str {
         match self {
             AuditError::AdvisoryPinMissing { .. } => dx_audit::advisory::CODE_ADVISORY_PIN_MISSING,
             AuditError::AdvisoryPinMismatch { .. } => {
@@ -152,18 +164,18 @@ impl From<&AuditError> for DxError {
     }
 }
 
-pub(super) enum AuditTarget<'a> {
+pub(crate) enum AuditTarget<'a> {
     Configured(&'a dx_adopt::dependency_sets::ResolvedSet),
 }
 
 impl AuditTarget<'_> {
-    pub(super) fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         match self {
             AuditTarget::Configured(set) => set.name.as_str(),
         }
     }
 
-    pub(super) fn lock_covered(&self) -> bool {
+    pub(crate) fn lock_covered(&self) -> bool {
         match self {
             AuditTarget::Configured(_) => true,
         }
@@ -175,7 +187,7 @@ impl AuditTarget<'_> {
         }
     }
 
-    pub(super) fn advisory_covered(&self) -> bool {
+    pub(crate) fn advisory_covered(&self) -> bool {
         match self {
             AuditTarget::Configured(set) => set.ecosystem.advisory_family().is_some(),
         }
@@ -192,7 +204,7 @@ fn set_package(set: &dx_adopt::dependency_sets::DependencySet) -> String {
 
 /// The sets `scopes` name or own. A set found through a scope, not by its name,
 /// is skipped when a `dx.toml` exclude covers its package.
-fn resolve_configured_audit_sets(
+pub fn resolve_configured_audit_sets(
     registry: &dx_adopt::dependency_sets::Registry,
     scopes: &[String],
     excludes: &[String],
@@ -234,7 +246,7 @@ fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, AuditError
     )?)
 }
 
-fn load_advisories(
+pub fn load_advisories(
     workspace: &Path,
     key: &str,
     label: &str,
@@ -604,7 +616,7 @@ fn lock_texts_for_configured(
     Ok(out)
 }
 
-pub(super) fn bazel_inputs_for_configured(
+pub(crate) fn bazel_inputs_for_configured(
     workspace: &Path,
     set: &dx_adopt::dependency_sets::ResolvedSet,
 ) -> Result<(dx_audit::locks::BazelInventory, String), AuditError> {
@@ -712,7 +724,7 @@ fn package_ref(
     })
 }
 
-fn load_license_policy(
+pub fn load_license_policy(
     workspace: &Path,
 ) -> Result<dx_audit::license_policy::LicensePolicy, AuditError> {
     use dx_audit::license_policy::{PolicyProblem, load_licenses};
@@ -726,7 +738,7 @@ fn load_license_policy(
     load_licenses(text.as_deref(), tier).map_err(invalid)
 }
 
-fn tier_for_roots(
+pub fn tier_for_roots(
     policy: &dx_audit::license_policy::LicensePolicy,
     roots: &[String],
 ) -> dx_audit::license_expr::Tier {
@@ -801,7 +813,7 @@ fn gitleaks_path(
 
 /// The directories of recursive `dx.toml` excludes, spelled like `git ls-files`
 /// directory entries. `//...` itself is left out so the scan never skips the repo.
-fn excluded_dirs(excludes: &[String]) -> Vec<String> {
+pub fn excluded_dirs(excludes: &[String]) -> Vec<String> {
     excludes
         .iter()
         .filter_map(|pattern| dx_config::conventions::recursive_dir(pattern))
@@ -863,7 +875,7 @@ fn scoped_secrets_config(
     clippy::too_many_arguments,
     reason = "each argument is a distinct input"
 )]
-fn run_secrets(
+pub fn run_secrets(
     workspace: &Path,
     runner: &dyn dx_process::Runner,
     query_runner: &dyn QueryRunner,
@@ -2207,7 +2219,7 @@ fn run_families(
     run
 }
 
-pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
+pub fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
         matches!(invocation.command, Command::Security | Command::License),
         "audit dispatch guards commands"
@@ -2380,27 +2392,11 @@ fn report_write_failed(
     Ok(1)
 }
 
-#[path = "audit_accept.rs"]
 mod audit_accept;
 use audit_accept::{Acceptance, LicenseCandidate, VulnCandidate, accept_license, accept_security};
-#[path = "audit_images.rs"]
 mod audit_images;
-#[path = "audit_license.rs"]
 mod audit_license;
 use audit_license::run_license;
-#[path = "audit_cyclonedx.rs"]
 mod audit_cyclonedx;
-#[path = "audit_spdx.rs"]
 mod audit_spdx;
-#[path = "audit_uncovered.rs"]
 mod audit_uncovered;
-
-#[cfg(test)]
-#[path = "audit_consumer.rs"]
-mod audit_consumer;
-#[cfg(test)]
-#[path = "audit_live.rs"]
-mod audit_live;
-#[cfg(test)]
-#[path = "audit_reports.rs"]
-mod audit_reports;

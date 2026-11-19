@@ -1,5 +1,5 @@
-use super::super::test_support::*;
-use super::audit_live::*;
+use super::audit_live_tests::*;
+use super::test_support::*;
 use crate::exec::execute;
 
 #[test]
@@ -31,12 +31,12 @@ fn secrets_launch_failure_is_incomplete_without_a_clean_result() {
         }
     }
     let harness = Harness::new("audit-launch-failed");
-    let bazel = super::QueryBazel {
+    let bazel = dx_exec_reports::pinned_tool::QueryBazel {
         query_runner: &harness.query,
         workspace: &harness.workspace,
         startup: &[],
     };
-    let (findings, incomplete, diagnostics) = super::run_secrets(
+    let (findings, incomplete, diagnostics) = dx_exec_audit::run_secrets(
         &harness.workspace,
         &Unavailable,
         &harness.query,
@@ -61,7 +61,7 @@ fn license_policy_read_failures_and_empty_default_are_explicit() {
     let path = harness.workspace.join("license.toml");
     std::fs::write(&path, " \n").expect("empty");
     assert!(
-        super::load_license_policy(&harness.workspace)
+        dx_exec_audit::load_license_policy(&harness.workspace)
             .expect("default")
             .tables
             .allow
@@ -69,14 +69,14 @@ fn license_policy_read_failures_and_empty_default_are_explicit() {
     );
     std::fs::write(&path, [0xff]).expect("invalid utf8");
     assert!(matches!(
-        super::load_license_policy(&harness.workspace),
-        Err(super::AuditError::NotUtf8 { .. })
+        dx_exec_audit::load_license_policy(&harness.workspace),
+        Err(dx_exec_audit::AuditError::NotUtf8 { .. })
     ));
     std::fs::remove_file(&path).expect("remove");
     std::fs::create_dir_all(&path).expect("directory");
     assert!(matches!(
-        super::load_license_policy(&harness.workspace),
-        Err(super::AuditError::Read { .. })
+        dx_exec_audit::load_license_policy(&harness.workspace),
+        Err(dx_exec_audit::AuditError::Read { .. })
     ));
 }
 
@@ -192,7 +192,7 @@ fn the_strict_tier_denies_a_license_the_standard_tier_only_reviews() {
             "dx.toml",
             &format!("schema_version = 1\ntier = \"{tier}\"\n"),
         );
-        let tables = super::load_license_policy(&harness.workspace)
+        let tables = dx_exec_audit::load_license_policy(&harness.workspace)
             .expect("policy")
             .tables;
         assert_eq!(tables.review.contains("MPL-2.0"), reviewed, "{tier}");
@@ -215,8 +215,11 @@ fn an_invalid_dx_toml_fails_both_policies() {
             && security.to_string().contains("schema_version is missing"),
         "{security}"
     );
-    let license = super::load_license_policy(&harness.workspace).expect_err("license");
-    assert!(matches!(license, super::AuditError::LicenseInvalid { .. }));
+    let license = dx_exec_audit::load_license_policy(&harness.workspace).expect_err("license");
+    assert!(matches!(
+        license,
+        dx_exec_audit::AuditError::LicenseInvalid { .. }
+    ));
     assert!(license.to_string().contains("dx.toml: "), "{license}");
 }
 
@@ -299,12 +302,12 @@ fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
     };
     let wide = load(policy);
     assert_eq!(
-        super::tier_for_roots(&wide, &roots(&["//cli/cli:dx_cli", "//cli/audit:dx_audit"])),
+        dx_exec_audit::tier_for_roots(&wide, &roots(&["//cli/cli:dx_cli", "//cli/audit:dx_audit"])),
         dx_audit::license_expr::Tier::Internal
     );
     let narrow = load("schema_version = 1\n[distribution]\ninternal = [\"//cli/...\"]\n");
     assert_eq!(
-        super::tier_for_roots(&narrow, &roots(&["//cli/cli:dx_cli", "//go:x"])),
+        dx_exec_audit::tier_for_roots(&narrow, &roots(&["//cli/cli:dx_cli", "//go:x"])),
         dx_audit::license_expr::Tier::Distributed
     );
 }
@@ -489,12 +492,12 @@ const CLEAN_SARIF: &str =
 /// Runs the secrets family against a fake gitleaks and returns its argv and diagnostics.
 fn scan_secrets(harness: &Harness) -> (Vec<String>, Vec<dx_output::DiagnosticEvent>) {
     let runner = AuditRunner::with_sarif(Some(0), CLEAN_SARIF);
-    let bazel = super::QueryBazel {
+    let bazel = dx_exec_reports::pinned_tool::QueryBazel {
         query_runner: &harness.query,
         workspace: &harness.workspace,
         startup: &[],
     };
-    let (findings, incomplete, diagnostics) = super::run_secrets(
+    let (findings, incomplete, diagnostics) = dx_exec_audit::run_secrets(
         &harness.workspace,
         &runner,
         &harness.query,
@@ -597,12 +600,12 @@ fn secrets_scan_fails_on_an_allowlist_without_a_description() {
         "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[[allowlists]]\npaths = [\"a\"]\n",
     );
     let runner = AuditRunner::with_sarif(Some(0), CLEAN_SARIF);
-    let bazel = super::QueryBazel {
+    let bazel = dx_exec_reports::pinned_tool::QueryBazel {
         query_runner: &harness.query,
         workspace: &harness.workspace,
         startup: &[],
     };
-    let (_, incomplete, _) = super::run_secrets(
+    let (_, incomplete, _) = dx_exec_audit::run_secrets(
         &harness.workspace,
         &runner,
         &harness.query,
@@ -675,7 +678,7 @@ fn committed_gitleaks_config_produces_a_trust_warning() {
 
 #[test]
 fn advisory_loader_rejects_corrupt_pinned_snapshots() {
-    use super::AuditError;
+    use dx_exec_audit::AuditError;
     for variant in ["directory", "tampered", "invalid-json", "no-pin"] {
         let harness = Harness::new(&format!("advisory-corrupt-{variant}"));
         let json = if variant == "invalid-json" { "{" } else { "[]" };
@@ -693,8 +696,8 @@ fn advisory_loader_rejects_corrupt_pinned_snapshots() {
             "no-pin" => std::fs::remove_file(harness.workspace.join(".dx/pins")).expect("pins"),
             _ => {}
         }
-        let error =
-            super::load_advisories(&harness.workspace, "cargo", "cargo", false).expect_err(variant);
+        let error = dx_exec_audit::load_advisories(&harness.workspace, "cargo", "cargo", false)
+            .expect_err(variant);
         let expected = match variant {
             "directory" => matches!(error, AuditError::AdvisoryPinFetch { .. }),
             "tampered" => matches!(error, AuditError::AdvisoryPinMismatch { .. }),
@@ -1236,7 +1239,7 @@ fn audit_partial_reports_are_not_authoritative() {
 
 #[test]
 fn audit_errors_stay_typed_with_stable_display() {
-    use super::AuditError;
+    use dx_exec_audit::AuditError;
     use std::error::Error as _;
     assert_eq!(
         AuditError::NoOwningSet {
@@ -1320,7 +1323,7 @@ fn audit_errors_stay_typed_with_stable_display() {
         "security.toml is invalid: schema_version is missing"
     );
     let harness = Harness::new("audit-typed-missing");
-    let missing = super::load_advisories(&harness.workspace, "cargo", "cargo", false)
+    let missing = dx_exec_audit::load_advisories(&harness.workspace, "cargo", "cargo", false)
         .expect_err("missing pin fails");
     assert!(matches!(missing, AuditError::AdvisoryPinMissing { .. }));
     assert!(missing.to_string().contains("advisory_pin_missing"));

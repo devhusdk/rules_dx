@@ -1,5 +1,5 @@
 {
-  "checksum": "983ceb81f56031cf21f4f212d5f4a5b5e65428f613084f65707e6e1e31523a60",
+  "checksum": "2382d57f83d16402ac2789dc117bc100dcb0fb23e926947c65bba592d995b4fb",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8586,6 +8586,49 @@
         {
           "Library": {
             "crate_name": "dx_error",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_exec_audit 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "chrono 0.4.45",
+            "target": "chrono"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          },
+          {
+            "id": "tracing 0.1.44",
+            "target": "tracing"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_audit",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_audit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_audit",
             "crate_root": "src/lib.rs"
           }
         }
@@ -33357,6 +33400,7 @@
     "dx_env 0.0.0": "cli/dx_env",
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
     "dx_error 0.0.0": "cli/dx_error",
+    "dx_exec_audit 0.0.0": "cli/dx_exec_audit",
     "dx_exec_core 0.0.0": "cli/dx_exec_core",
     "dx_exec_reports 0.0.0": "cli/dx_exec_reports",
     "dx_families 0.0.0": "cli/dx_families",

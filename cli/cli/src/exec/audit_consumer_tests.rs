@@ -14,9 +14,9 @@ mod tests {
             .expect("registry name")
     }
 
-    use super::super::super::test_support::Harness;
-    use super::super::super::test_support::{event_kinds, json_events};
-    use super::super::audit_live::{AuditRunner, write_advisory, write_pin};
+    use super::super::audit_live_tests::{AuditRunner, write_advisory, write_pin};
+    use super::super::test_support::Harness;
+    use super::super::test_support::{event_kinds, json_events};
 
     fn uv_module() -> String {
         let v0 = manifest_of(Ecosystem::Uv);
@@ -204,9 +204,11 @@ source = { registry = "https://pypi.org/simple" }
             registry_package("django", "3.2.5"),
             registry_package("sqlparse", "0.4.4")
         );
-        let combined = DJANGO_ADVISORY.trim_end_matches(']').to_owned()
-            + ","
-            + SQLPARSE_ADVISORY.trim_start_matches('[');
+        let combined = format!(
+            "{},{}",
+            DJANGO_ADVISORY.trim_end_matches(']'),
+            SQLPARSE_ADVISORY.trim_start_matches('[')
+        );
         let (code, out, err) = audited("patched", &lock_with(&packages), Some(&combined), &[]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("audit_security_clean"), "{out}");
@@ -539,9 +541,12 @@ source = { registry = "https://pypi.org/simple" }
         ] {
             let update = dx_adopt::dependency_sets::resolve(&registry, &[selector.to_owned()])
                 .expect("update resolves");
-            let audit =
-                super::super::resolve_configured_audit_sets(&registry, &[selector.to_owned()], &[])
-                    .expect("audit resolves");
+            let audit = dx_exec_audit::resolve_configured_audit_sets(
+                &registry,
+                &[selector.to_owned()],
+                &[],
+            )
+            .expect("audit resolves");
             let mut update_names: Vec<&str> = update
                 .iter()
                 .map(|target| target.set.name.as_str())
@@ -561,7 +566,7 @@ source = { registry = "https://pypi.org/simple" }
                 .expect("present");
         let excludes = vec!["//services/...".to_owned()];
         let names = |selector: &str| -> Vec<String> {
-            super::super::resolve_configured_audit_sets(
+            dx_exec_audit::resolve_configured_audit_sets(
                 &registry,
                 &[selector.to_owned()],
                 &excludes,
@@ -574,7 +579,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(names("//..."), ["pypi-frontend"]);
         assert_eq!(names("pypi-worker"), ["pypi-worker"]);
         assert_eq!(
-            super::super::excluded_dirs(&[
+            dx_exec_audit::excluded_dirs(&[
                 "//...".to_owned(),
                 "//third_party/...".to_owned(),
                 "//vendor/...:all".to_owned(),
@@ -589,7 +594,7 @@ source = { registry = "https://pypi.org/simple" }
             "//vendor/...:all-targets",
         ] {
             assert_eq!(
-                super::super::excluded_dirs(&[pattern.to_owned()]),
+                dx_exec_audit::excluded_dirs(&[pattern.to_owned()]),
                 ["vendor/"],
                 "{pattern}"
             );
@@ -726,7 +731,10 @@ source = { registry = "https://pypi.org/simple" }
             GEMFILE_LOCK,
         );
         harness.write_source(
-            &format!("apps/rb/{}", dx_adopt::lock_hubs::lock_of("ruby").expect("ruby lock")),
+            &format!(
+                "apps/rb/{}",
+                dx_adopt::lock_hubs::lock_of("ruby").expect("ruby lock")
+            ),
             "{\"ecosystem\": \"ruby\", \"packages\": []}\n",
         );
         harness
@@ -1361,14 +1369,14 @@ source = { registry = "https://pypi.org/simple" }
         let prepared = dx_audit::advisory_prep::cpan_snapshot(
             CPANSA,
             "1.002",
-            super::super::super::test_support::TEST_AUDIT_TODAY,
+            super::super::test_support::TEST_AUDIT_TODAY,
         )
         .expect("prepared");
         write_pin(
             &harness,
             "cpan",
             dx_audit::advisory::advisory_source("cpan").expect("source"),
-            super::super::super::test_support::TEST_AUDIT_TODAY,
+            super::super::test_support::TEST_AUDIT_TODAY,
             std::str::from_utf8(&prepared.payload).expect("utf8"),
         );
         harness
@@ -1506,7 +1514,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(build.iter().any(|arg| arg == "//app:image_config"));
         let trivy = calls
             .iter()
-            .find(|argv| argv[0] == super::super::audit_live::hermetic_trivy())
+            .find(|argv| argv[0] == super::super::audit_live_tests::hermetic_trivy())
             .expect("trivy");
         let image = trivy.last().expect("image");
         assert!(

@@ -106,7 +106,7 @@ fn walk(
 mod tests {
     use super::{find_unowned, unowned_names};
 
-    const MATRIX: &str = include_str!("../../../../docs/support-matrix.md");
+    const MATRIX: &str = include_str!("../../../docs/support-matrix.md");
 
     #[test]
     fn locks_without_a_set_have_a_none_reason_in_the_matrix() {

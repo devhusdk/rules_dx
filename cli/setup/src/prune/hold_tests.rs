@@ -387,3 +387,15 @@ fn a_streamed_child_keeps_its_selection_through_cleanup() {
         "cleanup removes the generation once the child is gone"
     );
 }
+
+#[test]
+fn hold_current_refuses_a_file_where_the_state_dir_belongs() {
+    let (_scratch, workspace) = workspace("dx-prune-hold-file-state-");
+    let dx_dir = dx_path::state::local_dir(&workspace);
+    fs::create_dir_all(dx_dir.parent().expect("parent")).expect("parent dir");
+    fs::write(&dx_dir, "foreign").expect("file state dir");
+    assert!(matches!(
+        hold_current(&workspace, WAIT),
+        Err(HoldError::Prune(PruneError::CurrentInvalid { .. }))
+    ));
+}

@@ -1,8 +1,11 @@
-load("@rules_dx//cc:defs.bzl", "cc_library")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//qt:defs.bzl", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_qml_module")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 load(":quality.bzl", "qt_format_subject", "qt_lint_subject")
+
+# Qt sources build through qt_cc_library, which adds the Qt headers.
+# gazelle:exclude greet.cc
+# gazelle:exclude greet.h
 
 package(
     default_testonly = True,
@@ -109,11 +112,4 @@ real_source_target(
         "quality.bzl",
     ],
     tags = ["corpus"],
-)
-
-cc_library(
-    name = "conformance",
-    testonly = True,
-    srcs = ["greet.cc"],
-    hdrs = ["greet.h"],
 )

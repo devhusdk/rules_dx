@@ -229,7 +229,7 @@ Other labels:
 - `model:haiku`, `model:sonnet`, `model:opus` and `model:human` pick which agent lane handles the issue.
 - `dogfood`: an extra label, never the only one.
 
-A `blocked` issue has a body line that starts with `Blocked on:`, followed by what it waits for: `#N` issues, `owner/repo#N` issues or pull requests in other repositories, a pull request or issue URL, or the owner action. A bare `#N` always means this repository, so write other repositories in full. The daily `issue-labels` workflow removes the label once every named issue is closed or pull request merged, and comments once on a `blocked` issue without the line.
+A `blocked` issue has a body line that starts with `Blocked on:`, followed by what it waits for: `#N` issues, `owner/repo#N` issues or pull requests in other repositories, a pull request or issue URL, or the owner action. A bare `#N` always means this repository, so write other repositories in full. The daily `issue-labels` workflow removes the label once every named issue is closed or pull request merged, and comments once on a `blocked` issue without the line. To wait for a release of another repository, name the pull request, not an issue, and write `Blocked on: <PR URL> (merged and in a <module> release)`: the label then stays until the repository's latest GitHub release contains the merge commit. Unblock by hand when the fix ships as a cherry-picked backport or the repository has no latest GitHub release.
 
 Filters: [user issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+is%3Aopen+-label%3Adogfood), [dogfood issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+is%3Aopen+label%3Adogfood).
 

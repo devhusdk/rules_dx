@@ -25,6 +25,7 @@ CONSUMER_FIXTURES = [
     "elixir",
     "erlang",
     "flatbuffers",
+    "flutter",
     "fortran",
     "fsharp",
     "go",

@@ -28,8 +28,11 @@ Start a project:
 dx init --apply demo-app
 ```
 
-Then add `rules_flutter` with a `flutter.pub` hub to `MODULE.bazel`, add a
-`pubspec.lock`, and declare `flutter_library` and `flutter_test` targets.
+`MODULE.bazel` needs only `bazel_dep(name = "rules_dx")`. It needs no
+`rules_flutter` `bazel_dep`, no `flutter.toolchain` tag and no engine
+`use_repo`. When code imports pub packages, add a `pubspec.lock` and a
+`pub.lock` hub from `@rules_dx//flutter:extensions.bzl`.
+[`tests/consumer`](tests/consumer) is a minimal consumer project.
 
 Regenerate `pubspec.lock` for a package directory:
 

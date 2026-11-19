@@ -219,6 +219,7 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:exclude make/tests/consumer
 # gazelle:exclude terraform/tests/consumer
 # gazelle:exclude fortran/tests/consumer
+# gazelle:exclude flutter/tests/consumer
 # gazelle:exclude make/tests/fixtures
 # gazelle:exclude terraform/tests/fixtures
 # gazelle:exclude kubernetes/tests/fixtures

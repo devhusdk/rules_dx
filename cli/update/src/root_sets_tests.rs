@@ -40,6 +40,7 @@ const EXPECTED_NAMES: &[&str] = &[
     "dx_thrift_crates",
     "elixir_app_deps",
     "erlang_lock_deps",
+    "fpm_fortran.tests.fixtures.fpm_deps",
     "go",
     "haskell_app_hackage",
     "haskell_bench_hackage",

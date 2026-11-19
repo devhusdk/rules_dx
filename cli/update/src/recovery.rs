@@ -64,7 +64,7 @@ pub fn retry_command(retry: &[String], mode: RetryMode) -> String {
     let mut command = String::from(mode.prefix());
     for set in retry {
         command.push(' ');
-        command.push_str(set);
+        command.push_str(&dx_process::shell::word(set));
     }
     command
 }
@@ -77,7 +77,7 @@ pub fn restore_command(paths: &[String]) -> Option<String> {
     let mut command = String::from("git checkout --");
     for path in paths {
         command.push(' ');
-        command.push_str(path);
+        command.push_str(&dx_process::shell::word(path));
     }
     Some(command)
 }
@@ -341,5 +341,20 @@ mod tests {
         assert_eq!(plan.restore_paths, [] as [String; 0]);
         assert!(plan.restore_command.is_none());
         assert!(plan.message.contains("nothing to roll back"));
+    }
+
+    #[test]
+    fn commands_quote_words_the_shell_would_split() {
+        assert_eq!(
+            restore_command(&["my dir/Cargo.lock".to_owned(), "a;b/it's.lock".to_owned()]),
+            Some("git checkout -- 'my dir/Cargo.lock' 'a;b/it'\\''s.lock'".to_owned())
+        );
+        assert_eq!(
+            retry_command(
+                &["npm root".to_owned(), "cargo".to_owned()],
+                RetryMode::Apply
+            ),
+            "dx update --apply 'npm root' cargo"
+        );
     }
 }

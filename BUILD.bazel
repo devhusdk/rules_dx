@@ -815,6 +815,7 @@ filegroup(
         "//patches/rules_elixir:module_srcs",
         "//patches/rules_erlang:module_srcs",
         "//patches/rules_flutter:module_srcs",
+        "//patches/rules_foreign_cc:module_srcs",
         "//patches/rules_fortran:module_srcs",
         "//patches/rules_go:module_srcs",
         "//patches/rules_haskell:module_srcs",

@@ -839,8 +839,6 @@ Use a toolchain type when you register your own toolchain.
 | Target | Kind |
 | --- | --- |
 | `@rules_dx//:dx` | `alias` |
-| `@rules_dx//:lang_json` | `filegroup` |
-| `@rules_dx//:module_srcs` | `filegroup` |
 | `@rules_dx//:package_json` | `javascript_library` |
 | `@rules_dx//android:declared_emulator` | `declared_emulator` |
 | `@rules_dx//android:emulator_undeclared` | `config_setting` |
@@ -893,7 +891,6 @@ Run these with `bazel run <target>`.
 | `@rules_dx//cli/launcher:exec_launcher` | `rust_binary` |
 | `@rules_dx//cli/ocaml_cc_driver:ocaml_cc_driver` | `rust_binary` |
 | `@rules_dx//cli/runtime:dx_runtime` | `rust_binary` |
-| `@rules_dx//core/modules:lang_projections` | `rust_binary` |
 | `@rules_dx//core/quality/lsp_check:lsp_check` | `rust_binary` |
 | `@rules_dx//core/quality/markdown:quality_markdown` | `rust_binary` |
 | `@rules_dx//core/quality/notebook:quality_notebook` | `rust_binary` |
@@ -910,7 +907,6 @@ Run these with `bazel run <target>`.
 | `@rules_dx//core/quality/tools/python:rst2html` | `py_binary` |
 | `@rules_dx//core/quality/tools/python:sqlfluff` | `py_binary` |
 | `@rules_dx//core/quality/tools/python:yamllint` | `py_binary` |
-| `@rules_dx//core/quality:compile_check_test_sh` | `native_binary` |
 | `@rules_dx//deploy:bootstrap_offline` | `rust_binary` |
 | `@rules_dx//examples/shared-rust:shared_tasks` | `rust_binary` |
 | `@rules_dx//examples/shared-rust:tasks` | `rust_binary` |

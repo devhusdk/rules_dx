@@ -265,9 +265,11 @@ fn target_labels_txt(builds: &Builds) -> Result<String, Box<dyn std::error::Erro
     Ok(rows.into_iter().map(|row| format!("{row}\n")).collect())
 }
 
-/// Whether `bazel run` runs targets of `rule`: every `*_binary` rule except `run_binary`.
+/// Whether `bazel run` runs targets of `rule`: every `*_binary` rule except `run_binary`, and
+/// the `write_source_files` regenerators.
 fn runnable(rule: &str) -> bool {
-    rule.ends_with("_binary") && rule != "run_binary"
+    (rule.ends_with("_binary") && rule != "run_binary")
+        || matches!(rule, "write_source_files" | "write_source_file")
 }
 
 /// A row for each public named target in `build` whose rule `keep` accepts.
@@ -754,6 +756,10 @@ sh_binary(name = "release", srcs = ["release.sh"], visibility = ["//visibility:p
 
 rust_binary(name = "maintainer")
 
+write_source_files(name = "update_docs", files = {"a": "b"}, visibility = ["//visibility:public"])
+
+write_source_files(name = "update_private", files = {"a": "b"}, visibility = ["//visibility:private"])
+
 run_binary(name = "generated", tool = ":maintainer", visibility = ["//visibility:public"])
 
 filegroup(name = "srcs", visibility = ["//visibility:public"])
@@ -768,6 +774,7 @@ filegroup(name = "srcs", visibility = ["//visibility:public"])
             concat!(
                 "//deploy:bootstrap_offline runnable native_binary\n",
                 "//deploy:release runnable sh_binary\n",
+                "//deploy:update_docs runnable write_source_files\n",
             )
         );
     }

@@ -58,8 +58,6 @@
 //config:warnings_as_errors bool_flag True
 //config:workspace label_flag ":default_workspace_policy"
 //:dx alias
-//:lang_json filegroup
-//:module_srcs filegroup
 //:package_json javascript_library
 //android:android_device platform
 //android:android_emulator platform
@@ -93,7 +91,6 @@
 //cli/launcher:exec_launcher runnable rust_binary
 //cli/ocaml_cc_driver:ocaml_cc_driver runnable rust_binary
 //cli/runtime:dx_runtime runnable rust_binary
-//core/modules:lang_projections runnable rust_binary
 //core/quality/lsp_check:lsp_check runnable rust_binary
 //core/quality/markdown:quality_markdown runnable rust_binary
 //core/quality/notebook:quality_notebook runnable rust_binary
@@ -110,7 +107,6 @@
 //core/quality/tools/python:rst2html runnable py_binary
 //core/quality/tools/python:sqlfluff runnable py_binary
 //core/quality/tools/python:yamllint runnable py_binary
-//core/quality:compile_check_test_sh runnable native_binary
 //cuda:cublas cuda_component_library
 //cuda:cufft cuda_component_library
 //cuda:curand cuda_component_library

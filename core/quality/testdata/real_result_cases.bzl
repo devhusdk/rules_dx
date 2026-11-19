@@ -96,6 +96,20 @@ def _nvcc_case(name, contains, absent):
         "windows_x86_64": True,
     }
 
+def _cuda_tidy_case(name, target, contains, absent):
+    # The default policy's curated cuda lint is clang_tidy, so no dedicated test config is needed.
+    return {
+        "name": "real_result_clang_tidy_cuda_" + name,
+        "target": "//core/quality/testdata/nvcc_syntax:" + target,
+        "config": "default",
+        "tool": "clang_tidy",
+        "capability": "lint",
+        "class": "cuda",
+        "contains": contains,
+        "absent": absent,
+        "linux_arm64": True,
+    }
+
 def _go_case(tool, capability, kind, target, contains, absent, config = "shared", **extra):
     return extra | {
         "name": "real_result_" + tool + "_" + kind,
@@ -393,6 +407,8 @@ REAL_RESULT_CASES = [
     _nvcc_case("clean", ["nvcc_syntax/clean.cu"], ["__host__", "undefined", "declared but never"]),
     _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),
     _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),
+    _cuda_tidy_case("clean", "clean", ["nvcc_syntax/clean.cu"], ["readability-else-after-return", "clang-diagnostic-error"]),
+    _cuda_tidy_case("dirty", "tidy_dirty", ["nvcc_syntax/tidy_dirty.cu", "readability-else-after-return"], ["clang-diagnostic-error"]),
     {
         "name": "real_result_elixirc_elixir_unused",
         "target": "//core/quality/testdata/elixirc:elixir_unused",

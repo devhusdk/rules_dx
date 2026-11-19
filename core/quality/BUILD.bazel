@@ -242,10 +242,10 @@ consumer_policy_tests(
             "case": "default_d",
             "absent_keys": [
                 "format-d",
-                "lint-d",
                 "typecheck-d",
             ],
             "expected_dx_results": [
+                "greet-real-lint-d.pb",
                 "greet-real-lint-text.pb",
             ],
             "config": "default",

@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 
 use crate::lang::{LineComment, line_comment_syntax};
 use crate::{
@@ -177,7 +176,7 @@ pub(crate) fn resolve_dart_uris(document: &str, owned: &BTreeSet<String>) -> Str
         if let Some(uri) = line.strip_prefix("SF:") {
             match resolve_dart_uri(uri.trim_end(), owned) {
                 Resolved::Path(path) => {
-                    writeln!(out, "SF:{path}").ok();
+                    out.push_str(&format!("SF:{path}\n"));
                     continue;
                 }
                 Resolved::Dependency => dropping = true,

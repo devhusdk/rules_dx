@@ -236,8 +236,13 @@ fn module_check(root: &Path) -> StatusCheck {
 
 /// MODULE.bazel and every file it includes, or the reason they do not load.
 fn load_modules(root: &Path) -> Result<Vec<ModuleFile>, String> {
-    let text = std::fs::read_to_string(root.join("MODULE.bazel"))
-        .map_err(|_| "no MODULE.bazel in the workspace".to_owned())?;
+    let text = std::fs::read_to_string(root.join("MODULE.bazel")).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            "no MODULE.bazel in the workspace".to_owned()
+        } else {
+            format!("cannot read MODULE.bazel: {error}")
+        }
+    })?;
     let read_include = |label: &str| -> Result<String, String> {
         let rel = dx_module_bazel::include_rel("", label)?;
         std::fs::read_to_string(root.join(rel))
@@ -740,6 +745,22 @@ node.toolchain(node_version = pinned)
         assert_eq!(node.0, "warn");
         assert!(node.1.starts_with("unknown:"), "{}", node.1);
         assert!(line("toolchain.swift").is_none());
+    }
+
+    #[test]
+    fn toolchain_check_reports_an_unreadable_module() {
+        let scratch = dx_test_scratch::scratch("dx-status-unreadable-").unwrap();
+        let dir = scratch.path();
+        std::fs::create_dir_all(dir.join("MODULE.bazel")).expect("module dir");
+        let check = toolchain_check(dir);
+        assert_eq!(check.status, "warn");
+        assert!(
+            check
+                .detail
+                .starts_with("unknown: cannot read MODULE.bazel:"),
+            "{}",
+            check.detail
+        );
     }
 
     #[test]

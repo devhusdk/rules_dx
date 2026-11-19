@@ -1,10 +1,14 @@
 //! Converts a Clover or Cobertura XML coverage report to LCOV.
 
-#![deny(clippy::print_stderr, clippy::print_stdout)]
+#![deny(
+    clippy::map_err_ignore,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::unused_result_ok
+)]
 
 use std::env;
 use std::ffi::OsString;
-use std::fmt::Write as _;
 use std::fs;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -34,7 +38,12 @@ fn parse_args(args: &[OsString]) -> Result<Args, DxError> {
         }
     }
     let from = from.ok_or_else(|| DxError::usage(USAGE))?;
-    let [input, output] = <[PathBuf; 2]>::try_from(paths).map_err(|_| DxError::usage(USAGE))?;
+    let [input, output] = <[PathBuf; 2]>::try_from(paths).map_err(|paths: Vec<PathBuf>| {
+        DxError::usage(format!(
+            "{USAGE}: want <in> <out>, got {} path arguments",
+            paths.len()
+        ))
+    })?;
     Ok(Args {
         from,
         sources,
@@ -70,7 +79,7 @@ fn keep_sources(lcov: &str, sources: &[&str]) -> String {
             });
             keep = found.is_some();
             if let Some(src) = found {
-                writeln!(out, "SF:{src}").ok();
+                out.push_str(&format!("SF:{src}\n"));
             }
             continue;
         }
@@ -143,7 +152,8 @@ mod tests {
     #[test]
     fn rejects_missing_from_or_paths() {
         assert!(parse_args(&strings(&["in", "out"])).is_err());
-        assert!(parse_args(&strings(&["--from", "clover", "in"])).is_err());
+        let error = parse_args(&strings(&["--from", "clover", "in"])).expect_err("one path");
+        assert!(error.message().contains("got 1 path"), "{error}");
     }
 
     #[test]

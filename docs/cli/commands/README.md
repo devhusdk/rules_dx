@@ -583,7 +583,6 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_wasm_bindgen_library` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_web_app` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_web_bundle` |
-|  |  | `@rules_dx//javascript:defs.bzl` | `js_library` |
 |  |  | `@rules_dx//julia:defs.bzl` | `julia_bench` |
 |  |  | `@rules_dx//julia:defs.bzl` | `julia_standalone_binary` |
 |  |  | `@rules_dx//kotlin:defs.bzl` | `kotlin_bench` |

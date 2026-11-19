@@ -1,6 +1,5 @@
 """Public JavaScript API."""
 
-load("@aspect_rules_js//js:defs.bzl", _js_library = "js_library")
 load(
     "//javascript/private:defs.bzl",
     _javascript_library = "javascript_library",
@@ -18,7 +17,6 @@ load(
 )
 
 javascript_library = _javascript_library
-js_library = _js_library
 javascript_wasm_bindgen_library = _javascript_wasm_bindgen_library
 javascript_binary = _javascript_binary
 javascript_test = _javascript_test

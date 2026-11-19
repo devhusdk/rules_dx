@@ -1922,8 +1922,7 @@ LANGS = json.decode("""{
       "javascript_bench",
       "javascript_fuzz_test",
       "javascript_web_app",
-      "javascript_web_bundle",
-      "js_library"
+      "javascript_web_bundle"
     ],
     "family": "core",
     "lockfiles": [

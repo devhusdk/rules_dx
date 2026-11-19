@@ -1101,8 +1101,8 @@ func TestGenerateRootPackageJSONLibrary(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "package.json", "{}\n")
 	result := newLang().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, Rel: ""})
-	if len(result.Gen) != 1 || result.Gen[0].Kind() != jsLibraryKind || result.Gen[0].Name() != packageJSONName {
-		t.Fatalf("generated %v, want js_library(package_json)", result.Gen)
+	if len(result.Gen) != 1 || result.Gen[0].Kind() != libraryKind || result.Gen[0].Name() != packageJSONName {
+		t.Fatalf("generated %v, want javascript_library(package_json)", result.Gen)
 	}
 	if got := strings.Join(result.Gen[0].AttrStrings("srcs"), ","); got != "package.json" {
 		t.Errorf("srcs = %q", got)
@@ -1110,6 +1110,21 @@ func TestGenerateRootPackageJSONLibrary(t *testing.T) {
 	nested := newLang().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "x"), Rel: "x"})
 	if len(nested.Gen) != 0 {
 		t.Errorf("nested package generated %v", nested.Gen)
+	}
+}
+
+func TestMergeStaleOwnsOnlyRootJsLibraryPackageJSON(t *testing.T) {
+	for _, tc := range []struct {
+		pkg       string
+		wantEmpty bool
+	}{{"", true}, {"x", false}} {
+		file := rule.EmptyFile(filepath.Join(tc.pkg, "BUILD.bazel"), tc.pkg)
+		rule.NewRule(jsLibraryKind, packageJSONName).Insert(file)
+		result := mergeStale(file, language.GenerateResult{})
+		gotEmpty := len(result.Empty) == 1 && result.Empty[0].Kind() == jsLibraryKind && result.Empty[0].Name() == packageJSONName
+		if gotEmpty != tc.wantEmpty || len(result.Empty) > 1 {
+			t.Errorf("pkg %q: Empty = %v, want js_library(package_json) removed = %v", tc.pkg, result.Empty, tc.wantEmpty)
+		}
 	}
 }
 

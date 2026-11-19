@@ -29,10 +29,10 @@ bazel_dep(name = "rules_dx", version = "<release>")
 A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small TypeScript package from [`typescript/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/typescript/tests/consumer/BUILD.bazel):
 
 ```python
-load("@rules_dx//javascript:defs.bzl", "js_library")
+load("@rules_dx//javascript:defs.bzl", "javascript_library")
 load("@rules_dx//typescript:defs.bzl", "ts_config", "typescript_binary", "typescript_library")
 
-js_library(
+javascript_library(
     name = "package_json",
     srcs = ["package.json"],
     visibility = ["//visibility:public"],

@@ -10711,6 +10711,254 @@
   },
   {
     "aspects": [],
+    "extensions": [
+      {
+        "name": "python",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "python_version",
+                "type": "STRING"
+              }
+            ],
+            "name": "toolchain"
+          }
+        ]
+      },
+      {
+        "name": "sdist_cargo_vendor",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "\"Cargo.lock\"",
+                "mandatory": false,
+                "name": "cargo_lock_path",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "package",
+                "type": "STRING"
+              }
+            ],
+            "name": "crates"
+          }
+        ]
+      },
+      {
+        "name": "uv",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "src",
+                "type": "LABEL"
+              }
+            ],
+            "name": "annotate_packages"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "hub_name",
+                "type": "STRING"
+              }
+            ],
+            "name": "declare_hub"
+          },
+          {
+            "attrs": [
+              {
+                "default": "{}",
+                "mandatory": false,
+                "name": "config_settings",
+                "type": "STRING_LIST_DICT"
+              },
+              {
+                "default": "{\"\": \"\"}",
+                "mandatory": false,
+                "name": "console_scripts",
+                "type": "STRING_DICT"
+              },
+              {
+                "default": "{}",
+                "mandatory": false,
+                "name": "env",
+                "type": "STRING_DICT"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "exclude_glob",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "extra_data",
+                "type": "LABEL_LIST"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "extra_deps",
+                "type": "LABEL_LIST"
+              },
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "monitor_memory",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "1",
+                "mandatory": false,
+                "name": "post_install_patch_strip",
+                "type": "INT"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "post_install_patches",
+                "type": "LABEL_LIST"
+              },
+              {
+                "default": "1",
+                "mandatory": false,
+                "name": "pre_build_patch_strip",
+                "type": "INT"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "pre_build_patches",
+                "type": "LABEL_LIST"
+              },
+              {
+                "default": "\"default\"",
+                "mandatory": false,
+                "name": "resource_set",
+                "type": "STRING"
+              },
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "target",
+                "type": "LABEL"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "testonly",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "toolchains",
+                "type": "LABEL_LIST"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "version",
+                "type": "STRING"
+              }
+            ],
+            "name": "override_package"
+          },
+          {
+            "attrs": [
+              {
+                "default": "[\"build\"]",
+                "mandatory": false,
+                "name": "default_build_dependencies",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "hub_name",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "pyproject",
+                "type": "LABEL"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "version",
+                "type": "STRING"
+              }
+            ],
+            "name": "project"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//python:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
     "extensions": [],
     "functions": [
       {
@@ -13912,6 +14160,43 @@
         "test": false
       }
     ]
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "swift",
+        "tag_classes": []
+      },
+      {
+        "name": "swiftpm",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "lock"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//swift:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
   },
   {
     "aspects": [],

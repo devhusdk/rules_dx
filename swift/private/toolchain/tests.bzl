@@ -6,7 +6,7 @@ load("@rules_swift//swift:providers.bzl", "SwiftToolchainInfo")
 load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load(":extensions.bzl", "swift_hub")
-load(":toolchain.bzl", "SWIFT_LINUX_CPUS")
+load(":repos.bzl", "SWIFT_LINUX_CPUS")
 
 def _link_flags(cc_info):
     return [

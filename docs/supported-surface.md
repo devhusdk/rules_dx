@@ -4383,6 +4383,82 @@ Macro or function.
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
 
+### `@rules_dx//python:extensions.bzl`
+
+#### `python`
+
+Module extension.
+
+Tag `python.toolchain`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `python_version` | `string` | yes |  |
+
+#### `sdist_cargo_vendor`
+
+Module extension.
+
+Tag `sdist_cargo_vendor.crates`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `cargo_lock_path` | `string` | no | `"Cargo.lock"` |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+| `package` | `string` | yes |  |
+
+#### `uv`
+
+Module extension.
+
+Tag `uv.annotate_packages`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `src` | `label` | yes |  |
+
+Tag `uv.declare_hub`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `hub_name` | `string` | yes |  |
+
+Tag `uv.override_package`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `config_settings` | `string_list_dict` | no | `{}` |
+| `console_scripts` | `string_dict` | no | `{"": ""}` |
+| `env` | `string_dict` | no | `{}` |
+| `exclude_glob` | `string_list` | no | `[]` |
+| `extra_data` | `label_list` | no | `[]` |
+| `extra_deps` | `label_list` | no | `[]` |
+| `lock` | `label` | no | `None` |
+| `monitor_memory` | `boolean` | no | `False` |
+| `name` | `name` | yes |  |
+| `post_install_patch_strip` | `int` | no | `1` |
+| `post_install_patches` | `label_list` | no | `[]` |
+| `pre_build_patch_strip` | `int` | no | `1` |
+| `pre_build_patches` | `label_list` | no | `[]` |
+| `resource_set` | `string` | no | `"default"` |
+| `target` | `label` | no | `None` |
+| `testonly` | `boolean` | no | `False` |
+| `toolchains` | `label_list` | no | `[]` |
+| `version` | `string` | no | `""` |
+
+Tag `uv.project`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `default_build_dependencies` | `string_list` | no | `["build"]` |
+| `hub_name` | `string` | yes |  |
+| `lock` | `label` | yes |  |
+| `name` | `name` | no | `""` |
+| `pyproject` | `label` | yes |  |
+| `version` | `string` | no | `""` |
+
 ### `@rules_dx//qt:defs.bzl`
 
 #### `qt_frameworks`
@@ -5303,6 +5379,25 @@ Macro or function.
 | `visibility` | no | `None` |
 | `platforms` | no | `None` |
 | `kwargs` | no |  |
+
+### `@rules_dx//swift:extensions.bzl`
+
+#### `swift`
+
+Module extension.
+
+No tags.
+
+#### `swiftpm`
+
+Module extension.
+
+Tag `swiftpm.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
 
 ### `@rules_dx//terraform:defs.bzl`
 

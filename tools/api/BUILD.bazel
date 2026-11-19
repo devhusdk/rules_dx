@@ -108,6 +108,7 @@ _STARLARK_SRCS = [
     "//powershell:defs.bzl",
     "//powershell:extensions.bzl",
     "//python:defs.bzl",
+    "//python:extensions.bzl",
     "//qt:defs.bzl",
     "//qt:extensions.bzl",
     "//rego:defs.bzl",
@@ -120,6 +121,7 @@ _STARLARK_SRCS = [
     "//sql:defs.bzl",
     "//svelte:defs.bzl",
     "//swift:defs.bzl",
+    "//swift:extensions.bzl",
     "//terraform:defs.bzl",
     "//terraform:extensions.bzl",
     "//thrift:defs.bzl",
@@ -138,8 +140,6 @@ _NOT_EXTRACTED = [
     "//dart:extensions.bzl",
     "//flutter:defs.bzl",
     "//flutter:extensions.bzl",
-    "//python:extensions.bzl",
-    "//swift:extensions.bzl",
 ]
 
 # Upstream bzl_library targets that cover the load closure of the public files.
@@ -182,6 +182,7 @@ _UPSTREAM_BZL = [
     "@rules_powershell//powershell:defs_bzl",
     "@rules_ocaml//:dx_bzl_srcs",
     "@rules_py//py:defs",
+    "@rules_py//uv:extensions",
     "@rules_ruby//ruby:defs",
     "@rules_ruby//ruby:deps",
     "@rules_rust//cargo:bzl_lib",

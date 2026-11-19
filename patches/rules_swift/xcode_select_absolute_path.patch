@@ -1,4 +1,4 @@
-Upstream: none (rules_dx only: hard-codes /usr/bin tools for a hermetic PATH)
+Upstream: bazelbuild/rules_swift#2027
 diff --git a/tools/explicit_modules/extensions.bzl b/tools/explicit_modules/extensions.bzl
 --- a/tools/explicit_modules/extensions.bzl
 +++ b/tools/explicit_modules/extensions.bzl

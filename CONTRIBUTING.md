@@ -135,6 +135,15 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
 
    After step 1, on 4 CPUs and 8 GB of memory, this takes about 11 seconds.
 
+4. Before you chase a red test, check whether it is already red on main. After each scheduled or dispatched `ci` run on main, the workflow rewrites the issue labelled `known-red` with the failing test labels, one per line. Read it without a token:
+
+   ```sh
+   curl -fsS 'https://api.github.com/repos/devhusdk/rules_dx/issues?labels=known-red&state=open' \
+     | jq -r '.[0].body // empty' | sed -n '/^```text$/,/^```$/{/^```/d;p}'
+   ```
+
+   An empty list means the last main run had no failing test. The issue body also links the run and names its commit.
+
 Until dx is built, the hooks in `.claude/settings.json` let commands run without building it. They still stop `dx deploy --apply`.
 
 Without user namespaces, Bazel uses `processwrapper-sandbox` instead of `linux-sandbox` on its own. You need no flag.

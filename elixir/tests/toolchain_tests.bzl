@@ -2,7 +2,7 @@
 
 load("//elixir/private/tools:launcher.bzl", "MIX_FORMAT_ENV", "elixir_descriptor")
 load("//erlang/private/toolchain:pins.bzl", "CELLS", "OTP_VERSION")
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "starlark_test")
 load("//core:toolchain.bzl", "cell_repo")
 load("//elixir/private/toolchain:pins.bzl", "CREDO_PACKAGES", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR")
 load("//elixir/private/toolchain:repos.bzl", "CREDO_REWRITES", "DROPPED_PATHS", "credo_build", "credo_rewrites", "elixir_bat", "elixir_script", "hub_build")

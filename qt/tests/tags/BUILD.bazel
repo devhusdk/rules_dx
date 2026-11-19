@@ -1,6 +1,6 @@
 # gazelle:ignore
 
-load("//core:defs.bzl", "starlark_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
 load("//core:tag_probe.bzl", "tag_subject")
 load("//qt:defs.bzl", "qt_cc_binary", "qt_cc_library", "qt_cc_test")
 load("//core/quality:fixtures.bzl", "real_source_target")

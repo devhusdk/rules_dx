@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
 load("//javascript/private:defs.bzl", "javascript_binary_upstream_data", "javascript_test_rejection")
 load("//core:node_test.bzl", "NODE_JEST_COVERAGE_OFF_ARGS", "NODE_JEST_WINDOWS_ARGS", "node_jest_upstream_attrs", "node_test_env", "node_test_upstream_data", "node_test_wrap_args")

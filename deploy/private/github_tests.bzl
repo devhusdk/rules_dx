@@ -1,7 +1,7 @@
 """Unit and analysis tests for the GitHub Release publisher."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":validate_github.bzl", "github_asset_collision_error", "github_notes_error", "github_tag_error")
 
 def github_unit_tests(name):

@@ -863,7 +863,6 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//cuda:gpu_undeclared` | `config_setting` |
 | `@rules_dx//d:coverage` | `config_setting` |
 | `@rules_dx//dart:runfiles` | `alias` |
-| `@rules_dx//deploy:bootstrap_offline` | `rust_binary` |
 | `@rules_dx//flatbuffers:reflection_fbs_schema` | `alias` |
 | `@rules_dx//flatbuffers:runtime_java` | `alias` |
 | `@rules_dx//flatbuffers:runtime_rust` | `alias` |
@@ -879,6 +878,43 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//rust:build_script_cc_env` | `build_script_cc_env` |
 | `@rules_dx//thrift:thrift_compiler` | `alias` |
 | `@rules_dx//zig:kcov_build` | `config_setting` |
+
+## Runnable targets
+
+Run these with `bazel run <target>`.
+
+| Target | Kind |
+| --- | --- |
+| `@rules_dx//cli/cli:dx` | `rust_binary` |
+| `@rules_dx//cli/codegen_shard:codegen_shard_writer` | `rust_binary` |
+| `@rules_dx//cli/coverage_summary:coverage_summary` | `rust_binary` |
+| `@rules_dx//cli/env:env` | `rust_binary` |
+| `@rules_dx//cli/hpc_coverage:hpc_coverage` | `rust_binary` |
+| `@rules_dx//cli/launcher:exec_launcher` | `rust_binary` |
+| `@rules_dx//cli/ocaml_cc_driver:ocaml_cc_driver` | `rust_binary` |
+| `@rules_dx//cli/runtime:dx_runtime` | `rust_binary` |
+| `@rules_dx//core/modules:lang_projections` | `rust_binary` |
+| `@rules_dx//core/quality/lsp_check:lsp_check` | `rust_binary` |
+| `@rules_dx//core/quality/markdown:quality_markdown` | `rust_binary` |
+| `@rules_dx//core/quality/notebook:quality_notebook` | `rust_binary` |
+| `@rules_dx//core/quality/runner:quality_runner` | `rust_binary` |
+| `@rules_dx//core/quality/tools/python:ansible_lint` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:cfn_lint` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:check_jsonschema` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:cmakelint` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:djlint` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:docstrfmt` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:mbake` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:pydoclint` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:pypi_attestations` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:rst2html` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:sqlfluff` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:yamllint` | `py_binary` |
+| `@rules_dx//core/quality:compile_check_test_sh` | `native_binary` |
+| `@rules_dx//deploy:bootstrap_offline` | `rust_binary` |
+| `@rules_dx//examples/shared-rust:shared_tasks` | `rust_binary` |
+| `@rules_dx//examples/shared-rust:tasks` | `rust_binary` |
+| `@rules_dx//examples/shared-rust:tasks_wasi` | `rust_binary` |
 
 ## File formats
 

@@ -1,6 +1,6 @@
 """Concrete aspect-subjects use case."""
 
-load("//core:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo")
 
 def _aspect_leaf_impl(ctx):
     total = ctx.attr.left + ctx.attr.right

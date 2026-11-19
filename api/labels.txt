@@ -85,6 +85,32 @@
 //cc:compiler string_flag "llvm"
 //cc:gcc_linux_glibc alias
 //cc:gcc_linux_libstdcxx alias
+//cli/cli:dx runnable rust_binary
+//cli/codegen_shard:codegen_shard_writer runnable rust_binary
+//cli/coverage_summary:coverage_summary runnable rust_binary
+//cli/env:env runnable rust_binary
+//cli/hpc_coverage:hpc_coverage runnable rust_binary
+//cli/launcher:exec_launcher runnable rust_binary
+//cli/ocaml_cc_driver:ocaml_cc_driver runnable rust_binary
+//cli/runtime:dx_runtime runnable rust_binary
+//core/modules:lang_projections runnable rust_binary
+//core/quality/lsp_check:lsp_check runnable rust_binary
+//core/quality/markdown:quality_markdown runnable rust_binary
+//core/quality/notebook:quality_notebook runnable rust_binary
+//core/quality/runner:quality_runner runnable rust_binary
+//core/quality/tools/python:ansible_lint runnable py_binary
+//core/quality/tools/python:cfn_lint runnable py_binary
+//core/quality/tools/python:check_jsonschema runnable py_binary
+//core/quality/tools/python:cmakelint runnable py_binary
+//core/quality/tools/python:djlint runnable py_binary
+//core/quality/tools/python:docstrfmt runnable py_binary
+//core/quality/tools/python:mbake runnable py_binary
+//core/quality/tools/python:pydoclint runnable py_binary
+//core/quality/tools/python:pypi_attestations runnable py_binary
+//core/quality/tools/python:rst2html runnable py_binary
+//core/quality/tools/python:sqlfluff runnable py_binary
+//core/quality/tools/python:yamllint runnable py_binary
+//core/quality:compile_check_test_sh runnable native_binary
 //cuda:cublas cuda_component_library
 //cuda:cufft cuda_component_library
 //cuda:curand cuda_component_library
@@ -93,10 +119,13 @@
 //cuda:gpu_undeclared config_setting
 //d:coverage config_setting
 //dart:runfiles alias
-//deploy:bootstrap_offline rust_binary
+//deploy:bootstrap_offline runnable rust_binary
 //deploy:linux_amd64 platform
 //deploy:linux_arm64 platform
 //erlang:toolchain_type toolchain_type
+//examples/shared-rust:shared_tasks runnable rust_binary
+//examples/shared-rust:tasks runnable rust_binary
+//examples/shared-rust:tasks_wasi runnable rust_binary
 //flatbuffers:reflection_fbs_schema alias
 //flatbuffers:runtime_java alias
 //flatbuffers:runtime_rust alias

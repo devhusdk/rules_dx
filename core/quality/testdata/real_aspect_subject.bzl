@@ -1,7 +1,7 @@
 """Analysis subject observing real-aspect dx_results."""
 
 load("//core:canonical.bzl", "strip_canonical")
-load("//core:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo")
 load(
     "//core/quality/testdata:all_languages.bzl",
     "RealShardProbeInfo",

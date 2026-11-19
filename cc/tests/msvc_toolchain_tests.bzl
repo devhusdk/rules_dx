@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//cc/private/toolchain:hub.bzl", "cc_hub_entries")
 load("//cc/private/toolchain:pins.bzl", "MSVC_TOOLSET_VERSION", "VC_REDIST_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//cc/private/toolchain/msvc:layout.bzl", "msvc_layout")
 load("//cc/private/toolchain/msvc:subject.bzl", "msvc_toolchain_subject")
 

@@ -3,7 +3,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
 load("//qt/private:defs.bzl", "QT_SOURCE_SPECS", "qt_os_supplied_libraries")
 load("//qt/private/toolchain:pins.bzl", "QT_VERSION")

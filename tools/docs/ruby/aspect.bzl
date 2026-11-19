@@ -33,7 +33,7 @@ real_ruby_docs_aspect = aspect(
         ),
         "_ruby_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/ruby/extract:ruby_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_ruby_yard": attr.label(

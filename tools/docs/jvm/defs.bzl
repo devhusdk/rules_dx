@@ -87,7 +87,7 @@ def _jvm_shard_rule(language, adapter, mnemonic, extensions, toolchains = [], ex
             "_extensions": attr.string_list(default = extensions),
             "_convert": attr.label(
                 cfg = "exec",
-                default = Label("//tools/docs/jvm/convert:jvm_convert"),
+                default = Label("@dx_prebuilt//:dx"),
                 executable = True,
             ),
             "_language": attr.string(default = language),

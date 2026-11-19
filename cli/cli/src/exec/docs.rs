@@ -281,7 +281,6 @@ fn locate_sites(
                 )
                 .as_deref(),
                 &shards,
-                env.runner,
             ) {
                 Ok(dir) => {
                     if !json && invocation.chatty() {
@@ -493,10 +492,10 @@ mod tests {
     fn shards_bep(harness: &Harness, with_site: bool) -> Vec<String> {
         harness.write_source(
             "bazel-bin/tools.dx_docs_tools",
-            "aggregate\tbazel-bin/agg\nmdbook\tbazel-bin/mdbook\nsite_build\tbazel-bin/site_build\n",
+            "mdbook\tbazel-bin/mdbook\n",
         );
-        harness.write_source("bazel-bin/a/a.shard", "{}");
-        harness.write_source("bazel-bin/b/b.shard", "{}");
+        harness.write_source("bazel-bin/a/a.shard", "not a shard");
+        harness.write_source("bazel-bin/b/b.shard", "not a shard");
         let mut groups: Vec<(&str, &[&str])> = vec![
             ("dx_docs_tools", &["bazel-bin/tools.dx_docs_tools"]),
             (
@@ -512,31 +511,18 @@ mod tests {
         group_bep(harness, &groups)
     }
 
-    fn tool_runs(harness: &Harness) -> Vec<Vec<String>> {
-        let runs = harness.build_argv.borrow();
-        runs.iter()
-            .filter(|argv| argv[0].ends_with("/agg") || argv[0].ends_with("/site_build"))
-            .cloned()
-            .collect()
-    }
-
     #[test]
     fn docs_without_a_site_aggregates_every_shard_in_scope() {
         let mut harness = Harness::new("docs-index");
         harness.raw_bep = Some(shards_bep(&harness, false));
         let (code, out, err) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("docs_index_failed"), "{err}");
+        let err = err.replace('\\', "/");
         assert!(
-            err.contains("docs_index_failed") || err.contains("no index.html"),
+            err.contains("site_aggregate: shard '") && err.contains("/a/a.shard"),
             "{err}"
         );
-        let runs = tool_runs(&harness);
-        let aggregate = runs[0].join(" ").replace('\\', "/");
-        assert!(
-            aggregate.contains("--shard ") && aggregate.contains("/a/a.shard"),
-            "{aggregate}"
-        );
-        assert!(aggregate.contains("/b/b.shard"), "{aggregate}");
     }
 
     #[test]
@@ -545,7 +531,6 @@ mod tests {
         harness.raw_bep = Some(shards_bep(&harness, true));
         let (code, out, err) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(tool_runs(&harness).is_empty(), "{:?}", tool_runs(&harness));
         assert!(!harness.workspace.join(".dx/local/docs").exists());
     }
 
@@ -555,7 +540,7 @@ mod tests {
         harness.raw_bep = Some(Vec::new());
         let (code, out, err) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(tool_runs(&harness).is_empty(), "{:?}", tool_runs(&harness));
+        assert!(!harness.workspace.join(".dx/local/docs").exists());
     }
 
     fn script_site_tree(harness: &mut Harness, rel: &str) {

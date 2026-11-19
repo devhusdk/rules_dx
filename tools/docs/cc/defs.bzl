@@ -78,6 +78,7 @@ def cc_shard_action(ctx, language, headers, package, stem, doxygen, doxygen_file
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("cc_extract")
     extract.add("--xml", tree.path + "/xml")
     extract.add("--srcs", manifest)
     extract.add("--package", package)
@@ -128,7 +129,7 @@ def _cc_shard_rule(language, what):
             ),
             "_extract": attr.label(
                 cfg = "exec",
-                default = Label("//tools/docs/cc/extract:cc_extract"),
+                default = Label("@dx_prebuilt//:dx"),
                 executable = True,
             ),
             "_language": attr.string(default = language),

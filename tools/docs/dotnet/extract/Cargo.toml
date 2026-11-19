@@ -11,7 +11,3 @@ serde_json = "1"
 [lib]
 name = "dx_docs_dotnet_extract"
 path = "src/lib.rs"
-
-[[bin]]
-name = "dotnet_extract"
-path = "src/main.rs"

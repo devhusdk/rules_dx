@@ -44,6 +44,7 @@ def protobuf_shard_action(ctx, proto_info, protoc, windows, package, stem, extra
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("protobuf_extract")
     extract.add("--descriptor", descriptor)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -99,7 +100,7 @@ docs_protobuf_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/protobuf/extract:protobuf_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

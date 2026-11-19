@@ -266,6 +266,7 @@ fn the_mapper_fails_without_writing_on_bad_api_json() {
         let out = dir.join(format!("{name}.ir.pb"));
         std::fs::write(&input, json).expect("write the input");
         let run = Command::new(&mapper)
+            .arg("powershell_extract")
             .arg("--api")
             .arg(&input)
             .arg("--out")
@@ -282,6 +283,7 @@ fn the_mapper_fails_without_writing_on_bad_api_json() {
         assert!(!out.exists(), "{name}: the mapper wrote {}", out.display());
     }
     let usage = Command::new(&mapper)
+        .arg("powershell_extract")
         .args(["--api", "x.json"])
         .output()
         .expect("run the mapper");

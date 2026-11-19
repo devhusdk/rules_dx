@@ -580,6 +580,7 @@ fn plugins_yardopts_and_home_config_are_never_loaded() {
 
 fn extract(json: &Path, out: &Path) -> (i32, String) {
     let output = Command::new(dx_testing::env_file("DX_RUBY_EXTRACT"))
+        .arg("ruby_extract")
         .arg("--json")
         .arg(json)
         .arg("--package")

@@ -195,8 +195,8 @@ natively.
 
 To check a built WASI binary from the outside, write a native `rust_test`:
 
-1. Put `@rules_dx//tools/testing/wasi:wasmtime` and the module in `data`.
-2. Put `@rules_dx//tools/testing/wasi:wasi_run` in `deps`.
+1. Put `@rules_dx//rust:wasmtime` and the module in `data`.
+2. Put `@rules_dx//rust:wasi_run` in `deps`.
 3. Pass their `$(rootpath)` values in `env`.
 4. Call `wasi_run::run(runtime, module, args, env, preopens) -> Output` and
    assert on the exit code, stdout and stderr.

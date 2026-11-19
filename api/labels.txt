@@ -148,6 +148,8 @@
 //qt:windows_arm64 platform
 //qt:windows_x86_64 platform
 //rust:build_script_cc_env build_script_cc_env
+//rust:wasi_run rust_library
+//rust:wasmtime alias
 //thrift:thrift_compiler alias
 //zig:kcov bool_flag False
 //zig:kcov_build config_setting

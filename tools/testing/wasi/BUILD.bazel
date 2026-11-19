@@ -1,42 +1,8 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary")
 
 package(default_visibility = ["//visibility:public"])
-
-alias(
-    name = "wasmtime",
-    actual = "@dx_tools//:wasmtime",
-)
-
-rust_library(
-    name = "wasi_run",
-    testonly = True,
-    srcs = ["wasi_run.rs"],
-    aliases = aliases(
-        package_name = "tools/testing/wasi_testing",
-        normal = True,
-    ),
-    crate_name = "wasi_run",
-    crate_root = "wasi_run.rs",
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rust_test(
-    name = "wasi_run_unit_test",
-    size = "small",
-    aliases = aliases(
-        package_name = "tools/testing/wasi_testing",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate = ":wasi_run",
-    tags = ["row:wasi"],
-    deps = [],
-)
 
 rust_binary(
     name = "wasi_test_runner",
@@ -49,7 +15,7 @@ rust_binary(
     crate_name = "wasi_test_runner",
     crate_root = "wasi_test_runner.rs",
     deps = [
-        ":wasi_run",
+        "//rust:wasi_run",
         "//tools/testing:dx_testing",
     ],
 )

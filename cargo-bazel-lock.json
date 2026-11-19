@@ -1,5 +1,5 @@
 {
-  "checksum": "7b9dccfa4cd0f25fd7840de63ca0b91d1913b059df3e0989f8f366f22dfc1ff4",
+  "checksum": "9ed2455d92d0cfef2b875cb17cc71fbd9dc303a9e49f1503559c6abbbf93d96a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -30614,21 +30614,13 @@
       "common_attrs": {
         "edition": "2024"
       },
-      "library_target_name": "wasi_run",
       "license": "Apache-2.0",
       "license_ids": [
         "Apache-2.0"
       ],
       "name": "wasi_testing",
       "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "wasi_run",
-            "crate_root": "wasi_run.rs"
-          }
-        }
-      ],
+      "targets": [],
       "version": "0.0.0"
     },
     "wasip2 1.0.4+wasi-0.2.12": {

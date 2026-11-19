@@ -12,6 +12,7 @@ const DECLARED: &[&str] = &[
     "lua/private/coverage/BUILD.bazel",
     "lua/private/coverage/dx_coverage.lua",
     "lua/private/runtime/launcher.cc",
+    "lua/private/tools/luals.bzl",
 ];
 
 /// The `.bzl` files that nested consumers of each area load first.

@@ -784,6 +784,7 @@ filegroup(
         "//lua/private/quality:module_srcs",
         "//lua/private/runtime:module_srcs",
         "//lua/private/toolchain:module_srcs",
+        "//lua/private/tools:module_srcs",
         "//lua/private/tools/lock:module_srcs",
         "//make/private/quality:module_srcs",
         "//msix:module_srcs",

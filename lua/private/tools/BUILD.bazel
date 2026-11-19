@@ -5,6 +5,14 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files(["luals.bzl"])
 
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "BUILD.bazel",
+        "luals.bzl",
+    ],
+)
+
 luals_tool(
     name = "luals",
     binary = select({

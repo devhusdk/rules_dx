@@ -1,12 +1,12 @@
-//! Analyzes the `//tools/testing/deep_graph` chains of depth 100 and 400 with the `dx check` and
-//! `dx docs` aspects and fails when the deeper graph's analysis phase grows faster than `MAX_RATIO`.
+//! Analyzes the `//tools/testing/deep_graph` chains of depth 100 and 400 with the `dx check`,
+//! `dx docs` and `dx sync` aspects and fails when the deeper graph's analysis phase grows faster than `MAX_RATIO`.
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
 )]
 
 use dx_plan::args::Command;
-use dx_plan::plan::{rules_dx_label, spec};
+use dx_plan::plan::{managed_aspects, rules_dx_label, spec};
 use std::path::{Path, PathBuf};
 use std::process::Command as Process;
 
@@ -17,26 +17,23 @@ const MAX_RATIO: f64 = 8.0;
 const MIN_RATIO: f64 = 2.0;
 const ANALYSIS_MARKER: &str = "Load and analyze dependencies";
 
-/// The aspects of `dx check` (lint, typecheck, format) and `dx docs`, each once.
+/// The aspects of `dx check` (lint, typecheck, format), `dx docs` and `dx sync`, each once.
 fn aspects() -> String {
-    let mut labels: Vec<&str> = Vec::new();
-    for command in [
+    let mut labels: Vec<String> = Vec::new();
+    let check_and_docs = [
         Command::Lint,
         Command::Typecheck,
         Command::Format,
         Command::Docs,
-    ] {
-        for label in spec(command).aspects {
-            if !labels.contains(label) {
-                labels.push(label);
-            }
+    ]
+    .into_iter()
+    .flat_map(|command| spec(command).aspects.iter().copied().map(rules_dx_label));
+    for label in check_and_docs.chain(managed_aspects()) {
+        if !labels.contains(&label) {
+            labels.push(label);
         }
     }
-    labels
-        .into_iter()
-        .map(rules_dx_label)
-        .collect::<Vec<_>>()
-        .join(",")
+    labels.join(",")
 }
 
 fn startup(bazel: &str, out: &Path, depth: u32) -> Vec<String> {
@@ -239,7 +236,7 @@ mod tests {
     }
 
     #[test]
-    fn the_aspects_cover_check_and_docs() {
+    fn the_aspects_cover_check_docs_and_sync() {
         let aspects = aspects();
         assert!(aspects.contains("real_lint_aspect"), "{aspects}");
         assert!(aspects.contains("real_typecheck_aspect"), "{aspects}");
@@ -248,5 +245,17 @@ mod tests {
         assert!(aspects.contains("real_go_docs_aspect"), "{aspects}");
         assert!(aspects.contains("real_julia_docs_aspect"), "{aspects}");
         assert!(aspects.contains("real_ruby_docs_aspect"), "{aspects}");
+        assert!(
+            aspects.contains("core/env/private:plan.bzl%dx_env_plan_aspect"),
+            "{aspects}"
+        );
+        assert!(
+            aspects.contains("core/codegen:codegen.bzl%dx_codegen_plan_aspect"),
+            "{aspects}"
+        );
+        let labels: Vec<&str> = aspects.split(',').collect();
+        for (index, label) in labels.iter().enumerate() {
+            assert!(!labels[..index].contains(label), "{label} twice in {aspects}");
+        }
     }
 }

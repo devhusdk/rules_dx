@@ -1,9 +1,13 @@
 # gazelle:ignore
 load("@aspect_rules_js//js:defs.bzl", "js_binary")
-load("//javascript/private:frameworks.bzl", "dx_framework_jest_files")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//javascript/private:frameworks.bzl", "dx_framework_jest_files")
 
-package(default_visibility = ["//astro:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//astro:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "astro_tool.mjs",
@@ -14,8 +18,8 @@ exports_files([
 
 js_binary(
     name = "astro_tool",
-    visibility = ["//visibility:public"],
     entry_point = "astro_tool.mjs",
+    visibility = ["//visibility:public"],
 )
 
 dx_framework_jest_files("jest_transform.mjs")
@@ -27,4 +31,10 @@ real_source_target(
         "defs.bzl",
     ],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "bzl_srcs",
+    srcs = glob(["*.bzl"]),
+    visibility = ["//tools/api:__pkg__"],
 )

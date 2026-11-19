@@ -39,7 +39,7 @@ alias(
 alias(
     name = "kcov_or_none",
     actual = select({
-        "@platforms//os:linux": "@kcov//:kcov",
+        "@platforms//os:linux": "@dx_prebuilt//:kcov",
         "//conditions:default": ":none",
     }),
     visibility = VIS_TOOLS_PUBLIC,

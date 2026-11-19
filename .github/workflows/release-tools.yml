@@ -50,10 +50,8 @@ jobs:
           rm -rf "$out"
           mkdir -p "$out"
           flags=()
-          ext=""
           case "$host" in
             linux-*) flags=(--@rules_rust//rust/settings:extra_rustc_flag=-Ctarget-feature=+crt-static) ;;
-            windows-*) ext=".exe" ;;
           esac
           sha256_of() {
             if command -v sha256sum >/dev/null 2>&1; then
@@ -66,17 +64,13 @@ jobs:
           bazel build "${flags[@]}" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene
           bazel build "${flags[@]}" //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor
           root="$(bazel info "${flags[@]}" execution_root)"
-          for tool in topiary progenitor; do
+          for tool in topiary progenitor deadnix selene; do
             cp "$root/$(bazel cquery "${flags[@]}" --output=files "//rust/private/quality/tools:$tool")" "$out/dx-$tool-$host"
             chmod +x "$out/dx-$tool-$host"
           done
-          for tool in deadnix selene; do
-            case "$tool" in deadnix) version="$deadnix_version" ;; *) version="$selene_version" ;; esac
-            built="$root/$(bazel cquery "${flags[@]}" --output=files "//rust/private/quality/tools:$tool")"
-            cp "$built" "$out/dx-tool-$tool-$version-$host$ext"
-          done
           if test "$host" = "macos-arm64"; then
-            for file in "$out/dx-tool-deadnix-$deadnix_version-$host" "$out/dx-tool-selene-$selene_version-$host" "$out/dx-topiary-$host" "$out/dx-progenitor-$host"; do
+            for tool in deadnix selene topiary progenitor; do
+              file="$out/dx-$tool-$host"
               chmod u+w "$file"
               codesign --verify --strict "$file" || codesign --sign - "$file"
               codesign --verify --strict "$file"
@@ -85,13 +79,13 @@ jobs:
           if test "$host" = "linux-arm64"; then
             bazel build --platforms=//tools/platforms:linux_arm64_musl --features=fully_static_link @haskell_nixfmt_hackage//:nixfmt-exe-nixfmt
             built="$root/$(bazel cquery --platforms=//tools/platforms:linux_arm64_musl --features=fully_static_link --output=files @haskell_nixfmt_hackage//:nixfmt-exe-nixfmt)"
-            cp "$built" "$out/dx-tool-nixfmt-$nixfmt_version-$host"
-            chmod +x "$out/dx-tool-nixfmt-$nixfmt_version-$host"
+            cp "$built" "$out/dx-nixfmt-$host"
+            chmod +x "$out/dx-nixfmt-$host"
           fi
           case "$host" in
             linux-*)
-              tools=("tool-deadnix-$deadnix_version" "tool-selene-$selene_version" topiary progenitor)
-              if test "$host" = "linux-arm64"; then tools+=("tool-nixfmt-$nixfmt_version"); fi
+              tools=(deadnix selene topiary progenitor)
+              if test "$host" = "linux-arm64"; then tools+=(nixfmt); fi
               for tool in "${tools[@]}"; do
                 if readelf -l "$out/dx-$tool-$host" | grep -q INTERP; then
                   echo "dx-$tool-$host is dynamically linked" >&2
@@ -106,28 +100,27 @@ jobs:
           want="$(sed -n '/^name = "deadnix"$/,/^$/s/^checksum = "\(.*\)"$/\1/p' rust/private/quality/tools/Cargo.lock)"
           test -n "$want" || { echo "no deadnix checksum in Cargo.lock" >&2; exit 1; }
           test "$(sha256_of "$download/$crate")" = "$want" || { echo "deadnix crate sha256 differs from Cargo.lock" >&2; exit 1; }
-          cp "$download/$crate" "$out/dx-tool-deadnix-$deadnix_version-source.crate"
-          tar -xzOf "$download/$crate" "deadnix-$deadnix_version/LICENSE" > "$out/dx-tool-deadnix-$deadnix_version-LICENSE"
+          cp "$download/$crate" "$out/dx-deadnix-source.crate"
+          tar -xzOf "$download/$crate" "deadnix-$deadnix_version/LICENSE" > "$out/dx-deadnix-LICENSE"
           curl --fail --silent --show-error --location -o "$download/selene.tar.gz" "https://github.com/Kampfkarren/selene/archive/refs/tags/$selene_version.tar.gz"
           test "$(sha256_of "$download/selene.tar.gz")" = "$selene_sha256" || { echo "selene archive sha256 differs from MODULE.bazel" >&2; exit 1; }
-          tar -xzOf "$download/selene.tar.gz" "selene-$selene_version/LICENSE.md" > "$out/dx-tool-selene-$selene_version-LICENSE"
+          tar -xzOf "$download/selene.tar.gz" "selene-$selene_version/LICENSE.md" > "$out/dx-selene-LICENSE"
           if test "$host" = "linux-arm64"; then
             curl --fail --silent --show-error --location -o "$download/nixfmt.tar.gz" "https://github.com/NixOS/nixfmt/archive/refs/tags/v$nixfmt_version.tar.gz"
             test "$(sha256_of "$download/nixfmt.tar.gz")" = "$nixfmt_sha256" || { echo "nixfmt archive sha256 differs from core/quality/tools/nixfmt/cabal.lock.json" >&2; exit 1; }
-            tar -xzOf "$download/nixfmt.tar.gz" "nixfmt-$nixfmt_version/LICENSE" > "$out/dx-tool-nixfmt-$nixfmt_version-LICENSE"
-            test -s "$out/dx-tool-nixfmt-$nixfmt_version-LICENSE"
+            tar -xzOf "$download/nixfmt.tar.gz" "nixfmt-$nixfmt_version/LICENSE" > "$out/dx-nixfmt-LICENSE"
+            test -s "$out/dx-nixfmt-LICENSE"
           fi
-          test -s "$out/dx-tool-deadnix-$deadnix_version-LICENSE"
-          test -s "$out/dx-tool-selene-$selene_version-LICENSE"
+          test -s "$out/dx-deadnix-LICENSE"
+          test -s "$out/dx-selene-LICENSE"
           rm -rf "$download"
           case "$host" in
             linux-*)
-              kcov_version="43"
               bazel test //tools/coverage/kcov:smoke_test //tools/coverage/kcov:static_smoke_test
               bazel build //tools/coverage/kcov:kcov_static
-              cp "$(bazel info execution_root)/$(bazel cquery --output=files //tools/coverage/kcov:kcov_static)" "$out/dx-tool-kcov-$kcov_version-$host"
-              if readelf -l "$out/dx-tool-kcov-$kcov_version-$host" | grep -q INTERP; then
-                echo "dx-tool-kcov-$kcov_version-$host is dynamically linked" >&2
+              cp "$(bazel info execution_root)/$(bazel cquery --output=files //tools/coverage/kcov:kcov_static)" "$out/dx-kcov-$host"
+              if readelf -l "$out/dx-kcov-$host" | grep -q INTERP; then
+                echo "dx-kcov-$host is dynamically linked" >&2
                 exit 1
               fi
               ;;
@@ -148,9 +141,9 @@ jobs:
               test -d "$external/$dep+" || { echo "no $dep+ under $external" >&2; exit 1; }
               tar -C "$external" --exclude="$dep+/.git" --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf "$src/$dep.tar" "$dep+"
             done
-            tar -xzOf "$src/kcov-$kcov_version.tar.gz" "kcov-$kcov_version/COPYING" > "$out/dx-tool-kcov-$kcov_version-LICENSE"
-            test -s "$out/dx-tool-kcov-$kcov_version-LICENSE"
-            tar -C "$(dirname "$src")" --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - "$(basename "$src")" | gzip -n > "$out/dx-tool-kcov-$kcov_version-source.tar.gz"
+            tar -xzOf "$src/kcov-$kcov_version.tar.gz" "kcov-$kcov_version/COPYING" > "$out/dx-kcov-LICENSE"
+            test -s "$out/dx-kcov-LICENSE"
+            tar -C "$(dirname "$src")" --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -cf - "$(basename "$src")" | gzip -n > "$out/dx-kcov-source.tar.gz"
             rm -rf "$(dirname "$src")" "$external"
           fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

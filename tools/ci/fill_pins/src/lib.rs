@@ -11,17 +11,26 @@ pub const MANIFEST: &str = "dx-sha256sums.txt";
 pub const GAZELLE_MANIFEST: &str = "dx-gazelle-sha256sums.txt";
 pub const JAR_MANIFEST: &str = "dx-jar-sha256sums.txt";
 pub const HASKELL_MANIFEST: &str = "dx-haskell-sha256sums.txt";
+pub const TOOL_MANIFEST: &str = "dx-tool-sha256sums.txt";
 pub const BUNDLE: &str = "dx-sha256sums.txt.sigstore.json";
 
 /// The manifests a release check downloads and verifies.
-pub const MANIFESTS: [&str; 4] = [MANIFEST, GAZELLE_MANIFEST, JAR_MANIFEST, HASKELL_MANIFEST];
+pub const MANIFESTS: [&str; 5] = [
+    MANIFEST,
+    GAZELLE_MANIFEST,
+    JAR_MANIFEST,
+    HASKELL_MANIFEST,
+    TOOL_MANIFEST,
+];
 
 /// `<tool> <platform key> <asset>` lines rendered from `tools.bzl` by `//cli/prebuilt:registry`.
 pub const REGISTRY: &str = include_str!(env!("DX_PREBUILT_REGISTRY"));
 
+/// Files a release publishes once per tool beside its `<tool>-<platform>` assets.
+const TOOL_COMPANIONS: [&str; 3] = ["-LICENSE", "-source.crate", "-source.tar.gz"];
+
 /// Files a release publishes beside a registry asset and lists in the same
 /// manifest: the launcher archives, the Windows symbols and their SBOMs.
-/// A `<tool>-LICENSE` file is also a companion of every `<tool>-<platform>` asset.
 const COMPANION_SUFFIXES: [&str; 3] = [".tar.gz", ".zip", "-pdb.zip"];
 
 /// One release asset the registry expects a manifest line for.
@@ -156,11 +165,15 @@ pub fn fill_with_registry(
 }
 
 fn companion_of(asset: &str, known: &BTreeMap<&str, &Entry>) -> bool {
-    if let Some(tool) = asset.strip_suffix("-LICENSE") {
-        return known.keys().any(|known| {
+    if let Some(tool) = TOOL_COMPANIONS
+        .iter()
+        .find_map(|suffix| asset.strip_suffix(suffix))
+    {
+        return known.iter().any(|(known, entry)| {
             known
                 .strip_prefix(tool)
-                .is_some_and(|platform| platform.starts_with('-'))
+                .and_then(|rest| rest.strip_prefix('-'))
+                .is_some_and(|platform| platform.starts_with(&entry.key.replacen('_', "-", 1)))
         });
     }
     let base = asset.strip_suffix(".spdx.json").unwrap_or(asset);

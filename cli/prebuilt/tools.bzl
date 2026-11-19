@@ -138,7 +138,9 @@ TOOLS = {
     "capnp": _native_exec("@dx_capnproto//src/capnp:capnp_tool"),
     "flatc": _native_exec("@dx_flatbuffers//:flatc"),
     "thrift": _native_exec("@dx_thrift//:thrift_compiler"),
+    "deadnix": _exec_native("deadnix"),
     "progenitor": _exec_native("progenitor"),
+    "selene": _exec_native("selene"),
     "topiary": _exec_native("topiary"),
     "avro_union": _jar("avro_union", "@rules_dx//avro/private/tools/avro_union", "dx.avro.tools.AvroUnion"),
     "javac_check": _jar("javac_check", "@rules_dx//java/private/quality/tools/javac_check", "dx.quality.javac.Main"),
@@ -150,10 +152,38 @@ TOOLS = {
     "weeder": _haskell("weeder", "exec", "@rules_dx//haskell/private/tools/weeder/bin:source"),
     "hlint": _hackage("hlint", ["linux_arm64", "macos_arm64"]),
     "ormolu": _hackage("ormolu", ["linux_arm64"]),
+    "nixfmt": struct(
+        asset = "dx-nixfmt-{os}-{cpu}",
+        role = "exec",
+        platforms = ["linux_arm64"],
+        fallbacks = {},
+        source = "@rules_dx//core/quality/tools/nixfmt/bin:nixfmt_source",
+        member = "",
+        main_class = "",
+    ),
+    "kcov": struct(
+        asset = "dx-kcov-{os}-{cpu}",
+        role = "target",
+        platforms = ["linux_arm64", "linux_x86_64"],
+        fallbacks = {},
+        source = "@rules_dx//tools/coverage/kcov:kcov",
+        member = "",
+        main_class = "",
+    ),
+    # Pinned only; the hub serves it once #10545 lands.
+    "python_tools": struct(
+        asset = "dx-python-tools-{os}-{cpu}.tar.gz",
+        role = "exec",
+        platforms = _NATIVE,
+        fallbacks = {},
+        source = "",
+        member = "",
+        main_class = "",
+    ),
 }
 
 # The tools released as one native binary per platform.
-NATIVE_TOOLS = ["capnp", "flatc", "hlint", "hpc_lcov", "ormolu", "progenitor", "thrift", "topiary", "weeder"]
+NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "ormolu", "progenitor", "selene", "thrift", "topiary", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])

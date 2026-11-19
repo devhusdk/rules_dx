@@ -3,7 +3,7 @@
 
 use dx_testing::runfiles_root;
 
-/// Names of `<name>_tool` aliases that select a `<name>_unsupported` stub on windows_arm64.
+/// Names of `<name>_tool` and `<name>_source` aliases that select a `<name>_unsupported` stub on windows_arm64.
 fn unavailable_tools(build: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut name: Option<String> = None;
@@ -12,7 +12,10 @@ fn unavailable_tools(build: &str) -> Vec<String> {
             name = None;
         }
         if let Some(rest) = line.split("name = \"").nth(1) {
-            if let Some(tool) = rest.split("_tool\"").next().filter(|_| rest.contains("_tool\"")) {
+            let suffix = ["_tool\"", "_source\""]
+                .into_iter()
+                .find(|suffix| rest.contains(suffix));
+            if let Some(tool) = suffix.and_then(|suffix| rest.split(suffix).next()) {
                 if tool.chars().all(|c| c.is_ascii_lowercase() || c == '_') {
                     name = Some(tool.to_owned());
                 }

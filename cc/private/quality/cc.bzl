@@ -8,6 +8,9 @@ load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_a
 
 _QML_CONTEXT_EXTENSIONS = ["qml", "qmltypes", "js", "mjs"]
 
+# `generated` and `qml_srcs` are the qt_* forward rule's qmldir, qmltypes and QML sources.
+_QML_CONTEXT_ATTRS = ["srcs", "data", "qml_srcs", "generated"]
+
 QmlContextInfo = provider(
     doc = "QML import context files reachable through deps.",
     fields = {"files": "depset[File]: qmldir, qml, qmltypes and js files."},
@@ -18,7 +21,8 @@ def _qml_context_impl(target, ctx):
         return [QmlContextInfo(files = depset())]
     direct = [
         f
-        for f in target[DefaultInfo].files.to_list()
+        for attr in _QML_CONTEXT_ATTRS
+        for f in getattr(ctx.rule.files, attr, [])
         if f.basename == "qmldir" or f.extension in _QML_CONTEXT_EXTENSIONS
     ]
     deps = getattr(ctx.rule.attr, "deps", [])

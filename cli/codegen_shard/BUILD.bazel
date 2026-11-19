@@ -61,7 +61,7 @@ rust_test(
     ) + [
         "//cli/shard_writer:dx_shard_writer",
         "//core/codegen/proto:codegen_proto_rs",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
+        "//rust:prost",
     ],
 )
 

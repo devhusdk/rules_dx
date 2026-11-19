@@ -60,8 +60,8 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//rust:prost",
         "//tools/docs/ir/proto:doc_ir_proto_rs",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
 

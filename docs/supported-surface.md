@@ -6249,6 +6249,8 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//powershell:pester` | `alias` |
 | `@rules_dx//powershell:runfiles` | `alias` |
 | `@rules_dx//rust:build_script_cc_env` | `build_script_cc_env` |
+| `@rules_dx//rust:prost` | `alias` |
+| `@rules_dx//rust:prost_types` | `alias` |
 | `@rules_dx//rust:tokio` | `alias` |
 | `@rules_dx//rust:tokio_stream` | `alias` |
 | `@rules_dx//rust:tonic` | `alias` |

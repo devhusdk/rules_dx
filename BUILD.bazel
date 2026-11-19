@@ -10,7 +10,7 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:resolve rust proto //core/quality/result/proto:result_proto_rs
 # gazelle:resolve rust result_proto //core/quality/result/proto:result_proto_rs
 # gazelle:resolve rust stardoc_output_proto //tools/api/stardoc:stardoc_output_proto_rs
-# gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
+# gazelle:resolve rust prost //rust:prost
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve rust serde @crates//:serde
 # gazelle:resolve rust serde_json @crates//:serde_json

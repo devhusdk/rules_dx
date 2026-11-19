@@ -55,8 +55,8 @@ rust_library(
         package_name = "cli/dx_path",
         normal = True,
     ) + [
+        "//rust:prost",
         "@rules_rust//rust/runfiles",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
 
@@ -80,8 +80,8 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//rust:prost",
         "@rules_rust//rust/runfiles",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
 

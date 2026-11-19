@@ -86,7 +86,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 - Other hosts record through evidence.yml with `flags=--config=nested_record`; `harness.txt` is the union of the host records.
 - The test calls `case.use_lock("<set>")` where it needs the checked-in lock; in record mode that call removes the lock and registers the workspace.
 - `bazel run //tools/testing:nested_cache_update -- --from <dir>...` merges the records of several hosts. Each `<dir>` holds `<set>.txt` and a `<stem>.MODULE.bazel.lock` per `use_lock` stem: an unpacked evidence artifact's `test.outputs/nested_cache` or the local testlogs. The tool unions the lists by URL, fails when one URL has two digests, fails when the locks of one stem differ, and writes the result to `tools/testing/nested_cache`.
-- A full re-record runs on linux_x86_64, macos_arm64 and windows_x86_64 through `evidence.yml` with `flags=--config=nested_record`, then merges the three artifacts with `--from`.
+- A full re-record is one `lock-refresh.yml` dispatch with `nested=true` and `pr=<number>` on the pull request branch. It records the nested tests on linux_x86_64, macos_arm64 and windows_x86_64, merges the three hosts with `--from` and pushes `tools/testing/nested_cache` to that branch with the root lock.
 - The list is the registry files, module archives, patches and overlays of the lock, and every checksummed download in the Bazel workspace rules log. Nothing is edited by hand.
 
 ### Tags

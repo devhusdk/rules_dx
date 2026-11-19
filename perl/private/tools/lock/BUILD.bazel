@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -14,6 +15,7 @@ rust_library(
     ),
     crate_name = "perl_lock",
     crate_root = "src/resolve.rs",
+    visibility = ["//cli/cli:__pkg__"],
     deps = all_crate_deps(
         package_name = "perl/private/tools/perl_lock",
         normal = True,
@@ -23,24 +25,10 @@ rust_library(
     ],
 )
 
-rust_binary(
+dx_subcommand(
     name = "lock",
-    srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "perl/private/tools/perl_lock",
-        normal = True,
-    ),
-    crate_name = "perl_lock_bin",
-    crate_root = "src/main.rs",
+    subcommand = "perl_lock",
     visibility = VIS_TOOLS_PUBLIC,
-    deps = all_crate_deps(
-        package_name = "perl/private/tools/perl_lock",
-        normal = True,
-    ) + [
-        ":perl_lock_lib",
-        "//cli/families:dx_families",
-        "//cli/lock:dx_lock",
-    ],
 )
 
 rust_test(
@@ -79,6 +67,25 @@ rust_test(
     ],
 )
 
+rust_test(
+    name = "subcommand_test",
+    size = "small",
+    srcs = ["subcommand_test.rs"],
+    aliases = aliases(
+        package_name = "perl/private/tools/perl_lock",
+        normal_dev = True,
+    ),
+    crate_name = "subcommand_test",
+    crate_root = "subcommand_test.rs",
+    data = [":lock"],
+    env = {"LOCK": "$(rlocationpath :lock)"},
+    tags = ["block-network"],
+    deps = all_crate_deps(
+        package_name = "perl/private/tools/perl_lock",
+        normal_dev = True,
+    ) + ["//tools/testing:dx_testing"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
@@ -93,13 +100,6 @@ real_source_target(
 
 exports_files(
     ["Cargo.toml"],
-    visibility = VIS_TOOLS_PUBLIC,
-)
-
-exports_files(
-    [
-        "src/main.rs",
-    ],
     visibility = VIS_TOOLS_PUBLIC,
 )
 

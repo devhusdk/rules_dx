@@ -10,7 +10,10 @@
 pub mod rendered;
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::path::Path;
+
+use documentation_ir::tool::{PathIoError, path_io};
 
 /// The required and repeated inputs for one aggregate.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -32,12 +35,19 @@ pub fn run_process(args: &[String]) -> i32 {
     }
     if args.iter().any(|arg| arg == "--rendered") {
         return match parse_rendered(args) {
-            Ok((rendered, forbid)) => report(&rendered::check_rendered(&rendered, &forbid)),
+            Ok((rendered, forbid)) => {
+                let findings = rendered::check_rendered(&rendered, &forbid);
+                let text: Vec<String> = findings.iter().map(ToString::to_string).collect();
+                report(&text.join("\n"))
+            }
             Err(detail) => reject(detail, rendered::usage()),
         };
     }
     match parse_args(args) {
-        Ok(inputs) => report(&check(&inputs)),
+        Ok(inputs) => match check(&inputs) {
+            Ok(()) => 0,
+            Err(error) => report(&error.to_string()),
+        },
         Err((detail, usage)) => reject(detail, usage),
     }
 }
@@ -133,32 +143,112 @@ pub fn parse_args(args: &[String]) -> Result<Inputs, (String, String)> {
     Ok(inputs)
 }
 
-/// Returns the check refusal text, or an empty string when the site holds together.
-#[must_use]
-pub fn check(inputs: &Inputs) -> String {
-    let book_text = read(inputs.book.as_deref().unwrap_or_default());
-    let api = inputs.api.as_deref().unwrap_or_default();
-    let prose_texts: Vec<String> = inputs.prose.iter().map(|p| read(p)).collect();
-    let api_text = read(api);
+/// Why a docs site does not hold together.
+#[derive(Debug)]
+pub enum CheckError {
+    Read(PathIoError),
+    NoBookTitle,
+    ProseTitle {
+        path: String,
+    },
+    InvalidShard {
+        path: String,
+        error: documentation_ir::Error,
+    },
+    NoSymbols,
+    MissingApiPage {
+        id: String,
+    },
+    RecordUrl {
+        url: String,
+    },
+    EmptyLinkTarget,
+    DanglingAnchor {
+        target: String,
+    },
+    DanglingLink {
+        target: String,
+    },
+    DanglingFragment {
+        target: String,
+    },
+}
+
+impl fmt::Display for CheckError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::NoBookTitle => f.write_str("book has no title"),
+            Self::ProseTitle { path } => write!(f, "prose missing title '{path}'"),
+            Self::InvalidShard { path, error } => {
+                write!(f, "shard '{path}' is not a valid DocIr shard: {error:?}")
+            }
+            Self::NoSymbols => f.write_str("shard names no symbols"),
+            Self::MissingApiPage { id } => write!(f, "missing API page for {id}"),
+            Self::RecordUrl { url } => write!(f, "search record url '{url}' has no rendered page"),
+            Self::EmptyLinkTarget => f.write_str("empty link target"),
+            Self::DanglingAnchor { target } => write!(f, "dangling anchor '{target}'"),
+            Self::DanglingLink { target } => write!(f, "dangling link '{target}'"),
+            Self::DanglingFragment { target } => write!(f, "dangling fragment '{target}'"),
+        }
+    }
+}
+
+impl std::error::Error for CheckError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::NoBookTitle
+            | Self::ProseTitle { .. }
+            | Self::InvalidShard { .. }
+            | Self::NoSymbols
+            | Self::MissingApiPage { .. }
+            | Self::RecordUrl { .. }
+            | Self::EmptyLinkTarget
+            | Self::DanglingAnchor { .. }
+            | Self::DanglingLink { .. }
+            | Self::DanglingFragment { .. } => None,
+        }
+    }
+}
+
+/// Checks that the site holds together.
+///
+/// # Errors
+///
+/// Returns the first input that cannot be read or the first refusal found.
+pub fn check(inputs: &Inputs) -> Result<(), CheckError> {
+    let book_text = read(inputs.book.as_deref().unwrap_or_default())?;
+    let prose_texts = inputs
+        .prose
+        .iter()
+        .map(|p| read(p))
+        .collect::<Result<Vec<_>, _>>()?;
+    let api_text = read(inputs.api.as_deref().unwrap_or_default())?;
     let pages = || prose_texts.iter().map(String::as_str).collect::<Vec<_>>();
 
     if !any_line(&book_text, |line| line.starts_with("title")) {
-        return "book has no title".to_string();
+        return Err(CheckError::NoBookTitle);
     }
     for (path, text) in inputs.prose.iter().zip(&prose_texts) {
         if !any_line(text, |line| line.starts_with("# ")) {
-            return format!("prose missing title '{path}'");
+            return Err(CheckError::ProseTitle { path: path.clone() });
         }
     }
 
     let mut ids = BTreeSet::new();
     for shard in &inputs.shards {
-        let bytes = std::fs::read(Path::new(shard)).unwrap_or_default();
-        let shard = match documentation_ir::decode_shard(&bytes) {
-            Ok(shard) => shard,
-            Err(error) => return format!("shard '{shard}' is not a valid DocIr shard: {error:?}"),
+        let bytes = path_io::read(Path::new(shard)).map_err(CheckError::Read)?;
+        let decoded = match documentation_ir::decode_shard(&bytes) {
+            Ok(decoded) => decoded,
+            Err(error) => {
+                return Err(CheckError::InvalidShard {
+                    path: shard.clone(),
+                    error,
+                });
+            }
         };
-        for symbol in shard.symbols {
+        for symbol in decoded.symbols {
             if let Some(relations) = &symbol.relations {
                 ids.extend(relations.reexported_as.iter().cloned());
             }
@@ -166,7 +256,7 @@ pub fn check(inputs: &Inputs) -> String {
         }
     }
     if ids.is_empty() {
-        return "shard names no symbols".to_string();
+        return Err(CheckError::NoSymbols);
     }
     let id_paths: Vec<(&String, String)> = ids
         .iter()
@@ -174,22 +264,22 @@ pub fn check(inputs: &Inputs) -> String {
         .collect();
     for (id, path) in &id_paths {
         if !api_text.contains(&format!("({path})")) {
-            return format!("missing API page for {id}");
+            return Err(CheckError::MissingApiPage { id: (*id).clone() });
         }
     }
     let api_paths: BTreeSet<String> = id_paths.into_iter().map(|(_, path)| path).collect();
 
     if let Some(records) = &inputs.records {
-        for url in record_urls(&read(records)) {
+        for url in record_urls(&read(records)?) {
             let page = url.strip_suffix(".html").map(|stem| format!("{stem}.md"));
             if !page.is_some_and(|page| api_paths.contains(&page)) {
-                return format!("search record url '{url}' has no rendered page");
+                return Err(CheckError::RecordUrl { url });
             }
         }
     }
 
     if pages().iter().any(|text| has_empty_link_target(text)) {
-        return "empty link target".to_string();
+        return Err(CheckError::EmptyLinkTarget);
     }
 
     let site = Site::new(inputs, &prose_texts, &api_text, &api_paths);
@@ -199,7 +289,7 @@ pub fn check(inputs: &Inputs) -> String {
         }
         if let Some(fragment) = target.strip_prefix('#') {
             if !site.has_anchor(&source, fragment) {
-                return format!("dangling anchor '{target}'");
+                return Err(CheckError::DanglingAnchor { target });
             }
             continue;
         }
@@ -226,13 +316,13 @@ pub fn check(inputs: &Inputs) -> String {
             known.then_some(route)
         });
         let Some(route) = resolved else {
-            return format!("dangling link '{target}'");
+            return Err(CheckError::DanglingLink { target });
         };
         if !fragment.is_empty() && !site.has_anchor(&route, fragment) {
-            return format!("dangling fragment '{target}'");
+            return Err(CheckError::DanglingFragment { target });
         }
     }
-    String::new()
+    Ok(())
 }
 
 /// The `url` string values of a search records JSON array.
@@ -253,8 +343,8 @@ fn record_urls(text: &str) -> Vec<String> {
     urls
 }
 
-fn read(path: &str) -> String {
-    std::fs::read_to_string(Path::new(path)).unwrap_or_default()
+fn read(path: &str) -> Result<String, CheckError> {
+    path_io::read_to_string(Path::new(path)).map_err(CheckError::Read)
 }
 
 fn any_line(text: &str, wanted: impl Fn(&str) -> bool) -> bool {

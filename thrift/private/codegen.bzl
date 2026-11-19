@@ -7,7 +7,7 @@ load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_package_file", "codegen_rust_library_kwargs", "codegen_srcjar", "codegen_tree_file")
-load("//core:stage.bzl", "stage_closure")
+load("//core:stage.bzl", "check_import_paths")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "ThriftInfo")
 
@@ -27,19 +27,17 @@ def _cc_aspect_impl(target, ctx):
     runtime = ctx.attr._runtime[CcInfo]
     if not info.direct_srcs:
         return [ThriftCcAspectInfo(cc_info = cc_common.merge_cc_infos(cc_infos = [runtime] + dep_infos), generated = [], srcjar = None)]
-    stage = stage_closure(ctx, "_thrift_cc_stage/" + name, info.transitive_includes.to_list(), "thrift")
     tree = ctx.actions.declare_directory("_thrift_cc/" + name)
     out_include = tree.path
     args = ctx.actions.args()
     args.add("--gen", "cpp:no_skeleton")
-    args.add("-I", stage.root)
+    args.add_all(info.stage_roots, before_each = "-I")
     args.add("-out", tree.path)
-    for src in info.direct_srcs:
-        args.add(stage.staged[src.short_path].path)
+    args.add_all(info.direct_staged)
     ctx.actions.run(
         executable = ctx.executable._thrift,
         toolchain = None,
-        inputs = stage.files,
+        inputs = info.staged,
         outputs = [tree],
         arguments = [args],
         mnemonic = "ThriftCpp",
@@ -94,7 +92,11 @@ _cc_aspect = aspect(
     toolchains = use_cc_toolchain(),
 )
 
+def _check_deps(ctx):
+    check_import_paths("thrift", ctx.label, depset(transitive = [dep[ThriftInfo].transitive_includes for dep in ctx.attr.deps]).to_list())
+
 def _cc_library_impl(ctx):
+    _check_deps(ctx)
     aspect_infos = [dep[ThriftCcAspectInfo] for dep in ctx.attr.deps]
     own = [f for info in aspect_infos for f in info.generated]
     cc_info = cc_common.merge_cc_infos(
@@ -138,18 +140,16 @@ def _java_aspect_impl(target, ctx):
     runtime = ctx.attr._runtime[JavaInfo]
     if not info.direct_srcs:
         return [ThriftJavaAspectInfo(java_info = java_common.merge(dep_infos + [runtime]), srcjar = None)]
-    stage = stage_closure(ctx, "_thrift_java_stage/" + name, info.transitive_includes.to_list(), "thrift")
     tree = ctx.actions.declare_directory("_thrift_java/" + name + "_src")
     args = ctx.actions.args()
     args.add("--gen", "java:generated_annotations=suppress")
-    args.add("-I", stage.root)
+    args.add_all(info.stage_roots, before_each = "-I")
     args.add("-out", tree.path)
-    for src in info.direct_srcs:
-        args.add(stage.staged[src.short_path].path)
+    args.add_all(info.direct_staged)
     ctx.actions.run(
         executable = ctx.executable._thrift,
         toolchain = None,
-        inputs = stage.files,
+        inputs = info.staged,
         outputs = [tree],
         arguments = [args],
         mnemonic = "ThriftJava",
@@ -182,6 +182,7 @@ _java_aspect = aspect(
 )
 
 def _java_library_impl(ctx):
+    _check_deps(ctx)
     aspect_infos = [dep[ThriftJavaAspectInfo] for dep in ctx.attr.deps]
     srcjars = [info.srcjar for info in aspect_infos if info.srcjar]
     java_info = java_common.merge([info.java_info for info in aspect_infos] + [ctx.attr._runtime[JavaInfo]])
@@ -221,8 +222,11 @@ def _rust_srcs_impl(ctx):
         modules[src.short_path] = module
     if not modules:
         fail("thrift_rust_library " + str(ctx.label) + ": deps own no schemas")
-    includes = depset(transitive = [dep[ThriftInfo].transitive_includes for dep in ctx.attr.deps])
-    stage = stage_closure(ctx, "_thrift_rs_stage/" + ctx.label.name, includes.to_list(), "thrift")
+    includes = depset(transitive = [dep[ThriftInfo].transitive_includes for dep in ctx.attr.deps]).to_list()
+    check_import_paths("thrift", ctx.label, includes)
+    staged_by_path = {e.path: e.staged for e in includes}
+    roots = depset(transitive = [dep[ThriftInfo].stage_roots for dep in ctx.attr.deps])
+    staged = depset(transitive = [dep[ThriftInfo].staged for dep in ctx.attr.deps])
     out_subdir = ctx.label.name + "_thrift_rs"
     lib = ctx.actions.declare_file(out_subdir + "/lib.rs")
     ctx.actions.write(lib, "".join(["pub mod " + m + ";\n" for m in sorted(modules.values())]))
@@ -234,13 +238,13 @@ def _rust_srcs_impl(ctx):
         generated.append(out)
         args = ctx.actions.args()
         args.add("--gen", "rs")
-        args.add("-I", stage.root)
+        args.add_all(roots, before_each = "-I")
         args.add("-out", out_dir)
-        args.add(stage.staged[src.short_path])
+        args.add(staged_by_path[src.short_path])
         ctx.actions.run(
             executable = ctx.executable._thrift,
             toolchain = None,
-            inputs = stage.files,
+            inputs = staged,
             outputs = [out],
             arguments = [args],
             mnemonic = "ThriftRust",

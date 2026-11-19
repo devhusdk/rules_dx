@@ -8,7 +8,7 @@ load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_package_file", "codegen_rust_library_kwargs", "codegen_srcjar", "codegen_tree_file")
 load("//core/private/testing:defs.bzl", "display_label")
-load("//core:stage.bzl", "stage_closure")
+load("//core:stage.bzl", "check_import_paths")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "CapnprotoInfo")
 
@@ -48,7 +48,6 @@ def _cc_aspect_impl(target, ctx):
     info = target[CapnprotoInfo]
     name = target.label.name
     pkg = target.label.package
-    stage = stage_closure(ctx, "_capnp_cc_stage/" + name, info.transitive_imports.to_list(), "capnp")
     out_subdir = "_capnp_cc"
     out_root = ctx.bin_dir.path + "/" + (pkg + "/" if pkg else "") + out_subdir
     headers = []
@@ -56,21 +55,21 @@ def _cc_aspect_impl(target, ctx):
     args = ctx.actions.args()
     args.add("compile")
     args.add("--no-standard-import")
-    args.add("-I", stage.root)
-    args.add("--src-prefix", stage.root)
+    args.add_all(info.stage_roots, before_each = "-I")
+    args.add("--src-prefix", info.stage_root)
     args.add_all(["-o" + ctx.executable._capnpc_cxx.path + ":" + out_root])
     for src in info.direct_srcs:
         header = ctx.actions.declare_file(out_subdir + "/" + src.short_path + ".h")
         source = ctx.actions.declare_file(out_subdir + "/" + src.short_path + ".c++")
         headers.append(header)
         sources.append(source)
-        args.add(stage.staged[src.short_path].path)
+    args.add_all(info.direct_staged)
     if sources:
         ctx.actions.run(
             executable = ctx.executable._capnp,
             toolchain = None,
             tools = [ctx.executable._capnpc_cxx],
-            inputs = stage.files,
+            inputs = info.staged,
             outputs = headers + sources,
             arguments = [args],
             mnemonic = "CapnpCpp",
@@ -134,7 +133,11 @@ _cc_aspect = aspect(
     toolchains = use_cc_toolchain(),
 )
 
+def _check_deps(ctx):
+    check_import_paths("capnp", ctx.label, depset(transitive = [dep[CapnprotoInfo].transitive_imports for dep in ctx.attr.deps]).to_list())
+
 def _cc_library_impl(ctx):
+    _check_deps(ctx)
     aspect_infos = [dep[CapnpCcAspectInfo] for dep in ctx.attr.deps]
     own = [f for info in aspect_infos for f in info.generated]
     cc_info = cc_common.merge_cc_infos(
@@ -177,21 +180,19 @@ def _java_aspect_impl(target, ctx):
     runtime = ctx.attr._runtime[JavaInfo]
     if not info.direct_srcs:
         return [CapnpJavaAspectInfo(java_info = java_common.merge(dep_infos + [runtime]), srcjar = None)]
-    stage = stage_closure(ctx, "_capnp_java_stage/" + name, info.transitive_imports.to_list(), "capnp")
     tree = ctx.actions.declare_directory("_capnp_java/" + name + "_src")
     args = ctx.actions.args()
     args.add("compile")
     args.add("--no-standard-import")
-    args.add("-I", stage.root)
-    args.add("--src-prefix", stage.root)
+    args.add_all(info.stage_roots, before_each = "-I")
+    args.add("--src-prefix", info.stage_root)
     args.add("-o" + ctx.executable._capnpc_java.path + ":" + tree.path)
-    for src in info.direct_srcs:
-        args.add(stage.staged[src.short_path].path)
+    args.add_all(info.direct_staged)
     ctx.actions.run(
         executable = ctx.executable._capnp,
         toolchain = None,
         tools = [ctx.executable._capnpc_java],
-        inputs = stage.files,
+        inputs = info.staged,
         outputs = [tree],
         arguments = [args],
         mnemonic = "CapnpJava",
@@ -223,6 +224,7 @@ _java_aspect = aspect(
 )
 
 def _java_library_impl(ctx):
+    _check_deps(ctx)
     aspect_infos = [dep[CapnpJavaAspectInfo] for dep in ctx.attr.deps]
     srcjars = [info.srcjar for info in aspect_infos if info.srcjar]
     java_info = java_common.merge([info.java_info for info in aspect_infos] + [ctx.attr._runtime[JavaInfo]])
@@ -288,13 +290,14 @@ def _rust_srcs_impl(ctx):
         dirname = src.short_path.rpartition("/")[0]
         generated.append(ctx.actions.declare_file(out_subdir + "/" + (dirname + "/" if dirname else "") + modules[src.short_path] + ".rs"))
     lib = ctx.actions.declare_file(out_subdir + "/lib.rs")
-    stage = stage_closure(ctx, "_capnp_rs_stage/" + ctx.label.name, info.transitive_imports.to_list(), "capnp")
+    check_import_paths("capnp", ctx.label, info.transitive_imports.to_list())
     pkg = ctx.label.package
     out_dir = ctx.bin_dir.path + "/" + (pkg + "/" if pkg else "") + out_subdir
     args = ctx.actions.args()
     args.add("capnpc_rust_dx")
     args.add("--capnp", ctx.executable._capnp)
-    args.add("--root", stage.root)
+    args.add("--root", info.stage_root)
+    args.add_all(info.stage_roots, before_each = "--import-path")
     args.add("--out", out_dir)
     for src in info.direct_srcs:
         args.add("--own", src.short_path)
@@ -305,7 +308,7 @@ def _rust_srcs_impl(ctx):
         executable = ctx.executable._capnpc_rust_dx,
         toolchain = None,
         tools = [ctx.executable._capnp],
-        inputs = stage.files,
+        inputs = info.staged,
         outputs = generated + [lib],
         arguments = [args],
         mnemonic = "CapnpRust",

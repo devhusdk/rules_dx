@@ -1,5 +1,5 @@
 //! The rules shared by the prebuilt guards: the allowlist, the compiled rules_dx binaries of a
-//! `cquery --output=label_kind`, the aspects `dx check` and `dx docs` pick, and the wrapper
+//! `cquery --output=label_kind`, the `rules_dx` targets dx commands run, the aspects `dx check` and `dx docs` pick, and the wrapper
 //! package whose `deps` carry them.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -207,6 +207,14 @@ pub fn wrapper_bzl(rules_dx: &str, check: &[&str], docs: &[&str]) -> String {
     format!("{loads}\n{rules}")
 }
 
+/// The `repo` targets dx commands run, as cquery roots.
+pub fn command_roots(repo: &str) -> Vec<String> {
+    dx_plan::plan::COMMAND_TARGETS
+        .iter()
+        .map(|target| format!("{repo}//{target}"))
+        .collect()
+}
+
 /// The `BUILD.bazel` of the `dx_prebuilt_guard` package: `check` and `docs` over `targets`.
 pub fn wrapper_build(targets: &[&str]) -> String {
     let deps: String = targets
@@ -225,6 +233,14 @@ pub fn wrapper_build(targets: &[&str]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn command_roots_name_the_generate_targets() {
+        assert_eq!(
+            command_roots("@rules_dx"),
+            ["@rules_dx//dx:generate", "@rules_dx//dx:generate_check"]
+        );
+    }
 
     #[test]
     fn allowlist_lines_need_a_kind_and_a_reason() {

@@ -1,6 +1,7 @@
 """The gazelle runners of `//dx:generate` and `//dx:generate_check`."""
 
 load("@gazelle//:def.bzl", "gazelle")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 
 visibility(["//dx/...", "//tools/..."])
 
@@ -14,48 +15,55 @@ def _rlocation_path(ctx, file):
         return file.short_path[3:]
     return ctx.workspace_name + "/" + file.short_path
 
+def gazelle_launch_descriptor(gazelle, repo_config, goroot, mode, gazelle_args):
+    """Returns the launcher descriptor that runs gazelle.
+
+    Args:
+      gazelle: runfiles key of the gazelle binary.
+      repo_config: runfiles key of the repo config, or None.
+      goroot: runfiles key of a file at the root of the Go SDK.
+      mode: the gazelle -mode value, or None.
+      gazelle_args: arguments after the command when the user names none.
+    """
+    lines = ["program=" + gazelle, "verb=update", "verb=fix"]
+    if repo_config:
+        lines.extend(["arg=-bzlmod", "arg=-repo_config", "path=" + repo_config])
+    defaults = ["-mode", mode] if mode else []
+    lines.extend(["default_arg=" + arg for arg in defaults + gazelle_args])
+    lines.extend(["env_dir=GOROOT\t" + goroot, "env=GOTOOLCHAIN\tlocal"])
+    return "\n".join(lines) + "\n"
+
 def _dx_gazelle_run_impl(ctx):
     runner = ctx.attr.runner[DefaultInfo]
-    launcher = ctx.attr.launcher[DefaultInfo].files_to_run.executable
-    out = ctx.actions.declare_file(ctx.label.name + (".exe" if launcher.extension == "exe" else ""))
-    ctx.actions.symlink(output = out, target_file = launcher, is_executable = True)
     configs = [
         file
         for file in runner.default_runfiles.files.to_list()
         if file.basename == "WORKSPACE" and file.owner.repo_name.endswith("bazel_gazelle_go_repository_config")
     ]
-    go_tool = ctx.toolchains["@rules_go//go:toolchain"].sdk.go
-    args = ["update"]
-    if ctx.attr.mode:
-        args.extend(["-mode", ctx.attr.mode])
-    args.extend(ctx.attr.gazelle_args)
-    environment = {
-        "DX_GAZELLE": _rlocation_path(ctx, ctx.executable.gazelle),
-        "DX_GAZELLE_ARGS": json.encode(args),
-        "DX_GAZELLE_GO": _rlocation_path(ctx, go_tool),
-    }
-    if configs:
-        environment["DX_GAZELLE_REPO_CONFIG"] = _rlocation_path(ctx, configs[0])
-    runfiles = ctx.runfiles(files = [out, ctx.executable.gazelle, go_tool] + configs)
-    runfiles = runfiles.merge(ctx.attr.gazelle[DefaultInfo].default_runfiles)
-    runfiles = runfiles.merge(ctx.attr.launcher[DefaultInfo].default_runfiles)
-    return [
-        DefaultInfo(executable = out, runfiles = runfiles),
-        RunEnvironmentInfo(environment = environment),
-    ]
+    sdk = ctx.toolchains["@rules_go//go:toolchain"].sdk
+    descriptor = gazelle_launch_descriptor(
+        gazelle = _rlocation_path(ctx, ctx.executable.gazelle),
+        repo_config = _rlocation_path(ctx, configs[0]) if configs else None,
+        goroot = _rlocation_path(ctx, sdk.root_file),
+        mode = ctx.attr.mode,
+        gazelle_args = ctx.attr.gazelle_args,
+    )
+    launcher, _, launcher_runfiles = write_native_launcher(ctx, descriptor)
+    runfiles = ctx.runfiles(files = [ctx.executable.gazelle, sdk.go, sdk.root_file] + configs)
+    runfiles = runfiles.merge_all([launcher_runfiles, ctx.attr.gazelle[DefaultInfo].default_runfiles])
+    return [DefaultInfo(executable = launcher, runfiles = runfiles)]
 
 _dx_gazelle_run = rule(
     implementation = _dx_gazelle_run_impl,
-    attrs = {
+    attrs = NATIVE_LAUNCHER_ATTRS | {
         "gazelle": attr.label(mandatory = True, executable = True, cfg = "target", doc = "The gazelle binary."),
         "gazelle_args": attr.string_list(doc = "Arguments after the gazelle command."),
-        "launcher": attr.label(default = Label("//dx:gazelle_launcher"), executable = True, cfg = "target", doc = "The launcher that starts gazelle."),
         "mode": attr.string(doc = "The gazelle -mode value."),
         "runner": attr.label(mandatory = True, doc = "The upstream gazelle runner that carries the repo config."),
     },
     executable = True,
     toolchains = ["@rules_go//go:toolchain"],
-    doc = "Runs gazelle through a native launcher, so no shell tools are needed.",
+    doc = "Runs gazelle through the native launcher, so no shell tools are needed.",
 )
 
 def dx_generate(name, mode = None, visibility = None):

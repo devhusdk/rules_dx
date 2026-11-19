@@ -3,7 +3,8 @@
 //! The test writes a stub file per registry tool of the host, adds one `dx_prebuilt.asset`
 //! (or `dx_gazelle.asset`) per tool to a consumer of the `<lang>/tests/consumer` fixtures of the
 //! `DX_PREBUILT_GUARD_LANGS` languages (the first at the root, each later one under `<lang>/`),
-//! and runs `bazel cquery 'deps(...)'` over the fixtures and the hub target of every pinned tool.
+//! and runs `bazel cquery 'deps(...)'` over the fixtures, the `@rules_dx` targets dx commands run
+//! and the hub target of every pinned tool.
 //! A jar tool gets `os = "any"` and `cpu = "any"`, and its hub target is a root only when a
 //! language is a JVM language. cquery follows exec and target configurations alike. Any compiled binary that a
 //! rules_dx repository declares fails the test unless `prebuilt_guard_allowlist.txt` names it;
@@ -21,7 +22,8 @@ use std::collections::BTreeMap;
 
 use dx_nested::Case;
 use prebuilt_guard::{
-    allowlist, compiled_binaries, guard_aspects, problems, wrapper_build, wrapper_bzl,
+    allowlist, command_roots, compiled_binaries, guard_aspects, problems, wrapper_build,
+    wrapper_bzl,
 };
 
 /// The consumer languages whose fixture roots the jar tools.
@@ -119,6 +121,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
     let mut tags = String::new();
     let mut roots = vec!["//...".to_owned()];
+    roots.extend(command_roots("@rules_dx"));
     for (tool, platform) in &tools {
         if list.untagged.contains(tool) {
             continue;
@@ -192,7 +195,11 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         &query,
     ]);
     assert!(run.status.success(), "bazel cquery: {}", run.combined());
-    for label in ["@@//dx_prebuilt_guard:check", "@@//dx_prebuilt_guard:docs"] {
+    for label in [
+        "@@//dx_prebuilt_guard:check",
+        "@@//dx_prebuilt_guard:docs",
+        "@@rules_dx+//dx:generate",
+    ] {
         assert!(
             run.stdout
                 .lines()

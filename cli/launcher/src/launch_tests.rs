@@ -58,6 +58,10 @@ fn rejects_bad_descriptors() {
         "copy=k\t/abs\n",
         "copy=k\t../up\n",
         "copy=k\ta/../../up\n",
+        "program=x\nverb=\n",
+        "program=x\nverb=a\tb\n",
+        "program=x\ndefault_arg=-v\n",
+        "fail=a\nverb=v\n",
     ];
     for case in cases {
         assert!(parse(case).is_err(), "accepted {case:?}");
@@ -513,4 +517,70 @@ fn copy_lines_write_runfiles_below_the_workspace() {
     );
     let missing = parse("copy=_main/pkg/none.json\tpkg/data/none.json\n").unwrap();
     assert!(copy_into(&resolver, &missing.copy, &workspace).is_err());
+}
+
+const VERBS: &str =
+    "program=x\nverb=update\nverb=fix\narg=-c\ndefault_arg=-mode\ndefault_arg=diff\n";
+
+fn os(values: &[&str]) -> Vec<OsString> {
+    values.iter().map(OsString::from).collect()
+}
+
+#[test]
+fn parses_verbs_and_default_args_apart_from_items() {
+    let parsed = parse(VERBS).unwrap();
+    assert_eq!(parsed.verbs, ["update", "fix"]);
+    assert_eq!(parsed.default_args, ["-mode", "diff"]);
+    assert_eq!(parsed.items, [Item::Arg("-c".to_owned())]);
+}
+
+#[test]
+fn arguments_without_verbs_put_the_user_last() {
+    let parsed = parse("program=x\narg=-c\n").unwrap();
+    assert_eq!(
+        arguments(&parsed, os(&["-c"]), &os(&["fix", "a"])),
+        os(&["-c", "fix", "a"])
+    );
+}
+
+#[test]
+fn arguments_put_a_named_verb_first_and_drop_the_defaults() {
+    let parsed = parse(VERBS).unwrap();
+    assert_eq!(
+        arguments(&parsed, os(&["-c"]), &os(&["fix", "-mode", "fix"])),
+        os(&["fix", "-c", "-mode", "fix"])
+    );
+}
+
+#[test]
+fn arguments_default_the_verb_and_keep_the_defaults() {
+    let parsed = parse(VERBS).unwrap();
+    assert_eq!(
+        arguments(&parsed, os(&["-c"]), &os(&["pkg"])),
+        os(&["update", "-c", "-mode", "diff", "pkg"])
+    );
+    assert_eq!(
+        arguments(&parsed, os(&["-c"]), &[]),
+        os(&["update", "-c", "-mode", "diff"])
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn run_places_the_named_verb_before_the_listed_arguments() {
+    let scratch = dx_test_scratch::scratch("exec_launcher_verb_").unwrap();
+    let dir = scratch.path().to_path_buf();
+    let main = dir.join("app.runfiles/_main");
+    std::fs::create_dir_all(&main).unwrap();
+    dx_testing::executable_script(
+        &main.join("prog"),
+        "#!/bin/sh\n[ \"$*\" = \"fix -c x\" ] && exit 7\nexit 1\n",
+    );
+    std::fs::write(
+        dir.join("app.launch"),
+        "program=_main/prog\nverb=update\nverb=fix\narg=-c\ndefault_arg=-d\n",
+    )
+    .unwrap();
+    let code = run(&dir.join("app.exe"), &os(&["fix", "x"])).unwrap();
+    assert_eq!(code, 7);
 }

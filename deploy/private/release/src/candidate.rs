@@ -233,7 +233,7 @@ pub enum CandidateError {
     OutputDirRelative {
         path: PathBuf,
     },
-    SourceJsonWrite(io::Error),
+    SourceJsonWrite(BcrError),
     IntegrityDiffers,
     SourceJsonNotUtf8(FromUtf8Error),
     ModuleCalls {
@@ -453,11 +453,10 @@ impl std::error::Error for CandidateError {
             | Self::ShortRead { source, .. }
             | Self::MemberRead { source, .. }
             | Self::ScratchDir(source)
-            | Self::BatchRead(source)
-            | Self::SourceJsonWrite(source) => Some(source),
+            | Self::BatchRead(source) => Some(source),
             Self::BadSize { source, .. } => Some(source),
             Self::SourceJsonNotUtf8(source) | Self::MemberNotUtf8 { source, .. } => Some(source),
-            Self::Bcr(source) => Some(source),
+            Self::Bcr(source) | Self::SourceJsonWrite(source) => Some(source),
             Self::Module(source) => Some(source),
             Self::Render(source) => Some(source),
             Self::InvalidCommit { .. }
@@ -1780,5 +1779,18 @@ mod tests {
         );
         assert!(std::error::Error::source(&error).is_some_and(|source| source.is::<io::Error>()));
         assert!(error.to_string().starts_with("candidate: cannot hash "));
+        let error = write_bcr_source_for_archive(&dir.path().join("out.json"), "1.2.3", &missing)
+            .map_err(CandidateError::SourceJsonWrite)
+            .expect_err("missing archive");
+        assert!(
+            matches!(&error, CandidateError::SourceJsonWrite(BcrError::Hash { .. })),
+            "{error}"
+        );
+        assert!(
+            error
+                .to_string()
+                .starts_with("candidate: cannot write source.json: cannot hash ")
+        );
+        assert!(std::error::Error::source(&error).is_some_and(|source| source.is::<BcrError>()));
     }
 }

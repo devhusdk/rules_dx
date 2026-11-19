@@ -233,7 +233,13 @@ fn rebuild_cell(
     }
     for (tool, label) in NATIVE_TOOLS {
         let asset = tool_asset_name(tool, &env.cell);
-        if !same_bytes(&out.join(&asset), &rebuild.file(&rebuild_root, &[], label)?)? {
+        let rebuilt = env.temp.join(format!("rebuilt-{asset}"));
+        release_copy(
+            &env.cell,
+            &rebuild.file(&rebuild_root, &[], label)?,
+            &rebuilt,
+        )?;
+        if !same_bytes(&out.join(&asset), &rebuilt)? {
             return Err(format!("{asset} differs between two builds"));
         }
     }
@@ -298,7 +304,8 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
         &out.join(&launcher_asset),
     )?;
     for (tool, label) in NATIVE_TOOLS {
-        copy(
+        release_copy(
+            &env.cell,
             &main.file(&root, &[], label)?,
             &out.join(tool_asset_name(tool, &env.cell)),
         )?;

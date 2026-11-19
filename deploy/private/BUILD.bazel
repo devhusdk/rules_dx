@@ -429,18 +429,21 @@ deploy_unit_tests(name = "deploy_unit")
 
 deploy_analysis_test(
     name = "deploy_analysis",
+    file = "deploy_program",
     subject = "deploy_default",
 )
 
 deploy_analysis_test(
     name = "deploy_debug_analysis",
     build_mode = "debug",
+    file = "deploy_program",
     subject = "deploy_debug",
 )
 
 deploy_analysis_test(
     name = "deploy_app_analysis",
     app = "//deploy/private:deploy_program",
+    file = "deploy_app",
     subject = "deploy_with_app",
 )
 
@@ -474,6 +477,7 @@ deploy_analysis_test(
         "//deploy/private:web_dir",
         "//deploy/private/release:notice_demo_a.txt",
     ],
+    file = "deploy_program",
     subject = "deploy_web",
 )
 

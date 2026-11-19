@@ -12,11 +12,13 @@ use dx_process::capture::{
     self, Captured, DEFAULT_TIMEOUT, RunError, run_captured, run_captured_with_input,
 };
 
+use dx_fingerprint::FingerprintError;
+
 use crate::{
-    BCR_WANT_MODULE, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_error,
+    BCR_WANT_MODULE, BcrError, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_error,
     bcr_candidate_version_error, bcr_integrity_of_digest, bcr_source_url, bcr_strip_prefix,
-    modules::{local_override_error, module_version_error},
-    render_bcr_source_for_digest, render_pretty, write_bcr_source_for_archive,
+    modules::{ModuleError, local_override_error, module_version_error},
+    pretty_json, render_bcr_source_for_digest, write_bcr_source_for_archive,
 };
 
 /// One release candidate: a `SemVer` version at one full commit.
@@ -33,7 +35,7 @@ impl Candidate {
     ///
     /// Returns an error when the operation fails.
     pub fn new(version: &str, commit: &str) -> Result<Self, CandidateError> {
-        bcr_candidate_version_error(version).map_err(CandidateError::Check)?;
+        bcr_candidate_version_error(version)?;
         if !dx_digest::is_lower_hex(commit, 20) {
             return Err(CandidateError::InvalidCommit {
                 commit: commit.to_owned(),
@@ -151,8 +153,12 @@ pub enum CandidateError {
         path: PathBuf,
         source: io::Error,
     },
-    /// A check that still reports a string failed.
-    Check(String),
+    /// A BCR source metadata check failed.
+    Bcr(BcrError),
+    /// A `MODULE.bazel` release check failed.
+    Module(ModuleError),
+    /// A registry document could not be rendered.
+    Render(FingerprintError),
     InvalidCommit {
         commit: String,
     },
@@ -293,7 +299,9 @@ impl fmt::Display for CandidateError {
             Self::Hash { path, source } => {
                 write!(f, "candidate: cannot hash {}: {source}", path.display())
             }
-            Self::Check(message) => f.write_str(message),
+            Self::Bcr(source) => source.fmt(f),
+            Self::Module(source) => source.fmt(f),
+            Self::Render(source) => write!(f, "cannot render JSON: {source}"),
             Self::InvalidCommit { commit } => write!(
                 f,
                 "candidate: invalid commit {commit:?}: want a full 40-char lowercase SHA"
@@ -449,8 +457,10 @@ impl std::error::Error for CandidateError {
             | Self::SourceJsonWrite(source) => Some(source),
             Self::BadSize { source, .. } => Some(source),
             Self::SourceJsonNotUtf8(source) | Self::MemberNotUtf8 { source, .. } => Some(source),
-            Self::Check(_)
-            | Self::InvalidCommit { .. }
+            Self::Bcr(source) => Some(source),
+            Self::Module(source) => Some(source),
+            Self::Render(source) => Some(source),
+            Self::InvalidCommit { .. }
             | Self::CommitResolves { .. }
             | Self::MalformedTreeRecord { .. }
             | Self::NotRegularFile { .. }
@@ -484,6 +494,18 @@ impl std::error::Error for CandidateError {
             | Self::AmbiguousForEachRef { .. }
             | Self::BadHead { .. } => None,
         }
+    }
+}
+
+impl From<BcrError> for CandidateError {
+    fn from(source: BcrError) -> Self {
+        Self::Bcr(source)
+    }
+}
+
+impl From<ModuleError> for CandidateError {
+    fn from(source: ModuleError) -> Self {
+        Self::Module(source)
     }
 }
 
@@ -879,7 +901,7 @@ pub fn build_source_archive(
         source,
     })?;
     let digest = hash_file(dst)?;
-    let integrity = bcr_integrity_of_digest(&digest).map_err(CandidateError::Check)?;
+    let integrity = bcr_integrity_of_digest(&digest)?;
     Ok(SourceArchive { digest, integrity })
 }
 
@@ -1017,8 +1039,8 @@ fn stage_release_source(
     let built = build_source_archive(repo, candidate, staged, pins)?;
     source_archive_error(staged, repo, candidate, pins)?;
     let module_text = commit_module_file(repo, candidate)?;
-    module_version_error(&module_text, candidate.version()).map_err(CandidateError::Check)?;
-    local_override_error(&module_text).map_err(CandidateError::Check)?;
+    module_version_error(&module_text, candidate.version())?;
+    local_override_error(&module_text)?;
     let archive = path_io::read(staged)?;
     let sidecar = format!("{}  {name}\n", built.digest).into_bytes();
     let integrity = write_bcr_source_for_archive(staged_json, candidate.version(), staged)
@@ -1033,8 +1055,7 @@ fn stage_release_source(
         BCR_WANT_MODULE,
         candidate.version(),
         &built.digest,
-    )
-    .map_err(CandidateError::Check)?;
+    )?;
     let outputs = vec![
         (name.to_owned(), archive),
         (format!("{name}.sha256"), sidecar),
@@ -1153,7 +1174,7 @@ pub fn candidate_named_module_file(
     version: &str,
     name: &str,
 ) -> Result<String, CandidateError> {
-    bcr_candidate_version_error(version).map_err(CandidateError::Check)?;
+    bcr_candidate_version_error(version)?;
     let starts: Vec<usize> = text
         .match_indices("module(")
         .map(|(at, _)| at)
@@ -1241,10 +1262,10 @@ pub fn stage_local_registry(
     let mirror = dir.join("mirror");
     write_file(
         &dir.join("bazel_registry.json"),
-        render_pretty(&serde_json::json!({
+        pretty_json(&serde_json::json!({
             "mirrors": [format!("{}/", file_url(&mirror))],
         }))
-        .map_err(CandidateError::Check)?
+        .map_err(CandidateError::Render)?
         .as_bytes(),
     )?;
     let prefix = candidate.strip_prefix();
@@ -1273,27 +1294,25 @@ pub fn stage_local_registry(
     let module_dir = dir.join("modules").join(BCR_WANT_MODULE);
     write_file(
         &module_dir.join("metadata.json"),
-        render_pretty(&serde_json::json!({
+        pretty_json(&serde_json::json!({
             "homepage": RELEASE_REPOSITORY,
             "maintainers": [],
             "repository": [RELEASE_REPOSITORY.replace("https://github.com/", "github:")],
             "versions": [version],
             "yanked_versions": {},
         }))
-        .map_err(CandidateError::Check)?
+        .map_err(CandidateError::Render)?
         .as_bytes(),
     )?;
     write_file(
         &module_dir.join(version).join("MODULE.bazel"),
         module_file.as_bytes(),
     )?;
-    let source = render_bcr_source_for_digest(BCR_WANT_MODULE, version, &digest)
-        .map_err(CandidateError::Check)?;
+    let source = render_bcr_source_for_digest(BCR_WANT_MODULE, version, &digest)?;
     let source_path = module_dir.join(version).join("source.json");
     write_file(&source_path, source.as_bytes())?;
     let staged = path_io::read_to_string(&source_path)?;
-    bcr_candidate_error(&staged, BCR_WANT_MODULE, version, &digest)
-        .map_err(CandidateError::Check)?;
+    bcr_candidate_error(&staged, BCR_WANT_MODULE, version, &digest)?;
     let url = candidate.url();
     let Some(relative) = url.strip_prefix("https://") else {
         return Err(CandidateError::NotHttps { url });
@@ -1467,7 +1486,10 @@ mod tests {
     #[test]
     fn candidate_rejects_bad_versions_and_commits() {
         let error = Candidate::new("0.0.0", SHA).expect_err("shape version");
-        assert!(matches!(error, CandidateError::Check(_)));
+        assert!(matches!(
+            error,
+            CandidateError::Bcr(BcrError::UnpublishableVersion)
+        ));
         assert!(error.to_string().contains("unpublishable"));
         for bad in ["", "1.2", "v1.2.3", "1.2.3.4", "1..3"] {
             assert!(
@@ -1530,7 +1552,7 @@ mod tests {
         assert!(error.to_string().contains("not closed"));
         assert!(matches!(
             candidate_module_file(MODULE, "0.0.0"),
-            Err(CandidateError::Check(_))
+            Err(CandidateError::Bcr(BcrError::UnpublishableVersion))
         ));
     }
 

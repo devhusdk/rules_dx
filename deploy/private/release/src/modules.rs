@@ -1,6 +1,35 @@
 //! The version and dependency checks of the `rules_dx` module a release publishes.
 
+use std::fmt;
+
 use crate::candidate::{call_end, string_fields};
+
+/// A failed `MODULE.bazel` release check.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ModuleError {
+    /// The `module()` version is not the release version.
+    VersionMismatch { have: String, want: String },
+    /// `local_path_override` replaces these `bazel_dep` modules.
+    LocalOverride { modules: Vec<String> },
+}
+
+impl fmt::Display for ModuleError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::VersionMismatch { have, want } => write!(
+                f,
+                "release: MODULE.bazel module() version is {have:?}, want {want:?}; land the version bump first"
+            ),
+            Self::LocalOverride { modules } => write!(
+                f,
+                "release: MODULE.bazel overrides bazel_dep {} with local_path_override; depend on a released version first",
+                modules.join(", ")
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ModuleError {}
 
 type Call = Vec<(String, String)>;
 
@@ -37,15 +66,16 @@ fn field<'a>(call: &'a Call, key: &str) -> Option<&'a str> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn module_version_error(text: &str, version: &str) -> Result<(), String> {
+pub fn module_version_error(text: &str, version: &str) -> Result<(), ModuleError> {
     let have = calls(text, "module")
         .iter()
         .find_map(|call| field(call, "version").map(str::to_owned))
         .unwrap_or_default();
     if have != version {
-        return Err(format!(
-            "release: MODULE.bazel module() version is {have:?}, want {version:?}; land the version bump first"
-        ));
+        return Err(ModuleError::VersionMismatch {
+            have,
+            want: version.to_owned(),
+        });
     }
     Ok(())
 }
@@ -55,21 +85,19 @@ pub fn module_version_error(text: &str, version: &str) -> Result<(), String> {
 /// # Errors
 ///
 /// Returns an error naming every such module.
-pub fn local_override_error(text: &str) -> Result<(), String> {
+pub fn local_override_error(text: &str) -> Result<(), ModuleError> {
     let deps = calls(text, "bazel_dep");
     let overrides = calls(text, "local_path_override");
-    let overridden: Vec<&str> = overrides
+    let modules: Vec<String> = overrides
         .iter()
         .filter_map(|call| field(call, "module_name"))
         .filter(|name| deps.iter().any(|dep| field(dep, "name") == Some(*name)))
+        .map(str::to_owned)
         .collect();
-    if overridden.is_empty() {
+    if modules.is_empty() {
         return Ok(());
     }
-    Err(format!(
-        "release: MODULE.bazel overrides bazel_dep {} with local_path_override; depend on a released version first",
-        overridden.join(", ")
-    ))
+    Err(ModuleError::LocalOverride { modules })
 }
 
 #[cfg(test)]
@@ -88,6 +116,8 @@ mod tests {
     #[test]
     fn the_module_version_must_match_the_tag() {
         let error = module_version_error(&core("1.2.2"), "1.2.3").expect_err("core");
+        assert!(matches!(error, ModuleError::VersionMismatch { .. }));
+        let error = error.to_string();
         assert!(error.contains("MODULE.bazel module() version"), "{error}");
         assert!(error.ends_with("land the version bump first"), "{error}");
     }
@@ -108,6 +138,10 @@ mod tests {
             core("1.2.3")
         );
         let error = local_override_error(&text).expect_err("override");
+        assert!(
+            matches!(&error, ModuleError::LocalOverride { modules } if modules == &["rules_lua"])
+        );
+        let error = error.to_string();
         assert!(
             error.contains("bazel_dep rules_lua with local_path_override"),
             "{error}"

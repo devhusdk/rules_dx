@@ -230,10 +230,11 @@ testing_rust_test(
 
 genquery(
     name = "dx_source_closure",
-    expression = "filter('^//', deps(//cli/cli:dx + //core/quality:fixture_strict_generated_policy))",
+    expression = "filter('^//', deps(//cli/cli:dx + //cli/runtime:dx_runtime + //core/quality:fixture_strict_generated_policy))",
     opts = ["--output=label_kind"],
     scope = [
         "//cli/cli:dx",
+        "//cli/runtime:dx_runtime",
         "//core/quality:fixture_strict_generated_policy",
     ],
 )

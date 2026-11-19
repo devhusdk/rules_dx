@@ -1,6 +1,7 @@
 """Analysis tests that a native test runs under kcov on the platforms it names, and nowhere else."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load(":kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 
 def _kcov_env_impl(ctx):
     env = analysistest.begin(ctx)
@@ -61,3 +62,35 @@ def dx_kcov_env_test(name, target, upstream, instrumented, linux_platform, other
     for platform in other_platforms:
         _platform_rule(platform)(name = name + "_" + Label(platform).name, size = "small", target_under_test = target, kcov = False)
     _off_test(name = name + "_off", size = "small", target_under_test = target, kcov = False)
+
+def _no_kcov_probe_impl(ctx):
+    coverage = dx_kcov_test_coverage(ctx, ctx.attr.upstream, [])
+    return [coverage.env] if coverage else []
+
+# Runs dx_kcov_test_coverage with the kcov a consumer hub serves on a platform with no pin.
+_no_kcov_probe = rule(
+    implementation = _no_kcov_probe_impl,
+    attrs = dx_kcov_attrs() | {
+        "upstream": attr.label(executable = True, cfg = "target"),
+        "_dx_kcov": attr.label(
+            default = Label("//tools/coverage/kcov:none"),
+            cfg = "target",
+        ),
+    },
+)
+
+def _no_kcov_env_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    asserts.false(env, RunEnvironmentInfo in target, "kcov env set: " + str(target[RunEnvironmentInfo].environment if RunEnvironmentInfo in target else {}))
+    return analysistest.end(env)
+
+_unpinned_linux_test = analysistest.make(
+    _no_kcov_env_impl,
+    config_settings = _COVERAGE | {"//command_line_option:platforms": str(Label("//zig/private:kcov_linux_x86_64"))},
+)
+
+def dx_kcov_unpinned_test(name, upstream):
+    """Asserts a Linux test whose kcov has no executable runs without kcov."""
+    _no_kcov_probe(name = name + "_probe", upstream = upstream, testonly = True)
+    _unpinned_linux_test(name = name, size = "small", target_under_test = name + "_probe")

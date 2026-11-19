@@ -3,8 +3,8 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:repo.bzl", "hub_repo")
 load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_root", "with_jars", "with_native_tools")
-load(":tools.bzl", "NATIVE_TOOLS")
 load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
+load(":tools.bzl", "NATIVE_TOOLS")
 
 # Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
@@ -61,7 +61,7 @@ def _dx_prebuilt_impl(module_ctx):
     if plan.source:
         jars = plan_jars(DX_VERSION, {}, URL_TEMPLATE)
         native_tools = plan_native_tools(DX_VERSION, {}, URL_TEMPLATE, {})
-        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(with_native_tools(alias_build(SOURCE_LABEL), native_tools), jars)})
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(with_native_tools(alias_build(SOURCE_LABEL), native_tools, consumer = not rules_dx_is_root), jars)})
     else:
         assets = plan_assets("dx", DX_VERSION, PINS, URL_TEMPLATE, plan.overrides.get("dx", {}))
         launcher_assets = plan_assets(
@@ -86,7 +86,7 @@ def _dx_prebuilt_impl(module_ctx):
         native_tools = plan_native_tools(DX_VERSION, PINS, URL_TEMPLATE, plan.overrides)
         declare_downloads(assets + launcher_assets + go_assets + [a for tool in sorted(native_tools) for a in native_tools[tool]])
         _declare_jars(jars)
-        build = with_native_tools(consumer_build(assets, launcher_assets, go_assets), native_tools)
+        build = with_native_tools(consumer_build(assets, launcher_assets, go_assets), native_tools, consumer = True)
         hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(build, jars)})
     return module_ctx.extension_metadata(
         reproducible = True,

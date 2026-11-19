@@ -127,8 +127,6 @@ CONSUMER_BAZEL_DEPS = {
     "gcc_toolchain": struct(floor = "0.13.0", tested = "0.13.0"),
     "windows_support": struct(floor = "0.4.1", tested = "0.4.1"),
     "google_benchmark": struct(floor = "1.10.0", tested = "1.10.0"),
-    "elfutils": struct(floor = "0.195", tested = "0.195"),
-    "zlib": struct(floor = "1.4", tested = "1.4"),
     "rules_rust_prost": struct(floor = "0.75.0", tested = "0.75.0"),
     "rules_cuda": struct(floor = RULES_CUDA_VERSION, tested = RULES_CUDA_VERSION),
 }

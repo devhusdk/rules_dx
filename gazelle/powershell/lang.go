@@ -7,11 +7,20 @@ import (
 
 	"github.com/devhusdk/rules_dx/gazelle/common"
 
+	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/repo"
 	"github.com/bazelbuild/bazel-gazelle/resolve"
 )
+
+// runfilesModule is the module the rules_dx PowerShell runfiles library
+// exports; it resolves to runfilesLabel in every repo, since no local rule
+// indexes it.
+const runfilesModule = "BazelRunfiles"
+
+var runfilesLabel = label.New("rules_dx", "powershell", "runfiles")
 
 // UnresolvedHint tells users how to settle an import no rule owns.
 const UnresolvedHint = "add a powershell_library that owns that module, an exact # gazelle:resolve powershell mapping; module names match case-sensitively"
@@ -46,6 +55,23 @@ func NewLanguage() language.Language {
 		UnresolvedHint: UnresolvedHint,
 		Generate:       generateRules,
 	})}
+}
+
+// Resolve resolves like every single-rule language, with the runfiles module
+// mapped to the rules_dx runfiles library.
+func (l *pwshLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
+	spec := l.ResolveSpecFor(c, r, from)
+	external := spec.External
+	spec.External = func(name string) ([]label.Label, string) {
+		if name == runfilesModule {
+			return []label.Label{runfilesLabel}, ""
+		}
+		if external == nil {
+			return nil, ""
+		}
+		return external(name)
+	}
+	common.ResolveSingle(c, ix, r, raw, from, spec)
 }
 
 func isModuleFile(src string) bool {

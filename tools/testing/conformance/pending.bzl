@@ -32,8 +32,6 @@ cuda lint_error_test linux_arm64
 cuda lint_test linux_arm64
 d cross_test windows_arm64
 d cross_test windows_x86_64
-d format_error_test *
-d format_test *
 d lint_error_test linux_arm64
 d lint_error_test macos_arm64
 d lint_error_test windows_x86_64

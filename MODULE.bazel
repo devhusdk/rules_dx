@@ -88,6 +88,12 @@ use_repo(llvm_project, "llvm-project")
 
 # dev only: qualifies a real foreign CMake build; cmake_library stays quality-only
 bazel_dep(name = "rules_foreign_cc", version = "0.17.0", dev_dependency = True)
+single_version_override(
+    module_name = "rules_foreign_cc",
+    patch_strip = 1,
+    patches = ["//patches/rules_foreign_cc:cmake_4_5_0.patch"],
+    version = "0.17.0",
+)
 bazel_dep(name = "ninja", version = "1.13.2", dev_dependency = True)
 bazel_dep(name = "m4", version = "1.4.21.bcr.8", dev_dependency = True)
 bazel_dep(name = "make", version = "4.4.1.bcr.3", dev_dependency = True)
@@ -98,7 +104,7 @@ _foreign_cc_tools = use_extension("@rules_foreign_cc//foreign_cc:extensions.bzl"
 _foreign_cc_tools.explicit()
 _foreign_cc_tools.cmake(
     mode = "binary",
-    version = "4.0.7",
+    version = "4.5.0",
 )
 _foreign_cc_tools.ninja(
     exec_compatible_with = ["@platforms//os:linux"],

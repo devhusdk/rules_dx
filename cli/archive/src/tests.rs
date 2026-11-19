@@ -36,6 +36,7 @@ fn zip_file(path: &Path, members: &[(&str, &[u8], u32)]) {
     for (name, data, mode) in members {
         let options = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated)
+            .system(zip::System::Unix)
             .unix_permissions(*mode);
         writer.start_file(*name, options).expect("start");
         writer.write_all(data).expect("data");
@@ -122,6 +123,18 @@ fn expect_refused(format: Format, archive: &Path) -> String {
     extract(archive, format, &dest, Limits::default())
         .expect_err("refused")
         .to_string()
+}
+
+/// Returns the extracted members on Unix; elsewhere checks that the symlink `link` is refused.
+fn extract_with_links(result: io::Result<Vec<Member>>, link: &str) -> Option<Vec<Member>> {
+    if cfg!(unix) {
+        return Some(result.expect("extract"));
+    }
+    let error = result.expect_err("symlinks are unsupported");
+    assert_eq!(error.kind(), io::ErrorKind::Unsupported, "{error}");
+    let message = error.to_string();
+    assert!(message.contains(&format!("create {link:?}")), "{message}");
+    None
 }
 
 #[test]
@@ -229,20 +242,22 @@ enum ZipEntry<'a> {
     Link(&'a str, &'a str),
 }
 
+fn unix_options() -> zip::write::SimpleFileOptions {
+    zip::write::SimpleFileOptions::default().system(zip::System::Unix)
+}
+
 fn zip_entries(path: &Path, entries: &[ZipEntry<'_>]) {
     let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
     for entry in entries {
         match entry {
             ZipEntry::File(name, data, mode) => {
-                let options = zip::write::SimpleFileOptions::default().unix_permissions(*mode);
+                let options = unix_options().unix_permissions(*mode);
                 writer.start_file(*name, options).expect("start");
                 writer.write_all(data).expect("data");
             }
-            ZipEntry::Dir(name) => writer
-                .add_directory(*name, zip::write::SimpleFileOptions::default())
-                .expect("dir"),
+            ZipEntry::Dir(name) => writer.add_directory(*name, unix_options()).expect("dir"),
             ZipEntry::Link(name, target) => writer
-                .add_symlink(*name, *target, zip::write::SimpleFileOptions::default())
+                .add_symlink(*name, *target, unix_options())
                 .expect("symlink"),
         }
     }
@@ -306,7 +321,12 @@ fn directories_and_inner_symlinks_are_extracted_in_both_formats() {
     );
     for (format, archive) in [(Format::TarGz, &tar), (Format::Zip, &zip)] {
         let dest = dir.path().join(format!("out{}", format.suffix()));
-        let members = extract(archive, format, &dest, Limits::default()).expect("extract");
+        let Some(members) = extract_with_links(
+            extract(archive, format, &dest, Limits::default()),
+            "pkg/bin/tool",
+        ) else {
+            continue;
+        };
         assert_eq!(
             members,
             [Member {
@@ -442,10 +462,12 @@ fn members_below_a_symlink_are_refused_in_both_formats() {
     );
     for (format, archive) in [(Format::TarGz, &tar), (Format::Zip, &zip)] {
         let error = expect_refused(format, archive);
-        assert!(
-            error.contains("below an archive symlink"),
-            "{format:?}: {error}"
-        );
+        let expected = if cfg!(unix) {
+            "below an archive symlink"
+        } else {
+            "on this platform"
+        };
+        assert!(error.contains(expected), "{format:?}: {error}");
         assert!(!archive.with_extension("out").join("sub/file").exists());
     }
 }
@@ -671,7 +693,7 @@ fn writers_add_dirs_and_inner_symlinks() {
         (Format::Zip, zip.finish().expect("zip")),
     ] {
         let dest = dir.path().join(format.suffix().trim_start_matches('.'));
-        extract_bytes(&bytes, format, &dest, Limits::default()).expect("extract");
+        extract_with_links(extract_bytes(&bytes, format, &dest, Limits::default()), "l");
         assert!(dest.join("d").is_dir());
         assert_eq!(std::fs::read(dest.join("d/f")).expect("read"), b"f");
         #[cfg(unix)]

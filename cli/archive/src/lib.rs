@@ -362,7 +362,8 @@ fn prepare_dest(dest: &Path) -> io::Result<()> {
 
 /// Extracts `archive` into the new or empty directory `dest` and returns its regular files.
 ///
-/// Directories and symlinks that stay inside `dest` are created too; callers discard `dest` on error.
+/// Directories and, on Unix, symlinks that stay inside `dest` are created too; elsewhere a symlink
+/// member fails with [`io::ErrorKind::Unsupported`]. Callers discard `dest` on error.
 pub fn extract(
     archive: &Path,
     format: Format,

@@ -217,7 +217,7 @@ text_present = true
 - `[distribution] internal` lists label patterns: `//...` is every scope, `//pkg/...` is `pkg` and below, `//pkg:all` is the targets in `pkg`, anything else is one label. A run is internal only when the entries cover every scope, also with `--here` and `--affected`.
 - An internal run fails only on `blocked`. A distributed run fails on every list and on unlisted ids.
 - `MIT`, `Apache-2.0`, `BSD-2-Clause` and `BSD-3-Clause` also need their license text, or the finding is `license/missing-notice-text`.
-- `[[inventory]]` needs `package`, `set`, `license` and `versions`. `text_present` says the text ships with the package. `text = "<path>"` names a vendored text file and implies `text_present`. The path is workspace-relative, `/`-separated, with no leading `/` or `\` and no empty, `.` or `..` parts.
+- `[[inventory]]` needs `package`, `set`, `license` and `versions`. `text_present` says the text ships with the package. `text = "<path>"` names a vendored text file and implies `text_present`. The path is workspace-relative, `/`-separated, with no leading `/` or `\` and no empty, `.` or `..` parts. The file must exist and must not be blank, or the finding is `license/inventory-text-missing`. `dx license` checks every entry, whatever the scope.
 - Inventory overrides licenses read from `cargo-bazel-lock.json` and `package-lock.json`. For other sets it is the only source; a package with no entry is `UNKNOWN`.
 - `[[exception]]` needs `package`, `set`, `license`, `versions`, `reason` and `expires`. It covers a finding when `package`, `set` and `license` match. Expiry and unmatched entries fail as in `security.toml`.
 

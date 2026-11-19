@@ -57,7 +57,7 @@ dx init --apply demo-app
 
 Your `MODULE.bazel` needs only `bazel_dep(name = "rules_dx")`. You add no
 `rules_flutter` `bazel_dep`, no `flutter.toolchain` tag and no engine
-`use_repo`. [`tests/consumer`](../../flutter/tests/consumer) is a minimal project.
+`use_repo`. [`flutter/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/flutter/tests/consumer/BUILD.bazel) is a minimal project.
 
 When your code imports pub packages, add a `pubspec.lock` and declare a hub
 with the `pub` extension. A hub is a Bazel repository that holds one target

@@ -725,7 +725,7 @@ Exit codes: `0`, `1`, `2`.
 | `@rules_dx//config:tool_errcheck` | `label_flag` | `@dx_prebuilt//:dx_errcheck` |  |
 | `@rules_dx//config:tool_flatc` | `label_flag` | `@dx_prebuilt//:flatc` |  |
 | `@rules_dx//config:tool_gersemi` | `label_flag` | `@dx_tools//:gersemi` |  |
-| `@rules_dx//config:tool_gofumpt` | `label_flag` | `@cc_mvdan_gofumpt//:gofumpt` |  |
+| `@rules_dx//config:tool_gofumpt` | `label_flag` | `@dx_prebuilt//:dx_gofumpt` |  |
 | `@rules_dx//config:tool_gotype` | `label_flag` | `@dx_prebuilt//:dx_gotype` |  |
 | `@rules_dx//config:tool_govet` | `label_flag` | `@dx_prebuilt//:dx_govet` |  |
 | `@rules_dx//config:tool_hadolint` | `label_flag` | `@dx_tools//:hadolint` |  |

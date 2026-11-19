@@ -313,6 +313,14 @@ jobs:
             test "$(sha256sum "$download/weeder.tar.gz" | cut -d' ' -f1)" = "$(jq -r .archive.sha256 <<<"$weeder")" || { echo "weeder archive sha256 differs from haskell/private/tools/weeder/cabal.lock.json" >&2; exit 1; }
             tar -xzOf "$download/weeder.tar.gz" "weeder-$weeder_version/LICENSE" > "$out/dx-weeder-LICENSE"
             test -s "$out/dx-weeder-LICENSE"
+            # The musl cell links libgmp.a from the pinned gmp-dev apk into every tool, so the
+            # release ships GMP's licence, the source it was built from and Alpine's one patch.
+            for gmp in "gmp_license dx-haskell-gmp-LICENSE" "gmp_source dx-haskell-gmp-source.tar.xz" "gmp_source_patch dx-haskell-gmp-source.patch"; do
+              pin="${gmp%% *}"
+              asset="${gmp#* }"
+              curl --fail --silent --show-error --location -o "$out/$asset" "$(jq -r --arg pin "$pin" '.archives[$pin].urls[0]' haskell/pins.json)"
+              test "$(sha256sum "$out/$asset" | cut -d' ' -f1)" = "$(jq -r --arg pin "$pin" '.archives[$pin].sha256' haskell/pins.json)" || { echo "$asset sha256 differs from haskell/pins.json $pin" >&2; exit 1; }
+            done
             rm -rf "$download"
           fi
           ls -l "$out"

@@ -29,6 +29,14 @@ pub const REGISTRY: &str = include_str!(env!("DX_PREBUILT_REGISTRY"));
 /// Files a release publishes once per tool beside its `<tool>-<platform>` assets.
 const TOOL_COMPANIONS: [&str; 3] = ["-LICENSE", "-source.crate", "-source.tar.gz"];
 
+/// Licences and sources of the libraries linked into a family of tools, published
+/// once per release beside that family's assets.
+const LIBRARY_COMPANIONS: [&str; 3] = [
+    "dx-haskell-gmp-LICENSE",
+    "dx-haskell-gmp-source.tar.xz",
+    "dx-haskell-gmp-source.patch",
+];
+
 /// Files a release publishes beside a registry asset and lists in the same
 /// manifest: the launcher archives, the Windows symbols and their SBOMs.
 const COMPANION_SUFFIXES: [&str; 3] = [".tar.gz", ".zip", "-pdb.zip"];
@@ -165,6 +173,9 @@ pub fn fill_with_registry(
 }
 
 fn companion_of(asset: &str, known: &BTreeMap<&str, &Entry>) -> bool {
+    if LIBRARY_COMPANIONS.contains(&asset) {
+        return true;
+    }
     if let Some(tool) = TOOL_COMPANIONS
         .iter()
         .find_map(|suffix| asset.strip_suffix(suffix))

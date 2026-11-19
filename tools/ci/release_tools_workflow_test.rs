@@ -126,7 +126,10 @@ fn jars_job_builds_every_jar_asset() {
 #[test]
 fn haskell_job_builds_every_haskell_asset() {
     let workflow = document(TOOLS).unwrap();
-    assert_eq!(workflow["jobs"]["haskell"]["permissions"]["contents"], "read");
+    assert_eq!(
+        workflow["jobs"]["haskell"]["permissions"]["contents"],
+        "read"
+    );
     let tools = read_runfiles(TOOLS);
     let release = read_runfiles(RELEASE);
     assert!(tools.contains("name: release-tool-haskell-${{ matrix.host }}"));
@@ -158,7 +161,10 @@ fn haskell_job_builds_every_haskell_asset() {
 #[test]
 fn hackage_job_builds_hlint_and_ormolu() {
     let workflow = document(TOOLS).unwrap();
-    assert_eq!(workflow["jobs"]["hackage"]["permissions"]["contents"], "read");
+    assert_eq!(
+        workflow["jobs"]["hackage"]["permissions"]["contents"],
+        "read"
+    );
     let tools = read_runfiles(TOOLS);
     let release = read_runfiles(RELEASE);
     assert!(tools.contains("name: release-tool-haskell-${{ matrix.tool }}-${{ matrix.host }}"));
@@ -200,9 +206,45 @@ fn hackage_job_builds_hlint_and_ormolu() {
     );
     assert!(tools.contains("asset=\"dx-$TOOL-$HOST\""));
     assert!(tools.contains("> \"$out/dx-$TOOL-LICENSE\""));
-    assert!(release.contains("for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE; do"));
-    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 12"));
-    assert!(release.contains("dx-hlint-* dx-ormolu-*"));
+    assert!(release.contains("for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch; do"));
+    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 15"));
+    assert!(release.contains("dx-hlint-* dx-ormolu-* dx-haskell-gmp-*"));
+}
+
+#[test]
+fn haskell_job_ships_the_gmp_licence_and_source() {
+    let tools = read_runfiles(TOOLS);
+    let release = read_runfiles(RELEASE);
+    let pins: serde_json::Value =
+        serde_json::from_str(&read_runfiles("haskell/pins.json")).expect("haskell/pins.json");
+    for (pin, asset) in [
+        ("gmp_license", "dx-haskell-gmp-LICENSE"),
+        ("gmp_source", "dx-haskell-gmp-source.tar.xz"),
+        ("gmp_source_patch", "dx-haskell-gmp-source.patch"),
+    ] {
+        assert!(tools.contains(&format!("\"{pin} {asset}\"")), "{asset}");
+        assert!(release.contains(&format!(" {asset}")), "{asset}");
+        let entry = &pins["archives"][pin];
+        assert_eq!(entry["sha256"].as_str().map(str::len), Some(64), "{pin}");
+        assert!(
+            entry["urls"][0]
+                .as_str()
+                .is_some_and(|url| url.starts_with("https://gmplib.org/")
+                    || url.starts_with("https://www.gnu.org/")),
+            "{pin}"
+        );
+    }
+    assert!(tools.contains("sha256 differs from haskell/pins.json $pin"));
+    assert!(
+        pins["archives"]["apk__gmp-dev"]["urls"][0]
+            .as_str()
+            .is_some_and(|url| url.ends_with("/gmp-dev-6.2.1-r3.apk"))
+    );
+    assert!(
+        pins["archives"]["gmp_source"]["urls"][0]
+            .as_str()
+            .is_some_and(|url| url.ends_with("/gmp-6.2.1.tar.xz"))
+    );
 }
 
 #[test]
@@ -232,9 +274,7 @@ fn release_writes_and_checks_the_tool_manifest() {
         "for host in {}; do\n            tool_asset=\"dx-python-tools-$host.tar.gz\"",
         PYTHON_HOSTS.join(" ")
     )));
-    assert!(text.contains(
-        " dx-deadnix-* dx-selene-* dx-nixfmt-* dx-kcov-* dx-python-tools-*; do"
-    ));
+    assert!(text.contains(" dx-deadnix-* dx-selene-* dx-nixfmt-* dx-kcov-* dx-python-tools-*; do"));
     assert!(text.contains(
         "for tool in dx-deadnix dx-selene; do\n            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do\n              tool_asset=\"$tool-$host\""
     ));

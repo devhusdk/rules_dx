@@ -107,6 +107,18 @@
         "https://www.gnu.org/licenses/lgpl-3.0.txt"
       ]
     },
+    "gmp_source": {
+      "sha256": "fd4829912cddd12f84181c3451cc752be224643e87fac497b69edddadc49b4f2",
+      "urls": [
+        "https://gmplib.org/download/gmp/gmp-6.2.1.tar.xz"
+      ]
+    },
+    "gmp_source_patch": {
+      "sha256": "bf3ef13ecf0180c9a2745bf71d8250406d9b99b4df0748b8d93a9787c01d192b",
+      "urls": [
+        "https://gmplib.org/repo/gmp-6.2/raw-rev/561a9c25298e"
+      ]
+    },
     "rules_haskell": {
       "sha256": "86d126db53fa06ee935d94ee109420d3a68733377091f7914f62abe36c1972a1",
       "strip_prefix": "rules_haskell-826018312ea91c80ff66fde1e1e39f76c42c07b8",

@@ -33,7 +33,7 @@ load(":support_tests.bzl", "support_unit_tests")
 load(":tools_tests.bzl", "tools_unit_tests")
 load(":wrapper_owners.bzl", "wrapper_unit_tests")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "BUILD.bazel",

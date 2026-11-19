@@ -7,6 +7,7 @@ const PYPI_HOST: &str = "pypi.org";
 pub const UV_SET: &str = "uv";
 
 pub fn parse_uv_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let root: toml::Table = text
         .parse()
         .map_err(|error: toml::de::Error| DxError::failure(format!("invalid lock: {error}")))?;

@@ -43,7 +43,7 @@ def declare_downloads(assets):
             http_file(
                 name = asset.repo,
                 downloaded_file_path = asset.exe,
-                executable = True,
+                executable = asset.executable,
                 sha256 = asset.sha256,
                 urls = [asset.url],
             )

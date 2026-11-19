@@ -1,11 +1,10 @@
 use std::fmt;
-use std::io;
 use std::path::{Path, PathBuf};
 
 use dx_atomic_fs::path_io::{self, PathIoError};
 
 use super::cell::{self, CellError, CellOutcome, Expected};
-use super::{OpRecord, OpState, notice_verify_files, sbom_verify_files};
+use super::{NoticeError, OpRecord, OpState, SbomError, notice_verify_files, sbom_verify_files};
 
 pub const REPORT_SCHEMA: &str = "publish-dry-run/v3";
 
@@ -59,9 +58,9 @@ pub enum PublishError {
     SpdxEmptyDigest,
     Matrix(CellError),
     // #13874 retypes this
-    Sbom(io::Error),
+    Sbom(SbomError),
     // #13874 retypes this
-    Notice(io::Error),
+    Notice(NoticeError),
     NoBcrLog,
     Render(dx_fingerprint::FingerprintError),
 }
@@ -106,7 +105,8 @@ impl std::error::Error for PublishError {
             Self::Read { source, .. } => Some(source),
             Self::SpdxJson(source) => Some(source),
             Self::Matrix(source) => Some(source),
-            Self::Sbom(source) | Self::Notice(source) => Some(source),
+            Self::Sbom(source) => Some(source),
+            Self::Notice(source) => Some(source),
             Self::Render(source) => Some(source),
             Self::Missing { .. } | Self::SpdxNoDigest | Self::SpdxEmptyDigest | Self::NoBcrLog => {
                 None

@@ -35,6 +35,7 @@ def go_shard_action(ctx, info, package, stem, driver_tool, extract_tool, goos = 
     )
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("go_extract")
     extract.add("--json", json)
     extract.add("--out", shard)
     ctx.actions.run(
@@ -81,7 +82,7 @@ docs_go_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/go/extract:go_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

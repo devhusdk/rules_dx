@@ -34,6 +34,7 @@ fn scratch(name: &str, json: &str, srcs: &str) -> dx_test_scratch::TempDir {
 
 fn extract(dir: &Path, args: &[&str]) -> Run {
     let output = Command::new(dx_testing::env_file("DX_RUST_EXTRACT"))
+        .arg("rust_extract")
         .args(args)
         .current_dir(dir)
         .output()
@@ -119,7 +120,7 @@ fn malformed_json_fails_without_a_shard() {
     let dir_tmp = scratch("extract-malformed", "{", &fixture_srcs());
     let dir = dir_tmp.path();
     let run = standard(dir);
-    expect_failure(dir, &run, "docs_rust: malformed rustdoc JSON");
+    expect_failure(dir, &run, "rust_extract: malformed rustdoc JSON");
 }
 
 #[test]

@@ -83,6 +83,7 @@ def jvm_shard_action(ctx, language, java_info, own, package, dep_shards, stem, a
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     convert = ctx.actions.args()
+    convert.add("jvm_convert")
     convert.add("--json", api_json)
     convert.add("--language", language)
     convert.add("--package", package)

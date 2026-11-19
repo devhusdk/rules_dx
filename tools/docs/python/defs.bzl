@@ -40,7 +40,7 @@ docs_python_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/python/extract:python_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

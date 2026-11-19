@@ -84,8 +84,24 @@ def _checks():
     runtime = plan_native_tools("1.2.3", {"runtime": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {})
     runtime_build = with_native_tools(pinned_build, runtime, consumer = True)
     runtime_root = plan_root([_mod("app", True, assets = [_tag(name = "runtime")])], tools = ["dx", "go"] + NATIVE_TOOLS)
+    tree_sitter = plan_native_tools("1.2.3", {"tree_sitter": {"windows_arm64": _HASH}}, URL_TEMPLATE, {})
+    tree_sitter_build = with_native_tools(alias_build(SOURCE_LABEL), tree_sitter, consumer = True)
+    tree_sitter_windows_arm = tree_sitter["tree_sitter"][0]
+    tree_sitter_root = plan_root([_mod("app", True, assets = [_tag(name = "tree_sitter", os = "windows", cpu = "aarch64")])], tools = ["dx", "go"] + NATIVE_TOOLS)
     return [
-        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "weeder"]),
+        expect_equal("tree-sitter assets", [asset_name(t, k) for t in ["tree_sitter", "tree_sitter_pkl"] for k in TOOLS[t].platforms], ["dx-tree-sitter-windows-arm64.dll", "dx-tree-sitter-pkl-windows-arm64.dll"]),
+        expect_contains("the registry lists tree-sitter for fill_pins", registry_lines(), "tree_sitter windows_arm64 dx-tree-sitter-windows-arm64.dll"),
+        expect_contains("the registry lists tree-sitter-pkl for fill_pins", registry_lines(), "tree_sitter_pkl windows_arm64 dx-tree-sitter-pkl-windows-arm64.dll"),
+        expect_contains("a pinned tree-sitter selects the downloaded file", tree_sitter_build, '":native_windows_aarch64": "@dx_tree_sitter_prebuilt_windows_aarch64//file:tree-sitter.dll",'),
+        expect_false("a library gets no native_binary", "tree_sitter_windows_aarch64" in tree_sitter_build),
+        expect_false("a library-only hub loads no native_binary", "native_binary" in tree_sitter_build),
+        expect_contains("a pinned tree-sitter builds from source elsewhere", tree_sitter_build, '"//conditions:default": "@jvm_tree_sitter//:tree-sitter.dll",'),
+        expect_contains("an unpinned tree-sitter-pkl aliases its source", tree_sitter_build, 'name = "tree_sitter_pkl",\n    actual = "@jvm_tree_sitter_pkl//:tree-sitter-pkl.dll",'),
+        expect_equal("a tree-sitter download keeps the loaded file name", tree_sitter_windows_arm.exe, "tree-sitter.dll"),
+        expect_false("a tree-sitter download is not executable", tree_sitter_windows_arm.executable),
+        expect_true("a native tool download is executable", topiary_windows_arm.executable),
+        expect_equal("a root asset may name tree-sitter", tree_sitter_root.overrides.keys(), ["tree_sitter"]),
+        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]),
         expect_equal("runtime assets", [asset_name("runtime", k) for k in TOOLS["runtime"].platforms], ["dx-runtime-linux-arm64", "dx-runtime-linux-x86_64", "dx-runtime-macos-arm64", "dx-runtime-windows-arm64", "dx-runtime-windows-x86_64"]),
         expect_equal("the runtime runs on the target platform", TOOLS["runtime"].role, "target"),
         expect_contains("the registry lists the runtime for fill_pins", registry_lines(), "runtime windows_arm64 dx-runtime-windows-arm64"),

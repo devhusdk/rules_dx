@@ -32,6 +32,21 @@ pub struct Source {
     pub generated: bool,
 }
 
+/// Runs `rust_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process(
+        "rust_extract",
+        usage(),
+        parse,
+        |options| match run(options) {
+            error if error.is_empty() => Ok(()),
+            error => Err(error),
+        },
+        args,
+    )
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {

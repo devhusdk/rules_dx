@@ -59,6 +59,7 @@ def python_shard_action(ctx, info, package, docstyle, stem, driver_tool, extract
     )
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("python_extract")
     extract.add("--json", json)
     extract.add("--package", package)
     extract.add("--root", root)

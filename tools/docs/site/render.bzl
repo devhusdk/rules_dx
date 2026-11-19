@@ -1,7 +1,6 @@
 """Real upstream mdBook rendering of the documentation site."""
 
 _MDBOOK = "//tools/docs/site/mdbook:mdbook"
-_SITE_BUILD = "//tools/docs/site/build:site_build"
 
 DocsSiteInfo = provider(
     doc = "One rendered documentation site.",
@@ -147,8 +146,9 @@ def _mdbook_site_impl(ctx):
     ctx.actions.write(output = manifest, content = "".join(lines))
     tree = ctx.actions.declare_directory(ctx.label.name)
     ctx.actions.run(
-        executable = ctx.executable.site_build,
+        executable = ctx.executable._dx,
         arguments = [
+            "site_build",
             "--mdbook",
             ctx.file.mdbook.path,
             "--book",
@@ -194,16 +194,15 @@ mdbook_site = rule(
             doc = "Site route for each page, in the same order as pages.",
             mandatory = True,
         ),
-        "site_build": attr.label(
-            doc = "Tool that invokes mdBook to render the site into a tree.",
-            cfg = "exec",
-            default = Label(_SITE_BUILD),
-            executable = True,
-        ),
         "summary": attr.label(
             doc = "The SUMMARY.md table of contents for the book.",
             allow_single_file = True,
             mandatory = True,
+        ),
+        "_dx": attr.label(
+            cfg = "exec",
+            default = Label("@dx_prebuilt//:dx"),
+            executable = True,
         ),
     },
 )

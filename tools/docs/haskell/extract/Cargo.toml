@@ -9,7 +9,3 @@ edition = "2024"
 [lib]
 name = "dx_docs_haskell_extract"
 path = "src/lib.rs"
-
-[[bin]]
-name = "haskell_extract"
-path = "src/main.rs"

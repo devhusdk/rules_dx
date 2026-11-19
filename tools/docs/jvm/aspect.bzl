@@ -40,7 +40,7 @@ real_jvm_docs_aspect = aspect(
         ),
         "_jvm_convert": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/jvm/convert:jvm_convert"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_kotlin_extract": attr.label(

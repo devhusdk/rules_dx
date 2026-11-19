@@ -111,6 +111,7 @@ def ruby_shard_action(ctx, own, transitive_srcs, dep_infos, package, stem, yard_
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("ruby_extract")
     extract.add("--json", yard_json)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -175,7 +176,7 @@ docs_ruby_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/ruby/extract:ruby_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_yard": attr.label(

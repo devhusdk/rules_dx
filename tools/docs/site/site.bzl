@@ -111,6 +111,7 @@ def _docs_api_impl(ctx):
     records = ctx.actions.declare_file(site_records_name(name))
     shards = _library_shards(ctx.attr.libraries)
     args = ctx.actions.args()
+    args.add("site_aggregate")
     args.add_all(shards, before_each = "--shard")
     if ctx.attr.source_url:
         args.add("--source-url", ctx.attr.source_url)
@@ -119,7 +120,7 @@ def _docs_api_impl(ctx):
     args.add("--api-tree", tree.path)
     args.add("--records", records)
     ctx.actions.run(
-        executable = ctx.executable._aggregate,
+        executable = ctx.executable._dx,
         arguments = [args],
         inputs = shards,
         outputs = [tree, summary, api, records],
@@ -128,8 +129,9 @@ def _docs_api_impl(ctx):
     )
     checked = ctx.actions.declare_file(name + ".checked")
     check = ctx.actions.args()
-    check.add(ctx.executable._check)
+    check.add(ctx.executable._dx)
     check.add(checked)
+    check.add("site_check")
     check.add("--book", ctx.file.book_toml)
     check.add("--api", api)
     check.add("--records", records)
@@ -140,7 +142,7 @@ def _docs_api_impl(ctx):
         command = "check=$1; out=$2; shift 2; \"$check\" \"$@\" && : > \"$out\"",
         arguments = [check],
         inputs = shards + ctx.files.prose + [ctx.file.book_toml, api, records],
-        tools = [ctx.executable._check],
+        tools = [ctx.executable._dx],
         outputs = [checked],
         mnemonic = "DxDocsCheck",
         progress_message = "Checking the links of %{label}",
@@ -171,14 +173,9 @@ def _docs_api_attrs(aspects):
         "prose": attr.label_list(doc = "The prose pages beside the API reference.", allow_files = [".md"], mandatory = True),
         "libraries": attr.label_list(doc = "The libraries to document, or targets that already return a DocsShardInfo.", mandatory = True, aspects = aspects),
         "source_url": attr.string(doc = "URL prefix that source paths link under."),
-        "_aggregate": attr.label(
+        "_dx": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/site/aggregate:site_aggregate"),
-            executable = True,
-        ),
-        "_check": attr.label(
-            cfg = "exec",
-            default = Label("//tools/docs/site/check:site_check"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     }
@@ -213,11 +210,7 @@ def docs_site(name, libraries, prose, book_toml, prose_route = "prose.md", sourc
     docs_site_targets(docs_api, name, libraries, prose, book_toml, prose_route, source_url)
 
 def _docs_scope_tools_impl(ctx):
-    tools = [
-        ("aggregate", ctx.executable.aggregate),
-        ("mdbook", ctx.file.mdbook),
-        ("site_build", ctx.executable.site_build),
-    ]
+    tools = [("mdbook", ctx.file.mdbook)]
     manifest = ctx.actions.declare_file(ctx.label.name + ".dx_docs_tools")
     ctx.actions.write(manifest, "".join([name + "\t" + tool.path + "\n" for name, tool in tools]))
     files = depset([tool for _, tool in tools])
@@ -227,11 +220,9 @@ def _docs_scope_tools_impl(ctx):
     ]
 
 docs_scope_tools = rule(
-    doc = "Builds the tools that turn API shards into one index and names their paths in dx_docs_tools.",
+    doc = "Names the mdBook binary dx docs renders its API index with in dx_docs_tools.",
     implementation = _docs_scope_tools_impl,
     attrs = {
-        "aggregate": attr.label(doc = "Site aggregator binary.", cfg = "exec", default = Label("//tools/docs/site/aggregate:site_aggregate"), executable = True),
         "mdbook": attr.label(doc = "mdBook binary.", cfg = "exec", default = Label("//tools/docs/site/mdbook:mdbook"), allow_single_file = True, executable = True),
-        "site_build": attr.label(doc = "Site build binary.", cfg = "exec", default = Label("//tools/docs/site/build:site_build"), executable = True),
     },
 )

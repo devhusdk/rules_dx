@@ -820,6 +820,8 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           bazel test --noshow_progress --test_output=errors --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS //typescript/tests:windows_ts_actions
+          # shellcheck disable=SC2086
+          bazel build --noshow_progress --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS --aspects=//tools/docs/components:aspect.bzl%real_components_docs_aspect,//tools/docs/typescript:aspect.bzl%real_typescript_docs_aspect --output_groups=dx_docs_shards //tools/docs/components/fixture/svelte:ui_library //tools/docs/typescript/fixture:geometry_library
       - uses: ./.github/actions/compiler-evidence
         if: always() && matrix.shard == 0
         with:

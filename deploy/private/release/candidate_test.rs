@@ -1,11 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use dx_release_tools::candidate::{
-    Candidate, PINS_PATH, build_source_archive, candidate_module_file, ls_remote_output,
-    read_git_state, source_archive_error, stage_local_registry, write_release_source,
+    Candidate, CandidateError, GitError, PINS_PATH, build_source_archive, candidate_module_file,
+    ls_remote_output, read_git_state, source_archive_error, stage_local_registry,
+    write_release_source,
 };
 use dx_release_tools::{
-    RELEASE_REMOTE, bcr_candidate_error, bcr_integrity_of_digest, release_remote_error, release_run,
+    BcrError, RELEASE_REMOTE, TagError, bcr_candidate_error, bcr_integrity_of_digest,
+    release_remote_error, release_run,
 };
 
 const VERSION: &str = "1.2.3-rc1";
@@ -126,13 +128,12 @@ impl Fixture {
         )
     }
 
-    fn ls_remote(&self, remote: &Path) -> Result<String, String> {
+    fn ls_remote(&self, remote: &Path) -> Result<String, GitError> {
         ls_remote_output(
             Some(&self.repo),
             remote.to_str().expect("utf8"),
             &self.candidate(),
         )
-        .map_err(|error| error.to_string())
     }
 
     fn push_tag(&self, remote: &Path) {
@@ -182,8 +183,8 @@ fn repack(members: &[(String, Vec<u8>, u32)], dst: &Path) {
     dx_deploy_tools::archive_tree(&refs, dst).expect("repack");
 }
 
-fn failed_detail(ledger: Result<String, String>) -> Result<String, String> {
-    let text = ledger?;
+fn failed_detail(ledger: Result<String, TagError>) -> Result<String, String> {
+    let text = ledger.map_err(|error| error.to_string())?;
     if !text.contains("\"state\": \"failed\"") {
         return Ok(text);
     }
@@ -196,7 +197,7 @@ fn failed_detail(ledger: Result<String, String>) -> Result<String, String> {
 
 fn live_run(fixture: &Fixture, commit: &str) -> Result<String, String> {
     failed_detail(release_run(TAG, Some(commit), "1", false, || {
-        read_git_state(Some(&fixture.repo), TAG).map_err(|error| error.to_string())
+        read_git_state(Some(&fixture.repo), TAG)
     }))
 }
 
@@ -642,14 +643,25 @@ fn registry_source_rejects_wrong_version_prefix_and_integrity() {
     let source = std::fs::read_to_string(registry.join("modules/rules_dx/1.2.3-rc1/source.json"))
         .expect("source");
     let error = bcr_candidate_error(&source, "rules_dx", "1.2.4", &digest).expect_err("version");
-    assert!(error.contains("strip_prefix mismatch"), "{error}");
+    assert!(matches!(error, BcrError::StripPrefixMismatch { .. }));
+    assert!(
+        error.to_string().contains("strip_prefix mismatch"),
+        "{error}"
+    );
     let prefix = source.replace("\"rules_dx-1.2.3-rc1\"", "\"rules_dx-1.2.3\"");
     let error = bcr_candidate_error(&prefix, "rules_dx", VERSION, &digest).expect_err("prefix");
-    assert!(error.contains("strip_prefix mismatch"), "{error}");
+    assert!(
+        error.to_string().contains("strip_prefix mismatch"),
+        "{error}"
+    );
     let error =
         bcr_candidate_error(&source, "rules_dx", VERSION, &"0".repeat(64)).expect_err("integrity");
-    assert!(error.contains("integrity mismatch"), "{error}");
-    assert!(Candidate::new("0.0.0", &fixture.head).is_err());
+    assert!(matches!(error, BcrError::IntegrityMismatch { .. }));
+    assert!(error.to_string().contains("integrity mismatch"), "{error}");
+    assert!(matches!(
+        Candidate::new("0.0.0", &fixture.head),
+        Err(CandidateError::Bcr(BcrError::UnpublishableVersion))
+    ));
     let error = stage_local_registry(Path::new("relative"), &candidate, &archive)
         .expect_err("relative registry")
         .to_string();
@@ -665,8 +677,8 @@ fn tag_lightweight_is_peeled_through_ls_remote() {
     let output = fixture.ls_remote(&fixture.canonical).expect("ls-remote");
     assert_eq!(output, format!("{}\trefs/tags/{TAG}\n", fixture.head));
     assert_eq!(
-        release_remote_error(&fixture.candidate(), Ok(output)),
-        Ok(fixture.head.clone())
+        release_remote_error(&fixture.candidate(), Ok(output)).expect("remote tag"),
+        fixture.head
     );
     let state = read_git_state(Some(&fixture.repo), TAG).expect("state");
     assert!(!state.tree_dirty);
@@ -700,8 +712,8 @@ fn tag_annotated_is_peeled_through_ls_remote() {
         "{output}"
     );
     assert_eq!(
-        release_remote_error(&fixture.candidate(), Ok(output)),
-        Ok(fixture.head.clone())
+        release_remote_error(&fixture.candidate(), Ok(output)).expect("remote tag"),
+        fixture.head
     );
     let state = read_git_state(Some(&fixture.repo), TAG).expect("state");
     assert_eq!(state.tag_commit.as_deref(), Some(fixture.head.as_str()));
@@ -723,12 +735,14 @@ fn tag_moved_to_another_commit_points_elsewhere() {
     let before = fixture.refs();
     let candidate = Candidate::new(VERSION, &newer).expect("candidate");
     let output = fixture.ls_remote(&fixture.canonical).expect("ls-remote");
+    let error = release_remote_error(&candidate, Ok(output)).expect_err("elsewhere");
+    assert!(matches!(error, TagError::RemoteMismatch { .. }));
     assert_eq!(
-        release_remote_error(&candidate, Ok(output)),
-        Err(format!(
+        error.to_string(),
+        format!(
             "release: remote tag {TAG} points at {}, candidate is {newer} (git ls-remote --tags {RELEASE_REMOTE})",
             fixture.head
-        ))
+        )
     );
     assert_eq!(
         live_run(&fixture, &newer),
@@ -778,11 +792,19 @@ fn remote_tag_only_in_the_foreign_remote_fails() {
     assert!(before.1.contains(TAG));
     let output = fixture.ls_remote(&fixture.canonical).expect("ls-remote");
     assert_eq!(output, "");
+    let error = release_remote_error(&fixture.candidate(), Ok(output)).expect_err("no tag");
+    assert!(matches!(
+        error,
+        TagError::RemoteTag {
+            source: CandidateError::NoRemoteTag { .. },
+            ..
+        }
+    ));
     assert_eq!(
-        release_remote_error(&fixture.candidate(), Ok(output)),
-        Err(format!(
+        error.to_string(),
+        format!(
             "release: remote has no tag {TAG} (git ls-remote --tags {RELEASE_REMOTE}); push it beforehand with owner approval (this program never creates or pushes tags)"
-        ))
+        )
     );
     assert_eq!(fixture.refs(), before);
 }
@@ -793,15 +815,26 @@ fn remote_nonexistent_path_surfaces_the_git_error() {
     let before = fixture.refs();
     let missing = fixture.path("nowhere.git");
     let failed = fixture.ls_remote(&missing).expect_err("missing remote");
-    let error =
-        release_remote_error(&fixture.candidate(), Err(failed.clone())).expect_err("failed git");
+    let failed_text = failed.to_string();
+    let error = release_remote_error(&fixture.candidate(), Err(failed)).expect_err("failed git");
+    assert!(matches!(
+        error,
+        TagError::RemoteUnreadable {
+            source: GitError::Exit { .. },
+            ..
+        }
+    ));
+    let error = error.to_string();
     assert!(
         error.starts_with(&format!(
             "release: cannot verify remote tag {TAG} (git ls-remote --tags {RELEASE_REMOTE} failed: "
         )),
         "{error}"
     );
-    assert!(!failed.is_empty() && error.contains(&failed), "{error}");
+    assert!(
+        !failed_text.is_empty() && error.contains(&failed_text),
+        "{error}"
+    );
     assert_eq!(fixture.refs(), before);
 }
 
@@ -821,7 +854,7 @@ fn tag_dirty_tree_and_non_repo_fail_closed() {
     let plain = fixture.path("plain");
     std::fs::create_dir_all(&plain).expect("plain");
     let error = failed_detail(release_run(TAG, Some(&fixture.head), "1", false, || {
-        read_git_state(Some(&plain), TAG).map_err(|error| error.to_string())
+        read_git_state(Some(&plain), TAG)
     }))
     .expect_err("non-repo");
     assert!(

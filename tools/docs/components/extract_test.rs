@@ -171,6 +171,7 @@ fn the_converter_fails_without_writing_on_bad_metadata() {
         let out = dir.join(format!("{name}.pb"));
         std::fs::write(&input, body).expect("write");
         let status = Command::new(dx_testing::env_file("DX_COMPONENT_EXTRACT"))
+            .arg("component_extract")
             .args(["--meta"])
             .arg(&input)
             .arg("--out")

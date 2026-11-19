@@ -1,5 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use dx_release_tools::ReleaseError;
 use dx_release_tools::cell::{self, CellRecord, Verdict};
 
 /// Returns the exit code and message for one finished `qualify`.
@@ -68,21 +69,21 @@ fn run(argv: &[String]) -> i32 {
                 eprint!("{text}");
                 code
             }
-            Err(error) => dx_release_tools::bin_error(format!("release_cell: {error}")),
+            Err(error) => dx_release_tools::bin_error(ReleaseError::Cell(error)),
         },
         Some("verify") => match cell::verify_main(rest) {
             Ok((ok, text)) => {
                 print!("{text}");
                 i32::from(!ok)
             }
-            Err(error) => dx_release_tools::bin_error(format!("release_cell: {error}")),
+            Err(error) => dx_release_tools::bin_error(ReleaseError::Cell(error)),
         },
         Some("version") => match cell::version_main(rest, &CommandRunner) {
             Ok(version) => {
                 println!("{version}");
                 0
             }
-            Err(error) => dx_release_tools::bin_error(format!("release_cell: {error}")),
+            Err(error) => dx_release_tools::bin_error(ReleaseError::Cell(error)),
         },
         _ => usage(),
     }

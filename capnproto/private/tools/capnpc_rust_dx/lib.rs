@@ -26,6 +26,7 @@ const STD_SCHEMA: &str = "capnp/schema.capnp";
 struct Args {
     capnp: PathBuf,
     root: PathBuf,
+    import_paths: Vec<PathBuf>,
     out: PathBuf,
     own: Vec<String>,
     provide: BTreeMap<String, String>,
@@ -43,6 +44,7 @@ fn parse_args(raw: &[String]) -> Result<Args, String> {
         match flag.as_str() {
             "--capnp" => args.capnp = PathBuf::from(value("--capnp")?),
             "--root" => args.root = PathBuf::from(value("--root")?),
+            "--import-path" => args.import_paths.push(PathBuf::from(value("--import-path")?)),
             "--out" => args.out = PathBuf::from(value("--out")?),
             "--own" => args.own.push(value("--own")?),
             "--provide" => {
@@ -66,6 +68,9 @@ fn parse_args(raw: &[String]) -> Result<Args, String> {
     }
     if args.own.is_empty() {
         return Err("at least one --own schema is required".into());
+    }
+    if args.import_paths.is_empty() {
+        args.import_paths.push(args.root.clone());
     }
     Ok(args)
 }
@@ -202,7 +207,11 @@ fn run(args: &Args) -> Result<(), String> {
     command
         .env_remove("PWD")
         .args(["compile", "-o", "-", "--no-standard-import"])
-        .arg(format!("--import-path={}", args.root.display()))
+        .args(
+            args.import_paths
+                .iter()
+                .map(|p| format!("--import-path={}", p.display())),
+        )
         .arg(format!("--src-prefix={}", args.root.display()))
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit());
@@ -411,6 +420,13 @@ mod tests {
         assert_eq!(
             args.provide.get("b.capnp").map(String::as_str),
             Some("krate")
+        );
+        assert_eq!(args.import_paths, [PathBuf::from("r")]);
+        let mut roots = ok.clone();
+        roots.extend(["--import-path", "i1", "--import-path", "i2"].map(String::from));
+        assert_eq!(
+            parse_args(&roots).unwrap().import_paths,
+            [PathBuf::from("i1"), PathBuf::from("i2")]
         );
         assert!(parse_args(&["--bogus".to_string()]).is_err());
         let mut bad = ok.clone();

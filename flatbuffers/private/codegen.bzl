@@ -6,7 +6,7 @@ load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_package_file", "codegen_rust_library_kwargs", "codegen_srcjar", "codegen_tree_file")
-load("//core:stage.bzl", "stage_closure")
+load("//core:stage.bzl", "check_import_paths")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "FlatBuffersInfo", "resolve_root")
 
@@ -19,23 +19,31 @@ _PRIVATE_ATTRS = {
     ),
 }
 
-def _flatc_args(language_flags, gen_object_api, out_dir, include_root, src_paths):
-    args = ["-I", include_root] + language_flags
+def _flatc_args(ctx, language_flags, gen_object_api, out_dir, info, srcs):
+    args = ctx.actions.args()
+    args.add_all(info.stage_roots, before_each = "-I")
+    args.add_all(language_flags)
     if gen_object_api:
-        args.append("--gen-object-api")
-    return args + ["-o", out_dir] + src_paths
+        args.add("--gen-object-api")
+    args.add("-o", out_dir)
+    args.add_all(srcs)
+    return args
 
-def _stage(ctx, prefix, info):
-    entries = [struct(path = f.short_path, file = f) for f in info.transitive_srcs.to_list()]
-    return stage_closure(ctx, prefix, entries, "flatbuffers")
+def _check_deps(ctx, libraries):
+    srcs = depset(transitive = [lib[FlatBuffersInfo].transitive_srcs for lib in libraries]).to_list()
+    check_import_paths("flatbuffers", ctx.label, [struct(path = f.short_path, file = f) for f in srcs])
+
+def _stage_info(provider, libraries):
+    return provider(
+        stage_roots = depset(transitive = [lib[FlatBuffersInfo].stage_roots for lib in libraries]),
+        staged = depset(transitive = [lib[FlatBuffersInfo].staged for lib in libraries]),
+    )
 
 FlatBuffersCcAspectInfo = provider(
     doc = "C++ headers generated for one flatbuffers_library closure.",
     fields = {
         "cc_info": "CcInfo of the generated headers of the closure.",
         "headers": "List[File]: headers generated for this library's own schemas.",
-        "stage_roots": "depset of the exec paths of the private include roots flatc reads.",
-        "staged": "depset of the staged schema files flatc reads.",
     },
 )
 
@@ -52,15 +60,14 @@ def _cc_aspect_impl(target, ctx):
     headers = []
 
     subdir = "_fbs_obj" if ctx.attr.gen_object_api else "_fbs"
-    stage = _stage(ctx, subdir + "_stage/" + target.label.name, info)
-    for src in info.direct_srcs:
+    for src, staged in zip(info.direct_srcs, info.direct_staged):
         out = ctx.actions.declare_file(subdir + "/" + src.short_path[:-len("." + src.extension)] + "_generated.h")
         ctx.actions.run(
             executable = ctx.executable._flatc,
             toolchain = None,
-            inputs = stage.files,
+            inputs = info.staged,
             outputs = [out],
-            arguments = _flatc_args(["--cpp", "--keep-prefix"], ctx.attr.gen_object_api, out.dirname, stage.root, [stage.staged[src.short_path].path]),
+            arguments = [_flatc_args(ctx, ["--cpp", "--keep-prefix"], ctx.attr.gen_object_api, out.dirname, info, [staged])],
             mnemonic = "FlatcCpp",
             progress_message = "flatc --cpp " + src.short_path,
         )
@@ -73,8 +80,6 @@ def _cc_aspect_impl(target, ctx):
     return [FlatBuffersCcAspectInfo(
         cc_info = cc_common.merge_cc_infos(cc_infos = [own] + [d.cc_info for d in deps]),
         headers = headers,
-        stage_roots = depset([stage.root], transitive = [d.stage_roots for d in deps]),
-        staged = depset(stage.files, transitive = [d.staged for d in deps]),
     )]
 
 _cc_aspect = aspect(
@@ -86,6 +91,7 @@ _cc_aspect = aspect(
 )
 
 def _cc_library_impl(ctx):
+    _check_deps(ctx, ctx.attr.deps)
     aspect_infos = [dep[FlatBuffersCcAspectInfo] for dep in ctx.attr.deps]
     own_headers = [h for info in aspect_infos for h in info.headers]
     cc_info = cc_common.merge_cc_infos(
@@ -95,10 +101,7 @@ def _cc_library_impl(ctx):
         DefaultInfo(files = depset(own_headers)),
         cc_info,
         dx_quality_sources([], [], str(ctx.label)),
-        FlatBuffersCcStageInfo(
-            stage_roots = depset(transitive = [info.stage_roots for info in aspect_infos]),
-            staged = depset(transitive = [info.staged for info in aspect_infos]),
-        ),
+        _stage_info(FlatBuffersCcStageInfo, ctx.attr.deps),
     ] + codegen_library_providers(ctx, "flatbuffers", "cpp", [codegen_tree_file(f) for f in own_headers])
 
 flatbuffers_cc_library = rule(
@@ -121,8 +124,6 @@ FlatBuffersJavaAspectInfo = provider(
     fields = {
         "java_info": "JavaInfo of the compiled generated sources of the closure.",
         "srcjar": "File: srcjar of this library's own schemas.",
-        "stage_roots": "depset of the exec paths of the private include roots flatc reads.",
-        "staged": "depset of the staged schema files flatc reads.",
     },
 )
 
@@ -139,14 +140,13 @@ _JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
 def _java_aspect_impl(target, ctx):
     info = target[FlatBuffersInfo]
     name = target.label.name
-    stage = _stage(ctx, "_fbs_java_stage/" + name, info)
     tree = ctx.actions.declare_directory("_fbs_java/" + name + "_src")
     ctx.actions.run(
         executable = ctx.executable._flatc,
         toolchain = None,
-        inputs = stage.files,
+        inputs = info.staged,
         outputs = [tree],
-        arguments = _flatc_args(["--java"], False, tree.path, stage.root, [stage.staged[src.short_path].path for src in info.direct_srcs]),
+        arguments = [_flatc_args(ctx, ["--java"], False, tree.path, info, info.direct_staged)],
         mnemonic = "FlatcJava",
         progress_message = "flatc --java " + str(target.label),
     )
@@ -161,13 +161,7 @@ def _java_aspect_impl(target, ctx):
         java_toolchain = ctx.toolchains[_JAVA_TOOLCHAIN].java,
         javac_opts = ["-Xlint:none", "-nowarn"],
     )
-    deps = [dep[FlatBuffersJavaAspectInfo] for dep in ctx.rule.attr.deps]
-    return [FlatBuffersJavaAspectInfo(
-        java_info = java_info,
-        srcjar = srcjar,
-        stage_roots = depset([stage.root], transitive = [d.stage_roots for d in deps]),
-        staged = depset(stage.files, transitive = [d.staged for d in deps]),
-    )]
+    return [FlatBuffersJavaAspectInfo(java_info = java_info, srcjar = srcjar)]
 
 _java_aspect = aspect(
     implementation = _java_aspect_impl,
@@ -183,6 +177,7 @@ _java_aspect = aspect(
 )
 
 def _java_library_impl(ctx):
+    _check_deps(ctx, ctx.attr.deps)
     aspect_infos = [dep[FlatBuffersJavaAspectInfo] for dep in ctx.attr.deps]
     srcjars = [info.srcjar for info in aspect_infos]
     java_info = java_common.merge([info.java_info for info in aspect_infos] + [ctx.attr._runtime[JavaInfo]])
@@ -190,10 +185,7 @@ def _java_library_impl(ctx):
         DefaultInfo(files = depset(srcjars)),
         java_info,
         dx_quality_sources([], [], str(ctx.label)),
-        FlatBuffersJavaStageInfo(
-            stage_roots = depset(transitive = [info.stage_roots for info in aspect_infos]),
-            staged = depset(transitive = [info.staged for info in aspect_infos]),
-        ),
+        _stage_info(FlatBuffersJavaStageInfo, ctx.attr.deps),
     ] + codegen_library_providers(ctx, "flatbuffers", "java", [codegen_package_file(f) for f in srcjars])
 
 flatbuffers_java_library = rule(
@@ -214,14 +206,14 @@ def _rust_srcs_impl(ctx):
     info = ctx.attr.library[FlatBuffersInfo]
     root = resolve_root("flatbuffers_rust_library", ctx.label, ctx.attr.library, ctx.file.root)
     base = root.basename[:-len("." + root.extension)]
-    stage = _stage(ctx, ctx.label.name + "_fbs_stage", info)
+    _check_deps(ctx, [ctx.attr.library])
     generated = ctx.actions.declare_file(ctx.label.name + "_fbs_rs/" + base + "_generated.rs")
     ctx.actions.run(
         executable = ctx.executable._flatc,
         toolchain = None,
-        inputs = stage.files,
+        inputs = info.staged,
         outputs = [generated],
-        arguments = _flatc_args(["--rust", "--gen-all"], False, generated.dirname, stage.root, [stage.staged[root.short_path].path]),
+        arguments = [_flatc_args(ctx, ["--rust", "--gen-all"], False, generated.dirname, info, [info.direct_staged[info.direct_srcs.index(root)]])],
         mnemonic = "FlatcRust",
         progress_message = "flatc --rust " + root.short_path,
     )

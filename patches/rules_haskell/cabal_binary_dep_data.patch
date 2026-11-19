@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: tweag/rules_haskell#2499
 --- a/haskell/cabal.bzl
 +++ b/haskell/cabal.bzl
 @@ -965,6 +965,19 @@

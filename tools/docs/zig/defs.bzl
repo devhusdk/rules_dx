@@ -39,6 +39,7 @@ def zig_shard_action(ctx, own, package, config, stem, dump_tool, extract_tool):
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("zig_extract")
     extract.add("--dump", dump)
     extract.add("--sources", manifest)
     extract.add("--package", package)
@@ -91,7 +92,7 @@ zig_doc_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/zig/extract:zig_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

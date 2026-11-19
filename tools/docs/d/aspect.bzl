@@ -26,7 +26,7 @@ real_d_docs_aspect = aspect(
     attrs = {
         "_d_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/d/extract:d_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

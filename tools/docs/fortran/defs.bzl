@@ -58,6 +58,7 @@ def fortran_shard_action(ctx, own, package, stem, driver_tool, extract_tool):
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("fortran_extract")
     extract.add("--json", json)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -109,7 +110,7 @@ docs_fortran_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/fortran/extract:fortran_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

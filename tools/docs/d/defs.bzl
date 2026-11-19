@@ -53,6 +53,7 @@ def d_shard_action(ctx, info, own, package, config, stem, extract_tool):
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("d_extract")
     extract.add("--api", api_json)
     extract.add("--sources", manifest)
     extract.add("--package", package)
@@ -100,7 +101,7 @@ d_doc_shard = rule(
         "package": attr.string(doc = "Package segment of the symbol ids. Defaults to the lib name."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/d/extract:d_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

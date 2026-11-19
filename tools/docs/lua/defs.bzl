@@ -52,6 +52,7 @@ def lua_shard_action(ctx, own, package, stem, runner, ldoc, penlight, filter, ex
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("lua_extract")
     extract.add("--json", doc_json)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -101,7 +102,7 @@ docs_lua_shard = rule(
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the name of lib."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/lua/extract:lua_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_filter": attr.label(

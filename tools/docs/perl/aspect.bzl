@@ -33,7 +33,7 @@ real_perl_docs_aspect = aspect(
         ),
         "_perl_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/perl/extract:perl_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

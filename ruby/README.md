@@ -43,7 +43,8 @@ use_repo(ruby, "gems")
 ```
 
 The hub downloads each gem by the sha256 in `ruby.lock.json` and installs the
-bundle as one tree with the pinned Bundler.
+bundle as one tree with the pinned Bundler. Binaries and tests run the bundle
+with `BUNDLE_FROZEN=true`, so Bundler never rewrites the lock.
 
 Update commands:
 

@@ -787,22 +787,29 @@ fn nested_lock_gaps(source: &str, lock_name: &str, lock_json: &str) -> Vec<Strin
     problems
 }
 
-#[test]
-fn every_nested_lock_has_the_root_registry_deps() {
-    let source = dx_testing::read_runfiles("MODULE.bazel");
+fn nested_locks() -> Vec<(String, String)> {
     let locks = dx_testing::env_files("DX_NESTED_LOCKS");
     assert!(locks.len() >= 7, "{locks:?}");
-    let problems: Vec<String> = locks
+    locks
         .iter()
-        .flat_map(|lock| {
+        .map(|lock| {
             let name = lock.file_name().map_or_else(
                 || dx_testing::path_text(lock),
                 |name| name.to_string_lossy().into_owned(),
             );
             let json = std::fs::read_to_string(lock)
                 .unwrap_or_else(|error| panic!("{}: {error}", lock.display()));
-            nested_lock_gaps(&source, &name, &json)
+            (name, json)
         })
+        .collect()
+}
+
+#[test]
+fn every_nested_lock_has_the_root_registry_deps() {
+    let source = dx_testing::read_runfiles("MODULE.bazel");
+    let problems: Vec<String> = nested_locks()
+        .iter()
+        .flat_map(|(name, json)| nested_lock_gaps(&source, name, json))
         .collect();
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
@@ -829,4 +836,166 @@ fn nested_lock_gaps_skip_dev_and_non_registry_deps() {
         problems[0].starts_with("x.lock lacks bazel_dep demo 1.2.0"),
         "{problems:?}"
     );
+}
+
+const RULES_DX_REPO: &str = "@@rules_dx+//";
+
+fn file_and_env_inputs(entry: &serde_json::Value) -> Vec<String> {
+    entry["recordedInputs"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(serde_json::Value::as_str)
+        .filter(|input| input.starts_with("FILE:") || input.starts_with("ENV:"))
+        .map(|input| input.replacen(RULES_DX_REPO, "@@//", 1))
+        .collect()
+}
+
+fn generated_repos(entry: &serde_json::Value) -> BTreeSet<&str> {
+    entry["generatedRepoSpecs"]
+        .as_object()
+        .map(|specs| specs.keys().map(String::as_str).collect())
+        .unwrap_or_default()
+}
+
+fn nested_extension_drift(root_json: &str, lock_name: &str, lock_json: &str) -> Vec<String> {
+    let parse = |json: &str, name: &str| {
+        serde_json::from_str::<serde_json::Value>(json).map_err(|error| format!("{name}: {error}"))
+    };
+    let (root, lock) = match (
+        parse(root_json, "MODULE.bazel.lock"),
+        parse(lock_json, lock_name),
+    ) {
+        (Ok(root), Ok(lock)) => (root, lock),
+        (Err(error), _) | (_, Err(error)) => return vec![error],
+    };
+    let Some(extensions) = lock["moduleExtensions"].as_object() else {
+        return Vec::new();
+    };
+    let set = lock_name
+        .strip_suffix(".MODULE.bazel.lock")
+        .unwrap_or(lock_name);
+    let mut problems = Vec::new();
+    for (id, factors) in extensions {
+        let ours = id.starts_with(RULES_DX_REPO);
+        let root_id = if ours {
+            id.replacen(RULES_DX_REPO, "//", 1)
+        } else {
+            id.clone()
+        };
+        let (Some(root_factors), Some(factors)) = (
+            root["moduleExtensions"][&root_id].as_object(),
+            factors.as_object(),
+        ) else {
+            continue;
+        };
+        for (factor, entry) in factors {
+            let Some(root_entry) = root_factors.get(factor) else {
+                continue;
+            };
+            let root_inputs = file_and_env_inputs(root_entry);
+            if !ours
+                && !root_inputs
+                    .iter()
+                    .any(|input| input.starts_with("FILE:@@//"))
+            {
+                continue;
+            }
+            let mut stale: Vec<String> = file_and_env_inputs(entry)
+                .into_iter()
+                .filter(|input| !root_inputs.contains(input))
+                .map(|input| format!("input {input}"))
+                .collect();
+            let root_repos = generated_repos(root_entry);
+            stale.extend(
+                generated_repos(entry)
+                    .difference(&root_repos)
+                    .map(|repo| format!("repo {repo}")),
+            );
+            if !stale.is_empty() {
+                problems.push(format!(
+                    "nested cache set {set}: {id} [{factor}] is stale against MODULE.bazel.lock ({}); re-record it with `gh workflow run lock-refresh.yml --ref <branch> -f nested=true -f pr=<n>` or `bazel run //tools/testing:nested_cache_update -- <test label>`",
+                    stale.join(", ")
+                ));
+            }
+        }
+    }
+    problems
+}
+
+#[test]
+fn every_nested_lock_matches_the_root_rules_dx_extensions() {
+    let root = dx_testing::read_runfiles("MODULE.bazel.lock");
+    let problems: Vec<String> = nested_locks()
+        .iter()
+        .flat_map(|(name, json)| nested_extension_drift(&root, name, json))
+        .collect();
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn nested_extension_drift_finds_a_stale_sdk() {
+    let entry = |repo: &str, inputs: &str| {
+        format!(
+            r#"{{"general": {{"recordedInputs": [{inputs}], "generatedRepoSpecs": {{"{repo}": {{}}}}}}}}"#
+        )
+    };
+    let root = format!(
+        r#"{{"moduleExtensions": {{
+            "@@rules_zig+//zig:extensions.bzl%zig": {},
+            "//dart:extensions.bzl%pub": {},
+            "@@rules_python+//python:python.bzl%python": {}
+        }}}}"#,
+        entry(
+            "zig_0.17.1_x86_64-linux",
+            r#""FILE:@@//zig/private/sdk_versions.json new", "REPO_MAPPING:a b""#
+        ),
+        entry(
+            "dart_pub__io",
+            r#""FILE:@@//dart/pubspec.lock same", "FILE:@@//dev/pubspec.lock dev""#
+        ),
+        entry("python_3_12", ""),
+    );
+    let lock = |zig: &str, sdk_input: &str| {
+        format!(
+            r#"{{"moduleExtensions": {{
+                "@@rules_zig+//zig:extensions.bzl%zig": {},
+                "@@rules_dx+//dart:extensions.bzl%pub": {},
+                "@@rules_python+//python:python.bzl%python": {}
+            }}}}"#,
+            entry(zig, sdk_input),
+            entry(
+                "dart_pub__io",
+                r#""FILE:@@rules_dx+//dart/pubspec.lock same""#
+            ),
+            entry("python_3_11", ""),
+        )
+    };
+    assert_eq!(
+        nested_extension_drift(
+            &root,
+            "x.MODULE.bazel.lock",
+            &lock(
+                "zig_0.17.1_x86_64-linux",
+                r#""FILE:@@rules_dx+//zig/private/sdk_versions.json new""#
+            )
+        ),
+        Vec::<String>::new()
+    );
+    let problems = nested_extension_drift(
+        &root,
+        "x.MODULE.bazel.lock",
+        &lock(
+            "zig_0.17.0_x86_64-linux",
+            r#""FILE:@@rules_dx+//zig/private/sdk_versions.json old""#,
+        ),
+    );
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(
+        problems[0].starts_with(
+            "nested cache set x: @@rules_zig+//zig:extensions.bzl%zig [general] is stale against MODULE.bazel.lock (input FILE:@@//zig/private/sdk_versions.json old, repo zig_0.17.0_x86_64-linux)"
+        ),
+        "{problems:?}"
+    );
+    assert!(problems[0].contains("nested_cache_update"), "{problems:?}");
 }

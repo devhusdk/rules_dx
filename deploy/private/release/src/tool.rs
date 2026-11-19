@@ -286,6 +286,8 @@ enum ToolError {
     Io(io::Error),
     TextList(PathIoError),
     Inventory(InventoryError),
+    Sbom(crate::SbomError),
+    Notice(crate::NoticeError),
 }
 
 impl fmt::Display for ToolError {
@@ -294,6 +296,8 @@ impl fmt::Display for ToolError {
             Self::Io(source) => write!(f, "{source}"),
             Self::TextList(source) => write!(f, "{source}"),
             Self::Inventory(source) => write!(f, "{source}"),
+            Self::Sbom(source) => write!(f, "{source}"),
+            Self::Notice(source) => write!(f, "{source}"),
         }
     }
 }
@@ -304,6 +308,8 @@ impl std::error::Error for ToolError {
             Self::Io(source) => Some(source),
             Self::TextList(source) => Some(source),
             Self::Inventory(source) => Some(source),
+            Self::Sbom(source) => Some(source),
+            Self::Notice(source) => Some(source),
         }
     }
 }
@@ -311,6 +317,18 @@ impl std::error::Error for ToolError {
 impl From<io::Error> for ToolError {
     fn from(source: io::Error) -> Self {
         Self::Io(source)
+    }
+}
+
+impl From<crate::SbomError> for ToolError {
+    fn from(source: crate::SbomError) -> Self {
+        Self::Sbom(source)
+    }
+}
+
+impl From<crate::NoticeError> for ToolError {
+    fn from(source: crate::NoticeError) -> Self {
+        Self::Notice(source)
     }
 }
 

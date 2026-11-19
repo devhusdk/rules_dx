@@ -2,7 +2,7 @@
 
 use std::fmt::{self, Write as _};
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
@@ -40,12 +40,13 @@ pub use deploy::{
 pub use ledger::{LedgerError, OpRecord, OpState, ledger_exit, render_ledger};
 pub use tool::release_tool_run;
 
-use dx_atomic_fs::path_io::PathIoError;
+use dx_atomic_fs::path_io::{self, PathIoError};
 pub use dx_deploy_tools::signing::{
     CosignPin, cosign_git_version, sign_argv as signing_sign_argv, signing_version_ok,
     verify_argv as signing_verify_argv,
 };
 use dx_deploy_tools::signing::{check_pin, sign_one};
+use dx_error::DxError;
 use dx_fingerprint::FingerprintError;
 use spdx::SpdxDocument;
 
@@ -286,16 +287,86 @@ impl From<TagError> for ReleaseError {
     }
 }
 
-fn basename(path: &Path) -> io::Result<String> {
+/// Why an SPDX or provenance document could not be rendered, written or verified.
+#[derive(Debug)]
+pub enum SbomError {
+    Render(FingerprintError),
+    Hash { path: PathBuf, source: io::Error },
+    Basename { path: PathBuf },
+    LockKind { kind: String },
+    Lock(DxError),
+    Manifest(DxError),
+    Runtimes(runtimes::RuntimesError),
+    Builder { builder: String },
+    SpdxJson(serde_json::Error),
+    Spdx(spdx::SpdxError),
+    ProvenanceJson(serde_json::Error),
+    Provenance(provenance::ProvenanceError),
+    Io(PathIoError),
+}
+
+impl fmt::Display for SbomError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Render(source) => write!(f, "cannot render JSON: {source}"),
+            Self::Hash { path, source } => write!(f, "cannot hash {}: {source}", path.display()),
+            Self::Basename { path } => write!(f, "path {} has no UTF-8 basename", path.display()),
+            Self::LockKind { kind } => {
+                write!(f, "unknown lock kind '{kind}': want npm, go, maven or pip")
+            }
+            Self::Lock(source) | Self::Manifest(source) => write!(f, "{source}"),
+            Self::Runtimes(source) => write!(f, "{source}"),
+            Self::Builder { builder } => write!(
+                f,
+                "provenance: invalid builder '{builder}': want '{PROVENANCE_BUILDER_RELEASE}'"
+            ),
+            Self::SpdxJson(source) => write!(f, "sbom SPDX is not a document: {source}"),
+            Self::Spdx(source) => write!(f, "{source}"),
+            Self::ProvenanceJson(source) => {
+                write!(f, "provenance is not an in-toto statement: {source}")
+            }
+            Self::Provenance(source) => write!(f, "{source}"),
+            Self::Io(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for SbomError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Render(source) => Some(source),
+            Self::Hash { source, .. } => Some(source),
+            Self::Lock(source) | Self::Manifest(source) => Some(source),
+            Self::Runtimes(source) => Some(source),
+            Self::SpdxJson(source) | Self::ProvenanceJson(source) => Some(source),
+            Self::Spdx(source) => Some(source),
+            Self::Provenance(source) => Some(source),
+            Self::Io(source) => Some(source),
+            Self::Basename { .. } | Self::LockKind { .. } | Self::Builder { .. } => None,
+        }
+    }
+}
+
+impl From<PathIoError> for SbomError {
+    fn from(source: PathIoError) -> Self {
+        Self::Io(source)
+    }
+}
+
+fn basename(path: &Path) -> Result<String, SbomError> {
     path.file_name()
         .and_then(|name| name.to_str())
         .map(str::to_owned)
-        .ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("path {} has no UTF-8 basename", path.display()),
-            )
+        .ok_or_else(|| SbomError::Basename {
+            path: path.to_path_buf(),
         })
+}
+
+fn sha256_of(path: &Path) -> Result<String, SbomError> {
+    dx_digest::sha256_file_hex(path).map_err(|source| SbomError::Hash {
+        path: path.to_path_buf(),
+        source,
+    })
 }
 
 /// Renders a value as pretty ASCII JSON with a trailing newline.
@@ -344,7 +415,7 @@ pub fn render_spdx(
     digest: &str,
     package: &str,
     supplier: &str,
-) -> Result<String, String> {
+) -> Result<String, SbomError> {
     render_spdx_with_crates(base, digest, package, supplier, &[])
 }
 
@@ -357,7 +428,7 @@ pub fn render_spdx_with_crates(
     package: &str,
     supplier: &str,
     crates: &[NoticeEntry],
-) -> Result<String, String> {
+) -> Result<String, SbomError> {
     render_spdx_full(base, digest, package, supplier, crates, &[])
 }
 
@@ -371,7 +442,7 @@ pub fn render_spdx_full(
     supplier: &str,
     crates: &[NoticeEntry],
     runtimes: &[runtimes::RuntimeRecord],
-) -> Result<String, String> {
+) -> Result<String, SbomError> {
     let mut document = spdx::Document::new(
         &format!("{package}-{base}"),
         &format!("{RELEASE_REPOSITORY}/releases/{base}-{digest}"),
@@ -430,7 +501,7 @@ pub fn render_spdx_full(
         });
     }
     add_runtimes(&mut document, runtimes);
-    render_pretty(&document)
+    pretty_json(&document).map_err(SbomError::Render)
 }
 
 fn add_runtimes(document: &mut spdx::Document, runtimes: &[runtimes::RuntimeRecord]) {
@@ -478,8 +549,8 @@ fn add_runtimes(document: &mut spdx::Document, runtimes: &[runtimes::RuntimeReco
 /// # Errors
 ///
 /// Returns an error when the document cannot be rendered as JSON.
-pub fn render_provenance(base: &str, digest: &str, builder: &str) -> Result<String, String> {
-    render_pretty(&serde_json::json!({
+pub fn render_provenance(base: &str, digest: &str, builder: &str) -> Result<String, SbomError> {
+    pretty_json(&serde_json::json!({
         "_type": "https://in-toto.io/Statement/v1",
         "predicate": {
             "buildDefinition": {
@@ -494,6 +565,7 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> Result<Stri
         "predicateType": "https://slsa.dev/provenance/v1",
         "subject": [{"digest": {"sha256": digest}, "name": base}],
     }))
+    .map_err(SbomError::Render)
 }
 
 /// # Errors
@@ -528,7 +600,7 @@ fn spdx_id(kind: &str, name: &str, version: &str) -> String {
 /// # Errors
 ///
 /// Returns an error when the SPDX document cannot be read or written.
-pub fn write_spdx(src: &Path, dst: &Path, package: &str, supplier: &str) -> io::Result<()> {
+pub fn write_spdx(src: &Path, dst: &Path, package: &str, supplier: &str) -> Result<(), SbomError> {
     write_spdx_with_inventory(src, dst, package, supplier, None)
 }
 
@@ -541,7 +613,7 @@ pub fn write_spdx_with_inventory(
     package: &str,
     supplier: &str,
     inventory: Option<&Path>,
-) -> io::Result<()> {
+) -> Result<(), SbomError> {
     write_spdx_full(src, dst, package, supplier, inventory, None)
 }
 
@@ -555,7 +627,7 @@ pub fn write_spdx_full(
     supplier: &str,
     inventory: Option<&Path>,
     runtimes: Option<&Path>,
-) -> io::Result<()> {
+) -> Result<(), SbomError> {
     write_spdx_locked(src, dst, package, supplier, inventory, runtimes, &[])
 }
 
@@ -564,28 +636,28 @@ pub fn write_spdx_full(
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn lock_entries(kind: &str, text: &str) -> Result<Vec<NoticeEntry>, String> {
+pub fn lock_entries(kind: &str, text: &str) -> Result<Vec<NoticeEntry>, SbomError> {
     let (set, packages) = match kind {
         "npm" => (
             "npm",
-            dx_audit::locks::parse_package_lock(text).map_err(|e| e.to_string())?,
+            dx_audit::locks::parse_package_lock(text).map_err(SbomError::Lock)?,
         ),
         "go" => (
             "go",
-            dx_audit::locks::go_locked_packages(text).map_err(|e| e.to_string())?,
+            dx_audit::locks::go_locked_packages(text).map_err(SbomError::Lock)?,
         ),
         "maven" => (
             "maven",
-            dx_audit::locks::parse_maven_install(text).map_err(|e| e.to_string())?,
+            dx_audit::locks::parse_maven_install(text).map_err(SbomError::Lock)?,
         ),
         "pip" => (
             "pip",
-            dx_audit::locks::parse_uv_lock(text).map_err(|e| e.to_string())?,
+            dx_audit::locks::parse_uv_lock(text).map_err(SbomError::Lock)?,
         ),
         other => {
-            return Err(format!(
-                "unknown lock kind '{other}': want npm, go, maven or pip"
-            ));
+            return Err(SbomError::LockKind {
+                kind: other.to_owned(),
+            });
         }
     };
     Ok(packages
@@ -612,44 +684,38 @@ pub fn write_spdx_locked(
     supplier: &str,
     inventory: Option<&Path>,
     runtimes: Option<&Path>,
-    locks: &[(String, std::path::PathBuf)],
-) -> io::Result<()> {
-    let digest = dx_digest::sha256_file_hex(src)?;
+    locks: &[(String, PathBuf)],
+) -> Result<(), SbomError> {
+    let digest = sha256_of(src)?;
     let base = basename(src)?;
     let mut crates = match inventory {
         Some(path) => {
-            parse_notice_manifest(&std::fs::read_to_string(path)?).map_err(io::Error::other)?
+            parse_notice_manifest(&path_io::read_to_string(path)?).map_err(SbomError::Manifest)?
         }
         None => Vec::new(),
     };
     for (kind, path) in locks {
-        let text = std::fs::read_to_string(path)?;
-        crates.extend(lock_entries(kind, &text).map_err(io::Error::other)?);
+        let text = path_io::read_to_string(path)?;
+        crates.extend(lock_entries(kind, &text)?);
     }
     let records = match runtimes {
-        Some(path) => runtimes::read_records(path).map_err(io::Error::other)?,
+        Some(path) => runtimes::read_records(path).map_err(SbomError::Runtimes)?,
         None => Vec::new(),
     };
-    std::fs::write(
-        dst,
-        render_spdx_full(&base, &digest, package, supplier, &crates, &records)
-            .map_err(io::Error::other)?
-            .as_bytes(),
-    )?;
+    let text = render_spdx_full(&base, &digest, package, supplier, &crates, &records)?;
+    path_io::write_scratch(dst, text.as_bytes())?;
     Ok(())
 }
 
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn write_provenance(src: &Path, dst: &Path, builder: &str) -> io::Result<()> {
-    if let Err(problem) = provenance_builder_error(builder) {
-        return Err(io::Error::other(problem));
-    }
-    let digest = dx_digest::sha256_file_hex(src)?;
+pub fn write_provenance(src: &Path, dst: &Path, builder: &str) -> Result<(), SbomError> {
+    provenance_builder_error(builder)?;
+    let digest = sha256_of(src)?;
     let base = basename(src)?;
-    let text = render_provenance(&base, &digest, builder).map_err(io::Error::other)?;
-    std::fs::write(dst, text.as_bytes())?;
+    let text = render_provenance(&base, &digest, builder)?;
+    path_io::write_scratch(dst, text.as_bytes())?;
     Ok(())
 }
 
@@ -853,13 +919,13 @@ pub const PROVENANCE_BUILDER_RELEASE: &str =
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn provenance_builder_error(builder: &str) -> Result<(), String> {
+pub fn provenance_builder_error(builder: &str) -> Result<(), SbomError> {
     if builder == PROVENANCE_BUILDER_RELEASE {
         return Ok(());
     }
-    Err(format!(
-        "provenance: invalid builder '{builder}': want '{PROVENANCE_BUILDER_RELEASE}'"
-    ))
+    Err(SbomError::Builder {
+        builder: builder.to_owned(),
+    })
 }
 
 fn basename_of(path: &str) -> String {
@@ -1288,26 +1354,17 @@ pub fn sbom_verify_files(
     spdx_path: &Path,
     prov: &Path,
     builder: &str,
-) -> io::Result<String> {
-    let digest = dx_digest::sha256_file_hex(artifact)?;
+) -> Result<String, SbomError> {
+    let digest = sha256_of(artifact)?;
     let base = basename(artifact)?;
-    let spdx_text = std::fs::read_to_string(spdx_path)?;
-    let prov_text = std::fs::read_to_string(prov)?;
-    let document: SpdxDocument = serde_json::from_str(&spdx_text).map_err(|error| {
-        io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("sbom SPDX is not a document: {error}"),
-        )
-    })?;
-    spdx::document_error(&document, &base, &digest).map_err(io::Error::other)?;
-    let statement: provenance::Statement = serde_json::from_str(&prov_text).map_err(|error| {
-        io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("provenance is not an in-toto statement: {error}"),
-        )
-    })?;
+    let spdx_text = path_io::read_to_string(spdx_path)?;
+    let prov_text = path_io::read_to_string(prov)?;
+    let document: SpdxDocument = serde_json::from_str(&spdx_text).map_err(SbomError::SpdxJson)?;
+    spdx::document_error(&document, &base, &digest).map_err(SbomError::Spdx)?;
+    let statement: provenance::Statement =
+        serde_json::from_str(&prov_text).map_err(SbomError::ProvenanceJson)?;
     provenance::statement_error(&statement, &base, &digest, builder)
-        .map_err(|problem| io::Error::new(io::ErrorKind::InvalidData, problem))?;
+        .map_err(SbomError::Provenance)?;
     Ok(format!("sbom OK: SPDX-2.3 + SLSA v1 bind {digest}\n"))
 }
 
@@ -1356,65 +1413,127 @@ pub fn notice_entry_body<'a>(
     start.and_then(|begin| notice_text.get(begin..))
 }
 
-/// Shared NOTICE verifier for the release and install sides. Errors carry no
-/// prefix; callers add their own.
+/// Why a NOTICE does not match its audited entries. Messages carry no prefix;
+/// the release and install sides add their own.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NoticeTextError {
+    NoEntries,
+    NoRoot,
+    NoText {
+        entry: Box<NoticeEntry>,
+    },
+    RepeatedHeader {
+        header: String,
+    },
+    MissingHeader {
+        header: String,
+    },
+    EmptyBody {
+        entry: Box<NoticeEntry>,
+    },
+    BodyDigest {
+        entry: Box<NoticeEntry>,
+        got: String,
+    },
+    Outside,
+}
+
+impl fmt::Display for NoticeTextError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NoEntries => {
+                f.write_str("notice manifest lists no packages; refusing empty NOTICE")
+            }
+            Self::NoRoot => f.write_str("NOTICE missing 'NOTICE for <root>' header"),
+            Self::NoText { entry } => write!(
+                f,
+                "missing-notice-text: {}@{} ({}) ships no LICENSE*/NOTICE* words; record the words in the audited inventory before bundling",
+                entry.package, entry.version, entry.license
+            ),
+            Self::RepeatedHeader { header } => write!(
+                f,
+                "NOTICE repeats entry header '{header}' (fail closed before install)"
+            ),
+            Self::MissingHeader { header } => write!(
+                f,
+                "NOTICE missing entry header '{header}' (fail closed before install)"
+            ),
+            Self::EmptyBody { entry } => write!(
+                f,
+                "NOTICE missing words for {}@{} ({}): entry body is empty",
+                entry.package, entry.version, entry.license
+            ),
+            Self::BodyDigest { entry, got } => write!(
+                f,
+                "NOTICE missing words for {}@{} ({}): body sha256 {got}, manifest records {}",
+                entry.package, entry.version, entry.license, entry.text_sha256
+            ),
+            Self::Outside => f.write_str("NOTICE has content outside the audited entries"),
+        }
+    }
+}
+
+impl std::error::Error for NoticeTextError {}
+
+/// Shared NOTICE verifier for the release and install sides.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn verify_notice_text(notice_text: &str, entries: &[NoticeEntry]) -> Result<usize, String> {
+/// Returns an error when the NOTICE does not match the entries.
+pub fn verify_notice_text(
+    notice_text: &str,
+    entries: &[NoticeEntry],
+) -> Result<usize, NoticeTextError> {
     let notice_text = runtimes::strip_section(notice_text);
     if entries.is_empty() {
-        return Err("notice manifest lists no packages; refusing empty NOTICE".to_owned());
+        return Err(NoticeTextError::NoEntries);
     }
     let first = notice_text.lines().next().unwrap_or("");
     let Some(root) = first.strip_prefix("NOTICE for ") else {
-        return Err("NOTICE missing 'NOTICE for <root>' header".to_owned());
+        return Err(NoticeTextError::NoRoot);
     };
     let root = root.trim_end_matches('\r');
-    for entry in entries {
-        if entry.text_path.is_empty() {
-            return Err(format!(
-                "missing-notice-text: {}@{} ({}) ships no LICENSE*/NOTICE* words; record the words in the audited inventory before bundling",
-                entry.package, entry.version, entry.license
-            ));
-        }
+    if let Some(entry) = entries.iter().find(|entry| entry.text_path.is_empty()) {
+        return Err(NoticeTextError::NoText {
+            entry: Box::new(entry.clone()),
+        });
     }
     let headers: Vec<String> = entries.iter().map(notice_entry_header).collect();
     for header in &headers {
         if notice_header_count(notice_text, header) > 1 {
-            return Err(format!(
-                "NOTICE repeats entry header '{header}' (fail closed before install)"
-            ));
+            return Err(NoticeTextError::RepeatedHeader {
+                header: header.clone(),
+            });
         }
         if notice_entry_body(notice_text, header, &headers).is_none() {
-            return Err(format!(
-                "NOTICE missing entry header '{header}' (fail closed before install)"
-            ));
+            return Err(NoticeTextError::MissingHeader {
+                header: header.clone(),
+            });
         }
     }
     let mut bodies = Vec::with_capacity(entries.len());
     for (entry, header) in entries.iter().zip(&headers) {
         let body = notice_entry_body(notice_text, header, &headers).ok_or_else(|| {
-            format!("NOTICE missing entry header '{header}' (fail closed before install)")
+            NoticeTextError::MissingHeader {
+                header: header.clone(),
+            }
         })?;
         if body.trim().is_empty() {
-            return Err(format!(
-                "NOTICE missing words for {}@{} ({}): entry body is empty",
-                entry.package, entry.version, entry.license
-            ));
+            return Err(NoticeTextError::EmptyBody {
+                entry: Box::new(entry.clone()),
+            });
         }
         let got = dx_digest::sha256_hex(body.as_bytes());
         if got != entry.text_sha256 {
-            return Err(format!(
-                "NOTICE missing words for {}@{} ({}): body sha256 {got}, manifest records {}",
-                entry.package, entry.version, entry.license, entry.text_sha256
-            ));
+            return Err(NoticeTextError::BodyDigest {
+                entry: Box::new(entry.clone()),
+                got,
+            });
         }
         bodies.push((entry.clone(), body.to_owned()));
     }
     if render_notice(root, &bodies) != notice_text {
-        return Err("NOTICE has content outside the audited entries".to_owned());
+        return Err(NoticeTextError::Outside);
     }
     Ok(entries.len())
 }
@@ -1445,10 +1564,114 @@ pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
     out
 }
 
-fn read_texts(
-    text_files: &[std::path::PathBuf],
-) -> Result<Vec<(std::path::PathBuf, String)>, String> {
-    let mut texts: Vec<(std::path::PathBuf, String)> = Vec::with_capacity(text_files.len());
+/// Why a NOTICE bundle could not be joined, written or verified.
+#[derive(Debug)]
+pub enum NoticeError {
+    TextName {
+        path: PathBuf,
+    },
+    Read(PathIoError),
+    EmptyText {
+        path: PathBuf,
+    },
+    Manifest(DxError),
+    NoEntries,
+    NoMatch {
+        entry: Box<NoticeEntry>,
+    },
+    Ambiguous {
+        entry: Box<NoticeEntry>,
+        paths: Vec<PathBuf>,
+    },
+    Digest {
+        entry: Box<NoticeEntry>,
+        got: String,
+    },
+    NoRoot,
+    Text(NoticeTextError),
+    Runtimes(runtimes::RuntimesError),
+    Io(PathIoError),
+}
+
+impl fmt::Display for NoticeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TextName { path } => write!(
+                f,
+                "notice: text input {} has no UTF-8 basename",
+                path.display()
+            ),
+            Self::Read(source) => write!(f, "notice: {source}"),
+            Self::EmptyText { path } => write!(
+                f,
+                "notice: missing-notice-text: {} is empty",
+                path.display()
+            ),
+            Self::Manifest(source) => write!(f, "{source}"),
+            Self::NoEntries => {
+                f.write_str("notice: manifest lists no packages; refusing empty NOTICE")
+            }
+            Self::NoMatch { entry } => write!(
+                f,
+                "notice: missing-notice-text: {}@{} ({}) names text '{}' with no matching input file (matched by whole path-component suffix)",
+                entry.package, entry.version, entry.license, entry.text_path
+            ),
+            Self::Ambiguous { entry, paths } => {
+                let paths: Vec<String> = paths
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect();
+                write!(
+                    f,
+                    "notice: ambiguous-notice-text: {}@{} ({}) [{}] text '{}' matches {} inputs: {}; lengthen the manifest path so it names exactly one input",
+                    entry.package,
+                    entry.version,
+                    entry.license,
+                    entry.set,
+                    entry.text_path,
+                    paths.len(),
+                    paths.join(", ")
+                )
+            }
+            Self::Digest { entry, got } => write!(
+                f,
+                "notice: notice-text-digest: {}@{} ({}) text '{}' sha256 {got}, manifest records {}",
+                entry.package, entry.version, entry.license, entry.text_path, entry.text_sha256
+            ),
+            Self::NoRoot => f.write_str("notice: missing 'NOTICE for <root>' header"),
+            Self::Text(source) => write!(f, "notice: {source}"),
+            Self::Runtimes(source) => write!(f, "{source}"),
+            Self::Io(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for NoticeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(source) | Self::Io(source) => Some(source),
+            Self::Manifest(source) => Some(source),
+            Self::Text(source) => Some(source),
+            Self::Runtimes(source) => Some(source),
+            Self::TextName { .. }
+            | Self::EmptyText { .. }
+            | Self::NoEntries
+            | Self::NoMatch { .. }
+            | Self::Ambiguous { .. }
+            | Self::Digest { .. }
+            | Self::NoRoot => None,
+        }
+    }
+}
+
+impl From<PathIoError> for NoticeError {
+    fn from(source: PathIoError) -> Self {
+        Self::Io(source)
+    }
+}
+
+fn read_texts(text_files: &[PathBuf]) -> Result<Vec<(PathBuf, String)>, NoticeError> {
+    let mut texts: Vec<(PathBuf, String)> = Vec::with_capacity(text_files.len());
     for path in text_files {
         let name = path
             .file_name()
@@ -1456,21 +1679,14 @@ fn read_texts(
             .unwrap_or("")
             .to_owned();
         if name.is_empty() {
-            return Err(format!(
-                "notice: text input {} has no UTF-8 basename",
-                path.display()
-            ));
+            return Err(NoticeError::TextName { path: path.clone() });
         }
         if texts.iter().any(|(seen, _)| seen == path) {
             continue;
         }
-        let words = std::fs::read_to_string(path)
-            .map_err(|error| format!("notice: cannot read {}: {error}", path.display()))?;
+        let words = path_io::read_to_string(path).map_err(NoticeError::Read)?;
         if words.trim().is_empty() {
-            return Err(format!(
-                "notice: missing-notice-text: {} is empty",
-                path.display()
-            ));
+            return Err(NoticeError::EmptyText { path: path.clone() });
         }
         texts.push((path.clone(), words));
     }
@@ -1495,55 +1711,44 @@ pub fn notice_text_matches<'a, T>(
 
 pub(crate) fn join_notice_entries(
     manifest_text: &str,
-    text_files: &[std::path::PathBuf],
-) -> Result<Vec<(NoticeEntry, String)>, String> {
-    let entries = parse_notice_manifest(manifest_text).map_err(|e| e.to_string())?;
+    text_files: &[PathBuf],
+) -> Result<Vec<(NoticeEntry, String)>, NoticeError> {
+    let entries = parse_notice_manifest(manifest_text).map_err(NoticeError::Manifest)?;
     if entries.is_empty() {
-        return Err("notice: manifest lists no packages; refusing empty NOTICE".to_owned());
+        return Err(NoticeError::NoEntries);
     }
     let texts = read_texts(text_files)?;
     let mut joined = Vec::with_capacity(entries.len());
     for entry in entries {
         if entry.text_path.is_empty() {
-            return Err(format!(
-                "notice: missing-notice-text: {}@{} ({}) ships no LICENSE*/NOTICE* words; record the words in the audited inventory before bundling",
-                entry.package, entry.version, entry.license
-            ));
+            return Err(NoticeError::Text(NoticeTextError::NoText {
+                entry: Box::new(entry),
+            }));
         }
         let found = notice_text_matches(&entry.text_path, &texts);
         let words = match found.as_slice() {
             [] => {
-                return Err(format!(
-                    "notice: missing-notice-text: {}@{} ({}) names text '{}' with no matching input file (matched by whole path-component suffix)",
-                    entry.package, entry.version, entry.license, entry.text_path
-                ));
+                return Err(NoticeError::NoMatch {
+                    entry: Box::new(entry),
+                });
             }
-            [(_, words)] => words,
+            [(_, words)] => words.clone(),
             many => {
-                let paths: Vec<String> = many
-                    .iter()
-                    .map(|(path, _)| path.display().to_string())
-                    .collect();
-                return Err(format!(
-                    "notice: ambiguous-notice-text: {}@{} ({}) [{}] text '{}' matches {} inputs: {}; lengthen the manifest path so it names exactly one input",
-                    entry.package,
-                    entry.version,
-                    entry.license,
-                    entry.set,
-                    entry.text_path,
-                    many.len(),
-                    paths.join(", ")
-                ));
+                let paths = many.iter().map(|(path, _)| path.clone()).collect();
+                return Err(NoticeError::Ambiguous {
+                    entry: Box::new(entry),
+                    paths,
+                });
             }
         };
-        let got = notice_text_sha256(words);
+        let got = notice_text_sha256(&words);
         if got != entry.text_sha256 {
-            return Err(format!(
-                "notice: notice-text-digest: {}@{} ({}) text '{}' sha256 {got}, manifest records {}",
-                entry.package, entry.version, entry.license, entry.text_path, entry.text_sha256
-            ));
+            return Err(NoticeError::Digest {
+                entry: Box::new(entry),
+                got,
+            });
         }
-        joined.push((entry, words.clone()));
+        joined.push((entry, words));
     }
     Ok(joined)
 }
@@ -1555,17 +1760,17 @@ pub fn write_notice(
     manifest: &Path,
     dst: &Path,
     root: &str,
-    text_files: &[std::path::PathBuf],
+    text_files: &[PathBuf],
     runtimes: Option<&Path>,
-) -> io::Result<()> {
-    let manifest_text = std::fs::read_to_string(manifest)?;
-    let joined = join_notice_entries(&manifest_text, text_files).map_err(io::Error::other)?;
+) -> Result<(), NoticeError> {
+    let manifest_text = path_io::read_to_string(manifest)?;
+    let joined = join_notice_entries(&manifest_text, text_files)?;
     let mut notice = render_notice(root, &joined);
     if let Some(path) = runtimes {
-        let records = runtimes::read_records(path).map_err(io::Error::other)?;
+        let records = runtimes::read_records(path).map_err(NoticeError::Runtimes)?;
         notice.push_str(&runtimes::render_section(&records));
     }
-    std::fs::write(dst, notice.as_bytes())?;
+    path_io::write_scratch(dst, notice.as_bytes())?;
     Ok(())
 }
 
@@ -1575,26 +1780,19 @@ pub fn write_notice(
 pub fn notice_verify_files(
     notice: &Path,
     manifest: &Path,
-    text_files: &[std::path::PathBuf],
-) -> io::Result<String> {
-    let notice_text = std::fs::read_to_string(notice)?;
-    let manifest_text = std::fs::read_to_string(manifest)?;
-    let entries = parse_notice_manifest(&manifest_text).map_err(io::Error::other)?;
+    text_files: &[PathBuf],
+) -> Result<String, NoticeError> {
+    let notice_text = path_io::read_to_string(notice)?;
+    let manifest_text = path_io::read_to_string(manifest)?;
+    let entries = parse_notice_manifest(&manifest_text).map_err(NoticeError::Manifest)?;
     if entries.is_empty() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "notice: manifest lists no packages; refusing empty NOTICE",
-        ));
+        return Err(NoticeError::NoEntries);
     }
     if !notice_text.starts_with("NOTICE for ") {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "notice: missing 'NOTICE for <root>' header",
-        ));
+        return Err(NoticeError::NoRoot);
     }
-    join_notice_entries(&manifest_text, text_files).map_err(io::Error::other)?;
-    verify_notice_text(&notice_text, &entries)
-        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, format!("notice: {error}")))?;
+    join_notice_entries(&manifest_text, text_files)?;
+    verify_notice_text(&notice_text, &entries).map_err(NoticeError::Text)?;
     Ok(format!("notice OK: {} entries bundled\n", entries.len()))
 }
 

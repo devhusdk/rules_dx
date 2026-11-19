@@ -14,7 +14,14 @@ fn lock_entries_read_each_ecosystem() {
     let go = "module m\n\ngo 1.22\n\nrequire github.com/x/y v1.2.3\n";
     let entries = lock_entries("go", go).expect("go");
     assert_eq!(entries[0].set, "go");
-    assert!(lock_entries("cargo", "").is_err());
+    let err = lock_entries("cargo", "").expect_err("cargo is not a lock kind");
+    assert!(matches!(err, SbomError::LockKind { .. }), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "unknown lock kind 'cargo': want npm, go, maven or pip"
+    );
+    let err = lock_entries("npm", "not json").expect_err("bad npm lock");
+    assert!(matches!(err, SbomError::Lock(_)), "got {err:?}");
 }
 
 #[test]
@@ -37,7 +44,9 @@ fn write_artifact(dir: &Path, name: &str, data: &[u8]) -> std::path::PathBuf {
 
 #[test]
 fn basename_rejects_missing_name() {
-    assert!(basename(Path::new("/")).is_err());
+    let err = basename(Path::new("/")).expect_err("root has no basename");
+    assert!(matches!(err, SbomError::Basename { .. }), "got {err:?}");
+    assert_eq!(err.to_string(), "path / has no UTF-8 basename");
     assert_eq!(
         basename(Path::new("/tmp/artifact.bin")).expect("base"),
         "artifact.bin"
@@ -263,8 +272,20 @@ fn write_helpers_round_trip_digests() {
         std::fs::read_to_string(&bcr_out).expect("read bcr"),
         render_bcr_source("rules_dx", "1.2.3").expect("render")
     );
-    assert!(write_spdx(&scratch.path().join("missing"), &spdx_out, "dx", "s").is_err());
-    assert!(write_provenance(&scratch.path().join("missing"), &prov_out, "b").is_err());
+    let err = write_spdx(&scratch.path().join("missing"), &spdx_out, "dx", "s")
+        .expect_err("missing artifact");
+    assert!(matches!(err, SbomError::Hash { .. }), "got {err:?}");
+    assert!(err.to_string().starts_with("cannot hash "), "got {err}");
+    let err =
+        write_provenance(&scratch.path().join("missing"), &prov_out, "b").expect_err("bad builder");
+    assert!(matches!(err, SbomError::Builder { .. }), "got {err:?}");
+    let err = write_provenance(
+        &scratch.path().join("missing"),
+        &prov_out,
+        PROVENANCE_BUILDER_RELEASE,
+    )
+    .expect_err("missing artifact");
+    assert!(matches!(err, SbomError::Hash { .. }), "got {err:?}");
 }
 
 #[test]
@@ -970,7 +991,14 @@ fn replaced_digest(
 #[test]
 fn provenance_builder_allowlist_rejects_forgeries() {
     assert!(provenance_builder_error(PROVENANCE_BUILDER_RELEASE).is_ok());
-    assert!(provenance_builder_error(FORGED_BUILDER_ID).is_err());
+    let err = provenance_builder_error(FORGED_BUILDER_ID).expect_err("forged");
+    assert!(matches!(err, SbomError::Builder { .. }), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        format!(
+            "provenance: invalid builder '{FORGED_BUILDER_ID}': want '{PROVENANCE_BUILDER_RELEASE}'"
+        )
+    );
     assert!(provenance_builder_error("https://example.com/builder").is_err());
     assert!(provenance_builder_error("").is_err());
     let scratch = scratch_dir();
@@ -1130,13 +1158,24 @@ fn notice_missing_text_fails_actionable() {
     std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT||\n").expect("manifest");
     let out = scratch.path().join("out.NOTICE");
     let err = write_notice(&manifest, &out, "//demo:root", &[], None).expect_err("missing");
-    assert!(err.to_string().contains("missing-notice-text"));
+    assert!(
+        matches!(err, NoticeError::Text(NoticeTextError::NoText { .. })),
+        "got {err:?}"
+    );
+    assert_eq!(
+        err.to_string(),
+        "notice: missing-notice-text: demo-lib-a@1.0.0 (MIT) ships no LICENSE*/NOTICE* words; record the words in the audited inventory before bundling"
+    );
     let (good_manifest, texts) = notice_fixture(scratch.path());
     let notice = scratch.path().join("good.NOTICE");
     write_notice(&good_manifest, &notice, "//demo:root", &texts, None).expect("good");
     std::fs::write(&notice, "tampered bytes\n").expect("tamper");
     let err = notice_verify_files(&notice, &good_manifest, &texts).expect_err("tampered");
-    assert!(err.to_string().contains("NOTICE"));
+    assert!(matches!(err, NoticeError::NoRoot), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "notice: missing 'NOTICE for <root>' header"
+    );
 }
 
 #[test]
@@ -1160,7 +1199,8 @@ fn bin_shims_share_failure_rendering() {
 fn write_spdx_fails_when_target_unwritable() {
     let scratch = scratch_dir();
     let src = write_artifact(scratch.path(), "artifact.bin", b"hello world\n");
-    assert!(write_spdx(&src, scratch.path(), "dx", "rules_dx").is_err());
+    let err = write_spdx(&src, scratch.path(), "dx", "rules_dx").expect_err("target is a dir");
+    assert!(matches!(err, SbomError::Io(_)), "got {err:?}");
 }
 
 #[test]
@@ -1181,6 +1221,7 @@ fn sbom_verify_rejects_broken_bindings() {
     .expect("spdx bad");
     let err = sbom_verify_files(&artifact, &spdx_bad, &prov_ok, PROVENANCE_BUILDER_RELEASE)
         .expect_err("spdx digest");
+    assert!(matches!(err, SbomError::Spdx(_)), "got {err:?}");
     assert!(
         err.to_string().contains("SPDX missing artifact digest"),
         "got {err}"
@@ -1210,21 +1251,64 @@ fn sbom_verify_rejects_broken_bindings() {
         std::fs::write(&path, variant).expect("variant");
         let err = sbom_verify_files(&artifact, &spdx_ok, &path, PROVENANCE_BUILDER_RELEASE)
             .expect_err(want);
+        assert!(matches!(err, SbomError::Provenance(_)), "got {err:?}");
         assert!(err.to_string().contains(want), "want {want}, got {err}");
     }
+    let path = scratch.path().join("garbage.prov.json");
+    std::fs::write(&path, "not json").expect("garbage");
+    let err = sbom_verify_files(&artifact, &spdx_ok, &path, PROVENANCE_BUILDER_RELEASE)
+        .expect_err("garbage provenance");
+    assert!(matches!(err, SbomError::ProvenanceJson(_)), "got {err:?}");
+    assert!(
+        err.to_string()
+            .starts_with("provenance is not an in-toto statement: "),
+        "got {err}"
+    );
+    let err = sbom_verify_files(&artifact, &path, &prov_ok, PROVENANCE_BUILDER_RELEASE)
+        .expect_err("garbage spdx");
+    assert!(matches!(err, SbomError::SpdxJson(_)), "got {err:?}");
+    let missing = scratch.path().join("missing.spdx.json");
+    let err = sbom_verify_files(&artifact, &missing, &prov_ok, PROVENANCE_BUILDER_RELEASE)
+        .expect_err("missing spdx");
+    assert!(matches!(err, SbomError::Io(_)), "got {err:?}");
 }
 
 #[test]
 fn notice_text_map_fails_actionable() {
     let scratch = scratch_dir();
     let err = read_texts(&[std::path::PathBuf::from("/")]).expect_err("root has no basename");
-    assert!(err.contains("no UTF-8 basename"), "got {err}");
+    assert!(matches!(err, NoticeError::TextName { .. }), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "notice: text input / has no UTF-8 basename"
+    );
+    let missing = scratch.path().join("missing.txt");
+    let err = read_texts(std::slice::from_ref(&missing)).expect_err("missing words");
+    assert!(matches!(err, NoticeError::Read(_)), "got {err:?}");
+    assert!(
+        err.to_string()
+            .starts_with(&format!("notice: cannot read {}: ", missing.display())),
+        "got {err}"
+    );
     let empty_words = scratch.path().join("empty.txt");
     std::fs::write(&empty_words, "  \n").expect("empty words");
-    let err = read_texts(&[empty_words]).expect_err("empty words");
-    assert!(err.contains("missing-notice-text"), "got {err}");
+    let err = read_texts(std::slice::from_ref(&empty_words)).expect_err("empty words");
+    assert!(matches!(err, NoticeError::EmptyText { .. }), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        format!(
+            "notice: missing-notice-text: {} is empty",
+            empty_words.display()
+        )
+    );
     let err = join_notice_entries("# no packages\n", &[]).expect_err("no entries");
-    assert!(err.contains("lists no packages"), "got {err}");
+    assert!(matches!(err, NoticeError::NoEntries), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "notice: manifest lists no packages; refusing empty NOTICE"
+    );
+    let err = join_notice_entries("a|b\n", &[]).expect_err("bad manifest");
+    assert!(matches!(err, NoticeError::Manifest(_)), "got {err:?}");
     let other_words = scratch.path().join("demo-lib-b.txt");
     std::fs::write(&other_words, "Fixture words for demo-lib-b.\n").expect("words b");
     let err = join_notice_entries(
@@ -1235,8 +1319,11 @@ fn notice_text_map_fails_actionable() {
         &[other_words],
     )
     .expect_err("no matching input");
-    assert!(err.contains("no matching input file"), "got {err}");
-    assert!(err.contains("whole path-component suffix"), "got {err}");
+    assert!(matches!(err, NoticeError::NoMatch { .. }), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "notice: missing-notice-text: demo-lib-a@1.0.0 (MIT) names text 'demo-lib-a.txt' with no matching input file (matched by whole path-component suffix)"
+    );
     let first = scratch.path().join("a").join("LICENSE");
     let second = scratch.path().join("b").join("LICENSE");
     for (path, words) in [(&first, "Words for a.\n"), (&second, "Words for b.\n")] {
@@ -1269,6 +1356,8 @@ fn notice_text_map_fails_actionable() {
             inputs,
         )
         .expect_err("bare basename is ambiguous");
+        assert!(matches!(err, NoticeError::Ambiguous { .. }), "got {err:?}");
+        let err = err.to_string();
         assert!(err.contains("ambiguous-notice-text"), "got {err}");
         let want = format!(
             "matches 2 inputs: {}, {}",
@@ -1381,7 +1470,12 @@ fn notice_verify_rejects_repeated_header() {
     assert_eq!(notice_header_count(&repeated, header), 2);
     let err = verify_notice_text(&repeated, &entries).expect_err("repeated header");
     assert!(
-        err.contains(&format!("NOTICE repeats entry header '{header}'")),
+        matches!(err, NoticeTextError::RepeatedHeader { .. }),
+        "got {err:?}"
+    );
+    assert!(
+        err.to_string()
+            .contains(&format!("NOTICE repeats entry header '{header}'")),
         "got {err}"
     );
 }
@@ -1526,13 +1620,25 @@ fn verify_notice_text_binds_bodies_and_rejects_extras() {
 
     let headers_only = "NOTICE for //demo:root\n=== demo-lib-a 1.0.0 (MIT) [cargo] ===\n=== demo-lib-b 2.3.4 (Apache-2.0) [npm] ===\n";
     let err = verify_notice_text(headers_only, &entries).expect_err("headers only");
-    assert!(err.contains("entry body is empty"), "got {err}");
+    assert!(
+        matches!(err, NoticeTextError::EmptyBody { .. }),
+        "got {err:?}"
+    );
+    assert_eq!(
+        err.to_string(),
+        "NOTICE missing words for demo-lib-a@1.0.0 (MIT): entry body is empty"
+    );
 
     let changed = text.replace(
         "Fixture words for demo-lib-a",
         "Fixture word for demo-lib-a",
     );
     let err = verify_notice_text(&changed, &entries).expect_err("one word");
+    assert!(
+        matches!(err, NoticeTextError::BodyDigest { .. }),
+        "got {err:?}"
+    );
+    let err = err.to_string();
     assert!(
         err.contains("NOTICE missing words for demo-lib-a@1.0.0 (MIT)"),
         "got {err}"
@@ -1541,19 +1647,35 @@ fn verify_notice_text_binds_bodies_and_rejects_extras() {
 
     let extra = format!("{text}=== other 1.0.0 (MIT) [cargo] ===\nSneaky.\n");
     let err = verify_notice_text(&extra, &entries).expect_err("extra section");
-    assert!(err.contains("NOTICE missing words"), "got {err}");
+    assert!(
+        matches!(err, NoticeTextError::BodyDigest { .. }),
+        "got {err:?}"
+    );
+    assert!(
+        err.to_string().contains("NOTICE missing words"),
+        "got {err}"
+    );
 
     let preamble = text.replacen("do not edit.", "do not edit. Extra.", 1);
     let err = verify_notice_text(&preamble, &entries).expect_err("preamble");
-    assert!(err.contains("outside the audited entries"), "got {err}");
+    assert_eq!(err, NoticeTextError::Outside);
+    assert_eq!(
+        err.to_string(),
+        "NOTICE has content outside the audited entries"
+    );
 
     let crlf = text.replace('\n', "\r\n");
     assert!(verify_notice_text(&crlf, &entries).is_err());
 
     let err = verify_notice_text("plain\n", &entries).expect_err("no header");
-    assert!(err.contains("NOTICE for"), "got {err}");
+    assert_eq!(err, NoticeTextError::NoRoot);
+    assert_eq!(err.to_string(), "NOTICE missing 'NOTICE for <root>' header");
     let err = verify_notice_text(&text, &[]).expect_err("no entries");
-    assert!(err.contains("lists no packages"), "got {err}");
+    assert_eq!(err, NoticeTextError::NoEntries);
+    assert_eq!(
+        err.to_string(),
+        "notice manifest lists no packages; refusing empty NOTICE"
+    );
 }
 
 #[test]
@@ -1587,9 +1709,14 @@ fn notice_verify_rejects_unbound_bundles() {
     let manifest = scratch.path().join("inventory.txt");
     std::fs::write(&manifest, "# no packages\n").expect("manifest");
     let err = notice_verify_files(&notice, &manifest, &[]).expect_err("empty manifest");
+    assert!(matches!(err, NoticeError::NoEntries), "got {err:?}");
     assert!(err.to_string().contains("lists no packages"), "got {err}");
     std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT||\n").expect("manifest");
     let err = notice_verify_files(&notice, &manifest, &[]).expect_err("no words");
+    assert!(
+        matches!(err, NoticeError::Text(NoticeTextError::NoText { .. })),
+        "got {err:?}"
+    );
     assert!(
         err.to_string().contains("ships no LICENSE*/NOTICE* words"),
         "got {err}"
@@ -1604,6 +1731,7 @@ fn notice_verify_rejects_unbound_bundles() {
     )
     .expect("manifest");
     let err = notice_verify_files(&notice, &manifest, &[]).expect_err("no matching input");
+    assert!(matches!(err, NoticeError::NoMatch { .. }), "got {err:?}");
     assert!(
         err.to_string().contains("no matching input file"),
         "got {err}"
@@ -1612,6 +1740,13 @@ fn notice_verify_rejects_unbound_bundles() {
     std::fs::write(&words, bound_words).expect("words");
     let err = notice_verify_files(&notice, &manifest, std::slice::from_ref(&words))
         .expect_err("no header");
+    assert!(
+        matches!(
+            err,
+            NoticeError::Text(NoticeTextError::MissingHeader { .. })
+        ),
+        "got {err:?}"
+    );
     assert!(
         err.to_string().contains("missing entry header"),
         "got {err}"
@@ -1622,6 +1757,10 @@ fn notice_verify_rejects_unbound_bundles() {
     )
     .expect("notice header only");
     let err = notice_verify_files(&notice, &manifest, &[words]).expect_err("no words bound");
+    assert!(
+        matches!(err, NoticeError::Text(NoticeTextError::BodyDigest { .. })),
+        "got {err:?}"
+    );
     assert!(
         err.to_string().contains("NOTICE missing words for"),
         "got {err}"

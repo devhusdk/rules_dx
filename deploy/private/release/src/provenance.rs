@@ -105,7 +105,7 @@ pub fn statement_error(
     }
     let id = &statement.predicate.run_details.builder.id;
     let detail = match crate::provenance_builder_error(id) {
-        Err(detail) => detail,
+        Err(error) => error.to_string(),
         Ok(()) if id == builder => return Ok(()),
         Ok(()) => format!("want '{builder}'"),
     };

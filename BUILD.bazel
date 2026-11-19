@@ -1,7 +1,7 @@
 load("@dx_npm_link//:defs.bzl", "npm_link_all_packages")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
-load("//javascript:defs.bzl", "js_library")
+load("//javascript:defs.bzl", "javascript_library")
 
 # gazelle:dx_fixture_testonly true
 # gazelle:resolve rust dx_deploy_tools //deploy/private:dx_deploy_tools
@@ -296,7 +296,7 @@ alias(
     visibility = ["//visibility:public"],
 )
 
-js_library(
+javascript_library(
     name = "package_json",
     srcs = ["package.json"],
     visibility = ["//visibility:public"],

@@ -1393,6 +1393,984 @@ Rule.
 | `name` | `name` | yes |  |
 | `srcs` | `label_list` | no | `[]` |
 
+### `@rules_dx//core:defs.bzl`
+
+#### `ansible_lint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `bicep_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `biome_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `buf_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `buildifier_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `cfn_lint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `checkmake_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `clang_format_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `clang_tidy_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `cmakelint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `credo_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `csharpier_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `cue_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `dart_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `detekt_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `djlint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `docstrfmt_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `elvis_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `errcheck_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `eslint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `ffmt_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `fortitude_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `fsharplint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `gersemi_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `gherkin_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `govet_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `gplint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `graphql_eslint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `hadolint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `helmfmt_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `hlint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `html_template_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `jsonnet_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `julialint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `jupyter_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `latex_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `latexindent_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `luals_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `lychee_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `markdown_check_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `mbake_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `mix_format_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `nix_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `perlcritic_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `perltidy_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `phpcs_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `phpstan_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `pkl_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `pmd_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `prettier_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `psscriptanalyzer_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `pydoclint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `qmlformat_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `qmllint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `redocly_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `regal_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `remark_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `roslyn_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `rubocop_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `ruff_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `rustfmt_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `scalafix_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `scalafmt_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `selene_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `shellcheck_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `shfmt_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `spotbugs_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `sqlfluff_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `staticcheck_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `stylelint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `stylua_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `swift_format_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `swift_lint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `taplo_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `tflint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `trivy_config_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `ty_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `typos_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `typst_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `vale_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `xml_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `yaml_library`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `deps` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+
+#### `yamlfmt_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `yamllint_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `zizmor_config`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `allow_generated` | `boolean` | no | `False` |
+| `data` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+
+#### `docs_site`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `libraries` | yes |  |
+| `prose` | yes |  |
+| `book_toml` | yes |  |
+| `prose_route` | no | `"prose.md"` |
+| `source_url` | no | `""` |
+
+#### `lua_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `php_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `protobuf_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `proto` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
+#### `DxNativeConfigInfo`
+
+Provider.
+
+Fields: `closure`, `config`, `tool_id`.
+
 ### `@rules_dx//core:extensions.bzl`
 
 #### `dx_gazelle`

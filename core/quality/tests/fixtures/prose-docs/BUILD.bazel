@@ -1,5 +1,5 @@
+load("@rules_dx//core:defs.bzl", "latexindent_config", "vale_config")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//core/quality:native_config.bzl", "latexindent_config", "vale_config")
 load("@rules_dx//core/quality/private:generated_policy.bzl", "dx_generated_policy")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 

@@ -161,7 +161,7 @@ static `spc-max` build.
 
 ## API docs
 
-`php_doc_shard` from `@rules_dx//tools/docs/php:defs.bzl` turns the public
+`php_doc_shard` from `@rules_dx//core:defs.bzl` turns the public
 API of a `php_library` into a DocIr shard. The pinned phpDocumentor 3.10.0
 phar reads the library's own `srcs` on the pinned PHP.
 

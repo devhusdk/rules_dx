@@ -5,6 +5,8 @@ load("//core:rlocation.bzl", "repo_relative_path")
 load("//lua/private:providers.bzl", "LuaInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 def lua_shard_action(ctx, own, package, stem, runner, ldoc_main, ldoc, pl_init, penlight, filter, extract_tool):
     """Runs LDoc and the extractor for one Lua library."""
     own = sorted([f for f in own if f.extension == "lua"], key = lambda f: f.path)

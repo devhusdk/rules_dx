@@ -2,6 +2,8 @@
 
 load("//core:wrapper.bzl", "dx_source_library")
 
+visibility(["//..."])
+
 cue_library = dx_source_library("cue", ["cue"], "CUE")
 gherkin_library = dx_source_library("gherkin", ["feature"], "Gherkin")
 html_template_library = dx_source_library("html_template", ["html", "htm", "jinja", "jinja2", "j2", "njk", "hbs", "gohtml", "tmpl"], "HTML template")

@@ -61,6 +61,7 @@ _STARLARK_SRCS = [
     "//cc:extensions.bzl",
     "//cloudformation:defs.bzl",
     "//cmake:defs.bzl",
+    "//core:defs.bzl",
     "//core:extensions.bzl",
     "//csharp:defs.bzl",
     "//csharp:extensions.bzl",

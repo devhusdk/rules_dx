@@ -5,6 +5,8 @@ load("//cli/exec_os:defs.bzl", "ExecOsInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 PROTO_TOOLCHAIN = "@protobuf//bazel/private:proto_toolchain_type"
 
 def _root_relative(src, root):

@@ -1993,6 +1993,2709 @@
   },
   {
     "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "name": "docs_site",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "libraries"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "prose"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "book_toml"
+          },
+          {
+            "default": "\"prose.md\"",
+            "mandatory": false,
+            "name": "prose_route"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "source_url"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "lua_doc_shard",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "lib"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "php_doc_shard",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "lib"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "protobuf_doc_shard",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "proto"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//core:defs.bzl",
+    "macros": [],
+    "providers": [
+      {
+        "fields": [
+          "closure",
+          "config",
+          "tool_id"
+        ],
+        "name": "DxNativeConfigInfo"
+      }
+    ],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "ansible_lint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "bicep_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "biome_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "buf_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "buildifier_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "cfn_lint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "checkmake_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "clang_format_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "clang_tidy_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "cmakelint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "credo_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "csharpier_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "cue_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "dart_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "detekt_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "djlint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "docstrfmt_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "elvis_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "errcheck_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "eslint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "ffmt_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "fortitude_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "fsharplint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "gersemi_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "gherkin_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "govet_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "gplint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "graphql_eslint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "hadolint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "helmfmt_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "hlint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "html_template_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "jsonnet_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "julialint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "jupyter_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "latex_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "latexindent_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "luals_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "lychee_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "markdown_check_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "mbake_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "mix_format_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "nix_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "perlcritic_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "perltidy_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "phpcs_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "phpstan_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "pkl_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "pmd_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "prettier_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "psscriptanalyzer_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "pydoclint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "qmlformat_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "qmllint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "redocly_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "regal_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "remark_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "roslyn_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "rubocop_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "ruff_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "rustfmt_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "scalafix_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "scalafmt_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "selene_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "shellcheck_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "shfmt_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "spotbugs_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "sqlfluff_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "staticcheck_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "stylelint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "stylua_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "swift_format_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "swift_lint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "taplo_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "tflint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "trivy_config_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "ty_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "typos_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "typst_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "vale_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "xml_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "srcs",
+            "type": "LABEL_LIST"
+          }
+        ],
+        "executable": false,
+        "name": "yaml_library",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "yamlfmt_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "yamllint_config",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_generated",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "zizmor_config",
+        "test": false
+      }
+    ]
+  },
+  {
+    "aspects": [],
     "extensions": [
       {
         "name": "dx_gazelle",

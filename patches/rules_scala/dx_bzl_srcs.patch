@@ -1,0 +1,71 @@
+Upstream: bazel-contrib/rules_scala#2055
+
+diff --git a/scala/BUILD b/scala/BUILD
+--- a/scala/BUILD
++++ b/scala/BUILD
+@@ -70,3 +70,9 @@
+     srcs = ["PlaceHolderClassToCreateEmptyJarForScalaImport.java"],
+     visibility = ["//visibility:public"],
+ )
++
++filegroup(
++    name = "dx_bzl_srcs",
++    srcs = glob(["**/*.bzl"]),
++    visibility = ["//visibility:public"],
++)
+diff --git a/scala/private/BUILD b/scala/private/BUILD
+--- a/scala/private/BUILD
++++ b/scala/private/BUILD
+@@ -27,3 +27,9 @@
+ # fixture_actions can't see this on its own: the fixture's only own action is
+ # a template expansion, which fingerprints by mnemonic and not by content.
+ exports_files(["phases/phase_semanticdb.bzl"])
++
++filegroup(
++    name = "dx_bzl_srcs",
++    srcs = glob(["**/*.bzl"]),
++    visibility = ["//visibility:public"],
++)
+diff --git a/scala/private/toolchain_deps/BUILD b/scala/private/toolchain_deps/BUILD
+--- a/scala/private/toolchain_deps/BUILD
++++ b/scala/private/toolchain_deps/BUILD
+@@ -29,3 +29,9 @@
+     deps_id = "semanticdb",
+     visibility = ["//visibility:public"],
+ )
++
++filegroup(
++    name = "dx_bzl_srcs",
++    srcs = glob(["**/*.bzl"]),
++    visibility = ["//visibility:public"],
++)
+diff --git a/scala_config.bzl b/scala_config.bzl
+--- a/scala_config.bzl
++++ b/scala_config.bzl
+@@ -63,6 +63,13 @@
+ )
+ """.format(scala_versions = scala_versions, scala_version = scala_version)
+     build_file_content += _config_settings(scala_versions)
++    build_file_content += """
++filegroup(
++    name = "dx_bzl_srcs",
++    srcs = ["config.bzl"],
++    visibility = ["//visibility:public"],
++)
++"""
+ 
+     repository_ctx.file("config.bzl", config_file_content)
+     repository_ctx.file("BUILD", build_file_content)
+diff --git a/specs2/BUILD b/specs2/BUILD
+--- a/specs2/BUILD
++++ b/specs2/BUILD
+@@ -16,3 +16,9 @@
+ )
+ 
+ java_library(name = "empty")
++
++filegroup(
++    name = "dx_bzl_srcs",
++    srcs = glob(["**/*.bzl"]),
++    visibility = ["//visibility:public"],
++)

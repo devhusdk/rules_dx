@@ -979,6 +979,7 @@ filegroup(
         "//tools/docs/site/browser:module_srcs",
         "//tools/docs/site/build:module_srcs",
         "//tools/docs/site/check:module_srcs",
+        "//tools/docs/site/mdbook:module_srcs",
         "//tools/docs/support_matrix:module_srcs",
         "//tools/docs/swift:module_srcs",
         "//tools/docs/swift/extract:module_srcs",

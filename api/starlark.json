@@ -5334,7 +5334,7 @@
             "name": "bundle"
           },
           {
-            "default": "\"@@+qt+dx_qt\"",
+            "default": "None",
             "mandatory": false,
             "name": "qt"
           },
@@ -11427,7 +11427,7 @@
             "name": "plugins"
           },
           {
-            "default": "\"@@+qt+dx_qt\"",
+            "default": "None",
             "mandatory": false,
             "name": "qt"
           },
@@ -11493,7 +11493,7 @@
             "name": "modules"
           },
           {
-            "default": "\"@@+qt+dx_qt\"",
+            "default": "None",
             "mandatory": false,
             "name": "qt"
           },
@@ -11574,7 +11574,7 @@
             "name": "modules"
           },
           {
-            "default": "\"@@+qt+dx_qt\"",
+            "default": "None",
             "mandatory": false,
             "name": "qt"
           },
@@ -11650,7 +11650,7 @@
             "name": "modules"
           },
           {
-            "default": "\"@@+qt+dx_qt\"",
+            "default": "None",
             "mandatory": false,
             "name": "qt"
           },
@@ -11746,7 +11746,7 @@
             "name": "modules"
           },
           {
-            "default": "\"@@+qt+dx_qt\"",
+            "default": "None",
             "mandatory": false,
             "name": "qt"
           },
@@ -11822,7 +11822,7 @@
             "name": "modules"
           },
           {
-            "default": "\"@@+qt+dx_qt\"",
+            "default": "None",
             "mandatory": false,
             "name": "qt"
           },
@@ -11933,7 +11933,7 @@
             "name": "modules"
           },
           {
-            "default": "\"@@+qt+dx_qt\"",
+            "default": "None",
             "mandatory": false,
             "name": "qt"
           },

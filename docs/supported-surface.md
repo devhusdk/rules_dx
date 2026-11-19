@@ -2534,7 +2534,7 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `bundle` | yes |  |
-| `qt` | no | `"@@+qt+dx_qt"` |
+| `qt` | no | `None` |
 | `kwargs` | no |  |
 
 #### `qt_consumer_archive`
@@ -4624,7 +4624,7 @@ Macro or function.
 | `licenses` | no | `[]` |
 | `display` | no | `[]` |
 | `plugins` | no | `[]` |
-| `qt` | no | `"@@+qt+dx_qt"` |
+| `qt` | no | `None` |
 | `kwargs` | no |  |
 
 #### `qt_cc_binary`
@@ -4643,7 +4643,7 @@ Macro or function.
 | `translations` | no | `[]` |
 | `deps` | no | `None` |
 | `modules` | no | `["core"]` |
-| `qt` | no | `"@@+qt+dx_qt"` |
+| `qt` | no | `None` |
 | `plugins` | no | `[]` |
 | `copts` | no | `[]` |
 | `visibility` | no | `None` |
@@ -4665,7 +4665,7 @@ Macro or function.
 | `translations` | no | `[]` |
 | `deps` | no | `None` |
 | `modules` | no | `["core"]` |
-| `qt` | no | `"@@+qt+dx_qt"` |
+| `qt` | no | `None` |
 | `copts` | no | `[]` |
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
@@ -4686,7 +4686,7 @@ Macro or function.
 | `translations` | no | `[]` |
 | `deps` | no | `None` |
 | `modules` | no | `["core", "test"]` |
-| `qt` | no | `"@@+qt+dx_qt"` |
+| `qt` | no | `None` |
 | `plugins` | no | `[]` |
 | `copts` | no | `[]` |
 | `visibility` | no | `None` |
@@ -4711,7 +4711,7 @@ Macro or function.
 | `translations` | no | `[]` |
 | `deps` | no | `None` |
 | `modules` | no | `["qml"]` |
-| `qt` | no | `"@@+qt+dx_qt"` |
+| `qt` | no | `None` |
 | `copts` | no | `[]` |
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
@@ -4732,7 +4732,7 @@ Macro or function.
 | `qml_srcs` | no | `[]` |
 | `qml_depends` | no | `[]` |
 | `modules` | no | `None` |
-| `qt` | no | `"@@+qt+dx_qt"` |
+| `qt` | no | `None` |
 | `copts` | no | `[]` |
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
@@ -4760,7 +4760,7 @@ Macro or function.
 | `qml_srcs` | no | `[]` |
 | `qml_depends` | no | `[]` |
 | `modules` | no | `None` |
-| `qt` | no | `"@@+qt+dx_qt"` |
+| `qt` | no | `None` |
 | `copts` | no | `[]` |
 | `visibility` | no | `None` |
 | `kwargs` | no |  |

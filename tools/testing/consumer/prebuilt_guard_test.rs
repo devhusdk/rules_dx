@@ -313,6 +313,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         "query",
         "--color=no",
         "--curses=no",
+        "--nocheck_bzl_visibility",
         "--output=label",
         "kind(rule, //...) except attr(tags, \"\\bmanual\\b\", //...)",
     ]);
@@ -349,6 +350,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         "--curses=no",
         "--consistent_labels",
         "--nocheck_visibility",
+        "--nocheck_bzl_visibility",
         "--output=label_kind",
         &query,
     ]);

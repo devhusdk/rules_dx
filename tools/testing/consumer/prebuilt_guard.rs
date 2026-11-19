@@ -1,8 +1,9 @@
 //! The rules shared by the prebuilt guards: the allowlist, the compiled rules_dx binaries of a
-//! `cquery --output=label_kind`, the `rules_dx` targets dx commands run, the aspects `dx check` and `dx docs` pick, and the wrapper
-//! package whose `deps` carry them.
+//! `cquery --output=label_kind`, the `rules_dx` targets dx commands run, the aspects `dx check` and `dx docs` pick, the wrapper
+//! package whose `deps` carry them, and the `file://` URL of a stub.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
 use dx_plan::args::Command;
 use dx_plan::plan::registry::{Consumer, aspects_for};
@@ -215,6 +216,16 @@ pub fn command_roots(repo: &str) -> Vec<String> {
         .collect()
 }
 
+/// The `file://` URL of `path`, with `/` separators and `file:///C:/` for a drive path.
+pub fn stub_url(path: &Path) -> String {
+    let path = path.to_string_lossy().replace('\\', "/");
+    if path.starts_with('/') {
+        format!("file://{path}")
+    } else {
+        format!("file:///{path}")
+    }
+}
+
 /// The `BUILD.bazel` of the `dx_prebuilt_guard` package: `check` and `docs` over `targets`.
 pub fn wrapper_build(targets: &[&str]) -> String {
     let deps: String = targets
@@ -233,6 +244,19 @@ pub fn wrapper_build(targets: &[&str]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stub_url_has_three_slashes_before_a_drive() {
+        assert_eq!(
+            stub_url(Path::new(r"C:\t\stubs\go")),
+            "file:///C:/t/stubs/go"
+        );
+        assert_eq!(
+            stub_url(Path::new(r"C:/t/_tmp\stubs\go")),
+            "file:///C:/t/_tmp/stubs/go"
+        );
+        assert_eq!(stub_url(Path::new("/tmp/stubs/go")), "file:///tmp/stubs/go");
+    }
 
     #[test]
     fn command_roots_name_the_generate_targets() {

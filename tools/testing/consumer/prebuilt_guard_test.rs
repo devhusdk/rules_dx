@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 
 use dx_nested::Case;
 use prebuilt_guard::{
-    allowlist, command_roots, compiled_binaries, guard_aspects, problems, wrapper_build,
+    allowlist, command_roots, compiled_binaries, guard_aspects, problems, stub_url, wrapper_build,
     wrapper_bzl,
 };
 
@@ -134,7 +134,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         let stub = stubs.join(tool);
         dx_testing::write_text(&stub, &format!("stub {tool}\n"));
         let sha256 = dx_testing::sha256_file(&stub).unwrap_or_else(|error| panic!("{error}"));
-        let url = format!("file://{}", stub.to_string_lossy().replace('\\', "/"));
+        let url = stub_url(&stub);
         tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
         if rooted(platform, &langs) {
             roots.extend(hub_targets(tool, &go_names));

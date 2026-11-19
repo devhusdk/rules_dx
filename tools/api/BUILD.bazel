@@ -116,6 +116,7 @@ _STARLARK_SRCS = [
     "//ruby:extensions.bzl",
     "//rust:defs.bzl",
     "//rust:extensions.bzl",
+    "//scala:defs.bzl",
     "//sql:defs.bzl",
     "//svelte:defs.bzl",
     "//swift:defs.bzl",
@@ -138,7 +139,6 @@ _NOT_EXTRACTED = [
     "//flutter:defs.bzl",
     "//flutter:extensions.bzl",
     "//python:extensions.bzl",
-    "//scala:defs.bzl",
     "//swift:extensions.bzl",
 ]
 
@@ -187,6 +187,11 @@ _UPSTREAM_BZL = [
     "@rules_rust//cargo:bzl_lib",
     "@rules_rust//crate_universe:bzl_lib",
     "@rules_rust_wasm_bindgen//:bzl_lib",
+    "@rules_scala//scala:dx_bzl_srcs",
+    "@rules_scala//scala/private:dx_bzl_srcs",
+    "@rules_scala//scala/private/toolchain_deps:dx_bzl_srcs",
+    "@rules_scala//specs2:dx_bzl_srcs",
+    "@rules_scala_config//:dx_bzl_srcs",
     "@rules_shell//shell:rules_bzl",
     "@rules_zig//zig:defs",
 ]

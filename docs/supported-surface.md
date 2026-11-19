@@ -5064,6 +5064,79 @@ Module extension.
 
 No tags.
 
+### `@rules_dx//scala:defs.bzl`
+
+#### `scala_bench`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `deps` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `scala_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `scala_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `lib` | yes |  |
+| `package` | no | `""` |
+| `deps` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `scala_fuzz_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `target_class` | no | `None` |
+| `deps` | no | `None` |
+| `visibility` | no | `None` |
+| `tags` | no | `None` |
+| `kwargs` | no |  |
+
+#### `scala_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `scala_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
 ### `@rules_dx//sql:defs.bzl`
 
 #### `sql_library`

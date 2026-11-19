@@ -13243,6 +13243,198 @@
   {
     "aspects": [],
     "extensions": [],
+    "functions": [
+      {
+        "forwards": [],
+        "name": "scala_bench",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "deps"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "scala_binary",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "scala_doc_shard",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "lib"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "deps"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "scala_fuzz_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "target_class"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "deps"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "scala_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "scala_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//scala:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
     "functions": [],
     "load": "@rules_dx//sql:defs.bzl",
     "macros": [],

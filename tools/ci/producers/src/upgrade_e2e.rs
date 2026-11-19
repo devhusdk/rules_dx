@@ -489,7 +489,8 @@ mod tests {
     }
 
     const RULES_DX_0_2: &str = "module(name = \"rules_dx\", version = \"0.2.0\")\n\nbazel_dep(name = \"rules_php\", version = \"0.2.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.1.1\")\nbazel_dep(name = \"rules_qt\", version = \"0.3.0\", dev_dependency = True)\n";
-    const CONSUMER: &str = "module(name = \"upgrade_e2e\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.2.0\")\n";
+    const CONSUMER: &str =
+        "module(name = \"upgrade_e2e\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.2.0\")\n";
 
     fn graph(rules_dx: &str, php: &str) -> String {
         format!(
@@ -530,7 +531,12 @@ mod tests {
     fn a_rule_set_at_its_floor_passes() {
         let floors = rule_set_floors(RULES_DX_0_2).expect("floors");
         assert_eq!(
-            rule_set_problems(CONSUMER, &floors, &versions(&graph("0.2.0", "0.2.0")), Some("0.2.0")),
+            rule_set_problems(
+                CONSUMER,
+                &floors,
+                &versions(&graph("0.2.0", "0.2.0")),
+                Some("0.2.0")
+            ),
             Ok(())
         );
     }
@@ -545,7 +551,10 @@ mod tests {
             Some("0.2.0"),
         )
         .expect_err("stale rule set");
-        assert!(error.contains("rules_php resolved to 0.1.0, wanted the rules_dx floor 0.2.0"), "{error}");
+        assert!(
+            error.contains("rules_php resolved to 0.1.0, wanted the rules_dx floor 0.2.0"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -557,7 +566,10 @@ mod tests {
             Some("0.2.0"),
         )
         .expect_err("unfloored rule set");
-        assert!(error.contains("rules_php resolved to 0.1.0, wanted nothing"), "{error}");
+        assert!(
+            error.contains("rules_php resolved to 0.1.0, wanted nothing"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -584,8 +596,14 @@ mod tests {
             Some("0.2.0"),
         )
         .expect_err("rules_dx pulled up");
-        assert!(error.contains("rules_dx resolved to 0.3.0, wanted 0.2.0"), "{error}");
-        assert!(error.contains("release rules_dx before the rule set"), "{error}");
+        assert!(
+            error.contains("rules_dx resolved to 0.3.0, wanted 0.2.0"),
+            "{error}"
+        );
+        assert!(
+            error.contains("release rules_dx before the rule set"),
+            "{error}"
+        );
     }
 
     #[test]

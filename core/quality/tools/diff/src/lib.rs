@@ -63,6 +63,23 @@ pub fn run(args: &[OsString], out: &mut dyn Write) -> Result<i32, String> {
     Ok(DIFFERENT)
 }
 
+/// Runs `dx buf_diff -u OLD NEW` and returns the process exit code.
+pub fn run_process(args: &[OsString]) -> i32 {
+    let mut stdout = std::io::stdout().lock();
+    match run(args, &mut stdout).and_then(|code| {
+        stdout
+            .flush()
+            .map(|()| code)
+            .map_err(|error| format!("stdout: {error}"))
+    }) {
+        Ok(code) => code,
+        Err(message) => {
+            eprintln!("diff: {message}");
+            TROUBLE
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

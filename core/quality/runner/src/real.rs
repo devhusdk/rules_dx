@@ -70,8 +70,17 @@ pub struct RealTool {
     pub tool_files: Vec<(String, Vec<u8>)>,
     pub upstream_diagnostics: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,
-    /// Helper executables placed on the child's `PATH` as shims: `(name, binary)`.
-    pub path_tools: Vec<(String, PathBuf)>,
+    /// Helper executables placed on the child's `PATH` as shims.
+    pub path_tools: Vec<PathTool>,
+}
+
+/// One helper the tool finds by name on its `PATH`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PathTool {
+    pub name: String,
+    pub binary: PathBuf,
+    /// Arguments the shim passes before the caller's, such as a dx subcommand.
+    pub args: Vec<String>,
 }
 
 pub type SpawnFn = fn(&[OsString], &Path, &[(OsString, OsString)]) -> io::Result<ChildOutput>;
@@ -185,8 +194,8 @@ fn launcher_env(tool_id: &str, binary: &Path) -> Vec<(OsString, OsString)> {
     Vec::new()
 }
 
-/// A `/bin/sh` shim that sets the launcher's env, then execs its absolute path.
-fn unix_shim(binary: &str, env: &[(String, String)]) -> String {
+/// A `/bin/sh` shim that sets the launcher's env, then execs its absolute path with `args` first.
+fn unix_shim(binary: &str, args: &[String], env: &[(String, String)]) -> String {
     use dx_process::shell::quote;
     let mut out = String::from("#!/bin/sh\n");
     for (key, value) in env {
@@ -194,12 +203,16 @@ fn unix_shim(binary: &str, env: &[(String, String)]) -> String {
     }
     // The child PATH is only the shim dir.
     out.push_str("unset PATH\n");
-    out.push_str(&format!("exec {} \"$@\"\n", quote(binary)));
+    out.push_str(&format!("exec {}", quote(binary)));
+    for arg in args {
+        out.push_str(&format!(" {}", quote(arg)));
+    }
+    out.push_str(" \"$@\"\n");
     out
 }
 
 /// A `.cmd` shim with CRLF endings. Characters `cmd.exe` would reinterpret are refused.
-fn windows_shim(binary: &str, env: &[(String, String)]) -> Result<String, String> {
+fn windows_shim(binary: &str, args: &[String], env: &[(String, String)]) -> Result<String, String> {
     let bad = |text: &str| {
         text.chars()
             .any(|c| matches!(c, '%' | '"' | '^' | '!' | '\n' | '\r'))
@@ -215,16 +228,24 @@ fn windows_shim(binary: &str, env: &[(String, String)]) -> Result<String, String
         return Err("unsafe character in launcher path".to_owned());
     }
     out.push_str("set \"PATH=\"\r\n");
-    out.push_str(&format!("\"{binary}\" %*\r\n"));
+    out.push_str(&format!("\"{binary}\""));
+    for arg in args {
+        // A space would split the argument; `bad` covers the rest of cmd.exe's syntax.
+        if bad(arg) || arg.is_empty() || arg.contains([' ', '\t']) {
+            return Err(format!("unsafe shim argument {arg:?}"));
+        }
+        out.push_str(&format!(" {arg}"));
+    }
+    out.push_str(" %*\r\n");
     Ok(out)
 }
 
 fn write_path_shim(
     dir: &Path,
-    name: &str,
-    binary: &Path,
+    tool: &PathTool,
     env: &[(OsString, OsString)],
 ) -> Result<(), String> {
+    let name = tool.name.as_str();
     let env: Vec<(String, String)> = env
         .iter()
         .map(|(key, value)| {
@@ -234,13 +255,14 @@ fn write_path_shim(
             )
         })
         .collect();
-    let binary = binary.to_string_lossy();
+    let binary = tool.binary.to_string_lossy();
     if cfg!(windows) {
-        let body = windows_shim(&binary, &env)?;
+        let body = windows_shim(&binary, &tool.args, &env)?;
         std::fs::write(dir.join(format!("{name}.cmd")), body).map_err(|err| err.to_string())
     } else {
         let path = dir.join(name);
-        std::fs::write(&path, unix_shim(&binary, &env)).map_err(|err| err.to_string())?;
+        std::fs::write(&path, unix_shim(&binary, &tool.args, &env))
+            .map_err(|err| err.to_string())?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -543,10 +565,10 @@ fn base_env(
         let dir = scratch.root().join(PATH_TOOLS_DIR_REL);
         std::fs::create_dir_all(&dir)
             .map_err(|err| execution(tool_id, format!("path tools dir: {err}")))?;
-        for (name, binary) in &tool.path_tools {
-            let shim_env = launcher_env(name, binary);
-            write_path_shim(&dir, name, binary, &shim_env)
-                .map_err(|err| execution(tool_id, format!("path tool {name}: {err}")))?;
+        for helper in &tool.path_tools {
+            let shim_env = launcher_env(&helper.name, &helper.binary);
+            write_path_shim(&dir, helper, &shim_env)
+                .map_err(|err| execution(tool_id, format!("path tool {}: {err}", helper.name)))?;
         }
         env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("PATH"));
         env.push((OsString::from("PATH"), dir.into_os_string()));
@@ -601,7 +623,7 @@ fn tool_specific_env(
         || tool
             .path_tools
             .iter()
-            .any(|(name, binary)| name == "bicep" && bicep_argv0 == Some(binary.as_path()));
+            .any(|helper| helper.name == "bicep" && bicep_argv0 == Some(helper.binary.as_path()));
     if runs_bicep {
         let home = scratch.root().join(BICEP_HOME_REL);
         std::fs::create_dir_all(&home)
@@ -1041,6 +1063,7 @@ mod tests {
     fn unix_shims_export_env_then_exec_the_quoted_launcher() {
         let body = super::unix_shim(
             "/w/it's/bin",
+            &[],
             &[("RUNFILES_MANIFEST_FILE".to_owned(), "/w/m".to_owned())],
         );
         assert_eq!(
@@ -1050,15 +1073,39 @@ mod tests {
     }
 
     #[test]
+    fn unix_shims_pass_quoted_leading_args_before_the_callers() {
+        let body = super::unix_shim("/w/dx", &["buf_diff".to_owned(), "a b".to_owned()], &[]);
+        assert_eq!(
+            body,
+            "#!/bin/sh\nunset PATH\nexec '/w/dx' 'buf_diff' 'a b' \"$@\"\n"
+        );
+    }
+
+    #[test]
     fn windows_shims_use_crlf_and_refuse_cmd_metacharacters() {
-        let body = super::windows_shim("C:\\t\\bin.bat", &[("K".to_owned(), "V".to_owned())])
+        let body = super::windows_shim("C:\\t\\bin.bat", &[], &[("K".to_owned(), "V".to_owned())])
             .expect("shim");
         assert_eq!(
             body,
             "@echo off\r\nset \"K=V\"\r\nset \"PATH=\"\r\n\"C:\\t\\bin.bat\" %*\r\n"
         );
         for bad in ["a%b", "a\"b", "a^b", "a!b", "a\nb"] {
-            assert!(super::windows_shim(bad, &[]).is_err(), "{bad}");
+            assert!(super::windows_shim(bad, &[], &[]).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn windows_shims_pass_leading_args_and_refuse_ones_cmd_would_split() {
+        let body = super::windows_shim("C:\\dx.exe", &["buf_diff".to_owned()], &[]).expect("shim");
+        assert_eq!(
+            body,
+            "@echo off\r\nset \"PATH=\"\r\n\"C:\\dx.exe\" buf_diff %*\r\n"
+        );
+        for bad in ["a b", "", "a%b", "a\tb"] {
+            assert!(
+                super::windows_shim("C:\\dx.exe", &[bad.to_owned()], &[]).is_err(),
+                "{bad:?}"
+            );
         }
     }
 
@@ -1070,18 +1117,24 @@ mod tests {
         let launcher = dir.path().join("fake");
         std::fs::write(&launcher, "#!/bin/sh\necho \"$1:$K\"\n").expect("write");
         std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755)).expect("mode");
-        super::write_path_shim(
-            dir.path(),
-            "rst2html",
-            &launcher,
-            &[(OsString::from("K"), OsString::from("v"))],
-        )
-        .expect("shim");
+        let helper = |name: &str, args: &[&str]| super::PathTool {
+            name: name.to_owned(),
+            binary: launcher.clone(),
+            args: args.iter().map(|arg| (*arg).to_owned()).collect(),
+        };
+        let env = [(OsString::from("K"), OsString::from("v"))];
+        super::write_path_shim(dir.path(), &helper("rst2html", &[]), &env).expect("shim");
         let out = std::process::Command::new(dir.path().join("rst2html"))
             .arg("arg")
             .output()
             .expect("run");
         assert_eq!(String::from_utf8_lossy(&out.stdout), "arg:v\n");
+        super::write_path_shim(dir.path(), &helper("diff", &["buf_diff"]), &env).expect("shim");
+        let out = std::process::Command::new(dir.path().join("diff"))
+            .arg("arg")
+            .output()
+            .expect("run");
+        assert_eq!(String::from_utf8_lossy(&out.stdout), "buf_diff:v\n");
     }
 
     #[cfg(unix)]
@@ -1092,7 +1145,12 @@ mod tests {
         let launcher = dir.path().join("fake");
         std::fs::write(&launcher, "#!/usr/bin/env sh\necho ok\n").expect("write");
         std::fs::set_permissions(&launcher, std::fs::Permissions::from_mode(0o755)).expect("mode");
-        super::write_path_shim(dir.path(), "tool", &launcher, &[]).expect("shim");
+        let helper = super::PathTool {
+            name: "tool".to_owned(),
+            binary: launcher,
+            args: Vec::new(),
+        };
+        super::write_path_shim(dir.path(), &helper, &[]).expect("shim");
         let body = std::fs::read_to_string(dir.path().join("tool")).expect("read");
         assert!(body.contains("unset PATH\n"), "{body}");
         let out = std::process::Command::new(dir.path().join("tool"))

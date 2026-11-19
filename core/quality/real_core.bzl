@@ -214,6 +214,13 @@ def _staged_line(f):
         return None
     return rel + "\t" + f.path
 
+def _path_tool(helper):
+    """Returns the request entry of a (name, file) or (name, file, leading args) path tool."""
+    entry = {"binary": helper[1].path, "name": helper[0]}
+    if len(helper) > 2:
+        entry["args"] = helper[2]
+    return entry
+
 def _staged_file_list(ctx, name, staged):
     """Writes one `rel<TAB>exec path` line per staged file without flattening the depsets."""
     out = ctx.actions.declare_file(name)
@@ -542,7 +549,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
             env = tool_env_entries.get(tool, []),
             upstream = [f.path for f in (found.upstream if found != None else [])],
             search_paths = [f.path for f in options.get("search_paths", [])],
-            path_tools = [{"binary": f.path, "name": name} for (name, f) in options.get("path_tools", [])],
+            path_tools = [_path_tool(helper) for helper in options.get("path_tools", [])],
         )
 
     doc = real_request_doc(

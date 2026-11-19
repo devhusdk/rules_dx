@@ -769,14 +769,18 @@ fn pkl_lsp_behavior(
 
 #[test]
 pub(super) fn pkl_lsp_maps_findings_and_needs_every_companion() {
-    let companions = vec![
-        ("java".to_owned(), PathBuf::from("/fake/jdk/bin/java")),
-        ("pkl-lsp.jar".to_owned(), PathBuf::from("/fake/pkl-lsp.jar")),
-        (
-            "pkl-lsp-natives.jar".to_owned(),
-            PathBuf::from("/fake/natives.jar"),
-        ),
-    ];
+    let companions: Vec<PathTool> = [
+        ("java", "/fake/jdk/bin/java"),
+        ("pkl-lsp.jar", "/fake/pkl-lsp.jar"),
+        ("pkl-lsp-natives.jar", "/fake/natives.jar"),
+    ]
+    .into_iter()
+    .map(|(name, binary)| PathTool {
+        name: name.to_owned(),
+        binary: PathBuf::from(binary),
+        args: Vec::new(),
+    })
+    .collect();
     let tool = RealTool {
         path_tools: companions.clone(),
         ..plain_tool()

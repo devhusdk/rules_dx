@@ -3,9 +3,9 @@
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("//avro/private:providers.bzl", "AvroInfo")
 load("//capnproto/private:providers.bzl", "CapnprotoInfo")
-load("//flatbuffers:defs.bzl", "FlatBuffersInfo")
 load("//core/quality:family_hooks.bzl", "upstream_files")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
+load("//flatbuffers:defs.bzl", "FlatBuffersInfo")
 load("//thrift:defs.bzl", "ThriftInfo")
 
 visibility(["//core/...", "//tools/..."])
@@ -48,7 +48,7 @@ TOOLS = {
 }
 
 _BUF_FORMAT_ATTRS = {
-    "_buf_diff": attr.label(default = "//core/quality/tools/diff", executable = True, cfg = "exec", doc = "The diff buf format runs from PATH."),
+    "_dx": attr.label(default = "@dx_prebuilt//:dx", executable = True, cfg = "exec", doc = "The dx whose buf_diff subcommand buf format runs as diff."),
 }
 
 SHARD_SPECS = {
@@ -149,12 +149,12 @@ def _closure_hook(tool):
     return _hook
 
 def _buf_format_context(ctx, capability):
-    """Returns the inputs and options that put the pinned diff on buf format's PATH."""
+    """Returns the inputs and options that put `dx buf_diff` on buf format's PATH as diff."""
     if capability != "format":
         return {}
     return {
-        "inputs": [ctx.executable._buf_diff],
-        "options": {"path_tools": [("diff", ctx.executable._buf_diff)]},
+        "inputs": [ctx.executable._dx],
+        "options": {"path_tools": [("diff", ctx.executable._dx, ["buf_diff"])]},
     }
 
 def _buf_hook(target, ctx, _resolved, capability, _what, _shared):

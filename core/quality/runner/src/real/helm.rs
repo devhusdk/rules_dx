@@ -168,8 +168,8 @@ fn kube_inputs(
     let binary = tool
         .path_tools
         .iter()
-        .find(|(name, _)| name == "kubeconform")
-        .map(|(_, binary)| binary.clone())
+        .find(|helper| helper.name == "kubeconform")
+        .map(|helper| helper.binary.clone())
         .ok_or_else(|| {
             execution(
                 tool_id,

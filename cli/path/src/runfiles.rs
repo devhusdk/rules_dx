@@ -34,6 +34,12 @@ pub fn manifest_for(binary: &Path) -> PathBuf {
     manifest_beside(binary).unwrap_or_else(|| with_suffix(binary, ".runfiles_manifest"))
 }
 
+/// Names the runfiles tree that sits beside one binary.
+#[must_use]
+pub fn runfiles_dir_beside(binary: &Path) -> Option<PathBuf> {
+    tree_beside(binary)
+}
+
 /// The runfiles of one binary, read with the upstream runfiles library.
 ///
 /// Only the files beside the binary are read, never `RUNFILES_MANIFEST_FILE`,
@@ -266,6 +272,26 @@ mod tests {
     fn a_suffixless_binary_keeps_its_name() {
         let missing = manifest_for(Path::new("/out/bin/prettier"));
         assert!(missing.ends_with("/out/bin/prettier.runfiles_manifest"));
+    }
+
+    #[test]
+    fn a_missing_tree_is_not_named() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-dir-missing-").unwrap();
+        assert_eq!(
+            runfiles_dir_beside(&scratch.path().join("rst2html.exe")),
+            None
+        );
+    }
+
+    #[test]
+    fn a_bat_launcher_finds_the_tree_without_its_suffix() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-dir-bat-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        write(&dir, "x.runfiles/_main/pkg/tool.txt", "from the tree\n");
+        assert_eq!(
+            runfiles_dir_beside(&dir.join("x.bat")),
+            Some(dir.join("x.runfiles"))
+        );
     }
 
     #[test]

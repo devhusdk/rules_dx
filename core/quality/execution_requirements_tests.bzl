@@ -151,8 +151,28 @@ def execution_requirements_unit_tests(name):
                 {},
             ),
             expect_equal(
-                "a vale lint stage with a converter stays local",
-                dx_stage_execution_requirements(["vale"], "lint", run_tools = ["converter"]),
+                "a vale lint stage with rst2html runs remotely",
+                dx_stage_execution_requirements(["vale"], "lint", run_tools = ["rst2html"]),
+                {},
+            ),
+            expect_equal(
+                "a vale lint stage with asciidoctor runs remotely",
+                dx_stage_execution_requirements(["vale"], "lint", run_tools = ["asciidoctor"]),
+                {},
+            ),
+            expect_equal(
+                "a vale lint stage with both converters runs remotely",
+                dx_stage_execution_requirements(["vale"], "lint", run_tools = ["asciidoctor", "rst2html"]),
+                {},
+            ),
+            expect_equal(
+                "a qualified launcher beside an unqualified one stays local",
+                dx_stage_execution_requirements(["vale"], "lint", run_tools = ["asciidoctor", "x"]),
+                {DX_NO_REMOTE_EXEC: "1"},
+            ),
+            expect_equal(
+                "a qualified launcher in an unqualified stage stays local",
+                dx_stage_execution_requirements(["ruff"], "lint", run_tools = ["rst2html"]),
                 {DX_NO_REMOTE_EXEC: "1"},
             ),
             expect_equal(

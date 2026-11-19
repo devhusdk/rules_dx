@@ -137,26 +137,28 @@ fn absolute_argv(argv: &[OsString]) -> Vec<OsString> {
     out
 }
 
-/// The runfiles manifest that sits beside a tool.
+/// The runfiles env that names a tool's own runfiles.
 ///
 /// A launcher that guesses its own manifest can land on an unrelated runfiles tree, so
-/// name the file that describes this tool. Which of the two names Bazel wrote depends on
+/// name the manifest that describes this tool. Which of the two names Bazel wrote depends on
 /// whether the executable carries a suffix, so take whichever one is there.
 ///
-/// `RUNFILES_DIR` is never rewritten: pointing it at the runner's own tree would break
-/// every tool whose runfiles the runner does not carry.
-fn own_runfiles_manifest(binary: &Path) -> Vec<(OsString, OsString)> {
+/// Without a manifest, a tree beside the tool is named in `RUNFILES_DIR`. A tool with
+/// neither keeps the manifest name it asked for.
+fn own_runfiles_env(binary: &Path) -> Vec<(OsString, OsString)> {
     let path = if binary.is_absolute() {
         binary.to_owned()
     } else {
         std::env::current_dir().unwrap_or_default().join(binary)
     };
+    if dx_path::manifest_beside(&path).is_none()
+        && let Some(tree) = dx_path::runfiles_dir_beside(&path)
+    {
+        return vec![(OsString::from("RUNFILES_DIR"), tree.into_os_string())];
+    }
     vec![(
         OsString::from("RUNFILES_MANIFEST_FILE"),
-        dx_path::manifest_for(&path)
-            .to_string_lossy()
-            .into_owned()
-            .into(),
+        dx_path::manifest_for(&path).into_os_string(),
     )]
 }
 
@@ -186,7 +188,7 @@ fn javascript_manifest(binary: &Path) -> Option<(OsString, OsString)> {
 /// The runfiles env one launcher needs, keyed by the tool the launcher belongs to.
 fn launcher_env(tool_id: &str, binary: &Path) -> Vec<(OsString, OsString)> {
     if reads_own_manifest(tool_id) {
-        return own_runfiles_manifest(binary);
+        return own_runfiles_env(binary);
     }
     if launch::policy_for(tool_id) == launch::RunfilesPolicy::OwnManifest {
         return javascript_manifest(binary).into_iter().collect();
@@ -870,8 +872,8 @@ mod real_weeder;
 #[cfg(test)]
 mod tests {
     use super::{
-        ALWAYS_OWN_MANIFEST, REAL_TOOLS, absolute_argv, javascript_manifest, own_runfiles_manifest,
-        parsed, reads_own_manifest, resolves_launcher, spawn_argv,
+        ALWAYS_OWN_MANIFEST, REAL_TOOLS, absolute_argv, javascript_manifest, launcher_env,
+        own_runfiles_env, parsed, reads_own_manifest, resolves_launcher, spawn_argv,
     };
     use crate::RunnerError;
     use quality_adapter::launch::{RunfilesPolicy, policy_for};
@@ -1007,7 +1009,7 @@ mod tests {
     fn the_manifest_sits_beside_the_binary() {
         let scratch = dx_test_scratch::scratch("real-out").unwrap();
         let binary = out(&scratch).join("bin").join("pydoclint");
-        let env = own_runfiles_manifest(&binary);
+        let env = own_runfiles_env(&binary);
         assert_eq!(
             env,
             vec![(
@@ -1023,7 +1025,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("real-out").unwrap();
         for name in ["prettier_/prettier.bat", "prettier.exe"] {
             let binary = out(&scratch).join("bin").join(name);
-            let env = own_runfiles_manifest(&binary);
+            let env = own_runfiles_env(&binary);
             assert_eq!(
                 env,
                 vec![(
@@ -1034,6 +1036,38 @@ mod tests {
         }
     }
 
+    /// A remote action stages the runfiles tree but no manifest.
+    #[test]
+    fn a_launcher_without_a_manifest_gets_its_runfiles_tree() {
+        let scratch = dx_test_scratch::scratch("real-out").unwrap();
+        let binary = out(&scratch).join("bin").join("rst2html");
+        let tree = out(&scratch).join("bin").join("rst2html.runfiles");
+        std::fs::create_dir_all(tree.join("_main")).expect("runfiles tree");
+        let env = launcher_env("rst2html", &binary);
+        assert_eq!(
+            env,
+            vec![(OsString::from("RUNFILES_DIR"), tree.into_os_string())]
+        );
+    }
+
+    /// A manifest beside the launcher wins over its tree.
+    #[test]
+    fn a_manifest_wins_over_the_tree() {
+        let scratch = dx_test_scratch::scratch("real-out").unwrap();
+        let binary = out(&scratch).join("bin").join("rst2html");
+        std::fs::create_dir_all(out(&scratch).join("bin").join("rst2html.runfiles"))
+            .expect("runfiles tree");
+        let manifest = format!("{}.runfiles_manifest", binary.display());
+        std::fs::write(&manifest, "").expect("wrote manifest");
+        assert_eq!(
+            launcher_env("rst2html", &binary),
+            vec![(
+                OsString::from("RUNFILES_MANIFEST_FILE"),
+                OsString::from(manifest)
+            )]
+        );
+    }
+
     /// A suffix Bazel dropped from the executable still names the manifest.
     #[test]
     fn a_manifest_named_without_the_suffix_is_taken_when_it_exists() {
@@ -1042,7 +1076,7 @@ mod tests {
         let named = format!("{}.runfiles_manifest", bare.display());
         std::fs::write(&named, "").expect("wrote manifest");
         assert_eq!(
-            own_runfiles_manifest(&dir.path().join("prettier.bat")),
+            own_runfiles_env(&dir.path().join("prettier.bat")),
             vec![(
                 OsString::from("RUNFILES_MANIFEST_FILE"),
                 OsString::from(named)

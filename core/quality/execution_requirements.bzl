@@ -26,8 +26,8 @@ SHFMT_FORMAT_REMOTE = _qualified("shfmt", "format")
 # binary built for the exec platform (cfg = "exec"), the staged sources and configs,
 # and the runner's hermetic env (no HOME, no host PATH, no network). A stage runs
 # remotely only when every tool in it is listed here, see dx_stage_execution_requirements.
-# PATH helpers a tool spawns must be pinned files; a stage that runs runfiles
-# launchers stays local.
+# PATH helpers a tool spawns must be pinned files; a stage that runs a runfiles
+# launcher not in REMOTE_QUALIFIED_LAUNCHERS stays local.
 REMOTE_QUALIFIED = [
     SHFMT_FORMAT_REMOTE,
     _qualified("actionlint", "lint"),
@@ -103,13 +103,28 @@ def dx_is_remote_qualified(tool, capability):
             return remote_record_error(record) == ""
     return False
 
-def dx_stage_execution_requirements(stage_tools, capability, run_tools = []):
-    """Returns remote-capable requirements only when every stage is qualified and no runfiles launcher runs."""
+# Runfiles launchers a remote stage may run. The runner hands each one its own
+# staged runfiles tree.
+REMOTE_QUALIFIED_LAUNCHERS = [
+    # js_binary: reads `<binary>.runfiles` or the manifest beside it.
+    "asciidoctor",
+    # py_binary: the runner sets RUNFILES_DIR when no manifest is staged.
+    "rst2html",
+]
 
-    # Runfiles launchers stay local: the runner hands them RUNFILES_MANIFEST_FILE,
-    # which a remote executor does not stage.
-    if len(stage_tools) == 0 or len(run_tools) > 0:
+def dx_stage_execution_requirements(stage_tools, capability, run_tools = []):
+    """Returns remote-capable requirements only when every stage and every runfiles launcher is qualified.
+
+    Args:
+      stage_tools: tool ids the stage runs.
+      capability: "format" or "lint".
+      run_tools: names of the runfiles launchers the stage puts on PATH.
+    """
+    if len(stage_tools) == 0:
         return {DX_NO_REMOTE_EXEC: "1"}
+    for name in run_tools:
+        if name not in REMOTE_QUALIFIED_LAUNCHERS:
+            return {DX_NO_REMOTE_EXEC: "1"}
     for tool in stage_tools:
         if not dx_is_remote_qualified(tool, capability):
             return {DX_NO_REMOTE_EXEC: "1"}

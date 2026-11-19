@@ -264,7 +264,9 @@ pub fn asset(root: &Path, logical: &str) -> Result<PathBuf, String> {
     let (stem, ext) = name.split_once('.').unwrap_or((name, ""));
     let dir = root.join(dir);
     let mut found: Vec<PathBuf> = Vec::new();
-    for entry in fs::read_dir(&dir).map_err(|_| format!("rendered site has no {logical}"))? {
+    for entry in
+        fs::read_dir(&dir).map_err(|error| format!("rendered site has no {logical}: {error}"))?
+    {
         let Ok(entry) = entry else { continue };
         let file = entry.file_name().to_string_lossy().into_owned();
         let hashed = file

@@ -1,6 +1,11 @@
 //! Assembles one mdBook source tree and runs the pinned mdBook build.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -330,9 +335,12 @@ pub fn api_pages(tree: &Path) -> Result<Vec<Page>, String> {
                 pending.push(path);
                 continue;
             }
-            let rel = path
-                .strip_prefix(tree)
-                .map_err(|_| format!("docs_site: '{}' is outside the API tree", path.display()))?;
+            let rel = path.strip_prefix(tree).map_err(|error| {
+                format!(
+                    "docs_site: '{}' is outside the API tree: {error}",
+                    path.display()
+                )
+            })?;
             pages.push(Page {
                 route: format!("api/{}", rel.to_string_lossy().replace('\\', "/")),
                 path: path.to_string_lossy().into_owned(),

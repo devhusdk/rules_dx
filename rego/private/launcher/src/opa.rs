@@ -161,7 +161,8 @@ pub fn run(
 pub fn run_from_env() -> io::Result<u8> {
     let argv: Vec<String> = std::env::args().collect();
     let exe = argv.first().ok_or_else(|| bad("no argv[0]"))?;
-    let key = std::env::var(MANIFEST_ENV).map_err(|_| bad(format!("missing {MANIFEST_ENV}")))?;
+    let key = std::env::var(MANIFEST_ENV)
+        .map_err(|error| bad(format!("missing {MANIFEST_ENV}: {error}")))?;
     let test_only = std::env::var("TESTBRIDGE_TEST_ONLY").ok();
     let mut temporary = None;
     let scratch = match std::env::var_os("TEST_TMPDIR") {

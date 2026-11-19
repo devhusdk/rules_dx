@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use super::*;
 
 #[test]
@@ -152,4 +150,35 @@ fn quality_languages_by_name() -> usize {
         .iter()
         .filter(|manifest| manifest.quality.is_some())
         .count()
+}
+
+#[test]
+fn every_command_is_a_rules_dx_label() {
+    let all: Vec<&str> = commands()
+        .values()
+        .flat_map(|table| table.values().map(String::as_str))
+        .chain(COMMAND_TARGETS.iter().copied())
+        .collect();
+    assert!(all.len() > COMMAND_TARGETS.len(), "{all:?}");
+    for label in all {
+        assert!(label.starts_with("@rules_dx//"), "{label}");
+    }
+}
+
+#[test]
+fn command_looks_up_a_tool_of_a_language() {
+    assert_eq!(command("go", "go"), Some("@rules_dx//go/private/tools:go"));
+    assert_eq!(command("go", "mix"), None);
+    assert_eq!(command("nope", "go"), None);
+    assert_eq!(
+        language_commands("elixir"),
+        ["@rules_dx//elixir/private/tools:mix"]
+    );
+    assert!(language_commands("rust").is_empty());
+}
+
+#[test]
+fn repo_relative_drops_the_rules_dx_repo() {
+    assert_eq!(repo_relative(GENERATE), "dx:generate");
+    assert_eq!(repo_relative(DX), ":dx");
 }

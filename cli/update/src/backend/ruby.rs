@@ -1,18 +1,17 @@
+use super::resolver::resolver;
 use super::{BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Selection, UvClosure, bazel};
-
-const RESOLVER: &str = "@rules_dx//ruby/private/tools/lock";
 
 fn resolver_argv(
     workspace: &Path,
     set: &ResolvedSet,
     head: &dx_process::BazelHead,
     tail: &[&str],
-) -> Vec<String> {
+) -> Result<Vec<String>, BackendError> {
     let dir = workspace.join(&set.dir);
     let dir = dir.to_string_lossy();
-    let mut args = vec![RESOLVER, "--", "--dir", &dir];
+    let mut args = vec![resolver(set)?, "--", "--dir", &dir];
     args.extend_from_slice(tail);
-    bazel(head, "run", &args)
+    Ok(bazel(head, "run", &args))
 }
 
 pub(super) fn plan(
@@ -42,7 +41,7 @@ pub(super) fn plan(
             .collect(),
     };
     Ok(BackendPlan::Run {
-        argv: resolver_argv(workspace, set, head, &tail),
+        argv: resolver_argv(workspace, set, head, &tail)?,
         env: Vec::new(),
     })
 }
@@ -63,7 +62,7 @@ pub(super) fn check(
                 });
             }
             Ok(CheckPlan::Run {
-                argv: resolver_argv(workspace, set, head, &["--check"]),
+                argv: resolver_argv(workspace, set, head, &["--check"])?,
                 env: Vec::new(),
             })
         }

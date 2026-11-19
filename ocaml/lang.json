@@ -30,6 +30,9 @@
       }
     ]
   },
+  "commands": {
+    "opam": "@rules_dx//ocaml/private/tools:opam"
+  },
   "tools": [
     "topiary",
     "zanuda"

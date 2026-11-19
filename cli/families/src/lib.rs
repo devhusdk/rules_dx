@@ -2,7 +2,7 @@
 
 //! The quality and docs aspect files and the dependency hubs of the `<lang>/lang.json` manifests.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
 use serde::Deserialize;
@@ -17,9 +17,9 @@ pub struct QualityFiles {
     /// Exact file names, like `CMakeLists.txt`.
     pub file_names: Vec<String>,
     /// Aspect names defined in `bzl`, by command.
-    pub aspects: std::collections::BTreeMap<String, Vec<String>>,
+    pub aspects: BTreeMap<String, Vec<String>>,
     /// Probe aspect names defined in `bzl`, by command.
-    pub probes: std::collections::BTreeMap<String, Vec<String>>,
+    pub probes: BTreeMap<String, Vec<String>>,
 }
 
 impl QualityFiles {
@@ -146,9 +146,63 @@ fn shipped() -> Vec<Manifest> {
 struct Manifest {
     #[serde(default)]
     name: String,
+    #[serde(default)]
+    commands: BTreeMap<String, String>,
     quality: Option<QualityFiles>,
     docs: Option<DocsFiles>,
     setup: Option<Setup>,
+}
+
+/// The `rules_dx` target `dx generate` runs.
+pub const GENERATE: &str = "@rules_dx//dx:generate";
+/// The `rules_dx` target `dx generate --check` runs.
+pub const GENERATE_CHECK: &str = "@rules_dx//dx:generate_check";
+/// The `rules_dx` target `dx security verify` runs.
+pub const COSIGN: &str = "@rules_dx//deploy/private/release:cosign";
+/// The `rules_dx` target `dx audit` runs for secrets.
+pub const GITLEAKS: &str = "@rules_dx//core/quality/artifacts:gitleaks";
+/// The `rules_dx` target `dx audit` runs for images.
+pub const TRIVY: &str = "@rules_dx//core/quality/artifacts:trivy";
+/// The `rules_dx` target `dx upgrade` runs.
+pub const DX: &str = "@rules_dx//:dx";
+
+/// The `rules_dx` targets dx commands run for every language.
+pub const COMMAND_TARGETS: &[&str] = &[GENERATE, GENERATE_CHECK, COSIGN, GITLEAKS, TRIVY, DX];
+
+fn commands() -> &'static BTreeMap<String, BTreeMap<String, String>> {
+    static ALL: OnceLock<BTreeMap<String, BTreeMap<String, String>>> = OnceLock::new();
+    ALL.get_or_init(|| {
+        shipped()
+            .into_iter()
+            .filter(|manifest| !manifest.commands.is_empty())
+            .map(|manifest| (manifest.name, manifest.commands))
+            .collect()
+    })
+}
+
+/// The `commands` label `lang.json` of `lang` names for `tool`.
+#[must_use]
+pub fn command(lang: &str, tool: &str) -> Option<&'static str> {
+    commands()
+        .get(lang)
+        .and_then(|table| table.get(tool))
+        .map(String::as_str)
+}
+
+/// The `commands` labels of `lang`, sorted by tool name.
+#[must_use]
+pub fn language_commands(lang: &str) -> Vec<&'static str> {
+    commands()
+        .get(lang)
+        .into_iter()
+        .flat_map(|table| table.values().map(String::as_str))
+        .collect()
+}
+
+/// `label` after `@rules_dx//`, like `dx:generate`.
+#[must_use]
+pub fn repo_relative(label: &str) -> &str {
+    label.strip_prefix("@rules_dx//").unwrap_or(label)
 }
 
 /// The `setup.hubs` entries of every `lang.json`, sorted by ecosystem.
@@ -245,7 +299,7 @@ fn parse_manifests(texts: &[&str]) -> Result<Vec<Manifest>, serde_json::Error> {
 }
 
 fn merge_quality(manifests: Vec<Manifest>) -> Vec<QualityFiles> {
-    let mut merged: std::collections::BTreeMap<String, QualityFiles> = Default::default();
+    let mut merged: BTreeMap<String, QualityFiles> = Default::default();
     for manifest in manifests {
         if let Some(quality) = manifest.quality {
             let entry = merged.entry(quality.bzl.clone()).or_default();
@@ -281,7 +335,7 @@ pub fn parse_docs(texts: &[&str]) -> Result<Vec<DocsFiles>, serde_json::Error> {
 }
 
 fn merge_docs(manifests: Vec<Manifest>) -> Vec<DocsFiles> {
-    let mut merged: std::collections::BTreeMap<String, DocsFiles> = Default::default();
+    let mut merged: BTreeMap<String, DocsFiles> = Default::default();
     for manifest in manifests {
         if let Some(docs) = manifest.docs {
             let entry = merged.entry(docs.bzl.clone()).or_default();

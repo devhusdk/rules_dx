@@ -121,7 +121,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
     let mut tags = String::new();
     let mut roots = vec!["//...".to_owned()];
-    roots.extend(command_roots("@rules_dx"));
+    roots.extend(command_roots("@rules_dx", &langs));
     for (tool, platform) in &tools {
         if list.untagged.contains(tool) {
             continue;
@@ -195,11 +195,11 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         &query,
     ]);
     assert!(run.status.success(), "bazel cquery: {}", run.combined());
-    for label in [
-        "@@//dx_prebuilt_guard:check",
-        "@@//dx_prebuilt_guard:docs",
-        "@@rules_dx+//dx:generate",
-    ] {
+    let command_labels: Vec<String> = command_roots("@@rules_dx+", &langs);
+    for label in ["@@//dx_prebuilt_guard:check", "@@//dx_prebuilt_guard:docs"]
+        .into_iter()
+        .chain(command_labels.iter().map(String::as_str))
+    {
         assert!(
             run.stdout
                 .lines()

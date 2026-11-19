@@ -64,7 +64,10 @@ rust_library(
     srcs = ["prebuilt_guard.rs"],
     crate_name = "prebuilt_guard",
     crate_root = "prebuilt_guard.rs",
-    deps = ["//cli/plan:dx_plan"],
+    deps = [
+        "//cli/families:dx_families",
+        "//cli/plan:dx_plan",
+    ],
 )
 
 rust_test(

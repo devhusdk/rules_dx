@@ -921,6 +921,9 @@ LANGS = json.decode("""{
     ]
   },
   "dart": {
+    "commands": {
+      "dart": "@rules_dx//dart/private/tools:dart"
+    },
     "depcheck": "dart",
     "docs": {
       "aspects": [
@@ -1155,6 +1158,9 @@ LANGS = json.decode("""{
     "tools": []
   },
   "elixir": {
+    "commands": {
+      "mix": "@rules_dx//elixir/private/tools:mix"
+    },
     "depcheck": "elixir",
     "docs": {
       "aspects": [
@@ -1238,6 +1244,9 @@ LANGS = json.decode("""{
     ]
   },
   "erlang": {
+    "commands": {
+      "rebar3": "@rules_dx//erlang/private/tools:rebar3"
+    },
     "depcheck": "erlang",
     "docs": {
       "aspects": [
@@ -1556,6 +1565,9 @@ LANGS = json.decode("""{
     ]
   },
   "go": {
+    "commands": {
+      "go": "@rules_dx//go/private/tools:go"
+    },
     "depcheck": "go",
     "docs": {
       "aspects": [
@@ -2046,6 +2058,9 @@ LANGS = json.decode("""{
     ]
   },
   "julia": {
+    "commands": {
+      "pkg_update": "@rules_dx//julia/private/tools:pkg_update"
+    },
     "depcheck": "julia",
     "docs": {
       "aspects": [
@@ -2518,6 +2533,9 @@ LANGS = json.decode("""{
     }
   },
   "ocaml": {
+    "commands": {
+      "opam": "@rules_dx//ocaml/private/tools:opam"
+    },
     "depcheck": "ocaml",
     "docs": {
       "aspects": [
@@ -2630,6 +2648,9 @@ LANGS = json.decode("""{
     }
   },
   "perl": {
+    "commands": {
+      "carton": "@rules_dx//perl/private/tools:carton"
+    },
     "depcheck": "perl",
     "docs": {
       "aspects": [
@@ -2718,6 +2739,9 @@ LANGS = json.decode("""{
     }
   },
   "php": {
+    "commands": {
+      "composer": "@rules_dx//php/private/tools:composer"
+    },
     "depcheck": "php",
     "docs": {
       "aspects": [
@@ -2902,6 +2926,9 @@ LANGS = json.decode("""{
     ]
   },
   "python": {
+    "commands": {
+      "python_interpreter": "@rules_dx//cli/update:python_interpreter"
+    },
     "depcheck": "python",
     "docs": {
       "aspects": [
@@ -3519,6 +3546,9 @@ LANGS = json.decode("""{
     ]
   },
   "swift": {
+    "commands": {
+      "swift": "@rules_dx//swift/private/tools:swift"
+    },
     "depcheck": "swift",
     "docs": {
       "aspects": [

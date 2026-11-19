@@ -32,6 +32,9 @@
       }
     ]
   },
+  "commands": {
+    "python_interpreter": "@rules_dx//cli/update:python_interpreter"
+  },
   "tools": [
     "pydoclint",
     "ruff",

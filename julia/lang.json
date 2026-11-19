@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": {
+    "pkg_update": "@rules_dx//julia/private/tools:pkg_update"
+  },
   "tools": [
     "julia_format",
     "julialint"

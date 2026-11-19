@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": {
+    "swift": "@rules_dx//swift/private/tools:swift"
+  },
   "tools": [
     "swift_format",
     "swift_lint"

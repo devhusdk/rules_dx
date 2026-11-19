@@ -1,9 +1,8 @@
+use super::resolver::resolver;
 use super::{
     BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Run, Selection, UvClosure, bazel,
     opam_argv, opam_env,
 };
-
-const RESOLVER: &str = "@rules_dx//ocaml/private/tools/lock";
 
 pub(super) fn plan(
     workspace: &Path,
@@ -49,7 +48,7 @@ pub(super) fn plan(
                         head,
                         "run",
                         &[
-                            RESOLVER,
+                            resolver(set)?,
                             "--",
                             "--dir",
                             &workspace.join(&set.dir).to_string_lossy(),

@@ -14,6 +14,9 @@
   "lockfiles": [
     "mix.lock"
   ],
+  "commands": {
+    "rebar3": "@rules_dx//erlang/private/tools:rebar3"
+  },
   "tools": [
     "dialyzer",
     "elvis",

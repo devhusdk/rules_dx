@@ -115,12 +115,13 @@ examples/   tested examples
 
 `<lang>/lang.json` is the single description of a language.
 
-- Its fields are `name`, `title`, `family`, `ecosystems`, `manifests`, `lockfiles`, `tools`, `platforms`, `pins`, `entry_points` and `setup`.
+- Its fields are `name`, `title`, `family`, `ecosystems`, `manifests`, `lockfiles`, `tools`, `platforms`, `pins`, `entry_points`, `commands` and `setup`.
 - A test validates every manifest against one shared schema.
 - It drives quality registration, the dx ecosystem registry, `dx init`, the support matrix and the per-language docs.
 - Its `quality` entry names the aspect file, aspects and probes. dx loads the file when the workspace has a file with an extension in `file_extensions` or a name in `file_names` alone or before a dot.
 - `quality.classes` lists the file classes of its quality taxonomy row, keyed by `quality.family` or else by `name`.
-- `cli/families/languages.json` is generated from the `quality` and `docs` entries and read by the dx plan registry.
+- Its `commands` entry maps a tool name to the `@rules_dx` label a dx command runs for the language.
+- `cli/families/languages.json` is generated from the `quality`, `docs`, `setup` and `commands` entries and read by the dx plan registry.
 
 ## Tool pins
 

@@ -19,19 +19,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-/// The date advisory freshness and exception windows are judged against, pinned by `DX_AUDIT_TODAY`.
-pub const AUDIT_TODAY_ENV: &str = "DX_AUDIT_TODAY";
-
-pub(super) fn today_utc(pinned: Option<&str>) -> String {
-    today_utc_from(pinned.map(str::to_owned))
-}
-
-/// Returns the audit date, preferring a pinned `YYYY-MM-DD` and ignoring anything else.
-fn today_utc_from(pinned: Option<String>) -> String {
-    pinned
-        .filter(|date| date.len() == 10 && date.bytes().all(|b| b.is_ascii_digit() || b == b'-'))
-        .unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%d").to_string())
-}
+use dx_exec_core::audit_policy::{PolicyError, audit_tier, read_policy_text};
 
 #[cfg(test)]
 #[path = "audit_tests.rs"]
@@ -99,6 +87,16 @@ pub(crate) enum AuditError {
     OfflineRequired { set: String, detail: String },
     #[error(transparent)]
     Hub(#[from] dx_adopt::AdoptError),
+}
+
+impl From<PolicyError> for AuditError {
+    fn from(error: PolicyError) -> Self {
+        match error {
+            PolicyError::Read { rel, error } => AuditError::Read { rel, error },
+            PolicyError::NotUtf8 { rel } => AuditError::NotUtf8 { rel },
+            PolicyError::SecurityInvalid(problem) => AuditError::SecurityInvalid(problem),
+        }
+    }
 }
 
 impl AuditError {
@@ -231,18 +229,9 @@ fn resolve_configured_audit_sets(
 }
 
 fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, AuditError> {
-    match dx_path::workspace::resolve_in_workspace(workspace, rel).and_then(std::fs::read) {
-        Err(error) => Err(AuditError::Read {
-            rel: rel.to_owned(),
-            error,
-        }),
-        Ok(bytes) => match String::from_utf8(bytes) {
-            Err(_) => Err(AuditError::NotUtf8 {
-                rel: rel.to_owned(),
-            }),
-            Ok(text) => Ok(text),
-        },
-    }
+    Ok(dx_exec_core::audit_policy::read_workspace_text(
+        workspace, rel,
+    )?)
 }
 
 fn load_advisories(
@@ -723,24 +712,6 @@ fn package_ref(
     })
 }
 
-/// The tier from the dx.toml `tier`; standard without one.
-fn audit_tier(workspace: &Path) -> Result<dx_audit::tier_base::Tier, DxError> {
-    match dx_config::load(workspace) {
-        Ok(config) => Ok(config.and_then(|config| config.tier).unwrap_or_default()),
-        Err(problem) => Err(DxError::failure(format!("dx.toml: {problem}"))),
-    }
-}
-
-/// The text of `rel`, or `None` when the file does not exist.
-fn read_policy_text(workspace: &Path, rel: &str) -> Result<Option<String>, AuditError> {
-    match read_workspace_text(workspace, rel) {
-        Err(AuditError::Read { error, .. }) if error.kind() == std::io::ErrorKind::NotFound => {
-            Ok(None)
-        }
-        other => other.map(Some),
-    }
-}
-
 fn load_license_policy(
     workspace: &Path,
 ) -> Result<dx_audit::license_policy::LicensePolicy, AuditError> {
@@ -753,19 +724,6 @@ fn load_license_policy(
     })?;
     let text = read_policy_text(workspace, "license.toml")?;
     load_licenses(text.as_deref(), tier).map_err(invalid)
-}
-
-pub(super) fn load_security_policy(
-    workspace: &Path,
-) -> Result<dx_audit::exception::SecurityPolicy, AuditError> {
-    use dx_audit::exception::{SecurityProblem, load_security};
-    let tier = audit_tier(workspace).map_err(|error| {
-        AuditError::SecurityInvalid(SecurityProblem::InvalidToml {
-            message: error.message().to_owned(),
-        })
-    })?;
-    let text = read_policy_text(workspace, "security.toml")?;
-    load_security(text.as_deref(), tier).map_err(AuditError::SecurityInvalid)
 }
 
 fn tier_for_roots(
@@ -1577,7 +1535,9 @@ fn run_security(inputs: &SecurityInputs<'_>) -> SecurityResult {
     } = *inputs;
     let bazel = inputs.bazel();
     let (secret_findings, secrets_incomplete, diagnostics) = inputs.secrets(&bazel);
-    let policy = match load_security_policy(workspace) {
+    let policy = match dx_exec_core::audit_policy::load_security_policy(workspace)
+        .map_err(AuditError::from)
+    {
         Ok(policy) => policy,
         Err(error) => return policy_failure(&error, diagnostics),
     };
@@ -2304,7 +2264,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
         return exit;
     }
-    let today = today_utc(audit_today);
+    let today = dx_exec_core::audit_policy::today_utc(audit_today);
     let inputs = AuditInputs {
         workspace,
         runner,

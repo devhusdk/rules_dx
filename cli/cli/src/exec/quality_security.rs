@@ -17,7 +17,7 @@ pub(super) fn drop_excepted_findings(
     {
         return;
     }
-    let policy = match super::audit::load_security_policy(workspace) {
+    let policy = match dx_exec_core::audit_policy::load_security_policy(workspace) {
         Ok(policy) => policy,
         Err(error) => {
             status.push(DiagnosticEvent {
@@ -27,7 +27,7 @@ pub(super) fn drop_excepted_findings(
             return;
         }
     };
-    let today = super::audit::today_utc(audit_today);
+    let today = dx_exec_core::audit_policy::today_utc(audit_today);
     let live: Vec<_> = TOOLS
         .iter()
         .map(|tool| dx_audit::exception::live_exceptions_for_set(&policy, tool, &today))

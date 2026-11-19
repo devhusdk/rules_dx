@@ -9,6 +9,7 @@ name = "dx_exec_core"
 path = "src/lib.rs"
 
 [dependencies]
+chrono = "0.4"
 serde_json = "1"
 thiserror = "2"
 

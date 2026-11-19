@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream, #14057)
+Upstream: aran/rules_flutter@b12fd3fbfb130bb1b90ba03c790f3a8ce101363f
 diff -u a/flutter/BUILD.bazel b/flutter/BUILD.bazel
 --- a/flutter/BUILD.bazel
 +++ b/flutter/BUILD.bazel

@@ -36,6 +36,14 @@ class HeaderTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             upstream.refs("https://github.com/a/b/pull/1")
 
+    def test_commit_ref_needs_full_lowercase_sha(self):
+        sha = "b12fd3fbfb130bb1b90ba03c790f3a8ce101363f"
+        self.assertEqual(upstream.refs("a/b@%s, c/d#2" % sha), [("a/b", sha), ("c/d", 2)])
+        with self.assertRaises(ValueError):
+            upstream.refs("a/b@b12fd3f")
+        with self.assertRaises(ValueError):
+            upstream.refs("a/b@" + sha.upper())
+
 
     def test_carry_headers(self):
         text = "# Upstream: a/b#1\n    #Upstream:  c/d#2 \n# Upstream prebuilt on linux\nUpstream: e/f#3\n"
@@ -74,6 +82,11 @@ class ReportTest(unittest.TestCase):
             "/repos/t/r/releases?per_page=20": [],
             "/repos/t/r/tags?per_page=20": [{"name": "0.1"}],
             "/repos/t/r/compare/0.1...def": {"status": "ahead"},
+            # A commit pushed without a pull request, released in v2.
+            "/repos/o/r/commits/" + "1" * 40: {"commit": {"committer": {"date": "2026-02-01T00:00:00Z"}}},
+            "/repos/o/r/compare/v2..." + "1" * 40: {"status": "behind"},
+            # A commit no release has yet.
+            "/repos/o/r/commits/" + "2" * 40: {"commit": {"committer": {"date": "2026-04-01T00:00:00Z"}}},
         })
         with tempfile.TemporaryDirectory() as tmp:
             root = os.path.join(tmp, "patches")
@@ -84,11 +97,22 @@ class ReportTest(unittest.TestCase):
             _write(root, "m/local.patch", "Upstream: none (rules_dx only)\n--- a/x\n")
             _write(root, "m/fixed.patch", "Upstream: fixed upstream in v0.9.0\n--- a/x\n")
             _write(root, "m/missing.patch", "--- a/x\n")
+            _write(root, "m/commit.patch", "Upstream: o/r@%s\n--- a/x\n" % ("1" * 40))
+            _write(root, "m/unreleased.patch", "Upstream: o/r@%s\n--- a/x\n" % ("2" * 40))
+            _write(root, "m/unknown.patch", "Upstream: o/r@%s\n--- a/x\n" % ("3" * 40))
             text = upstream.report(api, root)
         self.assertIn("`patches/m/released.patch`: [o/r#1](https://github.com/o/r/pull/1) is in v2", text)
         self.assertIn("`patches/m/landed.patch`: [o/r#5](https://github.com/o/r/pull/5) is in v2", text)
         self.assertIn("`patches/m/fixed.patch`: fixed in v0.9.0", text)
-        self.assertNotIn("Unreadable", text)
+        self.assertIn(
+            "`patches/m/commit.patch`: [o/r@1111111](https://github.com/o/r/commit/%s) is in v2" % ("1" * 40),
+            text,
+        )
+        self.assertNotIn("unreleased.patch", text)
+        self.assertIn(
+            "## Unreadable `Upstream:` header\n\n- `patches/m/unknown.patch`: o/r@%s does not exist" % ("3" * 40),
+            text,
+        )
         self.assertIn("## Upstream ref closed without a merge", text)
         self.assertIn("`patches/m/closed.patch`", text)
         self.assertIn("## No `Upstream:` header\n\n- `patches/m/missing.patch`", text)

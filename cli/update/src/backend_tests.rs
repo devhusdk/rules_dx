@@ -1557,78 +1557,81 @@ fn configured_bazel_selective_points_at_update() {
     }
 }
 
-fn pinned_sets() -> Vec<(ResolvedSet, &'static str)> {
-    vec![(
-        ResolvedSet {
-            name: "bicep".to_owned(),
-            ecosystem: Ecosystem::Bicep,
-            dir: "infra".to_owned(),
-            manifests: vec!["infra/*.bicep".to_owned()],
-            locks: vec!["infra/bicep.lock.json".to_owned()],
-            repository: None,
-        },
-        "br/public:avm/res/storage/storage-account",
-    )]
-}
-
-#[test]
-fn configured_pinned_sets_never_run_and_check_as_pinned_under_every_flag() {
-    for (set, _) in pinned_sets() {
-        for offline in [false, true] {
-            for frozen in [false, true] {
-                assert_eq!(
-                    plan_configured(
-                        ws(),
-                        &set,
-                        &Selection::Full,
-                        offline,
-                        frozen,
-                        &no_head(),
-                        &closure()
-                    ),
-                    Ok(BackendPlan::Noop),
-                    "{} offline={offline} frozen={frozen}",
-                    set.name
-                );
-                assert_eq!(
-                    check_configured(
-                        ws(),
-                        &set,
-                        &Selection::Full,
-                        offline,
-                        frozen,
-                        &no_head(),
-                        &UvClosure::default()
-                    ),
-                    Ok(CheckPlan::Pinned),
-                    "{} offline={offline} frozen={frozen}",
-                    set.name
-                );
-            }
-        }
+fn bicep_set() -> ResolvedSet {
+    ResolvedSet {
+        name: "bicep".to_owned(),
+        ecosystem: Ecosystem::Bicep,
+        dir: "infra".to_owned(),
+        manifests: vec!["infra/*.bicep".to_owned()],
+        locks: vec!["infra/bicep.lock.json".to_owned()],
+        repository: None,
     }
 }
 
 #[test]
-fn configured_pinned_selective_is_unsupported() {
-    for (set, package) in pinned_sets() {
-        let request = Selection::Packages(vec![package.to_owned()]);
-        let planned = plan_configured(ws(), &set, &request, false, false, &no_head(), &closure())
-            .expect_err("pinned sets resolve nothing");
-        let checked = check_configured(ws(), &set, &request, false, false, &no_head(), &closure())
-            .expect_err("pinned sets check nothing per package");
-        for error in [planned, checked] {
-            assert!(
-                matches!(
-                    error,
-                    BackendError::Unsupported { set: ref name, reason }
-                        if *name == set.name && reason == "dx only pins this set"
-                ),
-                "{error:?}"
-            );
-            assert_eq!(error.code(), "unsupported");
-        }
+fn bicep_check_and_update_run_the_lock_step() {
+    let dir = dx_test_scratch::scratch("bicep_backend").unwrap();
+    let set = bicep_set();
+    let plan = |request: &Selection, offline: bool, frozen: bool| {
+        plan_configured(
+            dir.path(),
+            &set,
+            request,
+            offline,
+            frozen,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    };
+    let check = |request: &Selection, offline: bool| {
+        check_configured(
+            dir.path(),
+            &set,
+            request,
+            offline,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    };
+    let lock_step = format!(
+        "run @rules_dx//bicep/private/tools/lock -- --dir {}",
+        dir.path().join("infra").display()
+    );
+    let BackendPlan::Run { argv, .. } = plan(&Selection::Full, false, false).expect("plan") else {
+        panic!("expected a run");
+    };
+    assert_eq!(argv[argv.len() - 5..].join(" "), lock_step);
+    let CheckPlan::Run { argv, .. } = check(&Selection::Full, false).expect("check") else {
+        panic!("expected a run");
+    };
+    assert_eq!(
+        argv[argv.len() - 6..].join(" "),
+        format!("{lock_step} --check")
+    );
+    let module = Selection::Packages(vec!["br/public:avm/res/storage/storage-account".to_owned()]);
+    for error in [
+        plan(&module, false, false).expect_err("one module is not resolved alone"),
+        check(&module, false).expect_err("one module is not checked alone"),
+    ] {
+        assert!(
+            matches!(error, BackendError::Unsupported { ref set, .. } if set == "bicep"),
+            "{error:?}"
+        );
     }
+    for error in [
+        plan(&Selection::Full, true, false).expect_err("offline update"),
+        check(&Selection::Full, true).expect_err("offline check"),
+    ] {
+        assert!(
+            matches!(error, BackendError::OfflineRequired { .. }),
+            "{error:?}"
+        );
+    }
+    assert!(matches!(
+        plan(&Selection::Full, false, true),
+        Err(BackendError::FrozenLocked { .. })
+    ));
 }
 
 #[test]
@@ -2766,13 +2769,9 @@ fn every_ecosystem_row_has_a_backend() {
         } else {
             ecosystem.name()
         };
-        let pinned =
-            ecosystem.supported_check() == "pinned" && ecosystem.supported_update() == "pinned";
         let resolver = dx_families::hub(ecosystem.name()).is_some_and(|hub| hub.resolver.is_some());
         assert!(
-            module == expected
-                || (module == "pinned" && pinned)
-                || (module == "resolver" && resolver),
+            module == expected || (module == "resolver" && resolver),
             "{} dispatches to {module}",
             ecosystem.name()
         );

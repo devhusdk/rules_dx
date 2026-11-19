@@ -4048,6 +4048,149 @@ Provider.
 
 Fields: `direct_srcs`, `direct_staged`, `stage_root`, `stage_roots`, `staged`, `transitive_srcs`.
 
+### `@rules_dx//flutter:defs.bzl`
+
+#### `flutter_gen_l10n`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `arbs` | `label_list` | yes |  |
+| `header` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `nullable_getter` | `boolean` | no | `True` |
+| `output_class` | `string` | no | `"AppLocalizations"` |
+| `output_localization_file` | `string` | no | `"app_localizations.dart"` |
+| `preferred_supported_locales` | `string_list` | no | `[]` |
+| `relax_syntax` | `boolean` | no | `False` |
+| `required_resource_attributes` | `boolean` | no | `False` |
+| `suppress_warnings` | `boolean` | no | `False` |
+| `template_arb_file` | `string` | no | `"app_en.arb"` |
+| `use_deferred_loading` | `boolean` | no | `False` |
+| `use_escaping` | `boolean` | no | `False` |
+| `use_named_parameters` | `boolean` | no | `False` |
+
+#### `flutter_android_app`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `application` | yes |  |
+| `package_name` | yes |  |
+| `android_abi` | no | `"arm64"` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `flutter_application`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `flutter_ios_app`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `application` | yes |  |
+| `bundle_id` | yes |  |
+| `kwargs` | no |  |
+
+#### `flutter_library`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `flutter_test`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `flutter_web_app`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | no | `None` |
+| `main` | no | `None` |
+| `visibility` | no | `None` |
+| `kwargs` | no |  |
+
+#### `flutter_web_bundle`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `kwargs` | no |  |
+
+### `@rules_dx//flutter:extensions.bzl`
+
+#### `flutter`
+
+Module extension.
+
+Tag `flutter.plugin_overlays`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `roots` | `label_list` | no | `[]` |
+
+Tag `flutter.pub`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `ignore_hooks` | `string_list` | no | `[]` |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
+Tag `flutter.toolchain`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `flutter_version` | `string` | yes |  |
+| `name` | `name` | no | `"flutter"` |
+
+#### `pub`
+
+Module extension.
+
+Tag `pub.lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `flutter_version` | `string` | no | `""` |
+| `ignore_hooks` | `string_list` | no | `[]` |
+| `lock` | `label` | yes |  |
+| `name` | `name` | yes |  |
+
 ### `@rules_dx//fortran:defs.bzl`
 
 #### `fortran_binary`

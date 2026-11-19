@@ -9969,6 +9969,407 @@
     "functions": [
       {
         "forwards": [],
+        "name": "flutter_android_app",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "application"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "package_name"
+          },
+          {
+            "default": "\"arm64\"",
+            "mandatory": false,
+            "name": "android_abi"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "flutter_application",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "flutter_ios_app",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "application"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "bundle_id"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "flutter_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "flutter_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "flutter_web_app",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "forwards": [],
+        "name": "flutter_web_bundle",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//flutter:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "arbs",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "header",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "True",
+            "mandatory": false,
+            "name": "nullable_getter",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "\"AppLocalizations\"",
+            "mandatory": false,
+            "name": "output_class",
+            "type": "STRING"
+          },
+          {
+            "default": "\"app_localizations.dart\"",
+            "mandatory": false,
+            "name": "output_localization_file",
+            "type": "STRING"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "preferred_supported_locales",
+            "type": "STRING_LIST"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "relax_syntax",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "required_resource_attributes",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "suppress_warnings",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "\"app_en.arb\"",
+            "mandatory": false,
+            "name": "template_arb_file",
+            "type": "STRING"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "use_deferred_loading",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "use_escaping",
+            "type": "BOOLEAN"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "use_named_parameters",
+            "type": "BOOLEAN"
+          }
+        ],
+        "executable": false,
+        "name": "flutter_gen_l10n",
+        "test": false
+      }
+    ]
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "flutter",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "roots",
+                "type": "LABEL_LIST"
+              }
+            ],
+            "name": "plugin_overlays"
+          },
+          {
+            "attrs": [
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "ignore_hooks",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "pub"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "flutter_version",
+                "type": "STRING"
+              },
+              {
+                "default": "\"flutter\"",
+                "mandatory": false,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "toolchain"
+          }
+        ]
+      },
+      {
+        "name": "pub",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "flutter_version",
+                "type": "STRING"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "ignore_hooks",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "lock",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "lock"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//flutter:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "forwards": [],
         "name": "fortran_binary",
         "params": [
           {

@@ -6,141 +6,33 @@ schema_version = 1
 [distribution]
 internal = ["//..."]
 
-[[exception]]
+[[inventory]]
 package = "allocative"
 set = "cargo"
 license = "Apache-2.0"
 versions = "=0.3.6"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
+text = "third_party/licenses/cargo/allocative-fc41670cf9cf/LICENSE"
 
-[[exception]]
+[[inventory]]
 package = "bitfields"
 set = "cargo"
 license = "MIT"
 versions = "=1.0.3"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
+text = "third_party/licenses/cargo/bitfields-rs-v1.0.3/LICENSE"
 
-[[exception]]
+[[inventory]]
 package = "crc24"
 set = "cargo"
 license = "MIT/Apache-2.0"
 versions = "=0.1.6"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
+text = "third_party/licenses/cargo/crc24-rs-f565288a9380/LICENSE"
 
-[[exception]]
+[[inventory]]
 package = "cx448"
 set = "cargo"
 license = "BSD-3-Clause"
 versions = "=0.1.1"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "fxhash"
-set = "cargo"
-license = "Apache-2.0/MIT"
-versions = "=0.2.1"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "lcov"
-set = "cargo"
-license = "MIT/Apache-2.0"
-versions = "=0.8.2"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "line-index"
-set = "cargo"
-license = "MIT OR Apache-2.0"
-versions = "=0.1.2"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "lock_free_hashtable"
-set = "cargo"
-license = "MIT OR Apache-2.0"
-versions = "=0.1.4"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "nom-language"
-set = "cargo"
-license = "MIT"
-versions = "=0.1.0"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "objc2-core-foundation"
-set = "cargo"
-license = "Zlib OR Apache-2.0 OR MIT"
-versions = "=0.3.2"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "objc2-core-services"
-set = "cargo"
-license = "Zlib OR Apache-2.0 OR MIT"
-versions = "=0.3.2"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "pagable"
-set = "cargo"
-license = "Apache-2.0"
-versions = "=0.4.2"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "sorted_vector_map"
-set = "cargo"
-license = "MIT OR Apache-2.0"
-versions = "=0.2.1"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "starlark_map"
-set = "cargo"
-license = "Apache-2.0"
-versions = "=0.14.2"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "starlark_syntax"
-set = "cargo"
-license = "Apache-2.0"
-versions = "=0.14.2"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "static_interner"
-set = "cargo"
-license = "MIT OR Apache-2.0"
-versions = "=0.1.3"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
-
-[[exception]]
-package = "strong_hash"
-set = "cargo"
-license = "MIT OR Apache-2.0"
-versions = "=0.1.0"
-reason = "The crate ships no license file; its NOTICE entry names the declared license."
-expires = "2027-10-27"
+text = "third_party/licenses/cargo/cx448-v0.1.1/LICENSE"
 
 [[inventory]]
 package = "cxx-qt"
@@ -155,3 +47,94 @@ set = "cargo"
 license = "MIT OR Apache-2.0"
 versions = "=0.10.0"
 text = "third_party/licenses/cargo/cxx-qt-v0.10.0/LICENSE"
+
+[[inventory]]
+package = "fxhash"
+set = "cargo"
+license = "Apache-2.0/MIT"
+versions = "=0.2.1"
+text = "third_party/licenses/cargo/fxhash-537570af68de/LICENSE"
+
+[[inventory]]
+package = "lcov"
+set = "cargo"
+license = "MIT/Apache-2.0"
+versions = "=0.8.2"
+text = "third_party/licenses/cargo/lcov-127433d61a9e/LICENSE"
+
+[[inventory]]
+package = "line-index"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.1.2"
+text = "third_party/licenses/cargo/rust-analyzer-3bda0cc2c07f/LICENSE"
+
+[[inventory]]
+package = "lock_free_hashtable"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.1.4"
+text = "third_party/licenses/cargo/buck2-4f1406cb6be4/LICENSE"
+
+[[inventory]]
+package = "nom-language"
+set = "cargo"
+license = "MIT"
+versions = "=0.1.0"
+text = "third_party/licenses/cargo/nom-nom-language-v0.1.0/LICENSE"
+
+[[inventory]]
+package = "objc2-core-foundation"
+set = "cargo"
+license = "Zlib OR Apache-2.0 OR MIT"
+versions = "=0.3.2"
+text = "third_party/licenses/cargo/objc2-7b1abfd750a2/LICENSE"
+
+[[inventory]]
+package = "objc2-core-services"
+set = "cargo"
+license = "Zlib OR Apache-2.0 OR MIT"
+versions = "=0.3.2"
+text = "third_party/licenses/cargo/objc2-7b1abfd750a2/LICENSE"
+
+[[inventory]]
+package = "pagable"
+set = "cargo"
+license = "Apache-2.0"
+versions = "=0.4.2"
+text = "third_party/licenses/cargo/starlark-rust-7764eea4c3c9/LICENSE"
+
+[[inventory]]
+package = "sorted_vector_map"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.2.1"
+text = "third_party/licenses/cargo/rust-shed-756ae7daba10/LICENSE"
+
+[[inventory]]
+package = "starlark_map"
+set = "cargo"
+license = "Apache-2.0"
+versions = "=0.14.2"
+text = "third_party/licenses/cargo/starlark-rust-v0.14.2/LICENSE"
+
+[[inventory]]
+package = "starlark_syntax"
+set = "cargo"
+license = "Apache-2.0"
+versions = "=0.14.2"
+text = "third_party/licenses/cargo/starlark-rust-v0.14.2/LICENSE"
+
+[[inventory]]
+package = "static_interner"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.1.3"
+text = "third_party/licenses/cargo/buck2-f90bfd1dc437/LICENSE"
+
+[[inventory]]
+package = "strong_hash"
+set = "cargo"
+license = "MIT OR Apache-2.0"
+versions = "=0.1.0"
+text = "third_party/licenses/cargo/buck2-af3200de22da/LICENSE"

@@ -86,6 +86,36 @@ nested_bazel_test(
     ],
 )
 
+# A nested Zig consumer under bazel coverage, once with the kcov the release ships pinned
+# through dx_prebuilt.asset and once with no pin. Fails when the pinned run writes no LCOV for
+# the library or the unpinned run fetches the kcov source build.
+nested_bazel_test(
+    name = "zig_kcov_coverage_test",
+    size = "small",
+    srcs = ["kcov_coverage_test.rs"],
+    crate_name = "kcov_coverage_test",
+    crate_root = "kcov_coverage_test.rs",
+    data = [
+        "//:module_srcs",
+        "//patches/rules_py:patches",
+        "//tools/coverage/kcov:kcov_static",
+        "@dx_test_tags_sources//:consumer.json",
+    ],
+    env = {
+        "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+        "DX_KCOV_STATIC": "$(rlocationpath //tools/coverage/kcov:kcov_static)",
+    },
+    network = True,
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    deps = [
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

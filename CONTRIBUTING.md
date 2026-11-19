@@ -113,7 +113,7 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
    tools/dx --version
    ```
 
-   Without the remote cache, on 4 CPUs and 15 GB of memory, `worktree add` takes about 5 seconds and the slot's first `tools/dx --version` about 4 minutes. The slot's Bazel server uses about 1.6 GB of memory, and the slot adds about 4.3 GB of disk. If you skip `bazel shutdown`, the primary server stays up for 15 idle minutes and holds about 1.5 GB more.
+   Without the remote cache, on 4 CPUs and 8 GB of memory, `worktree add` takes under 5 seconds and the slot's first `tools/dx --version` about 30 seconds. The slot's Bazel server uses about 1.0 GB of memory, and the slot adds about 0.4 GB of disk. If you skip `bazel shutdown`, the primary server stays up for 15 idle minutes and holds about 0.8 GB more.
 
 3. Run one test:
 

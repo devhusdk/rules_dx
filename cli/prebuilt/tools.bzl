@@ -128,6 +128,16 @@ TOOLS = {
     "capnp": _native_exec("@dx_capnproto//src/capnp:capnp_tool"),
     "flatc": _native_exec("@dx_flatbuffers//:flatc"),
     "thrift": _native_exec("@dx_thrift//:thrift_compiler"),
+    # Upstream oapi-codegen, cross-built unmodified by the release-tools go job.
+    "oapi_codegen": struct(
+        asset = "dx-oapi-codegen-{os}-{cpu}",
+        role = "exec",
+        platforms = _NATIVE,
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = "@com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen",
+        member = "",
+        main_class = "",
+    ),
     "deadnix": _exec_native("deadnix"),
     "progenitor": _exec_native("progenitor"),
     "selene": _exec_native("selene"),
@@ -177,7 +187,7 @@ TOOLS = {
 DEV_SOURCE_FALLBACK = {"kcov": "@rules_dx//tools/coverage/kcov:none"}
 
 # The tools released as one native binary per platform.
-NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "ormolu", "progenitor", "selene", "thrift", "topiary", "weeder"]
+NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "selene", "thrift", "topiary", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])

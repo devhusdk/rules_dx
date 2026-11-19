@@ -16,7 +16,7 @@
 //config:tool_errcheck label_flag "@dx_prebuilt//:dx_errcheck"
 //config:tool_flatc label_flag "@dx_prebuilt//:flatc"
 //config:tool_gersemi label_flag "@dx_tools//:gersemi"
-//config:tool_gofumpt label_flag "@cc_mvdan_gofumpt//:gofumpt"
+//config:tool_gofumpt label_flag "@dx_prebuilt//:dx_gofumpt"
 //config:tool_gotype label_flag "@dx_prebuilt//:dx_gotype"
 //config:tool_govet label_flag "@dx_prebuilt//:dx_govet"
 //config:tool_hadolint label_flag "@dx_tools//:hadolint"

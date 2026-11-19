@@ -28,6 +28,8 @@ _GO_PACKAGE = "@rules_dx//go/private/tools/analysis/dx_go:"
 # The names the dx_go multicall runs as, each with its source build.
 GO_TOOLS = {tool: _GO_PACKAGE + tool for tool in [
     "dx_errcheck",
+    "dx_godoc_json",
+    "dx_gofumpt",
     "dx_gotype",
     "dx_govet",
     "dx_modfmt",

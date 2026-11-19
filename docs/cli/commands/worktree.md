@@ -57,7 +57,8 @@ None. `dx worktree` takes a subcommand and its arguments. It writes no reports.
 
 `add <branch>` leases a slot and checks out `<branch>`. It prints where the
 slot is. Files matched by `.worktreeinclude` in the main checkout are copied
-in. Without `--create`, it uses the local `<branch>`, then `origin/<branch>`,
+in; the copy of `user.bazelrc` leaves out `startup` lines that set
+`--output_base`. Without `--create`, it uses the local `<branch>`, then `origin/<branch>`,
 then starts `<branch>` from `origin/HEAD`, `origin/main` or `origin/master`.
 It refuses a branch checked out by another holder or outside the pool. It
 returns your own slot for `<branch>` as is. It takes over a held slot only

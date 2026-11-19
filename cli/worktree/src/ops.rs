@@ -1104,10 +1104,33 @@ pub(crate) fn copy_includes(main: &Path, dest: &Path) -> Result<usize, WorktreeE
         if let Some(parent) = to.parent() {
             std::fs::create_dir_all(parent).map_err(WorktreeError::from)?;
         }
-        std::fs::copy(&from, &to).map_err(WorktreeError::from)?;
+        if relative == USER_BAZELRC {
+            let text = std::fs::read_to_string(&from).map_err(WorktreeError::from)?;
+            dx_atomic_fs::write_atomic(&to, without_output_base(&text).as_bytes())
+                .map_err(WorktreeError::from)?;
+        } else {
+            std::fs::copy(&from, &to).map_err(WorktreeError::from)?;
+        }
         copied += 1;
     }
     Ok(copied)
+}
+
+/// The root bazelrc a checkout keeps out of git; `.bazelrc` imports it.
+const USER_BAZELRC: &str = "user.bazelrc";
+
+/// Drops `startup` lines that set `--output_base`, since each slot needs its own output base.
+fn without_output_base(text: &str) -> String {
+    text.split_inclusive('\n')
+        .filter(|line| {
+            let mut words = line.split_whitespace();
+            let startup = words
+                .next()
+                .is_some_and(|command| command == "startup" || command.starts_with("startup:"));
+            !(startup
+                && words.any(|word| word == "--output_base" || word.starts_with("--output_base=")))
+        })
+        .collect()
 }
 
 /// Gives `who` the unclaimed lease of the slot it works in.

@@ -1,6 +1,6 @@
 //! Analysis-only checks for a pull request on `linux_x86_64`, one named set at a time.
 
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 const BAZEL: &str = "bazel";
 
@@ -49,6 +49,9 @@ pub const KOTLIN_BENCH_TARGETS: &str = "//kotlin/tests/fixtures/bench:all";
 
 pub const WINDOWS_ARM64_PLATFORM: &str = "--platforms=@llvm//platforms:windows_aarch64";
 
+pub const CRATE_LOCK_CHECK: &str =
+    "--repo_env=CARGO_BAZEL_DIGEST_CHECK=1 @crates @dx_quality_crates @dx_thrift_crates";
+
 pub const STARTER_QUERY: &str =
     r#"attr(tags, starter-consumer, //...) except filter("_upstream$", //...)"#;
 
@@ -59,11 +62,13 @@ const HERMETIC_TARGETS: [&str; 2] = [
     "//tools/testing/hermetic:consumer_repos_test",
 ];
 
-/// One command of a set; a query step appends the labels it prints to the next step.
+/// One command of a set; a query step appends the labels it prints to the next `Run` step.
+/// A `Silent` step discards its stdout and takes no query labels.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Step {
     Run(&'static str, Vec<String>),
     Query(Vec<String>),
+    Silent(&'static str, Vec<String>),
 }
 
 fn words(list: &[&str], flags: &[String], tail: &str) -> Vec<String> {
@@ -81,14 +86,24 @@ fn words(list: &[&str], flags: &[String], tail: &str) -> Vec<String> {
 pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
     let steps = match set {
         "workflow" => vec![Step::Run(BAZEL, words(&["test"], flags, WORKFLOW_TARGETS))],
-        "preflight" => vec![Step::Run(
-            BAZEL,
-            words(
-                &["build", "--nobuild", "--lockfile_mode=error"],
-                flags,
-                PREFLIGHT_TARGETS,
+        "preflight" => vec![
+            Step::Run(
+                BAZEL,
+                words(
+                    &["build", "--nobuild", "--lockfile_mode=error"],
+                    flags,
+                    PREFLIGHT_TARGETS,
+                ),
             ),
-        )],
+            Step::Silent(
+                BAZEL,
+                words(
+                    &["mod", "show_repo", "--lockfile_mode=error"],
+                    flags,
+                    CRATE_LOCK_CHECK,
+                ),
+            ),
+        ],
         "preflight-windows-arm64" => {
             let mut args = words(
                 &[
@@ -201,6 +216,16 @@ fn execute(steps: Vec<Step>) -> Result<(), String> {
                     return Err(format!("{program} {} failed: {status}", args.join(" ")));
                 }
             }
+            Step::Silent(program, args) => {
+                let status = Command::new(program)
+                    .args(&args)
+                    .stdout(Stdio::null())
+                    .status()
+                    .map_err(|error| format!("spawn {program}: {error}"))?;
+                if !status.success() {
+                    return Err(format!("{program} {} failed: {status}", args.join(" ")));
+                }
+            }
         }
     }
     Ok(())
@@ -256,6 +281,29 @@ mod tests {
             ["build", "--nobuild", "--lockfile_mode=error", "--config=ci"]
         );
         assert!(args.contains(&"//cli/cli:dx".to_owned()));
+    }
+
+    #[test]
+    fn preflight_checks_the_crate_lockfiles() {
+        let steps = plan("preflight", &flags()).unwrap();
+        assert_eq!(
+            steps.get(1),
+            Some(&Step::Silent(
+                "bazel",
+                [
+                    "mod",
+                    "show_repo",
+                    "--lockfile_mode=error",
+                    "--config=ci",
+                    "--repo_env=CARGO_BAZEL_DIGEST_CHECK=1",
+                    "@crates",
+                    "@dx_quality_crates",
+                    "@dx_thrift_crates"
+                ]
+                .map(str::to_owned)
+                .to_vec()
+            ))
+        );
     }
 
     #[test]

@@ -83,6 +83,34 @@ fn workflow_set_runs_the_action_and_workflow_tests() {
 }
 
 #[test]
+fn preflight_set_runs_the_ci_crate_lockfile_check() {
+    let check = constant(&read_runfiles(SCRIPT), "CRATE_LOCK_CHECK");
+    let step = steps(CI, "preflight")
+        .unwrap()
+        .into_iter()
+        .find(|step| step["name"].as_str() == Some("Check the crate lockfiles are current (#8915)"))
+        .expect("crate lockfile step");
+    let run = step["run"].as_str().expect("run");
+    let wanted: Vec<&str> = run
+        .split_whitespace()
+        .filter(|word| word.starts_with('@') || word.starts_with("--repo_env="))
+        .collect();
+    assert!(wanted.len() > 1, "{run}");
+    let missing: Vec<_> = wanted
+        .iter()
+        .filter(|word| {
+            !check
+                .split(|c: char| c.is_whitespace() || c == '"')
+                .any(|w| w == **word)
+        })
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "{SCRIPT} CRATE_LOCK_CHECK lacks {missing:?}"
+    );
+}
+
+#[test]
 fn windows_arm64_set_targets_the_platform() {
     let script = read_runfiles(SCRIPT);
     assert!(

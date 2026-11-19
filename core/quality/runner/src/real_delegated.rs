@@ -5,6 +5,7 @@
 
 use super::real_fixtures::*;
 use super::*;
+use std::fmt::Write as _;
 
 #[test]
 fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
@@ -768,14 +769,18 @@ fn pkl_lsp_behavior(
 
 #[test]
 pub(super) fn pkl_lsp_maps_findings_and_needs_every_companion() {
-    let companions = vec![
-        ("java".to_owned(), PathBuf::from("/fake/jdk/bin/java")),
-        ("pkl-lsp.jar".to_owned(), PathBuf::from("/fake/pkl-lsp.jar")),
-        (
-            "pkl-lsp-natives.jar".to_owned(),
-            PathBuf::from("/fake/natives.jar"),
-        ),
-    ];
+    let companions: Vec<PathTool> = [
+        ("java", "/fake/jdk/bin/java"),
+        ("pkl-lsp.jar", "/fake/pkl-lsp.jar"),
+        ("pkl-lsp-natives.jar", "/fake/natives.jar"),
+    ]
+    .into_iter()
+    .map(|(name, binary)| PathTool {
+        name: name.to_owned(),
+        binary: PathBuf::from(binary),
+        args: Vec::new(),
+    })
+    .collect();
     let tool = RealTool {
         path_tools: companions.clone(),
         ..plain_tool()
@@ -2499,7 +2504,8 @@ fn scalac_unused_dependency_is_a_diagnostic_without_a_path() {
     let map = scratch.path().join("lib.unused_deps.jsonl");
     std::fs::write(
         &map,
-        r#"{"package":"p","target":"lib","label":"//p:lib","deps":[{"label":"//p:gone","jars":["gone.jar"]}]}"#,
+        r#"{"package":"p","target":"lib","label":"//p:lib"}
+{"dep":"//p:gone","jars":["gone.jar"]}"#,
     )
     .expect("write map");
     let mut tool = delegated_tool(log);
@@ -2532,7 +2538,7 @@ fn scalac_missing_dependency_is_a_missing_deps_diagnostic() {
     let map = scratch.path().join("lib.unused_deps.jsonl");
     std::fs::write(
         &map,
-        r#"{"package":"p","target":"lib","label":"//p:lib","deps":[]}
+        r#"{"package":"p","target":"lib","label":"//p:lib"}
 {"jar":"far.jar","label":"//p:far"}"#,
     )
     .expect("write map");

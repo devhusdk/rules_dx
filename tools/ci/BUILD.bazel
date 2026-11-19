@@ -1,10 +1,24 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//cli/prebuilt:tools.bzl", "JAR_TOOLS", "asset_name", "deploy_jar")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":repos_tests.bzl", "repos_tests")
 
 package(default_visibility = VIS_TOOLS)
+
+filegroup(
+    name = "release_jars",
+    srcs = [deploy_jar(tool) for tool in JAR_TOOLS],
+)
+
+# "<label> <asset>" per jar tool, the pairs the release-tools.yml jars job builds.
+write_file(
+    name = "release_jars_list",
+    out = "release_jars.txt",
+    content = ["{} {}".format(deploy_jar(tool), asset_name(tool, "any")) for tool in JAR_TOOLS] + [""],
+)
 
 filegroup(
     name = "input_validation_fixtures",
@@ -558,6 +572,7 @@ rust_test(
         "//core/env:corpus_starlark",
         "//core/env/private:corpus_starlark",
         "//core/modules:corpus_starlark",
+        "//core/private/testing:corpus_starlark",
         "//core/quality:corpus_starlark",
         "//core/quality/artifacts:corpus_starlark",
         "//core/quality/artifacts/acquire_test:corpus_starlark",
@@ -1012,6 +1027,7 @@ rust_library(
         "dx_guard/lexer.rs",
         "dx_guard/lib.rs",
         "dx_guard/masked.rs",
+        "dx_guard/segments.rs",
         "dx_guard/snapshot.rs",
         "dx_guard/starlark.rs",
         "dx_guard/test_calls.rs",
@@ -1589,10 +1605,7 @@ rust_test(
 rust_test(
     name = "prose_rules_test",
     size = "small",
-    srcs = [
-        "guards/shared.rs",
-        "prose_rules_test.rs",
-    ],
+    srcs = ["prose_rules_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
         normal = True,
@@ -1609,7 +1622,7 @@ rust_test(
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
-        "DX_ALLOWLIST": "$(rlocationpath prose_rules_allowlist.txt)",
+        "ALLOWLIST": "$(rlocationpath prose_rules_allowlist.txt)",
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
         "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
         "DX_PROSE_JSON": "$(rlocationpath @dx_test_tags_sources//:prose.json)",
@@ -1621,7 +1634,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//cli/test_scratch:dx_test_scratch",
+        ":dx_guard",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -1630,10 +1643,7 @@ rust_test(
 rust_test(
     name = "unreferenced_files_test",
     size = "small",
-    srcs = [
-        "guards/shared.rs",
-        "unreferenced_files_test.rs",
-    ],
+    srcs = ["unreferenced_files_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
         normal = True,
@@ -1650,7 +1660,7 @@ rust_test(
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
-        "DX_ALLOWLIST": "$(rlocationpath unreferenced_files_allowlist.txt)",
+        "ALLOWLIST": "$(rlocationpath unreferenced_files_allowlist.txt)",
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
         "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
         "DX_PROSE_JSON": "$(rlocationpath @dx_test_tags_sources//:prose.json)",
@@ -1662,7 +1672,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//cli/test_scratch:dx_test_scratch",
+        ":dx_guard",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -1671,10 +1681,7 @@ rust_test(
 rust_test(
     name = "zero_compat_test",
     size = "small",
-    srcs = [
-        "guards/shared.rs",
-        "zero_compat_test.rs",
-    ],
+    srcs = ["zero_compat_test.rs"],
     aliases = aliases(
         package_name = "tools/ci_tests",
         normal = True,
@@ -1692,7 +1699,7 @@ rust_test(
         "@dx_test_tags_sources//:sources.json",
     ],
     env = {
-        "DX_ALLOWLIST": "$(rlocationpath zero_compat_allowlist.txt)",
+        "ALLOWLIST": "$(rlocationpath zero_compat_allowlist.txt)",
         "DX_DEPRECATIONS": "$(rlocationpath //api:deprecations.txt)",
         "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
         "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
@@ -1705,7 +1712,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//cli/test_scratch:dx_test_scratch",
+        ":dx_guard",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -1813,9 +1820,12 @@ rust_test(
         "//.github:workflows/release-tools.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-release.yml",
+        ":release_jars_list",
+        "//deploy/private:BUILD.bazel",
         "//deploy/private:gate_sources",
         "//deploy/private/release:release_matrix",
         "//docs:github-ci.md",
+        "//haskell:pins.json",
         "//tools/ci/producers:src/pr_check.rs",
     ],
     env = {"DX_RELEASE_MATRIX": "$(rootpath //deploy/private/release:release_matrix)"},
@@ -1836,4 +1846,27 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+rust_test(
+    name = "dx_guard_test",
+    size = "small",
+    srcs = ["dx_guard_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "dx_guard_test",
+    crate_root = "dx_guard_test.rs",
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_guard",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
 )

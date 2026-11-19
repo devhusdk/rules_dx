@@ -94,7 +94,8 @@ dx_prebuilt.asset(name = "dx", os = "linux", cpu = "x86_64", url = "https://..."
 ```
 
 `name` is the tool, and `os` and `cpu` are the `@platforms` values the binary
-runs on. Or build `dx` from source with `dx_prebuilt.from_source()`. That needs
+runs on. A jar tool such as `javac_check` takes `os = "any"` and
+`cpu = "any"`. Or build `dx` from source with `dx_prebuilt.from_source()`. That needs
 Rust and C toolchains. Only the root module's tags count.
 
 `cli/prebuilt/tools.bzl` lists every tool a release ships prebuilt, and

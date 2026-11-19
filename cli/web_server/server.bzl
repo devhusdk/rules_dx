@@ -1,6 +1,6 @@
 """Development server for staged browser applications."""
 
-load("//core:defs.bzl", "display_label")
+load("//core/private/testing:defs.bzl", "display_label")
 load("//python:defs.bzl", "python_binary")
 
 # Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).

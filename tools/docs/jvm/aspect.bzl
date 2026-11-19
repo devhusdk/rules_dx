@@ -2,7 +2,7 @@
 
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
-load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
+load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "SCALA_VERSION_ATTRS", "jvm_shard_action", "unsupported_scala_version")
 
 def _jvm_docs_shard(target, ctx):
     if JavaInfo not in target or DocsShardInfo in target:
@@ -15,6 +15,8 @@ def _jvm_docs_shard(target, ctx):
     for language, spec in JVM_LANGUAGES.items():
         if all([f.extension == spec.extension for f in srcs]):
             if ctx.toolchains[JAVA_TOOLCHAIN] == None or (language == "kotlin" and ctx.toolchains[KOTLIN_TOOLCHAIN] == None):
+                return None
+            if language == "scala" and unsupported_scala_version(ctx):
                 return None
             adapter = getattr(ctx.executable, "_" + language + "_extract")
             action = jvm_shard_action(ctx, language, target[JavaInfo], srcs, ctx.label.name, [], "_dx_docs/" + ctx.label.name, adapter, ctx.executable._jvm_convert)
@@ -30,7 +32,7 @@ def _real_jvm_docs_aspect_impl(target, ctx):
 real_jvm_docs_aspect = aspect(
     implementation = _real_jvm_docs_aspect_impl,
     doc = "Puts the Java, Kotlin and Scala docs shard of a target in dx_results and dx_docs_shards.",
-    attrs = {
+    attrs = SCALA_VERSION_ATTRS | {
         "_java_extract": attr.label(
             cfg = "exec",
             default = Label("@dx_prebuilt//:javadoc_extract"),
@@ -38,17 +40,17 @@ real_jvm_docs_aspect = aspect(
         ),
         "_jvm_convert": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/jvm/convert:jvm_convert"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_kotlin_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/jvm/dokka:dokka_extract"),
+            default = Label("@dx_prebuilt//:dokka_extract"),
             executable = True,
         ),
         "_scala_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/jvm/scaladoc:scaladoc_extract"),
+            default = Label("@dx_prebuilt//:scaladoc_extract"),
             executable = True,
         ),
     },

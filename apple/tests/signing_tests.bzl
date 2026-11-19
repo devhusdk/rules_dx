@@ -1,7 +1,7 @@
 """macOS signing bundle checks."""
 
 load("//apple/private/signing:validate.bzl", "macos_bundle_errors")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 def _checks():
     kind = "apple_macos_sign"

@@ -217,7 +217,7 @@ text_present = true
 - `[distribution] internal` lists label patterns: `//...` is every scope, `//pkg/...` is `pkg` and below, `//pkg:all` is the targets in `pkg`, anything else is one label. A run is internal only when the entries cover every scope, also with `--here` and `--affected`.
 - An internal run fails only on `blocked`. A distributed run fails on every list and on unlisted ids.
 - `MIT`, `Apache-2.0`, `BSD-2-Clause` and `BSD-3-Clause` also need their license text, or the finding is `license/missing-notice-text`.
-- `[[inventory]]` needs `package`, `set`, `license` and `versions`. `text_present` says the text ships with the package. `text = "<path>"` names a vendored text file and implies `text_present`. The path is workspace-relative, `/`-separated, with no leading `/` or `\` and no empty, `.` or `..` parts.
+- `[[inventory]]` needs `package`, `set`, `license` and `versions`. `text_present` says the text ships with the package. `text = "<path>"` names a vendored text file and implies `text_present`. The path is workspace-relative, `/`-separated, with no leading `/` or `\` and no empty, `.` or `..` parts. The file must exist and must not be blank, or the finding is `license/inventory-text-missing`. `dx license` checks every entry, whatever the scope.
 - Inventory overrides licenses read from `cargo-bazel-lock.json` and `package-lock.json`. For other sets it is the only source; a package with no entry is `UNKNOWN`.
 - `[[exception]]` needs `package`, `set`, `license`, `versions`, `reason` and `expires`. It covers a finding when `package`, `set` and `license` match. Expiry and unmatched entries fail as in `security.toml`.
 
@@ -249,7 +249,7 @@ tools/dx security --verify dx-linux-x86_64.tar.gz --repo devhusdk/rules_dx --bun
 `dx security --verify <file> --repo <owner/name>` checks one downloaded asset, such as a release archive, against its Sigstore bundle. It runs no audit, and it does not combine with scopes, `--here`, `--affected`, `--report` or `--accept`.
 
 - A bundle from `cosign sign-blob` is checked with `cosign verify-blob`. An attestation bundle from `actions/attest` is checked with `cosign verify-blob-attestation` for SLSA provenance v1.
-- cosign is the pinned `@rules_dx//deploy/private/release:cosign`. Set `DX_COSIGN_BIN` to an absolute path to use another copy.
+- cosign is the cosign rules_dx pins. Set `DX_COSIGN_BIN` to an absolute path to use another copy.
 - The signing certificate must come from a GitHub Actions workflow in `<owner/name>` (`https://token.actions.githubusercontent.com`). The signer identity is printed.
 - `gh attestation verify <file> --repo <owner/name>` runs too, so the [GitHub CLI](https://cli.github.com/) must be on `PATH`.
 - A changed byte, a different signer, a missing bundle or a missing `gh` exits `1`.
@@ -393,9 +393,8 @@ A check validates the selected sets and writes nothing. It takes no [build slot]
 
 - `--apply` runs Bazel for `cargo`, `maven` and `npm` sets.
 - `uv`, `ruby`, `cabal` and `cpan` sets run their lock tool in check mode: current, or failed when stale.
-- `ansible`, `dub`, `fpm`, `luarocks`, `nuget`, `powershell` and `zig` sets run the resolver their `setup.hubs` entry names: a check passes `--check` and fails the set when the lock is stale; `--apply` rewrites the lock. `--offline` fails with `offline_required`, and a `set:package` selector is refused.
+- `ansible`, `bicep`, `dub`, `fpm`, `luarocks`, `nuget`, `powershell` and `zig` sets run the resolver their `setup.hubs` entry names: a check passes `--check` and fails the set when the lock is stale; `--apply` rewrites the lock. `--offline` fails with `offline_required`, and a `set:package` selector is refused.
 - `go` sets compare a freshly generated `go.sum` with the committed one.
-- `bicep` sets report `pinned` and change nothing.
 - Sets dx cannot check report `unsupported` and fail the run. Refresh them with `dx update --apply <set>`. A bare `dx update` exits `1` when any set is unsupported.
 - Checks that run Bazel (`npm`, `cargo`, `maven`) restore any manifest or lock they changed and fail the set with `check_wrote: <paths>`.
 - A check with `--offline` adds `--repository_disable_download` for Bazel sets, or the tool's offline flag.
@@ -466,6 +465,7 @@ Built-in selectors also run with no selector, except `bcr:newest`:
 - `github-actions` checks every remote `uses:` pin in `.github/workflows`. `github-actions:<owner>/<repo>` checks one repo. A pin is read from its tag (`@v4`) or from a trailing comment (`@<sha> # v4.1.0`).
 - `bazel:.bazelversion` checks `.bazelversion`.
 - `containers` compares each `oci.pull` digest in `MODULE.bazel` with the current digest of the image's `latest` tag. `containers:<name>` checks one pull. Apply a new digest with `dx update containers:<name> sha256:<digest> --apply`.
+- `pins` checks each `pins.json` a top-level `<dir>/lang.json` lists. A file with `cells` is one package, `pins:<path>`, against the latest GitHub release or gem. Each `archives` entry whose GitHub URL names a release tag holding its `version` is one package, `pins:<path>#<archive>`; other entries are skipped.
 - `bcr:newest` writes `core/modules/bcr_newest.json` from the newest stable BCR version of each `bazel_dep` in `MODULE.bazel`.
 - Pins with no readable version, and repos with no release, print `<set>:<package>: unknown (<reason>)` and an `update_outdated_unknown` warning. The exit code is unchanged.
 - Set `GH_TOKEN` or `GITHUB_TOKEN` to raise GitHub's limit of 60 requests an hour. The token goes to `api.github.com` only.
@@ -510,6 +510,12 @@ tools/dx update --pr --automerge=none --max-prs=2
 
 Each dependency set gets one pull request on `dx-update/<set>`, such as `dx-update/github-actions`. Characters other than letters, digits, `.`, `_` and `-` become `-` in branch names.
 
+A `<set>:<package>` selector gives each picked package its own pull request on `dx-update/<set>--<package>`, such as `dx-update/bazel--rules_php`. A run over the whole set leaves out a package while its own pull request is open, and never closes that pull request:
+
+```bash
+tools/dx update --pr --allow-major --automerge=none bazel:rules_php
+```
+
 For each set, dx:
 
 1. Resets the branch to the base commit.
@@ -544,7 +550,7 @@ Skips:
 - Skips do not change the exit code.
 - If the token may not create pull requests, the run fails and names the setting "Allow GitHub Actions to create and approve pull requests".
 
-After the sets, dx closes open `dx-update/` pull requests on the base branch that this run covers but that have no updates left. It deletes the branch, comments `dx update: no updates left for this group.` and prints `closed #<n>`. Pull requests from forks are left alone.
+After the sets, dx closes open `dx-update/<set>` pull requests on the base branch for whole sets this run covers but that have no updates left. It deletes the branch, comments `dx update: no updates left for this group.` and prints `closed #<n>`. Pull requests from forks are left alone.
 
 | Code | Meaning |
 | --- | --- |
@@ -575,7 +581,7 @@ One `set:package` and one version widen that requirement, or declare the package
 | `bazel` | Tested version in the `single_version_override`, keeping patches. Falls back to the `bazel_dep` when there is no override or no `version`. `--floor --reason <text>` edits the `bazel_dep` version and the `# floor: <text>` lines above it. |
 | `containers` | The `oci.pull` digest. |
 | `github-actions` | A tag resolves to its commit SHA through `api.github.com` (`GH_TOKEN` or `GITHUB_TOKEN` when set). The SHA is written in every workflow that uses the action; a `# v4` comment becomes the tag. `--offline` fails a tag with `offline_required`; pass a SHA. |
-| `pins` | A `pins.json` that a top-level `<dir>/lang.json` lists: version, URLs and sha256 of every entry. |
+| `pins` | A `pins.json` that a top-level `<dir>/lang.json` lists: version, URLs, `strip_prefix` and sha256 of every cell. `pins:<path>#<archive>` moves only that `archives` entry. |
 | `cabal` | Bound in `build-depends`, then resolves again. |
 | `cargo` | Crate in every manifest that declares it, then `dx update --apply <set>`. |
 | `composer` | Constraint in `require` or `require-dev` of `composer.json`, keeping the operator, then `composer update <package> --with-all-dependencies --no-install` and the digest refresh. |
@@ -741,7 +747,7 @@ nuget.lock(
 ```
 
 - The manifest is `paket.dependencies` beside the lock. The locks are `nuget.lock.json` and the `paket.lock` beside it.
-- An update runs `bazel run @rules_dx//csharp/private/tools/lock -- --dir <set dir>` and writes both locks.
+- `dx update --apply <set>` runs the pinned paket resolver, which writes both locks. `dx update` runs it in check mode.
 - `--apply --frozen` fails with `frozen_locked` and `--offline` fails with `offline_required`. A set takes no `set:package` for update.
 - `dx security` matches `paket.lock` against the `nuget` snapshot. `dx license` needs `[[inventory]]` with `set = "nuget"`.
 
@@ -788,8 +794,8 @@ ruby.lock(
 )
 ```
 
-- `dx update` runs `bazel run @rules_dx//ruby/private/tools/lock -- --dir <set directory> --check`: current, or failed when stale.
-- `dx update --apply` runs it without `--check`. `<set>:<gem>` upgrades each named gem: `bazel run @rules_dx//ruby/private/tools/lock -- --dir <set directory> --upgrade <gem>`. A check with `<set>:<gem>` is refused.
+- `dx update` runs the pinned Ruby resolver in check mode: current, or failed when stale.
+- `dx update --apply <set>` runs the pinned Ruby resolver, which rewrites the lock. `<set>:<gem>` upgrades each named gem. A check with `<set>:<gem>` is refused.
 - `--offline` and `--frozen` are refused.
 - `dx security` matches `Gemfile.lock` against the `rubygems` snapshot. `dx license` needs `[[inventory]]` with `set = "ruby"`.
 
@@ -818,7 +824,7 @@ composer.lock(
 ```
 
 - `composer.json` must sit beside `composer.lock.json`.
-- `dx update <set>:<vendor/name> <version>` edits the constraint in `composer.json` and runs the `@rules_dx//php/private/tools/lock` step, which rewrites `composer.lock.json` and `composer.lock`.
+- `dx update <set>:<vendor/name> <version>` edits the constraint in `composer.json` and runs the pinned Composer resolver, which rewrites `composer.lock.json` and `composer.lock`.
 - `dx security` matches `composer.lock` against the `packagist` snapshot.
 
 ### cpan
@@ -832,10 +838,10 @@ cpan.lock(
 ```
 
 - The `cpanfile` and `cpanfile.snapshot` sit beside `cpan.lock.json`. The distributions of the snapshot and the lock must match, or the layout check fails.
-- A check runs `carton install --deployment` in the set's directory through `bazel run @rules_dx//perl/private/tools:carton`, with carton's `local/` tree outside the workspace. `--offline` fails with `offline_required`. A check takes no `set:package`.
-- `dx update <set>:<Module> --apply` runs `carton update <Module>`, then `bazel run @rules_dx//perl/private/tools/lock -- --dir <set directory>`, so the snapshot and `cpan.lock.json` change together. `--offline` and `--frozen` fail with `offline_required` and `frozen_locked`.
+- A check runs `carton install --deployment` in the set's directory through the pinned carton, with carton's `local/` tree outside the workspace. `--offline` fails with `offline_required`. A check takes no `set:package`.
+- `dx update <set>:<Module> --apply` runs `carton update <Module>`, then the pinned cpan resolver, so the snapshot and `cpan.lock.json` change together. `--offline` and `--frozen` fail with `offline_required` and `frozen_locked`.
 - `dx update <set>:<Module> <version> --apply` first rewrites the version on the module's `requires` line, keeping the operator, then refreshes as above.
-- `dx security` matches the distributions of `cpanfile.snapshot` against the `cpan` snapshot. `advisory_prep` builds it from `CPANSA::DB` through the pinned `//perl/private/tools:cpansa_dump`, not from the host perl.
+- `dx security` matches the distributions of `cpanfile.snapshot` against the `cpan` snapshot. `advisory_prep` builds it from `CPANSA::DB` through a pinned CPANSA dump, not from the host perl.
 
 ### pub
 
@@ -845,7 +851,7 @@ cpan.lock(
 ### luarocks
 
 - `dx security` lists the rocks of `luarocks.lock.json` and reports the set as uncovered.
-- `dx update` runs `bazel run @rules_dx//lua/private/tools/lock -- --dir <set directory>`, which resolves the `dependencies` of the `*.rockspec` from luarocks.org and rewrites `luarocks.lock.json`.
+- `dx update --apply <set>` runs the pinned luarocks resolver, which resolves the `dependencies` of the `*.rockspec` from luarocks.org and rewrites `luarocks.lock.json`. `dx update` runs it in check mode.
 
 ### dub
 
@@ -858,7 +864,7 @@ dub.lock(
 ```
 
 - `dub.json` must sit beside `dub.lock.json`.
-- `dx update` runs `bazel run @rules_dx//d/private/tools/lock -- --dir <set directory>`, which resolves `dub.json` against `code.dlang.org`, downloads each archive and rewrites `dub.lock.json` and `dub.selections.json`. `<set>:<package>` is refused.
+- `dx update --apply <set>` runs the pinned dub resolver, which resolves `dub.json` against `code.dlang.org`, downloads each archive and rewrites `dub.lock.json` and `dub.selections.json`. `dx update` runs it in check mode. `<set>:<package>` is refused.
 - `dx security` and `dx license` list the packages of `dub.selections.json`. There is no advisory source for dub.
 
 ### fpm
@@ -872,7 +878,7 @@ fpm.lock(
 ```
 
 - `fpm.toml` must sit beside `fpm.lock.json`.
-- `dx update` runs `@rules_dx//fortran/private/tools/lock`, which resolves the git dependencies of `fpm.toml` and of every archive they name and rewrites `fpm.lock.json`. It updates the whole set; `<set>:<package>` is refused, and `dx update --outdated` checks no registry.
+- `dx update --apply <set>` runs the pinned fpm resolver, which resolves the git dependencies of `fpm.toml` and of every archive they name and rewrites `fpm.lock.json`. `dx update` runs it in check mode. It updates the whole set; `<set>:<package>` is refused, and `dx update --outdated` checks no registry.
 - `dx security` and `dx license` list the packages of `fpm.lock.json`. There is no advisory source for fpm.
 
 ### zig
@@ -889,7 +895,7 @@ use_repo(zig, "zig")
 ```
 
 - `zig.lock.json` is `lock`; `build.zig.zon` is the manifest and must sit beside it.
-- `dx update` runs `bazel run @rules_dx//zig/private/tools/lock -- --dir <set directory>`, which downloads each archive dependency and rewrites `zig.lock.json`. It does not move versions, `<set>:<package>` is refused, and `dx update --outdated` checks no registry.
+- `dx update --apply <set>` runs the pinned Zig resolver, which downloads each archive dependency and rewrites `zig.lock.json`. `dx update` runs it in check mode. It does not move versions, `<set>:<package>` is refused, and `dx update --outdated` checks no registry.
 - `dx security` has no advisory source for zig.
 
 ### opam
@@ -937,7 +943,7 @@ ansible.lock(
 ```
 
 - `ansible.lock.json` is `lock`; `requirements.yml` is the manifest and must sit beside it. Each `collections` entry has a `name` and an exact `version`, and every dependency of a collection is listed too.
-- `dx update` runs `bazel run @rules_dx//ansible/private/tools/lock -- --dir <set directory>`, which downloads each Galaxy archive and rewrites `ansible.lock.json`. It does not move versions, and `<set>:<namespace.collection>` is refused. `--offline` fails with `offline_required`; `--apply --frozen` fails with `frozen_locked`.
+- `dx update --apply <set>` runs the pinned Galaxy resolver, which downloads each Galaxy archive and rewrites `ansible.lock.json`. `dx update` runs it in check mode. It does not move versions, and `<set>:<namespace.collection>` is refused. `--offline` fails with `offline_required`; `--apply --frozen` fails with `frozen_locked`.
 
 ### bicep
 
@@ -950,6 +956,6 @@ bicep.lock(
 use_repo(bicep, "bicep")
 ```
 
-- The manifests are the `*.bicep` files beside `bicep.lock.json`. Each `br:HOST/PATH:TAG` or `br/public:PATH:TAG` module reference is locked to its manifest and layer sha256. One module takes one tag per set. A check and an update report `pinned`.
-- To move a module, edit the tag in the `.bicep` file and run `dx generate --apply`. dx never picks a registry tag.
+- The manifests are the `*.bicep` files beside `bicep.lock.json`. Each `br:HOST/PATH:TAG` or `br/public:PATH:TAG` module reference is locked to its manifest and layer sha256. One module takes one tag per set. A check runs the lock step with `--check` and fails when the lock is stale.
+- To move a module, edit the tag in the `.bicep` file and run `dx generate --apply` or `dx update --apply bicep`. dx never picks a registry tag.
 - A locked module is `@bicep//HOST/PATH`, for example `@bicep//mcr.microsoft.com/bicep/avm/res/storage/storage-account`.

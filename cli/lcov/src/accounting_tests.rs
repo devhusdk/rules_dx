@@ -27,7 +27,7 @@ fn blank_sources() -> impl Fn(&str) -> Result<String, LcovError> {
 fn lcov(path: &str, lines: &[(u32, u64)]) -> String {
     let mut out = format!("SF:{path}\n");
     for (line, count) in lines {
-        writeln!(out, "DA:{line},{count}").ok();
+        out.push_str(&format!("DA:{line},{count}\n"));
     }
     out.push_str("end_of_record\n");
     out
@@ -43,7 +43,7 @@ fn excluded_source() -> String {
 
 #[test]
 fn parses_rows_with_kind_and_origin() {
-    let parsed = manifest("v1 cell linux_x86_64\nprod source a.rs\ntest generated b/c d.rs\n");
+    let parsed = manifest("v2 cell linux_x86_64\nprod source a.rs\ntest generated b/c d.rs\n");
     assert_eq!(parsed.cell, "linux_x86_64");
     assert_eq!(
         parsed.rows,
@@ -66,9 +66,9 @@ fn parses_rows_with_kind_and_origin() {
 fn rejects_bad_headers_and_unknown_cells() {
     for text in [
         "",
-        "v2 cell linux_x86_64\n",
-        "v1 cell\n",
-        "v1 cell \n",
+        "v1 cell linux_x86_64\n",
+        "v2 cell\n",
+        "v2 cell \n",
         "v1 os linux\n",
     ] {
         let error = parse_source_manifest(text).unwrap_err().to_string();
@@ -77,7 +77,7 @@ fn rejects_bad_headers_and_unknown_cells() {
             "{error}"
         );
     }
-    let error = parse_source_manifest("v1 cell unknown\nprod source a.rs\n")
+    let error = parse_source_manifest("v2 cell unknown\nprod source a.rs\n")
         .unwrap_err()
         .to_string();
     assert!(error.contains("unknown cell"), "{error}");
@@ -98,7 +98,7 @@ fn rejects_malformed_rows() {
         ("cell linux arm64", "more than one cell at row 2"),
     ];
     for (row, want) in cases {
-        let error = parse_source_manifest(&format!("v1 cell linux_x86_64\n{row}\n"))
+        let error = parse_source_manifest(&format!("v2 cell linux_x86_64\n{row}\n"))
             .unwrap_err()
             .to_string();
         assert!(error.contains(want), "{row}: {error}");
@@ -106,16 +106,34 @@ fn rejects_malformed_rows() {
 }
 
 #[test]
-fn rejects_duplicates_and_aliases() {
-    let error = parse_source_manifest("v1 cell linux_x86_64\nprod source a.rs\ntest source a.rs\n")
-        .unwrap_err()
-        .to_string();
-    assert!(
-        error.contains("duplicate path in source manifest: a.rs"),
-        "{error}"
+fn a_prod_row_makes_the_file_prod() {
+    let parsed = manifest(
+        "v2 cell linux_x86_64\nprod source a.rs\ntest source b.rs\ntest source a.rs\ntest source c.rs\nprod source c.rs\n",
     );
+    let rows: Vec<(&str, bool)> = parsed
+        .rows
+        .iter()
+        .map(|row| (row.path.as_str(), row.test))
+        .collect();
+    assert_eq!(rows, vec![("a.rs", false), ("b.rs", true), ("c.rs", false)]);
+}
+
+#[test]
+fn rejects_duplicates_and_aliases() {
+    for text in [
+        "v2 cell linux_x86_64\nprod source a.rs\nprod source a.rs\n",
+        "v2 cell linux_x86_64\ntest source a.rs\ntest source a.rs\n",
+        "v2 cell linux_x86_64\nprod source a.rs\ntest generated a.rs\n",
+        "v2 cell linux_x86_64\nprod source a.rs\ntest source a.rs\nprod source a.rs\n",
+    ] {
+        let error = parse_source_manifest(text).unwrap_err().to_string();
+        assert!(
+            error.contains("duplicate path in source manifest: a.rs"),
+            "{text}: {error}"
+        );
+    }
     let error =
-        parse_source_manifest("v1 cell linux_x86_64\nprod source a.rs\nprod source ./a.rs\n")
+        parse_source_manifest("v2 cell linux_x86_64\nprod source a.rs\nprod source ./a.rs\n")
             .unwrap_err()
             .to_string();
     assert!(error.contains("path alias in source manifest"), "{error}");
@@ -124,7 +142,7 @@ fn rejects_duplicates_and_aliases() {
 #[test]
 fn unexecuted_module_is_reported_even_when_every_reported_line_is_hit() {
     let manifests = [manifest(
-        "v1 cell linux_x86_64\nprod source lib/lib.rs\nprod source lib/split.rs\n",
+        "v2 cell linux_x86_64\nprod source lib/lib.rs\nprod source lib/split.rs\n",
     )];
     let load = sources(&[
         ("lib/lib.rs", "fn a() {}\n"),
@@ -145,7 +163,7 @@ fn unexecuted_module_is_reported_even_when_every_reported_line_is_hit() {
 
 #[test]
 fn orphan_report_path_is_an_error() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let documents = [lcov("a.rs", &[(1, 1)]), lcov("stray.rs", &[(1, 1)])];
     let result = account(&manifests, &documents, &sources(&[("a.rs", "fn a() {}\n")]));
     assert_eq!(
@@ -156,7 +174,7 @@ fn orphan_report_path_is_an_error() {
 
 #[test]
 fn zero_hit_file_is_eligible_and_counted() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let load = sources(&[("a.rs", "fn a() {\n}\n")]);
     let result = account(&manifests, &[lcov("a.rs", &[(1, 0), (2, 0)])], &load);
     assert!(result.errors.is_empty(), "{:?}", result.errors);
@@ -166,7 +184,7 @@ fn zero_hit_file_is_eligible_and_counted() {
 
 #[test]
 fn excluded_lines_are_counted_apart() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let source = format!(
         "fn a() {{}}\nfn b() {{}} // {} - reason: defensive, issue: 1.\n",
         marker("_LINE")
@@ -185,7 +203,7 @@ fn excluded_lines_are_counted_apart() {
 
 #[test]
 fn unreadable_reported_source_counts_every_line() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let result = account(&manifests, &[lcov("a.rs", &[(1, 1)])], &sources(&[]));
     assert_eq!(result.errors.len(), 1, "{:?}", result.errors);
     assert_eq!(result.eligible_lines, 1);
@@ -194,7 +212,7 @@ fn unreadable_reported_source_counts_every_line() {
 #[test]
 fn header_without_lines_is_support() {
     let manifests = [manifest(
-        "v1 cell linux_x86_64\nprod source cc/a.h\nprod source cc/a.cc\n",
+        "v2 cell linux_x86_64\nprod source cc/a.h\nprod source cc/a.cc\n",
     )];
     let documents = [lcov("cc/a.h", &[]), lcov("cc/a.cc", &[(1, 1)])];
     let result = account(&manifests, &documents, &sources(&[("cc/a.cc", "int a;\n")]));
@@ -207,7 +225,7 @@ fn header_without_lines_is_support() {
 #[test]
 fn header_absent_from_the_report_is_support() {
     let manifests = [manifest(
-        "v1 cell linux_x86_64\nprod source cc/decl.hpp\nprod source cc/a.cc\n",
+        "v2 cell linux_x86_64\nprod source cc/decl.hpp\nprod source cc/a.cc\n",
     )];
     let documents = [lcov("cc/a.cc", &[(1, 1)])];
     let result = account(
@@ -223,7 +241,7 @@ fn header_absent_from_the_report_is_support() {
 #[test]
 fn declaration_stubs_are_support() {
     let manifests = [manifest(
-        "v1 cell linux_x86_64\nprod source ts/a.d.ts\nprod source ts/b.d.mts\n",
+        "v2 cell linux_x86_64\nprod source ts/a.d.ts\nprod source ts/b.d.mts\n",
     )];
     let result = account(&manifests, &[], &blank_sources());
     assert!(result.errors.is_empty(), "{:?}", result.errors);
@@ -236,7 +254,7 @@ fn declaration_stubs_are_support() {
 #[test]
 fn generated_report_path_matches_its_short_path() {
     let manifests = [manifest(
-        "v1 cell linux_x86_64\nprod generated gen/out.cc\n",
+        "v2 cell linux_x86_64\nprod generated gen/out.cc\n",
     )];
     let documents = [lcov("bazel-out/k8-fastbuild/bin/gen/out.cc", &[(1, 1)])];
     let result = account(&manifests, &documents, &blank_sources());
@@ -255,7 +273,7 @@ fn bazel_out_path_without_bin_keeps_its_spelling() {
 
 #[test]
 fn dot_slash_report_path_matches() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let documents = [lcov("./a.rs", &[(1, 1)])];
     let result = account(&manifests, &documents, &blank_sources());
     assert!(result.errors.is_empty(), "{:?}", result.errors);
@@ -264,9 +282,9 @@ fn dot_slash_report_path_matches() {
 
 #[test]
 fn cell_only_file_is_required_in_that_cell_only() {
-    let x86 = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let x86 = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let arm = [manifest(
-        "v1 cell linux_arm64\nprod source a.rs\nprod source arm.rs\n",
+        "v2 cell linux_arm64\nprod source a.rs\nprod source arm.rs\n",
     )];
     let documents = [lcov("a.rs", &[(1, 1)])];
     assert_eq!(
@@ -284,8 +302,8 @@ fn cell_only_file_is_required_in_that_cell_only() {
 #[test]
 fn mixed_cells_are_an_error() {
     let manifests = [
-        manifest("v1 cell linux_x86_64\nprod source a.rs\n"),
-        manifest("v1 cell linux_arm64\nprod source b.rs\n"),
+        manifest("v2 cell linux_x86_64\nprod source a.rs\n"),
+        manifest("v2 cell linux_arm64\nprod source b.rs\n"),
     ];
     let documents = [lcov("a.rs", &[(1, 1)]), lcov("b.rs", &[(1, 1)])];
     let result = account(&manifests, &documents, &blank_sources());
@@ -310,7 +328,7 @@ fn empty_manifest_set_is_an_error() {
 
 #[test]
 fn invalid_report_is_an_error() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let result = account(&manifests, &["DA:1,1\n".to_string()], &blank_sources());
     assert_eq!(result.errors.len(), 2, "{:?}", result.errors);
     assert!(result.errors[0].starts_with("invalid coverage report: "));
@@ -323,10 +341,10 @@ fn invalid_report_is_an_error() {
 #[test]
 fn prod_wins_over_test_across_manifests() {
     let manifests = [
-        manifest("v1 cell linux_x86_64\ntest source a.rs\n"),
-        manifest("v1 cell linux_x86_64\nprod source a.rs\n"),
-        manifest("v1 cell linux_x86_64\nprod source b.rs\n"),
-        manifest("v1 cell linux_x86_64\ntest source b.rs\n"),
+        manifest("v2 cell linux_x86_64\ntest source a.rs\n"),
+        manifest("v2 cell linux_x86_64\nprod source a.rs\n"),
+        manifest("v2 cell linux_x86_64\nprod source b.rs\n"),
+        manifest("v2 cell linux_x86_64\ntest source b.rs\n"),
     ];
     let result = account(&manifests, &[], &blank_sources());
     assert_eq!(
@@ -341,7 +359,7 @@ fn prod_wins_over_test_across_manifests() {
 #[test]
 fn library_dep_of_a_test_counts_when_the_manifest_marks_it_prod() {
     let manifests = [manifest(
-        "v1 cell linux_x86_64\ntest source greet_test.rs\nprod source greet.rs\n",
+        "v2 cell linux_x86_64\ntest source greet_test.rs\nprod source greet.rs\n",
     )];
     let result = account(
         &manifests,
@@ -356,7 +374,7 @@ fn library_dep_of_a_test_counts_when_the_manifest_marks_it_prod() {
 #[test]
 fn testonly_sources_are_support_even_when_absent() {
     let manifests = [manifest(
-        "v1 cell linux_x86_64\ntest source helper.rs\ntest source helper_test.rs\n",
+        "v2 cell linux_x86_64\ntest source helper.rs\ntest source helper_test.rs\n",
     )];
     let result = account(
         &manifests,
@@ -371,7 +389,7 @@ fn testonly_sources_are_support_even_when_absent() {
 #[test]
 fn unsupported_files_are_listed_and_counted() {
     let manifests = [manifest(
-        "v1 cell linux_x86_64\nprod source tool.sh\nprod source rules.bzl\n",
+        "v2 cell linux_x86_64\nprod source tool.sh\nprod source rules.bzl\n",
     )];
     let result = account(&manifests, &[], &blank_sources());
     assert!(result.errors.is_empty(), "{:?}", result.errors);
@@ -382,7 +400,7 @@ fn unsupported_files_are_listed_and_counted() {
 
 fn cc_manifest(cell: &str) -> SourceManifest {
     manifest(&format!(
-        "v1 cell {cell}\nprod source lua/runtime/launcher.cc\nprod source a.h\nprod source a.rs\n"
+        "v2 cell {cell}\nprod source lua/runtime/launcher.cc\nprod source a.h\nprod source a.rs\n"
     ))
 }
 
@@ -414,7 +432,7 @@ fn non_windows_cells_still_require_cc() {
 
 #[test]
 fn whole_file_exclusion_accounts_an_absent_source() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let source = format!("\n{}", excluded_source());
     let result = account(&manifests, &[], &sources(&[("a.rs", source.as_str())]));
     assert!(result.errors.is_empty(), "{:?}", result.errors);
@@ -436,7 +454,7 @@ fn whole_file_exclusion_reads_each_comment_syntax() {
             marker("_STOP")
         );
         let manifests = [manifest(&format!(
-            "v1 cell linux_x86_64\nprod source {path}\n"
+            "v2 cell linux_x86_64\nprod source {path}\n"
         ))];
         let result = account(&manifests, &[], &sources(&[(path, source.as_str())]));
         assert_eq!(result.excluded_files, 1, "{path}: {:?}", result.errors);
@@ -449,7 +467,7 @@ fn partial_or_invalid_exclusion_does_not_account_an_absent_source() {
     let unmarked = "fn a() {}\n".to_string();
     let invalid = format!("fn a() {{}} // {}\n", marker("_LINE"));
     for source in [partial, unmarked, invalid] {
-        let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+        let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
         let result = account(&manifests, &[], &sources(&[("a.rs", source.as_str())]));
         assert_eq!(
             result.errors,
@@ -482,7 +500,7 @@ fn summary_names_every_count() {
 #[test]
 fn absent_lists_only_missing_production_sources() {
     let manifests = [manifest(
-        "v1 cell linux_x86_64\nprod source a.rs\nprod source missing.rs\ntest source t_test.rs\nprod source cc/decl.hpp\n",
+        "v2 cell linux_x86_64\nprod source a.rs\nprod source missing.rs\ntest source t_test.rs\nprod source cc/decl.hpp\n",
     )];
     let result = account(&manifests, &[lcov("a.rs", &[(1, 1)])], &blank_sources());
     assert_eq!(result.absent, vec!["missing.rs".to_string()]);
@@ -490,7 +508,7 @@ fn absent_lists_only_missing_production_sources() {
 
 #[test]
 fn whole_file_excluded_source_is_not_absent() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let source = format!("\n{}", excluded_source());
     let result = account(&manifests, &[], &sources(&[("a.rs", source.as_str())]));
     assert_eq!(result.absent, [] as [String; 0]);
@@ -498,7 +516,7 @@ fn whole_file_excluded_source_is_not_absent() {
 
 #[test]
 fn zero_hit_eligible_line_fails_only_a_nonzero_minimum() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let load = sources(&[("a.rs", "fn a() {\n}\n")]);
     let result = account(&manifests, &[lcov("a.rs", &[(1, 1), (2, 0)])], &load);
     assert!(result.errors.is_empty(), "{:?}", result.errors);
@@ -510,7 +528,7 @@ fn zero_hit_eligible_line_fails_only_a_nonzero_minimum() {
 
 #[test]
 fn fully_covered_cell_meets_one_hundred() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let load = sources(&[("a.rs", "fn a() {\n}\n")]);
     let result = account(&manifests, &[lcov("a.rs", &[(1, 1), (2, 4)])], &load);
     assert_eq!((result.covered_lines, result.eligible_lines), (2, 2));
@@ -519,7 +537,7 @@ fn fully_covered_cell_meets_one_hundred() {
 
 #[test]
 fn empty_denominator_never_meets() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source tool.sh\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source tool.sh\n")];
     let result = account(&manifests, &[], &blank_sources());
     assert!(result.errors.is_empty(), "{:?}", result.errors);
     assert_eq!(result.eligible_lines, 0);
@@ -528,7 +546,7 @@ fn empty_denominator_never_meets() {
 
 #[test]
 fn invalid_marker_in_a_reported_source_is_an_error() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let source = format!("// {}\nfn a() {{}}\n", marker("_LINE"));
     let load = sources(&[("a.rs", source.as_str())]);
     let result = account(&manifests, &[lcov("a.rs", &[(1, 1), (2, 1)])], &load);
@@ -540,7 +558,7 @@ fn invalid_marker_in_a_reported_source_is_an_error() {
 
 #[test]
 fn unloadable_source_counts_raw_with_hits() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let result = account(
         &manifests,
         &[lcov("a.rs", &[(1, 1), (2, 0)])],
@@ -560,7 +578,7 @@ fn unloadable_source_counts_raw_with_hits() {
 #[test]
 fn reported_unsupported_language_stays_out_of_the_denominator() {
     let manifests = [manifest(
-        "v1 cell linux_x86_64\nprod source a.rs\nprod source tool.sh\n",
+        "v2 cell linux_x86_64\nprod source a.rs\nprod source tool.sh\n",
     )];
     let documents = [lcov("a.rs", &[(1, 1)]), lcov("tool.sh", &[(1, 0), (2, 0)])];
     let result = account(&manifests, &documents, &sources(&[("a.rs", "fn a() {}\n")]));
@@ -572,7 +590,7 @@ fn reported_unsupported_language_stays_out_of_the_denominator() {
 
 #[test]
 fn excluded_lines_leave_the_covered_count() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let source = format!(
         "fn a() {{}}\nfn b() {{}} // {} - reason: defensive, issue: 1.\n",
         marker("_LINE")
@@ -584,7 +602,7 @@ fn excluded_lines_leave_the_covered_count() {
 
 #[test]
 fn duplicate_records_union_with_max_hits() {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let documents = [
         lcov("a.rs", &[(1, 0), (2, 1)]),
         lcov("a.rs", &[(1, 3), (3, 0)]),
@@ -648,7 +666,7 @@ fn recorded_orphans_become_sorted_deduped_errors() {
 #[test]
 fn unreadable_source_is_an_error_for_reported_and_absent_files() {
     let manifests = [manifest(
-        "v1 cell linux_x86_64\nprod source a.rs\nprod source b.rs\n",
+        "v2 cell linux_x86_64\nprod source a.rs\nprod source b.rs\n",
     )];
     let result = account(&manifests, &[lcov("a.rs", &[(1, 1)])], &sources(&[]));
     assert!(
@@ -672,7 +690,7 @@ fn unreadable_source_is_an_error_for_reported_and_absent_files() {
 #[test]
 fn dart_runner_uris_resolve_to_owned_paths_and_drop_pub_packages() {
     let parsed = manifest(
-        "v1 cell linux_x86_64\ntest source app/test/a_test.dart\nprod source app/lib/main.dart\n",
+        "v2 cell linux_x86_64\ntest source app/test/a_test.dart\nprod source app/lib/main.dart\n",
     );
     let report = [
         lcov("org-dartlang-root:///app/test/a_test.dart", &[(4, 1)]),
@@ -685,7 +703,7 @@ fn dart_runner_uris_resolve_to_owned_paths_and_drop_pub_packages() {
 }
 
 fn hygiene_errors(source: &str, lines: &[(u32, u64)]) -> Vec<String> {
-    let manifests = [manifest("v1 cell linux_x86_64\nprod source a.rs\n")];
+    let manifests = [manifest("v2 cell linux_x86_64\nprod source a.rs\n")];
     let load = sources(&[("a.rs", source)]);
     account(&manifests, &[lcov("a.rs", lines)], &load).errors
 }
@@ -757,7 +775,7 @@ fn merges_hits_of_report_paths_that_share_one_key() {
         lcov("src/a.py", &[(2, 0)])
     )];
     let cell = account(
-        &[manifest("v1 cell linux\nprod source src/a.py\n")],
+        &[manifest("v2 cell linux\nprod source src/a.py\n")],
         &report,
         &blank_sources(),
     );

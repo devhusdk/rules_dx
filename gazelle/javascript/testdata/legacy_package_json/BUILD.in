@@ -1,0 +1,7 @@
+load("@rules_dx//javascript:defs.bzl", "js_library")
+
+js_library(
+    name = "package_json",
+    srcs = ["package.json"],
+    visibility = ["//visibility:public"],
+)

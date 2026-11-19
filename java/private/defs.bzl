@@ -2,11 +2,11 @@
 
 load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_library = "java_library", _java_test = "java_test")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//java/private:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
 load("//java/private:jazzer.bzl", "jazzer_fuzz", "jazzer_target_class")
 load("//java/private:jmh.bzl", "jmh_bench")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors", "java_test_main_class")
 
 _JMH_MAIN = "dx.bench.JmhRunner"
@@ -67,10 +67,35 @@ def java_library(name, srcs = None, visibility = None, **kwargs):
     upstream_kwargs = java_javacopts_with_warnings_as_errors(kwargs)
     dx_wrap(name, _java_library, _java_library_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
 
+def java_deploy_jar_alias(name, visibility, kwargs, from_runtime_deps = False):
+    """Declares <name>_deploy.jar for a wrapped JVM binary whose real rule is <name>_upstream."""
+    common = {key: kwargs[key] for key in ("testonly", "target_compatible_with") if kwargs.get(key) != None}
+    actual = name + "_upstream"
+
+    # kt_jvm_binary has no deploy jar, so a private java_binary over its runtime classpath builds it.
+    if from_runtime_deps:
+        _java_binary(
+            name = name + "_upstream_fat",
+            main_class = kwargs.get("main_class"),
+            runtime_deps = [":" + actual],
+            tags = dx_upstream_tags(kwargs.get("tags")),
+            visibility = ["//visibility:private"],
+            **common
+        )
+        actual = name + "_upstream_fat"
+    native.alias(
+        name = name + "_deploy.jar",
+        actual = ":" + actual + "_deploy.jar",
+        tags = kwargs.get("tags"),
+        visibility = visibility,
+        **common
+    )
+
 def java_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Wrapper over java_binary that infers main_class."""
     upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_warnings_as_errors(kwargs), "main_class")
     dx_wrap_binary(name, _java_binary, _java_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
+    java_deploy_jar_alias(name, visibility, kwargs)
 
 def java_test(name, *, srcs = None, visibility = None, **kwargs):
     """Wrapper over java_test that infers test_class."""

@@ -9,7 +9,7 @@ def _haskell_docs_shard(target, ctx):
         return None
     if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary") or ctx.label.name.endswith("_upstream"):
         return None
-    if ctx.toolchains[HASKELL_TOOLCHAIN] == None or not target[_HaskellInfo].source_files.to_list():
+    if ctx.toolchains[HASKELL_TOOLCHAIN] == None or not target[_HaskellInfo].source_files:
         return None
     return haskell_shard_action(ctx, target[_HaskellInfo], ctx.label.name, "", "_dx_docs/" + ctx.label.name, ctx.executable._haskell_extract).shard
 
@@ -25,7 +25,7 @@ real_haskell_docs_aspect = aspect(
     attrs = {
         "_haskell_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/haskell/extract:haskell_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

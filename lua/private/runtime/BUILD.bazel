@@ -6,6 +6,16 @@ package(default_visibility = ["//:__subpackages__"])
 
 exports_files(["BUILD.bazel"])
 
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "BUILD.bazel",
+        "launcher.cc",
+        "launcher_test.lua",
+        "launcher_test_helper.lua",
+    ],
+)
+
 cc_binary(
     name = "launcher",
     srcs = ["launcher.cc"],

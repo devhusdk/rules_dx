@@ -1,4 +1,8 @@
 //! Starts a project with `dx init` and adds a hello-world fixture.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;

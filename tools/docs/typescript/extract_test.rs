@@ -1,4 +1,8 @@
 //! Checks the TypeScript fixture shard and the extractor's failure handling.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::Path;
 use std::process::Command;
@@ -70,6 +74,7 @@ fn sources_are_repo_relative() {
 
 fn run_extract(dir: &Path, typedoc: &Path) -> (i32, String) {
     let output = Command::new(dx_testing::env_file("DX_TYPESCRIPT_EXTRACT"))
+        .arg("typescript_extract")
         .args(["--typedoc"])
         .arg(typedoc)
         .args(["--package", "geometry", "--out", "shard.ir.pb"])

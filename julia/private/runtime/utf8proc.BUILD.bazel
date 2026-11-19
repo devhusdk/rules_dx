@@ -1,0 +1,18 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "utf8proc",
+    srcs = ["utf8proc.c"],
+    hdrs = ["utf8proc.h"],
+    copts = [
+        "-std=c99",
+        "-O2",
+        "-fPIC",
+        "-DUTF8PROC_EXPORTS",
+    ],
+    includes = ["."],
+    textual_hdrs = ["utf8proc_data.c"],
+    alwayslink = True,
+)

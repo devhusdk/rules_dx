@@ -87,10 +87,12 @@ fn rustfmt_header(header: &str) -> Result<(&str, u64), ParseError> {
     let (path, line_text) = rest
         .rsplit_once(':')
         .ok_or_else(|| missing("rustfmt", "Diff header", header))?;
-    let line = line_text.parse::<u64>().map_err(|_| ParseError::Shape {
-        tool: "rustfmt",
-        detail: format!("malformed Diff header: {header}"),
-    })?;
+    let line = line_text
+        .parse::<u64>()
+        .map_err(|error| ParseError::Shape {
+            tool: "rustfmt",
+            detail: format!("malformed Diff header: {header}: {error}"),
+        })?;
     if path.is_empty() || line == 0 {
         return Err(ParseError::Shape {
             tool: "rustfmt",

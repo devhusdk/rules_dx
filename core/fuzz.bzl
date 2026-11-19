@@ -104,7 +104,7 @@ _dx_fuzz_run = rule(
     doc = "The runner executable that `dx fuzz` calls for one fuzz binary.",
     attrs = {
         "data": attr.label_list(doc = "Files the runner needs at run time.", allow_files = True),
-        "runner": attr.label(doc = "The dx-runtime binary.", default = Label("//cli/runtime:dx_runtime"), executable = True, cfg = no_coverage_transition),
+        "runner": attr.label(doc = "The dx-runtime binary.", default = Label("@dx_prebuilt//:runtime"), executable = True, cfg = no_coverage_transition),
     },
     executable = True,
 )

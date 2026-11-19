@@ -1,5 +1,3 @@
-use std::fmt::Write as _;
-
 use super::*;
 use crate::{account, parse_source_manifest};
 
@@ -17,7 +15,7 @@ fn added(entries: &[(&str, &[u32])]) -> AddedLines {
 fn lcov(path: &str, hits: &[(u32, u64)]) -> String {
     let mut out = format!("SF:{path}\n");
     for (line, count) in hits {
-        writeln!(out, "DA:{line},{count}").ok();
+        out.push_str(&format!("DA:{line},{count}\n"));
     }
     out.push_str("end_of_record\n");
     out
@@ -47,7 +45,7 @@ fn gate(
     changed_account(&cell, report, changes, &load)
 }
 
-const OWNS_A: &str = "v1 cell linux_x86_64\nprod source src/a.py\n";
+const OWNS_A: &str = "v2 cell linux_x86_64\nprod source src/a.py\n";
 
 #[test]
 fn hunk_with_count_adds_each_line() {
@@ -179,7 +177,7 @@ fn no_changed_executable_lines_is_not_applicable() {
 
 #[test]
 fn changed_file_missing_from_report_is_incomplete() {
-    let manifest = "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n";
+    let manifest = "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n";
     let report = [lcov("src/a.py", &[(1, 1)])];
     let got = gate(
         manifest,
@@ -194,7 +192,7 @@ fn changed_file_missing_from_report_is_incomplete() {
 
 #[test]
 fn case_differing_git_path_matches_report() {
-    let manifest = "v1 cell linux_x86_64\nprod source pkg/Foo.c\n";
+    let manifest = "v2 cell linux_x86_64\nprod source pkg/Foo.c\n";
     let report = [lcov("pkg/Foo.c", &[(1, 0), (2, 1)])];
     let got = gate(manifest, &report, &added(&[("pkg/foo.c", &[1, 2])]), &[]);
     assert_eq!((got.covered_lines, got.eligible_lines), (1, 2));
@@ -202,7 +200,7 @@ fn case_differing_git_path_matches_report() {
 
 #[test]
 fn case_differing_absent_file_is_uninstrumented() {
-    let manifest = "v1 cell linux_x86_64\nprod source pkg/Foo.c\n";
+    let manifest = "v2 cell linux_x86_64\nprod source pkg/Foo.c\n";
     let got = gate(
         manifest,
         &[],
@@ -214,7 +212,7 @@ fn case_differing_absent_file_is_uninstrumented() {
 
 #[test]
 fn ambiguous_case_keeps_exact_matching() {
-    let manifest = "v1 cell linux_x86_64\nprod source pkg/Foo.c\n";
+    let manifest = "v2 cell linux_x86_64\nprod source pkg/Foo.c\n";
     let report = [lcov("pkg/Foo.c", &[(1, 0)]), lcov("pkg/FOO.c", &[(1, 1)])];
     let got = gate(manifest, &report, &added(&[("pkg/foo.c", &[1])]), &[]);
     assert_eq!((got.covered_lines, got.eligible_lines), (0, 1));
@@ -222,7 +220,7 @@ fn ambiguous_case_keeps_exact_matching() {
 
 #[test]
 fn test_support_and_unowned_files_are_skipped() {
-    let manifest = "v1 cell linux_x86_64\nprod source src/a.py\ntest source src/a_test.py\n";
+    let manifest = "v2 cell linux_x86_64\nprod source src/a.py\ntest source src/a_test.py\n";
     let report = [
         lcov("src/a.py", &[(1, 1)]),
         lcov("src/a_test.py", &[(1, 0)]),

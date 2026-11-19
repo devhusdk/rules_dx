@@ -181,7 +181,8 @@ pub fn inventory_text_present(
     }
 }
 
-fn first_inventory_match<'a>(
+#[must_use]
+pub fn first_inventory_match<'a>(
     package: &LockedPackage,
     inventory: &'a [crate::license_policy::LicenseInventory],
 ) -> Option<&'a crate::license_policy::LicenseInventory> {

@@ -54,21 +54,39 @@ tools/dx test //...
 
 ## Bench and fuzz
 
-`rust_bench(name, srcs, deps, ...)` is a `rust_test` built with the
-`dx_bench` feature and tagged `dx-bench`. It runs the binary with
-`--bench --output-format bencher`, sets `CRITERION_HOME` under the undeclared
-outputs, and writes the `test NAME ... bench: N ns/iter (+/- M)` lines to
-`dx-bench.json`. `dx bench` runs it. The test is built without the libtest harness
-(`use_libtest_harness = False`), so criterion's own `main` runs; pass
-`use_libtest_harness = True` for nightly `#[bench]` functions.
-`@rules_dx//rust/tests/fixtures/bench` is a criterion example.
+`rust_bench` runs a criterion benchmark for `dx bench`:
+
+```python
+load("@rules_dx//rust:defs.bzl", "rust_bench")
+
+rust_bench(
+    name = "parse_bench",
+    srcs = ["parse_bench.rs"],
+    deps = ["@crates//:criterion"],
+)
+```
+
+It is a `rust_test` built with the `dx_bench` crate feature and tagged
+`dx-bench`. It builds without the libtest harness, so criterion's own `main`
+runs. For nightly `#[bench]` functions, set `use_libtest_harness = True`.
+
+The test runs the binary with `--bench --output-format bencher` and keeps
+criterion's files (`CRITERION_HOME`) in the undeclared outputs. It turns each
+`test NAME ... bench: N ns/iter (+/- M)` line into a row of `dx-bench.json`.
+`rust/tests/fixtures/bench` is a full example.
 
 ## Toolchain
 
+### Edition
+
+Targets build with Rust edition 2024. To use another edition, set `edition`
+on the target, for example `edition = "2021"`.
+
 ### WebAssembly
 
-One `rust_binary` builds native, browser and WASI outputs. The `wasm`
-attribute picks the output:
+One `rust_binary` builds native, browser or WASI output. The `wasm` attribute
+picks it: leave it out for a native binary, set `"browser"` for a browser
+module, or `"wasi"` for a WASI module.
 
 ```python
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_test")
@@ -99,60 +117,75 @@ rust_test(
 )
 ```
 
+Wasm builds and
+browser tests run without coverage instrumentation, so `bazel coverage` runs
+them but reports no Wasm coverage.
+
 ### Native
+
+Build the native binary as usual:
 
 ```sh
 bazel build //pkg:tool
 ```
 
-On a libstdc++ platform, such as `@rules_dx//qt:linux_x86_64`,
-crates and their dependencies build without the static C++ runtime.
-Binaries and tests link LLVM libunwind. The private `<name>_upstream`
-targets are incompatible there; build `<name>`.
+On a libstdc++ platform, such as `@rules_dx//qt:linux_x86_64`, crates build
+without the static C++ runtime, and binaries and tests link LLVM libunwind.
+Build `<name>` there; the `<name>_upstream` targets are incompatible.
 
-### Edition
-
-Targets default to Rust edition 2024. Set `edition` on a target to build it with another edition, for example `edition = "2021"`.
+A `cc_library` in `deps` or `link_deps` links from its static archive. Keep
+Rustc sandboxed, which is Bazel's default. When Rustc runs unsandboxed on Linux,
+for example under `--spawn_strategy=local`, a local fallback or on a Windows
+host building for Linux, the linker can take the library's `.so` instead, and
+the binary fails with `cannot open shared object file`. If the sandbox is off,
+set `linkstatic = True` on those `cc_library` targets.
 
 ### Browser
 
-`rust_binary(wasm = "browser")` builds the binary for `wasm32-unknown-unknown`
-and emits the JavaScript bindings: `<name>.js`, `<name>_bg.wasm`, and the
+`rust_binary(wasm = "browser")` builds for `wasm32-unknown-unknown` and emits
+the JavaScript bindings: `<name>.js`, `<name>_bg.wasm` and the type
 declarations. Guard browser-only code with
-`#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]`.
-The `wasm_bindgen` crate is already in `deps`, so `use wasm_bindgen::prelude::*`
-needs no `bazel_dep` beyond rules_dx.
+`#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]`. The
+`wasm_bindgen` crate is already in `deps`, so `use wasm_bindgen::prelude::*`
+works without another `bazel_dep`.
 
-`rust_test(srcs = ["browser_test.rs"], wasm = "browser")` builds a test crate
-and runs its `#[wasm_bindgen_test]` cases in a browser that Bazel fetches. The
-file needs a `fn main`. One file becomes `crate_root`. `deps`,
-`proc_macro_deps` and `crate_root` go to the test crate.
+To test browser code, write `#[wasm_bindgen_test]` cases in a file with a
+`fn main`:
 
-`rust_test(crate = ":tool_web", wasm = "browser")` runs the cases of an
-existing `rust_binary(wasm = "browser")` instead.
-It runs on linux x86_64 with Firefox, where the host needs GTK 3, and only
-runs locally. Other platforms skip it as incompatible. Wasm builds and
-browser tests run without coverage instrumentation, so `bazel coverage` runs
-them but reports no Wasm coverage.
+```python
+rust_test(
+    name = "browser_test",
+    srcs = ["browser_test.rs"],
+    wasm = "browser",
+)
+```
 
-For `nodejs` output, bindgen flags, or a custom toolchain, load
+The file becomes `crate_root`. `deps`, `proc_macro_deps` and `crate_root` go
+to the test crate. To run the cases of an existing browser binary instead, set
+`crate = ":tool_web"` in place of `srcs`.
+
+Browser tests run in a Firefox that Bazel fetches, on Linux x86_64 only, and
+never remotely. The host needs GTK 3. Other platforms skip them as
+incompatible.
+
+For `nodejs` output, wasm-bindgen flags or your own toolchain, load
 `rust_wasm_bindgen` from `@rules_rust_wasm_bindgen//:defs.bzl`.
 
 ### WASI
 
 `rust_binary(wasm = "wasi")` builds for `wasm32-wasip1` and outputs one
-`.wasm` file, without coverage. Building it fetches no runtime. A plain
-`rust_binary` also builds for WASI with:
+`.wasm` file. Building it fetches no runtime. A plain `rust_binary` also
+builds for WASI with:
 
 ```sh
 bazel build --platforms=@rules_rust//rust/platform:wasip1 //pkg:tool
 ```
 
-`rust_test(wasm = "wasi")` builds the test crate for `wasm32-wasip1`,
-without coverage, and runs it under Wasmtime. `srcs` or `crate` must
-build one test module. The guest gets only the declared `args`, `env`
-entries, and `preopens`. `--test_filter` reaches the guest's test
-harness. `env` and `preopens` guest paths are literal.
+`rust_test(wasm = "wasi")` builds the test crate for `wasm32-wasip1` and runs
+it under Wasmtime. `srcs` or `crate` must build one test module. The guest
+sees only the `args`, `env` entries and `preopens` you declare, and
+`--test_filter` reaches its test harness. Guest paths in `env` and `preopens`
+are used as written.
 
 | Attribute | Meaning |
 | --- | --- |
@@ -162,17 +195,18 @@ harness. `env` and `preopens` guest paths are literal.
 | `preopens` | Guest directory mapped to one host file, staged alone. |
 | `runtime` | Executable that acts like `wasmtime run`. Default Wasmtime. Needs `wasm = "wasi"`. |
 
-To check a built `wasm = "wasi"` binary from outside, use a native
-`rust_test`. Put `@rules_dx//tools/testing/wasi:wasmtime` and the module in
-`data` and `@rules_dx//tools/testing/wasi:wasi_run` in `deps`. Pass their
-`$(rootpath)` values in `env`. Then call
-`wasi_run::run(runtime, module, args, env, preopens) -> Output` and
-assert on the exit code, stdout, and stderr. Preopens map a guest
-directory to one host file.
+A custom `runtime` gets `DX_WASI_MANAGED_RUNTIME`, the path of the default
+Wasmtime, so it can hand off to it. Proc macros and build scripts still build
+for the execution platform, and `rust_test` without `wasm` runs unit tests
+natively.
 
-A custom `runtime` receives `DX_WASI_MANAGED_RUNTIME`, the path of the
-default Wasmtime, so it can delegate. Proc macros and build scripts stay
-on the execution platform. `rust_test` runs unit tests natively.
+To check a built WASI binary from the outside, write a native `rust_test`:
+
+1. Put `@rules_dx//rust:wasmtime` and the module in `data`.
+2. Put `@rules_dx//rust:wasi_run` in `deps`.
+3. Pass their `$(rootpath)` values in `env`.
+4. Call `wasi_run::run(runtime, module, args, env, preopens) -> Output` and
+   assert on the exit code, stdout and stderr.
 
 ## Rules
 
@@ -254,6 +288,14 @@ rust_build_script(name, build_script_env = None, toolchains = None, use_cc_toolc
 
 `rust_build_script`, a `cargo_build_script` whose build script gets `HOST_*` and `TARGET_*` cc tools and flags from rules_dx.
 
+### `rust_docs_site`
+
+```python
+rust_docs_site(name, libraries, prose, book_toml, prose_route = "prose.md", source_url = "")
+```
+
+Renders one prose page and the API reference of some Rust libraries.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Rust:
@@ -288,13 +330,5 @@ call in your `MODULE.bazel`.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/rust:site.bzl", "rust_docs_site")
+load("@rules_dx//rust:defs.bzl", "rust_docs_site")
 ```
-
-### `rust_docs_site`
-
-```python
-rust_docs_site(name, libraries, prose, book_toml, prose_route = "prose.md", source_url = "")
-```
-
-Renders one prose page and the API reference of some Rust libraries.

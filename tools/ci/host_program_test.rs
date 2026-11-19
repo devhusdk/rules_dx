@@ -73,7 +73,7 @@ fn scan_rust(path: &str, source: &str, counts: &mut Counts) {
 }
 
 fn scan_starlark(path: &str, source: &str, counts: &mut Counts) {
-    let module = parse(path, source);
+    let module = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     for expr in exprs(module.statement()) {
         let ExprP::Call(callee, args) = &expr.node else {
             continue;

@@ -330,6 +330,24 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" //appimage/... //cli/archive/...
+  analysis-scaling:
+    name: analysis-scaling (dx check and docs aspects on depth 100 and 400 chains)
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Compare the analysis phase of the two chain depths
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" //tools/testing:analysis_scaling_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/analysis_scaling"
   gcc-cross-build:
     name: gcc-cross-build (gcc + llvm linux_x86_64 -> linux_arm64 fixtures)
     timeout-minutes: 45
@@ -797,6 +815,13 @@ jobs:
           if [ "$status" -ne 0 ] && [ "$status" -ne 4 ]; then
             exit "$status"
           fi
+      - name: Run the Windows TypeScript action tests
+        if: ${{ !cancelled() && runner.os == 'Windows' && matrix.shard == 1 }}
+        run: |
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --test_output=errors --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS //typescript/tests:windows_ts_actions
+          # shellcheck disable=SC2086
+          bazel build --noshow_progress --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS --aspects=//tools/docs/components:aspect.bzl%real_components_docs_aspect,//tools/docs/typescript:aspect.bzl%real_typescript_docs_aspect --output_groups=dx_docs_shards //tools/docs/components/fixture/svelte:ui_library //tools/docs/typescript/fixture:geometry_library
       - uses: ./.github/actions/compiler-evidence
         if: always() && matrix.shard == 0
         with:
@@ -989,8 +1014,23 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
+          mkdir -p "$RUNNER_TEMP/exec-log"
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=all "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/... //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia_app/... //julia/private/tools/... 2>&1 | tee "$RUNNER_TEMP/launch-smoke.log"
+          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=all "--execution_log_compact_file=$RUNNER_TEMP/exec-log/launch-smoke.log" "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/... //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia_app/... //julia/private/tools/... 2>&1 | tee "$RUNNER_TEMP/launch-smoke.log"
+      - name: Check the upload holds no secret
+        id: scan-exec-log
+        if: always()
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/exec-log
+      - name: Upload the execution log
+        if: ${{ always() && steps.scan-exec-log.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: exec-log-preflight-${{ matrix.platform }}
+          path: ${{ runner.temp }}/exec-log
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Run the PyPI probe verification
         run: |
           # shellcheck disable=SC2086
@@ -1069,8 +1109,23 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
+          mkdir -p "$RUNNER_TEMP/exec-log"
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors "$@" $QUALITY_TARGETS 2>&1 | tee "$RUNNER_TEMP/quality-matrix.log"
+          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors "--execution_log_compact_file=$RUNNER_TEMP/exec-log/quality-matrix.log" "$@" $QUALITY_TARGETS 2>&1 | tee "$RUNNER_TEMP/quality-matrix.log"
+      - name: Check the upload holds no secret
+        id: scan-exec-log
+        if: always()
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/exec-log
+      - name: Upload the execution log
+        if: ${{ always() && steps.scan-exec-log.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: exec-log-quality-matrix-${{ matrix.platform }}
+          path: ${{ runner.temp }}/exec-log
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Write job summary
         if: always()
         env:
@@ -1202,6 +1257,7 @@ jobs:
         coverage-cells,
         dogfood,
         docs,
+        analysis-scaling,
         determinism,
         devcontainer-check,
         gate,

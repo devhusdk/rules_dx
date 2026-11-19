@@ -2,7 +2,6 @@
 
 use dx_exec_core::common::collect_output_account;
 use dx_plan::plan::{DOCS_SHARD_OUTPUT_GROUP, DOCS_TOOLS_OUTPUT_GROUP};
-use dx_process::Runner;
 use std::path::{Path, PathBuf};
 
 pub(crate) const CODE_INDEX_FAILED: &str = "docs_index_failed";
@@ -14,12 +13,6 @@ const BOOK_TOML: &str = "[book]\ntitle = \"API reference\"\nlanguage = \"en\"\ns
 const SUMMARY: &str = "# Summary\n\n- [API reference](README.md)\n";
 
 const README: &str = "# API reference\n\nThe public API of the Rust libraries in scope.\n";
-
-struct Tools {
-    aggregate: PathBuf,
-    mdbook: PathBuf,
-    site_build: PathBuf,
-}
 
 fn failed(detail: String) -> dx_error::DxError {
     dx_error::DxError::failure(detail)
@@ -67,11 +60,12 @@ pub(crate) fn execution_root(
     (result.code == Some(0) && !line.is_empty()).then(|| PathBuf::from(line))
 }
 
-fn built_tools(
+/// The mdBook binary the docs build reported in its tools manifest.
+fn built_mdbook(
     bep: &Path,
     workspace: &Path,
     execution_root: Option<&Path>,
-) -> Result<Tools, dx_error::DxError> {
+) -> Result<PathBuf, dx_error::DxError> {
     let account = collect_output_account(bep, DOCS_TOOLS_OUTPUT_GROUP, workspace)?;
     let mut tools = std::collections::BTreeMap::new();
     for artifact in account
@@ -85,71 +79,44 @@ fn built_tools(
             }
         }
     }
-    let mut take = |name: &str| {
-        tools
-            .remove(name)
-            .ok_or_else(|| failed(format!("the docs build did not report the {name} tool")))
-    };
-    Ok(Tools {
-        aggregate: take("aggregate")?,
-        mdbook: take("mdbook")?,
-        site_build: take("site_build")?,
-    })
+    tools
+        .remove("mdbook")
+        .ok_or_else(|| failed("the docs build did not report the mdbook tool".to_owned()))
 }
 
 fn text(path: &Path) -> String {
     path.display().to_string()
 }
 
-fn aggregate_argv(tool: &Path, shards: &[PathBuf], work: &Path) -> Vec<String> {
-    let mut argv = vec![text(tool)];
-    for shard in shards {
-        argv.push("--shard".to_owned());
-        argv.push(text(shard));
+fn aggregate_options(shards: &[PathBuf], work: &Path) -> dx_site_aggregate::Options {
+    dx_site_aggregate::Options {
+        shards: shards.iter().map(|shard| text(shard)).collect(),
+        source_url: String::new(),
+        summary: text(&work.join("api_summary.md")),
+        api: text(&work.join("api.json")),
+        api_tree: text(&work.join("api")),
+        records: text(&work.join("records.json")),
     }
-    for (flag, name) in [
-        ("--summary", "api_summary.md"),
-        ("--api", "api.json"),
-        ("--api-tree", "api"),
-        ("--records", "records.json"),
-    ] {
-        argv.push(flag.to_owned());
-        argv.push(text(&work.join(name)));
-    }
-    argv
 }
 
-fn site_build_argv(tools: &Tools, work: &Path, out: &Path) -> Vec<String> {
-    let mut argv = vec![text(&tools.site_build)];
-    for (flag, value) in [
-        ("--mdbook", text(&tools.mdbook)),
-        ("--book", text(&work.join("book.toml"))),
-        ("--summary", text(&work.join("SUMMARY.md"))),
-        ("--manifest", text(&work.join("pages.tsv"))),
-        ("--out", text(out)),
-        ("--api-tree", text(&work.join("api"))),
-        ("--api-summary", text(&work.join("api_summary.md"))),
-    ] {
-        argv.push(flag.to_owned());
-        argv.push(value);
+fn site_build_options(mdbook: &Path, work: &Path, out: &Path) -> dx_site_build::Options {
+    dx_site_build::Options {
+        mdbook: text(mdbook),
+        book: text(&work.join("book.toml")),
+        summary: text(&work.join("SUMMARY.md")),
+        manifest: text(&work.join("pages.tsv")),
+        out: text(out),
+        api_tree: text(&work.join("api")),
+        api_summary: text(&work.join("api_summary.md")),
     }
-    argv
 }
 
-fn run_tool(
-    runner: &dyn Runner,
-    workspace: &Path,
-    argv: &[String],
+/// Turns a tool's refusal into an error named after the tool.
+fn refused<E: std::fmt::Display>(
+    tool: &str,
+    result: Result<(), E>,
 ) -> Result<(), dx_error::DxError> {
-    let name = argv.first().map_or("", String::as_str);
-    match runner.run(argv, workspace, &[]) {
-        Ok(status) if status.code == Some(0) => Ok(()),
-        Ok(status) => Err(failed(match status.code {
-            Some(code) => format!("{name} exited with code {code}"),
-            None => format!("{name} was terminated by a signal"),
-        })),
-        Err(error) => Err(failed(format!("cannot run {name}: {error}"))),
-    }
+    result.map_err(|refusal| failed(format!("{tool}: {refusal}")))
 }
 
 /// Renders the shards into `<workspace>/.dx/local/docs/index` and returns that tree.
@@ -158,14 +125,13 @@ pub(crate) fn build_index(
     workspace: &Path,
     execution_root: Option<&Path>,
     shards: &[PathBuf],
-    runner: &dyn Runner,
 ) -> Result<PathBuf, dx_error::DxError> {
-    let tools = built_tools(bep, workspace, execution_root)?;
+    let mdbook = built_mdbook(bep, workspace, execution_root)?;
     let root = workspace.join(INDEX_DIR);
     let work = root.join("work");
     let out = root.join("index");
-    std::fs::remove_dir_all(&work).ok();
-    std::fs::remove_dir_all(&out).ok();
+    dx_atomic_fs::discard_dir(&work);
+    dx_atomic_fs::discard_dir(&out);
     std::fs::create_dir_all(&work)
         .map_err(|error| failed(format!("cannot create {}: {error}", work.display())))?;
     let page = work.join("README.md");
@@ -182,12 +148,14 @@ pub(crate) fn build_index(
         dx_atomic_fs::write_scratch(&path, content.as_bytes())
             .map_err(|error| failed(format!("cannot write {}: {error}", path.display())))?;
     }
-    run_tool(
-        runner,
-        workspace,
-        &aggregate_argv(&tools.aggregate, shards, &work),
+    refused(
+        "site_aggregate",
+        dx_site_aggregate::run(&aggregate_options(shards, &work)),
     )?;
-    run_tool(runner, workspace, &site_build_argv(&tools, &work, &out))?;
+    refused(
+        "site_build",
+        dx_site_build::run(&site_build_options(&mdbook, &work, &out)),
+    )?;
     if !out.join("index.html").is_file() {
         return Err(failed(format!(
             "the index has no index.html at {}",
@@ -216,44 +184,54 @@ mod tests {
         assert_eq!(path, Path::new("/w").join("bazel-out/k8/bin/agg"));
     }
 
+    fn slashes(path: &str) -> String {
+        path.replace('\\', "/")
+    }
+
     #[test]
     fn aggregate_gets_every_shard_once_in_order() {
         let shards = [PathBuf::from("/w/a/a.shard"), PathBuf::from("/w/b/b.shard")];
-        let argv = aggregate_argv(
-            Path::new("/t/agg"),
-            &shards,
-            Path::new("/w/.dx/local/docs/work"),
-        );
-        let argv: Vec<String> = argv.iter().map(|arg| arg.replace('\\', "/")).collect();
-        assert_eq!(argv[0], "/t/agg");
-        assert_eq!(
-            argv[1..5],
-            ["--shard", "/w/a/a.shard", "--shard", "/w/b/b.shard"]
-        );
-        assert!(
-            argv.contains(&"/w/.dx/local/docs/work/api".to_owned()),
-            "{argv:?}"
-        );
+        let options = aggregate_options(&shards, Path::new("/w/.dx/local/docs/work"));
+        let shards: Vec<String> = options.shards.iter().map(|s| slashes(s)).collect();
+        assert_eq!(shards, ["/w/a/a.shard", "/w/b/b.shard"]);
+        assert_eq!(slashes(&options.api_tree), "/w/.dx/local/docs/work/api");
+        assert!(options.source_url.is_empty(), "{options:?}");
     }
 
     #[test]
     fn site_build_reads_the_generated_book_and_api() {
-        let tools = Tools {
-            aggregate: PathBuf::from("/t/agg"),
-            mdbook: PathBuf::from("/t/mdbook"),
-            site_build: PathBuf::from("/t/site_build"),
-        };
-        let argv = site_build_argv(&tools, Path::new("/w/work"), Path::new("/w/index"));
-        let joined = argv.join(" ").replace('\\', "/");
-        assert!(
-            joined.starts_with("/t/site_build --mdbook /t/mdbook"),
-            "{joined}"
+        let options = site_build_options(
+            Path::new("/t/mdbook"),
+            Path::new("/w/work"),
+            Path::new("/w/index"),
         );
-        assert!(joined.contains("--book /w/work/book.toml"), "{joined}");
-        assert!(joined.contains("--out /w/index"), "{joined}");
+        assert_eq!(slashes(&options.mdbook), "/t/mdbook");
+        assert_eq!(slashes(&options.book), "/w/work/book.toml");
+        assert_eq!(slashes(&options.out), "/w/index");
+        assert_eq!(slashes(&options.api_summary), "/w/work/api_summary.md");
+    }
+
+    #[test]
+    fn a_refusal_names_its_tool() {
+        assert!(refused("site_build", Ok::<(), String>(())).is_ok());
+        let error = refused("site_build", Err("no pages")).err();
         assert!(
-            joined.contains("--api-summary /w/work/api_summary.md"),
-            "{joined}"
+            error.is_some_and(|error| error.to_string().contains("site_build: no pages")),
+            "refusal lost its tool name"
         );
+    }
+
+    #[test]
+    fn an_undecodable_shard_fails_the_index_in_process() {
+        let dir = dx_test_scratch::scratch("docs-index-shard").unwrap();
+        let shard = dir.path().join("bad.shard");
+        std::fs::write(&shard, b"not a shard").unwrap();
+        let work = dir.path().join("work");
+        std::fs::create_dir_all(&work).unwrap();
+        let refusal = dx_site_aggregate::run(&aggregate_options(&[shard], &work))
+            .err()
+            .map(|error| error.to_string())
+            .unwrap_or_default();
+        assert!(refusal.contains("bad.shard"), "{refusal}");
     }
 }

@@ -1,4 +1,6 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
 load("//ruby:defs.bzl", "ruby_library")
 load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -86,4 +88,16 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+real_docs_shard_files(
+    name = "geometry_ext_aspect_shard",
+    testonly = True,
+    target = ":geometry_ext",
+)
+
+# Building the aspect shard runs YARD over a library whose context comes from its deps.
+build_test(
+    name = "aspect_shard_build_test",
+    targets = [":geometry_ext_aspect_shard"],
 )

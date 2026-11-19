@@ -1,6 +1,6 @@
 """Analysis subject that reports another subject's fields as built for one platform."""
 
-load("//core:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo")
 load("//core:platform.bzl", "platform_transition")
 
 def _platform_subject_impl(ctx):

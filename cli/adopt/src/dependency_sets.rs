@@ -142,8 +142,8 @@ pub enum DependencySetsError {
     Hubs { detail: String },
     #[error("could not read {rel}: {detail}")]
     Read { rel: String, detail: String },
-    #[error("could not read {rel}: not valid UTF-8")]
-    NotUtf8 { rel: String },
+    #[error("could not read {rel}: not valid UTF-8 ({detail})")]
+    NotUtf8 { rel: String, detail: String },
     #[error("invalid {rel}: {detail}")]
     InvalidToml { rel: String, detail: String },
     #[error("cannot read dependency sets from {MODULE_BAZEL}: {detail}")]
@@ -1973,8 +1973,9 @@ fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
             rel: manifest.clone(),
             detail: error.to_string(),
         })?;
-        let text = String::from_utf8(bytes).map_err(|_| DependencySetsError::NotUtf8 {
+        let text = String::from_utf8(bytes).map_err(|error| DependencySetsError::NotUtf8 {
             rel: manifest.clone(),
+            detail: error.to_string(),
         })?;
         let table: toml::Table =
             toml::from_str(&text).map_err(|error| DependencySetsError::InvalidToml {

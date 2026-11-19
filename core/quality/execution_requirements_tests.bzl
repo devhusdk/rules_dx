@@ -1,7 +1,7 @@
 """Unit tests for the execution-requirements helper."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
-load("//core:defs.bzl", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_test")
 load(":execution_requirements.bzl", "DX_FORBIDDEN_NO_REMOTE", "DX_NO_REMOTE_EXEC", "REMOTE_QUALIFIED", "SHFMT_FORMAT_REMOTE", "dx_has_forbidden_marker", "dx_is_local_only", "dx_is_remote_qualified", "dx_remote_platforms", "dx_stage_execution_requirements", "remote_platform_error", "remote_record_error")
 
 visibility("private")

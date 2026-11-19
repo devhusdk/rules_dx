@@ -20,12 +20,13 @@ sh_test(
     srcs = ["run_test.sh"],
     args = [
         "$(rootpath :parse_bench_bin)",
-        "$(rootpath @rules_dx//rust/private/tools/bench_report)",
+        "$(rootpath @rules_dx//cli/runtime:dx_runtime)",
     ],
     data = [
         ":parse_bench_bin",
-        "@rules_dx//rust/private/tools/bench_report",
+        "@rules_dx//cli/runtime:dx_runtime",
     ],
+    env = {"DX_RUNTIME_TOOL": "bench_report"},
     timeout = "short",
 )
 
@@ -42,6 +43,7 @@ rust_bench(
 dx_runner_attr_test(
     name = "sized_bench_attrs",
     expected = {
+        "env": {"DX_RUNTIME_TOOL": "bench_report"},
         "size": "large",
         "timeout": "long",
     },

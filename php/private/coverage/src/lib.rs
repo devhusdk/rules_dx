@@ -1,11 +1,19 @@
 //! Runs `PHPUnit` with PCOV loaded and turns the Clover report it writes into the LCOV file Bazel collects.
 //!
 //! Arguments: `<tree> <pcov> <php> [<php flag>...] -- <phpunit> [<phpunit argument>...]`.
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::env;
 use std::ffi::OsString;
-use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{self, Command};
@@ -25,7 +33,7 @@ fn rebase(lcov: &str, marker: &str) -> String {
                 .filter(|rest| !DROPPED.iter().any(|dir| rest.starts_with(dir)));
             keep = rest.is_some();
             if let Some(rest) = rest {
-                writeln!(out, "SF:{rest}").ok();
+                out.push_str(&format!("SF:{rest}\n"));
             }
         } else if keep {
             out.push_str(line);

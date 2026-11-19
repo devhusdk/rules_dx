@@ -281,7 +281,8 @@ fn decode(bytes: &[u8]) -> Result<&str, Problem> {
             &format!("the file is larger than {MAX_TEMPLATE_BYTES} bytes"),
         ));
     }
-    let text = std::str::from_utf8(bytes).map_err(|_| syntax(1, 0, "the file is not UTF-8"))?;
+    let text = std::str::from_utf8(bytes)
+        .map_err(|error| syntax(1, 0, &format!("the file is not UTF-8: {error}")))?;
     Ok(text.strip_prefix('\u{feff}').unwrap_or(text))
 }
 

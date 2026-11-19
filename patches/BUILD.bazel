@@ -18,7 +18,7 @@ py_unittest_test(
     ],
 )
 
-# Lists patches whose upstream fix is in a release. Run by
+# Lists patches and carries whose upstream fix is in a release. Run by
 # .github/workflows/patch-upstream.yml, which files the result as an issue.
 py_binary(
     name = "upstream",
@@ -33,6 +33,23 @@ py_unittest_test(
         "upstream.py",
         "upstream_test.py",
     ],
+)
+
+py_unittest_test(
+    name = "headers_test",
+    size = "small",
+    srcs = [
+        "headers_test.py",
+        "upstream.py",
+    ],
+    data = [
+        "@dx_test_tags_sources//:patch_headers.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_PATCH_HEADERS_JSON": "$(rlocationpath @dx_test_tags_sources//:patch_headers.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
 )
 
 genrule(

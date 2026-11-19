@@ -38,6 +38,28 @@ fn top_level(paths: &[String], file: &str) -> BTreeSet<String> {
 }
 
 #[test]
+fn public_api_snapshot_is_in_the_consumer_surface() {
+    let snapshot: dx_testing::serde_json::Value =
+        dx_testing::serde_json::from_str(&read("DX_API_STARLARK"))
+            .expect("api/starlark.json is JSON");
+    let entries = snapshot.as_array().expect("api/starlark.json is an array");
+    assert!(!entries.is_empty(), "api/starlark.json lists no files");
+    let listed = lines(&read("DX_SURFACE_LIST"));
+    for entry in entries {
+        let load = entry["load"]
+            .as_str()
+            .expect("each entry has a load string");
+        let label = load
+            .strip_prefix("@rules_dx//")
+            .unwrap_or_else(|| panic!("{load} is not a @rules_dx// label"));
+        assert!(
+            listed.contains(label),
+            "{label} missing from the generated consumer surface; list it in _STARLARK_SRCS in tools/api/BUILD.bazel and run bazel run //tools/api:update"
+        );
+    }
+}
+
+#[test]
 fn entry_points_are_listed_in_the_consumer_surface() {
     let paths = dx_testing::source_paths();
     let languages: BTreeSet<String> = top_level(&paths, "lang.json")
@@ -58,7 +80,7 @@ fn entry_points_are_listed_in_the_consumer_surface() {
     for label in &entry {
         assert!(
             listed.contains(label),
-            "{label} missing from the generated consumer surface"
+            "{label} missing from the generated consumer surface; list it in _STARLARK_SRCS in tools/api/BUILD.bazel and run bazel run //tools/api:update"
         );
     }
     for label in &listed {

@@ -710,7 +710,7 @@ fn enqueue_wanting(dir: &Path, label: &str, want: &Want) -> io::Result<Ticket> {
         file: Some(file),
         path,
     };
-    locked.map_err(|_| io::Error::from(io::ErrorKind::WouldBlock))?;
+    locked.map_err(|error| io::Error::new(io::ErrorKind::WouldBlock, error))?;
     Ok(ticket)
 }
 

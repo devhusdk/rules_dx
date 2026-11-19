@@ -31,7 +31,7 @@ real_php_docs_aspect = aspect(
         ),
         "_php_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/php/extract:php_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_php_phar": attr.label(

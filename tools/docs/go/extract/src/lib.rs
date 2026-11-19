@@ -2,18 +2,94 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::fs;
+use std::fmt;
+use std::path::Path;
 
-use documentation_ir::json::{boolean, field, number, string};
+use documentation_ir::json::{JsonError, array, boolean, number, string, strings};
 use documentation_ir::proto::{
     DocIr, Extension, Relations, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use serde_json::{Map, Value};
 
 const LANGUAGE: &str = "go";
 const SCHEMA: u64 = 1;
 const KEY_CONFIG: &str = "go.config";
 const KEY_EXCLUDED: &str = "go.excluded";
+
+/// Why one Go doc JSON document could not become a shard.
+#[derive(Debug)]
+pub enum GoExtractError {
+    Read(PathIoError),
+    Malformed(serde_json::Error),
+    Json(JsonError),
+    NotObject { at: String },
+    UnsupportedSchema { found: u64 },
+    InvalidImportpath { importpath: String },
+    NoSymbols,
+    UnknownKind { at: String, kind: String },
+    UnknownTypeKind { at: String, type_kind: String },
+    EmptyName { at: String },
+    ReceiverMismatch { at: String, name: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for GoExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::Malformed(error) => write!(f, "Go doc JSON is malformed: {error}"),
+            Self::Json(error) => error.fmt(f),
+            Self::NotObject { at } => write!(f, "{at} is not an object"),
+            Self::UnsupportedSchema { found } => write!(
+                f,
+                "Go doc JSON schema {found} is not supported, expected {SCHEMA}"
+            ),
+            Self::InvalidImportpath { importpath } => {
+                write!(f, "Go doc JSON has an invalid importpath '{importpath}'")
+            }
+            Self::NoSymbols => f.write_str("Go doc JSON lists no exported symbols"),
+            Self::UnknownKind { at, kind } => write!(f, "{at} has unknown kind '{kind}'"),
+            Self::UnknownTypeKind { at, type_kind } => {
+                write!(f, "{at} has unknown type_kind '{type_kind}'")
+            }
+            Self::EmptyName { at } => write!(f, "{at} has an empty name"),
+            Self::ReceiverMismatch { at, name } => write!(
+                f,
+                "{at} '{name}' has a receiver that does not match its kind"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for GoExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Malformed(error) => Some(error),
+            Self::Json(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::NotObject { .. }
+            | Self::UnsupportedSchema { .. }
+            | Self::InvalidImportpath { .. }
+            | Self::NoSymbols
+            | Self::UnknownKind { .. }
+            | Self::UnknownTypeKind { .. }
+            | Self::EmptyName { .. }
+            | Self::ReceiverMismatch { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
+
+impl From<JsonError> for GoExtractError {
+    fn from(error: JsonError) -> Self {
+        Self::Json(error)
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -22,18 +98,24 @@ pub struct Options {
     pub out: String,
 }
 
+/// Runs `go_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("go_extract", usage(), parse, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: go_extract --json FILE --out FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
+/// Parses argv into inputs.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+/// Returns an error for an unknown, missing, empty or repeated flag.
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--out"])?;
     Ok(Options {
         json: flags.one("--json")?,
@@ -41,19 +123,18 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
     })
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
+/// Reads, converts, validates and writes one shard.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let json = fs::read_to_string(&options.json)
-        .map_err(|error| format!("cannot read {}: {error}", options.json))?;
+/// Returns an error when the input cannot be read or converted or the shard cannot be written.
+pub fn run(options: &Options) -> Result<(), GoExtractError> {
+    let json = path_io::read_to_string(Path::new(&options.json)).map_err(GoExtractError::Read)?;
     let shard = convert(&json)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(GoExtractError::Write)
 }
 
-fn source(object: &Map<String, Value>, at: &str) -> Result<SourceRef, String> {
+fn source(object: &Map<String, Value>, at: &str) -> Result<SourceRef, JsonError> {
     Ok(SourceRef {
         file: string(object, "file", at)?,
         line: number(object, "line", at)?,
@@ -68,7 +149,7 @@ fn extension(key: &str, value: &str) -> Extension {
     }
 }
 
-fn kind_of(kind: &str, type_kind: &str, at: &str) -> Result<SymbolKind, String> {
+fn kind_of(kind: &str, type_kind: &str, at: &str) -> Result<SymbolKind, GoExtractError> {
     Ok(match (kind, type_kind) {
         ("func", _) => SymbolKind::Function,
         ("method", _) => SymbolKind::Method,
@@ -78,16 +159,31 @@ fn kind_of(kind: &str, type_kind: &str, at: &str) -> Result<SymbolKind, String> 
         ("type", "interface") => SymbolKind::Interface,
         ("type", "alias") => SymbolKind::TypeAlias,
         ("type", "struct" | "other") => SymbolKind::Class,
-        ("type", other) => return Err(format!("{at} has unknown type_kind '{other}'")),
-        (other, _) => return Err(format!("{at} has unknown kind '{other}'")),
+        ("type", other) => {
+            return Err(GoExtractError::UnknownTypeKind {
+                at: at.to_owned(),
+                type_kind: other.to_owned(),
+            });
+        }
+        (other, _) => {
+            return Err(GoExtractError::UnknownKind {
+                at: at.to_owned(),
+                kind: other.to_owned(),
+            });
+        }
     })
 }
 
-fn item_symbol(index: usize, item: &Value, prefix: &str, config: &str) -> Result<Symbol, String> {
+fn item_symbol(
+    index: usize,
+    item: &Value,
+    prefix: &str,
+    config: &str,
+) -> Result<Symbol, GoExtractError> {
     let at = format!("Go doc JSON item {index}");
-    let item = item
-        .as_object()
-        .ok_or_else(|| format!("{at} is not an object"))?;
+    let Some(item) = item.as_object() else {
+        return Err(GoExtractError::NotObject { at });
+    };
     let name = string(item, "name", &at)?;
     let recv = string(item, "recv", &at)?;
     let kind = kind_of(
@@ -96,13 +192,11 @@ fn item_symbol(index: usize, item: &Value, prefix: &str, config: &str) -> Result
         &at,
     )?;
     if name.is_empty() {
-        return Err(format!("{at} has an empty name"));
+        return Err(GoExtractError::EmptyName { at });
     }
     let member = matches!(kind, SymbolKind::Method | SymbolKind::Field);
     if member == recv.is_empty() {
-        return Err(format!(
-            "{at} '{name}' has a receiver that does not match its kind"
-        ));
+        return Err(GoExtractError::ReceiverMismatch { at, name });
     }
     let (qualified, relations) = if member {
         (
@@ -132,39 +226,24 @@ fn item_symbol(index: usize, item: &Value, prefix: &str, config: &str) -> Result
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn convert(json: &str) -> Result<DocIr, String> {
-    let root: Value =
-        serde_json::from_str(json).map_err(|error| format!("Go doc JSON is malformed: {error}"))?;
-    let root = root.as_object().ok_or("Go doc JSON is not an object")?;
+/// Returns an error when the document is malformed, has an unsupported schema or shape, or yields invalid IR.
+pub fn convert(json: &str) -> Result<DocIr, GoExtractError> {
     let at = "Go doc JSON";
+    let root: Value = serde_json::from_str(json).map_err(GoExtractError::Malformed)?;
+    let Some(root) = root.as_object() else {
+        return Err(GoExtractError::NotObject { at: at.to_owned() });
+    };
     match number(root, "schema", at)? {
         SCHEMA => {}
-        other => {
-            return Err(format!(
-                "Go doc JSON schema {other} is not supported, expected {SCHEMA}"
-            ));
-        }
+        found => return Err(GoExtractError::UnsupportedSchema { found }),
     }
     let importpath = string(root, "importpath", at)?;
     if importpath.is_empty() || importpath.contains(':') {
-        return Err(format!(
-            "Go doc JSON has an invalid importpath '{importpath}'"
-        ));
+        return Err(GoExtractError::InvalidImportpath { importpath });
     }
     let package = string(root, "package", at)?;
     let config = string(root, "config", at)?;
-    let excluded: Vec<String> = field(root, "excluded", at)?
-        .as_array()
-        .ok_or("Go doc JSON 'excluded' is not a list")?
-        .iter()
-        .map(|value| {
-            value
-                .as_str()
-                .map(str::to_owned)
-                .ok_or("Go doc JSON 'excluded' holds a non-string")
-        })
-        .collect::<Result<_, _>>()?;
+    let excluded = strings(root, "excluded", at)?;
     let prefix = format!("{LANGUAGE}:{importpath}:");
     let mut symbols = vec![Symbol {
         id: format!("{prefix}{package}"),
@@ -179,11 +258,9 @@ pub fn convert(json: &str) -> Result<DocIr, String> {
         ],
         ..Symbol::default()
     }];
-    let items = field(root, "items", at)?
-        .as_array()
-        .ok_or("Go doc JSON 'items' is not a list")?;
+    let items = array(root, "items", at)?;
     if items.is_empty() {
-        return Err("Go doc JSON lists no exported symbols".to_owned());
+        return Err(GoExtractError::NoSymbols);
     }
     for (index, item) in items.iter().enumerate() {
         symbols.push(item_symbol(index, item, &prefix, &config)?);
@@ -194,7 +271,7 @@ pub fn convert(json: &str) -> Result<DocIr, String> {
         package: importpath,
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(GoExtractError::InvalidIr)?;
     Ok(shard)
 }
 

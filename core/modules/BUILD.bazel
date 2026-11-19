@@ -7,7 +7,7 @@ load(":consumer_deps.bzl", "consumer_deps_json")
 load(":versions_rs.bzl", "versions_rs")
 load(":versions_tests.bzl", "versions_contract_tests")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 versions_contract_tests(name = "versions_contract")
 
@@ -43,7 +43,9 @@ rust_test(
         "//:MODULE.bazel.lock",
         "//third_party/go:go.sum",
         "//tools/testing/hermetic:module_fragments",
+        "//tools/testing/nested_cache:all_locks",
     ],
+    env = {"DX_NESTED_LOCKS": "$(rlocationpaths //tools/testing/nested_cache:all_locks)"},
     deps = all_crate_deps(
         package_name = "core/modules_tests",
         normal = True,
@@ -120,6 +122,7 @@ rust_test(
 rust_binary(
     name = "lang_projections",
     srcs = ["lang_projections.rs"],
+    visibility = ["//visibility:private"],
     deps = ["@crates//:serde_json"],
 )
 
@@ -173,6 +176,7 @@ write_source_files(
         "langs.bzl": "generated/langs.bzl",
         "lock_registry.bzl": "generated/lock_registry.bzl",
     },
+    visibility = ["//visibility:private"],
 )
 
 rust_test(

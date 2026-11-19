@@ -58,6 +58,59 @@ nested_bazel_test(
     ],
 )
 
+# A nested consumer of the DX_PREBUILT_GUARD_LANGS fixtures that pins every registry tool of the
+# host with a stub. Fails when it still compiles a rules_dx binary that
+# prebuilt_guard_allowlist.txt does not name.
+PREBUILT_GUARD_DATA = [
+    "prebuilt_guard_allowlist.txt",
+    "//:module_srcs",
+    "//cli/prebuilt:go_hub_targets",
+    "//cli/prebuilt:registry",
+    "//patches/rules_py:patches",
+    "@dx_test_tags_sources//:consumer.json",
+]
+
+PREBUILT_GUARD_ENV = {
+    "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+    "DX_PREBUILT_GO_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:go_hub_targets)",
+    "DX_PREBUILT_GUARD_ALLOWLIST": "$(rlocationpath prebuilt_guard_allowlist.txt)",
+    "DX_PREBUILT_REGISTRY": "$(rlocationpath //cli/prebuilt:registry)",
+}
+
+nested_bazel_test(
+    name = "go_prebuilt_guard_test",
+    size = "small",
+    srcs = ["prebuilt_guard_test.rs"],
+    crate_name = "prebuilt_guard_test",
+    crate_root = "prebuilt_guard_test.rs",
+    data = PREBUILT_GUARD_DATA,
+    env = PREBUILT_GUARD_ENV | {"DX_PREBUILT_GUARD_LANGS": "go lua capnproto flatbuffers thrift api_spec avro rust python cc"},
+    network = True,
+    deps = [
+        "//cli/adopt:dx_adopt",
+        "//cli/plan:dx_plan",
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
+)
+
+nested_bazel_test(
+    name = "java_prebuilt_guard_test",
+    size = "small",
+    srcs = ["prebuilt_guard_test.rs"],
+    crate_name = "prebuilt_guard_test",
+    crate_root = "prebuilt_guard_test.rs",
+    data = PREBUILT_GUARD_DATA,
+    env = PREBUILT_GUARD_ENV | {"DX_PREBUILT_GUARD_LANGS": "java kotlin scala"},
+    network = True,
+    deps = [
+        "//cli/adopt:dx_adopt",
+        "//cli/plan:dx_plan",
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

@@ -1,6 +1,6 @@
 """Shared license gate tests."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:license.bzl", "CUDA_EULA", "LICENSE_IDS", "accept_line", "accepted_terms", "terms_errors", "unaccepted", "unknown_ids")
 
 _CURRENT = "1" * 64

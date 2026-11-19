@@ -2,7 +2,7 @@
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//typescript/private/quality:tsc_report.bzl", "tsc_report", "tsc_stdout_test")
-load("//typescript:defs.bzl", "ts_config", "typescript_library")
+load("//typescript:defs.bzl", "typescript_config", "typescript_library")
 
 package(
     default_testonly = True,
@@ -21,13 +21,13 @@ package(
     ]
 ]
 
-ts_config(
+typescript_config(
     name = "standard_config",
     src = "standard.tsconfig.json",
     deps = [":standard_base"],
 )
 
-ts_config(
+typescript_config(
     name = "strict_config",
     src = "strict.tsconfig.json",
     deps = [

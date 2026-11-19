@@ -4,6 +4,8 @@ load("//core:rlocation.bzl", "repo_relative_path")
 load("//swift/private:providers.bzl", "SwiftDocsInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 def swift_shard_action(ctx, info, package, config, stem, extract_tool):
     """Extracts the DocIr shard of one Swift library from its symbol graph and its own sources."""
     if len(info.graphs) != 1:
@@ -14,6 +16,7 @@ def swift_shard_action(ctx, info, package, config, stem, extract_tool):
     ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own]))
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     args = ctx.actions.args()
+    args.add("swift_extract")
     args.add("--graphs", graph.symbol_graph_dir.path)
     args.add("--sources", manifest)
     args.add("--module", graph.module_name)
@@ -57,7 +60,7 @@ swift_doc_shard = rule(
         "package": attr.string(doc = "Package segment of the symbol ids. Defaults to the lib name."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/swift/extract:swift_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

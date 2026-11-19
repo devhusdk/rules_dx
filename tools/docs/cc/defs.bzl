@@ -2,10 +2,10 @@
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
-load("//tools/docs/cc:repos.bzl", "UNSUPPORTED_REASON")
+load("//tools/docs/cc:repos.bzl", "UNSUPPORTED_MARKER", "UNSUPPORTED_REASON")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
-_EXECUTABLES = ["doxygen", "doxygen.exe"]
+visibility(["//..."])
 
 _DOXYFILE = [
     "ALPHABETICAL_INDEX = NO",
@@ -42,23 +42,16 @@ def _where(ctx):
 def _quote(value):
     return "\"" + value.replace("\"", "\\\"") + "\""
 
-def _doxygen_executable(files):
-    for f in files:
-        if f.basename in _EXECUTABLES:
-            return f
-    return None
-
-def doxygen_available(files):
+def doxygen_available(doxygen):
     """Returns whether the pinned Doxygen has a build for this host."""
-    return _doxygen_executable(files) != None
+    return doxygen.basename != UNSUPPORTED_MARKER
 
-def cc_shard_action(ctx, language, headers, package, stem, doxygen_files, extract_tool):
+def cc_shard_action(ctx, language, headers, package, stem, doxygen, doxygen_files, extract_tool):
     """Runs Doxygen over the public headers of one library, then the extractor."""
     headers = sorted({f.path: f for f in headers}.values(), key = lambda f: f.path)
     if not headers:
         fail(_where(ctx) + ": lib lists no public headers")
-    doxygen = _doxygen_executable(doxygen_files)
-    if doxygen == None:
+    if not doxygen_available(doxygen):
         fail(_where(ctx) + ": " + UNSUPPORTED_REASON)
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in headers])))
@@ -75,7 +68,7 @@ def cc_shard_action(ctx, language, headers, package, stem, doxygen_files, extrac
     ctx.actions.run(
         executable = doxygen,
         arguments = [config.path],
-        inputs = depset(headers + [config], transitive = [depset(doxygen_files)]),
+        inputs = depset(headers + [config], transitive = [doxygen_files]),
         outputs = [tree],
         mnemonic = "DxDocsDoxygen",
         progress_message = "Reading " + language + " API docs for %{label}",
@@ -85,6 +78,7 @@ def cc_shard_action(ctx, language, headers, package, stem, doxygen_files, extrac
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("cc_extract")
     extract.add("--xml", tree.path + "/xml")
     extract.add("--srcs", manifest)
     extract.add("--package", package)
@@ -103,7 +97,7 @@ def cc_shard_action(ctx, language, headers, package, stem, doxygen_files, extrac
 def _shard_impl(ctx):
     package = ctx.attr.package or ctx.attr.lib.label.name
     headers = ctx.attr.lib[CcInfo].compilation_context.direct_public_headers
-    action = cc_shard_action(ctx, ctx.attr._language, headers, package, ctx.label.name, ctx.files._doxygen, ctx.executable._extract)
+    action = cc_shard_action(ctx, ctx.attr._language, headers, package, ctx.label.name, ctx.file._doxygen_binary, ctx.attr._doxygen[DefaultInfo].files, ctx.executable._extract)
     return [
         DefaultInfo(files = depset([action.shard])),
         OutputGroupInfo(
@@ -128,9 +122,14 @@ def _cc_shard_rule(language, what):
                 cfg = "exec",
                 default = Label("@dx_doxygen//:tool"),
             ),
+            "_doxygen_binary": attr.label(
+                allow_single_file = True,
+                cfg = "exec",
+                default = Label("@dx_doxygen//:binary"),
+            ),
             "_extract": attr.label(
                 cfg = "exec",
-                default = Label("//tools/docs/cc/extract:cc_extract"),
+                default = Label("@dx_prebuilt//:dx"),
                 executable = True,
             ),
             "_language": attr.string(default = language),

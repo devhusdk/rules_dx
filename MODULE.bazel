@@ -88,6 +88,12 @@ use_repo(llvm_project, "llvm-project")
 
 # dev only: qualifies a real foreign CMake build; cmake_library stays quality-only
 bazel_dep(name = "rules_foreign_cc", version = "0.17.0", dev_dependency = True)
+single_version_override(
+    module_name = "rules_foreign_cc",
+    patch_strip = 1,
+    patches = ["//patches/rules_foreign_cc:cmake_4_5_0.patch"],
+    version = "0.17.0",
+)
 bazel_dep(name = "ninja", version = "1.13.2", dev_dependency = True)
 bazel_dep(name = "m4", version = "1.4.21.bcr.8", dev_dependency = True)
 bazel_dep(name = "make", version = "4.4.1.bcr.3", dev_dependency = True)
@@ -98,7 +104,7 @@ _foreign_cc_tools = use_extension("@rules_foreign_cc//foreign_cc:extensions.bzl"
 _foreign_cc_tools.explicit()
 _foreign_cc_tools.cmake(
     mode = "binary",
-    version = "4.0.7",
+    version = "4.5.0",
 )
 _foreign_cc_tools.ninja(
     exec_compatible_with = ["@platforms//os:linux"],
@@ -210,9 +216,8 @@ single_version_override(
     version = "2.4.6",
 )
 
-# needed: @kcov (dx_pins extension) loads @elfutils
-# floor: equals tested; kcov links libdw and libelf (#7327)
-bazel_dep(name = "elfutils", version = "0.195")
+# floor: equals tested; dev only, the kcov source build links libdw and libelf (#7327)
+bazel_dep(name = "elfutils", version = "0.195", dev_dependency = True)
 
 # musl.patch compiles libdwfl without argp, fts and GNU strerror_r on musl.
 single_version_override(
@@ -222,9 +227,8 @@ single_version_override(
     version = "0.195",
 )
 
-# needed: @kcov (dx_pins extension) loads @zlib
-# floor: equals tested; 1.4 fixes CVE-2026-85091 and six other memory-safety bugs
-bazel_dep(name = "zlib", version = "1.4")
+# floor: equals tested; dev only, the kcov source build links it; 1.4 fixes CVE-2026-85091 and six other memory-safety bugs
+bazel_dep(name = "zlib", version = "1.4", dev_dependency = True)
 
 # floor: equals tested
 bazel_dep(name = "rules_go", version = "0.65.0")
@@ -283,7 +287,7 @@ go_repository(
     urls = ["https://github.com/TrapsterDK/gotreesitter/archive/a8d5183f93260b8c3743375f70f4dee5b1778569.tar.gz"],
 )
 
-use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "co_honnef_go_tools", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_kisielk_errcheck", "com_github_oapi_codegen_oapi_codegen_v2", "com_github_oapi_codegen_runtime", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_google_grpc", "org_golang_google_protobuf", "org_golang_x_exp", "org_golang_x_exp_typeparams", "org_golang_x_mod", "org_golang_x_net", "org_golang_x_tools")
+use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "co_honnef_go_tools", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_kisielk_errcheck", "com_github_oapi_codegen_oapi_codegen_v2", "com_github_oapi_codegen_runtime", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_rogpeppe_go_internal", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_google_grpc", "org_golang_google_protobuf", "org_golang_x_exp", "org_golang_x_exp_typeparams", "org_golang_x_mod", "org_golang_x_net", "org_golang_x_tools")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(
@@ -379,19 +383,29 @@ single_version_override(
     patches = [
         "//patches/rules_android:bundle_keystore_properties.patch",
         "//patches/rules_android:java8_dex_runfiles.patch",
+        "//patches/rules_android:dx_bzl_srcs.patch",
     ],
     version = "0.8.1",
 )
 
 # floor: equals tested
 bazel_dep(name = "rules_kotlin", version = "2.4.21")
+single_version_override(
+    module_name = "rules_kotlin",
+    patch_strip = 1,
+    patches = ["//patches/rules_kotlin:dx_bzl_srcs.patch"],
+    version = "2.4.21",
+)
 
 # floor: equals tested
 bazel_dep(name = "rules_scala", version = "7.4.1")
 single_version_override(
     module_name = "rules_scala",
     patch_strip = 1,
-    patches = ["//patches/rules_scala:manifest_only_wrapper.patch"],
+    patches = [
+        "//patches/rules_scala:manifest_only_wrapper.patch",
+        "//patches/rules_scala:dx_bzl_srcs.patch",
+    ],
     version = "7.4.1",
 )
 
@@ -581,6 +595,8 @@ use_repo(osx, "macos_sdk")
 
 # Gated on the Haskell-only flag, so it must come before the general C toolchains.
 register_toolchains("@dx_haskell_toolchains//:dx_haskell_toolchains__linux_arm64_musl")
+
+register_toolchains("@dx_haskell_toolchains//:dx_haskell_toolchains__linux_x86_64_musl")
 
 register_toolchains("@dx_haskell_toolchains//:all")
 
@@ -892,7 +908,10 @@ dx_pins.archive(
     name = "dx_rules_dart_pub",
     dropped = ["MODULE.bazel"],
     key = "rules_dart",
-    patches = ["//patches/rules_dart:hermetic_tar.patch"],
+    patches = [
+        "//patches/rules_dart:hermetic_tar.patch",
+        "//patches/rules_dart:dx_bzl_srcs.patch",
+    ],
     pins = "//dart:pins.json",
 )
 dx_pins.archive(
@@ -1155,6 +1174,7 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "rules_elixir",
+    bzl_srcs = True,
     dropped = [
         ".bazelignore",
         ".bazelrc",
@@ -1176,6 +1196,7 @@ dx_pins.archive(
 dx_pins.archive(
     name = "rules_erlang",
     build = "//erlang/private:rules_erlang.BUILD.bazel",
+    bzl_srcs = True,
     dropped = [
         "MODULE.bazel",
         "gazelle",
@@ -1265,11 +1286,13 @@ dx_pins.archive(
         "//patches/rules_julia:exec_toolchain.patch",
         "//patches/rules_julia:inline_runfiles_sh.patch",
         "//patches/rules_julia:test_tmpdir_runfiles.patch",
+        "//patches/rules_julia:julia_1_13.patch",
     ],
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "rules_ocaml",
+    bzl_srcs = True,
     dropped = [
         ".bazelignore",
         ".bazelrc",
@@ -1281,6 +1304,7 @@ dx_pins.archive(
         "tools",
     ],
     patches = [
+        "//patches/rules_ocaml:empty_glob.patch",
         "//patches/rules_ocaml:hermetic_ocaml.patch",
         "//patches/rules_ocaml:native_cc_env.patch",
         "//patches/rules_ocaml:platform_alias.patch",
@@ -1454,16 +1478,6 @@ dx_pins.archive(
     pins = "//deploy/private/pins:pins.json",
 )
 dx_pins.archive(
-    name = "kcov",
-    build = "//tools/coverage/kcov:kcov.BUILD",
-    patches = [
-        "//patches/kcov:aslr.patch",
-        "//patches/kcov:elf_checksum_lock.patch",
-        "//patches/kcov:no_curl.patch",
-    ],
-    pins = "//tools/coverage/kcov:pins.json",
-)
-dx_pins.archive(
     name = "opam_linux_arm64",
     pins = "//deploy/private/pins:pins.json",
 )
@@ -1564,7 +1578,6 @@ use_repo(
     "dx_thrift_slf4j",
     "dx_windows_support",
     "japicmp_jar",
-    "kcov",
     "nfpm_linux_arm64",
     "nfpm_linux_x86_64",
     "nfpm_macos_arm64",
@@ -1599,6 +1612,42 @@ dx_pins_dev.archive(
     pins = "//cc:pins.json",
 )
 dx_pins_dev.archive(
+    name = "julia_src",
+    build = "//julia/private/runtime:julia_src.BUILD.bazel",
+    patches = ["//patches/julia:deterministic_objectid.patch"],
+    pins = "//julia:pins.json",
+)
+dx_pins_dev.archive(
+    name = "julia_src_libllvm",
+    build = "//julia/private/runtime:libllvm.BUILD.bazel",
+    pins = "//julia:pins.json",
+)
+dx_pins_dev.archive(
+    name = "julia_src_libunwind",
+    build = "//julia/private/runtime:libunwind.BUILD.bazel",
+    pins = "//julia:pins.json",
+)
+dx_pins_dev.archive(
+    name = "julia_src_libuv",
+    build = "//julia/private/runtime:libuv.BUILD.bazel",
+    pins = "//julia:pins.json",
+)
+dx_pins_dev.archive(
+    name = "julia_src_utf8proc",
+    build = "//julia/private/runtime:utf8proc.BUILD.bazel",
+    pins = "//julia:pins.json",
+)
+dx_pins_dev.archive(
+    name = "kcov",
+    build = "//tools/coverage/kcov:kcov.BUILD",
+    patches = [
+        "//patches/kcov:aslr.patch",
+        "//patches/kcov:elf_checksum_lock.patch",
+        "//patches/kcov:no_curl.patch",
+    ],
+    pins = "//tools/coverage/kcov:pins.json",
+)
+dx_pins_dev.archive(
     name = "lua_app_inspect",
     build = "//lua/tests/fixtures/lua_app:inspect.BUILD.bazel",
     pins = "//lua:pins.json",
@@ -1612,6 +1661,12 @@ use_repo(
     dx_pins_dev,
     "erlang_app_thoas",
     "foreign_cmake_zlib",
+    "julia_src",
+    "julia_src_libllvm",
+    "julia_src_libunwind",
+    "julia_src_libuv",
+    "julia_src_utf8proc",
+    "kcov",
     "lua_app_inspect",
     "zig_app_xxhash",
 )
@@ -1718,6 +1773,7 @@ single_version_override(
         "//patches/rules_dart:coverage.patch",
         "//patches/rules_dart:external_pkgsrcs.patch",
         "//patches/rules_dart:windows_long_dill.patch",
+        "//patches/rules_dart:dx_bzl_srcs.patch",
     ],
     version = "0.8.1",
 )
@@ -1823,6 +1879,9 @@ julia_toolchain = use_extension("//julia:extensions.bzl", "julia_toolchain")
 use_repo(julia_toolchain, "julia_toolchains")
 
 register_toolchains("@julia_toolchains//:all")
+
+julia_runtime_toolchain = use_extension("//julia:extensions.bzl", "julia_toolchain", dev_dependency = True)
+julia_runtime_toolchain.toolchain(version = "1.12.5")
 
 julia_pkg_dev = use_extension("//julia:extensions.bzl", "julia", dev_dependency = True)
 julia_pkg_dev.from_manifest(
@@ -1999,7 +2058,10 @@ use_repo(fpm, "fpm_fortran.tests.fixtures.fpm_deps")
 register_toolchains("@dx_fortran_toolchains//:all")
 
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
-zig.toolchain(zig_version = "0.17.0")
+
+# rules_zig 0.17.0 does not list Zig 0.17.1; drop this index when the rules_zig bazel_dep does.
+zig.index(file = "//zig/private:sdk_versions.json")
+zig.toolchain(zig_version = "0.17.1")
 
 zig_hub = use_extension("//zig:extensions.bzl", "zig", dev_dependency = True)
 zig_hub.lock(
@@ -2196,14 +2258,13 @@ use_repo(
     "dotnet_runtime_linux_arm64",
 )
 
-# floor: equals tested; patched (#7035)
+# floor: equals tested; //core/hermetic_launcher registers the Windows aarch64 stubs until a release has hermetic-launcher#94 (#8379)
 bazel_dep(name = "hermetic_launcher", version = "0.0.17")
-single_version_override(
-    module_name = "hermetic_launcher",
-    patch_strip = 1,
-    patches = ["//patches/hermetic_launcher:windows_arm64_toolchains.patch"],  # upstream: https://github.com/hermeticbuild/hermetic-launcher/pull/94
-    version = "0.0.17",
-)
+
+hermetic_launcher_stubs = use_extension("@hermetic_launcher//launcher/private:extensions.bzl", "non_module_dependencies")
+use_repo(hermetic_launcher_stubs, "finalize_stub_aarch64_windows", "runfiles_stub_aarch64_windows")
+
+register_toolchains("//core/hermetic_launcher:all")
 
 # floor: equals tested; patched (#2283, #3736)
 bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
@@ -2220,6 +2281,7 @@ single_version_override(
         "//patches/rules_py:external_repo_pytest_paths.patch",
         "//patches/rules_py:host_libc_glibc.patch",
         "//patches/rules_py:win32_x86_32.patch",
+        "//patches/rules_py:uv_extensions_bzl.patch",
     ],
     version = "2.0.0-alpha.11",
 )
@@ -2255,8 +2317,8 @@ use_repo(
 
 typescript = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")
 typescript.deps(
-    integrity = "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==",
-    version = "5.9.3",
+    integrity = "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==",
+    version = "6.0.3",
 )
 use_repo(typescript, "npm_typescript")
 
@@ -3106,6 +3168,13 @@ _test_tags_sources(
     dev_dependency = True,
 )
 
+_api_fixtures = use_repo_rule("//tools/ci:repos.bzl", "api_fixtures")
+
+_api_fixtures(
+    name = "dx_api_fixtures",
+    dev_dependency = True,
+)
+
 nested_bazel = use_extension("//tools/testing:extensions.bzl", "nested_bazel", dev_dependency = True)
 use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_x86_64")
 
@@ -3435,7 +3504,7 @@ use_repo(
 yard = use_extension("//tools/docs/ruby:extensions.bzl", "yard", dev_dependency = True)
 use_repo(yard, "dx_yard")
 
-doxygen = use_extension("//tools/docs/cc:extensions.bzl", "doxygen", dev_dependency = True)
+doxygen = use_extension("//tools/docs/cc:extensions.bzl", "doxygen")
 use_repo(doxygen, "dx_doxygen")
 
 playwright = use_extension("//typescript:extensions.bzl", "typescript_playwright")

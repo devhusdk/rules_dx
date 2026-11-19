@@ -2,38 +2,38 @@
 # Gazelle would rewrite the hand-written quality targets and fail on their macros.
 load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
-load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("//core/quality/private:generated_policy.bzl", "dx_generated_policy")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
-load(":clang_syntax_analysis_tests.bzl", "clang_syntax_analysis_tests")
 load(":buf_breaking_tests.bzl", "buf_breaking_analysis_tests")
-load(":link_requests_tests.bzl", "link_requests_analysis_tests")
-load(":consumer_policy_tests.bzl", "consumer_policy_tests", "policy_config_tests")
+load(":clang_syntax_analysis_tests.bzl", "clang_syntax_analysis_tests")
 load(":compile_check_tests.bzl", "compile_check_unit_tests")
-load(":suite_membership.bzl", "suite_membership_test")
+load(":consumer_policy_tests.bzl", "consumer_policy_tests", "policy_config_tests")
 load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
+load(":dart_context_tests.bzl", "dart_context_unit_tests")
 load(":execution_requirements_tests.bzl", "execution_requirements_unit_tests")
 load(":fixtures.bzl", "real_source_target")
-load(":dart_context_tests.bzl", "dart_context_unit_tests")
 load(":fixtures_tests.bzl", "fixtures_unit_tests")
+load(":link_requests_tests.bzl", "link_requests_analysis_tests")
 load(":native_config.bzl", "vale_config")
 load(":native_config_tests.bzl", "native_config_unit_tests")
 load(":overlap_tests.bzl", "overlap_unit_tests")
 load(":parity_tests.bzl", "parity_unit_tests")
 load(":pipeline_tests.bzl", "pipeline_unit_tests")
 load(":policy.bzl", "quality_family", "workspace_policy")
-load("//core/quality/private:generated_policy.bzl", "dx_generated_policy")
 load(":policy_subject.bzl", "policy_subject")
 load(":policy_tests.bzl", "policy_analysis_tests", "policy_profile_analysis_tests", "policy_unit_tests")
 load(":real_pipeline_tests.bzl", "real_pipeline_unit_tests", "rustc_request_analysis_tests", "unsupported_platform_analysis_tests")
 load(":registry_tests.bzl", "registry_unit_tests")
 load(":sources_tests.bzl", "sources_registry_tests")
+load(":suite_membership.bzl", "suite_membership_test")
 load(":support_tests.bzl", "support_unit_tests")
 load(":tools_tests.bzl", "tools_unit_tests")
 load(":wrapper_owners.bzl", "wrapper_unit_tests")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "BUILD.bazel",
@@ -46,7 +46,7 @@ exports_files([
     "execution_requirements.bzl",
     "family_hooks.bzl",
     "fortran_flags.bzl",
-    "defs.bzl",
+    "source_libraries.bzl",
     "fixtures.bzl",
     "native_config.bzl",
     "pipeline.bzl",
@@ -202,14 +202,19 @@ real_pipeline_unit_tests(name = "real_pipeline_unit")
 
 rustc_request_analysis_tests(name = "rustc_request_analysis")
 
-buf_breaking_analysis_tests(name = "buf_breaking_analysis", size = "small")
+buf_breaking_analysis_tests(
+    name = "buf_breaking_analysis",
+    size = "small",
+)
 
-link_requests_analysis_tests(name = "link_requests_analysis", size = "small")
+link_requests_analysis_tests(
+    name = "link_requests_analysis",
+    size = "small",
+)
 
 unsupported_platform_analysis_tests(name = "unsupported_platform_analysis")
 
 dart_context_unit_tests(name = "dart_context_unit")
-
 
 native_config_unit_tests(name = "native_config_unit")
 
@@ -235,7 +240,11 @@ consumer_policy_tests(
         },
         {
             "case": "default_d",
-            "absent_keys": ["format-d", "lint-d", "typecheck-d"],
+            "absent_keys": [
+                "format-d",
+                "lint-d",
+                "typecheck-d",
+            ],
             "expected_dx_results": [
                 "greet-real-lint-text.pb",
             ],
@@ -274,14 +283,20 @@ consumer_policy_tests(
         },
         {
             "case": "default_powershell",
-            "absent_keys": ["format-powershell", "lint-powershell"],
+            "absent_keys": [
+                "format-powershell",
+                "lint-powershell",
+            ],
             "expected_dx_results": [],
             "config": "default",
             "subject": "//powershell/tests/fixtures/hello:hello",
         },
         {
             "case": "default_swift",
-            "absent_keys": ["format-swift", "lint-swift"],
+            "absent_keys": [
+                "format-swift",
+                "lint-swift",
+            ],
             "expected_dx_results": ["greet-real-lint-text.pb"],
             "config": "default",
             "subject": "//swift/tests/fixtures/hello:greet",
@@ -410,8 +425,8 @@ consumer_policy_tests(
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_lua",
-          },
-          {
+        },
+        {
             "case": "haskell_formatted",
             "expected_dx_results": [
                 "clean_haskell-real-format-haskell.pb",
@@ -608,11 +623,7 @@ support_unit_tests(name = "support_unit")
 write_source_files(
     name = "tools_registry",
     files = {"tools_registry.bzl": "//tools/quality:tools_registry"},
-)
-
-alias(
-    name = "update_tools",
-    actual = "//core/quality/runner:update_tools",
+    visibility = ["//visibility:private"],
 )
 
 clang_syntax_analysis_tests(name = "clang_syntax_analysis")
@@ -679,6 +690,7 @@ native_binary(
         ":windows_x86_64": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
+    visibility = ["//visibility:private"],
 )
 
 rust_test(
@@ -823,7 +835,7 @@ real_source_target(
         "adapters.bzl",
         "applicability.bzl",
         "consumer_policy_tests.bzl",
-        "defs.bzl",
+        "source_libraries.bzl",
         "clang_syntax_analysis_tests.bzl",
         "compile_check.bzl",
         "compile_check_tests.bzl",
@@ -888,8 +900,8 @@ rust_test(
 
 rust_test(
     name = "preset_settings_test",
-    srcs = ["preset_settings_test.rs"],
     size = "small",
+    srcs = ["preset_settings_test.rs"],
     deps = [
         "//cli/plan:dx_plan",
         "//tools/bazelrc:dx_preset",

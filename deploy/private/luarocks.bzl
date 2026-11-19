@@ -2,7 +2,7 @@
 
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_luarocks.bzl", "luarocks_name_error", "luarocks_rockspec_error", "luarocks_version_error")
 
 def _luarocks_config_impl(ctx):
@@ -59,7 +59,7 @@ def luarocks_deploy(name, rockspec, package = "", version = "", build_mode = "re
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

@@ -11,6 +11,12 @@ A header may name several refs separated by commas. A ref is a pull request or
 an issue. The report lists refs whose pull request is merged, or closed by the
 commit that landed it, and contained in a release tag, patches marked fixed in a
 release, refs that were closed without a merge, and patches with no header.
+
+A carry is rules_dx code that stands in for an upstream fix, such as extra
+toolchain args. It names the fix in a comment line of a BUILD or .bzl file,
+which the report reads like a patch header:
+
+    # Upstream: hermeticbuild/hermetic-llvm#973
 """
 
 import json
@@ -21,8 +27,10 @@ import urllib.error
 import urllib.request
 
 _HEADER = re.compile(r"^Upstream:\s*(.+?)\s*$")
+_CARRY = re.compile(r"^\s*#\s*Upstream:\s*(.+?)\s*$")
 _REF = re.compile(r"^([\w.-]+/[\w.-]+)#(\d+)$")
 _FIXED = re.compile(r"^fixed upstream in (\S+)$")
+# Keep in sync with _DIFF_START in tools/ci/repos.bzl.
 _DIFF_START = ("--- ", "diff ")
 
 # The newest releases (or tags, for repositories without releases) checked for
@@ -43,6 +51,17 @@ def header(text):
         if match:
             return match.group(1)
     return None
+
+
+def carry_headers(text):
+    """Returns the value of every `# Upstream:` comment line in a BUILD or .bzl file."""
+    return [match.group(1) for match in map(_CARRY.match, text.splitlines()) if match]
+
+
+def is_carry_file(name):
+    """Returns whether a file name is one that may hold carry markers."""
+    base = name.replace(os.sep, "/").rpartition("/")[2]
+    return base in ("BUILD", "BUILD.bazel") or base.endswith(".bzl")
 
 
 def refs(value):
@@ -149,39 +168,67 @@ def patch_files(root):
     return sorted(found)
 
 
+def carry_files(workspace):
+    """Returns every BUILD and .bzl file under workspace, sorted.
+
+    Skips hidden directories, Bazel's convenience symlinks and node_modules.
+    """
+    found = []
+    for directory, dirs, files in os.walk(workspace):
+        dirs[:] = [d for d in dirs if not d.startswith((".", "bazel-")) and d != "node_modules"]
+        found.extend(os.path.join(directory, name) for name in files if is_carry_file(name))
+    return sorted(found)
+
+
+def _classify(api, name, value, released, closed, bad):
+    """Appends one header or carry value of file name to its report section."""
+    fixed = _FIXED.match(value)
+    if fixed:
+        released.append("- `%s`: fixed in %s" % (name, fixed.group(1)))
+        return
+    try:
+        found = refs(value)
+    except ValueError as error:
+        bad.append("- `%s`: %s" % (name, error))
+        return
+    for repo, number in found:
+        try:
+            state, tag = status(api, repo, number)
+        except ValueError as error:
+            bad.append("- `%s`: %s" % (name, error))
+            continue
+        link = "https://github.com/%s/pull/%d" % (repo, number)
+        if state == "released":
+            released.append("- `%s`: [%s#%d](%s) is in %s" % (name, repo, number, link, tag))
+        elif state == "closed":
+            closed.append("- `%s`: [%s#%d](%s)" % (name, repo, number, link))
+
+
 def report(api, root):
-    """Returns the Markdown report, or "" when nothing needs a person."""
+    """Returns the Markdown report, or "" when nothing needs a person.
+
+    root is the patches directory; carries are read from its parent, the
+    workspace. A file without a carry marker is never listed as missing one.
+    """
     released, closed, missing, bad = [], [], [], []
+    workspace = os.path.dirname(root)
     for path in patch_files(root):
         # Forward slashes on every host, so the issue body reads the same.
-        name = os.path.relpath(path, os.path.dirname(root)).replace(os.sep, "/")
+        name = os.path.relpath(path, workspace).replace(os.sep, "/")
         with open(path, encoding="utf-8") as handle:
             value = header(handle.read())
         if value is None:
             missing.append("- `%s`" % name)
             continue
-        fixed = _FIXED.match(value)
-        if fixed:
-            released.append("- `%s`: fixed in %s" % (name, fixed.group(1)))
-            continue
-        try:
-            found = refs(value)
-        except ValueError as error:
-            bad.append("- `%s`: %s" % (name, error))
-            continue
-        for repo, number in found:
-            try:
-                state, tag = status(api, repo, number)
-            except ValueError as error:
-                bad.append("- `%s`: %s" % (name, error))
-                continue
-            link = "https://github.com/%s/pull/%d" % (repo, number)
-            if state == "released":
-                released.append("- `%s`: [%s#%d](%s) is in %s" % (name, repo, number, link, tag))
-            elif state == "closed":
-                closed.append("- `%s`: [%s#%d](%s)" % (name, repo, number, link))
+        _classify(api, name, value, released, closed, bad)
+    for path in carry_files(workspace):
+        name = os.path.relpath(path, workspace).replace(os.sep, "/")
+        with open(path, encoding="utf-8") as handle:
+            values = carry_headers(handle.read())
+        for value in values:
+            _classify(api, name, value, released, closed, bad)
     sections = [
-        ("Upstream fix released: bump the module and delete the patch", released),
+        ("Upstream fix released: bump the module and delete the patch or carry", released),
         ("Upstream ref closed without a merge: find where the fix went", closed),
         ("No `Upstream:` header", missing),
         ("Unreadable `Upstream:` header", bad),

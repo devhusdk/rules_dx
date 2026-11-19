@@ -1,4 +1,8 @@
 //! Checks the Ruby fixture shards and the YARD driver's and converter's failure handling.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -448,6 +452,36 @@ fn a_namespace_a_dependency_opens_stays_with_the_dependency() {
 }
 
 #[test]
+fn a_context_manifest_may_repeat_own_and_dep_files() {
+    let driver = Driver::new("ruby-repeat");
+    let dep = "tools/docs/ruby/fixture/testdata/reopen/dep.rb";
+    let own_rel = "tools/docs/ruby/fixture/testdata/reopen/own.rb";
+    let own = driver.manifest("own.tsv", &[own_rel]);
+    let deps = driver.dir.join("deps.tsv");
+    std::fs::write(
+        &deps,
+        format!("bare\t{}\n", driver.root.join(dep).display()),
+    )
+    .expect("write the deps manifest");
+    let mut outputs = Vec::new();
+    for context in [&[dep][..], &[dep, own_rel, dep][..]] {
+        let srcs = driver.manifest("context.tsv", context);
+        let (code, stderr) = driver.run_with(
+            &yard_lib(),
+            &own,
+            &srcs,
+            &deps,
+            &driver.dir,
+            &driver.dir,
+            None,
+        );
+        assert_eq!(code, 0, "{stderr}");
+        outputs.push(bytes_of(&driver.out()));
+    }
+    assert_eq!(outputs[0], outputs[1]);
+}
+
+#[test]
 fn the_driver_fails_on_a_syntax_error_and_writes_nothing() {
     let driver = Driver::new("ruby-broken");
     let rel = "tools/docs/ruby/fixture/testdata/broken.rb";
@@ -546,6 +580,7 @@ fn plugins_yardopts_and_home_config_are_never_loaded() {
 
 fn extract(json: &Path, out: &Path) -> (i32, String) {
     let output = Command::new(dx_testing::env_file("DX_RUBY_EXTRACT"))
+        .arg("ruby_extract")
         .arg("--json")
         .arg(json)
         .arg("--package")

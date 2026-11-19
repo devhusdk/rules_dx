@@ -19,7 +19,6 @@ def markdown_sibling_error(what, siblings, markdown_srcs):
 
 # File class to the extensions its `<class>_srcs` attribute accepts.
 _CLASS_EXTENSIONS = {
-    "asciidoc": [".adoc", ".asciidoc", ".asc"],
     "c": [".c", ".h"],
     "cpp": [".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx"],
     "cue": [".cue"],

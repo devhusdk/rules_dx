@@ -53,7 +53,8 @@
     "python_test",
     "python_fuzz_test",
     "python_bench",
-    "python_grpc_library"
+    "python_grpc_library",
+    "python_doc_shard"
   ],
   "quality": {
     "bzl": "python/private/quality:python.bzl",

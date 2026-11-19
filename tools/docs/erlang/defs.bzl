@@ -5,6 +5,8 @@ load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE")
 load("//tools/docs/beam:shard.bzl", "ESCRIPT_TOOL", "beam_shard_action", "beam_sources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 def erlang_shard_action(ctx, app, package, stem, runner, driver, extract_tool):
     """Runs edoc from the pinned OTP and the extractor for one Erlang app."""
     srcs = beam_sources(app, ["erl"])
@@ -31,7 +33,7 @@ docs_erlang_shard = rule(
         "app": attr.label(mandatory = True, providers = [ErlangAppInfo], doc = "The documented erlang_app; its .erl srcs are documented."),
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the app name."),
         "_driver": attr.label(allow_single_file = True, default = Label("//tools/docs/erlang:edoc_dump.escript")),
-        "_extract": attr.label(cfg = "exec", default = Label("//tools/docs/beam/extract:beam_extract"), executable = True),
+        "_extract": attr.label(cfg = "exec", default = Label("@dx_prebuilt//:dx"), executable = True),
         "_runner": attr.label(cfg = "exec", default = ESCRIPT_TOOL, executable = True),
     },
     provides = [DocsShardInfo],

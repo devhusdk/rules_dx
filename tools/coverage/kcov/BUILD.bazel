@@ -4,6 +4,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+load(":kcov_tests.bzl", "dx_kcov_unpinned_test")
 
 package(default_visibility = VIS_TOOLS)
 
@@ -54,11 +55,14 @@ alias(
     visibility = VIS_TOOLS_PUBLIC,
 )
 
-filegroup(name = "none")
+filegroup(
+    name = "none",
+    visibility = VIS_TOOLS_PUBLIC,
+)
 
 platform_transition_filegroup(
     name = "kcov_static",
-    srcs = ["@kcov//:kcov"],
+    srcs = ["@kcov"],
     target_compatible_with = ["@platforms//os:linux"],
     target_platform = select({
         "@platforms//cpu:aarch64": "@llvm//platforms:linux_aarch64_musl",
@@ -70,8 +74,8 @@ sh_binary(
     name = "kcov_launcher",
     srcs = ["kcov_launcher.sh"],
     data = ["//tools/coverage/lib:runfile.sh"],
-    deps = ["@bazel_tools//tools/bash/runfiles"],
     visibility = VIS_TOOLS_PUBLIC,
+    deps = ["@bazel_tools//tools/bash/runfiles"],
 )
 
 cc_binary(
@@ -116,6 +120,11 @@ rust_test(
     },
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
+)
+
+dx_kcov_unpinned_test(
+    name = "unpinned_test",
+    upstream = ":kcov_launcher",
 )
 
 filegroup(

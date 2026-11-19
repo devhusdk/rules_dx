@@ -8,16 +8,13 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use dx_guard::allowlist::{Counts, add, verify};
+use dx_guard::segments::{Piece, Segment, rust_segments, starlark_segments};
+use dx_guard::snapshot::{tree, under};
+use dx_guard::starlark::is_any_starlark as is_starlark;
 use serde_json as _;
-use shared::{Counts, Piece, Segment, add, is_starlark, under};
 use starlark_syntax as _;
 use yaml_serde as _;
-
-#[path = "guards/shared.rs"]
-mod shared;
-
-/// The allowlist path named in failures.
-const ALLOWLIST: &str = "tools/ci/zero_compat_allowlist.txt";
 
 /// This file, which spells every word it bans.
 const SELF: &str = "tools/ci/zero_compat_test.rs";
@@ -363,7 +360,7 @@ fn scan(files: &BTreeMap<String, String>) -> Counts {
             continue;
         }
         if is_starlark(path) {
-            let segments = shared::starlark_segments(text);
+            let segments = starlark_segments(text);
             let code = skeleton(&segments);
             if path != DEPRECATE {
                 add(
@@ -411,7 +408,7 @@ fn scan(files: &BTreeMap<String, String>) -> Counts {
             .extension()
             .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
         {
-            let segments = shared::rust_segments(text);
+            let segments = rust_segments(text);
             add(&mut counts, path, "compat-word", compat_words(text));
             add(
                 &mut counts,
@@ -444,7 +441,7 @@ fn deprecations(files: &BTreeMap<String, String>) -> (Vec<(String, String)>, Vec
         if under(path, &SKIPPED_DIRS) || path == DEPRECATE || !is_starlark(path) {
             continue;
         }
-        let segments = shared::starlark_segments(text);
+        let segments = starlark_segments(text);
         for call in calls(&segments, "deprecated") {
             let what = call.keywords.get("what").or(call.positional.first());
             let remove_in = call.keywords.get("remove_in").or(call.positional.get(1));
@@ -555,11 +552,14 @@ fn deprecation_problems(found: &[(String, String)], snapshot: &str, module: &str
 
 #[test]
 fn deprecations_are_recorded_and_gone_by_their_removal_version() {
-    let files = shared::tree(&dx_testing::source_snapshot());
+    let files: BTreeMap<String, String> = tree(&dx_testing::source_snapshot())
+        .unwrap_or_else(|error| panic!("source snapshot: {error}"))
+        .into_iter()
+        .collect();
     let module_file = files
         .get("MODULE.bazel")
         .expect("MODULE.bazel is in the source snapshot");
-    let module_segments = shared::starlark_segments(module_file);
+    let module_segments = starlark_segments(module_file);
     let module = calls(&module_segments, "module")
         .into_iter()
         .find_map(|call| call.keywords.get("version").cloned())
@@ -577,13 +577,16 @@ fn deprecations_are_recorded_and_gone_by_their_removal_version() {
 
 #[test]
 fn no_compat_code_outside_the_allowlist() {
-    let files = shared::tree(&dx_testing::source_snapshot());
+    let files: BTreeMap<String, String> = tree(&dx_testing::source_snapshot())
+        .unwrap_or_else(|error| panic!("source snapshot: {error}"))
+        .into_iter()
+        .collect();
     assert!(
         files.len() >= MIN_FILES,
         "only {} files in the snapshot",
         files.len()
     );
-    shared::settle(&scan(&files), "DX_ALLOWLIST", ALLOWLIST, &KINDS);
+    verify(&scan(&files), &KINDS);
 }
 
 #[cfg(test)]

@@ -108,13 +108,35 @@ pub fn file_extensions(root: &Path) -> BTreeSet<String> {
         .collect()
 }
 
-/// Whether a BUILD file under `root` declares a `dx_deployment`.
-pub(crate) fn has_dx_deployment(root: &Path) -> bool {
+/// Whether a BUILD file under `root` calls `deployment` or a `*_deploy` macro
+/// loaded from rules_dx `deploy:defs.bzl`.
+pub(crate) fn has_deployment(root: &Path) -> bool {
+    let repo = dx_module_bazel::rules_dx_repo(root);
     source_files(root).iter().any(|path| {
         let name = path.rsplit('/').next().unwrap_or(path);
         matches!(name, "BUILD" | "BUILD.bazel")
             && std::fs::read_to_string(root.join(path))
-                .is_ok_and(|text| text.contains("dx_deployment("))
+                .is_ok_and(|text| declares_deployment(&text, &repo))
+    })
+}
+
+/// Whether a BUILD source calls a deployment symbol loaded from `@<repo>//deploy:defs.bzl`.
+fn declares_deployment(text: &str, repo: &str) -> bool {
+    use dx_path::label::{Label, Repo};
+    dx_module_bazel::loaded_calls(text).is_ok_and(|calls| {
+        calls.iter().any(|(module, symbol)| {
+            Label::parse(module).is_some_and(|label| {
+                !label.relative
+                    && label.package == "deploy"
+                    && label.name == "defs.bzl"
+                    && match label.repo {
+                        Repo::Local => true,
+                        Repo::Apparent(name) => name.is_empty() || name == repo,
+                        Repo::Canonical(_) => false,
+                    }
+            }) && (matches!(symbol.as_str(), "deployment" | "dx_deployment")
+                || symbol.ends_with("_deploy"))
+        })
     })
 }
 
@@ -212,15 +234,77 @@ mod tests {
         "module(name = \"app\")\n\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n";
 
     #[test]
+    fn deployment_calls_from_rules_dx_deploy_count() {
+        let load = |label: &str, symbols: &str, body: &str| {
+            format!("load(\"{label}\", {symbols})\n{body}")
+        };
+        let defs = "@rules_dx//deploy:defs.bzl";
+        for (text, repo) in [
+            (
+                load(defs, "\"npm_deploy\"", "npm_deploy(name = \"a\")\n"),
+                "rules_dx",
+            ),
+            (
+                load(defs, "my = \"oci_deploy\"", "my(name = \"a\")\n"),
+                "rules_dx",
+            ),
+            (
+                load(defs, "\"deployment\"", "deployment(name = \"a\")\n"),
+                "rules_dx",
+            ),
+            (
+                load(defs, "\"dx_deployment\"", "dx_deployment(name = \"a\")\n"),
+                "rules_dx",
+            ),
+            (
+                load(
+                    "//deploy:defs.bzl",
+                    "\"npm_deploy\"",
+                    "npm_deploy(name = \"a\")\n",
+                ),
+                "rules_dx",
+            ),
+            (
+                load(
+                    "@dx//deploy:defs.bzl",
+                    "\"npm_deploy\"",
+                    "npm_deploy(name = \"a\")\n",
+                ),
+                "dx",
+            ),
+        ] {
+            assert!(declares_deployment(&text, repo), "{text}");
+        }
+        for text in [
+            load(
+                defs,
+                "\"consumer_archive\", \"dx_sbom\", \"sbom\"",
+                "consumer_archive(name = \"a\")\ndx_sbom(name = \"b\")\nsbom(name = \"c\")\n",
+            ),
+            load(
+                "@other//:defs.bzl",
+                "\"npm_deploy\"",
+                "npm_deploy(name = \"a\")\n",
+            ),
+            load(defs, "\"npm_deploy\"", "x = 1\n"),
+            load(defs, "\"deployment\"", "cross_deployment(name = \"a\")\n"),
+            load(defs, "\"npm_deploy\"", "npm_deploy(\n"),
+        ] {
+            assert!(!declares_deployment(&text, "rules_dx"), "{text}");
+        }
+    }
+
+    #[test]
     fn detected_families_are_dx_toml_ids() {
         let dir = scratch("dx-detected-families-").unwrap();
         assert!(detected_families(dir.path()).is_empty());
         write(dir.path(), "a.py", "").unwrap();
         write(dir.path(), "src/b.rs", "").unwrap();
         write(dir.path(), "Dockerfile", "").unwrap();
+        write(dir.path(), "docs/guide.adoc", "").unwrap();
         assert_eq!(
             detected_families(dir.path()),
-            BTreeSet::from(["dockerfile", "python", "rust"].map(str::to_owned))
+            BTreeSet::from(["asciidoc", "dockerfile", "python", "rust"].map(str::to_owned))
         );
     }
 

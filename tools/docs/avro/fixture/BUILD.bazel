@@ -1,6 +1,7 @@
 load("//avro:defs.bzl", "avro_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/avro:defs.bzl", "avro_doc_shard")
+load("//tools/docs/ir:dx_extract_test.bzl", "dx_extract_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -26,6 +27,14 @@ avro_doc_shard(
     testonly = True,
     avro = ":shop_avro",
     package = "shop",
+)
+
+dx_extract_test(
+    name = "shop_docs_dx_extract_test",
+    size = "small",
+    mnemonic = "DxDocsAvroExtract",
+    subcommand = "avro_extract",
+    target_under_test = ":shop_docs",
 )
 
 real_source_target(

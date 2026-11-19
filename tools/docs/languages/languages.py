@@ -21,7 +21,10 @@ PLATFORM_NAMES = {
     "windows_arm64": "Windows arm64",
     "windows_x86_64": "Windows x86_64",
 }
-LOAD = re.compile(r"^load\(\s*(\"[^\"]+\")\s*,([^\n]*)\)\s*$|^load\(\s*(\"[^\"]+\")\s*,(.*?)\n\)", re.M | re.S)
+LOAD = re.compile(
+    r"^load\(\s*(\"[^\"]+\")\s*,([^\n]*)\)\s*$|^load\(\s*(\"[^\"]+\")\s*,(.*?)\n\)",
+    re.M | re.S,
+)
 LOAD_ITEM = re.compile(r"(?:(\w+)\s*=\s*)?\"(\w+)\"")
 ALIAS = re.compile(r"^(\w+)\s*=\s*(\w+)\s*$", re.M)
 LINK = re.compile(r"\]\(([^)\s#?]+)")
@@ -57,7 +60,9 @@ def languages(root):
     found = []
     for name in sorted(os.listdir(root)):
         base = os.path.join(root, name)
-        if os.path.isfile(os.path.join(base, "lang.json")) and os.path.isfile(os.path.join(base, "defs.bzl")):
+        if os.path.isfile(os.path.join(base, "lang.json")) and os.path.isfile(
+            os.path.join(base, "defs.bzl")
+        ):
             found.append(name)
     return found
 
@@ -78,14 +83,22 @@ def rlocation(path):
 
 def facts(root):
     """Returns the support matrix rows keyed by name."""
-    local = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "support_matrix", "facts.json")
-    path = local if os.path.isfile(local) else rlocation("_main/tools/docs/support_matrix/facts.json")
+    local = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "support_matrix", "facts.json"
+    )
+    path = (
+        local
+        if os.path.isfile(local)
+        else rlocation("_main/tools/docs/support_matrix/facts.json")
+    )
     with open(path, encoding="utf-8") as f:
         return {row["name"]: row for row in json.load(f)["rows"]}
 
 
 def shard_bzl(root, shard):
-    pattern = re.compile(r"^(%s\s*=|def %s\()" % (re.escape(shard), re.escape(shard)), re.M)
+    pattern = re.compile(
+        r"^(%s\s*=|def %s\()" % (re.escape(shard), re.escape(shard)), re.M
+    )
     base = os.path.join(root, "tools/docs")
     for name in sorted(os.listdir(base)):
         for bzl in ("defs.bzl", "%s.bzl" % name, "site.bzl"):
@@ -94,6 +107,26 @@ def shard_bzl(root, shard):
             if text is not None and pattern.search(text):
                 return path
     raise SystemExit("languages: no bzl defines %s" % shard)
+
+
+CORE_DEFS = "core/defs.bzl"
+
+
+def core_exports(root, name):
+    """True when core/defs.bzl, the public file for rules with no language directory, exports name."""
+    text = read(root, CORE_DEFS) or ""
+    return (
+        re.search(r"^%s = _%s$" % (re.escape(name), re.escape(name)), text, re.M)
+        is not None
+    )
+
+
+def shard_owner(root, shard):
+    """Returns the first language whose lang.json lists shard as an entry point, else None."""
+    for lang in languages(root):
+        if shard in json.loads(read(root, "%s/lang.json" % lang))["entry_points"]:
+            return lang
+    return None
 
 
 def read(root, path):
@@ -109,7 +142,11 @@ def label_path(label, current):
         package, _, target = label[2:].partition(":")
         return (package + "/" + target).lstrip("/")
     if label.startswith(":"):
-        return os.path.dirname(current) + "/" + label[1:] if os.path.dirname(current) else label[1:]
+        return (
+            os.path.dirname(current) + "/" + label[1:]
+            if os.path.dirname(current)
+            else label[1:]
+        )
     return None
 
 
@@ -153,7 +190,11 @@ def balanced(text, start, opener, closer):
 
 
 def unquote(raw):
-    return re.sub(r"\s+", " ", bytes(raw, "utf-8").decode("unicode_escape").strip()) if raw else ""
+    return (
+        re.sub(r"\s+", " ", bytes(raw, "utf-8").decode("unicode_escape").strip())
+        if raw
+        else ""
+    )
 
 
 def parts(match):
@@ -162,8 +203,17 @@ def parts(match):
 
 def dedent(text):
     lines = text.strip("\n").splitlines()
-    margin = min((len(line) - len(line.lstrip()) for line in lines[1:] if line.strip()), default=0)
-    return "\n".join([lines[0].strip()] + [line[margin:].rstrip() for line in lines[1:]]).strip() if lines else ""
+    margin = min(
+        (len(line) - len(line.lstrip()) for line in lines[1:] if line.strip()),
+        default=0,
+    )
+    return (
+        "\n".join(
+            [lines[0].strip()] + [line[margin:].rstrip() for line in lines[1:]]
+        ).strip()
+        if lines
+        else ""
+    )
 
 
 def attrs_of(call):
@@ -178,7 +228,9 @@ def attrs_of(call):
     for item in re.finditer(r"^\s{1,12}\"(\w+)\":\s*attr\.(\w+)\(", block, re.M):
         end = balanced(block, item.end() - 1, "(", ")")
         body = block[item.end() : end]
-        doc = re.search(r"\bdoc\s*=\s*(\"\"\".*?\"\"\"|\"(?:[^\"\\\n]|\\.)*\")", body, re.S)
+        doc = re.search(
+            r"\bdoc\s*=\s*(\"\"\".*?\"\"\"|\"(?:[^\"\\\n]|\\.)*\")", body, re.S
+        )
         text = ""
         if doc:
             text = unquote(parts(STRING.match(doc.group(1))))
@@ -203,28 +255,46 @@ def describe(root, path, name, depth=0):
         end = balanced(text, func.end() - 1, "(", ")")
         signature = re.sub(r"\s+", " ", text[func.end() : end - 1]).strip().rstrip(",")
         signature = re.sub(r"\(\s+", "(", signature)
-        after = re.match(r"\s*:\s*\n\s*(\"\"\".*?\"\"\"|\"(?:[^\"\\\n]|\\.)*\")", text[end:], re.S)
+        after = re.match(
+            r"\s*:\s*\n\s*(\"\"\".*?\"\"\"|\"(?:[^\"\\\n]|\\.)*\")", text[end:], re.S
+        )
         doc = dedent(parts(STRING.match(after.group(1)))) if after else ""
         return ("macro", signature, doc, [])
     assign = re.search(r"^%s\s*=\s*(\w+)\(" % re.escape(name), text, re.M)
-    if assign and assign.group(1) in ("rule", "macro", "repository_rule", "module_extension"):
+    if assign and assign.group(1) in (
+        "rule",
+        "macro",
+        "repository_rule",
+        "module_extension",
+    ):
         end = balanced(text, assign.end() - 1, "(", ")")
         call = text[assign.end() - 1 : end]
-        doc_match = re.search(r"^\s{4}doc\s*=\s*(\"\"\".*?\"\"\"|\"(?:[^\"\\\n]|\\.)*\")", call, re.S | re.M)
+        doc_match = re.search(
+            r"^\s{4}doc\s*=\s*(\"\"\".*?\"\"\"|\"(?:[^\"\\\n]|\\.)*\")",
+            call,
+            re.S | re.M,
+        )
         doc = dedent(parts(STRING.match(doc_match.group(1)))) if doc_match else ""
         return (assign.group(1), "", doc, attrs_of(call))
-    factory = re.search(r"^%s\s*=\s*named_source_library\(" % re.escape(name), text, re.M)
+    factory = re.search(
+        r"^%s\s*=\s*named_source_library\(" % re.escape(name), text, re.M
+    )
     if factory:
         end = balanced(text, factory.end() - 1, "(", ")")
         call = text[factory.end() - 1 : end]
         class_id = re.match(r"\(\s*\"([^\"]*)\"", call)
         strings = {}
         for key in ("doc", "srcs_doc"):
-            found = re.search(r"\b%s\s*=\s*(\"\"\".*?\"\"\"|\"(?:[^\"\\\n]|\\.)*\")" % key, call, re.S)
+            found = re.search(
+                r"\b%s\s*=\s*(\"\"\".*?\"\"\"|\"(?:[^\"\\\n]|\\.)*\")" % key, call, re.S
+            )
             strings[key] = unquote(parts(STRING.match(found.group(1)))) if found else ""
         if class_id:
             libs = "Other %s libraries this package depends on." % class_id.group(1)
-            attrs = [("srcs", "label_list", False, strings["srcs_doc"]), ("deps", "label_list", False, libs)]
+            attrs = [
+                ("srcs", "label_list", False, strings["srcs_doc"]),
+                ("deps", "label_list", False, libs),
+            ]
             return ("rule", "", strings["doc"], attrs)
     alias = re.search(r"^%s\s*=\s*(\w+)\s*$" % re.escape(name), text, re.M)
     if alias and alias.group(1) != name:
@@ -258,16 +328,30 @@ def render(name, info):
         return out
     kind, signature, doc, attrs = info
     if kind == "reexport":
-        out.append("Re-exported from `%s`.\n" % signature if doc == name else "Re-exported as `%s` from `%s`.\n" % (doc, signature))
+        out.append(
+            "Re-exported from `%s`.\n" % signature
+            if doc == name
+            else "Re-exported as `%s` from `%s`.\n" % (doc, signature)
+        )
         return out
     if signature:
         out.append("```python\n%s(%s)\n```\n" % (name, signature))
     if doc:
         out.append(doc + "\n")
     if attrs:
-        out.append("| Attribute | Type | Required | Description |\n| --- | --- | --- | --- |")
+        out.append(
+            "| Attribute | Type | Required | Description |\n| --- | --- | --- | --- |"
+        )
         for attr_name, attr_type, mandatory, text in attrs:
-            out.append("| `%s` | `%s` | %s | %s |" % (attr_name, attr_type, "yes" if mandatory else "no", text.replace("|", "\\|")))
+            out.append(
+                "| `%s` | `%s` | %s | %s |"
+                % (
+                    attr_name,
+                    attr_type,
+                    "yes" if mandatory else "no",
+                    text.replace("|", "\\|"),
+                )
+            )
         out.append("")
     if not (signature or doc or attrs):
         out.append("No documentation.\n")
@@ -309,7 +393,9 @@ def readme_sections(root, lang):
             sections[heading] = []
         elif heading is not None:
             sections[heading].append(line)
-    return {h: rebase_links("\n".join(b).strip("\n"), lang) for h, b in sections.items()}
+    return {
+        h: rebase_links("\n".join(b).strip("\n"), lang) for h, b in sections.items()
+    }
 
 
 def with_readme(out, extra, heading):
@@ -328,12 +414,21 @@ def api_docs(root, lang, rows, extra):
     if not shard:
         out.append("There is no API doc tool for this language yet.\n")
         return with_readme(out, extra, "API docs")
-    path = shard_bzl(root, shard)
-    out.append("`tools/dx docs` builds the API docs with `%s`; see [docs](../cli/commands/docs.md).\n" % row["doc"])
+    owner = shard_owner(root, shard)
+    source = "%s/defs.bzl" % owner if owner else shard_bzl(root, shard)
+    path = source if owner or not core_exports(root, shard) else CORE_DEFS
+    out.append(
+        "`tools/dx docs` builds the API docs with `%s`; see [docs](../cli/commands/docs.md).\n"
+        % row["doc"]
+    )
     out.append("To declare a docs target yourself, load the rule behind it:\n")
-    out.append("```python\nload(\"@rules_dx//%s\", \"%s\")\n```\n" % ("%s:%s" % os.path.split(path), shard))
-    out.append("### `%s`\n" % shard)
-    out.extend(render(shard, describe(root, path, shard)))
+    out.append(
+        '```python\nload("@rules_dx//%s", "%s")\n```\n'
+        % ("%s:%s" % os.path.split(path), shard)
+    )
+    if owner != lang:
+        out.append("### `%s`\n" % shard)
+        out.extend(render(shard, describe(root, source, shard)))
     return with_readme(out, extra, "API docs")
 
 
@@ -351,22 +446,30 @@ def quick_start(root, lang, title):
         "`MODULE.bazel` sits at the root of your repository and lists the Bazel modules,"
         " meaning external dependencies, that your project uses. Add `rules_dx` to it:\n"
     )
-    out.append("```python\nbazel_dep(name = \"rules_dx\", version = \"<release>\")\n```\n")
-    out.append("Then let dx set up the rest, as in the [Quickstart](../../README.md#quickstart):\n")
+    out.append('```python\nbazel_dep(name = "rules_dx", version = "<release>")\n```\n')
+    out.append(
+        "Then let dx set up the rest, as in the [Quickstart](../../README.md#quickstart):\n"
+    )
     out.append("```sh\nbazel run @rules_dx//:dx -- init --apply\n```\n")
     module = read(root, "%s/consumer.MODULE.bazel" % consumer)
     if module is not None:
-        module = module.replace('bazel_dep(name = "rules_dx", version = "0.0.0")', 'bazel_dep(name = "rules_dx", version = "<release>")')
+        module = module.replace(
+            'bazel_dep(name = "rules_dx", version = "0.0.0")',
+            'bazel_dep(name = "rules_dx", version = "<release>")',
+        )
         out.append("For a %s project, `MODULE.bazel` then looks like this:\n" % title)
         out.append("```python\n%s\n```\n" % without_markers(module))
     build = read(root, "%s/BUILD.bazel" % consumer)
     if build is not None:
         out.append(
             "A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds."
-            " This one is a small %s package from [`%s`](https://github.com/devhusdk/rules_dx/blob/main/%s/BUILD.bazel):\n" % (title, consumer, consumer)
+            " This one is a small %s package from [`%s`](https://github.com/devhusdk/rules_dx/blob/main/%s/BUILD.bazel):\n"
+            % (title, consumer, consumer)
         )
         out.append("```python\n%s\n```\n" % without_markers(build))
-    out.append("Build and test everything. `//...` means every target in the repository:\n")
+    out.append(
+        "Build and test everything. `//...` means every target in the repository:\n"
+    )
     out.append("```sh\ntools/dx test //...\n```\n")
     return out
 
@@ -374,7 +477,10 @@ def quick_start(root, lang, title):
 def table(rows):
     out = ["| | |", "| --- | --- |"]
     for label, items, fmt in rows:
-        out.append("| %s | %s |" % (label, ", ".join(fmt % item for item in items) if items else "none"))
+        out.append(
+            "| %s | %s |"
+            % (label, ", ".join(fmt % item for item in items) if items else "none")
+        )
     return "\n".join(out) + "\n"
 
 
@@ -383,8 +489,14 @@ def page(root, lang, rows):
     defs = "%s/defs.bzl" % lang
     title = meta["title"]
     names = meta["entry_points"]
-    out = ["# %s\n" % title, "<!-- Generated by %s from %s/lang.json and %s. Do not edit. -->\n" % (UPDATE, lang, defs)]
-    out.append("This page helps you build, test and check %s code with rules_dx.\n" % title)
+    out = [
+        "# %s\n" % title,
+        "<!-- Generated by %s from %s/lang.json and %s. Do not edit. -->\n"
+        % (UPDATE, lang, defs),
+    ]
+    out.append(
+        "This page helps you build, test and check %s code with rules_dx.\n" % title
+    )
     out.extend(quick_start(root, lang, title))
     extra = readme_sections(root, lang)
     platforms = extra.pop("Platforms", "")
@@ -398,8 +510,13 @@ def page(root, lang, rows):
     out.append("## Rules\n")
     if names:
         shown = ", ".join('"%s"' % n for n in names[:3])
-        out.append("`load` brings rules into a `BUILD.bazel` file. Load the ones you use from `@rules_dx//%s:defs.bzl`:\n" % lang)
-        out.append("```python\nload(\"@rules_dx//%s:defs.bzl\", %s)\n```\n" % (lang, shown))
+        out.append(
+            "`load` brings rules into a `BUILD.bazel` file. Load the ones you use from `@rules_dx//%s:defs.bzl`:\n"
+            % lang
+        )
+        out.append(
+            '```python\nload("@rules_dx//%s:defs.bzl", %s)\n```\n' % (lang, shown)
+        )
     else:
         out.append("None.\n")
     for name in names:
@@ -428,7 +545,9 @@ def page(root, lang, rows):
 
 def pages(root):
     rows = facts(root)
-    return {"%s/%s.md" % (OUT, lang): page(root, lang, rows) for lang in languages(root)}
+    return {
+        "%s/%s.md" % (OUT, lang): page(root, lang, rows) for lang in languages(root)
+    }
 
 
 def find_root():
@@ -445,16 +564,22 @@ def main():
     existing = set()
     directory = os.path.join(root, OUT)
     if os.path.isdir(directory):
-        existing = {"%s/%s" % (OUT, n) for n in os.listdir(directory) if n.endswith(".md")}
+        existing = {
+            "%s/%s" % (OUT, n) for n in os.listdir(directory) if n.endswith(".md")
+        }
     if "--write" in sys.argv:
         os.makedirs(directory, exist_ok=True)
         for path in existing - set(want):
             os.remove(os.path.join(root, path))
         for path, text in want.items():
-            with open(os.path.join(root, path), "w", encoding="utf-8", newline="\n") as f:
+            with open(
+                os.path.join(root, path), "w", encoding="utf-8", newline="\n"
+            ) as f:
                 f.write(text)
         return 0
-    stale = sorted(p for p, t in want.items() if read(root, p) != t) + sorted(existing - set(want))
+    stale = sorted(p for p, t in want.items() if read(root, p) != t) + sorted(
+        existing - set(want)
+    )
     if stale:
         print("out of date: %s; run: %s" % (", ".join(stale), UPDATE), file=sys.stderr)
         return 1

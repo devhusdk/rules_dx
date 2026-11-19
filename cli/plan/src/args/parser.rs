@@ -452,9 +452,11 @@ fn parse_inner<S: AsRef<OsStr>>(
     let build_slots = resolve_build_slots(build_slots, env_get)?;
     let build_slots_wait = resolve_build_slots_wait(build_slots_wait, env_get)?;
     let color_name = color_name.unwrap_or_else(|| "auto".to_owned());
-    let color = dx_output::ColorMode::parse(&color_name).map_err(|_| ArgsError::BadColor {
-        value: color_name.clone(),
-    })?;
+    let color = dx_output::ColorMode::parse(&color_name)
+        .ok()
+        .ok_or_else(|| ArgsError::BadColor {
+            value: color_name.clone(),
+        })?;
     let mut bazel_startup_options = Vec::with_capacity(startup_tokens.len());
     for token in &startup_tokens {
         match dx_process::validate_startup_option(token) {
@@ -500,9 +502,11 @@ fn parse_inner<S: AsRef<OsStr>>(
             value: fail_on_name,
         });
     }
-    let mut fail_on = Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
-        value: fail_on_name.clone(),
-    })?;
+    let mut fail_on = Threshold::parse(&fail_on_name)
+        .ok()
+        .ok_or_else(|| ArgsError::BadFailOn {
+            value: fail_on_name.clone(),
+        })?;
     if fail_on_name != "warning" && command != Command::Watch && !command.supports_fail_on() {
         if fail_on_from_flag {
             return Err(unsupported(command, "--fail-on"));
@@ -711,9 +715,11 @@ fn parse_inner<S: AsRef<OsStr>>(
     let output = if diff {
         OutputMode::Diff
     } else {
-        OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
-            value: output_name.clone(),
-        })?
+        OutputMode::parse(&output_name, quiet)
+            .ok()
+            .ok_or_else(|| ArgsError::BadOutput {
+                value: output_name.clone(),
+            })?
     };
     if command.is_adoption() {
         match command {

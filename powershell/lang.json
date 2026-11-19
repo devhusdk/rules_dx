@@ -45,7 +45,8 @@
   "entry_points": [
     "powershell_library",
     "powershell_binary",
-    "powershell_test"
+    "powershell_test",
+    "powershell_doc_shard"
   ],
   "quality": {
     "bzl": "powershell/private/quality:powershell.bzl",

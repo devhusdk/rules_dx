@@ -1,6 +1,15 @@
 //! Runs one D test built with `-cov` and writes its LCOV report into `COVERAGE_DIR` for Bazel.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 mod lst;
 
@@ -53,7 +62,7 @@ fn lcov_of(dir: &Path) -> String {
 
 fn run() -> Result<i32, String> {
     let upstream = env::var("DX_D_COVERAGE_UPSTREAM")
-        .map_err(|_| "DX_D_COVERAGE_UPSTREAM is not set".to_owned())?;
+        .map_err(|e| format!("DX_D_COVERAGE_UPSTREAM is not set: {e}"))?;
     let upstream = resolve(&upstream)?;
     let mut command = Command::new(&upstream);
     command.args(env::args().skip(1));

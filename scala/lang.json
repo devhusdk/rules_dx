@@ -32,7 +32,8 @@
     "scala_binary",
     "scala_test",
     "scala_fuzz_test",
-    "scala_bench"
+    "scala_bench",
+    "scala_doc_shard"
   ],
   "quality": {
     "bzl": "java/private/quality:jvm.bzl",

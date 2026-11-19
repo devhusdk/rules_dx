@@ -1,6 +1,14 @@
 //! Runs nested Bazel servers for tests: one server under `TEST_TMPDIR`, hermetic environments and the fake Bazel.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
+
+// Only the Windows code paths call dx_os_sys.
+#[cfg(not(windows))]
+use dx_os_sys as _;
 
 pub mod cache;
 pub mod compose;
@@ -118,8 +126,17 @@ pub struct Config {
     pub shim: Option<PathBuf>,
     /// The declared downloads that make up the repository cache.
     pub cache: Vec<cache::Download<PathBuf>>,
-    /// Record mode: the directory that receives the cache set and the locks of this run.
-    pub record: Option<PathBuf>,
+    /// Record mode: where the cache set and the locks of this run go.
+    pub record: Option<Record>,
+}
+
+/// The output of a record mode run.
+#[derive(Clone, Debug)]
+pub struct Record {
+    /// The directory that receives the cache set and the locks.
+    pub dir: PathBuf,
+    /// The name of the cache set.
+    pub set: String,
 }
 
 impl Config {
@@ -180,9 +197,10 @@ impl Config {
             }
         }
         let offline = lookup("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty());
-        let record = if offline || text(CACHE_SET_ENV).is_none_or(|set| set.is_empty()) {
+        let set = text(CACHE_SET_ENV).filter(|set| !set.is_empty());
+        let record = if offline {
             None
-        } else {
+        } else if let Some(set) = set {
             let outputs = env_path(lookup, OUTPUTS_ENV).ok_or_else(|| {
                 format!("{OUTPUTS_ENV} is not set; record mode runs only inside a test")
             })?;
@@ -191,7 +209,12 @@ impl Config {
                     "{SHIM_ENV} is not set; record mode needs the native shim"
                 ));
             }
-            Some(outputs.join("nested_cache"))
+            Some(Record {
+                dir: outputs.join("nested_cache"),
+                set,
+            })
+        } else {
+            None
         };
         Ok(Config {
             root,
@@ -1292,6 +1315,7 @@ fn capture(mut command: Command, what: &str, offline: bool) -> Run {
 static SERVER: Mutex<Option<Server>> = Mutex::new(None);
 static RELEASE: Once = Once::new();
 
+/// Registers [`release`] to run at exit; on Windows it runs only when every test passes.
 #[cfg(any(unix, windows))]
 #[expect(unsafe_code, reason = "atexit has no safe std API")]
 fn release_at_exit() {
@@ -1350,24 +1374,60 @@ fn read_dir_files(dir: &Path) -> Vec<PathBuf> {
 
 /// Writes the cache set and the locks of a record mode run into the record directory.
 fn finish_record(server: &Server) -> Result<(), String> {
-    let Some(dir) = server.config.record.as_ref() else {
+    let Some(record) = server.config.record.as_ref() else {
         return Ok(());
     };
-    let set = std::env::var(CACHE_SET_ENV).map_err(|error| format!("{CACHE_SET_ENV}: {error}"))?;
     let roots = std::mem::take(&mut *RECORDED.lock().unwrap_or_else(PoisonError::into_inner));
+    write_record(
+        record,
+        &roots,
+        &server.repository_cache(),
+        &server.home.join(RECORD_LOGS),
+        false,
+    )
+}
+
+/// Rewrites the record from every workspace recorded so far; a workspace without a lock yet is skipped.
+fn flush_record(server: &Server) -> Result<(), String> {
+    let Some(record) = server.config.record.as_ref() else {
+        return Ok(());
+    };
+    let roots = RECORDED
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .clone();
+    write_record(
+        record,
+        &roots,
+        &server.repository_cache(),
+        &server.home.join(RECORD_LOGS),
+        true,
+    )
+}
+
+/// Writes `<set>.txt` and a lock per stem of `roots` into the record directory.
+fn write_record(
+    record: &Record,
+    roots: &[(String, PathBuf)],
+    repository_cache: &Path,
+    logs: &Path,
+    skip_missing: bool,
+) -> Result<(), String> {
     if roots.is_empty() {
         return Ok(());
     }
-    let repository_cache = server.repository_cache();
-    let fetched = |sha256: &str| std::fs::read(cache::entry(&repository_cache, sha256)).ok();
+    let fetched = |sha256: &str| std::fs::read(cache::entry(repository_cache, sha256)).ok();
     let mut entries: std::collections::BTreeMap<String, String> =
         std::collections::BTreeMap::default();
     let mut locks: std::collections::BTreeMap<String, String> =
         std::collections::BTreeMap::default();
-    for (stem, root) in &roots {
+    for (stem, root) in roots {
         let path = root.join("MODULE.bazel.lock");
-        let lock = std::fs::read_to_string(&path)
-            .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+        let lock = match std::fs::read_to_string(&path) {
+            Ok(lock) => lock,
+            Err(error) if skip_missing && error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(format!("cannot read {}: {error}", path.display())),
+        };
         if locks.get(stem).is_some_and(|seen| *seen != lock) {
             return Err(format!(
                 "the lock {stem} was recorded twice with different content"
@@ -1383,7 +1443,7 @@ fn finish_record(server: &Server) -> Result<(), String> {
         }
         locks.insert(stem.clone(), lock);
     }
-    for log in read_dir_files(&server.home.join(RECORD_LOGS)) {
+    for log in read_dir_files(logs) {
         let bytes = std::fs::read(&log)
             .map_err(|error| format!("cannot read {}: {error}", log.display()))?;
         for (url, sha256) in record::downloads(&bytes) {
@@ -1398,20 +1458,20 @@ fn finish_record(server: &Server) -> Result<(), String> {
     let ids: Vec<(String, String)> = urls_of
         .iter()
         .flat_map(|(sha256, urls)| {
-            cache::extra_ids(&repository_cache, sha256, urls)
+            cache::extra_ids(repository_cache, sha256, urls)
                 .into_iter()
                 .map(|id| (id, sha256.clone()))
         })
         .collect();
     entries.extend(ids);
     for (stem, lock) in &locks {
-        write(&dir.join(format!("{stem}.MODULE.bazel.lock")), lock)?;
+        write(&record.dir.join(format!("{stem}.MODULE.bazel.lock")), lock)?;
     }
     let mut list = String::new();
     for (url, sha256) in &entries {
         writeln!(list, "{url} {sha256}").ok();
     }
-    write(&dir.join(format!("{set}.txt")), &list)
+    write(&record.dir.join(format!("{}.txt", record.set)), &list)
 }
 
 type Lease = RefCell<MutexGuard<'static, Option<Server>>>;
@@ -1576,6 +1636,20 @@ pub fn write_rules_dx_config(root: &Path) {
 pub struct Case {
     lease: Rc<Lease>,
     root: PathBuf,
+}
+
+impl Drop for Case {
+    /// Rewrites the record in record mode, also while a failing case unwinds.
+    fn drop(&mut self) {
+        let Ok(guard) = self.lease.try_borrow() else {
+            return;
+        };
+        if let Some(server) = guard.as_ref()
+            && let Err(error) = flush_record(server)
+        {
+            eprintln!("nested bazel: record mode: {error}");
+        }
+    }
 }
 
 /// Starts a case in the workspace `name`; cases run one at a time and share one server.
@@ -1892,6 +1966,63 @@ impl Case {
         case
     }
 
+    /// Starts a case from the `<lang>/tests/consumer` fixture in the `DX_CONSUMER_JSON` snapshot.
+    ///
+    /// The module gets the fixture's extension lines, the root's patch overrides and
+    /// `extra_module`; every other fixture file is written as is.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the snapshot, the fixture module or the `rules_dx` checkout is missing.
+    pub fn language_consumer(name: &str, lang: &str, extra_module: &str) -> Result<Case, String> {
+        Case::languages_consumer(name, &[lang], extra_module)
+    }
+
+    /// Starts a case from the `<lang>/tests/consumer` fixtures of `langs` in the
+    /// `DX_CONSUMER_JSON` snapshot: the first at the workspace root, each later one under `<lang>/`.
+    ///
+    /// The module gets the first fixture's extension lines, the root's patch overrides and
+    /// `extra_module`; every other fixture file is written as is.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the snapshot, a fixture, the first fixture's module or the `rules_dx`
+    /// checkout is missing, or a later fixture's module has extension lines.
+    pub fn languages_consumer(
+        name: &str,
+        langs: &[&str],
+        extra_module: &str,
+    ) -> Result<Case, String> {
+        let first = langs.first().ok_or("languages_consumer needs a language")?;
+        let snapshot = dx_testing::rlocation(dx_testing::env_text("DX_CONSUMER_JSON").trim())
+            .map_err(|error| format!("DX_CONSUMER_JSON: {error}"))?;
+        let files = compose::consumer_fixtures(&dx_testing::read_text(&snapshot), langs)?;
+        let module = files
+            .get("consumer.MODULE.bazel")
+            .ok_or_else(|| format!("{first}/tests/consumer/consumer.MODULE.bazel is missing"))?;
+        let source = dx_testing::rules_dx_source()?;
+        let case = Case::consumer_at(
+            name,
+            &source,
+            &format!(
+                "{}{}{}{extra_module}",
+                compose::module_body(module),
+                compose::rules_py_override(),
+                compose::rules_flutter_override()?,
+            ),
+        );
+        compose::write_rules_py_patches(case.root(), &source)?;
+        let overrides = compose::write_root_patch_overrides(case.root(), &source)?;
+        let composed = dx_testing::read_text(&case.root().join("MODULE.bazel"));
+        case.write("MODULE.bazel", &format!("{composed}{overrides}"));
+        for (rel, text) in &files {
+            if rel != "consumer.MODULE.bazel" {
+                case.write(rel, text);
+            }
+        }
+        Ok(case)
+    }
+
     /// Writes `text` to `rel` under the workspace, creating its parent directories.
     pub fn write(&self, rel: impl AsRef<Path>, text: &str) {
         dx_testing::write_text(&self.root.join(rel), text);
@@ -2045,6 +2176,55 @@ mod tests {
             cache: Vec::new(),
             record: None,
         }
+    }
+
+    const EMPTY_LOCK: &str = "{\"lockFileVersion\": 28, \"registryFileHashes\": {}}\n";
+
+    #[test]
+    fn a_case_that_panics_still_writes_its_record() {
+        let dir = scratch("nested-flush-");
+        let (bazel, _) = recorder(dir.path());
+        let out = dir.path().join("out");
+        configure(Config {
+            record: Some(Record {
+                dir: out.clone(),
+                set: "unit".to_owned(),
+            }),
+            ..config(&dir.path().join("base"), &bazel)
+        });
+        let failed = std::panic::catch_unwind(|| {
+            let failing = case("failing");
+            failing.write("MODULE.bazel", "");
+            failing.write("MODULE.bazel.lock", EMPTY_LOCK);
+            RECORDED
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .push(("unit".to_owned(), failing.root.clone()));
+            panic!("the case fails");
+        });
+        assert!(failed.is_err());
+        assert!(out.join("unit.txt").is_file());
+        assert_eq!(
+            std::fs::read_to_string(out.join("unit.MODULE.bazel.lock")).expect("lock"),
+            EMPTY_LOCK
+        );
+        release();
+    }
+
+    #[test]
+    fn write_record_skips_a_missing_lock_only_when_asked() {
+        let dir = scratch("nested-skip-");
+        let record = Record {
+            dir: dir.path().join("out"),
+            set: "unit".to_owned(),
+        };
+        let roots = [("unit".to_owned(), dir.path().join("ws"))];
+        let cache = dir.path().join("cache");
+        let logs = dir.path().join("logs");
+        write_record(&record, &roots, &cache, &logs, true).expect("skipped");
+        assert!(record.dir.join("unit.txt").is_file());
+        let error = write_record(&record, &roots, &cache, &logs, false).expect_err("missing lock");
+        assert!(error.contains("cannot read"), "{error}");
     }
 
     fn recorder(dir: &Path) -> (PathBuf, PathBuf) {

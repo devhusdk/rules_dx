@@ -54,7 +54,7 @@ fn decode_b64(value: &str) -> Result<Vec<u8>, ()> {
     if value.is_empty() {
         return Ok(Vec::new());
     }
-    STANDARD.decode(value).map_err(|_| ())
+    STANDARD.decode(value).map_err(drop)
 }
 
 fn de_b64<'de, D>(d: D) -> Result<Vec<u8>, D::Error>

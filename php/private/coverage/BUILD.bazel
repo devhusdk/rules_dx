@@ -32,3 +32,9 @@ rust_test(
     size = "small",
     crate = ":dx_php_coverage",
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

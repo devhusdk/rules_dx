@@ -9,7 +9,7 @@ def _powershell_docs_shard(target, ctx):
         return None
     if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
         return None
-    files = sorted(target[_PwshInfo].srcs.to_list(), key = lambda f: f.path)
+    files = sorted(getattr(ctx.rule.files, "srcs", []), key = lambda f: f.path)
     sources = [f for f in files if f.extension in ("ps1", "psm1")]
     manifests = [f for f in files if f.extension == "psd1"]
     if not sources or len(manifests) > 1:
@@ -34,7 +34,7 @@ real_powershell_docs_aspect = aspect(
         ),
         "_pwsh_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/powershell/extract:powershell_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_pwsh_script": attr.label(

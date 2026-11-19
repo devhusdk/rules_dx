@@ -111,7 +111,7 @@ pub(crate) fn ensure(host: &Host<'_>) -> Result<Cached, String> {
     // launcher would trust without checking.
     let copied = dx_digest::sha256_file_hex(&path).map_err(|error| annotate(&path, &error))?;
     if !copied.eq_ignore_ascii_case(&pin) {
-        std::fs::remove_file(&path).ok();
+        dx_atomic_fs::discard_file(&path);
         return Err(format!(
             "{}: the copy does not match the pin in {}",
             path.display(),
@@ -193,9 +193,12 @@ fn report(
         }
     };
     if notice.severity == "info" {
-        writeln!(err, "dx: {}", notice.message).ok();
+        dx_output::write_stderr(err, format_args!("dx: {}\n", notice.message));
     } else {
-        writeln!(err, "dx: warning: {}: {}", notice.code, notice.message).ok();
+        dx_output::write_stderr(
+            err,
+            format_args!("dx: warning: {}: {}\n", notice.code, notice.message),
+        );
     }
     if output == OutputMode::Json {
         emit_built(out, notice_event(&notice))?;

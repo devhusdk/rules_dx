@@ -2,6 +2,7 @@ use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
 pub fn parse_cargo_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let lockfile: cargo_lock::Lockfile = text
         .parse()
         .map_err(|error: cargo_lock::Error| DxError::failure(format!("invalid lock: {error}")))?;
@@ -48,6 +49,7 @@ pub struct CargoLockEntry {
 }
 
 pub fn cargo_lock_graph(text: &str) -> Result<Vec<CargoLockEntry>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let lockfile: cargo_lock::Lockfile = text
         .parse()
         .map_err(|error: cargo_lock::Error| DxError::failure(format!("invalid lock: {error}")))?;

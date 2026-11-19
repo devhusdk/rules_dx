@@ -1,4 +1,8 @@
 //! Asserts the opt-in bundle layout, its settings, and its serving.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;

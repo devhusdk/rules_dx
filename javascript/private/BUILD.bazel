@@ -2,10 +2,11 @@
 # gazelle:exclude *.cjs
 # gazelle:exclude *.mjs
 
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//javascript:defs.bzl", "javascript_library", "js_library")
+load("//javascript:defs.bzl", "javascript_library")
+load("//javascript/private:windows_tool.bzl", "js_build_tool")
 
 package(default_visibility = ["//javascript:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
@@ -16,6 +17,7 @@ exports_files([
     "frameworks.bzl",
     "vite_tool.mjs",
     "web.bzl",
+    "windows_tool.bzl",
 ])
 
 javascript_library(
@@ -34,6 +36,12 @@ js_binary(
     name = "vite_tool",
     visibility = ["//visibility:public"],
     entry_point = "vite_tool.mjs",
+)
+
+js_build_tool(
+    name = "vite_build_tool",
+    tool = ":vite_tool",
+    visibility = ["//visibility:public"],
 )
 
 copy_to_bin(
@@ -56,6 +64,7 @@ real_source_target(
         "dev_hub.bzl",
         "frameworks.bzl",
         "web.bzl",
+        "windows_tool.bzl",
     ],
     tags = ["corpus"],
 )

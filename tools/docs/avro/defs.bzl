@@ -4,11 +4,14 @@ load("//avro/private:providers.bzl", "AvroInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 def avro_shard_action(ctx, srcs, imports, avro_tools, package, stem, extract_tool):
     """Runs avro-tools on each .avdl and the extractor over every schema of one avro_library."""
     if not srcs:
         fail("avro_doc_shard " + str(ctx.label) + ": avro_library lists no schema srcs")
     extract = ctx.actions.args()
+    extract.add("avro_extract")
     extract.add("--package", package)
     inputs = []
     for src in sorted(srcs, key = lambda f: f.path):
@@ -76,7 +79,7 @@ docs_avro_shard = rule(
         "_avro_tools": attr.label(default = Label("//config:tool_avro"), executable = True, cfg = "exec"),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/avro/extract:avro_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

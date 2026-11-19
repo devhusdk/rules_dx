@@ -1,4 +1,8 @@
 //! Asserts the rendered user site is a real multi-page documentation website.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use dx_site_check::rendered::asset;
 use std::collections::BTreeSet;
@@ -66,6 +70,7 @@ fn site(var: &str) -> PathBuf {
 
 fn check(args: &[String]) -> Run {
     let output = Command::new(dx_testing::env_file(SITE_CHECK))
+        .arg("site_check")
         .args(args)
         .output()
         .unwrap_or_else(|error| panic!("run site_check: {error}"));

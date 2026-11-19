@@ -12,6 +12,8 @@ pub enum PathIoError {
     Write { path: PathBuf, source: io::Error },
     #[error("cannot list {}: {source}", path.display())]
     List { path: PathBuf, source: io::Error },
+    #[error("cannot create {}: {source}", path.display())]
+    Create { path: PathBuf, source: io::Error },
 }
 
 impl PathIoError {
@@ -19,7 +21,10 @@ impl PathIoError {
     #[must_use]
     pub fn path(&self) -> &Path {
         match self {
-            Self::Read { path, .. } | Self::Write { path, .. } | Self::List { path, .. } => path,
+            Self::Read { path, .. }
+            | Self::Write { path, .. }
+            | Self::List { path, .. }
+            | Self::Create { path, .. } => path,
         }
     }
 }
@@ -60,6 +65,18 @@ pub fn write_scratch(path: &Path, content: &[u8]) -> Result<(), PathIoError> {
     })
 }
 
+/// Creates a directory and its missing parents.
+///
+/// # Errors
+///
+/// Returns [`PathIoError::Create`] when the directory cannot be created.
+pub fn create_dir_all(path: &Path) -> Result<(), PathIoError> {
+    std::fs::create_dir_all(path).map_err(|source| PathIoError::Create {
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
 /// Lists the paths in a directory, sorted.
 ///
 /// # Errors
@@ -95,6 +112,11 @@ mod tests {
         assert!(error.to_string().contains("missing.txt"), "{error}");
         let error = read_dir(&missing).expect_err("missing dir");
         assert!(error.to_string().starts_with("cannot list "), "{error}");
+        let file = dir.path().join("file");
+        write_scratch(&file, b"x").expect("write file");
+        let error = create_dir_all(&file.join("sub")).expect_err("dir under a file");
+        assert_eq!(error.path(), file.join("sub"));
+        assert!(error.to_string().starts_with("cannot create "), "{error}");
     }
 
     #[test]

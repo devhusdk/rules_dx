@@ -16,7 +16,7 @@
 //config:tool_errcheck label_flag "@dx_prebuilt//:dx_errcheck"
 //config:tool_flatc label_flag "@dx_prebuilt//:flatc"
 //config:tool_gersemi label_flag "@dx_tools//:gersemi"
-//config:tool_gofumpt label_flag "@cc_mvdan_gofumpt//:gofumpt"
+//config:tool_gofumpt label_flag "@dx_prebuilt//:dx_gofumpt"
 //config:tool_gotype label_flag "@dx_prebuilt//:dx_gotype"
 //config:tool_govet label_flag "@dx_prebuilt//:dx_govet"
 //config:tool_hadolint label_flag "@dx_tools//:hadolint"
@@ -57,25 +57,107 @@
 //config:toolchains bool_flag False
 //config:warnings_as_errors bool_flag True
 //config:workspace label_flag ":default_workspace_policy"
+//:dx alias
+//:package_json javascript_library
 //android:android_device platform
 //android:android_emulator platform
 //android:arm64-v8a platform
+//android:declared_emulator declared_emulator
+//android:emulator_serial string_flag ""
+//android:emulator_undeclared config_setting
+//android:is_device config_setting
+//android:is_emulator config_setting
+//android:llvm_readelf alias
 //android:x86_64 platform
+//apple:declared_simulator declared_simulator
+//apple:ios_arm64 alias
+//apple:ios_sim_arm64 alias
+//apple:ios_x86_64 alias
 //apple:macos_arm64 platform
 //apple:macos_x86_64 platform
+//apple:simulator_runtime string_flag ""
+//apple:simulator_undeclared config_setting
+//capnproto:runtime_java alias
+//capnproto:runtime_rust alias
+//capnproto:std filegroup
+//cc:compiler string_flag "llvm"
+//cc:gcc_linux_glibc alias
+//cc:gcc_linux_libstdcxx alias
+//cli/cli:dx runnable rust_binary
+//cli/codegen_shard:codegen_shard_writer runnable rust_binary
+//cli/coverage_summary:coverage_summary runnable rust_binary
+//cli/env:env runnable rust_binary
+//cli/launcher:exec_launcher runnable rust_binary
+//cli/ocaml_cc_driver:ocaml_cc_driver runnable rust_binary
+//cli/runtime:dx_runtime runnable rust_binary
+//core/quality/lsp_check:lsp_check runnable rust_binary
+//core/quality/markdown:quality_markdown runnable rust_binary
+//core/quality/notebook:quality_notebook runnable rust_binary
+//core/quality/runner:quality_runner runnable rust_binary
+//core/quality/tools/python:ansible_lint runnable py_binary
+//core/quality/tools/python:cfn_lint runnable py_binary
+//core/quality/tools/python:check_jsonschema runnable py_binary
+//core/quality/tools/python:cmakelint runnable py_binary
+//core/quality/tools/python:djlint runnable py_binary
+//core/quality/tools/python:docstrfmt runnable py_binary
+//core/quality/tools/python:mbake runnable py_binary
+//core/quality/tools/python:pydoclint runnable py_binary
+//core/quality/tools/python:pypi_attestations runnable py_binary
+//core/quality/tools/python:rst2html runnable py_binary
+//core/quality/tools/python:sqlfluff runnable py_binary
+//core/quality/tools/python:yamllint runnable py_binary
+//cuda:cublas cuda_component_library
+//cuda:cufft cuda_component_library
+//cuda:curand cuda_component_library
+//cuda:gpu_compute_capability string_flag ""
+//cuda:gpu_driver string_flag ""
+//cuda:gpu_undeclared config_setting
+//d:coverage config_setting
+//dart:runfiles alias
+//deploy:bootstrap_offline runnable rust_binary
+//deploy:linux_amd64 platform
+//deploy:linux_arm64 platform
 //erlang:toolchain_type toolchain_type
+//examples/shared-rust:shared_tasks runnable rust_binary
+//examples/shared-rust:tasks runnable rust_binary
+//examples/shared-rust:tasks_wasi runnable rust_binary
+//flatbuffers:reflection_fbs_schema alias
+//flatbuffers:runtime_java alias
+//flatbuffers:runtime_rust alias
+//flutter:profile alias
+//fortran:kcov bool_flag False
+//fortran:kcov_build config_setting
+//haskell:base alias
 //lua:toolchain_type toolchain_type
 //msix:toolchain_type toolchain_type
 //msix:windows_arm64 platform
 //msix:windows_x86_32 platform
 //msix:windows_x86_64 platform
+//ocaml:bisect_ppx_rewriter alias
+//ocaml:dune alias
+//ocaml:emitter alias
 //php:exec_toolchain_type toolchain_type
+//php:runfiles php_library
 //php:toolchain_type toolchain_type
+//powershell:dx_coverage alias
+//powershell:pester alias
+//powershell:runfiles alias
 //qt:linux_arm64 platform
 //qt:linux_x86_64 platform
 //qt:macos_arm64 platform
 //qt:windows_arm64 platform
 //qt:windows_x86_64 platform
+//rust:build_script_cc_env build_script_cc_env
+//rust:prost alias
+//rust:prost_types alias
+//rust:tokio alias
+//rust:tokio_stream alias
+//rust:tonic alias
+//rust:wasi_run rust_library
+//rust:wasmtime alias
+//thrift:thrift_compiler alias
+//zig:kcov bool_flag False
+//zig:kcov_build config_setting
 @* hub @rules_dx//go:extensions.bzl%go
 @ansible_collections hub @rules_dx//ansible:extensions.bzl%ansible
 @bicep hub @rules_dx//bicep:extensions.bzl%bicep

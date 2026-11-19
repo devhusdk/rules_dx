@@ -1,5 +1,5 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//fortran/private:defs.bzl", "FORTRAN_COMPATIBLE_WITH", "FORTRAN_EXTENSIONS", "library_name")
 load("//fortran/private:kwargs.bzl", "fortran_library_kwargs", "fortran_link_kwargs", "fortran_with_defaults")

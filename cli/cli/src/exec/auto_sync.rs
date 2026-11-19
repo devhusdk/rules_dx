@@ -67,7 +67,10 @@ pub(crate) fn after_success(invocation: &Invocation, env: Env<'_>) {
         },
     );
     if code == 0 {
-        writeln!(env.err, "dx: synced .dx/local (codegen changed)").ok();
+        dx_output::write_stderr(
+            env.err,
+            format_args!("dx: synced .dx/local (codegen changed)\n"),
+        );
         return;
     }
     let captured = String::from_utf8_lossy(&captured);
@@ -80,16 +83,17 @@ pub(crate) fn after_success(invocation: &Invocation, env: Env<'_>) {
             || format!("sync build exited {code}"),
             |line| line.strip_prefix("dx: ").unwrap_or(line).to_owned(),
         );
-    sync_fingerprint::record(workspace, &record, Some(&message)).ok();
+    if let Err(error) = sync_fingerprint::record(workspace, &record, Some(&message)) {
+        tracing::info!(%error, "cannot record the sync fingerprint");
+    }
     warn(env.err, &message);
 }
 
 fn warn(err: &mut dyn Write, message: &str) {
-    writeln!(
+    dx_output::write_stderr(
         err,
-        "dx: warning: {CODE_SYNC_FAILED}: {message}; next: dx sync"
-    )
-    .ok();
+        format_args!("dx: warning: {CODE_SYNC_FAILED}: {message}; next: dx sync\n"),
+    );
 }
 
 #[cfg(test)]

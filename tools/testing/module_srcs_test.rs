@@ -1,4 +1,6 @@
 const DECLARED: &[&str] = &[
+    "android/private/packaging/ops/BUILD.bazel",
+    "android/private/packaging/ops/src/lib.rs",
     "config/BUILD.bazel",
     "deploy/private/archive.bzl",
     "erlang/private/defs.bzl",
@@ -7,6 +9,10 @@ const DECLARED: &[&str] = &[
     "qt/private/defs.bzl",
     "qt/private/toolchain/launcher.c",
     "core/quality/pipeline.bzl",
+    "lua/private/coverage/BUILD.bazel",
+    "lua/private/coverage/dx_coverage.lua",
+    "lua/private/runtime/launcher.cc",
+    "lua/private/tools/luals.bzl",
 ];
 
 /// The `.bzl` files that nested consumers of each area load first.
@@ -23,6 +29,18 @@ const ENTRY_POINTS: &[&str] = &[
     "//erlang:extensions.bzl",
     "//qt:defs.bzl",
     "//qt:extensions.bzl",
+    "//java:defs.bzl",
+    "//kotlin:defs.bzl",
+    "//scala:defs.bzl",
+    "//lua:defs.bzl",
+    "//capnproto:defs.bzl",
+    "//flatbuffers:defs.bzl",
+    "//thrift:defs.bzl",
+    "//api_spec:defs.bzl",
+    "//avro:defs.bzl",
+    "//rust:defs.bzl",
+    "//python:defs.bzl",
+    "//cc:defs.bzl",
 ];
 
 #[test]

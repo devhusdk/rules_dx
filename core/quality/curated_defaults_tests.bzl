@@ -1,6 +1,6 @@
 """Unit tests for the curated defaults."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":curated_defaults.bzl", "CURATED_DEFAULTS", "LANG_JSON_DEFAULTS", "OTHER_DEFAULTS", "curated_schema_error")
 
 visibility("private")

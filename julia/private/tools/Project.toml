@@ -3,3 +3,8 @@ version = "0.0.1"
 
 [deps]
 JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
+Preferences = "21216c6a-2e73-6563-6e65-726566657250"
+
+[compat]
+JuliaFormatter = "=2.2.0"
+Preferences = "=1.5.0"

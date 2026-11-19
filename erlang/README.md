@@ -19,22 +19,34 @@ tools/dx test //erlang/...
 
 ### Locked Hex packages
 
-A `rebar.lock` becomes `hex.lock.json` through `dx update --apply` and is served by the `hex` hub, as `@hex//cowboy`. The lock also becomes a `hex` dependency set for `dx security`, `dx license` and `dx update`; `dx update` refreshes it with the pinned rebar3.
+1. Run `dx update --apply`. It turns `rebar.lock` into `hex.lock.json`.
+2. Depend on a package through the `hex` hub, for example `@hex//cowboy`.
+   A hub is one Bazel repository that holds a target for every locked
+   package.
+
+The lock is also a `hex` dependency set for `dx security`, `dx license` and
+`dx update`. `dx update` refreshes it with the pinned rebar3.
 
 ## Generate
 
-`dx generate` writes an `erlang_app` for a directory that holds a
-`src/*.app.src` or a `rebar.config`. It lists `src/**/*.erl`, `src/**/*.hrl`
-and `include/**/*.hrl`, reads the name, `vsn`, `description` and `mod` from
-the `.app.src`, and resolves remote calls, `-behaviour`, `-import` and
-`-parse_transform` to other `erlang_app` rules. OTP applications beyond
-kernel and stdlib go to `extra_apps`. Sources under `c_src` become one
-`erlang_nif` in the same package, wired through `nifs`. Test rules and
-`rebar.config` dependencies are not generated yet.
+`dx generate` writes an `erlang_app` for each directory that holds a
+`src/*.app.src` or a `rebar.config`.
+
+- `srcs` lists `src/**/*.erl`, `src/**/*.hrl` and `include/**/*.hrl`.
+- The name, `vsn`, `description` and `mod` come from the `.app.src`.
+- Remote calls, `-behaviour`, `-import` and `-parse_transform` resolve to
+  other `erlang_app` rules.
+- OTP applications other than kernel and stdlib go to `extra_apps`.
+- Sources under `c_src` become one `erlang_nif` in the same package, wired
+  through `nifs`.
+
+`dx generate` writes no test rules and does not read `rebar.config`
+dependencies. Write those by hand.
 
 ## Bench and fuzz
 
-`erlang_bench` is a `ct_suite` for `dx bench`. erlperf 2.3.0 comes with rules_dx. Call `dx_bench:run/1,2` in a test case with a map of names to funs. It measures each fun with erlperf and writes `dx-bench.json`, one row per job in ops/s. Pass erlperf run options as the second argument.
+`erlang_bench` is a `ct_suite` that `dx bench` runs. rules_dx brings
+erlperf 2.3.0.
 
 ```python
 load("@rules_dx//erlang:defs.bzl", "erlang_bench")
@@ -45,36 +57,47 @@ erlang_bench(
 )
 ```
 
-It needs the `erlang_app` and `test_erlang_app` of the package, like `ct_suite`. The target is tagged `dx-bench`. No coverage-guided fuzzer exists for the BEAM, so there is no `erlang_fuzz_test`.
+Like `ct_suite`, it needs the package's `erlang_app` and `test_erlang_app`.
+In a test case, call `dx_bench:run/1,2` with a map of names to funs. It
+measures each fun with erlperf and writes `dx-bench.json`, one row per job
+in ops/s. Pass erlperf run options as the second argument. The target is
+tagged `dx-bench`.
+
+There is no `erlang_fuzz_test`: the BEAM has no coverage-guided fuzzer.
 
 ## API docs
 
-`dx docs` documents an `erlang_app` with `erlang_doc_shard(name, app, package)` from
-`@rules_dx//tools/docs/erlang:defs.bzl`. It runs `edoc` from the pinned OTP over the app's `srcs` and writes a DocIr shard. Functions that are not exported are left out. Windows execution platforms are not covered.
+`dx docs` documents an `erlang_app` with `erlang_doc_shard(name, app, package)`
+from `@rules_dx//erlang:defs.bzl`. It runs `edoc` from the pinned
+OTP over the app's `srcs` and writes a DocIr shard.
+
+- Functions that are not exported are left out.
+- It does not run on Windows execution platforms.
 
 ## Toolchain
 
 ### Runtime
 
-On Linux the OTP build comes from `builds.hex.pm` for Ubuntu 22.04. Its
-shared libraries (`libtinfo`, `zlib`, `libgcc_s`, `libstdc++`, `libcrypto`)
-come from pinned Ubuntu packages, so the host needs only glibc 2.35 or newer.
-The library license texts ship in the OTP runtime tree under
-`dx_closure/licenses`.
+Where the pinned OTP comes from, and what the host needs:
 
-On macOS the OTP build comes from `erlef/otp_builds`. OpenSSL is linked into
-it, so it needs no extra libraries.
+| Platform | OTP build | Host needs |
+| --- | --- | --- |
+| Linux | `builds.hex.pm`, Ubuntu 22.04 | glibc 2.35 or newer |
+| macOS | `erlef/otp_builds`, OpenSSL linked in | nothing extra |
+| Windows | upstream `otp_win64` zip | the MSVC runtime (`vc_redist`) |
 
-On Windows the OTP build is the upstream `otp_win64` zip. The host needs the
-MSVC runtime (`vc_redist`); the installer in the zip is dropped.
+On Linux, the shared libraries OTP loads (`libtinfo`, `zlib`, `libgcc_s`,
+`libstdc++`, `libcrypto`) come from pinned Ubuntu packages. Their license
+texts ship in the OTP runtime tree under `dx_closure/licenses`.
 
-The `wx` application, sources and docs are dropped on every cell.
+No platform ships the `wx` application.
 
 ## Platforms
 
-See the [support matrix](../docs/support-matrix.md).
+The [support matrix](../docs/support-matrix.md) lists the platforms.
 
-- `windows_x86_64`: tools and escripts run through the native launcher.
-- `windows_arm64`: x64 OTP runs under emulation; NIFs are built for x64 Windows.
+- `windows_x86_64`: tools and escripts run through a native launcher.
+- `windows_arm64`: the x64 OTP runs under emulation, and NIFs are built for
+  x64 Windows.
 
-On other platforms Erlang and Elixir targets are skipped.
+On other platforms, Erlang and Elixir targets are skipped.

@@ -1,0 +1,119 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//helm:defs.bzl", "helm_library")
+
+package(default_visibility = ["//helm/tests:__pkg__"])
+
+helm_library(
+    name = "app",
+    srcs = [
+        "Chart.yaml",
+        "templates/cm.yaml",
+        "values.yaml",
+    ],
+    namespace = "prod",
+    release_name = "demo",
+    subcharts = ["charts/dep-1.0.0.tgz"],
+    values = ["values-prod.yaml"],
+)
+
+helm_library(
+    name = "dotted_release",
+    srcs = [
+        "Chart.yaml",
+        "templates/cm.yaml",
+        "values.yaml",
+    ],
+    namespace = "prod",
+    release_name = "my.app",
+    subcharts = ["charts/dep-1.0.0.tgz"],
+    values = ["values-prod.yaml"],
+)
+
+helm_library(
+    name = "empty_label_release",
+    srcs = ["Chart.yaml"],
+    release_name = "a..b",
+    tags = ["manual"],
+)
+
+helm_library(
+    name = "no_chart_yaml",
+    srcs = ["values.yaml"],
+    tags = ["manual"],
+)
+
+helm_library(
+    name = "bad_release",
+    srcs = ["Chart.yaml"],
+    release_name = "Bad_Name",
+    tags = ["manual"],
+)
+
+helm_library(
+    name = "long_release",
+    srcs = ["Chart.yaml"],
+    release_name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    tags = ["manual"],
+)
+
+helm_library(
+    name = "max_release",
+    srcs = ["Chart.yaml"],
+    release_name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+)
+
+helm_library(
+    name = "long_namespace",
+    srcs = ["Chart.yaml"],
+    namespace = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    tags = ["manual"],
+)
+
+helm_library(
+    name = "bad_namespace",
+    srcs = ["Chart.yaml"],
+    namespace = "-lead",
+    tags = ["manual"],
+)
+
+helm_library(
+    name = "archive_in_srcs",
+    srcs = [
+        "Chart.yaml",
+        "charts/dep-1.0.0.tgz",
+    ],
+    tags = ["manual"],
+)
+
+helm_library(
+    name = "misplaced_dependency",
+    srcs = ["Chart.yaml"],
+    subcharts = ["other/dep-1.0.0.tgz"],
+    tags = ["manual"],
+)
+
+helm_library(
+    name = "duplicate_file",
+    srcs = [
+        "Chart.yaml",
+        "values.yaml",
+    ],
+    tags = ["manual"],
+    values = ["values.yaml"],
+)
+
+helm_library(
+    name = "foreign_src",
+    srcs = [
+        "Chart.yaml",
+        "//helm:lang.json",
+    ],
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

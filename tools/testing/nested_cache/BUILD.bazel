@@ -18,6 +18,13 @@ filegroup(
 )
 
 filegroup(
+    name = "all_locks",
+    testonly = True,
+    srcs = glob(["*.MODULE.bazel.lock"]),
+    visibility = ["//core/modules:__pkg__"],
+)
+
+filegroup(
     name = "apple_locks",
     testonly = True,
     srcs = ["apple.MODULE.bazel.lock"],

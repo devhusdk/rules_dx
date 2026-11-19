@@ -139,6 +139,52 @@ fn the_built_in_license_table_passes_only_its_allow_list() {
 }
 
 #[test]
+fn an_inventory_text_must_exist_and_hold_words() {
+    let entry = |package: &str, set: &str| {
+        format!(
+            "[[inventory]]\npackage = \"{package}\"\nset = \"{set}\"\nlicense = \"MIT\"\nversions = \"1.0.0\"\ntext = \"third_party/licenses/{package}/LICENSE\"\n"
+        )
+    };
+    for (words, other, code) in [
+        (None, false, 1),
+        (Some(" \n\t"), false, 1),
+        (Some("MIT words\n"), false, 0),
+        (Some("MIT words\n"), true, 1),
+    ] {
+        let (status, out, err) = run_with(
+            &[
+                "license",
+                "//cc/private/tools/context:demo",
+                "--report=sarif=-",
+            ],
+            &AuditRunner::clean(),
+            &|harness| {
+                write_demo_license(harness, "MIT");
+                let mut policy = format!("schema_version = 1\n{}", entry("demo", "cargo"));
+                if other {
+                    policy.push_str(&entry("other", "npm"));
+                }
+                harness.write_source("license.toml", &policy);
+                if let Some(words) = words {
+                    harness.write_source("third_party/licenses/demo/LICENSE", words);
+                }
+            },
+        );
+        let case = format!("words {words:?}, other {other}");
+        assert_eq!(status, code, "{case}: {out}{err}");
+        assert_eq!(
+            out.contains("license/inventory-text-missing"),
+            code == 1,
+            "{case}: {out}{err}"
+        );
+        assert!(
+            !out.contains("license/missing-notice-text"),
+            "{case}: {out}{err}"
+        );
+    }
+}
+
+#[test]
 fn the_strict_tier_denies_a_license_the_standard_tier_only_reviews() {
     for (tier, reviewed) in [("standard", true), ("strict", false)] {
         let harness = Harness::new("license-tier");
@@ -158,8 +204,12 @@ fn the_strict_tier_denies_a_license_the_standard_tier_only_reviews() {
 fn an_invalid_dx_toml_fails_both_policies() {
     let harness = Harness::new("audit-bad-dx-toml");
     harness.write_source("dx.toml", "tier = \"strict\"\n");
-    let security = super::load_security_policy(&harness.workspace).expect_err("security");
-    assert!(matches!(security, super::AuditError::SecurityInvalid(_)));
+    let security =
+        dx_exec_core::audit_policy::load_security_policy(&harness.workspace).expect_err("security");
+    assert!(matches!(
+        security,
+        dx_exec_core::audit_policy::PolicyError::SecurityInvalid(_)
+    ));
     assert!(
         security.to_string().contains("dx.toml: ")
             && security.to_string().contains("schema_version is missing"),
@@ -257,44 +307,6 @@ fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
         super::tier_for_roots(&narrow, &roots(&["//cli/cli:dx_cli", "//go:x"])),
         dx_audit::license_expr::Tier::Distributed
     );
-}
-
-#[test]
-fn security_policy_read_failures_and_absent_file_are_explicit() {
-    let harness = Harness::new("security-policy-io");
-    assert!(
-        super::load_security_policy(&harness.workspace)
-            .expect("absent file")
-            .exceptions
-            .is_empty(),
-        "{:?}",
-        super::load_security_policy(&harness.workspace)
-            .expect("absent file")
-            .exceptions
-    );
-    let path = harness.workspace.join("security.toml");
-    std::fs::write(&path, " \n").expect("empty");
-    assert!(
-        super::load_security_policy(&harness.workspace)
-            .expect("empty file")
-            .exceptions
-            .is_empty(),
-        "{:?}",
-        super::load_security_policy(&harness.workspace)
-            .expect("empty file")
-            .exceptions
-    );
-    std::fs::write(&path, [0xff]).expect("invalid utf8");
-    assert!(matches!(
-        super::load_security_policy(&harness.workspace),
-        Err(super::AuditError::NotUtf8 { .. })
-    ));
-    std::fs::remove_file(&path).expect("remove");
-    std::fs::create_dir_all(&path).expect("directory");
-    assert!(matches!(
-        super::load_security_policy(&harness.workspace),
-        Err(super::AuditError::Read { .. })
-    ));
 }
 
 #[test]

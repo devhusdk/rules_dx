@@ -266,8 +266,8 @@ fn pkl_lsp(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFindin
     let companion = |name: &str| {
         tool.path_tools
             .iter()
-            .find(|(helper, _)| helper == name)
-            .map(|(_, path)| path.clone())
+            .find(|helper| helper.name == name)
+            .map(|helper| helper.binary.clone())
             .ok_or_else(|| {
                 execution(
                     tool_id,
@@ -560,10 +560,10 @@ fn elvis(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>
     let relative = pairs
         .iter()
         .map(|(_, absolute)| {
-            absolute.strip_prefix(root).map_err(|_| {
+            absolute.strip_prefix(root).map_err(|error| {
                 execution(
                     tool_id,
-                    format!("{} is outside the scratch", absolute.display()),
+                    format!("{} is outside the scratch: {error}", absolute.display()),
                 )
             })
         })
@@ -621,10 +621,14 @@ fn credo(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>
     let relative = refs
         .iter()
         .map(|absolute| {
-            absolute.strip_prefix(&cwd).map_err(|_| {
+            absolute.strip_prefix(&cwd).map_err(|error| {
                 execution(
                     tool_id,
-                    format!("{} is outside {}", absolute.display(), cwd.display()),
+                    format!(
+                        "{} is outside {}: {error}",
+                        absolute.display(),
+                        cwd.display()
+                    ),
                 )
             })
         })

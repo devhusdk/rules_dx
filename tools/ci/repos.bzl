@@ -91,8 +91,20 @@ def _lock_scan(path, name):
         return not name.endswith("_test.go") and not any([part in _TEST_DIRS for part in path.split("/")])
     return name.endswith(("module_fragment.bazel", "MODULE.bazel.fixture"))
 
+# Keep in sync with _DIFF_START in patches/upstream.py.
+_DIFF_START = ("--- ", "diff ")
+
+def patch_header(text):
+    """Returns the lines of a patch before its first diff line."""
+    lines = []
+    for line in text.splitlines():
+        if line.startswith(_DIFF_START):
+            break
+        lines.append(line)
+    return "\n".join(lines)
+
 def _test_tags_sources_impl(rctx):
-    """Writes consumer.json, every file under a language tests/consumer directory, prose.json, every .md file, all_rust.json, every .rs file, and all_paths.json, every path, and lock_scan.json, the non-test Go files and the module fragment and fixture files, besides sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, code.json, the same for Rust, shell, template, Windows script and rc files, and paths.json, every path under a language directory."""
+    """Writes consumer.json, every file under a language tests/consumer directory, prose.json, every .md file, all_rust.json, every .rs file, and all_paths.json, every path, lock_scan.json, the non-test Go files and the module fragment and fixture files, and patch_headers.json, the header above the diff of every patches/ .patch file, besides sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, code.json, the same for Rust, shell, template, Windows script and rc files, and paths.json, every path under a language directory."""
     root = rctx.path(Label("//:MODULE.bazel")).dirname
 
     def readdir(path):
@@ -108,6 +120,7 @@ def _test_tags_sources_impl(rctx):
     prose = {}
     all_rust = {}
     lock_scan = {}
+    patch_headers = {}
     paths = walk(ignored, readdir).files
     for path in paths:
         name = path.rpartition("/")[2]
@@ -115,6 +128,8 @@ def _test_tags_sources_impl(rctx):
             code[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
         if _lock_scan(path, name):
             lock_scan[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
+        if path.startswith("patches/") and name.endswith(".patch"):
+            patch_headers[path] = patch_header(rctx.read(root.get_child(*path.split("/")), watch = "yes"))
         if name.endswith(".md"):
             prose[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
         elif name.endswith(".rs"):
@@ -149,9 +164,63 @@ def _test_tags_sources_impl(rctx):
     rctx.file("prose.json", json.encode(prose))
     rctx.file("all_rust.json", json.encode(all_rust))
     rctx.file("all_paths.json", json.encode(paths))
-    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "rust.json", "code.json", "paths.json", "prose.json", "all_rust.json", "all_paths.json", "consumer.json", "lock_scan.json"])\n')
+    rctx.file("patch_headers.json", json.encode(patch_headers))
+    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "rust.json", "code.json", "paths.json", "prose.json", "all_rust.json", "all_paths.json", "consumer.json", "lock_scan.json", "patch_headers.json"])\n')
 
 test_tags_sources = repository_rule(
     implementation = _test_tags_sources_impl,
-    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, .bazelignore, workflow, non-test .rs, non-test Go, module fragment, Rust, shell, template and rc code, language README, repository BUILD, language page and consumer fixture files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists other than the language tests/consumer directories, .git, node_modules, target, bazel-* and directory symlinks.",
+    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, .bazelignore, workflow, non-test .rs, non-test Go, module fragment, Rust, shell, template and rc code, patch header, language README, repository BUILD, language page and consumer fixture files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists other than the language tests/consumer directories, .git, node_modules, target, bazel-* and directory symlinks.",
+)
+
+# real_source_target is a fixture-only //core/quality macro that snapshot.rs would reject as non-public.
+_API_INTERNAL_MACROS = ["real_source_target"]
+
+_API_SCOPE = """
+filegroup(
+    name = "dx_api_forwards_scope",
+    srcs = [":" + n for n, r in existing_rules().items() if r["generator_function"] and r["generator_function"] not in %r],
+)
+""" % _API_INTERNAL_MACROS
+
+def _api_skipped(name):
+    return name == "consumer.MODULE.bazel" or name.endswith(".png")
+
+def _api_fixtures_impl(rctx):
+    root = rctx.path(Label("//:MODULE.bazel")).dirname
+    pending = []
+    for lang in root.readdir(watch = "yes"):
+        if not lang.is_dir or lang.basename.startswith((".", "bazel-")):
+            continue
+        consumer = lang.get_child("tests", "consumer")
+        rctx.watch(consumer)
+        if consumer.is_dir:
+            pending.append((lang.basename + "/tests/consumer", consumer))
+    for _ in range(_MAX_DIRS):
+        if not pending:
+            break
+        path, directory = pending.pop()
+        for entry in directory.readdir(watch = "yes"):
+            child = path + "/" + entry.basename
+            if entry.is_dir:
+                pending.append((child, entry))
+            elif not _api_skipped(entry.basename):
+                text = rctx.read(entry, watch = "yes")
+                if entry.basename == "BUILD.bazel":
+                    text += _API_SCOPE
+                rctx.file(child, text)
+    if pending:
+        fail("the consumer fixtures hold more than %d directories" % _MAX_DIRS)
+    for entry in root.get_child("bcr_test_module").readdir(watch = "yes"):
+        if entry.is_dir or entry.basename == "MODULE.bazel":
+            continue
+        text = rctx.read(entry, watch = "yes")
+        if entry.basename == "BUILD.bazel":
+            text += _API_SCOPE
+        rctx.file("bcr_test_module/" + entry.basename, text)
+    rctx.file("BUILD.bazel", "")
+    return rctx.repo_metadata(reproducible = True)
+
+api_fixtures = repository_rule(
+    implementation = _api_fixtures_impl,
+    doc = "Copies every file under each <lang>/tests/consumer directory but consumer.MODULE.bazel and .png files, and the top-level files of bcr_test_module but MODULE.bazel, appending to each BUILD.bazel a dx_api_forwards_scope filegroup of the targets a public macro created, watching each directory and file it reads.",
 )

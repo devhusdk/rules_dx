@@ -1,4 +1,8 @@
 //! Checks the Go fixture shards and the driver's and converter's failure handling.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::Path;
 use std::process::Command;
@@ -174,7 +178,7 @@ fn the_converter_rejects_bad_json_and_writes_no_shard() {
     let (code, stderr) = run(
         "DX_GO_EXTRACT",
         &dir,
-        &["--json", "new.json", "--out", "shard.ir.pb"],
+        &["go_extract", "--json", "new.json", "--out", "shard.ir.pb"],
     );
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.contains("schema 9 is not supported"), "{stderr}");
@@ -183,7 +187,7 @@ fn the_converter_rejects_bad_json_and_writes_no_shard() {
     let (code, stderr) = run(
         "DX_GO_EXTRACT",
         &dir,
-        &["--json", "ok.json", "--out", "shard.ir.pb"],
+        &["go_extract", "--json", "ok.json", "--out", "shard.ir.pb"],
     );
     assert_eq!(code, 0, "{stderr}");
     let written = std::fs::read(dir.join("shard.ir.pb")).expect("shard");

@@ -1,7 +1,7 @@
 load("@dx_npm_link//:defs.bzl", "npm_link_all_packages")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
-load("//javascript:defs.bzl", "js_library")
+load("//javascript:defs.bzl", "javascript_library")
 
 # gazelle:dx_fixture_testonly true
 # gazelle:resolve rust dx_deploy_tools //deploy/private:dx_deploy_tools
@@ -9,7 +9,8 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:resolve rust marker_proto //core/env/private/proto:marker_proto_rs
 # gazelle:resolve rust proto //core/quality/result/proto:result_proto_rs
 # gazelle:resolve rust result_proto //core/quality/result/proto:result_proto_rs
-# gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
+# gazelle:resolve rust stardoc_output_proto //tools/api/stardoc:stardoc_output_proto_rs
+# gazelle:resolve rust prost //rust:prost
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve rust serde @crates//:serde
 # gazelle:resolve rust serde_json @crates//:serde_json
@@ -219,12 +220,12 @@ load("//javascript:defs.bzl", "js_library")
 # gazelle:exclude make/tests/consumer
 # gazelle:exclude terraform/tests/consumer
 # gazelle:exclude fortran/tests/consumer
+# gazelle:exclude flutter/tests/consumer
 # gazelle:exclude make/tests/fixtures
 # gazelle:exclude terraform/tests/fixtures
 # gazelle:exclude kubernetes/tests/fixtures
 # gazelle:exclude core/quality/testdata/api_spec
-# gazelle:exclude helm/tests/templates
-# gazelle:exclude helm/tests/dirty
+# gazelle:exclude helm/tests/fixtures
 # gazelle:exclude api_spec/tests/openapi.yaml
 # gazelle:exclude api_spec/tests/petstore.yaml
 # gazelle:exclude go/tests/fixtures/no_srcs
@@ -295,7 +296,7 @@ alias(
     visibility = ["//visibility:public"],
 )
 
-js_library(
+javascript_library(
     name = "package_json",
     srcs = ["package.json"],
     visibility = ["//visibility:public"],
@@ -339,6 +340,11 @@ exports_files([
 filegroup(
     name = "audit_curator",
     srcs = ["license.toml"],
+)
+
+filegroup(
+    name = "license_texts",
+    srcs = glob(["third_party/licenses/**"]),
 )
 
 filegroup(
@@ -401,7 +407,6 @@ filegroup(
         "//vue:lang.json",
         "//zig:lang.json",
     ],
-    visibility = ["//visibility:public"],
 )
 
 filegroup(
@@ -416,6 +421,7 @@ filegroup(
         "cargo-bazel-lock.json",
         "license.toml",
         "security.toml",
+        ":license_texts",
         "//.devcontainer:module_srcs",
         "//.github:module_srcs",
         "//android:module_srcs",
@@ -526,9 +532,11 @@ filegroup(
         "//core/env/private/proto:module_srcs",
         "//core/env/private/stubs:module_srcs",
         "//core/env/private/tools/env_shard:module_srcs",
+        "//core/hermetic_launcher:module_srcs",
         "//core/modules:module_srcs",
         "//core/patchelf:module_srcs",
         "//core/private:module_srcs",
+        "//core/private/testing:module_srcs",
         "//core/quality:module_srcs",
         "//core/quality/adapter:module_srcs",
         "//core/quality/artifacts:module_srcs",
@@ -771,9 +779,12 @@ filegroup(
         "//kubernetes/private/quality:module_srcs",
         "//lua:module_srcs",
         "//lua/private:module_srcs",
+        "//lua/private/coverage:module_srcs",
         "//lua/private/lock:module_srcs",
         "//lua/private/quality:module_srcs",
+        "//lua/private/runtime:module_srcs",
         "//lua/private/toolchain:module_srcs",
+        "//lua/private/tools:module_srcs",
         "//lua/private/tools/lock:module_srcs",
         "//make/private/quality:module_srcs",
         "//msix:module_srcs",
@@ -795,7 +806,6 @@ filegroup(
         "//patches/gomod-parser:module_srcs",
         "//patches/gotreesitter:module_srcs",
         "//patches/grpc:module_srcs",
-        "//patches/hermetic_launcher:module_srcs",
         "//patches/kcov:module_srcs",
         "//patches/libfuzzer_dotnet:module_srcs",
         "//patches/protoc-gen-validate:module_srcs",
@@ -808,6 +818,7 @@ filegroup(
         "//patches/rules_elixir:module_srcs",
         "//patches/rules_erlang:module_srcs",
         "//patches/rules_flutter:module_srcs",
+        "//patches/rules_foreign_cc:module_srcs",
         "//patches/rules_fortran:module_srcs",
         "//patches/rules_go:module_srcs",
         "//patches/rules_haskell:module_srcs",
@@ -830,6 +841,7 @@ filegroup(
         "//perl/private/tools/lock:module_srcs",
         "//php:module_srcs",
         "//php/private:module_srcs",
+        "//php/private/coverage:module_srcs",
         "//php/private/lock:module_srcs",
         "//php/private/quality:module_srcs",
         "//php/private/toolchain:module_srcs",
@@ -847,6 +859,7 @@ filegroup(
         "//qt/tests:module_srcs",
         "//rego:module_srcs",
         "//rego/private:module_srcs",
+        "//rego/private/launcher:module_srcs",
         "//rego/private/quality:module_srcs",
         "//rego/tests:module_srcs",
         "//ruby:module_srcs",
@@ -859,12 +872,15 @@ filegroup(
         "//rust/private/quality:module_srcs",
         "//rust/private/quality/tools:module_srcs",
         "//rust/private/toolchain:module_srcs",
+        "//rust/private/tools/bench_report:module_srcs",
         "//rust/private/tools/msvc_paths:module_srcs",
         "//rust/private/tools/progenitor:module_srcs",
         "//rust/private/tools/shard_runner:module_srcs",
         "//rust/private/tools/topiary:module_srcs",
         "//rust/tests:module_srcs",
         "//rust/tests/tonic:module_srcs",
+        "//scala:module_srcs",
+        "//scala/private:module_srcs",
         "//scala/private/toolchain:module_srcs",
         "//sql/private:module_srcs",
         "//sql/private/quality:module_srcs",
@@ -890,6 +906,7 @@ filegroup(
         "//thrift/private/crates:module_srcs",
         "//thrift/tests:module_srcs",
         "//tools/api:module_srcs",
+        "//tools/api/stardoc:module_srcs",
         "//tools/bazelisk:module_srcs",
         "//tools/bazelrc:module_srcs",
         "//tools/ci:module_srcs",
@@ -928,6 +945,7 @@ filegroup(
         "//tools/docs/haskell/extract:module_srcs",
         "//tools/docs/ir:module_srcs",
         "//tools/docs/ir/ir:module_srcs",
+        "//tools/docs/ir/proto:module_srcs",
         "//tools/docs/javascript:module_srcs",
         "//tools/docs/julia:module_srcs",
         "//tools/docs/julia/extract:module_srcs",
@@ -990,7 +1008,6 @@ filegroup(
         "//zig/private/quality:module_srcs",
         "//zig/private/tools/lock:module_srcs",
     ],
-    visibility = ["//visibility:public"],
 )
 
 filegroup(

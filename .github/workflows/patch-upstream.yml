@@ -51,11 +51,11 @@ jobs:
           number=$(gh issue list --state open --search "in:title \"$title\"" --json number,title \
             --jq "map(select(.title == \"$title\")) | .[0].number // empty")
           if [ ! -s report.md ]; then
-            echo "Every patch's upstream fix is still unreleased."
+            echo "Every patch's and carry's upstream fix is still unreleased."
             exit 0
           fi
           {
-            echo "The weekly \`patch-upstream\` run found patches under \`patches/\` that need a person. See [patches/README.md]($GITHUB_SERVER_URL/$GH_REPO/blob/main/patches/README.md) for how to drop a patch."
+            echo "The weekly \`patch-upstream\` run found patches under \`patches/\` or carries that need a person. See [patches/README.md]($GITHUB_SERVER_URL/$GH_REPO/blob/main/patches/README.md) for how to drop a patch or carry."
             echo
             cat report.md
           } > body.md

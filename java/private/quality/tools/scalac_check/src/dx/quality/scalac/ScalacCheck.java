@@ -49,6 +49,8 @@ public final class ScalacCheck {
   /** Code of every scalac diagnostic: Scala 2 has no diagnostic ids. */
   static final String GENERIC_CODE = "scalac";
 
+  private static final String ANALYZER_OPTION = "-P:dependency-analyzer:";
+
   private static final long STACK_BYTES = 64L * 1024 * 1024;
 
   private ScalacCheck() {}
@@ -97,7 +99,8 @@ public final class ScalacCheck {
    *
    * <p>Each request line is {@code key=value}. Keys are {@code source} (.scala, or .java only to
    * resolve symbols), {@code srcjar}, {@code classpath}, {@code compiler} (the toolchain's compiler
-   * jars), {@code plugin} and {@code scalacopt}; they may repeat.
+   * jars), {@code plugin}, {@code analyzer} (the dependency analyzer plugin jars), {@code direct}
+   * (a direct dep jar and its dep label, split by a tab) and {@code scalacopt}; they may repeat.
    */
   public static String check(List<String> request) throws IOException {
     List<String> sources = new ArrayList<>();
@@ -106,6 +109,7 @@ public final class ScalacCheck {
     List<String> compiler = new ArrayList<>();
     List<String> plugins = new ArrayList<>();
     List<String> analyzer = new ArrayList<>();
+    List<String> direct = new ArrayList<>();
     List<String> options = new ArrayList<>();
     for (String line : request) {
       if (line.isEmpty()) {
@@ -134,6 +138,9 @@ public final class ScalacCheck {
           break;
         case "analyzer":
           analyzer.add(value);
+          break;
+        case "direct":
+          direct.add(value);
           break;
         case "scalacopt":
           options.add(value);
@@ -164,6 +171,9 @@ public final class ScalacCheck {
       if (!analyzer.isEmpty()) {
         // One entry: the plugin loads the rules_scala reporter class from its own jars.
         args.add("-Xplugin:" + String.join(File.pathSeparator, analyzer));
+        args.addAll(directOptions(direct));
+      } else if (!direct.isEmpty()) {
+        throw new IOException("request has direct= lines but no analyzer= jars");
       }
       List<Entry> entries = new ArrayList<>();
       int exit = runOnBigStack(compiler, args, inputs, entries, names);
@@ -177,6 +187,28 @@ public final class ScalacCheck {
     } finally {
       delete(work);
     }
+  }
+
+  /**
+   * The analyzer's direct-jars and direct-targets options from the {@code direct} request values.
+   *
+   * <p>Each value is a jar and a label split by the last tab; labels never hold a tab. Both are
+   * already escaped for the plugin's {@code ;} lists, and the two lists stay aligned by index.
+   */
+  static List<String> directOptions(List<String> direct) throws IOException {
+    List<String> jars = new ArrayList<>();
+    List<String> targets = new ArrayList<>();
+    for (String value : direct) {
+      int tab = value.lastIndexOf('\t');
+      if (tab < 0) {
+        throw new IOException("malformed direct= value: " + value);
+      }
+      jars.add(value.substring(0, tab));
+      targets.add(value.substring(tab + 1));
+    }
+    return List.of(
+        ANALYZER_OPTION + "direct-jars:" + String.join(";", jars),
+        ANALYZER_OPTION + "direct-targets:" + String.join(";", targets));
   }
 
   /** scalac recurses deeply, so it runs on a thread with a large stack. */
@@ -273,8 +305,9 @@ public final class ScalacCheck {
   }
 
   /**
-   * Returns the exit code for the collected entries. Unused and missing dependency warnings have no position,
-   * so when they are the only warnings, the warnings-as-errors failure they caused is dropped.
+   * Returns the exit code for the collected entries. Unused and missing dependency warnings have no
+   * position, so when they are the only warnings, the warnings-as-errors failure they caused is
+   * dropped.
    */
   static int settle(List<Entry> entries) {
     boolean onlyDeps = true;

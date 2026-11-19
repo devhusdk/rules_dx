@@ -1,4 +1,4 @@
-//! The root `MODULE.bazel` agrees with the `CONSUMER_BAZEL_DEPS` floor and tested table, and every `bazel_dep` carries one floor comment and is at its newest version in `core/modules/bcr_newest.json`, outside `core/modules/bazel_dep_allowlist.txt`.
+//! The root `MODULE.bazel` agrees with the `CONSUMER_BAZEL_DEPS` floor and tested table, every `bazel_dep` carries one floor comment and is at its newest version in `core/modules/bcr_newest.json`, outside `core/modules/bazel_dep_allowlist.txt`, and every nested lock in `tools/testing/nested_cache` holds the registry `MODULE.bazel` of each non-dev `bazel_dep` version.
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
@@ -748,4 +748,87 @@ fn lock_versions_above_a_bazel_dep_are_found() {
         good("1.2.0", None)
     );
     assert_eq!(lock_violations(&archived, lock), Vec::<String>::new());
+}
+
+/// One line per non-dev registry `bazel_dep` of `source` whose `MODULE.bazel` at the declared version is missing from the `registryFileHashes` of nested lock `lock_name`.
+fn nested_lock_gaps(source: &str, lock_name: &str, lock_json: &str) -> Vec<String> {
+    let module = match ModuleFile::parse(source) {
+        Ok(module) => module,
+        Err(error) => return vec![error.to_string()],
+    };
+    let lock: serde_json::Value = match serde_json::from_str(lock_json) {
+        Ok(lock) => lock,
+        Err(error) => return vec![format!("{lock_name}: {error}")],
+    };
+    let Some(hashes) = lock["registryFileHashes"].as_object() else {
+        return vec![format!("{lock_name} has no registryFileHashes")];
+    };
+    let mut problems = Vec::new();
+    for call in module.calls_named("bazel_dep") {
+        let (Some(name), Some(version)) = (call.str("name"), call.str("version")) else {
+            continue;
+        };
+        if matches!(call.arg("dev_dependency"), Some(Value::Ident(value)) if value == "True") {
+            continue;
+        }
+        let outside = NON_REGISTRY_OVERRIDES.iter().any(|kind| {
+            module
+                .calls_named(kind)
+                .any(|call| call.str("module_name") == Some(name))
+        });
+        if outside {
+            continue;
+        }
+        let suffix = format!("/modules/{name}/{version}/MODULE.bazel");
+        if !hashes.keys().any(|key| key.ends_with(&suffix)) {
+            problems.push(format!(
+                "{lock_name} lacks bazel_dep {name} {version}: re-record the nested cache sets as in \"Repository inputs\" of docs/design/nested-tests.md"
+            ));
+        }
+    }
+    problems
+}
+
+#[test]
+fn every_nested_lock_has_the_root_registry_deps() {
+    let source = dx_testing::read_runfiles("MODULE.bazel");
+    let locks = dx_testing::env_files("DX_NESTED_LOCKS");
+    assert!(locks.len() >= 7, "{locks:?}");
+    let problems: Vec<String> = locks
+        .iter()
+        .flat_map(|lock| {
+            let name = lock.file_name().map_or_else(
+                || dx_testing::path_text(lock),
+                |name| name.to_string_lossy().into_owned(),
+            );
+            let json = std::fs::read_to_string(lock)
+                .unwrap_or_else(|error| panic!("{}: {error}", lock.display()));
+            nested_lock_gaps(&source, &name, &json)
+        })
+        .collect();
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn nested_lock_gaps_skip_dev_and_non_registry_deps() {
+    let source = "bazel_dep(name = \"demo\", version = \"1.2.0\")\nbazel_dep(name = \"dev\", version = \"9.0.0\", dev_dependency = True)\nbazel_dep(name = \"patched\", version = \"1\")\narchive_override(module_name = \"patched\", urls = [\"https://example.com/p.tar.gz\"])\n";
+    let lock = |key: &str| format!(r#"{{"registryFileHashes": {{"{key}": "a"}}}}"#);
+    assert_eq!(
+        nested_lock_gaps(
+            source,
+            "x.lock",
+            &lock("https://bcr.bazel.build/modules/demo/1.2.0/MODULE.bazel")
+        ),
+        Vec::<String>::new()
+    );
+    let problems = nested_lock_gaps(
+        source,
+        "x.lock",
+        &lock("https://bcr.bazel.build/modules/demo/1.1.0/MODULE.bazel"),
+    );
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(
+        problems[0].starts_with("x.lock lacks bazel_dep demo 1.2.0"),
+        "{problems:?}"
+    );
 }

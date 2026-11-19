@@ -286,7 +286,7 @@ impl Walker<'_> {
 
 /// Parses one BUILD or .bzl file.
 fn scan_file(path: &str, source: &str) -> FileScan {
-    let ast = parse(path, source);
+    let ast = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     let mut scan = FileScan::default();
     Walker {
         scan: &mut scan,

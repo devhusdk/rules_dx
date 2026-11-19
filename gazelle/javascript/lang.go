@@ -38,6 +38,7 @@ var javascriptKinds = map[string]rule.KindInfo{
 	binaryKind:  binaryKindInfo(),
 	linkKind:    {},
 	jsLibraryKind: {
+		NonEmptyAttrs:  map[string]bool{"srcs": true},
 		MergeableAttrs: map[string]bool{"srcs": true},
 	},
 	packageKind: {
@@ -90,8 +91,9 @@ func newLang() *common.SingleLang {
 		LibraryKind:  libraryKind,
 		ExtraKinds:   []string{testKind, binaryKind, linkKind, jsLibraryKind, packageKind},
 		KindDefs: map[string]string{
-			linkKind:    linkDefs,
-			packageKind: "@aspect_rules_js//npm:defs.bzl",
+			linkKind:      linkDefs,
+			jsLibraryKind: "@aspect_rules_js//js:defs.bzl",
+			packageKind:   "@aspect_rules_js//npm:defs.bzl",
 		},
 		Kinds:       javascriptKinds,
 		DefsPackage: "javascript:defs.bzl",
@@ -167,7 +169,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
 	}
 	if args.Rel == "" && fileExists(filepath.Join(args.Dir, npmManifestFile)) {
-		pj := rule.NewRule(jsLibraryKind, packageJSONName)
+		pj := rule.NewRule(libraryKind, packageJSONName)
 		pj.SetAttr("srcs", []string{npmManifestFile})
 		pj.SetAttr("visibility", []string{"//visibility:public"})
 		result.Gen = append(result.Gen, pj)
@@ -313,7 +315,7 @@ func mergeStale(file *rule.File, result language.GenerateResult) language.Genera
 		case linkKind:
 			return false
 		case jsLibraryKind:
-			return r.Name() == packageJSONName
+			return file.Pkg == "" && r.Name() == packageJSONName
 		case packageKind:
 			return r.Name() == packageName
 		case testKind:

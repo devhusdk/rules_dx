@@ -1,6 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "empty_glob.patch",
     "hermetic_ocaml.patch",
     "native_cc_env.patch",
     "platform_alias.patch",

@@ -27,6 +27,25 @@ MINGW* | MSYS* | CYGWIN*)
   export MSYS2_ARG_CONV_EXCL
   ;;
 esac
+# Says whether $1 is rooted, so it does not move with the current directory.
+rooted() {
+  case $1 in
+  /*) return 0 ;;
+  esac
+  [ "$os" = windows ] || return 1
+  case $1 in
+  \\* | [A-Za-z]:/* | [A-Za-z]:\\*) return 0 ;;
+  esac
+  return 1
+}
+# Prints the user cache dir. The XDG spec says to skip a relative XDG_CACHE_HOME; it would give each cwd its own cache.
+user_cache() {
+  if [ -n "${XDG_CACHE_HOME:-}" ] && rooted "$XDG_CACHE_HOME"; then
+    printf '%s\n' "$XDG_CACHE_HOME"
+  elif [ -n "${HOME:-}" ]; then
+    printf '%s\n' "$HOME/.cache"
+  fi
+}
 if [ "$os" = linux ] && [ -z "${MALLOC_ARENA_MAX+x}" ]; then
   case ${GLIBC_TUNABLES:-} in
   *glibc.malloc.arena_max*) ;;
@@ -114,7 +133,7 @@ bazelisk_pin() {
     "$bz_key") bz_sum=$bz_val ;;
     esac
   done <"$root/tools/bazelisk/pin.env"
-  bz_cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+  bz_cache=$(user_cache)
   [ -n "$bz_v" ] && [ -n "$bz_sum" ] && [ -n "$bz_cache" ] || return 1
   bz_dir=$bz_cache/dx/bazelisk/$bz_v
 }
@@ -197,7 +216,7 @@ prebuilt_pin() {
     [ "$pb_head" = "$pb_tag" ] || return 1
     git -C "$root" diff --quiet HEAD -- 2>/dev/null || return 1
   fi
-  pb_cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+  pb_cache=$(user_cache)
   [ -n "$pb_cache" ] || return 1
   pb_bin=$pb_cache/dx/prebuilt/$pb_sum/dx
   pb_url=${pb_url%%"{version}"*}$pb_v${pb_url#*"{version}"}
@@ -485,7 +504,7 @@ if stale; then
   dc=
   gc=
   found=
-  cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+  cache=$(user_cache)
   cache=${cache:-${LOCALAPPDATA:-}}
   home=${HOME:-${USERPROFILE:-}}
   sysrc=/etc/bazel.bazelrc

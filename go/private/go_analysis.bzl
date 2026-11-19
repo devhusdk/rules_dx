@@ -121,13 +121,15 @@ def _go_analysis_impl(target, ctx):
         if is_test and dep.data.label == own_label:
             own.append(dep.data)
             continue
-        for data in dep.transitive.to_list():
-            if not data.importmap or data.export_file == None:
-                continue
-            package_file[data.importmap] = data.export_file.path
-            exports.append(data.export_file)
-            if data.importpath and data.importpath != data.importmap:
-                import_map[data.importpath] = data.importmap
+
+        # gc export data of a direct dep includes every type its API reaches.
+        data = dep.data
+        if not data.importmap or data.export_file == None:
+            continue
+        package_file[data.importmap] = data.export_file.path
+        exports.append(data.export_file)
+        if data.importpath and data.importpath != data.importmap:
+            import_map[data.importpath] = data.importmap
     for data in own:
         if not data.importmap or data.export_file == None or data.importpath == importpath + "_test":
             continue
@@ -171,7 +173,7 @@ def _go_analysis_impl(target, ctx):
 
 go_analysis_aspect = aspect(
     implementation = _go_analysis_impl,
-    doc = "Runs the dx Go analysis drivers once per rules_go package against the compiled export data of its dependencies.",
+    doc = "Runs the dx Go analysis drivers once per rules_go package against the compiled export data of its direct dependencies.",
     attr_aspects = ["upstream"],
     attrs = {
         "_go_stdlib": attr.label(default = "@rules_go//:stdlib"),

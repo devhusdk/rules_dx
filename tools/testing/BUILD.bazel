@@ -73,6 +73,8 @@ rust_test(
         normal_dev = True,
     ),
     compile_data = [
+        "exec_log_fixtures/cache_first.log.zst",
+        "exec_log_fixtures/cache_second.log.zst",
         "exec_log_fixtures/first.log.zst",
         "exec_log_fixtures/second.log.zst",
     ],
@@ -228,10 +230,11 @@ testing_rust_test(
 
 genquery(
     name = "dx_source_closure",
-    expression = "filter('^//', deps(//cli/cli:dx + //core/quality:fixture_strict_generated_policy))",
+    expression = "filter('^//', deps(//cli/cli:dx + //cli/runtime:dx_runtime + //core/quality:fixture_strict_generated_policy))",
     opts = ["--output=label_kind"],
     scope = [
         "//cli/cli:dx",
+        "//cli/runtime:dx_runtime",
         "//core/quality:fixture_strict_generated_policy",
     ],
 )
@@ -342,6 +345,26 @@ nested_bazel_test(
 
 # keep
 rust_binary(
+    name = "analysis_scaling_check",
+    testonly = True,
+    srcs = ["analysis_scaling_check.rs"],
+    crate_name = "analysis_scaling_check",
+    crate_root = "analysis_scaling_check.rs",
+    deps = [
+        "//cli/plan:dx_plan",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
+rust_test(
+    name = "analysis_scaling_check_test",
+    size = "small",
+    crate = ":analysis_scaling_check",
+)
+
+# keep
+rust_binary(
     name = "determinism_check",
     testonly = True,
     srcs = ["determinism_check.rs"],
@@ -355,6 +378,8 @@ rust_test(
     name = "determinism_check_test",
     size = "small",
     compile_data = [
+        "exec_log_fixtures/cache_first.log.zst",
+        "exec_log_fixtures/cache_second.log.zst",
         "exec_log_fixtures/first.log.zst",
         "exec_log_fixtures/second.log.zst",
     ],

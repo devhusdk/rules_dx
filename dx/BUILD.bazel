@@ -5,6 +5,11 @@ load(":generate.bzl", "dx_generate")
 
 package(default_visibility = ["//visibility:private"])
 
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
+)
+
 dx_generate(
     name = "generate",
     visibility = VIS_DX_COMMANDS,

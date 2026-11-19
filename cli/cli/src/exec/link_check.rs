@@ -207,8 +207,8 @@ pub(crate) fn run(
                 std::fs::read(&output)
                     .map_err(|error| format!("could not read {}: {error}", output.display()))
             });
-        std::fs::remove_file(&request).ok();
-        std::fs::remove_file(&output).ok();
+        dx_atomic_fs::discard_file(&request);
+        dx_atomic_fs::discard_file(&output);
         match ran {
             Ok(result) => outcome.results.push(result),
             Err(error) => outcome

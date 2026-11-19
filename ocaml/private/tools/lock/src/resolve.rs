@@ -1,5 +1,10 @@
 //! Locks the packages that `*.opam.locked` files pin, with the archive each opam-repository entry names.
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -354,7 +359,7 @@ impl<'a> Opam<'a> {
             .download
             .bytes(&url)
             .map_err(|error| Error::new(format!("{url}: {error}")))?;
-        String::from_utf8(bytes).map_err(|_| Error::new(format!("{url} is not UTF-8")))
+        String::from_utf8(bytes).map_err(|e| Error::new(format!("{url} is not UTF-8: {e}")))
     }
 
     /// The lock packages of the pins.

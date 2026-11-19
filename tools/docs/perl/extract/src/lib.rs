@@ -2,18 +2,92 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::fs;
+use std::fmt;
+use std::path::Path;
 
-use documentation_ir::json::{boolean, number, string};
+use documentation_ir::json::{JsonError, boolean, number, string};
 use documentation_ir::proto::{
     DocIr, Extension, Relations, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use serde_json::Value;
 
 const LANGUAGE: &str = "perl";
 const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "perl.config";
 const KEY_INCOMPLETE: &str = "perl.incomplete";
+
+/// Why one Perl POD JSON document could not become a shard.
+#[derive(Debug)]
+pub enum PerlExtractError {
+    Read(PathIoError),
+    InvalidPackage { package: String },
+    Malformed(serde_json::Error),
+    NotObject { at: String },
+    UnsupportedFormat { found: u64 },
+    ObjectsNotList,
+    Json(JsonError),
+    EmptyPath { at: String },
+    UnknownType { at: String, kind: String },
+    UnknownVisibility { at: String, visibility: String },
+    NoPublicApi { package: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for PerlExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::InvalidPackage { package } => write!(f, "invalid package '{package}'"),
+            Self::Malformed(error) => write!(f, "POD JSON is malformed: {error}"),
+            Self::NotObject { at } => write!(f, "{at} is not an object"),
+            Self::UnsupportedFormat { found } => write!(
+                f,
+                "POD JSON format {found} is not supported, expected {FORMAT}"
+            ),
+            Self::ObjectsNotList => f.write_str("POD JSON 'objects' is not a list"),
+            Self::Json(error) => error.fmt(f),
+            Self::EmptyPath { at } => write!(f, "{at} has an empty path"),
+            Self::UnknownType { at, kind } => write!(f, "{at} has unknown type '{kind}'"),
+            Self::UnknownVisibility { at, visibility } => {
+                write!(f, "{at} has unknown visibility '{visibility}'")
+            }
+            Self::NoPublicApi { package } => write!(
+                f,
+                "POD JSON lists no public Perl API of package '{package}'"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for PerlExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Malformed(error) => Some(error),
+            Self::Json(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::InvalidPackage { .. }
+            | Self::NotObject { .. }
+            | Self::UnsupportedFormat { .. }
+            | Self::ObjectsNotList
+            | Self::EmptyPath { .. }
+            | Self::UnknownType { .. }
+            | Self::UnknownVisibility { .. }
+            | Self::NoPublicApi { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
+
+impl From<JsonError> for PerlExtractError {
+    fn from(error: JsonError) -> Self {
+        Self::Json(error)
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -23,18 +97,24 @@ pub struct Options {
     pub out: String,
 }
 
+/// Runs `perl_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("perl_extract", usage(), parse, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: perl_extract --json FILE --package NAME --out FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
+/// Parses argv into inputs.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+/// Returns an error for an unknown, missing, empty or repeated flag.
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
         json: flags.one("--json")?,
@@ -43,16 +123,15 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
     })
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
+/// Reads, converts, validates and writes one shard.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let json = fs::read_to_string(&options.json)
-        .map_err(|error| format!("cannot read {}: {error}", options.json))?;
+/// Returns an error when the input cannot be read or converted or the shard cannot be written.
+pub fn run(options: &Options) -> Result<(), PerlExtractError> {
+    let json = path_io::read_to_string(Path::new(&options.json)).map_err(PerlExtractError::Read)?;
     let shard = convert(&json, &options.package)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(PerlExtractError::Write)
 }
 
 pub use documentation_ir::escape_segment;
@@ -81,49 +160,60 @@ fn normalize(text: &str) -> String {
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
+/// Returns an error when the JSON is malformed, names an unknown kind, lists no public API or does not validate.
+pub fn convert(json: &str, package: &str) -> Result<DocIr, PerlExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
+        return Err(PerlExtractError::InvalidPackage {
+            package: package.to_owned(),
+        });
     }
-    let root: Value =
-        serde_json::from_str(json).map_err(|error| format!("POD JSON is malformed: {error}"))?;
-    let root = root.as_object().ok_or("POD JSON is not an object")?;
+    let root: Value = serde_json::from_str(json).map_err(PerlExtractError::Malformed)?;
+    let root = root
+        .as_object()
+        .ok_or_else(|| PerlExtractError::NotObject {
+            at: "POD JSON".to_owned(),
+        })?;
     let at = "POD JSON";
     match number(root, "format", at)? {
         FORMAT => {}
-        other => {
-            return Err(format!(
-                "POD JSON format {other} is not supported, expected {FORMAT}"
-            ));
-        }
+        found => return Err(PerlExtractError::UnsupportedFormat { found }),
     }
     let config = format!("perl={};format={FORMAT}", string(root, "perl", at)?);
     let objects = root
         .get("objects")
         .and_then(Value::as_array)
-        .ok_or("POD JSON 'objects' is not a list")?;
+        .ok_or(PerlExtractError::ObjectsNotList)?;
     let prefix = format!("{LANGUAGE}:{package}:");
     let mut symbols = Vec::new();
     for (index, value) in objects.iter().enumerate() {
         let at = format!("POD JSON object {index}");
         let object = value
             .as_object()
-            .ok_or_else(|| format!("{at} is not an object"))?;
+            .ok_or_else(|| PerlExtractError::NotObject { at: at.clone() })?;
         let path = string(object, "path", &at)?;
         let namespace = string(object, "namespace", &at)?;
         if path.is_empty() {
-            return Err(format!("{at} has an empty path"));
+            return Err(PerlExtractError::EmptyPath { at });
         }
         let kind = match string(object, "type", &at)?.as_str() {
             "package" => SymbolKind::Module,
             "sub" => SymbolKind::Function,
-            other => return Err(format!("{at} has unknown type '{other}'")),
+            other => {
+                return Err(PerlExtractError::UnknownType {
+                    at,
+                    kind: other.to_owned(),
+                });
+            }
         };
         match string(object, "visibility", &at)?.as_str() {
             "public" => {}
             "private" => continue,
-            other => return Err(format!("{at} has unknown visibility '{other}'")),
+            other => {
+                return Err(PerlExtractError::UnknownVisibility {
+                    at,
+                    visibility: other.to_owned(),
+                });
+            }
         }
         let doc = normalize(&string(object, "docstring", &at)?);
         let mut extensions = vec![extension(KEY_CONFIG, &config)];
@@ -153,9 +243,9 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         });
     }
     if symbols.is_empty() {
-        return Err(format!(
-            "POD JSON lists no public Perl API of package '{package}'"
-        ));
+        return Err(PerlExtractError::NoPublicApi {
+            package: package.to_owned(),
+        });
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
@@ -163,7 +253,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(PerlExtractError::InvalidIr)?;
     Ok(shard)
 }
 

@@ -242,7 +242,7 @@ A test tagged `dx-no-coverage-collector` is a warning finding. At the default `-
 coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector
 ```
 
-Zig and Fortran tests run under kcov, which runs on Linux only. On macOS and Windows a Zig or Fortran test writes no coverage. The LCOV counts the sources of the libraries in `deps`, plus the test sources.
+Zig and Fortran tests run under kcov, which runs on Linux only. On macOS and Windows, and on a Linux cell with no kcov pin in the rules_dx release, a Zig or Fortran test writes no coverage. The LCOV counts the sources of the libraries in `deps`, plus the test sources.
 
 On Windows, C and C++ sources count as unsupported files, because no C++ coverage collector runs there.
 

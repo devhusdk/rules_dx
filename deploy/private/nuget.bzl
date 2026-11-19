@@ -3,7 +3,7 @@
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_nuget.bzl", "NUGET_DEFAULT_REGISTRY_URL", "nuget_id_error", "nuget_nupkg_error", "nuget_registry_url_error", "nuget_version_error")
 
 def _nuget_config_impl(ctx):
@@ -90,7 +90,7 @@ def nuget_deploy(name, nupkg, package = "", version = "", registry_url = NUGET_D
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

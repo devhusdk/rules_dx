@@ -49,6 +49,7 @@ root = Dir.pwd
 absolute = ->(path) { File.expand_path(path, root) }
 files = {}
 own_rows.each { |exec, rel, generated| files[absolute.call(exec)] = {rel: rel, generated: generated == "1", owner: ""} }
+# --srcs may list own files and the same row more than once.
 context_rows.each { |exec, rel, generated| files[absolute.call(exec)] ||= {rel: rel, generated: generated == "1", owner: nil} }
 dep_rows.each do |package, exec|
   entry = files[absolute.call(exec)]

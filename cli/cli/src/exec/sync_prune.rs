@@ -31,10 +31,12 @@ pub(crate) fn prune_and_warn(
     let message = format!("could not prune old setups: {message}");
     if output == OutputMode::Json {
         let event = notice_event(&NoticeEvent::warning(CODE_PRUNE_FAILED, &message));
-        if emit_built(out, event).is_ok() {
-            flush_out(out).ok();
+        if emit_built(out, event).is_ok()
+            && let Err(code) = flush_out(out)
+        {
+            tracing::info!(code, "cannot flush the warning event");
         }
     } else {
-        writeln!(err, "dx: {CODE_PRUNE_FAILED}: {message}").ok();
+        dx_output::write_stderr(err, format_args!("dx: {CODE_PRUNE_FAILED}: {message}\n"));
     }
 }

@@ -26,7 +26,7 @@ You pin it to a rules_dx commit.
 
    - `.github/workflows/ci.yml`. When it already exists, init only updates the rules_dx commit in `uses:`.
    - `.github/workflows/dx-update.yml`, when missing.
-   - `.github/workflows/release.yml`, when missing and a BUILD file declares a `dx_deployment`.
+   - `.github/workflows/release.yml`, when missing and a BUILD file calls `deployment` or a `*_deploy` macro from `@rules_dx//deploy:defs.bzl`.
 
    See [`dx init`](cli/commands/init.md).
 
@@ -212,7 +212,7 @@ These are the `with:` inputs of `reusable-consumer.yml`.
 | `fuzz_time` | Default `300s`. Time budget per fuzz target, such as `90s`, `5m` or `1h`. |
 | `bench` | Default `false`. Run [`dx bench`](cli/commands/bench.md) on Linux x86_64. Pushes to the default branch upload `.dx/local/bench/last.json` as the `dx-bench-linux_x86_64` artifact for 90 days. Pull requests run `dx bench --compare <base branch> --max-regression=<bench_max_regression>` and add the table to the job summary. |
 | `bench_max_regression` | Default `20`. Whole number 0 to 100. Percent a benchmark may be slower than the base branch before a pull request fails. |
-| `deploy_dry_run` | Default `false`. Run [`dx deploy`](cli/commands/deploy.md), the dry run, on every `dx_deployment` tagged `release` on Linux x86_64. The job runs `dx deploy --affected`. Pull requests with `affected_on_pr` dry-run only the deployments the change reaches. A Starlark or module change, or a deleted file, checks every release deployment. |
+| `deploy_dry_run` | Default `false`. Run [`dx deploy`](cli/commands/deploy.md), the dry run, on every `deployment` tagged `release` on Linux x86_64. The job runs `dx deploy --affected`. Pull requests with `affected_on_pr` dry-run only the deployments the change reaches. A Starlark or module change, or a deleted file, checks every release deployment. |
 | `remote_cache` | REAPI cache URL. `dx init --apply` sets it to the `DX_REMOTE_CACHE` Actions variable. |
 | `advisory_pr` | Default `false`. Run `dx update advisory --pr`, which opens or refreshes the `dx-update/advisory` pull request that moves the advisory pins in `.dx/pins` to the newest snapshot release. Call the workflow from a `schedule` trigger with `contents: write` and `pull-requests: write` permissions. |
 | `invocation_id` | 1 to 40 letters, digits, underscores or hyphens. Set a different one per call when a run has several calls. |
@@ -287,7 +287,7 @@ Without the App secrets, the job warns and CI does not run on the update pull re
 
 `release.yml` calls `reusable-release.yml` when you push a `v*` tag.
 
-1. Tag each `dx_deployment` target to publish with `tags = ["release"]`. The tag must be exactly `release`; `prerelease` and `release-notes` do not match.
+1. Tag each `deployment` target to publish with `tags = ["release"]`. The tag must be exactly `release`; `prerelease` and `release-notes` do not match.
 2. Store registry tokens, such as `NPM_API_TOKEN`, as repository secrets. The caller passes `secrets: inherit`.
 3. Push a tag:
 
@@ -316,7 +316,7 @@ The caller grants `contents`, `id-token`, `attestations` and `packages` write.
 
 | Input | Meaning |
 |---|---|
-| `deployables` | JSON array of labels, for example `["//pkg:npm", "//pkg:github"]`. Empty publishes every `dx_deployment` tagged `release`. |
+| `deployables` | JSON array of labels, for example `["//pkg:npm", "//pkg:github"]`. Empty publishes every `deployment` tagged `release`. |
 | `platforms` | JSON array of platforms for the dry run. Default `["linux_x86_64"]`. |
 | `publish` | Default `true`. Publish after the dry run. |
 | `runner` | Runner label for the `release` job. Default `ubuntu-latest`. |

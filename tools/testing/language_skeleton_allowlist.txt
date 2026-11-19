@@ -46,10 +46,6 @@ fixture-name fortran/tests/runtime
 fixture-name haskell/tests/mingw_cc
 fixture-name haskell/tests/negative
 fixture-name haskell/tests/runtime
-fixture-name helm/tests/charts
-fixture-name helm/tests/dirty
-fixture-name helm/tests/other
-fixture-name helm/tests/templates
 fixture-name javascript/tests/typecheck
 fixture-name lua/tests/analysis
 fixture-name lua/tests/bench
@@ -183,7 +179,6 @@ private-visibility haskell/private/toolchain/BUILD.bazel
 private-visibility javascript/private/BUILD.bazel
 private-visibility javascript/private/quality/bin/BUILD.bazel
 private-visibility julia/private/BUILD.bazel
-private-visibility julia/private/coverage/BUILD.bazel
 private-visibility julia/private/tools/BUILD.bazel
 private-visibility kotlin/private/BUILD.bazel
 private-visibility lua/private/BUILD.bazel
@@ -191,7 +186,6 @@ private-visibility lua/private/toolchain/BUILD.bazel
 private-visibility lua/private/tools/BUILD.bazel
 private-visibility msix/private/BUILD.bazel
 private-visibility ocaml/private/BUILD.bazel
-private-visibility ocaml/private/bench/BUILD.bazel
 private-visibility ocaml/private/quality/BUILD.bazel
 private-visibility ocaml/private/toolchain/BUILD.bazel
 private-visibility ocaml/private/toolchain/platform/emitter/BUILD.bazel
@@ -210,7 +204,6 @@ private-visibility rust/private/BUILD.bazel
 private-visibility rust/private/quality/tools/BUILD.bazel
 private-visibility rust/private/tools/msvc_paths/BUILD.bazel
 private-visibility swift/private/BUILD.bazel
-private-visibility swift/private/bench/BUILD.bazel
 private-visibility swift/private/platforms/BUILD.bazel
 private-visibility swift/private/toolchain/BUILD.bazel
 private-visibility swift/private/tools/BUILD.bazel

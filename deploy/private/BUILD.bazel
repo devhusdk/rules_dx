@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
@@ -20,7 +21,7 @@ load(":cpan_tests.bzl", "cpan_unit_tests")
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_config_content_tests", "crates_unit_tests")
 load(":deploy_tests.bzl", "config_runfiles_tests", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":github.bzl", "github_deploy")
 load(":github_tests.bzl", "github_attestation_tests", "github_unit_tests")
 load(":go_sdk.bzl", "dx_go_binary_file")
@@ -55,7 +56,7 @@ load(":pub.bzl", "pub_deploy")
 load(":pub_tests.bzl", "pub_config_content_tests", "pub_unit_tests")
 load(":pypi.bzl", "pypi_deploy")
 load(":pypi_tests.bzl", "pypi_attestations_tool_tests", "pypi_unit_tests")
-load(":resources.bzl", "dx_resources")
+load(":resources.bzl", "resources")
 load(":resources_tests.bzl", "resources_plain_analysis_tests", "resources_processed_analysis_tests", "resources_unit_tests")
 load(":rubygems.bzl", "rubygems_deploy")
 load(":rubygems_tests.bzl", "rubygems_unit_tests")
@@ -131,8 +132,6 @@ exports_files([
     "src/api_compat.rs",
     "src/archive.rs",
     "src/bin_deploy_tool.rs",
-    "src/bin_deploy_app.rs",
-    "src/bin_deploy_program.rs",
     "src/cloudflare.rs",
     "src/config.rs",
     "src/conan.rs",
@@ -397,51 +396,34 @@ rust_test(
     }),
 )
 
-exports_files(["Cargo.toml"])
+exports_files([
+    "BUILD.bazel",
+    "Cargo.toml",
+])
 
-rust_binary(
+sh_binary(
     name = "deploy_program",
-    srcs = ["src/bin_deploy_program.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "deploy_program",
-    crate_root = "src/bin_deploy_program.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [":dx_deploy_tools"],
+    srcs = ["deploy_fixture.sh"],
 )
 
-rust_binary(
+sh_binary(
     name = "deploy_app",
-    srcs = ["src/bin_deploy_app.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "deploy_app",
-    crate_root = "src/bin_deploy_app.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [":dx_deploy_tools"],
+    srcs = ["deploy_fixture.sh"],
 )
 
-dx_deployment(
+deployment(
     name = "deploy_default",
     deploy = ":deploy_program",
     visibility = ["//visibility:public"],
 )
 
-dx_deployment(
+deployment(
     name = "deploy_debug",
     build_mode = "debug",
     deploy = ":deploy_program",
 )
 
-dx_deployment(
+deployment(
     name = "deploy_with_app",
     app = ":deploy_program",
     deploy = ":deploy_app",
@@ -451,18 +433,21 @@ deploy_unit_tests(name = "deploy_unit")
 
 deploy_analysis_test(
     name = "deploy_analysis",
+    file = "deploy_program",
     subject = "deploy_default",
 )
 
 deploy_analysis_test(
     name = "deploy_debug_analysis",
     build_mode = "debug",
+    file = "deploy_program",
     subject = "deploy_debug",
 )
 
 deploy_analysis_test(
     name = "deploy_app_analysis",
     app = "//deploy/private:deploy_program",
+    file = "deploy_app",
     subject = "deploy_with_app",
 )
 
@@ -471,7 +456,7 @@ filegroup(
     srcs = ["web_demo/index.html"],
 )
 
-dx_deployment(
+deployment(
     name = "deploy_web",
     artifacts = [
         ":web_dir",
@@ -480,7 +465,7 @@ dx_deployment(
     deploy = ":deploy_program",
 )
 
-dx_deployment(
+deployment(
     name = "deploy_web_budgeted",
     artifacts = [
         ":web_dir",
@@ -496,6 +481,7 @@ deploy_analysis_test(
         "//deploy/private:web_dir",
         "//deploy/private/release:notice_demo_a.txt",
     ],
+    file = "deploy_program",
     subject = "deploy_web",
 )
 
@@ -505,17 +491,78 @@ filegroup(
     tags = ["manual"],
 )
 
-dx_deployment(
+deployment(
     name = "deploy_empty_artifact",
     artifacts = [":empty_artifact"],
     deploy = ":deploy_program",
     tags = ["manual"],
 )
 
-dx_deployment(
+deployment(
     name = "deploy_non_executable_tool",
     deploy = ":pypi_demo_wheel",
     tags = ["manual"],
+)
+
+deployment(
+    name = "release_tag_only",
+    deploy = ":deploy_program",
+    tags = ["release"],
+)
+
+deployment(
+    name = "release_tag_listed",
+    deploy = ":deploy_program",
+    tags = [
+        "manual",
+        "release",
+    ],
+)
+
+deployment(
+    name = "release_tag_manual",
+    deploy = ":deploy_program",
+    tags = ["manual"],
+)
+
+deployment(
+    name = "release_tag_notes",
+    deploy = ":deploy_program",
+    tags = [
+        "manual",
+        "release-notes",
+    ],
+)
+
+genquery(
+    name = "release_tag_query",
+    expression = r'attr(tags, "[\[ ]release[,\]]", kind("^deployment rule$", set(//deploy/private:release_tag_listed //deploy/private:release_tag_manual //deploy/private:release_tag_notes //deploy/private:release_tag_only)))',
+    opts = ["--output=label"],
+    scope = [
+        "//deploy/private:release_tag_listed",
+        "//deploy/private:release_tag_manual",
+        "//deploy/private:release_tag_notes",
+        "//deploy/private:release_tag_only",
+    ],
+)
+
+genquery(
+    name = "release_tag_expected",
+    expression = "//deploy/private:release_tag_listed + //deploy/private:release_tag_only",
+    opts = ["--output=label"],
+    scope = [
+        "//deploy/private:release_tag_listed",
+        "//deploy/private:release_tag_manual",
+        "//deploy/private:release_tag_notes",
+        "//deploy/private:release_tag_only",
+    ],
+)
+
+diff_test(
+    name = "release_tag_query_test",
+    size = "small",
+    file1 = ":release_tag_expected",
+    file2 = ":release_tag_query",
 )
 
 failure_test(
@@ -565,7 +612,7 @@ config_runfiles_tests(
     },
 )
 
-dx_deployment(
+deployment(
     name = "deploy_untyped_config",
     config = ":web_dir",
     deploy = ":deploy_program",
@@ -590,7 +637,7 @@ genrule(
     cmd = "printf 'dx-generated-sprite-v1' > $@",
 )
 
-dx_resources(
+resources(
     name = "resources_demo_plain",
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
@@ -599,7 +646,7 @@ dx_resources(
     visibility = ["//visibility:public"],
 )
 
-dx_resources(
+resources(
     name = "resources_demo_processed",
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
@@ -654,7 +701,7 @@ filegroup(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_duplicate",
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
@@ -663,7 +710,7 @@ dx_resources(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_escape",
     mappings = {
         "resources_demo/logo.txt": "../evil.txt",
@@ -671,7 +718,7 @@ dx_resources(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_collision",
     mappings = {
         "resources_demo/logo.txt": "data",
@@ -680,7 +727,7 @@ dx_resources(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_processor",
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
@@ -689,7 +736,7 @@ dx_resources(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_empty",
     mappings = {
         ":resources_empty_source": "logo.txt",
@@ -697,7 +744,7 @@ dx_resources(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_multi",
     mappings = {
         ":resources_two_sources": "logo.txt",
@@ -983,6 +1030,7 @@ test_suite(
         ":pypi_unit",
         ":release_demo_debug_verify",
         ":release_demo_verify",
+        ":release_tag_query_test",
         ":resources_collision_fails",
         ":resources_demo_verify",
         ":resources_duplicate_fails",

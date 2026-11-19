@@ -286,7 +286,7 @@ pub fn check_files_size_budget(paths: &[PathBuf], budget: u64) -> Result<u64, St
         bytes +=
             tree_bytes(path).map_err(|error| format!("cannot size {}: {error}", path.display()))?;
     }
-    check_size_budget("dx_deployment", "artifacts total", bytes, budget)?;
+    check_size_budget("deployment", "artifacts total", bytes, budget)?;
     Ok(bytes)
 }
 

@@ -167,7 +167,7 @@ fn execute_docs_with(
         Err(exit) => return exit,
     };
     if bazel_code != 0 {
-        std::fs::remove_file(&bep).ok();
+        dx_atomic_fs::discard_file(&bep);
         if json {
             return report_docs_failure(&mut env, bazel_code, &scope_text);
         }
@@ -178,7 +178,7 @@ fn execute_docs_with(
         Err(exit) => return exit,
     };
     if !invocation.serve {
-        std::fs::remove_file(&bep).ok();
+        dx_atomic_fs::discard_file(&bep);
         if json
             && let Err(exit) = emit_event(env.out, &command_finished(0, &FinishedCounts::default()))
         {
@@ -186,7 +186,7 @@ fn execute_docs_with(
         }
         return 0;
     }
-    std::fs::remove_file(&bep).ok();
+    dx_atomic_fs::discard_file(&bep);
     serve_docs(invocation, &mut env, preview, sites, index, &scope_text)
 }
 
@@ -281,7 +281,6 @@ fn locate_sites(
                 )
                 .as_deref(),
                 &shards,
-                env.runner,
             ) {
                 Ok(dir) => {
                     if !json && invocation.chatty() {
@@ -291,7 +290,7 @@ fn locate_sites(
                     index = Some(dir);
                 }
                 Err(error) => {
-                    std::fs::remove_file(bep).ok();
+                    dx_atomic_fs::discard_file(bep);
                     return Err(report_dx_error(
                         invocation.output,
                         env.out,
@@ -302,7 +301,7 @@ fn locate_sites(
                 }
             },
             Err(error) => {
-                std::fs::remove_file(bep).ok();
+                dx_atomic_fs::discard_file(bep);
                 return Err(report_dx_error(
                     invocation.output,
                     env.out,
@@ -394,25 +393,27 @@ fn open_browser(env: &mut Env<'_>, url: &str) {
     let open_argv = opener_argv(url);
     match env.runner.run(&open_argv, env.workspace, &[]) {
         Ok(status) if status.code == Some(0) => {}
-        Ok(status) => {
-            match status.code {
-                Some(code) => writeln!(
-                    env.err,
-                    "dx: warning: browser open exited with code {code} for {url} (continuing preview)"
-                ),
-                None => writeln!(
-                    env.err,
-                    "dx: warning: browser open was terminated by a signal for {url} (continuing preview)"
-                ),
-            }
-            .ok();
-        }
-        Err(error) => {
-            writeln!(
+        Ok(status) => match status.code {
+            Some(code) => dx_output::write_stderr(
                 env.err,
-                "dx: warning: failed to open browser for {url}: {error} (continuing preview)",
-            )
-            .ok();
+                format_args!(
+                    "dx: warning: browser open exited with code {code} for {url} (continuing preview)\n"
+                ),
+            ),
+            None => dx_output::write_stderr(
+                env.err,
+                format_args!(
+                    "dx: warning: browser open was terminated by a signal for {url} (continuing preview)\n"
+                ),
+            ),
+        },
+        Err(error) => {
+            dx_output::write_stderr(
+                env.err,
+                format_args!(
+                    "dx: warning: failed to open browser for {url}: {error} (continuing preview)\n"
+                ),
+            );
         }
     }
 }
@@ -491,10 +492,10 @@ mod tests {
     fn shards_bep(harness: &Harness, with_site: bool) -> Vec<String> {
         harness.write_source(
             "bazel-bin/tools.dx_docs_tools",
-            "aggregate\tbazel-bin/agg\nmdbook\tbazel-bin/mdbook\nsite_build\tbazel-bin/site_build\n",
+            "mdbook\tbazel-bin/mdbook\n",
         );
-        harness.write_source("bazel-bin/a/a.shard", "{}");
-        harness.write_source("bazel-bin/b/b.shard", "{}");
+        harness.write_source("bazel-bin/a/a.shard", "not a shard");
+        harness.write_source("bazel-bin/b/b.shard", "not a shard");
         let mut groups: Vec<(&str, &[&str])> = vec![
             ("dx_docs_tools", &["bazel-bin/tools.dx_docs_tools"]),
             (
@@ -510,31 +511,18 @@ mod tests {
         group_bep(harness, &groups)
     }
 
-    fn tool_runs(harness: &Harness) -> Vec<Vec<String>> {
-        let runs = harness.build_argv.borrow();
-        runs.iter()
-            .filter(|argv| argv[0].ends_with("/agg") || argv[0].ends_with("/site_build"))
-            .cloned()
-            .collect()
-    }
-
     #[test]
     fn docs_without_a_site_aggregates_every_shard_in_scope() {
         let mut harness = Harness::new("docs-index");
         harness.raw_bep = Some(shards_bep(&harness, false));
         let (code, out, err) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("docs_index_failed"), "{err}");
+        let err = err.replace('\\', "/");
         assert!(
-            err.contains("docs_index_failed") || err.contains("no index.html"),
+            err.contains("site_aggregate: shard '") && err.contains("/a/a.shard"),
             "{err}"
         );
-        let runs = tool_runs(&harness);
-        let aggregate = runs[0].join(" ").replace('\\', "/");
-        assert!(
-            aggregate.contains("--shard ") && aggregate.contains("/a/a.shard"),
-            "{aggregate}"
-        );
-        assert!(aggregate.contains("/b/b.shard"), "{aggregate}");
     }
 
     #[test]
@@ -543,7 +531,6 @@ mod tests {
         harness.raw_bep = Some(shards_bep(&harness, true));
         let (code, out, err) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(tool_runs(&harness).is_empty(), "{:?}", tool_runs(&harness));
         assert!(!harness.workspace.join(".dx/local/docs").exists());
     }
 
@@ -553,7 +540,7 @@ mod tests {
         harness.raw_bep = Some(Vec::new());
         let (code, out, err) = harness.run(&["docs", "--output=text"]);
         assert_eq!(code, 0, "{out}{err}");
-        assert!(tool_runs(&harness).is_empty(), "{:?}", tool_runs(&harness));
+        assert!(!harness.workspace.join(".dx/local/docs").exists());
     }
 
     fn script_site_tree(harness: &mut Harness, rel: &str) {

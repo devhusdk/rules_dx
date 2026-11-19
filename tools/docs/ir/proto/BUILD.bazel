@@ -17,3 +17,9 @@ rust_prost_library(
     name = "doc_ir_proto_rs",
     proto = ":doc_ir_proto",
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

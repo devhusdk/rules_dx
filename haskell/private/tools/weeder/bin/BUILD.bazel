@@ -13,7 +13,10 @@ alias(
     name = "source",
     actual = "@haskell_weeder_hackage//:weeder-exe-weeder",
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    visibility = ["//visibility:public"],
+    visibility = [
+        "//:__subpackages__",
+        "@dx_prebuilt//:__pkg__",
+    ],
 )
 
 real_source_target(

@@ -1,6 +1,4 @@
-use super::{
-    AUDIT_TODAY_ENV, QueryBazel, parse_locked_for_configured, today_utc_from, uncovered_message,
-};
+use super::{QueryBazel, parse_locked_for_configured, uncovered_message};
 use dx_adopt::dependency_sets::{Ecosystem, ResolvedSet};
 use dx_plan::resolve::{QueryResult, QueryRunner};
 use dx_tool_resolve::Bazel as _;
@@ -172,28 +170,4 @@ fn the_tool_cquery_carries_the_shared_settings_and_ends_with_the_label() {
         assert!(argv.contains(&setting), "{setting}");
     }
     assert_eq!(argv.last().map(String::as_str), Some("//t:tool"));
-}
-
-#[test]
-fn a_pinned_date_makes_the_audit_date_reproducible() {
-    assert_eq!(today_utc_from(Some("2020-01-02".to_owned())), "2020-01-02");
-    assert_eq!(AUDIT_TODAY_ENV, "DX_AUDIT_TODAY");
-}
-
-#[test]
-fn an_unusable_pin_falls_back_to_today() {
-    for bad in [
-        "",
-        "2020-1-2",
-        "2020-01-02T00:00",
-        "not-a-date",
-        "2020/01/02x",
-    ] {
-        let today = today_utc_from(None);
-        assert_eq!(
-            today_utc_from(Some(bad.to_owned())),
-            today,
-            "{bad:?} is not a pinned date"
-        );
-    }
 }

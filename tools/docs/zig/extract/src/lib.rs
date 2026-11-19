@@ -30,6 +30,12 @@ pub struct Options {
     pub config: String,
 }
 
+/// Runs `zig_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("zig_extract", usage(), parse, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
@@ -67,7 +73,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     let json = read(&options.dump)?;
     let sources = parse_sources(&read(&options.sources)?)?;
     let shard = convert(&json, &sources, &options.package, &options.config)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 struct Context<'a> {

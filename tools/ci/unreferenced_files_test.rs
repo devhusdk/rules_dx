@@ -1,18 +1,15 @@
 //! Every .bzl file is loaded, every fixture file and Rust file is named by a target or a test, every filegroup and exported file has a user, and every directory belongs to a package, outside `tools/ci/unreferenced_files_allowlist.txt`.
 
-use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
+use dx_guard::allowlist::{Counts, add, verify};
+use dx_guard::segments::{Piece, Segment, rust_segments, starlark_segments};
+use dx_guard::snapshot::{glob_match, tree};
+use dx_guard::starlark::is_any_starlark as is_starlark;
 use serde_json as _;
-use shared::{Counts, Piece, Segment, add, glob_match, is_starlark};
 use starlark_syntax as _;
 use yaml_serde as _;
-
-#[path = "guards/shared.rs"]
-mod shared;
-
-/// The allowlist path named in failures.
-const ALLOWLIST: &str = "tools/ci/unreferenced_files_allowlist.txt";
 
 /// The kinds an allowlist line may name.
 const KINDS: [&str; 5] = [
@@ -238,7 +235,10 @@ impl Index {
         for (path, text) in files {
             if is_starlark(path) {
                 index.starlark(path, text);
-            } else if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) {
+            } else if Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
+            {
                 index.rust(path, text);
             }
         }
@@ -260,7 +260,7 @@ impl Index {
 
     fn starlark(&mut self, path: &str, text: &str) {
         let dir = parent(path);
-        let segments = shared::starlark_segments(text);
+        let segments = starlark_segments(text);
         let workspace = self.nearest(dir, &["MODULE.bazel"]);
         let package = self.nearest(dir, &["BUILD.bazel", "BUILD"]);
         for (position, segment) in segments.iter().enumerate() {
@@ -312,7 +312,7 @@ impl Index {
     fn rust(&mut self, path: &str, text: &str) {
         let dir = parent(path);
         let stem = base(path).trim_end_matches(".rs");
-        let segments = shared::rust_segments(text);
+        let segments = rust_segments(text);
         for (position, segment) in segments.iter().enumerate() {
             match segment.piece {
                 Piece::Comment => {}
@@ -420,7 +420,7 @@ impl Index {
     /// How many filegroups and exported files of the BUILD file at `path` have no user.
     fn orphans(&self, path: &str, text: &str) -> usize {
         let package = parent(path);
-        let segments = shared::starlark_segments(text);
+        let segments = starlark_segments(text);
         let mut names: Vec<String> = Vec::new();
         for body in call_bodies(&segments, "filegroup") {
             let tagged = body
@@ -467,7 +467,10 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
     for path in paths {
         directories.entry(parent(path)).or_default().push(path);
         let fixture = in_fixture_tree(path);
-        if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("bzl")) {
+        if Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
+        {
             let loaded = index.loads.contains(path)
                 || index
                     .labels
@@ -487,7 +490,11 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
                 usize::from(!index.referenced(path)),
             );
         }
-        if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) && !fixture {
+        if Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
+            && !fixture
+        {
             let built = index.starlark_names(path) || index.mods.contains(path);
             add(&mut counts, path, "unbuilt-rust", usize::from(!built));
         }
@@ -516,14 +523,17 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
 
 #[test]
 fn no_unreferenced_file_outside_the_allowlist() {
-    let files = shared::tree(&dx_testing::source_snapshot());
+    let files: BTreeMap<String, String> = tree(&dx_testing::source_snapshot())
+        .unwrap_or_else(|error| panic!("source snapshot: {error}"))
+        .into_iter()
+        .collect();
     assert!(
         files.len() >= MIN_FILES,
         "only {} files in the snapshot",
         files.len()
     );
     let paths = dx_testing::source_paths();
-    shared::settle(&scan(&files, &paths), "DX_ALLOWLIST", ALLOWLIST, &KINDS);
+    verify(&scan(&files, &paths), &KINDS);
 }
 
 #[cfg(test)]
@@ -533,7 +543,12 @@ mod tests {
     fn hits(entries: &[(&str, &str)]) -> Vec<(String, String, usize)> {
         let files: BTreeMap<String, String> = entries
             .iter()
-            .filter(|(path, _)| is_starlark(path) || Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")))
+            .filter(|(path, _)| {
+                is_starlark(path)
+                    || Path::new(path)
+                        .extension()
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
+            })
             .map(|(path, text)| ((*path).to_owned(), (*text).to_owned()))
             .collect();
         let mut paths: Vec<String> = entries.iter().map(|(path, _)| (*path).to_owned()).collect();

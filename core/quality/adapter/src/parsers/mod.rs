@@ -540,7 +540,7 @@ fn numbered(
     text.ok_or_else(|| missing(tool, what, line))?
         .trim()
         .parse()
-        .map_err(|_| missing(tool, what, line))
+        .map_err(|error| ParseError::shape(tool, format!("malformed {what}: {line}: {error}")))
 }
 
 /// A finding at a line and column, spanning nothing and suggesting nothing.
@@ -1266,7 +1266,11 @@ mod tests {
             numbered("tsc", "line", "l", Some(""))
                 .expect_err("empty")
                 .to_string(),
-            missing("tsc", "line", "l").to_string()
+            ParseError::shape(
+                "tsc",
+                "malformed line: l: cannot parse integer from empty string"
+            )
+            .to_string()
         );
         assert_eq!(
             numbered("tsc", "line", "l", None)
@@ -1278,7 +1282,8 @@ mod tests {
             numbered("tsc", "line", "l", Some("x"))
                 .expect_err("text")
                 .to_string(),
-            missing("tsc", "line", "l").to_string()
+            ParseError::shape("tsc", "malformed line: l: invalid digit found in string")
+                .to_string()
         );
     }
 

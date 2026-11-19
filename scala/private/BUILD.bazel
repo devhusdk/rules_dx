@@ -11,6 +11,12 @@ exports_files([
     "validate.bzl",
 ])
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

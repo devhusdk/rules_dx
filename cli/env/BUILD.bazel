@@ -20,10 +20,10 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
         "//core/env/private/proto:marker_proto_rs",
+        "//rust:prost",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:thiserror",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
 
@@ -80,11 +80,11 @@ rust_test(
         "//cli/path:dx_path",
         "//cli/test_scratch:dx_test_scratch",
         "//core/env/private/proto:marker_proto_rs",
+        "//rust:prost",
         "//tools/testing:dx_testing",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:thiserror",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
 

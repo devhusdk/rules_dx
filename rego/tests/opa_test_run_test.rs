@@ -1,4 +1,8 @@
 //! Runs real `rego_test` executables the way `bazel test` does.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::process::Command;
 

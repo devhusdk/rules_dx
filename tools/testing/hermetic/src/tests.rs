@@ -653,15 +653,29 @@ fn the_consumer_materializes_from_dx_init() {
     for patch in dx_nested::compose::RULES_FLUTTER_PATCHES {
         std::fs::write(flutter.join(format!("{patch}.patch")), "").unwrap();
     }
-    let rules_python = source.join("patches/rules_python");
-    std::fs::create_dir_all(&rules_python).unwrap();
-    std::fs::write(rules_python.join("fix.patch"), "").unwrap();
-    let rules_python_override = "single_version_override(\n    module_name = \"rules_python\",\n    patches = [\"//patches/rules_python:fix.patch\"],\n)\n";
-    std::fs::write(source.join("MODULE.bazel"), rules_python_override).unwrap();
+    let overrides = [
+        ("rules_python", "fix.patch"),
+        ("rules_swift", "xcode_select_absolute_path.patch"),
+    ]
+    .map(|(module, patch)| {
+        let dir = source.join("patches").join(module);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(patch), "").unwrap();
+        (
+            format!(
+                "single_version_override(\n    module_name = \"{module}\",\n    patches = [\"//patches/{module}:{patch}\"],\n)\n"
+            ),
+            format!("patches/{module}/{patch}"),
+        )
+    });
+    let root_module: String = overrides.iter().map(|(block, _)| block.as_str()).collect();
+    std::fs::write(source.join("MODULE.bazel"), root_module).unwrap();
     materialize(&manifest, &workspace, &source, "cc").unwrap();
     let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap();
-    assert!(module.contains(rules_python_override), "{module}");
-    assert!(workspace.join("patches/rules_python/fix.patch").is_file());
+    for (block, patch) in &overrides {
+        assert!(module.contains(block.as_str()), "{module}");
+        assert!(workspace.join(patch).is_file(), "{patch}");
+    }
     for needle in [
         "module(name = \"hermetic_consumer\")",
         "bazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = ",

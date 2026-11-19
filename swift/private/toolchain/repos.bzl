@@ -3,6 +3,8 @@
 load("//core:host.bzl", "host_cell")
 load("//qt/private/toolchain:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 
+SWIFT_LINUX_CPUS = ["aarch64", "x86_64"]
+
 _SWIFT_LINUX_BUILD = """package(default_visibility = ["//visibility:public"])
 
 exports_files(

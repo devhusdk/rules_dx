@@ -279,8 +279,8 @@ pub(super) const TOOLS: &[ToolDef] = &[
             if let Some(chart_root) = helm_chart_root(tool) {
                 return scan_chart(backend, call, &cache, &severities, &chart_root);
             }
-            if let Some((_, bicep)) = tool.path_tools.iter().find(|(name, _)| name == "bicep") {
-                return scan_bicep(backend, call, &cache, &severities, bicep);
+            if let Some(bicep) = tool.path_tools.iter().find(|helper| helper.name == "bicep") {
+                return scan_bicep(backend, call, &cache, &severities, &bicep.binary);
             }
             let (_, names) = super::single_run::paths(call);
             let mut findings = Vec::new();

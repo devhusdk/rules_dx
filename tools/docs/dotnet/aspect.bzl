@@ -31,7 +31,7 @@ real_dotnet_docs_aspect = aspect(
         ),
         "_dotnet_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/dotnet/extract:dotnet_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_fsharp_driver": attr.label(

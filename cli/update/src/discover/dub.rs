@@ -86,7 +86,8 @@ fn pinned(text: &str) -> Result<Vec<(String, String)>, DxError> {
 }
 
 fn latest(body: &str) -> Result<String, DxError> {
-    serde_json::from_str::<String>(body.trim()).map_err(|_| DxError::failure("no version"))
+    serde_json::from_str::<String>(body.trim())
+        .map_err(|error| DxError::failure(format!("no version: {error}")))
 }
 
 #[cfg(test)]

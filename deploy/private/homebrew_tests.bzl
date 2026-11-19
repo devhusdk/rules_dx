@@ -1,6 +1,6 @@
 """Unit tests for the Homebrew tap publisher."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":validate_homebrew.bzl", "homebrew_formula_error", "homebrew_repo_error", "homebrew_text_error")
 
 def homebrew_unit_tests(name):

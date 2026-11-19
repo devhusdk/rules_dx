@@ -180,7 +180,9 @@ fn run_as_tool() -> Option<i32> {
         args.map(|arg| arg.to_string_lossy().into_owned()).collect()
     };
     let named = |name: &str, args: std::iter::Peekable<std::env::ArgsOs>| -> Vec<String> {
-        std::iter::once(name.to_owned()).chain(lossy(args)).collect()
+        std::iter::once(name.to_owned())
+            .chain(lossy(args))
+            .collect()
     };
     Some(match tool {
         Tool::Runner => quality_runner::entry::run_cli(&lossy(args)),
@@ -196,6 +198,37 @@ fn run_as_tool() -> Option<i32> {
         Tool::ApiSpecPreflight => api_spec_codegen::preflight::run_process(&lossy(args)),
         Tool::OapiCodegen => api_spec_codegen::oapi_codegen::run_process(&lossy(args)),
         Tool::CapnpcRustDx => capnpc_rust_dx::run_process(&lossy(args)),
+        Tool::AvroExtract => dx_docs_avro_extract::run_process(&lossy(args)),
+        Tool::DExtract => dx_docs_d_extract::run_process(&lossy(args)),
+        Tool::FortranExtract => dx_docs_fortran_extract::run_process(&lossy(args)),
+        Tool::LuaExtract => dx_docs_lua_extract::run_process(&lossy(args)),
+        Tool::PerlExtract => dx_docs_perl_extract::run_process(&lossy(args)),
+        Tool::ZigExtract => dx_docs_zig_extract::run_process(&lossy(args)),
+        Tool::AndroidOps => i32::from(dx_android_ops::run(&lossy(args))),
+        Tool::QtRustBridge => qt_rust_bridge::run_process(&lossy(args)),
+        Tool::BeamExtract => dx_docs_beam_extract::run_process(&lossy(args)),
+        Tool::CcExtract => dx_docs_cc_extract::run_process(&lossy(args)),
+        Tool::ComponentExtract => dx_docs_component_extract::run_process(&lossy(args)),
+        Tool::DartDoc => dx_docs_dart_extract::doc::run_process(&lossy(args)),
+        Tool::DartExtract => dx_docs_dart_extract::run_process(&lossy(args)),
+        Tool::DotnetExtract => dx_docs_dotnet_extract::run_process(&lossy(args)),
+        Tool::GoExtract => dx_docs_go_extract::run_process(&lossy(args)),
+        Tool::HaskellExtract => dx_docs_haskell_extract::run_process(&lossy(args)),
+        Tool::JuliaExtract => dx_docs_julia_extract::run_process(&lossy(args)),
+        Tool::OcamlExtract => dx_docs_ocaml_extract::run_process(&lossy(args)),
+        Tool::PhpExtract => dx_docs_php_extract::run_process(&lossy(args)),
+        Tool::PowershellExtract => dx_docs_powershell_extract::run_process(&lossy(args)),
+        Tool::ProtobufExtract => dx_docs_protobuf_extract::run_process(&lossy(args)),
+        Tool::PythonExtract => dx_docs_python_extract::run_process(&lossy(args)),
+        Tool::RubyExtract => dx_docs_ruby_extract::run_process(&lossy(args)),
+        Tool::RustExtract => dx_docs_rust_extract::run_process(&lossy(args)),
+        Tool::SwiftExtract => dx_docs_swift_extract::run_process(&lossy(args)),
+        Tool::TypescriptExtract => dx_docs_typescript_extract::run_process(&lossy(args)),
+        Tool::JvmConvert => dx_docs_jvm_convert::run_process(&lossy(args)),
+        Tool::SiteAggregate => dx_site_aggregate::run_process(&lossy(args)),
+        Tool::SiteBuild => dx_site_build::run_process(&lossy(args)),
+        Tool::SiteCheck => dx_site_check::run_process(&lossy(args)),
+        Tool::BufDiff => unified_diff::run_process(&args.collect::<Vec<_>>()),
         Tool::Archiver => dx_deploy_tools::entry::archiver(&named("archiver", args)),
         Tool::Hasher => dx_deploy_tools::entry::hasher(&named("hasher", args)),
         Tool::SizeChecker => dx_deploy_tools::entry::size_checker(&named("size_checker", args)),
@@ -203,6 +236,7 @@ fn run_as_tool() -> Option<i32> {
             dx_deploy_tools::cloudflare_pages_verify_main(&named("cloudflare_verify", args))
         }
         Tool::NpmPacker => dx_deploy_tools::npm_pack_main(&named("npm_packer", args)),
+        Tool::ReleaseTool => dx_release_tools::release_tool_run(&named("release_tool", args)),
     })
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md
@@ -457,7 +491,9 @@ fn remove_run_dir(temp_dir: dx_plan::plan::run_temp::RunTempDir) {
     if let Err(error) = temp_dir.close() {
         write_stderr(
             &mut io::stderr(),
-            format_args!("dx: warning: cannot remove temporary directory {temp_display}: {error}\n"),
+            format_args!(
+                "dx: warning: cannot remove temporary directory {temp_display}: {error}\n"
+            ),
         );
     }
 }

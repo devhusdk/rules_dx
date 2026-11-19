@@ -1,6 +1,6 @@
 """Unit tests for the single-sourced registry."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "not_applicable_error")
 load("//core/modules:langs.bzl", "LANGS")
 load(":taxonomy.bzl", "CLASS_TO_FAMILY", "FAMILY_OWNERS", "LANG_JSON_FAMILIES", "OTHER_FAMILIES", "TAXONOMY", "TAXONOMY_CLASSES", "taxonomy_schema_error")

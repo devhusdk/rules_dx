@@ -1,6 +1,6 @@
 """Execution tests over runfiles fixtures."""
 
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_test")
 
 def fixture_execution_tests(name):
     starlark_test(

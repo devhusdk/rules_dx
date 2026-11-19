@@ -4,7 +4,7 @@ load("//android/private/packaging:defs.bzl", "android_adb_install", "android_adb
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
-load(":defs_tests.bzl", "android_native_library_tests")
+load(":defs_tests.bzl", "android_native_library_tests", "android_ops_tests")
 load(":platform_config_tests.bzl", "android_platform_config_test")
 load(":platforms_tests.bzl", "android_platform_tests")
 load(":rotation_tests.bzl", "keystore_properties_test")
@@ -236,6 +236,17 @@ failure_test(
 android_adb_log(
     name = "no_serial_log",
     serial = "",
+)
+
+android_adb_log(
+    name = "emulator_log",
+    serial = "emulator-5554",
+)
+
+android_ops_tests(
+    name = "ops_wiring_test",
+    apk_set = "//android/tests/fixtures/rust_apk:test_bundle_set",
+    launcher = ":emulator_log",
 )
 
 failure_test(

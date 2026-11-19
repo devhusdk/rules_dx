@@ -1,0 +1,15 @@
+Upstream: none (not yet sent upstream, #14041)
+
+diff -u a/kotlin/BUILD.bazel b/kotlin/BUILD.bazel
+--- a/kotlin/BUILD.bazel
++++ b/kotlin/BUILD.bazel
+@@ -32,3 +32,9 @@
+     ),
+     visibility = ["//visibility:public"],
+ )
++
++filegroup(
++    name = "dx_bzl_srcs",
++    srcs = ["android.bzl"],
++    visibility = ["//visibility:public"],
++)

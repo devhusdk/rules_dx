@@ -3,6 +3,11 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+use dx_atomic_fs::path_io;
+use dx_release_tools::ReleaseError;
+
+const TOOL: &str = "source_archive";
+
 struct SourceArchiveInputs<'a> {
     tag: &'a str,
     commit: &'a str,
@@ -32,19 +37,18 @@ fn workspace_dir_of(value: Option<OsString>) -> Option<PathBuf> {
         .filter(|path| !path.as_os_str().is_empty() && path.is_absolute())
 }
 
-fn write_with(inputs: &SourceArchiveInputs<'_>, repo: Option<PathBuf>) -> Result<String, String> {
-    let repo = repo.ok_or_else(|| {
-        "source_archive: BUILD_WORKSPACE_DIRECTORY must be an absolute path (run with bazel run)"
-            .to_owned()
-    })?;
+fn write_with(
+    inputs: &SourceArchiveInputs<'_>,
+    repo: Option<PathBuf>,
+) -> Result<String, ReleaseError> {
+    let repo = repo.ok_or(ReleaseError::NoWorkspace { tool: TOOL })?;
     let candidate = dx_release_tools::release_candidate(inputs.tag, Some(inputs.commit))?;
-    let pins =
-        match &inputs.pins {
-            Some(path) => Some(std::fs::read(path).map_err(|error| {
-                format!("source_archive: cannot read {}: {error}", path.display())
-            })?),
-            None => None,
-        };
+    let pins = match &inputs.pins {
+        Some(path) => {
+            Some(path_io::read(path).map_err(|source| ReleaseError::Io { tool: TOOL, source })?)
+        }
+        None => None,
+    };
     let built = dx_release_tools::candidate::write_release_source(
         &repo,
         &candidate,
@@ -137,7 +141,13 @@ mod tests {
         let argv = argv_of(&["s", "v1.0.0", &commit, "/out", "--pins", "/nope/p.bzl"]);
         let parsed = parse_source_archive_args(&argv).expect("parsed");
         let error = write_with(&parsed, Some(PathBuf::from("/ws"))).expect_err("no file");
-        assert!(error.contains("cannot read /nope/p.bzl"), "{error}");
+        assert!(matches!(error, ReleaseError::Io { .. }));
+        assert!(
+            error
+                .to_string()
+                .starts_with("source_archive: cannot read /nope/p.bzl: "),
+            "{error}"
+        );
     }
 
     #[test]
@@ -157,12 +167,24 @@ mod tests {
         let argv = argv_of(&["source_archive", "v1.0.0", "abc", "/out"]);
         let parsed = parse_source_archive_args(&argv).expect("parsed");
         let error = write_with(&parsed, None).expect_err("no workspace");
-        assert!(error.contains("BUILD_WORKSPACE_DIRECTORY"), "{error}");
+        assert!(matches!(error, ReleaseError::NoWorkspace { .. }));
+        assert_eq!(
+            error.to_string(),
+            "source_archive: BUILD_WORKSPACE_DIRECTORY must be an absolute path (run with bazel run)"
+        );
         let error = write_with(&parsed, Some(PathBuf::from("/ws"))).expect_err("bad commit");
-        assert!(error.contains("invalid commit"), "{error}");
+        assert!(matches!(
+            error,
+            ReleaseError::Tag(dx_release_tools::TagError::Candidate(_))
+        ));
+        assert!(error.to_string().contains("invalid commit"), "{error}");
         let argv = argv_of(&["source_archive", "1.0.0", &"a".repeat(40), "/out"]);
         let parsed = parse_source_archive_args(&argv).expect("parsed");
         let error = write_with(&parsed, Some(PathBuf::from("/ws"))).expect_err("bad tag");
-        assert!(error.contains("must be v<SemVer>"), "{error}");
+        assert!(matches!(
+            error,
+            ReleaseError::Tag(dx_release_tools::TagError::NotVPrefixed { .. })
+        ));
+        assert!(error.to_string().contains("must be v<SemVer>"), "{error}");
     }
 }

@@ -7,6 +7,47 @@
       "urls": [
         "https://github.com/periareon/rules_julia/releases/download/0.8.0/rules_julia-0.8.0.tar.gz"
       ]
+    },
+    "julia_src": {
+      "version": "1.12.5",
+      "sha256": "9e0dee015ef631ce93ddcf8166a8f5f4cae39e923d8f38a54a832091d0475004",
+      "strip_prefix": "julia-1.12.5",
+      "urls": [
+        "https://github.com/JuliaLang/julia/releases/download/v1.12.5/julia-1.12.5.tar.gz"
+      ]
+    },
+    "julia_src_libllvm": {
+      "version": "18.1.7+5",
+      "sha256": "2b15e6ac13dbadaeee9051ab56ad170dae2c248c91a3f45ae8d170a7c0644baa",
+      "type": "tar.gz",
+      "urls": [
+        "https://github.com/JuliaBinaryWrappers/libLLVM_jll.jl/releases/download/libLLVM-v18.1.7%2B5/libLLVM.v18.1.7.x86_64-linux-gnu-cxx11-llvm_version%2B18.tar.gz"
+      ]
+    },
+    "julia_src_libunwind": {
+      "version": "1.8.1+2",
+      "sha256": "e5c9276edfcdb67efe6889a1e1ef3c1a41ac2b1477cc4d6688e2f973c2da1c12",
+      "type": "tar.gz",
+      "urls": [
+        "https://github.com/JuliaBinaryWrappers/LibUnwind_jll.jl/releases/download/LibUnwind-v1.8.1%2B2/LibUnwind.v1.8.1.x86_64-linux-gnu.tar.gz"
+      ]
+    },
+    "julia_src_libuv": {
+      "version": "2.0.1+20",
+      "sha256": "32b888f95f857fcad8464e83bb799817e53f7e6b0dcf8ce668b8ba7767b83008",
+      "type": "tar.gz",
+      "urls": [
+        "https://github.com/JuliaBinaryWrappers/LibUV_jll.jl/releases/download/LibUV-v2.0.1%2B20/LibUV.v2.0.1.x86_64-linux-gnu.tar.gz"
+      ]
+    },
+    "julia_src_utf8proc": {
+      "version": "a1b99daa2a3393884220264c927a48ba1251a9c6",
+      "sha256": "6e1c5801d9d1cde8a9a68b5a8cc136508e790ee73428087469b3e73d01ba33ed",
+      "strip_prefix": "JuliaStrings-utf8proc-a1b99da",
+      "type": "tar.gz",
+      "urls": [
+        "https://api.github.com/repos/JuliaStrings/utf8proc/tarball/a1b99daa2a3393884220264c927a48ba1251a9c6"
+      ]
     }
   }
 }

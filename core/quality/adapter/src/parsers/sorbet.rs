@@ -46,10 +46,9 @@ pub fn parse_sorbet(
             continue;
         }
         if let Some(count) = line.strip_prefix("Errors: ") {
-            counted =
-                Some(count.trim().parse().map_err(|_| {
-                    ParseError::shape(TOOL, format!("malformed error count: {line}"))
-                })?);
+            counted = Some(count.trim().parse().map_err(|error| {
+                ParseError::shape(TOOL, format!("malformed error count: {line}: {error}"))
+            })?);
             continue;
         }
         let Some((path, number, message)) = header(line) else {

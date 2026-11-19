@@ -1,4 +1,8 @@
 //! Keeps the remote cache key out of command lines, rc files and uploads.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::Path;
 use std::process::Command;
@@ -380,7 +384,13 @@ fn assert_no_secret_printed(name: &str, output: &str) {
     }
 }
 
-type CacheCase<'a> = (&'a str, &'a [(&'a str, &'a str)], Option<&'a str>, i32, Option<&'a str>);
+type CacheCase<'a> = (
+    &'a str,
+    &'a [(&'a str, &'a str)],
+    Option<&'a str>,
+    i32,
+    Option<&'a str>,
+);
 
 #[test]
 fn scan_finds_every_cache_secret() {

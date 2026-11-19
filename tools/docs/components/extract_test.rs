@@ -1,4 +1,8 @@
 //! Checks the Vue, Svelte, Astro and MDX fixture shards and the converter's failure handling.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::process::Command;
 
@@ -137,7 +141,7 @@ fn the_configuration_variation_is_observable() {
     );
     assert!(
         config(&strict)
-            .contains(";meta-json=dx-component-meta/1;vue-component-meta=3.3.14;typescript=5.9.3")
+            .contains(";meta-json=dx-component-meta/1;vue-component-meta=3.3.14;typescript=6.0.3")
     );
 }
 
@@ -167,6 +171,7 @@ fn the_converter_fails_without_writing_on_bad_metadata() {
         let out = dir.join(format!("{name}.pb"));
         std::fs::write(&input, body).expect("write");
         let status = Command::new(dx_testing::env_file("DX_COMPONENT_EXTRACT"))
+            .arg("component_extract")
             .args(["--meta"])
             .arg(&input)
             .arg("--out")

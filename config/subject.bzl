@@ -1,6 +1,6 @@
 """Analysis subject exposing the canonical quality settings."""
 
-load("//core:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo")
 
 visibility("private")
 

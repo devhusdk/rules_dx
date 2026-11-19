@@ -1,0 +1,4 @@
+#!/bin/sh
+# Mirrors a bundle launcher: it finds the bundle from its own directory.
+here=$(cd "$(dirname "$0")/.." && pwd)
+cat "$here/tools/message.txt" > "$1"

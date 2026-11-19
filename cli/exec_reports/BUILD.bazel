@@ -7,7 +7,9 @@ package(default_visibility = VIS_CLI)
 rust_library(
     name = "dx_exec_reports",
     srcs = [
+        "src/build_failures.rs",
         "src/compiler_stderr.rs",
+        "src/failure_reports.rs",
         "src/lib.rs",
         "src/pinned_tool.rs",
         "src/rustc_stderr.rs",
@@ -35,7 +37,9 @@ rust_test(
     name = "dx_exec_reports_test",
     size = "small",
     srcs = [
+        "src/build_failures.rs",
         "src/compiler_stderr.rs",
+        "src/failure_reports.rs",
         "src/lib.rs",
         "src/pinned_tool.rs",
         "src/rustc_stderr.rs",

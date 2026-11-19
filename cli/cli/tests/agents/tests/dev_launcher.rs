@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
@@ -121,6 +125,12 @@ const RC_CASES: &[RcCase] = &[
     case(
         "empty XDG_CACHE_HOME",
         &[("XDG_CACHE_HOME", "")],
+        &[],
+        Expect::Default,
+    ),
+    case(
+        "relative XDG_CACHE_HOME",
+        &[("XDG_CACHE_HOME", "rel")],
         &[],
         Expect::Default,
     ),

@@ -9,7 +9,7 @@ def dx_haskell_coverage_attrs():
     """Returns the attributes Haskell coverage needs."""
     return NATIVE_LAUNCHER_ATTRS | {
         "_dx_hpc_coverage": attr.label(
-            default = Label("//cli/hpc_coverage"),
+            default = Label("@dx_prebuilt//:runtime"),
             executable = True,
             cfg = no_coverage_transition,
         ),
@@ -27,7 +27,7 @@ def dx_haskell_test_coverage(ctx, upstream):
     mix = [f for f in upstream[DefaultInfo].default_runfiles.files.to_list() if f.extension == "mix"]
     lcov = ctx.attr._dx_hpc_lcov[0][DefaultInfo]
     runner = ctx.attr._dx_hpc_coverage[0][DefaultInfo]
-    descriptor = "program={}\npath={}\npath={}\n".format(
+    descriptor = "program={}\nenv=DX_RUNTIME_TOOL\thpc_coverage\npath={}\npath={}\n".format(
         rlocation_path(ctx, runner.files_to_run.executable),
         rlocation_path(ctx, upstream_exe),
         rlocation_path(ctx, lcov.files_to_run.executable),

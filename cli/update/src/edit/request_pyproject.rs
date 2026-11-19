@@ -90,7 +90,7 @@ pub(crate) fn plan_pyproject_toml(
     let version = version.to_string();
     let mut doc: DocumentMut = content
         .parse()
-        .map_err(|_| unsupported("manifest is not valid TOML"))?;
+        .map_err(|error| unsupported(format!("manifest is not valid TOML: {error}")))?;
     // Each entry is the path of a requirement array.
     let mut paths: Vec<Vec<String>> = vec![
         vec!["project".into(), "dependencies".into()],

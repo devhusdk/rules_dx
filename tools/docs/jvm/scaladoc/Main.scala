@@ -15,7 +15,13 @@ import scala.tools.nsc.reporters.StoreReporter
 object Main {
   private val ToolName = "scaladoc"
   private val Flags =
-    List("--srcs-manifest", "--classpath-file", "--release", "--out")
+    List(
+      "--srcs-manifest",
+      "--classpath-file",
+      "--own-jars-file",
+      "--release",
+      "--out"
+    )
 
   def main(args: Array[String]): Unit = {
     val code =
@@ -70,7 +76,11 @@ object Main {
       System.err.println("scaladoc_extract: the srcs manifest lists no sources")
       return 1
     }
-    val classpath = lines(flags("--classpath-file"))
+    val ownJars = lines(flags("--own-jars-file")).toSet
+    // The classpath file lists every jar once in build order; sorting keeps the
+    // output stable.
+    val classpath =
+      lines(flags("--classpath-file")).filterNot(ownJars.contains).sorted
     val missingEntry = classpath.find(entry => !Files.exists(Paths.get(entry)))
     if (missingEntry.isDefined) {
       System.err.println(

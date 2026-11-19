@@ -1,7 +1,7 @@
 """Concrete configuration-subjects use case."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("//core:defs.bzl", "DxConfigInfo", "DxSubjectInfo")
+load("//core/private/testing:defs.bzl", "DxConfigInfo", "DxSubjectInfo")
 
 def _config_flip_transition_impl(_settings, _attr):
     """Flips the futures config_value setting for deps."""

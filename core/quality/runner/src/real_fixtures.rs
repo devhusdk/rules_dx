@@ -8,6 +8,7 @@ use std::ffi::OsStr;
 use super::*;
 use crate::{FileInput, StageSpec};
 use std::cell::RefCell;
+use std::fmt::Write as _;
 
 pub(super) type Spawn = SpawnFn;
 

@@ -8,9 +8,11 @@ load(
     _julia_standalone_binary = "julia_standalone_binary",
     _julia_test = "julia_test",
 )
+load("//tools/docs/julia:defs.bzl", _julia_doc_shard = "julia_doc_shard")
 
 julia_library = _julia_library
 julia_binary = _julia_binary
 julia_test = _julia_test
 julia_standalone_binary = _julia_standalone_binary
 julia_bench = _julia_bench
+julia_doc_shard = _julia_doc_shard

@@ -349,6 +349,47 @@ fn evaluate_licenses(
     evaluation
 }
 
+fn inventory_text_findings(
+    workspace: &Path,
+    policy: &Policy,
+    fail_on: Threshold,
+) -> Vec<DiagnosticEvent> {
+    if !meets_audit_threshold("error", fail_on) {
+        return Vec::new();
+    }
+    let mut state_of: BTreeMap<&str, Option<&'static str>> = BTreeMap::new();
+    let mut diagnostics = Vec::new();
+    for entry in &policy.inventory {
+        let Some(text) = entry.text.as_deref() else {
+            continue;
+        };
+        let state =
+            *state_of
+                .entry(text)
+                .or_insert_with(|| match std::fs::read(workspace.join(text)) {
+                    Err(_) => Some("missing"),
+                    Ok(bytes) if String::from_utf8_lossy(&bytes).trim().is_empty() => Some("empty"),
+                    Ok(_) => None,
+                });
+        let Some(state) = state else {
+            continue;
+        };
+        diagnostics.push(DiagnosticEvent {
+            rule: Some("license/inventory-text-missing".to_owned()),
+            path: Some("license.toml".to_owned()),
+            ..DiagnosticEvent::new(
+                Severity::Error,
+                "license",
+                format!(
+                    "{} ({}) inventory text {text} is {state}",
+                    entry.package, entry.set
+                ),
+            )
+        });
+    }
+    diagnostics
+}
+
 fn exception_problems(
     policy: &Policy,
     sets: &[AuditTarget<'_>],
@@ -413,8 +454,9 @@ pub(super) fn run_license(
     let mut collected = Collected::collect(workspace, sets, &policy);
     let Evaluation {
         candidates,
-        diagnostics,
+        mut diagnostics,
     } = evaluate_licenses(&policy, &collected, tier, fail_on, today);
+    diagnostics.extend(inventory_text_findings(workspace, &policy, fail_on));
     let finding_count = diagnostics.len();
     let problems = exception_problems(&policy, sets, &collected.licensed_all, today);
     if !problems.is_empty() {

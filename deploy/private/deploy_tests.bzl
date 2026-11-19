@@ -1,17 +1,17 @@
 """Unit and analysis tests for the deploy boundary."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":deployment.bzl", "VALID_DEPLOY_BUILD_MODES")
 
-def deploy_observations(label, app = "", artifacts = [], build_mode = "release"):
-    """Renders the expected analysis observations for one dx_deployment subject."""
+def deploy_observations(label, app = "", artifacts = [], build_mode = "release", file = "deploy_tool"):
+    """Renders the expected analysis observations for one deployment subject."""
     fields = {
         "app": app,
         "artifacts": ",".join(artifacts),
         "build_mode": build_mode,
     }
-    lines = ["subject " + label, "file " + label.split(":")[-1]]
+    lines = ["subject " + label, "file " + file]
     for key in sorted(fields.keys()):
         lines.append("field " + key + "=" + fields[key])
     lines.append("aspect_field aspect_seen=True")
@@ -21,8 +21,8 @@ def deploy_observations(label, app = "", artifacts = [], build_mode = "release")
     lines.append("aspect_field transitive_count=0")
     return "\n".join(lines)
 
-def deploy_analysis_test(name, subject, app = "", artifacts = [], build_mode = "release"):
-    """Checks the DxDeployInfo one dx_deployment subject in this package exposes."""
+def deploy_analysis_test(name, subject, app = "", artifacts = [], build_mode = "release", file = "deploy_tool"):
+    """Checks the DeployInfo one deployment subject in this package exposes."""
     starlark_test(
         name = name,
         mode = "analysis",
@@ -32,6 +32,7 @@ def deploy_analysis_test(name, subject, app = "", artifacts = [], build_mode = "
             app = app,
             artifacts = artifacts,
             build_mode = build_mode,
+            file = file,
         ),
     )
 
@@ -50,7 +51,7 @@ def deploy_unit_tests(name):
                 "deploy_observations renders a default subject",
                 deploy_observations("//deploy/private:deploy_default"),
                 """subject //deploy/private:deploy_default
-file deploy_default
+file deploy_tool
 field app=
 field artifacts=
 field build_mode=release
@@ -67,9 +68,10 @@ aspect_field transitive_count=0""",
                     app = "//pkg:app",
                     artifacts = ["//pkg:z", "//pkg:a"],
                     build_mode = "debug",
+                    file = "demo_program",
                 ),
                 """subject //pkg:demo
-file demo
+file demo_program
 field app=//pkg:app
 field artifacts=//pkg:z,//pkg:a
 field build_mode=debug
@@ -115,7 +117,7 @@ def _no_config_env_test_impl(ctx):
 _no_config_env_test = analysistest.make(_no_config_env_test_impl)
 
 def deploy_config_tests(name):
-    """Checks that dx_deployment exposes its config through DX_DEPLOY_CONFIG."""
+    """Checks that deployment exposes its config through DX_DEPLOY_CONFIG."""
     _config_env_test(
         name = name + "_env",
         size = "small",

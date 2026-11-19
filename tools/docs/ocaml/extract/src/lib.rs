@@ -28,6 +28,12 @@ pub struct Options {
     pub out: String,
 }
 
+/// Runs `ocaml_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("ocaml_extract", usage(), parse_args, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
@@ -69,7 +75,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     }
     pages.sort_by(|a, b| a.0.cmp(&b.0));
     let shard = convert(&pages, &options.package, &options.config)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 /// Reads every page below `root`, keyed by its directory relative to `root`.

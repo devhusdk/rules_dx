@@ -374,7 +374,7 @@ fn pub_api_compare(
         let tag = match previous_git_tag(workspace, version) {
             Ok(Some(tag)) => tag,
             Ok(None) => return Ok(Outcome::FirstRelease),
-            Err(error) => return Ok(Outcome::Skipped(error)),
+            Err(error) => return Ok(Outcome::Skipped(error.to_string())),
         };
         let dest = work.join("old");
         match export_git_dir(workspace, package_dir, &tag, &dest, manifest_name()) {
@@ -396,7 +396,7 @@ fn pub_api_compare(
         let body = match fetch_with(client, &url, 16 << 20) {
             Ok(Some(body)) => body,
             Ok(None) => return Ok(Outcome::FirstRelease),
-            Err(error) => return Ok(Outcome::Skipped(error)),
+            Err(error) => return Ok(Outcome::Skipped(error.to_string())),
         };
         match pub_previous_version(&body, version) {
             Some(previous) => {
@@ -542,13 +542,15 @@ pub fn pub_main_checked(
                     (api.baseline, api.package_dir),
                     &workspace_dir(),
                 ),
-                Err(error) => Ok(Outcome::Skipped(error)),
+                Err(error) => Ok(Outcome::Skipped(error.to_string())),
             },
             None => Ok(Outcome::Skipped(
                 "the Dart SDK or dart_apitool is not available".to_owned(),
             )),
         };
-        outcome.and_then(|outcome| conclude("pub_deploy", mode, version, outcome))
+        outcome.and_then(|outcome| {
+            conclude("pub_deploy", mode, version, outcome).map_err(|error| error.to_string())
+        })
     };
     let live = OwnerGate::requested(env_or_empty);
     let secrets = if live {

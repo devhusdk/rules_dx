@@ -1,6 +1,7 @@
 //! Allowlists of `<path> <kind> <count>` lines, and their check against what a guard found.
 
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use crate::snapshot::read_input;
 
@@ -101,14 +102,24 @@ pub fn check(found: &Counts, text: &str, kinds: &[&str], fix: &str) -> Vec<Strin
     problems
 }
 
-/// Fails when `found` and the allowlist named by `ALLOWLIST` disagree.
-#[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
+/// Fails when `found` and the allowlist named by `ALLOWLIST` disagree, after writing the allowlist that matches `found` to the test outputs.
 pub fn verify(found: &Counts, kinds: &[&str]) {
-    let key = std::env::var("ALLOWLIST").unwrap_or_else(|_| panic!("ALLOWLIST is set by the test"));
+    let key = dx_testing::env_text("ALLOWLIST");
     let problems = check(found, &read_input("ALLOWLIST"), kinds, REMOVE);
+    let outputs = std::env::var_os("TEST_UNDECLARED_OUTPUTS_DIR");
+    if let Some(dir) = outputs.filter(|_| !problems.is_empty()) {
+        let name = key.rsplit('/').next().unwrap_or(&key);
+        let listed: Counts = found
+            .iter()
+            .filter(|((_, kind), _)| kinds.contains(&kind.as_str()))
+            .map(|(key, count)| (key.clone(), *count))
+            .collect();
+        dx_testing::write_text(&Path::new(&dir).join(name), &render(&listed));
+    }
     assert!(
         problems.is_empty(),
-        "{key} and the tree disagree:\n{}",
+        "{key} and the tree disagree ({} problems):\n{}",
+        problems.len(),
         problems.join("\n")
     );
 }

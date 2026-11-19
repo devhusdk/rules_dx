@@ -11,7 +11,7 @@ use dx_output::{
 use dx_plan::args::Invocation;
 use dx_update::discover::{Candidate, Fetch, Findings, Registry};
 use dx_update::policy::{Level, Policy, automerge, filter};
-use dx_update::pr::{GroupPlan, Item, Scope, body, lock_numstat, pick_tags, plan};
+use dx_update::pr::{GroupPlan, Item, Scope, body, leave_out, lock_numstat, pick_tags, plan};
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -108,7 +108,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         Ok(items) => items,
         Err(exit) => return exit,
     };
-    let plans = plan(&items);
+    let plans = plan(&items, &package_set_names(&resolved));
     let locks = lock_paths(&resolved);
     let full_sets = full_set_names(&resolved, &builtins);
     let scope = scope_of(full_sets, &found);
@@ -172,6 +172,14 @@ fn lock_paths(resolved: &[dependency_sets::ResolvedTarget]) -> Vec<String> {
     resolved
         .iter()
         .flat_map(|target| target.set.locks.iter().cloned())
+        .collect()
+}
+
+fn package_set_names(resolved: &[dependency_sets::ResolvedTarget]) -> Vec<String> {
+    resolved
+        .iter()
+        .filter(|target| matches!(target.request, Selection::Packages(_)))
+        .map(|target| target.set.name.clone())
         .collect()
 }
 
@@ -241,7 +249,7 @@ fn load_resolved(
 fn cutoff_date(min_age: u32, audit_today: Option<&str>) -> Option<String> {
     (min_age > 0)
         .then(|| {
-            let today = super::audit::today_utc(audit_today);
+            let today = dx_exec_core::audit_policy::today_utc(audit_today);
             let date = chrono::NaiveDate::parse_from_str(&today, "%Y-%m-%d").ok()?;
             let back = date.checked_sub_days(chrono::Days::new(u64::from(min_age)))?;
             Some(back.format("%Y-%m-%d").to_string())
@@ -467,12 +475,14 @@ fn publish(
     }
     let sha = git(&["rev-parse", "HEAD"])?.trim().to_owned();
     let mut open = open_update_prs(tools, root, &base)?;
+    let heads: Vec<String> = open.iter().map(|(_, head)| head.clone()).collect();
+    let plans = leave_out(plans, &heads);
     let (stale, kept): (Vec<_>, Vec<_>) = open
         .drain(..)
         .partition(|(_, head)| scope.covers(head) && !plans.iter().any(|p| p.branch == *head));
     open = kept;
     let mut outcomes = Vec::new();
-    for group in plans {
+    for group in &plans {
         let existing = open
             .iter()
             .find(|(_, head)| *head == group.branch)
@@ -840,20 +850,23 @@ mod tests {
     }
 
     fn plans() -> Vec<GroupPlan> {
-        plan(&[Item {
-            candidate: Candidate {
-                set: "cargo".into(),
-                package: "serde".into(),
-                current: "1.0.0".into(),
-                latest: "2.0.0".into(),
-                published: None,
-                prerelease: false,
-                repo: None,
-                tags: None,
-            },
-            registry: Registry::Crates,
-            untagged: false,
-        }])
+        plan(
+            &[Item {
+                candidate: Candidate {
+                    set: "cargo".into(),
+                    package: "serde".into(),
+                    current: "1.0.0".into(),
+                    latest: "2.0.0".into(),
+                    published: None,
+                    prerelease: false,
+                    repo: None,
+                    tags: None,
+                },
+                registry: Registry::Crates,
+                untagged: false,
+            }],
+            &[],
+        )
     }
 
     fn scope() -> Scope {
@@ -1606,14 +1619,109 @@ mod tests {
             registry: Registry::Crates,
             untagged: false,
         };
-        plan(&[
-            item("cargo", "serde"),
-            item("github-actions", "actions/checkout"),
-        ])
+        plan(
+            &[
+                item("cargo", "serde"),
+                item("github-actions", "actions/checkout"),
+            ],
+            &[],
+        )
     }
 
     fn two_scope() -> Scope {
         Scope::new(vec!["cargo".into(), "github-actions".into()])
+    }
+
+    fn bazel_items() -> Vec<Item> {
+        let item = |package: &str, current: &str, latest: &str| Item {
+            candidate: Candidate {
+                set: "bazel".into(),
+                package: package.into(),
+                current: current.into(),
+                latest: latest.into(),
+                published: None,
+                prerelease: false,
+                repo: None,
+                tags: None,
+            },
+            registry: Registry::Bcr,
+            untagged: false,
+        };
+        vec![
+            item("rules_php", "0.1.0", "0.2.0"),
+            item("rules_go", "1.0.0", "1.1.0"),
+        ]
+    }
+
+    #[test]
+    fn a_rule_set_minor_and_a_bcr_bump_open_two_pull_requests() {
+        let rule_set = plan(&bazel_items()[..1], &["bazel".to_owned()]);
+        let fx = fixture("[]");
+        let mut step = editing(fx.work.clone(), None);
+        let none = Rules {
+            automerge: None,
+            max_prs: 5,
+        };
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &rule_set,
+            &Scope::new(Vec::new()),
+            &none,
+            &[],
+            &mut step,
+        )
+        .expect("publish");
+        assert_eq!(got[0].branch, "dx-update/bazel--rules_php");
+        assert_eq!(got[0].result, Ok("opened https://example.com/pr/9".into()));
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(argv.contains("--head dx-update/bazel--rules_php --title Update bazel:rules_php"));
+        assert!(!argv.contains("pr merge"), "{argv}");
+
+        let fx = fixture(
+            "[{\"number\":4,\"headRefName\":\"dx-update/bazel--rules_php\"},{\"number\":8,\"headRefName\":\"dx-update/bazel\"}]",
+        );
+        let mut step = editing(fx.work.clone(), None);
+        let full = plan(&bazel_items(), &[]);
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &full,
+            &Scope::new(vec!["bazel".into()]),
+            &rules(),
+            &[],
+            &mut step,
+        )
+        .expect("publish");
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].result, Ok("updated #8".into()));
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(argv.contains("bazel:rules_go 1.0.0 -> 1.1.0"), "{argv}");
+        assert!(!argv.contains("rules_php"), "{argv}");
+        assert!(!argv.contains("pr close"), "{argv}");
+    }
+
+    #[test]
+    fn a_full_set_with_only_a_package_pull_request_left_is_closed() {
+        let fx = fixture(
+            "[{\"number\":4,\"headRefName\":\"dx-update/bazel--rules_php\"},{\"number\":8,\"headRefName\":\"dx-update/bazel\"}]",
+        );
+        let mut step = editing(fx.work.clone(), None);
+        let full = plan(&bazel_items()[..1], &[]);
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &full,
+            &Scope::new(vec!["bazel".into()]),
+            &rules(),
+            &[],
+            &mut step,
+        )
+        .expect("publish");
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].result, Ok("closed #8".into()));
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(!argv.contains("pr close 4"), "{argv}");
     }
 
     #[test]

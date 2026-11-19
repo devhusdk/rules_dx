@@ -1,0 +1,23 @@
+# gazelle:ignore
+# Gazelle would replace the prost targets with proto rules for every language.
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+proto_library(
+    name = "stardoc_output_proto",
+    srcs = ["stardoc_output.proto"],
+)
+
+rust_prost_library(
+    name = "stardoc_output_proto_rs",
+    proto = ":stardoc_output_proto",
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -109,9 +109,10 @@ var conformanceRows = map[string]conformanceRow{
 	"javascript": {
 		files: map[string]string{"demo.js": "export const x = 1;\n"},
 		kind:  "javascript_library", target: "demo", defs: "javascript:defs.bzl",
-		symbols:    []string{"javascript_library", "javascript_test", "javascript_binary", "js_library"},
+		symbols:    []string{"javascript_library", "javascript_test", "javascript_binary"},
 		extraLoads: map[string][]string{
 			"@npm//:defs.bzl":                {"npm_link_all_packages"},
+			"@aspect_rules_js//js:defs.bzl":  {"js_library"},
 			"@aspect_rules_js//npm:defs.bzl": {"npm_package"},
 		},
 		inert: []string{"notes.txt", "widget.d.ts"},
@@ -216,7 +217,7 @@ var conformanceRows = map[string]conformanceRow{
 		symbols: []string{"python_library", "python_test", "python_binary"},
 		inert:   []string{"notes.txt", "orphan.pyi"},
 		extraLoads: map[string][]string{
-			"@rules_dx//core/quality:native_config.bzl": {"ruff_config"},
+			"@rules_dx//core:defs.bzl": {"ruff_config"},
 		},
 	},
 	"rego": {
@@ -266,8 +267,9 @@ var conformanceRows = map[string]conformanceRow{
 	"typescript": {
 		files: map[string]string{"demo.ts": "export const x = 1;\n", "tsconfig.json": "{}\n"},
 		kind:  "typescript_library", target: "demo", defs: "typescript:defs.bzl",
-		symbols:    []string{"typescript_library", "typescript_test", "typescript_binary", "ts_config"},
+		symbols:    []string{"typescript_library", "typescript_test", "typescript_binary", "typescript_config"},
 		extraLoads: map[string][]string{
+			"@aspect_rules_ts//ts:defs.bzl":  {"ts_config"},
 			"@aspect_rules_js//npm:defs.bzl": {"npm_package"},
 		},
 		inert: []string{"notes.txt", "widget.d.ts", "orphan.d.mts"},

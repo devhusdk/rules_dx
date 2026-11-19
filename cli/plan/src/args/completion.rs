@@ -118,8 +118,9 @@ pub fn render_completion(shell: &str) -> Result<String, ArgsError> {
             COMPLETION_BIN,
             &mut script,
         )
-        .map_err(|_| unknown())?;
-    String::from_utf8(script).map_err(|_| unknown())
+        .ok()
+        .ok_or_else(unknown)?;
+    String::from_utf8(script).ok().ok_or_else(unknown)
 }
 
 /// Whether a rendered script calls back into dx for this shell.

@@ -109,6 +109,20 @@
       }
     },
     {
+      "name": "asciidoc",
+      "quality": {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "asciidoc"
+        ],
+        "file_extensions": [
+          ".adoc",
+          ".asc",
+          ".asciidoc"
+        ]
+      }
+    },
+    {
       "docs": {
         "aspects": [],
         "bzl": "tools/docs/components:aspect.bzl",

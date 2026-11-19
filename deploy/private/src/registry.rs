@@ -1,12 +1,157 @@
 //! Minimal OCI Distribution client that pushes one staged OCI image layout.
 
 use crate::http::{basic_auth, query_escape};
-use std::fmt::Write as _;
+use dx_atomic_fs::path_io::{self, PathIoError};
+use std::fmt::{self, Write as _};
+use std::io;
 use std::path::{Path, PathBuf};
 
 /// Fixed message for a registry or token realm that refuses the credentials.
 pub(crate) const OCI_BAD_CREDENTIALS: &str =
     "registry refused the credentials; check OCI_API_USER and OCI_API_TOKEN";
+
+/// A failed OCI registry push or a layout it refuses.
+#[derive(Debug)]
+pub(crate) enum RegistryError {
+    BadHost {
+        registry: String,
+    },
+    BadRepository {
+        name: String,
+    },
+    BadTag {
+        tag: String,
+    },
+    BadDigest {
+        digest: String,
+    },
+    UnsupportedChallenge,
+    NoRealm,
+    MalformedChallenge,
+    NoChallenge,
+    RefusedRealm,
+    Transport {
+        what: &'static str,
+        source: dx_http::Error,
+    },
+    BadCredentials,
+    Status {
+        what: String,
+        status: u16,
+    },
+    MalformedToken {
+        source: serde_json::Error,
+    },
+    NoToken,
+    NoLocation,
+    RelativeLocation,
+    NonHttpLocation,
+    WeakerScheme,
+    BlobOpen {
+        digest: String,
+        source: io::Error,
+    },
+    BlobStat {
+        digest: String,
+        source: io::Error,
+    },
+    DigestMismatch {
+        pushed: String,
+        staged: String,
+    },
+    ReadLayout {
+        source: PathIoError,
+    },
+    MalformedLayout {
+        what: &'static str,
+        source: serde_json::Error,
+    },
+    ManifestMismatch {
+        digest: String,
+    },
+    MediaType {
+        media_type: String,
+    },
+    ManifestCount {
+        count: usize,
+    },
+}
+
+impl fmt::Display for RegistryError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BadHost { registry } => {
+                write!(f, "oci registry: want a registry host, got '{registry}'")
+            }
+            Self::BadRepository { name } => {
+                write!(f, "oci registry: want a lowercase repository path, got '{name}'")
+            }
+            Self::BadTag { tag } => write!(f, "oci registry: want a valid tag, got '{tag}'"),
+            Self::BadDigest { digest } => {
+                write!(f, "oci layout: want a sha256 digest, got '{digest}'")
+            }
+            Self::UnsupportedChallenge => f.write_str("registry auth: unsupported challenge scheme"),
+            Self::NoRealm => f.write_str("registry auth: bearer challenge has no realm"),
+            Self::MalformedChallenge => f.write_str("registry auth: malformed challenge"),
+            Self::NoChallenge => {
+                f.write_str("registry auth: 401 without a WWW-Authenticate challenge")
+            }
+            Self::RefusedRealm => f.write_str(
+                "registry auth: refusing a token realm that is neither https nor the registry origin",
+            ),
+            Self::Transport { what, source } => write!(f, "registry: {what} failed: {source}"),
+            Self::BadCredentials => f.write_str(OCI_BAD_CREDENTIALS),
+            Self::Status { what, status } => write!(f, "registry: {what} returned HTTP {status}"),
+            Self::MalformedToken { .. } => f.write_str("registry auth: malformed token response"),
+            Self::NoToken => f.write_str("registry auth: token response has no token"),
+            Self::NoLocation => f.write_str("registry: blob upload start returned no Location"),
+            Self::RelativeLocation => {
+                f.write_str("registry: upload location is not an absolute path or URL")
+            }
+            Self::NonHttpLocation => f.write_str("registry: upload location is not an http(s) URL"),
+            Self::WeakerScheme => {
+                f.write_str("registry: refusing an upload location on a weaker scheme")
+            }
+            Self::BlobOpen { digest, source } => {
+                write!(f, "oci layout: cannot open blob {digest}: {source}")
+            }
+            Self::BlobStat { digest, source } => {
+                write!(f, "oci layout: cannot stat blob {digest}: {source}")
+            }
+            Self::DigestMismatch { pushed, staged } => write!(
+                f,
+                "registry: pushed manifest digest {pushed} differs from the staged {staged}"
+            ),
+            Self::ReadLayout { source } => write!(f, "oci layout: {source}"),
+            Self::MalformedLayout { what, source } => {
+                write!(f, "oci layout: malformed {what}: {source}")
+            }
+            Self::ManifestMismatch { digest } => {
+                write!(f, "oci layout: manifest blob does not match {digest}")
+            }
+            Self::MediaType { media_type } => write!(
+                f,
+                "oci layout: want an image manifest, got media type '{media_type}'"
+            ),
+            Self::ManifestCount { count } => write!(
+                f,
+                "oci layout: want exactly one manifest in index.json, got {count}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for RegistryError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Transport { source, .. } => Some(source),
+            Self::MalformedToken { source } | Self::MalformedLayout { source, .. } => Some(source),
+            Self::BlobOpen { source, .. } | Self::BlobStat { source, .. } => Some(source),
+            Self::ReadLayout { source } => Some(source),
+            _ => None,
+        }
+    }
+}
 
 const MANIFEST_TYPES: [&str; 2] = [
     "application/vnd.oci.image.manifest.v1+json",
@@ -48,7 +193,7 @@ pub(crate) struct RegistryRef {
 
 impl RegistryRef {
     /// Splits `host[:port][/path]` plus a repository into the API origin and repository name.
-    pub(crate) fn parse(registry: &str, repository: &str) -> Result<Self, String> {
+    pub(crate) fn parse(registry: &str, repository: &str) -> Result<Self, RegistryError> {
         let (host, prefix) = match registry.split_once('/') {
             Some((host, prefix)) => (host, Some(prefix)),
             None => (registry, None),
@@ -58,9 +203,9 @@ impl RegistryRef {
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b':' | b'_'));
         if !host_ok {
-            return Err(format!(
-                "oci registry: want a registry host, got '{registry}'"
-            ));
+            return Err(RegistryError::BadHost {
+                registry: registry.to_owned(),
+            });
         }
         let host = host.to_ascii_lowercase();
         let host = host.strip_suffix(":443").unwrap_or(&host).to_owned();
@@ -84,9 +229,7 @@ impl RegistryRef {
                 })
         });
         if !name_ok {
-            return Err(format!(
-                "oci registry: want a lowercase repository path, got '{name}'"
-            ));
+            return Err(RegistryError::BadRepository { name });
         }
         Ok(Self {
             endpoint: Endpoint::https(&api_host),
@@ -113,14 +256,14 @@ pub(crate) enum Challenge {
 }
 
 /// Parses one `WWW-Authenticate` value with Bearer or Basic scheme.
-pub(crate) fn parse_challenge(header: &str) -> Result<Challenge, String> {
+pub(crate) fn parse_challenge(header: &str) -> Result<Challenge, RegistryError> {
     let header = header.trim();
     let (scheme, rest) = header.split_once(' ').unwrap_or((header, ""));
     if scheme.eq_ignore_ascii_case("basic") {
         return Ok(Challenge::Basic);
     }
     if !scheme.eq_ignore_ascii_case("bearer") {
-        return Err("registry auth: unsupported challenge scheme".to_owned());
+        return Err(RegistryError::UnsupportedChallenge);
     }
     let params = parse_auth_params(rest)?;
     let get = |key: &str| {
@@ -131,7 +274,7 @@ pub(crate) fn parse_challenge(header: &str) -> Result<Challenge, String> {
     };
     let realm = get("realm")
         .filter(|realm| !realm.is_empty())
-        .ok_or_else(|| "registry auth: bearer challenge has no realm".to_owned())?;
+        .ok_or(RegistryError::NoRealm)?;
     Ok(Challenge::Bearer {
         realm,
         service: get("service"),
@@ -139,8 +282,8 @@ pub(crate) fn parse_challenge(header: &str) -> Result<Challenge, String> {
 }
 
 /// Parses `key=value` and `key="quoted, value"` auth params separated by commas.
-fn parse_auth_params(text: &str) -> Result<Vec<(String, String)>, String> {
-    let malformed = || "registry auth: malformed challenge".to_owned();
+fn parse_auth_params(text: &str) -> Result<Vec<(String, String)>, RegistryError> {
+    let malformed = || RegistryError::MalformedChallenge;
     let mut params = Vec::new();
     let mut chars = text.chars().peekable();
     loop {
@@ -215,25 +358,25 @@ fn origin_of(url: &str) -> Option<String> {
 }
 
 /// Checks that a token realm is https or the registry's own origin.
-pub(crate) fn check_realm(endpoint: &Endpoint, realm: &str) -> Result<(), String> {
+pub(crate) fn check_realm(endpoint: &Endpoint, realm: &str) -> Result<(), RegistryError> {
     match origin_of(realm) {
         Some(origin) if origin.starts_with("https://") || origin == endpoint.origin => Ok(()),
-        _ => Err(
-            "registry auth: refusing a token realm that is neither https nor the registry origin"
-                .to_owned(),
-        ),
+        _ => Err(RegistryError::RefusedRealm),
     }
 }
 
-fn transport(what: &str, error: &dx_http::Error) -> String {
-    format!("registry: {what} failed: {error}")
+fn transport(what: &'static str) -> impl FnOnce(dx_http::Error) -> RegistryError {
+    move |source| RegistryError::Transport { what, source }
 }
 
-fn status_error(what: &str, status: u16) -> String {
+fn status_error(what: impl Into<String>, status: u16) -> RegistryError {
     if status == 401 || status == 403 {
-        OCI_BAD_CREDENTIALS.to_owned()
+        RegistryError::BadCredentials
     } else {
-        format!("registry: {what} returned HTTP {status}")
+        RegistryError::Status {
+            what: what.into(),
+            status,
+        }
     }
 }
 
@@ -246,9 +389,11 @@ fn valid_digest(digest: &str) -> bool {
     })
 }
 
-fn blob_path(layout: &Path, digest: &str) -> Result<PathBuf, String> {
+fn blob_path(layout: &Path, digest: &str) -> Result<PathBuf, RegistryError> {
     if !valid_digest(digest) {
-        return Err(format!("oci layout: want a sha256 digest, got '{digest}'"));
+        return Err(RegistryError::BadDigest {
+            digest: digest.to_owned(),
+        });
     }
     Ok(layout
         .join("blobs")
@@ -268,7 +413,7 @@ impl<'a> Session<'a> {
         client: &'a dx_http::Client,
         target: &'a RegistryRef,
         creds: Credentials<'_>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, RegistryError> {
         let origin = &target.endpoint.origin;
         let ping = client
             .send(
@@ -278,7 +423,7 @@ impl<'a> Session<'a> {
                 dx_http::Body::Empty,
                 0,
             )
-            .map_err(|error| transport("ping", &error))?;
+            .map_err(transport("ping"))?;
         let status = ping.status;
         if status == 200 {
             return Ok(Self {
@@ -288,7 +433,10 @@ impl<'a> Session<'a> {
             });
         }
         if status != 401 {
-            return Err(format!("registry: ping returned HTTP {status}"));
+            return Err(RegistryError::Status {
+                what: "ping".to_owned(),
+                status,
+            });
         }
         let challenges: Vec<String> = ping
             .headers
@@ -297,7 +445,7 @@ impl<'a> Session<'a> {
             .filter_map(|value| value.to_str().ok().map(str::to_owned))
             .collect();
         let mut parsed = Vec::new();
-        let mut last_error = "registry auth: 401 without a WWW-Authenticate challenge".to_owned();
+        let mut last_error = RegistryError::NoChallenge;
         for value in &challenges {
             match parse_challenge(value) {
                 Ok(challenge) => parsed.push(challenge),
@@ -329,12 +477,12 @@ impl<'a> Session<'a> {
                         dx_http::Body::Empty,
                         1 << 20,
                     )
-                    .map_err(|error| transport("token request", &error))?;
+                    .map_err(transport("token request"))?;
                 if reply.status != 200 {
                     return Err(status_error("token request", reply.status));
                 }
                 let json: serde_json::Value = serde_json::from_slice(&reply.body)
-                    .map_err(|_| "registry auth: malformed token response".to_owned())?;
+                    .map_err(|source| RegistryError::MalformedToken { source })?;
                 let token = ["token", "access_token"]
                     .iter()
                     .find_map(|key| {
@@ -342,7 +490,7 @@ impl<'a> Session<'a> {
                             .and_then(serde_json::Value::as_str)
                             .filter(|token| !token.is_empty())
                     })
-                    .ok_or_else(|| "registry auth: token response has no token".to_owned())?;
+                    .ok_or(RegistryError::NoToken)?;
                 format!("Bearer {token}")
             }
         };
@@ -369,7 +517,7 @@ impl<'a> Session<'a> {
     }
 
     /// Resolves an upload `Location` and appends the digest query.
-    fn upload_url(&self, location: &str, digest: &str) -> Result<String, String> {
+    fn upload_url(&self, location: &str, digest: &str) -> Result<String, RegistryError> {
         let origin = &self.target.endpoint.origin;
         let mut url = if location.starts_with("https://") || location.starts_with("http://") {
             location.to_owned()
@@ -378,7 +526,7 @@ impl<'a> Session<'a> {
         } else if location.starts_with('/') {
             format!("{origin}{location}")
         } else {
-            return Err("registry: upload location is not an absolute path or URL".to_owned());
+            return Err(RegistryError::RelativeLocation);
         };
         if let Some(hash) = url.find('#') {
             url.truncate(hash);
@@ -388,7 +536,7 @@ impl<'a> Session<'a> {
         Ok(url)
     }
 
-    fn push_blob(&self, layout: &Path, digest: &str) -> Result<(), String> {
+    fn push_blob(&self, layout: &Path, digest: &str) -> Result<(), RegistryError> {
         let path = blob_path(layout, digest)?;
         let head = self
             .client
@@ -399,7 +547,7 @@ impl<'a> Session<'a> {
                 dx_http::Body::Empty,
                 0,
             )
-            .map_err(|error| transport("blob check", &error))?;
+            .map_err(transport("blob check"))?;
         if head.status == 200 {
             return Ok(());
         }
@@ -412,25 +560,27 @@ impl<'a> Session<'a> {
                 dx_http::Body::Empty,
                 0,
             )
-            .map_err(|error| transport("blob upload start", &error))?;
+            .map_err(transport("blob upload start"))?;
         if start.status != 202 {
             return Err(status_error("blob upload start", start.status));
         }
-        let location = start
-            .header("location")
-            .ok_or_else(|| "registry: blob upload start returned no Location".to_owned())?;
+        let location = start.header("location").ok_or(RegistryError::NoLocation)?;
         let url = self.upload_url(location, digest)?;
-        let origin = origin_of(&url)
-            .ok_or_else(|| "registry: upload location is not an http(s) URL".to_owned())?;
+        let origin = origin_of(&url).ok_or(RegistryError::NonHttpLocation)?;
         let same_origin = origin == self.target.endpoint.origin;
         if !same_origin && !origin.starts_with(&format!("{}://", self.target.endpoint.scheme())) {
-            return Err("registry: refusing an upload location on a weaker scheme".to_owned());
+            return Err(RegistryError::WeakerScheme);
         }
-        let file = std::fs::File::open(&path)
-            .map_err(|error| format!("oci layout: cannot open blob {digest}: {error}"))?;
+        let file = std::fs::File::open(&path).map_err(|source| RegistryError::BlobOpen {
+            digest: digest.to_owned(),
+            source,
+        })?;
         let length = file
             .metadata()
-            .map_err(|error| format!("oci layout: cannot stat blob {digest}: {error}"))?
+            .map_err(|source| RegistryError::BlobStat {
+                digest: digest.to_owned(),
+                source,
+            })?
             .len();
         let length = length.to_string();
         let mut headers = vec![
@@ -449,10 +599,10 @@ impl<'a> Session<'a> {
                 dx_http::Body::File(file),
                 0,
             )
-            .map_err(|error| transport("blob upload", &error))?;
+            .map_err(transport("blob upload"))?;
         let status = done.status;
         if status != 201 {
-            return Err(status_error(&format!("blob upload of {digest}"), status));
+            return Err(status_error(format!("blob upload of {digest}"), status));
         }
         Ok(())
     }
@@ -463,7 +613,7 @@ impl<'a> Session<'a> {
         digest: &str,
         media_type: &str,
         bytes: &[u8],
-    ) -> Result<(), String> {
+    ) -> Result<(), RegistryError> {
         let mut headers = self.auth();
         headers.push(("Content-Type", media_type));
         let done = self
@@ -475,17 +625,17 @@ impl<'a> Session<'a> {
                 dx_http::Body::Bytes(bytes),
                 0,
             )
-            .map_err(|error| transport("manifest upload", &error))?;
+            .map_err(transport("manifest upload"))?;
         if done.status != 201 {
             return Err(status_error("manifest upload", done.status));
         }
         if let Some(pushed) = done.header("docker-content-digest")
             && pushed.trim() != digest
         {
-            return Err(format!(
-                "registry: pushed manifest digest {} differs from the staged {digest}",
-                pushed.trim()
-            ));
+            return Err(RegistryError::DigestMismatch {
+                pushed: pushed.trim().to_owned(),
+                staged: digest.to_owned(),
+            });
         }
         Ok(())
     }
@@ -508,22 +658,24 @@ struct StagedManifest {
     blobs: Vec<String>,
 }
 
-fn read_json(path: &Path, what: &str) -> Result<(Vec<u8>, serde_json::Value), String> {
-    let bytes =
-        std::fs::read(path).map_err(|error| format!("oci layout: cannot read {what}: {error}"))?;
+fn read_json(
+    path: &Path,
+    what: &'static str,
+) -> Result<(Vec<u8>, serde_json::Value), RegistryError> {
+    let bytes = path_io::read(path).map_err(|source| RegistryError::ReadLayout { source })?;
     let json = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("oci layout: malformed {what}: {error}"))?;
+        .map_err(|source| RegistryError::MalformedLayout { what, source })?;
     Ok((bytes, json))
 }
 
 fn staged_manifest(
     layout: &Path,
     descriptor: &serde_json::Value,
-) -> Result<StagedManifest, String> {
+) -> Result<StagedManifest, RegistryError> {
     let digest = descriptor["digest"].as_str().unwrap_or("").to_owned();
     let (bytes, manifest) = read_json(&blob_path(layout, &digest)?, "manifest")?;
     if format!("sha256:{}", dx_digest::sha256_hex(&bytes)) != digest {
-        return Err(format!("oci layout: manifest blob does not match {digest}"));
+        return Err(RegistryError::ManifestMismatch { digest });
     }
     let media_type = manifest
         .get("mediaType")
@@ -532,9 +684,7 @@ fn staged_manifest(
         .unwrap_or("")
         .to_owned();
     if !MANIFEST_TYPES.contains(&media_type.as_str()) {
-        return Err(format!(
-            "oci layout: want an image manifest, got media type '{media_type}'"
-        ));
+        return Err(RegistryError::MediaType { media_type });
     }
     let mut blobs = vec![
         manifest
@@ -569,9 +719,11 @@ pub(crate) fn push_layout(
     tag: &str,
     layout: &Path,
     creds: Credentials<'_>,
-) -> Result<String, String> {
+) -> Result<String, RegistryError> {
     if !valid_tag(tag) {
-        return Err(format!("oci registry: want a valid tag, got '{tag}'"));
+        return Err(RegistryError::BadTag {
+            tag: tag.to_owned(),
+        });
     }
     let (_, index) = read_json(&layout.join("index.json"), "index.json")?;
     let descriptors = index
@@ -584,10 +736,9 @@ pub(crate) fn push_layout(
         .map(|descriptor| staged_manifest(layout, descriptor))
         .collect::<Result<Vec<_>, _>>()?;
     let [manifest] = manifests.as_slice() else {
-        return Err(format!(
-            "oci layout: want exactly one manifest in index.json, got {}",
-            manifests.len()
-        ));
+        return Err(RegistryError::ManifestCount {
+            count: manifests.len(),
+        });
     };
     let session = Session::open(client, target, creds)?;
     for blob in &manifest.blobs {
@@ -652,7 +803,7 @@ mod tests {
         (layout, digest, digests)
     }
 
-    fn push(fake: &FakeRegistry, layout: &Path) -> Result<String, String> {
+    fn push(fake: &FakeRegistry, layout: &Path) -> Result<String, RegistryError> {
         let target = RegistryRef {
             endpoint: Endpoint::for_test(&fake.origin),
             name: "demo/app".to_owned(),
@@ -861,6 +1012,8 @@ mod tests {
                 ..FakeConfig::default()
             });
             let error = push(&fake, &layout).expect_err("bad credentials");
+            assert!(matches!(error, RegistryError::BadCredentials), "{error}");
+            let error = error.to_string();
             assert_eq!(error, OCI_BAD_CREDENTIALS);
             assert!(!error.contains(SECRET));
             assert!(
@@ -980,6 +1133,11 @@ mod tests {
             ..FakeConfig::default()
         });
         let error = push(&fake, &layout).expect_err("mismatch");
+        assert!(
+            matches!(&error, RegistryError::DigestMismatch { staged, .. } if *staged == digest),
+            "{error}"
+        );
+        let error = error.to_string();
         assert!(error.contains("differs from the staged"), "{error}");
         assert!(error.contains(&digest), "{error}");
         let fake = FakeRegistry::start(FakeConfig {
@@ -999,7 +1157,14 @@ mod tests {
                 ..FakeConfig::default()
             });
             let error = push(&fake, &layout).expect_err("blob failure");
-            assert!(error.contains(&format!("HTTP {status}")), "{error}");
+            assert!(
+                matches!(&error, RegistryError::Status { status: got, .. } if *got == status),
+                "{error}"
+            );
+            assert!(
+                error.to_string().contains(&format!("HTTP {status}")),
+                "{error}"
+            );
             assert!(
                 fake.requests()
                     .iter()
@@ -1017,7 +1182,10 @@ mod tests {
             endpoint: Endpoint::for_test(&fake.origin),
             name: "demo/app".to_owned(),
         };
-        assert!(push_layout(&client(), &target, "bad tag", &layout, creds()).is_err());
+        assert!(matches!(
+            push_layout(&client(), &target, "bad tag", &layout, creds()),
+            Err(RegistryError::BadTag { .. })
+        ));
         let index = layout.join("index.json");
         let one = std::fs::read_to_string(&index).expect("index");
         let value: serde_json::Value = serde_json::from_str(&one).expect("json");
@@ -1026,12 +1194,34 @@ mod tests {
             serde_json::json!({"schemaVersion": 2, "manifests": [descriptor.clone(), descriptor]});
         std::fs::write(&index, two.to_string()).expect("two");
         let error = push_layout(&client(), &target, "1.2.3", &layout, creds()).expect_err("two");
-        assert!(error.contains("exactly one manifest"), "{error}");
+        assert!(
+            matches!(error, RegistryError::ManifestCount { count: 2 }),
+            "{error}"
+        );
+        assert!(
+            error.to_string().contains("exactly one manifest"),
+            "{error}"
+        );
         let hex = digest.trim_start_matches("sha256:");
         std::fs::write(&index, one).expect("restore");
         std::fs::write(layout.join("blobs/sha256").join(hex), b"{}").expect("tamper");
         let error = push_layout(&client(), &target, "1.2.3", &layout, creds()).expect_err("tamper");
-        assert!(error.contains("does not match"), "{error}");
+        assert!(
+            matches!(error, RegistryError::ManifestMismatch { .. }),
+            "{error}"
+        );
+        assert!(error.to_string().contains("does not match"), "{error}");
+        std::fs::remove_file(&index).expect("remove index");
+        let error =
+            push_layout(&client(), &target, "1.2.3", &layout, creds()).expect_err("missing");
+        assert!(
+            matches!(&error, RegistryError::ReadLayout { source } if source.path() == index),
+            "{error}"
+        );
+        assert!(
+            error.to_string().starts_with("oci layout: cannot read "),
+            "{error}"
+        );
         assert!(fake.requests().is_empty());
     }
 }

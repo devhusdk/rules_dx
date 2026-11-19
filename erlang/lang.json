@@ -41,7 +41,8 @@
     "erlang_nif",
     "erlang_release",
     "erlang_test_app",
-    "erlang_xrl_yrl"
+    "erlang_xrl_yrl",
+    "erlang_doc_shard"
   ],
   "quality": {
     "bzl": "erlang/private/quality:beam.bzl",

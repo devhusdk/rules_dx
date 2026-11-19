@@ -1,5 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library")
+load("//rust:defs.bzl", "rust_library")
 
 package(default_visibility = ["//android:__subpackages__"])
 
@@ -16,20 +16,16 @@ rust_library(
     ],
     crate_name = "dx_android_ops",
     crate_root = "src/lib.rs",
+    visibility = [
+        "//android:__subpackages__",
+        "//cli/cli:__pkg__",
+        "//cli/runtime:__pkg__",
+    ],
     deps = [
         "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "@crates//:tempfile",
     ],
-)
-
-# keep
-rust_binary(
-    name = "android_ops",
-    srcs = ["src/main.rs"],
-    crate_root = "src/main.rs",
-    visibility = ["//:__subpackages__"],
-    deps = [":ops"],
 )
 
 real_source_target(
@@ -38,10 +34,15 @@ real_source_target(
     tags = ["corpus"],
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)
+
 exports_files(
     [
         "src/lib.rs",
-        "src/main.rs",
         "src/sign.rs",
     ],
     visibility = ["//:__subpackages__"],

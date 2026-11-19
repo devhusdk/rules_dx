@@ -9,10 +9,10 @@ def _lua_docs_shard(target, ctx):
         return None
     if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
         return None
-    own = [f for f in target[DefaultInfo].files.to_list() if f.extension == "lua"]
+    own = [f for f in getattr(ctx.rule.files, "srcs", []) if f.extension == "lua"]
     if not own:
         return None
-    return lua_shard_action(ctx, own, ctx.label.name, "_dx_docs/" + ctx.label.name, ctx.executable._lua_runner, ctx.attr._lua_ldoc[DefaultInfo].files.to_list(), ctx.attr._lua_penlight[DefaultInfo].files.to_list(), ctx.file._lua_filter, ctx.executable._lua_extract).shard
+    return lua_shard_action(ctx, own, ctx.label.name, "_dx_docs/" + ctx.label.name, ctx.executable._lua_runner, ctx.file._lua_ldoc_main, ctx.attr._lua_ldoc[DefaultInfo].files, ctx.file._lua_pl_init, ctx.attr._lua_penlight[DefaultInfo].files, ctx.file._lua_filter, ctx.executable._lua_extract).shard
 
 def _real_lua_docs_aspect_impl(target, ctx):
     shard = _lua_docs_shard(target, ctx)
@@ -26,7 +26,7 @@ real_lua_docs_aspect = aspect(
     attrs = {
         "_lua_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/lua/extract:lua_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_lua_filter": attr.label(
@@ -37,9 +37,19 @@ real_lua_docs_aspect = aspect(
             cfg = "exec",
             default = Label("@dx_ldoc//:sources"),
         ),
+        "_lua_ldoc_main": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("@dx_ldoc//:ldoc.lua"),
+        ),
         "_lua_penlight": attr.label(
             cfg = "exec",
             default = Label("@dx_penlight//:sources"),
+        ),
+        "_lua_pl_init": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("@dx_penlight//:lua/pl/init.lua"),
         ),
         "_lua_runner": attr.label(
             cfg = "exec",

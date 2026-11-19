@@ -797,7 +797,7 @@ mod tests {
         std::fs::create_dir_all(root.join("pkg")).expect("pkg");
         std::fs::write(
             root.join("pkg/BUILD.bazel"),
-            "dx_deployment(name = \"app\")\n",
+            "load(\"@rules_dx//deploy:defs.bzl\", \"dx_deployment\")\n\ndx_deployment(name = \"app\")\n",
         )
         .expect("build");
         let rows = doc_rows();

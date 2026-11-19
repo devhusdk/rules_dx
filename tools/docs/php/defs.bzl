@@ -6,6 +6,8 @@ load("//php/private:providers.bzl", "PhpInfo")
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 _PhpDirectSrcsInfo = provider(
     doc = "The .php files one PHP library lists in its own srcs.",
     fields = {"srcs": "List[File]: the library's direct .php srcs."},
@@ -57,6 +59,7 @@ def php_shard_action(ctx, own, package, stem, phar, driver, extract_tool):
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("php_extract")
     extract.add("--json", php_json)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -108,7 +111,7 @@ docs_php_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/php/extract:php_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_phar": attr.label(

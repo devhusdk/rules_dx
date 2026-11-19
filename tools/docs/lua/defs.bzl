@@ -5,7 +5,9 @@ load("//core:rlocation.bzl", "repo_relative_path")
 load("//lua/private:providers.bzl", "LuaInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
-def lua_shard_action(ctx, own, package, stem, runner, ldoc, penlight, filter, extract_tool):
+visibility(["//..."])
+
+def lua_shard_action(ctx, own, package, stem, runner, ldoc_main, ldoc, pl_init, penlight, filter, extract_tool):
     """Runs LDoc and the extractor for one Lua library."""
     own = sorted([f for f in own if f.extension == "lua"], key = lambda f: f.path)
     if not own:
@@ -15,12 +17,8 @@ def lua_shard_action(ctx, own, package, stem, runner, ldoc, penlight, filter, ex
     config = ctx.actions.declare_file(stem + ".config.ld")
     ctx.actions.write(config, "file = {\n" + "".join(["  [[" + f.path + "]],\n" for f in own]) + "}\nignore = true\nformat = 'plain'\n")
 
-    ldoc_main = [f for f in ldoc if f.path.endswith("/ldoc.lua") or f.path == "ldoc.lua"]
-    pl_init = [f for f in penlight if f.path.endswith("/lua/pl/init.lua")]
-    if len(ldoc_main) != 1 or len(pl_init) != 1:
-        fail("lua_doc_shard " + str(ctx.label) + ": the pinned LDoc or Penlight is incomplete")
-    ldoc_root = ldoc_main[0].dirname
-    pl_root = pl_init[0].dirname[:-len("/pl")]
+    ldoc_root = ldoc_main.dirname
+    pl_root = pl_init.dirname[:-len("/pl")]
     lua_path = ";".join([
         ldoc_root + "/?.lua",
         pl_root + "/?.lua",
@@ -31,14 +29,14 @@ def lua_shard_action(ctx, own, package, stem, runner, ldoc, penlight, filter, ex
     doc_json = ctx.actions.declare_file(stem + ".doc.json")
     args = ctx.actions.args()
     args.add(lua_path)
-    args.add(ldoc_main[0])
+    args.add(ldoc_main)
     args.add("--filter", "dx_ldoc_json.write")
     args.add("-c", config)
     args.add(own[0])
     ctx.actions.run(
         executable = runner,
         arguments = [args],
-        inputs = depset(own + [manifest, config, filter] + ldoc + penlight),
+        inputs = depset(own + [manifest, config, filter], transitive = [ldoc, penlight]),
         outputs = [doc_json],
         mnemonic = "DxDocsLDoc",
         progress_message = "Reading Lua API docs for %{label}",
@@ -52,6 +50,7 @@ def lua_shard_action(ctx, own, package, stem, runner, ldoc, penlight, filter, ex
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("lua_extract")
     extract.add("--json", doc_json)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -75,8 +74,10 @@ def _lua_doc_shard_impl(ctx):
         package,
         ctx.label.name,
         ctx.executable._runner,
-        ctx.attr._ldoc[DefaultInfo].files.to_list(),
-        ctx.attr._penlight[DefaultInfo].files.to_list(),
+        ctx.file._ldoc_main,
+        ctx.attr._ldoc[DefaultInfo].files,
+        ctx.file._pl_init,
+        ctx.attr._penlight[DefaultInfo].files,
         ctx.file._filter,
         ctx.executable._extract,
     )
@@ -101,7 +102,7 @@ docs_lua_shard = rule(
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the name of lib."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/lua/extract:lua_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_filter": attr.label(
@@ -112,9 +113,19 @@ docs_lua_shard = rule(
             cfg = "exec",
             default = Label("@dx_ldoc//:sources"),
         ),
+        "_ldoc_main": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("@dx_ldoc//:ldoc.lua"),
+        ),
         "_penlight": attr.label(
             cfg = "exec",
             default = Label("@dx_penlight//:sources"),
+        ),
+        "_pl_init": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("@dx_penlight//:lua/pl/init.lua"),
         ),
         "_runner": attr.label(
             cfg = "exec",

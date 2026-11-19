@@ -3,6 +3,8 @@
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 _PERL_TOOLCHAIN = "@rules_perl//perl:exec_toolchain_type"
 
 _PERL_EXTENSIONS = ["pm", "pl"]
@@ -52,6 +54,7 @@ def perl_shard_action(ctx, own, package, stem, driver, extract_tool):
     )
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("perl_extract")
     extract.add("--json", pod_json)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -97,7 +100,7 @@ docs_perl_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/perl/extract:perl_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

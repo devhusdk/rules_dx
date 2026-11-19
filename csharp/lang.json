@@ -49,6 +49,7 @@
     "csharp_binary",
     "csharp_test",
     "csharp_bench",
-    "csharp_fuzz_test"
+    "csharp_fuzz_test",
+    "csharp_doc_shard"
   ]
 }

@@ -50,6 +50,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "coverage-cells",
         "dogfood",
         "docs",
+        "analysis-scaling",
         "determinism",
         "devcontainer-check",
         "gate",

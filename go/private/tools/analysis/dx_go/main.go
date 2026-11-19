@@ -10,15 +10,20 @@ import (
 	"rules_dx/go/private/tools/analysis/gotype"
 	"rules_dx/go/private/tools/analysis/govet"
 	"rules_dx/go/private/tools/analysis/staticcheck"
+	"rules_dx/go/private/tools/gofumpt"
 	"rules_dx/go/private/tools/modfmt"
 	"sort"
 	"strings"
+
+	"github.com/devhusdk/rules_dx/tools/docs/go/godoc"
 )
 
 type tool func(args []string, stdout, stderr io.Writer) int
 
 var tools = map[string]tool{
 	"dx_errcheck":    errcheck.Main,
+	"dx_godoc_json":  func(args []string, _, stderr io.Writer) int { return godoc.Main(args, stderr) },
+	"dx_gofumpt":     gofumpt.Main,
 	"dx_gotype":      func(args []string, _, stderr io.Writer) int { return gotype.Main(args, stderr) },
 	"dx_govet":       govet.Main,
 	"dx_modfmt":      modfmt.Main,

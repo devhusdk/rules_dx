@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 
 use dx_adopt::dependency_sets::Ecosystem;
 use dx_module_bazel::{Call, ModuleFile, Value};
@@ -815,7 +814,8 @@ fn requirement_lines(text: &str) -> BTreeMap<String, String> {
         let name = dx_ecosystems::pep503_name(line.get(..end).unwrap_or_default());
         if !name.is_empty() {
             let rest = line.get(end..).unwrap_or_default();
-            writeln!(out.entry(name.clone()).or_default(), "{name}{rest}").ok();
+            let entry = out.entry(name.clone()).or_default();
+            entry.push_str(&format!("{name}{rest}\n"));
         }
     };
     for raw in text.lines() {
@@ -1339,10 +1339,10 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     fn lock(packages: &[(&str, &str, &[&str])]) -> String {
         let mut out = String::from("version = 3\n");
         for (name, version, deps) in packages {
-            write!(out, "\n[[package]]\nname = \"{name}\"\nversion = \"{version}\"\nsource = \"{REGISTRY}\"\n").ok();
+            out.push_str(&format!("\n[[package]]\nname = \"{name}\"\nversion = \"{version}\"\nsource = \"{REGISTRY}\"\n"));
             if !deps.is_empty() {
                 let list: Vec<String> = deps.iter().map(|dep| format!(" \"{dep}\",")).collect();
-                write!(out, "dependencies = [\n{}\n]\n", list.join("\n")).ok();
+                out.push_str(&format!("dependencies = [\n{}\n]\n", list.join("\n")));
             }
         }
         out
@@ -1399,7 +1399,10 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         let hubs = gem_hubs(&module).expect("hubs");
         assert_eq!(
             classify(
-                &format!("third_party/ruby/{}", ruby.state.as_deref().expect("ruby state")),
+                &format!(
+                    "third_party/ruby/{}",
+                    ruby.state.as_deref().expect("ruby state")
+                ),
                 &hubs
             ),
             LockKind::Ruby(vec!["gems".to_owned()])
@@ -1482,7 +1485,10 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             kind
         );
         assert_eq!(
-            classify(&format!("third_party/go/{}", Ecosystem::Go.lockfile()), &hubs),
+            classify(
+                &format!("third_party/go/{}", Ecosystem::Go.lockfile()),
+                &hubs
+            ),
             kind
         );
     }
@@ -1503,7 +1509,10 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             kind
         );
         assert_eq!(
-            classify(&format!("third_party/go/{}", Ecosystem::Go.lockfile()), &hubs),
+            classify(
+                &format!("third_party/go/{}", Ecosystem::Go.lockfile()),
+                &hubs
+            ),
             kind
         );
         assert_eq!(classify(Ecosystem::Go.lockfile(), &hubs), LockKind::Unknown);
@@ -1554,7 +1563,10 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             LockKind::CrateBazelLock(vec!["crates".to_owned()])
         );
         assert_eq!(
-            classify(&format!("tools/rust/{}", Ecosystem::Cargo.lockfile()), &hubs),
+            classify(
+                &format!("tools/rust/{}", Ecosystem::Cargo.lockfile()),
+                &hubs
+            ),
             LockKind::Cargo(vec!["tools".to_owned()])
         );
         assert_eq!(classify("other.lock", &hubs), LockKind::Unknown);
@@ -1802,11 +1814,9 @@ npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:{}")
     fn pnpm_lock(packages: &[(&str, &str)], settings: &str) -> String {
         let mut out = format!("lockfileVersion: '9.0'\n\nsettings:\n  {settings}\n\npackages:\n");
         for (name, version) in packages {
-            write!(
-                out,
+            out.push_str(&format!(
                 "\n  {name}@{version}:\n    resolution: {{integrity: sha512-abc}}\n"
-            )
-            .ok();
+            ));
         }
         out
     }
@@ -1842,7 +1852,10 @@ npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:{}")
             classify(&format!("web/{}", Ecosystem::Npm.lockfile()), &hubs),
             LockKind::Pnpm(vec!["npm".to_owned()])
         );
-        assert_eq!(classify(Ecosystem::Npm.lockfile(), &hubs), LockKind::Unknown);
+        assert_eq!(
+            classify(Ecosystem::Npm.lockfile(), &hubs),
+            LockKind::Unknown
+        );
         assert!(
             crate_hubs(
                 &npm_module().replace(&format!("\"//web:{}\"", Ecosystem::Npm.lockfile()), "LOCK")

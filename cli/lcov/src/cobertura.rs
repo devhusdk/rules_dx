@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
 
 use crate::LcovError;
 use crate::xml::{attribute, tags};
@@ -63,12 +62,12 @@ pub fn cobertura_to_lcov(xml: &str) -> Result<String, LcovError> {
     }
     let mut out = String::new();
     for (path, lines) in &files {
-        writeln!(out, "SF:{path}").ok();
+        out.push_str(&format!("SF:{path}\n"));
         for (num, count) in lines {
-            writeln!(out, "DA:{num},{count}").ok();
+            out.push_str(&format!("DA:{num},{count}\n"));
         }
         let hit = lines.values().filter(|count| **count > 0).count();
-        writeln!(out, "LF:{}\nLH:{hit}\nend_of_record", lines.len()).ok();
+        out.push_str(&format!("LF:{}\nLH:{hit}\nend_of_record\n", lines.len()));
     }
     Ok(out)
 }

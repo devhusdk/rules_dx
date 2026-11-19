@@ -1,6 +1,6 @@
 """Analysis tests pinning the frozen quality settings defaults."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 visibility("private")
 

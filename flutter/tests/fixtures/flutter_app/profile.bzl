@@ -3,7 +3,7 @@
 def _profile_impl(_settings, _attr):
     return {
         "//command_line_option:compilation_mode": "opt",
-        "@rules_flutter//flutter:profile": True,
+        "@rules_dx//flutter:profile": True,
     }
 
 _profile = transition(
@@ -11,7 +11,7 @@ _profile = transition(
     inputs = [],
     outputs = [
         "//command_line_option:compilation_mode",
-        "@rules_flutter//flutter:profile",
+        "@rules_dx//flutter:profile",
     ],
 )
 

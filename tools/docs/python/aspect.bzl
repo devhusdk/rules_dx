@@ -2,7 +2,7 @@
 
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
-load("//tools/docs/python:shard.bzl", "python_package_name_ok", "python_shard_action")
+load("//tools/docs/python:shard.bzl", "PythonDocsImportsInfo", "python_docs_imports_aspect", "python_owns_package", "python_package_name_ok", "python_shard_action")
 
 def _python_docs_shard(target, ctx):
     if _PyInfo not in target or DocsShardInfo in target:
@@ -11,8 +11,9 @@ def _python_docs_shard(target, ctx):
         return None
     if not python_package_name_ok(ctx.label.name):
         return None
-    action = python_shard_action(ctx, target[_PyInfo], ctx.label.name, "google", "_dx_docs/" + ctx.label.name, ctx.executable._py_driver, ctx.executable._py_extract)
-    return action.shard if action else None
+    if not python_owns_package(getattr(ctx.rule.files, "srcs", []), target[PythonDocsImportsInfo].roots, ctx.label.name):
+        return None
+    return python_shard_action(ctx, target[_PyInfo], ctx.label.name, "google", "_dx_docs/" + ctx.label.name, ctx.executable._py_driver, ctx.executable._py_extract, ctx.label).shard
 
 def _real_python_docs_aspect_impl(target, ctx):
     shard = _python_docs_shard(target, ctx)
@@ -31,9 +32,10 @@ real_python_docs_aspect = aspect(
         ),
         "_py_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/python/extract:python_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },
     fragments = ["cpp"],
+    requires = [python_docs_imports_aspect],
 )

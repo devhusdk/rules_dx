@@ -2,7 +2,7 @@
 
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_conan.bzl", "conan_name_error", "conan_remote_error", "conan_remote_url_error", "conan_version_error")
 
 def _conan_config_impl(ctx):
@@ -82,7 +82,7 @@ def conan_deploy(name, recipe, remote, remote_url, package = "", version = "", c
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

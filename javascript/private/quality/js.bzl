@@ -1,7 +1,6 @@
 """JavaScript and TypeScript real quality aspects."""
 
 load("//core/quality:family_hooks.bzl", "default_files_hook", "without")
-load("//core/quality/private:native_config_impl.bzl", "native_config_scratch_rel")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//typescript/private/quality:tsc.bzl", "TscInfo", "tsc_aspect")
 
@@ -99,17 +98,11 @@ def _tsc_hook(target, _ctx, resolved, _capability, _what, _shared):
         late_inputs = info.logs + info.statuses,
     )
 
-def _eslint_hook(target, _ctx, _resolved, _capability, _what, shared):
+def _eslint_hook(target, _ctx, _resolved, _capability, _what, _shared):
     if TscInfo not in target or target[TscInfo].tsconfig == None:
         return real_context()
-    staged = {}
-    for f in target[TscInfo].inputs.to_list():
-        rel = native_config_scratch_rel(f.short_path)
-        if rel != None and rel not in shared.path_to_file:
-            staged[rel] = f
     return real_context(
-        late_tool_files = sorted(staged.items()),
-        late_inputs = staged.values(),
+        late_staged = [target[TscInfo].inputs],
         env = [["DX_ESLINT_TYPED", "1"]],
     )
 

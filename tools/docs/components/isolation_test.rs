@@ -1,5 +1,9 @@
 //! Checks that consumer configuration cannot inject plugins into the Vue, Svelte and Astro launchers and that
 //! every failure path exits nonzero without writing a stub.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};

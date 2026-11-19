@@ -1,6 +1,6 @@
 """Python runtime ownership gate for the coherent setup keep review."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core/modules:python.bzl", _MOD_ASPECT_PY = "RULES_PY_VERSION", _MOD_PY_HUB = "UV_HUB", _MOD_PY_LOCKS = "UV_LOCKS", _MOD_PY_PROJECTS = "UV_PROJECTS", _MOD_PY_REPIN = "UV_REPIN_DIRS", _MOD_PY_VERSION = "PYTHON_VERSION", _MOD_RULES_PY = "RULES_PYTHON_VERSION")
 load("//core/modules:versions.bzl", _ASPECT_PY = "RULES_PY_VERSION", _PY = "PYTHON_VERSION", _RULES_PY = "RULES_PYTHON_VERSION")
 

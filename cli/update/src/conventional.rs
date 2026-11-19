@@ -1,7 +1,5 @@
 //! Conventional-commit parsing over `git log --format=%H%x00%s%x00%b%x1e`.
 
-use std::fmt::Write as _;
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
     Feat,
@@ -156,15 +154,15 @@ fn section(out: &mut String, heading: &str, commits: &[&Commit]) {
     if !out.is_empty() {
         out.push('\n');
     }
-    writeln!(out, "## {heading}\n").ok();
+    out.push_str(&format!("## {heading}\n\n"));
     for commit in commits {
         let short: String = commit.hash.chars().take(7).collect();
         match &commit.scope {
             Some(scope) => {
-                writeln!(out, "- **{scope}**: {} ({short})", commit.subject).ok();
+                out.push_str(&format!("- **{scope}**: {} ({short})\n", commit.subject));
             }
             None => {
-                writeln!(out, "- {} ({short})", commit.subject).ok();
+                out.push_str(&format!("- {} ({short})\n", commit.subject));
             }
         }
     }

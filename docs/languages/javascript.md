@@ -29,9 +29,9 @@ bazel_dep(name = "rules_dx", version = "<release>")
 A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small JavaScript package from [`javascript/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/javascript/tests/consumer/BUILD.bazel):
 
 ```python
-load("@rules_dx//javascript:defs.bzl", "javascript_binary", "javascript_library", "js_library")
+load("@rules_dx//javascript:defs.bzl", "javascript_binary", "javascript_library")
 
-js_library(
+javascript_library(
     name = "package_json",
     srcs = ["package.json"],
     visibility = ["//visibility:public"],
@@ -65,31 +65,36 @@ tools/dx test //...
 
 ## Dependencies
 
-Add the package to the root `package.json`, then run `dx generate --apply`. dx
-writes a missing `pnpm-lock.yaml`. An import of a package listed
-in the root `package.json` resolves to `//:node_modules/<package>`.
+Add the package to the root `package.json`, then run `dx generate --apply`.
+dx writes `pnpm-lock.yaml` if it is missing. An import of a package listed in
+the root `package.json` resolves to `//:node_modules/<package>`.
 
 ### Writing targets
 
-`javascript_test` runs `jest` by default and needs `node_modules`. Set
-`runner = "node"` with a `main` to run the file with Node instead.
-
-On Windows, Jest coverage uses the v8 provider.
+`javascript_test` runs `jest` by default and needs `node_modules`. To run the
+file with Node instead, set `runner = "node"` and a `main`. On Windows, Jest
+coverage uses the v8 provider.
 
 ## Quality
 
-`biome` formats and lints JavaScript. Its config is `biome.json` at the
-workspace root. JavaScript has no typecheck tool. To lint with `eslint`, put
-`eslint.config.mjs` at the root and bind it with `eslint_config`.
+`biome` formats and lints JavaScript. It reads `biome.json` at the workspace
+root. JavaScript has no typecheck tool by default.
 
 ```sh
 dx format --apply
 dx lint
 ```
 
+To lint with `eslint` too, put `eslint.config.mjs` at the root and bind it
+with `eslint_config`.
+
 ## Bench and fuzz
 
-`javascript_bench` runs a tinybench `Bench` for `dx bench`, and `javascript_fuzz_test` runs a Jazzer.js target for `dx fuzz`. List `tinybench` or `@jazzer.js/core` in `package.json` and pass `node_modules`. See [`dx bench`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/bench.md) and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/fuzz.md).
+`javascript_bench` runs a tinybench `Bench` for `dx bench`.
+`javascript_fuzz_test` runs a Jazzer.js target for `dx fuzz`. List `tinybench`
+or `@jazzer.js/core` in `package.json` and pass `node_modules`. See
+[`dx bench`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/bench.md)
+and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/fuzz.md).
 
 ## Rules
 
@@ -163,9 +168,13 @@ javascript_web_bundle(name, app, bundler, config = None, entry = None, bundler_a
 
 Bundles one staged application through a declared bundler executable.
 
-### `js_library`
+### `javascript_doc_shard`
 
-Re-exported from `@aspect_rules_js//js:defs.bzl`.
+```python
+javascript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs)
+```
+
+Declares a TypeDoc JSON run over one JavaScript project (tsconfig sets allowJs) and its DocIr shard.
 
 ## Tools and package files
 
@@ -197,13 +206,5 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/javascript:defs.bzl", "javascript_doc_shard")
+load("@rules_dx//javascript:defs.bzl", "javascript_doc_shard")
 ```
-
-### `javascript_doc_shard`
-
-```python
-javascript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs)
-```
-
-Declares a TypeDoc JSON run over one JavaScript project (tsconfig sets allowJs) and its DocIr shard.

@@ -5,6 +5,8 @@ load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/python:shard.bzl", "python_shard_action")
 load("//tools/docs/site:site.bzl", "docs_site")
 
+visibility(["//..."])
+
 def _docs_python_shard_impl(ctx):
     package = ctx.attr.package or ctx.attr.library.label.name
     action = python_shard_action(
@@ -15,9 +17,8 @@ def _docs_python_shard_impl(ctx):
         ctx.label.name,
         ctx.executable._driver,
         ctx.executable._extract,
+        ctx.attr.library.label,
     )
-    if not action:
-        fail("python_doc_shard " + str(ctx.label) + ": library " + str(ctx.attr.library.label) + " has no Python source for package '" + package + "'")
     return [
         DefaultInfo(files = depset([action.shard])),
         OutputGroupInfo(griffe_json = depset([action.json]), srcs_manifest = depset([action.manifest])),
@@ -38,7 +39,7 @@ docs_python_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/python/extract:python_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

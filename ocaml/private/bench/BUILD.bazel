@@ -5,7 +5,7 @@ ocaml_module(
     name = "dx_bench",
     testonly = True,
     struct = "dx_bench.ml",
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
     deps = ["@dx_ocaml_toolchains//:unix"],
 )
 

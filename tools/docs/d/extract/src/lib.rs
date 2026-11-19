@@ -29,6 +29,12 @@ pub struct Options {
     pub config: String,
 }
 
+/// Runs `d_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("d_extract", usage(), parse, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
@@ -70,7 +76,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         texts.insert(source.exec_path.clone(), read(&source.exec_path)?);
     }
     let shard = convert(&json, &sources, &texts, &options.package, &options.config)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 struct Context<'a> {

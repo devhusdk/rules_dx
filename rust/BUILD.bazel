@@ -1,4 +1,5 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library")
 load("//rust/private:build_script_cc_env.bzl", "build_script_cc_env")
 
 exports_files([
@@ -13,6 +14,58 @@ exports_files([
 build_script_cc_env(
     name = "build_script_cc_env",
     visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "wasmtime",
+    actual = "@dx_tools//:wasmtime",
+    visibility = ["//visibility:public"],
+)
+
+# The prost and prost-types crates the default rust_prost_toolchain links into generated messages.
+alias(
+    name = "prost",
+    actual = "@rules_rust_prost//private/3rdparty/crates:prost",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "prost_types",
+    actual = "@rules_rust_prost//private/3rdparty/crates:prost-types",
+    visibility = ["//visibility:public"],
+)
+
+# The tonic, tokio and tokio-stream crates the default rust_prost_toolchain links into gRPC stubs.
+alias(
+    name = "tonic",
+    actual = "@rules_rust_prost//private/3rdparty/crates:tonic",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "tokio",
+    actual = "@rules_rust_prost//private/3rdparty/crates:tokio",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "tokio_stream",
+    actual = "@rules_rust_prost//private/3rdparty/crates:tokio-stream",
+    visibility = ["//visibility:public"],
+)
+
+# keep
+rust_library(
+    name = "wasi_run",
+    testonly = True,
+    srcs = ["//rust/private:wasi_run.rs"],
+    crate_name = "wasi_run",
+    crate_root = "//rust/private:wasi_run.rs",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 filegroup(

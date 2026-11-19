@@ -1,5 +1,10 @@
 //! Resolves a Composer package set through the Packagist v2 API and writes its lock and state.
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use md5::{Digest, Md5};
@@ -98,7 +103,7 @@ fn partial(text: &str) -> Result<(Bound, usize), String> {
         }
         *slot = part
             .parse()
-            .map_err(|_| format!("{text:?} is not a release version"))?;
+            .map_err(|e| format!("{text:?} is not a release version: {e}"))?;
         count += 1;
     }
     if count == 0 && !text.starts_with(['*', 'x', 'X']) {

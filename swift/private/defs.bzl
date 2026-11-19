@@ -11,7 +11,7 @@ load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core:msvc_crt.bzl", "dx_msvc_crt_reset_transition")
 load("//core:platform.bzl", "platforms_transition")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
@@ -207,8 +207,20 @@ def swift_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts 
     }
     dx_fuzz_test(name, swift_binary, binary_kwargs, tags = tags, visibility = visibility, pinned_libfuzzer = False, **kwargs)
 
+_swift_benchmark_lib = dx_private_dep_rule(
+    Label("//swift/private/bench"),
+    [SwiftInfo, CcInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo, SwiftDocsInfo, OutputGroupInfo],
+    "Provides the DxBench module swift_bench links.",
+)
+
 def swift_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
-    """A swift_binary timing loop run by `dx bench`; it links `//swift/private/bench` to write dx-bench.json."""
+    """A swift_binary timing loop run by `dx bench`; it links the rules_dx bench harness to write dx-bench.json."""
+    _swift_benchmark_lib(
+        name = name + "_dx_bench",
+        testonly = True,
+        tags = dx_upstream_tags(tags),
+        visibility = ["//visibility:private"],
+    )
     dx_bench_test(
         name,
         swift_binary,
@@ -217,6 +229,6 @@ def swift_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
         tags = tags,
         visibility = visibility,
         binary_kwargs = {"srcs": srcs},
-        extra_deps = [Label("//swift/private/bench")],
+        extra_deps = [":" + name + "_dx_bench"],
         runner_kwargs = {"src": ":" + name + "_bin"},
     )

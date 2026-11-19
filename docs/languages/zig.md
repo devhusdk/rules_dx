@@ -55,69 +55,102 @@ tools/dx test //...
 
 ### Packages
 
-The `.dependencies` of a `build.zig.zon` become one hub of `zig_library` targets from `zig.lock.json`. Bazel fetches each archive through its repository cache; Zig never runs at fetch time. Only `https` archive URLs (`.tar.gz`, `.tgz`, `.zip`) are supported; `git+` URLs and path dependencies are not.
+The `.dependencies` of your `build.zig.zon` become one hub of `zig_library`
+targets. A hub is a Bazel repository that holds one target per locked
+package. The hub reads `zig.lock.json`, and Bazel fetches each archive
+through its repository cache. Zig never runs at fetch time.
 
-With `zig.lock.json` beside the root `build.zig.zon`, `dx generate --apply` adds the `zig.lock` stanza for the `@zig` hub to `MODULE.bazel`.
+To lock the packages, run `dx update`. It writes `zig.lock.json` beside
+`build.zig.zon`. A second run with unchanged inputs downloads nothing. Then
+run `dx generate --apply`: it adds the `zig.lock` stanza for the `@zig` hub
+to `MODULE.bazel`.
 
-A package is `@zig//<name>`, imported by that name. Its root module is the first existing of `src/<name>.zig`, `src/root.zig`, `<name>.zig`, `src/main.zig`, `root.zig`, `main.zig`. Its own `build.zig.zon` dependencies become deps and must be listed in the root `build.zig.zon` with the same `.hash`.
+```sh
+dx update --apply
+dx generate --apply
+```
 
-`bazel run @rules_dx//zig/private/tools/lock -- --dir <absolute directory of build.zig.zon>` downloads each archive and writes `zig.lock.json` beside it; `dx update` runs it. A second run with unchanged inputs downloads nothing.
+Import a package as `@zig//<name>` and `@import("<name>")`. Its root module is
+the first of these files that exists: `src/<name>.zig`, `src/root.zig`,
+`<name>.zig`, `src/main.zig`, `root.zig`, `main.zig`. Its own `build.zig.zon`
+dependencies become its deps, and they must be in your root `build.zig.zon`
+with the same `.hash`.
+
+Only `https` archive URLs (`.tar.gz`, `.tgz`, `.zip`) work. `git+` URLs and
+path dependencies do not.
 
 ### Writing targets
 
 - `main` is the module root. `srcs` lists the other `.zig` files.
-- `zig_library` imports by its target name. Set `import_name` to change it.
+- Other code imports a `zig_library` by its target name. Set `import_name` to
+  change it.
 - A `cc_library` in `deps` is imported as `@import("c")`.
-- `extra_srcs` carries files read with `@embedFile`.
+- `extra_srcs` holds files read with `@embedFile`.
 - Other attributes pass through to `rules_zig`.
 
 ## Generate
 
-`dx generate` writes one `zig_library` per directory. The root is
-`<directory>.zig`, `root.zig`, `lib.zig` or the only `.zig` file. Other `.zig`
-files go to `srcs`. `*_test.zig` and `build.zig` are skipped. The root package is named
-after `.name` in `build.zig.zon`, else the repo name, else `lib`. `@import("name")` adds the library whose import
-name is `name`. `@import` of `std`, `builtin`, `root`, `bazel_builtin` and
-`c` adds nothing. `.zon` imports and `@embedFile` files in the same directory
-go to `extra_srcs`. A file import or `@embedFile` that points outside the
-directory, is missing, or names a `*_test.zig` or `build.zig` file fails
-generation. A directory with `pub fn main` fails generation: write its
-`zig_binary` by hand.
+`dx generate` writes one `zig_library` per directory:
+
+- The root is `<directory>.zig`, `root.zig`, `lib.zig` or the only `.zig`
+  file. The other `.zig` files go to `srcs`.
+- `*_test.zig` and `build.zig` are skipped.
+- The root package is named after `.name` in `build.zig.zon`, else the repo
+  name, else `lib`.
+- `@import("name")` adds the library whose import name is `name`. `@import` of
+  `std`, `builtin`, `root`, `bazel_builtin` and `c` adds nothing.
+- `.zon` imports and `@embedFile` files in the same directory go to
+  `extra_srcs`.
+
+Generation fails when a file import or `@embedFile` points outside the
+directory, is missing, or names a `*_test.zig` or `build.zig` file. It also
+fails for a directory with `pub fn main`: write its `zig_binary` by hand.
 
 ## Quality
 
-### Formatting
+| Check | Default tools |
+| --- | --- |
+| Format | `zig_fmt` |
+| Lint | `zig_ast_check`, `typos` |
+| Typecheck | none |
 
-`dx format` runs `zig fmt` by default. No flag is needed. The Zig SDK is fetched only for Zig targets:
+The tools need no setup. Bazel fetches the Zig SDK only for Zig targets.
 
 ```sh
 dx format --apply
-```
-
-### Typechecking
-
-`dx typecheck` replays the compile action of a `zig_binary` or `zig_test` with
-`-fno-emit-bin` when a `zig` family selects `zig`. Zig analyzes lazily, so only
-code reachable from the root module is checked, and `zig_library` is not
-checked on its own.
-
-### Linting
-
-`dx lint` runs `zig ast-check` by default. No flag is needed. It runs once per file and reports syntax and AST-level errors:
-
-```sh
 dx lint
 ```
 
+`zig_fmt` runs `zig fmt`. `zig_ast_check` runs `zig ast-check` once per file
+and reports syntax and AST errors.
+
+To typecheck, turn on `zig` in `dx.toml`:
+
+```toml
+[families.zig]
+typecheck = ["+zig"]
+```
+
+`dx typecheck` then replays the compile action of each `zig_binary` and
+`zig_test` with `-fno-emit-bin`. Zig analyzes lazily, so it checks only code
+reachable from the root module, and never checks a `zig_library` on its own.
+
 ## Coverage
 
-`bazel coverage` and `dx coverage` run each Zig test under a hermetic kcov v43 that rules_dx builds from source, and convert its Cobertura report into LCOV. Under coverage the test is built with LLVM and left unstripped so kcov can read its DWARF. Coverage counts the sources of libraries in `deps`. The test's own sources count only with `--instrument_test_targets`. Tag a test `no-coverage` to skip it.
+`bazel coverage` and `dx coverage` run each Zig test under kcov v43, which
+rules_dx builds from source, and turn its Cobertura report into LCOV. Under
+coverage, the test builds with LLVM and keeps its debug info so kcov can read
+it. Coverage counts the sources of libraries in `deps`. The test's own sources
+count only with `--instrument_test_targets`. Tag a test `no-coverage` to skip
+it.
 
-kcov runs on Linux only. On macOS and Windows a Zig test is tagged `dx-no-coverage-collector` and writes no coverage. Zig cannot emit `-fprofile-instr-generate`, so LLVM source-based coverage is not available.
+kcov runs on Linux only. On macOS and Windows a Zig test is tagged
+`dx-no-coverage-collector` and writes no coverage. Zig cannot emit
+`-fprofile-instr-generate`, so LLVM source-based coverage is not available.
 
 ## Bench and fuzz
 
-`zig_bench` builds a private `<name>_bin` with `mode = "release_fast"` and declares `<name>` as the `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.
+`zig_bench` builds a benchmark for `dx bench`:
 
 ```python
 load("@rules_dx//zig:defs.bzl", "zig_bench")
@@ -128,9 +161,17 @@ zig_bench(
 )
 ```
 
-The program times its own loop with `std.Io.Timestamp` and prints one line per benchmark, `bench <name> <ns_per_op> <iterations>`. The test turns those lines into `dx-bench.json`.
+The program times its own loop with `std.Io.Timestamp` and prints one line per
+benchmark: `bench <name> <ns_per_op> <iterations>`. The test turns those lines
+into `dx-bench.json`.
 
-There is no `zig_fuzz_test`. Zig's fuzzer runs only under `zig build --fuzz`, which drives the test binary over a private protocol. A Bazel-built test binary cannot run it with a time limit and crash output.
+`<name>` is the `dx-bench` test that `dx bench` runs, and `<name>_bin` is the
+binary, built with `mode = "release_fast"`. `size`, `timeout`, `args`, `data`
+and `env` go to the test. The other attributes go to the binary.
+
+There is no `zig_fuzz_test`. Zig's fuzzer runs only under `zig build --fuzz`,
+and a Bazel-built test binary cannot run it with a time limit and crash
+output.
 
 ## Rules
 
@@ -172,6 +213,18 @@ zig_bench(name, *, srcs = None, main = None, visibility = None, tags = None, **k
 
 A ReleaseFast zig_binary plus a `<name>` runner that writes dx-bench.json for `dx bench`.
 
+### `zig_doc_shard`
+
+Converts one Zig library's public API into a DocIr shard with the pinned Zig's std.zig.Ast.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
+| `lib` | `label` | yes | The zig_library to document. |
+| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
+| `_dump` | `label` | no |  |
+| `_extract` | `label` | no |  |
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Zig:
@@ -202,24 +255,12 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/zig:defs.bzl", "zig_doc_shard")
+load("@rules_dx//zig:defs.bzl", "zig_doc_shard")
 ```
 
-### `zig_doc_shard`
-
-Converts one Zig library's public API into a DocIr shard with the pinned Zig's std.zig.Ast.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
-| `lib` | `label` | yes | The zig_library to document. |
-| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
-| `_dump` | `label` | no |  |
-| `_extract` | `label` | no |  |
-
-`dx docs` documents every `zig_library` in scope. A small Zig program built with
-the pinned Zig reads each source with `std.zig.Ast`, and `zig_doc_shard`
-(`@rules_dx//tools/docs/zig:defs.bzl`) turns the `///` and `//!` comments of the
-public declarations into the API reference. Own files the main file re-exports
-with `pub const x = @import("x.zig")` become modules. Nothing needs to be
-installed.
+`dx docs` documents every `zig_library` in scope. It reads each source with
+`std.zig.Ast` from the pinned Zig and turns the `///` and `//!` comments of
+the public declarations into the API reference. Files that the main file
+re-exports with `pub const x = @import("x.zig")` become modules. You install
+nothing. To declare a docs target yourself, use `zig_doc_shard` from
+`@rules_dx//zig:defs.bzl`.

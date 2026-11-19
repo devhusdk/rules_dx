@@ -48,14 +48,14 @@ ASPECT_RULES_JS_VERSION = "3.6.0"
 ASPECT_RULES_TS_VERSION = "3.10.1"
 ASPECT_RULES_JEST_VERSION = "0.26.0"
 RULES_NODEJS_VERSION = "6.7.7"
-TYPESCRIPT_VERSION = "5.9.3"
+TYPESCRIPT_VERSION = "6.0.3"
 TYPEDOC_VERSION = "0.28.20"
 VUE_COMPONENT_META_VERSION = "3.3.14"
 SVELTE2TSX_VERSION = "0.7.63"
 SVELTE_VERSION = "5.57.0"
 ASTRO_COMPILER_VERSION = "4.0.0"
 MDX_VERSION = "3.1.1"
-TYPESCRIPT_INTEGRITY = "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="
+TYPESCRIPT_INTEGRITY = "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="
 PNPM_VERSION = "10.34.5"
 NODE_VERSION_PREFIX = "v22."
 
@@ -73,7 +73,7 @@ DOTNET_VERSION = "10.0.403"
 RUBY_VERSION = "3.4.12"
 
 RULES_ZIG_VERSION = "0.17.0"
-ZIG_VERSION = "0.17.0"
+ZIG_VERSION = "0.17.1"
 
 RULES_SWIFT_VERSION = "4.3.0"
 SWIFT_VERSION = "6.4.2"
@@ -82,7 +82,10 @@ RULES_JULIA_VERSION = "0.8.0"
 RULES_DART_VERSION = "0.8.1"
 DART_SDK_VERSION = "3.13.7"
 FLUTTER_SDK_VERSION = "3.47.9"
-JULIA_VERSION = "1.12.5"
+JULIA_VERSION = "1.13.4"
+
+# The Julia release //julia/private/runtime builds from source; MODULE.bazel registers its toolchain.
+JULIA_RUNTIME_VERSION = "1.12.5"
 RULES_PERL_VERSION = "2.1.0"
 LUA_VERSION = "5.5.0"
 AVRO_CPP_VERSION = "1.12.0.bcr.1"
@@ -127,8 +130,6 @@ CONSUMER_BAZEL_DEPS = {
     "gcc_toolchain": struct(floor = "0.13.0", tested = "0.13.0"),
     "windows_support": struct(floor = "0.4.1", tested = "0.4.1"),
     "google_benchmark": struct(floor = "1.10.0", tested = "1.10.0"),
-    "elfutils": struct(floor = "0.195", tested = "0.195"),
-    "zlib": struct(floor = "1.4", tested = "1.4"),
     "rules_rust_prost": struct(floor = "0.75.0", tested = "0.75.0"),
     "rules_cuda": struct(floor = RULES_CUDA_VERSION, tested = RULES_CUDA_VERSION),
 }

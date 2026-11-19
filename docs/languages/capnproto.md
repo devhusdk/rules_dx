@@ -72,7 +72,7 @@ Java classes and runtime for capnproto_library schemas. Each library is generate
 
 ### `capnproto_library`
 
-Owns Cap'n Proto schemas for dx lint. Imports resolve only from deps, relative to the importing file or from the workspace root, plus the bundled /capnp/*.capnp schemas.
+Owns Cap'n Proto schemas for dx lint. Imports resolve only from deps, relative to the importing file within its package or from the workspace root, plus the bundled /capnp/*.capnp schemas.
 
 | Attribute | Type | Required | Description |
 | --- | --- | --- | --- |

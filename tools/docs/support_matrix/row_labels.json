@@ -64,6 +64,6 @@
   "wasi": [
     "//rust/tests/fixtures/wasi_guest:wasi_guest_analysis_test",
     "//rust/tests/fixtures/wasi_guest:wasi_guest_test",
-    "//tools/testing/wasi:wasi_run_unit_test"
+    "//rust/tests:wasi_run_unit_test"
   ]
 }

@@ -484,7 +484,7 @@ impl Wiring {
     }
 
     fn say(&mut self, err: &mut dyn Write, notice: dx_output::NoticeEvent) {
-        writeln!(err, "dx: {}", notice.message).ok();
+        dx_output::write_stderr(err, format_args!("dx: {}\n", notice.message));
         self.notices.push(notice);
     }
 
@@ -617,7 +617,7 @@ fn launch_generate(
     let apply = gazelle_writes(request);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
-    std::fs::remove_file(&patch).ok();
+    dx_atomic_fs::discard_file(&patch);
     let plan = match plan_generate(
         resolved,
         &request.bazel_options,
@@ -666,14 +666,14 @@ fn launch_generate(
     ) {
         Ok(code) => code,
         Err(exit) => {
-            std::fs::remove_file(&intended).ok();
-            std::fs::remove_file(&patch).ok();
+            dx_atomic_fs::discard_file(&intended);
+            dx_atomic_fs::discard_file(&patch);
             *kind = PhaseKind::Host;
             return Err(exit);
         }
     };
     let patch_written = std::fs::metadata(&patch).is_ok_and(|meta| meta.len() > 0);
-    std::fs::remove_file(&patch).ok();
+    dx_atomic_fs::discard_file(&patch);
     read_generated(request, env, kind, &intended, bazel_code, patch_written)
 }
 
@@ -845,7 +845,7 @@ fn emit_generate_report(
             }
         }
         for line in refused_lines(projected) {
-            writeln!(env.err, "{line}").ok();
+            dx_output::write_stderr(env.err, format_args!("{line}\n"));
         }
     }
     Ok(())

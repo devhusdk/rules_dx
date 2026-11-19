@@ -3,6 +3,7 @@ use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
 pub fn parse_paket_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let mut out = Vec::new();
     let mut in_nuget = false;
     let mut in_git = false;

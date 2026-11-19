@@ -1,6 +1,6 @@
 """Pinned-toolchain factory: one repository per host cell, plus the checks every pin table shares."""
 
-load(":defs.bzl", "expect_equal", "expect_true")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true")
 load(":host.bzl", "host_cell")
 load(":repo.bzl", "gem_extract")
 

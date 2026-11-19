@@ -56,7 +56,7 @@ def deploy_identity(name, package, version, name_error, version_error):
     return pkg, version
 
 def deployment_budget(name, size_budget, artifacts):
-    """Returns the dx_deployment size_budget and artifacts arguments, failing on a bad budget."""
+    """Returns the deployment size_budget and artifacts arguments, failing on a bad budget."""
     size_budget = size_budget or ""
     error = size_budget_error(size_budget)
     if error != "":

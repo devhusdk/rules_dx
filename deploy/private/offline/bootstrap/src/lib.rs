@@ -2,8 +2,12 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+use std::fmt;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use dx_atomic_fs::path_io::{self, PathIoError};
 
 /// The advisory sets an offline bundle may carry.
 pub const ADVISORY_SETS: [&str; 6] = ["cargo", "npm", "maven", "nuget", "go", "rubygems"];
@@ -12,6 +16,246 @@ pub const ADVISORY_SETS: [&str; 6] = ["cargo", "npm", "maven", "nuget", "go", "r
 #[must_use]
 pub fn usage() -> String {
     "usage: bootstrap-offline --bundle DIR [--install-dir DIR] [--workspace DIR]".to_string()
+}
+
+/// Why an invocation or a bootstrap was refused.
+#[derive(Debug)]
+pub enum BootstrapError {
+    FlagNeedsDir(String),
+    UnknownArgument(String),
+    NoInstallDir,
+    MissingBundle,
+    BundleNotFound(String),
+    BundleUri(dx_path::UriError),
+    BundleMissingDir {
+        dir: &'static str,
+        bundle: String,
+    },
+    UnsupportedHost {
+        os: String,
+        arch: String,
+    },
+    NoHostLauncher(&'static str),
+    UnpinnedLauncher(&'static str),
+    MissingManifest(PathBuf),
+    ManifestMissingFile {
+        name: String,
+        manifest: PathBuf,
+    },
+    ManifestEmpty(PathBuf),
+    ChecksumMismatch {
+        name: String,
+        got: String,
+        want: String,
+    },
+    InstalledMismatch {
+        target: PathBuf,
+        got: String,
+        want: String,
+    },
+    NoSnapshots,
+    UnknownSet(String),
+    UnpinnedSnapshot {
+        named: String,
+        manifest: PathBuf,
+    },
+    NoRecordedDate {
+        named: String,
+        identity: String,
+    },
+    UnpinnedIdentity {
+        identity: String,
+        manifest: PathBuf,
+    },
+    InvalidRetrievedAt(String),
+    RetrievedAfterToday {
+        identity: String,
+        retrieved: String,
+        today: String,
+    },
+    OtherBytes {
+        identity: String,
+        bound: String,
+        named: String,
+        sha: String,
+    },
+    NoSha256(String),
+    OrphanIdentity {
+        identity: String,
+        stem: String,
+    },
+    Create {
+        path: PathBuf,
+        source: io::Error,
+    },
+    Remove {
+        path: PathBuf,
+        source: io::Error,
+    },
+    Permissions {
+        path: PathBuf,
+        source: io::Error,
+    },
+    Copy {
+        from: PathBuf,
+        to: PathBuf,
+        source: io::Error,
+    },
+    Write {
+        path: PathBuf,
+        source: io::Error,
+    },
+    Io(PathIoError),
+}
+
+impl fmt::Display for BootstrapError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::FlagNeedsDir(flag) => write!(f, "{flag} needs a DIR"),
+            Self::UnknownArgument(flag) => write!(f, "unknown argument '{flag}'"),
+            Self::NoInstallDir => {
+                f.write_str("neither HOME nor USERPROFILE is set; pass --install-dir DIR")
+            }
+            Self::MissingBundle => f.write_str("missing --bundle DIR (vendored offline bundle)"),
+            Self::BundleNotFound(raw) => write!(f, "bundle dir does not exist: {raw}"),
+            Self::BundleUri(error) => write!(f, "bundle path has no file URI: {error}"),
+            Self::BundleMissingDir { dir, bundle } => {
+                write!(f, "bundle has no {dir}/ dir: {bundle}")
+            }
+            Self::UnsupportedHost { os, arch } => write!(f, "unsupported host {os}-{arch}"),
+            Self::NoHostLauncher(asset) => {
+                write!(f, "bundle has no launcher for this host: {asset}")
+            }
+            Self::UnpinnedLauncher(asset) => {
+                write!(f, "manifest does not pin this host launcher: {asset}")
+            }
+            Self::MissingManifest(path) => write!(f, "missing manifest: {}", path.display()),
+            Self::ManifestMissingFile { name, manifest } => write!(
+                f,
+                "manifest names missing file: {name} (in {})",
+                manifest.display()
+            ),
+            Self::ManifestEmpty(path) => {
+                write!(f, "manifest names no files: {}", path.display())
+            }
+            Self::ChecksumMismatch { name, got, want } => {
+                write!(f, "checksum mismatch for {name}: got {got} want {want}")
+            }
+            Self::InstalledMismatch { target, got, want } => write!(
+                f,
+                "installed {} does not match the verified launcher: got {got} want {want}",
+                target.display()
+            ),
+            Self::NoSnapshots => f.write_str("bundle carries no advisory snapshots"),
+            Self::UnknownSet(set) => write!(f, "bundle carries unknown advisory set: {set}"),
+            Self::UnpinnedSnapshot { named, manifest } => write!(
+                f,
+                "manifest does not pin advisory snapshot: {named} (in {})",
+                manifest.display()
+            ),
+            Self::NoRecordedDate { named, identity } => write!(
+                f,
+                "bundle has no recorded date for advisory snapshot: {named} \
+                 (want advisory/{identity})"
+            ),
+            Self::UnpinnedIdentity { identity, manifest } => write!(
+                f,
+                "manifest does not pin advisory identity: {identity} (in {})",
+                manifest.display()
+            ),
+            Self::InvalidRetrievedAt(identity) => write!(
+                f,
+                "advisory identity {identity} has no valid retrieved_at; want YYYY-MM-DD"
+            ),
+            Self::RetrievedAfterToday {
+                identity,
+                retrieved,
+                today,
+            } => write!(
+                f,
+                "advisory identity {identity} retrieved_at {retrieved} is after today {today}; \
+                 check this host's clock or rebuild the bundle"
+            ),
+            Self::OtherBytes {
+                identity,
+                bound,
+                named,
+                sha,
+            } => write!(
+                f,
+                "advisory identity {identity} is for other bytes: \
+                 sha256 {bound} but {named} is {sha}"
+            ),
+            Self::NoSha256(identity) => write!(f, "advisory identity {identity} has no sha256"),
+            Self::OrphanIdentity { identity, stem } => write!(
+                f,
+                "advisory identity {identity} has no snapshot; want advisory/{stem}.json"
+            ),
+            Self::Create { path, source } => {
+                write!(f, "cannot create {}: {source}", path.display())
+            }
+            Self::Remove { path, source } => {
+                write!(f, "cannot remove {}: {source}", path.display())
+            }
+            Self::Permissions { path, source } => {
+                write!(f, "cannot make {} executable: {source}", path.display())
+            }
+            Self::Copy { from, to, source } => write!(
+                f,
+                "cannot copy {} to {}: {source}",
+                from.display(),
+                to.display()
+            ),
+            Self::Write { path, source } => {
+                write!(f, "cannot write {}: {source}", path.display())
+            }
+            Self::Io(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for BootstrapError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::BundleUri(error) => Some(error),
+            Self::Create { source, .. }
+            | Self::Remove { source, .. }
+            | Self::Permissions { source, .. }
+            | Self::Copy { source, .. }
+            | Self::Write { source, .. } => Some(source),
+            Self::Io(error) => error.source(),
+            Self::FlagNeedsDir(_)
+            | Self::UnknownArgument(_)
+            | Self::NoInstallDir
+            | Self::MissingBundle
+            | Self::BundleNotFound(_)
+            | Self::BundleMissingDir { .. }
+            | Self::UnsupportedHost { .. }
+            | Self::NoHostLauncher(_)
+            | Self::UnpinnedLauncher(_)
+            | Self::MissingManifest(_)
+            | Self::ManifestMissingFile { .. }
+            | Self::ManifestEmpty(_)
+            | Self::ChecksumMismatch { .. }
+            | Self::InstalledMismatch { .. }
+            | Self::NoSnapshots
+            | Self::UnknownSet(_)
+            | Self::UnpinnedSnapshot { .. }
+            | Self::NoRecordedDate { .. }
+            | Self::UnpinnedIdentity { .. }
+            | Self::InvalidRetrievedAt(_)
+            | Self::RetrievedAfterToday { .. }
+            | Self::OtherBytes { .. }
+            | Self::NoSha256(_)
+            | Self::OrphanIdentity { .. } => None,
+        }
+    }
+}
+
+impl From<PathIoError> for BootstrapError {
+    fn from(error: PathIoError) -> Self {
+        Self::Io(error)
+    }
 }
 
 /// The parsed invocation, with defaults already applied.
@@ -31,12 +275,12 @@ pub enum Command {
     Bootstrap(Options),
 }
 
-/// Parses argv, or returns the plain refusal text of a bad argument.
+/// Parses argv, or returns the refusal of a bad argument.
 ///
 /// # Errors
 ///
-/// Returns the refusal text when an argument is not recognised.
-pub fn parse_args(args: &[String]) -> Result<Command, String> {
+/// Returns the refusal when an argument is not recognised.
+pub fn parse_args(args: &[String]) -> Result<Command, BootstrapError> {
     let mut options = Options {
         bundle: None,
         install_dir: String::new(),
@@ -47,7 +291,7 @@ pub fn parse_args(args: &[String]) -> Result<Command, String> {
     let mut index = 0;
     while let Some(flag) = args.get(index).map(String::as_str) {
         if matches!(flag, "--bundle" | "--install-dir" | "--workspace") && args.len() < index + 2 {
-            return Err(format!("{flag} needs a DIR"));
+            return Err(BootstrapError::FlagNeedsDir(flag.to_string()));
         }
         match flag {
             "--bundle" => options.bundle = args.get(index + 1).cloned(),
@@ -58,7 +302,7 @@ pub fn parse_args(args: &[String]) -> Result<Command, String> {
                 }
             }
             "-h" | "--help" => return Ok(Command::Help),
-            _ => return Err(format!("unknown argument '{flag}'")),
+            _ => return Err(BootstrapError::UnknownArgument(flag.to_string())),
         }
         index += 2;
     }
@@ -66,7 +310,7 @@ pub fn parse_args(args: &[String]) -> Result<Command, String> {
     let profile = std::env::var("USERPROFILE").ok();
     options.install_dir = install_dir
         .or_else(|| default_install_dir(home.as_deref(), profile.as_deref()))
-        .ok_or_else(|| "neither HOME nor USERPROFILE is set; pass --install-dir DIR".to_string())?;
+        .ok_or(BootstrapError::NoInstallDir)?;
     Ok(Command::Bootstrap(options))
 }
 
@@ -211,57 +455,59 @@ pub fn pinned(manifest: &str, name: &str) -> Option<String> {
     })
 }
 
-/// Returns the refusal text, or an empty string when the bootstrap succeeded.
-#[must_use]
-pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
+/// Installs the host launcher and populates the advisory snapshots.
+///
+/// # Errors
+///
+/// Returns the refusal when the bundle, its manifests or the install fail.
+pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> Result<(), BootstrapError> {
     let Some(raw) = options.bundle.as_deref().filter(|b| !b.is_empty()) else {
-        return "missing --bundle DIR (vendored offline bundle)".to_string();
+        return Err(BootstrapError::MissingBundle);
     };
     let bundle = match std::fs::canonicalize(raw) {
         Ok(path) if path.is_dir() => path,
-        _ => return format!("bundle dir does not exist: {raw}"),
+        _ => return Err(BootstrapError::BundleNotFound(raw.to_string())),
     };
-    let url = match dx_path::uri(&bundle) {
-        Ok(url) => url,
-        Err(error) => return format!("bundle path has no file URI: {error}"), // LCOV_EXCL_LINE - reason: a canonical absolute path always has a file URI, issue: 2550, policy: docs/cli/commands/build-test-coverage.md
-    };
+    let url = dx_path::uri(&bundle).map_err(BootstrapError::BundleUri)?;
     let root = bundle.clone();
     let bazelisk = root.join("bazelisk");
+    let missing_dir = |dir| BootstrapError::BundleMissingDir {
+        dir,
+        bundle: raw.to_string(),
+    };
     if !bazelisk.is_dir() {
-        return format!("bundle has no bazelisk/ dir: {raw}");
+        return Err(missing_dir("bazelisk"));
     }
     let advisory = root.join("advisory");
     if !advisory.is_dir() {
-        return format!("bundle has no advisory/ dir: {raw}");
+        return Err(missing_dir("advisory"));
     }
     let Some(asset) = host_launcher(os, arch) else {
-        return format!("unsupported host {os}-{arch}");
+        return Err(BootstrapError::UnsupportedHost {
+            os: os.to_string(),
+            arch: arch.to_string(),
+        });
     };
     let source = bazelisk.join(asset);
     if !source.is_file() {
-        return format!("bundle has no launcher for this host: {asset}");
+        return Err(BootstrapError::NoHostLauncher(asset));
     }
 
-    let bazelisk_manifest = read(&bazelisk.join("SHA256SUMS"));
-    if let Some(refusal) = verify(&bazelisk, &bazelisk_manifest) {
-        return refusal;
-    }
-    let advisory_manifest = read(&advisory.join("SHA256SUMS"));
-    if let Some(refusal) = verify(&advisory, &advisory_manifest) {
-        return refusal;
-    }
+    let bazelisk_manifest = verify(&bazelisk)?;
+    let advisory_manifest = verify(&advisory)?;
     let Some(want) = pinned(&bazelisk_manifest, asset) else {
-        return format!("manifest does not pin this host launcher: {asset}");
+        return Err(BootstrapError::UnpinnedLauncher(asset));
     };
     let got = digest(&source);
     if got != want {
-        return format!("checksum mismatch for {asset}: got {got} want {want}");
+        return Err(BootstrapError::ChecksumMismatch {
+            name: asset.to_string(),
+            got,
+            want,
+        });
     }
 
-    let installed = match install(&source, &options.install_dir, asset, &want) {
-        Ok(path) => path,
-        Err(detail) => return detail,
-    };
+    let installed = install(&source, &options.install_dir, asset, &want)?;
 
     let mut snapshots: Vec<PathBuf> = std::fs::read_dir(&advisory)
         .into_iter()
@@ -282,33 +528,30 @@ pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> String {
     identities.sort();
     let populated =
         dx_path::state::local_dir(Path::new(&options.workspace)).join(dx_path::state::ADVISORY);
-    if let Err(error) = std::fs::create_dir_all(&populated) {
-        return format!("cannot create {}: {error}", populated.display());
-    }
+    std::fs::create_dir_all(&populated).map_err(|source| BootstrapError::Create {
+        path: populated.clone(),
+        source,
+    })?;
     let mut count = 0usize;
     for snapshot in &snapshots {
-        match bind_snapshot(
+        if bind_snapshot(
             snapshot,
             &advisory,
             &advisory_manifest,
             &url,
             &populated,
             today,
-        ) {
-            Ok(true) => count += 1,
-            Ok(false) => {}
-            Err(refusal) => return refusal,
+        )? {
+            count += 1;
         }
     }
-    if let Some(refusal) = orphan_identity(&identities, &snapshots) {
-        return refusal;
-    }
+    orphan_identity(&identities, &snapshots)?;
     if count == 0 {
-        return "bundle carries no advisory snapshots".to_string();
+        return Err(BootstrapError::NoSnapshots);
     }
 
     report(&installed, &got, count, &populated);
-    String::new()
+    Ok(())
 }
 
 fn report(installed: &Path, got: &str, count: usize, populated: &Path) {
@@ -333,7 +576,7 @@ fn bind_snapshot(
     url: &str,
     populated: &Path,
     today: &str,
-) -> Result<bool, String> {
+) -> Result<bool, BootstrapError> {
     let Some(set) = snapshot
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
@@ -341,54 +584,50 @@ fn bind_snapshot(
         return Ok(false);
     };
     if !ADVISORY_SETS.contains(&set.as_str()) {
-        return Err(format!("bundle carries unknown advisory set: {set}"));
+        return Err(BootstrapError::UnknownSet(set));
     }
     let named = format!("{set}.json");
     if pinned(advisory_manifest, &named).is_none() {
-        return Err(format!(
-            "manifest does not pin advisory snapshot: {named} (in {})",
-            advisory.join("SHA256SUMS").display()
-        ));
+        return Err(BootstrapError::UnpinnedSnapshot {
+            named,
+            manifest: advisory.join("SHA256SUMS"),
+        });
     }
     let sha = digest(snapshot);
     let identity = format!("{set}.meta.json");
     let identity_path = advisory.join(&identity);
     if !identity_path.is_file() {
-        return Err(format!(
-            "bundle has no recorded date for advisory snapshot: {named} \
-             (want advisory/{identity})"
-        ));
+        return Err(BootstrapError::NoRecordedDate { named, identity });
     }
     if pinned(advisory_manifest, &identity).is_none() {
-        return Err(format!(
-            "manifest does not pin advisory identity: {identity} (in {})",
-            advisory.join("SHA256SUMS").display()
-        ));
+        return Err(BootstrapError::UnpinnedIdentity {
+            identity,
+            manifest: advisory.join("SHA256SUMS"),
+        });
     }
-    let recorded = read(&identity_path);
+    let recorded = path_io::read_to_string(&identity_path)?;
     let retrieved = match recorded_field(&recorded, "retrieved_at") {
         Some(date) if is_plain_date(&date) => date,
-        _ => {
-            return Err(format!(
-                "advisory identity {identity} has no valid retrieved_at; want YYYY-MM-DD"
-            ));
-        }
+        _ => return Err(BootstrapError::InvalidRetrievedAt(identity)),
     };
     if retrieved.as_str() > today {
-        return Err(format!(
-            "advisory identity {identity} retrieved_at {retrieved} is after today {today}; \
-             check this host's clock or rebuild the bundle"
-        ));
+        return Err(BootstrapError::RetrievedAfterToday {
+            identity,
+            retrieved,
+            today: today.to_string(),
+        });
     }
     match recorded_field(&recorded, "sha256") {
         Some(bound) if bound == sha => {}
         Some(bound) => {
-            return Err(format!(
-                "advisory identity {identity} is for other bytes: \
-                 sha256 {bound} but {named} is {sha}"
-            ));
+            return Err(BootstrapError::OtherBytes {
+                identity,
+                bound,
+                named,
+                sha,
+            });
         }
-        None => return Err(format!("advisory identity {identity} has no sha256")),
+        None => return Err(BootstrapError::NoSha256(identity)),
     }
     let meta = format!(
         "{{\"set\": \"{set}\", \"url\": \"{url}/advisory/{named}\", \
@@ -399,16 +638,18 @@ fn bind_snapshot(
     Ok(true)
 }
 
-fn orphan_identity(identities: &[String], snapshots: &[PathBuf]) -> Option<String> {
-    identities.iter().find_map(|identity| {
+fn orphan_identity(identities: &[String], snapshots: &[PathBuf]) -> Result<(), BootstrapError> {
+    let orphan = identities.iter().find_map(|identity| {
         let stem = identity.trim_end_matches(".meta.json");
         let has_snapshot = snapshots
             .iter()
             .any(|path| path.file_stem().is_some_and(|s| s == stem));
-        (!has_snapshot).then(|| {
-            format!("advisory identity {identity} has no snapshot; want advisory/{stem}.json")
+        (!has_snapshot).then(|| BootstrapError::OrphanIdentity {
+            identity: identity.clone(),
+            stem: stem.to_string(),
         })
-    })
+    });
+    orphan.map_or(Ok(()), Err)
 }
 
 fn is_identity(path: &Path) -> bool {
@@ -416,11 +657,13 @@ fn is_identity(path: &Path) -> bool {
         .is_some_and(|name| name.to_string_lossy().ends_with(".meta.json"))
 }
 
-fn verify(dir: &Path, manifest: &str) -> Option<String> {
+/// Checks every file `dir/SHA256SUMS` names and returns the manifest text.
+fn verify(dir: &Path) -> Result<String, BootstrapError> {
     let path = dir.join("SHA256SUMS");
     if !path.is_file() {
-        return Some(format!("missing manifest: {}", path.display()));
+        return Err(BootstrapError::MissingManifest(path));
     }
+    let manifest = path_io::read_to_string(&path)?;
     let mut verified = 0usize;
     for line in manifest.lines() {
         let Some((want, name)) = manifest_entry(line) else {
@@ -429,29 +672,34 @@ fn verify(dir: &Path, manifest: &str) -> Option<String> {
         let file = dir.join(&name);
         if name.is_empty() || !file.is_file() {
             let named = if name.is_empty() { "<empty>" } else { &name };
-            return Some(format!(
-                "manifest names missing file: {named} (in {})",
-                path.display()
-            ));
+            return Err(BootstrapError::ManifestMissingFile {
+                name: named.to_string(),
+                manifest: path,
+            });
         }
         let got = digest(&file);
         if got != want {
-            return Some(format!(
-                "checksum mismatch for {name}: got {got} want {want}"
-            ));
+            return Err(BootstrapError::ChecksumMismatch { name, got, want });
         }
         verified += 1;
     }
     if verified == 0 {
-        return Some(format!("manifest names no files: {}", path.display()));
+        return Err(BootstrapError::ManifestEmpty(path));
     }
-    None
+    Ok(manifest)
 }
 
-fn install(source: &Path, install_dir: &str, asset: &str, want: &str) -> Result<PathBuf, String> {
+fn install(
+    source: &Path,
+    install_dir: &str,
+    asset: &str,
+    want: &str,
+) -> Result<PathBuf, BootstrapError> {
     let dir = Path::new(install_dir);
-    std::fs::create_dir_all(dir)
-        .map_err(|error| format!("cannot create {install_dir}: {error}"))?;
+    std::fs::create_dir_all(dir).map_err(|source| BootstrapError::Create {
+        path: dir.to_path_buf(),
+        source,
+    })?;
     let name = if Path::new(asset)
         .extension()
         .is_some_and(|e| e.eq_ignore_ascii_case("exe"))
@@ -464,28 +712,31 @@ fn install(source: &Path, install_dir: &str, asset: &str, want: &str) -> Result<
     copy(source, &target)?;
     let got = digest(&target);
     if got != want {
-        return Err(format!(
-            "installed {} does not match the verified launcher: got {got} want {want}",
-            target.display()
-        ));
+        return Err(BootstrapError::InstalledMismatch {
+            target,
+            got,
+            want: want.to_string(),
+        });
     }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755))
-            .map_err(|error| format!("cannot make {} executable: {error}", target.display()))?;
+        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755)).map_err(
+            |source| BootstrapError::Permissions {
+                path: target.clone(),
+                source,
+            },
+        )?;
     }
     Ok(target)
 }
 
-fn copy(source: &Path, target: &Path) -> Result<(), String> {
-    dx_atomic_fs::remove_stale_staging(target);
-    dx_atomic_fs::copy_atomic(source, target).map_err(|error| {
-        format!(
-            "cannot copy {} to {}: {error}",
-            source.display(),
-            target.display()
-        )
+fn copy(from: &Path, to: &Path) -> Result<(), BootstrapError> {
+    dx_atomic_fs::remove_stale_staging(to);
+    dx_atomic_fs::copy_atomic(from, to).map_err(|source| BootstrapError::Copy {
+        from: from.to_path_buf(),
+        to: to.to_path_buf(),
+        source,
     })
 }
 
@@ -496,25 +747,28 @@ fn publish_set(
     populated: &Path,
     set: &str,
     meta: &str,
-    write_identity: fn(&Path, &str) -> Result<(), String>,
-) -> Result<(), String> {
+    write_identity: fn(&Path, &str) -> Result<(), BootstrapError>,
+) -> Result<(), BootstrapError> {
     let identity = populated.join(format!("{set}.meta.json"));
     match std::fs::remove_file(&identity) {
         Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(format!("cannot remove {}: {error}", identity.display())),
+        Err(source) => {
+            return Err(BootstrapError::Remove {
+                path: identity,
+                source,
+            });
+        }
     }
     copy(snapshot, &populated.join(format!("{set}.json")))?;
     write_identity(&identity, meta)
 }
 
-fn write(target: &Path, body: &str) -> Result<(), String> {
-    dx_atomic_fs::write_atomic(target, body.as_bytes())
-        .map_err(|error| format!("cannot write {}: {error}", target.display()))
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_default()
+fn write(target: &Path, body: &str) -> Result<(), BootstrapError> {
+    dx_atomic_fs::write_atomic(target, body.as_bytes()).map_err(|source| BootstrapError::Write {
+        path: target.to_path_buf(),
+        source,
+    })
 }
 
 fn digest(path: &Path) -> String {

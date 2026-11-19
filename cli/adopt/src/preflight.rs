@@ -1,7 +1,6 @@
 //! The read-only "init plan" for a foreign `MODULE.bazel`: what adopting `rules_dx`
 //! would conflict with, found from the declared files. No Bazel runs and nothing is written.
 
-use std::fmt::Write as _;
 use std::path::Path;
 
 use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
@@ -19,8 +18,6 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("windows_support", "0.4.1"),
     ("google_benchmark", "1.10.0"),
     ("rules_python", "2.4.6"),
-    ("elfutils", "0.195"),
-    ("zlib", "1.4"),
     ("rules_go", "0.65.0"),
     ("gazelle", "0.54.0"),
     ("rules_shell", "0.10.0"),
@@ -486,33 +483,29 @@ pub fn render_plan_text(module: &str, apply: &str, plan: &Preflight) -> String {
         ("toolchain conflicts", Kind::ToolchainConflict),
         ("bazelrc conflicts", Kind::BazelrcConflict),
     ] {
-        writeln!(out, "{title}:").ok();
+        out.push_str(&format!("{title}:\n"));
         let items: Vec<&Finding> = plan.findings.iter().filter(|f| f.kind == kind).collect();
         if items.is_empty() {
             out.push_str("  none\n");
         }
         for f in items {
             let level = if f.hard { "hard" } else { "advisory" };
-            writeln!(
-                out,
-                "  {} {} -> {} ({level}, {}:{})\n    {}",
+            out.push_str(&format!(
+                "  {} {} -> {} ({level}, {}:{})\n    {}\n",
                 f.subject, f.before, f.after, f.file, f.line, f.hint
-            )
-            .ok();
+            ));
         }
     }
     for note in &plan.notes {
-        writeln!(out, "note: {note}").ok();
+        out.push_str(&format!("note: {note}\n"));
     }
     let hard = plan.hard().count();
     if hard > 0 {
-        writeln!(
-            out,
-            "next: resolve {hard} hard conflict(s), then run `{apply}`"
-        )
-        .ok();
+        out.push_str(&format!(
+            "next: resolve {hard} hard conflict(s), then run `{apply}`\n"
+        ));
     } else {
-        writeln!(out, "next: run `{apply}`").ok();
+        out.push_str(&format!("next: run `{apply}`\n"));
     }
     out
 }

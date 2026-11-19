@@ -90,6 +90,15 @@ jobs:
             echo "- version: $printed"
             echo "- dx: $files"
           } >> "$GITHUB_STEP_SUMMARY"
+          for tool in topiary progenitor; do
+            tool_files="$(bazel cquery --output=files "@rules_dx//rust/private/quality/tools:${tool}_tool")"
+            echo "$tool_files"
+            case "$tool_files" in
+              *"dx_prebuilt/$KEY/$tool"*) ;;
+              *) echo "@rules_dx ${tool}_tool is not the dx_prebuilt/$KEY/$tool download" >&2; exit 1 ;;
+            esac
+            echo "- $tool: $tool_files" >> "$GITHUB_STEP_SUMMARY"
+          done
 
   bcr:
     needs: consumer

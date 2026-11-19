@@ -875,6 +875,8 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//powershell:pester` | `alias` |
 | `@rules_dx//powershell:runfiles` | `alias` |
 | `@rules_dx//rust:build_script_cc_env` | `build_script_cc_env` |
+| `@rules_dx//rust:wasi_run` | `rust_library` |
+| `@rules_dx//rust:wasmtime` | `alias` |
 | `@rules_dx//thrift:thrift_compiler` | `alias` |
 | `@rules_dx//zig:kcov_build` | `config_setting` |
 

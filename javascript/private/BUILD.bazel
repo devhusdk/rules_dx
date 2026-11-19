@@ -16,6 +16,7 @@ exports_files([
     "frameworks.bzl",
     "vite_tool.mjs",
     "web.bzl",
+    "windows_tool.bzl",
 ])
 
 javascript_library(
@@ -56,6 +57,7 @@ real_source_target(
         "dev_hub.bzl",
         "frameworks.bzl",
         "web.bzl",
+        "windows_tool.bzl",
     ],
     tags = ["corpus"],
 )

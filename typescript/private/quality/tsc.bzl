@@ -193,7 +193,7 @@ tsc_aspect = aspect(
             allow_single_file = True,
         ),
         "_tsc": attr.label(
-            default = "@npm_typescript//:tsc",
+            default = "//typescript/private:tsc",
             executable = True,
             cfg = "exec",
         ),

@@ -57,7 +57,7 @@ modules, types and procedures on the hermetic Python toolchain; nothing is
 compiled and no host tool runs. To build the shard yourself, declare one:
 
 ```python
-load("@rules_dx//tools/docs/fortran:defs.bzl", "fortran_doc_shard")
+load("@rules_dx//fortran:defs.bzl", "fortran_doc_shard")
 
 fortran_doc_shard(
     name = "units_docs",

@@ -5,6 +5,8 @@ load("//core:rlocation.bzl", "repo_relative_path")
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 _DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
 
 _PUBSPEC = LOCK_REGISTRY["pub"]["manifest"]

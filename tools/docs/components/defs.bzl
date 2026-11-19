@@ -5,6 +5,8 @@ load("//core/modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SV
 load("//tools/docs/components:shard.bzl", "component_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 _VUE_COMPONENT_META = Label("//javascript/private/quality/bin:vue_component_meta")
 _MDX_COMPONENT_META = Label("//javascript/private/quality/bin:mdx_component_meta")
 _SVELTE_COMPONENT_META = Label("//javascript/private/quality/bin:svelte_component_meta")

@@ -76,6 +76,14 @@ astro_test(name, *, srcs, node_modules, data = None, **kwargs)
 
 Runs jest over Astro components, compiled by the linked @astrojs/compiler-rs.
 
+### `astro_doc_shard`
+
+```python
+astro_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package_json = None, deps = [], **kwargs)
+```
+
+Declares a component metadata run over one Astro project and its DocIr shard.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Astro:
@@ -104,13 +112,5 @@ Astro builds and tests on:
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/components:defs.bzl", "astro_doc_shard")
+load("@rules_dx//astro:defs.bzl", "astro_doc_shard")
 ```
-
-### `astro_doc_shard`
-
-```python
-astro_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package_json = None, deps = [], **kwargs)
-```
-
-Declares a component metadata run over one Astro project and its DocIr shard.

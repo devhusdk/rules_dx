@@ -4,6 +4,8 @@ load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 def julia_shard_action(ctx, own, transitive_srcs, module, package, stem, driver, extract_tool):
     """Runs the Documenter driver and the extractor for one Julia library."""
     own = sorted([f for f in own if f.extension == "jl"], key = lambda f: f.path)

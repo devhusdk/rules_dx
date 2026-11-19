@@ -50,7 +50,7 @@ It needs the `erlang_app` and `test_erlang_app` of the package, like `ct_suite`.
 ## API docs
 
 `dx docs` documents an `erlang_app` with `erlang_doc_shard(name, app, package)` from
-`@rules_dx//tools/docs/erlang:defs.bzl`. It runs `edoc` from the pinned OTP over the app's `srcs` and writes a DocIr shard. Functions that are not exported are left out. Windows execution platforms are not covered.
+`@rules_dx//erlang:defs.bzl`. It runs `edoc` from the pinned OTP over the app's `srcs` and writes a DocIr shard. Functions that are not exported are left out. Windows execution platforms are not covered.
 
 ## Toolchain
 

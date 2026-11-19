@@ -60,7 +60,7 @@ An import resolves to `@dub//<package>` when its first segment is the name of a 
 ## API docs
 
 `dx docs` documents every `d_library` in scope with the pinned LDC: `ldc2 -D -X`
-reads the ddoc comments, and `d_doc_shard` (`@rules_dx//tools/docs/d:defs.bzl`)
+reads the ddoc comments, and `d_doc_shard` (`@rules_dx//d:defs.bzl`)
 turns them into the API reference. Nothing needs to be installed.
 
 ## Platforms

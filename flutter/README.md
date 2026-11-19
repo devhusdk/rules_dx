@@ -42,7 +42,7 @@ bazel run @rules_flutter//flutter:pub -- get --directory <dir>
 
 ## API docs
 
-`dart_doc_shard` in `@rules_dx//tools/docs/dart:defs.bzl` runs the pinned `dart doc` over a `flutter_library`. `dx docs` runs it on every Flutter library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_flutter ships no SDK.
+`dart_doc_shard` in `@rules_dx//dart:defs.bzl` runs the pinned `dart doc` over a `flutter_library`. `dx docs` runs it on every Flutter library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_flutter ships no SDK.
 
 ## Packaging
 

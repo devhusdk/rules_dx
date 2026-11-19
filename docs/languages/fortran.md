@@ -127,6 +127,14 @@ fortran_test(name, *, srcs = None, visibility = None, **kwargs)
 
 Compiles Fortran sources with rules_fortran and links them with cc_test.
 
+### `fortran_doc_shard`
+
+```python
+fortran_doc_shard(name, lib, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Fortran library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Fortran:
@@ -158,16 +166,8 @@ incompatible and skipped.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/fortran:defs.bzl", "fortran_doc_shard")
+load("@rules_dx//fortran:defs.bzl", "fortran_doc_shard")
 ```
-
-### `fortran_doc_shard`
-
-```python
-fortran_doc_shard(name, lib, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one Fortran library.
 
 `dx docs` documents every `fortran_library` that lists its own sources, with no
 setup. FORD, pinned by hash in `core/quality/tools/python/uv.lock`, parses the public
@@ -175,7 +175,7 @@ modules, types and procedures on the hermetic Python toolchain; nothing is
 compiled and no host tool runs. To build the shard yourself, declare one:
 
 ```python
-load("@rules_dx//tools/docs/fortran:defs.bzl", "fortran_doc_shard")
+load("@rules_dx//fortran:defs.bzl", "fortran_doc_shard")
 
 fortran_doc_shard(
     name = "units_docs",

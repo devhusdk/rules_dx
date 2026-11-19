@@ -168,6 +168,14 @@ python_grpc_library(name, proto, py_proto, grpc_tools = "@pypi//grpcio_tools", g
 
 Compiles the services of proto into <name>_pb2_grpc.py.
 
+### `python_doc_shard`
+
+```python
+python_doc_shard(name, library, package = "", docstyle = "google", **kwargs)
+```
+
+Declares the DocIr shard of one Python library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Python:
@@ -198,13 +206,5 @@ See the [support matrix](../support-matrix.md).
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/python:defs.bzl", "python_doc_shard")
+load("@rules_dx//python:defs.bzl", "python_doc_shard")
 ```
-
-### `python_doc_shard`
-
-```python
-python_doc_shard(name, library, package = "", docstyle = "google", **kwargs)
-```
-
-Declares the DocIr shard of one Python library.

@@ -4,6 +4,8 @@ load("@rules_go//go:def.bzl", "GoInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 def go_shard_action(ctx, info, package, stem, driver_tool, extract_tool, goos = "linux", goarch = "amd64", tags = []):
     """Runs the go/doc driver and the extractor for one Go library."""
     importpath = package or info.importpath

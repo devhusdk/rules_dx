@@ -226,6 +226,16 @@ Native config file for dart, with the packages its include: lines name.
 | `src` | `label` | yes | Config file the tool reads, normally a checked-in source. |
 | `_tool_id` | `string` | no |  |
 
+### `dart_doc_shard`
+
+Converts one dart_library public API into a DocIr shard with the pinned `dart doc`.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `lib` | `label` | yes | The documented dart_library. |
+| `package` | `string` | no | Package segment of the symbol ids; defaults to the Dart package name of lib. |
+| `_extract` | `label` | no |  |
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Dart:
@@ -265,17 +275,7 @@ bazel build --platforms=//:linux_arm64 //app:cli
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/dart:defs.bzl", "dart_doc_shard")
+load("@rules_dx//dart:defs.bzl", "dart_doc_shard")
 ```
 
-### `dart_doc_shard`
-
-Converts one dart_library public API into a DocIr shard with the pinned `dart doc`.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `lib` | `label` | yes | The documented dart_library. |
-| `package` | `string` | no | Package segment of the symbol ids; defaults to the Dart package name of lib. |
-| `_extract` | `label` | no |  |
-
-`dart_doc_shard` in `@rules_dx//tools/docs/dart:defs.bzl` runs the pinned `dart doc` over a `dart_library` and converts its `index.json` to a DocIr shard. `dx docs` runs it on every Dart library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_dart ships no SDK. Flutter libraries (`flutter_library`) work too: their SDK packages are staged from the pinned `rules_flutter` repositories. The index holds each symbol's first doc paragraph, not its signature or source location.
+`dart_doc_shard` in `@rules_dx//dart:defs.bzl` runs the pinned `dart doc` over a `dart_library` and converts its `index.json` to a DocIr shard. `dx docs` runs it on every Dart library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_dart ships no SDK. Flutter libraries (`flutter_library`) work too: their SDK packages are staged from the pinned `rules_flutter` repositories. The index holds each symbol's first doc paragraph, not its signature or source location.

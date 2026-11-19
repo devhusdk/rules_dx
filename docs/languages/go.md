@@ -141,6 +141,14 @@ go_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs)
 
 A go_test of the Benchmark functions plus a `<name>` runner that writes dx-bench.json for `dx bench`.
 
+### `go_doc_shard`
+
+```python
+go_doc_shard(name, library, package = "", goos = "linux", goarch = "amd64", build_tags = [], **kwargs)
+```
+
+Declares the DocIr shard of one Go library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Go:
@@ -171,13 +179,5 @@ See the [support matrix](../support-matrix.md).
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/go:defs.bzl", "go_doc_shard")
+load("@rules_dx//go:defs.bzl", "go_doc_shard")
 ```
-
-### `go_doc_shard`
-
-```python
-go_doc_shard(name, library, package = "", goos = "linux", goarch = "amd64", build_tags = [], **kwargs)
-```
-
-Declares the DocIr shard of one Go library.

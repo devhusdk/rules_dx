@@ -4,6 +4,8 @@ load("@rules_zig//zig/private/providers:zig_module_info.bzl", "ZigModuleInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 _ZigDirectSrcsInfo = provider(
     doc = "The .zig files one Zig library lists in its own srcs, main file first.",
     fields = {"srcs": "List[File]: the library's direct Zig srcs."},

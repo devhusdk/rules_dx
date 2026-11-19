@@ -152,6 +152,14 @@ scala_bench(name, *, srcs, deps = None, tags = None, **kwargs)
 
 Runs the JMH benchmarks in Scala srcs and writes dx-bench.json for dx bench.
 
+### `scala_doc_shard`
+
+```python
+scala_doc_shard(name, lib, package = "", deps = [], **kwargs)
+```
+
+Declares the DocIr shard of one Scala 2.13 library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Scala:
@@ -182,13 +190,5 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/jvm:defs.bzl", "scala_doc_shard")
+load("@rules_dx//scala:defs.bzl", "scala_doc_shard")
 ```
-
-### `scala_doc_shard`
-
-```python
-scala_doc_shard(name, lib, package = "", deps = [], **kwargs)
-```
-
-Declares the DocIr shard of one Scala 2.13 library.

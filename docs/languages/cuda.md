@@ -238,6 +238,14 @@ Forwards one pinned CUDA library component after the pin check.
 | `component` | `label` | yes | The rules_cuda component target, for example @cuda//:cublas. |
 | `component_name` | `string` | yes | rules_cuda short name of the component. |
 
+### `cuda_doc_shard`
+
+```python
+cuda_doc_shard(name, lib, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one CUDA library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for CUDA:
@@ -269,13 +277,5 @@ Windows needs `--//cc:compiler=msvc`: nvcc on Windows only drives `cl.exe`. With
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/cc:defs.bzl", "cuda_doc_shard")
+load("@rules_dx//cuda:defs.bzl", "cuda_doc_shard")
 ```
-
-### `cuda_doc_shard`
-
-```python
-cuda_doc_shard(name, lib, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one CUDA library.

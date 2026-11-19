@@ -3,6 +3,8 @@
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 _SOURCE_EXTENSIONS = [".ps1", ".psm1"]
 
 def _where(ctx):

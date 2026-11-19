@@ -5,6 +5,8 @@ load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE")
 load("//tools/docs/beam:shard.bzl", "ELIXIR_DUMP_TOOL", "beam_dirs", "beam_shard_action", "beam_sources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 def elixir_shard_action(ctx, app, package, stem, runner, extract_tool):
     """Runs Code.fetch_docs on the pinned Elixir and the extractor for one Elixir app."""
     srcs = beam_sources(app, ["ex"])

@@ -256,7 +256,8 @@ LANGS = json.decode("""{
     "entry_points": [
       "astro_library",
       "astro_build",
-      "astro_test"
+      "astro_test",
+      "astro_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -315,7 +316,8 @@ LANGS = json.decode("""{
     "entry_points": [
       "avro_library",
       "avro_cc_library",
-      "avro_java_library"
+      "avro_java_library",
+      "avro_doc_shard"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -506,7 +508,8 @@ LANGS = json.decode("""{
       "cc_binary",
       "cc_test",
       "cc_fuzz_test",
-      "cc_bench"
+      "cc_bench",
+      "cc_doc_shard"
     ],
     "family": "core",
     "lockfiles": [],
@@ -716,7 +719,8 @@ LANGS = json.decode("""{
       "csharp_binary",
       "csharp_test",
       "csharp_bench",
-      "csharp_fuzz_test"
+      "csharp_fuzz_test",
+      "csharp_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -765,7 +769,8 @@ LANGS = json.decode("""{
       "cuda_binary",
       "cuda_test",
       "cuda_objects",
-      "cuda_component_library"
+      "cuda_component_library",
+      "cuda_doc_shard"
     ],
     "family": "core",
     "lockfiles": [],
@@ -822,7 +827,8 @@ LANGS = json.decode("""{
       "d_binary",
       "d_test",
       "d_fuzz_test",
-      "d_bench"
+      "d_bench",
+      "d_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -925,7 +931,8 @@ LANGS = json.decode("""{
       "dart_wasm_binary",
       "dart_test",
       "dart_bench",
-      "dart_config"
+      "dart_config",
+      "dart_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -1156,7 +1163,8 @@ LANGS = json.decode("""{
       "elixir_bench",
       "elixir_escript_archive",
       "elixir_escript_headers",
-      "elixir_test"
+      "elixir_test",
+      "elixir_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -1244,7 +1252,8 @@ LANGS = json.decode("""{
       "erlang_nif",
       "erlang_release",
       "erlang_test_app",
-      "erlang_xrl_yrl"
+      "erlang_xrl_yrl",
+      "erlang_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -1408,7 +1417,8 @@ LANGS = json.decode("""{
     "entry_points": [
       "fortran_library",
       "fortran_binary",
-      "fortran_test"
+      "fortran_test",
+      "fortran_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -1507,7 +1517,8 @@ LANGS = json.decode("""{
       "fsharp_binary",
       "fsharp_test",
       "fsharp_bench",
-      "fsharp_fuzz_test"
+      "fsharp_fuzz_test",
+      "fsharp_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -1552,7 +1563,8 @@ LANGS = json.decode("""{
       "go_binary",
       "go_test",
       "go_fuzz_test",
-      "go_bench"
+      "go_bench",
+      "go_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -1659,7 +1671,8 @@ LANGS = json.decode("""{
       "haskell_library",
       "haskell_binary",
       "haskell_test",
-      "haskell_bench"
+      "haskell_bench",
+      "haskell_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -1807,7 +1820,8 @@ LANGS = json.decode("""{
       "java_binary",
       "java_test",
       "java_fuzz_test",
-      "java_bench"
+      "java_bench",
+      "java_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -1922,7 +1936,8 @@ LANGS = json.decode("""{
       "javascript_bench",
       "javascript_fuzz_test",
       "javascript_web_app",
-      "javascript_web_bundle"
+      "javascript_web_bundle",
+      "javascript_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -2038,7 +2053,8 @@ LANGS = json.decode("""{
       "julia_binary",
       "julia_test",
       "julia_standalone_binary",
-      "julia_bench"
+      "julia_bench",
+      "julia_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -2139,7 +2155,8 @@ LANGS = json.decode("""{
       "kotlin_binary",
       "kotlin_test",
       "kotlin_bench",
-      "kotlin_fuzz_test"
+      "kotlin_fuzz_test",
+      "kotlin_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -2405,7 +2422,8 @@ LANGS = json.decode("""{
     "entry_points": [
       "mdx_library",
       "mdx_build",
-      "mdx_test"
+      "mdx_test",
+      "mdx_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -2512,7 +2530,8 @@ LANGS = json.decode("""{
       "ocaml_test",
       "ocaml_fuzz_test",
       "ocaml_bench",
-      "ocaml_dune_library"
+      "ocaml_dune_library",
+      "ocaml_doc_shard"
     ],
     "family": "core",
     "lockfiles": [],
@@ -2618,7 +2637,8 @@ LANGS = json.decode("""{
       "perl_library",
       "perl_binary",
       "perl_test",
-      "perl_bench"
+      "perl_bench",
+      "perl_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -2793,7 +2813,8 @@ LANGS = json.decode("""{
     "entry_points": [
       "powershell_library",
       "powershell_binary",
-      "powershell_test"
+      "powershell_test",
+      "powershell_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -2890,7 +2911,8 @@ LANGS = json.decode("""{
       "python_test",
       "python_fuzz_test",
       "python_bench",
-      "python_grpc_library"
+      "python_grpc_library",
+      "python_doc_shard"
     ],
     "family": "python",
     "lockfiles": [
@@ -3121,7 +3143,8 @@ LANGS = json.decode("""{
       "ruby_library",
       "ruby_binary",
       "ruby_test",
-      "ruby_bench"
+      "ruby_bench",
+      "ruby_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -3217,7 +3240,8 @@ LANGS = json.decode("""{
       "rust_shared_library",
       "rust_static_library",
       "rust_fuzz_test",
-      "rust_build_script"
+      "rust_build_script",
+      "rust_docs_site"
     ],
     "family": "core",
     "lockfiles": [
@@ -3321,7 +3345,8 @@ LANGS = json.decode("""{
       "scala_binary",
       "scala_test",
       "scala_fuzz_test",
-      "scala_bench"
+      "scala_bench",
+      "scala_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -3437,7 +3462,8 @@ LANGS = json.decode("""{
     "entry_points": [
       "svelte_library",
       "svelte_build",
-      "svelte_test"
+      "svelte_test",
+      "svelte_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -3502,7 +3528,8 @@ LANGS = json.decode("""{
       "swift_binary",
       "swift_test",
       "swift_fuzz_test",
-      "swift_bench"
+      "swift_bench",
+      "swift_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -3729,7 +3756,8 @@ LANGS = json.decode("""{
       "typescript_bench",
       "typescript_fuzz_test",
       "typescript_playwright_test",
-      "ts_config"
+      "ts_config",
+      "typescript_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -3798,7 +3826,8 @@ LANGS = json.decode("""{
     "entry_points": [
       "vue_library",
       "vue_build",
-      "vue_test"
+      "vue_test",
+      "vue_doc_shard"
     ],
     "family": "core",
     "lockfiles": [
@@ -3860,7 +3889,8 @@ LANGS = json.decode("""{
       "zig_library",
       "zig_binary",
       "zig_test",
-      "zig_bench"
+      "zig_bench",
+      "zig_doc_shard"
     ],
     "family": "core",
     "lockfiles": [],

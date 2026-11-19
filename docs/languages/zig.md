@@ -172,6 +172,18 @@ zig_bench(name, *, srcs = None, main = None, visibility = None, tags = None, **k
 
 A ReleaseFast zig_binary plus a `<name>` runner that writes dx-bench.json for `dx bench`.
 
+### `zig_doc_shard`
+
+Converts one Zig library's public API into a DocIr shard with the pinned Zig's std.zig.Ast.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
+| `lib` | `label` | yes | The zig_library to document. |
+| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
+| `_dump` | `label` | no |  |
+| `_extract` | `label` | no |  |
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Zig:
@@ -202,24 +214,12 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/zig:defs.bzl", "zig_doc_shard")
+load("@rules_dx//zig:defs.bzl", "zig_doc_shard")
 ```
-
-### `zig_doc_shard`
-
-Converts one Zig library's public API into a DocIr shard with the pinned Zig's std.zig.Ast.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
-| `lib` | `label` | yes | The zig_library to document. |
-| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
-| `_dump` | `label` | no |  |
-| `_extract` | `label` | no |  |
 
 `dx docs` documents every `zig_library` in scope. A small Zig program built with
 the pinned Zig reads each source with `std.zig.Ast`, and `zig_doc_shard`
-(`@rules_dx//tools/docs/zig:defs.bzl`) turns the `///` and `//!` comments of the
+(`@rules_dx//zig:defs.bzl`) turns the `///` and `//!` comments of the
 public declarations into the API reference. Own files the main file re-exports
 with `pub const x = @import("x.zig")` become modules. Nothing needs to be
 installed.

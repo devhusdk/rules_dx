@@ -4,6 +4,8 @@ load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
 
+visibility(["//..."])
+
 _JvmDirectSrcsInfo = provider(
     doc = "The sources one JVM library lists in its own srcs.",
     fields = {

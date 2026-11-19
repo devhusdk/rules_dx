@@ -179,6 +179,14 @@ ruby_bench(name, *, srcs = None, main = None, data = None, env = None, tags = No
 
 A ruby_test run by dx bench: `main` calls DxBench.run with a benchmark-ips block, which writes dx-bench.json. main is name.rb, else the single src.
 
+### `ruby_doc_shard`
+
+```python
+ruby_doc_shard(name, lib, package = "", deps = [], **kwargs)
+```
+
+Declares the DocIr shard of one Ruby library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Ruby:
@@ -211,13 +219,5 @@ Ruby builds and tests on:
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
+load("@rules_dx//ruby:defs.bzl", "ruby_doc_shard")
 ```
-
-### `ruby_doc_shard`
-
-```python
-ruby_doc_shard(name, lib, package = "", deps = [], **kwargs)
-```
-
-Declares the DocIr shard of one Ruby library.

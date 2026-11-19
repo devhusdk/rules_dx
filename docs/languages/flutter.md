@@ -175,7 +175,7 @@ Flutter builds and tests on:
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/dart:defs.bzl", "dart_doc_shard")
+load("@rules_dx//dart:defs.bzl", "dart_doc_shard")
 ```
 
 ### `dart_doc_shard`
@@ -188,4 +188,4 @@ Converts one dart_library public API into a DocIr shard with the pinned `dart do
 | `package` | `string` | no | Package segment of the symbol ids; defaults to the Dart package name of lib. |
 | `_extract` | `label` | no |  |
 
-`dart_doc_shard` in `@rules_dx//tools/docs/dart:defs.bzl` runs the pinned `dart doc` over a `flutter_library`. `dx docs` runs it on every Flutter library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_flutter ships no SDK.
+`dart_doc_shard` in `@rules_dx//dart:defs.bzl` runs the pinned `dart doc` over a `flutter_library`. `dx docs` runs it on every Flutter library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_flutter ships no SDK.

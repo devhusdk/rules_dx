@@ -13,8 +13,10 @@ load(
     _avro_cc_library = "avro_cc_library",
     _avro_java_library = "avro_java_library",
 )
+load("//tools/docs/avro:defs.bzl", _avro_doc_shard = "avro_doc_shard")
 
 AvroInfo = _AvroInfo
 avro_cc_library = _avro_cc_library
 avro_java_library = _avro_java_library
 avro_library = _avro_library
+avro_doc_shard = _avro_doc_shard

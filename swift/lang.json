@@ -50,7 +50,8 @@
     "swift_binary",
     "swift_test",
     "swift_fuzz_test",
-    "swift_bench"
+    "swift_bench",
+    "swift_doc_shard"
   ],
   "quality": {
     "bzl": "swift/private/quality:swift.bzl",

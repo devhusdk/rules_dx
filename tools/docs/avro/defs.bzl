@@ -4,6 +4,8 @@ load("//avro/private:providers.bzl", "AvroInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 def avro_shard_action(ctx, srcs, imports, avro_tools, package, stem, extract_tool):
     """Runs avro-tools on each .avdl and the extractor over every schema of one avro_library."""
     if not srcs:

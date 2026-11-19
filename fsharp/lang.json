@@ -32,6 +32,7 @@
     "fsharp_binary",
     "fsharp_test",
     "fsharp_bench",
-    "fsharp_fuzz_test"
+    "fsharp_fuzz_test",
+    "fsharp_doc_shard"
   ]
 }

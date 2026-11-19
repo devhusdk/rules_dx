@@ -210,6 +210,14 @@ Runs Playwright tests in a pinned headless Chromium; app is started by the confi
 
 Re-exported from `@aspect_rules_ts//ts:defs.bzl`.
 
+### `typescript_doc_shard`
+
+```python
+typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs)
+```
+
+Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for TypeScript:
@@ -240,13 +248,5 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
+load("@rules_dx//typescript:defs.bzl", "typescript_doc_shard")
 ```
-
-### `typescript_doc_shard`
-
-```python
-typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs)
-```
-
-Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard.

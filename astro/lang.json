@@ -26,7 +26,8 @@
   "entry_points": [
     "astro_library",
     "astro_build",
-    "astro_test"
+    "astro_test",
+    "astro_doc_shard"
   ],
   "quality": {
     "bzl": "javascript/private/quality:js.bzl",

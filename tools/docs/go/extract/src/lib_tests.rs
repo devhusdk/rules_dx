@@ -1,5 +1,6 @@
 use super::*;
 use serde_json::json;
+use std::fs;
 
 fn item(kind: &str, name: &str, recv: &str, type_kind: &str) -> Value {
     json!({
@@ -149,10 +150,31 @@ fn malformed_documents_are_rejected() {
         ),
     ];
     for (doc, want) in cases {
-        let error = convert(&doc.to_string()).unwrap_err();
+        let error = convert(&doc.to_string()).unwrap_err().to_string();
         assert!(error.contains(want), "{error} does not mention {want}");
     }
-    assert!(convert("{").unwrap_err().contains("malformed"));
+    let error = convert("{").unwrap_err();
+    assert!(matches!(error, GoExtractError::Malformed(_)), "{error:?}");
+    assert!(error.to_string().starts_with("Go doc JSON is malformed: "), "{error}");
+}
+
+#[test]
+fn run_reports_an_unreadable_input() {
+    let base = std::env::var_os("TEST_TMPDIR").map_or_else(std::env::temp_dir, Into::into);
+    let missing = base.join(format!("go-extract-missing-{}.json", std::process::id()));
+    let options = Options {
+        json: missing.display().to_string(),
+        out: base.join("unused.pb").display().to_string(),
+    };
+    let error = run(&options).unwrap_err();
+    assert!(
+        matches!(&error, GoExtractError::Read(PathIoError::Read { path, .. }) if *path == missing),
+        "{error:?}"
+    );
+    assert!(
+        error.to_string().starts_with(&format!("cannot read {}: ", missing.display())),
+        "{error}"
+    );
 }
 
 #[test]

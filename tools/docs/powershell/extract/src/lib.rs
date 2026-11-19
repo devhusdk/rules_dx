@@ -58,7 +58,7 @@ pub fn run(options: &Options) -> Result<(), String> {
             config: options.config.clone(),
         },
     )?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 #[cfg(test)]

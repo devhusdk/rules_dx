@@ -70,7 +70,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         },
     )?;
     documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 #[cfg(test)]

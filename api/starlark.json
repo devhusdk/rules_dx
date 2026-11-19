@@ -737,7 +737,20 @@
     "extensions": [],
     "functions": [
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "app_name",
+              "binary",
+              "desktop",
+              "icon",
+              "notice",
+              "target_compatible_with",
+              "version"
+            ],
+            "kind": "_appimage_package"
+          }
+        ],
         "name": "appimage_package",
         "params": [
           {
@@ -1577,7 +1590,24 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_astro_library_forward"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "js_library"
+          }
+        ],
         "name": "astro_library",
         "params": [
           {
@@ -2883,7 +2913,27 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_csharp_library_forward"
+          },
+          {
+            "attrs": [
+              "out",
+              "srcs",
+              "tags",
+              "target_frameworks",
+              "treat_warnings_as_errors",
+              "visibility"
+            ],
+            "kind": "csharp_library"
+          }
+        ],
         "name": "csharp_library",
         "params": [
           {
@@ -2940,7 +2990,29 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "size",
+              "srcs",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_csharp_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "size",
+              "srcs",
+              "tags",
+              "target_frameworks",
+              "treat_warnings_as_errors",
+              "visibility"
+            ],
+            "kind": "csharp_test"
+          }
+        ],
         "name": "csharp_test",
         "params": [
           {
@@ -3757,7 +3829,28 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_dart_library_forward"
+          },
+          {
+            "attrs": [
+              "package_name",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "dart_library"
+          }
+        ],
         "name": "dart_library",
         "params": [
           {
@@ -3783,7 +3876,30 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_dart_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "main",
+              "size",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "dart_test"
+          }
+        ],
         "name": "dart_test",
         "params": [
           {
@@ -6352,7 +6468,87 @@
     "extensions": [],
     "functions": [
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_elixir_app_forward"
+          },
+          {
+            "attrs": [
+              "app_file_tool",
+              "app_name",
+              "app_version",
+              "deps",
+              "extra_apps",
+              "modules",
+              "out",
+              "private_stamp_detect",
+              "tags",
+              "target_compatible_with",
+              "testonly"
+            ],
+            "kind": "app_file"
+          },
+          {
+            "attrs": [
+              "data",
+              "deps",
+              "dest",
+              "elixirc_opts",
+              "ez_deps",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly"
+            ],
+            "kind": "elixir_bytecode"
+          },
+          {
+            "attrs": [
+              "app_file",
+              "beam_files_dir",
+              "dest",
+              "tags",
+              "target_compatible_with",
+              "testonly"
+            ],
+            "kind": "elixir_ebin_dir"
+          },
+          {
+            "attrs": [
+              "dest",
+              "src",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "without"
+            ],
+            "kind": "erlang_app_filter_module_conflicts"
+          },
+          {
+            "attrs": [
+              "app_name",
+              "beam",
+              "deps",
+              "extra_apps",
+              "hdrs",
+              "license_files",
+              "priv",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "visibility"
+            ],
+            "kind": "erlang_app_info"
+          }
+        ],
         "name": "elixir_app",
         "params": [
           {
@@ -6466,7 +6662,33 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "apps",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_ex_unit_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "elixir_opts",
+              "is_windows",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "ex_unit_test"
+          }
+        ],
         "name": "elixir_test",
         "params": [
           {
@@ -7095,7 +7317,28 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_library_forward"
+          },
+          {
+            "attrs": [
+              "copts",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "fortran_library"
+          }
+        ],
         "name": "fortran_library",
         "params": [
           {
@@ -7319,7 +7562,28 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "target_frameworks",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_fsharp_library_forward"
+          },
+          {
+            "attrs": [
+              "deps",
+              "srcs",
+              "tags",
+              "target_frameworks",
+              "treat_warnings_as_errors",
+              "visibility"
+            ],
+            "kind": "fsharp_library"
+          }
+        ],
         "name": "fsharp_library",
         "params": [
           {
@@ -7345,7 +7609,30 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "size",
+              "srcs",
+              "target_frameworks",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_fsharp_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "size",
+              "srcs",
+              "tags",
+              "target_frameworks",
+              "treat_warnings_as_errors",
+              "visibility"
+            ],
+            "kind": "fsharp_test"
+          }
+        ],
         "name": "fsharp_test",
         "params": [
           {
@@ -7413,7 +7700,24 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "cgo",
+              "srcs",
+              "upstream"
+            ],
+            "kind": "_go_binary_forward"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "go_binary"
+          }
+        ],
         "name": "go_binary",
         "params": [
           {
@@ -7930,7 +8234,85 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "data",
+              "deps",
+              "exports",
+              "extra_srcs",
+              "ghcopts",
+              "hidden_modules",
+              "label_string",
+              "linkstatic",
+              "modules",
+              "narrowed_deps",
+              "non_default_plugins",
+              "package_name",
+              "plugins",
+              "reexported_modules",
+              "repl_ghci_args",
+              "runcompile_flags",
+              "src_strip_prefix",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "tools",
+              "version",
+              "visibility"
+            ],
+            "kind": "_haskell_library"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_haskell_library_forward"
+          },
+          {
+            "attrs": [
+              "collect_data",
+              "data",
+              "deps",
+              "experimental_from_binary",
+              "experimental_from_source",
+              "multi",
+              "repl_ghci_args",
+              "repl_ghci_commands",
+              "tags",
+              "testonly"
+            ],
+            "kind": "_haskell_repl"
+          },
+          {
+            "attrs": [
+              "collect_data",
+              "data",
+              "deps",
+              "experimental_from_binary",
+              "experimental_from_source",
+              "multi",
+              "repl_ghci_args",
+              "repl_ghci_commands",
+              "tags",
+              "testonly"
+            ],
+            "kind": "_hie_bios"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "testonly"
+            ],
+            "kind": "sh_binary"
+          }
+        ],
         "name": "haskell_library",
         "params": [
           {
@@ -8250,7 +8632,25 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_java_library_forward"
+          },
+          {
+            "attrs": [
+              "javacopts",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "java_library"
+          }
+        ],
         "name": "java_library",
         "params": [
           {
@@ -8276,7 +8676,31 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "main_class",
+              "size",
+              "srcs",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_java_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "javacopts",
+              "launcher",
+              "size",
+              "srcs",
+              "tags",
+              "test_class",
+              "visibility"
+            ],
+            "kind": "java_test"
+          }
+        ],
         "name": "java_test",
         "params": [
           {
@@ -8706,7 +9130,25 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream"
+            ],
+            "kind": "_javascript_binary_forward"
+          },
+          {
+            "attrs": [
+              "data",
+              "enable_runfiles",
+              "entry_point",
+              "tags",
+              "visibility"
+            ],
+            "kind": "js_binary"
+          }
+        ],
         "name": "javascript_binary",
         "params": [
           {
@@ -8829,7 +9271,25 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_javascript_library_forward"
+          },
+          {
+            "attrs": [
+              "deps",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "js_library"
+          }
+        ],
         "name": "javascript_library",
         "params": [
           {
@@ -9650,7 +10110,29 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_julia_library_forward"
+          },
+          {
+            "attrs": [
+              "data",
+              "package_name",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "julia_library"
+          }
+        ],
         "name": "julia_library",
         "params": [
           {
@@ -9692,7 +10174,33 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_julia_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "julia_flags",
+              "main",
+              "package_name",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "julia_test"
+          }
+        ],
         "name": "julia_test",
         "params": [
           {
@@ -10000,7 +10508,25 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_kotlin_library_forward"
+          },
+          {
+            "attrs": [
+              "kotlinc_opts",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "kt_jvm_library"
+          }
+        ],
         "name": "kotlin_library",
         "params": [
           {
@@ -10026,7 +10552,31 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "main_class",
+              "size",
+              "srcs",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_kotlin_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "kotlinc_opts",
+              "main_class",
+              "size",
+              "srcs",
+              "tags",
+              "test_class",
+              "visibility"
+            ],
+            "kind": "kt_jvm_test"
+          }
+        ],
         "name": "kotlin_test",
         "params": [
           {
@@ -10470,7 +11020,24 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_mdx_library_forward"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "js_library"
+          }
+        ],
         "name": "mdx_library",
         "params": [
           {
@@ -10538,7 +11105,21 @@
     "extensions": [],
     "functions": [
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "binary",
+              "display_name",
+              "identity_name",
+              "logo",
+              "notice",
+              "publisher",
+              "target_compatible_with",
+              "version"
+            ],
+            "kind": "_msix_package"
+          }
+        ],
         "name": "msix_package",
         "params": [
           {
@@ -10784,7 +11365,33 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "instrument_coverage",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_module_forward"
+          },
+          {
+            "attrs": [
+              "deps",
+              "module_name",
+              "opts",
+              "ppx",
+              "ppx_args",
+              "struct",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "ocaml_module"
+          }
+        ],
         "name": "ocaml_module",
         "params": [
           {
@@ -11081,7 +11688,28 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_perl_library_forward"
+          },
+          {
+            "attrs": [
+              "deps",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "perl_library"
+          }
+        ],
         "name": "perl_library",
         "params": [
           {
@@ -11107,7 +11735,32 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "deps",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_perl_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "main",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "perl_test"
+          }
+        ],
         "name": "perl_test",
         "params": [
           {
@@ -11253,7 +11906,27 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_php_library_forward"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "php_library"
+          }
+        ],
         "name": "php_library",
         "params": [
           {
@@ -11279,7 +11952,30 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_php_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "php_test"
+          }
+        ],
         "name": "php_test",
         "params": [
           {
@@ -11379,7 +12075,24 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_pwsh_library_forward"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "pwsh_library"
+          }
+        ],
         "name": "powershell_library",
         "params": [
           {
@@ -11405,7 +12118,27 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "size",
+              "srcs",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_pwsh_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "size",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "pwsh_test"
+          }
+        ],
         "name": "powershell_test",
         "params": [
           {
@@ -12900,7 +13633,24 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_ruby_library_forward"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "rb_library"
+          }
+        ],
         "name": "ruby_library",
         "params": [
           {
@@ -12926,7 +13676,27 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "size",
+              "srcs",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_ruby_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "size",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "rb_test"
+          }
+        ],
         "name": "ruby_test",
         "params": [
           {
@@ -13412,6 +14182,7 @@
               "link_deps",
               "rustc_flags",
               "size",
+              "srcs",
               "tags",
               "target_compatible_with",
               "visibility"
@@ -14691,7 +15462,25 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_scala_library_forward"
+          },
+          {
+            "attrs": [
+              "scalacopts",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "scala_library"
+          }
+        ],
         "name": "scala_library",
         "params": [
           {
@@ -14717,7 +15506,29 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "main_class",
+              "size",
+              "srcs",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_scala_forward_test"
+          },
+          {
+            "attrs": [
+              "deps",
+              "scalacopts",
+              "size",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "scala_test"
+          }
+        ],
         "name": "scala_test",
         "params": [
           {
@@ -14903,7 +15714,24 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_svelte_library_forward"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "js_library"
+          }
+        ],
         "name": "svelte_library",
         "params": [
           {
@@ -15568,7 +16396,117 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "size",
+              "tags",
+              "targets",
+              "visibility"
+            ],
+            "kind": "_build_test"
+          },
+          {
+            "attrs": [
+              "declaration",
+              "extends",
+              "files",
+              "out",
+              "tags",
+              "visibility"
+            ],
+            "kind": "_dx_tsconfig"
+          },
+          {
+            "attrs": [
+              "data",
+              "size",
+              "tags"
+            ],
+            "kind": "_empty_test"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "upstream"
+            ],
+            "kind": "_typescript_binary_forward"
+          },
+          {
+            "attrs": [
+              "output_group",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "filegroup"
+          },
+          {
+            "attrs": [
+              "cmd",
+              "cmd_bat",
+              "outs",
+              "srcs",
+              "tags",
+              "testonly",
+              "visibility"
+            ],
+            "kind": "genrule"
+          },
+          {
+            "attrs": [
+              "data",
+              "enable_runfiles",
+              "entry_point",
+              "tags",
+              "visibility"
+            ],
+            "kind": "js_binary"
+          },
+          {
+            "attrs": [
+              "allow_js",
+              "args",
+              "assets",
+              "composite",
+              "data",
+              "declaration",
+              "declaration_map",
+              "declaration_transpile",
+              "deps",
+              "emit_declaration_only",
+              "extends",
+              "incremental",
+              "isolated_typecheck",
+              "js_outs",
+              "map_outs",
+              "no_emit",
+              "preserve_jsx",
+              "source_map",
+              "srcs",
+              "supports_workers",
+              "tags",
+              "transpile",
+              "tsc",
+              "tsc_worker",
+              "tsconfig",
+              "typing_maps_outs",
+              "typings_outs",
+              "validate",
+              "validator",
+              "visibility"
+            ],
+            "kind": "ts_project"
+          },
+          {
+            "attrs": [
+              "project",
+              "tags",
+              "visibility"
+            ],
+            "kind": "tsc_gate"
+          }
+        ],
         "name": "typescript_binary",
         "params": [
           {
@@ -15629,7 +16567,15 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "src",
+              "visibility"
+            ],
+            "kind": "ts_config"
+          }
+        ],
         "name": "typescript_config",
         "params": [
           {
@@ -15742,7 +16688,79 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "size",
+              "tags",
+              "targets",
+              "visibility"
+            ],
+            "kind": "_build_test"
+          },
+          {
+            "attrs": [
+              "declaration",
+              "extends",
+              "files",
+              "out",
+              "visibility"
+            ],
+            "kind": "_dx_tsconfig"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_typescript_library_forward"
+          },
+          {
+            "attrs": [
+              "output_group",
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "filegroup"
+          },
+          {
+            "attrs": [
+              "allow_js",
+              "args",
+              "assets",
+              "composite",
+              "data",
+              "declaration",
+              "declaration_map",
+              "declaration_transpile",
+              "deps",
+              "emit_declaration_only",
+              "extends",
+              "incremental",
+              "isolated_typecheck",
+              "js_outs",
+              "map_outs",
+              "no_emit",
+              "preserve_jsx",
+              "source_map",
+              "srcs",
+              "supports_workers",
+              "tags",
+              "transpile",
+              "tsc",
+              "tsc_worker",
+              "tsconfig",
+              "typing_maps_outs",
+              "typings_outs",
+              "validate",
+              "validator",
+              "visibility"
+            ],
+            "kind": "ts_project"
+          }
+        ],
         "name": "typescript_library",
         "params": [
           {
@@ -16078,7 +17096,24 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_vue_library_forward"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "js_library"
+          }
+        ],
         "name": "vue_library",
         "params": [
           {

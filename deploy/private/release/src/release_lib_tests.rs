@@ -735,10 +735,23 @@ fn write_candidate_source_round_trips_the_archive() {
     );
     let text = std::fs::read_to_string(&dst).expect("read");
     bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", &digest).expect("validates");
-    assert!(write_bcr_source_for_archive(&dst, "0.0.0", &src).is_err());
+    let err = write_bcr_source_for_archive(&dst, "0.0.0", &src).expect_err("0.0.0");
+    assert!(matches!(err, BcrError::UnpublishableVersion), "got {err:?}");
+    let missing = scratch.path().join("missing");
+    let err = write_bcr_source_for_archive(&dst, "1.2.3-rc1", &missing).expect_err("missing");
     assert!(
-        write_bcr_source_for_archive(&dst, "1.2.3-rc1", &scratch.path().join("missing")).is_err()
+        matches!(&err, BcrError::Hash { path, source }
+            if path == &missing && source.kind() == std::io::ErrorKind::NotFound),
+        "got {err:?}"
     );
+    assert!(err.to_string().starts_with("cannot hash "), "got {err}");
+    let err = write_bcr_source_for_archive(&src.join("out.source.json"), "1.2.3-rc1", &src)
+        .expect_err("parent is a file");
+    assert!(
+        matches!(err, BcrError::Io(PathIoError::Write { .. })),
+        "got {err:?}"
+    );
+    assert!(err.to_string().starts_with("cannot write "), "got {err}");
 }
 
 #[test]

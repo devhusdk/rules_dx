@@ -85,6 +85,8 @@ pub enum BcrError {
     UnpublishableSubmission,
     /// A real submission lacks `BCR_APPROVE=1`.
     NotApproved,
+    /// The archive could not be hashed.
+    Hash { path: PathBuf, source: io::Error },
     /// The `source.json` document could not be written.
     Io(PathIoError),
 }
@@ -129,6 +131,7 @@ impl fmt::Display for BcrError {
             Self::NotApproved => f.write_str(
                 "bcr: submission needs explicit owner approval (BCR_APPROVE=1); run with BCR_DRY_RUN=1 to print the would-submit PR",
             ),
+            Self::Hash { path, source } => write!(f, "cannot hash {}: {source}", path.display()),
             Self::Io(source) => write!(f, "{source}"),
         }
     }
@@ -140,6 +143,7 @@ impl std::error::Error for BcrError {
             Self::InvalidDigest { source, .. } => Some(source),
             Self::SourceNotJson(source) => Some(source),
             Self::Render(source) => Some(source),
+            Self::Hash { source, .. } => Some(source),
             Self::Io(source) => Some(source),
             Self::UnpublishableVersion
             | Self::UnpublishableSubmission
@@ -828,17 +832,21 @@ pub fn render_bcr_source_for_digest(
 
 /// # Errors
 ///
-/// Returns an error when the operation fails.
+/// Returns [`BcrError::Hash`] when the archive cannot be hashed, the version or
+/// render errors of [`render_bcr_source_for_digest`], and [`BcrError::Io`] when
+/// `dst` cannot be written.
 pub fn write_bcr_source_for_archive(
     dst: &Path,
     version: &str,
     archive: &Path,
-) -> io::Result<String> {
-    let digest = dx_digest::sha256_file_hex(archive)?;
-    let text = render_bcr_source_for_digest(BCR_WANT_MODULE, version, &digest)
-        .map_err(io::Error::other)?;
-    std::fs::write(dst, text.as_bytes())?;
-    bcr_integrity_of_digest(&digest).map_err(io::Error::other)
+) -> Result<String, BcrError> {
+    let digest = dx_digest::sha256_file_hex(archive).map_err(|source| BcrError::Hash {
+        path: archive.to_path_buf(),
+        source,
+    })?;
+    let text = render_bcr_source_for_digest(BCR_WANT_MODULE, version, &digest)?;
+    path_io::write_scratch(dst, text.as_bytes()).map_err(BcrError::Io)?;
+    bcr_integrity_of_digest(&digest)
 }
 
 /// # Errors

@@ -741,6 +741,7 @@ filegroup(
         "//go/private:module_srcs",
         "//go/private/ide:module_srcs",
         "//go/private/quality:module_srcs",
+        "//go/private/tools:module_srcs",
         "//haskell:extension_srcs",
         "//haskell/private/coverage:module_srcs",
         "//haskell/private/quality:module_srcs",

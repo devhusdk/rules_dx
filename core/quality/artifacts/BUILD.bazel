@@ -76,7 +76,10 @@ test_suite(
 
 real_source_target(
     name = "corpus_python",
-    python_srcs = glob(["*.py"]),
+    python_srcs = [
+        "update.py",
+        "update_test.py",
+    ],
     tags = ["corpus"],
 )
 

@@ -2,6 +2,8 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
+pub mod doc;
+
 use std::collections::BTreeMap;
 use std::fs;
 

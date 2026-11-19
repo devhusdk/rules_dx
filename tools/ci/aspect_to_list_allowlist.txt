@@ -25,6 +25,4 @@ ruby/private/quality/ruby.bzl aspect-to-list 1
 rust/private/quality/rust.bzl aspect-to-list 1
 rust/private/quality/rust_clippy.bzl aspect-to-list 1
 terraform/private/quality/terraform.bzl aspect-to-list 2
-tools/docs/dart/defs.bzl aspect-to-list 2
-tools/docs/python/shard.bzl aspect-to-list 2
 typescript/private/quality/tsc.bzl aspect-to-list 3

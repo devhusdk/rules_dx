@@ -17,9 +17,8 @@ def _docs_python_shard_impl(ctx):
         ctx.label.name,
         ctx.executable._driver,
         ctx.executable._extract,
+        ctx.attr.library.label,
     )
-    if not action:
-        fail("python_doc_shard " + str(ctx.label) + ": library " + str(ctx.attr.library.label) + " has no Python source for package '" + package + "'")
     return [
         DefaultInfo(files = depset([action.shard])),
         OutputGroupInfo(griffe_json = depset([action.json]), srcs_manifest = depset([action.manifest])),

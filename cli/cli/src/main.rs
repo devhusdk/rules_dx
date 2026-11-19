@@ -209,6 +209,7 @@ fn run_as_tool() -> Option<i32> {
         Tool::BeamExtract => dx_docs_beam_extract::run_process(&lossy(args)),
         Tool::CcExtract => dx_docs_cc_extract::run_process(&lossy(args)),
         Tool::ComponentExtract => dx_docs_component_extract::run_process(&lossy(args)),
+        Tool::DartDoc => dx_docs_dart_extract::doc::run_process(&lossy(args)),
         Tool::DartExtract => dx_docs_dart_extract::run_process(&lossy(args)),
         Tool::DotnetExtract => dx_docs_dotnet_extract::run_process(&lossy(args)),
         Tool::GoExtract => dx_docs_go_extract::run_process(&lossy(args)),

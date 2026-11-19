@@ -68,6 +68,16 @@ gh pr checks <n> --watch
 
 A second run for the same platform, task and scope on one commit replaces the status. The merge-group `gate` job fails when the newest `evidence/*` status on the pull request head is `pending`, `failure` or `error`.
 
+## Refresh the locks on a pull request
+
+After a `bazel_dep` bump, the nested cache sets in `tools/testing/nested_cache` need a fresh record on every platform. If you cannot dispatch workflows, comment on the pull request:
+
+```text
+/lock-refresh nested=true
+```
+
+It dispatches `lock-refresh.yml` on the pull request branch and replies with the run URL. The run commits the merged `MODULE.bazel.lock` and the nested cache sets to the branch, and does nothing when they are unchanged. Leave out `nested=true` to refresh only `MODULE.bazel.lock`. Only owners, members and collaborators can use it, and only on a branch in this repository.
+
 ## Use the remote cache
 
 A remote cache lets Bazel reuse results that other machines already built. Export your BuildBuddy API key and add `--config=bb`:

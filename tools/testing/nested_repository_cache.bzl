@@ -57,6 +57,30 @@ nested_repository_cache_set = repository_rule(
     },
 )
 
+# ghcr.io serves public Homebrew bottles only with a bearer token, and it takes any token from an anonymous client.
+_GHCR_ANONYMOUS = {"type": "pattern", "pattern": "Bearer QQ=="}
+
+def _nested_cache_file_impl(rctx):
+    """Downloads one cache entry to `//file:blob`."""
+    rctx.download(
+        url = rctx.attr.urls,
+        output = "file/blob",
+        integrity = rctx.attr.integrity,
+        auth = {url: _GHCR_ANONYMOUS for url in rctx.attr.urls if url.startswith("https://ghcr.io/")},
+    )
+    rctx.file("file/BUILD.bazel", "filegroup(name = \"file\", srcs = [\"blob\"], visibility = [\"//visibility:public\"])\n")
+    rctx.file("BUILD.bazel", "")
+    return rctx.repo_metadata(reproducible = True)
+
+nested_cache_file = repository_rule(
+    implementation = _nested_cache_file_impl,
+    doc = "One downloaded file of a repository cache set.",
+    attrs = {
+        "integrity": attr.string(mandatory = True, doc = "Subresource Integrity of the file."),
+        "urls": attr.string_list(mandatory = True, doc = "HTTPS URLs the file is fetched from."),
+    },
+)
+
 _HEX = "0123456789abcdef"
 _BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 _ALGORITHMS = {64: "sha256", 96: "sha384", 128: "sha512"}

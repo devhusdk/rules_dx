@@ -35,6 +35,7 @@ rust_binary(
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/bep:dx_bep",
         "//cli/binfmt:dx_binfmt",
+        "//cli/module_bazel:dx_module_bazel",
         "//cli/process:dx_process",
         "//tools/ci/evidence_inputs",
         "//tools/testing:dx_testing",

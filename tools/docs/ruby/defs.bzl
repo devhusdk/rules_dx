@@ -2,7 +2,7 @@
 
 load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line", "srcs_manifest_row")
 
 visibility(["//..."])
 
@@ -39,22 +39,19 @@ def _manifest(ctx, stem, suffix, files):
     ctx.actions.write(manifest, "".join(sorted(lines)))
     return manifest
 
-def _yard_lib_dir(ctx, yard_files):
-    for f in yard_files:
-        if f.path.endswith("/lib/yard.rb"):
-            return f.dirname
-    fail(_where(ctx) + ": @dx_yard holds no lib/yard.rb")
+def _rb_row(file):
+    return srcs_manifest_row(file) if file.extension == "rb" else None
 
-def ruby_shard_action(ctx, own, transitive_srcs, dep_infos, package, stem, yard_files, driver, extract_tool):
-    """Runs YARD and the extractor for one Ruby library."""
+def ruby_shard_action(ctx, own, transitive_srcs, dep_infos, package, stem, yard_files, yard_rb, driver, extract_tool):
+    """Runs YARD and the extractor for one Ruby library.
+
+    transitive_srcs and yard_files are depsets of Files; yard_rb is YARD's lib/yard.rb.
+    """
     own = sorted(own, key = lambda f: f.path)
     if not own:
         fail(_where(ctx) + ": lib lists no .rb srcs")
     own_paths = {f.path: True for f in own}
-    context = {}
-    for f in transitive_srcs:
-        if f.extension == "rb" and f.path not in own_paths:
-            context[f.path] = f
+    dep_files = []
     dep_lines = []
     for info in dep_infos:
         if info.package == package:
@@ -62,12 +59,16 @@ def ruby_shard_action(ctx, own, transitive_srcs, dep_infos, package, stem, yard_
         for f in info.files:
             if f.path in own_paths:
                 continue
-            context[f.path] = f
+            dep_files.append(f)
             dep_lines.append(info.package + "\t" + f.path + "\n")
-    context_files = [context[path] for path in sorted(context.keys())]
 
     own_manifest = _manifest(ctx, stem, ".srcs.tsv", own)
-    context_manifest = _manifest(ctx, stem, ".context.tsv", context_files)
+    context_manifest = ctx.actions.declare_file(stem + ".context.tsv")
+    context = ctx.actions.args()
+    context.set_param_file_format("multiline")
+    context.add_all(transitive_srcs, map_each = _rb_row, uniquify = True)
+    context.add_all(dep_files, map_each = _rb_row)
+    ctx.actions.write(context_manifest, context)
     deps_manifest = ctx.actions.declare_file(stem + ".deps.tsv")
     ctx.actions.write(deps_manifest, "".join(sorted(dep_lines)))
 
@@ -76,7 +77,7 @@ def ruby_shard_action(ctx, own, transitive_srcs, dep_infos, package, stem, yard_
     home = ctx.actions.declare_directory(stem + ".yard_home")
     args = ctx.actions.args()
     args.add("--disable-gems")
-    args.add("-I", _yard_lib_dir(ctx, yard_files))
+    args.add("-I", yard_rb.dirname)
     args.add(driver)
     args.add("--own", own_manifest)
     args.add("--srcs", context_manifest)
@@ -96,8 +97,8 @@ def ruby_shard_action(ctx, own, transitive_srcs, dep_infos, package, stem, yard_
         executable = toolchain.ruby,
         arguments = [args],
         inputs = depset(
-            own + context_files + [own_manifest, context_manifest, deps_manifest, driver],
-            transitive = [depset(yard_files)],
+            own + dep_files + [own_manifest, context_manifest, deps_manifest, driver],
+            transitive = [transitive_srcs, yard_files],
         ),
         tools = toolchain.files,
         outputs = [yard_json, home],
@@ -130,11 +131,12 @@ def _ruby_doc_shard_impl(ctx):
     action = ruby_shard_action(
         ctx,
         lib[_RubyDirectSrcsInfo].srcs,
-        lib[RubyFilesInfo].transitive_srcs.to_list(),
+        lib[RubyFilesInfo].transitive_srcs,
         [dep[_RubyDocShardInfo] for dep in ctx.attr.deps],
         package,
         ctx.label.name,
-        ctx.files._yard,
+        ctx.attr._yard[DefaultInfo].files,
+        ctx.file._yard_rb,
         ctx.file._driver,
         ctx.executable._extract,
     )
@@ -178,6 +180,10 @@ docs_ruby_shard = rule(
         ),
         "_yard": attr.label(
             default = Label("@dx_yard//:lib"),
+        ),
+        "_yard_rb": attr.label(
+            allow_single_file = True,
+            default = Label("@dx_yard//:lib/yard.rb"),
         ),
     },
     provides = [DocsShardInfo],

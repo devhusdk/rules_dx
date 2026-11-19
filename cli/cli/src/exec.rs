@@ -3,7 +3,8 @@ mod audit;
 mod auto_sync;
 mod bench;
 mod breaking_base;
-mod build_failures;
+#[cfg(test)]
+mod build_failures_tests;
 mod changed_coverage;
 mod check_build;
 mod clean;
@@ -17,7 +18,8 @@ mod deploy;
 mod docs;
 mod docs_index;
 mod dx_asset;
-mod failure_reports;
+#[cfg(test)]
+mod failure_reports_tests;
 pub mod first_run;
 mod fuzz;
 mod generate;

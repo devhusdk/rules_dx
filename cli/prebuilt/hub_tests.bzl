@@ -71,7 +71,7 @@ def _checks():
     pinned_haskell_build = with_native_tools(alias_build(SOURCE_LABEL), pinned_haskell)
     weeder_windows_arm = [a for a in pinned_haskell["weeder"] if a.key == "windows_aarch64"][0]
     return [
-        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "flatc", "hpc_lcov", "progenitor", "thrift", "topiary", "weeder"]),
+        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "flatc", "hlint", "hpc_lcov", "ormolu", "progenitor", "thrift", "topiary", "weeder"]),
         expect_equal("capnp assets", [asset_name("capnp", k) for k in TOOLS["capnp"].platforms], ["dx-capnp-linux-arm64", "dx-capnp-linux-x86_64", "dx-capnp-macos-arm64", "dx-capnp-windows-arm64", "dx-capnp-windows-x86_64"]),
         expect_contains("the registry lists the code generators for fill_pins", registry_lines(), "thrift macos_arm64 dx-thrift-macos-arm64"),
         expect_equal("native tools run on the exec platform except hpc_lcov", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov"]),
@@ -96,6 +96,11 @@ def _checks():
         expect_contains("the registry lists the haskell tools for fill_pins", registry_lines(), "weeder macos_arm64 dx-weeder-macos-arm64"),
         expect_equal("hpc_lcov runs on the target platform", TOOLS["hpc_lcov"].role, "target"),
         expect_equal("weeder runs on the exec platform", TOOLS["weeder"].role, "exec"),
+        expect_equal("hackage tool assets", [asset_name(t, k) for t in ["hlint", "ormolu"] for k in TOOLS[t].platforms], ["dx-hlint-linux-arm64", "dx-hlint-macos-arm64", "dx-ormolu-linux-arm64"]),
+        expect_equal("hackage tools run on the exec platform", [TOOLS[t].role for t in ["hlint", "ormolu"]], ["exec", "exec"]),
+        expect_contains("an unpinned hackage tool builds from source", source_haskell, 'name = "hlint",\n    actual = "@rules_dx//haskell/private/tools/hlint/bin:source",'),
+        expect_contains("ormolu builds from its source alias", source_haskell, 'name = "ormolu",\n    actual = "@rules_dx//haskell/private/tools/ormolu/bin:source",'),
+        expect_equal("hackage tools plan no windows arm64", [a.key for t in ["hlint", "ormolu"] for a in plan_native_tools("1.2.3", {t: {k: _HASH for k in TOOLS[t].platforms}}, URL_TEMPLATE, {})[t] if a.key == "windows_aarch64"], []),
         expect_contains("an unpinned haskell tool builds from source", source_haskell, 'name = "weeder",\n    actual = "@rules_dx//haskell/private/tools/weeder/bin:source",'),
         expect_false("a source hub downloads no haskell tool", "dx_weeder_prebuilt_" in source_haskell),
         expect_equal("windows arm64 takes the x86_64 haskell download", weeder_windows_arm.repo, "dx_weeder_prebuilt_windows_x86_64"),

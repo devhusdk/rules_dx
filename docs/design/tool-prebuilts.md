@@ -87,7 +87,9 @@ deadnix | GPL-3.0 | source only | rel | rel | rel | rel
 selene | MPL-2.0 | Linux x86_64, macOS and Windows x86_64 zips, built without the lua52/53/54 features | rel | rel | rel | rel
 kcov | GPL-2.0 | source only | rel | rel | no | no
 zanuda | LGPL-3.0 | source only | own | own | own | no
-weeder | BSD-3-Clause | source only | own | own | own | own
+weeder | BSD-3-Clause | source only | own | rel | rel | rel
+hlint | BSD-3-Clause | Linux x86_64 and Windows x86_64 binaries | up | rel | rel | up
+ormolu | BSD-3-Clause | Linux x86_64, macOS arm64 and Windows x86_64 binaries | up | rel | up | up
 core Python tools | per wheel | wheels on PyPI | rel | rel | rel | rel
 
 - nixfmt: the executable depends on the `unix` package, so no Windows host is supported. `macos_arm64` is unsupported until the source target builds there.
@@ -96,6 +98,7 @@ core Python tools | per wheel | wheels on PyPI | rel | rel | rel | rel
 - kcov: `//tools/coverage/kcov:kcov_static` builds it against musl, statically linking elfutils (with `patches/elfutils/musl.patch`) and zlib. The release carries one source archive of the kcov tarball, the kcov patches, `kcov.BUILD` and the elfutils and zlib sources it was built from. Gate it on `//tools/coverage/kcov:smoke_test` and `//tools/coverage/kcov:static_smoke_test`.
 - zanuda reads `.cmt` files of the consumer's OCaml. Windows is unsupported until the OCaml toolchain has a Windows cell.
 - weeder reads `.hie` files and is built with the consumer's GHC. `windows_x86_64` is supported once its matrix case passes. `windows_arm64` is unsupported because GHC ships no bindist for it.
+- hlint and ormolu: the `hackage` job in `release-tools.yml` builds `@haskell_<tool>_hackage` for each `rel` cell, statically linked against musl on linux arm64, and ships `dx-<tool>-LICENSE` from the Hackage archive.
 - Core Python tools: the `python-tools` job in `release-tools.yml` assembles one `dx-python-tools-<host>.tar.gz` bundle per host from a python-build-standalone interpreter and the wheels locked in `uv.lock`. Nothing is compiled. ansible-lint is unsupported on Windows.
 
 ## Source build inputs

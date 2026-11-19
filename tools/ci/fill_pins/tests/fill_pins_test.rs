@@ -8,6 +8,8 @@ const CC_TOOLS: [&str; 3] = ["capnp", "flatc", "thrift"];
 
 const REPO: &str = "devhusdk/rules_dx";
 const NATIVE_TOOLS: [&str; 2] = ["progenitor", "topiary"];
+/// The Haskell tools release.yml adds to the haskell manifest.
+const HASKELL_TOOLS: [&str; 4] = ["hpc_lcov", "weeder", "hlint", "ormolu"];
 const PINS: &str = "\"\"\"Pins.\"\"\"\n\nSCHEMA = 1\n\nDX_VERSION = \"1.2.3\"\n\nURL_TEMPLATE = \"https://github.com/devhusdk/rules_dx/releases/download/v{version}/{asset}\"\n\nPINS = {}\n";
 
 fn hash(n: usize) -> String {
@@ -80,11 +82,14 @@ fn gazelle_manifest() -> String {
 }
 
 fn haskell_manifest() -> String {
-    ["hpc_lcov", "weeder"]
+    HASKELL_TOOLS
         .iter()
         .flat_map(|tool| assets(tool))
         .map(|asset| format!("{}  {asset}\n", hash(4)))
-        .chain([format!("{}  dx-weeder-LICENSE\n", hash(5))])
+        .chain(
+            ["weeder", "hlint", "ormolu"]
+                .map(|tool| format!("{}  dx-{tool}-LICENSE\n", hash(5))),
+        )
         .collect::<Vec<String>>()
         .concat()
 }
@@ -203,7 +208,7 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
     assert!(by_tool.contains_key("javac_check"));
     for entry in registry()
         .into_iter()
-        .filter(|e| e.tool == "hpc_lcov" || e.tool == "weeder")
+        .filter(|e| HASKELL_TOOLS.contains(&e.tool.as_str()))
     {
         by_tool
             .entry(entry.tool)

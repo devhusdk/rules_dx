@@ -8,7 +8,7 @@ A platform key is "<os>_<cpu>" in release asset spelling: os is linux, macos or
 windows, cpu is x86_64 or arm64, and a jar that runs anywhere uses "any".
 """
 
-visibility(["//cli/..."])
+visibility(["//cli/...", "//core/quality"])
 
 # Release asset spelling to @platforms constraint values.
 RELEASE_OS = {
@@ -45,6 +45,18 @@ def _haskell(tool, role, source):
         platforms = _HASKELL,
         fallbacks = {"windows_arm64": "windows_x86_64"},
         source = source,
+        member = "",
+        main_class = "",
+    )
+
+# Hackage tools released only on the platforms with no upstream binary.
+def _hackage(tool, platforms):
+    return struct(
+        asset = "dx-" + tool + "-{os}-{cpu}",
+        role = "exec",
+        platforms = platforms,
+        fallbacks = {},
+        source = "@rules_dx//haskell/private/tools/" + tool + "/bin:source",
         member = "",
         main_class = "",
     )
@@ -136,10 +148,12 @@ TOOLS = {
     "scalac_check": _jar("scalac_check", "@rules_dx//java/private/quality/tools/scalac_check", "dx.quality.scalac.Main"),
     "hpc_lcov": _haskell("hpc_lcov", "target", "@rules_dx//haskell/private/coverage:hpc_lcov_source"),
     "weeder": _haskell("weeder", "exec", "@rules_dx//haskell/private/tools/weeder/bin:source"),
+    "hlint": _hackage("hlint", ["linux_arm64", "macos_arm64"]),
+    "ormolu": _hackage("ormolu", ["linux_arm64"]),
 }
 
 # The tools released as one native binary per platform.
-NATIVE_TOOLS = ["capnp", "flatc", "hpc_lcov", "progenitor", "thrift", "topiary", "weeder"]
+NATIVE_TOOLS = ["capnp", "flatc", "hlint", "hpc_lcov", "ormolu", "progenitor", "thrift", "topiary", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])

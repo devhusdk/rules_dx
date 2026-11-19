@@ -328,3 +328,87 @@ jobs:
           name: release-tool-haskell-${{ matrix.host }}
           path: ${{ runner.temp }}/haskell-out/*
           if-no-files-found: error
+
+  hackage:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tool: hlint
+            host: linux-arm64
+            runner: ubuntu-24.04-arm
+            target: "@haskell_hlint_hackage//:hlint-exe-hlint"
+            lock: haskell/private/tools/hlint/cabal.lock.json
+          - tool: hlint
+            host: macos-arm64
+            runner: macos-15
+            target: "@haskell_hlint_hackage//:hlint-exe-hlint"
+            lock: haskell/private/tools/hlint/cabal.lock.json
+          - tool: ormolu
+            host: linux-arm64
+            runner: ubuntu-24.04-arm
+            target: "@haskell_ormolu_hackage//:ormolu-exe-ormolu"
+            lock: haskell/private/tools/ormolu/cabal.lock.json
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+      - name: Build the Hackage tool
+        env:
+          TOOL: ${{ matrix.tool }}
+          HOST: ${{ matrix.host }}
+          TARGET: ${{ matrix.target }}
+          LOCK: ${{ matrix.lock }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/hackage-out"
+          rm -rf "$out"
+          mkdir -p "$out"
+          flags=()
+          case "$HOST" in
+            linux-arm64) flags=(--platforms=//tools/platforms:linux_arm64_musl --features=fully_static_link) ;;
+          esac
+          bazel build "${flags[@]}" "$TARGET"
+          root="$(bazel info "${flags[@]}" execution_root)"
+          built="$(bazel cquery "${flags[@]}" --output=files "$TARGET" | grep -v '\.sh$' | head -n 1)"
+          asset="dx-$TOOL-$HOST"
+          cp "$root/$built" "$out/$asset"
+          chmod +x "$out/$asset"
+          case "$HOST" in
+            linux-*)
+              if readelf -l "$out/$asset" | grep -q INTERP; then
+                echo "$asset is dynamically linked" >&2
+                exit 1
+              fi
+              ;;
+            macos-*)
+              codesign --verify "$out/$asset" 2>/dev/null || codesign --force -s - "$out/$asset"
+              ;;
+          esac
+          "$out/$asset" --version
+          if test "$HOST" = "linux-arm64"; then
+            package="$(jq -c --arg tool "$TOOL" '.packages[] | select(.name == $tool) | {version, archive: .archives[0]}' "$LOCK")"
+            version="$(jq -r .version <<<"$package")"
+            download="$(mktemp -d)"
+            curl --fail --silent --show-error --location -o "$download/$TOOL.tar.gz" "$(jq -r '.archive.urls[0]' <<<"$package")"
+            test "$(sha256sum "$download/$TOOL.tar.gz" | cut -d' ' -f1)" = "$(jq -r .archive.sha256 <<<"$package")" || { echo "$TOOL archive sha256 differs from $LOCK" >&2; exit 1; }
+            license="$(tar -tzf "$download/$TOOL.tar.gz" | grep -E "^$TOOL-$version/LICENSE(\.md)?\$" | head -n 1)"
+            test -n "$license" || { echo "$TOOL-$version has no LICENSE or LICENSE.md" >&2; exit 1; }
+            tar -xzOf "$download/$TOOL.tar.gz" "$license" > "$out/dx-$TOOL-LICENSE"
+            test -s "$out/dx-$TOOL-LICENSE"
+            rm -rf "$download"
+          fi
+          ls -l "$out"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-tool-haskell-${{ matrix.tool }}-${{ matrix.host }}
+          path: ${{ runner.temp }}/hackage-out/*
+          if-no-files-found: error

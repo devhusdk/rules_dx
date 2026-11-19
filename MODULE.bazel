@@ -1155,6 +1155,7 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "rules_elixir",
+    bzl_srcs = True,
     dropped = [
         ".bazelignore",
         ".bazelrc",
@@ -1176,6 +1177,7 @@ dx_pins.archive(
 dx_pins.archive(
     name = "rules_erlang",
     build = "//erlang/private:rules_erlang.BUILD.bazel",
+    bzl_srcs = True,
     dropped = [
         "MODULE.bazel",
         "gazelle",
@@ -1270,6 +1272,7 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "rules_ocaml",
+    bzl_srcs = True,
     dropped = [
         ".bazelignore",
         ".bazelrc",
@@ -1281,6 +1284,7 @@ dx_pins.archive(
         "tools",
     ],
     patches = [
+        "//patches/rules_ocaml:empty_glob.patch",
         "//patches/rules_ocaml:hermetic_ocaml.patch",
         "//patches/rules_ocaml:native_cc_env.patch",
         "//patches/rules_ocaml:platform_alias.patch",

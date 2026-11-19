@@ -1,0 +1,109 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//qt:defs.bzl", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_qml_module")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+load(":quality.bzl", "qt_format_subject", "qt_lint_subject")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+qt_cc_library(
+    name = "greet",
+    srcs = ["greet.cc"],
+    hdrs = ["greet.h"],
+)
+
+qt_cc_binary(
+    name = "hello",
+    srcs = ["main.cc"],
+    deps = [":greet"],
+)
+
+qt_cc_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["pass_test.cc"],
+    linkstatic = True,
+    moc_hdrs = ["pass_test.h"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [":greet"],
+)
+
+qt_cc_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["fail_test.cc"],
+    moc_hdrs = ["fail_test.h"],
+    target_compatible_with = subject_compatible_with(),
+    deps = [":greet"],
+)
+
+qt_cc_binary(
+    name = "runfiles_hello",
+    srcs = ["runfiles_main.cc"],
+    data = ["data.txt"],
+    deps = ["@rules_cc//cc/runfiles"],
+)
+
+qt_qml_module(
+    name = "clean",
+    qml_srcs = ["Clean.qml"],
+    uri = "Conformance.Clean",
+)
+
+qt_qml_module(
+    name = "lint_dirty",
+    qml_srcs = ["LintDirty.qml"],
+    tags = ["manual"],
+    uri = "Conformance.LintDirty",
+)
+
+qt_qml_module(
+    name = "format_dirty",
+    qml_srcs = ["FormatDirty.qml"],
+    tags = ["manual"],
+    uri = "Conformance.FormatDirty",
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":hello",
+    covered_source = "greet.cc",
+    expected = "hello world",
+    failing_case = "failingCase",
+    failing_pattern = "FAIL!  : FailTest::{case}()",
+    failing_test = ":fail_subject_test",
+    lang = "qt",
+    not_applicable = {
+        "lock_test": "qt has no package manager",
+    },
+    passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":clean",
+        "format_dirty": ":format_dirty",
+        "format_source": "FormatDirty.qml",
+        "format_subject": qt_format_subject,
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 4,
+        "lint_rule": "unqualified",
+        "lint_source": "LintDirty.qml",
+        "lint_subject": qt_lint_subject,
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+    },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "quality.bzl",
+    ],
+    tags = ["corpus"],
+)

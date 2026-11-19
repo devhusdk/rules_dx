@@ -83,6 +83,7 @@ SWIFT_VERSION = "6.4.2"
 
 RULES_JULIA_VERSION = "0.8.0"
 RULES_DART_VERSION = "0.9.1"
+RULES_FLUTTER_VERSION = "0.1.0"
 DART_SDK_VERSION = "3.13.7"
 FLUTTER_SDK_VERSION = "3.47.9"
 JULIA_VERSION = "1.13.4"
@@ -120,6 +121,7 @@ CONSUMER_BAZEL_DEPS = {
     "bazel_linux_packages": struct(floor = "0.4.1", tested = "0.4.1"),
     "toml.bzl": struct(floor = "0.5.0", tested = "0.5.0"),
     "rules_dart": struct(floor = RULES_DART_VERSION, tested = RULES_DART_VERSION),
+    "rules_flutter": struct(floor = RULES_FLUTTER_VERSION, tested = RULES_FLUTTER_VERSION),
     "rules_perl": struct(floor = RULES_PERL_VERSION, tested = RULES_PERL_VERSION),
     "rules_oci": struct(floor = "2.3.0", tested = "2.3.0"),
     "rules_pkg": struct(floor = "1.3.0", tested = "1.3.0"),

@@ -86,6 +86,8 @@ nested_bazel_test(
     env = PREBUILT_GUARD_ENV | {"DX_PREBUILT_GUARD_LANG": "go"},
     network = True,
     deps = [
+        "//cli/adopt:dx_adopt",
+        "//cli/plan:dx_plan",
         "//tools/testing:dx_testing",
         "//tools/testing/nested:dx_nested",
     ],
@@ -101,6 +103,8 @@ nested_bazel_test(
     env = PREBUILT_GUARD_ENV | {"DX_PREBUILT_GUARD_LANG": "java"},
     network = True,
     deps = [
+        "//cli/adopt:dx_adopt",
+        "//cli/plan:dx_plan",
         "//tools/testing:dx_testing",
         "//tools/testing/nested:dx_nested",
     ],

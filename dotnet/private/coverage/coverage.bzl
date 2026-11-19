@@ -50,7 +50,7 @@ def dx_dotnet_coverage_attrs():
             cfg = "target",
         ),
         "_dx_coverlet_launcher": attr.label(
-            default = Label("//cli/runtime:dx_runtime"),
+            default = Label("@dx_prebuilt//:runtime"),
             executable = True,
             cfg = no_coverage_transition,
         ),

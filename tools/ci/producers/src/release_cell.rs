@@ -1,4 +1,4 @@
-//! Builds the dx release archive, the pure-Go dx gazelle, the native launcher and the native build tools twice and qualifies them as one release cell.
+//! Builds the dx release archive, the pure-Go dx gazelle, the native launcher, the dx runtime and the native build tools twice and qualifies them as one release cell.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -13,10 +13,11 @@ const PURE: &str = "--@rules_go//go/config:pure";
 const RELEASE: &str = "//deploy/private/release";
 const GAZELLE: &str = "@dx_gazelle//:gazelle";
 const LAUNCHER: &str = "//cli/launcher:exec_launcher";
-/// The native build tools a cell ships, by registry name in `cli/prebuilt/tools.bzl`.
-const NATIVE_TOOLS: [(&str, &str); 3] = [
+/// The native build tools and the dx runtime a cell ships, by registry name in `cli/prebuilt/tools.bzl`.
+const NATIVE_TOOLS: [(&str, &str); 4] = [
     ("capnp", "@dx_capnproto//src/capnp:capnp_tool"),
     ("flatc", "@dx_flatbuffers//:flatc"),
+    ("runtime", "//cli/runtime:dx_runtime"),
     ("thrift", "@dx_thrift//:thrift_compiler"),
 ];
 const QUERY_TIMEOUT: Duration = Duration::from_secs(30 * 60);
@@ -443,6 +444,10 @@ mod tests {
         assert_eq!(
             tool_asset_name("launcher", "dx-windows-arm64"),
             "dx-launcher-windows-arm64"
+        );
+        assert_eq!(
+            tool_asset_name("runtime", "dx-macos-arm64"),
+            "dx-runtime-macos-arm64"
         );
     }
 }

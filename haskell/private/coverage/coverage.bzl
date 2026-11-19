@@ -9,7 +9,7 @@ def dx_haskell_coverage_attrs():
     """Returns the attributes Haskell coverage needs."""
     return NATIVE_LAUNCHER_ATTRS | {
         "_dx_hpc_coverage": attr.label(
-            default = Label("//cli/runtime:dx_runtime"),
+            default = Label("@dx_prebuilt//:runtime"),
             executable = True,
             cfg = no_coverage_transition,
         ),

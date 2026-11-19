@@ -81,13 +81,26 @@ def _checks():
     pinned_haskell = plan_native_tools("1.2.3", weeder_pins, URL_TEMPLATE, {})
     pinned_haskell_build = with_native_tools(alias_build(SOURCE_LABEL), pinned_haskell)
     weeder_windows_arm = [a for a in pinned_haskell["weeder"] if a.key == "windows_aarch64"][0]
+    runtime = plan_native_tools("1.2.3", {"runtime": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {})
+    runtime_build = with_native_tools(pinned_build, runtime, consumer = True)
+    runtime_root = plan_root([_mod("app", True, assets = [_tag(name = "runtime")])], tools = ["dx", "launcher", "go"] + NATIVE_TOOLS)
     return [
-        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "selene", "thrift", "topiary", "weeder"]),
+        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "weeder"]),
+        expect_equal("runtime assets", [asset_name("runtime", k) for k in TOOLS["runtime"].platforms], ["dx-runtime-linux-arm64", "dx-runtime-linux-x86_64", "dx-runtime-macos-arm64", "dx-runtime-windows-arm64", "dx-runtime-windows-x86_64"]),
+        expect_equal("the runtime runs on the target platform", TOOLS["runtime"].role, "target"),
+        expect_contains("the registry lists the runtime for fill_pins", registry_lines(), "runtime windows_arm64 dx-runtime-windows-arm64"),
+        expect_contains("an unpinned runtime builds from source", source_native, 'name = "runtime",\n    actual = "@rules_dx//cli/runtime:dx_runtime",'),
+        expect_contains("a pinned runtime selects its target platform", runtime_build, '":native_linux_x86_64": ":runtime_linux_x86_64",'),
+        expect_contains("a pinned windows runtime runs its download", runtime_build, 'name = "runtime_windows_x86_64",\n    src = "@dx_runtime_prebuilt_windows_x86_64//file:runtime.exe",'),
+        expect_contains("an unpinned runtime platform builds from source", runtime_build, '"//conditions:default": "@rules_dx//cli/runtime:dx_runtime",'),
+        expect_equal("an unpinned windows arm64 runtime takes no x86_64 download", [a.repo for a in runtime["runtime"] if a.key == "windows_aarch64"], [""]),
+        expect_false("an unpinned windows arm64 runtime builds from source", "runtime_windows_aarch64" in runtime_build),
+        expect_equal("a root asset may name the runtime", runtime_root.overrides.keys(), ["runtime"]),
         expect_equal("oapi-codegen assets", [asset_name("oapi_codegen", k) for k in TOOLS["oapi_codegen"].platforms], ["dx-oapi-codegen-linux-arm64", "dx-oapi-codegen-linux-x86_64", "dx-oapi-codegen-macos-arm64", "dx-oapi-codegen-windows-arm64", "dx-oapi-codegen-windows-x86_64"]),
         expect_contains("the registry lists oapi-codegen for fill_pins", registry_lines(), "oapi_codegen linux_arm64 dx-oapi-codegen-linux-arm64"),
         expect_equal("capnp assets", [asset_name("capnp", k) for k in TOOLS["capnp"].platforms], ["dx-capnp-linux-arm64", "dx-capnp-linux-x86_64", "dx-capnp-macos-arm64", "dx-capnp-windows-arm64", "dx-capnp-windows-x86_64"]),
         expect_contains("the registry lists the code generators for fill_pins", registry_lines(), "thrift macos_arm64 dx-thrift-macos-arm64"),
-        expect_equal("native tools run on the exec platform except hpc_lcov and kcov", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov", "kcov"]),
+        expect_equal("native tools run on the exec platform except hpc_lcov, kcov and runtime", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov", "kcov", "runtime"]),
         expect_equal("release tool assets", [asset_name(t, k) for t in ["deadnix", "selene", "nixfmt", "kcov"] for k in TOOLS[t].platforms], ["dx-deadnix-linux-arm64", "dx-deadnix-linux-x86_64", "dx-deadnix-macos-arm64", "dx-deadnix-windows-x86_64", "dx-selene-linux-arm64", "dx-selene-linux-x86_64", "dx-selene-macos-arm64", "dx-selene-windows-x86_64", "dx-nixfmt-linux-arm64", "dx-kcov-linux-arm64", "dx-kcov-linux-x86_64"]),
         expect_equal("python bundle assets", [asset_name("python_tools", k) for k in TOOLS["python_tools"].platforms], ["dx-python-tools-linux-arm64.tar.gz", "dx-python-tools-linux-x86_64.tar.gz", "dx-python-tools-macos-arm64.tar.gz", "dx-python-tools-windows-arm64.tar.gz", "dx-python-tools-windows-x86_64.tar.gz"]),
         expect_contains("the registry lists the python bundle for fill_pins", registry_lines(), "python_tools windows_arm64 dx-python-tools-windows-arm64.tar.gz"),

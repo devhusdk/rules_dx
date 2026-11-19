@@ -129,8 +129,12 @@ _qt_bundle = rule(
     },
 )
 
-def qt_bundle(name, binary, qml_modules = [], licenses = [], display = [], plugins = [], qt = QT_REPOSITORY, **kwargs):
-    """Stages a qt_cc_binary runtime for consumer_archive resources."""
+def qt_bundle(name, binary, qml_modules = [], licenses = [], display = [], plugins = [], qt = None, **kwargs):
+    """Stages a qt_cc_binary runtime for consumer_archive resources.
+
+    `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
+    """
+    qt = qt or QT_REPOSITORY
     for platform in display:
         if platform not in ["wayland", "xcb"]:
             fail("qt_bundle: display '" + platform + "' is not one of wayland, xcb")

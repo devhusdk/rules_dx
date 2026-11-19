@@ -100,6 +100,77 @@ fn extraction_gaps(public: &[&str], extracted: &[&str], pending: &[&str]) -> Vec
     gaps
 }
 
+/// Lists `<load> <name>` for every parameter or attribute whose default names a canonical `@@` repository.
+fn canonical_defaults(snapshot: &serde_json::Value) -> Vec<String> {
+    fn walk(value: &serde_json::Value, load: &str, hits: &mut Vec<String>) {
+        match value {
+            serde_json::Value::Array(items) => {
+                for item in items {
+                    walk(item, load, hits);
+                }
+            }
+            serde_json::Value::Object(object) => {
+                let load = object
+                    .get("load")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or(load);
+                if let Some(default) = object.get("default").and_then(serde_json::Value::as_str) {
+                    if default.contains("@@") {
+                        let name = object
+                            .get("name")
+                            .and_then(serde_json::Value::as_str)
+                            .unwrap_or_default();
+                        hits.push(format!("{load} {name}"));
+                    }
+                }
+                for item in object.values() {
+                    walk(item, load, hits);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut hits = Vec::new();
+    walk(snapshot, "", &mut hits);
+    hits
+}
+
+#[test]
+fn no_public_default_names_a_canonical_repo() {
+    let paths = dx_testing::env_text("DX_API_SNAPSHOT");
+    let key = paths
+        .split_whitespace()
+        .find(|key| key.ends_with("api/starlark.json"))
+        .expect("api/starlark.json is in the test data");
+    let path = dx_testing::rlocation(key).unwrap_or_else(|error| panic!("{key}: {error}"));
+    let snapshot: serde_json::Value =
+        serde_json::from_str(&dx_testing::read_text(&path)).expect("api/starlark.json parses");
+    let hits = canonical_defaults(&snapshot);
+    assert!(
+        hits.is_empty(),
+        "these defaults name a canonical @@ repository, which differs in each consumer; default to None and resolve it in the body:\n{}",
+        hits.join("\n")
+    );
+}
+
+#[test]
+fn canonical_default_is_a_hit_and_none_is_not() {
+    let snapshot = serde_json::json!([{
+        "load": "@rules_dx//qt:defs.bzl",
+        "macros": [{
+            "name": "qt_cc_library",
+            "params": [
+                {"name": "qt", "default": "\"@@+qt+dx_qt\""},
+                {"name": "deps", "default": "None"},
+            ],
+        }],
+    }]);
+    assert_eq!(
+        canonical_defaults(&snapshot),
+        vec!["@rules_dx//qt:defs.bzl qt".to_owned()]
+    );
+}
+
 #[test]
 fn every_public_bzl_file_is_extracted() {
     let public = dx_testing::env_text("DX_API_PUBLIC_BZL");

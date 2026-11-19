@@ -86,7 +86,7 @@ On macOS, any non-empty `display` ships the `cocoa` platform plugin.
 - `licenses`: extra license texts to ship, such as `fmt/LICENSE` for a
   bundled library. Each path needs a `licenses/<name>/` directory and
   lands under `licenses/<name>/`.
-- `qt`: the Qt repo, `@dx_qt` by default.
+- `qt`: the Qt SDK repository. Leave it out to use the Qt SDK rules_dx pins.
 
 `qt_bundle_runtime` holds the Windows DLLs of a `qt_bundle` and a
 `qt.conf` that points Qt at `resources/`, so `consumer_archive` puts them

@@ -342,8 +342,8 @@ fn real_git_counts_renames_untracked_files_and_a_nested_workspace() {
     write("ws/src/my file.py", "x = 1\ny = 2\n");
     write("ws/.dx/local/state.txt", "ignored\n");
     let workspace = root.join("ws");
-    let (branch, base) =
-        super::named_base(&workspace, &RealGit, None).unwrap_or_else(|_| panic!("merge-base"));
+    let (branch, base) = dx_plan::resolve::base::named_base(&workspace, &RealGit, None)
+        .unwrap_or_else(|_| panic!("merge-base"));
     assert_eq!(branch, "main");
     let added = changed_lines(&workspace, &RealGit, &base).expect("changed lines");
     let keys: Vec<&str> = added.keys().map(String::as_str).collect();

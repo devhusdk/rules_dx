@@ -50,7 +50,6 @@ _with_link_libs = rule(
 
 _LINUX = ["@platforms//os:linux"]
 _VERSION = "6.4.2"
-SWIFT_LINUX_CPUS = ["aarch64", "x86_64"]
 
 def _swift_cross_toolchain(name, exec_cpu, target_cpu):
     """Declares the Swift toolchain whose tools run on one Linux cpu and build for that or another."""

@@ -2,8 +2,7 @@
 
 load("@dx_pins_data//:pins.bzl", "PINS")
 load("//core:toolchain.bzl", "toolchain_target")
-load(":repos.bzl", "swift_libs_linux_repo", "swift_linux_repo", "swift_windows_repo")
-load(":toolchain.bzl", "SWIFT_LINUX_CPUS")
+load(":repos.bzl", "SWIFT_LINUX_CPUS", "swift_libs_linux_repo", "swift_linux_repo", "swift_windows_repo")
 
 _TOOLCHAIN_TYPE = "@rules_swift//toolchains:toolchain_type"
 _TOOLCHAINS_ON = str(Label("//config:toolchains_on"))

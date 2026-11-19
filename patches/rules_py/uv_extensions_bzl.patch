@@ -1,0 +1,18 @@
+Upstream: none (not yet sent upstream, #14036)
+--- a/uv/BUILD.bazel
++++ b/uv/BUILD.bazel
+@@ -16,3 +16,14 @@
+         "//uv/private/py_entrypoint_binary:defs",
+     ],
+ )
++
++bzl_library(
++    name = "extensions",
++    srcs = ["extensions.bzl"],
++    visibility = ["//visibility:public"],
++    deps = [
++        "//uv/private/constraints:defs",
++        "//uv/private/extension:defs",
++        "//uv/private/extension:uv_bin",
++    ],
++)

@@ -816,7 +816,7 @@ jobs:
             exit "$status"
           fi
       - name: Run the Windows TypeScript action tests
-        if: ${{ !cancelled() && matrix.platform == 'windows_x86_64' && matrix.shard == 1 }}
+        if: ${{ !cancelled() && runner.os == 'Windows' && matrix.shard == 1 }}
         run: |
           # shellcheck disable=SC2086
           bazel test --noshow_progress --test_output=errors --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS //typescript/tests:windows_ts_actions

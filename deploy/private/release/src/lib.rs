@@ -64,10 +64,20 @@ fn basename(path: &Path) -> io::Result<String> {
 ///
 /// Returns an error when the value cannot be serialized as JSON.
 pub(crate) fn render_pretty<T: serde::Serialize + ?Sized>(value: &T) -> Result<String, String> {
+    pretty_json(value).map_err(|error| format!("cannot render JSON: {error}"))
+}
+
+/// Renders a value as pretty ASCII JSON with a trailing newline, keeping the typed error.
+///
+/// # Errors
+///
+/// Returns an error when the value cannot be serialized as JSON.
+pub(crate) fn pretty_json<T: serde::Serialize + ?Sized>(
+    value: &T,
+) -> Result<String, dx_fingerprint::FingerprintError> {
     serde_json::to_value(value)
         .map_err(dx_fingerprint::FingerprintError::from)
         .and_then(|value| dx_fingerprint::to_json_ascii_pretty(&value))
-        .map_err(|error| format!("cannot render JSON: {error}"))
 }
 
 #[must_use]

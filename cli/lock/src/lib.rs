@@ -479,6 +479,13 @@ pub fn run(
     Ok(Outcome::Written)
 }
 
+/// Reports that `ecosystem` has no registry entry and returns exit code 2.
+#[must_use]
+pub fn missing_hub(ecosystem: &str) -> i32 {
+    dx_error::stdio::eprint_line(format_args!("{ecosystem} has no registry entry"));
+    2
+}
+
 /// The `main` of an ecosystem's resolver target: exit 0 when the lock is fresh or written, 1 when stale, 2 on failure.
 pub fn main(spec: &Spec, resolver: &dyn Resolver) -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -547,6 +554,11 @@ mod tests {
     fn run_process_exits_2_on_bad_arguments() {
         assert_eq!(run_process(&toy_spec(), &Unreachable, &["--bogus".to_owned()]), 2);
         assert_eq!(run_process(&toy_spec(), &Unreachable, &[]), 2);
+    }
+
+    #[test]
+    fn missing_hub_exits_2() {
+        assert_eq!(missing_hub("demo"), 2);
     }
 
     #[test]

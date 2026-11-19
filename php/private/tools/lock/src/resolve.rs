@@ -751,3 +751,13 @@ impl Resolver for Php<'_> {
         })
     }
 }
+
+/// Runs the composer lock step with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    let Some(hub) = dx_families::hub("composer") else {
+        return dx_lock::missing_hub("composer");
+    };
+    let spec = Php::spec(hub);
+    dx_lock::run_process(&spec, &Php::new(&spec, &Packagist::new()), args)
+}

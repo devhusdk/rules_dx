@@ -275,3 +275,14 @@ impl Resolver for Fpm<'_> {
         })
     }
 }
+
+/// Runs the fpm lock step with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    let Some(hub) = dx_families::hub("fpm") else {
+        return dx_lock::missing_hub("fpm");
+    };
+    let spec = Fpm::spec(hub);
+    let github = Github::new();
+    dx_lock::run_process(&spec, &Fpm::new(&spec, &github), args)
+}

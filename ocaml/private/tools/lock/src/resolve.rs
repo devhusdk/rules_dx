@@ -445,3 +445,13 @@ impl Resolver for Opam<'_> {
         })
     }
 }
+
+/// Runs the opam lock step with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    let Some(hub) = dx_families::hub("opam") else {
+        return dx_lock::missing_hub("opam");
+    };
+    let spec = Opam::spec(hub);
+    dx_lock::run_process(&spec, &Opam::new(REPOSITORY, &Https::new()), args)
+}

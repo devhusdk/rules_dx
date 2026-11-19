@@ -195,3 +195,13 @@ impl Resolver for Cpan {
         })
     }
 }
+
+/// Runs the cpan lock step with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    let Some(hub) = dx_families::hub("cpan") else {
+        return dx_lock::missing_hub("cpan");
+    };
+    let spec = Cpan::spec(hub);
+    dx_lock::run_process(&spec, &Cpan, args)
+}

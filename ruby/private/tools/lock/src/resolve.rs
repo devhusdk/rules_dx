@@ -955,3 +955,13 @@ mod tests {
         );
     }
 }
+
+/// Runs the ruby lock step with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    let Some(hub) = dx_families::hub("ruby") else {
+        return dx_lock::missing_hub("ruby");
+    };
+    let spec = Ruby::spec(hub);
+    dx_lock::run_process(&spec, &Ruby::new(&spec, &Registry::new()), args)
+}

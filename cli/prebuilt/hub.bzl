@@ -53,8 +53,11 @@ def valid_sha256(text):
     """Returns whether text is 64 lowercase hex digits."""
     return len(text) == 64 and all([c in _HEX for c in text.elems()])
 
+def _override_key(tag):
+    return "any" if tag.name in JAR_TOOLS else "{}_{}".format(tag.os, tag.cpu)
+
 def plan_root(modules, ext = "dx_prebuilt", tools = ["dx"]):
-    """Reads the module tags: returns struct(error, source, overrides), overrides keyed by tool, then "<os>_<cpu>"."""
+    """Reads the module tags: returns struct(error, source, overrides), overrides keyed by tool, then "<os>_<cpu>" or "any" for a jar tool."""
     rules_dx_is_root = False
     from_source = False
     overrides = {}
@@ -72,15 +75,17 @@ def plan_root(modules, ext = "dx_prebuilt", tools = ["dx"]):
             error = ""
             if tag.name not in tools:
                 error = where + ": name is one of the tools {}".format(json.encode(tools))
-            elif tag.os not in KNOWN_OS or tag.cpu not in KNOWN_CPU:
+            elif tag.name in JAR_TOOLS and (tag.os != "any" or tag.cpu != "any"):
+                error = where + ": a jar tool takes os = \"any\" and cpu = \"any\""
+            elif tag.name not in JAR_TOOLS and (tag.os not in KNOWN_OS or tag.cpu not in KNOWN_CPU):
                 error = where + ": os must be one of {} and cpu one of {}".format(KNOWN_OS, KNOWN_CPU)
             elif not valid_sha256(tag.sha256):
                 error = where + ": sha256 must be 64 lowercase hex digits"
-            elif "{}_{}".format(tag.os, tag.cpu) in overrides.get(tag.name, {}):
+            elif _override_key(tag) in overrides.get(tag.name, {}):
                 error = where + ": a second asset for the same os and cpu"
             if error:
                 return struct(error = error, source = False, overrides = {})
-            overrides.setdefault(tag.name, {})["{}_{}".format(tag.os, tag.cpu)] = struct(cpu = tag.cpu, os = tag.os, sha256 = tag.sha256, url = tag.url)
+            overrides.setdefault(tag.name, {})[_override_key(tag)] = struct(cpu = tag.cpu, os = tag.os, sha256 = tag.sha256, url = tag.url)
     return struct(error = "", source = rules_dx_is_root or from_source, overrides = overrides)
 
 def _supported(assets):
@@ -139,12 +144,16 @@ def plan_assets(tool, version, pins, url_template, overrides, exe = "dx", repo_p
             planned[key] = own
     return [planned[key] for key in sorted(planned.keys())]
 
-def plan_jars(version, pins, url_template):
-    """Returns one struct per jar tool, sorted by tool: its source and, when pinned, a verified download."""
+def plan_jars(version, pins, url_template, overrides = {}):
+    """Returns one struct per jar tool, sorted by tool: its source and, when pinned or overridden, a verified download."""
     planned = []
     for tool in JAR_TOOLS:
         asset = asset_name(tool, "any")
         sha256 = pins.get(tool, {}).get("any", "")
+        url = url_template.format(version = version, asset = asset)
+        override = overrides.get(tool, {}).get("any")
+        if override:
+            sha256, url = override.sha256, override.url
         planned.append(struct(
             asset = asset,
             main_class = TOOLS[tool].main_class,
@@ -152,7 +161,7 @@ def plan_jars(version, pins, url_template):
             sha256 = sha256,
             source = TOOLS[tool].source,
             tool = tool,
-            url = url_template.format(version = version, asset = asset) if sha256 else "",
+            url = url if sha256 else "",
         ))
     return planned
 

@@ -1,10 +1,24 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//cli/prebuilt:tools.bzl", "JAR_TOOLS", "asset_name", "deploy_jar")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":repos_tests.bzl", "repos_tests")
 
 package(default_visibility = VIS_TOOLS)
+
+filegroup(
+    name = "release_jars",
+    srcs = [deploy_jar(tool) for tool in JAR_TOOLS],
+)
+
+# "<label> <asset>" per jar tool, the pairs the release-tools.yml jars job builds.
+write_file(
+    name = "release_jars_list",
+    out = "release_jars.txt",
+    content = ["{} {}".format(deploy_jar(tool), asset_name(tool, "any")) for tool in JAR_TOOLS] + [""],
+)
 
 filegroup(
     name = "input_validation_fixtures",
@@ -1806,6 +1820,7 @@ rust_test(
         "//.github:workflows/release-tools.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-release.yml",
+        ":release_jars_list",
         "//deploy/private:gate_sources",
         "//deploy/private/release:release_matrix",
         "//docs:github-ci.md",

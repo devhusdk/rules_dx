@@ -34,6 +34,10 @@ GO_TOOLS = {tool: _GO_PACKAGE + tool for tool in [
     "dx_staticcheck",
 ]}
 
+# With --//cli/prebuilt:guard_view, a root-mode hub serves every source-built tool as this stub.
+GUARD_VIEW = "@rules_dx//cli/prebuilt:guard_view_set"
+GUARD_STUB = "@rules_dx//cli/prebuilt:guard_stub"
+
 _HEX = "0123456789abcdef"
 
 def valid_sha256(text):
@@ -160,8 +164,14 @@ def plan_jars(version, pins, url_template, overrides = {}):
         ))
     return planned
 
-def with_jars(build, jars):
-    """Returns the hub BUILD text build plus one target per jar tool: the pinned jar on the JVM, else its source."""
+def _source_actual(source, guard):
+    return _select([(GUARD_VIEW, GUARD_STUB)], source) if guard else '"{}"'.format(source)
+
+def with_jars(build, jars, guard = False):
+    """Returns the hub BUILD text build plus one target per jar tool: the pinned jar on the JVM, else its source.
+
+    With guard, an unpinned jar tool selects GUARD_STUB under GUARD_VIEW.
+    """
     loads = []
     lines = []
     for jar in jars:
@@ -170,7 +180,7 @@ def with_jars(build, jars):
                 "",
                 "alias(",
                 '    name = "{}",'.format(jar.tool),
-                '    actual = "{}",'.format(jar.source),
+                "    actual = " + _source_actual(jar.source, guard) + ",",
                 '    visibility = ["//visibility:public"],',
                 ")",
             ]
@@ -201,12 +211,13 @@ def plan_native_tools(version, pins, url_template, overrides):
 
 _NATIVE_BINARY_LOAD = 'load("@bazel_skylib//rules:native_binary.bzl", "native_binary")'
 
-def with_native_tools(build, native_tools, consumer = False):
+def with_native_tools(build, native_tools, consumer = False, guard = False):
     """Returns the hub BUILD text build plus one target per native tool.
 
     A tool selects its download on the platform it runs on and builds from source on
     any platform with no download. A library tool selects the downloaded file itself. In a consumer hub a tool in DEV_SOURCE_FALLBACK
-    serves its fallback label there instead of its source build.
+    serves its fallback label there instead of its source build. With guard, an unpinned
+    tool selects GUARD_STUB under GUARD_VIEW.
     """
     lines = []
     keys = {}
@@ -216,7 +227,7 @@ def with_native_tools(build, native_tools, consumer = False):
         source = DEV_SOURCE_FALLBACK.get(tool, TOOLS[tool].source) if consumer else TOOLS[tool].source
         library = TOOLS[tool].library
         if not pinned:
-            actual = '"{}"'.format(source)
+            actual = _source_actual(source, guard)
         elif library:
             actual = _select([(":native_" + a.key, "@{}//file:{}".format(a.repo, a.exe)) for a in pinned], source)
         else:
@@ -256,14 +267,14 @@ def with_native_tools(build, native_tools, consumer = False):
     loads = [_NATIVE_BINARY_LOAD] if binaries and _NATIVE_BINARY_LOAD not in build else []
     return "\n".join(loads + [build.rstrip("\n")] + lines + [""])
 
-def alias_build(actual):
-    """Returns the hub BUILD text that points dx at one label and the tools at their sources."""
+def alias_build(actual, guard = False):
+    """Returns the hub BUILD text that points dx at one label and the tools at their sources; with guard, each selects GUARD_STUB under GUARD_VIEW."""
     lines = []
     for name, label in [("dx", actual)] + sorted(SOURCE_TOOLS.items()) + sorted(GO_TOOLS.items()):
         lines += [
             "alias(",
             '    name = "{}",'.format(name),
-            '    actual = "{}",'.format(label),
+            "    actual = " + _source_actual(label, guard) + ",",
             '    visibility = ["//visibility:public"],',
             ")",
             "",
@@ -276,18 +287,19 @@ def plan_python_tools(version, pins, url_template, overrides):
 
 _BUNDLE_LOAD = 'load("@rules_dx//cli/prebuilt:bundle.bzl", "dx_bundle_tool", "dx_bundle_tree")'
 
-def with_python_tools(build, assets):
+def with_python_tools(build, assets, guard = False):
     """Returns the hub BUILD text build plus python_tool_<name> for each bundled Python tool.
 
     A tool selects the pinned bundle of the platform it runs on and builds from
-    source on any platform with no bundle or whose bundle leaves it out.
+    source on any platform with no bundle or whose bundle leaves it out. With guard, an
+    unpinned tool selects GUARD_STUB under GUARD_VIEW.
     """
     pinned = [a for a in assets if a.repo]
     lines = []
     for name, tool in sorted(PYTHON_BUNDLE_TOOLS.items()):
         missing = ["{}_{}".format(RELEASE_OS[os], RELEASE_CPU[cpu]) for os, cpu in [split_key(key) for key in tool.missing]]
         served = [a for a in pinned if a.key not in missing]
-        actual = _select([(":python_" + a.key, ":python_tool_{}_{}".format(name, a.key)) for a in served], tool.source) if served else '"{}"'.format(tool.source)
+        actual = _select([(":python_" + a.key, ":python_tool_{}_{}".format(name, a.key)) for a in served], tool.source) if served else _source_actual(tool.source, guard)
         lines += [
             "",
             "alias(",

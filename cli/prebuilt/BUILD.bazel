@@ -1,4 +1,6 @@
 load("@bazel_lib//lib:run_binary.bzl", "run_binary")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//core:failure_test.bzl", "failure_test")
@@ -43,6 +45,37 @@ filegroup(
 dx_prebuilt_hub_tests(name = "hub_test")
 
 dx_gazelle_hub_tests(name = "gazelle_hub_test")
+
+# Set: when rules_dx is the root module, @dx_prebuilt and @dx_gazelle serve guard_stub for every source-built tool.
+bool_flag(
+    name = "guard_view",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "guard_view_set",
+    flag_values = {":guard_view": "true"},
+    visibility = ["//visibility:public"],
+)
+
+write_file(
+    name = "guard_stub_script",
+    out = "guard_stub.sh",
+    content = [
+        "#!/bin/sh",
+        "exit 1",
+        "",
+    ],
+    is_executable = True,
+)
+
+native_binary(
+    name = "guard_stub",
+    src = ":guard_stub_script",
+    out = "guard_stub",
+    visibility = ["//visibility:public"],
+)
 
 # tools.bzl as "<tool> <platform key> <asset>" lines, the registry fill_pins checks manifests against.
 write_file(

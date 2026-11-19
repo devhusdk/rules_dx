@@ -348,6 +348,24 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/testing:analysis_scaling_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/analysis_scaling"
+  in-graph-prebuilt-guard:
+    name: in-graph-prebuilt-guard (d, rego, sql and zig consumer fixtures compile no rules_dx tool)
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Analyze the consumer fixtures with --//cli/prebuilt:guard_view
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" //tools/testing/consumer:in_graph_prebuilt_guard -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/in_graph_prebuilt_guard"
   gcc-cross-build:
     name: gcc-cross-build (gcc + llvm linux_x86_64 -> linux_arm64 fixtures)
     timeout-minutes: 45
@@ -1258,6 +1276,7 @@ jobs:
         dogfood,
         docs,
         analysis-scaling,
+        in-graph-prebuilt-guard,
         determinism,
         devcontainer-check,
         gate,

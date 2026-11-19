@@ -124,7 +124,7 @@ jobs:
           echo "Checked: dx init scaffold parity plus devcontainer definition shape." >> "$GITHUB_STEP_SUMMARY"
   hermetic:
     name: hermetic (no-install and network-denied consumer qualification)
-    timeout-minutes: 90
+    timeout-minutes: 120
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -149,6 +149,12 @@ jobs:
           echo "$targets" > "$RUNNER_TEMP/hermetic-targets"
           # shellcheck disable=SC2086
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing:nested_bazel_harness_test $targets
+      - name: Run the release consumer cases offline
+        if: ${{ !cancelled() }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" //deploy/private/release/tests:release_consumer_smoke_test
       - uses: ./.github/actions/hermetic-evidence
         if: always()
         with:

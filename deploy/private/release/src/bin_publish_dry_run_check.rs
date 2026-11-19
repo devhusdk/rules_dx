@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use dx_release_tools::cell::Expected;
-use dx_release_tools::{PublishDryRunInputs, publish_dry_run_check};
+use dx_release_tools::{PublishDryRunInputs, ReleaseError, publish_dry_run_check};
 
 fn flag_value(argv: &[String], name: &str) -> Option<String> {
     argv.windows(2).find_map(|pair| match pair {
@@ -33,15 +33,13 @@ struct ParsedInputs {
     report_path: String,
 }
 
-fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
-    let mut missing: Option<String> = None;
-    let mut get = |name: &str| -> String {
+fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, ReleaseError> {
+    let mut missing: Option<&'static str> = None;
+    let mut get = |name: &'static str| -> String {
         if let Some(value) = flag_value(argv, name) {
             value
         } else {
-            missing = Some(format!(
-                "publish_dry_run_check: missing required {name} <path>"
-            ));
+            missing = Some(name);
             String::new()
         }
     };
@@ -67,12 +65,10 @@ fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
     let verify_refusal_log = get("--verify-refusal-log");
     let approve_raw = get("--approve");
     let report_path = get("--report");
-    if let Some(diagnostic) = missing {
-        return Err(diagnostic);
+    if let Some(name) = missing {
+        return Err(ReleaseError::MissingFlag { name });
     }
-    let approve = approve_of(&approve_raw).ok_or_else(|| {
-        "publish_dry_run_check: --approve wants true/false (dry run records approval, never publishes)".to_owned()
-    })?;
+    let approve = approve_of(&approve_raw).ok_or(ReleaseError::BadApprove)?;
     Ok(ParsedInputs {
         inputs: PublishDryRunInputs {
             matrix: PathBuf::from(matrix),
@@ -107,7 +103,7 @@ fn parse_inputs(argv: &[String]) -> Result<ParsedInputs, String> {
 fn run(argv: &[String]) -> i32 {
     let parsed = match parse_inputs(argv) {
         Ok(parsed) => parsed,
-        Err(diagnostic) => return dx_release_tools::bin_error(diagnostic),
+        Err(error) => return dx_release_tools::bin_error(error),
     };
     match publish_dry_run_check(&parsed.inputs) {
         Ok(outcome) => {
@@ -131,7 +127,7 @@ fn run(argv: &[String]) -> i32 {
                 1
             }
         }
-        Err(diagnostic) => dx_release_tools::bin_error(diagnostic),
+        Err(error) => dx_release_tools::bin_error(ReleaseError::from(error)),
     }
 }
 
@@ -236,8 +232,12 @@ mod tests {
         let error = parse_inputs(&["publish_dry_run_check".to_owned()])
             .err()
             .expect("missing flag must fail");
-        assert_eq!(
+        assert!(matches!(
             error,
+            ReleaseError::MissingFlag { name: "--report" }
+        ));
+        assert_eq!(
+            error.to_string(),
             "publish_dry_run_check: missing required --report <path>"
         );
     }
@@ -247,8 +247,12 @@ mod tests {
         let error = parse_inputs(&full_argv_without("--records"))
             .err()
             .expect("missing flag must fail");
-        assert_eq!(
+        assert!(matches!(
             error,
+            ReleaseError::MissingFlag { name: "--records" }
+        ));
+        assert_eq!(
+            error.to_string(),
             "publish_dry_run_check: missing required --records <path>"
         );
     }
@@ -258,8 +262,9 @@ mod tests {
         let error = parse_inputs(&full_argv("maybe"))
             .err()
             .expect("bad approve must fail");
+        assert!(matches!(error, ReleaseError::BadApprove));
         assert_eq!(
-            error,
+            error.to_string(),
             "publish_dry_run_check: --approve wants true/false (dry run records approval, never publishes)"
         );
     }

@@ -501,7 +501,9 @@ inventory_file_tests(
     present = [
         "serde",
         "serde_json",
+        "starlark_syntax",
     ],
+    texts_contain = ["Source: https://github.com/facebook/starlark-rust@v0.14.2"],
 )
 
 inventory_runtime_file_tests(

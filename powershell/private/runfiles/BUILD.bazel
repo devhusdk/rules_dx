@@ -1,0 +1,17 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
+# gazelle:exclude BazelRunfiles
+load("//powershell/private:defs.bzl", "powershell_library")
+
+package(default_visibility = ["//:__subpackages__"])
+
+powershell_library(
+    name = "runfiles",
+    srcs = ["BazelRunfiles/BazelRunfiles.psm1"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

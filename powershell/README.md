@@ -39,6 +39,25 @@ use_repo(powershell, "psgallery")
 
 Depend on `@psgallery//Pester`. A wrong digest fails the fetch.
 
+### Runfiles
+
+Runfiles are the files Bazel places beside a program when it runs, such as
+its `data`. Put `@rules_dx//powershell:runfiles` in `deps` and look a file up
+by its runfiles path:
+
+```powershell
+Import-Module BazelRunfiles
+
+$path = Resolve-BazelRunfile '_main/app/data.txt'
+```
+
+`Resolve-BazelRunfile` works with a runfiles directory and with a manifest only
+(`RUNFILES_MANIFEST_ONLY=1`). It returns `$null` when the manifest does not
+list the path. An apparent repository name, like `my_dep/file.txt`, maps
+through the repo mapping; pass `-SourceRepository` when the calling code lives
+in another repository. `Get-BazelRunfilesEnvironment` returns the environment a
+child Bazel program needs to find the same runfiles.
+
 ## Generate
 
 `dx generate --apply` writes a `powershell_library` per directory of `.psm1`

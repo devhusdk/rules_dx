@@ -223,6 +223,26 @@ func TestResolveModuleNamesAreCaseSensitive(t *testing.T) {
 	}
 }
 
+func TestResolveMapsRunfilesModuleToRulesDx(t *testing.T) {
+	lang := NewLanguage().(*pwshLang)
+	cfg := config.New()
+	resolver := &resolve.Configurer{}
+	resolver.RegisterFlags(nil, "update", cfg)
+	if err := resolver.CheckFlags(nil, cfg); err != nil {
+		t.Fatal(err)
+	}
+	resolver.Configure(cfg, "app", nil)
+	lang.Configure(cfg, "app", nil)
+	index := resolve.NewRuleIndex(func(*rule.Rule, string) resolve.Resolver { return lang })
+	index.Finish()
+
+	r := rule.NewRule(LibraryKind, "app")
+	lang.Resolve(cfg, index, nil, r, common.WrapImportSet([]string{"BazelRunfiles"}), label.New("", "app", "app"))
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "@rules_dx//powershell:runfiles" || lang.Failed() {
+		t.Errorf("deps = %s (failed=%v), want @rules_dx//powershell:runfiles", got, lang.Failed())
+	}
+}
+
 func TestUnresolvedHint(t *testing.T) {
 	if strings.Contains(UnresolvedHint, "dx_ignore_import") || !strings.Contains(UnresolvedHint, "case-sensitively") {
 		t.Errorf("hint = %q", UnresolvedHint)

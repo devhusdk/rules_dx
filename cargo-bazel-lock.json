@@ -1,5 +1,5 @@
 {
-  "checksum": "cfaea895f3a444559e7bf25292d4700a79cfa7417c47392d0c8e6dbf4b331cc7",
+  "checksum": "a5c9773140492c64f06d3a7f1cc7dafd5137308458f26025c6f77a6be7dddf5c",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9847,6 +9847,10 @@
     "dx_tool_resolve 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          },
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
@@ -28650,25 +28654,6 @@
       ],
       "version": "1.1.2+spec-1.1.0"
     },
-    "tool_resolve 0.0.0": {
-      "common_attrs": {
-        "deps": [
-          {
-            "id": "clap 4.6.7",
-            "target": "clap"
-          }
-        ],
-        "edition": "2024"
-      },
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "tool_resolve",
-      "repository": null,
-      "targets": [],
-      "version": "0.0.0"
-    },
     "tower 0.5.3": {
       "common_attrs": {
         "crate_features": [
@@ -33510,7 +33495,6 @@
     "terraform_lock 0.0.0": "terraform/private/tools/terraform_lock",
     "thrift_tests 0.0.0": "thrift/thrift_tests",
     "tiers 0.0.0": "tools/docs/tiers",
-    "tool_resolve 0.0.0": "dx/tool_resolve",
     "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",
     "typescript_scoped_fixture 0.0.0": "typescript/tests/fixtures/typescript_scoped_fixture",

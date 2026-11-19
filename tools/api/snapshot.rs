@@ -994,8 +994,8 @@ filegroup(name = "srcs", visibility = ["//visibility:public"])
         assert_eq!(package_of("BUILD.bazel").expect("root BUILD"), "");
         assert_eq!(package_of("./BUILD.bazel").expect("root BUILD"), "");
         assert_eq!(
-            package_of("dx/tool_resolve/BUILD.bazel").expect("package BUILD"),
-            "dx/tool_resolve"
+            package_of("dx/advisory_prep/BUILD.bazel").expect("package BUILD"),
+            "dx/advisory_prep"
         );
         assert!(package_of("dx/README.md").is_err());
     }

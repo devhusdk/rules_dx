@@ -34,7 +34,6 @@ _COMMAND_BUILDS = [
     "//deploy:BUILD.bazel",
     "//dx:BUILD.bazel",
     "//dx/advisory_prep:BUILD.bazel",
-    "//dx/tool_resolve:BUILD.bazel",
 ]
 
 _BUILDS_ENV = {

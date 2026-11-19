@@ -145,7 +145,7 @@ Yanked versions:
 To export the Gitleaks path:
 
 ```sh
-export "$(bazel run @rules_dx//dx/tool_resolve -- --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print)"
+export "$(dx tool_resolve --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print)"
 ```
 
 ### Container images
@@ -315,10 +315,10 @@ The trivy pin: `oci_deploy` image scans fetch the archive, check its sha256 and 
 ## Tool Resolution
 
 ```sh
-bazel run @rules_dx//dx/tool_resolve -- --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print
+dx tool_resolve --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print
 ```
 
-`tool_resolve` runs `bazel cquery --output=files` for the label and writes the absolute artifact path to a variable. An `external/` path is read under `bazel info output_base`. Any other path is a built output, read under `bazel info execution_root`, so build the label first.
+`dx tool_resolve` runs `bazel cquery --output=files` for the label and writes the absolute artifact path to a variable. An `external/` path is read under `bazel info output_base`. Any other path is a built output, read under `bazel info execution_root`, so build the label first.
 
 | Flag | What it does |
 | --- | --- |
@@ -759,8 +759,8 @@ dx runs the pinned uv `0.13.7` and the pinned Python interpreter.
 - A relative path is rejected, `PATH` is never searched, and a uv that does not report `0.13.7` is rejected. With no usable tool, the set fails with `backend_unavailable` and the run exits `1`.
 
 ```sh
-export "$(bazel run @rules_dx//dx/tool_resolve -- --label @dx_tools//:uv --var DX_UV_BIN --print)"
-export "$(bazel run @rules_dx//dx/tool_resolve -- --label @rules_dx//cli/update:python_interpreter --var DX_UV_PYTHON --print)"
+export "$(dx tool_resolve --label @dx_tools//:uv --var DX_UV_BIN --print)"
+export "$(dx tool_resolve --label @rules_dx//cli/update:python_interpreter --var DX_UV_PYTHON --print)"
 ```
 
 - `--apply` runs `uv lock` in the set directory and writes that lock only. A check runs `uv lock --check` and fails with `updater exited 1` when stale.

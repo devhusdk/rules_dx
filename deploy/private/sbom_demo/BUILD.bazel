@@ -98,7 +98,7 @@ starlark_test(
     size = "small",
     expected_observations = """subject //deploy/private/sbom_demo:app_wheel
 file app.spdx.json
-file app_wheel
+file deploy_tool
 field app=
 field artifacts=//deploy/private/sbom_demo:app-1.0.0-py3-none-any.whl
 field build_mode=release

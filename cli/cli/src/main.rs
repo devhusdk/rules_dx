@@ -209,6 +209,7 @@ fn run_as_tool() -> Option<i32> {
             dx_deploy_tools::cloudflare_pages_verify_main(&named("cloudflare_verify", args))
         }
         Tool::NpmPacker => dx_deploy_tools::npm_pack_main(&named("npm_packer", args)),
+        Tool::ReleaseTool => dx_release_tools::release_tool_run(&named("release_tool", args)),
     })
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md

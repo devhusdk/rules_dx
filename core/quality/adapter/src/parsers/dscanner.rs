@@ -41,10 +41,24 @@ fn shape(detail: String) -> ParseError {
 fn diagnostic(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
     let bad = |detail: &str| shape(format!("{detail}: {line}"));
     let fields: Vec<&str> = line.splitn(DSCANNER_FIELDS, '\t').collect();
-    if fields.len() != DSCANNER_FIELDS || fields[0] != DSCANNER_SENTINEL {
+    let [
+        sentinel,
+        path,
+        line_no,
+        column,
+        end_line,
+        end_column,
+        kind,
+        name,
+        message,
+    ] = fields.as_slice()
+    else {
+        return Err(bad("line outside the pinned format"));
+    };
+    if *sentinel != DSCANNER_SENTINEL {
         return Err(bad("line outside the pinned format"));
     }
-    let file = known_native(TOOL, files, fields[1])?;
+    let file = known_native(TOOL, files, path)?;
     let number = |text: &str| -> Result<u64, ParseError> {
         match text.parse::<u64>() {
             Ok(value) if value > 0 => Ok(value),
@@ -52,17 +66,17 @@ fn diagnostic(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
         }
     };
     let position = TextPosition {
-        line: number(fields[2])?,
-        column: number(fields[3])?,
+        line: number(line_no)?,
+        column: number(column)?,
     };
-    number(fields[4])?;
-    number(fields[5])?;
-    let severity = match fields[6] {
+    number(end_line)?;
+    number(end_column)?;
+    let severity = match *kind {
         "error" => ToolSeverity::Error,
         "warn" => ToolSeverity::Warning,
         _ => return Err(bad("unknown severity")),
     };
-    let rule = match (fields[7], severity) {
+    let rule = match (*name, severity) {
         ("", ToolSeverity::Error) => "syntax",
         ("", _) => return Err(bad("diagnostic without a check name")),
         (name, _) => name,
@@ -72,7 +86,7 @@ fn diagnostic(line: &str, files: &[&str]) -> Result<FileFinding, ParseError> {
         finding: Finding {
             tool_id: TOOL.to_owned(),
             rule_id: rule.to_owned(),
-            message: fields[8].trim().to_owned(),
+            message: message.trim().to_owned(),
             severity,
             start: position,
             end: None,

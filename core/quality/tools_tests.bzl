@@ -33,6 +33,7 @@ EXPECTED_IDS = [
     "dialyzer",
     "djlint",
     "docstrfmt",
+    "dscanner",
     "elixirc",
     "elvis",
     "erlc",

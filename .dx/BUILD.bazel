@@ -126,7 +126,10 @@ dx_generated_policy(
                 "format",
                 "typecheck",
             ],
-            "lint": ["typos"],
+            "lint": [
+                "dscanner",
+                "typos",
+            ],
         },
         "dart": {
             "disabled": ["audit"],

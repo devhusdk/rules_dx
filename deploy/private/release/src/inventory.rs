@@ -41,6 +41,9 @@ struct ShippedDoc {
     crates: Vec<ShippedCrate>,
     #[serde(default)]
     runtimes: Vec<ShippedRuntime>,
+    /// license.toml `[[inventory]]` text paths, workspace-relative, mapped to their exec paths.
+    #[serde(default)]
+    vendored: BTreeMap<String, PathBuf>,
 }
 
 /// A shipped inventory that cannot be joined, read or written.
@@ -92,6 +95,17 @@ pub enum InventoryError {
         name: String,
         version: String,
         license: String,
+    },
+    VendoredTextMissing {
+        name: String,
+        version: String,
+        text: String,
+    },
+    VendoredLicense {
+        name: String,
+        version: String,
+        license: String,
+        inventory: String,
     },
     Manifest(dx_error::DxError),
     Runtimes(RuntimesError),
@@ -160,7 +174,24 @@ impl fmt::Display for InventoryError {
                 license,
             } => write!(
                 f,
-                "inventory: missing-notice-text: {name}@{version} ({license}) ships no LICENSE*/COPYING*/NOTICE* file; add a license.toml exception or a text"
+                "inventory: missing-notice-text: {name}@{version} ({license}) ships no LICENSE*/COPYING*/NOTICE* file; add a license.toml [[inventory]] text or exception"
+            ),
+            Self::VendoredTextMissing {
+                name,
+                version,
+                text,
+            } => write!(
+                f,
+                "inventory: {name}@{version} license.toml [[inventory]] text {text} is not among the vendored_texts inputs"
+            ),
+            Self::VendoredLicense {
+                name,
+                version,
+                license,
+                inventory,
+            } => write!(
+                f,
+                "inventory: {name}@{version} license.toml [[inventory]] license {inventory:?} differs from the declared license {license:?}"
             ),
             Self::Manifest(source) => write!(f, "inventory: {source}"),
             Self::Runtimes(source) => write!(f, "{source}"),
@@ -185,7 +216,9 @@ impl std::error::Error for InventoryError {
             | Self::NoManifestLicense { .. }
             | Self::NoCratesTable
             | Self::NoLicense { .. }
-            | Self::MissingNotice { .. } => None,
+            | Self::MissingNotice { .. }
+            | Self::VendoredTextMissing { .. }
+            | Self::VendoredLicense { .. } => None,
         }
     }
 }
@@ -231,6 +264,16 @@ pub fn parse_shipped(text: &str) -> Result<Vec<ShippedCrate>, InventoryError> {
 pub fn parse_shipped_runtimes(text: &str) -> Result<Vec<ShippedRuntime>, InventoryError> {
     let doc: ShippedDoc = serde_json::from_str(text).map_err(InventoryError::Json)?;
     Ok(doc.runtimes)
+}
+
+/// Parses the vendored license.toml `[[inventory]]` texts of the shipped-inventory/v1 document.
+///
+/// # Errors
+///
+/// Returns an error when the operation fails.
+pub fn parse_shipped_vendored(text: &str) -> Result<BTreeMap<String, PathBuf>, InventoryError> {
+    let doc: ShippedDoc = serde_json::from_str(text).map_err(InventoryError::Json)?;
+    Ok(doc.vendored)
 }
 
 /// The manifest text path of one crate: `cargo/<crate>-<version>/LICENSE`.
@@ -301,6 +344,59 @@ fn read_crate_texts(krate: &ShippedCrate) -> Result<Vec<(String, String)>, Inven
     Ok(texts.into_iter().collect())
 }
 
+/// Reads the license.toml `[[inventory]]` text vendored for a crate that ships none.
+fn read_vendored_text(
+    krate: &ShippedCrate,
+    license: &str,
+    policy: &dx_audit::license_policy::LicensePolicy,
+    vendored: &BTreeMap<String, PathBuf>,
+) -> Result<Vec<(String, String)>, InventoryError> {
+    let package = dx_audit::vuln::LockedPackage {
+        name: krate.name.clone(),
+        version: krate.version.clone(),
+        set: SET.to_owned(),
+        is_git: false,
+        is_private: false,
+        location: None,
+        platform: None,
+    };
+    let Some(entry) = dx_audit::locks::first_inventory_match(&package, &policy.inventory) else {
+        return Ok(Vec::new());
+    };
+    let Some(text) = &entry.text else {
+        return Ok(Vec::new());
+    };
+    if entry.license != license {
+        return Err(InventoryError::VendoredLicense {
+            name: krate.name.clone(),
+            version: krate.version.clone(),
+            license: license.to_owned(),
+            inventory: entry.license.clone(),
+        });
+    }
+    let path = vendored
+        .get(text)
+        .ok_or_else(|| InventoryError::VendoredTextMissing {
+            name: krate.name.clone(),
+            version: krate.version.clone(),
+            text: text.clone(),
+        })?;
+    let words = path_io::read_to_string(path).map_err(|source| read_error(krate, source))?;
+    if words.trim().is_empty() {
+        return Err(InventoryError::EmptyText {
+            name: krate.name.clone(),
+            version: krate.version.clone(),
+            text: text.clone(),
+        });
+    }
+    let name = Path::new(text)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(text)
+        .to_owned();
+    Ok(vec![(name, words)])
+}
+
 fn read_error(krate: &ShippedCrate, source: PathIoError) -> InventoryError {
     InventoryError::Read {
         name: krate.name.clone(),
@@ -339,7 +435,8 @@ fn manifest_license(krate: &ShippedCrate) -> Result<String, InventoryError> {
 ///
 /// Fails when a crate is missing from the lockfile, when the lockfile has no
 /// license for it, or when its license needs reproduced words, it ships none
-/// and license.toml has no exception for it.
+/// and license.toml has neither an `[[inventory]]` text nor an exception for it.
+/// An `[[inventory]]` text is read from `vendored` only when the crate ships no words.
 ///
 /// # Errors
 ///
@@ -348,6 +445,7 @@ pub fn join(
     crates: &[ShippedCrate],
     lock_text: &str,
     licenses_toml: &str,
+    vendored: &BTreeMap<String, PathBuf>,
 ) -> Result<Vec<JoinedCrate>, InventoryError> {
     let lock: serde_json::Value =
         serde_json::from_str(lock_text).map_err(InventoryError::LockJson)?;
@@ -384,7 +482,10 @@ pub fn join(
                 version: krate.version.clone(),
             });
         }
-        let texts = read_crate_texts(krate)?;
+        let mut texts = read_crate_texts(krate)?;
+        if texts.is_empty() {
+            texts = read_vendored_text(krate, &license, &policy, vendored)?;
+        }
         let entry = JoinedCrate {
             name: krate.name.clone(),
             version: krate.version.clone(),
@@ -461,6 +562,7 @@ pub fn write_inventory(
         &crates,
         &path_io::read_to_string(lock)?,
         &path_io::read_to_string(licenses)?,
+        &parse_shipped_vendored(&shipped_text)?,
     )?;
     for entry in &joined {
         let path = texts.join(text_path(&entry.name, &entry.version));
@@ -567,7 +669,7 @@ mod tests {
             ),
             shipped("gamma", "0.1.0", vec![]),
         ];
-        let joined = join(&crates, LOCK, "").expect("joins");
+        let joined = join(&crates, LOCK, "", &BTreeMap::new()).expect("joins");
         assert_eq!(
             joined[0].words,
             "--- LICENSE-APACHE ---\nApache words\n\n--- LICENSE-MIT ---\nMIT words\n"
@@ -719,7 +821,7 @@ mod tests {
             ),
             (
                 shipped("beta", "2.0.0", vec![]),
-                "inventory: missing-notice-text: beta@2.0.0 (MIT) ships no LICENSE*/COPYING*/NOTICE* file; add a license.toml exception or a text",
+                "inventory: missing-notice-text: beta@2.0.0 (MIT) ships no LICENSE*/COPYING*/NOTICE* file; add a license.toml [[inventory]] text or exception",
             ),
             (
                 shipped("beta", "2.0.0", vec![text(dir.path(), "e/LICENSE", " \n")]),
@@ -746,22 +848,22 @@ mod tests {
             ),
         ];
         for (krate, want) in cases {
-            let error = join(&[krate], LOCK, "").expect_err(want).to_string();
+            let error = join(&[krate], LOCK, "", &BTreeMap::new()).expect_err(want).to_string();
             assert!(error.starts_with(want), "{error}");
         }
-        let error = join(&[], "not json", "").expect_err("lock json");
+        let error = join(&[], "not json", "", &BTreeMap::new()).expect_err("lock json");
         assert!(matches!(error, InventoryError::LockJson(_)), "{error:?}");
         assert_eq!(
             error.to_string(),
             "inventory: cargo-bazel-lock.json: expected ident at line 1 column 2"
         );
-        let error = join(&[], "{}", "").expect_err("no crates");
+        let error = join(&[], "{}", "", &BTreeMap::new()).expect_err("no crates");
         assert!(matches!(error, InventoryError::NoCratesTable), "{error:?}");
         assert_eq!(
             error.to_string(),
             "inventory: cargo-bazel-lock.json has no crates table"
         );
-        let error = join(&[], LOCK, "[policy\n").expect_err("bad toml");
+        let error = join(&[], LOCK, "[policy\n", &BTreeMap::new()).expect_err("bad toml");
         assert!(matches!(error, InventoryError::Policy(_)), "{error:?}");
         assert!(
             error
@@ -785,11 +887,11 @@ mod tests {
             &format!("b/{manifest}"),
             "[package]\nname = \"bytes\"\nlicense = \"MIT\"\n",
         ));
-        let joined = join(&[krate.clone()], LOCK, "").expect("joins");
+        let joined = join(&[krate.clone()], LOCK, "", &BTreeMap::new()).expect("joins");
         assert_eq!(joined[0].license, "MIT");
 
         krate.manifest = Some(text(dir.path(), &format!("c/{manifest}"), "[package]\n"));
-        let error = join(&[krate.clone()], LOCK, "").expect_err("no license");
+        let error = join(&[krate.clone()], LOCK, "", &BTreeMap::new()).expect_err("no license");
         assert!(
             matches!(error, InventoryError::NoManifestLicense { .. }),
             "{error:?}"
@@ -802,7 +904,7 @@ mod tests {
             )
         );
         krate.manifest = Some(dir.path().join("absent").join(manifest));
-        let error = join(&[krate], LOCK, "").expect_err("unreadable");
+        let error = join(&[krate], LOCK, "", &BTreeMap::new()).expect_err("unreadable");
         assert!(matches!(error, InventoryError::Read { .. }), "{error:?}");
         assert!(
             error
@@ -824,13 +926,104 @@ versions = "=2.0.0"
 reason = "upstream ships no LICENSE file"
 expires = "2099-01-01"
 "#;
-        let joined = join(&[shipped("beta", "2.0.0", vec![])], LOCK, policy).expect("approved");
+        let joined = join(&[shipped("beta", "2.0.0", vec![])], LOCK, policy, &BTreeMap::new()).expect("approved");
         assert_eq!(
             joined[0].words,
             "beta 2.0.0 ships no license text; declared license: MIT\n"
         );
         let other = policy.replace("\"beta\"", "\"alpha\"");
-        assert!(join(&[shipped("beta", "2.0.0", vec![])], LOCK, &other).is_err());
+        assert!(join(&[shipped("beta", "2.0.0", vec![])], LOCK, &other, &BTreeMap::new()).is_err());
+    }
+
+    #[test]
+    fn licenses_toml_inventory_text_supplies_words() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let policy = r#"schema_version = 1
+
+[[inventory]]
+package = "beta"
+set = "cargo"
+license = "MIT"
+versions = "=2.0.0"
+text = "third_party/licenses/cargo/beta-2.0.0/LICENSE"
+"#;
+        let key = "third_party/licenses/cargo/beta-2.0.0/LICENSE";
+        let vendored = BTreeMap::from([(
+            key.to_owned(),
+            text(dir.path(), "exec/beta/LICENSE", "beta words\n"),
+        )]);
+        let beta = || shipped("beta", "2.0.0", vec![]);
+        let joined = join(&[beta()], LOCK, policy, &vendored).expect("vendored");
+        assert_eq!(joined[0].words, "--- LICENSE ---\nbeta words\n");
+
+        let error = join(&[beta()], LOCK, policy, &BTreeMap::new()).expect_err("missing key");
+        assert!(
+            matches!(error, InventoryError::VendoredTextMissing { .. }),
+            "{error:?}"
+        );
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "inventory: beta@2.0.0 license.toml [[inventory]] text {key} is not among the vendored_texts inputs"
+            )
+        );
+
+        let other = policy.replace("license = \"MIT\"", "license = \"Apache-2.0\"");
+        let error = join(&[beta()], LOCK, &other, &vendored).expect_err("license mismatch");
+        assert!(
+            matches!(error, InventoryError::VendoredLicense { .. }),
+            "{error:?}"
+        );
+        assert_eq!(
+            error.to_string(),
+            "inventory: beta@2.0.0 license.toml [[inventory]] license \"Apache-2.0\" differs from the declared license \"MIT\""
+        );
+
+        let blank = BTreeMap::from([(key.to_owned(), text(dir.path(), "exec/blank", " \n"))]);
+        let error = join(&[beta()], LOCK, policy, &blank).expect_err("blank");
+        assert!(matches!(error, InventoryError::EmptyText { .. }), "{error:?}");
+
+        let other = policy.replace("=2.0.0", "=9.9.9");
+        let error = join(&[beta()], LOCK, &other, &vendored).expect_err("other version");
+        assert!(
+            matches!(error, InventoryError::MissingNotice { .. }),
+            "{error:?}"
+        );
+
+        let own = shipped(
+            "beta",
+            "2.0.0",
+            vec![text(dir.path(), "own/COPYING", "own words")],
+        );
+        let joined = join(&[own], LOCK, policy, &vendored).expect("own texts");
+        assert_eq!(joined[0].words, "--- COPYING ---\nown words\n");
+    }
+
+    #[test]
+    fn write_inventory_reads_vendored_texts() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let key = "third_party/licenses/cargo/beta-2.0.0/LICENSE";
+        let doc = serde_json::json!({
+            "schema": SCHEMA,
+            "crates": [{"crate": "beta", "version": "2.0.0", "label": "@b//:beta"}],
+            "vendored": {key: text(dir.path(), "exec/LICENSE", "beta words")},
+        });
+        let shipped_json = text(dir.path(), "shipped.json", &doc.to_string());
+        let lock = text(dir.path(), "lock.json", LOCK);
+        let licenses = text(
+            dir.path(),
+            "license.toml",
+            &format!(
+                "schema_version = 1\n\n[[inventory]]\npackage = \"beta\"\nset = \"cargo\"\nlicense = \"MIT\"\nversions = \"=2.0.0\"\ntext = \"{key}\"\n"
+            ),
+        );
+        let manifest = dir.path().join("manifest.txt");
+        let texts = dir.path().join("out");
+        write_inventory(&shipped_json, &lock, &licenses, &manifest, &texts, None).expect("writes");
+        assert_eq!(
+            std::fs::read_to_string(texts.join("cargo/beta-2.0.0/LICENSE")).expect("beta"),
+            "--- LICENSE ---\nbeta words\n"
+        );
     }
 
     #[test]

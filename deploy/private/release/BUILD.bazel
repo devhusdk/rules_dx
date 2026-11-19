@@ -469,6 +469,17 @@ matrix_unit_tests(name = "matrix_unit")
 inventory_unit_tests(name = "inventory_unit")
 
 inventory_file_tests(
+    name = "cxx_qt_inventory_test",
+    absent = [],
+    app = "@crates//:cxx-qt-gen",
+    present = ["cxx-qt-gen"],
+    texts_contain = [
+        "KDAB Group company",
+        "Apache License",
+    ],
+)
+
+inventory_file_tests(
     name = "dx_archive_inventory_test",
     absent = [],
     app = "//cli/archive:dx_archive",

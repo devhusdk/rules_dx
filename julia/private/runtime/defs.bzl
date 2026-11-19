@@ -3,8 +3,20 @@
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("//core/modules:versions.bzl", "JULIA_RUNTIME_VERSION")
 
 _JULIA_TOOLCHAIN = "@rules_julia//julia:toolchain_type"
+_VERSION_SETTING = "@rules_julia//julia/settings:version"
+
+def _runtime_version_impl(_settings, _attr):
+    return {_VERSION_SETTING: JULIA_RUNTIME_VERSION}
+
+# The source-built runtime and the toolchain it links against must be the same Julia release.
+_runtime_version = transition(
+    implementation = _runtime_version_impl,
+    inputs = [],
+    outputs = [_VERSION_SETTING],
+)
 
 def _julia_runtime_files_impl(ctx):
     toolchain = ctx.toolchains[_JULIA_TOOLCHAIN]
@@ -15,7 +27,8 @@ def _julia_runtime_files_impl(ctx):
 
 julia_runtime_files = rule(
     implementation = _julia_runtime_files_impl,
-    doc = "The resolved Julia toolchain's julia executable, with every file of its tree in runfiles.",
+    doc = "The julia executable of the runtime's Julia toolchain, with every file of its tree in runfiles.",
+    cfg = _runtime_version,
     toolchains = [_JULIA_TOOLCHAIN],
 )
 
@@ -54,7 +67,8 @@ def _julia_shipped_libs_impl(ctx):
 
 julia_shipped_libs = rule(
     implementation = _julia_shipped_libs_impl,
-    doc = "Links against shared libraries of the resolved Julia toolchain, found by file name.",
+    doc = "Links against shared libraries of the runtime's Julia toolchain, found by file name.",
+    cfg = _runtime_version,
     attrs = {
         "libraries": attr.string_list(doc = "File names of the shared libraries.", mandatory = True),
     },

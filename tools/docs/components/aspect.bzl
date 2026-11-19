@@ -70,7 +70,7 @@ real_components_docs_aspect = aspect(
         "_astro_meta": _component_meta_attr("astro"),
         "_component_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/components/extract:component_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_mdx_meta": _component_meta_attr("mdx"),

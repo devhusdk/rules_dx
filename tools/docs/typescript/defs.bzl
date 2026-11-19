@@ -18,7 +18,7 @@ def _docs_typescript_shard_impl(ctx):
     ]
 
 docs_typescript_shard = rule(
-    doc = "Converts one TypeScript project's TypeDoc JSON into a DocIr shard with //tools/docs/typescript/extract:typescript_extract.",
+    doc = "Converts one TypeScript project's TypeDoc JSON into a DocIr shard with dx typescript_extract.",
     implementation = _docs_typescript_shard_impl,
     attrs = {
         "config": attr.string(doc = "Configuration identity recorded on every symbol."),
@@ -27,7 +27,7 @@ docs_typescript_shard = rule(
         "source_prefix": attr.string(doc = "Repo-relative directory of the TypeScript project."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/typescript/extract:typescript_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

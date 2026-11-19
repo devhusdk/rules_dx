@@ -19,6 +19,7 @@ def component_config(language, tsconfig, entry_points):
 def component_shard_action(ctx, extract, meta, shard, language, package, source_prefix, config):
     """Converts one dx-component-meta/1 JSON into a DocIr shard."""
     args = ctx.actions.args()
+    args.add("component_extract")
     args.add("--meta", meta)
     args.add("--out", shard)
     args.add("--language", language)

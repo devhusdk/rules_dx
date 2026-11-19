@@ -1,7 +1,7 @@
 # gazelle:resolve rust prost_types @rules_rust_prost//private/3rdparty/crates:prost-types
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -11,7 +11,6 @@ exports_files(
         "Cargo.toml",
         "src/lib.rs",
         "src/lib_tests.rs",
-        "src/main.rs",
     ],
     visibility = VIS_TOOLS,
 )
@@ -25,6 +24,7 @@ rust_library(
     ),
     crate_name = "dx_docs_protobuf_extract",
     crate_root = "src/lib.rs",
+    visibility = VIS_TOOLS_PUBLIC + ["//cli/cli:__pkg__"],
     deps = all_crate_deps(
         package_name = "tools/docs/protobuf/protobuf_extract",
         normal = True,
@@ -32,24 +32,6 @@ rust_library(
         "//tools/docs/ir/ir:documentation_ir",
         "@rules_rust_prost//private/3rdparty/crates:prost",
         "@rules_rust_prost//private/3rdparty/crates:prost-types",
-    ],
-)
-
-rust_binary(
-    name = "protobuf_extract",
-    srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "tools/docs/protobuf/protobuf_extract",
-        normal = True,
-    ),
-    crate_name = "protobuf_extract",
-    crate_root = "src/main.rs",
-    deps = all_crate_deps(
-        package_name = "tools/docs/protobuf/protobuf_extract",
-        normal = True,
-    ) + [
-        ":dx_docs_protobuf_extract",
-        "//tools/docs/ir/ir:documentation_ir",
     ],
 )
 

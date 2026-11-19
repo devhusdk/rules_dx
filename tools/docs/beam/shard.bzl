@@ -62,6 +62,7 @@ def beam_shard_action(ctx, language, srcs, dep_beams, package, stem, runner, ext
     )
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("beam_extract")
     extract.add("--json", json)
     extract.add("--package", package)
     extract.add("--out", shard)

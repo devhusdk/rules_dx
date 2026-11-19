@@ -40,7 +40,7 @@ _docs_csharp_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/dotnet/extract:dotnet_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_language": attr.string(default = "csharp"),
@@ -65,7 +65,7 @@ _docs_fsharp_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/dotnet/extract:dotnet_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_language": attr.string(default = "fsharp"),

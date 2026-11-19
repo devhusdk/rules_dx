@@ -70,6 +70,7 @@ fn site(var: &str) -> PathBuf {
 
 fn check(args: &[String]) -> Run {
     let output = Command::new(dx_testing::env_file(SITE_CHECK))
+        .arg("site_check")
         .args(args)
         .output()
         .unwrap_or_else(|error| panic!("run site_check: {error}"));

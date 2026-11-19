@@ -74,6 +74,7 @@ fn sources_are_repo_relative() {
 
 fn run_extract(dir: &Path, typedoc: &Path) -> (i32, String) {
     let output = Command::new(dx_testing::env_file("DX_TYPESCRIPT_EXTRACT"))
+        .arg("typescript_extract")
         .args(["--typedoc"])
         .arg(typedoc)
         .args(["--package", "geometry", "--out", "shard.ir.pb"])

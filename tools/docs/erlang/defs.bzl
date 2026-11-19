@@ -33,7 +33,7 @@ docs_erlang_shard = rule(
         "app": attr.label(mandatory = True, providers = [ErlangAppInfo], doc = "The documented erlang_app; its .erl srcs are documented."),
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the app name."),
         "_driver": attr.label(allow_single_file = True, default = Label("//tools/docs/erlang:edoc_dump.escript")),
-        "_extract": attr.label(cfg = "exec", default = Label("//tools/docs/beam/extract:beam_extract"), executable = True),
+        "_extract": attr.label(cfg = "exec", default = Label("@dx_prebuilt//:dx"), executable = True),
         "_runner": attr.label(cfg = "exec", default = ESCRIPT_TOOL, executable = True),
     },
     provides = [DocsShardInfo],

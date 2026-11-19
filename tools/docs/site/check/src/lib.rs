@@ -18,6 +18,64 @@ pub struct Inputs {
     pub data: Vec<String>,
 }
 
+/// Runs `site_check` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    if args.iter().any(|a| a == "-h" || a == "--help") {
+        println!("{}", usage());
+        return 0;
+    }
+    if args.iter().any(|arg| arg == "--rendered") {
+        return match parse_rendered(args) {
+            Ok((rendered, forbid)) => report(&rendered::check_rendered(&rendered, &forbid)),
+            Err(detail) => reject(detail, rendered::usage()),
+        };
+    }
+    match parse_args(args) {
+        Ok(inputs) => report(&check(&inputs)),
+        Err((detail, usage)) => reject(detail, usage),
+    }
+}
+
+fn parse_rendered(args: &[String]) -> Result<(rendered::Rendered, Vec<String>), String> {
+    let mut rendered = rendered::Rendered::default();
+    let mut forbid: Vec<String> = Vec::new();
+    let mut index = 0;
+    while let Some(flag) = args.get(index).cloned() {
+        if flag == "--landing" {
+            rendered.landing = true;
+            index += 1;
+            continue;
+        }
+        let Some(value) = args.get(index + 1) else {
+            return Err(format!("{flag} needs a DIR"));
+        };
+        match flag.as_str() {
+            "--rendered" => rendered.root = std::path::PathBuf::from(value),
+            "--forbid" => forbid.push(value.clone()),
+            other => return Err(format!("unknown argument '{other}'")),
+        }
+        index += 2;
+    }
+    if rendered.root.as_os_str().is_empty() {
+        return Err("--rendered DIR is required".to_string());
+    }
+    Ok((rendered, forbid))
+}
+
+fn report(refusal: &str) -> i32 {
+    if refusal.is_empty() {
+        return 0;
+    }
+    eprintln!("docs_site: {refusal}");
+    1
+}
+
+fn reject(detail: impl std::fmt::Display, usage: impl std::fmt::Display) -> i32 {
+    eprintln!("site_check: {detail}\n{usage}");
+    2
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> String {

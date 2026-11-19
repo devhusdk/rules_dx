@@ -128,7 +128,7 @@ jobs:
               check+=(--forbid "$line")
             fi
           done <<< "$DX_DOCS_FORBID"
-          bazel run "$@" @rules_dx//tools/docs/site/check:site_check -- --rendered "$stage" "${check[@]}"
+          bazel run "$@" @rules_dx//:dx -- site_check --rendered "$stage" "${check[@]}"
   docs-publish:
     name: docs-publish (GitHub Pages)
     needs: [docs-check]
@@ -182,7 +182,7 @@ jobs:
               check+=(--forbid "$line")
             fi
           done <<< "$DX_DOCS_FORBID"
-          bazel run "$@" @rules_dx//tools/docs/site/check:site_check -- --rendered "$PAGES_STAGE" "${check[@]}"
+          bazel run "$@" @rules_dx//:dx -- site_check --rendered "$PAGES_STAGE" "${check[@]}"
       - name: Check the upload holds no secret
         id: scan-site
         uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main

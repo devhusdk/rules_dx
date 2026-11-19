@@ -30,6 +30,28 @@ pub struct Options {
     pub api_summary: String,
 }
 
+/// Runs `site_build` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    if args.iter().any(|a| a == "-h" || a == "--help") {
+        println!("{}", usage());
+        return 0;
+    }
+    let options = match parse(args) {
+        Ok(options) => options,
+        Err(detail) => {
+            eprintln!("site_build: {detail}\n{}", usage());
+            return 2;
+        }
+    };
+    let refusal = run(&options);
+    if refusal.is_empty() {
+        return 0;
+    }
+    eprintln!("site_build: {refusal}");
+    1
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> String {

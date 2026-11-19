@@ -1,23 +1,11 @@
-//! Shared entry point, flag reader and shard writer for the docs extractor binaries.
+//! Shared entry point, flag reader and shard writer for the docs extractor subcommands.
 
 use std::fmt::{self, Display};
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
 
 pub use dx_atomic_fs::path_io::{self, PathIoError};
 
 use crate::proto::DocIr;
-
-/// Runs [`run_process`] on the process arguments.
-pub fn main<O, PE: Display, RE: Display>(
-    program: &str,
-    usage: &str,
-    parse: impl FnOnce(&[String]) -> Result<O, PE>,
-    run: impl FnOnce(&O) -> Result<(), RE>,
-) -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    ExitCode::from(print_outcome(&args, program, usage, parse, run))
-}
 
 /// Prints usage on -h/--help, returns 2 after printing "<program>: <detail>\n<usage>" on a parse error, 1 after "<program>: <detail>" on a run error.
 #[must_use]
@@ -28,16 +16,6 @@ pub fn run_process<O, PE: Display, RE: Display>(
     run: impl FnOnce(&O) -> Result<(), RE>,
     args: &[String],
 ) -> i32 {
-    i32::from(print_outcome(args, program, usage, parse, run))
-}
-
-fn print_outcome<O, PE: Display, RE: Display>(
-    args: &[String],
-    program: &str,
-    usage: &str,
-    parse: impl FnOnce(&[String]) -> Result<O, PE>,
-    run: impl FnOnce(&O) -> Result<(), RE>,
-) -> u8 {
     let mut stdout = String::new();
     let mut stderr = String::new();
     let code = execute(args, program, usage, parse, run, &mut stdout, &mut stderr);
@@ -47,7 +25,7 @@ fn print_outcome<O, PE: Display, RE: Display>(
     if !stderr.is_empty() {
         eprintln!("{stderr}");
     }
-    code
+    i32::from(code)
 }
 
 fn execute<O, PE: Display, RE: Display>(

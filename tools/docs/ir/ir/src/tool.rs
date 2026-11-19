@@ -103,7 +103,7 @@ impl Display for FlagError {
 
 impl std::error::Error for FlagError {}
 
-/// Bridge for callers that still return `String`; removed in #13803.
+/// Bridge for callers that still return `String`.
 impl From<FlagError> for String {
     fn from(error: FlagError) -> Self {
         error.to_string()
@@ -208,7 +208,7 @@ impl Display for SourcesError {
 
 impl std::error::Error for SourcesError {}
 
-/// Bridge for callers that still return `String`; removed in #13803.
+/// Bridge for callers that still return `String`.
 impl From<SourcesError> for String {
     fn from(error: SourcesError) -> Self {
         error.to_string()
@@ -270,7 +270,7 @@ impl std::error::Error for WriteShardError {
     }
 }
 
-/// Bridge for callers that still return `String`; removed in #13803.
+/// Bridge for callers that still return `String`.
 impl From<WriteShardError> for String {
     fn from(error: WriteShardError) -> Self {
         error.to_string()
@@ -439,7 +439,12 @@ mod tests {
     #[test]
     fn typed_run_error_prints_its_display() {
         assert_eq!(
-            run_main(&["--a", "1"], Err(SourcesError { line: "x".to_owned() })),
+            run_main(
+                &["--a", "1"],
+                Err(SourcesError {
+                    line: "x".to_owned()
+                })
+            ),
             (
                 1,
                 String::new(),
@@ -455,7 +460,9 @@ mod tests {
             "--a is required"
         );
         assert_eq!(
-            String::from(SourcesError { line: "x".to_owned() }),
+            String::from(SourcesError {
+                line: "x".to_owned()
+            }),
             "bad srcs manifest line 'x'"
         );
         assert_eq!(
@@ -479,7 +486,10 @@ mod tests {
             "{error:?}"
         );
         let detail = error.to_string();
-        assert!(detail.starts_with(&format!("cannot write {out}: ")), "{detail}");
+        assert!(
+            detail.starts_with(&format!("cannot write {out}: ")),
+            "{detail}"
+        );
     }
 
     #[test]
@@ -515,7 +525,10 @@ mod tests {
                     line: line.to_owned()
                 }
             );
-            assert_eq!(error.to_string(), format!("bad srcs manifest line '{line}'"));
+            assert_eq!(
+                error.to_string(),
+                format!("bad srcs manifest line '{line}'")
+            );
         }
     }
 }

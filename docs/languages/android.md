@@ -544,7 +544,7 @@ Builds the debug-signed split APKs that one App Bundle installs on one device sp
 | `_bundletool` | `label` | no | Pinned bundletool. |
 | `_java_runtime` | `label` | no |  |
 | `_keystore` | `label` | no | Public rules_android debug keystore; debug installs only. |
-| `_ops` | `label` | no | The Android operations program. |
+| `_dx` | `label` | no | dx, whose android_ops subcommand builds the APK set. |
 
 ### `android_check`
 

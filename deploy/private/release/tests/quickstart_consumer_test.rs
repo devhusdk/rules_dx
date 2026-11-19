@@ -296,6 +296,20 @@ fn the_readme_quickstart_runs_as_written() {
         &["build", "//app"],
         "build a rust target with no root package",
     );
+    run_in(
+        &case,
+        &["run", "@rules_dx//:dx", "--", "check", "//app/..."],
+        "dx check //app/... on a Rust-only package",
+    );
+    let repos = external_repos(&case);
+    let fetched: Vec<&str> = repos
+        .split(' ')
+        .filter(|name| name.contains("+dx_biome_") || name.contains("+dx_vale_"))
+        .collect();
+    assert!(
+        fetched.is_empty(),
+        "a check scoped to a Rust-only package fetches no biome or vale repo: {fetched:?}"
+    );
     std::fs::remove_dir_all(case.root().join("app"))
         .unwrap_or_else(|error| panic!("remove app: {error}"));
     run_in(

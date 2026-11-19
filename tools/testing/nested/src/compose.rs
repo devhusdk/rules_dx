@@ -15,6 +15,28 @@ pub fn rules_dx_override(rules_dx: &Path) -> String {
     )
 }
 
+/// The root `dx_prebuilt.asset` that serves the host's `dx` from `url`, as a released `pins.bzl` does.
+///
+/// # Errors
+/// When the host os or cpu has no `@platforms` value `dx_prebuilt` serves.
+pub fn dx_prebuilt_asset(url: &str, sha256: &str) -> Result<String, String> {
+    let os = match std::env::consts::OS {
+        os @ ("linux" | "macos" | "windows") => os,
+        other => return Err(format!("dx_prebuilt serves no dx for os {other}")),
+    };
+    let cpu = match std::env::consts::ARCH {
+        cpu @ ("x86_64" | "aarch64") => cpu,
+        other => return Err(format!("dx_prebuilt serves no dx for cpu {other}")),
+    };
+    Ok(format!(
+        "dx_prebuilt = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\ndx_prebuilt.asset(\n    name = \"dx\",\n    os = {},\n    cpu = {},\n    url = {},\n    sha256 = {},\n)\n",
+        starlark_string(os),
+        starlark_string(cpu),
+        starlark_string(url),
+        starlark_string(sha256),
+    ))
+}
+
 /// The workspace rules log contexts of the modules that `module` overrides with `local_path_override`.
 #[must_use]
 pub fn local_override_repos(module: &str) -> Vec<String> {
@@ -497,6 +519,17 @@ pub fn module_body(module: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dx_prebuilt_asset_serves_the_host_dx_from_the_url() {
+        let sha = "a".repeat(64);
+        let asset = dx_prebuilt_asset("file:///tmp/dx", &sha).expect("a supported host");
+        assert_eq!(asset.matches("use_extension(").count(), 1);
+        assert!(asset.contains(&format!("os = \"{}\"", std::env::consts::OS)));
+        assert!(asset.contains(&format!("cpu = \"{}\"", std::env::consts::ARCH)));
+        assert!(asset.contains("url = \"file:///tmp/dx\""));
+        assert!(asset.contains(&format!("sha256 = \"{sha}\"")));
+    }
 
     const SNIPPET: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\n";
 

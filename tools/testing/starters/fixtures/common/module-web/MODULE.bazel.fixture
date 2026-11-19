@@ -1,8 +1,0 @@
-npm = use_extension("@rules_dx//javascript:extensions.bzl", "npm")
-npm.npm_translate_lock(
-    name = "demo_npm",
-    npmrc = "//:.npmrc",
-    pnpm_lock = "//:pnpm-lock.yaml",
-    verify_node_modules_ignored = "//:.bazelignore",
-)
-use_repo(npm, "demo_npm")

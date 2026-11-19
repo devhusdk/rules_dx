@@ -1,0 +1,77 @@
+load("//android:defs.bzl", "android_java_library")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+load("//tools/testing/conformance:quality.bzl", "java_format_subject", "java_lint_subject")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+# Like //android/tests/fixtures/android_library, these build on linux_x86_64 only; other hosts keep pending lines.
+_SDK_HOST = [
+    "@platforms//cpu:x86_64",
+    "@platforms//os:linux",
+]
+
+android_java_library(
+    name = "conformance",
+    srcs = ["Clean.java"],
+    custom_package = "com.example.dxconformance",
+    target_compatible_with = _SDK_HOST,
+)
+
+android_java_library(
+    name = "lint_dirty",
+    srcs = ["LintDirty.java"],
+    custom_package = "com.example.dxconformance",
+    tags = ["manual"],
+    target_compatible_with = _SDK_HOST,
+)
+
+android_java_library(
+    name = "format_dirty",
+    srcs = ["FormatDirty.java"],
+    custom_package = "com.example.dxconformance",
+    tags = ["manual"],
+    target_compatible_with = _SDK_HOST,
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "android",
+    not_applicable = {
+        "build_test": "an APK runs on a device, not on the host",
+        "coverage_test": "android has no host test rule",
+        "cross_test": "android_rust_apk builds every ABI it lists, whatever the host",
+        "fail_test": "android has no host test rule",
+        "lock_test": "android has no lockfile",
+        "pass_test": "android has no host test rule",
+        "runfiles_test": "an APK runs on a device, not on the host",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "FormatDirty.java",
+        "format_subject": java_format_subject,
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 4,
+        "lint_rule": "UnusedPrivateMethod",
+        "lint_source": "LintDirty.java",
+        "lint_subject": java_lint_subject,
+    },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

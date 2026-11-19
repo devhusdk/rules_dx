@@ -1,6 +1,5 @@
 capnproto/private/codegen.bzl aspect-to-list 2
 core/codegen/codegen.bzl aspect-to-list 1
-core/quality/coverage_sources.bzl aspect-to-list 2
 core/quality/testdata/upstream_ownership.bzl aspect-to-list 1
 cuda/tests/defs.bzl aspect-to-list 1
 flatbuffers/private/codegen.bzl aspect-to-list 1

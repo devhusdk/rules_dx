@@ -32,15 +32,13 @@ def _row(kind, file):
         return None
     return "%s %s %s" % (kind, "source" if file.is_source else "generated", file.short_path)
 
-def _rows(files, prod):
-    """Returns the manifest rows for files, prod when a production dependency owns them."""
-    owned = {file: True for file in prod.to_list()}
-    rows = [_row("prod" if file in owned else "test", file) for file in files.to_list()]
-    return [row for row in rows if row]
+def _prod_row(file):
+    """Returns the prod row for a file a production dependency owns."""
+    return _row("prod", file)
 
-def dx_coverage_source_lines(info):
-    """Returns the manifest lines for a DxCoverageSourcesInfo."""
-    return ["v1 cell " + info.cell] + _rows(info.files, info.prod)
+def _file_row(file):
+    """Returns the test row for an instrumented file; a prod row for the same file wins."""
+    return _row("test", file)
 
 def _edges(ctx):
     """Returns the targets behind the rule's dependency and wrapper edges."""
@@ -70,8 +68,9 @@ def _dx_coverage_sources_aspect_impl(target, ctx):
     cell = _cell(ctx)
     args = ctx.actions.args()
     args.set_param_file_format("multiline")
-    args.add("v1 cell " + cell)
-    args.add_all(_rows(files, prod))
+    args.add("v2 cell " + cell)
+    args.add_all(prod, map_each = _prod_row)
+    args.add_all(files, map_each = _file_row)
     manifest = ctx.actions.declare_file(ctx.label.name + ".dx_coverage_sources.txt")
     ctx.actions.write(manifest, args)
     return [

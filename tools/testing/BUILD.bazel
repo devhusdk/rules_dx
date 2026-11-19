@@ -344,6 +344,26 @@ nested_bazel_test(
 
 # keep
 rust_binary(
+    name = "analysis_scaling_check",
+    testonly = True,
+    srcs = ["analysis_scaling_check.rs"],
+    crate_name = "analysis_scaling_check",
+    crate_root = "analysis_scaling_check.rs",
+    deps = [
+        "//cli/plan:dx_plan",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
+rust_test(
+    name = "analysis_scaling_check_test",
+    size = "small",
+    crate = ":analysis_scaling_check",
+)
+
+# keep
+rust_binary(
     name = "determinism_check",
     testonly = True,
     srcs = ["determinism_check.rs"],

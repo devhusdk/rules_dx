@@ -90,6 +90,7 @@ pub fn go_locked_packages(text: &str) -> Result<Vec<LockedPackage>, DxError> {
 }
 
 pub fn parse_maven_install(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = strip_bom(text);
     let value: serde_json::Value = serde_json::from_str(text)
         .map_err(|error| DxError::failure(format!("invalid lock: {error}")))?;
     let artifacts = value
@@ -113,6 +114,7 @@ pub fn parse_maven_install(text: &str) -> Result<Vec<LockedPackage>, DxError> {
 }
 
 pub fn parse_psgallery_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = strip_bom(text);
     let value: serde_json::Value = serde_json::from_str(text)
         .map_err(|error| DxError::failure(format!("invalid lock: {error}")))?;
     let packages = value
@@ -136,6 +138,11 @@ pub fn parse_psgallery_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     }
     sort_unique(&mut out);
     Ok(out)
+}
+
+/// Drops a leading UTF-8 byte order mark that Windows editors add.
+pub(crate) fn strip_bom(text: &str) -> &str {
+    text.strip_prefix('\u{feff}').unwrap_or(text)
 }
 
 /// Orders packages by name then version and drops repeats.

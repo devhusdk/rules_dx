@@ -3,6 +3,7 @@ use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
 pub fn parse_cpanfile_snapshot(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let mut in_distributions = false;
     let mut out = Vec::new();
     for raw in text.lines() {

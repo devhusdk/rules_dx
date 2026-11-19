@@ -5,6 +5,7 @@ const JULIA_SET: &str = "julia";
 
 /// Reads `[[deps.Name]]` entries of a format 2.0 lock; stdlibs without a version are skipped.
 pub fn parse_julia_manifest(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let table: toml::Table =
         toml::from_str(text).map_err(|error| DxError::failure(format!("invalid lock: {error}")))?;
     match table.get("manifest_format").and_then(toml::Value::as_str) {

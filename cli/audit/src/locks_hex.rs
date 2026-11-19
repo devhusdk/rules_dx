@@ -3,6 +3,7 @@ use dx_error::DxError;
 
 /// Reads the packages of a hex lock.
 pub fn parse_hex_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let value: serde_json::Value = serde_json::from_str(text)
         .map_err(|error| DxError::failure(format!("invalid hex lock: {error}")))?;
     let packages = value

@@ -15,6 +15,7 @@ pub struct NoticeEntry {
 }
 
 pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let mut entries = Vec::new();
     for (index, raw) in text.lines().enumerate() {
         let line = raw.trim();
@@ -98,6 +99,9 @@ pub fn notice_text_path_error(text_path: &str) -> Result<(), DxError> {
     }
     if text_path.starts_with('/') {
         return Err(DxError::failure("must be a relative path (no leading '/')"));
+    }
+    if text_path.contains(['\0', ':']) {
+        return Err(DxError::failure("must not contain ':' or NUL"));
     }
     for component in text_path.split('/') {
         if component.is_empty() || component == "." || component == ".." {
@@ -230,5 +234,23 @@ mod tests {
                 "{err}"
             );
         }
+    }
+
+    #[test]
+    fn manifest_ignores_a_leading_byte_order_mark() {
+        let sha = "a".repeat(64);
+        let line = format!("pkg|set|1.0|MIT|cargo/pkg/LICENSE|{sha}\n");
+        let plain = parse_notice_manifest(&line).expect("plain");
+        let with_bom = parse_notice_manifest(&format!("\u{feff}{line}")).expect("bom");
+        assert_eq!(plain, with_bom);
+        parse_notice_manifest(&format!("\u{feff}# header\n{line}")).expect("bom comment");
+    }
+
+    #[test]
+    fn text_path_rejects_drive_letters_and_nul() {
+        for path in ["C:/x/LICENSE", "C:x/LICENSE", "a/b:stream", "a/\0b"] {
+            assert!(notice_text_path_error(path).is_err(), "{path:?}");
+        }
+        assert!(notice_text_path_error("cargo/serde/LICENSE").is_ok());
     }
 }

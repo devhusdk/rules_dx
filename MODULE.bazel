@@ -385,12 +385,6 @@ single_version_override(
 
 # floor: equals tested
 bazel_dep(name = "rules_kotlin", version = "2.4.21")
-single_version_override(
-    module_name = "rules_kotlin",
-    patch_strip = 1,
-    patches = ["//patches/rules_kotlin:jdeps_merge_stub_inputs.patch"],
-    version = "2.4.21",
-)
 
 # floor: equals tested
 bazel_dep(name = "rules_scala", version = "7.4.1")
@@ -417,7 +411,6 @@ scala_deps.scalatest()
 
 register_toolchains(
     "//java/private/toolchain:all",
-    "//kotlin/private/toolchain:unused_deps",
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",
 )

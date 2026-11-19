@@ -615,8 +615,6 @@ rust_test(
         "//julia/private/tools:corpus_starlark",
         "//julia/tests:corpus_starlark",
         "//kotlin/private:corpus_starlark",
-        "//kotlin/private/toolchain:corpus_starlark",
-        "//kotlin/private/toolchain/impl:corpus_starlark",
         "//kubernetes/private:corpus_starlark",
         "//kubernetes/private/quality:corpus_starlark",
         "//lua/private/quality:corpus_starlark",

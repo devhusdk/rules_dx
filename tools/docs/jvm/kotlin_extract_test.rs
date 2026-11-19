@@ -184,11 +184,24 @@ impl Driver {
     }
 
     fn run(&self, manifest: &Path, classpath: &Path) -> (i32, String) {
+        self.run_owning(manifest, classpath, &[])
+    }
+
+    fn run_owning(&self, manifest: &Path, classpath: &Path, own_jars: &[&str]) -> (i32, String) {
+        let own_jars_file = self.dir.join("own_jars.txt");
+        let text = own_jars
+            .iter()
+            .map(|jar| format!("{jar}\n"))
+            .collect::<Vec<_>>()
+            .concat();
+        std::fs::write(&own_jars_file, text).expect("write the own jars");
         let output = Command::new(dx_testing::env_file("DX_DOKKA_EXTRACT"))
             .arg("--srcs-manifest")
             .arg(manifest)
             .arg("--classpath-file")
             .arg(classpath)
+            .arg("--own-jars-file")
+            .arg(&own_jars_file)
             .arg("--release")
             .arg("11")
             .arg("--out")
@@ -213,6 +226,16 @@ fn the_adapter_fails_on_an_unresolved_public_type_and_writes_nothing() {
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.contains("Missing"), "{stderr}");
     assert!(!driver.out().exists());
+}
+
+#[test]
+fn the_adapter_drops_the_library_own_jars_from_the_classpath() {
+    let driver = Driver::new("kotlin-own");
+    let manifest = driver.manifest(&[dx_testing::env_file("DX_SHAPE_KT")]);
+    let (code, stderr) =
+        driver.run_owning(&manifest, &driver.classpath(&["own.jar"]), &["own.jar"]);
+    assert_eq!(code, 0, "{stderr}");
+    assert!(driver.out().exists());
 }
 
 #[test]

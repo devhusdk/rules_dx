@@ -28,15 +28,12 @@ terraform/private/quality/terraform.bzl aspect-to-list 2
 tools/docs/cc/aspect.bzl aspect-to-list 1
 tools/docs/components/aspect.bzl aspect-to-list 1
 tools/docs/dart/defs.bzl aspect-to-list 2
-tools/docs/dotnet/shard.bzl aspect-to-list 1
 tools/docs/haskell/aspect.bzl aspect-to-list 1
 tools/docs/haskell/defs.bzl aspect-to-list 1
 tools/docs/javascript/aspect.bzl aspect-to-list 1
 tools/docs/julia/aspect.bzl aspect-to-list 3
-tools/docs/jvm/shard.bzl aspect-to-list 2
 tools/docs/lua/aspect.bzl aspect-to-list 3
 tools/docs/powershell/aspect.bzl aspect-to-list 1
-tools/docs/protobuf/defs.bzl aspect-to-list 1
 tools/docs/python/shard.bzl aspect-to-list 2
 tools/docs/ruby/aspect.bzl aspect-to-list 2
 tools/docs/rust/aspect.bzl aspect-to-list 2

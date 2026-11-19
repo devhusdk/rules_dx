@@ -13,26 +13,25 @@ JVM_LANGUAGES = {
     "scala": struct(extension = "scala", mnemonic = "DxDocsScaladoc"),
 }
 
+def _path(file):
+    return file.path
+
 def jvm_shard_action(ctx, language, java_info, own, package, dep_shards, stem, adapter_tool, convert_tool):
     """Runs the language adapter and the DocIr converter for one JVM library."""
-    own_jars = {}
+    own_jars = []
     compiled = []
     for output in java_info.java_outputs:
         if output.compile_jar:
-            own_jars[output.compile_jar.path] = True
+            own_jars.append(output.compile_jar.path)
             compiled.append(output.compile_jar)
         if output.class_jar:
-            own_jars[output.class_jar.path] = True
+            own_jars.append(output.class_jar.path)
 
-    classpath_jars = {f.path: f for f in java_info.transitive_compile_time_jars.to_list()}
+    # The library's own jars sit in its transitive classpath; the adapter drops them by path.
+    jar_sets = [java_info.transitive_compile_time_jars]
     if language == "kotlin":
-        for f in ctx.toolchains[KOTLIN_TOOLCHAIN].jvm_stdlibs.transitive_compile_time_jars.to_list():
-            classpath_jars[f.path] = f
-    classpath = sorted([
-        f
-        for path, f in classpath_jars.items()
-        if path not in own_jars
-    ], key = lambda f: f.path)
+        jar_sets.append(ctx.toolchains[KOTLIN_TOOLCHAIN].jvm_stdlibs.transitive_compile_time_jars)
+    classpath = depset(transitive = jar_sets)
 
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join(sorted([
@@ -40,19 +39,25 @@ def jvm_shard_action(ctx, language, java_info, own, package, dep_shards, stem, a
         for f in own
     ])))
     classpath_file = ctx.actions.declare_file(stem + ".classpath.txt")
-    ctx.actions.write(classpath_file, "".join([f.path + "\n" for f in classpath]))
+    classpath_lines = ctx.actions.args()
+    classpath_lines.set_param_file_format("multiline")
+    classpath_lines.add_all(classpath, map_each = _path, uniquify = True)
+    ctx.actions.write(classpath_file, classpath_lines)
+    own_jars_file = ctx.actions.declare_file(stem + ".own_jars.txt")
+    ctx.actions.write(own_jars_file, "".join([path + "\n" for path in sorted(own_jars)]))
 
     api_json = ctx.actions.declare_file(stem + ".api.json")
     release = ctx.toolchains[JAVA_TOOLCHAIN].java.source_version
     adapter = ctx.actions.args()
     adapter.add("--srcs-manifest", manifest)
     adapter.add("--classpath-file", classpath_file)
+    adapter.add("--own-jars-file", own_jars_file)
     adapter.add("--release", release)
     adapter.add("--out", api_json)
     ctx.actions.run(
         executable = adapter_tool,
         arguments = [adapter],
-        inputs = own + classpath + compiled + [manifest, classpath_file],
+        inputs = depset(own + compiled + [manifest, classpath_file, own_jars_file], transitive = [classpath]),
         outputs = [api_json],
         mnemonic = JVM_LANGUAGES[language].mnemonic,
         toolchain = None,

@@ -1,8 +1,10 @@
 //! Packagist publisher: Composer manifest identity check and the update-package API call.
 
 use crate::run::{DeployRun, OwnerGate, deploy_build_mode, env_or_empty};
+use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_ecosystems::Ecosystem;
-use std::path::Path;
+use std::fmt;
+use std::path::{Path, PathBuf};
 
 /// The file name of a Composer manifest.
 fn manifest_name() -> &'static str {
@@ -20,27 +22,75 @@ pub(crate) const PACKAGIST_GATE: OwnerGate = OwnerGate {
 /// Packagist update-package endpoint.
 const PACKAGIST_UPDATE_URL: &str = "https://packagist.org/api/update-package";
 
+/// Why the Composer manifest does not name the declared package.
+#[derive(Debug)]
+pub enum PackagistError {
+    Read(PathIoError),
+    Json {
+        path: PathBuf,
+        source: serde_json::Error,
+    },
+    NoName {
+        path: PathBuf,
+    },
+    Mismatch {
+        actual: String,
+        expected: String,
+    },
+}
+
+impl fmt::Display for PackagistError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(source) => write!(f, "{source}"),
+            Self::Json { path, source } => {
+                write!(f, "{} is not valid JSON: {source}", path.display())
+            }
+            Self::NoName { path } => write!(f, "{} declares no name", path.display()),
+            Self::Mismatch { actual, expected } => write!(
+                f,
+                "package mismatch: {} declares {actual}, BUILD declares {expected}",
+                manifest_name()
+            ),
+        }
+    }
+}
+
+impl std::error::Error for PackagistError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(source) => Some(source),
+            Self::Json { source, .. } => Some(source),
+            Self::NoName { .. } | Self::Mismatch { .. } => None,
+        }
+    }
+}
+
 /// Reads the package name the Composer manifest declares.
-pub fn packagist_read_name(composer_json: &Path) -> Result<String, String> {
-    let text = std::fs::read_to_string(composer_json)
-        .map_err(|error| format!("cannot read {}: {error}", composer_json.display()))?;
-    let value: serde_json::Value = serde_json::from_str(&text)
-        .map_err(|error| format!("{} is not valid JSON: {error}", composer_json.display()))?;
+pub fn packagist_read_name(composer_json: &Path) -> Result<String, PackagistError> {
+    let text = path_io::read_to_string(composer_json).map_err(PackagistError::Read)?;
+    let value: serde_json::Value =
+        serde_json::from_str(&text).map_err(|source| PackagistError::Json {
+            path: composer_json.to_path_buf(),
+            source,
+        })?;
     value
         .get("name")
         .and_then(serde_json::Value::as_str)
         .filter(|name| !name.is_empty())
         .map(str::to_owned)
-        .ok_or_else(|| format!("{} declares no name", composer_json.display()))
+        .ok_or_else(|| PackagistError::NoName {
+            path: composer_json.to_path_buf(),
+        })
 }
 
 /// Checks the Composer manifest name against the declared package.
-pub fn packagist_check_name(actual: &str, expected: &str) -> Result<(), String> {
+pub fn packagist_check_name(actual: &str, expected: &str) -> Result<(), PackagistError> {
     if actual != expected {
-        return Err(format!(
-            "package mismatch: {} declares {actual}, BUILD declares {expected}",
-            manifest_name()
-        ));
+        return Err(PackagistError::Mismatch {
+            actual: actual.to_owned(),
+            expected: expected.to_owned(),
+        });
     }
     Ok(())
 }
@@ -145,10 +195,11 @@ mod tests {
         std::fs::write(&path, r#"{"name": "acme/demo", "require": {}}"#).expect("write");
         let name = packagist_read_name(&path).expect("name");
         assert_eq!(name, "acme/demo");
-        assert_eq!(packagist_check_name(&name, "acme/demo"), Ok(()));
+        packagist_check_name(&name, "acme/demo").expect("same name");
         assert!(
             packagist_check_name(&name, "acme/other")
                 .expect_err("mismatch")
+                .to_string()
                 .contains("BUILD declares acme/other")
         );
     }
@@ -161,14 +212,20 @@ mod tests {
         assert!(
             packagist_read_name(&path)
                 .expect_err("no name")
+                .to_string()
                 .contains("declares no name")
         );
         std::fs::write(&path, "not json").expect("write");
         assert!(
             packagist_read_name(&path)
                 .expect_err("bad json")
+                .to_string()
                 .contains("not valid JSON")
         );
+        let missing = dir.path().join("missing.json");
+        let error = packagist_read_name(&missing).expect_err("missing");
+        assert!(matches!(&error, PackagistError::Read(io) if io.path() == missing));
+        assert!(error.to_string().starts_with("cannot read "), "{error}");
     }
 
     #[test]

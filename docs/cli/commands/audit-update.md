@@ -393,9 +393,8 @@ A check validates the selected sets and writes nothing. It takes no [build slot]
 
 - `--apply` runs Bazel for `cargo`, `maven` and `npm` sets.
 - `uv`, `ruby`, `cabal` and `cpan` sets run their lock tool in check mode: current, or failed when stale.
-- `ansible`, `dub`, `fpm`, `luarocks`, `nuget`, `powershell` and `zig` sets run the resolver their `setup.hubs` entry names: a check passes `--check` and fails the set when the lock is stale; `--apply` rewrites the lock. `--offline` fails with `offline_required`, and a `set:package` selector is refused.
+- `ansible`, `bicep`, `dub`, `fpm`, `luarocks`, `nuget`, `powershell` and `zig` sets run the resolver their `setup.hubs` entry names: a check passes `--check` and fails the set when the lock is stale; `--apply` rewrites the lock. `--offline` fails with `offline_required`, and a `set:package` selector is refused.
 - `go` sets compare a freshly generated `go.sum` with the committed one.
-- `bicep` sets report `pinned` and change nothing.
 - Sets dx cannot check report `unsupported` and fail the run. Refresh them with `dx update --apply <set>`. A bare `dx update` exits `1` when any set is unsupported.
 - Checks that run Bazel (`npm`, `cargo`, `maven`) restore any manifest or lock they changed and fail the set with `check_wrote: <paths>`.
 - A check with `--offline` adds `--repository_disable_download` for Bazel sets, or the tool's offline flag.
@@ -957,6 +956,6 @@ bicep.lock(
 use_repo(bicep, "bicep")
 ```
 
-- The manifests are the `*.bicep` files beside `bicep.lock.json`. Each `br:HOST/PATH:TAG` or `br/public:PATH:TAG` module reference is locked to its manifest and layer sha256. One module takes one tag per set. A check and an update report `pinned`.
-- To move a module, edit the tag in the `.bicep` file and run `dx generate --apply`. dx never picks a registry tag.
+- The manifests are the `*.bicep` files beside `bicep.lock.json`. Each `br:HOST/PATH:TAG` or `br/public:PATH:TAG` module reference is locked to its manifest and layer sha256. One module takes one tag per set. A check runs the lock step with `--check` and fails when the lock is stale.
+- To move a module, edit the tag in the `.bicep` file and run `dx generate --apply` or `dx update --apply bicep`. dx never picks a registry tag.
 - A locked module is `@bicep//HOST/PATH`, for example `@bicep//mcr.microsoft.com/bicep/avm/res/storage/storage-account`.

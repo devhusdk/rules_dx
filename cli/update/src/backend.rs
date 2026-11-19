@@ -13,7 +13,6 @@ mod julia;
 mod maven;
 mod npm;
 mod opam;
-mod pinned;
 mod pub_dev;
 mod resolver;
 mod ruby;
@@ -770,7 +769,7 @@ fn plan_backend(
         "cabal" => cabal::plan(workspace, set, request, offline, frozen, head, closure),
         "ruby" => ruby::plan(workspace, set, request, offline, frozen, head, closure),
         "resolver" => resolver::plan(workspace, set, request, offline, frozen, head),
-        _ => pinned::plan(set, request),
+        _ => Err(no_backend(set)),
     }
 }
 
@@ -813,7 +812,15 @@ fn check_backend(
         "cabal" => cabal::check(workspace, set, request, offline, head, closure),
         "ruby" => ruby::check(workspace, set, request, offline, head, closure),
         "resolver" => resolver::check(workspace, set, request, offline, head),
-        _ => pinned::check(set, request),
+        _ => Err(no_backend(set)),
+    }
+}
+
+/// Refuses a set whose `ecosystems.json` row names a backend this crate does not have.
+fn no_backend(set: &ResolvedSet) -> BackendError {
+    BackendError::Unsupported {
+        set: set.name.clone(),
+        reason: "the ecosystems.json row of this ecosystem names no update backend",
     }
 }
 

@@ -1,6 +1,6 @@
 """Plans the @dx_prebuilt repos and renders the hub BUILD file."""
 
-load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
+load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
 
 visibility(["//cli/..."])
 
@@ -33,17 +33,6 @@ GO_TOOLS = {tool: _GO_PACKAGE + tool for tool in [
     "dx_modfmt",
     "dx_staticcheck",
 ]}
-
-PYTHON_TOOLS = {
-    "ansible_lint_tool": "@rules_dx//core/quality/tools/python:ansible_lint_tool",
-    "cfn_lint": "@rules_dx//core/quality/tools/python:cfn_lint",
-    "cmakelint": "@rules_dx//core/quality/tools/python:cmakelint",
-    "djlint": "@rules_dx//core/quality/tools/python:djlint",
-    "docstrfmt": "@rules_dx//core/quality/tools/python:docstrfmt",
-    "mbake": "@rules_dx//core/quality/tools/python:mbake",
-    "sqlfluff": "@rules_dx//core/quality/tools/python:sqlfluff",
-    "yamllint": "@rules_dx//core/quality/tools/python:yamllint",
-}
 
 _HEX = "0123456789abcdef"
 
@@ -279,21 +268,61 @@ def alias_build(actual):
             ")",
             "",
         ]
-    lines += _python_tool_aliases()
     return "\n".join(lines)
 
-def _python_tool_aliases():
+def plan_python_tools(version, pins, url_template, overrides):
+    """Returns plan_assets of the python_tools bundle, one archive repo per pinned platform."""
+    return plan_assets("python_tools", version, pins, url_template, overrides, exe = "python_tools", repo_prefix = "dx_python_tools_prebuilt_")
+
+_BUNDLE_LOAD = 'load("@rules_dx//cli/prebuilt:bundle.bzl", "dx_bundle_tool", "dx_bundle_tree")'
+
+def with_python_tools(build, assets):
+    """Returns the hub BUILD text build plus python_tool_<name> for each bundled Python tool.
+
+    A tool selects the pinned bundle of the platform it runs on and builds from
+    source on any platform with no bundle or whose bundle leaves it out.
+    """
+    pinned = [a for a in assets if a.repo]
     lines = []
-    for name, label in sorted(PYTHON_TOOLS.items()):
+    for name, tool in sorted(PYTHON_BUNDLE_TOOLS.items()):
+        missing = ["{}_{}".format(RELEASE_OS[os], RELEASE_CPU[cpu]) for os, cpu in [split_key(key) for key in tool.missing]]
+        served = [a for a in pinned if a.key not in missing]
+        actual = _select([(":python_" + a.key, ":python_tool_{}_{}".format(name, a.key)) for a in served], tool.source) if served else '"{}"'.format(tool.source)
         lines += [
+            "",
             "alias(",
             '    name = "python_tool_{}",'.format(name),
-            '    actual = "{}",'.format(label),
+            "    actual = " + actual + ",",
             '    visibility = ["//visibility:public"],',
             ")",
-            "",
         ]
-    return lines
+        for a in served:
+            lines += [
+                "",
+                "dx_bundle_tool(",
+                '    name = "python_tool_{}_{}",'.format(name, a.key),
+                '    launcher = "bin/{}{}",'.format(tool.launcher, ".cmd" if a.os == "windows" else ""),
+                '    tree = ":python_tools_{}",'.format(a.key),
+                ")",
+            ]
+    for a in pinned:
+        lines += [
+            "",
+            "dx_bundle_tree(",
+            '    name = "python_tools_{}",'.format(a.key),
+            '    srcs = ["@{}//:files"],'.format(a.repo),
+            ")",
+            "",
+            "config_setting(",
+            '    name = "python_{}",'.format(a.key),
+            "    constraint_values = [",
+            '        "@platforms//os:{}",'.format(a.os),
+            '        "@platforms//cpu:{}",'.format(a.cpu),
+            "    ],",
+            ")",
+        ]
+    loads = [_BUNDLE_LOAD] if pinned else []
+    return "\n".join(loads + [build.rstrip("\n")] + lines + [""])
 
 def unsupported_message(assets):
     """Returns the failure text for a platform with no dx asset."""
@@ -319,7 +348,6 @@ def consumer_build(assets, go_assets = []):
     """
     if not [a for a in assets + go_assets if a.repo]:
         return alias_build(SOURCE_LABEL)
-    python_tools = _python_tool_aliases()
     lines = [
         'load("@bazel_skylib//rules:native_binary.bzl", "native_binary")',
         'load("@rules_dx//cli/prebuilt:fail.bzl", "dx_unavailable")',
@@ -390,7 +418,6 @@ def consumer_build(assets, go_assets = []):
                     '    out = "{}/{}{}",'.format(a.key, tool, ".exe" if a.os == "windows" else ""),
                     ")",
                 ]
-    lines += [""] + python_tools[:-1]
     lines += [
         "",
         "dx_unavailable(",

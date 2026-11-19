@@ -769,7 +769,7 @@ pub fn interrupted() -> Option<i32> {
 /// The exit code for a run stopped by `signo`.
 #[must_use]
 pub fn interrupted_code(signo: i32) -> i32 {
-    128 + signo
+    128_i32.saturating_add(signo)
 }
 
 #[must_use]

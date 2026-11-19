@@ -112,6 +112,14 @@ pub enum ChildOutcome {
 
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
 
+/// `at` plus `span`, capped at about a century so a huge span never overflows `Instant`.
+fn after(at: Instant, span: Duration) -> Instant {
+    const CENTURY: Duration = Duration::from_secs(100 * 365 * 24 * 3600);
+    at.checked_add(span)
+        .or_else(|| at.checked_add(CENTURY))
+        .unwrap_or(at)
+}
+
 /// How long cleanup may take once the deadline passes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CleanupBudget {
@@ -134,7 +142,9 @@ impl CleanupBudget {
     /// The whole cleanup bound.
     #[must_use]
     pub fn total(&self) -> Duration {
-        self.graceful + self.forced + self.drain
+        self.graceful
+            .saturating_add(self.forced)
+            .saturating_add(self.drain)
     }
 }
 
@@ -231,13 +241,13 @@ pub fn run_command_with_input(
     let stdout_rx = drain_pipe(owned.take_stdout(), limit);
     let stderr_rx = drain_pipe(owned.take_stderr(), limit);
     let start = Instant::now();
-    let soft = start + timeout;
-    let mut hard = soft + cleanup.total();
+    let soft = after(start, timeout);
+    let mut hard = after(soft, cleanup.total());
     let mut status = None;
     let mut wait_error = None;
     while Instant::now() < soft {
         if stop().is_some() {
-            hard = Instant::now() + cleanup.total();
+            hard = after(Instant::now(), cleanup.total());
             break;
         }
         match owned.try_wait() {
@@ -284,9 +294,13 @@ pub fn run_command_with_input(
         }
     } else {
         backend::terminate_graceful(&mut owned);
-        let _: Option<ExitStatus> = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.graceful));
+        let _: Option<ExitStatus> = poll_exit(
+            &mut owned,
+            hard.min(after(Instant::now(), cleanup.graceful)),
+        );
         backend::terminate_forced(&mut owned);
-        let _: Option<ExitStatus> = poll_exit(&mut owned, hard.min(Instant::now() + cleanup.forced));
+        let _: Option<ExitStatus> =
+            poll_exit(&mut owned, hard.min(after(Instant::now(), cleanup.forced)));
         let _: Drain = collect(&stdout_rx, hard);
         let _: Drain = collect(&stderr_rx, hard);
         Ok(ChildOutcome::TimedOut)
@@ -690,7 +704,7 @@ pub(crate) fn run_streamed_in(
     }
     let mut escalate_at = stopped
         .filter(|_| owned)
-        .map(|_| Instant::now() + cleanup.graceful);
+        .map(|_| after(Instant::now(), cleanup.graceful));
     let mut abandon_at = None;
     let waited = loop {
         match child.try_wait() {
@@ -717,19 +731,19 @@ pub(crate) fn run_streamed_in(
         if stopped.is_none() {
             stopped = stop();
             if stopped.is_some() && owned && escalate_at.is_none() && abandon_at.is_none() {
-                escalate_at = Some(Instant::now() + cleanup.graceful);
+                escalate_at = Some(after(Instant::now(), cleanup.graceful));
             }
         }
         if stopped.is_none() && !withdrawn && withdraw() {
             withdrawn = true;
             backend::send(target, WITHDRAW_SIGNAL);
-            escalate_at = Some(Instant::now() + cleanup.graceful);
+            escalate_at = Some(after(Instant::now(), cleanup.graceful));
         }
         let now = Instant::now();
         if escalate_at.is_some_and(|at| now >= at) {
             backend::force_stream(&mut child, target);
             escalate_at = None;
-            abandon_at = Some(now + cleanup.forced);
+            abandon_at = Some(after(now, cleanup.forced));
         }
         if abandon_at.is_some_and(|at| now >= at) {
             break None; // LCOV_EXCL_LINE - reason: a child that survives SIGKILL cannot be provoked, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -749,7 +763,7 @@ pub(crate) fn run_streamed_in(
         crate::record_interrupt(signo);
         stopped = Some(signo);
     } // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-    let deadline = Instant::now() + cleanup.drain;
+    let deadline = after(Instant::now(), cleanup.drain);
     while !drained.is_empty() {
         if stopped.is_none() {
             stopped = stop();
@@ -757,7 +771,7 @@ pub(crate) fn run_streamed_in(
         if stopped.is_some() || withdrawn || Instant::now() >= deadline {
             break;
         }
-        await_drained(&mut drained, Instant::now() + POLL_INTERVAL);
+        await_drained(&mut drained, after(Instant::now(), POLL_INTERVAL));
     }
     if stopped.is_none() {
         stopped = stop();
@@ -767,7 +781,7 @@ pub(crate) fn run_streamed_in(
         if owned {
             settle_owned_tree(&OS_TREE, target, cleanup);
         }
-        let until = Instant::now() + cleanup.forced;
+        let until = after(Instant::now(), cleanup.forced);
         while !drained.is_empty() && Instant::now() < until {
             await_drained(&mut drained, until);
         }
@@ -836,9 +850,9 @@ fn withdraw_leftover(tree: &Tree, target: i32) -> bool {
 }
 
 fn settle_owned_tree(tree: &Tree, target: i32, cleanup: CleanupBudget) {
-    if !wait_tree_gone(tree, target, Instant::now() + cleanup.graceful) {
+    if !wait_tree_gone(tree, target, after(Instant::now(), cleanup.graceful)) {
         (tree.kill)(target);
-        let _: bool = wait_tree_gone(tree, target, Instant::now() + cleanup.forced);
+        let _: bool = wait_tree_gone(tree, target, after(Instant::now(), cleanup.forced));
     }
 }
 

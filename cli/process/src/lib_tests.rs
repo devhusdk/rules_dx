@@ -998,6 +998,11 @@ fn a_recorded_stop_signal_is_reported_with_its_exit_code() {
 }
 
 #[test]
+fn interrupted_code_saturates_instead_of_overflowing() {
+    assert_eq!(interrupted_code(i32::MAX), i32::MAX);
+}
+
+#[test]
 fn stdout_broken_pipe_maps_to_141() {
     assert_eq!(broken_pipe_code(), 128 + 13);
     assert_eq!(EXIT_BROKEN_PIPE, 128 + 13);

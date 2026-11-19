@@ -1,7 +1,7 @@
 """LuaLS pin and Lua toolchain hub tests."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
-load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core:host.bzl", "host_cell_of")
 load("//core:toolchain.bzl", "hub_checks")
 load("//lua/private/toolchain:extensions.bzl", "lua_hub")

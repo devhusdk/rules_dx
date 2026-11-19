@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@dx_pins_data//:pins.bzl", "PINS")
 load("@rules_ruby//ruby/private:download.bzl", "is_reproducible")
-load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core:host.bzl", "host_cell_of")
 
 _TOOLCHAIN_TYPE = "@rules_ruby//ruby:toolchain_type"

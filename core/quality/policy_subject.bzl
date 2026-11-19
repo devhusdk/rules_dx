@@ -1,6 +1,6 @@
 """Analysis subject exposing an aggregate workspace policy."""
 
-load("//core:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo")
 load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
 load(":policy.bzl", "CAPABILITIES", "QualityPolicyInfo")
 

@@ -1,7 +1,7 @@
 """OpenAPI client generation: TypeScript (Redocly generate-client)."""
 
 load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers")
-load("//core:defs.bzl", "display_label")
+load("//core/private/testing:defs.bzl", "display_label")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "ApiSpecInfo")

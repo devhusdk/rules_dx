@@ -1,6 +1,6 @@
 """Pinned Ubuntu 22.04 runtime .deb download URL tests."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:jammy_runtime.bzl", "JAMMY_POOL_MIRRORS", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR", "jammy_deb_urls")
 
 def _checks():

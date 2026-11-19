@@ -1,7 +1,7 @@
 """Tests for android_native_library attribute forwarding and API level selection."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//android/private/toolchain:cc_toolchain_config.bzl", "NdkToolchainLevelInfo")
 load("//android/private/library:kwargs.bzl", "android_split_native_kwargs")
 

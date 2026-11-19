@@ -1,6 +1,6 @@
 """Unit tests for BCR submission tooling."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":bcr.bzl", "bcr_source_error")
 
 def bcr_unit_tests(name):

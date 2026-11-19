@@ -3,7 +3,7 @@
 load("//apple/private/bundle:validate.bzl", "bundle_id_errors", "bundle_version_errors")
 load("//apple/private/macos:app.bzl", "owner_relative_path")
 load("//apple/private/macos:validate.bzl", "macos_app_errors", "macos_default_app", "macos_plugin_errors")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 def _app(**kwargs):
     base = macos_default_app()

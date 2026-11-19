@@ -1,6 +1,6 @@
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/modules:python.bzl", "PYTHON_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//python:defs.bzl", "python_test")

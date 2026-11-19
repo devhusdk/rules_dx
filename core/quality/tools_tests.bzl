@@ -1,6 +1,6 @@
 """Gate: the combined tool list keeps its tool ids, and each family file owns distinct tools."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":tools.bzl", "FAMILY_TOOLS", "TOOLS")
 
 visibility("private")

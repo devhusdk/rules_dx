@@ -1,6 +1,6 @@
 """Normalized codegen plan records."""
 
-load("//core:defs.bzl", "DxSubjectInfo", "display_label")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo", "display_label")
 load(
     "//core:plan_shard.bzl",
     "plan_shard_aspect_inputs",

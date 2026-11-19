@@ -1,6 +1,6 @@
 """Unit and analysis tests for workspace policy and applicability."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":applicability.bzl", "capability_selection", "effective_classes", "selected_adapters")
 load(":policy.bzl", "merge_configs", "merge_policy")
 load("//core/quality/private:generated_policy.bzl", "generated_families_error")

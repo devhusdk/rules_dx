@@ -1,6 +1,6 @@
 """Coverage of the walk behind @dx_test_tags_sources."""
 
-load("//core:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":repos.bzl", "consumer_fixture_file", "ignored_paths", "patch_header", "skipped", "walk")
 
 _BAZELIGNORE = """node_modules

@@ -1333,6 +1333,42 @@ Macro or function.
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
 
+### `@rules_dx//cc:extensions.bzl`
+
+#### `cc`
+
+Module extension.
+
+Tag `cc.host_tools`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `hosts` | `string_list` | yes |  |
+
+Tag `cc.msvc_runtime`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `architectures` | `string_list` | no | `["x64", "arm64"]` |
+| `installer_manifest_integrity` | `string` | no | `""` |
+| `installer_manifest_sha256` | `string` | no | `""` |
+| `installer_manifest_url` | `string` | no | `""` |
+| `msvc_version` | `string` | no | `""` |
+| `pins` | `label` | no | `None` |
+| `visual_studio_channel_url` | `string` | no | `"https://aka.ms/vs/stable/channel"` |
+| `visual_studio_installer_manifest_integrity` | `string` | no | `""` |
+| `visual_studio_installer_manifest_url` | `string` | no | `""` |
+
+Tag `cc.windows_sdk`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `architectures` | `string_list` | no | `["x64", "arm64"]` |
+| `pins` | `label` | no | `None` |
+| `transformations` | `string_dict` | no | `{}` |
+| `windows_sdk_integrity` | `string_dict` | no | `{}` |
+| `windows_sdk_version` | `string` | no | `""` |
+
 ### `@rules_dx//cloudformation:defs.bzl`
 
 #### `cloudformation_library`
@@ -1768,6 +1804,650 @@ Tag `dub.lock`:
 | --- | --- | --- | --- |
 | `lock` | `label` | yes |  |
 | `name` | `name` | yes |  |
+
+### `@rules_dx//deploy:defs.bzl`
+
+#### `deployment`
+
+Rule. Run it with `bazel run`.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `app` | `label` | no | `None` |
+| `artifacts` | `label_list` | no | `[]` |
+| `build_mode` | `string` | no | `"release"` |
+| `config` | `label` | no | `None` |
+| `data` | `label_list` | no | `[]` |
+| `deploy` | `label` | yes |  |
+| `name` | `name` | yes |  |
+| `sbom` | `label` | no | `None` |
+| `size_budget` | `string` | no | `""` |
+
+#### `native_runtime`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `name` | `name` | yes |  |
+| `notice` | `label` | no | `None` |
+| `provides` | `string_list` | no | `[]` |
+| `redistribution` | `string` | yes |  |
+| `source` | `string` | yes |  |
+| `srcs` | `label_list` | no | `[]` |
+| `version` | `string` | yes |  |
+
+#### `oci_image_quality`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build_files` | `label_list` | yes |  |
+| `image` | `label` | yes |  |
+| `name` | `name` | yes |  |
+| `structure_tests` | `label_list` | no | `[]` |
+
+#### `resources`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `mappings` | `label_string_dict` | no | `{}` |
+| `name` | `name` | yes |  |
+| `processor` | `label` | no | `None` |
+| `processor_args` | `string_list` | no | `[]` |
+
+#### `sbom`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `artifact` | `label` | yes |  |
+| `go_mod` | `label` | no | `None` |
+| `maven_lock` | `label` | no | `None` |
+| `name` | `name` | yes |  |
+| `npm_lock` | `label` | no | `None` |
+| `package_name` | `string` | no | `""` |
+| `pip_lock` | `label` | no | `None` |
+| `supplier` | `string` | no | `"rules_dx"` |
+
+#### `archive_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app` | yes |  |
+| `build_mode` | no | `"release"` |
+| `size_budget` | no | `None` |
+| `sbom` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `cloudflare_pages_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `account_id` | yes |  |
+| `project` | yes |  |
+| `branch` | yes |  |
+| `production_branch` | yes |  |
+| `site` | yes |  |
+| `wrangler` | no | `None` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `conan_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `recipe` | yes |  |
+| `remote` | yes |  |
+| `remote_url` | yes |  |
+| `package` | no | `""` |
+| `version` | no | `""` |
+| `conan` | no | `None` |
+| `conan_files` | no | `None` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `consumer_archive`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app` | yes |  |
+| `min_runtime` | yes |  |
+| `linkage` | no | `"dynamic"` |
+| `resources` | no | `[]` |
+| `runtime` | no | `[]` |
+| `notice` | no | `None` |
+| `license_file` | no | `None` |
+| `check_imports` | no | `True` |
+| `format` | no | `"tar.gz"` |
+| `platform` | no | `None` |
+| `tags` | no | `None` |
+| `target_compatible_with` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `None` |
+
+#### `cpan_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `dist` | yes |  |
+| `package` | no | `""` |
+| `version` | no | `""` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `crates_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `crate` | yes |  |
+| `package` | no | `""` |
+| `version` | no | `""` |
+| `build_mode` | no | `"release"` |
+| `api_compat` | no | `"fail"` |
+| `api_baseline` | no | `"registry"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `dsym`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `binary` | yes |  |
+| `kwargs` | no |  |
+
+#### `github_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `artifacts` | yes |  |
+| `release_tag` | no | `""` |
+| `tag_from_head` | no | `False` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `notes` | no | `"commits"` |
+| `notes_file` | no | `None` |
+| `notes_diff` | no | `[]` |
+| `api_compat` | no | `"fail"` |
+| `api_baseline` | no | `"registry"` |
+| `go_modules` | no | `[]` |
+| `sign` | no | `"auto"` |
+| `registry_deploys` | no | `[]` |
+| `attach` | no | `True` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `hackage_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `sdist` | yes |  |
+| `package` | no | `""` |
+| `version` | no | `""` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `helm_chart_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `chart` | yes |  |
+| `registry` | yes |  |
+| `version` | no | `""` |
+| `repository` | no | `""` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `hex_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `package` | no | `""` |
+| `version` | no | `""` |
+| `tool` | no | `"mix"` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `homebrew_tap_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `release` | yes |  |
+| `repo` | yes |  |
+| `tap` | yes |  |
+| `formula` | no | `None` |
+| `binary` | no | `None` |
+| `desc` | no | `None` |
+| `homepage` | no | `None` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `linux_package_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `binary` | yes |  |
+| `version` | yes |  |
+| `package` | no | `""` |
+| `formats` | no | `["deb", "rpm"]` |
+| `platform` | no | `None` |
+| `maintainer` | no | `"unknown <unknown@example.com>"` |
+| `description` | no | `""` |
+| `install_path` | no | `None` |
+| `extra_files` | no | `{}` |
+| `release_tag` | no | `""` |
+| `tag_from_head` | no | `False` |
+| `notes` | no | `"commits"` |
+| `notes_file` | no | `None` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `luarocks_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `rockspec` | yes |  |
+| `package` | no | `""` |
+| `version` | no | `""` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `maven_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `jar` | yes |  |
+| `pom` | yes |  |
+| `group` | yes |  |
+| `artifact` | no | `""` |
+| `version` | no | `""` |
+| `build_mode` | no | `"release"` |
+| `sources` | no | `None` |
+| `javadoc` | no | `None` |
+| `sbom` | no | `None` |
+| `api_compat` | no | `"fail"` |
+| `api_baseline` | no | `"registry"` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `npm_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `package` | no | `""` |
+| `dist_tag` | no | `"latest"` |
+| `srcs` | no | `None` |
+| `registry_url` | no | `"https://registry.npmjs.org"` |
+| `access` | no | `"public"` |
+| `provenance` | no | `""` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `api_compat` | no | `"fail"` |
+| `api_baseline` | no | `"registry"` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `nuget_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `nupkg` | yes |  |
+| `package` | no | `""` |
+| `version` | no | `""` |
+| `registry_url` | no | `"https://api.nuget.org/v3/index.json"` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `api_compat` | no | `"fail"` |
+| `api_baseline` | no | `"registry"` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `oci_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `image_tar` | yes |  |
+| `platform` | yes |  |
+| `image_tag` | no | `"latest"` |
+| `registry` | no | `"ghcr.io"` |
+| `repository` | no | `""` |
+| `build_mode` | no | `"release"` |
+| `size_budget` | no | `None` |
+| `sbom` | no | `None` |
+| `scan` | no | `"fail"` |
+| `scan_severity` | no | `"HIGH"` |
+| `sign` | no | `"auto"` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `oci_image_from_binary`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `binary` | yes |  |
+| `base` | no | `"static"` |
+| `platforms` | no | `["@rules_dx//deploy:linux_amd64"]` |
+| `tags` | no | `None` |
+| `main` | no | `None` |
+| `main_class` | no | `None` |
+| `runtime` | no | `False` |
+| `structure_tests` | no | `[]` |
+| `visibility` | no | `None` |
+| `testonly` | no | `None` |
+
+#### `octopus_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `project` | yes |  |
+| `package` | no | `""` |
+| `channel` | no | `"Default"` |
+| `version` | no | `""` |
+| `deploy_to` | no | `[]` |
+| `space` | no | `""` |
+| `registry_url` | no | `"https://octopus.example.invalid"` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `offline_bundle`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `advisory` | yes |  |
+| `launchers` | yes |  |
+| `advisory_meta` | yes |  |
+
+#### `opam_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `package` | yes |  |
+| `version` | yes |  |
+| `opam_file` | yes |  |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `""` |
+| `tags` | no | `[]` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `[]` |
+
+#### `packagist_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `package` | yes |  |
+| `composer_json` | yes |  |
+| `repository_url` | yes |  |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `""` |
+| `tags` | no | `[]` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `[]` |
+
+#### `pdb`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `binary` | yes |  |
+| `kwargs` | no |  |
+
+#### `pub_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `srcs` | yes |  |
+| `package` | no | `""` |
+| `version` | no | `""` |
+| `registry_url` | no | `"https://pub.dev"` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `api_compat` | no | `"fail"` |
+| `api_baseline` | no | `"registry"` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `pypi_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `wheel` | yes |  |
+| `sdist` | no | `None` |
+| `registry_url` | no | `"https://upload.pypi.org/legacy/"` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `api_compat` | no | `"fail"` |
+| `api_baseline` | no | `"registry"` |
+| `api_package` | no | `""` |
+| `api_src` | no | `""` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `qt_bundle_runtime`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `bundle` | yes |  |
+| `qt` | no | `"@@+qt+dx_qt"` |
+| `kwargs` | no |  |
+
+#### `qt_consumer_archive`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `app` | yes |  |
+| `min_runtime` | no | `None` |
+| `runtime` | no | `[]` |
+| `kwargs` | no |  |
+
+#### `rubygems_deploy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `gem` | yes |  |
+| `package` | no | `""` |
+| `version` | no | `""` |
+| `ruby` | no | `None` |
+| `ruby_files` | no | `None` |
+| `build_mode` | no | `"release"` |
+| `sbom` | no | `None` |
+| `size_budget` | no | `None` |
+| `tags` | no | `None` |
+| `visibility` | no | `None` |
+| `testonly` | no | `False` |
+| `target_compatible_with` | no | `None` |
+
+#### `split_debug_info`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `binary` | yes |  |
+| `kwargs` | no |  |
+
+#### `DeployInfo`
+
+Provider.
+
+Fields: `app`, `artifacts`, `build_mode`, `sbom`, `size_budget`, `size_stamp`.
+
+#### `NativeRuntimeInfo`
+
+Provider.
+
+Fields: `files`, `name`, `notice`, `provides`, `redistribution`, `source`, `version`.
 
 ### `@rules_dx//dockerfile:defs.bzl`
 
@@ -2538,6 +3218,88 @@ Macro or function.
 | `srcs` | no | `None` |
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
+
+### `@rules_dx//java:extensions.bzl`
+
+#### `maven`
+
+Module extension.
+
+Tag `maven.amend_artifact`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `coordinates` | `string` | yes |  |
+| `exclusions` | `string_list` | no | `[]` |
+| `force_version` | `string` | no | `""` |
+| `name` | `name` | no | `"maven"` |
+| `neverlink` | `string` | no | `""` |
+| `testonly` | `string` | no | `""` |
+
+Tag `maven.artifact`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `artifact` | `string` | yes |  |
+| `classifier` | `string` | no | `""` |
+| `exclusions` | `string_list` | no | `[]` |
+| `force_version` | `boolean` | no | `False` |
+| `group` | `string` | yes |  |
+| `name` | `name` | no | `"maven"` |
+| `neverlink` | `boolean` | no | `False` |
+| `packaging` | `string` | no | `""` |
+| `testonly` | `boolean` | no | `False` |
+| `version` | `string` | no | `""` |
+
+Tag `maven.from_toml`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `bom_modules` | `string_list` | no | `[]` |
+| `libs_versions_toml` | `label` | yes |  |
+| `name` | `name` | no | `"maven"` |
+
+Tag `maven.install`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `aar_import_bzl_label` | `string` | no | `"@rules_android//rules:rules.bzl"` |
+| `additional_coursier_options` | `string_list` | no | `[]` |
+| `additional_netrc_lines` | `string_list` | no | `[]` |
+| `artifacts` | `string_list` | no | `[]` |
+| `boms` | `string_list` | no | `[]` |
+| `duplicate_version_warning` | `string` | no | `"warn"` |
+| `excluded_artifacts` | `string_list` | no | `[]` |
+| `exclusions` | `string_list` | no | `[]` |
+| `fail_if_repin_required` | `boolean` | no | `True` |
+| `fail_on_missing_checksum` | `boolean` | no | `True` |
+| `fetch_javadoc` | `boolean` | no | `False` |
+| `fetch_sources` | `boolean` | no | `False` |
+| `generate_compat_repositories` | `boolean` | no | `False` |
+| `ignore_empty_files` | `boolean` | no | `False` |
+| `index_file` | `label` | no | `None` |
+| `known_contributing_modules` | `string_list` | no | `[]` |
+| `lock_file` | `label` | no | `None` |
+| `name` | `name` | no | `"maven"` |
+| `repin_instructions` | `string` | no | `""` |
+| `repositories` | `string_list` | no | `["https://repo1.maven.org/maven2"]` |
+| `resolve_timeout` | `int` | no | `600` |
+| `resolver` | `string` | no | `"coursier"` |
+| `resolver_extra_dependencies` | `label_list` | no | `[]` |
+| `strict_visibility` | `boolean` | no | `False` |
+| `strict_visibility_value` | `label_list` | no | `["@rules_dx//visibility:private"]` |
+| `use_credentials_from_home_netrc_file` | `boolean` | no | `False` |
+| `use_starlark_android_rules` | `boolean` | no | `False` |
+| `version_conflict_policy` | `string` | no | `"default"` |
+
+Tag `maven.override`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `coordinates` | `string` | yes |  |
+| `name` | `name` | no | `"maven"` |
+| `target` | `label` | yes |  |
+| `visibility` | `string_list` | no | `[]` |
 
 ### `@rules_dx//javascript:defs.bzl`
 
@@ -4695,6 +5457,20 @@ Macro or function.
 | `visibility` | no | `None` |
 | `env_inherit` | no | `None` |
 | `kwargs` | no |  |
+
+### `@rules_dx//typescript:extensions.bzl`
+
+#### `typescript`
+
+Module extension.
+
+No tags.
+
+#### `typescript_playwright`
+
+Module extension.
+
+No tags.
 
 ### `@rules_dx//vue:defs.bzl`
 

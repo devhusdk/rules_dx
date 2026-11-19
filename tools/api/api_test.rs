@@ -68,3 +68,77 @@ fn checked_in_snapshot_matches_the_code() {
         stale.join(", ")
     );
 }
+
+/// Lists public `.bzl` files missing from both `_STARLARK_SRCS` and `_NOT_EXTRACTED`, and stale `_NOT_EXTRACTED` entries.
+fn extraction_gaps(public: &[&str], extracted: &[&str], pending: &[&str]) -> Vec<String> {
+    let public: Vec<String> = public
+        .iter()
+        .map(|path| match path.rsplit_once('/') {
+            Some((package, file)) => format!("//{package}:{file}"),
+            None => format!("//:{path}"),
+        })
+        .collect();
+    let mut gaps = Vec::new();
+    for label in &public {
+        if !extracted.contains(&label.as_str()) && !pending.contains(&label.as_str()) {
+            gaps.push(format!(
+                "{label} is public but not extracted: add it to `_STARLARK_SRCS` in tools/api/BUILD.bazel"
+            ));
+        }
+    }
+    for label in pending {
+        if extracted.contains(label) {
+            gaps.push(format!(
+                "{label} is extracted: drop it from `_NOT_EXTRACTED` in tools/api/BUILD.bazel"
+            ));
+        } else if !public.iter().any(|public| public == label) {
+            gaps.push(format!(
+                "{label} is not a public file: drop it from `_NOT_EXTRACTED` in tools/api/BUILD.bazel"
+            ));
+        }
+    }
+    gaps
+}
+
+#[test]
+fn every_public_bzl_file_is_extracted() {
+    let public = dx_testing::env_text("DX_API_PUBLIC_BZL");
+    let extracted = dx_testing::env_text("DX_API_EXTRACTED");
+    let pending = dx_testing::env_text("DX_API_NOT_EXTRACTED");
+    let public: Vec<&str> = public.split_whitespace().collect();
+    assert!(!public.is_empty(), "DX_API_PUBLIC_BZL lists no files");
+    let extracted: Vec<&str> = extracted.split_whitespace().collect();
+    let pending: Vec<&str> = pending.split_whitespace().collect();
+    let gaps = extraction_gaps(&public, &extracted, &pending);
+    assert!(gaps.is_empty(), "{}", gaps.join("\n"));
+}
+
+#[test]
+fn public_file_in_neither_list_is_a_gap() {
+    let gaps = extraction_gaps(&["go/defs.bzl"], &[], &[]);
+    assert_eq!(gaps.len(), 1);
+    assert!(
+        gaps[0].starts_with("//go:defs.bzl is public but not extracted"),
+        "{gaps:?}"
+    );
+}
+
+#[test]
+fn pending_file_that_is_extracted_is_a_gap() {
+    let gaps = extraction_gaps(&["go/defs.bzl"], &["//go:defs.bzl"], &["//go:defs.bzl"]);
+    assert_eq!(gaps.len(), 1);
+    assert!(
+        gaps[0].starts_with("//go:defs.bzl is extracted"),
+        "{gaps:?}"
+    );
+}
+
+#[test]
+fn pending_file_that_is_not_public_is_a_gap() {
+    let gaps = extraction_gaps(&["go/defs.bzl"], &["//go:defs.bzl"], &["//gone:defs.bzl"]);
+    assert_eq!(gaps.len(), 1);
+    assert!(
+        gaps[0].starts_with("//gone:defs.bzl is not a public file"),
+        "{gaps:?}"
+    );
+}

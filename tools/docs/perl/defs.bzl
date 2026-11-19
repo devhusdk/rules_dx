@@ -3,6 +3,8 @@
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 _PERL_TOOLCHAIN = "@rules_perl//perl:exec_toolchain_type"
 
 _PERL_EXTENSIONS = ["pm", "pl"]

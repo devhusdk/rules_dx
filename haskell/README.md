@@ -45,7 +45,7 @@ There is no `haskell_fuzz_test`: Haskell has no maintained libFuzzer-style fuzz 
 
 ## API docs
 
-`dx docs` documents every `haskell_library` in scope with the `haddock` of the pinned GHC bindist: `haddock --hoogle` writes the declarations and their comments as Hoogle text, and `haskell_doc_shard` (`@rules_dx//tools/docs/haskell:defs.bzl`) turns them into the API reference. Nothing needs to be installed. Test and binary targets are skipped. A library that needs GHCi libraries (Template Haskell with C dependencies) fails in haddock with its own error.
+`dx docs` documents every `haskell_library` in scope with the `haddock` of the pinned GHC bindist: `haddock --hoogle` writes the declarations and their comments as Hoogle text, and `haskell_doc_shard` (`@rules_dx//haskell:defs.bzl`) turns them into the API reference. Nothing needs to be installed. Test and binary targets are skipped. A library that needs GHCi libraries (Template Haskell with C dependencies) fails in haddock with its own error.
 
 ## Toolchain
 

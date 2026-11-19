@@ -5,6 +5,8 @@ load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/cc:repos.bzl", "UNSUPPORTED_REASON")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 _EXECUTABLES = ["doxygen", "doxygen.exe"]
 
 _DOXYFILE = [

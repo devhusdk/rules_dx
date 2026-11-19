@@ -228,6 +228,14 @@ cc_bench(name, *, srcs = None, visibility = None, tags = None, deps = None, **kw
 
 A Google Benchmark binary plus a `<name>` runner that writes dx-bench.json for `dx bench`.
 
+### `cc_doc_shard`
+
+```python
+cc_doc_shard(name, lib, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one C or C++ library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for C and C++:
@@ -256,15 +264,7 @@ C and C++ builds and tests on:
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/cc:defs.bzl", "cc_doc_shard")
+load("@rules_dx//cc:defs.bzl", "cc_doc_shard")
 ```
 
-### `cc_doc_shard`
-
-```python
-cc_doc_shard(name, lib, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one C or C++ library.
-
-`dx docs` documents the public `hdrs` of a `cc_library` with the pinned Doxygen, with no setup. Declare `cc_doc_shard(name = "docs", lib = ":lib")` from `@rules_dx//tools/docs/cc:defs.bzl` to set the package name. Doxygen publishes no Linux arm64 or Windows arm64 build, so those hosts get no C or C++ API docs.
+`dx docs` documents the public `hdrs` of a `cc_library` with the pinned Doxygen, with no setup. Declare `cc_doc_shard(name = "docs", lib = ":lib")` from `@rules_dx//cc:defs.bzl` to set the package name. Doxygen publishes no Linux arm64 or Windows arm64 build, so those hosts get no C or C++ API docs.

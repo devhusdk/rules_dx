@@ -44,7 +44,8 @@
     "zig_library",
     "zig_binary",
     "zig_test",
-    "zig_bench"
+    "zig_bench",
+    "zig_doc_shard"
   ],
   "quality": {
     "bzl": "zig/private/quality:zig.bzl",

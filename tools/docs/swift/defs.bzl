@@ -4,6 +4,8 @@ load("//core:rlocation.bzl", "repo_relative_path")
 load("//swift/private:providers.bzl", "SwiftDocsInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 def swift_shard_action(ctx, info, package, config, stem, extract_tool):
     """Extracts the DocIr shard of one Swift library from its symbol graph and its own sources."""
     if len(info.graphs) != 1:

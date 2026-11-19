@@ -53,7 +53,8 @@
     "rust_shared_library",
     "rust_static_library",
     "rust_fuzz_test",
-    "rust_build_script"
+    "rust_build_script",
+    "rust_docs_site"
   ],
   "quality": {
     "bzl": "rust/private/quality:rust.bzl",

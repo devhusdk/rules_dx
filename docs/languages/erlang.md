@@ -220,6 +220,14 @@ Thin wrapper over the rules_erlang test_erlang_app macro.
 
 Re-exported from `@rules_erlang//:erlang_xrl_yrl.bzl`.
 
+### `erlang_doc_shard`
+
+```python
+erlang_doc_shard(name, app, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Erlang app.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Erlang:
@@ -255,16 +263,8 @@ On other platforms Erlang and Elixir targets are skipped.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/erlang:defs.bzl", "erlang_doc_shard")
+load("@rules_dx//erlang:defs.bzl", "erlang_doc_shard")
 ```
-
-### `erlang_doc_shard`
-
-```python
-erlang_doc_shard(name, app, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one Erlang app.
 
 `dx docs` documents an `erlang_app` with `erlang_doc_shard(name, app, package)` from
-`@rules_dx//tools/docs/erlang:defs.bzl`. It runs `edoc` from the pinned OTP over the app's `srcs` and writes a DocIr shard. Functions that are not exported are left out. Windows execution platforms are not covered.
+`@rules_dx//erlang:defs.bzl`. It runs `edoc` from the pinned OTP over the app's `srcs` and writes a DocIr shard. Functions that are not exported are left out. Windows execution platforms are not covered.

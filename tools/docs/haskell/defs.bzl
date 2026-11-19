@@ -4,6 +4,8 @@ load("@rules_haskell//haskell:providers.bzl", "HaskellInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 HASKELL_TOOLCHAIN = "@rules_haskell//haskell:toolchain"
 
 def haskell_shard_action(ctx, info, package, config, stem, extract_tool):

@@ -167,6 +167,14 @@ csharp_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, **k
 
 A SharpFuzz harness plus a `<name>_run` runner for `dx fuzz`.
 
+### `csharp_doc_shard`
+
+```python
+csharp_doc_shard(name, library, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one C# library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for C#:
@@ -197,13 +205,5 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/dotnet:defs.bzl", "csharp_doc_shard")
+load("@rules_dx//csharp:defs.bzl", "csharp_doc_shard")
 ```
-
-### `csharp_doc_shard`
-
-```python
-csharp_doc_shard(name, library, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one C# library.

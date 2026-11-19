@@ -170,6 +170,20 @@ powershell_test(name, *, srcs = None, visibility = None, **kwargs)
 
 Test of required .ps1 srcs, size small.
 
+### `powershell_doc_shard`
+
+Parses one PowerShell script module into a DocIr shard.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
+| `manifest` | `label` | no | The module manifest. Defaults to the one .psd1 in srcs, if any. |
+| `package` | `string` | no | Package segment of the symbol ids. Defaults to the manifest file name. |
+| `srcs` | `label_list` | yes | The module's .psm1 and every .ps1 it dot-sources, or powershell_library targets. |
+| `_extract` | `label` | no |  |
+| `_pwsh` | `label` | no |  |
+| `_script` | `label` | no |  |
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for PowerShell:
@@ -203,19 +217,5 @@ PowerShell builds and tests on:
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
+load("@rules_dx//powershell:defs.bzl", "powershell_doc_shard")
 ```
-
-### `powershell_doc_shard`
-
-Parses one PowerShell script module into a DocIr shard.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
-| `manifest` | `label` | no | The module manifest. Defaults to the one .psd1 in srcs, if any. |
-| `package` | `string` | no | Package segment of the symbol ids. Defaults to the manifest file name. |
-| `srcs` | `label_list` | yes | The module's .psm1 and every .ps1 it dot-sources, or powershell_library targets. |
-| `_extract` | `label` | no |  |
-| `_pwsh` | `label` | no |  |
-| `_script` | `label` | no |  |

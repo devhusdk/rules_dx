@@ -222,6 +222,14 @@ elixir_test(name, *, srcs = None, visibility = None, **kwargs)
 
 Thin wrapper over the rules_elixir ex_unit_test rule.
 
+### `elixir_doc_shard`
+
+```python
+elixir_doc_shard(name, app, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Elixir app.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Elixir:
@@ -254,16 +262,8 @@ On other platforms Elixir targets fail toolchain resolution.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/elixir:defs.bzl", "elixir_doc_shard")
+load("@rules_dx//elixir:defs.bzl", "elixir_doc_shard")
 ```
-
-### `elixir_doc_shard`
-
-```python
-elixir_doc_shard(name, app, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one Elixir app.
 
 `dx docs` documents an `elixir_app` with `elixir_doc_shard(name, app, package)` from
-`@rules_dx//tools/docs/elixir:defs.bzl`. It reads each module's docs chunk with `Code.fetch_docs/1` on the pinned Elixir and writes a DocIr shard. Modules marked `@moduledoc false` and functions marked `@doc false` are left out. Windows execution platforms are not covered.
+`@rules_dx//elixir:defs.bzl`. It reads each module's docs chunk with `Code.fetch_docs/1` on the pinned Elixir and writes a DocIr shard. Modules marked `@moduledoc false` and functions marked `@doc false` are left out. Windows execution platforms are not covered.

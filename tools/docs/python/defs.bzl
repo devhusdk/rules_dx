@@ -5,6 +5,8 @@ load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/python:shard.bzl", "python_shard_action")
 load("//tools/docs/site:site.bzl", "docs_site")
 
+visibility(["//..."])
+
 def _docs_python_shard_impl(ctx):
     package = ctx.attr.package or ctx.attr.library.label.name
     action = python_shard_action(

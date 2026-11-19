@@ -67,7 +67,7 @@ names through the pinned Documenter.jl 1.20.0, and writes a DocIr shard. The
 library is named after its root module. Its dependencies must be
 `julia_library` targets of the same workspace. To name the shard yourself, use
 `julia_doc_shard(name, lib, module, package)` from
-`@rules_dx//tools/docs/julia:defs.bzl`. Documenter and its packages are
+`@rules_dx//julia:defs.bzl`. Documenter and its packages are
 fetched from the Julia package server by sha256 and run on the same Julia as
 the formatter.
 

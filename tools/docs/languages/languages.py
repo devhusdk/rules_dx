@@ -96,6 +96,14 @@ def shard_bzl(root, shard):
     raise SystemExit("languages: no bzl defines %s" % shard)
 
 
+def shard_owner(root, shard):
+    """Returns the first language whose lang.json lists shard as an entry point, else None."""
+    for lang in languages(root):
+        if shard in json.loads(read(root, "%s/lang.json" % lang))["entry_points"]:
+            return lang
+    return None
+
+
 def read(root, path):
     try:
         with open(os.path.join(root, path), encoding="utf-8") as f:
@@ -328,12 +336,14 @@ def api_docs(root, lang, rows, extra):
     if not shard:
         out.append("There is no API doc tool for this language yet.\n")
         return with_readme(out, extra, "API docs")
-    path = shard_bzl(root, shard)
+    owner = shard_owner(root, shard)
+    path = "%s/defs.bzl" % owner if owner else shard_bzl(root, shard)
     out.append("`tools/dx docs` builds the API docs with `%s`; see [docs](../cli/commands/docs.md).\n" % row["doc"])
     out.append("To declare a docs target yourself, load the rule behind it:\n")
     out.append("```python\nload(\"@rules_dx//%s\", \"%s\")\n```\n" % ("%s:%s" % os.path.split(path), shard))
-    out.append("### `%s`\n" % shard)
-    out.extend(render(shard, describe(root, path, shard)))
+    if owner != lang:
+        out.append("### `%s`\n" % shard)
+        out.extend(render(shard, describe(root, path, shard)))
     return with_readme(out, extra, "API docs")
 
 

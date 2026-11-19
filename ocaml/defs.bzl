@@ -13,6 +13,7 @@ load(
 )
 load("//ocaml/private:dune.bzl", _ocaml_dune_library = "ocaml_dune_library")
 load("//ocaml/private:providers.bzl", _OCamlCmtInfo = "OCamlCmtInfo")
+load("//tools/docs/ocaml:defs.bzl", _ocaml_doc_shard = "ocaml_doc_shard")
 
 OCamlCmtInfo = _OCamlCmtInfo
 ocaml_dune_library = _ocaml_dune_library
@@ -24,3 +25,4 @@ ocaml_module = _ocaml_module
 ocaml_signature = _ocaml_signature
 ocaml_test = _ocaml_test
 ocaml_lex = _ocaml_lex
+ocaml_doc_shard = _ocaml_doc_shard

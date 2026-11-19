@@ -171,6 +171,14 @@ fsharp_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, **k
 
 A SharpFuzz harness and a `<name>_run` runner for `dx fuzz`; the first-party libraries in deps are instrumented. Linux and macOS only.
 
+### `fsharp_doc_shard`
+
+```python
+fsharp_doc_shard(name, library, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one F# library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for F#:
@@ -201,13 +209,5 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/dotnet:defs.bzl", "fsharp_doc_shard")
+load("@rules_dx//fsharp:defs.bzl", "fsharp_doc_shard")
 ```
-
-### `fsharp_doc_shard`
-
-```python
-fsharp_doc_shard(name, library, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one F# library.

@@ -46,7 +46,8 @@
     "ruby_library",
     "ruby_binary",
     "ruby_test",
-    "ruby_bench"
+    "ruby_bench",
+    "ruby_doc_shard"
   ],
   "quality": {
     "bzl": "ruby/private/quality:ruby.bzl",

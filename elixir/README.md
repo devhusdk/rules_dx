@@ -136,7 +136,7 @@ The target is tagged `dx-bench`. Benchee has no coverage-guided fuzzer on the BE
 ## API docs
 
 `dx docs` documents an `elixir_app` with `elixir_doc_shard(name, app, package)` from
-`@rules_dx//tools/docs/elixir:defs.bzl`. It reads each module's docs chunk with `Code.fetch_docs/1` on the pinned Elixir and writes a DocIr shard. Modules marked `@moduledoc false` and functions marked `@doc false` are left out. Windows execution platforms are not covered.
+`@rules_dx//elixir:defs.bzl`. It reads each module's docs chunk with `Code.fetch_docs/1` on the pinned Elixir and writes a DocIr shard. Modules marked `@moduledoc false` and functions marked `@doc false` are left out. Windows execution platforms are not covered.
 
 ## Platforms
 

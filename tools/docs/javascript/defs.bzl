@@ -2,6 +2,8 @@
 
 load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
 
+visibility(["//..."])
+
 _JS_EXTENSIONS = (".js", ".mjs", ".cjs", ".jsx")
 
 def javascript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs):

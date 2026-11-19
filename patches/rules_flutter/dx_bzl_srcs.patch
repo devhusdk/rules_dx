@@ -1,0 +1,27 @@
+Upstream: none (not yet sent upstream, #14057)
+diff -u a/flutter/BUILD.bazel b/flutter/BUILD.bazel
+--- a/flutter/BUILD.bazel
++++ b/flutter/BUILD.bazel
+@@ -216,3 +216,9 @@
+     visibility = ["//visibility:public"],
+     deps = [":providers"],
+ )
++
++filegroup(
++    name = "dx_bzl_srcs",
++    srcs = glob(["*.bzl"]),
++    visibility = ["//visibility:public"],
++)
+diff -u a/flutter/private/BUILD.bazel b/flutter/private/BUILD.bazel
+--- a/flutter/private/BUILD.bazel
++++ b/flutter/private/BUILD.bazel
+@@ -531,3 +531,9 @@
+     visibility = ["//flutter:__subpackages__"],
+     deps = [":artifact_urls"],
+ )
++
++filegroup(
++    name = "dx_bzl_srcs",
++    srcs = glob(["*.bzl"]),
++    visibility = ["//visibility:public"],
++)

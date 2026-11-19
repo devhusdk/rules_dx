@@ -35,9 +35,10 @@ const JARS: [&str; 8] = [
     "dx-scaladoc-extract-any.jar",
 ];
 
-const ASSETS: [&str; 9] = [
+const ASSETS: [&str; 10] = [
     "dx-nixfmt-LICENSE",
     "dx-nixfmt-linux-arm64",
+    "dx-nixfmt-macos-arm64",
     "dx-kcov-linux-x86_64",
     "dx-kcov-linux-arm64",
     "dx-deadnix-LICENSE",
@@ -187,7 +188,7 @@ fn haskell_job_builds_every_haskell_asset() {
 }
 
 #[test]
-fn hackage_job_builds_hlint_and_ormolu() {
+fn hackage_job_builds_hlint_nixfmt_and_ormolu() {
     let workflow = document(TOOLS).unwrap();
     assert_eq!(
         workflow["jobs"]["hackage"]["permissions"]["contents"],
@@ -224,6 +225,20 @@ fn hackage_job_builds_hlint_and_ormolu() {
                 "haskell/private/tools/hlint/cabal.lock.json",
             ],
             [
+                "nixfmt",
+                "linux-arm64",
+                "ubuntu-24.04-arm",
+                "@haskell_nixfmt_hackage//:nixfmt-exe-nixfmt",
+                "core/quality/tools/nixfmt/cabal.lock.json",
+            ],
+            [
+                "nixfmt",
+                "macos-arm64",
+                "macos-15",
+                "@haskell_nixfmt_hackage//:nixfmt-exe-nixfmt",
+                "core/quality/tools/nixfmt/cabal.lock.json",
+            ],
+            [
                 "ormolu",
                 "linux-arm64",
                 "ubuntu-24.04-arm",
@@ -234,6 +249,7 @@ fn hackage_job_builds_hlint_and_ormolu() {
     );
     assert!(tools.contains("asset=\"dx-$TOOL-$HOST\""));
     assert!(tools.contains("> \"$out/dx-$TOOL-LICENSE\""));
+    assert!(!tools.contains("nixfmt_sha256"));
     assert!(release.contains("for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch; do"));
     assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 17"));
     assert!(release.contains("dx-hlint-* dx-ormolu-* dx-haskell-gmp-*"));
@@ -295,7 +311,7 @@ fn release_calls_the_tools_workflow_before_the_source_job() {
 fn release_writes_and_checks_the_tool_manifest() {
     let text = read_runfiles(RELEASE);
     assert!(text.contains("pattern: release-tool-*"));
-    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 22"));
+    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 23"));
     assert!(text.contains("sha256sum -c dx-tool-sha256sums.txt"));
     assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt)"));
     for asset in ASSETS {

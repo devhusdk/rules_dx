@@ -184,7 +184,7 @@ jobs:
               files="$files $tool_asset"
             done
           done
-          for tool_asset in dx-nixfmt-linux-arm64 dx-kcov-linux-x86_64 dx-kcov-linux-arm64 dx-deadnix-LICENSE dx-selene-LICENSE dx-nixfmt-LICENSE dx-kcov-LICENSE dx-deadnix-source.crate dx-kcov-source.tar.gz; do
+          for tool_asset in dx-nixfmt-linux-arm64 dx-nixfmt-macos-arm64 dx-kcov-linux-x86_64 dx-kcov-linux-arm64 dx-deadnix-LICENSE dx-selene-LICENSE dx-nixfmt-LICENSE dx-kcov-LICENSE dx-deadnix-source.crate dx-kcov-source.tar.gz; do
             test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
             printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> out/dx-tool-sha256sums.txt
             files="$files $tool_asset"
@@ -206,7 +206,7 @@ jobs:
           (cd out && sha256sum -c dx-jar-sha256sums.txt)
           test "$(wc -l < out/dx-haskell-sha256sums.txt)" -eq 17 || { echo "want 17 haskell manifest lines, got $(wc -l < out/dx-haskell-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-haskell-sha256sums.txt)
-          test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 22 || { echo "want 22 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 23 || { echo "want 23 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-tool-sha256sums.txt)
       - name: Build and verify the source archive
         env:

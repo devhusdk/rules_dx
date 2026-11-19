@@ -34,7 +34,7 @@ rust_test(
         "//tools/docs/go/fixture:money_changed_docs",
         "//tools/docs/go/fixture:money_docs",
         "//tools/docs/go/fixture:money_windows_docs",
-        "//tools/docs/go/godoc:godoc_json",
+        "@dx_prebuilt//:dx_godoc_json",
     ],
     env = {
         "DX_FIXTURE_CHANGED_SHARD": "$(rootpath //tools/docs/go/fixture:money_changed_docs)",
@@ -42,7 +42,7 @@ rust_test(
         "DX_FIXTURE_SHARD": "$(rootpath //tools/docs/go/fixture:money_docs)",
         "DX_FIXTURE_WINDOWS_SHARD": "$(rootpath //tools/docs/go/fixture:money_windows_docs)",
         "DX_GO_EXTRACT": "$(rootpath //tools/docs/go/extract:go_extract)",
-        "DX_GODOC_JSON": "$(rootpath //tools/docs/go/godoc:godoc_json)",
+        "DX_GODOC_JSON": "$(rootpath @dx_prebuilt//:dx_godoc_json)",
     },
     tags = ["no-coverage"],
     deps = [

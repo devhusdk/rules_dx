@@ -1,0 +1,23 @@
+load("//go:defs.bzl", "go_library", "go_test")
+
+go_library(
+    name = "gofumpt",
+    srcs = ["gofumpt.go"],
+    importpath = "rules_dx/go/private/tools/gofumpt",
+    visibility = ["//go/private/tools/analysis/dx_go:__pkg__"],
+    deps = [
+        "@cc_mvdan_gofumpt//format",
+        "@com_github_rogpeppe_go_internal//diff",
+        "@org_golang_x_mod//modfile",
+    ],
+)
+
+go_test(
+    name = "gofumpt_test",
+    size = "small",
+    srcs = ["gofumpt_test.go"],
+    data = ["@cc_mvdan_gofumpt//:gofumpt"],
+    embed = [":gofumpt"],
+    env = {"GOFUMPT": "$(rlocationpath @cc_mvdan_gofumpt//:gofumpt)"},
+    deps = ["@rules_go//go/runfiles"],
+)

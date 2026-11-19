@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 use std::process::Command;
 
 use crate::{GenerateError, Inputs, RootBuild, render};
@@ -29,7 +28,7 @@ fn summary(out: &BTreeMap<String, Vec<u8>>) -> String {
     let mut lines = String::new();
     for (path, bytes) in out {
         let text = String::from_utf8(bytes.clone()).expect("utf-8");
-        writeln!(lines, "== {path}").ok();
+        lines.push_str(&format!("== {path}\n"));
         if let Some(base) = path.strip_prefix(".dx/config/") {
             let dir = base.split('/').next().expect("tool dir");
             if dir == "gitleaks" {
@@ -48,7 +47,7 @@ fn summary(out: &BTreeMap<String, Vec<u8>>) -> String {
                 (false, true) => "strict",
                 (false, false) => panic!("{path} is not a tier copied verbatim"),
             };
-            writeln!(lines, "<{tier} tier>").ok();
+            lines.push_str(&format!("<{tier} tier>\n"));
         } else if let Some(layer) = path.strip_prefix(".dx/bazelrc/") {
             let preset = dx_preset::Layer::ALL
                 .into_iter()
@@ -551,9 +550,24 @@ fn renders_rust() {
     common --@rules_dx//config:clippy_flag=-Dclippy::fallible_impl_from
     common --@rules_dx//config:clippy_flag=-Dclippy::wildcard_enum_match_arm
     common --@rules_dx//config:clippy_flag=-Dclippy::let_underscore_must_use
+    common --@rules_dx//config:clippy_flag=-Dclippy::let_underscore_untyped
     common --@rules_dx//config:clippy_flag=-Dclippy::undocumented_unsafe_blocks
     common --@rules_dx//config:clippy_flag=-Dclippy::allow_attributes_without_reason
     common --@rules_dx//config:clippy_flag=-Dclippy::allow_attributes
+    common --@rules_dx//config:clippy_flag=-Dclippy::match_wildcard_for_single_variants
+    common --@rules_dx//config:clippy_flag=-Dclippy::let_underscore_future
+    common --@rules_dx//config:clippy_flag=-Dclippy::unchecked_time_subtraction
+    common --@rules_dx//config:clippy_flag=-Dclippy::large_futures
+    common --@rules_dx//config:clippy_flag=-Dclippy::try_err
+    common --@rules_dx//config:clippy_flag=-Dclippy::infinite_loop
+    common --@rules_dx//config:clippy_flag=-Dclippy::cast_possible_truncation
+    common --@rules_dx//config:clippy_flag=-Dclippy::cast_possible_wrap
+    common --@rules_dx//config:clippy_flag=-Dclippy::mem_forget
+    common --@rules_dx//config:clippy_flag=-Dclippy::rc_mutex
+    common --@rules_dx//config:clippy_flag=-Dclippy::multiple_unsafe_ops_per_block
+    common --@rules_dx//config:clippy_flag=-Dclippy::string_add
+    common --@rules_dx//config:clippy_flag=-Dclippy::create_dir
+    common --@rules_dx//config:clippy_flag=-Dclippy::iter_over_hash_type
     common --@rules_dx//config:clippy_flag=-Dunsafe_code
     common --@rules_dx//config:clippy_flag=-Dunsafe_op_in_unsafe_fn
     common --@rules_dx//config:clippy_flag=-Dunused_must_use

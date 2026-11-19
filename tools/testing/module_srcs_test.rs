@@ -28,6 +28,15 @@ const ENTRY_POINTS: &[&str] = &[
     "//java:defs.bzl",
     "//kotlin:defs.bzl",
     "//scala:defs.bzl",
+    "//lua:defs.bzl",
+    "//capnproto:defs.bzl",
+    "//flatbuffers:defs.bzl",
+    "//thrift:defs.bzl",
+    "//api_spec:defs.bzl",
+    "//avro:defs.bzl",
+    "//rust:defs.bzl",
+    "//python:defs.bzl",
+    "//cc:defs.bzl",
 ];
 
 #[test]

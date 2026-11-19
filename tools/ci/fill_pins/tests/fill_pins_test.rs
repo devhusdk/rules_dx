@@ -124,7 +124,7 @@ fn tool_manifest() -> String {
     for asset in assets("python_tools") {
         lines.push(format!("{}  {asset}\n", hash(8)));
     }
-    assert_eq!(lines.len(), 22);
+    assert_eq!(lines.len(), 23);
     lines.concat()
 }
 

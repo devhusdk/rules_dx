@@ -167,7 +167,7 @@ TOOLS = {
     "nixfmt": struct(
         asset = "dx-nixfmt-{os}-{cpu}",
         role = "exec",
-        platforms = ["linux_arm64"],
+        platforms = ["linux_arm64", "macos_arm64"],
         fallbacks = {},
         source = "@rules_dx//core/quality/tools/nixfmt/bin:nixfmt_source",
         member = "",

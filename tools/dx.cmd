@@ -76,8 +76,9 @@ if exist "%DX_STATE%\dc.%DX_TAG%" set /p DX_DC=<"%DX_STATE%\dc.%DX_TAG%"
 del /q "%DX_STATE%\dc.%DX_TAG%" 2>nul
 echo dx: building //cli/cli:dx 1>&2
 REM Exit 33 or 37 means the Bazel server crashed; retry once. Keep in sync with tools/dx.
+REM DX_LAUNCHER_BAZEL_FLAGS holds plain flags, no cmd metacharacters. Keep in sync with tools/dx.
 :dxbuildrun
-call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //cli/cli:dx 1>&2
+call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info %DX_LAUNCHER_BAZEL_FLAGS% //cli/cli:dx 1>&2
 set "DX_EC=%errorlevel%"
 if not defined DX_BRETRY if "%DX_EC%"=="33" goto dxbcrash
 if not defined DX_BRETRY if "%DX_EC%"=="37" goto dxbcrash
@@ -97,7 +98,7 @@ echo dx: //cli/cli:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPI
 setlocal
 rem Keep in sync with the SetId::Cargo plan env in cli/update/src/backend.rs.
 set "CARGO_BAZEL_REPIN=1"
-call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //cli/cli:dx 1>&2
+call bazel %DX_RC% build %DX_DC% --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info %DX_LAUNCHER_BAZEL_FLAGS% //cli/cli:dx 1>&2
 endlocal & set "DX_FAIL=%errorlevel%"
 :dxbuilt
 if not "%DX_FAIL%"=="0" (
@@ -118,11 +119,11 @@ if "%errorlevel%"=="0" set "DX_COPY=1"
 :dxqueryrun
 REM A plain query follows every select() branch and fetches repos only other platforms use. Keep in sync with tools/dx.
 > "%DX_STATE%\deps.%DX_TAG%" echo let s = set(//cli/cli:dx
-call bazel %DX_RC% cquery --noshow_progress --ui_event_filters=-info --output=starlark "--starlark:expr=repr('//' + target.label.package + ':' + target.label.name) if target.label.repo_name == '' else ''" "deps(//cli/cli:dx)" >> "%DX_STATE%\deps.%DX_TAG%"
+call bazel %DX_RC% cquery --noshow_progress --ui_event_filters=-info %DX_LAUNCHER_BAZEL_FLAGS% --output=starlark "--starlark:expr=repr('//' + target.label.package + ':' + target.label.name) if target.label.repo_name == '' else ''" "deps(//cli/cli:dx)" >> "%DX_STATE%\deps.%DX_TAG%"
 set "DX_EC=%errorlevel%"
 if not "%DX_EC%"=="0" goto dxqchk
 >> "%DX_STATE%\deps.%DX_TAG%" echo ^) in kind^('source file', $s^) + buildfiles^($s^)
-call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info,-warning "--query_file=%DX_STATE%\deps.%DX_TAG%" > "%DX_STATE%\query.%DX_TAG%"
+call bazel %DX_RC% query --noshow_progress --ui_event_filters=-info,-warning %DX_LAUNCHER_BAZEL_FLAGS% "--query_file=%DX_STATE%\deps.%DX_TAG%" > "%DX_STATE%\query.%DX_TAG%"
 set "DX_EC=%errorlevel%"
 :dxqchk
 if not defined DX_QRETRY if "%DX_EC%"=="33" goto dxqcrash

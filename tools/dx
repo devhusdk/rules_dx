@@ -367,9 +367,11 @@ retry_crash() {
   sleep "${DX_RESTART_WAIT:-2}"
   "$@" && return 0 || return $?
 }
+# DX_LAUNCHER_BAZEL_FLAGS changes how dx is built, not what is built, so changing it never makes dx stale. Its flags
+# come after the launcher's own, so they override them; set -f keeps them from globbing.
 build_dx() {
-  # shellcheck disable=SC2086 # rc and gc are option lists that must split
-  (cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //cli/cli:dx >&2)
+  # shellcheck disable=SC2086 # rc, gc and DX_LAUNCHER_BAZEL_FLAGS are option lists that must split
+  (set -f && cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info ${DX_LAUNCHER_BAZEL_FLAGS-} //cli/cli:dx >&2)
 }
 # A plain query follows every select() branch and fetches repos only other platforms use, like the MinGW runtime.
 # cquery keeps to the main repo targets this host builds; the query adds their BUILD and .bzl files. Its only warning
@@ -377,10 +379,10 @@ build_dx() {
 query_inputs() {
   # shellcheck disable=SC2086,SC2016 # rc is an option list that must split; $s is a query variable, not shell
   # Each attempt truncates the files, so a retry never keeps a crashed attempt's partial output.
-  (cd "$root" && echo 'let s = set(//cli/cli:dx' >"$state/deps.$$" &&
-    bazel $rc cquery --noshow_progress --ui_event_filters=-info --output=starlark "--starlark:expr=repr('//' + target.label.package + ':' + target.label.name) if target.label.repo_name == '' else ''" 'deps(//cli/cli:dx)' >>"$state/deps.$$" &&
+  (set -f && cd "$root" && echo 'let s = set(//cli/cli:dx' >"$state/deps.$$" &&
+    bazel $rc cquery --noshow_progress --ui_event_filters=-info ${DX_LAUNCHER_BAZEL_FLAGS-} --output=starlark "--starlark:expr=repr('//' + target.label.package + ':' + target.label.name) if target.label.repo_name == '' else ''" 'deps(//cli/cli:dx)' >>"$state/deps.$$" &&
     echo ') in kind("source file", $s) + buildfiles($s)' >>"$state/deps.$$" &&
-    bazel $rc query --noshow_progress --ui_event_filters=-info,-warning --query_file="${state#"$root"/}/deps.$$" >"$state/query.$$")
+    bazel $rc query --noshow_progress --ui_event_filters=-info,-warning ${DX_LAUNCHER_BAZEL_FLAGS-} --query_file="${state#"$root"/}/deps.$$" >"$state/query.$$")
 }
 # True for `update --apply [dx_crates]` without --frozen or --offline: the only launches that may repin.
 wants_cargo_repin() {
@@ -445,8 +447,8 @@ if stale; then
   elif wants_cargo_repin "$@"; then
     echo "dx: //cli/cli:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again" >&2
     # Keep in sync with the SetId::Cargo plan env in cli/update/src/backend.rs.
-    # shellcheck disable=SC2086 # rc and gc are option lists that must split
-    if (cd "$root" && CARGO_BAZEL_REPIN=1 bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //cli/cli:dx >&2); then
+    # shellcheck disable=SC2086 # rc, gc and DX_LAUNCHER_BAZEL_FLAGS are option lists that must split
+    if (set -f && cd "$root" && CARGO_BAZEL_REPIN=1 bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info ${DX_LAUNCHER_BAZEL_FLAGS-} //cli/cli:dx >&2); then
       built=1
     fi
   else

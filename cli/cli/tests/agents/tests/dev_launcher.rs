@@ -565,7 +565,7 @@ mod sh {
             let stub = self.base.join("stub/bazel");
             dx_testing::executable_script(
                 &stub,
-                "#!/bin/sh\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ \"${CARGO_BAZEL_REPIN-}\" != 1 ]; then rm -f bazel-bin/cli/cli/dx; exit 1; fi\n      echo repin >> \"$STUB_LOG\"\n      mkdir -p bazel-bin/cli/cli\n      cp \"$STUB_PAYLOAD\" bazel-bin/cli/cli/dx.$$\n      chmod +x bazel-bin/cli/cli/dx.$$\n      mv bazel-bin/cli/cli/dx.$$ bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    cquery)\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
+                "#!/bin/sh\n[ -z \"${STUB_ARGS:-}\" ] || { printf '%s\\t' \"$@\"; echo; } >> \"$STUB_ARGS\"\nfor a in \"$@\"; do\n  case \"$a\" in\n    build)\n      echo build >> \"$STUB_LOG\"\n      if [ \"${CARGO_BAZEL_REPIN-}\" != 1 ]; then rm -f bazel-bin/cli/cli/dx; exit 1; fi\n      echo repin >> \"$STUB_LOG\"\n      mkdir -p bazel-bin/cli/cli\n      cp \"$STUB_PAYLOAD\" bazel-bin/cli/cli/dx.$$\n      chmod +x bazel-bin/cli/cli/dx.$$\n      mv bazel-bin/cli/cli/dx.$$ bazel-bin/cli/cli/dx\n      exit 0\n      ;;\n    cquery)\n      exit 0\n      ;;\n    query)\n      echo //cli/cli:BUILD.bazel\n      exit 0\n      ;;\n  esac\ndone\nexit 2\n",
             );
             std::fs::write(
                 self.base.join("payload"),
@@ -1159,6 +1159,81 @@ mod sh {
                 );
             }
         }
+    }
+
+    const LAUNCHER_FLAGS: [&str; 3] = ["--config=bb-ro", "--ui_event_filters=+info", "*"];
+
+    /// Asserts each logged call carries `LAUNCHER_FLAGS` right before the
+    /// argument that starts with `before`.
+    fn assert_launcher_flags(logged: &str, before: &[&str]) {
+        let calls: Vec<Vec<&str>> = logged
+            .lines()
+            .map(|line| {
+                line.strip_suffix('\t')
+                    .unwrap_or(line)
+                    .split('\t')
+                    .collect()
+            })
+            .collect();
+        assert_eq!(calls.len(), before.len(), "{logged}");
+        for (call, before) in calls.iter().zip(before) {
+            let at = call
+                .iter()
+                .position(|arg| arg.starts_with(before))
+                .unwrap_or_else(|| panic!("{before} missing: {call:?}"));
+            assert!(at >= LAUNCHER_FLAGS.len(), "{call:?}");
+            assert_eq!(
+                call[at - LAUNCHER_FLAGS.len()..at],
+                LAUNCHER_FLAGS,
+                "{call:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn source_launcher_appends_dx_launcher_bazel_flags() {
+        let repo = source_repo("dx-launcher-flags-");
+        let args = repo.base.join("args");
+        let mut cmd = repo.command();
+        cmd.env("STUB_ARGS", &args)
+            .env("DX_LAUNCHER_BAZEL_FLAGS", LAUNCHER_FLAGS.join(" "));
+        let out = spawn(&mut cmd).wait_with_output().expect("launcher runs");
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let logged = std::fs::read_to_string(&args).expect("bazel argv");
+        assert_launcher_flags(
+            &logged,
+            &["//cli/cli:dx", "--output=starlark", "--query_file="],
+        );
+
+        let repo = source_repo("dx-launcher-flags-repin-");
+        repo.repin_gated();
+        let args = repo.base.join("args");
+        let mut cmd = repo.command_in(&repo.root(), &["update", "--apply", "dx_crates"]);
+        cmd.env("STUB_ARGS", &args)
+            .env("DX_LAUNCHER_BAZEL_FLAGS", LAUNCHER_FLAGS.join(" "));
+        let out = spawn(&mut cmd).wait_with_output().expect("launcher runs");
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!((repo.builds(), repo.repins()), (2, 1));
+        let logged = std::fs::read_to_string(&args).expect("bazel argv");
+        assert_launcher_flags(
+            &logged,
+            &[
+                "//cli/cli:dx",
+                "//cli/cli:dx",
+                "--output=starlark",
+                "--query_file=",
+            ],
+        );
     }
 
     #[test]
@@ -2197,7 +2272,8 @@ mod cmd {
                 .args(["/T", "/F", "/PID", &self.child.id().to_string()])
                 .output();
             let _: std::io::Result<()> = self.child.kill();
-            let _: std::io::Result<usize> = std::io::Read::read_to_end(&mut self.out, &mut Vec::new());
+            let _: std::io::Result<usize> =
+                std::io::Read::read_to_end(&mut self.out, &mut Vec::new());
             let _: std::io::Result<std::process::ExitStatus> = self.child.wait();
         }
     }
@@ -2571,6 +2647,42 @@ mod cmd {
             assert_eq!(bounded, expected.is_some() && !rc.rc_gc, "{name}: {logged}");
             assert!(!cquery.contains("disk_cache"), "{name}: {logged}");
             assert!(!query.contains("disk_cache"), "{name}: {logged}");
+        }
+    }
+
+    #[test]
+    fn cmd_launcher_appends_dx_launcher_bazel_flags() {
+        let repo = source_repo("dx-launcher-cmd-flags-");
+        let args = repo.base.join("args");
+        let flags = ["--config=bb-ro", "--ui_event_filters=+info"];
+        let mut cmd = repo.command(&[], &repo.base.join("calls"));
+        cmd.env("STUB_ARGS", &args)
+            .env("DX_LAUNCHER_BAZEL_FLAGS", flags.join(" "));
+        let out = cmd.output().expect("launcher runs");
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let logged = std::fs::read_to_string(&args).expect("bazel argv");
+        // The stub logs `%*` verbatim, so compare whitespace-separated words.
+        let calls: Vec<Vec<&str>> = logged
+            .lines()
+            .map(|line| line.split_whitespace().collect())
+            .collect();
+        assert_eq!(calls.len(), 3, "{logged}");
+        for (call, before) in
+            calls
+                .iter()
+                .zip(["//cli/cli:dx", "--output=starlark", "\"--query_file="])
+        {
+            let at = call
+                .iter()
+                .position(|arg| arg.starts_with(before))
+                .unwrap_or_else(|| panic!("{before} missing: {logged}"));
+            assert!(at >= flags.len(), "{logged}");
+            assert_eq!(call[at - flags.len()..at], flags, "{logged}");
         }
     }
 

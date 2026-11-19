@@ -102,12 +102,11 @@ jobs:
           fi
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          # tools/dx builds //:dx without the remote cache, which on a fresh runner is minutes
-          # of local compiles, so build it with the cache and run a copy.
-          bazel build --noshow_progress "$@" //:dx
-          dx="$RUNNER_TEMP/affected/dx"
-          mkdir -p "${dx%/*}"
-          cp "$(bazel info "$@" bazel-bin)/cli/cli/dx" "$dx"
+          # The launcher builds dx with the remote cache and logs its cache hits.
+          export DX_LAUNCHER_BAZEL_FLAGS="$* --ui_event_filters=+info"
+          dx="$PWD/tools/dx"
+          "$dx" --version
+          mkdir -p "$RUNNER_TEMP/affected"
           # dx has no plan-only mode. It prints the affected labels in command_started before
           # it starts Bazel, and a tag filter no test carries makes Bazel stop there instead of
           # analysing every target. Bazel then fails by design, so the plan is read from the
@@ -183,13 +182,11 @@ jobs:
           echo "shard $SHARD: ${#targets[@]} tests, ${targets[0]} to ${targets[-1]}"
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          # tools/dx builds //:dx without the remote cache, which on a fresh runner is minutes
-          # of local compiles. Build it with the cache and run a copy; the copy keeps a test
-          # that rebuilds dx from replacing it mid-run.
-          bazel build --noshow_progress "$@" //:dx
-          dx="$RUNNER_TEMP/affected/dx"
-          mkdir -p "${dx%/*}"
-          cp "$(bazel info "$@" bazel-bin)/cli/cli/dx" "$dx"
+          # The launcher builds dx with the remote cache and runs its own copy, so a test that
+          # rebuilds dx cannot replace it mid-run.
+          export DX_LAUNCHER_BAZEL_FLAGS="$* --ui_event_filters=+info"
+          dx="$PWD/tools/dx"
+          "$dx" --version
           log="${RUNNER_TEMP:-/tmp}/affected-tests.log"
           affected() {
             local left=$((deadline - SECONDS))

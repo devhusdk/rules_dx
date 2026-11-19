@@ -9,7 +9,7 @@ use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 
 const BCR_URL: &str = "https://bcr.bazel.build";
 
-/// The rule-set modules that rules_dx owns, as named in `docs/design/layout.md` (see #12607 for renames).
+/// The rule-set modules that rules_dx owns, as named in `docs/design/layout.md`.
 const RULE_SETS: [&str; 3] = ["rules_php", "rules_lua", "rules_qt"];
 
 fn bcr_url() -> String {

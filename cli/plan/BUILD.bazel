@@ -79,6 +79,7 @@ rust_library(
         "//tools/api:__pkg__",
         "//tools/ci:__pkg__",
         "//tools/testing:__pkg__",
+        "//tools/testing/consumer:__pkg__",
     ],
     # keep
     deps = [

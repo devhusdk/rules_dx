@@ -7,6 +7,7 @@ use dx_testing::read_runfiles;
 const TOOLS: &str = ".github/workflows/release-tools.yml";
 const RELEASE: &str = ".github/workflows/release.yml";
 const CONSUMER: &str = ".github/workflows/release-consumer.yml";
+const RELEASE_JARS: &str = "tools/ci/release_jars.txt";
 
 const HOSTS: [(&str, &str); 4] = [
     ("linux-x86_64", "ubuntu-latest"),
@@ -23,18 +24,21 @@ const PYTHON_HOSTS: [&str; 5] = [
     "windows-arm64",
 ];
 
-const JARS: [&str; 6] = [
+const JARS: [&str; 8] = [
     "dx-avro-union-any.jar",
+    "dx-dokka-extract-any.jar",
     "dx-javac-check-any.jar",
     "dx-javadoc-extract-any.jar",
     "dx-jmh-generate-any.jar",
     "dx-kotlinc-check-any.jar",
     "dx-scalac-check-any.jar",
+    "dx-scaladoc-extract-any.jar",
 ];
 
-const ASSETS: [&str; 9] = [
+const ASSETS: [&str; 10] = [
     "dx-nixfmt-LICENSE",
     "dx-nixfmt-linux-arm64",
+    "dx-nixfmt-macos-arm64",
     "dx-kcov-linux-x86_64",
     "dx-kcov-linux-arm64",
     "dx-deadnix-LICENSE",
@@ -134,7 +138,15 @@ fn jars_job_builds_every_jar_asset() {
         assert!(tools.contains(jar), "{TOOLS} must build {jar}");
         assert!(release.contains(jar), "{RELEASE} must list {jar}");
     }
-    assert!(release.contains("test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq 6"));
+    let release_jars = read_runfiles(RELEASE_JARS);
+    assert_eq!(release_jars.lines().count(), JARS.len());
+    for line in release_jars.lines() {
+        assert!(
+            tools.contains(&format!("\"{line}\"")),
+            "{TOOLS} must build \"{line}\""
+        );
+    }
+    assert!(release.contains("test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq 8"));
     assert!(release.contains("sha256sum -c dx-jar-sha256sums.txt"));
     assert!(release.contains("--manifest \"$PWD/out/dx-jar-sha256sums.txt\""));
 }
@@ -161,7 +173,8 @@ fn haskell_job_builds_every_haskell_asset() {
             )
         })
         .collect();
-    assert_eq!(found, HOSTS[1..]);
+    assert_eq!(found, HOSTS);
+    assert!(tools.contains("linux-x86_64) flags=(--platforms=//tools/platforms:linux_x86_64_musl --features=fully_static_link) ;;"));
     assert!(tools.contains("//haskell/private/coverage:hpc_lcov_source dx-hpc-lcov-$HOST"));
     assert!(tools.contains("//haskell/private/tools/weeder/bin:source dx-weeder-$HOST"));
     assert!(release.contains("for tool in dx-hpc-lcov dx-weeder; do"));
@@ -175,7 +188,7 @@ fn haskell_job_builds_every_haskell_asset() {
 }
 
 #[test]
-fn hackage_job_builds_hlint_and_ormolu() {
+fn hackage_job_builds_hlint_nixfmt_and_ormolu() {
     let workflow = document(TOOLS).unwrap();
     assert_eq!(
         workflow["jobs"]["hackage"]["permissions"]["contents"],
@@ -212,6 +225,20 @@ fn hackage_job_builds_hlint_and_ormolu() {
                 "haskell/private/tools/hlint/cabal.lock.json",
             ],
             [
+                "nixfmt",
+                "linux-arm64",
+                "ubuntu-24.04-arm",
+                "@haskell_nixfmt_hackage//:nixfmt-exe-nixfmt",
+                "core/quality/tools/nixfmt/cabal.lock.json",
+            ],
+            [
+                "nixfmt",
+                "macos-arm64",
+                "macos-15",
+                "@haskell_nixfmt_hackage//:nixfmt-exe-nixfmt",
+                "core/quality/tools/nixfmt/cabal.lock.json",
+            ],
+            [
                 "ormolu",
                 "linux-arm64",
                 "ubuntu-24.04-arm",
@@ -222,8 +249,9 @@ fn hackage_job_builds_hlint_and_ormolu() {
     );
     assert!(tools.contains("asset=\"dx-$TOOL-$HOST\""));
     assert!(tools.contains("> \"$out/dx-$TOOL-LICENSE\""));
+    assert!(!tools.contains("nixfmt_sha256"));
     assert!(release.contains("for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch; do"));
-    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 15"));
+    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 17"));
     assert!(release.contains("dx-hlint-* dx-ormolu-* dx-haskell-gmp-*"));
 }
 
@@ -251,11 +279,14 @@ fn haskell_job_ships_the_gmp_licence_and_source() {
         );
     }
     assert!(tools.contains("sha256 differs from haskell/pins.json $pin"));
-    assert!(
-        pins["archives"]["apk__gmp-dev"]["urls"][0]
-            .as_str()
-            .is_some_and(|url| url.ends_with("/gmp-dev-6.2.1-r3.apk"))
-    );
+    for cell in ["linux_arm64_musl", "linux_x86_64_musl"] {
+        assert!(
+            pins["archives"][format!("apk__gmp-dev__{cell}")]["urls"][0]
+                .as_str()
+                .is_some_and(|url| url.ends_with("/gmp-dev-6.2.1-r3.apk")),
+            "{cell}"
+        );
+    }
     assert!(
         pins["archives"]["gmp_source"]["urls"][0]
             .as_str()
@@ -280,7 +311,7 @@ fn release_calls_the_tools_workflow_before_the_source_job() {
 fn release_writes_and_checks_the_tool_manifest() {
     let text = read_runfiles(RELEASE);
     assert!(text.contains("pattern: release-tool-*"));
-    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 22"));
+    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 23"));
     assert!(text.contains("sha256sum -c dx-tool-sha256sums.txt"));
     assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt)"));
     for asset in ASSETS {
@@ -295,8 +326,10 @@ fn release_writes_and_checks_the_tool_manifest() {
         "for tool in dx-deadnix dx-selene; do\n            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do\n              tool_asset=\"$tool-$host\""
     ));
     assert!(text.contains("--manifest \"$PWD/out/dx-tool-sha256sums.txt\""));
-    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 58"));
-    assert!(text.contains("for tool in capnp flatc go oapi-codegen thrift; do"));
+    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 67"));
+    assert!(text.contains("for tool_asset in dx-tree-sitter-windows-arm64.dll dx-tree-sitter-pkl-windows-arm64.dll dx-tree-sitter-LICENSE dx-tree-sitter-pkl-LICENSE; do"));
+    assert!(text.contains(" dx-thrift-* dx-tree-sitter-* "));
+    assert!(text.contains("for tool in capnp flatc go oapi-codegen runtime thrift; do"));
     assert!(text.contains("files=\"$files dx-oapi-codegen-LICENSE\""));
     assert!(text.contains(" dx-go-* dx-oapi-codegen-* "));
     assert!(text.contains("cd out\n            for file in dx-sha256sums.txt "));

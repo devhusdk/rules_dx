@@ -4,7 +4,10 @@ use std::path::Path;
 use tempfile::TempDir;
 
 /// The per-platform tools release.yml adds to the dx manifest, one asset per platform each.
-const PLATFORM_TOOLS: [&str; 5] = ["capnp", "flatc", "go", "oapi_codegen", "thrift"];
+const PLATFORM_TOOLS: [&str; 6] = ["capnp", "flatc", "go", "oapi_codegen", "runtime", "thrift"];
+
+/// The shared libraries release.yml adds to the dx manifest from the windows-arm64 cell, with their licences.
+const LIBRARY_TOOLS: [&str; 2] = ["tree_sitter", "tree_sitter_pkl"];
 
 const REPO: &str = "devhusdk/rules_dx";
 const NATIVE_TOOLS: [&str; 2] = ["progenitor", "topiary"];
@@ -35,9 +38,13 @@ fn assets(tool: &str) -> Vec<String> {
 }
 
 /// The dx manifest as release.yml writes it: each binary plus its launcher archive,
-/// Windows symbols and SBOMs, the native launcher assets, the native build tools and the oapi-codegen licence.
+/// Windows symbols and SBOMs, the native launcher assets, the native build tools, the dx runtime, the shared libraries and the licences.
 fn manifest() -> String {
-    let mut lines = vec![format!("{}  dx-oapi-codegen-LICENSE\n", hash(9))];
+    let mut lines = vec![
+        format!("{}  dx-oapi-codegen-LICENSE\n", hash(9)),
+        format!("{}  dx-tree-sitter-LICENSE\n", hash(9)),
+        format!("{}  dx-tree-sitter-pkl-LICENSE\n", hash(9)),
+    ];
     for (n, asset) in assets("dx").iter().enumerate() {
         let archive = if asset.contains("windows") {
             lines.push(format!("{}  {asset}-pdb.zip\n", hash(n + 6)));
@@ -60,6 +67,11 @@ fn manifest() -> String {
     for (t, tool) in PLATFORM_TOOLS.iter().enumerate() {
         for (n, asset) in assets(tool).iter().enumerate() {
             lines.push(format!("{}  {asset}\n", hash(21 + 5 * t + n)));
+        }
+    }
+    for tool in LIBRARY_TOOLS {
+        for asset in assets(tool) {
+            lines.push(format!("{}  {asset}\n", hash(5)));
         }
     }
     lines.concat()
@@ -124,7 +136,7 @@ fn tool_manifest() -> String {
     for asset in assets("python_tools") {
         lines.push(format!("{}  {asset}\n", hash(8)));
     }
-    assert_eq!(lines.len(), 22);
+    assert_eq!(lines.len(), 23);
     lines.concat()
 }
 
@@ -239,6 +251,15 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
             .map(|e| (e.key, hash(4)))
             .collect();
         assert_eq!(keys.len(), 4);
+        by_tool.insert(tool.to_owned(), keys);
+    }
+    for tool in LIBRARY_TOOLS {
+        let keys: Vec<(String, String)> = registry()
+            .into_iter()
+            .filter(|e| e.tool == tool)
+            .map(|e| (e.key, hash(5)))
+            .collect();
+        assert_eq!(keys, [("windows_arm64".to_owned(), hash(5))]);
         by_tool.insert(tool.to_owned(), keys);
     }
     assert!(by_tool.contains_key("javac_check"));

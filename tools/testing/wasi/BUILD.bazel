@@ -1,27 +1,8 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_binary")
 
 package(default_visibility = ["//visibility:public"])
-
-exports_files(
-    ["wasi_run.rs"],
-    visibility = ["//rust:__pkg__"],
-)
-
-# keep: tests //rust:wasi_run, whose sources live here
-rust_test(
-    name = "wasi_run_unit_test",
-    size = "small",
-    aliases = aliases(
-        package_name = "tools/testing/wasi_testing",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate = "//rust:wasi_run",
-    tags = ["row:wasi"],
-    deps = [],
-)
 
 rust_binary(
     name = "wasi_test_runner",

@@ -205,6 +205,7 @@ fn run_as_tool() -> Option<i32> {
         Tool::PerlExtract => dx_docs_perl_extract::run_process(&lossy(args)),
         Tool::ZigExtract => dx_docs_zig_extract::run_process(&lossy(args)),
         Tool::AndroidOps => i32::from(dx_android_ops::run(&lossy(args))),
+        Tool::QtRustBridge => qt_rust_bridge::run_process(&lossy(args)),
         Tool::Archiver => dx_deploy_tools::entry::archiver(&named("archiver", args)),
         Tool::Hasher => dx_deploy_tools::entry::hasher(&named("hasher", args)),
         Tool::SizeChecker => dx_deploy_tools::entry::size_checker(&named("size_checker", args)),

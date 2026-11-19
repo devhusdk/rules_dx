@@ -1,6 +1,12 @@
 //! `release_tool <kind> <args...>`: dispatch for the release generators.
 
+use std::fmt;
+use std::io;
 use std::path::{Path, PathBuf};
+
+use dx_atomic_fs::path_io::{self, PathIoError};
+
+use crate::inventory::InventoryError;
 
 const PROG: &str = "release_tool";
 
@@ -274,13 +280,65 @@ fn kind_name(invocation: &Invocation) -> &'static str {
     }
 }
 
+/// A release generator that could not read its inputs or write its output.
+#[derive(Debug)]
+enum ToolError {
+    Io(io::Error),
+    TextList(PathIoError),
+    Inventory(InventoryError),
+    Sbom(crate::SbomError),
+    Notice(crate::NoticeError),
+}
+
+impl fmt::Display for ToolError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(source) => write!(f, "{source}"),
+            Self::TextList(source) => write!(f, "{source}"),
+            Self::Inventory(source) => write!(f, "{source}"),
+            Self::Sbom(source) => write!(f, "{source}"),
+            Self::Notice(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for ToolError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(source) => Some(source),
+            Self::TextList(source) => Some(source),
+            Self::Inventory(source) => Some(source),
+            Self::Sbom(source) => Some(source),
+            Self::Notice(source) => Some(source),
+        }
+    }
+}
+
+impl From<io::Error> for ToolError {
+    fn from(source: io::Error) -> Self {
+        Self::Io(source)
+    }
+}
+
+impl From<crate::SbomError> for ToolError {
+    fn from(source: crate::SbomError) -> Self {
+        Self::Sbom(source)
+    }
+}
+
+impl From<crate::NoticeError> for ToolError {
+    fn from(source: crate::NoticeError) -> Self {
+        Self::Notice(source)
+    }
+}
+
 /// Replaces each `@<list>` entry with the newline-separated paths in that file.
-fn expand_text_lists(texts: &[PathBuf]) -> std::io::Result<Vec<PathBuf>> {
+fn expand_text_lists(texts: &[PathBuf]) -> Result<Vec<PathBuf>, PathIoError> {
     let mut out = Vec::with_capacity(texts.len());
     for text in texts {
         match text.to_str().and_then(|text| text.strip_prefix('@')) {
             Some(list) => {
-                let body = std::fs::read_to_string(list)?;
+                let body = path_io::read_to_string(Path::new(list))?;
                 out.extend(
                     body.lines()
                         .filter(|line| !line.is_empty())
@@ -293,7 +351,7 @@ fn expand_text_lists(texts: &[PathBuf]) -> std::io::Result<Vec<PathBuf>> {
     Ok(out)
 }
 
-fn execute(invocation: &Invocation) -> std::io::Result<()> {
+fn execute(invocation: &Invocation) -> Result<(), ToolError> {
     match invocation {
         Invocation::Spdx {
             src,
@@ -311,13 +369,15 @@ fn execute(invocation: &Invocation) -> std::io::Result<()> {
             inventory.as_deref(),
             runtimes.as_deref(),
             locks,
-        ),
-        Invocation::Provenance { src, dst, builder } => crate::write_provenance(src, dst, builder),
+        )?,
+        Invocation::Provenance { src, dst, builder } => {
+            crate::write_provenance(src, dst, builder)?;
+        }
         Invocation::BcrSource {
             dst,
             module,
             version,
-        } => crate::write_bcr_source(dst, module, version),
+        } => crate::write_bcr_source(dst, module, version)?,
         Invocation::Notice {
             manifest,
             dst,
@@ -325,8 +385,8 @@ fn execute(invocation: &Invocation) -> std::io::Result<()> {
             texts,
             runtimes,
         } => {
-            let texts = expand_text_lists(texts)?;
-            crate::write_notice(manifest, dst, root, &texts, runtimes.as_deref())
+            let texts = expand_text_lists(texts).map_err(ToolError::TextList)?;
+            crate::write_notice(manifest, dst, root, &texts, runtimes.as_deref())?;
         }
         Invocation::Inventory {
             shipped,
@@ -342,8 +402,10 @@ fn execute(invocation: &Invocation) -> std::io::Result<()> {
             dst,
             texts,
             runtimes.as_deref(),
-        ),
+        )
+        .map_err(ToolError::Inventory)?,
     }
+    Ok(())
 }
 
 /// Runs `release_tool <kind> <args...>` and returns the process exit code.
@@ -578,6 +640,39 @@ mod tests {
             ]
         );
         std::fs::remove_dir_all(&dir).expect("cleanup");
+    }
+
+    #[test]
+    fn unreadable_text_lists_and_inventories_keep_their_errors() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("missing.txt");
+        let error = execute(&Invocation::Notice {
+            manifest: dir.path().join("inventory.txt"),
+            dst: dir.path().join("NOTICE"),
+            root: "//demo:root".to_owned(),
+            texts: vec![PathBuf::from(format!("@{}", missing.display()))],
+            runtimes: None,
+        })
+        .expect_err("missing list");
+        assert!(matches!(error, ToolError::TextList(_)), "{error:?}");
+        assert!(error.to_string().starts_with("cannot read "), "{error}");
+
+        let shipped = dir.path().join("shipped.json");
+        std::fs::write(&shipped, "{}").expect("shipped");
+        let error = execute(&Invocation::Inventory {
+            shipped: dir.path().join("absent.json"),
+            lock: shipped.clone(),
+            licenses: shipped,
+            dst: dir.path().join("manifest.txt"),
+            texts: dir.path().join("texts"),
+            runtimes: None,
+        })
+        .expect_err("missing shipped file");
+        assert!(
+            matches!(error, ToolError::Inventory(InventoryError::Io(_))),
+            "{error:?}"
+        );
+        assert!(error.to_string().starts_with("cannot read "), "{error}");
     }
 
     #[test]

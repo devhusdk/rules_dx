@@ -2,14 +2,14 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//qt/private:defs.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "QT_BUNDLE_MACOS_RUNPATH", "QT_COMPATIBLE_WITH", "QT_CONF", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_runtime_members")
 load("//qt/private:platform.bzl", "QT_PLATFORMS", "qt_host_cell", "qt_platform_settings", "qt_platforms")
 load("//qt/private:providers.bzl", "QtInfo")
 load("//qt/private:validate.bzl", "qt_uri_error")
 load("//qt/private/toolchain:pins.bzl", "CELLS")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 _LINUX = select({
     "@platforms//cpu:arm64": ["@platforms//os:linux"],
@@ -450,14 +450,24 @@ def _bridge_test_impl(ctx):
     actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "QtRustBridge"]
     asserts.equals(env, 1, len(actions))
     argv = actions[0].argv
-    asserts.equals(env, ["qt", "qt/tests/fixtures/qt_rust/model/ledger_model.rs", "qt/tests/fixtures/qt_rust/model/ledger_model"], argv[1:4], str(argv))
+    asserts.true(env, argv[0].removesuffix(".exe").endswith("/dx"), "action runs " + argv[0])
+    asserts.equals(env, ["qt_rust_bridge", "qt", "qt/tests/fixtures/qt_rust/model/ledger_model.rs", "qt/tests/fixtures/qt_rust/model/ledger_model"], argv[1:5], str(argv))
     outputs = [f.basename for f in actions[0].outputs.to_list()]
     asserts.equals(env, ["ledger_model.cxx.cpp", "ledger_model.cxx.h", "ledger_model.cxxqt.cpp", "ledger_model.cxxqt.h"], sorted(outputs))
-    asserts.equals(env, [f.basename for f in actions[0].outputs.to_list()], [arg.rpartition("/")[2] for arg in argv[4:]])
+    asserts.equals(env, [f.basename for f in actions[0].outputs.to_list()], [arg.rpartition("/")[2] for arg in argv[5:]])
     asserts.equals(env, "", actions[0].env.get("CLANG_FORMAT_BINARY"), "the bridge must not run a host clang-format")
     return analysistest.end(env)
 
 _bridge_test = analysistest.make(_bridge_test_impl)
+
+def _bridge_generator_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    argv = _argv(env, "QtRustBridge")
+    asserts.true(env, argv[0].endswith("/stub_generator.sh"), "action runs " + str(argv))
+    asserts.equals(env, "qt", argv[1], str(argv))
+    return analysistest.end(env)
+
+_bridge_generator_test = analysistest.make(_bridge_generator_test_impl)
 
 def _argv(env, mnemonic):
     actions = [action for action in analysistest.target_actions(env) if action.mnemonic == mnemonic]
@@ -680,6 +690,10 @@ def qt_rules_tests(name):
         target_under_test = "//qt/tests/fixtures/qt_rust/model:model_bridge",
         target_compatible_with = QT_COMPATIBLE_WITH,
     )
+    _bridge_generator_test(
+        name = name + "_bridge_generator",
+        target_under_test = "//qt/tests/fixtures/other:custom_generator_bridge",
+    )
     failures = {
         "bad_depends": "qml_depends uri 'QtQml.2Models' segment '2Models' must start with a letter",
         "bad_uri": "uri '1Bad' segment '1Bad' must start with a letter",
@@ -699,5 +713,5 @@ def qt_rules_tests(name):
         )
     native.test_suite(
         name = name,
-        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "macos_runpath", "macos_test_runpath", "macos_bundle", "macos_library_link", "linux_library_link"] + sorted(failures.keys())],
+        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "bridge_generator", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "macos_runpath", "macos_test_runpath", "macos_bundle", "macos_library_link", "linux_library_link"] + sorted(failures.keys())],
     )

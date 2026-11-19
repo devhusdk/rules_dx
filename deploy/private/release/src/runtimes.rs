@@ -1,9 +1,11 @@
 //! Native runtimes in the shipped inventory: records with packaged-byte hashes
 //! and the NOTICE section they add.
 
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
+use std::io;
 use std::path::{Path, PathBuf};
 
+use dx_atomic_fs::path_io::{self, PathIoError};
 use serde::{Deserialize, Serialize};
 
 pub const SCHEMA: &str = "runtime-inventory/v1";
@@ -48,29 +50,101 @@ struct Doc {
     runtimes: Vec<RuntimeRecord>,
 }
 
+/// A runtime that cannot ship, an unreadable runtime file or a bad record document.
+#[derive(Debug)]
+pub enum RuntimesError {
+    BuildOnly {
+        name: String,
+    },
+    NoNotice {
+        name: String,
+    },
+    Redistribution {
+        name: String,
+        redistribution: String,
+    },
+    FileName {
+        path: PathBuf,
+    },
+    Hash {
+        path: PathBuf,
+        source: io::Error,
+    },
+    Notice(PathIoError),
+    Json(serde_json::Error),
+    Schema {
+        found: String,
+    },
+    Io(PathIoError),
+}
+
+impl fmt::Display for RuntimesError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BuildOnly { name } => {
+                write!(f, "inventory: runtime {name} is build_only and cannot ship")
+            }
+            Self::NoNotice { name } => {
+                write!(f, "inventory: app_local runtime {name} has no notice")
+            }
+            Self::Redistribution {
+                name,
+                redistribution,
+            } => write!(
+                f,
+                "inventory: runtime {name} has unsupported redistribution {redistribution:?}"
+            ),
+            Self::FileName { path } => {
+                write!(f, "inventory: runtime file {} has no name", path.display())
+            }
+            Self::Hash { path, source } => {
+                write!(f, "inventory: hash {}: {source}", path.display())
+            }
+            Self::Notice(source) => write!(f, "inventory: {source}"),
+            Self::Json(source) => write!(f, "runtimes: {source}"),
+            Self::Schema { found } => write!(f, "runtimes: schema {found:?}, want {SCHEMA:?}"),
+            Self::Io(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for RuntimesError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Hash { source, .. } => Some(source),
+            Self::Notice(source) | Self::Io(source) => Some(source),
+            Self::Json(source) => Some(source),
+            Self::BuildOnly { .. }
+            | Self::NoNotice { .. }
+            | Self::Redistribution { .. }
+            | Self::FileName { .. }
+            | Self::Schema { .. } => None,
+        }
+    }
+}
+
 /// Hashes each runtime's files and reads its notice. Runtimes that cannot ship are errors.
 ///
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn build(runtimes: &[ShippedRuntime]) -> Result<Vec<RuntimeRecord>, String> {
+pub fn build(runtimes: &[ShippedRuntime]) -> Result<Vec<RuntimeRecord>, RuntimesError> {
     let mut records = Vec::with_capacity(runtimes.len());
     for runtime in runtimes {
         let name = &runtime.name;
         match runtime.redistribution.as_str() {
             "build_only" => {
-                return Err(format!(
-                    "inventory: runtime {name} is build_only and cannot ship"
-                ));
+                return Err(RuntimesError::BuildOnly { name: name.clone() });
             }
             "app_local" if runtime.notice.is_none() => {
-                return Err(format!("inventory: app_local runtime {name} has no notice"));
+                return Err(RuntimesError::NoNotice { name: name.clone() });
             }
             "app_local" | "os_supplied" => {}
             other => {
-                return Err(format!(
-                    "inventory: runtime {name} has unsupported redistribution {other:?}"
-                ));
+                return Err(RuntimesError::Redistribution {
+                    name: name.clone(),
+                    redistribution: other.to_owned(),
+                });
             }
         }
         let mut files = Vec::with_capacity(runtime.files.len());
@@ -78,9 +152,12 @@ pub fn build(runtimes: &[ShippedRuntime]) -> Result<Vec<RuntimeRecord>, String> 
             let member = path
                 .file_name()
                 .and_then(|member| member.to_str())
-                .ok_or_else(|| format!("inventory: runtime file {} has no name", path.display()))?;
-            let sha256 = dx_digest::sha256_file_hex(path)
-                .map_err(|error| format!("inventory: hash {}: {error}", path.display()))?;
+                .ok_or_else(|| RuntimesError::FileName { path: path.clone() })?;
+            let sha256 =
+                dx_digest::sha256_file_hex(path).map_err(|source| RuntimesError::Hash {
+                    path: path.clone(),
+                    source,
+                })?;
             files.push(RuntimeFile {
                 name: member.to_owned(),
                 sha256,
@@ -88,10 +165,7 @@ pub fn build(runtimes: &[ShippedRuntime]) -> Result<Vec<RuntimeRecord>, String> 
         }
         files.sort_by(|a, b| a.name.cmp(&b.name));
         let notice = match &runtime.notice {
-            Some(path) => Some(
-                std::fs::read_to_string(path)
-                    .map_err(|error| format!("inventory: read {}: {error}", path.display()))?,
-            ),
+            Some(path) => Some(path_io::read_to_string(path).map_err(RuntimesError::Notice)?),
             None => None,
         };
         records.push(RuntimeRecord {
@@ -121,13 +195,10 @@ pub fn render_records(records: &[RuntimeRecord]) -> String {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse_records(text: &str) -> Result<Vec<RuntimeRecord>, String> {
-    let doc: Doc = serde_json::from_str(text).map_err(|error| format!("runtimes: {error}"))?;
+pub fn parse_records(text: &str) -> Result<Vec<RuntimeRecord>, RuntimesError> {
+    let doc: Doc = serde_json::from_str(text).map_err(RuntimesError::Json)?;
     if doc.schema != SCHEMA {
-        return Err(format!(
-            "runtimes: schema {:?}, want {SCHEMA:?}",
-            doc.schema
-        ));
+        return Err(RuntimesError::Schema { found: doc.schema });
     }
     Ok(doc.runtimes)
 }
@@ -186,13 +257,10 @@ pub fn strip_section(notice: &str) -> &str {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn read_records(path: &Path) -> std::io::Result<Vec<RuntimeRecord>> {
-    parse_records(&std::fs::read_to_string(path)?).map_err(std::io::Error::other)
+pub fn read_records(path: &Path) -> Result<Vec<RuntimeRecord>, RuntimesError> {
+    parse_records(&path_io::read_to_string(path).map_err(RuntimesError::Io)?)
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -224,22 +292,60 @@ mod tests {
         let bytes = std::fs::read(&shipped.files[0]).expect("read");
         assert_eq!(records[0].files[0].name, "vc.so");
         assert_eq!(records[0].files[0].sha256, dx_digest::sha256_hex(&bytes));
-        assert_eq!(parse_records(&render_records(&records)), Ok(records));
+        assert_eq!(
+            parse_records(&render_records(&records)).expect("parses"),
+            records
+        );
     }
 
     #[test]
     fn runtimes_that_cannot_ship_fail() {
         let dir = tempfile::tempdir().expect("dir");
         let build_only = runtime(dir.path(), "sdk", "build_only", false);
+        let error = build(&[build_only]).expect_err("build_only");
+        assert!(
+            matches!(error, RuntimesError::BuildOnly { .. }),
+            "{error:?}"
+        );
         assert_eq!(
-            build(&[build_only]),
-            Err("inventory: runtime sdk is build_only and cannot ship".to_owned())
+            error.to_string(),
+            "inventory: runtime sdk is build_only and cannot ship"
         );
         let no_notice = runtime(dir.path(), "vc", "app_local", false);
+        let error = build(&[no_notice]).expect_err("no notice");
+        assert!(matches!(error, RuntimesError::NoNotice { .. }), "{error:?}");
         assert_eq!(
-            build(&[no_notice]),
-            Err("inventory: app_local runtime vc has no notice".to_owned())
+            error.to_string(),
+            "inventory: app_local runtime vc has no notice"
         );
+        let mut missing_notice = runtime(dir.path(), "crt", "app_local", true);
+        missing_notice.notice = Some(dir.path().join("absent.NOTICE"));
+        let error = build(&[missing_notice]).expect_err("missing notice");
+        assert!(matches!(error, RuntimesError::Notice(_)), "{error:?}");
+        assert!(
+            error.to_string().starts_with("inventory: cannot read "),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn bad_record_documents_keep_their_source() {
+        use std::error::Error as _;
+        let error = parse_records("not json").expect_err("json");
+        assert!(matches!(error, RuntimesError::Json(_)), "{error:?}");
+        assert!(error.to_string().starts_with("runtimes: "), "{error}");
+        assert!(error.source().is_some());
+        let error = parse_records(r#"{"schema":"runtime-inventory/v0","runtimes":[]}"#)
+            .expect_err("schema");
+        assert!(matches!(error, RuntimesError::Schema { .. }), "{error:?}");
+        assert_eq!(
+            error.to_string(),
+            "runtimes: schema \"runtime-inventory/v0\", want \"runtime-inventory/v1\""
+        );
+        let dir = tempfile::tempdir().expect("dir");
+        let error = read_records(&dir.path().join("absent.json")).expect_err("missing");
+        assert!(matches!(error, RuntimesError::Io(_)), "{error:?}");
+        assert!(error.to_string().starts_with("cannot read "), "{error}");
     }
 
     #[test]

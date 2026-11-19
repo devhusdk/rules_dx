@@ -68,7 +68,7 @@ rules_qt | Qt launcher | C++ | no
 - MPL-2.0 and BSD-3-Clause tools are redistributed unmodified.
 - GPL-3.0 and LGPL-3.0 tools are redistributed only with the exact source archive the binary was built from, published as an asset of the same release.
 - A tool built with patches publishes the patches with that source archive.
-- Linux arm64 Haskell tools link GMP statically, so the release ships `dx-haskell-gmp-LICENSE`, `dx-haskell-gmp-source.tar.xz` and `dx-haskell-gmp-source.patch`.
+- Linux Haskell tools link GMP statically, so the release ships `dx-haskell-gmp-LICENSE`, `dx-haskell-gmp-source.tar.xz` and `dx-haskell-gmp-source.patch`.
 
 ## Hosting
 
@@ -83,12 +83,12 @@ The owner decides where release-built assets are hosted.
 
 Tool | Licence | Upstream ships | linux_x86_64 | linux_arm64 | macos_arm64 | windows_x86_64
 --- | --- | --- | --- | --- | --- | ---
-nixfmt | MPL-2.0 | one static Linux x86_64 binary | up | rel | no | no
+nixfmt | MPL-2.0 | one static Linux x86_64 binary | up | rel | rel | no
 deadnix | GPL-3.0 | source only | rel | rel | rel | rel
 selene | MPL-2.0 | Linux x86_64, macOS and Windows x86_64 zips | rel | rel | rel | rel
 kcov | GPL-2.0 | source only | rel | rel | no | no
 zanuda | LGPL-3.0 | source only | own | own | own | no
-weeder | BSD-3-Clause | source only | own | rel | rel | rel
+weeder | BSD-3-Clause | source only | rel | rel | rel | rel
 hlint | BSD-3-Clause | Linux x86_64 and Windows x86_64 binaries | up | rel | rel | up
 ormolu | BSD-3-Clause | Linux x86_64, macOS arm64 and Windows x86_64 binaries | up | rel | up | up
 core Python tools | per wheel | wheels on PyPI | rel | rel | rel | rel
@@ -99,7 +99,7 @@ core Python tools | per wheel | wheels on PyPI | rel | rel | rel | rel
 - kcov: `//tools/coverage/kcov:kcov_static` builds it against musl, statically linking elfutils (with `patches/elfutils/musl.patch`) and zlib. `dx-kcov-source.tar.gz` holds the kcov tarball, its patches, `kcov.BUILD` and the elfutils and zlib sources. Gate it on `//tools/coverage/kcov:smoke_test` and `//tools/coverage/kcov:static_smoke_test`. elfutils, zlib and `@kcov` are rules_dx dev dependencies, so only the rules_dx root builds kcov from source. `DEV_SOURCE_FALLBACK` in `cli/prebuilt/tools.bzl` makes a consumer hub serve `@rules_dx//tools/coverage/kcov:none` on a platform with no kcov pin, and that test writes no coverage.
 - zanuda reads `.cmt` files of the consumer's OCaml, whose toolchain has no Windows cell.
 - weeder reads `.hie` files and is built with the consumer's GHC. `windows_arm64` is unsupported because GHC ships no bindist for it.
-- hlint and ormolu: the `hackage` job in `release-tools.yml` builds `@haskell_<tool>_hackage` for each `rel` cell, against musl on linux arm64, and ships `dx-<tool>-LICENSE` from the Hackage archive.
+- hlint, ormolu and nixfmt: the `hackage` job in `release-tools.yml` builds `@haskell_<tool>_hackage` for each `rel` cell, against musl on linux arm64, and ships `dx-<tool>-LICENSE` from the locked source archive.
 - Core Python tools: the `python-tools` job in `release-tools.yml` assembles one `dx-python-tools-<host>.tar.gz` bundle per host from a python-build-standalone interpreter and the wheels locked in `uv.lock`, compiling nothing. ansible-lint is unsupported on Windows.
 
 ## Source build inputs

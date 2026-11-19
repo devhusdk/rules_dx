@@ -25,7 +25,7 @@ _BUNDLETOOL = Label("//android/private/packaging:bundletool")
 
 _DEBUG_KEYSTORE = Label("@rules_android//tools/android:debug_keystore")
 
-_RUNTIME = Label("//cli/runtime:dx_runtime")
+_RUNTIME = Label("@dx_prebuilt//:runtime")
 
 _DX = Label("@dx_prebuilt//:dx")
 

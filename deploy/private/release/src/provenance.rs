@@ -1,6 +1,8 @@
 //! Typed view of the in-toto Statement v1 / SLSA provenance v1 that `render_provenance` writes.
 //! Verification reads these fields; it never matches on the raw text.
 
+use std::fmt;
+
 use serde::Deserialize;
 
 pub const STATEMENT_TYPE: &str = "https://in-toto.io/Statement/v1";
@@ -50,6 +52,33 @@ pub struct Statement {
     pub predicate: Predicate,
 }
 
+/// A provenance statement that does not bind the artifact to an allowlisted builder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProvenanceError {
+    StatementType,
+    PredicateType,
+    Subject { digest: String, base: String },
+    Builder { id: String, detail: String },
+}
+
+impl fmt::Display for ProvenanceError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::StatementType => f.write_str("provenance missing in-toto Statement v1"),
+            Self::PredicateType => f.write_str("provenance missing SLSA v1 predicate"),
+            Self::Subject { digest, base } => {
+                write!(f, "provenance missing subject digest {digest} for {base}")
+            }
+            Self::Builder { id, detail } => write!(
+                f,
+                "provenance builder.id '{id}' is not an allowlisted workflow identity: {detail}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for ProvenanceError {}
+
 /// Checks every binding with exact field comparisons. `builder` is the identity the caller expects;
 /// it must also pass the allowlist, so an arbitrary string fails closed.
 pub fn statement_error(
@@ -57,31 +86,33 @@ pub fn statement_error(
     base: &str,
     digest: &str,
     builder: &str,
-) -> Result<(), String> {
+) -> Result<(), ProvenanceError> {
     if statement.kind != STATEMENT_TYPE {
-        return Err("provenance missing in-toto Statement v1".to_owned());
+        return Err(ProvenanceError::StatementType);
     }
     if statement.predicate_type != PREDICATE_TYPE {
-        return Err("provenance missing SLSA v1 predicate".to_owned());
+        return Err(ProvenanceError::PredicateType);
     }
     if !statement
         .subject
         .iter()
         .any(|subject| subject.name == base && subject.digest.sha256 == digest)
     {
-        return Err(format!(
-            "provenance missing subject digest {digest} for {base}"
-        ));
+        return Err(ProvenanceError::Subject {
+            digest: digest.to_owned(),
+            base: base.to_owned(),
+        });
     }
     let id = &statement.predicate.run_details.builder.id;
     let detail = match crate::provenance_builder_error(id) {
-        Err(detail) => detail,
+        Err(error) => error.to_string(),
         Ok(()) if id == builder => return Ok(()),
         Ok(()) => format!("want '{builder}'"),
     };
-    Err(format!(
-        "provenance builder.id '{id}' is not an allowlisted workflow identity: {detail}"
-    ))
+    Err(ProvenanceError::Builder {
+        id: id.clone(),
+        detail,
+    })
 }
 
 #[cfg(test)]
@@ -111,7 +142,7 @@ mod tests {
         }
     }
 
-    fn check(statement: &Statement, builder: &str) -> Result<(), String> {
+    fn check(statement: &Statement, builder: &str) -> Result<(), ProvenanceError> {
         statement_error(statement, "a.bin", DIGEST, builder)
     }
 
@@ -138,7 +169,8 @@ mod tests {
         let mut statement = good(PROVENANCE_BUILDER_RELEASE);
         statement.kind.push('x');
         let err = check(&statement, PROVENANCE_BUILDER_RELEASE).expect_err("type");
-        assert!(err.contains("in-toto Statement v1"), "{err}");
+        assert_eq!(err, ProvenanceError::StatementType);
+        assert_eq!(err.to_string(), "provenance missing in-toto Statement v1");
     }
 
     #[test]
@@ -146,7 +178,8 @@ mod tests {
         let mut statement = good(PROVENANCE_BUILDER_RELEASE);
         statement.predicate_type.clear();
         let err = check(&statement, PROVENANCE_BUILDER_RELEASE).expect_err("predicate");
-        assert!(err.contains("SLSA v1 predicate"), "{err}");
+        assert_eq!(err, ProvenanceError::PredicateType);
+        assert_eq!(err.to_string(), "provenance missing SLSA v1 predicate");
     }
 
     #[test]
@@ -156,7 +189,11 @@ mod tests {
             statement.subject[0].name = name.to_owned();
             statement.subject[0].digest.sha256 = digest.to_owned();
             let err = check(&statement, PROVENANCE_BUILDER_RELEASE).expect_err("subject");
-            assert!(err.contains("missing subject digest"), "{err}");
+            assert!(matches!(err, ProvenanceError::Subject { .. }), "{err:?}");
+            assert_eq!(
+                err.to_string(),
+                format!("provenance missing subject digest {DIGEST} for a.bin")
+            );
         }
     }
 
@@ -168,6 +205,8 @@ mod tests {
             ("", PROVENANCE_BUILDER_RELEASE),
         ] {
             let err = check(&good(id), want).expect_err("builder");
+            assert!(matches!(err, ProvenanceError::Builder { .. }), "{err:?}");
+            let err = err.to_string();
             assert!(err.contains("builder.id"), "{err}");
             assert!(err.contains("is not an allowlisted"), "{err}");
         }

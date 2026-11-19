@@ -3,8 +3,9 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@dx_pins_data//:pins.bzl", "PINS")
 load("@rules_ruby//ruby/private:download.bzl", "is_reproducible")
-load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
+load("@rules_ruby//ruby/private:providers.bzl", "BundlerInfo")
 load("//core:host.bzl", "host_cell_of")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 
 _TOOLCHAIN_TYPE = "@rules_ruby//ruby:toolchain_type"
 
@@ -51,6 +52,22 @@ def ruby_toolchain_contract_tests(name, size):
         name = name,
         target_under_test = ":" + name + "_probe",
         windows = select({"@platforms//os:windows": True, "//conditions:default": False}),
+        size = size,
+    )
+
+def _frozen_impl(ctx):
+    env = analysistest.begin(ctx)
+    bundle_env = analysistest.target_under_test(env)[BundlerInfo].env
+    asserts.equals(env, "true", bundle_env.get("BUNDLE_FROZEN"))
+    return analysistest.end(env)
+
+_frozen_test = analysistest.make(_frozen_impl)
+
+def ruby_gems_frozen_tests(name, size):
+    """Asserts the gem hub bundle runs with BUNDLE_FROZEN."""
+    _frozen_test(
+        name = name,
+        target_under_test = "@gems//:gems",
         size = size,
     )
 

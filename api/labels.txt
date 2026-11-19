@@ -124,6 +124,7 @@
 //flatbuffers:reflection_fbs_schema alias
 //flatbuffers:runtime_java alias
 //flatbuffers:runtime_rust alias
+//flutter:profile alias
 //fortran:kcov bool_flag False
 //fortran:kcov_build config_setting
 //haskell:base alias

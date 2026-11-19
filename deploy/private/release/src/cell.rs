@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
 use std::path::{Path, PathBuf};
 
+use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_deploy_tools::import_allowed;
 use serde::{Deserialize, Serialize};
 
@@ -84,31 +85,223 @@ struct Matrix {
     cells: Vec<Cell>,
 }
 
+/// A failed release-cell matrix, record, flag, command or staging step.
+#[derive(Debug)]
+pub enum CellError {
+    /// A file operation failed.
+    Io(PathIoError),
+    /// Staging the consumer workspace failed.
+    Stage(Box<CellError>),
+    InsideCheckout {
+        dir: PathBuf,
+        checkout: PathBuf,
+    },
+    Clear {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    Copy {
+        from: PathBuf,
+        source: std::io::Error,
+    },
+    InitWroteNoModule(PathIoError),
+    /// A command exited unsuccessfully; `stdout` is clipped and may be empty.
+    Command {
+        command: String,
+        stderr: String,
+        stdout: String,
+    },
+    MatrixJson(serde_json::Error),
+    MatrixSchema {
+        schema: String,
+    },
+    MatrixEmpty,
+    MatrixDuplicate {
+        cell: String,
+    },
+    MatrixCell {
+        cell: String,
+        reason: String,
+    },
+    RecordJson {
+        path: PathBuf,
+        source: serde_json::Error,
+    },
+    RecordSchema {
+        path: PathBuf,
+        schema: String,
+    },
+    SnippetRulesDx {
+        snippet: String,
+    },
+    SnippetOverride,
+    PatchNoTarget {
+        label: String,
+    },
+    PatchOutsidePatches {
+        label: String,
+    },
+    UnknownArgument {
+        flag: String,
+    },
+    NeedsValue {
+        flag: String,
+    },
+    GivenTwice {
+        flag: String,
+    },
+    MissingFlag {
+        name: String,
+    },
+    /// `--flag` was given without `--requires`.
+    FlagRequires {
+        flag: &'static str,
+        requires: &'static str,
+    },
+    UnknownCell {
+        name: String,
+    },
+    EmptyLicenseId {
+        list: String,
+    },
+    NoVersionLine {
+        stdout: String,
+    },
+    Render(dx_fingerprint::FingerprintError),
+}
+
+impl fmt::Display for CellError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(source) => write!(f, "{source}"),
+            Self::Stage(source) => write!(f, "stage: {source}"),
+            Self::InsideCheckout { dir, checkout } => write!(
+                f,
+                "{} is inside the checkout {}",
+                dir.display(),
+                checkout.display()
+            ),
+            Self::Clear { path, source } => write!(f, "cannot clear {}: {source}", path.display()),
+            Self::Copy { from, source } => write!(f, "cannot copy {}: {source}", from.display()),
+            Self::InitWroteNoModule(source) => write!(f, "dx init wrote no MODULE.bazel: {source}"),
+            Self::Command {
+                command,
+                stderr,
+                stdout,
+            } => {
+                write!(f, "{command} failed: {stderr}")?;
+                if !stdout.is_empty() {
+                    write!(f, "\nstdout: {stdout}")?;
+                }
+                Ok(())
+            }
+            Self::MatrixJson(source) => write!(f, "release matrix: {source}"),
+            Self::MatrixSchema { schema } => write!(
+                f,
+                "release matrix: schema {schema:?}, want {MATRIX_SCHEMA:?}"
+            ),
+            Self::MatrixEmpty => f.write_str("release matrix: no cells"),
+            Self::MatrixDuplicate { cell } => write!(f, "release matrix: duplicate cell {cell:?}"),
+            Self::MatrixCell { cell, reason } => {
+                write!(f, "release matrix: cell {cell:?}: {reason}")
+            }
+            Self::RecordJson { path, source } => write!(f, "record {}: {source}", path.display()),
+            Self::RecordSchema { path, schema } => write!(
+                f,
+                "record {}: schema {schema:?}, want {RECORD_SCHEMA:?}",
+                path.display()
+            ),
+            Self::SnippetRulesDx { snippet } => write!(
+                f,
+                "dx init snippet must declare rules_dx exactly once: {snippet}"
+            ),
+            Self::SnippetOverride => {
+                f.write_str("dx init snippet already carries a local_path_override")
+            }
+            Self::PatchNoTarget { label } => write!(f, "override patch //{label} has no target"),
+            Self::PatchOutsidePatches { label } => {
+                write!(f, "override patch //{label} is outside //patches")
+            }
+            Self::UnknownArgument { flag } => write!(f, "unknown argument {flag:?}"),
+            Self::NeedsValue { flag } => write!(f, "{flag} needs a value"),
+            Self::GivenTwice { flag } => write!(f, "{flag} given twice"),
+            Self::MissingFlag { name } => write!(f, "missing --{name}"),
+            Self::FlagRequires { flag, requires } => write!(f, "--{flag} needs --{requires}"),
+            Self::UnknownCell { name } => write!(f, "unknown cell {name:?}"),
+            Self::EmptyLicenseId { list } => {
+                write!(f, "--accept-licenses {list:?} has an empty id")
+            }
+            Self::NoVersionLine { stdout } => write!(f, "no `dx <version>` line in {stdout:?}"),
+            Self::Render(source) => write!(f, "cannot render JSON: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for CellError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(source) | Self::InitWroteNoModule(source) => Some(source),
+            Self::Stage(source) => Some(source.as_ref()),
+            Self::Clear { source, .. } | Self::Copy { source, .. } => Some(source),
+            Self::MatrixJson(source) | Self::RecordJson { source, .. } => Some(source),
+            Self::Render(source) => Some(source),
+            Self::InsideCheckout { .. }
+            | Self::Command { .. }
+            | Self::MatrixSchema { .. }
+            | Self::MatrixEmpty
+            | Self::MatrixDuplicate { .. }
+            | Self::MatrixCell { .. }
+            | Self::RecordSchema { .. }
+            | Self::SnippetRulesDx { .. }
+            | Self::SnippetOverride
+            | Self::PatchNoTarget { .. }
+            | Self::PatchOutsidePatches { .. }
+            | Self::UnknownArgument { .. }
+            | Self::NeedsValue { .. }
+            | Self::GivenTwice { .. }
+            | Self::MissingFlag { .. }
+            | Self::FlagRequires { .. }
+            | Self::UnknownCell { .. }
+            | Self::EmptyLicenseId { .. }
+            | Self::NoVersionLine { .. } => None,
+        }
+    }
+}
+
+impl From<PathIoError> for CellError {
+    fn from(source: PathIoError) -> Self {
+        Self::Io(source)
+    }
+}
+
 /// Parses and validates one release-matrix/v1 document.
 ///
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse_matrix(text: &str) -> Result<Vec<Cell>, String> {
-    let matrix: Matrix =
-        serde_json::from_str(text).map_err(|error| format!("release matrix: {error}"))?;
+pub fn parse_matrix(text: &str) -> Result<Vec<Cell>, CellError> {
+    let matrix: Matrix = serde_json::from_str(text).map_err(CellError::MatrixJson)?;
     if matrix.schema != MATRIX_SCHEMA {
-        return Err(format!(
-            "release matrix: schema {:?}, want {MATRIX_SCHEMA:?}",
-            matrix.schema
-        ));
+        return Err(CellError::MatrixSchema {
+            schema: matrix.schema,
+        });
     }
     if matrix.cells.is_empty() {
-        return Err("release matrix: no cells".to_owned());
+        return Err(CellError::MatrixEmpty);
     }
     let mut names = BTreeSet::new();
     for cell in &matrix.cells {
         if !names.insert(cell.name.as_str()) {
-            return Err(format!("release matrix: duplicate cell {:?}", cell.name));
+            return Err(CellError::MatrixDuplicate {
+                cell: cell.name.clone(),
+            });
         }
-        cell_error(cell).map_or(Ok(()), |error| {
-            Err(format!("release matrix: cell {:?}: {error}", cell.name))
-        })?;
+        if let Some(reason) = cell_error(cell) {
+            return Err(CellError::MatrixCell {
+                cell: cell.name.clone(),
+                reason,
+            });
+        }
     }
     Ok(matrix.cells)
 }
@@ -219,8 +412,8 @@ impl CellRecord {
     /// # Errors
     ///
     /// Returns an error when the record cannot be rendered as JSON.
-    pub fn render(&self) -> Result<String, String> {
-        crate::render_pretty(self)
+    pub fn render(&self) -> Result<String, CellError> {
+        crate::pretty_json(self).map_err(CellError::Render)
     }
 }
 
@@ -343,24 +536,22 @@ fn clip(text: &str) -> String {
     )
 }
 
-fn ran(runner: &dyn Runner, program: &Path, args: &[&str], cwd: &Path) -> Result<String, String> {
+fn ran(
+    runner: &dyn Runner,
+    program: &Path,
+    args: &[&str],
+    cwd: &Path,
+) -> Result<String, CellError> {
     let out = runner.run(program, args, cwd);
     if out.success {
         return Ok(out.stdout);
     }
     // `dx check` prints its findings on stdout and only the progress log on stderr.
-    let stdout = clip(out.stdout.trim());
-    let mut message = format!(
-        "{} {} failed: {}",
-        program.display(),
-        args.join(" "),
-        out.stderr.trim()
-    );
-    if !stdout.is_empty() {
-        message.push_str("\nstdout: ");
-        message.push_str(&stdout);
-    }
-    Err(message)
+    Err(CellError::Command {
+        command: format!("{} {}", program.display(), args.join(" ")),
+        stderr: out.stderr.trim().to_owned(),
+        stdout: clip(out.stdout.trim()),
+    })
 }
 
 fn starlark_string(text: &str) -> String {
@@ -423,7 +614,7 @@ pub fn root_overrides(root_module: &str) -> Vec<String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn override_patches(overrides: &[String]) -> Result<Vec<(String, String)>, String> {
+pub fn override_patches(overrides: &[String]) -> Result<Vec<(String, String)>, CellError> {
     let mut patches = Vec::new();
     for block in overrides {
         for label in block.split('"').skip(1).step_by(2) {
@@ -431,10 +622,14 @@ pub fn override_patches(overrides: &[String]) -> Result<Vec<(String, String)>, S
                 continue;
             };
             let Some((package, file)) = label.split_once(':') else {
-                return Err(format!("override patch //{label} has no target"));
+                return Err(CellError::PatchNoTarget {
+                    label: label.to_owned(),
+                });
             };
             if !package.starts_with("patches/") || file.contains('/') {
-                return Err(format!("override patch //{label} is outside //patches"));
+                return Err(CellError::PatchOutsidePatches {
+                    label: label.to_owned(),
+                });
             }
             patches.push((package.to_owned(), file.to_owned()));
         }
@@ -451,7 +646,7 @@ pub fn consumer_module(
     init_module: &str,
     root_module: &str,
     checkout: &Path,
-) -> Result<String, String> {
+) -> Result<String, CellError> {
     let mut kept = Vec::new();
     let mut in_module = false;
     for line in init_module.lines() {
@@ -466,12 +661,12 @@ pub fn consumer_module(
     let snippet = kept.join("\n");
     let snippet = snippet.trim();
     if snippet.matches("bazel_dep(name = \"rules_dx\", ").count() != 1 {
-        return Err(format!(
-            "dx init snippet must declare rules_dx exactly once: {snippet}"
-        ));
+        return Err(CellError::SnippetRulesDx {
+            snippet: snippet.to_owned(),
+        });
     }
     if snippet.contains("local_path_override(") {
-        return Err("dx init snippet already carries a local_path_override".to_owned());
+        return Err(CellError::SnippetOverride);
     }
     Ok(format!(
         "module(name = {})\n\n{}\n{}{}",
@@ -495,30 +690,40 @@ pub fn stage_consumer(
     work: &Path,
     windows: bool,
     runner: &dyn Runner,
-) -> Result<PathBuf, String> {
+) -> Result<PathBuf, CellError> {
+    stage_consumer_in(consumer, exe, work, windows, runner)
+        .map_err(|error| CellError::Stage(Box::new(error)))
+}
+
+fn stage_consumer_in(
+    consumer: &Consumer,
+    exe: &Path,
+    work: &Path,
+    windows: bool,
+    runner: &dyn Runner,
+) -> Result<PathBuf, CellError> {
     let dir = work.join(CONSUMER_DIR);
     if dir.starts_with(&consumer.checkout) {
-        return Err(format!(
-            "stage: {} is inside the checkout {}",
-            dir.display(),
-            consumer.checkout.display()
-        ));
+        return Err(CellError::InsideCheckout {
+            dir,
+            checkout: consumer.checkout.clone(),
+        });
     }
     if dir.exists() {
-        std::fs::remove_dir_all(&dir)
-            .map_err(|error| format!("stage: cannot clear {}: {error}", dir.display()))?;
+        std::fs::remove_dir_all(&dir).map_err(|source| CellError::Clear {
+            path: dir.clone(),
+            source,
+        })?;
     }
-    std::fs::create_dir_all(&dir)
-        .map_err(|error| format!("stage: cannot create {}: {error}", dir.display()))?;
+    path_io::create_dir_all(&dir)?;
     let copy = |from: PathBuf, to: &str| {
         let to = dir.join(to);
         if let Some(parent) = to.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|error| format!("stage: cannot create {}: {error}", parent.display()))?;
+            path_io::create_dir_all(parent)?;
         }
         std::fs::copy(&from, to)
             .map(drop)
-            .map_err(|error| format!("stage: cannot copy {}: {error}", from.display()))
+            .map_err(|source| CellError::Copy { from, source })
     };
     let workspace = dir.to_string_lossy().into_owned();
     let mut init = vec![
@@ -531,35 +736,28 @@ pub fn stage_consumer(
     for id in &consumer.accept_licenses {
         init.extend(["--accept-license", id.as_str()]);
     }
-    ran(runner, exe, &init, &dir).map_err(|error| format!("stage: {error}"))?;
-    let written = std::fs::read_to_string(dir.join("MODULE.bazel"))
-        .map_err(|error| format!("stage: dx init wrote no MODULE.bazel: {error}"))?;
-    let root_path = consumer.checkout.join("MODULE.bazel");
-    let root = std::fs::read_to_string(&root_path)
-        .map_err(|error| format!("stage: cannot read {}: {error}", root_path.display()))?;
-    let module = consumer_module(&written, &root, &consumer.checkout)
-        .map_err(|error| format!("stage: {error}"))?;
-    std::fs::write(dir.join("MODULE.bazel"), module)
-        .map_err(|error| format!("stage: cannot write MODULE.bazel: {error}"))?;
-    let patches =
-        override_patches(&root_overrides(&root)).map_err(|error| format!("stage: {error}"))?;
-    for (package, file) in patches {
+    ran(runner, exe, &init, &dir)?;
+    let module_path = dir.join("MODULE.bazel");
+    let written = path_io::read_to_string(&module_path).map_err(CellError::InitWroteNoModule)?;
+    let root = path_io::read_to_string(&consumer.checkout.join("MODULE.bazel"))?;
+    let module = consumer_module(&written, &root, &consumer.checkout)?;
+    path_io::write_scratch(&module_path, module.as_bytes())?;
+    for (package, file) in override_patches(&root_overrides(&root))? {
         let build = dir.join(&package).join("BUILD.bazel");
         if !build.exists() {
-            std::fs::create_dir_all(dir.join(&package))
-                .map_err(|error| format!("stage: cannot create {package}: {error}"))?;
-            std::fs::write(&build, "")
-                .map_err(|error| format!("stage: cannot write {}: {error}", build.display()))?;
+            path_io::create_dir_all(&dir.join(&package))?;
+            path_io::write_scratch(&build, b"")?;
         }
         copy(
             consumer.checkout.join(&package).join(&file),
             &format!("{package}/{file}"),
         )?;
     }
-    std::fs::create_dir_all(dir.join("config"))
-        .map_err(|error| format!("stage: cannot create config: {error}"))?;
-    std::fs::write(dir.join("config/BUILD.bazel"), CONSUMER_CONFIG_BUILD)
-        .map_err(|error| format!("stage: cannot write config/BUILD.bazel: {error}"))?;
+    path_io::create_dir_all(&dir.join("config"))?;
+    path_io::write_scratch(
+        &dir.join("config/BUILD.bazel"),
+        CONSUMER_CONFIG_BUILD.as_bytes(),
+    )?;
     for (source, dest) in CONSUMER_FILES {
         copy(consumer.template.join(source), dest)?;
     }
@@ -571,14 +769,13 @@ pub fn stage_consumer(
             text.push('\n');
         }
         text.push_str(WINDOWS_BAZELRC);
-        std::fs::write(&rc, text)
-            .map_err(|error| format!("stage: cannot write .bazelrc: {error}"))?;
+        path_io::write_scratch(&rc, text.as_bytes())?;
     }
     Ok(dir)
 }
 
 fn version_check(runner: &dyn Runner, exe: &Path, cwd: &Path, version: &str) -> Result<(), String> {
-    let stdout = ran(runner, exe, &["--version"], cwd)?;
+    let stdout = ran(runner, exe, &["--version"], cwd).map_err(|error| error.to_string())?;
     if stdout.contains(version) {
         return Ok(());
     }
@@ -790,6 +987,7 @@ fn installed_checks(
     verdicts.note(
         "run",
         ran(runner, &exe, &["help"], &install)
+            .map_err(|error| error.to_string())
             .and_then(|_| version_check(runner, &exe, &install, &inputs.version)),
     );
     let moved = inputs.work.join(MOVED_DIR);
@@ -818,6 +1016,7 @@ fn installed_checks(
             cell.os == "windows",
             runner,
         )
+        .map_err(|error| error.to_string())
         .and_then(|dir| {
             [
                 vec!["build", "//..."],
@@ -825,7 +1024,11 @@ fn installed_checks(
                 vec!["check", "--diff", "//..."],
             ]
             .into_iter()
-            .try_for_each(|args| ran(runner, &moved_exe, &args, &dir).map(drop))
+            .try_for_each(|args| {
+                ran(runner, &moved_exe, &args, &dir)
+                    .map(drop)
+                    .map_err(|error| error.to_string())
+            })
         }),
     );
 }
@@ -1048,17 +1251,18 @@ fn record_errors(
     errors
 }
 
-fn read_record(path: &Path) -> Result<CellRecord, String> {
-    let text = std::fs::read_to_string(path)
-        .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
-    let record: CellRecord = serde_json::from_str(&text)
-        .map_err(|error| format!("record {}: {error}", path.display()))?;
+fn read_record(path: &Path) -> Result<CellRecord, CellError> {
+    let text = path_io::read_to_string(path)?;
+    let record: CellRecord =
+        serde_json::from_str(&text).map_err(|source| CellError::RecordJson {
+            path: path.to_path_buf(),
+            source,
+        })?;
     if record.schema != RECORD_SCHEMA {
-        return Err(format!(
-            "record {}: schema {:?}, want {RECORD_SCHEMA:?}",
-            path.display(),
-            record.schema
-        ));
+        return Err(CellError::RecordSchema {
+            path: path.to_path_buf(),
+            schema: record.schema,
+        });
     }
     Ok(record)
 }
@@ -1128,7 +1332,7 @@ pub fn verify_each(
         let record = match read_record(&path) {
             Ok(record) => record,
             Err(error) => {
-                stray.push(error);
+                stray.push(error.to_string());
                 continue;
             }
         };
@@ -1196,7 +1400,7 @@ fn parse_flags<'a>(
     args: &'a [String],
     required: &[&str],
     optional: &[&str],
-) -> Result<BTreeMap<&'a str, &'a str>, String> {
+) -> Result<BTreeMap<&'a str, &'a str>, CellError> {
     let mut flags = BTreeMap::new();
     let mut rest = args;
     while let [flag, tail @ ..] = rest {
@@ -1204,18 +1408,20 @@ fn parse_flags<'a>(
             .strip_prefix("--")
             .filter(|name| required.contains(name) || optional.contains(name))
         else {
-            return Err(format!("unknown argument {flag:?}"));
+            return Err(CellError::UnknownArgument { flag: flag.clone() });
         };
         let [value, after @ ..] = tail else {
-            return Err(format!("{flag} needs a value"));
+            return Err(CellError::NeedsValue { flag: flag.clone() });
         };
         if flags.insert(name, value.as_str()).is_some() {
-            return Err(format!("{flag} given twice"));
+            return Err(CellError::GivenTwice { flag: flag.clone() });
         }
         rest = after;
     }
     if let Some(missing) = required.iter().find(|name| !flags.contains_key(*name)) {
-        return Err(format!("missing --{missing}"));
+        return Err(CellError::MissingFlag {
+            name: (*missing).to_owned(),
+        });
     }
     Ok(flags)
 }
@@ -1224,10 +1430,8 @@ fn flag(flags: &BTreeMap<&str, &str>, name: &str) -> String {
     flags.get(name).copied().unwrap_or_default().to_owned()
 }
 
-fn read_matrix(path: &str) -> Result<Vec<Cell>, String> {
-    let text =
-        std::fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))?;
-    parse_matrix(&text)
+fn read_matrix(path: &str) -> Result<Vec<Cell>, CellError> {
+    parse_matrix(&path_io::read_to_string(Path::new(path))?)
 }
 
 pub const QUALIFY_USAGE: &str = "qualify --matrix <release_matrix.json> --cell <name> --archive <path> --rebuild <path> --work <dir> --sha <commit> --version <version> --workflow-ref <ref> --workflow-sha <commit> --run-id <id> --job <name> --out <record.json> [--consumer <template dir> --checkout <rules_dx dir> [--accept-licenses <id,id>]] [--symbols <zip> --symbols-rebuild <zip>]";
@@ -1243,7 +1447,7 @@ pub fn parse_qualify_args(
     args: &[String],
     runner_os: &str,
     runner_arch: &str,
-) -> Result<(QualifyInputs, PathBuf), String> {
+) -> Result<(QualifyInputs, PathBuf), CellError> {
     let flags = parse_flags(
         args,
         &[
@@ -1273,8 +1477,18 @@ pub fn parse_qualify_args(
             archive: PathBuf::from(*archive),
             rebuild: PathBuf::from(*rebuild),
         }),
-        (Some(_), None) => return Err("--symbols needs --symbols-rebuild".to_owned()),
-        (None, Some(_)) => return Err("--symbols-rebuild needs --symbols".to_owned()),
+        (Some(_), None) => {
+            return Err(CellError::FlagRequires {
+                flag: "symbols",
+                requires: "symbols-rebuild",
+            });
+        }
+        (None, Some(_)) => {
+            return Err(CellError::FlagRequires {
+                flag: "symbols-rebuild",
+                requires: "symbols",
+            });
+        }
         (None, None) => None,
     };
     let accept_licenses = match flags.get("accept-licenses") {
@@ -1287,10 +1501,23 @@ pub fn parse_qualify_args(
             checkout: PathBuf::from(*checkout),
             accept_licenses,
         }),
-        (Some(_), None) => return Err("--consumer needs --checkout".to_owned()),
-        (None, Some(_)) => return Err("--checkout needs --consumer".to_owned()),
+        (Some(_), None) => {
+            return Err(CellError::FlagRequires {
+                flag: "consumer",
+                requires: "checkout",
+            });
+        }
+        (None, Some(_)) => {
+            return Err(CellError::FlagRequires {
+                flag: "checkout",
+                requires: "consumer",
+            });
+        }
         (None, None) if flags.contains_key("accept-licenses") => {
-            return Err("--accept-licenses needs --consumer".to_owned());
+            return Err(CellError::FlagRequires {
+                flag: "accept-licenses",
+                requires: "consumer",
+            });
         }
         (None, None) => None,
     };
@@ -1298,7 +1525,7 @@ pub fn parse_qualify_args(
     let cell = read_matrix(&flag(&flags, "matrix"))?
         .into_iter()
         .find(|cell| cell.name == name)
-        .ok_or_else(|| format!("unknown cell {name:?}"))?;
+        .ok_or(CellError::UnknownCell { name })?;
     let inputs = QualifyInputs {
         cell,
         archive: PathBuf::from(flag(&flags, "archive")),
@@ -1319,12 +1546,14 @@ pub fn parse_qualify_args(
 }
 
 /// Splits the comma-separated `--accept-licenses` value; an empty id is a typo, not "none".
-fn parse_license_ids(list: &str) -> Result<Vec<String>, String> {
+fn parse_license_ids(list: &str) -> Result<Vec<String>, CellError> {
     list.split(',')
         .map(|id| {
             let id = id.trim();
             if id.is_empty() {
-                Err(format!("--accept-licenses {list:?} has an empty id"))
+                Err(CellError::EmptyLicenseId {
+                    list: list.to_owned(),
+                })
             } else {
                 Ok(id.to_owned())
             }
@@ -1346,7 +1575,7 @@ pub struct VerifyArgs {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse_verify_args(args: &[String]) -> Result<VerifyArgs, String> {
+pub fn parse_verify_args(args: &[String]) -> Result<VerifyArgs, CellError> {
     let flags = parse_flags(
         args,
         &[
@@ -1376,11 +1605,10 @@ pub fn parse_verify_args(args: &[String]) -> Result<VerifyArgs, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn qualify_main(args: &[String], runner: &dyn Runner) -> Result<CellRecord, String> {
+pub fn qualify_main(args: &[String], runner: &dyn Runner) -> Result<CellRecord, CellError> {
     let (inputs, out) = parse_qualify_args(args, std::env::consts::OS, std::env::consts::ARCH)?;
     let record = qualify(&inputs, runner);
-    std::fs::write(&out, record.render()?)
-        .map_err(|error| format!("cannot write {}: {error}", out.display()))?;
+    path_io::write_scratch(&out, record.render()?.as_bytes())?;
     Ok(record)
 }
 
@@ -1423,7 +1651,7 @@ pub fn render_verification(verification: &Verification) -> String {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn verify_main(args: &[String]) -> Result<(bool, String), String> {
+pub fn verify_main(args: &[String]) -> Result<(bool, String), CellError> {
     let parsed = parse_verify_args(args)?;
     let verification = verify_each(
         &parsed.matrix,
@@ -1441,13 +1669,15 @@ pub const VERSION_USAGE: &str = "version --exe <path>";
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn printed_version(stdout: &str) -> Result<String, String> {
+pub fn printed_version(stdout: &str) -> Result<String, CellError> {
     stdout
         .lines()
         .find_map(|line| line.strip_prefix("dx "))
         .map(|rest| rest.trim().to_owned())
         .filter(|version| !version.is_empty())
-        .ok_or_else(|| format!("no `dx <version>` line in {:?}", stdout.trim()))
+        .ok_or_else(|| CellError::NoVersionLine {
+            stdout: stdout.trim().to_owned(),
+        })
 }
 
 /// Runs `version` from flags: asks the executable for its version and returns it.
@@ -1455,7 +1685,7 @@ pub fn printed_version(stdout: &str) -> Result<String, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn version_main(args: &[String], runner: &dyn Runner) -> Result<String, String> {
+pub fn version_main(args: &[String], runner: &dyn Runner) -> Result<String, CellError> {
     let flags = parse_flags(args, &["exe"], &[])?;
     let stdout = ran(
         runner,

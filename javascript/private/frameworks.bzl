@@ -94,7 +94,7 @@ _dx_framework_web_app = rule(
     },
 )
 
-_VITE_TOOL = Label("//javascript/private:vite_tool")
+_VITE_TOOL = Label("//javascript/private:vite_build_tool")
 
 def _dx_framework_vite_run(name, out, srcs, config, node_modules, packages, mnemonic, package_json, public, deps, visibility, tags, testonly, target_compatible_with, tool, ssr_entry = None):
     env = {"VITE_TOOL_PACKAGE": native.package_name()}

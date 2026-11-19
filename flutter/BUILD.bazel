@@ -20,6 +20,13 @@ exports_files([
     "pins.json",
 ])
 
+# Profile mode for flutter_application, as a transition output: `"@rules_dx//flutter:profile": True`.
+alias(
+    name = "profile",
+    actual = "@rules_flutter//flutter:profile",
+    visibility = ["//visibility:public"],
+)
+
 real_source_target(
     name = "corpus_markdown",
     markdown_srcs = ["README.md"],

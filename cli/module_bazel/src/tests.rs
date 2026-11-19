@@ -325,6 +325,28 @@ fn load_labels_lists_plain_and_relative_loads_in_order() {
 }
 
 #[test]
+fn loaded_calls_follows_aliases_and_nested_calls() {
+    let source = "load(\"@rules_dx//deploy:defs.bzl\", \"npm_deploy\", my = \"oci_deploy\", \"unused\")\n# npm_deploy(name = \"c\")\n\nmy(name = \"a\")\n\n[npm_deploy(name = n) for n in [\"x\"]]\n\nother(name = \"b\")\n";
+    let found = |module: &str, their: &str| (module.to_owned(), their.to_owned());
+    assert_eq!(
+        loaded_calls(source).expect("parses"),
+        [
+            found("@rules_dx//deploy:defs.bzl", "oci_deploy"),
+            found("@rules_dx//deploy:defs.bzl", "npm_deploy"),
+        ]
+    );
+    assert_eq!(loaded_calls("x(1)\n").expect("no loads"), []);
+}
+
+#[test]
+fn loaded_calls_reports_syntax_errors() {
+    assert!(matches!(
+        loaded_calls("load(\"//a:b.bzl\", \"x\")\nx(\n"),
+        Err(ModuleError::StarlarkSyntax { .. })
+    ));
+}
+
+#[test]
 fn load_labels_reports_syntax_errors() {
     assert!(matches!(
         load_labels("x = 1\nload(\"//a:b.bzl\"\n"),

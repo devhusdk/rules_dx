@@ -4,11 +4,17 @@ package(default_visibility = ["//:__subpackages__"])
 
 alias(
     name = "bin",
+    actual = "@dx_prebuilt//:hlint",
+)
+
+alias(
+    name = "source",
     actual = select({
         "//haskell/private/toolchain:cell_linux_arm64": "@haskell_hlint_hackage//:hlint-exe-hlint",
         "//haskell/private/toolchain:cell_macos_arm64": "@haskell_hlint_hackage//:hlint-exe-hlint",
         "//conditions:default": "@dx_tools//:hlint",
     }),
+    visibility = ["//visibility:public"],
 )
 
 real_source_target(

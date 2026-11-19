@@ -7,6 +7,7 @@ load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/private/toolchain:pins.bzl", QT_CELLS = "CELLS")
 load("@dx_pins_data//:pins.bzl", "DATA")
+load("//cli/prebuilt:tools.bzl", "TOOLS")
 load("//core/quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS", "SOURCE_BUILT_TOOL_PLATFORMS")
 load("//core/quality/testdata:real_result_cases.bzl", "REAL_RESULT_CASES", "real_result_evidence")
 load("//core/quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
@@ -29,11 +30,13 @@ def _artifact_platforms():
         by_tool.setdefault(artifact["tool"], []).append(artifact["os"] + "_" + artifact["cpu"])
     return by_tool
 
-def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, emulated = EMULATED_TOOLS, source_built = SOURCE_BUILT_TOOL_PLATFORMS):
-    """Returns claimed platforms with no artifact: no native pin, no inventoried emulated fallback and no source build."""
+_RELEASED = {tool: entry.platforms for tool, entry in TOOLS.items()}
+
+def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, emulated = EMULATED_TOOLS, source_built = SOURCE_BUILT_TOOL_PLATFORMS, released = _RELEASED):
+    """Returns claimed platforms with no artifact: no native pin, no release asset, no inventoried emulated fallback and no source build."""
     missing = []
     for platform in claimed:
-        if platform in pinned or platform in source_built.get(tool, []):
+        if platform in pinned or platform in released.get(tool, []) or platform in source_built.get(tool, []):
             continue
         target = fallbacks.get(platform)
         if target in pinned and tool in emulated.get(platform, []):
@@ -95,6 +98,16 @@ def _evidence_checks():
         expect_equal(
             "tool outside the source-built inventory fails the pin check",
             unpinned_platforms("regal", ["linux_arm64"], ["linux_x86_64"], {}, {}, {"nixfmt": ["linux_arm64"]}),
+            ["linux_arm64"],
+        ),
+        expect_equal(
+            "release-built tool claiming linux_arm64 passes the pin check",
+            unpinned_platforms("hlint", ["linux_arm64", "linux_x86_64"], ["linux_x86_64"], {}, {}, {}, {"hlint": ["linux_arm64"]}),
+            [],
+        ),
+        expect_equal(
+            "tool outside the release registry fails the pin check",
+            unpinned_platforms("regal", ["linux_arm64"], ["linux_x86_64"], {}, {}, {}, {"hlint": ["linux_arm64"]}),
             ["linux_arm64"],
         ),
         expect_equal(
@@ -631,6 +644,16 @@ def support_unit_tests(name):
                 "bad transport is rejected",
                 support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "parcel"}),
                 "support: tool 'keep_sorted' needs transport 'batched' or 'single', got 'parcel'",
+            ),
+            expect_equal(
+                "no registry release asset duplicates an upstream pin",
+                sorted([
+                    tool + " " + platform
+                    for tool, platforms in _artifact_platforms().items()
+                    for platform in platforms
+                    if platform in _RELEASED.get(tool, [])
+                ]),
+                [],
             ),
         ] + _evidence_checks() + _toolchain_checks() + _record_checks(real_wired_capabilities(), _artifact_platforms()),
     )

@@ -146,13 +146,63 @@ fn haskell_job_builds_every_haskell_asset() {
     assert!(tools.contains("//haskell/private/coverage:hpc_lcov_source dx-hpc-lcov-$HOST"));
     assert!(tools.contains("//haskell/private/tools/weeder/bin:source dx-weeder-$HOST"));
     assert!(release.contains("for tool in dx-hpc-lcov dx-weeder; do"));
-    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 7"));
     assert!(release.contains("dx-weeder-LICENSE >> out/dx-haskell-sha256sums.txt"));
-    assert!(release.contains("files=\"$files dx-weeder-LICENSE dx-haskell-sha256sums.txt\""));
+    assert!(release.contains("files=\"$files dx-weeder-LICENSE\""));
+    assert!(release.contains("files=\"$files dx-haskell-sha256sums.txt\""));
     assert!(tools.contains("{ echo \"weeder archive sha256 differs from haskell/private/tools/weeder/cabal.lock.json\" >&2; exit 1; }"));
     assert!(tools.contains("\"weeder-$weeder_version/LICENSE\" > \"$out/dx-weeder-LICENSE\""));
     assert!(release.contains("sha256sum -c dx-haskell-sha256sums.txt"));
     assert!(release.contains("--manifest \"$PWD/out/dx-haskell-sha256sums.txt\""));
+}
+
+#[test]
+fn hackage_job_builds_hlint_and_ormolu() {
+    let workflow = document(TOOLS).unwrap();
+    assert_eq!(workflow["jobs"]["hackage"]["permissions"]["contents"], "read");
+    let tools = read_runfiles(TOOLS);
+    let release = read_runfiles(RELEASE);
+    assert!(tools.contains("name: release-tool-haskell-${{ matrix.tool }}-${{ matrix.host }}"));
+    let include = workflow["jobs"]["hackage"]["strategy"]["matrix"]["include"]
+        .as_array()
+        .expect("matrix include");
+    let found: Vec<[&str; 5]> = include
+        .iter()
+        .map(|entry| {
+            ["tool", "host", "runner", "target", "lock"]
+                .map(|field| entry[field].as_str().expect("matrix field"))
+        })
+        .collect();
+    assert_eq!(
+        found,
+        [
+            [
+                "hlint",
+                "linux-arm64",
+                "ubuntu-24.04-arm",
+                "@haskell_hlint_hackage//:hlint-exe-hlint",
+                "haskell/private/tools/hlint/cabal.lock.json",
+            ],
+            [
+                "hlint",
+                "macos-arm64",
+                "macos-15",
+                "@haskell_hlint_hackage//:hlint-exe-hlint",
+                "haskell/private/tools/hlint/cabal.lock.json",
+            ],
+            [
+                "ormolu",
+                "linux-arm64",
+                "ubuntu-24.04-arm",
+                "@haskell_ormolu_hackage//:ormolu-exe-ormolu",
+                "haskell/private/tools/ormolu/cabal.lock.json",
+            ],
+        ]
+    );
+    assert!(tools.contains("asset=\"dx-$TOOL-$HOST\""));
+    assert!(tools.contains("> \"$out/dx-$TOOL-LICENSE\""));
+    assert!(release.contains("for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE; do"));
+    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 12"));
+    assert!(release.contains("dx-hlint-* dx-ormolu-*"));
 }
 
 #[test]

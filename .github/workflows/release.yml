@@ -165,7 +165,13 @@ jobs:
           done
           test -s out/dx-weeder-LICENSE || { echo "want a non-empty out/dx-weeder-LICENSE" >&2; exit 1; }
           printf '%s  %s\n' "$(sha256sum out/dx-weeder-LICENSE | cut -d' ' -f1)" dx-weeder-LICENSE >> out/dx-haskell-sha256sums.txt
-          files="$files dx-weeder-LICENSE dx-haskell-sha256sums.txt"
+          files="$files dx-weeder-LICENSE"
+          for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE; do
+            test -s "out/$asset" || { echo "want a non-empty out/$asset" >&2; exit 1; }
+            printf '%s  %s\n' "$(sha256sum "out/$asset" | cut -d' ' -f1)" "$asset" >> out/dx-haskell-sha256sums.txt
+            files="$files $asset"
+          done
+          files="$files dx-haskell-sha256sums.txt"
           : > out/dx-tool-sha256sums.txt
           for tool in deadnix-1.3.1 selene-0.32.0; do
             for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do
@@ -196,7 +202,7 @@ jobs:
           (cd out && sha256sum -c dx-gazelle-sha256sums.txt)
           test "$(wc -l < out/dx-jar-sha256sums.txt)" -eq 6 || { echo "want 6 jar manifest lines, got $(wc -l < out/dx-jar-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-jar-sha256sums.txt)
-          test "$(wc -l < out/dx-haskell-sha256sums.txt)" -eq 7 || { echo "want 7 haskell manifest lines, got $(wc -l < out/dx-haskell-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-haskell-sha256sums.txt)" -eq 12 || { echo "want 12 haskell manifest lines, got $(wc -l < out/dx-haskell-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-haskell-sha256sums.txt)
           test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 22 || { echo "want 22 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-tool-sha256sums.txt)
@@ -209,7 +215,7 @@ jobs:
           cp cli/prebuilt/pins.bzl "$pins"
           bazel run //tools/ci/fill_pins:fill_pins_bin -- "$RELEASE_TAG" --manifest "$PWD/out/dx-sha256sums.txt" --manifest "$PWD/out/dx-gazelle-sha256sums.txt" --manifest "$PWD/out/dx-jar-sha256sums.txt" --manifest "$PWD/out/dx-haskell-sha256sums.txt" --pins "$pins" --repo "$GITHUB_REPOSITORY"
           bazel run //deploy/private/release:source_archive -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "$SOURCE_DIR" --pins "$pins"
-          for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-launcher-linux-x86_64 dx-launcher-linux-arm64 dx-launcher-macos-arm64 dx-launcher-windows-x86_64 dx-launcher-windows-arm64 dx-capnp-* dx-flatc-* dx-thrift-* dx-topiary-* dx-progenitor-* dx-*-any.jar dx-hpc-lcov-* dx-weeder-* dx-tool-* dx-python-tools-*; do
+          for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-launcher-linux-x86_64 dx-launcher-linux-arm64 dx-launcher-macos-arm64 dx-launcher-windows-x86_64 dx-launcher-windows-arm64 dx-capnp-* dx-flatc-* dx-thrift-* dx-topiary-* dx-progenitor-* dx-*-any.jar dx-hpc-lcov-* dx-weeder-* dx-hlint-* dx-ormolu-* dx-tool-* dx-python-tools-*; do
             case "$file" in *.tar.gz.sha256|*.zip.sha256) continue ;; esac
             cp "out/$file" "$SOURCE_DIR/"
           done

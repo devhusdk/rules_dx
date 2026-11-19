@@ -6,7 +6,7 @@ swift_library(
     testonly = True,
     srcs = ["bench.swift"],
     module_name = "DxBench",
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(

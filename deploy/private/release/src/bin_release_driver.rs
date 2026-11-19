@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use dx_release_tools::candidate::{self, Candidate};
-use dx_release_tools::ledger::{ReleaseBackend, sync_assets};
+use dx_release_tools::ledger::{LedgerError, ReleaseBackend, sync_assets};
 use dx_release_tools::{GitState, OpRecord, OpState, ledger_exit, render_ledger};
 
 const DRY_RUN_TAG: &str = "v0.0.0-dryrun";
@@ -36,15 +36,17 @@ struct GhBackend {
 }
 
 impl GhBackend {
-    fn call(&self, args: &[&str]) -> Result<String, String> {
+    fn call(&self, args: &[&str]) -> Result<String, LedgerError> {
         let mut command = Command::new(&self.program);
         command.args(args);
         let output = dx_process::capture::run_captured(&mut command, GH_TIMEOUT)
-            .map_err(|err| format!("cannot run gh: {err}"))?;
+            .map_err(LedgerError::GhRun)?;
         if output.success() {
             return Ok(output.stdout_text());
         }
-        Err(scrub(&output.stderr_text(), self.token.as_deref()))
+        Err(LedgerError::GhFailed {
+            stderr: scrub(&output.stderr_text(), self.token.as_deref()),
+        })
     }
 }
 
@@ -56,11 +58,11 @@ fn scrub(text: &str, secret: Option<&str>) -> String {
 }
 
 impl ReleaseBackend for GhBackend {
-    fn view(&self, tag: &str) -> Result<String, String> {
+    fn view(&self, tag: &str) -> Result<String, LedgerError> {
         self.call(&["api", &format!("{}/{tag}", self.api)])
     }
 
-    fn upload(&self, tag: &str, path: &str) -> Result<String, String> {
+    fn upload(&self, tag: &str, path: &str) -> Result<String, LedgerError> {
         self.call(&["release", "upload", tag, path])
     }
 }

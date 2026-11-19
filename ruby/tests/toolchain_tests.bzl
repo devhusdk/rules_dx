@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@dx_pins_data//:pins.bzl", "PINS")
+load("@rules_ruby//ruby/private:download.bzl", "is_reproducible")
 load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core:host.bzl", "host_cell_of")
 
@@ -61,10 +62,26 @@ def _checks():
         expect_equal("sorbet pinned cells", sorted(PINS["dx_sorbet"]["cells"].keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "macos_x86_64", "windows_x86_64"]),
         expect_true("sorbet gems", all([c["type"] == "gem" for c in PINS["dx_sorbet"]["cells"].values() if "urls" in c])),
         expect_true("sorbet windows stub", "stub" in PINS["dx_sorbet"]["cells"]["windows_x86_64"]),
+        expect_equal("reproducible pinned linux portable", _reproducible("3.4.12", platform = "x86_64_linux"), True),
+        expect_equal("reproducible pinned windows portable", _reproducible("3.4.12", platform = "x86_64_windows", is_windows_target = True), True),
+        expect_equal("reproducible host platform", _reproducible("3.4.12", platform = ""), False),
+        expect_equal("reproducible unpinned", _reproducible("3.4.12", platform = "x86_64_linux", sha256 = None), False),
+        expect_equal("reproducible system", _reproducible("system", platform = "x86_64_linux"), False),
+        expect_equal("reproducible truffleruby", _reproducible("truffleruby-25.0.0", platform = "x86_64_linux"), False),
+        expect_equal("reproducible pinned jruby", _reproducible("jruby-10.0.2.0", platform = "", portable_ruby = False), True),
     ]
 
+def _reproducible(version, platform, is_windows_target = False, portable_ruby = True, sha256 = "0" * 64):
+    return is_reproducible(
+        version = version,
+        portable_ruby = portable_ruby,
+        is_windows_target = is_windows_target,
+        platform = platform,
+        sha256 = sha256,
+    )
+
 def ruby_metadata_tests(name, size):
-    """Declares the Sorbet pin test."""
+    """Declares the Sorbet pin and Ruby repository reproducibility test."""
     starlark_test(
         name = name,
         size = size,

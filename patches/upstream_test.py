@@ -37,6 +37,15 @@ class HeaderTest(unittest.TestCase):
             upstream.refs("https://github.com/a/b/pull/1")
 
 
+    def test_carry_headers(self):
+        text = "# Upstream: a/b#1\n    #Upstream:  c/d#2 \n# Upstream prebuilt on linux\nUpstream: e/f#3\n"
+        self.assertEqual(upstream.carry_headers(text), ["a/b#1", "c/d#2"])
+        self.assertTrue(upstream.is_carry_file("BUILD"))
+        self.assertTrue(upstream.is_carry_file("BUILD.bazel"))
+        self.assertTrue(upstream.is_carry_file("defs.bzl"))
+        self.assertFalse(upstream.is_carry_file("notes.txt"))
+
+
 class ReportTest(unittest.TestCase):
     def test_sorts_patches_by_upstream_state(self):
         api = FakeGitHub({
@@ -92,6 +101,38 @@ class ReportTest(unittest.TestCase):
             root = os.path.join(tmp, "patches")
             _write(root, "m/open.patch", "Upstream: o/r#3\n--- a/x\n")
             self.assertEqual(upstream.report(api, root), "")
+
+    def test_reports_carries(self):
+        api = FakeGitHub({
+            "/repos/o/r/issues/1": {"state": "closed", "pull_request": {}},
+            "/repos/o/r/pulls/1": {"merged": True, "merge_commit_sha": "abc", "merged_at": "2026-02-01T00:00:00Z"},
+            "/repos/o/r/releases?per_page=20": [
+                {"tag_name": "v2", "draft": False, "prerelease": False, "published_at": "2026-03-01T00:00:00Z"},
+            ],
+            "/repos/o/r/compare/v2...abc": {"status": "behind"},
+            "/repos/o/r/issues/3": {"state": "open", "pull_request": {}},
+        })
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "patches")
+            os.makedirs(root)
+            _write(tmp, "cc/x/BUILD.bazel", "x = 1\n    # Upstream: o/r#1\n")
+            _write(tmp, "cc/x/defs.bzl", "# Upstream: o/r#3\n")
+            _write(tmp, "cc/y/BUILD.bazel", "# Upstream: see docs\n")
+            _write(tmp, "cc/z/BUILD.bazel", "# Upstream prebuilt on linux\n")
+            _write(tmp, ".git/BUILD.bazel", "# Upstream: o/r#1\n")
+            _write(tmp, "cc/x/notes.txt", "# Upstream: o/r#1\n")
+            text = upstream.report(api, root)
+        self.assertIn(
+            "## Upstream fix released: bump the module and delete the patch or carry\n\n"
+            "- `cc/x/BUILD.bazel`: [o/r#1](https://github.com/o/r/pull/1) is in v2\n",
+            text,
+        )
+        self.assertIn("## Unreadable `Upstream:` header\n\n- `cc/y/BUILD.bazel`: not an owner/repo#N ref", text)
+        self.assertNotIn("defs.bzl", text)
+        self.assertNotIn("cc/z", text)
+        self.assertNotIn(".git", text)
+        self.assertNotIn("notes.txt", text)
+        self.assertNotIn("No `Upstream:` header", text)
 
 
 if __name__ == "__main__":

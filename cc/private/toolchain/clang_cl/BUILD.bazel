@@ -11,6 +11,11 @@ package(default_visibility = [
     "@dx_cc_toolchains//:__pkg__",
 ])
 
+# Upstream: hermeticbuild/hermetic-llvm#973
+# llvm's clang-cl toolchain sets LIB to a placeholder. Once an llvm release has
+# the fix, bump llvm and delete the search_path, *_link_lib_env and link_lib_env
+# targets below and the link_lib_env parameter of clang_cl_toolchains in
+# toolchains.bzl (#11967).
 search_path(
     name = "dynamic_crt_link_lib_path",
     directories = [

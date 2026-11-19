@@ -1,6 +1,7 @@
 package rust
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -239,7 +240,7 @@ func TestCargoImportValidationAndExpressions(t *testing.T) {
 	if self, _ := selfImport(renamedLib, "app_name"); self {
 		t.Error("selfImport matched the package name instead of the [lib] name")
 	}
-	if !undeclaredImport(renamedLib, "app_name") || undeclaredImport(renamedLib, "core_api") {
+	if !undeclaredImport(&config.Config{}, renamedLib, "app_name") || undeclaredImport(&config.Config{}, renamedLib, "core_api") {
 		t.Error("undeclaredImport did not use the [lib] crate name")
 	}
 	bad := &cargoManifest{packageName: "a.b"}
@@ -955,6 +956,99 @@ func TestBuiltinRunfilesImport(t *testing.T) {
 	if len(l.errors) != 0 {
 		t.Errorf("builtin runfiles errors = %v", l.errors)
 	}
+}
+
+func TestBuiltinProstImports(t *testing.T) {
+	moduleRoot := func(t *testing.T, module string) string {
+		t.Helper()
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "MODULE.bazel"), []byte(module), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return root
+	}
+	withProst := `bazel_dep(name = "rules_dx", version = "1.0.0")
+bazel_dep(name = "rules_rust_prost", version = "0.75.0")
+`
+	newCfg := func(t *testing.T, root, repoName string, apparent map[string]string, directives []rule.Directive) *config.Config {
+		t.Helper()
+		c := resolverConfig(t, directives)
+		c.RepoRoot = root
+		c.RepoName = repoName
+		c.ModuleToApparentName = func(m string) string { return apparent[m] }
+		c.Exts[languageName] = &rustConfig{}
+		return c
+	}
+	resolveDeps := func(t *testing.T, l *rustLang, c *config.Config, ix *resolve.RuleIndex, name string) string {
+		t.Helper()
+		r := rule.NewRule(libraryKind, "app")
+		l.Resolve(c, ix, nil, r, targetImports{production: []string{name}}, label.New(c.RepoName, "app", "app"))
+		return strings.Join(r.AttrStrings("deps"), ",")
+	}
+	bare := &cargoManifest{packageName: "app", normalDeps: map[string]cargoDependency{}, devDeps: map[string]cargoDependency{}}
+
+	t.Run("dependency", func(t *testing.T) {
+		root := moduleRoot(t, withProst)
+		l := &rustLang{}
+		for _, name := range []string{"prost", "prost_types", "tonic"} {
+			c := newCfg(t, root, "", nil, nil)
+			if err := validateCargoImports(c, bare, libraryKind, targetImports{production: []string{name}}); err != nil {
+				t.Errorf("builtin %s rejected: %v", name, err)
+			}
+			if got, want := resolveDeps(t, l, c, resolverIndex(l), name), "@rules_dx//rust:"+name; got != want {
+				t.Errorf("%s deps = %q, want %q", name, got, want)
+			}
+		}
+		if len(l.errors) != 0 {
+			t.Errorf("errors = %v", l.errors)
+		}
+	})
+	t.Run("inside rules_dx", func(t *testing.T) {
+		l := &rustLang{}
+		c := newCfg(t, moduleRoot(t, withProst), "rules_dx", nil, nil)
+		if got := resolveDeps(t, l, c, resolverIndex(l), "prost"); got != "//rust:prost" {
+			t.Errorf("deps = %q, want //rust:prost", got)
+		}
+	})
+	t.Run("repo_name", func(t *testing.T) {
+		l := &rustLang{}
+		c := newCfg(t, moduleRoot(t, withProst), "", map[string]string{"rules_dx": "dx"}, nil)
+		if got := resolveDeps(t, l, c, resolverIndex(l), "prost"); got != "@dx//rust:prost" {
+			t.Errorf("deps = %q, want @dx//rust:prost", got)
+		}
+	})
+	t.Run("no dependency", func(t *testing.T) {
+		l := &rustLang{}
+		c := newCfg(t, moduleRoot(t, `bazel_dep(name = "rules_dx", version = "1.0.0")`+"\n"), "", nil, nil)
+		if builtinImport(c, bare, "prost") || !undeclaredImport(c, bare, "prost") {
+			t.Error("prost took the built-in without rules_rust_prost")
+		}
+		if got := resolveDeps(t, l, c, resolverIndex(l), "prost"); got != "" || len(l.errors) != 1 {
+			t.Errorf("deps = %q errors = %v, want one unresolved error", got, l.errors)
+		}
+	})
+	t.Run("directive wins", func(t *testing.T) {
+		l := &rustLang{}
+		c := newCfg(t, moduleRoot(t, withProst), "", nil, []rule.Directive{{Key: "resolve", Value: "rust prost @crates//:prost"}})
+		if got := resolveDeps(t, l, c, resolverIndex(l), "prost"); got != "@crates//:prost" {
+			t.Errorf("deps = %q, want @crates//:prost", got)
+		}
+	})
+	t.Run("local crate wins", func(t *testing.T) {
+		l := &rustLang{}
+		c := newCfg(t, moduleRoot(t, withProst), "", nil, nil)
+		ix := resolverIndex(l, struct{ pkg, name string }{"lib/prost", "prost"})
+		if got := resolveDeps(t, l, c, ix, "prost"); got != "//lib/prost" {
+			t.Errorf("deps = %q, want //lib/prost", got)
+		}
+	})
+	t.Run("cargo declared", func(t *testing.T) {
+		c := newCfg(t, moduleRoot(t, withProst), "", nil, nil)
+		declared := &cargoManifest{packageName: "app", normalDeps: map[string]cargoDependency{"prost": {external: true}}, devDeps: map[string]cargoDependency{}}
+		if got := localCargoImports(c, declared, targetImports{production: []string{"prost"}}, true); len(got.production) != 0 {
+			t.Errorf("declared external prost became local: %v", got.production)
+		}
+	})
 }
 
 func TestResolveAndroidCfgPathDepSelect(t *testing.T) {

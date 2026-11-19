@@ -137,6 +137,12 @@ def _analyzer_jar(jar):
 def _analyzer_label(jar):
     return _plugin_escape(str(jar.owner).removesuffix("_upstream")) if jar.owner else None
 
+def _analyzer_path(jar):
+    return _plugin_escape(jar.path)
+
+def _analyzer_library(jar):
+    return "direct=%s\t%s" % (_analyzer_jar(jar), _analyzer_label(jar)) if jar.owner else None
+
 def _add_joined_option(args, name, listed, jars, map_each):
     """Adds one analyzer list option whose items are `listed` followed by `jars` mapped through `map_each`."""
     prefix = "scalacopt=-P:dependency-analyzer:%s:" % name
@@ -153,15 +159,10 @@ def _analyzer(target, ctx, attrs, library):
     if JavaInfo not in plugin:
         return None
     deps = [d for d in getattr(attrs, "deps", []) if JavaInfo in d]
-    direct_jars = []
-    direct_targets = []
-    for dep in deps:
-        # Bounded by the direct deps: each jar is paired with its dep's label.
-        for jar in dep[JavaInfo].compile_jars.to_list():
-            direct_jars.append(jar.path)
-            direct_targets.append(str(dep.label))
+
+    # The indirect set holds every direct jar, so it is empty only when there are no jars at all.
     indirect = depset(transitive = [d[JavaInfo].transitive_compile_time_jars for d in deps])
-    if not direct_jars and not indirect:
+    if not indirect:
         return None
     info = plugin[JavaInfo]
     jars = depset(info.runtime_output_jars, transitive = [info.transitive_runtime_jars], order = "preorder")
@@ -176,8 +177,7 @@ def _analyzer(target, ctx, attrs, library):
     return struct(
         jars = jars,
         options = options,
-        direct_jars = direct_jars,
-        direct_targets = direct_targets,
+        direct = [(_plugin_escape(str(d.label)), d[JavaInfo].compile_jars) for d in deps],
         ignored = ignored,
         library = library,
         indirect = indirect,
@@ -185,8 +185,12 @@ def _analyzer(target, ctx, attrs, library):
 
 def _add_analyzer_options(args, analyzer):
     args.add_all(analyzer.options, format_each = "scalacopt=%s")
-    _add_joined_option(args, "direct-jars", analyzer.direct_jars, analyzer.library, _analyzer_jar)
-    _add_joined_option(args, "direct-targets", analyzer.direct_targets, analyzer.library, _analyzer_label)
+
+    # The driver joins the direct= lines into the direct-jars and direct-targets options. Each line pairs a jar
+    # with the dep that brings it, so a dep's exported jars count as that dep.
+    for (label, jars) in analyzer.direct:
+        args.add_all(jars, map_each = _analyzer_path, format_each = "direct=%s\t" + label.replace("%", "%%"))
+    args.add_all(analyzer.library, map_each = _analyzer_library)
     _add_joined_option(args, "indirect-jars", [], analyzer.indirect, _analyzer_jar)
     _add_joined_option(args, "indirect-targets", [], analyzer.indirect, _analyzer_label)
     _add_joined_option(args, "unused-deps-ignored-targets", analyzer.ignored, analyzer.library, _analyzer_label)

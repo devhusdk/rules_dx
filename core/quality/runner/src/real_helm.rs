@@ -115,10 +115,11 @@ fn helm_tool(context: Option<&str>, companion: bool) -> RealTool {
         config_rel: Some(CONFIG_REL.to_owned()),
         tool_files,
         path_tools: if companion {
-            vec![(
-                "kubeconform".to_owned(),
-                PathBuf::from("/fake/bin/kubeconform"),
-            )]
+            vec![PathTool {
+                name: "kubeconform".to_owned(),
+                binary: PathBuf::from("/fake/bin/kubeconform"),
+                args: Vec::new(),
+            }]
         } else {
             Vec::new()
         },

@@ -161,7 +161,7 @@ fn opam_live_pull_request(
     token: &str,
 ) -> Result<String, String> {
     let github = Github {
-        client: crate::http::client()?,
+        client: crate::http::client().map_err(|error| error.to_string())?,
         token,
     };
     let fork = text_field(

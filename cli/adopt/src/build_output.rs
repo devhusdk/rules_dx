@@ -381,8 +381,12 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
 
 /// Reads one NUL-separated git path as UTF-8.
 fn git_path(field: &[u8]) -> Result<&str, DxError> {
-    std::str::from_utf8(field)
-        .map_err(|_| DxError::failure("git path is not UTF-8: rename the file to a UTF-8 name"))
+    std::str::from_utf8(field).map_err(|error| {
+        let lossy = String::from_utf8_lossy(field);
+        DxError::failure(format!(
+            "git path {lossy:?} is not UTF-8 ({error}): rename the file to a UTF-8 name"
+        ))
+    })
 }
 
 #[cfg(test)]
@@ -722,6 +726,7 @@ mod tests {
     fn non_utf8_names_are_an_error() {
         let error = git_path(b"bad\xff.txt").expect_err("error");
         assert!(error.message().contains("not UTF-8"), "{error}");
+        assert!(error.message().contains("bad\u{FFFD}.txt"), "{error}");
         assert_eq!(git_path(b"ok.txt"), Ok("ok.txt"));
     }
 

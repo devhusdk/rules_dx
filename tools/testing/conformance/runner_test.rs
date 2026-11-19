@@ -694,10 +694,19 @@ fn stage(
         for sibling in siblings.flatten() {
             let file = sibling.file_name();
             let Some(file) = file.to_str() else { continue };
-            let wanted = file.starts_with(&format!("{stem}."))
-                || (sibling_dir && sibling.path().is_file());
+            let wanted =
+                file.starts_with(&format!("{stem}.")) || (sibling_dir && sibling.path().is_file());
             if wanted && !dir.join(file).exists() {
                 std::fs::copy(sibling.path(), dir.join(file)).expect("sibling must copy");
+            }
+            // A macOS rpath like @loader_path/<stem>_qt_frameworks points at a
+            // directory beside the binary, so the staged copy needs it too.
+            let beside_dir = cfg!(unix)
+                && sibling.path().is_dir()
+                && file.starts_with(&format!("{stem}_"))
+                && !file.ends_with(".runfiles");
+            if beside_dir && !dir.join(file).exists() {
+                link_entry(&sibling.path(), &dir.join(file)).expect("sibling dir must link");
             }
         }
     }
@@ -797,7 +806,9 @@ fn tree_rooted_manifest_maps_entries_into_the_tree() {
         format!("{}/_main/pkg/.hello.venv", tree.display()),
     );
     assert_eq!(tree_rooted_manifest(text, &tree), expected);
-    let missing = std::path::Path::new(&tmp).join("tree_rooted").join("missing");
+    let missing = std::path::Path::new(&tmp)
+        .join("tree_rooted")
+        .join("missing");
     assert_eq!(tree_rooted_manifest(text, &missing), text);
     assert_eq!(tree_rooted_manifest(text, std::path::Path::new("")), text);
 }
@@ -893,4 +904,32 @@ fn stage_copies_every_file_of_a_siblings_dir() {
         std::fs::read_to_string(dir.join("runtime.dll")).expect("sibling must stage"),
         "dll"
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn stage_links_a_dir_named_after_the_subject() {
+    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let root = std::path::Path::new(&tmp).join("stage_beside_dir");
+    let pkg = root.join("pkg");
+    let frameworks = pkg.join("tool_qt_frameworks").join("QtCore.framework");
+    std::fs::create_dir_all(&frameworks).expect("frameworks dir must create");
+    std::fs::write(frameworks.join("QtCore"), "lib").expect("framework must write");
+    std::fs::create_dir_all(pkg.join("tool_upstream.runfiles")).expect("runfiles must create");
+    std::fs::create_dir_all(pkg.join("other_qt_frameworks")).expect("other dir must create");
+    std::fs::write(pkg.join("tool"), "bin").expect("subject must write");
+    let staged = stage(
+        &pkg.join("tool"),
+        "_main/pkg/tool",
+        &root.join("out"),
+        false,
+    );
+    let dir = staged.parent().expect("staged subject must have a dir");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("tool_qt_frameworks/QtCore.framework/QtCore"))
+            .expect("frameworks dir must stage"),
+        "lib"
+    );
+    assert!(!dir.join("tool_upstream.runfiles").exists());
+    assert!(!dir.join("other_qt_frameworks").exists());
 }

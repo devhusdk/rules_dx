@@ -10,7 +10,7 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:resolve rust proto //core/quality/result/proto:result_proto_rs
 # gazelle:resolve rust result_proto //core/quality/result/proto:result_proto_rs
 # gazelle:resolve rust stardoc_output_proto //tools/api/stardoc:stardoc_output_proto_rs
-# gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
+# gazelle:resolve rust prost //rust:prost
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve rust serde @crates//:serde
 # gazelle:resolve rust serde_json @crates//:serde_json
@@ -225,8 +225,7 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude terraform/tests/fixtures
 # gazelle:exclude kubernetes/tests/fixtures
 # gazelle:exclude core/quality/testdata/api_spec
-# gazelle:exclude helm/tests/templates
-# gazelle:exclude helm/tests/dirty
+# gazelle:exclude helm/tests/fixtures
 # gazelle:exclude api_spec/tests/openapi.yaml
 # gazelle:exclude api_spec/tests/petstore.yaml
 # gazelle:exclude go/tests/fixtures/no_srcs
@@ -344,6 +343,11 @@ filegroup(
 )
 
 filegroup(
+    name = "license_texts",
+    srcs = glob(["third_party/licenses/**"]),
+)
+
+filegroup(
     name = "lang_json",
     srcs = [
         "//android:lang.json",
@@ -417,6 +421,7 @@ filegroup(
         "cargo-bazel-lock.json",
         "license.toml",
         "security.toml",
+        ":license_texts",
         "//.devcontainer:module_srcs",
         "//.github:module_srcs",
         "//android:module_srcs",
@@ -527,6 +532,7 @@ filegroup(
         "//core/env/private/proto:module_srcs",
         "//core/env/private/stubs:module_srcs",
         "//core/env/private/tools/env_shard:module_srcs",
+        "//core/hermetic_launcher:module_srcs",
         "//core/modules:module_srcs",
         "//core/patchelf:module_srcs",
         "//core/private:module_srcs",
@@ -773,9 +779,12 @@ filegroup(
         "//kubernetes/private/quality:module_srcs",
         "//lua:module_srcs",
         "//lua/private:module_srcs",
+        "//lua/private/coverage:module_srcs",
         "//lua/private/lock:module_srcs",
         "//lua/private/quality:module_srcs",
+        "//lua/private/runtime:module_srcs",
         "//lua/private/toolchain:module_srcs",
+        "//lua/private/tools:module_srcs",
         "//lua/private/tools/lock:module_srcs",
         "//make/private/quality:module_srcs",
         "//msix:module_srcs",
@@ -797,7 +806,6 @@ filegroup(
         "//patches/gomod-parser:module_srcs",
         "//patches/gotreesitter:module_srcs",
         "//patches/grpc:module_srcs",
-        "//patches/hermetic_launcher:module_srcs",
         "//patches/kcov:module_srcs",
         "//patches/libfuzzer_dotnet:module_srcs",
         "//patches/protoc-gen-validate:module_srcs",
@@ -810,6 +818,7 @@ filegroup(
         "//patches/rules_elixir:module_srcs",
         "//patches/rules_erlang:module_srcs",
         "//patches/rules_flutter:module_srcs",
+        "//patches/rules_foreign_cc:module_srcs",
         "//patches/rules_fortran:module_srcs",
         "//patches/rules_go:module_srcs",
         "//patches/rules_haskell:module_srcs",
@@ -870,6 +879,8 @@ filegroup(
         "//rust/private/tools/topiary:module_srcs",
         "//rust/tests:module_srcs",
         "//rust/tests/tonic:module_srcs",
+        "//scala:module_srcs",
+        "//scala/private:module_srcs",
         "//scala/private/toolchain:module_srcs",
         "//sql/private:module_srcs",
         "//sql/private/quality:module_srcs",

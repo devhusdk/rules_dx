@@ -15,7 +15,7 @@ dotnet/private/quality/roslyn.bzl aspect-to-list 1
 erlang/private/quality/beam.bzl aspect-to-list 3
 haskell/private/quality/haskell.bzl aspect-to-list 1
 java/private/quality/jvm.bzl aspect-to-list 4
-java/private/quality/jvm_check.bzl aspect-to-list 2
+java/private/quality/jvm_check.bzl aspect-to-list 1
 julia/private/quality/julia.bzl aspect-to-list 4
 lua/private/quality/lua.bzl aspect-to-list 1
 powershell/private/quality/powershell.bzl aspect-to-list 2
@@ -25,6 +25,4 @@ ruby/private/quality/ruby.bzl aspect-to-list 1
 rust/private/quality/rust.bzl aspect-to-list 1
 rust/private/quality/rust_clippy.bzl aspect-to-list 1
 terraform/private/quality/terraform.bzl aspect-to-list 2
-tools/docs/dart/defs.bzl aspect-to-list 2
-tools/docs/python/shard.bzl aspect-to-list 2
 typescript/private/quality/tsc.bzl aspect-to-list 3

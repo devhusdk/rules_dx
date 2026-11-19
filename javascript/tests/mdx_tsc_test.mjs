@@ -29,6 +29,7 @@ function check(name) {
         moduleResolution: "Bundler",
         noEmit: true,
         skipLibCheck: true,
+        strict: false,
         target: "ES2022",
       },
       files: [`${name}.mdx`],

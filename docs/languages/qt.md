@@ -116,7 +116,7 @@ On macOS, any non-empty `display` ships the `cocoa` platform plugin.
 - `licenses`: extra license texts to ship, such as `fmt/LICENSE` for a
   bundled library. Each path needs a `licenses/<name>/` directory and
   lands under `licenses/<name>/`.
-- `qt`: the Qt repo, `@dx_qt` by default.
+- `qt`: the Qt SDK repository. Leave it out to use the Qt SDK rules_dx pins.
 
 `qt_bundle_runtime` holds the Windows DLLs of a `qt_bundle` and a
 `qt.conf` that points Qt at `resources/`, so `consumer_archive` puts them
@@ -410,58 +410,58 @@ Stages the Qt frameworks a binary in the same package links and adds their rpath
 ### `qt_cc_library`
 
 ```python
-qt_cc_library(name, srcs = None, hdrs = [], moc_hdrs = [], forms = [], resources = [], resource_prefix = "/", translations = [], deps = None, modules = ["core"], qt = QT_REPOSITORY, copts = [], visibility = None, **kwargs)
+qt_cc_library(name, srcs = None, hdrs = [], moc_hdrs = [], forms = [], resources = [], resource_prefix = "/", translations = [], deps = None, modules = ["core"], qt = None, copts = [], visibility = None, **kwargs)
 ```
 
-Declares a C++ library whose moc, uic and rcc outputs are generated from declared inputs.
+Declares a C++ library whose moc, uic and rcc outputs are generated from declared inputs. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
 
 ### `qt_qml_module`
 
 ```python
-qt_qml_module(name, uri, version = "1.0", qml_srcs = [], qml_depends = [], srcs = None, hdrs = [], moc_hdrs = [], resources = [], resource_prefix = "/", translations = [], deps = None, modules = ["qml"], qt = QT_REPOSITORY, copts = [], visibility = None, **kwargs)
+qt_qml_module(name, uri, version = "1.0", qml_srcs = [], qml_depends = [], srcs = None, hdrs = [], moc_hdrs = [], resources = [], resource_prefix = "/", translations = [], deps = None, modules = ["qml"], qt = None, copts = [], visibility = None, **kwargs)
 ```
 
-Declares a QML module with its qmldir, qmltypes, resources and C++ types.
+Declares a QML module with its qmldir, qmltypes, resources and C++ types. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
 
 ### `qt_cc_binary`
 
 ```python
-qt_cc_binary(name, *, srcs = None, hdrs = [], moc_hdrs = [], forms = [], resources = [], resource_prefix = "/", translations = [], deps = None, modules = ["core"], qt = QT_REPOSITORY, plugins = [], copts = [], visibility = None, **kwargs)
+qt_cc_binary(name, *, srcs = None, hdrs = [], moc_hdrs = [], forms = [], resources = [], resource_prefix = "/", translations = [], deps = None, modules = ["core"], qt = None, plugins = [], copts = [], visibility = None, **kwargs)
 ```
 
-Declares a Qt executable over cc_binary.
+Declares a Qt executable over cc_binary. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
 
 ### `qt_cc_test`
 
 ```python
-qt_cc_test(name, *, srcs = None, hdrs = [], moc_hdrs = [], forms = [], resources = [], resource_prefix = "/", translations = [], deps = None, modules = ["core", "test"], qt = QT_REPOSITORY, plugins = [], copts = [], visibility = None, **kwargs)
+qt_cc_test(name, *, srcs = None, hdrs = [], moc_hdrs = [], forms = [], resources = [], resource_prefix = "/", translations = [], deps = None, modules = ["core", "test"], qt = None, plugins = [], copts = [], visibility = None, **kwargs)
 ```
 
-Declares a QtTest executable over cc_test.
+Declares a QtTest executable over cc_test. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
 
 ### `qt_rust_cc_library`
 
 ```python
-qt_rust_cc_library(name, bridges, rust, cc_deps = [], generator = None, uri = None, version = "1.0", qml_srcs = [], qml_depends = [], modules = None, qt = QT_REPOSITORY, copts = [], visibility = None, **kwargs)
+qt_rust_cc_library(name, bridges, rust, cc_deps = [], generator = None, uri = None, version = "1.0", qml_srcs = [], qml_depends = [], modules = None, qt = None, copts = [], visibility = None, **kwargs)
 ```
 
-Declares the Qt C++ library generated from CXX-Qt bridges of one Rust crate.
+Declares the Qt C++ library generated from CXX-Qt bridges of one Rust crate. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
 
 ### `qt_bundle`
 
 ```python
-qt_bundle(name, binary, qml_modules = [], licenses = [], display = [], plugins = [], qt = QT_REPOSITORY, **kwargs)
+qt_bundle(name, binary, qml_modules = [], licenses = [], display = [], plugins = [], qt = None, **kwargs)
 ```
 
-Stages a qt_cc_binary runtime for consumer_archive resources.
+Stages a qt_cc_binary runtime for consumer_archive resources. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
 
 ### `qt_rust_library`
 
 ```python
-qt_rust_library(name, bridges, srcs = None, crate_root = None, crate_name = None, crate_features = None, rustc_flags = [], deps = None, cc_deps = [], cxx = _CXX_CRATE, cxx_qt = _CXX_QT_CRATE, generator = None, uri = None, version = "1.0", qml_srcs = [], qml_depends = [], modules = None, qt = QT_REPOSITORY, copts = [], visibility = None, **kwargs)
+qt_rust_library(name, bridges, srcs = None, crate_root = None, crate_name = None, crate_features = None, rustc_flags = [], deps = None, cc_deps = [], cxx = _CXX_CRATE, cxx_qt = _CXX_QT_CRATE, generator = None, uri = None, version = "1.0", qml_srcs = [], qml_depends = [], modules = None, qt = None, copts = [], visibility = None, **kwargs)
 ```
 
-Declares a Rust crate with CXX-Qt bridges and the Qt C++ library they generate.
+Declares a Rust crate with CXX-Qt bridges and the Qt C++ library they generate. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins.
 
 ## Tools and package files
 

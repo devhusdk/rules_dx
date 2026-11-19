@@ -217,7 +217,7 @@ text_present = true
 - `[distribution] internal` lists label patterns: `//...` is every scope, `//pkg/...` is `pkg` and below, `//pkg:all` is the targets in `pkg`, anything else is one label. A run is internal only when the entries cover every scope, also with `--here` and `--affected`.
 - An internal run fails only on `blocked`. A distributed run fails on every list and on unlisted ids.
 - `MIT`, `Apache-2.0`, `BSD-2-Clause` and `BSD-3-Clause` also need their license text, or the finding is `license/missing-notice-text`.
-- `[[inventory]]` needs `package`, `set`, `license` and `versions`. `text_present` says the text ships with the package. `text = "<path>"` names a vendored text file and implies `text_present`. The path is workspace-relative, `/`-separated, with no leading `/` or `\` and no empty, `.` or `..` parts.
+- `[[inventory]]` needs `package`, `set`, `license` and `versions`. `text_present` says the text ships with the package. `text = "<path>"` names a vendored text file and implies `text_present`. The path is workspace-relative, `/`-separated, with no leading `/` or `\` and no empty, `.` or `..` parts. The file must exist and must not be blank, or the finding is `license/inventory-text-missing`. `dx license` checks every entry, whatever the scope.
 - Inventory overrides licenses read from `cargo-bazel-lock.json` and `package-lock.json`. For other sets it is the only source; a package with no entry is `UNKNOWN`.
 - `[[exception]]` needs `package`, `set`, `license`, `versions`, `reason` and `expires`. It covers a finding when `package`, `set` and `license` match. Expiry and unmatched entries fail as in `security.toml`.
 
@@ -393,9 +393,8 @@ A check validates the selected sets and writes nothing. It takes no [build slot]
 
 - `--apply` runs Bazel for `cargo`, `maven` and `npm` sets.
 - `uv`, `ruby`, `cabal` and `cpan` sets run their lock tool in check mode: current, or failed when stale.
-- `ansible`, `dub`, `fpm`, `luarocks`, `nuget`, `powershell` and `zig` sets run the resolver their `setup.hubs` entry names: a check passes `--check` and fails the set when the lock is stale; `--apply` rewrites the lock. `--offline` fails with `offline_required`, and a `set:package` selector is refused.
+- `ansible`, `bicep`, `dub`, `fpm`, `luarocks`, `nuget`, `powershell` and `zig` sets run the resolver their `setup.hubs` entry names: a check passes `--check` and fails the set when the lock is stale; `--apply` rewrites the lock. `--offline` fails with `offline_required`, and a `set:package` selector is refused.
 - `go` sets compare a freshly generated `go.sum` with the committed one.
-- `bicep` sets report `pinned` and change nothing.
 - Sets dx cannot check report `unsupported` and fail the run. Refresh them with `dx update --apply <set>`. A bare `dx update` exits `1` when any set is unsupported.
 - Checks that run Bazel (`npm`, `cargo`, `maven`) restore any manifest or lock they changed and fail the set with `check_wrote: <paths>`.
 - A check with `--offline` adds `--repository_disable_download` for Bazel sets, or the tool's offline flag.
@@ -466,6 +465,7 @@ Built-in selectors also run with no selector, except `bcr:newest`:
 - `github-actions` checks every remote `uses:` pin in `.github/workflows`. `github-actions:<owner>/<repo>` checks one repo. A pin is read from its tag (`@v4`) or from a trailing comment (`@<sha> # v4.1.0`).
 - `bazel:.bazelversion` checks `.bazelversion`.
 - `containers` compares each `oci.pull` digest in `MODULE.bazel` with the current digest of the image's `latest` tag. `containers:<name>` checks one pull. Apply a new digest with `dx update containers:<name> sha256:<digest> --apply`.
+- `pins` checks each `pins.json` a top-level `<dir>/lang.json` lists. A file with `cells` is one package, `pins:<path>`, against the latest GitHub release or gem. Each `archives` entry whose GitHub URL names a release tag holding its `version` is one package, `pins:<path>#<archive>`; other entries are skipped.
 - `bcr:newest` writes `core/modules/bcr_newest.json` from the newest stable BCR version of each `bazel_dep` in `MODULE.bazel`.
 - Pins with no readable version, and repos with no release, print `<set>:<package>: unknown (<reason>)` and an `update_outdated_unknown` warning. The exit code is unchanged.
 - Set `GH_TOKEN` or `GITHUB_TOKEN` to raise GitHub's limit of 60 requests an hour. The token goes to `api.github.com` only.
@@ -581,7 +581,7 @@ One `set:package` and one version widen that requirement, or declare the package
 | `bazel` | Tested version in the `single_version_override`, keeping patches. Falls back to the `bazel_dep` when there is no override or no `version`. `--floor --reason <text>` edits the `bazel_dep` version and the `# floor: <text>` lines above it. |
 | `containers` | The `oci.pull` digest. |
 | `github-actions` | A tag resolves to its commit SHA through `api.github.com` (`GH_TOKEN` or `GITHUB_TOKEN` when set). The SHA is written in every workflow that uses the action; a `# v4` comment becomes the tag. `--offline` fails a tag with `offline_required`; pass a SHA. |
-| `pins` | A `pins.json` that a top-level `<dir>/lang.json` lists: version, URLs and sha256 of every entry. |
+| `pins` | A `pins.json` that a top-level `<dir>/lang.json` lists: version, URLs, `strip_prefix` and sha256 of every cell. `pins:<path>#<archive>` moves only that `archives` entry. |
 | `cabal` | Bound in `build-depends`, then resolves again. |
 | `cargo` | Crate in every manifest that declares it, then `dx update --apply <set>`. |
 | `composer` | Constraint in `require` or `require-dev` of `composer.json`, keeping the operator, then `composer update <package> --with-all-dependencies --no-install` and the digest refresh. |
@@ -956,6 +956,6 @@ bicep.lock(
 use_repo(bicep, "bicep")
 ```
 
-- The manifests are the `*.bicep` files beside `bicep.lock.json`. Each `br:HOST/PATH:TAG` or `br/public:PATH:TAG` module reference is locked to its manifest and layer sha256. One module takes one tag per set. A check and an update report `pinned`.
-- To move a module, edit the tag in the `.bicep` file and run `dx generate --apply`. dx never picks a registry tag.
+- The manifests are the `*.bicep` files beside `bicep.lock.json`. Each `br:HOST/PATH:TAG` or `br/public:PATH:TAG` module reference is locked to its manifest and layer sha256. One module takes one tag per set. A check runs the lock step with `--check` and fails when the lock is stale.
+- To move a module, edit the tag in the `.bicep` file and run `dx generate --apply` or `dx update --apply bicep`. dx never picks a registry tag.
 - A locked module is `@bicep//HOST/PATH`, for example `@bicep//mcr.microsoft.com/bicep/avm/res/storage/storage-account`.

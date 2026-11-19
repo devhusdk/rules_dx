@@ -37,6 +37,8 @@ dx deploy --affected
 dx deploy --apply --affected --since origin/release
 ```
 
+A module, Starlark or deleted-file change selects every release deployment.
+
 ## Usage
 
 ```text

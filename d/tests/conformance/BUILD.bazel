@@ -76,6 +76,10 @@ dx_conformance_suite(
         "package": "semver",
         "stale": "dub.selections.stale.json",
     },
+    not_applicable = {
+        "format_error_test": "no maintained D formatter exists",
+        "format_test": "no maintained D formatter exists",
+    },
     passing_test = ":pass_subject_test",
     quality = {
         "clean": ":conformance",

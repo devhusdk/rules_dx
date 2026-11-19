@@ -115,6 +115,7 @@ cc_toolchain_files = rule(
     doc = "Exposes the outputs of targets built with the selected compiler for the given platforms.",
     attrs = {
         "compiler": attr.string(doc = "Compiler flag value to build with.", mandatory = True),
+        "extra_features": attr.string_list(doc = "Features to enable on top of the command line features, such as dynamic_libstdcxx.", default = []),
         "platforms": attr.string_list(doc = "Target platform labels.", mandatory = True),
         "srcs": attr.label_list(doc = "Targets to build.", cfg = _files_transition),
     },

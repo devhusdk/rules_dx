@@ -184,6 +184,7 @@ rust_binary(
         "//core/quality/markdown:quality_markdown_lib",
         "//core/quality/notebook:quality_notebook_lib",
         "//core/quality/runner:quality_runner_lib",
+        "//core/quality/tools/diff:diff_lib",
         "//deploy/private:dx_deploy_tools",
         "//deploy/private/release:dx_release_tools",
         "//qt/private/tools/rust:qt_rust_bridge",

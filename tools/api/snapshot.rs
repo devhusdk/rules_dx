@@ -1,12 +1,14 @@
 //! Renders the public API snapshot that `api/` checks in.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use dx_module_bazel::{ModuleFile, Value as Arg};
 use dx_plan::args::{help_environment, help_surface};
 use prost::Message;
 use serde_json::{Value, json};
-use stardoc_output_proto::stardoc_output::{AttributeInfo, FunctionParamInfo, ModuleInfo};
+use stardoc_output_proto::stardoc_output::{
+    AttributeInfo, FunctionParamInfo, FunctionParamRole, ModuleInfo,
+};
 
 /// The files under `api/` this crate writes, in the order `update` writes them.
 pub const FILES: [&str; 4] = ["cli.json", "labels.txt", "schemas.txt", "starlark.json"];
@@ -40,10 +42,12 @@ pub struct Builds {
 }
 
 /// Every file under `api/`, by name, as `update` writes it. `starlark` holds the `starlark_doc_extract` binaryproto
-/// of each public `.bzl` file.
+/// of each public `.bzl` file and `forwards` the `streamed_jsonproto` query output of the targets macros create in
+/// the consumer fixtures.
 pub fn render(
     builds: &Builds,
     starlark: &[Vec<u8>],
+    forwards: &[String],
 ) -> Result<BTreeMap<&'static str, String>, Box<dyn std::error::Error>> {
     let mut labels = labels_txt(CONFIG_BUILD)?;
     labels.push_str(&target_labels_txt(builds)?);
@@ -52,16 +56,52 @@ pub fn render(
         (FILES[0], cli_json()?),
         (FILES[1], labels),
         (FILES[2], schemas_txt()),
-        (FILES[3], starlark_json(starlark)?),
+        (FILES[3], starlark_json(starlark, forwards)?),
     ]))
 }
 
 /// One entry per public `.bzl` file with the signatures of its symbols: rule, macro, aspect, repository rule and tag
 /// class attrs, function params and provider fields. Docstrings and attrs Bazel defines for every rule are left out.
-fn starlark_json(modules: &[Vec<u8>]) -> Result<String, Box<dyn std::error::Error>> {
+/// Each function with a `**kwargs` param also lists, under `forwards`, the rule kinds and set attrs of the targets it
+/// creates in the consumer fixtures.
+fn starlark_json(
+    modules: &[Vec<u8>],
+    forwards: &[String],
+) -> Result<String, Box<dyn std::error::Error>> {
+    let modules = modules
+        .iter()
+        .map(|bytes| ModuleInfo::decode(bytes.as_slice()))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut forwards = forwards_by_function(forwards)?;
+    let mut kwargs_modules: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    for module in &modules {
+        for function in module.func_info.iter().filter(|f| has_kwargs(&f.parameter)) {
+            kwargs_modules
+                .entry(function.function_name.as_str())
+                .or_default()
+                .push(module.file.as_str());
+        }
+    }
+    for name in forwards.keys() {
+        match kwargs_modules.get(name.as_str()).map(Vec::as_slice) {
+            Some([_]) => {}
+            Some(files) => {
+                return Err(format!(
+                    "generator_function {name} names a public function in {}",
+                    files.join(", ")
+                )
+                .into());
+            }
+            None => {
+                return Err(format!(
+                    "generator_function {name} names no public function with a **kwargs param"
+                )
+                .into());
+            }
+        }
+    }
     let mut entries = Vec::new();
-    for bytes in modules {
-        let module = ModuleInfo::decode(bytes.as_slice())?;
+    for module in modules {
         let rules = module
             .rule_info
             .iter()
@@ -91,10 +131,20 @@ fn starlark_json(modules: &[Vec<u8>]) -> Result<String, Box<dyn std::error::Erro
             .func_info
             .iter()
             .map(|function| {
-                (
-                    function.function_name.clone(),
-                    json!({ "name": function.function_name, "params": params_json(&function.parameter) }),
-                )
+                let mut entry = serde_json::Map::new();
+                entry.insert("name".to_owned(), json!(function.function_name));
+                entry.insert("params".to_owned(), json!(params_json(&function.parameter)));
+                if has_kwargs(&function.parameter) {
+                    let kinds = forwards.remove(&function.function_name).unwrap_or_default();
+                    entry.insert(
+                        "forwards".to_owned(),
+                        kinds
+                            .into_iter()
+                            .map(|(kind, attrs)| json!({ "kind": kind, "attrs": attrs }))
+                            .collect(),
+                    );
+                }
+                (function.function_name.clone(), Value::Object(entry))
             })
             .collect();
         let providers = module
@@ -172,6 +222,65 @@ fn starlark_json(modules: &[Vec<u8>]) -> Result<String, Box<dyn std::error::Erro
     let mut text = serde_json::to_string_pretty(&sorted_by_name(entries))?;
     text.push('\n');
     Ok(text)
+}
+
+fn has_kwargs(params: &[FunctionParamInfo]) -> bool {
+    params
+        .iter()
+        .any(|param| param.role() == FunctionParamRole::ParamRoleKwargs)
+}
+
+/// The rule kinds a macro creates, each with the attr names set on it.
+type Forwards = BTreeMap<String, BTreeSet<String>>;
+
+/// The rule kinds and explicitly set attr names of the targets each macro creates, keyed by the macro's
+/// `generator_function`, from `streamed_jsonproto` query output. Hidden attrs, `name` and `generator_*` are left out.
+fn forwards_by_function(
+    outputs: &[String],
+) -> Result<BTreeMap<String, Forwards>, Box<dyn std::error::Error>> {
+    let mut forwards: BTreeMap<String, Forwards> = BTreeMap::new();
+    for line in outputs.iter().flat_map(|text| text.lines()) {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let target: Value = serde_json::from_str(line)?;
+        let Some(rule) = target.get("rule") else {
+            continue;
+        };
+        let attrs = rule["attribute"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let Some(function) = attrs
+            .iter()
+            .find(|attr| attr["name"] == "generator_function")
+            .and_then(|attr| attr["stringValue"].as_str())
+            .filter(|function| !function.is_empty())
+        else {
+            continue;
+        };
+        let kind = rule["ruleClass"]
+            .as_str()
+            .ok_or_else(|| format!("{} has no ruleClass", rule["name"]))?;
+        let set = forwards
+            .entry(function.to_owned())
+            .or_default()
+            .entry(kind.to_owned())
+            .or_default();
+        set.extend(
+            attrs
+                .iter()
+                .filter(|attr| attr["explicitlySpecified"] == true)
+                .filter_map(|attr| attr["name"].as_str())
+                .filter(|name| {
+                    !name.starts_with(['$', ':'])
+                        && *name != "name"
+                        && !name.starts_with("generator_")
+                })
+                .map(str::to_owned),
+        );
+    }
+    Ok(forwards)
 }
 
 fn sorted_by_name(mut items: Vec<(String, Value)>) -> Vec<Value> {
@@ -483,9 +592,9 @@ pub fn unbumped_schemas(checked_in: &str, current: &str) -> Vec<String> {
 mod tests {
     use prost::Message;
     use stardoc_output_proto::stardoc_output::{
-        AttributeInfo, AttributeType, FunctionParamInfo, MacroInfo, ModuleExtensionInfo,
-        ModuleExtensionTagClassInfo, ModuleInfo, ProviderFieldInfo, ProviderInfo, RuleInfo,
-        StarlarkFunctionInfo,
+        AttributeInfo, AttributeType, FunctionParamInfo, FunctionParamRole, MacroInfo,
+        ModuleExtensionInfo, ModuleExtensionTagClassInfo, ModuleInfo, ProviderFieldInfo,
+        ProviderInfo, RuleInfo, StarlarkFunctionInfo,
     };
 
     use super::{
@@ -542,6 +651,12 @@ mod tests {
                         default_value: "[]".to_owned(),
                         ..FunctionParamInfo::default()
                     },
+                    FunctionParamInfo {
+                        name: "kwargs".to_owned(),
+                        doc_string: doc.to_owned(),
+                        role: FunctionParamRole::ParamRoleKwargs.into(),
+                        ..FunctionParamInfo::default()
+                    },
                 ],
                 ..StarlarkFunctionInfo::default()
             }],
@@ -577,14 +692,14 @@ mod tests {
 
     #[test]
     fn starlark_json_keeps_signatures_and_drops_docs() {
-        let text = starlark_json(&[module("[]", "Old docs.")]).expect("module decodes");
+        let text = starlark_json(&[module("[]", "Old docs.")], &[]).expect("module decodes");
         assert_eq!(
             text,
-            starlark_json(&[module("[]", "New docs.")]).expect("module decodes")
+            starlark_json(&[module("[]", "New docs.")], &[]).expect("module decodes")
         );
         assert_ne!(
             text,
-            starlark_json(&[module("[\"a.txt\"]", "Old docs.")]).expect("module decodes")
+            starlark_json(&[module("[\"a.txt\"]", "Old docs.")], &[]).expect("module decodes")
         );
         let json: serde_json::Value = serde_json::from_str(&text).expect("starlark.json parses");
         let entry = &json[0];
@@ -601,6 +716,7 @@ mod tests {
         assert_eq!(entry["macros"][0]["attrs"][0]["default"], "\"fast\"");
         assert_eq!(entry["functions"][0]["params"][0]["name"], "name");
         assert_eq!(entry["functions"][0]["params"][1]["default"], "[]");
+        assert_eq!(entry["functions"][0]["forwards"], serde_json::json!([]));
         assert_eq!(
             entry["providers"][0]["fields"],
             serde_json::json!(["inputs", "outputs"])
@@ -610,6 +726,75 @@ mod tests {
             "version"
         );
         assert!(!text.contains("docs"), "{text}");
+    }
+
+    fn target(function: &str, kind: &str, edition: &str) -> String {
+        serde_json::json!({
+            "type": "RULE",
+            "rule": {
+                "name": "//pkg:lib",
+                "ruleClass": kind,
+                "attribute": [
+                    {"name": "name", "type": "STRING", "stringValue": "lib", "explicitlySpecified": true},
+                    {"name": "generator_function", "type": "STRING", "stringValue": function, "explicitlySpecified": true},
+                    {"name": "generator_name", "type": "STRING", "stringValue": "lib", "explicitlySpecified": true},
+                    {"name": "edition", "type": "STRING", "stringValue": edition, "explicitlySpecified": true},
+                    {"name": "srcs", "type": "LABEL_LIST", "explicitlySpecified": true},
+                    {"name": "crate_root", "type": "LABEL", "explicitlySpecified": false},
+                    {"name": "$toolchain", "type": "LABEL", "explicitlySpecified": true},
+                    {"name": ":host", "type": "LABEL", "explicitlySpecified": true},
+                ],
+            },
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn forwards_record_each_kind_and_its_set_attrs() {
+        let unrelated = serde_json::json!({
+            "type": "RULE",
+            "rule": {"name": "//pkg:plain", "ruleClass": "filegroup", "attribute": [
+                {"name": "srcs", "type": "LABEL_LIST", "explicitlySpecified": true},
+            ]},
+        })
+        .to_string();
+        let output = [
+            target("demo_test", "rust_test", "2024"),
+            target("demo_test", "rust_library", "2024"),
+            unrelated,
+        ]
+        .join("\n");
+        let text = starlark_json(&[module("[]", "Docs.")], &[output]).expect("module decodes");
+        let json: serde_json::Value = serde_json::from_str(&text).expect("starlark.json parses");
+        assert_eq!(
+            json[0]["functions"][0]["forwards"],
+            serde_json::json!([
+                {"kind": "rust_library", "attrs": ["edition", "srcs"]},
+                {"kind": "rust_test", "attrs": ["edition", "srcs"]},
+            ])
+        );
+        let mut changed = target("demo_test", "rust_test", "2024");
+        changed = changed.replace("\"edition\"", "\"crate_name\"");
+        assert_ne!(
+            text,
+            starlark_json(&[module("[]", "Docs.")], &[changed]).expect("module decodes")
+        );
+    }
+
+    #[test]
+    fn a_generator_function_without_a_public_macro_is_an_error() {
+        let error = starlark_json(
+            &[module("[]", "Docs.")],
+            &[target("hidden_macro", "rust_test", "2024")],
+        )
+        .expect_err("hidden_macro is not public");
+        assert!(error.to_string().contains("hidden_macro"), "{error}");
+        let error = starlark_json(
+            &[module("[]", "Docs."), module("[]", "Docs.")],
+            &[target("demo_test", "rust_test", "2024")],
+        )
+        .expect_err("demo_test is in two modules");
+        assert!(error.to_string().contains("demo_test"), "{error}");
     }
 
     #[test]
@@ -836,6 +1021,7 @@ filegroup(name = "srcs", visibility = ["//visibility:public"])
                 packages: Vec::new(),
             },
             &[module("[]", "Docs.")],
+            &[],
         )
         .expect("snapshot renders");
         assert_eq!(files.keys().copied().collect::<Vec<_>>(), {

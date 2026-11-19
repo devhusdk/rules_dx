@@ -276,4 +276,4 @@ A list you set here replaces the tier's list. A list you leave out comes from th
 | `license` | string | none | License id of the package. |
 | `versions` | string | none | Version range the entry covers. |
 | `text_present` | boolean | `false` | The license text ships with the package. |
-| `text` | string | none | Workspace-relative path of a vendored license file. Implies `text_present`. |
+| `text` | string | none | Workspace-relative path of a vendored license file. Implies `text_present`. The release NOTICE uses this file for cargo crates that ship no license text. |

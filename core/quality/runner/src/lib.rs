@@ -1,4 +1,9 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 #![cfg_attr(
     test,
     expect(
@@ -61,8 +66,8 @@ pub enum RunnerError {
     EmptyStageSources { stage: usize },
     #[error("duplicate file {path:?}")]
     DuplicateFile { path: String },
-    #[error("invalid UTF-8 for {path:?}")]
-    InvalidUtf8 { path: String },
+    #[error("invalid UTF-8 for {path:?}: {reason}")]
+    InvalidUtf8 { path: String, reason: String },
     #[error("missing file {path:?}")]
     MissingFile { path: String },
     #[error("tool execution failed for {tool_id}: {detail}")]
@@ -287,8 +292,9 @@ fn validate_request(
                 path: file.path.clone(),
             });
         }
-        let text = std::str::from_utf8(&file.bytes).map_err(|_| RunnerError::InvalidUtf8 {
+        let text = std::str::from_utf8(&file.bytes).map_err(|error| RunnerError::InvalidUtf8 {
             path: file.path.clone(),
+            reason: error.to_string(),
         })?;
         initial.insert(file.path.clone(), text.to_owned());
     }

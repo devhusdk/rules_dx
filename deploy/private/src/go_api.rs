@@ -1,11 +1,83 @@
 //! Go module API compatibility check for github_deploy, using apidiff.
 
-use crate::api_compat::{Baseline, Outcome, fetch, fetch_to, highest_below, previous_git_tag};
+use crate::api_compat::{
+    ApiCompatError, Baseline, Outcome, fetch, fetch_to, highest_below, previous_git_tag,
+};
 use crate::archive::archive_extract;
 use crate::run::{PUBLISH_CHILD_ENV_KEEP, exit_text, run_publish, scrubbed_command};
 use crate::stage::tempfile_stage_dir;
 use dx_ecosystems::Ecosystem;
-use std::path::Path;
+use dx_process::capture::RunError;
+use std::fmt;
+use std::io;
+use std::path::{Path, PathBuf};
+
+/// Why the Go API check could not compare a module.
+#[derive(Debug)]
+pub(crate) enum GoApiError {
+    /// apidiff could not be started.
+    Apidiff { source: RunError },
+    /// apidiff exited with a failure.
+    ApidiffFailed {
+        dir: PathBuf,
+        exit: String,
+        output: String,
+    },
+    /// A git invocation failed.
+    Git { source: RunError },
+    /// The scratch directory could not be created.
+    Work { source: io::Error },
+    /// A listed module has no `module` line in its manifest.
+    NoModuleLine { module: String },
+    /// The shared baseline lookup failed.
+    ApiCompat { source: ApiCompatError },
+    /// The proxy lists a version whose zip is missing.
+    ProxyMissing { url: String },
+    /// A downloaded module zip could not be extracted.
+    Extract { url: String, source: io::Error },
+}
+
+impl fmt::Display for GoApiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Apidiff { source } => write!(f, "github_deploy: apidiff: {source}"),
+            Self::ApidiffFailed { dir, exit, output } => write!(
+                f,
+                "github_deploy: apidiff failed in {} with {exit}\n{output}",
+                dir.display()
+            ),
+            Self::Git { source } => write!(f, "{source}"),
+            Self::Work { source } => write!(f, "github_deploy: api compat: {source}"),
+            Self::NoModuleLine { module } => write!(
+                f,
+                "github_deploy: no module line in {module}/{}",
+                manifest_name()
+            ),
+            Self::ApiCompat { source } => write!(f, "{source}"),
+            Self::ProxyMissing { url } => write!(f, "{url} not found"),
+            Self::Extract { url, source } => write!(f, "{url}: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for GoApiError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Apidiff { source } | Self::Git { source } => Some(source),
+            Self::Work { source } | Self::Extract { source, .. } => Some(source),
+            Self::ApiCompat { source } => Some(source),
+            Self::ApidiffFailed { .. } | Self::NoModuleLine { .. } | Self::ProxyMissing { .. } => {
+                None
+            }
+        }
+    }
+}
+
+impl From<ApiCompatError> for GoApiError {
+    fn from(source: ApiCompatError) -> Self {
+        Self::ApiCompat { source }
+    }
+}
 
 /// Returns the lines under `Incompatible changes:` in apidiff output.
 pub(crate) fn incompatible_changes(output: &str) -> Vec<String> {
@@ -67,27 +139,25 @@ fn run_apidiff(
     extra: &[(&str, &str)],
     dir: &Path,
     args: &[&str],
-) -> Result<String, String> {
+) -> Result<String, GoApiError> {
     let mut cmd = scrubbed_command(
         program,
         &[PUBLISH_CHILD_ENV_KEEP, GO_CHILD_ENV_EXTRA],
         extra,
     );
     cmd.args(args).current_dir(dir);
-    let output =
-        run_publish(&mut cmd).map_err(|error| format!("github_deploy: apidiff: {error}"))?;
+    let output = run_publish(&mut cmd).map_err(|source| GoApiError::Apidiff { source })?;
     let text = format!(
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
     if !output.success() {
-        return Err(format!(
-            "github_deploy: apidiff failed in {} with {}\n{}",
-            dir.display(),
-            exit_text(&output),
-            text.trim()
-        ));
+        return Err(GoApiError::ApidiffFailed {
+            dir: dir.to_path_buf(),
+            exit: exit_text(&output),
+            output: text.trim().to_owned(),
+        });
     }
     Ok(text)
 }
@@ -102,13 +172,13 @@ const GO_CHILD_ENV_EXTRA: &[&str] = &[
     "GOROOT",
 ];
 
-fn git(workspace: &Path, args: &[&str]) -> Result<String, String> {
+fn git(workspace: &Path, args: &[&str]) -> Result<String, GoApiError> {
     dx_process::capture::run_checked(
         dx_process::capture::git(workspace).args(args),
         dx_process::capture::DEFAULT_TIMEOUT,
     )
     .map(|output| output.stdout_text())
-    .map_err(|error| error.to_string())
+    .map_err(|source| GoApiError::Git { source })
 }
 
 /// Returns the breaking changes of the module in `new` against the module in `old`.
@@ -118,7 +188,7 @@ fn compare_module(
     (old, new): (&Path, &Path),
     path: &str,
     export: &Path,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, GoApiError> {
     let export = export.to_string_lossy();
     run_apidiff(apidiff, extra, old, &["-m", "-w", &export, path])?;
     let text = run_apidiff(apidiff, extra, new, &["-m", &export, path])?;
@@ -136,7 +206,7 @@ pub(crate) fn go_api_check(
     modules: &[String],
     tag: &str,
     baseline: Baseline,
-) -> Result<Vec<Outcome>, String> {
+) -> Result<Vec<Outcome>, GoApiError> {
     let detected = [String::new()];
     let modules = if modules.is_empty() {
         if !workspace.join(manifest_name()).is_file() {
@@ -158,8 +228,7 @@ pub(crate) fn go_api_check(
         .iter()
         .map(|path| ("PATH", path.as_str()))
         .collect();
-    let work = tempfile_stage_dir("go-api-")
-        .map_err(|error| format!("github_deploy: api compat: {error}"))?;
+    let work = tempfile_stage_dir("go-api-").map_err(|source| GoApiError::Work { source })?;
     let mut outcomes = Vec::new();
     let mut checked = Ok(());
     let mut worktree = None;
@@ -167,10 +236,9 @@ pub(crate) fn go_api_check(
         let rel = module.trim_matches('/');
         let new = workspace.join(rel);
         let Some(path) = module_path(&new.join(manifest_name())) else {
-            checked = Err(format!(
-                "github_deploy: no module line in {module}/{}",
-                manifest_name()
-            ));
+            checked = Err(GoApiError::NoModuleLine {
+                module: module.clone(),
+            });
             break;
         };
         let old = if baseline == Baseline::Git {
@@ -186,7 +254,7 @@ pub(crate) fn go_api_check(
                 continue;
             }
             Err(why) => {
-                outcomes.push(Outcome::Skipped(why));
+                outcomes.push(Outcome::Skipped(why.to_string()));
                 continue;
             }
         };
@@ -223,7 +291,7 @@ fn go_git_baseline(
     work: &Path,
     worktree: &mut Option<String>,
     tag: &str,
-) -> Result<Option<(String, std::path::PathBuf)>, String> {
+) -> Result<Option<(String, PathBuf)>, GoApiError> {
     let tree = work.join("tree");
     if let Some(previous) = worktree {
         return Ok(Some((previous.clone(), tree)));
@@ -250,7 +318,7 @@ fn go_proxy_baseline(
     path: &str,
     tag: &str,
     dir: &Path,
-) -> Result<Option<(String, std::path::PathBuf)>, String> {
+) -> Result<Option<(String, PathBuf)>, GoApiError> {
     let base = format!("{GO_PROXY}/{}/@v", proxy_escape(path));
     let Some(list) = fetch(&format!("{base}/list"), 1 << 20)? else {
         return Ok(None);
@@ -261,9 +329,12 @@ fn go_proxy_baseline(
     let url = format!("{base}/{previous}.zip");
     let archive = dir.with_extension("zip");
     if !fetch_to(&url, &archive, 512 << 20)? {
-        return Err(format!("{url} not found"));
+        return Err(GoApiError::ProxyMissing { url });
     }
-    archive_extract(&archive, dir).map_err(|error| format!("{url}: {error}"))?;
+    archive_extract(&archive, dir).map_err(|source| GoApiError::Extract {
+        url: url.clone(),
+        source,
+    })?;
     Ok(Some((
         previous.clone(),
         dir.join(format!("{path}@{previous}")),
@@ -358,22 +429,36 @@ mod tests {
         let modules = vec!["lib".to_owned()];
         let run = |tag: &str| go_api_check((&fake, None), &repo, &modules, tag, Baseline::Git);
         assert_eq!(
-            run("v1.3.0"),
-            Ok(vec![Outcome::Compared {
+            run("v1.3.0").expect("compared"),
+            vec![Outcome::Compared {
                 previous: "v1.2.0".to_owned(),
                 changes: vec!["example.com/lib: Hello: removed".to_owned()],
-            }])
+            }]
         );
         let logged = std::fs::read_to_string(&args_log).expect("args");
         assert!(logged.starts_with("-m -w "), "{logged}");
         assert!(logged.contains("example.com/lib"), "{logged}");
-        assert_eq!(run("v1.0.0"), Ok(vec![Outcome::FirstRelease]));
         assert_eq!(
-            go_api_check((&fake, None), &repo, &[], "v1.3.0", Baseline::Git),
-            Ok(Vec::new())
+            run("v1.0.0").expect("first release"),
+            vec![Outcome::FirstRelease]
+        );
+        assert_eq!(
+            go_api_check((&fake, None), &repo, &[], "v1.3.0", Baseline::Git).expect("no modules"),
+            Vec::new()
         );
         let listed = git(&repo, &["worktree", "list"]).expect("list");
         assert_eq!(listed.lines().count(), 1, "{listed}");
+        let missing = vec!["missing".to_owned()];
+        let error = go_api_check((&fake, None), &repo, &missing, "v1.3.0", Baseline::Git)
+            .expect_err("no manifest");
+        assert!(matches!(&error, GoApiError::NoModuleLine { module } if module == "missing"));
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "github_deploy: no module line in missing/{}",
+                manifest_name()
+            )
+        );
     }
 
     #[cfg(unix)]

@@ -16,7 +16,8 @@ STRUCTURED_CASES = [
         },
         path_tool_owners = ["buf"],
         path_tool_names = ["diff"],
-        path_tool_binaries = ["//core/quality/tools/diff"],
+        path_tool_binaries = ["@dx_prebuilt//:dx"],
+        path_tool_args = {"diff": ["buf_diff"]},
     ),
     matrix_case(
         name = "matrix_protobuf_format_fail",
@@ -29,7 +30,8 @@ STRUCTURED_CASES = [
         },
         path_tool_owners = ["buf"],
         path_tool_names = ["diff"],
-        path_tool_binaries = ["//core/quality/tools/diff"],
+        path_tool_binaries = ["@dx_prebuilt//:dx"],
+        path_tool_args = {"diff": ["buf_diff"]},
     ),
     matrix_case(
         name = "matrix_protobuf_lint_pass",

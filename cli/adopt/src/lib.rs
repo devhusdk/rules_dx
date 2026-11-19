@@ -1,9 +1,11 @@
 #![deny(
     clippy::indexing_slicing,
+    clippy::map_err_ignore,
     clippy::panic,
     clippy::print_stderr,
     clippy::print_stdout,
-    clippy::string_slice
+    clippy::string_slice,
+    clippy::unused_result_ok
 )]
 #![cfg_attr(
     test,

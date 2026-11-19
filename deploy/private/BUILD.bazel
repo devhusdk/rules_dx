@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
@@ -395,7 +396,10 @@ rust_test(
     }),
 )
 
-exports_files(["Cargo.toml"])
+exports_files([
+    "BUILD.bazel",
+    "Cargo.toml",
+])
 
 sh_binary(
     name = "deploy_program",
@@ -498,6 +502,67 @@ deployment(
     name = "deploy_non_executable_tool",
     deploy = ":pypi_demo_wheel",
     tags = ["manual"],
+)
+
+deployment(
+    name = "release_tag_only",
+    deploy = ":deploy_program",
+    tags = ["release"],
+)
+
+deployment(
+    name = "release_tag_listed",
+    deploy = ":deploy_program",
+    tags = [
+        "manual",
+        "release",
+    ],
+)
+
+deployment(
+    name = "release_tag_manual",
+    deploy = ":deploy_program",
+    tags = ["manual"],
+)
+
+deployment(
+    name = "release_tag_notes",
+    deploy = ":deploy_program",
+    tags = [
+        "manual",
+        "release-notes",
+    ],
+)
+
+genquery(
+    name = "release_tag_query",
+    expression = r'attr(tags, "[\[ ]release[,\]]", kind("^deployment rule$", set(//deploy/private:release_tag_listed //deploy/private:release_tag_manual //deploy/private:release_tag_notes //deploy/private:release_tag_only)))',
+    opts = ["--output=label"],
+    scope = [
+        "//deploy/private:release_tag_listed",
+        "//deploy/private:release_tag_manual",
+        "//deploy/private:release_tag_notes",
+        "//deploy/private:release_tag_only",
+    ],
+)
+
+genquery(
+    name = "release_tag_expected",
+    expression = "//deploy/private:release_tag_listed + //deploy/private:release_tag_only",
+    opts = ["--output=label"],
+    scope = [
+        "//deploy/private:release_tag_listed",
+        "//deploy/private:release_tag_manual",
+        "//deploy/private:release_tag_notes",
+        "//deploy/private:release_tag_only",
+    ],
+)
+
+diff_test(
+    name = "release_tag_query_test",
+    size = "small",
+    file1 = ":release_tag_expected",
+    file2 = ":release_tag_query",
 )
 
 failure_test(
@@ -965,6 +1030,7 @@ test_suite(
         ":pypi_unit",
         ":release_demo_debug_verify",
         ":release_demo_verify",
+        ":release_tag_query_test",
         ":resources_collision_fails",
         ":resources_demo_verify",
         ":resources_duplicate_fails",

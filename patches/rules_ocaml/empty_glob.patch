@@ -1,0 +1,21 @@
+Upstream: none (upstream obazl/rules_ocaml dormant since Mar 2025; the ppx*.bzl globs match nothing, so ocaml/_rules fails to load)
+--- a/ocaml/_rules/BUILD.bazel
++++ b/ocaml/_rules/BUILD.bazel
+@@ -14,7 +14,7 @@
+         "impl*.bzl",
+         "apis.bzl",
+         "selection_proxy.bzl"
+-    ]), # "x*bzl"]),
++    ], allow_empty = True), # "x*bzl"]),
+     visibility = ["//visibility:public"],
+     deps = [ # bzl_library deps
+         "@bazel_skylib//lib:collections",
+@@ -36,7 +36,7 @@
+ 
+ bzl_library(
+     name = "ppx_rules",
+-    srcs = glob(["ppx*.bzl", "impl*.bzl"]) + ["apis.bzl"],
++    srcs = glob(["ppx*.bzl", "impl*.bzl"], allow_empty = True) + ["apis.bzl"],
+     visibility = ["//visibility:public"],
+     deps = [
+         "@bazel_skylib//lib:collections",

@@ -583,8 +583,8 @@ pub fn pointer_of(json_path: &str) -> Option<String> {
 }
 
 fn strip_bom(bytes: &[u8]) -> Result<&str, SyntaxAt> {
-    let text =
-        std::str::from_utf8(bytes).map_err(|_| SyntaxAt::new(1, 0, "the file is not UTF-8"))?;
+    let text = std::str::from_utf8(bytes)
+        .map_err(|error| SyntaxAt::new(1, 0, &format!("the file is not UTF-8: {error}")))?;
     Ok(text.strip_prefix('\u{feff}').unwrap_or(text))
 }
 

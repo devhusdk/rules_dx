@@ -1,10 +1,11 @@
 //! A consumer whose root module pins every registry tool for the host compiles no rules_dx tool.
 //!
 //! The test writes a stub file per registry tool of the host, adds one `dx_prebuilt.asset`
-//! (or `dx_gazelle.asset`) per tool to the consumer of `<lang>/tests/consumer`, and runs
-//! `bazel cquery 'deps(...)'` over the fixture and the hub target of every pinned tool. A jar
-//! tool gets `os = "any"` and `cpu = "any"`, and its hub target is a root only for a JVM
-//! consumer. cquery follows exec and target configurations alike. Any compiled binary that a
+//! (or `dx_gazelle.asset`) per tool to a consumer of the `<lang>/tests/consumer` fixtures of the
+//! `DX_PREBUILT_GUARD_LANGS` languages (the first at the root, each later one under `<lang>/`),
+//! and runs `bazel cquery 'deps(...)'` over the fixtures and the hub target of every pinned tool.
+//! A jar tool gets `os = "any"` and `cpu = "any"`, and its hub target is a root only when a
+//! language is a JVM language. cquery follows exec and target configurations alike. Any compiled binary that a
 //! rules_dx repository declares fails the test unless `prebuilt_guard_allowlist.txt` names it;
 //! the `java_binary` the `dx_prebuilt` hub wraps around a downloaded jar compiles nothing.
 //!
@@ -48,11 +49,11 @@ struct Allowlist {
 }
 
 impl Allowlist {
-    /// The labels a `lang` consumer may compile.
-    fn labels_for(&self, lang: &str) -> BTreeSet<String> {
+    /// The labels a consumer of `langs` may compile.
+    fn labels_for(&self, langs: &[&str]) -> BTreeSet<String> {
         self.labels
             .iter()
-            .filter(|(_, langs)| langs.is_empty() || langs.contains(lang))
+            .filter(|(_, only)| only.is_empty() || langs.iter().any(|lang| only.contains(*lang)))
             .map(|(label, _)| label.clone())
             .collect()
     }
@@ -151,9 +152,9 @@ fn asset_tag(tool: &str, os: &str, cpu: &str, url: &str, sha256: &str) -> String
     )
 }
 
-/// Whether a `lang` consumer roots the hub target of a tool released for `platform`.
-fn rooted(platform: &str, lang: &str) -> bool {
-    platform != "any" || JVM_LANGS.contains(&lang)
+/// Whether a consumer of `langs` roots the hub target of a tool released for `platform`.
+fn rooted(platform: &str, langs: &[&str]) -> bool {
+    platform != "any" || langs.iter().any(|lang| JVM_LANGS.contains(lang))
 }
 
 /// The rules_dx-declared compiled binaries in `cquery --output=label_kind` lines, each with its lines.
@@ -268,8 +269,13 @@ fn runfile(var: &str) -> String {
 
 #[test]
 fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
-    let lang = dx_testing::env_text("DX_PREBUILT_GUARD_LANG");
-    let lang = lang.trim();
+    let langs = dx_testing::env_text("DX_PREBUILT_GUARD_LANGS");
+    let langs: Vec<&str> = langs.split_whitespace().collect();
+    assert!(
+        !langs.is_empty(),
+        "DX_PREBUILT_GUARD_LANGS names no language"
+    );
+    let named = langs.join(" ");
     let list = allowlist(&runfile("DX_PREBUILT_GUARD_ALLOWLIST")).unwrap_or_else(|error| {
         panic!("prebuilt_guard_allowlist.txt: {error}");
     });
@@ -293,7 +299,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         let sha256 = dx_testing::sha256_file(&stub).unwrap_or_else(|error| panic!("{error}"));
         let url = format!("file://{}", stub.to_string_lossy().replace('\\', "/"));
         tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
-        if rooted(platform, lang) {
+        if rooted(platform, &langs) {
             roots.extend(hub_targets(tool, &go_names));
         }
     }
@@ -301,12 +307,13 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         "dx_prebuilt = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\n\
          dx_gazelle = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_gazelle\")\n{tags}"
     );
-    let case = Case::language_consumer(&format!("{lang}_prebuilt_guard"), lang, &extra)
+    let case = Case::languages_consumer(&format!("{}_prebuilt_guard", langs[0]), &langs, &extra)
         .unwrap_or_else(|error| panic!("{error}"));
     let targets = case.bazel(&[
         "query",
         "--color=no",
         "--curses=no",
+        "--nocheck_bzl_visibility",
         "--output=label",
         "kind(rule, //...) except attr(tags, \"\\bmanual\\b\", //...)",
     ]);
@@ -323,8 +330,15 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         .collect();
     assert!(
         !targets.is_empty(),
-        "bazel query found no rule in the {lang} consumer"
+        "bazel query found no rule in the {named} consumer"
     );
+    for lang in &langs[1..] {
+        let package = format!("//{lang}:");
+        assert!(
+            targets.iter().any(|target| target.starts_with(&package)),
+            "bazel query found no {package} rule in the {named} consumer"
+        );
+    }
     let (check, docs) = guard_aspects(&dx_adopt::file_extensions(case.root()));
     let wrapper = case.root().join("dx_prebuilt_guard");
     dx_testing::write_text(&wrapper.join("defs.bzl"), &wrapper_bzl(&check, &docs));
@@ -336,6 +350,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         "--curses=no",
         "--consistent_labels",
         "--nocheck_visibility",
+        "--nocheck_bzl_visibility",
         "--output=label_kind",
         &query,
     ]);
@@ -349,10 +364,10 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         );
     }
     let found = compiled_binaries(&run.stdout);
-    let problems = problems(&found, &list.labels_for(lang));
+    let problems = problems(&found, &list.labels_for(&langs));
     assert!(
         problems.is_empty(),
-        "{lang} consumer with host pins for {}:\n{}",
+        "{named} consumer with host pins for {}:\n{}",
         tools.keys().cloned().collect::<Vec<_>>().join(", "),
         problems.join("\n")
     );
@@ -378,11 +393,15 @@ fn allowlist_lines_need_a_kind_and_a_reason() {
         }
     );
     assert_eq!(
-        list.labels_for("go"),
+        list.labels_for(&["go"]),
         BTreeSet::from(["@@rules_dx+//a:b".to_owned()])
     );
     assert_eq!(
-        list.labels_for("lua"),
+        list.labels_for(&["lua"]),
+        BTreeSet::from(["@@rules_dx+//a:b".to_owned(), "@@rules_dx+//l:c".to_owned()])
+    );
+    assert_eq!(
+        list.labels_for(&["go", "lua"]),
         BTreeSet::from(["@@rules_dx+//a:b".to_owned(), "@@rules_dx+//l:c".to_owned()])
     );
     assert!(allowlist("label @@rules_dx+//a:b\n").is_err());
@@ -468,12 +487,13 @@ source file @@rules_dx+//cli/cli:main.rs (null)
 
 #[test]
 fn only_jvm_consumers_root_the_jar_tools() {
-    assert!(rooted("linux_x86_64", "go"));
-    assert!(rooted("linux_x86_64", "java"));
-    assert!(!rooted("any", "go"));
-    assert!(rooted("any", "java"));
-    assert!(rooted("any", "kotlin"));
-    assert!(rooted("any", "scala"));
+    assert!(rooted("linux_x86_64", &["go"]));
+    assert!(rooted("linux_x86_64", &["java"]));
+    assert!(!rooted("any", &["go"]));
+    assert!(rooted("any", &["java"]));
+    assert!(rooted("any", &["kotlin"]));
+    assert!(rooted("any", &["scala"]));
+    assert!(rooted("any", &["go", "scala"]));
 }
 
 #[test]

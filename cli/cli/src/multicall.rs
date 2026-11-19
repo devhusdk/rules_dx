@@ -38,6 +38,7 @@ pub enum Tool {
     BeamExtract,
     CcExtract,
     ComponentExtract,
+    DartDoc,
     DartExtract,
     DotnetExtract,
     GoExtract,
@@ -56,6 +57,7 @@ pub enum Tool {
     SiteAggregate,
     SiteBuild,
     SiteCheck,
+    BufDiff,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -100,6 +102,7 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "beam_extract" => Some(Tool::BeamExtract),
         "cc_extract" => Some(Tool::CcExtract),
         "component_extract" => Some(Tool::ComponentExtract),
+        "dart_doc" => Some(Tool::DartDoc),
         "dart_extract" => Some(Tool::DartExtract),
         "dotnet_extract" => Some(Tool::DotnetExtract),
         "go_extract" => Some(Tool::GoExtract),
@@ -118,6 +121,7 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "site_aggregate" => Some(Tool::SiteAggregate),
         "site_build" => Some(Tool::SiteBuild),
         "site_check" => Some(Tool::SiteCheck),
+        "buf_diff" => Some(Tool::BufDiff),
         _ => None,
     }
 }
@@ -205,6 +209,7 @@ mod tests {
             ("beam_extract", Tool::BeamExtract),
             ("cc_extract", Tool::CcExtract),
             ("component_extract", Tool::ComponentExtract),
+            ("dart_doc", Tool::DartDoc),
             ("dart_extract", Tool::DartExtract),
             ("dotnet_extract", Tool::DotnetExtract),
             ("go_extract", Tool::GoExtract),
@@ -223,6 +228,7 @@ mod tests {
             ("site_aggregate", Tool::SiteAggregate),
             ("site_build", Tool::SiteBuild),
             ("site_check", Tool::SiteCheck),
+            ("buf_diff", Tool::BufDiff),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -251,6 +257,7 @@ mod tests {
             "beam_extract",
             "cc_extract",
             "component_extract",
+            "dart_doc",
             "dart_extract",
             "dotnet_extract",
             "go_extract",
@@ -269,6 +276,8 @@ mod tests {
             "site_aggregate",
             "site_build",
             "site_check",
+            "buf_diff",
+            "diff",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }

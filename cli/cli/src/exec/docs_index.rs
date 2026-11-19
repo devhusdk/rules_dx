@@ -111,13 +111,12 @@ fn site_build_options(mdbook: &Path, work: &Path, out: &Path) -> dx_site_build::
     }
 }
 
-/// Turns a tool's refusal text, empty on success, into an error named after the tool.
-fn refused(tool: &str, refusal: String) -> Result<(), dx_error::DxError> {
-    if refusal.is_empty() {
-        Ok(())
-    } else {
-        Err(failed(format!("{tool}: {refusal}")))
-    }
+/// Turns a tool's refusal into an error named after the tool.
+fn refused<E: std::fmt::Display>(
+    tool: &str,
+    result: Result<(), E>,
+) -> Result<(), dx_error::DxError> {
+    result.map_err(|refusal| failed(format!("{tool}: {refusal}")))
 }
 
 /// Renders the shards into `<workspace>/.dx/local/docs/index` and returns that tree.
@@ -151,10 +150,7 @@ pub(crate) fn build_index(
     }
     refused(
         "site_aggregate",
-        dx_site_aggregate::run(&aggregate_options(shards, &work))
-            .err()
-            .map(|error| error.to_string())
-            .unwrap_or_default(),
+        dx_site_aggregate::run(&aggregate_options(shards, &work)),
     )?;
     refused(
         "site_build",
@@ -217,8 +213,8 @@ mod tests {
 
     #[test]
     fn a_refusal_names_its_tool() {
-        assert!(refused("site_build", String::new()).is_ok());
-        let error = refused("site_build", "no pages".to_owned()).err();
+        assert!(refused("site_build", Ok::<(), String>(())).is_ok());
+        let error = refused("site_build", Err("no pages")).err();
         assert!(
             error.is_some_and(|error| error.to_string().contains("site_build: no pages")),
             "refusal lost its tool name"

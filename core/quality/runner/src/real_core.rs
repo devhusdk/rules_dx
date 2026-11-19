@@ -8,6 +8,7 @@ use super::*;
 use crate::FileInput;
 use quality_result::encode_validated;
 use quality_result::proto::Convergence;
+use std::fmt::Write as _;
 
 pub(super) fn markdown_links(
     argv: &[OsString],
@@ -653,7 +654,8 @@ fn resolve_inputs_are_staged_but_never_become_quality_sources() {
             &backend
         ),
         Err(RunnerError::InvalidUtf8 {
-            path: "doc/target.md".to_owned()
+            path: "doc/target.md".to_owned(),
+            reason: "invalid utf-8 sequence of 1 bytes from index 0".to_owned(),
         })
     );
 }
@@ -699,6 +701,7 @@ pub(super) fn sibling_non_utf8_fails() {
         ),
         Err(RunnerError::InvalidUtf8 {
             path: "LICENSE".to_owned(),
+            reason: "invalid utf-8 sequence of 1 bytes from index 0".to_owned(),
         })
     );
 }

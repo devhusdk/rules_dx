@@ -81,17 +81,9 @@ def _user_docs(ctx, root):
     return pages
 
 def _surface(ctx):
-    """Lists the files a consumer can load: API snapshot loads, entry points, extensions, dx runtime loads and documented loads."""
+    """Lists the files a consumer can load: API snapshot loads, MODULE.bazel extensions, dx runtime loads and documented loads."""
     root = ctx.path(Label("//:MODULE.bazel")).dirname
     seeds = []
-    for entry in root.readdir():
-        if entry.basename.startswith(("bazel-", ".")) or not entry.is_dir:
-            continue
-        if not _exists(ctx, entry.get_child("lang.json")):
-            continue
-        for name in ("defs.bzl", "extensions.bzl"):
-            if _exists(ctx, entry.get_child(name)):
-                seeds.append(entry.basename + ":" + name)
     seeds.extend(_module_extensions(ctx.read(ctx.attr.module)))
     for entry in json.decode(ctx.read(ctx.attr.starlark)):
         label = entry["load"]

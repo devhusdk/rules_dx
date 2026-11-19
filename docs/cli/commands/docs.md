@@ -112,7 +112,7 @@ rust_docs_site(
 )
 ```
 
-For other languages, declare a shard with the rule from the table, list it in `libraries` of `docs_site` from `@rules_dx//tools/docs/site:site.bzl`, then build the site:
+For other languages, declare a shard with the rule from the table, list it in `libraries` of `docs_site` from `@rules_dx//core:defs.bzl`, then build the site:
 
 ```sh
 tools/dx docs //lib:site
@@ -133,8 +133,8 @@ tools/dx docs //lib:site
 | Perl | `@rules_dx//perl:defs.bzl` | `perl_doc_shard` | `lib`, `package` |
 | Julia | `@rules_dx//julia:defs.bzl` | `julia_doc_shard` | `lib`, `module`, `package` |
 | Fortran | `@rules_dx//fortran:defs.bzl` | `fortran_doc_shard` | `lib`, `package` |
-| PHP | `@rules_dx//tools/docs/php:defs.bzl` | `php_doc_shard` | `lib`, `package` |
-| Lua | `@rules_dx//tools/docs/lua:defs.bzl` | `lua_doc_shard` | `lib`, `package` |
+| PHP | `@rules_dx//core:defs.bzl` | `php_doc_shard` | `lib`, `package` |
+| Lua | `@rules_dx//core:defs.bzl` | `lua_doc_shard` | `lib`, `package` |
 | Elixir | `@rules_dx//elixir:defs.bzl` | `elixir_doc_shard` | `app`, `package` |
 | Erlang | `@rules_dx//erlang:defs.bzl` | `erlang_doc_shard` | `app`, `package` |
 | Python | `@rules_dx//python:defs.bzl` | `python_doc_shard` | `library`, `package`, `docstyle` (`google`, `numpy` or `sphinx`) |
@@ -151,7 +151,7 @@ tools/dx docs //lib:site
 | Dart | `@rules_dx//dart:defs.bzl` | `dart_doc_shard` | `lib`, `package` |
 | C# | `@rules_dx//csharp:defs.bzl` | `csharp_doc_shard` | `library`, `package` |
 | F# | `@rules_dx//fsharp:defs.bzl` | `fsharp_doc_shard` | `library`, `package` |
-| Protobuf | `@rules_dx//tools/docs/protobuf:defs.bzl` | `protobuf_doc_shard` | `proto`, `package` |
+| Protobuf | `@rules_dx//core:defs.bzl` | `protobuf_doc_shard` | `proto`, `package` |
 | Avro | `@rules_dx//avro:defs.bzl` | `avro_doc_shard` | `avro`, `package` |
 
 ### Shards you get without a rule

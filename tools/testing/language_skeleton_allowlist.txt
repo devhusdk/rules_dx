@@ -46,10 +46,6 @@ fixture-name fortran/tests/runtime
 fixture-name haskell/tests/mingw_cc
 fixture-name haskell/tests/negative
 fixture-name haskell/tests/runtime
-fixture-name helm/tests/charts
-fixture-name helm/tests/dirty
-fixture-name helm/tests/other
-fixture-name helm/tests/templates
 fixture-name javascript/tests/typecheck
 fixture-name lua/tests/analysis
 fixture-name lua/tests/bench

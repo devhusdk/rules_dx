@@ -1,6 +1,5 @@
-load("@rules_dx//core/quality:defs.bzl", "latex_library")
+load("@rules_dx//core:defs.bzl", "latex_library", "typst_library")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//core/quality:defs.bzl", "typst_library")
 
 _PUBLIC = ["//visibility:public"]
 
@@ -15,8 +14,8 @@ filegroup(
     name = "files",
     srcs = glob(["*"]),
     visibility = [
-        "//core/quality/tests/fixtures/prose-docs:__pkg__",
         "//core/quality/tests:__pkg__",
+        "//core/quality/tests/fixtures/prose-docs:__pkg__",
     ],
 )
 

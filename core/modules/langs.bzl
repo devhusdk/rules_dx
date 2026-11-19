@@ -236,6 +236,17 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "bzl": "core/quality:families/core.bzl",
+      "classes": [
+        "asciidoc"
+      ],
+      "file_extensions": [
+        ".adoc",
+        ".asc",
+        ".asciidoc"
+      ]
+    },
     "title": "AsciiDoc",
     "tools": [
       "lychee",

@@ -2,16 +2,16 @@
 
 load(
     "//core/quality/private:native_config_impl.bzl",
-    _DxNativeConfigInfo = "DxNativeConfigInfo",
     "native_config_error",
+    _DxNativeConfigInfo = "DxNativeConfigInfo",
 )
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
-visibility("public")
+visibility(["//..."])
 
 DxNativeConfigInfo = _DxNativeConfigInfo
 
 def native_config_impl(ctx):
+    """Checks one native config target and returns its files and DxNativeConfigInfo."""
     tool_id = ctx.attr._tool_id
     config = ctx.file.src
     config_path = config.path if config else ""
@@ -103,7 +103,6 @@ govet_config = _make_native_config_rule("govet")
 
 fsharplint_config = _make_native_config_rule("fsharplint")
 
-
 pmd_config = _make_native_config_rule("pmd")
 
 spotbugs_config = _make_native_config_rule("spotbugs")
@@ -185,5 +184,3 @@ phpcs_config = _make_native_config_rule("phpcs")
 phpstan_config = _make_native_config_rule("phpstan")
 
 rubocop_config = _make_native_config_rule("rubocop")
-
-

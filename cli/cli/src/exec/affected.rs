@@ -253,7 +253,9 @@ pub(crate) fn plan(
         selection.targets = vec!["//...".to_owned()];
     }
     plan.widened.clone_from(&selection.widened);
-    if selection.targets.iter().any(|target| target == "//...") {
+    if command != Command::Deploy
+        && selection.targets.iter().any(|target| target == "//...")
+    {
         if command == Command::Check {
             plan.tests = vec!["//...".to_owned()];
             plan.generate = vec!["//...".to_owned()];
@@ -1130,6 +1132,38 @@ mod tests {
         assert_eq!(plan.widened[0].reason, "workspace input MODULE.bazel");
         assert!(plan.summary().contains("widened to //..."));
         assert!(runner.expressions.borrow().is_empty());
+    }
+
+    fn deploy_graph(ship_tags: &[&str]) -> String {
+        [
+            json!({"name": "//a:ship", "ruleClass": "deployment", "ruleInput": ["//a:lib"], "attribute": [{"name": "tags", "stringListValue": ship_tags}]}),
+            json!({"name": "//a:stage", "ruleClass": "deployment", "ruleInput": ["//a:lib"], "attribute": [{"name": "tags", "stringListValue": ["manual"]}]}),
+        ]
+        .iter()
+        .map(|rule| json!({"type": "RULE", "rule": rule}).to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
+    }
+
+    #[test]
+    fn widened_deploy_selects_every_release_deployment() {
+        let dir = repo();
+        write(dir.path(), "MODULE.bazel", "module(name = \"y\")\n").unwrap();
+        let graph = deploy_graph(&["release"]);
+        let (plan, runner) = run(dir.path(), Command::Deploy, &[&graph]);
+        assert_eq!(plan.targets, ["//a:ship"]);
+        assert_eq!(plan.widened[0].scope, "//...");
+        assert_eq!(*runner.expressions.borrow(), ["kind('rule', //...)"]);
+    }
+
+    #[test]
+    fn widened_deploy_without_release_deployments_selects_nothing() {
+        let dir = repo();
+        write(dir.path(), "MODULE.bazel", "module(name = \"y\")\n").unwrap();
+        let graph = deploy_graph(&["release-notes"]);
+        let (plan, _) = run(dir.path(), Command::Deploy, &[&graph]);
+        assert!(plan.targets.is_empty(), "{:?}", plan.targets);
+        assert_eq!(plan.widened[0].scope, "//...");
     }
 
     #[test]

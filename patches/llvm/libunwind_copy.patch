@@ -1,4 +1,4 @@
-Upstream: none (rules_dx only: upstream closed hermeticbuild/hermetic-llvm#912 as a workaround for a deeper cause not yet found)
+Upstream: bazelbuild/bazel#32453
 diff -ruN a/3rd_party/llvm-project/x.x/libunwind/libunwind.BUILD.bazel b/3rd_party/llvm-project/x.x/libunwind/libunwind.BUILD.bazel
 --- a/3rd_party/llvm-project/x.x/libunwind/libunwind.BUILD.bazel
 +++ b/3rd_party/llvm-project/x.x/libunwind/libunwind.BUILD.bazel

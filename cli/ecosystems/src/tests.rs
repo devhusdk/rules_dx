@@ -193,12 +193,11 @@ fn manifest_columns_resolve() {
 }
 
 #[test]
-fn backend_columns_name_a_module_or_pinned() {
+fn backend_columns_name_a_module_or_the_resolver() {
     for row in rows() {
         for backend in [&row.plan_backend, &row.check_backend] {
             assert!(
-                backend == "pinned"
-                    || backend == "resolver"
+                backend == "resolver"
                     || backend == &row.name
                     || (row.name == "pub" && backend == "pub_dev"),
                 "{} names backend {backend}",

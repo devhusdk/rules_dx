@@ -9,6 +9,53 @@ def _write_files(rctx):
     for path, content in rctx.attr.files.items():
         rctx.file(path, content)
 
+_BZL_SRCS = """
+filegroup(
+    name = "dx_bzl_srcs",
+    srcs = glob(["**/*.bzl", "**/*.scl"], allow_empty = True) + {packages},
+    visibility = ["//visibility:public"],
+)
+"""
+
+def _build_file(dir):
+    for name in ("BUILD.bazel", "BUILD"):
+        if dir.get_child(name).exists:
+            return dir.get_child(name)
+    return None
+
+def _write_bzl_srcs(rctx):
+    # Gives starlark_doc_extract a dep that covers every loadable .bzl file: each package that holds one gets a
+    # dx_bzl_srcs filegroup, and the root one also gathers the others. Packages without .bzl files are left alone,
+    # since some upstream packages do not load.
+    root = rctx.path(".")
+    prefix = str(root) + "/"
+    with_bzl = {}
+    pending = [(root, "")]
+
+    # Starlark has no while loop; every iteration visits one directory and the tree is finite.
+    for _ in range(1000000):
+        if not pending:
+            break
+        dir, package = pending.pop()
+        if _build_file(dir):
+            package = str(dir).removeprefix(prefix) if dir != root else ""
+        for child in dir.readdir():
+            if child.is_dir:
+                pending.append((child, package))
+            elif child.basename.endswith((".bzl", ".scl")):
+                with_bzl[package] = True
+    if not with_bzl:
+        fail("{} has no .bzl files for bzl_srcs".format(rctx.name))
+    for package in with_bzl:
+        if not package:
+            continue
+        build = _build_file(rctx.path(package))
+        rctx.file(build, rctx.read(build) + _BZL_SRCS.format(packages = "[]"), executable = False)
+    others = sorted(["//{}:dx_bzl_srcs".format(package) for package in with_bzl if package])
+    build = _build_file(root) or root.get_child("BUILD.bazel")
+    existing = rctx.read(build) if build.exists else ""
+    rctx.file(build, existing + _BZL_SRCS.format(packages = repr(others)), executable = False)
+
 def _hub_repo_impl(rctx):
     _write_files(rctx)
     return rctx.repo_metadata(reproducible = True)
@@ -60,6 +107,8 @@ def _pinned_archive_impl(rctx):
         if not rctx.path(path).exists:
             fail("{} archive does not ship {} to convert to CRLF".format(rctx.name, path))
         rctx.file(path, crlf_text(rctx.read(path)), executable = False)
+    if rctx.attr.bzl_srcs:
+        _write_bzl_srcs(rctx)
     return rctx.repo_metadata(reproducible = True)
 
 def _under(output, path):
@@ -87,6 +136,7 @@ pinned_archive = repository_rule(
     implementation = _pinned_archive_impl,
     doc = "Fetches one pinned archive, prunes it, writes rendered files and applies patches.",
     attrs = {
+        "bzl_srcs": attr.bool(doc = "Adds a public dx_bzl_srcs filegroup of the Starlark files to each package; the root one holds them all."),
         "crlf": attr.string_list(doc = "Paths rewritten with CRLF line endings after patching."),
         "download_as": attr.string(doc = "File name to download to without extracting."),
         "dropped": attr.string_list(doc = "Paths deleted after extraction."),

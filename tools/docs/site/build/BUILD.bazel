@@ -27,7 +27,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_build",
         normal = True,
-    ),
+    ) + ["//cli/atomic_fs:dx_atomic_fs"],
 )
 
 rust_test(
@@ -49,7 +49,10 @@ rust_test(
         package_name = "tools/docs/site/site_build",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/test_scratch:dx_test_scratch"],
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/test_scratch:dx_test_scratch",
+    ],
 )
 
 real_source_target(

@@ -209,7 +209,7 @@ TOOLS = {
         main_class = "",
         library = "",
     ),
-    # Pinned only: the hub does not serve this bundle.
+    # One archive of Python and the PYTHON_BUNDLE_TOOLS; the hub serves its launchers.
     "python_tools": struct(
         asset = "dx-python-tools-{os}-{cpu}.tar.gz",
         role = "exec",
@@ -220,6 +220,21 @@ TOOLS = {
         main_class = "",
         library = "",
     ),
+}
+
+_PYTHON_SOURCE = "@rules_dx//core/quality/tools/python:"
+
+# The tools inside the python_tools bundle, by hub name: the launcher name in the
+# bundle's bin/, the source build, and the platforms whose bundle leaves it out.
+PYTHON_BUNDLE_TOOLS = {
+    "ansible_lint_tool": struct(launcher = "ansible_lint", source = _PYTHON_SOURCE + "ansible_lint_tool", missing = ["windows_arm64"]),
+    "cfn_lint": struct(launcher = "cfn_lint", source = _PYTHON_SOURCE + "cfn_lint", missing = []),
+    "cmakelint": struct(launcher = "cmakelint", source = _PYTHON_SOURCE + "cmakelint", missing = []),
+    "djlint": struct(launcher = "djlint", source = _PYTHON_SOURCE + "djlint", missing = []),
+    "docstrfmt": struct(launcher = "docstrfmt", source = _PYTHON_SOURCE + "docstrfmt", missing = []),
+    "mbake": struct(launcher = "mbake", source = _PYTHON_SOURCE + "mbake", missing = []),
+    "sqlfluff": struct(launcher = "sqlfluff", source = _PYTHON_SOURCE + "sqlfluff", missing = []),
+    "yamllint": struct(launcher = "yamllint", source = _PYTHON_SOURCE + "yamllint", missing = []),
 }
 
 # The tools whose source builds need rules_dx dev-only modules; a consumer hub serves

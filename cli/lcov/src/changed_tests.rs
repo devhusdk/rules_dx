@@ -1,5 +1,3 @@
-use std::fmt::Write as _;
-
 use super::*;
 use crate::{account, parse_source_manifest};
 
@@ -17,7 +15,7 @@ fn added(entries: &[(&str, &[u32])]) -> AddedLines {
 fn lcov(path: &str, hits: &[(u32, u64)]) -> String {
     let mut out = format!("SF:{path}\n");
     for (line, count) in hits {
-        writeln!(out, "DA:{line},{count}").ok();
+        out.push_str(&format!("DA:{line},{count}\n"));
     }
     out.push_str("end_of_record\n");
     out

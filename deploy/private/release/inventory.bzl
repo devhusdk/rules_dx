@@ -115,6 +115,13 @@ def _shipped_inventory_impl(ctx):
         inputs.extend(c.texts)
         texts.append(ctx.actions.declare_file(inventory_text_path(ctx.label.name, c.crate, c.version)))
     document = {"crates": records, "schema": INVENTORY_SCHEMA}
+    vendored = {}
+    for target in ctx.attr.vendored_texts:
+        for f in target[DefaultInfo].files.to_list():
+            owner = f.owner.package + "/" if f.owner.package else ""
+            vendored[owner + f.owner.name] = f.path
+            inputs.append(f)
+    document["vendored"] = vendored
     runtime_records = []
     runtime_inputs = []
     for target in ctx.attr.runtimes:
@@ -174,6 +181,11 @@ _shipped_inventory = rule(
         "runtimes": attr.label_list(
             doc = "native_runtime targets the archive ships next to the app.",
             providers = [NativeRuntimeInfo],
+        ),
+        "vendored_texts": attr.label_list(
+            doc = "Files a license.toml [[inventory]] text names, read for crates that ship no license text.",
+            allow_files = True,
+            default = [Label("//:license_texts")],
         ),
         "_licenses": attr.label(default = Label("//:license.toml"), allow_single_file = True),
         "_lock": attr.label(default = Label("//:cargo-bazel-lock.json"), allow_single_file = True),

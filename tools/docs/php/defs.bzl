@@ -6,6 +6,8 @@ load("//php/private:providers.bzl", "PhpInfo")
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 _PhpDirectSrcsInfo = provider(
     doc = "The .php files one PHP library lists in its own srcs.",
     fields = {"srcs": "List[File]: the library's direct .php srcs."},

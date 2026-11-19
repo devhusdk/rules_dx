@@ -220,10 +220,10 @@ fn remove_scratch(path: &Path) -> io::Result<()> {
 }
 
 fn ensure_no_symlink_prefix(root: &Path, path: &Path, rel: &Path) -> io::Result<()> {
-    let suffix = path.strip_prefix(root).map_err(|_| {
+    let suffix = path.strip_prefix(root).map_err(|error| {
         io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("mirror path escapes scratch: {}", rel.display()),
+            format!("mirror path escapes scratch: {}: {error}", rel.display()),
         )
     })?;
     let mut current = root.to_owned();

@@ -1691,18 +1691,27 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
             }
         }
         UpdateSet::Pins => {
-            let ok = package.ends_with("pins.json")
-                && !package.starts_with('/')
-                && package
+            let (path, archive) = crate::pins::split(package);
+            let ok = path.ends_with("pins.json")
+                && !path.starts_with('/')
+                && path
                     .split('/')
                     .all(|part| !part.is_empty() && part != "." && part != "..")
-                && package
+                && path
                     .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/'));
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/'))
+                && archive.is_none_or(|name| {
+                    !name.is_empty()
+                        && name
+                            .chars()
+                            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+                });
             if ok {
                 Ok(())
             } else {
-                Err("pins identities are workspace-relative pins.json paths")
+                Err(
+                    "pins identities are workspace-relative pins.json paths, optionally with #<archive>",
+                )
             }
         }
         UpdateSet::GithubActions => match package.split_once('/') {

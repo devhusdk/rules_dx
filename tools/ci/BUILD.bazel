@@ -1827,6 +1827,7 @@ rust_test(
         "//.github:workflows/release-tools.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-release.yml",
+        "//deploy/private:BUILD.bazel",
         "//deploy/private:gate_sources",
         "//deploy/private/release:release_matrix",
         "//docs:github-ci.md",

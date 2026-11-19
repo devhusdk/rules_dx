@@ -1,5 +1,5 @@
+load("@rules_dx//core:defs.bzl", "roslyn_config")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//core/quality:native_config.bzl", "roslyn_config")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 load("//csharp:defs.bzl", "csharp_library")
 load(":sarif.bzl", "roslyn_sarif", "sdk_recommended")

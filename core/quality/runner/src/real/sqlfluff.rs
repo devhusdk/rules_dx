@@ -105,10 +105,10 @@ fn plan_configs(
     }
     let mut by_rel: BTreeMap<String, &Path> = BTreeMap::new();
     for file in files {
-        let rel = file.strip_prefix(scratch.root()).map_err(|_| {
+        let rel = file.strip_prefix(scratch.root()).map_err(|error| {
             execution(
                 tool_id,
-                format!("{} is outside the scratch", file.display()),
+                format!("{} is outside the scratch: {error}", file.display()),
             )
         })?;
         by_rel.insert(rel.to_string_lossy().replace('\\', "/"), file);

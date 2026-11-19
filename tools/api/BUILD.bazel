@@ -1,9 +1,10 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core/modules:langs.bzl", "LANGS")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//tools/testing/consumer:fixtures.bzl", "CONSUMER_FIXTURES")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":bzl_srcs.bzl", "bzl_srcs")
-load(":public_builds.bzl", "public_builds")
+load(":public_builds.bzl", "public_builds", "public_bzl")
 
 package(default_visibility = VIS_TOOLS)
 
@@ -14,10 +15,10 @@ _DEPS = [
     "//cli/module_bazel:dx_module_bazel",
     "//cli/output:dx_output",
     "//cli/plan:dx_plan",
+    "//rust:prost",
     "//tools/api/stardoc:stardoc_output_proto_rs",
     "@crates//:serde",
     "@crates//:serde_json",
-    "@rules_rust_prost//private/3rdparty/crates:prost",
 ]
 
 _SNAPSHOT_SRCS = [
@@ -43,6 +44,8 @@ _BUILDS_ENV = {
 }
 
 _STARLARK_SRCS = [
+    "//android:defs.bzl",
+    "//android:extensions.bzl",
     "//ansible:defs.bzl",
     "//ansible:extensions.bzl",
     "//api_spec:defs.bzl",
@@ -58,8 +61,10 @@ _STARLARK_SRCS = [
     "//bicep:extensions.bzl",
     "//capnproto:defs.bzl",
     "//cc:defs.bzl",
+    "//cc:extensions.bzl",
     "//cloudformation:defs.bzl",
     "//cmake:defs.bzl",
+    "//core:defs.bzl",
     "//core:extensions.bzl",
     "//csharp:defs.bzl",
     "//csharp:extensions.bzl",
@@ -67,10 +72,15 @@ _STARLARK_SRCS = [
     "//cuda:extensions.bzl",
     "//d:defs.bzl",
     "//d:extensions.bzl",
+    "//dart:defs.bzl",
+    "//dart:extensions.bzl",
+    "//deploy:defs.bzl",
     "//dockerfile:defs.bzl",
     "//dotnet:defs.bzl",
     "//dotnet:extensions.bzl",
+    "//elixir:defs.bzl",
     "//elixir:extensions.bzl",
+    "//erlang:defs.bzl",
     "//erlang:extensions.bzl",
     "//flatbuffers:defs.bzl",
     "//fortran:defs.bzl",
@@ -82,6 +92,7 @@ _STARLARK_SRCS = [
     "//haskell:extensions.bzl",
     "//helm:defs.bzl",
     "//java:defs.bzl",
+    "//java:extensions.bzl",
     "//javascript:defs.bzl",
     "//javascript:extensions.bzl",
     "//julia:defs.bzl",
@@ -94,6 +105,7 @@ _STARLARK_SRCS = [
     "//mdx:defs.bzl",
     "//msix:defs.bzl",
     "//msix:extensions.bzl",
+    "//ocaml:defs.bzl",
     "//ocaml:extensions.bzl",
     "//perl:defs.bzl",
     "//perl:extensions.bzl",
@@ -102,6 +114,7 @@ _STARLARK_SRCS = [
     "//powershell:defs.bzl",
     "//powershell:extensions.bzl",
     "//python:defs.bzl",
+    "//python:extensions.bzl",
     "//qt:defs.bzl",
     "//qt:extensions.bzl",
     "//rego:defs.bzl",
@@ -110,52 +123,94 @@ _STARLARK_SRCS = [
     "//ruby:extensions.bzl",
     "//rust:defs.bzl",
     "//rust:extensions.bzl",
+    "//scala:defs.bzl",
     "//sql:defs.bzl",
     "//svelte:defs.bzl",
     "//swift:defs.bzl",
+    "//swift:extensions.bzl",
     "//terraform:defs.bzl",
     "//terraform:extensions.bzl",
     "//thrift:defs.bzl",
     "//typescript:defs.bzl",
+    "//typescript:extensions.bzl",
     "//vue:defs.bzl",
     "//zig:defs.bzl",
     "//zig:extensions.bzl",
 ]
 
+# Public files whose upstream load closure has no visible bzl_library yet.
+_NOT_EXTRACTED = [
+    "//flutter:defs.bzl",
+    "//flutter:extensions.bzl",
+]
+
 # Upstream bzl_library targets that cover the load closure of the public files.
 _UPSTREAM_BZL = [
+    "@apple_support//configs:platforms",
+    "@apple_support//lib:apple_support",
     "@aspect_rules_jest//jest:defs",
     "@aspect_rules_js//npm:extensions",
+    "@aspect_rules_ts//ts:repositories",
     "@aspect_rules_ts//ts:defs",
+    "@bazel_skylib//rules:copy_file",
     "@dx_pins_data//:pins.bzl",
+    "@dx_rules_dart_pub//dart/ext:registry",
+    "@dx_rules_dart_pub//dart/pub:extensions",
+    "@dx_rules_dart_pub//dart/pub/private:dx_bzl_srcs",
+    "@dx_windows_support//windows:extensions",
     "@gazelle//:extensions",
+    "@llvm//platforms:common",
+    "@rules_android//android:dx_bzl_srcs",
+    "@rules_android//rules:dx_bzl_srcs",
     "@rules_apple//apple:apple",
     "@rules_apple//apple:ios",
     "@rules_apple//apple:macos",
     "@rules_apple//apple:versioning",
     "@rules_cuda//cuda:bzl_srcs",
     "@rules_d//d:defs",
+    "@rules_dart//dart:defs",
+    "@rules_dart//dart:providers",
+    "@rules_dart//dart:utils",
+    "@rules_dart//dart/ext:registry",
+    "@rules_dart//dart/private:dx_bzl_srcs",
+    "@rules_dart//dart/pub:yaml_parser",
+    "@rules_dart//dart/pub/private:dx_bzl_srcs",
     "@rules_dotnet//dotnet:defs",
+    "@rules_elixir//:dx_bzl_srcs",
+    "@rules_erlang//:dx_bzl_srcs",
     "@rules_dotnet//dotnet:extensions",
     "@rules_fortran//fortran:defs",
     "@rules_go//go:def",
     "@rules_haskell//haskell:haskell",
     "@rules_java//java/private:proto_support",
     "@rules_java//java:rules",
+    "@rules_jvm_external//:extensions.bzl",
+    "@rules_jvm_external//:implementation",
     "@rules_julia//julia:defs_bzl",
     "@rules_kotlin//kotlin/internal:internal",
+    "@rules_kotlin//kotlin:dx_bzl_srcs",
     "@rules_kotlin//kotlin:kotlin",
+    "@rules_oci//oci:defs",
     "@rules_perl//perl:defs_bzl",
     "@rules_perl//perl:platforms_bzl",
+    "@rules_pkg//pkg:rules_pkg_lib",
     "@rules_powershell//powershell:defs_bzl",
+    "@rules_ocaml//:dx_bzl_srcs",
     "@rules_py//py:defs",
+    "@rules_py//uv:extensions",
     "@rules_ruby//ruby:defs",
     "@rules_ruby//ruby:deps",
     "@rules_rust//cargo:bzl_lib",
     "@rules_rust//crate_universe:bzl_lib",
     "@rules_rust_wasm_bindgen//:bzl_lib",
+    "@rules_scala//scala:dx_bzl_srcs",
+    "@rules_scala//scala/private:dx_bzl_srcs",
+    "@rules_scala//scala/private/toolchain_deps:dx_bzl_srcs",
+    "@rules_scala//specs2:dx_bzl_srcs",
+    "@rules_scala_config//:dx_bzl_srcs",
     "@rules_shell//shell:rules_bzl",
     "@rules_zig//zig:defs",
+    "@yaml.bzl//:yaml",
 ]
 
 _STARLARK_DOCS = {
@@ -202,9 +257,65 @@ public_builds(
     srcs = ["//:module_srcs"],
 )
 
+public_bzl(
+    name = "public_bzl",
+    srcs = ["//:module_srcs"],
+)
+
 filegroup(
     name = "starlark_docs",
     srcs = [":%s.binaryproto" % name for name in _STARLARK_DOCS],
+)
+
+# Fixtures whose forwards genquery does not build on every host. A genquery loads every select branch of its scope.
+_SWIFT_FORMAT = "swift-format is pinned for macos_arm64 only and fails to fetch on every other host (#14051)"
+
+_FORWARDS_PENDING = {
+    "android": "closure selects every host's SDK (#14050)",
+    "apple": _SWIFT_FORMAT + "; macros take no **kwargs (#14051)",
+    "cuda": "closure selects every host's SDK (#14050)",
+    "erlang": "update: generator_function erlc_opts names no public function with a **kwargs param",
+    "flutter": "not extracted (#14040, #14050)",
+    "qt": "closure selects every host's SDK (#14050)",
+    "swift": _SWIFT_FORMAT,
+}
+
+_FORWARDS_SUBPACKAGES = {
+    "haskell": ["src"],
+    "ocaml": [
+        "src",
+        "test",
+    ],
+}
+
+_FORWARDS_PACKAGES = {
+    lang: ["%s/tests/consumer" % lang] + ["%s/tests/consumer/%s" % (lang, sub) for sub in _FORWARDS_SUBPACKAGES.get(lang, [])]
+    for lang in CONSUMER_FIXTURES
+    if lang not in _FORWARDS_PENDING
+} | {"bcr_test_module": ["bcr_test_module"]}
+
+[fail("_FORWARDS_PENDING names %s, which is not in CONSUMER_FIXTURES" % lang) for lang in _FORWARDS_PENDING if lang not in CONSUMER_FIXTURES]
+
+[
+    genquery(
+        name = "forwards_" + name,
+        expression = "attr(generator_function, '.', deps(%s, 1))" % " + ".join([
+            "@dx_api_fixtures//%s:dx_api_forwards_scope" % package
+            for package in packages
+        ]),
+        opts = [
+            "--output=streamed_jsonproto",
+            "--proto:default_values=false",
+            "--proto:rule_inputs_and_outputs=false",
+        ],
+        scope = ["@dx_api_fixtures//%s:dx_api_forwards_scope" % package for package in packages],
+    )
+    for name, packages in _FORWARDS_PACKAGES.items()
+]
+
+filegroup(
+    name = "forwards",
+    srcs = [":forwards_" + name for name in _FORWARDS_PACKAGES],
 )
 
 # Rewrites api/ and docs/supported-surface.md from the code. Run it when api_test says the public API changed.
@@ -219,10 +330,14 @@ rust_binary(
     crate_name = "update",
     crate_root = "update.rs",
     data = [
+        ":forwards",
         ":public_builds",
         ":starlark_docs",
     ] + _LANG_BUILDS + _COMMAND_BUILDS,
-    env = _BUILDS_ENV | {"DX_API_STARLARK": "$(rlocationpaths :starlark_docs)"},
+    env = _BUILDS_ENV | {
+        "DX_API_FORWARDS": "$(rlocationpaths :forwards)",
+        "DX_API_STARLARK": "$(rlocationpaths :starlark_docs)",
+    },
     deps = _DEPS + ["@rules_rust//rust/runfiles"],
 )
 
@@ -238,12 +353,18 @@ rust_test(
     crate_name = "api_test",
     crate_root = "api_test.rs",
     data = [
+        ":forwards",
         ":public_builds",
+        ":public_bzl",
         ":starlark_docs",
         "//api:snapshot",
         "//docs:supported-surface.md",
     ] + _LANG_BUILDS + _COMMAND_BUILDS,
     env = _BUILDS_ENV | {
+        "DX_API_FORWARDS": "$(rlocationpaths :forwards)",
+        "DX_API_EXTRACTED": " ".join(_STARLARK_SRCS),
+        "DX_API_NOT_EXTRACTED": " ".join(_NOT_EXTRACTED),
+        "DX_API_PUBLIC_BZL": "$(rootpaths :public_bzl)",
         "DX_API_STARLARK": "$(rlocationpaths :starlark_docs)",
         "DX_API_SNAPSHOT": "$(rlocationpaths //api:snapshot)",
         "DX_SURFACE_PAGE": "$(rlocationpath //docs:supported-surface.md)",

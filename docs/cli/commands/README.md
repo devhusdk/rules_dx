@@ -356,7 +356,7 @@ Language rules:
 - `@rules_dx//cc:defs.bzl`: C and C++.
 - `@rules_dx//cloudformation:defs.bzl`: CloudFormation.
 - `@rules_dx//cmake:defs.bzl`: CMake files.
-- `@rules_dx//core/quality:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
+- `@rules_dx//core:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
 - `@rules_dx//csharp:defs.bzl`: C#.
 - `@rules_dx//cuda:defs.bzl`: CUDA.
 - `@rules_dx//d:defs.bzl`: D.
@@ -426,13 +426,13 @@ API docs:
 
 - `@rules_dx//<language>:defs.bzl`: the language's API doc shard, and
   `rust_docs_site` for `rust`.
-- `@rules_dx//tools/docs/<language>:defs.bzl`: API doc shards for `lua`,
-  `php` and `protobuf`.
-- `@rules_dx//tools/docs/site:site.bzl`: docs sites built from API doc shards.
+- `@rules_dx//core:defs.bzl`: `docs_site`, which builds a docs site from API
+  doc shards, and the `lua_doc_shard`, `php_doc_shard` and
+  `protobuf_doc_shard` rules.
 
 Quality config:
 
-- `@rules_dx//core/quality:native_config.bzl`: native linter and formatter configs.
+- `@rules_dx//core:defs.bzl`: native linter and formatter configs.
 
 ### Rule names
 

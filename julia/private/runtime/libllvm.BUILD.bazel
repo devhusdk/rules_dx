@@ -1,0 +1,38 @@
+load("@rules_cc//cc:defs.bzl", "cc_import", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "headers",
+    hdrs = glob([
+        "include/llvm/**",
+        "include/llvm-c/**",
+    ]),
+    includes = ["include"],
+)
+
+cc_import(
+    name = "target_parser",
+    static_library = "lib/libLLVMTargetParser.a",
+    deps = [":llvm_support"],
+)
+
+cc_import(
+    name = "llvm_support",
+    static_library = "lib/libLLVMSupport.a",
+    deps = [":demangle"],
+)
+
+cc_import(
+    name = "demangle",
+    static_library = "lib/libLLVMDemangle.a",
+)
+
+cc_library(
+    name = "support",
+    deps = [
+        ":headers",
+        ":llvm_support",
+        ":target_parser",
+    ],
+)

@@ -96,6 +96,13 @@ On a libstdc++ platform, such as `@rules_dx//qt:linux_x86_64`, crates build
 without the static C++ runtime, and binaries and tests link LLVM libunwind.
 Build `<name>` there; the `<name>_upstream` targets are incompatible.
 
+A `cc_library` in `deps` or `link_deps` links from its static archive. Keep
+Rustc sandboxed, which is Bazel's default. When Rustc runs unsandboxed on Linux,
+for example under `--spawn_strategy=local`, a local fallback or on a Windows
+host building for Linux, the linker can take the library's `.so` instead, and
+the binary fails with `cannot open shared object file`. If the sandbox is off,
+set `linkstatic = True` on those `cc_library` targets.
+
 ### Browser
 
 `rust_binary(wasm = "browser")` builds for `wasm32-unknown-unknown` and emits

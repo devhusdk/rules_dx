@@ -12,6 +12,7 @@ import logging
 import os
 import pathlib
 import platform
+import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -58,7 +59,75 @@ def _parse(argv):
     parser.add_argument("--package", required=True)
     parser.add_argument("--docstyle", required=True, choices=DOCSTYLES)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--sources")
+    parser.add_argument("--imports")
+    parser.add_argument("--workspace")
+    parser.add_argument("--label")
+    parser.add_argument("--library")
+    parser.add_argument("--manifest")
     return parser.parse_args(argv)
+
+
+class StageError(Exception):
+    """A staging failure whose message is printed as is."""
+
+
+def _lines(path):
+    """Returns the non-empty lines of one multiline params file."""
+    text = pathlib.Path(path).read_text(encoding="utf-8")
+    return [line for line in text.splitlines() if line]
+
+
+def _rlocation_path(workspace, short_path):
+    """Returns one file's path below the runfiles root."""
+    if short_path.startswith("../"):
+        return short_path[3:]
+    return f"{workspace}/{short_path}"
+
+
+def _repo_relative_path(short_path):
+    """Returns a File.short_path relative to the root of its own repository."""
+    if short_path.startswith("../"):
+        rest = short_path[3:]
+        slash = rest.find("/")
+        return rest[slash + 1 :] if slash >= 0 else ""
+    return short_path
+
+
+def stage(rows, imports, workspace, package, root, label, library):
+    """Copies the package sources under root and returns the sorted srcs manifest lines.
+
+    rows are (exec path, short path, generated flag) of the candidate sources in
+    depset order; imports are the rlocation import roots.
+    """
+    imports = sorted(imports, key=lambda imp: -len(imp))
+    originals = {}
+    lines = []
+    for path, short_path, generated in rows:
+        if not short_path.endswith((".py", ".pyi")):
+            continue
+        location = _rlocation_path(workspace, short_path)
+        rel = next(
+            (location[len(imp) + 1 :] for imp in imports if location.startswith(imp + "/")),
+            _repo_relative_path(short_path),
+        )
+        if not (rel.startswith(package + "/") or rel in (package + ".py", package + ".pyi")):
+            continue
+        if rel in originals:
+            raise StageError(
+                f"python_doc_shard {label}: {originals[rel]} and {path} both stage as {rel}"
+            )
+        originals[rel] = path
+        lines.append(f"{root}/{rel}\t{_repo_relative_path(short_path)}\t{generated}\n")
+    if not originals:
+        raise StageError(
+            f"python_doc_shard {label}: library {library} has no Python source for package '{package}'"
+        )
+    for rel, path in originals.items():
+        target = pathlib.Path(root, rel)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
+    return sorted(lines)
 
 
 def _version():
@@ -139,6 +208,22 @@ def _is_under(path, root):
 def main(argv):
     """Runs the dump and returns the exit code."""
     args = _parse(argv)
+    if args.sources:
+        rows = [tuple(line.split("\t")) for line in _lines(args.sources)]
+        try:
+            lines = stage(
+                rows,
+                _lines(args.imports),
+                args.workspace,
+                args.package,
+                args.root,
+                args.label,
+                args.library,
+            )
+        except StageError as error:
+            print(error, file=sys.stderr)
+            return 1
+        pathlib.Path(args.manifest).write_text("".join(lines), encoding="utf-8")
     try:
         text = dump(args.root, args.package, args.docstyle)
     except Exception as error:

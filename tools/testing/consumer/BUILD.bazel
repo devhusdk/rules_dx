@@ -58,8 +58,9 @@ nested_bazel_test(
     ],
 )
 
-# A nested consumer per language that pins every registry tool of the host with a stub. Fails
-# when it still compiles a rules_dx binary that prebuilt_guard_allowlist.txt does not name.
+# A nested consumer of the DX_PREBUILT_GUARD_LANGS fixtures that pins every registry tool of the
+# host with a stub. Fails when it still compiles a rules_dx binary that
+# prebuilt_guard_allowlist.txt does not name.
 PREBUILT_GUARD_DATA = [
     "prebuilt_guard_allowlist.txt",
     "//:module_srcs",
@@ -83,7 +84,7 @@ nested_bazel_test(
     crate_name = "prebuilt_guard_test",
     crate_root = "prebuilt_guard_test.rs",
     data = PREBUILT_GUARD_DATA,
-    env = PREBUILT_GUARD_ENV | {"DX_PREBUILT_GUARD_LANG": "go"},
+    env = PREBUILT_GUARD_ENV | {"DX_PREBUILT_GUARD_LANGS": "go lua capnproto flatbuffers thrift api_spec avro rust python cc"},
     network = True,
     deps = [
         "//cli/adopt:dx_adopt",
@@ -100,7 +101,7 @@ nested_bazel_test(
     crate_name = "prebuilt_guard_test",
     crate_root = "prebuilt_guard_test.rs",
     data = PREBUILT_GUARD_DATA,
-    env = PREBUILT_GUARD_ENV | {"DX_PREBUILT_GUARD_LANG": "java"},
+    env = PREBUILT_GUARD_ENV | {"DX_PREBUILT_GUARD_LANGS": "java kotlin scala"},
     network = True,
     deps = [
         "//cli/adopt:dx_adopt",

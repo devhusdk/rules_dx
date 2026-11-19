@@ -8,6 +8,8 @@ package(default_visibility = VIS_TOOLS_PUBLIC)
 exports_files(
     [
         "Cargo.toml",
+        "src/doc.rs",
+        "src/doc_tests.rs",
         "src/lib.rs",
         "src/lib_tests.rs",
     ],
@@ -16,7 +18,10 @@ exports_files(
 
 rust_library(
     name = "dx_docs_dart_extract",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/doc.rs",
+        "src/lib.rs",
+    ],
     aliases = aliases(
         package_name = "tools/docs/dart/dart_extract",
         normal = True,
@@ -28,6 +33,7 @@ rust_library(
         package_name = "tools/docs/dart/dart_extract",
         normal = True,
     ) + [
+        "//cli/process:dx_process",
         "//tools/docs/ir/ir:documentation_ir",
         "@crates//:serde_json",
     ],
@@ -37,6 +43,8 @@ rust_test(
     name = "dx_docs_dart_extract_test",
     size = "small",
     srcs = [
+        "src/doc.rs",
+        "src/doc_tests.rs",
         "src/lib.rs",
         "src/lib_tests.rs",
     ],
@@ -53,6 +61,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/process:dx_process",
         "//tools/docs/ir/ir:documentation_ir",
         "@crates//:serde_json",
     ],

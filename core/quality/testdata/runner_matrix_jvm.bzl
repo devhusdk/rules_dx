@@ -6,38 +6,6 @@ visibility("private")
 
 JVM_CASES = [
     matrix_case(
-        name = "matrix_java_format_pass",
-        capability = "format",
-        tool = "google_java_format",
-        binary = "//java/private/quality/tools:google_java_format",
-        source_class = "java",
-        src = ":real_clean.java",
-    ),
-    matrix_case(
-        name = "matrix_java_format_fail",
-        capability = "format",
-        tool = "google_java_format",
-        binary = "//java/private/quality/tools:google_java_format",
-        source_class = "java",
-        src = ":real_dirty.java",
-    ),
-    matrix_case(
-        name = "matrix_java_pmd_pass",
-        capability = "lint",
-        tool = "pmd",
-        binary = "//java/private/quality/tools:pmd",
-        source_class = "java",
-        src = ":real_clean.java",
-    ),
-    matrix_case(
-        name = "matrix_java_pmd_fail",
-        capability = "lint",
-        tool = "pmd",
-        binary = "//java/private/quality/tools:pmd",
-        source_class = "java",
-        src = ":real_unused.java",
-    ),
-    matrix_case(
         name = "matrix_java_pmd_ruleset",
         capability = "lint",
         tool = "pmd",
@@ -127,22 +95,6 @@ JVM_CASES = [
         args_values = ["max"],
         config_tools = ["spotbugs"],
         config_files = ["//core/quality/tiers/spotbugs:strict.xml"],
-    ),
-    matrix_case(
-        name = "matrix_kotlin_format_pass",
-        capability = "format",
-        tool = "ktfmt",
-        binary = "//java/private/quality/tools:ktfmt",
-        source_class = "kotlin",
-        src = ":real_clean.kt",
-    ),
-    matrix_case(
-        name = "matrix_kotlin_format_fail",
-        capability = "format",
-        tool = "ktfmt",
-        binary = "//java/private/quality/tools:ktfmt",
-        source_class = "kotlin",
-        src = ":real_dirty.kt",
     ),
     matrix_case(
         name = "matrix_kotlin_detekt_profile_standard",

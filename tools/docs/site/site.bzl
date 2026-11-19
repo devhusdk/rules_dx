@@ -4,6 +4,8 @@ load("//tools/docs:aspect.bzl", "real_docs_aspect")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load(":render.bzl", "DocsApiInfo", "mdbook_site", "mdbook_text")
 
+visibility(["//..."])
+
 def site_symbol_id(language, package, qualified):
     """Returns the stable symbol ID language:package:qualified."""
     return language + ":" + package + ":" + qualified

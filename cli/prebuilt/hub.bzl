@@ -91,12 +91,17 @@ def plan_root(modules, ext = "dx_prebuilt", tools = ["dx"]):
 def _supported(assets):
     return ", ".join(["{} {}".format(a.os, a.cpu) for a in assets])
 
-def _planned(os, cpu, exe, repo_prefix, asset, sha256, url):
+def _planned(os, cpu, exe, repo_prefix, asset, sha256, url, library = ""):
     key = "{}_{}".format(os, cpu)
+    if library:
+        exe = library
+    elif os == "windows":
+        exe += ".exe"
     return struct(
         asset = asset,
         cpu = cpu,
-        exe = exe + ".exe" if os == "windows" else exe,
+        exe = exe,
+        executable = not library,
         key = key,
         os = os,
         repo = repo_prefix + key if sha256 else "",
@@ -104,8 +109,10 @@ def _planned(os, cpu, exe, repo_prefix, asset, sha256, url):
         url = url if sha256 else "",
     )
 
-def plan_assets(tool, version, pins, url_template, overrides, exe = "dx", repo_prefix = "dx_prebuilt_"):
+def plan_assets(tool, version, pins, url_template, overrides, exe = "dx", repo_prefix = "dx_prebuilt_", library = ""):
     """Returns one struct per platform of tool, sorted by key: its platform and, when pinned, a verified download.
+
+    A library asset is downloaded as the file name library, not executable.
 
     pins is pins.bzl's PINS; overrides comes from plan_root. A platform with no pin
     takes its registry fallback's download, and failing that builds from source.
@@ -118,14 +125,14 @@ def plan_assets(tool, version, pins, url_template, overrides, exe = "dx", repo_p
         os, cpu = RELEASE_OS[os], RELEASE_CPU[cpu]
         asset = asset_name(tool, release_key)
         sha256 = tool_pins.get(release_key, "")
-        planned["{}_{}".format(os, cpu)] = _planned(os, cpu, exe, repo_prefix, asset, sha256, url_template.format(version = version, asset = asset))
+        planned["{}_{}".format(os, cpu)] = _planned(os, cpu, exe, repo_prefix, asset, sha256, url_template.format(version = version, asset = asset), library)
     for key, override in overrides.items():
-        planned[key] = _planned(override.os, override.cpu, exe, repo_prefix, "", override.sha256, override.url)
+        planned[key] = _planned(override.os, override.cpu, exe, repo_prefix, "", override.sha256, override.url, library)
     for release_key, fallback_key in entry.fallbacks.items():
         os, cpu = split_key(release_key)
         os, cpu = RELEASE_OS[os], RELEASE_CPU[cpu]
         key = "{}_{}".format(os, cpu)
-        own = planned.get(key) or _planned(os, cpu, exe, repo_prefix, "", "", "")
+        own = planned.get(key) or _planned(os, cpu, exe, repo_prefix, "", "", "", library)
         fallback_os, fallback_cpu = split_key(fallback_key)
         fallback = planned["{}_{}".format(RELEASE_OS[fallback_os], RELEASE_CPU[fallback_cpu])]
         if not own.repo and fallback.repo:
@@ -134,6 +141,7 @@ def plan_assets(tool, version, pins, url_template, overrides, exe = "dx", repo_p
                 asset = fallback.asset,
                 cpu = own.cpu,
                 exe = own.exe,
+                executable = own.executable,
                 key = key,
                 os = own.os,
                 repo = fallback.repo,
@@ -200,7 +208,7 @@ def with_jars(build, jars):
 def plan_native_tools(version, pins, url_template, overrides):
     """Returns {tool: plan_assets of tool} for every native tool of the registry."""
     return {
-        tool: plan_assets(tool, version, pins, url_template, overrides.get(tool, {}), exe = tool, repo_prefix = "dx_{}_prebuilt_".format(tool))
+        tool: plan_assets(tool, version, pins, url_template, overrides.get(tool, {}), exe = tool, repo_prefix = "dx_{}_prebuilt_".format(tool), library = TOOLS[tool].library)
         for tool in NATIVE_TOOLS
     }
 
@@ -210,16 +218,20 @@ def with_native_tools(build, native_tools, consumer = False):
     """Returns the hub BUILD text build plus one target per native tool.
 
     A tool selects its download on the platform it runs on and builds from source on
-    any platform with no download. In a consumer hub a tool in DEV_SOURCE_FALLBACK
+    any platform with no download. A library tool selects the downloaded file itself. In a consumer hub a tool in DEV_SOURCE_FALLBACK
     serves its fallback label there instead of its source build.
     """
     lines = []
     keys = {}
+    binaries = False
     for tool, assets in sorted(native_tools.items()):
         pinned = [a for a in assets if a.repo]
         source = DEV_SOURCE_FALLBACK.get(tool, TOOLS[tool].source) if consumer else TOOLS[tool].source
+        library = TOOLS[tool].library
         if not pinned:
             actual = '"{}"'.format(source)
+        elif library:
+            actual = _select([(":native_" + a.key, "@{}//file:{}".format(a.repo, a.exe)) for a in pinned], source)
         else:
             actual = _select([(":native_" + a.key, ":{}_{}".format(tool, a.key)) for a in pinned], source)
         lines += [
@@ -232,6 +244,9 @@ def with_native_tools(build, native_tools, consumer = False):
         ]
         for a in pinned:
             keys[a.key] = a
+            if library:
+                continue
+            binaries = True
             lines += [
                 "",
                 "native_binary(",
@@ -251,7 +266,7 @@ def with_native_tools(build, native_tools, consumer = False):
             "    ],",
             ")",
         ]
-    loads = [_NATIVE_BINARY_LOAD] if keys and _NATIVE_BINARY_LOAD not in build else []
+    loads = [_NATIVE_BINARY_LOAD] if binaries and _NATIVE_BINARY_LOAD not in build else []
     return "\n".join(loads + [build.rstrip("\n")] + lines + [""])
 
 def alias_build(actual):

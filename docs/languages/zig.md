@@ -111,7 +111,7 @@ dx lint
 
 ## Coverage
 
-`bazel coverage` and `dx coverage` run each Zig test under a hermetic kcov v43 that rules_dx builds from source, and convert its Cobertura report into LCOV. Under coverage the test is built with LLVM and left unstripped so kcov can read its DWARF. Coverage counts the sources of libraries in `deps`. The test's own sources count only with `--instrument_test_targets`. Tag a test `no-coverage` to skip it.
+`bazel coverage` and `dx coverage` run each Zig test under a hermetic kcov v43, the prebuilt static release binary or a source build when the release has no pin, and convert its Cobertura report into LCOV. Under coverage the test is built with LLVM and left unstripped so kcov can read its DWARF. Coverage counts the sources of libraries in `deps`. The test's own sources count only with `--instrument_test_targets`. Tag a test `no-coverage` to skip it.
 
 kcov runs on Linux only. On macOS and Windows a Zig test is tagged `dx-no-coverage-collector` and writes no coverage. Zig cannot emit `-fprofile-instr-generate`, so LLVM source-based coverage is not available.
 

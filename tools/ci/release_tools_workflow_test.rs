@@ -1,10 +1,12 @@
-//! Pins the tool release build in release-tools.yml and its wiring in release.yml.
+//! Pins the tool release build in release-tools.yml and its wiring in release.yml and
+//! release-consumer.yml.
 
 use ci_workflow::document;
 use dx_testing::read_runfiles;
 
 const TOOLS: &str = ".github/workflows/release-tools.yml";
 const RELEASE: &str = ".github/workflows/release.yml";
+const CONSUMER: &str = ".github/workflows/release-consumer.yml";
 
 const HOSTS: [(&str, &str); 4] = [
     ("linux-x86_64", "ubuntu-latest"),
@@ -192,6 +194,18 @@ fn macos_tools_ship_signed() {
     assert!(text.contains(
         "codesign --verify --strict \"$file\" || codesign --sign - \"$file\"\n              codesign --verify --strict \"$file\""
     ));
+    assert!(text.contains("\"$out/dx-topiary-$host\" \"$out/dx-progenitor-$host\"; do"));
+}
+
+#[test]
+fn release_consumer_checks_prebuilt_quality_tools() {
+    let text = read_runfiles(CONSUMER);
+    assert!(text.contains("for tool in topiary progenitor; do"));
+    assert!(text.contains(
+        "tool_files=\"$(bazel cquery --output=files \"@rules_dx//rust/private/quality/tools:${tool}_tool\")\""
+    ));
+    assert!(text.contains("*\"dx_prebuilt/$KEY/$tool\"*) ;;"));
+    assert!(text.contains("- $tool: $tool_files"));
 }
 
 #[test]

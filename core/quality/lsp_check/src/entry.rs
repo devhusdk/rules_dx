@@ -25,14 +25,16 @@ fn parse(args: &[String]) -> Result<(Options, Vec<String>, Vec<PathBuf>), String
             "--language-id" => options.language_id = value("--language-id")?,
             "--quiet-ms" => {
                 options.quiet = Duration::from_millis(
-                    value("--quiet-ms")?.parse().map_err(|_| "bad --quiet-ms")?,
+                    value("--quiet-ms")?
+                        .parse()
+                        .map_err(|e| format!("bad --quiet-ms: {e}"))?,
                 );
             }
             "--timeout-ms" => {
                 options.timeout = Duration::from_millis(
                     value("--timeout-ms")?
                         .parse()
-                        .map_err(|_| "bad --timeout-ms")?,
+                        .map_err(|e| format!("bad --timeout-ms: {e}"))?,
                 );
             }
             "--" => break,

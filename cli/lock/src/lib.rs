@@ -545,20 +545,14 @@ mod tests {
 
     #[test]
     fn run_process_exits_2_on_bad_arguments() {
-        assert_eq!(
-            run_process(&toy_spec(), &Unreachable, &["--bogus".to_owned()]),
-            2
-        );
+        assert_eq!(run_process(&toy_spec(), &Unreachable, &["--bogus".to_owned()]), 2);
         assert_eq!(run_process(&toy_spec(), &Unreachable, &[]), 2);
     }
 
     #[test]
     fn run_process_exits_1_when_check_finds_the_lock_stale() {
         let dir = dir_with(&["toy.json"]);
-        let args = [
-            "--check".to_owned(),
-            format!("--dir={}", dir.path().display()),
-        ];
+        let args = ["--check".to_owned(), format!("--dir={}", dir.path().display())];
         assert_eq!(run_process(&toy_spec(), &Unreachable, &args), 1);
     }
 

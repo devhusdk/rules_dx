@@ -246,7 +246,8 @@ pub fn command_roots(repo: &str, langs: &[&str]) -> Vec<String> {
 pub fn resolver_roots(langs: &[&str]) -> Vec<String> {
     let roots: BTreeSet<String> = langs
         .iter()
-        .flat_map(|lang| dx_families::resolvers(lang))
+        .copied()
+        .flat_map(dx_families::resolvers)
         .collect();
     roots.into_iter().collect()
 }
@@ -340,7 +341,7 @@ mod tests {
             resolver_roots(&["go", "zig", "d", "zig"]),
             [
                 "@rules_dx//d/private/tools/lock",
-                "@rules_dx//zig/private/tools/lock"
+                "@rules_dx//zig/private/tools/lock",
             ]
         );
         assert!(resolver_roots(&["go", "kotlin"]).is_empty());

@@ -458,10 +458,11 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
             labels.append(test)
     return labels
 
-def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, cross_runfile = "", size = "small", **kwargs):
+def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, cross_runfile = "", cross_platforms = "//tools/platforms", size = "small", **kwargs):
     """Declares the conformance tests of one language.
 
     A `cross_runfile` names the runfile, by file stem, whose image cross_test checks instead of the binary's outputs.
+    `cross_platforms` names the package whose `<os>_<cpu>` platforms cross_test builds the binary for.
     A quality `<kind>_subject` names the subject rule of a `lint` or `format` kind whose aspect another lang.json declares.
     """
     if lang not in LANGS:
@@ -517,7 +518,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     platform_transition_filegroup(
         name = prefix + "cross_binary",
         srcs = [binary],
-        target_platform = _cross_select(lambda target: Label("//tools/platforms:" + target)),
+        target_platform = _cross_select(lambda target: Label(cross_platforms + ":" + target)),
         testonly = True,
         target_compatible_with = _compatible_with(lang, "cross_test", not_applicable),
         visibility = ["//visibility:private"],

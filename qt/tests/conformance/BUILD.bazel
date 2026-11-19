@@ -1,3 +1,4 @@
+load("@rules_dx//cc:defs.bzl", "cc_library")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//qt:defs.bzl", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_qml_module")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
@@ -71,6 +72,8 @@ dx_conformance_suite(
     size = "small",
     binary = ":hello",
     covered_source = "greet.cc",
+    # Qt's Linux cells need a glibc floor, which only the //qt platforms carry.
+    cross_platforms = "//qt",
     expected = "hello world",
     failing_case = "failingCase",
     failing_pattern = "FAIL!  : FailTest::{case}()",
@@ -106,4 +109,11 @@ real_source_target(
         "quality.bzl",
     ],
     tags = ["corpus"],
+)
+
+cc_library(
+    name = "conformance",
+    testonly = True,
+    srcs = ["greet.cc"],
+    hdrs = ["greet.h"],
 )

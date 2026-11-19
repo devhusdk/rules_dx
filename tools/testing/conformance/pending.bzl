@@ -72,6 +72,5 @@ msix runfiles_test *
 ocaml cross_test macos_arm64
 powershell runfiles_test *
 python runfiles_test *
-qt cross_test *
 zig coverage_test windows_x86_64
 """

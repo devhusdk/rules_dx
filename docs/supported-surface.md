@@ -839,8 +839,6 @@ Use a toolchain type when you register your own toolchain.
 | Target | Kind |
 | --- | --- |
 | `@rules_dx//:dx` | `alias` |
-| `@rules_dx//:lang_json` | `filegroup` |
-| `@rules_dx//:module_srcs` | `filegroup` |
 | `@rules_dx//:package_json` | `javascript_library` |
 | `@rules_dx//android:declared_emulator` | `declared_emulator` |
 | `@rules_dx//android:emulator_undeclared` | `config_setting` |

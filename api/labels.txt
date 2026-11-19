@@ -58,8 +58,6 @@
 //config:warnings_as_errors bool_flag True
 //config:workspace label_flag ":default_workspace_policy"
 //:dx alias
-//:lang_json filegroup
-//:module_srcs filegroup
 //:package_json javascript_library
 //android:android_device platform
 //android:android_emulator platform

@@ -613,6 +613,7 @@ write_source_files(
 alias(
     name = "update_tools",
     actual = "//core/quality/runner:update_tools",
+    visibility = ["//visibility:private"],
 )
 
 clang_syntax_analysis_tests(name = "clang_syntax_analysis")

@@ -11,7 +11,7 @@ pub const SOURCES_ASPECT: &str = "core/quality:coverage_sources.bzl%dx_coverage_
 /// The output group that carries the source manifests.
 pub const SOURCES_OUTPUT_GROUP: &str = "dx_coverage_sources";
 
-const MANIFEST_VERSION: &str = "v1";
+const MANIFEST_VERSION: &str = "v2";
 const UNKNOWN_CELL: &str = "unknown";
 
 /// One instrumented source a target owns.
@@ -220,7 +220,8 @@ fn resolve_dart_uri(uri: &str, owned: &BTreeSet<String>) -> Resolved {
     }
 }
 
-/// Parses one source manifest: a `v1 cell <cell>` header, then `<prod|test> <source|generated> <path>` rows.
+/// Parses one source manifest: a `v2 cell <cell>` header, then `<prod|test> <source|generated> <path>` rows.
+/// A file is prod when a prod row names it, else test.
 pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxError> {
     let mut lines = text.lines();
     let header: Vec<&str> = lines.next().unwrap_or_default().split(' ').collect();
@@ -242,6 +243,8 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxE
         cell,
         rows: Vec::new(),
     };
+    // Rows not yet paired with a row of the other kind, by path.
+    let mut unpaired: BTreeMap<String, usize> = BTreeMap::new();
     for (index, line) in lines.enumerate() {
         let lineno = index + 2;
         let fields: Vec<&str> = line.splitn(3, ' ').collect();
@@ -278,11 +281,23 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxE
                 "malformed source manifest row {lineno}: {line:?}"
             )));
         }
-        manifest.rows.push(SourceRow {
+        let row = SourceRow {
             path: (*path).to_string(),
             test,
             generated,
-        });
+        };
+        match unpaired.get(*path) {
+            Some(&at)
+                if manifest.rows[at].test != test && manifest.rows[at].generated == generated =>
+            {
+                manifest.rows[at].test = false;
+                unpaired.remove(*path);
+            }
+            _ => {
+                unpaired.insert((*path).to_string(), manifest.rows.len());
+                manifest.rows.push(row);
+            }
+        }
     }
     let paths: Vec<&str> = manifest.rows.iter().map(|row| row.path.as_str()).collect();
     let mut errors = Vec::new();

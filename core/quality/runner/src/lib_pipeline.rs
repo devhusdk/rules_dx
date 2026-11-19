@@ -273,6 +273,7 @@ fn invalid_utf8_fails() {
         synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files),
         Err(RunnerError::InvalidUtf8 {
             path: "src/lib.rs".to_owned(),
+            reason: "invalid utf-8 sequence of 1 bytes from index 0".to_owned(),
         })
     );
 }

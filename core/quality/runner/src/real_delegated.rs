@@ -5,6 +5,7 @@
 
 use super::real_fixtures::*;
 use super::*;
+use std::fmt::Write as _;
 
 #[test]
 fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {

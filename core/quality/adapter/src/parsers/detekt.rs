@@ -77,10 +77,10 @@ fn finding(
     let tag = String::from_utf8_lossy(element).into_owned();
     let line = required(element, "line", decoder)?
         .parse()
-        .map_err(|_| missing(TOOL, "line", &tag))?;
+        .map_err(|error| ParseError::shape(TOOL, format!("malformed line: {tag}: {error}")))?;
     let column = required(element, "column", decoder)?
         .parse()
-        .map_err(|_| missing(TOOL, "column", &tag))?;
+        .map_err(|error| ParseError::shape(TOOL, format!("malformed column: {tag}: {error}")))?;
     let severity = severity_of(&required(element, "severity", decoder)?, &tag)?;
     let message = required(element, "message", decoder)?;
     let source = required(element, "source", decoder)?;

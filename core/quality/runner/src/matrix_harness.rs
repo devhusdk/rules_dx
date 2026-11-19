@@ -7,10 +7,14 @@
 //! golden bytes, and stages snapshot updates. No Bash, python3, diff, cp, or
 //! mkdir processes are launched.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -656,27 +660,27 @@ pub fn render_diff(expected: &[u8], actual: &[u8]) -> String {
         if shown >= MAX_DIFF_LINES {
             break;
         }
-        writeln!(out, "-{}: {line}", prefix + index + 1).ok();
+        out.push_str(&format!("-{}: {line}\n", prefix + index + 1));
         shown += 1;
     }
     for (index, line) in actual_mid.iter().enumerate() {
         if shown >= MAX_DIFF_LINES {
             break;
         }
-        writeln!(out, "+{}: {line}", prefix + index + 1).ok();
+        out.push_str(&format!("+{}: {line}\n", prefix + index + 1));
         shown += 1;
     }
     let hidden = (expected_mid.len() + actual_mid.len()).saturating_sub(shown);
     if hidden > 0 {
-        writeln!(out, "... {hidden} more differing lines").ok();
+        out.push_str(&format!("... {hidden} more differing lines\n"));
     }
     out
 }
 
 fn env_value(name: &str) -> Result<String, HarnessError> {
-    std::env::var(name).map_err(|_| HarnessError::MissingEnv {
+    std::env::var(name).map_err(|error| HarnessError::MissingEnv {
         name: name.to_owned(),
-        detail: "the test environment must set it".to_owned(),
+        detail: format!("the test environment must set it: {error}"),
     })
 }
 

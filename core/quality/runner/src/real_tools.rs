@@ -13,6 +13,7 @@ use quality_result::MAX_COMPLETED_ROUNDS;
 use quality_result::encode_validated;
 use quality_result::proto::Convergence;
 use std::cell::RefCell;
+use std::fmt::Write as _;
 
 #[path = "real/tests/common.rs"]
 mod common;

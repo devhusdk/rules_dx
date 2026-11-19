@@ -332,7 +332,8 @@ fn next_field<'a>(rest: &mut &'a [u8]) -> Result<(u64, u64, &'a [u8]), String> {
         5 => split(body, 4)?,
         2 => {
             let (len, used) = varint(body)?;
-            let len = usize::try_from(len).map_err(|_| "length out of range".to_owned())?;
+            let len =
+                usize::try_from(len).map_err(|error| format!("length out of range: {error}"))?;
             let (_, tail) = split(body, used)?;
             split(tail, len)?
         }

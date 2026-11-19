@@ -1,12 +1,12 @@
 # gazelle:ignore
 
-load("//cc:defs.bzl", "cc_library")
-load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_static_library", "rust_test")
 load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check", "android_sign", "android_rust_apk")
+load("//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check", "android_rust_apk", "android_sign")
+load("//cc:defs.bzl", "cc_library")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_static_library", "rust_test")
 load(":starlark_platforms.bzl", "starlark_platforms")
 
 package(
@@ -193,8 +193,8 @@ android_sign(
 
 android_check(
     name = "check_unsigned_test",
-    tags = ["row:android"],
     package = ":unsigned.apk",
+    tags = ["row:android"],
 )
 
 android_check(
@@ -210,7 +210,7 @@ sh_test(
     name = "check_rejects_test",
     srcs = ["check_rejects.sh"],
     args = [
-        "$(rootpath //android/private/packaging/ops:android_ops)",
+        "$(rootpath //cli/runtime:dx_runtime)",
         "$(rootpath //android/private/packaging:bundletool)",
         "$(rootpath :unsigned.apk)",
         "$(rootpath :dummy.apk)",
@@ -223,8 +223,9 @@ sh_test(
         ":unsigned.apk",
         ":v2_only_fixture.apk",
         "//android/private/packaging:bundletool",
-        "//android/private/packaging/ops:android_ops",
+        "//cli/runtime:dx_runtime",
     ],
+    env = {"DX_RUNTIME_TOOL": "android_ops"},
 )
 
 sh_test(
@@ -232,7 +233,7 @@ sh_test(
     size = "small",
     srcs = ["check_aab_rejects.sh"],
     args = [
-        "$(rootpath //android/private/packaging/ops:android_ops)",
+        "$(rootpath //cli/runtime:dx_runtime)",
         "$(rootpath //android/private/packaging:bundletool)",
         "$(rootpath :dummy.apk)",
         "$(rootpath :unsigned.apk)",
@@ -241,8 +242,9 @@ sh_test(
         ":dummy.apk",
         ":unsigned.apk",
         "//android/private/packaging:bundletool",
-        "//android/private/packaging/ops:android_ops",
+        "//cli/runtime:dx_runtime",
     ],
+    env = {"DX_RUNTIME_TOOL": "android_ops"},
 )
 
 android_check(
@@ -284,7 +286,7 @@ sh_test(
     name = "check_aab_missing_abi_test",
     srcs = ["check_aab_rejects_one.sh"],
     args = [
-        "$(rootpath //android/private/packaging/ops:android_ops)",
+        "$(rootpath //cli/runtime:dx_runtime)",
         "$(rootpath //android/private/packaging:bundletool)",
         "$(rootpath :custom_apk_aab_file)",
         "'packages no base/lib/arm64-v8a/'",
@@ -294,8 +296,9 @@ sh_test(
     data = [
         ":custom_apk_aab_file",
         "//android/private/packaging:bundletool",
-        "//android/private/packaging/ops:android_ops",
+        "//cli/runtime:dx_runtime",
     ],
+    env = {"DX_RUNTIME_TOOL": "android_ops"},
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -306,7 +309,7 @@ sh_test(
     name = "check_aab_missing_resource_test",
     srcs = ["check_aab_rejects_one.sh"],
     args = [
-        "$(rootpath //android/private/packaging/ops:android_ops)",
+        "$(rootpath //cli/runtime:dx_runtime)",
         "$(rootpath //android/private/packaging:bundletool)",
         "$(rootpath :custom_apk_aab_file)",
         "'does not resolve resource string/missing'",
@@ -316,8 +319,9 @@ sh_test(
     data = [
         ":custom_apk_aab_file",
         "//android/private/packaging:bundletool",
-        "//android/private/packaging/ops:android_ops",
+        "//cli/runtime:dx_runtime",
     ],
+    env = {"DX_RUNTIME_TOOL": "android_ops"},
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -376,7 +380,6 @@ sh_test(
 
 sh_test(
     name = "sign_test",
-    tags = ["row:android"],
     srcs = ["sign_test.sh"],
     args = [
         "$(rootpath :sign)",
@@ -395,6 +398,7 @@ sh_test(
         "@dx_android_sdk//:zipalign",
         "@rules_java//toolchains:current_java_runtime",
     ],
+    tags = ["row:android"],
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
@@ -756,7 +760,7 @@ sh_test(
     size = "small",
     srcs = ["apk_set_rejects.sh"],
     args = [
-        "$(rootpath //android/private/packaging/ops:android_ops)",
+        "$(rootpath //cli/runtime:dx_runtime)",
         "$(rootpath //android/private/packaging:bundletool)",
         "$(rootpath :test_bundle.aab)",
         "$(rootpath :device_arm64.json)",
@@ -765,10 +769,11 @@ sh_test(
     data = [
         ":device_arm64.json",
         ":test_bundle.aab",
-        "//android/private/packaging/ops:android_ops",
         "//android/private/packaging:bundletool",
+        "//cli/runtime:dx_runtime",
         "@rules_android//tools/android:debug_keystore",
     ],
+    env = {"DX_RUNTIME_TOOL": "android_ops"},
 )
 
 real_source_target(

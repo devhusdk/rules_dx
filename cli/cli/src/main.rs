@@ -180,7 +180,9 @@ fn run_as_tool() -> Option<i32> {
         args.map(|arg| arg.to_string_lossy().into_owned()).collect()
     };
     let named = |name: &str, args: std::iter::Peekable<std::env::ArgsOs>| -> Vec<String> {
-        std::iter::once(name.to_owned()).chain(lossy(args)).collect()
+        std::iter::once(name.to_owned())
+            .chain(lossy(args))
+            .collect()
     };
     Some(match tool {
         Tool::Runner => quality_runner::entry::run_cli(&lossy(args)),
@@ -202,6 +204,7 @@ fn run_as_tool() -> Option<i32> {
         Tool::LuaExtract => dx_docs_lua_extract::run_process(&lossy(args)),
         Tool::PerlExtract => dx_docs_perl_extract::run_process(&lossy(args)),
         Tool::ZigExtract => dx_docs_zig_extract::run_process(&lossy(args)),
+        Tool::AndroidOps => i32::from(dx_android_ops::run(&lossy(args))),
         Tool::Archiver => dx_deploy_tools::entry::archiver(&named("archiver", args)),
         Tool::Hasher => dx_deploy_tools::entry::hasher(&named("hasher", args)),
         Tool::SizeChecker => dx_deploy_tools::entry::size_checker(&named("size_checker", args)),
@@ -464,7 +467,9 @@ fn remove_run_dir(temp_dir: dx_plan::plan::run_temp::RunTempDir) {
     if let Err(error) = temp_dir.close() {
         write_stderr(
             &mut io::stderr(),
-            format_args!("dx: warning: cannot remove temporary directory {temp_display}: {error}\n"),
+            format_args!(
+                "dx: warning: cannot remove temporary directory {temp_display}: {error}\n"
+            ),
         );
     }
 }

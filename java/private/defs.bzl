@@ -71,6 +71,12 @@ def java_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Wrapper over java_binary that infers main_class."""
     upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_warnings_as_errors(kwargs), "main_class")
     dx_wrap_binary(name, _java_binary, _java_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
+    native.alias(
+        name = name + "_deploy.jar",
+        actual = ":" + name + "_upstream_deploy.jar",
+        tags = kwargs.get("tags"),
+        visibility = visibility,
+    )
 
 def java_test(name, *, srcs = None, visibility = None, **kwargs):
     """Wrapper over java_test that infers test_class."""

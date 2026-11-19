@@ -13,6 +13,7 @@ load("//apple/private/bundle:defs.bzl", "EXTRA_TOOLCHAINS_SETTING", "NO_PATH", "
 load("//apple/private/bundle:pins.bzl", "IOS_DEPLOYMENT", "XCODE_VERSION")
 load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
 load("//core:resources.bzl", "dx_heavy_resources")
+load("//core/quality:sources.bzl", "single_target")
 load(":app_validate.bzl", "ios_app_errors", "ios_test_coverage_kwargs", "ios_test_errors", "ios_test_source_errors", "ios_xcframework_errors", "ios_xcframework_header_name_errors")
 load(
     ":cell.bzl",
@@ -25,7 +26,6 @@ load(
 )
 load(":defs.bzl", "AppleIosLibInfo", "ios_platform_errors", "ios_platforms", "ios_slice", "split_platform")
 load(":validate.bzl", "ios_arch_errors", "ios_environment_errors", "ios_sdk_for")
-load("//core/quality:sources.bzl", "single_target")
 
 _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -782,6 +782,7 @@ def _xcframework_check_impl(ctx):
     report = ctx.actions.declare_file(ctx.label.name + "_xcframework.txt")
     out = ctx.actions.declare_file(ctx.label.name + ".xcframework.zip")
     args = ctx.actions.args()
+    args.add("apple_ops")
     args.add("xcframework-check")
     args.add(report)
     args.add(out)
@@ -803,7 +804,7 @@ def _xcframework_check_impl(ctx):
     env = {"PATH": NO_PATH}
     env.update(apple_common.apple_host_system_env(xcode_config))
     ctx.actions.run(
-        executable = ctx.executable._check,
+        executable = ctx.executable._dx,
         arguments = [args],
         inputs = archives,
         outputs = [report, out],
@@ -859,10 +860,11 @@ _xcframework_check = rule(
             doc = "Xcode version the XCFramework build is pinned to.",
             default = "",
         ),
-        "_check": attr.label(
-            default = Label("//apple/private/tools/ops:apple_ops"),
+        "_dx": attr.label(
+            default = Label("@dx_prebuilt//:dx"),
             cfg = "exec",
             executable = True,
+            doc = "dx, whose apple_ops subcommand runs the check.",
         ),
         "_xcode_config": attr.label(
             default = configuration_field(

@@ -219,7 +219,10 @@ rust_binary(
         "@crates//:tracing",
     ] + select({
         "@platforms//os:windows": [],
-        "//conditions:default": ["//cli/os_sys:dx_os_sys"],
+        "//conditions:default": [
+            "//apple/private/tools/ops",
+            "//cli/os_sys:dx_os_sys",
+        ],
     }),
 )
 

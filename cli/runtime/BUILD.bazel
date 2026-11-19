@@ -3,6 +3,7 @@ load("//rust:defs.bzl", "rust_binary", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
+# keep
 rust_binary(
     name = "dx_runtime",
     srcs = ["src/main.rs"],
@@ -16,9 +17,13 @@ rust_binary(
         "//php/private/coverage:dx_php_coverage",
         "//rego/private/launcher:dx_opa_test",
         "//rust/private/tools/bench_report:dx_bench_report",
-    ],
+    ] + select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["//apple/private/tools/ops"],
+    }),
 )
 
+# keep
 rust_test(
     name = "dx_runtime_test",
     size = "small",

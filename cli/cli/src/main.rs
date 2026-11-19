@@ -205,6 +205,8 @@ fn run_as_tool() -> Option<i32> {
         Tool::PerlExtract => dx_docs_perl_extract::run_process(&lossy(args)),
         Tool::ZigExtract => dx_docs_zig_extract::run_process(&lossy(args)),
         Tool::AndroidOps => i32::from(dx_android_ops::run(&lossy(args))),
+        #[cfg(not(windows))]
+        Tool::AppleOps => i32::from(dx_apple_ops::run(&lossy(args))),
         Tool::QtRustBridge => qt_rust_bridge::run_process(&lossy(args)),
         Tool::BeamExtract => dx_docs_beam_extract::run_process(&lossy(args)),
         Tool::CcExtract => dx_docs_cc_extract::run_process(&lossy(args)),

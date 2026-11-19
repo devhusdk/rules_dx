@@ -2318,8 +2318,18 @@ fn pins_selectors_refuse_paths_outside_the_workspace() {
         "pins:/etc/pins.json",
         "pins:a/b.json",
         "pins:a//pins.json",
+        "pins:a/pins.json#",
+        "pins:a/pins.json#x/y",
+        "pins:a/b.json#x",
     ] {
         assert!(UpdateRequest::parse(bad, "1.0.0").is_err(), "{bad}");
     }
     assert!(UpdateRequest::parse("pins:a/pins.json", "latest").is_err());
+}
+
+#[test]
+fn pins_archive_request_targets_the_file_of_the_archive() {
+    let update = UpdateRequest::parse("pins:dart/pins.json#rules_dart", "0.9.2").expect("pins");
+    assert_eq!(update.target_manifest(), "dart/pins.json");
+    assert_eq!(update.package, "dart/pins.json#rules_dart");
 }

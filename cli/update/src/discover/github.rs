@@ -71,7 +71,7 @@ pub fn actions(
                 continue;
             };
             if release.is_none() {
-                release = Some(latest_release(&package, base, fetch));
+                release = Some(latest_release(&package, "", base, fetch));
             }
             judge(ACTIONS_SET, &package, current, release.as_ref(), &mut found);
         }
@@ -94,7 +94,7 @@ pub fn bazelversion(text: &str, base: &str, fetch: &dyn Fetch) -> Findings {
         ));
         return found;
     }
-    let release = latest_release("bazelbuild/bazel", base, fetch);
+    let release = latest_release("bazelbuild/bazel", "", base, fetch);
     judge(
         BAZELVERSION_SET,
         BAZELVERSION_PACKAGE,
@@ -192,14 +192,32 @@ pub fn commit_sha(
     resolve_sha_from_commit_response(&body).map_err(|error| DxError::failure(error.to_string()))
 }
 
-/// The tag of the newest non-prerelease GitHub release of `package` (`owner/repo`).
-pub fn latest_tag(package: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
-    latest_release(package, base, fetch)
-        .map(|release| release.tag)
+/// The version after `prefix` in the tag of the latest release of `package`.
+pub fn latest_tag(
+    package: &str,
+    prefix: &str,
+    base: &str,
+    fetch: &dyn Fetch,
+) -> Result<String, DxError> {
+    latest_release(package, prefix, base, fetch)
+        .map(|release| {
+            release
+                .tag
+                .strip_prefix(prefix)
+                .unwrap_or(&release.tag)
+                .to_owned()
+        })
         .map_err(|error| DxError::failure(error.reason))
 }
 
-fn latest_release(package: &str, base: &str, fetch: &dyn Fetch) -> Result<Release, LookupError> {
+/// The latest release of `package` whose tag starts with `prefix`; a `-` after the prefix
+/// marks a prerelease.
+fn latest_release(
+    package: &str,
+    prefix: &str,
+    base: &str,
+    fetch: &dyn Fetch,
+) -> Result<Release, LookupError> {
     let fail = |reason: String| problem("", package, reason);
     let body = fetch
         .get(&format!("{base}/repos/{package}/releases/latest"))
@@ -215,7 +233,12 @@ fn latest_release(package: &str, base: &str, fetch: &dyn Fetch) -> Result<Releas
         .get("tag_name")
         .and_then(Value::as_str)
         .ok_or_else(|| fail("release has no tag_name".to_owned()))?;
-    if tag.contains('-') {
+    let Some(version) = tag.strip_prefix(prefix) else {
+        return Err(fail(format!(
+            "the latest tag {tag} does not start with {prefix:?}"
+        )));
+    };
+    if version.contains('-') {
         return Err(fail(NO_RELEASE.to_owned()));
     }
     Ok(Release {
@@ -249,6 +272,24 @@ mod tests {
 
     fn run(uses: &str, body: Result<String, DxError>) -> Findings {
         actions(&[flow(uses)], &[], "b", &move |_: &str| body.clone())
+    }
+
+    #[test]
+    fn latest_tag_strips_the_prefix_and_checks_prereleases_after_it() {
+        let tag = |name: &str, prefix: &str| {
+            let body = release(name);
+            latest_tag("o/r", prefix, "b", &move |_: &str| body.clone())
+        };
+        assert_eq!(tag("capnp-v0.28.0", "capnp-v"), Ok("0.28.0".to_owned()));
+        assert_eq!(tag("v1.2.0", ""), Ok("v1.2.0".to_owned()));
+        assert!(tag("capnp-v0.28.0-rc1", "capnp-v").is_err());
+        assert!(tag("capnp-v0.28.0", "").is_err());
+        assert!(
+            tag("0.28.0", "v")
+                .expect_err("prefix")
+                .message()
+                .contains("does not start with \"v\"")
+        );
     }
 
     #[test]

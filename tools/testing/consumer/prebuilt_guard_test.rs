@@ -8,11 +8,19 @@
 //! rules_dx repository declares fails the test unless `prebuilt_guard_allowlist.txt` names it;
 //! the `java_binary` the `dx_prebuilt` hub wraps around a downloaded jar compiles nothing.
 //!
+//! `cquery --aspects` and `aquery --aspects` leave out the tool targets of command-line aspects,
+//! while cquery follows aspects a rule attribute carries. So the test also writes the
+//! `dx_prebuilt_guard` package: its `check` and `docs` targets depend on every non-manual rule
+//! of the consumer through a `deps` attribute that carries the aspects `dx check` and `dx docs`
+//! pick for the consumer's files.
+//!
 //! cquery only analyzes, so the stubs never run; their sha256 is all the hubs check.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_nested::Case;
+use dx_plan::args::Command;
+use dx_plan::plan::registry::{Consumer, aspects_for};
 
 /// The rule kind prefixes of compiled binaries; shell stubs and `native_binary` stay out.
 const COMPILED: &[&str] = &[
@@ -199,6 +207,59 @@ fn problems(found: &BTreeMap<String, BTreeSet<String>>, allowed: &BTreeSet<Strin
     problems
 }
 
+/// The aspects `dx check` (format, lint, typecheck) and `dx docs` pass for a consumer with
+/// `extensions`, each list in command order and without repeats.
+fn guard_aspects(extensions: &BTreeSet<String>) -> (Vec<&'static str>, Vec<&'static str>) {
+    let consumer = Consumer { extensions };
+    let mut check: Vec<&'static str> = Vec::new();
+    for command in [Command::Format, Command::Lint, Command::Typecheck] {
+        for aspect in aspects_for(command, consumer) {
+            if !check.contains(&aspect) {
+                check.push(aspect);
+            }
+        }
+    }
+    (check, aspects_for(Command::Docs, consumer))
+}
+
+/// The `.bzl` file of the `dx_prebuilt_guard` package: rules `check_root` and `docs_root`, whose
+/// `deps` carry the `check` and `docs` aspects (`<package>:<file>%<name>` labels in rules_dx).
+fn wrapper_bzl(check: &[&str], docs: &[&str]) -> String {
+    let mut loads = String::new();
+    let mut rules = String::from("def _root_impl(_ctx):\n    return []\n");
+    for (prefix, aspects) in [("check", check), ("docs", docs)] {
+        let mut names = Vec::new();
+        for (index, aspect) in aspects.iter().enumerate() {
+            let (file, name) = aspect.split_once('%').unwrap_or((aspect, ""));
+            let alias = format!("{prefix}_{index}");
+            loads.push_str(&format!(
+                "load(\"@rules_dx//{file}\", {alias} = \"{name}\")\n"
+            ));
+            names.push(alias);
+        }
+        rules.push_str(&format!(
+            "\n{prefix}_root = rule(\n    implementation = _root_impl,\n    attrs = {{\"deps\": attr.label_list(aspects = [{}])}},\n)\n",
+            names.join(", ")
+        ));
+    }
+    format!("{loads}\n{rules}")
+}
+
+/// The `BUILD.bazel` of the `dx_prebuilt_guard` package: `check` and `docs` over `targets`.
+fn wrapper_build(targets: &[&str]) -> String {
+    let deps: String = targets
+        .iter()
+        .map(|target| format!("        \"{target}\",\n"))
+        .collect();
+    let mut build = String::from("load(\":defs.bzl\", \"check_root\", \"docs_root\")\n");
+    for name in ["check", "docs"] {
+        build.push_str(&format!(
+            "\n{name}_root(\n    name = \"{name}\",\n    testonly = True,\n    deps = [\n{deps}    ],\n)\n"
+        ));
+    }
+    build
+}
+
 fn runfile(var: &str) -> String {
     let path = dx_testing::rlocation(dx_testing::env_text(var).trim())
         .unwrap_or_else(|error| panic!("{var}: {error}"));
@@ -242,16 +303,51 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     );
     let case = Case::language_consumer(&format!("{lang}_prebuilt_guard"), lang, &extra)
         .unwrap_or_else(|error| panic!("{error}"));
+    let targets = case.bazel(&[
+        "query",
+        "--color=no",
+        "--curses=no",
+        "--output=label",
+        "kind(rule, //...) except attr(tags, \"\\bmanual\\b\", //...)",
+    ]);
+    assert!(
+        targets.status.success(),
+        "bazel query: {}",
+        targets.combined()
+    );
+    let targets: Vec<&str> = targets
+        .stdout
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect();
+    assert!(
+        !targets.is_empty(),
+        "bazel query found no rule in the {lang} consumer"
+    );
+    let (check, docs) = guard_aspects(&dx_adopt::file_extensions(case.root()));
+    let wrapper = case.root().join("dx_prebuilt_guard");
+    dx_testing::write_text(&wrapper.join("defs.bzl"), &wrapper_bzl(&check, &docs));
+    dx_testing::write_text(&wrapper.join("BUILD.bazel"), &wrapper_build(&targets));
     let query = format!("deps({})", roots.join(" + "));
     let run = case.bazel(&[
         "cquery",
         "--color=no",
         "--curses=no",
         "--consistent_labels",
+        "--nocheck_visibility",
         "--output=label_kind",
         &query,
     ]);
     assert!(run.status.success(), "bazel cquery: {}", run.combined());
+    for label in ["@@//dx_prebuilt_guard:check", "@@//dx_prebuilt_guard:docs"] {
+        assert!(
+            run.stdout
+                .lines()
+                .any(|line| line.split_whitespace().nth(2) == Some(label)),
+            "bazel cquery left out {label}"
+        );
+    }
     let found = compiled_binaries(&run.stdout);
     let problems = problems(&found, &list.labels_for(lang));
     assert!(
@@ -378,4 +474,48 @@ fn only_jvm_consumers_root_the_jar_tools() {
     assert!(rooted("any", "java"));
     assert!(rooted("any", "kotlin"));
     assert!(rooted("any", "scala"));
+}
+
+#[test]
+fn the_wrapper_carries_each_aspect_on_its_deps() {
+    let bzl = wrapper_bzl(
+        &["go/private/quality:go.bzl%real_go_lint_aspect"],
+        &["tools/docs/go:aspect.bzl%real_go_docs_aspect"],
+    );
+    assert_eq!(
+        bzl,
+        "load(\"@rules_dx//go/private/quality:go.bzl\", check_0 = \"real_go_lint_aspect\")\n\
+         load(\"@rules_dx//tools/docs/go:aspect.bzl\", docs_0 = \"real_go_docs_aspect\")\n\
+         \n\
+         def _root_impl(_ctx):\n    return []\n\
+         \n\
+         check_root = rule(\n    implementation = _root_impl,\n    attrs = {\"deps\": attr.label_list(aspects = [check_0])},\n)\n\
+         \n\
+         docs_root = rule(\n    implementation = _root_impl,\n    attrs = {\"deps\": attr.label_list(aspects = [docs_0])},\n)\n"
+    );
+    let build = wrapper_build(&["//a:b"]);
+    assert!(build.contains(
+        "    name = \"check\",\n    testonly = True,\n    deps = [\n        \"//a:b\",\n    ],"
+    ));
+    assert!(build.contains("docs_root(\n    name = \"docs\""));
+}
+
+#[test]
+fn guard_aspects_follow_the_consumer_languages() {
+    let go = BTreeSet::from([".go".to_owned()]);
+    let (check, docs) = guard_aspects(&go);
+    assert!(check.contains(&"go/private/quality:go.bzl%real_go_lint_aspect"));
+    assert!(docs.contains(&"tools/docs/go:aspect.bzl%real_go_docs_aspect"));
+    assert!(!check.iter().chain(&docs).any(|label| label.contains("jvm")));
+    let java = BTreeSet::from([".java".to_owned()]);
+    let (check, docs) = guard_aspects(&java);
+    assert!(
+        check
+            .iter()
+            .any(|label| label.ends_with("%real_jvm_typecheck_aspect"))
+    );
+    assert!(
+        docs.iter()
+            .any(|label| label.ends_with("%real_jvm_docs_aspect"))
+    );
 }

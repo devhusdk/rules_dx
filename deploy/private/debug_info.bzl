@@ -10,8 +10,9 @@ def _split_impl(ctx):
     debug = ctx.actions.declare_file(ctx.label.name + ".debug")
     manifest = ctx.actions.declare_file(ctx.label.name + ".symbols.json")
     ctx.actions.run(
-        executable = ctx.executable._split,
+        executable = ctx.executable._dx,
         arguments = [
+            "symbols_split",
             "--objcopy",
             objcopy.path,
             "--in",
@@ -50,8 +51,8 @@ _split = rule(
             allow_files = True,
             cfg = "exec",
         ),
-        "_split": attr.label(
-            default = Label("//deploy/private/symbols:split"),
+        "_dx": attr.label(
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
             cfg = "exec",
         ),
@@ -87,8 +88,9 @@ def _dsym_pair_impl(ctx):
     dsymutil = ctx.executable._dsymutil
     manifest = ctx.actions.declare_file(ctx.label.name + ".dsym.json")
     ctx.actions.run(
-        executable = ctx.executable._dsym,
+        executable = ctx.executable._dx,
         arguments = [
+            "symbols_dsym",
             "--dsymutil",
             dsymutil.path,
             "--in",
@@ -131,8 +133,8 @@ _dsym_pair = rule(
             executable = True,
             cfg = "exec",
         ),
-        "_dsym": attr.label(
-            default = Label("//deploy/private/symbols:dsym"),
+        "_dx": attr.label(
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
             cfg = "exec",
         ),
@@ -173,8 +175,9 @@ def _pdb_pair_impl(ctx):
     exe = ctx.actions.declare_file(ctx.label.name + ".exe")
     ctx.actions.symlink(output = exe, target_file = binary, is_executable = True)
     ctx.actions.run(
-        executable = ctx.executable._pdb,
+        executable = ctx.executable._dx,
         arguments = [
+            "symbols_pdb",
             "--in",
             binary.path,
             "--pdb",
@@ -206,8 +209,8 @@ _pdb_pair = rule(
             cfg = _pdb_transition,
             mandatory = True,
         ),
-        "_pdb": attr.label(
-            default = Label("//deploy/private/symbols:pdb"),
+        "_dx": attr.label(
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
             cfg = "exec",
         ),

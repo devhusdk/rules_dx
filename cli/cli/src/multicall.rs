@@ -79,6 +79,9 @@ pub enum Tool {
     DartLock,
     HaskellLock,
     SwiftLock,
+    SymbolsSplit,
+    SymbolsDsym,
+    SymbolsPdb,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -164,6 +167,9 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "dart_lock" => Some(Tool::DartLock),
         "haskell_lock" => Some(Tool::HaskellLock),
         "swift_lock" => Some(Tool::SwiftLock),
+        "symbols_split" => Some(Tool::SymbolsSplit),
+        "symbols_dsym" => Some(Tool::SymbolsDsym),
+        "symbols_pdb" => Some(Tool::SymbolsPdb),
         _ => None,
     }
 }
@@ -292,6 +298,9 @@ mod tests {
             ("dart_lock", Tool::DartLock),
             ("haskell_lock", Tool::HaskellLock),
             ("swift_lock", Tool::SwiftLock),
+            ("symbols_split", Tool::SymbolsSplit),
+            ("symbols_dsym", Tool::SymbolsDsym),
+            ("symbols_pdb", Tool::SymbolsPdb),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -361,6 +370,9 @@ mod tests {
             "haskell_lock",
             "swift_lock",
             "diff",
+            "symbols_split",
+            "symbols_dsym",
+            "symbols_pdb",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }

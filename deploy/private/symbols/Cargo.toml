@@ -8,18 +8,6 @@ edition = "2024"
 name = "dx_symbols"
 path = "src/lib.rs"
 
-[[bin]]
-name = "split"
-path = "src/bin_split.rs"
-
-[[bin]]
-name = "dsym"
-path = "src/bin_dsym.rs"
-
-[[bin]]
-name = "pdb"
-path = "src/bin_pdb.rs"
-
 [dependencies]
 hex = "0.4"
 object = "0.36"

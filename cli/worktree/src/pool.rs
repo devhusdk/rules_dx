@@ -537,9 +537,8 @@ impl Pool {
         rest.components()
             .next()?
             .as_os_str()
-            .to_str()?
-            .parse::<u32>()
-            .ok()
+            .to_str()
+            .and_then(slot_number)
     }
 
     /// Drops records whose checkout was removed by hand.
@@ -565,6 +564,12 @@ impl Pool {
             })
             .unwrap_or(1)
     }
+}
+
+/// The slot a directory name spells, only in its plain decimal form.
+fn slot_number(name: &str) -> Option<u32> {
+    let slot = name.parse::<u32>().ok()?;
+    (slot.to_string() == name).then_some(slot)
 }
 
 fn busy_file(base: &Path, slot: u32) -> PathBuf {
@@ -630,7 +635,7 @@ pub fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
         let slot = dir
             .file_name()
             .and_then(|name| name.to_str())
-            .and_then(|name| name.parse::<u32>().ok());
+            .and_then(slot_number);
         if let Some(slot) = slot {
             let record = state::dx_dir(parent).join(format!("{slot}.json"));
             if let Some(found) = std::fs::read(&record)

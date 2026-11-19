@@ -3465,6 +3465,21 @@ fn the_lease_is_found_from_a_path_inside_the_slot() {
     assert!(super::lease_for_workspace(&fixture.main).is_none());
 }
 
+#[test]
+fn only_canonical_slot_numbers_name_a_slot() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let base = added.path.parent().expect("base").to_path_buf();
+    for name in ["01", "+1"] {
+        let alias = base.join(name);
+        std::fs::create_dir_all(&alias).expect("alias");
+        assert_eq!(pool.slot_of(&alias), None, "{name}");
+        assert!(super::lease_for_workspace(&alias).is_none(), "{name}");
+    }
+}
+
 mod hooks {
     use super::*;
     use crate::hook;

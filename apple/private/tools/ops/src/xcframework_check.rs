@@ -1,6 +1,5 @@
 //! Checks the slices of one iOS `XCFramework` archive and publishes it.
 
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use crate::util::{Failure, Outcome, reject, unzip, usage};
@@ -276,12 +275,10 @@ fn verify(tools: &Tools<'_>, args: &[String], work: &Path) -> Result<(), Failure
                 )));
             }
             let slice = check.slice(&cell, &arch, &binary, sdk, code)?;
-            writeln!(
-                text,
-                "slice={cell} library={identifier} platform={sdk} minos={} install_name={}",
+            text.push_str(&format!(
+                "slice={cell} library={identifier} platform={sdk} minos={} install_name={}\n",
                 slice.minos, slice.install_name
-            )
-            .ok();
+            ));
             position += 1;
         }
         if listed.is_empty() {

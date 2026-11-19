@@ -1,7 +1,12 @@
 //! Runs a language server over stdio, opens files and collects the
 //! diagnostics it publishes, for servers that have no batch mode.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 pub mod entry;
 
@@ -63,8 +68,13 @@ pub fn file_uri(path: &Path) -> String {
             }
             b':' if drive && i == 1 => uri.push(':'),
             _ => {
-                use std::fmt::Write as _;
-                write!(uri, "%{byte:02X}").ok();
+                uri.push('%');
+                uri.extend(
+                    [byte >> 4, byte & 0x0F]
+                        .into_iter()
+                        .filter_map(|nibble| char::from_digit(u32::from(nibble), 16))
+                        .map(|digit| digit.to_ascii_uppercase()),
+                );
             }
         }
     }

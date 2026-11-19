@@ -9,6 +9,7 @@ load("//typescript/private:kwargs.bzl", "typescript_forward_kwargs", "typescript
 load("//typescript/private/playwright:closure.bzl", "CLOSURE_DIR")
 load("//typescript/private/playwright:pins.bzl", "CHROMIUM_REVISION", "CHROMIUM_VERSION", "PLAYWRIGHT_VERSION")
 load(":playwright_tests.bzl", "playwright_compatibility_tests")
+load(":windows_tool_tests.bzl", "windows_tool_tests")
 
 package(
     default_testonly = True,
@@ -16,6 +17,8 @@ package(
 )
 
 playwright_compatibility_tests(name = "playwright_compatibility_tests")
+
+windows_tool_tests(name = "windows_tool_tests")
 
 javascript_test(
     name = "playwright_pins_test",
@@ -101,6 +104,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "playwright_tests.bzl",
+        "windows_tool_tests.bzl",
     ],
     tags = ["corpus"],
 )

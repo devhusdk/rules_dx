@@ -8,6 +8,7 @@ package(default_visibility = VIS_TOOLS)
 _DEPS = [
     "//cli/digest:dx_digest",
     "//cli/dx_config",
+    "//cli/families:dx_families",
     "//cli/module_bazel:dx_module_bazel",
     "//cli/output:dx_output",
     "//cli/plan:dx_plan",

@@ -76,3 +76,27 @@
 //qt:macos_arm64 platform
 //qt:windows_arm64 platform
 //qt:windows_x86_64 platform
+@* hub @rules_dx//go:extensions.bzl%go
+@ansible_collections hub @rules_dx//ansible:extensions.bzl%ansible
+@bicep hub @rules_dx//bicep:extensions.bzl%bicep
+@composer hub @rules_dx//php:extensions.bzl%composer
+@cpan hub @rules_dx//perl:extensions.bzl%cpan
+@crates hub @rules_dx//rust:extensions.bzl%cargo
+@dub hub @rules_dx//d:extensions.bzl%dub
+@dx_terraform_providers hub @rules_dx//terraform:extensions.bzl%terraform
+@fpm hub @rules_dx//fortran:extensions.bzl%fpm
+@gems hub @rules_dx//ruby:extensions.bzl%ruby
+@hackage hub @rules_dx//haskell:extensions.bzl%cabal
+@hex hub @rules_dx//elixir:extensions.bzl%hex
+@julia hub @rules_dx//julia:extensions.bzl%julia
+@maven hub @rules_dx//java:extensions.bzl%maven
+@npm hub @rules_dx//javascript:extensions.bzl%npm
+@nuget hub @rules_dx//csharp:extensions.bzl%nuget
+@opam hub @rules_dx//ocaml:extensions.bzl%opam
+@pnpm hub @rules_dx//javascript:extensions.bzl%pnpm
+@psgallery hub @rules_dx//powershell:extensions.bzl%powershell
+@pub_deps hub @rules_dx//dart:extensions.bzl%pub
+@pypi hub @rules_dx//python:extensions.bzl%uv
+@rocks hub @rules_dx//lua:extensions.bzl%luarocks
+@swiftpkg hub @rules_dx//swift:extensions.bzl%swiftpm
+@zig hub @rules_dx//zig:extensions.bzl%zig

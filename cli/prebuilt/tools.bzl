@@ -227,7 +227,7 @@ TOOLS = {
 DEV_SOURCE_FALLBACK = {"kcov": "@rules_dx//tools/coverage/kcov:none"}
 
 # The tools released as one native binary or shared library per platform.
-NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
+NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])

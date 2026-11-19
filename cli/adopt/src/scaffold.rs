@@ -1150,8 +1150,36 @@ mod tests {
         std::fs::write(root.join("BUILD.bazel"), "cross_deployment(name = \"x\")\n")
             .expect("build file");
         assert!(!has_release(root));
-        std::fs::write(root.join("BUILD.bazel"), "deployment(name = \"npm\")\n")
-            .expect("build file");
+        std::fs::write(
+            root.join("BUILD.bazel"),
+            "load(\"@rules_dx//deploy:defs.bzl\", \"dx_deployment\")\n\ndx_deployment(name = \"npm\")\n",
+        )
+        .expect("build file");
+        assert!(has_release(root));
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn release_caller_counts_deploy_macros_but_not_other_deploy_rules() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-release-macro-").unwrap();
+        let root = scratch.path();
+        let has_release = |root: &std::path::Path| {
+            super::plan_init_files_at(root, "demo", Some(super::CiProvider::Github))
+                .expect("plans")
+                .iter()
+                .any(|f| f.path == ".github/workflows/release.yml")
+        };
+        std::fs::write(
+            root.join("BUILD.bazel"),
+            "load(\"@rules_dx//deploy:defs.bzl\", \"consumer_archive\", \"dx_sbom\")\n\nconsumer_archive(name = \"a\")\n\ndx_sbom(name = \"b\")\n",
+        )
+        .expect("build file");
+        assert!(!has_release(root));
+        std::fs::write(
+            root.join("BUILD.bazel"),
+            "load(\"@rules_dx//deploy:defs.bzl\", \"npm_deploy\")\n\nnpm_deploy(name = \"npm\")\n",
+        )
+        .expect("build file");
         assert!(has_release(root));
         scratch.close().expect("cleanup");
     }

@@ -1726,17 +1726,52 @@ where
         })
 }
 
+fn parse_starlark(source: &str) -> Result<AstModule, ModuleError> {
+    AstModule::parse("file.bzl", source.to_owned(), &Dialect::Extended).map_err(|error| {
+        ModuleError::StarlarkSyntax {
+            line: error
+                .span()
+                .map_or(1, |span| span.resolve_span().begin.line + 1),
+            message: error.without_diagnostic().to_string(),
+        }
+    })
+}
+
+/// The `(load label, exported symbol)` of every call in a Starlark source whose
+/// callee is a name bound by a `load()`, in source order.
+pub fn loaded_calls(source: &str) -> Result<Vec<(String, String)>, ModuleError> {
+    fn walk(
+        expr: &AstExpr,
+        bound: &std::collections::HashMap<&str, (&str, &str)>,
+        out: &mut Vec<(String, String)>,
+    ) {
+        if let ExprP::Call(callee, _) = &expr.node
+            && let ExprP::Identifier(ident) = &callee.node
+            && let Some((module, their)) = bound.get(ident.node.ident.as_str())
+        {
+            out.push(((*module).to_owned(), (*their).to_owned()));
+        }
+        expr.visit_expr(|child| walk(child, bound, out));
+    }
+    let ast = parse_starlark(source)?;
+    let loads = ast.loads();
+    let bound = loads
+        .iter()
+        .flat_map(|load| {
+            load.symbols
+                .iter()
+                .map(|(local, their)| (*local, (load.module_id, *their)))
+        })
+        .collect();
+    let mut out = Vec::new();
+    ast.statement()
+        .visit_expr(|expr| walk(expr, &bound, &mut out));
+    Ok(out)
+}
+
 /// The module strings of every `load()` in a .bzl source, in source order.
 pub fn load_labels(source: &str) -> Result<Vec<String>, ModuleError> {
-    let ast =
-        AstModule::parse("file.bzl", source.to_owned(), &Dialect::Extended).map_err(|error| {
-            ModuleError::StarlarkSyntax {
-                line: error
-                    .span()
-                    .map_or(1, |span| span.resolve_span().begin.line + 1),
-                message: error.without_diagnostic().to_string(),
-            }
-        })?;
+    let ast = parse_starlark(source)?;
     Ok(ast
         .loads()
         .into_iter()

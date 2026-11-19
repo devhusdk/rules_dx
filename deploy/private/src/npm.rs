@@ -600,12 +600,12 @@ fn npm_api_diff(
     let published = match fetch(&url, 256 << 20) {
         Ok(Some(body)) => npm_published(&String::from_utf8_lossy(&body)),
         Ok(None) => Vec::new(),
-        Err(error) => return skipped(error),
+        Err(error) => return skipped(error.to_string()),
     };
     let previous = if check.baseline == Baseline::Git {
         match previous_git_tag(&workspace_dir(), &version) {
             Ok(tag) => tag.map(|tag| tag.trim_start_matches('v').to_owned()),
-            Err(error) => return skipped(error),
+            Err(error) => return skipped(error.to_string()),
         }
     } else {
         highest_below(published.iter().map(|(v, _)| v.as_str()), &version)
@@ -621,7 +621,7 @@ fn npm_api_diff(
     match fetch_to(tarball, &published_tgz, 512 << 20) {
         Ok(true) => {}
         Ok(false) => return skipped(format!("{tarball} not found")),
-        Err(error) => return skipped(error),
+        Err(error) => return skipped(error.to_string()),
     }
     archive_extract(&published_tgz, &published_dir)
         .map_err(|error| format!("npm_deploy: {error}"))?;
@@ -709,7 +709,7 @@ pub fn npm_deploy_main_checked(
     if mode != ApiCompatMode::Off {
         let checked = if api_extractor_rloc.is_empty() {
             let outcome = Outcome::Skipped("api-extractor is not available".to_owned());
-            conclude("npm_deploy", mode, "", outcome)
+            conclude("npm_deploy", mode, "", outcome).map_err(|error| error.to_string())
         } else {
             let Some(api_extractor) = run.resolve(api_extractor_rloc) else {
                 return 1;
@@ -719,8 +719,9 @@ pub fn npm_deploy_main_checked(
                 registry: &registry,
                 api_extractor: &api_extractor,
             };
-            npm_api_check(&tgz_path, &name, &check)
-                .and_then(|(version, outcome)| conclude("npm_deploy", mode, &version, outcome))
+            npm_api_check(&tgz_path, &name, &check).and_then(|(version, outcome)| {
+                conclude("npm_deploy", mode, &version, outcome).map_err(|error| error.to_string())
+            })
         };
         if let Err(message) = checked {
             eprintln!("{message}");

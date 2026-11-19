@@ -55,7 +55,7 @@
     "svelte-eslint-parser": "1.10.1",
     "typedoc": "0.28.20",
     "typescript-eslint": "8.72.2",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "unified": "11.0.5",
     "vue-component-meta": "3.3.14",
     "vue-eslint-parser": "10.4.2",

@@ -1,0 +1,23 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
+# A two-file bundle laid out like a release tools bundle, for the bundle rule tests.
+filegroup(
+    name = "files",
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
+    visibility = ["//cli/prebuilt:__pkg__"],
+)
+
+exports_files(
+    ["tools/message.txt"],
+    visibility = ["//cli/prebuilt:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

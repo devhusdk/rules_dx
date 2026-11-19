@@ -1,9 +1,9 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools")
+load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools", "with_python_tools")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
-load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "TOOLS", "asset_name", "registry_lines")
+load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "TOOLS", "asset_name", "registry_lines")
 
 visibility("private")
 
@@ -88,6 +88,12 @@ def _checks():
     tree_sitter_build = with_native_tools(alias_build(SOURCE_LABEL), tree_sitter, consumer = True)
     tree_sitter_windows_arm = tree_sitter["tree_sitter"][0]
     tree_sitter_root = plan_root([_mod("app", True, assets = [_tag(name = "tree_sitter", os = "windows", cpu = "aarch64")])], tools = ["dx", "go"] + NATIVE_TOOLS)
+    python_unpinned_build = with_python_tools(unpinned_build, plan_python_tools("1.2.3", {}, URL_TEMPLATE, {}))
+    python_pins = {"python_tools": {"linux_x86_64": _HASH, "windows_arm64": _HASH, "windows_x86_64": _HASH}}
+    python_assets = plan_python_tools("1.2.3", python_pins, URL_TEMPLATE, {})
+    python_build = with_python_tools(pinned_build, python_assets)
+    python_root = plan_root([_mod("app", True, assets = [_tag(name = "python_tools", os = "macos", cpu = "aarch64")])], tools = ["dx", "python_tools"])
+    python_mirror = [a for a in plan_python_tools("1.2.3", {}, URL_TEMPLATE, python_root.overrides["python_tools"]) if a.repo]
     return [
         expect_equal("tree-sitter assets", [asset_name(t, k) for t in ["tree_sitter", "tree_sitter_pkl"] for k in TOOLS[t].platforms], ["dx-tree-sitter-windows-arm64.dll", "dx-tree-sitter-pkl-windows-arm64.dll"]),
         expect_contains("the registry lists tree-sitter for fill_pins", registry_lines(), "tree_sitter windows_arm64 dx-tree-sitter-windows-arm64.dll"),
@@ -120,7 +126,20 @@ def _checks():
         expect_equal("release tool assets", [asset_name(t, k) for t in ["deadnix", "selene", "nixfmt", "kcov"] for k in TOOLS[t].platforms], ["dx-deadnix-linux-arm64", "dx-deadnix-linux-x86_64", "dx-deadnix-macos-arm64", "dx-deadnix-windows-x86_64", "dx-selene-linux-arm64", "dx-selene-linux-x86_64", "dx-selene-macos-arm64", "dx-selene-windows-x86_64", "dx-nixfmt-linux-arm64", "dx-nixfmt-macos-arm64", "dx-kcov-linux-arm64", "dx-kcov-linux-x86_64"]),
         expect_equal("python bundle assets", [asset_name("python_tools", k) for k in TOOLS["python_tools"].platforms], ["dx-python-tools-linux-arm64.tar.gz", "dx-python-tools-linux-x86_64.tar.gz", "dx-python-tools-macos-arm64.tar.gz", "dx-python-tools-windows-arm64.tar.gz", "dx-python-tools-windows-x86_64.tar.gz"]),
         expect_contains("the registry lists the python bundle for fill_pins", registry_lines(), "python_tools windows_arm64 dx-python-tools-windows-arm64.tar.gz"),
-        expect_false("the hub has no python bundle target", 'name = "python_tools"' in with_native_tools(pinned_build, plan_native_tools("1.2.3", {"python_tools": {"linux_x86_64": _HASH}}, URL_TEMPLATE, {}))),
+        expect_false("the bundle is no native tool", "python_tools" in NATIVE_TOOLS),
+        expect_equal("a pinned bundle is one archive repo per platform", [a.repo for a in python_assets if a.repo], ["dx_python_tools_prebuilt_linux_x86_64", "dx_python_tools_prebuilt_windows_aarch64", "dx_python_tools_prebuilt_windows_x86_64"]),
+        expect_equal("a bundle downloads its registry asset", [a.url for a in python_assets if a.key == "linux_x86_64"], [URL_TEMPLATE.format(version = "1.2.3", asset = "dx-python-tools-linux-x86_64.tar.gz")]),
+        expect_true("a pinned bundle loads the bundle rules", python_build.startswith('load("@rules_dx//cli/prebuilt:bundle.bzl", "dx_bundle_tool", "dx_bundle_tree")\n')),
+        expect_false("an unpinned bundle loads no bundle rules", "bundle.bzl" in python_unpinned_build),
+        expect_contains("a pinned bundle links its files once per platform", python_build, 'name = "python_tools_linux_x86_64",\n    srcs = ["@dx_python_tools_prebuilt_linux_x86_64//:files"],'),
+        expect_contains("a python tool selects its bundle on the platform it runs on", python_build, '":python_linux_x86_64": ":python_tool_yamllint_linux_x86_64",'),
+        expect_contains("a python tool builds from source elsewhere", python_build, '"//conditions:default": "@rules_dx//core/quality/tools/python:yamllint",'),
+        expect_contains("a linux launcher is a shell script", python_build, 'name = "python_tool_sqlfluff_linux_x86_64",\n    launcher = "bin/sqlfluff",'),
+        expect_contains("a windows launcher is a cmd script", python_build, 'name = "python_tool_sqlfluff_windows_x86_64",\n    launcher = "bin/sqlfluff.cmd",'),
+        expect_false("a bundle that leaves a tool out serves its source build", "python_tool_ansible_lint_tool_windows_aarch64" in python_build),
+        expect_contains("a bundle serves the tools it has", python_build, "python_tool_yamllint_windows_aarch64"),
+        expect_equal("every python tool has a hub alias", [n for n in PYTHON_BUNDLE_TOOLS if 'name = "python_tool_{}",'.format(n) not in python_unpinned_build], []),
+        expect_equal("an asset override pins the bundle for its platform", [(a.repo, a.url) for a in python_mirror], [("dx_python_tools_prebuilt_macos_aarch64", "https://mirror/dx")]),
         expect_equal("windows arm64 runs the x86_64 deadnix", [a.repo for a in release_tools["deadnix"] if a.key == "windows_aarch64"], ["dx_deadnix_prebuilt_windows_x86_64"]),
         expect_contains("a pinned kcov selects its linux download", release_tools_build, '":native_linux_aarch64": ":kcov_linux_aarch64",'),
         expect_equal("kcov plans only linux", [a.key for a in release_tools["kcov"]], ["linux_aarch64", "linux_x86_64"]),
@@ -226,8 +245,7 @@ def _checks():
         expect_contains("an unpinned platform builds the tool from source", pinned_build, '":linux_aarch64": "@rules_dx//core/quality/markdown:quality_markdown",'),
         expect_contains("the root hub aliases the source runner", alias_build(SOURCE_LABEL), 'name = "quality_runner",\n    actual = "@rules_dx//core/quality/runner:quality_runner",'),
         expect_contains("an unpinned hub aliases the source notebook tool", unpinned_build, 'actual = "@rules_dx//core/quality/notebook:quality_notebook",'),
-        expect_contains("an unpinned hub aliases the python quality tools", unpinned_build, 'actual = "@rules_dx//core/quality/tools/python:yamllint",'),
-        expect_contains("a pinned hub aliases the python quality tools", pinned_build, 'name = "python_tool_yamllint",'),
+        expect_contains("an unpinned bundle aliases the python quality tools", python_unpinned_build, 'name = "python_tool_yamllint",\n    actual = "@rules_dx//core/quality/tools/python:yamllint",'),
         expect_false("the consumer hub loads nothing from rules_rust", "rules_rust" in all_pinned_build),
         expect_contains("the root hub aliases the source dx", alias_build(SOURCE_LABEL), 'actual = "@rules_dx//cli/cli:dx",'),
         expect_contains("a non-root module cannot set tags", middle.error, "only the root module may set asset or from_source tags; middle sets them"),

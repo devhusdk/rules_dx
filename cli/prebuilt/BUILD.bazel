@@ -1,6 +1,9 @@
+load("@bazel_lib//lib:run_binary.bzl", "run_binary")
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":bundle.bzl", "dx_bundle_tool", "dx_bundle_tree")
 load(":fail.bzl", "dx_unavailable")
 load(":gazelle_hub_tests.bzl", "dx_gazelle_hub_tests")
 load(":hub.bzl", "GO_TOOLS", "unsupported_message")
@@ -9,6 +12,7 @@ load(":tools.bzl", "registry_lines")
 
 exports_files(
     [
+        "bundle.bzl",
         "extension.bzl",
         "fail.bzl",
         "hub.bzl",
@@ -22,6 +26,7 @@ filegroup(
     name = "module_srcs",
     srcs = [
         "BUILD.bazel",
+        "bundle.bzl",
         "extension.bzl",
         "fail.bzl",
         "gazelle.bzl",
@@ -58,6 +63,38 @@ write_file(
     visibility = ["//tools/testing/consumer:__pkg__"],
 )
 
+dx_bundle_tree(
+    name = "fixture_bundle",
+    testonly = True,
+    srcs = ["//cli/prebuilt/testdata/bundle:files"],
+)
+
+dx_bundle_tool(
+    name = "fixture_hello",
+    testonly = True,
+    launcher = select({
+        "@platforms//os:windows": "bin/hello.cmd",
+        "//conditions:default": "bin/hello",
+    }),
+    tree = ":fixture_bundle",
+)
+
+# Runs the launcher as a build action, the way quality tools run.
+run_binary(
+    name = "fixture_hello_run",
+    testonly = True,
+    outs = ["fixture_hello.txt"],
+    args = ["$(execpath fixture_hello.txt)"],
+    tool = ":fixture_hello",
+)
+
+diff_test(
+    name = "bundle_tool_test",
+    size = "small",
+    file1 = ":fixture_hello_run",
+    file2 = "//cli/prebuilt/testdata/bundle:tools/message.txt",
+)
+
 dx_unavailable(
     name = "unavailable",
     testonly = True,
@@ -77,6 +114,7 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "bundle.bzl",
         "extension.bzl",
         "fail.bzl",
         "gazelle.bzl",

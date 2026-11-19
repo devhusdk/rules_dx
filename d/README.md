@@ -83,7 +83,7 @@ become LCOV.
 
 `dx docs` documents every `d_library` in scope with the pinned LDC. Nothing
 needs to be installed. `ldc2 -D -X` reads the ddoc comments, and
-`d_doc_shard` from `@rules_dx//tools/docs/d:defs.bzl` turns them into the
+`d_doc_shard` from `@rules_dx//d:defs.bzl` turns them into the
 API reference.
 
 ## Platforms

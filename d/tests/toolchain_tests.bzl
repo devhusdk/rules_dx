@@ -1,7 +1,7 @@
 """D toolchain pin and acquisition tests."""
 
 load("@dx_pins_data//:pins.bzl", "ARCHIVES")
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load("//d/private/toolchain:ldmd2.bzl", "ldmd2_descriptor")
 load("//d/private/toolchain:pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_CROSS_CELLS", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_VERSION")

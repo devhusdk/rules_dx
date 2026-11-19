@@ -558,6 +558,7 @@ rust_test(
         "//core/env:corpus_starlark",
         "//core/env/private:corpus_starlark",
         "//core/modules:corpus_starlark",
+        "//core/private/testing:corpus_starlark",
         "//core/quality:corpus_starlark",
         "//core/quality/artifacts:corpus_starlark",
         "//core/quality/artifacts/acquire_test:corpus_starlark",

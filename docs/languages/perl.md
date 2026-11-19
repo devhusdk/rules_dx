@@ -139,6 +139,14 @@ perl_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs
 
 A perl_test run by dx bench: scripts call DxBench::run_benchmarks, which times them with core Benchmark and writes dx-bench.json.
 
+### `perl_doc_shard`
+
+```python
+perl_doc_shard(name, lib, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Perl library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Perl:
@@ -174,13 +182,5 @@ Perl. Unix launchers start through a bash script.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/perl:defs.bzl", "perl_doc_shard")
+load("@rules_dx//perl:defs.bzl", "perl_doc_shard")
 ```
-
-### `perl_doc_shard`
-
-```python
-perl_doc_shard(name, lib, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one Perl library.

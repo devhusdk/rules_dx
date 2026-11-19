@@ -163,6 +163,14 @@ javascript_web_bundle(name, app, bundler, config = None, entry = None, bundler_a
 
 Bundles one staged application through a declared bundler executable.
 
+### `javascript_doc_shard`
+
+```python
+javascript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs)
+```
+
+Declares a TypeDoc JSON run over one JavaScript project (tsconfig sets allowJs) and its DocIr shard.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for JavaScript:
@@ -193,13 +201,5 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/javascript:defs.bzl", "javascript_doc_shard")
+load("@rules_dx//javascript:defs.bzl", "javascript_doc_shard")
 ```
-
-### `javascript_doc_shard`
-
-```python
-javascript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs)
-```
-
-Declares a TypeDoc JSON run over one JavaScript project (tsconfig sets allowJs) and its DocIr shard.

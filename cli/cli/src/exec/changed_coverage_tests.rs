@@ -4,7 +4,7 @@ use dx_plan::resolve::{QueryResult, QueryRunner};
 use std::path::Path;
 
 const SOURCES_ASPECT: &str = "//core/quality:coverage_sources.bzl%dx_coverage_sources_aspect";
-const OWNS_A: &str = "v1 cell linux_x86_64\nprod source src/a.py\n";
+const OWNS_A: &str = "v2 cell linux_x86_64\nprod source src/a.py\n";
 const HALF_LCOV: &str = "SF:src/a.py\nDA:1,1\nDA:2,0\nend_of_record\n";
 
 fn gate_harness(name: &str, manifest: &str, lcov: &str) -> Harness {
@@ -188,7 +188,7 @@ fn no_changed_executable_lines_is_not_applicable_in_json() {
 fn changed_file_missing_from_report_is_incomplete() {
     let harness = gate_harness(
         "changed-missing",
-        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
         HALF_LCOV,
     );
     harness.write_source("src/b.py", "b = 1\n");
@@ -206,7 +206,7 @@ fn changed_file_missing_from_report_is_incomplete() {
 fn changed_file_missing_from_report_is_incomplete_in_json() {
     let harness = gate_harness(
         "changed-missing-json",
-        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
         HALF_LCOV,
     );
     harness.write_source("src/b.py", "b = 1\n");
@@ -224,7 +224,7 @@ fn changed_file_missing_from_report_is_incomplete_in_json() {
 fn untracked_source_counts_every_line() {
     let harness = gate_harness(
         "changed-untracked",
-        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/n.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/n.py\n",
         "SF:src/a.py\nDA:1,1\nend_of_record\nSF:src/n.py\nDA:1,1\nDA:2,0\nend_of_record\n",
     );
     harness.write_source("src/n.py", "a = 1\nb = 2\n");
@@ -393,7 +393,7 @@ fn explicit_affected_without_git_exits_2() {
 fn untracked_non_utf8_source_counts_every_line() {
     let harness = gate_harness(
         "changed-latin1",
-        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/n.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/n.py\n",
         "SF:src/a.py\nDA:1,1\nend_of_record\nSF:src/n.py\nDA:1,1\nDA:2,0\nend_of_record\n",
     );
     let full = harness.workspace.join("src/n.py");
@@ -416,7 +416,7 @@ fn unreadable_untracked_source_is_unavailable() {
     use std::os::unix::fs::PermissionsExt;
     let harness = gate_harness(
         "changed-unreadable",
-        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/n.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/n.py\n",
         "SF:src/a.py\nDA:1,1\nend_of_record\nSF:src/n.py\nDA:1,1\nend_of_record\n",
     );
     harness.write_source("src/n.py", "a = 1\n");

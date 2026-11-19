@@ -80,7 +80,7 @@ names through the pinned Documenter.jl 1.20.0, and writes a DocIr shard.
 - The library is named after its root module.
 - Its dependencies must be `julia_library` targets in the same workspace.
 - To name the shard yourself, use `julia_doc_shard(name, lib, module, package)`
-  from `@rules_dx//tools/docs/julia:defs.bzl`.
+  from `@rules_dx//julia:defs.bzl`.
 
 ## Platforms
 

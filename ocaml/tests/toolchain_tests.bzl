@@ -1,6 +1,6 @@
 """OCaml toolchain pin and acquisition tests."""
 
-load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load("//ocaml/private/toolchain:ocaml.bzl", "COMPILERS", "NATIVE_CC_TOOLS", "TOOLS", "native_cc_env", "toolchain_fields")
 load("//ocaml/private/toolchain:opam.bzl", "pick_annotation")

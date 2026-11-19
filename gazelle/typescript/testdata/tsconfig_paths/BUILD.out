@@ -1,6 +1,6 @@
-load("@rules_dx//typescript:defs.bzl", "ts_config")
+load("@rules_dx//typescript:defs.bzl", "typescript_config")
 
-ts_config(
+typescript_config(
     name = "tsconfig",
     src = "tsconfig.json",
     visibility = ["//visibility:public"],

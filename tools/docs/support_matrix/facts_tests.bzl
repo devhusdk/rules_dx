@@ -1,7 +1,7 @@
 """Schema tests for the support matrix facts."""
 
 load("//cc/private/toolchain:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION", "MSVC_CL_BUILD")
-load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core/quality:adapters.bzl", "NOT_APPLICABLE", "TYPECHECK_CANDIDATES")
 load("//core/quality:support.bzl", "SUPPORT_PLATFORMS")
 load("//tools/docs/avro:defs.bzl", "avro_doc_shard")

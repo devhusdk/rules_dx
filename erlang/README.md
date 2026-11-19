@@ -68,7 +68,7 @@ There is no `erlang_fuzz_test`: the BEAM has no coverage-guided fuzzer.
 ## API docs
 
 `dx docs` documents an `erlang_app` with `erlang_doc_shard(name, app, package)`
-from `@rules_dx//tools/docs/erlang:defs.bzl`. It runs `edoc` from the pinned
+from `@rules_dx//erlang:defs.bzl`. It runs `edoc` from the pinned
 OTP over the app's `srcs` and writes a DocIr shard.
 
 - Functions that are not exported are left out.

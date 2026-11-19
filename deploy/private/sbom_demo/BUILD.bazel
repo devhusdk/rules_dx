@@ -1,7 +1,7 @@
 # gazelle:ignore
 
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//core:defs.bzl", "starlark_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
 load("//deploy/private:github.bzl", "github_deploy")
 load("//deploy/private:oci.bzl", "oci_deploy")
 load("//deploy/private:pypi.bzl", "pypi_deploy")

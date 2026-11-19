@@ -1,6 +1,6 @@
 """Normalized codegen plan records."""
 
-load("//core:defs.bzl", "DxSubjectInfo", "display_label")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo", "display_label")
 load(
     "//core:plan_shard.bzl",
     "plan_shard_aspect_inputs",
@@ -260,6 +260,7 @@ def _prost_plan(target, ctx):
     groups = target[OutputGroupInfo]
     if "rust_generated_srcs" not in groups:
         return None
+    # Bounded by one prost library's generated sources.
     generated = groups.rust_generated_srcs.to_list()
     if len(generated) == 0:
         return None

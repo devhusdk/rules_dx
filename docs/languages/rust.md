@@ -254,6 +254,14 @@ rust_build_script(name, build_script_env = None, toolchains = None, use_cc_toolc
 
 `rust_build_script`, a `cargo_build_script` whose build script gets `HOST_*` and `TARGET_*` cc tools and flags from rules_dx.
 
+### `rust_docs_site`
+
+```python
+rust_docs_site(name, libraries, prose, book_toml, prose_route = "prose.md", source_url = "")
+```
+
+Renders one prose page and the API reference of some Rust libraries.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Rust:
@@ -288,13 +296,5 @@ call in your `MODULE.bazel`.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/rust:site.bzl", "rust_docs_site")
+load("@rules_dx//rust:defs.bzl", "rust_docs_site")
 ```
-
-### `rust_docs_site`
-
-```python
-rust_docs_site(name, libraries, prose, book_toml, prose_route = "prose.md", source_url = "")
-```
-
-Renders one prose page and the API reference of some Rust libraries.

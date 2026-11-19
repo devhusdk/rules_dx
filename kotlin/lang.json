@@ -32,7 +32,8 @@
     "kotlin_binary",
     "kotlin_test",
     "kotlin_bench",
-    "kotlin_fuzz_test"
+    "kotlin_fuzz_test",
+    "kotlin_doc_shard"
   ],
   "quality": {
     "bzl": "java/private/quality:jvm.bzl",

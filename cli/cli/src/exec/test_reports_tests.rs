@@ -312,7 +312,7 @@ fn coverage_merges_the_lcov_a_php_test_writes() {
     let harness = coverage_harness("cov-php-pcov", lcov.as_bytes());
     let harness = with_sources(
         harness,
-        "v1 cell linux_x86_64\nprod source php/tests/fixtures/hello/src/Hello/Greeter.php\n",
+        "v2 cell linux_x86_64\nprod source php/tests/fixtures/hello/src/Hello/Greeter.php\n",
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
     assert_eq!(code, 0, "{err}");
@@ -326,7 +326,7 @@ fn coverage_merges_the_lcov_a_julia_test_writes() {
     let harness = coverage_harness("cov-julia", lcov.as_bytes());
     let harness = with_sources(
         harness,
-        "v1 cell linux_x86_64\nprod source julia/tests/fixtures/hello/src/Greet.jl\n",
+        "v2 cell linux_x86_64\nprod source julia/tests/fixtures/hello/src/Greet.jl\n",
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
     assert_eq!(code, 0, "{err}");
@@ -339,7 +339,7 @@ fn coverage_merges_the_lcov_a_haskell_test_writes() {
     let harness = coverage_harness("cov-haskell-hpc", lcov.as_bytes());
     let harness = with_sources(
         harness,
-        "v1 cell linux_x86_64\nprod source haskell/private/coverage/fixture/Greeter.hs\n",
+        "v2 cell linux_x86_64\nprod source haskell/private/coverage/fixture/Greeter.hs\n",
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=50"]);
     assert_eq!(code, 0, "{err}");
@@ -355,7 +355,7 @@ fn coverage_merges_the_lcov_an_ocaml_test_writes() {
     let harness = coverage_harness("cov-ocaml-bisect", lcov.as_bytes());
     let harness = with_sources(
         harness,
-        "v1 cell linux_x86_64\nprod source ocaml/tests/runtime/greet.ml\n",
+        "v2 cell linux_x86_64\nprod source ocaml/tests/runtime/greet.ml\n",
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=50"]);
     assert_eq!(code, 0, "{err}");
@@ -411,7 +411,7 @@ fn coverage_min_coverage_rejects_invalid_markers() {
         )]),
         ..harness
     };
-    let harness = with_sources(harness, "v1 cell linux_x86_64\nprod source src/lib.rs\n");
+    let harness = with_sources(harness, "v2 cell linux_x86_64\nprod source src/lib.rs\n");
     let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=80"]);
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("coverage_below_minimum"), "{err}");
@@ -435,7 +435,7 @@ fn coverage_min_coverage_counts_d_sources() {
         )]),
         ..harness
     };
-    let harness = with_sources(harness, "v1 cell linux_x86_64\nprod source src/adder.d\n");
+    let harness = with_sources(harness, "v2 cell linux_x86_64\nprod source src/adder.d\n");
     let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=80"]);
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("coverage_below_minimum"), "{err}");
@@ -444,7 +444,7 @@ fn coverage_min_coverage_counts_d_sources() {
 
 const SOURCES_ASPECT: &str = "//core/quality:coverage_sources.bzl%dx_coverage_sources_aspect";
 
-const PY_SOURCES: &str = "v1 cell linux_x86_64\nprod source src/a.py\n";
+const PY_SOURCES: &str = "v2 cell linux_x86_64\nprod source src/a.py\n";
 
 /// Adds one `//a:lib` source manifest to a harness's build events.
 fn with_sources(harness: Harness, manifest: &str) -> Harness {
@@ -488,7 +488,7 @@ fn owning_a(mut harness: Harness) -> Harness {
     let uri = write_bep_artifact(
         &harness,
         "sources.txt",
-        b"v1 cell linux_x86_64\nprod source src/a.py\n",
+        b"v2 cell linux_x86_64\nprod source src/a.py\n",
     );
     let lines = [
         sources_set("s1", &uri),
@@ -519,7 +519,7 @@ fn sources_harness(name: &str, manifest: &str, lcov: &str) -> Harness {
 fn coverage_absent_production_source_is_a_notice() {
     let harness = sources_harness(
         "cov-sources-absent",
-        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
         MINIMAL_LCOV,
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text"]);
@@ -536,7 +536,7 @@ fn coverage_absent_production_source_is_a_notice() {
 fn coverage_sources_report_lists_owned_and_absent() {
     let harness = sources_harness(
         "cov-sources-report",
-        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\ntest source src/a_test.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\ntest source src/a_test.py\n",
         MINIMAL_LCOV,
     );
     let path = harness.workspace.join("sources.json");
@@ -558,7 +558,7 @@ fn coverage_sources_report_lists_owned_and_absent() {
     );
 }
 
-const ORPHAN_MANIFEST: &str = "v1 cell linux_x86_64\nprod source src/a.py\n";
+const ORPHAN_MANIFEST: &str = "v2 cell linux_x86_64\nprod source src/a.py\n";
 const ORPHAN_MESSAGE: &str = "tracked source not owned by any Bazel target: src/orphan.py";
 
 /// Scripts a clean Git checkout whose tracked files include a used and an unused source.
@@ -694,7 +694,7 @@ fn coverage_report_without_manifests_fails_min_coverage() {
 fn coverage_event_reports_the_cell_account() {
     let harness = sources_harness(
         "cov-sources-event",
-        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
         MINIMAL_LCOV,
     );
     let (code, out, _) = harness.run(&["coverage", "--output=json", "--min-coverage=100"]);
@@ -742,7 +742,7 @@ fn coverage_event_passes_a_clean_cell_without_minimum() {
 fn coverage_sources_counts_line_and_silent_test_sources() {
     let harness = sources_harness(
         "cov-sources-counts",
-        "v1 cell linux_x86_64\nprod source src/a.py\ntest source src/a_test.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\ntest source src/a_test.py\n",
         MINIMAL_LCOV,
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text"]);
@@ -760,7 +760,7 @@ fn coverage_sources_counts_line_and_silent_test_sources() {
 fn coverage_sources_counts_perl_sources() {
     let harness = sources_harness(
         "cov-sources-perl",
-        "v1 cell linux_x86_64\nprod source src/a.pm\ntest source src/a_test.pl\n",
+        "v2 cell linux_x86_64\nprod source src/a.pm\ntest source src/a_test.pl\n",
         "SF:src/a.pm\nDA:1,1\nend_of_record\n",
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text"]);
@@ -777,7 +777,7 @@ fn coverage_sources_counts_perl_sources() {
 fn coverage_sources_notice_is_a_json_event() {
     let harness = sources_harness(
         "cov-sources-json",
-        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
         MINIMAL_LCOV,
     );
     let (code, out, _) = harness.run(&["coverage", "--output=json"]);
@@ -809,7 +809,7 @@ fn coverage_sources_notice_is_a_json_event() {
 
 #[test]
 fn coverage_invalid_source_manifest_is_a_notice() {
-    let harness = sources_harness("cov-sources-invalid", "v1 cell unknown\n", MINIMAL_LCOV);
+    let harness = sources_harness("cov-sources-invalid", "v2 cell unknown\n", MINIMAL_LCOV);
     let (code, _, err) = harness.run(&["coverage", "--output=text"]);
     assert_eq!(code, 0, "{err}");
     assert!(
@@ -823,7 +823,7 @@ fn coverage_invalid_source_manifest_is_a_notice() {
 fn coverage_absent_production_source_fails_min_coverage() {
     let harness = sources_harness(
         "cov-sources-absent-gate",
-        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
         MINIMAL_LCOV,
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
@@ -847,7 +847,7 @@ fn coverage_absent_production_source_fails_min_coverage() {
 fn coverage_unowned_report_path_fails_min_coverage() {
     let harness = sources_harness(
         "cov-sources-unowned-gate",
-        "v1 cell linux_x86_64\nprod source src/other.py\n",
+        "v2 cell linux_x86_64\nprod source src/other.py\n",
         "SF:src/a.py\nDA:1,1\nend_of_record\nSF:src/other.py\nDA:1,1\nend_of_record\n",
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
@@ -864,7 +864,7 @@ fn coverage_unowned_report_path_fails_min_coverage() {
 fn coverage_invalid_source_manifest_fails_min_coverage() {
     let harness = sources_harness(
         "cov-sources-invalid-gate",
-        "v1 cell unknown\n",
+        "v2 cell unknown\n",
         MINIMAL_LCOV,
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);
@@ -879,7 +879,7 @@ fn coverage_invalid_source_manifest_fails_min_coverage() {
 fn coverage_sources_error_is_a_json_error_under_min_coverage() {
     let harness = sources_harness(
         "cov-sources-json-gate",
-        "v1 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\nprod source src/b.py\n",
         MINIMAL_LCOV,
     );
     let (code, out, _) = harness.run(&["coverage", "--output=json", "--min-coverage=100"]);
@@ -900,7 +900,7 @@ fn coverage_sources_error_is_a_json_error_under_min_coverage() {
 fn coverage_test_only_sources_pass_min_coverage() {
     let harness = sources_harness(
         "cov-sources-test-only-gate",
-        "v1 cell linux_x86_64\nprod source src/a.py\ntest source src/a_test.py\n",
+        "v2 cell linux_x86_64\nprod source src/a.py\ntest source src/a_test.py\n",
         MINIMAL_LCOV,
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=100"]);

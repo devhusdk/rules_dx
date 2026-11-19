@@ -146,6 +146,17 @@ d_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs)
 
 A d_binary run by `dx bench`; it writes dx-bench.json to TEST_UNDECLARED_OUTPUTS_DIR.
 
+### `d_doc_shard`
+
+Converts one D library's public API into a DocIr shard with the pinned LDC's ddoc JSON.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
+| `lib` | `label` | yes | The d_library to document. |
+| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
+| `_extract` | `label` | no |  |
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for D:
@@ -178,20 +189,9 @@ On Windows arm64 the x64 LDC runs under emulation.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/d:defs.bzl", "d_doc_shard")
+load("@rules_dx//d:defs.bzl", "d_doc_shard")
 ```
 
-### `d_doc_shard`
-
-Converts one D library's public API into a DocIr shard with the pinned LDC's ddoc JSON.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
-| `lib` | `label` | yes | The d_library to document. |
-| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
-| `_extract` | `label` | no |  |
-
 `dx docs` documents every `d_library` in scope with the pinned LDC: `ldc2 -D -X`
-reads the ddoc comments, and `d_doc_shard` (`@rules_dx//tools/docs/d:defs.bzl`)
+reads the ddoc comments, and `d_doc_shard` (`@rules_dx//d:defs.bzl`)
 turns them into the API reference. Nothing needs to be installed.

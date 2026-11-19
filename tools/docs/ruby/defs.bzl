@@ -4,6 +4,8 @@ load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 _RUBY_TOOLCHAIN = "@rules_ruby//ruby:toolchain_type"
 
 _RubyDirectSrcsInfo = provider(

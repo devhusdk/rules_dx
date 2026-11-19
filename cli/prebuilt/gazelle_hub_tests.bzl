@@ -1,6 +1,6 @@
 """Tests for the @dx_gazelle language list, source decision and hub BUILD text."""
 
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":gazelle_hub.bzl", "DISPATCH", "builds_from_source", "hub_languages", "prebuilt_build", "render_hub_build")
 load(":hub.bzl", "plan_assets", "plan_root")
 load(":pins.bzl", "URL_TEMPLATE")

@@ -140,6 +140,14 @@ java_bench(name, *, srcs, deps = None, tags = None, **kwargs)
 
 Runs the JMH benchmarks in srcs and writes dx-bench.json for dx bench.
 
+### `java_doc_shard`
+
+```python
+java_doc_shard(name, lib, package = "", deps = [], **kwargs)
+```
+
+Declares the DocIr shard of one Java library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Java:
@@ -170,13 +178,5 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/jvm:defs.bzl", "java_doc_shard")
+load("@rules_dx//java:defs.bzl", "java_doc_shard")
 ```
-
-### `java_doc_shard`
-
-```python
-java_doc_shard(name, lib, package = "", deps = [], **kwargs)
-```
-
-Declares the DocIr shard of one Java library.

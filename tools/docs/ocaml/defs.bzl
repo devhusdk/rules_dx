@@ -5,6 +5,8 @@ load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load("//ocaml/private:providers.bzl", "OCamlCmtInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 ODOC_CONFIG = "odoc=" + DATA["dx_quality_pins"]["sources"]["odoc"]["version"]
 
 def ocaml_typed_trees(info):

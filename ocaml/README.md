@@ -179,7 +179,7 @@ ocaml_fuzz_test(
 
 ## API docs
 
-`ocaml_doc_shard` from `@rules_dx//tools/docs/ocaml:defs.bzl` turns an
+`ocaml_doc_shard` from `@rules_dx//ocaml:defs.bzl` turns an
 `ocaml_module`, `ocaml_signature` or `ocaml_library` into a DocIr shard with
 the pinned odoc 3.2.2.
 

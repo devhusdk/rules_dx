@@ -49,7 +49,8 @@
     "go_binary",
     "go_test",
     "go_fuzz_test",
-    "go_bench"
+    "go_bench",
+    "go_doc_shard"
   ],
   "quality": {
     "bzl": "go/private/quality:go.bzl",

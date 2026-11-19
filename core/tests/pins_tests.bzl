@@ -1,7 +1,7 @@
 """The checks every pins.json shares."""
 
 load("@dx_pins_data//:pins.bzl", "ARCHIVES", "DATA", "PINS")
-load("//core:defs.bzl", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_true", "starlark_test")
 load("//core:repo.bzl", "ARCHIVE_TYPES")
 load("//core:toolchain.bzl", "pin_checks")
 

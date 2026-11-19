@@ -5,7 +5,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers", "codegen_srcjar")
-load("//core:defs.bzl", "display_label")
+load("//core/private/testing:defs.bzl", "display_label")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "AvroInfo")
 

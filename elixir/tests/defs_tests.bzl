@@ -1,7 +1,7 @@
 """Wrapper conformance tests for Elixir."""
 
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//elixir/private:defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_sources", "elixir_escript_headers", "helper_first", "nif_priv")
 load("//elixir/private:kwargs.bzl", "elixir_app_kwargs", "elixir_app_mod_entry", "elixir_kwargs")
 load("//elixir/private:hex.bzl", "hex_metadata_entry", "hex_tarball_url")

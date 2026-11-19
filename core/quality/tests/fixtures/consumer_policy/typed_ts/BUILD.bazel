@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//core/quality:native_config.bzl", "eslint_config")
-load("//typescript:defs.bzl", "ts_config", "typescript_library")
+load("//typescript:defs.bzl", "typescript_config", "typescript_library")
 
 package(default_visibility = ["//core/quality:__pkg__"])
 
@@ -10,7 +10,7 @@ copy_file(
     out = ".dx/config/tsconfig/standard.json",
 )
 
-ts_config(
+typescript_config(
     name = "tsconfig",
     src = "tsconfig.json",
     deps = [":standard_base"],

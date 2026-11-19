@@ -1,7 +1,7 @@
 """Tests for the terraform extension helpers and terraform_library providers."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//terraform/private:extensions.bzl", "PLATFORM_TARGETS", "TARGETS", "hub_build", "hub_providers", "provider_repos")
 load("//terraform/private:providers.bzl", "TerraformModuleInfo", "provider_mirror_root")
 

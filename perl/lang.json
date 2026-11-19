@@ -47,7 +47,8 @@
     "perl_library",
     "perl_binary",
     "perl_test",
-    "perl_bench"
+    "perl_bench",
+    "perl_doc_shard"
   ],
   "quality": {
     "bzl": "perl/private/quality:perl.bzl",

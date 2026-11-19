@@ -4,6 +4,8 @@ load("//third_party/dotnet:framework.bzl", "dotnet_tool_pin")
 load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 def _shard_impl(ctx):
     language = ctx.attr._language
     library = ctx.attr.library

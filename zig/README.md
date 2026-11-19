@@ -100,7 +100,7 @@ There is no `zig_fuzz_test`. Zig's fuzzer runs only under `zig build --fuzz`, wh
 
 `dx docs` documents every `zig_library` in scope. A small Zig program built with
 the pinned Zig reads each source with `std.zig.Ast`, and `zig_doc_shard`
-(`@rules_dx//tools/docs/zig:defs.bzl`) turns the `///` and `//!` comments of the
+(`@rules_dx//zig:defs.bzl`) turns the `///` and `//!` comments of the
 public declarations into the API reference. Own files the main file re-exports
 with `pub const x = @import("x.zig")` become modules. Nothing needs to be
 installed.

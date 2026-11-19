@@ -169,7 +169,7 @@ There is no `elixir_fuzz_test`: the BEAM has no coverage-guided fuzzer.
 ## API docs
 
 `dx docs` documents an `elixir_app` with `elixir_doc_shard(name, app, package)`
-from `@rules_dx//tools/docs/elixir:defs.bzl`. It reads each module's docs
+from `@rules_dx//elixir:defs.bzl`. It reads each module's docs
 with `Code.fetch_docs/1` on the pinned Elixir and writes a DocIr shard.
 
 - Modules marked `@moduledoc false` and functions marked `@doc false` are

@@ -202,6 +202,17 @@ swift_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs)
 
 A swift_binary timing loop run by `dx bench`; it links `//swift/private/bench` to write dx-bench.json.
 
+### `swift_doc_shard`
+
+Converts one Swift library's public API into a DocIr shard with the symbol graph of the toolchain's swift-symbolgraph-extract.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
+| `lib` | `label` | yes | The swift_library to document. |
+| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
+| `_extract` | `label` | no |  |
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Swift:
@@ -247,18 +258,7 @@ statically and need only the system C library.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/swift:defs.bzl", "swift_doc_shard")
+load("@rules_dx//swift:defs.bzl", "swift_doc_shard")
 ```
 
-### `swift_doc_shard`
-
-Converts one Swift library's public API into a DocIr shard with the symbol graph of the toolchain's swift-symbolgraph-extract.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
-| `lib` | `label` | yes | The swift_library to document. |
-| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
-| `_extract` | `label` | no |  |
-
-`dx docs` documents every `swift_library` in scope from the symbol graph that `swift-symbolgraph-extract` of the Swift toolchain writes for its public declarations. `swift_doc_shard` (`@rules_dx//tools/docs/swift:defs.bzl`) turns the graph and the library's own `.swift` files into the API reference. Nothing needs to be installed. Members that an extension adds to a type of another module are not documented.
+`dx docs` documents every `swift_library` in scope from the symbol graph that `swift-symbolgraph-extract` of the Swift toolchain writes for its public declarations. `swift_doc_shard` (`@rules_dx//swift:defs.bzl`) turns the graph and the library's own `.swift` files into the API reference. Nothing needs to be installed. Members that an extension adds to a type of another module are not documented.

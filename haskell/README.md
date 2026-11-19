@@ -87,7 +87,7 @@ installed.
 
 - `haddock --hoogle` from the pinned GHC writes the declarations and their
   comments as Hoogle text.
-- `haskell_doc_shard` from `@rules_dx//tools/docs/haskell:defs.bzl` turns
+- `haskell_doc_shard` from `@rules_dx//haskell:defs.bzl` turns
   that text into the API reference.
 - Test and binary targets are skipped.
 - A library that needs GHCi libraries, such as Template Haskell with C

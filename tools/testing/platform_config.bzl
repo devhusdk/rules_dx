@@ -1,6 +1,6 @@
 """Analysis test that a rule's platform transition changes the configuration of its dependency."""
 
-load("//core:defs.bzl", "DxSubjectInfo", "starlark_test")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo", "starlark_test")
 
 _ConstraintsSeenInfo = provider(
     doc = "Constraint values the target platform of one configuration holds.",

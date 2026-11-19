@@ -151,6 +151,14 @@ kotlin_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visibil
 
 A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`.
 
+### `kotlin_doc_shard`
+
+```python
+kotlin_doc_shard(name, lib, package = "", deps = [], **kwargs)
+```
+
+Declares the DocIr shard of one Kotlin library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Kotlin:
@@ -181,13 +189,5 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/jvm:defs.bzl", "kotlin_doc_shard")
+load("@rules_dx//kotlin:defs.bzl", "kotlin_doc_shard")
 ```
-
-### `kotlin_doc_shard`
-
-```python
-kotlin_doc_shard(name, lib, package = "", deps = [], **kwargs)
-```
-
-Declares the DocIr shard of one Kotlin library.

@@ -1,7 +1,7 @@
 """Identity tests pinning the hermetic C++ toolchain binding."""
 
 load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//cc/private/toolchain:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_compiler_identity", "cc_toolchain_identity")
 load("//cc/private/toolchain:pins.bzl", "GCC_GLIBC", "GCC_VERSION", "LLVM_CLANG_VERSION")
 

@@ -15,6 +15,7 @@ load(
     _erlang_ct_suite_test = "erlang_ct_suite_test",
     _erlang_bench = "erlang_bench",
 )
+load("//tools/docs/erlang:defs.bzl", _erlang_doc_shard = "erlang_doc_shard")
 
 ErlangAppInfo = _ErlangAppInfo
 erlang_erlc_opts = _erlc_opts
@@ -28,3 +29,4 @@ erlang_escript_archive = _erlang_escript_archive
 erlang_eunit_test = _erlang_eunit_test
 erlang_ct_suite_test = _erlang_ct_suite_test
 erlang_bench = _erlang_bench
+erlang_doc_shard = _erlang_doc_shard

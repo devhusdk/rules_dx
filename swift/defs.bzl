@@ -10,6 +10,7 @@ load(
     _swift_library_group = "swift_library_group",
     _swift_test = "swift_test",
 )
+load("//tools/docs/swift:defs.bzl", _swift_doc_shard = "swift_doc_shard")
 
 swift_bench = _swift_bench
 swift_binary = _swift_binary
@@ -18,3 +19,4 @@ swift_interop_hint = _swift_interop_hint
 swift_library = _swift_library
 swift_library_group = _swift_library_group
 swift_test = _swift_test
+swift_doc_shard = _swift_doc_shard

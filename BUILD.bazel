@@ -531,6 +531,7 @@ filegroup(
         "//core/modules:module_srcs",
         "//core/patchelf:module_srcs",
         "//core/private:module_srcs",
+        "//core/private/testing:module_srcs",
         "//core/quality:module_srcs",
         "//core/quality/adapter:module_srcs",
         "//core/quality/artifacts:module_srcs",

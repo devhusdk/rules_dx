@@ -138,6 +138,17 @@ haskell_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs)
 
 A haskell_binary of tasty-bench benchmarks plus a `<name>` runner that writes dx-bench.json for `dx bench`.
 
+### `haskell_doc_shard`
+
+Converts one Haskell library's public API into a DocIr shard with the pinned GHC bindist's haddock.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
+| `lib` | `label` | yes | The haskell_library to document. |
+| `package` | `string` | no | Package name for haddock and the symbol ids. Defaults to the lib name. |
+| `_extract` | `label` | no |  |
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Haskell:
@@ -171,18 +182,7 @@ On other platforms Haskell targets fail toolchain resolution.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/haskell:defs.bzl", "haskell_doc_shard")
+load("@rules_dx//haskell:defs.bzl", "haskell_doc_shard")
 ```
 
-### `haskell_doc_shard`
-
-Converts one Haskell library's public API into a DocIr shard with the pinned GHC bindist's haddock.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
-| `lib` | `label` | yes | The haskell_library to document. |
-| `package` | `string` | no | Package name for haddock and the symbol ids. Defaults to the lib name. |
-| `_extract` | `label` | no |  |
-
-`dx docs` documents every `haskell_library` in scope with the `haddock` of the pinned GHC bindist: `haddock --hoogle` writes the declarations and their comments as Hoogle text, and `haskell_doc_shard` (`@rules_dx//tools/docs/haskell:defs.bzl`) turns them into the API reference. Nothing needs to be installed. Test and binary targets are skipped. A library that needs GHCi libraries (Template Haskell with C dependencies) fails in haddock with its own error.
+`dx docs` documents every `haskell_library` in scope with the `haddock` of the pinned GHC bindist: `haddock --hoogle` writes the declarations and their comments as Hoogle text, and `haskell_doc_shard` (`@rules_dx//haskell:defs.bzl`) turns them into the API reference. Nothing needs to be installed. Test and binary targets are skipped. A library that needs GHCi libraries (Template Haskell with C dependencies) fails in haddock with its own error.

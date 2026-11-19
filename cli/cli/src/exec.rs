@@ -69,7 +69,7 @@ mod worktree;
 
 use dx_plan::args::{Command, Invocation};
 
-pub use audit::AUDIT_TODAY_ENV;
+pub use dx_exec_core::audit_policy::AUDIT_TODAY_ENV;
 pub use dx_exec_core::common::{ActionTally, Env, print_actions, print_cache_retries};
 pub use dx_exec_core::failure::{
     cancel, install_panic_events, install_panic_hint, set_usage_command, slot_stop,

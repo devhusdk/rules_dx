@@ -766,6 +766,13 @@ Exit codes: `0`, `1`, `2`.
 | `@rules_dx//config:toolchains` | `bool_flag` | `False` |  |
 | `@rules_dx//config:warnings_as_errors` | `bool_flag` | `True` |  |
 | `@rules_dx//config:workspace` | `label_flag` | `@rules_dx//config:default_workspace_policy` |  |
+| `@rules_dx//android:emulator_serial` | `string_flag` |  |  |
+| `@rules_dx//apple:simulator_runtime` | `string_flag` |  |  |
+| `@rules_dx//cc:compiler` | `string_flag` | `llvm` |  |
+| `@rules_dx//cuda:gpu_compute_capability` | `string_flag` |  |  |
+| `@rules_dx//cuda:gpu_driver` | `string_flag` |  |  |
+| `@rules_dx//fortran:kcov` | `bool_flag` | `False` |  |
+| `@rules_dx//zig:kcov` | `bool_flag` | `False` |  |
 
 ## Platforms
 
@@ -834,8 +841,80 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//:dx` | `alias` |
 | `@rules_dx//:lang_json` | `filegroup` |
 | `@rules_dx//:module_srcs` | `filegroup` |
-| `@rules_dx//:package_json` | `js_library` |
+| `@rules_dx//:package_json` | `javascript_library` |
+| `@rules_dx//android:declared_emulator` | `declared_emulator` |
+| `@rules_dx//android:emulator_undeclared` | `config_setting` |
+| `@rules_dx//android:is_device` | `config_setting` |
+| `@rules_dx//android:is_emulator` | `config_setting` |
+| `@rules_dx//android:llvm_readelf` | `alias` |
+| `@rules_dx//apple:declared_simulator` | `declared_simulator` |
+| `@rules_dx//apple:ios_arm64` | `alias` |
+| `@rules_dx//apple:ios_sim_arm64` | `alias` |
+| `@rules_dx//apple:ios_x86_64` | `alias` |
+| `@rules_dx//apple:simulator_undeclared` | `config_setting` |
+| `@rules_dx//capnproto:runtime_java` | `alias` |
+| `@rules_dx//capnproto:runtime_rust` | `alias` |
+| `@rules_dx//capnproto:std` | `filegroup` |
+| `@rules_dx//cc:gcc_linux_glibc` | `alias` |
+| `@rules_dx//cc:gcc_linux_libstdcxx` | `alias` |
+| `@rules_dx//cuda:cublas` | `cuda_component_library` |
+| `@rules_dx//cuda:cufft` | `cuda_component_library` |
+| `@rules_dx//cuda:curand` | `cuda_component_library` |
+| `@rules_dx//cuda:gpu_undeclared` | `config_setting` |
+| `@rules_dx//d:coverage` | `config_setting` |
+| `@rules_dx//dart:runfiles` | `alias` |
+| `@rules_dx//flatbuffers:reflection_fbs_schema` | `alias` |
+| `@rules_dx//flatbuffers:runtime_java` | `alias` |
+| `@rules_dx//flatbuffers:runtime_rust` | `alias` |
+| `@rules_dx//fortran:kcov_build` | `config_setting` |
+| `@rules_dx//haskell:base` | `alias` |
+| `@rules_dx//ocaml:bisect_ppx_rewriter` | `alias` |
+| `@rules_dx//ocaml:dune` | `alias` |
+| `@rules_dx//ocaml:emitter` | `alias` |
+| `@rules_dx//php:runfiles` | `php_library` |
+| `@rules_dx//powershell:dx_coverage` | `alias` |
+| `@rules_dx//powershell:pester` | `alias` |
+| `@rules_dx//powershell:runfiles` | `alias` |
+| `@rules_dx//rust:build_script_cc_env` | `build_script_cc_env` |
+| `@rules_dx//thrift:thrift_compiler` | `alias` |
+| `@rules_dx//zig:kcov_build` | `config_setting` |
+
+## Runnable targets
+
+Run these with `bazel run <target>`.
+
+| Target | Kind |
+| --- | --- |
+| `@rules_dx//cli/cli:dx` | `rust_binary` |
+| `@rules_dx//cli/codegen_shard:codegen_shard_writer` | `rust_binary` |
+| `@rules_dx//cli/coverage_summary:coverage_summary` | `rust_binary` |
+| `@rules_dx//cli/env:env` | `rust_binary` |
+| `@rules_dx//cli/hpc_coverage:hpc_coverage` | `rust_binary` |
+| `@rules_dx//cli/launcher:exec_launcher` | `rust_binary` |
+| `@rules_dx//cli/ocaml_cc_driver:ocaml_cc_driver` | `rust_binary` |
+| `@rules_dx//cli/runtime:dx_runtime` | `rust_binary` |
+| `@rules_dx//core/modules:lang_projections` | `rust_binary` |
+| `@rules_dx//core/quality/lsp_check:lsp_check` | `rust_binary` |
+| `@rules_dx//core/quality/markdown:quality_markdown` | `rust_binary` |
+| `@rules_dx//core/quality/notebook:quality_notebook` | `rust_binary` |
+| `@rules_dx//core/quality/runner:quality_runner` | `rust_binary` |
+| `@rules_dx//core/quality/tools/python:ansible_lint` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:cfn_lint` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:check_jsonschema` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:cmakelint` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:djlint` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:docstrfmt` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:mbake` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:pydoclint` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:pypi_attestations` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:rst2html` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:sqlfluff` | `py_binary` |
+| `@rules_dx//core/quality/tools/python:yamllint` | `py_binary` |
+| `@rules_dx//core/quality:compile_check_test_sh` | `native_binary` |
 | `@rules_dx//deploy:bootstrap_offline` | `rust_binary` |
+| `@rules_dx//examples/shared-rust:shared_tasks` | `rust_binary` |
+| `@rules_dx//examples/shared-rust:tasks` | `rust_binary` |
+| `@rules_dx//examples/shared-rust:tasks_wasi` | `rust_binary` |
 
 ## File formats
 

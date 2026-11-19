@@ -1,7 +1,7 @@
 """Load tests pinning standalone-artifact metadata."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
-load("//core:defs.bzl", "expect_equal", "expect_match", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_match", "expect_true", "starlark_test")
 load(":hub.bzl", "artifact_metadata_errors")
 load(":ocaml_duniverse.bzl", "PACKAGES", "PATCHES", "REPO")
 load(":repos.bzl", "DX_TOOL_HUB", "DX_TOOL_REPOS")

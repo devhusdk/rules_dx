@@ -1,7 +1,7 @@
 """Test rule that exposes the tsc aspect output of one target."""
 
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
-load("//core:defs.bzl", "starlark_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
 load("//javascript:defs.bzl", "javascript_library")
 load("//typescript/private/quality:tsc.bzl", "TscInfo", "tsc_aspect")
 

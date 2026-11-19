@@ -4,8 +4,9 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use super::{
-    ADVISORY_SETS, Command, Options, default_install_dir, host_launcher, is_plain_date,
-    manifest_entry, parse_args, pinned, publish_set, recorded_field, run, today_utc, usage,
+    ADVISORY_SETS, BootstrapError, Command, Options, default_install_dir, host_launcher,
+    is_plain_date, manifest_entry, parse_args, pinned, publish_set, recorded_field, run, today_utc,
+    usage,
 };
 
 #[test]
@@ -97,6 +98,15 @@ fn today_is_a_plain_utc_date() {
     );
 }
 
+/// Runs a bootstrap that must be refused and returns its error.
+fn refusal(options: &Options, os: &str, arch: &str, today: &str) -> BootstrapError {
+    run(options, os, arch, today).expect_err("bootstrap must be refused")
+}
+
+fn refused(options: &Options, os: &str, arch: &str, today: &str) -> String {
+    refusal(options, os, arch, today).to_string()
+}
+
 #[test]
 fn a_missing_bundle_is_refused_before_anything_else() {
     let options = Options {
@@ -105,7 +115,7 @@ fn a_missing_bundle_is_refused_before_anything_else() {
         workspace: "/tmp/workspace".to_string(),
     };
     assert_eq!(
-        run(&options, "linux", "x86_64", "2026-01-01"),
+        refused(&options, "linux", "x86_64", "2026-01-01"),
         "missing --bundle DIR (vendored offline bundle)"
     );
     let empty = Options {
@@ -113,7 +123,7 @@ fn a_missing_bundle_is_refused_before_anything_else() {
         ..options
     };
     assert_eq!(
-        run(&empty, "linux", "x86_64", "2026-01-01"),
+        refused(&empty, "linux", "x86_64", "2026-01-01"),
         "missing --bundle DIR (vendored offline bundle)"
     );
 }
@@ -126,7 +136,7 @@ fn a_bundle_dir_that_is_absent_is_refused() {
         workspace: "/tmp/workspace".to_string(),
     };
     assert_eq!(
-        run(&options, "linux", "x86_64", "2026-01-01"),
+        refused(&options, "linux", "x86_64", "2026-01-01"),
         "bundle dir does not exist: /nonexistent/offline/bundle"
     );
 }
@@ -140,7 +150,7 @@ fn a_bundle_without_the_two_bundle_dirs_is_refused() {
         workspace: root.path().to_string_lossy().into_owned(),
     };
     assert_eq!(
-        run(&options, "linux", "x86_64", "2026-01-01"),
+        refused(&options, "linux", "x86_64", "2026-01-01"),
         format!(
             "bundle has no bazelisk/ dir: {}",
             options.bundle.as_deref().unwrap()
@@ -148,7 +158,7 @@ fn a_bundle_without_the_two_bundle_dirs_is_refused() {
     );
     std::fs::create_dir_all(root.path().join("bazelisk")).expect("bazelisk dir");
     assert_eq!(
-        run(&options, "linux", "x86_64", "2026-01-01"),
+        refused(&options, "linux", "x86_64", "2026-01-01"),
         format!(
             "bundle has no advisory/ dir: {}",
             options.bundle.as_deref().unwrap()
@@ -167,9 +177,13 @@ fn an_unsupported_host_is_refused() {
         workspace: root.path().to_string_lossy().into_owned(),
     };
     assert_eq!(
-        run(&options, "plan9", "risc-v", "2026-01-01"),
+        refused(&options, "plan9", "risc-v", "2026-01-01"),
         "unsupported host plan9-risc-v"
     );
+    assert!(matches!(
+        refusal(&options, "plan9", "risc-v", "2026-01-01"),
+        BootstrapError::UnsupportedHost { .. }
+    ));
 }
 
 #[test]
@@ -239,7 +253,7 @@ fn stage_bundle(root: &Path, bytes: &[u8]) -> Options {
 fn a_non_utf8_launcher_is_installed_byte_for_byte() {
     let bytes = [0x7f, b'E', b'L', b'F', 0xff, 0x80, 0x00, 0xc3, 0x28];
     let (root, options) = bundle_with_launcher("dx-bootstrap-binary-", &bytes);
-    assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
+    run(&options, "linux", "x86_64", "2026-01-01").expect("bootstrap");
     let installed =
         std::fs::read(root.path().join("bin").join("bazel")).expect("installed launcher");
     assert_eq!(installed, bytes);
@@ -270,8 +284,8 @@ fn a_read_only_bundle_installs_twice() {
     for path in &read_only {
         std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o444)).expect("chmod");
     }
-    assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
-    assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
+    run(&options, "linux", "x86_64", "2026-01-01").expect("bootstrap");
+    run(&options, "linux", "x86_64", "2026-01-01").expect("bootstrap");
     let set = ADVISORY_SETS[0];
     let snapshot = root
         .path()
@@ -295,8 +309,10 @@ fn a_read_only_bundle_installs_twice() {
 fn a_launcher_that_cannot_be_copied_is_reported() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-copyfail-", b"\xff\xfe");
     std::fs::create_dir_all(root.path().join("bin").join("bazel")).expect("blocking dir");
-    let refusal = run(&options, "linux", "x86_64", "2026-01-01");
-    assert!(refusal.starts_with("cannot copy "), "{refusal}");
+    let error = refusal(&options, "linux", "x86_64", "2026-01-01");
+    assert!(error.to_string().starts_with("cannot copy "), "{error}");
+    assert!(matches!(error, BootstrapError::Copy { .. }), "{error:?}");
+    assert!(std::error::Error::source(&error).is_some());
 }
 
 fn args(list: &[&str]) -> Vec<String> {
@@ -305,20 +321,18 @@ fn args(list: &[&str]) -> Vec<String> {
 
 #[test]
 fn help_is_its_own_command() {
-    assert_eq!(parse_args(&args(&["-h"])), Ok(Command::Help));
-    assert_eq!(parse_args(&args(&["--help"])), Ok(Command::Help));
+    assert!(matches!(parse_args(&args(&["-h"])), Ok(Command::Help)));
+    assert!(matches!(parse_args(&args(&["--help"])), Ok(Command::Help)));
 }
 
 #[test]
 fn a_bad_argument_is_a_plain_refusal() {
-    assert_eq!(
-        parse_args(&args(&["--nope"])),
-        Err("unknown argument '--nope'".to_string())
-    );
-    assert_eq!(
-        parse_args(&args(&["--bundle"])),
-        Err("--bundle needs a DIR".to_string())
-    );
+    let error = parse_args(&args(&["--nope"])).expect_err("unknown flag");
+    assert!(matches!(error, BootstrapError::UnknownArgument(_)));
+    assert_eq!(error.to_string(), "unknown argument '--nope'");
+    let error = parse_args(&args(&["--bundle"])).expect_err("flag without value");
+    assert!(matches!(error, BootstrapError::FlagNeedsDir(_)));
+    assert_eq!(error.to_string(), "--bundle needs a DIR");
 }
 
 #[test]
@@ -332,13 +346,27 @@ fn flags_parse_into_bootstrap_options() {
         "w",
     ]));
     assert_eq!(
-        parsed,
-        Ok(Command::Bootstrap(Options {
+        parsed.expect("options"),
+        Command::Bootstrap(Options {
             bundle: Some("b".to_string()),
             install_dir: "i".to_string(),
             workspace: "w".to_string(),
-        }))
+        })
     );
+}
+
+#[test]
+fn a_bundle_uri_error_keeps_its_source() {
+    let error = BootstrapError::BundleUri(dx_path::UriError::NotAbsolute {
+        path: "rel".to_string(),
+    });
+    assert!(
+        error
+            .to_string()
+            .starts_with("bundle path has no file URI: path \"rel\" is not absolute"),
+        "{error}"
+    );
+    assert!(std::error::Error::source(&error).is_some());
 }
 
 #[test]
@@ -373,7 +401,7 @@ fn the_identity_url_is_a_file_uri_of_the_bundle() {
     std::fs::create_dir_all(&root).expect("bundle dir");
     let mut options = stage_bundle(&root, b"launcher");
     options.bundle = Some(root.to_string_lossy().into_owned());
-    assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
+    run(&options, "linux", "x86_64", "2026-01-01").expect("bootstrap");
     let meta = std::fs::read_to_string(root.join("ws/.dx/local/advisory/cargo.meta.json"))
         .expect("identity");
     assert!(meta.contains("%20"), "a space is percent-encoded: {meta}");
@@ -445,7 +473,7 @@ fn a_plain_date_is_a_real_calendar_day() {
 #[test]
 fn an_old_bundle_date_survives_bootstrap() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-old-date-", b"launcher");
-    assert_eq!(run(&options, "linux", "x86_64", "2026-10-24"), "");
+    run(&options, "linux", "x86_64", "2026-10-24").expect("bootstrap");
     let meta = std::fs::read_to_string(root.path().join("ws/.dx/local/advisory/cargo.meta.json"))
         .expect("identity");
     assert!(meta.contains("\"retrieved_at\": \"2026-01-01\""), "{meta}");
@@ -457,7 +485,7 @@ fn a_snapshot_without_a_recorded_date_is_refused() {
     let (root, options) = bundle_with_launcher("dx-bootstrap-no-date-", b"launcher");
     std::fs::remove_file(root.path().join("advisory/cargo.meta.json")).expect("remove");
     pin_advisory(&root.path().join("advisory"));
-    let refusal = run(&options, "linux", "x86_64", "2026-10-24");
+    let refusal = refused(&options, "linux", "x86_64", "2026-10-24");
     assert_eq!(
         refusal,
         "bundle has no recorded date for advisory snapshot: cargo.json \
@@ -471,7 +499,7 @@ fn an_unpinned_identity_is_refused() {
     let advisory = root.path().join("advisory");
     let sum = dx_digest::sha256_file_hex(&advisory.join("cargo.json")).expect("digest");
     std::fs::write(advisory.join("SHA256SUMS"), format!("{sum}  cargo.json\n")).expect("manifest");
-    let refusal = run(&options, "linux", "x86_64", "2026-10-24");
+    let refusal = refused(&options, "linux", "x86_64", "2026-10-24");
     assert!(
         refusal.starts_with("manifest does not pin advisory identity: cargo.meta.json"),
         "{refusal}"
@@ -491,7 +519,7 @@ fn a_bad_or_missing_bundle_date_is_refused() {
         std::fs::write(advisory.join("cargo.meta.json"), body).expect("identity");
         pin_advisory(&advisory);
         assert_eq!(
-            run(&options, "linux", "x86_64", "2026-10-24"),
+            refused(&options, "linux", "x86_64", "2026-10-24"),
             "advisory identity cargo.meta.json has no valid retrieved_at; want YYYY-MM-DD",
             "{body}"
         );
@@ -504,13 +532,13 @@ fn a_bundle_date_after_today_is_refused() {
     let advisory = root.path().join("advisory");
     write_identity(&advisory, "cargo", "2026-12-31");
     pin_advisory(&advisory);
-    let refusal = run(&options, "linux", "x86_64", "2026-10-24");
+    let refusal = refused(&options, "linux", "x86_64", "2026-10-24");
     assert!(
         refusal.contains("2026-12-31") && refusal.contains("2026-10-24"),
         "{refusal}"
     );
     assert!(refusal.contains("is after today"), "{refusal}");
-    assert_eq!(run(&options, "linux", "x86_64", "2026-12-31"), "");
+    run(&options, "linux", "x86_64", "2026-12-31").expect("bootstrap");
 }
 
 #[test]
@@ -525,7 +553,7 @@ fn a_sidecar_for_other_bytes_is_refused() {
     )
     .expect("identity");
     pin_advisory(&advisory);
-    let refusal = run(&options, "linux", "x86_64", "2026-10-24");
+    let refusal = refused(&options, "linux", "x86_64", "2026-10-24");
     assert!(
         refusal.starts_with("advisory identity cargo.meta.json is for other bytes"),
         "{refusal}"
@@ -537,7 +565,7 @@ fn a_sidecar_for_other_bytes_is_refused() {
     .expect("identity");
     pin_advisory(&advisory);
     assert_eq!(
-        run(&options, "linux", "x86_64", "2026-10-24"),
+        refused(&options, "linux", "x86_64", "2026-10-24"),
         "advisory identity cargo.meta.json has no sha256"
     );
 }
@@ -553,13 +581,16 @@ fn an_orphan_sidecar_is_refused() {
     .expect("copy");
     pin_advisory(&advisory);
     assert_eq!(
-        run(&options, "linux", "x86_64", "2026-10-24"),
+        refused(&options, "linux", "x86_64", "2026-10-24"),
         "advisory identity npm.meta.json has no snapshot; want advisory/npm.json"
     );
 }
 
-fn failing_write(_target: &Path, _body: &str) -> Result<(), String> {
-    Err("disk full".to_owned())
+fn failing_write(target: &Path, _body: &str) -> Result<(), BootstrapError> {
+    Err(BootstrapError::Write {
+        path: target.to_path_buf(),
+        source: std::io::Error::other("disk full"),
+    })
 }
 
 #[test]
@@ -572,7 +603,9 @@ fn an_interrupted_replace_never_pairs_a_new_snapshot_with_an_old_identity() {
     let new = root.path().join("new.json");
     std::fs::write(&new, "new").expect("new snapshot");
     let result = publish_set(&new, &populated, "cargo", "meta", failing_write);
-    assert_eq!(result, Err("disk full".to_owned()));
+    let error = result.expect_err("write fails");
+    assert!(matches!(error, BootstrapError::Write { .. }), "{error:?}");
+    assert!(error.to_string().ends_with(": disk full"), "{error}");
     assert!(!populated.join("cargo.meta.json").exists());
     assert_eq!(
         std::fs::read_to_string(populated.join("cargo.json")).unwrap(),
@@ -594,7 +627,7 @@ fn an_old_staging_file_from_an_interrupted_install_is_removed() {
         .expect("open stale")
         .set_modified(long_ago)
         .expect("age stale");
-    assert_eq!(run(&options, "linux", "x86_64", "2026-01-01"), "");
+    run(&options, "linux", "x86_64", "2026-01-01").expect("bootstrap");
     assert!(!stale.exists());
     assert!(bin.join("bazel").exists());
 }

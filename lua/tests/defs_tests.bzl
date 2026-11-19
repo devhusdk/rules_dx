@@ -1,5 +1,5 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//core:wrapper.bzl", "dx_quality_srcs")
 load(

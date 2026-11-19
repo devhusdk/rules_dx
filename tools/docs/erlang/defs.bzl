@@ -5,6 +5,8 @@ load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE")
 load("//tools/docs/beam:shard.bzl", "ESCRIPT_TOOL", "beam_shard_action", "beam_sources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 def erlang_shard_action(ctx, app, package, stem, runner, driver, extract_tool):
     """Runs edoc from the pinned OTP and the extractor for one Erlang app."""
     srcs = beam_sources(app, ["erl"])

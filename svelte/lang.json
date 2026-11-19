@@ -26,7 +26,8 @@
   "entry_points": [
     "svelte_library",
     "svelte_build",
-    "svelte_test"
+    "svelte_test",
+    "svelte_doc_shard"
   ],
   "quality": {
     "bzl": "javascript/private/quality:js.bzl",

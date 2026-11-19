@@ -241,7 +241,7 @@ fn load_resolved(
 fn cutoff_date(min_age: u32, audit_today: Option<&str>) -> Option<String> {
     (min_age > 0)
         .then(|| {
-            let today = super::audit::today_utc(audit_today);
+            let today = dx_exec_core::audit_policy::today_utc(audit_today);
             let date = chrono::NaiveDate::parse_from_str(&today, "%Y-%m-%d").ok()?;
             let back = date.checked_sub_days(chrono::Days::new(u64::from(min_age)))?;
             Some(back.format("%Y-%m-%d").to_string())

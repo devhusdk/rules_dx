@@ -30,7 +30,7 @@ A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Ba
 
 ```python
 load("@rules_dx//javascript:defs.bzl", "javascript_library")
-load("@rules_dx//typescript:defs.bzl", "ts_config", "typescript_binary", "typescript_library")
+load("@rules_dx//typescript:defs.bzl", "typescript_binary", "typescript_config", "typescript_library")
 
 javascript_library(
     name = "package_json",
@@ -38,7 +38,7 @@ javascript_library(
     visibility = ["//visibility:public"],
 )
 
-ts_config(
+typescript_config(
     name = "tsconfig",
     src = "tsconfig.json",
     visibility = ["//visibility:public"],
@@ -206,9 +206,21 @@ typescript_playwright_test(name, *, srcs, config, node_modules, app = None, data
 
 Runs Playwright tests in a pinned headless Chromium; app is started by the config's webServer from DX_PLAYWRIGHT_APP on DX_PLAYWRIGHT_PORT.
 
-### `ts_config`
+### `typescript_config`
 
-Re-exported from `@aspect_rules_ts//ts:defs.bzl`.
+```python
+typescript_config(name, **kwargs)
+```
+
+Declares a tsconfig.json target over ts_config; takes the same attributes and provides TsConfigInfo.
+
+### `typescript_doc_shard`
+
+```python
+typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs)
+```
+
+Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard.
 
 ## Tools and package files
 
@@ -240,13 +252,5 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
+load("@rules_dx//typescript:defs.bzl", "typescript_doc_shard")
 ```
-
-### `typescript_doc_shard`
-
-```python
-typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs)
-```
-
-Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard.

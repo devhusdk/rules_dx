@@ -144,6 +144,14 @@ julia_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwarg
 
 A julia_test run by dx bench: main calls DxBench.run_benchmarks(["name" => fn, ...]), which times each function with BenchmarkTools and writes dx-bench.json.
 
+### `julia_doc_shard`
+
+```python
+julia_doc_shard(name, lib, module = "", package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Julia library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Julia:
@@ -179,16 +187,8 @@ Julia builds and tests on:
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/julia:defs.bzl", "julia_doc_shard")
+load("@rules_dx//julia:defs.bzl", "julia_doc_shard")
 ```
-
-### `julia_doc_shard`
-
-```python
-julia_doc_shard(name, lib, module = "", package = "", **kwargs)
-```
-
-Declares the DocIr shard of one Julia library.
 
 `dx docs` documents every `julia_library` with no setup: it loads the library
 under the pinned Julia, reads the docstrings of the exported and `public`
@@ -196,6 +196,6 @@ names through the pinned Documenter.jl 1.20.0, and writes a DocIr shard. The
 library is named after its root module. Its dependencies must be
 `julia_library` targets of the same workspace. To name the shard yourself, use
 `julia_doc_shard(name, lib, module, package)` from
-`@rules_dx//tools/docs/julia:defs.bzl`. Documenter and its packages are
+`@rules_dx//julia:defs.bzl`. Documenter and its packages are
 fetched from the Julia package server by sha256 and run on the same Julia as
 the formatter.

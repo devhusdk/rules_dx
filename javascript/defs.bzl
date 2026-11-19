@@ -1,5 +1,6 @@
 """Public JavaScript API."""
 
+load("//tools/docs/javascript:defs.bzl", _javascript_doc_shard = "javascript_doc_shard")
 load(
     "//javascript/private:defs.bzl",
     _javascript_library = "javascript_library",
@@ -24,3 +25,4 @@ javascript_bench = _javascript_bench
 javascript_fuzz_test = _javascript_fuzz_test
 javascript_web_app = _javascript_web_app
 javascript_web_bundle = _javascript_web_bundle
+javascript_doc_shard = _javascript_doc_shard

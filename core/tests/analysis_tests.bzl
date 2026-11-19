@@ -1,6 +1,6 @@
 """Analysis tests for the example subject rule."""
 
-load("//core:defs.bzl", "starlark_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
 
 EXPECTED_OBSERVATIONS = """subject //core/tests:subject_under_test
 file subject_under_test.txt

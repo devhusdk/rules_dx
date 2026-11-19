@@ -288,6 +288,14 @@ ocaml_dune_library(name, **kwargs)
 
 Builds a dune library package; the OCaml cells are always appended to target_compatible_with.
 
+### `ocaml_doc_shard`
+
+```python
+ocaml_doc_shard(name, lib, package = "", config = ODOC_CONFIG, **kwargs)
+```
+
+Declares the DocIr shard of one OCaml module or signature.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for OCaml:
@@ -318,15 +326,7 @@ On other platforms OCaml targets fail toolchain resolution.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/ocaml:defs.bzl", "ocaml_doc_shard")
+load("@rules_dx//ocaml:defs.bzl", "ocaml_doc_shard")
 ```
 
-### `ocaml_doc_shard`
-
-```python
-ocaml_doc_shard(name, lib, package = "", config = ODOC_CONFIG, **kwargs)
-```
-
-Declares the DocIr shard of one OCaml module or signature.
-
-`ocaml_doc_shard` (`@rules_dx//tools/docs/ocaml:defs.bzl`) turns an `ocaml_module`, `ocaml_signature` or `ocaml_library` into a DocIr shard with the pinned odoc 3.2.2, built from the tools duniverse on linux_x86_64, linux_arm64 and macos_arm64. Other platforms skip OCaml in the docs aspect. The `config` attribute is the identity recorded on every symbol as `ocaml.config`; it defaults to `odoc=3.2.2`.
+`ocaml_doc_shard` (`@rules_dx//ocaml:defs.bzl`) turns an `ocaml_module`, `ocaml_signature` or `ocaml_library` into a DocIr shard with the pinned odoc 3.2.2, built from the tools duniverse on linux_x86_64, linux_arm64 and macos_arm64. Other platforms skip OCaml in the docs aspect. The `config` attribute is the identity recorded on every symbol as `ocaml.config`; it defaults to `odoc=3.2.2`.

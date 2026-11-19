@@ -1454,7 +1454,7 @@ pub fn harness_consumer(name: &str) -> Case {
         .unwrap_or_else(|| panic!("no directory above {}", module.display()));
     let case = Case::consumer_at(name, rules, &compose::rules_py_override());
     case.write("patches/rules_py/BUILD.bazel", "");
-    for patch in compose::RULES_PY_PATCHES {
+    for patch in compose::rules_py_patches() {
         let rel = format!("patches/rules_py/{patch}.patch");
         case.write(&rel, &dx_testing::read_text(&rules.join(&rel)));
     }

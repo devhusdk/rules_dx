@@ -16,3 +16,9 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
+
+filegroup(
+    name = "patches",
+    srcs = glob(["*.patch"]),
+    visibility = ["//:__subpackages__"],
+)

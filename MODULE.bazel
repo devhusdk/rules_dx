@@ -2199,14 +2199,13 @@ use_repo(
     "dotnet_runtime_linux_arm64",
 )
 
-# floor: equals tested; patched (#7035)
+# floor: equals tested; //core/hermetic_launcher registers the Windows aarch64 stubs until a release has hermetic-launcher#94 (#8379)
 bazel_dep(name = "hermetic_launcher", version = "0.0.17")
-single_version_override(
-    module_name = "hermetic_launcher",
-    patch_strip = 1,
-    patches = ["//patches/hermetic_launcher:windows_arm64_toolchains.patch"],  # upstream: https://github.com/hermeticbuild/hermetic-launcher/pull/94
-    version = "0.0.17",
-)
+
+hermetic_launcher_stubs = use_extension("@hermetic_launcher//launcher/private:extensions.bzl", "non_module_dependencies")
+use_repo(hermetic_launcher_stubs, "finalize_stub_aarch64_windows", "runfiles_stub_aarch64_windows")
+
+register_toolchains("//core/hermetic_launcher:all")
 
 # floor: equals tested; patched (#2283, #3736)
 bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")

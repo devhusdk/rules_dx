@@ -25,6 +25,9 @@ const ENTRY_POINTS: &[&str] = &[
     "//erlang:extensions.bzl",
     "//qt:defs.bzl",
     "//qt:extensions.bzl",
+    "//java:defs.bzl",
+    "//kotlin:defs.bzl",
+    "//scala:defs.bzl",
 ];
 
 #[test]

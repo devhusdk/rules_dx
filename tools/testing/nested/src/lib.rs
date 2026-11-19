@@ -1975,12 +1975,31 @@ impl Case {
     ///
     /// Returns `Err` when the snapshot, the fixture module or the `rules_dx` checkout is missing.
     pub fn language_consumer(name: &str, lang: &str, extra_module: &str) -> Result<Case, String> {
+        Case::languages_consumer(name, &[lang], extra_module)
+    }
+
+    /// Starts a case from the `<lang>/tests/consumer` fixtures of `langs` in the
+    /// `DX_CONSUMER_JSON` snapshot: the first at the workspace root, each later one under `<lang>/`.
+    ///
+    /// The module gets the first fixture's extension lines, the root's patch overrides and
+    /// `extra_module`; every other fixture file is written as is.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the snapshot, a fixture, the first fixture's module or the `rules_dx`
+    /// checkout is missing, or a later fixture's module has extension lines.
+    pub fn languages_consumer(
+        name: &str,
+        langs: &[&str],
+        extra_module: &str,
+    ) -> Result<Case, String> {
+        let first = langs.first().ok_or("languages_consumer needs a language")?;
         let snapshot = dx_testing::rlocation(dx_testing::env_text("DX_CONSUMER_JSON").trim())
             .map_err(|error| format!("DX_CONSUMER_JSON: {error}"))?;
-        let files = compose::consumer_fixture(&dx_testing::read_text(&snapshot), lang)?;
+        let files = compose::consumer_fixtures(&dx_testing::read_text(&snapshot), langs)?;
         let module = files
             .get("consumer.MODULE.bazel")
-            .ok_or_else(|| format!("{lang}/tests/consumer/consumer.MODULE.bazel is missing"))?;
+            .ok_or_else(|| format!("{first}/tests/consumer/consumer.MODULE.bazel is missing"))?;
         let source = dx_testing::rules_dx_source()?;
         let case = Case::consumer_at(
             name,

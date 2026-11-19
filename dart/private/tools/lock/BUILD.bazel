@@ -1,7 +1,8 @@
 load("@crates//:crates.bzl", "aliases")
+load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//dart/private:defs.bzl", "DART_COMPATIBLE_WITH")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -14,27 +15,18 @@ rust_library(
     ),
     crate_name = "pub_lock",
     crate_root = "src/resolve.rs",
-    deps = ["//cli/lock:dx_lock"],
+    deps = [
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+    ],
 )
 
-rust_binary(
+dx_subcommand(
     name = "lock",
-    srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "dart/private/tools/pub_lock",
-        normal = True,
-    ),
-    crate_name = "pub_lock_bin",
-    crate_root = "src/main.rs",
-    data = ["//dart/private/tools:dart"],
-    env = {"DX_DART": "$(rlocationpath //dart/private/tools:dart)"},
+    path_args = {"--dart": "//dart/private/tools:dart"},
+    subcommand = "dart_lock",
     target_compatible_with = DART_COMPATIBLE_WITH,
     visibility = ["//:__subpackages__"],
-    deps = [
-        ":pub_lock_lib",
-        "//cli/families:dx_families",
-        "@rules_rust//rust/runfiles",
-    ],
 )
 
 rust_test(
@@ -62,11 +54,6 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
-)
-
-exports_files(
-    ["src/main.rs"],
-    visibility = ["//:__subpackages__"],
 )
 
 filegroup(

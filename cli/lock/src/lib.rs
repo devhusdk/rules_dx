@@ -14,7 +14,6 @@ mod scratch;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use globset::{Glob, GlobSetBuilder};
@@ -484,12 +483,6 @@ pub fn run(
 pub fn missing_hub(ecosystem: &str) -> i32 {
     dx_error::stdio::eprint_line(format_args!("{ecosystem} has no registry entry"));
     2
-}
-
-/// The `main` of an ecosystem's resolver target: exit 0 when the lock is fresh or written, 1 when stale, 2 on failure.
-pub fn main(spec: &Spec, resolver: &dyn Resolver) -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    ExitCode::from(u8::try_from(run_process(spec, resolver, &args)).unwrap_or(2))
 }
 
 /// Runs the lock step on `args`, the arguments after the program or subcommand name: 0 when the

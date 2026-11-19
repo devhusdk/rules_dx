@@ -75,3 +75,48 @@ pub fn lock(dart: &Path, request: &Request) -> Result<Outcome, String> {
         Ok(Outcome::Written)
     }
 }
+
+fn parse(args: &[String]) -> Result<(PathBuf, dx_lock::Args), dx_lock::Error> {
+    let (paths, rest) = dx_lock::tool_paths(args, &["--dart"])?;
+    let Some(dart) = paths.into_iter().next() else {
+        return Err(dx_lock::Error::new("--dart is required"));
+    };
+    let args = dx_lock::Args::parse(rest)?;
+    if !args.upgrade.is_empty() {
+        return Err(dx_lock::Error::new("--upgrade is not supported"));
+    }
+    Ok((dart, args))
+}
+
+/// Runs the pub lock step on `args`, the arguments after `dx dart_lock`:
+/// `--dart=<path> --dir <set directory> [--check]`. 0 when the lock is fresh or written, 1 when
+/// stale, 2 on failure.
+pub fn run_process(args: &[String]) -> i32 {
+    let (dart, args) = match parse(args) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            eprintln!("dart_lock: {error}");
+            return 2;
+        }
+    };
+    let Some(hub) = dx_families::hub("pub") else {
+        return dx_lock::missing_hub("pub");
+    };
+    let request = Request {
+        dir: args.dir,
+        manifest: hub.manifest.clone(),
+        lock: hub.lock.clone().unwrap_or_default(),
+        check: args.check,
+    };
+    match lock(&dart, &request) {
+        Ok(Outcome::Fresh | Outcome::Written) => 0,
+        Ok(Outcome::Stale) => {
+            eprintln!("{} is stale; run dx generate --apply", request.lock);
+            1
+        }
+        Err(error) => {
+            eprintln!("{}: {error}", request.lock);
+            2
+        }
+    }
+}

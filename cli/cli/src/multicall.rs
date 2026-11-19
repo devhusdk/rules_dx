@@ -75,6 +75,10 @@ pub enum Tool {
     PowershellLock,
     RubyLock,
     JavaLock,
+    CsharpLock,
+    DartLock,
+    HaskellLock,
+    SwiftLock,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -156,6 +160,10 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "powershell_lock" => Some(Tool::PowershellLock),
         "ruby_lock" => Some(Tool::RubyLock),
         "java_lock" => Some(Tool::JavaLock),
+        "csharp_lock" => Some(Tool::CsharpLock),
+        "dart_lock" => Some(Tool::DartLock),
+        "haskell_lock" => Some(Tool::HaskellLock),
+        "swift_lock" => Some(Tool::SwiftLock),
         _ => None,
     }
 }
@@ -280,6 +288,10 @@ mod tests {
             ("powershell_lock", Tool::PowershellLock),
             ("ruby_lock", Tool::RubyLock),
             ("java_lock", Tool::JavaLock),
+            ("csharp_lock", Tool::CsharpLock),
+            ("dart_lock", Tool::DartLock),
+            ("haskell_lock", Tool::HaskellLock),
+            ("swift_lock", Tool::SwiftLock),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -344,6 +356,10 @@ mod tests {
             "powershell_lock",
             "ruby_lock",
             "java_lock",
+            "csharp_lock",
+            "dart_lock",
+            "haskell_lock",
+            "swift_lock",
             "diff",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");

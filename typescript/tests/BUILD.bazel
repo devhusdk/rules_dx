@@ -26,6 +26,8 @@ build_test(
     size = "small",
     targets = [
         "//svelte/tests/app:site",
+        "//tools/docs/components/fixture/svelte:ui_docs",
+        "//tools/docs/typescript/fixture:geometry_docs",
         "//typescript/tests/fixtures/hello:hello_lib",
         "//typescript/tests/fixtures/proto:event_proto_ts",
         "//typescript/tests/fixtures/proto:user_proto_ts",

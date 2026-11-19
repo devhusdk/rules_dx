@@ -63,7 +63,7 @@ real_javascript_docs_aspect = aspect(
         ),
         "_typedoc": attr.label(
             cfg = "exec",
-            default = Label("//javascript/private/quality/bin:typedoc"),
+            default = Label("//javascript/private/quality/bin:typedoc_tool"),
             executable = True,
         ),
     },

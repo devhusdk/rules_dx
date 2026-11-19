@@ -200,6 +200,12 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+js_build_tool(
+    name = "typedoc_tool",
+    tool = ":typedoc",
+    visibility = ["//visibility:public"],
+)
+
 js_binary(
     name = "vue_component_meta",
     data = [
@@ -208,6 +214,12 @@ js_binary(
         "//javascript/private/quality:node_modules/vue-component-meta",
     ],
     entry_point = "vue_component_meta.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "vue_component_meta_tool",
+    tool = ":vue_component_meta",
     visibility = ["//visibility:public"],
 )
 
@@ -220,6 +232,12 @@ js_binary(
         "//javascript/private/quality:node_modules/typescript",
     ],
     entry_point = "mdx_component_meta.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "mdx_component_meta_tool",
+    tool = ":mdx_component_meta",
     visibility = ["//visibility:public"],
 )
 
@@ -236,6 +254,12 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+js_build_tool(
+    name = "svelte_component_meta_tool",
+    tool = ":svelte_component_meta",
+    visibility = ["//visibility:public"],
+)
+
 js_binary(
     name = "astro_component_meta",
     data = [
@@ -245,6 +269,12 @@ js_binary(
         "//javascript/private/quality:node_modules/typescript",
     ],
     entry_point = "astro_component_meta.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "astro_component_meta_tool",
+    tool = ":astro_component_meta",
     visibility = ["//visibility:public"],
 )
 

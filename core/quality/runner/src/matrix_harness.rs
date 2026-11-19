@@ -120,6 +120,8 @@ pub struct ManifestTool {
 pub struct ManifestPathTool {
     pub name: String,
     pub binary_key: String,
+    #[serde(default)]
+    pub args: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
@@ -159,7 +161,8 @@ pub struct ResolvedTool {
     pub binary: Option<PathBuf>,
     pub files: Vec<(String, PathBuf)>,
     pub upstream: Vec<PathBuf>,
-    pub path_tools: Vec<(String, PathBuf)>,
+    /// Name, binary and leading args of each helper on the tool's `PATH`.
+    pub path_tools: Vec<(String, PathBuf, Vec<String>)>,
 }
 
 fn lookup(resolver: &Resolver, key: &str) -> Result<PathBuf, HarnessError> {
@@ -233,7 +236,11 @@ pub fn resolve_manifest(resolver: &Resolver, manifest: Manifest) -> Result<Resol
         }
         let mut path_tools = Vec::with_capacity(entry.path_tools.len());
         for helper in &entry.path_tools {
-            path_tools.push((helper.name.clone(), lookup(resolver, &helper.binary_key)?));
+            path_tools.push((
+                helper.name.clone(),
+                lookup(resolver, &helper.binary_key)?,
+                helper.args.clone(),
+            ));
         }
         tools.insert(
             tool.clone(),
@@ -294,6 +301,8 @@ struct RequestEnv {
 struct RequestPathTool {
     name: String,
     binary: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    args: Vec<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -389,9 +398,10 @@ pub fn build_request(
                     .map(|paths| paths.path_tools.as_slice())
                     .unwrap_or_default()
                     .iter()
-                    .map(|(name, path)| RequestPathTool {
+                    .map(|(name, path, args)| RequestPathTool {
                         name: name.clone(),
                         binary: display(path),
+                        args: args.clone(),
                     })
                     .collect(),
             },

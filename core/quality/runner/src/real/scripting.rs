@@ -266,8 +266,8 @@ fn pkl_lsp(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFindin
     let companion = |name: &str| {
         tool.path_tools
             .iter()
-            .find(|(helper, _)| helper == name)
-            .map(|(_, path)| path.clone())
+            .find(|helper| helper.name == name)
+            .map(|helper| helper.binary.clone())
             .ok_or_else(|| {
                 execution(
                     tool_id,

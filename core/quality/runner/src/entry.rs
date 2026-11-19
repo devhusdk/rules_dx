@@ -141,7 +141,10 @@ fn real_tool(
         path_tools: entry
             .path_tools
             .iter()
-            .map(|(name, binary)| (name.clone(), absolute(cwd, binary.clone())))
+            .map(|helper| crate::real::PathTool {
+                binary: absolute(cwd, helper.binary.clone()),
+                ..helper.clone()
+            })
             .collect(),
         search_paths: entry
             .search_paths

@@ -57,6 +57,7 @@ pub enum Tool {
     SiteAggregate,
     SiteBuild,
     SiteCheck,
+    BufDiff,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -120,6 +121,7 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "site_aggregate" => Some(Tool::SiteAggregate),
         "site_build" => Some(Tool::SiteBuild),
         "site_check" => Some(Tool::SiteCheck),
+        "buf_diff" => Some(Tool::BufDiff),
         _ => None,
     }
 }
@@ -226,6 +228,7 @@ mod tests {
             ("site_aggregate", Tool::SiteAggregate),
             ("site_build", Tool::SiteBuild),
             ("site_check", Tool::SiteCheck),
+            ("buf_diff", Tool::BufDiff),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -273,6 +276,8 @@ mod tests {
             "site_aggregate",
             "site_build",
             "site_check",
+            "buf_diff",
+            "diff",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }

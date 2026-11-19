@@ -14,6 +14,7 @@ load(":entry_tests.bzl", "entry_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
 load(":fuzz_tests.bzl", "fuzz_binary_tests")
 load(":harness_link_tests.bzl", "harness_link_tests")
+load(":hermetic_launcher_tests.bzl", "hermetic_launcher_tests")
 load(":jammy_runtime_tests.bzl", "jammy_runtime_tests")
 load(":license_tests.bzl", "license_tests")
 load(":lock_hub_tests.bzl", "lock_hub_tests")
@@ -150,6 +151,8 @@ packaging_unit_tests(name = "packaging_unit")
 
 harness_link_tests(name = "harness_link")
 
+hermetic_launcher_tests(name = "hermetic_launcher")
+
 warnings_tests(name = "warnings")
 
 starlark_test(
@@ -266,6 +269,7 @@ test_suite(
         ":fixture_execution",
         ":fuzz_binary_tests",
         ":harness_link",
+        ":hermetic_launcher",
         ":license",
         ":observations_only_analysis",
         ":packaging_unit",
@@ -320,6 +324,7 @@ real_source_target(
         "wrapper_forward_fixture.bzl",
         "wrapper_tests.bzl",
         "harness_link_tests.bzl",
+        "hermetic_launcher_tests.bzl",
         "platform_subject.bzl",
         "platform_tests.bzl",
     ],

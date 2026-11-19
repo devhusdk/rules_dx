@@ -59,6 +59,8 @@ _CASES = [
     ("vite", "//javascript/private:vite_build_tool", "//javascript/private:vite_tool"),
     ("svelte_tsc", "//javascript/private/quality/bin:svelte_tsc_tool", "//javascript/private/quality/bin:svelte_tsc"),
     ("protoc_gen_es", "//javascript/private/quality/bin:protoc_gen_es_tool", "//javascript/private/quality/bin:protoc_gen_es"),
+    ("typedoc", "//javascript/private/quality/bin:typedoc_tool", "//javascript/private/quality/bin:typedoc"),
+    ("svelte_component_meta", "//javascript/private/quality/bin:svelte_component_meta_tool", "//javascript/private/quality/bin:svelte_component_meta"),
 ]
 
 def windows_tool_tests(name):

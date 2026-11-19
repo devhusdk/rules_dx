@@ -53,7 +53,7 @@ def _mem_2g(_os, _inputs):
 def _component_meta_attr(language):
     return attr.label(
         cfg = "exec",
-        default = Label("//javascript/private/quality/bin:" + language + "_component_meta"),
+        default = Label("//javascript/private/quality/bin:" + language + "_component_meta_tool"),
         executable = True,
     )
 

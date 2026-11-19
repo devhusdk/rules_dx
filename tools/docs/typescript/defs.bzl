@@ -6,7 +6,7 @@ load(":shard.bzl", "TYPEDOC_JSON_SCHEMA", "typedoc_arguments", "typescript_shard
 
 visibility(["//..."])
 
-_TYPEDOC = Label("//javascript/private/quality/bin:typedoc")
+_TYPEDOC = Label("//javascript/private/quality/bin:typedoc_tool")
 
 _RESERVED_OPTIONS = ["plugin", "options", "tsconfig", "entryPoints", "json", "out", "basePath"]
 

@@ -156,7 +156,7 @@ jobs:
           printf '%s  %s\n' "$(sha256sum out/dx-oapi-codegen-LICENSE | cut -d' ' -f1)" dx-oapi-codegen-LICENSE >> sums.tmp
           files="$files dx-oapi-codegen-LICENSE"
           : > out/dx-jar-sha256sums.txt
-          for jar in dx-avro-union-any.jar dx-dokka-extract-any.jar dx-javac-check-any.jar dx-javadoc-extract-any.jar dx-jmh-generate-any.jar dx-kotlinc-check-any.jar dx-scalac-check-any.jar dx-scaladoc-extract-any.jar; do
+          for jar in dx-avro-union-any.jar dx-dokka-extract-any.jar dx-javac-check-any.jar dx-javadoc-extract-any.jar dx-jmh-generate-any.jar dx-kotlinc-check-any.jar dx-maven-resolver-any.jar dx-scalac-check-any.jar dx-scaladoc-extract-any.jar; do
             test -s "out/$jar" || { echo "want a non-empty out/$jar" >&2; exit 1; }
             printf '%s  %s\n' "$(sha256sum "out/$jar" | cut -d' ' -f1)" "$jar" >> out/dx-jar-sha256sums.txt
             files="$files $jar"

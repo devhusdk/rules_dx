@@ -1,6 +1,6 @@
 """Plans the @dx_prebuilt repos and renders the hub BUILD file."""
 
-load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
+load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "deploy_jar", "split_key")
 
 visibility(["//cli/..."])
 
@@ -168,7 +168,7 @@ def _source_actual(source, guard):
     return _select([(GUARD_VIEW, GUARD_STUB)], source) if guard else '"{}"'.format(source)
 
 def with_jars(build, jars, guard = False):
-    """Returns the hub BUILD text build plus one target per jar tool: the pinned jar on the JVM, else its source.
+    """Returns the hub BUILD text build plus two targets per jar tool: the pinned jar on the JVM, else its source, and `<tool>_deploy.jar`, the jar file.
 
     With guard, an unpinned jar tool selects GUARD_STUB under GUARD_VIEW.
     """
@@ -181,6 +181,12 @@ def with_jars(build, jars, guard = False):
                 "alias(",
                 '    name = "{}",'.format(jar.tool),
                 "    actual = " + _source_actual(jar.source, guard) + ",",
+                '    visibility = ["//visibility:public"],',
+                ")",
+                "",
+                "alias(",
+                '    name = "{}_deploy.jar",'.format(jar.tool),
+                "    actual = " + _source_actual("@rules_dx" + deploy_jar(jar.tool), guard) + ",",
                 '    visibility = ["//visibility:public"],',
                 ")",
             ]
@@ -198,6 +204,12 @@ def with_jars(build, jars, guard = False):
             '    main_class = "{}",'.format(jar.main_class),
             '    visibility = ["//visibility:public"],',
             '    runtime_deps = [":{}_jar"],'.format(jar.tool),
+            ")",
+            "",
+            "alias(",
+            '    name = "{}_deploy.jar",'.format(jar.tool),
+            '    actual = "@{}//file:{}",'.format(jar.repo, jar.asset),
+            '    visibility = ["//visibility:public"],',
             ")",
         ]
     return "\n".join(loads + [build.rstrip("\n")] + lines + [""])

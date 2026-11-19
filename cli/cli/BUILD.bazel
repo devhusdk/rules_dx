@@ -187,6 +187,7 @@ rust_binary(
         "//deploy/private:dx_deploy_tools",
         "//elixir/private/tools/lock:hex_lock_lib",
         "//fortran/private/tools/lock:fpm_lock_lib",
+        "//java/private/tools/lock:maven_lock_lib",
         "//lua/private/tools/lock:lua_lock_lib",
         "//ocaml/private/tools/lock:opam_lock_lib",
         "//perl/private/tools/lock:perl_lock_lib",

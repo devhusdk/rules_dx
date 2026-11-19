@@ -1,5 +1,6 @@
 """The JVM API reference shard action shared by the rules and the docs aspect."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "srcs_manifest_line")
@@ -12,6 +13,20 @@ JVM_LANGUAGES = {
     "kotlin": struct(extension = "kt", mnemonic = "DxDocsDokka"),
     "scala": struct(extension = "scala", mnemonic = "DxDocsScaladoc"),
 }
+
+# scaladoc_extract bundles the Scala 2.13 compiler, so it can only read 2.13 sources.
+_SCALADOC_VERSION_PREFIX = "2.13."
+
+SCALA_VERSION_ATTRS = {
+    "_scala_version": attr.label(default = Label("@rules_scala_config//:scala_version")),
+}
+
+def unsupported_scala_version(ctx):
+    """Returns the configured Scala version when Scaladoc cannot read it, else None."""
+    version = ctx.attr._scala_version[BuildSettingInfo].value
+    if version.startswith(_SCALADOC_VERSION_PREFIX):
+        return None
+    return version
 
 def _path(file):
     return file.path

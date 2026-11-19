@@ -2,6 +2,7 @@ load("@crates//:crates.bzl", "aliases")
 load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
+load("//tools/docs/jvm:scala_version_tests.bzl", "scala_version_tests")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -167,12 +168,19 @@ rust_test(
     ],
 )
 
+scala_version_tests(
+    name = "scala_version_tests",
+    lib = "//tools/docs/jvm/fixture:scala_shapes",
+    shard = "//tools/docs/jvm/fixture:scala_shapes_docs",
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "aspect.bzl",
         "defs.bzl",
+        "scala_version_tests.bzl",
         "shard.bzl",
     ],
     tags = ["corpus"],

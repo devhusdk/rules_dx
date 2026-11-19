@@ -202,3 +202,7 @@ To declare a docs target yourself, load the rule behind it:
 ```python
 load("@rules_dx//scala:defs.bzl", "scala_doc_shard")
 ```
+
+`dx docs` documents Scala 2.13 libraries only. On any other Scala version,
+`dx docs` skips your Scala libraries, and `scala_doc_shard` fails with
+`only Scala 2.13 is supported`.

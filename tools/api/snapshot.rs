@@ -74,17 +74,23 @@ fn starlark_json(
         .collect::<Result<Vec<_>, _>>()?;
     let mut forwards = forwards_by_function(forwards)?;
     let mut kwargs_modules: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+    let mut public_functions: BTreeSet<&str> = BTreeSet::new();
     for module in &modules {
-        for function in module.func_info.iter().filter(|f| has_kwargs(&f.parameter)) {
-            kwargs_modules
-                .entry(function.function_name.as_str())
-                .or_default()
-                .push(module.file.as_str());
+        for function in &module.func_info {
+            public_functions.insert(function.function_name.as_str());
+            if has_kwargs(&function.parameter) {
+                kwargs_modules
+                    .entry(function.function_name.as_str())
+                    .or_default()
+                    .push(module.file.as_str());
+            }
         }
     }
     for name in forwards.keys() {
         match kwargs_modules.get(name.as_str()).map(Vec::as_slice) {
             Some([_]) => {}
+            // A public function without **kwargs forwards nothing a consumer picks; its params are already listed.
+            None if public_functions.contains(name.as_str()) => {}
             Some(files) => {
                 return Err(format!(
                     "generator_function {name} names a public function in {}",
@@ -795,6 +801,25 @@ mod tests {
         )
         .expect_err("demo_test is in two modules");
         assert!(error.to_string().contains("demo_test"), "{error}");
+    }
+
+    #[test]
+    fn a_generator_function_without_kwargs_is_skipped() {
+        let mut info =
+            ModuleInfo::decode(module("[]", "Docs.").as_slice()).expect("module decodes");
+        for function in &mut info.func_info {
+            function
+                .parameter
+                .retain(|param| param.role() != FunctionParamRole::ParamRoleKwargs);
+        }
+        let text = starlark_json(
+            &[info.encode_to_vec()],
+            &[target("demo_test", "rust_test", "2024")],
+        )
+        .expect("demo_test is public");
+        let json: serde_json::Value = serde_json::from_str(&text).expect("starlark.json parses");
+        assert_eq!(json[0]["functions"][0]["name"], "demo_test");
+        assert!(json[0]["functions"][0].get("forwards").is_none(), "{text}");
     }
 
     #[test]

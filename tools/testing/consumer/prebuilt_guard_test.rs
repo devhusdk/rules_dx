@@ -120,10 +120,19 @@ fn hub(tool: &str) -> &'static str {
     }
 }
 
-/// The hub target of `tool`, by canonical name so the consumer needs no `use_repo`.
-fn hub_target(tool: &str) -> String {
+/// The hub targets of `tool`, by canonical name so the consumer needs no `use_repo`. The `go`
+/// registry tool is the dx-go multicall, served as one hub target per name in `go_names`.
+fn hub_targets(tool: &str, go_names: &str) -> Vec<String> {
     let hub = hub(tool);
-    format!("@@rules_dx++{hub}+{hub}//:{tool}")
+    let names: Vec<&str> = if tool == "go" {
+        go_names.split_whitespace().collect()
+    } else {
+        vec![tool]
+    };
+    names
+        .iter()
+        .map(|name| format!("@@rules_dx++{hub}+{hub}//:{name}"))
+        .collect()
 }
 
 /// The `asset` tag of one stub, on the hub that serves `tool`.
@@ -205,6 +214,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     });
     let (key, os, cpu) = host().unwrap_or_else(|error| panic!("{error}"));
     let tools = host_tools(&runfile("DX_PREBUILT_REGISTRY"), &key);
+    let go_names = runfile("DX_PREBUILT_GO_HUB_TARGETS");
     let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
     let mut tags = String::new();
     let mut roots = vec!["//...".to_owned()];
@@ -223,7 +233,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         let url = format!("file://{}", stub.to_string_lossy().replace('\\', "/"));
         tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
         if rooted(platform, lang) {
-            roots.push(hub_target(tool));
+            roots.extend(hub_targets(tool, &go_names));
         }
     }
     let extra = format!(
@@ -305,11 +315,22 @@ fn asset_tags_go_to_the_hub_that_serves_the_tool() {
         asset_tag("selene", "linux", "x86_64", "file:///s", "ab")
             .starts_with("dx_prebuilt.asset(name = \"selene\"")
     );
+    let go_names = "dx_errcheck\ndx_govet\n";
     assert_eq!(
-        hub_target("gazelle"),
-        "@@rules_dx++dx_gazelle+dx_gazelle//:gazelle"
+        hub_targets("gazelle", go_names),
+        ["@@rules_dx++dx_gazelle+dx_gazelle//:gazelle"]
     );
-    assert_eq!(hub_target("dx"), "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx");
+    assert_eq!(
+        hub_targets("dx", go_names),
+        ["@@rules_dx++dx_prebuilt+dx_prebuilt//:dx"]
+    );
+    assert_eq!(
+        hub_targets("go", go_names),
+        [
+            "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_errcheck",
+            "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_govet",
+        ]
+    );
 }
 
 #[test]

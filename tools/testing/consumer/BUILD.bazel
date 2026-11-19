@@ -63,6 +63,7 @@ nested_bazel_test(
 PREBUILT_GUARD_DATA = [
     "prebuilt_guard_allowlist.txt",
     "//:module_srcs",
+    "//cli/prebuilt:go_hub_targets",
     "//cli/prebuilt:registry",
     "//patches/rules_py:patches",
     "@dx_test_tags_sources//:consumer.json",
@@ -70,6 +71,7 @@ PREBUILT_GUARD_DATA = [
 
 PREBUILT_GUARD_ENV = {
     "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+    "DX_PREBUILT_GO_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:go_hub_targets)",
     "DX_PREBUILT_GUARD_ALLOWLIST": "$(rlocationpath prebuilt_guard_allowlist.txt)",
     "DX_PREBUILT_REGISTRY": "$(rlocationpath //cli/prebuilt:registry)",
 }

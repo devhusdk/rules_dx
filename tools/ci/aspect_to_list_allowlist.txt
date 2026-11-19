@@ -15,4 +15,4 @@ tools/docs/lua/aspect.bzl aspect-to-list 3
 tools/docs/powershell/aspect.bzl aspect-to-list 1
 tools/docs/ruby/aspect.bzl aspect-to-list 2
 tools/docs/rust/aspect.bzl aspect-to-list 2
-typescript/private/quality/tsc.bzl aspect-to-list 4
+typescript/private/quality/tsc.bzl aspect-to-list 3

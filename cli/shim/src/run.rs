@@ -115,19 +115,32 @@ fn run(args: Vec<OsString>) -> Result<i32, ShimError> {
     exec(&bin, args)
 }
 
+fn emit(out: &mut dyn Write, text: std::fmt::Arguments<'_>) -> Result<(), ShimError> {
+    write_line(out, text).map_err(|e| ShimError::failure(format!("cannot write to stdout: {e}")))
+}
+
+/// Writes `label` and the path's own bytes, so a non-UTF-8 path survives a copy from the output.
+fn emit_path(out: &mut dyn Write, label: &str, path: &Path) -> Result<(), ShimError> {
+    let mut bytes = label.as_bytes().to_vec();
+    bytes.extend_from_slice(path.as_os_str().as_encoded_bytes());
+    bytes.push(b'\n');
+    match out.write_all(&bytes) {
+        Err(e) if e.kind() != std::io::ErrorKind::BrokenPipe => {
+            Err(ShimError::failure(format!("cannot write to stdout: {e}")))
+        }
+        Ok(()) | Err(_) => Ok(()),
+    }
+}
+
 fn shim_command(args: &[OsString]) -> Result<i32, ShimError> {
     shim_command_to(args, &mut std::io::stdout().lock())
 }
 
 fn shim_command_to(args: &[OsString], out: &mut dyn Write) -> Result<i32, ShimError> {
-    let mut line = |text: std::fmt::Arguments<'_>| {
-        write_line(out, text)
-            .map_err(|e| ShimError::failure(format!("cannot write to stdout: {e}")))
-    };
     let sub = args.first().map(|arg| arg.to_string_lossy().into_owned());
     match sub.as_deref() {
         Some("version") if args.len() == 1 => {
-            line(format_args!("dx-shim {}", protocol::SHIM_VERSION))?;
+            emit(out, format_args!("dx-shim {}", protocol::SHIM_VERSION))?;
             Ok(0)
         }
         Some("where") if args.len() == 1 => {
@@ -135,16 +148,19 @@ fn shim_command_to(args: &[OsString], out: &mut dyn Write) -> Result<i32, ShimEr
                 ShimError::failure(format!("cannot read the current directory: {e}"))
             })?;
             let Some(resolved) = resolve(&env_get, &cwd)? else {
-                line(format_args!("source: {}", VersionSource::Bazel))?;
+                emit(out, format_args!("source: {}", VersionSource::Bazel))?;
                 return Ok(0);
             };
-            line(format_args!("version: {}", resolved.version))?;
-            line(format_args!("source: {}", resolved.source))?;
-            line(format_args!("binary: {}", resolved.bin.display()))?;
-            line(format_args!(
-                "cached: {}",
-                if resolved.bin.is_file() { "yes" } else { "no" }
-            ))?;
+            emit(out, format_args!("version: {}", resolved.version))?;
+            emit(out, format_args!("source: {}", resolved.source))?;
+            emit_path(out, "binary: ", &resolved.bin)?;
+            emit(
+                out,
+                format_args!(
+                    "cached: {}",
+                    if resolved.bin.is_file() { "yes" } else { "no" }
+                ),
+            )?;
             Ok(0)
         }
         Some(sub @ ("version" | "where")) => Err(ShimError::usage(format!(

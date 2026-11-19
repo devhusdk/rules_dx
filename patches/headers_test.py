@@ -1,4 +1,5 @@
-"""Checks that every patch under patches/ has a readable Upstream header."""
+"""Checks that every patch under patches/ has a readable Upstream header, and
+that every `# Upstream:` carry marker in a BUILD or .bzl file is readable."""
 
 import json
 import os
@@ -23,6 +24,11 @@ def problem(text):
     value = upstream.header(text)
     if value is None:
         return "no Upstream: line above the diff"
+    return _value_problem(value)
+
+
+def _value_problem(value):
+    """Returns why an Upstream value is unreadable, or None when it is fine."""
     if upstream._FIXED.match(value):
         return None
     try:
@@ -54,6 +60,23 @@ class HeadersTest(unittest.TestCase):
             self.fail(
                 "These patches need an Upstream: header line above the diff,"
                 " as patches/README.md step 1 describes:\n" + "\n".join(failures)
+            )
+
+    def test_every_carry_marker_is_readable(self):
+        with open(runfile(os.environ["DX_SOURCES_JSON"]), encoding="utf-8") as handle:
+            sources = json.load(handle)
+        failures = []
+        for path, text in sorted(sources.items()):
+            if not upstream.is_carry_file(path):
+                continue
+            for value in upstream.carry_headers(text):
+                reason = _value_problem(value)
+                if reason:
+                    failures.append("%s: %s" % (path, reason))
+        if failures:
+            self.fail(
+                "These BUILD or .bzl files have an unreadable # Upstream: line,"
+                " as patches/README.md describes:\n" + "\n".join(failures)
             )
 
 

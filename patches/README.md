@@ -29,6 +29,8 @@ Bazel applies a `single_version_override` only in the root module, the one you r
 
 When the upstream fix is in a release rules_dx uses, delete the patch file, its label and its row, then run `bazel run //patches:update_readme` again.
 
+Some upstream fixes are carried as rules_dx code instead of a patch, such as extra toolchain args. Mark such a carry with a `# Upstream: owner/repo#N` comment line in its `BUILD.bazel` or `.bzl` file, above the code to delete. The weekly check reads these lines like patch headers, and `//patches:headers_test` fails a pull request whose marker is unreadable. When the fix is in a release, bump the module and delete the carry and its marker.
+
 ## Patches in MODULE.bazel overrides
 
 | Module | Version | Patches | Why |

@@ -19,6 +19,7 @@ const OWN_TYPES: &[&str] = &[
 
 /// Registrations that carry `//config:toolchains_on` or `//cc:compiler` in `target_settings`.
 const GATED: &[&str] = &[
+    "//core/hermetic_launcher:all",
     "//java/private/toolchain:all",
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",

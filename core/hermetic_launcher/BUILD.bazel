@@ -2,14 +2,17 @@ load("@hermetic_launcher//launcher/private:stub_finalizer_toolchain.bzl", "stub_
 load("@hermetic_launcher//launcher/private:stub_template_toolchain.bzl", "stub_template_toolchain")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
-# Windows aarch64 launcher toolchains from hermeticbuild/hermetic-launcher#94; removed by the #8379 bump.
+# Windows aarch64 launcher toolchains that hermetic_launcher does not ship yet.
 
 _CONSTRAINTS = [
     "@platforms//cpu:aarch64",
     "@platforms//os:windows",
 ]
 
-_TARGET_SETTINGS = ["@hermetic_launcher//launcher/private:stub_source_prebuilt"]
+_TARGET_SETTINGS = [
+    "//config:toolchains_on",
+    "@hermetic_launcher//launcher/private:stub_source_prebuilt",
+]
 
 stub_template_toolchain(
     name = "template_aarch64_windows",

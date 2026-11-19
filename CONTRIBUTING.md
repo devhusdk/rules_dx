@@ -107,6 +107,10 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
 
    When `bazel` is not on `PATH`, `tools/dx` downloads the Bazelisk pinned in `tools/bazelisk/pin.env` from GitHub, checks its sha256 and keeps it in `~/.cache/dx/bazelisk`. That Bazelisk fetches Bazel from GitHub releases too, unless you set `BAZELISK_BASE_URL`. Without the remote cache, on 4 CPUs and 8 GB of memory, the first `tools/dx --version` takes about 9 minutes, including the Bazelisk and Bazel downloads. It uses up to 4.5 GB of memory and about 7 GB of disk.
 
+   With the read-only remote cache, on 4 CPUs and 15 GB of memory, the first `tools/dx --version` takes about 3 minutes.
+
+   A release checkout skips that build. When `cli/prebuilt/pins.bzl` pins a release and the checkout is that release, a git checkout at tag `v<DX_VERSION>` with no edits to tracked files or a release archive, `tools/dx` on Linux downloads the released `dx` from GitHub releases, checks its sha256 and keeps it in `~/.cache/dx/prebuilt`. Any other checkout builds `dx` from source. If the download fails, `tools/dx` builds from source too.
+
    The first run needs these hosts: `github.com` and `release-assets.githubusercontent.com` for the Bazelisk and Bazel downloads, and `bcr.bazel.build`, the Bazel module registry. If the network blocks one, `tools/dx` stops with a line that names the host; allow it in the container's network settings.
 
    GitHub source archives also come from `mirror.bazel.build` and `bcr.cloudflaremirrors.com`. `tools/workspace/downloader.cfg` tries those first, so a proxy that blocks `github.com/<owner>/<repo>/archive/` or `codeload.github.com` needs no other step.

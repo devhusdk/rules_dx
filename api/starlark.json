@@ -283,6 +283,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "appimage_package",
         "params": [
           {
@@ -444,6 +445,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "apple_ios_app_test",
         "params": [
           {
@@ -1014,6 +1016,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "astro_build",
         "params": [
           {
@@ -1069,6 +1072,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "astro_doc_shard",
         "params": [
           {
@@ -1119,6 +1123,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "astro_library",
         "params": [
           {
@@ -1144,6 +1149,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "astro_test",
         "params": [
           {
@@ -1185,6 +1191,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "avro_doc_shard",
         "params": [
           {
@@ -1440,6 +1447,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "capnproto_rust_library",
         "params": [
           {
@@ -1577,6 +1585,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "cc_bench",
         "params": [
           {
@@ -1612,6 +1621,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "cc_binary",
         "params": [
           {
@@ -1637,6 +1647,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "cc_doc_shard",
         "params": [
           {
@@ -1662,6 +1673,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "cc_fuzz_test",
         "params": [
           {
@@ -1702,6 +1714,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "cc_library",
         "params": [
           {
@@ -1732,6 +1745,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "cc_objc_library",
         "params": [
           {
@@ -1752,6 +1766,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "cc_test",
         "params": [
           {
@@ -2126,6 +2141,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "csharp_bench",
         "params": [
           {
@@ -2156,6 +2172,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "csharp_binary",
         "params": [
           {
@@ -2186,6 +2203,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "csharp_doc_shard",
         "params": [
           {
@@ -2211,6 +2229,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "csharp_fuzz_test",
         "params": [
           {
@@ -2246,6 +2265,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "csharp_library",
         "params": [
           {
@@ -2271,6 +2291,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "csharp_proto_library",
         "params": [
           {
@@ -2301,6 +2322,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "csharp_test",
         "params": [
           {
@@ -2370,6 +2392,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "cuda_binary",
         "params": [
           {
@@ -2430,6 +2453,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "cuda_doc_shard",
         "params": [
           {
@@ -2455,6 +2479,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "cuda_library",
         "params": [
           {
@@ -2505,6 +2530,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "cuda_objects",
         "params": [
           {
@@ -2555,6 +2581,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "cuda_test",
         "params": [
           {
@@ -2677,6 +2704,7 @@
     ],
     "functions": [
       {
+        "forwards": [],
         "name": "cuda_component_repo",
         "params": [
           {
@@ -2738,6 +2766,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "d_bench",
         "params": [
           {
@@ -2768,6 +2797,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "d_binary",
         "params": [
           {
@@ -2793,6 +2823,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "d_fuzz_test",
         "params": [
           {
@@ -2833,6 +2864,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "d_library",
         "params": [
           {
@@ -2858,6 +2890,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "d_test",
         "params": [
           {
@@ -3042,6 +3075,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "elixir_app",
         "params": [
           {
@@ -3067,6 +3101,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "elixir_bench",
         "params": [
           {
@@ -3097,6 +3132,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "elixir_doc_shard",
         "params": [
           {
@@ -3122,6 +3158,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "elixir_escript_archive",
         "params": [
           {
@@ -3152,6 +3189,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "elixir_test",
         "params": [
           {
@@ -3225,6 +3263,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "erlang_app",
         "params": [
           {
@@ -3250,6 +3289,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "erlang_bench",
         "params": [
           {
@@ -3280,6 +3320,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "erlang_bytecode",
         "params": [
           {
@@ -3305,6 +3346,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "erlang_ct_suite_test",
         "params": [
           {
@@ -3330,6 +3372,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "erlang_doc_shard",
         "params": [
           {
@@ -3355,6 +3398,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "erlang_erlc_opts",
         "params": [
           {
@@ -3365,6 +3409,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "erlang_escript_archive",
         "params": [
           {
@@ -3385,6 +3430,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "erlang_eunit_test",
         "params": [
           {
@@ -3405,6 +3451,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "erlang_nif",
         "params": [
           {
@@ -3445,6 +3492,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "erlang_test_app",
         "params": [
           {
@@ -3465,6 +3513,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "erlang_xrl_yrl",
         "params": [
           {
@@ -3535,6 +3584,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "flatbuffers_conform_test",
         "params": [
           {
@@ -3570,6 +3620,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "flatbuffers_rust_library",
         "params": [
           {
@@ -3715,6 +3766,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "fortran_binary",
         "params": [
           {
@@ -3740,6 +3792,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "fortran_doc_shard",
         "params": [
           {
@@ -3765,6 +3818,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "fortran_library",
         "params": [
           {
@@ -3790,6 +3844,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "fortran_test",
         "params": [
           {
@@ -3863,6 +3918,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "fsharp_bench",
         "params": [
           {
@@ -3893,6 +3949,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "fsharp_binary",
         "params": [
           {
@@ -3923,6 +3980,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "fsharp_doc_shard",
         "params": [
           {
@@ -3948,6 +4006,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "fsharp_fuzz_test",
         "params": [
           {
@@ -3983,6 +4042,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "fsharp_library",
         "params": [
           {
@@ -4008,6 +4068,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "fsharp_test",
         "params": [
           {
@@ -4044,6 +4105,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "go_bench",
         "params": [
           {
@@ -4074,6 +4136,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "go_binary",
         "params": [
           {
@@ -4099,6 +4162,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "go_doc_shard",
         "params": [
           {
@@ -4139,6 +4203,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "go_fuzz_test",
         "params": [
           {
@@ -4174,6 +4239,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "go_library",
         "params": [
           {
@@ -4204,6 +4270,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "go_test",
         "params": [
           {
@@ -4489,6 +4556,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "haskell_bench",
         "params": [
           {
@@ -4519,6 +4587,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "haskell_binary",
         "params": [
           {
@@ -4544,6 +4613,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "haskell_library",
         "params": [
           {
@@ -4574,6 +4644,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "haskell_test",
         "params": [
           {
@@ -4733,6 +4804,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "java_bench",
         "params": [
           {
@@ -4763,6 +4835,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "java_binary",
         "params": [
           {
@@ -4788,6 +4861,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "java_doc_shard",
         "params": [
           {
@@ -4818,6 +4892,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "java_fuzz_test",
         "params": [
           {
@@ -4858,6 +4933,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "java_library",
         "params": [
           {
@@ -4883,6 +4959,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "java_test",
         "params": [
           {
@@ -4919,6 +4996,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "javascript_bench",
         "params": [
           {
@@ -4964,6 +5042,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "javascript_binary",
         "params": [
           {
@@ -4994,6 +5073,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "javascript_doc_shard",
         "params": [
           {
@@ -5039,6 +5119,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "javascript_fuzz_test",
         "params": [
           {
@@ -5084,6 +5165,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "javascript_library",
         "params": [
           {
@@ -5109,6 +5191,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "javascript_test",
         "params": [
           {
@@ -5164,6 +5247,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "javascript_wasm_bindgen_library",
         "params": [
           {
@@ -5194,6 +5278,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "javascript_web_app",
         "params": [
           {
@@ -5234,6 +5319,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "javascript_web_bundle",
         "params": [
           {
@@ -5802,6 +5888,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "julia_bench",
         "params": [
           {
@@ -5837,6 +5924,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "julia_binary",
         "params": [
           {
@@ -5867,6 +5955,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "julia_doc_shard",
         "params": [
           {
@@ -5897,6 +5986,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "julia_library",
         "params": [
           {
@@ -5922,6 +6012,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "julia_standalone_binary",
         "params": [
           {
@@ -5937,6 +6028,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "julia_test",
         "params": [
           {
@@ -6115,6 +6207,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "kotlin_bench",
         "params": [
           {
@@ -6145,6 +6238,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "kotlin_binary",
         "params": [
           {
@@ -6170,6 +6264,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "kotlin_doc_shard",
         "params": [
           {
@@ -6200,6 +6295,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "kotlin_fuzz_test",
         "params": [
           {
@@ -6240,6 +6336,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "kotlin_library",
         "params": [
           {
@@ -6265,6 +6362,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "kotlin_test",
         "params": [
           {
@@ -6374,6 +6472,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "lua_bench",
         "params": [
           {
@@ -6409,6 +6508,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "lua_binary",
         "params": [
           {
@@ -6439,6 +6539,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "lua_library",
         "params": [
           {
@@ -6464,6 +6565,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "lua_test",
         "params": [
           {
@@ -6578,6 +6680,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "mdx_build",
         "params": [
           {
@@ -6633,6 +6736,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "mdx_doc_shard",
         "params": [
           {
@@ -6673,6 +6777,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "mdx_library",
         "params": [
           {
@@ -6698,6 +6803,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "mdx_test",
         "params": [
           {
@@ -6739,6 +6845,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "msix_package",
         "params": [
           {
@@ -6759,6 +6866,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "msix_sign",
         "params": [
           {
@@ -6822,6 +6930,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "ocaml_bench",
         "params": [
           {
@@ -6857,6 +6966,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ocaml_binary",
         "params": [
           {
@@ -6877,6 +6987,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ocaml_doc_shard",
         "params": [
           {
@@ -6907,6 +7018,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ocaml_dune_library",
         "params": [
           {
@@ -6922,6 +7034,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ocaml_fuzz_test",
         "params": [
           {
@@ -6957,6 +7070,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ocaml_library",
         "params": [
           {
@@ -6977,6 +7091,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ocaml_module",
         "params": [
           {
@@ -7017,6 +7132,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ocaml_signature",
         "params": [
           {
@@ -7042,6 +7158,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ocaml_test",
         "params": [
           {
@@ -7178,6 +7295,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "perl_bench",
         "params": [
           {
@@ -7213,6 +7331,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "perl_binary",
         "params": [
           {
@@ -7243,6 +7362,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "perl_doc_shard",
         "params": [
           {
@@ -7268,6 +7388,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "perl_library",
         "params": [
           {
@@ -7293,6 +7414,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "perl_test",
         "params": [
           {
@@ -7371,6 +7493,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "php_bench",
         "params": [
           {
@@ -7406,6 +7529,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "php_binary",
         "params": [
           {
@@ -7436,6 +7560,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "php_library",
         "params": [
           {
@@ -7461,6 +7586,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "php_test",
         "params": [
           {
@@ -7534,6 +7660,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "powershell_binary",
         "params": [
           {
@@ -7559,6 +7686,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "powershell_library",
         "params": [
           {
@@ -7584,6 +7712,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "powershell_test",
         "params": [
           {
@@ -7691,6 +7820,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "python_bench",
         "params": [
           {
@@ -7726,6 +7856,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "python_binary",
         "params": [
           {
@@ -7756,6 +7887,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "python_doc_shard",
         "params": [
           {
@@ -7786,6 +7918,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "python_fuzz_test",
         "params": [
           {
@@ -7816,6 +7949,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "python_grpc_library",
         "params": [
           {
@@ -7856,6 +7990,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "python_library",
         "params": [
           {
@@ -7881,6 +8016,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "python_test",
         "params": [
           {
@@ -7927,6 +8063,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "qt_bundle",
         "params": [
           {
@@ -7972,6 +8109,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "qt_cc_binary",
         "params": [
           {
@@ -8052,6 +8190,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "qt_cc_library",
         "params": [
           {
@@ -8127,6 +8266,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "qt_cc_test",
         "params": [
           {
@@ -8207,6 +8347,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "qt_qml_module",
         "params": [
           {
@@ -8297,6 +8438,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "qt_rust_cc_library",
         "params": [
           {
@@ -8372,6 +8514,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "qt_rust_library",
         "params": [
           {
@@ -8581,6 +8724,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "rego_test",
         "params": [
           {
@@ -8685,6 +8829,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "ruby_bench",
         "params": [
           {
@@ -8725,6 +8870,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ruby_binary",
         "params": [
           {
@@ -8755,6 +8901,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ruby_doc_shard",
         "params": [
           {
@@ -8785,6 +8932,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ruby_library",
         "params": [
           {
@@ -8810,6 +8958,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "ruby_test",
         "params": [
           {
@@ -8899,6 +9048,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "rust_bench",
         "params": [
           {
@@ -8939,6 +9089,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "rust_binary",
         "params": [
           {
@@ -8984,6 +9135,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "rust_build_script",
         "params": [
           {
@@ -9049,6 +9201,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "rust_fuzz_test",
         "params": [
           {
@@ -9099,6 +9252,32 @@
         ]
       },
       {
+        "forwards": [
+          {
+            "attrs": [
+              "crt_static",
+              "libstdcxx",
+              "msvc",
+              "srcs",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_rust_forward"
+          },
+          {
+            "attrs": [
+              "crate_name",
+              "crate_root",
+              "edition",
+              "rustc_flags",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "rust_library"
+          }
+        ],
         "name": "rust_library",
         "params": [
           {
@@ -9134,6 +9313,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "rust_proc_macro",
         "params": [
           {
@@ -9169,6 +9349,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "rust_shared_library",
         "params": [
           {
@@ -9204,6 +9385,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "rust_static_library",
         "params": [
           {
@@ -9239,6 +9421,36 @@
         ]
       },
       {
+        "forwards": [
+          {
+            "attrs": [
+              "crate",
+              "crt_static",
+              "libstdcxx",
+              "msvc",
+              "size",
+              "srcs",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_rust_forward_test"
+          },
+          {
+            "attrs": [
+              "compile_data",
+              "crate",
+              "crate_name",
+              "edition",
+              "link_deps",
+              "rustc_flags",
+              "size",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "rust_test"
+          }
+        ],
         "name": "rust_test",
         "params": [
           {
@@ -10424,6 +10636,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "svelte_build",
         "params": [
           {
@@ -10479,6 +10692,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "svelte_doc_shard",
         "params": [
           {
@@ -10529,6 +10743,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "svelte_library",
         "params": [
           {
@@ -10554,6 +10769,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "svelte_test",
         "params": [
           {
@@ -10595,6 +10811,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "swift_bench",
         "params": [
           {
@@ -10625,6 +10842,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "swift_binary",
         "params": [
           {
@@ -10655,6 +10873,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "swift_fuzz_test",
         "params": [
           {
@@ -10695,6 +10914,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "swift_library",
         "params": [
           {
@@ -10725,6 +10945,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "swift_test",
         "params": [
           {
@@ -10966,6 +11187,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "thrift_rust_library",
         "params": [
           {
@@ -11103,6 +11325,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "typescript_bench",
         "params": [
           {
@@ -11148,6 +11371,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "typescript_binary",
         "params": [
           {
@@ -11208,6 +11432,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "typescript_config",
         "params": [
           {
@@ -11223,6 +11448,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "typescript_doc_shard",
         "params": [
           {
@@ -11268,6 +11494,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "typescript_fuzz_test",
         "params": [
           {
@@ -11318,6 +11545,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "typescript_library",
         "params": [
           {
@@ -11348,6 +11576,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "typescript_playwright_test",
         "params": [
           {
@@ -11403,6 +11632,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "typescript_proto_library",
         "params": [
           {
@@ -11433,6 +11663,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "typescript_test",
         "params": [
           {
@@ -11524,6 +11755,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "vue_build",
         "params": [
           {
@@ -11579,6 +11811,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "vue_doc_shard",
         "params": [
           {
@@ -11629,6 +11862,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "vue_library",
         "params": [
           {
@@ -11654,6 +11888,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "vue_test",
         "params": [
           {
@@ -11695,6 +11930,7 @@
     "extensions": [],
     "functions": [
       {
+        "forwards": [],
         "name": "zig_bench",
         "params": [
           {
@@ -11730,6 +11966,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "zig_binary",
         "params": [
           {
@@ -11760,6 +11997,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "zig_library",
         "params": [
           {
@@ -11795,6 +12033,7 @@
         ]
       },
       {
+        "forwards": [],
         "name": "zig_test",
         "params": [
           {

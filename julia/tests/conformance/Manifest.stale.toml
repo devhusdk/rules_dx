@@ -1,7 +1,7 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.5"
-manifest_format = "2.0"
+julia_version = "1.13.4"
+manifest_format = "2.1"
 project_hash = "cf14de5707aa1b8cc19d28ca6da1a69c51d6887c"
 
 [[deps.Artifacts]]
@@ -11,6 +11,7 @@ version = "1.11.0"
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "1b96ea4a01afe0ea4090c5c8039690672dd13f2e"
+registries = "General"
 uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
 version = "1.0.9+0"
 
@@ -22,6 +23,7 @@ version = "1.11.0"
 [[deps.JLLWrappers]]
 deps = ["Artifacts", "Preferences"]
 git-tree-sha1 = "7204148362dafe5fe6a273f855b8ccbe4df8173e"
+registries = "General"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
 version = "1.8.0"
 
@@ -32,6 +34,7 @@ version = "1.11.0"
 [[deps.Preferences]]
 deps = ["TOML"]
 git-tree-sha1 = "0f27480397253da18fe2c12a4ba4eb9eb208bf3d"
+registries = "General"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
 version = "1.5.0"
 
@@ -48,3 +51,7 @@ version = "1.0.3"
 [[deps.Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 version = "1.11.0"
+
+[registries.General]
+url = "https://github.com/JuliaRegistries/General.git"
+uuid = "23338594-aafe-5451-b93e-139f81909106"

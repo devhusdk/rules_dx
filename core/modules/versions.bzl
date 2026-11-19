@@ -82,7 +82,10 @@ RULES_JULIA_VERSION = "0.8.0"
 RULES_DART_VERSION = "0.8.1"
 DART_SDK_VERSION = "3.13.7"
 FLUTTER_SDK_VERSION = "3.47.9"
-JULIA_VERSION = "1.12.5"
+JULIA_VERSION = "1.13.4"
+
+# The Julia release //julia/private/runtime builds from source; MODULE.bazel registers its toolchain.
+JULIA_RUNTIME_VERSION = "1.12.5"
 RULES_PERL_VERSION = "2.1.0"
 LUA_VERSION = "5.5.0"
 AVRO_CPP_VERSION = "1.12.0.bcr.1"

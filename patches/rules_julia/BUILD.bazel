@@ -5,6 +5,7 @@ exports_files([
     "exec_toolchain.patch",
     "in_process_resolve_test.patch",
     "inline_runfiles_sh.patch",
+    "julia_1_13.patch",
     "locate_installed_package.patch",
     "package_annotation_version.patch",
     "package_name.patch",

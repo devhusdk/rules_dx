@@ -1,10 +1,15 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.5"
-manifest_format = "2.0"
+julia_version = "1.13.4"
+manifest_format = "2.1"
 project_hash = "2194bebf0eb1d34759d8b4d01aab879ec23aafc6"
 
 [[deps.CoverageTools]]
 git-tree-sha1 = "72ded72062bedff105dc69dfc0cb07d2197c1669"
+registries = "General"
 uuid = "c36e975a-824b-4404-a568-ef97ca766997"
 version = "1.3.2"
+
+[registries.General]
+url = "https://github.com/JuliaRegistries/General.git"
+uuid = "23338594-aafe-5451-b93e-139f81909106"

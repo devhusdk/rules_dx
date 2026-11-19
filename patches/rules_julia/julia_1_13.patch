@@ -1,0 +1,52 @@
+Upstream: none (not yet sent upstream, #14013)
+diff -ruN a/julia/private/versions.bzl b/julia/private/versions.bzl
+--- a/julia/private/versions.bzl
++++ b/julia/private/versions.bzl
+@@ -9,7 +9,7 @@
+ ```
+ """
+ 
+-JULIA_DEFAULT_VERSION = "1.12.5"
++JULIA_DEFAULT_VERSION = "1.13.4"
+ 
+ JULIA_VERSIONS = {
+     "1.10.0": {
+@@ -1006,4 +1006,38 @@
+             "url": "https://julialang-s3.julialang.org/bin/winnt/x64/1.12/julia-1.12.5-win64.tar.gz",
+         },
+     },
++    "1.13.4": {
++        "aarch64-apple-darwin": {
++            "integrity": "sha256-jlihmT7LrbmnYqmH7vpOSEs2SoVgNJYJzAXpMoe5qP4=",
++            "url": "https://julialang-s3.julialang.org/bin/mac/aarch64/1.13/julia-1.13.4-macaarch64.tar.gz",
++        },
++        "aarch64-linux-gnu": {
++            "integrity": "sha256-0YFMtR5JoezQyV/w5KwmfsXdq6BR9e7S2GbVXkAnTeU=",
++            "url": "https://julialang-s3.julialang.org/bin/linux/aarch64/1.13/julia-1.13.4-linux-aarch64.tar.gz",
++        },
++        "i686-linux-gnu": {
++            "integrity": "sha256-hcp0IJJ4ccLgtQFIG/CZCO9OKCG1YX2zq1ad2qV+YHQ=",
++            "url": "https://julialang-s3.julialang.org/bin/linux/x86/1.13/julia-1.13.4-linux-i686.tar.gz",
++        },
++        "i686-w64-mingw32": {
++            "integrity": "sha256-BDMpZsj+i+0QTU6soWhpCodhmTSU9lYJDd6abBeyOpU=",
++            "url": "https://julialang-s3.julialang.org/bin/winnt/x86/1.13/julia-1.13.4-win32.tar.gz",
++        },
++        "x86_64-apple-darwin": {
++            "integrity": "sha256-yE3g/LQmiEHylv1WxHwnOD2BNYAzQoOJsNGIKxELm80=",
++            "url": "https://julialang-s3.julialang.org/bin/mac/x64/1.13/julia-1.13.4-mac64.tar.gz",
++        },
++        "x86_64-linux-gnu": {
++            "integrity": "sha256-zxZY8TuR+szNV9QUZNcSWg5IodJPSQYtcVMtBNTsQTA=",
++            "url": "https://julialang-s3.julialang.org/bin/linux/x64/1.13/julia-1.13.4-linux-x86_64.tar.gz",
++        },
++        "x86_64-unknown-freebsd": {
++            "integrity": "sha256-/BaSlGMhidrfK+4RpCr/SjGRI5nvCsSIJ65/X1Sw9WE=",
++            "url": "https://julialang-s3.julialang.org/bin/freebsd/x64/1.13/julia-1.13.4-freebsd-x86_64.tar.gz",
++        },
++        "x86_64-w64-mingw32": {
++            "integrity": "sha256-AED6orRZl0Xc0Sm7G5nmBwgiQN0d8YFJ7uAqdEkPUYg=",
++            "url": "https://julialang-s3.julialang.org/bin/winnt/x64/1.13/julia-1.13.4-win64.tar.gz",
++        },
++    },
+ }

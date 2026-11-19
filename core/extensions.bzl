@@ -79,6 +79,7 @@ def _dx_pins_impl(mctx):
                 fail("{}: type '{}' is not file, jar or an archive type".format(tag.name, kind))
             pinned_archive(
                 name = tag.name,
+                bzl_srcs = tag.bzl_srcs,
                 crlf = tag.crlf,
                 download_as = download_as,
                 dropped = tag.dropped,
@@ -102,6 +103,7 @@ dx_pins = module_extension(
             doc = "One source archive from an archives entry of a pins.json, pruned and patched. The entry is exported as ARCHIVES[name] from @dx_pins_data.",
             attrs = {
                 "build": attr.label(allow_single_file = True, doc = "BUILD file written at the repository root; {version} is replaced by the entry's version."),
+                "bzl_srcs": attr.bool(doc = "Adds @<name>//:dx_bzl_srcs, a public filegroup of every Starlark file, for starlark_doc_extract deps."),
                 "crlf": attr.string_list(doc = "Paths rewritten with CRLF line endings after patching."),
                 "dropped": attr.string_list(doc = "Paths deleted after extraction."),
                 "files": attr.string_keyed_label_dict(allow_files = True, doc = "Repository path to a file written after pruning, before patching."),

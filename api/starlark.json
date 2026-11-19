@@ -1482,7 +1482,11 @@
         "fields": [
           "direct_deps",
           "direct_srcs",
+          "direct_staged",
           "label",
+          "stage_root",
+          "stage_roots",
+          "staged",
           "transitive_imports",
           "transitive_srcs"
         ],
@@ -1941,6 +1945,12 @@
                 "mandatory": false,
                 "name": "build",
                 "type": "LABEL"
+              },
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "bzl_srcs",
+                "type": "BOOLEAN"
               },
               {
                 "default": "[]",
@@ -3029,6 +3039,152 @@
   },
   {
     "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "name": "elixir_app",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "elixir_bench",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "deps"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "elixir_doc_shard",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "app"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "elixir_escript_archive",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "elixir_escript_headers",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "module"
+          }
+        ]
+      },
+      {
+        "name": "elixir_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//elixir:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
     "extensions": [
       {
         "name": "elixir",
@@ -3063,6 +3219,301 @@
     "providers": [],
     "repository_rules": [],
     "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "name": "erlang_app",
+        "params": [
+          {
+            "default": "\"erlang_app\"",
+            "mandatory": false,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "testonly"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "erlang_bench",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "suite_name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "runtime_deps"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "erlang_bytecode",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "srcs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "erlang_ct_suite_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "suite_name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "erlang_doc_shard",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "app"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "erlang_erlc_opts",
+        "params": [
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "erlang_escript_archive",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "erlang_eunit_test",
+        "params": [
+          {
+            "default": "\"eunit\"",
+            "mandatory": false,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "erlang_nif",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "srcs"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "hdrs"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "deps"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "copts"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "erlang_test_app",
+        "params": [
+          {
+            "default": "\"test_erlang_app\"",
+            "mandatory": false,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "erlang_xrl_yrl",
+        "params": [
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//erlang:defs.bzl",
+    "macros": [],
+    "providers": [
+      {
+        "fields": [
+          "app_name",
+          "beam",
+          "deps",
+          "extra_apps",
+          "include",
+          "license_files",
+          "priv",
+          "srcs"
+        ],
+        "name": "ErlangAppInfo"
+      }
+    ],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "apps",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          }
+        ],
+        "executable": false,
+        "name": "erlang_release",
+        "test": false
+      }
+    ]
   },
   {
     "aspects": [],
@@ -3165,6 +3616,10 @@
       {
         "fields": [
           "direct_srcs",
+          "direct_staged",
+          "stage_root",
+          "stage_roots",
+          "staged",
           "transitive_srcs"
         ],
         "name": "FlatBuffersInfo"
@@ -6361,6 +6816,296 @@
     "providers": [],
     "repository_rules": [],
     "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
+        "name": "ocaml_bench",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "deps"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "ocaml_binary",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "ocaml_doc_shard",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "lib"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "\"odoc=3.2.2\"",
+            "mandatory": false,
+            "name": "config"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "ocaml_dune_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "ocaml_fuzz_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "main"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "deps"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "tags"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "ocaml_library",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "ocaml_module",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "struct"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "sig"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "True",
+            "mandatory": false,
+            "name": "instrument_coverage"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "coverage_ppx"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "ocaml_signature",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      },
+      {
+        "name": "ocaml_test",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//ocaml:defs.bzl",
+    "macros": [],
+    "providers": [
+      {
+        "fields": [
+          "owned"
+        ],
+        "name": "OCamlCmtInfo"
+      }
+    ],
+    "repository_rules": [],
+    "rules": [
+      {
+        "attrs": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "opts",
+            "type": "STRING_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "out",
+            "type": "OUTPUT"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "src",
+            "type": "LABEL"
+          }
+        ],
+        "executable": false,
+        "name": "ocaml_lex",
+        "test": false
+      }
+    ]
   },
   {
     "aspects": [],
@@ -10263,7 +11008,11 @@
         "fields": [
           "direct_deps",
           "direct_srcs",
+          "direct_staged",
           "label",
+          "stage_root",
+          "stage_roots",
+          "staged",
           "transitive_includes",
           "transitive_srcs"
         ],

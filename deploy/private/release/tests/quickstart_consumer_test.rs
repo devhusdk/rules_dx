@@ -2,10 +2,11 @@
 //! against this checkout.
 
 use dx_nested::compose::{
-    llvm_override, rules_dx_override, rules_flutter_override, rules_py_override,
+    dx_prebuilt_asset, llvm_override, rules_dx_override, rules_flutter_override, rules_py_override,
     rules_rust_override, windows_support_override, write_root_patch_override,
 };
 use dx_nested::{self as nested, Case, footprint, plain_fixture};
+use dx_release_tools::candidate::file_url;
 use dx_release_tools::presubmit;
 use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
 
@@ -264,6 +265,7 @@ fn the_readme_quickstart_runs_as_written() {
     }
 
     // The overrides `tools/testing/consumer/pending.txt` still lists; a registry release needs none.
+    // The consumer pins the dx this test built, as a release's `pins.bzl` serves dx.
     copy_rules_py_patches(&source, &case);
     let module_path = case.root().join("MODULE.bazel");
     let mut module = read_text(&module_path);
@@ -275,6 +277,10 @@ fn the_readme_quickstart_runs_as_written() {
     module.push_str(&windows_support_override());
     module.push_str(&apple_overrides(&source, case.root()));
     module.push_str(&rules_dx_override(&source));
+    let dx_sha256 = dx_testing::sha256_file(&dx).unwrap_or_else(|error| panic!("{error}"));
+    module.push_str(
+        &dx_prebuilt_asset(&file_url(&dx), &dx_sha256).unwrap_or_else(|error| panic!("{error}")),
+    );
     write_text(&module_path, &module);
     if cfg!(windows) {
         let rc_path = case.root().join(".bazelrc");
@@ -345,6 +351,7 @@ fn the_readme_quickstart_runs_as_written() {
             ));
         }
     };
+    // `after_test` also counts the repos the `dx check //app/...` step fetched.
     within_budget("core", &core, "after_test");
     run_in(
         &case,

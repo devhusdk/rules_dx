@@ -117,7 +117,7 @@ def _checks():
         expect_equal("the native hub loads native_binary once", native_build.count("native_binary.bzl"), 1),
         expect_false("a source hub selects no native download", "dx_topiary_prebuilt" in source_native),
         expect_true("a pinned native tool loads native_binary", with_native_tools(alias_build(SOURCE_LABEL), native).startswith('load("@bazel_skylib//rules:native_binary.bzl", "native_binary")\n')),
-        expect_equal("haskell assets", [asset_name(t, k) for t in ["hpc_lcov", "weeder"] for k in TOOLS[t].platforms], ["dx-hpc-lcov-linux-arm64", "dx-hpc-lcov-macos-arm64", "dx-hpc-lcov-windows-x86_64", "dx-weeder-linux-arm64", "dx-weeder-macos-arm64", "dx-weeder-windows-x86_64"]),
+        expect_equal("haskell assets", [asset_name(t, k) for t in ["hpc_lcov", "weeder"] for k in TOOLS[t].platforms], ["dx-hpc-lcov-linux-arm64", "dx-hpc-lcov-linux-x86_64", "dx-hpc-lcov-macos-arm64", "dx-hpc-lcov-windows-x86_64", "dx-weeder-linux-arm64", "dx-weeder-linux-x86_64", "dx-weeder-macos-arm64", "dx-weeder-windows-x86_64"]),
         expect_contains("the registry lists the haskell tools for fill_pins", registry_lines(), "weeder macos_arm64 dx-weeder-macos-arm64"),
         expect_equal("hpc_lcov runs on the target platform", TOOLS["hpc_lcov"].role, "target"),
         expect_equal("weeder runs on the exec platform", TOOLS["weeder"].role, "exec"),

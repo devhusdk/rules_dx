@@ -68,7 +68,7 @@ rules_qt | Qt launcher | C++ | no
 - MPL-2.0 and BSD-3-Clause tools are redistributed unmodified.
 - GPL-3.0 and LGPL-3.0 tools are redistributed only with the exact source archive the binary was built from, published as an asset of the same release.
 - A tool built with patches publishes the patches with that source archive.
-- Linux arm64 Haskell tools link GMP statically, so the release ships `dx-haskell-gmp-LICENSE`, `dx-haskell-gmp-source.tar.xz` and `dx-haskell-gmp-source.patch`.
+- Linux Haskell tools link GMP statically, so the release ships `dx-haskell-gmp-LICENSE`, `dx-haskell-gmp-source.tar.xz` and `dx-haskell-gmp-source.patch`.
 
 ## Hosting
 
@@ -88,7 +88,7 @@ deadnix | GPL-3.0 | source only | rel | rel | rel | rel
 selene | MPL-2.0 | Linux x86_64, macOS and Windows x86_64 zips | rel | rel | rel | rel
 kcov | GPL-2.0 | source only | rel | rel | no | no
 zanuda | LGPL-3.0 | source only | own | own | own | no
-weeder | BSD-3-Clause | source only | own | rel | rel | rel
+weeder | BSD-3-Clause | source only | rel | rel | rel | rel
 hlint | BSD-3-Clause | Linux x86_64 and Windows x86_64 binaries | up | rel | rel | up
 ormolu | BSD-3-Clause | Linux x86_64, macOS arm64 and Windows x86_64 binaries | up | rel | up | up
 core Python tools | per wheel | wheels on PyPI | rel | rel | rel | rel

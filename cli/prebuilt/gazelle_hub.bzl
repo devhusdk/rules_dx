@@ -1,6 +1,6 @@
 """Plans the language list and renders the BUILD file of @dx_gazelle."""
 
-load(":hub.bzl", "KNOWN_CPU", "KNOWN_OS")
+load(":hub.bzl", "GUARD_STUB", "GUARD_VIEW", "KNOWN_CPU", "KNOWN_OS")
 
 visibility("private")
 
@@ -37,9 +37,19 @@ def _gazelle_binary(name, labels, visibility):
 {visibility})
 """.format(name = name, languages = languages, visibility = visibility)
 
-def render_hub_build(labels):
-    """Renders the BUILD file with one gazelle_binary of the given languages."""
-    return 'load("@gazelle//:def.bzl", "gazelle_binary")\n\n' + _gazelle_binary("gazelle", labels, _VISIBILITY)
+def render_hub_build(labels, guard = False):
+    """Renders the BUILD file with one gazelle_binary of the given languages; with guard, gazelle selects GUARD_STUB under GUARD_VIEW."""
+    head = 'load("@gazelle//:def.bzl", "gazelle_binary")\n\n'
+    if not guard:
+        return head + _gazelle_binary("gazelle", labels, _VISIBILITY)
+    return head + "\n".join([
+        "alias(",
+        '    name = "gazelle",',
+        "    actual = " + _select([(GUARD_VIEW, GUARD_STUB)], ":gazelle_source") + ",",
+        _VISIBILITY + ")",
+        "",
+        _gazelle_binary("gazelle_source", labels, ""),
+    ])
 
 def unsupported_message(assets):
     """Returns the failure text for a platform with no gazelle asset."""

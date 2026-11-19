@@ -82,9 +82,9 @@ def _dx_prebuilt_impl(module_ctx):
     if plan.source:
         jars = plan_jars(DX_VERSION, {}, URL_TEMPLATE)
         native_tools = plan_native_tools(DX_VERSION, {}, URL_TEMPLATE, {})
-        build = with_native_tools(alias_build(SOURCE_LABEL), native_tools, consumer = not rules_dx_is_root)
-        build = with_python_tools(build, plan_python_tools(DX_VERSION, {}, URL_TEMPLATE, {}))
-        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(build, jars)})
+        build = with_native_tools(alias_build(SOURCE_LABEL, guard = rules_dx_is_root), native_tools, consumer = not rules_dx_is_root, guard = rules_dx_is_root)
+        build = with_python_tools(build, plan_python_tools(DX_VERSION, {}, URL_TEMPLATE, {}), guard = rules_dx_is_root)
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(build, jars, guard = rules_dx_is_root)})
     else:
         assets = plan_assets("dx", DX_VERSION, PINS, URL_TEMPLATE, plan.overrides.get("dx", {}))
         go_assets = plan_assets(

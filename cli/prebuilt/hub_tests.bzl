@@ -92,6 +92,9 @@ def _checks():
     python_pins = {"python_tools": {"linux_x86_64": _HASH, "windows_arm64": _HASH, "windows_x86_64": _HASH}}
     python_assets = plan_python_tools("1.2.3", python_pins, URL_TEMPLATE, {})
     python_build = with_python_tools(pinned_build, python_assets)
+    guard_build = with_jars(with_python_tools(with_native_tools(alias_build(SOURCE_LABEL, guard = True), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}), guard = True), plan_python_tools("1.2.3", {}, URL_TEMPLATE, {}), guard = True), plan_jars("1.2.3", {}, URL_TEMPLATE), guard = True)
+    plain_build = with_jars(with_python_tools(with_native_tools(alias_build(SOURCE_LABEL), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {})), plan_python_tools("1.2.3", {}, URL_TEMPLATE, {})), plan_jars("1.2.3", {}, URL_TEMPLATE))
+    guard_pinned = with_native_tools(pinned_build, {"launcher": launchers["launcher"]}, consumer = True, guard = True)
     python_root = plan_root([_mod("app", True, assets = [_tag(name = "python_tools", os = "macos", cpu = "aarch64")])], tools = ["dx", "python_tools"])
     python_mirror = [a for a in plan_python_tools("1.2.3", {}, URL_TEMPLATE, python_root.overrides["python_tools"]) if a.repo]
     return [
@@ -283,6 +286,16 @@ def _checks():
         expect_contains("other platforms build the go tool from source", go_build, '"//conditions:default": "{}",'.format(GO_TOOLS["dx_staticcheck"])),
         expect_contains("an unpinned hub aliases the source go tools", unpinned_build, 'name = "dx_govet",\n    actual = "@rules_dx//go/private/tools/analysis/dx_go:dx_govet",'),
         expect_contains("the root hub aliases the source go tools", alias_build(SOURCE_LABEL), 'name = "dx_modfmt",\n    actual = "@rules_dx//go/private/tools/analysis/dx_go:dx_modfmt",'),
+        expect_contains("a guarded dx selects the stub under guard_view", guard_build, 'name = "dx",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",\n        "//conditions:default": "@rules_dx//cli/cli:dx",\n    }),'),
+        expect_contains("a guarded go tool selects the stub", guard_build, 'name = "dx_govet",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",'),
+        expect_contains("a guarded native tool selects the stub", guard_build, 'name = "launcher",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",\n        "//conditions:default": "@rules_dx//cli/launcher:exec_launcher",\n    }),'),
+        expect_contains("a guarded python tool selects the stub", guard_build, 'name = "python_tool_yamllint",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",\n        "//conditions:default": "@rules_dx//core/quality/tools/python:yamllint",\n    }),'),
+        expect_contains("a guarded jar tool selects the stub", guard_build, 'name = "javac_check",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",'),
+        expect_equal("every guarded source alias selects the stub", guard_build.count('"@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",'), guard_build.count("alias(")),
+        expect_false("an unguarded hub never names guard_view", "guard_view" in plain_build),
+        expect_false("an unguarded hub never names guard_view in alias_build", "guard_view" in alias_build(SOURCE_LABEL)),
+        expect_equal("guard leaves a pinned tool's select alone", guard_pinned.count("guard_view"), 0),
+        expect_equal("guard leaves the consumer hub unchanged", with_native_tools(pinned_build, {"launcher": launchers["launcher"]}, consumer = True), guard_pinned),
         expect_equal("the go multicall answers to seven names", sorted(GO_TOOLS.keys()), ["dx_errcheck", "dx_godoc_json", "dx_gofumpt", "dx_gotype", "dx_govet", "dx_modfmt", "dx_staticcheck"]),
     ]
 

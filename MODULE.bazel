@@ -210,9 +210,8 @@ single_version_override(
     version = "2.4.6",
 )
 
-# needed: @kcov (dx_pins extension) loads @elfutils
-# floor: equals tested; kcov links libdw and libelf (#7327)
-bazel_dep(name = "elfutils", version = "0.195")
+# floor: equals tested; dev only, the kcov source build links libdw and libelf (#7327)
+bazel_dep(name = "elfutils", version = "0.195", dev_dependency = True)
 
 # musl.patch compiles libdwfl without argp, fts and GNU strerror_r on musl.
 single_version_override(
@@ -222,9 +221,8 @@ single_version_override(
     version = "0.195",
 )
 
-# needed: @kcov (dx_pins extension) loads @zlib
-# floor: equals tested; 1.4 fixes CVE-2026-85091 and six other memory-safety bugs
-bazel_dep(name = "zlib", version = "1.4")
+# floor: equals tested; dev only, the kcov source build links it; 1.4 fixes CVE-2026-85091 and six other memory-safety bugs
+bazel_dep(name = "zlib", version = "1.4", dev_dependency = True)
 
 # floor: equals tested
 bazel_dep(name = "rules_go", version = "0.65.0")
@@ -1454,16 +1452,6 @@ dx_pins.archive(
     pins = "//deploy/private/pins:pins.json",
 )
 dx_pins.archive(
-    name = "kcov",
-    build = "//tools/coverage/kcov:kcov.BUILD",
-    patches = [
-        "//patches/kcov:aslr.patch",
-        "//patches/kcov:elf_checksum_lock.patch",
-        "//patches/kcov:no_curl.patch",
-    ],
-    pins = "//tools/coverage/kcov:pins.json",
-)
-dx_pins.archive(
     name = "opam_linux_arm64",
     pins = "//deploy/private/pins:pins.json",
 )
@@ -1564,7 +1552,6 @@ use_repo(
     "dx_thrift_slf4j",
     "dx_windows_support",
     "japicmp_jar",
-    "kcov",
     "nfpm_linux_arm64",
     "nfpm_linux_x86_64",
     "nfpm_macos_arm64",
@@ -1599,6 +1586,16 @@ dx_pins_dev.archive(
     pins = "//cc:pins.json",
 )
 dx_pins_dev.archive(
+    name = "kcov",
+    build = "//tools/coverage/kcov:kcov.BUILD",
+    patches = [
+        "//patches/kcov:aslr.patch",
+        "//patches/kcov:elf_checksum_lock.patch",
+        "//patches/kcov:no_curl.patch",
+    ],
+    pins = "//tools/coverage/kcov:pins.json",
+)
+dx_pins_dev.archive(
     name = "lua_app_inspect",
     build = "//lua/tests/fixtures/lua_app:inspect.BUILD.bazel",
     pins = "//lua:pins.json",
@@ -1612,6 +1609,7 @@ use_repo(
     dx_pins_dev,
     "erlang_app_thoas",
     "foreign_cmake_zlib",
+    "kcov",
     "lua_app_inspect",
     "zig_app_xxhash",
 )

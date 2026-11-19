@@ -3,7 +3,7 @@
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":hub.bzl", "GO_TOOLS", "LAUNCHER_SOURCE", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
-load(":tools.bzl", "JAR_TOOLS", "NATIVE_TOOLS", "TOOLS", "asset_name", "registry_lines")
+load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "TOOLS", "asset_name", "registry_lines")
 
 visibility("private")
 
@@ -69,6 +69,8 @@ def _checks():
     flatc_root = plan_root([_mod("app", True, assets = [_tag(name = "flatc")])], tools = ["dx", "launcher", "go"] + NATIVE_TOOLS)
     release_tools = plan_native_tools("1.2.3", {"deadnix": {"windows_x86_64": _HASH}, "kcov": {"linux_arm64": _HASH, "linux_x86_64": _HASH}}, URL_TEMPLATE, {})
     release_tools_build = with_native_tools(alias_build(SOURCE_LABEL), release_tools)
+    consumer_source = with_native_tools(alias_build(SOURCE_LABEL), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}), consumer = True)
+    consumer_pinned = with_native_tools(pinned_build, release_tools, consumer = True)
     topiary_windows_arm = [a for a in native["topiary"] if a.key == "windows_aarch64"][0]
     source_haskell = with_native_tools(alias_build(SOURCE_LABEL), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}))
     weeder_pins = {"weeder": {"linux_arm64": _HASH, "windows_x86_64": _HASH}}
@@ -91,6 +93,11 @@ def _checks():
         expect_contains("an unpinned selene builds from source", source_native, 'name = "selene",\n    actual = "@rules_dx//rust/private/quality/tools:selene_source",'),
         expect_contains("an unpinned nixfmt builds from source", source_native, 'name = "nixfmt",\n    actual = "@rules_dx//core/quality/tools/nixfmt/bin:nixfmt_source",'),
         expect_contains("an unpinned kcov builds from source", source_native, 'name = "kcov",\n    actual = "@rules_dx//tools/coverage/kcov:kcov",'),
+        expect_contains("a consumer hub with no kcov pin serves no kcov", consumer_source, 'name = "kcov",\n    actual = "@rules_dx//tools/coverage/kcov:none",'),
+        expect_false("a consumer hub never names the kcov source build", "tools/coverage/kcov:kcov" in consumer_source + consumer_pinned),
+        expect_contains("a pinned consumer kcov serves no kcov on other platforms", consumer_pinned, '"//conditions:default": "@rules_dx//tools/coverage/kcov:none",'),
+        expect_contains("a consumer hub builds deadnix from source", consumer_pinned, '"//conditions:default": "@rules_dx//rust/private/quality/tools:deadnix_source",'),
+        expect_equal("every dev source fallback is a native tool", [t for t in DEV_SOURCE_FALLBACK if t not in NATIVE_TOOLS], []),
         expect_contains("a pinned code generator runs its download", flatc_build, 'name = "flatc_linux_x86_64",\n    src = "@dx_flatc_prebuilt_linux_x86_64//file:flatc",\n    out = "linux_x86_64/flatc",'),
         expect_contains("an unpinned code generator platform builds from source", flatc_build, '"//conditions:default": "@dx_flatbuffers//:flatc",'),
         expect_contains("a code generator with no pins builds from source", flatc_build, 'name = "capnp",\n    actual = "@dx_capnproto//src/capnp:capnp_tool",'),

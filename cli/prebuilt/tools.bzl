@@ -172,6 +172,10 @@ TOOLS = {
     ),
 }
 
+# The tools whose source builds need rules_dx dev-only modules; a consumer hub serves
+# this label on platforms with no pin instead.
+DEV_SOURCE_FALLBACK = {"kcov": "@rules_dx//tools/coverage/kcov:none"}
+
 # The tools released as one native binary per platform.
 NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "ormolu", "progenitor", "selene", "thrift", "topiary", "weeder"]
 

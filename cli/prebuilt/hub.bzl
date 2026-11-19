@@ -1,6 +1,6 @@
 """Plans the @dx_prebuilt repos and renders the hub BUILD file."""
 
-load(":tools.bzl", "JAR_TOOLS", "NATIVE_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
+load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "RELEASE_CPU", "RELEASE_OS", "TOOLS", "asset_name", "split_key")
 
 visibility(["//cli/..."])
 
@@ -195,20 +195,22 @@ def plan_native_tools(version, pins, url_template, overrides):
 
 _NATIVE_BINARY_LOAD = 'load("@bazel_skylib//rules:native_binary.bzl", "native_binary")'
 
-def with_native_tools(build, native_tools):
+def with_native_tools(build, native_tools, consumer = False):
     """Returns the hub BUILD text build plus one target per native tool.
 
     A tool selects its download on the platform it runs on and builds from source on
-    any platform with no download.
+    any platform with no download. In a consumer hub a tool in DEV_SOURCE_FALLBACK
+    serves its fallback label there instead of its source build.
     """
     lines = []
     keys = {}
     for tool, assets in sorted(native_tools.items()):
         pinned = [a for a in assets if a.repo]
+        source = DEV_SOURCE_FALLBACK.get(tool, TOOLS[tool].source) if consumer else TOOLS[tool].source
         if not pinned:
-            actual = '"{}"'.format(TOOLS[tool].source)
+            actual = '"{}"'.format(source)
         else:
-            actual = _select([(":native_" + a.key, ":{}_{}".format(tool, a.key)) for a in pinned], TOOLS[tool].source)
+            actual = _select([(":native_" + a.key, ":{}_{}".format(tool, a.key)) for a in pinned], source)
         lines += [
             "",
             "alias(",

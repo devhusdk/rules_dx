@@ -2,7 +2,13 @@
 //! planning, target resolution, slots, platform checks, and
 //! generated-file projection. `dx_cli`'s exec and adopt layers run on top.
 
-#![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::panic,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 #![cfg_attr(
     test,
     expect(

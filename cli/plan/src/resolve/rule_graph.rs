@@ -146,7 +146,7 @@ impl RuleGraph {
     ) -> Result<RuleGraph, ResolveError> {
         let argv = query_argv(startup_options);
         let result = ResolveError::run(runner, &argv, workspace, EXPRESSION)?;
-        let text = String::from_utf8(result.stdout).map_err(|_| {
+        let text = String::from_utf8(result.stdout).ok().ok_or_else(|| {
             ResolveError::query(
                 EXPRESSION,
                 super::QueryFailure::Output {

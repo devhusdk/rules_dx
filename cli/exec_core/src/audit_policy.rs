@@ -35,9 +35,11 @@ pub fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, Policy
             rel: rel.to_owned(),
             error,
         }),
-        Ok(bytes) => String::from_utf8(bytes).map_err(|_| PolicyError::NotUtf8 {
-            rel: rel.to_owned(),
-        }),
+        Ok(bytes) => String::from_utf8(bytes)
+            .ok()
+            .ok_or_else(|| PolicyError::NotUtf8 {
+                rel: rel.to_owned(),
+            }),
     }
 }
 

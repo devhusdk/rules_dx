@@ -138,11 +138,13 @@ impl Policy {
     /// Announces restart `n` and waits; false when a stop arrived first.
     fn pause(&self, code: i32, n: u32) -> bool {
         let wait = jittered(n);
-        writeln!(
-            self.notice.borrow_mut(),
-            "dx: notice: bazel exited {code} before the command started; restarting in {}s (restart {n} of {MAX_RESTARTS})",
-            wait.as_secs()
-        ).ok();
+        dx_output::write_stderr(
+            &mut *self.notice.borrow_mut(),
+            format_args!(
+                "dx: notice: bazel exited {code} before the command started; restarting in {}s (restart {n} of {MAX_RESTARTS})\n",
+                wait.as_secs()
+            ),
+        );
         (self.sleep)(wait);
         !(self.stop)()
     }
@@ -241,14 +243,16 @@ impl<R: Runner> RestartingRunner<R> {
                 return Ok(None);
             }
             if let Some(path) = bep_path_of(argv) {
-                std::fs::remove_file(cwd.join(path)).ok();
+                dx_atomic_fs::discard_file(cwd.join(path));
             }
             if let Some(off) = off {
                 self.cache_retries.set(self.cache_retries.get() + 1);
-                writeln!(
-                    self.policy.notice.borrow_mut(),
-                    "dx: notice: bazel reported a remote cache error; running once more without the remote cache"
-                ).ok();
+                dx_output::write_stderr(
+                    &mut *self.policy.notice.borrow_mut(),
+                    format_args!(
+                        "dx: notice: bazel reported a remote cache error; running once more without the remote cache\n"
+                    ),
+                );
                 current = off;
                 cache_off = true;
             } else {

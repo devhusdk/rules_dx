@@ -52,8 +52,9 @@ fn filter_executables(
             },
         )
     };
-    let text =
-        std::str::from_utf8(&result.stdout).map_err(|_| malformed("query output is not UTF-8"))?;
+    let text = std::str::from_utf8(&result.stdout)
+        .ok()
+        .ok_or_else(|| malformed("query output is not UTF-8"))?;
     let mut executables: Vec<String> = Vec::new();
     for line in text.lines() {
         let line = line.trim();
@@ -321,8 +322,9 @@ pub fn check_deployable(
             },
         )
     };
-    let text =
-        std::str::from_utf8(&result.stdout).map_err(|_| malformed("query output is not UTF-8"))?;
+    let text = std::str::from_utf8(&result.stdout)
+        .ok()
+        .ok_or_else(|| malformed("query output is not UTF-8"))?;
     let line = text
         .lines()
         .map(str::trim)

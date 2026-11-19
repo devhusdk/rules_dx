@@ -2,7 +2,7 @@
 
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_hackage.bzl", "hackage_name_error", "hackage_sdist_error", "hackage_version_error")
 
 def _hackage_config_impl(ctx):
@@ -59,7 +59,7 @@ def hackage_deploy(name, sdist, package = "", version = "", build_mode = "releas
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

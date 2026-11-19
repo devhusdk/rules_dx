@@ -61,7 +61,7 @@ _split = rule(
     executable = True,
 )
 
-def dx_split_debug_info(name, binary, **kwargs):
+def split_debug_info(name, binary, **kwargs):
     """Splits the debug info of a Linux cc_binary; build the symbols output group to get it."""
     kwargs.setdefault("target_compatible_with", ["@platforms//os:linux"])
     _split(name = name, binary = binary, **kwargs)
@@ -82,7 +82,7 @@ def _dsym_pair_impl(ctx):
     binary = ctx.executable.binary
     dsyms = getattr(binary_target[OutputGroupInfo], "dsyms", None)
     if dsyms == None or len(dsyms.to_list()) != 1:
-        fail("%s did not produce one dSYM bundle; the dx_dsym binary must be a macOS cc_binary" % binary_target.label)
+        fail("%s did not produce one dSYM bundle; the dsym binary must be a macOS cc_binary" % binary_target.label)
     bundle = dsyms.to_list()[0]
     dsymutil = ctx.executable._dsymutil
     manifest = ctx.actions.declare_file(ctx.label.name + ".dsym.json")
@@ -143,7 +143,7 @@ _dsym_pair = rule(
     executable = True,
 )
 
-def dx_dsym(name, binary, **kwargs):
+def dsym(name, binary, **kwargs):
     """Keeps the dSYM of a macOS cc_binary."""
     kwargs.setdefault("target_compatible_with", ["@platforms//os:macos"])
     _dsym_pair(name = name, binary = binary, **kwargs)
@@ -167,7 +167,7 @@ def _pdb_pair_impl(ctx):
     target = ctx.attr.binary[0]
     pdbs = getattr(target[OutputGroupInfo], "pdb_file", None)
     if pdbs == None or len(pdbs.to_list()) != 1:
-        fail("%s did not produce one pdb_file; the dx_pdb binary must be a Windows cc_binary" % target.label)
+        fail("%s did not produce one pdb_file; the pdb binary must be a Windows cc_binary" % target.label)
     pdb = pdbs.to_list()[0]
     manifest = ctx.actions.declare_file(ctx.label.name + ".pdb.json")
     exe = ctx.actions.declare_file(ctx.label.name + ".exe")
@@ -218,7 +218,7 @@ _pdb_pair = rule(
     executable = True,
 )
 
-def dx_pdb(name, binary, **kwargs):
+def pdb(name, binary, **kwargs):
     """Keeps the PDB of a Windows cc_binary."""
     kwargs.setdefault("target_compatible_with", ["@platforms//os:windows"])
     _pdb_pair(name = name, binary = binary, **kwargs)

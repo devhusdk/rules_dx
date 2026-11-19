@@ -197,13 +197,13 @@ fn resolve_only_runnable(
     }
 }
 
-pub const DEPLOYMENTS_QUERY: &str = "kind(dx_deployment, //...)";
+pub const DEPLOYMENTS_QUERY: &str = r#"kind("^deployment rule$", //...)"#;
 
 /// The query `reusable-release.yml` runs to pick the deployables.
 pub const RELEASE_DEPLOYMENTS_QUERY: &str =
-    r#"attr(tags, "[\\[ ]release[,\\]]", kind(dx_deployment, //...))"#;
+    r#"attr(tags, "[\\[ ]release[,\\]]", kind("^deployment rule$", //...))"#;
 
-/// Lists the repo's `dx_deployment` labels, marking the ones tagged release. Empty when the
+/// Lists the repo's `deployment` labels, marking the ones tagged release. Empty when the
 /// queries fail or find nothing.
 pub fn deploy_label_hint(
     workspace: &Path,
@@ -274,7 +274,7 @@ pub struct DeployInfo {
 }
 
 fn deploy_starlark_expr() -> String {
-    const PROVIDER: &str = "//deploy/private:deployment.bzl%DxDeployInfo";
+    const PROVIDER: &str = "//deploy/private:deployment.bzl%DeployInfo";
     format!(
         "(str(providers(target).get('{PROVIDER}', None) != None)) + '|' + \
          ((str(providers(target).get('{PROVIDER}', None).build_mode) if providers(target).get('{PROVIDER}', None) != None else 'NONE')) + '|' + \

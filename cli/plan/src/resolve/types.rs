@@ -129,7 +129,7 @@ pub enum ResolveError {
     )]
     DeployScope { scope: String },
     #[error(
-        "not_deployable {label}: target provides no DxDeployInfo and is not executable; pass a dx_deployment target or an executable"
+        "not_deployable {label}: target provides no DeployInfo and is not executable; pass a deployment target or an executable"
     )]
     NotDeployable { label: String },
     #[error("invalid dx.toml: {message}")]

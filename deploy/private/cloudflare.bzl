@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:shell.bzl", "shell")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_cloudflare.bzl", "cloudflare_pages_error")
 
 _DX = Label("@dx_prebuilt//:dx")
@@ -92,7 +92,7 @@ def cloudflare_pages_deploy(name, account_id, project, branch, production_branch
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

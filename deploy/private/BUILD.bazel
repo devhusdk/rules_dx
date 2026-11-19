@@ -20,7 +20,7 @@ load(":cpan_tests.bzl", "cpan_unit_tests")
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_config_content_tests", "crates_unit_tests")
 load(":deploy_tests.bzl", "config_runfiles_tests", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":github.bzl", "github_deploy")
 load(":github_tests.bzl", "github_attestation_tests", "github_unit_tests")
 load(":go_sdk.bzl", "dx_go_binary_file")
@@ -55,7 +55,7 @@ load(":pub.bzl", "pub_deploy")
 load(":pub_tests.bzl", "pub_config_content_tests", "pub_unit_tests")
 load(":pypi.bzl", "pypi_deploy")
 load(":pypi_tests.bzl", "pypi_attestations_tool_tests", "pypi_unit_tests")
-load(":resources.bzl", "dx_resources")
+load(":resources.bzl", "resources")
 load(":resources_tests.bzl", "resources_plain_analysis_tests", "resources_processed_analysis_tests", "resources_unit_tests")
 load(":rubygems.bzl", "rubygems_deploy")
 load(":rubygems_tests.bzl", "rubygems_unit_tests")
@@ -407,19 +407,19 @@ sh_binary(
     srcs = ["deploy_fixture.sh"],
 )
 
-dx_deployment(
+deployment(
     name = "deploy_default",
     deploy = ":deploy_program",
     visibility = ["//visibility:public"],
 )
 
-dx_deployment(
+deployment(
     name = "deploy_debug",
     build_mode = "debug",
     deploy = ":deploy_program",
 )
 
-dx_deployment(
+deployment(
     name = "deploy_with_app",
     app = ":deploy_program",
     deploy = ":deploy_app",
@@ -452,7 +452,7 @@ filegroup(
     srcs = ["web_demo/index.html"],
 )
 
-dx_deployment(
+deployment(
     name = "deploy_web",
     artifacts = [
         ":web_dir",
@@ -461,7 +461,7 @@ dx_deployment(
     deploy = ":deploy_program",
 )
 
-dx_deployment(
+deployment(
     name = "deploy_web_budgeted",
     artifacts = [
         ":web_dir",
@@ -487,14 +487,14 @@ filegroup(
     tags = ["manual"],
 )
 
-dx_deployment(
+deployment(
     name = "deploy_empty_artifact",
     artifacts = [":empty_artifact"],
     deploy = ":deploy_program",
     tags = ["manual"],
 )
 
-dx_deployment(
+deployment(
     name = "deploy_non_executable_tool",
     deploy = ":pypi_demo_wheel",
     tags = ["manual"],
@@ -547,7 +547,7 @@ config_runfiles_tests(
     },
 )
 
-dx_deployment(
+deployment(
     name = "deploy_untyped_config",
     config = ":web_dir",
     deploy = ":deploy_program",
@@ -572,7 +572,7 @@ genrule(
     cmd = "printf 'dx-generated-sprite-v1' > $@",
 )
 
-dx_resources(
+resources(
     name = "resources_demo_plain",
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
@@ -581,7 +581,7 @@ dx_resources(
     visibility = ["//visibility:public"],
 )
 
-dx_resources(
+resources(
     name = "resources_demo_processed",
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
@@ -636,7 +636,7 @@ filegroup(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_duplicate",
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
@@ -645,7 +645,7 @@ dx_resources(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_escape",
     mappings = {
         "resources_demo/logo.txt": "../evil.txt",
@@ -653,7 +653,7 @@ dx_resources(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_collision",
     mappings = {
         "resources_demo/logo.txt": "data",
@@ -662,7 +662,7 @@ dx_resources(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_processor",
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
@@ -671,7 +671,7 @@ dx_resources(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_empty",
     mappings = {
         ":resources_empty_source": "logo.txt",
@@ -679,7 +679,7 @@ dx_resources(
     tags = ["manual"],
 )
 
-dx_resources(
+resources(
     name = "resources_bad_multi",
     mappings = {
         ":resources_two_sources": "logo.txt",

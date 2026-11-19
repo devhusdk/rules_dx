@@ -4,7 +4,7 @@ load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
 load("//deploy/private/release:signing.bzl", "CosignInfo", "SIGNING_COSIGN_VERSION")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_image_error", "oci_platform", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_tag_error")
 
 def _oci_config_impl(ctx):
@@ -82,7 +82,7 @@ _oci_config = rule(
             mandatory = True,
         ),
         "sbom": attr.label(
-            doc = "Optional dx_sbom target kept with the deployment for the cosign attestation.",
+            doc = "Optional sbom target kept with the deployment for the cosign attestation.",
             allow_single_file = True,
         ),
         "cosign": attr.label(
@@ -130,7 +130,7 @@ def oci_deploy(name, image_tar, platform, image_tag = "latest", registry = OCI_D
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

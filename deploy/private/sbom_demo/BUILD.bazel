@@ -5,7 +5,7 @@ load("//core/private/testing:defs.bzl", "starlark_test")
 load("//deploy/private:github.bzl", "github_deploy")
 load("//deploy/private:oci.bzl", "oci_deploy")
 load("//deploy/private:pypi.bzl", "pypi_deploy")
-load("//deploy/private:sbom.bzl", "dx_sbom")
+load("//deploy/private:sbom.bzl", "sbom")
 load(":sbom_tests.bzl", "plain_file_sbom_tests")
 load("//rust:defs.bzl", "rust_binary", "rust_library")
 
@@ -22,7 +22,7 @@ rust_binary(
     deps = [":greeter"],
 )
 
-dx_sbom(
+sbom(
     name = "app_sbom",
     artifact = ":app",
     package_name = "app",
@@ -63,7 +63,7 @@ app.spdx.json
     mode = "execution",
 )
 
-dx_sbom(
+sbom(
     name = "locked_sbom",
     artifact = ":app",
     go_mod = "go.mod",

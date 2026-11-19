@@ -313,10 +313,10 @@ impl RuleGraph {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
     }
 
-    /// The `dx_deployment` rules tagged `release` that the scopes reach, keeping manual rules.
+    /// The `deployment` rules tagged `release` that the scopes reach, keeping manual rules.
     #[must_use]
     pub fn deployments(&self, scopes: &[String]) -> Vec<String> {
-        let mut rules = self.reached_of_kind(scopes, |kind| kind == "dx_deployment");
+        let mut rules = self.reached_of_kind(scopes, |kind| kind == "deployment");
         rules.retain(|rule| self.release.contains(rule));
         rules
     }
@@ -699,18 +699,18 @@ mod tests {
             graph_rule_of_kind("//app:bin", "rust_binary", &["//app:main.rs"], &[]),
             graph_rule_of_kind(
                 "//app:deploy",
-                "dx_deployment",
+                "deployment",
                 &["//app:bin"],
                 &["release"],
             ),
-            graph_rule_of_kind("//app:staging", "dx_deployment", &["//app:bin"], &[]),
+            graph_rule_of_kind("//app:staging", "deployment", &["//app:bin"], &[]),
             graph_rule_of_kind(
                 "//app:prerelease",
-                "dx_deployment",
+                "deployment",
                 &["//app:bin"],
                 &["prerelease"],
             ),
-            graph_rule_of_kind("//other:deploy", "dx_deployment", &["//other:x"], &[]),
+            graph_rule_of_kind("//other:deploy", "deployment", &["//other:x"], &[]),
         ]);
         assert_eq!(
             graph.deployments(&strings(&["//app:main.rs"])),

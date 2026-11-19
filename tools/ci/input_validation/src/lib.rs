@@ -385,7 +385,7 @@ pub fn validate_deployables(text: &str) -> Result<Vec<String>, String> {
     if text.trim().is_empty() {
         return Ok(Vec::new());
     }
-    let hint = "Pass a JSON array of labels such as [\"//pkg:npm\"], or leave it empty to publish every dx_deployment tagged release.";
+    let hint = "Pass a JSON array of labels such as [\"//pkg:npm\"], or leave it empty to publish every deployment tagged release.";
     let parsed = parse_json(text)
         .map_err(|error| format!("{DEPLOYABLES_ENV} is not a JSON array: {error}. {hint}"))?;
     let Json::Array(items) = parsed else {

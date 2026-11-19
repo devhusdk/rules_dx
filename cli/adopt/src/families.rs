@@ -108,13 +108,13 @@ pub fn file_extensions(root: &Path) -> BTreeSet<String> {
         .collect()
 }
 
-/// Whether a BUILD file under `root` declares a `dx_deployment`.
-pub(crate) fn has_dx_deployment(root: &Path) -> bool {
+/// Whether a BUILD file under `root` declares a `deployment`.
+pub(crate) fn has_deployment(root: &Path) -> bool {
     source_files(root).iter().any(|path| {
         let name = path.rsplit('/').next().unwrap_or(path);
         matches!(name, "BUILD" | "BUILD.bazel")
             && std::fs::read_to_string(root.join(path))
-                .is_ok_and(|text| text.contains("dx_deployment("))
+                .is_ok_and(|text| text.contains("deployment("))
     })
 }
 

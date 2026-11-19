@@ -100,7 +100,7 @@ fn publish_step_maps_every_gate_credential_from_secrets() {
 fn query_matches_the_release_tag_exactly() {
     let script = scripts(WORKFLOW, "plan").unwrap();
     assert!(
-        script.contains(r#"attr(tags, "[\\[ ]release[,\\]]", kind(dx_deployment, //...))"#),
+        script.contains(r#"attr(tags, "[\\[ ]release[,\\]]", kind("^deployment rule$", //...))"#),
         "the plan query must match the exact release tag:\n{script}"
     );
 }

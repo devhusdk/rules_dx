@@ -49,7 +49,7 @@ on:
         default: false
         type: boolean
       deploy_dry_run:
-        description: "Run dx deploy, the dry run, on every dx_deployment tagged release on Linux x86_64. Pull requests with affected_on_pr dry-run only the deployments the change reaches."
+        description: "Run dx deploy, the dry run, on every deployment tagged release on Linux x86_64. Pull requests with affected_on_pr dry-run only the deployments the change reaches."
         required: false
         default: false
         type: boolean

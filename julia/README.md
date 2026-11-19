@@ -19,6 +19,8 @@ tools/dx test //julia/...
 
 ### Packages
 
+Pin your packages in a `Manifest.bazel.json` and load it in `MODULE.bazel`:
+
 ```python
 julia = use_extension("@rules_dx//julia:extensions.bzl", "julia")
 julia.from_manifest(
@@ -30,53 +32,57 @@ use_repo(julia, "app_pkgs")
 
 ## Generate
 
-`dx generate` reads `Project.toml` only. A `Project.toml` with a `name` and a
-`src/<name>.jl` gets a `julia_library` named `<name>` from `src/**/*.jl`, with
-`Project.toml` as `data` and `[deps]` as dependencies. When `test/runtests.jl`
-exists it also gets a `julia_test` named `<name>_test`. It never generates a
-`julia_binary`, `ext/` or `[weakdeps]`, and it leaves a `Project.toml` without
-a name alone. Third-party packages need a `# gazelle:resolve julia` line.
+`dx generate` reads `Project.toml` only.
+
+- A `Project.toml` with a `name` and a `src/<name>.jl` gets a
+  `julia_library` named `<name>` from `src/**/*.jl`. `Project.toml` becomes
+  `data`, and `[deps]` become dependencies.
+- When `test/runtests.jl` exists, it also gets a `julia_test` named
+  `<name>_test`.
+- It leaves a `Project.toml` without a `name` alone.
+- It never generates a `julia_binary`, and it ignores `ext/` and
+  `[weakdeps]`.
+- A third-party package needs a `# gazelle:resolve julia` line.
 
 ## Quality
 
-### Formatting
+Select the tools in a `julia` family in `dx.toml`:
 
-`dx format` runs JuliaFormatter 2.2.0 when a `julia` family selects
-`julia_format`. The formatter and its packages are fetched only for Julia
-targets. Syntax errors are reported with line and column and are never written.
+```toml
+[families.julia]
+format = ["julia_format"]
+lint = ["julialint"]
+typecheck = ["jet"]
+```
 
-### Linting
+| Command | Tool | Override flag |
+| --- | --- | --- |
+| `dx format` | JuliaFormatter 2.2.0 | |
+| `dx lint` | the Julia VS Code linter (JuliaWorkspaces.jl 13.5.0) | `--@rules_dx//config:tool_julialint` |
+| `dx typecheck` | JET 0.13.1 | `--@rules_dx//config:tool_jet` |
 
-`dx lint` runs the Julia VS Code linter (JuliaWorkspaces.jl 13.5.0) when a
-`julia` family selects `julialint`. `--@rules_dx//config:tool_julialint`
-overrides the pinned binary. Findings are reported as `julialint/<code>` at
-their line and column. It works offline and only reads the files dx passes.
-See `docs/cli/commands/quality.md`.
+- The formatter and its packages are fetched only for Julia targets.
+- A syntax error is reported with its line and column, and the file is never
+  rewritten.
+- Lint findings are named `julialint/<code>` at their line and column. The
+  linter works offline and reads only the files dx passes.
+- JET findings are reported at their line.
 
-### Type checking
-
-`dx typecheck` runs JET 0.13.1 when a `julia` family selects `jet`.
-`--@rules_dx//config:tool_jet` overrides the pinned binary. Findings
-are reported at their line. See `docs/cli/commands/quality.md`.
+The [quality commands page](../docs/cli/commands/quality.md) covers the
+flags and family setup.
 
 ## API docs
 
-`dx docs` documents every `julia_library` with no setup: it loads the library
+`dx docs` documents every `julia_library` with no setup. It loads the library
 under the pinned Julia, reads the docstrings of the exported and `public`
-names through the pinned Documenter.jl 1.20.0, and writes a DocIr shard. The
-library is named after its root module. Its dependencies must be
-`julia_library` targets of the same workspace. To name the shard yourself, use
-`julia_doc_shard(name, lib, module, package)` from
-`@rules_dx//tools/docs/julia:defs.bzl`. Documenter and its packages are
-fetched from the Julia package server by sha256 and run on the same Julia as
-the formatter.
+names through the pinned Documenter.jl 1.20.0, and writes a DocIr shard.
+
+- The library is named after its root module.
+- Its dependencies must be `julia_library` targets in the same workspace.
+- To name the shard yourself, use `julia_doc_shard(name, lib, module, package)`
+  from `@rules_dx//tools/docs/julia:defs.bzl`.
 
 ## Platforms
 
-| Platform | Support |
-| --- | --- |
-| linux_x86_64 | yes |
-| linux_arm64 | yes |
-| macos_arm64 | yes |
-| windows_x86_64 | yes |
-| windows_arm64 | no Julia build exists |
+The [support matrix](../docs/support-matrix.md) lists the platforms. There is
+no Julia build for `windows_arm64`.

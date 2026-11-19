@@ -1,4 +1,5 @@
-//! Runs the README quickstart and `bcr_test_module` as written, against this checkout.
+//! Runs the README quickstart (its `dx init` without generate) and `bcr_test_module` as written,
+//! against this checkout.
 
 use dx_nested::compose::{
     llvm_override, rules_dx_override, rules_flutter_override, rules_py_override,
@@ -247,11 +248,14 @@ fn the_readme_quickstart_runs_as_written() {
         .map(|(key, value)| (*key, value.as_str()))
         .collect();
     pairs.push(("BUILD_WORKSPACE_DIRECTORY", root.as_str()));
-    let args = init_args(&blocks);
+    // The unreleased rules_dx resolves only after the overrides below; adopt-polyglot's
+    // consumer_test covers generate.
+    let mut args = init_args(&blocks);
+    args.push("--no-generate".to_owned());
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
-    crate::stage("quickstart_consumer_test", "dx init --apply");
+    crate::stage("quickstart_consumer_test", "dx init --apply --no-generate");
     let init = case.run(&dx, &args, &pairs);
-    ok(&init, "dx init --apply");
+    ok(&init, "dx init --apply --no-generate");
     for name in ["MODULE.bazel", ".bazelversion"] {
         assert!(
             case.root().join(name).is_file(),
@@ -279,6 +283,10 @@ fn the_readme_quickstart_runs_as_written() {
     }
     case.use_lock("release_quickstart");
 
+    let root_build_path = case.root().join("BUILD.bazel");
+    let root_build = read_text(&root_build_path);
+    std::fs::remove_file(&root_build_path)
+        .unwrap_or_else(|error| panic!("remove root BUILD.bazel: {error}"));
     assert!(
         !case.root().join("BUILD.bazel").exists() && !case.root().join("BUILD").exists(),
         "the quickstart consumer has no root package"
@@ -312,6 +320,7 @@ fn the_readme_quickstart_runs_as_written() {
     );
     std::fs::remove_dir_all(case.root().join("app"))
         .unwrap_or_else(|error| panic!("remove app: {error}"));
+    write_text(&root_build_path, &root_build);
     run_in(
         &case,
         &["run", "@rules_dx//:dx", "--", "test", "//..."],

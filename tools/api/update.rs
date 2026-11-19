@@ -21,8 +21,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             })
             .collect()
     };
-    let lang_builds = builds(snapshot::lang_build_paths()?)?;
-    let command_builds = builds(snapshot::command_build_paths()?)?;
+    let builds = snapshot::Builds {
+        langs: builds(snapshot::lang_build_paths()?)?,
+        commands: builds(snapshot::command_build_paths()?)?,
+        packages: builds(snapshot::package_build_paths()?)?,
+    };
     let runfiles = runfiles::Runfiles::create()?;
     let mut starlark = Vec::new();
     for key in std::env::var("DX_API_STARLARK")?.split_whitespace() {
@@ -31,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         starlark
             .push(std::fs::read(&file).map_err(|error| format!("{}: {error}", file.display()))?);
     }
-    let files = snapshot::render(&lang_builds, &command_builds, &starlark)?;
+    let files = snapshot::render(&builds, &starlark)?;
     let snapshot_file = |name: &str| files.get(name).ok_or(format!("the snapshot has no {name}"));
     let surface = page::render(
         snapshot_file("cli.json")?,

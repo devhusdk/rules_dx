@@ -29,16 +29,24 @@ const PUBLIC: &str = "//visibility:public";
 /// The `tools/visibility` constant that names `//visibility:public`.
 const PUBLIC_CONSTANT: &str = "VIS_PUBLIC";
 
-/// Every file under `api/`, by name, as `update` writes it. `lang_builds` and `command_builds` hold each language
-/// or command package and the text of its `BUILD.bazel`; `starlark` holds the `starlark_doc_extract` binaryproto of
-/// each public `.bzl` file.
+/// Each package and the text of its `BUILD.bazel`, by the part of the API it feeds.
+pub struct Builds {
+    /// Language packages, for their platforms and toolchain types.
+    pub langs: Vec<(String, String)>,
+    /// Command packages, for every public target.
+    pub commands: Vec<(String, String)>,
+    /// Every package outside `private/`, `tests/` and `tools/`, for its runnable targets.
+    pub packages: Vec<(String, String)>,
+}
+
+/// Every file under `api/`, by name, as `update` writes it. `starlark` holds the `starlark_doc_extract` binaryproto
+/// of each public `.bzl` file.
 pub fn render(
-    lang_builds: &[(String, String)],
-    command_builds: &[(String, String)],
+    builds: &Builds,
     starlark: &[Vec<u8>],
 ) -> Result<BTreeMap<&'static str, String>, Box<dyn std::error::Error>> {
     let mut labels = labels_txt(CONFIG_BUILD)?;
-    labels.push_str(&target_labels_txt(lang_builds, command_builds)?);
+    labels.push_str(&target_labels_txt(builds)?);
     labels.push_str(&hub_labels_txt(dx_families::hubs()));
     Ok(BTreeMap::from([
         (FILES[0], cli_json()?),
@@ -215,6 +223,11 @@ pub fn command_build_paths() -> Result<Vec<String>, std::env::VarError> {
     build_paths("DX_API_COMMAND_BUILDS")
 }
 
+/// The `$(rootpaths)` of every public package `BUILD.bazel`, from `DX_API_PACKAGE_BUILDS`.
+pub fn package_build_paths() -> Result<Vec<String>, std::env::VarError> {
+    build_paths("DX_API_PACKAGE_BUILDS")
+}
+
 fn build_paths(var: &str) -> Result<Vec<String>, std::env::VarError> {
     Ok(std::env::var(var)?
         .split_whitespace()
@@ -233,22 +246,36 @@ pub fn package_of(path: &str) -> Result<String, String> {
         .ok_or_else(|| format!("{path} is not a package BUILD.bazel"))
 }
 
-/// One line per public named target in each language and command package, with its label and rule, and for a
-/// flag its default and allowed values.
-fn target_labels_txt(
-    lang_builds: &[(String, String)],
-    command_builds: &[(String, String)],
-) -> Result<String, Box<dyn std::error::Error>> {
+/// One line per public target the API holds, with its label and rule, and for a flag its default and allowed
+/// values: every named target other than a runnable one in each language and command package, and
+/// `<label> runnable <rule>` for each runnable target in any public package.
+fn target_labels_txt(builds: &Builds) -> Result<String, Box<dyn std::error::Error>> {
     let mut rows = Vec::new();
-    for (package, build) in lang_builds.iter().chain(command_builds) {
-        rows.extend(public_targets(package, build)?);
+    for (package, build) in builds.langs.iter().chain(&builds.commands) {
+        rows.extend(public_targets(package, build, |rule| !runnable(rule))?);
+    }
+    for (package, build) in &builds.packages {
+        rows.extend(
+            public_targets(package, build, runnable)?
+                .into_iter()
+                .map(|row| row.replacen(' ', " runnable ", 1)),
+        );
     }
     rows.sort();
     Ok(rows.into_iter().map(|row| format!("{row}\n")).collect())
 }
 
-/// A row for each public named target in `build`.
-fn public_targets(package: &str, build: &str) -> Result<Vec<String>, String> {
+/// Whether `bazel run` runs targets of `rule`: every `*_binary` rule except `run_binary`.
+fn runnable(rule: &str) -> bool {
+    rule.ends_with("_binary") && rule != "run_binary"
+}
+
+/// A row for each public named target in `build` whose rule `keep` accepts.
+fn public_targets(
+    package: &str,
+    build: &str,
+    keep: impl Fn(&str) -> bool,
+) -> Result<Vec<String>, String> {
     let file = ModuleFile::parse_build(build)
         .map_err(|error| format!("//{package}:BUILD.bazel: {error}"))?;
     let calls = file.calls();
@@ -258,6 +285,7 @@ fn public_targets(package: &str, build: &str) -> Result<Vec<String>, String> {
         .any(|call| call.arg("default_visibility").is_some_and(lists_public));
     Ok(calls
         .iter()
+        .filter(|call| keep(&call.name))
         .filter(|call| call.arg("visibility").map_or(default_public, lists_public))
         .filter_map(|call| {
             let name = call.str("name")?;
@@ -459,8 +487,8 @@ mod tests {
     };
 
     use super::{
-        FILES, hub_labels_txt, labels_txt, package_of, render, starlark_json, target_labels_txt,
-        unbumped_schemas,
+        Builds, FILES, hub_labels_txt, labels_txt, package_of, render, starlark_json,
+        target_labels_txt, unbumped_schemas,
     };
 
     fn attr(name: &str, default: &str, doc: &str) -> AttributeInfo {
@@ -633,12 +661,16 @@ toolchain_type(name = "internal_toolchain_type")
 
 platform(name = "hidden", visibility = ["//visibility:private"])
 "#;
-        let builds = [
-            ("open".to_owned(), open.to_owned()),
-            ("closed".to_owned(), closed.to_owned()),
-        ];
+        let builds = Builds {
+            langs: vec![
+                ("open".to_owned(), open.to_owned()),
+                ("closed".to_owned(), closed.to_owned()),
+            ],
+            commands: Vec::new(),
+            packages: Vec::new(),
+        };
         assert_eq!(
-            target_labels_txt(&builds, &[]).expect("BUILD files parse"),
+            target_labels_txt(&builds).expect("BUILD files parse"),
             concat!(
                 "//closed:toolchain_type toolchain_type\n",
                 "//open:compiler string_flag \"llvm\"\n",
@@ -685,23 +717,57 @@ rust_binary(name = "maintainer")
 
 alias(name = "shortcut", actual = ":maintainer")
 "#;
-        let langs = [("lang".to_owned(), lang.to_owned())];
-        let commands = [
-            (
-                package_of("BUILD.bazel").expect("root BUILD"),
-                root.to_owned(),
-            ),
-            ("cmd".to_owned(), constant.to_owned()),
-            ("cmd/private".to_owned(), private.to_owned()),
-        ];
+        let root_package = package_of("BUILD.bazel").expect("root BUILD");
+        let builds = Builds {
+            langs: vec![("lang".to_owned(), lang.to_owned())],
+            commands: vec![
+                (root_package.clone(), root.to_owned()),
+                ("cmd".to_owned(), constant.to_owned()),
+                ("cmd/private".to_owned(), private.to_owned()),
+            ],
+            packages: vec![
+                ("lang".to_owned(), lang.to_owned()),
+                (root_package, root.to_owned()),
+                ("cmd".to_owned(), constant.to_owned()),
+            ],
+        };
         assert_eq!(
-            target_labels_txt(&langs, &commands).expect("BUILD files parse"),
+            target_labels_txt(&builds).expect("BUILD files parse"),
             concat!(
                 "//:dx alias\n",
-                "//cmd:runnable rust_binary\n",
+                "//cmd:runnable runnable rust_binary\n",
                 "//lang:generated run_binary\n",
                 "//lang:lib rust_library\n",
-                "//lang:tool rust_binary\n",
+                "//lang:tool runnable rust_binary\n",
+            )
+        );
+    }
+
+    #[test]
+    fn labels_list_public_runnable_targets_of_every_package() {
+        let deploy = r#"
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+native_binary(name = "bootstrap_offline", src = ":bootstrap", visibility = VIS_PUBLIC)
+
+sh_binary(name = "release", srcs = ["release.sh"], visibility = ["//visibility:public"])
+
+rust_binary(name = "maintainer")
+
+run_binary(name = "generated", tool = ":maintainer", visibility = ["//visibility:public"])
+
+filegroup(name = "srcs", visibility = ["//visibility:public"])
+"#;
+        let builds = Builds {
+            langs: Vec::new(),
+            commands: Vec::new(),
+            packages: vec![("deploy".to_owned(), deploy.to_owned())],
+        };
+        assert_eq!(
+            target_labels_txt(&builds).expect("BUILD files parse"),
+            concat!(
+                "//deploy:bootstrap_offline runnable native_binary\n",
+                "//deploy:release runnable sh_binary\n",
             )
         );
     }
@@ -757,8 +823,11 @@ alias(name = "shortcut", actual = ":maintainer")
         let root =
             "alias(name = \"dx\", actual = \"//cli:dx\", visibility = [\"//visibility:public\"])\n";
         let files = render(
-            &[("msix".to_owned(), msix.to_owned())],
-            &[(String::new(), root.to_owned())],
+            &Builds {
+                langs: vec![("msix".to_owned(), msix.to_owned())],
+                commands: vec![(String::new(), root.to_owned())],
+                packages: Vec::new(),
+            },
             &[module("[]", "Docs.")],
         )
         .expect("snapshot renders");

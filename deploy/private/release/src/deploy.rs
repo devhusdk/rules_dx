@@ -54,8 +54,7 @@ pub enum DeployError {
     },
     // #13874 retypes this
     Bcr(String),
-    // #13874 retypes this
-    Signing(String),
+    Signing(crate::SigningError),
 }
 
 impl fmt::Display for DeployError {
@@ -70,7 +69,8 @@ impl fmt::Display for DeployError {
             Self::Runfile { prefix, rloc, .. } => {
                 write!(f, "{prefix}: runfile not found for '{rloc}'")
             }
-            Self::Bcr(message) | Self::Signing(message) => f.write_str(message),
+            Self::Bcr(message) => f.write_str(message),
+            Self::Signing(source) => source.fmt(f),
         }
     }
 }
@@ -79,7 +79,8 @@ impl std::error::Error for DeployError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Runfile { source, .. } => Some(source),
-            Self::BcrArgs | Self::SigningArgs | Self::Bcr(_) | Self::Signing(_) => None,
+            Self::Signing(source) => Some(source),
+            Self::BcrArgs | Self::SigningArgs | Self::Bcr(_) => None,
         }
     }
 }
@@ -316,6 +317,24 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn signing_errors_keep_their_source() {
+        #[expect(
+            clippy::unnecessary_wraps,
+            reason = "matches the resolver callback signature"
+        )]
+        fn nonexistent(rloc: &str) -> io::Result<PathBuf> {
+            Ok(PathBuf::from(format!("/nonexistent/{rloc}")))
+        }
+        let error = signing_deploy(&signing_cfg(), &argv(1), false, &nonexistent).unwrap_err();
+        assert!(
+            matches!(error, DeployError::Signing(crate::SigningError::Pin(_))),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("cannot hash cosign"), "{error}");
+        assert!(std::error::Error::source(&error).is_some());
     }
 
     #[test]

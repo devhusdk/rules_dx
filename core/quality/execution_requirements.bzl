@@ -28,6 +28,8 @@ SHFMT_FORMAT_REMOTE = _qualified("shfmt", "format")
 # remotely only when every tool in it is listed here, see dx_stage_execution_requirements.
 REMOTE_QUALIFIED = [
     SHFMT_FORMAT_REMOTE,
+    _qualified("biome", "format"),
+    _qualified("biome", "lint"),
     _qualified("buildifier", "format"),
     _qualified("buildifier", "lint"),
     _qualified("gersemi", "format"),

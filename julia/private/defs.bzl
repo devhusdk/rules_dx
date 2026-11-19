@@ -76,7 +76,7 @@ def julia_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     kwargs = dx_language_kwargs(kwargs, compatible_with = JULIA_COMPATIBLE_WITH)
     upstream = dict(kwargs, package_name = name)
     upstream["julia_flags"] = (kwargs.get("julia_flags") or []) + select({
-        Label("//julia/private/coverage:coverage_on"): ["--code-coverage=user"],
+        Label("//core:coverage_on"): ["--code-coverage=user"],
         "//conditions:default": [],
     })
     upstream["main"] = main

@@ -481,7 +481,14 @@ pub fn run(
 
 /// The `main` of an ecosystem's resolver target: exit 0 when the lock is fresh or written, 1 when stale, 2 on failure.
 pub fn main(spec: &Spec, resolver: &dyn Resolver) -> ExitCode {
-    let outcome = Args::parse(std::env::args().skip(1)).and_then(|args| {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    ExitCode::from(u8::try_from(run_process(spec, resolver, &args)).unwrap_or(2))
+}
+
+/// Runs the lock step on `args`, the arguments after the program or subcommand name: 0 when the
+/// lock is fresh or written, 1 when stale, 2 on failure.
+pub fn run_process(spec: &Spec, resolver: &dyn Resolver, args: &[String]) -> i32 {
+    let outcome = Args::parse(args.iter().cloned()).and_then(|args| {
         run(spec, &args, resolver, &HttpFetch::new()).map(|outcome| (outcome, args))
     });
     match outcome {
@@ -490,12 +497,12 @@ pub fn main(spec: &Spec, resolver: &dyn Resolver) -> ExitCode {
                 "{} is stale; run `dx generate --apply`",
                 args.dir.join(spec.lock_name()).display()
             ));
-            ExitCode::from(1)
+            1
         }
-        Ok(_) => ExitCode::SUCCESS,
+        Ok(_) => 0,
         Err(error) => {
             dx_error::stdio::eprint_line(format_args!("{}: {error}", spec.lock_name()));
-            ExitCode::from(2)
+            2
         }
     }
 }
@@ -518,6 +525,41 @@ mod tests {
             .iter()
             .map(|pattern| (*pattern).to_owned())
             .collect()
+    }
+
+    struct Unreachable;
+
+    impl Resolver for Unreachable {
+        fn resolve(&self, _: &Scratch, _: Option<&Lock>) -> Result<Resolution, Error> {
+            Err(Error::new("resolve must not run".to_owned()))
+        }
+    }
+
+    fn toy_spec() -> Spec {
+        Spec {
+            ecosystem: "toy".to_owned(),
+            manifest: vec!["toy.json".to_owned()],
+            state: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn run_process_exits_2_on_bad_arguments() {
+        assert_eq!(
+            run_process(&toy_spec(), &Unreachable, &["--bogus".to_owned()]),
+            2
+        );
+        assert_eq!(run_process(&toy_spec(), &Unreachable, &[]), 2);
+    }
+
+    #[test]
+    fn run_process_exits_1_when_check_finds_the_lock_stale() {
+        let dir = dir_with(&["toy.json"]);
+        let args = [
+            "--check".to_owned(),
+            format!("--dir={}", dir.path().display()),
+        ];
+        assert_eq!(run_process(&toy_spec(), &Unreachable, &args), 1);
     }
 
     #[test]

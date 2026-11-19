@@ -1,5 +1,5 @@
 //! The rules shared by the prebuilt guards: the allowlist, the compiled rules_dx binaries of a
-//! `cquery --output=label_kind`, the `rules_dx` targets dx commands run, the aspects `dx check` and `dx docs` pick, the wrapper
+//! `cquery --output=label_kind`, the `rules_dx` targets dx commands run and the hub resolvers, the aspects `dx check` and `dx docs` pick, the wrapper
 //! package whose `deps` carry them, and the `file://` URL of a stub.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -241,6 +241,16 @@ pub fn command_roots(repo: &str, langs: &[&str]) -> Vec<String> {
         .collect()
 }
 
+/// The `setup.hubs[].resolver` labels of `langs`, which `dx update` and `dx generate` run, as
+/// cquery roots.
+pub fn resolver_roots(langs: &[&str]) -> Vec<String> {
+    let roots: BTreeSet<String> = langs
+        .iter()
+        .flat_map(|lang| dx_families::resolvers(lang))
+        .collect();
+    roots.into_iter().collect()
+}
+
 /// The `file://` URL of `path`, with `/` separators and `file:///C:/` for a drive path.
 pub fn stub_url(path: &Path) -> String {
     let path = path.to_string_lossy().replace('\\', "/");
@@ -322,6 +332,18 @@ mod tests {
             command_roots("", &[]).last().map(String::as_str),
             Some("//:dx")
         );
+    }
+
+    #[test]
+    fn resolver_roots_name_the_hub_resolvers_of_the_languages() {
+        assert_eq!(
+            resolver_roots(&["go", "zig", "d", "zig"]),
+            [
+                "@rules_dx//d/private/tools/lock",
+                "@rules_dx//zig/private/tools/lock"
+            ]
+        );
+        assert!(resolver_roots(&["go", "kotlin"]).is_empty());
     }
 
     #[test]

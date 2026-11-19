@@ -60,6 +60,11 @@ pub enum Tool {
     SiteBuild,
     SiteCheck,
     BufDiff,
+    LuaLock,
+    DLock,
+    ZigLock,
+    BicepLock,
+    TerraformLock,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -126,6 +131,11 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "site_build" => Some(Tool::SiteBuild),
         "site_check" => Some(Tool::SiteCheck),
         "buf_diff" => Some(Tool::BufDiff),
+        "lua_lock" => Some(Tool::LuaLock),
+        "d_lock" => Some(Tool::DLock),
+        "zig_lock" => Some(Tool::ZigLock),
+        "bicep_lock" => Some(Tool::BicepLock),
+        "terraform_lock" => Some(Tool::TerraformLock),
         _ => None,
     }
 }
@@ -235,6 +245,11 @@ mod tests {
             ("site_build", Tool::SiteBuild),
             ("site_check", Tool::SiteCheck),
             ("buf_diff", Tool::BufDiff),
+            ("lua_lock", Tool::LuaLock),
+            ("d_lock", Tool::DLock),
+            ("zig_lock", Tool::ZigLock),
+            ("bicep_lock", Tool::BicepLock),
+            ("terraform_lock", Tool::TerraformLock),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -284,6 +299,11 @@ mod tests {
             "site_build",
             "site_check",
             "buf_diff",
+            "lua_lock",
+            "d_lock",
+            "zig_lock",
+            "bicep_lock",
+            "terraform_lock",
             "diff",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");

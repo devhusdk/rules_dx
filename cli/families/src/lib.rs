@@ -279,6 +279,20 @@ pub fn setup_flags<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<(String,
     found
 }
 
+/// The `setup.hubs[].resolver` labels of `language`'s `lang.json`, sorted.
+#[must_use]
+pub fn resolvers(language: &str) -> Vec<String> {
+    let mut labels: Vec<String> = shipped()
+        .into_iter()
+        .filter(|manifest| manifest.name == language)
+        .filter_map(|manifest| manifest.setup)
+        .flat_map(|setup| setup.hubs)
+        .filter_map(|hub| hub.resolver)
+        .collect();
+    labels.sort();
+    labels
+}
+
 /// The hub entry of `ecosystem`, if a `lang.json` has one.
 #[must_use]
 pub fn hub(ecosystem: &str) -> Option<&'static Hub> {

@@ -182,3 +182,10 @@ fn repo_relative_drops_the_rules_dx_repo() {
     assert_eq!(repo_relative(GENERATE), "dx:generate");
     assert_eq!(repo_relative(DX), ":dx");
 }
+
+#[test]
+fn resolvers_name_the_setup_hub_resolver_labels() {
+    assert_eq!(resolvers("zig"), ["@rules_dx//zig/private/tools/lock"]);
+    assert!(resolvers("go").is_empty());
+    assert!(resolvers("kotlin").is_empty());
+}

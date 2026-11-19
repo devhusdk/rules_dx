@@ -647,3 +647,14 @@ impl Resolver for Dub<'_> {
         })
     }
 }
+
+/// Runs the dub lock step on `args`, the arguments after `dx d_lock`: 0 when the lock is
+/// fresh or written, 1 when stale, 2 on failure.
+pub fn run_process(args: &[String]) -> i32 {
+    let Some(hub) = dx_families::hub("dub") else {
+        eprintln!("dub has no registry entry");
+        return 2;
+    };
+    let spec = Dub::spec(hub);
+    dx_lock::run_process(&spec, &Dub::new(&spec, &Registry::new()), args)
+}

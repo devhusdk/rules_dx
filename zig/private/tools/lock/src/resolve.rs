@@ -527,3 +527,14 @@ impl Resolver for Zig<'_> {
         })
     }
 }
+
+/// Runs the zig lock step on `args`, the arguments after `dx zig_lock`: 0 when the lock is
+/// fresh or written, 1 when stale, 2 on failure.
+pub fn run_process(args: &[String]) -> i32 {
+    let Some(hub) = dx_families::hub("zig") else {
+        eprintln!("zig has no registry entry");
+        return 2;
+    };
+    let spec = Zig::spec(hub);
+    dx_lock::run_process(&spec, &Zig::new(&spec, &Github::new()), args)
+}

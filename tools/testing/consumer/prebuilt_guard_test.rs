@@ -24,7 +24,8 @@ use std::collections::BTreeMap;
 use dx_nested::Case;
 use prebuilt_guard::{
     allowlist, command_roots, compiled_binaries, compiles_rules_dx_sources, guard_aspects,
-    java_binary_only, jvm_sources_query, problems, stub_url, wrapper_build, wrapper_bzl,
+    java_binary_only, jvm_sources_query, problems, resolver_roots, stub_url, wrapper_build,
+    wrapper_bzl,
 };
 
 /// The consumer languages whose fixture roots the jar tools.
@@ -123,6 +124,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     let mut tags = String::new();
     let mut roots = vec!["//...".to_owned()];
     roots.extend(command_roots("@rules_dx", &langs));
+    roots.extend(resolver_roots(&langs));
     for (tool, platform) in &tools {
         if list.untagged.contains(tool) {
             continue;

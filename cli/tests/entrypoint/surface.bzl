@@ -1,4 +1,4 @@
-"""A consumer repository that proves the supported surface avoids dev-only repos."""
+"""A consumer repository that proves the supported surface, seeded from the public API snapshot, avoids dev-only repos."""
 
 DEV_ONLY_REPOS = [
     "cosign",
@@ -81,7 +81,7 @@ def _user_docs(ctx, root):
     return pages
 
 def _surface(ctx):
-    """Lists the files a consumer can load: entry points, extensions, dx runtime loads and documented loads."""
+    """Lists the files a consumer can load: API snapshot loads, entry points, extensions, dx runtime loads and documented loads."""
     root = ctx.path(Label("//:MODULE.bazel")).dirname
     seeds = []
     for entry in root.readdir():
@@ -93,6 +93,11 @@ def _surface(ctx):
             if _exists(ctx, entry.get_child(name)):
                 seeds.append(entry.basename + ":" + name)
     seeds.extend(_module_extensions(ctx.read(ctx.attr.module)))
+    for entry in json.decode(ctx.read(ctx.attr.starlark)):
+        label = entry["load"]
+        if not label.startswith("@rules_dx//"):
+            fail("api snapshot load {} is not a @rules_dx// label".format(label))
+        seeds.append(label.removeprefix("@rules_dx//"))
     languages = ctx.read(ctx.attr.languages)
     seeds.extend(_rules_dx_bzl(languages))
     seeds.extend([value for value in _strings(languages) if value.endswith(".bzl") and not value.startswith("@")])
@@ -141,5 +146,6 @@ consumer_surface_repo = repository_rule(
         "generated": attr.label(doc = "BUILD file dx writes into a consumer.", allow_single_file = True, default = Label("//.dx:BUILD.bazel")),
         "languages": attr.label(doc = "Language manifest with hub extensions and aspect files.", allow_single_file = True, default = Label("//cli/families:languages.json")),
         "module": attr.label(doc = "Module file whose non-dev extensions consumers evaluate.", allow_single_file = True, default = Label("//:MODULE.bazel")),
+        "starlark": attr.label(doc = "Public API snapshot whose load paths are the user entry points.", allow_single_file = True, default = Label("//api:starlark.json")),
     },
 )

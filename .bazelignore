@@ -59,6 +59,7 @@ dockerfile/tests/consumer
 elixir/tests/consumer
 erlang/tests/consumer
 flatbuffers/tests/consumer
+flutter/tests/consumer
 fortran/tests/consumer
 fsharp/tests/consumer
 go/tests/consumer

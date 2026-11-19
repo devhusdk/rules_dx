@@ -1,0 +1,9 @@
+load("@rules_dx//flutter:defs.bzl", "flutter_library")
+
+# dx: written once, yours to edit
+
+flutter_library(
+    name = "consumer",
+    package_name = "consumer",
+    srcs = ["lib/greet.dart"],
+)

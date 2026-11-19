@@ -18,6 +18,26 @@ Then let dx set up the rest, as in the [Quickstart](../../README.md#quickstart):
 bazel run @rules_dx//:dx -- init --apply
 ```
 
+For a Flutter project, `MODULE.bazel` then looks like this:
+
+```python
+module(name = "my_project")
+
+bazel_dep(name = "rules_dx", version = "<release>")
+```
+
+A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Flutter package from [`flutter/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/flutter/tests/consumer/BUILD.bazel):
+
+```python
+load("@rules_dx//flutter:defs.bzl", "flutter_library")
+
+flutter_library(
+    name = "consumer",
+    package_name = "consumer",
+    srcs = ["lib/greet.dart"],
+)
+```
+
 Build and test everything. `//...` means every target in the repository:
 
 ```sh
@@ -37,8 +57,11 @@ Start a project:
 dx init --apply demo-app
 ```
 
-Then add `rules_flutter` with a `flutter.pub` hub to `MODULE.bazel`, add a
-`pubspec.lock`, and declare `flutter_library` and `flutter_test` targets.
+`MODULE.bazel` needs only `bazel_dep(name = "rules_dx")`. It needs no
+`rules_flutter` `bazel_dep`, no `flutter.toolchain` tag and no engine
+`use_repo`. When code imports pub packages, add a `pubspec.lock` and a
+`pub.lock` hub from `@rules_dx//flutter:extensions.bzl`.
+[`tests/consumer`](../../flutter/tests/consumer) is a minimal consumer project.
 
 Regenerate `pubspec.lock` for a package directory:
 

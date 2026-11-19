@@ -167,9 +167,9 @@ pub fn unlocked_manifests(root: &Path) -> Result<Vec<&'static str>, AdoptError> 
 
 /// True when the pubspec at `path` lists a package; one that cannot be parsed counts, so the resolver reports it.
 ///
-/// A Dart package often has a pubspec only for its name. Like an npm manifest with no dependency, it gets no lock and no hub.
+/// A Dart package often has a pubspec only for its name or SDK dependencies. Like an npm manifest with no dependency, it gets no lock and no hub.
 fn pubspec_declares_dependency(path: &Path) -> bool {
-    !dx_depcheck::parse_dart_manifest(path).is_ok_and(|deps| deps.is_empty())
+    !dx_depcheck::parse_dart_manifest_packages(path).is_ok_and(|deps| deps.is_empty())
 }
 
 /// One `MODULE.bazel` dependency set whose lock comes from the resolver of its `setup.hubs` entry.
@@ -1220,6 +1220,7 @@ mod tests {
             "name: app\n",
             "name: app\ndependencies:\n",
             "name: app\ndependencies: {}\n",
+            "name: app\ndependencies:\n  flutter:\n    sdk: flutter\n",
         ] {
             assert_eq!(
                 unlocked(&[(t("{pub:manifest}"), manifest)]),

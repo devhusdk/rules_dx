@@ -4,8 +4,8 @@ use std::fs;
 use std::path::Path;
 
 use super::{
-    AssetError, Page, Rendered, RenderedFinding, check_rendered, decode_fragment, first_publisher,
-    is_internal, pages, resolve, route_report, split_target, usage,
+    AssetError, Page, Rendered, RenderedFinding, asset, check_rendered, decode_fragment,
+    first_publisher, is_internal, pages, resolve, route_report, split_target, usage,
 };
 use documentation_ir::tool::PathIoError;
 
@@ -563,4 +563,49 @@ fn a_vanished_page_fails_the_forbid_scan() {
     let error = first_publisher(dir, &gone, "x").unwrap_err();
     assert_eq!(error.path(), dir.join("gone.html"));
     fs::remove_dir_all(dir).expect("remove the rendered site");
+}
+
+#[test]
+fn an_asset_resolves_to_its_exact_or_hashed_file() {
+    let guard = dx_test_scratch::scratch("rendered-asset-resolve").unwrap();
+    let dir = guard.path();
+    write(dir, "css/general-0a1b.css", "");
+    write(dir, "book.js", "");
+    write(dir, "book-xyz.js", "");
+    assert_eq!(
+        asset(dir, "css/general.css").expect("a hashed asset"),
+        dir.join("css/general-0a1b.css")
+    );
+    assert_eq!(
+        asset(dir, "book.js").expect("an exact asset"),
+        dir.join("book.js")
+    );
+}
+
+#[test]
+fn an_asset_that_is_missing_or_repeated_is_refused() {
+    let guard = dx_test_scratch::scratch("rendered-asset-refused").unwrap();
+    let dir = guard.path();
+    write(dir, "css/general.css", "");
+    write(dir, "css/general-00ff.css", "");
+    let several = asset(dir, "css/general.css").expect_err("two candidates");
+    assert!(matches!(several, AssetError::Several { .. }), "{several:?}");
+    assert_eq!(
+        several.to_string(),
+        "rendered site has several css/general.css files"
+    );
+    let missing = asset(dir, "css/print.css").expect_err("no candidate");
+    assert!(matches!(missing, AssetError::Missing { .. }), "{missing:?}");
+    assert_eq!(missing.to_string(), "rendered site has no css/print.css");
+    let unlisted = asset(dir, "fonts/fonts.css").expect_err("no directory");
+    assert!(
+        matches!(&unlisted, AssetError::List { source, .. } if source.path() == dir.join("fonts")),
+        "{unlisted:?}"
+    );
+    assert!(
+        unlisted
+            .to_string()
+            .starts_with("rendered site has no fonts/fonts.css: cannot list "),
+        "{unlisted}"
+    );
 }

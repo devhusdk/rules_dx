@@ -2,8 +2,6 @@
 
 use std::collections::BTreeMap;
 use std::fmt::{self, Write as _};
-use std::fs;
-use std::io;
 use std::path::{Path, PathBuf};
 
 use documentation_ir::tool::{PathIoError, path_io};
@@ -257,15 +255,24 @@ pub fn is_fragment(route: &str) -> bool {
 /// Why one logical asset does not resolve to a single file.
 #[derive(Debug)]
 pub enum AssetError {
-    List { logical: String, source: io::Error },
-    Missing { logical: String },
-    Several { logical: String },
+    List {
+        logical: String,
+        source: PathIoError,
+    },
+    Missing {
+        logical: String,
+    },
+    Several {
+        logical: String,
+    },
 }
 
 impl fmt::Display for AssetError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::List { logical, source } => write!(f, "rendered site has no {logical}: {source}"),
+            Self::List { logical, source } => {
+                write!(f, "rendered site has no {logical}: {source}")
+            }
             Self::Missing { logical } => write!(f, "rendered site has no {logical}"),
             Self::Several { logical } => write!(f, "rendered site has several {logical} files"),
         }
@@ -286,36 +293,38 @@ impl std::error::Error for AssetError {
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
+/// Returns an error when the directory cannot be listed or holds no match or several.
 pub fn asset(root: &Path, logical: &str) -> Result<PathBuf, AssetError> {
     let (dir, name) = logical.rsplit_once('/').unwrap_or(("", logical));
     let (stem, ext) = name.split_once('.').unwrap_or((name, ""));
     let dir = root.join(dir);
-    let list = |source| AssetError::List {
-        logical: logical.to_string(),
-        source,
-    };
     let mut found: Vec<PathBuf> = Vec::new();
-    for entry in fs::read_dir(&dir).map_err(list)? {
-        let entry = entry.map_err(list)?;
-        let file = entry.file_name().to_string_lossy().into_owned();
+    let entries = path_io::read_dir(&dir).map_err(|source| AssetError::List {
+        logical: logical.to_owned(),
+        source,
+    })?;
+    for path in entries {
+        let file = path
+            .file_name()
+            .map(|file| file.to_string_lossy().into_owned())
+            .unwrap_or_default();
         let hashed = file
             .strip_prefix(stem)
             .and_then(|rest| rest.strip_prefix('-'))
             .and_then(|rest| rest.strip_suffix(ext))
             .and_then(|rest| rest.strip_suffix('.'))
             .is_some_and(|hash| !hash.is_empty() && hash.bytes().all(|b| b.is_ascii_hexdigit()));
-        if (file == name || hashed) && entry.path().is_file() {
-            found.push(entry.path());
+        if (file == name || hashed) && path.is_file() {
+            found.push(path);
         }
     }
     match found.len() {
         0 => Err(AssetError::Missing {
-            logical: logical.to_string(),
+            logical: logical.to_owned(),
         }),
         1 => Ok(found.remove(0)),
         _ => Err(AssetError::Several {
-            logical: logical.to_string(),
+            logical: logical.to_owned(),
         }),
     }
 }

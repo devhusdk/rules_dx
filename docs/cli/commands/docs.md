@@ -160,7 +160,8 @@ These libraries in scope get a shard automatically when they have none:
 
 - Rust, Go, Python, C, C++, CUDA, Fortran, Java, Kotlin, Scala, D, Haskell, Swift, Zig, Dart, Perl and PHP libraries.
 - C# libraries with `nullable = "disable"`, and F# libraries with `generate_documentation_file = True`. Others are skipped.
-- A `javascript_library` of `.js`, `.mjs`, `.cjs` or `.jsx` files, when its package has exactly one `tsconfig.json` with `allowJs` among its sources.
+- A `javascript_library` of `.js`, `.mjs`, `.cjs` or `.jsx` files, when exactly one target in its direct `deps` gives a `tsconfig.json` with `allowJs` from the same package.
+- A `vue_library`, `svelte_library`, `astro_library` or `mdx_library`, when exactly one target in its direct `deps` gives a `tsconfig.json` from the same package.
 - An `elixir_app` or `erlang_app` that lists its sources in `srcs`.
 - A `proto_library`.
 - An `avro_library`.

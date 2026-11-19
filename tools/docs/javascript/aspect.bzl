@@ -5,6 +5,7 @@ load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load("//tools/docs/javascript:tsconfig.bzl", "js_docs_tsconfig_aspect", "js_docs_tsconfigs")
 load("//tools/docs/typescript:shard.bzl", "TYPEDOC_JSON_SCHEMA", "typedoc_arguments", "typescript_shard_action")
 
 _TS_TEST_MARKERS = [".test.", ".spec.", "_test."]
@@ -21,7 +22,7 @@ def _javascript_docs_shard(target, ctx):
         return None
     js = target[_JsInfo]
     package = ctx.label.package
-    tsconfigs = [f for f in js.transitive_sources.to_list() if f.basename == "tsconfig.json" and f.dirname.endswith("/" + package if package else "")]
+    tsconfigs = js_docs_tsconfigs(target)
     if len(tsconfigs) != 1:
         return None
     entry_points = sorted([repo_relative_path(f.short_path) for f in srcs if not any([marker in f.basename for marker in _TS_TEST_MARKERS])])
@@ -67,4 +68,5 @@ real_javascript_docs_aspect = aspect(
         ),
     },
     fragments = ["cpp"],
+    requires = [js_docs_tsconfig_aspect],
 )

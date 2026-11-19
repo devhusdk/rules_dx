@@ -3,6 +3,7 @@
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("//tools/docs/components:shard.bzl", "COMPONENT_LANGUAGES", "component_config", "component_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load("//tools/docs/javascript:tsconfig.bzl", "js_docs_tsconfig_aspect", "js_docs_tsconfigs")
 
 def _component_docs_shard(target, ctx):
     if _JsInfo not in target or DocsShardInfo in target:
@@ -12,13 +13,12 @@ def _component_docs_shard(target, ctx):
     srcs = sorted(getattr(ctx.rule.files, "srcs", []), key = lambda f: f.path)
     for language, spec in COMPONENT_LANGUAGES.items():
         if srcs and all([f.extension == spec.extension for f in srcs]):
-            return _component_shard(target[_JsInfo], ctx, language, srcs)
+            return _component_shard(target[_JsInfo], js_docs_tsconfigs(target), ctx, language, srcs)
     return None
 
-def _component_shard(js, ctx, language, srcs):
+def _component_shard(js, tsconfigs, ctx, language, srcs):
     inputs = depset(transitive = [js.transitive_sources, js.npm_sources])
     package = ctx.label.package
-    tsconfigs = [f for f in js.transitive_sources.to_list() if f.basename == "tsconfig.json" and f.dirname.endswith("/" + package if package else "")]
     if len(tsconfigs) != 1:
         return None
     stem = "_dx_docs/" + ctx.label.name
@@ -78,4 +78,5 @@ real_components_docs_aspect = aspect(
         "_vue_meta": _component_meta_attr("vue"),
     },
     fragments = ["cpp"],
+    requires = [js_docs_tsconfig_aspect],
 )

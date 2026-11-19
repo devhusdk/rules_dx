@@ -67,3 +67,9 @@ source. To declare a docs target yourself, use `dart_doc_shard` from
   the managed `androidsdk` override from rules_dx.
 - `flutter_ios_app` and every target it creates build only on a macOS host.
   Other hosts skip them as incompatible.
+
+### Profile builds
+
+To build a `flutter_application` in profile mode, write a transition that
+sets `@rules_dx//flutter:profile` to `True` and `//command_line_option:compilation_mode`
+to `opt`, and apply it to the app's label attribute.

@@ -175,7 +175,7 @@ fn canonical_default_is_a_hit_and_none_is_not() {
 fn every_public_bzl_file_is_extracted() {
     let public = dx_testing::env_text("DX_API_PUBLIC_BZL");
     let extracted = dx_testing::env_text("DX_API_EXTRACTED");
-    let pending = dx_testing::env_text("DX_API_NOT_EXTRACTED");
+    let pending = std::env::var("DX_API_NOT_EXTRACTED").unwrap_or_default();
     let public: Vec<&str> = public.split_whitespace().collect();
     assert!(!public.is_empty(), "DX_API_PUBLIC_BZL lists no files");
     let extracted: Vec<&str> = extracted.split_whitespace().collect();

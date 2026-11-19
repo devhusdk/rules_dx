@@ -83,6 +83,8 @@ _STARLARK_SRCS = [
     "//erlang:defs.bzl",
     "//erlang:extensions.bzl",
     "//flatbuffers:defs.bzl",
+    "//flutter:defs.bzl",
+    "//flutter:extensions.bzl",
     "//fortran:defs.bzl",
     "//fortran:extensions.bzl",
     "//fsharp:defs.bzl",
@@ -139,10 +141,7 @@ _STARLARK_SRCS = [
 ]
 
 # Public files whose upstream load closure has no visible bzl_library yet.
-_NOT_EXTRACTED = [
-    "//flutter:defs.bzl",
-    "//flutter:extensions.bzl",
-]
+_NOT_EXTRACTED = []
 
 # Upstream bzl_library targets that cover the load closure of the public files.
 _UPSTREAM_BZL = [
@@ -157,6 +156,8 @@ _UPSTREAM_BZL = [
     "@dx_rules_dart_pub//dart/ext:registry",
     "@dx_rules_dart_pub//dart/pub:extensions",
     "@dx_rules_dart_pub//dart/pub/private:dx_bzl_srcs",
+    "@dx_rules_flutter_pub//flutter:dx_bzl_srcs",
+    "@dx_rules_flutter_pub//flutter/private:dx_bzl_srcs",
     "@dx_windows_support//windows:extensions",
     "@gazelle//:extensions",
     "@llvm//platforms:common",
@@ -173,10 +174,13 @@ _UPSTREAM_BZL = [
     "@rules_dart//dart:utils",
     "@rules_dart//dart/ext:registry",
     "@rules_dart//dart/private:dx_bzl_srcs",
+    "@rules_dart//dart/pub:pub_lock_package",
     "@rules_dart//dart/pub:yaml_parser",
     "@rules_dart//dart/pub/private:dx_bzl_srcs",
     "@rules_dotnet//dotnet:defs",
     "@rules_elixir//:dx_bzl_srcs",
+    "@rules_flutter//flutter:dx_bzl_srcs",
+    "@rules_flutter//flutter/private:dx_bzl_srcs",
     "@rules_erlang//:dx_bzl_srcs",
     "@rules_dotnet//dotnet:extensions",
     "@rules_fortran//fortran:defs",
@@ -275,7 +279,7 @@ _FORWARDS_PENDING = {
     "apple": _SWIFT_FORMAT + "; macros take no **kwargs (#14051)",
     "cuda": "closure selects every host's SDK (#14050)",
     "erlang": "update: generator_function erlc_opts names no public function with a **kwargs param",
-    "flutter": "not extracted (#14040, #14050)",
+    "flutter": "closure selects every host's SDK (#14050)",
     "qt": "closure selects every host's SDK (#14050)",
     "swift": _SWIFT_FORMAT,
 }

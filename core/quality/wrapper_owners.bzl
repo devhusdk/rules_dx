@@ -1,6 +1,6 @@
 """Wrapper ownership for every quality taxonomy family."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
 load(":taxonomy.bzl", "FAMILY_OWNERS")
 load(":tool_defs.bzl", "is_canonical_token")

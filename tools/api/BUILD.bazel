@@ -46,7 +46,6 @@ _STARLARK_SRCS = [
     "//avro:extensions.bzl",
     "//bicep:defs.bzl",
     "//bicep:extensions.bzl",
-    "//core:defs.bzl",
     "//core:extensions.bzl",
     "//dotnet:defs.bzl",
     "//helm:defs.bzl",

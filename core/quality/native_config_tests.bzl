@@ -1,6 +1,6 @@
 """Unit tests for typed native-config validation."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(
     "//core/quality/private:native_config_impl.bzl",
     "CONFIG_REQUIRED_TOOLS",

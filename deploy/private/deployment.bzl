@@ -1,6 +1,6 @@
 """The dx_deployment rule that dx deploy runs."""
 
-load("//core:defs.bzl", "DxSubjectInfo", "display_label")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo", "display_label")
 load(":sbom.bzl", "DxSbomFileInfo")
 load(":config.bzl", "DxDeployConfigInfo", "DxRegistryArtifactsInfo")
 load("//core:rlocation.bzl", "rlocation_path")

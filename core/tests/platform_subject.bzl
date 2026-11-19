@@ -1,6 +1,6 @@
 """Subject that reports what platform_identity returns for a platform."""
 
-load("//core:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo")
 load("//core:platform.bzl", "DxPlatformInfo", "PLATFORM_ATTRS", "platform_identity", "platforms_transition")
 
 def _platform_subject_impl(ctx):

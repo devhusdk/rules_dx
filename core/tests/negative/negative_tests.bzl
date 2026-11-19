@@ -1,6 +1,6 @@
 """Negative demonstrations as green hermetic proofs."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_binary")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_binary")
 load("//core:failure_test.bzl", "failure_test")
 
 def _red_manifest(name):

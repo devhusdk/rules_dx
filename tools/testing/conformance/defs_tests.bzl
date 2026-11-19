@@ -1,6 +1,6 @@
 """Tests for the coverage subject settings and quality configs."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":defs.bzl", "WINDOWS_GCC_COVERAGE_OFF", "coverage_subject_settings", "quality_config")
 
 _FEATURES = "//command_line_option:features"

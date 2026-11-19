@@ -1,7 +1,7 @@
 """Pin tests for the OCaml source-built tools."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
-load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core/quality/artifacts:ocaml_duniverse.bzl", "PACKAGES", "PATCHES")
 load("//ocaml/private/quality:repos.bzl", "patch_package")
 load("//ocaml/private/toolchain:pins.bzl", "OCAML_VERSION")

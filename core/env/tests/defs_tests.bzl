@@ -1,6 +1,6 @@
 """Unit and analysis tests for the bootstrap environment registry."""
 
-load("//core:defs.bzl", "display_label", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "display_label", "expect_equal", "starlark_test")
 load("//core/env/private:defs.bzl", "env_host_filename", "env_tool_record", "env_tree_metadata")
 load("//core/env/private:validate.bzl", "env_collision_error", "env_name_error", "env_tool_error")
 

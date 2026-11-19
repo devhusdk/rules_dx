@@ -1,6 +1,6 @@
 """Tests for the warning root-only module extensions print for non-root tags."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:root_only.bzl", "dropped_tag_warnings")
 
 def _mod(name, is_root, accept = [], toolchain = []):

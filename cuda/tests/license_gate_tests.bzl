@@ -1,7 +1,7 @@
 """Tests for the CUDA EULA gate of the rules_cuda toolchain extension."""
 
 load("//cuda:extensions.bzl", "cuda_component_repo_name", "cuda_license_error")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 _UNACCEPTED = "dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add dx_licenses.accept(ids = [\"cuda-eula\"]) to the root MODULE.bazel"
 

@@ -1,6 +1,6 @@
 """The checks on the swiftpm hub BUILD file."""
 
-load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load("//swift/private/lock:hub.bzl", "build_file")
 
 _PACKAGE = {

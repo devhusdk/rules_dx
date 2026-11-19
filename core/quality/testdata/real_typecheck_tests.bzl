@@ -1,6 +1,6 @@
 """Real typecheck aspect evidence tests."""
 
-load("//core:defs.bzl", "starlark_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
 
 visibility("private")
 

@@ -1,6 +1,6 @@
 """Analysis tests proving configuration subjects."""
 
-load("//core:defs.bzl", "starlark_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
 
 EXPECTED_CONFIG_OBSERVATIONS = """subject //core/tests:config_group_under_test
 file config_group_under_test.txt

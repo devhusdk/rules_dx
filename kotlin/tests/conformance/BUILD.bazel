@@ -66,6 +66,12 @@ kotlin_binary(
     deps = ["@maven//:junit_junit"],
 )
 
+# Fails analysis when kotlin_binary stops exposing <name>_deploy.jar.
+filegroup(
+    name = "hello_deploy_jar",
+    srcs = [":hello_deploy.jar"],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",

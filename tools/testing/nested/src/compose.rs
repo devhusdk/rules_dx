@@ -441,6 +441,44 @@ pub fn consumer_fixture(snapshot: &str, lang: &str) -> Result<BTreeMap<String, S
         .collect())
 }
 
+/// The files of the `langs` consumer fixtures in a consumer.json snapshot, keyed by workspace path.
+///
+/// The first language sits at the workspace root as `consumer_fixture` keeps it; each later
+/// language sits under `<lang>/` without its `consumer.MODULE.bazel`.
+///
+/// # Errors
+///
+/// Returns `Err` when the snapshot is not a JSON object of path to text, a language has no
+/// fixture files, or a later language's module has lines the workspace module would need.
+pub fn consumer_fixtures(
+    snapshot: &str,
+    langs: &[&str],
+) -> Result<BTreeMap<String, String>, String> {
+    let mut files = BTreeMap::new();
+    for (index, lang) in langs.iter().enumerate() {
+        let fixture = consumer_fixture(snapshot, lang)?;
+        if fixture.is_empty() {
+            return Err(format!("{lang}/tests/consumer/ has no files"));
+        }
+        if index == 0 {
+            files.extend(fixture);
+            continue;
+        }
+        for (rel, text) in fixture {
+            if rel == "consumer.MODULE.bazel" {
+                if !module_body(&text).trim().is_empty() {
+                    return Err(format!(
+                        "{lang}/tests/consumer/consumer.MODULE.bazel has module lines; only the first language may"
+                    ));
+                }
+                continue;
+            }
+            files.insert(format!("{lang}/{rel}"), text);
+        }
+    }
+    Ok(files)
+}
+
 /// The fixture module without its comments, `module` and `bazel_dep` lines, which the nested consumer writes.
 #[must_use]
 pub fn module_body(module: &str) -> String {
@@ -690,6 +728,44 @@ mod tests {
             BTreeMap::from([("BUILD.bazel".to_owned(), "a".to_owned())])
         );
         assert!(consumer_fixture("[]", "go").is_err());
+    }
+
+    #[test]
+    fn consumer_fixtures_put_later_languages_under_their_name() {
+        let snapshot = r##"{
+            "java/tests/consumer/BUILD.bazel": "j",
+            "java/tests/consumer/consumer.MODULE.bazel": "module(name = \"m\")\n",
+            "kotlin/tests/consumer/BUILD.bazel": "k",
+            "kotlin/tests/consumer/consumer.MODULE.bazel": "# yours\nmodule(name = \"m\")\n\nbazel_dep(name = \"rules_dx\", version = \"0\")\n"
+        }"##;
+        let files = consumer_fixtures(snapshot, &["java", "kotlin"]).expect("composes");
+        assert_eq!(
+            files.keys().map(String::as_str).collect::<Vec<_>>(),
+            ["BUILD.bazel", "consumer.MODULE.bazel", "kotlin/BUILD.bazel"]
+        );
+        assert_eq!(files["kotlin/BUILD.bazel"], "k");
+    }
+
+    #[test]
+    fn consumer_fixtures_refuse_module_lines_of_a_later_language() {
+        let snapshot = r#"{
+            "java/tests/consumer/BUILD.bazel": "j",
+            "go/tests/consumer/BUILD.bazel": "g",
+            "go/tests/consumer/consumer.MODULE.bazel": "go = use_extension(\"x\", \"go\")\n"
+        }"#;
+        let error = consumer_fixtures(snapshot, &["java", "go"]).expect_err("module lines");
+        assert!(
+            error.contains("go/tests/consumer/consumer.MODULE.bazel"),
+            "{error}"
+        );
+        assert!(consumer_fixtures(snapshot, &["go", "java"]).is_ok());
+    }
+
+    #[test]
+    fn consumer_fixtures_refuse_a_missing_language() {
+        let snapshot = r#"{"java/tests/consumer/BUILD.bazel": "j"}"#;
+        let error = consumer_fixtures(snapshot, &["java", "scala"]).expect_err("no scala");
+        assert!(error.contains("scala/tests/consumer/"), "{error}");
     }
 
     #[test]

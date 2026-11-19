@@ -24,15 +24,19 @@ go_binary(
     visibility = ["//:__subpackages__"],
 )
 
-# Release assets, one per host; .github/workflows/release-tools.yml builds them.
+# Release assets, one per host and tool; .github/workflows/release-tools.yml builds them.
 [
     go_cross_binary(
-        name = "dx_go_" + host,
+        name = name + "_" + host,
         platform = "@rules_go//go/toolchain:" + go_platform,
         tags = ["manual"],
-        target = ":dx_go",
+        target = target,
         visibility = ["//visibility:private"],
     )
+    for name, target in {
+        "dx_go": ":dx_go",
+        "oapi_codegen": "@com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen",
+    }.items()
     for host, go_platform in {
         "linux_arm64": "linux_arm64",
         "linux_x86_64": "linux_amd64",

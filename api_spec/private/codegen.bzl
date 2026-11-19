@@ -1,9 +1,9 @@
 """OpenAPI client generation: TypeScript (Redocly generate-client)."""
 
-load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers")
 load("//core:defs.bzl", "display_label")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:wrapper.bzl", "dx_quality_sources")
+load("//core/codegen:codegen.bzl", "CODEGEN_LIBRARY_ATTRS", "codegen_library_providers")
 load(":defs.bzl", "ApiSpecInfo")
 
 OPENAPI_TYPESCRIPT_FLAGS = [
@@ -117,7 +117,7 @@ api_spec_go_client = rule(
         "root": attr.label(allow_single_file = [".yaml", ".yml", ".json"], doc = "The root document; required when the spec has more than one."),
         "spec": attr.label(providers = [ApiSpecInfo], mandatory = True, doc = "The api_spec_library to generate from."),
         "_driver": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
-        "_oapi_codegen": attr.label(default = Label("@com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen"), executable = True, cfg = "exec"),
+        "_oapi_codegen": attr.label(default = Label("@dx_prebuilt//:oapi_codegen"), executable = True, cfg = "exec"),
         "_preflight": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
     } | CODEGEN_LIBRARY_ATTRS,
     toolchains = ["@rules_go//go:toolchain"],

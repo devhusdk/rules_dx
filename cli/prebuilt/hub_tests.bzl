@@ -78,7 +78,9 @@ def _checks():
     pinned_haskell_build = with_native_tools(alias_build(SOURCE_LABEL), pinned_haskell)
     weeder_windows_arm = [a for a in pinned_haskell["weeder"] if a.key == "windows_aarch64"][0]
     return [
-        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "ormolu", "progenitor", "selene", "thrift", "topiary", "weeder"]),
+        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "selene", "thrift", "topiary", "weeder"]),
+        expect_equal("oapi-codegen assets", [asset_name("oapi_codegen", k) for k in TOOLS["oapi_codegen"].platforms], ["dx-oapi-codegen-linux-arm64", "dx-oapi-codegen-linux-x86_64", "dx-oapi-codegen-macos-arm64", "dx-oapi-codegen-windows-arm64", "dx-oapi-codegen-windows-x86_64"]),
+        expect_contains("the registry lists oapi-codegen for fill_pins", registry_lines(), "oapi_codegen linux_arm64 dx-oapi-codegen-linux-arm64"),
         expect_equal("capnp assets", [asset_name("capnp", k) for k in TOOLS["capnp"].platforms], ["dx-capnp-linux-arm64", "dx-capnp-linux-x86_64", "dx-capnp-macos-arm64", "dx-capnp-windows-arm64", "dx-capnp-windows-x86_64"]),
         expect_contains("the registry lists the code generators for fill_pins", registry_lines(), "thrift macos_arm64 dx-thrift-macos-arm64"),
         expect_equal("native tools run on the exec platform except hpc_lcov and kcov", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov", "kcov"]),

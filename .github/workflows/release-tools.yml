@@ -208,36 +208,46 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-      - name: Cross-build dx-go
+      - name: Cross-build dx-go and oapi-codegen
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/go-out"
           rm -rf "$out"
           mkdir -p "$out"
           hosts=(linux-x86_64 linux-arm64 macos-arm64 windows-x86_64 windows-arm64)
+          tools=(go:dx_go oapi-codegen:oapi_codegen)
           targets=()
-          for host in "${hosts[@]}"; do
-            targets+=("//go/private/tools/analysis/dx_go:dx_go_${host//-/_}")
+          for tool in "${tools[@]}"; do
+            for host in "${hosts[@]}"; do
+              targets+=("//go/private/tools/analysis/dx_go:${tool#*:}_${host//-/_}")
+            done
           done
           bazel build "${targets[@]}"
           root="$(bazel info execution_root)"
-          for host in "${hosts[@]}"; do
-            built="$root/$(bazel cquery --output=files "//go/private/tools/analysis/dx_go:dx_go_${host//-/_}")"
-            asset="$out/dx-go-$host"
-            cp "$built" "$asset"
-            chmod 0755 "$asset"
-            kind="$(file -b "$asset")"
-            case "$host" in
-              linux-x86_64) want=("ELF 64-bit" "x86-64" "statically linked") ;;
-              linux-arm64) want=("ELF 64-bit" "aarch64" "statically linked") ;;
-              macos-arm64) want=("Mach-O 64-bit" "arm64") ;;
-              windows-x86_64) want=("PE32\+" "x86-64") ;;
-              windows-arm64) want=("PE32\+" "Aarch64|ARM64") ;;
-            esac
-            for token in "${want[@]}"; do
-              grep -Eq "$token" <<<"$kind" || { echo "$asset is not $token: $kind" >&2; exit 1; }
+          for tool in "${tools[@]}"; do
+            for host in "${hosts[@]}"; do
+              built="$root/$(bazel cquery --output=files "//go/private/tools/analysis/dx_go:${tool#*:}_${host//-/_}")"
+              asset="$out/dx-${tool%%:*}-$host"
+              cp "$built" "$asset"
+              chmod 0755 "$asset"
+              kind="$(file -b "$asset")"
+              case "$host" in
+                linux-x86_64) want=("ELF 64-bit" "x86-64" "statically linked") ;;
+                linux-arm64) want=("ELF 64-bit" "aarch64" "statically linked") ;;
+                macos-arm64) want=("Mach-O 64-bit" "arm64") ;;
+                windows-x86_64) want=("PE32\+" "x86-64") ;;
+                windows-arm64) want=("PE32\+" "Aarch64|ARM64") ;;
+              esac
+              for token in "${want[@]}"; do
+                grep -Eq "$token" <<<"$kind" || { echo "$asset is not $token: $kind" >&2; exit 1; }
+              done
             done
           done
+          # oapi-codegen ships unmodified under its Apache-2.0 licence.
+          oapi="$(bazel query --output=location @com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen)"
+          cp "${oapi%%/cmd/oapi-codegen/BUILD*}/LICENSE" "$out/dx-oapi-codegen-LICENSE"
+          grep -q "Apache License" "$out/dx-oapi-codegen-LICENSE"
+          "$out/dx-oapi-codegen-linux-x86_64" -version
           check="$RUNNER_TEMP/go-check"
           rm -rf "$check"
           mkdir -p "$check"

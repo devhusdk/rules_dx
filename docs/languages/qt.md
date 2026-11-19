@@ -314,8 +314,8 @@ qt_rust_library(
 )
 ```
 
-Each bridge file holds one `#[cxx_qt::bridge]` module. A pinned generator
-built from CXX-Qt 0.10.0 and cxx 1.0.202 writes, per bridge,
+Each bridge file holds one `#[cxx_qt::bridge]` module. `dx qt_rust_bridge`,
+built from CXX-Qt 0.10.0 and cxx 1.0.205, writes, per bridge,
 `<name>.cxxqt.h`, `<name>.cxxqt.cpp`, `<name>.cxx.h` and `<name>.cxx.cpp`
 next to the bridge. Include the QObject header as
 `"<package>/<name>.cxxqt.h"`. `moc` and `qmltyperegistrar` run on it, so a
@@ -330,8 +330,8 @@ Attributes:
   `cxx` and `cxx-qt` crates added.
 - `cxx`, `cxx_qt`: the `cxx` and `cxx-qt` crate targets. They default to the
   pinned crates; point them at your own to build against another version.
-- `generator`: the bridge generator executable for `cxx_qt`. It defaults to the
-  pinned one built from cxx 1.0.202.
+- `generator`: the bridge generator executable for `cxx_qt`. It defaults to
+  `dx qt_rust_bridge`, built from cxx 1.0.205.
 - `cc_deps`: C++ dependencies of the generated library.
 - `uri`, `version`, `qml_srcs`, `qml_depends`, `modules`, `qt`, `copts`: as on
   `qt_qml_module`. `modules` defaults to `["qml"]` with a `uri`, else `["core"]`.
@@ -352,8 +352,8 @@ Rules for bridges:
 - A bridge error, such as a `NOTIFY` signal that does not exist, fails
   the `QtRustBridge` action with `<file>:<line>:<column>`.
 
-The generated C++ and `@dx_qt//:cxx_qt` call `cxxbridge1$202$...` symbols, so
-the Rust crate must link `cxx` 1.0.202. Another `cxx` version fails at link
+The generated C++ and `@dx_qt//:cxx_qt` call `cxxbridge1$205$...` symbols, so
+the Rust crate must link `cxx` 1.0.205. Another `cxx` version fails at link
 time unless you also pass a matching `generator`.
 
 Builds that use no `qt_rust_library` fetch none of the CXX-Qt crates.

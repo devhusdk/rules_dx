@@ -375,25 +375,33 @@ fn release_dry_run_matches_shell() {
     assert!(sign < draft);
     let ok = release_run("v0.0.0-dryrun", None, "0", true, git_unread).expect("dry");
     assert!(ok.contains("would release, publishing nothing"));
-    assert!(release_run("v1.2.3", Some(SHA), "0", false, git_unread).is_err());
-    assert!(release_run("v0.0.0-dryrun", Some(SHA), "1", false, git_unread).is_err());
+    assert!(matches!(
+        release_run("v1.2.3", Some(SHA), "0", false, git_unread),
+        Err(TagError::NotApproved)
+    ));
+    assert!(matches!(
+        release_run("v0.0.0-dryrun", Some(SHA), "1", false, git_unread),
+        Err(TagError::PlaceholderTag)
+    ));
     assert_eq!(
-        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(true, SHA, Some(SHA))),
-        Ok(vec![OpRecord::new(
+        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(true, SHA, Some(SHA)))
+            .expect("records"),
+        vec![OpRecord::new(
             "tag-local",
             "v1.2.3",
             OpState::Failed,
             "release: tree is dirty; release requires a clean tree"
-        )])
+        )]
     );
     assert_eq!(
-        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, None)),
-        Ok(vec![OpRecord::new(
+        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, None))
+            .expect("records"),
+        vec![OpRecord::new(
             "tag-local",
             "v1.2.3",
             OpState::Failed,
             "release: local tag v1.2.3 missing; push it beforehand with owner approval (this program never creates tags)"
-        )])
+        )]
     );
     let live = release_run("v1.2.3", Some(SHA), "1", false, || {
         git_ok(false, SHA, Some(SHA))
@@ -408,47 +416,69 @@ const OTHER: &str = "b948904f2f0f479b8f8197694b30184b0d2ed1c1";
 #[test]
 fn release_run_needs_a_valid_candidate_before_reading_git() {
     let error = release_run("v1.2.3", None, "1", false, git_unread).expect_err("no commit");
-    assert!(error.contains("needs the candidate commit"), "{error}");
+    assert!(matches!(error, TagError::NoCommit { .. }));
+    assert!(
+        error.to_string().contains("needs the candidate commit"),
+        "{error}"
+    );
     let error = release_run("1.2.3", Some(SHA), "1", false, git_unread).expect_err("no v prefix");
-    assert!(error.contains("must be v<SemVer>"), "{error}");
+    assert!(matches!(error, TagError::NotVPrefixed { .. }));
+    assert!(error.to_string().contains("must be v<SemVer>"), "{error}");
     let error = release_run("v1.2", Some(SHA), "1", false, git_unread).expect_err("bad version");
-    assert!(error.contains("invalid version '1.2'"), "{error}");
+    assert!(matches!(
+        error,
+        TagError::Candidate(candidate::CandidateError::Bcr(
+            BcrError::InvalidVersion { .. }
+        ))
+    ));
+    assert!(
+        error
+            .to_string()
+            .starts_with("release: bcr: invalid version '1.2'"),
+        "{error}"
+    );
     let error = release_run("v1.2.3", Some("a948904"), "1", false, git_unread).expect_err("short");
-    assert!(error.contains("invalid commit"), "{error}");
+    assert!(error.to_string().contains("invalid commit"), "{error}");
     let upper = SHA.to_uppercase();
     let error = release_run("v1.2.3", Some(&upper), "1", false, git_unread).expect_err("upper");
-    assert!(error.contains("invalid commit"), "{error}");
+    assert!(matches!(
+        error,
+        TagError::Candidate(candidate::CandidateError::InvalidCommit { .. })
+    ));
+    assert!(error.to_string().contains("invalid commit"), "{error}");
 }
 
 #[test]
 fn release_run_rejects_a_stale_head() {
     assert_eq!(
-        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, OTHER, Some(SHA))),
-        Ok(vec![OpRecord::new(
+        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, OTHER, Some(SHA)))
+            .expect("records"),
+        vec![OpRecord::new(
             "tag-local",
             "v1.2.3",
             OpState::Failed,
             &format!(
                 "release: HEAD is {OTHER}, candidate is {SHA}; check out the candidate commit"
             )
-        )])
+        )]
     );
 }
 
 #[test]
 fn release_run_rejects_a_local_tag_pointing_elsewhere() {
     assert_eq!(
-        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, Some(OTHER))),
-        Ok(vec![OpRecord::new(
+        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, Some(OTHER)))
+            .expect("records"),
+        vec![OpRecord::new(
             "tag-local",
             "v1.2.3",
             OpState::Failed,
             &format!("release: local tag v1.2.3 points at {OTHER}, candidate is {SHA}")
-        )])
+        )]
     );
 }
 
-fn git_unread() -> Result<GitState, String> {
+fn git_unread() -> Result<GitState, candidate::CandidateError> {
     panic!("git state read before the dry-run, approval, or placeholder gate")
 }
 
@@ -458,7 +488,11 @@ fn release_reads_git_after_the_gates() {
     drop(release_run("v1.2.3", Some(SHA), "1", false, git_unread));
 }
 
-fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, String> {
+fn git_ok(
+    tree_dirty: bool,
+    head: &str,
+    tag: Option<&str>,
+) -> Result<GitState, candidate::CandidateError> {
     Ok(GitState {
         tree_dirty,
         head: head.to_owned(),
@@ -470,14 +504,17 @@ fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, S
 fn release_git_error_blocks_live_release() {
     assert_eq!(
         release_live_records("v1.2.3", Some(SHA), "1", || Err(
-            "release: cannot read git state: x".to_owned()
-        )),
-        Ok(vec![OpRecord::new(
+            candidate::CandidateError::BadHead {
+                head: "x".to_owned()
+            }
+        ))
+        .expect("records"),
+        vec![OpRecord::new(
             "tag-local",
             "v1.2.3",
             OpState::Failed,
-            "release: cannot read git state: x"
-        )])
+            "release: cannot read git state: HEAD is \"x\""
+        )]
     );
 }
 
@@ -504,7 +541,7 @@ fn release_remote_record_validates_or_fails() {
     let bad = release_remote_record(&candidate, Ok(format!("{OTHER}\trefs/tags/v1.2.3\n")));
     assert_eq!(bad.state, OpState::Failed);
     assert!(bad.detail.contains("points at"));
-    let err = release_remote_record(&candidate, Err("fatal: offline".to_owned()));
+    let err = release_remote_record(&candidate, Err(ls_remote_failed("fatal: offline")));
     assert_eq!(err.state, OpState::Failed);
     assert!(err.detail.contains("fatal: offline"));
 }
@@ -516,7 +553,10 @@ fn bcr_integrity_comes_from_the_archive_sha256() {
         bcr_integrity_of_digest(digest).expect("integrity"),
         "sha256-qUiQTy8PR5uPgZdpSzAYSw0u0cHNKh7A+4XSmaGSpEc="
     );
-    assert!(bcr_integrity_of_digest("").is_err());
+    assert!(matches!(
+        bcr_integrity_of_digest(""),
+        Err(BcrError::InvalidDigest { .. })
+    ));
     assert!(bcr_integrity_of_digest("xyz").is_err());
     assert!(bcr_integrity_of_digest(&"0".repeat(63)).is_err());
     assert!(bcr_integrity_of_digest(&"0".repeat(64)).is_ok());
@@ -545,8 +585,14 @@ fn candidate_source_metadata_comes_from_one_sha() {
 #[test]
 fn candidate_metadata_rejects_shape_versions_and_foreign_modules() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
-    assert!(render_bcr_source_for_digest("other", "1.2.3", digest).is_err());
-    assert!(render_bcr_source_for_digest("rules_dx", "0.0.0", digest).is_err());
+    assert!(matches!(
+        render_bcr_source_for_digest("other", "1.2.3", digest),
+        Err(BcrError::InvalidModule { .. })
+    ));
+    assert!(matches!(
+        render_bcr_source_for_digest("rules_dx", "0.0.0", digest),
+        Err(BcrError::UnpublishableVersion)
+    ));
     for bad in ["", "v1", "1.2", "1.2.3.4", "1..3", ".2.3"] {
         assert!(
             render_bcr_source_for_digest("rules_dx", bad, digest).is_err(),
@@ -561,6 +607,8 @@ fn candidate_source_rejects_a_swapped_archive_digest() {
     let text = render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
     let zeros = "0".repeat(64);
     let error = bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", &zeros).expect_err("swapped");
+    assert!(matches!(error, BcrError::IntegrityMismatch { .. }));
+    let error = error.to_string();
     assert!(error.contains("integrity mismatch"), "got {error}");
     assert!(error.contains("immutable version artifacts"), "got {error}");
 }
@@ -570,16 +618,24 @@ fn candidate_source_rejects_wrong_prefix_and_url() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
     let text = render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
     let error = bcr_candidate_error(&text, "rules_dx", "1.2.4", digest).expect_err("wrong version");
-    assert!(error.contains("strip_prefix mismatch"), "got {error}");
+    assert!(matches!(error, BcrError::StripPrefixMismatch { .. }));
+    assert!(
+        error.to_string().contains("strip_prefix mismatch"),
+        "got {error}"
+    );
     let other_module =
         render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
     let error = bcr_candidate_error(&other_module, "other_rules", "1.2.3-rc1", digest)
         .expect_err("wrong module");
-    assert!(error.contains("strip_prefix mismatch"), "got {error}");
+    assert!(
+        error.to_string().contains("strip_prefix mismatch"),
+        "got {error}"
+    );
     let tampered = text.replace("v1.2.3-rc1/rules_dx-1.2.3-rc1", "v9.9.9/rules_dx-9.9.9");
     let error =
         bcr_candidate_error(&tampered, "rules_dx", "1.2.3-rc1", digest).expect_err("tampered");
-    assert!(error.contains("url mismatch"), "got {error}");
+    assert!(matches!(error, BcrError::UrlMismatch { .. }));
+    assert!(error.to_string().contains("url mismatch"), "got {error}");
 }
 
 #[test]
@@ -594,13 +650,21 @@ fn interrupted_candidate_publication_fails_closed() {
         digest,
     )
     .expect_err("truncated");
-    assert!(error.contains("not JSON"), "got {error}");
+    assert!(matches!(error, BcrError::SourceNotJson(_)));
+    assert!(error.to_string().contains("not JSON"), "got {error}");
     let error =
         bcr_candidate_error("{}", "rules_dx", "1.2.3-rc1", digest).expect_err("empty object");
-    assert!(error.contains("integrity mismatch"), "got {error}");
+    assert!(
+        error.to_string().contains("integrity mismatch"),
+        "got {error}"
+    );
     let error =
         bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", "not-hex").expect_err("bad digest");
-    assert!(error.contains("invalid sha256 digest"), "got {error}");
+    assert!(matches!(error, BcrError::InvalidDigest { .. }));
+    assert!(
+        error.to_string().contains("invalid sha256 digest"),
+        "got {error}"
+    );
 }
 
 #[test]
@@ -630,8 +694,10 @@ fn remote_tag_error_fails_closed_without_network_or_tag() {
         release_remote_error(&candidate, Ok(output.clone())).expect("remote"),
         SHA
     );
-    let error = release_remote_error(&candidate, Err("fatal: unable to access".to_owned()))
+    let error = release_remote_error(&candidate, Err(ls_remote_failed("fatal: unable to access")))
         .expect_err("no network");
+    assert!(matches!(error, TagError::RemoteUnreadable { .. }));
+    let error = error.to_string();
     assert!(
         error.contains("cannot verify remote tag v1.2.3"),
         "got {error}"
@@ -644,6 +710,14 @@ fn remote_tag_error_fails_closed_without_network_or_tag() {
     );
     let other = candidate::Candidate::new("9.9.9", SHA).expect("candidate");
     let error = release_remote_error(&other, Ok(output)).expect_err("missing tag");
+    assert!(matches!(
+        error,
+        TagError::RemoteTag {
+            source: candidate::CandidateError::NoRemoteTag { .. },
+            ..
+        }
+    ));
+    let error = error.to_string();
     assert!(error.contains("remote has no tag v9.9.9"), "got {error}");
     assert!(!error.contains("origin"), "got {error}");
 }
@@ -652,15 +726,64 @@ fn remote_tag_error_fails_closed_without_network_or_tag() {
 fn remote_tag_error_rejects_a_tag_pointing_elsewhere() {
     let candidate = candidate::Candidate::new("1.2.3", SHA).expect("candidate");
     let output = format!("{OTHER}\trefs/tags/v1.2.3\n");
+    let error = release_remote_error(&candidate, Ok(output)).expect_err("elsewhere");
+    assert!(matches!(error, TagError::RemoteMismatch { .. }));
     assert_eq!(
-        release_remote_error(&candidate, Ok(output)),
-        Err(format!(
+        error.to_string(),
+        format!(
             "release: remote tag v1.2.3 points at {OTHER}, candidate is {SHA} (git ls-remote --tags {RELEASE_REMOTE})"
-        ))
+        )
     );
     let error =
         release_remote_error(&candidate, Ok("garbage\n".to_owned())).expect_err("malformed");
-    assert!(error.contains("malformed"), "got {error}");
+    assert!(error.to_string().contains("malformed"), "got {error}");
+}
+
+fn ls_remote_failed(detail: &str) -> candidate::GitError {
+    candidate::GitError::Exit {
+        command: "git ls-remote".to_owned(),
+        detail: detail.to_owned(),
+    }
+}
+
+#[test]
+fn release_errors_keep_their_sources() {
+    use std::error::Error as _;
+    let error =
+        TagError::Candidate(candidate::Candidate::new("0.0.0", SHA).expect_err("unpublishable"));
+    assert_eq!(
+        error.to_string(),
+        "release: bcr: version 0.0.0 is unpublishable (shape check only); candidate source metadata needs an owner-approved SemVer release version"
+    );
+    let bcr = error
+        .source()
+        .and_then(|source| source.source())
+        .and_then(|source| source.downcast_ref::<BcrError>());
+    assert!(matches!(bcr, Some(BcrError::UnpublishableVersion)));
+    let digest = bcr_integrity_of_digest("xyz").expect_err("digest");
+    assert!(digest.source().is_some());
+    let error = ReleaseError::from(TagError::RemoteUnreadable {
+        tag: "v1.2.3".to_owned(),
+        remote: RELEASE_REMOTE,
+        source: ls_remote_failed("fatal: offline"),
+    });
+    let git = error
+        .source()
+        .and_then(|source| source.source())
+        .and_then(|source| source.downcast_ref::<candidate::GitError>());
+    assert!(matches!(git, Some(candidate::GitError::Exit { .. })));
+    let error = ReleaseError::Io {
+        tool: "source_archive",
+        source: dx_atomic_fs::path_io::read(std::path::Path::new("/nonexistent/pins.bzl"))
+            .expect_err("missing"),
+    };
+    assert!(
+        error
+            .to_string()
+            .starts_with("source_archive: cannot read /nonexistent/pins.bzl: "),
+        "{error}"
+    );
+    assert!(error.source().is_some());
 }
 
 #[test]

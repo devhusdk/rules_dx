@@ -1,6 +1,6 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
 use std::io;
 use std::path::Path;
 
@@ -40,12 +40,251 @@ pub use deploy::{
 pub use ledger::{LedgerError, OpRecord, OpState, ledger_exit, render_ledger};
 pub use tool::release_tool_run;
 
+use dx_atomic_fs::path_io::PathIoError;
 pub use dx_deploy_tools::signing::{
     CosignPin, cosign_git_version, sign_argv as signing_sign_argv, signing_version_ok,
     verify_argv as signing_verify_argv,
 };
 use dx_deploy_tools::signing::{check_pin, sign_one};
+use dx_fingerprint::FingerprintError;
 use spdx::SpdxDocument;
+
+use candidate::{CandidateError, GitError};
+use cell::CellError;
+
+/// A failed BCR source metadata check.
+#[derive(Debug)]
+pub enum BcrError {
+    /// The archive digest is not 64 lowercase hex chars.
+    InvalidDigest {
+        digest: String,
+        source: dx_digest::DigestError,
+    },
+    /// The version is the 0.0.0 shape-check placeholder.
+    UnpublishableVersion,
+    /// The version is not `MAJOR.MINOR.PATCH`.
+    InvalidVersion { version: String },
+    /// The module is not `rules_dx`.
+    InvalidModule { module: String },
+    /// The candidate `source.json` is not JSON.
+    SourceNotJson(serde_json::Error),
+    /// The candidate `source.json` integrity is not the archive's.
+    IntegrityMismatch {
+        digest: String,
+        want: String,
+        have: String,
+    },
+    /// The candidate `source.json` `strip_prefix` is wrong.
+    StripPrefixMismatch { want: String, have: String },
+    /// The candidate `source.json` url is wrong.
+    UrlMismatch { want: String, have: String },
+    /// The `source.json` document could not be rendered.
+    Render(FingerprintError),
+}
+
+impl fmt::Display for BcrError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidDigest { digest, .. } => write!(
+                f,
+                "bcr: invalid sha256 digest {digest:?}: want 64 lowercase hex chars"
+            ),
+            Self::UnpublishableVersion => f.write_str(
+                "bcr: version 0.0.0 is unpublishable (shape check only); candidate source metadata needs an owner-approved SemVer release version",
+            ),
+            Self::InvalidVersion { version } => write!(
+                f,
+                "bcr: invalid version '{version}': want SemVer MAJOR.MINOR.PATCH (for example '1.2.3-rc1')"
+            ),
+            Self::InvalidModule { module } => {
+                write!(f, "bcr: invalid module '{module}': want 'rules_dx'")
+            }
+            Self::SourceNotJson(source) => write!(
+                f,
+                "bcr: candidate source.json is not JSON (interrupted publication?): {source}"
+            ),
+            Self::IntegrityMismatch { digest, want, have } => write!(
+                f,
+                "bcr: candidate source.json integrity mismatch: archive sha256 {digest} wants {want:?}, metadata carries {have:?} (refusing to replace immutable version artifacts)"
+            ),
+            Self::StripPrefixMismatch { want, have } => write!(
+                f,
+                "bcr: candidate source.json strip_prefix mismatch: want {want:?}, got {have:?}"
+            ),
+            Self::UrlMismatch { want, have } => write!(
+                f,
+                "bcr: candidate source.json url mismatch: want {want:?}, got {have:?}"
+            ),
+            Self::Render(source) => write!(f, "cannot render JSON: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for BcrError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::InvalidDigest { source, .. } => Some(source),
+            Self::SourceNotJson(source) => Some(source),
+            Self::Render(source) => Some(source),
+            Self::UnpublishableVersion
+            | Self::InvalidVersion { .. }
+            | Self::InvalidModule { .. }
+            | Self::IntegrityMismatch { .. }
+            | Self::StripPrefixMismatch { .. }
+            | Self::UrlMismatch { .. } => None,
+        }
+    }
+}
+
+/// A failed release tag check.
+#[derive(Debug)]
+pub enum TagError {
+    /// `RELEASE_APPROVE` is not 1.
+    NotApproved,
+    /// The tag is the dry-run placeholder.
+    PlaceholderTag,
+    /// The tag does not start with `v`.
+    NotVPrefixed { tag: String },
+    /// No candidate commit was given.
+    NoCommit { tag: String },
+    /// The tag and commit do not name a candidate.
+    Candidate(CandidateError),
+    /// `git ls-remote` failed.
+    RemoteUnreadable {
+        tag: String,
+        remote: &'static str,
+        source: GitError,
+    },
+    /// The `git ls-remote` output does not name the tag once.
+    RemoteTag {
+        remote: &'static str,
+        source: CandidateError,
+    },
+    /// The remote tag is not at the candidate commit.
+    RemoteMismatch {
+        tag: String,
+        sha: String,
+        commit: String,
+        remote: &'static str,
+    },
+}
+
+impl fmt::Display for TagError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotApproved => f.write_str(
+                "release: real release needs RELEASE_APPROVE=1 plus explicit owner approval",
+            ),
+            Self::PlaceholderTag => f.write_str(
+                "release: placeholder tag v0.0.0-dryrun is dry-run only; pass a real SemVer tag already pushed to the remote",
+            ),
+            Self::NotVPrefixed { tag } => write!(f, "release: tag {tag} must be v<SemVer>"),
+            Self::NoCommit { tag } => write!(
+                f,
+                "release: live release of {tag} needs the candidate commit: release_driver {tag} <commit>"
+            ),
+            Self::Candidate(source) => write!(f, "release: {source}"),
+            Self::RemoteUnreadable {
+                tag,
+                remote,
+                source,
+            } => write!(
+                f,
+                "release: cannot verify remote tag {tag} (git ls-remote --tags {remote} failed: {source}); push it beforehand with owner approval (this program never creates or pushes tags)"
+            ),
+            Self::RemoteTag { remote, source } => write!(
+                f,
+                "{source} (git ls-remote --tags {remote}); push it beforehand with owner approval (this program never creates or pushes tags)"
+            ),
+            Self::RemoteMismatch {
+                tag,
+                sha,
+                commit,
+                remote,
+            } => write!(
+                f,
+                "release: remote tag {tag} points at {sha}, candidate is {commit} (git ls-remote --tags {remote})"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for TagError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Candidate(source) | Self::RemoteTag { source, .. } => Some(source),
+            Self::RemoteUnreadable { source, .. } => Some(source),
+            Self::NotApproved
+            | Self::PlaceholderTag
+            | Self::NotVPrefixed { .. }
+            | Self::NoCommit { .. }
+            | Self::RemoteMismatch { .. } => None,
+        }
+    }
+}
+
+/// A failed release binary.
+#[derive(Debug)]
+pub enum ReleaseError {
+    /// A candidate archive, registry or tag check failed.
+    Candidate(CandidateError),
+    /// A release cell command failed.
+    Cell(CellError),
+    /// A release tag check failed.
+    Tag(TagError),
+    /// `BUILD_WORKSPACE_DIRECTORY` is not an absolute path.
+    NoWorkspace { tool: &'static str },
+    /// A file operation failed.
+    Io {
+        tool: &'static str,
+        source: PathIoError,
+    },
+}
+
+impl fmt::Display for ReleaseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Candidate(source) => source.fmt(f),
+            Self::Cell(source) => write!(f, "release_cell: {source}"),
+            Self::Tag(source) => source.fmt(f),
+            Self::NoWorkspace { tool } => write!(
+                f,
+                "{tool}: BUILD_WORKSPACE_DIRECTORY must be an absolute path (run with bazel run)"
+            ),
+            Self::Io { tool, source } => write!(f, "{tool}: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for ReleaseError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Candidate(source) => Some(source),
+            Self::Cell(source) => Some(source),
+            Self::Tag(source) => Some(source),
+            Self::Io { source, .. } => Some(source),
+            Self::NoWorkspace { .. } => None,
+        }
+    }
+}
+
+impl From<CandidateError> for ReleaseError {
+    fn from(source: CandidateError) -> Self {
+        Self::Candidate(source)
+    }
+}
+
+impl From<CellError> for ReleaseError {
+    fn from(source: CellError) -> Self {
+        Self::Cell(source)
+    }
+}
+
+impl From<TagError> for ReleaseError {
+    fn from(source: TagError) -> Self {
+        Self::Tag(source)
+    }
+}
 
 fn basename(path: &Path) -> io::Result<String> {
     path.file_name()
@@ -426,16 +665,17 @@ pub fn write_bcr_source(dst: &Path, module: &str, version: &str) -> io::Result<(
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn bcr_integrity_of_digest(digest: &str) -> Result<String, String> {
-    let raw = dx_digest::parse_hex(digest).map_err(|_| {
-        format!("bcr: invalid sha256 digest {digest:?}: want 64 lowercase hex chars")
+pub fn bcr_integrity_of_digest(digest: &str) -> Result<String, BcrError> {
+    let raw = dx_digest::parse_hex(digest).map_err(|source| BcrError::InvalidDigest {
+        digest: digest.to_owned(),
+        source,
     })?;
     Ok(format!("sha256-{}", STANDARD.encode(raw)))
 }
 
-fn bcr_candidate_version_error(version: &str) -> Result<(), String> {
+fn bcr_candidate_version_error(version: &str) -> Result<(), BcrError> {
     if version == "0.0.0" {
-        return Err("bcr: version 0.0.0 is unpublishable (shape check only); candidate source metadata needs an owner-approved SemVer release version".to_owned());
+        return Err(BcrError::UnpublishableVersion);
     }
     let parts: Vec<&str> = version.split('.').collect();
     if parts.len() != 3
@@ -443,9 +683,9 @@ fn bcr_candidate_version_error(version: &str) -> Result<(), String> {
             .iter()
             .any(|part| part.chars().next().is_none_or(|c| !c.is_ascii_digit()))
     {
-        return Err(format!(
-            "bcr: invalid version '{version}': want SemVer MAJOR.MINOR.PATCH (for example '1.2.3-rc1')"
-        ));
+        return Err(BcrError::InvalidVersion {
+            version: version.to_owned(),
+        });
     }
     Ok(())
 }
@@ -467,17 +707,20 @@ pub fn render_bcr_source_for_digest(
     module: &str,
     version: &str,
     digest: &str,
-) -> Result<String, String> {
+) -> Result<String, BcrError> {
     if module != BCR_WANT_MODULE {
-        return Err(format!("bcr: invalid module '{module}': want 'rules_dx'"));
+        return Err(BcrError::InvalidModule {
+            module: module.to_owned(),
+        });
     }
     bcr_candidate_version_error(version)?;
     let integrity = bcr_integrity_of_digest(digest)?;
-    render_pretty(&serde_json::json!({
+    pretty_json(&serde_json::json!({
         "integrity": integrity,
         "strip_prefix": bcr_strip_prefix(module, version),
         "url": bcr_source_url(module, version),
     }))
+    .map_err(BcrError::Render)
 }
 
 /// # Errors
@@ -503,7 +746,7 @@ pub fn bcr_candidate_error(
     module: &str,
     version: &str,
     digest: &str,
-) -> Result<(), String> {
+) -> Result<(), BcrError> {
     let want_prefix = bcr_strip_prefix(module, version);
     bcr_source_error(
         source_text,
@@ -518,37 +761,40 @@ fn bcr_source_error(
     want_prefix: &str,
     want_url: &str,
     digest: &str,
-) -> Result<(), String> {
-    let value: serde_json::Value = serde_json::from_str(source_text).map_err(|error| {
-        format!("bcr: candidate source.json is not JSON (interrupted publication?): {error}")
-    })?;
+) -> Result<(), BcrError> {
+    let value: serde_json::Value =
+        serde_json::from_str(source_text).map_err(BcrError::SourceNotJson)?;
     let want_integrity = bcr_integrity_of_digest(digest)?;
     let integrity = value
         .get("integrity")
         .and_then(|field| field.as_str())
         .unwrap_or("");
     if integrity != want_integrity {
-        return Err(format!(
-            "bcr: candidate source.json integrity mismatch: archive sha256 {digest} wants {want_integrity:?}, metadata carries {integrity:?} (refusing to replace immutable version artifacts)"
-        ));
+        return Err(BcrError::IntegrityMismatch {
+            digest: digest.to_owned(),
+            want: want_integrity,
+            have: integrity.to_owned(),
+        });
     }
     let prefix = value
         .get("strip_prefix")
         .and_then(|field| field.as_str())
         .unwrap_or("");
     if prefix != want_prefix {
-        return Err(format!(
-            "bcr: candidate source.json strip_prefix mismatch: want {want_prefix:?}, got {prefix:?}"
-        ));
+        return Err(BcrError::StripPrefixMismatch {
+            want: want_prefix.to_owned(),
+            have: prefix.to_owned(),
+        });
     }
     let url = value
         .get("url")
         .and_then(|field| field.as_str())
         .unwrap_or("");
     if url != want_url {
-        return Err(format!(
-            "bcr: candidate source.json url mismatch: want {want_url:?}, got {url:?}"
-        ));
+        return Err(BcrError::UrlMismatch {
+            want: want_url.to_owned(),
+            have: url.to_owned(),
+        });
     }
     Ok(())
 }
@@ -558,21 +804,24 @@ fn bcr_source_error(
 /// Returns an error when the operation fails.
 pub fn release_remote_error(
     candidate: &candidate::Candidate,
-    ls_remote: Result<String, String>,
-) -> Result<String, String> {
+    ls_remote: Result<String, GitError>,
+) -> Result<String, TagError> {
     let tag = candidate.tag();
     let remote = candidate.remote();
-    let output = ls_remote.map_err(|error| format!(
-        "release: cannot verify remote tag {tag} (git ls-remote --tags {remote} failed: {error}); push it beforehand with owner approval (this program never creates or pushes tags)"
-    ))?;
-    let sha = candidate::remote_tag_commit(&output, &tag).map_err(|error| format!(
-        "{error} (git ls-remote --tags {remote}); push it beforehand with owner approval (this program never creates or pushes tags)"
-    ))?;
+    let output = ls_remote.map_err(|source| TagError::RemoteUnreadable {
+        tag: tag.clone(),
+        remote,
+        source,
+    })?;
+    let sha = candidate::remote_tag_commit(&output, &tag)
+        .map_err(|source| TagError::RemoteTag { remote, source })?;
     if sha != candidate.commit() {
-        return Err(format!(
-            "release: remote tag {tag} points at {sha}, candidate is {} (git ls-remote --tags {remote})",
-            candidate.commit()
-        ));
+        return Err(TagError::RemoteMismatch {
+            tag,
+            sha,
+            commit: candidate.commit().to_owned(),
+            remote,
+        });
     }
     Ok(sha)
 }
@@ -580,7 +829,7 @@ pub fn release_remote_error(
 #[must_use]
 pub fn release_remote_record(
     candidate: &candidate::Candidate,
-    ls_remote: Result<String, String>,
+    ls_remote: Result<String, GitError>,
 ) -> OpRecord {
     let tag = candidate.tag();
     match release_remote_error(candidate, ls_remote) {
@@ -590,7 +839,7 @@ pub fn release_remote_record(
             OpState::Validated,
             &format!("remote tag at {sha}"),
         ),
-        Err(error) => OpRecord::new("tag-remote", &tag, OpState::Failed, &error),
+        Err(error) => OpRecord::new("tag-remote", &tag, OpState::Failed, &error.to_string()),
     }
 }
 
@@ -946,14 +1195,16 @@ pub struct GitState {
 pub fn release_candidate(
     tag: &str,
     candidate_commit: Option<&str>,
-) -> Result<candidate::Candidate, String> {
+) -> Result<candidate::Candidate, TagError> {
     let version = tag
         .strip_prefix('v')
-        .ok_or_else(|| format!("release: tag {tag} must be v<SemVer>"))?;
-    let commit = candidate_commit.ok_or_else(|| {
-        format!("release: live release of {tag} needs the candidate commit: release_driver {tag} <commit>")
+        .ok_or_else(|| TagError::NotVPrefixed {
+            tag: tag.to_owned(),
+        })?;
+    let commit = candidate_commit.ok_or_else(|| TagError::NoCommit {
+        tag: tag.to_owned(),
     })?;
-    candidate::Candidate::new(version, commit).map_err(|error| format!("release: {error}"))
+    candidate::Candidate::new(version, commit).map_err(TagError::Candidate)
 }
 
 /// # Errors
@@ -963,18 +1214,13 @@ pub fn release_live_records(
     tag: &str,
     candidate_commit: Option<&str>,
     approve: &str,
-    git_state: impl FnOnce() -> Result<GitState, String>,
-) -> Result<Vec<OpRecord>, String> {
+    git_state: impl FnOnce() -> Result<GitState, CandidateError>,
+) -> Result<Vec<OpRecord>, TagError> {
     if approve != "1" {
-        return Err(
-            "release: real release needs RELEASE_APPROVE=1 plus explicit owner approval".to_owned(),
-        );
+        return Err(TagError::NotApproved);
     }
     if tag == "v0.0.0-dryrun" {
-        return Err(
-            "release: placeholder tag v0.0.0-dryrun is dry-run only; pass a real SemVer tag already pushed to the remote"
-                .to_owned(),
-        );
+        return Err(TagError::PlaceholderTag);
     }
     let candidate = release_candidate(tag, candidate_commit)?;
     let commit = candidate.commit();
@@ -988,7 +1234,7 @@ pub fn release_live_records(
     };
     let state = match git_state() {
         Ok(state) => state,
-        Err(error) => return failed(error),
+        Err(error) => return failed(error.to_string()),
     };
     if state.tree_dirty {
         return failed("release: tree is dirty; release requires a clean tree".to_owned());
@@ -1025,8 +1271,8 @@ pub fn release_run(
     candidate_commit: Option<&str>,
     approve: &str,
     dry_run: bool,
-    git_state: impl FnOnce() -> Result<GitState, String>,
-) -> Result<String, String> {
+    git_state: impl FnOnce() -> Result<GitState, CandidateError>,
+) -> Result<String, TagError> {
     if dry_run {
         return Ok(render_release_dry_run(tag, approve));
     }

@@ -329,7 +329,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "deploy/private/dx_release_tools",
         normal = True,
-    ) + [":dx_release_tools"],
+    ) + [
+        ":dx_release_tools",
+        "//cli/atomic_fs:dx_atomic_fs",
+    ],
 )
 
 rust_binary(

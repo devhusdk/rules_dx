@@ -2,8 +2,8 @@ use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
 use dx_release_tools::{
-    PROVENANCE_BUILDER_RELEASE, bcr_candidate_error, notice_verify_files, sbom_verify_files,
-    write_bcr_source_for_archive,
+    BcrError, PROVENANCE_BUILDER_RELEASE, bcr_candidate_error, notice_verify_files,
+    sbom_verify_files, write_bcr_source_for_archive,
 };
 
 fn scratch() -> tempfile::TempDir {
@@ -257,7 +257,11 @@ fn candidate_source_rejects_a_replaced_archive() {
     let zeros = "0".repeat(64);
     let error = bcr_candidate_error(&text, "rules_dx", CANDIDATE_VERSION, &zeros)
         .expect_err("a replaced archive for one version must not pass");
-    assert!(error.contains("integrity mismatch"), "got {error}");
+    assert!(matches!(error, BcrError::IntegrityMismatch { .. }));
+    assert!(
+        error.to_string().contains("integrity mismatch"),
+        "got {error}"
+    );
 }
 
 #[test]
@@ -267,7 +271,10 @@ fn candidate_source_rejects_wrong_prefix_and_url() {
     let text = read(&source);
     let error = bcr_candidate_error(&text, "rules_dx", "1.2.4", &digest)
         .expect_err("a wrong strip-prefix version must not pass");
-    assert!(error.contains("strip_prefix mismatch"), "got {error}");
+    assert!(
+        error.to_string().contains("strip_prefix mismatch"),
+        "got {error}"
+    );
     let tampered = write(
         dir.path(),
         "tampered.source.json",
@@ -275,7 +282,7 @@ fn candidate_source_rejects_wrong_prefix_and_url() {
     );
     let error = bcr_candidate_error(&read(&tampered), "rules_dx", CANDIDATE_VERSION, &digest)
         .expect_err("a tampered url must not pass");
-    assert!(error.contains("url mismatch"), "got {error}");
+    assert!(error.to_string().contains("url mismatch"), "got {error}");
 }
 
 #[test]
@@ -291,5 +298,6 @@ fn interrupted_candidate_publication_fails_closed() {
     );
     let error = bcr_candidate_error(&read(&cut), "rules_dx", CANDIDATE_VERSION, &digest)
         .expect_err("an interrupted publication must not pass");
-    assert!(error.contains("not JSON"), "got {error}");
+    assert!(matches!(error, BcrError::SourceNotJson(_)));
+    assert!(error.to_string().contains("not JSON"), "got {error}");
 }

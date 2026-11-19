@@ -34,27 +34,16 @@ pub fn local_override_repos(module: &str) -> Vec<String> {
         .collect()
 }
 
-/// The patches of `//patches/rules_py` that `rules_py_override` names, without `.patch`.
-pub const RULES_PY_PATCHES: [&str; 8] = [
-    "py_cc_toolchain_platform",
-    "native_sdist_toolchain_flags",
-    "pep517_msvc",
-    "venv_bin_files",
-    "host_interpreter_windows_arm64",
-    "external_repo_pytest_paths",
-    "host_libc_glibc",
-    "win32_x86_32",
-];
-
 /// Pins the patched `rules_py` the way the root MODULE.bazel does.
 #[must_use]
 pub fn rules_py_override() -> String {
-    let patches = RULES_PY_PATCHES
-        .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
-        .concat();
-    format!(
-        "single_version_override(\n    module_name = \"rules_py\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"2.0.0-alpha.11\",\n)\n"
-    )
+    root_pin("rules_py")
+}
+
+/// The patches of `//patches/rules_py` that `rules_py_override` names, without `.patch`.
+#[must_use]
+pub fn rules_py_patches() -> Vec<String> {
+    root_pin_patches("rules_py")
 }
 
 /// The patches of `//patches/rules_rust` that `rules_rust_override` names, without `.patch`.
@@ -139,6 +128,31 @@ pub const RULES_FLUTTER_PATCHES: [&str; 6] = [
 
 /// The `flutter/pins.json` that holds the `rules_flutter` pin.
 const FLUTTER_PINS: &str = include_str!("../../../../flutter/pins.json");
+
+/// The root MODULE.bazel of rules_dx.
+const ROOT_MODULE: &str = include_str!("../../../../MODULE.bazel");
+
+/// The `single_version_override` of `module` in the root MODULE.bazel, or an empty string when it has none.
+fn root_pin(module: &str) -> String {
+    root_patch_override(ROOT_MODULE, module).unwrap_or_default()
+}
+
+/// The patches of `//patches/<module>` that `root_pin(module)` names, without `.patch`.
+fn root_pin_patches(module: &str) -> Vec<String> {
+    pin_patches(&root_pin(module), module)
+}
+
+/// The patches of `//patches/<module>` that `block` names outside comments, without `.patch`.
+#[must_use]
+pub fn pin_patches(block: &str, module: &str) -> Vec<String> {
+    block
+        .lines()
+        .filter(|line| !line.trim_start().starts_with('#'))
+        .flat_map(patch_labels)
+        .filter(|(package, _)| package == module)
+        .filter_map(|(_, file)| file.strip_suffix(".patch").map(str::to_owned))
+        .collect()
+}
 
 /// The `sha256-` integrity of a lowercase hex SHA-256.
 fn sha256_integrity(hex: &str) -> Result<String, String> {
@@ -316,7 +330,9 @@ pub fn write_windows_support_patches(workspace: &Path, rules_dx: &Path) -> Resul
 ///
 /// Returns `Err` when the operation fails.
 pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
-    write_patches(workspace, rules_dx, "rules_py", &RULES_PY_PATCHES)?;
+    let patches = rules_py_patches();
+    let patches: Vec<&str> = patches.iter().map(String::as_str).collect();
+    write_patches(workspace, rules_dx, "rules_py", &patches)?;
     write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)
 }
 
@@ -477,6 +493,21 @@ mod tests {
     fn module_pins_rules_py_once() {
         let module = compose_module(SNIPPET, "m", "rules_dx", "", Path::new("/s")).unwrap();
         assert_eq!(module.matches("module_name = \"rules_py\"").count(), 1);
+    }
+
+    #[test]
+    fn pin_patches_reads_labels_and_skips_comments() {
+        let block = "single_version_override(\n    module_name = \"rules_py\",\n    patches = [\n        \"//patches/rules_py:a.patch\",  # upstream: https://x/1\n        # upstream: https://x/2\n        \"//patches/rules_py:b.patch\",\n        # \"//patches/rules_py:off.patch\",\n        \"//patches/other:c.patch\",\n    ],\n)\n";
+        assert_eq!(pin_patches(block, "rules_py"), ["a", "b"]);
+    }
+
+    #[test]
+    fn rules_py_override_follows_the_root_pin() {
+        assert!(rules_py_override().starts_with("single_version_override("));
+        assert_eq!(
+            rules_py_patches().len(),
+            ROOT_MODULE.matches("\"//patches/rules_py:").count()
+        );
     }
 
     #[test]

@@ -645,7 +645,7 @@ fn the_consumer_materializes_from_dx_init() {
     let source = dir.path().join("rules dx source");
     let patches = source.join("patches/rules_py");
     std::fs::create_dir_all(&patches).unwrap();
-    for patch in dx_nested::compose::RULES_PY_PATCHES {
+    for patch in dx_nested::compose::rules_py_patches() {
         std::fs::write(patches.join(format!("{patch}.patch")), "").unwrap();
     }
     let flutter = source.join("patches/rules_flutter");
@@ -653,15 +653,15 @@ fn the_consumer_materializes_from_dx_init() {
     for patch in dx_nested::compose::RULES_FLUTTER_PATCHES {
         std::fs::write(flutter.join(format!("{patch}.patch")), "").unwrap();
     }
-    let protobuf = source.join("patches/protobuf");
-    std::fs::create_dir_all(&protobuf).unwrap();
-    std::fs::write(protobuf.join("fix.patch"), "").unwrap();
-    let protobuf_override = "single_version_override(\n    module_name = \"protobuf\",\n    patches = [\"//patches/protobuf:fix.patch\"],\n)\n";
-    std::fs::write(source.join("MODULE.bazel"), protobuf_override).unwrap();
+    let rules_python = source.join("patches/rules_python");
+    std::fs::create_dir_all(&rules_python).unwrap();
+    std::fs::write(rules_python.join("fix.patch"), "").unwrap();
+    let rules_python_override = "single_version_override(\n    module_name = \"rules_python\",\n    patches = [\"//patches/rules_python:fix.patch\"],\n)\n";
+    std::fs::write(source.join("MODULE.bazel"), rules_python_override).unwrap();
     materialize(&manifest, &workspace, &source, "cc").unwrap();
     let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap();
-    assert!(module.contains(protobuf_override), "{module}");
-    assert!(workspace.join("patches/protobuf/fix.patch").is_file());
+    assert!(module.contains(rules_python_override), "{module}");
+    assert!(workspace.join("patches/rules_python/fix.patch").is_file());
     for needle in [
         "module(name = \"hermetic_consumer\")",
         "bazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = ",

@@ -197,8 +197,11 @@ d_toolchain(
 
 def cross_build(cross):
     """Renders the BUILD file of one cross cell."""
+
+    # Target flags such as -mscrtlib describe the binary; the cell's own -mtriple gives way to the cross triple.
+    target_flags = [flag for flag in LDC_CELLS[cross.target].compiler_flags if not flag.startswith("-mtriple=")]
     return CROSS_BUILD.format(
-        compiler_flags = repr(LDC_CELLS[cross.host].compiler_flags + ["-mtriple=" + cross.triple]),
+        compiler_flags = repr(target_flags + ["-mtriple=" + cross.triple]),
         host = ldc_repository_name(cross.host),
         target = ldc_repository_name(cross.target),
     )

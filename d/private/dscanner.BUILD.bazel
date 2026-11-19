@@ -1,0 +1,23 @@
+load("@rules_d//d:defs.bzl", "d_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+# rules_d's string_srcs takes labels, not plain files.
+filegroup(
+    name = "githash",
+    srcs = ["githash.txt"],
+)
+
+d_binary(
+    name = "dscanner",
+    srcs = glob(["src/**/*.d"]),
+    imports = ["src"],
+    string_srcs = [":githash"],
+    deps = [
+        "@dx_d_containers//:containers",
+        "@dx_d_dcd//:dsymbol",
+        "@dx_d_inifiled//:inifiled",
+        "@dx_d_libddoc//:ddoc",
+        "@dx_d_libdparse//:dparse",
+    ],
+)

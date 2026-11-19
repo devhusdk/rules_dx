@@ -341,7 +341,51 @@ pub fn sort_diagnostics(diagnostics: &mut [DiagnosticEvent]) {
             .then_with(|| a.rule.cmp(&b.rule))
             .then_with(|| a.message.cmp(&b.message))
             .then_with(|| a.origins.cmp(&b.origins))
+            .then_with(|| a.fixable.cmp(&b.fixable))
+            .then_with(|| a.unfixable_reason.cmp(&b.unfixable_reason))
+            .then_with(|| package_key(a).cmp(&package_key(b)))
+            .then_with(|| related_key(a).cmp(&related_key(b)))
     });
+}
+
+type PackageKey<'a> = Option<(
+    &'a str,
+    &'a str,
+    &'a Option<Vec<String>>,
+    &'a Option<String>,
+)>;
+
+fn package_key(event: &DiagnosticEvent) -> PackageKey<'_> {
+    event
+        .package
+        .as_ref()
+        .map(|p| (p.name.as_str(), p.version.as_str(), &p.fixed, &p.license))
+}
+
+type RelatedKey<'a> = (
+    &'a str,
+    &'a str,
+    &'a Option<String>,
+    &'a Option<(u64, u64)>,
+    &'a Option<String>,
+    &'a Option<String>,
+);
+
+fn related_key(event: &DiagnosticEvent) -> Vec<RelatedKey<'_>> {
+    event
+        .related
+        .iter()
+        .map(|r| {
+            (
+                r.role.as_str(),
+                r.message.as_str(),
+                &r.path,
+                &r.range,
+                &r.replacement,
+                &r.applicability,
+            )
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -577,6 +621,49 @@ mod tests {
                 OutputError::EmptyField { field }
             );
         }
+    }
+
+    #[test]
+    fn diagnostics_that_differ_only_in_package_sort_the_same_either_way() {
+        let make = |version: &str| DiagnosticEvent {
+            package: Some(PackageRef {
+                name: "left-pad".to_owned(),
+                version: version.to_owned(),
+                fixed: None,
+                license: None,
+            }),
+            ..DiagnosticEvent::new(Severity::Error, "audit", "vulnerable")
+        };
+        let mut forward = vec![make("1.0.0"), make("2.0.0")];
+        let mut backward = vec![make("2.0.0"), make("1.0.0")];
+        sort_diagnostics(&mut forward);
+        sort_diagnostics(&mut backward);
+        assert_eq!(forward, backward);
+    }
+
+    #[test]
+    fn diagnostics_that_differ_only_in_fix_state_or_related_sort_the_same_either_way() {
+        let fixable = DiagnosticEvent {
+            fixable: true,
+            ..DiagnosticEvent::new(Severity::Warning, "lint", "m")
+        };
+        let plain = DiagnosticEvent::new(Severity::Warning, "lint", "m");
+        let related = DiagnosticEvent {
+            related: vec![RelatedEvent {
+                role: "note".to_owned(),
+                message: "n".to_owned(),
+                path: None,
+                range: None,
+                replacement: None,
+                applicability: None,
+            }],
+            ..DiagnosticEvent::new(Severity::Warning, "lint", "m")
+        };
+        let mut forward = vec![fixable.clone(), plain.clone(), related.clone()];
+        let mut backward = vec![related, plain, fixable];
+        sort_diagnostics(&mut forward);
+        sort_diagnostics(&mut backward);
+        assert_eq!(forward, backward);
     }
 
     #[test]

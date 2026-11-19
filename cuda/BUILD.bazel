@@ -12,11 +12,9 @@ exports_files([
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = glob(["*.bzl"]) + [
         "BUILD.bazel",
         "pins.json",
-    ]) + [
         "//cuda/private:module_srcs",
         "//cuda/private/toolchain:module_srcs",
     ],
@@ -65,6 +63,22 @@ cuda_component_library(
     tags = ["manual"],
     target_compatible_with = CUDA_COMPATIBLE_WITH,
     visibility = ["//visibility:public"],
+)
+
+# clang's CUDA runtime wrapper includes curand_mtgp32_kernel.h, so clang-tidy needs the cuRAND headers.
+# Only CUDA compiles run under the static runtime setting, so other C/C++ targets never fetch cuRAND.
+alias(
+    name = "clang_tidy_headers",
+    actual = select({
+        "//cuda/private/toolchain:static_runtime_enabled": "@cuda//:curand_headers",
+        "//conditions:default": ":no_clang_tidy_headers",
+    }),
+    visibility = ["//cc:__subpackages__"],
+)
+
+filegroup(
+    name = "no_clang_tidy_headers",
+    srcs = [],
 )
 
 real_source_target(

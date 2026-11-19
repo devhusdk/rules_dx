@@ -9,16 +9,25 @@ const INFO_RULES: &[&str] = &[
     "readability-redundant-declaration",
 ];
 
+// `1 warning generated.`, or for CUDA `2 warnings and 1 error generated when compiling for host.`
 fn is_count_trailer(line: &str) -> bool {
     let line = line.trim_end();
-    let Some(counts) = line.strip_suffix(" generated.") else {
+    let Some((counts, rest)) = line.split_once(" generated") else {
         return false;
     };
-    let mut words = counts.split_whitespace();
+    let target_ok = rest == "."
+        || rest
+            .strip_prefix(" when compiling for ")
+            .and_then(|target| target.strip_suffix('.'))
+            .is_some_and(|target| !target.is_empty() && !target.contains(char::is_whitespace));
     let numbered = |word: Option<&str>| word.is_some_and(|w| w.parse::<u64>().is_ok());
     let kind =
         |word: Option<&str>| matches!(word, Some("warning" | "warnings" | "error" | "errors"));
-    numbered(words.next()) && kind(words.next())
+    target_ok
+        && counts.split(" and ").all(|part| {
+            let mut words = part.split_whitespace();
+            numbered(words.next()) && kind(words.next()) && words.next().is_none()
+        })
 }
 
 // clang-tidy prints the main file as an absolute path under the action's execroot.
@@ -205,6 +214,25 @@ mod tests {
         )
         .expect("parsed");
         assert_eq!(findings.len(), 1);
+    }
+
+    #[test]
+    fn clang_tidy_skips_cuda_count_trailers() {
+        let file = "cuda/a.cu";
+        let log = format!(
+            "{file}:6:5: warning: do not use 'else' after 'return' [readability-else-after-return]\n2 warnings and 1 error generated when compiling for host.\n"
+        );
+        let found = parse_clang_tidy(log.as_bytes(), Some(0), &[file]).expect("parsed");
+        assert_eq!(found.len(), 1);
+        assert!(is_count_trailer(
+            "1 warning generated when compiling for sm_89."
+        ));
+        assert!(is_count_trailer("3 errors generated."));
+        assert!(!is_count_trailer(
+            "1 warning generated when compiling for ."
+        ));
+        assert!(!is_count_trailer("1 warning and generated."));
+        assert!(!is_count_trailer("many warnings generated."));
     }
 
     #[test]

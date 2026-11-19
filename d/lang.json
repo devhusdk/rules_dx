@@ -58,6 +58,7 @@
       "audit": [],
       "format": [],
       "lint": [
+        "dscanner",
         "typos"
       ],
       "typecheck": []

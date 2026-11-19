@@ -54,6 +54,14 @@
         "https://github.com/dlang-community/DCD/archive/refs/tags/v0.19.4.tar.gz"
       ]
     },
+    "dx_d_dscanner": {
+      "version": "0.16.0-beta.5",
+      "sha256": "6397d15eb3e2dc6b82dba4c830793db9299b6f4025099f16b0c5482bd39651a2",
+      "strip_prefix": "D-Scanner-0.16.0-beta.5",
+      "urls": [
+        "https://github.com/dlang-community/D-Scanner/archive/refs/tags/v0.16.0-beta.5.tar.gz"
+      ]
+    },
     "dx_d_inifiled": {
       "version": "2.0.0",
       "sha256": "6b6993968c8a9351c3bddb570f9f2c8dc6f36235c5a351faea03b6bb71a6d84d",

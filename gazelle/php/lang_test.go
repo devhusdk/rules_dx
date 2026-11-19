@@ -250,6 +250,16 @@ func TestResolveDoesNotTreatNamespacedNamesAsBuiltins(t *testing.T) {
 	}
 }
 
+func TestResolveMapsRunfilesClassToRulesDx(t *testing.T) {
+	lang, r := resolveImports(t, []string{"Bazel\\Runfiles\\Runfiles"})
+	if lang.Failed() {
+		t.Fatalf("runfiles import was reported: %v", lang.Errors())
+	}
+	if deps := r.AttrStrings("deps"); len(deps) != 1 || deps[0] != "@rules_dx//php:runfiles" {
+		t.Errorf("deps = %v, want [@rules_dx//php:runfiles]", deps)
+	}
+}
+
 func TestResolveReportsVendorImportWithHint(t *testing.T) {
 	lang, _ := resolveImports(t, []string{"Vendor\\Lib\\Thing"})
 	errs := lang.Errors()
@@ -266,6 +276,19 @@ func TestGenerateKeepsHandwrittenTestsWithoutSources(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, map[string]string{"pkg/bench.php": "x\n"})
 	result := NewLanguage().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg"), Rel: "pkg", File: file, RegularFiles: []string{"bench.php"}})
+	if len(result.Empty) != 0 {
+		t.Errorf("empty = %v, want none", result.Empty)
+	}
+}
+
+func TestGenerateKeepsLibrariesWithLabelSources(t *testing.T) {
+	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte(`php_library(name = "runfiles", srcs = ["//pkg/private:Runfiles.php"])`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	writeFixture(t, root, map[string]string{"pkg/BUILD.bazel": "\n"})
+	result := NewLanguage().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg"), Rel: "pkg", File: file})
 	if len(result.Empty) != 0 {
 		t.Errorf("empty = %v, want none", result.Empty)
 	}

@@ -1,4 +1,5 @@
 # gazelle:exclude BenchTest.php
+# gazelle:exclude Runfiles.php
 
 package(default_visibility = [
     "//:__pkg__",
@@ -14,6 +15,7 @@ exports_files([
     "pcov.BUILD.bazel",
     "php.bzl",
     "providers.bzl",
+    "Runfiles.php",
     "tool.php",
 ])
 
@@ -26,6 +28,7 @@ filegroup(
         "pcov.BUILD.bazel",
     ]) + [
         "BenchTest.php",
+        "Runfiles.php",
         "tool.php",
     ],
     visibility = ["//:__subpackages__"],

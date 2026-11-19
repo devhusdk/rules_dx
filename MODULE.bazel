@@ -990,6 +990,34 @@ dx_pins.archive(
     pins = "//d:pins.json",
 )
 dx_pins.archive(
+    name = "dx_d_dscanner",
+    build = "//d/private:dscanner.BUILD.bazel",
+    dropped = [
+        "DCD",
+        "Dockerfile",
+        "appveyor.yml",
+        "build.bat",
+        "containers",
+        "d-test-utils",
+        "dsc.sublime-project",
+        "dub.json",
+        "dub.selections.json",
+        "dubhash.d",
+        "inifiled",
+        "libddoc",
+        "libdparse",
+        "makefile",
+        "release-windows.sh",
+        "release.sh",
+        "scripts",
+        "setup-ldc-windows.sh",
+        "sonar-project.properties",
+        "tests",
+    ],
+    files = {"githash.txt": "//d/private:dscanner_githash.txt"},
+    pins = "//d:pins.json",
+)
+dx_pins.archive(
     name = "dx_d_inifiled",
     build = "//d/private:inifiled.BUILD.bazel",
     dropped = [
@@ -1497,6 +1525,7 @@ use_repo(
     "dx_coreutils__windows_x86_64",
     "dx_d_containers",
     "dx_d_dcd",
+    "dx_d_dscanner",
     "dx_d_inifiled",
     "dx_d_libddoc",
     "dx_d_libdparse",

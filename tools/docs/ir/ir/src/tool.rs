@@ -4,7 +4,7 @@ use std::process::ExitCode;
 
 use crate::proto::DocIr;
 
-/// Prints usage on -h/--help, exits 2 with "<program>: <detail>\n<usage>" on a parse error, 1 with "<program>: <detail>" on a run error.
+/// Runs [`run_process`] on the process arguments.
 pub fn main<O>(
     program: &str,
     usage: &str,
@@ -12,16 +12,38 @@ pub fn main<O>(
     run: impl FnOnce(&O) -> Result<(), String>,
 ) -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    ExitCode::from(print_outcome(&args, program, usage, parse, run))
+}
+
+/// Prints usage on -h/--help, returns 2 after printing "<program>: <detail>\n<usage>" on a parse error, 1 after "<program>: <detail>" on a run error.
+#[must_use]
+pub fn run_process<O>(
+    program: &str,
+    usage: &str,
+    parse: impl FnOnce(&[String]) -> Result<O, String>,
+    run: impl FnOnce(&O) -> Result<(), String>,
+    args: &[String],
+) -> i32 {
+    i32::from(print_outcome(args, program, usage, parse, run))
+}
+
+fn print_outcome<O>(
+    args: &[String],
+    program: &str,
+    usage: &str,
+    parse: impl FnOnce(&[String]) -> Result<O, String>,
+    run: impl FnOnce(&O) -> Result<(), String>,
+) -> u8 {
     let mut stdout = String::new();
     let mut stderr = String::new();
-    let code = execute(&args, program, usage, parse, run, &mut stdout, &mut stderr);
+    let code = execute(args, program, usage, parse, run, &mut stdout, &mut stderr);
     if !stdout.is_empty() {
         println!("{stdout}");
     }
     if !stderr.is_empty() {
         eprintln!("{stderr}");
     }
-    ExitCode::from(code)
+    code
 }
 
 fn execute<O>(
@@ -195,6 +217,18 @@ mod tests {
             &mut stderr,
         );
         (code, stdout, stderr)
+    }
+
+    #[test]
+    fn run_process_returns_two_on_a_parse_error() {
+        let code = run_process(
+            "prog",
+            "usage: prog",
+            |args| flags(args, &["--a"]).map(|_| ()),
+            |()| Ok(()),
+            &args(&["--x", "1"]),
+        );
+        assert_eq!(code, 2);
     }
 
     #[test]

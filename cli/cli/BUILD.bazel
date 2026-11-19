@@ -186,6 +186,12 @@ rust_binary(
         "//core/quality/runner:quality_runner_lib",
         "//deploy/private:dx_deploy_tools",
         "//tools/coverage/collect:collect_native_lib",
+        "//tools/docs/avro/extract:dx_docs_avro_extract",
+        "//tools/docs/d/extract:dx_docs_d_extract",
+        "//tools/docs/fortran/extract:dx_docs_fortran_extract",
+        "//tools/docs/lua/extract:dx_docs_lua_extract",
+        "//tools/docs/perl/extract:dx_docs_perl_extract",
+        "//tools/docs/zig/extract:dx_docs_zig_extract",
         "@crates//:tracing",
     ] + select({
         "@platforms//os:windows": [],

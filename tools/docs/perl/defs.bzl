@@ -52,6 +52,7 @@ def perl_shard_action(ctx, own, package, stem, driver, extract_tool):
     )
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("perl_extract")
     extract.add("--json", pod_json)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -97,7 +98,7 @@ docs_perl_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/perl/extract:perl_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

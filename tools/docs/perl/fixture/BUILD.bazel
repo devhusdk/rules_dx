@@ -1,5 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//perl:defs.bzl", "perl_library")
+load("//tools/docs/ir:dx_extract_test.bzl", "dx_extract_test")
 load("//tools/docs/perl:defs.bzl", "perl_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
@@ -13,6 +14,14 @@ perl_library(
 perl_doc_shard(
     name = "geometry_docs",
     lib = ":geometry",
+)
+
+dx_extract_test(
+    name = "geometry_docs_dx_extract_test",
+    size = "small",
+    mnemonic = "DxDocsPerlExtract",
+    subcommand = "perl_extract",
+    target_under_test = ":geometry_docs",
 )
 
 real_source_target(

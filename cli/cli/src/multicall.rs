@@ -26,6 +26,12 @@ pub enum Tool {
     CloudflareVerify,
     NpmPacker,
     CapnpcRustDx,
+    AvroExtract,
+    DExtract,
+    FortranExtract,
+    LuaExtract,
+    PerlExtract,
+    ZigExtract,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -58,6 +64,12 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "cloudflare_verify" => Some(Tool::CloudflareVerify),
         "npm_packer" => Some(Tool::NpmPacker),
         "capnpc_rust_dx" => Some(Tool::CapnpcRustDx),
+        "avro_extract" => Some(Tool::AvroExtract),
+        "d_extract" => Some(Tool::DExtract),
+        "fortran_extract" => Some(Tool::FortranExtract),
+        "lua_extract" => Some(Tool::LuaExtract),
+        "perl_extract" => Some(Tool::PerlExtract),
+        "zig_extract" => Some(Tool::ZigExtract),
         _ => None,
     }
 }
@@ -133,6 +145,12 @@ mod tests {
             ("cloudflare_verify", Tool::CloudflareVerify),
             ("npm_packer", Tool::NpmPacker),
             ("capnpc_rust_dx", Tool::CapnpcRustDx),
+            ("avro_extract", Tool::AvroExtract),
+            ("d_extract", Tool::DExtract),
+            ("fortran_extract", Tool::FortranExtract),
+            ("lua_extract", Tool::LuaExtract),
+            ("perl_extract", Tool::PerlExtract),
+            ("zig_extract", Tool::ZigExtract),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -149,6 +167,12 @@ mod tests {
             "archiver",
             "hasher",
             "capnpc_rust_dx",
+            "avro_extract",
+            "d_extract",
+            "fortran_extract",
+            "lua_extract",
+            "perl_extract",
+            "zig_extract",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }

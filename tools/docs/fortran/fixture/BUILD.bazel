@@ -1,5 +1,6 @@
 load("//fortran:defs.bzl", "fortran_library")
 load("//tools/docs/fortran:defs.bzl", "fortran_doc_shard")
+load("//tools/docs/ir:dx_extract_test.bzl", "dx_extract_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -18,4 +19,12 @@ fortran_library(
 fortran_doc_shard(
     name = "geom_docs",
     lib = ":geom",
+)
+
+dx_extract_test(
+    name = "geom_docs_dx_extract_test",
+    size = "small",
+    mnemonic = "DxDocsFortranExtract",
+    subcommand = "fortran_extract",
+    target_under_test = ":geom_docs",
 )

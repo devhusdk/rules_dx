@@ -2,6 +2,11 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//scala:defs.bzl", "scala_binary", "scala_library", "scala_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
+# The dirty fixtures stay in their own manual targets; gazelle would merge them
+# into the clean library.
+# gazelle:exclude FormatDirty.scala
+# gazelle:exclude LintDirty.scala
+
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
@@ -13,9 +18,17 @@ scala_library(
     srcs = ["Greet.scala"],
 )
 
+# keep
 scala_library(
     name = "format_dirty",
     srcs = ["FormatDirty.scala"],
+    tags = ["manual"],
+)
+
+# keep
+scala_library(
+    name = "lint_dirty",
+    srcs = ["LintDirty.scala"],
     tags = ["manual"],
 )
 
@@ -59,6 +72,12 @@ scala_binary(
     deps = ["@maven//:junit_junit"],
 )
 
+# Fails analysis when scala_binary stops exposing <name>_deploy.jar.
+filegroup(
+    name = "hello_deploy_jar",
+    srcs = [":hello_deploy.jar"],
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -84,6 +103,10 @@ dx_conformance_suite(
         "clean": ":conformance",
         "format_dirty": ":format_dirty",
         "format_source": "FormatDirty.scala",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 4,
+        "lint_rule": "DisableSyntax.var",
+        "lint_source": "LintDirty.scala",
     },
     runfiles = {
         "binary": ":runfiles_hello",

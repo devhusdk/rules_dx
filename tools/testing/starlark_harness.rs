@@ -425,31 +425,9 @@ fn invoked_exe() -> std::io::Result<PathBuf> {
         .map_err(|error| bad(format!("cannot resolve the test executable: {error}")))
 }
 
-/// Returns the runfiles tree above one executable path, when there is one.
-fn tree_ancestor(exe: &Path) -> Option<PathBuf> {
-    let mut root = PathBuf::new();
-    for component in exe.components() {
-        root.push(component.as_os_str());
-        if component
-            .as_os_str()
-            .to_string_lossy()
-            .ends_with(".runfiles")
-        {
-            return Some(root);
-        }
-    }
-    None
-}
-
 /// Resolves the runfiles of the invoked test executable.
 fn resolver_for(exe: &Path) -> std::io::Result<Resolver> {
-    if let Some(tree) = tree_ancestor(exe)
-        && tree.is_dir()
-    {
-        return Resolver::for_tree(&tree)
-            .map_err(|error| bad(format!("no runfiles tree at {}: {error}", tree.display())));
-    }
-    Resolver::for_binary(exe).or_else(|error| {
+    Resolver::for_executable(exe).or_else(|error| {
         // A runner reached through another test's manifest has no tree of its own.
         inherited_tree()
             .and_then(|tree| Resolver::for_tree(&tree).ok())
@@ -1166,12 +1144,5 @@ mod tests {
             error.to_string().contains("_main/pkg/absent.json"),
             "{error}"
         );
-    }
-
-    #[test]
-    fn a_tree_ancestor_selects_the_tree_resolver() {
-        let root = tree_ancestor(Path::new("/x/y/test.runfiles/_main/pkg/test")).expect("tree");
-        assert_eq!(root, PathBuf::from("/x/y/test.runfiles"));
-        assert!(tree_ancestor(Path::new("/x/y/test")).is_none());
     }
 }

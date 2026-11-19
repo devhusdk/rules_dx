@@ -408,16 +408,16 @@ fn expand_tokens(
 fn platform_config_enabled(options: &[String]) -> bool {
     let mut enabled = false;
     for option in options {
-        match option.as_str() {
-            "--enable_platform_specific_config"
-            | "--enable_platform_specific_config=true"
-            | "--enable_platform_specific_config=yes"
-            | "--enable_platform_specific_config=1" => enabled = true,
-            "--noenable_platform_specific_config"
-            | "--enable_platform_specific_config=false"
-            | "--enable_platform_specific_config=no"
-            | "--enable_platform_specific_config=0" => enabled = false,
-            _ => {}
+        if option == "--enable_platform_specific_config" {
+            enabled = true;
+        } else if option == "--noenable_platform_specific_config" {
+            enabled = false;
+        } else if let Some(value) = option.strip_prefix("--enable_platform_specific_config=") {
+            match value.to_ascii_lowercase().as_str() {
+                "true" | "yes" | "t" | "y" | "1" => enabled = true,
+                "false" | "no" | "f" | "n" | "0" => enabled = false,
+                _ => {}
+            }
         }
     }
     enabled

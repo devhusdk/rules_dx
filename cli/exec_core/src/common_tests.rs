@@ -1025,7 +1025,7 @@ fn write_report_file_refuses_a_parent_that_is_not_a_directory() {
     assert!(err.reason.contains("parent directory"), "{err}");
     assert!(err.reason.contains("does not exist"), "{err}");
     assert!(!dir.path().join("nested").exists());
-    std::fs::create_dir(dir.path().join("nested")).expect("mkdir");
+    std::fs::create_dir_all(dir.path().join("nested")).expect("mkdir");
     write_report_file(dir.path(), "nested/out.sarif", "{}\n").expect("write");
     assert_eq!(
         std::fs::read_to_string(dir.path().join("nested/out.sarif")).expect("report"),
@@ -1039,7 +1039,7 @@ fn write_report_file_refuses_a_parent_that_is_not_a_directory() {
 fn write_report_file_keeps_stale_content_on_failure() {
     let dir = tempfile::tempdir().expect("tempdir");
     std::fs::write(dir.path().join("out.sarif"), "stale\n").expect("stale");
-    std::fs::create_dir(dir.path().join("blocked")).expect("mkdir");
+    std::fs::create_dir_all(dir.path().join("blocked")).expect("mkdir");
     let err = write_report_file(dir.path(), "blocked", "{}\n").expect_err("directory");
     assert!(err.reason.contains("destination is a directory"), "{err}");
     assert_eq!(
@@ -1224,4 +1224,62 @@ fn report_dx_error_exits_by_kind_and_keeps_the_code() {
         assert!(text.contains("update.test"), "{text}");
         assert!(text.contains(error.message()), "{text}");
     }
+}
+
+struct GitStub {
+    code: Option<i32>,
+    stderr: &'static [u8],
+}
+
+impl QueryRunner for GitStub {
+    fn run_query(
+        &self,
+        _argv: &[String],
+        _cwd: &Path,
+    ) -> io::Result<dx_plan::resolve::QueryResult> {
+        Ok(dx_plan::resolve::QueryResult {
+            code: self.code,
+            stdout: Vec::new(),
+            stderr: self.stderr.to_vec(),
+        })
+    }
+}
+
+fn git_failure(code: Option<i32>, stderr: &'static [u8]) -> String {
+    let runner = GitStub { code, stderr };
+    git_output(&runner, Path::new("."), "diff", &["diff"])
+        .expect_err("git failed")
+        .message()
+        .to_owned()
+}
+
+#[test]
+fn a_git_failure_names_the_fatal_line_not_a_leading_warning() {
+    let message = git_failure(
+        Some(128),
+        b"warning: LF will be replaced by CRLF in a.txt.\r\nfatal: bad revision 'x'\r\n",
+    );
+    assert!(message.contains("fatal: bad revision 'x'"), "{message}");
+    assert!(!message.contains("warning:"), "{message}");
+}
+
+#[test]
+fn a_git_failure_without_output_keeps_its_exit_status() {
+    assert_eq!(
+        git_failure(Some(128), b""),
+        "git diff failed: no Git diagnostic (exit 128)"
+    );
+    assert_eq!(
+        git_failure(None, b""),
+        "git diff failed: no Git diagnostic (ended by a signal)"
+    );
+}
+
+#[test]
+fn a_git_failure_with_a_line_keeps_its_exit_status() {
+    let message = git_failure(Some(1), b"error: pathspec 'x' did not match\n");
+    assert_eq!(
+        message,
+        "git diff failed: error: pathspec 'x' did not match (exit 1)"
+    );
 }

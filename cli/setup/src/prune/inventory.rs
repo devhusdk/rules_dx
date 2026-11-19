@@ -46,27 +46,26 @@ impl CollectedInventory {
 }
 
 fn entry_names(dir: &Path) -> Result<Vec<String>, PruneError> {
-    if !dir.exists() {
-        match fs::read_dir(dir) {
-            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
-            Err(e) => {
-                return Err(PruneError::Install {
-                    reason: format!("cannot list {}: {e}", dir.display()),
-                });
-            }
-            Ok(_) => {}
+    match fs::metadata(dir) {
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => {
+            return Err(PruneError::Install {
+                reason: format!("cannot list {}: {e}", dir.display()),
+            });
         }
+        Ok(meta) if !meta.is_dir() => {
+            return Err(PruneError::Install {
+                reason: format!("{} is not a directory", dir.display()),
+            });
+        }
+        Ok(_) => {}
     }
     let mut names = Vec::new();
     for entry in walkdir::WalkDir::new(dir).max_depth(1).min_depth(1) {
         let entry = entry.map_err(|e| PruneError::Install {
             reason: format!("cannot list {}: {e}", dir.display()),
         })?;
-        if let Some(name) = entry.file_name().to_str() {
-            names.push(name.to_owned());
-        } else {
-            names.push("<non-utf8-name>".to_owned());
-        }
+        names.push(entry.file_name().to_string_lossy().into_owned());
     }
     names.sort();
     Ok(names)
@@ -255,5 +254,34 @@ mod tests {
                 .any(|generation| generation.hex == "latest" || generation.hex == "not-hex")
         );
         dx_atomic_fs::discard_dir(&root);
+    }
+
+    #[test]
+    fn generation_root_that_is_a_file_is_an_error() {
+        let scratch = dx_test_scratch::scratch("dx-prune-test-file-root-").unwrap();
+        let workspace = workspace_of(scratch.path());
+        let dx_dir = dx_path::state::local_dir(&workspace);
+        fs::create_dir_all(&dx_dir).expect("dx dir");
+        fs::write(dx_dir.join("environments"), "not a directory").expect("file root");
+        assert!(matches!(
+            collect_inventory(&workspace, &[], &[]),
+            Err(PruneError::Install { .. })
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn distinct_non_utf8_names_stay_distinct() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+        let scratch = dx_test_scratch::scratch("dx-prune-test-non-utf8-").unwrap();
+        let workspace = workspace_of(scratch.path());
+        let environments = dx_path::state::local_dir(&workspace).join("environments");
+        fs::create_dir_all(&environments).expect("environments");
+        for raw in [&b"a\xff"[..], &b"b\xfe"[..]] {
+            fs::create_dir_all(environments.join(OsStr::from_bytes(raw))).expect("odd name");
+        }
+        let inventory = collect_inventory(&workspace, &[], &[]).expect("collect");
+        assert_eq!(inventory.unmanaged_names.len(), 2);
     }
 }

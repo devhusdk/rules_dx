@@ -1,8 +1,13 @@
-# gazelle:ignore
-load("//javascript/private:frameworks.bzl", "dx_framework_jest_files")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//vue:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+# gazelle:ignore
+load("//javascript/private:frameworks.bzl", "dx_framework_jest_files")
+
+package(default_visibility = [
+    "//:__pkg__",
+    "//tools/ci:__pkg__",
+    "//vue:__subpackages__",
+])
 
 exports_files([
     "defs.bzl",
@@ -19,4 +24,10 @@ real_source_target(
         "defs.bzl",
     ],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "bzl_srcs",
+    srcs = glob(["*.bzl"]),
+    visibility = ["//tools/api:__pkg__"],
 )

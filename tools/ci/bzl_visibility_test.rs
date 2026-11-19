@@ -2,13 +2,11 @@
 //!
 //! Files a consumer, a generated BUILD file or a nested fixture really loads say `visibility("public")`; the rest name the packages that load them or say `visibility("private")`.
 
-#[path = "guard_rules/scan.rs"]
-#[expect(dead_code, reason = "the test uses a subset of the shared module")]
-mod scan;
-
 use std::collections::BTreeSet;
 
-use scan::masked;
+use dx_guard::masked::masked;
+use dx_guard::snapshot::tree;
+use serde_json as _;
 use starlark_syntax as _;
 use yaml_serde as _;
 
@@ -59,7 +57,10 @@ fn needs_declaration(path: &str, roots: &BTreeSet<&str>) -> bool {
 
 /// True when `text` calls `visibility(` at the top level.
 fn declares_visibility(text: &str) -> bool {
-    masked(text).mask.lines().any(|line| line.starts_with("visibility("))
+    masked(text)
+        .mask
+        .lines()
+        .any(|line| line.starts_with("visibility("))
 }
 
 /// The files of `files` that must declare their load visibility, and the subset that does not.
@@ -82,7 +83,7 @@ fn undeclared(files: &[(String, String)]) -> (usize, Vec<&str>) {
 #[test]
 fn every_internal_bzl_declares_its_load_visibility() {
     let root = dx_testing::source_snapshot();
-    let files = scan::tree(&root);
+    let files = tree(&root).unwrap_or_else(|error| panic!("{}: {error}", root.display()));
     let (checked, missing) = undeclared(&files);
     assert!(
         checked >= MIN_FILES,
@@ -108,8 +109,14 @@ fn fixture(files: &[(&str, &str)]) -> Vec<(String, String)> {
 fn an_internal_file_without_a_declaration_is_named() {
     let files = fixture(&[
         ("core/x.bzl", "\"\"\"Doc.\"\"\"\n\nX = 1\n"),
-        ("core/y.bzl", "load(\":x.bzl\", \"X\")\n\nvisibility(\"private\")\n"),
-        ("core/z.bzl", "visibility([\"//core/...\", \"//rust/...\"])\n"),
+        (
+            "core/y.bzl",
+            "load(\":x.bzl\", \"X\")\n\nvisibility(\"private\")\n",
+        ),
+        (
+            "core/z.bzl",
+            "visibility([\"//core/...\", \"//rust/...\"])\n",
+        ),
     ]);
     let (checked, missing) = undeclared(&files);
     assert_eq!(checked, 3);
@@ -121,7 +128,10 @@ fn a_commented_or_nested_call_does_not_count() {
     let files = fixture(&[
         ("core/a.bzl", "# visibility(\"private\")\n"),
         ("core/b.bzl", "def f():\n    visibility(\"private\")\n"),
-        ("core/c.bzl", "X = \"\"\"\nvisibility(\"private\")\n\"\"\"\n"),
+        (
+            "core/c.bzl",
+            "X = \"\"\"\nvisibility(\"private\")\n\"\"\"\n",
+        ),
     ]);
     let (_, missing) = undeclared(&files);
     assert_eq!(missing, ["core/a.bzl", "core/b.bzl", "core/c.bzl"]);

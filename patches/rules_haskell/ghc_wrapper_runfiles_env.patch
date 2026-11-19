@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: tweag/rules_haskell#2497
 diff --git a/haskell/private/ghc_wrapper.sh b/haskell/private/ghc_wrapper.sh
 --- a/haskell/private/ghc_wrapper.sh
 +++ b/haskell/private/ghc_wrapper.sh

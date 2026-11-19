@@ -1,6 +1,10 @@
 //! Runs rust-lld as lld-link with execroot-relative paths, so the PDB does not depend on the checkout.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::env;
 use std::fs;
@@ -61,7 +65,7 @@ fn run() -> io::Result<ExitCode> {
         .args(["-flavor", "link"])
         .args(&args)
         .status();
-    let _ = fs::remove_dir_all(&copy_dir);
+    let _: io::Result<()> = fs::remove_dir_all(&copy_dir);
     Ok(exit_code(status?))
 }
 

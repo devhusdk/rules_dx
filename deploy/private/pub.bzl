@@ -4,7 +4,7 @@ load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_pub.bzl", "PUB_DEFAULT_REGISTRY_URL", "pub_name_error", "pub_registry_url_error", "pub_version_error")
 
 _MANIFEST = LOCK_REGISTRY["pub"]["manifest"]
@@ -128,7 +128,7 @@ def pub_deploy(name, srcs, package = "", version = "", registry_url = PUB_DEFAUL
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

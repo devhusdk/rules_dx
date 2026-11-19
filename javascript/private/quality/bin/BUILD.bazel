@@ -1,8 +1,5 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("//core/quality:fixtures.bzl", "real_source_target")
-load("//javascript/private/quality:defs.bzl", "js_tool")
-load("//javascript:defs.bzl", "js_library")
 load("@dx_npm_tools//javascript/private/quality:@bufbuild/protoc-gen-es/package_json.bzl", protoc_gen_es_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@microsoft/api-extractor/package_json.bzl", api_extractor_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@redocly/cli/package_json.bzl", redocly_bin = "bin")
@@ -10,6 +7,9 @@ load("@dx_npm_tools//javascript/private/quality:esbuild/package_json.bzl", esbui
 load("@dx_npm_tools//javascript/private/quality:gplint/package_json.bzl", gplint_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:typedoc/package_json.bzl", typedoc_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:wrangler/package_json.bzl", wrangler_bin = "bin")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//javascript/private:windows_tool.bzl", "js_build_tool")
+load("//javascript/private/quality:defs.bzl", "js_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -71,6 +71,12 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+js_build_tool(
+    name = "mdx_tsc_tool",
+    tool = ":mdx_tsc",
+    visibility = ["//visibility:public"],
+)
+
 js_binary(
     name = "vue_tsc",
     data = [
@@ -78,6 +84,12 @@ js_binary(
         "//javascript/private/quality:node_modules/vue-tsc",
     ],
     entry_point = "vue_tsc.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "vue_tsc_tool",
+    tool = ":vue_tsc",
     visibility = ["//visibility:public"],
 )
 
@@ -91,6 +103,12 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+js_build_tool(
+    name = "astro_tsc_tool",
+    tool = ":astro_tsc",
+    visibility = ["//visibility:public"],
+)
+
 js_binary(
     name = "svelte_tsc",
     data = [
@@ -99,6 +117,12 @@ js_binary(
         "//javascript/private/quality:node_modules/typescript",
     ],
     entry_point = "svelte_tsc.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "svelte_tsc_tool",
+    tool = ":svelte_tsc",
     visibility = ["//visibility:public"],
 )
 
@@ -176,6 +200,12 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+js_build_tool(
+    name = "typedoc_tool",
+    tool = ":typedoc",
+    visibility = ["//visibility:public"],
+)
+
 js_binary(
     name = "vue_component_meta",
     data = [
@@ -184,6 +214,12 @@ js_binary(
         "//javascript/private/quality:node_modules/vue-component-meta",
     ],
     entry_point = "vue_component_meta.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "vue_component_meta_tool",
+    tool = ":vue_component_meta",
     visibility = ["//visibility:public"],
 )
 
@@ -196,6 +232,12 @@ js_binary(
         "//javascript/private/quality:node_modules/typescript",
     ],
     entry_point = "mdx_component_meta.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "mdx_component_meta_tool",
+    tool = ":mdx_component_meta",
     visibility = ["//visibility:public"],
 )
 
@@ -212,6 +254,12 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+js_build_tool(
+    name = "svelte_component_meta_tool",
+    tool = ":svelte_component_meta",
+    visibility = ["//visibility:public"],
+)
+
 js_binary(
     name = "astro_component_meta",
     data = [
@@ -221,6 +269,12 @@ js_binary(
         "//javascript/private/quality:node_modules/typescript",
     ],
     entry_point = "astro_component_meta.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "astro_component_meta_tool",
+    tool = ":astro_component_meta",
     visibility = ["//visibility:public"],
 )
 
@@ -242,6 +296,12 @@ api_extractor_bin.api_extractor_binary(
 
 protoc_gen_es_bin.protoc_gen_es_binary(
     name = "protoc_gen_es",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "protoc_gen_es_tool",
+    tool = ":protoc_gen_es",
     visibility = ["//visibility:public"],
 )
 

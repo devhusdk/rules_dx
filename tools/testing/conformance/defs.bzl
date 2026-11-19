@@ -3,7 +3,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//core/modules:langs.bzl", "LANGS")
-load("//core/quality:families/core.bzl", "real_format_aspect", "real_lint_aspect")
+load("//core/quality:families/core.bzl", "real_biome_format_aspect", "real_biome_lint_aspect", "real_format_aspect", "real_lint_aspect", "real_vale_lint_aspect")
 load("//core/quality/testdata:config_subject.bzl", "config_results", "config_subject_rule")
 load("//rust:defs.bzl", "rust_test")
 load(":pending.bzl", "PENDING")
@@ -24,7 +24,10 @@ _QUALITY_KEYS = {
 _QUALITY_CONFIG = "default"
 
 _QUALITY_CONFIGS = {
+    "ansible": "shared",
     "api_spec": "shared",
+    "asciidoc": "shared",
+    "astro": "shared",
     "avro": "shared",
     "bicep": "shared",
     "capnproto": "shared",
@@ -37,33 +40,65 @@ _QUALITY_CONFIGS = {
     "flatbuffers": "shared",
     "flutter": "tool_overrides",
     "fsharp": "shared",
+    "haskell": "shared",
+    "helm": "shared",
     "julia": "tool_overrides",
     "lua": "tool_overrides",
     "make": "shared",
+    "ocaml": {"lint": "shared"},
     "perl": "tool_overrides",
     "php": "tool_overrides",
     "powershell": "tool_overrides",
+    "qt": "tool_overrides",
     "rego": "shared",
+    "rst": "shared",
     "ruby": "tool_overrides",
+    "scala": {"lint": "shared"},
     "sql": "shared",
+    "svelte": "shared",
     "swift": "tool_overrides",
     "terraform": "shared",
     "thrift": "shared",
+    "vue": "shared",
 }
 
-_core_format_subject = config_subject_rule([real_format_aspect], [OutputGroupInfo])
+def quality_config(lang, kind):
+    """Returns the test configuration of one language's lint or format tests."""
+    config = _QUALITY_CONFIGS.get(lang, _QUALITY_CONFIG)
+    if type(config) == "dict":
+        return config.get(kind, _QUALITY_CONFIG)
+    return config
 
-_core_lint_subject = config_subject_rule([real_lint_aspect], [OutputGroupInfo])
+_core_format_subject = config_subject_rule([real_format_aspect, real_biome_format_aspect], [OutputGroupInfo])
+
+_core_lint_subject = config_subject_rule([real_lint_aspect, real_biome_lint_aspect, real_vale_lint_aspect], [OutputGroupInfo])
+
+# Framework and MDX sources go through the JavaScript aspects; mdx links are linted by the core aspect.
+_JS_QUALITY_SUBJECTS = QUALITY_SUBJECTS["javascript"]
 
 _CORE_QUALITY_SUBJECTS = {
+    "asciidoc": {
+        "lint": _core_lint_subject,
+    },
+    "astro": _JS_QUALITY_SUBJECTS,
     "javascript": {
         "format": _core_format_subject,
         "lint": _core_lint_subject,
     },
+    "mdx": {
+        "format": _JS_QUALITY_SUBJECTS["format"],
+        "lint": _core_lint_subject,
+    },
+    "rst": {
+        "format": _core_format_subject,
+        "lint": _core_lint_subject,
+    },
+    "svelte": _JS_QUALITY_SUBJECTS,
     "typescript": {
         "format": _core_format_subject,
         "lint": _core_lint_subject,
     },
+    "vue": _JS_QUALITY_SUBJECTS,
 }
 
 _CONFORMANCE_QUALITY = Label("//tools/testing/conformance:conformance_quality")
@@ -102,8 +137,8 @@ subject_transition = transition(
     outputs = [str(_FLAG)],
 )
 
-# Mirrors the coverage:windows lines of .bazelrc.
-WINDOWS_COVERAGE_OFF = ["-coverage", "-gcc_coverage_map_format"]
+# Mirrors the build:windows coverage line of .bazelrc.
+WINDOWS_GCC_COVERAGE_OFF = ["-gcc_coverage_map_format"]
 
 def coverage_subject_settings(features, windows, instrumentation_filter):
     """Returns the build settings of a coverage subject.
@@ -117,7 +152,7 @@ def coverage_subject_settings(features, windows, instrumentation_filter):
       Dict of the settings the coverage transition sets.
     """
     if windows:
-        features = features + [f for f in WINDOWS_COVERAGE_OFF if f not in features]
+        features = features + [f for f in WINDOWS_GCC_COVERAGE_OFF if f not in features]
     return {
         "//command_line_option:collect_code_coverage": True,
         "//command_line_option:features": features,
@@ -391,7 +426,7 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
             subject_rule = quality.get(kind + "_subject") or (_CORE_QUALITY_SUBJECTS[lang] if lang in _CORE_QUALITY_SUBJECTS else QUALITY_SUBJECTS[lang])[kind]
             subject_rule(
                 name = prefix + test + "_subject",
-                config = _QUALITY_CONFIGS.get(lang, _QUALITY_CONFIG),
+                config = quality_config(lang, kind),
                 target = fixture,
                 testonly = True,
                 target_compatible_with = _compatible_with(lang, test, not_applicable),
@@ -399,7 +434,7 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
             )
             config_results(
                 name = prefix + test + "_results",
-                config = _QUALITY_CONFIGS.get(lang, _QUALITY_CONFIG),
+                config = quality_config(lang, kind),
                 subject = ":" + prefix + test + "_subject",
                 testonly = True,
                 target_compatible_with = _compatible_with(lang, test, not_applicable),
@@ -423,10 +458,11 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
             labels.append(test)
     return labels
 
-def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, cross_runfile = "", size = "small", **kwargs):
+def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, cross_runfile = "", cross_platforms = "//tools/platforms", size = "small", **kwargs):
     """Declares the conformance tests of one language.
 
     A `cross_runfile` names the runfile, by file stem, whose image cross_test checks instead of the binary's outputs.
+    `cross_platforms` names the package whose `<os>_<cpu>` platforms cross_test builds the binary for.
     A quality `<kind>_subject` names the subject rule of a `lint` or `format` kind whose aspect another lang.json declares.
     """
     if lang not in LANGS:
@@ -482,7 +518,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     platform_transition_filegroup(
         name = prefix + "cross_binary",
         srcs = [binary],
-        target_platform = _cross_select(lambda target: Label("//tools/platforms:" + target)),
+        target_platform = _cross_select(lambda target: Label(cross_platforms + ":" + target)),
         testonly = True,
         target_compatible_with = _compatible_with(lang, "cross_test", not_applicable),
         visibility = ["//visibility:private"],

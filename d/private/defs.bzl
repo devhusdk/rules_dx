@@ -7,7 +7,7 @@ load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "d_kwargs", _D_CELLS = "D_CELLS", _D_COMPATIBLE_WITH = "D_COMPATIBLE_WITH")
 
@@ -59,6 +59,7 @@ def _d_test_coverage(ctx, upstream):
         env.update(upstream[RunEnvironmentInfo].environment)
         inherited = upstream[RunEnvironmentInfo].inherited_environment
     env["DX_D_COVERAGE_UPSTREAM"] = rlocation_path(ctx, exe)
+    env["DX_RUNTIME_TOOL"] = "d_coverage"
     return struct(
         instrumented = instrumented,
         env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),
@@ -74,7 +75,7 @@ _d_forward_test = dx_executable_forward_rule(
         extra_attrs = dx_lcov_merger_attr() | {
             "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
             "_d_coverage_launcher": attr.label(
-                default = Label("//d/private/tools/coverage:d_coverage_launcher"),
+                default = Label("@dx_prebuilt//:runtime"),
                 executable = True,
                 cfg = no_coverage_transition,
             ),
@@ -99,7 +100,7 @@ def _string_srcs(name, kwargs):
 def _cover(kwargs):
     """Adds ldc's -cov to dopts under bazel coverage."""
     return dx_append_flags(kwargs, "dopts", select({
-        Label("//d/private:coverage"): ["-cov"],
+        Label("//d:coverage"): ["-cov"],
         "//conditions:default": [],
     }))
 
@@ -130,6 +131,12 @@ def d_test(name, *, srcs = None, visibility = None, **kwargs):
     kwargs = _cover(_string_srcs(name, kwargs))
     dx_wrap_test(name, _d_test, _d_forward_test, srcs, visibility = visibility, quality_srcs = quality_srcs, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = D_COVERAGE_COLLECTOR, **kwargs)
 
+_d_fuzzer_driver = dx_private_dep_rule(
+    Label("//d/private/fuzz:fuzz_driver"),
+    [_DInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+    "Provides the driver d_fuzz_test links when libFuzzer is not linked.",
+)
+
 def d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
 
@@ -140,9 +147,16 @@ def d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = No
         Label("@llvm//config:fuzzer_enabled"): ["-fsanitize=fuzzer,address"],
         "//conditions:default": [],
     })
+    _d_fuzzer_driver(
+        name = name + "_fuzz_driver",
+        testonly = True,
+        tags = dx_upstream_tags(tags),
+        target_compatible_with = D_COMPATIBLE_WITH,
+        visibility = ["//visibility:private"],
+    )
     driver = select({
         Label("@llvm//config:fuzzer_enabled"): [],
-        "//conditions:default": [Label("//d/private/fuzz:fuzz_driver")],
+        "//conditions:default": [":" + name + "_fuzz_driver"],
     })
     kwargs["target_compatible_with"] = (kwargs.get("target_compatible_with") or []) + D_COMPATIBLE_WITH
     deps = (kwargs.pop("deps", None) or []) + driver

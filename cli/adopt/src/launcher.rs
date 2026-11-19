@@ -51,14 +51,16 @@ impl LauncherPins {
             let Some((hash, asset)) = line.split_once("  ") else {
                 return Err(pins_error(format!("bad manifest line {line:?}")));
             };
-            let archive = RELEASE_ASSETS
-                .iter()
-                .any(|known| asset == archive_name(known) || asset == symbols_name(known));
-            let sbom = asset.strip_suffix(".spdx.json").is_some_and(|base| {
-                RELEASE_ASSETS
-                    .iter()
-                    .any(|known| base == archive_name(known) || base == symbols_name(known))
-            });
+            if hash.is_empty() || !valid_pin(hash) {
+                return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
+            }
+            let packaged = |name: &str| {
+                RELEASE_ASSETS.iter().any(|known| {
+                    name == archive_name(known) || symbols_name(known).as_deref() == Some(name)
+                })
+            };
+            let archive = packaged(asset);
+            let sbom = asset.strip_suffix(".spdx.json").is_some_and(packaged);
             if archive || sbom {
                 if !seen_archives.insert(asset.to_owned()) {
                     return Err(pins_error(format!("{asset} is listed twice")));
@@ -72,9 +74,6 @@ impl LauncherPins {
             else {
                 return Err(pins_error(format!("unknown asset {asset:?}")));
             };
-            if hash.is_empty() || !valid_pin(hash) {
-                return Err(pins_error(format!("{asset} hash is not 64 lowercase hex")));
-            }
             if !slot.is_empty() {
                 return Err(pins_error(format!("{asset} is listed twice")));
             }
@@ -260,13 +259,9 @@ fn archive_name(raw: &str) -> String {
     format!("{raw}{suffix}")
 }
 
-/// The debug symbols asset for a raw release asset: `<raw>-pdb.zip` on Windows, empty elsewhere.
-fn symbols_name(raw: &str) -> String {
-    if raw.contains("windows") {
-        format!("{raw}-pdb.zip")
-    } else {
-        String::new()
-    }
+/// The debug symbols asset for a raw release asset: `<raw>-pdb.zip` on Windows, none elsewhere.
+fn symbols_name(raw: &str) -> Option<String> {
+    raw.contains("windows").then(|| format!("{raw}-pdb.zip"))
 }
 
 fn valid_pin(pin: &str) -> bool {
@@ -409,9 +404,22 @@ case "$os-$arch" in
   linux-x86_64 | linux-arm64 | macos-arm64 | windows-x86_64 | windows-arm64) ;;
   *) via_bazel "no release binary for $os-$arch" "$@" ;;
 esac
+# Says whether $1 is rooted, so it does not move with the current directory.
+rooted() {
+  case "$1" in
+    /*) return 0 ;;
+  esac
+  [ "$os" = windows ] || return 1
+  case "$1" in
+    \\* | [A-Za-z]:/* | [A-Za-z]:\\*) return 0 ;;
+  esac
+  return 1
+}
+# The XDG spec says to skip a relative XDG_CACHE_HOME; it would give each cwd its own cache.
 if [ -n "${DX_CACHE_DIR:-}" ]; then
+  rooted "$DX_CACHE_DIR" || fail "DX_CACHE_DIR must be an absolute path, got '$DX_CACHE_DIR'"
   cache="$DX_CACHE_DIR"
-elif [ -n "${XDG_CACHE_HOME:-}" ]; then
+elif [ -n "${XDG_CACHE_HOME:-}" ] && rooted "$XDG_CACHE_HOME"; then
   cache="$XDG_CACHE_HOME/dx"
 elif [ "$os" = windows ]; then
   [ -n "${USERPROFILE:-}" ] || fail "USERPROFILE is not set"
@@ -565,8 +573,16 @@ if not defined VERSION goto bazel
 set VERSION | findstr /r /x "VERSION=[0-9A-Za-z+-][0-9A-Za-z.+-]*" >nul
 if errorlevel 1 goto bazel
 set "DX_CACHE=%USERPROFILE%\.cache\dx"
-if defined XDG_CACHE_HOME set "DX_CACHE=%XDG_CACHE_HOME%\dx"
-if defined DX_CACHE_DIR set "DX_CACHE=%DX_CACHE_DIR%"
+rem The XDG spec says to skip a relative XDG_CACHE_HOME; it would give each cwd its own cache.
+if not defined XDG_CACHE_HOME goto dxnoxdg
+call :dxrooted XDG_CACHE_HOME
+if not errorlevel 1 set "DX_CACHE=%XDG_CACHE_HOME%\dx"
+:dxnoxdg
+if not defined DX_CACHE_DIR goto dxcache
+call :dxrooted DX_CACHE_DIR
+if errorlevel 1 goto badcache
+set "DX_CACHE=%DX_CACHE_DIR%"
+:dxcache
 set "DIR=%DX_CACHE%\bin\%VERSION%"
 set "BIN=%DIR%\dx-windows-%ARCH%.exe"
 if exist "%BIN%" goto run
@@ -620,6 +636,18 @@ exit /b 1
 :clean
 del /q "%DX_PART%" 2>nul
 exit /b 0
+:badcache
+echo dx: DX_CACHE_DIR must be an absolute path 1>&2
+exit /b 1
+:dxrooted
+rem Succeeds when the named variable holds a rooted path: \x, /x, C:\x or C:/x.
+setlocal EnableDelayedExpansion
+set "P=!%1!"
+if "!P:~0,1!"=="\" exit /b 0
+if "!P:~0,1!"=="/" exit /b 0
+if "!P:~1,2!"==":\" exit /b 0
+if "!P:~1,2!"==":/" exit /b 0
+exit /b 1
 :badbase
 echo dx: DX_RELEASE_BASE_URL must use https:// (http:// only to 127.0.0.1, [::1] or localhost) and plain URL characters 1>&2
 exit /b 1
@@ -700,7 +728,7 @@ fn write_launcher(
             .map_err(|e| write_error(&e))?;
     }
     #[cfg(not(unix))]
-    let _ = executable;
+    let _: bool = executable;
     Ok(())
 }
 
@@ -1134,6 +1162,9 @@ mod tests {
             MANIFEST.replace(&"1".repeat(64), &"1".repeat(63)),
             MANIFEST.replace(&"1".repeat(64), ""),
             MANIFEST.replacen("  ", " ", 1),
+            format!("{MANIFEST}{}  \n", "a".repeat(64)),
+            format!("{MANIFEST}{}  .spdx.json\n", "a".repeat(64)),
+            format!("{MANIFEST}not-a-hash  dx-linux-x86_64.tar.gz\n"),
             format!("{MANIFEST}\n"),
             format!("\n{MANIFEST}"),
             String::new(),
@@ -1219,6 +1250,11 @@ mod tests {
     fn launchers_share_the_dx_shim_cache_root() {
         let sh = sh();
         let dx = sh.find("cache=\"$DX_CACHE_DIR\"").expect("DX_CACHE_DIR");
+        assert!(
+            sh.contains(
+                "elif [ -n \"${XDG_CACHE_HOME:-}\" ] && rooted \"$XDG_CACHE_HOME\"; then\n"
+            )
+        );
         let xdg = sh
             .find("cache=\"$XDG_CACHE_HOME/dx\"")
             .expect("XDG_CACHE_HOME");
@@ -1230,10 +1266,10 @@ mod tests {
             .find("set \"DX_CACHE=%USERPROFILE%\\.cache\\dx\"\r\n")
             .expect("USERPROFILE");
         let xdg = cmd
-            .find("if defined XDG_CACHE_HOME set \"DX_CACHE=%XDG_CACHE_HOME%\\dx\"\r\n")
+            .find("call :dxrooted XDG_CACHE_HOME\r\nif not errorlevel 1 set \"DX_CACHE=%XDG_CACHE_HOME%\\dx\"\r\n")
             .expect("XDG_CACHE_HOME");
         let dx = cmd
-            .find("if defined DX_CACHE_DIR set \"DX_CACHE=%DX_CACHE_DIR%\"\r\n")
+            .find("call :dxrooted DX_CACHE_DIR\r\nif errorlevel 1 goto badcache\r\nset \"DX_CACHE=%DX_CACHE_DIR%\"\r\n")
             .expect("DX_CACHE_DIR");
         assert!(home < xdg && xdg < dx);
         assert!(cmd.contains("set \"DIR=%DX_CACHE%\\bin\\%VERSION%\"\r\n"));
@@ -1669,6 +1705,28 @@ mod tests {
             let (code, out, err) = fx.run(&["status"]);
             assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
             assert_eq!(fx.downloads(), 1, "cached run must not download");
+        }
+
+        #[test]
+        fn a_relative_xdg_cache_home_is_skipped() {
+            let fx = Fixture::new("dx-launcher-rel-xdg-", true, None);
+            let (code, out, err) = fx.run_env(&fx.base, &[("XDG_CACHE_HOME", "rel")], &["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert_eq!(fx.cached(), vec!["dx-linux-x86_64"]);
+            assert!(!fx.base.join("rel").exists());
+        }
+
+        #[test]
+        fn a_relative_dx_cache_dir_is_rejected() {
+            let fx = Fixture::new("dx-launcher-rel-dir-", true, None);
+            let (code, out, err) = fx.run_env(&fx.base, &[("DX_CACHE_DIR", "rel")], &["status"]);
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(
+                err.contains("DX_CACHE_DIR must be an absolute path, got 'rel'"),
+                "{err}"
+            );
+            assert_eq!(fx.downloads(), 0);
+            assert!(!fx.base.join("rel").exists());
         }
 
         #[test]
@@ -2266,6 +2324,30 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
             let (code, _out, err) = fx.run(&["/c", "echo", "again"]);
             assert_eq!(code, Some(0), "{err}");
             assert_eq!(fx.downloads(), 1, "cached run must not download");
+        }
+
+        #[test]
+        fn a_relative_cache_env_is_skipped_or_rejected() {
+            let fx = Fixture::new("dx-launcher-cmd-rel-", true, None);
+            let (code, out, err) = run_captured(
+                fx.command(&["/c", "echo", "ran"])
+                    .env("XDG_CACHE_HOME", "rel")
+                    .env_remove("DX_CACHE_DIR")
+                    .current_dir(&fx.base),
+            );
+            assert_eq!(code, Some(0), "{out}{err}");
+            assert_eq!(fx.cache_files(), vec![format!("dx-windows-{}.exe", arch())]);
+            let (code, out, err) = run_captured(
+                fx.command(&["/c", "echo", "ran"])
+                    .env("DX_CACHE_DIR", "rel")
+                    .current_dir(&fx.base),
+            );
+            assert_eq!(code, Some(1), "{out}{err}");
+            assert!(
+                err.contains("DX_CACHE_DIR must be an absolute path"),
+                "{err}"
+            );
+            assert!(!fx.base.join("rel").exists());
         }
 
         #[test]

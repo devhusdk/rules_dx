@@ -2,7 +2,8 @@
 
 use std::cell::RefCell;
 
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Outcome, run};
+use dx_lock_testing::NoFetch;
 use php_lock::{Download, Php};
 
 const FACTORY_ZIP: &str = "https://example.com/zipball/factory.zip";
@@ -43,14 +44,6 @@ impl Download for Remote {
             MESSAGE_ZIP => read("MESSAGE"),
             other => Err(Error::new(format!("unexpected download of {other}"))),
         }
-    }
-}
-
-struct NoFetch;
-
-impl Fetch for NoFetch {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        Err(Error::new(format!("unexpected download of {url}")))
     }
 }
 

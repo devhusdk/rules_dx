@@ -1,7 +1,9 @@
 """Perl API reference shards read from POD and package declarations by the pinned perl."""
 
 load("//core:rlocation.bzl", "repo_relative_path")
-load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
+
+visibility(["//..."])
 
 _PERL_TOOLCHAIN = "@rules_perl//perl:exec_toolchain_type"
 
@@ -31,10 +33,7 @@ def perl_shard_action(ctx, own, package, stem, driver, extract_tool):
     if not own:
         fail("perl_doc_shard " + str(ctx.label) + ": lib lists no .pm or .pl srcs")
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join([
-        f.path + "\t" + repo_relative_path(f.short_path) + "\t" + ("0" if f.is_source else "1") + "\n"
-        for f in own
-    ]))
+    ctx.actions.write(manifest, "".join([srcs_manifest_line(f.path, repo_relative_path(f.short_path), not f.is_source) for f in own]))
     pod_json = ctx.actions.declare_file(stem + ".pod.json")
     args = ctx.actions.args()
     args.add_all(runtime.perlopt)
@@ -55,6 +54,7 @@ def perl_shard_action(ctx, own, package, stem, driver, extract_tool):
     )
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("perl_extract")
     extract.add("--json", pod_json)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -100,7 +100,7 @@ docs_perl_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/perl/extract:perl_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

@@ -15,6 +15,21 @@ fn blocked_signals_come_back_when_dropped() {
 }
 
 #[test]
+fn hold_stop_holds_sigint_and_sigterm_until_dropped() {
+    std::thread::spawn(|| {
+        {
+            let _held = hold_stop();
+            assert!(blocked(libc::SIGINT));
+            assert!(blocked(libc::SIGTERM));
+        }
+        assert!(!blocked(libc::SIGINT));
+        assert!(!blocked(libc::SIGTERM));
+    })
+    .join()
+    .expect("thread");
+}
+
+#[test]
 fn background_tty_writes_block_sigttou_in_this_thread() {
     std::thread::spawn(|| {
         allow_background_tty_writes();
@@ -38,7 +53,8 @@ fn unlink_on_stop_child() {
     };
     unlink_on_stop(Path::new("first")).expect("watch the first path");
     unlink_on_stop(Path::new(&path)).expect("watch");
-    crate::process::signal(std::process::id() as i32, libc::SIGTERM).expect("signal self");
+    let pid = i32::try_from(std::process::id()).expect("pid fits pid_t");
+    crate::process::signal(pid, libc::SIGTERM).expect("signal self");
     std::thread::sleep(std::time::Duration::from_secs(30));
 }
 

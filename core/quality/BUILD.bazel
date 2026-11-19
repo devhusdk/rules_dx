@@ -33,7 +33,7 @@ load(":support_tests.bzl", "support_unit_tests")
 load(":tools_tests.bzl", "tools_unit_tests")
 load(":wrapper_owners.bzl", "wrapper_unit_tests")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "BUILD.bazel",
@@ -378,7 +378,7 @@ consumer_policy_tests(
         {
             "case": "asciidoc_vale",
             "expected_dx_results": [
-                "clean_asciidoc-real-lint.pb",
+                "clean_asciidoc-real-lint-vale.pb",
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_asciidoc",
@@ -386,7 +386,7 @@ consumer_policy_tests(
         {
             "case": "rst_vale",
             "expected_dx_results": [
-                "clean_rst-real-lint.pb",
+                "clean_rst-real-lint-vale.pb",
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_rst",
@@ -543,8 +543,8 @@ consumer_policy_tests(
         {
             "case": "json_biome",
             "expected_dx_results": [
-                "clean_json-real-format.pb",
-                "clean_json-real-lint.pb",
+                "clean_json-real-format-biome.pb",
+                "clean_json-real-lint-biome.pb",
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_json",
@@ -608,11 +608,7 @@ support_unit_tests(name = "support_unit")
 write_source_files(
     name = "tools_registry",
     files = {"tools_registry.bzl": "//tools/quality:tools_registry"},
-)
-
-alias(
-    name = "update_tools",
-    actual = "//core/quality/runner:update_tools",
+    visibility = ["//visibility:private"],
 )
 
 clang_syntax_analysis_tests(name = "clang_syntax_analysis")
@@ -679,6 +675,7 @@ native_binary(
         ":windows_x86_64": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
+    visibility = ["//visibility:private"],
 )
 
 rust_test(

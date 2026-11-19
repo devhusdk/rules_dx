@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 mod support;
 
 use std::fmt::Write as _;
@@ -378,7 +382,33 @@ fn concurrent_first_runs_share_one_download() {
     }
     let dir = fixture.cache.path().join("bin").join(VERSION);
     assert_eq!(support::leftovers(&dir), [] as [String; 0]);
-    assert_eq!(std::fs::read_dir(&dir).expect("dir").count(), 1);
+    let (_, file) = support::host_asset();
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .expect("dir")
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(names, [file.clone(), format!("{file}.sha256")]);
+}
+
+#[test]
+fn cached_binary_with_other_pinned_hash_never_runs() {
+    let fixture = Fixture::new();
+    let (_, file) = support::host_asset();
+    let dir = fixture.cache.path().join("bin").join(VERSION);
+    std::fs::create_dir_all(&dir).expect("mkdir");
+    let bin = dir.join(&file);
+    std::fs::write(&bin, b"old").expect("seed");
+    std::fs::write(
+        dx_shim::fetch::stamp_path(&bin),
+        support::sha256_hex(b"old"),
+    )
+    .expect("stamp");
+    let output = fixture.run(&["hi"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert_eq!(stdout(&output), "shim=1\narg=[hi]\n");
+    assert_eq!(std::fs::read(&bin).expect("read"), fake_dx());
 }
 
 #[test]
@@ -399,6 +429,30 @@ fn shim_version_and_where() {
     );
     assert!(text.ends_with("cached: no\n"), "{text}");
     assert_eq!(fixture.server.hits(), 0);
+}
+
+#[cfg(unix)]
+#[test]
+fn where_prints_a_non_utf8_binary_path_byte_for_byte() {
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+    let fixture = Fixture::new();
+    let mut raw = fixture.cache.path().as_os_str().as_bytes().to_vec();
+    raw.extend_from_slice(b"/\xff\xfe");
+    let cache = std::ffi::OsString::from_vec(raw.clone());
+    let output = fixture
+        .command(fixture.workspace.path(), &["shim", "where"])
+        .env("DX_CACHE_DIR", &cache)
+        .output()
+        .expect("run shim");
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(
+        output
+            .stdout
+            .windows(raw.len())
+            .any(|w| w == raw.as_slice()),
+        "{}",
+        stdout(&output)
+    );
 }
 
 #[test]

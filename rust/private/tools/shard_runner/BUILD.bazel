@@ -1,14 +1,14 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
 rust_binary(
     name = "shard_runner",
+    testonly = True,
     srcs = ["src/main.rs"],
     crate_name = "shard_runner",
     crate_root = "src/main.rs",
-    testonly = True,
-    visibility = ["//visibility:public"],
     deps = ["@rules_rust//rust/runfiles"],
 )
 
@@ -16,4 +16,16 @@ rust_test(
     name = "shard_runner_test",
     size = "small",
     crate = ":shard_runner",
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

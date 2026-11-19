@@ -85,6 +85,14 @@ Java classes for the schemas of avro_library deps and their imports, compiled on
 | `_runtime` | `label` | no |  |
 | `_zipper` | `label` | no |  |
 
+### `avro_doc_shard`
+
+```python
+avro_doc_shard(name, avro, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one avro_library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Avro:
@@ -113,13 +121,5 @@ Avro builds and tests on:
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/avro:defs.bzl", "avro_doc_shard")
+load("@rules_dx//avro:defs.bzl", "avro_doc_shard")
 ```
-
-### `avro_doc_shard`
-
-```python
-avro_doc_shard(name, avro, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one avro_library.

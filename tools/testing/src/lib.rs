@@ -1,4 +1,8 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -734,7 +738,7 @@ pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
     std::fs::create_dir_all(dir).expect("fake bazel dir");
     for name in ["bazel", "uv", "python"] {
         let target = dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX));
-        drop(std::fs::remove_file(&target));
+        dx_atomic_fs::discard_file(&target);
         #[cfg(unix)]
         std::os::unix::fs::symlink(tool, &target).expect("link fake generate tool");
         #[cfg(not(unix))]
@@ -1026,7 +1030,8 @@ pub fn snapshot_diff(
         {
             let dest = root.join(rel);
             if let Some(parent) = dest.parent() {
-                drop(std::fs::create_dir_all(parent));
+                std::fs::create_dir_all(parent)
+                    .map_err(|err| format!("cannot create {}: {err}", parent.display()))?;
             }
             std::fs::copy(actual, &dest)
                 .map_err(|err| format!("cannot refresh {}: {err}", dest.display()))?;
@@ -1072,6 +1077,55 @@ pub fn assert_valid_json(path: &Path) -> Result<(), String> {
     serde_json::from_str::<serde_json::Value>(&text)
         .map(|_| ())
         .map_err(|err| format!("{} is not valid JSON: {err}", path.display()))
+}
+
+/// Copies every consumer `test.log` under `testlogs` to `dest`, keeping the
+/// relative layout, and returns the first 40 lines of each for the error text.
+#[must_use]
+pub fn copy_test_logs(testlogs: &Path, dest: &Path) -> String {
+    let mut found = Vec::new();
+    collect_test_logs(testlogs, &mut found);
+    found.sort();
+    let mut text = String::new();
+    for path in found {
+        let Ok(rel) = path.strip_prefix(testlogs) else {
+            continue;
+        };
+        let Ok(content) = std::fs::read(&path) else {
+            continue;
+        };
+        let target = dest.join(rel);
+        if let Some(parent) = target.parent()
+            && let Err(err) = std::fs::create_dir_all(parent)
+        {
+            eprintln!("cannot create {}: {err}", parent.display());
+        }
+        dx_atomic_fs::write_hint(&target, &content);
+        let content = String::from_utf8_lossy(&content);
+        let head: Vec<&str> = content.lines().take(40).collect();
+        write!(
+            text,
+            "\nconsumer test log {}:\n{}",
+            rel.display(),
+            head.join("\n")
+        )
+        .ok();
+    }
+    text
+}
+
+fn collect_test_logs(dir: &Path, found: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_test_logs(&path, found);
+        } else if path.file_name().is_some_and(|name| name == "test.log") {
+            found.push(path);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1587,5 +1641,34 @@ mod tests {
         drop(holder);
         assert_alive_lock_released(&lock);
         assert!(!alive_lock_held(&lock));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn copy_test_logs_keeps_layout_and_returns_heads() {
+        let dir = scratch("testlogs");
+        let logs = dir.path().join("bazel-testlogs");
+        let case = logs.join("javascript/cli/exit_codes_test");
+        std::fs::create_dir_all(&case).unwrap();
+        let body: String = (1..=50).fold(String::new(), |mut body, n| {
+            writeln!(body, "line {n}").ok();
+            body
+        });
+        std::fs::write(case.join("test.log"), body).unwrap();
+        std::fs::write(case.join("test.xml"), "<testsuites/>").unwrap();
+        let dest = dir.path().join("out/testlogs");
+        let text = copy_test_logs(&logs, &dest);
+        assert!(
+            dest.join("javascript/cli/exit_codes_test/test.log")
+                .is_file()
+        );
+        assert!(
+            !dest
+                .join("javascript/cli/exit_codes_test/test.xml")
+                .exists()
+        );
+        assert!(text.contains("javascript/cli/exit_codes_test/test.log"));
+        assert!(text.contains("line 40") && !text.contains("line 41"));
+        assert_eq!(copy_test_logs(&dir.path().join("missing"), &dest), "");
     }
 }

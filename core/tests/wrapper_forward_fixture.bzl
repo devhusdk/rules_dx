@@ -1,7 +1,7 @@
 """Fake upstream rules and forwarders for the shared wrapper forward check self-test."""
 
 load("//core:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_forward_observations", "dx_wrapper_forward_subject")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_symlink_default_info", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 

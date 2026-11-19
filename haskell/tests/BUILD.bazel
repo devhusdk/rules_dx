@@ -1,5 +1,5 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//haskell/private:defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "with_gmp")
 load("//haskell/private:kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs")

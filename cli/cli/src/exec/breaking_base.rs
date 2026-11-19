@@ -3,8 +3,8 @@
 //! injected as `@dx_buf_base`; its label replaces the ref in the
 //! `--breaking-against` build setting.
 
-use super::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
 use dx_error::DxError;
+use dx_exec_reports::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
 use dx_plan::args::BREAKING_AGAINST_OPTION;
 use dx_plan::resolve::{QueryRunner, merge_base};
 use std::path::{Path, PathBuf};
@@ -74,7 +74,7 @@ fn build_image(reference: &str, context: &Context<'_>) -> Result<PathBuf, DxErro
     let repo = context.temp_dir.join(format!("dx-buf-base-{sha}"));
     for (name, content) in [("REPO.bazel", ""), ("BUILD.bazel", BASE_BUILD)] {
         std::fs::create_dir_all(&repo)
-            .and_then(|()| std::fs::write(repo.join(name), content))
+            .and_then(|()| dx_atomic_fs::write_scratch(&repo.join(name), content.as_bytes()))
             .map_err(|error| {
                 DxError::infra(format!(
                     "could not write {}: {error}",

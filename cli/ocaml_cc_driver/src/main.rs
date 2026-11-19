@@ -1,6 +1,10 @@
 //! Runs the C tool behind one `conda-ocaml-*` program name the OCaml compiler calls, or one `dune` step.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 mod driver;
 #[cfg(test)]

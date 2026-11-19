@@ -47,7 +47,8 @@
     "d_binary",
     "d_test",
     "d_fuzz_test",
-    "d_bench"
+    "d_bench",
+    "d_doc_shard"
   ],
   "quality": {
     "bzl": "d/private/quality:d.bzl",
@@ -58,6 +59,7 @@
       "audit": [],
       "format": [],
       "lint": [
+        "dscanner",
         "typos"
       ],
       "typecheck": []

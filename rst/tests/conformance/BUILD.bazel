@@ -1,0 +1,65 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rst:defs.bzl", "rst_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rst_library(
+    name = "conformance",
+    srcs = ["clean.rst"],
+    aspect_hints = ["//core/quality:corpus_vale_config"],
+)
+
+rst_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.rst"],
+    aspect_hints = ["//core/quality:corpus_vale_config"],
+    tags = ["manual"],
+)
+
+rst_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.rst"],
+    aspect_hints = ["//core/quality:corpus_vale_config"],
+    tags = ["manual"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "rst",
+    not_applicable = {
+        "build_test": "rst has no binary rule",
+        "coverage_test": "rst has no test rule",
+        "cross_test": "rst has no binary rule",
+        "fail_test": "rst has no test rule",
+        "lock_test": "rst has no package manager",
+        "pass_test": "rst has no test rule",
+        "runfiles_test": "rst has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.rst",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 5,
+        "lint_rule": "Dx.Markers",
+        "lint_source": "lint_dirty.rst",
+    },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

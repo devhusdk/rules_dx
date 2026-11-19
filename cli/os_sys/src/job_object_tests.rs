@@ -1,3 +1,5 @@
+#![cfg(windows)]
+
 use crate::job_object::{JobObject, Limit};
 use crate::win32::{CREATE_SUSPENDED, resume_threads};
 use crate::win32_tests::child;

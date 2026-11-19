@@ -61,7 +61,7 @@
     "javascript_fuzz_test",
     "javascript_web_app",
     "javascript_web_bundle",
-    "js_library"
+    "javascript_doc_shard"
   ],
   "quality": {
     "bzl": "javascript/private/quality:js.bzl",

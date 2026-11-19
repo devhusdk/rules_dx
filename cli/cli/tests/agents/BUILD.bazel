@@ -51,6 +51,7 @@ rust_test(
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe)",
     },
     deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",

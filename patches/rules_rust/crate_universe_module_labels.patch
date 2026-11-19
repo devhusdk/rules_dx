@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazelbuild/rules_rust#4436
 --- a/crate_universe/extensions.bzl
 +++ b/crate_universe/extensions.bzl
 @@ -533,6 +533,14 @@

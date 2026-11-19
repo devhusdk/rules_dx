@@ -390,6 +390,7 @@ fn keeps_unchanged(tool_id: &str) -> bool {
             | "fsc"
             | "fsharplint"
             | "fortitude"
+            | "dscanner"
             | "pkl_lsp"
             | "perlcritic"
             | "jsonnet_lint"

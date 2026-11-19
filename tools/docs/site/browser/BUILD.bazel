@@ -40,7 +40,10 @@ rust_library(
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_browser",
         normal = True,
-    ) + ["@crates//:serde_json"],
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "@crates//:serde_json",
+    ],
 )
 
 rust_test(
@@ -63,6 +66,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/test_scratch:dx_test_scratch",
         "@crates//:serde_json",
     ],

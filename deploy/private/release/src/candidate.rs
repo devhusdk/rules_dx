@@ -1,19 +1,24 @@
 //! Release candidate identity, source archive, local registry and tag checks.
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
 use std::io::{self, BufRead};
+use std::num::ParseIntError;
 use std::path::{Path, PathBuf};
+use std::string::FromUtf8Error;
 
+use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_process::capture::{
     self, Captured, DEFAULT_TIMEOUT, RunError, run_captured, run_captured_with_input,
 };
 
+use dx_fingerprint::FingerprintError;
+
 use crate::{
-    BCR_WANT_MODULE, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_error,
+    BCR_WANT_MODULE, BcrError, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_error,
     bcr_candidate_version_error, bcr_integrity_of_digest, bcr_source_url, bcr_strip_prefix,
-    modules::{local_override_error, module_version_error},
-    render_bcr_source_for_digest, render_pretty, write_bcr_source_for_archive,
+    modules::{ModuleError, local_override_error, module_version_error},
+    pretty_json, render_bcr_source_for_digest, write_bcr_source_for_archive,
 };
 
 /// One release candidate: a `SemVer` version at one full commit.
@@ -29,12 +34,12 @@ impl Candidate {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    pub fn new(version: &str, commit: &str) -> Result<Self, String> {
+    pub fn new(version: &str, commit: &str) -> Result<Self, CandidateError> {
         bcr_candidate_version_error(version)?;
         if !dx_digest::is_lower_hex(commit, 20) {
-            return Err(format!(
-                "candidate: invalid commit {commit:?}: want a full 40-char lowercase SHA"
-            ));
+            return Err(CandidateError::InvalidCommit {
+                commit: commit.to_owned(),
+            });
         }
         Ok(Self {
             version: version.to_owned(),
@@ -100,16 +105,436 @@ pub struct SourceArchive {
     pub integrity: String,
 }
 
+/// A failed git command.
+#[derive(Debug)]
+pub enum GitError {
+    /// git could not be run to completion.
+    Run { command: String, source: RunError },
+    /// git exited with a failure.
+    Exit { command: String, detail: String },
+    /// git printed output that is not UTF-8.
+    NotUtf8 {
+        command: String,
+        source: FromUtf8Error,
+    },
+}
+
+impl fmt::Display for GitError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Run { command, source } => write!(f, "{command} failed: {source}"),
+            Self::Exit { command, detail } => write!(f, "{command} failed: {detail}"),
+            Self::NotUtf8 { command, .. } => write!(f, "{command} printed non-UTF-8 output"),
+        }
+    }
+}
+
+impl std::error::Error for GitError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Run { source, .. } => Some(source),
+            Self::NotUtf8 { source, .. } => Some(source),
+            Self::Exit { .. } => None,
+        }
+    }
+}
+
+/// A failed candidate identity, archive, registry or tag check.
+#[derive(Debug)]
+pub enum CandidateError {
+    /// A file operation failed.
+    Io(PathIoError),
+    /// A git command failed.
+    Git(GitError),
+    /// A git command reading the local release state failed.
+    GitState(GitError),
+    /// A file could not be hashed.
+    Hash {
+        path: PathBuf,
+        source: io::Error,
+    },
+    /// A BCR source metadata check failed.
+    Bcr(BcrError),
+    /// A `MODULE.bazel` release check failed.
+    Module(ModuleError),
+    /// A registry document could not be rendered.
+    Render(FingerprintError),
+    InvalidCommit {
+        commit: String,
+    },
+    CommitMissing {
+        commit: String,
+        repo: PathBuf,
+        source: Box<GitError>,
+    },
+    CommitResolves {
+        commit: String,
+        resolved: String,
+        repo: PathBuf,
+    },
+    MalformedTreeRecord {
+        record: String,
+    },
+    NotRegularFile {
+        path: String,
+        kind: String,
+        mode: String,
+    },
+    NewlineInPath {
+        path: String,
+    },
+    EmptyTree {
+        commit: String,
+    },
+    ScratchDir(io::Error),
+    BatchRead(io::Error),
+    BlobMissing {
+        commit: String,
+        path: String,
+    },
+    BadSize {
+        header: String,
+        source: ParseIntError,
+    },
+    BadHeader {
+        header: String,
+        path: String,
+    },
+    ShortRead {
+        path: String,
+        source: io::Error,
+    },
+    SizeMismatch {
+        path: String,
+    },
+    NoPins,
+    OutsidePrefix {
+        name: String,
+        prefix: String,
+    },
+    ExtraMember {
+        name: String,
+    },
+    MemberMode {
+        name: String,
+        mode: u32,
+        want: u32,
+    },
+    MemberDiffers {
+        name: String,
+        commit: String,
+    },
+    DroppedMember {
+        name: String,
+    },
+    Immutable {
+        path: PathBuf,
+    },
+    OutputDirRelative {
+        path: PathBuf,
+    },
+    SourceJsonWrite(io::Error),
+    IntegrityDiffers,
+    SourceJsonNotUtf8(FromUtf8Error),
+    ModuleCalls {
+        count: usize,
+    },
+    ModuleNotClosed,
+    ModuleName {
+        named: Vec<String>,
+        want: String,
+    },
+    VersionFields {
+        count: usize,
+    },
+    VersionOutOfRange,
+    RegistryDirRelative {
+        path: PathBuf,
+    },
+    MemberMissing {
+        member: String,
+    },
+    MemberRead {
+        member: String,
+        source: io::Error,
+    },
+    MemberNotUtf8 {
+        member: String,
+        source: FromUtf8Error,
+    },
+    NotHttps {
+        url: String,
+    },
+    MirrorDigest {
+        path: PathBuf,
+        have: String,
+        want: String,
+    },
+    MalformedLsRemote {
+        line: String,
+    },
+    AmbiguousLsRemote {
+        reference: String,
+    },
+    NoRemoteTag {
+        tag: String,
+    },
+    MalformedForEachRef {
+        line: String,
+    },
+    AmbiguousForEachRef {
+        reference: String,
+    },
+    BadHead {
+        head: String,
+    },
+}
+
+impl fmt::Display for CandidateError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(source) => write!(f, "candidate: {source}"),
+            Self::Git(source) => write!(f, "candidate: {source}"),
+            Self::GitState(source) => write!(f, "release: cannot read git state: {source}"),
+            Self::Hash { path, source } => {
+                write!(f, "candidate: cannot hash {}: {source}", path.display())
+            }
+            Self::Bcr(source) => source.fmt(f),
+            Self::Module(source) => source.fmt(f),
+            Self::Render(source) => write!(f, "cannot render JSON: {source}"),
+            Self::InvalidCommit { commit } => write!(
+                f,
+                "candidate: invalid commit {commit:?}: want a full 40-char lowercase SHA"
+            ),
+            Self::CommitMissing {
+                commit,
+                repo,
+                source,
+            } => write!(
+                f,
+                "candidate: commit {commit} is not in {}: {source}",
+                repo.display()
+            ),
+            Self::CommitResolves {
+                commit,
+                resolved,
+                repo,
+            } => write!(
+                f,
+                "candidate: commit {commit} resolves to {resolved:?} in {}",
+                repo.display()
+            ),
+            Self::MalformedTreeRecord { record } => {
+                write!(f, "candidate: malformed git ls-tree record {record:?}")
+            }
+            Self::NotRegularFile { path, kind, mode } => write!(
+                f,
+                "candidate: {path} is a {kind} with mode {mode}; only regular files are archived"
+            ),
+            Self::NewlineInPath { path } => {
+                write!(f, "candidate: path {path:?} contains a newline")
+            }
+            Self::EmptyTree { commit } => write!(f, "candidate: commit {commit} has an empty tree"),
+            Self::ScratchDir(source) => write!(f, "candidate: create scratch dir: {source}"),
+            Self::BatchRead(source) => write!(f, "candidate: git cat-file output: {source}"),
+            Self::BlobMissing { commit, path } => {
+                write!(f, "candidate: git cat-file: {commit}:{path} is missing")
+            }
+            Self::BadSize { header, .. } => {
+                write!(f, "candidate: git cat-file bad size line {header:?}")
+            }
+            Self::BadHeader { header, path } => {
+                write!(
+                    f,
+                    "candidate: git cat-file bad header {header:?} for {path}"
+                )
+            }
+            Self::ShortRead { path, source } => {
+                write!(f, "candidate: git cat-file short read for {path}: {source}")
+            }
+            Self::SizeMismatch { path } => {
+                write!(f, "candidate: git cat-file size mismatch for {path}")
+            }
+            Self::NoPins => write!(f, "candidate: commit has no {PINS_PATH}"),
+            Self::OutsidePrefix { name, prefix } => write!(
+                f,
+                "candidate: archive member {name} is outside strip prefix {prefix}"
+            ),
+            Self::ExtraMember { name } => write!(f, "candidate: archive has extra member {name}"),
+            Self::MemberMode { name, mode, want } => write!(
+                f,
+                "candidate: archive member {name} has mode {mode:o}, want {want:o}"
+            ),
+            Self::MemberDiffers { name, commit } => write!(
+                f,
+                "candidate: archive member {name} differs from commit {commit}"
+            ),
+            Self::DroppedMember { name } => write!(f, "candidate: archive drops member {name}"),
+            Self::Immutable { path } => write!(
+                f,
+                "candidate: {} already exists with different bytes (release assets are immutable)",
+                path.display()
+            ),
+            Self::OutputDirRelative { path } => write!(
+                f,
+                "candidate: output directory {} must be absolute",
+                path.display()
+            ),
+            Self::SourceJsonWrite(source) => {
+                write!(f, "candidate: cannot write source.json: {source}")
+            }
+            Self::IntegrityDiffers => {
+                f.write_str("candidate: source.json integrity differs from the archive")
+            }
+            Self::SourceJsonNotUtf8(source) => {
+                write!(f, "candidate: source.json is not UTF-8: {source}")
+            }
+            Self::ModuleCalls { count } => write!(
+                f,
+                "candidate: MODULE.bazel has {count} module() calls, want exactly one"
+            ),
+            Self::ModuleNotClosed => {
+                f.write_str("candidate: MODULE.bazel module() call is not closed")
+            }
+            Self::ModuleName { named, want } => write!(
+                f,
+                "candidate: MODULE.bazel module() name is {named:?}, want [\"{want}\"]"
+            ),
+            Self::VersionFields { count } => write!(
+                f,
+                "candidate: MODULE.bazel module() has {count} version fields, want exactly one"
+            ),
+            Self::VersionOutOfRange => {
+                f.write_str("candidate: MODULE.bazel module() version field is out of range")
+            }
+            Self::RegistryDirRelative { path } => write!(
+                f,
+                "candidate: registry dir {} must be absolute",
+                path.display()
+            ),
+            Self::MemberMissing { member } => write!(f, "candidate: cannot read {member}"),
+            Self::MemberRead { member, source } => {
+                write!(f, "candidate: cannot read {member}: {source}")
+            }
+            Self::MemberNotUtf8 { member, .. } => write!(f, "candidate: {member} is not UTF-8"),
+            Self::NotHttps { url } => write!(f, "candidate: url {url} is not https"),
+            Self::MirrorDigest { path, have, want } => write!(
+                f,
+                "candidate: mirrored archive {} has sha256 {have}, want {want}",
+                path.display()
+            ),
+            Self::MalformedLsRemote { line } => {
+                write!(f, "release: malformed git ls-remote line {line:?}")
+            }
+            Self::AmbiguousLsRemote { reference } => write!(
+                f,
+                "release: ambiguous git ls-remote output: {reference} listed twice"
+            ),
+            Self::NoRemoteTag { tag } => write!(f, "release: remote has no tag {tag}"),
+            Self::MalformedForEachRef { line } => {
+                write!(f, "release: malformed git for-each-ref line {line:?}")
+            }
+            Self::AmbiguousForEachRef { reference } => write!(
+                f,
+                "release: ambiguous git for-each-ref output: {reference} listed twice"
+            ),
+            Self::BadHead { head } => write!(f, "release: cannot read git state: HEAD is {head:?}"),
+        }
+    }
+}
+
+impl std::error::Error for CandidateError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(source) => Some(source),
+            Self::Git(source) | Self::GitState(source) => Some(source),
+            Self::CommitMissing { source, .. } => Some(source.as_ref()),
+            Self::Hash { source, .. }
+            | Self::ShortRead { source, .. }
+            | Self::MemberRead { source, .. }
+            | Self::ScratchDir(source)
+            | Self::BatchRead(source)
+            | Self::SourceJsonWrite(source) => Some(source),
+            Self::BadSize { source, .. } => Some(source),
+            Self::SourceJsonNotUtf8(source) | Self::MemberNotUtf8 { source, .. } => Some(source),
+            Self::Bcr(source) => Some(source),
+            Self::Module(source) => Some(source),
+            Self::Render(source) => Some(source),
+            Self::InvalidCommit { .. }
+            | Self::CommitResolves { .. }
+            | Self::MalformedTreeRecord { .. }
+            | Self::NotRegularFile { .. }
+            | Self::NewlineInPath { .. }
+            | Self::EmptyTree { .. }
+            | Self::BlobMissing { .. }
+            | Self::BadHeader { .. }
+            | Self::SizeMismatch { .. }
+            | Self::NoPins
+            | Self::OutsidePrefix { .. }
+            | Self::ExtraMember { .. }
+            | Self::MemberMode { .. }
+            | Self::MemberDiffers { .. }
+            | Self::DroppedMember { .. }
+            | Self::Immutable { .. }
+            | Self::OutputDirRelative { .. }
+            | Self::IntegrityDiffers
+            | Self::ModuleCalls { .. }
+            | Self::ModuleNotClosed
+            | Self::ModuleName { .. }
+            | Self::VersionFields { .. }
+            | Self::VersionOutOfRange
+            | Self::RegistryDirRelative { .. }
+            | Self::MemberMissing { .. }
+            | Self::NotHttps { .. }
+            | Self::MirrorDigest { .. }
+            | Self::MalformedLsRemote { .. }
+            | Self::AmbiguousLsRemote { .. }
+            | Self::NoRemoteTag { .. }
+            | Self::MalformedForEachRef { .. }
+            | Self::AmbiguousForEachRef { .. }
+            | Self::BadHead { .. } => None,
+        }
+    }
+}
+
+impl From<BcrError> for CandidateError {
+    fn from(source: BcrError) -> Self {
+        Self::Bcr(source)
+    }
+}
+
+impl From<ModuleError> for CandidateError {
+    fn from(source: ModuleError) -> Self {
+        Self::Module(source)
+    }
+}
+
+impl From<PathIoError> for CandidateError {
+    fn from(source: PathIoError) -> Self {
+        Self::Io(source)
+    }
+}
+
+fn hash_file(path: &Path) -> Result<String, CandidateError> {
+    dx_digest::sha256_file_hex(path).map_err(|source| CandidateError::Hash {
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
 /// Returns stdout of a git command, or its failure as an error.
 ///
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn git_output_of(args: &[&str], output: Result<Captured, RunError>) -> Result<String, String> {
+pub fn git_output_of(
+    args: &[&str],
+    output: Result<Captured, RunError>,
+) -> Result<String, GitError> {
     let command = format!("git {}", args.join(" "));
     match output {
         Ok(out) if out.success() => {
-            String::from_utf8(out.stdout).map_err(|_| format!("{command} printed non-UTF-8 output"))
+            String::from_utf8(out.stdout).map_err(|source| GitError::NotUtf8 { command, source })
         }
         Ok(out) => {
             let stderr = out.stderr_text();
@@ -121,9 +546,9 @@ pub fn git_output_of(args: &[&str], output: Result<Captured, RunError>) -> Resul
             } else {
                 stderr
             };
-            Err(format!("{command} failed: {detail}"))
+            Err(GitError::Exit { command, detail })
         }
-        Err(err) => Err(format!("{command} failed: {err}")),
+        Err(source) => Err(GitError::Run { command, source }),
     }
 }
 
@@ -132,7 +557,7 @@ pub fn git_output_of(args: &[&str], output: Result<Captured, RunError>) -> Resul
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn git_in(dir: Option<&Path>, args: &[&str]) -> Result<String, String> {
+pub fn git_in(dir: Option<&Path>, args: &[&str]) -> Result<String, GitError> {
     let mut cmd = capture::git(dir.unwrap_or(Path::new(".")));
     cmd.args(args);
     git_output_of(args, run_captured(&mut cmd, DEFAULT_TIMEOUT))
@@ -145,14 +570,14 @@ pub fn ls_remote_output(
     dir: Option<&Path>,
     remote: &str,
     candidate: &Candidate,
-) -> Result<String, String> {
+) -> Result<String, GitError> {
     let [reference, peeled] = candidate.ls_remote_patterns();
     git_in(dir, &["ls-remote", "--tags", remote, &reference, &peeled])
 }
 
 const READ_CONFIG: [&str; 4] = ["-c", "core.autocrlf=false", "-c", "core.eol=lf"];
 
-fn git_read(repo: &Path, args: &[&str]) -> Result<String, String> {
+fn git_read(repo: &Path, args: &[&str]) -> Result<String, GitError> {
     let mut full: Vec<&str> = READ_CONFIG.to_vec();
     full.extend_from_slice(args);
     git_in(Some(repo), &full)
@@ -164,7 +589,7 @@ struct TreeFile {
     data: Vec<u8>,
 }
 
-fn commit_tree(repo: &Path, candidate: &Candidate) -> Result<Vec<TreeFile>, String> {
+fn commit_tree(repo: &Path, candidate: &Candidate) -> Result<Vec<TreeFile>, CandidateError> {
     let commit = candidate.commit();
     let resolved = git_read(
         repo,
@@ -175,47 +600,49 @@ fn commit_tree(repo: &Path, candidate: &Candidate) -> Result<Vec<TreeFile>, Stri
             &format!("{commit}^{{commit}}"),
         ],
     )
-    .map_err(|error| {
-        format!(
-            "candidate: commit {commit} is not in {}: {error}",
-            repo.display()
-        )
+    .map_err(|source| CandidateError::CommitMissing {
+        commit: commit.to_owned(),
+        repo: repo.to_path_buf(),
+        source: Box::new(source),
     })?;
     if resolved.trim() != commit {
-        return Err(format!(
-            "candidate: commit {commit} resolves to {:?} in {}",
-            resolved.trim(),
-            repo.display()
-        ));
+        return Err(CandidateError::CommitResolves {
+            commit: commit.to_owned(),
+            resolved: resolved.trim().to_owned(),
+            repo: repo.to_path_buf(),
+        });
     }
     let listing = git_read(repo, &["ls-tree", "-r", "-z", "--full-tree", commit])
-        .map_err(|error| format!("candidate: {error}"))?;
+        .map_err(CandidateError::Git)?;
+    let malformed = |record: &str| CandidateError::MalformedTreeRecord {
+        record: record.to_owned(),
+    };
     let mut entries: Vec<(String, u32)> = Vec::new();
     for record in listing.split('\0').filter(|record| !record.is_empty()) {
-        let (meta, path) = record
-            .split_once('\t')
-            .ok_or_else(|| format!("candidate: malformed git ls-tree record {record:?}"))?;
+        let (meta, path) = record.split_once('\t').ok_or_else(|| malformed(record))?;
         let mode = match meta.split(' ').collect::<Vec<_>>().as_slice() {
             ["100644", "blob", _] => 0o644,
             ["100755", "blob", _] => 0o755,
             [mode, kind, _] => {
-                return Err(format!(
-                    "candidate: {path} is a {kind} with mode {mode}; only regular files are archived"
-                ));
+                return Err(CandidateError::NotRegularFile {
+                    path: path.to_owned(),
+                    kind: (*kind).to_owned(),
+                    mode: (*mode).to_owned(),
+                });
             }
-            _ => {
-                return Err(format!(
-                    "candidate: malformed git ls-tree record {record:?}"
-                ));
-            }
+            _ => return Err(malformed(record)),
         };
         if path.contains('\n') {
-            return Err(format!("candidate: path {path:?} contains a newline"));
+            return Err(CandidateError::NewlineInPath {
+                path: path.to_owned(),
+            });
         }
         entries.push((path.to_owned(), mode));
     }
     if entries.is_empty() {
-        return Err(format!("candidate: commit {commit} has an empty tree"));
+        return Err(CandidateError::EmptyTree {
+            commit: commit.to_owned(),
+        });
     }
     let blobs = cat_blobs(repo, commit, &entries)?;
     Ok(entries
@@ -243,9 +670,9 @@ struct CommitIndex {
 }
 
 impl CommitIndex {
-    fn new(repo: &Path, commit: &str) -> Result<Self, String> {
+    fn new(repo: &Path, commit: &str) -> Result<Self, CandidateError> {
         let dir = dx_deploy_tools::tempfile_stage_dir(&format!("dx-candidate-{commit}-"))
-            .map_err(|error| format!("candidate: create scratch dir: {error}"))?;
+            .map_err(CandidateError::ScratchDir)?;
         let scratch = Self {
             index: dir.join("index"),
             tree: dir.join("tree"),
@@ -253,8 +680,7 @@ impl CommitIndex {
             dir,
         };
         for path in [&scratch.tree, &scratch.out] {
-            std::fs::create_dir(path)
-                .map_err(|error| format!("candidate: create {}: {error}", path.display()))?;
+            path_io::create_dir_all(path)?;
         }
         scratch.pipe(repo, &["read-tree", commit], &[], |_| Ok(()))?;
         Ok(scratch)
@@ -265,8 +691,8 @@ impl CommitIndex {
         repo: &Path,
         args: &[&str],
         input: &[u8],
-        read: impl FnOnce(&[u8]) -> Result<T, String>,
-    ) -> Result<T, String> {
+        read: impl FnOnce(&[u8]) -> Result<T, CandidateError>,
+    ) -> Result<T, CandidateError> {
         let work_tree = format!("--work-tree={}", self.tree.display());
         let mut full = vec![work_tree.as_str()];
         full.extend_from_slice(&READ_CONFIG);
@@ -289,16 +715,18 @@ fn git_run<T>(
     cmd: &mut std::process::Command,
     args: &[&str],
     input: &[u8],
-    read: impl FnOnce(&[u8]) -> Result<T, String>,
-) -> Result<T, String> {
+    read: impl FnOnce(&[u8]) -> Result<T, CandidateError>,
+) -> Result<T, CandidateError> {
     let command = format!("git {}", args.join(" "));
-    let output = run_captured_with_input(cmd, Some(input), DEFAULT_TIMEOUT)
-        .map_err(|error| format!("candidate: {command} failed: {error}"))?;
+    let output = match run_captured_with_input(cmd, Some(input), DEFAULT_TIMEOUT) {
+        Ok(output) => output,
+        Err(source) => return Err(CandidateError::Git(GitError::Run { command, source })),
+    };
     if !output.success() {
-        return Err(format!(
-            "candidate: {command} failed: {}",
-            output.stderr_text().trim()
-        ));
+        return Err(CandidateError::Git(GitError::Exit {
+            command,
+            detail: output.stderr_text().trim().to_owned(),
+        }));
     }
     read(&output.stdout)
 }
@@ -307,8 +735,8 @@ fn git_pipe<T>(
     repo: &Path,
     args: &[&str],
     input: &[u8],
-    read: impl FnOnce(&[u8]) -> Result<T, String>,
-) -> Result<T, String> {
+    read: impl FnOnce(&[u8]) -> Result<T, CandidateError>,
+) -> Result<T, CandidateError> {
     let mut cmd = capture::git(repo);
     cmd.args(args);
     git_run(&mut cmd, args, input, read)
@@ -327,7 +755,7 @@ fn filtered_paths(
     repo: &Path,
     index: &CommitIndex,
     entries: &[(String, u32)],
-) -> Result<Vec<bool>, String> {
+) -> Result<Vec<bool>, CandidateError> {
     let input = nul_separated(entries.iter().map(|(path, _)| path));
     let mut args = vec!["check-attr", "--cached", "-z", "--stdin"];
     args.extend_from_slice(&FILTER_ATTRS);
@@ -347,7 +775,11 @@ fn filtered_paths(
         .collect())
 }
 
-fn cat_blobs(repo: &Path, commit: &str, entries: &[(String, u32)]) -> Result<Vec<Vec<u8>>, String> {
+fn cat_blobs(
+    repo: &Path,
+    commit: &str,
+    entries: &[(String, u32)],
+) -> Result<Vec<Vec<u8>>, CandidateError> {
     let mut input = String::new();
     for (path, _) in entries {
         writeln!(input, "{commit}:{path}").ok();
@@ -375,9 +807,7 @@ fn cat_blobs(repo: &Path, commit: &str, entries: &[(String, u32)]) -> Result<Vec
     )?;
     for ((blob, (path, _)), filter) in blobs.iter_mut().zip(entries).zip(flagged) {
         if filter {
-            let file = index.out.join(path);
-            *blob = std::fs::read(&file)
-                .map_err(|error| format!("candidate: read {}: {error}", file.display()))?;
+            *blob = path_io::read(&index.out.join(path))?;
         }
     }
     Ok(blobs)
@@ -387,36 +817,45 @@ fn read_batch(
     mut reader: impl BufRead,
     commit: &str,
     entries: &[(String, u32)],
-) -> Result<Vec<Vec<u8>>, String> {
+) -> Result<Vec<Vec<u8>>, CandidateError> {
     let mut blobs = Vec::with_capacity(entries.len());
     for (path, _) in entries {
         let mut header = String::new();
         reader
             .read_line(&mut header)
-            .map_err(|error| format!("candidate: git cat-file output: {error}"))?;
+            .map_err(CandidateError::BatchRead)?;
         let line = header.trim_end_matches('\n');
         if line.ends_with(" missing") || line.ends_with(" ambiguous") {
-            return Err(format!(
-                "candidate: git cat-file: {commit}:{path} is missing"
-            ));
+            return Err(CandidateError::BlobMissing {
+                commit: commit.to_owned(),
+                path: path.clone(),
+            });
         }
         let fields: Vec<&str> = line.split(' ').collect();
         let size = match fields.as_slice() {
-            [_, "blob", size] => size
-                .parse::<usize>()
-                .map_err(|_| format!("candidate: git cat-file bad size line {header:?}"))?,
+            [_, "blob", size] => {
+                size.parse::<usize>()
+                    .map_err(|source| CandidateError::BadSize {
+                        header: header.clone(),
+                        source,
+                    })?
+            }
             _ => {
-                return Err(format!(
-                    "candidate: git cat-file bad header {header:?} for {path}"
-                ));
+                return Err(CandidateError::BadHeader {
+                    header: header.clone(),
+                    path: path.clone(),
+                });
             }
         };
         let mut data = vec![0; size + 1];
         reader
             .read_exact(&mut data)
-            .map_err(|error| format!("candidate: git cat-file short read for {path}: {error}"))?;
+            .map_err(|source| CandidateError::ShortRead {
+                path: path.clone(),
+                source,
+            })?;
         if data.pop() != Some(b'\n') {
-            return Err(format!("candidate: git cat-file size mismatch for {path}"));
+            return Err(CandidateError::SizeMismatch { path: path.clone() });
         }
         blobs.push(data);
     }
@@ -438,13 +877,13 @@ pub fn build_source_archive(
     candidate: &Candidate,
     dst: &Path,
     pins: Option<&[u8]>,
-) -> Result<SourceArchive, String> {
+) -> Result<SourceArchive, CandidateError> {
     let mut files = commit_tree(repo, candidate)?;
     if let Some(pins) = pins {
         let file = files
             .iter_mut()
             .find(|file| file.path == PINS_PATH)
-            .ok_or_else(|| format!("candidate: commit has no {PINS_PATH}"))?;
+            .ok_or(CandidateError::NoPins)?;
         file.data = pins.to_vec();
     }
     let prefix = candidate.strip_prefix();
@@ -457,10 +896,11 @@ pub fn build_source_archive(
         .zip(&names)
         .map(|(file, name)| (name.as_str(), file.data.as_slice(), file.mode))
         .collect();
-    dx_deploy_tools::archive_tree(&members, dst)
-        .map_err(|error| format!("candidate: cannot write {}: {error}", dst.display()))?;
-    let digest = dx_digest::sha256_file_hex(dst)
-        .map_err(|error| format!("candidate: cannot hash {}: {error}", dst.display()))?;
+    dx_deploy_tools::archive_tree(&members, dst).map_err(|source| PathIoError::Write {
+        path: dst.to_path_buf(),
+        source,
+    })?;
+    let digest = hash_file(dst)?;
     let integrity = bcr_integrity_of_digest(&digest)?;
     Ok(SourceArchive { digest, integrity })
 }
@@ -477,7 +917,7 @@ pub fn source_archive_error(
     repo: &Path,
     candidate: &Candidate,
     pins: Option<&[u8]>,
-) -> Result<(), String> {
+) -> Result<(), CandidateError> {
     let prefix = format!("{}/", candidate.strip_prefix());
     let mut want: BTreeMap<String, (u32, String)> = commit_tree(repo, candidate)?
         .into_iter()
@@ -493,33 +933,36 @@ pub fn source_archive_error(
         })
         .collect();
     if pins.is_some() && !want.contains_key(&format!("{prefix}{PINS_PATH}")) {
-        return Err(format!("candidate: commit has no {PINS_PATH}"));
+        return Err(CandidateError::NoPins);
     }
-    let listing = dx_deploy_tools::archive_listing(archive)
-        .map_err(|error| format!("candidate: cannot read {}: {error}", archive.display()))?;
+    let listing =
+        dx_deploy_tools::archive_listing(archive).map_err(|source| PathIoError::Read {
+            path: archive.to_path_buf(),
+            source,
+        })?;
     for (name, mode, digest) in listing {
         if !name.starts_with(&prefix) {
-            return Err(format!(
-                "candidate: archive member {name} is outside strip prefix {prefix}"
-            ));
+            return Err(CandidateError::OutsidePrefix { name, prefix });
         }
-        let (want_mode, want_digest) = want
-            .remove(&name)
-            .ok_or_else(|| format!("candidate: archive has extra member {name}"))?;
+        let Some((want_mode, want_digest)) = want.remove(&name) else {
+            return Err(CandidateError::ExtraMember { name });
+        };
         if mode != want_mode {
-            return Err(format!(
-                "candidate: archive member {name} has mode {mode:o}, want {want_mode:o}"
-            ));
+            return Err(CandidateError::MemberMode {
+                name,
+                mode,
+                want: want_mode,
+            });
         }
         if digest != want_digest {
-            return Err(format!(
-                "candidate: archive member {name} differs from commit {}",
-                candidate.commit()
-            ));
+            return Err(CandidateError::MemberDiffers {
+                name,
+                commit: candidate.commit().to_owned(),
+            });
         }
     }
     match want.into_keys().next() {
-        Some(name) => Err(format!("candidate: archive drops member {name}")),
+        Some(name) => Err(CandidateError::DroppedMember { name }),
         None => Ok(()),
     }
 }
@@ -530,18 +973,18 @@ pub fn release_source_name(candidate: &Candidate) -> String {
     format!("{BCR_WANT_MODULE}-{}.tar.gz", candidate.version())
 }
 
-fn conflicting_output_error(path: &Path, bytes: &[u8]) -> Result<(), String> {
+fn conflicting_output_error(path: &Path, bytes: &[u8]) -> Result<(), CandidateError> {
     match std::fs::read(path) {
         Ok(existing) if existing == bytes => Ok(()),
-        Ok(_) => Err(format!(
-            "candidate: {} already exists with different bytes (release assets are immutable)",
-            path.display()
-        )),
+        Ok(_) => Err(CandidateError::Immutable {
+            path: path.to_path_buf(),
+        }),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(format!(
-            "candidate: cannot read {}: {error}",
-            path.display()
-        )),
+        Err(source) => Err(PathIoError::Read {
+            path: path.to_path_buf(),
+            source,
+        }
+        .into()),
     }
 }
 
@@ -559,15 +1002,13 @@ pub fn write_release_source(
     candidate: &Candidate,
     out_dir: &Path,
     pins: Option<&[u8]>,
-) -> Result<SourceArchive, String> {
+) -> Result<SourceArchive, CandidateError> {
     if !out_dir.is_absolute() {
-        return Err(format!(
-            "candidate: output directory {} must be absolute",
-            out_dir.display()
-        ));
+        return Err(CandidateError::OutputDirRelative {
+            path: out_dir.to_path_buf(),
+        });
     }
-    std::fs::create_dir_all(out_dir)
-        .map_err(|error| format!("candidate: cannot create {}: {error}", out_dir.display()))?;
+    path_io::create_dir_all(out_dir)?;
     let name = release_source_name(candidate);
     let staged = out_dir.join(format!(".{name}.staging"));
     let staged_json = out_dir.join(".source.json.staging");
@@ -579,8 +1020,8 @@ pub fn write_release_source(
         conflicting_output_error(&out_dir.join(file), bytes)?;
     }
     for (file, bytes) in &outputs {
-        std::fs::write(out_dir.join(file), bytes)
-            .map_err(|error| format!("candidate: cannot write {file}: {error}"))?;
+        let path = out_dir.join(file);
+        std::fs::write(&path, bytes).map_err(|source| PathIoError::Write { path, source })?;
     }
     Ok(built)
 }
@@ -594,24 +1035,21 @@ fn stage_release_source(
     staged: &Path,
     staged_json: &Path,
     pins: Option<&[u8]>,
-) -> Result<StagedOutputs, String> {
+) -> Result<StagedOutputs, CandidateError> {
     let built = build_source_archive(repo, candidate, staged, pins)?;
     source_archive_error(staged, repo, candidate, pins)?;
     let module_text = commit_module_file(repo, candidate)?;
     module_version_error(&module_text, candidate.version())?;
     local_override_error(&module_text)?;
-    let archive = std::fs::read(staged)
-        .map_err(|error| format!("candidate: cannot read {}: {error}", staged.display()))?;
+    let archive = path_io::read(staged)?;
     let sidecar = format!("{}  {name}\n", built.digest).into_bytes();
     let integrity = write_bcr_source_for_archive(staged_json, candidate.version(), staged)
-        .map_err(|error| format!("candidate: cannot write source.json: {error}"))?;
+        .map_err(CandidateError::SourceJsonWrite)?;
     if integrity != built.integrity {
-        return Err("candidate: source.json integrity differs from the archive".to_owned());
+        return Err(CandidateError::IntegrityDiffers);
     }
-    let json = std::fs::read(staged_json)
-        .map_err(|error| format!("candidate: cannot read source.json: {error}"))?;
-    let json_text = String::from_utf8(json.clone())
-        .map_err(|error| format!("candidate: source.json is not UTF-8: {error}"))?;
+    let json = path_io::read(staged_json)?;
+    let json_text = String::from_utf8(json.clone()).map_err(CandidateError::SourceJsonNotUtf8)?;
     bcr_candidate_error(
         &json_text,
         BCR_WANT_MODULE,
@@ -627,12 +1065,12 @@ fn stage_release_source(
 }
 
 /// Reads the commit's root MODULE.bazel.
-fn commit_module_file(repo: &Path, candidate: &Candidate) -> Result<String, String> {
+fn commit_module_file(repo: &Path, candidate: &Candidate) -> Result<String, CandidateError> {
     git_read(
         repo,
         &["show", &format!("{}:MODULE.bazel", candidate.commit())],
     )
-    .map_err(|error| format!("candidate: {error}"))
+    .map_err(CandidateError::Git)
 }
 
 pub(crate) fn call_end(text: &str, open: usize) -> Option<usize> {
@@ -722,7 +1160,7 @@ pub(crate) fn string_fields(body: &str, base: usize) -> Vec<(String, String, usi
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn candidate_module_file(text: &str, version: &str) -> Result<String, String> {
+pub fn candidate_module_file(text: &str, version: &str) -> Result<String, CandidateError> {
     candidate_named_module_file(text, version, BCR_WANT_MODULE)
 }
 
@@ -735,7 +1173,7 @@ pub fn candidate_named_module_file(
     text: &str,
     version: &str,
     name: &str,
-) -> Result<String, String> {
+) -> Result<String, CandidateError> {
     bcr_candidate_version_error(version)?;
     let starts: Vec<usize> = text
         .match_indices("module(")
@@ -750,18 +1188,12 @@ pub fn candidate_named_module_file(
         .collect();
     let open = match starts.as_slice() {
         [one] => *one + "module".len(),
-        found => {
-            return Err(format!(
-                "candidate: MODULE.bazel has {} module() calls, want exactly one",
-                found.len()
-            ));
-        }
+        found => return Err(CandidateError::ModuleCalls { count: found.len() }),
     };
-    let close = call_end(text, open)
-        .ok_or_else(|| "candidate: MODULE.bazel module() call is not closed".to_owned())?;
+    let close = call_end(text, open).ok_or(CandidateError::ModuleNotClosed)?;
     let body = text
         .get(open + 1..close)
-        .ok_or_else(|| "candidate: MODULE.bazel module() call is not closed".to_owned())?;
+        .ok_or(CandidateError::ModuleNotClosed)?;
     let fields = string_fields(body, open + 1);
     let named: Vec<&String> = fields
         .iter()
@@ -769,23 +1201,19 @@ pub fn candidate_named_module_file(
         .map(|field| &field.1)
         .collect();
     if named.as_slice() != [name] {
-        return Err(format!(
-            "candidate: MODULE.bazel module() name is {named:?}, want [\"{name}\"]"
-        ));
+        return Err(CandidateError::ModuleName {
+            named: named.into_iter().cloned().collect(),
+            want: name.to_owned(),
+        });
     }
     let versions: Vec<&(String, String, usize, usize)> =
         fields.iter().filter(|field| field.0 == "version").collect();
     let (start, end) = match versions.as_slice() {
         [one] => (one.2, one.3),
-        found => {
-            return Err(format!(
-                "candidate: MODULE.bazel module() has {} version fields, want exactly one",
-                found.len()
-            ));
-        }
+        found => return Err(CandidateError::VersionFields { count: found.len() }),
     };
     let (Some(head), Some(tail)) = (text.get(..start), text.get(end..)) else {
-        return Err("candidate: MODULE.bazel module() version field is out of range".to_owned());
+        return Err(CandidateError::VersionOutOfRange);
     };
     Ok(format!("{head}{version}{tail}"))
 }
@@ -801,13 +1229,17 @@ pub fn file_url(path: &Path) -> String {
     }
 }
 
-fn write_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
+fn write_file(path: &Path, bytes: &[u8]) -> Result<(), CandidateError> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|error| format!("candidate: cannot create {}: {error}", parent.display()))?;
+        path_io::create_dir_all(parent)?;
     }
-    std::fs::write(path, bytes)
-        .map_err(|error| format!("candidate: cannot write {}: {error}", path.display()))
+    std::fs::write(path, bytes).map_err(|source| {
+        PathIoError::Write {
+            path: path.to_path_buf(),
+            source,
+        }
+        .into()
+    })
 }
 
 /// Stages a local Bazel registry that serves exactly one candidate archive.
@@ -819,46 +1251,57 @@ pub fn stage_local_registry(
     dir: &Path,
     candidate: &Candidate,
     archive: &Path,
-) -> Result<PathBuf, String> {
+) -> Result<PathBuf, CandidateError> {
     if !dir.is_absolute() {
-        return Err(format!(
-            "candidate: registry dir {} must be absolute",
-            dir.display()
-        ));
+        return Err(CandidateError::RegistryDirRelative {
+            path: dir.to_path_buf(),
+        });
     }
-    let digest = dx_digest::sha256_file_hex(archive)
-        .map_err(|error| format!("candidate: cannot hash {}: {error}", archive.display()))?;
+    let digest = hash_file(archive)?;
     let version = candidate.version();
     let mirror = dir.join("mirror");
     write_file(
         &dir.join("bazel_registry.json"),
-        render_pretty(&serde_json::json!({
+        pretty_json(&serde_json::json!({
             "mirrors": [format!("{}/", file_url(&mirror))],
         }))
+        .map_err(CandidateError::Render)?
         .as_bytes(),
     )?;
     let prefix = candidate.strip_prefix();
-    let listing = dx_deploy_tools::archive_listing(archive)
-        .map_err(|error| format!("candidate: cannot list {}: {error}", archive.display()))?;
+    let listing =
+        dx_deploy_tools::archive_listing(archive).map_err(|source| PathIoError::List {
+            path: archive.to_path_buf(),
+            source,
+        })?;
     let module_path = format!("{prefix}/MODULE.bazel");
     if !listing.iter().any(|(path, _, _)| path == &module_path) {
-        return Err(format!("candidate: cannot read {module_path}"));
+        return Err(CandidateError::MemberMissing {
+            member: module_path,
+        });
     }
-    let bytes = dx_deploy_tools::archive_read_member(archive, &module_path)
-        .map_err(|error| format!("candidate: cannot read {module_path}: {error}"))?;
-    let text =
-        String::from_utf8(bytes).map_err(|_| format!("candidate: {module_path} is not UTF-8"))?;
+    let bytes = dx_deploy_tools::archive_read_member(archive, &module_path).map_err(|source| {
+        CandidateError::MemberRead {
+            member: module_path.clone(),
+            source,
+        }
+    })?;
+    let text = String::from_utf8(bytes).map_err(|source| CandidateError::MemberNotUtf8 {
+        member: module_path.clone(),
+        source,
+    })?;
     let module_file = candidate_named_module_file(&text, version, BCR_WANT_MODULE)?;
     let module_dir = dir.join("modules").join(BCR_WANT_MODULE);
     write_file(
         &module_dir.join("metadata.json"),
-        render_pretty(&serde_json::json!({
+        pretty_json(&serde_json::json!({
             "homepage": RELEASE_REPOSITORY,
             "maintainers": [],
             "repository": [RELEASE_REPOSITORY.replace("https://github.com/", "github:")],
             "versions": [version],
             "yanked_versions": {},
         }))
+        .map_err(CandidateError::Render)?
         .as_bytes(),
     )?;
     write_file(
@@ -868,24 +1311,22 @@ pub fn stage_local_registry(
     let source = render_bcr_source_for_digest(BCR_WANT_MODULE, version, &digest)?;
     let source_path = module_dir.join(version).join("source.json");
     write_file(&source_path, source.as_bytes())?;
-    let staged = std::fs::read_to_string(&source_path)
-        .map_err(|error| format!("candidate: cannot read {}: {error}", source_path.display()))?;
+    let staged = path_io::read_to_string(&source_path)?;
     bcr_candidate_error(&staged, BCR_WANT_MODULE, version, &digest)?;
     let url = candidate.url();
-    let relative = url
-        .strip_prefix("https://")
-        .ok_or_else(|| format!("candidate: url {url} is not https"))?;
+    let Some(relative) = url.strip_prefix("https://") else {
+        return Err(CandidateError::NotHttps { url });
+    };
     let mirrored = mirror.join(relative);
-    let bytes = std::fs::read(archive)
-        .map_err(|error| format!("candidate: cannot read {}: {error}", archive.display()))?;
+    let bytes = path_io::read(archive)?;
     write_file(&mirrored, &bytes)?;
-    let mirrored_digest = dx_digest::sha256_file_hex(&mirrored)
-        .map_err(|error| format!("candidate: cannot hash {}: {error}", mirrored.display()))?;
+    let mirrored_digest = hash_file(&mirrored)?;
     if mirrored_digest != digest {
-        return Err(format!(
-            "candidate: mirrored archive {} has sha256 {mirrored_digest}, want {digest}",
-            mirrored.display()
-        ));
+        return Err(CandidateError::MirrorDigest {
+            path: mirrored,
+            have: mirrored_digest,
+            want: digest,
+        });
     }
     Ok(dir.to_path_buf())
 }
@@ -895,7 +1336,7 @@ pub fn stage_local_registry(
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn remote_tag_commit(output: &str, tag: &str) -> Result<String, String> {
+pub fn remote_tag_commit(output: &str, tag: &str) -> Result<String, CandidateError> {
     let want = format!("refs/tags/{tag}");
     let peeled = format!("{want}^{{}}");
     let mut direct: Option<&str> = None;
@@ -908,7 +1349,9 @@ pub fn remote_tag_commit(output: &str, tag: &str) -> Result<String, String> {
                     && !reference.is_empty()
                     && !reference.contains(char::is_whitespace)
             })
-            .ok_or_else(|| format!("release: malformed git ls-remote line {line:?}"))?;
+            .ok_or_else(|| CandidateError::MalformedLsRemote {
+                line: line.to_owned(),
+            })?;
         let slot = if reference == peeled {
             &mut peel
         } else if reference == want {
@@ -917,14 +1360,16 @@ pub fn remote_tag_commit(output: &str, tag: &str) -> Result<String, String> {
             continue;
         };
         if slot.replace(sha).is_some() {
-            return Err(format!(
-                "release: ambiguous git ls-remote output: {reference} listed twice"
-            ));
+            return Err(CandidateError::AmbiguousLsRemote {
+                reference: reference.to_owned(),
+            });
         }
     }
     peel.or(direct)
         .map(str::to_owned)
-        .ok_or_else(|| format!("release: remote has no tag {tag}"))
+        .ok_or_else(|| CandidateError::NoRemoteTag {
+            tag: tag.to_owned(),
+        })
 }
 
 /// The git for-each-ref format that `local_tag_commit` parses.
@@ -935,28 +1380,29 @@ pub const LOCAL_TAG_FORMAT: &str = "--format=%(refname) %(objectname) %(*objectn
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn local_tag_commit(output: &str, tag: &str) -> Result<Option<String>, String> {
+pub fn local_tag_commit(output: &str, tag: &str) -> Result<Option<String>, CandidateError> {
     let want = format!("refs/tags/{tag}");
     let mut found: Option<String> = None;
     for line in output.lines().filter(|line| !line.is_empty()) {
+        let malformed = || CandidateError::MalformedForEachRef {
+            line: line.to_owned(),
+        };
         let fields: Vec<&str> = line.split(' ').collect();
         let (reference, object, peeled) = match fields.as_slice() {
             [reference, object, peeled] => (*reference, *object, *peeled),
-            _ => return Err(format!("release: malformed git for-each-ref line {line:?}")),
+            _ => return Err(malformed()),
         };
         if !dx_digest::is_lower_hex(object, 20)
             || !(peeled.is_empty() || dx_digest::is_lower_hex(peeled, 20))
         {
-            return Err(format!("release: malformed git for-each-ref line {line:?}"));
+            return Err(malformed());
         }
         if reference != want {
             continue;
         }
         let commit = if peeled.is_empty() { object } else { peeled };
         if found.replace(commit.to_owned()).is_some() {
-            return Err(format!(
-                "release: ambiguous git for-each-ref output: {want} listed twice"
-            ));
+            return Err(CandidateError::AmbiguousForEachRef { reference: want });
         }
     }
     Ok(found)
@@ -968,17 +1414,19 @@ pub fn local_tag_commit(output: &str, tag: &str) -> Result<Option<String>, Strin
 ///
 /// Returns an error when the operation fails.
 pub fn git_state_of(
-    status: Result<String, String>,
-    head: Result<String, String>,
-    tags: Result<String, String>,
+    status: Result<String, GitError>,
+    head: Result<String, GitError>,
+    tags: Result<String, GitError>,
     tag: &str,
-) -> Result<GitState, String> {
-    let status = status?;
-    let head = head?;
-    let tags = tags?;
+) -> Result<GitState, CandidateError> {
+    let status = status.map_err(CandidateError::GitState)?;
+    let head = head.map_err(CandidateError::GitState)?;
+    let tags = tags.map_err(CandidateError::GitState)?;
     let head = head.trim();
     if !dx_digest::is_lower_hex(head, 20) {
-        return Err(format!("release: cannot read git state: HEAD is {head:?}"));
+        return Err(CandidateError::BadHead {
+            head: head.to_owned(),
+        });
     }
     Ok(GitState {
         tree_dirty: !status.trim().is_empty(),
@@ -992,10 +1440,8 @@ pub fn git_state_of(
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn read_git_state(repo: Option<&Path>, tag: &str) -> Result<GitState, String> {
-    let read = |args: &[&str]| {
-        git_in(repo, args).map_err(|error| format!("release: cannot read git state: {error}"))
-    };
+pub fn read_git_state(repo: Option<&Path>, tag: &str) -> Result<GitState, CandidateError> {
+    let read = |args: &[&str]| git_in(repo, args);
     let reference = format!("refs/tags/{tag}");
     git_state_of(
         read(&["status", "--porcelain"]),
@@ -1039,11 +1485,12 @@ mod tests {
 
     #[test]
     fn candidate_rejects_bad_versions_and_commits() {
-        assert!(
-            Candidate::new("0.0.0", SHA)
-                .expect_err("shape version")
-                .contains("unpublishable")
-        );
+        let error = Candidate::new("0.0.0", SHA).expect_err("shape version");
+        assert!(matches!(
+            error,
+            CandidateError::Bcr(BcrError::UnpublishableVersion)
+        ));
+        assert!(error.to_string().contains("unpublishable"));
         for bad in ["", "1.2", "v1.2.3", "1.2.3.4", "1..3"] {
             assert!(
                 Candidate::new(bad, SHA).is_err(),
@@ -1052,6 +1499,8 @@ mod tests {
         }
         for bad in ["a948904", "", &SHA.to_uppercase(), &format!("{SHA}00")] {
             let error = Candidate::new("1.2.3", bad).expect_err("bad commit");
+            assert!(matches!(error, CandidateError::InvalidCommit { .. }));
+            let error = error.to_string();
             assert!(error.contains("invalid commit"), "{bad:?}: {error}");
         }
     }
@@ -1080,40 +1529,37 @@ mod tests {
     #[test]
     fn candidate_module_file_rejects_foreign_and_ambiguous_modules() {
         let foreign = MODULE.replacen("\"rules_dx\"", "\"other\"", 1);
-        assert!(
-            candidate_module_file(&foreign, "1.2.3")
-                .expect_err("foreign")
-                .contains("name is [\"other\"]")
+        let error = candidate_module_file(&foreign, "1.2.3").expect_err("foreign");
+        assert!(matches!(error, CandidateError::ModuleName { .. }));
+        assert_eq!(
+            error.to_string(),
+            "candidate: MODULE.bazel module() name is [\"other\"], want [\"rules_dx\"]"
         );
         let twice = format!("{MODULE}module(name = \"rules_dx\", version = \"1\")\n");
-        assert!(
-            candidate_module_file(&twice, "1.2.3")
-                .expect_err("two calls")
-                .contains("2 module() calls")
-        );
+        let error = candidate_module_file(&twice, "1.2.3").expect_err("two calls");
+        assert!(matches!(error, CandidateError::ModuleCalls { count: 2 }));
+        assert!(error.to_string().contains("2 module() calls"));
         let unversioned = "module(name = \"rules_dx\")\n";
-        assert!(
-            candidate_module_file(unversioned, "1.2.3")
-                .expect_err("no version")
-                .contains("0 version fields")
-        );
-        assert!(
-            candidate_module_file("bazel_dep(name = \"x\")\n", "1.2.3")
-                .expect_err("none")
-                .contains("0 module() calls")
-        );
-        assert!(
-            candidate_module_file("module(name = \"rules_dx\"\n", "1.2.3")
-                .expect_err("open")
-                .contains("not closed")
-        );
-        assert!(candidate_module_file(MODULE, "0.0.0").is_err());
+        let error = candidate_module_file(unversioned, "1.2.3").expect_err("no version");
+        assert!(matches!(error, CandidateError::VersionFields { count: 0 }));
+        assert!(error.to_string().contains("0 version fields"));
+        let error = candidate_module_file("bazel_dep(name = \"x\")\n", "1.2.3").expect_err("none");
+        assert!(matches!(error, CandidateError::ModuleCalls { count: 0 }));
+        assert!(error.to_string().contains("0 module() calls"));
+        let error =
+            candidate_module_file("module(name = \"rules_dx\"\n", "1.2.3").expect_err("open");
+        assert!(matches!(error, CandidateError::ModuleNotClosed));
+        assert!(error.to_string().contains("not closed"));
+        assert!(matches!(
+            candidate_module_file(MODULE, "0.0.0"),
+            Err(CandidateError::Bcr(BcrError::UnpublishableVersion))
+        ));
     }
 
     #[test]
     fn remote_tag_commit_prefers_the_peeled_annotated_commit() {
         let output = format!("{SHA}\trefs/tags/v1.2.3\n{PEELED}\trefs/tags/v1.2.3^{{}}\n");
-        assert_eq!(remote_tag_commit(&output, "v1.2.3"), Ok(PEELED.to_owned()));
+        assert_eq!(remote_tag_commit(&output, "v1.2.3").expect("tag"), PEELED);
     }
 
     #[test]
@@ -1121,7 +1567,7 @@ mod tests {
         let output = format!(
             "{PEELED}\trefs/tags/v1.2.30\n{SHA}\trefs/tags/v1.2.3\n{PEELED}\trefs/heads/v1.2.3\n"
         );
-        assert_eq!(remote_tag_commit(&output, "v1.2.3"), Ok(SHA.to_owned()));
+        assert_eq!(remote_tag_commit(&output, "v1.2.3").expect("tag"), SHA);
     }
 
     #[test]
@@ -1134,6 +1580,8 @@ mod tests {
             format!("{SHA}\trefs/tags/v1.2.3 extra\n"),
         ] {
             let error = remote_tag_commit(&bad, "v1.2.3").expect_err("malformed");
+            assert!(matches!(error, CandidateError::MalformedLsRemote { .. }));
+            let error = error.to_string();
             assert!(
                 error.contains("malformed git ls-remote line"),
                 "{bad:?}: {error}"
@@ -1144,60 +1592,59 @@ mod tests {
     #[test]
     fn remote_tag_commit_rejects_duplicate_and_conflicting_lines() {
         let duplicate = format!("{SHA}\trefs/tags/v1.2.3\n{SHA}\trefs/tags/v1.2.3\n");
-        assert!(
-            remote_tag_commit(&duplicate, "v1.2.3")
-                .expect_err("duplicate")
-                .contains("ambiguous")
-        );
+        let error = remote_tag_commit(&duplicate, "v1.2.3").expect_err("duplicate");
+        assert!(matches!(error, CandidateError::AmbiguousLsRemote { .. }));
+        assert!(error.to_string().contains("ambiguous"));
         let conflicting =
             format!("{SHA}\trefs/tags/v1.2.3^{{}}\n{PEELED}\trefs/tags/v1.2.3^{{}}\n");
         assert!(
             remote_tag_commit(&conflicting, "v1.2.3")
                 .expect_err("conflicting")
+                .to_string()
                 .contains("ambiguous")
         );
     }
 
     #[test]
     fn remote_tag_commit_rejects_empty_output() {
-        assert_eq!(
-            remote_tag_commit("", "v1.2.3"),
-            Err("release: remote has no tag v1.2.3".to_owned())
-        );
+        let error = remote_tag_commit("", "v1.2.3").expect_err("no tag");
+        assert!(matches!(error, CandidateError::NoRemoteTag { .. }));
+        assert_eq!(error.to_string(), "release: remote has no tag v1.2.3");
     }
 
     #[test]
     fn local_tag_commit_peels_and_matches_exact_refs() {
-        assert_eq!(local_tag_commit("", "v1.2.3"), Ok(None));
+        assert_eq!(local_tag_commit("", "v1.2.3").expect("empty"), None);
         assert_eq!(
-            local_tag_commit(&format!("refs/tags/v1.2.3 {SHA} \n"), "v1.2.3"),
-            Ok(Some(SHA.to_owned()))
+            local_tag_commit(&format!("refs/tags/v1.2.3 {SHA} \n"), "v1.2.3").expect("direct"),
+            Some(SHA.to_owned())
         );
         assert_eq!(
-            local_tag_commit(&format!("refs/tags/v1.2.3 {SHA} {PEELED}\n"), "v1.2.3"),
-            Ok(Some(PEELED.to_owned()))
+            local_tag_commit(&format!("refs/tags/v1.2.3 {SHA} {PEELED}\n"), "v1.2.3")
+                .expect("peeled"),
+            Some(PEELED.to_owned())
         );
         assert_eq!(
-            local_tag_commit(&format!("refs/tags/v1.2.3/x {SHA} \n"), "v1.2.3"),
-            Ok(None)
+            local_tag_commit(&format!("refs/tags/v1.2.3/x {SHA} \n"), "v1.2.3").expect("other"),
+            None
         );
         let twice = format!("refs/tags/v1.2.3 {SHA} \nrefs/tags/v1.2.3 {PEELED} \n");
-        assert!(
-            local_tag_commit(&twice, "v1.2.3")
-                .expect_err("twice")
-                .contains("ambiguous")
-        );
+        let error = local_tag_commit(&twice, "v1.2.3").expect_err("twice");
+        assert!(matches!(error, CandidateError::AmbiguousForEachRef { .. }));
+        assert!(error.to_string().contains("ambiguous"));
         for bad in ["v1.2.3\n".to_owned(), "refs/tags/v1.2.3 xyz \n".to_string()] {
-            assert!(
-                local_tag_commit(&bad, "v1.2.3")
-                    .expect_err("malformed")
-                    .contains("malformed")
-            );
+            let error = local_tag_commit(&bad, "v1.2.3").expect_err("malformed");
+            assert!(matches!(error, CandidateError::MalformedForEachRef { .. }));
+            assert!(error.to_string().contains("malformed"));
         }
     }
 
     #[test]
     fn git_state_of_propagates_first_error_and_parses_ok() {
+        let failed = |detail: &str| GitError::Exit {
+            command: "git status".to_owned(),
+            detail: detail.to_owned(),
+        };
         let state = git_state_of(
             Ok(" M a\n".to_owned()),
             Ok(format!("{SHA}\n")),
@@ -1217,36 +1664,41 @@ mod tests {
         .expect("state");
         assert!(!clean.tree_dirty);
         assert_eq!(clean.tag_commit, None);
+        let error = git_state_of(
+            Err(failed("first")),
+            Err(failed("second")),
+            Ok(String::new()),
+            "v1.2.3",
+        )
+        .expect_err("first");
+        assert!(matches!(
+            error,
+            CandidateError::GitState(GitError::Exit { .. })
+        ));
         assert_eq!(
-            git_state_of(
-                Err("first".to_owned()),
-                Err("second".to_owned()),
-                Ok(String::new()),
-                "v1.2.3"
-            )
-            .err(),
-            Some("first".to_owned())
+            error.to_string(),
+            "release: cannot read git state: git status failed: first"
         );
         assert_eq!(
             git_state_of(
                 Ok(String::new()),
                 Ok(SHA.to_owned()),
-                Err("third".to_owned()),
+                Err(failed("third")),
                 "v1.2.3"
             )
-            .err(),
-            Some("third".to_owned())
+            .expect_err("third")
+            .to_string(),
+            "release: cannot read git state: git status failed: third"
         );
-        assert!(
-            git_state_of(
-                Ok(String::new()),
-                Ok("HEAD".to_owned()),
-                Ok(String::new()),
-                "v1.2.3"
-            )
-            .expect_err("bad head")
-            .contains("HEAD is")
-        );
+        let error = git_state_of(
+            Ok(String::new()),
+            Ok("HEAD".to_owned()),
+            Ok(String::new()),
+            "v1.2.3",
+        )
+        .expect_err("bad head");
+        assert!(matches!(error, CandidateError::BadHead { .. }));
+        assert!(error.to_string().contains("HEAD is"));
     }
 
     #[test]
@@ -1258,57 +1710,75 @@ mod tests {
             stderr: stderr.to_vec(),
         };
         let failed = captured(Some(1), Vec::new(), b"fatal: not a git repository\n");
+        let error = git_output_of(&["status", "--porcelain"], Ok(failed)).expect_err("failed");
+        assert!(matches!(error, GitError::Exit { .. }));
         assert_eq!(
-            git_output_of(&["status", "--porcelain"], Ok(failed)),
-            Err("git status --porcelain failed: fatal: not a git repository".to_owned())
+            error.to_string(),
+            "git status --porcelain failed: fatal: not a git repository"
         );
         let silent = captured(Some(1), Vec::new(), b"");
-        let err = git_output_of(&["tag"], Ok(silent)).expect_err("silent failure");
+        let err = git_output_of(&["tag"], Ok(silent))
+            .expect_err("silent failure")
+            .to_string();
         assert!(err.starts_with("git tag failed: "), "{err}");
         let spawn = RunError::Spawn {
             command: "git tag".to_owned(),
             source: io::Error::new(io::ErrorKind::NotFound, "no git"),
         };
-        assert!(
-            git_output_of(&["tag"], Err(spawn))
-                .expect_err("spawn failure")
-                .starts_with("git tag failed: ")
-        );
+        let error = git_output_of(&["tag"], Err(spawn)).expect_err("spawn failure");
+        assert!(matches!(error, GitError::Run { .. }));
+        assert!(error.to_string().starts_with("git tag failed: "));
         let binary = captured(Some(0), vec![0xff], b"");
-        assert!(git_output_of(&["status"], Ok(binary)).is_err());
+        let error = git_output_of(&["status"], Ok(binary)).expect_err("binary");
+        assert!(matches!(error, GitError::NotUtf8 { .. }));
+        assert!(
+            std::error::Error::source(&error).is_some_and(|source| source.is::<FromUtf8Error>())
+        );
+        assert_eq!(error.to_string(), "git status printed non-UTF-8 output");
     }
 
     #[test]
     fn read_batch_rejects_missing_and_short_blobs() {
         let entries = vec![("a.txt".to_owned(), 0o644)];
         assert_eq!(
-            read_batch(&b"0123 blob 2\nhi\n"[..], SHA, &entries),
-            Ok(vec![b"hi".to_vec()])
+            read_batch(&b"0123 blob 2\nhi\n"[..], SHA, &entries).expect("blob"),
+            vec![b"hi".to_vec()]
         );
+        let error = read_batch(&b"a.txt missing\n"[..], SHA, &entries).expect_err("missing");
+        assert!(matches!(error, CandidateError::BlobMissing { .. }));
+        assert!(error.to_string().contains("is missing"));
+        let error = read_batch(&b"0123 blob 5\nhi\n"[..], SHA, &entries).expect_err("short");
+        assert!(matches!(error, CandidateError::ShortRead { .. }));
+        assert!(error.to_string().contains("short read"));
+        let error = read_batch(&b"0123 blob 1\nhi\n"[..], SHA, &entries).expect_err("size");
+        assert!(matches!(error, CandidateError::SizeMismatch { .. }));
+        assert!(error.to_string().contains("size mismatch"));
+        let error = read_batch(&b"0123 tree 1\nh\n"[..], SHA, &entries).expect_err("tree");
+        assert!(matches!(error, CandidateError::BadHeader { .. }));
+        assert!(error.to_string().contains("bad header"));
+        let error = read_batch(&b"0123 blob x\nh\n"[..], SHA, &entries).expect_err("size");
+        assert!(matches!(error, CandidateError::BadSize { .. }));
+        assert!(error.to_string().contains("bad size"));
+    }
+
+    #[test]
+    fn errors_keep_their_sources() {
+        let entries = vec![("a.txt".to_owned(), 0o644)];
+        let error = read_batch(&b"0123 blob x\nh\n"[..], SHA, &entries).expect_err("size");
         assert!(
-            read_batch(&b"a.txt missing\n"[..], SHA, &entries)
-                .expect_err("missing")
-                .contains("is missing")
+            std::error::Error::source(&error).is_some_and(|source| source.is::<ParseIntError>())
         );
+        let dir = tempfile::tempdir().expect("tempdir");
+        let candidate = Candidate::new("1.2.3", SHA).expect("candidate");
+        let missing = dir.path().join("missing.tar.gz");
+        let error = stage_local_registry(&dir.path().join("registry"), &candidate, &missing)
+            .expect_err("missing archive");
         assert!(
-            read_batch(&b"0123 blob 5\nhi\n"[..], SHA, &entries)
-                .expect_err("short")
-                .contains("short read")
+            matches!(&error, CandidateError::Hash { path, source }
+                if path == &missing && source.kind() == io::ErrorKind::NotFound),
+            "{error}"
         );
-        assert!(
-            read_batch(&b"0123 blob 1\nhi\n"[..], SHA, &entries)
-                .expect_err("size")
-                .contains("size mismatch")
-        );
-        assert!(
-            read_batch(&b"0123 tree 1\nh\n"[..], SHA, &entries)
-                .expect_err("tree")
-                .contains("bad header")
-        );
-        assert!(
-            read_batch(&b"0123 blob x\nh\n"[..], SHA, &entries)
-                .expect_err("size")
-                .contains("bad size")
-        );
+        assert!(std::error::Error::source(&error).is_some_and(|source| source.is::<io::Error>()));
+        assert!(error.to_string().starts_with("candidate: cannot hash "));
     }
 }

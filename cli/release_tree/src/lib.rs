@@ -1,6 +1,11 @@
 //! Assembles a directory from `--dir <path>` and `--copy <source> <path>` steps below the output directory.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::string_slice
+)]
 
 mod tree;
 #[cfg(test)]
@@ -12,7 +17,7 @@ pub fn run_process(args: &[String]) -> i32 {
     match tree::run(args) {
         Ok(()) => 0,
         Err(error) => {
-            eprintln!("release_tree: {error}");
+            dx_error::stdio::eprint_line(format_args!("release_tree: {error}"));
             1
         }
     }

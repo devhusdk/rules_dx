@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: periareon/rules_powershell#25
 diff -ruN a/powershell/private/utils.bzl b/powershell/private/utils.bzl
 --- a/powershell/private/utils.bzl	2026-11-18 04:05:50.842525332 +0100
 +++ b/powershell/private/utils.bzl	2026-11-18 04:06:29.639139494 +0100

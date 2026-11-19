@@ -128,11 +128,12 @@ fn write_module(
         Err(error) => (ErrorKind::Infra, error.to_string()),
     };
     let mut failed = Vec::new();
-    if let Err(error) = std::fs::write(workspace.join(&edit.path), &edit.old) {
+    if let Err(error) = dx_atomic_fs::write_atomic(&workspace.join(&edit.path), edit.old.as_bytes())
+    {
         failed.push(format!("restoring {} failed: {error}", edit.path));
     }
     if let Some(lock_bytes) = lock_before
-        && let Err(error) = std::fs::write(&lock, lock_bytes)
+        && let Err(error) = dx_atomic_fs::write_atomic(&lock, &lock_bytes)
     {
         failed.push(format!("restoring {LOCKFILE} failed: {error}"));
     }
@@ -695,7 +696,7 @@ fn merge_overrides(
             dx_merge::merge3::Merge3::Merged(merged) => (merged, false),
             dx_merge::merge3::Merge3::Conflicts { text, .. } => (text, true),
         };
-        if let Err(error) = std::fs::write(workspace.join(root), merged) {
+        if let Err(error) = dx_atomic_fs::write_atomic(&workspace.join(root), merged.as_bytes()) {
             write_stderr(
                 err,
                 format_args!("{root}: cannot write the merge: {error}\n"),
@@ -1329,7 +1330,7 @@ mod tests {
         let (_scratch, root) = pinned("dx-adopt-upgrade-lock-dir-", OLD);
         std::fs::write(root.join("MODULE.bazel"), dep(OLD)).expect("module");
         std::fs::remove_file(root.join("MODULE.bazel.lock")).expect("lock");
-        std::fs::create_dir(root.join("MODULE.bazel.lock")).expect("lock dir");
+        std::fs::create_dir_all(root.join("MODULE.bazel.lock")).expect("lock dir");
         let runner = Recorder::default();
         let (code, _out, err) = run_with(&upgrade(&["--apply"]), &root, &runner);
         assert_eq!(code, 3, "{err}");
@@ -1349,7 +1350,7 @@ mod tests {
             _env: &[(&str, &str)],
         ) -> std::io::Result<dx_process::ChildStatus> {
             std::fs::remove_file(cwd.join("MODULE.bazel"))?;
-            std::fs::create_dir(cwd.join("MODULE.bazel"))?;
+            std::fs::create_dir_all(cwd.join("MODULE.bazel"))?;
             Ok(dx_process::ChildStatus::exited(1))
         }
     }

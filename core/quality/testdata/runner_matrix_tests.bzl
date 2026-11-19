@@ -427,6 +427,10 @@ def matrix_case_platforms(case):
     """Returns the platform ids one matrix case runs on, per PLATFORM_FLAGS."""
     return ["linux_x86_64"] + [flag for flag in PLATFORM_FLAGS if case.get(flag, False)]
 
+def matrix_case_size(case):
+    """Returns the Bazel test size of one matrix case: its `size` key, else "small"."""
+    return case.get("size", "small")
+
 def matrix_case_tools(case):
     """Returns the tool names one matrix case really executes, mirroring the tool binding in the rule impl."""
     tools = list(case.get("tool_names", []))
@@ -525,7 +529,7 @@ def runner_matrix_suite(name, cases, extra_cases = []):
             tier_base_tools = tier_base_tools,
             tier_bases = ["//core/quality/tiers/%s:standard" % tier_base_dirs()[t] for t in tier_base_tools],
             expected_file = case.get("expected_file"),
-            size = "small",
+            size = matrix_case_size(case),
             tags = ["no-coverage"] + case.get("tags", []),
             target_compatible_with = compatible(case),
             **forwarded

@@ -45,21 +45,11 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
-## Writing targets
-
-`python_test` runs pytest by default. Set `runner = "plain"` to run a `main`
-script instead. `dx generate` sets `runner = "plain"` for a test file that
-imports `unittest`, not `pytest`, and defines no bare `test` functions. Every
-other test gets `@pypi//pytest`, so pytest must be in your project
-dependencies.
-
-`python_bench` is a `python_test` for `dx bench`. List `pytest-benchmark` in
-your project dependencies and `@pypi//pytest_benchmark` in `deps`. Each
-benchmark becomes one row, in seconds.
-
 ## Dependencies
 
-Add the package to `pyproject.toml`, then run `dx generate --apply`. dx writes a missing `uv.lock` and the `pypi` hub in `MODULE.bazel`:
+Add the package to `pyproject.toml`, then run `dx generate --apply`. dx writes
+`uv.lock` if it is missing, and adds the `pypi` hub to `MODULE.bazel`. A hub
+is a Bazel repository that holds one target per locked package:
 
 ```starlark
 uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
@@ -76,15 +66,33 @@ An import whose top-level module matches a package in `uv.lock` resolves to
 `@pypi//<name>`. To use another hub name, add
 `# gazelle:dx_external python <path> <repo>` to a `BUILD` file.
 
+### Writing targets
+
+`python_test` runs pytest by default, so pytest must be in your project
+dependencies. To run a `main` script instead, set `runner = "plain"`.
+`dx generate` sets `runner = "plain"` for a test file that imports
+`unittest`, not `pytest`, and defines no bare `test` functions. Every other
+test gets `@pypi//pytest`.
+
+`python_bench` is a `python_test` for `dx bench`. List `pytest-benchmark` in
+your project dependencies and `@pypi//pytest_benchmark` in `deps`. Each
+benchmark becomes one row of `dx-bench.json`, in seconds.
+
 ## Quality
 
-| Check | Default tool |
+| Check | Default tools |
 | --- | --- |
 | Format | `ruff` |
-| Lint | `ruff`, `pydoclint` |
+| Lint | `ruff`, `typos` |
 | Typecheck | `ty` |
 
-Configure `ruff` in `ruff.toml` and bind it with `ruff_config`.
+Configure `ruff` in `ruff.toml` and bind it with `ruff_config`. To also check
+docstrings with `pydoclint`, add it in `dx.toml`:
+
+```toml
+[families.python]
+lint = ["+pydoclint"]
+```
 
 ## Packaging
 
@@ -101,7 +109,9 @@ py_extension(
 )
 ```
 
-The extension is built with the repo's hermetic C++ toolchain and imported by the hermetic interpreter. These compiler and platform pairs build it:
+The extension builds with the hermetic C++ toolchain, and the hermetic
+interpreter imports it. Hermetic means Bazel fetches a pinned copy, so
+nothing comes from the host. These compiler and platform pairs build it:
 
 | Compiler | Platform |
 | --- | --- |
@@ -110,7 +120,10 @@ The extension is built with the repo's hermetic C++ toolchain and imported by th
 | clang-cl | windows_x86_64 |
 | cl.exe | windows_x86_64 |
 
-Windows links the dynamic CRT. An app that ships an extension must also ship `msvcp140` and `vcruntime140*` from `@msvc_runtime`. Invalid compiler and platform combinations fail at analysis.
+Any other pair fails at analysis, the step where Bazel reads BUILD files
+before it runs anything. On Windows the extension links the dynamic CRT, so
+an app that ships it must also ship `msvcp140` and `vcruntime140*` from
+`@msvc_runtime`.
 
 ## Rules
 
@@ -168,6 +181,14 @@ python_grpc_library(name, proto, py_proto, grpc_tools = "@pypi//grpcio_tools", g
 
 Compiles the services of proto into <name>_pb2_grpc.py.
 
+### `python_doc_shard`
+
+```python
+python_doc_shard(name, library, package = "", docstyle = "google", **kwargs)
+```
+
+Declares the DocIr shard of one Python library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Python:
@@ -198,13 +219,5 @@ See the [support matrix](../support-matrix.md).
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/python:defs.bzl", "python_doc_shard")
+load("@rules_dx//python:defs.bzl", "python_doc_shard")
 ```
-
-### `python_doc_shard`
-
-```python
-python_doc_shard(name, library, package = "", docstyle = "google", **kwargs)
-```
-
-Declares the DocIr shard of one Python library.

@@ -1,6 +1,6 @@
 """Checks that attributes set on a fuzz or bench macro land on the target dx runs."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 # Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")

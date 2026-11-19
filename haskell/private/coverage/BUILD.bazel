@@ -14,11 +14,18 @@ real_source_target(
     tags = ["corpus"],
 )
 
-haskell_binary(
+alias(
     name = "hpc_lcov",
-    srcs = ["src/HpcLcov.hs"],
+    actual = "@dx_prebuilt//:hpc_lcov",
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     visibility = VIS_TOOLS_PUBLIC,
+)
+
+haskell_binary(
+    name = "hpc_lcov_source",
+    srcs = ["src/HpcLcov.hs"],
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    visibility = ["//visibility:public"],
     deps = [
         "@dx_haskell_toolchains//lib:base",
         "@dx_haskell_toolchains//lib:containers",

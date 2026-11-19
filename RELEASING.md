@@ -63,12 +63,13 @@ gh workflow run release.yml --ref v0.1.0
 Run it from the tag: the workflow only attests the files when it runs on the tag. It builds `dx` for every platform and uploads to the draft:
 
 - the source archive `rules_dx-0.1.0.tar.gz`, its `.sha256`, its attestation `rules_dx-0.1.0.tar.gz.intoto.jsonl`, and `source.json`
-- the `dx` archives, listed in `dx-sha256sums.txt`
+- the `dx` archives, the `dx-launcher-<os>-<cpu>`, `dx-runtime-<os>-<cpu>`, `dx-<tool>-<os>-<cpu>` code generator (capnp, flatc, oapi-codegen, thrift) and `dx-go-<os>-<cpu>` binaries, the windows-arm64 `dx-tree-sitter-windows-arm64.dll` and `dx-tree-sitter-pkl-windows-arm64.dll` libraries, `dx-oapi-codegen-LICENSE`, `dx-tree-sitter-LICENSE` and `dx-tree-sitter-pkl-LICENSE`, listed in `dx-sha256sums.txt`
 - the `dx-gazelle-<os>-<cpu>` binaries, listed in `dx-gazelle-sha256sums.txt`
-- the `dx-<tool>-any.jar` JVM tools (avro_union, javac_check, javadoc_extract, jmh_generate, kotlinc_check, scalac_check), listed in `dx-jar-sha256sums.txt`
-- the `dx-tool-<tool>-<version>-<host>` quality and coverage tools with their licences, the deadnix source crate, the kcov source archive and the `dx-python-tools-<host>.tar.gz` bundles, listed in `dx-tool-sha256sums.txt`
+- the `dx-<tool>-any.jar` JVM tools (avro_union, dokka_extract, javac_check, javadoc_extract, jmh_generate, kotlinc_check, scalac_check, scaladoc_extract), listed in `dx-jar-sha256sums.txt`
+- the `dx-<tool>-<os>-<cpu>` Haskell tools (hpc_lcov, weeder) for linux x86_64, linux arm64, macOS arm64 and Windows x86_64, `dx-hlint-linux-arm64`, `dx-hlint-macos-arm64` and `dx-ormolu-linux-arm64`, with `dx-weeder-LICENSE`, `dx-hlint-LICENSE`, `dx-ormolu-LICENSE` and the statically linked GMP's `dx-haskell-gmp-LICENSE`, `dx-haskell-gmp-source.tar.xz` and `dx-haskell-gmp-source.patch`, listed in `dx-haskell-sha256sums.txt`
+- the `dx-<tool>-<os>-<cpu>` quality and coverage tools (deadnix, selene, nixfmt, kcov) with their `dx-<tool>-LICENSE` files, `dx-deadnix-source.crate`, `dx-kcov-source.tar.gz` and the `dx-python-tools-<os>-<cpu>.tar.gz` bundles, listed in `dx-tool-sha256sums.txt`
 
-The source archive's `cli/prebuilt/pins.bzl` has `PINS` filled in from the release manifests, one sha256 per tool and platform in `cli/prebuilt/tools.bzl`, so consumers download the prebuilt `dx`, gazelle and JVM tool jars. On `main`, `PINS` stays empty. The workflow also unpacks the Linux archive and runs `dx --version`, and uploads a `release-ledger` artifact that records the release.
+The source archive's `cli/prebuilt/pins.bzl` has `PINS` filled in from the release manifests, one sha256 per tool and platform in `cli/prebuilt/tools.bzl`, so consumers download the prebuilt `dx`, gazelle, dx-go, JVM tool jars, Haskell tools and quality and coverage tools. On `main`, `PINS` stays empty. The workflow also unpacks the Linux archive and runs `dx --version`, and uploads a `release-ledger` artifact that records the release.
 
 It fails when:
 
@@ -84,7 +85,7 @@ After you fix the cause, run the workflow again with the same command.
 
 Open the draft on GitHub, check the notes and files, and publish it.
 
-Publishing starts `release-consumer.yml`. It builds a small consumer project against the published source archive on each platform and checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`. To run it again:
+Publishing starts `release-consumer.yml`. It builds a small consumer project against the published source archive on each platform and checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`, and that topiary and progenitor are the prebuilt downloads. To run it again:
 
 ```sh
 gh workflow run release-consumer.yml -f tag=v0.1.0
@@ -110,3 +111,25 @@ BCR_DRY_RUN=1 bazel run //deploy/private/release:bcr_demo
 ```
 
 It prints the pull request it would open and submits nothing. A failure names the field that is missing or does not match the module. Then open one BCR pull request yourself that adds `rules_dx` at `0.1.0` with the `source.json` from the release.
+
+## Release order with the rule-set modules
+
+PHP, Lua and Qt rules ship as their own modules: `rules_php`, `rules_lua` and `rules_qt`. Each one depends on `rules_dx`, and `rules_dx` depends on each one. Release them in this order:
+
+1. Release `rules_dx` with the steps above and wait until its BCR pull request is merged.
+2. In the rule-set repository, set its `bazel_dep` on `rules_dx` to that release, then release the rule set to the BCR from its own `.bcr/` metadata. Its BCR presubmit builds the plain-Bazel fixture, with no `dx` CLI.
+3. Once the rule set is in the BCR, the weekly `dx-update.yml` run opens the floor-raise pull request on `dx-update/bazel--<rule set>`, such as `dx-update/bazel--rules_php`. It never auto-merges. To open it now, run the `dx-update` workflow by hand. Push changes to `<lang>/` on that branch for any rule-set API change, then merge it before the next `rules_dx` release.
+
+`upgrade-e2e.yml` fails when a rule set does not resolve to the floor of the `rules_dx` release, or when a rule set pulls `rules_dx` above that release.
+
+The first releases go:
+
+1. `rules_dx` `0.1.0`, with PHP, Lua and Qt rules in-tree.
+2. `rules_php`, `rules_lua` and `rules_qt` `0.1.0`, each depending on `rules_dx` `0.1.0` or later.
+3. The next `rules_dx` release, depending on those rule-set releases.
+
+Versions are `0.x` semver. A minor release may change the API before `1.0`.
+
+While you work across both repositories you may point `rules_dx` at a local checkout of a rule set with `local_path_override`. Remove it before you tag: the `source` job fails and names the module.
+
+`rules_dx` users write only `bazel_dep(name = "rules_dx", ...)` and load `@rules_dx//<lang>:defs.bzl`. `dx upgrade` moves them to new rule-set releases through `rules_dx`.

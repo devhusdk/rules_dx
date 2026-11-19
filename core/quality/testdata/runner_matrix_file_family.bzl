@@ -299,6 +299,39 @@ FILE_FAMILY_CASES = [
         platforms = ["linux_x86_64"],
     ),
     matrix_case(
+        name = "matrix_d_lint_pass",
+        capability = "lint",
+        tool = "dscanner",
+        binary = "@dx_d_dscanner//:dscanner",
+        source_class = "d",
+        generated = {
+            "matrix/d_clean.d": "module d_clean;\n\n/// Returns the sum of `a` and `b`.\nint add(int a, int b) pure @safe\n{\n    return a + b;\n}\n",
+        },
+        platforms = ["linux_x86_64"],
+    ),
+    matrix_case(
+        name = "matrix_d_lint_fail",
+        capability = "lint",
+        tool = "dscanner",
+        binary = "@dx_d_dscanner//:dscanner",
+        source_class = "d",
+        generated = {
+            "matrix/d_dirty.d": "module d_dirty;\n\n/// Runs.\nvoid run()\n{\n    int unused;\n}\n",
+        },
+        platforms = ["linux_x86_64"],
+    ),
+    matrix_case(
+        name = "matrix_d_lint_syntax_error",
+        capability = "lint",
+        tool = "dscanner",
+        binary = "@dx_d_dscanner//:dscanner",
+        source_class = "d",
+        generated = {
+            "matrix/d_broken.d": "module d_broken;\n\nint = ;\n",
+        },
+        platforms = ["linux_x86_64"],
+    ),
+    matrix_case(
         name = "matrix_typst_lint_pass",
         capability = "lint",
         tool = "tinymist",
@@ -2219,6 +2252,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/psscriptanalyzer_format_dirty.ps1": "if ($a){\nWrite-Output 1}\n",
         },
+        size = "medium",
         tags = ["no-remote-exec"],
     ),
     matrix_case(
@@ -2241,6 +2275,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/psscriptanalyzer_format_crlf.ps1": "if ($a){\r\nWrite-Output 1}\r\n",
         },
+        size = "medium",
         tags = ["no-remote-exec"],
     ),
     matrix_case(
@@ -2708,7 +2743,7 @@ FILE_FAMILY_CASES = [
         binary = "//core/quality/tools/python:sqlfluff",
         source_class = "sql",
         generated = {
-            "matrix/sql_broken/a.sql": "selec from (\n",
+            "matrix/sql_broken/a.sql": "select from (\n",
         },
         platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
         config = ":sqlfluff_cfg/.sqlfluff",
@@ -3177,7 +3212,7 @@ FILE_FAMILY_CASES = [
         binary = "@dx_tools//:typos",
         source_class = "text",
         generated = {
-            "matrix/typos_dirty.txt": "say teh word\n",
+            "matrix/typos_dirty.txt": "say the word\n",
         },
     ),
     matrix_case(
@@ -3197,7 +3232,7 @@ FILE_FAMILY_CASES = [
         binary = "@dx_tools//:typos",
         source_class = "rust",
         generated = {
-            "matrix/typos_dirty.rs": "// recieve the word\n",
+            "matrix/typos_dirty.rs": "// receive the word\n",
         },
     ),
     matrix_case(

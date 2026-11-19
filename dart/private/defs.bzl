@@ -109,7 +109,7 @@ def dart_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     kwargs = dx_language_kwargs(kwargs, compatible_with = DART_COMPATIBLE_WITH)
     dx_wrap_test(name, _dart_test, _dart_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
-_dart_bench_lib = dx_private_dep_rule(
+_dart_benchmark_lib = dx_private_dep_rule(
     Label("//dart/private/bench"),
     [DartInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo, OutputGroupInfo],
     "Provides the dx_bench package dart_bench links.",
@@ -117,7 +117,7 @@ _dart_bench_lib = dx_private_dep_rule(
 
 def dart_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs):
     """A dart_test run by dx bench: `main` calls runBenchmarks from package:dx_bench with BenchmarkBase objects."""
-    _dart_bench_lib(
+    _dart_benchmark_lib(
         name = name + "_dx_bench",
         testonly = True,
         tags = dx_upstream_tags(tags),

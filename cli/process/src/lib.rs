@@ -1,5 +1,14 @@
 #![forbid(unsafe_code)]
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::string_slice
+)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use dx_error::DxError;
 use std::ffi::{OsStr, OsString};
@@ -39,7 +48,7 @@ pub use stderr_tail::last_bazel_stderr;
 pub trait Fs {
     fn is_file(&self, path: &Path) -> bool;
     fn broken_marker_hint(&self, dir: &Path) -> Option<String> {
-        let _ = dir;
+        let _: &Path = dir;
         None
     }
 }
@@ -95,10 +104,22 @@ fn legacy_marker(fs: &dyn Fs, dir: &Path) -> bool {
     fs.is_file(&dir.join("WORKSPACE")) || fs.is_file(&dir.join("WORKSPACE.bazel"))
 }
 
+/// The user's home directory: a non-empty `HOME`, else a non-empty `USERPROFILE`.
+#[must_use]
+pub fn home_dir() -> Option<PathBuf> {
+    home_with(|name| std::env::var_os(name)).map(PathBuf::from)
+}
+
+// An empty HOME (`env -i HOME=`, some CI containers) counts as unset; joining onto "" would
+// turn `~/x` into a relative path.
+pub(crate) fn home_with<T: AsRef<OsStr>>(env_get: impl Fn(&str) -> Option<T>) -> Option<T> {
+    let non_empty = |name: &str| env_get(name).filter(|value| !value.as_ref().is_empty());
+    non_empty("HOME").or_else(|| non_empty("USERPROFILE"))
+}
+
 #[must_use]
 pub fn expand_tilde(path: &Path) -> PathBuf {
-    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"));
-    expand_tilde_with(path, home)
+    expand_tilde_with(path, home_dir().map(PathBuf::into_os_string))
 }
 
 fn expand_tilde_with(path: &Path, home: Option<OsString>) -> PathBuf {
@@ -752,7 +773,7 @@ pub fn interrupted() -> Option<i32> {
 /// The exit code for a run stopped by `signo`.
 #[must_use]
 pub fn interrupted_code(signo: i32) -> i32 {
-    128 + signo
+    128_i32.saturating_add(signo)
 }
 
 #[must_use]
@@ -843,7 +864,7 @@ pub trait Runner {
         withdraw: Option<&dyn Fn() -> bool>,
         held: &[&std::fs::File],
     ) -> io::Result<Option<ChildStatus>> {
-        let _ = held;
+        let _: &[&std::fs::File] = held;
         match withdraw {
             Some(withdraw) => self.run_withdrawable(argv, cwd, env, withdraw),
             None => self.run(argv, cwd, env).map(Some),
@@ -852,19 +873,19 @@ pub trait Runner {
 
     /// Names the absolute path one pinned-tool variable points at.
     fn pinned_tool(&self, var: &str) -> PinnedVar {
-        let _ = var;
+        let _: &str = var;
         PinnedVar::Unset
     }
 
     /// Reads the first line `path --version` prints; `None` when it cannot run.
     fn tool_version(&self, path: &Path) -> Option<String> {
-        let _ = path;
+        let _: &Path = path;
         None
     }
 
     /// Reads the free bytes on the disk holding `path`; `None` when it cannot tell.
     fn free_disk_bytes(&self, path: &Path) -> Option<u64> {
-        let _ = path;
+        let _: &Path = path;
         None
     }
 }

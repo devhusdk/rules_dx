@@ -16,6 +16,7 @@
 -Dclippy::fallible_impl_from
 -Dclippy::wildcard_enum_match_arm
 -Dclippy::let_underscore_must_use
+-Dclippy::let_underscore_untyped
 -Dclippy::undocumented_unsafe_blocks
 -Dclippy::allow_attributes_without_reason
 -Dclippy::allow_attributes
@@ -27,6 +28,12 @@
 -Dclippy::infinite_loop
 -Dclippy::cast_possible_truncation
 -Dclippy::cast_possible_wrap
+-Dclippy::mem_forget
+-Dclippy::rc_mutex
+-Dclippy::multiple_unsafe_ops_per_block
+-Dclippy::string_add
+-Dclippy::create_dir
+-Dclippy::iter_over_hash_type
 -Dunsafe_code
 -Dunsafe_op_in_unsafe_fn
 -Dunused_must_use

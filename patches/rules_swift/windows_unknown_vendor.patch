@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazelbuild/rules_swift#2024
 --- a/swift/internal/target_triples.bzl
 +++ b/swift/internal/target_triples.bzl
 @@ -134,6 +134,13 @@

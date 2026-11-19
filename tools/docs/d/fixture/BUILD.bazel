@@ -2,6 +2,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//d:defs.bzl", "d_library")
 load("//d/private:defs.bzl", "D_COMPATIBLE_WITH")
 load("//tools/docs/d:defs.bzl", "d_doc_shard")
+load("//tools/docs/ir:dx_extract_test.bzl", "dx_extract_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -17,6 +18,15 @@ d_doc_shard(
     name = "geometry_docs",
     lib = ":geometry",
     target_compatible_with = D_COMPATIBLE_WITH,
+)
+
+dx_extract_test(
+    name = "geometry_docs_dx_extract_test",
+    size = "small",
+    mnemonic = "DxDocsDExtract",
+    subcommand = "d_extract",
+    target_compatible_with = D_COMPATIBLE_WITH,
+    target_under_test = ":geometry_docs",
 )
 
 real_source_target(

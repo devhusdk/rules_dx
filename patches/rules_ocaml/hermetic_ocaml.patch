@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: hermetic toolchain wiring; upstream obazl/rules_ocaml dormant since Mar 2025)
 diff --git a/aspects/depsets.bzl b/aspects/depsets.bzl
 index bd5f90e..4fb8e02 100644
 --- a/aspects/depsets.bzl

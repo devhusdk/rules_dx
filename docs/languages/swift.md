@@ -52,25 +52,21 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
-## Writing targets
-
-`swift_library`, `swift_binary` and `swift_test` build for Linux on their own.
-You need no `--platforms` or `--extra_execution_platforms` flags. To build for
-another platform, pass `platforms = ["//your:platform"]` to the wrapper. It
-takes one label; empty uses the current target platform.
-
-On a Linux host the Swift tools run on the host CPU and build for `aarch64`
-and `x86_64` Linux alike. Binaries and tests link the Swift runtime
-statically and need only the system C library.
-
 ## Quality
 
 ### Format and lint
 
-`dx format` and `dx lint` run `swift-format` from the pinned toolchain on Swift
-sources. The default policy runs `swift_format` and `swift_lint` with the
-default swift-format style. They run on Linux only; other platforms skip them
-with a note.
+`swift_format` formats and `swift_lint` lints Swift sources, both with
+`swift-format` from the pinned toolchain and its default style. They are off
+by default. Turn them on in `dx.toml`:
+
+```toml
+[families.swift]
+format = ["+swift_format"]
+lint = ["+swift_lint"]
+```
+
+Then run them:
 
 ```sh
 dx format --apply
@@ -79,19 +75,24 @@ dx lint
 
 ### Typecheck
 
-`dx typecheck` with `typecheck = ["swiftc"]` on the `swift` family replays the
-`SwiftCompile` action of each `swift_library`, `swift_binary` and `swift_test`
-with `-typecheck`, keeping its module, search path and `-D` flags and dropping
-every output flag. Diagnostics are reported at their source position; a
-`swiftc` failure without a parsed error fails closed. It runs the compiler the
-rule already uses and downloads nothing. Params files are rejected.
+`swiftc` typechecks Swift. It is off by default. Turn it on in `dx.toml`:
+
+```toml
+[families.swift]
+typecheck = ["+swiftc"]
+```
+
+`dx typecheck` then replays the `SwiftCompile` action of each
+`swift_library`, `swift_binary` and `swift_test` with `-typecheck`. It keeps
+the module, search paths and `-D` flags and drops every output flag. It runs
+the compiler the rule already uses and downloads nothing. Diagnostics point at
+their source position. A `swiftc` failure without a parsed error fails the
+run. Params files are rejected.
 
 ## Bench and fuzz
 
 `swift_fuzz_test` builds a libFuzzer binary with AddressSanitizer and defines
-`<name>_run` for `dx fuzz`. The source exports `LLVMFuzzerTestOneInput` with
-`@_cdecl`. It links the libFuzzer from the Swift toolchain archive, because the
-pinned LLVM's libFuzzer needs libc++ and Swift binaries link libstdc++. Linux only.
+`<name>_run` for `dx fuzz`. It runs on Linux only.
 
 ```python
 load("@rules_dx//swift:defs.bzl", "swift_fuzz_test")
@@ -102,9 +103,13 @@ swift_fuzz_test(
 )
 ```
 
-`swift_bench` builds a `swift_binary` that times a loop with `dxBench` from
-`//swift/private/bench` and writes `dx-bench.json` for `dx bench`. It needs no
-package-benchmark download. The sources need a `main.swift` for top-level code.
+Export `LLVMFuzzerTestOneInput` from the source with `@_cdecl`. The test
+links the libFuzzer from the Swift toolchain, because the pinned LLVM's
+libFuzzer needs libc++ and Swift binaries link libstdc++.
+
+`swift_bench` builds a `swift_binary` that times a loop with `dxBench` and
+writes `dx-bench.json` for `dx bench`. It downloads no package-benchmark.
+Put top-level code in a `main.swift`:
 
 ```python
 load("@rules_dx//swift:defs.bzl", "swift_bench")
@@ -117,21 +122,31 @@ swift_bench(
 
 ## Toolchain
 
+### Writing targets
+
+`swift_library`, `swift_binary` and `swift_test` build for Linux with no
+`--platforms` or `--extra_execution_platforms` flags. To build for another
+platform, pass `platforms = ["//your:platform"]` to the rule. It takes one
+label. Leave it empty to use the current target platform.
+
 ### Linux
 
 - The compiler is the Swift 6.4.2 Ubuntu 22.04 archive from swift.org.
 - Headers and C libraries come from a locked Ubuntu 22.04 package set.
-- Libraries `swiftc` needs on the build host, such as `libncurses`, come from the same package set.
+- Libraries `swiftc` needs on the build host, such as `libncurses`, come from
+  the same package set.
 - C++ resolution stays with `@llvm`.
 
-The build host needs glibc 2.35 or newer.
+The build host needs glibc 2.35 or newer. The Swift tools run on the host CPU
+and build for `aarch64` and `x86_64` Linux alike. Binaries and tests link the
+Swift runtime statically and need only the system C library.
 
 ### macOS arm64
 
-On macOS the same rules build with the Xcode installed on the host. Install
+On macOS, the same rules build with the Xcode installed on the host. Install
 Xcode first; no Swift toolchain is downloaded. Swift targets use the Xcode
-C/C++ toolchain automatically, so `MODULE.bazel` needs no edits. Binaries link
-the system Swift runtime dynamically.
+C/C++ toolchain on their own, so your `MODULE.bazel` needs no edits. Binaries
+link the system Swift runtime dynamically.
 
 ```sh
 dx build //app:hello
@@ -140,22 +155,23 @@ dx test //app:tests
 
 ### Windows x86_64
 
-On a Windows x86_64 host the rules build with the Swift 6.4.2 Windows installer
-from swift.org, pinned by sha256. The first Swift build downloads the 2 GB
-installer and unpacks it with the pinned PowerShell and the pinned 7-Zip;
-nothing is installed on the host and no host program runs. The toolchain is the
-`Asserts` one of the installer. The fetch fails unless `swiftc.exe` and
+On a Windows x86_64 host, the rules build with the Swift 6.4.2 Windows
+installer from swift.org, pinned by sha256. The first Swift build downloads
+the 2 GB installer and unpacks it with the pinned PowerShell and 7-Zip.
+Nothing is installed on the host and no host program runs. The toolchain is
+the `Asserts` one from the installer. The fetch fails unless `swiftc.exe` and
 `swiftCore.dll` are PE images for the host architecture.
 
-Swift targets link with the Windows C/C++ toolchain, so `dx_msvc` with its
-license accepted must be configured. Binaries link the Swift runtime
-dynamically. Swift binaries and tests always link the dynamic CRT, also as
-`rust_test` data.
+Swift targets link with MSVC, so accept the Visual Studio Build Tools
+license, as the [C and C++ README](https://github.com/devhusdk/rules_dx/blob/main/cc/README.md#msvc) shows. Binaries link the Swift runtime dynamically and
+always link the dynamic CRT, also as `rust_test` data. The Swift runtime,
+XCTest and Swift Testing DLLs sit next to each executable, so Swift binaries
+and tests run as `sh_test` or `rust_test` data.
 
 ### Windows arm64
 
-A Windows arm64 host uses the Swift 6.4.2 `windows10-arm64` installer, pinned by
-sha256 and unpacked the same way.
+A Windows arm64 host uses the Swift 6.4.2 `windows10-arm64` installer, pinned
+by sha256 and unpacked the same way.
 
 ## Rules
 
@@ -211,7 +227,18 @@ A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz
 swift_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs)
 ```
 
-A swift_binary timing loop run by `dx bench`; it links `//swift/private/bench` to write dx-bench.json.
+A swift_binary timing loop run by `dx bench`; it links the rules_dx bench harness to write dx-bench.json.
+
+### `swift_doc_shard`
+
+Converts one Swift library's public API into a DocIr shard with the symbol graph of the toolchain's swift-symbolgraph-extract.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
+| `lib` | `label` | yes | The swift_library to document. |
+| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
+| `_extract` | `label` | no |  |
 
 ## Tools and package files
 
@@ -236,10 +263,6 @@ Swift builds and tests on:
 
 See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
-On Windows Swift binaries and tests carry the Swift runtime, XCTest and
-Swift Testing DLLs next to the executable, so they run as `sh_test` or
-`rust_test` data.
-
 ## API docs
 
 `tools/dx docs` builds the API docs with `swift-symbolgraph-extract`; see [docs](../cli/commands/docs.md).
@@ -247,18 +270,12 @@ Swift Testing DLLs next to the executable, so they run as `sh_test` or
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/swift:defs.bzl", "swift_doc_shard")
+load("@rules_dx//swift:defs.bzl", "swift_doc_shard")
 ```
 
-### `swift_doc_shard`
-
-Converts one Swift library's public API into a DocIr shard with the symbol graph of the toolchain's swift-symbolgraph-extract.
-
-| Attribute | Type | Required | Description |
-| --- | --- | --- | --- |
-| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
-| `lib` | `label` | yes | The swift_library to document. |
-| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
-| `_extract` | `label` | no |  |
-
-`dx docs` documents every `swift_library` in scope from the symbol graph that `swift-symbolgraph-extract` of the Swift toolchain writes for its public declarations. `swift_doc_shard` (`@rules_dx//tools/docs/swift:defs.bzl`) turns the graph and the library's own `.swift` files into the API reference. Nothing needs to be installed. Members that an extension adds to a type of another module are not documented.
+`dx docs` documents every `swift_library` in scope. It reads the symbol graph
+that `swift-symbolgraph-extract` from the Swift toolchain writes for the
+public declarations, and the library's own `.swift` files. You install
+nothing. To declare a docs target yourself, use `swift_doc_shard` from
+`@rules_dx//swift:defs.bzl`. Members that an extension adds to a
+type from another module are not documented.

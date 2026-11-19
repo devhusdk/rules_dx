@@ -15,10 +15,6 @@ Run the AppImage tests from a rules_dx checkout:
 tools/dx test //appimage/...
 ```
 
-## Platforms
-
-Any other target platform fails analysis with `target platform is unsupported`.
-
 ## Packaging
 
 The tools are pinned and fetched by Bazel. You need no FUSE or distro
@@ -26,8 +22,9 @@ packages to build or run an AppImage.
 
 ### Use
 
-`MODULE.bazel` needs nothing extra. The tools come from `@dx_appimage_tools`,
-declared by rules_dx and fetched on first use.
+Your `MODULE.bazel` needs nothing extra. The tools come from
+`@dx_appimage_tools`, which rules_dx declares and Bazel fetches on first
+use. Declare the package in a `BUILD.bazel` file:
 
 ```python
 load("@rules_dx//appimage:defs.bzl", "appimage_package")
@@ -47,7 +44,7 @@ appimage_package(
 
 Attributes:
 
-- `binary`: the executable. Its target-configuration bytes are packaged.
+- `binary`: the executable, packaged as built for the target platform.
 - `app_name`: defaults to the target name. `desktop` must be `<app_name>.desktop`
   with `Exec=<app_name>`. `icon` must be `<app_name>.png` or `.svg`.
 - `libs`: shared libraries copied to `usr/lib`. Link the binary with
@@ -57,7 +54,10 @@ Attributes:
   or repo keep only their file name.
 - `notice`: license and NOTICE files copied to `usr/share/licenses/<app_name>`.
 - `version`: recorded in the identity file.
-- Two different `libs`, `notice` or `data` files that map to the same path fail analysis. The same file listed twice is packaged once.
+
+Two different `libs`, `notice` or `data` files that map to the same path
+fail analysis, the step where Bazel reads BUILD files before it runs
+anything. The same file listed twice is packaged once.
 
 Outputs:
 
@@ -66,11 +66,16 @@ Outputs:
   versions, arch (`x86_64` or `aarch64`), runtime digest, interpreter, minimum
   glibc, image digest and a digest for every packaged file.
 
-`AppRun` is a link to `usr/bin/<app_name>`. The runtime sets `$APPDIR`.
+Inside the image, `AppRun` is a link to `usr/bin/<app_name>`. The
+runtime sets `$APPDIR`.
 
-`dx init` and `tools/dx generate` write `<name>_appimage` for a directory that
-holds `<name>.desktop`, `<name>.png` or `<name>.svg`, a `NOTICE`, `LICENSE` or
-`COPYING` file and exactly one `*_binary` target, with `version = "1.0"`.
+`dx init` and `tools/dx generate` write a `<name>_appimage` target with
+`version = "1.0"` for you when a directory holds:
+
+- `<name>.desktop`;
+- `<name>.png` or `<name>.svg`;
+- a `NOTICE`, `LICENSE` or `COPYING` file;
+- exactly one `*_binary` target.
 
 ### Build and run
 
@@ -80,10 +85,15 @@ bazel build //pkg:app
 
 Building signs nothing, uploads nothing and needs no credentials.
 
-Run the image without FUSE:
+Run the image without FUSE. Either let it extract itself on each run:
 
-```text
+```sh
 APPIMAGE_EXTRACT_AND_RUN=1 bazel-bin/pkg/app.AppImage
+```
+
+Or extract it once and run `AppRun`:
+
+```sh
 bazel-bin/pkg/app.AppImage --appimage-extract
 APPDIR="$PWD/squashfs-root" squashfs-root/AppRun
 ```
@@ -110,16 +120,18 @@ Failures:
 Build for arm64 from any Linux host:
 
 ```sh
-bazel build //pkg:app --platforms=//appimage:linux_arm64
+bazel build //pkg:app --platforms=@rules_dx//appimage:linux_arm64
 ```
 
-Or set `platform = "//appimage:linux_arm64"` on the target. Unset uses the
-current target platform.
+Or set `platform = "@rules_dx//appimage:linux_arm64"` on the target.
+Unset uses the current target platform.
 
-The image is packaged from the arm64 target bytes. Running it needs an arm64
-Linux host.
+The image then holds the arm64 build of the binary. Running it needs an
+arm64 Linux host.
 
 ### Test
+
+Run the AppImage tests from a rules_dx checkout:
 
 ```sh
 bazel test //appimage/... //appimage/tests/fixtures/appimage_app/...
@@ -139,3 +151,8 @@ app that is built, relocated and run without FUSE in its tests.
 | mksquashfs | GPL-2.0-or-later |
 
 Versions are in `pins.json`.
+
+## Platforms
+
+AppImages build for `linux_x86_64` and `linux_arm64`. Any other target
+platform fails analysis with `target platform is unsupported`.

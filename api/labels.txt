@@ -1,0 +1,179 @@
+//config:buf_breaking_against label_flag ":buf_breaking_none"
+//config:clippy_flag alias "@rules_rust//rust/settings:clippy_flag"
+//config:clippy_output_diagnostics alias "@rules_rust//rust/settings:clippy_output_diagnostics"
+//config:config_tier string_flag "standard" ["standard", "strict"]
+//config:extra_rustc_flag alias "@rules_rust//rust/settings:extra_rustc_flag"
+//config:rustc_output_diagnostics alias "@rules_rust//rust/settings:rustc_output_diagnostics"
+//config:tool_actionlint label_flag "@dx_tools//:actionlint"
+//config:tool_avro label_flag "//java/private/quality/tools:avro_tools"
+//config:tool_capnp label_flag "@dx_prebuilt//:capnp"
+//config:tool_container_structure_test label_flag "@dx_tools//:container_structure_test"
+//config:tool_credo label_flag "//elixir/private/tools:credo"
+//config:tool_dart label_flag ":no_dart"
+//config:tool_dialyzer label_flag "//erlang/private/tools:dialyzer"
+//config:tool_elvis label_flag "//erlang/private/tools:elvis"
+//config:tool_erlfmt label_flag "//erlang/private/tools:erlfmt"
+//config:tool_errcheck label_flag "@dx_prebuilt//:dx_errcheck"
+//config:tool_flatc label_flag "@dx_prebuilt//:flatc"
+//config:tool_gersemi label_flag "@dx_tools//:gersemi"
+//config:tool_gofumpt label_flag "@dx_prebuilt//:dx_gofumpt"
+//config:tool_gotype label_flag "@dx_prebuilt//:dx_gotype"
+//config:tool_govet label_flag "@dx_prebuilt//:dx_govet"
+//config:tool_hadolint label_flag "@dx_tools//:hadolint"
+//config:tool_helm label_flag "@dx_tools//:helm"
+//config:tool_helmfmt label_flag "@dx_tools//:helmfmt"
+//config:tool_hlint label_flag "//haskell/private/tools/hlint/bin"
+//config:tool_jet label_flag "//julia/private/tools/jet:jet"
+//config:tool_julia_format label_flag ":no_julia_format"
+//config:tool_julialint label_flag "//julia/private/tools/lint:julialint"
+//config:tool_kubeconform label_flag "@dx_tools//:kubeconform"
+//config:tool_luals label_flag "//lua/private/tools:luals"
+//config:tool_mix_format label_flag "//elixir/private/tools:mix_format"
+//config:tool_modfmt label_flag "@dx_prebuilt//:dx_modfmt"
+//config:tool_nixfmt label_flag "//core/quality/tools/nixfmt/bin:nixfmt"
+//config:tool_opa label_flag "@dx_tools//:opa"
+//config:tool_ormolu label_flag "//haskell/private/tools/ormolu/bin"
+//config:tool_perlcritic label_flag ":no_perlcritic"
+//config:tool_perltidy label_flag ":no_perltidy"
+//config:tool_phpcs label_flag "//php/private/tools:phpcs"
+//config:tool_phpstan label_flag "//php/private/tools:phpstan"
+//config:tool_pkl label_flag "@dx_tools//:pkl"
+//config:tool_qmlformat label_flag ":no_qmlformat"
+//config:tool_qmllint label_flag ":no_qmllint"
+//config:tool_regal label_flag "@dx_tools//:regal"
+//config:tool_ruff label_flag "@dx_tools//:ruff"
+//config:tool_sorbet label_flag "//ruby/private/tools:sorbet"
+//config:tool_staticcheck label_flag "@dx_prebuilt//:dx_staticcheck"
+//config:tool_stylua label_flag "@dx_tools//:stylua"
+//config:tool_swift_format label_flag ":no_swift_format"
+//config:tool_swift_lint label_flag ":no_swift_lint"
+//config:tool_terraform label_flag "@dx_tools//:terraform"
+//config:tool_thrift label_flag "@dx_prebuilt//:thrift"
+//config:tool_trivy label_flag "@dx_tools//:trivy"
+//config:tool_weeder label_flag "//haskell/private/tools/weeder/bin"
+//config:tool_zig_ast_check label_flag ":no_zig_ast_check"
+//config:tool_zig_fmt label_flag ":no_zig_fmt"
+//config:toolchain_linker_preference alias "@rules_rust//rust/settings:toolchain_linker_preference"
+//config:toolchains bool_flag False
+//config:warnings_as_errors bool_flag True
+//config:workspace label_flag ":default_workspace_policy"
+//:dx alias
+//:package_json javascript_library
+//android:android_device platform
+//android:android_emulator platform
+//android:arm64-v8a platform
+//android:declared_emulator declared_emulator
+//android:emulator_serial string_flag ""
+//android:emulator_undeclared config_setting
+//android:is_device config_setting
+//android:is_emulator config_setting
+//android:llvm_readelf alias
+//android:x86_64 platform
+//apple:declared_simulator declared_simulator
+//apple:ios_arm64 alias
+//apple:ios_sim_arm64 alias
+//apple:ios_x86_64 alias
+//apple:macos_arm64 platform
+//apple:macos_x86_64 platform
+//apple:simulator_runtime string_flag ""
+//apple:simulator_undeclared config_setting
+//capnproto:runtime_java alias
+//capnproto:runtime_rust alias
+//capnproto:std filegroup
+//cc:compiler string_flag "llvm"
+//cc:gcc_linux_glibc alias
+//cc:gcc_linux_libstdcxx alias
+//cli/cli:dx runnable rust_binary
+//cli/codegen_shard:codegen_shard_writer runnable rust_binary
+//cli/coverage_summary:coverage_summary runnable rust_binary
+//cli/env:env runnable rust_binary
+//cli/launcher:exec_launcher runnable rust_binary
+//cli/ocaml_cc_driver:ocaml_cc_driver runnable rust_binary
+//cli/runtime:dx_runtime runnable rust_binary
+//core/quality/lsp_check:lsp_check runnable rust_binary
+//core/quality/markdown:quality_markdown runnable rust_binary
+//core/quality/notebook:quality_notebook runnable rust_binary
+//core/quality/runner:quality_runner runnable rust_binary
+//core/quality/tools/python:ansible_lint runnable py_binary
+//core/quality/tools/python:cfn_lint runnable py_binary
+//core/quality/tools/python:check_jsonschema runnable py_binary
+//core/quality/tools/python:cmakelint runnable py_binary
+//core/quality/tools/python:djlint runnable py_binary
+//core/quality/tools/python:docstrfmt runnable py_binary
+//core/quality/tools/python:mbake runnable py_binary
+//core/quality/tools/python:pydoclint runnable py_binary
+//core/quality/tools/python:pypi_attestations runnable py_binary
+//core/quality/tools/python:rst2html runnable py_binary
+//core/quality/tools/python:sqlfluff runnable py_binary
+//core/quality/tools/python:yamllint runnable py_binary
+//cuda:cublas cuda_component_library
+//cuda:cufft cuda_component_library
+//cuda:curand cuda_component_library
+//cuda:gpu_compute_capability string_flag ""
+//cuda:gpu_driver string_flag ""
+//cuda:gpu_undeclared config_setting
+//d:coverage config_setting
+//dart:runfiles alias
+//deploy:bootstrap_offline runnable rust_binary
+//deploy:linux_amd64 platform
+//deploy:linux_arm64 platform
+//erlang:toolchain_type toolchain_type
+//examples/shared-rust:shared_tasks runnable rust_binary
+//examples/shared-rust:tasks runnable rust_binary
+//examples/shared-rust:tasks_wasi runnable rust_binary
+//flatbuffers:reflection_fbs_schema alias
+//flatbuffers:runtime_java alias
+//flatbuffers:runtime_rust alias
+//flutter:profile alias
+//fortran:kcov bool_flag False
+//fortran:kcov_build config_setting
+//haskell:base alias
+//lua:toolchain_type toolchain_type
+//msix:toolchain_type toolchain_type
+//msix:windows_arm64 platform
+//msix:windows_x86_32 platform
+//msix:windows_x86_64 platform
+//ocaml:bisect_ppx_rewriter alias
+//ocaml:dune alias
+//ocaml:emitter alias
+//php:exec_toolchain_type toolchain_type
+//php:runfiles php_library
+//php:toolchain_type toolchain_type
+//powershell:dx_coverage alias
+//powershell:pester alias
+//powershell:runfiles alias
+//qt:linux_arm64 platform
+//qt:linux_x86_64 platform
+//qt:macos_arm64 platform
+//qt:windows_arm64 platform
+//qt:windows_x86_64 platform
+//rust:build_script_cc_env build_script_cc_env
+//rust:wasi_run rust_library
+//rust:wasmtime alias
+//thrift:thrift_compiler alias
+//zig:kcov bool_flag False
+//zig:kcov_build config_setting
+@* hub @rules_dx//go:extensions.bzl%go
+@ansible_collections hub @rules_dx//ansible:extensions.bzl%ansible
+@bicep hub @rules_dx//bicep:extensions.bzl%bicep
+@composer hub @rules_dx//php:extensions.bzl%composer
+@cpan hub @rules_dx//perl:extensions.bzl%cpan
+@crates hub @rules_dx//rust:extensions.bzl%cargo
+@dub hub @rules_dx//d:extensions.bzl%dub
+@dx_terraform_providers hub @rules_dx//terraform:extensions.bzl%terraform
+@fpm hub @rules_dx//fortran:extensions.bzl%fpm
+@gems hub @rules_dx//ruby:extensions.bzl%ruby
+@hackage hub @rules_dx//haskell:extensions.bzl%cabal
+@hex hub @rules_dx//elixir:extensions.bzl%hex
+@julia hub @rules_dx//julia:extensions.bzl%julia
+@maven hub @rules_dx//java:extensions.bzl%maven
+@npm hub @rules_dx//javascript:extensions.bzl%npm
+@nuget hub @rules_dx//csharp:extensions.bzl%nuget
+@opam hub @rules_dx//ocaml:extensions.bzl%opam
+@pnpm hub @rules_dx//javascript:extensions.bzl%pnpm
+@psgallery hub @rules_dx//powershell:extensions.bzl%powershell
+@pub_deps hub @rules_dx//dart:extensions.bzl%pub
+@pypi hub @rules_dx//python:extensions.bzl%uv
+@rocks hub @rules_dx//lua:extensions.bzl%luarocks
+@swiftpkg hub @rules_dx//swift:extensions.bzl%swiftpm
+@zig hub @rules_dx//zig:extensions.bzl%zig

@@ -11,7 +11,7 @@ pub const SOURCES_ASPECT: &str = "core/quality:coverage_sources.bzl%dx_coverage_
 /// The output group that carries the source manifests.
 pub const SOURCES_OUTPUT_GROUP: &str = "dx_coverage_sources";
 
-const MANIFEST_VERSION: &str = "v1";
+const MANIFEST_VERSION: &str = "v2";
 const UNKNOWN_CELL: &str = "unknown";
 
 /// One instrumented source a target owns.
@@ -138,10 +138,12 @@ pub fn orphan_candidates(tracked: &[String], ignored_prefixes: &[String]) -> Vec
         .filter(|path| *path != dx_path::state::DX_DIR && !path.starts_with(".dx/"))
         .filter(|path| {
             !ignored_prefixes.iter().any(|prefix| {
-                *path == prefix
-                    || path
-                        .strip_prefix(prefix.as_str())
-                        .is_some_and(|rest| rest.starts_with('/'))
+                let prefix = prefix.trim_start_matches("./").trim_end_matches('/');
+                !prefix.is_empty()
+                    && (path.as_str() == prefix
+                        || path
+                            .strip_prefix(prefix)
+                            .is_some_and(|rest| rest.starts_with('/')))
             })
         })
         .cloned()
@@ -218,7 +220,8 @@ fn resolve_dart_uri(uri: &str, owned: &BTreeSet<String>) -> Resolved {
     }
 }
 
-/// Parses one source manifest: a `v1 cell <cell>` header, then `<prod|test> <source|generated> <path>` rows.
+/// Parses one source manifest: a `v2 cell <cell>` header, then `<prod|test> <source|generated> <path>` rows.
+/// A file is prod when a prod row names it, else test.
 pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxError> {
     let mut lines = text.lines();
     let header: Vec<&str> = lines.next().unwrap_or_default().split(' ').collect();
@@ -240,6 +243,8 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxE
         cell,
         rows: Vec::new(),
     };
+    // Rows not yet paired with a row of the other kind, by path.
+    let mut unpaired: BTreeMap<String, usize> = BTreeMap::new();
     for (index, line) in lines.enumerate() {
         let lineno = index + 2;
         let fields: Vec<&str> = line.splitn(3, ' ').collect();
@@ -276,11 +281,23 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxE
                 "malformed source manifest row {lineno}: {line:?}"
             )));
         }
-        manifest.rows.push(SourceRow {
+        let row = SourceRow {
             path: (*path).to_string(),
             test,
             generated,
-        });
+        };
+        match unpaired.get(*path) {
+            Some(&at)
+                if manifest.rows[at].test != test && manifest.rows[at].generated == generated =>
+            {
+                manifest.rows[at].test = false;
+                unpaired.remove(*path);
+            }
+            _ => {
+                unpaired.insert((*path).to_string(), manifest.rows.len());
+                manifest.rows.push(row);
+            }
+        }
     }
     let paths: Vec<&str> = manifest.rows.iter().map(|row| row.path.as_str()).collect();
     let mut errors = Vec::new();
@@ -419,15 +436,15 @@ pub fn account(
             BTreeMap::new()
         }
     };
-    let mut reported = BTreeMap::new();
-    for (path, hits) in &report {
-        let key = source_key(path);
+    let mut reported: BTreeMap<String, FileHits> = BTreeMap::new();
+    for (path, hits) in report {
+        let key = source_key(&path);
         if !owned.contains_key(&key) {
             result.errors.push(format!(
                 "coverage report path not owned by any target: {path}"
             ));
         }
-        reported.insert(key, hits);
+        reported.entry(key).or_default().merge(hits);
     }
     for (key, (path, test)) in &owned {
         let disposition = if *test || is_declaration_stub(path) {

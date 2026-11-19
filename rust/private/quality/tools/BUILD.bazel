@@ -32,7 +32,7 @@ alias(
     actual = "//rust/private/tools/topiary:dx_topiary",
 )
 
-# dx_quality_crates has no windows_arm64 cell, so tools select a marked stub there.
+# dx_quality_crates has no windows_arm64 cell, so tools built from source select a marked stub there.
 config_setting(
     name = "windows_arm64",
     constraint_values = [
@@ -43,6 +43,11 @@ config_setting(
 
 alias(
     name = "deadnix_tool",
+    actual = "@dx_prebuilt//:deadnix",
+)
+
+alias(
+    name = "deadnix_source",
     actual = select({
         ":windows_arm64": ":deadnix_unsupported",
         "//conditions:default": ":deadnix",
@@ -56,6 +61,11 @@ dx_unavailable_tool(
 
 alias(
     name = "progenitor_tool",
+    actual = "@dx_prebuilt//:progenitor",
+)
+
+alias(
+    name = "progenitor_source",
     actual = select({
         ":windows_arm64": ":progenitor_unsupported",
         "//conditions:default": ":progenitor",
@@ -69,6 +79,11 @@ dx_unavailable_tool(
 
 alias(
     name = "selene_tool",
+    actual = "@dx_prebuilt//:selene",
+)
+
+alias(
+    name = "selene_source",
     actual = select({
         ":windows_arm64": ":selene_unsupported",
         "//conditions:default": ":selene",
@@ -82,6 +97,11 @@ dx_unavailable_tool(
 
 alias(
     name = "topiary_tool",
+    actual = "@dx_prebuilt//:topiary",
+)
+
+alias(
+    name = "topiary_source",
     actual = select({
         ":windows_arm64": ":topiary_unsupported",
         "//conditions:default": ":topiary",

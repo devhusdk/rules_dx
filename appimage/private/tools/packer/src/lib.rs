@@ -1,6 +1,10 @@
 //! Builds an `AppDir`, runs appimagetool and writes the identity file.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -233,9 +237,9 @@ fn walk(dir: &Path, root: &Path, out: &mut BTreeMap<String, PathBuf>) -> Result<
 
 pub fn pack(request: &Request) -> Result<(), String> {
     let work = PathBuf::from(format!("{}.work", request.image.display()));
-    drop(fs::remove_dir_all(&work));
+    dx_atomic_fs::discard_dir(&work);
     let result = pack_in(request, &work);
-    drop(fs::remove_dir_all(&work));
+    dx_atomic_fs::discard_dir(&work);
     result
 }
 

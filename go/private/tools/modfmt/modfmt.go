@@ -11,7 +11,7 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
-// Main formats the go.mod files named in args and returns the exit code.
+// Main formats the Go module files named in args and returns the exit code.
 func Main(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("modfmt", flag.ContinueOnError)
 	fs.SetOutput(stderr)

@@ -55,15 +55,19 @@ tools/dx test //...
 
 ### Gems
 
-`bazel run @rules_dx//ruby/private/tools/lock -- --dir <absolute set directory>` reads `Gemfile`,
-resolves exact versions from the rubygems.org API, downloads each gem and writes `ruby.lock.json`
-and the state file `Gemfile.lock`. Unchanged gems are kept without a download. `dx update` on a
-ruby set runs the resolver with `--check`, `dx update --apply` runs it, and `<set>:<gem>` adds
-`--upgrade <gem>`. `dx update <set>:<gem> <version> --apply` edits the gem's `Gemfile` line
-and runs the resolver with `--upgrade <gem>`.
+List your gems in `Gemfile`. Then:
 
-With `ruby.lock.json` beside the root `Gemfile`, `dx generate --apply` adds the `ruby.lock`
-stanza for the `@gems` hub to `MODULE.bazel`:
+1. Run `dx update --apply`. It resolves exact versions from the
+   rubygems.org API, downloads each gem and writes `ruby.lock.json` and the
+   state file `Gemfile.lock`. Gems that did not change are kept without a
+   download.
+2. Run `dx generate --apply`. With `ruby.lock.json` beside the root
+   `Gemfile`, it adds the `ruby.lock` stanza for the `@gems` hub to
+   `MODULE.bazel`. A hub is one Bazel repository that holds a target for
+   every locked package.
+3. Depend on the whole bundle as `@gems`, or on one gem as `@gems//<name>`.
+
+The stanza looks like this:
 
 ```python
 ruby = use_extension("@rules_dx//ruby:extensions.bzl", "ruby")
@@ -74,13 +78,25 @@ ruby.lock(
 use_repo(ruby, "gems")
 ```
 
-The hub downloads each gem by the sha256 in `ruby.lock.json` and installs the bundle as one
-tree with the pinned Bundler. Each gem is also the label `@gems//<name>`.
+The hub downloads each gem by the sha256 in `ruby.lock.json` and installs the
+bundle as one tree with the pinned Bundler.
 
-Depend on the bundle as `@gems`. To run RSpec, set `main` to its bin and pass
-the spec path in `args`:
+Update commands:
+
+| Command | What it does |
+| --- | --- |
+| `dx update` | checks the lock |
+| `dx update --apply` | resolves and writes the lock |
+| `dx update <set>:<gem> --apply` | upgrades one gem |
+| `dx update <set>:<gem> <version> --apply` | sets the gem's `Gemfile` line to that version, then upgrades it |
+
+### RSpec
+
+To run RSpec, set `main` to its bin and pass the spec path in `args`:
 
 ```python
+load("@rules_dx//ruby:defs.bzl", "ruby_test")
+
 ruby_test(
     name = "greeter_spec",
     srcs = ["greeter_spec.rb"],
@@ -96,48 +112,55 @@ ruby_test(
 ## Generate
 
 `dx generate` writes `ruby_library` and `ruby_test` targets from your `.rb`
-files and `require` lines. The command reference covers `dx generate`. The `ruby/tests/fixtures/adopt_ruby` tree shows a full run.
+files and `require` lines. The
+[generate command page](../cli/commands/generate.md) covers the flags.
+The `ruby/tests/fixtures/adopt_ruby` tree shows a full run.
 
 ## Quality
 
 ### Formatting and linting
 
-`rubocop` formats and lints. It runs from the gems of a bundle you
-declare, and you point `rubocop` at it in `.bazelrc`. See
-the Quality page of the command reference for the bundle, the flags and the
-family setup.
+`rubocop` formats and lints:
 
 ```sh
 bazel run @rules_dx//:dx -- format //app/...
 bazel run @rules_dx//:dx -- lint //app/...
 ```
 
+It runs from the gems of a bundle you declare, and you point `rubocop` at
+that bundle in `.bazelrc`. The
+[quality commands page](../cli/commands/quality.md) covers the bundle,
+the flags and the family setup.
+
 ### Type checking with Sorbet
 
-`dx typecheck` runs the pinned Sorbet 0.6.13650 (the `sorbet-static` gem, no Ruby
-needed) over `ruby_library`, `ruby_binary` and `ruby_test` sources. Select
-`sorbet` in a `ruby` family. `--@rules_dx//config:tool_sorbet` overrides the pinned binary.
+`dx typecheck` runs the pinned Sorbet 0.6.13650 over `ruby_library`,
+`ruby_binary` and `ruby_test` sources. It comes from the `sorbet-static` gem,
+so it needs no Ruby. Select `sorbet` in a `ruby` family.
 
-- Sorbet follows the `# typed:` sigil of each file. Without a sigil a file is
-  `typed: false`, which still reports syntax errors and unresolved constants.
-- `sorbet/config` of your source tree is never read (`--no-config`), and no cache
-  directory is used.
-- The sources and `.rbi` files of `deps` are passed along, so their constants
-  resolve; findings in them are never reported.
-- Sorbet does not read gems. A constant from a gem needs an RBI (for example from
-  tapioca) in a dep, or a `# typed: ignore` on the file.
-- Sorbet has no Windows build, so the check is not available on Windows.
+- Sorbet follows the `# typed:` sigil of each file. A file without a sigil
+  is `typed: false`, which still reports syntax errors and unresolved
+  constants.
+- It never reads `sorbet/config` in your source tree (`--no-config`) and uses
+  no cache directory.
+- The sources and `.rbi` files of `deps` are passed along, so their
+  constants resolve. Findings in them are never reported.
+- Sorbet does not read gems. A constant from a gem needs an RBI in a dep,
+  for example from tapioca, or a `# typed: ignore` on the file.
+- Sorbet has no Windows build, so the check does not run on Windows.
+- `--@rules_dx//config:tool_sorbet` takes the label of another Sorbet.
 
 ## Coverage
 
 Ruby tests write LCOV under `bazel coverage` and `dx coverage` through
-SimpleCov. rules_dx brings pinned SimpleCov 1.3.2 and simplecov-lcov 0.9.0
-and puts them on the load path only under coverage, so your `Gemfile` needs
-neither and `bazel test` never fetches them. A bundle that has its own
-`simplecov` wins: its SimpleCov then runs with the pinned simplecov-lcov.
-Records name each file as `SF:./<path>`.
+SimpleCov. rules_dx brings SimpleCov 1.3.2 and simplecov-lcov 0.9.0 and puts
+them on the load path only under coverage. Your `Gemfile` needs neither, and
+`bazel test` never fetches them.
 
-Tag a test `no-coverage` to skip it under coverage.
+- A bundle with its own `simplecov` wins. Its SimpleCov then runs with the
+  pinned simplecov-lcov.
+- Each record names a file as `SF:./<path>`.
+- Tag a test `no-coverage` to skip it.
 
 ## Rules
 
@@ -179,6 +202,14 @@ ruby_bench(name, *, srcs = None, main = None, data = None, env = None, tags = No
 
 A ruby_test run by dx bench: `main` calls DxBench.run with a benchmark-ips block, which writes dx-bench.json. main is name.rb, else the single src.
 
+### `ruby_doc_shard`
+
+```python
+ruby_doc_shard(name, lib, package = "", deps = [], **kwargs)
+```
+
+Declares the DocIr shard of one Ruby library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Ruby:
@@ -199,10 +230,9 @@ Ruby builds and tests on:
 - macOS arm64
 - Windows x86_64
 
-| Cell | Format and lint |
-| --- | --- |
-| `linux_x86_64` | Supported |
-| Other cells | Not supported |
+The [support matrix](../support-matrix.md) lists the platforms. The
+[quality commands page](../cli/commands/quality.md) lists where each
+quality tool runs.
 
 ## API docs
 
@@ -211,13 +241,5 @@ Ruby builds and tests on:
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
+load("@rules_dx//ruby:defs.bzl", "ruby_doc_shard")
 ```
-
-### `ruby_doc_shard`
-
-```python
-ruby_doc_shard(name, lib, package = "", deps = [], **kwargs)
-```
-
-Declares the DocIr shard of one Ruby library.

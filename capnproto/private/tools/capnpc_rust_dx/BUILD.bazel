@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 # gazelle:resolve rust capnp @dx_capnproto_rust//:capnp
 # gazelle:resolve rust capnpc @dx_capnproto_rust//:capnpc
@@ -8,16 +8,17 @@ load("//rust:defs.bzl", "rust_binary", "rust_test")
 package(default_visibility = ["//capnproto:__subpackages__"])
 
 # Generates capnproto_rust_library sources from the pinned capnp and capnpc crate.
-rust_binary(
+rust_library(
     name = "capnpc_rust_dx",
-    srcs = ["main.rs"],
+    srcs = ["lib.rs"],
     aliases = aliases(
         package_name = "capnproto/private/tools/capnpc_rust_dx",
         normal = True,
     ),
     crate_name = "capnpc_rust_dx",
-    crate_root = "main.rs",
+    crate_root = "lib.rs",
     rustc_flags = ["--cap-lints=allow"],
+    visibility = ["//cli/cli:__pkg__"],
     deps = [
         "@dx_capnproto_rust//:capnp",
         "@dx_capnproto_rust//:capnpc",

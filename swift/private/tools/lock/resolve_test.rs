@@ -2,7 +2,8 @@
 
 use std::cell::RefCell;
 
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Outcome, run};
+use dx_lock_testing::NoFetch;
 use swift_lock::{Download, Swift};
 
 const REVISION: &str = "1111111111111111111111111111111111111111";
@@ -38,14 +39,6 @@ impl Download for Archives {
             "ARCHIVE"
         };
         std::fs::read(dx_testing::env_file(name)).map_err(|error| Error::new(error.to_string()))
-    }
-}
-
-struct NoFetch;
-
-impl Fetch for NoFetch {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        Err(Error::new(format!("unexpected download of {url}")))
     }
 }
 

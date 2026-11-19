@@ -1,12 +1,12 @@
 {
   "after_test": {
-    "modules": 75,
+    "modules": 73,
     "lock_bytes": 880439,
     "lock_extensions": 16,
     "external_repos": 628
   },
   "after_check": {
-    "modules": 75,
+    "modules": 73,
     "lock_bytes": 880439,
     "lock_extensions": 16,
     "external_repos": 715

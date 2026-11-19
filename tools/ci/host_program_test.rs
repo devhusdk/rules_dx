@@ -1,10 +1,12 @@
 //! No Rust code or repository rule starts a host program by name outside `tools/ci/host_program_allowlist.txt`, and the allowlist holds no spare entry.
 
-mod guard_scan;
-
-use std::path::Path;
-use guard_scan::{Counts, Token, callee_name, exprs, hit, is_starlark, parse, rust_tokens, string};
+use dx_guard::allowlist::{self, Counts, hit};
+use dx_guard::lexer::{Token, rust_tokens};
+use dx_guard::snapshot::snapshot;
+use dx_guard::starlark::{callee_name, exprs, is_starlark, parse, string};
+use serde_json as _;
 use starlark_syntax::syntax::ast::{ArgumentP, ExprP};
+use std::path::Path;
 use yaml_serde as _;
 
 /// The kinds an allowlist line may name.
@@ -71,7 +73,7 @@ fn scan_rust(path: &str, source: &str, counts: &mut Counts) {
 }
 
 fn scan_starlark(path: &str, source: &str, counts: &mut Counts) {
-    let module = parse(path, source);
+    let module = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     for expr in exprs(module.statement()) {
         let ExprP::Call(callee, args) = &expr.node else {
             continue;
@@ -122,7 +124,10 @@ fn scan_starlark(path: &str, source: &str, counts: &mut Counts) {
 fn scan(path: &str, source: &str, counts: &mut Counts) {
     if is_starlark(path) {
         scan_starlark(path, source, counts);
-    } else if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) {
+    } else if Path::new(path)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
+    {
         scan_rust(path, source, counts);
     }
 }
@@ -156,10 +161,10 @@ fn name(value: &str) -> Token {
 #[test]
 fn the_tree_matches_the_allowlist() {
     let mut counts = Counts::new();
-    for (path, source) in &guard_scan::snapshot() {
+    for (path, source) in &snapshot() {
         scan(path, source, &mut counts);
     }
-    guard_scan::verify(&counts, &KINDS);
+    allowlist::verify(&counts, &KINDS);
 }
 
 #[test]
@@ -287,7 +292,7 @@ def _impl(rctx):
 fn a_spare_or_loose_allowlist_line_fails() {
     let mut found = Counts::new();
     hit(&mut found, "cli/process/src/capture.rs", "spawn-by-name");
-    let check = |allowlist: &str| guard_scan::problems(&found, allowlist, &KINDS);
+    let check = |allowlist: &str| allowlist::check(&found, allowlist, &KINDS, allowlist::REMOVE);
     assert_eq!(
         check("cli/process/src/capture.rs spawn-by-name 1\n"),
         Vec::<String>::new(),

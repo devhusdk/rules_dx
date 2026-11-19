@@ -27,7 +27,7 @@ const BUILD_SCRIPT_CC_ENV: [&str; 9] = [
     "TARGET_CXX",
 ];
 
-const BUILD_SCRIPT_CC_ENV_TOOLCHAIN: &str = "@rules_dx//rust/private:build_script_cc_env";
+const BUILD_SCRIPT_CC_ENV_TOOLCHAIN: &str = "@rules_dx//rust:build_script_cc_env";
 
 /// The planned `MODULE.bazel` edit, if any, and what the planner could not do.
 #[derive(Debug, Default, Eq, PartialEq)]
@@ -167,9 +167,54 @@ pub fn unlocked_manifests(root: &Path) -> Result<Vec<&'static str>, AdoptError> 
 
 /// True when the pubspec at `path` lists a package; one that cannot be parsed counts, so the resolver reports it.
 ///
-/// A Dart package often has a pubspec only for its name. Like an npm manifest with no dependency, it gets no lock and no hub.
+/// A Dart package often has a pubspec only for its name or SDK dependencies. Like an npm manifest with no dependency, it gets no lock and no hub.
 fn pubspec_declares_dependency(path: &Path) -> bool {
-    !dx_depcheck::parse_dart_manifest(path).is_ok_and(|deps| deps.is_empty())
+    !dx_depcheck::parse_dart_manifest_packages(path).is_ok_and(|deps| deps.is_empty())
+}
+
+/// One `MODULE.bazel` dependency set whose lock comes from the resolver of its `setup.hubs` entry.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResolverSet {
+    /// The set name.
+    pub name: String,
+    /// The set directory relative to the workspace; `.` is the root.
+    pub dir: String,
+    /// The manifest file name of the `setup.hubs` entry.
+    pub manifest: &'static str,
+    /// The resolver label.
+    pub resolver: &'static str,
+}
+
+/// The `MODULE.bazel` sets with a dx class lock, `<ecosystem>.lock.json`, whose directory holds the manifest.
+///
+/// Only a dx class resolver skips the network when the lock matches its inputs; the pub and
+/// maven resolvers resolve again on every run, so a plain check would need the network.
+pub fn resolver_sets(root: &Path) -> Result<Vec<ResolverSet>, AdoptError> {
+    let Some(registry) = crate::dependency_sets::load(root).map_err(refuse)? else {
+        return Ok(Vec::new());
+    };
+    let mut out = Vec::new();
+    for set in registry.sets {
+        let Some(hub) = dx_families::hub(set.ecosystem.name()) else {
+            continue;
+        };
+        let Some(resolver) = hub.resolver.as_deref() else {
+            continue;
+        };
+        if hub.lock.as_deref() != Some(format!("{}.lock.json", hub.ecosystem).as_str()) {
+            continue;
+        }
+        let dir = crate::dependency_sets::manifest_dir(&set.manifests);
+        if root_match(&root.join(&dir), &hub.manifest).is_some() {
+            out.push(ResolverSet {
+                name: set.name,
+                dir,
+                manifest: &hub.manifest,
+                resolver,
+            });
+        }
+    }
+    Ok(out)
 }
 
 /// The ecosystems whose lock comes from the pinned resolver of their `setup.hubs` entry.
@@ -454,7 +499,7 @@ impl Planner<'_> {
             .and_then(|workspace| workspace.get("members"))
             .and_then(|members| members.as_array());
         for member in members.into_iter().flatten().filter_map(|m| m.as_str()) {
-            let member = member.trim_matches('/');
+            let member = clean_rel(member);
             if member.contains(['*', '?', '[']) {
                 self.notes.push(format!(
                     "{manifest} member \"{member}\" is a glob; add its {manifest} to crate.from_cargo manifests"
@@ -487,7 +532,7 @@ impl Planner<'_> {
                     let Some(rest) = line.trim().strip_prefix("# gazelle:exclude") else {
                         continue;
                     };
-                    if let Some(target) = rest.split_whitespace().next() {
+                    if let Some(target) = rest.split_whitespace().next().map(clean_rel) {
                         excluded.insert(if dir.is_empty() {
                             target.to_owned()
                         } else {
@@ -619,6 +664,14 @@ impl Planner<'_> {
                     "npm.npm_translate_lock \"{hub}\" reads another lock; {} in {} not wired",
                     lock_of("npm")?,
                     if dir.is_empty() { "." } else { &dir }
+                ));
+                continue;
+            }
+            // Folder names map to hubs many-to-one: `web/app` and `web_app` both give `npm_web_app`.
+            if hubs.contains(&hub) {
+                self.notes.push(format!(
+                    "npm hub \"{hub}\" is planned for another lock; {} in {dir} not wired",
+                    lock_of("npm")?
                 ));
                 continue;
             }
@@ -792,6 +845,15 @@ impl Planner<'_> {
     }
 }
 
+/// A relative path without `./` prefixes or leading and trailing `/`; `"."` for the root.
+fn clean_rel(path: &str) -> &str {
+    let mut rest = path.trim_matches('/');
+    while let Some(stripped) = rest.strip_prefix("./") {
+        rest = stripped.trim_start_matches('/');
+    }
+    if rest.is_empty() { "." } else { rest }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -880,12 +942,28 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("        \"TARGET_CXX\": \"$(DX_BS_TARGET_CXX)\",\n    },\n    build_script_toolchains = [\"@rules_dx//rust/private:build_script_cc_env\"],\n    crate = \"*\",\n)\nuse_repo(cargo, \"crates\")\n"),
+            text.contains("        \"TARGET_CXX\": \"$(DX_BS_TARGET_CXX)\",\n    },\n    build_script_toolchains = [\"@rules_dx//rust:build_script_cc_env\"],\n    crate = \"*\",\n)\nuse_repo(cargo, \"crates\")\n"),
             "{text}"
         );
         assert_eq!(hubs.notes.len(), 2, "{:?}", hubs.notes);
         assert!(hubs.notes[0].contains("libs/*"), "{:?}", hubs.notes);
         assert!(hubs.notes[1].contains("gone"), "{:?}", hubs.notes);
+    }
+
+    #[test]
+    fn cargo_members_with_a_dot_slash_get_clean_labels() {
+        let hubs = plan(&[
+            (t("{cargo:lock}"), ""),
+            (
+                t("{cargo:manifest}"),
+                "[workspace]\nmembers = [\"./app\", \"./\"]\n",
+            ),
+            (t("app/{cargo:manifest}"), ""),
+        ]);
+        let text = new_text(&hubs);
+        assert!(text.contains(t("\"//app:{cargo:manifest}\"")), "{text}");
+        assert!(!text.contains("//./"), "{text}");
+        assert!(hubs.notes.is_empty(), "{:?}", hubs.notes);
     }
 
     #[test]
@@ -1060,6 +1138,50 @@ mod tests {
         );
     }
 
+    /// A `MODULE.bazel` stanza for `ecosystem` naming the set `name` whose lock sits in `dir`.
+    fn lock_stanza(ecosystem: &str, name: &str, dir: &str) -> String {
+        let hub = dx_families::hub(ecosystem).expect("hub");
+        format!(
+            "{e} = use_extension(\"{x}\", \"{e}\")\n{e}.{tag}(name = \"{name}\", lock = \"//{dir}:{lock}\")\n",
+            e = hub.ecosystem,
+            x = hub.extension,
+            tag = hub.tag.as_deref().expect("tag"),
+            lock = hub.lock.as_deref().expect("lock"),
+        )
+    }
+
+    #[test]
+    fn resolver_sets_need_a_dx_class_lock_and_the_manifest() {
+        let dir = scratch("resolver_sets").unwrap();
+        let module = [
+            lock_stanza("composer", "web", "php"),
+            lock_stanza("composer", "gone", "old"),
+            lock_stanza("pub", "dart", "dart"),
+        ]
+        .concat();
+        write(dir.path(), MODULE_FILE, &module).unwrap();
+        write(dir.path(), &format!("dart/{}", t("{pub:manifest}")), "").unwrap();
+        write(
+            dir.path(),
+            &format!("php/{}", t("{composer:manifest}")),
+            "{}",
+        )
+        .unwrap();
+        let sets = resolver_sets(dir.path()).expect("sets");
+        let hub = dx_families::hub("composer").expect("hub");
+        assert_eq!(
+            sets,
+            [ResolverSet {
+                name: "web".to_owned(),
+                dir: "php".to_owned(),
+                manifest: t("{composer:manifest}"),
+                resolver: hub.resolver.as_deref().expect("resolver"),
+            }]
+        );
+        let none = scratch("resolver_sets_none").unwrap();
+        assert_eq!(resolver_sets(none.path()).expect("sets"), []);
+    }
+
     #[test]
     fn a_maven_manifest_without_its_lock_is_unlocked() {
         assert_eq!(
@@ -1098,6 +1220,7 @@ mod tests {
             "name: app\n",
             "name: app\ndependencies:\n",
             "name: app\ndependencies: {}\n",
+            "name: app\ndependencies:\n  flutter:\n    sdk: flutter\n",
         ] {
             assert_eq!(
                 unlocked(&[(t("{pub:manifest}"), manifest)]),
@@ -1398,6 +1521,21 @@ mod tests {
     }
 
     #[test]
+    fn an_exclude_is_cleaned_like_gazelle_cleans_it() {
+        for exclude in ["web/", "./web", "./web/"] {
+            let hubs = plan(&[
+                ("BUILD.bazel", &format!("# gazelle:exclude {exclude}\n")),
+                (t("web/{npm:lock}"), ""),
+                (
+                    t("web/{npm:manifest}"),
+                    "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}",
+                ),
+            ]);
+            assert_eq!(hubs, LockHubs::default(), "{exclude}");
+        }
+    }
+
+    #[test]
     fn a_nested_exclude_resolves_from_its_package() {
         let hubs = plan(&[
             (
@@ -1469,6 +1607,31 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("node_modules"), "{text}");
+    }
+
+    #[test]
+    fn npm_folders_that_share_a_hub_name_plan_one_hub_and_note_the_other() {
+        let manifest = "{\"dependencies\": {\"left-pad\": \"1.3.0\"}}";
+        let hubs = plan(&[
+            (t("web/app/{npm:lock}"), ""),
+            (t("web/app/{npm:manifest}"), manifest),
+            (t("web_app/{npm:lock}"), ""),
+            (t("web_app/{npm:manifest}"), manifest),
+        ]);
+        let text = new_text(&hubs);
+        assert_eq!(text.matches("name = \"npm_web_app\"").count(), 1, "{text}");
+        assert!(
+            text.contains(t("pnpm_lock = \"//web/app:{npm:lock}\"")),
+            "{text}"
+        );
+        assert!(text.contains("use_repo(npm, \"npm_web_app\")"), "{text}");
+        ModuleFile::parse(text).expect("re-parses");
+        assert_eq!(hubs.notes.len(), 1, "{:?}", hubs.notes);
+        assert!(
+            hubs.notes[0].contains("\"npm_web_app\"") && hubs.notes[0].contains("web_app"),
+            "{:?}",
+            hubs.notes
+        );
     }
 
     #[test]

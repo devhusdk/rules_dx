@@ -54,8 +54,7 @@ impl Target {
         if module.is_empty() {
             return Err(dx_adopt::AdoptError::InitInvalidModule {
                 module: given.to_owned(),
-                reason: "the directory name holds no [a-z0-9] character to name the module"
-                    .to_owned(),
+                reason: "the directory name holds no [a-z] letter to name the module".to_owned(),
             });
         }
         let root = if dir.is_empty() {
@@ -931,7 +930,7 @@ mod tests {
         let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0);
         std::fs::remove_file(root.join(".dx/pins")).expect("pin");
-        std::fs::create_dir(root.join(".dx/pins")).expect("pin dir");
+        std::fs::create_dir_all(root.join(".dx/pins")).expect("pin dir");
         let (code, _out, err) = run(&invocation(&["init"]), &root);
         assert_eq!(code, 1, "{err}");
         assert!(err.contains("init_failed"), "{err}");
@@ -1114,9 +1113,7 @@ mod tests {
     }
 
     fn adopted_root(name: &str, extra: &str) -> std::path::PathBuf {
-        let scratch = dx_test_scratch::scratch(name).unwrap();
-        let root = scratch.path().to_path_buf();
-        std::mem::forget(scratch);
+        let root = dx_test_scratch::scratch(name).unwrap().keep();
         let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0);
         let module = format!(
@@ -1324,7 +1321,7 @@ mod tests {
     fn init_in_a_non_empty_tree_without_a_module_creates_one() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-existing-").unwrap();
         let root = scratch.path().to_path_buf();
-        std::fs::create_dir(root.join("src")).expect("src");
+        std::fs::create_dir_all(root.join("src")).expect("src");
         let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");
         assert!(out.contains("wrote MODULE.bazel\n"), "{out}");

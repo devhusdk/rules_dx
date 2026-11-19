@@ -1,18 +1,15 @@
 //! Docs and comments outside fixtures, testdata and `third_party` carry no issue number, link chain or history word, design pages stay under the word limit, and every page is linted and links to tracked files, outside `tools/ci/prose_rules_allowlist.txt`.
 
-use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
+use dx_guard::allowlist::{Counts, add, parse, verify};
+use dx_guard::segments::{Piece, count_word, rust_segments, starlark_segments};
+use dx_guard::snapshot::{glob_match, tree, under};
+use dx_guard::starlark::is_any_starlark as is_starlark;
 use serde_json as _;
-use shared::{Counts, Piece, add, count_word, glob_match, is_starlark, under};
 use starlark_syntax as _;
 use yaml_serde as _;
-
-#[path = "guards/shared.rs"]
-mod shared;
-
-/// The allowlist path named in failures.
-const ALLOWLIST: &str = "tools/ci/prose_rules_allowlist.txt";
 
 /// The kinds an allowlist line may name.
 const KINDS: [&str; 5] = [
@@ -121,9 +118,9 @@ fn link_chains(text: &str) -> usize {
 /// The comments and docstrings of one source file, without `LCOV_EXCL` lines.
 fn comment_lines(path: &str, source: &str) -> Vec<String> {
     let segments = if is_starlark(path) {
-        shared::starlark_segments(source)
+        starlark_segments(source)
     } else {
-        shared::rust_segments(source)
+        rust_segments(source)
     };
     segments
         .iter()
@@ -242,7 +239,14 @@ fn attr_strings(source: &str, attr: &str) -> Vec<(String, bool)> {
 
 /// Every Markdown path a `markdown_srcs` or `markdown_siblings` value in a BUILD file names.
 fn linted(files: &BTreeMap<String, String>) -> BTreeSet<String> {
-    let pages: Vec<&String> = files.keys().filter(|path| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md"))).collect();
+    let pages: Vec<&String> = files
+        .keys()
+        .filter(|path| {
+            Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+        })
+        .collect();
     let mut out = BTreeSet::new();
     for (path, source) in files {
         if !matches!(path.rsplit('/').next(), Some("BUILD" | "BUILD.bazel")) {
@@ -341,7 +345,10 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
         if under(path, &SKIPPED_DIRS) {
             continue;
         }
-        if Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md")) {
+        if Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+        {
             let numbered = if path == CONSUMER_FIX_PAGE {
                 without_consumer_fixes(text)
             } else {
@@ -375,7 +382,11 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
                 })
                 .count();
             add(&mut counts, path, "dead-link", dead);
-        } else if is_starlark(path) || Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")) {
+        } else if is_starlark(path)
+            || Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
+        {
             let lines = comment_lines(path, text);
             add(
                 &mut counts,
@@ -423,7 +434,10 @@ fn long_pages(found: &Counts, caps: &[(&str, usize)]) -> Vec<String> {
 
 #[test]
 fn prose_rules_hold_outside_the_allowlist() {
-    let files = shared::tree(&dx_testing::source_snapshot());
+    let files: BTreeMap<String, String> = tree(&dx_testing::source_snapshot())
+        .unwrap_or_else(|error| panic!("source snapshot: {error}"))
+        .into_iter()
+        .collect();
     assert!(
         files.len() >= MIN_FILES,
         "only {} files in the snapshot",
@@ -437,7 +451,7 @@ fn prose_rules_hold_outside_the_allowlist() {
         long.join("\n")
     );
     found.retain(|(_, kind), _| kind != WORD_LIMIT_KIND);
-    shared::settle(&found, "DX_ALLOWLIST", ALLOWLIST, &KINDS);
+    verify(&found, &KINDS);
 }
 
 #[cfg(test)]
@@ -576,7 +590,10 @@ mod tests {
             WORD_LIMIT + 5,
         );
         assert_eq!(long_pages(&counts, &[]).len(), 1);
-        assert_eq!(long_pages(&counts, &[("docs/design/a.md", WORD_LIMIT + 5)]), Vec::<String>::new());
+        assert_eq!(
+            long_pages(&counts, &[("docs/design/a.md", WORD_LIMIT + 5)]),
+            Vec::<String>::new()
+        );
         assert_eq!(
             long_pages(&counts, &[("docs/design/a.md", WORD_LIMIT + 4)]).len(),
             1
@@ -586,7 +603,7 @@ mod tests {
             1
         );
         assert!(!KINDS.contains(&WORD_LIMIT_KIND));
-        let (_, problems) = shared::parse_allowlist("docs/design/a.md word-limit 1\n", &KINDS);
+        let (_, problems) = parse("docs/design/a.md word-limit 1\n", &KINDS);
         assert_eq!(problems.len(), 1, "{problems:?}");
     }
 

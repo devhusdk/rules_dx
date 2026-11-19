@@ -15,6 +15,12 @@ alias(
     actual = "//powershell/private/gallery:pester",
 )
 
+# Programs put this in deps to find their runfiles with Resolve-BazelRunfile.
+alias(
+    name = "runfiles",
+    actual = "//powershell/private/runfiles",
+)
+
 alias(
     name = "dx_coverage",
     actual = "//powershell/private/coverage:dx_coverage",
@@ -24,6 +30,7 @@ real_source_target(
     name = "corpus_markdown",
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
+    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(
@@ -34,6 +41,7 @@ real_source_target(
         "extensions.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//:__subpackages__"],
 )
 
 filegroup(
@@ -44,4 +52,9 @@ filegroup(
         "pins.json",
     ]),
     visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
 )

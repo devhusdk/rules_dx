@@ -465,6 +465,7 @@
           "audit": [],
           "format": [],
           "lint": [
+            "dscanner",
             "typos"
           ],
           "typecheck": []
@@ -976,6 +977,28 @@
             "state": "cabal.project.freeze",
             "tag": "lock"
           }
+        ]
+      }
+    },
+    {
+      "name": "helm",
+      "quality": {
+        "bzl": "kubernetes/private/quality:kubernetes.bzl",
+        "classes": [
+          "helm"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [],
+          "lint": [
+            "helm",
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "file_extensions": [],
+        "file_names": [
+          "Chart.yaml"
         ]
       }
     },

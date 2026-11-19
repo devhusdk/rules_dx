@@ -1,15 +1,13 @@
 //! No test carries a banned tag outside `tools/ci/test_tags_allowlist.txt`, and the allowlist holds no spare entry.
 
-mod test_calls;
-
 use std::collections::{BTreeMap, BTreeSet};
 
+use dx_guard::allowlist::{self, Counts, differences};
+use dx_guard::snapshot::read_input;
+use dx_guard::starlark::{callee_name, is_true, parse, string};
+use dx_guard::test_calls::{Callees, is_test, test_callees};
 use starlark_syntax::syntax::ast::{
     ArgumentP, AssignTargetP, AstAssignTarget, AstExpr, AstLiteral, AstStmt, BinOp, ExprP, StmtP,
-};
-use test_calls::{
-    Callees, Counts, callee_name, differences, is_test, is_true, parse, parse_allowlist,
-    read_input, string, test_callees,
 };
 use yaml_serde as _;
 
@@ -194,7 +192,7 @@ impl Walker<'_> {
                 self.expr(right, Position::Outside, None);
             }
             ExprP::Call(callee, args) => {
-                let name = callee_name(callee);
+                let name = callee_name(callee).to_owned();
                 self.scan.callees.call(self.def.as_deref(), &name);
                 self.expr(callee, Position::Outside, None);
                 for arg in &args.args {
@@ -270,7 +268,7 @@ impl Walker<'_> {
 
 /// Parses one BUILD or .bzl file.
 fn scan_file(path: &str, source: &str) -> FileScan {
-    let ast = parse(path, source);
+    let ast = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     let mut scan = FileScan::default();
     Walker {
         scan: &mut scan,
@@ -386,8 +384,7 @@ fn the_tree_matches_the_allowlist() {
         files.len()
     );
     let found = occurrences(&files);
-    let (allowed, mut problems) = parse_allowlist(&read_input("TEST_TAGS_ALLOWLIST"), &BANNED);
-    problems.extend(differences(&found, &allowed, FIX));
+    let problems = allowlist::check(&found, &read_input("TEST_TAGS_ALLOWLIST"), &BANNED, FIX);
     assert!(
         problems.is_empty(),
         "{ALLOWLIST} and the tree disagree:\n{}",
@@ -515,9 +512,9 @@ fn the_allowlist_rejects_new_tags_and_spare_entries() {
     assert_eq!(
         differences(&found, &allowed, FIX),
         [
-            "a/BUILD.bazel: 3 `manual` on tests, 2 allowed; remove the tag",
-            "b/BUILD.bazel: 1 `local` left; lower the allowlist count from 2",
-            "c/BUILD.bazel: no `manual` left; delete the allowlist line",
+            "a/BUILD.bazel manual 3: 2 allowed; remove the tag",
+            "b/BUILD.bazel local 2: 1 left; lower the allowlist count",
+            "c/BUILD.bazel manual 1: none left; delete the allowlist line",
         ],
     );
     assert_eq!(differences(&found, &found, FIX), Vec::<String>::new());
@@ -526,7 +523,7 @@ fn the_allowlist_rejects_new_tags_and_spare_entries() {
 #[test]
 fn the_allowlist_format_is_strict() {
     let good = "a/BUILD.bazel exclusive 1\na/BUILD.bazel manual 2\n";
-    let (parsed, problems) = parse_allowlist(good, &BANNED);
+    let (parsed, problems) = allowlist::parse(good, &BANNED);
     assert_eq!(problems, Vec::<String>::new());
     assert_eq!(
         parsed,
@@ -543,6 +540,6 @@ fn the_allowlist_format_is_strict() {
         "b/BUILD.bazel manual 1\na/BUILD.bazel manual 1\n",
         "a/BUILD.bazel manual\n",
     ] {
-        assert!(!parse_allowlist(bad, &BANNED).1.is_empty(), "{bad:?}");
+        assert!(!allowlist::parse(bad, &BANNED).1.is_empty(), "{bad:?}");
     }
 }

@@ -1,5 +1,6 @@
 //! Composes the consumer MODULE.bazel from the one `dx init` writes.
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
 fn starlark_string(text: &str) -> String {
@@ -34,27 +35,16 @@ pub fn local_override_repos(module: &str) -> Vec<String> {
         .collect()
 }
 
-/// The patches of `//patches/rules_py` that `rules_py_override` names, without `.patch`.
-pub const RULES_PY_PATCHES: [&str; 8] = [
-    "py_cc_toolchain_platform",
-    "native_sdist_toolchain_flags",
-    "pep517_msvc",
-    "venv_bin_files",
-    "host_interpreter_windows_arm64",
-    "external_repo_pytest_paths",
-    "host_libc_glibc",
-    "win32_x86_32",
-];
-
 /// Pins the patched `rules_py` the way the root MODULE.bazel does.
 #[must_use]
 pub fn rules_py_override() -> String {
-    let patches = RULES_PY_PATCHES
-        .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
-        .concat();
-    format!(
-        "single_version_override(\n    module_name = \"rules_py\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"2.0.0-alpha.11\",\n)\n"
-    )
+    root_pin("rules_py")
+}
+
+/// The patches of `//patches/rules_py` that `rules_py_override` names, without `.patch`.
+#[must_use]
+pub fn rules_py_patches() -> Vec<String> {
+    root_pin_patches("rules_py")
 }
 
 /// The patches of `//patches/rules_rust` that `rules_rust_override` names, without `.patch`.
@@ -84,7 +74,7 @@ pub fn rules_rust_override() -> String {
 }
 
 /// The patches of `//patches/llvm` that `llvm_override` names, without `.patch`.
-pub const LLVM_PATCHES: [&str; 8] = [
+pub const LLVM_PATCHES: [&str; 9] = [
     "libunwind_copy",
     "clang_cl_profile_no_mingw",
     "unwatched_overlay_inputs",
@@ -93,6 +83,7 @@ pub const LLVM_PATCHES: [&str; 8] = [
     "stage0_runtime_features",
     "macos_sdk_resolve_symlinks",
     "msvc_fuzzer",
+    "msvc_coverage",
 ];
 
 /// Pins llvm 0.8.27 with the patches of the root MODULE.bazel.
@@ -138,6 +129,31 @@ pub const RULES_FLUTTER_PATCHES: [&str; 6] = [
 
 /// The `flutter/pins.json` that holds the `rules_flutter` pin.
 const FLUTTER_PINS: &str = include_str!("../../../../flutter/pins.json");
+
+/// The root MODULE.bazel of rules_dx.
+const ROOT_MODULE: &str = include_str!("../../../../MODULE.bazel");
+
+/// The `single_version_override` of `module` in the root MODULE.bazel, or an empty string when it has none.
+fn root_pin(module: &str) -> String {
+    root_patch_override(ROOT_MODULE, module).unwrap_or_default()
+}
+
+/// The patches of `//patches/<module>` that `root_pin(module)` names, without `.patch`.
+fn root_pin_patches(module: &str) -> Vec<String> {
+    pin_patches(&root_pin(module), module)
+}
+
+/// The patches of `//patches/<module>` that `block` names outside comments, without `.patch`.
+#[must_use]
+pub fn pin_patches(block: &str, module: &str) -> Vec<String> {
+    block
+        .lines()
+        .filter(|line| !line.trim_start().starts_with('#'))
+        .flat_map(patch_labels)
+        .filter(|(package, _)| package == module)
+        .filter_map(|(_, file)| file.strip_suffix(".patch").map(str::to_owned))
+        .collect()
+}
 
 /// The `sha256-` integrity of a lowercase hex SHA-256.
 fn sha256_integrity(hex: &str) -> Result<String, String> {
@@ -201,7 +217,9 @@ fn without_module_line(snippet: &str) -> String {
         if line.starts_with("module(") {
             lines.next();
             let rest: Vec<&str> = lines.collect();
-            return rest.join("\n").trim_start().to_owned() + "\n";
+            let mut body = rest.join("\n").trim_start().to_owned();
+            body.push('\n');
+            return body;
         }
         if !line.starts_with('#') && !line.trim().is_empty() {
             break;
@@ -315,7 +333,9 @@ pub fn write_windows_support_patches(workspace: &Path, rules_dx: &Path) -> Resul
 ///
 /// Returns `Err` when the operation fails.
 pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
-    write_patches(workspace, rules_dx, "rules_py", &RULES_PY_PATCHES)?;
+    let patches = rules_py_patches();
+    let patches: Vec<&str> = patches.iter().map(String::as_str).collect();
+    write_patches(workspace, rules_dx, "rules_py", &patches)?;
     write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)
 }
 
@@ -406,6 +426,36 @@ pub fn write_root_patch_override(
     Ok(block)
 }
 
+/// The files of `<lang>/tests/consumer/` in a consumer.json snapshot, keyed by their path under it.
+///
+/// # Errors
+///
+/// Returns `Err` when the snapshot is not a JSON object of path to text.
+pub fn consumer_fixture(snapshot: &str, lang: &str) -> Result<BTreeMap<String, String>, String> {
+    let prefix = format!("{lang}/tests/consumer/");
+    let files: BTreeMap<String, String> =
+        serde_json::from_str(snapshot).map_err(|error| format!("consumer snapshot: {error}"))?;
+    Ok(files
+        .into_iter()
+        .filter_map(|(path, text)| Some((path.strip_prefix(&prefix)?.to_owned(), text)))
+        .collect())
+}
+
+/// The fixture module without its comments, `module` and `bazel_dep` lines, which the nested consumer writes.
+#[must_use]
+pub fn module_body(module: &str) -> String {
+    module
+        .lines()
+        .filter(|line| {
+            let line = line.trim_start();
+            !line.starts_with('#')
+                && !line.starts_with("module(")
+                && !line.starts_with("bazel_dep(")
+        })
+        .map(|line| format!("{line}\n"))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -476,6 +526,21 @@ mod tests {
     fn module_pins_rules_py_once() {
         let module = compose_module(SNIPPET, "m", "rules_dx", "", Path::new("/s")).unwrap();
         assert_eq!(module.matches("module_name = \"rules_py\"").count(), 1);
+    }
+
+    #[test]
+    fn pin_patches_reads_labels_and_skips_comments() {
+        let block = "single_version_override(\n    module_name = \"rules_py\",\n    patches = [\n        \"//patches/rules_py:a.patch\",  # upstream: https://x/1\n        # upstream: https://x/2\n        \"//patches/rules_py:b.patch\",\n        # \"//patches/rules_py:off.patch\",\n        \"//patches/other:c.patch\",\n    ],\n)\n";
+        assert_eq!(pin_patches(block, "rules_py"), ["a", "b"]);
+    }
+
+    #[test]
+    fn rules_py_override_follows_the_root_pin() {
+        assert!(rules_py_override().starts_with("single_version_override("));
+        assert_eq!(
+            rules_py_patches().len(),
+            ROOT_MODULE.matches("\"//patches/rules_py:").count()
+        );
     }
 
     #[test]
@@ -613,5 +678,23 @@ mod tests {
             module.find("@llvm//toolchain:all").unwrap() < module.find("@x").unwrap(),
             "{module}"
         );
+    }
+
+    #[test]
+    fn consumer_fixture_keeps_one_language_under_its_relative_path() {
+        let snapshot =
+            r#"{"go/tests/consumer/BUILD.bazel": "a", "rust/tests/consumer/BUILD.bazel": "b"}"#;
+        let files = consumer_fixture(snapshot, "go").expect("parses");
+        assert_eq!(
+            files,
+            BTreeMap::from([("BUILD.bazel".to_owned(), "a".to_owned())])
+        );
+        assert!(consumer_fixture("[]", "go").is_err());
+    }
+
+    #[test]
+    fn module_body_drops_the_lines_the_consumer_writes() {
+        let module = "# yours\nmodule(name = \"m\")\nbazel_dep(name = \"rules_dx\", version = \"0\")\ngo = use_extension(\"x\", \"go\")\n";
+        assert_eq!(module_body(module), "go = use_extension(\"x\", \"go\")\n");
     }
 }

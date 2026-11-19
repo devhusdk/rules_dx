@@ -4,13 +4,14 @@ load("//dart/private:platforms.bzl", "DART_PLATFORMS")
 load("//elixir/private/toolchain:pins.bzl", "ELIXIR_CELLS")
 load("//erlang/private/toolchain:pins.bzl", ERLANG_CELLS = "CELLS", "OTP_DIALYZER_UNPORTED_CELLS")
 load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/private/toolchain:pins.bzl", QT_CELLS = "CELLS")
 load("@dx_pins_data//:pins.bzl", "DATA")
-load("//core/quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS", "SOURCE_BUILT_TOOL_PLATFORMS")
+load("//cli/prebuilt:tools.bzl", "TOOLS")
+load("//core/quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
 load("//core/quality/testdata:real_result_cases.bzl", "REAL_RESULT_CASES", "real_result_evidence")
 load("//core/quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
-load("//core/quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_case_tools", "matrix_platform_case_names")
+load("//core/quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_case_size", "matrix_case_tools", "matrix_platform_case_names")
 load("//core/quality/testdata:all_languages.bzl", "real_wired_capabilities")
 load(":support.bzl", "ANSIBLE_YAMLFMT_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "BICEP_BICEP_FORMAT_SUPPORT", "BICEP_BICEP_LINT_SUPPORT", "CC_CLANG_FORMAT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "CMAKE_CMAKELINT_SUPPORT", "CUDA_CLANG_FORMAT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_GPLINT_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_YAMLFMT_FORMAT_SUPPORT", "MAKE_MBAKE_SUPPORT", "OBJC_CLANG_FORMAT_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "PYTHON_PYDOCLINT_LINT_SUPPORT", "PYTHON_RUFF_FORMAT_SUPPORT", "PYTHON_RUFF_LINT_SUPPORT", "PYTHON_TY_TYPECHECK_SUPPORT", "RUST_RUSTFMT_FORMAT_SUPPORT", "SQL_SQLFLUFF_FORMAT_SUPPORT", "SQL_SQLFLUFF_LINT_SUPPORT", "SUPPORT_PLATFORMS", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "TERRAFORM_TYPECHECK_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools", "with_platforms")
 
@@ -29,11 +30,13 @@ def _artifact_platforms():
         by_tool.setdefault(artifact["tool"], []).append(artifact["os"] + "_" + artifact["cpu"])
     return by_tool
 
-def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, emulated = EMULATED_TOOLS, source_built = SOURCE_BUILT_TOOL_PLATFORMS):
-    """Returns claimed platforms with no artifact: no native pin, no inventoried emulated fallback and no source build."""
+_RELEASED = {tool: entry.platforms for tool, entry in TOOLS.items()}
+
+def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, emulated = EMULATED_TOOLS, released = _RELEASED):
+    """Returns claimed platforms with no artifact: no native pin, no release asset and no inventoried emulated fallback."""
     missing = []
     for platform in claimed:
-        if platform in pinned or platform in source_built.get(tool, []):
+        if platform in pinned or platform in released.get(tool, []):
             continue
         target = fallbacks.get(platform)
         if target in pinned and tool in emulated.get(platform, []):
@@ -88,13 +91,13 @@ def _evidence_checks():
             ["windows_arm64"],
         ),
         expect_equal(
-            "source-built tool claiming linux_arm64 passes the pin check",
-            unpinned_platforms("nixfmt", ["linux_arm64", "linux_x86_64"], ["linux_x86_64"], {}, {}, {"nixfmt": ["linux_arm64"]}),
+            "release-built tool claiming linux_arm64 passes the pin check",
+            unpinned_platforms("hlint", ["linux_arm64", "linux_x86_64"], ["linux_x86_64"], {}, {}, released = {"hlint": ["linux_arm64"]}),
             [],
         ),
         expect_equal(
-            "tool outside the source-built inventory fails the pin check",
-            unpinned_platforms("regal", ["linux_arm64"], ["linux_x86_64"], {}, {}, {"nixfmt": ["linux_arm64"]}),
+            "tool outside the release registry fails the pin check",
+            unpinned_platforms("regal", ["linux_arm64"], ["linux_x86_64"], {}, {}, released = {"hlint": ["linux_arm64"]}),
             ["linux_arm64"],
         ),
         expect_equal(
@@ -184,6 +187,16 @@ def _evidence_checks():
             "an upstream_tools case proves nothing",
             unproven_claims([record], [dict(case, tool_names = [], upstream_tools = ["yamlfmt"], macos_arm64 = True)]),
             ["yamlfmt:format:yaml:linux_x86_64", "yamlfmt:format:yaml:macos_arm64"],
+        ),
+        expect_equal(
+            "matrix_case_size defaults to small and takes the case size",
+            [matrix_case_size({}), matrix_case_size({"size": "medium"})],
+            ["small", "medium"],
+        ),
+        expect_equal(
+            "only the julia_format and psscriptanalyzer format failure cases are medium",
+            sorted([c["name"] for c in RUNNER_MATRIX_CASES if matrix_case_size(c) != "small"]),
+            ["matrix_julia_format_fail", "matrix_julia_format_pass", "matrix_powershell_format_crlf_fail", "matrix_powershell_format_fail"],
         ),
         expect_equal(
             "matrix_case_tools plain, toolchain and upstream shapes",
@@ -621,6 +634,16 @@ def support_unit_tests(name):
                 "bad transport is rejected",
                 support_record_error({"artifact": "missing", "capability": "lint", "classes": ["text"], "context": "owned", "execution": "direct", "family": "text", "fix": "supported", "platforms": ["linux_x86_64"], "state": "known", "tool": "keep_sorted", "transport": "parcel"}),
                 "support: tool 'keep_sorted' needs transport 'batched' or 'single', got 'parcel'",
+            ),
+            expect_equal(
+                "no registry release asset duplicates an upstream pin",
+                sorted([
+                    tool + " " + platform
+                    for tool, platforms in _artifact_platforms().items()
+                    for platform in platforms
+                    if platform in _RELEASED.get(tool, [])
+                ]),
+                [],
             ),
         ] + _evidence_checks() + _toolchain_checks() + _record_checks(real_wired_capabilities(), _artifact_platforms()),
     )

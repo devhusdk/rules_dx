@@ -481,7 +481,7 @@ struct Planted(std::path::PathBuf);
 #[cfg(unix)]
 impl Drop for Planted {
     fn drop(&mut self) {
-        drop(std::fs::remove_file(&self.0));
+        dx_atomic_fs::discard_file(&self.0);
     }
 }
 
@@ -494,7 +494,7 @@ fn a_planted_file_at_the_old_temp_path_has_no_effect() {
         .parent()
         .expect("temp file has a parent")
         .join("dx-advisory-cargo.zip");
-    drop(std::fs::remove_file(&old));
+    dx_atomic_fs::discard_file(&old);
     let _guard = Planted(old.clone());
     let (one, _) = two_archives();
 
@@ -761,4 +761,67 @@ fn an_unreadable_directory_is_skipped_not_fatal() {
     let result = needs_trivy(root.path());
     std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).expect("chmod");
     assert!(!result.expect("scan"));
+}
+
+#[test]
+fn an_indented_or_tab_separated_advisory_line_pins_the_snapshots() {
+    let root = tempfile::tempdir().expect("temp dir");
+    std::fs::create_dir_all(root.path().join(".dx")).expect("dx dir");
+    for pins in ["advisory\tcargo d e f\n", "  advisory cargo d e f\r\n"] {
+        std::fs::write(root.path().join(".dx/pins"), pins).expect("pins");
+        assert!(advisory_pinned(root.path()), "{pins:?}");
+    }
+    std::fs::write(root.path().join(".dx/pins"), "advisoryx cargo d e f\n").expect("pins");
+    assert!(!advisory_pinned(root.path()));
+}
+
+#[test]
+fn a_missing_workspace_is_an_error_not_a_quiet_no() {
+    let root = tempfile::tempdir().expect("temp dir");
+    let missing = root.path().join("missing");
+    let error = needs_trivy(&missing).expect_err("fails");
+    assert!(error.to_string().contains("missing"), "{error}");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_dockerfile_needs_trivy() {
+    let root = tempfile::tempdir().expect("temp dir");
+    let target = root.path().join("docker/app.dockerfile");
+    std::fs::create_dir_all(target.parent().expect("parent")).expect("dir");
+    std::fs::write(&target, "FROM scratch\n").expect("file");
+    std::os::unix::fs::symlink(&target, root.path().join("Dockerfile")).expect("symlink");
+    assert!(needs_trivy(root.path()).expect("scan"));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_directory_is_not_followed() {
+    let root = tempfile::tempdir().expect("temp dir");
+    let outside = tempfile::tempdir().expect("outside");
+    std::fs::write(outside.path().join("main.tf"), "").expect("file");
+    std::os::unix::fs::symlink(outside.path(), root.path().join("linked")).expect("symlink");
+    std::os::unix::fs::symlink(root.path(), root.path().join("loop")).expect("symlink");
+    assert!(!needs_trivy(root.path()).expect("scan"));
+}
+
+#[test]
+fn pinning_a_snapshot_missing_from_out_names_the_file_it_read() {
+    let workspace = workspace();
+    let options = options(&workspace);
+    let prepared = vec![Prepared {
+        family: "cargo".to_owned(),
+        path: ".dx/local/advisory/cargo.json".to_owned(),
+        identity: String::new(),
+        advisories: 0,
+    }];
+    let error = write_pins(
+        &options,
+        &prepared,
+        &workspace.path().join("pin"),
+        "file:///a",
+    )
+    .expect_err("fails");
+    let expected = options.out.join("cargo.json").display().to_string();
+    assert!(error.to_string().contains(&expected), "{error}");
 }

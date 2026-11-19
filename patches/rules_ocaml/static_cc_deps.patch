@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: changes ccdeps link selection for rules_dx static cc deps)
 --- a/build/_lib/ccdeps.bzl
 +++ b/build/_lib/ccdeps.bzl
 @@ -771,6 +771,9 @@

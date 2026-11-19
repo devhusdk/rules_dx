@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//cc:defs.bzl", "cc_binary", "cc_test")
-load("//core:defs.bzl", "starlark_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/tests/fixtures/starlark_futures:aspect_subjects.bzl", "aspect_group", "aspect_leaf")
@@ -108,7 +108,10 @@ entry_tests(name = "entry")
 
 license_tests(name = "license")
 
-root_only_tests(name = "root_only")
+root_only_tests(
+    name = "root_only",
+    size = "small",
+)
 
 seven_zip_tests(name = "seven_zip")
 
@@ -174,7 +177,10 @@ starlark_test(
     mode = "execution",
 )
 
-wrapper_forward_spec_tests(name = "wrapper_forward_spec")
+wrapper_forward_spec_tests(
+    name = "wrapper_forward_spec",
+    size = "small",
+)
 
 wrapper_kwarg_hooks_tests(name = "wrapper_kwarg_hooks")
 

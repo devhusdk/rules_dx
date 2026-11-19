@@ -7,15 +7,147 @@ pub mod runfiles_source;
 pub mod workflows;
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
 
 use serde::Deserialize;
+
+pub use workflows::WorkflowError;
+
+/// Why the support matrix cannot be generated.
+#[derive(Debug)]
+pub enum SupportMatrixError {
+    Runfiles(runfiles::RunfilesError),
+    NotInRunfiles {
+        path: String,
+    },
+    Read {
+        path: String,
+        source: dx_atomic_fs::path_io::PathIoError,
+    },
+    Facts(serde_json::Error),
+    Json {
+        path: String,
+        source: serde_json::Error,
+    },
+    Workflow(WorkflowError),
+    UnknownPlatform {
+        platform: String,
+    },
+    UnknownRow {
+        labels_path: &'static str,
+        tag: &'static str,
+        row: String,
+    },
+    UnknownWorkflow {
+        row: String,
+        workflow: String,
+    },
+    UnqueriedLabel {
+        row: String,
+        label: String,
+    },
+    FilteredConsumer {
+        label: String,
+    },
+    UndeclaredSuiteTest {
+        row: String,
+        test: String,
+        platform: String,
+    },
+    ManifestEntries {
+        row: String,
+        test: String,
+        platform: String,
+        count: usize,
+    },
+}
+
+impl fmt::Display for SupportMatrixError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Runfiles(source) => write!(f, "cannot open runfiles: {source}"),
+            Self::NotInRunfiles { path } => write!(f, "{path} is not in the runfiles"),
+            Self::Read { path, source } => write!(
+                f,
+                "{source}; add {path} to the support_matrix data and export it"
+            ),
+            Self::Facts(source) => write!(f, "facts JSON is invalid: {source}"),
+            Self::Json { path, source } => write!(f, "{path} is invalid: {source}"),
+            Self::Workflow(source) => source.fmt(f),
+            Self::UnknownPlatform { platform } => write!(
+                f,
+                "{CI_WORKFLOW} names platform {platform}, which languages.bzl does not list"
+            ),
+            Self::UnknownRow {
+                labels_path,
+                tag,
+                row,
+            } => write!(
+                f,
+                "{labels_path} lists {tag}{row}, which names no row in languages.bzl; run `{ROW_TESTS_COMMAND}`"
+            ),
+            Self::UnknownWorkflow { row, workflow } => {
+                write!(f, "row {row} names unknown workflow {workflow}")
+            }
+            Self::UnqueriedLabel { row, label } => write!(
+                f,
+                "{label} of row {row} is in no row_tests/<platform>.json; run `{ROW_TESTS_COMMAND}` on each platform"
+            ),
+            Self::FilteredConsumer { label } => write!(
+                f,
+                "{label} is filtered out of tag-selected CI jobs, so it cannot be a consumer test"
+            ),
+            Self::UndeclaredSuiteTest {
+                row,
+                test,
+                platform,
+            } => write!(
+                f,
+                "{row} {test} on {platform} runs but its suite declares no test; add a pending.bzl line or a not_applicable entry"
+            ),
+            Self::ManifestEntries {
+                row,
+                test,
+                platform,
+                count,
+            } => write!(
+                f,
+                "{row} {test} on {platform} has {count} conformance manifest entries, want 1; add a pending.bzl line or a not_applicable entry"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for SupportMatrixError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Runfiles(source) => Some(source),
+            Self::Read { source, .. } => Some(source),
+            Self::Facts(source) | Self::Json { source, .. } => Some(source),
+            Self::Workflow(source) => Some(source),
+            Self::NotInRunfiles { .. }
+            | Self::UnknownPlatform { .. }
+            | Self::UnknownRow { .. }
+            | Self::UnknownWorkflow { .. }
+            | Self::UnqueriedLabel { .. }
+            | Self::FilteredConsumer { .. }
+            | Self::UndeclaredSuiteTest { .. }
+            | Self::ManifestEntries { .. } => None,
+        }
+    }
+}
+
+impl From<WorkflowError> for SupportMatrixError {
+    fn from(source: WorkflowError) -> Self {
+        Self::Workflow(source)
+    }
+}
 
 /// The page this crate generates, relative to the workspace root.
 pub const MATRIX_PATH: &str = "docs/support-matrix.md";
 
 /// The skip reasons dx reads at run time, relative to the workspace root.
-pub const UNSUPPORTED_PATH: &str = "cli/cli/src/exec/unsupported.json";
+pub const UNSUPPORTED_PATH: &str = "cli/exec_reports/src/unsupported.json";
 
 /// The command that refreshes the page.
 pub const UPDATE_COMMAND: &str = "bazel run //tools/docs/support_matrix:update";
@@ -145,8 +277,8 @@ pub struct Facts {
 pub trait Source {
     /// # Errors
     ///
-    /// Returns an error when the operation fails.
-    fn read(&self, path: &str) -> Result<String, String>;
+    /// Returns a [`SupportMatrixError`] when the file cannot be found or read.
+    fn read(&self, path: &str) -> Result<String, SupportMatrixError>;
 }
 
 /// The platforms each row is tested on.
@@ -164,9 +296,9 @@ pub type ToolNotApplicable =
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn parse_facts(text: &str) -> Result<Facts, String> {
-    serde_json::from_str(text).map_err(|error| format!("facts JSON is invalid: {error}"))
+/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
+pub fn parse_facts(text: &str) -> Result<Facts, SupportMatrixError> {
+    serde_json::from_str(text).map_err(SupportMatrixError::Facts)
 }
 
 /// Row test label to its tags, for the row tests compatible with one platform.
@@ -176,16 +308,16 @@ pub type RowTests = BTreeMap<String, Vec<String>>;
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
+/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
 pub fn read_row_tests(
     facts: &Facts,
     source: &dyn Source,
-) -> Result<BTreeMap<String, RowTests>, String> {
+) -> Result<BTreeMap<String, RowTests>, SupportMatrixError> {
     let mut out = BTreeMap::new();
     for platform in &facts.platforms {
         let path = format!("tools/docs/support_matrix/row_tests/{}.json", platform.id);
         let tests: RowTests = serde_json::from_str(&source.read(&path)?)
-            .map_err(|error| format!("{path} is invalid: {error}"))?;
+            .map_err(|source| SupportMatrixError::Json { path, source })?;
         out.insert(platform.id.clone(), tests);
     }
     Ok(out)
@@ -195,8 +327,10 @@ pub fn read_row_tests(
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn read_row_labels(source: &dyn Source) -> Result<BTreeMap<String, Vec<String>>, String> {
+/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
+pub fn read_row_labels(
+    source: &dyn Source,
+) -> Result<BTreeMap<String, Vec<String>>, SupportMatrixError> {
     read_labels(source, ROW_LABELS_PATH)
 }
 
@@ -204,14 +338,22 @@ pub fn read_row_labels(source: &dyn Source) -> Result<BTreeMap<String, Vec<Strin
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn read_consumer_labels(source: &dyn Source) -> Result<BTreeMap<String, Vec<String>>, String> {
+/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
+pub fn read_consumer_labels(
+    source: &dyn Source,
+) -> Result<BTreeMap<String, Vec<String>>, SupportMatrixError> {
     read_labels(source, CONSUMER_LABELS_PATH)
 }
 
-fn read_labels(source: &dyn Source, path: &str) -> Result<BTreeMap<String, Vec<String>>, String> {
+fn read_labels(
+    source: &dyn Source,
+    path: &str,
+) -> Result<BTreeMap<String, Vec<String>>, SupportMatrixError> {
     let text = source.read(path)?;
-    serde_json::from_str(&text).map_err(|error| format!("{path} is invalid: {error}"))
+    serde_json::from_str(&text).map_err(|source| SupportMatrixError::Json {
+        path: path.to_owned(),
+        source,
+    })
 }
 
 struct Context {
@@ -223,7 +365,7 @@ struct Context {
 }
 
 impl Context {
-    fn tested_on(&self, row: &Row, labels: &[String]) -> Result<Vec<String>, String> {
+    fn tested_on(&self, row: &Row, labels: &[String]) -> Result<Vec<String>, SupportMatrixError> {
         let mut on = BTreeSet::new();
         for label in labels {
             let mut tags = None;
@@ -237,15 +379,15 @@ impl Context {
                 }
             }
             let Some(tags) = tags else {
-                return Err(format!(
-                    "{label} of row {} is in no row_tests/<platform>.json; run `{ROW_TESTS_COMMAND}` on each platform",
-                    row.name
-                ));
+                return Err(SupportMatrixError::UnqueriedLabel {
+                    row: row.name.clone(),
+                    label: label.clone(),
+                });
             };
             if label.ends_with("_upstream") && tags.iter().any(|t| self.tag_jobs.contains_key(t)) {
-                return Err(format!(
-                    "{label} is filtered out of tag-selected CI jobs, so it cannot be a consumer test"
-                ));
+                return Err(SupportMatrixError::FilteredConsumer {
+                    label: label.clone(),
+                });
             }
             let manual = tags.iter().any(|tag| tag == "manual");
             for platform in &self.platforms {
@@ -270,10 +412,10 @@ impl Context {
                 }
                 for workflow in &row.workflows {
                     let Some((platforms, text)) = self.extra.get(workflow) else {
-                        return Err(format!(
-                            "row {} names unknown workflow {workflow}",
-                            row.name
-                        ));
+                        return Err(SupportMatrixError::UnknownWorkflow {
+                            row: row.name.clone(),
+                            workflow: workflow.clone(),
+                        });
                     };
                     if platforms.contains(platform) && text.contains(label.as_str()) {
                         on.insert(platform.clone());
@@ -294,23 +436,23 @@ impl Context {
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
+/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
 pub fn row_platforms(
     facts: &Facts,
     source: &dyn Source,
-) -> Result<BTreeMap<String, RowPlatforms>, String> {
+) -> Result<BTreeMap<String, RowPlatforms>, SupportMatrixError> {
     let ci = source.read(CI_WORKFLOW)?;
     let dogfood = workflows::dogfood_platforms(CI_WORKFLOW, &ci)?;
     let runners = workflows::runner_platforms(CI_WORKFLOW, &ci)?;
     let ids: Vec<&str> = facts.platforms.iter().map(|p| p.id.as_str()).collect();
     for platform in dogfood.iter().chain(runners.values()) {
         if !ids.contains(&platform.as_str()) {
-            return Err(format!(
-                "{CI_WORKFLOW} names platform {platform}, which languages.bzl does not list"
-            ));
+            return Err(SupportMatrixError::UnknownPlatform {
+                platform: platform.clone(),
+            });
         }
     }
-    let lanes = workflows::preflight_quality(CI_WORKFLOW, &ci)?;
+    let lanes = workflows::quality_matrix_lanes(CI_WORKFLOW, &ci)?;
     workflows::check_evidence_lanes(CI_WORKFLOW, &lanes, &ids)?;
     let mut tag_jobs = workflows::tag_job_platforms(CI_WORKFLOW, &ci, &runners)?;
     let mut extra = BTreeMap::new();
@@ -341,17 +483,21 @@ pub fn row_platforms(
     let row_labels = read_row_labels(source)?;
     for name in row_labels.keys() {
         if !facts.rows.iter().any(|row| &row.name == name) {
-            return Err(format!(
-                "{ROW_LABELS_PATH} lists row:{name}, which names no row in languages.bzl; run `{ROW_TESTS_COMMAND}`"
-            ));
+            return Err(SupportMatrixError::UnknownRow {
+                labels_path: ROW_LABELS_PATH,
+                tag: "row:",
+                row: name.clone(),
+            });
         }
     }
     let consumer_labels = read_consumer_labels(source)?;
     for name in consumer_labels.keys() {
         if !facts.rows.iter().any(|row| &row.name == name) {
-            return Err(format!(
-                "{CONSUMER_LABELS_PATH} lists consumer-row:{name}, which names no row in languages.bzl; run `{ROW_TESTS_COMMAND}`"
-            ));
+            return Err(SupportMatrixError::UnknownRow {
+                labels_path: CONSUMER_LABELS_PATH,
+                tag: "consumer-row:",
+                row: name.clone(),
+            });
         }
     }
     let mut out = BTreeMap::new();
@@ -375,8 +521,8 @@ pub fn row_platforms(
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn check_conformance(facts: &Facts) -> Result<(), String> {
+/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
+pub fn check_conformance(facts: &Facts) -> Result<(), SupportMatrixError> {
     let every = vec!["*".to_owned()];
     for row in facts.rows.iter().filter(|row| row.section == "languages") {
         let platforms = match facts.conformance.platforms.get(&row.name) {
@@ -397,17 +543,19 @@ pub fn check_conformance(facts: &Facts) -> Result<(), String> {
                 match entries.as_slice() {
                     [entry] if entry.status != "run" || !entry.label.is_empty() => {}
                     [_] => {
-                        return Err(format!(
-                            "{} {test} on {platform} runs but its suite declares no test; add a pending.bzl line or a not_applicable entry",
-                            row.name
-                        ));
+                        return Err(SupportMatrixError::UndeclaredSuiteTest {
+                            row: row.name.clone(),
+                            test: (*test).to_owned(),
+                            platform: platform.clone(),
+                        });
                     }
                     _ => {
-                        return Err(format!(
-                            "{} {test} on {platform} has {} conformance manifest entries, want 1; add a pending.bzl line or a not_applicable entry",
-                            row.name,
-                            entries.len()
-                        ));
+                        return Err(SupportMatrixError::ManifestEntries {
+                            row: row.name.clone(),
+                            test: (*test).to_owned(),
+                            platform: platform.clone(),
+                            count: entries.len(),
+                        });
                     }
                 }
             }
@@ -420,8 +568,8 @@ pub fn check_conformance(facts: &Facts) -> Result<(), String> {
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn generate(facts_json: &str, source: &dyn Source) -> Result<String, String> {
+/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
+pub fn generate(facts_json: &str, source: &dyn Source) -> Result<String, SupportMatrixError> {
     let facts = parse_facts(facts_json)?;
     check_conformance(&facts)?;
     let platforms = row_platforms(&facts, source)?;

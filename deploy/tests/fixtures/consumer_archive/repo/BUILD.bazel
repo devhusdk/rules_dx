@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("@rules_dx//deploy:defs.bzl", "consumer_archive", "dx_resources")
+load("@rules_dx//deploy:defs.bzl", "consumer_archive", "resources")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -22,7 +22,7 @@ cc_binary(
     deps = [":external_greet"],
 )
 
-dx_resources(
+resources(
     name = "repo_res",
     mappings = {":banner.txt": "banner.txt"},
 )

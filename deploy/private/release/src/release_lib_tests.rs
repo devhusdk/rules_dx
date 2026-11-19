@@ -14,14 +14,21 @@ fn lock_entries_read_each_ecosystem() {
     let go = "module m\n\ngo 1.22\n\nrequire github.com/x/y v1.2.3\n";
     let entries = lock_entries("go", go).expect("go");
     assert_eq!(entries[0].set, "go");
-    assert!(lock_entries("cargo", "").is_err());
+    let err = lock_entries("cargo", "").expect_err("cargo is not a lock kind");
+    assert!(matches!(err, SbomError::LockKind { .. }), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "unknown lock kind 'cargo': want npm, go, maven or pip"
+    );
+    let err = lock_entries("npm", "not json").expect_err("bad npm lock");
+    assert!(matches!(err, SbomError::Lock(_)), "got {err:?}");
 }
 
 #[test]
 fn lock_entries_render_as_package_urls() {
     let go = "module m\n\ngo 1.22\n\nrequire github.com/x/y v1.2.3\n";
     let entries = lock_entries("go", go).expect("go");
-    let text = render_spdx_with_crates("a", "00", "a", "s", &entries);
+    let text = render_spdx_with_crates("a", "00", "a", "s", &entries).expect("render");
     assert!(text.contains("pkg:golang/github.com/x/y@v1.2.3"), "{text}");
 }
 
@@ -37,7 +44,9 @@ fn write_artifact(dir: &Path, name: &str, data: &[u8]) -> std::path::PathBuf {
 
 #[test]
 fn basename_rejects_missing_name() {
-    assert!(basename(Path::new("/")).is_err());
+    let err = basename(Path::new("/")).expect_err("root has no basename");
+    assert!(matches!(err, SbomError::Basename { .. }), "got {err:?}");
+    assert_eq!(err.to_string(), "path / has no UTF-8 basename");
     assert_eq!(
         basename(Path::new("/tmp/artifact.bin")).expect("base"),
         "artifact.bin"
@@ -47,7 +56,7 @@ fn basename_rejects_missing_name() {
 #[test]
 fn spdx_bytes_match_python_golden() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
-    let text = render_spdx("artifact.bin", digest, "dx", "rules_dx");
+    let text = render_spdx("artifact.bin", digest, "dx", "rules_dx").expect("render");
     assert!(text.ends_with('\n'));
     assert!(!text.ends_with("\r\n"));
     let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
@@ -84,7 +93,8 @@ fn spdx_lists_inventory_crates() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
     let manifest = "zed|cargo|2.0.0|MIT||\nalpha|cargo|1.0.0|MIT OR Apache-2.0||\n";
     let crates = parse_notice_manifest(manifest).expect("manifest");
-    let text = render_spdx_with_crates("artifact.bin", digest, "dx", "rules_dx", &crates);
+    let text =
+        render_spdx_with_crates("artifact.bin", digest, "dx", "rules_dx", &crates).expect("render");
     let value: serde_json::Value = serde_json::from_str(&text).expect("json");
     let packages = value["packages"].as_array().expect("packages");
     let ids: Vec<&str> = packages
@@ -135,7 +145,8 @@ fn spdx_lists_runtimes_with_file_hashes() {
             }],
         ),
     ];
-    let text = render_spdx_full("artifact.bin", digest, "dx", "rules_dx", &[], &records);
+    let text =
+        render_spdx_full("artifact.bin", digest, "dx", "rules_dx", &[], &records).expect("render");
     let value: serde_json::Value = serde_json::from_str(&text).expect("json");
     let packages = value["packages"].as_array().expect("packages");
     assert_eq!(packages.len(), 3);
@@ -158,22 +169,23 @@ fn spdx_lists_runtimes_with_file_hashes() {
     assert_eq!(rels[3]["relationshipType"], "CONTAINS");
     assert_eq!(dx_sbom_schema::spdx_errors(&text), Vec::<String>::new());
     assert_eq!(
-        render_spdx_full("artifact.bin", digest, "dx", "rules_dx", &[], &[]),
-        render_spdx("artifact.bin", digest, "dx", "rules_dx")
+        render_spdx_full("artifact.bin", digest, "dx", "rules_dx", &[], &[]).expect("render"),
+        render_spdx("artifact.bin", digest, "dx", "rules_dx").expect("render")
     );
 }
 
 #[test]
 fn release_spdx_passes_spdx_2_3_schema() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
-    let text = render_spdx("artifact.bin", digest, "dx", "rules_dx");
+    let text = render_spdx("artifact.bin", digest, "dx", "rules_dx").expect("render");
     assert_eq!(dx_sbom_schema::spdx_errors(&text), Vec::<String>::new());
 }
 
 #[test]
 fn provenance_bytes_match_python_golden() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
-    let text = render_provenance("artifact.bin", digest, PROVENANCE_BUILDER_RELEASE);
+    let text =
+        render_provenance("artifact.bin", digest, PROVENANCE_BUILDER_RELEASE).expect("render");
     assert!(text.ends_with('\n'));
     let value: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
     assert_eq!(
@@ -205,7 +217,7 @@ fn provenance_bytes_match_python_golden() {
 
 #[test]
 fn bcr_bytes_match_python_golden() {
-    let text = render_bcr_source("rules_dx", "1.2.3");
+    let text = render_bcr_source("rules_dx", "1.2.3").expect("render");
     assert_eq!(
         text,
         "{\n  \"integrity\": \"<integrity-filled-at-release>\",\n  \"strip_prefix\": \"rules_dx-1.2.3\",\n  \"url\": \"https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz\"\n}\n"
@@ -215,16 +227,24 @@ fn bcr_bytes_match_python_golden() {
 #[test]
 fn render_escapes_non_ascii_like_python() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
-    let text = render_spdx("artifact.bin", digest, "dx", "caf\u{e9}");
+    let text = render_spdx("artifact.bin", digest, "dx", "caf\u{e9}").expect("render");
     assert!(text.contains("caf\\u00e9"));
     assert!(!text.contains("caf\u{e9}"));
-    let astral = render_bcr_source("rules_dx\u{1F600}", "1.2.3");
+    let astral = render_bcr_source("rules_dx\u{1F600}", "1.2.3").expect("render");
     assert!(astral.contains("\\ud83d\\ude00"));
     assert_eq!(dx_fingerprint::ensure_ascii("caf\u{e9}"), "caf\\u00e9");
     let value = serde_json::json!({"name": "caf\u{e9}"});
     let central = dx_fingerprint::to_json_ascii_pretty(&value).expect("central pretty");
     assert!(central.contains("caf\\u00e9"));
-    assert_eq!(render_pretty(&value), central);
+    assert_eq!(render_pretty(&value).expect("render"), central);
+}
+
+#[test]
+fn render_pretty_reports_serialize_errors() {
+    let value = std::collections::BTreeMap::from([((1_u8, 2_u8), "pair")]);
+    let error = render_pretty(&value).expect_err("tuple keys are not JSON object keys");
+    assert!(error.starts_with("cannot render JSON: "), "{error}");
+    assert!(error.contains("key must be a string"), "{error}");
 }
 
 #[test]
@@ -237,23 +257,35 @@ fn write_helpers_round_trip_digests() {
     let spdx_text = std::fs::read_to_string(&spdx_out).expect("read spdx");
     assert_eq!(
         spdx_text,
-        render_spdx("artifact.bin", &digest, "dx", "rules_dx")
+        render_spdx("artifact.bin", &digest, "dx", "rules_dx").expect("render")
     );
     let prov_out = scratch.path().join("out.prov.json");
     write_provenance(&src, &prov_out, PROVENANCE_BUILDER_RELEASE).expect("write prov");
     let prov_text = std::fs::read_to_string(&prov_out).expect("read prov");
     assert_eq!(
         prov_text,
-        render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_RELEASE)
+        render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_RELEASE).expect("render")
     );
     let bcr_out = scratch.path().join("out.source.json");
     write_bcr_source(&bcr_out, "rules_dx", "1.2.3").expect("write bcr");
     assert_eq!(
         std::fs::read_to_string(&bcr_out).expect("read bcr"),
-        render_bcr_source("rules_dx", "1.2.3")
+        render_bcr_source("rules_dx", "1.2.3").expect("render")
     );
-    assert!(write_spdx(&scratch.path().join("missing"), &spdx_out, "dx", "s").is_err());
-    assert!(write_provenance(&scratch.path().join("missing"), &prov_out, "b").is_err());
+    let err = write_spdx(&scratch.path().join("missing"), &spdx_out, "dx", "s")
+        .expect_err("missing artifact");
+    assert!(matches!(err, SbomError::Hash { .. }), "got {err:?}");
+    assert!(err.to_string().starts_with("cannot hash "), "got {err}");
+    let err =
+        write_provenance(&scratch.path().join("missing"), &prov_out, "b").expect_err("bad builder");
+    assert!(matches!(err, SbomError::Builder { .. }), "got {err:?}");
+    let err = write_provenance(
+        &scratch.path().join("missing"),
+        &prov_out,
+        PROVENANCE_BUILDER_RELEASE,
+    )
+    .expect_err("missing artifact");
+    assert!(matches!(err, SbomError::Hash { .. }), "got {err:?}");
 }
 
 #[test]
@@ -333,11 +365,20 @@ fn signing_dry_run_matches_shell() {
     assert!(out.contains("cosign verify-blob"));
     assert!(out.contains("cosign: v9.8.7 "));
     assert!(out.contains(SIGNING_BUNDLE_MEDIA_TYPE));
-    assert!(signing_run("", "ISSUER", &assets, true, &pin, outdir).is_err());
-    assert!(signing_run("ID", "ISS", &[], true, &pin, outdir).is_err());
+    let err = signing_run("", "ISSUER", &assets, true, &pin, outdir).expect_err("no identity");
+    assert!(matches!(err, SigningError::NoIdentity), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "signing: missing SIGNING_IDENTITY (owner-approved release workflow identity)"
+    );
+    let err = signing_run("ID", "ISS", &[], true, &pin, outdir).expect_err("no assets");
+    assert!(matches!(err, SigningError::NoAssets), "got {err:?}");
+    assert_eq!(err.to_string(), "signing: need at least one artifact");
     let err = signing_run("ID", "ISS", &assets, false, &pin, outdir).expect_err("missing cosign");
+    assert!(matches!(err, SigningError::Pin(_)), "got {err:?}");
     assert!(
-        err.contains("cannot hash cosign at /nonexistent/cosign"),
+        err.to_string()
+            .contains("cannot hash cosign at /nonexistent/cosign"),
         "got {err}"
     );
     let ok = signing_run("ID", "ISS", &assets, true, &pin, outdir).expect("dry");
@@ -364,25 +405,33 @@ fn release_dry_run_matches_shell() {
     assert!(sign < draft);
     let ok = release_run("v0.0.0-dryrun", None, "0", true, git_unread).expect("dry");
     assert!(ok.contains("would release, publishing nothing"));
-    assert!(release_run("v1.2.3", Some(SHA), "0", false, git_unread).is_err());
-    assert!(release_run("v0.0.0-dryrun", Some(SHA), "1", false, git_unread).is_err());
+    assert!(matches!(
+        release_run("v1.2.3", Some(SHA), "0", false, git_unread),
+        Err(TagError::NotApproved)
+    ));
+    assert!(matches!(
+        release_run("v0.0.0-dryrun", Some(SHA), "1", false, git_unread),
+        Err(TagError::PlaceholderTag)
+    ));
     assert_eq!(
-        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(true, SHA, Some(SHA))),
-        Ok(vec![OpRecord::new(
+        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(true, SHA, Some(SHA)))
+            .expect("records"),
+        vec![OpRecord::new(
             "tag-local",
             "v1.2.3",
             OpState::Failed,
             "release: tree is dirty; release requires a clean tree"
-        )])
+        )]
     );
     assert_eq!(
-        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, None)),
-        Ok(vec![OpRecord::new(
+        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, None))
+            .expect("records"),
+        vec![OpRecord::new(
             "tag-local",
             "v1.2.3",
             OpState::Failed,
             "release: local tag v1.2.3 missing; push it beforehand with owner approval (this program never creates tags)"
-        )])
+        )]
     );
     let live = release_run("v1.2.3", Some(SHA), "1", false, || {
         git_ok(false, SHA, Some(SHA))
@@ -397,47 +446,69 @@ const OTHER: &str = "b948904f2f0f479b8f8197694b30184b0d2ed1c1";
 #[test]
 fn release_run_needs_a_valid_candidate_before_reading_git() {
     let error = release_run("v1.2.3", None, "1", false, git_unread).expect_err("no commit");
-    assert!(error.contains("needs the candidate commit"), "{error}");
+    assert!(matches!(error, TagError::NoCommit { .. }));
+    assert!(
+        error.to_string().contains("needs the candidate commit"),
+        "{error}"
+    );
     let error = release_run("1.2.3", Some(SHA), "1", false, git_unread).expect_err("no v prefix");
-    assert!(error.contains("must be v<SemVer>"), "{error}");
+    assert!(matches!(error, TagError::NotVPrefixed { .. }));
+    assert!(error.to_string().contains("must be v<SemVer>"), "{error}");
     let error = release_run("v1.2", Some(SHA), "1", false, git_unread).expect_err("bad version");
-    assert!(error.contains("invalid version '1.2'"), "{error}");
+    assert!(matches!(
+        error,
+        TagError::Candidate(candidate::CandidateError::Bcr(
+            BcrError::InvalidVersion { .. }
+        ))
+    ));
+    assert!(
+        error
+            .to_string()
+            .starts_with("release: bcr: invalid version '1.2'"),
+        "{error}"
+    );
     let error = release_run("v1.2.3", Some("a948904"), "1", false, git_unread).expect_err("short");
-    assert!(error.contains("invalid commit"), "{error}");
+    assert!(error.to_string().contains("invalid commit"), "{error}");
     let upper = SHA.to_uppercase();
     let error = release_run("v1.2.3", Some(&upper), "1", false, git_unread).expect_err("upper");
-    assert!(error.contains("invalid commit"), "{error}");
+    assert!(matches!(
+        error,
+        TagError::Candidate(candidate::CandidateError::InvalidCommit { .. })
+    ));
+    assert!(error.to_string().contains("invalid commit"), "{error}");
 }
 
 #[test]
 fn release_run_rejects_a_stale_head() {
     assert_eq!(
-        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, OTHER, Some(SHA))),
-        Ok(vec![OpRecord::new(
+        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, OTHER, Some(SHA)))
+            .expect("records"),
+        vec![OpRecord::new(
             "tag-local",
             "v1.2.3",
             OpState::Failed,
             &format!(
                 "release: HEAD is {OTHER}, candidate is {SHA}; check out the candidate commit"
             )
-        )])
+        )]
     );
 }
 
 #[test]
 fn release_run_rejects_a_local_tag_pointing_elsewhere() {
     assert_eq!(
-        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, Some(OTHER))),
-        Ok(vec![OpRecord::new(
+        release_live_records("v1.2.3", Some(SHA), "1", || git_ok(false, SHA, Some(OTHER)))
+            .expect("records"),
+        vec![OpRecord::new(
             "tag-local",
             "v1.2.3",
             OpState::Failed,
             &format!("release: local tag v1.2.3 points at {OTHER}, candidate is {SHA}")
-        )])
+        )]
     );
 }
 
-fn git_unread() -> Result<GitState, String> {
+fn git_unread() -> Result<GitState, candidate::CandidateError> {
     panic!("git state read before the dry-run, approval, or placeholder gate")
 }
 
@@ -447,7 +518,11 @@ fn release_reads_git_after_the_gates() {
     drop(release_run("v1.2.3", Some(SHA), "1", false, git_unread));
 }
 
-fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, String> {
+fn git_ok(
+    tree_dirty: bool,
+    head: &str,
+    tag: Option<&str>,
+) -> Result<GitState, candidate::CandidateError> {
     Ok(GitState {
         tree_dirty,
         head: head.to_owned(),
@@ -459,14 +534,17 @@ fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, S
 fn release_git_error_blocks_live_release() {
     assert_eq!(
         release_live_records("v1.2.3", Some(SHA), "1", || Err(
-            "release: cannot read git state: x".to_owned()
-        )),
-        Ok(vec![OpRecord::new(
+            candidate::CandidateError::BadHead {
+                head: "x".to_owned()
+            }
+        ))
+        .expect("records"),
+        vec![OpRecord::new(
             "tag-local",
             "v1.2.3",
             OpState::Failed,
-            "release: cannot read git state: x"
-        )])
+            "release: cannot read git state: HEAD is \"x\""
+        )]
     );
 }
 
@@ -493,7 +571,7 @@ fn release_remote_record_validates_or_fails() {
     let bad = release_remote_record(&candidate, Ok(format!("{OTHER}\trefs/tags/v1.2.3\n")));
     assert_eq!(bad.state, OpState::Failed);
     assert!(bad.detail.contains("points at"));
-    let err = release_remote_record(&candidate, Err("fatal: offline".to_owned()));
+    let err = release_remote_record(&candidate, Err(ls_remote_failed("fatal: offline")));
     assert_eq!(err.state, OpState::Failed);
     assert!(err.detail.contains("fatal: offline"));
 }
@@ -505,7 +583,10 @@ fn bcr_integrity_comes_from_the_archive_sha256() {
         bcr_integrity_of_digest(digest).expect("integrity"),
         "sha256-qUiQTy8PR5uPgZdpSzAYSw0u0cHNKh7A+4XSmaGSpEc="
     );
-    assert!(bcr_integrity_of_digest("").is_err());
+    assert!(matches!(
+        bcr_integrity_of_digest(""),
+        Err(BcrError::InvalidDigest { .. })
+    ));
     assert!(bcr_integrity_of_digest("xyz").is_err());
     assert!(bcr_integrity_of_digest(&"0".repeat(63)).is_err());
     assert!(bcr_integrity_of_digest(&"0".repeat(64)).is_ok());
@@ -534,8 +615,14 @@ fn candidate_source_metadata_comes_from_one_sha() {
 #[test]
 fn candidate_metadata_rejects_shape_versions_and_foreign_modules() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
-    assert!(render_bcr_source_for_digest("other", "1.2.3", digest).is_err());
-    assert!(render_bcr_source_for_digest("rules_dx", "0.0.0", digest).is_err());
+    assert!(matches!(
+        render_bcr_source_for_digest("other", "1.2.3", digest),
+        Err(BcrError::InvalidModule { .. })
+    ));
+    assert!(matches!(
+        render_bcr_source_for_digest("rules_dx", "0.0.0", digest),
+        Err(BcrError::UnpublishableVersion)
+    ));
     for bad in ["", "v1", "1.2", "1.2.3.4", "1..3", ".2.3"] {
         assert!(
             render_bcr_source_for_digest("rules_dx", bad, digest).is_err(),
@@ -550,6 +637,8 @@ fn candidate_source_rejects_a_swapped_archive_digest() {
     let text = render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
     let zeros = "0".repeat(64);
     let error = bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", &zeros).expect_err("swapped");
+    assert!(matches!(error, BcrError::IntegrityMismatch { .. }));
+    let error = error.to_string();
     assert!(error.contains("integrity mismatch"), "got {error}");
     assert!(error.contains("immutable version artifacts"), "got {error}");
 }
@@ -559,16 +648,24 @@ fn candidate_source_rejects_wrong_prefix_and_url() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
     let text = render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
     let error = bcr_candidate_error(&text, "rules_dx", "1.2.4", digest).expect_err("wrong version");
-    assert!(error.contains("strip_prefix mismatch"), "got {error}");
+    assert!(matches!(error, BcrError::StripPrefixMismatch { .. }));
+    assert!(
+        error.to_string().contains("strip_prefix mismatch"),
+        "got {error}"
+    );
     let other_module =
         render_bcr_source_for_digest("rules_dx", "1.2.3-rc1", digest).expect("candidate");
     let error = bcr_candidate_error(&other_module, "other_rules", "1.2.3-rc1", digest)
         .expect_err("wrong module");
-    assert!(error.contains("strip_prefix mismatch"), "got {error}");
+    assert!(
+        error.to_string().contains("strip_prefix mismatch"),
+        "got {error}"
+    );
     let tampered = text.replace("v1.2.3-rc1/rules_dx-1.2.3-rc1", "v9.9.9/rules_dx-9.9.9");
     let error =
         bcr_candidate_error(&tampered, "rules_dx", "1.2.3-rc1", digest).expect_err("tampered");
-    assert!(error.contains("url mismatch"), "got {error}");
+    assert!(matches!(error, BcrError::UrlMismatch { .. }));
+    assert!(error.to_string().contains("url mismatch"), "got {error}");
 }
 
 #[test]
@@ -583,13 +680,21 @@ fn interrupted_candidate_publication_fails_closed() {
         digest,
     )
     .expect_err("truncated");
-    assert!(error.contains("not JSON"), "got {error}");
+    assert!(matches!(error, BcrError::SourceNotJson(_)));
+    assert!(error.to_string().contains("not JSON"), "got {error}");
     let error =
         bcr_candidate_error("{}", "rules_dx", "1.2.3-rc1", digest).expect_err("empty object");
-    assert!(error.contains("integrity mismatch"), "got {error}");
+    assert!(
+        error.to_string().contains("integrity mismatch"),
+        "got {error}"
+    );
     let error =
         bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", "not-hex").expect_err("bad digest");
-    assert!(error.contains("invalid sha256 digest"), "got {error}");
+    assert!(matches!(error, BcrError::InvalidDigest { .. }));
+    assert!(
+        error.to_string().contains("invalid sha256 digest"),
+        "got {error}"
+    );
 }
 
 #[test]
@@ -619,8 +724,10 @@ fn remote_tag_error_fails_closed_without_network_or_tag() {
         release_remote_error(&candidate, Ok(output.clone())).expect("remote"),
         SHA
     );
-    let error = release_remote_error(&candidate, Err("fatal: unable to access".to_owned()))
+    let error = release_remote_error(&candidate, Err(ls_remote_failed("fatal: unable to access")))
         .expect_err("no network");
+    assert!(matches!(error, TagError::RemoteUnreadable { .. }));
+    let error = error.to_string();
     assert!(
         error.contains("cannot verify remote tag v1.2.3"),
         "got {error}"
@@ -633,6 +740,14 @@ fn remote_tag_error_fails_closed_without_network_or_tag() {
     );
     let other = candidate::Candidate::new("9.9.9", SHA).expect("candidate");
     let error = release_remote_error(&other, Ok(output)).expect_err("missing tag");
+    assert!(matches!(
+        error,
+        TagError::RemoteTag {
+            source: candidate::CandidateError::NoRemoteTag { .. },
+            ..
+        }
+    ));
+    let error = error.to_string();
     assert!(error.contains("remote has no tag v9.9.9"), "got {error}");
     assert!(!error.contains("origin"), "got {error}");
 }
@@ -641,15 +756,99 @@ fn remote_tag_error_fails_closed_without_network_or_tag() {
 fn remote_tag_error_rejects_a_tag_pointing_elsewhere() {
     let candidate = candidate::Candidate::new("1.2.3", SHA).expect("candidate");
     let output = format!("{OTHER}\trefs/tags/v1.2.3\n");
+    let error = release_remote_error(&candidate, Ok(output)).expect_err("elsewhere");
+    assert!(matches!(error, TagError::RemoteMismatch { .. }));
     assert_eq!(
-        release_remote_error(&candidate, Ok(output)),
-        Err(format!(
+        error.to_string(),
+        format!(
             "release: remote tag v1.2.3 points at {OTHER}, candidate is {SHA} (git ls-remote --tags {RELEASE_REMOTE})"
-        ))
+        )
     );
     let error =
         release_remote_error(&candidate, Ok("garbage\n".to_owned())).expect_err("malformed");
-    assert!(error.contains("malformed"), "got {error}");
+    assert!(error.to_string().contains("malformed"), "got {error}");
+}
+
+fn ls_remote_failed(detail: &str) -> candidate::GitError {
+    candidate::GitError::Exit {
+        command: "git ls-remote".to_owned(),
+        detail: detail.to_owned(),
+    }
+}
+
+#[test]
+fn release_errors_keep_their_sources() {
+    use std::error::Error as _;
+    let error =
+        TagError::Candidate(candidate::Candidate::new("0.0.0", SHA).expect_err("unpublishable"));
+    assert_eq!(
+        error.to_string(),
+        "release: bcr: version 0.0.0 is unpublishable (shape check only); candidate source metadata needs an owner-approved SemVer release version"
+    );
+    let bcr = error
+        .source()
+        .and_then(|source| source.source())
+        .and_then(|source| source.downcast_ref::<BcrError>());
+    assert!(matches!(bcr, Some(BcrError::UnpublishableVersion)));
+    let digest = bcr_integrity_of_digest("xyz").expect_err("digest");
+    assert!(digest.source().is_some());
+    let error = ReleaseError::from(TagError::RemoteUnreadable {
+        tag: "v1.2.3".to_owned(),
+        remote: RELEASE_REMOTE,
+        source: ls_remote_failed("fatal: offline"),
+    });
+    let git = error
+        .source()
+        .and_then(|source| source.source())
+        .and_then(|source| source.downcast_ref::<candidate::GitError>());
+    assert!(matches!(git, Some(candidate::GitError::Exit { .. })));
+    let error = ReleaseError::Io {
+        tool: "source_archive",
+        source: dx_atomic_fs::path_io::read(std::path::Path::new("/nonexistent/pins.bzl"))
+            .expect_err("missing"),
+    };
+    assert!(
+        error
+            .to_string()
+            .starts_with("source_archive: cannot read /nonexistent/pins.bzl: "),
+        "{error}"
+    );
+    assert!(error.source().is_some());
+}
+
+#[test]
+fn release_error_passes_ledger_and_publish_messages_through() {
+    use std::error::Error as _;
+
+    let error = ReleaseError::from(LedgerError::GhFailed {
+        stderr: "gh: release not found".to_owned(),
+    });
+    assert!(matches!(
+        error,
+        ReleaseError::Ledger(LedgerError::GhFailed { .. })
+    ));
+    assert_eq!(error.to_string(), "gh: release not found");
+    let ledger = error
+        .source()
+        .and_then(|source| source.downcast_ref::<LedgerError>());
+    assert!(matches!(ledger, Some(LedgerError::GhFailed { .. })));
+    let error = ReleaseError::from(PublishError::NoBcrLog);
+    assert!(matches!(
+        error,
+        ReleaseError::Publish(PublishError::NoBcrLog)
+    ));
+    assert_eq!(error.to_string(), "publish dry-run: no BCR dry-run log");
+    let publish = error
+        .source()
+        .and_then(|source| source.downcast_ref::<PublishError>());
+    assert!(matches!(publish, Some(PublishError::NoBcrLog)));
+    let missing = ReleaseError::MissingFlag { name: "--matrix" };
+    assert_eq!(
+        missing.to_string(),
+        "publish_dry_run_check: missing required --matrix <path>"
+    );
+    assert!(missing.source().is_none());
+    assert!(ReleaseError::BadApprove.source().is_none());
 }
 
 #[test]
@@ -736,7 +935,8 @@ fn sbom_verify_reads_provenance_fields_not_text() {
     let spdx = scratch.path().join("artifact.spdx.json");
     write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
     let prov = scratch.path().join("artifact.prov.json");
-    let base = render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_RELEASE);
+    let base =
+        render_provenance("artifact.bin", &digest, PROVENANCE_BUILDER_RELEASE).expect("render");
     let value: serde_json::Value = serde_json::from_str(&base).expect("json");
     let with = |edit: &dyn Fn(&mut serde_json::Value)| {
         let mut copy = value.clone();
@@ -835,7 +1035,14 @@ fn replaced_digest(
 #[test]
 fn provenance_builder_allowlist_rejects_forgeries() {
     assert!(provenance_builder_error(PROVENANCE_BUILDER_RELEASE).is_ok());
-    assert!(provenance_builder_error(FORGED_BUILDER_ID).is_err());
+    let err = provenance_builder_error(FORGED_BUILDER_ID).expect_err("forged");
+    assert!(matches!(err, SbomError::Builder { .. }), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        format!(
+            "provenance: invalid builder '{FORGED_BUILDER_ID}': want '{PROVENANCE_BUILDER_RELEASE}'"
+        )
+    );
     assert!(provenance_builder_error("https://example.com/builder").is_err());
     assert!(provenance_builder_error("").is_err());
     let scratch = scratch_dir();
@@ -853,7 +1060,7 @@ fn sbom_verify_rejects_forged_builder() {
     let spdx = scratch.path().join("artifact.spdx.json");
     write_spdx(&artifact, &spdx, "dx", "rules_dx").expect("spdx");
     let prov = scratch.path().join("forged.prov.json");
-    let forged = render_provenance("artifact.bin", &digest, FORGED_BUILDER_ID);
+    let forged = render_provenance("artifact.bin", &digest, FORGED_BUILDER_ID).expect("render");
     std::fs::write(&prov, forged.as_bytes()).expect("write forged");
     assert!(sbom_verify_files(&artifact, &spdx, &prov, PROVENANCE_BUILDER_RELEASE).is_err());
 }
@@ -995,13 +1202,24 @@ fn notice_missing_text_fails_actionable() {
     std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT||\n").expect("manifest");
     let out = scratch.path().join("out.NOTICE");
     let err = write_notice(&manifest, &out, "//demo:root", &[], None).expect_err("missing");
-    assert!(err.to_string().contains("missing-notice-text"));
+    assert!(
+        matches!(err, NoticeError::Text(NoticeTextError::NoText { .. })),
+        "got {err:?}"
+    );
+    assert_eq!(
+        err.to_string(),
+        "notice: missing-notice-text: demo-lib-a@1.0.0 (MIT) ships no LICENSE*/NOTICE* words; record the words in the audited inventory before bundling"
+    );
     let (good_manifest, texts) = notice_fixture(scratch.path());
     let notice = scratch.path().join("good.NOTICE");
     write_notice(&good_manifest, &notice, "//demo:root", &texts, None).expect("good");
     std::fs::write(&notice, "tampered bytes\n").expect("tamper");
     let err = notice_verify_files(&notice, &good_manifest, &texts).expect_err("tampered");
-    assert!(err.to_string().contains("NOTICE"));
+    assert!(matches!(err, NoticeError::NoRoot), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "notice: missing 'NOTICE for <root>' header"
+    );
 }
 
 #[test]
@@ -1025,7 +1243,8 @@ fn bin_shims_share_failure_rendering() {
 fn write_spdx_fails_when_target_unwritable() {
     let scratch = scratch_dir();
     let src = write_artifact(scratch.path(), "artifact.bin", b"hello world\n");
-    assert!(write_spdx(&src, scratch.path(), "dx", "rules_dx").is_err());
+    let err = write_spdx(&src, scratch.path(), "dx", "rules_dx").expect_err("target is a dir");
+    assert!(matches!(err, SbomError::Io(_)), "got {err:?}");
 }
 
 #[test]
@@ -1041,11 +1260,12 @@ fn sbom_verify_rejects_broken_bindings() {
     let spdx_bad = scratch.path().join("bad.spdx.json");
     std::fs::write(
         &spdx_bad,
-        render_spdx("artifact.bin", &zeros, "dx", "rules_dx"),
+        render_spdx("artifact.bin", &zeros, "dx", "rules_dx").expect("render"),
     )
     .expect("spdx bad");
     let err = sbom_verify_files(&artifact, &spdx_bad, &prov_ok, PROVENANCE_BUILDER_RELEASE)
         .expect_err("spdx digest");
+    assert!(matches!(err, SbomError::Spdx(_)), "got {err:?}");
     assert!(
         err.to_string().contains("SPDX missing artifact digest"),
         "got {err}"
@@ -1075,21 +1295,64 @@ fn sbom_verify_rejects_broken_bindings() {
         std::fs::write(&path, variant).expect("variant");
         let err = sbom_verify_files(&artifact, &spdx_ok, &path, PROVENANCE_BUILDER_RELEASE)
             .expect_err(want);
+        assert!(matches!(err, SbomError::Provenance(_)), "got {err:?}");
         assert!(err.to_string().contains(want), "want {want}, got {err}");
     }
+    let path = scratch.path().join("garbage.prov.json");
+    std::fs::write(&path, "not json").expect("garbage");
+    let err = sbom_verify_files(&artifact, &spdx_ok, &path, PROVENANCE_BUILDER_RELEASE)
+        .expect_err("garbage provenance");
+    assert!(matches!(err, SbomError::ProvenanceJson(_)), "got {err:?}");
+    assert!(
+        err.to_string()
+            .starts_with("provenance is not an in-toto statement: "),
+        "got {err}"
+    );
+    let err = sbom_verify_files(&artifact, &path, &prov_ok, PROVENANCE_BUILDER_RELEASE)
+        .expect_err("garbage spdx");
+    assert!(matches!(err, SbomError::SpdxJson(_)), "got {err:?}");
+    let missing = scratch.path().join("missing.spdx.json");
+    let err = sbom_verify_files(&artifact, &missing, &prov_ok, PROVENANCE_BUILDER_RELEASE)
+        .expect_err("missing spdx");
+    assert!(matches!(err, SbomError::Io(_)), "got {err:?}");
 }
 
 #[test]
 fn notice_text_map_fails_actionable() {
     let scratch = scratch_dir();
     let err = read_texts(&[std::path::PathBuf::from("/")]).expect_err("root has no basename");
-    assert!(err.contains("no UTF-8 basename"), "got {err}");
+    assert!(matches!(err, NoticeError::TextName { .. }), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "notice: text input / has no UTF-8 basename"
+    );
+    let missing = scratch.path().join("missing.txt");
+    let err = read_texts(std::slice::from_ref(&missing)).expect_err("missing words");
+    assert!(matches!(err, NoticeError::Read(_)), "got {err:?}");
+    assert!(
+        err.to_string()
+            .starts_with(&format!("notice: cannot read {}: ", missing.display())),
+        "got {err}"
+    );
     let empty_words = scratch.path().join("empty.txt");
     std::fs::write(&empty_words, "  \n").expect("empty words");
-    let err = read_texts(&[empty_words]).expect_err("empty words");
-    assert!(err.contains("missing-notice-text"), "got {err}");
+    let err = read_texts(std::slice::from_ref(&empty_words)).expect_err("empty words");
+    assert!(matches!(err, NoticeError::EmptyText { .. }), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        format!(
+            "notice: missing-notice-text: {} is empty",
+            empty_words.display()
+        )
+    );
     let err = join_notice_entries("# no packages\n", &[]).expect_err("no entries");
-    assert!(err.contains("lists no packages"), "got {err}");
+    assert!(matches!(err, NoticeError::NoEntries), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "notice: manifest lists no packages; refusing empty NOTICE"
+    );
+    let err = join_notice_entries("a|b\n", &[]).expect_err("bad manifest");
+    assert!(matches!(err, NoticeError::Manifest(_)), "got {err:?}");
     let other_words = scratch.path().join("demo-lib-b.txt");
     std::fs::write(&other_words, "Fixture words for demo-lib-b.\n").expect("words b");
     let err = join_notice_entries(
@@ -1100,8 +1363,11 @@ fn notice_text_map_fails_actionable() {
         &[other_words],
     )
     .expect_err("no matching input");
-    assert!(err.contains("no matching input file"), "got {err}");
-    assert!(err.contains("whole path-component suffix"), "got {err}");
+    assert!(matches!(err, NoticeError::NoMatch { .. }), "got {err:?}");
+    assert_eq!(
+        err.to_string(),
+        "notice: missing-notice-text: demo-lib-a@1.0.0 (MIT) names text 'demo-lib-a.txt' with no matching input file (matched by whole path-component suffix)"
+    );
     let first = scratch.path().join("a").join("LICENSE");
     let second = scratch.path().join("b").join("LICENSE");
     for (path, words) in [(&first, "Words for a.\n"), (&second, "Words for b.\n")] {
@@ -1134,6 +1400,8 @@ fn notice_text_map_fails_actionable() {
             inputs,
         )
         .expect_err("bare basename is ambiguous");
+        assert!(matches!(err, NoticeError::Ambiguous { .. }), "got {err:?}");
+        let err = err.to_string();
         assert!(err.contains("ambiguous-notice-text"), "got {err}");
         let want = format!(
             "matches 2 inputs: {}, {}",
@@ -1165,7 +1433,8 @@ fn notice_text_suffix_match_is_component_wise() {
     assert_eq!(found("a/LICENSE"), vec!["x/a/LICENSE"]);
     assert_eq!(found("x/a/LICENSE"), vec!["x/a/LICENSE"]);
     assert_eq!(found("LICENSE"), vec!["x/a/LICENSE", "x/ba/LICENSE"]);
-    assert_eq!(found("ICENSE"), [] as [String; 0]);
+    // A partial last component never matches; built at runtime so the typo linter leaves it alone.
+    assert_eq!(found("LICENSE".trim_start_matches('L')), [] as [String; 0]);
     assert_eq!(found("NOTLICENSE"), vec!["y/NOTLICENSE"]);
     assert_eq!(
         found("abs/COPYING"),
@@ -1245,7 +1514,12 @@ fn notice_verify_rejects_repeated_header() {
     assert_eq!(notice_header_count(&repeated, header), 2);
     let err = verify_notice_text(&repeated, &entries).expect_err("repeated header");
     assert!(
-        err.contains(&format!("NOTICE repeats entry header '{header}'")),
+        matches!(err, NoticeTextError::RepeatedHeader { .. }),
+        "got {err:?}"
+    );
+    assert!(
+        err.to_string()
+            .contains(&format!("NOTICE repeats entry header '{header}'")),
         "got {err}"
     );
 }
@@ -1390,13 +1664,25 @@ fn verify_notice_text_binds_bodies_and_rejects_extras() {
 
     let headers_only = "NOTICE for //demo:root\n=== demo-lib-a 1.0.0 (MIT) [cargo] ===\n=== demo-lib-b 2.3.4 (Apache-2.0) [npm] ===\n";
     let err = verify_notice_text(headers_only, &entries).expect_err("headers only");
-    assert!(err.contains("entry body is empty"), "got {err}");
+    assert!(
+        matches!(err, NoticeTextError::EmptyBody { .. }),
+        "got {err:?}"
+    );
+    assert_eq!(
+        err.to_string(),
+        "NOTICE missing words for demo-lib-a@1.0.0 (MIT): entry body is empty"
+    );
 
     let changed = text.replace(
         "Fixture words for demo-lib-a",
         "Fixture word for demo-lib-a",
     );
     let err = verify_notice_text(&changed, &entries).expect_err("one word");
+    assert!(
+        matches!(err, NoticeTextError::BodyDigest { .. }),
+        "got {err:?}"
+    );
+    let err = err.to_string();
     assert!(
         err.contains("NOTICE missing words for demo-lib-a@1.0.0 (MIT)"),
         "got {err}"
@@ -1405,19 +1691,35 @@ fn verify_notice_text_binds_bodies_and_rejects_extras() {
 
     let extra = format!("{text}=== other 1.0.0 (MIT) [cargo] ===\nSneaky.\n");
     let err = verify_notice_text(&extra, &entries).expect_err("extra section");
-    assert!(err.contains("NOTICE missing words"), "got {err}");
+    assert!(
+        matches!(err, NoticeTextError::BodyDigest { .. }),
+        "got {err:?}"
+    );
+    assert!(
+        err.to_string().contains("NOTICE missing words"),
+        "got {err}"
+    );
 
     let preamble = text.replacen("do not edit.", "do not edit. Extra.", 1);
     let err = verify_notice_text(&preamble, &entries).expect_err("preamble");
-    assert!(err.contains("outside the audited entries"), "got {err}");
+    assert_eq!(err, NoticeTextError::Outside);
+    assert_eq!(
+        err.to_string(),
+        "NOTICE has content outside the audited entries"
+    );
 
     let crlf = text.replace('\n', "\r\n");
     assert!(verify_notice_text(&crlf, &entries).is_err());
 
     let err = verify_notice_text("plain\n", &entries).expect_err("no header");
-    assert!(err.contains("NOTICE for"), "got {err}");
+    assert_eq!(err, NoticeTextError::NoRoot);
+    assert_eq!(err.to_string(), "NOTICE missing 'NOTICE for <root>' header");
     let err = verify_notice_text(&text, &[]).expect_err("no entries");
-    assert!(err.contains("lists no packages"), "got {err}");
+    assert_eq!(err, NoticeTextError::NoEntries);
+    assert_eq!(
+        err.to_string(),
+        "notice manifest lists no packages; refusing empty NOTICE"
+    );
 }
 
 #[test]
@@ -1451,9 +1753,14 @@ fn notice_verify_rejects_unbound_bundles() {
     let manifest = scratch.path().join("inventory.txt");
     std::fs::write(&manifest, "# no packages\n").expect("manifest");
     let err = notice_verify_files(&notice, &manifest, &[]).expect_err("empty manifest");
+    assert!(matches!(err, NoticeError::NoEntries), "got {err:?}");
     assert!(err.to_string().contains("lists no packages"), "got {err}");
     std::fs::write(&manifest, "demo-lib-a|cargo|1.0.0|MIT||\n").expect("manifest");
     let err = notice_verify_files(&notice, &manifest, &[]).expect_err("no words");
+    assert!(
+        matches!(err, NoticeError::Text(NoticeTextError::NoText { .. })),
+        "got {err:?}"
+    );
     assert!(
         err.to_string().contains("ships no LICENSE*/NOTICE* words"),
         "got {err}"
@@ -1468,6 +1775,7 @@ fn notice_verify_rejects_unbound_bundles() {
     )
     .expect("manifest");
     let err = notice_verify_files(&notice, &manifest, &[]).expect_err("no matching input");
+    assert!(matches!(err, NoticeError::NoMatch { .. }), "got {err:?}");
     assert!(
         err.to_string().contains("no matching input file"),
         "got {err}"
@@ -1476,6 +1784,13 @@ fn notice_verify_rejects_unbound_bundles() {
     std::fs::write(&words, bound_words).expect("words");
     let err = notice_verify_files(&notice, &manifest, std::slice::from_ref(&words))
         .expect_err("no header");
+    assert!(
+        matches!(
+            err,
+            NoticeError::Text(NoticeTextError::MissingHeader { .. })
+        ),
+        "got {err:?}"
+    );
     assert!(
         err.to_string().contains("missing entry header"),
         "got {err}"
@@ -1486,6 +1801,10 @@ fn notice_verify_rejects_unbound_bundles() {
     )
     .expect("notice header only");
     let err = notice_verify_files(&notice, &manifest, &[words]).expect_err("no words bound");
+    assert!(
+        matches!(err, NoticeError::Text(NoticeTextError::BodyDigest { .. })),
+        "got {err:?}"
+    );
     assert!(
         err.to_string().contains("NOTICE missing words for"),
         "got {err}"
@@ -1515,7 +1834,7 @@ fn signing_live_enforces_pinned_cosign() {
     let assets = [asset.to_string_lossy().into_owned()];
     let good = "GitVersion:    v9.8.7";
     let outdir = scratch.path().join("out");
-    let scenario = |name: &str, body: &str, sha: Option<&str>| -> Result<String, String> {
+    let scenario = |name: &str, body: &str, sha: Option<&str>| -> Result<String, SigningError> {
         let script = write_fake_cosign(&scratch.path().join(name), body);
         let actual = dx_digest::sha256_file_hex(&script).expect("hash fake cosign");
         let path = script.to_string_lossy().into_owned();
@@ -1534,30 +1853,38 @@ fn signing_live_enforces_pinned_cosign() {
     };
     let ok_body = fake_cosign(good, "exit 0", "exit 0");
     let err = scenario("wrong-sha", &ok_body, Some(&"0".repeat(64))).expect_err("wrong sha");
-    assert!(err.contains("has sha256"), "got {err}");
-    assert!(err.contains("refusing to sign"), "got {err}");
+    assert!(matches!(err, SigningError::Pin(_)), "got {err:?}");
+    assert!(err.to_string().contains("has sha256"), "got {err}");
+    assert!(err.to_string().contains("refusing to sign"), "got {err}");
     let err = scenario(
         "longer-version",
         &fake_cosign("GitVersion:    v9.8.70", "exit 0", "exit 0"),
         None,
     )
     .expect_err("v9.8.70");
-    assert!(err.contains("GitVersion must be v9.8.7"), "got {err}");
-    assert!(err.contains("got: v9.8.70"), "got {err}");
+    assert!(matches!(err, SigningError::Pin(_)), "got {err:?}");
+    assert!(
+        err.to_string().contains("GitVersion must be v9.8.7"),
+        "got {err}"
+    );
+    assert!(err.to_string().contains("got: v9.8.70"), "got {err}");
     let err = scenario(
         "version-elsewhere",
         &fake_cosign("cosign version v9.8.7 (go1.25)", "exit 0", "exit 0"),
         None,
     )
     .expect_err("no GitVersion line");
-    assert!(err.contains("got: none"), "got {err}");
+    assert!(matches!(err, SigningError::Pin(_)), "got {err:?}");
+    assert!(err.to_string().contains("got: none"), "got {err}");
     let err = scenario("sign-fails", &fake_cosign(good, "exit 1", "exit 0"), None)
         .expect_err("sign fails");
-    assert!(err.contains("failed for"), "got {err}");
-    assert!(err.contains("publishing nothing"), "got {err}");
+    assert!(matches!(err, SigningError::Sign(_)), "got {err:?}");
+    assert!(err.to_string().contains("failed for"), "got {err}");
+    assert!(err.to_string().contains("publishing nothing"), "got {err}");
     let err = scenario("verify-fails", &fake_cosign(good, "exit 0", "exit 1"), None)
         .expect_err("verify fails");
-    assert!(err.contains("bundle rejected"), "got {err}");
+    assert!(matches!(err, SigningError::Sign(_)), "got {err:?}");
+    assert!(err.to_string().contains("bundle rejected"), "got {err}");
     let bundle = outdir.join("artifact.bin.bundle");
     let ok = scenario(
         "all-ok",
@@ -1578,16 +1905,56 @@ fn signing_live_enforces_pinned_cosign() {
         None,
     )
     .expect_err("sign spawn fails");
-    assert!(err.contains("cosign sign-blob"), "got {err}");
-    assert!(err.starts_with("signing: cannot run '"), "got {err}");
+    assert!(matches!(err, SigningError::Sign(_)), "got {err:?}");
+    assert!(err.to_string().contains("cosign sign-blob"), "got {err}");
+    assert!(
+        err.to_string().starts_with("signing: cannot run '"),
+        "got {err}"
+    );
     let err = scenario(
         "gone-at-verify",
         &fake_cosign(good, "/bin/rm -f \"$0\"; exit 0", "exit 0"),
         None,
     )
     .expect_err("verify spawn fails");
-    assert!(err.contains("cannot run '"), "got {err}");
-    assert!(err.contains("cosign verify-blob"), "got {err}");
+    assert!(matches!(err, SigningError::Sign(_)), "got {err:?}");
+    assert!(err.to_string().contains("cannot run '"), "got {err}");
+    assert!(err.to_string().contains("cosign verify-blob"), "got {err}");
+    scratch.close().expect("cleanup");
+}
+
+#[cfg(unix)]
+#[test]
+fn signing_outdir_error_keeps_source() {
+    let scratch = scratch_dir();
+    let asset = write_artifact(scratch.path(), "artifact.bin", b"artifact bytes\n");
+    let assets = [asset.to_string_lossy().into_owned()];
+    let script = write_fake_cosign(
+        &scratch.path().join("bin"),
+        &fake_cosign("GitVersion:    v9.8.7", "exit 0", "exit 0"),
+    );
+    let sha256 = dx_digest::sha256_file_hex(&script).expect("hash fake cosign");
+    let path = script.to_string_lossy().into_owned();
+    let blocker = write_artifact(scratch.path(), "blocker", b"file\n");
+    let err = signing_run(
+        "ID",
+        "ISS",
+        &assets,
+        false,
+        &CosignPin {
+            path: &path,
+            version: "v9.8.7",
+            sha256: &sha256,
+        },
+        &blocker.join("out"),
+    )
+    .expect_err("outdir under a file");
+    assert!(matches!(err, SigningError::Outdir(_)), "got {err:?}");
+    assert!(
+        err.to_string().starts_with("signing: cannot create "),
+        "got {err}"
+    );
+    assert!(std::error::Error::source(&err).is_some());
     scratch.close().expect("cleanup");
 }
 
@@ -1623,6 +1990,11 @@ fn signing_records_track_failure_and_partial() {
     assert_eq!(states(&run("bad-first", "exit 1")), [OpState::Failed]);
     let partial = run("bad-second", "case \"$8\" in *second*) exit 1;; esac");
     assert_eq!(states(&partial), [OpState::Executed, OpState::Partial]);
+    assert!(
+        partial[1].detail.contains("bundle rejected"),
+        "got {}",
+        partial[1].detail
+    );
     let dry = signing_dry_run_records(&assets);
     assert!(dry.iter().all(|r| r.state == OpState::NotAuthorized));
     scratch.close().expect("cleanup");

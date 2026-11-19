@@ -1,8 +1,17 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![cfg_attr(
+    test,
+    expect(
+        clippy::disallowed_methods,
+        reason = "tests run local programs under the Bazel test timeout"
+    )
+)]
 
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
 use std::io;
 use std::path::{Path, PathBuf};
+
+use dx_atomic_fs::path_io::{self, PathIoError};
 
 pub const TRUST_ROOT: &str = "https://tuf-repo-cdn.sigstore.dev";
 pub const DEFAULT_ISSUER: &str = "https://token.actions.githubusercontent.com";
@@ -26,12 +35,107 @@ pub struct VerifyArgs {
 pub struct ArgsError(pub String);
 
 impl std::fmt::Display for ArgsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
 impl std::error::Error for ArgsError {}
+
+/// Why `dx_verify` refused a binary or its signed SBOM and NOTICE.
+#[derive(Debug)]
+pub enum InstallError {
+    /// A required input file is absent.
+    InputNotFound {
+        input: &'static str,
+        path: String,
+    },
+    BundleEmpty(String),
+    CosignFailed,
+    OwnerRequired,
+    AttestationFailed,
+    NoVerifier {
+        cosign: String,
+        gh: String,
+    },
+    /// SBOM or NOTICE verification needs cosign, which is absent.
+    CosignUnavailable {
+        subject: &'static str,
+        cosign: String,
+    },
+    /// The SBOM or NOTICE signature does not verify.
+    SignatureFailed {
+        subject: &'static str,
+    },
+    Unreadable {
+        input: &'static str,
+        path: String,
+        source: PathIoError,
+    },
+    NoticeEmpty(String),
+    NoticeManifest(dx_error::DxError),
+    Notice(dx_release_tools::NoticeTextError),
+}
+
+impl fmt::Display for InstallError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("dx_verify: ")?;
+        match self {
+            Self::InputNotFound { input, path } => {
+                write!(f, "{input} not found: {path}")?;
+                if *input == "bundle" {
+                    f.write_str(
+                        " (missing, invalid, or unavailable verification inputs fail closed)",
+                    )?;
+                }
+                Ok(())
+            }
+            Self::BundleEmpty(path) => write!(f, "bundle is empty: {path}"),
+            Self::CosignFailed => f.write_str(
+                "cosign verification failed (tampered bytes, replaced binary/bundle, or unapproved signer fail closed)",
+            ),
+            Self::OwnerRequired => f.write_str(
+                "--owner OWNER is required with --attestation (GitHub attestation path)",
+            ),
+            Self::AttestationFailed => {
+                f.write_str("attestation verification failed (fail closed before install)")
+            }
+            Self::NoVerifier { cosign, gh } => write!(
+                f,
+                "no verifier available (want {cosign} verify-blob or {gh} attestation verify); missing, invalid, or unavailable verification inputs fail closed"
+            ),
+            Self::CosignUnavailable { subject, cosign } => {
+                write!(f, "{subject} verification needs {cosign} (unavailable)")
+            }
+            Self::SignatureFailed { subject } => {
+                write!(f, "{subject} verification failed (fail closed before install)")
+            }
+            Self::Unreadable { input, path, .. } => write!(f, "{input} not readable: {path}"),
+            Self::NoticeEmpty(path) => write!(f, "notice is empty: {path}"),
+            Self::NoticeManifest(error) => error.fmt(f),
+            Self::Notice(source) => source.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for InstallError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Unreadable { source, .. } => Some(source),
+            Self::InputNotFound { .. }
+            | Self::BundleEmpty(_)
+            | Self::CosignFailed
+            | Self::OwnerRequired
+            | Self::AttestationFailed
+            | Self::NoVerifier { .. }
+            | Self::CosignUnavailable { .. }
+            | Self::SignatureFailed { .. }
+            | Self::NoticeEmpty(_)
+            | Self::NoticeManifest(_) => None,
+            Self::Notice(source) => Some(source),
+        }
+    }
+}
 
 fn help_text() -> String {
     "usage: dx_verify --binary PATH --bundle PATH --identity ID --issuer ISSUER [--attestation PATH] [--owner OWNER] [--sbom PATH --sbom-bundle PATH] [--notice PATH --notice-manifest PATH --notice-bundle PATH]".to_owned()
@@ -209,7 +313,10 @@ pub trait Verifier {
     ///
     /// Returns an error when the operation fails.
     fn sha256_file(&self, path: &Path) -> io::Result<String>;
-    fn read_text(&self, path: &Path) -> Option<String>;
+    /// # Errors
+    ///
+    /// Returns an error when the file cannot be read as UTF-8.
+    fn read_text(&self, path: &Path) -> Result<String, PathIoError>;
 }
 
 pub struct SystemVerifier;
@@ -280,16 +387,15 @@ impl Verifier for SystemVerifier {
         dx_digest::sha256_file_hex(path)
     }
 
-    fn read_text(&self, path: &Path) -> Option<String> {
-        std::fs::read_to_string(path).ok()
+    fn read_text(&self, path: &Path) -> Result<String, PathIoError> {
+        path_io::read_to_string(path)
     }
 }
 
-fn verify_notice(notice_text: &str, manifest_text: &str) -> Result<usize, String> {
+fn verify_notice(notice_text: &str, manifest_text: &str) -> Result<usize, InstallError> {
     let entries = dx_release_tools::parse_notice_manifest(manifest_text)
-        .map_err(|error| format!("dx_verify: {error}"))?;
-    dx_release_tools::verify_notice_text(notice_text, &entries)
-        .map_err(|error| format!("dx_verify: {error}"))
+        .map_err(InstallError::NoticeManifest)?;
+    dx_release_tools::verify_notice_text(notice_text, &entries).map_err(InstallError::Notice)
 }
 
 fn check_inputs(
@@ -297,48 +403,31 @@ fn check_inputs(
     verifier: &dyn Verifier,
     binary: &Path,
     bundle: &Path,
-) -> Result<(), String> {
+) -> Result<(), InstallError> {
+    let not_found = |input, path: &str| InstallError::InputNotFound {
+        input,
+        path: path.to_owned(),
+    };
     if !verifier.is_file(binary) {
-        return Err(format!("dx_verify: binary not found: {}", args.binary));
+        return Err(not_found("binary", &args.binary));
     }
     if !verifier.is_file(bundle) {
-        return Err(format!(
-            "dx_verify: bundle not found: {} (missing, invalid, or unavailable verification inputs fail closed)",
-            args.bundle
-        ));
+        return Err(not_found("bundle", &args.bundle));
     }
-    if !args.attestation.is_empty() && !verifier.is_file(Path::new(&args.attestation)) {
-        return Err(format!(
-            "dx_verify: attestation not found: {}",
-            args.attestation
-        ));
-    }
-    if !args.sbom.is_empty() && !verifier.is_file(Path::new(&args.sbom)) {
-        return Err(format!("dx_verify: sbom not found: {}", args.sbom));
-    }
-    if !args.sbom_bundle.is_empty() && !verifier.is_file(Path::new(&args.sbom_bundle)) {
-        return Err(format!(
-            "dx_verify: sbom bundle not found: {}",
-            args.sbom_bundle
-        ));
-    }
-    if !args.notice.is_empty() && !verifier.is_file(Path::new(&args.notice)) {
-        return Err(format!("dx_verify: notice not found: {}", args.notice));
-    }
-    if !args.notice_manifest.is_empty() && !verifier.is_file(Path::new(&args.notice_manifest)) {
-        return Err(format!(
-            "dx_verify: notice manifest not found: {}",
-            args.notice_manifest
-        ));
-    }
-    if !args.notice_bundle.is_empty() && !verifier.is_file(Path::new(&args.notice_bundle)) {
-        return Err(format!(
-            "dx_verify: notice bundle not found: {}",
-            args.notice_bundle
-        ));
+    for (input, path) in [
+        ("attestation", &args.attestation),
+        ("sbom", &args.sbom),
+        ("sbom bundle", &args.sbom_bundle),
+        ("notice", &args.notice),
+        ("notice manifest", &args.notice_manifest),
+        ("notice bundle", &args.notice_bundle),
+    ] {
+        if !path.is_empty() && !verifier.is_file(Path::new(path)) {
+            return Err(not_found(input, path));
+        }
     }
     if !verifier.is_nonempty_file(bundle) {
-        return Err(format!("dx_verify: bundle is empty: {}", args.bundle));
+        return Err(InstallError::BundleEmpty(args.bundle.clone()));
     }
     Ok(())
 }
@@ -346,7 +435,7 @@ fn check_inputs(
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn verify(request: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, String> {
+pub fn verify(request: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, InstallError> {
     let mut out = String::new();
     let binary = PathBuf::from(&request.binary);
     let bundle = PathBuf::from(&request.bundle);
@@ -369,7 +458,7 @@ fn verify_binary(
     binary: &Path,
     bundle: &Path,
     out: &mut String,
-) -> Result<&'static str, String> {
+) -> Result<&'static str, InstallError> {
     let cosign = verifier.cosign_bin();
     let gh = verifier.gh_bin();
     let method: &'static str;
@@ -389,16 +478,11 @@ fn verify_binary(
             )
             .ok();
         } else {
-            return Err(
-                "dx_verify: cosign verification failed (tampered bytes, replaced binary/bundle, or unapproved signer fail closed)".to_owned(),
-            );
+            return Err(InstallError::CosignFailed);
         }
     } else if !request.attestation.is_empty() && verifier.have(&gh) {
         if request.owner.is_empty() {
-            return Err(
-                "dx_verify: --owner OWNER is required with --attestation (GitHub attestation path)"
-                    .to_owned(),
-            );
+            return Err(InstallError::OwnerRequired);
         }
         writeln!(
             out,
@@ -423,15 +507,10 @@ fn verify_binary(
             )
             .ok();
         } else {
-            return Err(
-                "dx_verify: attestation verification failed (fail closed before install)"
-                    .to_owned(),
-            );
+            return Err(InstallError::AttestationFailed);
         }
     } else {
-        return Err(format!(
-            "dx_verify: no verifier available (want {cosign} verify-blob or {gh} attestation verify); missing, invalid, or unavailable verification inputs fail closed"
-        ));
+        return Err(InstallError::NoVerifier { cosign, gh });
     }
     Ok(method)
 }
@@ -440,15 +519,16 @@ fn verify_sbom(
     request: &VerifyArgs,
     verifier: &dyn Verifier,
     out: &mut String,
-) -> Result<(), String> {
+) -> Result<(), InstallError> {
     let cosign = verifier.cosign_bin();
     if !request.sbom.is_empty() {
         let sbom = PathBuf::from(&request.sbom);
         let sbom_bundle = PathBuf::from(&request.sbom_bundle);
         if !verifier.have(&cosign) {
-            return Err(format!(
-                "dx_verify: SBOM verification needs {cosign} (unavailable)"
-            ));
+            return Err(InstallError::CosignUnavailable {
+                subject: "SBOM",
+                cosign,
+            });
         }
         writeln!(
             out,
@@ -465,9 +545,7 @@ fn verify_sbom(
         ) {
             out.push_str("dx_verify: SBOM publisher-identity OK\n");
         } else {
-            return Err(
-                "dx_verify: SBOM verification failed (fail closed before install)".to_owned(),
-            );
+            return Err(InstallError::SignatureFailed { subject: "SBOM" });
         }
     }
     Ok(())
@@ -477,15 +555,16 @@ fn verify_notice_files(
     request: &VerifyArgs,
     verifier: &dyn Verifier,
     out: &mut String,
-) -> Result<(), String> {
+) -> Result<(), InstallError> {
     let cosign = verifier.cosign_bin();
     if !request.notice.is_empty() {
         let notice_path = PathBuf::from(&request.notice);
         let notice_bundle = PathBuf::from(&request.notice_bundle);
         if !verifier.have(&cosign) {
-            return Err(format!(
-                "dx_verify: NOTICE verification needs {cosign} (unavailable)"
-            ));
+            return Err(InstallError::CosignUnavailable {
+                subject: "NOTICE",
+                cosign,
+            });
         }
         writeln!(
             out,
@@ -502,23 +581,26 @@ fn verify_notice_files(
         ) {
             out.push_str("dx_verify: NOTICE publisher-identity OK\n");
         } else {
-            return Err(
-                "dx_verify: NOTICE verification failed (fail closed before install)".to_owned(),
-            );
+            return Err(InstallError::SignatureFailed { subject: "NOTICE" });
         }
         let manifest_path = PathBuf::from(&request.notice_manifest);
+        let unreadable = |input, path: &str| {
+            let path = path.to_owned();
+            move |source| InstallError::Unreadable {
+                input,
+                path,
+                source,
+            }
+        };
         let notice_text = verifier
             .read_text(&notice_path)
-            .ok_or_else(|| format!("dx_verify: notice not readable: {}", request.notice))?;
+            .map_err(unreadable("notice", &request.notice))?;
         if notice_text.trim().is_empty() {
-            return Err(format!("dx_verify: notice is empty: {}", request.notice));
+            return Err(InstallError::NoticeEmpty(request.notice.clone()));
         }
-        let manifest_text = verifier.read_text(&manifest_path).ok_or_else(|| {
-            format!(
-                "dx_verify: notice manifest not readable: {}",
-                request.notice_manifest
-            )
-        })?;
+        let manifest_text = verifier
+            .read_text(&manifest_path)
+            .map_err(unreadable("notice manifest", &request.notice_manifest))?;
         let count = verify_notice(&notice_text, &manifest_text)?;
         writeln!(out, "dx_verify: NOTICE OK ({count} entries bundled)").ok();
     }
@@ -642,10 +724,17 @@ mod tests {
             Ok(dx_digest::sha256_hex(data))
         }
 
-        fn read_text(&self, path: &Path) -> Option<String> {
-            self.files
+        fn read_text(&self, path: &Path) -> Result<String, PathIoError> {
+            let read_error = |kind, detail| PathIoError::Read {
+                path: path.to_path_buf(),
+                source: io::Error::new(kind, detail),
+            };
+            let data = self
+                .files
                 .get(path)
-                .and_then(|data| String::from_utf8(data.clone()).ok())
+                .ok_or_else(|| read_error(io::ErrorKind::NotFound, "missing file"))?;
+            String::from_utf8(data.clone())
+                .map_err(|_| read_error(io::ErrorKind::InvalidData, "not UTF-8"))
         }
     }
 
@@ -824,7 +913,8 @@ mod tests {
         let mut fake = valid_fake();
         fake.absent = vec!["cosign", "gh"];
         let err = verify(&args, &fake).expect_err("no verifier");
-        assert!(err.contains("no verifier available"));
+        assert!(matches!(err, InstallError::NoVerifier { .. }), "{err:?}");
+        assert!(err.to_string().contains("no verifier available"));
     }
 
     #[test]
@@ -894,7 +984,9 @@ mod tests {
     fn notice_err(edit: impl FnOnce(&mut FakeVerifier)) -> String {
         let (request, mut fake) = notice_fake();
         edit(&mut fake);
-        verify(&request, &fake).expect_err("notice must fail closed")
+        verify(&request, &fake)
+            .expect_err("notice must fail closed")
+            .to_string()
     }
 
     #[test]
@@ -966,7 +1058,9 @@ mod tests {
         fake.write("/tmp/dx-fake.attestation", b"attestation-bytes");
         fake.absent = vec!["cosign"];
         fake.gh_ok = true;
-        let err = verify(&request, &fake).expect_err("no cosign for NOTICE");
+        let err = verify(&request, &fake)
+            .expect_err("no cosign for NOTICE")
+            .to_string();
         assert!(err.contains("needs cosign"), "got {err}");
         let err = notice_err(|fake| {
             fake.files.remove(Path::new("/tmp/NOTICE.bundle"));
@@ -975,7 +1069,9 @@ mod tests {
 
         let (request, mut fake) = notice_fake();
         fake.write("/tmp/NOTICE", &[0xff]);
-        let err = verify(&request, &fake).expect_err("bad signature");
+        let err = verify(&request, &fake)
+            .expect_err("bad signature")
+            .to_string();
         assert!(err.contains("NOTICE verification failed"), "got {err}");
     }
 
@@ -983,11 +1079,15 @@ mod tests {
     fn notice_missing_text_fails_actionable() {
         let (request, mut fake) = notice_fake();
         fake.write("/tmp/inventory.txt", b"demo-lib-a|cargo|1.0.0|MIT||\n");
-        let err = verify(&request, &fake).expect_err("missing text");
+        let err = verify(&request, &fake)
+            .expect_err("missing text")
+            .to_string();
         assert!(err.contains("missing-notice-text"), "got {err}");
         let (request, mut fake) = notice_fake();
         write_signed_notice(&mut fake, b"tampered notice\n");
-        let err = verify(&request, &fake).expect_err("tampered notice");
+        let err = verify(&request, &fake)
+            .expect_err("tampered notice")
+            .to_string();
         assert!(err.contains("NOTICE"), "got {err}");
     }
 
@@ -1056,7 +1156,7 @@ mod tests {
     #[test]
     fn verify_fails_closed_on_missing_or_empty_inputs() {
         let check = |request: VerifyArgs, fake: FakeVerifier, want: &str| {
-            let err = verify(&request, &fake).expect_err(want);
+            let err = verify(&request, &fake).expect_err(want).to_string();
             assert!(err.contains(want), "want {want}, got {err}");
         };
         let mut fake = valid_fake();
@@ -1130,14 +1230,19 @@ mod tests {
         ));
         let mut no_owner = attestation_args();
         no_owner.owner.clear();
-        let err = verify(&no_owner, &attestation_fake(false, true)).expect_err("owner required");
+        let err = verify(&no_owner, &attestation_fake(false, true))
+            .expect_err("owner required")
+            .to_string();
         assert!(err.contains("--owner OWNER is required"), "got {err}");
         let err = verify(&attestation_args(), &attestation_fake(false, false))
-            .expect_err("attestation rejected");
+            .expect_err("attestation rejected")
+            .to_string();
         assert!(err.contains("attestation verification failed"), "got {err}");
         let mut wrong_signer = attestation_fake(false, true);
         wrong_signer.gh_policy = Some(("OTHER", "ISSUER"));
-        let err = verify(&attestation_args(), &wrong_signer).expect_err("identity mismatch");
+        let err = verify(&attestation_args(), &wrong_signer)
+            .expect_err("identity mismatch")
+            .to_string();
         assert!(err.contains("attestation verification failed"), "got {err}");
         let mut wrong_issuer = attestation_fake(false, true);
         wrong_issuer.gh_policy = Some(("IDENT", "OTHER"));
@@ -1151,7 +1256,9 @@ mod tests {
         let mut fake = attestation_fake(false, true);
         fake.write("/tmp/sbom", b"sbom-bytes");
         fake.write("/tmp/sbom.bundle", b"sbom-bundle");
-        let err = verify(&with_sbom, &fake).expect_err("no cosign for sbom");
+        let err = verify(&with_sbom, &fake)
+            .expect_err("no cosign for sbom")
+            .to_string();
         assert!(err.contains("SBOM verification needs cosign"), "got {err}");
     }
 
@@ -1179,56 +1286,105 @@ mod tests {
             verify_notice(&notice, manifest).expect("generated NOTICE verifies"),
             1
         );
-        let err = verify_notice(&notice, "demo-lib-a|cargo|1.0.0\n").expect_err("field count");
+        let err = verify_notice(&notice, "demo-lib-a|cargo|1.0.0\n")
+            .expect_err("field count")
+            .to_string();
         assert!(err.contains("want 6 '|' fields"), "got {err}");
         let err = verify_notice(&notice, &format!(" |cargo|1.0.0|MIT|demo.txt|{digest}\n"))
-            .expect_err("no package");
+            .expect_err("no package")
+            .to_string();
         assert!(err.contains("must be non-empty"), "got {err}");
         let err = verify_notice(
             &notice,
             &format!("demo-lib-a||1.0.0|MIT|demo.txt|{digest}\n"),
         )
-        .expect_err("no set");
+        .expect_err("no set")
+        .to_string();
         assert!(err.contains("must be non-empty"), "got {err}");
         let err =
             verify_notice(&notice, "demo-lib-a|cargo|1.0.0|MIT||\n").expect_err("no text file");
+        assert!(
+            matches!(
+                err,
+                InstallError::Notice(dx_release_tools::NoticeTextError::NoText { .. })
+            ),
+            "got {err:?}"
+        );
+        let err = err.to_string();
         assert!(err.contains("missing-notice-text"), "got {err}");
         let err = verify_notice(
             &notice,
             &format!("demo-lib-a|cargo|1.0.0|MIT|../demo.txt|{digest}\n"),
         )
-        .expect_err("unsafe text path");
+        .expect_err("unsafe text path")
+        .to_string();
         assert!(err.contains("text '../demo.txt'"), "got {err}");
         let err = verify_notice(
             &notice,
             &format!("{manifest}demo-lib-a|cargo|1.0.0|MIT|other/demo.txt|{digest}\n"),
         )
-        .expect_err("duplicate identity");
+        .expect_err("duplicate identity")
+        .to_string();
         assert!(
             err.contains("duplicate entry demo-lib-a@1.0.0 (MIT) [cargo]"),
             "got {err}"
         );
         let err = verify_notice("NOTICE for //demo:root\n", "# no packages\n")
             .expect_err("empty manifest");
-        assert!(err.contains("lists no packages"), "got {err}");
+        assert!(
+            matches!(
+                err,
+                InstallError::Notice(dx_release_tools::NoticeTextError::NoEntries)
+            ),
+            "got {err:?}"
+        );
+        assert_eq!(
+            err.to_string(),
+            "dx_verify: notice manifest lists no packages; refusing empty NOTICE"
+        );
         let err = verify_notice("NOTICE for //demo:root\n", manifest).expect_err("missing entry");
-        assert!(err.contains("NOTICE missing entry"), "got {err}");
+        assert!(
+            matches!(
+                err,
+                InstallError::Notice(dx_release_tools::NoticeTextError::MissingHeader { .. })
+            ),
+            "got {err:?}"
+        );
+        assert_eq!(
+            err.to_string(),
+            "dx_verify: NOTICE missing entry header '=== demo-lib-a 1.0.0 (MIT) [cargo] ===' (fail closed before install)"
+        );
     }
 
     #[test]
     fn notice_inputs_fail_closed_when_unreadable() {
         let (request, mut fake) = notice_fake();
         write_signed_notice(&mut fake, b"   \n");
-        let err = verify(&request, &fake).expect_err("empty notice");
+        let err = verify(&request, &fake)
+            .expect_err("empty notice")
+            .to_string();
         assert!(err.contains("notice is empty"), "got {err}");
         let (request, mut fake) = notice_fake();
         fake.write("/tmp/inventory.txt", &[0xff, 0xfe]);
-        let err = verify(&request, &fake).expect_err("manifest not utf-8");
+        let err = verify(&request, &fake)
+            .expect_err("manifest not utf-8")
+            .to_string();
         assert!(err.contains("notice manifest not readable"), "got {err}");
         let (request, mut fake) = notice_fake();
         write_signed_notice(&mut fake, &[0xff]);
         let err = verify(&request, &fake).expect_err("notice not utf-8");
-        assert!(err.contains("notice not readable"), "got {err}");
+        assert!(
+            matches!(
+                err,
+                InstallError::Unreadable {
+                    input: "notice",
+                    ..
+                }
+            ),
+            "{err:?}"
+        );
+        assert!(std::error::Error::source(&err).is_some());
+        assert!(err.to_string().contains("notice not readable"), "got {err}");
     }
 
     #[test]
@@ -1255,14 +1411,12 @@ mod tests {
                 .is_err()
         );
         assert_eq!(
-            verifier.read_text(&file).as_deref(),
-            Some("standalone-dx-bytes-v1")
+            verifier.read_text(&file).expect("read"),
+            "standalone-dx-bytes-v1"
         );
-        assert!(
-            verifier
-                .read_text(&scratch.path().join("missing"))
-                .is_none()
-        );
+        let missing = scratch.path().join("missing");
+        let error = verifier.read_text(&missing).expect_err("missing");
+        assert_eq!(error.path(), missing);
         assert!(!verifier.have("/nonexistent-dx-tool"));
         #[cfg(unix)]
         {

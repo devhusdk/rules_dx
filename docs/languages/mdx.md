@@ -76,6 +76,14 @@ mdx_test(name, *, srcs, node_modules, data = None, **kwargs)
 
 Runs jest over MDX components, compiled by the linked @mdx-js/mdx. Coverage maps back to the .mdx sources.
 
+### `mdx_doc_shard`
+
+```python
+mdx_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], **kwargs)
+```
+
+Declares a component metadata run over one MDX project and its DocIr shard.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for MDX:
@@ -104,13 +112,5 @@ MDX builds and tests on:
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/components:defs.bzl", "mdx_doc_shard")
+load("@rules_dx//mdx:defs.bzl", "mdx_doc_shard")
 ```
-
-### `mdx_doc_shard`
-
-```python
-mdx_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], **kwargs)
-```
-
-Declares a component metadata run over one MDX project and its DocIr shard.

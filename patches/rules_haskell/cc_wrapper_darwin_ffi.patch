@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: @macos_sdk hermetic SDK wiring)
 diff --git a/haskell/BUILD.bazel b/haskell/BUILD.bazel
 --- a/haskell/BUILD.bazel
 +++ b/haskell/BUILD.bazel

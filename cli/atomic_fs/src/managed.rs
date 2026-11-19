@@ -128,7 +128,7 @@ pub fn remove_managed(path: &Path) -> io::Result<()> {
 }
 
 fn copy_file(source: &Path, destination: &Path) -> io::Result<Mechanism> {
-    let input = std::fs::File::open(source)?;
+    let input = crate::open_source(source)?;
     let parent = destination
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
@@ -163,7 +163,7 @@ pub fn create_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::R
     }
     #[cfg(not(windows))]
     {
-        let _ = kind;
+        let _: PointerKind = kind;
         std::os::unix::fs::symlink(target, pointer)
     }
 }
@@ -252,7 +252,7 @@ mod tests {
         let file = scratch.path().join("a.txt");
         std::fs::write(&file, b"a\n").expect("write file");
         let dir = scratch.path().join("d");
-        std::fs::create_dir(&dir).expect("create dir");
+        std::fs::create_dir_all(&dir).expect("create dir");
         assert_eq!(classify(&file).expect("file"), EntryKind::File);
         assert_eq!(classify(&dir).expect("dir"), EntryKind::Directory);
         assert_eq!(
@@ -271,7 +271,7 @@ mod tests {
     fn classifies_links_and_dangling_links() {
         let scratch = scratch("dx-fs-classify-link-").unwrap();
         let outside = scratch.path().join("outside");
-        std::fs::create_dir(&outside).expect("outside dir");
+        std::fs::create_dir_all(&outside).expect("outside dir");
         let file = scratch.path().join("f.txt");
         std::fs::write(&file, b"f\n").expect("outside file");
         let file_link = scratch.path().join("file-link");
@@ -329,7 +329,7 @@ mod tests {
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let destination = scratch.path().join("nested").join("copy.toml");
-        std::fs::create_dir(destination.parent().expect("parent")).expect("parent");
+        std::fs::create_dir_all(destination.parent().expect("parent")).expect("parent");
         assert_eq!(
             materialize_file_with(&source, &destination, LinkPolicy::LinkOrCopy, &refuses_link)
                 .expect("copy fallback"),
@@ -481,7 +481,7 @@ mod tests {
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let destination = scratch.path().join("kept");
-        std::fs::create_dir(&destination).expect("destination dir");
+        std::fs::create_dir_all(&destination).expect("destination dir");
         std::fs::write(destination.join("inner.toml"), b"inner\n").expect("inner");
         let err = materialize_file(&source, &destination, LinkPolicy::LinkOrCopy)
             .expect_err("a tree is never replaced");
@@ -626,7 +626,7 @@ mod tests {
         let source = scratch.path().join("source.toml");
         std::fs::write(&source, b"config = true\n").expect("source");
         let parent = scratch.path().join("locked");
-        std::fs::create_dir(&parent).expect("parent");
+        std::fs::create_dir_all(&parent).expect("parent");
         {
             use std::os::unix::fs::PermissionsExt as _;
             std::fs::set_permissions(&parent, std::fs::Permissions::from_mode(0o555))
@@ -663,7 +663,7 @@ mod tests {
         let err = remove_managed(&file).expect_err("missing is not a removal");
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
         let dir = scratch.path().join("tree");
-        std::fs::create_dir(&dir).expect("tree");
+        std::fs::create_dir_all(&dir).expect("tree");
         std::fs::write(dir.join("inner"), b"x\n").expect("inner");
         let err = remove_managed(&dir).expect_err("a tree is never removed");
         assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
@@ -678,7 +678,7 @@ mod tests {
         let outside_file = scratch.path().join("outside.txt");
         std::fs::write(&outside_file, b"secret\n").expect("outside file");
         let outside_dir = scratch.path().join("outside-dir");
-        std::fs::create_dir(&outside_dir).expect("outside dir");
+        std::fs::create_dir_all(&outside_dir).expect("outside dir");
         std::fs::write(outside_dir.join("inner.txt"), b"inner\n").expect("inner");
         let file_link = scratch.path().join("file-link");
         let dir_link = scratch.path().join("dir-link");
@@ -706,7 +706,7 @@ mod tests {
     fn replaces_directory_pointers_when_the_host_allows_links() {
         let scratch = scratch("dx-fs-dir-pointer-").unwrap();
         let first = scratch.path().join("first");
-        std::fs::create_dir(&first).expect("first dir");
+        std::fs::create_dir_all(&first).expect("first dir");
         let pointer = scratch.path().join("current");
         if skip_without_link_privileges(&directory_pointer(&first, &pointer)) {
             // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -741,9 +741,9 @@ mod tests {
     fn create_pointer_refuses_an_existing_entry() {
         let scratch = scratch("dx-fs-create-pointer-").unwrap();
         let target = scratch.path().join("target");
-        std::fs::create_dir(&target).expect("target dir");
+        std::fs::create_dir_all(&target).expect("target dir");
         let other = scratch.path().join("other");
-        std::fs::create_dir(&other).expect("other dir");
+        std::fs::create_dir_all(&other).expect("other dir");
         let link = scratch.path().join("link");
         if skip_without_link_privileges(&directory_pointer(&target, &link)) {
             // LCOV_EXCL_START - reason: hosts that refuse links, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
@@ -781,15 +781,15 @@ mod tests {
     fn replace_pointer_swaps_file_and_directory_links() {
         let scratch = scratch("dx-fs-replace-pointer-").unwrap();
         let targets = scratch.path().join("targets");
-        std::fs::create_dir(&targets).expect("targets");
+        std::fs::create_dir_all(&targets).expect("targets");
         let first = targets.join("first.txt");
         let second = targets.join("second.txt");
         std::fs::write(&first, b"first\n").expect("first");
         std::fs::write(&second, b"second\n").expect("second");
         let first_dir = targets.join("first");
         let second_dir = targets.join("second");
-        std::fs::create_dir(&first_dir).expect("first dir");
-        std::fs::create_dir(&second_dir).expect("second dir");
+        std::fs::create_dir_all(&first_dir).expect("first dir");
+        std::fs::create_dir_all(&second_dir).expect("second dir");
         let links = scratch.path().join("links");
         let file_link = links.join("file");
         if skip_without_link_privileges(&replace_pointer(&first, &file_link, PointerKind::File)) {
@@ -813,7 +813,7 @@ mod tests {
     fn replace_pointer_keeps_a_real_directory_and_drops_the_stage() {
         let scratch = scratch("dx-fs-replace-pointer-dir-").unwrap();
         let target = scratch.path().join("target");
-        std::fs::create_dir(&target).expect("target");
+        std::fs::create_dir_all(&target).expect("target");
         let links = scratch.path().join("links");
         let pointer = links.join("dir");
         std::fs::create_dir_all(&pointer).expect("real dir");

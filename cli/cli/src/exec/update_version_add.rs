@@ -123,7 +123,8 @@ fn plan_insert(
                 )
             }
         })?;
-    let text = String::from_utf8(original).map_err(|_| {
+    let text = String::from_utf8(original).map_err(|error| {
+        tracing::info!(%error, "manifest is not valid UTF-8");
         DxError::failure(format!(
             "failed to add {}: {manifest} is not valid UTF-8",
             request.selector

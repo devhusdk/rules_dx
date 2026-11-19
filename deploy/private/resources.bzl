@@ -1,6 +1,6 @@
 """Logical-path resource collections with optional declared processing."""
 
-load("//core:defs.bzl", "DxSubjectInfo", "display_label")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo", "display_label")
 load(":validate_resources.bzl", "resource_path_error", "resource_mapping_error")
 
 DxResourcesInfo = provider(
@@ -18,14 +18,14 @@ def _dx_resources_impl(ctx):
         logical = ctx.attr.mappings[target]
         path_error = resource_path_error(logical)
         if path_error != "":
-            fail("dx_resources " + str(ctx.label) + ": invalid path '" + logical +
+            fail("resources " + str(ctx.label) + ": invalid path '" + logical +
                  "' from " + display_label(target.label) + ": " + path_error)
         entries.append((target, logical))
     if len(entries) == 0:
-        fail("dx_resources " + str(ctx.label) + ": mappings must not be empty")
+        fail("resources " + str(ctx.label) + ": mappings must not be empty")
     mapping_error = resource_mapping_error([entry[1] for entry in entries])
     if mapping_error != "":
-        fail("dx_resources " + str(ctx.label) + ": " + mapping_error)
+        fail("resources " + str(ctx.label) + ": " + mapping_error)
     by_path = {}
     for entry in entries:
         by_path[entry[1]] = entry[0]
@@ -35,7 +35,7 @@ def _dx_resources_impl(ctx):
     if ctx.attr.processor:
         exe = ctx.attr.processor[DefaultInfo].files_to_run.executable
         if exe == None:
-            fail("dx_resources " + str(ctx.label) + ": processor " +
+            fail("resources " + str(ctx.label) + ": processor " +
                  display_label(ctx.attr.processor.label) + " has no executable")
         processor = exe
         processor_text = display_label(ctx.attr.processor.label)
@@ -45,10 +45,10 @@ def _dx_resources_impl(ctx):
         target = by_path[logical]
         files = target[DefaultInfo].files.to_list()
         if len(files) == 0:
-            fail("dx_resources " + str(ctx.label) + ": " + display_label(target.label) +
+            fail("resources " + str(ctx.label) + ": " + display_label(target.label) +
                  " provides no files")
         if len(files) != 1:
-            fail("dx_resources " + str(ctx.label) + ": " + display_label(target.label) +
+            fail("resources " + str(ctx.label) + ": " + display_label(target.label) +
                  " must provide exactly one file")
         src = files[0]
         sources.append(src)
@@ -79,7 +79,7 @@ def _dx_resources_impl(ctx):
         }),
     ]
 
-dx_resources = rule(
+resources = rule(
     implementation = _dx_resources_impl,
     doc = "Stages one file per logical path, optionally through a processor.",
     attrs = {

@@ -27,6 +27,12 @@ pub struct Options {
     pub out: String,
 }
 
+/// Runs `python_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("python_extract", usage(), parse, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
@@ -69,7 +75,7 @@ pub fn run(options: &Options) -> Result<(), String> {
             .cloned()
             .ok_or_else(|| format!("source '{staged}' is not in the srcs manifest"))
     })?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 /// Joins the staged root and a griffe file path, which uses backslashes on Windows.

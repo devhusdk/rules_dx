@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 
 use dx_adopt::dependency_sets::Ecosystem;
 use dx_module_bazel::{Call, ModuleFile, Value};
@@ -815,7 +814,8 @@ fn requirement_lines(text: &str) -> BTreeMap<String, String> {
         let name = dx_ecosystems::pep503_name(line.get(..end).unwrap_or_default());
         if !name.is_empty() {
             let rest = line.get(end..).unwrap_or_default();
-            writeln!(out.entry(name.clone()).or_default(), "{name}{rest}").ok();
+            let entry = out.entry(name.clone()).or_default();
+            entry.push_str(&format!("{name}{rest}\n"));
         }
     };
     for raw in text.lines() {
@@ -1305,10 +1305,6 @@ pub(crate) fn npm_seeds<'a>(
 mod tests {
     use dx_adopt::dependency_sets::Ecosystem;
 
-    fn lock_of(ecosystem: Ecosystem) -> &'static str {
-        ecosystem.lockfiles()[0].as_str()
-    }
-
     fn manifest_of(ecosystem: Ecosystem) -> &'static str {
         ecosystem.manifest_name()
     }
@@ -1332,9 +1328,9 @@ crate.from_cargo(
 go = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
 "#,
-            lock_of(Ecosystem::Cargo),
+            Ecosystem::Cargo.lockfile(),
             manifest_of(Ecosystem::Cargo),
-            lock_of(Ecosystem::Cargo)
+            Ecosystem::Cargo.lockfile()
         )
     }
 
@@ -1343,10 +1339,10 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     fn lock(packages: &[(&str, &str, &[&str])]) -> String {
         let mut out = String::from("version = 3\n");
         for (name, version, deps) in packages {
-            write!(out, "\n[[package]]\nname = \"{name}\"\nversion = \"{version}\"\nsource = \"{REGISTRY}\"\n").ok();
+            out.push_str(&format!("\n[[package]]\nname = \"{name}\"\nversion = \"{version}\"\nsource = \"{REGISTRY}\"\n"));
             if !deps.is_empty() {
                 let list: Vec<String> = deps.iter().map(|dep| format!(" \"{dep}\",")).collect();
-                write!(out, "dependencies = [\n{}\n]\n", list.join("\n")).ok();
+                out.push_str(&format!("dependencies = [\n{}\n]\n", list.join("\n")));
             }
         }
         out
@@ -1395,14 +1391,24 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
 
     #[test]
     fn gem_hubs_and_changed_gems() {
-        let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//third_party/ruby:ruby.lock.json\")\n";
-        let hubs = gem_hubs(module).expect("hubs");
+        let ruby = dx_families::hub("ruby").expect("ruby hub");
+        let module = format!(
+            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//third_party/ruby:{}\")\n",
+            ruby.lock.as_deref().expect("ruby lock")
+        );
+        let hubs = gem_hubs(&module).expect("hubs");
         assert_eq!(
-            classify("third_party/ruby/Gemfile.lock", &hubs),
+            classify(
+                &format!(
+                    "third_party/ruby/{}",
+                    ruby.state.as_deref().expect("ruby state")
+                ),
+                &hubs
+            ),
             LockKind::Ruby(vec!["gems".to_owned()])
         );
         assert_eq!(
-            classify(lock_of(Ecosystem::Cargo), &hubs),
+            classify(Ecosystem::Cargo.lockfile(), &hubs),
             LockKind::Unknown
         );
         let lock = |rake: &str| {
@@ -1429,7 +1435,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             [
                 Hub {
                     name: "crates".to_owned(),
-                    cargo_lockfile: lock_of(Ecosystem::Cargo).to_string(),
+                    cargo_lockfile: Ecosystem::Cargo.lockfile().to_string(),
                     lockfile: Some("cargo-bazel-lock.json".to_owned()),
                     pip: false,
                     maven: false,
@@ -1439,7 +1445,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
                 },
                 Hub {
                     name: "tools".to_owned(),
-                    cargo_lockfile: format!("tools/rust/{}", lock_of(Ecosystem::Cargo)),
+                    cargo_lockfile: format!("tools/rust/{}", Ecosystem::Cargo.lockfile()),
                     lockfile: None,
                     pip: false,
                     maven: false,
@@ -1452,12 +1458,12 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         assert_eq!(crate_hubs("module(name = \"x\")\n"), Ok(Vec::new()));
         let computed = &format!(
             "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = NAME, cargo_lockfile = \"//:{}\")\n",
-            lock_of(Ecosystem::Cargo)
+            Ecosystem::Cargo.lockfile()
         );
         assert!(crate_hubs(computed).is_err());
         let other_repo = &format!(
             "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"@other//:{}\")\n",
-            lock_of(Ecosystem::Cargo)
+            Ecosystem::Cargo.lockfile()
         );
         assert!(crate_hubs(other_repo).is_err());
         assert!(crate_hubs("crate.from_cargo(\n").is_err());
@@ -1479,7 +1485,10 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             kind
         );
         assert_eq!(
-            classify(&format!("third_party/go/{}", lock_of(Ecosystem::Go)), &hubs),
+            classify(
+                &format!("third_party/go/{}", Ecosystem::Go.lockfile()),
+                &hubs
+            ),
             kind
         );
     }
@@ -1500,10 +1509,13 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             kind
         );
         assert_eq!(
-            classify(&format!("third_party/go/{}", lock_of(Ecosystem::Go)), &hubs),
+            classify(
+                &format!("third_party/go/{}", Ecosystem::Go.lockfile()),
+                &hubs
+            ),
             kind
         );
-        assert_eq!(classify(lock_of(Ecosystem::Go), &hubs), LockKind::Unknown);
+        assert_eq!(classify(Ecosystem::Go.lockfile(), &hubs), LockKind::Unknown);
         assert_eq!(
             go_repo_name("github.com/Foo-Bar/baz.v2"),
             "com_github_foo_bar_baz_v2"
@@ -1523,8 +1535,8 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             manifest_of(Ecosystem::Go)
         );
         let sum_head = sum.replace("h1:x", "h1:w");
-        let change = changed_go(lock_of(Ecosystem::Go), sum, &sum_head)
-            .unwrap_or_else(|_| panic!("{}", lock_of(Ecosystem::Go)));
+        let change = changed_go(Ecosystem::Go.lockfile(), sum, &sum_head)
+            .unwrap_or_else(|_| panic!("{}", Ecosystem::Go.lockfile()));
         assert_eq!(
             change.go_repos,
             BTreeSet::from(["com_github_a_b".to_owned()])
@@ -1543,7 +1555,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     fn classify_names_the_hubs_of_each_lock() {
         let hubs = crate_hubs(&module()).expect("hubs");
         assert_eq!(
-            classify(lock_of(Ecosystem::Cargo), &hubs),
+            classify(Ecosystem::Cargo.lockfile(), &hubs),
             LockKind::Cargo(vec!["crates".to_owned()])
         );
         assert_eq!(
@@ -1551,7 +1563,10 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             LockKind::CrateBazelLock(vec!["crates".to_owned()])
         );
         assert_eq!(
-            classify(&format!("tools/rust/{}", lock_of(Ecosystem::Cargo)), &hubs),
+            classify(
+                &format!("tools/rust/{}", Ecosystem::Cargo.lockfile()),
+                &hubs
+            ),
             LockKind::Cargo(vec!["tools".to_owned()])
         );
         assert_eq!(classify("other.lock", &hubs), LockKind::Unknown);
@@ -1792,18 +1807,16 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:{}")
 "#,
-            lock_of(Ecosystem::Npm)
+            Ecosystem::Npm.lockfile()
         )
     }
 
     fn pnpm_lock(packages: &[(&str, &str)], settings: &str) -> String {
         let mut out = format!("lockfileVersion: '9.0'\n\nsettings:\n  {settings}\n\npackages:\n");
         for (name, version) in packages {
-            write!(
-                out,
+            out.push_str(&format!(
                 "\n  {name}@{version}:\n    resolution: {{integrity: sha512-abc}}\n"
-            )
-            .ok();
+            ));
         }
         out
     }
@@ -1836,13 +1849,16 @@ npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:{}")
     fn npm_translate_lock_hubs_classify_pnpm_locks() {
         let hubs = crate_hubs(&npm_module()).expect("hubs");
         assert_eq!(
-            classify(&format!("web/{}", lock_of(Ecosystem::Npm)), &hubs),
+            classify(&format!("web/{}", Ecosystem::Npm.lockfile()), &hubs),
             LockKind::Pnpm(vec!["npm".to_owned()])
         );
-        assert_eq!(classify(lock_of(Ecosystem::Npm), &hubs), LockKind::Unknown);
+        assert_eq!(
+            classify(Ecosystem::Npm.lockfile(), &hubs),
+            LockKind::Unknown
+        );
         assert!(
             crate_hubs(
-                &npm_module().replace(&format!("\"//web:{}\"", lock_of(Ecosystem::Npm)), "LOCK")
+                &npm_module().replace(&format!("\"//web:{}\"", Ecosystem::Npm.lockfile()), "LOCK")
             )
             .is_err()
         );

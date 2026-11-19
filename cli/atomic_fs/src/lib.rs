@@ -1,4 +1,11 @@
 #![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
+#![cfg_attr(
+    test,
+    expect(
+        clippy::disallowed_methods,
+        reason = "tests run local programs under the Bazel test timeout"
+    )
+)]
 
 pub mod commit;
 pub mod lease;
@@ -50,12 +57,17 @@ fn staging_prefix(path: &Path) -> String {
     format!(".{}.", truncated_name(path))
 }
 
+fn sibling_dir(path: &Path) -> std::path::PathBuf {
+    let parent = path.parent().map(dx_path::without_verbatim);
+    match parent {
+        Some(parent) if !parent.as_os_str().is_empty() => parent,
+        _ => std::path::PathBuf::from("."),
+    }
+}
+
 /// True when candidate is a staging file that `write_atomic` makes next to target.
 pub fn is_staging_sibling(target: &Path, candidate: &Path) -> bool {
-    if candidate == target
-        || candidate.parent().map(dx_path::without_verbatim)
-            != target.parent().map(dx_path::without_verbatim)
-    {
+    if candidate == target || sibling_dir(candidate) != sibling_dir(target) {
         return false;
     }
     let Some(name) = candidate.file_name().and_then(|name| name.to_str()) else {
@@ -100,13 +112,8 @@ const STALE_STAGING_AGE: Duration = Duration::from_hours(1);
 /// Removes staging files next to target that an interrupted write left behind.
 /// Files younger than an hour are kept since another process may still be writing them.
 pub fn remove_stale_staging(target: &Path) {
-    let Some(parent) = target
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-    else {
-        return;
-    };
-    let Ok(entries) = std::fs::read_dir(parent) else {
+    let parent = sibling_dir(target);
+    let Ok(entries) = std::fs::read_dir(&parent) else {
         return;
     };
     for entry in entries.flatten() {
@@ -170,17 +177,25 @@ fn persist(
     dest: &Path,
     durability: Durability,
 ) -> io::Result<()> {
+    let sealed = seal(staging, durability)?;
+    sealed.persist(long_path(dest)?).map_err(|err| err.error)?;
     match durability {
-        Durability::Synced => {
-            sync_outcome(staging.as_file().sync_all())?;
-            staging.persist(long_path(dest)?).map_err(|err| err.error)?;
-            sync_parent(dest)
-        }
-        Durability::Unsynced => {
-            staging.persist(long_path(dest)?).map_err(|err| err.error)?;
-            Ok(())
-        }
+        Durability::Synced => sync_parent(dest),
+        Durability::Unsynced => Ok(()),
     }
+}
+
+/// Flushes staging when Synced and closes its write handle, keeping the file on disk.
+/// The handle must close before the rename: Linux refuses to exec a file that is still
+/// open for writing (ETXTBSY), and another process may exec dest as soon as it appears.
+fn seal(
+    staging: tempfile::NamedTempFile,
+    durability: Durability,
+) -> io::Result<tempfile::TempPath> {
+    if matches!(durability, Durability::Synced) {
+        sync_outcome(staging.as_file().sync_all())?;
+    }
+    Ok(staging.into_temp_path())
 }
 
 /// The result of a sync, where a filesystem that cannot sync counts as done, as it did
@@ -231,6 +246,22 @@ fn sync_parent(_path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+pub(crate) fn open_source(src: &Path) -> io::Result<File> {
+    let file = File::open(src).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("cannot open {}: {error}", src.display()),
+        )
+    })?;
+    if file.metadata()?.is_dir() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("cannot copy {}: it is a directory", src.display()),
+        ));
+    }
+    Ok(file)
+}
+
 pub(crate) fn persist_copy(
     mut source: File,
     mut staging: tempfile::NamedTempFile,
@@ -252,13 +283,13 @@ pub(crate) fn persist_copy(
 
 /// Copies src to dest through a temp file, staged 0644 or 0755 when src is executable.
 pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
-    let source = File::open(src)?;
+    let source = open_source(src)?;
     persist_copy(source, staging_for(dest)?, dest, Durability::Synced)
 }
 
 /// Copies src to dest like [`copy_atomic`] without syncing, for files a crash may lose.
 pub fn copy_scratch(src: &Path, dest: &Path) -> io::Result<()> {
-    let source = File::open(src)?;
+    let source = open_source(src)?;
     persist_copy(source, staging_for(dest)?, dest, Durability::Unsynced)
 }
 
@@ -356,6 +387,35 @@ mod tests {
     }
 
     #[test]
+    fn copy_of_a_directory_names_the_source() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
+        let src = scratch.path().join("tree");
+        std::fs::create_dir_all(&src).expect("dir");
+        let dest = scratch.path().join("out").join("copy");
+        for result in [copy_atomic(&src, &dest), copy_scratch(&src, &dest)] {
+            let error = result.expect_err("a directory is not a file");
+            assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+            assert!(error.to_string().contains("tree"), "{error}");
+        }
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn bare_file_names_share_a_directory_with_their_staging_files() {
+        let target = Path::new("a.txt");
+        assert!(is_staging_sibling(target, Path::new("./.a.txt.x1y2z3.tmp")));
+        assert!(is_staging_sibling(target, Path::new(".a.txt.x1y2z3.tmp")));
+        assert!(is_staging_sibling(
+            Path::new("./a.txt"),
+            Path::new(".a.txt.x1y2z3.tmp")
+        ));
+        assert!(!is_staging_sibling(
+            target,
+            Path::new("sub/.a.txt.x1y2z3.tmp")
+        ));
+    }
+
+    #[test]
     fn discard_removes_present_and_accepts_missing_paths() {
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
         let file = scratch.path().join("a.bin");
@@ -413,6 +473,31 @@ mod tests {
         second.commit_as(&dest).expect("commit");
         assert_eq!(std::fs::read(&dest).expect("read"), b"blob");
         assert_eq!(dir_entries(scratch.path()), vec!["abc".to_owned()]);
+    }
+
+    /// Paths of the files this process holds open.
+    #[cfg(target_os = "linux")]
+    fn open_paths() -> Vec<PathBuf> {
+        std::fs::read_dir("/proc/self/fd")
+            .expect("list fds")
+            .filter_map(|entry| std::fs::read_link(entry.expect("fd").path()).ok())
+            .collect()
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn seal_closes_the_write_handle_before_the_rename() {
+        use std::io::Write as _;
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
+        for durability in [Durability::Synced, Durability::Unsynced] {
+            let mut staging = staging_for(&scratch.path().join("tool")).expect("stage");
+            staging.write_all(b"#!/bin/sh\n").expect("write");
+            let path = staging.path().canonicalize().expect("canonical");
+            assert!(open_paths().contains(&path));
+            let sealed = seal(staging, durability).expect("seal");
+            assert!(!open_paths().contains(&path));
+            assert_eq!(std::fs::read(&sealed).expect("read"), b"#!/bin/sh\n");
+        }
     }
 
     #[test]
@@ -599,7 +684,7 @@ mod tests {
     fn writes_into_a_directory_it_cannot_read() {
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-write-only-dir-").unwrap();
         let dir = scratch.path().join("drop");
-        std::fs::create_dir(&dir).expect("mkdir");
+        std::fs::create_dir_all(&dir).expect("mkdir");
         chmod(&dir, 0o300);
         let target = dir.join("out.txt");
         let first = write_atomic(&target, b"first\n");
@@ -881,6 +966,21 @@ mod tests {
         std::thread::sleep(Duration::from_millis(500));
         drop(held);
         waiter.join().expect("waiter thread");
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn copy_errors_name_the_missing_source() {
+        let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-missing-").unwrap();
+        let missing = scratch.path().join("no-such-source.bin");
+        let dest = scratch.path().join("dest.bin");
+        for error in [
+            copy_atomic(&missing, &dest).expect_err("missing source"),
+            copy_scratch(&missing, &dest).expect_err("missing source"),
+        ] {
+            assert_eq!(error.kind(), io::ErrorKind::NotFound);
+            assert!(error.to_string().contains("no-such-source.bin"), "{error}");
+        }
         scratch.close().expect("cleanup");
     }
 }

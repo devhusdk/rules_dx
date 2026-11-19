@@ -998,6 +998,11 @@ fn a_recorded_stop_signal_is_reported_with_its_exit_code() {
 }
 
 #[test]
+fn interrupted_code_saturates_instead_of_overflowing() {
+    assert_eq!(interrupted_code(i32::MAX), i32::MAX);
+}
+
+#[test]
 fn stdout_broken_pipe_maps_to_141() {
     assert_eq!(broken_pipe_code(), 128 + 13);
     assert_eq!(EXIT_BROKEN_PIPE, 128 + 13);
@@ -1063,6 +1068,32 @@ fn expand_tilde_without_home_keeps_the_path() {
         PathBuf::from("~/ws")
     );
     drop(expand_tilde(Path::new("~")));
+}
+
+#[test]
+fn empty_home_leaves_tilde_path_unexpanded() {
+    let env = |name: &str| (name == "HOME").then(|| OsString::from(""));
+    assert_eq!(home_with(env), None);
+    assert_eq!(
+        expand_tilde_with(Path::new("~/ws"), home_with(env)),
+        PathBuf::from("~/ws")
+    );
+}
+
+#[test]
+fn empty_home_falls_back_to_userprofile() {
+    let env = |name: &str| match name {
+        "HOME" => Some(OsString::new()),
+        "USERPROFILE" => Some(OsString::from("/users/me")),
+        _ => None,
+    };
+    assert_eq!(home_with(env), Some(OsString::from("/users/me")));
+    assert_eq!(
+        expand_tilde_with(Path::new("~/ws"), home_with(env)),
+        PathBuf::from("/users/me").join("ws")
+    );
+    let empty_userprofile = |name: &str| (name == "USERPROFILE").then(OsString::new);
+    assert_eq!(home_with(empty_userprofile), None);
 }
 
 #[test]

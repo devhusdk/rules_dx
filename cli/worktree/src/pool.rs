@@ -525,7 +525,7 @@ impl Pool {
     }
 
     pub(crate) fn remove(&self, slot: u32) {
-        drop(std::fs::remove_file(self.record_path(slot)));
+        dx_atomic_fs::discard_file(self.record_path(slot));
     }
 
     /// The slot a path is, or is inside.
@@ -537,9 +537,8 @@ impl Pool {
         rest.components()
             .next()?
             .as_os_str()
-            .to_str()?
-            .parse::<u32>()
-            .ok()
+            .to_str()
+            .and_then(slot_number)
     }
 
     /// Drops records whose checkout was removed by hand.
@@ -565,6 +564,12 @@ impl Pool {
             })
             .unwrap_or(1)
     }
+}
+
+/// The slot a directory name spells, only in its plain decimal form.
+fn slot_number(name: &str) -> Option<u32> {
+    let slot = name.parse::<u32>().ok()?;
+    (slot.to_string() == name).then_some(slot)
 }
 
 fn busy_file(base: &Path, slot: u32) -> PathBuf {
@@ -630,7 +635,7 @@ pub fn lease_for_workspace(workspace: &Path) -> Option<(PathBuf, Record)> {
         let slot = dir
             .file_name()
             .and_then(|name| name.to_str())
-            .and_then(|name| name.parse::<u32>().ok());
+            .and_then(slot_number);
         if let Some(slot) = slot {
             let record = state::dx_dir(parent).join(format!("{slot}.json"));
             if let Some(found) = std::fs::read(&record)
@@ -671,9 +676,9 @@ fn claim_marker(marker: &Path, bytes: &[u8]) -> std::io::Result<bool> {
     static CLAIMS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let claim = CLAIMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let staged = marker.with_extension(format!("claim-{}-{claim}", std::process::id()));
-    std::fs::write(&staged, bytes)?;
+    dx_atomic_fs::write_atomic(&staged, bytes)?;
     let linked = std::fs::hard_link(&staged, marker);
-    drop(std::fs::remove_file(&staged));
+    dx_atomic_fs::discard_file(&staged);
     match linked {
         Ok(()) => Ok(true),
         Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),

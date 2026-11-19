@@ -2,8 +2,6 @@
 //! (`dx license`, `release_tool inventory`) and the release verifier.
 //! Depends only on `dx_digest` and `std`.
 
-use std::fmt::Write as _;
-
 use dx_error::DxError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -17,6 +15,7 @@ pub struct NoticeEntry {
 }
 
 pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let mut entries = Vec::new();
     for (index, raw) in text.lines().enumerate() {
         let line = raw.trim();
@@ -101,6 +100,9 @@ pub fn notice_text_path_error(text_path: &str) -> Result<(), DxError> {
     if text_path.starts_with('/') {
         return Err(DxError::failure("must be a relative path (no leading '/')"));
     }
+    if text_path.contains(['\0', ':']) {
+        return Err(DxError::failure("must not contain ':' or NUL"));
+    }
     for component in text_path.split('/') {
         if component.is_empty() || component == "." || component == ".." {
             return Err(DxError::failure(
@@ -122,8 +124,17 @@ pub fn notice_text_sha256(words: &str) -> String {
 
 /// Renders the manifest: `header` as a `#` comment line, then one line per
 /// entry sorted by (package, set, version, license).
-#[must_use]
-pub fn render_notice_manifest(header: &str, entries: &[NoticeEntry]) -> String {
+///
+/// # Errors
+///
+/// Returns an error when the header or any field holds `|`, `\n` or `\r`,
+/// because `parse_notice_manifest` could not read that line back.
+pub fn render_notice_manifest(header: &str, entries: &[NoticeEntry]) -> Result<String, DxError> {
+    if let Some(bad) = field_separator(header) {
+        return Err(DxError::failure(format!(
+            "notice manifest: header {header:?} must not contain {bad}"
+        )));
+    }
     let mut sorted: Vec<&NoticeEntry> = entries.iter().collect();
     sorted.sort_by(|a, b| {
         (&a.package, &a.set, &a.version, &a.license)
@@ -136,14 +147,39 @@ pub fn render_notice_manifest(header: &str, entries: &[NoticeEntry]) -> String {
         out.push('\n');
     }
     for e in sorted {
-        writeln!(
-            out,
-            "{}|{}|{}|{}|{}|{}",
-            e.package, e.set, e.version, e.license, e.text_path, e.text_sha256
-        )
-        .ok();
+        let fields = [
+            ("package", &e.package),
+            ("set", &e.set),
+            ("version", &e.version),
+            ("license", &e.license),
+            ("text", &e.text_path),
+            ("sha256", &e.text_sha256),
+        ];
+        for (name, value) in fields {
+            if let Some(bad) = field_separator(value) {
+                return Err(DxError::failure(format!(
+                    "notice manifest: {name} {value:?} of {}@{} must not contain {bad}",
+                    e.package, e.version
+                )));
+            }
+        }
+        out.push_str(&fields.map(|(_, value)| value.as_str()).join("|"));
+        out.push('\n');
     }
-    out
+    Ok(out)
+}
+
+/// Names the first manifest separator (`|`, `\n` or `\r`) in `value`, if any.
+fn field_separator(value: &str) -> Option<&'static str> {
+    if value.contains('|') {
+        Some("'|'")
+    } else if value.contains('\n') {
+        Some("'\\n'")
+    } else if value.contains('\r') {
+        Some("'\\r'")
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -165,10 +201,56 @@ mod tests {
     fn render_parse_round_trip_is_order_independent() {
         let a = entry("aaa", "A\n");
         let b = entry("bbb", "B\n");
-        let one = render_notice_manifest("gen", &[a.clone(), b.clone()]);
-        let two = render_notice_manifest("gen", &[b.clone(), a.clone()]);
+        let one = render_notice_manifest("gen", &[a.clone(), b.clone()]).expect("renders");
+        let two = render_notice_manifest("gen", &[b.clone(), a.clone()]).expect("renders");
         assert_eq!(one, two);
         assert!(one.starts_with("# gen\n"));
         assert_eq!(parse_notice_manifest(&one), Ok(vec![a, b]));
+    }
+
+    #[test]
+    fn render_refuses_separators_in_fields_and_header() {
+        for bad in ["a|b", "a\nb", "a\rb"] {
+            let mut fields: Vec<NoticeEntry> = Vec::new();
+            for index in 0..6 {
+                let mut e = entry("aaa", "A\n");
+                match index {
+                    0 => e.package = bad.to_owned(),
+                    1 => e.set = bad.to_owned(),
+                    2 => e.version = bad.to_owned(),
+                    3 => e.license = bad.to_owned(),
+                    4 => e.text_path = bad.to_owned(),
+                    _ => e.text_sha256 = bad.to_owned(),
+                }
+                fields.push(e);
+            }
+            for e in fields {
+                let err = render_notice_manifest("gen", &[e]).expect_err("separator in field");
+                assert!(err.message().contains("must not contain"), "{err}");
+            }
+            let err = render_notice_manifest(bad, &[]).expect_err("separator in header");
+            assert!(
+                err.message().starts_with("notice manifest: header"),
+                "{err}"
+            );
+        }
+    }
+
+    #[test]
+    fn manifest_ignores_a_leading_byte_order_mark() {
+        let sha = "a".repeat(64);
+        let line = format!("pkg|set|1.0|MIT|cargo/pkg/LICENSE|{sha}\n");
+        let plain = parse_notice_manifest(&line).expect("plain");
+        let with_bom = parse_notice_manifest(&format!("\u{feff}{line}")).expect("bom");
+        assert_eq!(plain, with_bom);
+        parse_notice_manifest(&format!("\u{feff}# header\n{line}")).expect("bom comment");
+    }
+
+    #[test]
+    fn text_path_rejects_drive_letters_and_nul() {
+        for path in ["C:/x/LICENSE", "C:x/LICENSE", "a/b:stream", "a/\0b"] {
+            assert!(notice_text_path_error(path).is_err(), "{path:?}");
+        }
+        assert!(notice_text_path_error("cargo/serde/LICENSE").is_ok());
     }
 }

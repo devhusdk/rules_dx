@@ -1,5 +1,5 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//scala/private:validate.bzl", "scala_scalacopts_with_warnings_as_errors")
 
 _ON = {"warnings_as_errors": True}

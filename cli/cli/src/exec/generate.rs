@@ -8,11 +8,11 @@ use dx_output::{
     FinishedCounts, OutputMode, change_value, command_finished, command_started, notice_value,
 };
 use dx_plan::args::{GenerateRequest, Invocation};
-use dx_plan::finalize::{FinalizeError, FinalizeInput, GazelleStatus, finalize};
+use dx_plan::finalize::{FinalizeError, FinalizeInput, GazelleStatus, apply_within, finalize};
 use dx_plan::generate::{ProjectedManifest, project, refused_lines, render_diff, text_lines};
 use dx_plan::plan::{
     GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, generate_scope_json,
-    intended_path, patch_path, plan_generate,
+    generate_scope_visits, intended_path, patch_path, plan_generate,
 };
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::{ResolvedScope, resolve_for_generate};
@@ -56,7 +56,7 @@ fn finish_incomplete_generate(
 
 /// Adds the `MODULE.bazel` stanzas for the root lock files with `--apply`, first creating the root locks that are missing; otherwise says what
 /// `--apply` would do. Every step is said on `err` and kept as a notice for the run.
-fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
+fn wire_module(request: &GenerateRequest, env: &mut Env<'_>, resolved: &ResolvedScope) -> Wiring {
     let mut wiring = Wiring::default();
     let workspace = env.workspace;
     let apply = request.applies();
@@ -76,7 +76,7 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
                 format!("would create {lock}; run dx generate --apply"),
             );
         } else if *manifest == manifest_of(Ecosystem::Cargo) {
-            match std::fs::write(workspace.join(lock), "") {
+            match dx_atomic_fs::write_atomic(&workspace.join(lock), b"") {
                 Ok(()) => seeded_cargo = true,
                 Err(error) => {
                     wiring.failed(env.err, format!("{lock} not created: {error}"));
@@ -111,7 +111,79 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
     if seeded_cargo {
         fill_cargo_lock(request, env, &mut wiring);
     }
+    lock_sets(request, env, &mut wiring, &unlocked, resolved);
     wiring
+}
+
+/// Runs the pinned resolver of every set with a dx class lock in the generate scope: a check
+/// compares the lock with its inputs, `--apply` writes a stale lock. A root manifest seeded above
+/// is skipped.
+fn lock_sets(
+    request: &GenerateRequest,
+    env: &mut Env<'_>,
+    wiring: &mut Wiring,
+    unlocked: &[&str],
+    resolved: &ResolvedScope,
+) {
+    let sets = match dx_adopt::resolver_sets(env.workspace) {
+        Ok(sets) => sets,
+        Err(error) => {
+            wiring.failed(env.err, format!("lock sets not read: {error}"));
+            return;
+        }
+    };
+    let apply = request.applies();
+    let head = request.bazel_head();
+    let run_env = dx_update::backend::resolver_env(env.workspace, &head);
+    let run_env: Vec<(&str, &str)> = run_env
+        .iter()
+        .map(|(name, value)| (name.as_str(), value.as_str()))
+        .collect();
+    for set in sets {
+        if (set.dir == "." && unlocked.contains(&set.manifest))
+            || !generate_scope_visits(resolved, &set.dir)
+        {
+            continue;
+        }
+        let path = env.workspace.join(&set.dir);
+        let Some(dir) = path.to_str() else {
+            wiring.failed(
+                env.err,
+                format!("lock of {} not checked: non-UTF-8 path", set.name),
+            );
+            continue;
+        };
+        let mut argv = dx_update::backend::resolver_run_argv(&head, set.resolver, dir);
+        if !apply {
+            argv.push("--check".to_owned());
+        }
+        match env.runner.run(&argv, env.workspace, &run_env) {
+            Ok(status) if status.code == Some(0) => {}
+            Ok(status) if !apply && status.code == Some(1) => wiring.pending(
+                env.err,
+                format!("lock of {} is stale; run dx generate --apply", set.name),
+            ),
+            Ok(status) => wiring.failed(
+                env.err,
+                format!(
+                    "lock of {} not {}: {} exited {}",
+                    set.name,
+                    if apply { "written" } else { "checked" },
+                    set.resolver,
+                    status
+                        .code
+                        .map_or_else(|| "by signal".to_owned(), |code| code.to_string())
+                ),
+            ),
+            Err(error) => wiring.failed(
+                env.err,
+                format!(
+                    "lock of {} not checked: {}: {error}",
+                    set.name, set.resolver
+                ),
+            ),
+        }
+    }
 }
 
 /// Writes the `pnpm-workspace.yaml` with `allowBuilds` that `rules_js` requires beside each wired pnpm lock.
@@ -131,7 +203,8 @@ fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring
             );
             continue;
         }
-        match std::fs::write(workspace.join(&path), dx_adopt::PNPM_SETTINGS) {
+        match dx_atomic_fs::write_atomic(&workspace.join(&path), dx_adopt::PNPM_SETTINGS.as_bytes())
+        {
             Ok(()) => wiring.info(err, format!("wrote {path}")),
             Err(error) => wiring.failed(err, format!("{path} not created: {error}")),
         }
@@ -170,13 +243,13 @@ fn wire_avro_cpp(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mu
 
 fn lock_for(manifest: &str) -> &'static str {
     if manifest == manifest_of(Ecosystem::Cargo) {
-        lock_of(Ecosystem::Cargo)
+        Ecosystem::Cargo.lockfile()
     } else if manifest == manifest_of(Ecosystem::Npm) {
-        lock_of(Ecosystem::Npm)
+        Ecosystem::Npm.lockfile()
     } else if let Some(lock) = resolver_hub(manifest).and_then(|hub| hub.lock.as_deref()) {
         lock
     } else {
-        lock_of(Ecosystem::Uv)
+        Ecosystem::Uv.lockfile()
     }
 }
 
@@ -222,10 +295,6 @@ fn manifest_of(ecosystem: Ecosystem) -> &'static str {
     ecosystem.manifest_name()
 }
 
-fn lock_of(ecosystem: Ecosystem) -> &'static str {
-    ecosystem.lockfiles().first().map_or("", String::as_str)
-}
-
 fn has_root_build(workspace: &Path) -> bool {
     workspace.join("BUILD").exists() || workspace.join("BUILD.bazel").exists()
 }
@@ -239,18 +308,22 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wirin
         &request.bazel_startup_options,
         false,
     );
-    let argv =
-        match dx_update::backend::uv_lock_argv(lock_of(Ecosystem::Uv), ".", &closure, false, false)
-        {
-            Ok(argv) => argv,
-            Err(error) => {
-                wiring.failed(
-                    env.err,
-                    format!("{} not created: {error}", lock_of(Ecosystem::Uv)),
-                );
-                return;
-            }
-        };
+    let argv = match dx_update::backend::uv_lock_argv(
+        Ecosystem::Uv.lockfile(),
+        ".",
+        &closure,
+        false,
+        false,
+    ) {
+        Ok(argv) => argv,
+        Err(error) => {
+            wiring.failed(
+                env.err,
+                format!("{} not created: {error}", Ecosystem::Uv.lockfile()),
+            );
+            return;
+        }
+    };
     let host = super::update::windows_env();
     let pairs: Vec<(&str, &str)> = host
         .iter()
@@ -260,7 +333,7 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wirin
         env.workspace,
         env.err,
         wiring,
-        lock_of(Ecosystem::Uv),
+        Ecosystem::Uv.lockfile(),
         "uv lock",
         env.runner.run_hermetic(&argv, env.workspace, &pairs),
     );
@@ -281,7 +354,7 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wir
     let Some(dir) = env.workspace.to_str() else {
         wiring.failed(
             env.err,
-            format!("{} not created: non-UTF-8 path", lock_of(Ecosystem::Npm)),
+            format!("{} not created: non-UTF-8 path", Ecosystem::Npm.lockfile()),
         );
         return;
     };
@@ -292,7 +365,7 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wir
         env.workspace,
         env.err,
         wiring,
-        lock_of(Ecosystem::Npm),
+        Ecosystem::Npm.lockfile(),
         "pnpm install",
         env.runner.run(&argv, env.workspace, &[]),
     );
@@ -311,7 +384,7 @@ fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wi
         env.workspace,
         env.err,
         wiring,
-        lock_of(Ecosystem::Cargo),
+        Ecosystem::Cargo.lockfile(),
         "bazel fetch",
         env.runner.run(&argv, env.workspace, &pairs),
     );
@@ -411,13 +484,13 @@ impl Wiring {
     }
 
     fn say(&mut self, err: &mut dyn Write, notice: dx_output::NoticeEvent) {
-        writeln!(err, "dx: {}", notice.message).ok();
+        dx_output::write_stderr(err, format_args!("dx: {}\n", notice.message));
         self.notices.push(notice);
     }
 
-    /// A check with edits left to make, or an apply that could not make one, is not clean.
+    /// A step that failed, or a check with edits left to make, is not clean.
     fn dirty(&self, apply: bool) -> bool {
-        if apply { self.failed } else { self.pending }
+        self.failed || (!apply && self.pending)
     }
 }
 
@@ -472,7 +545,7 @@ fn run_generate_request(
         Err(error) => return resolve_failed(request.common.output, env.out, env.err, &error),
     };
     let apply = request.applies();
-    let mut wiring = wire_module(request, &mut env);
+    let mut wiring = wire_module(request, &mut env, &resolved);
     let Generated {
         bazel_code,
         projected,
@@ -523,6 +596,12 @@ fn run_generate_request(
     code
 }
 
+/// Gazelle writes the workspace itself only when every path is writable; otherwise it
+/// runs as a check and [`apply_within`] writes the writable part of its result.
+fn gazelle_writes(request: &GenerateRequest) -> bool {
+    request.applies() && request.writable.is_none()
+}
+
 struct Generated {
     bazel_code: i32,
     projected: ProjectedManifest,
@@ -535,10 +614,10 @@ fn launch_generate(
     kind: &mut PhaseKind,
     resolved: &ResolvedScope,
 ) -> Result<Generated, i32> {
-    let apply = request.applies();
+    let apply = gazelle_writes(request);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
-    std::fs::remove_file(&patch).ok();
+    dx_atomic_fs::discard_file(&patch);
     let plan = match plan_generate(
         resolved,
         &request.bazel_options,
@@ -559,7 +638,12 @@ fn launch_generate(
     *kind = PhaseKind::Tool;
     let mode = if apply { "default" } else { "check" };
     if request.common.output == OutputMode::Json {
-        emit_built(env.out, command_started("generate", mode))?;
+        let requested = if request.applies() {
+            "default"
+        } else {
+            "check"
+        };
+        emit_built(env.out, command_started("generate", requested))?;
     } else if request.chatty() {
         check_stdout_write(writeln!(env.out, "{}", plan.summary))?;
     }
@@ -582,14 +666,14 @@ fn launch_generate(
     ) {
         Ok(code) => code,
         Err(exit) => {
-            std::fs::remove_file(&intended).ok();
-            std::fs::remove_file(&patch).ok();
+            dx_atomic_fs::discard_file(&intended);
+            dx_atomic_fs::discard_file(&patch);
             *kind = PhaseKind::Host;
             return Err(exit);
         }
     };
     let patch_written = std::fs::metadata(&patch).is_ok_and(|meta| meta.len() > 0);
-    std::fs::remove_file(&patch).ok();
+    dx_atomic_fs::discard_file(&patch);
     read_generated(request, env, kind, &intended, bazel_code, patch_written)
 }
 
@@ -601,7 +685,7 @@ fn read_generated(
     bazel_code: i32,
     patch_written: bool,
 ) -> Result<Generated, i32> {
-    let apply = request.applies();
+    let apply = gazelle_writes(request);
     let Some(witness) = std::fs::read(intended).ok() else {
         if bazel_code != 0 {
             *kind = PhaseKind::from_bazel_exit(bazel_code, false);
@@ -627,6 +711,12 @@ fn read_generated(
         check: !apply,
         bazel_code,
         patch_written,
+    })
+    .map(|mut finalized| {
+        if let (true, Some(writable)) = (request.applies(), &request.writable) {
+            apply_within(&mut finalized.manifest, env.workspace, writable);
+        }
+        finalized
     })
     .and_then(|finalized| {
         project(&finalized.manifest)
@@ -755,7 +845,7 @@ fn emit_generate_report(
             }
         }
         for line in refused_lines(projected) {
-            writeln!(env.err, "{line}").ok();
+            dx_output::write_stderr(env.err, format_args!("{line}\n"));
         }
     }
     Ok(())
@@ -845,7 +935,7 @@ mod tests {
     fn lock_workspace(name: &str, mode: &str) -> Harness {
         let mut harness = Harness::new(name);
         harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
-        harness.write_source(lock_of(Ecosystem::Npm), "");
+        harness.write_source(Ecosystem::Npm.lockfile(), "");
         harness.write_source(
             manifest_of(Ecosystem::Npm),
             "{\"dependencies\":{\"left-pad\":\"1.3.0\"}}",
@@ -861,7 +951,7 @@ mod tests {
         assert_eq!(code, 0, "{out}{err}");
         let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert!(
-            module.contains(&format!("pnpm_lock = \"//:{}\"", lock_of(Ecosystem::Npm))),
+            module.contains(&format!("pnpm_lock = \"//:{}\"", Ecosystem::Npm.lockfile())),
             "{module}"
         );
         let settings = std::fs::read_to_string(harness.workspace.join("pnpm-workspace.yaml"))
@@ -906,7 +996,7 @@ mod tests {
         assert!(
             module.contains(&format!(
                 "cargo_lockfile = \"//:{}\"",
-                lock_of(Ecosystem::Cargo)
+                Ecosystem::Cargo.lockfile()
             )),
             "{module}"
         );
@@ -923,7 +1013,7 @@ mod tests {
         assert!(
             err.contains(&format!(
                 "dx: {} is still empty after bazel fetch; run dx generate --apply again",
-                lock_of(Ecosystem::Cargo)
+                Ecosystem::Cargo.lockfile()
             )),
             "{err}"
         );
@@ -955,6 +1045,111 @@ mod tests {
         );
     }
 
+    /// A workspace with one composer set in `php` whose manifest is there.
+    fn composer_set(name: &str) -> (Harness, &'static dx_families::Hub) {
+        let mut harness = Harness::new(name);
+        let hub = dx_families::hub("composer").expect("setup.hubs entry composer");
+        harness.write_source(
+            "MODULE.bazel",
+            &format!(
+                "{e} = use_extension(\"{x}\", \"{e}\")\n{e}.{tag}(name = \"web\", lock = \"//php:{lock}\")\n",
+                e = hub.ecosystem,
+                x = hub.extension,
+                tag = hub.tag.as_deref().expect("tag"),
+                lock = hub.lock.as_deref().expect("lock"),
+            ),
+        );
+        harness.write_source(&format!("php/{}", hub.manifest), "{}");
+        harness.write_source("BUILD.bazel", "");
+        harness.intended = Some(intended_witness("check", true, "", ""));
+        harness.generate_code = Some(0);
+        (harness, hub)
+    }
+
+    fn resolver_runs(harness: &Harness, resolver: &str) -> Vec<Vec<String>> {
+        harness
+            .build_argv
+            .borrow()
+            .iter()
+            .filter(|argv| argv.iter().any(|arg| arg == resolver))
+            .cloned()
+            .collect()
+    }
+
+    #[test]
+    fn check_compares_a_current_lock_and_fetches_nothing() {
+        let (harness, hub) = composer_set("check-lock-current");
+        let (code, out, err) = harness.run(&["check"]);
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        let runs = resolver_runs(&harness, resolver);
+        assert_eq!(runs.len(), 1, "{runs:?}\n{out}{err}");
+        let dir = harness.workspace.join("php");
+        assert!(
+            runs[0].ends_with(&[
+                "--".to_owned(),
+                "--dir".to_owned(),
+                dir.to_string_lossy().into_owned(),
+                "--check".to_owned()
+            ]),
+            "{runs:?}"
+        );
+        assert!(!err.contains("lock of web"), "{err}");
+        assert!(
+            !harness
+                .build_argv
+                .borrow()
+                .iter()
+                .any(|argv| argv.iter().any(|arg| arg == "fetch")),
+            "{code}"
+        );
+    }
+
+    #[test]
+    fn check_fails_on_a_stale_lock_and_names_the_set() {
+        let (mut harness, hub) = composer_set("check-lock-stale");
+        harness.app_code = Some(1);
+        let (code, out, err) = harness.run(&["check"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("dx: lock of web is stale; run dx generate --apply"),
+            "{err}"
+        );
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        assert_eq!(resolver_runs(&harness, resolver).len(), 1);
+    }
+
+    #[test]
+    fn generate_skips_a_lock_set_outside_the_scope() {
+        let (harness, hub) = composer_set("generate-lock-scoped");
+        harness.write_source("web/BUILD.bazel", "");
+        harness.write_source("php/BUILD.bazel", "");
+        let resolver = hub.resolver.as_deref().expect("resolver");
+        let (_, out, err) = harness.run(&["generate", "//web:all"]);
+        assert!(resolver_runs(&harness, resolver).is_empty(), "{out}{err}");
+        let (_, out, err) = harness.run(&["generate", "//php:all"]);
+        assert_eq!(resolver_runs(&harness, resolver).len(), 1, "{out}{err}");
+    }
+
+    #[test]
+    fn generate_apply_runs_the_resolver_without_check() {
+        let (mut harness, hub) = composer_set("generate-lock-apply");
+        harness.intended = Some(intended_witness("default", true, "", ""));
+        let (_, out, err) = harness.run(&["generate", "--apply"]);
+        let runs = resolver_runs(&harness, hub.resolver.as_deref().expect("resolver"));
+        assert_eq!(runs.len(), 1, "{out}{err}");
+        assert!(!runs[0].iter().any(|arg| arg == "--check"), "{runs:?}");
+    }
+
+    #[test]
+    fn a_resolver_that_breaks_fails_the_check() {
+        let (mut harness, _) = composer_set("generate-lock-broken");
+        harness.app_code = Some(2);
+        let (code, out, err) = harness.run(&["generate"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(err.contains("lock of web not checked:"), "{err}");
+        assert!(err.contains("exited 2"), "{err}");
+    }
+
     #[test]
     fn generate_check_says_which_lock_it_would_create() {
         let harness = cargo_workspace("generate-seed-check", "check");
@@ -963,16 +1158,16 @@ mod tests {
         assert!(
             err.contains(&format!(
                 "dx: would create {}; run dx generate --apply",
-                lock_of(Ecosystem::Cargo)
+                Ecosystem::Cargo.lockfile()
             )),
             "{err}"
         );
-        assert!(!harness.workspace.join(lock_of(Ecosystem::Cargo)).exists());
+        assert!(!harness.workspace.join(Ecosystem::Cargo.lockfile()).exists());
         let (code, out, _) = harness.run(&["generate", "--output=json"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("\"code\":\"wiring_pending\""), "{out}");
         assert!(
-            out.contains(&format!("would create {}", lock_of(Ecosystem::Cargo))),
+            out.contains(&format!("would create {}", Ecosystem::Cargo.lockfile())),
             "{out}"
         );
         let repo = format!("--repo=@{}", cargo_hub());
@@ -990,16 +1185,16 @@ mod tests {
         let mut harness = Harness::new("generate-seed-full");
         harness.write_source("MODULE.bazel", "module(name = \"app\")\n");
         harness.write_source(manifest_of(Ecosystem::Cargo), "[package]\nname = \"app\"\n");
-        harness.write_source(lock_of(Ecosystem::Cargo), "version = 4\n");
+        harness.write_source(Ecosystem::Cargo.lockfile(), "version = 4\n");
         harness.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(err.contains("run dx init --apply"), "{err}");
         assert!(
-            !err.contains(&format!("{} not written", lock_of(Ecosystem::Cargo))),
+            !err.contains(&format!("{} not written", Ecosystem::Cargo.lockfile())),
             "{err}"
         );
-        let lock = std::fs::read_to_string(harness.workspace.join(lock_of(Ecosystem::Cargo)))
+        let lock = std::fs::read_to_string(harness.workspace.join(Ecosystem::Cargo.lockfile()))
             .expect("read");
         assert_eq!(lock, "version = 4\n");
     }
@@ -1013,10 +1208,10 @@ mod tests {
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 1, "{out}{err}");
         assert!(
-            err.contains(&format!("dx: {} not created:", lock_of(Ecosystem::Uv))),
+            err.contains(&format!("dx: {} not created:", Ecosystem::Uv.lockfile())),
             "{err}"
         );
-        assert!(!harness.workspace.join(lock_of(Ecosystem::Uv)).exists());
+        assert!(!harness.workspace.join(Ecosystem::Uv.lockfile()).exists());
     }
 
     #[test]

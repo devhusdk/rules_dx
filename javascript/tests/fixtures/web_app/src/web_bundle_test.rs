@@ -1,4 +1,8 @@
 //! Asserts the opt-in bundle layout, its settings, and its serving.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
@@ -80,7 +84,7 @@ fn bundle_serves_over_http() {
     std::thread::spawn(move || {
         let mut line = String::new();
         let outcome = BufReader::new(stdout).read_line(&mut line);
-        let _ = done.send((outcome, line));
+        let _: Result<(), _> = done.send((outcome, line));
     });
     let (outcome, line) = ready
         .recv_timeout(Duration::from_secs(30))

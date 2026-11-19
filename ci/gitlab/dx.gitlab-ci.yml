@@ -17,7 +17,7 @@ spec:
       type: boolean
       default: false
     deploy_dry_run:
-      description: "Run dx deploy, the dry run, on every dx_deployment tagged release. Merge requests with affected_on_pr dry-run only the deployments the change reaches."
+      description: "Run dx deploy, the dry run, on every deployment tagged release. Merge requests with affected_on_pr dry-run only the deployments the change reaches."
       type: boolean
       default: false
     link_check_online:

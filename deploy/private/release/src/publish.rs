@@ -1,7 +1,10 @@
+use std::fmt;
 use std::path::{Path, PathBuf};
 
-use super::cell::{self, CellOutcome, Expected};
-use super::{OpRecord, OpState, notice_verify_files, sbom_verify_files};
+use dx_atomic_fs::path_io::{self, PathIoError};
+
+use super::cell::{self, CellError, CellOutcome, Expected};
+use super::{NoticeError, OpRecord, OpState, SbomError, notice_verify_files, sbom_verify_files};
 
 pub const REPORT_SCHEMA: &str = "publish-dry-run/v3";
 
@@ -39,26 +42,97 @@ pub struct PublishDryRunOutcome {
     pub verification: String,
 }
 
-fn read_text(path: &Path, what: &str) -> Result<String, String> {
-    std::fs::read_to_string(path).map_err(|error| {
-        format!(
-            "publish dry-run: cannot read {what} {}: {error}",
-            path.display()
-        )
-    })
+/// A failed publish dry-run check.
+#[derive(Debug)]
+pub enum PublishError {
+    Read {
+        what: &'static str,
+        source: PathIoError,
+    },
+    Missing {
+        what: &'static str,
+        needle: &'static str,
+    },
+    SpdxJson(serde_json::Error),
+    SpdxNoDigest,
+    SpdxEmptyDigest,
+    Matrix(CellError),
+    // #13874 retypes this
+    Sbom(SbomError),
+    // #13874 retypes this
+    Notice(NoticeError),
+    NoBcrLog,
+    Render(dx_fingerprint::FingerprintError),
 }
 
-fn require_contains(haystack: &str, needle: &str, what: &str) -> Result<(), String> {
+impl fmt::Display for PublishError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read {
+                what,
+                source:
+                    PathIoError::Read { path, source }
+                    | PathIoError::Write { path, source }
+                    | PathIoError::List { path, source }
+                    | PathIoError::Create { path, source },
+            } => write!(
+                f,
+                "publish dry-run: cannot read {what} {}: {source}",
+                path.display()
+            ),
+            Self::Missing { what, needle } => {
+                write!(f, "publish dry-run: {what} missing {needle:?}")
+            }
+            Self::SpdxJson(source) => write!(f, "publish dry-run: SBOM SPDX is not JSON: {source}"),
+            Self::SpdxNoDigest => f.write_str(
+                "publish dry-run: SBOM SPDX packages[0].checksums[0].checksumValue is missing",
+            ),
+            Self::SpdxEmptyDigest => f.write_str("publish dry-run: SBOM subject digest is empty"),
+            Self::Matrix(source) => write!(f, "publish dry-run: {source}"),
+            Self::Sbom(source) => write!(f, "publish dry-run: SBOM validation failed: {source}"),
+            Self::Notice(source) => {
+                write!(f, "publish dry-run: NOTICE validation failed: {source}")
+            }
+            Self::NoBcrLog => f.write_str("publish dry-run: no BCR dry-run log"),
+            Self::Render(source) => write!(f, "publish dry-run: cannot render JSON: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for PublishError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read { source, .. } => Some(source),
+            Self::SpdxJson(source) => Some(source),
+            Self::Matrix(source) => Some(source),
+            Self::Sbom(source) => Some(source),
+            Self::Notice(source) => Some(source),
+            Self::Render(source) => Some(source),
+            Self::Missing { .. } | Self::SpdxNoDigest | Self::SpdxEmptyDigest | Self::NoBcrLog => {
+                None
+            }
+        }
+    }
+}
+
+fn read_text(path: &Path, what: &'static str) -> Result<String, PublishError> {
+    path_io::read_to_string(path).map_err(|source| PublishError::Read { what, source })
+}
+
+fn require_contains(
+    haystack: &str,
+    needle: &'static str,
+    what: &'static str,
+) -> Result<(), PublishError> {
     if haystack.contains(needle) {
         return Ok(());
     }
-    Err(format!("publish dry-run: {what} missing {needle:?}"))
+    Err(PublishError::Missing { what, needle })
 }
 
-fn sbom_subject_digest(spdx_path: &Path) -> Result<String, String> {
+fn sbom_subject_digest(spdx_path: &Path) -> Result<String, PublishError> {
     let text = read_text(spdx_path, "SBOM SPDX")?;
-    let value: serde_json::Value = serde_json::from_str(&text)
-        .map_err(|error| format!("publish dry-run: SBOM SPDX is not JSON: {error}"))?;
+    let value: serde_json::Value = serde_json::from_str(&text).map_err(PublishError::SpdxJson)?;
     let digest = value
         .get("packages")
         .and_then(|packages| packages.as_array())
@@ -68,12 +142,9 @@ fn sbom_subject_digest(spdx_path: &Path) -> Result<String, String> {
         .and_then(|checksums| checksums.first())
         .and_then(|checksum| checksum.get("checksumValue"))
         .and_then(|digest| digest.as_str())
-        .ok_or_else(|| {
-            "publish dry-run: SBOM SPDX packages[0].checksums[0].checksumValue is missing"
-                .to_owned()
-        })?;
+        .ok_or(PublishError::SpdxNoDigest)?;
     if digest.is_empty() {
-        return Err("publish dry-run: SBOM subject digest is empty".to_owned());
+        return Err(PublishError::SpdxEmptyDigest);
     }
     Ok(digest.to_owned())
 }
@@ -129,10 +200,11 @@ fn cell_entry(outcome: &CellOutcome) -> serde_json::Value {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryRunOutcome, String> {
+pub fn publish_dry_run_check(
+    inputs: &PublishDryRunInputs,
+) -> Result<PublishDryRunOutcome, PublishError> {
     let matrix_text = read_text(&inputs.matrix, "release matrix")?;
-    let matrix =
-        cell::parse_matrix(&matrix_text).map_err(|error| format!("publish dry-run: {error}"))?;
+    let matrix = cell::parse_matrix(&matrix_text).map_err(PublishError::Matrix)?;
     let mut verification =
         cell::verify_each(&matrix, &inputs.records, &inputs.archives, &inputs.expected);
     for outcome in &mut verification.cells {
@@ -148,19 +220,17 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
         &inputs.provenance,
         super::PROVENANCE_BUILDER_RELEASE,
     )
-    .map_err(|error| format!("publish dry-run: SBOM validation failed: {error}"))?;
+    .map_err(PublishError::Sbom)?;
     notice_verify_files(
         &inputs.notice,
         &inputs.notice_manifest,
         &inputs.notice_texts,
     )
-    .map_err(|error| format!("publish dry-run: NOTICE validation failed: {error}"))?;
+    .map_err(PublishError::Notice)?;
     check_dry_run_logs(inputs)?;
     let sbom_digest = sbom_subject_digest(&inputs.spdx)?;
-    let report = render_dry_run_report(inputs, &verification, &sbom_digest);
-    if report.is_empty() {
-        return Err("publish dry-run: rendered report is empty".to_owned());
-    }
+    let report =
+        render_dry_run_report(inputs, &verification, &sbom_digest).map_err(PublishError::Render)?;
     Ok(PublishDryRunOutcome {
         report,
         sbom_digest,
@@ -169,7 +239,7 @@ pub fn publish_dry_run_check(inputs: &PublishDryRunInputs) -> Result<PublishDryR
     })
 }
 
-fn check_dry_run_logs(inputs: &PublishDryRunInputs) -> Result<(), String> {
+fn check_dry_run_logs(inputs: &PublishDryRunInputs) -> Result<(), PublishError> {
     let artifacts_list = read_text(&inputs.release_artifacts_list, "release artifacts list")?;
     for required in [
         "license.toml",
@@ -194,7 +264,7 @@ fn check_dry_run_logs(inputs: &PublishDryRunInputs) -> Result<(), String> {
     )?;
     require_contains(&signing_log, "notice_demo.NOTICE", "signing dry-run log")?;
     if inputs.bcr_logs.is_empty() {
-        return Err("publish dry-run: no BCR dry-run log".to_owned());
+        return Err(PublishError::NoBcrLog);
     }
     for path in &inputs.bcr_logs {
         let bcr_log = read_text(path, "BCR dry-run log")?;
@@ -228,7 +298,7 @@ fn render_dry_run_report(
     inputs: &PublishDryRunInputs,
     verification: &cell::Verification,
     sbom_digest: &str,
-) -> String {
+) -> Result<String, dx_fingerprint::FingerprintError> {
     let artifacts: Vec<serde_json::Value> = verification
         .cells
         .iter()
@@ -245,7 +315,7 @@ fn render_dry_run_report(
         .collect();
     let release_matrix: Vec<serde_json::Value> =
         verification.cells.iter().map(cell_entry).collect();
-    super::render_pretty(&serde_json::json!({
+    crate::pretty_json(&serde_json::json!({
         "approved": inputs.approve,
         "artifacts": artifacts,
         "bcr_shape": {
@@ -398,10 +468,12 @@ mod tests {
         let matrix = write_text(dir, "release_matrix.json", &matrix_json(&release.matrix));
         let sbom_artifact = write_bytes(dir, "demo.tar.gz", b"demo artifact\n");
         let digest = dx_digest::sha256_file_hex(&sbom_artifact).expect("digest demo");
-        let spdx_text = crate::render_spdx("demo.tar.gz", &digest, "dx", "rules_dx");
+        let spdx_text =
+            crate::render_spdx("demo.tar.gz", &digest, "dx", "rules_dx").expect("render");
         let spdx = write_text(dir, "sbom_demo.spdx.json", &spdx_text);
         let prov_text =
-            crate::render_provenance("demo.tar.gz", &digest, crate::PROVENANCE_BUILDER_RELEASE);
+            crate::render_provenance("demo.tar.gz", &digest, crate::PROVENANCE_BUILDER_RELEASE)
+                .expect("render");
         let provenance = write_text(dir, "sbom_demo.provenance.json", &prov_text);
         let (notice_manifest, notice_texts) = notice_fixture(dir);
         let joined = crate::join_notice_entries(
@@ -671,10 +743,14 @@ mod tests {
         let release = release();
         let mut inputs = valid_inputs(dir.path(), &release);
         let zeros = "0".repeat(64);
-        let bad = crate::render_spdx("demo.tar.gz", &zeros, "dx", "rules_dx");
+        let bad = crate::render_spdx("demo.tar.gz", &zeros, "dx", "rules_dx").expect("render");
         inputs.spdx = write_text(dir.path(), "bad.spdx.json", &bad);
         let error = publish_dry_run_check(&inputs).expect_err("mismatched SBOM must fail");
-        assert!(error.contains("SBOM validation failed"), "got {error}");
+        assert!(
+            error.to_string().contains("SBOM validation failed"),
+            "got {error}"
+        );
+        assert!(matches!(error, PublishError::Sbom(_)), "got {error:?}");
     }
 
     #[test]
@@ -684,7 +760,11 @@ mod tests {
         let mut inputs = valid_inputs(dir.path(), &release);
         inputs.spdx = write_text(dir.path(), "broken.spdx.json", "{not json");
         let error = publish_dry_run_check(&inputs).expect_err("malformed SPDX must fail");
-        assert!(error.contains("SBOM validation failed"), "got {error}");
+        assert!(
+            error.to_string().contains("SBOM validation failed"),
+            "got {error}"
+        );
+        assert!(matches!(error, PublishError::Sbom(_)), "got {error:?}");
     }
 
     #[test]
@@ -694,10 +774,15 @@ mod tests {
         let mut inputs = valid_inputs(dir.path(), &release);
         let digest = dx_digest::sha256_file_hex(&inputs.sbom_artifact).expect("digest");
         let forged =
-            crate::render_provenance("demo.tar.gz", &digest, "https://example.test/builder");
+            crate::render_provenance("demo.tar.gz", &digest, "https://example.test/builder")
+                .expect("render");
         inputs.provenance = write_text(dir.path(), "forged.prov.json", &forged);
         let error = publish_dry_run_check(&inputs).expect_err("forged builder must fail");
-        assert!(error.contains("SBOM validation failed"), "got {error}");
+        assert!(
+            error.to_string().contains("SBOM validation failed"),
+            "got {error}"
+        );
+        assert!(matches!(error, PublishError::Sbom(_)), "got {error:?}");
     }
 
     #[test]
@@ -709,7 +794,11 @@ mod tests {
         let redacted = text.replace("Fixture words for demo-lib-a", "REDACTED");
         inputs.notice = write_text(dir.path(), "redacted.NOTICE", &redacted);
         let error = publish_dry_run_check(&inputs).expect_err("redacted NOTICE must fail");
-        assert!(error.contains("NOTICE validation failed"), "got {error}");
+        assert!(
+            error.to_string().contains("NOTICE validation failed"),
+            "got {error}"
+        );
+        assert!(matches!(error, PublishError::Notice(_)), "got {error:?}");
     }
 
     #[test]
@@ -723,7 +812,20 @@ mod tests {
             "license.toml\nsbom_demo.spdx.json\n",
         );
         let error = publish_dry_run_check(&inputs).expect_err("short list must fail");
-        assert!(error.contains("release artifacts list"), "got {error}");
+        assert!(
+            error.to_string().contains("release artifacts list"),
+            "got {error}"
+        );
+        assert!(
+            matches!(
+                error,
+                PublishError::Missing {
+                    what: "release artifacts list",
+                    ..
+                }
+            ),
+            "got {error:?}"
+        );
     }
 
     #[test]
@@ -734,7 +836,17 @@ mod tests {
         let submitted = write_text(dir.path(), "bcr-unmarked.log", "submitted\n");
         inputs.bcr_logs.push(submitted);
         let error = publish_dry_run_check(&inputs).expect_err("unmarked BCR log must fail");
-        assert!(error.contains("BCR dry-run log"), "got {error}");
+        assert!(error.to_string().contains("BCR dry-run log"), "got {error}");
+        assert!(
+            matches!(
+                error,
+                PublishError::Missing {
+                    what: "BCR dry-run log",
+                    ..
+                }
+            ),
+            "got {error:?}"
+        );
     }
 
     #[test]
@@ -744,7 +856,11 @@ mod tests {
         let mut inputs = valid_inputs(dir.path(), &release);
         inputs.bcr_logs.clear();
         let error = publish_dry_run_check(&inputs).expect_err("no BCR log must fail");
-        assert!(error.contains("no BCR dry-run log"), "got {error}");
+        assert!(
+            error.to_string().contains("no BCR dry-run log"),
+            "got {error}"
+        );
+        assert!(matches!(error, PublishError::NoBcrLog), "got {error:?}");
     }
 
     #[test]
@@ -754,7 +870,20 @@ mod tests {
         let mut inputs = valid_inputs(dir.path(), &release);
         inputs.draft_log = write_text(dir.path(), "draft.log", "--draft --verify-tag\n");
         let error = publish_dry_run_check(&inputs).expect_err("draft without placeholder fails");
-        assert!(error.contains("draft dry-run log"), "got {error}");
+        assert!(
+            error.to_string().contains("draft dry-run log"),
+            "got {error}"
+        );
+        assert!(
+            matches!(
+                error,
+                PublishError::Missing {
+                    what: "draft dry-run log",
+                    ..
+                }
+            ),
+            "got {error:?}"
+        );
     }
 
     #[test]
@@ -769,7 +898,20 @@ mod tests {
         );
         let error =
             publish_dry_run_check(&inputs).expect_err("draft without publishing nothing fails");
-        assert!(error.contains("publishing nothing"), "got {error}");
+        assert!(
+            error.to_string().contains("publishing nothing"),
+            "got {error}"
+        );
+        assert!(
+            matches!(
+                error,
+                PublishError::Missing {
+                    needle: "publishing nothing",
+                    ..
+                }
+            ),
+            "got {error:?}"
+        );
     }
 
     #[test]
@@ -783,7 +925,93 @@ mod tests {
             "https://tuf-repo-cdn.sigstore.dev\nsbom_demo.spdx.json\nsbom_demo.provenance.json\nnotice_demo.NOTICE\n",
         );
         let error = publish_dry_run_check(&inputs).expect_err("signing without cosign fails");
-        assert!(error.contains("signing dry-run log"), "got {error}");
+        assert!(
+            error.to_string().contains("signing dry-run log"),
+            "got {error}"
+        );
+        assert!(
+            matches!(
+                error,
+                PublishError::Missing {
+                    what: "signing dry-run log",
+                    ..
+                }
+            ),
+            "got {error:?}"
+        );
+    }
+
+    #[test]
+    fn missing_matrix_is_a_read_error_with_a_source() {
+        let dir = scratch();
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
+        inputs.matrix = dir.path().join("absent-matrix.json");
+        let error = publish_dry_run_check(&inputs).expect_err("missing matrix must fail");
+        assert!(
+            error
+                .to_string()
+                .starts_with("publish dry-run: cannot read release matrix "),
+            "got {error}"
+        );
+        assert!(matches!(
+            error,
+            PublishError::Read {
+                what: "release matrix",
+                ..
+            }
+        ));
+        assert!(std::error::Error::source(&error).is_some());
+    }
+
+    #[test]
+    fn bad_matrix_json_is_a_matrix_error() {
+        let dir = scratch();
+        let release = release();
+        let mut inputs = valid_inputs(dir.path(), &release);
+        inputs.matrix = write_text(dir.path(), "bad-matrix.json", "{not json");
+        let error = publish_dry_run_check(&inputs).expect_err("bad matrix must fail");
+        assert!(
+            error
+                .to_string()
+                .starts_with("publish dry-run: release matrix: "),
+            "got {error}"
+        );
+        assert!(matches!(error, PublishError::Matrix(_)), "got {error:?}");
+    }
+
+    #[test]
+    fn sbom_subject_digest_errors_are_typed() {
+        let dir = scratch();
+        let bad = write_text(dir.path(), "bad.spdx.json", "{not json");
+        let error = sbom_subject_digest(&bad).expect_err("bad JSON");
+        assert!(matches!(error, PublishError::SpdxJson(_)), "got {error:?}");
+        assert!(
+            error
+                .to_string()
+                .starts_with("publish dry-run: SBOM SPDX is not JSON: ")
+        );
+        let empty = write_text(dir.path(), "empty.spdx.json", r#"{"packages":[]}"#);
+        let error = sbom_subject_digest(&empty).expect_err("no packages");
+        assert!(matches!(error, PublishError::SpdxNoDigest), "got {error:?}");
+        assert_eq!(
+            error.to_string(),
+            "publish dry-run: SBOM SPDX packages[0].checksums[0].checksumValue is missing"
+        );
+        let blank = write_text(
+            dir.path(),
+            "blank.spdx.json",
+            r#"{"packages":[{"checksums":[{"checksumValue":""}]}]}"#,
+        );
+        let error = sbom_subject_digest(&blank).expect_err("empty digest");
+        assert!(
+            matches!(error, PublishError::SpdxEmptyDigest),
+            "got {error:?}"
+        );
+        assert_eq!(
+            error.to_string(),
+            "publish dry-run: SBOM subject digest is empty"
+        );
     }
 
     #[test]

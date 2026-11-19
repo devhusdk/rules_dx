@@ -28,10 +28,19 @@ SHFMT_FORMAT_REMOTE = _qualified("shfmt", "format")
 # remotely only when every tool in it is listed here, see dx_stage_execution_requirements.
 REMOTE_QUALIFIED = [
     SHFMT_FORMAT_REMOTE,
+    _qualified("biome", "format"),
+    _qualified("biome", "lint"),
+    _qualified("buildifier", "format"),
+    _qualified("buildifier", "lint"),
+    _qualified("gersemi", "format"),
+    _qualified("jsonnetfmt", "format"),
     _qualified("keep_sorted", "lint"),
     _qualified("shellcheck", "lint"),
+    _qualified("stylua", "format"),
     _qualified("taplo", "format"),
     _qualified("typos", "lint"),
+    _qualified("typstyle", "format"),
+    _qualified("yamlfmt", "format"),
 ]
 
 def dx_is_local_only(requirements):

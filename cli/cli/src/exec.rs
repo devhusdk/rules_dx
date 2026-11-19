@@ -3,13 +3,11 @@ mod audit;
 mod auto_sync;
 mod bench;
 mod breaking_base;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
-mod build_failures;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
+#[cfg(test)]
+mod build_failures_tests;
 mod changed_coverage;
 mod check_build;
 mod clean;
-mod compiler_stderr;
 mod coverage_candidate;
 #[cfg(test)]
 mod current_dir_guard_tests;
@@ -20,8 +18,8 @@ mod deploy;
 mod docs;
 mod docs_index;
 mod dx_asset;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
-mod failure_reports;
+#[cfg(test)]
+mod failure_reports_tests;
 pub mod first_run;
 mod fuzz;
 mod generate;
@@ -35,41 +33,27 @@ mod managed_codegen;
 mod managed_env;
 mod managed_prepare;
 mod managed_staging;
-mod pinned_tool;
 pub mod preset_sync;
 mod profile_report;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_apply;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_emit;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_patch;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_reconcile;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_reports;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod quality_security;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod results;
 mod run;
-mod rustc_stderr;
 mod security_verify;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
-mod skipped_targets;
 mod staged;
 #[cfg(test)]
 mod startup_defaults_launcher_tests;
 mod sync_fingerprint;
 mod sync_prune;
 mod test_filter;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod test_reports;
 #[cfg(test)]
 pub(crate) mod test_support;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod umbrella;
 mod update;
 mod update_add_missing;
@@ -80,13 +64,12 @@ mod update_prune;
 mod update_unused;
 mod update_version;
 mod update_version_add;
-#[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 mod workflow;
 mod worktree;
 
 use dx_plan::args::{Command, Invocation};
 
-pub use audit::AUDIT_TODAY_ENV;
+pub use dx_exec_core::audit_policy::AUDIT_TODAY_ENV;
 pub use dx_exec_core::common::{ActionTally, Env, print_actions, print_cache_retries};
 pub use dx_exec_core::failure::{
     cancel, install_panic_events, install_panic_hint, set_usage_command, slot_stop,
@@ -332,7 +315,10 @@ fn init_then_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
     ) {
         Ok(_) => 0,
         Err(error) => {
-            writeln!(err, "dx: .dx not synced after generate: {error}").ok();
+            dx_output::write_stderr(
+                err,
+                format_args!("dx: .dx not synced after generate: {error}\n"),
+            );
             1
         }
     }
@@ -911,7 +897,7 @@ mod tests {
     fn remove_scratch_returns_and_keeps_a_directory() {
         let dir = super::test_support::temp_dir("remove-scratch-dir");
         let nested = dir.path().join("nested");
-        std::fs::create_dir(&nested).expect("create dir");
+        std::fs::create_dir_all(&nested).expect("create dir");
         super::remove_scratch(&nested);
         assert!(nested.is_dir());
     }

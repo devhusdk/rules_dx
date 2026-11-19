@@ -59,11 +59,14 @@ pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut d
                 list.extend(report.written.iter().chain(&report.deleted).cloned());
             }
             for warning in report.warnings {
-                writeln!(err, "{warning}").ok();
+                dx_output::write_stderr(err, format_args!("{warning}\n"));
             }
         }
         Err(error) => {
-            writeln!(err, "dx: warning: .dx not refreshed: {error}").ok();
+            dx_output::write_stderr(
+                err,
+                format_args!("dx: warning: .dx not refreshed: {error}\n"),
+            );
         }
     }
 }

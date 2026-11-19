@@ -1,0 +1,22 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//powershell:defs.bzl", "powershell_test")
+
+package(default_visibility = ["//visibility:private"])
+
+powershell_test(
+    name = "runfiles_test",
+    size = "small",
+    srcs = ["runfiles_test.ps1"],
+    data = ["Runfiles.Describe.ps1"],
+    deps = [
+        "//powershell:pester",
+        "//powershell:runfiles",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazelbuild/rules_rust#4437
 diff --git a/cargo/private/BUILD.bazel b/cargo/private/BUILD.bazel
 --- a/cargo/private/BUILD.bazel
 +++ b/cargo/private/BUILD.bazel

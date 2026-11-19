@@ -23,6 +23,7 @@ rust_library(
         "src/lang.rs",
         "src/lib.rs",
         "src/parse.rs",
+        "src/xml.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_lcov",
@@ -62,6 +63,8 @@ rust_test(
         "src/lang_tests.rs",
         "src/lib.rs",
         "src/parse.rs",
+        "src/xml.rs",
+        "src/xml_tests.rs",
     ],
     aliases = aliases(
         package_name = "cli/dx_lcov",
@@ -94,6 +97,7 @@ rust_binary(
     # keep
     deps = [
         ":dx_lcov",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/error:dx_error",
     ],
 )
@@ -111,7 +115,10 @@ rust_test(
         package_name = "cli/dx_lcov",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/error:dx_error"],
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/error:dx_error",
+    ],
 )
 
 real_source_target(

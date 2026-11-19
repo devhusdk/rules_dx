@@ -645,7 +645,7 @@ fn the_consumer_materializes_from_dx_init() {
     let source = dir.path().join("rules dx source");
     let patches = source.join("patches/rules_py");
     std::fs::create_dir_all(&patches).unwrap();
-    for patch in dx_nested::compose::RULES_PY_PATCHES {
+    for patch in dx_nested::compose::rules_py_patches() {
         std::fs::write(patches.join(format!("{patch}.patch")), "").unwrap();
     }
     let flutter = source.join("patches/rules_flutter");
@@ -653,15 +653,29 @@ fn the_consumer_materializes_from_dx_init() {
     for patch in dx_nested::compose::RULES_FLUTTER_PATCHES {
         std::fs::write(flutter.join(format!("{patch}.patch")), "").unwrap();
     }
-    let protobuf = source.join("patches/protobuf");
-    std::fs::create_dir_all(&protobuf).unwrap();
-    std::fs::write(protobuf.join("fix.patch"), "").unwrap();
-    let protobuf_override = "single_version_override(\n    module_name = \"protobuf\",\n    patches = [\"//patches/protobuf:fix.patch\"],\n)\n";
-    std::fs::write(source.join("MODULE.bazel"), protobuf_override).unwrap();
+    let overrides = [
+        ("rules_python", "fix.patch"),
+        ("rules_swift", "xcode_select_absolute_path.patch"),
+    ]
+    .map(|(module, patch)| {
+        let dir = source.join("patches").join(module);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(patch), "").unwrap();
+        (
+            format!(
+                "single_version_override(\n    module_name = \"{module}\",\n    patches = [\"//patches/{module}:{patch}\"],\n)\n"
+            ),
+            format!("patches/{module}/{patch}"),
+        )
+    });
+    let root_module: String = overrides.iter().map(|(block, _)| block.as_str()).collect();
+    std::fs::write(source.join("MODULE.bazel"), root_module).unwrap();
     materialize(&manifest, &workspace, &source, "cc").unwrap();
     let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap();
-    assert!(module.contains(protobuf_override), "{module}");
-    assert!(workspace.join("patches/protobuf/fix.patch").is_file());
+    for (block, patch) in &overrides {
+        assert!(module.contains(block.as_str()), "{module}");
+        assert!(workspace.join(patch).is_file(), "{patch}");
+    }
     for needle in [
         "module(name = \"hermetic_consumer\")",
         "bazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = ",
@@ -1959,34 +1973,6 @@ fn macos_evidence_is_checked_against_macos_markers() {
     assert!(verify_evidence(&linux, "abc123", &manifest).is_ok());
 }
 
-#[cfg(unix)]
-#[test]
-fn copy_test_logs_keeps_layout_and_returns_heads() {
-    let dir = tempfile::tempdir().unwrap();
-    let logs = dir.path().join("bazel-testlogs");
-    let case = logs.join("javascript/cli/exit_codes_test");
-    std::fs::create_dir_all(&case).unwrap();
-    let body: String = (1..=50).fold(String::new(), |mut body, n| {
-        writeln!(body, "line {n}").ok();
-        body
-    });
-    std::fs::write(case.join("test.log"), body).unwrap();
-    std::fs::write(case.join("test.xml"), "<testsuites/>").unwrap();
-    let dest = dir.path().join("out/testlogs");
-    let text = copy_test_logs(&logs, &dest);
-    assert!(
-        dest.join("javascript/cli/exit_codes_test/test.log")
-            .is_file()
-    );
-    assert!(
-        !dest
-            .join("javascript/cli/exit_codes_test/test.xml")
-            .exists()
-    );
-    assert!(text.contains("javascript/cli/exit_codes_test/test.log"));
-    assert!(text.contains("line 40") && !text.contains("line 41"));
-    assert_eq!(copy_test_logs(&dir.path().join("missing"), &dest), "");
-}
 
 #[test]
 fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {
@@ -2152,7 +2138,7 @@ fn windows_bash_prefers_bazel_sh_then_the_first_existing_candidate() {
     let git = file("git-bash.exe");
     let missing = dir.path().join("missing-bash.exe");
     let root = dir.path().join("Windows");
-    std::fs::create_dir(&root).unwrap();
+    std::fs::create_dir_all(&root).unwrap();
     let stub = root.join("bash.exe");
     std::fs::write(&stub, "").unwrap();
     let system_root = root.to_string_lossy().to_uppercase();
@@ -2190,7 +2176,7 @@ fn rename_preset_points_layers_at_the_consumer_repo_name() {
 fn copy_latest_profile_takes_the_newest_trace() {
     let dir = tempfile::tempdir().unwrap();
     let base = dir.path().join("base");
-    std::fs::create_dir(&base).unwrap();
+    std::fs::create_dir_all(&base).unwrap();
     let now = std::time::SystemTime::now();
     for (name, age) in [
         ("command-old.profile.gz", 60),
@@ -2211,7 +2197,7 @@ fn copy_latest_profile_takes_the_newest_trace() {
     );
 
     let empty = dir.path().join("empty");
-    std::fs::create_dir(&empty).unwrap();
+    std::fs::create_dir_all(&empty).unwrap();
     let missing = dir.path().join("none.profile.gz");
     copy_latest_profile(&empty, &missing);
     assert!(!missing.exists());

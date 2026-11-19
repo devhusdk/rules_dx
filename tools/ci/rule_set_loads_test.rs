@@ -1,12 +1,12 @@
 //! Rule-set files load only same-language files, a fixed set of external repos and `RULES_DX_ALLOW`, and nothing in `RULES_DX_ALLOW` reaches them, outside `tools/ci/rule_set_loads_allowlist.txt`.
 
-#[path = "guard_rules/scan.rs"]
-#[expect(dead_code, reason = "the test uses a subset of the shared module")]
-mod scan;
-
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use scan::{Counts, add, calls, is_skipped, is_starlark, masked};
+use dx_guard::allowlist::{Counts, REMOVE, add, render};
+use dx_guard::masked::{calls, masked};
+use dx_guard::snapshot::{is_skipped, tree};
+use dx_guard::starlark::is_bazel_file;
+use serde_json as _;
 use starlark_syntax as _;
 use yaml_serde as _;
 
@@ -60,7 +60,11 @@ const RULE_SETS: [(&str, &[&str]); 3] = [
 ];
 
 /// The only `rules_dx` files a rule-set file may load, as `//` labels.
-const RULES_DX_ALLOW: [&str; 3] = [
+const RULES_DX_ALLOW: [&str; 7] = [
+    "//core:entry.bzl",
+    "//core:fuzz_bench.bzl",
+    "//core:pins.bzl",
+    "//core:platform.bzl",
     "//core:wrapper.bzl",
     "//core/quality:sources.bzl",
     "//rust:defs.bzl",
@@ -169,7 +173,7 @@ fn scan_files(files: &[(String, String)]) -> (Counts, Vec<String>) {
         let Some(lang) = rule_set_of(path) else {
             continue;
         };
-        if !is_starlark(path) || is_skipped(path) {
+        if !is_bazel_file(path) || is_skipped(path) {
             continue;
         }
         for label in loads(path, text) {
@@ -217,10 +221,10 @@ fn scan_files(files: &[(String, String)]) -> (Counts, Vec<String>) {
 #[test]
 fn rule_set_files_load_only_what_the_allowlist_permits() {
     let root = dx_testing::source_snapshot();
-    let files = scan::tree(&root);
+    let files = tree(&root).unwrap_or_else(|error| panic!("{}: {error}", root.display()));
     let scanned = files
         .iter()
-        .filter(|(path, _)| rule_set_of(path).is_some() && is_starlark(path))
+        .filter(|(path, _)| rule_set_of(path).is_some() && is_bazel_file(path))
         .count();
     assert!(
         scanned >= MIN_FILES,
@@ -239,13 +243,13 @@ fn rule_set_files_load_only_what_the_allowlist_permits() {
     }
     let (found, details) = scan_files(&files);
     let allowlist = dx_testing::read_runfiles(ALLOWLIST);
-    let problems = scan::problems(&found, &allowlist, &KINDS, ALLOWLIST);
+    let problems = dx_guard::allowlist::check(&found, &allowlist, &KINDS, REMOVE);
     assert!(
         problems.is_empty(),
         "{}\n\nloads:\n{}\n\nwanted {ALLOWLIST}:\n{}",
         problems.join("\n"),
         details.join("\n"),
-        scan::render(&found)
+        render(&found)
     );
 }
 
@@ -266,10 +270,7 @@ fn a_disallowed_load_is_counted_and_named() {
         # load(\"//core:commented.bzl\", \"c\")\n\
         load(\"//tools:t.bzl\", \"t\")\n";
     let (counts, details) = scan_files(&fixture(&[("php/private/php.bzl", source)]));
-    assert_eq!(
-        scan::render(&counts),
-        "php/private/php.bzl foreign-load 2\n"
-    );
+    assert_eq!(render(&counts), "php/private/php.bzl foreign-load 2\n");
     assert_eq!(
         details,
         [
@@ -297,9 +298,10 @@ fn a_stale_allowlist_line_is_named() {
         "lua/defs.bzl",
         "load(\"//lua/private:lua.bzl\", \"l\")\n",
     )]));
-    let problems = scan::problems(&counts, "lua/defs.bzl foreign-load 1\n", &KINDS, ALLOWLIST);
+    let problems =
+        dx_guard::allowlist::check(&counts, "lua/defs.bzl foreign-load 1\n", &KINDS, REMOVE);
     assert_eq!(problems.len(), 1);
-    assert!(problems[0].contains("spare line `lua/defs.bzl foreign-load`"));
+    assert!(problems[0] == "lua/defs.bzl foreign-load 1: none left; delete the allowlist line");
 }
 
 #[test]
@@ -308,10 +310,10 @@ fn a_new_violation_is_named() {
         "qt/defs.bzl",
         "load(\"//core:x.bzl\", \"x\")\n",
     )]));
-    let problems = scan::problems(&counts, "", &KINDS, ALLOWLIST);
+    let problems = dx_guard::allowlist::check(&counts, "", &KINDS, REMOVE);
     assert_eq!(
         problems,
-        ["qt/defs.bzl has 1 foreign-load, tools/ci/rule_set_loads_allowlist.txt allows none"]
+        ["qt/defs.bzl foreign-load 1: 0 allowed; remove the new one"]
     );
 }
 
@@ -322,7 +324,7 @@ fn a_closure_that_reaches_a_rule_set_prints_the_chain() {
         ("core/x.bzl", "load(\"//lua/private:lua.bzl\", \"l\")\n"),
         ("lua/private/lua.bzl", ""),
     ]));
-    assert_eq!(scan::render(&counts), "rust/defs.bzl reaches-rule-set 1\n");
+    assert_eq!(render(&counts), "rust/defs.bzl reaches-rule-set 1\n");
     assert_eq!(
         details,
         ["rust/defs.bzl reaches rust/defs.bzl -> core/x.bzl -> lua/private/lua.bzl"]

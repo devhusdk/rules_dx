@@ -21,6 +21,12 @@ pub struct Options {
     pub config: String,
 }
 
+/// Runs `powershell_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("powershell_extract", usage(), parse, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
@@ -58,7 +64,7 @@ pub fn run(options: &Options) -> Result<(), String> {
             config: options.config.clone(),
         },
     )?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 #[cfg(test)]

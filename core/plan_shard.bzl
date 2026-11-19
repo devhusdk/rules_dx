@@ -113,11 +113,7 @@ def plan_shard_fingerprint(records, merge_fn, encode_record):
     return json.encode([encode_record(record) for record in merged])
 
 def plan_shard_aspect_inputs(target, ctx, direct_info, collected_info, output_group, attr_names):
-    """Collects direct plus transitive records and files for an aspect.
-
-    Everything stays a depset: an aspect runs at every node of the graph, so
-    flattening here would cost the size of the closure at each node.
-    """
+    """Collects direct plus transitive records and files for an aspect as depsets, never flattened."""
     direct_records = []
     if direct_info in target:
         direct_records = target[direct_info].direct

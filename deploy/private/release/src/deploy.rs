@@ -1,5 +1,6 @@
 //! Deploy bodies for `bcr_check` and `signed_release`, run by `release_deploy_tool`.
 
+use std::fmt;
 use std::io;
 use std::path::PathBuf;
 
@@ -41,19 +42,66 @@ pub enum ReleaseDeployConfig {
     Signing(SigningDeployConfig),
 }
 
+/// A failed `bcr_check` or `signed_release` deploy.
+#[derive(Debug)]
+pub enum DeployError {
+    BcrArgs,
+    SigningArgs,
+    Runfile {
+        prefix: &'static str,
+        rloc: String,
+        source: io::Error,
+    },
+    // #13874 retypes this
+    Bcr(String),
+    Signing(crate::SigningError),
+}
+
+impl fmt::Display for DeployError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BcrArgs => f.write_str(
+                "bcr: this deploy target takes no extra args; the submission is exactly the pinned inputs",
+            ),
+            Self::SigningArgs => f.write_str(
+                "signing: this deploy target takes at most an output directory; artifacts are pinned at analysis time",
+            ),
+            Self::Runfile { prefix, rloc, .. } => {
+                write!(f, "{prefix}: runfile not found for '{rloc}'")
+            }
+            Self::Bcr(message) => f.write_str(message),
+            Self::Signing(source) => source.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for DeployError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Runfile { source, .. } => Some(source),
+            Self::Signing(source) => Some(source),
+            Self::BcrArgs | Self::SigningArgs | Self::Bcr(_) => None,
+        }
+    }
+}
+
 type Resolve<'a> = &'a dyn Fn(&str) -> io::Result<PathBuf>;
 
 fn resolve_all(
-    prefix: &str,
+    prefix: &'static str,
     rlocs: &[String],
     resolve: Resolve<'_>,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, DeployError> {
     rlocs
         .iter()
         .map(|rloc| {
             resolve(rloc)
                 .map(|path| path.to_string_lossy().into_owned())
-                .map_err(|_| format!("{prefix}: runfile not found for '{rloc}'"))
+                .map_err(|source| DeployError::Runfile {
+                    prefix,
+                    rloc: rloc.clone(),
+                    source,
+                })
         })
         .collect()
 }
@@ -69,12 +117,12 @@ pub fn bcr_deploy(
     dry_run: bool,
     approved: bool,
     resolve: Resolve<'_>,
-) -> Result<String, String> {
+) -> Result<String, DeployError> {
     if argv.len() > 1 {
-        return Err("bcr: this deploy target takes no extra args; the submission is exactly the pinned inputs".to_string());
+        return Err(DeployError::BcrArgs);
     }
     let inputs = resolve_all("bcr", &config.input_rlocs, resolve)?;
-    bcr_run(&config.module, &config.version, &inputs, dry_run, approved)
+    bcr_run(&config.module, &config.version, &inputs, dry_run, approved).map_err(DeployError::Bcr)
 }
 
 /// Runs the signing deploy: at most an outdir arg, every rloc resolved, then `signing_run`.
@@ -87,9 +135,9 @@ pub fn signing_deploy(
     argv: &[String],
     dry_run: bool,
     resolve: Resolve<'_>,
-) -> Result<String, String> {
+) -> Result<String, DeployError> {
     if argv.len() > 2 {
-        return Err("signing: this deploy target takes at most an output directory; artifacts are pinned at analysis time".to_string());
+        return Err(DeployError::SigningArgs);
     }
     let outdir = dx_deploy_tools::deploy_outdir(argv);
     let assets = resolve_all("signing", &config.asset_rlocs, resolve)?;
@@ -112,6 +160,7 @@ pub fn signing_deploy(
         &pin,
         &outdir,
     )
+    .map_err(DeployError::Signing)
 }
 
 fn flag(name: &str) -> bool {
@@ -232,16 +281,23 @@ mod tests {
     #[test]
     fn arg_limits() {
         let error = bcr_deploy(&bcr_cfg("1.0.0"), &argv(2), true, false, &ok).unwrap_err();
-        assert!(error.contains("takes no extra args"), "{error}");
+        assert!(error.to_string().contains("takes no extra args"), "{error}");
+        assert!(matches!(error, DeployError::BcrArgs));
         let error = signing_deploy(&signing_cfg(), &argv(3), true, &ok).unwrap_err();
-        assert!(error.contains("at most an output directory"), "{error}");
+        assert!(
+            error.to_string().contains("at most an output directory"),
+            "{error}"
+        );
+        assert!(matches!(error, DeployError::SigningArgs));
         assert!(signing_deploy(&signing_cfg(), &argv(2), true, &ok).is_ok());
     }
 
     #[test]
     fn unresolved_rlocs_are_named() {
         let error = bcr_deploy(&bcr_cfg("1.0.0"), &argv(1), true, false, &missing).unwrap_err();
-        assert_eq!(error, "bcr: runfile not found for 'w/a.json'");
+        assert_eq!(error.to_string(), "bcr: runfile not found for 'w/a.json'");
+        assert!(matches!(error, DeployError::Runfile { prefix: "bcr", .. }));
+        assert!(std::error::Error::source(&error).is_some());
         let only_cosign = |rloc: &str| {
             if rloc == "c/cosign" {
                 missing(rloc)
@@ -250,7 +306,35 @@ mod tests {
             }
         };
         let error = signing_deploy(&signing_cfg(), &argv(1), true, &only_cosign).unwrap_err();
-        assert_eq!(error, "signing: runfile not found for 'c/cosign'");
+        assert_eq!(
+            error.to_string(),
+            "signing: runfile not found for 'c/cosign'"
+        );
+        assert!(matches!(
+            error,
+            DeployError::Runfile {
+                prefix: "signing",
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn signing_errors_keep_their_source() {
+        #[expect(
+            clippy::unnecessary_wraps,
+            reason = "matches the resolver callback signature"
+        )]
+        fn nonexistent(rloc: &str) -> io::Result<PathBuf> {
+            Ok(PathBuf::from(format!("/nonexistent/{rloc}")))
+        }
+        let error = signing_deploy(&signing_cfg(), &argv(1), false, &nonexistent).unwrap_err();
+        assert!(
+            matches!(error, DeployError::Signing(crate::SigningError::Pin(_))),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("cannot hash cosign"), "{error}");
+        assert!(std::error::Error::source(&error).is_some());
     }
 
     #[test]
@@ -265,7 +349,8 @@ mod tests {
     #[test]
     fn bcr_gates() {
         let error = bcr_deploy(&bcr_cfg("1.0.0"), &argv(1), false, false, &ok).unwrap_err();
-        assert!(error.contains("BCR_APPROVE"), "{error}");
+        assert!(error.to_string().contains("BCR_APPROVE"), "{error}");
+        assert!(matches!(error, DeployError::Bcr(_)));
         assert!(bcr_deploy(&bcr_cfg("0.0.0"), &argv(1), false, true, &ok).is_err());
     }
 

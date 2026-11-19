@@ -326,6 +326,7 @@ fn read_test_events(
     }
     let run_totals = run_totals(&pending);
     let attempt_totals = attempt_totals(&pending);
+    let shard_maxima = shard_maxima(&pending);
     let mut results = Vec::new();
     for result in &pending {
         let run_total = run_totals.get(result.label.as_str()).copied().unwrap_or(1);
@@ -333,7 +334,12 @@ fn read_test_events(
             .get(&result.label)
             .copied()
             .unwrap_or(0)
-            .max(shard_max(&pending, &result.label))
+            .max(
+                shard_maxima
+                    .get(result.label.as_str())
+                    .copied()
+                    .unwrap_or(0),
+            )
             .max(1);
         let attempt_total = attempt_totals
             .get(&(result.label.as_str(), result.run, result.shard))
@@ -421,18 +427,17 @@ fn read_test_events(
         .collect();
     unbuilt.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
     let gaps = ledger.gaps(&["testResult", "testSummary"]);
+    let accounted: HashSet<&str> = results
+        .iter()
+        .map(|result| result.label.as_str())
+        .chain(summary_records.iter().map(|summary| summary.label.as_str()))
+        .chain(gaps.iter().filter_map(|gap| gap.label.as_deref()))
+        .chain(unbuilt.iter().map(|other| other.label.as_str()))
+        .collect();
     let mut filtered: Vec<UnbuiltTest> = passed_completions
         .into_iter()
         .filter(|target| {
-            test_labels.contains(&target.label)
-                && !results.iter().any(|result| result.label == target.label)
-                && !summary_records
-                    .iter()
-                    .any(|summary| summary.label == target.label)
-                && !gaps
-                    .iter()
-                    .any(|gap| gap.label.as_deref() == Some(target.label.as_str()))
-                && !unbuilt.iter().any(|other| other.label == target.label)
+            test_labels.contains(&target.label) && !accounted.contains(target.label.as_str())
         })
         .collect();
     filtered.sort_by(|a, b| a.label.as_bytes().cmp(b.label.as_bytes()));
@@ -626,13 +631,16 @@ fn attempt_totals(pending: &[PendingResult]) -> HashMap<(&str, u32, u32), u32> {
     totals
 }
 
-fn shard_max(pending: &[PendingResult], label: &str) -> u32 {
-    pending
-        .iter()
-        .filter(|result| result.label == label && !result.files.is_empty())
-        .map(|result| result.shard)
-        .max()
-        .unwrap_or(0)
+fn shard_maxima(pending: &[PendingResult]) -> HashMap<&str, u32> {
+    let mut maxima: HashMap<&str, u32> = HashMap::new();
+    for result in pending {
+        if result.files.is_empty() {
+            continue;
+        }
+        let seen = maxima.entry(result.label.as_str()).or_insert(0);
+        *seen = (*seen).max(result.shard);
+    }
+    maxima
 }
 
 fn test_index(
@@ -1690,6 +1698,37 @@ mod tests {
         let events = collect_test_events(Cursor::new(stream), || None).expect("events");
         let labels: Vec<&str> = events.filtered.iter().map(|t| t.label.as_str()).collect();
         assert_eq!(labels, ["//a:gone"]);
+    }
+
+    #[test]
+    fn a_stream_with_many_results_collects_quickly() {
+        let count = 50_000;
+        let uri = out_uri("a.xml");
+        let mut lines = Vec::with_capacity(2 * count + 2);
+        lines.push(configured_test("//a:t"));
+        lines.push(completed("//a:t", true));
+        for shard in 1..=count {
+            lines.push(test_result_with_identity(
+                "//a:t",
+                1,
+                u32::try_from(shard).expect("shard fits"),
+                1,
+                &[("test.xml", uri.as_str())],
+            ));
+        }
+        for index in 0..count {
+            let label = format!("//f:t{index}");
+            lines.push(configured_test(&label));
+            lines.push(completed(&label, true));
+        }
+        let stream = lines.join("\n");
+        let started = std::time::Instant::now();
+        let events = collect_test_events(Cursor::new(stream), || None).expect("events");
+        let elapsed = started.elapsed();
+        assert_eq!(events.results.len(), count);
+        assert_eq!(events.filtered.len(), count);
+        // Quadratic scans take minutes here; the linear pass takes well under this.
+        assert!(elapsed < std::time::Duration::from_secs(10), "{elapsed:?}");
     }
 
     #[test]

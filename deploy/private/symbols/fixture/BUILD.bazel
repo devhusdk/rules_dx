@@ -1,5 +1,5 @@
 load("//cc:defs.bzl", "cc_binary")
-load("//deploy/private:debug_info.bzl", "dx_dsym", "dx_pdb", "dx_split_debug_info")
+load("//deploy/private:debug_info.bzl", "dsym", "pdb", "split_debug_info")
 
 package(default_visibility = ["//deploy/private/symbols:__subpackages__"])
 
@@ -34,7 +34,7 @@ cc_binary(
     target_compatible_with = ["@platforms//os:linux"],
 )
 
-dx_split_debug_info(
+split_debug_info(
     name = "known_split",
     binary = ":known",
 )
@@ -45,7 +45,7 @@ filegroup(
     output_group = "symbols",
 )
 
-dx_split_debug_info(
+split_debug_info(
     name = "other_split",
     binary = ":other",
 )
@@ -67,7 +67,7 @@ cc_binary(
     target_compatible_with = ["@platforms//os:macos"],
 )
 
-dx_dsym(
+dsym(
     name = "known_dsym",
     binary = ":known_macos",
 )
@@ -94,7 +94,7 @@ cc_binary(
     target_compatible_with = ["@platforms//os:windows"],
 )
 
-dx_pdb(
+pdb(
     name = "known_pdb",
     binary = ":known_windows",
 )
@@ -106,7 +106,7 @@ filegroup(
     target_compatible_with = ["@platforms//os:windows"],
 )
 
-dx_pdb(
+pdb(
     name = "other_pdb",
     binary = ":other_windows",
 )

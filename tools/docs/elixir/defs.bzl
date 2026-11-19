@@ -5,6 +5,8 @@ load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE")
 load("//tools/docs/beam:shard.bzl", "ELIXIR_DUMP_TOOL", "beam_dirs", "beam_shard_action", "beam_sources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 def elixir_shard_action(ctx, app, package, stem, runner, extract_tool):
     """Runs Code.fetch_docs on the pinned Elixir and the extractor for one Elixir app."""
     srcs = beam_sources(app, ["ex"])
@@ -31,7 +33,7 @@ docs_elixir_shard = rule(
         "app": attr.label(mandatory = True, providers = [ErlangAppInfo], doc = "The documented elixir_app; its .ex srcs are documented."),
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the app name."),
         "_runner": attr.label(cfg = "exec", default = ELIXIR_DUMP_TOOL, executable = True),
-        "_extract": attr.label(cfg = "exec", default = Label("//tools/docs/beam/extract:beam_extract"), executable = True),
+        "_extract": attr.label(cfg = "exec", default = Label("@dx_prebuilt//:dx"), executable = True),
     },
     provides = [DocsShardInfo],
     toolchains = [COREUTILS_TOOLCHAIN_TYPE],

@@ -1,6 +1,6 @@
 """Analysis tests pinning the frozen quality settings defaults."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 visibility("private")
 
@@ -139,6 +139,10 @@ field disabled.core.audit=True
 field disabled.core.format=False
 field disabled.core.lint=False
 field disabled.core.typecheck=True
+field disabled.cuda.audit=True
+field disabled.cuda.format=False
+field disabled.cuda.lint=False
+field disabled.cuda.typecheck=True
 field disabled.d.audit=True
 field disabled.d.format=True
 field disabled.d.lint=False
@@ -299,6 +303,10 @@ field family.core.audit=
 field family.core.format=yamlfmt
 field family.core.lint=actionlint,zizmor
 field family.core.typecheck=
+field family.cuda.audit=
+field family.cuda.format=clang_format
+field family.cuda.lint=typos
+field family.cuda.typecheck=
 field family.d.audit=
 field family.d.format=
 field family.d.lint=typos
@@ -446,7 +454,7 @@ field tier.python=standard
 field tier.rust=standard
 field tier.yaml=standard
 aspect_field aspect_seen=True
-aspect_field field_count=393
+aspect_field field_count=401
 aspect_field has_subject=True
 aspect_field subject_label=//config:workspace_policy_under_test
 aspect_field transitive_count=0"""

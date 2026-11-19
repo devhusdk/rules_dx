@@ -44,7 +44,7 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
 /// Links every top-level entry of the locked wheels into `site-packages`, so the editor can import them.
 fn write_site_packages(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let target = ctx.dir.join(SITE_PACKAGES);
-    drop(std::fs::remove_dir_all(&target));
+    dx_atomic_fs::discard_dir(&target);
     std::fs::create_dir_all(&target).map_err(|error| {
         DxError::from_io(format!("creating {}: {error}", target.display()), &error)
     })?;
@@ -118,7 +118,7 @@ fn link_entries(site: &Path, target: &Path) -> Result<(), DxError> {
         if target.join(&name).symlink_metadata().is_ok() {
             continue;
         }
-        link(target, &name.to_string_lossy(), &entry.path())
+        link(target, &name, &entry.path())
             .map_err(|error| DxError::from_io(error.to_string(), &error))?;
     }
     Ok(())

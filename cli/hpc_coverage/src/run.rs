@@ -81,7 +81,7 @@ pub fn run(args: &[OsString], env: &dyn Fn(&str) -> Option<OsString>) -> Result<
         return Ok(code);
     }
     if !Path::new(&tix).is_file() {
-        eprintln!("dx: the Haskell test wrote no .tix file");
+        dx_error::stdio::eprint_line(format_args!("dx: the Haskell test wrote no .tix file"));
         return Ok(1);
     }
     status(

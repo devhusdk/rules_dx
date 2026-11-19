@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: fixed upstream in v0.1.0
 --- a/flutter/private/flutter_pub_package.bzl
 +++ b/flutter/private/flutter_pub_package.bzl
 @@ -1500,6 +1500,25 @@

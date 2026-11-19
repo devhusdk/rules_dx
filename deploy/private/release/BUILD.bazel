@@ -81,6 +81,7 @@ rust_library(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/ecosystems:dx_ecosystems",
+        "//cli/error:dx_error",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
@@ -142,6 +143,7 @@ rust_test(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/ecosystems:dx_ecosystems",
+        "//cli/error:dx_error",
         "//cli/families:dx_families",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/process:dx_process",
@@ -191,12 +193,10 @@ rust_test(
     data = [
         "//.bcr:templates",
     ],
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_release_tools",
-        normal = True,
-    ) + [
+    deps = [
         ":dx_release_tools",
         "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )
 
@@ -329,7 +329,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "deploy/private/dx_release_tools",
         normal = True,
-    ) + [":dx_release_tools"],
+    ) + [
+        ":dx_release_tools",
+        "//cli/atomic_fs:dx_atomic_fs",
+    ],
 )
 
 rust_binary(
@@ -346,6 +349,7 @@ rust_binary(
         normal = True,
     ) + [
         ":dx_release_tools",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/process:dx_process",
     ],

@@ -338,7 +338,7 @@ fn write_last(workspace: &Path, document: &serde_json::Value) -> std::io::Result
     std::fs::create_dir_all(&dir)?;
     let mut text = serde_json::to_string_pretty(document).map_err(std::io::Error::other)?;
     text.push('\n');
-    std::fs::write(dir.join("last.json"), text)
+    dx_atomic_fs::write_atomic(&dir.join("last.json"), text.as_bytes())
 }
 
 pub(crate) fn execute_bench(invocation: &Invocation, mut env: Env<'_>) -> i32 {
@@ -375,7 +375,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, mut env: Env<'_>) -> i32 {
     let bazel_code = match run_bazel(invocation, out, err, workspace, runner, &plan.argv, &[]) {
         Ok(code) => code,
         Err(exit) => {
-            std::fs::remove_file(&bep).ok();
+            dx_atomic_fs::discard_file(&bep);
             return exit;
         }
     };
@@ -392,7 +392,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, mut env: Env<'_>) -> i32 {
             })
             .map_err(|error| format!("invalid build events: {error}"))
         });
-    std::fs::remove_file(&bep).ok();
+    dx_atomic_fs::discard_file(&bep);
     let events = match events {
         Ok(events) => events,
         Err(message) if bazel_code == 0 => {
@@ -427,14 +427,14 @@ pub(crate) fn execute_bench(invocation: &Invocation, mut env: Env<'_>) -> i32 {
         return kept_child(err, bazel_code, exit);
     }
     for problem in &problems {
-        writeln!(err, "dx: {CODE_BENCH_RESULTS}: {problem}").ok();
+        dx_output::write_stderr(err, format_args!("dx: {CODE_BENCH_RESULTS}: {problem}\n"));
     }
     let slower = match (&baseline, invocation.bench_regression) {
         (Some(baseline), Some(limit)) => regressions(&targets, baseline, limit),
         _ => Vec::new(),
     };
     for line in &slower {
-        writeln!(err, "dx: {CODE_BENCH_REGRESSION}: {line}").ok();
+        dx_output::write_stderr(err, format_args!("dx: {CODE_BENCH_REGRESSION}: {line}\n"));
     }
     if bazel_code == 0 && (!problems.is_empty() || !slower.is_empty()) {
         return 1;

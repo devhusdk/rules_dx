@@ -1,12 +1,12 @@
 //! No repository rule or module extension refetches: none is configure or local, reads the environment, watches a path or omits reproducible metadata, outside `tools/ci/repo_rule_refetch_allowlist.txt`.
 
-#[path = "guard_rules/scan.rs"]
-mod scan;
-
-use std::path::Path;
-use scan::{CallArgs, Counts, Masked, add, calls, is_skipped, is_starlark, masked};
+use dx_guard::allowlist::{Counts, REMOVE, add, render};
+use dx_guard::masked::{CallArgs, Masked, calls, masked};
+use dx_guard::snapshot::{is_skipped, tree};
+use dx_guard::starlark::is_bazel_file;
 use serde_json as _;
 use starlark_syntax as _;
+use std::path::Path;
 use yaml_serde as _;
 
 /// The allowlist path named in failures.
@@ -150,7 +150,12 @@ fn watches(source: &Masked) -> usize {
 fn scan_files(files: &[(String, String)]) -> Counts {
     let mut counts = Counts::new();
     for (path, text) in files {
-        if !Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("bzl")) || !is_starlark(path) || is_skipped(path) {
+        if !Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl"))
+            || !is_bazel_file(path)
+            || is_skipped(path)
+        {
             continue;
         }
         let source = masked(text);
@@ -186,7 +191,7 @@ fn scan_files(files: &[(String, String)]) -> Counts {
 #[test]
 fn repository_rules_do_not_refetch_outside_the_allowlist() {
     let root = dx_testing::source_snapshot();
-    let files = scan::tree(&root);
+    let files = tree(&root).unwrap_or_else(|error| panic!("{}: {error}", root.display()));
     assert!(
         files.len() >= MIN_FILES,
         "only {} files in the snapshot",
@@ -198,12 +203,12 @@ fn repository_rules_do_not_refetch_outside_the_allowlist() {
     );
     let found = scan_files(&files);
     let allowlist = dx_testing::read_runfiles(ALLOWLIST);
-    let problems = scan::problems(&found, &allowlist, &KINDS, ALLOWLIST);
+    let problems = dx_guard::allowlist::check(&found, &allowlist, &KINDS, REMOVE);
     assert!(
         problems.is_empty(),
         "{}\n\nwanted {ALLOWLIST}:\n{}",
         problems.join("\n"),
-        scan::render(&found)
+        render(&found)
     );
 }
 
@@ -214,7 +219,7 @@ fn hits(files: &[(&str, &str)]) -> String {
         .iter()
         .map(|(path, text)| ((*path).to_owned(), (*text).to_owned()))
         .collect();
-    scan::render(&scan_files(&files))
+    render(&scan_files(&files))
 }
 
 #[test]
@@ -302,20 +307,20 @@ fn the_allowlist_only_shrinks() {
     );
     let files = vec![("x/repos.bzl".to_owned(), source)];
     let found = scan_files(&files);
-    let check = |allowlist: &str| scan::problems(&found, allowlist, &KINDS, ALLOWLIST);
+    let check = |allowlist: &str| dx_guard::allowlist::check(&found, allowlist, &KINDS, REMOVE);
     assert_eq!(check("x/repos.bzl configure 1\n"), Vec::<String>::new());
     for (allowlist, needle) in [
-        ("", "allows none"),
-        ("x/repos.bzl configure 2\n", "lower the line"),
+        ("", "0 allowed"),
+        ("x/repos.bzl configure 2\n", "lower the allowlist count"),
         (
             "x/repos.bzl configure 1\nx/repos.bzl local 1\n",
-            "spare line",
+            "delete the allowlist line",
         ),
         (
             "x/repos.bzl local 1\nx/repos.bzl configure 1\n",
-            "not sorted",
+            "not sorted or repeated",
         ),
-        ("x/repos.bzl refetch 1\n", "is not `<path> <kind> <count>`"),
+        ("x/repos.bzl refetch 1\n", "malformed line"),
     ] {
         let problems = check(allowlist);
         assert!(

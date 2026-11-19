@@ -50,7 +50,15 @@ def dx_private_dep_rule(dep, providers, doc):
     """Creates a rule whose targets forward the providers of dep, reached through a private attribute."""
 
     def _impl(ctx):
-        return dx_forwarded_quiet(ctx.attr._dep, providers)
+        upstream = ctx.attr._dep
+
+        # Bazel rejects a DefaultInfo whose executable another rule created, so an
+        # executable dep is forwarded as its files and runfiles.
+        return [
+            DefaultInfo(files = upstream[DefaultInfo].files, runfiles = upstream[DefaultInfo].default_runfiles) if p == DefaultInfo else upstream[p]
+            for p in providers
+            if p in upstream
+        ]
 
     return rule(
         implementation = _impl,
@@ -495,11 +503,7 @@ def _dx_launcher_environment(ctx, providers, binary):
     return out + [RunEnvironmentInfo(environment = env, inherited_environment = inherited)]
 
 def dx_executable_forward_rule(language, kind, spec):
-    """Creates the executable or test forwarding rule for one wrapper from a dx_forward_spec.
-
-    spec.launcher(ctx) returns None or the DefaultInfo of an executable that runs in place of the binary.
-    It finds the binary through the DX_TEST_BINARY runfiles key; DX_COVERAGE_TEST_BINARY names it for the coverage collector.
-    """
+    """Creates the executable or test forwarding rule for one wrapper from a dx_forward_spec."""
     if kind != "executable" and kind != "test":
         fail("dx_executable_forward_rule: unknown kind '" + kind + "': want \"executable\" or \"test\"")
     error = dx_forward_spec_error(spec, kind)

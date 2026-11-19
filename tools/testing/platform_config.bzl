@@ -1,6 +1,6 @@
 """Analysis test that a rule's platform transition changes the configuration of its dependency."""
 
-load("//core:defs.bzl", "DxSubjectInfo", "starlark_test")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo", "starlark_test")
 
 _ConstraintsSeenInfo = provider(
     doc = "Constraint values the target platform of one configuration holds.",
@@ -39,15 +39,12 @@ def platform_config_subject_rule(cfg, attrs = {}):
         implementation = _platform_config_subject_impl,
         doc = "Reports the constraint values of each configuration cfg builds the probe in.",
         attrs = attrs | {
-            "probe": attr.label(cfg = cfg, mandatory = True, providers = [_ConstraintsSeenInfo]),
+            "probe": attr.label(cfg = cfg, mandatory = True, providers = [_ConstraintsSeenInfo], doc = "Constraint probe built in each configuration cfg makes."),
         },
     )
 
 def platform_config_test(name, size, subject_rule, constraints, subjects):
-    """Builds one subject per entry of subjects and checks the configurations each reports.
-
-    subjects maps a subject suffix to (kwargs for subject_rule, expected configurations).
-    """
+    """Builds one subject per suffix in subjects, a dict of (subject_rule kwargs, expected configurations), and checks them."""
     constraint_probe(
         name = name + "_probe",
         constraints = constraints,

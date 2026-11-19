@@ -11,7 +11,7 @@ use dx_output::{
 use dx_plan::args::Invocation;
 use dx_update::discover::{Candidate, Fetch, Findings, Registry};
 use dx_update::policy::{Level, Policy, automerge, filter};
-use dx_update::pr::{GroupPlan, Item, Scope, body, lock_numstat, pick_tags, plan};
+use dx_update::pr::{GroupPlan, Item, Scope, body, leave_out, lock_numstat, pick_tags, plan};
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -108,7 +108,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         Ok(items) => items,
         Err(exit) => return exit,
     };
-    let plans = plan(&items);
+    let plans = plan(&items, &package_set_names(&resolved));
     let locks = lock_paths(&resolved);
     let full_sets = full_set_names(&resolved, &builtins);
     let scope = scope_of(full_sets, &found);
@@ -175,6 +175,14 @@ fn lock_paths(resolved: &[dependency_sets::ResolvedTarget]) -> Vec<String> {
         .collect()
 }
 
+fn package_set_names(resolved: &[dependency_sets::ResolvedTarget]) -> Vec<String> {
+    resolved
+        .iter()
+        .filter(|target| matches!(target.request, Selection::Packages(_)))
+        .map(|target| target.set.name.clone())
+        .collect()
+}
+
 fn full_set_names(
     resolved: &[dependency_sets::ResolvedTarget],
     builtins: &Builtins,
@@ -206,12 +214,13 @@ fn report_outcomes(
     let failed = outcomes.iter().any(|outcome| outcome.result.is_err());
     let exit = i32::from(failed || !errors.is_empty());
     for error in errors {
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "dx: {CODE_UPDATE_PR_LOOKUP}: {}:{} ({})",
-            error.set, error.package, error.reason
-        )
-        .ok();
+            format_args!(
+                "dx: {CODE_UPDATE_PR_LOOKUP}: {}:{} ({})\n",
+                error.set, error.package, error.reason
+            ),
+        );
     }
     if let Err(code) = emit(out, outcomes, json, exit) {
         return code;
@@ -240,7 +249,7 @@ fn load_resolved(
 fn cutoff_date(min_age: u32, audit_today: Option<&str>) -> Option<String> {
     (min_age > 0)
         .then(|| {
-            let today = super::audit::today_utc(audit_today);
+            let today = dx_exec_core::audit_policy::today_utc(audit_today);
             let date = chrono::NaiveDate::parse_from_str(&today, "%Y-%m-%d").ok()?;
             let back = date.checked_sub_days(chrono::Days::new(u64::from(min_age)))?;
             Some(back.format("%Y-%m-%d").to_string())
@@ -466,12 +475,14 @@ fn publish(
     }
     let sha = git(&["rev-parse", "HEAD"])?.trim().to_owned();
     let mut open = open_update_prs(tools, root, &base)?;
+    let heads: Vec<String> = open.iter().map(|(_, head)| head.clone()).collect();
+    let plans = leave_out(plans, &heads);
     let (stale, kept): (Vec<_>, Vec<_>) = open
         .drain(..)
         .partition(|(_, head)| scope.covers(head) && !plans.iter().any(|p| p.branch == *head));
     open = kept;
     let mut outcomes = Vec::new();
-    for group in plans {
+    for group in &plans {
         let existing = open
             .iter()
             .find(|(_, head)| *head == group.branch)
@@ -495,8 +506,11 @@ fn publish(
             open.push((0, group.branch.clone()));
         }
         if result.is_err() {
-            git(&["reset", "--hard", &sha]).ok();
-            git(&["clean", "-fd"]).ok();
+            for args in [&["reset", "--hard", &sha][..], &["clean", "-fd"][..]] {
+                if let Err(error) = git(args) {
+                    tracing::warn!(%error, ?args, "cannot reset the worktree after a failed group");
+                }
+            }
         }
         outcomes.push(Outcome {
             branch: group.branch.clone(),
@@ -632,7 +646,9 @@ fn refresh_tracking(git: &dyn Fn(&[&str]) -> Result<String, DxError>, branch: &s
     ]);
     if fetched.is_err() {
         // The remote branch is gone; a stale tracking ref would fail the lease.
-        git(&["update-ref", "-d", &tracking]).ok();
+        if let Err(error) = git(&["update-ref", "-d", &tracking]) {
+            tracing::info!(%error, %tracking, "cannot delete the stale tracking ref");
+        }
     }
 }
 
@@ -701,7 +717,9 @@ fn publish_one(
         if merge {
             note = enable_auto_merge(&gh, &number);
         } else {
-            gh(&["pr", "merge", &number, "--disable-auto"]).ok();
+            if let Err(error) = gh(&["pr", "merge", &number, "--disable-auto"]) {
+                tracing::info!(%error, %number, "cannot disable auto-merge");
+            }
         }
         return Ok(format!("updated #{number}{note}"));
     }
@@ -742,10 +760,6 @@ mod tests {
         ecosystem.manifest_name()
     }
 
-    fn lock_of(ecosystem: Ecosystem) -> &'static str {
-        ecosystem.lockfiles()[0].as_str()
-    }
-
     struct Fixture {
         _dir: tempfile::TempDir,
         work: PathBuf,
@@ -778,7 +792,7 @@ mod tests {
         )
         .unwrap();
         dx_test_scratch::git(&work, &work, &["init", "-q", "-b", "main"]).unwrap();
-        std::fs::write(work.join(lock_of(Ecosystem::Cargo)), "a\n").expect("write");
+        std::fs::write(work.join(Ecosystem::Cargo.lockfile()), "a\n").expect("write");
         dx_test_scratch::git(&work, &work, &["add", "-A"]).unwrap();
         dx_test_scratch::git(&work, &work, &["commit", "-q", "-m", "init"]).unwrap();
         dx_test_scratch::git(
@@ -836,20 +850,23 @@ mod tests {
     }
 
     fn plans() -> Vec<GroupPlan> {
-        plan(&[Item {
-            candidate: Candidate {
-                set: "cargo".into(),
-                package: "serde".into(),
-                current: "1.0.0".into(),
-                latest: "2.0.0".into(),
-                published: None,
-                prerelease: false,
-                repo: None,
-                tags: None,
-            },
-            registry: Registry::Crates,
-            untagged: false,
-        }])
+        plan(
+            &[Item {
+                candidate: Candidate {
+                    set: "cargo".into(),
+                    package: "serde".into(),
+                    current: "1.0.0".into(),
+                    latest: "2.0.0".into(),
+                    published: None,
+                    prerelease: false,
+                    repo: None,
+                    tags: None,
+                },
+                registry: Registry::Crates,
+                untagged: false,
+            }],
+            &[],
+        )
     }
 
     fn scope() -> Scope {
@@ -878,7 +895,7 @@ mod tests {
                 return Err(DxError::failure(format!("{} failed", words[0])));
             }
             if words.contains(&"--apply".to_owned()) && words.len() >= 3 {
-                std::fs::write(work.join(lock_of(Ecosystem::Cargo)), "a\nb\n")
+                std::fs::write(work.join(Ecosystem::Cargo.lockfile()), "a\nb\n")
                     .map_err(|e| DxError::from_io(e.to_string(), &e))?;
             }
             Ok(())
@@ -889,7 +906,7 @@ mod tests {
         move |words: &[String]| {
             if words.len() == 4 && words[3] == "--apply" {
                 std::fs::write(
-                    work.join(lock_of(Ecosystem::Cargo)),
+                    work.join(Ecosystem::Cargo.lockfile()),
                     format!("a\n{}\n", words[2]),
                 )
                 .map_err(|e| DxError::from_io(e.to_string(), &e))?;
@@ -908,7 +925,7 @@ mod tests {
             &plans(),
             &scope(),
             &rules(),
-            &[lock_of(Ecosystem::Cargo).to_owned()],
+            &[Ecosystem::Cargo.lockfile().to_owned()],
             &mut step,
         )
         .expect("publish");
@@ -916,7 +933,7 @@ mod tests {
         let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert!(argv.contains("pr create --base main --head dx-update/cargo"));
         assert!(argv.contains("cargo:serde 1.0.0 -> 2.0.0"));
-        assert!(argv.contains(&format!("| {} | 1 | 0 |", lock_of(Ecosystem::Cargo))));
+        assert!(argv.contains(&format!("| {} | 1 | 0 |", Ecosystem::Cargo.lockfile())));
         let pushed = dx_test_scratch::git(
             &fx.origin,
             &fx.origin,
@@ -1136,7 +1153,7 @@ mod tests {
         let mut step = move |words: &[String]| {
             let applying = words.contains(&"--apply".to_owned()) && words.len() >= 3;
             if applying && words[1].starts_with("github-actions") {
-                std::fs::write(work.join(lock_of(Ecosystem::Cargo)), "a\nb\n")
+                std::fs::write(work.join(Ecosystem::Cargo.lockfile()), "a\nb\n")
                     .map_err(|e| DxError::from_io(e.to_string(), &e))?;
             }
             Ok(())
@@ -1207,7 +1224,7 @@ mod tests {
     #[test]
     fn a_dirty_tree_is_refused() {
         let fx = fixture("[]");
-        std::fs::write(fx.work.join(lock_of(Ecosystem::Cargo)), "dirty\n").expect("write");
+        std::fs::write(fx.work.join(Ecosystem::Cargo.lockfile()), "dirty\n").expect("write");
         let mut step = editing(fx.work.clone(), None);
         let got = publish(
             &fx.work,
@@ -1369,7 +1386,7 @@ mod tests {
             root.join("MODULE.bazel"),
             format!(
                 "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//:{}\", lockfile = \"//:cargo-bazel-lock.json\", manifests = [\"//:{}\"])\nuse_repo(crate, \"crates\")\n",
-                lock_of(Ecosystem::Cargo),
+                Ecosystem::Cargo.lockfile(),
                 manifest_of(Ecosystem::Cargo)
             ),
         )
@@ -1379,7 +1396,7 @@ mod tests {
             "[dependencies]\nserde = \"1\"\n",
         )
         .expect("manifest");
-        std::fs::write(root.join(lock_of(Ecosystem::Cargo)), "a\n").expect("lock");
+        std::fs::write(root.join(Ecosystem::Cargo.lockfile()), "a\n").expect("lock");
         let registry = harness.temp.join("registry");
         let dir = registry.join("index.crates.io/se/rd");
         std::fs::create_dir_all(&dir).expect("mkdir");
@@ -1553,7 +1570,7 @@ mod tests {
             ],
             &[("proxy.golang.org/example.com/x/@v/list", "v1.0.0\nv1.1.0\n")],
         );
-        let _ = code;
+        let _: i32 = code;
         assert!(
             format!("{out}{argv}").contains("dx-update/go"),
             "{out}{argv}"
@@ -1563,9 +1580,10 @@ mod tests {
     #[test]
     fn run_plans_ruby_sets() {
         let gemfile = manifest_of(Ecosystem::Ruby);
-        let gemfile_lock = lock_of(Ecosystem::Ruby);
+        let gemfile_lock = Ecosystem::Ruby.lockfile();
+        let hub_lock = dx_adopt::lock_hubs::lock_of("ruby").expect("ruby lock");
         let module = format!(
-            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//:ruby.lock.json\")\n"
+            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//:{hub_lock}\")\n"
         );
         let (code, out, argv) = run_pr_with(
             &[
@@ -1578,7 +1596,7 @@ mod tests {
                 "[{\"number\":\"1.5\",\"prerelease\":false}]",
             )],
         );
-        let _ = code;
+        let _: i32 = code;
         assert!(!out.contains("skipped gems:rake"), "{out}");
         assert!(
             format!("{out}{argv}").contains("dx-update/gems"),
@@ -1601,14 +1619,109 @@ mod tests {
             registry: Registry::Crates,
             untagged: false,
         };
-        plan(&[
-            item("cargo", "serde"),
-            item("github-actions", "actions/checkout"),
-        ])
+        plan(
+            &[
+                item("cargo", "serde"),
+                item("github-actions", "actions/checkout"),
+            ],
+            &[],
+        )
     }
 
     fn two_scope() -> Scope {
         Scope::new(vec!["cargo".into(), "github-actions".into()])
+    }
+
+    fn bazel_items() -> Vec<Item> {
+        let item = |package: &str, current: &str, latest: &str| Item {
+            candidate: Candidate {
+                set: "bazel".into(),
+                package: package.into(),
+                current: current.into(),
+                latest: latest.into(),
+                published: None,
+                prerelease: false,
+                repo: None,
+                tags: None,
+            },
+            registry: Registry::Bcr,
+            untagged: false,
+        };
+        vec![
+            item("rules_php", "0.1.0", "0.2.0"),
+            item("rules_go", "1.0.0", "1.1.0"),
+        ]
+    }
+
+    #[test]
+    fn a_rule_set_minor_and_a_bcr_bump_open_two_pull_requests() {
+        let rule_set = plan(&bazel_items()[..1], &["bazel".to_owned()]);
+        let fx = fixture("[]");
+        let mut step = editing(fx.work.clone(), None);
+        let none = Rules {
+            automerge: None,
+            max_prs: 5,
+        };
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &rule_set,
+            &Scope::new(Vec::new()),
+            &none,
+            &[],
+            &mut step,
+        )
+        .expect("publish");
+        assert_eq!(got[0].branch, "dx-update/bazel--rules_php");
+        assert_eq!(got[0].result, Ok("opened https://example.com/pr/9".into()));
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(argv.contains("--head dx-update/bazel--rules_php --title Update bazel:rules_php"));
+        assert!(!argv.contains("pr merge"), "{argv}");
+
+        let fx = fixture(
+            "[{\"number\":4,\"headRefName\":\"dx-update/bazel--rules_php\"},{\"number\":8,\"headRefName\":\"dx-update/bazel\"}]",
+        );
+        let mut step = editing(fx.work.clone(), None);
+        let full = plan(&bazel_items(), &[]);
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &full,
+            &Scope::new(vec!["bazel".into()]),
+            &rules(),
+            &[],
+            &mut step,
+        )
+        .expect("publish");
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].result, Ok("updated #8".into()));
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(argv.contains("bazel:rules_go 1.0.0 -> 1.1.0"), "{argv}");
+        assert!(!argv.contains("rules_php"), "{argv}");
+        assert!(!argv.contains("pr close"), "{argv}");
+    }
+
+    #[test]
+    fn a_full_set_with_only_a_package_pull_request_left_is_closed() {
+        let fx = fixture(
+            "[{\"number\":4,\"headRefName\":\"dx-update/bazel--rules_php\"},{\"number\":8,\"headRefName\":\"dx-update/bazel\"}]",
+        );
+        let mut step = editing(fx.work.clone(), None);
+        let full = plan(&bazel_items()[..1], &[]);
+        let got = publish(
+            &fx.work,
+            &fx.tools,
+            &full,
+            &Scope::new(vec!["bazel".into()]),
+            &rules(),
+            &[],
+            &mut step,
+        )
+        .expect("publish");
+        assert_eq!(got.len(), 1);
+        assert_eq!(got[0].result, Ok("closed #8".into()));
+        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
+        assert!(!argv.contains("pr close 4"), "{argv}");
     }
 
     #[test]

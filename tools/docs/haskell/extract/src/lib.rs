@@ -7,20 +7,13 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use documentation_ir::proto::{DocIr, Extension, SourceRef, Symbol, SymbolKind, Visibility};
+use documentation_ir::tool::{Source, parse_sources};
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;
 
 const LANGUAGE: &str = "haskell";
 const KEY_CONFIG: &str = "haskell.config";
-
-/// One source file of the library: where haddock read it, and where it lives in the repository.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Source {
-    pub exec_path: String,
-    pub rel: String,
-    pub generated: bool,
-}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -30,6 +23,12 @@ pub struct Options {
     pub out: String,
     pub package: String,
     pub config: String,
+}
+
+/// Runs `haskell_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("haskell_extract", usage(), parse, run, args)
 }
 
 /// The usage line shown for a rejected invocation.
@@ -55,28 +54,6 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
         package: flags.one("--package")?,
         config: flags.optional("--config")?.unwrap_or_default(),
     })
-}
-
-/// Parses a srcs manifest of `exec_path<TAB>rel<TAB>generated` lines.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
-pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
-    text.lines()
-        .filter(|line| !line.is_empty())
-        .map(|line| {
-            let parts: Vec<&str> = line.split('\t').collect();
-            match parts.as_slice() {
-                [exec_path, rel, generated] => Ok(Source {
-                    exec_path: (*exec_path).to_owned(),
-                    rel: (*rel).to_owned(),
-                    generated: *generated == "1",
-                }),
-                _ => Err(format!("bad srcs manifest line '{line}'")),
-            }
-        })
-        .collect()
 }
 
 /// Reads, converts, validates and writes one shard. Nothing is written on error.
@@ -108,7 +85,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         texts.insert(source.exec_path.clone(), read(&source.exec_path)?);
     }
     let shard = convert(&hoogle, &sources, &texts, &options.package, &options.config)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 struct Module<'a> {
@@ -411,7 +388,7 @@ fn symbol(
     docs: String,
     line: usize,
 ) -> Symbol {
-    let _ = &module.name;
+    let _: &String = &module.name;
     Symbol {
         id: format!("{LANGUAGE}:{}:{id}", context.package),
         kind: kind as i32,

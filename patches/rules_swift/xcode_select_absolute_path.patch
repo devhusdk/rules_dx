@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: bazelbuild/rules_swift#2027
 diff --git a/tools/explicit_modules/extensions.bzl b/tools/explicit_modules/extensions.bzl
 --- a/tools/explicit_modules/extensions.bzl
 +++ b/tools/explicit_modules/extensions.bzl

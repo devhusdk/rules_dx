@@ -42,7 +42,7 @@ pub(super) fn prune(workspace: &Path, unused: &[Unused]) -> Result<Vec<Unused>, 
             changed = true;
         }
         if changed {
-            std::fs::write(&path, lines.concat())
+            dx_atomic_fs::write_atomic(&path, lines.concat().as_bytes())
                 .map_err(|e| DxError::from_io(format!("{manifest}: {e}"), &e))?;
         }
     }

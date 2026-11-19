@@ -133,7 +133,7 @@ fn mutation_outcome_depends_on_bytes_not_git_status() {
     let statuses = ["tracked", "modified", "staged", "untracked"];
     let mut manifests = Vec::with_capacity(statuses.len());
     for status in statuses {
-        let _ = status;
+        let _: &str = status;
         let files = vec![file("src/lib.rs", "BAD\n")];
         let result =
             synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
@@ -229,7 +229,7 @@ fn env_permutations_do_not_alter_pipeline_outputs() {
     ];
     let mut manifests = Vec::with_capacity(envs.len());
     for (locale, tz, home, path) in envs {
-        let _ = (locale, tz, home, path);
+        let _: (&str, &str, &str, &str) = (locale, tz, home, path);
         let files = vec![file("src/lib.rs", "BAD\n")];
         let result =
             synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
@@ -258,7 +258,7 @@ fn checkout_paths_do_not_alter_pipeline_outputs() {
     for prefix in checkouts {
         let relative = "src/lib.rs";
         assert!(format!("{prefix}/{relative}").ends_with(relative));
-        let _ = prefix;
+        let _: &str = prefix;
         let files = vec![file(relative, "BAD\n")];
         let result =
             synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();

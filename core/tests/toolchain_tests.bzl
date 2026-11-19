@@ -1,6 +1,6 @@
 """Shared toolchain target renderer and hub check tests."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks", "pins_hub", "toolchain_target")
 
 def _checks():
@@ -143,6 +143,24 @@ toolchain(
     name = "t__macos_arm64",
     exec_compatible_with = ["@platforms//os:macos", "@platforms//cpu:aarch64"],
     toolchain = "@shared//:toolchain",
+    toolchain_type = "//t:type",
+    visibility = ["//visibility:public"],
+)
+"""),
+        expect_equal("gated cell with its own constraints", pins_hub(
+            "t",
+            ["linux_arm64_to_linux_x86_64"],
+            "//t:type",
+            "both",
+            target = "impl",
+            target_settings = ["//t:on"],
+            cell_constraints = {"linux_arm64_to_linux_x86_64": struct(exec_compatible_with = ["//c:arm64"], target_compatible_with = ["//c:x86_64"])},
+        ), """toolchain(
+    name = "t__linux_arm64_to_linux_x86_64",
+    exec_compatible_with = ["//c:arm64"],
+    target_compatible_with = ["//c:x86_64"],
+    target_settings = ["//t:on"],
+    toolchain = "@t__linux_arm64_to_linux_x86_64//:impl",
     toolchain_type = "//t:type",
     visibility = ["//visibility:public"],
 )

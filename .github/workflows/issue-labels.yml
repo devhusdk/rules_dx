@@ -50,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo bug enhancement needs-host tracking needs-review dogfood P0 P1 P2 P3 | tr ' ' '\n'
+            echo api bug enhancement needs-host tracking needs-review dogfood P0 P1 P2 P3 | tr ' ' '\n'
             for f in .github/ISSUE_TEMPLATE/*.md; do
               awk '/^---$/ { n++; next } n == 1 && /^labels:/ { sub(/^labels:/, ""); print; f = 1; next } n == 1 && f && /^[[:space:]]*-/ { sub(/^[[:space:]]*-/, ""); print; next } n == 1 { f = 0 }' "$f" |
                 tr ',' '\n' | tr -d "[]\"' " | sed '/^$/d'
@@ -100,13 +100,31 @@ jobs:
             [ -n "$refs" ] || continue
             done_all=true
             written=
-            while read -r repo num ref; do
+            while read -r repo num ref kind; do
+              if [ "$kind" = release ]; then
+                state=false
+                sha=$(gh api "repos/$repo/pulls/$num" --jq 'select(.merged_at != null) | .merge_commit_sha' 2>/dev/null) || sha=
+                if [ -n "$sha" ]; then
+                  tag=$(gh api "repos/$repo/releases/latest" --jq .tag_name 2>/dev/null) || tag=
+                  if [ -z "$tag" ]; then
+                    echo "::warning title=No release to check::#$n: $repo has no latest GitHub release"
+                  else
+                    status=$(gh api "repos/$repo/compare/$tag...$sha" --jq .status 2>/dev/null) || status=
+                    if [ "$status" = behind ] || [ "$status" = identical ]; then
+                      state=true
+                      ref="$ref released in $tag"
+                    fi
+                  fi
+                fi
+              else
+                state=$(gh api "repos/$repo/issues/$num" --jq 'if .pull_request then (.pull_request.merged_at != null) else (.state == "closed") end' 2>/dev/null || echo unknown)
+                ref="$ref closed"
+              fi
               written="${written:+$written, }$ref"
-              state=$(gh api "repos/$repo/issues/$num" --jq 'if .pull_request then (.pull_request.merged_at != null) else (.state == "closed") end' 2>/dev/null || echo unknown)
               [ "$state" = true ] || done_all=false
             done <<< "$refs"
             if [ "$done_all" = true ]; then
-              gh issue comment "$n" --body "Unblocked: $written closed"
+              gh issue comment "$n" --body "Unblocked: $written"
               gh issue edit "$n" --remove-label blocked
             fi
           done

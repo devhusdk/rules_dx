@@ -1,4 +1,4 @@
-use dx_digest::{is_hex, sha256_hex};
+use dx_digest::sha256_hex;
 
 use super::envelope::FileOperation;
 
@@ -26,6 +26,8 @@ pub enum ValidationError {
     EscapesWorkspace,
     #[error("malformed path")]
     MalformedPath,
+    #[error("reserved device name: {name}")]
+    ReservedName { name: String },
     #[error("blocked extension: {extension}")]
     BlockedExtension { extension: String },
     #[error("operation too large: {bytes} bytes")]
@@ -40,8 +42,9 @@ pub enum ValidationError {
     MissingFile { path: String },
 }
 
-pub fn validate(op: &FileOperation, existing: Option<&[u8]>) -> Result<(), ValidationError> {
-    match dx_path::classify(&op.path) {
+/// Checks one workspace-relative path without touching the file system.
+pub fn validate_path(path: &str) -> Result<(), ValidationError> {
+    match dx_path::classify(path) {
         None => {}
         Some(dx_path::PathProblem::Empty) => return Err(ValidationError::EmptyPath),
         Some(dx_path::PathProblem::Absolute) => return Err(ValidationError::AbsolutePath),
@@ -53,11 +56,21 @@ pub fn validate(op: &FileOperation, existing: Option<&[u8]>) -> Result<(), Valid
         ) => return Err(ValidationError::MalformedPath),
         Some(dx_path::PathProblem::DotDot) => return Err(ValidationError::EscapesWorkspace),
     }
-    if let Some(extension) = extension_of(&op.path)
+    if let Some(name) = path.split('/').find(|component| is_reserved(component)) {
+        return Err(ValidationError::ReservedName {
+            name: name.to_owned(),
+        });
+    }
+    if let Some(extension) = extension_of(path)
         && BLOCKED_EXTENSIONS.contains(&extension.as_str())
     {
         return Err(ValidationError::BlockedExtension { extension });
     }
+    Ok(())
+}
+
+pub fn validate(op: &FileOperation, existing: Option<&[u8]>) -> Result<(), ValidationError> {
+    validate_path(&op.path)?;
     if op.content.len() > MAX_OPERATION_BYTES {
         return Err(ValidationError::TooLarge {
             bytes: op.content.len(),
@@ -80,7 +93,6 @@ pub fn validate(op: &FileOperation, existing: Option<&[u8]>) -> Result<(), Valid
             path: op.path.clone(),
         }),
         (Some(expected), Some(bytes)) => {
-            debug_assert!(is_hex(expected));
             if sha256_hex(bytes) == *expected {
                 Ok(())
             } else {
@@ -92,8 +104,25 @@ pub fn validate(op: &FileOperation, existing: Option<&[u8]>) -> Result<(), Valid
     }
 }
 
+// Windows drops trailing dots and spaces from a name and treats `name:stream` as `name`.
+fn windows_name(component: &str) -> &str {
+    component
+        .split(':')
+        .next()
+        .unwrap_or_default()
+        .trim_end_matches(['.', ' '])
+}
+
+fn is_reserved(component: &str) -> bool {
+    let stem = windows_name(component)
+        .split('.')
+        .next()
+        .unwrap_or_default();
+    dx_path::host::is_reserved_device(stem.trim_end())
+}
+
 fn extension_of(path: &str) -> Option<String> {
-    let name = path.rsplit('/').next().unwrap_or_default();
+    let name = windows_name(path.rsplit('/').next().unwrap_or_default());
     let (_, extension) = name.rsplit_once('.')?;
     if extension.is_empty() {
         return None;
@@ -302,5 +331,54 @@ mod tests {
                 path: "a.txt".to_owned()
             })
         );
+    }
+
+    #[test]
+    fn non_hex_digest_is_a_mismatch() {
+        let mut op = update("a.txt", "new\n");
+        op.original_sha256 = Some("not-hex".to_owned());
+        assert_eq!(
+            validate(&op, Some(b"old\n")),
+            Err(ValidationError::DigestMismatch {
+                path: "a.txt".to_owned()
+            })
+        );
+    }
+
+    #[test]
+    fn trailing_dot_or_space_does_not_hide_blocked_extension() {
+        for path in [
+            "tool.exe.",
+            "tool.exe ",
+            "dir/tool.dll. .",
+            "tool.exe::$DATA",
+        ] {
+            assert_eq!(
+                validate(&create(path, "hi\n"), None),
+                Err(ValidationError::BlockedExtension {
+                    extension: if path.contains("dll") { "dll" } else { "exe" }.to_owned()
+                }),
+                "path: {path:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn windows_device_names_rejected() {
+        for (path, name) in [
+            ("nul", "nul"),
+            ("dir/CON.txt", "CON.txt"),
+            ("com1.log/x.txt", "com1.log"),
+            ("aux :x", "aux :x"),
+        ] {
+            assert_eq!(
+                validate(&create(path, "hi\n"), None),
+                Err(ValidationError::ReservedName {
+                    name: name.to_owned()
+                }),
+                "path: {path:?}"
+            );
+        }
+        assert_eq!(validate(&create("console.txt", "hi\n"), None), Ok(()));
     }
 }

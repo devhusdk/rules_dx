@@ -1,7 +1,7 @@
 """Normalized environment plan records."""
 
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
-load("//core:defs.bzl", "DxSubjectInfo", "display_label")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo", "display_label")
 load(
     "//core:plan_shard.bzl",
     "plan_shard_aspect_inputs",

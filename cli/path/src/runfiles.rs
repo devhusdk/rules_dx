@@ -54,13 +54,13 @@ impl Resolver {
             return Resolver::new(Runfiles::builder().directory(tree), tree.clone(), true);
         }
         if let Some(manifest) = manifest_beside(binary) {
-            let text = std::fs::read_to_string(&manifest)?;
+            let text = read_manifest(&manifest)?;
             return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
         }
         if let Some(tree) = tree {
             let manifest = tree.join("MANIFEST");
             if manifest.is_file() {
-                let text = std::fs::read_to_string(&manifest)?;
+                let text = read_manifest(&manifest)?;
                 return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
             }
             return Resolver::new(Runfiles::builder().directory(&tree), tree, true);
@@ -75,12 +75,12 @@ impl Resolver {
             }
             let manifest = with_suffix(ancestor, "_manifest");
             if manifest.is_file() {
-                let text = std::fs::read_to_string(&manifest)?;
+                let text = read_manifest(&manifest)?;
                 return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
             }
             let manifest = ancestor.join("MANIFEST");
             if manifest.is_file() {
-                let text = std::fs::read_to_string(&manifest)?;
+                let text = read_manifest(&manifest)?;
                 return Resolver::new(Runfiles::builder().manifest(text), manifest, false);
             }
             if ancestor.is_dir() {
@@ -99,6 +99,27 @@ impl Resolver {
                 manifest_for(binary).display()
             ),
         ))
+    }
+
+    /// Reads the runfiles of an invoked executable without following symlinks.
+    ///
+    /// An executable inside a `.runfiles` directory reads that tree; any other
+    /// reads the runfiles beside it. A relative path is read against the current
+    /// directory.
+    pub fn for_executable(exe: &Path) -> io::Result<Self> {
+        if exe.is_absolute() {
+            return Resolver::for_executable_in(Path::new(""), exe);
+        }
+        Resolver::for_executable_in(&std::env::current_dir()?, exe)
+    }
+
+    /// Reads the runfiles of an executable named relative to `cwd`.
+    fn for_executable_in(cwd: &Path, exe: &Path) -> io::Result<Self> {
+        let exe = cwd.join(exe);
+        if let Some(tree) = tree_ancestor(&exe).filter(|tree| tree.is_dir()) {
+            return Resolver::for_tree(&tree);
+        }
+        Resolver::for_binary(&exe)
     }
 
     /// Names the manifest or tree this resolver read.
@@ -135,6 +156,9 @@ impl Resolver {
                 format!("{key} is not in {}", self.source.display()),
             )
         };
+        if !is_plain_key(key) {
+            return Err(not_found());
+        }
         let path = self
             .inner
             .rlocation_from(key, source_repo)
@@ -155,6 +179,35 @@ impl Resolver {
             directory,
         })
     }
+}
+
+/// Reads one manifest as text, naming it in any error.
+fn read_manifest(manifest: &Path) -> io::Result<String> {
+    std::fs::read_to_string(manifest)
+        .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", manifest.display())))
+}
+
+/// Whether a key is absolute or a relative path with no `.` or `..` component.
+fn is_plain_key(key: &str) -> bool {
+    !key.is_empty()
+        && (crate::is_absolute(key)
+            || !key.contains('\\') && key.split('/').all(|part| !matches!(part, "." | "..")))
+}
+
+/// Returns the first `.runfiles` directory on one path, when there is one.
+fn tree_ancestor(exe: &Path) -> Option<PathBuf> {
+    let mut root = PathBuf::new();
+    for component in exe.components() {
+        root.push(component.as_os_str());
+        if component
+            .as_os_str()
+            .to_string_lossy()
+            .ends_with(".runfiles")
+        {
+            return Some(root);
+        }
+    }
+    None
 }
 
 fn tree_beside(binary: &Path) -> Option<PathBuf> {
@@ -350,6 +403,56 @@ mod tests {
         let absolute = dir.join("elsewhere");
         let key = absolute.to_string_lossy().into_owned();
         assert_eq!(found(&resolver, &key), absolute);
+    }
+
+    #[test]
+    fn an_executable_inside_a_runfiles_tree_reads_that_tree() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-exe-tree-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        let exe = write(&dir, "x.runfiles/_main/pkg/x", "binary\n");
+        let target = write(&dir, "x.runfiles/_main/pkg/data.txt", "from the tree\n");
+        write(
+            &dir,
+            "x.runfiles/_main/pkg/x.runfiles/_main/pkg/data.txt",
+            "nested\n",
+        );
+        let resolver = Resolver::for_executable(&exe).expect("resolver");
+        assert_eq!(resolver.source(), dir.join("x.runfiles"));
+        assert_eq!(found(&resolver, "_main/pkg/data.txt"), target);
+    }
+
+    #[test]
+    fn a_relative_executable_is_read_against_the_working_directory() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-exe-relative-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        let target = write(&dir, "x.runfiles/_main/pkg/data.txt", "from the tree\n");
+        write(&dir, "x.runfiles/_main/pkg/x", "binary\n");
+        let resolver = Resolver::for_executable_in(&dir, Path::new("x.runfiles/_main/pkg/x"))
+            .expect("resolver");
+        assert_eq!(resolver.source(), dir.join("x.runfiles"));
+        assert_eq!(found(&resolver, "_main/pkg/data.txt"), target);
+    }
+
+    #[test]
+    fn an_executable_outside_any_tree_reads_the_runfiles_beside_it() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-exe-beside-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        let exe = write(&dir, "bin/x", "binary\n");
+        let target = write(&dir, "bin/x.runfiles/_main/pkg/data.txt", "beside\n");
+        let resolver = Resolver::for_executable(&exe).expect("resolver");
+        assert_eq!(resolver.source(), dir.join("bin/x.runfiles"));
+        assert_eq!(found(&resolver, "_main/pkg/data.txt"), target);
+    }
+
+    #[test]
+    fn tree_ancestor_stops_at_the_first_runfiles_dir() {
+        assert_eq!(
+            tree_ancestor(Path::new(
+                "/b/case.runfiles/_main/pkg/case.runfiles/_main/case"
+            )),
+            Some(PathBuf::from("/b/case.runfiles"))
+        );
+        assert_eq!(tree_ancestor(Path::new("/out/bin/tool")), None);
     }
 
     #[test]
@@ -701,5 +804,46 @@ mod tests {
         }
         std::fs::write(&path, body).expect("write");
         path
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_manifest_that_is_not_text_names_itself_in_the_error() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-binary-manifest-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        let binary = write(&dir, "tool", "binary\n");
+        std::fs::write(dir.join("tool.runfiles_manifest"), b"_main/a \xff\n").unwrap();
+        let error = Resolver::for_binary(&binary).expect_err("not text");
+        assert!(
+            error.to_string().contains("tool.runfiles_manifest"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn a_manifest_with_crlf_lines_resolves() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-crlf-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        let binary = write(&dir, "tool", "binary\n");
+        write(
+            &dir,
+            "tool.runfiles_manifest",
+            "_main/a out/a\r\n_main/b out/b\r\n",
+        );
+        let resolver = Resolver::for_binary(&binary).expect("resolver");
+        assert_eq!(found(&resolver, "_main/a"), PathBuf::from("out/a"));
+        assert_eq!(found(&resolver, "_main/b"), PathBuf::from("out/b"));
+    }
+
+    #[test]
+    fn a_tree_lookup_never_leaves_the_tree() {
+        let scratch = dx_test_scratch::scratch("dx-path-runfiles-escape-").unwrap();
+        let dir = scratch.path().to_path_buf();
+        write(&dir, "secret.txt", "x");
+        write(&dir, "tree/_main/a.txt", "x");
+        let resolver = Resolver::for_tree(&dir.join("tree")).expect("resolver");
+        for key in ["../secret.txt", "_main/../../secret.txt", "", "/secret.txt"] {
+            assert!(resolver.lookup(key).is_err(), "{key:?}");
+        }
     }
 }

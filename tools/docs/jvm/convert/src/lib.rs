@@ -35,6 +35,12 @@ pub struct Options {
     pub out: String,
 }
 
+/// Runs `jvm_convert` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("jvm_convert", usage(), parse, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
@@ -94,7 +100,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         deps.push(shard);
     }
     let shard = convert(&json, &options.language, &options.package, &manifest, &deps)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 fn optional<'a>(object: &'a Map<String, Value>, key: &str) -> Option<&'a Value> {

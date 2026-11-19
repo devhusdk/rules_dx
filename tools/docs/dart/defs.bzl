@@ -5,6 +5,8 @@ load("//core:rlocation.bzl", "repo_relative_path")
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 _DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
 
 _PUBSPEC = LOCK_REGISTRY["pub"]["manifest"]
@@ -69,6 +71,7 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
     )
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     args = ctx.actions.args()
+    args.add("dart_extract")
     args.add("--index", html.path + "/index.json")
     args.add("--package", package)
     args.add("--out", shard)
@@ -105,7 +108,7 @@ dart_doc_shard = rule(
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the Dart package name of lib."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/dart/extract:dart_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

@@ -1,0 +1,62 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//helm:defs.bzl", "helm_library")
+load("//kubernetes:defs.bzl", "kubernetes_schemas")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+load("//tools/testing/conformance:quality.bzl", "kubernetes_lint_subject")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+kubernetes_schemas(
+    name = "schemas",
+    kubernetes_version = "1.31.0",
+    schemas = ["//core/quality/testdata/kubernetes_schemas:configmap-v1.json"],
+)
+
+helm_library(
+    name = "conformance",
+    srcs = [
+        "Chart.yaml",
+        "templates/configmap.yaml",
+        "values.yaml",
+    ],
+    aspect_hints = [":schemas"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "helm",
+    not_applicable = {
+        "build_test": "helm has no binary rule",
+        "coverage_test": "helm has no test rule",
+        "cross_test": "helm has no binary rule",
+        "fail_test": "helm has no test rule",
+        "lock_test": "helm has no lockfile",
+        "pass_test": "helm has no test rule",
+        "runfiles_test": "helm has no binary rule",
+    },
+    passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "lint_dirty": "//helm/tests/dirty",
+        "lint_line": 1,
+        "lint_rule": "invalid",
+        "lint_source": "//helm/tests/dirty:templates/configmap.yaml",
+        "lint_subject": kubernetes_lint_subject,
+    },
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

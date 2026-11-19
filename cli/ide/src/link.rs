@@ -1,10 +1,12 @@
+use std::ffi::OsStr;
 use std::io;
 use std::path::Path;
 
 use dx_atomic_fs::{PointerKind, replace_pointer};
 
 /// Points `dir/name` at `target`, replacing any earlier link in one rename.
-pub fn link(dir: &Path, name: &str, target: &Path) -> io::Result<()> {
+pub fn link(dir: &Path, name: impl AsRef<OsStr>, target: &Path) -> io::Result<()> {
+    let name = name.as_ref();
     let kind = if target.is_dir() {
         PointerKind::Directory
     } else {
@@ -12,7 +14,9 @@ pub fn link(dir: &Path, name: &str, target: &Path) -> io::Result<()> {
     };
     replace_pointer(target, &dir.join(name), kind)?;
     if cfg!(windows) && kind == PointerKind::File {
-        replace_pointer(target, &dir.join(format!("{name}.exe")), kind)?;
+        let mut exe = name.to_os_string();
+        exe.push(".exe");
+        replace_pointer(target, &dir.join(exe), kind)?;
     }
     Ok(())
 }

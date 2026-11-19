@@ -46,7 +46,7 @@ rust_library(
         "templates/dx-update.yml",
         "//cli/prebuilt:pins.bzl",
         "//patches/avro-cpp:iterator.patch",
-        "//core:license.bzl",
+        "//core:licenses/pins.json",
     ],
     crate_name = "dx_adopt",
     crate_root = "src/lib.rs",
@@ -57,6 +57,7 @@ rust_library(
         "//tools/ci/fill_pins:__pkg__",
         "//tools/docs/support_matrix:__pkg__",
         "//tools/testing:__pkg__",
+        "//tools/testing/consumer:__pkg__",
     ],
     # keep
     deps = [
@@ -130,7 +131,7 @@ rust_test(
         "templates/dx-update.yml",
         "//cli/prebuilt:pins.bzl",
         "//patches/avro-cpp:iterator.patch",
-        "//core:license.bzl",
+        "//core:licenses/pins.json",
     ],
     coverage_lib = ":dx_adopt",
     crate_name = "dx_adopt",

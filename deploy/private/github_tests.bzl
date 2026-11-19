@@ -1,7 +1,7 @@
 """Unit and analysis tests for the GitHub Release publisher."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":validate_github.bzl", "github_asset_collision_error", "github_notes_error", "github_tag_error")
 
 def github_unit_tests(name):
@@ -81,6 +81,16 @@ def github_unit_tests(name):
                 "github_deploy: notes_file needs notes = 'none'",
             ),
             expect_equal(
+                "github_notes_error accepts commits with a notes_diff",
+                github_notes_error("commits", None, ["api/"]),
+                "",
+            ),
+            expect_equal(
+                "github_notes_error rejects none with a notes_diff",
+                github_notes_error("none", None, ["api/"]),
+                "github_deploy: notes_diff needs notes = 'commits'",
+            ),
+            expect_equal(
                 "github_asset_collision_error accepts unique asset names",
                 github_asset_collision_error([
                     ("//linux:app", "app-linux.tar.gz"),
@@ -116,10 +126,10 @@ def _attested_config_test_impl(ctx):
 
 _attested_config_test = analysistest.make(_attested_config_test_impl)
 
-def github_attestation_tests(name):
+def github_attestation_tests(name, size):
     """Checks that registry_deploys reach the github config and attach uploads the maven files."""
     _attested_config_test(
         name = name,
-        size = "small",
+        size = size,
         target_under_test = ":github_attested_config",
     )

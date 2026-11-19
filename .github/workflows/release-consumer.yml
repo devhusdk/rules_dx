@@ -90,6 +90,36 @@ jobs:
             echo "- version: $printed"
             echo "- dx: $files"
           } >> "$GITHUB_STEP_SUMMARY"
+          for tool in topiary progenitor; do
+            tool_files="$(bazel cquery --output=files "@rules_dx//rust/private/quality/tools:${tool}_tool")"
+            echo "$tool_files"
+            case "$tool_files" in
+              *"dx_prebuilt/$KEY/$tool"*) ;;
+              *) echo "@rules_dx ${tool}_tool is not the dx_prebuilt/$KEY/$tool download" >&2; exit 1 ;;
+            esac
+            echo "- $tool: $tool_files" >> "$GITHUB_STEP_SUMMARY"
+          done
+          govet_files="$(bazel cquery --output=files @rules_dx//config:tool_govet)"
+          echo "$govet_files"
+          case "$govet_files" in
+            *"dx_prebuilt/$KEY/dx_govet"*) ;;
+            *) echo "@rules_dx//config:tool_govet is not the dx_prebuilt/$KEY/dx_govet download" >&2; exit 1 ;;
+          esac
+          echo "- dx_govet: $govet_files" >> "$GITHUB_STEP_SUMMARY"
+          bazel build @rules_dx//config:tool_modfmt
+          modfmt="$(bazel info execution_root)/$(bazel cquery --output=files @rules_dx//config:tool_modfmt)"
+          "$modfmt" -c
+          case "$KEY" in
+            linux_*)
+              kcov_files="$(bazel cquery --output=files @rules_dx//tools/coverage/kcov:kcov_or_none)"
+              echo "$kcov_files"
+              case "$kcov_files" in
+                *"dx_prebuilt/$KEY/kcov"*) ;;
+                *) echo "@rules_dx kcov_or_none is not the dx_prebuilt/$KEY/kcov download" >&2; exit 1 ;;
+              esac
+              echo "- kcov: $kcov_files" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+          esac
 
   bcr:
     needs: consumer

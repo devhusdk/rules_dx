@@ -42,7 +42,7 @@ _flatbuffers_conform = rule(
         "root": attr.label(allow_single_file = [".fbs"], doc = "Root schema of library; optional when it owns one schema."),
         "baseline": attr.label(providers = [FlatBuffersInfo], mandatory = True, doc = "flatbuffers_library holding the previous schema."),
         "baseline_root": attr.label(allow_single_file = [".fbs"], doc = "Root schema of baseline; optional when it owns one schema."),
-        "_flatc": attr.label(default = Label("@dx_flatbuffers//:flatc"), executable = True, cfg = "exec"),
+        "_flatc": attr.label(default = Label("@dx_prebuilt//:flatc"), executable = True, cfg = "exec"),
     },
 )
 

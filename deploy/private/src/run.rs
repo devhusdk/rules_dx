@@ -130,8 +130,8 @@ fn keeps_in(keep: &[&str], name: &str, ignore_case: bool) -> bool {
 }
 
 /// Filters process env to a keep-list plus extras.
-fn minimal_env(keep: &[&str], extra: &[(&str, &str)]) -> std::collections::HashMap<String, String> {
-    let mut env = std::collections::HashMap::new();
+fn minimal_env(keep: &[&str], extra: &[(&str, &str)]) -> std::collections::BTreeMap<String, String> {
+    let mut env = std::collections::BTreeMap::new();
     for (key, value) in std::env::vars_os() {
         let (Some(key), Some(value)) = (key.to_str(), value.to_str()) else {
             continue;
@@ -286,7 +286,7 @@ pub fn check_files_size_budget(paths: &[PathBuf], budget: u64) -> Result<u64, St
         bytes +=
             tree_bytes(path).map_err(|error| format!("cannot size {}: {error}", path.display()))?;
     }
-    check_size_budget("dx_deployment", "artifacts total", bytes, budget)?;
+    check_size_budget("deployment", "artifacts total", bytes, budget)?;
     Ok(bytes)
 }
 
@@ -526,6 +526,7 @@ mod tests {
                 assert_eq!(env.get("DX_TEST_EXTRA").map(String::as_str), Some("extra"));
                 assert!(!env.contains_key("DX_TEST_DROP"));
                 assert!(!env.contains_key("DX_TEST_ABSENT"));
+                assert!(env.keys().is_sorted());
             },
         );
     }

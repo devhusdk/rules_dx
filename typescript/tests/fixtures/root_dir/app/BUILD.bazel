@@ -1,6 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//typescript/tests/fixtures/typecheck_gate:gate_tests.bzl", "typecheck_gate_test")
-load("//typescript:defs.bzl", "ts_config", "typescript_binary")
+load("//typescript:defs.bzl", "typescript_binary", "typescript_config")
 
 package(
     default_testonly = True,
@@ -31,7 +31,7 @@ real_source_target(
     tags = ["corpus"],
 )
 
-ts_config(
+typescript_config(
     name = "tsconfig",
     testonly = True,
     src = "tsconfig.json",

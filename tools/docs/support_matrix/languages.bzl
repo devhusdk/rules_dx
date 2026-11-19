@@ -279,7 +279,7 @@ LANGUAGES = [
         "d",
         bench = "d_bench",
         fuzz = "d_fuzz_test",
-        deps = "`dub` (pinned, no advisories)",
+        deps = "`dub` (no advisories)",
         doc = struct(tool = "ldc ddoc", shard = "d_doc_shard"),
         dead_code = ["none"],
     ),
@@ -377,7 +377,7 @@ LANGUAGES = [
     _language(
         "lua",
         bench = "lua_bench",
-        deps = "`luarocks` (pinned, no advisories)",
+        deps = "`luarocks` (no advisories)",
         doc = struct(tool = "ldoc", shard = "lua_doc_shard"),
         dead_code = ["selene unused_variable"],
     ),
@@ -420,7 +420,7 @@ LANGUAGES = [
     ),
     _language(
         "powershell",
-        deps = "`powershell` (pinned, no advisories)",
+        deps = "`powershell` (no advisories)",
         doc = struct(tool = "pwsh", shard = "powershell_doc_shard"),
         dead_code = ["psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments"],
     ),

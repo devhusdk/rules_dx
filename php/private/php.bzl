@@ -52,7 +52,7 @@ def write_native_launcher(ctx, descriptor_text, launcher_name = None):
 
 _TOOL = Label("//php/private:tool.php")
 
-_COVERAGE_RUN = Label("//php/private/coverage:coverage_run")
+_COVERAGE_RUN = Label("@dx_prebuilt//:runtime")
 
 _COMPOSER = Label("@dx_composer//:composer.phar")
 
@@ -174,8 +174,8 @@ def _write_launcher(ctx, tokens):
     return launcher, runfiles.merge(ctx.runfiles(transitive_files = php.files))
 
 def coverage_descriptor(runner, tree, pcov, php, ini, tokens, extensions = []):
-    """Returns the descriptor of a php_test under coverage: the coverage runner with the autoload tree, PCOV, php, its extensions, its flags and the tokens."""
-    lines = ["program=" + runner, "path=" + tree, "path=" + pcov, "path=" + php, "arg=-n"]
+    """Returns the descriptor of a php_test under coverage: dx-runtime running its php_coverage helper with the autoload tree, PCOV, php, its extensions, its flags and the tokens."""
+    lines = ["program=" + runner, "env=DX_RUNTIME_TOOL\tphp_coverage", "path=" + tree, "path=" + pcov, "path=" + php, "arg=-n"]
     for extension in extensions:
         lines.extend(["arg=-d", _descriptor_line(rf_prefixed("extension=", extension))])
     for flag in ini_flags(ini):
@@ -315,7 +315,7 @@ php_test = rule(
     attrs = _RUN_ATTRS | {
         "config": attr.label(allow_single_file = [".xml", ".dist"], doc = "A phpunit.xml; without it PHPUnit runs with --no-configuration."),
         "srcs": attr.label_list(mandatory = True, allow_files = PHP_SOURCE_EXTS, doc = "PHPUnit test files PHPUnit runs."),
-        "_coverage_run": attr.label(default = _COVERAGE_RUN, executable = True, cfg = no_coverage_transition, doc = "Runs PHPUnit under PCOV and converts its Clover report to LCOV."),
+        "_coverage_run": attr.label(default = _COVERAGE_RUN, executable = True, cfg = no_coverage_transition, doc = "dx-runtime, whose php_coverage helper runs PHPUnit under PCOV and converts its Clover report to LCOV."),
         "_phpunit": attr.label(default = _PHPUNIT, allow_single_file = True, doc = "The pinned PHPUnit phar."),
     },
     test = True,

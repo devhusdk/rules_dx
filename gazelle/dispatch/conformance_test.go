@@ -109,9 +109,10 @@ var conformanceRows = map[string]conformanceRow{
 	"javascript": {
 		files: map[string]string{"demo.js": "export const x = 1;\n"},
 		kind:  "javascript_library", target: "demo", defs: "javascript:defs.bzl",
-		symbols:    []string{"javascript_library", "javascript_test", "javascript_binary", "js_library"},
+		symbols:    []string{"javascript_library", "javascript_test", "javascript_binary"},
 		extraLoads: map[string][]string{
 			"@npm//:defs.bzl":                {"npm_link_all_packages"},
+			"@aspect_rules_js//js:defs.bzl":  {"js_library"},
 			"@aspect_rules_js//npm:defs.bzl": {"npm_package"},
 		},
 		inert: []string{"notes.txt", "widget.d.ts"},
@@ -161,6 +162,8 @@ var conformanceRows = map[string]conformanceRow{
 			"@rules_dx//api_spec:defs.bzl":       {"api_spec_library"},
 			"@rules_dx//helm:defs.bzl":           {"helm_library"},
 			"@rules_dx//fortran:defs.bzl":        {"fortran_library"},
+			"@rules_dx//appimage:defs.bzl":       {"appimage_package"},
+			"@rules_dx//msix:defs.bzl":           {"msix_package"},
 		},
 	},
 	"perl": {
@@ -257,12 +260,16 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"Demo.swift": "import Foundation\n"},
 		kind:  "swift_library", target: "demo", defs: "swift:defs.bzl",
 		symbols: []string{"swift_library", "swift_test"},
+		extraLoads: map[string][]string{
+			"@rules_dx//apple:defs.bzl": {"apple_ios_app", "apple_macos_app"},
+		},
 	},
 	"typescript": {
 		files: map[string]string{"demo.ts": "export const x = 1;\n", "tsconfig.json": "{}\n"},
 		kind:  "typescript_library", target: "demo", defs: "typescript:defs.bzl",
-		symbols:    []string{"typescript_library", "typescript_test", "typescript_binary", "ts_config"},
+		symbols:    []string{"typescript_library", "typescript_test", "typescript_binary", "typescript_config"},
 		extraLoads: map[string][]string{
+			"@aspect_rules_ts//ts:defs.bzl":  {"ts_config"},
 			"@aspect_rules_js//npm:defs.bzl": {"npm_package"},
 		},
 		inert: []string{"notes.txt", "widget.d.ts", "orphan.d.mts"},

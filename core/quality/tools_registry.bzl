@@ -860,6 +860,22 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "state": "supported",
           "tool": "clang_tidy",
           "transport": "batched"
+        },
+        {
+          "capability": "lint",
+          "classes": [
+            "cuda"
+          ],
+          "context": "target_coupled",
+          "family": "cuda",
+          "fix": "check_only",
+          "platforms": [
+            "linux_arm64",
+            "linux_x86_64"
+          ],
+          "state": "supported",
+          "tool": "clang_tidy",
+          "transport": "batched"
         }
       ]
     },
@@ -4262,6 +4278,61 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
   "d": [
     {
       "adapters": {
+        "lint": [
+          "d"
+        ]
+      },
+      "concerns": {
+        "lint": "lint"
+      },
+      "config": {
+        "comment": "",
+        "ext": "",
+        "extends_syntax": "",
+        "extensions": [],
+        "extras": [],
+        "family": "",
+        "files": [],
+        "init_order": 0,
+        "kind": "none",
+        "pyproject_table": "",
+        "references": [],
+        "rule_keys": [],
+        "shared": false,
+        "stage_native": false,
+        "suffixes": [],
+        "suppression_extensions": [],
+        "suppressions": [],
+        "tier_active": false,
+        "tier_base": false,
+        "tier_dir": "",
+        "tier_source": "dx"
+      },
+      "id": "dscanner",
+      "severity": {
+        "categories": {},
+        "default": null
+      },
+      "support": [
+        {
+          "capability": "lint",
+          "classes": [
+            "d"
+          ],
+          "context": "owned",
+          "family": "d",
+          "fix": "check_only",
+          "platforms": [
+            "linux_x86_64"
+          ],
+          "state": "supported",
+          "tool": "dscanner",
+          "transport": "batched"
+        }
+      ]
+    },
+    {
+      "adapters": {
         "typecheck": [
           "d"
         ]
@@ -6447,7 +6518,7 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
         "suppression_extensions": [],
         "suppressions": [],
         "tier_active": true,
-        "tier_base": false,
+        "tier_base": true,
         "tier_dir": "",
         "tier_source": "dx"
       },

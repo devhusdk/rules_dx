@@ -1254,3 +1254,17 @@ fn bazelisk_pins_match_pin_env() {
         "dx.gitlab-ci.yml BAZELISK_SHA256 differs from pin.env"
     );
 }
+
+#[test]
+fn the_dx_cli_clippy_config_extends_the_workspace_one() {
+    let workspace = read_runfiles("tools/workspace/clippy.toml");
+    let cli = read_runfiles("cli/cli/clippy.toml");
+    assert!(
+        cli.starts_with(&workspace),
+        "cli/cli/clippy.toml must start with tools/workspace/clippy.toml and only append to it"
+    );
+    assert!(
+        cli.contains("path = \"std::fs::write\""),
+        "cli/cli/clippy.toml must disallow std::fs::write"
+    );
+}

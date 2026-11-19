@@ -1,4 +1,11 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![cfg_attr(
+    test,
+    expect(
+        clippy::disallowed_methods,
+        reason = "tests run local programs under the Bazel test timeout"
+    )
+)]
 
 use std::fs;
 use std::io;
@@ -112,10 +119,14 @@ pub fn canonical_identity_bytes(tools: &[ToolPlan]) -> Vec<u8> {
     let identity = EnvIdentity {
         tools: sorted
             .iter()
-            .map(|tool| ToolEntry {
-                bin_name: tool.bin_name.clone(),
-                owner: tool.owner.clone(),
-                host_names: tool.host_names.clone(),
+            .map(|tool| {
+                let mut host_names = tool.host_names.clone();
+                host_names.sort();
+                ToolEntry {
+                    bin_name: tool.bin_name.clone(),
+                    owner: tool.owner.clone(),
+                    host_names,
+                }
             })
             .collect(),
     };
@@ -240,6 +251,12 @@ fn validate_logical_name(bin_name: &str, name: &str) -> Result<(), Error> {
     if name.contains('/') || name.contains('\\') {
         return Err(bad("must not contain '/' or '\\'"));
     }
+    if name.chars().any(|c| c.is_control() || c == ':') {
+        return Err(bad("must not contain control characters or ':'"));
+    }
+    if name.ends_with('.') || name.ends_with(' ') {
+        return Err(bad("must not end with '.' or a space"));
+    }
     let lower = name.to_lowercase();
     if lower == MARKER_FILE_NAME {
         return Err(bad("is reserved for the provenance marker"));
@@ -264,7 +281,7 @@ pub fn probe_symlink(dir: &Path) -> io::Result<()> {
         Err(e) => return Err(e),
     }
     symlink_entry(&PathBuf::from("symlink.target"), &link)?;
-    drop(fs::remove_file(&link));
+    dx_atomic_fs::discard_file(&link);
     Ok(())
 }
 
@@ -330,7 +347,7 @@ pub fn refresh(
     let current = read_current_identity(&bin_dir)?;
     let candidate = identity_digest(&canonical_identity_bytes(&tools));
     if current == Some(candidate) && verify_installed(&bin_dir, &staged)? {
-        clean_stage(&stage_dir);
+        dx_atomic_fs::discard_dir(&stage_dir);
         return Ok(RefreshOutcome::AlreadyCurrent);
     }
     let fresh = current.is_none();
@@ -444,6 +461,10 @@ fn verify_installed(bin_dir: &Path, staged: &[(String, PathBuf)]) -> Result<bool
     Ok(true)
 }
 
+fn present(path: &Path) -> bool {
+    fs::symlink_metadata(path).is_ok()
+}
+
 fn unmanaged(bin_dir: &Path, detail: &str) -> Error {
     Error::Unmanaged {
         path: bin_dir.to_path_buf(),
@@ -458,7 +479,7 @@ fn stage_tree(
     staged: &[(String, PathBuf)],
     identity: &[u8; 32],
 ) -> Result<(), Error> {
-    if stage_dir.exists() {
+    if present(stage_dir) {
         fs::remove_dir_all(stage_dir).map_err(|e| Error::Install {
             reason: format!("cannot clear stale staging {}: {e}", stage_dir.display()),
         })?;
@@ -466,12 +487,13 @@ fn stage_tree(
     fs::create_dir_all(stage_dir).map_err(|e| Error::Install {
         reason: format!("cannot create staging {}: {e}", stage_dir.display()),
     })?;
-    fs::write(stage_dir.join(MARKER_FILE_NAME), encode_marker(identity)).map_err(|e| {
-        // LCOV_EXCL_START - reason: freshly created staging dir, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-        Error::Install {
-            reason: format!("cannot stage provenance marker: {e}"),
-        }
-    })?;
+    dx_atomic_fs::write_atomic(&stage_dir.join(MARKER_FILE_NAME), &encode_marker(identity))
+        .map_err(|e| {
+            // LCOV_EXCL_START - reason: freshly created staging dir, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+            Error::Install {
+                reason: format!("cannot stage provenance marker: {e}"),
+            }
+        })?;
     // LCOV_EXCL_STOP - reason: end freshly created staging dir, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     for (name, target) in staged {
         symlink_entry(target, &stage_dir.join(name)).map_err(|e| Error::Install {
@@ -479,12 +501,6 @@ fn stage_tree(
         })?;
     }
     Ok(())
-}
-
-fn clean_stage(stage_dir: &Path) {
-    if stage_dir.exists() {
-        drop(fs::remove_dir_all(stage_dir));
-    }
 }
 
 #[cfg(test)]

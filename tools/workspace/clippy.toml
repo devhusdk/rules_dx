@@ -3,8 +3,22 @@ allow-expect-in-tests = true
 allow-panic-in-tests = true
 allow-indexing-slicing-in-tests = true
 
-disallowed-methods = [
-  { path = "dx_process::build_workflow_argv", reason = "build dx Bazel argv with plan::bazel_argv so the shared settings stay guarded" },
-  { path = "dx_process::build_workflow_argv_with", reason = "build dx Bazel argv with plan::bazel_argv so the shared settings stay guarded" },
-  { path = "dx_process::startup_argv", reason = "verbs that need settings go through plan::bazel_argv or BazelHead; allow only for verbs without settings (query, info)" },
-]
+[[disallowed-methods]]
+path = "dx_process::build_workflow_argv"
+reason = "build dx Bazel argv with plan::bazel_argv so the shared settings stay guarded"
+
+[[disallowed-methods]]
+path = "dx_process::build_workflow_argv_with"
+reason = "build dx Bazel argv with plan::bazel_argv so the shared settings stay guarded"
+
+[[disallowed-methods]]
+path = "dx_process::startup_argv"
+reason = "verbs that need settings go through plan::bazel_argv or BazelHead; allow only for verbs without settings (query, info)"
+
+[[disallowed-methods]]
+path = "std::process::Command::output"
+reason = "use dx_process::capture::run_checked or dx_lock::Scratch::run so the child has a timeout"
+
+[[disallowed-methods]]
+path = "std::process::Command::status"
+reason = "use dx_process::capture::run_checked or dx_lock::Scratch::run so the child has a timeout"

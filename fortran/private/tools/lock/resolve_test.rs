@@ -1,8 +1,7 @@
 //! The fpm lock step writes the golden lock from pinned archives with an empty `PATH` and no network.
 
-use std::cell::RefCell;
-
-use dx_lock::{Args, Error, Fetch, Outcome, run};
+use dx_lock::{Args, Error, Outcome, run};
+use dx_lock_testing::{FixtureFetch, NoFetch};
 use fpm_lock::{Download, Fpm, read_archive};
 
 const STDLIB: &str = "https://github.com/fortran-lang/stdlib/archive/v0.7.0.tar.gz";
@@ -16,25 +15,24 @@ fsparse = { git = \"https://github.com/jalvesz/FSPARSE.git\", tag = \"v1.2.0\" }
 local = { path = \"../local\" }
 ";
 
-struct Archives(RefCell<Vec<String>>);
+struct Archives(FixtureFetch);
 
-impl Download for Archives {
-    fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
-        self.0.borrow_mut().push(url.to_owned());
-        let name = match url {
-            STDLIB | "https://github.com/fortran-lang/stdlib/archive/v0.6.0.tar.gz" => "STDLIB",
-            FSPARSE => "FSPARSE",
-            other => return Err(Error::new(format!("unexpected download of {other}"))),
-        };
-        std::fs::read(dx_testing::env_file(name)).map_err(|error| Error::new(error.to_string()))
+impl Archives {
+    fn new() -> Self {
+        Self(FixtureFetch::new(&[
+            (STDLIB, "STDLIB"),
+            (
+                "https://github.com/fortran-lang/stdlib/archive/v0.6.0.tar.gz",
+                "STDLIB",
+            ),
+            (FSPARSE, "FSPARSE"),
+        ]))
     }
 }
 
-struct NoFetch;
-
-impl Fetch for NoFetch {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        Err(Error::new(format!("unexpected download of {url}")))
+impl Download for Archives {
+    fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
+        self.0.bytes(url)
     }
 }
 
@@ -63,9 +61,9 @@ fn lock(dir: &std::path::Path, archives: &Archives) -> Result<Outcome, Error> {
 #[test]
 fn pinned_archives_write_the_golden_lock() {
     let dir = set(MANIFEST);
-    let archives = Archives(RefCell::default());
+    let archives = Archives::new();
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
-    assert_eq!(archives.0.borrow().as_slice(), [FSPARSE, STDLIB]);
+    assert_eq!(archives.0.asked(), [FSPARSE, STDLIB]);
     let hub = dx_families::hub("fpm").expect("fpm is registered");
     let actual = dir.path().join(hub.lock.as_deref().expect("lock"));
     dx_testing::snapshot_diff(
@@ -79,15 +77,12 @@ fn pinned_archives_write_the_golden_lock() {
 #[test]
 fn unchanged_packages_are_kept_without_a_download() {
     let dir = set(MANIFEST);
-    assert_eq!(
-        lock(dir.path(), &Archives(RefCell::default())),
-        Ok(Outcome::Written)
-    );
+    assert_eq!(lock(dir.path(), &Archives::new()), Ok(Outcome::Written));
     let hub = dx_families::hub("fpm").expect("fpm is registered");
     std::fs::write(dir.path().join(&hub.manifest), format!("{MANIFEST}\n")).expect("manifest");
-    let archives = Archives(RefCell::default());
+    let archives = Archives::new();
     assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
-    assert_eq!(archives.0.borrow().as_slice(), Vec::<String>::new());
+    assert!(archives.0.asked().is_empty());
 }
 
 #[test]
@@ -96,7 +91,7 @@ fn conflicting_references_fail() {
         "{MANIFEST}stdlib = {{ git = \"https://github.com/fortran-lang/stdlib\", tag = \"v0.6.0\" }}\n"
     );
     let dir = set(&manifest);
-    let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Archives::new()).expect_err("refused");
     assert!(
         error
             .to_string()
@@ -108,7 +103,7 @@ fn conflicting_references_fail() {
 #[test]
 fn a_branch_dependency_fails() {
     let dir = set(&MANIFEST.replace("tag = \"v1.2.0\"", "branch = \"main\""));
-    let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Archives::new()).expect_err("refused");
     assert!(
         error
             .to_string()
@@ -123,7 +118,7 @@ fn a_registry_dependency_fails() {
         "fsparse = { git = \"https://github.com/jalvesz/FSPARSE.git\", tag = \"v1.2.0\" }",
         "fsparse = \"1.2.0\"",
     ));
-    let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Archives::new()).expect_err("refused");
     assert!(
         error
             .to_string()
@@ -135,7 +130,7 @@ fn a_registry_dependency_fails() {
 #[test]
 fn a_non_github_source_fails() {
     let dir = set(&MANIFEST.replace("https://github.com/jalvesz", "https://gitlab.com/jalvesz"));
-    let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
+    let error = lock(dir.path(), &Archives::new()).expect_err("refused");
     assert!(
         error
             .to_string()

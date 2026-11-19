@@ -1,4 +1,8 @@
 //! Drives the managed development server over real HTTP and its negatives.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -44,7 +48,7 @@ impl Server {
         std::thread::spawn(move || {
             let mut line = String::new();
             let outcome = BufReader::new(stdout).read_line(&mut line);
-            let _ = done.send((outcome, line));
+            let _: Result<(), _> = done.send((outcome, line));
         });
         let (outcome, line) = ready
             .recv_timeout(Duration::from_secs(30))
@@ -71,8 +75,8 @@ impl Server {
 
 impl Drop for Server {
     fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        let _: std::io::Result<()> = self.child.kill();
+        let _: std::io::Result<std::process::ExitStatus> = self.child.wait();
     }
 }
 
@@ -358,7 +362,10 @@ fn foreign_manifest_is_not_checked() {
         let root = app.to_string_lossy().into_owned();
         let server = Server::start(SERVE, &[&format!("--root={root}")]);
         let response = request(server.port, "GET", "/");
-        assert_eq!(response.status, 200, "{name} manifest must not block serving");
+        assert_eq!(
+            response.status, 200,
+            "{name} manifest must not block serving"
+        );
         server.stop();
     }
 }

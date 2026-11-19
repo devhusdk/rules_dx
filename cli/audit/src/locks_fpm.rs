@@ -1,3 +1,4 @@
+use crate::locks::sort_unique;
 use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
@@ -5,6 +6,7 @@ pub const FPM_SET: &str = "fpm";
 
 /// Reads the packages of an fpm lock.
 pub fn parse_fpm_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let value: serde_json::Value = serde_json::from_str(text)
         .map_err(|error| DxError::failure(format!("invalid fpm lock: {error}")))?;
     let packages = value
@@ -28,6 +30,6 @@ pub fn parse_fpm_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         }
         out.push(LockedPackage::new(FPM_SET, name, version));
     }
-    out.sort_by(|a, b| a.name.cmp(&b.name));
+    sort_unique(&mut out);
     Ok(out)
 }

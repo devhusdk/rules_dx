@@ -6,6 +6,7 @@ pub const FORMAT_ASPECTS: &[&str] = &[
     "core/quality:families/cue.bzl%real_cue_format_aspect",
     "core/quality:families/pkl.bzl%real_pkl_format_aspect",
     "core/quality:families/core.bzl%real_format_aspect",
+    "core/quality:families/core.bzl%real_biome_format_aspect",
     "core/quality:families/jsonnet.bzl%real_jsonnet_format_aspect",
     "core/quality:families/nix.bzl%real_nix_format_aspect",
     "core/quality:families/shell.bzl%real_shell_format_aspect",
@@ -18,6 +19,8 @@ pub const FORMAT_ASPECTS: &[&str] = &[
 pub const LINT_ASPECTS: &[&str] = &[
     "core/quality:families/oci_image.bzl%real_oci_image_lint_aspect",
     "core/quality:families/core.bzl%real_lint_aspect",
+    "core/quality:families/core.bzl%real_biome_lint_aspect",
+    "core/quality:families/core.bzl%real_vale_lint_aspect",
     "core/quality:families/shell.bzl%real_shell_lint_aspect",
     "core/quality:families/text.bzl%real_text_lint_aspect",
     "core/quality:families/html_template.bzl%real_html_template_lint_aspect",

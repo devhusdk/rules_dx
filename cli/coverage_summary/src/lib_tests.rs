@@ -182,3 +182,44 @@ fn clock_rounds_down_to_whole_seconds() {
     assert_eq!(clock(59_999_999.0), "0m59s");
     assert_eq!(clock(3_661_000_000.0), "61m01s");
 }
+
+#[test]
+fn clock_never_goes_negative() {
+    assert_eq!(clock(-5_000_000.0), "0m00s");
+    assert_eq!(clock(f64::NAN), "0m00s");
+}
+
+#[test]
+fn cache_percentages_stay_between_zero_and_one_hundred() {
+    let mut cell = inputs("");
+    cell.profiles = vec![(
+        "build".to_owned(),
+        r#"{"cache":{"actions":2,"hit_percent":100,"remote_hits":9,"disk_hits":-4},"wall_micros":0,"critical_path_micros":0}"#.to_owned(),
+    )];
+    let body = render(&cell);
+    assert!(body.contains("(remote 100%, disk 0%)"), "{body}");
+}
+
+#[test]
+fn a_source_message_cannot_close_the_fence_or_span_lines() {
+    let mut cell = inputs("");
+    cell.events = r#"{"code":"coverage_sources","message":"a\n```\n# injected\r\nb"}"#.to_owned();
+    let body = render(&cell);
+    assert!(
+        body.contains("```text\ncoverage_sources: a ''' # injected  b\n```\n\n"),
+        "{body}"
+    );
+}
+
+#[test]
+fn the_marker_cannot_close_its_comment_early() {
+    let mut cell = inputs("x --> <b>");
+    cell.platform = "p\nq".to_owned();
+    let body = render(&cell);
+    let first = body.lines().next().unwrap_or_default();
+    assert!(
+        first.starts_with("<!-- ") && first.ends_with(" -->"),
+        "{body}"
+    );
+    assert_eq!(first.matches("-->").count(), 1, "{body}");
+}

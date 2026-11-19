@@ -130,9 +130,36 @@ fn disabled(setting: &str) -> bool {
     )
 }
 
+/// `settings` with each `rule/option` key folded into `rule` when `other` has `rule` as a
+/// plain setting, so a rule that gains or loses options compares as one rule.
+fn fold_options(settings: &RuleSettings, other: &RuleSettings) -> RuleSettings {
+    let mut folded = RuleSettings::new();
+    let mut options: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+    for (key, setting) in settings {
+        let split = key
+            .match_indices('/')
+            .filter_map(|(at, _)| key.split_at_checked(at))
+            .find(|(parent, _)| other.contains_key(*parent) && !settings.contains_key(*parent));
+        match split {
+            Some((parent, option)) => options.entry(parent).or_default().push(format!(
+                "{}={setting}",
+                option.strip_prefix('/').unwrap_or(option)
+            )),
+            None => {
+                folded.insert(key.clone(), setting.clone());
+            }
+        }
+    }
+    for (parent, option_list) in options {
+        folded.insert(parent.to_owned(), option_list.join(", "));
+    }
+    folded
+}
+
 /// The `N rules enabled, M disabled, K changed` line and one indented line per rule,
 /// or nothing when no rule differs.
 pub fn rule_report(tool: &str, old: &RuleSettings, new: &RuleSettings) -> Vec<String> {
+    let (old, new) = (&fold_options(old, new), &fold_options(new, old));
     let mut lines = Vec::new();
     let (mut enabled, mut off, mut changed) = (0, 0, 0);
     for rule in old.keys().chain(new.keys()).collect::<BTreeSet<_>>() {
@@ -243,5 +270,35 @@ mod tests {
             ]
         );
         assert_eq!(rule_report("biome", &old, &old), [] as [String; 0]);
+    }
+
+    #[test]
+    fn report_shows_a_rule_that_gains_options_as_changed() {
+        let old_text = "rules:\n  anchors: enable\n  truthy: disable\n";
+        let new_text = "rules:\n  anchors:\n    forbid-undeclared-aliases: true\n    forbid-unused-anchors: true\n  truthy: disable\n";
+        let old = rule_settings("yaml", &["rules"], old_text).unwrap_or_default();
+        let new = rule_settings("yaml", &["rules"], new_text).unwrap_or_default();
+        let expected = [
+            "yamllint: 0 rules enabled, 0 disabled, 1 changed",
+            "  ~ anchors: enable -> forbid-undeclared-aliases=true, forbid-unused-anchors=true",
+        ];
+        assert_eq!(rule_report("yamllint", &old, &new), expected);
+        assert_eq!(
+            rule_report("yamllint", &new, &old),
+            [
+                "yamllint: 0 rules enabled, 0 disabled, 1 changed",
+                "  ~ anchors: forbid-undeclared-aliases=true, forbid-unused-anchors=true -> enable",
+            ]
+        );
+
+        let old = settings(&[("a11y/noX", "error")]);
+        let new = settings(&[("a11y/noX/level", "error"), ("a11y/noX/options/max", "2")]);
+        assert_eq!(
+            rule_report("biome", &old, &new),
+            [
+                "biome: 0 rules enabled, 0 disabled, 1 changed",
+                "  ~ a11y/noX: error -> level=error, options/max=2",
+            ]
+        );
     }
 }

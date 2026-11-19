@@ -2,7 +2,7 @@
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//core:defs.bzl", "DxSubjectInfo", "starlark_test")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo", "starlark_test")
 load("//core/quality/testdata:all_languages.bzl", "upstream_direct_sources")
 
 visibility("private")
@@ -131,10 +131,11 @@ def upstream_ownership_tests(name, subjects):
         expected_observations = UPSTREAM_OWNERSHIP_OBSERVATIONS,
     )
 
-def upstream_android_ownership_tests(name, subjects):
+def upstream_android_ownership_tests(name, subjects, size):
     """Instantiates the upstream ownership probe test for Android library subjects."""
     starlark_test(
         name = name,
+        size = size,
         mode = "analysis",
         subjects = subjects,
         expected_observations = UPSTREAM_ANDROID_OWNERSHIP_OBSERVATIONS,

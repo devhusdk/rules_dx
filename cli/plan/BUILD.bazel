@@ -49,6 +49,7 @@ rust_library(
         "src/reports/planning.rs",
         "src/reports/sarif.rs",
         "src/resolve.rs",
+        "src/resolve/base.rs",
         "src/resolve/changed.rs",
         "src/resolve/classify.rs",
         "src/resolve/codegen_expand.rs",
@@ -72,15 +73,13 @@ rust_library(
         package_name = "cli/dx_plan",
         normal = True,
     ),
-    compile_data = [
-        "//docs:cli/commands/README.md",
-        "//docs:tutorial.md",
-    ],
     crate_name = "dx_plan",
     crate_root = "src/lib.rs",
     visibility = VIS_QUALITY_CLI + [
         "//tools/api:__pkg__",
         "//tools/ci:__pkg__",
+        "//tools/testing:__pkg__",
+        "//tools/testing/consumer:__pkg__",
     ],
     # keep
     deps = [
@@ -170,6 +169,7 @@ rust_test(
         "src/reports/planning.rs",
         "src/reports/sarif.rs",
         "src/resolve.rs",
+        "src/resolve/base.rs",
         "src/resolve/changed.rs",
         "src/resolve/classify.rs",
         "src/resolve/codegen_expand.rs",
@@ -207,7 +207,6 @@ rust_test(
     crate_root = "src/lib.rs",
     data = [
         "//:MODULE.bazel",
-        "//cli/cli/tests/fixtures/help_goldens:goldens",
         "//core/modules:versions.bzl",
         "//core/quality:BUILD.bazel",
         "//core/quality:adapters.bzl",
@@ -268,6 +267,7 @@ rust_test(
 
 rust_bench(
     name = "affected_bench",
+    size = "small",
     srcs = ["benches/affected_bench.rs"],
     crate_root = "benches/affected_bench.rs",
     deps = [

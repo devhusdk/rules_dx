@@ -2,7 +2,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//cuda:defs.bzl", "cuda_binary", "cuda_library", "cuda_test")
 load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
-load("//tools/testing/conformance:quality.bzl", "cc_format_subject")
+load("//tools/testing/conformance:quality.bzl", "cc_format_subject", "cc_lint_subject")
 
 package(
     default_testonly = True,
@@ -24,6 +24,12 @@ cuda_library(
 cuda_library(
     name = "format_dirty",
     srcs = ["format_dirty.cu"],
+    cuda_archs = _ARCHS,
+)
+
+cuda_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.cu"],
     cuda_archs = _ARCHS,
 )
 
@@ -71,6 +77,10 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "cuda",
     not_applicable = {
+        "lint_error_test:windows_arm64": "clang-tidy does not lint CUDA compiled with an MSVC host compiler",
+        "lint_error_test:windows_x86_64": "clang-tidy does not lint CUDA compiled with an MSVC host compiler",
+        "lint_test:windows_arm64": "clang-tidy does not lint CUDA compiled with an MSVC host compiler",
+        "lint_test:windows_x86_64": "clang-tidy does not lint CUDA compiled with an MSVC host compiler",
         "lock_test": "cuda has no package manager",
     },
     passing_test = ":pass_subject_test",
@@ -79,6 +89,11 @@ dx_conformance_suite(
         "format_dirty": ":format_dirty",
         "format_source": "format_dirty.cu",
         "format_subject": cc_format_subject,
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 6,
+        "lint_rule": "readability-else-after-return",
+        "lint_source": "lint_dirty.cu",
+        "lint_subject": cc_lint_subject,
     },
     runfiles = {
         "binary": ":runfiles_hello",

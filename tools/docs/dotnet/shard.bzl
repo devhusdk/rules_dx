@@ -14,7 +14,7 @@ DotnetDocsInfo = provider(
         "allow_unsafe_blocks": "Whether the library compiles with unsafe blocks.",
         "assembly": "Assembly name of the library.",
         "defines": "Conditional compilation symbols of the compile.",
-        "dep_refs": "Reference assemblies of the direct dependencies outside the framework.",
+        "dep_refs": "Depset of the reference assemblies of the dependencies, framework ones included.",
         "framework_refs": "Reference assemblies of the targeting pack.",
         "langversion": "Language version of the compile.",
         "language": "Source language of the library, csharp or fsharp.",
@@ -44,18 +44,16 @@ def _collect_impl(target, ctx):
     for pack in single_target(attr._targeting_pack)[DotnetTargetingPackInfo].assembly_compile_infos:
         for ref in pack.refs:
             framework[ref.basename] = ref
-    deps = {}
-    for dep in attr.deps:
-        info = dep[DotnetAssemblyCompileInfo]
-        for ref in info.refs + info.transitive_refs.to_list():
-            if ref.basename not in framework:
-                deps[ref.path] = ref
+    dep_refs = depset(transitive = [
+        depset(dep[DotnetAssemblyCompileInfo].refs, transitive = [dep[DotnetAssemblyCompileInfo].transitive_refs])
+        for dep in attr.deps
+    ])
     tfm = attr._target_framework[BuildSettingInfo].value
     return [DotnetDocsInfo(
         allow_unsafe_blocks = attr.allow_unsafe_blocks if language == "csharp" else None,
         assembly = compile_info.name,
         defines = fsharp_compile_defines(tfm, attr.target_frameworks, attr.defines),
-        dep_refs = sorted(deps.values(), key = lambda f: f.path),
+        dep_refs = dep_refs,
         framework_refs = sorted(framework.values(), key = lambda f: f.basename),
         langversion = attr.langversion,
         language = language,
@@ -73,13 +71,19 @@ dotnet_docs_collect_aspect = aspect(
     doc = "Reads the compile facts of a rules_dotnet C# or F# library behind a rules_dx wrapper.",
 )
 
-def _context_json(info, language, references):
+def _path(file):
+    return file.path
+
+def _context_json(info, language, refs_file):
+    # The drivers drop the refs whose basename is a framework ref and sort the rest by path.
+    framework_names = sorted([ref.basename for ref in info.framework_refs])
     if language == "fsharp":
         return {
             "assembly": info.assembly,
             "defines": sorted(info.defines),
-            "dep_refs": [ref.path for ref in references],
             "dll": info.own_ref.path,
+            "framework_ref_names": framework_names,
+            "refs_file": refs_file.path,
             "srcs": sorted([src.path for src in info.srcs]),
             "xml": info.xml_docs.path,
         }
@@ -87,9 +91,10 @@ def _context_json(info, language, references):
         "allow_unsafe_blocks": info.allow_unsafe_blocks,
         "assembly": info.assembly,
         "defines": sorted(info.defines),
+        "framework_ref_names": framework_names,
         "framework_refs": [ref.path for ref in info.framework_refs],
         "own_ref": info.own_ref.path,
-        "references": [ref.path for ref in references],
+        "refs_file": refs_file.path,
         "srcs": sorted([src.path for src in info.srcs]),
     }
 
@@ -112,16 +117,20 @@ def dotnet_shard_action(ctx, info, package, stem, driver, extract):
     """Declares the actions that turn one library into a DocIr shard."""
     language = info.language
     label = {"csharp": "C#", "fsharp": "F#"}[language]
-    references = [ref for ref in info.dep_refs]
     lines = [srcs_manifest_line(src.path, repo_relative_path(src.short_path), not src.is_source) for src in info.srcs]
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
     ctx.actions.write(manifest, "".join(sorted(lines)))
+    refs_file = ctx.actions.declare_file(stem + ".refs.txt")
+    refs_lines = ctx.actions.args()
+    refs_lines.set_param_file_format("multiline")
+    refs_lines.add_all(info.dep_refs, map_each = _path, uniquify = True)
+    ctx.actions.write(refs_file, refs_lines)
     context = ctx.actions.declare_file(stem + ".context.json")
-    ctx.actions.write(context, json.encode(_context_json(info, language, references)))
+    ctx.actions.write(context, json.encode(_context_json(info, language, refs_file)))
     api_json = ctx.actions.declare_file("{}.{}.json".format(stem, language))
     scratch = ctx.actions.declare_directory(stem + ".scratch")
     if language == "csharp":
-        inputs = [context] + info.srcs + info.framework_refs + references + [info.own_ref]
+        inputs = [context, refs_file] + info.srcs + info.framework_refs + [info.own_ref]
         env = {
             "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
             "DOTNET_NOLOGO": "1",
@@ -133,7 +142,7 @@ def dotnet_shard_action(ctx, info, package, stem, driver, extract):
             "langversion=" + (info.langversion or "default"),
         ])
     else:
-        inputs = [context] + info.srcs + references + [info.own_ref, info.xml_docs]
+        inputs = [context, refs_file] + info.srcs + [info.own_ref, info.xml_docs]
         env = {
             "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
             "DOTNET_NOLOGO": "1",
@@ -147,7 +156,7 @@ def dotnet_shard_action(ctx, info, package, stem, driver, extract):
     ctx.actions.run(
         executable = driver,
         arguments = [ctx.actions.args().add("--context", context).add("--scratch", scratch.path).add("--out", api_json)],
-        inputs = inputs,
+        inputs = depset(inputs, transitive = [info.dep_refs]),
         outputs = [api_json, scratch],
         env = env,
         mnemonic = "DxDocs" + language.capitalize() + "Api",
@@ -159,6 +168,7 @@ def dotnet_shard_action(ctx, info, package, stem, driver, extract):
         executable = extract,
         arguments = [
             ctx.actions.args()
+                .add("dotnet_extract")
                 .add("--api", api_json)
                 .add("--language", language)
                 .add("--package", package)

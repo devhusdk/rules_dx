@@ -1,4 +1,4 @@
-"""Playwright and Chromium pins of typescript_playwright_test; the data is in typescript/private/playwright/pins.json."""
+"""Playwright and Chromium pins of typescript_playwright_test; the data is in typescript/pins.json."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 

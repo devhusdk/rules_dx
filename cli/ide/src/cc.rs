@@ -21,6 +21,12 @@ pub const PLUGIN: Plugin = Plugin {
     write,
 };
 
+fn utf8(path: &std::path::Path) -> Result<String, DxError> {
+    path.to_str()
+        .map(str::to_owned)
+        .ok_or_else(|| DxError::failure(format!("{} is not valid UTF-8", path.display())))
+}
+
 fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let clangd = ctx
         .outputs
@@ -52,12 +58,9 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
         .map_err(|e| DxError::failure(e.to_string()))?;
     let mut by_file: BTreeMap<String, Entry> = BTreeMap::new();
     for command in commands {
-        let file = execroot
-            .join(&command.source)
-            .to_string_lossy()
-            .into_owned();
+        let file = utf8(&execroot.join(&command.source))?;
         by_file.entry(file.clone()).or_insert(Entry {
-            directory: execroot.to_string_lossy().into_owned(),
+            directory: utf8(&execroot)?,
             file,
             arguments: command.arguments,
         });

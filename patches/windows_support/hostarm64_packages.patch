@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: hermeticbuild/windows_support#24
 diff --git a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
 --- a/windows/private/extensions/msvc_runtime.bzl
 +++ b/windows/private/extensions/msvc_runtime.bzl

@@ -7,10 +7,10 @@ load("@rules_kotlin//kotlin/internal:defs.bzl", "KtJvmInfo")
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
-load("//java/private:defs.bzl", "java_jmh_test")
 load("//java/private:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
+load("//java/private:defs.bzl", "java_deploy_jar_alias", "java_jmh_test")
 load("//java/private:jazzer.bzl", "jazzer_fuzz", "jazzer_target_class")
-load("//java/private:jmh.bzl", "jmh_bench")
+load("//java/private:jmh.bzl", "jmh_bench_generated")
 load(":kwargs.bzl", "kotlin_has_own_opts", "kotlin_kotlinc_opts_with_warnings_as_errors", "kotlin_test_entry_kwargs", "kotlin_test_main_class")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
@@ -111,6 +111,7 @@ def kotlin_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over kt_jvm_binary. Warnings are errors unless warnings_as_errors is False."""
     _kotlin_declare_warnings_as_errors_opts(name, kwargs)
     dx_wrap_binary(name, _kt_jvm_binary, _kotlin_binary_forward, srcs, visibility = visibility, upstream_kwargs = kotlin_kotlinc_opts_with_warnings_as_errors(name, kwargs), **dx_without_warnings_attr(kwargs))
+    java_deploy_jar_alias(name, visibility, kwargs, from_runtime_deps = True)
 
 def kotlin_test(name, *, srcs = None, visibility = None, **kwargs):
     """Wraps kt_jvm_test with the dx test runner and warnings as errors."""
@@ -141,7 +142,9 @@ def kotlin_bench(name, *, srcs, deps = None, tags = None, **kwargs):
         testonly = True,
         visibility = ["//visibility:private"],
     )
-    jmh_bench(name, kotlin_library, java_jmh_test, srcs, deps or [], tags or [], kwargs, {"javac_opts": ":" + name + "_javac_opts"})
+
+    # The JMH generator reads the compiled jar, so the library needs no kapt and no kapt stub jar.
+    jmh_bench_generated(name, kotlin_library, java_jmh_test, srcs, deps or [], tags or [], kwargs, {"javac_opts": ":" + name + "_javac_opts"})
 
 def kotlin_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visibility = None, tags = None, **kwargs):
     """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`."""

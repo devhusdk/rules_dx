@@ -1,0 +1,24 @@
+load("@rules_dotnet//dotnet:defs.bzl", "csharp_binary")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//third_party/dotnet:framework.bzl", "DOTNET_TOOL_FRAMEWORK", "framework_pinned")
+
+package(default_visibility = ["//:__subpackages__"])
+
+# Hosts the SDK's csc.dll in-process for the CSharpRoslyn action, one-shot or as a persistent worker.
+csharp_binary(
+    name = "roslyn_worker",
+    srcs = ["Program.cs"],
+    nullable = "enable",
+    target_frameworks = [DOTNET_TOOL_FRAMEWORK],
+)
+
+framework_pinned(
+    name = "roslyn_worker_pinned",
+    actual = ":roslyn_worker",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

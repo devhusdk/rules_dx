@@ -2,10 +2,6 @@
 mod tests {
     use dx_adopt::dependency_sets::Ecosystem;
 
-    fn lock_name(ecosystem: Ecosystem) -> &'static str {
-        ecosystem.lockfiles()[0].as_str()
-    }
-
     fn manifest_of(ecosystem: Ecosystem) -> &'static str {
         ecosystem.manifest_name()
     }
@@ -24,7 +20,7 @@ mod tests {
 
     fn uv_module() -> String {
         let v0 = manifest_of(Ecosystem::Uv);
-        let v1 = lock_name(Ecosystem::Uv);
+        let v1 = Ecosystem::Uv.lockfile();
         format!(
             "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//apps/frontend:{v0}\", lock = \"//apps/frontend:{v1}\")\nuv.project(hub_name = \"pypi\", pyproject = \"//services/worker:{v0}\", lock = \"//services/worker:{v1}\")\n"
         )
@@ -64,11 +60,11 @@ source = { registry = "https://pypi.org/simple" }
         );
         if with_locks {
             harness.write_source(
-                &format!("apps/frontend/{}", lock_name(Ecosystem::Uv)),
+                &format!("apps/frontend/{}", Ecosystem::Uv.lockfile()),
                 UV_LOCK,
             );
             harness.write_source(
-                &format!("services/worker/{}", lock_name(Ecosystem::Uv)),
+                &format!("services/worker/{}", Ecosystem::Uv.lockfile()),
                 UV_LOCK,
             );
         }
@@ -127,7 +123,7 @@ source = { registry = "https://pypi.org/simple" }
         extra: &[&str],
     ) -> (i32, String, String) {
         let harness = consumer_harness(name, &uv_module(), true);
-        harness.write_source(&format!("apps/frontend/{}", lock_name(Ecosystem::Uv)), lock);
+        harness.write_source(&format!("apps/frontend/{}", Ecosystem::Uv.lockfile()), lock);
         if let Some(json) = advisories {
             write_advisory(&harness, "pypi", json);
         }
@@ -176,7 +172,7 @@ source = { registry = "https://pypi.org/simple" }
         );
         assert!(out.contains("fixed in 3.2.5"), "{out}");
         assert!(
-            out.contains(&format!("apps/frontend/{}", lock_name(Ecosystem::Uv))),
+            out.contains(&format!("apps/frontend/{}", Ecosystem::Uv.lockfile())),
             "{out}"
         );
     }
@@ -225,7 +221,7 @@ source = { registry = "https://pypi.org/simple" }
         let harness = consumer_harness("stale", &uv_module(), true);
         let lock = lock_with(&registry_package("django", "3.2.0"));
         harness.write_source(
-            &format!("apps/frontend/{}", lock_name(Ecosystem::Uv)),
+            &format!("apps/frontend/{}", Ecosystem::Uv.lockfile()),
             &lock,
         );
         let url = dx_audit::advisory::advisory_source("pypi").expect("source");
@@ -257,7 +253,7 @@ source = { registry = "https://pypi.org/simple" }
     fn consumer_malformed_lock_is_incomplete() {
         let (code, out, err) = audited("malformed", "version = [", Some(NO_ADVISORIES), &[]);
         assert_ne!(code, 0, "{out}{err}");
-        assert!(out.contains(lock_name(Ecosystem::Uv)), "{out}{err}");
+        assert!(out.contains(Ecosystem::Uv.lockfile()), "{out}{err}");
         assert!(!out.contains("audit_security_clean"), "{out}");
     }
 
@@ -303,7 +299,7 @@ source = { registry = "https://pypi.org/simple" }
     fn consumer_security_toml_exception_exempts_a_configured_set_finding() {
         let harness = consumer_harness("exception", &uv_module(), true);
         harness.write_source(
-            &format!("apps/frontend/{}", lock_name(Ecosystem::Uv)),
+            &format!("apps/frontend/{}", Ecosystem::Uv.lockfile()),
             &lock_with(&registry_package("django", "3.2.0")),
         );
         write_advisory(&harness, "pypi", DJANGO_ADVISORY);
@@ -327,7 +323,7 @@ source = { registry = "https://pypi.org/simple" }
     fn accept_writes_an_exception_that_covers_the_finding_and_is_a_no_op_twice() {
         let harness = consumer_harness("accept", &uv_module(), true);
         harness.write_source(
-            &format!("apps/frontend/{}", lock_name(Ecosystem::Uv)),
+            &format!("apps/frontend/{}", Ecosystem::Uv.lockfile()),
             &lock_with(&registry_package("django", "3.2.0")),
         );
         write_advisory(&harness, "pypi", DJANGO_ADVISORY);
@@ -394,7 +390,7 @@ source = { registry = "https://pypi.org/simple" }
         let harness = consumer_harness("select", &uv_module(), true);
         write_advisory(&harness, "pypi", NO_ADVISORIES);
         harness.write_source(
-            &format!("services/worker/{}", lock_name(Ecosystem::Uv)),
+            &format!("services/worker/{}", Ecosystem::Uv.lockfile()),
             &lock_with(&registry_package("django", "3.2.0")),
         );
         write_advisory(&harness, "pypi", DJANGO_ADVISORY);
@@ -421,7 +417,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         let sarif = std::fs::read_to_string(harness.workspace.join("select.sarif")).expect("sarif");
         assert!(
-            sarif.contains(&format!("services/worker/{}", lock_name(Ecosystem::Uv))),
+            sarif.contains(&format!("services/worker/{}", Ecosystem::Uv.lockfile())),
             "{sarif}"
         );
         assert!(!sarif.contains("apps/frontend"), "{sarif}");
@@ -448,7 +444,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_ne!(code, 0, "{out}{err}");
         assert!(err.contains("failed to assess pypi-frontend"), "{err}");
         assert!(
-            err.contains(&format!("apps/frontend/{}", lock_name(Ecosystem::Uv))),
+            err.contains(&format!("apps/frontend/{}", Ecosystem::Uv.lockfile())),
             "{err}"
         );
         let runner = clean_runner();
@@ -456,7 +452,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_ne!(code, 0, "{err}");
         assert!(err.contains("failed to assess pypi-worker"), "{err}");
         assert!(
-            err.contains(&format!("services/worker/{}", lock_name(Ecosystem::Uv))),
+            err.contains(&format!("services/worker/{}", Ecosystem::Uv.lockfile())),
             "{err}"
         );
     }
@@ -465,11 +461,11 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_symlinked_lock_leaving_the_workspace_fails_in_both_families() {
         let harness = consumer_harness("escaping-lock", &uv_module(), false);
-        let outside = harness.temp.join(lock_name(Ecosystem::Uv));
+        let outside = harness.temp.join(Ecosystem::Uv.lockfile());
         std::fs::write(&outside, UV_LOCK).unwrap();
         for rel in [
-            &format!("apps/frontend/{}", lock_name(Ecosystem::Uv)),
-            &format!("services/worker/{}", lock_name(Ecosystem::Uv)),
+            &format!("apps/frontend/{}", Ecosystem::Uv.lockfile()),
+            &format!("services/worker/{}", Ecosystem::Uv.lockfile()),
         ] {
             std::os::unix::fs::symlink(&outside, harness.workspace.join(rel)).unwrap();
         }
@@ -478,7 +474,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("failed to assess pypi-frontend"), "{err}");
         assert!(
-            err.contains(&format!("apps/frontend/{}", lock_name(Ecosystem::Uv))),
+            err.contains(&format!("apps/frontend/{}", Ecosystem::Uv.lockfile())),
             "{err}"
         );
         assert!(err.contains("leaves the workspace"), "{err}");
@@ -487,7 +483,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(err.contains("failed to assess pypi-worker"), "{err}");
         assert!(
-            err.contains(&format!("services/worker/{}", lock_name(Ecosystem::Uv))),
+            err.contains(&format!("services/worker/{}", Ecosystem::Uv.lockfile())),
             "{err}"
         );
         assert!(err.contains("leaves the workspace"), "{err}");
@@ -497,15 +493,15 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_symlinked_lock_inside_the_workspace_is_read() {
         let harness = consumer_harness("inside-lock", &uv_module(), false);
-        harness.write_source(&format!("locks/{}", lock_name(Ecosystem::Uv)), UV_LOCK);
+        harness.write_source(&format!("locks/{}", Ecosystem::Uv.lockfile()), UV_LOCK);
         for rel in [
-            &format!("apps/frontend/{}", lock_name(Ecosystem::Uv)),
-            &format!("services/worker/{}", lock_name(Ecosystem::Uv)),
+            &format!("apps/frontend/{}", Ecosystem::Uv.lockfile()),
+            &format!("services/worker/{}", Ecosystem::Uv.lockfile()),
         ] {
             std::os::unix::fs::symlink(
                 harness
                     .workspace
-                    .join(format!("locks/{}", lock_name(Ecosystem::Uv))),
+                    .join(format!("locks/{}", Ecosystem::Uv.lockfile())),
                 harness.workspace.join(rel),
             )
             .unwrap();
@@ -601,7 +597,7 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     fn npm_module() -> String {
-        let v0 = lock_name(Ecosystem::Npm);
+        let v0 = Ecosystem::Npm.lockfile();
         format!(
             "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"frontend\", pnpm_lock = \"//apps/web:{v0}\")\n"
         )
@@ -622,7 +618,7 @@ source = { registry = "https://pypi.org/simple" }
         let harness = consumer_harness(name, &npm_module(), false);
         harness.write_source(&format!("apps/web/{}", manifest_of(Ecosystem::Npm)), "{}\n");
         harness.write_source(
-            &format!("apps/web/{}", lock_name(Ecosystem::Npm)),
+            &format!("apps/web/{}", Ecosystem::Npm.lockfile()),
             REACT_LOCK,
         );
         harness
@@ -641,7 +637,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("vuln/GHSA-react-0001"), "{out}");
         assert!(
-            out.contains(&format!("apps/web/{}", lock_name(Ecosystem::Npm))),
+            out.contains(&format!("apps/web/{}", Ecosystem::Npm.lockfile())),
             "{out}"
         );
         assert!(!out.contains("pypi"), "{out}");
@@ -699,7 +695,10 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     fn pinned_module() -> String {
-        "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//apps/rb:ruby.lock.json\")\n".to_owned()
+        let lock = dx_adopt::lock_hubs::lock_of("ruby").expect("ruby lock");
+        format!(
+            "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.lock(name = \"gems\", lock = \"//apps/rb:{lock}\")\n"
+        )
     }
 
     const GEMFILE_LOCK: &str = "GEM\n  remote: https://rubygems.org/\n  specs:\n    rack (2.2.0)\n\nPLATFORMS\n  ruby\n\nDEPENDENCIES\n  rack\n";
@@ -727,7 +726,7 @@ source = { registry = "https://pypi.org/simple" }
             GEMFILE_LOCK,
         );
         harness.write_source(
-            "apps/rb/ruby.lock.json",
+            &format!("apps/rb/{}", dx_adopt::lock_hubs::lock_of("ruby").expect("ruby lock")),
             "{\"ecosystem\": \"ruby\", \"packages\": []}\n",
         );
         harness
@@ -880,7 +879,7 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     fn cargo_module() -> String {
-        let v0 = lock_name(Ecosystem::Cargo);
+        let v0 = Ecosystem::Cargo.lockfile();
         let v1 = manifest_of(Ecosystem::Cargo);
         format!(
             "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//apps/rs:{v0}\", lockfile = \"//apps/rs:cargo-bazel-lock.json\", manifests = [\"//apps/rs:{v1}\"])\nuse_repo(crate, \"crates\")\n"
@@ -905,7 +904,7 @@ source = { registry = "https://pypi.org/simple" }
             "[package]\nname = \"app\"\nversion = \"0.1.0\"\n",
         );
         harness.write_source(
-            &format!("apps/rs/{}", lock_name(Ecosystem::Cargo)),
+            &format!("apps/rs/{}", Ecosystem::Cargo.lockfile()),
             SMALLVEC_LOCK,
         );
         harness.write_source(
@@ -918,7 +917,7 @@ source = { registry = "https://pypi.org/simple" }
     #[test]
     fn consumer_cargo_set_reads_only_its_cargo_lock_and_the_cargo_snapshot() {
         let harness = cargo_harness("cargo-vuln");
-        harness.write_source(lock_name(Ecosystem::Cargo), "not a lock\n");
+        harness.write_source(Ecosystem::Cargo.lockfile(), "not a lock\n");
         write_advisory(&harness, "cargo", SMALLVEC_ADVISORY);
         let runner = clean_runner();
         let (code, out, err) =
@@ -926,7 +925,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("vuln/RUSTSEC-2021-0003"), "{out}");
         assert!(
-            out.contains(&format!("apps/rs/{}", lock_name(Ecosystem::Cargo))),
+            out.contains(&format!("apps/rs/{}", Ecosystem::Cargo.lockfile())),
             "{out}"
         );
         assert!(!out.contains("pypi"), "{out}");
@@ -974,7 +973,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!out.contains("failed to assess"), "{out}");
     }
     fn pub_module() -> String {
-        let v0 = lock_name(Ecosystem::Pub);
+        let v0 = Ecosystem::Pub.lockfile();
         format!(
             "pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"dart_deps\", lock = \"//apps/dart:{v0}\")\n"
         )
@@ -996,7 +995,7 @@ source = { registry = "https://pypi.org/simple" }
             "name: app\ndependencies:\n  http: ^0.13.0\n",
         );
         harness.write_source(
-            &format!("apps/dart/{}", lock_name(Ecosystem::Pub)),
+            &format!("apps/dart/{}", Ecosystem::Pub.lockfile()),
             &format!(
                 "packages:\n  http:\n    dependency: \"direct main\"\n    description:\n      name: http\n      url: \"https://pub.dev\"\n    source: hosted\n    version: \"{version}\"\n"
             ),
@@ -1017,7 +1016,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("vuln/GHSA-pub-0001"), "{out}");
         assert!(
-            out.contains(&format!("apps/dart/{}", lock_name(Ecosystem::Pub))),
+            out.contains(&format!("apps/dart/{}", Ecosystem::Pub.lockfile())),
             "{out}"
         );
         let fixed = pub_harness("pub-fixed", "0.13.3");
@@ -1047,7 +1046,7 @@ source = { registry = "https://pypi.org/simple" }
         );
         harness.write_source("apps/swift/deps.lock.json", "{}");
         harness.write_source(
-            &format!("apps/swift/{}", lock_name(Ecosystem::SwiftPm)),
+            &format!("apps/swift/{}", Ecosystem::SwiftPm.lockfile()),
             &format!(
                 "{{\"pins\":[{{\"identity\":\"swift-argument-parser\",\"kind\":\"remoteSourceControl\",\"location\":\"https://github.com/apple/swift-argument-parser\",\"state\":{{\"revision\":\"abc\",\"version\":\"{version}\"}}}}],\"version\":3}}"
             ),
@@ -1056,7 +1055,7 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     fn hex_module() -> String {
-        let v0 = lock_name(Ecosystem::Hex);
+        let v0 = Ecosystem::Hex.lockfile();
         format!(
             "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//third_party/elixir:{v0}\")\n"
         )
@@ -1078,7 +1077,7 @@ source = { registry = "https://pypi.org/simple" }
             "defmodule App do\nend\n",
         );
         harness.write_source(
-            &format!("third_party/elixir/{}", lock_name(Ecosystem::Hex)),
+            &format!("third_party/elixir/{}", Ecosystem::Hex.lockfile()),
             &format!(
                 "{{\"ecosystem\":\"hex\",\"packages\":[{{\"name\":\"plug\",\"version\":\"{version}\"}}]}}"
             ),
@@ -1096,7 +1095,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("vuln/GHSA-swift-0001"), "{out}");
         assert!(
-            out.contains(&format!("apps/swift/{}", lock_name(Ecosystem::SwiftPm))),
+            out.contains(&format!("apps/swift/{}", Ecosystem::SwiftPm.lockfile())),
             "{out}"
         );
         let fixed = swift_harness("swift-fixed", "1.8.3");
@@ -1115,7 +1114,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("vuln/GHSA-hex-0001"), "{out}");
         assert!(
-            out.contains(&format!("third_party/elixir/{}", lock_name(Ecosystem::Hex))),
+            out.contains(&format!("third_party/elixir/{}", Ecosystem::Hex.lockfile())),
             "{out}"
         );
         let fixed = hex_harness("hex-fixed", "1.15.1");
@@ -1126,7 +1125,7 @@ source = { registry = "https://pypi.org/simple" }
     }
 
     fn maven_module() -> String {
-        let v0 = lock_name(Ecosystem::Maven);
+        let v0 = Ecosystem::Maven.lockfile();
         format!(
             "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(lock_file = \"//third_party:{v0}\")\nuse_repo(maven, \"maven\")\n"
         )
@@ -1144,7 +1143,7 @@ source = { registry = "https://pypi.org/simple" }
     fn maven_harness(name: &str) -> Harness {
         let harness = consumer_harness(name, &maven_module(), false);
         harness.write_source(
-            &format!("third_party/{}", lock_name(Ecosystem::Maven)),
+            &format!("third_party/{}", Ecosystem::Maven.lockfile()),
             "{\"__INPUT_ARTIFACTS_HASH\":1,\"__RESOLVED_ARTIFACTS_HASH\":2,\"artifacts\":{\"com.example:lib\":{\"shasums\":{\"jar\":\"x\"},\"version\":\"1.1\"}}}\n",
         );
         harness
@@ -1159,7 +1158,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("GHSA-maven-0001"), "{out}");
         assert!(
-            out.contains(&format!("third_party/{}", lock_name(Ecosystem::Maven))),
+            out.contains(&format!("third_party/{}", Ecosystem::Maven.lockfile())),
             "{out}"
         );
         harness.write_source(
@@ -1278,7 +1277,7 @@ source = { registry = "https://pypi.org/simple" }
             "module example.com/m\n\ngo 1.22\n\nrequire github.com/example/lib v1.1.0\n",
         );
         harness.write_source(
-            &format!("g/{}", lock_name(Ecosystem::Go)),
+            &format!("g/{}", Ecosystem::Go.lockfile()),
             "github.com/example/lib v1.1.0 h1:abc=\n",
         );
         harness
@@ -1349,7 +1348,7 @@ source = { registry = "https://pypi.org/simple" }
             "requires 'Mojolicious';\n",
         );
         harness.write_source(
-            &format!("perl/third_party/{}", lock_name(Ecosystem::Cpan)),
+            &format!("perl/third_party/{}", Ecosystem::Cpan.lockfile()),
             &format!(
                 "# carton snapshot format: version 1.0\nDISTRIBUTIONS\n  {release}\n    pathname: S/SR/SRI/{release}.tar.gz\n    provides:\n      Mojolicious {}\n",
                 release.trim_start_matches("Mojolicious-")
@@ -1387,7 +1386,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("vuln/CPANSA-Mojolicious-2018-03"), "{out}");
         assert!(
-            out.contains(&format!("perl/third_party/{}", lock_name(Ecosystem::Cpan))),
+            out.contains(&format!("perl/third_party/{}", Ecosystem::Cpan.lockfile())),
             "{out}"
         );
         assert!(!out.contains("no advisory coverage"), "{out}");
@@ -1430,7 +1429,7 @@ source = { registry = "https://pypi.org/simple" }
             "packages: .\n",
         );
         harness.write_source(
-            &format!("hs/{}", lock_name(Ecosystem::Cabal)),
+            &format!("hs/{}", Ecosystem::Cabal.lockfile()),
             "constraints: any.base ==4.20.2.0,\n             any.safe ==0.3.21\nindex-state: hackage.haskell.org 2026-09-30T23:43:34Z\n",
         );
         harness.write_source(
@@ -1444,7 +1443,7 @@ source = { registry = "https://pypi.org/simple" }
         assert_eq!(code, 1, "{out}{err}");
         assert!(out.contains("vuln/HSEC-2026-0001"), "{out}");
         assert!(
-            out.contains(&format!("hs/{}", lock_name(Ecosystem::Cabal))),
+            out.contains(&format!("hs/{}", Ecosystem::Cabal.lockfile())),
             "{out}"
         );
     }

@@ -4,6 +4,8 @@ load("//core:root_only.bzl", "warn_dropped_tags")
 
 _TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
 
+_EXEC_TOOLS_ENABLED = str(Label("@rules_python//python/config_settings:is_exec_tools_toolchain_enabled"))
+
 _PLATFORMS = {
     "aarch64-apple-darwin": struct(os = "macos", cpu = "aarch64"),
     "aarch64-pc-windows-msvc": struct(os = "windows", cpu = "aarch64"),
@@ -23,6 +25,20 @@ toolchain(
     toolchain = "@{repo}//:{target}",
     toolchain_type = "{toolchain_type}",
 )"""
+
+_WINDOWS_TOOLCHAIN = """
+toolchain(
+    name = "{name}",
+    {constraint_attr} = ["@platforms//os:windows", "@platforms//cpu:{cpu}"],
+    target_settings = {settings},
+    toolchain = "{toolchain}",
+    toolchain_type = "{toolchain_type}",
+)"""
+
+_WINDOWS_RUNTIMES = {
+    "aarch64": "@python_3_12_aarch64-pc-windows-msvc",
+    "x86_64": "@python_3_12_x86_64-pc-windows-msvc",
+}
 
 def _hub_impl(rctx):
     version = rctx.attr.python_version
@@ -50,6 +66,20 @@ def _hub_impl(rctx):
                 repo = repo,
                 target = target,
                 toolchain_type = toolchain_type,
+            ))
+    for cpu, repo in sorted(_WINDOWS_RUNTIMES.items()):
+        for kind, target, toolchain_type, target_side, settings in [
+            ("runtime", "python_runtimes", "@rules_python//python:toolchain_type", True, [_TOOLCHAINS_ON]),
+            ("py_cc", "py_cc_toolchain", "@rules_python//python/cc:toolchain_type", True, [_TOOLCHAINS_ON]),
+            ("exec_tools", "py_exec_tools_toolchain", "@rules_python//python:exec_tools_toolchain_type", False, [_EXEC_TOOLS_ENABLED, _TOOLCHAINS_ON]),
+        ]:
+            lines.append(_WINDOWS_TOOLCHAIN.format(
+                name = "cpython_windows_{}_{}".format(cpu, kind),
+                constraint_attr = "target_compatible_with" if target_side else "exec_compatible_with",
+                cpu = cpu,
+                settings = repr(settings),
+                toolchain = str(Label("{}//:{}".format(repo, target))),
+                toolchain_type = str(Label(toolchain_type)),
             ))
     rctx.file("BUILD.bazel", "\n".join(lines) + "\n")
     return rctx.repo_metadata(reproducible = True)

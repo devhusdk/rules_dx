@@ -1,9 +1,9 @@
-load("@rules_dx//javascript:defs.bzl", "js_library")
+load("@rules_dx//javascript:defs.bzl", "javascript_library")
 load("@web//:defs.bzl", "npm_link_all_packages")
 
 npm_link_all_packages(name = "node_modules")
 
-js_library(
+javascript_library(
     name = "package_json",
     srcs = ["package.json"],
     visibility = ["//visibility:public"],

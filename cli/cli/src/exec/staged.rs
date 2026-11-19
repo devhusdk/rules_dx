@@ -24,7 +24,7 @@ impl Scratch {
             builder.permissions(std::fs::Permissions::from_mode(0o700));
         }
         let scratch = Scratch(builder.tempdir()?.keep());
-        std::fs::create_dir(scratch.0.join("out"))?;
+        std::fs::create_dir_all(scratch.0.join("out"))?;
         Ok(scratch)
     }
 }
@@ -56,7 +56,9 @@ fn open_up(dir: &std::path::Path) {
                 use std::os::unix::fs::PermissionsExt;
                 permissions.set_mode(0o700);
             }
-            std::fs::set_permissions(&path, permissions).ok();
+            if let Err(error) = std::fs::set_permissions(&path, permissions) {
+                tracing::info!(%error, path = %path.display(), "cannot make writable");
+            }
             open_up(&path);
         }
     }
@@ -68,11 +70,13 @@ fn remove_tree(dir: &std::path::Path) {
     if std::fs::remove_dir_all(dir).is_ok() {
         return;
     }
-    if let Ok(meta) = std::fs::metadata(dir) {
-        std::fs::set_permissions(dir, meta.permissions()).ok();
+    if let Ok(meta) = std::fs::metadata(dir)
+        && let Err(error) = std::fs::set_permissions(dir, meta.permissions())
+    {
+        tracing::info!(%error, path = %dir.display(), "cannot reset permissions");
     }
     open_up(dir);
-    std::fs::remove_dir_all(dir).ok();
+    dx_atomic_fs::discard_dir(dir);
 }
 
 pub(super) fn file_name(rel: &str) -> &str {
@@ -180,7 +184,7 @@ fn stage_inputs(
         let copied = dx_path::workspace::resolve_target_in_workspace(workspace, rel)
             .and_then(std::fs::read)
             .and_then(|bytes| {
-                std::fs::write(inputs_dir.join(file_name(rel)), &bytes)?;
+                dx_atomic_fs::write_scratch(&inputs_dir.join(file_name(rel)), &bytes)?;
                 staged_inputs.insert(file_name(rel).to_owned(), bytes);
                 Ok(())
             });

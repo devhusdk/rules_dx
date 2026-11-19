@@ -2,13 +2,15 @@
 //! and writes the NOTICE manifest plus one text per crate.
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
 use std::path::{Path, PathBuf};
 
+use dx_atomic_fs::path_io::{self, PathIoError};
+use dx_audit::license_policy::PolicyProblem;
 use dx_ecosystems::Ecosystem;
 use serde::Deserialize;
 
-use crate::runtimes::{self, ShippedRuntime};
+use crate::runtimes::{self, RuntimesError, ShippedRuntime};
 
 pub const SCHEMA: &str = "shipped-inventory/v1";
 
@@ -41,19 +43,168 @@ struct ShippedDoc {
     runtimes: Vec<ShippedRuntime>,
 }
 
+/// A shipped inventory that cannot be joined, read or written.
+#[derive(Debug)]
+pub enum InventoryError {
+    Json(serde_json::Error),
+    Schema {
+        found: String,
+    },
+    Duplicate {
+        name: String,
+        version: String,
+        first: String,
+        second: String,
+    },
+    TextName {
+        name: String,
+        version: String,
+        path: PathBuf,
+    },
+    Read {
+        name: String,
+        version: String,
+        source: PathIoError,
+    },
+    EmptyText {
+        name: String,
+        version: String,
+        text: String,
+    },
+    TextTwice {
+        name: String,
+        version: String,
+        text: String,
+    },
+    NoManifestLicense {
+        name: String,
+        version: String,
+        label: String,
+    },
+    LockJson(serde_json::Error),
+    NoCratesTable,
+    Policy(PolicyProblem),
+    NoLicense {
+        name: String,
+        version: String,
+    },
+    MissingNotice {
+        name: String,
+        version: String,
+        license: String,
+    },
+    Manifest(dx_error::DxError),
+    Runtimes(RuntimesError),
+    Io(PathIoError),
+}
+
+impl fmt::Display for InventoryError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Json(source) => write!(f, "inventory: {source}"),
+            Self::Schema { found } => write!(f, "inventory: schema {found:?}, want {SCHEMA:?}"),
+            Self::Duplicate {
+                name,
+                version,
+                first,
+                second,
+            } => write!(
+                f,
+                "inventory: {name}@{version} is listed twice ({first} and {second})"
+            ),
+            Self::TextName {
+                name,
+                version,
+                path,
+            } => write!(
+                f,
+                "inventory: {name}@{version} text {} has no UTF-8 file name",
+                path.display()
+            ),
+            Self::Read {
+                name,
+                version,
+                source,
+            } => write!(f, "inventory: {name}@{version} {source}"),
+            Self::EmptyText {
+                name,
+                version,
+                text,
+            } => write!(f, "inventory: {name}@{version} text {text} is empty"),
+            Self::TextTwice {
+                name,
+                version,
+                text,
+            } => write!(f, "inventory: {name}@{version} lists text {text} twice"),
+            Self::NoManifestLicense {
+                name,
+                version,
+                label,
+            } => write!(
+                f,
+                "inventory: {name}@{version} ({label}) is not in cargo-bazel-lock.json and its {} declares no license",
+                Ecosystem::Cargo.manifest_name()
+            ),
+            Self::LockJson(source) => write!(f, "inventory: cargo-bazel-lock.json: {source}"),
+            Self::NoCratesTable => {
+                f.write_str("inventory: cargo-bazel-lock.json has no crates table")
+            }
+            Self::Policy(source) => write!(f, "inventory: {source}"),
+            Self::NoLicense { name, version } => write!(
+                f,
+                "inventory: {name}@{version} has no license in cargo-bazel-lock.json"
+            ),
+            Self::MissingNotice {
+                name,
+                version,
+                license,
+            } => write!(
+                f,
+                "inventory: missing-notice-text: {name}@{version} ({license}) ships no LICENSE*/COPYING*/NOTICE* file; add a license.toml exception or a text"
+            ),
+            Self::Manifest(source) => write!(f, "inventory: {source}"),
+            Self::Runtimes(source) => write!(f, "{source}"),
+            Self::Io(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for InventoryError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Json(source) | Self::LockJson(source) => Some(source),
+            Self::Read { source, .. } | Self::Io(source) => Some(source),
+            Self::Policy(source) => Some(source),
+            Self::Manifest(source) => Some(source),
+            Self::Runtimes(source) => Some(source),
+            Self::Schema { .. }
+            | Self::Duplicate { .. }
+            | Self::TextName { .. }
+            | Self::EmptyText { .. }
+            | Self::TextTwice { .. }
+            | Self::NoManifestLicense { .. }
+            | Self::NoCratesTable
+            | Self::NoLicense { .. }
+            | Self::MissingNotice { .. } => None,
+        }
+    }
+}
+
+impl From<PathIoError> for InventoryError {
+    fn from(source: PathIoError) -> Self {
+        Self::Io(source)
+    }
+}
+
 /// Parses the aspect's shipped-inventory/v1 document, sorted by crate and version.
 ///
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse_shipped(text: &str) -> Result<Vec<ShippedCrate>, String> {
-    let doc: ShippedDoc =
-        serde_json::from_str(text).map_err(|error| format!("inventory: {error}"))?;
+pub fn parse_shipped(text: &str) -> Result<Vec<ShippedCrate>, InventoryError> {
+    let doc: ShippedDoc = serde_json::from_str(text).map_err(InventoryError::Json)?;
     if doc.schema != SCHEMA {
-        return Err(format!(
-            "inventory: schema {:?}, want {SCHEMA:?}",
-            doc.schema
-        ));
+        return Err(InventoryError::Schema { found: doc.schema });
     }
     let mut crates = doc.crates;
     crates.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
@@ -61,10 +212,12 @@ pub fn parse_shipped(text: &str) -> Result<Vec<ShippedCrate>, String> {
         if let [first, second] = pair
             && (&first.name, &first.version) == (&second.name, &second.version)
         {
-            return Err(format!(
-                "inventory: {}@{} is listed twice ({} and {})",
-                first.name, first.version, first.label, second.label
-            ));
+            return Err(InventoryError::Duplicate {
+                name: first.name.clone(),
+                version: first.version.clone(),
+                first: first.label.clone(),
+                second: second.label.clone(),
+            });
         }
     }
     Ok(crates)
@@ -75,9 +228,8 @@ pub fn parse_shipped(text: &str) -> Result<Vec<ShippedCrate>, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse_shipped_runtimes(text: &str) -> Result<Vec<ShippedRuntime>, String> {
-    let doc: ShippedDoc =
-        serde_json::from_str(text).map_err(|error| format!("inventory: {error}"))?;
+pub fn parse_shipped_runtimes(text: &str) -> Result<Vec<ShippedRuntime>, InventoryError> {
+    let doc: ShippedDoc = serde_json::from_str(text).map_err(InventoryError::Json)?;
     Ok(doc.runtimes)
 }
 
@@ -118,43 +270,43 @@ fn crate_words(krate: &ShippedCrate, license: &str, texts: &[(String, String)]) 
 }
 
 /// Reads one crate's texts keyed by file name, sorted.
-fn read_crate_texts(krate: &ShippedCrate) -> Result<Vec<(String, String)>, String> {
+fn read_crate_texts(krate: &ShippedCrate) -> Result<Vec<(String, String)>, InventoryError> {
     let mut texts = BTreeMap::new();
     for path in &krate.texts {
         let name = path
             .file_name()
             .and_then(|name| name.to_str())
-            .ok_or_else(|| {
-                format!(
-                    "inventory: {}@{} text {} has no UTF-8 file name",
-                    krate.name,
-                    krate.version,
-                    path.display()
-                )
+            .ok_or_else(|| InventoryError::TextName {
+                name: krate.name.clone(),
+                version: krate.version.clone(),
+                path: path.clone(),
             })?
             .to_owned();
-        let words = std::fs::read_to_string(path).map_err(|error| {
-            format!(
-                "inventory: {}@{} cannot read {}: {error}",
-                krate.name,
-                krate.version,
-                path.display()
-            )
-        })?;
+        let words = path_io::read_to_string(path).map_err(|source| read_error(krate, source))?;
         if words.trim().is_empty() {
-            return Err(format!(
-                "inventory: {}@{} text {name} is empty",
-                krate.name, krate.version
-            ));
+            return Err(InventoryError::EmptyText {
+                name: krate.name.clone(),
+                version: krate.version.clone(),
+                text: name,
+            });
         }
         if texts.insert(name.clone(), words).is_some() {
-            return Err(format!(
-                "inventory: {}@{} lists text {name} twice",
-                krate.name, krate.version
-            ));
+            return Err(InventoryError::TextTwice {
+                name: krate.name.clone(),
+                version: krate.version.clone(),
+                text: name,
+            });
         }
     }
     Ok(texts.into_iter().collect())
+}
+
+fn read_error(krate: &ShippedCrate, source: PathIoError) -> InventoryError {
+    InventoryError::Read {
+        name: krate.name.clone(),
+        version: krate.version.clone(),
+        source,
+    }
 }
 
 /// Whether license.toml approves a crate shipping no words for `license`.
@@ -172,25 +324,14 @@ fn approved(policy: &dx_audit::license_policy::LicensePolicy, finding: &JoinedCr
 }
 
 /// The license a crate outside the root crate universe declares in its own manifest.
-fn manifest_license(krate: &ShippedCrate) -> Result<String, String> {
-    let missing = || {
-        format!(
-            "inventory: {}@{} ({}) is not in cargo-bazel-lock.json and its {} declares no license",
-            krate.name,
-            krate.version,
-            krate.label,
-            Ecosystem::Cargo.manifest_name()
-        )
+fn manifest_license(krate: &ShippedCrate) -> Result<String, InventoryError> {
+    let missing = || InventoryError::NoManifestLicense {
+        name: krate.name.clone(),
+        version: krate.version.clone(),
+        label: krate.label.clone(),
     };
     let path = krate.manifest.as_ref().ok_or_else(missing)?;
-    let text = std::fs::read_to_string(path).map_err(|error| {
-        format!(
-            "inventory: {}@{} cannot read {}: {error}",
-            krate.name,
-            krate.version,
-            path.display()
-        )
-    })?;
+    let text = path_io::read_to_string(path).map_err(|source| read_error(krate, source))?;
     dx_audit::locks::cargo_manifest_license(&text).ok_or_else(missing)
 }
 
@@ -207,16 +348,16 @@ pub fn join(
     crates: &[ShippedCrate],
     lock_text: &str,
     licenses_toml: &str,
-) -> Result<Vec<JoinedCrate>, String> {
-    let lock: serde_json::Value = serde_json::from_str(lock_text)
-        .map_err(|error| format!("inventory: cargo-bazel-lock.json: {error}"))?;
+) -> Result<Vec<JoinedCrate>, InventoryError> {
+    let lock: serde_json::Value =
+        serde_json::from_str(lock_text).map_err(InventoryError::LockJson)?;
     let locked = lock
         .get("crates")
         .and_then(serde_json::Value::as_object)
-        .ok_or("inventory: cargo-bazel-lock.json has no crates table")?;
+        .ok_or(InventoryError::NoCratesTable)?;
     let base_tier = dx_audit::tier_base::Tier::Standard;
     let policy = dx_audit::license_policy::load_licenses(Some(licenses_toml), base_tier)
-        .map_err(|error| format!("inventory: {error}"))?;
+        .map_err(InventoryError::Policy)?;
     let packages: Vec<dx_audit::vuln::LockedPackage> = crates
         .iter()
         .map(|krate| dx_audit::vuln::LockedPackage {
@@ -238,10 +379,10 @@ pub fn join(
             manifest_license(krate)?
         };
         if license == "UNKNOWN" {
-            return Err(format!(
-                "inventory: {}@{} has no license in cargo-bazel-lock.json",
-                krate.name, krate.version
-            ));
+            return Err(InventoryError::NoLicense {
+                name: krate.name.clone(),
+                version: krate.version.clone(),
+            });
         }
         let texts = read_crate_texts(krate)?;
         let entry = JoinedCrate {
@@ -260,10 +401,11 @@ pub fn join(
             name == entry.license && approved(&policy, &entry)
         });
         if dx_audit::license_notice::notice_fails(outcome, tier) {
-            return Err(format!(
-                "inventory: missing-notice-text: {}@{} ({}) ships no LICENSE*/COPYING*/NOTICE* file; add a license.toml exception or a text",
-                entry.name, entry.version, entry.license
-            ));
+            return Err(InventoryError::MissingNotice {
+                name: entry.name,
+                version: entry.version,
+                license: entry.license,
+            });
         }
         joined.push(entry);
     }
@@ -271,8 +413,11 @@ pub fn join(
 }
 
 /// Renders the six-field NOTICE manifest for the joined crates.
-#[must_use]
-pub fn render_manifest(joined: &[JoinedCrate]) -> String {
+///
+/// # Errors
+///
+/// Returns an error when a crate name, version or license holds a manifest separator.
+pub fn render_manifest(joined: &[JoinedCrate]) -> Result<String, InventoryError> {
     let entries: Vec<crate::NoticeEntry> = joined
         .iter()
         .map(|entry| crate::NoticeEntry {
@@ -288,6 +433,7 @@ pub fn render_manifest(joined: &[JoinedCrate]) -> String {
         "Generated by release_tool inventory from the shipped crate graph; do not edit.",
         &entries,
     )
+    .map_err(InventoryError::Manifest)
 }
 
 /// Runs the join and writes the manifest plus `<texts>/cargo/<crate>-<version>/LICENSE`.
@@ -303,27 +449,34 @@ pub fn write_inventory(
     manifest: &Path,
     texts: &Path,
     runtimes_out: Option<&Path>,
-) -> std::io::Result<()> {
-    let shipped_text = std::fs::read_to_string(shipped)?;
-    let crates = parse_shipped(&shipped_text).map_err(std::io::Error::other)?;
+) -> Result<(), InventoryError> {
+    let shipped_text = path_io::read_to_string(shipped)?;
+    let crates = parse_shipped(&shipped_text)?;
     if let Some(out) = runtimes_out {
-        let shipped_runtimes =
-            parse_shipped_runtimes(&shipped_text).map_err(std::io::Error::other)?;
-        let records = runtimes::build(&shipped_runtimes).map_err(std::io::Error::other)?;
-        std::fs::write(out, runtimes::render_records(&records).as_bytes())?;
+        let shipped_runtimes = parse_shipped_runtimes(&shipped_text)?;
+        let records = runtimes::build(&shipped_runtimes).map_err(InventoryError::Runtimes)?;
+        write(out, runtimes::render_records(&records).as_bytes())?;
     }
     let joined = join(
         &crates,
-        &std::fs::read_to_string(lock)?,
-        &std::fs::read_to_string(licenses)?,
-    )
-    .map_err(std::io::Error::other)?;
+        &path_io::read_to_string(lock)?,
+        &path_io::read_to_string(licenses)?,
+    )?;
     for entry in &joined {
         let path = texts.join(text_path(&entry.name, &entry.version));
-        std::fs::create_dir_all(path.parent().unwrap_or(texts))?;
-        std::fs::write(&path, entry.words.as_bytes())?;
+        path_io::create_dir_all(path.parent().unwrap_or(texts))?;
+        write(&path, entry.words.as_bytes())?;
     }
-    std::fs::write(manifest, render_manifest(&joined).as_bytes())
+    write(manifest, render_manifest(&joined)?.as_bytes())
+}
+
+fn write(path: &Path, bytes: &[u8]) -> Result<(), InventoryError> {
+    std::fs::write(path, bytes).map_err(|source| {
+        InventoryError::Io(PathIoError::Write {
+            path: path.to_path_buf(),
+            source,
+        })
+    })
 }
 
 #[cfg(test)]
@@ -373,24 +526,30 @@ mod tests {
         assert_eq!(crates[1].texts, vec![PathBuf::from("b/LICENSE")]);
 
         let wrong = r#"{"schema":"shipped-inventory/v0","crates":[]}"#;
+        let error = parse_shipped(wrong).expect_err("schema");
+        assert!(matches!(error, InventoryError::Schema { .. }), "{error:?}");
         assert_eq!(
-            parse_shipped(wrong),
-            Err(
-                "inventory: schema \"shipped-inventory/v0\", want \"shipped-inventory/v1\""
-                    .to_owned()
-            )
+            error.to_string(),
+            "inventory: schema \"shipped-inventory/v0\", want \"shipped-inventory/v1\""
         );
+        let error = parse_shipped("{\"schema\":\"shipped-inventory/v1\",\"crates\":[],\"x\":1}")
+            .expect_err("unknown field");
+        assert!(matches!(error, InventoryError::Json(_)), "{error:?}");
         assert!(
-            parse_shipped("{\"schema\":\"shipped-inventory/v1\",\"crates\":[],\"x\":1}")
-                .expect_err("unknown field")
-                .starts_with("inventory: unknown field")
+            error.to_string().starts_with("inventory: unknown field"),
+            "{error}"
         );
         let twice = r#"{"schema":"shipped-inventory/v1","crates":[
             {"crate":"a","version":"1","label":"@x//:a"},
             {"crate":"a","version":"1","label":"@y//:a"}]}"#;
+        let error = parse_shipped(twice).expect_err("twice");
+        assert!(
+            matches!(error, InventoryError::Duplicate { .. }),
+            "{error:?}"
+        );
         assert_eq!(
-            parse_shipped(twice),
-            Err("inventory: a@1 is listed twice (@x//:a and @y//:a)".to_owned())
+            error.to_string(),
+            "inventory: a@1 is listed twice (@x//:a and @y//:a)"
         );
     }
 
@@ -417,7 +576,7 @@ mod tests {
             joined[1].words,
             "gamma 0.1.0 ships no license text; declared license: Unicode-3.0\n"
         );
-        let manifest = render_manifest(&joined);
+        let manifest = render_manifest(&joined).expect("renders");
         let want = format!(
             "# Generated by release_tool inventory from the shipped crate graph; do not edit.\n\
              alpha|cargo|1.0.0|MIT OR Apache-2.0|cargo/alpha-1.0.0/LICENSE|{}\n\
@@ -587,21 +746,28 @@ mod tests {
             ),
         ];
         for (krate, want) in cases {
-            let error = join(&[krate], LOCK, "").expect_err(want);
+            let error = join(&[krate], LOCK, "").expect_err(want).to_string();
             assert!(error.starts_with(want), "{error}");
         }
+        let error = join(&[], "not json", "").expect_err("lock json");
+        assert!(matches!(error, InventoryError::LockJson(_)), "{error:?}");
         assert_eq!(
-            join(&[], "not json", ""),
-            Err("inventory: cargo-bazel-lock.json: expected ident at line 1 column 2".to_owned())
+            error.to_string(),
+            "inventory: cargo-bazel-lock.json: expected ident at line 1 column 2"
         );
+        let error = join(&[], "{}", "").expect_err("no crates");
+        assert!(matches!(error, InventoryError::NoCratesTable), "{error:?}");
         assert_eq!(
-            join(&[], "{}", ""),
-            Err("inventory: cargo-bazel-lock.json has no crates table".to_owned())
+            error.to_string(),
+            "inventory: cargo-bazel-lock.json has no crates table"
         );
+        let error = join(&[], LOCK, "[policy\n").expect_err("bad toml");
+        assert!(matches!(error, InventoryError::Policy(_)), "{error:?}");
         assert!(
-            join(&[], LOCK, "[policy\n")
-                .expect_err("bad toml")
-                .starts_with("inventory: invalid license.toml")
+            error
+                .to_string()
+                .starts_with("inventory: invalid license.toml"),
+            "{error}"
         );
     }
 
@@ -623,18 +789,26 @@ mod tests {
         assert_eq!(joined[0].license, "MIT");
 
         krate.manifest = Some(text(dir.path(), &format!("c/{manifest}"), "[package]\n"));
+        let error = join(&[krate.clone()], LOCK, "").expect_err("no license");
+        assert!(
+            matches!(error, InventoryError::NoManifestLicense { .. }),
+            "{error:?}"
+        );
         assert_eq!(
-            join(&[krate.clone()], LOCK, ""),
-            Err(format!(
+            error.to_string(),
+            format!(
                 "inventory: bytes@1.7.1 (@{}//:bytes) is not in cargo-bazel-lock.json and its {manifest} declares no license",
                 cargo_hub()
-            ))
+            )
         );
         krate.manifest = Some(dir.path().join("absent").join(manifest));
+        let error = join(&[krate], LOCK, "").expect_err("unreadable");
+        assert!(matches!(error, InventoryError::Read { .. }), "{error:?}");
         assert!(
-            join(&[krate], LOCK, "")
-                .expect_err("unreadable")
-                .starts_with("inventory: bytes@1.7.1 cannot read")
+            error
+                .to_string()
+                .starts_with("inventory: bytes@1.7.1 cannot read"),
+            "{error}"
         );
     }
 
@@ -664,15 +838,48 @@ expires = "2099-01-01"
         let dir = tempfile::tempdir().expect("tempdir");
         let missing = dir.path().join("missing.json");
         let out = dir.path().join("m.txt");
-        assert!(write_inventory(&missing, &missing, &missing, &out, dir.path(), None).is_err());
+        let error = write_inventory(&missing, &missing, &missing, &out, dir.path(), None)
+            .expect_err("missing");
+        assert!(matches!(error, InventoryError::Io(_)), "{error:?}");
+        assert!(error.to_string().starts_with("cannot read "), "{error}");
         let bad = text(dir.path(), "bad.json", "{}");
-        assert!(write_inventory(&bad, &bad, &bad, &out, dir.path(), None).is_err());
+        let error = write_inventory(&bad, &bad, &bad, &out, dir.path(), None).expect_err("bad");
+        assert!(matches!(error, InventoryError::Json(_)), "{error:?}");
         let shipped_json = text(
             dir.path(),
             "s.json",
             r#"{"schema":"shipped-inventory/v1","crates":[{"crate":"zeta","version":"1","label":"@z//:zeta"}]}"#,
         );
         let lock = text(dir.path(), "lock.json", LOCK);
-        assert!(write_inventory(&shipped_json, &lock, &lock, &out, dir.path(), None).is_err());
+        let error = write_inventory(&shipped_json, &lock, &lock, &out, dir.path(), None)
+            .expect_err("lock as license.toml");
+        assert!(matches!(error, InventoryError::Policy(_)), "{error:?}");
+        let licenses = text(dir.path(), "license.toml", "");
+        let error = write_inventory(&shipped_json, &lock, &licenses, &out, dir.path(), None)
+            .expect_err("not in lock");
+        assert!(
+            matches!(error, InventoryError::NoManifestLicense { .. }),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn render_manifest_reports_fields_the_manifest_cannot_hold() {
+        let krate = |version: &str, license: &str| JoinedCrate {
+            name: "alpha".to_owned(),
+            version: version.to_owned(),
+            license: license.to_owned(),
+            words: "words\n".to_owned(),
+        };
+        let error = render_manifest(&[krate("1.0.0", "MIT|Apache-2.0")]).expect_err("separator");
+        assert!(matches!(error, InventoryError::Manifest(_)), "{error:?}");
+        assert_eq!(
+            error.to_string(),
+            "inventory: notice manifest: license \"MIT|Apache-2.0\" of alpha@1.0.0 must not contain '|'"
+        );
+        let err = render_manifest(&[krate("1.0.0\n", "MIT")])
+            .expect_err("newline in version")
+            .to_string();
+        assert!(err.contains("must not contain '\\n'"), "{err}");
     }
 }

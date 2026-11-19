@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use dx_testing::env_file;
 use dx_testing::http::{Reply, RequestLog, requests, serve as serve_with};
 use std::path::{Path, PathBuf};
@@ -936,7 +940,10 @@ fn archiver_imports(
     let out_dir = dx_test_scratch::scratch("pypi-imports").unwrap();
     let out = out_dir.path().join("ok");
     let mut command = std::process::Command::new(env_file("DX_ARCHIVER"));
-    command.args(["archiver", "--imports"]).arg(out).args(["--check", check]);
+    command
+        .args(["archiver", "--imports"])
+        .arg(out)
+        .args(["--check", check]);
     for name in provides {
         command.args(["--provides", name]);
     }

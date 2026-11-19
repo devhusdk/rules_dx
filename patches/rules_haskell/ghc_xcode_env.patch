@@ -2,6 +2,7 @@ Give ghc actions the Xcode env so an Xcode cc toolchain (wrapped_clang) gets DEV
 GHC hands the cc toolchain flags to every phase, assembler included, where clang reports them as unused, so ghc actions drop treat_warnings_as_errors as the cabal rules do.
 On macOS GHC's rts/ghc_ffi.h includes "ffi.h", which the SDK keeps under usr/include/ffi.
 The static library action takes the same Xcode env, since Xcode's libtool fails with "DEVELOPER_DIR not set" without it.
+Upstream: none (not yet sent upstream)
 
 diff --git a/haskell/cc.bzl b/haskell/cc.bzl
 --- a/haskell/cc.bzl

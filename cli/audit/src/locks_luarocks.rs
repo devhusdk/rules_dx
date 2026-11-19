@@ -1,3 +1,4 @@
+use crate::locks::sort_unique;
 use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
@@ -5,6 +6,7 @@ pub const LUAROCKS_SET: &str = "luarocks";
 
 /// Reads the packages of a lock.
 pub fn parse_luarocks_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let invalid = |detail: &str| DxError::failure(format!("invalid lock: {detail}"));
     let lock: serde_json::Value =
         serde_json::from_str(text).map_err(|error| invalid(&error.to_string()))?;
@@ -25,6 +27,6 @@ pub fn parse_luarocks_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         };
         out.push(LockedPackage::new(LUAROCKS_SET, name, version.trim()));
     }
-    out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+    sort_unique(&mut out);
     Ok(out)
 }

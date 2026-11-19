@@ -5,8 +5,15 @@ package(default_visibility = ["//:__subpackages__"])
 
 alias(
     name = "bin",
+    actual = "@dx_prebuilt//:weeder",
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+)
+
+alias(
+    name = "source",
     actual = "@haskell_weeder_hackage//:weeder-exe-weeder",
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
+    visibility = ["//visibility:public"],
 )
 
 real_source_target(

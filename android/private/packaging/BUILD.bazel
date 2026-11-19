@@ -35,9 +35,9 @@ real_source_target(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = glob(["*.bzl"]) + [
         "BUILD.bazel",
-    ]),
+        "//android/private/packaging/ops:module_srcs",
+    ],
     visibility = ["//:__subpackages__"],
 )

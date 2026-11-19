@@ -1,0 +1,57 @@
+"""Creates @dx_gazelle: a pinned release gazelle, or one gazelle_binary of the registered languages plus dispatch."""
+
+load("//core:repo.bzl", "hub_repo")
+load(":extension.bzl", "ASSET_ATTRS", "declare_downloads")
+load(":gazelle_hub.bzl", "builds_from_source", "prebuilt_build", "render_hub_build")
+load(":hub.bzl", "plan_assets", "plan_root")
+load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
+
+visibility(["//core"])
+
+_language = tag_class(
+    doc = "Adds a Gazelle language package to the dx gazelle binary. A module other than rules_dx that adds one makes gazelle build from source.",
+    attrs = {
+        "library": attr.label(doc = "The go_library of the language.", mandatory = True),
+    },
+)
+
+_asset = tag_class(
+    doc = "Adds or replaces gazelle for one os and cpu; honoured only in the root module.",
+    attrs = ASSET_ATTRS,
+)
+
+_from_source = tag_class(
+    doc = "Builds gazelle from source instead; honoured only in the root module.",
+    attrs = {},
+)
+
+def _dx_gazelle_impl(module_ctx):
+    plan = plan_root(module_ctx.modules, "dx_gazelle", ["gazelle"])
+    if plan.error:
+        fail(plan.error)
+    labels = [tag.library for mod in module_ctx.modules for tag in mod.tags.language]
+    assets = [] if builds_from_source(plan, module_ctx.modules) else plan_assets(
+        "gazelle",
+        DX_VERSION,
+        PINS,
+        URL_TEMPLATE,
+        plan.overrides.get("gazelle", {}),
+        exe = "gazelle",
+        repo_prefix = "dx_gazelle_",
+    )
+    if not [a for a in assets if a.repo]:
+        hub_repo(name = "dx_gazelle", files = {"BUILD.bazel": render_hub_build(labels)})
+    else:
+        declare_downloads(assets)
+        hub_repo(name = "dx_gazelle", files = {"BUILD.bazel": prebuilt_build(assets, labels)})
+    return module_ctx.extension_metadata(reproducible = True)
+
+dx_gazelle = module_extension(
+    doc = "Creates @dx_gazelle, the gazelle binary behind @rules_dx//dx:generate.",
+    implementation = _dx_gazelle_impl,
+    tag_classes = {
+        "asset": _asset,
+        "from_source": _from_source,
+        "language": _language,
+    },
+)

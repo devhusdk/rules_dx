@@ -2,7 +2,7 @@
 
 load("@rules_fortran//fortran/private:providers.bzl", "FortranToolchainInfo")
 load("//fortran/private/lock:hub.bzl", fpm_build_file = "build_file")
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks", "pins_hub")
 load("//fortran/private/toolchain:pins.bzl", "FLANG_RT_PREFIX", "FLANG_VERSION", "FORTRAN_CELLS")
 load("//fortran/private/toolchain:repos.bzl", "FLANG_RT_TREES", "HUB_NAME", "flang_major", "flang_rt_build")
@@ -13,6 +13,7 @@ def _checks():
     hub = pins_hub(HUB_NAME, FORTRAN_CELLS.keys(), "//fortran/private/toolchain:toolchain_type", "both", ["compiler_files", "flang"])
     return [
         expect_contains("fpm packages link their locked dependencies", fpm_build_file({"deps": ["stdlib"], "name": "app"}), '["//stdlib"]'),
+        expect_contains("fpm packages glob one pattern per Fortran extension", fpm_build_file({"name": "app"}), '"src/**/*." + ext for ext in FORTRAN_EXTENSIONS'),
         expect_contains("hub aliases the exec flang", hub, 'name = "flang"'),
         expect_equal("pinned cells", sorted(FORTRAN_CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
         expect_contains("flang-rt prefix names the flang version", FLANG_RT_PREFIX, FLANG_VERSION),

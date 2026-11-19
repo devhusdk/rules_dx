@@ -179,7 +179,7 @@ mod tests {
     #[test]
     fn a_directory_in_place_of_the_file_is_an_error() {
         let dir = scratch("dx-claude-md-dir-").unwrap();
-        std::fs::create_dir(dir.path().join(FILE)).expect("dir");
+        std::fs::create_dir_all(dir.path().join(FILE)).expect("dir");
         assert!(state(dir.path()).is_err());
     }
 

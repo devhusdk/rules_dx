@@ -113,8 +113,9 @@ pub(crate) fn without_libtest_harness(
 }
 
 pub(crate) fn parse_label_kind(stdout: &[u8]) -> Result<Vec<(String, String)>, dx_error::DxError> {
-    let text = std::str::from_utf8(stdout)
-        .map_err(|_| dx_error::DxError::failure("query output is not UTF-8"))?;
+    let text = std::str::from_utf8(stdout).map_err(|error| {
+        dx_error::DxError::failure(format!("query output is not UTF-8: {error}"))
+    })?;
     let mut pairs: Vec<(String, String)> = Vec::new();
     for line in text.lines() {
         let line = line.trim();
@@ -191,5 +192,11 @@ mod tests {
             err.message().contains("malformed test observation"),
             "{err}"
         );
+    }
+
+    #[test]
+    fn parse_label_kind_rejects_non_utf8_output() {
+        let err = parse_label_kind(b"py_test rule //a:\xff\n").expect_err("not UTF-8");
+        assert!(err.message().contains("not UTF-8"), "{err}");
     }
 }

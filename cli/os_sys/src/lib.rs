@@ -6,6 +6,13 @@
 //! stay in single-operation blocks with a `SAFETY` comment each.
 
 #![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
+#![cfg_attr(
+    test,
+    expect(
+        clippy::disallowed_methods,
+        reason = "tests run local programs under the Bazel test timeout"
+    )
+)]
 
 /// The stop signals dx forwards to a streamed child: SIGINT, SIGTERM and SIGHUP.
 pub const STOP_SIGNALS: [i32; 3] = [2, 15, 1];
@@ -39,15 +46,15 @@ pub mod win32;
 #[cfg(test)]
 #[path = "console_tests.rs"]
 mod console_tests;
-#[cfg(all(test, windows))]
+#[cfg(test)]
 #[path = "job_object_tests.rs"]
 mod job_object_tests;
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod lib_tests;
-#[cfg(all(test, windows))]
+#[cfg(test)]
 #[path = "nt_tests.rs"]
 mod nt_tests;
-#[cfg(all(test, windows))]
+#[cfg(test)]
 #[path = "win32_tests.rs"]
 mod win32_tests;

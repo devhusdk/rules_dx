@@ -44,21 +44,39 @@ Build and test everything. `//...` means every target in the repository:
 tools/dx test //...
 ```
 
-## Charts
-
-`helm_library` owns one chart: the package that holds `Chart.yaml`. Every file
-in `srcs` lives in that package. Put vendored subchart archives in `subcharts`.
-
 ## Quality
 
-`dx format` formats a chart with two pinned tools.
+`dx format` formats a chart with two pinned tools. Each file goes to exactly
+one of them:
 
-- prettier formats `Chart.yaml`, `values.yaml` and other plain YAML or JSON files in the chart.
-- helmfmt formats Go templates: files under `templates/` next to a `Chart.yaml`, and `*.tpl`. It
-  re-indents only the lines that start with a template tag; every other line stays as written.
+- prettier formats `Chart.yaml`, `values.yaml` and the other plain YAML and
+  JSON files in the chart.
+- helmfmt formats Go templates: files under `templates/` next to a
+  `Chart.yaml`, and `*.tpl` files. It re-indents only the lines that start
+  with a template tag and leaves every other line as written.
 
-A file goes to exactly one of the two. The prettier wrapper skips templates and `*.tpl`, and helmfmt
-is never given anything else.
+## Packaging
+
+### Charts
+
+`helm_library` owns one chart, in the Bazel package that holds `Chart.yaml`
+(a package is a directory with a `BUILD.bazel` file). Every file in `srcs`
+must live in that package. Put vendored subchart archives, `.tgz` files under `charts/`, in
+`subcharts`.
+
+```python
+load("@rules_dx//helm:defs.bzl", "helm_library")
+
+helm_library(
+    name = "chart",
+    srcs = [
+        "Chart.yaml",
+        "templates/cm.yaml",
+        "values.yaml",
+    ],
+    subcharts = ["charts/redis-20.1.0.tgz"],
+)
+```
 
 ## Rules
 

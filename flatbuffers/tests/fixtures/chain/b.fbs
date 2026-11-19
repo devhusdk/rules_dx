@@ -1,0 +1,7 @@
+include "a.fbs";
+
+namespace dx.chain;
+
+struct B {
+  a: A;
+}

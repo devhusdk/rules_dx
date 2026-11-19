@@ -15,7 +15,9 @@ pub fn listed(workspace: &Path) -> Vec<String> {
         return found;
     };
     for entry in entries.flatten() {
-        let dir = entry.file_name().to_string_lossy().into_owned();
+        let Ok(dir) = entry.file_name().into_string() else {
+            continue;
+        };
         let Ok(text) = std::fs::read_to_string(entry.path().join("lang.json")) else {
             continue;
         };
@@ -26,9 +28,14 @@ pub fn listed(workspace: &Path) -> Vec<String> {
             continue;
         };
         for pin in pins.iter().filter_map(Value::as_str) {
-            if std::path::Path::new(pin)
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+            let path = std::path::Path::new(pin);
+            let inside = path
+                .components()
+                .all(|part| matches!(part, std::path::Component::Normal(_)));
+            if inside
+                && path
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
             {
                 found.push(format!("{dir}/{pin}"));
             }
@@ -354,7 +361,7 @@ mod tests {
     #[test]
     fn listed_reads_json_pins_of_each_lang_json() {
         let root = std::env::temp_dir().join(format!("dx-pins-listed-{}", std::process::id()));
-        drop(std::fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
         std::fs::create_dir_all(root.join("b")).unwrap();
         std::fs::create_dir_all(root.join("a")).unwrap();
         std::fs::write(
@@ -382,5 +389,32 @@ mod tests {
     fn a_failed_download_fails_the_rewrite() {
         let download = |_: &str| Err(DxError::failure("HTTP 404"));
         assert!(rewrite(PINS, "1.2.0", &download).is_err());
+    }
+
+    #[test]
+    fn listed_skips_pins_that_leave_their_directory() {
+        let root = std::env::temp_dir().join(format!("dx-pins-escape-{}", std::process::id()));
+        dx_atomic_fs::discard_dir(&root);
+        std::fs::create_dir_all(root.join("a")).unwrap();
+        std::fs::write(
+            root.join("a/lang.json"),
+            r#"{"pins":["../x.json","/abs/x.json","ok/pins.json","./y.json"]}"#,
+        )
+        .unwrap();
+        assert_eq!(listed(&root), vec!["a/ok/pins.json"]);
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn listed_skips_directories_whose_names_are_not_utf8() {
+        use std::os::unix::ffi::OsStrExt;
+        let root = std::env::temp_dir().join(format!("dx-pins-bytes-{}", std::process::id()));
+        dx_atomic_fs::discard_dir(&root);
+        let odd = root.join(std::ffi::OsStr::from_bytes(b"bad\xff"));
+        std::fs::create_dir_all(&odd).unwrap();
+        std::fs::write(odd.join("lang.json"), r#"{"pins":["pins.json"]}"#).unwrap();
+        assert_eq!(listed(&root), Vec::<String>::new());
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }

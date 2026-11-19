@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 use dx_path::label::{Label, Repo};
@@ -11,7 +11,7 @@ const EXPRESSION: &str = "kind('rule', //...)";
 /// The workspace rule graph as Bazel reports it, without loading any external repo.
 #[derive(Debug)]
 pub struct RuleGraph {
-    inputs: HashMap<String, Vec<String>>,
+    inputs: BTreeMap<String, Vec<String>>,
     users: HashMap<String, Vec<String>>,
     manual: HashSet<String>,
     release: HashSet<String>,
@@ -146,7 +146,7 @@ impl RuleGraph {
     ) -> Result<RuleGraph, ResolveError> {
         let argv = query_argv(startup_options);
         let result = ResolveError::run(runner, &argv, workspace, EXPRESSION)?;
-        let text = String::from_utf8(result.stdout).map_err(|_| {
+        let text = String::from_utf8(result.stdout).ok().ok_or_else(|| {
             ResolveError::query(
                 EXPRESSION,
                 super::QueryFailure::Output {
@@ -156,7 +156,7 @@ impl RuleGraph {
         })?;
         let mut outputs: Vec<(String, Vec<String>)> = Vec::new();
         let mut graph = RuleGraph {
-            inputs: HashMap::new(),
+            inputs: BTreeMap::new(),
             users: HashMap::new(),
             manual: HashSet::new(),
             release: HashSet::new(),
@@ -313,10 +313,10 @@ impl RuleGraph {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
     }
 
-    /// The `dx_deployment` rules tagged `release` that the scopes reach, keeping manual rules.
+    /// The `deployment` rules tagged `release` that the scopes reach, keeping manual rules.
     #[must_use]
     pub fn deployments(&self, scopes: &[String]) -> Vec<String> {
-        let mut rules = self.reached_of_kind(scopes, |kind| kind == "dx_deployment");
+        let mut rules = self.reached_of_kind(scopes, |kind| kind == "deployment");
         rules.retain(|rule| self.release.contains(rule));
         rules
     }
@@ -699,18 +699,18 @@ mod tests {
             graph_rule_of_kind("//app:bin", "rust_binary", &["//app:main.rs"], &[]),
             graph_rule_of_kind(
                 "//app:deploy",
-                "dx_deployment",
+                "deployment",
                 &["//app:bin"],
                 &["release"],
             ),
-            graph_rule_of_kind("//app:staging", "dx_deployment", &["//app:bin"], &[]),
+            graph_rule_of_kind("//app:staging", "deployment", &["//app:bin"], &[]),
             graph_rule_of_kind(
                 "//app:prerelease",
-                "dx_deployment",
+                "deployment",
                 &["//app:bin"],
                 &["prerelease"],
             ),
-            graph_rule_of_kind("//other:deploy", "dx_deployment", &["//other:x"], &[]),
+            graph_rule_of_kind("//other:deploy", "deployment", &["//other:x"], &[]),
         ]);
         assert_eq!(
             graph.deployments(&strings(&["//app:main.rs"])),

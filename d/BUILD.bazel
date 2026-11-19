@@ -8,6 +8,12 @@ exports_files([
     "pins.json",
 ])
 
+config_setting(
+    name = "coverage",
+    values = {"collect_code_coverage": "true"},
+    visibility = ["//visibility:public"],
+)
+
 real_source_target(
     name = "corpus_markdown",
     markdown_srcs = ["README.md"],
@@ -26,10 +32,16 @@ real_source_target(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = [
         "BUILD.bazel",
         "pins.json",
+    ] + glob([
+        "*.bzl",
     ]),
     visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
 )

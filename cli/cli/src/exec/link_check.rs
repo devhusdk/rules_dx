@@ -200,15 +200,15 @@ pub(crate) fn run(
         };
         let request = dir.join(format!("{tag}-{index}-request.json"));
         let output = dir.join(format!("{tag}-{index}-result.bin"));
-        let ran = std::fs::write(&request, prepared)
+        let ran = dx_atomic_fs::write_scratch(&request, &prepared)
             .map_err(|error| format!("could not write {}: {error}", request.display()))
             .and_then(|()| run_request(&request.to_string_lossy(), &output.to_string_lossy()))
             .and_then(|()| {
                 std::fs::read(&output)
                     .map_err(|error| format!("could not read {}: {error}", output.display()))
             });
-        std::fs::remove_file(&request).ok();
-        std::fs::remove_file(&output).ok();
+        dx_atomic_fs::discard_file(&request);
+        dx_atomic_fs::discard_file(&output);
         match ran {
             Ok(result) => outcome.results.push(result),
             Err(error) => outcome

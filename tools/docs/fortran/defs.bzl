@@ -4,6 +4,8 @@ load("@rules_fortran//fortran:defs.bzl", "FortranInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 FORTRAN_SOURCE_EXTENSIONS = ["f", "f90", "f95", "f03", "f08", "F", "F90", "F95", "F03", "F08"]
 
 _FortranDirectSrcsInfo = provider(
@@ -58,6 +60,7 @@ def fortran_shard_action(ctx, own, package, stem, driver_tool, extract_tool):
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("fortran_extract")
     extract.add("--json", json)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -109,7 +112,7 @@ docs_fortran_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/fortran/extract:fortran_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

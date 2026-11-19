@@ -201,10 +201,36 @@ fn cache_root_precedence() {
     ];
     for (pairs, windows, want) in cases {
         assert_eq!(
-            cache_root(&env(pairs), windows),
+            cache_root(&env(pairs), windows).expect("root"),
             want.map(PathBuf::from),
             "{pairs:?} windows={windows}"
         );
+    }
+}
+
+#[test]
+fn relative_xdg_cache_home_is_ignored() {
+    for xdg in ["rel", ".cache", "./x"] {
+        assert_eq!(
+            cache_root(&env(&[("XDG_CACHE_HOME", xdg), ("HOME", "/h")]), false).expect("root"),
+            Some(PathBuf::from("/h/.cache/dx")),
+            "{xdg}"
+        );
+        assert_eq!(
+            cache_root(&env(&[("XDG_CACHE_HOME", xdg)]), false).expect("root"),
+            None,
+            "{xdg}"
+        );
+    }
+}
+
+#[test]
+fn relative_dx_cache_dir_is_rejected_or_absolutized() {
+    for dir in ["rel", ".cache/dx", "./x"] {
+        let err = cache_root(&env(&[("DX_CACHE_DIR", dir), ("HOME", "/h")]), false).expect_err(dir);
+        assert_eq!(err.code, EXIT_USAGE);
+        assert!(err.message.contains("DX_CACHE_DIR"), "{}", err.message);
+        assert!(err.message.contains(dir), "{}", err.message);
     }
 }
 
@@ -251,6 +277,63 @@ fn release_base_allows_https_and_loopback_http_only() {
 }
 
 #[test]
+fn a_leading_byte_order_mark_does_not_hide_the_first_pin() {
+    let a = "a".repeat(64);
+    let text = format!("\u{feff}1.2.3 {a} dx-linux-x86_64\n");
+    assert_eq!(pinned_hash(&text, "1.2.3", "dx-linux-x86_64"), Some(a));
+}
+
+#[test]
+fn a_leading_byte_order_mark_does_not_hide_the_bazel_dep() {
+    let text = "\u{feff}bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\n";
+    assert_eq!(module_version(text), Some("1.2.3".to_owned()));
+}
+
+#[test]
+fn unreadable_pins_are_an_error() {
+    let dir = workspace(&module("1.2.3"), None);
+    std::fs::create_dir_all(dir.path().join(VERSION_FILE)).expect("pins dir");
+    let err = resolve_version(&env(&[]), dir.path()).expect_err("unreadable pins");
+    assert_eq!(err.code, EXIT_FAILURE);
+    assert!(err.message.contains(VERSION_FILE), "{}", err.message);
+}
+
+#[test]
+fn non_utf8_pins_and_module_are_errors() {
+    let dir = workspace(&module("1.2.3"), Some("1.2.3\n"));
+    std::fs::write(dir.path().join(VERSION_FILE), [0xff, 0xfe]).expect("pins");
+    let err = resolve_version(&env(&[]), dir.path()).expect_err("bad pins");
+    assert!(err.message.contains(VERSION_FILE), "{}", err.message);
+    std::fs::write(dir.path().join("MODULE.bazel"), [0xff, 0xfe]).expect("module");
+    let err = resolve_version(&env(&[]), dir.path()).expect_err("bad module");
+    assert!(err.message.contains("MODULE.bazel"), "{}", err.message);
+}
+
+#[test]
+fn relative_home_is_rejected() {
+    for (name, windows) in [("HOME", false), ("USERPROFILE", true)] {
+        let err = cache_root(&env(&[(name, "rel")]), windows).expect_err(name);
+        assert_eq!(err.code, EXIT_USAGE);
+        assert!(err.message.contains(name), "{}", err.message);
+    }
+}
+
+#[test]
+fn release_base_needs_a_bare_host() {
+    for bad in [
+        "https:///",
+        "https:///r",
+        "https://:443/r",
+        "https://user:pw@mirror.example/r",
+        "https://mirror.example@evil.example/r",
+    ] {
+        let err = release_base(&env(&[("DX_RELEASE_BASE_URL", bad)])).expect_err(bad);
+        assert_eq!(err.code, EXIT_USAGE, "{bad}");
+        assert!(!err.message.contains("pw@"), "{}", err.message);
+    }
+}
+
+#[test]
 fn pin_rule_matches_tools_dx() {
     for input in [
         "1.2.3",
@@ -292,13 +375,17 @@ mod non_utf8 {
 
     #[test]
     fn cache_dir_is_used_as_is() {
-        let root = cache_root(&env_of("DX_CACHE_DIR"), false).expect("root");
+        let root = cache_root(&env_of("DX_CACHE_DIR"), false)
+            .expect("root")
+            .expect("set");
         assert_eq!(root, PathBuf::from(bad()));
     }
 
     #[test]
     fn home_is_not_reported_unset() {
-        let root = cache_root(&env_of("HOME"), false).expect("root");
+        let root = cache_root(&env_of("HOME"), false)
+            .expect("root")
+            .expect("set");
         assert_eq!(root, PathBuf::from(bad()).join(".cache").join("dx"));
     }
 

@@ -151,13 +151,13 @@ pub fn parse_added_lines(diff: &str) -> AddedLines {
                     if let Some(path) = &current {
                         added.entry(path.clone()).or_default().insert(next_line);
                     }
-                    next_line += 1;
+                    next_line = next_line.saturating_add(1);
                     new_left = new_left.saturating_sub(1);
                 }
                 Some(b'-') => old_left = old_left.saturating_sub(1),
                 Some(b'\\') => {}
                 _ => {
-                    next_line += 1;
+                    next_line = next_line.saturating_add(1);
                     old_left = old_left.saturating_sub(1);
                     new_left = new_left.saturating_sub(1);
                 }
@@ -235,10 +235,10 @@ pub fn changed_account(
             BTreeMap::new()
         }
     };
-    let report: BTreeMap<String, FileHits> = merged
-        .into_iter()
-        .map(|(path, hits)| (source_key(&path), hits))
-        .collect();
+    let mut report: BTreeMap<String, FileHits> = BTreeMap::new();
+    for (path, hits) in merged {
+        report.entry(source_key(&path)).or_default().merge(hits);
+    }
     for (path, disposition) in &account.files {
         if *disposition != Disposition::Eligible {
             continue;

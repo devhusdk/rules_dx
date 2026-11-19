@@ -104,6 +104,11 @@ fn resolve(index_path: &str) -> Result<String, String> {
 
 fn main() -> ExitCode {
     let index = std::env::args().nth(1).unwrap_or_default();
+    if index == "--hang" {
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(60));
+        }
+    }
     match resolve(&index) {
         Ok(resolution) => {
             println!("{resolution}");

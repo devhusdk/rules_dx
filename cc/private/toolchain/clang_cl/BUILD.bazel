@@ -6,7 +6,10 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load(":search_path.bzl", "search_path")
 load(":toolchains.bzl", "clang_cl_toolchains")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = [
+    "//:__subpackages__",
+    "@dx_cc_toolchains//:__pkg__",
+])
 
 search_path(
     name = "dynamic_crt_link_lib_path",

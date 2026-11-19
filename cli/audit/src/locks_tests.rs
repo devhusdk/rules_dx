@@ -1615,3 +1615,56 @@ fn package_lock_unsupported_lockfile_versions_name_the_supported_one() {
         assert!(error.message().contains("lockfileVersion 3"), "{error}");
     }
 }
+
+#[test]
+fn repeated_entries_collapse_and_same_name_versions_sort() {
+    let key = |packages: Vec<LockedPackage>| {
+        packages
+            .into_iter()
+            .map(|package| (package.name, package.version))
+            .collect::<Vec<_>>()
+    };
+    let twice = r#"{"packages":[{"name":"a/one","version":"1.0.0"}],"packages-dev":[{"name":"a/one","version":"v1.0.0"}]}"#;
+    assert_eq!(
+        key(parse_composer_lock(twice).expect("composer")),
+        [("a/one".to_owned(), "1.0.0".to_owned())]
+    );
+    let rows = r#"{"packages":[{"name":"p","version":"2.0"},{"name":"p","version":"1.0"},{"name":"p","version":"1.0"}]}"#;
+    let want = [
+        ("p".to_owned(), "1.0".to_owned()),
+        ("p".to_owned(), "2.0".to_owned()),
+    ];
+    assert_eq!(key(parse_fpm_lock(rows).expect("fpm")), want);
+    assert_eq!(key(parse_psgallery_lock(rows).expect("psgallery")), want);
+    assert_eq!(key(parse_luarocks_lock(rows).expect("luarocks")), want);
+}
+
+#[test]
+fn text_locks_ignore_a_leading_byte_order_mark() {
+    let bom = "\u{feff}";
+    let gem = "GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec (3.13.0)\n";
+    let paket = "NUGET\n  remote: https://api.nuget.org/v3/index.json\n    My.Pkg (1.2.3)\n";
+    let cabal = "constraints: any.base ==4.18.0.0\n";
+    let cpan = "DISTRIBUTIONS\n  Foo-Bar-1.23\n    pathname: X/Foo-Bar-1.23.tar.gz\n";
+    let json = "{\"packages\": [], \"packages-dev\": []}";
+    assert_eq!(
+        parse_gemfile_lock(&format!("{bom}{gem}")).expect("gem"),
+        parse_gemfile_lock(gem).expect("gem")
+    );
+    assert_eq!(
+        parse_paket_lock(&format!("{bom}{paket}")).expect("paket"),
+        parse_paket_lock(paket).expect("paket")
+    );
+    assert_eq!(
+        parse_cabal_freeze(&format!("{bom}{cabal}")).expect("cabal"),
+        parse_cabal_freeze(cabal).expect("cabal")
+    );
+    assert_eq!(
+        parse_cpanfile_snapshot(&format!("{bom}{cpan}")).expect("cpan"),
+        parse_cpanfile_snapshot(cpan).expect("cpan")
+    );
+    assert_eq!(
+        parse_composer_lock(&format!("{bom}{json}")).expect("composer"),
+        parse_composer_lock(json).expect("composer")
+    );
+}

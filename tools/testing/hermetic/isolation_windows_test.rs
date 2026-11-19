@@ -1,6 +1,10 @@
 //! Probes the Windows user backend: network denial, loopback, explicit file denies and the MSVC
 //! denies. Like the Linux and macOS masks, the user backend hides only what `denies` lists.
 #![cfg(windows)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::{Path, PathBuf};
 use std::sync::{RwLock, RwLockReadGuard};
@@ -186,7 +190,7 @@ fn stale_groups_are_removed_when_a_new_group_is_set_up() {
     child.wait().expect("the test binary exits");
     let stale = format!("dxh-{dead}");
     let out = scene.root.join("out");
-    std::mem::forget(
+    let _stale = std::mem::ManuallyDrop::new(
         AclGroup::setup(&mut scene.isolation, &stale, &out).expect("stale group setup"),
     );
     trail.mark("stale group set up");
@@ -243,7 +247,7 @@ impl Trail {
         let now = self.mark("now");
         if now != self.before {
             use std::io::Write;
-            let _ = writeln!(std::io::stderr(), "ACL trail:\n{}", self.text);
+            let _: std::io::Result<()> = writeln!(std::io::stderr(), "ACL trail:\n{}", self.text);
         }
         assert_eq!(now, self.before, "{}", self.text);
     }

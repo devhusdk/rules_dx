@@ -173,7 +173,7 @@ fn write_entries(
     let updated = dx_update::accept::append_entries(text.as_deref(), &header, entries)
         .map_err(|error| DxError::new(error.kind(), format!("{rel}: {}", error.message())))?;
     if let Some(updated) = updated {
-        std::fs::write(&path, updated)
+        dx_atomic_fs::write_atomic(&path, updated.as_bytes())
             .map_err(|error| DxError::from_io(format!("could not write {rel}: {error}"), &error))?;
     }
     Ok(())

@@ -478,7 +478,7 @@ fn unmanaged_current_states_fail_closed() {
     ));
     fs::remove_file(&current).expect("remove file pointer");
 
-    fs::create_dir(&current).expect("dir pointer");
+    fs::create_dir_all(&current).expect("dir pointer");
     assert!(matches!(
         read_current_pair(&workspace),
         Err(CommitError::CurrentInvalid { .. })
@@ -745,4 +745,29 @@ fn commit_errors_display() {
 fn resolve_error_maps_to_a_failure() {
     let error = dx_error::DxError::from(ResolveError::NoCapability);
     assert_eq!(error.kind(), dx_error::ErrorKind::Failure);
+}
+
+#[test]
+fn current_links_outside_the_layout_fail_closed() {
+    let scratch = dx_test_scratch::scratch("dx-setup-test-outside-").unwrap();
+    let workspace = workspace_of(scratch.path());
+    fs::create_dir_all(&workspace).expect("workspace");
+    let selected = pair('1', '2');
+    commit_ok(&workspace, &selected);
+    let record = state::local_dir(&workspace)
+        .join(SETUPS_DIR_NAME)
+        .join(setup_hex(&selected));
+    dx_test_scratch::remove_directory_link(&record.join(ENVIRONMENT_LINK_NAME))
+        .expect("remove link");
+    let outside = format!("../../elsewhere/{}/", selected.environment.as_str());
+    create_pointer(
+        Path::new(&outside),
+        &record.join(ENVIRONMENT_LINK_NAME),
+        PointerKind::Directory,
+    )
+    .expect("outside link");
+    assert!(matches!(
+        read_current_pair(&workspace),
+        Err(CommitError::CurrentInvalid { .. })
+    ));
 }

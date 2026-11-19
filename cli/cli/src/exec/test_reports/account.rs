@@ -210,29 +210,9 @@ pub(super) const LOG_TAIL_LINES: usize = 40;
 
 pub(super) const LOG_TAIL_BYTES: usize = 8192;
 
-/// The last `LOG_TAIL_LINES` lines of a test log. When those exceed `LOG_TAIL_BYTES`, the oldest
-/// whole lines are dropped; a single oversize line is cut at a char boundary instead.
+/// The last `LOG_TAIL_LINES` lines of a test log, at most `LOG_TAIL_BYTES` long.
 pub(super) fn log_tail(bytes: &[u8]) -> Option<String> {
-    let text = String::from_utf8_lossy(bytes);
-    let mut lines: Vec<&str> = text.lines().collect();
-    let start = lines.len().saturating_sub(LOG_TAIL_LINES);
-    let mut tail = lines.split_off(start).join("\n");
-    if tail.len() > LOG_TAIL_BYTES {
-        let mut from = tail.len() - LOG_TAIL_BYTES;
-        while !tail.is_char_boundary(from) {
-            from += 1;
-        }
-        let Some((head, window)) = tail.split_at_checked(from) else {
-            return (!tail.trim().is_empty()).then_some(tail);
-        };
-        let at_line_start = head.ends_with('\n');
-        tail = match window.split_once('\n') {
-            _ if at_line_start => window.to_owned(),
-            Some((_, rest)) => rest.to_owned(),
-            None => window.to_owned(),
-        };
-    }
-    (!tail.trim().is_empty()).then_some(tail)
+    dx_bep::log_tail(bytes, LOG_TAIL_LINES, LOG_TAIL_BYTES)
 }
 
 /// Adds one parsed test.xml's cases to the outcome's counts and bounded case list.

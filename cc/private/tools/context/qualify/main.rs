@@ -1,6 +1,15 @@
 //! Host-run qualifier: checks exported compile commands against Bazel's own action argv.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
@@ -98,7 +107,7 @@ fn run(args: Vec<String>) -> Result<(), Error> {
     }
     let cwd = std::env::var("BUILD_WORKSPACE_DIRECTORY")
         .map(PathBuf::from)
-        .map_err(|_| Error::Usage("run through 'bazel run' (no workspace)".to_string()))?;
+        .map_err(|err| Error::Usage(format!("run through 'bazel run' (no workspace): {err}")))?;
     let mut runner = Runner {
         bazel,
         cwd: cwd.clone(),

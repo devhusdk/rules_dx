@@ -346,6 +346,7 @@ impl Ecosystem {
     }
 
     /// Names the first lockfile of this ecosystem, or `""` when it has none.
+    #[must_use]
     pub fn lockfile(self) -> &'static str {
         self.lockfiles().first().map_or("", String::as_str)
     }

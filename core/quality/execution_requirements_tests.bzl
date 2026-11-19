@@ -1,7 +1,7 @@
 """Unit tests for the execution-requirements helper."""
 
-load("//core:defs.bzl", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_test")
 load("@dx_pins_data//:pins.bzl", "DATA")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_false", "expect_match", "expect_true", "starlark_test")
 load(":execution_requirements.bzl", "DX_FORBIDDEN_NO_REMOTE", "DX_NO_REMOTE_EXEC", "REMOTE_QUALIFIED", "SHFMT_FORMAT_REMOTE", "dx_has_forbidden_marker", "dx_is_local_only", "dx_is_remote_qualified", "dx_remote_platforms", "dx_stage_execution_requirements", "remote_platform_error", "remote_record_error")
 
 visibility("private")
@@ -124,6 +124,21 @@ def execution_requirements_unit_tests(name):
                 "taplo is qualified for format only",
                 [dx_is_remote_qualified("taplo", "format"), dx_is_remote_qualified("taplo", "lint")],
                 [True, False],
+            ),
+            expect_equal(
+                "the single-tool format stages run remotely",
+                [dx_stage_execution_requirements([tool], "format") for tool in ["buildifier", "gersemi", "jsonnetfmt", "stylua", "typstyle", "yamlfmt"]],
+                [{}, {}, {}, {}, {}, {}],
+            ),
+            expect_equal(
+                "the biome format and lint stages run remotely",
+                [dx_stage_execution_requirements(["biome"], "format"), dx_stage_execution_requirements(["biome"], "lint")],
+                [{}, {}],
+            ),
+            expect_equal(
+                "the starlark lint stage runs remotely",
+                dx_stage_execution_requirements(["buildifier"], "lint"),
+                {},
             ),
         ] + [
             expect_equal(

@@ -1,10 +1,15 @@
 //! ntdll queries: process command lines and the system handle table.
 
-#![expect(unsafe_code, reason = "these ntdll queries have no Win32 or std equivalent")]
+#![expect(
+    unsafe_code,
+    reason = "these ntdll queries have no Win32 or std equivalent"
+)]
 
 use std::io;
 use std::os::windows::io::{AsRawHandle, BorrowedHandle};
-use windows_sys::Wdk::Foundation::{NtQueryObject, OBJECT_INFORMATION_CLASS, ObjectTypeInformation};
+use windows_sys::Wdk::Foundation::{
+    NtQueryObject, OBJECT_INFORMATION_CLASS, ObjectTypeInformation,
+};
 use windows_sys::Wdk::System::SystemInformation::{
     NtQuerySystemInformation, SYSTEM_INFORMATION_CLASS,
 };
@@ -60,15 +65,18 @@ pub(crate) fn query(
         }
         return Ok(buffer);
     }
-    Err(io::Error::other(format!("{what} kept outgrowing its buffer")))
+    Err(io::Error::other(format!(
+        "{what} kept outgrowing its buffer"
+    )))
 }
 
 /// Decodes the UNICODE_STRING at the start of `buffer`, whose text must lie inside `buffer`.
 pub(crate) fn unicode_string(buffer: &[u64]) -> io::Result<String> {
     let outside = || io::Error::other("the UNICODE_STRING points outside its buffer");
     let header = buffer.first().copied().ok_or_else(outside)?;
-    let length = (header & 0xffff) as usize;
-    let pointer = buffer.get(1).copied().ok_or_else(outside)? as usize;
+    let length = usize::try_from(header & 0xffff).map_err(|_| outside())?;
+    let pointer = buffer.get(1).copied().ok_or_else(outside)?;
+    let pointer = usize::try_from(pointer).map_err(|_| outside())?;
     if length == 0 {
         return Ok(String::new());
     }
@@ -102,7 +110,7 @@ pub fn command_line(process: BorrowedHandle<'_>) -> io::Result<String> {
 
 /// Splits a SYSTEM_HANDLE_INFORMATION_EX buffer into its entries.
 pub(crate) fn parse_handles(words: &[u64]) -> io::Result<Vec<SystemHandle>> {
-    let count = words.first().copied().unwrap_or(0) as usize;
+    let count = usize::try_from(words.first().copied().unwrap_or(0)).map_err(io::Error::other)?;
     let (entries, _) = words
         .get(HANDLE_HEADER_WORDS..)
         .unwrap_or_default()
@@ -113,29 +121,35 @@ pub(crate) fn parse_handles(words: &[u64]) -> io::Result<Vec<SystemHandle>> {
             entries.len()
         )));
     }
-    Ok(entries
+    entries
         .iter()
         .take(count)
-        .map(|&[_, pid, handle, _, _]| SystemHandle {
-            pid: pid as usize,
-            handle: handle as usize,
+        .map(|&[_, pid, handle, _, _]| {
+            Ok(SystemHandle {
+                pid: usize::try_from(pid).map_err(io::Error::other)?,
+                handle: usize::try_from(handle).map_err(io::Error::other)?,
+            })
         })
-        .collect())
+        .collect()
 }
 
 /// Every open handle in every process.
 pub fn system_handles() -> io::Result<Vec<SystemHandle>> {
-    let words = query("NtQuerySystemInformation", 1 << 20, |buffer, len, needed| {
-        // SAFETY: query passes the buffer's byte length.
-        unsafe {
-            NtQuerySystemInformation(
-                SYSTEM_EXTENDED_HANDLE_INFORMATION,
-                buffer.as_mut_ptr().cast(),
-                len,
-                needed,
-            )
-        }
-    })?;
+    let words = query(
+        "NtQuerySystemInformation",
+        1 << 20,
+        |buffer, len, needed| {
+            // SAFETY: query passes the buffer's byte length.
+            unsafe {
+                NtQuerySystemInformation(
+                    SYSTEM_EXTENDED_HANDLE_INFORMATION,
+                    buffer.as_mut_ptr().cast(),
+                    len,
+                    needed,
+                )
+            }
+        },
+    )?;
     parse_handles(&words)
 }
 

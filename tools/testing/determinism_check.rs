@@ -1,4 +1,9 @@
 //! Builds the given patterns twice in fresh output bases and fails when the exec logs differ.
+//! `diff <first> <second> [--top N]` instead names why the slowest spawns of the second log missed the cache.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use dx_testing::exec_log;
 use std::path::{Path, PathBuf};
@@ -48,7 +53,13 @@ fn run(argv: &[String], workspace: &Path) -> Result<(), String> {
     }
 }
 
-fn build(bazel: &str, out: &Path, name: &str, patterns: &[String], workspace: &Path) -> Result<(), String> {
+fn build(
+    bazel: &str,
+    out: &Path,
+    name: &str,
+    patterns: &[String],
+    workspace: &Path,
+) -> Result<(), String> {
     let start = Instant::now();
     run(&build_argv(bazel, out, name, patterns), workspace)?;
     println!("{name}: {}s", start.elapsed().as_secs());
@@ -62,11 +73,47 @@ fn build(bazel: &str, out: &Path, name: &str, patterns: &[String], workspace: &P
     )
 }
 
+/// Spawns `diff` reports when `--top` is not given.
+const TOP: usize = 20;
+
+fn diff_mode(args: &[String], cwd: &Path) -> Result<Vec<String>, String> {
+    let mut logs = Vec::new();
+    let mut top = TOP;
+    let mut args = args.iter();
+    while let Some(arg) = args.next() {
+        if arg == "--top" {
+            let value = args.next().ok_or("--top needs a number")?;
+            top = value.parse().map_err(|e| format!("--top {value}: {e}"))?;
+        } else {
+            logs.push(cwd.join(arg));
+        }
+    }
+    let [first, second] = logs.as_slice() else {
+        return Err("diff takes two execution logs".to_owned());
+    };
+    let parse = |path: &PathBuf| {
+        let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+        exec_log::ExecLog::parse(&bytes).map_err(|e| format!("{}: {e}", path.display()))
+    };
+    exec_log::diff(&parse(first)?, &parse(second)?, top)
+}
+
 fn main() -> Result<(), String> {
+    let argv: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(("diff", rest)) = argv.split_first().map(|(mode, rest)| (mode.as_str(), rest)) {
+        let cwd = std::env::var_os("BUILD_WORKING_DIRECTORY").map_or_else(
+            || std::env::current_dir().map_err(|e| e.to_string()),
+            |dir| Ok(PathBuf::from(dir)),
+        )?;
+        for line in diff_mode(rest, &cwd)? {
+            println!("{line}");
+        }
+        return Ok(());
+    }
     let mut bazel = None;
     let mut out = None;
     let mut patterns = Vec::new();
-    let mut args = std::env::args().skip(1);
+    let mut args = argv.into_iter();
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--bazel" => bazel = args.next(),
@@ -90,8 +137,8 @@ fn main() -> Result<(), String> {
         std::fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))
     };
     let allowlist = workspace.join(ALLOWLIST);
-    let allowlist = std::fs::read_to_string(&allowlist)
-        .map_err(|e| format!("{}: {e}", allowlist.display()))?;
+    let allowlist =
+        std::fs::read_to_string(&allowlist).map_err(|e| format!("{}: {e}", allowlist.display()))?;
     let found = compare(&read("first")?, &read("second")?, &allowlist)?;
     for line in &found {
         eprintln!("{line}");
@@ -109,11 +156,18 @@ mod tests {
 
     const FIRST: &[u8] = include_bytes!("exec_log_fixtures/first.log.zst");
     const SECOND: &[u8] = include_bytes!("exec_log_fixtures/second.log.zst");
+    const CACHE_FIRST: &[u8] = include_bytes!("exec_log_fixtures/cache_first.log.zst");
+    const CACHE_SECOND: &[u8] = include_bytes!("exec_log_fixtures/cache_second.log.zst");
     const STAMPED: &str = "//:stamped Genrule bazel-out/k8-fastbuild/bin/stamped.txt";
 
     #[test]
     fn the_build_argv_is_exact() {
-        let argv = build_argv("/b/bazel", Path::new("/o"), "first", &["//a/...".to_owned()]);
+        let argv = build_argv(
+            "/b/bazel",
+            Path::new("/o"),
+            "first",
+            &["//a/...".to_owned()],
+        );
         assert_eq!(
             argv,
             [
@@ -137,6 +191,33 @@ mod tests {
         let found = compare(FIRST, SECOND, "").unwrap();
         assert_eq!(found.len(), 1, "{found:?}");
         assert!(found[0].contains("//:stamped"));
+    }
+
+    #[test]
+    fn diff_mode_reads_two_logs() {
+        let dir = PathBuf::from(std::env::var("TEST_TMPDIR").unwrap());
+        std::fs::write(dir.join("cache_first.log.zst"), CACHE_FIRST).unwrap();
+        std::fs::write(dir.join("cache_second.log.zst"), CACHE_SECOND).unwrap();
+        let args =
+            |list: &[&str]| -> Vec<String> { list.iter().map(|a| (*a).to_owned()).collect() };
+        let lines = diff_mode(
+            &args(&["cache_first.log.zst", "cache_second.log.zst"]),
+            &dir,
+        )
+        .unwrap();
+        assert!(
+            lines.iter().any(|l| l.starts_with("  input changed.txt: ")),
+            "{lines:?}"
+        );
+        let lines = diff_mode(
+            &args(&["--top", "1", "cache_first.log.zst", "cache_second.log.zst"]),
+            &dir,
+        )
+        .unwrap();
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert!(diff_mode(&args(&["cache_first.log.zst"]), &dir).is_err());
+        assert!(diff_mode(&args(&["--top", "x", "a", "b"]), &dir).is_err());
+        assert!(diff_mode(&args(&["missing", "cache_second.log.zst"]), &dir).is_err());
     }
 
     #[test]

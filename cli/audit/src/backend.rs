@@ -45,7 +45,7 @@ pub fn plan_secrets(
     temp_dir: &str,
     offline: bool,
 ) -> Result<BackendPlan, BackendError> {
-    let _ = offline;
+    let _: bool = offline;
     if tool.trim().is_empty() {
         return Err(BackendError::MissingTool);
     }

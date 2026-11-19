@@ -92,35 +92,6 @@ pub fn opa_args(test_only: Option<&str>, user_args: &[String]) -> Vec<String> {
     args
 }
 
-/// Finds the `.runfiles` directory above one executable path, when there is one.
-fn tree_ancestor(exe: &Path) -> Option<PathBuf> {
-    let mut root = PathBuf::new();
-    for component in exe.components() {
-        root.push(component.as_os_str());
-        if component
-            .as_os_str()
-            .to_string_lossy()
-            .ends_with(".runfiles")
-        {
-            return Some(root);
-        }
-    }
-    None
-}
-
-/// Resolves the runfiles of the invoked executable without following symlinks.
-pub fn resolver_for(exe: &Path) -> io::Result<Resolver> {
-    let exe = if exe.is_absolute() {
-        exe.to_path_buf()
-    } else {
-        std::env::current_dir()?.join(exe)
-    };
-    if let Some(tree) = tree_ancestor(&exe).filter(|tree| tree.is_dir()) {
-        return Resolver::for_tree(&tree);
-    }
-    Resolver::for_binary(&exe)
-}
-
 /// Copies every described file into a fresh tree at `root`.
 pub fn stage(resolver: &Resolver, descriptor: &Descriptor, root: &Path) -> io::Result<()> {
     if root.exists() {
@@ -151,7 +122,7 @@ pub fn run(
     test_only: Option<&str>,
     scratch: &Path,
 ) -> io::Result<Outcome> {
-    let resolver = resolver_for(exe)?;
+    let resolver = Resolver::for_executable(exe)?;
     let manifest = resolver.lookup(manifest_key)?;
     let descriptor = parse(&std::fs::read_to_string(&manifest)?)?;
     let opa = resolver.lookup(&descriptor.opa).map_err(|error| {

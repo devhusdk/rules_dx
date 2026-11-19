@@ -2,7 +2,8 @@
 
 use std::cell::RefCell;
 
-use dx_lock::{Args, Error, Fetch, Lock, Outcome, run};
+use dx_lock::{Args, Error, Lock, Outcome, run};
+use dx_lock_testing::NoFetch;
 use ruby_lock::{Download, Ruby};
 
 const GEMFILE: &str = "source \"https://rubygems.org\"\n\ngem \"rainbow\", \"~> 3.0\"\n\ngroup :test do\n  gem \"rspec-core\"\nend\n";
@@ -103,14 +104,6 @@ impl Download for Index {
 }
 
 type Summary = (String, String, Vec<String>, Vec<String>, bool);
-
-struct NoFetch;
-
-impl Fetch for NoFetch {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
-        Err(Error::new(format!("unexpected download of {url}")))
-    }
-}
 
 fn set(gemfile: &str) -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("set directory");

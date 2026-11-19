@@ -1,6 +1,6 @@
 """Unit tests proving optional-provider forwarding warns instead of silently skipping."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:resources.bzl", "dx_bundler_resources", "dx_quality_resource_set", "dx_test_resource_tags")
 load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_spec", "dx_forward_spec_error", "dx_language_kwargs", "dx_optional_forward_warning", "dx_quality_srcs", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
@@ -38,9 +38,10 @@ def wrapper_optional_forward_tests(name):
         ],
     )
 
-def wrapper_forward_spec_tests(name):
+def wrapper_forward_spec_tests(name, size):
     starlark_test(
         name = name,
+        size = size,
         mode = "unit",
         checks = [
             expect_equal(

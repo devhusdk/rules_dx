@@ -1,8 +1,8 @@
 """Hermetic GHC acquisition and toolchain registration."""
 
 load("//core:deb_closure.bzl", "deb_closure")
-load("//core:toolchain.bzl", "toolchain_target")
-load(":pins.bzl", "ALL_CELLS", "ALPINE_MIRROR", "CELLS", "CROSS_CELLS", "GHC_VERSION", "MUSL_CELLS", "qualified_cells", "runtime_urls")
+load("//core:toolchain.bzl", "cell_repo", "pins_hub", "toolchain_target")
+load(":pins.bzl", "ALL_CELLS", "CELLS", "CROSS_CELLS", "GHC_VERSION", "MUSL_CELLS", "qualified_cells", "runtime_urls")
 
 HUB_NAME = "dx_haskell_toolchains"
 
@@ -77,7 +77,8 @@ filegroup(
 GMP_PACKAGE = "ghc-bignum"
 
 _TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
-_CELL_PREFIX = "dx_ghc_"
+
+_TOOLCHAIN_TYPE = str(Label("//haskell/private/toolchain:toolchain_type"))
 
 COMMON_LIBRARIES = [
     "array",
@@ -308,10 +309,6 @@ def llvm_toolchain_attrs(llvm_backend):
         return ""
     return "".join(["\n    {} = \"{}\",".format(name, tool) for name, tool in sorted(LLVM_TOOLS.items())])
 
-def cell_repository_name(cell):
-    """Returns the repository name one qualified cell is acquired into."""
-    return _CELL_PREFIX + cell
-
 CC_TARGET_FLAGS = ["C compiler flags", "C++ compiler flags"]
 
 def ghc_settings(source, cc_target = ""):
@@ -443,7 +440,7 @@ def _apk_closure(rctx, cell):
     for package in cell.apks:
         scratch = "_apks/" + package.package
         rctx.download_and_extract(
-            url = ALPINE_MIRROR + "/" + package.apk,
+            url = package.url,
             sha256 = package.sha256,
             output = scratch,
             type = "tar.gz",
@@ -451,7 +448,7 @@ def _apk_closure(rctx, cell):
         for soname, path in package.libraries.items():
             source = rctx.path(scratch + "/" + path)
             if not source.exists:
-                fail("{} does not ship {}".format(package.apk, path))
+                fail("{} does not ship {}".format(package.url, path))
             rctx.rename(source.realpath, CLOSURE_DIR + "/lib/" + soname)
     rctx.delete("_apks")
     for alias, target in cell.loader_aliases.items():
@@ -590,28 +587,19 @@ ghc_repo = repository_rule(
 def alias_repository(cell, host_os = None, host_arch = None):
     """Returns the repository the hub aliases of one target cell select: the cross cell when only that one runs on the host."""
     if host_os == None or cell_matches_host(cell, host_os, host_arch):
-        return cell_repository_name(cell)
+        return cell_repo(HUB_NAME, cell)
     for name, cross in sorted(CROSS_CELLS.items()):
         if cross.target == cell and cell_matches_host(cross.host, host_os, host_arch):
-            return cell_repository_name(name)
-    return cell_repository_name(cell)
+            return cell_repo(HUB_NAME, name)
+    return cell_repo(HUB_NAME, cell)
 
 def hub_files(cells = CELLS, musl_cells = MUSL_CELLS, host_os = None, host_arch = None):
     """Returns the hub files: the toolchains and cc toolchains at the root, the runtime closure aliases under lib."""
-    toolchains = []
     content = []
     arms = []
     for cell in qualified_cells(musl_cells) + qualified_cells(cells):
         info = musl_cells[cell] if cell in musl_cells else cells[cell]
         target = getattr(info, "target_compatible_with", info.exec_compatible_with)
-        toolchains.append(toolchain_target(
-            name = cell,
-            exec_compatible_with = info.exec_compatible_with,
-            target_compatible_with = target,
-            target_settings = [_TOOLCHAINS_ON],
-            toolchain = "@{}//:toolchain-impl".format(cell_repository_name(cell)),
-            toolchain_type = str(Label("//haskell/private/toolchain:toolchain_type")),
-        ))
         content.append("config_setting(\n    name = \"{}_platform\",\n    constraint_values = {},\n)\n".format(
             cell,
             repr(target),
@@ -624,22 +612,22 @@ def hub_files(cells = CELLS, musl_cells = MUSL_CELLS, host_os = None, host_arch 
     for name in os_libraries():
         compatible = [cell for cell in qualified_cells(musl_cells) if name in musl_cells[cell].os_libraries] + [cell for cell in qualified_cells(cells) if name in cells[cell].os_libraries]
         content.append(_OS_LIBRARY.format(name = name, arms = "".join(["        \":{}_platform\": [],\n".format(cell) for cell in compatible]), incompatible = str(Label("@platforms//:incompatible"))))
-    for name, cross in sorted(CROSS_CELLS.items()):
-        toolchains.append(toolchain_target(
-            name = name,
-            exec_compatible_with = cells[cross.host].exec_compatible_with,
-            target_compatible_with = cells[cross.target].exec_compatible_with,
-            target_settings = [_TOOLCHAINS_ON],
-            toolchain = "@{}//:toolchain-impl".format(cell_repository_name(name)),
-            toolchain_type = str(Label("//haskell/private/toolchain:toolchain_type")),
-        ))
+    hub = dict(compatible_with = "both", target = "toolchain-impl", target_settings = [_TOOLCHAINS_ON])
+    toolchains = [
+        pins_hub(HUB_NAME, qualified_cells(musl_cells), _TOOLCHAIN_TYPE, cell_constraints = musl_cells, **hub),
+        pins_hub(HUB_NAME, qualified_cells(cells), _TOOLCHAIN_TYPE, **hub),
+        pins_hub(HUB_NAME, CROSS_CELLS.keys(), _TOOLCHAIN_TYPE, cell_constraints = {
+            name: struct(exec_compatible_with = cells[cross.host].exec_compatible_with, target_compatible_with = cells[cross.target].exec_compatible_with)
+            for name, cross in CROSS_CELLS.items()
+        }, **hub),
+    ]
     cc_toolchains = [
         toolchain_target(
             name = "cc_" + cell,
             exec_compatible_with = cells[cell].exec_compatible_with,
             target_compatible_with = cells[cell].exec_compatible_with,
             target_settings = [_TOOLCHAINS_ON, str(Label("//haskell/private/toolchain:ghc_mingw_enabled"))],
-            toolchain = "@{}//:cc-compiler-mingw64".format(cell_repository_name(cell)),
+            toolchain = "@{}//:cc-compiler-mingw64".format(cell_repo(HUB_NAME, cell)),
             toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
         )
         for cell in sorted(qualified_cells(cells))

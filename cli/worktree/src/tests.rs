@@ -1832,8 +1832,8 @@ fn a_slot_whose_busy_file_cannot_be_opened_lists_as_busy() {
     let host = FakeHost::new();
     host.live(20);
     ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    drop(std::fs::remove_file(pool.busy_path(1)));
-    std::fs::create_dir(pool.busy_path(1)).expect("busy file that cannot be opened");
+    dx_atomic_fs::discard_file(pool.busy_path(1));
+    std::fs::create_dir_all(pool.busy_path(1)).expect("busy file that cannot be opened");
     assert!(pool.busy(1));
     let listing = ops::list(&pool, &host, false).expect("list");
     assert!(slot_one(&listing).busy);
@@ -3450,6 +3450,79 @@ fn worktreeinclude_files_are_copied_into_the_slot() {
     );
 }
 
+/// Commits a `.worktreeinclude` that names the git-ignored `user.bazelrc`.
+fn include_user_bazelrc(fixture: &Fixture) {
+    std::fs::write(fixture.main.join(".gitignore"), "user.bazelrc\n").expect("ignore");
+    std::fs::write(fixture.main.join(".worktreeinclude"), "user.bazelrc\n").expect("include");
+    dx_test_scratch::git(&fixture.main, &fixture.main, &["add", "."]).unwrap();
+    dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["commit", "--quiet", "-m", "include"],
+    )
+    .unwrap();
+    dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["push", "--quiet", "origin", "main"],
+    )
+    .unwrap();
+}
+
+const MAIN_BAZELRC: &str = "common --config=bb-ro\nstartup --output_base=/tmp/main\nstartup:linux --host_jvm_args=-Xmx2g --output_base /tmp/main\nstartup --host_jvm_args=-Xmx2g\n# startup --output_base=/kept\n";
+const SLOT_BAZELRC: &str =
+    "common --config=bb-ro\nstartup --host_jvm_args=-Xmx2g\n# startup --output_base=/kept\n";
+
+#[test]
+fn a_new_slot_gets_user_bazelrc_without_its_output_base() {
+    let fixture = Fixture::new();
+    include_user_bazelrc(&fixture);
+    std::fs::write(fixture.main.join("user.bazelrc"), MAIN_BAZELRC).expect("bazelrc");
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    assert!(!added.reused);
+    assert_eq!(
+        std::fs::read_to_string(added.path.join("user.bazelrc")).expect("copied"),
+        SLOT_BAZELRC
+    );
+}
+
+#[test]
+fn a_reused_slot_gets_user_bazelrc_back_after_its_clean() {
+    let fixture = Fixture::new();
+    include_user_bazelrc(&fixture);
+    std::fs::write(fixture.main.join("user.bazelrc"), MAIN_BAZELRC).expect("bazelrc");
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    std::fs::write(first.path.join("user.bazelrc"), "build --slot-only\n").expect("edit");
+    dx_test_scratch::git(
+        &first.path,
+        &first.path,
+        &["push", "--quiet", "-u", "origin", "feature/a"],
+    )
+    .unwrap();
+    ops::release(&pool, &host, &me, &first.path, true).expect("release");
+    let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("add b");
+    assert_eq!(second.path, first.path);
+    assert_eq!(
+        std::fs::read_to_string(second.path.join("user.bazelrc")).expect("copied"),
+        SLOT_BAZELRC
+    );
+}
+
+#[test]
+fn a_main_checkout_without_user_bazelrc_gives_a_slot_without_one() {
+    let fixture = Fixture::new();
+    include_user_bazelrc(&fixture);
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    assert!(!added.path.join("user.bazelrc").exists());
+}
+
 #[test]
 fn the_lease_is_found_from_a_path_inside_the_slot() {
     let fixture = Fixture::new();
@@ -3463,6 +3536,21 @@ fn the_lease_is_found_from_a_path_inside_the_slot() {
     assert_eq!(record.session.as_deref(), Some("s1"));
     assert!(record.held);
     assert!(super::lease_for_workspace(&fixture.main).is_none());
+}
+
+#[test]
+fn only_canonical_slot_numbers_name_a_slot() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let base = added.path.parent().expect("base").to_path_buf();
+    for name in ["01", "+1"] {
+        let alias = base.join(name);
+        std::fs::create_dir_all(&alias).expect("alias");
+        assert_eq!(pool.slot_of(&alias), None, "{name}");
+        assert!(super::lease_for_workspace(&alias).is_none(), "{name}");
+    }
 }
 
 mod hooks {
@@ -4059,7 +4147,7 @@ mod hooks {
         for _ in 0..6 {
             deep = format!("bash -c '{}'", deep.replace('\'', "'\\''"));
         }
-        let _ = guard_for_agent(&deep);
+        let _: hook::Guard = guard_for_agent(&deep);
     }
 
     #[test]

@@ -1,8 +1,12 @@
 //! Converts a Clover or Cobertura XML coverage report to LCOV.
 
+#![deny(clippy::print_stderr, clippy::print_stdout)]
+
 use std::env;
+use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs;
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 use dx_error::DxError;
@@ -12,25 +16,25 @@ const USAGE: &str = "usage: to_lcov --from clover|cobertura [--sources <file>] <
 #[derive(Debug, PartialEq, Eq)]
 struct Args {
     from: String,
-    sources: Option<String>,
-    input: String,
-    output: String,
+    sources: Option<PathBuf>,
+    input: PathBuf,
+    output: PathBuf,
 }
 
-fn parse_args(args: &[String]) -> Result<Args, DxError> {
+fn parse_args(args: &[OsString]) -> Result<Args, DxError> {
     let mut from = None;
     let mut sources = None;
     let mut paths = Vec::new();
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
-        match arg.as_str() {
-            "--from" => from = iter.next().cloned(),
-            "--sources" => sources = iter.next().cloned(),
-            _ => paths.push(arg.clone()),
+        match arg.to_str() {
+            Some("--from") => from = iter.next().map(|v| v.to_string_lossy().into_owned()),
+            Some("--sources") => sources = iter.next().map(PathBuf::from),
+            _ => paths.push(PathBuf::from(arg)),
         }
     }
     let from = from.ok_or_else(|| DxError::usage(USAGE))?;
-    let [input, output] = <[String; 2]>::try_from(paths).map_err(|_| DxError::usage(USAGE))?;
+    let [input, output] = <[PathBuf; 2]>::try_from(paths).map_err(|_| DxError::usage(USAGE))?;
     Ok(Args {
         from,
         sources,
@@ -78,31 +82,28 @@ fn keep_sources(lcov: &str, sources: &[&str]) -> String {
     out
 }
 
-fn run(args: &[String]) -> Result<(), DxError> {
+fn run(args: &[OsString]) -> Result<(), DxError> {
     let args = parse_args(args)?;
     let xml = fs::read_to_string(&args.input)
-        .map_err(|e| DxError::infra(format!("cannot read {}: {e}", args.input)))?;
+        .map_err(|e| DxError::infra(format!("cannot read {}: {e}", args.input.display())))?;
     let mut lcov = convert(&args.from, &xml)?;
     if let Some(path) = &args.sources {
         let list = fs::read_to_string(path)
-            .map_err(|e| DxError::infra(format!("cannot read {path}: {e}")))?;
+            .map_err(|e| DxError::infra(format!("cannot read {}: {e}", path.display())))?;
         let sources: Vec<&str> = list.lines().filter(|line| !line.is_empty()).collect();
         lcov = keep_sources(&lcov, &sources);
     }
-    fs::write(&args.output, lcov)
-        .map_err(|e| DxError::infra(format!("cannot write {}: {e}", args.output)))
+    dx_atomic_fs::write_atomic(&args.output, lcov.as_bytes())
+        .map_err(|e| DxError::infra(format!("cannot write {}: {e}", args.output.display())))
 }
 
 // LCOV_EXCL_START - reason: process entry point that exits, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 fn main() -> ExitCode {
-    let args: Vec<String> = env::args_os()
-        .skip(1)
-        .map(|arg| arg.to_string_lossy().into_owned())
-        .collect();
+    let args: Vec<OsString> = env::args_os().skip(1).collect();
     match run(&args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("dx: {error}");
+            dx_error::stdio::eprint_line(format_args!("dx: {error}"));
             error.into()
         }
     }
@@ -112,9 +113,10 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::OsString;
 
-    fn strings(args: &[&str]) -> Vec<String> {
-        args.iter().map(std::string::ToString::to_string).collect()
+    fn strings(args: &[&str]) -> Vec<OsString> {
+        args.iter().map(OsString::from).collect()
     }
 
     #[test]
@@ -131,9 +133,9 @@ mod tests {
             args,
             Ok(Args {
                 from: "cobertura".into(),
-                sources: Some("list".into()),
-                input: "in".into(),
-                output: "out".into(),
+                sources: Some(PathBuf::from("list")),
+                input: PathBuf::from("in"),
+                output: PathBuf::from("out"),
             })
         );
     }
@@ -175,6 +177,32 @@ mod tests {
         assert_eq!(keep_sources(lcov, &["tools/main.zig", "main.zig"]), want);
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn reads_and_writes_non_utf8_paths() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+        let dir = env::temp_dir().join(format!("to_lcov_raw_{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temp dir");
+        let mut name = OsString::from_vec(b"in-\xff.xml".to_vec());
+        let input = dir.join(&name);
+        fs::write(
+            &input,
+            "<coverage><project><file name=\"/w/a.php\"><line num=\"1\" type=\"stmt\" count=\"1\"/></file></project></coverage>",
+        )
+        .expect("write input");
+        name = OsString::from_vec(b"out-\xfe.dat".to_vec());
+        let output = dir.join(&name);
+        let args = [
+            OsString::from("--from"),
+            OsString::from("clover"),
+            input.into_os_string(),
+            output.clone().into_os_string(),
+        ];
+        run(&args).expect("converts");
+        assert!(output.exists());
+    }
+
     #[test]
     fn converts_cobertura_end_to_end() {
         let dir = env::temp_dir().join(format!("to_lcov_{}", std::process::id()));
@@ -192,12 +220,41 @@ mod tests {
         )
         .expect("write input");
         let mut args = strings(&["--from", "cobertura", "--sources"]);
-        args.push(list.display().to_string());
-        args.push(input.display().to_string());
-        args.push(output.display().to_string());
+        args.push(list.into_os_string());
+        args.push(input.into_os_string());
+        args.push(output.clone().into_os_string());
         run(&args).expect("converts");
         let lcov = fs::read_to_string(&output).expect("read output");
         assert_eq!(lcov, "SF:src/a.zig\nDA:1,2\nLF:1\nLH:1\nend_of_record\n");
+    }
+
+    #[test]
+    fn replaces_an_existing_output_whole() {
+        let dir = env::temp_dir().join(format!("to_lcov_replace_{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temp dir");
+        let input = dir.join("clover.xml");
+        let output = dir.join("coverage.dat");
+        fs::write(
+            &input,
+            "<coverage><project><file name=\"/w/a.php\"><line num=\"1\" type=\"stmt\" count=\"1\"/></file></project></coverage>",
+        )
+        .expect("write input");
+        fs::write(&output, "SF:stale.php\n".repeat(64)).expect("seed output");
+        let args = [
+            OsString::from("--from"),
+            OsString::from("clover"),
+            input.into_os_string(),
+            output.clone().into_os_string(),
+        ];
+        run(&args).expect("converts");
+        let lcov = fs::read_to_string(&output).expect("read output");
+        assert_eq!(lcov, "SF:/w/a.php\nDA:1,1\nLF:1\nLH:1\nend_of_record\n");
+        let leftovers: Vec<_> = fs::read_dir(&dir)
+            .expect("list dir")
+            .flatten()
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "{leftovers:?}");
     }
 
     #[test]
@@ -211,7 +268,8 @@ mod tests {
         ).expect("write input");
         let missing = dir.join("missing").display().to_string();
         let input = input.display().to_string();
-        let output = dir.join("no_dir").join("out").display().to_string();
+        // write_atomic creates missing parents, so a file in the parent's place is what fails.
+        let output = dir.join("clover.xml").join("out").display().to_string();
 
         let read = run(&strings(&["--from", "clover", &missing, &output]));
         assert!(

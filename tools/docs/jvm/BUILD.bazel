@@ -1,6 +1,8 @@
 load("@crates//:crates.bzl", "aliases")
+load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
+load("//tools/docs/jvm:scala_version_tests.bzl", "scala_version_tests")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -33,18 +35,18 @@ rust_test(
     crate_root = "java_extract_test.rs",
     data = [
         ":fixture_shapes_json",
-        "//tools/docs/jvm/convert:jvm_convert",
         "//tools/docs/jvm/fixture:java/dx/fixture/shapes/Circle.java",
         "//tools/docs/jvm/fixture:java/dx/fixture/shapes/Shape.java",
         "//tools/docs/jvm/fixture:paint_docs",
         "//tools/docs/jvm/fixture:paint_nodep_docs",
         "//tools/docs/jvm/fixture:shapes_docs",
         "//tools/docs/jvm/javadoc:javadoc_extract",
+        "@dx_prebuilt//:dx",
     ],
     env = {
         "DX_CIRCLE_JAVA": "$(rootpath //tools/docs/jvm/fixture:java/dx/fixture/shapes/Circle.java)",
         "DX_JAVADOC_EXTRACT": "$(rootpath //tools/docs/jvm/javadoc:javadoc_extract)",
-        "DX_JVM_CONVERT": "$(rootpath //tools/docs/jvm/convert:jvm_convert)",
+        "DX_JVM_CONVERT": "$(rootpath @dx_prebuilt//:dx)",
         "DX_PAINT_NODEP_SHARD": "$(rootpath //tools/docs/jvm/fixture:paint_nodep_docs)",
         "DX_PAINT_SHARD": "$(rootpath //tools/docs/jvm/fixture:paint_docs)",
         "DX_SHAPES_JSON": "$(rootpath :fixture_shapes_json)",
@@ -60,6 +62,32 @@ rust_test(
     ],
 )
 
+java_import(
+    name = "dokka_extract_release_jar",
+    testonly = True,
+    jars = ["//tools/docs/jvm/dokka:dokka_extract_deploy.jar"],
+)
+
+java_binary(
+    name = "dokka_extract_release",
+    testonly = True,
+    main_class = "dx.docs.dokka.Main",
+    runtime_deps = [":dokka_extract_release_jar"],
+)
+
+java_import(
+    name = "scaladoc_extract_release_jar",
+    testonly = True,
+    jars = ["//tools/docs/jvm/scaladoc:scaladoc_extract_deploy.jar"],
+)
+
+java_binary(
+    name = "scaladoc_extract_release",
+    testonly = True,
+    main_class = "dx.docs.scaladoc.Main",
+    runtime_deps = [":scaladoc_extract_release_jar"],
+)
+
 rust_test(
     name = "kotlin_extract_test",
     size = "small",
@@ -72,18 +100,20 @@ rust_test(
     crate_name = "kotlin_extract_test",
     crate_root = "kotlin_extract_test.rs",
     data = [
-        "//tools/docs/jvm/convert:jvm_convert",
+        ":dokka_extract_release",
         "//tools/docs/jvm/dokka:dokka_extract",
         "//tools/docs/jvm/fixture:kotlin/dx/fixture/shapes/Circle.kt",
         "//tools/docs/jvm/fixture:kotlin/dx/fixture/shapes/Shape.kt",
         "//tools/docs/jvm/fixture:kotlin_paint_docs",
         "//tools/docs/jvm/fixture:kotlin_paint_nodep_docs",
         "//tools/docs/jvm/fixture:kotlin_shapes_docs",
+        "@dx_prebuilt//:dx",
     ],
     env = {
         "DX_CIRCLE_KT": "$(rootpath //tools/docs/jvm/fixture:kotlin/dx/fixture/shapes/Circle.kt)",
         "DX_DOKKA_EXTRACT": "$(rootpath //tools/docs/jvm/dokka:dokka_extract)",
-        "DX_JVM_CONVERT": "$(rootpath //tools/docs/jvm/convert:jvm_convert)",
+        "DX_DOKKA_EXTRACT_RELEASE": "$(rootpath :dokka_extract_release)",
+        "DX_JVM_CONVERT": "$(rootpath @dx_prebuilt//:dx)",
         "DX_PAINT_NODEP_SHARD": "$(rootpath //tools/docs/jvm/fixture:kotlin_paint_nodep_docs)",
         "DX_PAINT_SHARD": "$(rootpath //tools/docs/jvm/fixture:kotlin_paint_docs)",
         "DX_SHAPES_SHARD": "$(rootpath //tools/docs/jvm/fixture:kotlin_shapes_docs)",
@@ -110,18 +140,20 @@ rust_test(
     crate_name = "scala_extract_test",
     crate_root = "scala_extract_test.rs",
     data = [
-        "//tools/docs/jvm/convert:jvm_convert",
+        ":scaladoc_extract_release",
         "//tools/docs/jvm/fixture:scala/dx/fixture/shapes/Circle.scala",
         "//tools/docs/jvm/fixture:scala/dx/fixture/shapes/Shape.scala",
         "//tools/docs/jvm/fixture:scala_paint_docs",
         "//tools/docs/jvm/fixture:scala_paint_nodep_docs",
         "//tools/docs/jvm/fixture:scala_shapes_docs",
         "//tools/docs/jvm/scaladoc:scaladoc_extract",
+        "@dx_prebuilt//:dx",
     ],
     env = {
         "DX_CIRCLE_SCALA": "$(rootpath //tools/docs/jvm/fixture:scala/dx/fixture/shapes/Circle.scala)",
         "DX_SCALADOC_EXTRACT": "$(rootpath //tools/docs/jvm/scaladoc:scaladoc_extract)",
-        "DX_JVM_CONVERT": "$(rootpath //tools/docs/jvm/convert:jvm_convert)",
+        "DX_SCALADOC_EXTRACT_RELEASE": "$(rootpath :scaladoc_extract_release)",
+        "DX_JVM_CONVERT": "$(rootpath @dx_prebuilt//:dx)",
         "DX_PAINT_NODEP_SHARD": "$(rootpath //tools/docs/jvm/fixture:scala_paint_nodep_docs)",
         "DX_PAINT_SHARD": "$(rootpath //tools/docs/jvm/fixture:scala_paint_docs)",
         "DX_SHAPES_SHARD": "$(rootpath //tools/docs/jvm/fixture:scala_shapes_docs)",
@@ -136,12 +168,19 @@ rust_test(
     ],
 )
 
+scala_version_tests(
+    name = "scala_version_tests",
+    lib = "//tools/docs/jvm/fixture:scala_shapes",
+    shard = "//tools/docs/jvm/fixture:scala_shapes_docs",
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "aspect.bzl",
         "defs.bzl",
+        "scala_version_tests.bzl",
         "shard.bzl",
     ],
     tags = ["corpus"],

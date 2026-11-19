@@ -46,7 +46,7 @@ const RULES: [&str; 25] = [
 const MIN_LANGS: usize = 10;
 
 /// Entries a language directory may hold.
-const ENTRIES: [&str; 8] = [
+const ENTRIES: [&str; 9] = [
     "BUILD.bazel",
     "README.md",
     "defs.bzl",
@@ -54,6 +54,7 @@ const ENTRIES: [&str; 8] = [
     "lang.json",
     "pins.json",
     "private",
+    "repositories.bzl",
     "tests",
 ];
 
@@ -91,10 +92,11 @@ const WRAPPER: &str = "core/wrapper.bzl";
 const WRAPS: [&str; 2] = ["dx_wrap_binary", "dx_wrap_test"];
 
 /// Tags that declare a development hub or test dependencies.
-const DEV_TAGS: [&str; 6] = [
+const DEV_TAGS: [&str; 7] = [
     "annotation",
     "crates",
     "from_lock",
+    "from_manifest",
     "license",
     "lock",
     "provider",
@@ -144,6 +146,7 @@ enum Kind {
     Macro,
     Provider,
     Extension,
+    RepositoryRule,
     Constant,
     Helper,
     Other,
@@ -758,7 +761,8 @@ impl Tree {
                 "provider" => Kind::Provider,
                 "module_extension" => Kind::Extension,
                 "struct" | "dict" | "depset" | "select" | "Label" => Kind::Constant,
-                "aspect" | "repository_rule" | "tag_class" | "transition" => Kind::Other,
+                "repository_rule" => Kind::RepositoryRule,
+                "aspect" | "tag_class" | "transition" => Kind::Other,
                 _ => kind_by_name(name),
             },
             Located::Value => Kind::Constant,
@@ -936,7 +940,7 @@ fn check_public_names(tree: &Tree, lang: &str, manifest: &serde_json::Value, fou
             }
             Kind::Constant => found.add("export-kind", &defs, format!("{name} is a constant")),
             Kind::Helper => found.add("export-kind", &defs, format!("{name} is a helper function")),
-            Kind::Extension | Kind::Other => {
+            Kind::Extension | Kind::RepositoryRule | Kind::Other => {
                 found.add(
                     "export-kind",
                     &defs,
@@ -1252,6 +1256,13 @@ fn check_extensions(
     };
     let mut extensions = 0;
     for (name, kind) in tree.exports(&file) {
+        if kind == Kind::RepositoryRule {
+            found.add(
+                "export-kind",
+                &file,
+                format!("{name} is a repository rule, not in {lang}/repositories.bzl"),
+            );
+        }
         if kind != Kind::Extension {
             continue;
         }
@@ -1320,6 +1331,19 @@ fn check_extensions(
     }
 }
 
+fn check_repositories(tree: &Tree, lang: &str, found: &mut Found) {
+    let file = format!("{lang}/repositories.bzl");
+    for (name, kind) in tree.exports(&file) {
+        if kind != Kind::RepositoryRule {
+            found.add(
+                "export-kind",
+                &file,
+                format!("{name} is no repository rule"),
+            );
+        }
+    }
+}
+
 fn check_root_module(langs: &[String], root: &RootModule, found: &mut Found) {
     for usage in &root.usages {
         let Some(path) = label_path("MODULE.bazel", &usage.label) else {
@@ -1381,6 +1405,7 @@ fn lint(tree: &Tree) -> Found {
         check_manifest(tree, lang, &manifest, &mut found);
         check_platforms(tree, lang, &mut found);
         check_extensions(tree, lang, &manifest, &root, &mut found);
+        check_repositories(tree, lang, &mut found);
         check_test_location(tree, lang, &mut found);
         check_fixtures(tree, lang, &manifest, &referenced, &mut found);
         check_readme(tree, lang, &manifest, &mut found);
@@ -1543,6 +1568,14 @@ def _impl(_mctx):
 
 toy = module_extension(implementation = _impl)
 toyhub = module_extension(implementation = _impl)
+"#;
+
+const TOY_PRIVATE_REPO: &str = r#""""Toy repository rule."""
+
+def _impl(_rctx):
+    pass
+
+toy_repo = repository_rule(implementation = _impl)
 "#;
 
 const TOY_MODULE: &str = r#"module(name = "rules_dx")
@@ -1722,6 +1755,40 @@ fn export_kind_rejects_a_constant_and_a_helper() {
         });
         assert_eq!(found, ["export-kind toy/defs.bzl"], "{name}");
     }
+}
+
+#[test]
+fn export_kind_rejects_a_repository_rule_in_extensions_bzl() {
+    let found = broken("export-kind", |files| {
+        put(files, "toy/private/repo.bzl", TOY_PRIVATE_REPO);
+        append(
+            files,
+            "toy/extensions.bzl",
+            "load(\"//toy/private:repo.bzl\", _toy_repo = \"toy_repo\")\n\ntoy_repo = _toy_repo\n",
+        );
+    });
+    assert_eq!(found, ["export-kind toy/extensions.bzl"]);
+}
+
+#[test]
+fn export_kind_accepts_a_repository_rule_in_repositories_bzl() {
+    let mut files = toy();
+    put(&mut files, "toy/private/repo.bzl", TOY_PRIVATE_REPO);
+    put(
+        &mut files,
+        "toy/repositories.bzl",
+        "load(\"//toy/private:repo.bzl\", _toy_repo = \"toy_repo\")\n\ntoy_repo = _toy_repo\n",
+    );
+    let found = lines_of(&files);
+    assert!(found.is_empty(), "{found:?}");
+}
+
+#[test]
+fn export_kind_rejects_a_module_extension_in_repositories_bzl() {
+    let found = broken("export-kind", |files| {
+        put(files, "toy/repositories.bzl", TOY_EXTENSIONS);
+    });
+    assert_eq!(found, ["export-kind toy/repositories.bzl"]);
 }
 
 #[test]
@@ -1982,7 +2049,7 @@ fn dev_proxy_tags_accepts_test_dependency_tags() {
         append(
             files,
             "MODULE.bazel",
-            "toy_dev.from_lock(name = \"x\")\ntoy_dev.crates(name = \"y\")\n",
+            "toy_dev.from_lock(name = \"x\")\ntoy_dev.crates(name = \"y\")\ntoy_dev.from_manifest(name = \"z\")\n",
         );
     });
     assert_eq!(found, [] as [String; 0]);

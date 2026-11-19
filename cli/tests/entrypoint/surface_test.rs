@@ -26,21 +26,61 @@ fn every_listed_file_was_followed_without_reaching_a_dev_only_repository() {
     }
 }
 
+/// Returns `<dir>:<file>` for each tracked top-level `<dir>/<file>`.
+fn top_level(paths: &[String], file: &str) -> BTreeSet<String> {
+    let suffix = format!("/{file}");
+    paths
+        .iter()
+        .filter_map(|path| path.strip_suffix(&suffix))
+        .filter(|dir| !dir.contains('/'))
+        .map(|dir| format!("{dir}:{file}"))
+        .collect()
+}
+
+#[test]
+fn public_api_snapshot_is_in_the_consumer_surface() {
+    let snapshot: dx_testing::serde_json::Value =
+        dx_testing::serde_json::from_str(&read("DX_API_STARLARK"))
+            .expect("api/starlark.json is JSON");
+    let entries = snapshot.as_array().expect("api/starlark.json is an array");
+    assert!(!entries.is_empty(), "api/starlark.json lists no files");
+    let listed = lines(&read("DX_SURFACE_LIST"));
+    for entry in entries {
+        let load = entry["load"]
+            .as_str()
+            .expect("each entry has a load string");
+        let label = load
+            .strip_prefix("@rules_dx//")
+            .unwrap_or_else(|| panic!("{load} is not a @rules_dx// label"));
+        assert!(
+            listed.contains(label),
+            "{label} missing from the generated consumer surface"
+        );
+    }
+}
+
 #[test]
 fn entry_points_are_listed_in_the_consumer_surface() {
-    let entry: BTreeSet<String> = dx_testing::source_paths()
-        .iter()
-        .filter_map(|path| path.strip_suffix("/defs.bzl"))
-        .filter(|dir| !dir.contains('/'))
-        .map(str::to_string)
+    let paths = dx_testing::source_paths();
+    let languages: BTreeSet<String> = top_level(&paths, "lang.json")
+        .into_iter()
+        .filter_map(|label| label.strip_suffix(":lang.json").map(str::to_string))
+        .collect();
+    let mut entry: BTreeSet<String> = top_level(&paths, "defs.bzl")
+        .into_iter()
+        .filter(|label| {
+            label
+                .split_once(':')
+                .is_some_and(|(dir, _)| languages.contains(dir))
+        })
         .collect();
     assert!(!entry.is_empty(), "the snapshot holds no <lang>/defs.bzl");
+    entry.extend(top_level(&paths, "extensions.bzl"));
     let listed = lines(&read("DX_SURFACE_LIST"));
-    for name in &entry {
-        let label = format!("{name}:defs.bzl");
+    for label in &entry {
         assert!(
-            listed.contains(&label),
-            "{label} missing from consumer_surface.txt"
+            listed.contains(label),
+            "{label} missing from the generated consumer surface"
         );
     }
     for label in &listed {

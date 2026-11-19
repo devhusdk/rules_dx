@@ -62,6 +62,7 @@ Read [Scope defaults](scope-defaults.md) for details.
 ## Phases
 
 - Every phase runs, even after an earlier phase reports findings. The run still exits nonzero.
+- `generate` compares each `<ecosystem>.lock.json` lock in a package the scope reaches with its manifest. A stale lock prints `dx: lock of <set> is stale; run dx generate --apply` and fails the run.
 - Without `--apply`, `format`, `lint` and `typecheck` share one Bazel build. Each phase still reports only its own findings and exit code.
 - The run stops when the scope is bad, `generate` fails, Bazel cannot run, or you cancel.
 - With `--apply`, the run also stops when a phase fails to compile. The remaining phases are skipped.

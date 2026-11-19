@@ -10,11 +10,12 @@
 //! Resolves a cabal project into its freeze file and the packages of its lock.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
+use dx_lock::{
+    Archive, Error, HttpFetch, Lock, Package, RESOLVER_TIMEOUT, Resolution, Resolver, Scratch, Spec,
+};
 use serde_json::{Value, json};
 
 /// The Hackage host every package archive comes from.
@@ -425,7 +426,7 @@ pub fn freeze_text(pins: &BTreeMap<String, String>, state: Option<&str>) -> Stri
         .join(",\n             ");
     let mut out = format!("constraints: {body}\n");
     if let Some(state) = state {
-        writeln!(out, "index-state: hackage.haskell.org {state}").ok();
+        out.push_str(&format!("index-state: hackage.haskell.org {state}\n"));
     }
     out
 }
@@ -671,24 +672,14 @@ impl Cabal {
             .parent()
             .ok_or_else(|| Error::new("ghc has no directory"))?;
         let pkg = bin.join(format!("ghc-pkg{}", std::env::consts::EXE_SUFFIX));
-        let output = scratch
-            .command(&self.cabal)
+        let mut command = scratch.command(&self.cabal);
+        command
             .env("PATH", bin)
             .env("CABAL_DIR", cabal_dir(scratch))
             .arg(format!("--with-compiler={}", self.ghc.display()))
             .arg(format!("--with-hc-pkg={}", pkg.display()))
-            .args(args)
-            .output()
-            .map_err(|error| Error::new(format!("cabal: {error}")))?;
-        if output.status.success() {
-            return Ok(());
-        }
-        Err(Error::new(format!(
-            "cabal {} failed:\n{}{}",
-            args.join(" "),
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        )))
+            .args(args);
+        Scratch::run(&mut command, RESOLVER_TIMEOUT).map(drop)
     }
 }
 

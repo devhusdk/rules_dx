@@ -268,7 +268,7 @@ mod tests {
             old
         );
         let nested = scratch("dx-agents-planned-dir-").unwrap();
-        std::fs::create_dir(nested.path().join(FILE)).expect("dir");
+        std::fs::create_dir_all(nested.path().join(FILE)).expect("dir");
         assert!(planned(nested.path(), true).is_err());
     }
 

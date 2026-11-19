@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -101,6 +105,7 @@ impl Site {
 
     fn check(&self, args: &[&str]) -> Run {
         let output = Command::new(dx_testing::env_file("DX_SITE_CHECK"))
+            .arg("site_check")
             .args(args)
             .current_dir(&self.root)
             .output()

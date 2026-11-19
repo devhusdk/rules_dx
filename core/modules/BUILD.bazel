@@ -1,11 +1,13 @@
+load("@bazel_lib//lib:run_binary.bzl", "run_binary")
+load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load(":consumer_deps.bzl", "consumer_deps_json")
 load(":versions_rs.bzl", "versions_rs")
 load(":versions_tests.bzl", "versions_contract_tests")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 versions_contract_tests(name = "versions_contract")
 
@@ -41,7 +43,9 @@ rust_test(
         "//:MODULE.bazel.lock",
         "//third_party/go:go.sum",
         "//tools/testing/hermetic:module_fragments",
+        "//tools/testing/nested_cache:all_locks",
     ],
+    env = {"DX_NESTED_LOCKS": "$(rlocationpaths //tools/testing/nested_cache:all_locks)"},
     deps = all_crate_deps(
         package_name = "core/modules_tests",
         normal = True,
@@ -100,27 +104,79 @@ rust_test(
     crate_root = "lang_json_test.rs",
     data = [
         "lang.schema.json",
-        "langs.bzl",
-        "lock_registry.bzl",
         "//:MODULE.bazel",
         "//cli/ecosystems:ecosystems.json",
-        "//cli/ecosystems:languages.json",
-        "//cli/families:languages.json",
-        "//core/quality/testdata:all_languages.bzl",
         "//docs:support-matrix.md",
-        "//gazelle/common:lock_registry.json",
         "//tools/quality:family_tools.bzl",
-        "//tools/testing/conformance:quality.bzl",
     ],
     deps = all_crate_deps(
         package_name = "core/modules_tests",
         normal = True,
         normal_dev = True,
     ) + [
-        "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
+)
+
+rust_binary(
+    name = "lang_projections",
+    srcs = ["lang_projections.rs"],
+    visibility = ["//visibility:private"],
+    deps = ["@crates//:serde_json"],
+)
+
+# keep
+rust_test(
+    name = "lang_projections_test",
+    size = "small",
+    crate = ":lang_projections",
+)
+
+run_binary(
+    name = "lang_projections_generated",
+    srcs = [
+        "//:lang_json",
+        "//core/quality/testdata:all_languages.bzl",
+    ],
+    outs = [
+        "generated/all_languages.bzl",
+        "generated/conformance_quality.bzl",
+        "generated/ecosystems_languages.json",
+        "generated/families_languages.json",
+        "generated/langs.bzl",
+        "generated/lock_registry.bzl",
+        "generated/lock_registry.json",
+    ],
+    args = [
+        "all_languages.bzl=$(execpath generated/all_languages.bzl)",
+        "all_languages_src=$(execpath //core/quality/testdata:all_languages.bzl)",
+        "conformance_quality.bzl=$(execpath generated/conformance_quality.bzl)",
+        "ecosystems_languages.json=$(execpath generated/ecosystems_languages.json)",
+        "families_languages.json=$(execpath generated/families_languages.json)",
+        "langs.bzl=$(execpath generated/langs.bzl)",
+        "lock_registry.bzl=$(execpath generated/lock_registry.bzl)",
+        "lock_registry.json=$(execpath generated/lock_registry.json)",
+        "--",
+        "$(execpaths //:lang_json)",
+    ],
+    tool = ":lang_projections",
+)
+
+write_source_files(
+    name = "update_lang_projections",
+    additional_update_targets = [
+        "//cli/ecosystems:update_languages",
+        "//cli/families:update_languages",
+        "//core/quality/testdata:update_all_languages",
+        "//gazelle/common:update_lock_registry",
+        "//tools/testing/conformance:update_quality",
+    ],
+    files = {
+        "langs.bzl": "generated/langs.bzl",
+        "lock_registry.bzl": "generated/lock_registry.bzl",
+    },
+    visibility = ["//visibility:private"],
 )
 
 rust_test(
@@ -170,6 +226,7 @@ test_suite(
         ":cargo_manifests_test",
         ":consumer_deps_test",
         ":lang_json_test",
+        ":lang_projections_test",
         ":npm_hub_test",
         ":python_budget_test",
         ":versions_contract",

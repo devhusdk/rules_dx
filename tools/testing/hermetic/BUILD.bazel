@@ -62,6 +62,7 @@ rust_library(
         package_name = "tools/testing/hermetic",
         normal = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/lcov:dx_lcov",

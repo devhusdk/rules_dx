@@ -106,7 +106,7 @@ pub fn refresh_stale_pins(
         return;
     }
     if let Err(error) = write_version_pins(root, module_version, &pins) {
-        eprintln!("dx: cannot refresh the version pins: {error}");
+        dx_error::stdio::eprint_line(format_args!("dx: cannot refresh the version pins: {error}"));
     }
 }
 

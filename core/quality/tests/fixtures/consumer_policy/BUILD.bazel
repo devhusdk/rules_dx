@@ -96,11 +96,13 @@ workspace_policy(
         "//config:config_tier_strict": [
             "//core/quality/tiers/gersemi:strict",
             "//core/quality/tiers/hlint:strict",
+            "//core/quality/tiers/julialint:strict",
             "//core/quality/tiers/mbake:strict",
         ],
         "//conditions:default": [
             "//core/quality/tiers/gersemi:standard",
             "//core/quality/tiers/hlint:standard",
+            "//core/quality/tiers/julialint:standard",
             "//core/quality/tiers/mbake:standard",
         ],
     }),
@@ -123,8 +125,11 @@ workspace_policy(
         "//core/quality/testdata/rust_owned:rust_family",
         "//core/quality/tests/testdata/scalafix_aux:scala_family",
         ":cue_family",
+        ":eslint_astro_family",
         ":eslint_js_family",
+        ":eslint_svelte_family",
         ":eslint_ts_family",
+        ":eslint_vue_family",
         ":flatbuffers_family",
         ":formatted_toml_family",
         "//core/quality/testdata/haskell_owned:haskell_family",
@@ -273,6 +278,14 @@ quality_family(
 )
 
 quality_family(
+    name = "eslint_astro_family",
+    disabled = ["typecheck"],
+    family_id = "astro",
+    format = ["prettier"],
+    lint = ["eslint"],
+)
+
+quality_family(
     name = "eslint_js_family",
     disabled = [
         "format",
@@ -283,12 +296,28 @@ quality_family(
 )
 
 quality_family(
+    name = "eslint_svelte_family",
+    disabled = ["typecheck"],
+    family_id = "svelte",
+    format = ["prettier"],
+    lint = ["eslint"],
+)
+
+quality_family(
     name = "eslint_ts_family",
     disabled = [
         "format",
         "typecheck",
     ],
     family_id = "typescript",
+    lint = ["eslint"],
+)
+
+quality_family(
+    name = "eslint_vue_family",
+    disabled = ["typecheck"],
+    family_id = "vue",
+    format = ["prettier"],
     lint = ["eslint"],
 )
 

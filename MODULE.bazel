@@ -73,6 +73,7 @@ single_version_override(
         "//patches/llvm:stage0_runtime_features.patch",
         "//patches/llvm:macos_sdk_resolve_symlinks.patch",
         "//patches/llvm:msvc_fuzzer.patch",
+        "//patches/llvm:msvc_coverage.patch",
     ],
     version = "0.8.27",
 )
@@ -209,9 +210,8 @@ single_version_override(
     version = "2.4.6",
 )
 
-# needed: @kcov (dx_pins extension) loads @elfutils
-# floor: equals tested; kcov links libdw and libelf (#7327)
-bazel_dep(name = "elfutils", version = "0.195")
+# floor: equals tested; dev only, the kcov source build links libdw and libelf (#7327)
+bazel_dep(name = "elfutils", version = "0.195", dev_dependency = True)
 
 # musl.patch compiles libdwfl without argp, fts and GNU strerror_r on musl.
 single_version_override(
@@ -221,9 +221,8 @@ single_version_override(
     version = "0.195",
 )
 
-# needed: @kcov (dx_pins extension) loads @zlib
-# floor: equals tested; elfutils needs 1.3.2 (#7327)
-bazel_dep(name = "zlib", version = "1.3.2.bcr.3")
+# floor: equals tested; dev only, the kcov source build links it; 1.4 fixes CVE-2026-85091 and six other memory-safety bugs
+bazel_dep(name = "zlib", version = "1.4", dev_dependency = True)
 
 # floor: equals tested
 bazel_dep(name = "rules_go", version = "0.65.0")
@@ -282,7 +281,7 @@ go_repository(
     urls = ["https://github.com/TrapsterDK/gotreesitter/archive/a8d5183f93260b8c3743375f70f4dee5b1778569.tar.gz"],
 )
 
-use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "co_honnef_go_tools", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_kisielk_errcheck", "com_github_oapi_codegen_oapi_codegen_v2", "com_github_oapi_codegen_runtime", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_google_grpc", "org_golang_google_protobuf", "org_golang_x_exp", "org_golang_x_exp_typeparams", "org_golang_x_mod", "org_golang_x_net", "org_golang_x_tools")
+use_repo(gazelle_go_deps, "cc_mvdan_gofumpt", "co_honnef_go_tools", "com_github_bazelbuild_buildtools", "com_github_google_go_cmp", "com_github_kisielk_errcheck", "com_github_oapi_codegen_oapi_codegen_v2", "com_github_oapi_codegen_runtime", "com_github_pelletier_go_toml_v2", "com_github_pmezard_go_difflib", "com_github_rogpeppe_go_internal", "com_github_tailscale_hujson", "com_github_yuin_goldmark", "org_golang_google_grpc", "org_golang_google_protobuf", "org_golang_x_exp", "org_golang_x_exp_typeparams", "org_golang_x_mod", "org_golang_x_net", "org_golang_x_tools")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(
@@ -384,12 +383,6 @@ single_version_override(
 
 # floor: equals tested
 bazel_dep(name = "rules_kotlin", version = "2.4.21")
-single_version_override(
-    module_name = "rules_kotlin",
-    patch_strip = 1,
-    patches = ["//patches/rules_kotlin:jdeps_merge_stub_inputs.patch"],
-    version = "2.4.21",
-)
 
 # floor: equals tested
 bazel_dep(name = "rules_scala", version = "7.4.1")
@@ -416,7 +409,6 @@ scala_deps.scalatest()
 
 register_toolchains(
     "//java/private/toolchain:all",
-    "//kotlin/private/toolchain:unused_deps",
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",
 )
@@ -431,7 +423,7 @@ use_repo(ansible, "dx_ansible_test_collections")
 terraform = use_extension("//terraform:extensions.bzl", "terraform", dev_dependency = True)
 terraform.lock(
     name = "dx_terraform_providers",
-    lock = "//terraform/tests/lock:terraform.lock.json",
+    lock = "//terraform/tests/fixtures/lock:terraform.lock.json",
 )
 use_repo(terraform, "dx_terraform_providers")
 
@@ -586,7 +578,9 @@ osx.libraries(names = ["libffi"])
 use_repo(osx, "macos_sdk")
 
 # Gated on the Haskell-only flag, so it must come before the general C toolchains.
-register_toolchains("@dx_haskell_toolchains//:linux_arm64_musl")
+register_toolchains("@dx_haskell_toolchains//:dx_haskell_toolchains__linux_arm64_musl")
+
+register_toolchains("@dx_haskell_toolchains//:dx_haskell_toolchains__linux_x86_64_musl")
 
 register_toolchains("@dx_haskell_toolchains//:all")
 
@@ -642,7 +636,10 @@ use_repo(
     "prebuilt_protoc.win64",
 )
 
-register_toolchains("//tools/platforms/protoc:all")
+dx_protoc = use_extension("//tools/platforms/protoc:extensions.bzl", "protoc")
+use_repo(dx_protoc, "dx_protoc_toolchains")
+
+register_toolchains("@dx_protoc_toolchains//:all")
 
 register_toolchains("@dx_powershell_toolchains//:all")
 
@@ -754,7 +751,7 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_playwright",
-    pins = "//typescript/private/playwright:pins.json",
+    pins = "//typescript:pins.json",
 )
 dx_pins.data(
     name = "dx_julia",
@@ -986,6 +983,34 @@ dx_pins.archive(
     pins = "//d:pins.json",
 )
 dx_pins.archive(
+    name = "dx_d_dscanner",
+    build = "//d/private:dscanner.BUILD.bazel",
+    dropped = [
+        "DCD",
+        "Dockerfile",
+        "appveyor.yml",
+        "build.bat",
+        "containers",
+        "d-test-utils",
+        "dsc.sublime-project",
+        "dub.json",
+        "dub.selections.json",
+        "dubhash.d",
+        "inifiled",
+        "libddoc",
+        "libdparse",
+        "makefile",
+        "release-windows.sh",
+        "release.sh",
+        "scripts",
+        "setup-ldc-windows.sh",
+        "sonar-project.properties",
+        "tests",
+    ],
+    files = {"githash.txt": "//d/private:dscanner_githash.txt"},
+    pins = "//d:pins.json",
+)
+dx_pins.archive(
     name = "dx_d_inifiled",
     build = "//d/private:inifiled.BUILD.bazel",
     dropped = [
@@ -1167,6 +1192,7 @@ dx_pins.archive(
         "//patches/rules_erlang:05_windows_eunit_cover.patch",
         "//patches/rules_erlang:06_coverage_enabled.patch",
         "//patches/rules_erlang:07_windows_ct_cover.patch",
+        "//patches/rules_erlang:08_nif_profile_per_library.patch",
         "//patches/rules_erlang:toolchain_type_alias.patch",
     ],
     pins = "//erlang:pins.json",
@@ -1225,6 +1251,22 @@ dx_pins.archive(
         "//patches/rules_fortran:toolchain_type_alias.patch",
     ],
     pins = "//fortran:pins.json",
+)
+dx_pins.archive(
+    name = "rules_julia",
+    patches = [
+        "//patches/rules_julia:config_base_toml.patch",
+        "//patches/rules_julia:in_process_resolve_test.patch",
+        "//patches/rules_julia:locate_installed_package.patch",
+        "//patches/rules_julia:package_annotation_version.patch",
+        "//patches/rules_julia:package_name.patch",
+        "//patches/rules_julia:portable_cpu_target.patch",
+        "//patches/rules_julia:template_action_input.patch",
+        "//patches/rules_julia:exec_toolchain.patch",
+        "//patches/rules_julia:inline_runfiles_sh.patch",
+        "//patches/rules_julia:test_tmpdir_runfiles.patch",
+    ],
+    pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "rules_ocaml",
@@ -1412,16 +1454,6 @@ dx_pins.archive(
     pins = "//deploy/private/pins:pins.json",
 )
 dx_pins.archive(
-    name = "kcov",
-    build = "//tools/coverage/kcov:kcov.BUILD",
-    patches = [
-        "//patches/kcov:aslr.patch",
-        "//patches/kcov:elf_checksum_lock.patch",
-        "//patches/kcov:no_curl.patch",
-    ],
-    pins = "//tools/coverage/kcov:pins.json",
-)
-dx_pins.archive(
     name = "opam_linux_arm64",
     pins = "//deploy/private/pins:pins.json",
 )
@@ -1476,6 +1508,7 @@ use_repo(
     "dx_coreutils__windows_x86_64",
     "dx_d_containers",
     "dx_d_dcd",
+    "dx_d_dscanner",
     "dx_d_inifiled",
     "dx_d_libddoc",
     "dx_d_libdparse",
@@ -1521,7 +1554,6 @@ use_repo(
     "dx_thrift_slf4j",
     "dx_windows_support",
     "japicmp_jar",
-    "kcov",
     "nfpm_linux_arm64",
     "nfpm_linux_x86_64",
     "nfpm_macos_arm64",
@@ -1537,6 +1569,7 @@ use_repo(
     "rules_erlang",
     "rules_fortran",
     "rules_haskell",
+    "rules_julia",
     "rules_ocaml",
     "rules_powershell",
     "rules_ruby",
@@ -1555,6 +1588,16 @@ dx_pins_dev.archive(
     pins = "//cc:pins.json",
 )
 dx_pins_dev.archive(
+    name = "kcov",
+    build = "//tools/coverage/kcov:kcov.BUILD",
+    patches = [
+        "//patches/kcov:aslr.patch",
+        "//patches/kcov:elf_checksum_lock.patch",
+        "//patches/kcov:no_curl.patch",
+    ],
+    pins = "//tools/coverage/kcov:pins.json",
+)
+dx_pins_dev.archive(
     name = "lua_app_inspect",
     build = "//lua/tests/fixtures/lua_app:inspect.BUILD.bazel",
     pins = "//lua:pins.json",
@@ -1568,6 +1611,7 @@ use_repo(
     dx_pins_dev,
     "erlang_app_thoas",
     "foreign_cmake_zlib",
+    "kcov",
     "lua_app_inspect",
     "zig_app_xxhash",
 )
@@ -1771,12 +1815,9 @@ pub_tools.from_lock(
 )
 use_repo(pub_tools, "dart_apitool_deps", "dx_dart_bench_deps")
 
-# needed: @rules_julia (rules_julia extension) loads @toml.bzl
+# needed: @rules_julia (dx_pins archive) loads @toml.bzl
 # floor: equals tested
 bazel_dep(name = "toml.bzl", version = "0.5.0")
-
-rules_julia = use_extension("//julia/private/toolchain:extensions.bzl", "rules_julia")
-use_repo(rules_julia, "rules_julia")
 
 julia_toolchain = use_extension("//julia:extensions.bzl", "julia_toolchain")
 use_repo(julia_toolchain, "julia_toolchains")
@@ -1863,8 +1904,14 @@ use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_docs", "dx_julia_format", "dx
 
 # floor: equals tested
 bazel_dep(name = "rules_perl", version = "2.1.0")
+single_version_override(
+    module_name = "rules_perl",
+    patch_strip = 1,
+    patches = ["//patches/rules_perl:manifest_only_runfiles.patch"],
+    version = "2.1.0",
+)
 
-perl_pod = use_extension("//perl/private:pod.bzl", "pod")
+perl_pod = use_extension("//perl:extensions.bzl", "perl_pod")
 use_repo(perl_pod, "dx_perl_pod")
 
 perl_tools_cpan = use_extension("//perl:extensions.bzl", "cpan")
@@ -1942,6 +1989,13 @@ register_toolchains("@dx_ocaml_toolchains//:all")
 fortran = use_extension("//fortran:extensions.bzl", "fortran")
 use_repo(fortran, "dx_fortran_flang_rt")
 
+fpm = use_extension("//fortran:extensions.bzl", "fpm", dev_dependency = True)
+fpm.lock(
+    name = "fpm_fortran.tests.fixtures.fpm_deps",
+    lock = "//fortran/tests/fixtures/fpm_deps:fpm.lock.json",
+)
+use_repo(fpm, "fpm_fortran.tests.fixtures.fpm_deps")
+
 register_toolchains("@dx_fortran_toolchains//:all")
 
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
@@ -1987,7 +2041,7 @@ composer.lock(
 use_repo(composer, php_fixture_vendor = "composer_php.tests.fixtures.composer")
 
 haskell = use_extension("//haskell:extensions.bzl", "haskell")
-use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains")
+use_repo(haskell, "dx_haskell_toolchains", "dx_haskell_toolchains__windows_x86_64")
 
 cabal = use_extension("//haskell:extensions.bzl", "cabal")
 cabal.lock(
@@ -2161,7 +2215,7 @@ single_version_override(
         "//patches/rules_py:native_sdist_toolchain_flags.patch",
         "//patches/rules_py:pep517_msvc.patch",
         "//patches/rules_py:venv_bin_files.patch",  # upstream: https://github.com/aspect-build/rules_py/pull/1670
-        "//patches/rules_py:host_interpreter_windows_arm64.patch",  # upstream: https://github.com/aspect-build/rules_py/issues/1676
+        "//patches/rules_py:host_interpreter_windows_arm64.patch",  # upstream: https://github.com/aspect-build/rules_py/pull/1677
         # upstream: https://github.com/aspect-build/rules_py/issues/1679
         "//patches/rules_py:external_repo_pytest_paths.patch",
         "//patches/rules_py:host_libc_glibc.patch",
@@ -2247,7 +2301,7 @@ use_repo(dx_dev_hub, "dx_npm_link")
 dx_prebuilt = use_extension("//core:extensions.bzl", "dx_prebuilt")
 use_repo(dx_prebuilt, "dx_prebuilt")
 
-dx_gazelle = use_extension("//gazelle/dispatch:extension.bzl", "dx_gazelle")
+dx_gazelle = use_extension("//core:extensions.bzl", "dx_gazelle")
 dx_gazelle.language(library = "//gazelle/astro")
 dx_gazelle.language(library = "//gazelle/avro")
 dx_gazelle.language(library = "//gazelle/capnproto")
@@ -2305,7 +2359,6 @@ dx_python = use_extension("//python:extensions.bzl", "python")
 use_repo(dx_python, "dx_python_toolchains")
 
 register_toolchains(
-    "//python/private/windows_toolchains:all",
     "@dx_python_toolchains//:all",
     "@python_interpreters//:all",
 )
@@ -2446,7 +2499,7 @@ use_repo(
 
 register_toolchains("@rust_toolchains//:all")
 
-dx_rust_toolchains = use_extension("//rust/private/toolchain:hub.bzl", "dx_rust_toolchains")
+dx_rust_toolchains = use_extension("//rust:extensions.bzl", "rust_toolchains")
 use_repo(dx_rust_toolchains, "dx_rust_toolchains")
 
 register_toolchains("@dx_rust_toolchains//:all")
@@ -2494,6 +2547,9 @@ use_repo(
 rust_host_tools = use_extension("@rules_rust//rust:extensions.bzl", "rust_host_tools")
 use_repo(rust_host_tools, "rust_host_tools")
 
+cargo_bazel = use_extension("//third_party/rules_rust/crate_universe:generator.bzl", "cargo_bazel")
+use_repo(cargo_bazel, "dx_cargo_bazel")
+
 crate = use_extension("//third_party/rules_rust/crate_universe:extensions.bzl", "crate")
 crate.annotation(
     build_script_env = {
@@ -2507,7 +2563,7 @@ crate.annotation(
         "TARGET_CC": "$(DX_BS_TARGET_CC)",
         "TARGET_CXX": "$(DX_BS_TARGET_CXX)",
     },
-    build_script_toolchains = ["//rust/private:build_script_cc_env"],
+    build_script_toolchains = ["//rust:build_script_cc_env"],
     crate = "*",
 )
 crate.annotation(
@@ -2651,6 +2707,7 @@ crate.from_cargo(
         "//cli/bep:Cargo.toml",
         "//cli/cli:Cargo.toml",
         "//cli/exec_core:Cargo.toml",
+        "//cli/exec_reports:Cargo.toml",
         "//cli/diff:Cargo.toml",
         "//cli/digest:Cargo.toml",
         "//cli/http:Cargo.toml",
@@ -2986,7 +3043,7 @@ _fixture_repo(
     path = "rust/tests/fixtures/wasm_bindgen/repo",
 )
 
-_android_ndk_toolchain_repo = use_repo_rule("//android:extensions.bzl", "android_ndk_toolchain_repo")
+_android_ndk_toolchain_repo = use_repo_rule("//android:repositories.bzl", "android_ndk_toolchain_repo")
 
 _android_ndk_toolchain_repo(
     name = "android_ndk_toolchain",
@@ -3077,53 +3134,50 @@ _fixture_repo(
     path = "rust/tests/fixtures/shared_rust_checks/repo",
 )
 
-dx_source_archives = use_extension("//core:extensions.bzl", "dx_source_archives")
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_flatbuffers",
     pins = "//flatbuffers:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_flatbuffers_rust",
-    build_file = "//flatbuffers/private:rust_runtime.BUILD.bazel",
+    build = "//flatbuffers/private:rust_runtime.BUILD.bazel",
     pins = "//flatbuffers:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_flatbuffers_java",
-    build_file = "//flatbuffers/private:java_runtime.BUILD.bazel",
+    build = "//flatbuffers/private:java_runtime.BUILD.bazel",
     pins = "//flatbuffers:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_flatbuffers_bitflags",
-    archive_type = "tar.gz",
-    build_file = "//flatbuffers/private:bitflags.BUILD.bazel",
+    build = "//flatbuffers/private:bitflags.BUILD.bazel",
     pins = "//flatbuffers:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_capnproto",
-    patch_args = ["-p1"],
-    patch_cmds = [
-        "sed -i.bak 's#@capnp-cpp//#//#g' src/capnp/BUILD.bazel src/capnp/cc_capnp_library.bzl src/capnp/compat/BUILD.bazel",
+    patches = [
+        "//patches/capnproto:dynamic_cstddef.patch",
+        "//patches/capnproto:repo_relative_labels.patch",
     ],
-    patches = ["//patches/capnproto:dynamic_cstddef.patch"],
     pins = "//capnproto:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_capnproto_rust",
-    build_file = "//capnproto/private:rust.BUILD.bazel",
+    build = "//capnproto/private:rust.BUILD.bazel",
     pins = "//capnproto:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_capnproto_java",
-    build_file = "//capnproto/private:java.BUILD.bazel",
+    build = "//capnproto/private:java.BUILD.bazel",
     pins = "//capnproto:pins.json",
 )
-dx_source_archives.archive(
+dx_pins.archive(
     name = "dx_thrift",
-    build_file = "//thrift/private:compiler.BUILD.bazel",
+    build = "//thrift/private:compiler.BUILD.bazel",
     pins = "//thrift:pins.json",
 )
 use_repo(
-    dx_source_archives,
+    dx_pins,
     "dx_capnproto",
     "dx_capnproto_java",
     "dx_capnproto_rust",

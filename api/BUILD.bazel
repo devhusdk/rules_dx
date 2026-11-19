@@ -5,7 +5,9 @@ filegroup(
     name = "snapshot",
     srcs = [
         "cli.json",
+        "labels.txt",
         "schemas.txt",
+        "starlark.json",
     ],
     visibility = ["//tools/api:__pkg__"],
 )
@@ -14,6 +16,11 @@ filegroup(
 exports_files(
     ["deprecations.txt"],
     visibility = ["//tools/ci:__pkg__"],
+)
+
+exports_files(
+    ["starlark.json"],
+    visibility = ["//cli/tests/entrypoint:__pkg__"],
 )
 
 filegroup(

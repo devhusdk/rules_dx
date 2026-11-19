@@ -10,13 +10,32 @@ use std::path::Path;
 pub const MANIFEST: &str = "dx-sha256sums.txt";
 pub const GAZELLE_MANIFEST: &str = "dx-gazelle-sha256sums.txt";
 pub const JAR_MANIFEST: &str = "dx-jar-sha256sums.txt";
+pub const HASKELL_MANIFEST: &str = "dx-haskell-sha256sums.txt";
+pub const TOOL_MANIFEST: &str = "dx-tool-sha256sums.txt";
 pub const BUNDLE: &str = "dx-sha256sums.txt.sigstore.json";
 
 /// The manifests a release check downloads and verifies.
-pub const MANIFESTS: [&str; 3] = [MANIFEST, GAZELLE_MANIFEST, JAR_MANIFEST];
+pub const MANIFESTS: [&str; 5] = [
+    MANIFEST,
+    GAZELLE_MANIFEST,
+    JAR_MANIFEST,
+    HASKELL_MANIFEST,
+    TOOL_MANIFEST,
+];
 
 /// `<tool> <platform key> <asset>` lines rendered from `tools.bzl` by `//cli/prebuilt:registry`.
 pub const REGISTRY: &str = include_str!(env!("DX_PREBUILT_REGISTRY"));
+
+/// Files a release publishes once per tool beside its `<tool>-<platform>` assets.
+const TOOL_COMPANIONS: [&str; 3] = ["-LICENSE", "-source.crate", "-source.tar.gz"];
+
+/// Licences and sources of the libraries linked into a family of tools, published
+/// once per release beside that family's assets.
+const LIBRARY_COMPANIONS: [&str; 3] = [
+    "dx-haskell-gmp-LICENSE",
+    "dx-haskell-gmp-source.tar.xz",
+    "dx-haskell-gmp-source.patch",
+];
 
 /// Files a release publishes beside a registry asset and lists in the same
 /// manifest: the launcher archives, the Windows symbols and their SBOMs.
@@ -154,6 +173,20 @@ pub fn fill_with_registry(
 }
 
 fn companion_of(asset: &str, known: &BTreeMap<&str, &Entry>) -> bool {
+    if LIBRARY_COMPANIONS.contains(&asset) {
+        return true;
+    }
+    if let Some(tool) = TOOL_COMPANIONS
+        .iter()
+        .find_map(|suffix| asset.strip_suffix(suffix))
+    {
+        return known.iter().any(|(known, entry)| {
+            known
+                .strip_prefix(tool)
+                .and_then(|rest| rest.strip_prefix('-'))
+                .is_some_and(|platform| platform.starts_with(&entry.key.replacen('_', "-", 1)))
+        });
+    }
     let base = asset.strip_suffix(".spdx.json").unwrap_or(asset);
     COMPANION_SUFFIXES.iter().any(|suffix| {
         base.strip_suffix(suffix)

@@ -138,7 +138,7 @@ fn file_modes_do_not_alter_pipeline_outputs() {
     let modes = [0o644, 0o755, 0o600];
     let mut manifests = Vec::with_capacity(modes.len());
     for mode in modes {
-        let _ = mode;
+        let _: i32 = mode;
         let files = vec![file("src/lib.rs", "BAD\n")];
         let result =
             synthetic::run_pipeline("//core/quality:test", "lint", &stages, &files).unwrap();
@@ -375,7 +375,7 @@ fn checkout_and_query_permutations_converge_identically() {
     let checkouts = ["/tmp/checkout-a", "/home/user/work/tree"];
     let mut manifests = Vec::with_capacity(checkouts.len());
     for (index, prefix) in checkouts.iter().enumerate() {
-        let _ = prefix;
+        let _: &&str = prefix;
         let stages = if index == 0 {
             vec![stage("lint-a", &["rust"], &["src/a.rs", "src/b.rs"])]
         } else {

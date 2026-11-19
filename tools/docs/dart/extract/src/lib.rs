@@ -30,6 +30,12 @@ pub struct Options {
     pub out: String,
 }
 
+/// Runs `dart_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("dart_extract", usage(), parse, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
@@ -59,7 +65,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     let json = fs::read_to_string(&options.index)
         .map_err(|error| format!("cannot read {}: {error}", options.index))?;
     let shard = convert(&json, &options.package)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 /// One entry of the dartdoc index.

@@ -3,7 +3,7 @@ javascript/private/quality/node_modules
 javascript/tests/fixtures/node_app/node_modules
 javascript/tests/fixtures/node_app/registry/node_modules
 .opencode/
-.claude/
+.claude/worktrees
 .dx/local
 .dx/bazelrc
 # Disposable trees, also in .gitignore.
@@ -59,6 +59,7 @@ dockerfile/tests/consumer
 elixir/tests/consumer
 erlang/tests/consumer
 flatbuffers/tests/consumer
+flutter/tests/consumer
 fortran/tests/consumer
 fsharp/tests/consumer
 go/tests/consumer

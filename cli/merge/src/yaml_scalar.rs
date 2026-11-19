@@ -11,18 +11,21 @@ pub fn set_uses_ref(text: &str, action: &str, reference: &str) -> String {
 }
 
 fn uses_line(line: &str, action: &str, reference: &str) -> String {
-    let trimmed = line.trim_start();
-    let Some(rest) = trimmed
+    let mut key = line.trim_start();
+    if let Some(item) = key.strip_prefix('-') {
+        key = item.trim_start();
+    }
+    let value = key
         .strip_prefix("uses:")
-        .or_else(|| trimmed.strip_prefix("- uses:"))
+        .map(str::trim_start)
+        .map(|value| value.strip_prefix(['"', '\'']).unwrap_or(value));
+    let Some(tail) = value
+        .and_then(|value| value.strip_prefix(action))
+        .and_then(|rest| rest.strip_prefix('@'))
     else {
         return line.to_owned();
     };
-    let Some(at) = rest.find(&format!("{action}@")) else {
-        return line.to_owned();
-    };
-    let from = line.len() - rest.len() + at + action.len() + 1;
-    let Some((head, tail)) = line.split_at_checked(from) else {
+    let Some((head, _)) = line.split_at_checked(line.len() - tail.len()) else {
         return line.to_owned();
     };
     let len = tail
@@ -56,5 +59,33 @@ mod tests {
     #[test]
     fn setting_the_same_ref_is_a_no_op() {
         assert_eq!(set_uses_ref(CI, ACTION, "aaaa"), CI);
+    }
+
+    #[test]
+    fn a_longer_action_name_is_not_a_match() {
+        let text = "    uses: other/actions/checkout@v1\n";
+        assert_eq!(set_uses_ref(text, "actions/checkout", "v2"), text);
+    }
+
+    #[test]
+    fn a_comment_is_not_edited() {
+        let text = "    uses: x/y@v1 # was actions/checkout@v0\n";
+        assert_eq!(set_uses_ref(text, "actions/checkout", "v2"), text);
+    }
+
+    #[test]
+    fn extra_spaces_after_the_dash_still_match() {
+        let out = set_uses_ref(
+            "  -   uses: actions/checkout@v1\n",
+            "actions/checkout",
+            "v2",
+        );
+        assert_eq!(out, "  -   uses: actions/checkout@v2\n");
+    }
+
+    #[test]
+    fn a_quoted_action_is_updated() {
+        let out = set_uses_ref("uses: \"actions/checkout@v1\"\n", "actions/checkout", "v2");
+        assert_eq!(out, "uses: \"actions/checkout@v2\"\n");
     }
 }

@@ -1,3 +1,4 @@
+use crate::locks::sort_unique;
 use crate::vuln::LockedPackage;
 use dx_error::DxError;
 
@@ -5,6 +6,7 @@ pub const COMPOSER_SET: &str = "packagist";
 
 /// Reads the `packages` and `packages-dev` of a lock, skipping branch versions.
 pub fn parse_composer_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let root: serde_json::Value = serde_json::from_str(text)
         .map_err(|error| DxError::failure(format!("invalid lock: {error}")))?;
     let mut out = Vec::new();
@@ -29,6 +31,6 @@ pub fn parse_composer_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
             out.push(LockedPackage::new(COMPOSER_SET, name, version));
         }
     }
-    out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+    sort_unique(&mut out);
     Ok(out)
 }

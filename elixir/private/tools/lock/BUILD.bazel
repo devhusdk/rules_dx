@@ -70,6 +70,7 @@ rust_test(
         ":hex_lock_lib",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
+        "//cli/lock:dx_lock_testing",
         "//tools/testing:dx_testing",
     ],
 )

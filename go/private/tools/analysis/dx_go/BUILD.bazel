@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("@rules_go//go:def.bzl", "go_cross_binary")
 load("//go:defs.bzl", "go_binary", "go_library", "go_test")
 
 go_library(
@@ -11,7 +12,9 @@ go_library(
         "//go/private/tools/analysis/gotype",
         "//go/private/tools/analysis/govet",
         "//go/private/tools/analysis/staticcheck",
+        "//go/private/tools/gofumpt",
         "//go/private/tools/modfmt",
+        "//tools/docs/go/godoc:godoc_lib",
     ],
 )
 
@@ -20,6 +23,28 @@ go_binary(
     embed = [":dx_go_lib"],
     visibility = ["//:__subpackages__"],
 )
+
+# Release assets, one per host and tool; .github/workflows/release-tools.yml builds them.
+[
+    go_cross_binary(
+        name = name + "_" + host,
+        platform = "@rules_go//go/toolchain:" + go_platform,
+        tags = ["manual"],
+        target = target,
+        visibility = ["//visibility:private"],
+    )
+    for name, target in {
+        "dx_go": ":dx_go",
+        "oapi_codegen": "@com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen",
+    }.items()
+    for host, go_platform in {
+        "linux_arm64": "linux_arm64",
+        "linux_x86_64": "linux_amd64",
+        "macos_arm64": "darwin_arm64",
+        "windows_arm64": "windows_arm64",
+        "windows_x86_64": "windows_amd64",
+    }.items()
+]
 
 go_test(
     name = "dx_go_test",
@@ -38,10 +63,15 @@ go_test(
             "@platforms//os:windows": tool + ".exe",
             "//conditions:default": tool,
         }),
-        visibility = ["//:__subpackages__"],
+        visibility = [
+            "//:__subpackages__",
+            "@dx_prebuilt//:__pkg__",
+        ],
     )
     for tool in [
         "dx_errcheck",
+        "dx_godoc_json",
+        "dx_gofumpt",
         "dx_gotype",
         "dx_govet",
         "dx_modfmt",

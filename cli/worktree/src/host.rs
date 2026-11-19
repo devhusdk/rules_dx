@@ -212,7 +212,7 @@ pub(crate) fn parse_servers(text: &str) -> Vec<Server> {
         let (Ok(pid), Ok(rss)) = (pid.parse::<u32>(), rss.parse::<u64>()) else {
             continue;
         };
-        servers.extend(server_from(pid, rss * 1024, args));
+        servers.extend(server_from(pid, rss.saturating_mul(1024), args));
     }
     servers
 }
@@ -388,7 +388,7 @@ fn du_bytes(path: &Path, stop: &dyn Fn() -> Option<i32>) -> Option<u64> {
         .split_whitespace()
         .next()
         .and_then(|first| first.parse::<u64>().ok())
-        .map(|kib| kib * 1024)
+        .map(|kib| kib.saturating_mul(1024))
 }
 
 /// Swapped-out bytes from a `/proc/<pid>/status` text.
@@ -398,7 +398,7 @@ pub(crate) fn parse_vm_swap(status: &str) -> Option<u64> {
         .lines()
         .find_map(|line| line.strip_prefix("VmSwap:"))?;
     let kib = line.split_whitespace().next()?.parse::<u64>().ok()?;
-    Some(kib * 1024)
+    Some(kib.saturating_mul(1024))
 }
 
 /// The command line that stops exactly `server`, failing at once if a client holds its lock.
@@ -872,7 +872,7 @@ mod tests {
     fn a_process_working_below_a_directory_is_found() {
         let dir = tempfile::tempdir().expect("dir");
         let sub = dir.path().join("sub");
-        std::fs::create_dir(&sub).expect("sub");
+        std::fs::create_dir_all(&sub).expect("sub");
         assert!(!process_in(dir.path()));
         let mut child = std::process::Command::new("sleep")
             .arg("30")
@@ -1080,6 +1080,25 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-wt-du-").unwrap();
         std::fs::write(scratch.path().join("f"), vec![1u8; 64 * 1024]).expect("file");
         assert!(du_bytes(scratch.path(), &|| None).is_some_and(|bytes| bytes > 0));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_huge_rss_saturates_instead_of_overflowing() {
+        let text =
+            "4242 18446744073709551615 bazel(app) -jar /i/A-server.jar --workspace_directory=/x\n";
+        let servers = parse_servers(text);
+        assert_eq!(servers.len(), 1);
+        assert_eq!(servers[0].rss_bytes, u64::MAX);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_huge_vm_swap_saturates_instead_of_overflowing() {
+        assert_eq!(
+            parse_vm_swap("VmSwap:\t18446744073709551615 kB\n"),
+            Some(u64::MAX)
+        );
     }
 
     #[cfg(target_os = "linux")]

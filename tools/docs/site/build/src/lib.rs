@@ -1,6 +1,10 @@
 //! Assembles one mdBook source tree and runs the pinned mdBook build.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -24,6 +28,28 @@ pub struct Options {
     pub out: String,
     pub api_tree: String,
     pub api_summary: String,
+}
+
+/// Runs `site_build` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    if args.iter().any(|a| a == "-h" || a == "--help") {
+        println!("{}", usage());
+        return 0;
+    }
+    let options = match parse(args) {
+        Ok(options) => options,
+        Err(detail) => {
+            eprintln!("site_build: {detail}\n{}", usage());
+            return 2;
+        }
+    };
+    let refusal = run(&options);
+    if refusal.is_empty() {
+        return 0;
+    }
+    eprintln!("site_build: {refusal}");
+    1
 }
 
 /// The usage line shown for a rejected invocation.
@@ -211,8 +237,10 @@ pub fn run(options: &Options) -> String {
         return error;
     }
     let out = absolute(&options.out);
-    if let Some(parent) = out.parent() {
-        drop(fs::create_dir_all(parent));
+    if let Some(parent) = out.parent()
+        && let Err(error) = fs::create_dir_all(parent)
+    {
+        return format!("docs_site: cannot create {}: {error}", parent.display());
     }
     let build = Command::new(&options.mdbook)
         .arg("build")

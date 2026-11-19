@@ -27,6 +27,25 @@ MINGW* | MSYS* | CYGWIN*)
   export MSYS2_ARG_CONV_EXCL
   ;;
 esac
+# Says whether $1 is rooted, so it does not move with the current directory.
+rooted() {
+  case $1 in
+  /*) return 0 ;;
+  esac
+  [ "$os" = windows ] || return 1
+  case $1 in
+  \\* | [A-Za-z]:/* | [A-Za-z]:\\*) return 0 ;;
+  esac
+  return 1
+}
+# Prints the user cache dir. The XDG spec says to skip a relative XDG_CACHE_HOME; it would give each cwd its own cache.
+user_cache() {
+  if [ -n "${XDG_CACHE_HOME:-}" ] && rooted "$XDG_CACHE_HOME"; then
+    printf '%s\n' "$XDG_CACHE_HOME"
+  elif [ -n "${HOME:-}" ]; then
+    printf '%s\n' "$HOME/.cache"
+  fi
+}
 if [ "$os" = linux ] && [ -z "${MALLOC_ARENA_MAX+x}" ]; then
   case ${GLIBC_TUNABLES:-} in
   *glibc.malloc.arena_max*) ;;
@@ -114,46 +133,124 @@ bazelisk_pin() {
     "$bz_key") bz_sum=$bz_val ;;
     esac
   done <"$root/tools/bazelisk/pin.env"
-  bz_cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+  bz_cache=$(user_cache)
   [ -n "$bz_v" ] && [ -n "$bz_sum" ] && [ -n "$bz_cache" ] || return 1
   bz_dir=$bz_cache/dx/bazelisk/$bz_v
 }
-download_bazelisk() {
-  bz_url=https://github.com/bazelbuild/bazelisk/releases/download/v$bz_v/bazelisk-$bz_arch
-  echo "dx: bazel is not on PATH; fetching Bazelisk $bz_v to $bz_dir" >&2
-  mkdir -p "$bz_dir" || return 1
+# Downloads $1 to the file $3 through a temp file and keeps it, executable, only when its sha256 is $2. $4 names it
+# and $5 holds its pin in messages. Returns 2 when curl or wget cannot fetch it.
+fetch_pinned() {
+  fp_tmp=$3.$$
+  mkdir -p "${3%/*}" || return 1
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o "$bz_tmp" "$bz_url" || return 1
+    curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o "$fp_tmp" "$1" || {
+      rm -f "$fp_tmp"
+      return 2
+    }
   elif command -v wget >/dev/null 2>&1; then
-    wget -q --https-only -O "$bz_tmp" "$bz_url" || return 1
+    wget -q --https-only -O "$fp_tmp" "$1" || {
+      rm -f "$fp_tmp"
+      return 2
+    }
   else
     echo "dx: neither curl nor wget is on PATH" >&2
     return 1
   fi
-  bz_got=$(sha256sum "$bz_tmp") || return 1
-  if [ "${bz_got%% *}" != "$bz_sum" ]; then
-    echo "dx: the Bazelisk download does not match its sha256 in tools/bazelisk/pin.env" >&2
+  fp_got=$(sha256sum "$fp_tmp") || fp_got=
+  if [ "${fp_got%% *}" != "$2" ]; then
+    rm -f "$fp_tmp"
+    echo "dx: the $4 download does not match its sha256 in $5" >&2
     return 1
   fi
-  chmod +x "$bz_tmp" && mv -f "$bz_tmp" "$bz_dir/bazel"
+  chmod +x "$fp_tmp" && mv -f "$fp_tmp" "$3" || {
+    rm -f "$fp_tmp"
+    return 1
+  }
+}
+download_bazelisk() {
+  bz_url=https://github.com/bazelbuild/bazelisk/releases/download/v$bz_v/bazelisk-$bz_arch
+  echo "dx: bazel is not on PATH; fetching Bazelisk $bz_v to $bz_dir" >&2
+  fetch_pinned "$bz_url" "$bz_sum" "$bz_dir/bazel" Bazelisk tools/bazelisk/pin.env || {
+    [ $? -ne 2 ] || die "cannot download Bazelisk from github.com; allow it in the network settings or put bazel on PATH"
+    return 1
+  }
 }
 if ! command -v bazel >/dev/null 2>&1 && bazelisk_pin; then
-  bz_tmp=$bz_dir/bazel.$$
   if [ -x "$bz_dir/bazel" ] || download_bazelisk; then
     PATH=$bz_dir:$PATH
+    case $bz_arch in linux-amd64) bz_bazel_arch=linux-x86_64 ;; *) bz_bazel_arch=$bz_arch ;; esac
     # Some container proxies block releases.bazel.build; GitHub serves the same Bazel releases.
     BAZELISK_BASE_URL=${BAZELISK_BASE_URL:-https://github.com/bazelbuild/bazel/releases/download}
     export PATH BAZELISK_BASE_URL
   fi
-  rm -f "$bz_tmp"
 fi
-# False only when curl or wget runs and cannot fetch $1.
+# A release checkout pins the released dx in cli/prebuilt/pins.bzl. Linux runs that dx instead of building one when
+# the checkout is that release: a git checkout at tag v<DX_VERSION> with no tracked edits, or a release archive.
+# Sets pb_v, pb_url, pb_sum and pb_bin; fails when the checkout does not match.
+prebuilt_pin() {
+  case $os/$(uname -m) in
+  linux/x86_64) pb_key=linux_x86_64 ;;
+  linux/aarch64 | linux/arm64) pb_key=linux_arm64 ;;
+  *) return 1 ;;
+  esac
+  pb_v=
+  pb_url=
+  pb_sum=
+  pb_in=
+  [ -r "$root/cli/prebuilt/pins.bzl" ] || return 1
+  while IFS= read -r pb_line || [ -n "$pb_line" ]; do
+    pb_line=${pb_line%"$(printf '\r')"}
+    case $pb_line in
+    'DX_VERSION = "'*'"') pb_v=${pb_line#*\"} pb_v=${pb_v%\"} ;;
+    'URL_TEMPLATE = "'*'"') pb_url=${pb_line#*\"} pb_url=${pb_url%\"} ;;
+    '    "dx": {') pb_in=1 ;;
+    '    }'*) pb_in= ;;
+    "        \"$pb_key\": \""*'",') [ -z "$pb_in" ] || pb_sum=${pb_line#*: \"} pb_sum=${pb_sum%\",} ;;
+    esac
+  done <"$root/cli/prebuilt/pins.bzl"
+  [ -n "$pb_v" ] && [ "$pb_v" != 0.0.0 ] && [ -n "$pb_url" ] && [ -n "$pb_sum" ] || return 1
+  if [ -e "$root/.git" ]; then
+    command -v git >/dev/null 2>&1 || return 1
+    pb_head=$(git -C "$root" rev-parse -q --verify HEAD 2>/dev/null) || return 1
+    pb_tag=$(git -C "$root" rev-parse -q --verify "refs/tags/v$pb_v^{commit}" 2>/dev/null) || return 1
+    [ "$pb_head" = "$pb_tag" ] || return 1
+    git -C "$root" diff --quiet HEAD -- 2>/dev/null || return 1
+  fi
+  pb_cache=$(user_cache)
+  [ -n "$pb_cache" ] || return 1
+  pb_bin=$pb_cache/dx/prebuilt/$pb_sum/dx
+  pb_url=${pb_url%%"{version}"*}$pb_v${pb_url#*"{version}"}
+  pb_url=${pb_url%%"{asset}"*}dx-${pb_key%%_*}-${pb_key#*_}${pb_url#*"{asset}"}
+}
+if prebuilt_pin; then
+  if [ -x "$pb_bin" ] || {
+    echo "dx: fetching the released dx $pb_v to ${pb_bin%/*}" >&2
+    fetch_pinned "$pb_url" "$pb_sum" "$pb_bin" "released dx" cli/prebuilt/pins.bzl
+  }; then
+    exec "$pb_bin" "$@"
+  fi
+  echo "dx: cannot fetch the released dx $pb_v; building //cli/cli:dx instead" >&2
+fi
+# False only when curl or wget runs and cannot fetch $1. Redirects are followed: GitHub serves release files from
+# another host.
 reachable() {
   if command -v curl >/dev/null 2>&1; then
-    curl -fsS --max-time 10 -o /dev/null "$1" 2>/dev/null
+    curl -fsSL --max-time 10 -o /dev/null "$1" 2>/dev/null
   elif command -v wget >/dev/null 2>&1; then
     wget -q -T 10 -O /dev/null "$1"
   fi
+}
+# False only when the launcher put Bazelisk on PATH and the pinned Bazel's checksum cannot be fetched from
+# BAZELISK_BASE_URL. Sets bz_base_host.
+bazel_reachable() {
+  [ -n "${bz_bazel_arch:-}" ] || return 0
+  bz_ver=${USE_BAZEL_VERSION:-}
+  if [ -z "$bz_ver" ] && [ -r "$root/.bazelversion" ]; then IFS= read -r bz_ver <"$root/.bazelversion" || :; fi
+  bz_ver=${bz_ver%"$(printf '\r')"}
+  [ -n "$bz_ver" ] || return 0
+  bz_base_host=${BAZELISK_BASE_URL#*://}
+  bz_base_host=${bz_base_host%%/*}
+  reachable "$BAZELISK_BASE_URL/$bz_ver/bazel-$bz_ver-$bz_bazel_arch.sha256"
 }
 # True when an input of the last built dx is newer than that build. With arguments, only inputs under those path
 # prefixes count.
@@ -343,13 +440,15 @@ sync_copy() {
 retry_crash() {
   "$@" && return 0 || ec=$?
   case $ec in 33 | 37) ;; *) return "$ec" ;; esac
-  echo "dx: the Bazel server crashed (exit $ec); trying //:dx again" >&2
+  echo "dx: the Bazel server crashed (exit $ec); trying //cli/cli:dx again" >&2
   sleep "${DX_RESTART_WAIT:-2}"
   "$@" && return 0 || return $?
 }
+# DX_LAUNCHER_BAZEL_FLAGS changes how dx is built, not what is built, so changing it never makes dx stale. Its flags
+# come after the launcher's own, so they override them; set -f keeps them from globbing.
 build_dx() {
-  # shellcheck disable=SC2086 # rc and gc are option lists that must split
-  (cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2)
+  # shellcheck disable=SC2086 # rc, gc and DX_LAUNCHER_BAZEL_FLAGS are option lists that must split
+  (set -f && cd "$root" && bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info ${DX_LAUNCHER_BAZEL_FLAGS-} //cli/cli:dx >&2)
 }
 # A plain query follows every select() branch and fetches repos only other platforms use, like the MinGW runtime.
 # cquery keeps to the main repo targets this host builds; the query adds their BUILD and .bzl files. Its only warning
@@ -357,10 +456,10 @@ build_dx() {
 query_inputs() {
   # shellcheck disable=SC2086,SC2016 # rc is an option list that must split; $s is a query variable, not shell
   # Each attempt truncates the files, so a retry never keeps a crashed attempt's partial output.
-  (cd "$root" && echo 'let s = set(//:dx' >"$state/deps.$$" &&
-    bazel $rc cquery --noshow_progress --ui_event_filters=-info --output=starlark "--starlark:expr=repr('//' + target.label.package + ':' + target.label.name) if target.label.repo_name == '' else ''" 'deps(//:dx)' >>"$state/deps.$$" &&
+  (set -f && cd "$root" && echo 'let s = set(//cli/cli:dx' >"$state/deps.$$" &&
+    bazel $rc cquery --noshow_progress --ui_event_filters=-info ${DX_LAUNCHER_BAZEL_FLAGS-} --output=starlark "--starlark:expr=repr('//' + target.label.package + ':' + target.label.name) if target.label.repo_name == '' else ''" 'deps(//cli/cli:dx)' >>"$state/deps.$$" &&
     echo ') in kind("source file", $s) + buildfiles($s)' >>"$state/deps.$$" &&
-    bazel $rc query --noshow_progress --ui_event_filters=-info,-warning --query_file="${state#"$root"/}/deps.$$" >"$state/query.$$")
+    bazel $rc query --noshow_progress --ui_event_filters=-info,-warning ${DX_LAUNCHER_BAZEL_FLAGS-} --query_file="${state#"$root"/}/deps.$$" >"$state/query.$$")
 }
 # True for `update --apply [dx_crates]` without --frozen or --offline: the only launches that may repin.
 wants_cargo_repin() {
@@ -405,7 +504,7 @@ if stale; then
   dc=
   gc=
   found=
-  cache=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+  cache=$(user_cache)
   cache=${cache:-${LOCALAPPDATA:-}}
   home=${HOME:-${USERPROFILE:-}}
   sysrc=/etc/bazel.bazelrc
@@ -417,16 +516,16 @@ if stale; then
     # Keep in sync with DISK_CACHE_GC_MAX_SIZE and DISK_CACHE_GC_MAX_AGE in cli/process/src/rc.rs.
     [ "${found:-}" = gc ] || gc="--experimental_disk_cache_gc_max_size=20G --experimental_disk_cache_gc_max_age=14d"
   fi
-  echo "dx: building //:dx" >&2
+  echo "dx: building //cli/cli:dx" >&2
   built=
   hint=
   if retry_crash build_dx; then
     built=1
   elif wants_cargo_repin "$@"; then
-    echo "dx: //:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again" >&2
+    echo "dx: //cli/cli:dx does not build; repinning the Cargo lock (CARGO_BAZEL_REPIN=1) and building it again" >&2
     # Keep in sync with the SetId::Cargo plan env in cli/update/src/backend.rs.
-    # shellcheck disable=SC2086 # rc and gc are option lists that must split
-    if (cd "$root" && CARGO_BAZEL_REPIN=1 bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info //:dx >&2); then
+    # shellcheck disable=SC2086 # rc, gc and DX_LAUNCHER_BAZEL_FLAGS are option lists that must split
+    if (set -f && cd "$root" && CARGO_BAZEL_REPIN=1 bazel $rc build ${dc:+"$dc"} $gc --curses=no --show_progress_rate_limit=30 --progress_report_interval=30 --show_result=0 --ui_event_filters=-info ${DX_LAUNCHER_BAZEL_FLAGS-} //cli/cli:dx >&2); then
       built=1
     fi
   else
@@ -436,13 +535,16 @@ if stale; then
     [ -z "$hint" ] || echo "dx: if a Cargo.toml dependency changed, run tools/dx update --apply dx_crates to repin" >&2
     if [ -x "$state/dx$exe" ]; then
       rm -f "$state/built.$$"
-      echo "dx: //:dx does not build; running the previous dx" >&2
+      echo "dx: //cli/cli:dx does not build; running the previous dx" >&2
       exec "$state/dx$exe" "$@"
     fi
-    # A proxy that blocks the module registry fails the first build; name the host, not only Bazel's fetch error.
+    # A proxy that blocks Bazel's download or the module registry fails the first build; name the host, not only
+    # the fetch error.
+    bazel_reachable ||
+      die "cannot download Bazel from $bz_base_host for Bazelisk; allow it in the network settings or set BAZELISK_BASE_URL"
     reachable https://bcr.bazel.build/bazel_registry.json ||
       die "cannot reach bcr.bazel.build, the Bazel module registry; allow it in the network settings"
-    die "bazel build //:dx failed"
+    die "bazel build //cli/cli:dx failed"
   fi
   sync_copy || true
   if retry_crash query_inputs; then
@@ -458,7 +560,7 @@ if stale; then
     mv "$state/built.$$" "$state/built"
   else
     # The fresh dx is already stored. Leave built alone so the next call rebuilds and queries again.
-    echo "dx: bazel query for the inputs of //:dx failed; running the fresh dx anyway" >&2
+    echo "dx: bazel query for the inputs of //cli/cli:dx failed; running the fresh dx anyway" >&2
     rm -f "$state/built.$$" "$state/inputs.$$" "$state/query.$$" "$state/deps.$$"
   fi
 fi

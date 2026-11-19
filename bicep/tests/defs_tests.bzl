@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//bicep/private:providers.bzl", "BicepInfo")
 load("//bicep/private:registry.bzl", "blob_url", "cache_directory", "fetch_failure", "is_digest", "manifest_url", "module_layer")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core:owns_class_test.bzl", "owns_class_test")
 
 owns_bicep_class_test = owns_class_test("bicep", ["app.bicep"])

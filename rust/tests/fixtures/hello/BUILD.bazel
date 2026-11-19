@@ -199,6 +199,7 @@ rust_test(
     crate = ":hello_lib",
     deps = all_crate_deps(
         normal = True,
+        normal_dev = True,
         package_name = "rust/tests/fixtures/hello",
     ),
 )
@@ -223,6 +224,7 @@ rust_test(
     data = ["@rules_dx//cc/tests/fixtures/hello"],
     deps = all_crate_deps(
         normal = True,
+        normal_dev = True,
         package_name = "rust/tests/fixtures/hello",
     ),
 )
@@ -317,6 +319,7 @@ rust_test(
 
 rust_shard_runner_tests(
     name = "shard_runner_test",
+    size = "small",
     sharded = ":sharded_test",
     unsharded = ":default-name-test",
 )

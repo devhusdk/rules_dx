@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use serde::{Deserialize, Serialize};
 
 pub const ENVELOPE_VERSION: u32 = 1;
@@ -27,6 +29,8 @@ pub enum EnvelopeError {
     EmptyOperations,
     #[error("envelope operation has empty path")]
     EmptyPath,
+    #[error("envelope repeats path: {path}")]
+    DuplicatePath { path: String },
     #[error("envelope is not serializable: {0}")]
     Unserializable(String),
     #[error("invalid digest: {path}")]
@@ -44,7 +48,13 @@ pub fn parse_envelope(json: &str) -> Result<Envelope, EnvelopeError> {
     if envelope.operations.is_empty() {
         return Err(EnvelopeError::EmptyOperations);
     }
+    let mut seen = BTreeSet::new();
     for op in &envelope.operations {
+        if !seen.insert(op.path.as_str()) {
+            return Err(EnvelopeError::DuplicatePath {
+                path: op.path.clone(),
+            });
+        }
         if op.path.is_empty() {
             return Err(EnvelopeError::EmptyPath);
         }
@@ -161,5 +171,16 @@ mod tests {
     fn empty_path_fails() {
         let json = r#"{"version":1,"operations":[{"path":"","content":"x"}]}"#;
         assert_eq!(parse_envelope(json), Err(EnvelopeError::EmptyPath));
+    }
+
+    #[test]
+    fn duplicate_path_fails() {
+        let json = r#"{"version":1,"operations":[{"path":"a.txt","content":"x"},{"path":"a.txt","content":"y"}]}"#;
+        assert_eq!(
+            parse_envelope(json),
+            Err(EnvelopeError::DuplicatePath {
+                path: "a.txt".to_owned()
+            })
+        );
     }
 }

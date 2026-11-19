@@ -1,14 +1,12 @@
 //! No test goes over the size and time budget outside `tools/ci/test_budget_allowlist.txt`, and `tools/testing/nested_smoke.txt` lists every nested test.
 
-mod test_calls;
-
 use std::collections::{BTreeMap, BTreeSet};
 
+use dx_guard::allowlist::{self, Counts, differences};
+use dx_guard::snapshot::read_input;
+use dx_guard::starlark::{callee_name, is_true, parse, string};
+use dx_guard::test_calls::{Callees, is_test, test_callees};
 use starlark_syntax::syntax::ast::{ArgumentP, AssignTargetP, AstExpr, AstStmt, ExprP, StmtP};
-use test_calls::{
-    Callees, Counts, callee_name, differences, is_test, is_true, parse, parse_allowlist,
-    read_input, string, test_callees,
-};
 use yaml_serde as _;
 
 /// The kind of an allowlist line that lets a nested test take more than `NESTED_SECONDS` cold.
@@ -240,7 +238,7 @@ impl Walker<'_> {
             expr.visit_expr(|child| self.expr(child));
             return;
         };
-        let name = callee_name(callee);
+        let name = callee_name(callee).to_owned();
         self.scan.callees.call(self.def.as_deref(), &name);
         let mut call = Call {
             def: self.def.clone(),
@@ -288,7 +286,7 @@ impl Walker<'_> {
 
 /// Parses one BUILD or .bzl file.
 fn scan_file(path: &str, source: &str) -> FileScan {
-    let ast = parse(path, source);
+    let ast = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     let mut scan = FileScan::default();
     Walker {
         scan: &mut scan,
@@ -631,7 +629,7 @@ fn the_tree_matches_the_allowlist_and_the_nested_list() {
         "only {} BUILD and .bzl files in the sources snapshot",
         files.len()
     );
-    let (allowed, mut problems) = parse_allowlist(&read_input("TEST_BUDGET_ALLOWLIST"), &KINDS);
+    let (allowed, mut problems) = allowlist::parse(&read_input("TEST_BUDGET_ALLOWLIST"), &KINDS);
     let (allowed, over, split) = split_nested(allowed);
     problems.extend(split);
     problems.extend(differences(&budget(&files), &allowed, FIX));
@@ -726,15 +724,15 @@ fn the_allowlist_rejects_new_hits_and_spare_lines() {
     assert_eq!(
         differences(&found, &allowed, FIX),
         [
-            "a/BUILD.bazel: 3 `size-large` on tests, 2 allowed; make the test small",
-            "b/BUILD.bazel: 1 `flaky` left; lower the allowlist count from 2",
-            "c/BUILD.bazel: no `no-size` left; delete the allowlist line",
+            "a/BUILD.bazel size-large 3: 2 allowed; make the test small",
+            "b/BUILD.bazel flaky 2: 1 left; lower the allowlist count",
+            "c/BUILD.bazel no-size 1: none left; delete the allowlist line",
         ],
     );
     assert_eq!(differences(&found, &found, FIX), Vec::<String>::new());
     for kind in KINDS {
         let line = format!("a/BUILD.bazel {kind} 1\n");
-        assert_eq!(parse_allowlist(&line, &KINDS).1, Vec::<String>::new());
+        assert_eq!(allowlist::parse(&line, &KINDS).1, Vec::<String>::new());
     }
     for bad in [
         "a/BUILD.bazel size-small 1\n",
@@ -742,7 +740,7 @@ fn the_allowlist_rejects_new_hits_and_spare_lines() {
         "a/BUILD.bazel flaky\n",
         "b/BUILD.bazel flaky 1\na/BUILD.bazel flaky 1\n",
     ] {
-        assert!(!parse_allowlist(bad, &KINDS).1.is_empty(), "{bad:?}");
+        assert!(!allowlist::parse(bad, &KINDS).1.is_empty(), "{bad:?}");
     }
 }
 

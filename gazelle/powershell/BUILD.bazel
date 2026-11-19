@@ -25,7 +25,9 @@ go_library(
         "@com_github_odvcencio_gotreesitter//grammars/powershell",
         "@gazelle//config",
         "@gazelle//language",
+        "@gazelle//repo",
         "@gazelle//resolve",
+        "@gazelle//v2/label",
         "@gazelle//v2/rule",
     ],
 )

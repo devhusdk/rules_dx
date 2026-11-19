@@ -4,28 +4,23 @@
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::path::Path;
+use std::sync::LazyLock;
 
 /// The `use_extension` line that binds the `dx_licenses` extension.
 pub const LICENSE_EXTENSION_LINE: &str =
     "dx_licenses = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")";
 
-/// `core/license.bzl`, the one source of each license's terms hash.
-const LICENSE_BZL: &str = include_str!("../../../core/license.bzl");
+/// `core/licenses/pins.json`, the one source of each license's terms hash.
+const LICENSE_TERMS: &str = include_str!("../../../core/licenses/pins.json");
 
-/// The `terms_sha256` that `core/license.bzl` pins for `id`: the `NAME = "<id>"` constant,
-/// then the `NAME: struct(url = ..., terms_sha256 = "<hash>")` entry of `LICENSES`.
+/// The decoded `LICENSE_TERMS`, an object from license id to its `url` and `terms_sha256`.
+static TERMS: LazyLock<serde_json::Value> =
+    LazyLock::new(|| serde_json::from_str(LICENSE_TERMS).unwrap_or_default());
+
+/// The `terms_sha256` that `core/licenses/pins.json` pins for `id`.
 #[must_use]
 pub fn terms_sha256(id: &str) -> Option<&'static str> {
-    let quoted_id = format!(" = \"{id}\"");
-    let constant = LICENSE_BZL
-        .lines()
-        .find_map(|line| line.strip_suffix(quoted_id.as_str()))?;
-    let entry = format!("{constant}: struct(");
-    let line = LICENSE_BZL
-        .lines()
-        .find_map(|line| line.trim_start().strip_prefix(entry.as_str()))?;
-    let (_, rest) = line.split_once("terms_sha256 = \"")?;
-    rest.split_once('"').map(|(hash, _)| hash)
+    TERMS.get(id)?.get("terms_sha256")?.as_str()
 }
 
 /// Whether `word` is a sha256 hex digest, the value side of a `terms_sha256` entry.
@@ -75,13 +70,34 @@ pub fn needed_licenses(root: &Path, platform: &str) -> BTreeSet<NeededLicense> {
         .collect()
 }
 
+/// A scan over Starlark string literals: `"` or `'` opens one, the same quote closes it, and a
+/// backslash escapes the next character, so `'it"s'` and `"it's"` each read as one string.
+#[derive(Clone, Copy, Default)]
+struct Strings {
+    open: Option<char>,
+    escaped: bool,
+}
+
+impl Strings {
+    /// Reads `ch` and tells whether it is code, outside every string and its quotes.
+    fn code(&mut self, ch: char) -> bool {
+        match self.open {
+            Some(_) if self.escaped => self.escaped = false,
+            Some(_) if ch == '\\' => self.escaped = true,
+            Some(quote) if ch == quote => self.open = None,
+            Some(_) => {}
+            None if ch == '"' || ch == '\'' => self.open = Some(ch),
+            None => return true,
+        }
+        false
+    }
+}
+
 fn strip_comment(line: &str) -> &str {
-    let mut quoted = false;
+    let mut strings = Strings::default();
     for (index, ch) in line.char_indices() {
-        match ch {
-            '"' => quoted = !quoted,
-            '#' if !quoted => return line.get(..index).unwrap_or(line),
-            _ => {}
+        if strings.code(ch) && ch == '#' {
+            return line.get(..index).unwrap_or(line);
         }
     }
     line
@@ -105,12 +121,28 @@ fn call_body(text: &str) -> &str {
     text
 }
 
+/// The string literals in `text`, single- or double-quoted, each escape kept as the bare escaped
+/// character.
 fn quoted(text: &str) -> Vec<String> {
-    text.split('"')
-        .skip(1)
-        .step_by(2)
-        .map(str::to_owned)
-        .collect()
+    let mut found = Vec::new();
+    let mut strings = Strings::default();
+    let mut current: Option<String> = None;
+    for ch in text.chars() {
+        let was_open = strings.open.is_some();
+        let escaping = strings.escaped;
+        strings.code(ch);
+        match (was_open, strings.open.is_some()) {
+            (false, true) => current = Some(String::new()),
+            (true, false) => found.extend(current.take()),
+            (true, true) if escaping || ch != '\\' => {
+                if let Some(value) = current.as_mut() {
+                    value.push(ch);
+                }
+            }
+            _ => {}
+        }
+    }
+    found
 }
 
 /// The names bound to the `dx_licenses` extension by `use_extension`.
@@ -216,11 +248,37 @@ mod tests {
     }
 
     #[test]
+    fn single_quoted_strings_bind_and_accept() {
+        let module = "lic = use_extension('@rules_dx//core:extensions.bzl', 'dx_licenses')\nlic.accept(ids = ['cuda-eula'])  # it's \"gpu\"\n# lic.accept(ids = ['android-sdk-license'])\n";
+        assert_eq!(accepted_license_ids(module), set(&["cuda-eula"]));
+        assert_eq!(
+            render_license_accept(module, &set(&["a"])),
+            "lic.accept(ids = [\"a\"])\n"
+        );
+    }
+
+    #[test]
+    fn quoted_reads_escapes_and_the_other_quote() {
+        assert_eq!(
+            quoted(r#"'a"b', "c'd", 'e\'f', "g\\""#),
+            ["a\"b", "c'd", "e'f", "g\\"]
+        );
+        assert_eq!(strip_comment(r#"x = 'a#b' # c"#), "x = 'a#b' ");
+    }
+
+    #[test]
     fn every_known_id_has_a_terms_hash() {
         for id in known_license_ids() {
             assert!(terms_sha256(&id).is_some_and(is_sha256), "{id}");
         }
         assert_eq!(terms_sha256("nope"), None);
+        let pinned: BTreeSet<String> = TERMS
+            .as_object()
+            .expect("core/licenses/pins.json is an object")
+            .keys()
+            .cloned()
+            .collect();
+        assert_eq!(pinned, known_license_ids());
     }
 
     #[test]

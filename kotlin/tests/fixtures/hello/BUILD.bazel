@@ -6,11 +6,14 @@ load("@rules_dx//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_te
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load("@rules_dx//tools/testing/conformance:defs.bzl", "dx_coverage_test")
 load("@rules_kotlin//kotlin:core.bzl", "kt_kotlinc_options")
+load(":toolchain_tests.bzl", "kotlin_report_unused_deps_off_test")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
+
+exports_files(["toolchain_tests.bzl"])
 
 kotlin_library(
     name = "hello_lib",
@@ -75,6 +78,8 @@ kotlin_test(
     ],
 )
 
+kotlin_report_unused_deps_off_test(name = "report_unused_deps_off_test")
+
 dx_hello_output_test(
     name = "hello_output_test",
     binary = ":hello",
@@ -84,6 +89,9 @@ dx_hello_output_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "toolchain_tests.bzl",
+    ],
     tags = ["corpus"],
 )

@@ -134,7 +134,7 @@ impl Rewrite {
             }
             Rewrite::Block => {
                 std::fs::remove_file(path).expect("remove capture");
-                std::fs::create_dir(path).expect("capture directory");
+                std::fs::create_dir_all(path).expect("capture directory");
             }
             Rewrite::Bytes(payload) => {
                 std::fs::write(path, payload).expect("rewrite capture");
@@ -1841,7 +1841,7 @@ fn umbrella_report_write_failure_fails() {
 #[test]
 fn umbrella_report_into_a_directory_ends_with_one_finished() {
     let harness = umbrella_clean("umbrella-report-dir");
-    std::fs::create_dir(harness.workspace.join("out.sarif")).expect("directory");
+    std::fs::create_dir_all(harness.workspace.join("out.sarif")).expect("directory");
     let (code, out, _) = harness.run(&["check", "--output=json", "--report=sarif=out.sarif"]);
     assert_eq!(code, 1, "{out}");
     let events = json_events(&out);
@@ -3378,6 +3378,30 @@ fn pkg_harness(name: &str) -> Harness {
     harness.write_source("pkg/BUILD.bazel", "");
     harness.write_source("pkg/a.py", "x = 1\n");
     harness
+}
+
+#[test]
+fn fix_apply_on_a_file_writes_no_other_file() {
+    let mut harness = pkg_harness("umbrella-apply-file-scope");
+    harness.write_source("other/BUILD.bazel", "abc\n");
+    let files = [
+        intended_modify("other/BUILD.bazel", b"abc\n", b"xyz\n"),
+        intended_modify("pkg/BUILD.bazel", b"", b"py_library()\n"),
+    ];
+    harness.intended = Some(intended_witness("check", true, &files.join(","), ""));
+    harness
+        .query
+        .script_graph(&[graph_rule("//pkg:lib", &["//pkg:a.py"], &[])]);
+    let (code, out, err) = harness.run(&["check", "--apply", "--output=text", "pkg/a.py"]);
+    let read = |path: &str| std::fs::read_to_string(harness.workspace.join(path)).expect("read");
+    assert_eq!(read("other/BUILD.bazel"), "abc\n", "{out}{err}");
+    assert_eq!(read("pkg/BUILD.bazel"), "py_library()\n", "{out}{err}");
+    assert_eq!(read("pkg/a.py"), "x = 1\n", "{out}{err}");
+    assert_ne!(code, 0, "the unwritten change is reported: {out}{err}");
+    assert!(
+        format!("{out}{err}").contains("other/BUILD.bazel"),
+        "{out}{err}"
+    );
 }
 
 #[test]

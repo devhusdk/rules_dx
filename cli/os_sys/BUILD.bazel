@@ -76,13 +76,12 @@ rust_test(
         package_name = "cli/dx_os_sys",
         normal = True,
         normal_dev = True,
-    ) + [
-        "//cli/test_scratch:dx_test_scratch",
-    ],
+    ) + ["//cli/test_scratch:dx_test_scratch"],
 )
 
 rust_test_srcs_split_tests(
     name = "test_srcs_split_test",
+    size = "small",
     lib = ":dx_os_sys",
     test = ":dx_os_sys_test",
     test_src = "cli/os_sys/src/lib_tests.rs",

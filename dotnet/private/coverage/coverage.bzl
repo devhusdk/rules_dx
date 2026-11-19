@@ -50,7 +50,7 @@ def dx_dotnet_coverage_attrs():
             cfg = "target",
         ),
         "_dx_coverlet_launcher": attr.label(
-            default = Label("//dotnet/private/coverage:coverlet_launcher"),
+            default = Label("@dx_prebuilt//:runtime"),
             executable = True,
             cfg = no_coverage_transition,
         ),
@@ -93,6 +93,7 @@ def dx_dotnet_test_coverage(ctx, upstream):
         env.update(upstream[RunEnvironmentInfo].environment)
         inherited = upstream[RunEnvironmentInfo].inherited_environment
     env["DX_COVERLET_CONFIG"] = rlocation_path(ctx, config)
+    env["DX_RUNTIME_TOOL"] = "coverlet"
     runfiles = ctx.runfiles(
         files = [config, upstream_exe, coverlet.files_to_run.executable] + assemblies + pdbs,
         transitive_files = instrumented.instrumented_files,

@@ -218,18 +218,15 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
         return code;
     }
     for error in &found.errors {
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "dx: {CODE_UPDATE_OUTDATED_LOOKUP}: {}:{} ({})",
-            error.set, error.package, error.reason
-        )
-        .ok();
+            format_args!(
+                "dx: {CODE_UPDATE_OUTDATED_LOOKUP}: {}:{} ({})\n",
+                error.set, error.package, error.reason
+            ),
+        );
     }
     exit
-}
-
-fn first_lock(ecosystem: Ecosystem) -> &'static str {
-    ecosystem.lockfiles().first().map_or("", String::as_str)
 }
 
 const BAZEL_TIMEOUT: Duration = Duration::from_mins(30);
@@ -583,7 +580,7 @@ fn collect_cabal(acc: &mut Acc, cx: &Ctx<'_>) {
         .set
         .locks
         .iter()
-        .filter(|lock| lock.ends_with(first_lock(Ecosystem::Cabal)))
+        .filter(|lock| lock.ends_with(Ecosystem::Cabal.lockfile()))
         .cloned()
         .collect();
     if freezes.is_empty() {
@@ -682,7 +679,7 @@ fn collect_julia(acc: &mut Acc, cx: &Ctx<'_>) {
         .set
         .locks
         .iter()
-        .filter(|lock| lock.ends_with(first_lock(Ecosystem::Julia)))
+        .filter(|lock| lock.ends_with(Ecosystem::Julia.lockfile()))
         .cloned()
         .collect();
     merge(
@@ -979,7 +976,9 @@ fn write_bcr_newest(workspace: &Path, fetch: &dyn Fetch, found: &mut Findings) {
     };
     match bcr::newest_snapshot(&module, bcr::DEFAULT_BASE, fetch) {
         Ok(snapshot) => {
-            if let Err(error) = std::fs::write(workspace.join(BCR_NEWEST_FILE), snapshot) {
+            if let Err(error) =
+                dx_atomic_fs::write_atomic(&workspace.join(BCR_NEWEST_FILE), snapshot.as_bytes())
+            {
                 fail(format!("cannot write {BCR_NEWEST_FILE}: {error}"));
             }
         }
@@ -1173,7 +1172,7 @@ impl Fetch for DirFetch {
         let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
         std::fs::read(self.0.join(rest))
             .map(|bytes| dx_digest::sha256_hex(&bytes))
-            .map_err(|_| DxError::failure("HTTP 404"))
+            .map_err(|error| fixture_error(url, &error))
     }
 
     fn digest(&self, url: &str) -> Result<String, DxError> {
@@ -1183,7 +1182,16 @@ impl Fetch for DirFetch {
     fn get(&self, url: &str) -> Result<String, DxError> {
         let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
         let path: &Path = &self.0.join(rest);
-        std::fs::read_to_string(path).map_err(|_| DxError::failure("HTTP 404"))
+        std::fs::read_to_string(path).map_err(|error| fixture_error(url, &error))
+    }
+}
+
+/// A missing fixture file answers like a registry 404.
+fn fixture_error(url: &str, error: &std::io::Error) -> DxError {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        DxError::failure("HTTP 404")
+    } else {
+        DxError::from_io(format!("cannot read the registry fixture for {url}"), error)
     }
 }
 
@@ -1285,7 +1293,7 @@ fn stack_lock_errors(set: &str, locks: &[String]) -> Vec<dx_update::discover::Lo
             package: lock.clone(),
             reason: format!(
                 "dx does not run stack; pin the {lock} versions in the project file and run the cabal lock step to write {}",
-                first_lock(Ecosystem::Cabal)
+                Ecosystem::Cabal.lockfile()
             ),
         })
         .collect()
@@ -1342,7 +1350,7 @@ mod tests {
     fn stack_lock_without_freeze_is_refused() {
         let locks = vec![
             "app/stack.yaml.lock".to_owned(),
-            first_lock(Ecosystem::Cabal).to_owned(),
+            Ecosystem::Cabal.lockfile().to_owned(),
         ];
         let errors = stack_lock_errors("hackage", &locks);
         assert_eq!(errors.len(), 1);
@@ -1473,7 +1481,7 @@ mod tests {
             fetch.get("https://index.crates.io/3/o/none"),
             Err(DxError::failure("HTTP 404"))
         );
-        drop(std::fs::remove_dir_all(dir));
+        dx_atomic_fs::discard_dir(dir);
     }
 
     #[test]
@@ -1486,7 +1494,7 @@ mod tests {
             fetch.get("https://registry.npmjs.org/@scope/pkg"),
             Ok("{}".into())
         );
-        drop(std::fs::remove_dir_all(dir));
+        dx_atomic_fs::discard_dir(dir);
     }
 
     #[test]
@@ -1504,7 +1512,7 @@ mod tests {
     #[test]
     fn download_sha256_reads_the_file_a_dir_fetch_serves() {
         let dir = std::env::temp_dir().join(format!("dx-pins-dl-{}", std::process::id()));
-        drop(std::fs::remove_dir_all(&dir));
+        dx_atomic_fs::discard_dir(&dir);
         std::fs::create_dir_all(dir.join("host/p")).unwrap();
         std::fs::write(dir.join("host/p/f.tgz"), b"abc").unwrap();
         let fetch = DirFetch(dir.clone());
@@ -1513,7 +1521,7 @@ mod tests {
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
         assert!(fetch.download_sha256("https://host/p/none.tgz").is_err());
-        drop(std::fs::remove_dir_all(dir));
+        dx_atomic_fs::discard_dir(dir);
     }
 
     #[test]
@@ -1608,7 +1616,7 @@ mod tests {
         assert!(builtins.selects_all_containers() && rest.is_empty());
         let fetch = DirFetch(root.join("mirror"));
         let collected = collect(&root, &[], &builtins, false, &fetch);
-        drop(std::fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
         let candidate = &collected.found.candidates[0];
         assert_eq!(candidate.set, "containers");
         assert_eq!(candidate.package, "distroless_static");
@@ -1640,7 +1648,7 @@ mod tests {
         assert!(builtins.bcr_newest && rest.is_empty());
         let collected = collect(&root, &[], &builtins, false, &DirFetch(root.join("mirror")));
         let written = std::fs::read_to_string(root.join(BCR_NEWEST_FILE));
-        drop(std::fs::remove_dir_all(&root));
+        dx_atomic_fs::discard_dir(&root);
         assert!(
             collected.found.errors.is_empty(),
             "{:?}",
@@ -1679,7 +1687,7 @@ mod tests {
             fetch.get("https://api.github.com/repos/o/r/releases/latest"),
             Ok("{}".into())
         );
-        drop(std::fs::remove_dir_all(dir));
+        dx_atomic_fs::discard_dir(dir);
     }
 
     #[test]

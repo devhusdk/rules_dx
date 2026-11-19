@@ -4,6 +4,12 @@ load("//core/quality:compile_check.bzl", "compile_check_aspect", "compile_check_
 load("//core/quality:real_core.bzl", "real_config", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
+    "dscanner": {
+        "attr": attr.label(default = "//d/private:dscanner", allow_single_file = True, cfg = "exec"),
+        "kind": "file",
+        "resources": "light",
+        "shard": "d",
+    },
     "ldc": {
         "kind": "upstream",
         "resources": "heavy",
@@ -25,7 +31,7 @@ SHARD_SPECS = {
     },
     "real_d_lint": {
         "capability": "lint",
-        "doc": "Additive D lint family aspect (typos).",
+        "doc": "Additive D lint family aspect (dscanner, typos).",
         "shard": "d",
     },
 }

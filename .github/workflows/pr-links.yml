@@ -1,0 +1,62 @@
+name: pr-links
+
+# A pull request body links the issues it works on: a `Closes #N` or `Part of #N` line,
+# or a `No issue: <reason>` line. It also runs on edits, so fixing the body turns it green.
+# In a merge group it checks the body of the pull request named in the queue ref.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-links-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pr-links:
+    name: pr-links
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      BAZEL_CONFIG: ${{ secrets.BUILDBUDDY_API_KEY != '' && '--config=ci' || '' }}
+      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Check the issue links in the body and commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REF: ${{ github.event.merge_group.head_ref }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == merge_group ]]; then
+            if [[ "$HEAD_REF" =~ ^gh-readonly-queue/.+/pr-([0-9]+)-[0-9a-f]{40}$ ]]; then
+              PR="${BASH_REMATCH[1]}"
+            else
+              echo "::error::merge group head ref '$HEAD_REF' names no pull request"
+              exit 1
+            fi
+          fi
+          commits="$RUNNER_TEMP/pr-links/commits.txt"
+          event="$RUNNER_TEMP/pr-links/event.json"
+          mkdir -p "${commits%/*}"
+          gh api "repos/$GH_REPO/pulls/$PR" --jq '{pull_request: {body: .body}}' > "$event"
+          gh api "repos/$GH_REPO/pulls/$PR/commits" --paginate --jq '.[].commit.message' > "$commits"
+          # shellcheck disable=SC2086
+          bazel build --noshow_progress $BAZEL_CONFIG $BB_ARGS //tools/ci/producers:producers_bin
+          # shellcheck disable=SC2086
+          GITHUB_EVENT_PATH="$event" "$(bazel info $BAZEL_CONFIG $BB_ARGS bazel-bin)/tools/ci/producers/producers_bin" --pr-links "$commits"

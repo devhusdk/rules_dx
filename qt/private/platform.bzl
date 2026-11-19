@@ -1,11 +1,11 @@
 """The Qt platform an executable or bundle builds for."""
 
 load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
+load("//core:platform.bzl", "platforms_transition")
 load("//qt/private/toolchain:pins.bzl", "CELLS")
 load("//qt/private/toolchain:repos.bzl", "qualified_cells")
 
 _COMPILER = str(Label("//cc:compiler"))
-_PLATFORMS = "//command_line_option:platforms"
 
 _HOST_PLATFORMS = [
     str(Label("@bazel_tools//tools:host_platform")),
@@ -57,23 +57,16 @@ def qt_platform_settings(settings, platforms):
     compiler = _PLATFORM_COMPILERS.get(platforms[0], "") if platforms else ""
     return {_COMPILER: compiler or settings[_COMPILER]}
 
-def _platform_transition_impl(settings, attr):
-    platforms = qt_platforms(attr, settings[_PLATFORMS])
-    if len(platforms) > 1:
-        fail("qt: platforms takes exactly one platform label, got " + str(len(platforms)))
-    out = qt_platform_settings(settings, platforms)
-    out[_PLATFORMS] = platforms or settings[_PLATFORMS]
-    return out
-
-QT_PLATFORM_TRANSITION = transition(
-    implementation = _platform_transition_impl,
-    inputs = [_PLATFORMS, _COMPILER],
-    outputs = [_PLATFORMS, _COMPILER],
+QT_PLATFORM_TRANSITION = platforms_transition(
+    implementation = lambda settings, _attr, platforms: qt_platform_settings(settings, platforms),
+    inputs = [_COMPILER],
+    outputs = [_COMPILER],
+    platforms = qt_platforms,
+    single = "qt",
 )
 
 QT_PLATFORMS_ATTR = {
-    "platforms": attr.label_list(
-        doc = "Platform to build for. Defaults to the Qt platform of the host on a host build, else the current target platform.",
-        providers = [platform_common.PlatformInfo],
+    "platforms": attr.string_list(
+        doc = "Platform label to build for. Defaults to the Qt platform of the host on a host build, else the current target platform.",
     ),
 }

@@ -313,3 +313,76 @@ fn resolve_error_kinds_map_to_dx_error_kinds() {
     });
     assert_eq!(infra.kind(), dx_error::ErrorKind::Infra);
 }
+
+#[test]
+fn labels_reject_a_leading_dash_and_control_characters() {
+    assert!(validate_label("--output=build").is_err());
+    assert!(validate_label("-k").is_err());
+    assert!(validate_label("//pkg:tool\0").is_err());
+    assert!(validate_label("//pkg:to\u{7}ol").is_err());
+    assert!(validate_label("@repo//pkg:tool").is_ok());
+}
+
+#[test]
+fn resolve_refuses_artifact_paths_that_leave_the_root() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let root = dir.path().join("root");
+    std::fs::create_dir_all(&root).expect("root");
+    std::fs::write(dir.path().join("secret"), "x").expect("fixture");
+    let outside = dir.path().join("secret").display().to_string();
+    let root = root.display().to_string();
+    for rel in [
+        "../secret",
+        "bazel-out/../../secret",
+        outside.as_str(),
+        "C:/Windows/x.exe",
+    ] {
+        let fake = fake_with(&root, rel);
+        let fake = FakeBazel {
+            execution_root: root.clone(),
+            ..fake
+        };
+        assert!(resolve(&fake, "//pkg:tool", &[]).is_err(), "{rel}");
+    }
+}
+
+#[test]
+fn env_file_appends_start_a_new_line_after_an_unterminated_entry() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let env = dir.path().join("github_env");
+    std::fs::write(&env, "FIRST=1").expect("fixture");
+    append_env_file(&env, "SECOND=2\n").expect("append");
+    assert_eq!(
+        std::fs::read_to_string(&env).expect("read"),
+        "FIRST=1\nSECOND=2\n"
+    );
+}
+
+#[test]
+fn env_file_appends_reject_lines_that_are_not_exactly_one_line() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let env = dir.path().join("github_env");
+    for line in ["A=1\nB=2\n", "A=1", "", "A=1\r\n"] {
+        assert!(append_env_file(&env, line).is_err(), "{line:?}");
+    }
+    assert!(!env.exists());
+}
+
+#[test]
+fn env_lines_reject_nul_in_the_path() {
+    assert!(env_line("TOOL", Path::new("/base/to\0ol")).is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn env_lines_reject_paths_that_are_not_utf8() {
+    use std::os::unix::ffi::OsStrExt;
+    let path = Path::new(std::ffi::OsStr::from_bytes(b"/base/\xff/tool"));
+    assert!(env_line("TOOL", path).is_err());
+}
+
+#[test]
+fn failure_summaries_are_capped() {
+    let long = "x".repeat(100_000);
+    assert!(exit_detail(Some(1), long.as_bytes()).len() < 1_000);
+}

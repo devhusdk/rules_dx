@@ -57,6 +57,7 @@ julia_test(
 
 dx_hello_output_test(
     name = "cli_test",
+    size = "medium",
     binary = ":readings",
     condition_env = {
         ":four_digits": {
@@ -65,7 +66,6 @@ dx_hello_output_test(
         },
     },
     expected = "readings: 8\nmean: 12.72\nvariance: 19.16\nmedian: 12.12\nbucket 5.0: 3\nbucket 10.0: 3\nbucket 15.0: 1\nbucket 20.0: 1\narchive: ok",
-    size = "small",
 )
 
 # keep

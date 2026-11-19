@@ -8,6 +8,7 @@ exports_files([
     "README.md",
     "defs.bzl",
     "extensions.bzl",
+    "repositories.bzl",
     "lang.json",
     "pins.json",
 ])
@@ -106,6 +107,7 @@ real_source_target(
     name = "corpus_markdown",
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
+    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(
@@ -114,6 +116,13 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
+        "repositories.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
 )

@@ -1,4 +1,8 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -1151,7 +1155,10 @@ impl Drop for AclGroup {
 fn timeline(out: &Path, line: &str) {
     use std::io::Write;
     let logs = out.join("logs");
-    drop(std::fs::create_dir_all(&logs));
+    if let Err(err) = std::fs::create_dir_all(&logs) {
+        eprintln!("cannot create {}: {err}", logs.display());
+        return;
+    }
     if let Ok(mut file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -1174,8 +1181,14 @@ pub fn copy_latest_profile(output_base: &Path, dest: &Path) {
         })
         .filter_map(|entry| Some((entry.metadata().ok()?.modified().ok()?, entry.path())))
         .max_by_key(|(modified, _)| *modified);
-    if let Some((_, path)) = newest {
-        drop(std::fs::copy(path, dest));
+    if let Some((_, path)) = newest
+        && let Err(err) = std::fs::copy(&path, dest)
+    {
+        eprintln!(
+            "cannot copy {} to {}: {err}",
+            path.display(),
+            dest.display()
+        );
     }
 }
 
@@ -1304,7 +1317,9 @@ impl Session {
             return Vec::new();
         }
         let temp = self.root.join("tmp");
-        drop(std::fs::create_dir_all(&temp));
+        if let Err(err) = std::fs::create_dir_all(&temp) {
+            eprintln!("cannot create {}: {err}", temp.display());
+        }
         let mut env = vec![
             ("HOME".to_owned(), home.to_string_lossy().into_owned()),
             (
@@ -1646,7 +1661,7 @@ impl Session {
                 .join("\n");
             let module =
                 std::fs::read_to_string(self.workspace.join("MODULE.bazel")).unwrap_or_default();
-            let testlogs = copy_test_logs(
+            let testlogs = dx_testing::copy_test_logs(
                 &self.workspace.join("bazel-testlogs"),
                 &logs.join(name).join("testlogs"),
             );
@@ -1659,53 +1674,6 @@ impl Session {
         Ok(outcome)
     }
     // LCOV_EXCL_STOP - reason: end isolated qualification, issue: 1758, policy: docs/cli/commands/build-test-coverage.md
-}
-
-/// Copies every consumer `test.log` under `testlogs` to `dest`, keeping the
-/// relative layout, and returns the first 40 lines of each for the error text.
-#[must_use]
-pub fn copy_test_logs(testlogs: &Path, dest: &Path) -> String {
-    let mut found = Vec::new();
-    collect_test_logs(testlogs, &mut found);
-    found.sort();
-    let mut text = String::new();
-    for path in found {
-        let Ok(rel) = path.strip_prefix(testlogs) else {
-            continue;
-        };
-        let Ok(content) = std::fs::read(&path) else {
-            continue;
-        };
-        let target = dest.join(rel);
-        if let Some(parent) = target.parent() {
-            drop(std::fs::create_dir_all(parent));
-        }
-        drop(std::fs::write(&target, &content));
-        let content = String::from_utf8_lossy(&content);
-        let head: Vec<&str> = content.lines().take(40).collect();
-        write!(
-            text,
-            "\nconsumer test log {}:\n{}",
-            rel.display(),
-            head.join("\n")
-        )
-        .ok();
-    }
-    text
-}
-
-fn collect_test_logs(dir: &Path, found: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            collect_test_logs(&path, found);
-        } else if path.file_name().is_some_and(|name| name == "test.log") {
-            found.push(path);
-        }
-    }
 }
 
 /// Builds the cquery expression for the non-manual targets the patterns name.
@@ -2425,7 +2393,8 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
             source,
             "apple_support",
             &["toolchains_gate.patch", "xcode_absolute_tools.patch"],
-        )?;
+        )?
+        + &write_root_patch_override(workspace, source, "rules_swift", &[])?;
     // A floor search resolves candidate versions: DX_CONSUMER_OVERRIDES=module=version,...
     let module = match std::env::var(dx_floor::OVERRIDES_ENV) {
         Ok(spec) if !spec.trim().is_empty() => {

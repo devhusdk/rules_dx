@@ -43,10 +43,10 @@ fn labels(text: &str) -> Vec<String> {
 #[test]
 fn script_covers_the_ci_preflight_labels() {
     let script = constant(&read_runfiles(SCRIPT), "PREFLIGHT_TARGETS");
-    let preflight = job(CI, "preflight").unwrap();
-    let matrix = preflight["strategy"]["matrix"]["include"]
+    let quality = job(CI, "quality-matrix").unwrap();
+    let matrix = quality["strategy"]["matrix"]["include"]
         .as_array()
-        .expect("preflight matrix");
+        .expect("quality-matrix matrix");
     let linux = matrix
         .iter()
         .find(|cell| cell["platform"] == "linux_x86_64")
@@ -106,9 +106,9 @@ fn windows_arm64_set_or_blocklist_covers_ci_preflight() {
             wanted.extend(labels(run));
         }
     }
-    let matrix = job(CI, "preflight").unwrap()["strategy"]["matrix"]["include"]
+    let matrix = job(CI, "quality-matrix").unwrap()["strategy"]["matrix"]["include"]
         .as_array()
-        .expect("preflight matrix")
+        .expect("quality-matrix matrix")
         .clone();
     let cell = matrix
         .iter()
@@ -207,12 +207,18 @@ fn jobs_stay_inside_the_time_budget() {
     let step = affected_step();
     let step_minutes = step["timeout-minutes"].as_u64().expect("step timeout");
     // Checkout and Bazel setup run before the step.
-    assert!(step_minutes + 3 <= job_minutes, "step timeout {step_minutes}");
+    assert!(
+        step_minutes + 3 <= job_minutes,
+        "step timeout {step_minutes}"
+    );
     assert_eq!(step["shell"].as_str(), Some("bash"));
     let plan = plan_step();
     let plan_run = plan["run"].as_str().expect("run");
     assert!(plan_run.contains("BUILDBUDDY_API_KEY"), "fork skip missing");
-    assert!(plan_run.contains("echo \"shards=[]\""), "fork skip must run no shard");
+    assert!(
+        plan_run.contains("echo \"shards=[]\""),
+        "fork skip must run no shard"
+    );
     let run = step["run"].as_str().expect("run");
     assert!(run.contains("pipefail"), "pipefail missing");
     assert!(!run.contains("|grpc"), "retry must not match test output");
@@ -232,25 +238,33 @@ fn jobs_stay_inside_the_time_budget() {
 }
 
 #[test]
-fn affected_tests_build_dx_with_the_remote_cache() {
-    // tools/dx builds //:dx without the remote cache; on a fresh runner that ate
-    // more than six minutes of the budget before the first test.
+fn affected_tests_build_dx_through_the_launcher_with_the_remote_cache() {
     for (step, call) in [
-        (plan_step(), "\"$dx\" test --affected --since 'HEAD^1' --output=json"),
-        (affected_step(), "timeout \"$left\" \"$dx\" test \"${targets[@]}\""),
+        (
+            plan_step(),
+            "\"$dx\" test --affected --since 'HEAD^1' --output=json",
+        ),
+        (
+            affected_step(),
+            "timeout \"$left\" \"$dx\" test \"${targets[@]}\"",
+        ),
     ] {
         let run = step["run"].as_str().expect("run").to_owned();
-        let build = run
-            .find("bazel build --noshow_progress \"$@\" //:dx")
-            .expect("cached //:dx build");
         let config = run.find("set -- $BAZEL_CONFIG").expect("cache config");
-        assert!(config < build, "{run}");
+        let flags = run
+            .find("export DX_LAUNCHER_BAZEL_FLAGS=\"$*")
+            .expect("launcher flags");
+        let launcher = run.find("dx=\"$PWD/tools/dx\"").expect("launcher");
+        let version = run.find("\"$dx\" --version").expect("launcher build");
+        assert!(
+            config < flags && flags < launcher && launcher < version,
+            "{run}"
+        );
+        assert!(
+            !run.contains("bazel build --noshow_progress \"$@\" //:dx"),
+            "{run}"
+        );
         assert!(run.contains(call), "{run}");
-        let launcher = run
-            .lines()
-            .map(str::trim)
-            .find(|line| !line.starts_with('#') && line.contains("tools/dx "));
-        assert_eq!(launcher, None, "{run}");
     }
 }
 
@@ -322,7 +336,10 @@ fn affected_tests_do_not_wait_on_the_sets() {
     let affected = job(WORKFLOW, "affected").unwrap();
     assert_eq!(affected["needs"].as_str(), Some("affected-plan"));
     let plan = job(WORKFLOW, "affected-plan").unwrap();
-    assert!(plan.get("needs").is_none(), "the plan must not need analysis");
+    assert!(
+        plan.get("needs").is_none(),
+        "the plan must not need analysis"
+    );
     let condition = plan["if"].as_str().expect("if");
     assert!(
         condition.contains("github.event_name == 'pull_request'"),

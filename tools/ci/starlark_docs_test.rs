@@ -73,8 +73,6 @@ const PACKAGES: &[&str] = &[
     "julia/private",
     "julia/private/tools",
     "kotlin/private",
-    "kotlin/private/toolchain",
-    "kotlin/private/toolchain/impl",
     "kubernetes/private",
     "cli/exec_os",
     "core",

@@ -229,8 +229,10 @@ pub fn replace_version_comment(content: &str, pin: &UsesPin, tag: &str) -> Optio
 pub fn list_workflows(workspace: &std::path::Path) -> std::io::Result<Vec<String>> {
     let mut names: Vec<String> = std::fs::read_dir(workspace.join(WORKFLOW_DIR))?
         .filter_map(|entry| {
-            let name = entry.ok()?.file_name().to_string_lossy().into_owned();
-            workflow_file(&name).then(|| format!("{WORKFLOW_DIR}/{name}"))
+            let entry = entry.ok()?;
+            let name = entry.file_name().into_string().ok()?;
+            let is_file = std::fs::metadata(entry.path()).is_ok_and(|meta| meta.is_file());
+            (workflow_file(&name) && is_file).then(|| format!("{WORKFLOW_DIR}/{name}"))
         })
         .collect();
     names.sort();
@@ -345,8 +347,9 @@ pub fn resolve_sha_from_commit_response(text: &str) -> Result<String, GhaResolve
     if text.trim().is_empty() {
         return Err(GhaResolveError::Empty);
     }
-    let value: serde_json::Value =
-        serde_json::from_str(text).map_err(|_| GhaResolveError::InvalidJson)?;
+    let value: serde_json::Value = serde_json::from_str(text)
+        .ok()
+        .ok_or(GhaResolveError::InvalidJson)?;
     let object = value.as_object().ok_or(GhaResolveError::InvalidJson)?;
     match object.get("sha") {
         Some(serde_json::Value::String(sha)) => {
@@ -406,5 +409,31 @@ mod comment_tests {
                 "{text:?}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn list_workflows_keeps_only_utf8_files() {
+        let root = std::env::temp_dir().join(format!("dx-gha-list-{}", std::process::id()));
+        dx_atomic_fs::discard_dir(&root);
+        let dir = root.join(WORKFLOW_DIR);
+        std::fs::create_dir_all(dir.join("folder.yml")).unwrap();
+        std::fs::write(dir.join("ci.yml"), "name: ci\n").unwrap();
+        std::fs::write(dir.join("notes.txt"), "x").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStrExt;
+            let odd = dir.join(std::ffi::OsStr::from_bytes(b"bad\xff.yml"));
+            std::fs::write(odd, "name: odd\n").unwrap();
+        }
+        assert_eq!(
+            list_workflows(&root).unwrap(),
+            vec![".github/workflows/ci.yml".to_owned()]
+        );
+        std::fs::remove_dir_all(&root).unwrap();
     }
 }

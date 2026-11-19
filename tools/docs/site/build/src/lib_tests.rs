@@ -293,7 +293,7 @@ fn an_api_tree_routes_every_page_under_api() {
         pages_error(&with_manifest),
         "docs_site: route 'api/rust/demo/add.md' is declared twice"
     );
-    let _ = write(&dir, "tree/rust/demo/bad name.md", "# bad\n");
+    let _: String = write(&dir, "tree/rust/demo/bad name.md", "# bad\n");
     let bad = api_pages(&dir.join("tree")).expect("pages");
     assert_eq!(
         pages_error(&bad),
@@ -317,7 +317,7 @@ fn run_rejects_an_api_page_that_collides_with_a_manifest_route() {
         "pages.tsv",
         &format!("api/rust/demo/add.md\t{page_path}\n"),
     );
-    let _ = write(&dir, "tree/rust/demo/add.md", "# add\n");
+    let _: String = write(&dir, "tree/rust/demo/add.md", "# add\n");
     let options = Options {
         mdbook: "mdbook".to_string(),
         book: write(&dir, "book.toml", "[book]\n"),

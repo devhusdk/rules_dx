@@ -16,4 +16,10 @@ real_source_target(
         "extensions.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
 )

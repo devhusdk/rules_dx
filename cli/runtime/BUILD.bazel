@@ -1,0 +1,38 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_binary(
+    name = "dx_runtime",
+    srcs = ["src/main.rs"],
+    crate_name = "dx_runtime",
+    deps = [
+        "//android/private/packaging/ops",
+        "//cli/fuzz_run:dx_fuzz_run",
+        "//cli/hpc_coverage:dx_hpc_coverage",
+        "//d/private/tools/coverage:dx_d_coverage",
+        "//dotnet/private/coverage:dx_coverlet",
+        "//php/private/coverage:dx_php_coverage",
+        "//rego/private/launcher:dx_opa_test",
+        "//rust/private/tools/bench_report:dx_bench_report",
+    ],
+)
+
+rust_test(
+    name = "dx_runtime_test",
+    size = "small",
+    crate = ":dx_runtime",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

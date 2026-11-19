@@ -1,8 +1,8 @@
 """Unit tests for the clang_syntax argv rewrite."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//cc/private:clang_syntax.bzl", "clang_syntax_argv", "clang_syntax_source", "clang_tidy_argv", "cuda_tidy_argv")
 load("//cc/private/toolchain:bindings.bzl", "cc_compiler_identity")
-load("//cc/private:clang_syntax.bzl", "clang_syntax_argv", "clang_tidy_argv", "clang_syntax_source", "cuda_tidy_argv")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 _CLANG = "external/llvm/bin/clang"
 
@@ -23,7 +23,17 @@ def clang_syntax_unit_tests(name, **kwargs):
             expect_equal(
                 "CUDA: nvcc flags are translated to clang -x cuda with the toolkit root",
                 cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-Iinc", "-DX=1", "-Xcompiler", "-fPIC,-isystem/x", "-gencode", "arch=compute_80,code=sm_80", "-rdc=true", "-std=c++17", "-c", "a.cu", "-o", "a.o"], "a.cu").argv,
-                ["tidy", "--header-filter=", "a.cu", "--", "-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version", "--cuda-path=external/cuda", "-Iinc", "-DX=1", "-isystem/x", "-std=c++17"],
+                ["tidy", "--header-filter=", "a.cu", "--", "-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version", "-Wno-builtin-macro-redefined", "--cuda-path=external/cuda", "-Iinc", "-DX=1", "-isystem/x", "-std=c++17"],
+            ),
+            expect_equal(
+                "CUDA: separated host flags keep their value from the next -Xcompiler argument",
+                cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-Xcompiler", "-target", "-Xcompiler", "x86_64-linux-gnu", "-Xcompiler", "-nostdlibinc", "-Xcompiler", "-isystem", "-Xcompiler", "libcxx/include", "-Xcompiler", "-Wall", "-Xcompiler", "--sysroot=/dev/null", "-c", "a.cu"], "a.cu").argv[11:],
+                ["-target", "x86_64-linux-gnu", "-nostdlibinc", "-isystem", "libcxx/include", "--sysroot=/dev/null"],
+            ),
+            expect_equal(
+                "CUDA: extra header directories become -isystem flags",
+                cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-c", "a.cu"], "a.cu", extra_includes = ["external/curand/include"]).argv[10:12],
+                ["-isystem", "external/curand/include"],
             ),
             expect_equal(
                 "clang-tidy takes the config file right after the executable",

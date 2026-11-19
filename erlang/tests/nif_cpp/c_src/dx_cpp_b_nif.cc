@@ -14,10 +14,10 @@ int next_call() {
 }
 
 ERL_NIF_TERM probe(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
+  // The VM calls probe/0 with argc 0 only, so there is no badarg branch to
+  // cover.
+  (void)argc;
   (void)argv;
-  if (argc != 0) {
-    return enif_make_badarg(env);
-  }
   std::vector<std::string> words;
   for (int i = 0; i < 64; ++i) {
     words.push_back(std::string(40, 'a') + std::to_string(i));

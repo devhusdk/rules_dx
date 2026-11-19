@@ -80,7 +80,7 @@ pub fn validate_init_dir(dir: &str) -> Result<String, AdoptError> {
     Ok(dir.to_owned())
 }
 
-/// The module name for `dir`: its last segment folded to `[a-z0-9._-]`, or
+/// The module name for `dir`: its last segment folded to `[a-z0-9._-]` from its first letter, or
 /// [`DEFAULT_INIT_MODULE`] for the current directory.
 #[must_use]
 pub fn init_dir_module(dir: &str) -> String {
@@ -98,7 +98,10 @@ pub fn init_dir_module(dir: &str) -> String {
             gap = false;
         }
     }
-    folded.trim_matches(['-', '_', '.']).to_owned()
+    folded
+        .trim_start_matches(|c: char| !c.is_ascii_lowercase())
+        .trim_end_matches(['-', '_', '.'])
+        .to_owned()
 }
 
 /// Whether `root` is missing or holds nothing but `.git`, repository files and the files a
@@ -252,13 +255,20 @@ mod tests {
     }
 
     #[test]
+    fn module_name_starts_with_a_letter() {
+        assert_eq!(init_dir_module("2024-app"), "app");
+        assert_eq!(init_dir_module("teams/1st.try"), "st.try");
+        assert_eq!(init_dir_module("123"), "");
+    }
+
+    #[test]
     fn fresh_means_missing_or_only_git() {
         let scratch = dx_test_scratch::scratch("dx-init-fresh-").unwrap();
         let root = scratch.path().join("ws");
         assert!(is_fresh_dir(&root));
         std::fs::create_dir_all(root.join(".git")).expect("git");
         assert!(is_fresh_dir(&root));
-        std::fs::create_dir(root.join("src")).expect("src");
+        std::fs::create_dir_all(root.join("src")).expect("src");
         assert!(!is_fresh_dir(&root));
         assert_eq!(fresh_blocker(&root).as_deref(), Some("src/"));
         scratch.close().expect("cleanup");
@@ -277,7 +287,7 @@ mod tests {
         ] {
             std::fs::write(root.join(name), "x\n").expect(name);
         }
-        std::fs::create_dir(root.join(".github")).expect("github");
+        std::fs::create_dir_all(root.join(".github")).expect("github");
         assert!(is_fresh_dir(root));
         std::fs::write(root.join("notes.txt"), "mine\n").expect("notes");
         assert!(!is_fresh_dir(root));

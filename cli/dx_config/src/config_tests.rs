@@ -88,3 +88,12 @@ fn errors_name_the_line_and_column() {
     let no_equals = message("schema_version = 1\ntier \"strict\"\n");
     assert!(no_equals.contains("dx.toml:2:"), "{no_equals}");
 }
+
+#[cfg(unix)]
+#[test]
+fn a_dangling_symlink_is_not_a_missing_file() {
+    let scratch = dx_test_scratch::scratch("dx_config_").unwrap();
+    let dir = scratch.path().to_path_buf();
+    std::os::unix::fs::symlink(dir.join("gone.toml"), dir.join("dx.toml")).unwrap();
+    assert!(matches!(load(&dir), Err(LoadProblem::Read { .. })));
+}

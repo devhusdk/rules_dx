@@ -53,7 +53,7 @@ fn files(name: &str, title: &str) -> Vec<(String, String)> {
         (
             "BUILD.bazel".to_owned(),
             format!(
-                "{public}\ntoolchain_type(name = \"toolchain_type\")\n\nexports_files([\n    \"defs.bzl\",\n    \"extensions.bzl\",\n    \"lang.json\",\n    \"pins.json\",\n])\n"
+                "{public}\ntoolchain_type(name = \"toolchain_type\")\n\nexports_files([\n    \"defs.bzl\",\n    \"extensions.bzl\",\n    \"lang.json\",\n    \"pins.json\",\n])\n\nexports_files(\n    [\"BUILD.bazel\"],\n    visibility = [\"//tools/api:__pkg__\"],\n)\n"
             ),
         ),
         ("lang.json".to_owned(), manifest(name, title)),

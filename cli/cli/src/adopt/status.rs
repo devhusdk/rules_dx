@@ -644,7 +644,7 @@ mod tests {
         let dir = scratch.path();
         assert!(slots_check(dir).is_none());
         std::fs::write(dir.join("slot-0.lock"), "").expect("file");
-        std::fs::create_dir(dir.join("slot-1.lock")).expect("dir");
+        std::fs::create_dir_all(dir.join("slot-1.lock")).expect("dir");
         std::fs::write(dir.join("other.txt"), "").expect("other");
         let check = slots_check(dir).expect("slots check");
         assert_eq!(check.name, "slots");

@@ -5,6 +5,8 @@ load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load("//ocaml/private:providers.bzl", "OCamlCmtInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 ODOC_CONFIG = "odoc=" + DATA["dx_quality_pins"]["sources"]["odoc"]["version"]
 
 def ocaml_typed_trees(info):
@@ -68,6 +70,7 @@ def ocaml_shard_action(ctx, trees, package, config, stem, odoc, extract_tool):
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("ocaml_extract")
     for pages in html:
         extract.add("--html", pages.path)
     extract.add("--package", package)
@@ -118,7 +121,7 @@ docs_ocaml_shard = rule(
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the name of lib."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/ocaml/extract:ocaml_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_odoc": attr.label(

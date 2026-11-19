@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: needs protobuf 37; grpc master pins protobuf 35.1 where the target does not apply)
 diff --git a/BUILD b/BUILD
 --- a/BUILD
 +++ b/BUILD

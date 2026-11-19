@@ -1,7 +1,7 @@
 # gazelle:ignore
 
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//d/private:defs.bzl", "D_CELLS", "D_COVERAGE_COLLECTOR", "d_quality_srcs")
 load("//d/private:kwargs.bzl", "d_kwargs")

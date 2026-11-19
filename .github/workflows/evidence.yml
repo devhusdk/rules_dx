@@ -138,7 +138,11 @@ jobs:
           DX_FLAGS: ${{ inputs.flags }}
           DX_RELOCATE: ${{ inputs.relocate }}
         run: |
-          bazel run --noshow_progress //tools/ci/producers:producers_bin -- --evidence-inputs
+          # A cold producers_bin build takes minutes, so this command reads the remote cache. The release
+          # cell step must build uncached, so user.bazelrc turns the cache on only after it.
+          cache=()
+          [ -z "${BB_ARGS:-}" ] || read -ra cache <<< "--config=ci $BB_ARGS"
+          bazel run --noshow_progress "${cache[@]}" //tools/ci/producers:producers_bin -- --evidence-inputs
       - name: Build and qualify the release cell
         if: ${{ inputs.release_cell }}
         env:
@@ -284,6 +288,7 @@ jobs:
           cp MODULE.bazel.lock "$out/MODULE.bazel.lock"
           git diff --exit-code MODULE.bazel.lock > "$out/lock.diff" || { cat "$out/lock.diff"; exit 1; }
       - name: Run evidence task
+        id: task
         env:
           DX_SCOPE: ${{ steps.inputs.outputs.scope }}
           DX_TASK: ${{ steps.inputs.outputs.task }}
@@ -301,6 +306,8 @@ jobs:
           extra=(--notrack_incremental_state --nokeep_state_after_build)
           downloads=(--remote_download_minimal "--remote_download_regex=.*/testlogs/.*")
           profile=("--profile=$RUNNER_TEMP/evidence/profile.gz" --noslim_profile --experimental_profile_include_target_label --experimental_profile_include_primary_output)
+          # Outside the uploaded evidence: the build events hold the full command line.
+          mkdir -p "$RUNNER_TEMP/bep"
           run_task() {
             log="$1"
             if [ "$DX_TASK" = "build" ]; then
@@ -347,7 +354,7 @@ jobs:
             elif [ "$DX_TASK" = "coverage" ]; then
               bazel run --noshow_progress "${profile[@]}" //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"
             else
-              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" --nozip_undeclared_test_outputs --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" "--build_event_json_file=$RUNNER_TEMP/bep/$(basename "$log" .log).json" --nobuild_event_json_file_path_conversion --nozip_undeclared_test_outputs --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             fi
           }
           run_task "$RUNNER_TEMP/evidence/evidence.log"
@@ -362,6 +369,9 @@ jobs:
             run_task "$RUNNER_TEMP/evidence/relocated.log"
             bazel "--output_base=$base" shutdown
           fi
+      - name: Print the failing test log tails
+        if: ${{ failure() && steps.task.outcome == 'failure' && steps.inputs.outputs.task == 'test' }}
+        run: bazel run --noshow_progress //tools/ci/producers:producers_bin -- --test-log-tails --bep "$RUNNER_TEMP/bep/evidence.json" --bep "$RUNNER_TEMP/bep/relocated.json"
       - name: Record the Apple executor
         if: ${{ always() && matrix.platform == 'macos_arm64' }}
         run: |

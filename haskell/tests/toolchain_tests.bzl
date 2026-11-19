@@ -1,6 +1,6 @@
 """Haskell toolchain pin and settings tests."""
 
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
 load("//haskell/private/toolchain:pins.bzl", "CELLS", "CROSS_CELLS", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
@@ -123,38 +123,41 @@ def _checks():
     darwin_rts = drop_host_sdk_dirs(_DARWIN_RTS_CONF)
     settings = ghc_settings(_SETTINGS)
     windows_settings = ghc_settings(_SETTINGS.replace("\"Merge objects command\", \"/usr/bin/ld.gold\"", "\"Merge objects command\", \"\"").replace("\"ar command\", \"/usr/bin/ar\"", "\"ar command\", \"$topdir/../mingw//bin/llvm-ar.exe\"").replace("\"windres command\", \"/bin/false\"", "\"windres command\", \"$topdir/../mingw//bin/llvm-windres.exe\"").replace("\"C compiler link flags\", \"--target=x86_64-linux-gnu -fuse-ld=gold\"", "\"C compiler link flags\", \"-fuse-ld=lld --rtlib=compiler-rt -D_UCRT\""))
-    checks = hub_checks(hub_files()["BUILD.bazel"], str(Label("//haskell/private/toolchain:toolchain_type")), 9, ["@rules_haskell"]) + [
+    checks = hub_checks(hub_files()["BUILD.bazel"], str(Label("//haskell/private/toolchain:toolchain_type")), 10, ["@rules_haskell"]) + [
         expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("windows is unblocked", CELLS["windows_x86_64"].blocker, ""),
         expect_true("windows host runs the windows cell", cell_matches_host("windows_x86_64", "windows server 2022", "amd64")),
         expect_false("linux never runs the windows cell", cell_matches_host("windows_x86_64", "linux", "amd64")),
         expect_equal("hub files", sorted(hub_files().keys()), ["BUILD.bazel", "lib/BUILD.bazel"]),
-        expect_equal("hub toolchain order", _hub_names(hub_files()["BUILD.bazel"]), ["cc_windows_x86_64", "linux_arm64_musl", "linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64", "linux_arm64_to_linux_x86_64", "linux_x86_64_to_linux_arm64", "macos_arm64_to_linux_arm64"]),
+        expect_equal("hub toolchain order", _hub_names(hub_files()["BUILD.bazel"]), ["cc_windows_x86_64"] + ["dx_haskell_toolchains__" + cell for cell in ["linux_arm64_musl", "linux_x86_64_musl", "linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64", "linux_arm64_to_linux_x86_64", "linux_x86_64_to_linux_arm64", "macos_arm64_to_linux_arm64"]]),
         expect_contains("a cross cell sets the C compiler target", ghc_settings(_SETTINGS, "aarch64-linux-gnu"), "(\"C compiler flags\", \"--target=aarch64-linux-gnu\")"),
         expect_contains("a cross cell sets the C++ compiler target", ghc_settings(_SETTINGS, "aarch64-linux-gnu"), "(\"C++ compiler flags\", \"--target=aarch64-linux-gnu\")"),
         expect_equal("cross cells", sorted([(cross.host, cross.target) for cross in CROSS_CELLS.values()]), [("linux_arm64", "linux_x86_64"), ("linux_x86_64", "linux_arm64"), ("macos_arm64", "linux_arm64")]),
         expect_equal("only the macos host compiles its cross cell through llvm", sorted([name for name, cross in CROSS_CELLS.items() if cross.llvm_backend]), ["macos_arm64_to_linux_arm64"]),
         expect_equal("the native code generator needs no llvm tools", llvm_toolchain_attrs(False), ""),
         expect_equal("the llvm backend passes hermetic llc and opt", llvm_toolchain_attrs(True), "\n    llc = \"{}\",\n    opt = \"{}\",".format(Label("@llvm-project//llvm:llc"), Label("@llvm-project//llvm:opt"))),
-        expect_contains("cross cell runs on its host and targets its target", hub_files()["BUILD.bazel"], "name = \"linux_x86_64_to_linux_arm64\",\n    exec_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    target_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:aarch64\"],"),
-        expect_equal("a linux x86_64 host aliases linux arm64 to its cross cell", alias_repository("linux_arm64", "linux", "amd64"), "dx_ghc_linux_x86_64_to_linux_arm64"),
-        expect_equal("a linux arm64 host aliases linux arm64 to its own cell", alias_repository("linux_arm64", "linux", "aarch64"), "dx_ghc_linux_arm64"),
-        expect_equal("a linux x86_64 host has no cross cell for macos", alias_repository("macos_arm64", "linux", "amd64"), "dx_ghc_macos_arm64"),
-        expect_contains("a macos host aliases linux arm64 to its cross cell", hub_files(host_os = "mac os x", host_arch = "aarch64")["lib/BUILD.bazel"], "\":linux_arm64_platform\": \"@dx_ghc_macos_arm64_to_linux_arm64//:gmp\","),
-        expect_contains("cross cell points at its own repository", hub_files()["BUILD.bazel"], "@dx_ghc_linux_x86_64_to_linux_arm64//:toolchain-impl"),
+        expect_contains("cross cell runs on its host and targets its target", hub_files()["BUILD.bazel"], "name = \"dx_haskell_toolchains__linux_x86_64_to_linux_arm64\",\n    exec_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    target_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:aarch64\"],"),
+        expect_equal("a linux x86_64 host aliases linux arm64 to its cross cell", alias_repository("linux_arm64", "linux", "amd64"), "dx_haskell_toolchains__linux_x86_64_to_linux_arm64"),
+        expect_equal("a linux arm64 host aliases linux arm64 to its own cell", alias_repository("linux_arm64", "linux", "aarch64"), "dx_haskell_toolchains__linux_arm64"),
+        expect_equal("a linux x86_64 host has no cross cell for macos", alias_repository("macos_arm64", "linux", "amd64"), "dx_haskell_toolchains__macos_arm64"),
+        expect_contains("a macos host aliases linux arm64 to its cross cell", hub_files(host_os = "mac os x", host_arch = "aarch64")["lib/BUILD.bazel"], "\":linux_arm64_platform\": \"@dx_haskell_toolchains__macos_arm64_to_linux_arm64//:gmp\","),
+        expect_contains("cross cell points at its own repository", hub_files()["BUILD.bazel"], "@dx_haskell_toolchains__linux_x86_64_to_linux_arm64//:toolchain-impl"),
         expect_equal(
             "cross cell keeps the host library dir and takes the rest from the target",
             cross_libdir_moves(["settings", "package.conf.d", "x86_64-linux-ghc-9.10.3"], ["settings", "package.conf.d", "aarch64-linux-ghc-9.10.3"], "linux_x86_64"),
             (["settings", "package.conf.d"], ["settings", "package.conf.d", "aarch64-linux-ghc-9.10.3"]),
         ),
         expect_contains("musl cell targets musl only", hub_files()["BUILD.bazel"], repr(MUSL_CELLS["linux_arm64_musl"].target_compatible_with)),
+        expect_equal("x86_64 musl cell targets x86_64 musl", MUSL_CELLS["linux_x86_64_musl"].target_compatible_with, ["@platforms//os:linux", "@platforms//cpu:x86_64", str(Label("@llvm//constraints/libc:musl"))]),
+        expect_contains("x86_64 musl ghc runs under its own loader", musl_wrapper("linux_x86_64_musl", "ghc-9.10.3"), "\"$root/dx_closure/lib/ld-musl-x86_64.so.1\" --library-path \"$root/dx_closure/lib:$root/lib/x86_64-linux-ghc-9.10.3\" \"$root/bin/ghc-9.10.3.musl\" -B\"$root/lib\" \"$@\""),
         expect_contains("musl ghc runs under the shipped loader", musl_wrapper("linux_arm64_musl", "ghc-9.10.3"), "\"$root/dx_closure/lib/ld-musl-aarch64.so.1\" --library-path \"$root/dx_closure/lib:$root/lib/aarch64-linux-ghc-9.10.3\" \"$root/bin/ghc-9.10.3.musl\" -B\"$root/lib\" \"$@\""),
         expect_contains("musl wrapper finds its root with shell builtins only", musl_wrapper("linux_arm64_musl", "ghc-pkg-9.10.3"), "case \"$0\" in */*) bin=\"${0%/*}\" ;; *) bin=. ;; esac\nroot=\"$(cd \"$bin/..\" && pwd)\"\n"),
         expect_contains("musl ghc-pkg names the global database", musl_wrapper("linux_arm64_musl", "ghc-pkg-9.10.3"), "--global-package-db=\"$root/lib/package.conf.d\""),
         expect_contains("musl runghc runs the wrapped ghc", musl_wrapper("linux_arm64_musl", "runghc-9.10.3"), "-f \"$root/bin/ghc\""),
         expect_contains("musl unlit takes no extra flags", musl_wrapper("linux_arm64_musl", "unlit-ghc-9.10.3"), "\"$root/bin/unlit-ghc-9.10.3.musl\" \"$@\""),
-        expect_equal("musl apks pin sha256", [package.package for package in MUSL_CELLS["linux_arm64_musl"].apks if len(package.sha256) != 64], []),
+        expect_equal("musl apks pin sha256", [(cell, package.package) for cell in sorted(MUSL_CELLS) for package in MUSL_CELLS[cell].apks if len(package.sha256) != 64], []),
+        expect_equal("musl apks match the cell arch", [(cell, package.package) for cell, arch in [("linux_arm64_musl", "aarch64"), ("linux_x86_64_musl", "x86_64")] for package in MUSL_CELLS[cell].apks if "/main/%s/" % arch not in package.url], []),
         expect_equal("host gcc library dirs move into the closure", host_cxx_library_dirs("library-dirs:         /usr/lib/gcc/aarch64-alpine-linux-musl/12.2.1/../../../../lib\nname: x", "dx_closure"), "library-dirs: ${pkgroot}/../dx_closure/lib\nname: x"),
         expect_equal("closure library dir is added once", closure_library_dirs(closure_library_dirs(_RTS_CONF, CLOSURE_DIR), CLOSURE_DIR), closure_library_dirs(_RTS_CONF, CLOSURE_DIR)),
         expect_contains("musl rts finds libm in the closure", closure_library_dirs(_RTS_CONF, CLOSURE_DIR), "dynamic-library-dirs: ${pkgroot}/../dx_closure/lib ${pkgroot}/../lib/aarch64-linux-ghc-9.10.3"),
@@ -186,7 +189,7 @@ def _checks():
         expect_equal("nested import libraries are dropped", dropped_import_libs(["mingw/lib/libz.dll.a", "mingw/lib/libz.a", "mingw/x/y/libc++.dll.a"]), ["mingw/lib/libz.dll.a", "mingw/x/y/libc++.dll.a"]),
         expect_equal("os libraries", os_libraries(), ["Win32", "unix"]),
         expect_contains("Win32 is compatible on the windows cell", hub_files()["lib/BUILD.bazel"], "name = \"Win32\",\n    target_compatible_with = select({\n        \":windows_x86_64_platform\": [],\n        \"//conditions:default\": [\"@@platforms//:incompatible\"]"),
-        expect_equal("each os library has an arm per qualified cell", hub_files()["lib/BUILD.bazel"].count("_platform\": [],"), 5),
+        expect_equal("each os library has an arm per qualified cell", hub_files()["lib/BUILD.bazel"].count("_platform\": [],"), 6),
         expect_contains("the C compiler comes from the cc toolchain", settings, "(\"C compiler command\", \"" + NO_HOST_TOOL + "\")"),
         expect_contains("merge objects comes from the cc toolchain", settings, "(\"Merge objects command\", \"" + NO_HOST_TOOL + "\")"),
         expect_contains("otool comes from the cc toolchain", settings, "(\"otool command\", \"" + NO_HOST_TOOL + "\")"),

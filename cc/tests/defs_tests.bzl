@@ -5,7 +5,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_cc//cc/common:objc_info.bzl", "ObjcInfo")
 load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "msvc_crt_reset_settings", "msvc_crt_static_settings")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//cc/private:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_features", "cc_coverage_mismatch", "cc_coverage_settings", "cc_coverage_unsupported", "cc_param_file_features")
 
@@ -150,25 +150,6 @@ def _external_coverage_test(toolchain, impl, **settings):
         } | settings,
     )
 
-def _gcov_env_impl(ctx):
-    env = analysistest.begin(ctx)
-    run_env = analysistest.target_under_test(env)[RunEnvironmentInfo].environment
-    script = run_env.get("CC_CODE_COVERAGE_SCRIPT", "")
-    gcov = run_env.get("GCOV", "")
-    asserts.true(env, script.endswith("/tools/coverage/collect/collect_native"), "CC_CODE_COVERAGE_SCRIPT=" + script)
-    asserts.true(env, gcov.endswith("gcov"), "GCOV=" + gcov)
-    for key in ["LLVM_COV", "LLVM_PROFDATA"]:
-        asserts.false(env, key in run_env, key + " set under gcc")
-    return analysistest.end(env)
-
-_coverage_env_gcc_test = analysistest.make(
-    _gcov_env_impl,
-    config_settings = {
-        "//command_line_option:collect_code_coverage": True,
-        str(Label("//cc:compiler")): "gcc",
-    },
-)
-
 # The mismatch needs the coverage feature on so the transition adds LLVM maps.
 # build:windows in .dx/bazelrc/correctness.bazelrc turns it off, so pin the features.
 _coverage_external_gcc_test = _external_coverage_test(str(Label("//cc/tests/fixtures/external_toolchain:gcc_toolchain")), _coverage_mismatch_impl, **{"//command_line_option:features": []})
@@ -181,18 +162,6 @@ def cc_external_coverage_tests(name, target, **kwargs):
     _coverage_external_gcc_flag_test(name = name + "_gcc_flag", size = "small", target_under_test = target, **kwargs)
     _coverage_external_icx_test(name = name + "_icx", size = "small", target_under_test = target, **kwargs)
     native.test_suite(name = name, tests = [name + "_gcc", name + "_gcc_flag", name + "_icx"], **kwargs)
-
-def cc_gcov_coverage_env_test(name, target, size = "small"):
-    """Asserts a cc_test under the GCC toolchain gets GCOV and no LLVM coverage tools."""
-    _coverage_env_gcc_test(
-        name = name,
-        size = size,
-        target_compatible_with = [
-            "@platforms//os:linux",
-            "@platforms//cpu:x86_64",
-        ],
-        target_under_test = target,
-    )
 
 def _objc_library_impl(ctx):
     env = analysistest.begin(ctx)

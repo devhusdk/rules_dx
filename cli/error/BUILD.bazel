@@ -7,7 +7,10 @@ package(default_visibility = VIS_CLI_PLATFORM)
 
 rust_library(
     name = "dx_error",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/lib.rs",
+        "src/stdio.rs",
+    ],
     aliases = aliases(
         package_name = "cli/dx_error",
         normal = True,

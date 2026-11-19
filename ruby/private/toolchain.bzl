@@ -1,4 +1,4 @@
-"""The Ruby module extension: the portable Ruby toolchain pinned in pins.json and gem hubs built from `ruby.lock.json`."""
+"""The Ruby module extension: the portable Ruby toolchain pinned in pins.json and gem hubs built from dx locks."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 load("@rules_ruby//ruby:deps.bzl", "rb_register_toolchains")
@@ -40,7 +40,7 @@ def _ruby_impl(module_ctx):
     )
 
 ruby = module_extension(
-    doc = "Registers the portable Ruby pinned in ruby/pins.json, and builds gem hubs from `ruby.lock.json`.",
+    doc = "Registers the portable Ruby pinned in ruby/pins.json, and builds a gem hub from the dx lock each `lock` tag names.",
     implementation = _ruby_impl,
     tag_classes = {
         "lock": lock_tag,

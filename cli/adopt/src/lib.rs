@@ -1,4 +1,17 @@
-#![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::string_slice
+)]
+#![cfg_attr(
+    test,
+    expect(
+        clippy::disallowed_methods,
+        reason = "tests run local programs under the Bazel test timeout"
+    )
+)]
 
 pub mod avro_cpp;
 pub mod build_output;
@@ -54,8 +67,8 @@ pub use load_graph::{
 };
 pub use loaded_deps::plan_loaded_deps;
 pub use lock_hubs::{
-    LockHubs, PNPM_SETTINGS, RESOLVER_LOCKS, plan_lock_hubs, plan_pnpm_settings, plan_pnpm_tool,
-    unlocked_manifests,
+    LockHubs, PNPM_SETTINGS, RESOLVER_LOCKS, ResolverSet, plan_lock_hubs, plan_pnpm_settings,
+    plan_pnpm_tool, resolver_sets, unlocked_manifests,
 };
 pub use module_deps::{is_rules_dx_root, module_deps};
 pub use module_pin::{ModuleEdit, plan_rules_dx_version, write_edit_or_create, write_module_edit};

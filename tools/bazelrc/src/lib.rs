@@ -110,7 +110,7 @@ const RUNFILES_FLAGS: [Flag; 1] = [(
     "On Windows, build runfiles trees only for actions that run.",
 )];
 
-const WINDOWS_FLAGS: [Flag; 8] = [
+const WINDOWS_FLAGS: [Flag; 7] = [
     (
         "build:windows --enable_runfiles",
         "On Windows, give tests a runfiles directory instead of only a manifest.",
@@ -130,10 +130,6 @@ const WINDOWS_FLAGS: [Flag; 8] = [
     (
         "common:windows --experimental_override_platform_cpu_name=@rules_dx//tools/platforms:windows_msvc_host=wx",
         "On Windows, name the MSVC-ABI host output directory wx.",
-    ),
-    (
-        "build:windows --features=-coverage",
-        "On Windows, turn off C++ coverage instrumentation.",
     ),
     (
         "build:windows --features=-gcc_coverage_map_format",
@@ -838,7 +834,6 @@ mod tests {
                 "common:windows --host_platform=@rules_dx//tools/platforms:windows_msvc_host",
                 "common:windows --extra_execution_platforms=@rules_dx//tools/platforms:windows_msvc_host,@rules_dx//tools/platforms:host",
                 "common:windows --experimental_override_platform_cpu_name=@rules_dx//tools/platforms:windows_msvc_host=wx",
-                "build:windows --features=-coverage",
                 "build:windows --features=-gcc_coverage_map_format",
                 "build:windows --per_file_copt=.*compiler-rt/lib/profile/.*@-D__MINGW_EXTENSION=",
                 "common:macos --macos_minimum_os=14.0",
@@ -960,8 +955,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 66);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 66);
+        assert_eq!(total, 65);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 65);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1053,7 +1048,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 66);
+        assert_eq!(flags.len(), 65);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

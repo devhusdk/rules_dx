@@ -2,7 +2,7 @@
 
 load(":test_configs.bzl", "TEST_CONFIGS", "TEST_CONFIG_SETTINGS")
 
-visibility(["//avro/...", "//core/...", "//flutter/...", "//php/...", "//tools/..."])
+visibility(["//avro/...", "//core/...", "//flutter/...", "//php/...", "//qt/...", "//tools/..."])
 
 def _config_transition_impl(_settings, attr):
     """Writes the settings of the configuration named by the config attribute."""
@@ -38,8 +38,17 @@ config_results = rule(
     },
 )
 
-def config_subject_rule(aspects = [], providers = []):
-    """Returns a rule that builds its target under one TEST_CONFIGS entry and forwards the listed providers."""
+def config_subject_rule(aspects = [], providers = [], cfg = None):
+    """Returns a rule that builds its target under one TEST_CONFIGS entry and forwards the listed providers.
+
+    Args:
+      aspects: Aspects applied to the target.
+      providers: Providers of the target the rule forwards.
+      cfg: Incoming transition of the rule, applied before the TEST_CONFIGS entry.
+
+    Returns:
+      The rule.
+    """
 
     def _impl(ctx):
         target = ctx.attr.target[0]
@@ -49,6 +58,7 @@ def config_subject_rule(aspects = [], providers = []):
     return rule(
         implementation = _impl,
         doc = "Builds the target under one TEST_CONFIGS entry.",
+        cfg = cfg,
         attrs = {
             "config": config_attr(),
             "target": attr.label(doc = "Target built under the entry.", mandatory = True, cfg = config_transition, aspects = aspects),

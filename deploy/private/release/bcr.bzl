@@ -3,7 +3,7 @@
 load("//deploy/private/release:tool.bzl", "RELEASE_DEPLOY_TOOL")
 load("//deploy/private:config.bzl", "deploy_config")
 load("//core:rlocation.bzl", "rlocation_path")
-load("//deploy/private:deployment.bzl", "dx_deployment")
+load("//deploy/private:deployment.bzl", "deployment")
 load("//deploy/private:validate.bzl", "genrule_arg")
 
 def bcr_source_error(module_name, version):
@@ -90,7 +90,7 @@ def bcr_check(name, module_name = "rules_dx", version = "0.0.0", inputs = [], bu
         version = version,
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         config = ":" + config_target,
         deploy = RELEASE_DEPLOY_TOOL,

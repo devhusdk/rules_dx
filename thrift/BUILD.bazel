@@ -6,7 +6,7 @@ exports_files([
 
 alias(
     name = "thrift_compiler",
-    actual = "@dx_thrift//:thrift_compiler",
+    actual = "@dx_prebuilt//:thrift",
     visibility = ["//visibility:public"],
 )
 
@@ -32,4 +32,9 @@ filegroup(
         "pins.json",
     ]),
     visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
 )

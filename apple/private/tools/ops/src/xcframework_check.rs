@@ -1,6 +1,5 @@
 //! Checks the slices of one iOS `XCFramework` archive and publishes it.
 
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use crate::util::{Failure, Outcome, reject, unzip, usage};
@@ -276,12 +275,10 @@ fn verify(tools: &Tools<'_>, args: &[String], work: &Path) -> Result<(), Failure
                 )));
             }
             let slice = check.slice(&cell, &arch, &binary, sdk, code)?;
-            writeln!(
-                text,
-                "slice={cell} library={identifier} platform={sdk} minos={} install_name={}",
+            text.push_str(&format!(
+                "slice={cell} library={identifier} platform={sdk} minos={} install_name={}\n",
                 slice.minos, slice.install_name
-            )
-            .ok();
+            ));
             position += 1;
         }
         if listed.is_empty() {
@@ -317,7 +314,7 @@ fn verify(tools: &Tools<'_>, args: &[String], work: &Path) -> Result<(), Failure
         }
     }
 
-    drop(std::fs::remove_dir_all(work));
+    dx_atomic_fs::discard_dir(work);
     write(Path::new(out), std::fs::copy(archive_path, out).map(|_| ()))?;
     write(
         Path::new(report),
@@ -335,13 +332,13 @@ fn verify(tools: &Tools<'_>, args: &[String], work: &Path) -> Result<(), Failure
 pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
     let report = args.first().map_or("", String::as_str);
     let work = PathBuf::from(format!("{report}.unpacked"));
-    drop(std::fs::remove_dir_all(&work));
+    dx_atomic_fs::discard_dir(&work);
     let result = verify(tools, args, &work);
-    drop(std::fs::remove_dir_all(&work));
-    if result.is_err() {
-        if let Some(out) = args.get(1) {
-            drop(std::fs::remove_file(out));
-        }
+    dx_atomic_fs::discard_dir(&work);
+    if result.is_err()
+        && let Some(out) = args.get(1)
+    {
+        dx_atomic_fs::discard_file(out);
     }
     result.map(|()| 0)
 }

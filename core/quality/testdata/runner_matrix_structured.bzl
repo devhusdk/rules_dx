@@ -649,6 +649,7 @@ STRUCTURED_CASES = [
         generated = {
             "matrix/julia_clean.jl": "function add(a, b)\n    return a + b\nend\n",
         },
+        size = "medium",
         platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
     ),
     matrix_case(
@@ -660,6 +661,7 @@ STRUCTURED_CASES = [
         generated = {
             "matrix/julia_dirty.jl": "function add(a, b)\n        return a + b\nend\n",
         },
+        size = "medium",
         platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
     ),
     matrix_case(

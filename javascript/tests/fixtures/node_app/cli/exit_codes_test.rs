@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use std::path::PathBuf;
 use std::process::{Command, Output};
 
@@ -189,7 +193,7 @@ fn staged_symlink_runs_the_same_entry() {
     let scratch = dx_test_scratch::scratch("node-app-staged").unwrap();
     let dir = scratch.path().to_path_buf();
     let link = dir.join("registry-link");
-    let _ = std::fs::remove_file(&link);
+    let _: std::io::Result<()> = std::fs::remove_file(&link);
     std::os::unix::fs::symlink(registry_bin(), &link).expect("symlink");
     let run = registry_at(&link, &["where"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));

@@ -9,7 +9,6 @@ android/tests/fixtures/rust_apk/BUILD.bazel no-size 26
 ansible/tests/BUILD.bazel no-size 3
 ansible/tests/layout_tests.bzl no-size 1
 ansible/tests/lock_tests.bzl no-size 1
-api_spec/private/codegen/BUILD.bazel no-size 1
 api_spec/tests/BUILD.bazel no-size 10
 appimage/private/tools/packer/BUILD.bazel no-size 1
 appimage/tests/BUILD.bazel no-size 10
@@ -67,7 +66,8 @@ cc/tests/toolchain_tests.bzl no-size 9
 cli/cli/BUILD.bazel no-size 2
 cli/env/BUILD.bazel no-size 2
 cli/exec_os/BUILD.bazel no-size 1
-cli/prebuilt/BUILD.bazel no-size 2
+cli/prebuilt/BUILD.bazel no-size 3
+cli/prebuilt/gazelle_hub_tests.bzl no-size 1
 cli/prebuilt/hub_tests.bzl no-size 1
 cli/process/BUILD.bazel no-size 1
 cli/roots/BUILD.bazel no-size 1
@@ -280,8 +280,7 @@ gazelle/common/treesitter/BUILD.bazel no-size 1
 gazelle/csharp/BUILD.bazel no-size 2
 gazelle/d/BUILD.bazel no-size 3
 gazelle/dart/BUILD.bazel no-size 2
-gazelle/dispatch/BUILD.bazel no-size 3
-gazelle/dispatch/hub_tests.bzl no-size 1
+gazelle/dispatch/BUILD.bazel no-size 2
 gazelle/dotnetplatform/BUILD.bazel no-size 1
 gazelle/elixir/BUILD.bazel no-size 2
 gazelle/erlang/BUILD.bazel no-size 2
@@ -379,8 +378,9 @@ julia/private/tools/lint/BUILD.bazel no-size 1
 julia/tests/BUILD.bazel no-size 1
 julia/tests/fixtures/bench/BUILD.bazel no-size 3
 julia/tests/fixtures/hello/BUILD.bazel no-size 8
-julia/tests/fixtures/julia_app/archive/BUILD.bazel no-size 1
+julia/tests/fixtures/julia_app/archive/BUILD.bazel size-medium 1
 julia/tests/fixtures/julia_app/cli/BUILD.bazel no-size 1
+julia/tests/fixtures/julia_app/cli/BUILD.bazel size-medium 1
 julia/tests/fixtures/julia_app/diagnostics/BUILD.bazel no-size 1
 julia/tests/fixtures/julia_app/stats/BUILD.bazel no-size 1
 julia/tests/fixtures/julia_app/third_party/BUILD.bazel no-size 1

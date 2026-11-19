@@ -1,6 +1,8 @@
-load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
+"""Default attributes for the Fortran macros."""
+
 load("//core:platform_support.bzl", "cells_support", "compatible_with", "lang_cells")
 load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_flags")
+load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
 
 PLATFORM_SUPPORT = cells_support("//fortran/private:defs.bzl", "FORTRAN_COMPATIBLE_WITH", FORTRAN_CELLS, lang_cells("fortran"), "//fortran/private/toolchain", "constraints", unsupported = False)
 
@@ -16,7 +18,7 @@ def fortran_with_defaults(kwargs):
     """Returns kwargs with the qualified Fortran cell appended to target_compatible_with and the quality skip tags."""
     out = dx_language_kwargs(dx_warnings_flags(kwargs, "copts", ["-Werror"]), SKIP_TAGS, FORTRAN_COMPATIBLE_WITH)
     out["copts"] = (out.get("copts") or []) + select({
-        Label("//fortran/private:kcov_build"): ["-g"],
+        Label("//fortran:kcov_build"): ["-g"],
         "//conditions:default": [],
     })
     return out

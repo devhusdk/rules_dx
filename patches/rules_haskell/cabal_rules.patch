@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: lld, rules_python wiring, drops rules_sh)
 diff --git a/haskell/BUILD.bazel b/haskell/BUILD.bazel
 index f28ba6d..7b6c5dc 100644
 --- a/haskell/BUILD.bazel

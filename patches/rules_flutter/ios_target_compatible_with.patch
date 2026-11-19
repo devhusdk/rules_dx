@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: fixed upstream in v0.1.0
 --- a/flutter/ios.bzl
 +++ b/flutter/ios.bzl
 @@ -448,10 +448,11 @@

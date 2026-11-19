@@ -42,6 +42,13 @@ powershell_binary(
     deps = ["//powershell:pester"],
 )
 
+powershell_binary(
+    name = "runfiles_hello",
+    srcs = ["runfiles_main.ps1"],
+    data = ["data.txt"],
+    deps = ["//powershell:runfiles"],
+)
+
 powershell_test(
     name = "pass_subject_test",
     size = "small",
@@ -97,6 +104,11 @@ dx_conformance_suite(
         "lint_line": 4,
         "lint_rule": "PSAvoidUsingWriteHost",
         "lint_source": "lib/LintDirty.psm1",
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
     },
 )
 

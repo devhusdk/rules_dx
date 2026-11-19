@@ -15,33 +15,38 @@ Run the JavaScript tests from a rules_dx checkout:
 tools/dx test //javascript/...
 ```
 
-## Writing targets
-
-`javascript_test` runs `jest` by default and needs `node_modules`. Set
-`runner = "node"` with a `main` to run the file with Node instead.
-
-On Windows, Jest coverage uses the v8 provider.
-
 ## Dependencies
 
-Add the package to the root `package.json`, then run `dx generate --apply`. dx
-writes a missing `pnpm-lock.yaml`. An import of a package listed
-in the root `package.json` resolves to `//:node_modules/<package>`.
+Add the package to the root `package.json`, then run `dx generate --apply`.
+dx writes `pnpm-lock.yaml` if it is missing. An import of a package listed in
+the root `package.json` resolves to `//:node_modules/<package>`.
+
+### Writing targets
+
+`javascript_test` runs `jest` by default and needs `node_modules`. To run the
+file with Node instead, set `runner = "node"` and a `main`. On Windows, Jest
+coverage uses the v8 provider.
 
 ## Quality
 
-`biome` formats and lints JavaScript. Its config is `biome.json` at the
-workspace root. JavaScript has no typecheck tool. To lint with `eslint`, put
-`eslint.config.mjs` at the root and bind it with `eslint_config`.
+`biome` formats and lints JavaScript. It reads `biome.json` at the workspace
+root. JavaScript has no typecheck tool by default.
 
 ```sh
 dx format --apply
 dx lint
 ```
 
+To lint with `eslint` too, put `eslint.config.mjs` at the root and bind it
+with `eslint_config`.
+
 ## Bench and fuzz
 
-`javascript_bench` runs a tinybench `Bench` for `dx bench`, and `javascript_fuzz_test` runs a Jazzer.js target for `dx fuzz`. List `tinybench` or `@jazzer.js/core` in `package.json` and pass `node_modules`. See [`dx bench`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/bench.md) and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/fuzz.md).
+`javascript_bench` runs a tinybench `Bench` for `dx bench`.
+`javascript_fuzz_test` runs a Jazzer.js target for `dx fuzz`. List `tinybench`
+or `@jazzer.js/core` in `package.json` and pass `node_modules`. See
+[`dx bench`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/bench.md)
+and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/fuzz.md).
 
 ## Platforms
 

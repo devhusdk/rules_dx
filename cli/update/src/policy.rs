@@ -201,7 +201,7 @@ mod tests {
                 untagged: false,
             })
             .collect();
-        let plans = plan(&items);
+        let plans = plan(&items, &[]);
         assert!(!automerge(Some(Level::Patch), &plans[0]));
         assert!(automerge(Some(Level::Minor), &plans[0]));
         assert!(!automerge(None, &plans[0]));
@@ -218,7 +218,7 @@ mod tests {
             registry: Registry::Crates,
             untagged: false,
         }];
-        let plans = plan(&items);
+        let plans = plan(&items, &[]);
         assert!(!automerge(Some(Level::Major), &plans[0]));
     }
 }

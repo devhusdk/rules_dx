@@ -1,13 +1,13 @@
 use dx_apply::FileSystem;
 use dx_exec_core::common::{
     FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_OUTSIDE_SCOPE,
-    REASON_STALE_SOURCE, REASON_UNREADABLE_SOURCE, REASON_WRITE_FAILED, SourceRead, apply_to_bytes,
-    read_verified,
+    REASON_OUTSIDE_WORKSPACE, REASON_STALE_SOURCE, REASON_UNREADABLE_SOURCE, REASON_WRITE_FAILED,
+    SourceRead, apply_to_bytes, read_verified,
 };
 use dx_output::{DiagnosticEvent, Threshold, meets_threshold};
 use dx_plan::resolve::path_in_filter;
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub(crate) struct ApplyOutcome {
     pub(crate) sources: BTreeMap<String, SourceRead>,
@@ -15,9 +15,22 @@ pub(crate) struct ApplyOutcome {
     pub(crate) not_applied: Vec<(String, &'static str)>,
 }
 
+/// Resolves links so a write lands on the real file, never replacing the link itself.
+fn resolve_source(workspace: &Path, path: &str) -> Result<PathBuf, &'static str> {
+    match dx_path::workspace::resolve_target_in_workspace(workspace, path) {
+        Ok(target) => Ok(target),
+        Err(error) if error.kind() == std::io::ErrorKind::InvalidInput => {
+            Err(REASON_OUTSIDE_WORKSPACE)
+        }
+        Err(_) => Err(REASON_UNREADABLE_SOURCE),
+    }
+}
+
 /// Writes each verified candidate through `fs`; a failed write is reported
 /// as `write_failed` and does not roll back files already written. With
 /// `writable`, a change to any other path is reported as `outside_scope`.
+/// A path that links out of the workspace is never read and is reported as
+/// `outside_workspace`.
 pub(crate) fn apply_collected_changes(
     fs: &dyn FileSystem,
     workspace: &Path,
@@ -26,11 +39,18 @@ pub(crate) fn apply_collected_changes(
     writable: Option<&[String]>,
     changes: &[FileChange],
 ) -> ApplyOutcome {
+    let mut targets: BTreeMap<String, Result<PathBuf, &'static str>> = BTreeMap::new();
     let mut sources: BTreeMap<String, SourceRead> = BTreeMap::new();
     for change in changes {
+        let target = targets
+            .entry(change.path.clone())
+            .or_insert_with(|| resolve_source(workspace, &change.path));
         sources
             .entry(change.path.clone())
-            .or_insert_with(|| read_verified(workspace, &change.path, &change.original_digest));
+            .or_insert_with(|| match target {
+                Ok(file) => read_verified(file, &change.original_digest),
+                Err(_) => SourceRead::Unreadable,
+            });
     }
 
     let mut applied: BTreeMap<String, bool> = BTreeMap::new();
@@ -48,19 +68,20 @@ pub(crate) fn apply_collected_changes(
                 not_applied.push((change.path.clone(), REASON_OUTSIDE_SCOPE));
                 continue;
             }
-            let reason = match sources.get(&change.path) {
-                Some(SourceRead::Bytes(original)) => {
+            let reason = match (targets.get(&change.path), sources.get(&change.path)) {
+                (Some(Err(reason)), _) => Some(*reason),
+                (Some(Ok(file)), Some(SourceRead::Bytes(original))) => {
                     match apply_to_bytes(original, &change.edits) {
                         Some(candidate) => {
                             if !matches!(
-                                read_verified(workspace, &change.path, &change.original_digest),
+                                read_verified(file, &change.original_digest),
                                 SourceRead::Bytes(_)
                             ) {
                                 applied.insert(change.path.clone(), false);
                                 not_applied.push((change.path.clone(), REASON_STALE_SOURCE));
                                 continue;
                             }
-                            match fs.write_atomic(&workspace.join(&change.path), &candidate) {
+                            match fs.write_atomic(file, &candidate) {
                                 Ok(()) => {
                                     applied.insert(change.path.clone(), true);
                                     None
@@ -71,8 +92,8 @@ pub(crate) fn apply_collected_changes(
                         None => Some(REASON_INVALID_EDITS),
                     }
                 }
-                Some(SourceRead::Unreadable) => Some(REASON_UNREADABLE_SOURCE),
-                Some(SourceRead::Stale) | None => Some(REASON_STALE_SOURCE),
+                (_, Some(SourceRead::Unreadable)) => Some(REASON_UNREADABLE_SOURCE),
+                (_, Some(SourceRead::Stale) | None) | (None, _) => Some(REASON_STALE_SOURCE),
             };
             if let Some(reason) = reason {
                 applied.insert(change.path.clone(), false);
@@ -187,7 +208,7 @@ mod tests {
     use dx_digest::blake3 as digest;
     use dx_exec_core::common::{
         FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_OUTSIDE_SCOPE,
-        REASON_STALE_SOURCE, REASON_WRITE_FAILED,
+        REASON_OUTSIDE_WORKSPACE, REASON_STALE_SOURCE, REASON_WRITE_FAILED,
     };
 
     fn write_workspace(name: &str, files: &[(&str, &[u8])]) -> tempfile::TempDir {
@@ -328,6 +349,70 @@ mod tests {
         assert_eq!(
             outcome.not_applied,
             vec![("src/a.rs".to_owned(), REASON_WRITE_FAILED)]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_source_is_written_through_the_link() {
+        let workspace = write_workspace("apply-link", &[("common/shared.py", b"BAD\n")]);
+        std::fs::create_dir_all(workspace.path().join("src")).expect("mkdir");
+        let link = workspace.path().join("src/shared.py");
+        std::os::unix::fs::symlink("../common/shared.py", &link).expect("symlink");
+        let change = full_replace("src/shared.py", b"BAD\n", "GOOD\n");
+        let outcome = apply_collected_changes(
+            &RealFileSystem,
+            workspace.path(),
+            true,
+            true,
+            None,
+            &[change],
+        );
+        assert!(
+            std::fs::symlink_metadata(&link)
+                .expect("link metadata")
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(
+            std::fs::read(workspace.path().join("common/shared.py")).expect("read back"),
+            b"GOOD\n"
+        );
+        assert_eq!(outcome.applied.get("src/shared.py"), Some(&true));
+        assert!(outcome.not_applied.is_empty(), "{:?}", outcome.not_applied);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlink_leaving_workspace_is_not_applied() {
+        let outside = write_workspace("apply-link-outside", &[("shared.py", b"BAD\n")]);
+        let workspace = write_workspace("apply-link-inside", &[]);
+        std::fs::create_dir_all(workspace.path().join("src")).expect("mkdir");
+        let link = workspace.path().join("src/shared.py");
+        std::os::unix::fs::symlink(outside.path().join("shared.py"), &link).expect("symlink");
+        let change = full_replace("src/shared.py", b"BAD\n", "GOOD\n");
+        let outcome = apply_collected_changes(
+            &RealFileSystem,
+            workspace.path(),
+            true,
+            true,
+            None,
+            &[change],
+        );
+        assert!(
+            std::fs::symlink_metadata(&link)
+                .expect("link metadata")
+                .file_type()
+                .is_symlink()
+        );
+        assert_eq!(
+            std::fs::read(outside.path().join("shared.py")).expect("read back"),
+            b"BAD\n"
+        );
+        assert_eq!(outcome.applied.get("src/shared.py"), Some(&false));
+        assert_eq!(
+            outcome.not_applied,
+            vec![("src/shared.py".to_owned(), REASON_OUTSIDE_WORKSPACE)]
         );
     }
 

@@ -67,7 +67,7 @@ fn parent() -> Result<(), String> {
     stream
         .read_to_string(&mut reply)
         .map_err(|err| err.to_string())?;
-    let _ = child.wait();
+    let _: std::io::Result<std::process::ExitStatus> = child.wait();
     if reply == "pong" {
         Ok(())
     } else {

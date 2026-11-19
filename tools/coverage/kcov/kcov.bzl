@@ -24,10 +24,16 @@ def dx_kcov_attrs():
         ),
     }
 
-
 def dx_kcov_test_coverage(ctx, upstream, sources, dependency_attributes = ["upstream"]):
-    """Returns coverage providers that run the upstream test under kcov over sources, or None off Linux."""
+    """Returns coverage providers that run the upstream test under kcov over sources.
+
+    Returns None off Linux and when _dx_kcov has no executable, as in a consumer with
+    no kcov pin for the platform.
+    """
     if not ctx.target_platform_has_constraint(ctx.attr._dx_kcov_linux[platform_common.ConstraintValueInfo]):
+        return None
+    kcov = ctx.attr._dx_kcov[DefaultInfo].files_to_run.executable
+    if kcov == None:
         return None
     instrumented = coverage_common.instrumented_files_info(
         ctx,
@@ -38,7 +44,6 @@ def dx_kcov_test_coverage(ctx, upstream, sources, dependency_attributes = ["upst
     manifest = ctx.actions.declare_file(ctx.label.name + ".kcov_sources")
     ctx.actions.write(manifest, "".join([f.short_path + "\n" for f in sources]))
     exe = upstream[DefaultInfo].files_to_run.executable
-    kcov = ctx.attr._dx_kcov[DefaultInfo].files_to_run.executable
     to_lcov = ctx.attr._dx_to_lcov[0][DefaultInfo]
     env = {}
     inherited = []

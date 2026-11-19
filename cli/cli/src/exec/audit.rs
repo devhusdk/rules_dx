@@ -1,4 +1,3 @@
-use super::pinned_tool::QueryBazel;
 use dx_audit::secrets::CONFIG_FILE_NAME;
 use dx_error::DxError;
 use dx_exec_core::common::{
@@ -7,6 +6,7 @@ use dx_exec_core::common::{
     frozen_summary, offline_summary, pre_exec, report_dx_error, report_failed, text_finding,
     write_report_document,
 };
+use dx_exec_reports::pinned_tool::QueryBazel;
 use dx_output::{
     DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, PackageRef, Severity,
     Threshold, command_finished, command_started, diagnostic_event, error_event, notice_event,
@@ -16,23 +16,10 @@ use dx_plan::args::{Command, Invocation};
 use dx_plan::reports::{Destination, plan_reports};
 use dx_plan::resolve::QueryRunner;
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-/// The date advisory freshness and exception windows are judged against, pinned by `DX_AUDIT_TODAY`.
-pub const AUDIT_TODAY_ENV: &str = "DX_AUDIT_TODAY";
-
-pub(super) fn today_utc(pinned: Option<&str>) -> String {
-    today_utc_from(pinned.map(str::to_owned))
-}
-
-/// Returns the audit date, preferring a pinned `YYYY-MM-DD` and ignoring anything else.
-fn today_utc_from(pinned: Option<String>) -> String {
-    pinned
-        .filter(|date| date.len() == 10 && date.bytes().all(|b| b.is_ascii_digit() || b == b'-'))
-        .unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%d").to_string())
-}
+use dx_exec_core::audit_policy::{PolicyError, audit_tier, read_policy_text};
 
 #[cfg(test)]
 #[path = "audit_tests.rs"]
@@ -100,6 +87,16 @@ pub(crate) enum AuditError {
     OfflineRequired { set: String, detail: String },
     #[error(transparent)]
     Hub(#[from] dx_adopt::AdoptError),
+}
+
+impl From<PolicyError> for AuditError {
+    fn from(error: PolicyError) -> Self {
+        match error {
+            PolicyError::Read { rel, error } => AuditError::Read { rel, error },
+            PolicyError::NotUtf8 { rel } => AuditError::NotUtf8 { rel },
+            PolicyError::SecurityInvalid(problem) => AuditError::SecurityInvalid(problem),
+        }
+    }
 }
 
 impl AuditError {
@@ -232,18 +229,9 @@ fn resolve_configured_audit_sets(
 }
 
 fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, AuditError> {
-    match dx_path::workspace::resolve_in_workspace(workspace, rel).and_then(std::fs::read) {
-        Err(error) => Err(AuditError::Read {
-            rel: rel.to_owned(),
-            error,
-        }),
-        Ok(bytes) => match String::from_utf8(bytes) {
-            Err(_) => Err(AuditError::NotUtf8 {
-                rel: rel.to_owned(),
-            }),
-            Ok(text) => Ok(text),
-        },
-    }
+    Ok(dx_exec_core::audit_policy::read_workspace_text(
+        workspace, rel,
+    )?)
 }
 
 fn load_advisories(
@@ -312,9 +300,12 @@ fn load_pinned(
         Err(error) => return Err(fetch_error(format!("could not read the cache: {error}"))),
     };
     check_pin_sha(&pin, label, &bytes)?;
-    let text = String::from_utf8(bytes).map_err(|_| AuditError::AdvisoryUtf8 {
-        set: label.to_owned(),
-        rel: pin.cache_rel(),
+    let text = String::from_utf8(bytes).map_err(|error| {
+        tracing::info!(%error, "advisory snapshot is not valid UTF-8");
+        AuditError::AdvisoryUtf8 {
+            set: label.to_owned(),
+            rel: pin.cache_rel(),
+        }
     })?;
     let advisories =
         dx_audit::vuln::parse_snapshot(&text).map_err(|detail| AuditError::AdvisoryParse {
@@ -371,7 +362,7 @@ fn no_dependency_sets() -> String {
     let cargo = dx_ecosystems::Ecosystem::Cargo;
     format!(
         "no dependency sets: this workspace declares no hubs in MODULE.bazel. Add one, for example:\n\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:{}\",\n    manifests = [\"//:{}\"],\n)",
-        cargo.lockfiles().first().map_or("", String::as_str),
+        cargo.lockfile(),
         cargo.manifest_name()
     )
 }
@@ -686,12 +677,11 @@ fn bazel_coverage_diagnostic(
         count(BazelSource::Extension),
     );
     if !inventory.unrecorded_extensions.is_empty() {
-        write!(
-            message,
+        message.push_str(&format!(
             "; {} root module extensions have no entry in {lock_rel} (reproducible, or the lock is stale), so their repos are not listed: {}",
             inventory.unrecorded_extensions.len(),
             inventory.unrecorded_extensions.join(", ")
-        ).ok();
+        ));
     }
     DiagnosticEvent {
         rule: Some(format!(
@@ -722,24 +712,6 @@ fn package_ref(
     })
 }
 
-/// The tier from the dx.toml `tier`; standard without one.
-fn audit_tier(workspace: &Path) -> Result<dx_audit::tier_base::Tier, DxError> {
-    match dx_config::load(workspace) {
-        Ok(config) => Ok(config.and_then(|config| config.tier).unwrap_or_default()),
-        Err(problem) => Err(DxError::failure(format!("dx.toml: {problem}"))),
-    }
-}
-
-/// The text of `rel`, or `None` when the file does not exist.
-fn read_policy_text(workspace: &Path, rel: &str) -> Result<Option<String>, AuditError> {
-    match read_workspace_text(workspace, rel) {
-        Err(AuditError::Read { error, .. }) if error.kind() == std::io::ErrorKind::NotFound => {
-            Ok(None)
-        }
-        other => other.map(Some),
-    }
-}
-
 fn load_license_policy(
     workspace: &Path,
 ) -> Result<dx_audit::license_policy::LicensePolicy, AuditError> {
@@ -752,19 +724,6 @@ fn load_license_policy(
     })?;
     let text = read_policy_text(workspace, "license.toml")?;
     load_licenses(text.as_deref(), tier).map_err(invalid)
-}
-
-pub(super) fn load_security_policy(
-    workspace: &Path,
-) -> Result<dx_audit::exception::SecurityPolicy, AuditError> {
-    use dx_audit::exception::{SecurityProblem, load_security};
-    let tier = audit_tier(workspace).map_err(|error| {
-        AuditError::SecurityInvalid(SecurityProblem::InvalidToml {
-            message: error.message().to_owned(),
-        })
-    })?;
-    let text = read_policy_text(workspace, "security.toml")?;
-    load_security(text.as_deref(), tier).map_err(AuditError::SecurityInvalid)
 }
 
 fn tier_for_roots(
@@ -824,8 +783,8 @@ fn gitleaks_path(
     bazel: &dyn dx_tool_resolve::Bazel,
     offline: bool,
 ) -> Result<PathBuf, DxError> {
-    use super::pinned_tool::{PinnedTool, PinnedToolError, resolve_pinned};
     use dx_audit::secrets::{RESOLVE_COMMAND, TOOL_ENV_VAR, TOOL_LABEL};
+    use dx_exec_reports::pinned_tool::{PinnedTool, PinnedToolError, resolve_pinned};
     let tool = PinnedTool {
         var: TOOL_ENV_VAR,
         label: TOOL_LABEL,
@@ -1576,7 +1535,9 @@ fn run_security(inputs: &SecurityInputs<'_>) -> SecurityResult {
     } = *inputs;
     let bazel = inputs.bazel();
     let (secret_findings, secrets_incomplete, diagnostics) = inputs.secrets(&bazel);
-    let policy = match load_security_policy(workspace) {
+    let policy = match dx_exec_core::audit_policy::load_security_policy(workspace)
+        .map_err(AuditError::from)
+    {
         Ok(policy) => policy,
         Err(error) => return policy_failure(&error, diagnostics),
     };
@@ -2090,7 +2051,10 @@ fn json_summary(out: &mut dyn Write, err: &mut dyn Write, s: &AuditSummary<'_>) 
                     ),
                 )?;
                 for line in message.lines() {
-                    writeln!(err, "dx: {code}: audit {family_name}: {line}").ok();
+                    dx_output::write_stderr(
+                        err,
+                        format_args!("dx: {code}: audit {family_name}: {line}\n"),
+                    );
                 }
             }
         }
@@ -2120,7 +2084,10 @@ fn text_summary(out: &mut dyn Write, err: &mut dyn Write, s: &AuditSummary<'_>) 
             | dx_audit::outcome::FamilyStatus::Incomplete => {
                 let code = s.failure_code(family_name);
                 for line in message.lines() {
-                    writeln!(err, "dx: {code}: audit {family_name}: {line}").ok();
+                    dx_output::write_stderr(
+                        err,
+                        format_args!("dx: {code}: audit {family_name}: {line}\n"),
+                    );
                 }
             }
         }
@@ -2297,7 +2264,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     } else if verbose && let Err(exit) = check_stdout_write(writeln!(out, "{summary}")) {
         return exit;
     }
-    let today = today_utc(audit_today);
+    let today = dx_exec_core::audit_policy::today_utc(audit_today);
     let inputs = AuditInputs {
         workspace,
         runner,

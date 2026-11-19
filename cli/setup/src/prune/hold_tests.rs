@@ -289,7 +289,7 @@ fn hold_vs_apply_race_never_sees_partial_generation() {
     };
     for round in 1..=ROUNDS {
         select(&workspace, &iteration_pair(round));
-        let _ = prune(&workspace);
+        let _: crate::prune::PruneOutcome = prune(&workspace);
     }
     done.store(true, std::sync::atomic::Ordering::SeqCst);
     assert!(reader.join().expect("reader") > 0);
@@ -386,4 +386,16 @@ fn a_streamed_child_keeps_its_selection_through_cleanup() {
         !old_gen.exists(),
         "cleanup removes the generation once the child is gone"
     );
+}
+
+#[test]
+fn hold_current_refuses_a_file_where_the_state_dir_belongs() {
+    let (_scratch, workspace) = workspace("dx-prune-hold-file-state-");
+    let dx_dir = dx_path::state::local_dir(&workspace);
+    fs::create_dir_all(dx_dir.parent().expect("parent")).expect("parent dir");
+    fs::write(&dx_dir, "foreign").expect("file state dir");
+    assert!(matches!(
+        hold_current(&workspace, WAIT),
+        Err(HoldError::Prune(PruneError::CurrentInvalid { .. }))
+    ));
 }

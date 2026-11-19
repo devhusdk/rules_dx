@@ -18,6 +18,7 @@ julia_library(
 
 julia_test(
     name = "archive_test",
+    size = "medium",
     srcs = ["archive_test.jl"],
     deps = [":Archive"],
 )

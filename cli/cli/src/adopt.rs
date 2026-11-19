@@ -1,5 +1,3 @@
-#![deny(clippy::unused_result_ok, clippy::map_err_ignore)]
-
 pub(crate) mod agents;
 pub(crate) mod claude_md;
 mod completion;
@@ -58,7 +56,8 @@ pub(crate) fn from_adopt(prefix: &str, error: &dx_adopt::AdoptError) -> dx_error
         | E::ScaffoldEscapesRoot { .. }
         | E::WorkspaceScan { .. }
         | E::Generate { .. }
-        | E::InvalidDefaults { .. } => error.to_string(),
+        | E::InvalidDefaults { .. }
+        | E::DxConfig { .. } => error.to_string(),
     };
     match error {
         E::InitInvalidDir { .. }
@@ -85,7 +84,8 @@ pub(crate) fn from_adopt(prefix: &str, error: &dx_adopt::AdoptError) -> dx_error
         | E::WatchFailed { .. }
         | E::ScaffoldEscapesRoot { .. }
         | E::NotADirectory { .. }
-        | E::Generate { .. } => dx_error::DxError::failure(message),
+        | E::Generate { .. }
+        | E::DxConfig { .. } => dx_error::DxError::failure(message),
     }
 }
 

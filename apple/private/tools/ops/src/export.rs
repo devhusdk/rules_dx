@@ -179,8 +179,12 @@ pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
         .into_owned();
     let before = listing(&ipa).unwrap_or_default();
 
-    let embedded = std::fs::read(app.join("embedded.mobileprovision"))
-        .map_err(|_| usage(format!("{} embeds no provisioning profile", ipa.display())))?;
+    let embedded = std::fs::read(app.join("embedded.mobileprovision")).map_err(|error| {
+        usage(format!(
+            "{} embeds no provisioning profile: {error}",
+            ipa.display()
+        ))
+    })?;
     if std::fs::read(&profile).ok().as_deref() != Some(embedded.as_slice()) {
         return Err(usage(format!(
             "{} embeds a provisioning profile other than the declared {}",
@@ -264,7 +268,8 @@ pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     let mut app_keys = BTreeSet::new();
     if !signed.stdout.is_empty() {
         let file = work_dir.join("entitlements.plist");
-        std::fs::write(&file, &signed.stdout).map_err(|_| unreadable())?;
+        std::fs::write(&file, &signed.stdout)
+            .map_err(|error| usage(format!("cannot write the entitlements of {name}: {error}")))?;
         if !tools
             .tool(PLUTIL, &["-convert", "xml1", &text(&file)])
             .success()

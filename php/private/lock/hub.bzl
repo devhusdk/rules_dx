@@ -1,6 +1,7 @@
 """The composer hub: one repository whose packages are built from the lock."""
 
-load(":repo.bzl", "lock_repos", "lock_tag")
+load("//core:pins.bzl", "lock_repos", "lock_tag")
+load(":repo.bzl", "composer_problems")
 
 _PHP_BZL = str(Label("//php/private:php.bzl"))
 
@@ -24,7 +25,7 @@ def build_file(package):
     ])
 
 def _composer_impl(mctx):
-    lock_repos(mctx, build_file)
+    lock_repos(mctx, build_file, composer_problems)
     return mctx.extension_metadata(reproducible = True)
 
 composer = module_extension(

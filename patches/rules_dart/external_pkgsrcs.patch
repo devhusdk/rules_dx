@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: aran/rules_dart#7
 diff -ruN a/dart/private/source_set.bzl b/dart/private/source_set.bzl
 --- a/dart/private/source_set.bzl
 +++ b/dart/private/source_set.bzl

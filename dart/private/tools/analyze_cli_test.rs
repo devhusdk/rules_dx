@@ -1,5 +1,9 @@
 //! Pins the `dart analyze --format=json` contract the quality parser relies on. dart.dev documents
 //! neither the exit codes nor the JSON shape, so an SDK bump that changes them fails here first.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};

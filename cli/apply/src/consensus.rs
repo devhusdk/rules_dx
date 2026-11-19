@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::envelope::Envelope;
+use super::envelope::{Envelope, FileOperation};
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ConsensusError {
@@ -9,13 +9,35 @@ pub enum ConsensusError {
         only_a: Vec<String>,
         only_b: Vec<String>,
     },
+    #[error("envelope versions differ: {a} and {b}")]
+    VersionMismatch { a: u32, b: u32 },
+    #[error("envelope repeats path: {path}")]
+    DuplicatePath { path: String },
     #[error("envelope content differs: {path}")]
     ContentMismatch { path: String },
 }
 
+fn unique_paths(operations: &[FileOperation]) -> Result<BTreeSet<&str>, ConsensusError> {
+    let mut paths = BTreeSet::new();
+    for op in operations {
+        if !paths.insert(op.path.as_str()) {
+            return Err(ConsensusError::DuplicatePath {
+                path: op.path.clone(),
+            });
+        }
+    }
+    Ok(paths)
+}
+
 pub fn merge(a: &Envelope, b: &Envelope) -> Result<Envelope, ConsensusError> {
-    let paths_a: BTreeSet<&str> = a.operations.iter().map(|op| op.path.as_str()).collect();
-    let paths_b: BTreeSet<&str> = b.operations.iter().map(|op| op.path.as_str()).collect();
+    if a.version != b.version {
+        return Err(ConsensusError::VersionMismatch {
+            a: a.version,
+            b: b.version,
+        });
+    }
+    let paths_a = unique_paths(&a.operations)?;
+    let paths_b = unique_paths(&b.operations)?;
     if paths_a != paths_b {
         let only_a = paths_a
             .difference(&paths_b)
@@ -114,6 +136,31 @@ mod tests {
             Err(ConsensusError::PathSetMismatch {
                 only_a: vec!["c.txt".to_owned()],
                 only_b: vec!["b.txt".to_owned()],
+            })
+        );
+    }
+
+    #[test]
+    fn duplicate_path_conflicts() {
+        let a = envelope(vec![op("a.txt", "y\n")]);
+        let b = envelope(vec![op("a.txt", "x\n"), op("a.txt", "y\n")]);
+        let duplicate = Err(ConsensusError::DuplicatePath {
+            path: "a.txt".to_owned(),
+        });
+        assert_eq!(merge(&a, &b), duplicate);
+        assert_eq!(merge(&b, &a), duplicate);
+    }
+
+    #[test]
+    fn version_disagreement_conflicts() {
+        let a = envelope(vec![op("a.txt", "x\n")]);
+        let mut b = a.clone();
+        b.version = ENVELOPE_VERSION + 1;
+        assert_eq!(
+            merge(&a, &b),
+            Err(ConsensusError::VersionMismatch {
+                a: ENVELOPE_VERSION,
+                b: ENVELOPE_VERSION + 1,
             })
         );
     }

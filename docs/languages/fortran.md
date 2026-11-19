@@ -49,34 +49,67 @@ tools/dx test //...
 ### Modules
 
 A source can `use` modules from the targets in its `deps`. It cannot `use` a
-module from another source of the same target. Put each module that other
-code uses in its own `fortran_library` and share it through `deps`.
-Sources in different packages may share a file name, such as `kinds.f90`.
+module from another source of the same target. So put each module that other
+code uses in its own `fortran_library`, and share it through `deps`:
 
-The intrinsic modules (`iso_fortran_env`, `iso_c_binding`, `ieee_*`) work
-without any dependency.
+```python
+load("@rules_dx//fortran:defs.bzl", "fortran_library")
+
+fortran_library(
+    name = "kinds",
+    srcs = ["kinds.f90"],
+)
+
+fortran_library(
+    name = "units",
+    srcs = ["units.f90"],
+    deps = [":kinds"],
+)
+```
+
+Sources in different packages may share a file name, such as `kinds.f90`.
+The intrinsic modules (`iso_fortran_env`, `iso_c_binding`, `ieee_*`) need
+no dependency.
 
 ### Locked packages
 
-`fpm.lock(name, lock)` in `MODULE.bazel` reads an `fpm.lock.json` and creates
-the hub repository `name` with one `fortran_library` per locked package, at
-`@<name>//<package>`. Each package compiles the Fortran sources under its `src`
-tree and depends on the packages its own `fpm.toml` lists. `dx update` runs
-`@rules_dx//fortran/private/tools/lock`, which reads the git dependencies of the
-`fpm.toml` beside the lock and of every archive they name, and writes
-`fpm.lock.json`. Each dependency needs a `https://github.com/<owner>/<repo>` git
-URL pinned with `tag` or `rev`; path dependencies are skipped. `dx security` and
-`dx license` list the locked packages.
+List git dependencies in `fpm.toml`. Each one needs a
+`https://github.com/<owner>/<repo>` URL pinned with `tag` or `rev`. Path
+dependencies are skipped.
+
+1. Run `dx update --apply`. It reads the git dependencies of `fpm.toml` and
+   of every archive they name, and writes `fpm.lock.json`.
+2. Call `fpm.lock(name, lock)` in `MODULE.bazel`. It creates the hub `name`:
+   one Bazel repository with a `fortran_library` per locked package.
+3. Depend on a package as `@<name>//<package>`.
+
+```python
+fpm = use_extension("@rules_dx//fortran:extensions.bzl", "fpm")
+fpm.lock(
+    name = "fpm",
+    lock = "//:fpm.lock.json",
+)
+use_repo(fpm, "fpm")
+```
+
+Each package compiles the Fortran sources under its `src` tree and depends on
+the packages its own `fpm.toml` lists. `dx security` and `dx license` list
+the locked packages.
 
 ## Quality
 
-`dx format` runs `ffmt` and `dx lint` runs `fortitude` by default; the default policy selects
-`format = ["ffmt"]` and `lint = ["fortitude", "typos"]` for the `fortran` family. It formats `.f90`, `.f95`, `.f03`, `.F90`, `.F95` and `.fpp`
-sources. Fixed-form `.f` and `.F` files and `.f08` and `.F08` files are left
-alone, because ffmt would corrupt or reject them. `dx typecheck` runs `flang` only when the `fortran` family
-selects it with `typecheck = ["flang"]`. `fortitude` lints free-form sources (`.f90` and the
-newer extensions). Fixed-form `.f` and `.F` files are not linted, because
-fortitude reads free-form source only.
+The default policy selects these tools for the `fortran` family:
+
+| Command | Tool | Files |
+| --- | --- | --- |
+| `dx format` | `ffmt` | `.f90`, `.f95`, `.f03`, `.F90`, `.F95`, `.fpp` |
+| `dx lint` | `fortitude`, `typos` | free-form sources: `.f90` and newer |
+| `dx typecheck` | `flang` | only when the family sets `typecheck = ["flang"]` |
+
+- ffmt leaves fixed-form `.f` and `.F` files and `.f08` and `.F08` files
+  alone, because it would corrupt or reject them.
+- fortitude reads free-form source only, so it does not lint `.f` and `.F`
+  files.
 
 ## Toolchain
 
@@ -127,6 +160,14 @@ fortran_test(name, *, srcs = None, visibility = None, **kwargs)
 
 Compiles Fortran sources with rules_fortran and links them with cc_test.
 
+### `fortran_doc_shard`
+
+```python
+fortran_doc_shard(name, lib, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Fortran library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Fortran:
@@ -146,9 +187,8 @@ Fortran builds and tests on:
 - Linux x86_64
 - macOS arm64
 
-See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
-
-OpenMP, GPU offload and Wasm are unsupported. On Windows, Fortran targets are
+The [support matrix](../support-matrix.md) lists the platforms. OpenMP,
+GPU offload and Wasm are not supported. On Windows, Fortran targets are
 incompatible and skipped.
 
 ## API docs
@@ -158,24 +198,17 @@ incompatible and skipped.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/fortran:defs.bzl", "fortran_doc_shard")
+load("@rules_dx//fortran:defs.bzl", "fortran_doc_shard")
 ```
 
-### `fortran_doc_shard`
+`dx docs` documents every `fortran_library` that lists its own sources, with
+no setup. FORD parses the public modules, types and procedures on the pinned
+Python toolchain. Nothing is compiled and no host tool runs.
+
+To build the shard yourself, declare one:
 
 ```python
-fortran_doc_shard(name, lib, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one Fortran library.
-
-`dx docs` documents every `fortran_library` that lists its own sources, with no
-setup. FORD, pinned by hash in `core/quality/tools/python/uv.lock`, parses the public
-modules, types and procedures on the hermetic Python toolchain; nothing is
-compiled and no host tool runs. To build the shard yourself, declare one:
-
-```python
-load("@rules_dx//tools/docs/fortran:defs.bzl", "fortran_doc_shard")
+load("@rules_dx//fortran:defs.bzl", "fortran_doc_shard")
 
 fortran_doc_shard(
     name = "units_docs",

@@ -15,7 +15,7 @@ OTHER_DEFAULTS = {
     "cuda": {
         "audit": [],
         "format": ["clang_format"],
-        "lint": ["typos"],
+        "lint": ["clang_tidy", "typos"],
         "typecheck": [],
     },
     "go_module": {
@@ -40,12 +40,6 @@ OTHER_DEFAULTS = {
         "audit": [],
         "format": ["biome"],
         "lint": ["biome"],
-        "typecheck": [],
-    },
-    "helm": {
-        "audit": [],
-        "format": [],
-        "lint": ["helm", "typos"],
         "typecheck": [],
     },
     "markdown": {

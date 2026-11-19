@@ -244,7 +244,7 @@ fn rewrite_attributes<'a>(e: &'a BytesStart<'_>) -> Result<Option<BytesStart<'st
     let mut changed = false;
     let mut named = false;
     for attr in e.attributes() {
-        let Attribute { key, value } = attr.map_err(|_| ())?;
+        let Attribute { key, value } = attr.map_err(drop)?;
         named |= key.as_ref() == b"name";
         if key.as_ref() == b"timestamp" {
             changed = true;
@@ -266,7 +266,7 @@ fn rewrite_attributes<'a>(e: &'a BytesStart<'_>) -> Result<Option<BytesStart<'st
         return Ok(None);
     }
     let name = e.name();
-    let name = std::str::from_utf8(name.as_ref()).map_err(|_| ())?;
+    let name = std::str::from_utf8(name.as_ref()).map_err(drop)?;
     let mut elem = BytesStart::new(name).into_owned();
     for attr in kept {
         elem.push_attribute(attr);

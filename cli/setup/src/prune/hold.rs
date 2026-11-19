@@ -76,8 +76,21 @@ pub fn hold_current(
         .into());
     }
     let dx_dir = dx_path::state::local_dir(workspace_root);
-    if !dx_dir.is_dir() {
-        return Ok(None);
+    match fs::metadata(&dx_dir) {
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => {
+            return Err(PruneError::CurrentInvalid {
+                reason: format!("cannot inspect {}: {e}", dx_dir.display()),
+            }
+            .into());
+        }
+        Ok(meta) if !meta.is_dir() => {
+            return Err(PruneError::CurrentInvalid {
+                reason: format!("{} is not a directory", dx_dir.display()),
+            }
+            .into());
+        }
+        Ok(_) => {}
     }
     let _lock =
         acquire_commit_lock(&ManagedRoot::new(dx_dir.clone()), timeout).map_err(map_lock_error)?;

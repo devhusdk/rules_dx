@@ -94,6 +94,8 @@ pub struct GenerateRequest {
     pub bazel_startup_options: Vec<String>,
     pub workspace: Option<String>,
     pub common: CommonOptions,
+    /// See [`AffectedHandoff::writable`].
+    pub writable: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -276,6 +278,7 @@ impl UmbrellaRequest {
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_with(reports),
+            writable: self.writable.clone(),
         }
     }
 }
@@ -574,6 +577,7 @@ impl Invocation {
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
             common: self.common_options(),
+            writable: self.writable(),
         })
     }
 
@@ -659,7 +663,7 @@ pub fn here_scope(
     cwd: &std::path::Path,
 ) -> Result<String, dx_error::DxError> {
     use std::path::Component;
-    let rel = cwd.strip_prefix(workspace).map_err(|_| dx_error::DxError::usage({
+    let rel = cwd.strip_prefix(workspace).ok().ok_or_else(|| dx_error::DxError::usage({
         format!(
             "current directory {} is outside workspace {}: --here needs a directory under the workspace",
             cwd.display(),

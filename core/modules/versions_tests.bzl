@@ -1,7 +1,7 @@
 """Canonical version pins stay equal to MODULE.bazel literals."""
 
 load("@dx_pins_data//:pins.bzl", _ARCHIVES = "ARCHIVES", _DATA = "DATA", _PINS = "PINS")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":cuda.bzl", _CUDA_CELLS = "CUDA_CELLS", _CUDA_MAX_HOST_CLANG_MAJOR = "CUDA_MAX_HOST_CLANG_MAJOR", _CUDA_REDIST_SHA256 = "CUDA_REDIST_SHA256", _CUDA_REDIST_URL = "CUDA_REDIST_URL", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION")
 load(":python.bzl", _MOD_PYTHON_VERSION = "PYTHON_VERSION")
 load(":rust.bzl", _CRATE_BAZEL_LOCK = "CRATE_BAZEL_LOCK", _CRATE_CARGO_LOCK = "CRATE_CARGO_LOCK", _MOD_RUST_VERSION = "RUST_VERSION")

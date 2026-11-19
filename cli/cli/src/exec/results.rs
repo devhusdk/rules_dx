@@ -798,7 +798,7 @@ mod tests {
     #[test]
     fn unused_dependency_is_placed_on_its_build_line() {
         let root = tempfile::tempdir().expect("workspace");
-        std::fs::create_dir(root.path().join("p")).expect("package");
+        std::fs::create_dir_all(root.path().join("p")).expect("package");
         let build = "rust_library(\n    name = \"lib\",\n    deps = [\"//a:a\"],\n)\n";
         std::fs::write(root.path().join("p/BUILD.bazel"), build).expect("build");
         let mut diagnostic = Harness::diagnostic("unused", false);

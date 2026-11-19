@@ -26,8 +26,22 @@ fn git_failure(what: &str, detail: &str) -> dx_error::DxError {
     dx_error::DxError::infra(format!("git {what} failed: {detail}"))
 }
 
-fn first_diagnostic(bytes: &[u8]) -> String {
-    dx_output::first_diagnostic_line(bytes, 200, "no Git diagnostic")
+/// What a failed Git run said and how it ended; a leading `warning:` line names no cause, so the `fatal:` or `error:` line wins.
+#[must_use]
+pub fn git_exit_detail(stderr: &[u8], code: Option<i32>) -> String {
+    let text = String::from_utf8_lossy(stderr);
+    let cause = text
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with("fatal:") || line.starts_with("error:"));
+    let line = match cause {
+        Some(line) => dx_output::first_diagnostic_line(line.as_bytes(), 200, "no Git diagnostic"),
+        None => dx_output::first_diagnostic_line(stderr, 200, "no Git diagnostic"),
+    };
+    match code {
+        Some(code) => format!("{line} (exit {code})"),
+        None => format!("{line} (ended by a signal)"),
+    }
 }
 
 fn git_dir_of(workspace: &Path) -> Option<std::path::PathBuf> {
@@ -86,7 +100,10 @@ pub fn diff_name_status(
         if shallow_clone(workspace) {
             return Err(dx_error::DxError::failure(shallow_error()));
         }
-        return Err(git_failure("diff", &first_diagnostic(&result.stderr)));
+        return Err(git_failure(
+            "diff",
+            &git_exit_detail(&result.stderr, result.code),
+        ));
     }
     dx_adopt::parse_name_status_nul(&result.stdout)
 }
@@ -114,10 +131,13 @@ pub fn merge_base(
         if shallow_clone(workspace) {
             return Err(dx_error::DxError::failure(shallow_error()));
         }
-        return Err(git_failure("merge-base", &first_diagnostic(&result.stderr)));
+        return Err(git_failure(
+            "merge-base",
+            &git_exit_detail(&result.stderr, result.code),
+        ));
     }
     let text = std::str::from_utf8(&result.stdout)
-        .map_err(|_| git_failure("merge-base", "output is not UTF-8"))?;
+        .map_err(|error| git_failure("merge-base", &format!("output is not UTF-8: {error}")))?;
     let mut lines = text.lines().map(str::trim).filter(|line| !line.is_empty());
     let base = lines
         .next()
@@ -138,10 +158,10 @@ fn parse_untracked(output: &[u8]) -> Result<Vec<dx_adopt::GitChange>, dx_error::
     }
     let mut changes = Vec::with_capacity(fields.len());
     for field in fields {
-        let path = std::str::from_utf8(field).map_err(|_| {
-            dx_error::DxError::failure(
-                "git path is not UTF-8: rename the file to a UTF-8 name".to_owned(),
-            )
+        let path = std::str::from_utf8(field).map_err(|error| {
+            dx_error::DxError::failure(format!(
+                "git path is not UTF-8 ({error}): rename the file to a UTF-8 name"
+            ))
         })?;
         if path.is_empty() {
             return Err(dx_error::DxError::failure(
@@ -201,7 +221,10 @@ pub fn collect_working_tree(
         .run_query(&argv, workspace)
         .map_err(|error| git_failure("ls-files", &error.to_string()))?;
     if result.code != Some(0) {
-        return Err(git_failure("ls-files", &first_diagnostic(&result.stderr)));
+        return Err(git_failure(
+            "ls-files",
+            &git_exit_detail(&result.stderr, result.code),
+        ));
     }
     let untracked = parse_untracked(&result.stdout)?;
     let mut changes = staged;
@@ -249,15 +272,23 @@ fn run_git_lines(
         .run_query(&command_line, workspace)
         .map_err(|error| git_failure(what, &error.to_string()))?;
     if result.code != Some(0) {
-        return Err(git_failure(what, &first_diagnostic(&result.stderr)));
+        return Err(git_failure(
+            what,
+            &git_exit_detail(&result.stderr, result.code),
+        ));
     }
-    let text = std::str::from_utf8(&result.stdout).map_err(|_| {
-        dx_error::DxError::failure(
-            "git path is not UTF-8: rename the file to a UTF-8 name".to_owned(),
-        )
+    let text = std::str::from_utf8(&result.stdout).map_err(|error| {
+        dx_error::DxError::failure(format!(
+            "git path is not UTF-8 ({error}): rename the file to a UTF-8 name"
+        ))
     })?;
+    let delimiter = if args.iter().any(|arg| arg == "-z") {
+        '\0'
+    } else {
+        '\n'
+    };
     Ok(text
-        .split(['\0', '\n'])
+        .split(delimiter)
         .filter(|field| !field.is_empty())
         .map(str::to_owned)
         .collect())
@@ -580,11 +611,14 @@ pub(crate) fn show_at_base(
         if stderr.contains("does not exist") || stderr.contains("exists on disk, but not in") {
             return Ok(None);
         }
-        return Err(git_failure("show", &first_diagnostic(&result.stderr)));
+        return Err(git_failure(
+            "show",
+            &git_exit_detail(&result.stderr, result.code),
+        ));
     }
     String::from_utf8(result.stdout)
         .map(Some)
-        .map_err(|_| git_failure("show", "output is not UTF-8"))
+        .map_err(|error| git_failure("show", &format!("output is not UTF-8: {error}")))
 }
 
 fn lock_change(
@@ -594,8 +628,8 @@ fn lock_change(
     runner: &dyn QueryRunner,
     base: Option<(&Path, &str)>,
 ) -> Result<Vec<(String, LockChange)>, dx_error::DxError> {
-    let kind = lock_inputs::classify(path, hubs);
     let workspace_input = || dx_error::DxError::failure(format!("workspace input {path}"));
+    let kind = lock_inputs::classify(path, hubs);
     if kind == LockKind::Unknown {
         return Err(workspace_input());
     }
@@ -642,7 +676,8 @@ fn module_text(
     base: (&Path, &str),
 ) -> Result<(String, String), dx_error::DxError> {
     let workspace_input = || dx_error::DxError::failure(format!("workspace input {path}"));
-    let head = std::fs::read_to_string(workspace.join(path)).map_err(|_| workspace_input())?;
+    let head = std::fs::read_to_string(workspace.join(path))
+        .map_err(|error| dx_error::DxError::failure(format!("workspace input {path}: {error}")))?;
     if !changed {
         return Ok((head.clone(), head));
     }
@@ -686,12 +721,15 @@ fn module_change(
         });
     }
     let read_include = |label: &str| {
-        dx_module_bazel::label_path(label)
-            .and_then(|rel| std::fs::read_to_string(workspace.join(&rel)).map_err(|_| rel))
-            .map_err(|_| format!("workspace input {label}"))
+        let rel = dx_module_bazel::label_path(label)
+            .map_err(|error| format!("workspace input {label}: {error}"))?;
+        std::fs::read_to_string(workspace.join(&rel))
+            .map_err(|error| format!("workspace input {label}: {error}"))
     };
-    let files = dx_module_bazel::load_with_includes(&head_module, &read_include)
-        .map_err(|_| dx_error::DxError::failure(format!("workspace input {ROOT_MODULE}")))?;
+    let files =
+        dx_module_bazel::load_with_includes(&head_module, &read_include).map_err(|error| {
+            dx_error::DxError::failure(format!("workspace input {ROOT_MODULE}: {error}"))
+        })?;
     if let Some(reason) = module_inputs::overrides_that_widen(&files) {
         return Err(dx_error::DxError::failure(reason));
     }
@@ -1303,10 +1341,6 @@ pub fn resolve_affected(
 mod tests {
     use dx_adopt::dependency_sets::Ecosystem;
 
-    fn lock_of(ecosystem: Ecosystem) -> &'static str {
-        ecosystem.lockfiles()[0].as_str()
-    }
-
     fn manifest_of(ecosystem: Ecosystem) -> &'static str {
         ecosystem.manifest_name()
     }
@@ -1671,7 +1705,7 @@ mod tests {
             "MODULE.bazel",
             "MODULE.bazel.lock",
             "deps/go.MODULE.bazel",
-            lock_of(Ecosystem::Cargo),
+            Ecosystem::Cargo.lockfile(),
             ".bazelrc",
             ".bazelrc.user",
             ".bazeliskrc",
@@ -1834,7 +1868,7 @@ mod tests {
                 "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n".to_owned(),
                 format!(
                     "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:{}\")\n",
-                    lock_of(Ecosystem::Npm)
+                    Ecosystem::Npm.lockfile()
                 ),
                 "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\n".to_owned(),
                 format!(
@@ -1844,7 +1878,7 @@ mod tests {
                 "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n".to_owned(),
                 format!(
                     "maven.install(lock_file = \"//third_party/jvm:{}\")\n",
-                    lock_of(Ecosystem::Maven)
+                    Ecosystem::Maven.lockfile()
                 ),
                 "pip = use_extension(\"@rules_python//python/extensions:pip.bzl\", \"pip\")\n".to_owned(),
                 "pip.parse(hub_name = \"pypi\", requirements_lock = \"//:requirements_lock.txt\")\n".to_owned(),
@@ -1889,7 +1923,7 @@ mod tests {
             "MODULE.bazel",
             &format!(
                 "module(name = \"demo\")\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:{}\", manifests = [\"//a:{}\"])\n",
-                lock_of(Ecosystem::Cargo),
+                Ecosystem::Cargo.lockfile(),
                 manifest_of(Ecosystem::Cargo)
             ),
         ).unwrap();
@@ -1936,25 +1970,25 @@ mod tests {
         write(workspace, "web/BUILD.bazel", "").unwrap();
         write(
             workspace,
-            &format!("web/{}", lock_of(Ecosystem::Npm)),
+            &format!("web/{}", Ecosystem::Npm.lockfile()),
             "x\n",
         )
         .unwrap();
-        widens_as_workspace_input(workspace, &format!("web/{}", lock_of(Ecosystem::Npm)));
+        widens_as_workspace_input(workspace, &format!("web/{}", Ecosystem::Npm.lockfile()));
         write(
             workspace,
             "MODULE.bazel",
             "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(pnpm_lock = LOCK)\n",
         ).unwrap();
-        widens_as_workspace_input(workspace, &format!("web/{}", lock_of(Ecosystem::Npm)));
+        widens_as_workspace_input(workspace, &format!("web/{}", Ecosystem::Npm.lockfile()));
         write(workspace, "MODULE.bazel", "module(name = \n").unwrap();
-        widens_as_workspace_input(workspace, &format!("web/{}", lock_of(Ecosystem::Npm)));
+        widens_as_workspace_input(workspace, &format!("web/{}", Ecosystem::Npm.lockfile()));
     }
 
     fn crate_module() -> String {
         format!(
             "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    cargo_lockfile = \"//:{}\",\n    lockfile = \"//:cargo-bazel-lock.json\",\n)\n",
-            lock_of(Ecosystem::Cargo)
+            Ecosystem::Cargo.lockfile()
         )
     }
 
@@ -1998,7 +2032,7 @@ mod tests {
             "deps/rust.MODULE.bazel",
             &format!(
                 "crate.from_cargo(cargo_lockfile = \"//:{}\", lockfile = \"//:cargo-bazel-lock.json\")\n",
-                lock_of(Ecosystem::Cargo)
+                Ecosystem::Cargo.lockfile()
             ),
         ).unwrap();
         let (hubs, _) = module_inputs_of(workspace);
@@ -2014,7 +2048,7 @@ mod tests {
         write(workspace, "MODULE.bazel", &crate_module()).unwrap();
         write(workspace, "a/BUILD.bazel", "").unwrap();
         write(workspace, "b/BUILD.bazel", "").unwrap();
-        write(workspace, lock_of(Ecosystem::Cargo), &cargo_lock("1.0.2")).unwrap();
+        write(workspace, Ecosystem::Cargo.lockfile(), &cargo_lock("1.0.2")).unwrap();
         scratch
     }
 
@@ -2040,7 +2074,7 @@ mod tests {
         let query = FakeQuery::new(vec![FakeQuery::ok(&cargo_lock("1.0.1")), crate_graph()]);
         let selection = resolve_affected(
             &[change(
-                lock_of(Ecosystem::Cargo),
+                Ecosystem::Cargo.lockfile(),
                 dx_adopt::ChangeKind::Modified,
             )],
             workspace,
@@ -2058,7 +2092,7 @@ mod tests {
             selection.widened,
             [WidenedScope {
                 scope: format!("rdeps(//..., {})", hub_label("cargo", "//:serde")),
-                reason: format!("changed crates in {}", lock_of(Ecosystem::Cargo)),
+                reason: format!("changed crates in {}", Ecosystem::Cargo.lockfile()),
                 repos: vec![hub_label("cargo", "//:serde")],
             }]
         );
@@ -2071,7 +2105,7 @@ mod tests {
             strings(&[
                 "git",
                 "show",
-                &format!("base:./{}", lock_of(Ecosystem::Cargo))
+                &format!("base:./{}", Ecosystem::Cargo.lockfile())
             ])
         );
     }
@@ -2453,7 +2487,7 @@ mod tests {
         ]);
         let selection = resolve_affected(
             &[change(
-                lock_of(Ecosystem::Cargo),
+                Ecosystem::Cargo.lockfile(),
                 dx_adopt::ChangeKind::Modified,
             )],
             workspace,
@@ -2470,13 +2504,13 @@ mod tests {
                     scope: "//...".to_owned(),
                     reason: format!(
                         "changed crates in {} reach toolchain //tc:prost",
-                        lock_of(Ecosystem::Cargo)
+                        Ecosystem::Cargo.lockfile()
                     ),
                     repos: Vec::new(),
                 },
                 WidenedScope {
                     scope: format!("rdeps(//..., {})", hub_label("cargo", "//:serde")),
-                    reason: format!("changed crates in {}", lock_of(Ecosystem::Cargo)),
+                    reason: format!("changed crates in {}", Ecosystem::Cargo.lockfile()),
                     repos: vec![hub_label("cargo", "//:serde")],
                 },
             ]
@@ -2495,7 +2529,7 @@ mod tests {
                     .to_owned(),
                 format!(
                     "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:{}\")\n",
-                    lock_of(Ecosystem::Npm)
+                    Ecosystem::Npm.lockfile()
                 ),
             ]
             .concat(),
@@ -2507,7 +2541,7 @@ mod tests {
                 "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.0.0:\n    resolution: {{integrity: sha512-a}}\n\n  lodash@{lodash}:\n    resolution: {{integrity: sha512-b}}\n"
             )
         };
-        write(workspace, lock_of(Ecosystem::Npm), &lock("4.1.0")).unwrap();
+        write(workspace, Ecosystem::Npm.lockfile(), &lock("4.1.0")).unwrap();
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&lock("4.0.0")),
             graph(&[
@@ -2517,7 +2551,7 @@ mod tests {
         ]);
         let selection = resolve_affected(
             &[change(
-                lock_of(Ecosystem::Npm),
+                Ecosystem::Npm.lockfile(),
                 dx_adopt::ChangeKind::Modified,
             )],
             workspace,
@@ -2535,7 +2569,7 @@ mod tests {
             selection.widened,
             [WidenedScope {
                 scope: format!("rdeps(//..., {})", hub_label("npm", "//lodash")),
-                reason: format!("changed crates in {}", lock_of(Ecosystem::Npm)),
+                reason: format!("changed crates in {}", Ecosystem::Npm.lockfile()),
                 repos: vec![hub_label("npm", "//lodash")],
             }]
         );
@@ -2551,7 +2585,7 @@ mod tests {
         ]);
         let selection = resolve_affected(
             &[change(
-                lock_of(Ecosystem::Cargo),
+                Ecosystem::Cargo.lockfile(),
                 dx_adopt::ChangeKind::Modified,
             )],
             workspace,
@@ -2566,7 +2600,7 @@ mod tests {
             selection.widened,
             [WidenedScope {
                 scope: format!("rdeps(//..., {})", hub_label("cargo", "//:serde")),
-                reason: format!("changed crates in {}", lock_of(Ecosystem::Cargo)),
+                reason: format!("changed crates in {}", Ecosystem::Cargo.lockfile()),
                 repos: vec![hub_label("cargo", "//:serde")],
             }]
         );
@@ -2639,19 +2673,19 @@ mod tests {
         let scratch = crate_workspace("dx-changed-added-lock-");
         let workspace = scratch.path();
         let modified = [change(
-            lock_of(Ecosystem::Cargo),
+            Ecosystem::Cargo.lockfile(),
             dx_adopt::ChangeKind::Modified,
         )];
         let added = FakeQuery::new(vec![FakeQuery::failed(&format!(
             "fatal: path '{}' exists on disk, but not in 'base'\n",
-            lock_of(Ecosystem::Cargo)
+            Ecosystem::Cargo.lockfile()
         ))]);
         let selection = resolve_affected(&modified, workspace, &added, &[], &[], Some(base()))
             .expect("added widens");
         assert_eq!(selection.targets, strings(&["//..."]));
         assert_eq!(
             selection.widened[0].reason,
-            format!("workspace input {}", lock_of(Ecosystem::Cargo))
+            format!("workspace input {}", Ecosystem::Cargo.lockfile())
         );
 
         let unparsable = FakeQuery::new(vec![FakeQuery::ok("not toml [[[")]);
@@ -2661,7 +2695,7 @@ mod tests {
         assert!(
             selection.widened[0].reason.starts_with(&format!(
                 "cannot read {}: invalid lock",
-                lock_of(Ecosystem::Cargo)
+                Ecosystem::Cargo.lockfile()
             )),
             "{:?}",
             selection.widened
@@ -2673,8 +2707,8 @@ mod tests {
         assert_eq!(
             selection.widened[0].reason,
             format!(
-                "cannot read {}: git show failed: fatal: bad object base",
-                lock_of(Ecosystem::Cargo)
+                "cannot read {}: git show failed: fatal: bad object base (exit 2)",
+                Ecosystem::Cargo.lockfile()
             )
         );
 
@@ -2682,13 +2716,13 @@ mod tests {
             .expect("no base widens");
         assert_eq!(
             selection.widened[0].reason,
-            format!("workspace input {}", lock_of(Ecosystem::Cargo))
+            format!("workspace input {}", Ecosystem::Cargo.lockfile())
         );
 
-        std::fs::remove_file(workspace.join(lock_of(Ecosystem::Cargo))).expect("remove");
+        std::fs::remove_file(workspace.join(Ecosystem::Cargo.lockfile())).expect("remove");
         let selection = resolve_affected(
             &[change(
-                lock_of(Ecosystem::Cargo),
+                Ecosystem::Cargo.lockfile(),
                 dx_adopt::ChangeKind::Deleted,
             )],
             workspace,
@@ -2701,7 +2735,7 @@ mod tests {
         assert_eq!(selection.targets, strings(&["//..."]));
         assert_eq!(
             selection.widened[0].reason,
-            format!("workspace input {}", lock_of(Ecosystem::Cargo))
+            format!("workspace input {}", Ecosystem::Cargo.lockfile())
         );
     }
 
@@ -2713,14 +2747,17 @@ mod tests {
         let query = FakeQuery::new(vec![
             FakeQuery::ok(&cargo_lock("1.0.1")),
             graph(&[
-                ("//:vendor", &[&format!("//:{}", lock_of(Ecosystem::Cargo))]),
+                (
+                    "//:vendor",
+                    &[&format!("//:{}", Ecosystem::Cargo.lockfile())],
+                ),
                 ("//a:lib", &["@@rules_rust++crate+crates//:serde"]),
                 ("//b:lib", &["//b:b.rs"]),
             ]),
         ]);
         let selection = resolve_affected(
             &[change(
-                lock_of(Ecosystem::Cargo),
+                Ecosystem::Cargo.lockfile(),
                 dx_adopt::ChangeKind::Modified,
             )],
             workspace,
@@ -3657,6 +3694,49 @@ mod tests {
         assert!(err.message().contains("bad revision"), "{err}");
     }
 
+    fn git_failure_message(code: Option<i32>, stderr: &str) -> String {
+        let scratch = dx_test_scratch::scratch("dx-changed-git-exit-").unwrap();
+        let query = FakeQuery::new(vec![QueryResult {
+            code,
+            stdout: Vec::new(),
+            stderr: stderr.as_bytes().to_vec(),
+        }]);
+        merge_base(
+            Path::new("/hermetic/git"),
+            scratch.path(),
+            &query,
+            "origin/main",
+            "HEAD",
+        )
+        .expect_err("git failed")
+        .message()
+        .to_owned()
+    }
+
+    #[test]
+    fn a_git_failure_names_the_fatal_line_not_a_leading_warning() {
+        let message = git_failure_message(
+            Some(128),
+            "warning: LF will be replaced by CRLF in a.txt.\r\nfatal: bad revision 'x'\r\n",
+        );
+        assert_eq!(
+            message,
+            "git merge-base failed: fatal: bad revision 'x' (exit 128)"
+        );
+    }
+
+    #[test]
+    fn a_git_failure_without_output_keeps_its_exit_status() {
+        assert_eq!(
+            git_failure_message(Some(128), ""),
+            "git merge-base failed: no Git diagnostic (exit 128)"
+        );
+        assert_eq!(
+            git_failure_message(None, ""),
+            "git merge-base failed: no Git diagnostic (ended by a signal)"
+        );
+    }
+
     #[test]
     fn override_changes_need_no_git_without_outside_overrides() {
         let scratch = dx_test_scratch::scratch("dx-changed-override-none-").unwrap();
@@ -3700,6 +3780,27 @@ mod tests {
         assert!(calls[1].0.contains(&"base-sha".to_owned()), "{calls:?}");
         assert!(calls[1].0.ends_with(&[":(top)lib".to_owned()]), "{calls:?}");
         assert!(calls[2].0.contains(&"--full-name".to_owned()), "{calls:?}");
+    }
+
+    #[test]
+    fn override_changes_keep_a_newline_inside_a_file_name() {
+        let scratch = dx_test_scratch::scratch("dx-changed-override-newline-").unwrap();
+        let workspace = scratch.path().to_path_buf();
+        write(
+            &workspace,
+            "MODULE.bazel",
+            "local_path_override(module_name = \"lib\", path = \"../lib\")\n",
+        )
+        .unwrap();
+        let query = FakeQuery::new(vec![
+            FakeQuery::raw(b"sub/\n".to_vec()),
+            FakeQuery::raw(b"lib/a\nb.rs\0".to_vec()),
+            FakeQuery::raw(Vec::new()),
+        ]);
+        let changes =
+            local_override_changes(Path::new("/hermetic/git"), &workspace, &query, "base-sha")
+                .expect("override changes");
+        assert_eq!(changes, strings(&["../lib/a\nb.rs"]));
     }
 
     #[test]

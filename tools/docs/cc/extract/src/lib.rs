@@ -24,6 +24,12 @@ pub struct Options {
     pub out: String,
 }
 
+/// Runs `cc_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("cc_extract", usage(), parse, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
@@ -84,7 +90,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         .map_err(|error| format!("cannot read {}: {error}", options.srcs))?;
     let docs: Vec<&str> = documents.iter().map(|(_, text)| text.as_str()).collect();
     let shard = convert(&docs, &manifest, &options.package, &options.language)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 pub use documentation_ir::escape_segment;

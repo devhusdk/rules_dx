@@ -20,23 +20,29 @@ function Get-DxCoverageSource {
     }
     foreach ($line in Get-Content -LiteralPath (Join-Path $env:RUNFILES_DIR $env:DX_POWERSHELL_COVERAGE_SOURCES)) {
         $rlocation, $name = $line -split "`t", 2
-        [pscustomobject]@{ Path = Get-DxSourcePath (Join-Path $env:RUNFILES_DIR $rlocation); Name = $name }
+        [pscustomobject]@{ Path = Get-DxRunfilesPath $rlocation; Name = $name }
     }
 }
 
-# Since rules_shell 0.10 the launcher's rlocation prefers the runfiles manifest, so scripts run
-# from the file a runfiles symlink points to, and Pester only covers a file under that path.
-function Get-DxSourcePath {
+# Pester covers a file only under the path the script runs from, so this resolves an rlocation
+# as the rules_shell launcher does: through the runfiles manifest when one exists.
+function Get-DxRunfilesPath {
     param(
         [Parameter(Mandatory)]
-        [string]$Path
+        [string]$Rlocation
     )
-    $item = Get-Item -LiteralPath $Path
-    $target = $item.ResolveLinkTarget($false)
-    if ($target) {
-        return $target.FullName
+    $manifest = @($env:RUNFILES_MANIFEST_FILE, "$env:RUNFILES_DIR/MANIFEST", "$($env:RUNFILES_DIR)_manifest") |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } |
+        Select-Object -First 1
+    if ($manifest) {
+        $prefix = "$Rlocation "
+        foreach ($entry in [System.IO.File]::ReadLines($manifest)) {
+            if ($entry.StartsWith($prefix, [System.StringComparison]::Ordinal)) {
+                return [System.IO.Path]::GetFullPath($entry.Substring($prefix.Length))
+            }
+        }
     }
-    return $item.FullName
+    return Join-Path $env:RUNFILES_DIR $Rlocation
 }
 
 function Write-DxPesterCoverage {

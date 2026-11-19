@@ -67,7 +67,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         Err(reason) => return fail(out, err, &reason),
     };
     let after = advisory::rewrite(&before, &release);
-    let today = super::audit::today_utc(audit_today);
+    let today = dx_exec_core::audit_policy::today_utc(audit_today);
     let current = advisory::pins(&before);
     let mut lines = advisory::status(&current, &release, &today);
     let diff = advisory::diff(&before, &after);
@@ -216,7 +216,7 @@ fn apply_pins(
 }
 
 fn write_pins(workspace: &Path, text: &str) -> Result<(), DxError> {
-    std::fs::write(workspace.join(PINS), text)
+    dx_atomic_fs::write_atomic(&workspace.join(PINS), text.as_bytes())
         .map_err(|error| DxError::from_io(format!("cannot write {PINS}: {error}"), &error))
 }
 
@@ -311,7 +311,9 @@ fn open_pull_request(
         })?;
         Ok(format!("opened {}", created.trim()))
     })();
-    git(&["checkout", "-f", &base]).ok();
+    if let Err(error) = git(&["checkout", "-f", &base]) {
+        tracing::warn!(%error, %base, "cannot check out the base branch after the advisory pull request");
+    }
     built
 }
 

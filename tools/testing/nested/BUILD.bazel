@@ -21,7 +21,10 @@ rust_library(
         package_name = "tools/testing/dx_nested",
         normal = True,
     ),
-    compile_data = ["//flutter:pins.json"],
+    compile_data = [
+        "//:MODULE.bazel",
+        "//flutter:pins.json",
+    ],
     crate_name = "dx_nested",
     crate_root = "src/lib.rs",
     visibility = VIS_TOOLS_PUBLIC,
@@ -29,6 +32,7 @@ rust_library(
         package_name = "tools/testing/dx_nested",
         normal = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/os_sys:dx_os_sys",
         "//cli/path:dx_path",
@@ -72,6 +76,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/os_sys:dx_os_sys",
         "//cli/path:dx_path",

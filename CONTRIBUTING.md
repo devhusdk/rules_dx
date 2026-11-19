@@ -91,23 +91,64 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
    tools/dx --version
    ```
 
-   When `bazel` is not on `PATH`, `tools/dx` downloads the Bazelisk pinned in `tools/bazelisk/pin.env` from GitHub, checks its sha256 and keeps it in `~/.cache/dx/bazelisk`. That Bazelisk fetches Bazel from GitHub releases too, unless you set `BAZELISK_BASE_URL`. The first build takes about 7 minutes on 4 CPUs, up to 6 GB of memory and about 15 GB of disk.
+   With a read-only key in `BUILDBUDDY_API_KEY` and `remote.buildbuddy.io` reachable, write this line to `user.bazelrc` before `tools/dx --version`, so the first build and every later one read the remote cache:
 
-   The build needs `bcr.bazel.build`, the Bazel module registry. If the network blocks it, the first build stops with a line that names the host; allow it in the container's network settings.
+   ```sh
+   echo 'common --config=bb-ro' >> user.bazelrc
+   ```
+
+   The line holds no key; `--config=bb-ro` reads it from `BUILDBUDDY_API_KEY`.
+
+   Or export the flags for the launcher instead. They apply only to the launcher's build of dx, in every checkout, slots included. Add `--ui_event_filters=+info` to see the `remote cache hit` count:
+
+   ```sh
+   export DX_LAUNCHER_BAZEL_FLAGS='--config=bb-ro --ui_event_filters=+info'
+   ```
+
+   When `bazel` is not on `PATH`, `tools/dx` downloads the Bazelisk pinned in `tools/bazelisk/pin.env` from GitHub, checks its sha256 and keeps it in `~/.cache/dx/bazelisk`. That Bazelisk fetches Bazel from GitHub releases too, unless you set `BAZELISK_BASE_URL`. Without the remote cache, on 4 CPUs and 8 GB of memory, the first `tools/dx --version` takes about 9 minutes, including the Bazelisk and Bazel downloads. It uses up to 4.5 GB of memory and about 7 GB of disk.
+
+   With the read-only remote cache, on 4 CPUs and 15 GB of memory, the first `tools/dx --version` takes about 3 minutes.
+
+   A release checkout skips that build. When `cli/prebuilt/pins.bzl` pins a release and the checkout is that release, a git checkout at tag `v<DX_VERSION>` with no edits to tracked files or a release archive, `tools/dx` on Linux downloads the released `dx` from GitHub releases, checks its sha256 and keeps it in `~/.cache/dx/prebuilt`. Any other checkout builds `dx` from source. If the download fails, `tools/dx` builds from source too.
+
+   The first run needs these hosts: `github.com` and `release-assets.githubusercontent.com` for the Bazelisk and Bazel downloads, and `bcr.bazel.build`, the Bazel module registry. If the network blocks one, `tools/dx` stops with a line that names the host; allow it in the container's network settings.
 
    GitHub source archives also come from `mirror.bazel.build` and `bcr.cloudflaremirrors.com`. `tools/workspace/downloader.cfg` tries those first, so a proxy that blocks `github.com/<owner>/<repo>/archive/` or `codeload.github.com` needs no other step.
 
-2. Run one test:
+2. Work in a slot, as `AGENTS.md` says. A slot is a second checkout with its own Bazel server and output base. Stop the primary checkout's Bazel server first, so only one server holds memory:
+
+   ```sh
+   ~/.cache/dx/bazelisk/*/bazel shutdown
+   cd "$(tools/dx worktree add <branch> --create=origin/main --path-only)"
+   tools/dx --version
+   ```
+
+   The slot gets a copy of your `user.bazelrc`, so it reads the remote cache too. The copy leaves out `startup` lines that set `--output_base`, because each slot has its own output base.
+
+   Without the remote cache, on 4 CPUs and 8 GB of memory, `worktree add` takes under 5 seconds and the slot's first `tools/dx --version` about 30 seconds. The slot's Bazel server uses about 1.0 GB of memory, and the slot adds about 0.4 GB of disk. If you skip `bazel shutdown`, the primary server stays up for 15 idle minutes and holds about 0.8 GB more.
+
+3. Run one test:
 
    ```sh
    tools/dx test //cli/path:dx_path_test
    ```
 
+   After step 1, on 4 CPUs and 8 GB of memory, this takes about 11 seconds.
+
+4. Before you chase a red test, check whether it is already red on main. After each scheduled or dispatched `ci` run on main, the workflow rewrites the issue labelled `known-red` with the failing test labels, one per line. Read it without a token:
+
+   ```sh
+   curl -fsS 'https://api.github.com/repos/devhusdk/rules_dx/issues?labels=known-red&state=open' \
+     | jq -r '.[0].body // empty' | sed -n '/^```text$/,/^```$/{/^```/d;p}'
+   ```
+
+   An empty list means the last main run had no failing test. The issue body also links the run and names its commit.
+
 Until dx is built, the hooks in `.claude/settings.json` let commands run without building it. They still stop `dx deploy --apply`.
 
 Without user namespaces, Bazel uses `processwrapper-sandbox` instead of `linux-sandbox` on its own. You need no flag.
 
-Without a key, the remote cache returns no hits, so leave `--config=bb` and `--config=ci` off. With a read-only key in `BUILDBUDDY_API_KEY` and `remote.buildbuddy.io` reachable, add `-- --config=bb-ro`.
+Without a key, the remote cache returns no hits, so leave `--config=bb` and `--config=ci` off. With a read-only key, the `user.bazelrc` line from step 1 already turns on `--config=bb-ro`.
 
 ## Add a language
 
@@ -183,11 +224,12 @@ Other labels:
 - `bug`, `enhancement`, `tracking`.
 - `needs-host`: needs macOS, Windows, a GPU, or signing secrets.
 - `needs-review`: see [Get a review](#get-a-review).
+- `api`: the pull request changes the public API snapshot in `api/`. The `api-label` check fails without it.
 - `blocked`: waiting on something only the owner can do.
 - `model:haiku`, `model:sonnet`, `model:opus` and `model:human` pick which agent lane handles the issue.
 - `dogfood`: an extra label, never the only one.
 
-A `blocked` issue has a body line that starts with `Blocked on:`, followed by what it waits for: `#N` issues, `owner/repo#N` issues or pull requests in other repositories, a pull request or issue URL, or the owner action. A bare `#N` always means this repository, so write other repositories in full. The daily `issue-labels` workflow removes the label once every named issue is closed or pull request merged, and comments once on a `blocked` issue without the line.
+A `blocked` issue has a body line that starts with `Blocked on:`, followed by what it waits for: `#N` issues, `owner/repo#N` issues or pull requests in other repositories, a pull request or issue URL, or the owner action. A bare `#N` always means this repository, so write other repositories in full. The daily `issue-labels` workflow removes the label once every named issue is closed or pull request merged, and comments once on a `blocked` issue without the line. To wait for a release of another repository, name the pull request, not an issue, and write `Blocked on: <PR URL> (merged and in a <module> release)`: the label then stays until the repository's latest GitHub release contains the merge commit. Unblock by hand when the fix ships as a cherry-picked backport or the repository has no latest GitHub release.
 
 Filters: [user issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+is%3Aopen+-label%3Adogfood), [dogfood issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+is%3Aopen+label%3Adogfood).
 

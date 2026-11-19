@@ -16,11 +16,12 @@ Entry | Required | Holds
 --- | --- | ---
 `BUILD.bazel` | yes | `toolchain_type`, public flags, public platforms
 `defs.bzl` | yes | public rules, macros and providers
-`extensions.bzl` | no | public module extensions and repository rules
+`extensions.bzl` | no | public module extensions
 `lang.json` | yes | manifest
 `pins.json` | no | tool pins
 `README.md` | no | guide
 `private/` | yes | implementation
+`repositories.bzl` | no | public repository rules
 `tests/` | yes | tests and fixtures
 
 - A language has at most one pin file. The manifest `pins` field is `["pins.json"]` or empty.

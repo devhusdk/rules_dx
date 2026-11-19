@@ -192,7 +192,7 @@ fn identity_sha1(
             format!("cannot list the code signing identities in {keychain}")
         }));
     }
-    let _ = work;
+    let _: &Path = work;
     let mut matches = std::collections::BTreeSet::new();
     for line in listed.stdout.lines() {
         let mut fields = line.split_whitespace();
@@ -497,10 +497,13 @@ pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     }
     let archs = lipo.stdout.trim_end_matches('\n').to_owned();
 
-    drop(std::fs::remove_dir_all(&out));
-    drop(std::fs::remove_file(&out));
+    if out.is_dir() {
+        dx_atomic_fs::discard_dir(&out);
+    } else {
+        dx_atomic_fs::discard_file(&out);
+    }
     let notes = PathBuf::from(format!("{}.txt", out.display()));
-    drop(std::fs::remove_file(&notes));
+    dx_atomic_fs::discard_file(&notes);
     if !tools.tool(DITTO, &[&text(&app), &text(&out)]).success() {
         return Err(usage(format!("cannot write {}", out.display())));
     }

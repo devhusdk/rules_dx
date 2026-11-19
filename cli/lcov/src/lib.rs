@@ -1,4 +1,9 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::print_stderr,
+    clippy::print_stdout,
+    clippy::string_slice
+)]
 
 // LCOV_EXCL_START - reason: re-export only, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 
@@ -9,6 +14,7 @@ mod cobertura;
 pub mod ignores;
 mod lang;
 pub mod parse;
+mod xml;
 
 pub use accounting::{
     CellAccount, Disposition, SOURCES_ASPECT, SOURCES_OUTPUT_GROUP, SourceManifest, SourceRow,

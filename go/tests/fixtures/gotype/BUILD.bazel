@@ -28,6 +28,22 @@ go_library(
     deps = [":base"],
 )
 
+go_library(
+    name = "mid",
+    srcs = ["mid.go"],
+    importpath = "rules_dx/go/tests/fixtures/gotype/mid",
+    tags = ["manual"],
+    deps = [":base"],
+)
+
+go_library(
+    name = "deep",
+    srcs = ["deep.go"],
+    importpath = "rules_dx/go/tests/fixtures/gotype/deep",
+    tags = ["manual"],
+    deps = [":mid"],
+)
+
 go_test(
     name = "external_test",
     srcs = ["clean_test.go"],

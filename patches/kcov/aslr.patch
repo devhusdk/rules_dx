@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: SimonKagstrom/kcov#520
 --- a/src/engines/ptrace.cc
 +++ b/src/engines/ptrace.cc
 @@ -355,8 +355,7 @@

@@ -157,7 +157,7 @@ const ALWAYS_OWN_MANIFEST: &[&str] = &["pydoclint", "rst2html"];
 
 /// Whether a launcher finds its runfiles beside its real path, not beside a symlink to it.
 fn resolves_launcher(tool_id: &str) -> bool {
-    matches!(tool_id, "psscriptanalyzer" | "julia_format")
+    tool_id == "psscriptanalyzer"
 }
 
 /// Whether a tool's launcher reads the runfiles manifest beside its own binary.
@@ -753,10 +753,14 @@ impl SocketDir {
 
 impl Drop for SocketDir {
     fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.0));
+        dx_atomic_fs::discard_dir(&self.0);
     }
 }
 
+#[expect(
+    clippy::create_dir,
+    reason = "a fresh socket dir must not already exist"
+)]
 fn short_socket_dir() -> io::Result<SocketDir> {
     static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     let base = if Path::new("/tmp").is_dir() {
@@ -1104,6 +1108,13 @@ mod tests {
     fn the_powershell_launcher_is_resolved_through_symlinks() {
         assert!(resolves_launcher("psscriptanalyzer"));
         assert!(!resolves_launcher("buildifier"));
+    }
+
+    /// A Julia tool reads the runfiles Bazel staged beside the symlink it was handed.
+    #[test]
+    fn julia_launchers_keep_their_symlink_path() {
+        assert!(!resolves_launcher("julia_format"));
+        assert!(!resolves_launcher("julialint"));
     }
 
     /// The resolved JavaScript launch names its own runfiles on every platform.

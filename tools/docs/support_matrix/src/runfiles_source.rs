@@ -1,6 +1,6 @@
 //! Reads workspace files from the Bazel runfiles tree.
 
-use crate::Source;
+use crate::{Source, SupportMatrixError};
 
 /// Reads `_main/<path>`, or `<repo>/<path>` for `@repo/<path>`, through the runfiles library.
 pub struct RunfilesSource {
@@ -12,25 +12,28 @@ impl RunfilesSource {
     ///
     /// # Errors
     ///
-    /// Returns an error when the operation fails.
-    pub fn create() -> Result<Self, String> {
+    /// Returns [`SupportMatrixError::Runfiles`] when the runfiles cannot be opened.
+    pub fn create() -> Result<Self, SupportMatrixError> {
         runfiles::Runfiles::create()
             .map(|runfiles| Self { runfiles })
-            .map_err(|error| format!("cannot open runfiles: {error}"))
+            .map_err(SupportMatrixError::Runfiles)
     }
 }
 
 impl Source for RunfilesSource {
-    fn read(&self, path: &str) -> Result<String, String> {
+    fn read(&self, path: &str) -> Result<String, SupportMatrixError> {
         let key = match path.strip_prefix('@') {
             Some(external) => external.replacen('/', "+/", 1),
             None => format!("_main/{path}"),
         };
         let Some(found) = self.runfiles.rlocation(&key) else {
-            return Err(format!("{path} is not in the runfiles"));
+            return Err(SupportMatrixError::NotInRunfiles {
+                path: path.to_owned(),
+            });
         };
-        std::fs::read_to_string(&found).map_err(|error| {
-            format!("read {path}: {error}; add it to the support_matrix data and export it")
+        dx_atomic_fs::path_io::read_to_string(&found).map_err(|source| SupportMatrixError::Read {
+            path: path.to_owned(),
+            source,
         })
     }
 }

@@ -1,6 +1,7 @@
 """Qt C++ and QML rules over rules_cc and the pinned Qt code generators."""
 
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_library", _cc_test = "cc_test")
+load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load(
@@ -9,26 +10,25 @@ load(
     "dx_forwarded_runtime_providers",
     "dx_lcov_merger_attr",
     "dx_quality_sources",
-    "dx_symlink_default_info",
     "dx_run_env_attrs",
     "dx_run_environment",
-    "dx_wrap_binary",
-    "dx_wrap_test",
+    "dx_symlink_default_info",
     "dx_upstream",
     "dx_upstream_tags",
+    "dx_wrap_binary",
+    "dx_wrap_test",
 )
-load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain")
-load("//qt/private/toolchain:pins.bzl", "RUNTIME_PLUGINS")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
-load(":platform.bzl", "QT_PLATFORMS_ATTR", "QT_PLATFORM_TRANSITION")
-load(":providers.bzl", "QtInfo")
+load("//qt/private/toolchain:pins.bzl", "RUNTIME_PLUGINS")
 load(":bundle.bzl", _QT_CONF = "QT_CONF", _qt_bundle = "qt_bundle", _qt_bundle_members = "qt_bundle_members", _qt_os_supplied_libraries = "qt_os_supplied_libraries", _qt_runtime_members = "qt_runtime_members")
 load(":cells.bzl", _QT_BUNDLE_COMPATIBLE_WITH = "QT_BUNDLE_COMPATIBLE_WITH", _QT_COMPATIBLE_WITH = "QT_COMPATIBLE_WITH", _qt_consumer_identity = "qt_consumer_identity")
+load(":constants.bzl", "QT_CC_HDRS", "QT_GENERATED", "QT_QML_SRCS", _QT_REPOSITORY = "QT_REPOSITORY")
 load(":coverage.bzl", "QT_COVERAGE_TRANSITION", "QtCoverageProbeInfo", "qt_coverage_attrs", "qt_coverage_failure", "qt_coverage_toolchains", "qt_test_coverage")
-load(":constants.bzl", _QT_REPOSITORY = "QT_REPOSITORY", "QT_CC_HDRS", "QT_GENERATED", "QT_QML_SRCS")
-load(":text.bzl", _qt_framework_path = "qt_framework_path", _qt_identifier = "qt_identifier", _qt_module_path = "qt_module_path", _qt_package_path = "qt_package_path", _qt_qmldir = "qt_qmldir", _qt_qrc = "qt_qrc", _qt_version_parts = "qt_version_parts")
 load(":generate.bzl", _qt_generate = "qt_generate")
-load(":rust_bridge.bzl", "QT_BRIDGE_TOOL", _qt_rust_bridge = "qt_rust_bridge", _qt_rust_runtime_files = "qt_rust_runtime_files")
+load(":platform.bzl", "QT_PLATFORMS_ATTR", "QT_PLATFORM_TRANSITION")
+load(":providers.bzl", "QtInfo")
+load(":rust_bridge.bzl", _qt_rust_bridge = "qt_rust_bridge", _qt_rust_runtime_files = "qt_rust_runtime_files")
+load(":text.bzl", _qt_framework_path = "qt_framework_path", _qt_identifier = "qt_identifier", _qt_module_path = "qt_module_path", _qt_package_path = "qt_package_path", _qt_qmldir = "qt_qmldir", _qt_qrc = "qt_qrc", _qt_version_parts = "qt_version_parts")
 
 QT_CONF = _QT_CONF
 qt_bundle = _qt_bundle
@@ -59,7 +59,6 @@ QT_SOURCE_SPECS = [
 _CC_SRCS = [".c", ".cc", ".cpp", ".cxx"]
 
 _QML_MODULES = ["qml", "quick", "quick_test"]
-
 
 def _quality_files(ctx):
     return ctx.files.srcs + ctx.files.hdrs + ctx.files.moc_hdrs + ctx.files.qml_srcs
@@ -442,7 +441,7 @@ def _windows_console(test, modules):
 
 def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, plugins, copts, visibility, kwargs):
     _gate(kwargs)
-    platforms = kwargs.pop("platforms", [])
+    platforms = [str(native.package_relative_label(p)) for p in kwargs.pop("platforms", [])]
     for plugin in plugins:
         if plugin not in RUNTIME_PLUGINS:
             fail("qt_cc_" + rule_kind + ": plugin '" + plugin + "' is not one of " + ", ".join(sorted(RUNTIME_PLUGINS.keys())))
@@ -531,7 +530,6 @@ def qt_cc_test(
     deps = deps or []
     _executable("test", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, plugins, copts, visibility, kwargs)
 
-
 def _output_group(name, target, group, testonly = None):
     native.filegroup(
         name = name,
@@ -589,7 +587,7 @@ def qt_rust_cc_library(
     _qt_rust_bridge(
         name = name + "_bridge",
         bridges = bridges,
-        generator = generator or QT_BRIDGE_TOOL,
+        generator = generator,
         tags = (kwargs.get("tags", None) or []) + ["manual"],
         visibility = visibility,
         **shared

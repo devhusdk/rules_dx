@@ -3,8 +3,8 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "windows_tree_home_commands")
 load("//cli/launcher:defs.bzl", "native_launch_descriptor_path")
-load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_contains", "expect_equal")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal")
 load("//core:failure_test.bzl", "failure_test")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//erlang/private:defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor")
@@ -91,35 +91,6 @@ def erlang_wrapper_contract_tests(name, size):
             ),
         ],
     )
-
-def _coverage_env_impl(ctx):
-    env = analysistest.begin(ctx)
-    target = analysistest.target_under_test(env)
-    run_env = target[RunEnvironmentInfo].environment if RunEnvironmentInfo in target else {}
-    got = run_env.get("COVERDATA_TO_LCOV_APPS_DIRS", "")
-    asserts.equals(env, ctx.attr.apps_dirs, got)
-    native = ctx.attr.native and ctx.attr.apps_dirs != ""
-    asserts.equals(env, native, "CC_CODE_COVERAGE_SCRIPT" in run_env)
-    asserts.equals(env, False, "DX_COVERAGE_CLANG_OBJECTS" in run_env)
-    metadata = [f.short_path for f in target[InstrumentedFilesInfo].metadata_files.to_list()]
-    if ctx.attr.apps_dirs:
-        asserts.true(env, ctx.attr.source in metadata, "missing " + ctx.attr.source + " in " + str(metadata))
-    asserts.equals(env, native, len([m for m in metadata if m.endswith("runtime_objects_list.txt")]) > 0)
-    return analysistest.end(env)
-
-# mirrors coverage:windows in .bazelrc
-_COVERAGE = coverage_env_tests(
-    _coverage_env_impl,
-    attrs = {"apps_dirs": attr.string(), "native": attr.bool(), "source": attr.string()},
-    features = ["-coverage", "-gcc_coverage_map_format"],
-)
-_coverage_env_on_test = _COVERAGE.on
-_coverage_env_off_test = _COVERAGE.off
-
-def erlang_coverage_env_test(name, target, apps_dirs, source, native = False):
-    """Asserts an Erlang test points coverdata_to_lcov at its app sources under coverage, and only then."""
-    _coverage_env_on_test(name = name, size = "small", target_under_test = target, apps_dirs = apps_dirs, source = source, native = native)
-    _coverage_env_off_test(name = name + "_off", size = "small", target_under_test = target, apps_dirs = "")
 
 def _beam_info_impl(ctx):
     env = analysistest.begin(ctx)

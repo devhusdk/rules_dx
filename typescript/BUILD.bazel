@@ -5,6 +5,7 @@ exports_files([
     "extensions.bzl",
     "README.md",
     "lang.json",
+    "pins.json",
 ])
 
 real_source_target(
@@ -28,6 +29,12 @@ filegroup(
     srcs = glob([
         "*.bzl",
         "BUILD.bazel",
+        "pins.json",
     ]),
     visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
 )

@@ -88,8 +88,8 @@ jar_lsp_tool(
     native_prefix = "NATIVE/org/pkl/lsp/treesitter/windows-aarch64",
     natives = select({
         ":windows_arm64": [
-            "@jvm_tree_sitter//:tree-sitter.dll",
-            "@jvm_tree_sitter_pkl//:tree-sitter-pkl.dll",
+            "@dx_prebuilt//:tree_sitter",
+            "@dx_prebuilt//:tree_sitter_pkl",
         ],
         "//conditions:default": [],
     }),

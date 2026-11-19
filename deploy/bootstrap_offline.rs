@@ -18,15 +18,16 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let refusal = dx_bootstrap::run(
+    match dx_bootstrap::run(
         &options,
         std::env::consts::OS,
         std::env::consts::ARCH,
         &dx_bootstrap::today_utc(),
-    );
-    if refusal.is_empty() {
-        return ExitCode::SUCCESS;
+    ) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(refusal) => {
+            eprintln!("bootstrap-offline: {refusal}");
+            ExitCode::FAILURE
+        }
     }
-    eprintln!("bootstrap-offline: {refusal}");
-    ExitCode::FAILURE
 }

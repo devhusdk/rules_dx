@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: upstream master shares nuget archives across groups by design and rewrote nuget_repo.bzl)
 diff -ruN a/dotnet/private/rules/nuget/nuget_repo.bzl b/dotnet/private/rules/nuget/nuget_repo.bzl
 --- a/dotnet/private/rules/nuget/nuget_repo.bzl
 +++ b/dotnet/private/rules/nuget/nuget_repo.bzl

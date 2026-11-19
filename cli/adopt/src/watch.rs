@@ -120,13 +120,38 @@ pub fn mountinfo_needs_polling(mountinfo: &str, root: &Path) -> bool {
         .lines()
         .filter_map(|line| {
             let (before, after) = line.split_once(" - ")?;
-            let mount_point = Path::new(before.split(' ').nth(4)?);
+            let mount_point = unescape_mount_point(before.split(' ').nth(4)?);
             let fs_type = after.split(' ').next()?;
-            root.starts_with(mount_point)
-                .then_some((mount_point.as_os_str().len(), fs_type))
+            root.starts_with(&mount_point)
+                .then_some((mount_point.len(), fs_type))
         })
         .max_by_key(|(depth, _)| *depth)
         .is_some_and(|(_, fs_type)| POLLED_FILESYSTEMS.contains(&fs_type))
+}
+
+/// A mountinfo mount point with its `\NNN` octal escapes (space, tab, newline, `\`) decoded.
+fn unescape_mount_point(field: &str) -> String {
+    let mut out = String::with_capacity(field.len());
+    let mut rest = field;
+    while let Some((head, tail)) = rest.split_once('\\') {
+        out.push_str(head);
+        let code = tail
+            .get(..3)
+            .filter(|digits| digits.bytes().all(|b| matches!(b, b'0'..=b'7')))
+            .and_then(|digits| u8::from_str_radix(digits, 8).ok());
+        match (code, tail.get(3..)) {
+            (Some(byte), Some(after)) => {
+                out.push(char::from(byte));
+                rest = after;
+            }
+            _ => {
+                out.push('\\');
+                rest = tail;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
 }
 
 /// Whether the session should poll instead of using the platform watcher.
@@ -300,19 +325,18 @@ fn plan_watches(
 /// FSEvents and ReadDirectoryChangesW watch a whole tree with one handle.
 const PLANS_WATCHES: bool = cfg!(target_os = "linux");
 
-/// The watcher and what decides which directories it watches.
+/// The watcher and the directories it watches without their children.
 struct Watches {
     debouncer: notify_debouncer_mini::Debouncer<ChangeWatcher>,
-    bazelignore: Vec<PathBuf>,
     /// Directories watched without their children; a directory created in one needs its own watch.
     shallow: std::collections::BTreeSet<PathBuf>,
 }
 
 impl Watches {
-    fn add(&mut self, root: &Path, dir: &Path) -> notify::Result<()> {
+    fn add(&mut self, root: &Path, dir: &Path, bazelignore: &[PathBuf]) -> notify::Result<()> {
         let mut plan = Vec::new();
         if PLANS_WATCHES {
-            plan_watches(root, dir, &self.bazelignore, &mut plan);
+            plan_watches(root, dir, bazelignore, &mut plan);
         } else {
             plan.push((dir.to_path_buf(), notify::RecursiveMode::Recursive));
         }
@@ -331,6 +355,8 @@ pub struct WatchSession {
     root: PathBuf,
     canonical_root: PathBuf,
     reports: Vec<PathBuf>,
+    /// `.bazelignore` directories, relative to the root; nothing under them triggers a rerun.
+    bazelignore: Vec<PathBuf>,
     polling: bool,
     watches: std::sync::Mutex<Watches>,
     events: std::sync::mpsc::Receiver<
@@ -359,10 +385,10 @@ impl WatchSession {
         // Symlinks such as `bazel-out` point at trees that never trigger a rerun.
         let mut notify_config = notify::Config::default().with_follow_symlinks(false);
         if poll {
-            eprintln!(
+            dx_error::stdio::eprint_line(format_args!(
                 "watching by polling every {}s",
                 WATCH_POLL_INTERVAL.as_secs()
-            );
+            ));
             notify_config = notify_config.with_poll_interval(WATCH_POLL_INTERVAL);
         }
         let config = notify_debouncer_mini::Config::default()
@@ -372,13 +398,13 @@ impl WatchSession {
             .map_err(|e| AdoptError::WatchSpawn {
                 detail: watch_error(&e),
             })?;
+        let bazelignore = read_bazelignore(watch_root);
         let mut watches = Watches {
             debouncer,
-            bazelignore: read_bazelignore(watch_root),
             shallow: std::collections::BTreeSet::new(),
         };
         watches
-            .add(watch_root, watch_root)
+            .add(watch_root, watch_root, &bazelignore)
             .map_err(|e| AdoptError::WatchSpawn {
                 detail: watch_error(&e),
             })?;
@@ -390,7 +416,8 @@ impl WatchSession {
                     .duration_since(std::time::UNIX_EPOCH)
                     .map_or(0, |since| since.as_nanos())
             ));
-            if std::fs::write(&marker, b"").is_ok() {
+            // A plain create: a staged write would raise events for a non-marker name.
+            if std::fs::File::create(&marker).is_ok() {
                 dx_atomic_fs::discard_file(&marker);
             }
         }
@@ -411,6 +438,7 @@ impl WatchSession {
             root: watch_root.to_path_buf(),
             canonical_root,
             reports,
+            bazelignore,
             polling: poll,
             watches: std::sync::Mutex::new(watches),
             events,
@@ -508,11 +536,11 @@ impl WatchSession {
                 .parent()
                 .is_some_and(|parent| watches.shallow.contains(parent))
                 && std::fs::symlink_metadata(path).is_ok_and(|meta| meta.is_dir())
-                && !is_ignored_dir(relative, &watches.bazelignore);
+                && !is_ignored_dir(relative, &self.bazelignore);
             if !fresh {
                 continue;
             }
-            match watches.add(&self.root, path) {
+            match watches.add(&self.root, path, &self.bazelignore) {
                 Ok(()) => {}
                 Err(e) if matches!(e.kind, notify::ErrorKind::MaxFilesWatch) => {
                     return Err(AdoptError::WatchFailed {
@@ -541,9 +569,12 @@ impl WatchSession {
         else {
             return false;
         };
-        self.reports
-            .iter()
-            .any(|report| rel == report || dx_atomic_fs::is_staging_sibling(report, rel))
+        // FSEvents and ReadDirectoryChangesW watch the whole tree, ignored dirs included.
+        self.bazelignore.iter().any(|dir| rel.starts_with(dir))
+            || self
+                .reports
+                .iter()
+                .any(|report| rel == report || dx_atomic_fs::is_staging_sibling(report, rel))
     }
 }
 
@@ -755,6 +786,22 @@ mod tests {
     }
 
     #[test]
+    fn mountinfo_unescapes_mount_points() {
+        let mountinfo = "\
+20 1 8:1 / / rw - ext4 /dev/sda1 rw
+32 20 0:28 / /mnt/my\\040share rw - nfs4 srv:/x rw
+";
+        assert!(mountinfo_needs_polling(
+            mountinfo,
+            Path::new("/mnt/my share/ws")
+        ));
+        assert!(!mountinfo_needs_polling(
+            mountinfo,
+            Path::new("/mnt/my\\040share/ws")
+        ));
+    }
+
+    #[test]
     fn polling_session_observes_an_edit() {
         let scratch = dx_test_scratch::scratch("dx-watch-poll-").unwrap();
         let root = scratch.path().to_path_buf();
@@ -913,15 +960,15 @@ mod tests {
         let root = scratch.path().to_path_buf();
         std::fs::create_dir_all(root.join("src")).expect("source dir");
         std::fs::write(root.join("src/main.rs"), "fn main() {}").expect("source");
-        let _ = std::fs::read(root.join("src/main.rs")).expect("warm read");
-        let _ = std::fs::read_dir(root.join("src"))
+        let _: Vec<u8> = std::fs::read(root.join("src/main.rs")).expect("warm read");
+        let _: usize = std::fs::read_dir(root.join("src"))
             .expect("warm list")
             .count();
         let session = WatchSession::start(&root, &[], false).expect("session starts");
         std::fs::write(root.join("warm.txt"), "warm").expect("warm");
-        let _ = wait_for(&session, "warm.txt");
-        let _ = std::fs::read(root.join("src/main.rs")).expect("read");
-        let _ = std::fs::read_dir(root.join("src")).expect("list").count();
+        let _: Vec<PathBuf> = wait_for(&session, "warm.txt");
+        let _: Vec<u8> = std::fs::read(root.join("src/main.rs")).expect("read");
+        let _: usize = std::fs::read_dir(root.join("src")).expect("list").count();
         std::fs::write(root.join("sentinel.txt"), "done").expect("sentinel");
         let changes = wait_for(&session, "sentinel.txt");
         assert!(
@@ -948,6 +995,46 @@ mod tests {
                 .components()
                 .any(|part| part.as_os_str() == "bazel-bin" || part.as_os_str() == ".dx")),
             "generated outputs must never trigger a rerun: {seen:?}"
+        );
+    }
+
+    #[test]
+    fn session_coalesce_drops_bazelignored_paths() {
+        let scratch = dx_test_scratch::scratch("dx-watch-coalesce-ignore-").unwrap();
+        let root = scratch.path().join("ws");
+        std::fs::create_dir_all(root.join("vendor/pkg")).expect("ignored dir");
+        std::fs::write(root.join(".bazelignore"), "vendor\n").expect("bazelignore");
+        let session = WatchSession::start_with(&root, &[], false).expect("session starts");
+        let canonical = root.canonicalize().expect("canonical root");
+        let trigger = session.coalesce(vec![
+            root.join("vendor/pkg/a.rs"),
+            canonical.join("vendor/pkg/b.rs"),
+            root.join("vendor"),
+            root.join("vendored/a.rs"),
+            root.join("src/main.rs"),
+        ]);
+        assert_eq!(
+            trigger,
+            vec![root.join("src/main.rs"), root.join("vendored/a.rs")]
+        );
+    }
+
+    #[test]
+    fn session_ignores_writes_under_bazelignored_dirs() {
+        let scratch = dx_test_scratch::scratch("dx-watch-session-ignore-").unwrap();
+        let root = scratch.path().join("ws");
+        std::fs::create_dir_all(root.join("vendor/pkg")).expect("ignored dir");
+        std::fs::write(root.join(".bazelignore"), "vendor\n").expect("bazelignore");
+        let session = WatchSession::start_with(&root, &[], false).expect("session starts");
+        std::fs::write(root.join("vendor/pkg/a.rs"), "vendored").expect("vendor write");
+        std::fs::write(root.join("sentinel.txt"), "done").expect("sentinel");
+        let seen = wait_for(&session, "sentinel.txt");
+        assert!(
+            !seen.iter().any(|path| path
+                .strip_prefix(&root)
+                .or_else(|_| path.strip_prefix(&session.canonical_root))
+                .is_ok_and(|rel| rel.starts_with("vendor"))),
+            "a write under a .bazelignore dir must never trigger a rerun: {seen:?}"
         );
     }
 
@@ -1067,8 +1154,8 @@ mod tests {
         std::fs::write(outside.join("bin/out.o"), "built").expect("output write");
         std::fs::write(root.join("vendor/pkg/a.rs"), "vendored").expect("vendor write");
         std::fs::write(root.join(".git/index"), "index").expect("git write");
-        std::fs::create_dir(root.join("src/new")).expect("new dir");
-        std::fs::create_dir(root.join("fresh")).expect("fresh dir");
+        std::fs::create_dir_all(root.join("src/new")).expect("new dir");
+        std::fs::create_dir_all(root.join("fresh")).expect("fresh dir");
         let mut seen = raw_until(&session, "fresh");
         std::fs::write(root.join("fresh/b.rs"), "b").expect("write in fresh dir");
         std::fs::write(root.join("src/new/a.rs"), "a").expect("write in new dir");
@@ -1147,7 +1234,7 @@ mod tests {
             trigger.iter().any(|path| path.ends_with("sub/out.sarif")),
             "{trigger:?}"
         );
-        let _ = session.drain().expect("drain");
+        let _: Vec<PathBuf> = session.drain().expect("drain");
         std::fs::write(root.join(".tmpabc"), "x").expect("write");
         let trigger = session.wait(Duration::from_secs(5)).expect("wait");
         assert!(

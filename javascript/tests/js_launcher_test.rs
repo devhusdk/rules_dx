@@ -1,4 +1,8 @@
 //! Tests for reading a generated launcher's own runfiles.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::{Path, PathBuf};
 
@@ -456,7 +460,7 @@ exit "${PROBE_EXIT:-0}"
         let launcher = declared("DX_JS_LAUNCHER");
         link(&launcher, &fix.exe);
         let out = dir.join(format!("{name}.out"));
-        let _ = std::fs::remove_file(&out);
+        let _: std::io::Result<()> = std::fs::remove_file(&out);
         let mut command = std::process::Command::new(&fix.exe);
         command
             .args(args)
@@ -487,7 +491,7 @@ exit "${PROBE_EXIT:-0}"
 
     fn link(target: &Path, name: &Path) {
         let absolute = target.canonicalize().expect("launcher source resolves");
-        let _ = std::fs::remove_file(name);
+        let _: std::io::Result<()> = std::fs::remove_file(name);
         std::os::unix::fs::symlink(absolute, name).expect("stage launcher");
     }
 

@@ -48,7 +48,8 @@ pub fn space(dir: &Path) -> io::Result<Space> {
     wide.push(0);
     let (mut free, mut total) = (0u64, 0u64);
     // SAFETY: wide is NUL-terminated and both outputs are writable u64s; the third may be null.
-    let ok = unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut free, &mut total, std::ptr::null_mut()) };
+    let ok =
+        unsafe { GetDiskFreeSpaceExW(wide.as_ptr(), &mut free, &mut total, std::ptr::null_mut()) };
     if ok == 0 {
         return Err(io::Error::last_os_error());
     }

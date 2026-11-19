@@ -9,6 +9,7 @@ use std::io::{self, Read, Write};
 use crate::{invalid_input, link_target_error, member_name_error};
 
 const RECORDSIZE: usize = 20 * 512;
+const MAX_USTAR_SIZE: u64 = 0o77_777_777_777;
 
 /// Returns whether `name` fits the ustar name field, alone or split at a '/' into prefix and name.
 #[must_use]
@@ -16,7 +17,7 @@ pub fn fits_ustar(name: &str) -> bool {
     name.len() <= 100
         || name
             .match_indices('/')
-            .any(|(at, _)| at <= 155 && name.len() - at - 1 <= 100)
+            .any(|(at, _)| at <= 155 && at + 1 < name.len() && name.len() - at - 1 <= 100)
 }
 
 /// Gzips `data` at the best level with a zero mtime, no name and an unknown OS byte.
@@ -58,6 +59,11 @@ fn ustar_header(
     mode: u32,
 ) -> io::Result<tar::Header> {
     check_new(seen, name)?;
+    if size > MAX_USTAR_SIZE {
+        return Err(invalid_input(format!(
+            "tar member {name:?} is {size} bytes; a ustar header holds at most {MAX_USTAR_SIZE}"
+        )));
+    }
     if !fits_ustar(path) {
         return Err(invalid_input(format!(
             "tar member name {name:?} must be at most 100 bytes, or split at a '/' into a prefix of at most 155 bytes and a name of at most 100 bytes"

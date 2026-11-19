@@ -1,5 +1,8 @@
 use std::ffi::OsString;
+use std::io::Write;
 use std::path::{Path, PathBuf};
+
+use dx_error::stdio::write_line;
 
 use crate::fetch::{self, ChecksumSource};
 use crate::protocol::{self, Platform, Route, ShimError, VersionSource};
@@ -34,7 +37,7 @@ pub fn resolve_on(
         return Err(protocol::unsupported_platform(&version, os, arch));
     };
     let windows = platform.os == "windows";
-    let root = protocol::cache_root(env_get, windows).ok_or_else(|| {
+    let root = protocol::cache_root(env_get, windows)?.ok_or_else(|| {
         ShimError::failure(if windows {
             "USERPROFILE is not set; set DX_CACHE_DIR"
         } else {
@@ -64,7 +67,7 @@ pub fn resolve_on(
 }
 
 pub fn fetch(env_get: protocol::EnvGet, resolved: &Resolved) -> Result<PathBuf, ShimError> {
-    if resolved.bin.is_file() {
+    if fetch::cached(&resolved.bin, resolved.checksum.as_ref()) {
         return Ok(resolved.bin.clone());
     }
     let Some(checksum) = &resolved.checksum else {
@@ -73,7 +76,7 @@ pub fn fetch(env_get: protocol::EnvGet, resolved: &Resolved) -> Result<PathBuf, 
     let base = protocol::release_base(env_get)?;
     let asset = protocol::asset_name(resolved.platform);
     let url = protocol::release_url(&base, &resolved.version, &asset);
-    fetch::ensure(&fetch::Request {
+    fetch::install(&fetch::Request {
         version: &resolved.version,
         asset: &asset,
         url: &url,
@@ -91,7 +94,7 @@ pub fn main(args: Vec<OsString>) -> i32 {
     match run(args) {
         Ok(code) => code,
         Err(error) => {
-            eprintln!("{error}");
+            dx_error::stdio::eprint_line(format_args!("{error}"));
             error.code
         }
     }
@@ -112,11 +115,32 @@ fn run(args: Vec<OsString>) -> Result<i32, ShimError> {
     exec(&bin, args)
 }
 
+fn emit(out: &mut dyn Write, text: std::fmt::Arguments<'_>) -> Result<(), ShimError> {
+    write_line(out, text).map_err(|e| ShimError::failure(format!("cannot write to stdout: {e}")))
+}
+
+/// Writes `label` and the path's own bytes, so a non-UTF-8 path survives a copy from the output.
+fn emit_path(out: &mut dyn Write, label: &str, path: &Path) -> Result<(), ShimError> {
+    let mut bytes = label.as_bytes().to_vec();
+    bytes.extend_from_slice(path.as_os_str().as_encoded_bytes());
+    bytes.push(b'\n');
+    match out.write_all(&bytes) {
+        Err(e) if e.kind() != std::io::ErrorKind::BrokenPipe => {
+            Err(ShimError::failure(format!("cannot write to stdout: {e}")))
+        }
+        Ok(()) | Err(_) => Ok(()),
+    }
+}
+
 fn shim_command(args: &[OsString]) -> Result<i32, ShimError> {
+    shim_command_to(args, &mut std::io::stdout().lock())
+}
+
+fn shim_command_to(args: &[OsString], out: &mut dyn Write) -> Result<i32, ShimError> {
     let sub = args.first().map(|arg| arg.to_string_lossy().into_owned());
     match sub.as_deref() {
         Some("version") if args.len() == 1 => {
-            println!("dx-shim {}", protocol::SHIM_VERSION);
+            emit(out, format_args!("dx-shim {}", protocol::SHIM_VERSION))?;
             Ok(0)
         }
         Some("where") if args.len() == 1 => {
@@ -124,16 +148,19 @@ fn shim_command(args: &[OsString]) -> Result<i32, ShimError> {
                 ShimError::failure(format!("cannot read the current directory: {e}"))
             })?;
             let Some(resolved) = resolve(&env_get, &cwd)? else {
-                println!("source: {}", VersionSource::Bazel);
+                emit(out, format_args!("source: {}", VersionSource::Bazel))?;
                 return Ok(0);
             };
-            println!("version: {}", resolved.version);
-            println!("source: {}", resolved.source);
-            println!("binary: {}", resolved.bin.display());
-            println!(
-                "cached: {}",
-                if resolved.bin.is_file() { "yes" } else { "no" }
-            );
+            emit(out, format_args!("version: {}", resolved.version))?;
+            emit(out, format_args!("source: {}", resolved.source))?;
+            emit_path(out, "binary: ", &resolved.bin)?;
+            emit(
+                out,
+                format_args!(
+                    "cached: {}",
+                    if resolved.bin.is_file() { "yes" } else { "no" }
+                ),
+            )?;
             Ok(0)
         }
         Some(sub @ ("version" | "where")) => Err(ShimError::usage(format!(
@@ -184,7 +211,9 @@ fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
     }
 
     if let Err(err) = add_handler::<Swallow>() {
-        eprintln!("dx: warning: cannot install the Ctrl-C handler: {err}");
+        dx_error::stdio::eprint_line(format_args!(
+            "dx: warning: cannot install the Ctrl-C handler: {err}"
+        ));
     }
     let status = std::process::Command::new(bin)
         .args(args)
@@ -192,4 +221,39 @@ fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
         .status()
         .map_err(|e| ShimError::failure(format!("cannot run {}: {e}", bin.display())))?;
     Ok(status.code().unwrap_or(1))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Read;
+
+    #[test]
+    fn version_prints_the_shim_version() {
+        let mut out = Vec::new();
+        let code = shim_command_to(&["version".into()], &mut out).expect("version");
+        assert_eq!(code, 0);
+        assert_eq!(
+            String::from_utf8(out).expect("utf-8"),
+            format!("dx-shim {}\n", protocol::SHIM_VERSION)
+        );
+    }
+
+    #[test]
+    fn version_into_a_closed_pipe_succeeds() {
+        let (reader, mut writer) = std::io::pipe().expect("pipe");
+        drop(reader);
+        let code = shim_command_to(&["version".into()], &mut writer).expect("closed pipe");
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn version_into_an_open_pipe_reaches_the_reader() {
+        let (mut reader, mut writer) = std::io::pipe().expect("pipe");
+        shim_command_to(&["version".into()], &mut writer).expect("version");
+        drop(writer);
+        let mut text = String::new();
+        reader.read_to_string(&mut text).expect("read");
+        assert_eq!(text, format!("dx-shim {}\n", protocol::SHIM_VERSION));
+    }
 }

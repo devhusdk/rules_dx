@@ -42,7 +42,8 @@ jobs:
   coverage-cells:
     name: coverage-cells (one exact coverage report from every native cell)
     needs: [dogfood]
-    if: ${{ !cancelled() }}
+    # Without a successful dogfood there are no cell reports to check, and dogfood is already red.
+    if: ${{ !cancelled() && needs.dogfood.result == 'success' }}
     timeout-minutes: 15
     runs-on: ubuntu-latest
     permissions:
@@ -107,7 +108,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_timeout=300 //.devcontainer:devcontainer_parity_test "$@"
+          bazel test --noshow_progress --test_output=errors --test_timeout=300 //.devcontainer:devcontainer_parity_test "$@"
       - name: Validate devcontainer definition shape
         run: |
           post_create="$(jq -er '.postCreateCommand' .devcontainer/devcontainer.json)"
@@ -283,6 +284,34 @@ jobs:
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors "$@" //tools/testing:nested_bazel_harness_test
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc:compiler=msvc //deploy/private:pypi_native_msvc_verify
           fi
+  native-lint:
+    name: native-lint (dx lint on cfg(windows) and macOS code on ${{ matrix.platform }})
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos_arm64, windows_x86_64]
+    runs-on: ${{ fromJSON('{"macos_arm64":"macos-15","windows_x86_64":"windows-latest"}')[matrix.platform] }}
+    permissions:
+      contents: read
+    steps:
+      - name: Check out files in parallel
+        run: |
+          git init "$GITHUB_WORKSPACE"
+          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Lint the platform-specific process crates with the .bazelrc clippy deny set
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          bazel run --noshow_progress "$@" //:dx -- lint //cli/process/... //cli/os_sys/... //cli/shim/...
   determinism:
     name: determinism (two cold builds, exec logs compared)
     timeout-minutes: 60
@@ -301,6 +330,24 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" //appimage/... //cli/archive/...
+  analysis-scaling:
+    name: analysis-scaling (dx check and docs aspects on depth 100 and 400 chains)
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Compare the analysis phase of the two chain depths
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" //tools/testing:analysis_scaling_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/analysis_scaling"
   gcc-cross-build:
     name: gcc-cross-build (gcc + llvm linux_x86_64 -> linux_arm64 fixtures)
     timeout-minutes: 45
@@ -561,10 +608,10 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_output=errors "$@" //cc/tests/llvm_windows_cross:all
+          bazel test --noshow_progress --test_output=errors "$@" //cc/tests/fixtures/llvm_windows_cross:all
           mkdir -p "$RUNNER_TEMP/llvm-windows"
           for lang in cc go rust rust_opt zig; do
-            file="$(bazel cquery --noshow_progress "$@" --output=files "//cc/tests/llvm_windows_cross:$lang" 2>/dev/null)"
+            file="$(bazel cquery --noshow_progress "$@" --output=files "//cc/tests/fixtures/llvm_windows_cross:$lang" 2>/dev/null)"
             test "$(printf '%s\n' "$file" | wc -l)" -eq 1
             cp "$file" "$RUNNER_TEMP/llvm-windows/$lang.exe"
           done
@@ -768,6 +815,13 @@ jobs:
           if [ "$status" -ne 0 ] && [ "$status" -ne 4 ]; then
             exit "$status"
           fi
+      - name: Run the Windows TypeScript action tests
+        if: ${{ !cancelled() && runner.os == 'Windows' && matrix.shard == 1 }}
+        run: |
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --test_output=errors --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS //typescript/tests:windows_ts_actions
+          # shellcheck disable=SC2086
+          bazel build --noshow_progress --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS --aspects=//tools/docs/components:aspect.bzl%real_components_docs_aspect,//tools/docs/typescript:aspect.bzl%real_typescript_docs_aspect --output_groups=dx_docs_shards //tools/docs/components/fixture/svelte:ui_library //tools/docs/typescript/fixture:geometry_library
       - uses: ./.github/actions/compiler-evidence
         if: always() && matrix.shard == 0
         with:
@@ -852,19 +906,14 @@ jobs:
         include:
           - platform: linux_x86_64
             runner: ubuntu-latest
-            quality: "//core/quality/testdata:matrix_python_format_pass //core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_javascript_format_pass //core/quality/testdata:matrix_api_spec_openapi_pass //core/quality/testdata:matrix_yaml_format_pass //core/quality/testdata:matrix_yaml_format_fail //core/quality/testdata:matrix_yaml_format_syntax_error //core/quality/testdata:matrix_yaml_lint_pass //core/quality/testdata:matrix_yaml_lint_fail //core/quality/testdata:matrix_yaml_lint_syntax_error //core/quality/testdata:matrix_flatbuffers_lint_pass //core/quality/testdata:matrix_capnp_lint_pass //core/quality/testdata:matrix_thrift_lint_pass //core/quality/testdata:matrix_thrift_lint_warning_fail //core/quality/testdata:matrix_thrift_lint_syntax_error //core/quality/testdata:matrix_thrift_lint_semantic_fail //core/quality/testdata:matrix_thrift_lint_include_undeclared //core/quality/testdata:matrix_thrift_typecheck_pass //core/quality/testdata:matrix_thrift_typecheck_semantic_fail //core/quality/testdata:matrix_thrift_typecheck_warning_ignored //core/quality/testdata:matrix_avro_lint_avsc_pass //core/quality/testdata:matrix_avro_lint_avsc_undefined_name //core/quality/testdata:matrix_avro_lint_avsc_syntax_error //core/quality/testdata:matrix_avro_lint_avdl_import_pass //core/quality/testdata:matrix_avro_lint_avdl_syntax_error //core/quality/testdata:matrix_avro_typecheck_avsc_pass //core/quality/testdata:matrix_avro_typecheck_avsc_undefined_name"
           - platform: linux_arm64
             runner: ubuntu-24.04-arm
-            quality: "//core/quality/testdata:runner_matrix_linux_arm64"
           - platform: macos_arm64
             runner: macos-15
-            quality: "//core/quality/testdata:runner_matrix_macos_arm64"
           - platform: windows_x86_64
             runner: windows-latest
-            quality: "//core/quality/testdata:runner_matrix_windows_x86_64"
           - platform: windows_arm64
             runner: windows-11-arm
-            quality: "//core/quality/testdata:runner_matrix_windows_arm64"
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -909,7 +958,7 @@ jobs:
             echo "::error::The zip and tar dependents query did not find //cli/archive:dx_archive_upstream"
             exit 1
           fi
-          grep -v '^//cli/archive[:/]' "$RUNNER_TEMP/archive-all" > "$RUNNER_TEMP/archive-dependents" || true
+          awk '!/^\/\/cli\/archive[:\/]/' "$RUNNER_TEMP/archive-all" > "$RUNNER_TEMP/archive-dependents"
           LC_ALL=C sort -u -o "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-dependents"
           LC_ALL=C sort -u "$allowlist" > "$RUNNER_TEMP/archive-allowlist"
           new="$(LC_ALL=C comm -23 "$RUNNER_TEMP/archive-dependents" "$RUNNER_TEMP/archive-allowlist")"
@@ -962,13 +1011,26 @@ jobs:
           retention-days: 3
           if-no-files-found: ignore
       - name: Run the launch smoke
-        env:
-          QUALITY_TARGETS: ${{ matrix.quality }}
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
+          mkdir -p "$RUNNER_TEMP/exec-log"
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/... //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia_app/... //julia/private/tools/... $QUALITY_TARGETS
+          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=all "--execution_log_compact_file=$RUNNER_TEMP/exec-log/launch-smoke.log" "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/... //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia_app/... //julia/private/tools/... 2>&1 | tee "$RUNNER_TEMP/launch-smoke.log"
+      - name: Check the upload holds no secret
+        id: scan-exec-log
+        if: always()
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/exec-log
+      - name: Upload the execution log
+        if: ${{ always() && steps.scan-exec-log.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: exec-log-preflight-${{ matrix.platform }}
+          path: ${{ runner.temp }}/exec-log
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Run the PyPI probe verification
         run: |
           # shellcheck disable=SC2086
@@ -989,13 +1051,97 @@ jobs:
           RUNNER_LABEL: ${{ matrix.runner }}
         run: |
           echo "### preflight ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the representative Python, JavaScript, and YAML tools, and the Zig example and hello fixture on ${RUNNER_LABEL}, and analyzed the gRPC C++ fixture targets." >> "$GITHUB_STEP_SUMMARY"
+          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the Zig example and hello fixture on ${RUNNER_LABEL}, and analyzed the gRPC C++ fixture targets." >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/launch-smoke.log" ]; then
+            { grep -E '^(@@?[^ ]*)?//[^ ]+ +FLAKY' "$RUNNER_TEMP/launch-smoke.log" || true; } | tr -d '\r' | awk '{print $1}' | sort -u > "$RUNNER_TEMP/launch-smoke-flaky"
+            if [ -s "$RUNNER_TEMP/launch-smoke-flaky" ]; then
+              echo "#### FLAKY (passed on retry)" >> "$GITHUB_STEP_SUMMARY"
+              sed 's/^/- /' "$RUNNER_TEMP/launch-smoke-flaky" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
       - name: Record the runner image
         if: always()
         shell: bash
         run: |
           line="runner: os=${RUNNER_OS:-unknown} arch=${RUNNER_ARCH:-unknown} image=${ImageOS:-unknown} version=${ImageVersion:-unknown} bazel=$(bazel --version 2>&1 | head -n 1 || true)"
           echo "$line" | tee -a "$GITHUB_STEP_SUMMARY" || true
+  quality-matrix:
+    name: quality-matrix (runner matrix tests) (${{ matrix.platform }}, ${{ matrix.runner }})
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux_x86_64
+            runner: ubuntu-latest
+            quality: "//core/quality/testdata:matrix_python_format_pass //core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_javascript_format_pass //core/quality/testdata:matrix_api_spec_openapi_pass //core/quality/testdata:matrix_yaml_format_pass //core/quality/testdata:matrix_yaml_format_fail //core/quality/testdata:matrix_yaml_format_syntax_error //core/quality/testdata:matrix_yaml_lint_pass //core/quality/testdata:matrix_yaml_lint_fail //core/quality/testdata:matrix_yaml_lint_syntax_error //core/quality/testdata:matrix_flatbuffers_lint_pass //core/quality/testdata:matrix_capnp_lint_pass //core/quality/testdata:matrix_thrift_lint_pass //core/quality/testdata:matrix_thrift_lint_warning_fail //core/quality/testdata:matrix_thrift_lint_syntax_error //core/quality/testdata:matrix_thrift_lint_semantic_fail //core/quality/testdata:matrix_thrift_lint_include_undeclared //core/quality/testdata:matrix_thrift_typecheck_pass //core/quality/testdata:matrix_thrift_typecheck_semantic_fail //core/quality/testdata:matrix_thrift_typecheck_warning_ignored //core/quality/testdata:matrix_avro_lint_avsc_pass //core/quality/testdata:matrix_avro_lint_avsc_undefined_name //core/quality/testdata:matrix_avro_lint_avsc_syntax_error //core/quality/testdata:matrix_avro_lint_avdl_import_pass //core/quality/testdata:matrix_avro_lint_avdl_syntax_error //core/quality/testdata:matrix_avro_typecheck_avsc_pass //core/quality/testdata:matrix_avro_typecheck_avsc_undefined_name"
+          - platform: linux_arm64
+            runner: ubuntu-24.04-arm
+            quality: "//core/quality/testdata:runner_matrix_linux_arm64"
+          - platform: macos_arm64
+            runner: macos-15
+            quality: "//core/quality/testdata:runner_matrix_macos_arm64"
+          - platform: windows_x86_64
+            runner: windows-latest
+            quality: "//core/quality/testdata:runner_matrix_windows_x86_64"
+          - platform: windows_arm64
+            runner: windows-11-arm
+            quality: "//core/quality/testdata:runner_matrix_windows_arm64"
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - name: Check out files in parallel
+        run: |
+          git init "$GITHUB_WORKSPACE"
+          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Run the quality runner matrix
+        env:
+          QUALITY_TARGETS: ${{ matrix.quality }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          mkdir -p "$RUNNER_TEMP/exec-log"
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors "--execution_log_compact_file=$RUNNER_TEMP/exec-log/quality-matrix.log" "$@" $QUALITY_TARGETS 2>&1 | tee "$RUNNER_TEMP/quality-matrix.log"
+      - name: Check the upload holds no secret
+        id: scan-exec-log
+        if: always()
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/exec-log
+      - name: Upload the execution log
+        if: ${{ always() && steps.scan-exec-log.outcome == 'success' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: exec-log-quality-matrix-${{ matrix.platform }}
+          path: ${{ runner.temp }}/exec-log
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Write job summary
+        if: always()
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          JOB_STATUS: ${{ job.status }}
+          RUNNER_LABEL: ${{ matrix.runner }}
+        run: |
+          echo "### quality-matrix ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ran the per-platform quality runner matrix tests on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/quality-matrix.log" ]; then
+            { grep -E '^(@@?[^ ]*)?//[^ ]+ +FLAKY' "$RUNNER_TEMP/quality-matrix.log" || true; } | tr -d '\r' | awk '{print $1}' | sort -u > "$RUNNER_TEMP/quality-matrix-flaky"
+            if [ -s "$RUNNER_TEMP/quality-matrix-flaky" ]; then
+              echo "#### FLAKY (passed on retry)" >> "$GITHUB_STEP_SUMMARY"
+              sed 's/^/- /' "$RUNNER_TEMP/quality-matrix-flaky" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
   workflow-check:
     name: workflow-check (actionlint semantics, before the matrix)
     timeout-minutes: 15
@@ -1012,7 +1158,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_timeout=300 //tools/ci:actionlint_test //tools/ci:workflow_expressions_test //tools/docs/rule_names:rule_names_test "$@"
+          bazel test --noshow_progress --test_output=errors --test_timeout=300 //tools/ci:actionlint_test //tools/ci:workflow_expressions_test //tools/docs/rule_names:rule_names_test "$@"
       - name: Fail when bazel mod tidy would change MODULE.bazel
         run: |
           # shellcheck disable=SC2086
@@ -1111,6 +1257,7 @@ jobs:
         coverage-cells,
         dogfood,
         docs,
+        analysis-scaling,
         determinism,
         devcontainer-check,
         gate,
@@ -1126,8 +1273,10 @@ jobs:
         msix-install,
         msvc-cross-build,
         msvc-cross-run-arm64,
+        native-lint,
         network,
         preflight,
+        quality-matrix,
         starter-consumer,
         workflow-check,
       ]
@@ -1190,7 +1339,7 @@ jobs:
           retention-days: 3
   scheduled-report:
     name: scheduled-report
-    if: ${{ always() && github.event_name == 'schedule' }}
+    if: ${{ always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
     needs: [ci]
     timeout-minutes: 5
     runs-on: ubuntu-latest
@@ -1199,6 +1348,7 @@ jobs:
       issues: write
     steps:
       - name: Open, update or close the tracking issue
+        if: ${{ github.event_name == 'schedule' }}
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -1239,4 +1389,48 @@ jobs:
             gh issue comment "$number" --body "$body"
           else
             gh issue create --title "$title" --body "$body"
+          fi
+      - name: Publish the known red tests on main
+        if: ${{ github.ref == 'refs/heads/main' && needs.ci.result != 'cancelled' && needs.ci.result != 'skipped' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HEAD_SHA: ${{ github.sha }}
+          CI_RESULT: ${{ needs.ci.result }}
+        run: |
+          set -euo pipefail
+          # Agents read this issue without a token; keep the fenced block one label per line.
+          labels=""
+          if [ "$CI_RESULT" != "success" ]; then
+            jobs=$(gh run view "$RUN_ID" --json jobs --jq '.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | .databaseId')
+            for job_id in $jobs; do
+              if ! log=$(gh api "repos/$GH_REPO/actions/jobs/$job_id/logs"); then
+                echo "::warning title=known-red::no log for job $job_id"
+                continue
+              fi
+              found=$(printf '%s\n' "$log" | tr -d '\r' | sed -E 's/^[0-9T:.Z-]+ //' \
+                | awk '/^(@[^ ]*)?\/\/[^ ]+ +(\(cached\) +)?(FAILED|TIMEOUT|NO STATUS|INCOMPLETE)/ { print $1 }')
+              labels="$labels${found:+$'\n'$found}"
+            done
+          fi
+          list=$(printf '%s\n' "$labels" | sed '/^$/d' | sort -u)
+          {
+            echo "Test labels that failed on the last main ci run: $RUN_URL"
+            echo "Commit: $HEAD_SHA. Result: $CI_RESULT. The workflow rewrites this issue after each main run."
+            echo
+            echo '```text'
+            if [ -n "$list" ]; then printf '%s\n' "$list"; fi
+            echo '```'
+          } > known-red.md
+          gh label create known-red --force --color B60205 --description "Tests that failed on the last main ci run"
+          number=$(gh issue list --state open --label known-red --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file known-red.md
+          else
+            url=$(gh issue create --title "ci: known red tests on main" --label known-red --body-file known-red.md)
+            if ! gh issue pin "$url"; then
+              echo "::warning title=known-red::could not pin $url"
+            fi
           fi

@@ -759,7 +759,7 @@ pub fn run(config: &Config) -> Result<i32, String> {
             .and_then(|job| spawn(config, sid, &job));
     }
     for path in granted {
-        let _ = set_access(path, sid, REVOKE_ACCESS);
+        let _: Result<(), String> = set_access(path, sid, REVOKE_ACCESS);
     }
     for dir in listed.into_iter().rev() {
         if let Err(err) = with_acl_lock(SHARED_ACL_LOCK, || set_traverse(dir, sid, REVOKE_ACCESS)) {

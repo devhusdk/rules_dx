@@ -133,9 +133,9 @@ impl Consumer {
 
     fn command(&self, args: &[&str], env: &[(&str, &str)], bazel: bool) -> Command {
         let bin = self.base.join(if bazel { "bin" } else { "nobin" });
-        drop(fs::remove_file(self.log()));
-        drop(fs::remove_file(self.base.join("bazel.log.gate")));
-        drop(fs::remove_file(self.base.join("bazel.log.started")));
+        dx_atomic_fs::discard_file(self.log());
+        dx_atomic_fs::discard_file(self.base.join("bazel.log.gate"));
+        dx_atomic_fs::discard_file(self.base.join("bazel.log.started"));
         let mut command = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"));
         command
             .args(args)
@@ -266,7 +266,7 @@ impl Consumer {
 
     fn run_cancelled(&self, args: &[&str], env: &[(&str, &str)], signo: i32) -> Outcome {
         let started = self.base.join("bazel.log.started");
-        drop(fs::remove_file(&started));
+        dx_atomic_fs::discard_file(&started);
         let child = self
             .command(args, env, true)
             .stdout(Stdio::piped())
@@ -396,14 +396,14 @@ fn owned_and_unowned_file_scopes_resolve_before_building() {
     // the graph the previous run cached on disk.
     let cached = dx_path::state::local_dir(&consumer.workspace()).join(dx_path::state::RULE_GRAPH);
     for (flags, env) in JSON_MODES {
-        drop(std::fs::remove_file(&cached));
+        dx_atomic_fs::discard_file(&cached);
         let unowned = consumer.run(&with_mode(&["build", "src/main.rs"], flags), env, true);
         assert_terminal_failure(&unowned, "no_owner", "input", 2);
         assert_eq!(unowned.kinds(), ["error", "command_finished"]);
         assert!(!unowned.built(), "{}", unowned.context());
         let mut owner_env = env.to_vec();
         owner_env.push(("FAKE_QUERY", "owner"));
-        drop(std::fs::remove_file(&cached));
+        dx_atomic_fs::discard_file(&cached);
         let owned = consumer.run(
             &with_mode(&["build", "src/main.rs"], flags),
             &owner_env,

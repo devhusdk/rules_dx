@@ -1,6 +1,8 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+load(":cargo_bazel_generator_tests.bzl", "cargo_bazel_generator_test")
 load(":crate_build_script_tests.bzl", "crate_build_scripts_no_coverage_test")
 load(":cross_link_tests.bzl", "cross_link_tests")
 load(":defs_tests.bzl", "rust_wrapper_registry_tests")
@@ -17,6 +19,7 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
+        "cargo_bazel_generator_tests.bzl",
         "crate_build_script_tests.bzl",
         "cross_link_tests.bzl",
         "defs_tests.bzl",
@@ -45,6 +48,12 @@ ide_acquisition_test(
     expected = "rust-analyzer",
     tags = ["no-remote-exec"],
     version_args = ["--version"],
+)
+
+cargo_bazel_generator_test(
+    name = "cargo_bazel_generator_test",
+    size = "small",
+    target_under_test = "@dx_cargo_bazel//:generator",
 )
 
 crate_build_scripts_no_coverage_test(
@@ -98,4 +107,12 @@ filegroup(
 rust_platform_config_test(
     name = "platform_config_analysis",
     size = "small",
+)
+
+# keep
+rust_test(
+    name = "wasi_run_unit_test",
+    size = "small",
+    crate = "//rust:wasi_run",
+    tags = ["row:wasi"],
 )

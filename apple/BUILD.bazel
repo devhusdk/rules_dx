@@ -5,6 +5,7 @@ load("//apple/private/ios:simulator.bzl", "declared_simulator")
 exports_files([
     "README.md",
     "defs.bzl",
+    "extensions.bzl",
     "lang.json",
     "pins.json",
 ])
@@ -93,4 +94,9 @@ real_source_target(
         "defs.bzl",
     ],
     tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
 )

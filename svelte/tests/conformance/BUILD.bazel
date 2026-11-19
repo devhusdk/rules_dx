@@ -11,6 +11,19 @@ package(
 svelte_library(
     name = "conformance",
     srcs = ["Hello.svelte"],
+    aspect_hints = ["//core/quality/testdata:eslint_cfg_svelte"],
+)
+
+svelte_library(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.svelte"],
+    aspect_hints = ["//core/quality/testdata:eslint_cfg_svelte"],
+)
+
+svelte_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.svelte"],
+    aspect_hints = ["//core/quality/testdata:eslint_cfg_svelte"],
 )
 
 svelte_test(
@@ -74,5 +87,14 @@ dx_conformance_suite(
         "runfiles_test": "svelte has no binary rule",
     },
     passing_test = ":pass_subject_test",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.svelte",
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 2,
+        "lint_rule": "no-unused-vars",
+        "lint_source": "lint_dirty.svelte",
+    },
     size = "small",
 )

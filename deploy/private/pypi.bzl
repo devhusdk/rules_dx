@@ -5,7 +5,7 @@ load("//core:rlocation.bzl", "rlocation_path")
 load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_pypi.bzl", "PYPI_DEFAULT_REGISTRY_URL", "pypi_name_error", "pypi_registry_url_error", "pypi_wheel_error")
 
 def _pypi_config_impl(ctx):
@@ -130,7 +130,7 @@ def pypi_deploy(name, wheel, sdist = None, registry_url = PYPI_DEFAULT_REGISTRY_
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

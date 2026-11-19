@@ -1,4 +1,4 @@
-"""The Ruby gem hub: one Bundler tree built from a `ruby.lock.json`."""
+"""The Ruby gem hub: one Bundler tree built from the dx lock of one gem set."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core:pins.bzl", "lock_problems")
@@ -13,6 +13,9 @@ _REMOTE = "https://rubygems.org/"
 _CACHE = "vendor/cache"
 
 _BINSTUBS = "bin/private"
+
+# On Windows, Bundler.setup adds x64-mingw-ucrt to a ruby-only lock and tries to rewrite the read-only Gemfile.lock.
+_RUNTIME_ENV = {"BUNDLE_FROZEN": "true"}
 
 def _gemfile(packages):
     lines = ["source \"%s\"" % _REMOTE.rstrip("/"), ""]
@@ -77,7 +80,7 @@ def _ruby_gems_impl(rctx):
         "",
         "package(default_visibility = [\"//visibility:public\"])",
         "",
-        "rb_bundle_install(\n    name = %r,\n    gemfile = %r,\n    gemfile_lock = %r,\n    gems = %r,\n)\n" % (name, _GEMFILE, _GEMFILE + ".lock", gems),
+        "rb_bundle_install(\n    name = %r,\n    gemfile = %r,\n    gemfile_lock = %r,\n    gems = %r,\n    env = %r,\n)\n" % (name, _GEMFILE, _GEMFILE + ".lock", gems, _RUNTIME_ENV),
     ] + fragments))
     for package in packages:
         rctx.file("%s/BUILD.bazel" % package["name"], "\n".join([

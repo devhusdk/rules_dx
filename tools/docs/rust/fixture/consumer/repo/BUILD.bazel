@@ -1,4 +1,4 @@
-load("@rules_dx//tools/docs/rust:site.bzl", "rust_docs_site")
+load("@rules_dx//rust:defs.bzl", "rust_docs_site")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 
 package(default_visibility = ["//visibility:public"])

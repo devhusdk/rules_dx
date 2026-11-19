@@ -21,7 +21,7 @@ load(
 )
 load("//apple/private/ios:cell.bzl", "apple_build_host")
 load("//apple/private/ios:simulator.bzl", "simulator_errors")
-load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 
 def _app(**kwargs):
     base = ios_default_app(kwargs.get("environment", "simulator"))

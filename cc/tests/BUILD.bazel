@@ -4,12 +4,14 @@ load("//cc/private/toolchain:identity_subject.bzl", "cc_toolchain_identity_subje
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+load("//tools/testing/conformance:defs.bzl", "dx_coverage_test")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
-load(":defs_tests.bzl", "cc_gcov_coverage_env_test", "cc_wrapper_contract_tests", "objc_library_tests")
+load(":defs_tests.bzl", "cc_wrapper_contract_tests", "objc_library_tests")
 load(":failure_tests.bzl", "gcc_unsupported_tests")
 load(":hub_tests.bzl", "cc_hub_tests")
 load(":msvc_repos_tests.bzl", "msvc_repos_tests", "msvc_unavailable_tests", "msvc_unsupported_tests")
 load(":msvc_toolchain_tests.bzl", "msvc_toolchain_tests", "msvc_version_tests")
+load(":nvcc_syntax_tests.bzl", "nvcc_syntax_unit_tests")
 load(":resolved_toolchain.bzl", "APPLE_SUPPORT_TOOLCHAIN_ID", "resolved_cc_toolchain")
 load(":toolchain_tests.bzl", "GCC_CROSS_BUILD_HOST", "cc_toolchain_identity_tests")
 
@@ -134,6 +136,11 @@ rust_test(
 
 clang_syntax_unit_tests(
     name = "clang_syntax_unit",
+    size = "small",
+)
+
+nvcc_syntax_unit_tests(
+    name = "nvcc_syntax_unit",
     size = "small",
 )
 
@@ -686,10 +693,25 @@ cc_toolchain_test(
     test = "//cc/tests/fixtures/msvc_shared:pe_machine_test",
 )
 
-cc_gcov_coverage_env_test(
-    name = "gcc_coverage_env_test",
-    size = "small",
-    target = "//cc/tests/fixtures/hello:hello_c_test",
+cc_toolchain_test(
+    name = "gcc_hello_c_static_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = "//cc/tests/fixtures/hello:hello_c_static_test",
+)
+
+dx_coverage_test(
+    name = "gcc_coverage_test",
+    covered_source = "hello.c",
+    instrumented_packages = ["cc/tests/fixtures/hello"],
+    subject = ":gcc_hello_c_static_test",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 test_suite(
@@ -703,8 +725,10 @@ test_suite(
         ":gcc_arm64_tsan_test",
         ":gcc_arm64_ubsan_test",
         ":gcc_asan_test",
-        ":gcc_coverage_env_test",
+        ":gcc_coverage_test",
+        ":gcc_coverage_test_off",
         ":gcc_dynamic_libstdcxx_test",
+        ":gcc_hello_c_static_test",
         ":gcc_hello_c_test",
         ":gcc_hello_lib_test",
         ":gcc_hello_test",
@@ -720,6 +744,7 @@ test_suite(
         ":llvm_asan_test",
         ":llvm_tsan_test",
         ":llvm_ubsan_test",
+        ":msvc_arm64_arm64_toolchain",
         ":msvc_arm64_c_test",
         ":msvc_arm64_hello_c_test",
         ":msvc_arm64_hello_test",
@@ -729,21 +754,20 @@ test_suite(
         ":msvc_hello_c_test",
         ":msvc_hello_lib_test",
         ":msvc_hello_test",
+        ":msvc_layout",
+        ":msvc_layout_arm64",
+        ":msvc_repos",
         ":msvc_shared_dbg_test",
         ":msvc_shared_opt_test",
         ":msvc_shared_test",
         ":msvc_static_crt_test",
-        ":xcode_asan_test",
-        ":xcode_tsan_test",
-        ":xcode_ubsan_test",
-        ":msvc_arm64_arm64_toolchain",
-        ":msvc_layout",
-        ":msvc_layout_arm64",
-        ":msvc_repos",
         ":msvc_unavailable",
         ":msvc_unsupported",
         ":msvc_x64_arm64_toolchain",
         ":msvc_x64_x64_toolchain",
+        ":xcode_asan_test",
+        ":xcode_tsan_test",
+        ":xcode_ubsan_test",
         "//cc/tests/fixtures/hello:toolchain_action_tests",
         "//cc/tests/fixtures/msvc_shared:toolchain_action_tests",
         "//cc/tests/gcc_linux_x86_64:all",
@@ -774,6 +798,7 @@ real_source_target(
         "hub_tests.bzl",
         "msvc_repos_tests.bzl",
         "msvc_toolchain_tests.bzl",
+        "nvcc_syntax_tests.bzl",
         "resolved_toolchain.bzl",
         "toolchain_tests.bzl",
     ],
@@ -796,6 +821,11 @@ test_suite(
         "//cc/tests/fixtures/lcov_accounting:accounting_test",
         "//cc/tests/fixtures/lcov_accounting:partial_test",
         "//cc/tests/fixtures/linux_corpus:corpus_test",
+        "//cc/tests/fixtures/llvm_windows_cross:cc_test",
+        "//cc/tests/fixtures/llvm_windows_cross:go_test",
+        "//cc/tests/fixtures/llvm_windows_cross:rust_opt_test",
+        "//cc/tests/fixtures/llvm_windows_cross:rust_test",
+        "//cc/tests/fixtures/llvm_windows_cross:zig_test",
         "//cc/tests/fixtures/no_srcs:app_sources_test",
         "//cc/tests/fixtures/no_srcs:x_test",
         "//cc/tests/fixtures/strict_generation:strict_test",

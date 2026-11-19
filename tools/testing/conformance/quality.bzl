@@ -1,4 +1,4 @@
-"""Generated from the lint and format entries of every <lang>/lang.json quality.aspects."""
+"""Generated from every <lang>/lang.json by //core/modules:lang_projections; refresh with `bazel run //core/modules:update_lang_projections`."""
 
 load("//ansible/private/quality:ansible.bzl", "real_ansible_lint_aspect")
 load("//bicep/private/quality:bicep.bzl", "real_bicep_format_aspect", "real_bicep_lint_aspect")

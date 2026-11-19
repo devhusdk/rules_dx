@@ -1,27 +1,30 @@
-//! No Rust source allows a strict tier lint, every `#[expect(...)]` gives a reason, the repo-wide clippy flags carry the strict tier, and no source discards a result where those lints cannot see it.
+//! No Rust source allows a strict tier lint, every `#[expect(...)]` gives a reason, panic-family expects stay in tools/testing or `tools/ci/lint_expect_allowlist.txt`, the repo-wide clippy flags carry the strict tier, and no source discards a result where those lints cannot see it.
 
-#[expect(
-    dead_code,
-    reason = "the guard reads only the snapshot and the Rust lexer"
-)]
-mod guard_scan;
-
+use dx_guard::allowlist::{Counts, hit, verify};
+use dx_guard::lexer::{Token, rust_tokens};
+use dx_guard::snapshot::snapshot;
+use serde_json as _;
+use starlark_syntax as _;
 use std::path::Path;
-use guard_scan::{Token, rust_tokens, snapshot};
 use yaml_serde as _;
 
 /// The lints of core/quality/tiers/clippy/strict.txt that no source may allow.
-const LINTS: [&str; 21] = [
+const LINTS: [&str; 26] = [
     "clippy::allow_attributes",
     "clippy::allow_attributes_without_reason",
+    "clippy::create_dir",
     "clippy::exit",
     "clippy::expect_used",
     "clippy::fallible_impl_from",
     "clippy::get_unwrap",
     "clippy::indexing_slicing",
     "clippy::let_underscore_must_use",
+    "clippy::mem_forget",
+    "clippy::multiple_unsafe_ops_per_block",
     "clippy::panic",
     "clippy::panic_in_result_fn",
+    "clippy::rc_mutex",
+    "clippy::string_add",
     "clippy::string_slice",
     "clippy::todo",
     "clippy::undocumented_unsafe_blocks",
@@ -73,9 +76,8 @@ fn group(tokens: &[Token], open: usize) -> &[Token] {
     tokens.get(open + 1..).unwrap_or_default()
 }
 
-/// The problems of one Rust source.
-fn problems(source: &str) -> Vec<String> {
-    let tokens = rust_tokens(source);
+/// The `allow(..)` and `expect(..)` calls inside the attributes of one Rust source, with their arguments.
+fn lint_attributes(tokens: &[Token]) -> Vec<(&str, &[Token])> {
     let mut out = Vec::new();
     let mut depth = 0usize;
     for (at, token) in tokens.iter().enumerate() {
@@ -91,18 +93,12 @@ fn problems(source: &str) -> Vec<String> {
                 }
             }
             Token::Punct(']') if depth > 0 => depth -= 1,
-            Token::Word(word) if depth > 0 && tokens.get(at + 1) == Some(&Token::Punct('(')) => {
-                let args = group(&tokens, at + 1);
-                if word == "allow" {
-                    out.extend(
-                        lint_paths(args)
-                            .into_iter()
-                            .filter(|path| LINTS.contains(&path.as_str()))
-                            .map(|path| format!("allows {path}")),
-                    );
-                } else if word == "expect" && !args.contains(&Token::Word("reason".to_owned())) {
-                    out.push("expects a lint without a reason".to_owned());
-                }
+            Token::Word(word)
+                if depth > 0
+                    && (word == "allow" || word == "expect")
+                    && tokens.get(at + 1) == Some(&Token::Punct('(')) =>
+            {
+                out.push((word.as_str(), group(tokens, at + 1)));
             }
             Token::Word(_) | Token::Text(_) | Token::Punct(_) => {}
         }
@@ -110,11 +106,67 @@ fn problems(source: &str) -> Vec<String> {
     out
 }
 
+/// The problems of one Rust source.
+fn problems(source: &str) -> Vec<String> {
+    let tokens = rust_tokens(source);
+    let mut out = Vec::new();
+    for (word, args) in lint_attributes(&tokens) {
+        if word == "allow" {
+            out.extend(
+                lint_paths(args)
+                    .into_iter()
+                    .filter(|path| LINTS.contains(&path.as_str()))
+                    .map(|path| format!("allows {path}")),
+            );
+        } else if !args.contains(&Token::Word("reason".to_owned())) {
+            out.push("expects a lint without a reason".to_owned());
+        }
+    }
+    out
+}
+
+/// The strict tier lints that only test-support code may expect.
+const PANIC_FAMILY: [&str; 15] = [
+    "clippy::exit",
+    "clippy::expect_used",
+    "clippy::fallible_impl_from",
+    "clippy::get_unwrap",
+    "clippy::indexing_slicing",
+    "clippy::let_underscore_must_use",
+    "clippy::panic",
+    "clippy::panic_in_result_fn",
+    "clippy::string_slice",
+    "clippy::todo",
+    "clippy::unimplemented",
+    "clippy::unreachable",
+    "clippy::unwrap_in_result",
+    "clippy::unwrap_used",
+    "clippy::wildcard_enum_match_arm",
+];
+
+/// The test-support tree, where panic-family expects need no allowlist line.
+const TEST_SUPPORT: &str = "tools/testing/";
+
+/// The panic-family lints one Rust source expects.
+fn panic_expects(source: &str) -> Vec<String> {
+    let tokens = rust_tokens(source);
+    lint_attributes(&tokens)
+        .into_iter()
+        .filter(|(word, _)| *word == "expect")
+        .flat_map(|(_, args)| lint_paths(args))
+        .filter(|path| PANIC_FAMILY.contains(&path.as_str()))
+        .collect()
+}
+
 #[test]
 fn no_source_allows_a_strict_lint_or_expects_without_reason() {
     let found: Vec<String> = snapshot()
         .iter()
-        .filter(|(path, _)| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")))
+        .filter(|(path, _)| {
+            Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
+        })
         .flat_map(|(path, source)| {
             problems(source)
                 .into_iter()
@@ -150,17 +202,58 @@ fn flags_expect_without_reason() {
 
 #[test]
 fn passes_other_attributes() {
-    assert_eq!(problems(
+    assert_eq!(
+        problems(
             "#[allow(dead_code)]\n#[expect(clippy::panic, reason = \"r\")]\nfn f() { v.expect(\"x\"); let a = [1]; }"
-        ), Vec::<String>::new());
+        ),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn panic_family_expects_stay_in_test_support_or_the_allowlist() {
+    let mut counts = Counts::new();
+    for (path, source) in snapshot() {
+        let rust = Path::new(&path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"));
+        if rust && !path.starts_with(TEST_SUPPORT) {
+            for lint in panic_expects(&source) {
+                hit(&mut counts, &path, &lint);
+            }
+        }
+    }
+    verify(&counts, &PANIC_FAMILY);
+}
+
+#[test]
+fn finds_panic_family_expects() {
+    assert_eq!(
+        panic_expects(
+            "#[expect(clippy::panic, reason = \"r\")]\n\
+             #![cfg_attr(test, expect(clippy::unwrap_used, dead_code, reason = \"r\"))]\n\
+             #[expect(unsafe_code, clippy::exit, reason = \"r\")]\n\
+             #[allow(clippy::unreachable)]\n\
+             fn f() { v.expect(\"x\"); let s = \"#[expect(clippy::todo)]\"; }"
+        ),
+        ["clippy::panic", "clippy::unwrap_used", "clippy::exit"]
+    );
+}
+
+#[test]
+fn panic_family_names_strict_lints() {
+    for lint in PANIC_FAMILY {
+        assert!(LINTS.contains(&lint), "{lint} is not in LINTS");
+    }
 }
 
 /// The result discards of one Rust source that `clippy::unused_result_ok` and
-/// `clippy::map_err_ignore` cannot see: `drop(write!(..))`, `drop(writeln!(..))` and
-/// `let _ = <expr>.ok();`.
+/// `clippy::map_err_ignore` cannot see: `drop(write!(..))`, `drop(writeln!(..))`,
+/// `drop(fs::..)`, `drop(std::fs::..)` and `let _ = <expr>.ok();`.
 fn discards(source: &str) -> Vec<String> {
     let tokens = rust_tokens(source);
-    let word = |at: usize, text: &str| matches!(tokens.get(at), Some(Token::Word(word)) if word == text);
+    let word =
+        |at: usize, text: &str| matches!(tokens.get(at), Some(Token::Word(word)) if word == text);
     let punct = |at: usize, c: char| tokens.get(at) == Some(&Token::Punct(c));
     let mut out = Vec::new();
     for at in 0..tokens.len() {
@@ -169,6 +262,16 @@ fn discards(source: &str) -> Vec<String> {
                 if word(at + 2, mac) {
                     out.push(format!("drop({mac}!(..)) discards the write error"));
                 }
+            }
+        }
+        if word(at, "drop") && punct(at + 1, '(') {
+            let fs = if word(at + 2, "std") && punct(at + 3, ':') && punct(at + 4, ':') {
+                at + 5
+            } else {
+                at + 2
+            };
+            if word(fs, "fs") && punct(fs + 1, ':') && punct(fs + 2, ':') {
+                out.push("drop(fs::..) discards the file-system error".to_owned());
             }
         }
         if word(at, "let") && word(at + 1, "_") && punct(at + 2, '=') {
@@ -203,7 +306,11 @@ fn discards(source: &str) -> Vec<String> {
 fn no_source_discards_a_result_unseen_by_the_lints() {
     let found: Vec<String> = snapshot()
         .iter()
-        .filter(|(path, _)| Path::new(path).extension().is_some_and(|ext| ext.eq_ignore_ascii_case("rs")))
+        .filter(|(path, _)| {
+            Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("rs"))
+        })
         .flat_map(|(path, source)| {
             discards(source)
                 .into_iter()
@@ -230,6 +337,13 @@ fn flags_dropped_writes_and_ok_discards() {
         discards("fn f() { let _ = std::fs::remove_file(path(a, [b])).ok(); }"),
         ["let _ = <expr>.ok() discards the error"]
     );
+    assert_eq!(
+        discards("fn f() { drop(fs::remove_dir_all(&work)); drop(std::fs::write(p, b)); }"),
+        [
+            "drop(fs::..) discards the file-system error",
+            "drop(fs::..) discards the file-system error"
+        ]
+    );
 }
 
 #[test]
@@ -237,7 +351,9 @@ fn passes_handled_results_and_other_drops() {
     assert_eq!(
         discards(
             "fn f() { drop(guard); writeln!(out, \"x\")?; let _ = tx.send(1); let a = b.ok(); \
-             let _ = { c.ok() }; // drop(writeln!(err))\n let s = \"drop(write!(x))\"; }"
+             let _ = { c.ok() }; // drop(writeln!(err))\n let s = \"drop(write!(x))\"; \
+             drop(fs_guard); drop(std::os::unix::fs::symlink(a, b)?); \
+             let t = \"drop(fs::remove_file(p))\"; dx_atomic_fs::discard_file(p); }"
         ),
         Vec::<String>::new()
     );

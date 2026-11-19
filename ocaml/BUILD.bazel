@@ -29,6 +29,7 @@ real_source_target(
     name = "corpus_markdown",
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
+    visibility = ["//:__subpackages__"],
 )
 
 real_source_target(
@@ -39,6 +40,7 @@ real_source_target(
         "extensions.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//:__subpackages__"],
 )
 
 filegroup(
@@ -49,4 +51,9 @@ filegroup(
         "pins.json",
     ]),
     visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
 )

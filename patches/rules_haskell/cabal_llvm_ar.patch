@@ -1,4 +1,4 @@
-Upstream: none (not yet sent upstream)
+Upstream: none (rules_dx only: needs @llvm hermetic toolchain)
 --- a/haskell/cabal.bzl
 +++ b/haskell/cabal.bzl
 @@ -142,8 +142,9 @@

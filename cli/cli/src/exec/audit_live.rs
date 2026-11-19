@@ -2,7 +2,6 @@ use super::super::test_support::*;
 use dx_adopt::dependency_sets::Ecosystem;
 use dx_process::{ChildStatus, Runner};
 use std::cell::RefCell;
-use std::fmt::Write as _;
 use std::io;
 use std::path::Path;
 use std::rc::Rc;
@@ -70,7 +69,7 @@ impl Runner for AuditRunner {
                 if arg == "--report-path"
                     && let Some(path) = argv.get(index + 1)
                 {
-                    std::fs::write(path, sarif.as_bytes()).ok();
+                    std::fs::write(path, sarif.as_bytes()).expect("write the fake report");
                 }
             }
         }
@@ -79,7 +78,7 @@ impl Runner for AuditRunner {
                 if arg == "--output"
                     && let Some(path) = argv.get(index + 1)
                 {
-                    std::fs::write(path, report.as_bytes()).ok();
+                    std::fs::write(path, report.as_bytes()).expect("write the fake report");
                 }
             }
         }
@@ -115,10 +114,6 @@ pub(super) fn run_with(
     setup: &dyn Fn(&Harness),
 ) -> (i32, String, String) {
     run_on(argv, runner, TEST_AUDIT_TODAY, setup)
-}
-
-pub(super) fn lock_of(ecosystem: Ecosystem) -> &'static str {
-    ecosystem.lockfiles()[0].as_str()
 }
 
 pub(super) fn manifest_of(ecosystem: Ecosystem) -> &'static str {
@@ -160,11 +155,11 @@ go_deps.from_file(go_mod = "//third_party/go:{go_mod}")
 nuget = use_extension("//csharp:extensions.bzl", "nuget")
 nuget.lock(name = "nuget", lock = "//third_party/dotnet:{nuget_lock}")
 "#,
-        cargo_lock = lock_of(Ecosystem::Cargo),
+        cargo_lock = Ecosystem::Cargo.lockfile(),
         cargo_manifest = manifest_of(Ecosystem::Cargo),
-        maven_lock = lock_of(Ecosystem::Maven),
-        npm_lock = lock_of(Ecosystem::Npm),
-        nuget_lock = lock_of(Ecosystem::Nuget),
+        maven_lock = Ecosystem::Maven.lockfile(),
+        npm_lock = Ecosystem::Npm.lockfile(),
+        nuget_lock = Ecosystem::Nuget.lockfile(),
         go_mod = manifest_of(Ecosystem::Go),
     )
 }
@@ -219,7 +214,10 @@ pub(super) fn write_all_lock_families(harness: &Harness) {
     write_nuget_lock(harness);
     write_go_mod(harness);
     harness.write_source(
-        &format!("third_party/powershell/{}", lock_of(Ecosystem::PowerShell)),
+        &format!(
+            "third_party/powershell/{}",
+            Ecosystem::PowerShell.lockfile()
+        ),
         "{\n  \"modules\": {}\n}\n",
     );
 }
@@ -238,7 +236,7 @@ pub(super) fn write_cargo_license_set(harness: &Harness) {
 pub(super) fn write_cargo_lock(harness: &Harness) {
     harness.write_source("cargo-bazel-lock.json", r#"{"packages": {}}"#);
     harness.write_source(
-        &format!("cc/private/tools/context/{}", lock_of(Ecosystem::Cargo)),
+        &format!("cc/private/tools/context/{}", Ecosystem::Cargo.lockfile()),
         "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
     );
 }
@@ -246,7 +244,7 @@ pub(super) fn write_cargo_lock(harness: &Harness) {
 fn write_empty_cargo_lock(harness: &Harness) {
     harness.write_source("cargo-bazel-lock.json", r#"{"packages": {}}"#);
     harness.write_source(
-        &format!("cc/private/tools/context/{}", lock_of(Ecosystem::Cargo)),
+        &format!("cc/private/tools/context/{}", Ecosystem::Cargo.lockfile()),
         "[[package]]\nname = \"demo\"\nversion = \"0.1.0\"\n",
     );
 }
@@ -260,14 +258,14 @@ pub(super) fn write_cargo_license_lock(harness: &Harness) {
 
 pub(super) fn write_maven_lock(harness: &Harness) {
     harness.write_source(
-        &format!("third_party/jvm/{}", lock_of(Ecosystem::Maven)),
+        &format!("third_party/jvm/{}", Ecosystem::Maven.lockfile()),
         r#"{"artifacts": {}}"#,
     );
 }
 
 pub(super) fn write_nuget_lock(harness: &Harness) {
     harness.write_source(
-        &format!("third_party/dotnet/{}", lock_of(Ecosystem::Nuget)),
+        &format!("third_party/dotnet/{}", Ecosystem::Nuget.lockfile()),
         "{}\n",
     );
     harness.write_source(
@@ -303,7 +301,7 @@ pub(super) fn write_go_mod(harness: &Harness) {
 const NPM_LOCK: &str = "lockfileVersion: '9.0'\n\npackages:\n\n  'react@18.2.0':\n    resolution: {integrity: sha512-abc}\n";
 
 fn npm_family_locks() -> [String; 3] {
-    let lock = lock_of(Ecosystem::Npm);
+    let lock = Ecosystem::Npm.lockfile();
     [
         format!("javascript/tests/fixtures/adopt_js_ts/{lock}"),
         format!("examples/adopt-polyglot/{lock}"),
@@ -312,7 +310,7 @@ fn npm_family_locks() -> [String; 3] {
 }
 
 pub(super) fn write_npm_locks(harness: &Harness) {
-    harness.write_source(lock_of(Ecosystem::Npm), NPM_LOCK);
+    harness.write_source(Ecosystem::Npm.lockfile(), NPM_LOCK);
     for rel in npm_family_locks() {
         harness.write_source(&rel, NPM_LOCK);
     }
@@ -675,7 +673,7 @@ pub(super) fn audit_live_vuln_findings_fail_and_git_is_incomplete() {
     let (code, _out, err) = run_with(&["security"], &runner, &|harness| {
         harness.write_source("cargo-bazel-lock.json", r#"{"packages": {}}"#);
         harness.write_source(
-            &format!("cc/private/tools/context/{}", lock_of(Ecosystem::Cargo)),
+            &format!("cc/private/tools/context/{}", Ecosystem::Cargo.lockfile()),
             "[[package]]\nname = \"git-dep\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/example/git-dep#abc123\"\n",
         );
         write_npm_locks(harness);
@@ -695,7 +693,7 @@ pub(super) fn audit_live_npm_pnpm_git_resolution_is_incomplete() {
     let (code, _out, err) = run_with(&["security"], &runner, &|harness| {
         write_cargo_lock(harness);
         harness.write_source(
-            lock_of(Ecosystem::Npm),
+            Ecosystem::Npm.lockfile(),
             "lockfileVersion: '9.0'\npackages:\n  'git-dep@github:user/repo#abc123':\n    resolution: {repo: 'https://github.com/user/repo.git', commit: abc123}\n",
         );
         write_maven_lock(harness);
@@ -735,16 +733,16 @@ pub(super) fn audit_live_npm_family_locks_are_assessed_against_the_shared_npm_sn
             "javascript/tests/fixtures/adopt_js_ts/app",
             &format!(
                 "javascript/tests/fixtures/adopt_js_ts/{}",
-                lock_of(Ecosystem::Npm)
+                Ecosystem::Npm.lockfile()
             ),
         ),
         (
             "examples/adopt-polyglot/frontend",
-            &format!("examples/adopt-polyglot/{}", lock_of(Ecosystem::Npm)),
+            &format!("examples/adopt-polyglot/{}", Ecosystem::Npm.lockfile()),
         ),
         (
             &format!("javascript/private/quality/{}", manifest_of(Ecosystem::Npm)),
-            &format!("javascript/private/quality/{}", lock_of(Ecosystem::Npm)),
+            &format!("javascript/private/quality/{}", Ecosystem::Npm.lockfile()),
         ),
     ] {
         let runner = AuditRunner::clean();
@@ -838,7 +836,7 @@ fn security_exception(set: &str, package: &str, versions: &str, expires: &str) -
         ("reason", "reviewed"),
         ("expires", expires),
     ] {
-        writeln!(text, "{key} = {value:?}").ok();
+        text.push_str(&format!("{key} = {value:?}\n"));
     }
     text
 }
@@ -1121,7 +1119,7 @@ pub(super) fn audit_live_tampered_advisory_fails_on_sha_mismatch() {
 pub(super) fn audit_live_license_clean_and_denied() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license"], &runner, &|_harness| {});
-    let _ = (code, out, err);
+    let _: (i32, String, String) = (code, out, err);
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license"], &runner, &clean_workspace);
     assert_eq!(
@@ -1159,7 +1157,7 @@ fn audit_live_license_names_uncovered_dependency_sets() {
 
 fn write_junit_exception(harness: &Harness) {
     harness.write_source(
-        &format!("third_party/jvm/{}", lock_of(Ecosystem::Maven)),
+        &format!("third_party/jvm/{}", Ecosystem::Maven.lockfile()),
         r#"{"artifacts": {"junit:junit": {"version": "4.13.2"}}}"#,
     );
     harness.write_source(
@@ -1189,7 +1187,7 @@ pub(super) fn audit_live_license_skips_exceptions_for_sets_outside_the_run() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
         harness.write_source(
-            lock_of(Ecosystem::Npm),
+            Ecosystem::Npm.lockfile(),
             "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n",
         );
         write_empty_cargo_lock(harness);
@@ -1207,7 +1205,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let runner = AuditRunner::clean();
     let (code, out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
         harness.write_source(
-            lock_of(Ecosystem::Npm),
+            Ecosystem::Npm.lockfile(),
             "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n",
         );
         write_empty_cargo_lock(harness);
@@ -1222,7 +1220,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
     let runner = AuditRunner::clean();
     let (code, _out, err) = run_with(&["license", "//:demo"], &runner, &|harness| {
         harness.write_source(
-            lock_of(Ecosystem::Npm),
+            Ecosystem::Npm.lockfile(),
             "lockfileVersion: '9.0'\npackages:\n  react@18.2.0: {}\n",
         );
         write_empty_cargo_lock(harness);
@@ -1246,7 +1244,7 @@ pub(super) fn audit_live_license_per_ecosystem_ids_and_notice_texts() {
         &runner,
         &|harness| {
             harness.write_source(
-                &format!("third_party/dotnet/{}", lock_of(Ecosystem::Nuget)),
+                &format!("third_party/dotnet/{}", Ecosystem::Nuget.lockfile()),
                 "{}\n",
             );
             harness.write_source(

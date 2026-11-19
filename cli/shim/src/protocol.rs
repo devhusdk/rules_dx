@@ -40,10 +40,26 @@ impl std::error::Error for ShimError {}
 pub fn version_is_valid(version: &str) -> bool {
     !version.is_empty() && semver::Version::parse(version).is_ok()
 }
+fn without_bom(text: &str) -> &str {
+    text.strip_prefix('\u{feff}').unwrap_or(text)
+}
+
+/// The text of a file, or `None` when it is missing; any other read failure is an error.
+fn read_optional(path: &Path) -> Result<Option<String>, ShimError> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => Ok(Some(text)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(ShimError::failure(format!(
+            "cannot read {}: {e}",
+            path.display()
+        ))),
+    }
+}
+
 /// The sha256 on the `<version> <sha256> <asset>` line of a `.dx/pins` file.
 #[must_use]
 pub fn pinned_hash(text: &str, version: &str, asset: &str) -> Option<String> {
-    text.lines().find_map(|line| {
+    without_bom(text).lines().find_map(|line| {
         let fields: Vec<&str> = line.trim_end_matches('\r').split_whitespace().collect();
         let [line_version, hash, line_asset] = fields[..] else {
             return None;
@@ -57,6 +73,7 @@ pub fn pinned_hash(text: &str, version: &str, asset: &str) -> Option<String> {
 /// same rules as the `tools/dx` launchers. `None` sends the call through Bazel.
 #[must_use]
 pub fn module_version(text: &str) -> Option<String> {
+    let text = without_bom(text);
     let names_rules_dx = text.lines().any(|line| {
         line.split_once("module_name")
             .and_then(|(_, rest)| rest.trim_start().strip_prefix('='))
@@ -132,16 +149,13 @@ pub fn resolve_version(env_get: EnvGet, cwd: &Path) -> Result<Route, ShimError> 
     let Some(module) = find_module_file(cwd) else {
         return Ok(Route::Bazel);
     };
-    let Some(version) = std::fs::read_to_string(&module)
-        .ok()
-        .and_then(|text| module_version(&text))
-    else {
+    let Some(version) = read_optional(&module)?.and_then(|text| module_version(&text)) else {
         return Ok(Route::Bazel);
     };
-    let pins = module
-        .parent()
-        .map(|root| root.join(VERSION_FILE))
-        .and_then(|file| std::fs::read_to_string(file).ok());
+    let pins = match module.parent() {
+        Some(root) => read_optional(&root.join(VERSION_FILE))?,
+        None => None,
+    };
     Ok(Route::Module { version, pins })
 }
 
@@ -226,16 +240,36 @@ pub fn cache_file_name(platform: Platform) -> String {
     let exe = if platform.os == "windows" { ".exe" } else { "" };
     format!("{}{exe}", asset_name(platform))
 }
-pub fn cache_root(env_get: EnvGet, windows: bool) -> Option<PathBuf> {
+/// The dx cache root; a relative `DX_CACHE_DIR` is an error and a relative `XDG_CACHE_HOME` is skipped.
+pub fn cache_root(env_get: EnvGet, windows: bool) -> Result<Option<PathBuf>, ShimError> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
     if let Some(dir) = non_empty("DX_CACHE_DIR") {
-        return Some(PathBuf::from(dir));
+        let dir = PathBuf::from(dir);
+        // has_root, not is_absolute: Windows calls a rooted `\cache` relative, but it does not follow the cwd.
+        if !dir.has_root() {
+            return Err(ShimError::usage(format!(
+                "DX_CACHE_DIR must be an absolute path, got '{}'",
+                dir.display()
+            )));
+        }
+        return Ok(Some(dir));
     }
-    if let Some(xdg) = non_empty("XDG_CACHE_HOME") {
-        return Some(PathBuf::from(xdg).join("dx"));
+    if let Some(xdg) = non_empty("XDG_CACHE_HOME").map(PathBuf::from)
+        && xdg.has_root()
+    {
+        return Ok(Some(xdg.join("dx")));
     }
-    let home = if windows { "USERPROFILE" } else { "HOME" };
-    non_empty(home).map(|home| PathBuf::from(home).join(".cache").join("dx"))
+    let name = if windows { "USERPROFILE" } else { "HOME" };
+    let Some(home) = non_empty(name).map(PathBuf::from) else {
+        return Ok(None);
+    };
+    if !home.has_root() {
+        return Err(ShimError::usage(format!(
+            "{name} must be an absolute path, got '{}'; set DX_CACHE_DIR",
+            home.display()
+        )));
+    }
+    Ok(Some(home.join(".cache").join("dx")))
 }
 #[must_use]
 pub fn bin_dir(root: &Path, version: &str) -> PathBuf {
@@ -257,15 +291,27 @@ pub fn release_base(env_get: EnvGet) -> Result<String, ShimError> {
         Ok(base)
     } else {
         Err(ShimError::usage(format!(
-            "DX_RELEASE_BASE_URL must use https:// (http:// only to 127.0.0.1, [::1] or localhost), got '{base}'"
+            "DX_RELEASE_BASE_URL must use https:// with a host and no credentials (http:// only to 127.0.0.1, [::1] or localhost), got '{}'",
+            redact(&base)
         )))
+    }
+}
+
+fn redact(base: &str) -> String {
+    match base
+        .split_once("://")
+        .map(|(scheme, rest)| (scheme, rest.split_once('@')))
+    {
+        Some((scheme, Some((_, host)))) => format!("{scheme}://<redacted>@{host}"),
+        _ => base.to_owned(),
     }
 }
 
 #[must_use]
 pub fn base_is_allowed(base: &str) -> bool {
-    if base.starts_with("https://") && base.len() > "https://".len() {
-        return true;
+    if let Some(rest) = base.strip_prefix("https://") {
+        let authority = rest.split('/').next().unwrap_or("");
+        return !authority.contains('@') && !authority.starts_with(':') && !authority.is_empty();
     }
     let Some(rest) = base.strip_prefix("http://") else {
         return false;

@@ -1,7 +1,6 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@rules_cc//cc:defs.bzl", "cc_import")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":build_script_cc_env.bzl", "build_script_cc_env")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -69,11 +68,6 @@ selects.config_setting_group(
     visibility = ["//visibility:public"],
 )
 
-build_script_cc_env(
-    name = "build_script_cc_env",
-    visibility = ["//visibility:public"],
-)
-
 cc_import(
     name = "fuzz_asan_runtime_macos",
     shared_library = "@llvm//runtimes/compiler-rt:clang_rt.asan.shared",
@@ -108,6 +102,11 @@ exports_files(
         "probe.bzl",
     ],
     visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    ["wasi_run.rs"],
+    visibility = ["//rust:__pkg__"],
 )
 
 real_source_target(

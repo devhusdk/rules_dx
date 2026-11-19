@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
+load("//deploy/private:native_runtime.bzl", "native_runtime")
 load(":pins.bzl", "GCC_GLIBC", "GCC_VERSION")
 load(":runtime_libs.bzl", "gcc_runtime_libs")
 load(":select.bzl", "gcov_tool")
@@ -73,7 +73,7 @@ exports_files(
 )
 
 # glibc and libgcc come from the host OS and libstdc++ links statically.
-dx_native_runtime(
+native_runtime(
     name = "gcc_linux_glibc",
     redistribution = "os_supplied",
     source = "gcc " + GCC_VERSION + " sysroot",
@@ -90,7 +90,7 @@ gcc_runtime_libs(
     }),
 )
 
-dx_native_runtime(
+native_runtime(
     name = "gcc_linux_libstdcxx",
     srcs = [":gcc_linux_libstdcxx_libs"],
     notice = "gcc_linux_libstdcxx_NOTICE.txt",
@@ -140,7 +140,7 @@ alias(
 )
 
 # The Universal CRT is part of Windows 10 and later.
-dx_native_runtime(
+native_runtime(
     name = "windows_ucrt",
     provides = [
         "api-ms-win-*",

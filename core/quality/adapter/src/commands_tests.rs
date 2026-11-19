@@ -3876,3 +3876,25 @@ fn container_structure_test_uses_the_tar_driver() {
         ]
     );
 }
+
+#[test]
+fn dscanner_check_pins_the_format_and_never_reads_a_user_config() {
+    let invocation = dscanner_check(
+        Path::new(BIN),
+        &[Path::new("/scratch/a.d"), Path::new("/scratch/b.d")],
+    );
+    assert_eq!(invocation.cwd_rel, "");
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "--styleCheck",
+            "--errorFormat",
+            DSCANNER_FORMAT,
+            "--config",
+            "/scratch/bin/tool/dscanner.ini",
+            "/scratch/a.d",
+            "/scratch/b.d"
+        ]
+    );
+}

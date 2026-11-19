@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
@@ -7,6 +8,18 @@ exports_files([
     "lang.json",
     "pins.json",
 ])
+
+bool_flag(
+    name = "kcov",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "kcov_build",
+    flag_values = {":kcov": "true"},
+    visibility = ["//visibility:public"],
+)
 
 real_source_target(
     name = "corpus_markdown",
@@ -28,4 +41,9 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
 )

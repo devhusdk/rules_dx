@@ -594,7 +594,7 @@ fn oci_read_members(
     links: &OciLinks,
     names: &[String],
 ) -> io::Result<std::collections::HashMap<String, Vec<u8>>> {
-    let mut wanted: std::collections::HashMap<String, Vec<&str>> = std::collections::HashMap::new();
+    let mut wanted: std::collections::BTreeMap<String, Vec<&str>> = std::collections::BTreeMap::new();
     for name in names {
         wanted
             .entry(oci_resolve(links, name)?)
@@ -1190,7 +1190,8 @@ fn oci_live_push_to(
         .map_err(|error| error.to_string())
         .and_then(|layout| {
             let config = oci_layout_config_digest(&layout)?;
-            let digest = registry::push_layout(client, target, tag, &layout, creds)?;
+            let digest = registry::push_layout(client, target, tag, &layout, creds)
+                .map_err(|error| error.to_string())?;
             Ok((digest, config))
         });
     match pushed {

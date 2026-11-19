@@ -2,8 +2,8 @@
 #include <iostream>
 
 #include "flatbuffers/flatbuffers.h"
-#include "flatbuffers/tests/api/shape_generated.h"
-#include "flatbuffers/tests/base/common_generated.h"
+#include "flatbuffers/tests/fixtures/api/shape_generated.h"
+#include "flatbuffers/tests/fixtures/base/common_generated.h"
 
 int main() {
   flatbuffers::FlatBufferBuilder builder;

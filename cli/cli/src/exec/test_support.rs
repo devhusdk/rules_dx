@@ -12,7 +12,7 @@ use quality_result::encode_validated;
 use quality_result::proto;
 use quality_result::proto::{Capability, Convergence, FileSnapshot, QualityResult, Stage};
 use std::cell::{Cell, RefCell};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self};
 use std::path::Path;
 use std::path::PathBuf;
@@ -36,9 +36,13 @@ pub(crate) struct FailingWrites {
 }
 
 impl FailingWrites {
+    /// Canonicalizes each path, since writes go to the resolved file.
     pub(crate) fn new(failing: &[PathBuf]) -> Self {
         Self {
-            failing: failing.to_vec(),
+            failing: failing
+                .iter()
+                .map(|path| std::fs::canonicalize(path).unwrap_or_else(|_| path.clone()))
+                .collect(),
         }
     }
 }
@@ -69,7 +73,7 @@ pub(crate) struct Harness {
     pub(crate) cwd: PathBuf,
     pub(crate) _workspace_guard: tempfile::TempDir,
     pub(crate) _temp_guard: tempfile::TempDir,
-    pub(crate) results: HashMap<String, Vec<u8>>,
+    pub(crate) results: BTreeMap<String, Vec<u8>>,
     pub(crate) bazel_code: i32,
     pub(crate) generate_code: Option<i32>,
     pub(crate) fail_target: bool,
@@ -288,7 +292,7 @@ impl Harness {
             cwd,
             _workspace_guard: workspace_guard,
             _temp_guard: temp_guard,
-            results: HashMap::new(),
+            results: BTreeMap::new(),
             bazel_code: 0,
             generate_code: None,
             fail_target: false,

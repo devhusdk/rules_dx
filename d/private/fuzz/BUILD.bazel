@@ -1,10 +1,20 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//d/private:defs.bzl", "D_COMPATIBLE_WITH", "d_library")
 
+# gazelle:exclude fuzz_driver.d
+
 # The main d_fuzz_test links when the pinned libFuzzer is not linked; see fuzz_driver.d.
+# keep
 d_library(
     name = "fuzz_driver",
     testonly = True,
     srcs = ["fuzz_driver.d"],
     target_compatible_with = D_COMPATIBLE_WITH,
-    visibility = ["//visibility:public"],
+    visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

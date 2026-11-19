@@ -118,12 +118,13 @@ fn prune_unused(
     match update_prune::prune(workspace, &unused) {
         Ok(removed) => {
             for item in removed {
-                writeln!(
+                dx_output::write_stderr(
                     err,
-                    "dx: update_pruned: {}: {} (removed from {}:{})",
-                    item.set, item.name, item.manifest, item.line
-                )
-                .ok();
+                    format_args!(
+                        "dx: update_pruned: {}: {} (removed from {}:{})\n",
+                        item.set, item.name, item.manifest, item.line
+                    ),
+                );
             }
             Ok(())
         }
@@ -193,12 +194,13 @@ fn report_added(
     match added {
         Ok(added) => {
             for item in added {
-                writeln!(
+                dx_output::write_stderr(
                     err,
-                    "dx: update_added: {}: {} {} (added to {})",
-                    item.set, item.name, item.version, item.manifest
-                )
-                .ok();
+                    format_args!(
+                        "dx: update_added: {}: {} {} (added to {})\n",
+                        item.set, item.name, item.version, item.manifest
+                    ),
+                );
             }
             Ok(())
         }
@@ -512,7 +514,7 @@ fn emit_outcome_json(
                 )
                 .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
             )?;
-            writeln!(err, "dx: update_set_unsupported: {message}").ok();
+            dx_output::write_stderr(err, format_args!("dx: update_set_unsupported: {message}\n"));
         }
         dx_update::outcome::ReportedStatus::Failed => {
             let message = details.get(set_name).map_or_else(
@@ -528,7 +530,7 @@ fn emit_outcome_json(
                 error_event(code, &message, None, None, Some("execute"))
                     .map(|event| with_correlation(event.clone(), &correlation).unwrap_or(event)),
             )?;
-            writeln!(err, "dx: {code}: {message}").ok();
+            dx_output::write_stderr(err, format_args!("dx: {code}: {message}\n"));
         }
         dx_update::outcome::ReportedStatus::Blocked => {
             let message = format!("blocked {set_name} (depends on a failed update)");
@@ -574,13 +576,14 @@ fn emit_update_json(
         ) {
             return exit;
         }
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "dx: {}: {}",
-            dx_update::recovery::RECOVERY_CODE,
-            plan.message
-        )
-        .ok();
+            format_args!(
+                "dx: {}: {}\n",
+                dx_update::recovery::RECOVERY_CODE,
+                plan.message
+            ),
+        );
     }
     let finished = command_finished(
         exit,
@@ -620,14 +623,17 @@ fn emit_update_text(
             dx_update::outcome::ReportedStatus::Unsupported => {
                 if let Some(detail) = details.get(outcome.set.as_str()) {
                     let message = &detail.message;
-                    writeln!(err, "dx: update_set_unsupported: {message}").ok();
+                    dx_output::write_stderr(
+                        err,
+                        format_args!("dx: update_set_unsupported: {message}\n"),
+                    );
                 }
             }
             dx_update::outcome::ReportedStatus::Failed => {
                 if let Some(detail) = details.get(outcome.set.as_str()) {
                     let code = detail.failure_code.unwrap_or(CODE_UPDATE_FAILED);
                     let message = &detail.message;
-                    writeln!(err, "dx: {code}: {message}").ok();
+                    dx_output::write_stderr(err, format_args!("dx: {code}: {message}\n"));
                 }
             }
             dx_update::outcome::ReportedStatus::Blocked => {
@@ -644,13 +650,14 @@ fn emit_update_text(
         }
     }
     if let Some(plan) = recovery {
-        writeln!(
+        dx_output::write_stderr(
             err,
-            "dx: {}: {}",
-            dx_update::recovery::RECOVERY_CODE,
-            plan.message
-        )
-        .ok();
+            format_args!(
+                "dx: {}: {}\n",
+                dx_update::recovery::RECOVERY_CODE,
+                plan.message
+            ),
+        );
     }
     if verbose
         && let Err(exit) = check_stdout_write(writeln!(out, "{}", status_summary(report, mode)))
@@ -802,12 +809,9 @@ mod tests {
         let manifest = dir
             .path()
             .join(format!("web/{}", Ecosystem::Npm.manifest_name()));
-        std::fs::set_permissions(&manifest, std::fs::Permissions::from_mode(0o444)).unwrap();
-        if std::fs::OpenOptions::new()
-            .write(true)
-            .open(&manifest)
-            .is_ok()
-        {
+        let parent = manifest.parent().expect("manifest dir");
+        std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o555)).unwrap();
+        if std::fs::write(parent.join("probe"), b"").is_ok() {
             return;
         }
         let (mut out, mut err) = (Vec::new(), Vec::new());
@@ -820,6 +824,7 @@ mod tests {
             &mut err,
         )
         .expect_err("fails");
+        std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o755)).unwrap();
         assert_runtime_failure(code, dx_error::EXIT_INFRA, &out, &err);
     }
 }

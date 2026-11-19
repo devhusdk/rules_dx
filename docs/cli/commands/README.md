@@ -403,17 +403,15 @@ Packaging and deploy:
 
 - `@rules_dx//android:defs.bzl`: APKs, App Bundles and adb.
 - `@rules_dx//appimage:defs.bzl`: AppImage bundles.
-- `@rules_dx//apple/private/ios:device.bzl`: signed iOS IPA export.
-- `@rules_dx//apple/private/provisioning:defs.bzl`: Apple provisioning.
-- `@rules_dx//apple/private/signing:defs.bzl`: macOS app signing and notarization.
+- `@rules_dx//apple:defs.bzl`: signed iOS IPA export, macOS app signing and notarization, and the iOS simulator.
 - `@rules_dx//deploy:defs.bzl`: deploy rules, release archives and offline bundles.
 - `@rules_dx//msix:defs.bzl`: MSIX packages.
 
 Module extensions, for `use_extension` in `MODULE.bazel`:
 
-- `@rules_dx//core:extensions.bzl`: `dx_pins`, `dx_source_archives`, `dx_licenses` and `dx_prebuilt`.
+- `@rules_dx//core:extensions.bzl`: `dx_pins`, `dx_licenses` and `dx_prebuilt`.
 - `@rules_dx//android:extensions.bzl`: Android SDK and NDK toolchain.
-- `@rules_dx//apple/private/ios:simulator.bzl`: iOS simulator.
+- `@rules_dx//apple:extensions.bzl`: the Xcode license gate for Apple rules.
 - `@rules_dx//cuda:extensions.bzl`: CUDA toolchain.
 - `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.
 - `@rules_dx//msix:extensions.bzl`: MSIX tools.
@@ -426,14 +424,11 @@ Module extensions, for `use_extension` in `MODULE.bazel`:
 
 API docs:
 
-- `@rules_dx//tools/docs/<language>:defs.bzl`: API doc shards, for `avro`,
-  `cc` (C, C++ and CUDA), `components` (Astro, MDX, Svelte and Vue), `d`,
-  `dart`, `dotnet` (C# and F#), `elixir`, `erlang`, `fortran`, `go`,
-  `haskell`, `javascript`, `julia`, `jvm` (Java, Kotlin and Scala), `lua`,
-  `ocaml`, `perl`, `php`, `powershell`, `protobuf`, `python`, `ruby`, `rust`,
-  `swift`, `typescript` and `zig`.
+- `@rules_dx//<language>:defs.bzl`: the language's API doc shard, and
+  `rust_docs_site` for `rust`.
+- `@rules_dx//tools/docs/<language>:defs.bzl`: API doc shards for `lua`,
+  `php` and `protobuf`.
 - `@rules_dx//tools/docs/site:site.bzl`: docs sites built from API doc shards.
-- `@rules_dx//tools/docs/rust:site.bzl`: docs sites whose libraries may be Rust crates.
 
 Quality config:
 
@@ -516,9 +511,11 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//apple:defs.bzl` | `apple_simulator_launch` |
 |  |  | `@rules_dx//asciidoc:defs.bzl` | `asciidoc_library` |
 |  |  | `@rules_dx//astro:defs.bzl` | `astro_build` |
+|  |  | `@rules_dx//astro:defs.bzl` | `astro_doc_shard` |
 |  |  | `@rules_dx//astro:defs.bzl` | `astro_library` |
 |  |  | `@rules_dx//astro:defs.bzl` | `astro_test` |
 |  |  | `@rules_dx//avro:defs.bzl` | `avro_cc_library` |
+|  |  | `@rules_dx//avro:defs.bzl` | `avro_doc_shard` |
 |  |  | `@rules_dx//avro:defs.bzl` | `avro_java_library` |
 |  |  | `@rules_dx//avro:defs.bzl` | `avro_library` |
 |  |  | `@rules_dx//bicep:defs.bzl` | `bicep_library` |
@@ -528,30 +525,37 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//capnproto:defs.bzl` | `capnproto_library` |
 |  |  | `@rules_dx//capnproto:defs.bzl` | `capnproto_rust_library` |
 |  |  | `@rules_dx//cc:defs.bzl` | `cc_bench` |
+|  |  | `@rules_dx//cc:defs.bzl` | `cc_doc_shard` |
 |  |  | `@rules_dx//cc:defs.bzl` | `cc_fuzz_test` |
 |  |  | `@rules_dx//cloudformation:defs.bzl` | `cloudformation_library` |
 |  |  | `@rules_dx//cmake:defs.bzl` | `cmake_library` |
 |  |  | `@rules_dx//csharp:defs.bzl` | `csharp_bench` |
+|  |  | `@rules_dx//csharp:defs.bzl` | `csharp_doc_shard` |
 |  |  | `@rules_dx//csharp:defs.bzl` | `csharp_fuzz_test` |
 |  |  | `@rules_dx//csharp:defs.bzl` | `csharp_proto_library` |
 |  |  | `@rules_dx//cuda:defs.bzl` | `cuda_binary` |
 |  |  | `@rules_dx//cuda:defs.bzl` | `cuda_component_library` |
+|  |  | `@rules_dx//cuda:defs.bzl` | `cuda_doc_shard` |
 |  |  | `@rules_dx//cuda:defs.bzl` | `cuda_test` |
 |  |  | `@rules_dx//d:defs.bzl` | `d_bench` |
+|  |  | `@rules_dx//d:defs.bzl` | `d_doc_shard` |
 |  |  | `@rules_dx//d:defs.bzl` | `d_fuzz_test` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_bench` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_binary` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_codegen` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_config` |
+|  |  | `@rules_dx//dart:defs.bzl` | `dart_doc_shard` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_js_binary` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_library` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_test` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_wasm_binary` |
 |  |  | `@rules_dx//dockerfile:defs.bzl` | `dockerfile_library` |
 |  |  | `@rules_dx//elixir:defs.bzl` | `elixir_bench` |
+|  |  | `@rules_dx//elixir:defs.bzl` | `elixir_doc_shard` |
 |  |  | `@rules_dx//elixir:defs.bzl` | `elixir_escript_archive` |
 |  |  | `@rules_dx//elixir:defs.bzl` | `elixir_escript_headers` |
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_bench` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `erlang_doc_shard` |
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_erlc_opts` |
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_nif` |
 |  |  | `@rules_dx//erlang:defs.bzl` | `erlang_release` |
@@ -570,25 +574,32 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//flutter:defs.bzl` | `flutter_web_app` |
 |  |  | `@rules_dx//flutter:defs.bzl` | `flutter_web_bundle` |
 |  |  | `@rules_dx//fortran:defs.bzl` | `fortran_binary` |
+|  |  | `@rules_dx//fortran:defs.bzl` | `fortran_doc_shard` |
 |  |  | `@rules_dx//fortran:defs.bzl` | `fortran_library` |
 |  |  | `@rules_dx//fortran:defs.bzl` | `fortran_test` |
 |  |  | `@rules_dx//fsharp:defs.bzl` | `fsharp_bench` |
+|  |  | `@rules_dx//fsharp:defs.bzl` | `fsharp_doc_shard` |
 |  |  | `@rules_dx//fsharp:defs.bzl` | `fsharp_fuzz_test` |
 |  |  | `@rules_dx//go:defs.bzl` | `go_bench` |
+|  |  | `@rules_dx//go:defs.bzl` | `go_doc_shard` |
 |  |  | `@rules_dx//go:defs.bzl` | `go_fuzz_test` |
 |  |  | `@rules_dx//haskell:defs.bzl` | `haskell_bench` |
+|  |  | `@rules_dx//haskell:defs.bzl` | `haskell_doc_shard` |
 |  |  | `@rules_dx//helm:defs.bzl` | `helm_library` |
 |  |  | `@rules_dx//java:defs.bzl` | `java_bench` |
+|  |  | `@rules_dx//java:defs.bzl` | `java_doc_shard` |
 |  |  | `@rules_dx//java:defs.bzl` | `java_fuzz_test` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_bench` |
+|  |  | `@rules_dx//javascript:defs.bzl` | `javascript_doc_shard` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_fuzz_test` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_wasm_bindgen_library` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_web_app` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_web_bundle` |
-|  |  | `@rules_dx//javascript:defs.bzl` | `js_library` |
 |  |  | `@rules_dx//julia:defs.bzl` | `julia_bench` |
+|  |  | `@rules_dx//julia:defs.bzl` | `julia_doc_shard` |
 |  |  | `@rules_dx//julia:defs.bzl` | `julia_standalone_binary` |
 |  |  | `@rules_dx//kotlin:defs.bzl` | `kotlin_bench` |
+|  |  | `@rules_dx//kotlin:defs.bzl` | `kotlin_doc_shard` |
 |  |  | `@rules_dx//kotlin:defs.bzl` | `kotlin_fuzz_test` |
 |  |  | `@rules_dx//kubernetes:defs.bzl` | `kubernetes_library` |
 |  |  | `@rules_dx//kubernetes:defs.bzl` | `kubernetes_schemas` |
@@ -598,12 +609,14 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//lua:defs.bzl` | `lua_test` |
 |  |  | `@rules_dx//make:defs.bzl` | `make_library` |
 |  |  | `@rules_dx//mdx:defs.bzl` | `mdx_build` |
+|  |  | `@rules_dx//mdx:defs.bzl` | `mdx_doc_shard` |
 |  |  | `@rules_dx//mdx:defs.bzl` | `mdx_library` |
 |  |  | `@rules_dx//mdx:defs.bzl` | `mdx_test` |
 |  |  | `@rules_dx//msix:defs.bzl` | `msix_package` |
 |  |  | `@rules_dx//msix:defs.bzl` | `msix_sign` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_bench` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_binary` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_doc_shard` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_dune_library` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_fuzz_test` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_lex` |
@@ -612,11 +625,14 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_signature` |
 |  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_test` |
 |  |  | `@rules_dx//perl:defs.bzl` | `perl_bench` |
+|  |  | `@rules_dx//perl:defs.bzl` | `perl_doc_shard` |
 |  |  | `@rules_dx//php:defs.bzl` | `php_bench` |
 |  |  | `@rules_dx//php:defs.bzl` | `php_binary` |
 |  |  | `@rules_dx//php:defs.bzl` | `php_library` |
 |  |  | `@rules_dx//php:defs.bzl` | `php_test` |
+|  |  | `@rules_dx//powershell:defs.bzl` | `powershell_doc_shard` |
 |  |  | `@rules_dx//python:defs.bzl` | `python_bench` |
+|  |  | `@rules_dx//python:defs.bzl` | `python_doc_shard` |
 |  |  | `@rules_dx//python:defs.bzl` | `python_fuzz_test` |
 |  |  | `@rules_dx//python:defs.bzl` | `python_grpc_library` |
 |  |  | `@rules_dx//qt:defs.bzl` | `qt_bundle` |
@@ -631,9 +647,11 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//rego:defs.bzl` | `rego_test` |
 |  |  | `@rules_dx//rst:defs.bzl` | `rst_library` |
 |  |  | `@rules_dx//ruby:defs.bzl` | `ruby_bench` |
+|  |  | `@rules_dx//ruby:defs.bzl` | `ruby_doc_shard` |
 |  |  | `@rules_dx//rust:defs.bzl` | `rust_bench` |
 |  |  | `@rules_dx//rust:defs.bzl` | `rust_binary` |
 |  |  | `@rules_dx//rust:defs.bzl` | `rust_build_script` |
+|  |  | `@rules_dx//rust:defs.bzl` | `rust_docs_site` |
 |  |  | `@rules_dx//rust:defs.bzl` | `rust_fuzz_test` |
 |  |  | `@rules_dx//rust:defs.bzl` | `rust_library` |
 |  |  | `@rules_dx//rust:defs.bzl` | `rust_proc_macro` |
@@ -641,13 +659,16 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//rust:defs.bzl` | `rust_static_library` |
 |  |  | `@rules_dx//rust:defs.bzl` | `rust_test` |
 |  |  | `@rules_dx//scala:defs.bzl` | `scala_bench` |
+|  |  | `@rules_dx//scala:defs.bzl` | `scala_doc_shard` |
 |  |  | `@rules_dx//scala:defs.bzl` | `scala_fuzz_test` |
 |  |  | `@rules_dx//sql:defs.bzl` | `sql_library` |
 |  |  | `@rules_dx//svelte:defs.bzl` | `svelte_build` |
+|  |  | `@rules_dx//svelte:defs.bzl` | `svelte_doc_shard` |
 |  |  | `@rules_dx//svelte:defs.bzl` | `svelte_library` |
 |  |  | `@rules_dx//svelte:defs.bzl` | `svelte_test` |
 |  |  | `@rules_dx//swift:defs.bzl` | `swift_bench` |
 |  |  | `@rules_dx//swift:defs.bzl` | `swift_binary` |
+|  |  | `@rules_dx//swift:defs.bzl` | `swift_doc_shard` |
 |  |  | `@rules_dx//swift:defs.bzl` | `swift_fuzz_test` |
 |  |  | `@rules_dx//swift:defs.bzl` | `swift_interop_hint` |
 |  |  | `@rules_dx//swift:defs.bzl` | `swift_library` |
@@ -659,14 +680,17 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_java_library` |
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_library` |
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_rust_library` |
-|  |  | `@rules_dx//typescript:defs.bzl` | `ts_config` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_bench` |
+|  |  | `@rules_dx//typescript:defs.bzl` | `typescript_config` |
+|  |  | `@rules_dx//typescript:defs.bzl` | `typescript_doc_shard` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_fuzz_test` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_playwright_test` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_proto_library` |
 |  |  | `@rules_dx//vue:defs.bzl` | `vue_build` |
+|  |  | `@rules_dx//vue:defs.bzl` | `vue_doc_shard` |
 |  |  | `@rules_dx//vue:defs.bzl` | `vue_test` |
 |  |  | `@rules_dx//zig:defs.bzl` | `zig_bench` |
+|  |  | `@rules_dx//zig:defs.bzl` | `zig_doc_shard` |
 
 ## Debuggers
 

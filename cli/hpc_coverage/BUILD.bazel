@@ -1,29 +1,33 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
-rust_binary(
-    name = "hpc_coverage",
+rust_library(
+    name = "dx_hpc_coverage",
     srcs = [
-        "src/main.rs",
+        "src/lib.rs",
         "src/run.rs",
     ],
-    crate_name = "hpc_coverage",
-    crate_root = "src/main.rs",
+    crate_root = "src/lib.rs",
+    visibility = ["//cli/runtime:__pkg__"],
+    deps = ["//cli/error:dx_error"],
 )
 
 rust_test(
-    name = "hpc_coverage_test",
+    name = "dx_hpc_coverage_test",
     size = "small",
     srcs = [
-        "src/main.rs",
+        "src/lib.rs",
         "src/run.rs",
         "src/run_tests.rs",
     ],
-    crate_name = "hpc_coverage",
-    crate_root = "src/main.rs",
-    deps = ["//cli/test_scratch:dx_test_scratch"],
+    crate_name = "dx_hpc_coverage",
+    crate_root = "src/lib.rs",
+    deps = [
+        "//cli/error:dx_error",
+        "//cli/test_scratch:dx_test_scratch",
+    ],
 )
 
 real_source_target(
@@ -39,6 +43,6 @@ filegroup(
 )
 
 exports_files(
-    ["src/main.rs"],
+    ["src/lib.rs"],
     visibility = ["//core/quality:__pkg__"],
 )

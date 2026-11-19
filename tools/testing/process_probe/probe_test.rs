@@ -425,7 +425,9 @@ struct Release(PathBuf);
 
 impl Release {
     fn fire(&self) {
-        drop(std::fs::write(&self.0, b""));
+        if let Err(error) = std::fs::write(&self.0, b"") {
+            eprintln!("cannot open gate {}: {error}", self.0.display());
+        }
     }
 }
 

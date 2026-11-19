@@ -191,6 +191,8 @@ fn pick(
         check_known(family, tool)?;
     }
     picked.retain(|tool| !skip.contains(tool));
+    let mut seen = BTreeSet::new();
+    picked.retain(|tool| seen.insert(tool.clone()));
     Ok(picked)
 }
 

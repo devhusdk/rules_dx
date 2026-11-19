@@ -46,7 +46,7 @@ fn candidates_agree(workspace: &Path, path: &str, changes: &[(usize, &FileChange
     let Some(&(_, first)) = changes.first() else {
         return true;
     };
-    let source = read_verified(workspace, path, &first.original_digest);
+    let source = read_verified(&workspace.join(path), &first.original_digest);
     let first_key = candidate_key(&source, first);
     changes.iter().all(|(_, change)| match &first_key {
         Ok(Some(bytes)) => {

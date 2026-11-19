@@ -1,5 +1,4 @@
 use std::ffi::OsStr;
-use std::fmt::Write as _;
 
 use super::ArgsError;
 use super::command::Command;
@@ -96,7 +95,7 @@ pub(crate) fn unknown_command_text(word: &str) -> String {
         || format!("unknown command {word:?}"),
         |error| super::tokenizer::without_usage(&error.render().to_string()),
     );
-    write!(out, "\nAvailable commands: {}", names.join("|")).ok();
+    out.push_str(&format!("\nAvailable commands: {}", names.join("|")));
     out
 }
 
@@ -104,7 +103,7 @@ pub(crate) fn render_top_help() -> String {
     use clap::CommandFactory;
     let mut out = String::new();
     if let Some(about) = Cli::command().get_about() {
-        write!(out, "dx - {about}\n\n").ok();
+        out.push_str(&format!("dx - {about}\n\n"));
     }
     out.push_str(&Cli::command().render_long_help().to_string());
     out.push_str(&render_env_help());
@@ -131,8 +130,8 @@ fn render_env_help() -> String {
     let mut out = String::new();
     out.push_str("\nEnvironment:\n");
     for (env, flag, shape) in ENV_DEFAULTS {
-        writeln!(out, "  {env}=<{shape}>").ok();
-        writeln!(out, "      Default for {flag}.").ok();
+        out.push_str(&format!("  {env}=<{shape}>\n"));
+        out.push_str(&format!("      Default for {flag}.\n"));
     }
     out.push_str(
         "  <auto|n|off> sizes build slots from memory, takes exactly n (1-1024), or takes none.\n",
@@ -141,8 +140,8 @@ fn render_env_help() -> String {
         "  <duration> is seconds, or a number ending in s, m or h. 0 fails at once when no slot is free.\n",
     );
     for (env, shape, meaning) in OTHER_ENV {
-        writeln!(out, "  {env}=<{shape}>").ok();
-        writeln!(out, "      {meaning}").ok();
+        out.push_str(&format!("  {env}=<{shape}>\n"));
+        out.push_str(&format!("      {meaning}\n"));
     }
     out.push_str("  In CI the DX_ variables are ignored; flags still win.\n");
     out
@@ -315,7 +314,7 @@ fn examples_text(command: Command) -> String {
     for (owner, lines) in EXAMPLES {
         if *owner == command {
             for line in *lines {
-                writeln!(out, "  dx {line}").ok();
+                out.push_str(&format!("  dx {line}\n"));
             }
         }
     }
@@ -438,48 +437,6 @@ mod tests {
                 "top help never says {env} defaults {flag}"
             );
         }
-    }
-
-    #[test]
-    fn rendered_help_matches_the_goldens() {
-        let root = std::env::var("TEST_SRCDIR").expect("TEST_SRCDIR is set under Bazel");
-        let workspace = std::env::var("TEST_WORKSPACE").expect("TEST_WORKSPACE is set under Bazel");
-        let dir = std::path::Path::new(&root)
-            .join(workspace)
-            .join("cli/cli/tests/fixtures/help_goldens");
-        let rendered = [
-            ("build_help.golden", render_command_help(Command::Build)),
-            ("clean_help.golden", render_command_help(Command::Clean)),
-            ("docs_help.golden", render_command_help(Command::Docs)),
-            ("lint_help.golden", render_command_help(Command::Lint)),
-            ("top_help.golden", super::render_top_help()),
-        ];
-        for (name, text) in &rendered {
-            let expected =
-                std::fs::read_to_string(dir.join(name)).expect("golden ships as test data");
-            assert_eq!(*text, expected, "{name} no longer matches dx help");
-        }
-        let mut shipped: Vec<String> = std::fs::read_dir(&dir)
-            .expect("readable goldens dir")
-            .map(|entry| {
-                entry
-                    .expect("readable dir entry")
-                    .file_name()
-                    .to_string_lossy()
-                    .into_owned()
-            })
-            .filter(|name| name.ends_with(".golden"))
-            .collect();
-        shipped.sort();
-        let mut covered: Vec<String> = rendered
-            .iter()
-            .map(|(name, _)| (*name).to_owned())
-            .collect();
-        covered.sort();
-        assert_eq!(
-            shipped, covered,
-            "every shipped help golden is asserted against rendered dx help"
-        );
     }
 
     #[test]

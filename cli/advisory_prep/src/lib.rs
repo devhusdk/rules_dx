@@ -1,4 +1,8 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 #[path = "trivy.rs"]
 pub mod trivy;
@@ -20,22 +24,34 @@ pub const DEFAULT_OUT: &str = ".dx/local/advisory";
 /// True when `.dx/pins` under `workspace` pins advisory snapshots.
 #[must_use]
 pub fn advisory_pinned(workspace: &Path) -> bool {
-    std::fs::read_to_string(workspace.join(".dx/pins"))
-        .is_ok_and(|pins| pins.lines().any(|line| line.starts_with("advisory ")))
+    std::fs::read_to_string(workspace.join(".dx/pins")).is_ok_and(|pins| {
+        pins.lines()
+            .any(|line| line.split_whitespace().next() == Some("advisory"))
+    })
 }
 
 /// True when the workspace holds Terraform, Bicep, Dockerfile or Helm files, or an
 /// `oci_deploy` use in a Bazel file: the inputs the trivy databases serve.
 pub fn needs_trivy(workspace: &Path) -> Result<bool, PrepError> {
+    std::fs::read_dir(workspace).map_err(|error| PrepError::Usage {
+        detail: format!("could not read {}: {error}", workspace.display()),
+    })?;
     let mut pending = vec![workspace.to_path_buf()];
     while let Some(dir) = pending.pop() {
         let Ok(entries) = std::fs::read_dir(&dir) else {
             continue;
         };
         for entry in entries.flatten() {
-            let Ok(kind) = entry.file_type() else {
+            let Ok(mut kind) = entry.file_type() else {
                 continue;
             };
+            if kind.is_symlink() {
+                // Follow links to files only; a linked directory may loop back.
+                match std::fs::metadata(entry.path()) {
+                    Ok(target) if target.is_file() => kind = target.file_type(),
+                    _ => continue,
+                }
+            }
             let name = entry.file_name().to_string_lossy().into_owned();
             let path = entry.path();
             if kind.is_dir() {
@@ -168,13 +184,11 @@ pub fn write_pins(
     let date = &options.retrieved_at;
     let mut lines = Vec::new();
     for entry in prepared {
-        let payload =
-            std::fs::read(options.out.join(format!("{}.json", entry.family))).map_err(|error| {
-                PrepError::Write {
-                    path: entry.path.clone(),
-                    detail: error.to_string(),
-                }
-            })?;
+        let source = options.out.join(format!("{}.json", entry.family));
+        let payload = std::fs::read(&source).map_err(|error| PrepError::Write {
+            path: source.display().to_string(),
+            detail: error.to_string(),
+        })?;
         let asset = dir.join(date).join(format!("{}.json", entry.family));
         if let Some(parent) = asset.parent() {
             std::fs::create_dir_all(parent).map_err(|error| PrepError::Write {

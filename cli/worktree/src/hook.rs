@@ -259,11 +259,10 @@ pub fn create(
     let remote = if has_origin && fetched {
         match git::remote_heads(&pool.main, &stem, &|| host.interrupted()) {
             Ok(set) => Some(set),
-            Err(error) => {
+            Err(_) => {
                 if let Some(signo) = host.interrupted() {
                     return Err(WorktreeError::stopped(signo));
                 } else {
-                    let _ = error;
                     None
                 }
             }

@@ -1,4 +1,8 @@
 //! Runs `collect_native` on a binary built with GCC coverage instrumentation.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -93,7 +97,7 @@ fn setup(name: &str) -> Run {
 
 fn collect(run: &Run) -> Output {
     let execroot = run.root.parent().unwrap().join("execroot");
-    drop(fs::create_dir_all(&execroot));
+    fs::create_dir_all(&execroot).expect("create execroot");
     drop(std::os::unix::fs::symlink(
         std::env::var("TEST_SRCDIR").unwrap(),
         execroot.join("external"),

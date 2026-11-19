@@ -1,3 +1,4 @@
+use super::affected::writable_paths;
 use super::check_build::SharedChecks;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
@@ -18,7 +19,7 @@ use dx_output::{
 use dx_plan::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use dx_plan::plan::spec;
 use dx_plan::reports::plan_reports;
-use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner};
+use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner, path_filter};
 use dx_process::{Runner, interrupted};
 use serde_json::{Value, json};
 use serde_sarif::sarif::Sarif;
@@ -856,13 +857,18 @@ fn announce_report(
 }
 
 pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
-    let request = match invocation.umbrella_request() {
+    let mut request = match invocation.umbrella_request() {
         Ok(request) => request,
         Err(message) => {
             let Env { out, err, .. } = env;
             return pre_exec(invocation.output, out, err, message.message());
         }
     };
+    if request.writable.is_none()
+        && let Some(paths) = path_filter(&request.targets, env.workspace)
+    {
+        request.writable = Some(writable_paths(env.workspace, &paths));
+    }
     execute_umbrella_request(&request, env)
 }
 

@@ -2,18 +2,17 @@
 
 #![expect(unsafe_code, reason = "Job objects have no safe std API")]
 
-use crate::win32::{Access, open};
+use crate::win32::{Access, open, struct_size};
 use std::io;
 use std::os::windows::io::{AsRawHandle, BorrowedHandle, HandleOrNull, OwnedHandle};
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Foundation::ERROR_MORE_DATA;
 use windows_sys::Win32::System::JobObjects::{
-    AssignProcessToJobObject, CreateJobObjectW, IsProcessInJob,
-    JOB_OBJECT_LIMIT_BREAKAWAY_OK, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-    JOBOBJECT_BASIC_ACCOUNTING_INFORMATION, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
-    JobObjectBasicAccountingInformation, JobObjectBasicProcessIdList,
-    JobObjectExtendedLimitInformation, QueryInformationJobObject, SetInformationJobObject,
-    TerminateJobObject,
+    AssignProcessToJobObject, CreateJobObjectW, IsProcessInJob, JOB_OBJECT_LIMIT_BREAKAWAY_OK,
+    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectBasicAccountingInformation,
+    JobObjectBasicProcessIdList, JobObjectExtendedLimitInformation, QueryInformationJobObject,
+    SetInformationJobObject, TerminateJobObject,
 };
 use windows_sys::Win32::System::Threading::TerminateProcess;
 
@@ -50,13 +49,14 @@ impl JobObject {
             Limit::KillOnClose => JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
             Limit::BreakawayOk => JOB_OBJECT_LIMIT_BREAKAWAY_OK,
         };
+        let size = struct_size::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>()?;
         // SAFETY: handle is a live job and info is the extended limit structure of the size passed.
         let applied = unsafe {
             SetInformationJobObject(
                 handle.as_raw_handle(),
                 JobObjectExtendedLimitInformation,
                 (&raw const info).cast(),
-                size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+                size,
             )
         };
         if applied == 0 {
@@ -68,8 +68,9 @@ impl JobObject {
     /// Puts `process` in the job.
     pub fn assign(&self, process: BorrowedHandle<'_>) -> io::Result<()> {
         // SAFETY: both handles are live for the call.
-        let assigned =
-            unsafe { AssignProcessToJobObject(self.handle.as_raw_handle(), process.as_raw_handle()) };
+        let assigned = unsafe {
+            AssignProcessToJobObject(self.handle.as_raw_handle(), process.as_raw_handle())
+        };
         if assigned == 0 {
             return Err(io::Error::last_os_error());
         }
@@ -104,19 +105,19 @@ impl JobObject {
             } != 0;
             let err = io::Error::last_os_error();
             // The header word holds NumberOfAssignedProcesses, then NumberOfProcessIdsInList.
-            let header = buffer.first().copied().unwrap_or(0) as u64;
-            let assigned = (header & u64::from(u32::MAX)) as usize;
-            let listed = (header >> 32) as usize;
+            let header = buffer.first().copied().unwrap_or(0);
+            let assigned = header & 0xffff_ffff;
+            let listed = header >> 32;
             if queried && assigned <= listed {
-                return Ok(buffer
+                return buffer
                     .iter()
                     .skip(1)
                     .take(listed.min(capacity))
-                    .map(|&pid| pid as u32)
-                    .collect());
+                    .map(|&pid| u32::try_from(pid).map_err(io::Error::other))
+                    .collect();
                 // LCOV_EXCL_START - reason: the list outgrowing its buffer between two calls, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
             }
-            if !queried && err.raw_os_error() != Some(ERROR_MORE_DATA as i32) {
+            if !queried && err.raw_os_error() != Some(ERROR_MORE_DATA.cast_signed()) {
                 return Err(err);
             }
             capacity = (assigned + 16).max(capacity * 2);
@@ -128,13 +129,14 @@ impl JobObject {
     /// How many processes in the job are still running.
     pub fn active_processes(&self) -> io::Result<u32> {
         let mut info = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
+        let size = struct_size::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>()?;
         // SAFETY: info is writable for the size passed and the job handle is live.
         let queried = unsafe {
             QueryInformationJobObject(
                 self.handle.as_raw_handle(),
                 JobObjectBasicAccountingInformation,
                 (&raw mut info).cast(),
-                size_of::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>() as u32,
+                size,
                 null_mut(),
             )
         };
@@ -150,7 +152,11 @@ impl JobObject {
         let mut inside = 0;
         // SAFETY: both handles are live and inside is a writable BOOL.
         let checked = unsafe {
-            IsProcessInJob(process.as_raw_handle(), self.handle.as_raw_handle(), &mut inside)
+            IsProcessInJob(
+                process.as_raw_handle(),
+                self.handle.as_raw_handle(),
+                &mut inside,
+            )
         };
         if checked == 0 {
             return Err(io::Error::last_os_error()); // LCOV_EXCL_LINE - reason: Win32 call fails only when the OS is out of resources, issue: 8104, policy: docs/cli/commands/build-test-coverage.md

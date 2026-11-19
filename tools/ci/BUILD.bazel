@@ -465,6 +465,7 @@ rust_test(
         "//:pnpm-workspace.yaml",
         "//:ruff.toml",
         "//ci/gitlab:dx.gitlab-ci.yml",
+        "//cli/cli:clippy.toml",
         "//cli/generate:src/tools_gen.rs",
         "//cli/path:src/state.rs",
         "//core/quality:corpus_styles/Dx/Markers.yml",
@@ -491,6 +492,7 @@ rust_test(
         "//tools/platforms/no_winsdk:REPO.bazel",
         "//tools/platforms/no_winsdk:toolchains.bzl",
         "//tools/testing:nested_bazel.bzl",
+        "//tools/workspace:clippy.toml",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = all_crate_deps(

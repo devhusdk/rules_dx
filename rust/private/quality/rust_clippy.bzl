@@ -37,6 +37,15 @@ def test_crate_flags(flags):
     """Returns flags without those naming a lint in TEST_EXEMPT_LINTS."""
     return [flag for flag in flags if _flag_lint(flag) not in TEST_EXEMPT_LINTS]
 
+def _package_clippy_config(crate_info, label, default):
+    """Returns the clippy.toml a non-test crate lists in compile_data from its own package, else default."""
+    if crate_info.is_test:
+        return default
+    for f in crate_info.compile_data.to_list():
+        if f.basename == "clippy.toml" and f.is_source and f.owner.workspace_name == label.workspace_name and f.owner.package == label.package:
+            return f
+    return default
+
 def _dx_clippy_aspect_impl(target, ctx):
     if OutputGroupInfo in target and hasattr(target[OutputGroupInfo], "clippy_checks"):
         return [DxClippyInfo(diagnostics = [])]
@@ -55,7 +64,7 @@ def _dx_clippy_aspect_impl(target, ctx):
         clippy_executable = ctx.toolchains[RUST_TOOLCHAIN_TYPE].clippy_driver,
         process_wrapper = ctx.executable._process_wrapper,
         crate_info = crate_info,
-        config = ctx.file._config,
+        config = _package_clippy_config(crate_info, ctx.label, ctx.file._config),
         cap_at_warnings = True,
         extra_clippy_flags = flags + [UNUSED_CRATE_DEPENDENCIES],
         error_format = error_format,

@@ -2,7 +2,7 @@
 
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
-load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
+load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "KOTLIN_TOOLCHAIN", "SCALA_VERSION_ATTRS", "jvm_shard_action", "unsupported_scala_version")
 
 visibility(["//..."])
 
@@ -41,6 +41,10 @@ def _shard_impl(ctx):
         fail(_where(ctx) + ": lib " + str(lib.label) + " lists srcs that are not " + shown + " files; mixed sources and srcjars are not supported")
     if info.plugins:
         fail(_where(ctx) + ": lib " + str(lib.label) + " runs annotation processors or compiler plugins, which are not supported")
+    if language == "scala":
+        version = unsupported_scala_version(ctx)
+        if version:
+            fail(_where(ctx) + ": only Scala 2.13 is supported; the toolchain is " + version)
     package = ctx.attr.package or lib.label.name
     dep_shards = []
     for dep in ctx.attr.deps:
@@ -59,11 +63,11 @@ def _shard_impl(ctx):
         DocsShardInfo(language = language, package = package, shard = action.shard),
     ]
 
-def _jvm_shard_rule(language, adapter, mnemonic, extensions, toolchains = []):
+def _jvm_shard_rule(language, adapter, mnemonic, extensions, toolchains = [], extra_attrs = {}):
     return rule(
         doc = "Converts one " + language + " library's public API into a DocIr shard.",
         implementation = _shard_impl,
-        attrs = {
+        attrs = extra_attrs | {
             "deps": attr.label_list(
                 providers = [DocsShardInfo],
                 doc = "Shards of libraries this one extends or links to.",
@@ -133,6 +137,7 @@ docs_scala_shard = _jvm_shard_rule(
     adapter = "@dx_prebuilt//:scaladoc_extract",
     mnemonic = "DxDocsScaladoc",
     extensions = ["scala"],
+    extra_attrs = SCALA_VERSION_ATTRS,
 )
 
 def scala_doc_shard(name, lib, package = "", deps = [], **kwargs):

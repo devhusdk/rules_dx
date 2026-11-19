@@ -76,6 +76,12 @@ constructor, not as an `object`. scalac runs no Java annotation processors,
 so the rule runs the JMH bytecode generator over the compiled classes and
 compiles the Java it writes.
 
+## API docs
+
+`dx docs` documents Scala 2.13 libraries only. On any other Scala version,
+`dx docs` skips your Scala libraries, and `scala_doc_shard` fails with
+`only Scala 2.13 is supported`.
+
 ## Platforms
 
 See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).

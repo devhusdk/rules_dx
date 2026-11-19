@@ -64,6 +64,8 @@ def _checks():
     native_build = with_native_tools(pinned_build, native)
     flatc_build = with_native_tools(pinned_build, plan_native_tools("1.2.3", {"flatc": {"linux_x86_64": _HASH, "windows_x86_64": _HASH}}, URL_TEMPLATE, {}))
     flatc_root = plan_root([_mod("app", True, assets = [_tag(name = "flatc")])], tools = ["dx", "launcher", "go"] + NATIVE_TOOLS)
+    release_tools = plan_native_tools("1.2.3", {"deadnix": {"windows_x86_64": _HASH}, "kcov": {"linux_arm64": _HASH, "linux_x86_64": _HASH}}, URL_TEMPLATE, {})
+    release_tools_build = with_native_tools(alias_build(SOURCE_LABEL), release_tools)
     topiary_windows_arm = [a for a in native["topiary"] if a.key == "windows_aarch64"][0]
     source_haskell = with_native_tools(alias_build(SOURCE_LABEL), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}))
     weeder_pins = {"weeder": {"linux_arm64": _HASH, "windows_x86_64": _HASH}}
@@ -71,10 +73,21 @@ def _checks():
     pinned_haskell_build = with_native_tools(alias_build(SOURCE_LABEL), pinned_haskell)
     weeder_windows_arm = [a for a in pinned_haskell["weeder"] if a.key == "windows_aarch64"][0]
     return [
-        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "flatc", "hlint", "hpc_lcov", "ormolu", "progenitor", "thrift", "topiary", "weeder"]),
+        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "nixfmt", "ormolu", "progenitor", "selene", "thrift", "topiary", "weeder"]),
         expect_equal("capnp assets", [asset_name("capnp", k) for k in TOOLS["capnp"].platforms], ["dx-capnp-linux-arm64", "dx-capnp-linux-x86_64", "dx-capnp-macos-arm64", "dx-capnp-windows-arm64", "dx-capnp-windows-x86_64"]),
         expect_contains("the registry lists the code generators for fill_pins", registry_lines(), "thrift macos_arm64 dx-thrift-macos-arm64"),
-        expect_equal("native tools run on the exec platform except hpc_lcov", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov"]),
+        expect_equal("native tools run on the exec platform except hpc_lcov and kcov", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov", "kcov"]),
+        expect_equal("release tool assets", [asset_name(t, k) for t in ["deadnix", "selene", "nixfmt", "kcov"] for k in TOOLS[t].platforms], ["dx-deadnix-linux-arm64", "dx-deadnix-linux-x86_64", "dx-deadnix-macos-arm64", "dx-deadnix-windows-x86_64", "dx-selene-linux-arm64", "dx-selene-linux-x86_64", "dx-selene-macos-arm64", "dx-selene-windows-x86_64", "dx-nixfmt-linux-arm64", "dx-kcov-linux-arm64", "dx-kcov-linux-x86_64"]),
+        expect_equal("python bundle assets", [asset_name("python_tools", k) for k in TOOLS["python_tools"].platforms], ["dx-python-tools-linux-arm64.tar.gz", "dx-python-tools-linux-x86_64.tar.gz", "dx-python-tools-macos-arm64.tar.gz", "dx-python-tools-windows-arm64.tar.gz", "dx-python-tools-windows-x86_64.tar.gz"]),
+        expect_contains("the registry lists the python bundle for fill_pins", registry_lines(), "python_tools windows_arm64 dx-python-tools-windows-arm64.tar.gz"),
+        expect_false("the hub has no python bundle target", 'name = "python_tools"' in with_native_tools(pinned_build, plan_native_tools("1.2.3", {"python_tools": {"linux_x86_64": _HASH}}, URL_TEMPLATE, {}))),
+        expect_equal("windows arm64 runs the x86_64 deadnix", [a.repo for a in release_tools["deadnix"] if a.key == "windows_aarch64"], ["dx_deadnix_prebuilt_windows_x86_64"]),
+        expect_contains("a pinned kcov selects its linux download", release_tools_build, '":native_linux_aarch64": ":kcov_linux_aarch64",'),
+        expect_equal("kcov plans only linux", [a.key for a in release_tools["kcov"]], ["linux_aarch64", "linux_x86_64"]),
+        expect_contains("an unpinned deadnix builds from source", source_native, 'name = "deadnix",\n    actual = "@rules_dx//rust/private/quality/tools:deadnix_source",'),
+        expect_contains("an unpinned selene builds from source", source_native, 'name = "selene",\n    actual = "@rules_dx//rust/private/quality/tools:selene_source",'),
+        expect_contains("an unpinned nixfmt builds from source", source_native, 'name = "nixfmt",\n    actual = "@rules_dx//core/quality/tools/nixfmt/bin:nixfmt_source",'),
+        expect_contains("an unpinned kcov builds from source", source_native, 'name = "kcov",\n    actual = "@rules_dx//tools/coverage/kcov:kcov",'),
         expect_contains("a pinned code generator runs its download", flatc_build, 'name = "flatc_linux_x86_64",\n    src = "@dx_flatc_prebuilt_linux_x86_64//file:flatc",\n    out = "linux_x86_64/flatc",'),
         expect_contains("an unpinned code generator platform builds from source", flatc_build, '"//conditions:default": "@dx_flatbuffers//:flatc",'),
         expect_contains("a code generator with no pins builds from source", flatc_build, 'name = "capnp",\n    actual = "@dx_capnproto//src/capnp:capnp_tool",'),

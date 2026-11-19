@@ -43,6 +43,11 @@ config_setting(
 
 alias(
     name = "deadnix_tool",
+    actual = "@dx_prebuilt//:deadnix",
+)
+
+alias(
+    name = "deadnix_source",
     actual = select({
         ":windows_arm64": ":deadnix_unsupported",
         "//conditions:default": ":deadnix",
@@ -74,6 +79,11 @@ dx_unavailable_tool(
 
 alias(
     name = "selene_tool",
+    actual = "@dx_prebuilt//:selene",
+)
+
+alias(
+    name = "selene_source",
     actual = select({
         ":windows_arm64": ":selene_unsupported",
         "//conditions:default": ":selene",

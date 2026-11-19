@@ -10,6 +10,8 @@ const REPO: &str = "devhusdk/rules_dx";
 const NATIVE_TOOLS: [&str; 2] = ["progenitor", "topiary"];
 /// The Haskell tools release.yml adds to the haskell manifest.
 const HASKELL_TOOLS: [&str; 4] = ["hpc_lcov", "weeder", "hlint", "ormolu"];
+/// The tools release-tools.yml builds into the tool manifest, beside the Python bundles.
+const RELEASE_TOOLS: [&str; 4] = ["deadnix", "kcov", "nixfmt", "selene"];
 const PINS: &str = "\"\"\"Pins.\"\"\"\n\nSCHEMA = 1\n\nDX_VERSION = \"1.2.3\"\n\nURL_TEMPLATE = \"https://github.com/devhusdk/rules_dx/releases/download/v{version}/{asset}\"\n\nPINS = {}\n";
 
 fn hash(n: usize) -> String {
@@ -94,12 +96,38 @@ fn haskell_manifest() -> String {
         .concat()
 }
 
+/// The tool manifest as release.yml writes it: the release tools, their licences
+/// and sources, and the Python bundles.
+fn tool_manifest() -> String {
+    let mut lines: Vec<String> = RELEASE_TOOLS
+        .iter()
+        .flat_map(|tool| assets(tool))
+        .map(|asset| format!("{}  {asset}\n", hash(7)))
+        .collect();
+    for companion in [
+        "dx-deadnix-LICENSE",
+        "dx-selene-LICENSE",
+        "dx-nixfmt-LICENSE",
+        "dx-kcov-LICENSE",
+        "dx-deadnix-source.crate",
+        "dx-kcov-source.tar.gz",
+    ] {
+        lines.push(format!("{}  {companion}\n", hash(9)));
+    }
+    for asset in assets("python_tools") {
+        lines.push(format!("{}  {asset}\n", hash(8)));
+    }
+    assert_eq!(lines.len(), 22);
+    lines.concat()
+}
+
 fn manifests(dx: &str, gazelle: &str) -> Vec<(String, String)> {
     vec![
         (fill_pins::MANIFEST.to_owned(), dx.to_owned()),
         (fill_pins::GAZELLE_MANIFEST.to_owned(), gazelle.to_owned()),
         (fill_pins::JAR_MANIFEST.to_owned(), jar_manifest()),
         (fill_pins::HASKELL_MANIFEST.to_owned(), haskell_manifest()),
+        (fill_pins::TOOL_MANIFEST.to_owned(), tool_manifest()),
     ]
 }
 
@@ -117,6 +145,7 @@ fn release_dir(text: &str, bundle: bool) -> TempDir {
         haskell_manifest(),
     )
     .unwrap();
+    std::fs::write(dir.path().join(fill_pins::TOOL_MANIFEST), tool_manifest()).unwrap();
     if bundle {
         std::fs::write(dir.path().join(fill_pins::BUNDLE), "{}").unwrap();
     }
@@ -215,6 +244,16 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
             .or_insert_with(Vec::new)
             .push((entry.key, hash(4)));
     }
+    for entry in registry()
+        .into_iter()
+        .filter(|e| RELEASE_TOOLS.contains(&e.tool.as_str()) || e.tool == "python_tools")
+    {
+        let n = if entry.tool == "python_tools" { 8 } else { 7 };
+        by_tool
+            .entry(entry.tool)
+            .or_insert_with(Vec::new)
+            .push((entry.key, hash(n)));
+    }
     let mut pins = String::from("PINS = {\n");
     for (tool, by_key) in by_tool {
         pins.push_str(&format!("    \"{tool}\": {{\n"));
@@ -277,12 +316,12 @@ fn refuses_when_verification_fails() {
 
 #[test]
 fn refuses_an_asset_the_registry_does_not_know() {
-    let dx = format!("{}{}  dx-tool-deadnix-linux-x86_64\n", manifest(), hash(3));
+    let dx = format!("{}{}  dx-nope-linux-x86_64\n", manifest(), hash(3));
     let error =
         fill_pins::fill_from_manifests("v1.2.3", &manifests(&dx, &gazelle_manifest()), PINS, REPO)
             .unwrap_err();
     assert!(
-        error.contains("\"dx-tool-deadnix-linux-x86_64\" is not in cli/prebuilt/tools.bzl"),
+        error.contains("\"dx-nope-linux-x86_64\" is not in cli/prebuilt/tools.bzl"),
         "{error}"
     );
     let dx = format!("{}{}  dx-weed-LICENSE\n", manifest(), hash(3));
@@ -293,6 +332,33 @@ fn refuses_an_asset_the_registry_does_not_know() {
         error.contains("\"dx-weed-LICENSE\" is not in cli/prebuilt/tools.bzl"),
         "{error}"
     );
+}
+
+#[test]
+fn accepts_a_tool_source_archive_as_a_companion() {
+    let dx = format!("{}{}  dx-kcov-source.tar.gz\n", manifest(), hash(3));
+    let out =
+        fill_pins::fill_from_manifests("v1.2.3", &manifests(&dx, &gazelle_manifest()), PINS, REPO)
+            .unwrap();
+    assert_eq!(out, filled());
+}
+
+#[test]
+fn refuses_a_source_of_an_unknown_tool() {
+    for asset in ["dx-nope-source.crate", "dx-python-LICENSE"] {
+        let dx = format!("{}{}  {asset}\n", manifest(), hash(3));
+        let error = fill_pins::fill_from_manifests(
+            "v1.2.3",
+            &manifests(&dx, &gazelle_manifest()),
+            PINS,
+            REPO,
+        )
+        .unwrap_err();
+        assert!(
+            error.contains(&format!("\"{asset}\" is not in cli/prebuilt/tools.bzl")),
+            "{error}"
+        );
+    }
 }
 
 #[test]

@@ -38,8 +38,8 @@ Each tool and host takes the first rule that applies.
 - One release job per qualified host builds the tool on a native runner from the tree's lock with the source target's hermetic toolchain.
 - The source target stays in the tree as the job input. A `build_test` covers it on each host the job builds. No core default reaches it.
 - Linux artifacts are static.
-- The asset name is `dx-tool-<tool>-<version>-<host>`. Its sha256 is listed in the attested checksum file of the release.
-- The hub pins the asset like an upstream artifact. `checksum_source` reads `rules_dx release build`.
+- The asset name is `dx-<tool>-<os>-<cpu>`. Its sha256 is listed in the attested checksum file of the release.
+- The registry `cli/prebuilt/tools.bzl` names the asset, and `@dx_prebuilt` serves the pinned download with the source target as its fallback.
 - Only the hub chooses between an upstream artifact and a release-built one; tool packages hold no `select()` over hosts.
 - A core default is one alias into `@dx_tools`. Its package leaves `PENDING_TOOL_PACKAGES` in the same change.
 

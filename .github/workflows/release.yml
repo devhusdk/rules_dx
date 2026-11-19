@@ -173,16 +173,15 @@ jobs:
           done
           files="$files dx-haskell-sha256sums.txt"
           : > out/dx-tool-sha256sums.txt
-          for tool in deadnix-1.3.1 selene-0.32.0; do
+          for tool in dx-deadnix dx-selene; do
             for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do
-              case "$host" in windows-*) ext=".exe" ;; *) ext="" ;; esac
-              tool_asset="dx-tool-$tool-$host$ext"
+              tool_asset="$tool-$host"
               test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
               printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> out/dx-tool-sha256sums.txt
               files="$files $tool_asset"
             done
           done
-          for tool_asset in dx-tool-nixfmt-1.5.0-linux-arm64 dx-tool-kcov-43-linux-x86_64 dx-tool-kcov-43-linux-arm64 dx-tool-deadnix-1.3.1-LICENSE dx-tool-selene-0.32.0-LICENSE dx-tool-nixfmt-1.5.0-LICENSE dx-tool-kcov-43-LICENSE dx-tool-deadnix-1.3.1-source.crate dx-tool-kcov-43-source.tar.gz; do
+          for tool_asset in dx-nixfmt-linux-arm64 dx-kcov-linux-x86_64 dx-kcov-linux-arm64 dx-deadnix-LICENSE dx-selene-LICENSE dx-nixfmt-LICENSE dx-kcov-LICENSE dx-deadnix-source.crate dx-kcov-source.tar.gz; do
             test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
             printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> out/dx-tool-sha256sums.txt
             files="$files $tool_asset"
@@ -213,9 +212,9 @@ jobs:
           set -euo pipefail
           pins="$RUNNER_TEMP/pins.bzl"
           cp cli/prebuilt/pins.bzl "$pins"
-          bazel run //tools/ci/fill_pins:fill_pins_bin -- "$RELEASE_TAG" --manifest "$PWD/out/dx-sha256sums.txt" --manifest "$PWD/out/dx-gazelle-sha256sums.txt" --manifest "$PWD/out/dx-jar-sha256sums.txt" --manifest "$PWD/out/dx-haskell-sha256sums.txt" --pins "$pins" --repo "$GITHUB_REPOSITORY"
+          bazel run //tools/ci/fill_pins:fill_pins_bin -- "$RELEASE_TAG" --manifest "$PWD/out/dx-sha256sums.txt" --manifest "$PWD/out/dx-gazelle-sha256sums.txt" --manifest "$PWD/out/dx-jar-sha256sums.txt" --manifest "$PWD/out/dx-haskell-sha256sums.txt" --manifest "$PWD/out/dx-tool-sha256sums.txt" --pins "$pins" --repo "$GITHUB_REPOSITORY"
           bazel run //deploy/private/release:source_archive -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "$SOURCE_DIR" --pins "$pins"
-          for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-launcher-linux-x86_64 dx-launcher-linux-arm64 dx-launcher-macos-arm64 dx-launcher-windows-x86_64 dx-launcher-windows-arm64 dx-capnp-* dx-flatc-* dx-thrift-* dx-topiary-* dx-progenitor-* dx-*-any.jar dx-hpc-lcov-* dx-weeder-* dx-hlint-* dx-ormolu-* dx-tool-* dx-python-tools-*; do
+          for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-launcher-linux-x86_64 dx-launcher-linux-arm64 dx-launcher-macos-arm64 dx-launcher-windows-x86_64 dx-launcher-windows-arm64 dx-capnp-* dx-flatc-* dx-thrift-* dx-topiary-* dx-progenitor-* dx-*-any.jar dx-hpc-lcov-* dx-weeder-* dx-hlint-* dx-ormolu-* dx-deadnix-* dx-selene-* dx-nixfmt-* dx-kcov-* dx-python-tools-*; do
             case "$file" in *.tar.gz.sha256|*.zip.sha256) continue ;; esac
             cp "out/$file" "$SOURCE_DIR/"
           done
@@ -453,7 +452,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          for manifest in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-tool-sha256sums.txt; do
+          for manifest in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt; do
             gh attestation verify "out/$manifest" \
               --bundle out/dx-sha256sums.txt.sigstore.json \
               --repo "$GITHUB_REPOSITORY" \

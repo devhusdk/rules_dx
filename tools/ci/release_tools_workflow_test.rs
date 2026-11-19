@@ -33,15 +33,15 @@ const JARS: [&str; 6] = [
 ];
 
 const ASSETS: [&str; 9] = [
-    "dx-tool-nixfmt-1.5.0-LICENSE",
-    "dx-tool-nixfmt-1.5.0-linux-arm64",
-    "dx-tool-kcov-43-linux-x86_64",
-    "dx-tool-kcov-43-linux-arm64",
-    "dx-tool-deadnix-1.3.1-LICENSE",
-    "dx-tool-selene-0.32.0-LICENSE",
-    "dx-tool-kcov-43-LICENSE",
-    "dx-tool-deadnix-1.3.1-source.crate",
-    "dx-tool-kcov-43-source.tar.gz",
+    "dx-nixfmt-LICENSE",
+    "dx-nixfmt-linux-arm64",
+    "dx-kcov-linux-x86_64",
+    "dx-kcov-linux-arm64",
+    "dx-deadnix-LICENSE",
+    "dx-selene-LICENSE",
+    "dx-kcov-LICENSE",
+    "dx-deadnix-source.crate",
+    "dx-kcov-source.tar.gz",
 ];
 
 #[test]
@@ -232,15 +232,19 @@ fn release_writes_and_checks_the_tool_manifest() {
         "for host in {}; do\n            tool_asset=\"dx-python-tools-$host.tar.gz\"",
         PYTHON_HOSTS.join(" ")
     )));
-    assert!(text.contains(" dx-tool-* dx-python-tools-*; do"));
-    for tool in ["deadnix-1.3.1", "selene-0.32.0"] {
-        assert!(text.contains(tool), "{RELEASE} must name {tool}");
-    }
+    assert!(text.contains(
+        " dx-deadnix-* dx-selene-* dx-nixfmt-* dx-kcov-* dx-python-tools-*; do"
+    ));
+    assert!(text.contains(
+        "for tool in dx-deadnix dx-selene; do\n            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do\n              tool_asset=\"$tool-$host\""
+    ));
+    assert!(text.contains("--manifest \"$PWD/out/dx-tool-sha256sums.txt\""));
 }
 
 #[test]
 fn macos_tools_ship_signed() {
     let text = read_runfiles(TOOLS);
+    assert!(text.contains("for tool in deadnix selene; do\n              file=\"$out/dx-$tool-$host\""));
     assert!(text.contains(
         "codesign --verify --strict \"$file\" || codesign --sign - \"$file\"\n              codesign --verify --strict \"$file\""
     ));
@@ -262,6 +266,6 @@ fn release_consumer_checks_prebuilt_quality_tools() {
 fn release_verifies_every_manifest_against_the_bundle() {
     let text = read_runfiles(RELEASE);
     assert!(text.contains(
-        "for manifest in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-tool-sha256sums.txt; do\n            gh attestation verify \"out/$manifest\" \\\n              --bundle out/dx-sha256sums.txt.sigstore.json"
+        "for manifest in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt; do\n            gh attestation verify \"out/$manifest\" \\\n              --bundle out/dx-sha256sums.txt.sigstore.json"
     ));
 }

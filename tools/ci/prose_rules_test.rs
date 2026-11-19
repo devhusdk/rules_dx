@@ -1,4 +1,4 @@
-//! Docs and comments outside fixtures, testdata and `third_party` carry no issue number, link chain or history word, design pages stay under the word limit, and every page is linted and links to tracked files, outside `tools/ci/prose_rules_allowlist.txt`.
+//! Docs and comments outside fixtures, testdata and `third_party` carry no issue number, link chain or history word, user pages name no private label, design pages stay under the word limit, and every page is linted and links to tracked files, outside `tools/ci/prose_rules_allowlist.txt`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -12,12 +12,13 @@ use starlark_syntax as _;
 use yaml_serde as _;
 
 /// The kinds an allowlist line may name.
-const KINDS: [&str; 5] = [
+const KINDS: [&str; 6] = [
     "dead-link",
     "history-word",
     "issue-number",
     "link-chain",
     "not-linted",
+    "private-label",
 ];
 
 /// The kind no allowlist line may name.
@@ -158,6 +159,28 @@ fn history_words(text: &str) -> usize {
         .iter()
         .map(|word| count_word(&lower, word))
         .sum()
+}
+
+/// A page users read: a `docs/` page outside `docs/design/`, or a `README.md`, outside `.github/` and private packages.
+fn user_page(path: &str) -> bool {
+    let page = (path.starts_with("docs/") && !path.starts_with("docs/design/"))
+        || path == "README.md"
+        || path.ends_with("/README.md");
+    page && !path.starts_with(".github/") && !path.split('/').any(|segment| segment == "private")
+}
+
+/// The labels in `text` with a `private` package segment; a `//` after `:` starts a URL, not a label.
+fn private_labels(text: &str) -> usize {
+    text.match_indices("//")
+        .filter(|(at, _)| !text[..*at].ends_with(':'))
+        .filter(|(at, _)| {
+            let rest = &text[at + 2..];
+            let end = rest
+                .find(|c: char| !(c.is_ascii_alphanumeric() || "_./-".contains(c)))
+                .unwrap_or(rest.len());
+            rest[..end].split('/').any(|segment| segment == "private")
+        })
+        .count()
 }
 
 /// The directory of `path`, `""` at the root.
@@ -382,6 +405,9 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
                 })
                 .count();
             add(&mut counts, path, "dead-link", dead);
+            if user_page(path) {
+                add(&mut counts, path, "private-label", private_labels(text));
+            }
         } else if is_starlark(path)
             || Path::new(path)
                 .extension()
@@ -640,5 +666,29 @@ mod tests {
             ("docs/sub/c.md", "x\n"),
         ]);
         assert_eq!(found, [hit("docs/a.md", "dead-link", 3)]);
+    }
+
+    #[test]
+    fn private_labels_are_detected_in_user_pages_only() {
+        let page = "Run `@rules_dx//go/private/tools:lock`, see https://x.org/private/y.\n";
+        let found: Vec<_> = hits(&[
+            LINTED,
+            ("docs/a.md", page),
+            ("go/README.md", page),
+            ("docs/design/b.md", page),
+            ("go/private/README.md", page),
+            (".github/README.md", page),
+            ("RELEASING.md", page),
+        ])
+        .into_iter()
+        .filter(|(_, kind, _)| kind == "private-label")
+        .collect();
+        assert_eq!(
+            found,
+            [
+                hit("docs/a.md", "private-label", 1),
+                hit("go/README.md", "private-label", 1)
+            ]
+        );
     }
 }

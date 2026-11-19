@@ -121,7 +121,7 @@ switch that takes no value.
 - \"Also\" lists the other spellings of a flag.
 - A build setting is a flag you pass to Bazel as `--<setting>=<value>`. For an `alias`, \"Default\" names the \
 setting it forwards to.
-- `pinned` in \"Default\" means the tool rules_dx pins. Set the flag to your own label to replace it.
+- `pinned` in \"Default\" means the tool rules_dx pins. Set the flag or argument to your own label to replace it.
 - An attribute is a named argument of a rule, macro or tag. \"Required\" says whether you must set it.
 ";
 
@@ -233,7 +233,7 @@ Use a module extension in `MODULE.bazel` with `use_extension(\"<file>\", \"<exte
                     &[
                         code(&param.name),
                         yes_no(param.mandatory),
-                        optional_code(&param.default),
+                        optional_default(&param.default),
                     ],
                 );
             }
@@ -287,18 +287,18 @@ fn attrs_table(page: &mut String, attrs: &[Attr]) {
                 code(&attr.name),
                 code(&attr.r#type.to_lowercase()),
                 yes_no(attr.mandatory),
-                optional_code(&attr.default),
+                optional_default(&attr.default),
             ],
         );
     }
 }
 
-/// A code span, or an empty cell when there is no value.
-fn optional_code(text: &str) -> String {
+/// A default cell, or an empty cell when there is no default.
+fn optional_default(text: &str) -> String {
     if text.is_empty() {
         String::new()
     } else {
-        code(text)
+        default_cell(text)
     }
 }
 
@@ -453,9 +453,15 @@ fn row(page: &mut String, cells: &[String]) {
     page.push_str(&format!("| {} |\n", cells.join(" | ")));
 }
 
-/// A setting's default cell: a default inside rules_dx's private packages shows as `pinned`.
+/// A default cell: a default inside rules_dx's private packages shows as `pinned`.
 fn default_cell(value: &str) -> String {
-    if value.contains("/private/") {
+    let private = value.match_indices("/private").any(|(at, word)| {
+        value[at + word.len()..]
+            .chars()
+            .next()
+            .is_none_or(|next| !(next.is_ascii_alphanumeric() || "_-.".contains(next)))
+    });
+    if private {
         "pinned".to_owned()
     } else {
         code(value)
@@ -515,7 +521,8 @@ mod tests {
                 {"name":"name","type":"NAME","default":"","mandatory":true}]}],
             "macros":[],"aspects":[],"repository_rules":[],
             "functions":[{"name":"demo_binary","params":[{"name":"name","default":"","mandatory":true},
-                {"name":"mode","default":"\"a|b\"","mandatory":false}]}],
+                {"name":"mode","default":"\"a|b\"","mandatory":false},
+                {"name":"tool","default":"Label(\"@rules_dx//demo/private:tool\")","mandatory":false}]}],
             "providers":[{"name":"DemoInfo","fields":["files","roots"]}],
             "extensions":[{"name":"demo","tag_classes":[{"name":"lock","attrs":[
                 {"name":"lock","type":"LABEL","default":"","mandatory":true}]}]}]}]"#;
@@ -550,6 +557,7 @@ mod tests {
             "| `name` | `name` | yes |  |",
             "#### `demo_binary`",
             "| `mode` | no | `\"a\\|b\"` |",
+            "| `tool` | no | pinned |",
             "Fields: `files`, `roots`.",
             "Tag `demo.lock`:",
             "| `lock` | `label` | yes |  |",

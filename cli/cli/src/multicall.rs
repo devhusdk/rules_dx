@@ -25,6 +25,7 @@ pub enum Tool {
     SizeChecker,
     CloudflareVerify,
     NpmPacker,
+    ReleaseTool,
     CapnpcRustDx,
 }
 
@@ -57,6 +58,7 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "size_checker" => Some(Tool::SizeChecker),
         "cloudflare_verify" => Some(Tool::CloudflareVerify),
         "npm_packer" => Some(Tool::NpmPacker),
+        "release_tool" => Some(Tool::ReleaseTool),
         "capnpc_rust_dx" => Some(Tool::CapnpcRustDx),
         _ => None,
     }
@@ -132,6 +134,7 @@ mod tests {
             ("size_checker", Tool::SizeChecker),
             ("cloudflare_verify", Tool::CloudflareVerify),
             ("npm_packer", Tool::NpmPacker),
+            ("release_tool", Tool::ReleaseTool),
             ("capnpc_rust_dx", Tool::CapnpcRustDx),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
@@ -148,6 +151,7 @@ mod tests {
             "oapi_codegen",
             "archiver",
             "hasher",
+            "release_tool",
             "capnpc_rust_dx",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");

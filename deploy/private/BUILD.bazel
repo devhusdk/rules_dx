@@ -131,8 +131,6 @@ exports_files([
     "src/api_compat.rs",
     "src/archive.rs",
     "src/bin_deploy_tool.rs",
-    "src/bin_deploy_app.rs",
-    "src/bin_deploy_program.rs",
     "src/cloudflare.rs",
     "src/config.rs",
     "src/conan.rs",
@@ -399,34 +397,14 @@ rust_test(
 
 exports_files(["Cargo.toml"])
 
-rust_binary(
+sh_binary(
     name = "deploy_program",
-    srcs = ["src/bin_deploy_program.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "deploy_program",
-    crate_root = "src/bin_deploy_program.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [":dx_deploy_tools"],
+    srcs = ["deploy_fixture.sh"],
 )
 
-rust_binary(
+sh_binary(
     name = "deploy_app",
-    srcs = ["src/bin_deploy_app.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "deploy_app",
-    crate_root = "src/bin_deploy_app.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [":dx_deploy_tools"],
+    srcs = ["deploy_fixture.sh"],
 )
 
 dx_deployment(

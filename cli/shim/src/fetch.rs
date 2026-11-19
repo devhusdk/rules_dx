@@ -292,6 +292,10 @@ impl Drop for Watch {
 
 impl PartFile {
     fn create(dest: &Path) -> std::io::Result<Self> {
+        // A stop signal after the part file appears but before the handler is armed
+        // would leave the part file behind, so hold stop signals until both are done.
+        #[cfg(unix)]
+        let _held = dx_os_sys::signals::hold_stop();
         let staged = dx_atomic_fs::StagedFile::create(dest)?;
         interrupt::watch(staged.path());
         Ok(Self {

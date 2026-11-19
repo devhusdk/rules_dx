@@ -377,7 +377,7 @@ pub fn write_spdx_locked(
         crates.extend(lock_entries(kind, &text).map_err(io::Error::other)?);
     }
     let records = match runtimes {
-        Some(path) => runtimes::read_records(path)?,
+        Some(path) => runtimes::read_records(path).map_err(io::Error::other)?,
         None => Vec::new(),
     };
     std::fs::write(
@@ -1305,7 +1305,8 @@ pub fn write_notice(
     let joined = join_notice_entries(&manifest_text, text_files).map_err(io::Error::other)?;
     let mut notice = render_notice(root, &joined);
     if let Some(path) = runtimes {
-        notice.push_str(&runtimes::render_section(&runtimes::read_records(path)?));
+        let records = runtimes::read_records(path).map_err(io::Error::other)?;
+        notice.push_str(&runtimes::render_section(&records));
     }
     std::fs::write(dst, notice.as_bytes())?;
     Ok(())

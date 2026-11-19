@@ -265,7 +265,24 @@ filegroup(
     srcs = [":%s.binaryproto" % name for name in _STARLARK_DOCS],
 )
 
-_FORWARDS_FIXTURES = ["rust"]
+# A genquery loads every select branch of its scope. Keep swift and apple out: their closure fetches
+# swift-format, pinned for macos_arm64 only, and that fetch fails on every other host.
+_FORWARDS_FIXTURES = [
+    "api_spec",
+    "avro",
+    "capnproto",
+    "cc",
+    "d",
+    "flatbuffers",
+    "go",
+    "lua",
+    "python",
+    "rego",
+    "rust",
+    "sql",
+    "thrift",
+    "zig",
+]
 
 [
     genquery(

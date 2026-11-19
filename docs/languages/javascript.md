@@ -29,9 +29,9 @@ bazel_dep(name = "rules_dx", version = "<release>")
 A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small JavaScript package from [`javascript/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/javascript/tests/consumer/BUILD.bazel):
 
 ```python
-load("@rules_dx//javascript:defs.bzl", "javascript_binary", "javascript_library", "js_library")
+load("@rules_dx//javascript:defs.bzl", "javascript_binary", "javascript_library")
 
-js_library(
+javascript_library(
     name = "package_json",
     srcs = ["package.json"],
     visibility = ["//visibility:public"],
@@ -162,10 +162,6 @@ javascript_web_bundle(name, app, bundler, config = None, entry = None, bundler_a
 ```
 
 Bundles one staged application through a declared bundler executable.
-
-### `js_library`
-
-Re-exported from `@aspect_rules_js//js:defs.bzl`.
 
 ## Tools and package files
 

@@ -7,6 +7,11 @@ load("//rust:defs.bzl", "rust_binary", "rust_test")
 # in //cli/advisory_prep because the CLI links it.
 package(default_visibility = ["//visibility:private"])
 
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
+)
+
 rust_binary(
     name = "advisory_prep",
     srcs = ["src/main.rs"],

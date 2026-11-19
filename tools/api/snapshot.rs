@@ -24,19 +24,24 @@ const EVENTS_SCHEMA: &str = include_str!("../../cli/output/schema/events.schema.
 const CONFIG_SCHEMA: &str = include_str!("../../cli/dx_config/schema/dx.schema.json");
 const CONFIG_BUILD: &str = include_str!("../../config/BUILD.bazel");
 
-/// The rules in a language's `BUILD.bazel` whose public targets are part of the API.
+/// The rules in a language's `BUILD.bazel` whose public targets are part of the API, besides `*_binary`.
 const LANG_RULES: [&str; 2] = ["platform", "toolchain_type"];
 
 const PUBLIC: &str = "//visibility:public";
 
-/// Every file under `api/`, by name, as `update` writes it. `lang_builds` holds each language package and the text
-/// of its `BUILD.bazel`; `starlark` holds the `starlark_doc_extract` binaryproto of each public `.bzl` file.
+/// The `tools/visibility` constant that names `//visibility:public`.
+const PUBLIC_CONSTANT: &str = "VIS_PUBLIC";
+
+/// Every file under `api/`, by name, as `update` writes it. `lang_builds` and `command_builds` hold each language
+/// or command package and the text of its `BUILD.bazel`; `starlark` holds the `starlark_doc_extract` binaryproto of
+/// each public `.bzl` file.
 pub fn render(
     lang_builds: &[(String, String)],
+    command_builds: &[(String, String)],
     starlark: &[Vec<u8>],
 ) -> Result<BTreeMap<&'static str, String>, Box<dyn std::error::Error>> {
     let mut labels = labels_txt(CONFIG_BUILD)?;
-    labels.push_str(&lang_labels_txt(lang_builds)?);
+    labels.push_str(&target_labels_txt(lang_builds, command_builds)?);
     labels.push_str(&hub_labels_txt(dx_families::hubs()));
     Ok(BTreeMap::from([
         (FILES[0], cli_json()?),
@@ -205,42 +210,71 @@ fn params_json(params: &[FunctionParamInfo]) -> Vec<Value> {
 
 /// The `$(rootpaths)` of every language `BUILD.bazel`, from `DX_API_LANG_BUILDS`.
 pub fn lang_build_paths() -> Result<Vec<String>, std::env::VarError> {
-    Ok(std::env::var("DX_API_LANG_BUILDS")?
+    build_paths("DX_API_LANG_BUILDS")
+}
+
+/// The `$(rootpaths)` of every command package `BUILD.bazel`, from `DX_API_COMMAND_BUILDS`.
+pub fn command_build_paths() -> Result<Vec<String>, std::env::VarError> {
+    build_paths("DX_API_COMMAND_BUILDS")
+}
+
+fn build_paths(var: &str) -> Result<Vec<String>, std::env::VarError> {
+    Ok(std::env::var(var)?
         .split_whitespace()
         .map(str::to_owned)
         .collect())
 }
 
-/// The package of a `<package>/BUILD.bazel` root path.
+/// The package of a `<package>/BUILD.bazel` root path; the root `BUILD.bazel` (`./BUILD.bazel` as a `$(rootpath)`)
+/// is the package `""`.
 pub fn package_of(path: &str) -> Result<String, String> {
+    if path.strip_prefix("./").unwrap_or(path) == "BUILD.bazel" {
+        return Ok(String::new());
+    }
     path.strip_suffix("/BUILD.bazel")
         .map(str::to_owned)
         .ok_or_else(|| format!("{path} is not a package BUILD.bazel"))
 }
 
-/// One line per public platform and toolchain type in each language package: its label and rule.
-fn lang_labels_txt(lang_builds: &[(String, String)]) -> Result<String, Box<dyn std::error::Error>> {
+/// One line per public target the API holds, with its label and rule: platforms, toolchain types and binaries
+/// other than `run_binary` in each language package, and every named target in each command package.
+fn target_labels_txt(
+    lang_builds: &[(String, String)],
+    command_builds: &[(String, String)],
+) -> Result<String, Box<dyn std::error::Error>> {
+    let lang_rule = |rule: &str| {
+        LANG_RULES.contains(&rule) || (rule.ends_with("_binary") && rule != "run_binary")
+    };
     let mut rows = Vec::new();
     for (package, build) in lang_builds {
-        let file = ModuleFile::parse_build(build)
-            .map_err(|error| format!("{package}/BUILD.bazel: {error}"))?;
-        let calls = file.calls();
-        let default_public = calls
-            .iter()
-            .filter(|call| call.name == "package")
-            .any(|call| call.arg("default_visibility").is_some_and(lists_public));
-        rows.extend(
-            calls
-                .iter()
-                .filter(|call| LANG_RULES.contains(&call.name.as_str()))
-                .filter(|call| call.arg("visibility").map_or(default_public, lists_public))
-                .filter_map(|call| {
-                    Some(format!("//{package}:{} {}", call.str("name")?, call.name))
-                }),
-        );
+        rows.extend(public_targets(package, build, lang_rule)?);
+    }
+    for (package, build) in command_builds {
+        rows.extend(public_targets(package, build, |_| true)?);
     }
     rows.sort();
     Ok(rows.into_iter().map(|row| format!("{row}\n")).collect())
+}
+
+/// `//<package>:<name> <rule>` for each public named target in `build` whose rule `keep` accepts.
+fn public_targets(
+    package: &str,
+    build: &str,
+    keep: impl Fn(&str) -> bool,
+) -> Result<Vec<String>, String> {
+    let file = ModuleFile::parse_build(build)
+        .map_err(|error| format!("//{package}:BUILD.bazel: {error}"))?;
+    let calls = file.calls();
+    let default_public = calls
+        .iter()
+        .filter(|call| call.name == "package")
+        .any(|call| call.arg("default_visibility").is_some_and(lists_public));
+    Ok(calls
+        .iter()
+        .filter(|call| keep(&call.name))
+        .filter(|call| call.arg("visibility").map_or(default_public, lists_public))
+        .filter_map(|call| Some(format!("//{package}:{} {}", call.str("name")?, call.name)))
+        .collect())
 }
 
 /// One line per hub repository a language extension makes: its default `use_repo` name and the extension. A `*`
@@ -255,7 +289,13 @@ fn hub_labels_txt(hubs: &[dx_families::Hub]) -> String {
 }
 
 fn lists_public(visibility: &Arg) -> bool {
-    matches!(visibility, Arg::List(items) if items.iter().any(|item| matches!(item, Arg::Str(text) if text.value == PUBLIC)))
+    match visibility {
+        Arg::Ident(name) => name == PUBLIC_CONSTANT,
+        Arg::List(items) => items
+            .iter()
+            .any(|item| matches!(item, Arg::Str(text) if text.value == PUBLIC)),
+        Arg::Str(_) | Arg::Dict(_) | Arg::Computed { .. } => false,
+    }
 }
 
 /// One line per flag in `config/BUILD.bazel`: its label, rule, default (or alias target) and allowed values.
@@ -425,7 +465,8 @@ mod tests {
     };
 
     use super::{
-        FILES, hub_labels_txt, labels_txt, lang_labels_txt, render, starlark_json, unbumped_schemas,
+        FILES, hub_labels_txt, labels_txt, package_of, render, starlark_json, target_labels_txt,
+        unbumped_schemas,
     };
 
     fn attr(name: &str, default: &str, doc: &str) -> AttributeInfo {
@@ -595,13 +636,77 @@ platform(name = "hidden", visibility = ["//visibility:private"])
             ("closed".to_owned(), closed.to_owned()),
         ];
         assert_eq!(
-            lang_labels_txt(&builds).expect("BUILD files parse"),
+            target_labels_txt(&builds, &[]).expect("BUILD files parse"),
             concat!(
                 "//closed:toolchain_type toolchain_type\n",
                 "//open:toolchain_type toolchain_type\n",
                 "//open:windows_arm64 platform\n",
             )
         );
+    }
+
+    #[test]
+    fn labels_list_public_binaries_and_command_targets() {
+        let lang = r#"
+package(default_visibility = ["//:__subpackages__"])
+
+rust_binary(name = "tool", visibility = ["//visibility:public"])
+
+run_binary(name = "generated", visibility = ["//visibility:public"])
+
+rust_library(name = "lib", visibility = ["//visibility:public"])
+"#;
+        let root = r#"
+package(default_visibility = ["//:__subpackages__"])
+
+alias(name = "dx", actual = "//cli:dx", visibility = ["//visibility:public"])
+
+filegroup(name = "module_srcs")
+
+exports_files(["BUILD.bazel"])
+"#;
+        let constant = r#"
+load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
+
+package(default_visibility = VIS_PUBLIC)
+
+rust_binary(name = "runnable")
+"#;
+        let private = r#"
+package(default_visibility = ["//visibility:private"])
+
+rust_binary(name = "maintainer")
+
+alias(name = "shortcut", actual = ":maintainer")
+"#;
+        let langs = [("lang".to_owned(), lang.to_owned())];
+        let commands = [
+            (
+                package_of("BUILD.bazel").expect("root BUILD"),
+                root.to_owned(),
+            ),
+            ("cmd".to_owned(), constant.to_owned()),
+            ("cmd/private".to_owned(), private.to_owned()),
+        ];
+        assert_eq!(
+            target_labels_txt(&langs, &commands).expect("BUILD files parse"),
+            concat!(
+                "//:dx alias\n",
+                "//cmd:runnable rust_binary\n",
+                "//lang:tool rust_binary\n",
+            )
+        );
+    }
+
+    #[test]
+    fn the_root_build_is_the_empty_package() {
+        assert_eq!(package_of("BUILD.bazel").expect("root BUILD"), "");
+        assert_eq!(package_of("./BUILD.bazel").expect("root BUILD"), "");
+        assert_eq!(
+            package_of("dx/tool_resolve/BUILD.bazel").expect("package BUILD"),
+            "dx/tool_resolve"
+        );
+        assert!(package_of("dx/README.md").is_err());
     }
 
     #[test]
@@ -641,8 +746,11 @@ platform(name = "hidden", visibility = ["//visibility:private"])
     #[test]
     fn the_snapshot_covers_every_file_and_flag_detail() {
         let msix = "package(default_visibility = [\"//visibility:public\"])\ntoolchain_type(name = \"toolchain_type\")\n";
+        let root =
+            "alias(name = \"dx\", actual = \"//cli:dx\", visibility = [\"//visibility:public\"])\n";
         let files = render(
             &[("msix".to_owned(), msix.to_owned())],
+            &[(String::new(), root.to_owned())],
             &[module("[]", "Docs.")],
         )
         .expect("snapshot renders");
@@ -693,7 +801,7 @@ platform(name = "hidden", visibility = ["//visibility:private"])
             files["labels.txt"]
         );
         assert!(
-            files["labels.txt"].contains("\n//msix:toolchain_type toolchain_type\n"),
+            files["labels.txt"].contains("\n//:dx alias\n//msix:toolchain_type toolchain_type\n"),
             "{}",
             files["labels.txt"]
         );

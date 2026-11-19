@@ -1,8 +1,8 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core/modules:langs.bzl", "LANGS")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
-load(":bzl_srcs.bzl", "bzl_srcs")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+load(":bzl_srcs.bzl", "bzl_srcs")
 
 package(default_visibility = VIS_TOOLS)
 
@@ -27,7 +27,18 @@ _SNAPSHOT_SRCS = [
 
 _LANG_BUILDS = ["//%s:BUILD.bazel" % lang for lang in sorted(LANGS)]
 
-_LANG_ENV = {"DX_API_LANG_BUILDS": " ".join(["$(rootpath %s)" % build for build in _LANG_BUILDS])}
+_COMMAND_BUILDS = [
+    "//:BUILD.bazel",
+    "//deploy:BUILD.bazel",
+    "//dx:BUILD.bazel",
+    "//dx/advisory_prep:BUILD.bazel",
+    "//dx/tool_resolve:BUILD.bazel",
+]
+
+_BUILDS_ENV = {
+    "DX_API_COMMAND_BUILDS": " ".join(["$(rootpath %s)" % build for build in _COMMAND_BUILDS]),
+    "DX_API_LANG_BUILDS": " ".join(["$(rootpath %s)" % build for build in _LANG_BUILDS]),
+}
 
 _STARLARK_SRCS = [
     "//api_spec:defs.bzl",
@@ -91,8 +102,8 @@ rust_binary(
     compile_data = _SNAPSHOT_SRCS,
     crate_name = "update",
     crate_root = "update.rs",
-    data = [":starlark_docs"] + _LANG_BUILDS,
-    env = _LANG_ENV | {"DX_API_STARLARK": "$(rlocationpaths :starlark_docs)"},
+    data = [":starlark_docs"] + _LANG_BUILDS + _COMMAND_BUILDS,
+    env = _BUILDS_ENV | {"DX_API_STARLARK": "$(rlocationpaths :starlark_docs)"},
     deps = _DEPS + ["@rules_rust//rust/runfiles"],
 )
 
@@ -108,11 +119,11 @@ rust_test(
     crate_name = "api_test",
     crate_root = "api_test.rs",
     data = [
+        ":starlark_docs",
         "//api:snapshot",
         "//docs:supported-surface.md",
-        ":starlark_docs",
-    ] + _LANG_BUILDS,
-    env = _LANG_ENV | {
+    ] + _LANG_BUILDS + _COMMAND_BUILDS,
+    env = _BUILDS_ENV | {
         "DX_API_STARLARK": "$(rlocationpaths :starlark_docs)",
         "DX_API_SNAPSHOT": "$(rlocationpaths //api:snapshot)",
         "DX_SURFACE_PAGE": "$(rlocationpath //docs:supported-surface.md)",
@@ -128,6 +139,9 @@ filegroup(
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "bzl_srcs.bzl",
+    ],
     tags = ["corpus"],
 )

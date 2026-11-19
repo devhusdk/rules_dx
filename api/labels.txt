@@ -57,12 +57,19 @@
 //config:toolchains bool_flag False
 //config:warnings_as_errors bool_flag True
 //config:workspace label_flag ":default_workspace_policy"
+//:dx alias
+//:lang_json filegroup
+//:module_srcs filegroup
+//:package_json js_library
 //android:android_device platform
 //android:android_emulator platform
 //android:arm64-v8a platform
 //android:x86_64 platform
 //apple:macos_arm64 platform
 //apple:macos_x86_64 platform
+//deploy:bootstrap_offline rust_binary
+//deploy:linux_amd64 platform
+//deploy:linux_arm64 platform
 //erlang:toolchain_type toolchain_type
 //lua:toolchain_type toolchain_type
 //msix:toolchain_type toolchain_type

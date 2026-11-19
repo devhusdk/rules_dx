@@ -1,6 +1,6 @@
 # Supported surface
 
-This page lists every `dx` command, flag, argument and environment variable, every build setting, platform and toolchain type rules_dx makes public, and the version of each file format dx reads or writes. Use it to check what your scripts, CI and `BUILD` files can rely on.
+This page lists every `dx` command, flag, argument and environment variable, every build setting, platform, toolchain type, hub repository and target rules_dx makes public, and the version of each file format dx reads or writes. Use it to check what your scripts, CI and `BUILD` files can rely on.
 
 This page is generated. Do not edit it by hand. Run `bazel run //tools/api:update` to refresh it.
 
@@ -766,30 +766,6 @@ Exit codes: `0`, `1`, `2`.
 | `@rules_dx//config:toolchains` | `bool_flag` | `False` |  |
 | `@rules_dx//config:warnings_as_errors` | `bool_flag` | `True` |  |
 | `@rules_dx//config:workspace` | `label_flag` | `@rules_dx//config:default_workspace_policy` |  |
-| `@rules_dx@*` | `hub` | `@rules_dx//go:extensions.bzl%go` |  |
-| `@rules_dx@ansible_collections` | `hub` | `@rules_dx//ansible:extensions.bzl%ansible` |  |
-| `@rules_dx@bicep` | `hub` | `@rules_dx//bicep:extensions.bzl%bicep` |  |
-| `@rules_dx@composer` | `hub` | `@rules_dx//php:extensions.bzl%composer` |  |
-| `@rules_dx@cpan` | `hub` | `@rules_dx//perl:extensions.bzl%cpan` |  |
-| `@rules_dx@crates` | `hub` | `@rules_dx//rust:extensions.bzl%cargo` |  |
-| `@rules_dx@dub` | `hub` | `@rules_dx//d:extensions.bzl%dub` |  |
-| `@rules_dx@dx_terraform_providers` | `hub` | `@rules_dx//terraform:extensions.bzl%terraform` |  |
-| `@rules_dx@fpm` | `hub` | `@rules_dx//fortran:extensions.bzl%fpm` |  |
-| `@rules_dx@gems` | `hub` | `@rules_dx//ruby:extensions.bzl%ruby` |  |
-| `@rules_dx@hackage` | `hub` | `@rules_dx//haskell:extensions.bzl%cabal` |  |
-| `@rules_dx@hex` | `hub` | `@rules_dx//elixir:extensions.bzl%hex` |  |
-| `@rules_dx@julia` | `hub` | `@rules_dx//julia:extensions.bzl%julia` |  |
-| `@rules_dx@maven` | `hub` | `@rules_dx//java:extensions.bzl%maven` |  |
-| `@rules_dx@npm` | `hub` | `@rules_dx//javascript:extensions.bzl%npm` |  |
-| `@rules_dx@nuget` | `hub` | `@rules_dx//csharp:extensions.bzl%nuget` |  |
-| `@rules_dx@opam` | `hub` | `@rules_dx//ocaml:extensions.bzl%opam` |  |
-| `@rules_dx@pnpm` | `hub` | `@rules_dx//javascript:extensions.bzl%pnpm` |  |
-| `@rules_dx@psgallery` | `hub` | `@rules_dx//powershell:extensions.bzl%powershell` |  |
-| `@rules_dx@pub_deps` | `hub` | `@rules_dx//dart:extensions.bzl%pub` |  |
-| `@rules_dx@pypi` | `hub` | `@rules_dx//python:extensions.bzl%uv` |  |
-| `@rules_dx@rocks` | `hub` | `@rules_dx//lua:extensions.bzl%luarocks` |  |
-| `@rules_dx@swiftpkg` | `hub` | `@rules_dx//swift:extensions.bzl%swiftpm` |  |
-| `@rules_dx@zig` | `hub` | `@rules_dx//zig:extensions.bzl%zig` |  |
 
 ## Platforms
 
@@ -801,6 +777,8 @@ Pass a platform to Bazel with `--platforms=<platform>`.
 - `@rules_dx//android:x86_64`
 - `@rules_dx//apple:macos_arm64`
 - `@rules_dx//apple:macos_x86_64`
+- `@rules_dx//deploy:linux_amd64`
+- `@rules_dx//deploy:linux_arm64`
 - `@rules_dx//msix:windows_arm64`
 - `@rules_dx//msix:windows_x86_32`
 - `@rules_dx//msix:windows_x86_64`
@@ -819,6 +797,45 @@ Use a toolchain type when you register your own toolchain.
 - `@rules_dx//msix:toolchain_type`
 - `@rules_dx//php:exec_toolchain_type`
 - `@rules_dx//php:toolchain_type`
+
+## Hub repositories
+
+| Repository | Extension |
+| --- | --- |
+| `@*` | `@rules_dx//go:extensions.bzl%go` |
+| `@ansible_collections` | `@rules_dx//ansible:extensions.bzl%ansible` |
+| `@bicep` | `@rules_dx//bicep:extensions.bzl%bicep` |
+| `@composer` | `@rules_dx//php:extensions.bzl%composer` |
+| `@cpan` | `@rules_dx//perl:extensions.bzl%cpan` |
+| `@crates` | `@rules_dx//rust:extensions.bzl%cargo` |
+| `@dub` | `@rules_dx//d:extensions.bzl%dub` |
+| `@dx_terraform_providers` | `@rules_dx//terraform:extensions.bzl%terraform` |
+| `@fpm` | `@rules_dx//fortran:extensions.bzl%fpm` |
+| `@gems` | `@rules_dx//ruby:extensions.bzl%ruby` |
+| `@hackage` | `@rules_dx//haskell:extensions.bzl%cabal` |
+| `@hex` | `@rules_dx//elixir:extensions.bzl%hex` |
+| `@julia` | `@rules_dx//julia:extensions.bzl%julia` |
+| `@maven` | `@rules_dx//java:extensions.bzl%maven` |
+| `@npm` | `@rules_dx//javascript:extensions.bzl%npm` |
+| `@nuget` | `@rules_dx//csharp:extensions.bzl%nuget` |
+| `@opam` | `@rules_dx//ocaml:extensions.bzl%opam` |
+| `@pnpm` | `@rules_dx//javascript:extensions.bzl%pnpm` |
+| `@psgallery` | `@rules_dx//powershell:extensions.bzl%powershell` |
+| `@pub_deps` | `@rules_dx//dart:extensions.bzl%pub` |
+| `@pypi` | `@rules_dx//python:extensions.bzl%uv` |
+| `@rocks` | `@rules_dx//lua:extensions.bzl%luarocks` |
+| `@swiftpkg` | `@rules_dx//swift:extensions.bzl%swiftpm` |
+| `@zig` | `@rules_dx//zig:extensions.bzl%zig` |
+
+## Targets
+
+| Target | Kind |
+| --- | --- |
+| `@rules_dx//:dx` | `alias` |
+| `@rules_dx//:lang_json` | `filegroup` |
+| `@rules_dx//:module_srcs` | `filegroup` |
+| `@rules_dx//:package_json` | `js_library` |
+| `@rules_dx//deploy:bootstrap_offline` | `rust_binary` |
 
 ## File formats
 

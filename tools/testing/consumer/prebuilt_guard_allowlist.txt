@@ -1,6 +1,8 @@
-# What //tools/testing/consumer:go_prebuilt_guard_test lets a consumer compile.
-# `label <canonical label>  # reason`: a rules_dx binary the consumer may build.
+# What the //tools/testing/consumer:<lang>_prebuilt_guard_test targets let a consumer compile.
+# `label <canonical label> [<lang>...]  # reason`: a rules_dx binary the consumer may build;
+# with languages, only a consumer of one of those languages.
 # `untagged <tool>  # reason`: a registry tool no hub takes a dx_prebuilt.asset tag for.
+label @@rules_dx+//lua/private/runtime:launcher lua  # C++; links liblua, which a Lua consumer already builds from the BCR lua module
 untagged avro_union  # jar; the hub serves it only from pins.bzl
 untagged javac_check  # jar; the hub serves it only from pins.bzl
 untagged javadoc_extract  # jar; the hub serves it only from pins.bzl

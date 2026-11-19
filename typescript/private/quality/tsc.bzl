@@ -168,17 +168,17 @@ tsc_aspect = aspect(
     attr_aspects = ["upstream"],
     attrs = {
         "_astro_tsc": attr.label(
-            default = "//javascript/private/quality/bin:astro_tsc",
+            default = "//javascript/private/quality/bin:astro_tsc_tool",
             executable = True,
             cfg = "exec",
         ),
         "_mdx_tsc": attr.label(
-            default = "//javascript/private/quality/bin:mdx_tsc",
+            default = "//javascript/private/quality/bin:mdx_tsc_tool",
             executable = True,
             cfg = "exec",
         ),
         "_svelte_tsc": attr.label(
-            default = "//javascript/private/quality/bin:svelte_tsc",
+            default = "//javascript/private/quality/bin:svelte_tsc_tool",
             executable = True,
             cfg = "exec",
         ),
@@ -187,12 +187,12 @@ tsc_aspect = aspect(
             allow_single_file = True,
         ),
         "_tsc": attr.label(
-            default = "@npm_typescript//:tsc",
+            default = "//typescript/private:tsc",
             executable = True,
             cfg = "exec",
         ),
         "_vue_tsc": attr.label(
-            default = "//javascript/private/quality/bin:vue_tsc",
+            default = "//javascript/private/quality/bin:vue_tsc_tool",
             executable = True,
             cfg = "exec",
         ),

@@ -2,6 +2,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//javascript/private/quality:defs.bzl", "js_tool")
+load("//javascript/private:windows_tool.bzl", "js_build_tool")
 load("@dx_npm_tools//javascript/private/quality:@bufbuild/protoc-gen-es/package_json.bzl", protoc_gen_es_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@microsoft/api-extractor/package_json.bzl", api_extractor_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@redocly/cli/package_json.bzl", redocly_bin = "bin")
@@ -70,6 +71,12 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+js_build_tool(
+    name = "mdx_tsc_tool",
+    tool = ":mdx_tsc",
+    visibility = ["//visibility:public"],
+)
+
 js_binary(
     name = "vue_tsc",
     data = [
@@ -77,6 +84,12 @@ js_binary(
         "//javascript/private/quality:node_modules/vue-tsc",
     ],
     entry_point = "vue_tsc.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "vue_tsc_tool",
+    tool = ":vue_tsc",
     visibility = ["//visibility:public"],
 )
 
@@ -90,6 +103,12 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
+js_build_tool(
+    name = "astro_tsc_tool",
+    tool = ":astro_tsc",
+    visibility = ["//visibility:public"],
+)
+
 js_binary(
     name = "svelte_tsc",
     data = [
@@ -98,6 +117,12 @@ js_binary(
         "//javascript/private/quality:node_modules/typescript",
     ],
     entry_point = "svelte_tsc.mjs",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "svelte_tsc_tool",
+    tool = ":svelte_tsc",
     visibility = ["//visibility:public"],
 )
 

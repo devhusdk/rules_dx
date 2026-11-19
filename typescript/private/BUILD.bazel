@@ -1,6 +1,7 @@
 # gazelle:ignore
 
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//javascript/private:windows_tool.bzl", "js_build_tool")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -12,6 +13,18 @@ exports_files([
     "defs.bzl",
     "kwargs.bzl",
 ])
+
+js_build_tool(
+    name = "tsc",
+    tool = "@npm_typescript//:tsc",
+    visibility = ["//visibility:public"],
+)
+
+js_build_tool(
+    name = "validator",
+    tool = "@npm_typescript//:validator",
+    visibility = ["//visibility:public"],
+)
 
 real_source_target(
     name = "corpus_starlark",

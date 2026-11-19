@@ -28,7 +28,7 @@ tsc_gate = rule(
     attrs = {
         "project": attr.label(aspects = [tsc_aspect], mandatory = True, doc = "The ts_project target to typecheck."),
         "_gate": attr.label(
-            default = "//typescript/private/quality:tsc_gate",
+            default = "//typescript/private/quality:tsc_gate_tool",
             executable = True,
             cfg = "exec",
         ),

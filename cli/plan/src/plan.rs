@@ -91,6 +91,9 @@ pub fn rules_dx_repo_of(module_text: &str) -> String {
     dx_module_bazel::rules_dx_repo_of(module_text)
 }
 
+/// The `rules_dx` targets dx commands run, each after the repository.
+pub const COMMAND_TARGETS: &[&str] = &[generate::GENERATE_TARGET, generate::GENERATE_CHECK_TARGET];
+
 /// Returns a label in the `rules_dx` repository.
 #[must_use]
 pub fn rules_dx_label(rest: &str) -> String {

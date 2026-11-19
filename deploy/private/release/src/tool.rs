@@ -1,7 +1,6 @@
 //! `release_tool <kind> <args...>`: dispatch for the release generators.
 
 use std::fmt;
-use std::io;
 use std::path::{Path, PathBuf};
 
 use dx_atomic_fs::path_io::{self, PathIoError};
@@ -283,7 +282,7 @@ fn kind_name(invocation: &Invocation) -> &'static str {
 /// A release generator that could not read its inputs or write its output.
 #[derive(Debug)]
 enum ToolError {
-    Io(io::Error),
+    Bcr(crate::BcrError),
     TextList(PathIoError),
     Inventory(InventoryError),
     Sbom(crate::SbomError),
@@ -293,7 +292,7 @@ enum ToolError {
 impl fmt::Display for ToolError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Io(source) => write!(f, "{source}"),
+            Self::Bcr(source) => write!(f, "{source}"),
             Self::TextList(source) => write!(f, "{source}"),
             Self::Inventory(source) => write!(f, "{source}"),
             Self::Sbom(source) => write!(f, "{source}"),
@@ -305,7 +304,7 @@ impl fmt::Display for ToolError {
 impl std::error::Error for ToolError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Io(source) => Some(source),
+            Self::Bcr(source) => Some(source),
             Self::TextList(source) => Some(source),
             Self::Inventory(source) => Some(source),
             Self::Sbom(source) => Some(source),
@@ -314,9 +313,9 @@ impl std::error::Error for ToolError {
     }
 }
 
-impl From<io::Error> for ToolError {
-    fn from(source: io::Error) -> Self {
-        Self::Io(source)
+impl From<crate::BcrError> for ToolError {
+    fn from(source: crate::BcrError) -> Self {
+        Self::Bcr(source)
     }
 }
 
@@ -807,5 +806,27 @@ mod tests {
             std::fs::read_to_string(&source).expect("source"),
             crate::render_bcr_source("rules_dx", "1.2.3").expect("render")
         );
+    }
+
+    #[test]
+    fn bcr_source_write_errors_are_typed() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let blocker = dir.path().join("blocker");
+        std::fs::write(&blocker, b"").expect("blocker");
+        let dst = blocker.join("out.json");
+        let error = execute(&Invocation::BcrSource {
+            dst,
+            module: "rules_dx".to_owned(),
+            version: "1.2.3".to_owned(),
+        })
+        .expect_err("parent is a file");
+        assert!(
+            matches!(
+                error,
+                ToolError::Bcr(crate::BcrError::Io(PathIoError::Write { .. }))
+            ),
+            "got {error:?}"
+        );
+        assert!(error.to_string().starts_with("cannot write "), "{error}");
     }
 }

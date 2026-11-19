@@ -53,7 +53,7 @@ use spdx::SpdxDocument;
 use candidate::{CandidateError, GitError};
 use cell::CellError;
 
-/// A failed BCR source metadata check.
+/// A failed BCR source metadata check or submission gate.
 #[derive(Debug)]
 pub enum BcrError {
     /// The archive digest is not 64 lowercase hex chars.
@@ -81,6 +81,12 @@ pub enum BcrError {
     UrlMismatch { want: String, have: String },
     /// The `source.json` document could not be rendered.
     Render(FingerprintError),
+    /// A real submission carries the 0.0.0 shape-check placeholder.
+    UnpublishableSubmission,
+    /// A real submission lacks `BCR_APPROVE=1`.
+    NotApproved,
+    /// The `source.json` document could not be written.
+    Io(PathIoError),
 }
 
 impl fmt::Display for BcrError {
@@ -117,6 +123,13 @@ impl fmt::Display for BcrError {
                 "bcr: candidate source.json url mismatch: want {want:?}, got {have:?}"
             ),
             Self::Render(source) => write!(f, "cannot render JSON: {source}"),
+            Self::UnpublishableSubmission => f.write_str(
+                "bcr: version 0.0.0 is unpublishable (shape check only); a real submission needs an owner-approved SemVer release version",
+            ),
+            Self::NotApproved => f.write_str(
+                "bcr: submission needs explicit owner approval (BCR_APPROVE=1); run with BCR_DRY_RUN=1 to print the would-submit PR",
+            ),
+            Self::Io(source) => write!(f, "{source}"),
         }
     }
 }
@@ -127,7 +140,10 @@ impl std::error::Error for BcrError {
             Self::InvalidDigest { source, .. } => Some(source),
             Self::SourceNotJson(source) => Some(source),
             Self::Render(source) => Some(source),
+            Self::Io(source) => Some(source),
             Self::UnpublishableVersion
+            | Self::UnpublishableSubmission
+            | Self::NotApproved
             | Self::InvalidVersion { .. }
             | Self::InvalidModule { .. }
             | Self::IntegrityMismatch { .. }
@@ -399,15 +415,6 @@ fn sha256_of(path: &Path) -> Result<String, SbomError> {
     })
 }
 
-/// Renders a value as pretty ASCII JSON with a trailing newline.
-///
-/// # Errors
-///
-/// Returns an error when the value cannot be serialized as JSON.
-pub(crate) fn render_pretty<T: serde::Serialize + ?Sized>(value: &T) -> Result<String, String> {
-    pretty_json(value).map_err(|error| format!("cannot render JSON: {error}"))
-}
-
 /// Renders a value as pretty ASCII JSON with a trailing newline, keeping the typed error.
 ///
 /// # Errors
@@ -601,12 +608,13 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> Result<Stri
 /// # Errors
 ///
 /// Returns an error when the document cannot be rendered as JSON.
-pub fn render_bcr_source(module: &str, version: &str) -> Result<String, String> {
-    render_pretty(&serde_json::json!({
+pub fn render_bcr_source(module: &str, version: &str) -> Result<String, BcrError> {
+    pretty_json(&serde_json::json!({
         "integrity": "<integrity-filled-at-release>",
         "strip_prefix": bcr_strip_prefix(module, version),
         "url": bcr_source_url(module, version),
     }))
+    .map_err(BcrError::Render)
 }
 
 fn crate_spdx_id(name: &str, version: &str) -> String {
@@ -752,10 +760,9 @@ pub fn write_provenance(src: &Path, dst: &Path, builder: &str) -> Result<(), Sbo
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn write_bcr_source(dst: &Path, module: &str, version: &str) -> io::Result<()> {
-    let text = render_bcr_source(module, version).map_err(io::Error::other)?;
-    std::fs::write(dst, text.as_bytes())?;
-    Ok(())
+pub fn write_bcr_source(dst: &Path, module: &str, version: &str) -> Result<(), BcrError> {
+    let text = render_bcr_source(module, version)?;
+    path_io::write_scratch(dst, text.as_bytes()).map_err(BcrError::Io)
 }
 
 /// # Errors
@@ -1004,24 +1011,20 @@ pub fn bcr_run(
     inputs: &[String],
     dry_run: bool,
     approved: bool,
-) -> Result<String, String> {
+) -> Result<String, BcrError> {
     if module != BCR_WANT_MODULE {
-        return Err(format!("bcr: invalid module '{module}': want 'rules_dx'"));
+        return Err(BcrError::InvalidModule {
+            module: module.to_owned(),
+        });
     }
     if dry_run {
         return Ok(render_bcr_dry_run(module, version, inputs));
     }
     if version == "0.0.0" {
-        return Err(
-            "bcr: version 0.0.0 is unpublishable (shape check only); a real submission needs an owner-approved SemVer release version"
-                .to_owned(),
-        );
+        return Err(BcrError::UnpublishableSubmission);
     }
     if !approved {
-        return Err(
-            "bcr: submission needs explicit owner approval (BCR_APPROVE=1); run with BCR_DRY_RUN=1 to print the would-submit PR"
-                .to_owned(),
-        );
+        return Err(BcrError::NotApproved);
     }
     let detail = format!(
         "owner-approved; open the BCR PR manually with the inputs [{}] (this program never pushes itself)",

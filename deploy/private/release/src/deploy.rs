@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use crate::{CosignPin, bcr_run, signing_run};
+use crate::{BcrError, CosignPin, bcr_run, signing_run};
 
 /// Config for one `bcr_check` deploy.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -52,8 +52,7 @@ pub enum DeployError {
         rloc: String,
         source: io::Error,
     },
-    // #13874 retypes this
-    Bcr(String),
+    Bcr(BcrError),
     Signing(crate::SigningError),
 }
 
@@ -69,7 +68,7 @@ impl fmt::Display for DeployError {
             Self::Runfile { prefix, rloc, .. } => {
                 write!(f, "{prefix}: runfile not found for '{rloc}'")
             }
-            Self::Bcr(message) => f.write_str(message),
+            Self::Bcr(source) => source.fmt(f),
             Self::Signing(source) => source.fmt(f),
         }
     }
@@ -79,8 +78,9 @@ impl std::error::Error for DeployError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Runfile { source, .. } => Some(source),
+            Self::Bcr(source) => Some(source),
             Self::Signing(source) => Some(source),
-            Self::BcrArgs | Self::SigningArgs | Self::Bcr(_) => None,
+            Self::BcrArgs | Self::SigningArgs => None,
         }
     }
 }
@@ -350,8 +350,13 @@ mod tests {
     fn bcr_gates() {
         let error = bcr_deploy(&bcr_cfg("1.0.0"), &argv(1), false, false, &ok).unwrap_err();
         assert!(error.to_string().contains("BCR_APPROVE"), "{error}");
-        assert!(matches!(error, DeployError::Bcr(_)));
-        assert!(bcr_deploy(&bcr_cfg("0.0.0"), &argv(1), false, true, &ok).is_err());
+        assert!(matches!(error, DeployError::Bcr(BcrError::NotApproved)));
+        assert!(std::error::Error::source(&error).is_some());
+        let error = bcr_deploy(&bcr_cfg("0.0.0"), &argv(1), false, true, &ok).unwrap_err();
+        assert!(matches!(
+            error,
+            DeployError::Bcr(BcrError::UnpublishableSubmission)
+        ));
     }
 
     #[test]

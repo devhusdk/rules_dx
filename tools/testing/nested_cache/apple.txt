@@ -575,7 +575,7 @@ https://static.crates.io/crates/itertools/0.13.0/download 413ee7dfc52ee1a4949cee
 https://static.crates.io/crates/itoa/1.0.18/download 8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682
 https://static.crates.io/crates/jobserver/0.1.35/download 1c00acbd29eabad4a2392fa0e921c874934dbbf4194312ad20f04a0ed67a3cb3
 https://static.crates.io/crates/libc/0.2.189/download 3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2
-https://static.crates.io/crates/libz-sys/1.1.31/download ff20308ecabd635a2dc1dd5834a86c462cca20efba1d5d3ddab1f8aea3455cb2
+https://static.crates.io/crates/libz-sys/1.1.33/download fee3f59f4321dab0c78d828942e7aa09d0bd8ad6e78a501977e6bf3d02938045
 https://static.crates.io/crates/litemap/0.7.4/download 4ee93343901ab17bd981295f2cf0026d4ad018c7c31ba84549a4ddbb47a45104
 https://static.crates.io/crates/litemap/0.8.3/download 47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae
 https://static.crates.io/crates/memchr/2.8.3/download cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98

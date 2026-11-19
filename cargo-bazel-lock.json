@@ -1,5 +1,5 @@
 {
-  "checksum": "9342842df2fc721e7212b19ae5479f31b3691e9665c567731f447eb308234b22",
+  "checksum": "1baf8ab9f014f351a171bfd05d9d6b31ce40929c51ae7814726e420c92956753",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -11151,7 +11151,7 @@
             "target": "crc32fast"
           },
           {
-            "id": "libz-sys 1.1.31",
+            "id": "libz-sys 1.1.33",
             "target": "libz_sys"
           },
           {
@@ -16094,7 +16094,7 @@
       ],
       "version": "0.3.0"
     },
-    "libz-sys 1.1.31": {
+    "libz-sys 1.1.33": {
       "build_script_attrs": {
         "build_script_env": {
           "common": {
@@ -16166,8 +16166,8 @@
       "package_url": "https://github.com/rust-lang/libz-sys",
       "repository": {
         "Http": {
-          "sha256": "ff20308ecabd635a2dc1dd5834a86c462cca20efba1d5d3ddab1f8aea3455cb2",
-          "url": "https://static.crates.io/crates/libz-sys/1.1.31/download"
+          "sha256": "fee3f59f4321dab0c78d828942e7aa09d0bd8ad6e78a501977e6bf3d02938045",
+          "url": "https://static.crates.io/crates/libz-sys/1.1.33/download"
         }
       },
       "targets": [
@@ -16184,7 +16184,7 @@
           }
         }
       ],
-      "version": "1.1.31"
+      "version": "1.1.33"
     },
     "line-index 0.1.2": {
       "common_attrs": {

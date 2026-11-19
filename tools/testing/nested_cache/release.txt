@@ -1171,7 +1171,7 @@ https://static.crates.io/crates/libc/0.2.158/download d8adc4bb1803a324070e64a98a
 https://static.crates.io/crates/libc/0.2.189/download 3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2
 https://static.crates.io/crates/libm/0.2.16/download b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981
 https://static.crates.io/crates/libyaml-rs/0.3.0/download 2e126dda6f34391ab7b444f9922055facc83c07a910da3eb16f1e4d9c45dc777
-https://static.crates.io/crates/libz-sys/1.1.31/download ff20308ecabd635a2dc1dd5834a86c462cca20efba1d5d3ddab1f8aea3455cb2
+https://static.crates.io/crates/libz-sys/1.1.33/download fee3f59f4321dab0c78d828942e7aa09d0bd8ad6e78a501977e6bf3d02938045
 https://static.crates.io/crates/line-index/0.1.2/download 3e27e0ed5a392a7f5ba0b3808a2afccff16c64933312c84b57618b49d1209bd2
 https://static.crates.io/crates/link-cplusplus/1.0.12/download 7f78c730aaa7d0b9336a299029ea49f9ee53b0ed06e9202e8cb7db9bae7b8c82
 https://static.crates.io/crates/link-section/0.19.3/download 39c29a617ce3df32c08497bdc1ab6e2376e0b17948ac166a2fbe5977c5954cd9

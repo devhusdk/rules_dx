@@ -867,6 +867,7 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//flatbuffers:reflection_fbs_schema` | `alias` |
 | `@rules_dx//flatbuffers:runtime_java` | `alias` |
 | `@rules_dx//flatbuffers:runtime_rust` | `alias` |
+| `@rules_dx//flutter:profile` | `alias` |
 | `@rules_dx//fortran:kcov_build` | `config_setting` |
 | `@rules_dx//haskell:base` | `alias` |
 | `@rules_dx//ocaml:bisect_ppx_rewriter` | `alias` |

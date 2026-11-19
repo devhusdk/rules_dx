@@ -8,7 +8,8 @@
 //! A jar tool gets `os = "any"` and `cpu = "any"`, and its hub target is a root only when a
 //! language is a JVM language. cquery follows exec and target configurations alike. Any compiled binary that a
 //! rules_dx repository declares fails the test unless `prebuilt_guard_allowlist.txt` names it;
-//! the `java_binary` the `dx_prebuilt` hub wraps around a downloaded jar compiles nothing.
+//! the `java_binary` the `dx_prebuilt` hub wraps around a downloaded jar compiles nothing, and
+//! so does a rules_dx `java_binary` when neither it nor a rules_dx JVM rule under it has `srcs`.
 //!
 //! `cquery --aspects` and `aquery --aspects` leave out the tool targets of command-line aspects,
 //! while cquery follows aspects a rule attribute carries. So the test also writes the
@@ -22,8 +23,8 @@ use std::collections::BTreeMap;
 
 use dx_nested::Case;
 use prebuilt_guard::{
-    allowlist, command_roots, compiled_binaries, guard_aspects, problems, stub_url, wrapper_build,
-    wrapper_bzl,
+    allowlist, command_roots, compiled_binaries, compiles_rules_dx_sources, guard_aspects,
+    java_binary_only, jvm_sources_query, problems, stub_url, wrapper_build, wrapper_bzl,
 };
 
 /// The consumer languages whose fixture roots the jar tools.
@@ -207,7 +208,28 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
             "bazel cquery left out {label}"
         );
     }
-    let found = compiled_binaries(&run.stdout);
+    let mut found = compiled_binaries(&run.stdout);
+    found.retain(|label, lines| {
+        if !java_binary_only(lines) {
+            return true;
+        }
+        let sources = case.bazel(&[
+            "cquery",
+            "--color=no",
+            "--curses=no",
+            "--consistent_labels",
+            "--nocheck_visibility",
+            "--nocheck_bzl_visibility",
+            "--output=label",
+            &jvm_sources_query(label),
+        ]);
+        assert!(
+            sources.status.success(),
+            "bazel cquery: {}",
+            sources.combined()
+        );
+        compiles_rules_dx_sources(&sources.stdout)
+    });
     let problems = problems(&found, &list.labels_for(&langs));
     assert!(
         problems.is_empty(),

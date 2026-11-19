@@ -1,4 +1,6 @@
 const DECLARED: &[&str] = &[
+    "android/private/packaging/ops/BUILD.bazel",
+    "android/private/packaging/ops/src/lib.rs",
     "config/BUILD.bazel",
     "deploy/private/archive.bzl",
     "erlang/private/defs.bzl",

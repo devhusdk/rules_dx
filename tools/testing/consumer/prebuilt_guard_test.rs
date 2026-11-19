@@ -121,7 +121,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
     let mut tags = String::new();
     let mut roots = vec!["//...".to_owned()];
-    roots.extend(command_roots("@rules_dx"));
+    roots.extend(command_roots("@rules_dx", &langs));
     for (tool, platform) in &tools {
         if list.untagged.contains(tool) {
             continue;

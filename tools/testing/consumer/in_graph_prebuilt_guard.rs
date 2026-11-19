@@ -5,8 +5,8 @@
 //! `docs` targets depend on every non-manual consumer rule of `@dx_api_fixtures//<lang>/tests/consumer`
 //! through a `deps` attribute that carries the aspects `dx check` and `dx docs` pick for the
 //! fixture's files. It injects `<out>/roots` as `@dx_guard_roots` and runs `bazel cquery
-//! 'deps(...)'` over both targets with the flag set, so the hubs serve a stub for every tool they
-//! would build from source. Labels are mapped to the form a consumer of rules_dx sees, and the
+//! 'deps(...)'` with the flag set over both targets and the targets dx commands run for the
+//! language, so the hubs serve a stub for every tool they would build from source. Labels are mapped to the form a consumer of rules_dx sees, and the
 //! compiled binaries are checked against `prebuilt_guard_allowlist.txt` by the rules of the nested
 //! prebuilt guards.
 #![expect(
@@ -19,8 +19,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use prebuilt_guard::{
-    allowlist, compiled_binaries, consumer_line, guard_aspects, stale, unlisted, wrapper_build,
-    wrapper_bzl,
+    allowlist, command_roots, compiled_binaries, consumer_line, guard_aspects, stale, unlisted,
+    wrapper_build, wrapper_bzl,
 };
 
 const ROOTS_REPO: &str = "dx_guard_roots";
@@ -130,7 +130,12 @@ fn check(bazel_bin: &str, workspace: &Path, out: &Path) -> Result<(), String> {
     let mut found_all = BTreeMap::new();
     let mut problems = Vec::new();
     for lang in &langs {
-        let query = format!("deps(@{ROOTS_REPO}//{lang}:check + @{ROOTS_REPO}//{lang}:docs)");
+        let mut roots = vec![
+            format!("@{ROOTS_REPO}//{lang}:check"),
+            format!("@{ROOTS_REPO}//{lang}:docs"),
+        ];
+        roots.extend(command_roots("@rules_dx", &[lang]));
+        let query = format!("deps({})", roots.join(" + "));
         let run = bazel(
             bazel_bin,
             workspace,
@@ -160,7 +165,7 @@ fn check(bazel_bin: &str, workspace: &Path, out: &Path) -> Result<(), String> {
         }
         let mapped: String = run
             .lines()
-            .map(|line| consumer_line(line, &fixtures) + "\n")
+            .map(|line| format!("{}\n", consumer_line(line, &fixtures)))
             .collect();
         let found = compiled_binaries(&mapped);
         problems.extend(

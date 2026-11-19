@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": [
+    "perl/private/tools:carton"
+  ],
   "tools": [
     "perlcritic",
     "perltidy"

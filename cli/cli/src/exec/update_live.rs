@@ -149,7 +149,7 @@ impl ScriptRunner {
             .find_map(|arg| arg.strip_prefix('@')?.strip_suffix("//:pin"))
         {
             format!("consumer-maven:{repository}")
-        } else if argv.contains(&"@rules_dx//go/private/tools:go".to_owned()) {
+        } else if dx_families::command_label("go", "go").is_some_and(|go| argv.contains(&go)) {
             "go".to_owned()
         } else if argv.contains(&"uv".to_owned())
             && argv

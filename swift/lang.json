@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": [
+    "swift/private/tools:swift"
+  ],
   "tools": [
     "swift_format",
     "swift_lint"

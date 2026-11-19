@@ -208,10 +208,18 @@ pub fn wrapper_bzl(rules_dx: &str, check: &[&str], docs: &[&str]) -> String {
     format!("{loads}\n{rules}")
 }
 
-/// The `repo` targets dx commands run, as cquery roots.
-pub fn command_roots(repo: &str) -> Vec<String> {
-    dx_plan::plan::COMMAND_TARGETS
+/// The `repo` targets dx commands run for a consumer of `langs`, as cquery roots: the
+/// language-independent ones and the `lang.json` `commands` of each language.
+pub fn command_roots(repo: &str, langs: &[&str]) -> Vec<String> {
+    dx_families::COMMAND_TARGETS
         .iter()
+        .copied()
+        .chain(
+            langs
+                .iter()
+                .flat_map(|lang| dx_families::language_commands(lang))
+                .map(String::as_str),
+        )
         .map(|target| format!("{repo}//{target}"))
         .collect()
 }
@@ -259,11 +267,19 @@ mod tests {
     }
 
     #[test]
-    fn command_roots_name_the_generate_targets() {
-        assert_eq!(
-            command_roots("@rules_dx"),
-            ["@rules_dx//dx:generate", "@rules_dx//dx:generate_check"]
-        );
+    fn command_roots_name_the_shared_and_language_targets() {
+        let shared = [
+            "@rules_dx//dx:generate",
+            "@rules_dx//dx:generate_check",
+            "@rules_dx//deploy/private/release:cosign",
+            "@rules_dx//core/quality/artifacts:gitleaks",
+            "@rules_dx//core/quality/artifacts:trivy",
+            "@rules_dx//:dx",
+        ];
+        assert_eq!(command_roots("@rules_dx", &["lua"]), shared);
+        let mut go: Vec<&str> = shared.to_vec();
+        go.push("@rules_dx//go/private/tools:go");
+        assert_eq!(command_roots("@rules_dx", &["go", "lua"]), go);
     }
 
     #[test]

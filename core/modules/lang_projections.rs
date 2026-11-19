@@ -62,7 +62,9 @@ fn str_at<'a>(value: &'a Value, what: &str) -> Result<&'a str, String> {
 }
 
 fn pretty(value: &Value) -> Result<String, String> {
-    Ok(serde_json::to_string_pretty(value).map_err(|e| e.to_string())? + "\n")
+    let mut text = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
+    text.push('\n');
+    Ok(text)
 }
 
 fn langs_bzl(manifests: &BTreeMap<String, Value>) -> Result<String, String> {
@@ -178,7 +180,7 @@ fn families_languages_json(manifests: &BTreeMap<String, Value>) -> Result<String
     for manifest in manifests.values() {
         let mut row = Map::new();
         row.insert("name".to_owned(), manifest["name"].clone());
-        for key in ["quality", "docs", "setup"] {
+        for key in ["quality", "docs", "setup", "commands"] {
             if !manifest[key].is_null() {
                 row.insert(key.to_owned(), manifest[key].clone());
             }

@@ -1,6 +1,6 @@
 use super::{
     BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Run, Selection, UvClosure, bazel,
-    dependency_sets, julia_env, set_dir,
+    command_label, dependency_sets, julia_env, set_dir,
 };
 
 pub(super) fn plan(
@@ -30,11 +30,8 @@ pub(super) fn plan(
         });
     };
     let dir = set_dir(workspace, set)?;
-    let mut update = vec![
-        "@rules_dx//julia/private/tools:pkg_update",
-        "--",
-        dir.as_str(),
-    ];
+    let pkg_update = command_label("julia", "pkg_update")?;
+    let mut update = vec![pkg_update.as_str(), "--", dir.as_str()];
     if let Selection::Packages(packages) = request {
         update.extend(packages.iter().map(String::as_str));
     }

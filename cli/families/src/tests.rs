@@ -153,3 +153,95 @@ fn quality_languages_by_name() -> usize {
         .filter(|manifest| manifest.quality.is_some())
         .count()
 }
+
+#[test]
+fn command_labels_come_from_the_language_commands() {
+    assert_eq!(
+        command_label("go", "go").as_deref(),
+        Some("@rules_dx//go/private/tools:go")
+    );
+    assert_eq!(command_label("go", "gofmt"), None);
+    assert_eq!(command_label("no_such_language", "go"), None);
+    assert!(language_commands("no_such_language").is_empty());
+    assert_eq!(COSIGN_LABEL, "@rules_dx//deploy/private/release:cosign");
+    assert_eq!(DX_LABEL, "@rules_dx//:dx");
+    assert!(COMMAND_TARGETS.contains(&GENERATE));
+}
+
+/// The text of a shipped source file, before its inline `#[cfg(test)] mod ... {`.
+fn shipped_text(text: &str) -> &str {
+    text.split_once("\n#[cfg(test)]\n")
+        .filter(|(_, rest)| {
+            rest.lines()
+                .next()
+                .is_some_and(|line| line.starts_with("mod ") && line.ends_with('{'))
+        })
+        .map_or(text, |(shipped, _)| shipped)
+}
+
+fn rust_files(dir: &std::path::Path, found: &mut Vec<std::path::PathBuf>) {
+    for entry in std::fs::read_dir(dir).expect("read_dir").flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            if path.file_name().is_some_and(|name| name != "tests") {
+                rust_files(&path, found);
+            }
+        } else if path.extension().is_some_and(|ext| ext == "rs") {
+            found.push(path);
+        }
+    }
+}
+
+#[test]
+fn no_shipped_source_spells_a_command_label_inline() {
+    let mut labels: Vec<String> = COMMAND_TARGETS
+        .iter()
+        .map(|target| format!("\"@rules_dx//{target}\""))
+        .collect();
+    for manifest in shipped() {
+        labels.extend(
+            manifest
+                .commands
+                .iter()
+                .map(|target| format!("\"@rules_dx//{target}\"")),
+        );
+    }
+    assert!(
+        labels
+            .iter()
+            .any(|label| label.contains("go/private/tools:go"))
+    );
+    let checkout = dx_testing::rules_dx_source().expect("rules_dx checkout");
+    let mut files = Vec::new();
+    for crate_dir in [
+        "cli/update/src",
+        "cli/cli/src",
+        "cli/audit/src",
+        "cli/exec_audit/src",
+    ] {
+        rust_files(&checkout.join(crate_dir), &mut files);
+    }
+    assert!(!files.is_empty(), "no source under {}", checkout.display());
+    let mut inline = Vec::new();
+    for file in files {
+        let name = file
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned());
+        if name.is_some_and(|name| {
+            name == "tests.rs" || name.ends_with("_tests.rs") || name.ends_with("_test.rs")
+        }) {
+            continue;
+        }
+        let text = std::fs::read_to_string(&file).expect("read source");
+        for label in &labels {
+            if shipped_text(&text).contains(label.as_str()) {
+                inline.push(format!("{}: {label}", file.display()));
+            }
+        }
+    }
+    assert_eq!(
+        inline,
+        Vec::<String>::new(),
+        "read these labels from dx_families"
+    );
+}

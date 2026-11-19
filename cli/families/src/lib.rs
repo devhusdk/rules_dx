@@ -149,6 +149,70 @@ struct Manifest {
     quality: Option<QualityFiles>,
     docs: Option<DocsFiles>,
     setup: Option<Setup>,
+    #[serde(default)]
+    commands: Vec<String>,
+}
+
+/// Declares each language-independent `rules_dx` target a dx command runs twice: as `NAME`, the
+/// target after the repository, and as `NAME_LABEL`, the `@rules_dx` label. `COMMAND_TARGETS`
+/// lists them all.
+macro_rules! command_targets {
+    ($($(#[$doc:meta])* $name:ident, $label:ident = $target:literal;)*) => {
+        $(
+            $(#[$doc])*
+            pub const $name: &str = $target;
+            $(#[$doc])*
+            pub const $label: &str = concat!("@rules_dx//", $target);
+        )*
+        /// The language-independent `rules_dx` targets dx commands run, each after the repository.
+        pub const COMMAND_TARGETS: &[&str] = &[$($name),*];
+    };
+}
+
+command_targets! {
+    /// The target `dx generate` runs.
+    GENERATE, GENERATE_LABEL = "dx:generate";
+    /// The target `dx generate --check` runs.
+    GENERATE_CHECK, GENERATE_CHECK_LABEL = "dx:generate_check";
+    /// The cosign `dx security verify` runs.
+    COSIGN, COSIGN_LABEL = "deploy/private/release:cosign";
+    /// The gitleaks `dx audit` runs.
+    GITLEAKS, GITLEAKS_LABEL = "core/quality/artifacts:gitleaks";
+    /// The trivy `dx security` runs.
+    TRIVY, TRIVY_LABEL = "core/quality/artifacts:trivy";
+    /// The dx `dx upgrade` runs.
+    DX, DX_LABEL = ":dx";
+}
+
+/// The `commands` of the `lang.json` of `language`: the `rules_dx` targets dx commands run for
+/// it, each after the repository.
+#[must_use]
+pub fn language_commands(language: &str) -> &'static [String] {
+    static ALL: OnceLock<Vec<(String, Vec<String>)>> = OnceLock::new();
+    ALL.get_or_init(|| {
+        shipped()
+            .into_iter()
+            .filter(|manifest| !manifest.commands.is_empty())
+            .map(|manifest| (manifest.name, manifest.commands))
+            .collect()
+    })
+    .iter()
+    .find(|(name, _)| name == language)
+    .map_or(&[], |(_, commands)| commands.as_slice())
+}
+
+/// The `@rules_dx` label of the `commands` target of `language` named `name`, if its `lang.json`
+/// lists one.
+#[must_use]
+pub fn command_label(language: &str, name: &str) -> Option<String> {
+    language_commands(language)
+        .iter()
+        .find(|target| {
+            target
+                .rsplit_once(':')
+                .is_some_and(|(_, last)| last == name)
+        })
+        .map(|target| format!("@rules_dx//{target}"))
 }
 
 /// The `setup.hubs` entries of every `lang.json`, sorted by ecosystem.

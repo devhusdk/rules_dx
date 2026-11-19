@@ -516,6 +516,9 @@
       }
     },
     {
+      "commands": [
+        "dart/private/tools:dart"
+      ],
       "docs": {
         "aspects": [
           "real_dart_docs_aspect"
@@ -668,6 +671,9 @@
       }
     },
     {
+      "commands": [
+        "elixir/private/tools:mix"
+      ],
       "docs": {
         "aspects": [
           "real_beam_docs_aspect"
@@ -714,6 +720,9 @@
       }
     },
     {
+      "commands": [
+        "erlang/private/tools:rebar3"
+      ],
       "docs": {
         "aspects": [
           "real_beam_docs_aspect"
@@ -856,6 +865,9 @@
       }
     },
     {
+      "commands": [
+        "go/private/tools:go"
+      ],
       "docs": {
         "aspects": [
           "real_go_docs_aspect"
@@ -1177,6 +1189,9 @@
       }
     },
     {
+      "commands": [
+        "julia/private/tools:pkg_update"
+      ],
       "docs": {
         "aspects": [
           "real_julia_docs_aspect"
@@ -1453,6 +1468,9 @@
       }
     },
     {
+      "commands": [
+        "ocaml/private/tools:opam"
+      ],
       "docs": {
         "aspects": [
           "real_ocaml_docs_aspect"
@@ -1526,6 +1544,9 @@
       }
     },
     {
+      "commands": [
+        "perl/private/tools:carton"
+      ],
       "docs": {
         "aspects": [
           "real_perl_docs_aspect"
@@ -1580,6 +1601,9 @@
       }
     },
     {
+      "commands": [
+        "php/private/tools:composer"
+      ],
       "docs": {
         "aspects": [
           "real_php_docs_aspect"
@@ -2049,6 +2073,9 @@
       }
     },
     {
+      "commands": [
+        "swift/private/tools:swift"
+      ],
       "docs": {
         "aspects": [
           "real_swift_docs_aspect"

@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": [
+    "elixir/private/tools:mix"
+  ],
   "tools": [
     "credo",
     "dialyzer",

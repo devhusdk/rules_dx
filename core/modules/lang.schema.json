@@ -52,6 +52,7 @@
         }
       }
     },
+    "commands": {"$ref": "#/$defs/strings"},
     "tools": {"$ref": "#/$defs/strings"},
     "platforms": {
       "type": "array",

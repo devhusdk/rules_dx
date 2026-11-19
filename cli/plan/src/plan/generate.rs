@@ -5,17 +5,12 @@ use dx_process::describe_scope;
 use super::{BuildPlan, bazel_argv, rules_dx_label, workflow_scope_labels};
 use crate::resolve::ResolvedScope;
 
-/// The `rules_dx` target `dx generate` runs, after the repository.
-pub const GENERATE_TARGET: &str = "dx:generate";
-/// The `rules_dx` target `dx generate --check` runs, after the repository.
-pub const GENERATE_CHECK_TARGET: &str = "dx:generate_check";
-
 #[must_use]
 pub fn generate_target(check: bool) -> String {
     rules_dx_label(if check {
-        GENERATE_CHECK_TARGET
+        dx_families::GENERATE_CHECK
     } else {
-        GENERATE_TARGET
+        dx_families::GENERATE
     })
 }
 

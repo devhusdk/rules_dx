@@ -1,6 +1,6 @@
 use super::{
     BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Selection, UvClosure, bazel,
-    composer_argv, composer_env,
+    command_label, composer_argv, composer_env,
 };
 
 const RESOLVER: &str = "@rules_dx//php/private/tools/lock";
@@ -52,7 +52,7 @@ pub(super) fn check(
                 workspace,
                 set,
                 head,
-                "@rules_dx//php/private/tools:composer",
+                &command_label("php", "composer")?,
                 &["validate", "--check-lock", "--no-check-publish"],
             )?,
             env: composer_env(set)?,

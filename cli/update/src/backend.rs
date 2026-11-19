@@ -172,6 +172,11 @@ impl StagedRun {
 pub enum BackendError {
     #[error("{detail}")]
     Hubs { detail: String },
+    #[error("lang_commands: the {language} lang.json lists no {name} command target")]
+    MissingCommand {
+        language: &'static str,
+        name: &'static str,
+    },
     #[error("unsupported selective update for {set}: {reason}")]
     Unsupported { set: String, reason: &'static str },
     #[error(
@@ -199,6 +204,15 @@ pub enum BackendError {
     },
 }
 
+/// The `@rules_dx` label of the `commands` target `name` of `language`.
+pub(crate) fn command_label(
+    language: &'static str,
+    name: &'static str,
+) -> Result<String, BackendError> {
+    dx_families::command_label(language, name)
+        .ok_or(BackendError::MissingCommand { language, name })
+}
+
 fn resolution_suffix(detail: &Option<String>) -> String {
     detail
         .as_ref()
@@ -219,6 +233,7 @@ impl BackendError {
             BackendError::BackendUnavailable { .. } => "backend_unavailable",
             BackendError::NoCacheDir { .. } => "no_cache_dir",
             BackendError::Hubs { .. } => "setup_hubs",
+            BackendError::MissingCommand { .. } => "lang_commands",
         }
     }
 }
@@ -226,9 +241,9 @@ impl BackendError {
 impl From<BackendError> for DxError {
     fn from(error: BackendError) -> Self {
         match error {
-            BackendError::BackendUnavailable { .. } | BackendError::NoCacheDir { .. } => {
-                DxError::infra(error.to_string())
-            }
+            BackendError::BackendUnavailable { .. }
+            | BackendError::NoCacheDir { .. }
+            | BackendError::MissingCommand { .. } => DxError::infra(error.to_string()),
             BackendError::Hubs { .. }
             | BackendError::Unsupported { .. }
             | BackendError::OfflineRequired { .. }
@@ -903,7 +918,7 @@ fn go_staged(
     inputs.push(sum.clone());
     Ok(StagedRun {
         tool: StagedTool::GoModDownload,
-        argv_head: bazel(&pin_head, "run", &["@rules_dx//go/private/tools:go", "--"]),
+        argv_head: bazel(&pin_head, "run", &[&command_label("go", "go")?, "--"]),
         env: Vec::new(),
         inputs,
         outputs: vec![sum],
@@ -948,7 +963,7 @@ fn hex_staged(
     let mut argv_head = bazel(
         &pin_head,
         "run",
-        &["@rules_dx//elixir/private/tools:mix", "--", command],
+        &[&command_label("elixir", "mix")?, "--", command],
     );
     argv_head.extend(packages.iter().cloned());
     Ok(StagedRun {
@@ -991,7 +1006,7 @@ fn rebar_staged(
     let mut argv_head = bazel(
         &pin_head,
         "run",
-        &["@rules_dx//erlang/private/tools:rebar3", "--"],
+        &[&command_label("erlang", "rebar3")?, "--"],
     );
     argv_head.extend(args.iter().cloned());
     Ok(StagedRun {
@@ -1097,7 +1112,7 @@ fn carton_argv(
     let mut argv = bazel(
         head,
         "run",
-        &[&under, "@rules_dx//perl/private/tools:carton", "--"],
+        &[&under, &command_label("perl", "carton")?, "--"],
     );
     argv.extend(strings(command));
     Ok(argv)
@@ -1176,7 +1191,7 @@ fn swift_argv(
     let mut argv = bazel(
         head,
         "run",
-        &[&under, "@rules_dx//swift/private/tools:swift", "--"],
+        &[&under, &command_label("swift", "swift")?, "--"],
     );
     argv.extend(command.iter().cloned());
     Ok(argv)
@@ -1210,7 +1225,7 @@ fn opam_argv(
     let mut argv = bazel(
         head,
         "run",
-        &[&under, "@rules_dx//ocaml/private/tools:opam", "--"],
+        &[&under, &command_label("ocaml", "opam")?, "--"],
     );
     argv.extend(strings(command));
     Ok(argv)
@@ -1249,7 +1264,7 @@ fn pub_argv(
     let mut argv = bazel(
         head,
         "run",
-        &[&under, "@rules_dx//dart/private/tools:dart", "--"],
+        &[&under, &command_label("dart", "dart")?, "--"],
     );
     argv.extend(strings(command));
     Ok(argv)

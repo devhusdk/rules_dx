@@ -171,7 +171,17 @@ fn hand_off(
         }
     }
     let mut argv = invocation.bazel_head().argv("run");
-    argv.extend(["@rules_dx//:dx", "--", "upgrade", "--to", to, "--apply"].map(str::to_owned));
+    argv.extend(
+        [
+            dx_families::DX_LABEL,
+            "--",
+            "upgrade",
+            "--to",
+            to,
+            "--apply",
+        ]
+        .map(str::to_owned),
+    );
     if is_json {
         argv.push("--output=json".to_owned());
     }
@@ -544,7 +554,7 @@ fn finish_upgrade(
         if conflicts > 0 {
             return conflicted(invocation, to, conflicts, out, err);
         }
-        return json_pin(invocation, out, "default", to, ide_warning.as_deref())
+        return json_pin(invocation, out, "default", to, ide_warning)
             .map_or_else(|exit| exit, |()| 0);
     }
     if let Some(message) = &ide_warning {

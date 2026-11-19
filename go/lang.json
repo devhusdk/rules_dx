@@ -29,6 +29,9 @@
    }
   ]
  },
+  "commands": [
+    "go/private/tools:go"
+  ],
  "tools": [
     "errcheck",
     "gofumpt",

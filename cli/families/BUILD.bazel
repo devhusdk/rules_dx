@@ -73,11 +73,21 @@ rust_test(
     coverage_lib = ":dx_families",
     crate_name = "dx_families",
     crate_root = "src/lib.rs",
+    data = [
+        "//:MODULE.bazel",
+        "//cli/audit:module_srcs",
+        "//cli/cli:module_srcs",
+        "//cli/exec_audit:module_srcs",
+        "//cli/update:module_srcs",
+    ],
     deps = all_crate_deps(
         package_name = "cli/dx_families",
         normal = True,
         normal_dev = True,
-    ) + ["@crates//:serde"],
+    ) + [
+        "//tools/testing:dx_testing",
+        "@crates//:serde",
+    ],
 )
 
 exports_files(

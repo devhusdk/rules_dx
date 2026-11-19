@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": [
+    "php/private/tools:composer"
+  ],
   "tools": [
     "phpcs",
     "phpstan",

@@ -502,7 +502,8 @@ fn report_plan_failure(
         unavailable @ (dx_update::backend::BackendError::BackendUnavailable { .. }
         | dx_update::backend::BackendError::NoCacheDir { .. }
         | dx_update::backend::BackendError::NonUtf8Path { .. }
-        | dx_update::backend::BackendError::Hubs { .. }) => refresh_failed(
+        | dx_update::backend::BackendError::Hubs { .. }
+        | dx_update::backend::BackendError::MissingCommand { .. }) => refresh_failed(
             edit,
             invocation,
             out,

@@ -236,8 +236,10 @@ fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, DxError> {
     if let Some(dir) = std::env::var_os(OPAM_SNAPSHOT_ENV) {
         return Ok(PathBuf::from(dir));
     }
+    let opam = dx_families::command_label("ocaml", "opam")
+        .ok_or_else(|| DxError::infra("the ocaml lang.json lists no opam command".to_owned()))?;
     let mut argv = dx_process::BazelHead::default().argv("run");
-    argv.extend(["@rules_dx//ocaml/private/tools:opam", "--", "snapshot-dir"].map(str::to_owned));
+    argv.extend([opam, "--".to_owned(), "snapshot-dir".to_owned()]);
     let Some((program, tail)) = argv.split_first() else {
         return Err(DxError::infra("bazel run has no program".to_owned()));
     };

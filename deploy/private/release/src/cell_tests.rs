@@ -733,15 +733,23 @@ pub(crate) fn matrix_json(cells: &[Cell]) -> String {
 fn parse_matrix_reads_cells_and_rejects_bad_ones() {
     let cell = synthetic_cell("tar.gz");
     assert_eq!(
-        parse_matrix(&matrix_json(std::slice::from_ref(&cell))),
-        Ok(vec![cell.clone()])
+        parse_matrix(&matrix_json(std::slice::from_ref(&cell))).expect("matrix"),
+        vec![cell.clone()]
     );
-    let error = |cells: Vec<Cell>| parse_matrix(&matrix_json(&cells)).expect_err("bad");
+    let error = |cells: Vec<Cell>| {
+        parse_matrix(&matrix_json(&cells))
+            .expect_err("bad")
+            .to_string()
+    };
     let with = |edit: fn(&mut Cell)| {
         let mut bad = cell.clone();
         edit(&mut bad);
         error(vec![bad])
     };
+    assert!(matches!(
+        parse_matrix(&matrix_json(&[])),
+        Err(CellError::MatrixEmpty)
+    ));
     assert!(error(Vec::new()).contains("no cells"));
     assert!(error(vec![cell.clone(), cell.clone()]).contains("duplicate cell"));
     assert!(with(|cell| cell.os = "solaris".to_owned()).contains("os \"solaris\""));
@@ -755,16 +763,19 @@ fn parse_matrix_reads_cells_and_rejects_bad_ones() {
     assert!(
         parse_matrix("{")
             .expect_err("json")
+            .to_string()
             .starts_with("release matrix:")
     );
     assert!(
         parse_matrix(r#"{"schema":"release-matrix/v2","cells":[]}"#)
             .expect_err("schema")
+            .to_string()
             .contains("want \"release-matrix/v1\"")
     );
     assert!(
         parse_matrix(r#"{"schema":"release-matrix/v1","cells":[],"extra":1}"#)
             .expect_err("unknown field")
+            .to_string()
             .contains("unknown field")
     );
 }
@@ -974,7 +985,11 @@ fn strings(parts: &[&str]) -> Vec<String> {
 
 #[test]
 fn parse_flags_rejects_unknown_missing_repeated_and_valueless_flags() {
-    let parse = |args: &[&str]| parse_flags(&strings(args), &["a"], &["b"]).map(|_| ());
+    let parse = |args: &[&str]| {
+        parse_flags(&strings(args), &["a"], &["b"])
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+    };
     assert_eq!(parse(&["--a", "1", "--b", "2"]), Ok(()));
     assert_eq!(
         parse(&["--c", "1"]),
@@ -987,6 +1002,10 @@ fn parse_flags_rejects_unknown_missing_repeated_and_valueless_flags() {
         Err("--a given twice".to_owned())
     );
     assert_eq!(parse(&["--b", "2"]), Err("missing --a".to_owned()));
+    assert!(matches!(
+        parse_flags(&strings(&["--b", "2"]), &["a"], &["b"]),
+        Err(CellError::MissingFlag { name }) if name == "a"
+    ));
 }
 
 #[test]
@@ -1040,15 +1059,18 @@ fn qualify_main_and_verify_main_run_from_flags() {
     let mut bad = args.clone();
     bad[3] = "dx-nope".to_owned();
     assert_eq!(
-        parse_qualify_args(&bad, "linux", "x86_64").map(drop),
-        Err("unknown cell \"dx-nope\"".to_owned())
+        parse_qualify_args(&bad, "linux", "x86_64")
+            .expect_err("unknown cell")
+            .to_string(),
+        "unknown cell \"dx-nope\""
     );
     let mut bad = args.clone();
     let at = bad.len() - 5;
-    bad[at] = path(&release.dir.path().join("no/such/record.json"));
+    bad[at] = path(&matrix.join("record.json"));
     assert!(
         qualify_main(&bad, &FakeRunner::new())
             .expect_err("unwritable")
+            .to_string()
             .starts_with("cannot write")
     );
     let mut bad = args.clone();
@@ -1056,11 +1078,14 @@ fn qualify_main_and_verify_main_run_from_flags() {
     assert!(
         qualify_main(&bad, &FakeRunner::new())
             .expect_err("no matrix")
+            .to_string()
             .starts_with("cannot read")
     );
     assert_eq!(
-        qualify_main(&strings(&["--sha"]), &FakeRunner::new()).map(drop),
-        Err("--sha needs a value".to_owned())
+        qualify_main(&strings(&["--sha"]), &FakeRunner::new())
+            .expect_err("no value")
+            .to_string(),
+        "--sha needs a value"
     );
     let full_matrix = release.dir.path().join("full.json");
     std::fs::write(&full_matrix, matrix_json(&release.matrix)).expect("matrix");
@@ -1099,8 +1124,10 @@ fn qualify_main_and_verify_main_run_from_flags() {
         "{stale}"
     );
     assert_eq!(
-        verify_main(&strings(&["--records", "r"])),
-        Err("missing --matrix".to_owned())
+        verify_main(&strings(&["--records", "r"]))
+            .expect_err("no matrix")
+            .to_string(),
+        "missing --matrix"
     );
     let parsed = parse_verify_args(&verify_args("s")).expect("parse");
     assert_eq!(parsed.matrix, release.matrix);
@@ -1200,14 +1227,18 @@ fn render_verification_lists_every_cell_in_matrix_order() {
 
 #[test]
 fn printed_version_takes_the_first_dx_line() {
-    assert_eq!(printed_version("dx 1.2.3\nother\n"), Ok("1.2.3".to_owned()));
     assert_eq!(
-        printed_version("banner\ndx 0.4.0-rc.1 (abc)\ndx 9\n"),
-        Ok("0.4.0-rc.1 (abc)".to_owned())
+        printed_version("dx 1.2.3\nother\n").expect("version"),
+        "1.2.3"
+    );
+    assert_eq!(
+        printed_version("banner\ndx 0.4.0-rc.1 (abc)\ndx 9\n").expect("version"),
+        "0.4.0-rc.1 (abc)"
     );
     assert!(
         printed_version("")
             .expect_err("empty")
+            .to_string()
             .starts_with("no `dx <version>` line")
     );
     assert!(printed_version("dx \nfoo\n").is_err());
@@ -1218,22 +1249,25 @@ fn printed_version_takes_the_first_dx_line() {
 fn version_main_asks_the_executable() {
     let exe = ["--exe", "/bin/dx"].map(str::to_owned);
     assert_eq!(
-        version_main(&exe, &FakeRunner::new()),
-        Ok("1.2.3".to_owned())
+        version_main(&exe, &FakeRunner::new()).expect("version"),
+        "1.2.3"
     );
     let mut runner = FakeRunner::new();
     runner.fail = vec!["--version"];
     assert!(
         version_main(&exe, &runner)
             .expect_err("failed")
+            .to_string()
             .contains("version broke")
     );
     runner = FakeRunner::new();
     runner.version = "nothing\n".to_owned();
     assert!(version_main(&exe, &runner).is_err());
     assert_eq!(
-        version_main(&[], &FakeRunner::new()),
-        Err("missing --exe".to_owned())
+        version_main(&[], &FakeRunner::new())
+            .expect_err("no exe")
+            .to_string(),
+        "missing --exe"
     );
 }
 
@@ -1389,7 +1423,9 @@ fn stage_consumer_reports_each_stage_that_fails() {
     let fixture = synthetic("tar.gz", |_| {});
     let work = &fixture.inputs.work;
     let run = |consumer: &Consumer, runner: &FakeRunner| {
-        stage_consumer(consumer, Path::new("dx"), work, false, runner).expect_err("stage fails")
+        stage_consumer(consumer, Path::new("dx"), work, false, runner)
+            .expect_err("stage fails")
+            .to_string()
     };
     let good = consumer_of(&fixture);
     let missing = Consumer {
@@ -1452,7 +1488,9 @@ fn parse_qualify_args_needs_consumer_and_checkout_together() {
             consumer.template.to_string_lossy().into_owned(),
         ]);
         assert_eq!(
-            parse_qualify_args(&args, "linux", "x86_64").unwrap_err(),
+            parse_qualify_args(&args, "linux", "x86_64")
+                .unwrap_err()
+                .to_string(),
             want
         );
     }
@@ -1462,16 +1500,20 @@ fn parse_qualify_args_needs_consumer_and_checkout_together() {
         args
     };
     assert_eq!(
-        parse_qualify_args(&licenses("a"), "linux", "x86_64").unwrap_err(),
+        parse_qualify_args(&licenses("a"), "linux", "x86_64")
+            .unwrap_err()
+            .to_string(),
         "--accept-licenses needs --consumer"
     );
     assert_eq!(
-        parse_qualify_args(&licenses("a,,b"), "linux", "x86_64").unwrap_err(),
+        parse_qualify_args(&licenses("a,,b"), "linux", "x86_64")
+            .unwrap_err()
+            .to_string(),
         "--accept-licenses \"a,,b\" has an empty id"
     );
     assert_eq!(
-        parse_license_ids("a, b"),
-        Ok(vec!["a".to_owned(), "b".to_owned()])
+        parse_license_ids("a, b").expect("ids"),
+        vec!["a".to_owned(), "b".to_owned()]
     );
 }
 
@@ -1511,7 +1553,9 @@ fn ran_keeps_head_and_tail_of_long_stdout() {
         }
     }
     let text = format!("HEAD{}é{}TAIL", "x".repeat(6000), "y".repeat(6000));
-    let error = ran(&Loud(text), Path::new("dx"), &["check"], Path::new(".")).unwrap_err();
+    let error = ran(&Loud(text), Path::new("dx"), &["check"], Path::new("."))
+        .unwrap_err()
+        .to_string();
     assert!(error.contains("HEAD"), "{error}");
     assert!(error.contains("TAIL"), "{error}");
     assert!(error.contains("\n...\n"), "{error}");
@@ -1528,4 +1572,65 @@ fn clip_cuts_on_char_boundaries() {
     let clipped = clip(&tail);
     assert!(clipped.ends_with(&"y".repeat(999)), "{clipped}");
     assert!(!clipped.contains('é'), "{clipped}");
+}
+
+#[test]
+fn cell_errors_keep_their_sources() {
+    use std::error::Error as _;
+    let json = parse_matrix("{").expect_err("json");
+    assert!(matches!(json, CellError::MatrixJson(_)), "{json:?}");
+    assert!(json.source().is_some());
+
+    let dir = tempfile::tempdir().expect("tempdir");
+    let missing = dir.path().join("missing.json");
+    let read = read_matrix(&missing.to_string_lossy()).expect_err("no matrix");
+    assert!(
+        matches!(&read, CellError::Io(PathIoError::Read { source, .. })
+            if source.kind() == std::io::ErrorKind::NotFound),
+        "{read:?}"
+    );
+    assert!(read.source().is_some());
+
+    let fixture = synthetic("tar.gz", |_| {});
+    let consumer = Consumer {
+        template: fixture.inputs.work.join("nowhere"),
+        ..consumer_of(&fixture)
+    };
+    let stage = stage_consumer(
+        &consumer,
+        Path::new("dx"),
+        &fixture.inputs.work,
+        false,
+        &FakeRunner::new(),
+    )
+    .expect_err("no template");
+    let CellError::Stage(inner) = &stage else {
+        panic!("{stage:?}");
+    };
+    assert!(
+        matches!(inner.as_ref(), CellError::Copy { source, .. }
+            if source.kind() == std::io::ErrorKind::NotFound),
+        "{inner:?}"
+    );
+    assert!(stage.source().and_then(|copy| copy.source()).is_some());
+
+    let mut runner = FakeRunner::new();
+    runner.fail = vec!["--version"];
+    let command =
+        ran(&runner, Path::new("dx"), &["--version"], Path::new(".")).expect_err("command fails");
+    assert!(
+        matches!(&command, CellError::Command { command, .. } if command == "dx --version"),
+        "{command:?}"
+    );
+
+    let file = dir.path().join("file");
+    std::fs::write(&file, "").expect("file");
+    let write = path_io::write_scratch(&file.join("record.json"), b"")
+        .map_err(CellError::from)
+        .expect_err("parent is a file");
+    assert!(
+        matches!(write, CellError::Io(PathIoError::Write { .. })),
+        "{write:?}"
+    );
+    assert!(write.to_string().starts_with("cannot write"), "{write}");
 }

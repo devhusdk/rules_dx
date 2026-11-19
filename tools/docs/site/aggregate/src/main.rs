@@ -18,10 +18,11 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let error = dx_site_aggregate::run(&options);
-    if error.is_empty() {
-        return ExitCode::SUCCESS;
+    match dx_site_aggregate::run(&options) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("docs_site: {error}");
+            ExitCode::FAILURE
+        }
     }
-    eprintln!("docs_site: {error}");
-    ExitCode::FAILURE
 }

@@ -3,12 +3,14 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
 use std::fs;
-use std::path::Path;
+use std::io;
+use std::path::{Path, PathBuf};
 
 use documentation_ir::decode_shard;
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
+use documentation_ir::tool::{PathIoError, path_io};
 
 /// The inputs and outputs of one aggregation.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -36,17 +38,98 @@ pub fn usage() -> &'static str {
     "usage: site_aggregate --shard FILE [--shard FILE] [--source-url URL] --summary FILE --api FILE --api-tree DIR --records FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
+/// A rejected command line.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ArgsError {
+    MissingValue { flag: String },
+    Unknown { flag: String },
+    Required { flag: String },
+}
+
+impl fmt::Display for ArgsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::MissingValue { flag } => write!(f, "{flag} needs a value"),
+            Self::Unknown { flag } => write!(f, "unknown argument '{flag}'"),
+            Self::Required { flag } => write!(f, "{flag} is required"),
+        }
+    }
+}
+
+impl std::error::Error for ArgsError {}
+
+/// Why the docs site pages cannot be written.
+#[derive(Debug)]
+pub enum AggregateError {
+    Read(PathIoError),
+    InvalidShard {
+        path: String,
+        error: documentation_ir::Error,
+    },
+    DuplicatePage {
+        id: String,
+    },
+    NoSymbols,
+    CaseCollision {
+        first: String,
+        second: String,
+    },
+    EncodeRecords(serde_json::Error),
+    CreateDir {
+        path: PathBuf,
+        source: io::Error,
+    },
+    Write(PathIoError),
+}
+
+impl fmt::Display for AggregateError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) | Self::Write(error) => error.fmt(f),
+            Self::InvalidShard { path, error } => {
+                write!(f, "shard '{path}' is not a valid DocIr shard: {error:?}")
+            }
+            Self::DuplicatePage { id } => write!(f, "two shards define the API page for '{id}'"),
+            Self::NoSymbols => f.write_str("the shards name no symbols"),
+            Self::CaseCollision { first, second } => write!(
+                f,
+                "API pages for '{first}' and '{second}' differ only in case and would collide on case-insensitive file systems"
+            ),
+            Self::EncodeRecords(error) => write!(f, "cannot encode search records: {error}"),
+            Self::CreateDir { path, source } => {
+                write!(f, "cannot create '{}': {source}", path.display())
+            }
+        }
+    }
+}
+
+impl std::error::Error for AggregateError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) | Self::Write(error) => Some(error),
+            Self::EncodeRecords(error) => Some(error),
+            Self::CreateDir { source, .. } => Some(source),
+            Self::InvalidShard { .. }
+            | Self::DuplicatePage { .. }
+            | Self::NoSymbols
+            | Self::CaseCollision { .. } => None,
+        }
+    }
+}
+
+/// Parses argv into inputs.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+/// Returns an error for an unknown flag, a flag without a value or a missing required flag.
+pub fn parse(args: &[String]) -> Result<Options, ArgsError> {
     let mut options = Options::default();
     let mut index = 0;
     while let Some(flag) = args.get(index).map(String::as_str) {
         let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
+            return Err(ArgsError::MissingValue {
+                flag: flag.to_owned(),
+            });
         };
         match flag {
             "--shard" => options.shards.push(value.clone()),
@@ -55,12 +138,18 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
             "--api" => options.api.clone_from(value),
             "--api-tree" => options.api_tree.clone_from(value),
             "--records" => options.records.clone_from(value),
-            _ => return Err(format!("unknown argument '{flag}'")),
+            _ => {
+                return Err(ArgsError::Unknown {
+                    flag: flag.to_owned(),
+                });
+            }
         }
         index += 2;
     }
     if options.shards.is_empty() {
-        return Err("--shard is required".to_string());
+        return Err(ArgsError::Required {
+            flag: "--shard".to_owned(),
+        });
     }
     for (flag, value) in [
         ("--summary", &options.summary),
@@ -69,7 +158,9 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
         ("--records", &options.records),
     ] {
         if value.is_empty() {
-            return Err(format!("{flag} is required"));
+            return Err(ArgsError::Required {
+                flag: flag.to_owned(),
+            });
         }
     }
     Ok(options)
@@ -152,46 +243,41 @@ impl Titles<'_> {
     }
 }
 
-/// Reads, renders and writes every output, returning "" on success.
-#[must_use]
-pub fn run(options: &Options) -> String {
+/// Reads, renders and writes every output.
+///
+/// # Errors
+///
+/// Returns an error when a shard cannot be read or decoded, the shards do not render or an output cannot be written.
+pub fn run(options: &Options) -> Result<(), AggregateError> {
     let mut shards = Vec::new();
     for path in &options.shards {
-        let bytes = match fs::read(path) {
-            Ok(bytes) => bytes,
-            Err(error) => return format!("cannot read shard '{path}': {error}"),
-        };
-        match decode_shard(&bytes) {
-            Ok(shard) => shards.push(shard),
-            Err(error) => return format!("shard '{path}' is not a valid DocIr shard: {error:?}"),
-        }
+        let bytes = path_io::read(Path::new(path)).map_err(AggregateError::Read)?;
+        let shard = decode_shard(&bytes).map_err(|error| AggregateError::InvalidShard {
+            path: path.clone(),
+            error,
+        })?;
+        shards.push(shard);
     }
-    let rendered = match render(&shards, &options.source_url) {
-        Ok(rendered) => rendered,
-        Err(error) => return error,
-    };
+    let rendered = render(&shards, &options.source_url)?;
     let tree = Path::new(&options.api_tree);
     for (rel, text) in &rendered.pages {
         let path = tree.join(rel);
-        if let Some(parent) = path.parent()
-            && let Err(error) = fs::create_dir_all(parent)
-        {
-            return format!("cannot create '{}': {error}", parent.display());
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|source| AggregateError::CreateDir {
+                path: parent.to_path_buf(),
+                source,
+            })?;
         }
-        if let Err(error) = fs::write(&path, text) {
-            return format!("cannot write '{}': {error}", path.display());
-        }
+        path_io::write_scratch(&path, text.as_bytes()).map_err(AggregateError::Write)?;
     }
     for (path, text) in [
         (&options.summary, &rendered.summary),
         (&options.api, &rendered.api),
         (&options.records, &rendered.records),
     ] {
-        if let Err(error) = fs::write(path, text) {
-            return format!("cannot write '{path}': {error}");
-        }
+        path_io::write_scratch(Path::new(path), text.as_bytes()).map_err(AggregateError::Write)?;
     }
-    String::new()
+    Ok(())
 }
 
 struct Page<'a> {
@@ -202,7 +288,7 @@ struct Page<'a> {
 
 type PageGroups<'a> = (BTreeMap<String, Page<'a>>, BTreeMap<String, Vec<String>>);
 
-fn collect_pages(shards: &[DocIr]) -> Result<PageGroups<'_>, String> {
+fn collect_pages(shards: &[DocIr]) -> Result<PageGroups<'_>, AggregateError> {
     let mut pages: BTreeMap<String, Page<'_>> = BTreeMap::new();
     let mut groups: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for shard in shards {
@@ -222,7 +308,7 @@ fn collect_pages(shards: &[DocIr]) -> Result<PageGroups<'_>, String> {
                     canonical,
                 };
                 if pages.insert(id.clone(), page).is_some() {
-                    return Err(format!("two shards define the API page for '{id}'"));
+                    return Err(AggregateError::DuplicatePage { id });
                 }
                 groups.entry(group.clone()).or_default().push(id);
             }
@@ -235,11 +321,11 @@ fn collect_pages(shards: &[DocIr]) -> Result<PageGroups<'_>, String> {
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
+/// Returns an error when two pages collide, no page exists or the search records do not encode.
+pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, AggregateError> {
     let (pages, groups) = collect_pages(shards)?;
     if pages.is_empty() {
-        return Err("the shards name no symbols".to_string());
+        return Err(AggregateError::NoSymbols);
     }
     let mut lowered: BTreeMap<String, &str> = BTreeMap::new();
     // Only JVM and .NET languages are checked until `api_path` encodes case.
@@ -249,9 +335,10 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
             .any(|prefix| id.starts_with(prefix))
     }) {
         if let Some(other) = lowered.insert(api_path(id).to_lowercase(), id.as_str()) {
-            return Err(format!(
-                "API pages for '{other}' and '{id}' differ only in case and would collide on case-insensitive file systems"
-            ));
+            return Err(AggregateError::CaseCollision {
+                first: other.to_owned(),
+                second: id.clone(),
+            });
         }
     }
     let known: BTreeSet<&str> = pages.keys().map(String::as_str).collect();
@@ -308,9 +395,9 @@ pub fn render(shards: &[DocIr], source_url: &str) -> Result<Rendered, String> {
         }
     }
     records.sort_by_key(|record| record["url"].as_str().unwrap_or_default().to_string());
-    rendered.records = serde_json::to_string_pretty(&records)
-        .map_err(|error| format!("cannot encode search records: {error}"))?
-        + "\n";
+    rendered.records =
+        serde_json::to_string_pretty(&records).map_err(AggregateError::EncodeRecords)?;
+    rendered.records.push('\n');
     Ok(rendered)
 }
 
@@ -458,7 +545,9 @@ fn page_text(
             writeln!(text, "Members: {}\n", links(&members)).unwrap_or_default();
         }
     }
-    text.trim_end().to_string() + "\n"
+    let mut out = text.trim_end().to_string();
+    out.push('\n');
+    out
 }
 
 fn link(from: &str, id: &str, known: &BTreeSet<&str>, titles: &Titles<'_>) -> String {

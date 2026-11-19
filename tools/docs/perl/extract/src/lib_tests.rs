@@ -59,23 +59,35 @@ fn missing_docs_are_marked_incomplete() {
 
 #[test]
 fn rejects_bad_input() {
-    assert!(convert("{", "geo").unwrap_err().contains("malformed"));
-    assert!(
-        convert(&document(vec![]), "geo")
-            .unwrap_err()
-            .contains("no public Perl API")
+    let error = convert("{", "geo").unwrap_err();
+    assert!(matches!(error, PerlExtractError::Malformed(_)));
+    assert!(error.to_string().contains("malformed"));
+    let error = convert(&document(vec![]), "geo").unwrap_err();
+    assert!(matches!(error, PerlExtractError::NoPublicApi { .. }));
+    assert_eq!(
+        error.to_string(),
+        "POD JSON lists no public Perl API of package 'geo'"
     );
-    assert!(
-        convert(&document(vec![]), "a:b")
-            .unwrap_err()
-            .contains("invalid package")
-    );
+    let error = convert(&document(vec![]), "a:b").unwrap_err();
+    assert!(matches!(error, PerlExtractError::InvalidPackage { .. }));
+    assert_eq!(error.to_string(), "invalid package 'a:b'");
     let unknown = object("glob", "Geo", "Geo", "", "public");
-    assert!(
-        convert(&document(vec![unknown]), "geo")
-            .unwrap_err()
-            .contains("unknown type")
+    let error = convert(&document(vec![unknown]), "geo").unwrap_err();
+    assert!(matches!(error, PerlExtractError::UnknownType { .. }));
+    assert_eq!(
+        error.to_string(),
+        "POD JSON object 0 has unknown type 'glob'"
     );
+}
+
+#[test]
+fn run_reports_an_unreadable_input() {
+    let options = Options {
+        json: "/nonexistent/perl.json".to_owned(),
+        package: "geo".to_owned(),
+        out: "out".to_owned(),
+    };
+    assert!(matches!(run(&options), Err(PerlExtractError::Read(_))));
 }
 
 #[test]

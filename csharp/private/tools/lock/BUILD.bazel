@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -13,6 +14,7 @@ rust_library(
     ),
     crate_name = "nuget_lock",
     crate_root = "src/resolve.rs",
+    visibility = ["//cli/cli:__pkg__"],
     deps = all_crate_deps(
         package_name = "csharp/private/tools/nuget_lock",
         normal = True,
@@ -25,36 +27,18 @@ rust_library(
     ],
 )
 
-rust_binary(
+dx_subcommand(
     name = "lock",
-    srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "csharp/private/tools/nuget_lock",
-        normal = True,
-    ),
-    crate_name = "nuget_lock_bin",
-    crate_root = "src/main.rs",
-    data = [
-        "@dx_dotnet_x86_64-unknown-linux-gnu//:runtime",
-        "@dx_paket//file",
-    ],
-    env = {
-        "DOTNET": "$(rlocationpath @dx_dotnet_x86_64-unknown-linux-gnu//:runtime)",
-        "PAKET": "$(rlocationpath @dx_paket//file)",
+    path_args = {
+        "--dotnet": "@dx_dotnet_x86_64-unknown-linux-gnu//:runtime",
+        "--paket": "@dx_paket//file",
     },
+    subcommand = "csharp_lock",
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
     visibility = ["//:__subpackages__"],
-    deps = all_crate_deps(
-        package_name = "csharp/private/tools/nuget_lock",
-        normal = True,
-    ) + [
-        ":nuget_lock_lib",
-        "//cli/families:dx_families",
-        "//cli/lock:dx_lock",
-    ],
 )
 
 rust_test(
@@ -110,13 +94,6 @@ real_source_target(
 
 exports_files(
     ["Cargo.toml"],
-    visibility = ["//:__subpackages__"],
-)
-
-exports_files(
-    [
-        "src/main.rs",
-    ],
     visibility = ["//:__subpackages__"],
 )
 

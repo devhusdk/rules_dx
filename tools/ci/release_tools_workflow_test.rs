@@ -24,13 +24,14 @@ const PYTHON_HOSTS: [&str; 5] = [
     "windows-arm64",
 ];
 
-const JARS: [&str; 8] = [
+const JARS: [&str; 9] = [
     "dx-avro-union-any.jar",
     "dx-dokka-extract-any.jar",
     "dx-javac-check-any.jar",
     "dx-javadoc-extract-any.jar",
     "dx-jmh-generate-any.jar",
     "dx-kotlinc-check-any.jar",
+    "dx-maven-resolver-any.jar",
     "dx-scalac-check-any.jar",
     "dx-scaladoc-extract-any.jar",
 ];

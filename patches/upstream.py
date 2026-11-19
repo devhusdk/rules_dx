@@ -4,12 +4,14 @@ Each patch under patches/ names its upstream change in a header line above the
 diff, which every patch tool skips:
 
     Upstream: bazelbuild/rules_rust#4390
+    Upstream: aran/rules_flutter@b12fd3fbfb130bb1b90ba03c790f3a8ce101363f
     Upstream: none (rules_dx only: gates the toolchains behind //config:toolchains_on)
     Upstream: fixed upstream in v0.9.0
 
-A header may name several refs separated by commas. A ref is a pull request or
-an issue. The report lists refs whose pull request is merged, or closed by the
-commit that landed it, and contained in a release tag, patches marked fixed in a
+A header may name several refs separated by commas. A ref is a pull request, an
+issue, or a full commit sha for a fix that landed without a pull request. The
+report lists refs whose pull request is merged, or closed by the commit that
+landed it, and contained in a release tag, commits contained in a release tag, patches marked fixed in a
 release, refs that were closed without a merge, and patches with no header.
 
 A carry is rules_dx code that stands in for an upstream fix, such as extra
@@ -29,6 +31,7 @@ import urllib.request
 _HEADER = re.compile(r"^Upstream:\s*(.+?)\s*$")
 _CARRY = re.compile(r"^\s*#\s*Upstream:\s*(.+?)\s*$")
 _REF = re.compile(r"^([\w.-]+/[\w.-]+)#(\d+)$")
+_COMMIT = re.compile(r"^([\w.-]+/[\w.-]+)@([0-9a-f]{40})$")
 _FIXED = re.compile(r"^fixed upstream in (\S+)$")
 # Keep in sync with _DIFF_START in tools/ci/repos.bzl.
 _DIFF_START = ("--- ", "diff ")
@@ -65,7 +68,7 @@ def is_carry_file(name):
 
 
 def refs(value):
-    """Returns [(repo, number)] for a header value; [] for `none (...)`.
+    """Returns [(repo, number or sha)] for a header value; [] for `none (...)`.
 
     Raises ValueError for a value that is neither, so a typo does not read as
     "no upstream".
@@ -77,9 +80,13 @@ def refs(value):
     found = []
     for part in value.split(","):
         match = _REF.match(part.strip())
+        if match:
+            found.append((match.group(1), int(match.group(2))))
+            continue
+        match = _COMMIT.match(part.strip())
         if not match:
-            raise ValueError("not an owner/repo#N ref: %r" % part.strip())
-        found.append((match.group(1), int(match.group(2))))
+            raise ValueError("not an owner/repo#N ref or owner/repo@<40-hex sha>: %r" % part.strip())
+        found.append((match.group(1), match.group(2)))
     return found
 
 
@@ -148,6 +155,21 @@ def status(api, repo, number):
     return ("released", tag) if tag else ("open", None)
 
 
+def commit_status(api, repo, sha):
+    """Returns ("released", tag) or ("open", None) for a commit ref."""
+    try:
+        commit = api.get("/repos/%s/commits/%s" % (repo, sha))
+    except urllib.error.HTTPError as error:
+        if error.code != 422:
+            raise
+        commit = None
+    if commit is None:
+        raise ValueError("%s@%s does not exist" % (repo, sha))
+    # The committer date, not the author date: a rebase keeps the author date.
+    tag = shipped_in(api, repo, sha, commit["commit"]["committer"]["date"])
+    return ("released", tag) if tag else ("open", None)
+
+
 def landed_commit(api, repo, number):
     """Returns (sha, closed_at) when a commit closed the pull request, else None.
 
@@ -191,17 +213,25 @@ def _classify(api, name, value, released, closed, bad):
     except ValueError as error:
         bad.append("- `%s`: %s" % (name, error))
         return
-    for repo, number in found:
+    for repo, ref in found:
         try:
-            state, tag = status(api, repo, number)
+            if isinstance(ref, str):
+                state, tag = commit_status(api, repo, ref)
+            else:
+                state, tag = status(api, repo, ref)
         except ValueError as error:
             bad.append("- `%s`: %s" % (name, error))
             continue
-        link = "https://github.com/%s/pull/%d" % (repo, number)
+        if isinstance(ref, str):
+            label = "%s@%s" % (repo, ref[:7])
+            link = "https://github.com/%s/commit/%s" % (repo, ref)
+        else:
+            label = "%s#%d" % (repo, ref)
+            link = "https://github.com/%s/pull/%d" % (repo, ref)
         if state == "released":
-            released.append("- `%s`: [%s#%d](%s) is in %s" % (name, repo, number, link, tag))
+            released.append("- `%s`: [%s](%s) is in %s" % (name, label, link, tag))
         elif state == "closed":
-            closed.append("- `%s`: [%s#%d](%s)" % (name, repo, number, link))
+            closed.append("- `%s`: [%s](%s)" % (name, label, link))
 
 
 def report(api, root):

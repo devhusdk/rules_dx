@@ -49,6 +49,20 @@ dx_subcommand_test(
     target_under_test = ":toy_lock",
 )
 
+dx_subcommand(
+    name = "toy_lock_paths",
+    path_args = {"--tool": "defs.bzl"},
+    subcommand = "toy_lock",
+)
+
+dx_subcommand_test(
+    name = "toy_lock_paths_test",
+    size = "small",
+    extra_lines = ["prefixed=--tool=\t_main/cli/launcher/defs.bzl"],
+    subcommand = "toy_lock",
+    target_under_test = ":toy_lock_paths",
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

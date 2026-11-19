@@ -26,8 +26,11 @@ SHFMT_FORMAT_REMOTE = _qualified("shfmt", "format")
 # binary built for the exec platform (cfg = "exec"), the staged sources and configs,
 # and the runner's hermetic env (no HOME, no host PATH, no network). A stage runs
 # remotely only when every tool in it is listed here, see dx_stage_execution_requirements.
+# PATH helpers a tool spawns must be pinned files; a stage that runs a runfiles
+# launcher not in REMOTE_QUALIFIED_LAUNCHERS stays local.
 REMOTE_QUALIFIED = [
     SHFMT_FORMAT_REMOTE,
+    _qualified("actionlint", "lint"),
     _qualified("biome", "format"),
     _qualified("biome", "lint"),
     _qualified("buildifier", "format"),
@@ -40,8 +43,187 @@ REMOTE_QUALIFIED = [
     _qualified("taplo", "format"),
     _qualified("typos", "lint"),
     _qualified("typstyle", "format"),
+    _qualified("vale", "lint"),
     _qualified("yamlfmt", "format"),
+    _qualified("zizmor", "lint"),
 ]
+
+# Tool and capability pairs that must never run remotely, with the reason.
+LOCAL_ONLY = {
+    ("lychee", "lint"): "DX_LINT_ONLINE=1 fetches every http(s) link, and a remote executor has no network",
+}
+
+# Tool and capability pairs not yet checked for remote execution. They stay local.
+# Move each one to REMOTE_QUALIFIED or LOCAL_ONLY once it is checked.
+PENDING = [
+    ("ansible_lint", "lint"),
+    ("avro_tools", "lint"),
+    ("avro_tools", "typecheck"),
+    ("bicep", "format"),
+    ("bicep", "lint"),
+    ("buf", "format"),
+    ("buf", "lint"),
+    ("buf", "typecheck"),
+    ("capnp", "lint"),
+    ("capnp", "typecheck"),
+    ("cfn_lint", "lint"),
+    ("checkmake", "lint"),
+    ("chktex", "lint"),
+    ("clang_format", "format"),
+    ("clang_syntax", "typecheck"),
+    ("clang_tidy", "lint"),
+    ("clippy", "lint"),
+    ("cmakelint", "lint"),
+    ("container_structure_test", "typecheck"),
+    ("credo", "lint"),
+    ("csc", "typecheck"),
+    ("csharpier", "format"),
+    ("cue", "format"),
+    ("cue", "typecheck"),
+    ("dart", "format"),
+    ("dart", "lint"),
+    ("dart", "typecheck"),
+    ("deadnix", "lint"),
+    ("detekt", "lint"),
+    ("dialyzer", "typecheck"),
+    ("djlint", "format"),
+    ("djlint", "lint"),
+    ("docstrfmt", "format"),
+    ("dscanner", "lint"),
+    ("elixirc", "typecheck"),
+    ("elvis", "lint"),
+    ("erlc", "typecheck"),
+    ("erlfmt", "format"),
+    ("errcheck", "lint"),
+    ("eslint", "lint"),
+    ("fantomas", "format"),
+    ("ffmt", "format"),
+    ("flang", "typecheck"),
+    ("flatc", "lint"),
+    ("flatc", "typecheck"),
+    ("fortitude", "lint"),
+    ("fsc", "typecheck"),
+    ("fsharplint", "lint"),
+    ("ghc", "typecheck"),
+    ("gofumpt", "format"),
+    ("google_java_format", "format"),
+    ("gotype", "typecheck"),
+    ("govet", "lint"),
+    ("gplint", "lint"),
+    ("graphql_eslint", "lint"),
+    ("graphql_eslint", "typecheck"),
+    ("hadolint", "lint"),
+    ("helm", "lint"),
+    ("helmfmt", "format"),
+    ("hlint", "lint"),
+    ("javac", "typecheck"),
+    ("jet", "typecheck"),
+    ("jsonnet_lint", "lint"),
+    ("julia_format", "format"),
+    ("julialint", "lint"),
+    ("kotlinc", "typecheck"),
+    ("ktfmt", "format"),
+    ("kubeconform", "lint"),
+    ("latexindent", "format"),
+    ("ldc", "typecheck"),
+    ("luals", "typecheck"),
+    ("markdown_check", "lint"),
+    ("mbake", "format"),
+    ("mix_format", "format"),
+    ("modfmt", "format"),
+    ("nixfmt", "format"),
+    ("notebook_outputs", "lint"),
+    ("nvcc_syntax", "typecheck"),
+    ("ocaml", "typecheck"),
+    ("opa", "format"),
+    ("opa", "typecheck"),
+    ("ormolu", "format"),
+    ("perlcritic", "lint"),
+    ("perltidy", "format"),
+    ("phpcs", "lint"),
+    ("phpstan", "typecheck"),
+    ("pkl", "format"),
+    ("pkl", "typecheck"),
+    ("pkl_lsp", "lint"),
+    ("pmd", "lint"),
+    ("prettier", "format"),
+    ("psscriptanalyzer", "format"),
+    ("psscriptanalyzer", "lint"),
+    ("pydoclint", "lint"),
+    ("qmlformat", "format"),
+    ("qmllint", "lint"),
+    ("qmllint", "typecheck"),
+    ("redocly", "lint"),
+    ("regal", "lint"),
+    ("remark", "format"),
+    ("roslyn", "lint"),
+    ("rubocop", "format"),
+    ("rubocop", "lint"),
+    ("ruff", "audit"),
+    ("ruff", "format"),
+    ("ruff", "lint"),
+    ("rustc", "typecheck"),
+    ("rustfmt", "format"),
+    ("scalac", "typecheck"),
+    ("scalafix", "lint"),
+    ("scalafmt", "format"),
+    ("selene", "lint"),
+    ("sorbet", "typecheck"),
+    ("spotbugs", "lint"),
+    ("sqlfluff", "format"),
+    ("sqlfluff", "lint"),
+    ("staticcheck", "lint"),
+    ("stylelint", "lint"),
+    ("swift_format", "format"),
+    ("swift_lint", "lint"),
+    ("swiftc", "typecheck"),
+    ("taplo", "lint"),
+    ("taplo", "typecheck"),
+    ("terraform", "format"),
+    ("terraform", "typecheck"),
+    ("tflint", "lint"),
+    ("thrift", "lint"),
+    ("thrift", "typecheck"),
+    ("tinymist", "lint"),
+    ("topiary", "format"),
+    ("trivy_config", "lint"),
+    ("trivy_image_config", "lint"),
+    ("tsc", "typecheck"),
+    ("ty", "typecheck"),
+    ("weeder", "lint"),
+    ("xmllint", "lint"),
+    ("yamllint", "lint"),
+    ("zanuda", "lint"),
+    ("zig", "typecheck"),
+    ("zig_ast_check", "lint"),
+    ("zig_fmt", "format"),
+]
+
+def classification_errors(real_adapters, qualified, local_only, pending):
+    """Lists every adapter pair missing from, or repeated across, the qualified, local-only and pending lists."""
+    seen = {}
+    errors = []
+    for name, pairs in [
+        ("REMOTE_QUALIFIED", [(r["tool"], r["capability"]) for r in qualified]),
+        ("LOCAL_ONLY", list(local_only.keys())),
+        ("PENDING", pending),
+    ]:
+        for pair in pairs:
+            label = pair[0] + " " + pair[1]
+            if pair[0] not in real_adapters or pair[1] not in real_adapters[pair[0]]:
+                errors.append("remote: " + name + " lists '" + label + "', which is not a real adapter")
+            elif pair in seen:
+                errors.append("remote: '" + label + "' is in both " + seen[pair] + " and " + name)
+            else:
+                seen[pair] = name
+    for pair, reason in local_only.items():
+        if reason.strip() == "":
+            errors.append("remote: LOCAL_ONLY '" + pair[0] + " " + pair[1] + "' needs a reason")
+    for tool in sorted(real_adapters.keys()):
+        for capability in sorted(real_adapters[tool].keys()):
+            if (tool, capability) not in seen:
+                errors.append("remote: '" + tool + " " + capability + "' is in none of REMOTE_QUALIFIED, LOCAL_ONLY or PENDING")
+    return errors
 
 def dx_is_local_only(requirements):
     """Reports whether requirements carry the local-only marker."""
@@ -98,10 +280,28 @@ def dx_is_remote_qualified(tool, capability):
             return remote_record_error(record) == ""
     return False
 
-def dx_stage_execution_requirements(stage_tools, capability):
-    """Returns remote-capable requirements only when every stage is qualified."""
+# Runfiles launchers a remote stage may run. The runner hands each one its own
+# staged runfiles tree.
+REMOTE_QUALIFIED_LAUNCHERS = [
+    # js_binary: reads `<binary>.runfiles` or the manifest beside it.
+    "asciidoctor",
+    # py_binary: the runner sets RUNFILES_DIR when no manifest is staged.
+    "rst2html",
+]
+
+def dx_stage_execution_requirements(stage_tools, capability, run_tools = []):
+    """Returns remote-capable requirements only when every stage and every runfiles launcher is qualified.
+
+    Args:
+      stage_tools: tool ids the stage runs.
+      capability: "format" or "lint".
+      run_tools: names of the runfiles launchers the stage puts on PATH.
+    """
     if len(stage_tools) == 0:
         return {DX_NO_REMOTE_EXEC: "1"}
+    for name in run_tools:
+        if name not in REMOTE_QUALIFIED_LAUNCHERS:
+            return {DX_NO_REMOTE_EXEC: "1"}
     for tool in stage_tools:
         if not dx_is_remote_qualified(tool, capability):
             return {DX_NO_REMOTE_EXEC: "1"}

@@ -14,6 +14,9 @@
   "lockfiles": [
     "pnpm-lock.yaml"
   ],
+  "commands": {
+    "tsdk": "@rules_dx//typescript/private/ide:tsdk"
+  },
   "tools": [
     "biome",
     "eslint"

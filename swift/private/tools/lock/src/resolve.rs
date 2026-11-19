@@ -615,3 +615,23 @@ impl Resolver for Swift<'_> {
         })
     }
 }
+
+/// Runs the swiftpm lock step on `args`, the arguments after `dx swift_lock`: `--swift=<path>`
+/// and the `dx_lock::Args` flags. 0 when the lock is fresh or written, 1 when stale, 2 on failure.
+pub fn run_process(args: &[String]) -> i32 {
+    let (paths, rest) = match dx_lock::tool_paths(args, &["--swift"]) {
+        Ok(split) => split,
+        Err(error) => {
+            eprintln!("swift_lock: {error}");
+            return 2;
+        }
+    };
+    let Some(swift) = paths.into_iter().next() else {
+        return 2;
+    };
+    let Some(hub) = dx_families::hub("swiftpm") else {
+        return dx_lock::missing_hub("swiftpm");
+    };
+    let spec = Swift::spec(hub);
+    dx_lock::run_process(&spec, &Swift::new(swift, &spec, &Github::new()), &rest)
+}

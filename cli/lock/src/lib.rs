@@ -14,7 +14,6 @@ mod scratch;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use globset::{Glob, GlobSetBuilder};
@@ -479,10 +478,11 @@ pub fn run(
     Ok(Outcome::Written)
 }
 
-/// The `main` of an ecosystem's resolver target: exit 0 when the lock is fresh or written, 1 when stale, 2 on failure.
-pub fn main(spec: &Spec, resolver: &dyn Resolver) -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    ExitCode::from(u8::try_from(run_process(spec, resolver, &args)).unwrap_or(2))
+/// Reports that `ecosystem` has no registry entry and returns exit code 2.
+#[must_use]
+pub fn missing_hub(ecosystem: &str) -> i32 {
+    dx_error::stdio::eprint_line(format_args!("{ecosystem} has no registry entry"));
+    2
 }
 
 /// Runs the lock step on `args`, the arguments after the program or subcommand name: 0 when the
@@ -507,9 +507,82 @@ pub fn run_process(spec: &Spec, resolver: &dyn Resolver, args: &[String]) -> i32
     }
 }
 
+/// Splits the `<flag>=<path>` arguments a `dx_subcommand` `path_args` passes off `args`:
+/// returns one absolute path per entry of `flags`, in order, and the other arguments.
+///
+/// # Errors
+/// Fails when a flag is missing, given twice or not an absolute path.
+pub fn tool_paths(args: &[String], flags: &[&str]) -> Result<(Vec<PathBuf>, Vec<String>), Error> {
+    let mut paths: Vec<Option<PathBuf>> = vec![None; flags.len()];
+    let mut rest = Vec::new();
+    for arg in args {
+        let found = flags.iter().zip(paths.iter_mut()).find_map(|(flag, slot)| {
+            arg.strip_prefix(flag)
+                .and_then(|value| value.strip_prefix('='))
+                .map(|value| (*flag, slot, value))
+        });
+        let Some((flag, slot, value)) = found else {
+            rest.push(arg.clone());
+            continue;
+        };
+        let path = PathBuf::from(value);
+        if !path.is_absolute() {
+            return Err(Error::new(format!("{flag} {value} is not absolute")));
+        }
+        if slot.replace(path).is_some() {
+            return Err(Error::new(format!("{flag} is given twice")));
+        }
+    }
+    let paths = flags
+        .iter()
+        .zip(paths)
+        .map(|(flag, path)| path.ok_or_else(|| Error::new(format!("{flag} is missing"))))
+        .collect::<Result<_, _>>()?;
+    Ok((paths, rest))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn strings(args: &[&str]) -> Vec<String> {
+        args.iter().map(|arg| (*arg).to_owned()).collect()
+    }
+
+    #[test]
+    fn tool_paths_splits_tool_flags_from_the_rest() {
+        let root = std::env::temp_dir();
+        let java = root.join("java");
+        let jar = root.join("r.jar");
+        let args = vec![
+            "--check".to_owned(),
+            format!("--jar={}", jar.display()),
+            format!("--java={}", java.display()),
+            "--dir=/x".to_owned(),
+        ];
+        let (paths, rest) = tool_paths(&args, &["--java", "--jar"]).expect("tool paths");
+        assert_eq!(paths, vec![java, jar]);
+        assert_eq!(rest, strings(&["--check", "--dir=/x"]));
+    }
+
+    #[test]
+    fn tool_paths_rejects_a_missing_flag() {
+        let error = tool_paths(&strings(&["--check"]), &["--java"]).expect_err("missing");
+        assert_eq!(error.to_string(), "--java is missing");
+    }
+
+    #[test]
+    fn tool_paths_rejects_a_repeated_flag() {
+        let java = format!("--java={}", std::env::temp_dir().join("java").display());
+        let error = tool_paths(&[java.clone(), java], &["--java"]).expect_err("repeated");
+        assert_eq!(error.to_string(), "--java is given twice");
+    }
+
+    #[test]
+    fn tool_paths_rejects_a_relative_path() {
+        let error = tool_paths(&strings(&["--java=bin/java"]), &["--java"]).expect_err("relative");
+        assert_eq!(error.to_string(), "--java bin/java is not absolute");
+    }
 
     /// A directory holding empty files with `names`.
     fn dir_with(names: &[&str]) -> tempfile::TempDir {
@@ -547,6 +620,11 @@ mod tests {
     fn run_process_exits_2_on_bad_arguments() {
         assert_eq!(run_process(&toy_spec(), &Unreachable, &["--bogus".to_owned()]), 2);
         assert_eq!(run_process(&toy_spec(), &Unreachable, &[]), 2);
+    }
+
+    #[test]
+    fn missing_hub_exits_2() {
+        assert_eq!(missing_hub("demo"), 2);
     }
 
     #[test]

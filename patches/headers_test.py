@@ -43,6 +43,8 @@ class HeadersTest(unittest.TestCase):
         self.assertIsNone(problem("Upstream: a/b#1, c/d#2\n"))
         self.assertIsNone(problem("Upstream: none (rules_dx only)\n"))
         self.assertIsNone(problem("Upstream: fixed upstream in v1.0.0\n"))
+        self.assertIsNone(problem("Upstream: a/b@b12fd3fbfb130bb1b90ba03c790f3a8ce101363f\n"))
+        self.assertIsNotNone(problem("Upstream: a/b@b12fd3f\n"))
         self.assertIsNotNone(problem(""))
         self.assertIsNotNone(problem("Upstream: none\n"))
         self.assertIsNotNone(problem("Upstream: a/b 1\n"))

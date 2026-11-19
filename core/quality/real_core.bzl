@@ -99,17 +99,17 @@ def _real_tool_launch(cfg, target, ctx, stage_tools, delegated, has_toolchain, w
             elif spec.get("extra") == "runfiles":
                 extra[tool] = tool_target[DefaultInfo].default_runfiles.files.to_list()
             if spec.get("run_tool", True):
-                run_tools.append(tool_target[DefaultInfo].files_to_run)
+                run_tools.append((tool, tool_target[DefaultInfo].files_to_run))
         elif spec.get("target_tool", False):
             ftr = _tool_files_to_run(target, getattr(ctx.attr, "_" + tool), tool, what)
             binaries[tool] = ftr.executable
-            run_tools.append(ftr)
+            run_tools.append((tool, ftr))
         else:
             ftr = getattr(ctx.attr, "_" + tool)[DefaultInfo].files_to_run
             if ftr == None or ftr.executable == None:
                 fail(what + ": " + tool + " has no executable; set --@rules_dx//config:tool_" + tool + spec["fallback"])
             binaries[tool] = ftr.executable
-            run_tools.append(ftr)
+            run_tools.append((tool, ftr))
         pairs = [real_request_tool_env(pair[0], pair[1]) for pair in spec.get("env", [])]
         if spec.get("runfiles_env", False):
             pairs.append(real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles"))
@@ -481,7 +481,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         if len(found.env) > 0:
             tool_env_entries.setdefault(tool, []).extend(found.env)
         run_tools = run_tools + found.run_tools
-    requirements = dict(dx_stage_execution_requirements(stage_tools, capability))
+    requirements = dict(dx_stage_execution_requirements(stage_tools, capability, [name for (name, _) in run_tools]))
     if "buf" in stage_tools and capability == "lint" and hasattr(ctx.attr, "_breaking_against"):
         images = ctx.files._breaking_against
         if len(images) > 1:
@@ -574,7 +574,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
     ctx.actions.run(
         executable = ctx.executable._runner,
         inputs = depset(inputs, transitive = staged_inputs),
-        tools = run_tools,
+        tools = [ftr for (_, ftr) in run_tools],
         outputs = [out],
         arguments = [args],
         execution_requirements = requirements,

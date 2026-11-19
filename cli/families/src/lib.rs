@@ -165,9 +165,28 @@ pub const GITLEAKS: &str = "@rules_dx//core/quality/artifacts:gitleaks";
 pub const TRIVY: &str = "@rules_dx//core/quality/artifacts:trivy";
 /// The `rules_dx` target `dx upgrade` runs.
 pub const DX: &str = "@rules_dx//:dx";
+/// The `rules_dx` target `dx sync` builds for the environment plans.
+pub const ENV: &str = "@rules_dx//dx:env";
+/// The `rules_dx` target `dx sync` builds for the codegen plans.
+pub const CODEGEN: &str = "@rules_dx//dx:codegen";
+/// The `rules_dx` target `dx docs` builds for the site scope tools.
+pub const DOCS_SCOPE_TOOLS: &str = "@rules_dx//tools/docs/site:scope_tools";
+/// The `rules_dx` target the `dx audit` gitleaks hint runs.
+pub const TOOL_RESOLVE: &str = "@rules_dx//dx/tool_resolve";
 
 /// The `rules_dx` targets dx commands run for every language.
-pub const COMMAND_TARGETS: &[&str] = &[GENERATE, GENERATE_CHECK, COSIGN, GITLEAKS, TRIVY, DX];
+pub const COMMAND_TARGETS: &[&str] = &[
+    GENERATE,
+    GENERATE_CHECK,
+    COSIGN,
+    GITLEAKS,
+    TRIVY,
+    DX,
+    ENV,
+    CODEGEN,
+    DOCS_SCOPE_TOOLS,
+    TOOL_RESOLVE,
+];
 
 fn commands() -> &'static BTreeMap<String, BTreeMap<String, String>> {
     static ALL: OnceLock<BTreeMap<String, BTreeMap<String, String>>> = OnceLock::new();
@@ -197,6 +216,15 @@ pub fn language_commands(lang: &str) -> Vec<&'static str> {
         .into_iter()
         .flat_map(|table| table.values().map(String::as_str))
         .collect()
+}
+
+/// `COMMAND_TARGETS` and the `commands` labels of every language.
+pub fn command_labels() -> impl Iterator<Item = &'static str> {
+    COMMAND_TARGETS.iter().copied().chain(
+        commands()
+            .values()
+            .flat_map(|table| table.values().map(String::as_str)),
+    )
 }
 
 /// `label` after `@rules_dx//`, like `dx:generate`.

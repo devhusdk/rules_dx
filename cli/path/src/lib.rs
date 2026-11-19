@@ -15,7 +15,7 @@ pub mod uri;
 pub mod verbatim;
 pub mod workspace;
 
-pub use runfiles::{Resolver, manifest_beside, manifest_for};
+pub use runfiles::{Resolver, manifest_beside, manifest_for, runfiles_dir_beside};
 pub use spelling::spell;
 pub use spelling::{Spelling, manifest, msys, native, posix, posix_str};
 pub use uri::{UriError, uri, uri_to_path};

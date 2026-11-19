@@ -154,11 +154,7 @@ fn quality_languages_by_name() -> usize {
 
 #[test]
 fn every_command_is_a_rules_dx_label() {
-    let all: Vec<&str> = commands()
-        .values()
-        .flat_map(|table| table.values().map(String::as_str))
-        .chain(COMMAND_TARGETS.iter().copied())
-        .collect();
+    let all: Vec<&str> = command_labels().collect();
     assert!(all.len() > COMMAND_TARGETS.len(), "{all:?}");
     for label in all {
         assert!(label.starts_with("@rules_dx//"), "{label}");
@@ -174,13 +170,21 @@ fn command_looks_up_a_tool_of_a_language() {
         language_commands("elixir"),
         ["@rules_dx//elixir/private/tools:mix"]
     );
-    assert!(language_commands("rust").is_empty());
+    assert_eq!(
+        language_commands("rust"),
+        [
+            "@rules_dx//rust/private/ide:discover",
+            "@rules_dx//rust/private/ide:flycheck"
+        ]
+    );
+    assert!(language_commands("haskell").is_empty());
 }
 
 #[test]
 fn repo_relative_drops_the_rules_dx_repo() {
     assert_eq!(repo_relative(GENERATE), "dx:generate");
     assert_eq!(repo_relative(DX), ":dx");
+    assert_eq!(repo_relative(TOOL_RESOLVE), "dx/tool_resolve");
 }
 
 #[test]

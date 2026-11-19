@@ -74,6 +74,7 @@ rust_test(
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/error:dx_error",
+        "//cli/families:dx_families",
         "//cli/http:dx_http",
         "//cli/os_sys:dx_os_sys",
         "//cli/process:dx_process",

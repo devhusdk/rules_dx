@@ -15,11 +15,15 @@ _version_transition = transition(
 def _impl(ctx):
     runtime = ctx.attr._runtime[0][java_common.JavaRuntimeInfo]
     files = runtime.files
+    java = [f for f in files.to_list() if f.path == runtime.java_executable_exec_path]
+    if len(java) != 1:
+        fail(ctx.label.name + ": the JDK has no file at " + runtime.java_executable_exec_path)
     return [
         DefaultInfo(
             files = files,
             runfiles = ctx.runfiles(transitive_files = files),
         ),
+        OutputGroupInfo(java = depset(java)),
         runtime,
         platform_common.TemplateVariableInfo({
             "JAVA_ROOTPATH": runtime.java_executable_runfiles_path,

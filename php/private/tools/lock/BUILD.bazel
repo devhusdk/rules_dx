@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//php/private/quality:corpus.bzl", "php_corpus")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -13,6 +14,7 @@ rust_library(
     ),
     crate_name = "php_lock",
     crate_root = "src/resolve.rs",
+    visibility = ["//cli/cli:__pkg__"],
     deps = all_crate_deps(
         package_name = "php/private/tools/php_lock",
         normal = True,
@@ -26,24 +28,10 @@ rust_library(
     ],
 )
 
-rust_binary(
+dx_subcommand(
     name = "lock",
-    srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "php/private/tools/php_lock",
-        normal = True,
-    ),
-    crate_name = "php_lock_bin",
-    crate_root = "src/main.rs",
+    subcommand = "php_lock",
     visibility = ["//:__subpackages__"],
-    deps = all_crate_deps(
-        package_name = "php/private/tools/php_lock",
-        normal = True,
-    ) + [
-        ":php_lock_lib",
-        "//cli/families:dx_families",
-        "//cli/lock:dx_lock",
-    ],
 )
 
 rust_test(
@@ -101,13 +89,6 @@ php_corpus(
 
 exports_files(
     ["Cargo.toml"],
-    visibility = ["//:__subpackages__"],
-)
-
-exports_files(
-    [
-        "src/main.rs",
-    ],
     visibility = ["//:__subpackages__"],
 )
 

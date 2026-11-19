@@ -362,7 +362,10 @@ fn foreign_manifest_is_not_checked() {
         let root = app.to_string_lossy().into_owned();
         let server = Server::start(SERVE, &[&format!("--root={root}")]);
         let response = request(server.port, "GET", "/");
-        assert_eq!(response.status, 200, "{name} manifest must not block serving");
+        assert_eq!(
+            response.status, 200,
+            "{name} manifest must not block serving"
+        );
         server.stop();
     }
 }

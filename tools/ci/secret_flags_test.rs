@@ -384,7 +384,13 @@ fn assert_no_secret_printed(name: &str, output: &str) {
     }
 }
 
-type CacheCase<'a> = (&'a str, &'a [(&'a str, &'a str)], Option<&'a str>, i32, Option<&'a str>);
+type CacheCase<'a> = (
+    &'a str,
+    &'a [(&'a str, &'a str)],
+    Option<&'a str>,
+    i32,
+    Option<&'a str>,
+);
 
 #[test]
 fn scan_finds_every_cache_secret() {

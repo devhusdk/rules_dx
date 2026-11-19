@@ -44,7 +44,10 @@ fn failing_check() {
 #[test]
 fn missing_observation() {
     expect_all(
-        &run_red("DX_MISSING_OBSERVATION_BIN", "DX_MISSING_OBSERVATION_MANIFEST"),
+        &run_red(
+            "DX_MISSING_OBSERVATION_BIN",
+            "DX_MISSING_OBSERVATION_MANIFEST",
+        ),
         &[
             "FAIL: observations",
             "field sum=43",

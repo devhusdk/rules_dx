@@ -44,6 +44,8 @@ public final class ScalacCheckTest {
     settleKeepsMixedWerror();
     missingDepWarningHasItsOwnCode();
     analyzerKeyIsAccepted(dir);
+    directOptionsPairJarsWithTargets();
+    directWithoutAnalyzerFails(dir);
     System.out.println("ok");
   }
 
@@ -222,6 +224,36 @@ public final class ScalacCheckTest {
           !String.valueOf(err.getMessage()).contains("unknown request key"),
           "analyzer= is a known key",
           err.getMessage());
+    }
+  }
+
+  private static void directOptionsPairJarsWithTargets() throws IOException {
+    List<String> options =
+        ScalacCheck.directOptions(
+            List.of("a/x.jar\t//a:x", "a/y.jar\t//a:x", "b/z\\;1.jar\t//b:z\\;1"));
+    String log = String.join("\n", options);
+    expect(
+        options.equals(
+            List.of(
+                "-P:dependency-analyzer:direct-jars:a/x.jar;a/y.jar;b/z\\;1.jar",
+                "-P:dependency-analyzer:direct-targets://a:x;//a:x;//b:z\\;1")),
+        "direct= values become aligned direct-jars and direct-targets options",
+        log);
+    try {
+      ScalacCheck.directOptions(List.of("a/x.jar"));
+      expect(false, "a direct= value without a tab fails", "");
+    } catch (IOException err) {
+      expect(err.getMessage().contains("malformed direct="), "malformed direct= message", "");
+    }
+  }
+
+  private static void directWithoutAnalyzerFails(Path dir) throws IOException {
+    Path a = write(dir, "direct/A.scala", "object A { def f: Int = 1 }\n");
+    try {
+      check(List.of("source=" + a, "direct=a/x.jar\t//a:x"));
+      expect(false, "direct= without analyzer= fails", "");
+    } catch (IOException err) {
+      expect(err.getMessage().contains("no analyzer="), "direct= without analyzer= message", "");
     }
   }
 }

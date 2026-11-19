@@ -68,7 +68,7 @@ rules_qt | Qt launcher | C++ | no
 - MPL-2.0 and BSD-3-Clause tools are redistributed unmodified.
 - GPL-3.0 and LGPL-3.0 tools are redistributed only with the exact source archive the binary was built from, published as an asset of the same release.
 - A tool built with patches publishes the patches with that source archive.
-- Linux Haskell tools link GMP statically, so the release ships `dx-haskell-gmp-LICENSE`, `dx-haskell-gmp-source.tar.xz` and `dx-haskell-gmp-source.patch`.
+- Haskell tools link GMP statically: Linux from Alpine (`dx-haskell-gmp-LICENSE`, `dx-haskell-gmp-source.tar.xz`, `dx-haskell-gmp-source.patch`), macOS and Windows from GHC's in-tree copy (`dx-haskell-gmp-ghc-source.tar.xz`).
 
 ## Hosting
 

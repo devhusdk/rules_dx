@@ -353,6 +353,10 @@ jobs:
                 fi
                 ;;
               macos-*)
+                if otool -L "$out/${tool#* }" | grep -q libHS; then
+                  echo "${tool#* } links a libHS dylib" >&2
+                  exit 1
+                fi
                 codesign --verify "$out/${tool#* }" 2>/dev/null || codesign --force -s - "$out/${tool#* }"
                 ;;
             esac
@@ -371,7 +375,9 @@ jobs:
             test -s "$out/dx-weeder-LICENSE"
             # The musl cell links libgmp.a from the pinned gmp-dev apk into every tool, so the
             # release ships GMP's licence, the source it was built from and Alpine's one patch.
-            for gmp in "gmp_license dx-haskell-gmp-LICENSE" "gmp_source dx-haskell-gmp-source.tar.xz" "gmp_source_patch dx-haskell-gmp-source.patch"; do
+            # The macOS and Windows tools link the GMP inside GHC's libHSghc-bignum, so the
+            # release also ships GHC's in-tree GMP tarball.
+            for gmp in "gmp_license dx-haskell-gmp-LICENSE" "gmp_source dx-haskell-gmp-source.tar.xz" "gmp_source_patch dx-haskell-gmp-source.patch" "gmp_ghc_source dx-haskell-gmp-ghc-source.tar.xz"; do
               pin="${gmp%% *}"
               asset="${gmp#* }"
               curl --fail --silent --show-error --location -o "$out/$asset" "$(jq -r --arg pin "$pin" '.archives[$pin].urls[0]' haskell/pins.json)"
@@ -457,6 +463,10 @@ jobs:
               fi
               ;;
             macos-*)
+              if otool -L "$out/$asset" | grep -q libHS; then
+                echo "$asset links a libHS dylib" >&2
+                exit 1
+              fi
               codesign --verify "$out/$asset" 2>/dev/null || codesign --force -s - "$out/$asset"
               ;;
           esac

@@ -251,8 +251,8 @@ fn hackage_job_builds_hlint_nixfmt_and_ormolu() {
     assert!(tools.contains("asset=\"dx-$TOOL-$HOST\""));
     assert!(tools.contains("> \"$out/dx-$TOOL-LICENSE\""));
     assert!(!tools.contains("nixfmt_sha256"));
-    assert!(release.contains("for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch; do"));
-    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 17"));
+    assert!(release.contains("for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch dx-haskell-gmp-ghc-source.tar.xz; do"));
+    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 18"));
     assert!(release.contains("dx-hlint-* dx-ormolu-* dx-haskell-gmp-*"));
 }
 
@@ -266,6 +266,7 @@ fn haskell_job_ships_the_gmp_licence_and_source() {
         ("gmp_license", "dx-haskell-gmp-LICENSE"),
         ("gmp_source", "dx-haskell-gmp-source.tar.xz"),
         ("gmp_source_patch", "dx-haskell-gmp-source.patch"),
+        ("gmp_ghc_source", "dx-haskell-gmp-ghc-source.tar.xz"),
     ] {
         assert!(tools.contains(&format!("\"{pin} {asset}\"")), "{asset}");
         assert!(release.contains(&format!(" {asset}")), "{asset}");
@@ -275,7 +276,8 @@ fn haskell_job_ships_the_gmp_licence_and_source() {
             entry["urls"][0]
                 .as_str()
                 .is_some_and(|url| url.starts_with("https://gmplib.org/")
-                    || url.starts_with("https://www.gnu.org/")),
+                    || url.starts_with("https://www.gnu.org/")
+                    || url.starts_with("https://gitlab.haskell.org/ghc/gmp-tarballs/")),
             "{pin}"
         );
     }
@@ -293,6 +295,22 @@ fn haskell_job_ships_the_gmp_licence_and_source() {
             .as_str()
             .is_some_and(|url| url.ends_with("/gmp-6.2.1.tar.xz"))
     );
+    assert_eq!(
+        pins["version"].as_str(),
+        Some("9.10.3"),
+        "GHC bump: re-pin gmp_ghc_source from the ghc-<v>-release gmp-tarballs submodule"
+    );
+    assert!(
+        pins["archives"]["gmp_ghc_source"]["urls"][0]
+            .as_str()
+            .is_some_and(
+                |url| url.contains("/01149ce3471128e9fe0feca607579981f4b64395/")
+                    && url.ends_with("/gmp-6.3.0-nodoc.tar.xz")
+            ),
+        "GHC bump: re-pin gmp_ghc_source from the ghc-<v>-release gmp-tarballs submodule"
+    );
+    assert!(tools.contains("if otool -L \"$out/${tool#* }\" | grep -q libHS; then"));
+    assert!(tools.contains("if otool -L \"$out/$asset\" | grep -q libHS; then"));
 }
 
 #[test]

@@ -239,7 +239,7 @@ REAL_RESULT_CASES = [
     _iac_dirty_case("cfn_lint", "cloudformation", "cloudformation/tests", "dirty", ["E3002"]),
     _iac_dirty_case("cmakelint", "cmake", "cmake/tests", "dirty", ["readability/mixedcase"], "shared_standard"),
     _iac_dirty_case("hadolint", "dockerfile", "dockerfile/tests", "dirty", ["DL4006"]),
-    _iac_dirty_case("helm", "helm", "helm/tests/dirty", "dirty", ["got number, want string"]),
+    _iac_dirty_case("helm", "helm", "helm/tests/fixtures/dirty", "dirty", ["got number, want string"]),
     _iac_dirty_case("kubeconform", "kubernetes", "kubernetes/tests", "dirty", ["got number, want string"]),
     _iac_dirty_case("checkmake", "make", "make/tests", "dirty", ["minphony"], "shared_standard"),
     _iac_dirty_case("tflint", "terraform", "terraform/tests", "dirty", ["terraform_unused_declarations"], "shared_standard"),

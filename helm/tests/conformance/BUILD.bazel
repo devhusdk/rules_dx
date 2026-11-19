@@ -46,10 +46,10 @@ dx_conformance_suite(
     passing_test = ":conformance",
     quality = {
         "clean": ":conformance",
-        "lint_dirty": "//helm/tests/dirty",
+        "lint_dirty": "//helm/tests/fixtures/dirty",
         "lint_line": 1,
         "lint_rule": "invalid",
-        "lint_source": "//helm/tests/dirty:templates/configmap.yaml",
+        "lint_source": "//helm/tests/fixtures/dirty:templates/configmap.yaml",
         "lint_subject": kubernetes_lint_subject,
     },
 )

@@ -19,6 +19,10 @@
           {
             "context": "gate",
             "integration_id": 15368
+          },
+          {
+            "context": "pr-links",
+            "integration_id": 15368
           }
         ]
       }

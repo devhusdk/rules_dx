@@ -34,6 +34,7 @@ pub fn render(
 ) -> Result<BTreeMap<&'static str, String>, Box<dyn std::error::Error>> {
     let mut labels = labels_txt(CONFIG_BUILD)?;
     labels.push_str(&lang_labels_txt(lang_builds)?);
+    labels.push_str(&hub_labels_txt(dx_families::hubs()));
     Ok(BTreeMap::from([
         (FILES[0], cli_json()?),
         (FILES[1], labels),
@@ -78,7 +79,18 @@ fn lang_labels_txt(lang_builds: &[(String, String)]) -> Result<String, Box<dyn s
         );
     }
     rows.sort();
-    Ok(rows.into_iter().map(|row| row + "\n").collect())
+    Ok(rows.into_iter().map(|row| format!("{row}\n")).collect())
+}
+
+/// One line per hub repository a language extension makes: its default `use_repo` name and the extension. A `*`
+/// hub names one repository per dependency.
+fn hub_labels_txt(hubs: &[dx_families::Hub]) -> String {
+    let mut rows: Vec<String> = hubs
+        .iter()
+        .map(|hub| format!("@{} hub {}%{}\n", hub.hub, hub.extension, hub.ecosystem))
+        .collect();
+    rows.sort();
+    rows.concat()
 }
 
 fn lists_public(visibility: &Arg) -> bool {
@@ -107,7 +119,7 @@ fn labels_txt(build: &str) -> Result<String, dx_module_bazel::ModuleError> {
         })
         .collect();
     rows.sort();
-    Ok(rows.into_iter().map(|row| row + "\n").collect())
+    Ok(rows.into_iter().map(|row| format!("{row}\n")).collect())
 }
 
 /// An argument as written in the BUILD file.
@@ -244,7 +256,7 @@ pub fn unbumped_schemas(checked_in: &str, current: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{FILES, labels_txt, lang_labels_txt, render, unbumped_schemas};
+    use super::{FILES, hub_labels_txt, labels_txt, lang_labels_txt, render, unbumped_schemas};
 
     #[test]
     fn labels_list_each_flag_with_its_default_and_values() {
@@ -299,6 +311,27 @@ platform(name = "hidden", visibility = ["//visibility:private"])
                 "//closed:toolchain_type toolchain_type\n",
                 "//open:toolchain_type toolchain_type\n",
                 "//open:windows_arm64 platform\n",
+            )
+        );
+    }
+
+    #[test]
+    fn labels_list_each_hub_with_its_extension() {
+        let hub = |hub: &str, extension: &str, ecosystem: &str| dx_families::Hub {
+            ecosystem: ecosystem.to_owned(),
+            extension: extension.to_owned(),
+            hub: hub.to_owned(),
+            ..dx_families::Hub::default()
+        };
+        let hubs = [
+            hub("pypi", "@rules_dx//python:extensions.bzl", "uv"),
+            hub("crates", "@rules_dx//rust:extensions.bzl", "cargo"),
+        ];
+        assert_eq!(
+            hub_labels_txt(&hubs),
+            concat!(
+                "@crates hub @rules_dx//rust:extensions.bzl%cargo\n",
+                "@pypi hub @rules_dx//python:extensions.bzl%uv\n",
             )
         );
     }
@@ -362,7 +395,12 @@ platform(name = "hidden", visibility = ["//visibility:private"])
             files["labels.txt"]
         );
         assert!(
-            files["labels.txt"].ends_with("//msix:toolchain_type toolchain_type\n"),
+            files["labels.txt"].contains("\n//msix:toolchain_type toolchain_type\n"),
+            "{}",
+            files["labels.txt"]
+        );
+        assert!(
+            files["labels.txt"].ends_with("@zig hub @rules_dx//zig:extensions.bzl%zig\n"),
             "{}",
             files["labels.txt"]
         );

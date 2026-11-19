@@ -218,7 +218,6 @@ private-visibility typescript/private/playwright/BUILD.bazel
 private-visibility zig/private/tools/BUILD.bazel
 register-label core/quality/sh
 register-label java/private/toolchain
-register-label kotlin/private/toolchain
 register-label scala/private/toolchain
 test-location api_spec/private/codegen/BUILD.bazel
 test-location astro/private/ide/BUILD.bazel

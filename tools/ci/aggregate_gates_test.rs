@@ -7,6 +7,8 @@ use dx_testing::read_runfiles;
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
+const PR_LINKS_WORKFLOW: &str = ".github/workflows/pr-links.yml";
+
 const GATE_ACTION: &str = ".github/actions/gate/action.yml";
 
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
@@ -234,7 +236,11 @@ fn the_native_matrix_keeps_all_five_platforms() {
 
 #[test]
 fn every_gate_workflow_runs_on_merge_group_checks_requested() {
-    for workflow in [CI_WORKFLOW, "examples/docs-ci/caller.yml"] {
+    for workflow in [
+        CI_WORKFLOW,
+        PR_LINKS_WORKFLOW,
+        "examples/docs-ci/caller.yml",
+    ] {
         let on = triggers(workflow).unwrap();
         assert_eq!(
             on["merge_group"]["types"],
@@ -444,9 +450,10 @@ fn the_gate_fails_when_dx_check_fails() {
 }
 
 #[test]
-fn the_ruleset_requires_the_gate_job_name() {
+fn the_ruleset_requires_the_gate_and_pr_links_job_names() {
     let ruleset = document(RULESET).unwrap();
-    let name = document(CI_WORKFLOW).unwrap()["jobs"]["gate"]["name"].clone();
+    let gate = document(CI_WORKFLOW).unwrap()["jobs"]["gate"]["name"].clone();
+    let pr_links = document(PR_LINKS_WORKFLOW).unwrap()["jobs"]["pr-links"]["name"].clone();
     assert_eq!(ruleset["enforcement"], json!("active"));
     assert_eq!(ruleset["bypass_actors"], json!([]));
     assert_eq!(ruleset["target"], json!("branch"));
@@ -465,28 +472,93 @@ fn the_ruleset_requires_the_gate_job_name() {
     assert_eq!(parameters["do_not_enforce_on_create"], json!(true));
     assert_eq!(
         parameters["required_status_checks"],
-        json!([{"context": name, "integration_id": 15368}])
+        json!([
+            {"context": gate, "integration_id": 15368},
+            {"context": pr_links, "integration_id": 15368}
+        ])
     );
 }
 
+/// Each required context and the one (workflow, job id) that reports it.
+const REQUIRED_CONTEXTS: [(&str, &str, &str); 2] = [
+    ("gate", CI_WORKFLOW, "gate"),
+    ("pr-links", PR_LINKS_WORKFLOW, "pr-links"),
+];
+
 #[test]
-fn no_other_workflow_job_reports_the_gate_context() {
+fn every_required_context_is_reported_by_exactly_one_job() {
+    let ruleset = document(RULESET).unwrap();
+    let required: Vec<&str> = ruleset["rules"][0]["parameters"]["required_status_checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|check| check["context"].as_str().unwrap_or_default())
+        .collect();
+    let expected: Vec<&str> = REQUIRED_CONTEXTS
+        .iter()
+        .map(|(context, _, _)| *context)
+        .collect();
+    assert_eq!(required, expected, "{RULESET} required contexts");
     let mut names = dx_testing::workflow_files();
     names.push("examples/docs-ci/caller.yml".to_string());
-    for name in names {
-        if name == CI_WORKFLOW {
-            continue;
+    for (context, owner, owner_job) in REQUIRED_CONTEXTS {
+        let mut reporters = Vec::new();
+        for name in &names {
+            let document = document(name).unwrap();
+            for (id, job) in document["jobs"].as_object().into_iter().flatten() {
+                let reported = job["name"].as_str().unwrap_or(id);
+                if id == context || reported == context {
+                    reporters.push((name.clone(), id.clone()));
+                }
+            }
         }
-        let document = document(&name).unwrap();
-        for (id, job) in document["jobs"].as_object().into_iter().flatten() {
-            assert_ne!(id, "gate", "{name} job id collides with the gate context");
-            assert_ne!(
-                job["name"],
-                json!("gate"),
-                "{name} job {id} reports the gate context"
-            );
-        }
+        assert_eq!(
+            reporters,
+            vec![(owner.to_string(), owner_job.to_string())],
+            "exactly one job must report the {context} context"
+        );
     }
+}
+
+#[test]
+fn the_pr_links_check_runs_on_pull_requests_and_merge_groups() {
+    let on = triggers(PR_LINKS_WORKFLOW).unwrap();
+    assert_eq!(
+        on["pull_request"]["types"],
+        json!(["opened", "edited", "reopened", "synchronize"])
+    );
+    let document = document(PR_LINKS_WORKFLOW).unwrap();
+    let job = &document["jobs"]["pr-links"];
+    assert!(
+        job.get("if").is_none(),
+        "a skipped required check passes: {job}"
+    );
+    assert!(
+        job.get("needs").is_none(),
+        "a skipped required check passes: {job}"
+    );
+    assert_eq!(
+        document["concurrency"]["group"],
+        json!("pr-links-${{ github.event.pull_request.number || github.ref }}")
+    );
+    assert_eq!(
+        document["concurrency"]["cancel-in-progress"],
+        json!("${{ github.event_name == 'pull_request' }}")
+    );
+    let step = ci_workflow::steps_of(job)
+        .iter()
+        .find(|step| {
+            step["run"]
+                .as_str()
+                .is_some_and(|run| run.contains("--pr-links"))
+        })
+        .expect("pr-links job has a --pr-links step");
+    assert_eq!(
+        step["env"]["HEAD_REF"],
+        json!("${{ github.event.merge_group.head_ref }}")
+    );
+    let run = step["run"].as_str().unwrap_or_default();
+    assert!(run.contains("gh-readonly-queue/"), "{run}");
 }
 
 /// Failures the workflows may swallow: (workflow file, job, step, kind, reason).

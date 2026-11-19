@@ -76,8 +76,7 @@ jobs:
             cp "$built" "$out/dx-tool-$tool-$version-$host$ext"
           done
           if test "$host" = "macos-arm64"; then
-            for tool in "deadnix-$deadnix_version" "selene-$selene_version"; do
-              file="$out/dx-tool-$tool-$host"
+            for file in "$out/dx-tool-deadnix-$deadnix_version-$host" "$out/dx-tool-selene-$selene_version-$host" "$out/dx-topiary-$host" "$out/dx-progenitor-$host"; do
               chmod u+w "$file"
               codesign --verify --strict "$file" || codesign --sign - "$file"
               codesign --verify --strict "$file"

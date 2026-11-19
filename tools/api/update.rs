@@ -19,7 +19,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let files = snapshot::render(&lang_builds)?;
     let snapshot_file = |name: &str| files.get(name).ok_or(format!("the snapshot has no {name}"));
-    let surface = page::render(snapshot_file("cli.json")?, snapshot_file("schemas.txt")?)?;
+    let surface = page::render(
+        snapshot_file("cli.json")?,
+        snapshot_file("labels.txt")?,
+        snapshot_file("schemas.txt")?,
+    )?;
     let schemas = dir.join("schemas.txt");
     // A missing file is the first run; any other read error is real.
     let checked_in = match std::fs::read_to_string(&schemas) {

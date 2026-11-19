@@ -3153,6 +3153,13 @@ _test_tags_sources(
     dev_dependency = True,
 )
 
+_api_fixtures = use_repo_rule("//tools/ci:repos.bzl", "api_fixtures")
+
+_api_fixtures(
+    name = "dx_api_fixtures",
+    dev_dependency = True,
+)
+
 nested_bazel = use_extension("//tools/testing:extensions.bzl", "nested_bazel", dev_dependency = True)
 use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_x86_64")
 

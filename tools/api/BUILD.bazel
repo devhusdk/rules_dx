@@ -214,6 +214,27 @@ filegroup(
     srcs = [":%s.binaryproto" % name for name in _STARLARK_DOCS],
 )
 
+_FORWARDS_FIXTURES = ["rust"]
+
+[
+    genquery(
+        name = "forwards_" + lang,
+        expression = "attr(generator_function, '.', deps(@dx_api_fixtures//%s/tests/consumer:dx_api_forwards_scope, 1))" % lang,
+        opts = [
+            "--output=streamed_jsonproto",
+            "--proto:default_values=false",
+            "--proto:rule_inputs_and_outputs=false",
+        ],
+        scope = ["@dx_api_fixtures//%s/tests/consumer:dx_api_forwards_scope" % lang],
+    )
+    for lang in _FORWARDS_FIXTURES
+]
+
+filegroup(
+    name = "forwards",
+    srcs = [":forwards_" + lang for lang in _FORWARDS_FIXTURES],
+)
+
 # Rewrites api/ and docs/supported-surface.md from the code. Run it when api_test says the public API changed.
 rust_binary(
     name = "update",
@@ -226,10 +247,14 @@ rust_binary(
     crate_name = "update",
     crate_root = "update.rs",
     data = [
+        ":forwards",
         ":public_builds",
         ":starlark_docs",
     ] + _LANG_BUILDS + _COMMAND_BUILDS,
-    env = _BUILDS_ENV | {"DX_API_STARLARK": "$(rlocationpaths :starlark_docs)"},
+    env = _BUILDS_ENV | {
+        "DX_API_FORWARDS": "$(rlocationpaths :forwards)",
+        "DX_API_STARLARK": "$(rlocationpaths :starlark_docs)",
+    },
     deps = _DEPS + ["@rules_rust//rust/runfiles"],
 )
 
@@ -245,12 +270,14 @@ rust_test(
     crate_name = "api_test",
     crate_root = "api_test.rs",
     data = [
+        ":forwards",
         ":public_builds",
         ":starlark_docs",
         "//api:snapshot",
         "//docs:supported-surface.md",
     ] + _LANG_BUILDS + _COMMAND_BUILDS,
     env = _BUILDS_ENV | {
+        "DX_API_FORWARDS": "$(rlocationpaths :forwards)",
         "DX_API_STARLARK": "$(rlocationpaths :starlark_docs)",
         "DX_API_SNAPSHOT": "$(rlocationpaths //api:snapshot)",
         "DX_SURFACE_PAGE": "$(rlocationpath //docs:supported-surface.md)",

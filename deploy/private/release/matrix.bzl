@@ -98,7 +98,7 @@ release_matrix_file = rule(
     doc = "Writes the release-matrix/v1 JSON for every release cell.",
 )
 
-def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx", pdb = "//cli/cli:pdb"):
+def release_cells(name, cells = RELEASE_MATRIX, app = "//cli/cli:dx", pdb = "//cli/cli:dx_pdb"):
     """Declares one archive per release cell, a symbols zip per Windows cell."""
     for cell in cells:
         cell_name = cell["name"]

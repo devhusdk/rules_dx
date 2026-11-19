@@ -1,7 +1,7 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 //! Test-only SBOM checks: the vendored official SPDX 2.3 and `CycloneDX` 1.6 JSON schemas plus the
-//! `sbom` graph rules.
+//! `dx_sbom` graph rules.
 
 use serde_json::Value;
 

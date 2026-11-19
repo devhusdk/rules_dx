@@ -114,7 +114,16 @@ pub(crate) fn has_deployment(root: &Path) -> bool {
         let name = path.rsplit('/').next().unwrap_or(path);
         matches!(name, "BUILD" | "BUILD.bazel")
             && std::fs::read_to_string(root.join(path))
-                .is_ok_and(|text| text.contains("deployment("))
+                .is_ok_and(|text| declares_deployment(&text))
+    })
+}
+
+/// Whether `text` calls the `deployment` rule, not a longer name ending in it.
+fn declares_deployment(text: &str) -> bool {
+    text.match_indices("deployment(").any(|(i, _)| {
+        i.checked_sub(1)
+            .and_then(|p| text.as_bytes().get(p))
+            .is_none_or(|b| !b.is_ascii_alphanumeric() && *b != b'_')
     })
 }
 
@@ -210,6 +219,14 @@ mod tests {
     const MODULE_FILE: &str = "MODULE.bazel";
     const MODULE: &str =
         "module(name = \"app\")\n\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n";
+
+    #[test]
+    fn declares_deployment_matches_whole_words_only() {
+        assert!(declares_deployment("deployment(name = \"a\")"));
+        assert!(declares_deployment("load(\"x\")\ndeployment(name = \"a\")"));
+        assert!(!declares_deployment("cross_deployment(name = \"a\")"));
+        assert!(!declares_deployment("k8sdeployment(name = \"a\")"));
+    }
 
     #[test]
     fn detected_families_are_dx_toml_ids() {

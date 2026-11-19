@@ -1137,7 +1137,7 @@ mod tests {
     }
 
     #[test]
-    fn release_caller_needs_a_dx_deployment_in_the_tree() {
+    fn release_caller_needs_a_deployment_in_the_tree() {
         let scratch = dx_test_scratch::scratch("dx-adopt-release-gate-").unwrap();
         let root = scratch.path();
         let has_release = |root: &std::path::Path| {
@@ -1146,6 +1146,9 @@ mod tests {
                 .iter()
                 .any(|f| f.path == ".github/workflows/release.yml")
         };
+        assert!(!has_release(root));
+        std::fs::write(root.join("BUILD.bazel"), "cross_deployment(name = \"x\")\n")
+            .expect("build file");
         assert!(!has_release(root));
         std::fs::write(root.join("BUILD.bazel"), "deployment(name = \"npm\")\n")
             .expect("build file");

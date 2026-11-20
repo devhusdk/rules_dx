@@ -65,11 +65,11 @@ def native_cc_env(cc, assembler, linker, archiver, path, macos = False, lib = No
     return env
 
 def cc_drivers(ctx):
-    """Links the C tool driver under every program name ocamlopt calls and returns the links."""
+    """Links dx under every program name ocamlopt calls and returns the links."""
     links = []
     for tool in NATIVE_CC_TOOLS:
         link = ctx.actions.declare_file(ctx.label.name + "_cc/conda-ocaml-" + tool)
-        ctx.actions.symlink(output = link, target_file = ctx.executable._cc_driver, is_executable = True)
+        ctx.actions.symlink(output = link, target_file = ctx.executable._dx, is_executable = True)
         links.append(link)
     return links
 
@@ -84,7 +84,7 @@ def _native_fields(ctx):
     tool = lambda action: cc_common.get_tool_for_action(feature_configuration = features, action_name = action)
     drivers = cc_drivers(ctx)
     return {
-        "cc_files": depset(drivers + [ctx.executable._cc_driver] + ctx.files.stdlib + ctx.files.runtime_libs, transitive = [cc.all_files]),
+        "cc_files": depset(drivers + [ctx.executable._dx] + ctx.files.stdlib + ctx.files.runtime_libs, transitive = [cc.all_files]),
         "cc_link_env_vars": native_cc_env(
             cc = tool(ACTION_NAMES.c_compile),
             assembler = tool(ACTION_NAMES.assemble),
@@ -126,7 +126,7 @@ dx_ocaml_toolchain = rule(
         "native": attr.bool(default = False, doc = "Whether ocamlopt assembles and links with the C toolchain."),
         "runtime_libs": attr.label_list(allow_files = True, default = [], doc = "Shared libraries the compiler loads; every compile action stages them."),
         "vmruntime": attr.label(allow_single_file = True, executable = True, cfg = "exec", mandatory = True, doc = "The ocamlrun interpreter."),
-        "_cc_driver": attr.label(default = Label("//cli/ocaml_cc_driver"), executable = True, cfg = "exec"),
+        "_dx": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
         "_macos": attr.label(default = Label("@platforms//os:macos")),
     },
     toolchains = use_cc_toolchain(),

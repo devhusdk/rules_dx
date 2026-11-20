@@ -1,7 +1,9 @@
 """Shared toolchain target renderer and hub check tests."""
 
-load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
-load("//core:toolchain.bzl", "hub_checks", "pins_hub", "toolchain_target")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core:toolchain.bzl", "digest_problems", "hub_checks", "is_sha256", "pins_hub", "toolchain_target")
+
+_DIGEST = "0123456789abcdef" * 4
 
 def _checks():
     full = toolchain_target(
@@ -15,6 +17,18 @@ def _checks():
     )
     minimal = toolchain_target(name = "min", toolchain = "@min//:toolchain", toolchain_type = "//t:type")
     return [
+        expect_true("a lowercase digest is sha256", is_sha256(_DIGEST)),
+        expect_false("an uppercase digest is not sha256", is_sha256(_DIGEST.upper())),
+        expect_false("a 63 character digest is not sha256", is_sha256(_DIGEST[1:])),
+        expect_false("a non-string digest is not sha256", is_sha256(None)),
+        expect_equal("a nested bad entry is named by its path", digest_problems("p", {"cells": {"a": {"sha256": _DIGEST.upper(), "urls": ["http://x"]}}}), [
+            "p.cells.a: sha256 is not 64 lowercase hex characters",
+            "p.cells.a: urls is not a non-empty list of https urls",
+        ]),
+        expect_equal("empty urls are a problem", digest_problems("p", {"sha256": _DIGEST, "urls": []}), ["p: urls is not a non-empty list of https urls"]),
+        expect_equal("an entry without urls passes", digest_problems("p", {"hex": {"a": {"sha256": _DIGEST}}}), []),
+        expect_equal("a dict of digests passes", digest_problems("p", {"sha256": {"x86_64": _DIGEST, "arm64": _DIGEST}, "urls": ["https://x"]}), []),
+        expect_equal("lists are walked", digest_problems("p", {"tools": [{"sha256": _DIGEST}, {"sha256": "bad"}]}), ["p.tools[1]: sha256 is not 64 lowercase hex characters"]),
         expect_equal("all attributes", full, """toolchain(
     name = "full",
     exec_compatible_with = ["//c:a", "//c:b"],

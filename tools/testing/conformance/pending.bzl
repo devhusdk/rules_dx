@@ -62,7 +62,6 @@ msix lock_test *
 msix pass_test *
 msix runfiles_test *
 ocaml cross_test macos_arm64
-python runfiles_test *
 qt coverage_test macos_arm64
 qt cross_test windows_arm64
 zig coverage_test windows_x86_64

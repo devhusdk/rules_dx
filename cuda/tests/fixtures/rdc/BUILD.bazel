@@ -1,6 +1,4 @@
-load("//cc:defs.bzl", "cc_binary")
-load("//cuda:defs.bzl", "cuda_library", "cuda_objects")
-load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH")
+load("//cuda:defs.bzl", "cuda_binary", "cuda_library", "cuda_objects")
 
 package(default_visibility = ["//cuda/tests:__subpackages__"])
 
@@ -27,10 +25,13 @@ cuda_library(
     deps = [":scale"],
 )
 
-cc_binary(
+cuda_binary(
     name = "rdc_app",
     srcs = ["main.cc"],
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    cuda_archs = [
+        "sm_89",
+        "sm_120",
+    ],
     deps = [":axpy"],
 )
 
@@ -59,9 +60,12 @@ cuda_library(
     deps = [":scale_objects"],
 )
 
-cc_binary(
+cuda_binary(
     name = "rdc_objects_app",
     srcs = ["main.cc"],
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    cuda_archs = [
+        "sm_89",
+        "sm_120",
+    ],
     deps = [":axpy_from_objects"],
 )

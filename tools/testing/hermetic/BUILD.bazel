@@ -840,7 +840,6 @@ hermetic_qualification(
     files = {
         "consumers/cuda/apps/format.BUILD.bazel": "cuda/tests/fixtures/cuda_app/format/BUILD.bazel",
         "consumers/cuda/apps/format_test.sh": "cuda/tests/fixtures/cuda_app/format/format_test.sh",
-        "consumers/cuda/consumer.bazelrc": ".bazelrc",
         "//:.clang-format": "cuda/tests/fixtures/cuda_app/format/.clang-format",
         "//cuda/tests/fixtures/cuda_app/app:BUILD.bazel": "cuda/tests/fixtures/cuda_app/app/BUILD.bazel",
         "//cuda/tests/fixtures/cuda_app/app:main.cc": "cuda/tests/fixtures/cuda_app/app/main.cc",
@@ -865,7 +864,6 @@ hermetic_qualification(
     failures = {"//cuda/tests/fixtures/cuda_app/app:cuda_app": "is not accepted; add dx_licenses.accept(ids = [\"cuda-eula\"])"},
     fetch_fails = True,
     files = {
-        "consumers/cuda/consumer.bazelrc": ".bazelrc",
         "//cuda/tests/fixtures/cuda_app/app:BUILD.bazel": "cuda/tests/fixtures/cuda_app/app/BUILD.bazel",
         "//cuda/tests/fixtures/cuda_app/app:main.cc": "cuda/tests/fixtures/cuda_app/app/main.cc",
         "//cuda/tests/fixtures/cuda_app/app:output_test.sh": "cuda/tests/fixtures/cuda_app/app/output_test.sh",

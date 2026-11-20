@@ -36,16 +36,18 @@ _windows_msvc_test = _make("windows_x86_64", "msvc")
 _windows_arm64_llvm_test = _make("windows_arm64", "llvm")
 _windows_arm64_msvc_test = _make("windows_arm64", "msvc")
 _linux_llvm_test = _make("linux_x86_64", "llvm")
+_macos_llvm_test = _make("macos_arm64", "llvm")
 
 def cuda_cell_tests(name):
     """Declares a probe carrying CUDA_COMPATIBLE_WITH and checks it per platform and compiler."""
     probe = name + "_probe"
     _compat_probe(name = probe, compat = CUDA_COMPATIBLE_WITH, tags = ["manual"])
-    _windows_llvm_test(name = name + "_windows_llvm", target_under_test = ":" + probe, expected = _INCOMPATIBLE, size = "small")
+    _windows_llvm_test(name = name + "_windows_llvm", target_under_test = ":" + probe, expected = [], size = "small")
     _windows_msvc_test(name = name + "_windows_msvc", target_under_test = ":" + probe, expected = [], size = "small")
-    _windows_arm64_llvm_test(name = name + "_windows_arm64_llvm", target_under_test = ":" + probe, expected = _INCOMPATIBLE, size = "small")
+    _windows_arm64_llvm_test(name = name + "_windows_arm64_llvm", target_under_test = ":" + probe, expected = [], size = "small")
     _windows_arm64_msvc_test(name = name + "_windows_arm64_msvc", target_under_test = ":" + probe, expected = [], size = "small")
     _linux_llvm_test(name = name + "_linux_llvm", target_under_test = ":" + probe, expected = [], size = "small")
+    _macos_llvm_test(name = name + "_macos_llvm", target_under_test = ":" + probe, expected = _INCOMPATIBLE, size = "small")
     native.test_suite(
         name = name,
         tests = [
@@ -54,5 +56,6 @@ def cuda_cell_tests(name):
             ":" + name + "_windows_arm64_llvm",
             ":" + name + "_windows_arm64_msvc",
             ":" + name + "_linux_llvm",
+            ":" + name + "_macos_llvm",
         ],
     )

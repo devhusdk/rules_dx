@@ -67,6 +67,8 @@ struct Languages {
     hub_extensions: BTreeSet<String>,
     /// The language directories of those labels.
     hub_dirs: BTreeSet<String>,
+    /// The `resolver` labels of `setup.hubs`, without the `@rules_dx` repository.
+    resolvers: BTreeSet<String>,
     /// Ecosystems named by any language.
     ecosystems: BTreeSet<String>,
     /// Ecosystems with a complete `setup.hubs` entry.
@@ -116,6 +118,13 @@ fn languages(files: &BTreeMap<String, String>) -> Languages {
                 out.hub_dirs
                     .extend(extension_dir(&label).map(str::to_owned));
                 out.hub_extensions.insert(label);
+            }
+            if let Some(label) = entry
+                .get("resolver")
+                .and_then(Value::as_str)
+                .and_then(local_label)
+            {
+                out.resolvers.insert(label);
             }
             for key in ["manifest", "lock", "state"] {
                 out.registry_names.extend(strings(entry.get(key)));
@@ -304,6 +313,37 @@ fn extension_dir(label: &str) -> Option<&str> {
     package.split('/').next()
 }
 
+/// The rule that declares a `//<package>[:<name>]` label unless it is `dx_subcommand`, or `missing` when nothing declares it.
+fn resolver_kind(label: &str, sources: &BTreeMap<String, String>) -> Option<String> {
+    let rest = label.strip_prefix("//").unwrap_or(label);
+    let (package, name) = rest
+        .split_once(':')
+        .unwrap_or_else(|| (rest, rest.rsplit('/').next().unwrap_or(rest)));
+    let path = format!("{package}/BUILD.bazel");
+    let Some(source) = sources.get(&path) else {
+        return Some("missing".to_owned());
+    };
+    let module = parse(&path, source);
+    let mut kind = None;
+    each_expr(module.statement(), &mut |expr| {
+        let ExprP::Call(callee, args) = &expr.node else {
+            return;
+        };
+        let declares = args.args.iter().any(|arg| {
+            matches!(&arg.node, ArgumentP::Named(key, value)
+                if key.node == "name" && string_literal(value) == Some(name))
+        });
+        if declares && kind.is_none() {
+            kind = Some(identifier(callee).unwrap_or("call").to_owned());
+        }
+    });
+    match kind.as_deref() {
+        Some("dx_subcommand") => None,
+        Some(_) => kind,
+        None => Some("missing".to_owned()),
+    }
+}
+
 /// `<extension>.<tag>.<attribute>` for every banned keyword on a tag of an extension loaded from one of `labels`.
 fn banned_tag_uses(path: &str, source: &str, labels: &BTreeSet<String>) -> BTreeSet<String> {
     let module = parse(path, source);
@@ -407,6 +447,11 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
             out.insert(format!("digests-file {path}"));
         }
     }
+    for label in &langs.resolvers {
+        if let Some(kind) = resolver_kind(label, &tree.sources) {
+            out.insert(format!("resolver {label} {kind}"));
+        }
+    }
     for (path, name) in &langs.stray_names {
         out.insert(format!("name {path} {name}"));
     }
@@ -496,6 +541,7 @@ fn fix(line: &str) -> &'static str {
         "tag-attr" => "remove the attribute; the lock holds the value",
         "tag-use" => "remove the argument; the lock holds the value",
         "resolve-doc" => "delete the line; the lock resolves the import",
+        "resolver" => "declare it with dx_subcommand so it runs the prebuilt dx",
         _ => "not a rule of this test",
     }
 }
@@ -538,8 +584,14 @@ fn tree_with_rust(
             .map(|(path, text)| ((*path).to_owned(), (*text).to_owned()))
             .collect()
     };
+    let mut sources: BTreeMap<String, String> = map(sources);
+    sources
+        .entry("php/private/tools/lock/BUILD.bazel".to_owned())
+        .or_insert_with(|| {
+            "dx_subcommand(name = \"lock\", subcommand = \"php_lock\")\n".to_owned()
+        });
     Tree {
-        sources: map(sources),
+        sources,
         files: map(files),
         rust: map(rust),
         lock_scan: BTreeMap::new(),
@@ -987,10 +1039,52 @@ fn a_new_violation_and_a_stale_allowlist_line_fail() {
 }
 
 #[test]
+fn a_resolver_that_is_not_a_dx_subcommand_fails() {
+    let hub = |lang: &str, resolver: &str| {
+        format!(
+            r#"{{"name": "{lang}", "ecosystems": ["{lang}"], "setup": {{"hubs": [{{"ecosystem": "{lang}", "manifest": "{lang}.json", "lock": "{lang}.lock.json", "state": "{lang}.lock", "extension": "@rules_dx//{lang}:extensions.bzl", "tag": "lock", "hub": "{lang}", "resolver": {resolver}, "imports": "provides"}}]}}}}"#
+        )
+    };
+    let lua = hub("lua", r#""@rules_dx//lua/private/tools/lock""#);
+    let zig = hub("zig", r#""@rules_dx//zig/private/tools/lock""#);
+    let d = hub("d", r#""@rules_dx//d/private/tools/lock:resolve""#);
+    let ocaml = hub("ocaml", "null");
+    let tree = tree(
+        &[
+            (
+                "lua/private/tools/lock/BUILD.bazel",
+                "rust_binary(\n    name = \"lock\",\n    srcs = [\"main.rs\"],\n)\n",
+            ),
+            (
+                "d/private/tools/lock/BUILD.bazel",
+                "dx_subcommand(name = \"lock\", subcommand = \"d_lock\")\n",
+            ),
+        ],
+        &[
+            ("lua/lang.json", &lua),
+            ("zig/lang.json", &zig),
+            ("d/lang.json", &d),
+            ("ocaml/lang.json", &ocaml),
+        ],
+        &[],
+    );
+    assert_eq!(
+        found(&tree),
+        [
+            "resolver //d/private/tools/lock:resolve missing",
+            "resolver //lua/private/tools/lock rust_binary",
+            "resolver //zig/private/tools/lock missing",
+        ]
+    );
+}
+
+#[test]
 fn the_allowlist_is_sorted_lines_of_known_rules() {
-    let (lines, problems) =
-        parse_lines("digests-file a/x.digests.json\nregistry dub\n", well_formed);
-    assert_eq!(lines.len(), 2);
+    let (lines, problems) = parse_lines(
+        "digests-file a/x.digests.json\nregistry dub\nresolver x\n",
+        well_formed,
+    );
+    assert_eq!(lines.len(), 3);
     assert_eq!(problems, Vec::<String>::new());
     let (_, problems) = parse_lines(
         "registry zig\nregistry dub\nregistry dub\n# note\n\nother x\n registry a\n",

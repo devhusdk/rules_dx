@@ -18,6 +18,8 @@ scala_toolchain(
     dependency_mode = "transitive",
     dependency_tracking_method = "ast",
     enable_semanticdb = True,
+    # Scalac writes the compile time into the stats file, so it differs on every build.
+    enable_stats_file = False,
     scalacopts = [
         "-Wunused:imports,privates,locals,implicits",
         "-Wconf:cat=unused:info",
@@ -41,6 +43,8 @@ toolchain(
 scala_toolchain(
     name = "semanticdb_scala3_impl",
     enable_semanticdb = True,
+    # Scalac writes the compile time into the stats file, so it differs on every build.
+    enable_stats_file = False,
     scalacopts = ["-Wunused:all"],
     semanticdb_bundle_in_jar = True,
     use_argument_file_in_runner = True,

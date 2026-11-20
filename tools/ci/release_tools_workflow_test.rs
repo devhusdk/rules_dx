@@ -9,7 +9,7 @@ const RELEASE: &str = ".github/workflows/release.yml";
 const CONSUMER: &str = ".github/workflows/release-consumer.yml";
 const RELEASE_JARS: &str = "tools/ci/release_jars.txt";
 const KCOV_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" //tools/coverage/kcov:kcov_static";
-const GO_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${targets[@]}\"";
+const TARGETS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${targets[@]}\"";
 const HASKELL_DETERMINISM: &str = "linux-*) bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"${targets[@]}\" ;;";
 const HACKAGE_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"$TARGET\"";
 
@@ -125,8 +125,19 @@ fn each_host_uploads_its_artifact() {
 }
 
 /// (job, its last `bazel build`, its determinism check, whether the check sits in a `linux-*)` arm).
-const JOB_DETERMINISM: [(&str, &str, &str, bool); 3] = [
-    ("go", "bazel build \"${targets[@]}\"", GO_DETERMINISM, false),
+const JOB_DETERMINISM: [(&str, &str, &str, bool); 4] = [
+    (
+        "go",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
+    (
+        "jars",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
     (
         "haskell",
         "bazel build \"${flags[@]}\" \"${targets[@]}\"",

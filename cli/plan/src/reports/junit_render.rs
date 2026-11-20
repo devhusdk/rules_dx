@@ -102,7 +102,7 @@ pub fn render_junit(suites: &[(String, Vec<JunitCase>)]) -> Result<String, super
             }
             let duration = junit_duration(case.time);
             test_case.set_time(duration);
-            suite_time += duration;
+            suite_time = suite_time.saturating_add(duration);
             if let Some(out) = &case.system_out {
                 test_case.set_system_out(out.as_str());
             }
@@ -112,7 +112,7 @@ pub fn render_junit(suites: &[(String, Vec<JunitCase>)]) -> Result<String, super
             suite.add_test_case(test_case);
         }
         suite.set_time(suite_time);
-        total_time += suite_time;
+        total_time = total_time.saturating_add(suite_time);
         report.add_test_suite(suite);
     }
     report.set_time(total_time);
@@ -171,6 +171,19 @@ mod tests {
             line: None,
             configuration: None,
         }
+    }
+
+    #[test]
+    fn huge_case_times_saturate() {
+        let mut case = junit_case("a");
+        case.time = 1.0e19;
+        let mut other = case.clone();
+        other.name = "b".to_owned();
+        let suites = [
+            ("s".to_owned(), vec![case.clone(), other]),
+            ("t".to_owned(), vec![case]),
+        ];
+        assert!(render_junit(&suites).is_ok());
     }
 
     #[test]

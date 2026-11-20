@@ -27,6 +27,7 @@ nested_bazel_test(
         "//bcr_test_module/main_in_dep:files",
         "//bcr_test_module/qt_hello:files",
         "//cli/cli:dx",
+        "//cli/launcher:exec_launcher",
         "//core/coreutils:applets",
         "//core/modules:core_budget.json",
         "//core/modules:python_consumer_budget.json",
@@ -70,10 +71,10 @@ nested_bazel_test(
     env = {
         "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
         "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_LAUNCHER": "$(rootpath //cli/launcher:exec_launcher)",
         "DX_CORE_BUDGET": "$(rootpath //core/modules:core_budget.json)",
         "DX_PYTHON_CONSUMER_BUDGET": "$(rootpath //core/modules:python_consumer_budget.json)",
     },
-    network = True,
     deps = [
         "//cli/test_scratch:dx_test_scratch",
         "//deploy/private:dx_deploy_tools",

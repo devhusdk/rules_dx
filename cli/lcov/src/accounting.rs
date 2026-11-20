@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 
-use crate::lang::{LineComment, line_comment_syntax};
+use crate::lang::{LineComment, has_suffix, line_comment_syntax};
 use crate::{
     FileHits, Ignores, LcovError, find_ignores, is_covered_language, is_ignored, merge_lcov_reports,
 };
@@ -11,7 +10,7 @@ pub const SOURCES_ASPECT: &str = "core/quality:coverage_sources.bzl%dx_coverage_
 /// The output group that carries the source manifests.
 pub const SOURCES_OUTPUT_GROUP: &str = "dx_coverage_sources";
 
-const MANIFEST_VERSION: &str = "v1";
+const MANIFEST_VERSION: &str = "v2";
 const UNKNOWN_CELL: &str = "unknown";
 
 /// One instrumented source a target owns.
@@ -177,7 +176,7 @@ pub(crate) fn resolve_dart_uris(document: &str, owned: &BTreeSet<String>) -> Str
         if let Some(uri) = line.strip_prefix("SF:") {
             match resolve_dart_uri(uri.trim_end(), owned) {
                 Resolved::Path(path) => {
-                    writeln!(out, "SF:{path}").ok();
+                    out.push_str(&format!("SF:{path}\n"));
                     continue;
                 }
                 Resolved::Dependency => dropping = true,
@@ -220,7 +219,8 @@ fn resolve_dart_uri(uri: &str, owned: &BTreeSet<String>) -> Resolved {
     }
 }
 
-/// Parses one source manifest: a `v1 cell <cell>` header, then `<prod|test> <source|generated> <path>` rows.
+/// Parses one source manifest: a `v2 cell <cell>` header, then `<prod|test> <source|generated> <path>` rows.
+/// A file is prod when a prod row names it, else test.
 pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxError> {
     let mut lines = text.lines();
     let header: Vec<&str> = lines.next().unwrap_or_default().split(' ').collect();
@@ -242,6 +242,8 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxE
         cell,
         rows: Vec::new(),
     };
+    // Rows not yet paired with a row of the other kind, by path.
+    let mut unpaired: BTreeMap<String, usize> = BTreeMap::new();
     for (index, line) in lines.enumerate() {
         let lineno = index + 2;
         let fields: Vec<&str> = line.splitn(3, ' ').collect();
@@ -278,11 +280,22 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxE
                 "malformed source manifest row {lineno}: {line:?}"
             )));
         }
-        manifest.rows.push(SourceRow {
+        let row = SourceRow {
             path: (*path).to_string(),
             test,
             generated,
-        });
+        };
+        let pair = unpaired
+            .get(*path)
+            .and_then(|&at| manifest.rows.get_mut(at))
+            .filter(|held| held.test != test && held.generated == generated);
+        if let Some(held) = pair {
+            held.test = false;
+            unpaired.remove(*path);
+        } else {
+            unpaired.insert((*path).to_string(), manifest.rows.len());
+            manifest.rows.push(row);
+        }
     }
     let paths: Vec<&str> = manifest.rows.iter().map(|row| row.path.as_str()).collect();
     let mut errors = Vec::new();
@@ -307,7 +320,7 @@ const UNCOLLECTED: &[(&str, &[&str])] = &[(
 /// False when no collector on `cell` covers the language of `path`.
 fn collected_in(cell: &str, path: &str) -> bool {
     !UNCOLLECTED.iter().any(|(prefix, suffixes)| {
-        cell.starts_with(prefix) && suffixes.iter().any(|suffix| path.ends_with(suffix))
+        cell.starts_with(prefix) && suffixes.iter().any(|suffix| has_suffix(path, suffix))
     })
 }
 
@@ -315,12 +328,14 @@ fn collected_in(cell: &str, path: &str) -> bool {
 fn is_declaration_stub(path: &str) -> bool {
     DECLARATION_SUFFIXES
         .iter()
-        .any(|suffix| path.ends_with(suffix))
+        .any(|suffix| has_suffix(path, suffix))
 }
 
 /// True for C and C++ headers.
 fn is_header(path: &str) -> bool {
-    HEADER_SUFFIXES.iter().any(|suffix| path.ends_with(suffix))
+    HEADER_SUFFIXES
+        .iter()
+        .any(|suffix| has_suffix(path, suffix))
 }
 
 fn read_error(path: &str, error: &LcovError) -> String {

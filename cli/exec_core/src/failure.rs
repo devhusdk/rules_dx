@@ -289,7 +289,8 @@ static USAGE_COMMAND: std::sync::OnceLock<dx_plan::args::Command> = std::sync::O
 
 /// Records the command whose usage a later argument error prints.
 pub fn set_usage_command(command: dx_plan::args::Command) {
-    USAGE_COMMAND.set(command).ok();
+    // The first recorded command wins; a later one is dropped.
+    USAGE_COMMAND.set(command).unwrap_or(());
 }
 
 fn usage_text() -> String {
@@ -301,7 +302,10 @@ fn usage_text() -> String {
 
 /// Writes the cancellation line for a stop signal, closes the JSON stream, and returns its exit code.
 pub fn cancel(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, signo: i32) -> i32 {
-    writeln!(err, "dx: cancelled: stopped by signal {signo}").ok();
+    dx_output::write_stderr(
+        err,
+        format_args!("dx: cancelled: stopped by signal {signo}\n"),
+    );
     let exit = interrupted_code(signo);
     if output == OutputMode::Json {
         let failure =
@@ -346,7 +350,8 @@ fn panic_message(info: &std::panic::PanicHookInfo<'_>) -> String {
 
 fn write_panic_events(out: &mut dyn Write, message: &str) {
     let failure = Failure::new("internal_error", message, 101).without_usage();
-    emit_failure_events(out, &failure).ok();
+    // The panic exit code stands whether or not stdout still accepts the events.
+    emit_failure_events(out, &failure).unwrap_or(());
 }
 
 /// Makes a panic on the main thread close the JSON stream with `internal_error`.
@@ -361,7 +366,7 @@ pub fn install_panic_events() {
 }
 
 fn write_panic_hint(err: &mut dyn Write) {
-    writeln!(err, "dx: {}", dx_process::BUG_REPORT_HINT).ok();
+    dx_output::write_stderr(err, format_args!("dx: {}\n", dx_process::BUG_REPORT_HINT));
 }
 
 /// Prints where to report a bug after the default panic message.
@@ -384,22 +389,25 @@ pub fn report_failure(
         return cancel(output, out, err, signo);
     }
     if failure.shows_usage() || failure.code == CODE_INVALID_ARGUMENTS {
-        writeln!(err, "dx: {}", failure.message).ok();
+        dx_output::write_stderr(err, format_args!("dx: {}\n", failure.message));
     } else {
-        writeln!(err, "dx: {}: {}", failure.code, failure.message).ok();
+        dx_output::write_stderr(
+            err,
+            format_args!("dx: {}: {}\n", failure.code, failure.message),
+        );
     }
     if let Some(excerpt) = &failure.excerpt {
         for line in excerpt.text.lines() {
-            writeln!(err, "  {line}").ok();
+            dx_output::write_stderr(err, format_args!("  {line}\n"));
         }
         if excerpt.truncated {
-            writeln!(err, "  (excerpt truncated)").ok();
+            dx_output::write_stderr(err, format_args!("  (excerpt truncated)\n"));
         }
     }
     if failure.shows_usage() {
-        writeln!(err, "{}", usage_text()).ok();
+        dx_output::write_stderr(err, format_args!("{}\n", usage_text()));
     } else if let Some(next) = next_hint(failure) {
-        writeln!(err, "{next}").ok();
+        dx_output::write_stderr(err, format_args!("{next}\n"));
     }
     if output == OutputMode::Json
         && let Err(exit) = emit_failure_events(out, failure)

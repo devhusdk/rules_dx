@@ -1,6 +1,6 @@
 """Unit tests for SBOM + provenance generation."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":sbom.bzl", "SBOM_BUILDER_RELEASE", "sbom_builder_error", "sbom_filenames")
 
 def sbom_unit_tests(name):

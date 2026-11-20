@@ -14,6 +14,12 @@ ansible_library(
 )
 
 ansible_library(
+    name = "format_dirty",
+    srcs = ["format_dirty.yml"],
+    playbooks = ["format_dirty.yml"],
+)
+
+ansible_library(
     name = "lint_dirty",
     srcs = ["lint_dirty.yml"],
     playbooks = ["lint_dirty.yml"],
@@ -40,6 +46,8 @@ dx_conformance_suite(
     passing_test = ":conformance",
     quality = {
         "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.yml",
         "lint_dirty": ":lint_dirty",
         "lint_line": 5,
         "lint_rule": "name[missing]",

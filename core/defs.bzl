@@ -1,501 +1,201 @@
-"""Project-owned Starlark testing facade."""
+"""Public rules_dx rules that belong to no single language: source libraries, native tool configs and docs sites."""
 
-load("//core:canonical.bzl", "strip_canonical")
-load("//core:no_coverage.bzl", "no_coverage_transition")
-load("//core:rlocation.bzl", "rlocation_path")
-
-DxSubjectInfo = provider(
-    doc = "Analysis observations a subject rule exposes to starlark_test.",
-    fields = {
-        "fields": "Observations about the subject.",
-    },
+load(
+    "//core/quality:native_config.bzl",
+    _DxNativeConfigInfo = "DxNativeConfigInfo",
+    _ansible_lint_config = "ansible_lint_config",
+    _bicep_config = "bicep_config",
+    _biome_config = "biome_config",
+    _buf_config = "buf_config",
+    _buildifier_config = "buildifier_config",
+    _cfn_lint_config = "cfn_lint_config",
+    _checkmake_config = "checkmake_config",
+    _clang_format_config = "clang_format_config",
+    _clang_tidy_config = "clang_tidy_config",
+    _cmakelint_config = "cmakelint_config",
+    _credo_config = "credo_config",
+    _csharpier_config = "csharpier_config",
+    _dart_config = "dart_config",
+    _detekt_config = "detekt_config",
+    _djlint_config = "djlint_config",
+    _docstrfmt_config = "docstrfmt_config",
+    _elvis_config = "elvis_config",
+    _errcheck_config = "errcheck_config",
+    _eslint_config = "eslint_config",
+    _ffmt_config = "ffmt_config",
+    _fortitude_config = "fortitude_config",
+    _fsharplint_config = "fsharplint_config",
+    _gersemi_config = "gersemi_config",
+    _govet_config = "govet_config",
+    _gplint_config = "gplint_config",
+    _graphql_eslint_config = "graphql_eslint_config",
+    _hadolint_config = "hadolint_config",
+    _helmfmt_config = "helmfmt_config",
+    _hlint_config = "hlint_config",
+    _julialint_config = "julialint_config",
+    _latexindent_config = "latexindent_config",
+    _luals_config = "luals_config",
+    _lychee_config = "lychee_config",
+    _markdown_check_config = "markdown_check_config",
+    _mbake_config = "mbake_config",
+    _mix_format_config = "mix_format_config",
+    _perlcritic_config = "perlcritic_config",
+    _perltidy_config = "perltidy_config",
+    _phpcs_config = "phpcs_config",
+    _phpstan_config = "phpstan_config",
+    _pmd_config = "pmd_config",
+    _prettier_config = "prettier_config",
+    _psscriptanalyzer_config = "psscriptanalyzer_config",
+    _pydoclint_config = "pydoclint_config",
+    _qmlformat_config = "qmlformat_config",
+    _qmllint_config = "qmllint_config",
+    _redocly_config = "redocly_config",
+    _regal_config = "regal_config",
+    _remark_config = "remark_config",
+    _roslyn_config = "roslyn_config",
+    _rubocop_config = "rubocop_config",
+    _ruff_config = "ruff_config",
+    _rustfmt_config = "rustfmt_config",
+    _scalafix_config = "scalafix_config",
+    _scalafmt_config = "scalafmt_config",
+    _selene_config = "selene_config",
+    _shellcheck_config = "shellcheck_config",
+    _shfmt_config = "shfmt_config",
+    _spotbugs_config = "spotbugs_config",
+    _sqlfluff_config = "sqlfluff_config",
+    _staticcheck_config = "staticcheck_config",
+    _stylelint_config = "stylelint_config",
+    _stylua_config = "stylua_config",
+    _swift_format_config = "swift_format_config",
+    _swift_lint_config = "swift_lint_config",
+    _taplo_config = "taplo_config",
+    _tflint_config = "tflint_config",
+    _trivy_config_config = "trivy_config_config",
+    _ty_config = "ty_config",
+    _typos_config = "typos_config",
+    _vale_config = "vale_config",
+    _yamlfmt_config = "yamlfmt_config",
+    _yamllint_config = "yamllint_config",
+    _zizmor_config = "zizmor_config",
+)
+load(
+    "//core/quality:source_libraries.bzl",
+    _cue_library = "cue_library",
+    _gherkin_library = "gherkin_library",
+    _html_template_library = "html_template_library",
+    _jsonnet_library = "jsonnet_library",
+    _jupyter_library = "jupyter_library",
+    _latex_library = "latex_library",
+    _nix_library = "nix_library",
+    _pkl_library = "pkl_library",
+    _typst_library = "typst_library",
+    _xml_library = "xml_library",
+    _yaml_library = "yaml_library",
+)
+load(
+    "//tools/docs/lua:defs.bzl",
+    _lua_doc_shard = "lua_doc_shard",
+)
+load(
+    "//tools/docs/php:defs.bzl",
+    _php_doc_shard = "php_doc_shard",
+)
+load(
+    "//tools/docs/protobuf:defs.bzl",
+    _protobuf_doc_shard = "protobuf_doc_shard",
+)
+load(
+    "//tools/docs/site:site.bzl",
+    _docs_site = "docs_site",
 )
 
-DxAspectInfo = provider(
-    doc = "Aspect observations derived without subject cooperation.",
-    fields = {
-        "fields": "Observations the aspect saw.",
-    },
-)
-
-DxConfigInfo = provider(
-    doc = "Configuration observations a subject rule exposes to starlark_test.",
-    fields = {
-        "fields": "Configuration observations.",
-    },
-)
-
-def _dx_aspect_note_impl(target, ctx):
-    """Derives one aspect note without subject cooperation."""
-    fields = {
-        "aspect_seen": "True",
-        "subject_label": _display_label(target.label),
-    }
-    if DxSubjectInfo in target:
-        fields["field_count"] = str(len(target[DxSubjectInfo].fields.keys()))
-        fields["has_subject"] = "True"
-    else:
-        fields["field_count"] = "0"
-        fields["has_subject"] = "False"
-    seen = []
-    for dep in getattr(ctx.rule.attr, "deps", []):
-        if DxAspectInfo in dep:
-            label = dep[DxAspectInfo].fields.get("subject_label", "")
-            if label != "":
-                seen.append(label)
-    if len(seen) > 0:
-        fields["transitive"] = ",".join(sorted(seen))
-    fields["transitive_count"] = str(len(seen))
-    return [DxAspectInfo(fields = fields)]
-
-dx_aspect_note = aspect(
-    implementation = _dx_aspect_note_impl,
-    doc = "Derives one aspect note for a target.",
-    attr_aspects = ["deps"],
-)
-
-def fake_file(**fields):
-    """Builds a stand-in File with the given fields for BUILD files."""
-    return struct(**fields)
-
-def label_string(label):
-    """Returns the Label for a string, for BUILD files."""
-    return Label(label)
-
-def expect_equal(name, actual, expected):
-    """Builds one equality-check record as a JSON string."""
-    return json.encode({
-        "actual": actual,
-        "expected": expected,
-        "kind": "equal",
-        "name": name,
-    })
-
-def expect_true(name, actual):
-    """Builds one boolean-true record."""
-    return json.encode({
-        "actual": actual,
-        "kind": "true",
-        "name": name,
-        "passed": actual == True,
-    })
-
-def expect_false(name, actual):
-    """Builds one boolean-false record."""
-    return json.encode({
-        "actual": actual,
-        "kind": "false",
-        "name": name,
-        "passed": actual == False,
-    })
-
-def expect_contains(name, haystack, needle):
-    """Builds one membership record (string substring, list/tuple element, dict key)."""
-    haystack_type = type(haystack)
-    if haystack_type == "string":
-        if type(needle) != "string":
-            fail("expect_contains: needle must be string when haystack is string, got " + type(needle))
-        passed = needle in haystack
-    elif haystack_type == "list" or haystack_type == "tuple":
-        passed = needle in haystack
-    elif haystack_type == "dict":
-        passed = needle in haystack
-    else:
-        fail("expect_contains: haystack must be string, list, tuple, or dict, got " + haystack_type)
-    return json.encode({
-        "haystack": haystack,
-        "kind": "contains",
-        "name": name,
-        "needle": needle,
-        "passed": passed,
-    })
-
-def expect_match(name, value, want):
-    """Builds one stringified-substring record."""
-    if type(want) != "string":
-        fail("expect_match: want must be string, got " + type(want))
-    return json.encode({
-        "kind": "match",
-        "name": name,
-        "passed": want in str(value),
-        "value": value,
-        "want": want,
-    })
-
-def _display_label(label):
-    """Renders a label for observations and diagnostics."""
-    return strip_canonical(str(label))
-
-def display_label(label):
-    """Renders a label with the canonical-repository marker stripped."""
-    return _display_label(label)
-
-def _require_keys(record, keys, raw):
-    """Fails analysis when a check record lacks one of the required keys."""
-    for key in keys:
-        if key not in record:
-            fail("starlark_test: check record is missing key '" + key + "': " + raw)
-
-def _harness_check_record(raw):
-    """Normalizes one JSON check record into a manifest entry with string fields."""
-    record = json.decode(raw)
-    _require_keys(record, ("kind",), raw)
-    kind = record["kind"]
-    if kind == "equal":
-        _require_keys(record, ("name", "expected", "actual"), raw)
-        return {
-            "actual": str(record["actual"]),
-            "expected": str(record["expected"]),
-            "kind": "equal",
-            "name": str(record["name"]),
-        }
-    if kind == "true" or kind == "false":
-        _require_keys(record, ("name", "actual", "passed"), raw)
-        return {
-            "actual": str(record["actual"]),
-            "kind": kind,
-            "name": str(record["name"]),
-            "passed": str(record["passed"]),
-        }
-    if kind == "contains":
-        _require_keys(record, ("name", "haystack", "needle", "passed"), raw)
-        return {
-            "haystack": str(record["haystack"]),
-            "kind": "contains",
-            "name": str(record["name"]),
-            "needle": str(record["needle"]),
-            "passed": str(record["passed"]),
-        }
-    if kind == "match":
-        _require_keys(record, ("name", "value", "want", "passed"), raw)
-        return {
-            "kind": "match",
-            "name": str(record["name"]),
-            "passed": str(record["passed"]),
-            "value": str(record["value"]),
-            "want": str(record["want"]),
-        }
-    fail("starlark_test: unknown check kind '" + kind + "': " + raw)
-
-def _target_is_windows(ctx):
-    """Returns whether this target builds for a Windows target platform."""
-    return ctx.target_platform_has_constraint(
-        ctx.attr._windows_os[platform_common.ConstraintValueInfo],
-    )
-
-def _validate_common(mode, ctx):
-    """Fails analysis when a test declares no evidence in any channel."""
-    attr = ctx.attr
-    if len(attr.checks) == 0 and len(attr.subjects) == 0 and len(attr.file_checks) == 0 and len(attr.file_blocks) == 0 and len(attr.file_line_endings) == 0:
-        fail("starlark_test (" + mode + " mode): no evidence: " +
-             "provide checks, subjects, file_checks, file_blocks, or file_line_endings")
-
-_HARNESS_MANIFEST_VERSION = 2
-
-_HARNESS_MANIFEST_ENV = "STARLARK_HARNESS_MANIFEST"
-
-def _file_check_files(target, attr):
-    """Returns the files of one target of a file attribute, failing analysis when it has none."""
-    target_files = target.files.to_list()
-    if len(target_files) == 0:
-        fail("starlark_test: " + attr + " target has no files: " + str(target.label))
-    return sorted(target_files, key = lambda f: f.short_path)
-
-def _harness_file_entries(ctx):
-    """Renders one manifest file entry per staged file behind file_checks and file_blocks."""
-    entries = []
-    staged = []
-    for target in sorted(ctx.attr.file_checks.keys(), key = lambda t: str(t.label)):
-        files = _file_check_files(target, "file_checks")
-        want = ctx.attr.file_checks[target]
-        required = [line for line in want.split("\n") if line != ""]
-        if len(required) == 0:
-            fail("starlark_test: file_checks value is empty for " + str(target.label))
-        for f in files:
-            entries.append({
-                "key": rlocation_path(ctx, f),
-                "label": _display_label(target.label),
-                "needles": required,
-            })
-            staged.append(f)
-    for target in sorted(ctx.attr.file_blocks.keys(), key = lambda t: str(t.label)):
-        files = _file_check_files(target, "file_blocks")
-        blocks = json.decode(ctx.attr.file_blocks[target])
-        if type(blocks) != "list" or len(blocks) == 0:
-            fail("starlark_test: file_blocks value is empty for " + str(target.label))
-        for block in blocks:
-            if type(block) != "string":
-                fail("starlark_test: file_blocks block is not a string for " + str(target.label))
-            if block == "":
-                fail("starlark_test: file_blocks block is empty for " + str(target.label))
-        for f in files:
-            entries.append({
-                "key": rlocation_path(ctx, f),
-                "label": _display_label(target.label),
-                "needles": blocks,
-            })
-            staged.append(f)
-    for target in sorted(ctx.attr.file_line_endings.keys(), key = lambda t: str(t.label)):
-        kind = ctx.attr.file_line_endings[target]
-        if kind not in ("crlf", "lf"):
-            fail("starlark_test: file_line_endings value must be crlf or lf for " + str(target.label))
-        for f in _file_check_files(target, "file_line_endings"):
-            entries.append({
-                "key": rlocation_path(ctx, f),
-                "label": _display_label(target.label),
-                "line_endings": kind,
-                "needles": [],
-            })
-            staged.append(f)
-    return (entries, staged)
-
-def _write_harness(ctx, records, observations):
-    """Writes the v2 manifest and runs it through the native harness binary."""
-    (entries, staged) = _harness_file_entries(ctx)
-    manifest = ctx.actions.declare_file(ctx.label.name + "_starlark_manifest.json")
-    ctx.actions.write(
-        manifest,
-        json.encode({
-            "checks": records,
-            "files": entries,
-            "name": _display_label(ctx.label),
-            "observations": observations,
-            "version": _HARNESS_MANIFEST_VERSION,
-        }) + "\n",
-    )
-    harness = ctx.executable._harness
-    if _target_is_windows(ctx):
-        executable = ctx.actions.declare_file(ctx.label.name + ".exe")
-    else:
-        executable = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.symlink(output = executable, target_file = harness)
-    transitive = []
-    for target in ctx.attr.file_checks.keys() + ctx.attr.file_blocks.keys() + ctx.attr.file_line_endings.keys():
-        transitive.append(target[DefaultInfo].default_runfiles.files)
-    runfiles = ctx.runfiles(
-        files = staged + [manifest],
-        transitive_files = depset(transitive = transitive),
-    )
-    runfiles = runfiles.merge(ctx.attr._harness[0][DefaultInfo].default_runfiles)
-    return [
-        DefaultInfo(executable = executable, runfiles = runfiles),
-        RunEnvironmentInfo({_HARNESS_MANIFEST_ENV: rlocation_path(ctx, manifest)}),
-        OutputGroupInfo(starlark_manifest = depset([manifest])),
-    ]
-
-def _check_records(ctx):
-    """Normalizes every declared check record in declaration order."""
-    return [_harness_check_record(raw) for raw in ctx.attr.checks]
-
-def _load_test_impl(ctx):
-    _validate_common("load", ctx)
-    if len(ctx.attr.checks) == 0:
-        fail("starlark_test (load mode): checks must be non-empty: " +
-             "load tests assert values computed while test files load")
-    if len(ctx.attr.subjects) != 0:
-        fail("starlark_test (load mode): subjects must be empty: " +
-             "load tests observe loading, not analysis")
-    return _write_harness(ctx, _check_records(ctx), [])
-
-def _unit_test_impl(ctx):
-    _validate_common("unit", ctx)
-    if len(ctx.attr.checks) == 0:
-        fail("starlark_test (unit mode): checks must be non-empty: " +
-             "unit tests assert pure function results")
-    if len(ctx.attr.subjects) != 0:
-        fail("starlark_test (unit mode): subjects must be empty: " +
-             "unit tests take no analysis subjects")
-    return _write_harness(ctx, _check_records(ctx), [])
-
-def _observed_basename(name):
-    """Renders a basename without the Windows executable suffix."""
-    return name[:-4] if name.endswith(".exe") else name
-
-def _observe_subjects(subjects):
-    """Renders one observation block per subject target."""
-    lines = []
-    for target in sorted(subjects, key = lambda t: str(t.label)):
-        lines.append("subject " + _display_label(target.label))
-        info = target[DefaultInfo]
-        for f in sorted(info.files.to_list(), key = lambda f: f.basename):
-            lines.append("file " + _observed_basename(f.basename))
-        if DxSubjectInfo in target:
-            fields = target[DxSubjectInfo].fields
-            for key in sorted(fields.keys()):
-                lines.append("field " + key + "=" + fields[key])
-        if DxAspectInfo in target:
-            aspect_fields = target[DxAspectInfo].fields
-            for key in sorted(aspect_fields.keys()):
-                lines.append("aspect_field " + key + "=" + aspect_fields[key])
-        if DxConfigInfo in target:
-            config_fields = target[DxConfigInfo].fields
-            for key in sorted(config_fields.keys()):
-                lines.append("config_field " + key + "=" + config_fields[key])
-    return lines
-
-def _analysis_test_impl(ctx):
-    _validate_common("analysis", ctx)
-    if len(ctx.attr.subjects) == 0:
-        fail("starlark_test (analysis mode): subjects must be non-empty: " +
-             "analysis tests observe subject targets")
-    observed = _observe_subjects(ctx.attr.subjects)
-    records = _check_records(ctx)
-    if ctx.attr.expected_observations != "":
-        expected = ctx.attr.expected_observations
-        if _target_is_windows(ctx) and ctx.attr.windows_expected_observations != "":
-            expected = ctx.attr.windows_expected_observations
-        records.append({
-            "actual": "\n".join(observed),
-            "expected": expected.strip(),
-            "kind": "equal",
-            "name": "observations",
-        })
-    return _write_harness(ctx, records, observed)
-
-def _execution_test_impl(ctx):
-    _validate_common("execution", ctx)
-    if len(ctx.attr.file_checks) == 0 and len(ctx.attr.file_blocks) == 0 and len(ctx.attr.file_line_endings) == 0:
-        fail("starlark_test (execution mode): file_checks, file_blocks, or file_line_endings must be non-empty: " +
-             "execution tests assert on files read while the test runs")
-    if len(ctx.attr.subjects) != 0:
-        fail("starlark_test (execution mode): subjects must be empty: " +
-             "execution tests read runfiles, not analysis subjects")
-    return _write_harness(ctx, _check_records(ctx), [])
-
-_common_attrs = {
-    "_harness": attr.label(
-        cfg = no_coverage_transition,
-        default = Label("//tools/testing:starlark_harness"),
-        executable = True,
-    ),
-    "_windows_os": attr.label(default = "@platforms//os:windows"),
-    "checks": attr.string_list(
-        doc = "JSON check records asserting expected against actual values.",
-    ),
-    "expected_observations": attr.string(
-        doc = "Expected observation text compared with the observed subject data.",
-        default = "",
-    ),
-    "windows_expected_observations": attr.string(
-        doc = "Expected observation text used instead on Windows targets.",
-        default = "",
-    ),
-    "file_blocks": attr.label_keyed_string_dict(
-        doc = "Map from file targets to JSON lists of multi-line blocks each file must contain.",
-        allow_files = True,
-    ),
-    "file_line_endings": attr.label_keyed_string_dict(
-        doc = "Map from file targets to crlf or lf, the only line ending each file may use.",
-        allow_files = True,
-    ),
-    "file_checks": attr.label_keyed_string_dict(
-        doc = "Map from file targets to newline separated substrings each file must contain.",
-        allow_files = True,
-    ),
-    "subjects": attr.label_list(
-        doc = "Analysis subject targets whose fields and files are observed.",
-        aspects = [dx_aspect_note],
-    ),
-}
-
-_starlark_load_test = rule(
-    implementation = _load_test_impl,
-    test = True,
-    attrs = _common_attrs,
-)
-
-_starlark_unit_test = rule(
-    implementation = _unit_test_impl,
-    test = True,
-    attrs = _common_attrs,
-)
-
-_starlark_analysis_test = rule(
-    implementation = _analysis_test_impl,
-    test = True,
-    attrs = _common_attrs,
-)
-
-_starlark_execution_test = rule(
-    implementation = _execution_test_impl,
-    test = True,
-    attrs = _common_attrs,
-)
-
-_starlark_load_binary = rule(
-    implementation = _load_test_impl,
-    doc = "Executable that runs a Starlark load test.",
-    executable = True,
-    attrs = _common_attrs,
-)
-
-_starlark_unit_binary = rule(
-    implementation = _unit_test_impl,
-    doc = "Executable that runs a Starlark unit test.",
-    executable = True,
-    attrs = _common_attrs,
-)
-
-_starlark_analysis_binary = rule(
-    implementation = _analysis_test_impl,
-    doc = "Executable that runs a Starlark analysis test.",
-    executable = True,
-    attrs = _common_attrs,
-)
-
-_starlark_execution_binary = rule(
-    implementation = _execution_test_impl,
-    doc = "Executable that runs a Starlark execution test.",
-    executable = True,
-    attrs = _common_attrs,
-)
-
-_BINARIES = {
-    "analysis": _starlark_analysis_binary,
-    "execution": _starlark_execution_binary,
-    "load": _starlark_load_binary,
-    "unit": _starlark_unit_binary,
-}
-
-_MODES = {
-    "analysis": _starlark_analysis_test,
-    "execution": _starlark_execution_test,
-    "load": _starlark_load_test,
-    "unit": _starlark_unit_test,
-}
-
-def starlark_test(name, *, mode, checks = [], subjects = [], expected_observations = "", windows_expected_observations = "", file_checks = {}, file_blocks = {}, file_line_endings = {}, **kwargs):
-    """Instantiates one test target in the given mode."""
-    if mode not in _MODES:
-        fail("starlark_test: unknown mode '" + mode + "': want one of " +
-             ", ".join(sorted(_MODES.keys())))
-    kwargs.setdefault("size", "small")
-    _MODES[mode](
-        name = name,
-        checks = checks,
-        subjects = subjects,
-        expected_observations = expected_observations,
-        windows_expected_observations = windows_expected_observations,
-        file_checks = file_checks,
-        file_line_endings = file_line_endings,
-        file_blocks = {label: json.encode(blocks) for label, blocks in file_blocks.items()},
-        **kwargs
-    )
-
-def starlark_binary(name, *, mode, checks = [], subjects = [], expected_observations = "", windows_expected_observations = "", file_checks = {}, file_blocks = {}, file_line_endings = {}, **kwargs):
-    """Instantiates the harness of starlark_test as a non-test executable."""
-    if mode not in _BINARIES:
-        fail("starlark_binary: unknown mode '" + mode + "': want one of " +
-             ", ".join(sorted(_BINARIES.keys())))
-    kwargs.setdefault("testonly", True)
-    _BINARIES[mode](
-        name = name,
-        checks = checks,
-        subjects = subjects,
-        expected_observations = expected_observations,
-        windows_expected_observations = windows_expected_observations,
-        file_checks = file_checks,
-        file_line_endings = file_line_endings,
-        file_blocks = {label: json.encode(blocks) for label, blocks in file_blocks.items()},
-        **kwargs
-    )
+DxNativeConfigInfo = _DxNativeConfigInfo
+ansible_lint_config = _ansible_lint_config
+bicep_config = _bicep_config
+biome_config = _biome_config
+buf_config = _buf_config
+buildifier_config = _buildifier_config
+cfn_lint_config = _cfn_lint_config
+checkmake_config = _checkmake_config
+clang_format_config = _clang_format_config
+clang_tidy_config = _clang_tidy_config
+cmakelint_config = _cmakelint_config
+credo_config = _credo_config
+csharpier_config = _csharpier_config
+cue_library = _cue_library
+dart_config = _dart_config
+detekt_config = _detekt_config
+djlint_config = _djlint_config
+docs_site = _docs_site
+docstrfmt_config = _docstrfmt_config
+elvis_config = _elvis_config
+errcheck_config = _errcheck_config
+eslint_config = _eslint_config
+ffmt_config = _ffmt_config
+fortitude_config = _fortitude_config
+fsharplint_config = _fsharplint_config
+gersemi_config = _gersemi_config
+gherkin_library = _gherkin_library
+govet_config = _govet_config
+gplint_config = _gplint_config
+graphql_eslint_config = _graphql_eslint_config
+hadolint_config = _hadolint_config
+helmfmt_config = _helmfmt_config
+hlint_config = _hlint_config
+html_template_library = _html_template_library
+jsonnet_library = _jsonnet_library
+julialint_config = _julialint_config
+jupyter_library = _jupyter_library
+latex_library = _latex_library
+latexindent_config = _latexindent_config
+lua_doc_shard = _lua_doc_shard
+luals_config = _luals_config
+lychee_config = _lychee_config
+markdown_check_config = _markdown_check_config
+mbake_config = _mbake_config
+mix_format_config = _mix_format_config
+nix_library = _nix_library
+perlcritic_config = _perlcritic_config
+perltidy_config = _perltidy_config
+php_doc_shard = _php_doc_shard
+phpcs_config = _phpcs_config
+phpstan_config = _phpstan_config
+pkl_library = _pkl_library
+pmd_config = _pmd_config
+prettier_config = _prettier_config
+protobuf_doc_shard = _protobuf_doc_shard
+psscriptanalyzer_config = _psscriptanalyzer_config
+pydoclint_config = _pydoclint_config
+qmlformat_config = _qmlformat_config
+qmllint_config = _qmllint_config
+redocly_config = _redocly_config
+regal_config = _regal_config
+remark_config = _remark_config
+roslyn_config = _roslyn_config
+rubocop_config = _rubocop_config
+ruff_config = _ruff_config
+rustfmt_config = _rustfmt_config
+scalafix_config = _scalafix_config
+scalafmt_config = _scalafmt_config
+selene_config = _selene_config
+shellcheck_config = _shellcheck_config
+shfmt_config = _shfmt_config
+spotbugs_config = _spotbugs_config
+sqlfluff_config = _sqlfluff_config
+staticcheck_config = _staticcheck_config
+stylelint_config = _stylelint_config
+stylua_config = _stylua_config
+swift_format_config = _swift_format_config
+swift_lint_config = _swift_lint_config
+taplo_config = _taplo_config
+tflint_config = _tflint_config
+trivy_config_config = _trivy_config_config
+ty_config = _ty_config
+typos_config = _typos_config
+typst_library = _typst_library
+vale_config = _vale_config
+xml_library = _xml_library
+yaml_library = _yaml_library
+yamlfmt_config = _yamlfmt_config
+yamllint_config = _yamllint_config
+zizmor_config = _zizmor_config

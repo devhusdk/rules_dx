@@ -171,7 +171,7 @@ fn hand_off(
         }
     }
     let mut argv = invocation.bazel_head().argv("run");
-    argv.extend(["@rules_dx//:dx", "--", "upgrade", "--to", to, "--apply"].map(str::to_owned));
+    argv.extend([dx_families::DX, "--", "upgrade", "--to", to, "--apply"].map(str::to_owned));
     if is_json {
         argv.push("--output=json".to_owned());
     }
@@ -179,7 +179,8 @@ fn hand_off(
         Ok(status) => status.code.unwrap_or(1),
         Err(error) => {
             let message = format!(
-                "upgrade refused: cannot start rules_dx {to} ({error}); rules_dx is at {to}; finish with bazel run @rules_dx//:dx -- upgrade --to {to} --apply"
+                "upgrade refused: cannot start rules_dx {to} ({error}); rules_dx is at {to}; finish with bazel run {} -- upgrade --to {to} --apply",
+                dx_families::DX
             );
             fail(
                 invocation,

@@ -31,6 +31,21 @@ fn constraint(value: &yaml_serde::Value) -> String {
 
 /// `dependencies` and `dev_dependencies` of a pubspec manifest.
 pub fn parse_dart_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
+    manifest_deps(path, true)
+}
+
+/// `dependencies` and `dev_dependencies` of a pubspec manifest without the `sdk:` ones.
+pub fn parse_dart_manifest_packages(
+    path: &Path,
+) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
+    manifest_deps(path, false)
+}
+
+fn is_sdk(value: &yaml_serde::Value) -> bool {
+    value.get("sdk").is_some()
+}
+
+fn manifest_deps(path: &Path, with_sdk: bool) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let root: yaml_serde::Value = yaml_serde::from_str(&text)
         .map_err(|error| manifest_error(format!("invalid pubspec manifest: {error}")))?;
@@ -45,6 +60,9 @@ pub fn parse_dart_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
             let Some(name) = name.as_str() else {
                 return Err(manifest_error(format!("{section} has a non-string name")));
             };
+            if !with_sdk && is_sdk(value) {
+                continue;
+            }
             put(
                 &mut deps,
                 normalize_lower(name),

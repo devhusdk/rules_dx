@@ -24,6 +24,7 @@ fn cancelling() -> BinaryRunner {
 
 #[test]
 fn run_keeps_exit_codes() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     for code in [0, 3, 42] {
@@ -35,6 +36,7 @@ fn run_keeps_exit_codes() {
 
 #[test]
 fn run_passes_extra_env() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&["--require-env=DX_RUNNER_PROBE=forwarded"]);
@@ -50,6 +52,7 @@ fn run_passes_extra_env() {
 
 #[test]
 fn run_hermetic_clears_ambient_env() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&["--forbid-env=TEST_SRCDIR"]);
@@ -61,6 +64,7 @@ fn run_hermetic_clears_ambient_env() {
 
 #[test]
 fn run_hermetic_forwards_extra_env() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&["--require-env=DX_RUNNER_PROBE=forwarded"]);
@@ -72,6 +76,7 @@ fn run_hermetic_forwards_extra_env() {
 
 #[test]
 fn bad_invocations_are_errors() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let empty = runner().run(&[], cwd, &[]).expect_err("empty argv");
@@ -82,6 +87,7 @@ fn bad_invocations_are_errors() {
 
 #[test]
 fn run_withdrawable_honours_withdraw() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&["--exit-code=5"]);
@@ -180,6 +186,7 @@ fn bazel_probe(dir: &Path) -> String {
 
 #[test]
 fn a_withdrawable_bazel_build_keeps_its_stderr() {
+    let _fork = dx_testing::forking();
     use std::io::IsTerminal as _;
     let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
@@ -220,6 +227,7 @@ static VERSION_STOPPED: AtomicI32 = AtomicI32::new(0);
 
 #[test]
 fn a_stopped_version_probe_reports_through_on_stop() {
+    let _fork = dx_testing::forking();
     let tool = PathBuf::from(&probe_argv(&[])[0]);
     let stopping = BinaryRunner {
         inherit_stdout: false,
@@ -232,6 +240,7 @@ fn a_stopped_version_probe_reports_through_on_stop() {
 
 #[test]
 fn a_failing_version_probe_does_not_report_a_stop() {
+    let _fork = dx_testing::forking();
     let tool = PathBuf::from("/nonexistent-dx-tool");
     assert_eq!(runner().tool_version(&tool), None);
 }
@@ -248,9 +257,9 @@ fn detached_descendant_argv() -> Vec<String> {
 #[cfg(unix)]
 #[test]
 fn run_app_hands_held_lock_to_detached_descendant() {
+    let _serial = dx_testing::spawning();
     let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
-    let _serial = dx_testing::spawning();
     let scratch = dx_test_scratch::scratch("dx-run-app-held").unwrap();
     let path = scratch.path().join("busy");
     let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)
@@ -273,9 +282,9 @@ fn run_app_hands_held_lock_to_detached_descendant() {
 #[cfg(unix)]
 #[test]
 fn holding_run_does_not_inherit_held() {
+    let _serial = dx_testing::spawning();
     let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
-    let _serial = dx_testing::spawning();
     let scratch = dx_test_scratch::scratch("dx-holding-run").unwrap();
     let path = scratch.path().join("busy");
     let held = dx_atomic_fs::lease::try_lock_file_shared(&path, true)
@@ -363,6 +372,7 @@ fn pinned_tool_reads_the_environment() {
 
 #[test]
 fn run_app_with_withdraw_runs_and_withdraws() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let argv = probe_argv(&["--exit-code=4"]);
@@ -378,6 +388,7 @@ fn run_app_with_withdraw_runs_and_withdraws() {
 
 #[test]
 fn holding_forwards_every_runner_call() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-runner-").unwrap();
     let cwd = scratch.path();
     let inner = runner();
@@ -414,6 +425,7 @@ fn holding_forwards_every_runner_call() {
 #[cfg(unix)]
 #[test]
 fn tool_version_returns_the_first_line() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-runner-version").unwrap();
     let tool = scratch.path().join("tool");
     dx_testing::executable_script(&tool, "#!/bin/sh\necho 'tool 1.2.3'\n");

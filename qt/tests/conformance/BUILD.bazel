@@ -3,6 +3,10 @@ load("//qt:defs.bzl", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_qml_mod
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 load(":quality.bzl", "qt_format_subject", "qt_lint_subject")
 
+# Qt sources build through qt_cc_library, which adds the Qt headers.
+# gazelle:exclude greet.cc
+# gazelle:exclude greet.h
+
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
@@ -71,6 +75,8 @@ dx_conformance_suite(
     size = "small",
     binary = ":hello",
     covered_source = "greet.cc",
+    # Qt's Linux cells need a glibc floor, which only the //qt platforms carry.
+    cross_platforms = "//qt",
     expected = "hello world",
     failing_case = "failingCase",
     failing_pattern = "FAIL!  : FailTest::{case}()",

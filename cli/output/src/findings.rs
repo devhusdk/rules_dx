@@ -9,7 +9,7 @@ pub enum Snapshot {
     Terminal,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Resolution {
     Fixed,
     Remaining,
@@ -343,6 +343,7 @@ pub fn sort_diagnostics(diagnostics: &mut [DiagnosticEvent]) {
             .then_with(|| a.origins.cmp(&b.origins))
             .then_with(|| a.fixable.cmp(&b.fixable))
             .then_with(|| a.unfixable_reason.cmp(&b.unfixable_reason))
+            .then_with(|| a.resolution.cmp(&b.resolution))
             .then_with(|| package_key(a).cmp(&package_key(b)))
             .then_with(|| related_key(a).cmp(&related_key(b)))
     });
@@ -432,7 +433,9 @@ pub fn notice_event(notice: &NoticeEvent) -> Result<Value, OutputError> {
 
 fn check_notice(notice: &NoticeEvent) -> Result<(), OutputError> {
     if notice.severity != "info" && notice.severity != "warning" {
-        return Err(OutputError::EmptyField { field: "severity" });
+        return Err(OutputError::BadSeverity {
+            value: notice.severity.clone(),
+        });
     }
     nonempty("code", &notice.code)?;
     nonempty("message", &notice.message)?;
@@ -444,8 +447,17 @@ fn check_notice(notice: &NoticeEvent) -> Result<(), OutputError> {
         check_path(path)?;
         nonempty("language", notice.language.as_deref().unwrap_or(""))?;
         nonempty("import", notice.import.as_deref().unwrap_or(""))?;
-        if notice.scope.is_some() || notice.related_command.is_some() {
-            return Err(OutputError::UnexpectedResolution);
+        if let Some(related) = &notice.related_command {
+            return Err(OutputError::BadValue {
+                field: "ignored_import related_command",
+                value: related.clone(),
+            });
+        }
+        if let Some(scope) = &notice.scope {
+            return Err(OutputError::BadValue {
+                field: "ignored_import scope",
+                value: scope.join(" "),
+            });
         }
     }
     Ok(())
@@ -876,14 +888,53 @@ mod tests {
         };
         assert_eq!(
             notice_event(&import).expect_err("scoped import"),
-            OutputError::UnexpectedResolution
+            OutputError::BadValue {
+                field: "ignored_import related_command",
+                value: "lint".to_owned(),
+            }
         );
         import.related_command = None;
-        import.scope = Some(vec!["//src/...".to_owned()]);
+        import.scope = Some(vec!["//src/...".to_owned(), "//lib/...".to_owned()]);
         assert_eq!(
             notice_event(&import).expect_err("scoped import"),
-            OutputError::UnexpectedResolution
+            OutputError::BadValue {
+                field: "ignored_import scope",
+                value: "//src/... //lib/...".to_owned(),
+            }
         );
+    }
+
+    #[test]
+    fn a_notice_with_an_unknown_severity_names_the_value() {
+        let mut notice = NoticeEvent::info("other", "m");
+        for severity in ["error", "debug", ""] {
+            notice.severity = severity.to_owned();
+            assert_eq!(
+                notice_event(&notice).expect_err("unknown severity"),
+                OutputError::BadSeverity {
+                    value: severity.to_owned()
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn diagnostics_that_differ_only_in_resolution_sort_the_same_either_way() {
+        let make = |resolution| DiagnosticEvent {
+            resolution,
+            ..DiagnosticEvent::new(Severity::Warning, "lint", "m")
+        };
+        let all = [
+            None,
+            Some(Resolution::Fixed),
+            Some(Resolution::Remaining),
+            Some(Resolution::NotApplied),
+        ];
+        let mut forward: Vec<DiagnosticEvent> = all.iter().copied().map(make).collect();
+        let mut backward: Vec<DiagnosticEvent> = all.iter().rev().copied().map(make).collect();
+        sort_diagnostics(&mut forward);
+        sort_diagnostics(&mut backward);
+        assert_eq!(forward, backward);
     }
 
     #[test]

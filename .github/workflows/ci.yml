@@ -124,7 +124,7 @@ jobs:
           echo "Checked: dx init scaffold parity plus devcontainer definition shape." >> "$GITHUB_STEP_SUMMARY"
   hermetic:
     name: hermetic (no-install and network-denied consumer qualification)
-    timeout-minutes: 90
+    timeout-minutes: 120
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -149,6 +149,12 @@ jobs:
           echo "$targets" > "$RUNNER_TEMP/hermetic-targets"
           # shellcheck disable=SC2086
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing:nested_bazel_harness_test $targets
+      - name: Run the release consumer cases offline
+        if: ${{ !cancelled() }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" //deploy/private/release/tests:release_consumer_smoke_test
       - uses: ./.github/actions/hermetic-evidence
         if: always()
         with:
@@ -330,6 +336,42 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" //appimage/... //cli/archive/...
+  analysis-scaling:
+    name: analysis-scaling (dx check, docs and sync aspects on depth 100 and 400 chains)
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Compare the analysis phase of the two chain depths
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" //tools/testing:analysis_scaling_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/analysis_scaling"
+  in-graph-prebuilt-guard:
+    name: in-graph-prebuilt-guard (d, rego, sql and zig consumer fixtures compile no rules_dx tool)
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: false
+      - name: Analyze the consumer fixtures with --//cli/prebuilt:guard_view
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          bazel run "$@" //tools/testing/consumer:in_graph_prebuilt_guard -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/in_graph_prebuilt_guard"
   gcc-cross-build:
     name: gcc-cross-build (gcc + llvm linux_x86_64 -> linux_arm64 fixtures)
     timeout-minutes: 45
@@ -797,6 +839,13 @@ jobs:
           if [ "$status" -ne 0 ] && [ "$status" -ne 4 ]; then
             exit "$status"
           fi
+      - name: Run the Windows TypeScript action tests
+        if: ${{ !cancelled() && runner.os == 'Windows' && matrix.shard == 1 }}
+        run: |
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --test_output=errors --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS //typescript/tests:windows_ts_actions
+          # shellcheck disable=SC2086
+          bazel build --noshow_progress --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS --aspects=//tools/docs/components:aspect.bzl%real_components_docs_aspect,//tools/docs/typescript:aspect.bzl%real_typescript_docs_aspect --output_groups=dx_docs_shards //tools/docs/components/fixture/svelte:ui_library //tools/docs/typescript/fixture:geometry_library
       - uses: ./.github/actions/compiler-evidence
         if: always() && matrix.shard == 0
         with:
@@ -1052,7 +1101,7 @@ jobs:
         include:
           - platform: linux_x86_64
             runner: ubuntu-latest
-            quality: "//core/quality/testdata:matrix_python_format_pass //core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_javascript_format_pass //core/quality/testdata:matrix_api_spec_openapi_pass //core/quality/testdata:matrix_yaml_format_pass //core/quality/testdata:matrix_yaml_format_fail //core/quality/testdata:matrix_yaml_format_syntax_error //core/quality/testdata:matrix_yaml_lint_pass //core/quality/testdata:matrix_yaml_lint_fail //core/quality/testdata:matrix_yaml_lint_syntax_error //core/quality/testdata:matrix_flatbuffers_lint_pass //core/quality/testdata:matrix_capnp_lint_pass //core/quality/testdata:matrix_thrift_lint_pass //core/quality/testdata:matrix_thrift_lint_warning_fail //core/quality/testdata:matrix_thrift_lint_syntax_error //core/quality/testdata:matrix_thrift_lint_semantic_fail //core/quality/testdata:matrix_thrift_lint_include_undeclared //core/quality/testdata:matrix_thrift_typecheck_pass //core/quality/testdata:matrix_thrift_typecheck_semantic_fail //core/quality/testdata:matrix_thrift_typecheck_warning_ignored //core/quality/testdata:matrix_avro_lint_avsc_pass //core/quality/testdata:matrix_avro_lint_avsc_undefined_name //core/quality/testdata:matrix_avro_lint_avsc_syntax_error //core/quality/testdata:matrix_avro_lint_avdl_import_pass //core/quality/testdata:matrix_avro_lint_avdl_syntax_error //core/quality/testdata:matrix_avro_typecheck_avsc_pass //core/quality/testdata:matrix_avro_typecheck_avsc_undefined_name"
+            quality: "//core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_javascript_format_pass //core/quality/testdata:matrix_api_spec_openapi_pass //core/quality/testdata:matrix_yaml_format_pass //core/quality/testdata:matrix_yaml_format_fail //core/quality/testdata:matrix_yaml_format_syntax_error //core/quality/testdata:matrix_yaml_lint_pass //core/quality/testdata:matrix_yaml_lint_fail //core/quality/testdata:matrix_yaml_lint_syntax_error //core/quality/testdata:matrix_flatbuffers_lint_pass //core/quality/testdata:matrix_capnp_lint_pass //core/quality/testdata:matrix_thrift_lint_pass //core/quality/testdata:matrix_thrift_lint_warning_fail //core/quality/testdata:matrix_thrift_lint_syntax_error //core/quality/testdata:matrix_thrift_lint_semantic_fail //core/quality/testdata:matrix_thrift_lint_include_undeclared //core/quality/testdata:matrix_thrift_typecheck_pass //core/quality/testdata:matrix_thrift_typecheck_semantic_fail //core/quality/testdata:matrix_thrift_typecheck_warning_ignored //core/quality/testdata:matrix_avro_lint_avsc_pass //core/quality/testdata:matrix_avro_lint_avsc_undefined_name //core/quality/testdata:matrix_avro_lint_avsc_syntax_error //core/quality/testdata:matrix_avro_lint_avdl_import_pass //core/quality/testdata:matrix_avro_lint_avdl_syntax_error //core/quality/testdata:matrix_avro_typecheck_avsc_pass //core/quality/testdata:matrix_avro_typecheck_avsc_undefined_name"
           - platform: linux_arm64
             runner: ubuntu-24.04-arm
             quality: "//core/quality/testdata:runner_matrix_linux_arm64"
@@ -1232,6 +1281,8 @@ jobs:
         coverage-cells,
         dogfood,
         docs,
+        analysis-scaling,
+        in-graph-prebuilt-guard,
         determinism,
         devcontainer-check,
         gate,

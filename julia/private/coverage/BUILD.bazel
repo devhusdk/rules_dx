@@ -4,7 +4,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//julia/private:defs.bzl", "JULIA_COMPATIBLE_WITH")
 load("//julia/private/tools:julia_tool.bzl", "dx_julia_tool")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "coverage.bzl",
@@ -16,14 +16,9 @@ exports_files([
 julia_pkg_resolve(
     name = "resolve",
     manifest_bazel_json = "Manifest.bazel.json",
-    manifests = {"Manifest.toml": "1.12"},
+    manifests = {"Manifest.toml": "1.13"},
     project_toml = "Project.toml",
     target_compatible_with = JULIA_COMPATIBLE_WITH,
-)
-
-config_setting(
-    name = "coverage_on",
-    values = {"collect_code_coverage": "true"},
 )
 
 julia_binary(

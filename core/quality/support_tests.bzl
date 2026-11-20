@@ -4,11 +4,11 @@ load("//dart/private:platforms.bzl", "DART_PLATFORMS")
 load("//elixir/private/toolchain:pins.bzl", "ELIXIR_CELLS")
 load("//erlang/private/toolchain:pins.bzl", ERLANG_CELLS = "CELLS", "OTP_DIALYZER_UNPORTED_CELLS")
 load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/private/toolchain:pins.bzl", QT_CELLS = "CELLS")
 load("@dx_pins_data//:pins.bzl", "DATA")
 load("//cli/prebuilt:tools.bzl", "TOOLS")
-load("//core/quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS", "SOURCE_BUILT_TOOL_PLATFORMS")
+load("//core/quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
 load("//core/quality/testdata:real_result_cases.bzl", "REAL_RESULT_CASES", "real_result_evidence")
 load("//core/quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
 load("//core/quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_case_size", "matrix_case_tools", "matrix_platform_case_names")
@@ -32,11 +32,11 @@ def _artifact_platforms():
 
 _RELEASED = {tool: entry.platforms for tool, entry in TOOLS.items()}
 
-def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, emulated = EMULATED_TOOLS, source_built = SOURCE_BUILT_TOOL_PLATFORMS, released = _RELEASED):
-    """Returns claimed platforms with no artifact: no native pin, no release asset, no inventoried emulated fallback and no source build."""
+def unpinned_platforms(tool, claimed, pinned, fallbacks = PLATFORM_FALLBACKS, emulated = EMULATED_TOOLS, released = _RELEASED):
+    """Returns claimed platforms with no artifact: no native pin, no release asset and no inventoried emulated fallback."""
     missing = []
     for platform in claimed:
-        if platform in pinned or platform in released.get(tool, []) or platform in source_built.get(tool, []):
+        if platform in pinned or platform in released.get(tool, []):
             continue
         target = fallbacks.get(platform)
         if target in pinned and tool in emulated.get(platform, []):
@@ -91,23 +91,13 @@ def _evidence_checks():
             ["windows_arm64"],
         ),
         expect_equal(
-            "source-built tool claiming linux_arm64 passes the pin check",
-            unpinned_platforms("nixfmt", ["linux_arm64", "linux_x86_64"], ["linux_x86_64"], {}, {}, {"nixfmt": ["linux_arm64"]}),
-            [],
-        ),
-        expect_equal(
-            "tool outside the source-built inventory fails the pin check",
-            unpinned_platforms("regal", ["linux_arm64"], ["linux_x86_64"], {}, {}, {"nixfmt": ["linux_arm64"]}),
-            ["linux_arm64"],
-        ),
-        expect_equal(
             "release-built tool claiming linux_arm64 passes the pin check",
-            unpinned_platforms("hlint", ["linux_arm64", "linux_x86_64"], ["linux_x86_64"], {}, {}, {}, {"hlint": ["linux_arm64"]}),
+            unpinned_platforms("hlint", ["linux_arm64", "linux_x86_64"], ["linux_x86_64"], {}, {}, released = {"hlint": ["linux_arm64"]}),
             [],
         ),
         expect_equal(
             "tool outside the release registry fails the pin check",
-            unpinned_platforms("regal", ["linux_arm64"], ["linux_x86_64"], {}, {}, {}, {"hlint": ["linux_arm64"]}),
+            unpinned_platforms("regal", ["linux_arm64"], ["linux_x86_64"], {}, {}, released = {"hlint": ["linux_arm64"]}),
             ["linux_arm64"],
         ),
         expect_equal(

@@ -1,8 +1,17 @@
 #![deny(
     clippy::indexing_slicing,
     clippy::let_underscore_must_use,
+    clippy::map_err_ignore,
     clippy::string_slice,
+    clippy::unused_result_ok,
     clippy::wildcard_enum_match_arm
+)]
+#![cfg_attr(
+    test,
+    expect(
+        clippy::disallowed_methods,
+        reason = "tests run local programs under the Bazel test timeout"
+    )
 )]
 
 // LCOV_EXCL_START - reason: re-export only, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

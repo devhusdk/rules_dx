@@ -35,7 +35,5 @@ failure //flutter/tests/fixtures/flutter_app/failures:missing_asset
 failure //flutter/tests/fixtures/flutter_app/failures:missing_font
 failure //flutter/tests/fixtures/flutter_app/failures:type_error
 failure //flutter/tests/fixtures/flutter_app/failures:undeclared_dep
-bazel_dep rules_dart
-bazel_dep rules_flutter
 bazel_dep rules_android
 bazel_dep rules_shell

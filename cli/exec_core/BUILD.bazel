@@ -7,6 +7,7 @@ package(default_visibility = VIS_CLI)
 rust_library(
     name = "dx_exec_core",
     srcs = [
+        "src/audit_policy.rs",
         "src/bazel_hint.rs",
         "src/bazel_restart.rs",
         "src/common.rs",
@@ -21,13 +22,17 @@ rust_library(
     # keep
     deps = [
         "//cli/apply:dx_apply",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/bep:dx_bep",
         "//cli/digest:dx_digest",
+        "//cli/dx_config",
         "//cli/error:dx_error",
         "//cli/output:dx_output",
+        "//cli/path:dx_path",
         "//cli/plan:dx_plan",
         "//cli/process:dx_process",
+        "@crates//:chrono",
         "@crates//:serde_json",
         "@crates//:thiserror",
     ],
@@ -37,6 +42,8 @@ rust_test(
     name = "dx_exec_core_test",
     size = "small",
     srcs = [
+        "src/audit_policy.rs",
+        "src/audit_policy_tests.rs",
         "src/bazel_hint.rs",
         "src/bazel_restart.rs",
         "src/common.rs",
@@ -53,14 +60,18 @@ rust_test(
     # keep
     deps = [
         "//cli/apply:dx_apply",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/audit:dx_audit",
         "//cli/bep:dx_bep",
         "//cli/digest:dx_digest",
+        "//cli/dx_config",
         "//cli/error:dx_error",
         "//cli/output:dx_output",
+        "//cli/path:dx_path",
         "//cli/plan:dx_plan",
         "//cli/process:dx_process",
         "//tools/testing:dx_testing",
+        "@crates//:chrono",
         "@crates//:serde_json",
         "@crates//:tempfile",
         "@crates//:thiserror",

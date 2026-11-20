@@ -287,18 +287,12 @@ fn subject_matches_mode() {
                 .args(&subject_args);
             let only = dx_testing::run_command(&mut command, std::time::Duration::from_secs(120))
                 .expect("subject must execute");
-            assert_eq!(
-                only.status.code(),
-                Some(0),
-                "manifest-only run failed:\n{}",
-                only.combined()
-            );
             let stdout = only.stdout.replace("\r\n", "\n");
-            assert_eq!(
-                stdout.trim_end_matches('\n'),
-                text,
-                "unexpected output with a manifest only"
-            );
+            let passed = only.status.code() == Some(0) && stdout.trim_end_matches('\n') == text;
+            let tree_only = std::env::var("DX_CONFORMANCE_TREE_ONLY").ok();
+            if let Err(message) = manifest_only_verdict(tree_only.as_deref(), passed) {
+                panic!("{message}:\n{}", only.combined());
+            }
         }
         "fail" => {
             assert!(
@@ -402,6 +396,28 @@ fn runfile_keys<'a>(manifest: &'a str, name: &str) -> Vec<&'a str> {
         .map(|line| line.split_once(' ').map_or(line, |(key, _)| key))
         .filter(|key| launcher_stem(key.rsplit('/').next().unwrap_or(key)) == name)
         .collect()
+}
+
+/// A `tree_only` reason inverts the manifest-only check so the exemption fails once the run passes.
+fn manifest_only_verdict(tree_only: Option<&str>, passed: bool) -> Result<(), String> {
+    match (tree_only, passed) {
+        (None, false) => Err("manifest-only run failed or printed unexpected output".to_owned()),
+        (Some(reason), true) => Err(format!(
+            "manifest-only run now passes; drop tree_only ({reason})"
+        )),
+        _ => Ok(()),
+    }
+}
+
+#[test]
+fn manifest_only_verdict_honours_tree_only() {
+    assert_eq!(manifest_only_verdict(None, true), Ok(()));
+    assert!(manifest_only_verdict(None, false).is_err());
+    assert_eq!(manifest_only_verdict(Some("why"), false), Ok(()));
+    assert_eq!(
+        manifest_only_verdict(Some("why"), true),
+        Err("manifest-only run now passes; drop tree_only (why)".to_owned())
+    );
 }
 
 #[test]
@@ -694,10 +710,19 @@ fn stage(
         for sibling in siblings.flatten() {
             let file = sibling.file_name();
             let Some(file) = file.to_str() else { continue };
-            let wanted = file.starts_with(&format!("{stem}."))
-                || (sibling_dir && sibling.path().is_file());
+            let wanted =
+                file.starts_with(&format!("{stem}.")) || (sibling_dir && sibling.path().is_file());
             if wanted && !dir.join(file).exists() {
                 std::fs::copy(sibling.path(), dir.join(file)).expect("sibling must copy");
+            }
+            // A macOS rpath like @loader_path/<stem>_qt_frameworks points at a
+            // directory beside the binary, so the staged copy needs it too.
+            let beside_dir = cfg!(unix)
+                && sibling.path().is_dir()
+                && file.starts_with(&format!("{stem}_"))
+                && !file.ends_with(".runfiles");
+            if beside_dir && !dir.join(file).exists() {
+                link_entry(&sibling.path(), &dir.join(file)).expect("sibling dir must link");
             }
         }
     }
@@ -797,7 +822,9 @@ fn tree_rooted_manifest_maps_entries_into_the_tree() {
         format!("{}/_main/pkg/.hello.venv", tree.display()),
     );
     assert_eq!(tree_rooted_manifest(text, &tree), expected);
-    let missing = std::path::Path::new(&tmp).join("tree_rooted").join("missing");
+    let missing = std::path::Path::new(&tmp)
+        .join("tree_rooted")
+        .join("missing");
     assert_eq!(tree_rooted_manifest(text, &missing), text);
     assert_eq!(tree_rooted_manifest(text, std::path::Path::new("")), text);
 }
@@ -893,4 +920,32 @@ fn stage_copies_every_file_of_a_siblings_dir() {
         std::fs::read_to_string(dir.join("runtime.dll")).expect("sibling must stage"),
         "dll"
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn stage_links_a_dir_named_after_the_subject() {
+    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let root = std::path::Path::new(&tmp).join("stage_beside_dir");
+    let pkg = root.join("pkg");
+    let frameworks = pkg.join("tool_qt_frameworks").join("QtCore.framework");
+    std::fs::create_dir_all(&frameworks).expect("frameworks dir must create");
+    std::fs::write(frameworks.join("QtCore"), "lib").expect("framework must write");
+    std::fs::create_dir_all(pkg.join("tool_upstream.runfiles")).expect("runfiles must create");
+    std::fs::create_dir_all(pkg.join("other_qt_frameworks")).expect("other dir must create");
+    std::fs::write(pkg.join("tool"), "bin").expect("subject must write");
+    let staged = stage(
+        &pkg.join("tool"),
+        "_main/pkg/tool",
+        &root.join("out"),
+        false,
+    );
+    let dir = staged.parent().expect("staged subject must have a dir");
+    assert_eq!(
+        std::fs::read_to_string(dir.join("tool_qt_frameworks/QtCore.framework/QtCore"))
+            .expect("frameworks dir must stage"),
+        "lib"
+    );
+    assert!(!dir.join("tool_upstream.runfiles").exists());
+    assert!(!dir.join("other_qt_frameworks").exists());
 }

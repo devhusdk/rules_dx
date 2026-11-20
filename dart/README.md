@@ -19,11 +19,14 @@ tools/dx test //dart/...
 
 ### Pub dependencies
 
-Declare a hub with the `pub` extension from `@rules_dx//dart:extensions.bzl`. The lock pins each package
-to a sha256. `dx generate --apply` writes `pubspec.lock` beside a root `pubspec.yaml`
-that has none and lists a package in `dependencies` or `dev_dependencies`, with
-`pub get` of the pinned Dart SDK, and `dx update` moves its versions. A pubspec
-that lists no package gets no lock and no hub.
+To use pub packages, list them in `dependencies` or `dev_dependencies` of
+your root `pubspec.yaml` and run `dx generate --apply`. It writes the missing
+`pubspec.lock` with `pub get` from the pinned Dart SDK. The lock pins each
+package to a sha256. `dx update` moves the versions later. A pubspec that
+lists no package gets no lock and no hub.
+
+Then declare a hub with the `pub` extension. A hub is a Bazel repository that
+holds one target per locked package:
 
 ```python
 pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
@@ -34,8 +37,8 @@ pub.from_lock(
 use_repo(pub, "my_pub_deps")
 ```
 
-rules_dart shares one pub hub across modules and does not support two versions
-of a package, so the hub name must differ from `ext_pub_deps`.
+Pick any hub name except `ext_pub_deps`. rules_dart shares one pub hub with
+that name across modules and allows only one version of each package in it.
 
 ## Generate
 
@@ -45,12 +48,12 @@ of a package, so the hub name must differ from `ext_pub_deps`.
 package per folder that holds a `pubspec.yaml`:
 
 - one `dart_library` named after the pubspec `name`, over every `.dart` file
-  under `lib/`
-- one `dart_binary` per `bin/*.dart`, named after the file stem (`_bin` is
-  added when that clashes with the library); files under `bin/src/` go into
-  each binary's `srcs`
-- one `dart_test` per `test/**/*_test.dart`; the other `.dart` files under
-  `test/` go into each test's `srcs`
+  under `lib/`;
+- one `dart_binary` per `bin/*.dart`, named after the file stem, with `_bin`
+  added when that name clashes with the library. Files under `bin/src/` go
+  into each binary's `srcs`;
+- one `dart_test` per `test/**/*_test.dart`. The other `.dart` files under
+  `test/` go into each test's `srcs`.
 
 Point Gazelle at the lock so pub imports resolve to hub targets:
 
@@ -58,43 +61,48 @@ Point Gazelle at the lock so pub imports resolve to hub targets:
 # gazelle:dx_external pub third_party/dart/pubspec.lock my_pub_deps
 ```
 
-A `pubspec.lock` next to the pubspec, or in a parent folder, is found without
-the directive and uses the hub `pub_deps`. An import resolves to a library in
-the repository first, so workspace members and `path:` packages need no hub
-entry.
+Without the directive, Gazelle finds a `pubspec.lock` next to the pubspec or
+in a parent folder and uses the hub `pub_deps`. An import resolves to a
+library in your repository first, so workspace members and `path:` packages
+need no hub entry.
 
-Generation fails, and never guesses a label, when:
+Generation stops with an error, and never guesses a label, when:
 
-- a `package:` import is not declared in `dependencies` (tests may also use
-  `dev_dependencies`)
-- a declared package has no direct entry in the lock
+- a `package:` import is not in `dependencies` (tests may also use
+  `dev_dependencies`);
+- a declared package has no direct entry in the lock;
 - a `part` file is neither on disk nor an output of a `genrule` in the same
-  BUILD file; write the generator rule by hand
-- a BUILD file sits below `lib/`, `bin/` or `test/`
-- a directive cannot be parsed
+  BUILD file. Write that generator rule by hand;
+- a BUILD file sits below `lib/`, `bin/` or `test/`;
+- a directive cannot be parsed.
 
-Loose `.dart` files outside a pubspec folder get no rule. `data`, `defines`,
-`tags` and `aspect_hints` are never touched. `analysis_options.yaml` is not
-turned into a rule: bind `dart_config` by hand through `aspect_hints`.
+Loose `.dart` files outside a pubspec folder get no rule. Generation never
+touches `data`, `defines`, `tags` or `aspect_hints`. It also does not turn
+`analysis_options.yaml` into a rule: bind a `dart_config` by hand, as shown
+below.
 
 ## Quality
 
-Dart sources form the `dart` class, so `dx check` sees them. Format, lint and
-typecheck are on by default. `dart format` is the
-real formatter: it runs the `dart` binary of the resolved SDK (nothing is
-fetched until a Dart target is analysed), formats each file at the language
-version of its package, and `dx format` fixes what it reports. Formatter options
-come from a `dart_config` (an `analysis_options.yaml`) bound with
-`aspect_hints`, from `@rules_dx//dart:defs.bzl`.
+Format, lint and typecheck are on by default for Dart:
 
-`dx lint` and `dx typecheck` run one `dart analyze --format=json` per capability over the
-target's sources, with its transitive Dart sources and external packages staged for resolution.
-The two share the run's output and split it by diagnostic type: typecheck keeps
-`COMPILE_TIME_ERROR` and `SYNTACTIC_ERROR`; lint keeps `LINT`, `HINT`, `STATIC_WARNING` and
-`TODO`. Any other type fails closed. The staged `analysis_options.yaml` is analyzed too, so an
-unusable `include:` or an unknown lint is an error, not a silent pass. Without a `dart_config`
-only the analyzer's default warnings are reported and no lint rules are on. An
-`include: package:...` needs the package in the config's `deps`:
+```sh
+dx format --apply
+dx lint
+dx typecheck
+```
+
+`dx format` runs `dart format` from the Dart SDK. It formats each file at the
+language version of its package. Bazel fetches the SDK only when it analyzes a
+Dart target.
+
+`dx lint` and `dx typecheck` share one `dart analyze` run per target, over its
+sources, its transitive Dart sources and its external packages. Typecheck
+reports `COMPILE_TIME_ERROR` and `SYNTACTIC_ERROR` diagnostics. Lint reports
+`LINT`, `HINT`, `STATIC_WARNING` and `TODO`. Any other type fails the run.
+`dx lint --apply` does not rewrite Dart sources.
+
+To configure the analyzer and formatter, wrap your `analysis_options.yaml` in
+a `dart_config`. An `include: package:...` needs that package in `deps`:
 
 ```starlark
 load("@rules_dx//dart:defs.bzl", "dart_config")
@@ -106,30 +114,43 @@ dart_config(
 )
 ```
 
-Bind it with `aspect_hints = [":analysis_options"]`. Format ignores `deps`.
-`dx lint --apply` does not rewrite Dart sources.
+Then set `aspect_hints = [":analysis_options"]` on your targets. Format
+ignores `deps`. The analyzer checks `analysis_options.yaml` too, so an
+include it cannot load or an unknown lint is an error. Without a
+`dart_config`, you get only the analyzer's default warnings and no lint
+rules.
 
 ## API docs
 
-`dart_doc_shard` in `@rules_dx//tools/docs/dart:defs.bzl` runs the pinned `dart doc` over a `dart_library` and converts its `index.json` to a DocIr shard. `dx docs` runs it on every Dart library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_dart ships no SDK. Flutter libraries (`flutter_library`) work too: their SDK packages are staged from the pinned `rules_flutter` repositories. The index holds each symbol's first doc paragraph, not its signature or source location.
+`dx docs` runs the pinned `dart doc` on every Dart library with a `lib/`
+source. It works for `flutter_library` targets too. The docs hold each
+symbol's first doc paragraph, not its signature or source location. To
+declare a docs target yourself, use `dart_doc_shard` from
+`@rules_dx//dart:defs.bzl`. `dart doc` is not available on
+`windows_arm64`, where rules_dart ships no SDK.
 
 ## Toolchain
 
 ### Examples
 
 - `dart/tests/fixtures/adopt_dart` adopts a pub workspace with `dx generate`.
-- `dart/tests/fixtures/dart_app` is a multi-package app with a generated source file, runfiles data and failure targets.
+- `dart/tests/fixtures/dart_app` is a multi-package app with a generated
+  source file, runfiles data and targets that are meant to fail.
 
 ## Platforms
 
 ### Platforms
 
-Supported on linux x86_64 and arm64, macOS arm64 and Windows x86_64. Windows arm64 is unsupported: rules_dart ships no SDK for it, so its targets are incompatible there.
+Dart builds on Linux x86_64 and arm64, macOS arm64 and Windows x86_64.
+rules_dart ships no SDK for Windows arm64, so Dart targets are incompatible
+there.
 
 ### Cross-compiling
+
+Build for another platform with `--platforms`:
 
 ```sh
 bazel build --platforms=//:linux_arm64 //app:cli
 ```
 
-`exe` and `aot-snapshot` cross-compile. `dart_test` runs on the host.
+`exe` and `aot-snapshot` outputs cross-compile. `dart_test` runs on the host.

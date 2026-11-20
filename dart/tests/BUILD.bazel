@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_main_candidates")
 load("//dart/private:defs.bzl", "DART_SOURCE_SPECS")
 load("//dart/private:platforms.bzl", "DART_PLATFORMS")

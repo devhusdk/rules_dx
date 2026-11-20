@@ -52,7 +52,7 @@ def write_native_launcher(ctx, descriptor_text, launcher_name = None):
 
 _TOOL = Label("//php/private:tool.php")
 
-_COVERAGE_RUN = Label("//cli/runtime:dx_runtime")
+_COVERAGE_RUN = Label("@dx_prebuilt//:runtime")
 
 _COMPOSER = Label("@dx_composer//:composer.phar")
 

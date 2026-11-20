@@ -62,6 +62,10 @@ name = "evidence_inputs_test"
 path = "evidence_inputs_test.rs"
 
 [[test]]
+name = "dx_guard_test"
+path = "dx_guard_test.rs"
+
+[[test]]
 name = "gate_base_test"
 path = "gate_base_test.rs"
 

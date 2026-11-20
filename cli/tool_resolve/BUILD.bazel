@@ -8,7 +8,10 @@ exports_files(["Cargo.toml"])
 
 rust_library(
     name = "dx_tool_resolve",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/cli.rs",
+        "src/lib.rs",
+    ],
     aliases = aliases(
         package_name = "cli/dx_tool_resolve",
         normal = True,
@@ -19,6 +22,7 @@ rust_library(
     deps = [
         "//cli/error:dx_error",
         "//cli/process:dx_process",
+        "@crates//:clap",
         "@crates//:thiserror",
     ],
 )
@@ -27,6 +31,8 @@ rust_test(
     name = "dx_tool_resolve_test",
     size = "small",
     srcs = [
+        "src/cli.rs",
+        "src/cli_tests.rs",
         "src/lib.rs",
         "src/lib_tests.rs",
     ],
@@ -42,6 +48,7 @@ rust_test(
     deps = [
         "//cli/error:dx_error",
         "//cli/process:dx_process",
+        "@crates//:clap",
         "@crates//:tempfile",
         "@crates//:thiserror",
     ],

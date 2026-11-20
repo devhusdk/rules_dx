@@ -275,19 +275,19 @@ func TestCargoBinOnlyHasNoPhantomLib(t *testing.T) {
 	if len(manifest.targets) != 1 || manifest.targets[0].kind != binaryKind {
 		t.Fatalf("bin-only implicit targets = %+v", manifest.targets)
 	}
-	if got := siblingLibName(manifest, manifest.targets[0]); got != "" {
-		t.Errorf("siblingLibName(bin-only) = %q, want empty", got)
+	if got := siblingLib(manifest); got != nil {
+		t.Errorf("siblingLib(bin-only) = %+v, want nil", got)
 	}
 }
 
-func TestSiblingLibName(t *testing.T) {
+func TestSiblingLib(t *testing.T) {
 	withLib := &cargoManifest{targets: []cargoTarget{{kind: libraryKind, name: "demo_lib"}, {kind: binaryKind, name: "demo"}}}
-	if got := siblingLibName(withLib, cargoTarget{kind: binaryKind, name: "demo"}); got != "demo_lib" {
-		t.Errorf("siblingLibName with library = %q, want %q", got, "demo_lib")
+	if got := siblingLib(withLib); got == nil || got.name != "demo_lib" {
+		t.Errorf("siblingLib with library = %+v, want demo_lib", got)
 	}
 	binOnly := &cargoManifest{targets: []cargoTarget{{kind: binaryKind, name: "tool"}}}
-	if got := siblingLibName(binOnly, cargoTarget{kind: binaryKind, name: "tool"}); got != "" {
-		t.Errorf("siblingLibName without library = %q, want empty", got)
+	if got := siblingLib(binOnly); got != nil {
+		t.Errorf("siblingLib without library = %+v, want nil", got)
 	}
 }
 

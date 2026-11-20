@@ -16,7 +16,9 @@ pub fn dx_schema() -> String {
     format!("{value:#}\n")
 }
 
-fn add_family_ids(schema: &mut Value) {
+/// The `[families.<id>]` ids `dx.toml` accepts, sorted.
+#[must_use]
+pub fn family_ids() -> Vec<&'static str> {
     let mut ids: Vec<&str> = FAMILIES
         .iter()
         .map(|family| family.id)
@@ -24,10 +26,14 @@ fn add_family_ids(schema: &mut Value) {
         .collect();
     ids.sort_unstable();
     ids.dedup();
+    ids
+}
+
+fn add_family_ids(schema: &mut Value) {
     set(
         schema,
         &["properties", "families", "propertyNames"],
-        json!({ "enum": ids }),
+        json!({ "enum": family_ids() }),
     );
 }
 

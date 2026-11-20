@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//core:defs.bzl", "starlark_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
 load("//cc/private/quality:cc.bzl", "real_cc_lint_aspect")
 load("//tools/testing:action_input.bzl", "LINUX_X86_64", "action_input_test")
 

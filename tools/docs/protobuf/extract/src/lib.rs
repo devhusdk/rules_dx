@@ -40,6 +40,12 @@ pub struct Options {
     pub generated: BTreeSet<String>,
 }
 
+/// Runs `protobuf_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("protobuf_extract", usage(), parse, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
@@ -90,7 +96,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     let bytes = fs::read(&options.descriptor)
         .map_err(|error| format!("cannot read {}: {error}", options.descriptor))?;
     let shard = convert(&bytes, options)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 /// Strips the comment markers' shared leading space and trailing blank space.

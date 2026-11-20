@@ -98,10 +98,10 @@ Reports: none.
 
 A doc shard is the API reference of one library. A `BUILD` file is the file in each package directory that declares its targets. Declare your site there.
 
-For Rust, list the libraries straight in `rust_docs_site` from `@rules_dx//tools/docs/rust:site.bzl`:
+For Rust, list the libraries straight in `rust_docs_site` from `@rules_dx//rust:defs.bzl`:
 
 ```starlark
-load("@rules_dx//tools/docs/rust:site.bzl", "rust_docs_site")
+load("@rules_dx//rust:defs.bzl", "rust_docs_site")
 
 rust_docs_site(
     name = "site",
@@ -112,7 +112,7 @@ rust_docs_site(
 )
 ```
 
-For other languages, declare a shard with the rule from the table, list it in `libraries` of `docs_site` from `@rules_dx//tools/docs/site:site.bzl`, then build the site:
+For other languages, declare a shard with the rule from the table, list it in `libraries` of `docs_site` from `@rules_dx//core:defs.bzl`, then build the site:
 
 ```sh
 tools/dx docs //lib:site
@@ -120,39 +120,39 @@ tools/dx docs //lib:site
 
 | Language | Load | Rule | Attributes |
 | --- | --- | --- | --- |
-| Rust | `@rules_dx//tools/docs/rust:site.bzl` | `rust_docs_site` | `libraries` |
-| TypeScript | `@rules_dx//tools/docs/typescript:defs.bzl` | `typescript_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig`, `options` |
-| JavaScript | `@rules_dx//tools/docs/javascript:defs.bzl` | `javascript_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig` (sets `allowJs`), `options` |
-| Vue | `@rules_dx//tools/docs/components:defs.bzl` | `vue_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |
-| Svelte | `@rules_dx//tools/docs/components:defs.bzl` | `svelte_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |
-| Astro | `@rules_dx//tools/docs/components:defs.bzl` | `astro_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |
-| MDX | `@rules_dx//tools/docs/components:defs.bzl` | `mdx_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig` |
-| Go | `@rules_dx//tools/docs/go:defs.bzl` | `go_doc_shard` | `library`, `package`, `goos`, `goarch`, `build_tags` |
-| Ruby | `@rules_dx//tools/docs/ruby:defs.bzl` | `ruby_doc_shard` | `lib`, `package`, `deps` |
-| OCaml | `@rules_dx//tools/docs/ocaml:defs.bzl` | `ocaml_doc_shard` | `lib`, `package`, `config` |
-| Perl | `@rules_dx//tools/docs/perl:defs.bzl` | `perl_doc_shard` | `lib`, `package` |
-| Julia | `@rules_dx//tools/docs/julia:defs.bzl` | `julia_doc_shard` | `lib`, `module`, `package` |
-| Fortran | `@rules_dx//tools/docs/fortran:defs.bzl` | `fortran_doc_shard` | `lib`, `package` |
-| PHP | `@rules_dx//tools/docs/php:defs.bzl` | `php_doc_shard` | `lib`, `package` |
-| Lua | `@rules_dx//tools/docs/lua:defs.bzl` | `lua_doc_shard` | `lib`, `package` |
-| Elixir | `@rules_dx//tools/docs/elixir:defs.bzl` | `elixir_doc_shard` | `app`, `package` |
-| Erlang | `@rules_dx//tools/docs/erlang:defs.bzl` | `erlang_doc_shard` | `app`, `package` |
-| Python | `@rules_dx//tools/docs/python:defs.bzl` | `python_doc_shard` | `library`, `package`, `docstyle` (`google`, `numpy` or `sphinx`) |
-| C and C++ | `@rules_dx//tools/docs/cc:defs.bzl` | `cc_doc_shard` | `lib`, `package` |
-| CUDA | `@rules_dx//tools/docs/cc:defs.bzl` | `cuda_doc_shard` | `lib`, `package` |
-| Java | `@rules_dx//tools/docs/jvm:defs.bzl` | `java_doc_shard` | `lib`, `package`, `deps` |
-| Kotlin | `@rules_dx//tools/docs/jvm:defs.bzl` | `kotlin_doc_shard` | `lib`, `package`, `deps` |
-| Scala | `@rules_dx//tools/docs/jvm:defs.bzl` | `scala_doc_shard` | `lib`, `package`, `deps` |
-| D | `@rules_dx//tools/docs/d:defs.bzl` | `d_doc_shard` | `lib`, `package`, `config` |
-| Haskell | `@rules_dx//tools/docs/haskell:defs.bzl` | `haskell_doc_shard` | `lib`, `package`, `config` |
-| Swift | `@rules_dx//tools/docs/swift:defs.bzl` | `swift_doc_shard` | `lib`, `package`, `config` |
-| Zig | `@rules_dx//tools/docs/zig:defs.bzl` | `zig_doc_shard` | `lib`, `package`, `config` |
-| PowerShell | `@rules_dx//tools/docs/powershell:defs.bzl` | `powershell_doc_shard` | `srcs`, `manifest`, `package`, `config` |
-| Dart | `@rules_dx//tools/docs/dart:defs.bzl` | `dart_doc_shard` | `lib`, `package` |
-| C# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `csharp_doc_shard` | `library`, `package` |
-| F# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `fsharp_doc_shard` | `library`, `package` |
-| Protobuf | `@rules_dx//tools/docs/protobuf:defs.bzl` | `protobuf_doc_shard` | `proto`, `package` |
-| Avro | `@rules_dx//tools/docs/avro:defs.bzl` | `avro_doc_shard` | `avro`, `package` |
+| Rust | `@rules_dx//rust:defs.bzl` | `rust_docs_site` | `libraries` |
+| TypeScript | `@rules_dx//typescript:defs.bzl` | `typescript_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig`, `options` |
+| JavaScript | `@rules_dx//javascript:defs.bzl` | `javascript_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig` (sets `allowJs`), `options` |
+| Vue | `@rules_dx//vue:defs.bzl` | `vue_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |
+| Svelte | `@rules_dx//svelte:defs.bzl` | `svelte_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |
+| Astro | `@rules_dx//astro:defs.bzl` | `astro_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |
+| MDX | `@rules_dx//mdx:defs.bzl` | `mdx_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig` |
+| Go | `@rules_dx//go:defs.bzl` | `go_doc_shard` | `library`, `package`, `goos`, `goarch`, `build_tags` |
+| Ruby | `@rules_dx//ruby:defs.bzl` | `ruby_doc_shard` | `lib`, `package`, `deps` |
+| OCaml | `@rules_dx//ocaml:defs.bzl` | `ocaml_doc_shard` | `lib`, `package`, `config` |
+| Perl | `@rules_dx//perl:defs.bzl` | `perl_doc_shard` | `lib`, `package` |
+| Julia | `@rules_dx//julia:defs.bzl` | `julia_doc_shard` | `lib`, `module`, `package` |
+| Fortran | `@rules_dx//fortran:defs.bzl` | `fortran_doc_shard` | `lib`, `package` |
+| PHP | `@rules_dx//core:defs.bzl` | `php_doc_shard` | `lib`, `package` |
+| Lua | `@rules_dx//core:defs.bzl` | `lua_doc_shard` | `lib`, `package` |
+| Elixir | `@rules_dx//elixir:defs.bzl` | `elixir_doc_shard` | `app`, `package` |
+| Erlang | `@rules_dx//erlang:defs.bzl` | `erlang_doc_shard` | `app`, `package` |
+| Python | `@rules_dx//python:defs.bzl` | `python_doc_shard` | `library`, `package`, `docstyle` (`google`, `numpy` or `sphinx`) |
+| C and C++ | `@rules_dx//cc:defs.bzl` | `cc_doc_shard` | `lib`, `package` |
+| CUDA | `@rules_dx//cuda:defs.bzl` | `cuda_doc_shard` | `lib`, `package` |
+| Java | `@rules_dx//java:defs.bzl` | `java_doc_shard` | `lib`, `package`, `deps` |
+| Kotlin | `@rules_dx//kotlin:defs.bzl` | `kotlin_doc_shard` | `lib`, `package`, `deps` |
+| Scala | `@rules_dx//scala:defs.bzl` | `scala_doc_shard` | `lib`, `package`, `deps` |
+| D | `@rules_dx//d:defs.bzl` | `d_doc_shard` | `lib`, `package`, `config` |
+| Haskell | `@rules_dx//haskell:defs.bzl` | `haskell_doc_shard` | `lib`, `package`, `config` |
+| Swift | `@rules_dx//swift:defs.bzl` | `swift_doc_shard` | `lib`, `package`, `config` |
+| Zig | `@rules_dx//zig:defs.bzl` | `zig_doc_shard` | `lib`, `package`, `config` |
+| PowerShell | `@rules_dx//powershell:defs.bzl` | `powershell_doc_shard` | `srcs`, `manifest`, `package`, `config` |
+| Dart | `@rules_dx//dart:defs.bzl` | `dart_doc_shard` | `lib`, `package` |
+| C# | `@rules_dx//csharp:defs.bzl` | `csharp_doc_shard` | `library`, `package` |
+| F# | `@rules_dx//fsharp:defs.bzl` | `fsharp_doc_shard` | `library`, `package` |
+| Protobuf | `@rules_dx//core:defs.bzl` | `protobuf_doc_shard` | `proto`, `package` |
+| Avro | `@rules_dx//avro:defs.bzl` | `avro_doc_shard` | `avro`, `package` |
 
 ### Shards you get without a rule
 
@@ -160,7 +160,8 @@ These libraries in scope get a shard automatically when they have none:
 
 - Rust, Go, Python, C, C++, CUDA, Fortran, Java, Kotlin, Scala, D, Haskell, Swift, Zig, Dart, Perl and PHP libraries.
 - C# libraries with `nullable = "disable"`, and F# libraries with `generate_documentation_file = True`. Others are skipped.
-- A `javascript_library` of `.js`, `.mjs`, `.cjs` or `.jsx` files, when its package has exactly one `tsconfig.json` with `allowJs` among its sources.
+- A `javascript_library` of `.js`, `.mjs`, `.cjs` or `.jsx` files, when exactly one target in its direct `deps` gives a `tsconfig.json` with `allowJs` from the same package.
+- A `vue_library`, `svelte_library`, `astro_library` or `mdx_library`, when exactly one target in its direct `deps` gives a `tsconfig.json` from the same package.
 - An `elixir_app` or `erlang_app` that lists its sources in `srcs`.
 - A `proto_library`.
 - An `avro_library`.

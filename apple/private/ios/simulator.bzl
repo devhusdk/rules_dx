@@ -21,13 +21,14 @@ def _simctl_impl(ctx):
         fail("; ".join(failures))
     xcode = ctx.attr._xcode_config[apple_common.XcodeVersionConfig].xcode_version()
     lines = [
-        "program=" + rlocation_path(ctx, ctx.executable._ops),
+        "program=" + rlocation_path(ctx, ctx.executable._runtime),
+        "env=DX_RUNTIME_TOOL\tapple_ops",
         "arg=simctl",
         "arg=" + ctx.attr.op,
         "env=DX_XCODE_VERSION\t" + (str(xcode) if xcode else ""),
         "env_default=DX_SIMCTL_DEVICE\t" + ctx.attr.simulator,
     ]
-    runfiles = [ctx.attr._ops[0][DefaultInfo].default_runfiles]
+    runfiles = [ctx.attr._runtime[0][DefaultInfo].default_runfiles]
     if ctx.attr.bundle_id:
         lines.append("env=DX_SIMCTL_BUNDLE_ID\t" + ctx.attr.bundle_id)
     if ctx.attr.app:
@@ -62,10 +63,11 @@ _simctl = rule(
             doc = "Name or UDID of the simulator to target.",
             mandatory = True,
         ),
-        "_ops": attr.label(
-            default = Label("//apple/private/tools/ops:apple_ops"),
+        "_runtime": attr.label(
+            default = Label("@dx_prebuilt//:runtime"),
             executable = True,
             cfg = no_coverage_transition,
+            doc = "dx-runtime, whose apple_ops helper runs the operation.",
         ),
         "_xcode_config": attr.label(
             default = configuration_field(

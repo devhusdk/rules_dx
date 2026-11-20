@@ -1,6 +1,4 @@
-use super::build_failures::report_build_failures;
 use super::deploy::execute_deploy;
-use super::failure_reports::write_failure_reports;
 use super::profile_report;
 use super::run::execute_run;
 use super::test_reports::{TestReportsRequest, execute_test_reports};
@@ -9,6 +7,8 @@ use dx_exec_core::common::{
     emit_event, emit_started, flush_out, kept_child, operational, pre_exec, read_actions,
     report_dx_error, resolve_failed, run_bazel, warn_scope_excluded,
 };
+use dx_exec_reports::build_failures::report_build_failures;
+use dx_exec_reports::failure_reports::write_failure_reports;
 use dx_exec_reports::skipped_targets::{group_skipped, read_skipped, skipped_notice};
 use dx_output::{
     ActionCounts, FinishedCounts, NoticeEvent, OutputMode, command_finished, notice_event,

@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": {
+    "dart": "@rules_dx//dart/private/tools:dart"
+  },
   "tools": [
     "dart"
   ],
@@ -51,7 +54,8 @@
     "dart_wasm_binary",
     "dart_test",
     "dart_bench",
-    "dart_config"
+    "dart_config",
+    "dart_doc_shard"
   ],
   "quality": {
     "bzl": "dart/private/quality:dart.bzl",

@@ -458,11 +458,13 @@ def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
             labels.append(test)
     return labels
 
-def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, cross_runfile = "", size = "small", **kwargs):
+def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, cross_runfile = "", cross_platforms = "//tools/platforms", size = "small", **kwargs):
     """Declares the conformance tests of one language.
 
     A `cross_runfile` names the runfile, by file stem, whose image cross_test checks instead of the binary's outputs.
+    `cross_platforms` names the package whose `<os>_<cpu>` platforms cross_test builds the binary for.
     A quality `<kind>_subject` names the subject rule of a `lint` or `format` kind whose aspect another lang.json declares.
+    A runfiles `tree_only` reason makes runfiles_test require the manifest-only run to fail.
     """
     if lang not in LANGS:
         fail("unknown lang %r" % lang)
@@ -482,6 +484,8 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
         for key in ["binary", "data", "expected"]:
             if key not in runfiles:
                 fail("%s: runfiles needs %r" % (lang, key))
+        if "tree_only" in runfiles and not runfiles["tree_only"]:
+            fail("%s: runfiles tree_only needs a reason" % lang)
         if _compatible_with(lang, "runfiles_test", not_applicable) == ["@platforms//:incompatible"]:
             fail("%s: runfiles is set but runfiles_test is pending or not applicable" % lang)
     elif _compatible_with(lang, "runfiles_test", not_applicable) != ["@platforms//:incompatible"]:
@@ -517,7 +521,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     platform_transition_filegroup(
         name = prefix + "cross_binary",
         srcs = [binary],
-        target_platform = _cross_select(lambda target: Label("//tools/platforms:" + target)),
+        target_platform = _cross_select(lambda target: Label(cross_platforms + ":" + target)),
         testonly = True,
         target_compatible_with = _compatible_with(lang, "cross_test", not_applicable),
         visibility = ["//visibility:private"],
@@ -592,7 +596,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
                 "DX_CONFORMANCE_MODE": "runfiles",
                 "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths %s)" % runfiles["binary"],
                 "DX_CONFORMANCE_TEXT": runfiles["expected"],
-            },
+            } | ({"DX_CONFORMANCE_TREE_ONLY": runfiles["tree_only"]} if "tree_only" in runfiles else {}),
             size = size,
             target_compatible_with = _compatible_with(lang, "runfiles_test", not_applicable),
             **kwargs

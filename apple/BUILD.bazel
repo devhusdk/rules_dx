@@ -5,6 +5,7 @@ load("//apple/private/ios:simulator.bzl", "declared_simulator")
 exports_files([
     "README.md",
     "defs.bzl",
+    "extensions.bzl",
     "lang.json",
     "pins.json",
 ])
@@ -21,6 +22,7 @@ filegroup(
         "//apple/private/macos:module_srcs",
         "//apple/private/provisioning:module_srcs",
         "//apple/private/signing:module_srcs",
+        "//apple/private/tools/ops:module_srcs",
         "//apple/private/xcode:module_srcs",
     ],
     visibility = ["//:__subpackages__"],

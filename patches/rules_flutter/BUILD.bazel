@@ -1,6 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "dx_bzl_srcs.patch",
     "lock_extension.patch",
     "registrant_javacopts.patch",
     "windows_golden_comparator.patch",

@@ -111,7 +111,7 @@ Add the package to the manifest (`Cargo.toml`, `pyproject.toml` or `package.json
 dx generate --apply
 ```
 
-dx also keeps each `<ecosystem>.lock.json` lock in step with its manifest. For each dependency set in `MODULE.bazel` with such a lock in a package the scope reaches, dx runs the set's pinned lock step. Without `--apply` it only compares; a stale lock prints `dx: lock of <set> is stale; run dx generate --apply` and exits `1`. With `--apply` it writes the stale lock. A lock that matches its inputs needs no download.
+dx also keeps each `<ecosystem>.lock.json`, `pubspec.lock` and dx-written `maven_install.json` lock in step with its manifest. For each dependency set in `MODULE.bazel` with such a lock in a package the scope reaches, dx runs the set's pinned lock step. The `pubspec.lock` and `maven_install.json` steps record the manifest's sha256 in the lock: a `# dx inputs sha256: <hex>` line and a top-level `"__DX_INPUTS_SHA256"` key. A lock without that marker, such as one `dart pub get` or a rules_jvm_external repin wrote, is stale until one `dx generate --apply`. A `maven_install.json` that rules_jvm_external pins, with `__INPUT_ARTIFACTS_HASH`, is skipped. Without `--apply` it only compares; a stale lock prints `dx: lock of <set> is stale; run dx generate --apply` and exits `1`. With `--apply` it writes the stale lock. A lock that matches its inputs needs no download.
 
 [`dx update`](audit-update.md) also adds a missing dependency. With `--apply`, dx writes a missing `Cargo.lock`, `uv.lock` or `pnpm-lock.yaml` with its pinned tool. Without `--apply`, it prints `dx: would create <lock>; run dx generate --apply` and exits `1`.
 
@@ -186,7 +186,7 @@ An import resolves in this order:
 | --- | --- |
 | `go` | `go.mod` direct requires, as `@<repo>//<package>`. An `// indirect` module fails. |
 | `java`, `kotlin`, `scala` | `maven_install.json`, as `@maven//:<group>_<artifact>`. A package in several artifacts needs a `resolve` mapping. |
-| `rust` | `Cargo.toml`. |
+| `rust` | `Cargo.toml`. An undeclared `runfiles` resolves to `@rules_rust//rust/runfiles`. When the root `MODULE.bazel` has a `bazel_dep` on `rules_rust_prost`, an undeclared `prost`, `prost_types` or `tonic` resolves to `@rules_dx//rust:<crate>`. |
 | `python` | `uv.lock`, as `@pypi//<name>`. Lowercase the name and replace `-`, `_`, `.` with `_`. A different import name needs a `resolve` mapping. |
 | `javascript`, `typescript` | Root `package.json`, as `//:node_modules/<package>`. |
 | `julia` | `[deps]` of `Project.toml`. Anything else needs a `resolve` line. |

@@ -1,6 +1,15 @@
 //! A deterministic child process for tests that must not need a host shell.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::collections::BTreeMap;
 use std::env;
@@ -125,10 +134,13 @@ struct Plan {
     ignore_console_ctrl: bool,
 }
 
-fn count<T: std::str::FromStr>(value: &str, flag: &str) -> Result<T, String> {
+fn count<T: std::str::FromStr>(value: &str, flag: &str) -> Result<T, String>
+where
+    T::Err: std::fmt::Display,
+{
     value
         .parse::<T>()
-        .map_err(|_| format!("{flag} needs a number, got {value}"))
+        .map_err(|error| format!("{flag} needs a number, got {value}: {error}"))
 }
 
 /// The flags that carry a value after `=`.

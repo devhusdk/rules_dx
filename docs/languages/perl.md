@@ -53,26 +53,35 @@ tools/dx test //...
 
 ## Dependencies
 
-### Packages
+### CPAN packages
 
-The lock, `cpan.lock.json`, pins each distribution of `cpanfile.snapshot` to a URL and a sha256. With `cpan.lock.json` beside the root `cpanfile`, `dx generate --apply` adds the `cpan.lock` stanza for the `@cpan` hub to `MODULE.bazel`.
+List your dependencies in `cpanfile` and pin them in `cpanfile.snapshot`.
+Then:
 
-Depend on `@cpan//Text-CSV` for one distribution, and on
-`@cpan//Perl-Tidy:bin_perltidy` for a script under its `bin/` or `script/`.
-`bazel run @rules_dx//perl/private/tools/lock -- --dir <set directory>`
-writes the lock from `cpanfile` and `cpanfile.snapshot`. A wrong digest
-fails the fetch.
+1. Run `dx update --apply`. It writes `cpan.lock.json`, which pins each
+   distribution of `cpanfile.snapshot` to a URL and a sha256.
+2. Run `dx generate --apply`. With `cpan.lock.json` beside the root
+   `cpanfile`, it adds the `cpan.lock` stanza for the `@cpan` hub to
+   `MODULE.bazel`. A hub is one Bazel repository that holds a target for
+   every locked package.
+3. Depend on a distribution as `@cpan//Text-CSV`, or on a script under its
+   `bin/` or `script/` as `@cpan//Perl-Tidy:bin_perltidy`.
+
+A wrong digest fails the fetch.
 
 ## Generate
 
-`dx generate` writes `perl_library` and `perl_test` rules. Each package takes
-its own `.pm` files plus every `.pm` under `lib/` that has no `BUILD` file of
-its own, and gets one `perl_test` per `t/*.t`. A module is named by its path
-under `lib/` (`lib/Inventory/Item.pm` is `Inventory::Item`), never by its
-`package` statement. This matches the default `includes` of rules_perl.
+`dx generate` writes `perl_library` and `perl_test` rules.
 
+- Each package takes its own `.pm` files plus every `.pm` under `lib/` that
+  has no `BUILD` file of its own.
+- Each `t/*.t` gets one `perl_test`.
+- A module is named by its path under `lib/`, never by its `package`
+  statement: `lib/Inventory/Item.pm` is `Inventory::Item`. This matches the
+  default `includes` of rules_perl.
 - Modules that ship with Perl need no dep.
-- A CPAN module resolves to the distribution whose `provides` in `cpan.lock.json` lists it.
+- A CPAN module resolves to the distribution that lists it in
+  `cpan.lock.json`.
 - `perl_binary` targets and `.pl` scripts stay hand-written.
 - Loads inside `eval` are optional and are skipped. Loads in POD, heredocs,
   strings and after `__END__` are ignored.
@@ -80,24 +89,25 @@ under `lib/` (`lib/Inventory/Item.pm` is `Inventory::Item`), never by its
 
 ## Quality
 
-Perl sources form the `perl` class, so `dx check` sees them. The Perl
-wrappers carry perltidy 20260826, which `dx check` runs as the
-formatter with its default style, LF line endings and no profile, so
-`.perltidyrc` and `$PERLTIDY` are never read. They also carry Perl::Critic
-1.156, which runs as the linter at severity 5 only with no profile, so
-`.perlcriticrc` and `$PERLCRITIC` are never read. Perl::Critic needs two XS
-modules the cpan hub cannot build, so `perl/private/tools/perlcritic.pl` swaps in
-pure-Perl stand-ins (Clone::PP and Params::Util's PP mode). Until typecheck
-exists, the Perl rules add the `no-typecheck` tag to every target. Set
-`--@rules_dx//config:tool_perltidy` or `tool_perlcritic` to use another tool.
+Perl sources form the `perl` class, so `dx check` sees them.
+
+| Role | Tool | Settings |
+| --- | --- | --- |
+| Formatter | perltidy 20260826 | default style, LF line endings |
+| Linter | Perl::Critic 1.156 | severity 5 only |
+
+Neither tool reads a profile: `.perltidyrc`, `$PERLTIDY`, `.perlcriticrc`
+and `$PERLCRITIC` are ignored. To use another binary, pass its label to
+`--@rules_dx//config:tool_perltidy` or `--@rules_dx//config:tool_perlcritic`.
+
+Perl has no type checker in dx, so the Perl rules tag every target
+`no-typecheck`.
 
 ## Coverage
 
-`dx coverage` runs `perl_test` through the `DxLcov` collector in
-`@rules_dx//perl/private/coverage`. It loads in every Perl the test starts, counts the
-statements that run, and writes LCOV for the instrumented sources to
-`$COVERAGE_OUTPUT_FILE`. Devel::Cover needs XS, which the `cpan` extension
-cannot build.
+`dx coverage` runs each `perl_test` with a statement collector that loads in
+every Perl the test starts. It writes LCOV for the instrumented sources to
+`$COVERAGE_OUTPUT_FILE`. You do not need Devel::Cover.
 
 ## Rules
 
@@ -139,6 +149,14 @@ perl_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs
 
 A perl_test run by dx bench: scripts call DxBench::run_benchmarks, which times them with core Benchmark and writes dx-bench.json.
 
+### `perl_doc_shard`
+
+```python
+perl_doc_shard(name, lib, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Perl library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Perl:
@@ -159,11 +177,10 @@ Perl builds and tests on:
 - macOS arm64
 - Windows x86_64
 
-See the [support matrix](../support-matrix.md).
+The [support matrix](../support-matrix.md) lists the platforms.
+`windows_arm64` is not supported.
 
-`windows_arm64` is unsupported.
-
-rules_perl has no toolchain for other platforms. The wrappers mark their
+rules_perl has no toolchain for other platforms. The rules mark their
 targets incompatible there, so a build fails instead of running the host
 Perl. Unix launchers start through a bash script.
 
@@ -174,13 +191,5 @@ Perl. Unix launchers start through a bash script.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/perl:defs.bzl", "perl_doc_shard")
+load("@rules_dx//perl:defs.bzl", "perl_doc_shard")
 ```
-
-### `perl_doc_shard`
-
-```python
-perl_doc_shard(name, lib, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one Perl library.

@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -8,45 +8,32 @@ package(default_visibility = VIS_TOOLS_PUBLIC)
 exports_files(
     [
         "Cargo.toml",
+        "src/doc.rs",
+        "src/doc_tests.rs",
         "src/lib.rs",
         "src/lib_tests.rs",
-        "src/main.rs",
     ],
     visibility = VIS_TOOLS,
 )
 
 rust_library(
     name = "dx_docs_dart_extract",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/doc.rs",
+        "src/lib.rs",
+    ],
     aliases = aliases(
         package_name = "tools/docs/dart/dart_extract",
         normal = True,
     ),
     crate_name = "dx_docs_dart_extract",
     crate_root = "src/lib.rs",
+    visibility = VIS_TOOLS_PUBLIC + ["//cli/cli:__pkg__"],
     deps = all_crate_deps(
         package_name = "tools/docs/dart/dart_extract",
         normal = True,
     ) + [
-        "//tools/docs/ir/ir:documentation_ir",
-        "@crates//:serde_json",
-    ],
-)
-
-rust_binary(
-    name = "dart_extract",
-    srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "tools/docs/dart/dart_extract",
-        normal = True,
-    ),
-    crate_name = "dart_extract",
-    crate_root = "src/main.rs",
-    deps = all_crate_deps(
-        package_name = "tools/docs/dart/dart_extract",
-        normal = True,
-    ) + [
-        ":dx_docs_dart_extract",
+        "//cli/process:dx_process",
         "//tools/docs/ir/ir:documentation_ir",
         "@crates//:serde_json",
     ],
@@ -56,6 +43,8 @@ rust_test(
     name = "dx_docs_dart_extract_test",
     size = "small",
     srcs = [
+        "src/doc.rs",
+        "src/doc_tests.rs",
         "src/lib.rs",
         "src/lib_tests.rs",
     ],
@@ -72,6 +61,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/process:dx_process",
         "//tools/docs/ir/ir:documentation_ir",
         "@crates//:serde_json",
     ],

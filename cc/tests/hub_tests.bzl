@@ -1,8 +1,8 @@
 """Tests for the dx_cc_toolchains hub."""
 
-load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load("//core:toolchain.bzl", "hub_checks")
 load("//cc/private/toolchain:hub.bzl", "CC_TOOLCHAIN_TYPE", "cc_hub", "cc_hub_entries", "cc_hub_names")
+load("//core:toolchain.bzl", "hub_checks")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 
 _FIRST = [
     "gcc_linux_x86_64",
@@ -12,6 +12,7 @@ _FIRST = [
     "msvc_windows_x86_64",
     "msvc_windows_x86_64_to_arm64",
     "msvc_windows_arm64",
+    "msvc_windows_arm64_to_x86_64",
     "msvc_unsupported",
     "llvm_fuzzer_macos_arm64",
     "llvm_fuzzer_macos_x86_64",

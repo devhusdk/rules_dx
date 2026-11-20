@@ -336,7 +336,7 @@ fn scan_files(files: &[(String, String)]) -> Counts {
 #[test]
 fn pins_have_one_location_outside_the_allowlist() {
     let root = dx_testing::source_snapshot();
-    let files = tree(&root);
+    let files = tree(&root).unwrap_or_else(|error| panic!("{}: {error}", root.display()));
     assert!(
         files.len() >= MIN_FILES,
         "only {} files in the snapshot",

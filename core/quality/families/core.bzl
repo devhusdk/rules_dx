@@ -143,7 +143,7 @@ def _vale_hook(target, _ctx, resolved, _capability, what, _shared):
                     converters.append(converter)
     return real_context(
         inputs = [converter.executable for (_, converter) in converters],
-        run_tools = [converter for (_, converter) in converters],
+        run_tools = converters,
         options = {"path_tools": [(name, converter.executable) for (name, converter) in converters]},
     )
 

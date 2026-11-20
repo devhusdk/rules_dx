@@ -74,7 +74,7 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let words: Vec<&str> = args
         .iter()
         .map(|word| word.as_ref().to_str())
-        .take_while(|word| word.is_some_and(|word| word != "--"))
+        .take_while(|word| *word != Some("--"))
         .map(|word| word.unwrap_or(""))
         .collect();
     let mut seen: Option<String> = None;
@@ -452,9 +452,11 @@ fn parse_inner<S: AsRef<OsStr>>(
     let build_slots = resolve_build_slots(build_slots, env_get)?;
     let build_slots_wait = resolve_build_slots_wait(build_slots_wait, env_get)?;
     let color_name = color_name.unwrap_or_else(|| "auto".to_owned());
-    let color = dx_output::ColorMode::parse(&color_name).map_err(|_| ArgsError::BadColor {
-        value: color_name.clone(),
-    })?;
+    let color = dx_output::ColorMode::parse(&color_name)
+        .ok()
+        .ok_or_else(|| ArgsError::BadColor {
+            value: color_name.clone(),
+        })?;
     let mut bazel_startup_options = Vec::with_capacity(startup_tokens.len());
     for token in &startup_tokens {
         match dx_process::validate_startup_option(token) {
@@ -500,9 +502,11 @@ fn parse_inner<S: AsRef<OsStr>>(
             value: fail_on_name,
         });
     }
-    let mut fail_on = Threshold::parse(&fail_on_name).map_err(|_| ArgsError::BadFailOn {
-        value: fail_on_name.clone(),
-    })?;
+    let mut fail_on = Threshold::parse(&fail_on_name)
+        .ok()
+        .ok_or_else(|| ArgsError::BadFailOn {
+            value: fail_on_name.clone(),
+        })?;
     if fail_on_name != "warning" && command != Command::Watch && !command.supports_fail_on() {
         if fail_on_from_flag {
             return Err(unsupported(command, "--fail-on"));
@@ -711,9 +715,11 @@ fn parse_inner<S: AsRef<OsStr>>(
     let output = if diff {
         OutputMode::Diff
     } else {
-        OutputMode::parse(&output_name, quiet).map_err(|_| ArgsError::BadOutput {
-            value: output_name.clone(),
-        })?
+        OutputMode::parse(&output_name, quiet)
+            .ok()
+            .ok_or_else(|| ArgsError::BadOutput {
+                value: output_name.clone(),
+            })?
     };
     if command.is_adoption() {
         match command {
@@ -887,6 +893,20 @@ mod tutorial_tests;
 mod startup_tests {
     use super::*;
     use dx_testing::cli::strings;
+
+    #[cfg(unix)]
+    #[test]
+    fn early_output_flag_reads_past_a_non_utf8_word() {
+        use std::os::unix::ffi::OsStringExt as _;
+        let args = [
+            std::ffi::OsString::from("lint"),
+            std::ffi::OsString::from_vec(vec![0xff]),
+            std::ffi::OsString::from("--output"),
+            std::ffi::OsString::from("json"),
+        ];
+        assert_eq!(early_output_flag(&args), Some("json".to_owned()));
+        assert!(json_output_intent(&args, &|_| None, false));
+    }
 
     #[test]
     #[expect(

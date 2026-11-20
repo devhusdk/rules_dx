@@ -1,12 +1,12 @@
 {
   "AutoHashEquals": {
     "deps": [],
-    "integrity": "sha256-O4ADVr24d12NIJZSRHMcizKrzEGjg+ef6afY/MQEG1o=",
+    "integrity": "sha256-WZxv1EHtcQYV0/2gz95dhTWR+aHZ9SfQbEYZ0e8cTAY=",
     "urls": [
-      "https://pkg.julialang.org/package/15f4f7f2-30c1-5605-9d31-71845cf9641f/4ec6b48702dacc5994a835c1189831755e4e76ef"
+      "https://pkg.julialang.org/package/15f4f7f2-30c1-5605-9d31-71845cf9641f/46bad943adcedc54532f4f7c9febd23cfd393b32"
     ],
     "uuid": "15f4f7f2-30c1-5605-9d31-71845cf9641f",
-    "version": "2.2.0"
+    "version": "2.3.0"
   },
   "CSTParser": {
     "deps": [
@@ -101,12 +101,12 @@
       "TOML",
       "Test"
     ],
-    "integrity": "sha256-7hSgBc9Q23CD0Mm5aIakXYBKnbPF24tYn8Uk5BGxNCw=",
+    "integrity": "sha256-ykNyNzYnRud1mqtnCVJ6UsoR14p1hL9Aj214IupD52A=",
     "urls": [
-      "https://pkg.julialang.org/package/98e50ef6-434e-11e9-1051-2b60c6c9e899/cda2a6ac042548d301b2c1a221c4e3f61d5e120a"
+      "https://pkg.julialang.org/package/98e50ef6-434e-11e9-1051-2b60c6c9e899/61187e0820b997fb7ef3deda98f52f2991d472a8"
     ],
     "uuid": "98e50ef6-434e-11e9-1051-2b60c6c9e899",
-    "version": "2.14.8"
+    "version": "2.14.12"
   },
   "JuliaSyntax": {
     "deps": [],
@@ -172,12 +172,12 @@
     "deps": [
       "Preferences"
     ],
-    "integrity": "sha256-FIKYN0TdWCLkI1geEUNt7fiVGWdVSnvmN4rz6XmGIlQ=",
+    "integrity": "sha256-IACxnVx78Zb2HTe9ejnWgD2b5FtjDmOBP0xDeigdZgI=",
     "urls": [
-      "https://pkg.julialang.org/package/aea7be01-6a6a-4083-8856-8a6e6704d82a/edbeefc7a4889f528644251bdb5fc9ab5348bc2c"
+      "https://pkg.julialang.org/package/aea7be01-6a6a-4083-8856-8a6e6704d82a/1e697ad6f68af89cd3651bbe9b4a7b5d800adf5a"
     ],
     "uuid": "aea7be01-6a6a-4083-8856-8a6e6704d82a",
-    "version": "1.3.4"
+    "version": "1.4.0"
   },
   "Preferences": {
     "deps": [
@@ -231,12 +231,12 @@
       "Dates",
       "UUIDs"
     ],
-    "integrity": "sha256-LkMoWzogcOjEBpPvcVHl5cE5TWbN7vB6q+oXQ4v3V4Y=",
+    "integrity": "sha256-IK7DsdcBwO19Zz2f6huoh0eaXzn1etw999Pe0DQFwaI=",
     "urls": [
-      "https://pkg.julialang.org/package/ec057cc2-7a8d-4b58-b3b3-92acb9f63b42/b04bfab37484defe300b2f9ed64469abab2431ff"
+      "https://pkg.julialang.org/package/ec057cc2-7a8d-4b58-b3b3-92acb9f63b42/d9cfc07e1d1a8985aa9d03870d642b5d7ab2cf33"
     ],
     "uuid": "ec057cc2-7a8d-4b58-b3b3-92acb9f63b42",
-    "version": "2.12.0"
+    "version": "2.12.1"
   },
   "TestItemDetection": {
     "deps": [

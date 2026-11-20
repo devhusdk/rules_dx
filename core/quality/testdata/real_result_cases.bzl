@@ -96,6 +96,20 @@ def _nvcc_case(name, contains, absent):
         "windows_x86_64": True,
     }
 
+def _cuda_tidy_case(name, target, contains, absent):
+    # The default policy's curated cuda lint is clang_tidy, so no dedicated test config is needed.
+    return {
+        "name": "real_result_clang_tidy_cuda_" + name,
+        "target": "//core/quality/testdata/nvcc_syntax:" + target,
+        "config": "default",
+        "tool": "clang_tidy",
+        "capability": "lint",
+        "class": "cuda",
+        "contains": contains,
+        "absent": absent,
+        "linux_arm64": True,
+    }
+
 def _go_case(tool, capability, kind, target, contains, absent, config = "shared", **extra):
     return extra | {
         "name": "real_result_" + tool + "_" + kind,
@@ -239,7 +253,7 @@ REAL_RESULT_CASES = [
     _iac_dirty_case("cfn_lint", "cloudformation", "cloudformation/tests", "dirty", ["E3002"]),
     _iac_dirty_case("cmakelint", "cmake", "cmake/tests", "dirty", ["readability/mixedcase"], "shared_standard"),
     _iac_dirty_case("hadolint", "dockerfile", "dockerfile/tests", "dirty", ["DL4006"]),
-    _iac_dirty_case("helm", "helm", "helm/tests/dirty", "dirty", ["got number, want string"]),
+    _iac_dirty_case("helm", "helm", "helm/tests/fixtures/dirty", "dirty", ["got number, want string"]),
     _iac_dirty_case("kubeconform", "kubernetes", "kubernetes/tests", "dirty", ["got number, want string"]),
     _iac_dirty_case("checkmake", "make", "make/tests", "dirty", ["minphony"], "shared_standard"),
     _iac_dirty_case("tflint", "terraform", "terraform/tests", "dirty", ["terraform_unused_declarations"], "shared_standard"),
@@ -352,6 +366,8 @@ REAL_RESULT_CASES = [
     _go_case("gotype", "typecheck", "clean", "//go/tests/fixtures/gotype:clean", ["gotype"], ["cannot use"]),
     _go_case("gotype", "typecheck", "dirty", "//go/tests/fixtures/gotype:broken", ["cannot use"], [], typecheck_subject = True),
     _go_case("gotype", "typecheck", "test_clean", "//go/tests/fixtures/gotype:external_test", ["gotype"], ["cannot use"]),
+    _go_case("gotype", "typecheck", "deep", "//go/tests/fixtures/gotype:deep", ["gotype"], ["no export data", "could not import", "cannot use"]),
+    _go_case("govet", "lint", "deep", "//go/tests/fixtures/gotype:deep", ["govet"], ["no export data", "could not import"]),
     _go_case("staticcheck", "lint", "clean", "//go/tests/fixtures/staticcheck:clean", ["staticcheck"], ["SA4017"]),
     _go_case("staticcheck", "lint", "dirty", "//go/tests/fixtures/staticcheck:dirty", ["SA4017", "double", "U1000", "unusedHelper"], []),
     _go_case("staticcheck", "lint", "standard_profile", "//go/tests/fixtures/staticcheck:strict_only_standard", ["staticcheck"], ["ST1003"]),
@@ -391,6 +407,8 @@ REAL_RESULT_CASES = [
     _nvcc_case("clean", ["nvcc_syntax/clean.cu"], ["__host__", "undefined", "declared but never"]),
     _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),
     _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),
+    _cuda_tidy_case("clean", "clean", ["nvcc_syntax/clean.cu"], ["readability-else-after-return", "clang-diagnostic-error"]),
+    _cuda_tidy_case("dirty", "tidy_dirty", ["nvcc_syntax/tidy_dirty.cu", "readability-else-after-return"], ["clang-diagnostic-error"]),
     {
         "name": "real_result_elixirc_elixir_unused",
         "target": "//core/quality/testdata/elixirc:elixir_unused",

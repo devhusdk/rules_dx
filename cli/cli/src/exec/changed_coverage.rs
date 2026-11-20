@@ -1,4 +1,3 @@
-use super::affected::{PlanError, named_base};
 use dx_error::DxError;
 use dx_exec_core::common::{
     CODE_CHANGED_LINE_BELOW_MINIMUM, CODE_CHANGED_LINE_INCOMPLETE, CODE_CHANGED_LINE_UNAVAILABLE,
@@ -7,6 +6,7 @@ use dx_exec_core::common::{
 use dx_lcov::{AddedLines, CellAccount, all_lines, changed_account, parse_added_lines};
 use dx_output::{ChangedLineCoverageEvent, OutputMode};
 use dx_plan::resolve::QueryRunner;
+use dx_plan::resolve::base::{PlanError, named_base};
 use std::io::Write;
 use std::path::Path;
 

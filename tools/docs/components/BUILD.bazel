@@ -27,7 +27,6 @@ rust_test(
     crate_name = "extract_test",
     crate_root = "extract_test.rs",
     data = [
-        "//tools/docs/components/extract:component_extract",
         "//tools/docs/components/fixture/astro:src/Hero.astro",
         "//tools/docs/components/fixture/astro:ui_docs",
         "//tools/docs/components/fixture/mdx:src/Intro.mdx",
@@ -39,11 +38,12 @@ rust_test(
         "//tools/docs/components/fixture/vue:ui_docs.component_meta.json",
         "//tools/docs/components/fixture/vue:ui_docs_loose",
         "//tools/docs/components/fixture/vue:ui_docs_loose.component_meta.json",
+        "@dx_prebuilt//:dx",
     ],
     env = {
         "DX_ASTRO_HERO_SOURCE": "$(rootpath //tools/docs/components/fixture/astro:src/Hero.astro)",
         "DX_ASTRO_SHARD": "$(rootpath //tools/docs/components/fixture/astro:ui_docs)",
-        "DX_COMPONENT_EXTRACT": "$(rootpath //tools/docs/components/extract:component_extract)",
+        "DX_COMPONENT_EXTRACT": "$(rootpath @dx_prebuilt//:dx)",
         "DX_FIXTURE_BUTTON_SOURCE": "$(rootpath //tools/docs/components/fixture/vue:src/Button.vue)",
         "DX_FIXTURE_LOOSE_META": "$(rootpath //tools/docs/components/fixture/vue:ui_docs_loose.component_meta.json)",
         "DX_FIXTURE_LOOSE_SHARD": "$(rootpath //tools/docs/components/fixture/vue:ui_docs_loose)",

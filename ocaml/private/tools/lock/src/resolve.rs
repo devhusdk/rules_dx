@@ -1,5 +1,10 @@
 //! Locks the packages that `*.opam.locked` files pin, with the archive each opam-repository entry names.
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -354,7 +359,7 @@ impl<'a> Opam<'a> {
             .download
             .bytes(&url)
             .map_err(|error| Error::new(format!("{url}: {error}")))?;
-        String::from_utf8(bytes).map_err(|_| Error::new(format!("{url} is not UTF-8")))
+        String::from_utf8(bytes).map_err(|e| Error::new(format!("{url} is not UTF-8: {e}")))
     }
 
     /// The lock packages of the pins.
@@ -439,4 +444,14 @@ impl Resolver for Opam<'_> {
             packages: self.packages(&pins)?,
         })
     }
+}
+
+/// Runs the opam lock step with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    let Some(hub) = dx_families::hub("opam") else {
+        return dx_lock::missing_hub("opam");
+    };
+    let spec = Opam::spec(hub);
+    dx_lock::run_process(&spec, &Opam::new(REPOSITORY, &Https::new()), args)
 }

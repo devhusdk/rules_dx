@@ -1,5 +1,9 @@
 //! Runs wrapper/bazel.ps1 the way Bazelisk does, with a fake Bazel and a fake PATH.
 //! SystemRoot stays real: PowerShell does not start without it.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};

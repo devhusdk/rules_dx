@@ -1,4 +1,3 @@
-load("//core/modules:versions.bzl", "LUA_VERSION")
 load(":toolchain.bzl", "lua_toolchain")
 
 package(default_visibility = ["//visibility:public"])
@@ -14,7 +13,6 @@ lua_toolchain(
     launcher = "//lua/private/runtime:launcher",
     luac = "@lua//:bin/luac",
     tags = ["manual"],
-    version = LUA_VERSION,
 )
 
 filegroup(

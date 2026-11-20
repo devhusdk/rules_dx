@@ -81,6 +81,12 @@ pinned_java_runtime(
     version = "25",
 )
 
+filegroup(
+    name = "jdk25_java",
+    srcs = [":jdk25"],
+    output_group = "java",
+)
+
 jar_lsp_tool(
     name = "pkl_lsp",
     driver = "@dx_prebuilt//:lsp_check",
@@ -88,8 +94,8 @@ jar_lsp_tool(
     native_prefix = "NATIVE/org/pkl/lsp/treesitter/windows-aarch64",
     natives = select({
         ":windows_arm64": [
-            "@jvm_tree_sitter//:tree-sitter.dll",
-            "@jvm_tree_sitter_pkl//:tree-sitter-pkl.dll",
+            "@dx_prebuilt//:tree_sitter",
+            "@dx_prebuilt//:tree_sitter_pkl",
         ],
         "//conditions:default": [],
     }),

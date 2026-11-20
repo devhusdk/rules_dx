@@ -158,6 +158,7 @@ fn split_pnpm_documents(text: &str) -> Vec<String> {
 }
 
 pub fn parse_pnpm_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     if text.trim().is_empty() {
         return Ok(Vec::new());
     }
@@ -336,6 +337,7 @@ fn yarn_alias_target(range: &str) -> Option<String> {
 }
 
 pub fn parse_yarn_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let mut out = Vec::new();
     for stanza in yarn_stanzas(text) {
         let head = stanza.lines().next().unwrap_or_default();

@@ -10,8 +10,9 @@ def _split_impl(ctx):
     debug = ctx.actions.declare_file(ctx.label.name + ".debug")
     manifest = ctx.actions.declare_file(ctx.label.name + ".symbols.json")
     ctx.actions.run(
-        executable = ctx.executable._split,
+        executable = ctx.executable._dx,
         arguments = [
+            "symbols_split",
             "--objcopy",
             objcopy.path,
             "--in",
@@ -50,8 +51,8 @@ _split = rule(
             allow_files = True,
             cfg = "exec",
         ),
-        "_split": attr.label(
-            default = Label("//deploy/private/symbols:split"),
+        "_dx": attr.label(
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
             cfg = "exec",
         ),
@@ -61,7 +62,7 @@ _split = rule(
     executable = True,
 )
 
-def dx_split_debug_info(name, binary, **kwargs):
+def split_debug_info(name, binary, **kwargs):
     """Splits the debug info of a Linux cc_binary; build the symbols output group to get it."""
     kwargs.setdefault("target_compatible_with", ["@platforms//os:linux"])
     _split(name = name, binary = binary, **kwargs)
@@ -82,13 +83,14 @@ def _dsym_pair_impl(ctx):
     binary = ctx.executable.binary
     dsyms = getattr(binary_target[OutputGroupInfo], "dsyms", None)
     if dsyms == None or len(dsyms.to_list()) != 1:
-        fail("%s did not produce one dSYM bundle; the dx_dsym binary must be a macOS cc_binary" % binary_target.label)
+        fail("%s did not produce one dSYM bundle; the dsym binary must be a macOS cc_binary" % binary_target.label)
     bundle = dsyms.to_list()[0]
     dsymutil = ctx.executable._dsymutil
     manifest = ctx.actions.declare_file(ctx.label.name + ".dsym.json")
     ctx.actions.run(
-        executable = ctx.executable._dsym,
+        executable = ctx.executable._dx,
         arguments = [
+            "symbols_dsym",
             "--dsymutil",
             dsymutil.path,
             "--in",
@@ -131,8 +133,8 @@ _dsym_pair = rule(
             executable = True,
             cfg = "exec",
         ),
-        "_dsym": attr.label(
-            default = Label("//deploy/private/symbols:dsym"),
+        "_dx": attr.label(
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
             cfg = "exec",
         ),
@@ -143,7 +145,7 @@ _dsym_pair = rule(
     executable = True,
 )
 
-def dx_dsym(name, binary, **kwargs):
+def dsym(name, binary, **kwargs):
     """Keeps the dSYM of a macOS cc_binary."""
     kwargs.setdefault("target_compatible_with", ["@platforms//os:macos"])
     _dsym_pair(name = name, binary = binary, **kwargs)
@@ -167,22 +169,23 @@ def _pdb_pair_impl(ctx):
     target = ctx.attr.binary[0]
     pdbs = getattr(target[OutputGroupInfo], "pdb_file", None)
     if pdbs == None or len(pdbs.to_list()) != 1:
-        fail("%s did not produce one pdb_file; the dx_pdb binary must be a Windows cc_binary" % target.label)
-    pdb = pdbs.to_list()[0]
+        fail("%s did not produce one pdb_file; the pdb binary must be a Windows cc_binary" % target.label)
+    pdb_file = pdbs.to_list()[0]
     manifest = ctx.actions.declare_file(ctx.label.name + ".pdb.json")
     exe = ctx.actions.declare_file(ctx.label.name + ".exe")
     ctx.actions.symlink(output = exe, target_file = binary, is_executable = True)
     ctx.actions.run(
-        executable = ctx.executable._pdb,
+        executable = ctx.executable._dx,
         arguments = [
+            "symbols_pdb",
             "--in",
             binary.path,
             "--pdb",
-            pdb.path,
+            pdb_file.path,
             "--manifest",
             manifest.path,
         ],
-        inputs = [binary, pdb],
+        inputs = [binary, pdb_file],
         outputs = [manifest],
         mnemonic = "DxPdb",
         progress_message = "Pairing the PDB of %{label}",
@@ -193,7 +196,7 @@ def _pdb_pair_impl(ctx):
             files = depset([exe]),
             runfiles = target[DefaultInfo].default_runfiles,
         ),
-        OutputGroupInfo(symbols = depset([pdb, manifest])),
+        OutputGroupInfo(symbols = depset([pdb_file, manifest])),
     ]
 
 _pdb_pair = rule(
@@ -206,8 +209,8 @@ _pdb_pair = rule(
             cfg = _pdb_transition,
             mandatory = True,
         ),
-        "_pdb": attr.label(
-            default = Label("//deploy/private/symbols:pdb"),
+        "_dx": attr.label(
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
             cfg = "exec",
         ),
@@ -218,7 +221,7 @@ _pdb_pair = rule(
     executable = True,
 )
 
-def dx_pdb(name, binary, **kwargs):
+def pdb(name, binary, **kwargs):
     """Keeps the PDB of a Windows cc_binary."""
     kwargs.setdefault("target_compatible_with", ["@platforms//os:windows"])
     _pdb_pair(name = name, binary = binary, **kwargs)

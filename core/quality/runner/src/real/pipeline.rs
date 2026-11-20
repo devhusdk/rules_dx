@@ -187,9 +187,11 @@ fn run_stages(
                 path: sibling.path.clone(),
             });
         }
-        let text = std::str::from_utf8(&sibling.bytes).map_err(|_| RunnerError::InvalidUtf8 {
-            path: sibling.path.clone(),
-        })?;
+        let text =
+            std::str::from_utf8(&sibling.bytes).map_err(|error| RunnerError::InvalidUtf8 {
+                path: sibling.path.clone(),
+                reason: error.to_string(),
+            })?;
         sibling_texts.insert(sibling.path.clone(), text.to_owned());
     }
     let mut resolve_texts = BTreeMap::new();
@@ -202,8 +204,9 @@ fn run_stages(
                 path: item.path.clone(),
             });
         }
-        let text = std::str::from_utf8(&item.bytes).map_err(|_| RunnerError::InvalidUtf8 {
+        let text = std::str::from_utf8(&item.bytes).map_err(|error| RunnerError::InvalidUtf8 {
             path: item.path.clone(),
+            reason: error.to_string(),
         })?;
         resolve_texts.insert(item.path.clone(), text.to_owned());
     }

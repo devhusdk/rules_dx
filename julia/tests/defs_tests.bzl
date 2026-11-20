@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_entry_quality_srcs")
 load("//julia/private:defs.bzl", "JULIA_QUALITY_TOOLS", "JULIA_SOURCE_EXTS", "JULIA_SOURCE_SPECS")
 load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
@@ -14,9 +14,28 @@ def _config_content(env):
                 return action.content
     return None
 
+_JuliaFlagsInfo = provider("The julia_flags of the upstream julia_test.", fields = ["flags"])
+
+def _julia_flags_aspect_impl(target, ctx):
+    if hasattr(ctx.rule.attr, "julia_flags"):
+        return [_JuliaFlagsInfo(flags = ctx.rule.attr.julia_flags)]
+    upstream = getattr(ctx.rule.attr, "upstream", None)
+    if upstream and _JuliaFlagsInfo in upstream:
+        return [upstream[_JuliaFlagsInfo]]
+    return []
+
+_julia_flags_aspect = aspect(implementation = _julia_flags_aspect_impl, attr_aspects = ["upstream"])
+
 def _coverage_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)
+    asserts.true(env, _JuliaFlagsInfo in target, "no upstream julia_flags reached")
+    if _JuliaFlagsInfo in target:
+        flags = target[_JuliaFlagsInfo].flags
+        if ctx.attr.expect_runner:
+            asserts.true(env, "--code-coverage=user" in flags, str(flags))
+        else:
+            asserts.false(env, "--code-coverage=user" in flags, str(flags))
     run_env = target[RunEnvironmentInfo].environment if RunEnvironmentInfo in target else {}
     content = _config_content(env)
     if ctx.attr.expect_runner:
@@ -34,12 +53,14 @@ _coverage_on_test = analysistest.make(
     _coverage_impl,
     attrs = {"expect_runner": attr.bool(default = True), "source": attr.string()},
     config_settings = {"//command_line_option:collect_code_coverage": True},
+    extra_target_under_test_aspects = [_julia_flags_aspect],
 )
 
 _coverage_off_test = analysistest.make(
     _coverage_impl,
     attrs = {"expect_runner": attr.bool(default = False), "source": attr.string()},
     config_settings = {"//command_line_option:collect_code_coverage": False},
+    extra_target_under_test_aspects = [_julia_flags_aspect],
 )
 
 def julia_coverage_test(name, target, source):

@@ -115,8 +115,8 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>, resolved: &Resolved
     wiring
 }
 
-/// Runs the pinned resolver of every set with a dx class lock in the generate scope: a check
-/// compares the lock with its inputs, `--apply` writes a stale lock. A root manifest seeded above
+/// Runs the pinned resolver of every lock set in the generate scope: a check compares the lock
+/// with its inputs offline, `--apply` writes a stale lock. A root manifest seeded above
 /// is skipped.
 fn lock_sets(
     request: &GenerateRequest,
@@ -484,7 +484,7 @@ impl Wiring {
     }
 
     fn say(&mut self, err: &mut dyn Write, notice: dx_output::NoticeEvent) {
-        writeln!(err, "dx: {}", notice.message).ok();
+        dx_output::write_stderr(err, format_args!("dx: {}\n", notice.message));
         self.notices.push(notice);
     }
 
@@ -617,7 +617,7 @@ fn launch_generate(
     let apply = gazelle_writes(request);
     let patch = patch_path(env.temp_dir, env.pid, env.nonce);
     let patch_arg = (!apply).then(|| patch.display().to_string());
-    std::fs::remove_file(&patch).ok();
+    dx_atomic_fs::discard_file(&patch);
     let plan = match plan_generate(
         resolved,
         &request.bazel_options,
@@ -666,14 +666,14 @@ fn launch_generate(
     ) {
         Ok(code) => code,
         Err(exit) => {
-            std::fs::remove_file(&intended).ok();
-            std::fs::remove_file(&patch).ok();
+            dx_atomic_fs::discard_file(&intended);
+            dx_atomic_fs::discard_file(&patch);
             *kind = PhaseKind::Host;
             return Err(exit);
         }
     };
     let patch_written = std::fs::metadata(&patch).is_ok_and(|meta| meta.len() > 0);
-    std::fs::remove_file(&patch).ok();
+    dx_atomic_fs::discard_file(&patch);
     read_generated(request, env, kind, &intended, bazel_code, patch_written)
 }
 
@@ -845,7 +845,7 @@ fn emit_generate_report(
             }
         }
         for line in refused_lines(projected) {
-            writeln!(env.err, "{line}").ok();
+            dx_output::write_stderr(env.err, format_args!("{line}\n"));
         }
     }
     Ok(())
@@ -1045,10 +1045,14 @@ mod tests {
         );
     }
 
-    /// A workspace with one composer set in `php` whose manifest is there.
-    fn composer_set(name: &str) -> (Harness, &'static dx_families::Hub) {
+    /// A workspace with one `ecosystem` set named `web` in `php` whose manifest is `manifest`.
+    fn lock_set(
+        name: &str,
+        ecosystem: &str,
+        manifest: &str,
+    ) -> (Harness, &'static dx_families::Hub) {
         let mut harness = Harness::new(name);
-        let hub = dx_families::hub("composer").expect("setup.hubs entry composer");
+        let hub = dx_families::hub(ecosystem).expect("setup.hubs entry");
         harness.write_source(
             "MODULE.bazel",
             &format!(
@@ -1059,11 +1063,15 @@ mod tests {
                 lock = hub.lock.as_deref().expect("lock"),
             ),
         );
-        harness.write_source(&format!("php/{}", hub.manifest), "{}");
+        harness.write_source(&format!("php/{}", hub.manifest), manifest);
         harness.write_source("BUILD.bazel", "");
         harness.intended = Some(intended_witness("check", true, "", ""));
         harness.generate_code = Some(0);
         (harness, hub)
+    }
+
+    fn composer_set(name: &str) -> (Harness, &'static dx_families::Hub) {
+        lock_set(name, "composer", "{}")
     }
 
     fn resolver_runs(harness: &Harness, resolver: &str) -> Vec<Vec<String>> {
@@ -1116,6 +1124,21 @@ mod tests {
         );
         let resolver = hub.resolver.as_deref().expect("resolver");
         assert_eq!(resolver_runs(&harness, resolver).len(), 1);
+    }
+
+    #[test]
+    fn check_fails_on_a_stale_pub_lock_and_names_the_set() {
+        let (mut harness, hub) = lock_set("check-pub-lock-stale", "pub", "name: app\n");
+        harness.app_code = Some(1);
+        let (code, out, err) = harness.run(&["check"]);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("dx: lock of web is stale; run dx generate --apply"),
+            "{err}"
+        );
+        let runs = resolver_runs(&harness, hub.resolver.as_deref().expect("resolver"));
+        assert_eq!(runs.len(), 1, "{runs:?}");
+        assert!(runs[0].iter().any(|arg| arg == "--check"), "{runs:?}");
     }
 
     #[test]

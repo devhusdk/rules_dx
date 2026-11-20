@@ -103,6 +103,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/lcov:dx_lcov",

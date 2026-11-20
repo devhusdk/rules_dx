@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
@@ -56,6 +57,37 @@ pub fn ledger_exit(records: &[OpRecord]) -> i32 {
     i32::from(bad)
 }
 
+/// A failed GitHub release read or upload.
+#[derive(Debug)]
+pub enum LedgerError {
+    ReleaseJson(serde_json::Error),
+    GhRun(dx_process::capture::RunError),
+    /// `gh` exited unsuccessfully; `stderr` is already scrubbed of secrets.
+    GhFailed {
+        stderr: String,
+    },
+}
+
+impl fmt::Display for LedgerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ReleaseJson(source) => write!(f, "release: cannot parse release JSON: {source}"),
+            Self::GhRun(source) => write!(f, "cannot run gh: {source}"),
+            Self::GhFailed { stderr } => f.write_str(stderr),
+        }
+    }
+}
+
+impl std::error::Error for LedgerError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::ReleaseJson(source) => Some(source),
+            Self::GhRun(source) => Some(source),
+            Self::GhFailed { .. } => None,
+        }
+    }
+}
+
 /// A release as read from GitHub.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RemoteRelease {
@@ -82,9 +114,8 @@ struct AssetJson {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse_release_assets(json: &str) -> Result<RemoteRelease, String> {
-    let release: ReleaseJson = serde_json::from_str(json)
-        .map_err(|err| format!("release: cannot parse release JSON: {err}"))?;
+pub fn parse_release_assets(json: &str) -> Result<RemoteRelease, LedgerError> {
+    let release: ReleaseJson = serde_json::from_str(json).map_err(LedgerError::ReleaseJson)?;
     let assets = release
         .assets
         .into_iter()
@@ -165,11 +196,11 @@ pub trait ReleaseBackend {
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    fn view(&self, tag: &str) -> Result<String, String>;
+    fn view(&self, tag: &str) -> Result<String, LedgerError>;
     /// # Errors
     ///
     /// Returns an error when the operation fails.
-    fn upload(&self, tag: &str, path: &str) -> Result<String, String>;
+    fn upload(&self, tag: &str, path: &str) -> Result<String, LedgerError>;
 }
 
 /// Uploads what reconcile asks for, re-reads the release, and reconciles again.
@@ -185,7 +216,14 @@ pub fn sync_assets(
         .and_then(|json| parse_release_assets(&json));
     let remote = match first {
         Ok(remote) => remote,
-        Err(err) => return vec![OpRecord::new("release-view", tag, OpState::Failed, &err)],
+        Err(err) => {
+            return vec![OpRecord::new(
+                "release-view",
+                tag,
+                OpState::Failed,
+                &err.to_string(),
+            )];
+        }
     };
     let (records, pending) = reconcile_assets(staged, &remote, approved);
     if pending.is_empty() {
@@ -206,7 +244,14 @@ pub fn sync_assets(
         .and_then(|json| parse_release_assets(&json));
     let remote = match after {
         Ok(remote) => remote,
-        Err(err) => return vec![OpRecord::new("release-view", tag, OpState::Failed, &err)],
+        Err(err) => {
+            return vec![OpRecord::new(
+                "release-view",
+                tag,
+                OpState::Failed,
+                &err.to_string(),
+            )];
+        }
     };
     let (mut records, missing) = reconcile_assets(staged, &remote, approved);
     for name in &missing {
@@ -282,7 +327,7 @@ mod tests {
     }
 
     impl ReleaseBackend for Fake {
-        fn view(&self, _tag: &str) -> Result<String, String> {
+        fn view(&self, _tag: &str) -> Result<String, LedgerError> {
             let assets: Vec<_> = self
                 .assets
                 .borrow()
@@ -294,9 +339,11 @@ mod tests {
             Ok(serde_json::json!({"draft": self.draft, "assets": assets}).to_string())
         }
 
-        fn upload(&self, _tag: &str, path: &str) -> Result<String, String> {
+        fn upload(&self, _tag: &str, path: &str) -> Result<String, LedgerError> {
             if self.fail_on.is_some_and(|bad| path.ends_with(bad)) {
-                return Err("boom".to_owned());
+                return Err(LedgerError::GhFailed {
+                    stderr: "boom".to_owned(),
+                });
             }
             let name = path.rsplit('/').next().unwrap_or(path).to_owned();
             let sha = if name == "a.bin" { A } else { B };
@@ -362,6 +409,11 @@ mod tests {
         fake.fail_on = Some("a.bin");
         let records = run(&fake, true);
         assert!(records.iter().any(|r| r.state == OpState::Failed));
+        assert!(
+            records
+                .iter()
+                .any(|r| r.subject == "a.bin" && r.detail == "upload failed: boom")
+        );
         assert_eq!(ledger_exit(&records), 1);
     }
 
@@ -390,10 +442,10 @@ mod tests {
     fn an_accepted_upload_the_release_does_not_list_fails() {
         struct Dropping;
         impl ReleaseBackend for Dropping {
-            fn view(&self, _: &str) -> Result<String, String> {
+            fn view(&self, _: &str) -> Result<String, LedgerError> {
                 Ok(r#"{"draft": true, "assets": []}"#.to_owned())
             }
-            fn upload(&self, _: &str, _: &str) -> Result<String, String> {
+            fn upload(&self, _: &str, _: &str) -> Result<String, LedgerError> {
                 Ok(String::new())
             }
         }
@@ -419,15 +471,20 @@ mod tests {
     fn view_error_fails() {
         struct Down;
         impl ReleaseBackend for Down {
-            fn view(&self, _: &str) -> Result<String, String> {
-                Err("offline".to_owned())
+            fn view(&self, _: &str) -> Result<String, LedgerError> {
+                Err(LedgerError::GhFailed {
+                    stderr: "offline".to_owned(),
+                })
             }
-            fn upload(&self, _: &str, _: &str) -> Result<String, String> {
-                Err("offline".to_owned())
+            fn upload(&self, _: &str, _: &str) -> Result<String, LedgerError> {
+                Err(LedgerError::GhFailed {
+                    stderr: "offline".to_owned(),
+                })
             }
         }
         let records = sync_assets(&Down, "v1", &staged(), &paths(), true);
         assert_eq!(states(&records), vec![OpState::Failed]);
+        assert_eq!(records[0].detail, "offline");
     }
 
     #[test]
@@ -439,6 +496,12 @@ mod tests {
         assert!(text.contains("\"schema\": \"release-ledger/v1\""));
         assert!(text.contains("not-authorized"));
         assert!(text.find("\"a\"").unwrap() < text.find("\"z\"").unwrap());
-        assert!(parse_release_assets("not json").is_err());
+        let error = parse_release_assets("not json").unwrap_err();
+        assert!(matches!(error, LedgerError::ReleaseJson(_)));
+        assert!(
+            error
+                .to_string()
+                .starts_with("release: cannot parse release JSON: ")
+        );
     }
 }

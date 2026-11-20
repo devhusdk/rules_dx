@@ -43,7 +43,7 @@ def _ts_proto_srcs_impl(ctx):
     windows = ctx.attr._exec_os[ExecOsInfo].windows
     plugin_path = plugin.path
     if windows:
-        # On Windows the plugin is a .bat launcher, which protoc starts through cmd.exe.
+        # On Windows the plugin is the js_build_tool .bat shim, which protoc starts through cmd.exe.
         # cmd.exe reads a forward slash as a switch, so "bazel-out/..." would run "bazel-out".
         plugin_path = plugin_path.replace("/", "\\")
     args = ctx.actions.args()
@@ -78,7 +78,7 @@ ts_proto_srcs = rule(
             providers = [ExecOsInfo],
         ),
         "_plugin": attr.label(
-            default = "//javascript/private/quality/bin:protoc_gen_es",
+            default = "//javascript/private/quality/bin:protoc_gen_es_tool",
             executable = True,
             cfg = "exec",
         ),

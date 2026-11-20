@@ -17,6 +17,9 @@
       "name": "ansible",
       "quality": {
         "aspects": {
+          "format": [
+            "real_ansible_format_aspect"
+          ],
           "lint": [
             "real_ansible_lint_aspect"
           ]
@@ -30,6 +33,9 @@
           ".yml"
         ],
         "probes": {
+          "format": [
+            "real_ansible_format_probe_aspect"
+          ],
           "lint": [
             "real_ansible_lint_probe_aspect"
           ]
@@ -105,6 +111,20 @@
               "macos_arm64"
             ]
           }
+        ]
+      }
+    },
+    {
+      "name": "asciidoc",
+      "quality": {
+        "bzl": "core/quality:families/core.bzl",
+        "classes": [
+          "asciidoc"
+        ],
+        "file_extensions": [
+          ".adoc",
+          ".asc",
+          ".asciidoc"
         ]
       }
     },
@@ -246,6 +266,11 @@
       }
     },
     {
+      "commands": {
+        "clangd": "@rules_dx//cc/private/tools/context:clangd",
+        "identity": "@rules_dx//cc/private/tools/context:identity",
+        "identity_exec": "@rules_dx//cc/private/tools/context:identity_exec"
+      },
       "docs": {
         "aspects": [
           "real_cc_docs_aspect"
@@ -401,7 +426,20 @@
       }
     },
     {
+      "commands": {
+        "dotnet_tool": "@rules_dx//csharp/private/ide:dotnet_tool"
+      },
       "name": "csharp",
+      "quality": {
+        "bzl": "dotnet/private/quality:dotnet.bzl",
+        "classes": [
+          "csharp"
+        ],
+        "file_extensions": [
+          ".cs",
+          ".csproj"
+        ]
+      },
       "setup": {
         "hubs": [
           {
@@ -420,6 +458,24 @@
     },
     {
       "name": "cuda",
+      "quality": {
+        "bzl": "cc/private/quality:cc.bzl",
+        "classes": [
+          "cuda"
+        ],
+        "defaults": {
+          "audit": [],
+          "format": [
+            "clang_format"
+          ],
+          "lint": [
+            "clang_tidy",
+            "typos"
+          ],
+          "typecheck": []
+        },
+        "file_extensions": []
+      },
       "setup": {
         "licenses": [
           {
@@ -502,6 +558,9 @@
       }
     },
     {
+      "commands": {
+        "dart": "@rules_dx//dart/private/tools:dart"
+      },
       "docs": {
         "aspects": [
           "real_dart_docs_aspect"
@@ -633,13 +692,7 @@
           ]
         },
         "bzl": "dotnet/private/quality:dotnet.bzl",
-        "file_extensions": [
-          ".cs",
-          ".csproj",
-          ".fs",
-          ".fsproj",
-          ".fsx"
-        ],
+        "file_extensions": [],
         "probes": {
           "format": [
             "real_dotnet_format_probe_aspect"
@@ -654,6 +707,9 @@
       }
     },
     {
+      "commands": {
+        "mix": "@rules_dx//elixir/private/tools:mix"
+      },
       "docs": {
         "aspects": [
           "real_beam_docs_aspect"
@@ -700,6 +756,9 @@
       }
     },
     {
+      "commands": {
+        "rebar3": "@rules_dx//erlang/private/tools:rebar3"
+      },
       "docs": {
         "aspects": [
           "real_beam_docs_aspect"
@@ -842,6 +901,27 @@
       }
     },
     {
+      "commands": {
+        "dotnet_tool": "@rules_dx//fsharp/private/ide:dotnet_tool"
+      },
+      "name": "fsharp",
+      "quality": {
+        "bzl": "dotnet/private/quality:dotnet.bzl",
+        "classes": [
+          "fsharp"
+        ],
+        "file_extensions": [
+          ".fs",
+          ".fsproj",
+          ".fsx"
+        ]
+      }
+    },
+    {
+      "commands": {
+        "go": "@rules_dx//go/private/tools:go",
+        "gopackagesdriver": "@rules_dx//go/private/ide:gopackagesdriver"
+      },
       "docs": {
         "aspects": [
           "real_go_docs_aspect"
@@ -1003,6 +1083,9 @@
       }
     },
     {
+      "commands": {
+        "java_tool": "@rules_dx//java/private/ide:java_tool"
+      },
       "docs": {
         "aspects": [
           "real_jvm_docs_aspect"
@@ -1163,6 +1246,9 @@
       }
     },
     {
+      "commands": {
+        "pkg_update": "@rules_dx//julia/private/tools:pkg_update"
+      },
       "docs": {
         "aspects": [
           "real_julia_docs_aspect"
@@ -1439,6 +1525,9 @@
       }
     },
     {
+      "commands": {
+        "opam": "@rules_dx//ocaml/private/tools:opam"
+      },
       "docs": {
         "aspects": [
           "real_ocaml_docs_aspect"
@@ -1512,6 +1601,9 @@
       }
     },
     {
+      "commands": {
+        "carton": "@rules_dx//perl/private/tools:carton"
+      },
       "docs": {
         "aspects": [
           "real_perl_docs_aspect"
@@ -1566,6 +1658,9 @@
       }
     },
     {
+      "commands": {
+        "composer": "@rules_dx//php/private/tools:composer"
+      },
       "docs": {
         "aspects": [
           "real_php_docs_aspect"
@@ -1682,6 +1777,10 @@
       }
     },
     {
+      "commands": {
+        "python_interpreter": "@rules_dx//cli/update:python_interpreter",
+        "python_tool": "@rules_dx//python/private/ide:python_tool"
+      },
       "docs": {
         "aspects": [
           "real_python_docs_aspect"
@@ -1865,6 +1964,10 @@
       }
     },
     {
+      "commands": {
+        "discover": "@rules_dx//rust/private/ide:discover",
+        "flycheck": "@rules_dx//rust/private/ide:flycheck"
+      },
       "docs": {
         "aspects": [
           "real_rust_docs_aspect"
@@ -2035,6 +2138,9 @@
       }
     },
     {
+      "commands": {
+        "swift": "@rules_dx//swift/private/tools:swift"
+      },
       "docs": {
         "aspects": [
           "real_swift_docs_aspect"
@@ -2171,6 +2277,9 @@
       }
     },
     {
+      "commands": {
+        "tsdk": "@rules_dx//typescript/private/ide:tsdk"
+      },
       "docs": {
         "aspects": [
           "real_typescript_docs_aspect"

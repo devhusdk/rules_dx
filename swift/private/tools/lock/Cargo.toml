@@ -8,13 +8,13 @@ edition = "2024"
 name = "swift_lock"
 path = "src/resolve.rs"
 
-[[bin]]
-name = "swift_lock_bin"
-path = "src/main.rs"
-
 [[test]]
 name = "resolve_test"
 path = "resolve_test.rs"
+
+[[test]]
+name = "subcommand_test"
+path = "subcommand_test.rs"
 
 [dependencies]
 serde_json = "1"

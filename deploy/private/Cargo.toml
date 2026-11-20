@@ -12,14 +12,6 @@ path = "src/lib.rs"
 name = "deploy_tool"
 path = "src/bin_deploy_tool.rs"
 
-[[bin]]
-name = "deploy_program"
-path = "src/bin_deploy_program.rs"
-
-[[bin]]
-name = "deploy_app"
-path = "src/bin_deploy_app.rs"
-
 [dependencies]
 base64 = "0.23"
 flate2 = { version = "1", default-features = false, features = ["zlib"] }

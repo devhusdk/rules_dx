@@ -80,13 +80,22 @@ pub struct ProcessEntry {
     pub exe: String,
 }
 
+/// The owned handle, or the calling thread's last OS error when `handle` is null or invalid.
+/// The rejected handle carries no cause; `GetLastError` holds it.
+pub(crate) fn owned_or_last_error<H: TryInto<OwnedHandle>>(handle: H) -> io::Result<OwnedHandle> {
+    match handle.try_into() {
+        Ok(handle) => Ok(handle),
+        Err(_) => Err(io::Error::last_os_error()),
+    }
+}
+
 /// Opens process `pid` with `access`.
 pub fn open(pid: u32, access: Access) -> io::Result<OwnedHandle> {
     // SAFETY: OpenProcess takes plain integers.
     let raw = unsafe { OpenProcess(access.rights(), 0, pid) };
     // SAFETY: OpenProcess returns a new handle owned by the caller, or null.
     let handle = unsafe { HandleOrNull::from_raw_handle(raw) };
-    OwnedHandle::try_from(handle).map_err(|_| io::Error::last_os_error())
+    owned_or_last_error(handle)
 }
 
 /// Whether the process has not exited. The handle needs [`Access::Wait`].
@@ -231,7 +240,7 @@ fn snapshot(flags: u32) -> io::Result<OwnedHandle> {
     let raw = unsafe { CreateToolhelp32Snapshot(flags, 0) };
     // SAFETY: the snapshot is a new handle owned by the caller, or INVALID_HANDLE_VALUE.
     let handle = unsafe { HandleOrInvalid::from_raw_handle(raw) };
-    OwnedHandle::try_from(handle).map_err(|_| io::Error::last_os_error())
+    owned_or_last_error(handle)
 }
 
 /// Every process in the process table.
@@ -267,7 +276,7 @@ fn open_thread(thread_id: u32) -> io::Result<OwnedHandle> {
     let raw = unsafe { OpenThread(THREAD_SUSPEND_RESUME, 0, thread_id) };
     // SAFETY: OpenThread returns a new handle owned by the caller, or null.
     let handle = unsafe { HandleOrNull::from_raw_handle(raw) };
-    OwnedHandle::try_from(handle).map_err(|_| io::Error::last_os_error())
+    owned_or_last_error(handle)
 }
 
 /// Resumes every thread of process `pid`, as a child started with [`CREATE_SUSPENDED`] needs.

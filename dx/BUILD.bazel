@@ -1,9 +1,14 @@
-load("@rules_go//go:def.bzl", "go_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_DX_COMMANDS", "VIS_DX_ROOTS")
 load(":generate.bzl", "dx_generate")
+load(":generate_tests.bzl", "dx_generate_tests")
 
 package(default_visibility = ["//visibility:private"])
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
+)
 
 dx_generate(
     name = "generate",
@@ -16,12 +21,7 @@ dx_generate(
     visibility = VIS_DX_COMMANDS,
 )
 
-go_binary(
-    name = "gazelle_launcher",
-    srcs = ["gazelle_launcher.go"],
-    pure = "on",
-    deps = ["@rules_go//go/runfiles"],
-)
+dx_generate_tests(name = "generate_test")
 
 filegroup(
     name = "env",
@@ -39,8 +39,8 @@ filegroup(
     name = "module_srcs",
     srcs = [
         "BUILD.bazel",
-        "gazelle_launcher.go",
         "generate.bzl",
+        "generate_tests.bzl",
     ],
     visibility = ["//:__subpackages__"],
 )
@@ -57,6 +57,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "generate.bzl",
+        "generate_tests.bzl",
     ],
     tags = ["corpus"],
 )

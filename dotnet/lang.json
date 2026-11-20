@@ -26,13 +26,7 @@
   "entry_points": [],
   "quality": {
     "bzl": "dotnet/private/quality:dotnet.bzl",
-    "file_extensions": [
-      ".cs",
-      ".csproj",
-      ".fs",
-      ".fsproj",
-      ".fsx"
-    ],
+    "file_extensions": [],
     "aspects": {
       "format": [
         "real_dotnet_format_aspect"

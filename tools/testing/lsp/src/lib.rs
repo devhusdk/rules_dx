@@ -1,6 +1,11 @@
 //! A small headless LSP client for tests: framing, a reader thread and deadline-based waits.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use std::cell::RefCell;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -72,9 +77,9 @@ pub fn header_length(head: &[u8]) -> Result<usize, Error> {
     for line in text.split("\r\n") {
         let (name, value) = line.split_once(':').unwrap_or((line, ""));
         if name.trim().eq_ignore_ascii_case("content-length") {
-            return value.trim().parse::<usize>().map_err(|_| {
+            return value.trim().parse::<usize>().map_err(|error| {
                 Error::Malformed(format!(
-                    "lsp content length is not a number: {}",
+                    "lsp content length is not a number: {}: {error}",
                     value.trim()
                 ))
             });
@@ -112,9 +117,11 @@ pub fn read_message(reader: &mut impl BufRead) -> Result<serde_json::Value, Erro
         )));
     }
     let mut body = vec![0u8; length];
-    reader
-        .read_exact(&mut body)
-        .map_err(|_| Error::Malformed(format!("lsp body truncated: expected {length} bytes")))?;
+    reader.read_exact(&mut body).map_err(|error| {
+        Error::Malformed(format!(
+            "lsp body truncated: expected {length} bytes: {error}"
+        ))
+    })?;
     serde_json::from_slice(&body)
         .map_err(|err| Error::Malformed(format!("lsp body is not JSON: {err}")))
 }

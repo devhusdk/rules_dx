@@ -1,5 +1,12 @@
 //! Builds the given patterns twice in fresh output bases and fails when the exec logs differ.
-//! `diff <first> <second> [--top N]` instead names why the slowest spawns of the second log missed the cache.
+//! `diff <first> <second> [--top N]` instead names why the slowest cacheable spawns of the second log
+//! missed the cache, traces each changed input to its `origin:`, and sums the uncacheable spawns by
+//! mnemonic.
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use dx_testing::exec_log;
 use std::path::{Path, PathBuf};
@@ -123,7 +130,8 @@ fn main() -> Result<(), String> {
         return Err("at least one pattern is required".to_owned());
     }
     let workspace = PathBuf::from(
-        std::env::var("BUILD_WORKSPACE_DIRECTORY").map_err(|_| "run with `bazel run`")?,
+        std::env::var("BUILD_WORKSPACE_DIRECTORY")
+            .map_err(|error| format!("run with `bazel run`: {error}"))?,
     );
     for name in ["first", "second"] {
         build(&bazel, &out, name, &patterns, &workspace)?;
@@ -210,7 +218,15 @@ mod tests {
             &dir,
         )
         .unwrap();
-        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert!(
+            lines[0].contains(" //:changed Genrule "),
+            "{lines:?}"
+        );
+        assert!(lines[1].starts_with("  origin: changed.txt: "), "{lines:?}");
+        assert!(lines[2].starts_with("  input changed.txt: "), "{lines:?}");
+        assert_eq!(lines[3], "not remote cacheable, ran every time:");
+        assert!(lines[4].starts_with("  Genrule: 1, "), "{lines:?}");
+        assert_eq!(lines.len(), 5, "{lines:?}");
         assert!(diff_mode(&args(&["cache_first.log.zst"]), &dir).is_err());
         assert!(diff_mode(&args(&["--top", "x", "a", "b"]), &dir).is_err());
         assert!(diff_mode(&args(&["missing", "cache_second.log.zst"]), &dir).is_err());

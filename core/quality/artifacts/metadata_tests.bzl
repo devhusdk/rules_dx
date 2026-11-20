@@ -1,7 +1,8 @@
 """Load tests pinning standalone-artifact metadata."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
-load("//core:defs.bzl", "expect_equal", "expect_match", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_match", "expect_true", "starlark_test")
+load("//core:toolchain.bzl", "is_sha256")
 load(":hub.bzl", "artifact_metadata_errors")
 load(":ocaml_duniverse.bzl", "PACKAGES", "PATCHES", "REPO")
 load(":repos.bzl", "DX_TOOL_HUB", "DX_TOOL_REPOS")
@@ -41,24 +42,14 @@ FROZEN_SCHEMA_KEYS = [
     "url",
 ]
 
-_HEX = "0123456789abcdef"
-
-def _is_sha256(value):
-    if type(value) != "string" or len(value) != 64:
-        return False
-    for char in value.elems():
-        if char not in _HEX:
-            return False
-    return True
-
 def _artifact_checks(artifact):
     label = "%s %s_%s" % (artifact.get("tool", "?"), artifact.get("os", "?"), artifact.get("cpu", "?"))
     size = artifact.get("size", 0)
     return [
         expect_equal(label + " schema keys", sorted(artifact.keys()), FROZEN_SCHEMA_KEYS),
         expect_equal(label + " delivery class", artifact.get("delivery_class"), "standalone"),
-        expect_true(label + " sha256 is hex", _is_sha256(artifact.get("sha256"))),
-        expect_true(label + " executable sha256 is hex", _is_sha256(artifact.get("executable_sha256"))),
+        expect_true(label + " sha256 is hex", is_sha256(artifact.get("sha256"))),
+        expect_true(label + " executable sha256 is hex", is_sha256(artifact.get("executable_sha256"))),
         expect_true(label + " size is positive", type(size) == "int" and size > 0),
         expect_match(label + " url carries version", str(artifact.get("url", "")), str(artifact.get("upstream_version", "?"))),
         expect_equal(label + " exe suffix", str(artifact.get("executable", "")).endswith(".exe"), artifact.get("os") == "windows"),
@@ -66,7 +57,7 @@ def _artifact_checks(artifact):
 
 def _download_checks(label, version, urls, sha256):
     checks = [
-        expect_true(label + " sha256 is hex", _is_sha256(sha256)),
+        expect_true(label + " sha256 is hex", is_sha256(sha256)),
         expect_true(label + " urls present", len(urls) > 0),
     ]
     for url in urls:

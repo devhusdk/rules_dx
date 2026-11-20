@@ -208,7 +208,7 @@ fn module_srcs_carry_every_source_of_the_dx_binary_and_a_generated_policy() {
     missing.extend(missing_from_runfiles(entries));
     assert!(
         missing.is_empty(),
-        "//:module_srcs lacks files that build //cli/cli:dx or a dx_generated_policy; add their package's module_srcs:\n{}",
+        "//:module_srcs lacks files that build //cli/cli:dx, //cli/runtime:dx_runtime or a dx_generated_policy; add their package's module_srcs:\n{}",
         missing.join("\n")
     );
 }

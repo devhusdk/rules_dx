@@ -5,36 +5,20 @@ load("//core/modules:langs.bzl", "LANGS")
 visibility("private")
 
 OTHER_FAMILIES = {
-    "asciidoc": struct(
-        owner = "//asciidoc:defs.bzl",
-        classes = ["asciidoc"],
-    ),
     "core": struct(
         owner = "other",
         classes = ["github_workflow"],
-    ),
-    "csharp": struct(
-        owner = "@rules_dx//csharp:defs.bzl",
-        classes = ["csharp"],
     ),
     "css": struct(
         owner = "//javascript:defs.bzl",
         classes = ["css", "less", "scss"],
     ),
-    "cuda": struct(
-        owner = "//cuda:defs.bzl",
-        classes = ["cuda"],
-    ),
     "cue": struct(
-        owner = "//core/quality:defs.bzl",
+        owner = "//core:defs.bzl",
         classes = ["cue"],
     ),
-    "fsharp": struct(
-        owner = "@rules_dx//fsharp:defs.bzl",
-        classes = ["fsharp"],
-    ),
     "gherkin": struct(
-        owner = "//core/quality:defs.bzl",
+        owner = "//core:defs.bzl",
         classes = ["gherkin"],
     ),
     "go_module": struct(
@@ -50,7 +34,7 @@ OTHER_FAMILIES = {
         classes = ["html"],
     ),
     "html_template": struct(
-        owner = "//core/quality:defs.bzl",
+        owner = "//core:defs.bzl",
         classes = ["html_template"],
     ),
     "json": struct(
@@ -58,15 +42,15 @@ OTHER_FAMILIES = {
         classes = ["json", "json5", "jsonc"],
     ),
     "jsonnet": struct(
-        owner = "//core/quality:defs.bzl",
+        owner = "//core:defs.bzl",
         classes = ["jsonnet"],
     ),
     "jupyter": struct(
-        owner = "//core/quality:defs.bzl",
+        owner = "//core:defs.bzl",
         classes = ["jupyter"],
     ),
     "latex": struct(
-        owner = "//core/quality:defs.bzl",
+        owner = "//core:defs.bzl",
         classes = ["latex"],
     ),
     "markdown": struct(
@@ -74,7 +58,7 @@ OTHER_FAMILIES = {
         classes = ["markdown"],
     ),
     "nix": struct(
-        owner = "//core/quality:defs.bzl",
+        owner = "//core:defs.bzl",
         classes = ["nix"],
     ),
     "objc": struct(
@@ -86,7 +70,7 @@ OTHER_FAMILIES = {
         classes = ["oci_image"],
     ),
     "pkl": struct(
-        owner = "//core/quality:defs.bzl",
+        owner = "//core:defs.bzl",
         classes = ["pkl"],
     ),
     "protobuf": struct(
@@ -114,22 +98,25 @@ OTHER_FAMILIES = {
         classes = ["toml"],
     ),
     "typst": struct(
-        owner = "//core/quality:defs.bzl",
+        owner = "//core:defs.bzl",
         classes = ["typst"],
     ),
     "xml": struct(
-        owner = "//core/quality:defs.bzl",
+        owner = "//core:defs.bzl",
         classes = ["xml"],
     ),
     "yaml": struct(
-        owner = "//core/quality:defs.bzl",
+        owner = "//core:defs.bzl",
         classes = ["yaml"],
     ),
 }
 
+# Kept apart from the label: the consumer surface walk reads a bare colon-defs string as a load from this package.
+_PUBLIC_DEFS = "defs.bzl"
+
 LANG_JSON_FAMILIES = {
     row["quality"].get("family", lang): struct(
-        owner = "//" + lang + ":defs.bzl",
+        owner = "//" + lang + ":" + _PUBLIC_DEFS,
         classes = row["quality"]["classes"],
     )
     for lang, row in LANGS.items()

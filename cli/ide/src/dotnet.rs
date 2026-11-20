@@ -4,10 +4,7 @@ use dx_error::DxError;
 pub const PLUGIN: Plugin = Plugin {
     name: "dotnet",
     extensions: &["cs", "fs", "fsi", "fsx"],
-    labels: &[
-        "csharp/private/ide:dotnet_tool",
-        "fsharp/private/ide:dotnet_tool",
-    ],
+    commands: &[("csharp", "dotnet_tool"), ("fsharp", "dotnet_tool")],
     outputs: &["root"],
     write,
 };

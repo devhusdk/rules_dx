@@ -2,7 +2,6 @@
 //! `MODULE.bazel`.
 
 use std::collections::BTreeSet;
-use std::fmt::Write as _;
 use std::path::Path;
 use std::sync::LazyLock;
 
@@ -217,15 +216,13 @@ pub fn render_license_accept(module: &str, ids: &BTreeSet<String>) -> String {
         .filter_map(|id| terms_sha256(id).map(|hash| format!("\"{id}\": \"{hash}\"")))
         .collect();
     if pins.is_empty() {
-        writeln!(lines, "{name}.accept(ids = [{}])", list.join(", ")).ok();
+        lines.push_str(&format!("{name}.accept(ids = [{}])\n", list.join(", ")));
     } else {
-        writeln!(
-            lines,
-            "{name}.accept(ids = [{}], terms_sha256 = {{{}}})",
+        lines.push_str(&format!(
+            "{name}.accept(ids = [{}], terms_sha256 = {{{}}})\n",
             list.join(", "),
             pins.join(", ")
-        )
-        .ok();
+        ));
     }
     lines
 }
@@ -324,5 +321,13 @@ mod tests {
         );
         assert!(needed_licenses(root, "linux_x86_64").is_empty());
         assert!(known_license_ids().contains("visual-studio-build-tools"));
+    }
+
+    #[test]
+    fn cuda_sources_need_no_license_on_linux() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-cuda-licenses-").unwrap();
+        std::fs::write(scratch.path().join("kernel.cu"), "__global__ void k() {}\n")
+            .expect("write");
+        assert!(needed_licenses(scratch.path(), "linux_x86_64").is_empty());
     }
 }

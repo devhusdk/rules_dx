@@ -16,9 +16,9 @@ tools/dx test //scala/...
 ## Dependencies
 
 List the artifacts in a rules_jvm_external `maven_install.json` and run
-`dx generate --apply`. The `scala` language of `dx generate` writes the targets and `deps`.
-A dependency is the label `@maven//:<group>_<artifact>`, with dots and dashes
-turned into underscores, for example `@maven//:com_google_guava_guava`. See
+`dx generate --apply`. It writes the targets and their `deps`. Each artifact
+is the label `@maven//:<group>_<artifact>`, with dots and dashes turned into
+underscores, for example `@maven//:com_google_guava_guava`. See
 [generate](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/generate.md).
 
 ### Writing targets
@@ -28,16 +28,21 @@ through to `rules_scala`.
 
 ## Quality
 
-By default `dx format` runs `scalafmt` and `dx typecheck` runs `scalac`. No
-lint tool is on by default. `scalafmt` needs a `.scalafmt.conf` bound with
-`scalafmt_config`. See the
+| Check | Default tools |
+| --- | --- |
+| Format | `scalafmt` |
+| Lint | `typos` |
+| Typecheck | `scalac` |
+
+`scalafmt` needs a `.scalafmt.conf` bound with `scalafmt_config`. See the
 [quality config table](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/quality.md).
 
 ## Bench and fuzz
 
 ### Fuzzing
 
-`scala_fuzz_test` builds a Jazzer fuzz target for `dx fuzz`, like `java_fuzz_test`.
+`scala_fuzz_test` builds a Jazzer fuzz target for `dx fuzz`, like
+`java_fuzz_test`:
 
 ```python
 load("@rules_dx//scala:defs.bzl", "scala_fuzz_test")
@@ -49,11 +54,13 @@ scala_fuzz_test(
 )
 ```
 
-The target class needs a static `fuzzerTestOneInput(data: Array[Byte])`, which a top-level `object` method provides.
+The target class needs a static `fuzzerTestOneInput(data: Array[Byte])`. A
+method on a top-level `object` is static.
 
 ### Benchmarks
 
-`scala_bench` runs JMH benchmarks and writes `dx-bench.json` for `dx bench`, like `java_bench`.
+`scala_bench` runs JMH benchmarks and writes `dx-bench.json` for `dx bench`,
+like `java_bench`:
 
 ```python
 load("@rules_dx//scala:defs.bzl", "scala_bench")
@@ -64,7 +71,16 @@ scala_bench(
 )
 ```
 
-scalac runs no Java annotation processors, so the rule compiles the sources, runs the JMH bytecode generator (reflection mode) over the classes, and compiles the generated Java. Benchmark classes must be non-final classes with a public no-argument constructor, not `object`s.
+Write each benchmark as a non-final `class` with a public no-argument
+constructor, not as an `object`. scalac runs no Java annotation processors,
+so the rule runs the JMH bytecode generator over the compiled classes and
+compiles the Java it writes.
+
+## API docs
+
+`dx docs` documents Scala 2.13 libraries only. On any other Scala version,
+`dx docs` skips your Scala libraries, and `scala_doc_shard` fails with
+`only Scala 2.13 is supported`.
 
 ## Platforms
 

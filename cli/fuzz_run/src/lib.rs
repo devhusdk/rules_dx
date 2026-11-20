@@ -6,6 +6,10 @@
     clippy::print_stdout,
     clippy::string_slice
 )]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 mod run;
 #[cfg(test)]

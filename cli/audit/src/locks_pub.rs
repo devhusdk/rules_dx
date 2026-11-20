@@ -3,6 +3,7 @@ use dx_error::DxError;
 
 /// Reads `packages.<name>.version` of a lock, keeping hosted packages only.
 pub fn parse_pubspec_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let value: yaml_serde::Value = yaml_serde::from_str(text)
         .map_err(|error| DxError::failure(format!("invalid lock: {error}")))?;
     let packages = value

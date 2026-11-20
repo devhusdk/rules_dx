@@ -1,7 +1,5 @@
-load("@bazel_skylib//lib:selects.bzl", "selects")
 load("//core:cells.bzl", "unsupported_value")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":platforms.bzl", "JULIA_PLATFORMS")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -16,23 +14,6 @@ exports_files([
     "platforms.bzl",
 ])
 
-[
-    config_setting(
-        name = name,
-        constraint_values = [
-            "@platforms//os:" + os,
-            "@platforms//cpu:" + cpu,
-        ],
-    )
-    for name, (os, cpu) in JULIA_PLATFORMS.items()
-]
-
-selects.config_setting_group(
-    name = "rules_julia_platform",
-    match_any = [":" + name for name in JULIA_PLATFORMS],
-    visibility = ["//visibility:public"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
@@ -45,9 +26,6 @@ real_source_target(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
-        "BUILD.bazel",
-    ]),
+    srcs = ["BUILD.bazel"] + glob(["*.bzl"]),
     visibility = ["//:__subpackages__"],
 )

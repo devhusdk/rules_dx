@@ -1,0 +1,29 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//typescript:defs.bzl", "typescript_config")
+
+bool_flag(
+    name = "deep_graph",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "enabled",
+    flag_values = {":deep_graph": "true"},
+    visibility = ["//tools/testing/deep_graph:__subpackages__"],
+)
+
+typescript_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//tools/testing/deep_graph:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

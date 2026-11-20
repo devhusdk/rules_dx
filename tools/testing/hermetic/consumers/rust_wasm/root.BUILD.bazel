@@ -20,13 +20,13 @@ rust_test(
     data = [
         ":tool_wasi",
         ":tool_web",
-        "@rules_dx//tools/testing/wasi:wasmtime",
+        "@rules_dx//rust:wasmtime",
     ],
     env = {
         "WASI_WASM": "$(rootpath :tool_wasi)",
-        "WASMTIME": "$(rootpath @rules_dx//tools/testing/wasi:wasmtime)",
+        "WASMTIME": "$(rootpath @rules_dx//rust:wasmtime)",
         "WEB_BUNDLE": "$(rootpaths :tool_web)",
     },
     tags = ["block-network"],
-    deps = ["@rules_dx//tools/testing/wasi:wasi_run"],
+    deps = ["@rules_dx//rust:wasi_run"],
 )

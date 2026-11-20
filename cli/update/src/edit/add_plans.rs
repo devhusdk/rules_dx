@@ -1,7 +1,5 @@
 //! Insert planners for the manifests a missing `dx update` package is written to. Each one keeps every other byte.
 
-use std::fmt::Write as _;
-
 use dx_error::DxError;
 
 use crate::edit::request::plans::{JsonScan, NPM_SECTIONS, paket_tokens};
@@ -23,7 +21,7 @@ pub(super) fn insert_cargo_dependency(
 ) -> Result<String, DxError> {
     let mut doc = content
         .parse::<toml_edit::DocumentMut>()
-        .map_err(|_| DxError::failure("manifest is not valid TOML"))?;
+        .map_err(|error| DxError::failure(format!("manifest is not valid TOML: {error}")))?;
     let item = doc.entry("dependencies").or_insert_with(toml_edit::table);
     let Some(table) = item.as_table_mut() else {
         return Err(DxError::failure("[dependencies] is not a table"));
@@ -42,7 +40,7 @@ pub(super) fn insert_cargo_dependency(
     let out = doc.to_string();
     let reparsed = out
         .parse::<toml_edit::DocumentMut>()
-        .map_err(|_| DxError::failure("edit did not round-trip"))?;
+        .map_err(|error| DxError::failure(format!("edit did not round-trip: {error}")))?;
     let kept = reparsed
         .get("dependencies")
         .and_then(|deps| deps.get(package))
@@ -76,7 +74,7 @@ pub(super) fn insert_npm_dependency(
     let root_open = scan.at;
     let members = scan
         .members()
-        .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
+        .map_err(|error| DxError::failure(format!("manifest is not valid JSON: {error}")))?;
     let root_close = scan.at;
     let Some(&(_, last_root_value)) = members.last() else {
         return Err(DxError::failure("manifest root has no members"));
@@ -90,12 +88,13 @@ pub(super) fn insert_npm_dependency(
         scan.at = at;
         let entries = scan
             .members()
-            .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
+            .map_err(|error| DxError::failure(format!("manifest is not valid JSON: {error}")))?;
         let close = scan.at;
         if let Some(&(_, last)) = entries.last() {
             scan.at = last;
-            scan.skip_value()
-                .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
+            scan.skip_value().map_err(|error| {
+                DxError::failure(format!("manifest is not valid JSON: {error}"))
+            })?;
             let end = scan.at;
             let entry = if part(content, at..close)?.contains('\n') {
                 format!(",{eol}{}{key}: {value}", line_indent(content, last)?)
@@ -132,7 +131,7 @@ pub(super) fn insert_npm_dependency(
         };
         scan.at = after;
         scan.skip_value()
-            .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
+            .map_err(|error| DxError::failure(format!("manifest is not valid JSON: {error}")))?;
         let end = scan.at;
         let entry = if multiline {
             format!(",{eol}{unit}{section}")
@@ -141,8 +140,8 @@ pub(super) fn insert_npm_dependency(
         };
         splice(content, end, &entry)?
     };
-    let reparsed: serde_json::Value =
-        serde_json::from_str(&out).map_err(|_| DxError::failure("edit did not round-trip"))?;
+    let reparsed: serde_json::Value = serde_json::from_str(&out)
+        .map_err(|error| DxError::failure(format!("edit did not round-trip: {error}")))?;
     let mut expected = root_object.clone();
     let deps = expected
         .entry("dependencies")
@@ -239,7 +238,7 @@ pub(super) fn insert_paket_dependency(
     if anchor.is_none() {
         entry.push_str(eol);
     }
-    write!(entry, "{indent}nuget {package} {version}{eol}").ok();
+    entry.push_str(&format!("{indent}nuget {package} {version}{eol}"));
     splice(content, end, &entry)
 }
 
@@ -251,7 +250,7 @@ pub(super) fn insert_pyproject_dependency(
 ) -> Result<String, DxError> {
     let mut doc = content
         .parse::<toml_edit::DocumentMut>()
-        .map_err(|_| DxError::failure("manifest is not valid TOML"))?;
+        .map_err(|error| DxError::failure(format!("manifest is not valid TOML: {error}")))?;
     let project = doc
         .get_mut("project")
         .and_then(toml_edit::Item::as_table_like_mut)
@@ -326,7 +325,7 @@ pub(super) fn insert_gem(content: &str, package: &str, version: &str) -> Result<
     if at == content.len() && !content.is_empty() && !content.ends_with('\n') {
         entry.push_str(eol);
     }
-    write!(entry, "gem \"{package}\", \"~> {requirement}\"{eol}").ok();
+    entry.push_str(&format!("gem \"{package}\", \"~> {requirement}\"{eol}"));
     if at < content.len() && !part(content, ..at)?.ends_with('\n') {
         entry.insert_str(0, eol);
     }

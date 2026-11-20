@@ -35,5 +35,5 @@ cc_library(
     name = "fuzz_driver",
     testonly = True,
     srcs = ["fuzz_driver.cc"],
-    visibility = ["//visibility:public"],
+    visibility = ["//visibility:private"],
 )

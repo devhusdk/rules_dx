@@ -583,7 +583,7 @@ fn pypi_registry_baseline(
     let body = match fetch(&url, 64 << 20) {
         Ok(Some(body)) => body,
         Ok(None) => return Err(Outcome::FirstRelease),
-        Err(error) => return Err(Outcome::Skipped(error)),
+        Err(error) => return Err(Outcome::Skipped(error.to_string())),
     };
     let Some((previous, wheel_url)) = pypi_previous_wheel(&String::from_utf8_lossy(&body), version)
     else {
@@ -597,7 +597,7 @@ fn pypi_registry_baseline(
     match fetch_to(&wheel_url, &work.join("old.zip"), 512 << 20) {
         Ok(true) => {}
         Ok(false) => return Err(Outcome::Skipped(format!("{wheel_url} not found"))),
-        Err(error) => return Err(Outcome::Skipped(error)),
+        Err(error) => return Err(Outcome::Skipped(error.to_string())),
     }
     let extracted = std::fs::copy(wheel, work.join("new.zip"))
         .map(drop)
@@ -640,7 +640,7 @@ fn pypi_api_check(
                 ],
             )),
             Ok(None) => Err(Outcome::FirstRelease),
-            Err(error) => Err(Outcome::Skipped(error)),
+            Err(error) => Err(Outcome::Skipped(error.to_string())),
         }
     } else {
         pypi_registry_baseline(project, version, wheel, &work)
@@ -740,7 +740,7 @@ pub fn pypi_main_checked(
                 }
                 None => Outcome::Skipped("griffe is not available".to_owned()),
             };
-            conclude("pypi_deploy", mode, &version, outcome)
+            conclude("pypi_deploy", mode, &version, outcome).map_err(|error| error.to_string())
         });
     if let Err(message) = checked {
         eprintln!("{message}");

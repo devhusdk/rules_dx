@@ -3,6 +3,8 @@
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 _SOURCE_EXTENSIONS = [".ps1", ".psm1"]
 
 def _where(ctx):
@@ -56,6 +58,7 @@ def powershell_shard_action(ctx, files, manifest, package, config, stem, pwsh, s
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     args = ctx.actions.args()
+    args.add("powershell_extract")
     args.add("--api", api_json)
     args.add("--out", shard)
     args.add("--package", package)
@@ -123,7 +126,7 @@ powershell_doc_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/powershell/extract:powershell_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_pwsh": attr.label(

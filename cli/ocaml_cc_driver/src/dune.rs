@@ -1,6 +1,6 @@
 //! Runs one dune step in a scratch copy of the sources with the toolchain environment.
 //!
-//! `ocaml_cc_driver dune MODE ARG...` takes the toolchain variables from its environment, where
+//! `dx ocaml_dune MODE ARG...` takes the toolchain variables from its environment, where
 //! `$ROOT` stands for the execution root, and paths in ARG relative to that root.
 
 use std::collections::BTreeMap;

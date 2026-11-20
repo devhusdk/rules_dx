@@ -38,15 +38,42 @@ func resolveImportOverride(c *config.Config, name string) (bool, error) {
 	return false, nil
 }
 
-// builtinRunfilesImport is the crate name of `use runfiles::`; builtinRunfilesLabel is the default it resolves to.
 const (
 	builtinRunfilesImport = "runfiles"
 	builtinRunfilesLabel  = "@rules_rust//rust/runfiles"
+	rulesDxModule         = "rules_dx"
+	rustProstModule       = "rules_rust_prost"
 )
 
-// builtinImport reports whether name takes the built-in default: the runfiles crate, unless the manifest declares a crate of that name.
-func builtinImport(manifest *cargoManifest, name string) bool {
-	if name != builtinRunfilesImport {
+// builtinProstCrates are the crates rules_dx re-exports under //rust when the root module depends on rules_rust_prost.
+var builtinProstCrates = map[string]bool{"prost": true, "prost_types": true, "tonic": true}
+
+// builtinCrate reports whether name has a built-in default label.
+func builtinCrate(c *config.Config, name string) bool {
+	if name == builtinRunfilesImport {
+		return true
+	}
+	return builtinProstCrates[name] && c != nil && c.RepoRoot != "" && common.ModuleDeps(c.RepoRoot)[rustProstModule]
+}
+
+// builtinLabel is the default dep for a built-in crate, relative to from.
+func builtinLabel(c *config.Config, from label.Label, name string) string {
+	if name == builtinRunfilesImport {
+		return builtinRunfilesLabel
+	}
+	repo := ""
+	if c.ModuleToApparentName != nil {
+		repo = c.ModuleToApparentName(rulesDxModule)
+	}
+	if repo == "" {
+		repo = rulesDxModule
+	}
+	return label.New(repo, "rust", name).Rel(from.Repo, from.Pkg).String()
+}
+
+// builtinImport reports whether name takes a built-in default, unless the manifest declares a crate of that name.
+func builtinImport(c *config.Config, manifest *cargoManifest, name string) bool {
+	if !builtinCrate(c, name) {
 		return false
 	}
 	_, normal := manifest.normalDeps[name]
@@ -55,8 +82,8 @@ func builtinImport(manifest *cargoManifest, name string) bool {
 }
 
 // undeclaredImport reports whether no Cargo scope declares name and it is neither built in nor the crate itself.
-func undeclaredImport(manifest *cargoManifest, name string) bool {
-	if builtinImport(manifest, name) {
+func undeclaredImport(c *config.Config, manifest *cargoManifest, name string) bool {
+	if builtinImport(c, manifest, name) {
 		return false
 	}
 	for _, scope := range []map[string]cargoDependency{manifest.normalDeps, manifest.devDeps, manifest.buildDeps} {
@@ -90,7 +117,7 @@ func validateCargoImports(c *config.Config, manifest *cargoManifest, kind string
 		if err != nil {
 			return err
 		}
-		if mapped || builtinImport(manifest, name) || undeclaredImport(manifest, name) {
+		if mapped || builtinImport(c, manifest, name) || undeclaredImport(c, manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -111,7 +138,7 @@ func validateCargoImports(c *config.Config, manifest *cargoManifest, kind string
 		if err != nil {
 			return err
 		}
-		if mapped || builtinImport(manifest, name) || undeclaredImport(manifest, name) {
+		if mapped || builtinImport(c, manifest, name) || undeclaredImport(c, manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -136,7 +163,7 @@ func validateExampleImports(c *config.Config, manifest *cargoManifest, imports t
 		if err != nil {
 			return err
 		}
-		if mapped || builtinImport(manifest, name) || undeclaredImport(manifest, name) {
+		if mapped || builtinImport(c, manifest, name) || undeclaredImport(c, manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -157,7 +184,7 @@ func validateExampleImports(c *config.Config, manifest *cargoManifest, imports t
 		if err != nil {
 			return err
 		}
-		if mapped || builtinImport(manifest, name) || undeclaredImport(manifest, name) {
+		if mapped || builtinImport(c, manifest, name) || undeclaredImport(c, manifest, name) {
 			continue
 		}
 		_, normal := manifest.normalDeps[name]
@@ -183,7 +210,7 @@ func validateBuildImports(c *config.Config, manifest *cargoManifest, imports tar
 			if err != nil {
 				return err
 			}
-			if mapped || undeclaredImport(manifest, name) {
+			if mapped || undeclaredImport(c, manifest, name) {
 				continue
 			}
 			if _, ok := manifest.buildDeps[name]; !ok {
@@ -228,8 +255,11 @@ func noteRename(result *targetImports, name string, dep cargoDependency) {
 func localCargoImports(c *config.Config, manifest *cargoManifest, imports targetImports, includeDev bool) targetImports {
 	var result targetImports
 	for _, name := range imports.production {
-		if builtinImport(manifest, name) {
+		if builtinImport(c, manifest, name) {
 			result.production = append(result.production, name)
+			continue
+		}
+		if providedByCrateDeps(manifest, name, includeDev) {
 			continue
 		}
 		if dep, ok := manifest.normalDeps[name]; ok && !dep.external {
@@ -243,21 +273,24 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 				noteGate(&result, name, dep)
 			} else if _, ok := lookupOverride(c, name); ok {
 				result.production = append(result.production, name)
-			} else if undeclaredImport(manifest, name) {
+			} else if undeclaredImport(c, manifest, name) {
 				result.production = append(result.production, name)
 				noteDeferred(&result, name)
 			}
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
-		} else if undeclaredImport(manifest, name) {
+		} else if undeclaredImport(c, manifest, name) {
 			result.production = append(result.production, name)
 			noteDeferred(&result, name)
 		}
 	}
 	if includeDev {
 		for _, name := range imports.test {
-			if builtinImport(manifest, name) {
+			if builtinImport(c, manifest, name) {
 				result.test = append(result.test, name)
+				continue
+			}
+			if providedByCrateDeps(manifest, name, true) {
 				continue
 			}
 			if dep, normal := manifest.normalDeps[name]; normal && !dep.external {
@@ -270,7 +303,7 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 				noteGate(&result, name, dep)
 			} else if _, ok := lookupOverride(c, name); ok {
 				result.test = append(result.test, name)
-			} else if undeclaredImport(manifest, name) {
+			} else if undeclaredImport(c, manifest, name) {
 				result.test = append(result.test, name)
 				noteDeferred(&result, name)
 			}
@@ -281,6 +314,19 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 		appendMirrorPaths(&result, manifest.devDeps)
 	}
 	return result
+}
+
+// providedByCrateDeps reports whether name is an external crate of the
+// manifest in scope. all_crate_deps supplies it, so a resolve mapping for the
+// same crate must not add it again.
+func providedByCrateDeps(manifest *cargoManifest, name string, includeDev bool) bool {
+	if dep, ok := manifest.normalDeps[name]; ok && dep.external {
+		return true
+	}
+	if dep, ok := manifest.devDeps[name]; ok && dep.external && includeDev {
+		return true
+	}
+	return false
 }
 
 func appendMirrorPaths(result *targetImports, scopes ...map[string]cargoDependency) {
@@ -304,7 +350,7 @@ func appendMirrorPaths(result *targetImports, scopes ...map[string]cargoDependen
 func localCargoExampleImports(c *config.Config, manifest *cargoManifest, imports targetImports) targetImports {
 	var result targetImports
 	for _, name := range imports.production {
-		if builtinImport(manifest, name) {
+		if builtinImport(c, manifest, name) {
 			result.production = append(result.production, name)
 			continue
 		}
@@ -318,7 +364,7 @@ func localCargoExampleImports(c *config.Config, manifest *cargoManifest, imports
 			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
-		} else if undeclaredImport(manifest, name) {
+		} else if undeclaredImport(c, manifest, name) {
 			result.production = append(result.production, name)
 			noteDeferred(&result, name)
 		}
@@ -336,7 +382,7 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.production = append(result.production, name)
-		} else if undeclaredImport(manifest, name) {
+		} else if undeclaredImport(c, manifest, name) {
 			result.production = append(result.production, name)
 			noteDeferred(&result, name)
 		}
@@ -348,7 +394,7 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 			noteGate(&result, name, dep)
 		} else if _, ok := lookupOverride(c, name); ok {
 			result.test = append(result.test, name)
-		} else if undeclaredImport(manifest, name) {
+		} else if undeclaredImport(c, manifest, name) {
 			result.test = append(result.test, name)
 			noteDeferred(&result, name)
 		}
@@ -357,11 +403,14 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 	return result
 }
 
-// setCargoAttrs reports whether the deps call names external crates.
-func setCargoAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest, includeDev bool) bool {
+// setCargoAttrs reports whether the deps call names external crates. A
+// target that imports none of them gets no new call, since every crate it
+// adds would be an unused dependency; a call the BUILD file has stays.
+func setCargoAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest, includeDev bool, used map[string]bool) bool {
 	packageName := crateUniversePackage(packagePath, manifest)
 	external := hasExternal(manifest.normalDeps) || (includeDev && hasExternal(manifest.devDeps))
-	r.SetAttr("deps", crateDepsCall{call: cargoCall("all_crate_deps", packageName, includeDev), external: external})
+	unused := !usesExternal(manifest.normalDeps, used) && !(includeDev && usesExternal(manifest.devDeps, used))
+	r.SetAttr("deps", crateDepsCall{call: cargoCall("all_crate_deps", packageName, includeDev), external: external, unused: unused})
 	r.SetAttr("aliases", cargoCall("aliases", packageName, includeDev))
 	return external
 }
@@ -374,6 +423,15 @@ func setScriptAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest) {
 		r.SetAttr("deps", crateDepsCall{call: call, external: true})
 	}
 	r.SetAttr("aliases", cargoBuildCall(packageName))
+}
+
+func usesExternal(deps map[string]cargoDependency, used map[string]bool) bool {
+	for name, dep := range deps {
+		if dep.external && used[name] {
+			return true
+		}
+	}
+	return false
 }
 
 func hasExternal(deps map[string]cargoDependency) bool {
@@ -471,8 +529,8 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 				ignore.MarkUsed(from.Pkg)
 				continue
 			}
-			if name == builtinRunfilesImport {
-				deps[builtinRunfilesLabel] = true
+			if builtinCrate(c, name) {
+				deps[builtinLabel(c, from, name)] = true
 				continue
 			}
 			if imports.deferred[name] {

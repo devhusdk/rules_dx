@@ -146,7 +146,7 @@ impl RuleGraph {
     ) -> Result<RuleGraph, ResolveError> {
         let argv = query_argv(startup_options);
         let result = ResolveError::run(runner, &argv, workspace, EXPRESSION)?;
-        let text = String::from_utf8(result.stdout).map_err(|_| {
+        let text = String::from_utf8(result.stdout).ok().ok_or_else(|| {
             ResolveError::query(
                 EXPRESSION,
                 super::QueryFailure::Output {
@@ -213,7 +213,7 @@ impl RuleGraph {
             if has_manual_tag(rule) {
                 graph.manual.insert(name.to_owned());
             }
-            if has_tag(rule, "release") {
+            if tags_of(rule).iter().any(|tag| tag == "release") {
                 graph.release.insert(name.to_owned());
             }
             if let Some(kind) = rule.get("ruleClass").and_then(Value::as_str) {
@@ -313,10 +313,10 @@ impl RuleGraph {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
     }
 
-    /// The `dx_deployment` rules tagged `release` that the scopes reach, keeping manual rules.
+    /// The `deployment` rules tagged `release` that the scopes reach, keeping manual rules.
     #[must_use]
     pub fn deployments(&self, scopes: &[String]) -> Vec<String> {
-        let mut rules = self.reached_of_kind(scopes, |kind| kind == "dx_deployment");
+        let mut rules = self.reached_of_kind(scopes, |kind| kind == "deployment");
         rules.retain(|rule| self.release.contains(rule));
         rules
     }
@@ -699,23 +699,30 @@ mod tests {
             graph_rule_of_kind("//app:bin", "rust_binary", &["//app:main.rs"], &[]),
             graph_rule_of_kind(
                 "//app:deploy",
-                "dx_deployment",
+                "deployment",
                 &["//app:bin"],
                 &["release"],
             ),
-            graph_rule_of_kind("//app:staging", "dx_deployment", &["//app:bin"], &[]),
+            graph_rule_of_kind("//app:staging", "deployment", &["//app:bin"], &[]),
             graph_rule_of_kind(
                 "//app:prerelease",
-                "dx_deployment",
+                "deployment",
                 &["//app:bin"],
                 &["prerelease"],
             ),
-            graph_rule_of_kind("//other:deploy", "dx_deployment", &["//other:x"], &[]),
+            graph_rule_of_kind(
+                "//app:notes",
+                "deployment",
+                &["//app:bin"],
+                &["release-notes"],
+            ),
+            graph_rule_of_kind("//other:deploy", "deployment", &["//other:x"], &[]),
         ]);
         assert_eq!(
             graph.deployments(&strings(&["//app:main.rs"])),
             ["//app:deploy"]
         );
+        assert_eq!(graph.deployments(&strings(&["//..."])), ["//app:deploy"]);
         assert_eq!(graph.deployments(&[]), [] as [String; 0]);
     }
 

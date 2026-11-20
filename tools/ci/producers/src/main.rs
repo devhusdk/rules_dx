@@ -2,7 +2,7 @@
 //! `producers_bin --evidence OUT PLATFORM FACTS ROW_LABELS CONSUMER_LABELS` appends the compiler evidence lines to OUT.
 //! `producers_bin --evidence-inputs` validates the evidence workflow dispatch inputs and appends them to `GITHUB_OUTPUT`.
 //! `producers_bin --lock-merge LOCKS_DIR OUT` merges the per-platform module locks into OUT.
-//! `producers_bin --blocker-refs OWNER/REPO` prints the references of a "Blocked on:" line on stdin.
+//! `producers_bin --blocker-refs OWNER/REPO` prints the references of a "Blocked on:" line on stdin, marking those that wait on a release.
 //! `producers_bin --review-paths [PREFIX_FILE]` prints the stdin paths that start with a listed prefix.
 //! `producers_bin --upgrade-e2e [--from VERSION] [--to VERSION] [--resolve-only]` upgrades a throwaway consumer between `rules_dx` versions and back.
 //! `producers_bin --pr-links [COMMIT_MESSAGES_FILE]` fails when the pull request body in `GITHUB_EVENT_PATH` misses an issue link.
@@ -11,7 +11,16 @@
 //! `producers_bin --table EVIDENCE_DIR OUT PLATFORM...` merges the evidence under a directory into OUT and prints the table.
 //! `producers_bin --test-log-tails (--bep FILE | --dx FILE)...` prints the test.log tail of each failing test as a job log group.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 mod blocker_refs;
 mod evidence;

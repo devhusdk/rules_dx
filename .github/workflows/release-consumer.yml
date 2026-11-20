@@ -118,6 +118,32 @@ jobs:
                 *) echo "@rules_dx kcov_or_none is not the dx_prebuilt/$KEY/kcov download" >&2; exit 1 ;;
               esac
               echo "- kcov: $kcov_files" >> "$GITHUB_STEP_SUMMARY"
+              to_lcov_files="$(bazel cquery --output=files @rules_dx//tools/coverage/kcov:to_lcov_or_none)"
+              echo "$to_lcov_files"
+              case "$to_lcov_files" in
+                *"dx_prebuilt/$KEY/runtime"*) ;;
+                *) echo "@rules_dx kcov to_lcov_or_none is not the dx_prebuilt/$KEY/runtime download" >&2; exit 1 ;;
+              esac
+              echo "- to_lcov: $to_lcov_files" >> "$GITHUB_STEP_SUMMARY"
+              ;;
+            windows_aarch64)
+              actions="$(bazel aquery --output=text 'mnemonic("JarLspNatives", @rules_dx//java/private/quality/tools:pkl_lsp)')"
+              echo "$actions"
+              case "$actions" in
+                *"dx_tree_sitter_prebuilt_$KEY/file/tree-sitter.dll"*) ;;
+                *) echo "@rules_dx pkl_lsp natives do not pack the dx_tree_sitter_prebuilt_$KEY download" >&2; exit 1 ;;
+              esac
+              case "$actions" in
+                *"dx_tree_sitter_pkl_prebuilt_$KEY/file/tree-sitter-pkl.dll"*) ;;
+                *) echo "@rules_dx pkl_lsp natives do not pack the dx_tree_sitter_pkl_prebuilt_$KEY download" >&2; exit 1 ;;
+              esac
+              case "$actions" in
+                *jvm_tree_sitter*) echo "@rules_dx pkl_lsp natives build tree-sitter from source" >&2; exit 1 ;;
+              esac
+              bazel build --output_groups=natives @rules_dx//java/private/quality/tools:pkl_lsp
+              natives="$(bazel cquery --output=files --output_groups=natives @rules_dx//java/private/quality/tools:pkl_lsp)"
+              test -s "$(bazel info execution_root)/$natives"
+              echo "- pkl_lsp natives: $natives" >> "$GITHUB_STEP_SUMMARY"
               ;;
           esac
 

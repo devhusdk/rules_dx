@@ -11,7 +11,7 @@ DxSbomInfo = provider(
 )
 
 DxSbomFileInfo = provider(
-    doc = "The SPDX document a dx_sbom target wrote.",
+    doc = "The SPDX document a sbom target wrote.",
     fields = {"file": "File: the <name>.spdx.json document."},
 )
 
@@ -65,8 +65,8 @@ def _dx_sbom_impl(ctx):
         if label:
             locks.append((kind, label))
     ctx.actions.run(
-        executable = ctx.executable._release_tool,
-        arguments = ["spdx", artifact.path, out.path, ctx.attr.package_name or ctx.label.name, ctx.attr.supplier, inventory.path] +
+        executable = ctx.executable._dx,
+        arguments = ["release_tool", "spdx", artifact.path, out.path, ctx.attr.package_name or ctx.label.name, ctx.attr.supplier, inventory.path] +
                     ["--lock=%s:%s" % (kind, file.path) for kind, file in locks],
         inputs = [artifact, inventory] + [file for _, file in locks],
         outputs = [out],
@@ -75,7 +75,7 @@ def _dx_sbom_impl(ctx):
     )
     return [DefaultInfo(files = depset([out])), DxSbomFileInfo(file = out)]
 
-dx_sbom = rule(
+sbom = rule(
     implementation = _dx_sbom_impl,
     doc = "Writes <name>.spdx.json listing the crates in the dependency closure of `artifact`.",
     attrs = {
@@ -91,8 +91,8 @@ dx_sbom = rule(
         "maven_lock": attr.label(allow_single_file = True, doc = "Maven lock whose artifacts are added to the SBOM."),
         "pip_lock": attr.label(allow_single_file = True, doc = "Python lock whose packages are added to the SBOM."),
         "supplier": attr.string(default = "rules_dx", doc = "Supplier recorded on the described package."),
-        "_release_tool": attr.label(
-            default = Label("//deploy/private/release:release_tool"),
+        "_dx": attr.label(
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
             cfg = "exec",
         ),

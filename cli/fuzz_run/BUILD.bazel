@@ -10,6 +10,7 @@ rust_library(
         "src/run.rs",
         "src/run_tests.rs",
     ],
+    visibility = ["//cli/runtime:__pkg__"],
     deps = [
         "//cli/error:dx_error",
         "@crates//:tempfile",

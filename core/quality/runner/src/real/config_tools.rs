@@ -3,7 +3,7 @@ use quality_adapter::{TextPosition, commands, parsers};
 use super::check::{ToolDef, group_by_parent, without_scratch_url};
 use super::{
     DEADNIX_STANDARD, Path, PathBuf, RealBackend, RealTool, RunnerError, dependency_failure,
-    execution, parsed, reanchor, staging,
+    execution, parsed, reanchor, staging, yamlfmt_document_start,
 };
 
 /// Config, policy and text tools that build their own invocation and parse.
@@ -219,7 +219,8 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let config = call.config;
             let (refs, names) = super::single_run::paths(call);
             let strs: Vec<&str> = names.iter().map(String::as_str).collect();
-            let invocation = commands::yamlfmt_check(&tool.binary, &refs, config);
+            let invocation =
+                commands::yamlfmt_check(&tool.binary, &refs, config, yamlfmt_document_start(tool));
             let out = backend.run(tool_id, tool, &invocation, scratch)?;
             parsed(
                 tool_id,
@@ -279,8 +280,8 @@ pub(super) const TOOLS: &[ToolDef] = &[
             if let Some(chart_root) = helm_chart_root(tool) {
                 return scan_chart(backend, call, &cache, &severities, &chart_root);
             }
-            if let Some((_, bicep)) = tool.path_tools.iter().find(|(name, _)| name == "bicep") {
-                return scan_bicep(backend, call, &cache, &severities, bicep);
+            if let Some(bicep) = tool.path_tools.iter().find(|helper| helper.name == "bicep") {
+                return scan_bicep(backend, call, &cache, &severities, &bicep.binary);
             }
             let (_, names) = super::single_run::paths(call);
             let mut findings = Vec::new();

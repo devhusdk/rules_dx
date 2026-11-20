@@ -253,7 +253,9 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string) lan
 			l.fail(common.InPackage(args.Rel), "rust: %s: target %s: %v", manifestPath, target.name, err)
 			continue
 		}
-		if setCargoAttrs(r, args.Rel, manifest, includeDev) {
+		used := importedCrates(imports, includeDev)
+		dropListedCrates(used, existingDeps(args.File, r.Kind(), r.AttrString("crate_root")), manifest)
+		if setCargoAttrs(r, args.Rel, manifest, includeDev, used) {
 			crateDeps = true
 		}
 		var resultImports targetImports
@@ -263,7 +265,9 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string) lan
 			resultImports = localCargoImports(args.Config, manifest, imports, includeDev)
 		}
 		if dxKindFor(target) == binaryKind || dxKindFor(target) == benchmarkKind || target.kind == testKind {
-			resultImports.siblingLib = siblingLibName(manifest, target)
+			if lib := siblingLib(manifest); lib != nil && used[lib.crate()] {
+				resultImports.siblingLib = lib.name
+			}
 		}
 		if target.kind == testKind && !target.harness {
 			r.SetAttr("use_libtest_harness", false)
@@ -281,7 +285,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string) lan
 				testName = common.UnitTestName(target.crate())
 			}
 			t := unitTestRule(testName, target.name, target.crate(), root, tree, args.Rel, splitTests)
-			if setCargoAttrs(t, args.Rel, manifest, true) {
+			if setCargoAttrs(t, args.Rel, manifest, true, importedCrates(imports, true)) {
 				crateDeps = true
 			}
 			var testImports targetImports
@@ -454,10 +458,12 @@ func generatedClaims(c *config.Config, rel string, gen []*rule.Rule) []common.Cl
 type crateDepsCall struct {
 	call     cargoCallExpr
 	external bool
+	// unused marks a target that imports none of the external crates.
+	unused bool
 }
 
 func (c crateDepsCall) BzlExpr() bzl.Expr {
-	if !c.external {
+	if !c.external || c.unused {
 		return &bzl.ListExpr{}
 	}
 	return c.call.BzlExpr()
@@ -465,13 +471,37 @@ func (c crateDepsCall) BzlExpr() bzl.Expr {
 
 func (c crateDepsCall) Merge(other bzl.Expr) bzl.Expr {
 	hand := unmanagedDepsLabels(other, nil)
+	selects := handSelects(other, nil)
 	if !c.external {
-		return rule.ExprFromValue(hand)
+		if len(selects) == 0 {
+			return rule.ExprFromValue(hand)
+		}
+		return depsConcatExpr{extra: hand, selects: selects, multiLine: multiLineList(other)}.BzlExpr()
 	}
-	if len(hand) > 0 {
-		return depsConcatExpr{base: c.BzlExpr(), extra: hand}.BzlExpr()
+	base := c.BzlExpr()
+	if c.unused {
+		base = handCrateDepsCall(other)
 	}
-	return c.BzlExpr()
+	multiLine := multiLineList(other)
+	if base == nil {
+		return depsConcatExpr{extra: hand, selects: selects, multiLine: multiLine}.BzlExpr()
+	}
+	if len(hand) > 0 || len(selects) > 0 {
+		return depsConcatExpr{base: base, extra: hand, selects: selects, multiLine: multiLine}.BzlExpr()
+	}
+	return base
+}
+
+// multiLineList reports whether the label list of a handwritten deps
+// expression is written one label per line, so a rewrite keeps that form.
+func multiLineList(e bzl.Expr) bool {
+	switch e := e.(type) {
+	case *bzl.ListExpr:
+		return e.ForceMultiLine
+	case *bzl.BinaryExpr:
+		return e.Op == "+" && (multiLineList(e.X) || multiLineList(e.Y))
+	}
+	return false
 }
 
 // aliasesUnionExpr renders base | {label: name} for the aliases attribute.
@@ -504,6 +534,10 @@ type depsConcatExpr struct {
 	android []string
 	// platform maps a platform constraint to deps gated behind it.
 	platform map[string][]string
+	// selects are handwritten select() terms kept verbatim after the rest.
+	selects []bzl.Expr
+	// multiLine keeps a handwritten label list on one line per label.
+	multiLine bool
 }
 
 func (c depsConcatExpr) BzlExpr() bzl.Expr {
@@ -518,27 +552,23 @@ func (c depsConcatExpr) BzlExpr() bzl.Expr {
 		}
 	}
 	// Keys may be comma-joined constraint sets sharing one dep list.
-	if out == nil || len(c.extra) > 0 || len(gates) == 0 {
+	if len(c.extra) > 0 || (out == nil && len(gates) == 0 && len(c.selects) == 0) {
 		extra := make([]bzl.Expr, len(c.extra))
 		for i, dep := range c.extra {
 			extra[i] = &bzl.StringExpr{Value: dep}
 		}
-		list := &bzl.ListExpr{List: extra}
+		list := &bzl.ListExpr{List: extra, ForceMultiLine: c.multiLine}
 		if out == nil {
 			out = list
 		} else {
 			out = &bzl.BinaryExpr{X: out, Op: "+", Y: list}
 		}
 	}
-	if len(gates) == 0 {
-		return out
-	}
 	keys := make([]string, 0, len(gates))
 	for k := range gates {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	first := len(c.extra) == 0 && c.base == nil
 	for _, k := range keys {
 		items := make([]bzl.Expr, len(gates[k]))
 		for i, dep := range gates[k] {
@@ -549,15 +579,19 @@ func (c depsConcatExpr) BzlExpr() bzl.Expr {
 			entries = append(entries, &bzl.KeyValueExpr{Key: &bzl.StringExpr{Value: key}, Value: &bzl.ListExpr{List: items}})
 		}
 		entries = append(entries, &bzl.KeyValueExpr{Key: &bzl.StringExpr{Value: "//conditions:default"}, Value: &bzl.ListExpr{}})
-		sel := &bzl.CallExpr{X: &bzl.Ident{Name: "select"}, List: []bzl.Expr{&bzl.DictExpr{List: entries, ForceMultiLine: true}}}
-		if first {
-			out = sel
-			first = false
-			continue
-		}
-		out = &bzl.BinaryExpr{X: out, Op: "+", Y: sel}
+		out = plusExpr(out, &bzl.CallExpr{X: &bzl.Ident{Name: "select"}, List: []bzl.Expr{&bzl.DictExpr{List: entries, ForceMultiLine: true}}})
+	}
+	for _, sel := range c.selects {
+		out = plusExpr(out, sel)
 	}
 	return out
+}
+
+func plusExpr(x, y bzl.Expr) bzl.Expr {
+	if x == nil {
+		return y
+	}
+	return &bzl.BinaryExpr{X: x, Op: "+", Y: y}
 }
 
 func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
@@ -577,7 +611,51 @@ func (c depsConcatExpr) Merge(other bzl.Expr) bzl.Expr {
 	if base == nil {
 		base = handCrateDepsCall(other)
 	}
-	return depsConcatExpr{base: base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed)), android: c.android, platform: c.platform}.BzlExpr()
+	return depsConcatExpr{base: base, extra: unionStrings(c.extra, unmanagedDepsLabels(other, managed)), android: c.android, platform: c.platform, selects: handSelects(other, managed), multiLine: multiLineList(other)}.BzlExpr()
+}
+
+// handSelects returns the select() terms of a handwritten deps expression
+// that name no managed label. The source scan cannot see every cfg-gated
+// dependency, so a select the generator does not own stays.
+func handSelects(other bzl.Expr, managed map[string]bool) []bzl.Expr {
+	var out []bzl.Expr
+	var walk func(e bzl.Expr)
+	walk = func(e bzl.Expr) {
+		switch e := e.(type) {
+		case *bzl.BinaryExpr:
+			if e.Op == "+" {
+				walk(e.X)
+				walk(e.Y)
+			}
+		case *bzl.CallExpr:
+			if id, ok := e.X.(*bzl.Ident); ok && id.Name == "select" && !selectNamesManaged(e, managed) {
+				out = append(out, e)
+			}
+		}
+	}
+	if other != nil {
+		walk(other)
+	}
+	return out
+}
+
+func selectNamesManaged(sel *bzl.CallExpr, managed map[string]bool) bool {
+	for _, arg := range sel.List {
+		dict, ok := arg.(*bzl.DictExpr)
+		if !ok {
+			continue
+		}
+		for _, kv := range dict.List {
+			if list, ok := kv.Value.(*bzl.ListExpr); ok {
+				for _, item := range list.List {
+					if s, ok := item.(*bzl.StringExpr); ok && managed[s.Value] {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 // handCrateDepsCall returns the all_crate_deps(...) call a handwritten deps
@@ -930,20 +1008,46 @@ func mergeStale(file *rule.File, rel string, files []string, result language.Gen
 
 // staleRules lists the owned rules generation no longer produces. A rule
 // for which keep reports true names a present source no generated rule
-// claims, so it is handwritten and stays.
+// claims, so it is handwritten and stays. A crate= rule with no srcs stays
+// with the handwritten crate it wraps.
 func staleRules(file *rule.File, desired map[string]bool, keep func(*rule.Rule) bool) language.GenerateResult {
 	var result language.GenerateResult
 	if file == nil {
 		return result
 	}
+	byName := make(map[string]*rule.Rule, len(file.Rules))
+	for _, existing := range file.Rules {
+		byName[existing.Name()] = existing
+	}
+	// stays reports whether existing survives generation without being a
+	// generated rule itself, so it is handwritten.
+	var stays func(existing *rule.Rule, seen map[string]bool) bool
+	stays = func(existing *rule.Rule, seen map[string]bool) bool {
+		if _, owned := rustKinds[existing.Kind()]; !owned {
+			return true
+		}
+		if desired[existing.Kind()+"\x00"+existing.Name()] {
+			return false
+		}
+		if existing.Kind() == corpusKind && !isGeneratedCorpusName(existing.Name()) {
+			return true
+		}
+		if hasHandwrittenAttr(existing) || keep(existing) {
+			return true
+		}
+		crate := existing.AttrString("crate")
+		if len(crate) < 2 || crate[0] != ':' || seen[existing.Name()] {
+			return false
+		}
+		seen[existing.Name()] = true
+		target := byName[crate[1:]]
+		return target != nil && stays(target, seen)
+	}
 	for _, existing := range file.Rules {
 		if _, owned := rustKinds[existing.Kind()]; !owned || desired[existing.Kind()+"\x00"+existing.Name()] {
 			continue
 		}
-		if existing.Kind() == corpusKind && !isGeneratedCorpusName(existing.Name()) {
-			continue
-		}
-		if hasHandwrittenAttr(existing) || keep(existing) {
+		if stays(existing, map[string]bool{}) {
 			continue
 		}
 		empty := rule.NewRule(existing.Kind(), existing.Name())
@@ -952,18 +1056,70 @@ func staleRules(file *rule.File, desired map[string]bool, keep func(*rule.Rule) 
 	return result
 }
 
-func siblingLibName(manifest *cargoManifest, bin cargoTarget) string {
-	for _, target := range manifest.targets {
+// siblingLib returns the library a bin, bench or test of the package links,
+// preferring a plain rlib over a proc-macro or cdylib.
+func siblingLib(manifest *cargoManifest) *cargoTarget {
+	for i, target := range manifest.targets {
 		if target.kind == libraryKind && target.flavor == "" {
-			return target.name
+			return &manifest.targets[i]
 		}
 	}
-	for _, target := range manifest.targets {
+	for i, target := range manifest.targets {
 		if target.kind == libraryKind {
-			return target.name
+			return &manifest.targets[i]
 		}
 	}
-	return ""
+	return nil
+}
+
+// existingDeps returns the deps of the BUILD file rule that builds root.
+func existingDeps(file *rule.File, kind, root string) bzl.Expr {
+	if file == nil {
+		return nil
+	}
+	for _, r := range file.Rules {
+		if r.Kind() == kind && r.AttrString("crate_root") == root {
+			return r.Attr("deps")
+		}
+	}
+	return nil
+}
+
+// dropListedCrates removes from used the external crates that deps already
+// names by label, such as @crates//:serde_json. Such a rule picks its crates
+// one by one, so all_crate_deps would only add unused ones.
+func dropListedCrates(used map[string]bool, deps bzl.Expr, manifest *cargoManifest) {
+	listed := make(map[string]bool)
+	for _, dep := range unmanagedDepsLabels(deps, nil) {
+		if i := strings.LastIndex(dep, ":"); strings.HasPrefix(dep, "@") && i >= 0 {
+			listed[dep[i+1:]] = true
+		}
+	}
+	for name := range used {
+		dep, ok := manifest.normalDeps[name]
+		if !ok || !dep.external {
+			dep, ok = manifest.devDeps[name]
+		}
+		if ok && dep.external && (listed[name] || listed[dep.label]) {
+			delete(used, name)
+		}
+	}
+}
+
+// importedCrates returns the crate roots a target's sources name. A test
+// target also compiles its cfg(test) code.
+func importedCrates(imports targetImports, test bool) map[string]bool {
+	used := make(map[string]bool)
+	names := [][]string{imports.production, imports.pathRefs}
+	if test {
+		names = append(names, imports.test, imports.pathRefsTest)
+	}
+	for _, list := range names {
+		for _, name := range list {
+			used[name] = true
+		}
+	}
+	return used
 }
 
 // hasHandwrittenAttr reports whether r sets attributes the generator never

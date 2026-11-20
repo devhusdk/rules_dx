@@ -57,10 +57,11 @@ CELL_ATTRS = {
         default = "",
     ),
     "_arm64": attr.label(default = "@platforms//cpu:arm64"),
-    "_check": attr.label(
-        default = Label("//apple/private/tools/ops:apple_ops"),
+    "_dx": attr.label(
+        default = Label("@dx_prebuilt//:dx"),
         cfg = "exec",
         executable = True,
+        doc = "dx, whose apple_ops subcommand runs the check.",
     ),
     "_ios": attr.label(default = "@platforms//os:ios"),
     "_simulator": attr.label(default = "@apple_support//constraints:simulator"),

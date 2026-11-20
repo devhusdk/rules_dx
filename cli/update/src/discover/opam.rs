@@ -102,8 +102,9 @@ fn is_toolchain(name: &str) -> bool {
 
 fn newest(snapshot: &Path, name: &str, prereleases: bool) -> Result<String, DxError> {
     let dir = snapshot.join("packages").join(name);
-    let entries = std::fs::read_dir(&dir)
-        .map_err(|_| DxError::failure("not in the opam-repository snapshot"))?;
+    let entries = std::fs::read_dir(&dir).map_err(|error| {
+        DxError::failure(format!("not in the opam-repository snapshot: {error}"))
+    })?;
     let prefix = format!("{name}.");
     let mut versions: Vec<String> = entries
         .filter_map(Result::ok)

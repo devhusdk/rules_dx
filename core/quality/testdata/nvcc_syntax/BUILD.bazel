@@ -55,3 +55,11 @@ cuda_library(
     tags = ["manual"],
     deps = [":dep"],
 )
+
+cuda_library(
+    name = "tidy_dirty",
+    srcs = ["tidy_dirty.cu"],
+    cuda_archs = ["sm_89"],
+    tags = ["manual"],
+    deps = [":dep"],
+)

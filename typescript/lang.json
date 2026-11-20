@@ -14,6 +14,9 @@
   "lockfiles": [
     "pnpm-lock.yaml"
   ],
+  "commands": {
+    "tsdk": "@rules_dx//typescript/private/ide:tsdk"
+  },
   "tools": [
     "biome",
     "eslint"
@@ -36,7 +39,8 @@
     "typescript_bench",
     "typescript_fuzz_test",
     "typescript_playwright_test",
-    "ts_config"
+    "typescript_config",
+    "typescript_doc_shard"
   ],
   "quality": {
     "bzl": "javascript/private/quality:js.bzl",

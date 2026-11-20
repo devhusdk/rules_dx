@@ -27,7 +27,7 @@ load(":coverage.bzl", "QT_COVERAGE_TRANSITION", "QtCoverageProbeInfo", "qt_cover
 load(":generate.bzl", _qt_generate = "qt_generate")
 load(":platform.bzl", "QT_PLATFORMS_ATTR", "QT_PLATFORM_TRANSITION")
 load(":providers.bzl", "QtInfo")
-load(":rust_bridge.bzl", "QT_BRIDGE_TOOL", _qt_rust_bridge = "qt_rust_bridge", _qt_rust_runtime_files = "qt_rust_runtime_files")
+load(":rust_bridge.bzl", _qt_rust_bridge = "qt_rust_bridge", _qt_rust_runtime_files = "qt_rust_runtime_files")
 load(":text.bzl", _qt_framework_path = "qt_framework_path", _qt_identifier = "qt_identifier", _qt_module_path = "qt_module_path", _qt_package_path = "qt_package_path", _qt_qmldir = "qt_qmldir", _qt_qrc = "qt_qrc", _qt_version_parts = "qt_version_parts")
 
 QT_CONF = _QT_CONF
@@ -392,11 +392,12 @@ def qt_cc_library(
         translations = [],
         deps = None,
         modules = ["core"],
-        qt = QT_REPOSITORY,
+        qt = None,
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares a C++ library whose moc, uic and rcc outputs are generated from declared inputs."""
+    """Declares a C++ library whose moc, uic and rcc outputs are generated from declared inputs. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
+    qt = qt or QT_REPOSITORY
     srcs = srcs or []
     deps = deps or []
     _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, [], None, [], "1.0", copts, visibility, kwargs)
@@ -415,11 +416,12 @@ def qt_qml_module(
         translations = [],
         deps = None,
         modules = ["qml"],
-        qt = QT_REPOSITORY,
+        qt = None,
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares a QML module with its qmldir, qmltypes, resources and C++ types."""
+    """Declares a QML module with its qmldir, qmltypes, resources and C++ types. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
+    qt = qt or QT_REPOSITORY
     srcs = srcs or []
     deps = deps or []
     _library(name, srcs, hdrs, moc_hdrs, [], resources, resource_prefix, translations, deps, modules, qt, qml_srcs, uri, qml_depends, version, copts, visibility, kwargs)
@@ -498,12 +500,13 @@ def qt_cc_binary(
         translations = [],
         deps = None,
         modules = ["core"],
-        qt = QT_REPOSITORY,
+        qt = None,
         plugins = [],
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares a Qt executable over cc_binary."""
+    """Declares a Qt executable over cc_binary. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
+    qt = qt or QT_REPOSITORY
     srcs = srcs or []
     deps = deps or []
     _executable("binary", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, plugins, copts, visibility, kwargs)
@@ -520,12 +523,13 @@ def qt_cc_test(
         translations = [],
         deps = None,
         modules = ["core", "test"],
-        qt = QT_REPOSITORY,
+        qt = None,
         plugins = [],
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares a QtTest executable over cc_test."""
+    """Declares a QtTest executable over cc_test. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
+    qt = qt or QT_REPOSITORY
     srcs = srcs or []
     deps = deps or []
     _executable("test", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, plugins, copts, visibility, kwargs)
@@ -573,11 +577,12 @@ def qt_rust_cc_library(
         qml_srcs = [],
         qml_depends = [],
         modules = None,
-        qt = QT_REPOSITORY,
+        qt = None,
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares the Qt C++ library generated from CXX-Qt bridges of one Rust crate."""
+    """Declares the Qt C++ library generated from CXX-Qt bridges of one Rust crate. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
+    qt = qt or QT_REPOSITORY
     _gate(kwargs)
     testonly = kwargs.get("testonly", None)
     shared = {}
@@ -587,7 +592,7 @@ def qt_rust_cc_library(
     _qt_rust_bridge(
         name = name + "_bridge",
         bridges = bridges,
-        generator = generator or QT_BRIDGE_TOOL,
+        generator = generator,
         tags = (kwargs.get("tags", None) or []) + ["manual"],
         visibility = visibility,
         **shared

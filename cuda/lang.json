@@ -41,6 +41,25 @@
     "cuda_binary",
     "cuda_test",
     "cuda_objects",
-    "cuda_component_library"
-  ]
+    "cuda_component_library",
+    "cuda_doc_shard"
+  ],
+  "quality": {
+    "bzl": "cc/private/quality:cc.bzl",
+    "classes": [
+      "cuda"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "clang_format"
+      ],
+      "lint": [
+        "clang_tidy",
+        "typos"
+      ],
+      "typecheck": []
+    },
+    "file_extensions": []
+  }
 }

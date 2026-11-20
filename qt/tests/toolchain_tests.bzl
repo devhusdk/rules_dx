@@ -1,6 +1,6 @@
 """Qt SDK pin, request and generated BUILD coverage."""
 
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//qt/private/platforms:libc.bzl", "glibc_at_least")
 load("//qt/private/toolchain:layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
 load("//qt/private/toolchain:layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")

@@ -13,10 +13,9 @@ def _cc_docs_shard(target, ctx):
     if not language:
         return None
     headers = target[CcInfo].compilation_context.direct_public_headers
-    doxygen = ctx.attr._doxygen[DefaultInfo].files.to_list()
-    if not headers or not doxygen_available(doxygen):
+    if not headers or not doxygen_available(ctx.file._doxygen_binary):
         return None
-    return cc_shard_action(ctx, language, headers, ctx.label.name, "_dx_docs/" + ctx.label.name, doxygen, ctx.executable._cc_extract).shard
+    return cc_shard_action(ctx, language, headers, ctx.label.name, "_dx_docs/" + ctx.label.name, ctx.file._doxygen_binary, ctx.attr._doxygen[DefaultInfo].files, ctx.executable._cc_extract).shard
 
 def _real_cc_docs_aspect_impl(target, ctx):
     shard = _cc_docs_shard(target, ctx)
@@ -30,12 +29,17 @@ real_cc_docs_aspect = aspect(
     attrs = {
         "_cc_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/cc/extract:cc_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_doxygen": attr.label(
             cfg = "exec",
             default = Label("@dx_doxygen//:tool"),
+        ),
+        "_doxygen_binary": attr.label(
+            allow_single_file = True,
+            cfg = "exec",
+            default = Label("@dx_doxygen//:binary"),
         ),
     },
     fragments = ["cpp"],

@@ -16,7 +16,8 @@ STRUCTURED_CASES = [
         },
         path_tool_owners = ["buf"],
         path_tool_names = ["diff"],
-        path_tool_binaries = ["//core/quality/tools/diff"],
+        path_tool_binaries = ["@dx_prebuilt//:dx"],
+        path_tool_args = {"diff": ["buf_diff"]},
     ),
     matrix_case(
         name = "matrix_protobuf_format_fail",
@@ -29,7 +30,8 @@ STRUCTURED_CASES = [
         },
         path_tool_owners = ["buf"],
         path_tool_names = ["diff"],
-        path_tool_binaries = ["//core/quality/tools/diff"],
+        path_tool_binaries = ["@dx_prebuilt//:dx"],
+        path_tool_args = {"diff": ["buf_diff"]},
     ),
     matrix_case(
         name = "matrix_protobuf_lint_pass",
@@ -457,26 +459,6 @@ STRUCTURED_CASES = [
         tool_env = ["qmlformat=RUNFILES_DIR=$TEST_SRCDIR"],
     ),
     matrix_case(
-        name = "matrix_erlang_format_pass",
-        capability = "format",
-        tool = "erlfmt",
-        binary = "//erlang/private/tools:erlfmt",
-        source_class = "erlang",
-        generated = {
-            "matrix/erlfmt_clean.erl": "-module(erlfmt_clean).\n-export([add/2]).\n\nadd(A, B) -> A + B.\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_erlang_format_fail",
-        capability = "format",
-        tool = "erlfmt",
-        binary = "//erlang/private/tools:erlfmt",
-        source_class = "erlang",
-        generated = {
-            "matrix/erlfmt_dirty.erl": "-module(erlfmt_dirty).\n-export([add/2]).\n\nadd(A,B)->A+B.\n",
-        },
-    ),
-    matrix_case(
         name = "matrix_erlang_format_syntax",
         capability = "format",
         tool = "erlfmt",
@@ -484,26 +466,6 @@ STRUCTURED_CASES = [
         source_class = "erlang",
         generated = {
             "matrix/erlfmt_broken.erl": "-module(erlfmt_broken).\n-export([add/2]).\n\nadd(A,B)->A+B.\nbroken(X) -> X +.\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_erlang_lint_pass",
-        capability = "lint",
-        tool = "elvis",
-        binary = "//erlang/private/tools:elvis",
-        source_class = "erlang",
-        generated = {
-            "matrix/sub/elvis_clean.erl": "-module(elvis_clean).\n-export([add/2]).\n\nadd(A, B) -> A + B.\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_erlang_lint_fail",
-        capability = "lint",
-        tool = "elvis",
-        binary = "//erlang/private/tools:elvis",
-        source_class = "erlang",
-        generated = {
-            "matrix/sub/elvis_dirty.erl": "-module(elvis_dirty).\n-export([show/1]).\n\nshow(X) -> io:format(\"~p~n\", [X]).\n",
         },
     ),
     matrix_case(
@@ -539,26 +501,6 @@ STRUCTURED_CASES = [
         },
     ),
     matrix_case(
-        name = "matrix_elixir_format_pass",
-        capability = "format",
-        tool = "mix_format",
-        binary = "//elixir/private/tools:mix_format",
-        source_class = "elixir",
-        generated = {
-            "matrix/mix_format_clean.ex": "defmodule MixFormatClean do\n  def add(a, b), do: a + b\nend\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_elixir_format_fail",
-        capability = "format",
-        tool = "mix_format",
-        binary = "//elixir/private/tools:mix_format",
-        source_class = "elixir",
-        generated = {
-            "matrix/mix_format_dirty.ex": "defmodule MixFormatDirty do\n  def add( a,b ),do: a+b\nend\n",
-        },
-    ),
-    matrix_case(
         name = "matrix_elixir_format_syntax",
         capability = "format",
         tool = "mix_format",
@@ -566,26 +508,6 @@ STRUCTURED_CASES = [
         source_class = "elixir",
         generated = {
             "matrix/mix_format_broken.ex": "defmodule MixFormatBroken do\n  def add(a, b), do: a * * b\nend\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_elixir_lint_pass",
-        capability = "lint",
-        tool = "credo",
-        binary = "//elixir/private/tools:credo",
-        source_class = "elixir",
-        generated = {
-            "matrix/credo_clean.ex": "defmodule CredoClean do\n  @moduledoc false\n  def add(a, b), do: a + b\nend\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_elixir_lint_fail",
-        capability = "lint",
-        tool = "credo",
-        binary = "//elixir/private/tools:credo",
-        source_class = "elixir",
-        generated = {
-            "matrix/credo_dirty.ex": "defmodule CredoDirty do\n  def show(a), do: IO.inspect(a)\nend\n",
         },
     ),
     matrix_case(

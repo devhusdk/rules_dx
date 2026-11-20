@@ -37,7 +37,6 @@ cli/update/src/edit/request_tests.rs compat-word 6
 core/env/BUILD.bazel alias 2
 core/env/private/tools/env_shard/src/main.rs compat-word 2
 core/env/private/tools/env_shard/src/writer.rs compat-word 2
-core/quality/BUILD.bazel alias 1
 core/quality/adapter/src/commands.rs compat-word 2
 core/quality/adapter/src/commands_tests.rs compat-word 1
 core/quality/adapter/src/parsers/ldc.rs compat-word 1
@@ -121,7 +120,6 @@ rust/private/quality/tools/BUILD.bazel alias 2
 rust/tests/fixtures/cxx_identity/BUILD.bazel alias 1
 rust/tests/fixtures/hello/src/main.rs compat-word 2
 tools/ci/config_consistency_test.rs compat-word 4
-tools/ci/guards/shared.rs compat-word 4
 tools/coverage/collect/src/main.rs compat-word 2
 tools/docs/cc/extract/src/lib.rs compat-word 3
 tools/docs/support_matrix/facts.bzl compat-word 3

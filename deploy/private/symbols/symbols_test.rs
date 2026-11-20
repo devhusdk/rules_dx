@@ -1,6 +1,14 @@
 use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
+/// Runs `dx <subcommand> <args>`.
+fn run_dx(subcommand: &str, args: &[&str]) -> dx_testing::Run {
+    let argv: Vec<&str> = std::iter::once(subcommand)
+        .chain(args.iter().copied())
+        .collect();
+    dx_testing::run(&env_file("DX"), &argv, &[]).unwrap()
+}
+
 fn read(path: &Path) -> Vec<u8> {
     std::fs::read(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
 }
@@ -112,7 +120,7 @@ fn split_without_build_id_writes_nothing() {
         out("manifest"),
     ];
     let refs: Vec<&str> = args.iter().map(String::as_str).collect();
-    let run = dx_testing::run(&env_file("DX_SPLIT"), &refs, &[]).unwrap();
+    let run = run_dx("symbols_split", &refs);
     assert!(!run.status.success());
     assert!(run.stderr.contains("build-id"), "{}", run.stderr);
     for n in ["stripped", "debug", "manifest"] {
@@ -139,7 +147,7 @@ fn split_missing_input_fails() {
         "--manifest",
         &out("manifest"),
     ];
-    let run = dx_testing::run(&env_file("DX_SPLIT"), &args, &[]).unwrap();
+    let run = run_dx("symbols_split", &args);
     assert!(!run.status.success());
 }
 

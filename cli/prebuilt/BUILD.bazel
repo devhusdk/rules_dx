@@ -1,14 +1,20 @@
+load("@bazel_lib//lib:run_binary.bzl", "run_binary")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":bundle.bzl", "dx_bundle_tool", "dx_bundle_tree")
 load(":fail.bzl", "dx_unavailable")
 load(":gazelle_hub_tests.bzl", "dx_gazelle_hub_tests")
-load(":hub.bzl", "unsupported_message")
+load(":hub.bzl", "GO_TOOLS", "unsupported_message")
 load(":hub_tests.bzl", "dx_prebuilt_hub_tests")
 load(":tools.bzl", "registry_lines")
 
 exports_files(
     [
+        "bundle.bzl",
         "extension.bzl",
         "fail.bzl",
         "hub.bzl",
@@ -22,6 +28,7 @@ filegroup(
     name = "module_srcs",
     srcs = [
         "BUILD.bazel",
+        "bundle.bzl",
         "extension.bzl",
         "fail.bzl",
         "gazelle.bzl",
@@ -39,6 +46,37 @@ dx_prebuilt_hub_tests(name = "hub_test")
 
 dx_gazelle_hub_tests(name = "gazelle_hub_test")
 
+# Set: when rules_dx is the root module, @dx_prebuilt and @dx_gazelle serve guard_stub for every source-built tool.
+bool_flag(
+    name = "guard_view",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "guard_view_set",
+    flag_values = {":guard_view": "true"},
+    visibility = ["//visibility:public"],
+)
+
+write_file(
+    name = "guard_stub_script",
+    out = "guard_stub.sh",
+    content = [
+        "#!/bin/sh",
+        "exit 1",
+        "",
+    ],
+    is_executable = True,
+)
+
+native_binary(
+    name = "guard_stub",
+    src = ":guard_stub_script",
+    out = "guard_stub",
+    visibility = ["//visibility:public"],
+)
+
 # tools.bzl as "<tool> <platform key> <asset>" lines, the registry fill_pins checks manifests against.
 write_file(
     name = "registry",
@@ -48,6 +86,46 @@ write_file(
         "//tools/ci/fill_pins:__pkg__",
         "//tools/testing/consumer:__pkg__",
     ],
+)
+
+# The hub targets the dx-go multicall serves, one name per line.
+write_file(
+    name = "go_hub_targets",
+    out = "go_hub_targets.txt",
+    content = sorted(GO_TOOLS) + [""],
+    visibility = ["//tools/testing/consumer:__pkg__"],
+)
+
+dx_bundle_tree(
+    name = "fixture_bundle",
+    testonly = True,
+    srcs = ["//cli/prebuilt/testdata/bundle:files"],
+)
+
+dx_bundle_tool(
+    name = "fixture_hello",
+    testonly = True,
+    launcher = select({
+        "@platforms//os:windows": "bin/hello.cmd",
+        "//conditions:default": "bin/hello",
+    }),
+    tree = ":fixture_bundle",
+)
+
+# Runs the launcher as a build action, the way quality tools run.
+run_binary(
+    name = "fixture_hello_run",
+    testonly = True,
+    outs = ["fixture_hello.txt"],
+    args = ["$(execpath fixture_hello.txt)"],
+    tool = ":fixture_hello",
+)
+
+diff_test(
+    name = "bundle_tool_test",
+    size = "small",
+    file1 = ":fixture_hello_run",
+    file2 = "//cli/prebuilt/testdata/bundle:tools/message.txt",
 )
 
 dx_unavailable(
@@ -69,6 +147,7 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "bundle.bzl",
         "extension.bzl",
         "fail.bzl",
         "gazelle.bzl",

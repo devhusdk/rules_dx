@@ -61,8 +61,8 @@ page lists every flag.
 | opam | [`opam_deploy`](#opam_deploy) |
 | Packagist | [`packagist_deploy`](#packagist_deploy) |
 
-Debug symbols: [`dx_split_debug_info`](#dx_split_debug_info),
-[`dx_dsym`](#dx_dsym) and [`dx_pdb`](#dx_pdb).
+Debug symbols: [`split_debug_info`](#split_debug_info),
+[`dsym`](#dsym) and [`pdb`](#pdb).
 
 ## Dry run and publish
 
@@ -82,12 +82,12 @@ publishes only with `DX_DEPLOY_LIVE=1`.
 `linux_package_deploy`. The build fails when the published files together are
 larger, and prints both sizes in bytes. Empty means no budget.
 
-`sbom` is optional. It is a `dx_sbom` target, and every `*_deploy` macro takes
+`sbom` is optional. It is a `sbom` target, and every `*_deploy` macro takes
 it. `dx deploy` prints `SBOM of <label>: <file> <n> packages`.
 
 Every `*_deploy` macro ends with the same four attributes: `tags`,
 `visibility`, `testonly` and `target_compatible_with`. Each one is passed on
-to the `dx_deployment` target and to every helper target the macro makes, such
+to the `deployment` target and to every helper target the macro makes, such
 as the `_config`, `_pack` and archive targets.
 
 
@@ -406,7 +406,7 @@ bazel build //pkg:ledger_release //pkg:ledger_release_checksum
 - `linkage`: `static` or `dynamic`. Defaults to `dynamic`.
 - `runtime`: files the app needs at run time. Each lands at the archive root
   under its own file name, mode 0644. Native libraries (`.dll`, `.dylib`,
-  `.so` or `.so.<n>`) must come through a `dx_native_runtime` target. A
+  `.so` or `.so.<n>`) must come through a `native_runtime` target. A
   plain file with such a name fails the build. Defaults to `[]`.
 - `format`: `tar.gz` or `zip`. Defaults to `tar.gz`.
 - `resources`: targets whose files land under `resources/`. Each file must
@@ -418,15 +418,15 @@ bazel build //pkg:ledger_release //pkg:ledger_release_checksum
 
 `IDENTITY.txt` lists `name`, `arch`, `os`, `linkage` and `min_runtime`.
 Then it has one sorted `runtime: <name> <version> <redistribution>` line per
-`dx_native_runtime` target in `runtime`.
+`native_runtime` target in `runtime`.
 
-A `dx_native_runtime` target records where a library comes from and whether
+A `native_runtime` target records where a library comes from and whether
 it may ship:
 
 ```starlark
-load("@rules_dx//deploy:defs.bzl", "dx_native_runtime")
+load("@rules_dx//deploy:defs.bzl", "native_runtime")
 
-dx_native_runtime(
+native_runtime(
     name = "vcruntime",
     srcs = ["vcruntime140.dll"],
     notice = "vcruntime_NOTICE.txt",
@@ -861,7 +861,8 @@ This attaches the packages to the draft release. A live run refuses what a
 
 ## pub_deploy
 
-Stages a Dart or Flutter package and publishes it to pub.dev.
+Use `pub_deploy` to stage a Dart or Flutter package and publish it to
+pub.dev.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "pub_deploy")
@@ -872,36 +873,56 @@ pub_deploy(
 )
 ```
 
-- `name`: the target name, and the package name unless `package` is set.
 - `srcs`: required. The package files, including `pubspec.yaml` and
   `CHANGELOG.md`.
-- `package`: the package name, lowercase letters, digits and `_`. Defaults to `name`.
-- `version`: defaults to empty, which publishes the `pubspec.yaml` version. When
-  set, it must equal that version. Either way `CHANGELOG.md` needs a heading for it.
-- `registry_url`: defaults to `https://pub.dev`.
+- `package`: the package name, in lowercase letters, digits and `_`.
+  Defaults to `name`.
+- `version`: empty by default, which publishes the version in
+  `pubspec.yaml`. When you set it, it must equal that version. Either way,
+  `CHANGELOG.md` needs a heading for it.
+- `registry_url`: an https URL. Defaults to `https://pub.dev`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 - `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility).
   Flutter packages skip the check.
 
-Default run checks `pubspec.yaml` and `CHANGELOG.md`, runs
-`dart pub publish --dry-run` on a copy, and stages `<name>-package/`. A package
-with a top-level `flutter:` section uses `flutter` instead of `dart`. Without
-the tool on `PATH` the run prints a skip line. No credentials needed.
+Check it first. This needs no credentials and uploads nothing:
 
-Publish with `dart` (or `flutter`) on `PATH`:
+```sh
+dx deploy //pkg:pub_demo
+```
+
+The dry run checks `pubspec.yaml` and `CHANGELOG.md` and stages
+`<name>-package/`. It runs `dart pub publish --dry-run` on a copy when `dart`
+is on `PATH`, and prints a skip line when it is not. A package with a
+top-level `flutter:` section uses `flutter` instead of `dart`.
+
+Before you publish, you need:
+
+- `dart` on `PATH`, or `flutter` for a Flutter package.
+- A pub.dev token for `PUB_API_TOKEN`.
+
+Publish:
 
 ```sh
 PUB_PUBLISH_APPROVED=1 PUB_API_TOKEN=... \
 dx deploy --apply //pkg:pub_demo
 ```
 
-A live run refuses version `0.0.0`, repeats the dry run, then runs
-`pub publish --force`. The token reaches `dart pub token add --env-var` and
-lands only in a temporary `PUB_CACHE` that is removed afterwards.
+This repeats the dry run, then runs `pub publish --force`. The token reaches
+`dart pub token add --env-var`. It lands only in a temporary `PUB_CACHE`,
+which is removed afterwards.
+
+A live run refuses, with exit code 1, when:
+
+- The version is `0.0.0` or `0.0.0-dryrun`.
+- `PUB_API_TOKEN` is missing.
+- `PUB_PUBLISH_APPROVED=1` is missing.
+- `dart`, or `flutter` for a Flutter package, is not on `PATH`.
 
 ## nuget_deploy
 
-Stages one nupkg as a local folder feed and pushes it to a NuGet source.
+Use `nuget_deploy` to stage one nupkg as a local folder feed and push it to a
+NuGet source.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "nuget_deploy")
@@ -913,33 +934,52 @@ nuget_deploy(
 ```
 
 - `nupkg`: required. One `.nupkg` file.
-- `package`: the package id. Defaults to `name`. Must match the nuspec id.
-- `version`: optional. Must match the nuspec version.
-- `registry_url`: defaults to `https://api.nuget.org/v3/index.json`.
+- `package`: the package id. Defaults to `name`. It must match the nuspec id.
+- `version`: optional. It must match the nuspec version.
+- `registry_url`: an https URL. Defaults to
+  `https://api.nuget.org/v3/index.json`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
+- `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility).
 
-Default run stages `<name>-feed/` with the nupkg. No credentials needed.
+Check it first. This needs no credentials and pushes nothing:
 
-Push with `dotnet` on `PATH`:
+```sh
+dx deploy //pkg:nuget_demo
+```
+
+The dry run checks the nuspec id and version against `package` and
+`version`, and stages `<name>-feed/` with the nupkg. It does not run
+`dotnet`.
+
+Before you publish, you need:
+
+- `dotnet` on `PATH`, with NuGet 7.6 or later (.NET SDK 10.0.300 or later).
+- A NuGet API key for `NUGET_API_TOKEN`.
+
+Publish:
 
 ```sh
 NUGET_PUBLISH_APPROVED=1 NUGET_API_TOKEN=... \
 dx deploy --apply //pkg:nuget_demo
 ```
 
-This runs `dotnet nuget push --skip-duplicate`. The key goes to `dotnet`
-through the `NUGET_API_TOKEN` env var, never the command line, so NuGet 7.6+
-(.NET SDK 10.0.300+) is required; older versions are refused. A live run refuses nuspec
-version `0.0.0`.
+This runs `dotnet nuget push --skip-duplicate`. The key reaches `dotnet`
+through the environment, never the command line. If the version is already
+on the source, the push is skipped. The run prints
+`nuget_deploy: skipped <id> <version>: already on <source>` and exits 0.
 
-A default run checks the nuspec id and version against `package` and
-`version`. It does not run `dotnet`. Rerunning a published version: the push is
-skipped, the run prints `nuget_deploy: skipped <id> <version>: already on
-<source>` and exits 0.
+A live run refuses, with exit code 1, when:
+
+- The nuspec version is `0.0.0`.
+- `NUGET_API_TOKEN` is missing.
+- `NUGET_PUBLISH_APPROVED=1` is missing.
+- `dotnet` is not on `PATH`.
+- NuGet is older than 7.6.
 
 ## cpan_deploy
 
-Stages one distribution tarball locally and uploads it to PAUSE.
+Use `cpan_deploy` to stage one distribution tarball and upload it to PAUSE,
+the CPAN upload server.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "cpan_deploy")
@@ -951,26 +991,50 @@ cpan_deploy(
 )
 ```
 
-- `dist`: required. One `<Dist>-<version>.tar.gz` holding `<Dist>-<version>/META.json` or `META.yml`.
-- `package`: the distribution name. Defaults to `name`. Must match the file name.
-- `version`: optional. Must match the version in the file name.
+- `dist`: required. One `<Dist>-<version>.tar.gz` that holds
+  `<Dist>-<version>/META.json` or `META.yml`.
+- `package`: the distribution name. Defaults to `name`. It must match the
+  file name.
+- `version`: optional. It must match the version in the file name.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-A default run checks the identity and stages `<name>-dist/` with the tarball.
-No credentials needed.
+Check it first. This needs no credentials and uploads nothing:
+
+```sh
+dx deploy //pkg:cpan-demo
+```
+
+The dry run checks the name and version and stages `<name>-dist/` with the
+tarball.
+
+Before you publish, you need:
+
+- Your PAUSE user name for `CPAN_API_USER`.
+- Your PAUSE password for `CPAN_API_TOKEN`.
+
+You do not need `perl`.
+
+Publish:
 
 ```sh
 CPAN_PUBLISH_APPROVED=1 CPAN_API_USER=... CPAN_API_TOKEN=... \
 dx deploy --apply //pkg:cpan-demo
 ```
 
-This posts the tarball to `https://pause.perl.org/pause/authenquery?ACTION=add_uri` with HTTP
-basic auth from the PAUSE user and password. No perl is needed. A live run
-refuses version `0.0.0`.
+This posts the tarball to
+`https://pause.perl.org/pause/authenquery?ACTION=add_uri` with HTTP basic
+auth.
+
+A live run refuses, with exit code 1, when:
+
+- The version is `0.0.0` or `0.0.0-dryrun`.
+- `CPAN_API_USER` or `CPAN_API_TOKEN` is missing.
+- `CPAN_PUBLISH_APPROVED=1` is missing.
 
 ## conan_deploy
 
-Stages one Conan recipe locally, then creates and uploads it to a remote.
+Use `conan_deploy` to stage one Conan recipe, then create it and upload it to
+a Conan remote.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "conan_deploy")
@@ -983,27 +1047,52 @@ conan_deploy(
 )
 ```
 
-- `recipe`: required. Files including `conanfile.py` and its sources.
-- `remote`, `remote_url`: required. The remote name and its https URL.
-- `package`: the package name. Defaults to `name`. Must match `name` in `conanfile.py` when it sets one.
-- `version`: optional. Must match `version` in `conanfile.py`; required when the recipe sets none.
-- `conan`, `conan_files`: optional conan and the files it needs. Default is the pinned conan on linux x86_64 and arm64, macos x86_64 and arm64, and windows x86_64.
+- `recipe`: required. The files, including `conanfile.py` and its sources.
+- `remote`: required. The remote name, in lowercase letters, digits, `_`
+  and `-`.
+- `remote_url`: required. The https URL of the remote.
+- `package`: the package name. Defaults to `name`. It must match `name` in
+  `conanfile.py` when the recipe sets one.
+- `version`: optional. It must match `version` in `conanfile.py`. You need it
+  when the recipe sets none.
+- `conan`, `conan_files`: optional. A `conan` executable and the files it
+  needs. Defaults to the pinned conan on Linux x86_64 and arm64, macOS x86_64
+  and arm64, and Windows x86_64.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-A default run checks the recipe and stages `<name>-recipe/`. No credentials needed.
+Check it first. This needs no credentials and uploads nothing:
+
+```sh
+dx deploy //pkg:conan_demo
+```
+
+The dry run checks the recipe and stages `<name>-recipe/`.
+
+Before you publish, you need:
+
+- A remote user name for `CONAN_LOGIN_USERNAME`.
+- Its password or token for `CONAN_PASSWORD`.
+
+Publish:
 
 ```sh
 CONAN_PUBLISH_APPROVED=1 CONAN_LOGIN_USERNAME=... CONAN_PASSWORD=... \
 dx deploy --apply //pkg:conan_demo
 ```
 
-A live run uses a private `CONAN_HOME`, runs `conan profile detect`, `conan
-remote add`, `conan create` and `conan upload --confirm`. The credentials reach
-only the `conan upload` step, through the environment. A live run refuses version `0.0.0`.
+This uses a private `CONAN_HOME` and runs `conan profile detect`,
+`conan remote add`, `conan create` and `conan upload --confirm`. Only the
+`conan upload` step gets the credentials, through its environment.
+
+A live run refuses, with exit code 1, when:
+
+- The version is `0.0.0` or `0.0.0-dryrun`.
+- `CONAN_LOGIN_USERNAME` or `CONAN_PASSWORD` is missing.
+- `CONAN_PUBLISH_APPROVED=1` is missing.
 
 ## hackage_deploy
 
-Stages one cabal sdist locally and uploads it to Hackage.
+Use `hackage_deploy` to stage one cabal sdist and upload it to Hackage.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "hackage_deploy")
@@ -1015,29 +1104,47 @@ hackage_deploy(
 ```
 
 - `sdist`: required. One `<package>-<version>.tar.gz` made by `cabal sdist`.
-- `package`: the package name. Defaults to `name`. Must match the `name` in the `.cabal` file.
-- `version`: optional. Must match the `version` in the `.cabal` file.
+- `package`: the package name. Defaults to `name`. It must match `name` in
+  the `.cabal` file.
+- `version`: optional. It must match `version` in the `.cabal` file.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Every run checks that the sdist holds `<package>-<version>/<package>.cabal`
-and that the file declares the name and version in the sdist file name. A
-default run stages `<name>-sdist/` with the sdist. No credentials needed.
+Check it first. This needs no credentials and uploads nothing:
 
-Upload with `cabal` on `PATH`:
+```sh
+dx deploy //pkg:hackage-demo
+```
+
+Every run checks that the sdist holds `<package>-<version>/<package>.cabal`,
+and that the file declares the name and version in the sdist file name. The
+dry run then stages `<name>-sdist/` with the sdist.
+
+Before you publish, you need:
+
+- `cabal` on `PATH`.
+- A Hackage API token for `HACKAGE_API_TOKEN`.
+
+Publish:
 
 ```sh
 HACKAGE_PUBLISH_APPROVED=1 HACKAGE_API_TOKEN=... \
 dx deploy --apply //pkg:hackage-demo
 ```
 
-This runs `cabal upload --publish <sdist>` with `CABAL_CONFIG` naming a mode
-0600 config in a private temp directory that holds the token. The upload
-ignores your own cabal config. The token must not contain whitespace or control
-characters. A live run refuses version `0.0.0`.
+This runs `cabal upload --publish <sdist>`. `CABAL_CONFIG` names a mode 0600
+config in a private temp directory that holds the token, so the upload
+ignores your own cabal config.
+
+A live run refuses, with exit code 1, when:
+
+- The version is `0.0.0` or `0.0.0-dryrun`.
+- `HACKAGE_API_TOKEN` is missing, or holds whitespace or control characters.
+- `HACKAGE_PUBLISH_APPROVED=1` is missing.
+- `cabal` is not on `PATH`.
 
 ## luarocks_deploy
 
-Stages one rockspec locally and uploads it to LuaRocks.
+Use `luarocks_deploy` to stage one rockspec and upload it to LuaRocks.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "luarocks_deploy")
@@ -1049,32 +1156,52 @@ luarocks_deploy(
 ```
 
 - `rockspec`: required. One `<package>-<version>.rockspec`.
-- `package`: the rock name. Defaults to `name`. Must match the rockspec `package`.
-- `version`: optional. Must match the rockspec `version`, with or without the
-  `-<revision>` suffix.
+- `package`: the rock name. Defaults to `name`. It must match `package` in
+  the rockspec.
+- `version`: optional. It must match `version` in the rockspec, with or
+  without the `-<revision>` suffix.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Every run checks that the rockspec file name is `<package>-<version>.rockspec`
-for the package and version it declares. A default run stages `<name>-rock/`
-with the rockspec; it does not run `luarocks`. No credentials needed.
+Check it first. This needs no credentials and uploads nothing:
 
-Upload with `luarocks` on `PATH`:
+```sh
+dx deploy //pkg:luarocks_demo
+```
+
+Every run checks that the rockspec file name is
+`<package>-<version>.rockspec` for the package and version it declares. The
+dry run then stages `<name>-rock/` with the rockspec. It does not run
+`luarocks`.
+
+Before you publish, you need:
+
+- `luarocks` on `PATH`.
+- A LuaRocks API key for `LUAROCKS_API_TOKEN`.
+
+Publish:
 
 ```sh
 LUAROCKS_PUBLISH_APPROVED=1 LUAROCKS_API_TOKEN=... \
 dx deploy --apply //pkg:luarocks_demo
 ```
 
-This runs `luarocks upload <rockspec>`, which packs the source rock and uploads
-it. `LUAROCKS_CONFIG` names an empty config in a private temp directory whose
-mode 0600 `upload_config.lua` holds the key, so nothing is saved to your home
-config. The upload ignores your own LuaRocks config. The key must not contain
-whitespace, control characters, `"` or `\`. A live run refuses upstream version
-`0.0.0`.
+This runs `luarocks upload <rockspec>`, which packs the source rock and
+uploads it. `LUAROCKS_CONFIG` names an empty config in a private temp
+directory, next to a mode 0600 `upload_config.lua` that holds the key. The
+upload ignores your own LuaRocks config and saves nothing to it.
+
+A live run refuses, with exit code 1, when:
+
+- The version without its `-<revision>` suffix is `0.0.0` or `0.0.0-dryrun`.
+- `LUAROCKS_API_TOKEN` is missing, or holds whitespace, control characters,
+  `"` or `\`.
+- `LUAROCKS_PUBLISH_APPROVED=1` is missing.
+- `luarocks` is not on `PATH`.
 
 ## Base images
 
-`rules_oci` and `rules_pkg` with distroless base images pinned by digest.
+Container images build on distroless base images, pinned by digest and
+fetched with `rules_oci` and `rules_pkg`.
 
 | Repository | Image |
 | --- | --- |
@@ -1084,21 +1211,24 @@ whitespace, control characters, `"` or `\`. A live run refuses upstream version
 | `@distroless_java` | `gcr.io/distroless/java21-debian12` |
 | `@distroless_nodejs` | `gcr.io/distroless/nodejs22-debian12` |
 
-Each pin is the multi-arch index digest. `@<name>_linux_amd64` and `@<name>_linux_arm64` hold the single-platform images.
+Each pin is the multi-arch index digest. `@<name>_linux_amd64` and
+`@<name>_linux_arm64` hold the single-platform images.
 
 ```sh
 bazel build @distroless_static
 ```
 
-The first build fetches the layers. Later builds use the Bazel cache and need no network.
+The first build fetches the layers. Later builds use the Bazel cache and need
+no network.
 
 ## oci_image_from_binary
 
-Builds an OCI image from one binary, with no Dockerfile.
+Use `oci_image_from_binary` to build a container image from one binary, with
+no Dockerfile. It only builds files. Publish the image with
+[`oci_deploy`](#oci_deploy).
 
 ```starlark
-load("@rules_dx//deploy:defs.bzl", "oci_image_from_binary")
-load("@rules_dx//deploy:defs.bzl", "oci_deploy")
+load("@rules_dx//deploy:defs.bzl", "oci_deploy", "oci_image_from_binary")
 
 oci_image_from_binary(
     name = "image",
@@ -1112,38 +1242,55 @@ oci_deploy(
 )
 ```
 
-- `binary`: required. A `rust_binary`, `go_binary`, `cc_binary` or zig binary.
-  The binary and its runfiles go in one layer under `/app`, and the
-  entrypoint is `/app/<binary name>`.
-- `base`: `static` (default) or `cc`, the pinned distroless images listed under
-  Base images.
-- `main`: the entry script of a `python` or `node` base. It defaults to the
+Build it:
+
+```sh
+bazel build //pkg:image
+```
+
+With one platform, `<name>` is an `oci_image`. With several, it is an
+`oci_image_index` that builds the binary once per platform, and `oci_deploy`
+takes one `platform` of it. The macro also makes:
+
+- `<name>_load`: loads the image into a local container runtime when you
+  `dx run` it. With several platforms it loads the first one.
+- `<name>_binary`: the binary built for Linux.
+
+The binary and its runfiles go in one layer under `/app`. The entrypoint is
+`/app/<binary name>`.
+
+- `binary`: required. A `rust_binary`, `go_binary`, `cc_binary` or zig
+  binary, or the app a `python`, `java`, `node` or `dotnet` base runs.
+- `base`: the base image. `static` or `cc`, the distroless images in
+  [Base images](#base-images), or `python`, `java`, `node` or `dotnet`.
+  Defaults to `static`.
+- `main`: the entry script of a `python` or `node` base. Defaults to the
   binary's package and name with `.py` or `.js`, so `//app:server` runs
   `app/server.py` and `//app/server` runs `app/server/server.py`. A `dotnet`
   base defaults to `<pkg>/<name>/net10.0/<name>.dll`.
-- `main_class`: the class of a `java` base. It defaults to the `main_class` of
+- `main_class`: the class of a `java` base. Defaults to the `main_class` of
   the `java_binary`, written to an argument file next to the jars.
-- `runtime`: for the `python`, `java`, `node` and `dotnet` bases. Replaces the
-  base interpreter with a layer from the managed toolchain, installed under
-  `/opt/<base>`, on the distroless `cc` image. The dotnet runtime runs with
-  invariant globalization.
-- `platforms`: Bazel platform labels, `@rules_dx//deploy:linux_amd64`
-  or `:linux_arm64`. Defaults to the amd64 label. One platform gives an
-  `oci_image` and an `<name>_load` target that `dx run` loads into a local
-  runtime. Several platforms give an `oci_image_index` that builds the binary
-  once per platform; `oci_deploy` takes one `platform` of it, and
-  `<name>_load` loads the image of the first platform.
+- `runtime`: `True` or `False`, for the `python`, `java`, `node` and
+  `dotnet` bases. Defaults to `False`. `True` replaces the base interpreter
+  with a layer from the managed toolchain, installed under `/opt/<base>` on
+  the distroless `cc` image. The dotnet runtime runs with invariant
+  globalization.
+- `platforms`: Bazel platform labels, `@rules_dx//deploy:linux_amd64` or
+  `@rules_dx//deploy:linux_arm64`, each at most once. Defaults to
+  `["@rules_dx//deploy:linux_amd64"]`.
+- `structure_tests`: container-structure-test config files, `.yaml`, `.yml`
+  or `.json`, that `dx typecheck` runs against the image. Defaults to `[]`.
+- `tags`, `visibility`, `testonly`: passed on to the image targets.
 
 The image targets are incompatible with a Windows target platform, so a
-wildcard build on Windows skips them. A Windows exec platform still builds the
-Linux binary of an image, the `<name>_binary` target, with the Linux-target
-Rust and cc toolchains.
-
-The `oci_deploy` dry run prints the image size in bytes.
+wildcard build on Windows skips them. A Windows exec platform still builds
+the Linux binary of an image, the `<name>_binary` target, with the
+Linux-target Rust and cc toolchains.
 
 ## oci_deploy
 
-Stages one image as a local OCI layout and pushes it to a registry.
+Use `oci_deploy` to stage one image as a local OCI layout and push it to a
+container registry.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "oci_deploy")
@@ -1155,59 +1302,88 @@ oci_deploy(
 )
 ```
 
-- `image_tar`: required. A `docker save` or OCI layout archive, `.tar` or
-  `.tar.gz`, or an OCI layout directory such as a rules_oci `oci_image`,
-  holding one image.
+- `image_tar`: required. One image: a `docker save` or OCI layout archive,
+  `.tar` or `.tar.gz`, or an OCI layout directory such as a rules_oci
+  `oci_image`.
 - `platform`: required. The Bazel platform label of the image,
-  `@rules_dx//deploy:linux_amd64` or `:linux_arm64`; the deploy
-  records it as `linux/amd64` or `linux/arm64`.
-- `image_tag`: defaults to `latest`. At most 128 chars, not starting with `.` or `-`.
-- `registry`: defaults to `ghcr.io`.
+  `@rules_dx//deploy:linux_amd64` or `@rules_dx//deploy:linux_arm64`. The
+  deploy records it as `linux/amd64` or `linux/arm64`.
+- `image_tag`: defaults to `latest`. At most 128 characters, and it must
+  not start with `.` or `-`.
+- `registry`: defaults to `ghcr.io`. It may carry a path prefix, such as
+  `ghcr.io/example`. The host is case-insensitive. The path after it must be
+  lowercase with no empty segments.
 - `repository`: lowercase OCI path segments. Defaults to `name`, so a
-  mixed-case target needs `repository` set.
+  mixed-case target name needs `repository` set.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
-- `size_budget`: optional, such as `500MB`. A decimal `B`, `KB`, `MB` or `GB`
-  amount. Building fails when the image (the archive file, or the layout
-  directory tree) is larger, and prints both sizes in bytes. Empty means no budget.
-- `sbom`: optional `dx_sbom` target attested to the pushed digest.
-- `sign`: `auto` (default), `off` or `required`. After the push, a live run runs
-  `cosign sign --yes <registry>/<repository>@<digest>` and, with `sbom`,
-  `cosign attest --yes --type spdxjson --predicate <sbom> <ref>` with the pinned
-  cosign, when `COSIGN_KEY` is set or the run has a GitHub OIDC token
-  (`ACTIONS_ID_TOKEN_REQUEST_URL`); `required` fails without either. A keyless
-  run then checks both with `cosign verify` and `cosign verify-attestation`.
-  `COSIGN_REPOSITORY` stores the signatures in another repository.
+- `size_budget`: optional, such as `500MB`. The build fails when the image,
+  the archive file or the layout directory tree, is larger.
+- `sbom`: optional. A `sbom` target, attested to the pushed digest.
+- `scan`: `off`, `warn` or `fail`. Defaults to `fail`. Scans the staged
+  image for vulnerabilities with `trivy`. See below.
+- `scan_severity`: the lowest severity the scan reports: `LOW`, `MEDIUM`,
+  `HIGH` or `CRITICAL`. Defaults to `HIGH`.
+- `sign`: `auto`, `off` or `required`. Defaults to `auto`. See below.
 
-Default run stages `<repository>-oci-layout/` with an `index.json`. No
-credentials needed. It prints the signing identity and the two cosign commands.
+The scan runs `trivy`, from `DX_TRIVY` or else `PATH`, offline against a
+pinned database. Findings that an exception in the workspace `security.toml`
+covers are left out. With `warn`, the run prints the findings. With `fail`,
+findings or a scan error make the run exit 1.
 
-Push:
+With `sign` set to `auto` or `required`, a live run signs the pushed image
+with the pinned cosign when `COSIGN_KEY` is set or the run has a GitHub OIDC
+token (`ACTIONS_ID_TOKEN_REQUEST_URL`). After the push it runs
+`cosign sign --yes <registry>/<repository>@<digest>` and, with `sbom`,
+`cosign attest --yes --type spdxjson --predicate <sbom> <ref>`. A keyless run
+then checks both with `cosign verify` and `cosign verify-attestation`. Set
+`COSIGN_REPOSITORY` to store the signatures in another repository.
+
+Check it first. This needs no credentials and pushes nothing:
 
 ```sh
-OCI_PUBLISH_APPROVED=1 \
-OCI_API_USER=... OCI_API_TOKEN=... \
+dx deploy //pkg:oci_demo
+```
+
+The dry run stages `<repository>-oci-layout/` with an `index.json` and
+prints the image size in bytes. It prints the signing identity, or `none`,
+and the cosign commands a live run would run. Then it runs the scan.
+
+Before you publish, you need:
+
+- A registry user name for `OCI_API_USER`.
+- A registry token or password for `OCI_API_TOKEN`.
+
+You do not need `docker`.
+
+Publish:
+
+```sh
+OCI_PUBLISH_APPROVED=1 OCI_API_USER=... OCI_API_TOKEN=... \
 dx deploy --apply //pkg:oci_demo
 ```
 
-A live run stages the same layout into the output dir and uploads it over
-HTTPS with the OCI Distribution API. No docker needed. It prints
+This stages the same layout into the output directory, scans it and uploads
+it over HTTPS with the OCI Distribution API. It sends the credentials as a
+Basic login, or trades them for a bearer token, as the registry asks. Layers
+go up as staged, so uncompressed layers stay uncompressed. It prints
 `oci_deploy: pushed <registry>/<repository>:<tag>@sha256:...`, the digest of
-the staged manifest. Layers go up as staged, so uncompressed layers stay
-uncompressed.
+the staged manifest.
 
-- Auth: `OCI_API_USER` and `OCI_API_TOKEN`, sent as a Basic login or
-  exchanged for a bearer token, as the registry asks.
-- `registry` may carry a path prefix, such as `ghcr.io/example`. The host is
-  case-insensitive; the path after it must be lowercase with no empty segments.
-- `docker.io` pushes to `registry-1.docker.io`; a single-segment repository
-  gets `library/`.
-- Plain-HTTP registries are not supported.
+`docker.io` pushes to `registry-1.docker.io`, and a single-segment
+repository gets `library/`. Plain-HTTP registries are not supported.
 
-A live run refuses tags `0.0.0` and `0.0.0-dryrun`.
+A live run refuses, with exit code 1, when:
+
+- The tag is `0.0.0` or `0.0.0-dryrun`.
+- `OCI_API_USER` or `OCI_API_TOKEN` is missing.
+- `OCI_PUBLISH_APPROVED=1` is missing.
+- `scan = "fail"` and the scan finds something or cannot run.
+- `sign = "required"` and there is neither `COSIGN_KEY` nor an OIDC token.
 
 ## octopus_deploy
 
-Stages one package for Octopus Deploy and pushes it to an Octopus server.
+Use `octopus_deploy` to stage one package for Octopus Deploy, push it to an
+Octopus server and create a release.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "octopus_deploy")
@@ -1222,22 +1398,35 @@ octopus_deploy(
 ```
 
 - `srcs`: required. One `.tar.gz` named `<package>.<version>.tar.gz`.
-- `package`: the Octopus package id. Defaults to `name`.
 - `project`: required. The Octopus project.
+- `package`: the Octopus package id. Defaults to `name`.
 - `channel`: defaults to `Default`.
-- `version`: defaults to empty. The launcher reads the version from the
-  archive filename; a non-empty value must match it.
-- `deploy_to`: environments for the release command. Defaults to `[]`.
-- `space`: defaults to empty, the default space. `OCTOPUS_SPACE` overrides it.
-- `registry_url`: an https URL. Defaults to `https://octopus.example.invalid`.
-  `OCTOPUS_URL` overrides it.
+- `version`: empty by default, which takes the version from the archive file
+  name. When you set it, it must match that version.
+- `deploy_to`: the environments to deploy the release to. Defaults to `[]`.
+- `space`: empty by default, which means the default space. `OCTOPUS_SPACE`
+  overrides it.
+- `registry_url`: the server, an https URL. Defaults to
+  `https://octopus.example.invalid`. `OCTOPUS_URL` overrides it.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Default run stages `<name>-drop/` with the package and a `would-run.txt`
-holding the `octo push` and `octo create-release` commands. No credentials
-needed.
+Check it first. This needs no credentials and pushes nothing:
 
-Push with `octo` on `PATH`:
+```sh
+dx deploy //pkg:octopus_demo
+```
+
+The dry run checks the package and the spec, and stages `<name>-drop/` with
+the package and a `would-run.txt`. That file holds the `octo push` and
+`octo create-release` commands. It runs no `octo` command.
+
+Before you publish, you need:
+
+- `octo` on `PATH`.
+- An Octopus API key for `OCTOPUS_API_TOKEN`.
+- The server URL in `OCTOPUS_URL`, unless `registry_url` already names it.
+
+Publish:
 
 ```sh
 OCTOPUS_PUBLISH_APPROVED=1 OCTOPUS_API_TOKEN=... \
@@ -1246,22 +1435,27 @@ dx deploy --apply //pkg:octopus_demo
 ```
 
 This runs `octo push --package`, then `octo create-release` with a
-`--deployTo` for each `deploy_to`. Deployments are queued, not awaited.
+`--deployTo` for each `deploy_to` entry. Deployments are queued, not awaited.
+The key reaches `octo` as `OCTOPUS_CLI_API_KEY` in its environment, never the
+command line.
 
-A default run checks the package and the spec and runs no `octo` command.
-Rerunning a published version: `octo push` fails because the package exists,
-the run exits 1 and the hint names `FailIfExists`. That includes a rerun after
-a failed `create-release`. The key goes to `octo` as `OCTOPUS_CLI_API_KEY` in its
-env, never the command line. A live run refuses the placeholder versions `0.0.0`
-and `0.0.0-dryrun`, the default `registry_url`, and an `OCTOPUS_URL` that is not
-an https URL or that holds a user or password.
+If the version is already on the server, `octo push` fails, the run exits 1
+and the hint names `FailIfExists`. That includes a rerun after a failed
+`create-release`.
+
+A live run refuses, with exit code 1, when:
+
+- The version is `0.0.0` or `0.0.0-dryrun`.
+- The server is the default `registry_url` and `OCTOPUS_URL` is not set.
+- The server URL is not https, or holds a user or password.
+- `OCTOPUS_API_TOKEN` is missing.
+- `OCTOPUS_PUBLISH_APPROVED=1` is missing.
+- `octo` is not on `PATH`.
 
 ## pypi_deploy
 
-Stages one wheel and an optional sdist as a local PEP 503 index. A live run
-uploads them to PyPI with `twine`.
-Native wheels come from `py_wheel`; there is no path that rebuilds an
-extension from the sdist.
+Use `pypi_deploy` to stage one wheel and an optional sdist as a local PEP 503
+index, and upload them to PyPI with `twine`.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "pypi_deploy")
@@ -1273,24 +1467,36 @@ pypi_deploy(
 )
 ```
 
-Attributes:
-
-- `name`: the distribution name. Letters, digits, `.`, `_` and `-` only. It
-  must start and end with a letter or digit. It names the wheelhouse
+- `name`: the distribution name. Letters, digits, `.`, `_` and `-` only, and
+  it must start and end with a letter or digit. It names the wheelhouse
   directory.
 - `wheel`: required. One `.whl` file named
   `name-version-python-abi-platform.whl`. An optional build tag adds a sixth
-  field.
+  field. Native wheels come from `py_wheel`. `pypi_deploy` never rebuilds an
+  extension from the sdist.
 - `sdist`: optional. One `.tar.gz` file named `name-version.tar.gz`. Its
   project and version must match the wheel's.
-- `registry_url`: must start with `https://`. Defaults to
+- `registry_url`: an https URL. Defaults to
   `https://upload.pypi.org/legacy/`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
+- `api_compat`, `api_baseline`: see [Public API compatibility](#public-api-compatibility).
+- `api_package`: the import name the API check reads. Defaults to the
+  distribution name.
+- `api_src`: the workspace-relative source directory the API check reads at
+  the git tag. `api_baseline = "git"` needs it.
 
 Project names are PEP 503 normalized: lowercased, with each run of `.`, `_`
 or `-` replaced by one `-`.
 
-A default run writes into the output directory (see Common behavior):
+Check it first. This needs no credentials and uploads nothing:
+
+```sh
+dx deploy //pkg:pypi_demo
+```
+
+The dry run checks the wheel and sdist file names and that their project and
+version match. It does not run `twine`. It writes this tree into the output
+directory, see [Common behavior](#common-behavior):
 
 ```text
 <name>-wheelhouse/
@@ -1311,54 +1517,62 @@ pypi_deploy: staged <name> (build_mode: <build_mode>)
   index: <path>/<name>-wheelhouse/simple-index/<project>/index.html
 ```
 
-A dry run needs no credentials. `dx deploy --apply` publishes and needs:
+Before you publish, you need:
 
-- `PYPI_PUBLISH_APPROVED=1`
-- `PYPI_API_TOKEN`: sent to `twine` as the password, with username `__token__`.
-  It never goes on the command line. When it is unset and
-  `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN` are set,
-  the run exchanges that identity for an upload token at
-  `https://pypi.org/_/oidc/mint-token` (`https://test.pypi.org/_/oidc/mint-token`
-  for `test.pypi.org`). Any other registry needs `PYPI_API_TOKEN`.
+- `twine` on `PATH`.
+- A PyPI API token for `PYPI_API_TOKEN`, or a GitHub trusted-publisher
+  identity: `ACTIONS_ID_TOKEN_REQUEST_URL` and
+  `ACTIONS_ID_TOKEN_REQUEST_TOKEN`.
 
-When the identity variables are set, the run first signs the staged files with
-the `pypi-attestations` pinned in `core/quality/tools/python/uv.lock` and passes
-the `.publish.attestation` files to `twine upload --attestations`.
-Signing is unavailable on windows_arm64 execution platforms, so a run that
-would sign there refuses before it uploads.
-
-`twine` must be on `PATH`. The run calls `twine upload --non-interactive
---repository-url <registry_url>` with the wheel and sdist files. It does
-not write `<name>-wheelhouse/` and does not check file names. On success it
-prints:
-
-```text
-pypi_deploy: uploaded <wheel file> to <registry_url>
-```
-
-A default run checks the wheel and sdist file names and that their project and
-version match. It does not run `twine`. A live run first runs `twine check
---strict`. Rerunning a published version: PyPI refuses the file, the run
-prints `pypi_deploy: <file> version <version> is already on <url>; upload a new
-version` and exits 1.
-
-`twine` runs with a cleared environment. Only `REQUESTS_CA_BUNDLE` and the
-keep-list in Common behavior pass through.
+Publish:
 
 ```sh
 PYPI_PUBLISH_APPROVED=1 PYPI_API_TOKEN=... \
 dx deploy --apply //pkg:pypi_demo
 ```
 
+`PYPI_API_TOKEN` reaches `twine` as the password, with user name
+`__token__`, never on the command line. Without it, the run trades the
+GitHub identity for an upload token at `https://pypi.org/_/oidc/mint-token`,
+or `https://test.pypi.org/_/oidc/mint-token` for `test.pypi.org`. Any other
+registry needs `PYPI_API_TOKEN`.
+
+When the identity variables are set, the run first signs the staged files
+with the `pypi-attestations` pinned in `core/quality/tools/python/uv.lock`.
+It passes the `.publish.attestation` files to `twine upload --attestations`.
+
+The live run does not write `<name>-wheelhouse/` and does not check file
+names. It runs `twine check --strict`, then
+`twine upload --non-interactive --repository-url <registry_url>` with the
+wheel and sdist files. `twine` runs with a cleared environment. Only
+`REQUESTS_CA_BUNDLE` and the keep-list in [Common behavior](#common-behavior)
+pass through. On success it prints:
+
+```text
+pypi_deploy: uploaded <wheel file> to <registry_url>
+```
+
+If the version is already on PyPI, PyPI refuses the file. The run prints
+`pypi_deploy: <file> version <version> is already on <url>; upload a new version`
+and exits 1.
+
+A live run refuses, with exit code 1, when:
+
+- `PYPI_PUBLISH_APPROVED=1` is missing.
+- Neither `PYPI_API_TOKEN` nor a trusted-publisher identity is set.
+- It would sign on a windows_arm64 execution platform, where signing is
+  unavailable.
+
 Exit codes:
 
 - `0`: the wheelhouse is staged, or the upload succeeds.
-- `1`: invalid file names or mismatched sdist, a refused live run, or a
+- `1`: invalid file names or a mismatched sdist, a refused live run, or a
   failed `twine` upload.
 
 ## helm_chart_deploy
 
-Packages a `helm_library` with the pinned `helm` and pushes it to an OCI registry.
+Use `helm_chart_deploy` to package a `helm_library` with the pinned `helm`
+and push it to an OCI registry.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "helm_chart_deploy")
@@ -1370,87 +1584,131 @@ helm_chart_deploy(
 )
 ```
 
-- `chart`: a `helm_library` target. Its files are copied to a staging directory.
-- `version`: optional; empty publishes `Chart.yaml`'s `version`, a non-empty value
-  must equal it.
-- `registry`: host plus optional path (lowercase, no empty segments, as for
-  `oci_deploy`). `repository` adds a path below it.
-- The pinned helm from `//config:tool_helm` is always used.
+- `chart`: required. A `helm_library` target with a `Chart.yaml`. Its files
+  are copied to a staging directory.
+- `registry`: required. A host plus an optional path, as for
+  [`oci_deploy`](#oci_deploy): lowercase, with no empty segments.
+- `repository`: a path below `registry`. Defaults to none.
+- `version`: empty by default, which publishes the `version` in
+  `Chart.yaml`. When you set it, it must equal that version.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-A dry run runs `helm lint`, then `helm package`, and prints the `.tgz` path.
-A live run (`dx deploy --apply`) needs `HELM_PUBLISH_APPROVED=1`, `OCI_API_USER`
-and `OCI_API_TOKEN`. It logs
-in with `helm registry login` into a throwaway registry config, runs
-`helm push <chart>.tgz oci://<registry>/<repository>`, and removes the config.
-Placeholder versions (`0.0.0`) are refused. `helm` runs with a cleared
+It always uses the pinned helm from `//config:tool_helm`, with a cleared
 environment.
+
+Check it first. This needs no credentials and pushes nothing:
+
+```sh
+dx deploy //pkg:helm_demo
+```
+
+The dry run runs `helm lint`, then `helm package`, and prints the `.tgz`
+path.
+
+Before you publish, you need:
+
+- A registry user name for `OCI_API_USER`.
+- A registry token or password for `OCI_API_TOKEN`.
+
+Publish:
+
+```sh
+HELM_PUBLISH_APPROVED=1 OCI_API_USER=... OCI_API_TOKEN=... \
+dx deploy --apply //pkg:helm_demo
+```
+
+This logs in with `helm registry login` into a throwaway registry config,
+runs `helm push <chart>.tgz oci://<registry>/<repository>`, and removes the
+config.
+
+A live run refuses, with exit code 1, when:
+
+- The version is `0.0.0` or `0.0.0-dryrun`.
+- `OCI_API_USER` or `OCI_API_TOKEN` is missing.
+- `HELM_PUBLISH_APPROVED=1` is missing.
 
 Exit codes:
 
 - `0`: the chart is packaged, or pushed.
-- `1`: a version mismatch, a lint or package failure, a refused live run, or a
-  failed push.
+- `1`: a version mismatch, a lint or package failure, a refused live run, or
+  a failed push.
 
-## dx_split_debug_info
+## split_debug_info
 
-Splits the debug info out of a Linux `cc_binary`.
+Use `split_debug_info` to split the debug info out of a Linux `cc_binary`,
+so you can ship the stripped binary and keep the symbols. It only builds
+files.
 
 ```starlark
-load("@rules_dx//deploy:defs.bzl", "dx_split_debug_info")
+load("@rules_dx//deploy:defs.bzl", "split_debug_info")
 
-dx_split_debug_info(
+split_debug_info(
     name = "app_split",
     binary = ":app",
 )
 ```
 
-Build it to get the stripped binary. The debug file and the manifest are in the
-`symbols` output group.
+Compile the binary with `-g` and do not strip it at link time. Build the
+`symbols` output group:
 
 ```sh
 bazel build --output_groups=symbols //pkg:app_split
 ```
 
-This writes `app_split.debug` and `app_split.symbols.json`. The manifest has
-the build-id, arch, sha256 of the stripped binary, debug file name and
-`llvm-objcopy` version. The target is Linux only.
+The target itself builds the stripped binary. The `symbols` output group
+holds:
 
-Compile with `-g` and do not strip at link time. Look up an address with
-`llvm-symbolizer`:
+- `app_split.debug`: the debug info.
+- `app_split.symbols.json`: a manifest with the build-id, arch, sha256 of the
+  stripped binary, debug file name and `llvm-objcopy` version.
+
+The build fails if the stripped binary and the debug file differ in build-id
+or arch.
+
+- `binary`: required. The Linux `cc_binary`.
+- `target_compatible_with`: defaults to Linux only.
+- Bazel's common attributes, such as `tags` and `visibility`.
+
+Look up an address with `llvm-symbolizer`:
 
 ```sh
 llvm-symbolizer --obj=app_split.debug 0x401136
 ```
 
-The build fails if the stripped binary and the debug file differ in build-id
-or arch.
+## dsym
 
-## dx_dsym
-
-Pairs the dSYM of a macOS `cc_binary` with that binary.
+Use `dsym` to pair the dSYM of a macOS `cc_binary` with that binary. It
+only builds files.
 
 ```starlark
-load("@rules_dx//deploy:defs.bzl", "dx_dsym")
+load("@rules_dx//deploy:defs.bzl", "dsym")
 
-dx_dsym(
+dsym(
     name = "app_dsym",
     binary = ":app",
 )
 ```
 
-The `binary` is built again with `apple_generate_dsym` set, through a
-transition, so the link writes the dSYM bundle. Build the `symbols` output
-group to get the bundle and the manifest:
+Build the `symbols` output group:
 
 ```sh
 bazel build --output_groups=symbols //pkg:app_dsym
 ```
 
-This writes `app_dsym.dSYM` and `app_dsym.dsym.json`. The bundle keeps its
-DWARF file under `Contents/Resources/DWARF/`. The manifest has the Mach-O UUID,
-arch, sha256 of the binary, DWARF path and `dsymutil` version. The build fails
-if the bundle has no DWARF file, or if its UUID or arch differ from the binary.
-The target is macOS only.
+The `binary` is built again with `apple_generate_dsym` set, so the link
+writes the dSYM bundle. The `symbols` output group holds:
+
+- `app_dsym.dSYM`: the bundle, with its DWARF file under
+  `Contents/Resources/DWARF/`.
+- `app_dsym.dsym.json`: a manifest with the Mach-O UUID, arch, sha256 of the
+  binary, DWARF path and `dsymutil` version.
+
+The build fails if the bundle has no DWARF file, or if its UUID or arch
+differ from the binary.
+
+- `binary`: required. The macOS `cc_binary`.
+- `target_compatible_with`: defaults to macOS only.
+- Bazel's common attributes, such as `tags` and `visibility`.
 
 Look up an address in the bundle with `llvm-symbolizer`:
 
@@ -1458,33 +1716,41 @@ Look up an address in the bundle with `llvm-symbolizer`:
 llvm-symbolizer --obj=app_dsym.dSYM/Contents/Resources/DWARF/app 0x100003f40
 ```
 
-## dx_pdb
+## pdb
 
-Pairs the PDB of a Windows `cc_binary` with that binary.
+Use `pdb` to pair the PDB of a Windows `cc_binary` with that binary. It
+only builds files.
 
 ```starlark
-load("@rules_dx//deploy:defs.bzl", "dx_pdb")
+load("@rules_dx//deploy:defs.bzl", "pdb")
 
-dx_pdb(
+pdb(
     name = "app_pdb",
     binary = ":app",
 )
 ```
 
-The `binary` is built again with the `generate_pdb_file` feature added,
-through a transition, so the link writes the PDB. Build the `symbols` output
-group to get the PDB and the manifest:
+Build the `symbols` output group:
 
 ```sh
 bazel build --output_groups=symbols //pkg:app_pdb
 ```
 
-This writes the PDB the link wrote, such as `app.pdb`, and `app_pdb.pdb.json`. The manifest has the
-CodeView GUID and age, arch, sha256 of the binary, PDB name, CodeView path and
-linker version. The build fails if the PDB is not a PDB, or if its GUID, age or
-machine differ from the binary. The target is Windows only.
+The `binary` is built again with the `generate_pdb_file` feature added, so
+the link writes the PDB. The `symbols` output group holds:
 
-Look up an address (a relative virtual address) with `llvm-symbolizer`:
+- The PDB the link wrote, such as `app.pdb`.
+- `app_pdb.pdb.json`: a manifest with the CodeView GUID and age, arch, sha256
+  of the binary, PDB name, CodeView path and linker version.
+
+The build fails if the PDB is not a PDB, or if its GUID, age or machine
+differ from the binary.
+
+- `binary`: required. The Windows `cc_binary`.
+- `target_compatible_with`: defaults to Windows only.
+- Bazel's common attributes, such as `tags` and `visibility`.
+
+Look up an address, a relative virtual address, with `llvm-symbolizer`:
 
 ```sh
 llvm-symbolizer --obj=app.exe --pdb=app.pdb --relative-address 0x1000
@@ -1492,7 +1758,8 @@ llvm-symbolizer --obj=app.exe --pdb=app.pdb --relative-address 0x1000
 
 ## opam_deploy
 
-Opens a pull request to `ocaml/opam-repository` that adds one package version.
+Use `opam_deploy` to open a pull request to `ocaml/opam-repository` that adds
+one package version.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "opam_deploy")
@@ -1507,22 +1774,47 @@ opam_deploy(
 
 - `package`: required. Letters, digits, `_`, `+` and `-`.
 - `version`: required. Letters, digits, `.`, `_`, `+`, `~` and `-`.
-- `opam_file`: required. A file named `opam`. A `name:` or `version:` field in
-  it must equal `package` and `version`.
+- `opam_file`: required. A file named `opam`. A `name:` or `version:` field
+  in it must equal `package` and `version`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Default run lints the file with the pinned opam (a sha256-pinned release
-download) and prints the target path
-`packages/<package>/<package>.<version>/opam`. It contacts nothing.
-Live run needs `OPAM_API_TOKEN` (a GitHub token that can fork and open pull
-requests) and `OPAM_PUBLISH_APPROVED=1`. It forks `ocaml/opam-repository`,
-commits the file on a branch named `<package>.<version>` (characters outside
-`[A-Za-z0-9._-]`, such as `~`, become `-`) and opens the pull request against
-`master`. A rerun updates the file on that branch and reports the already open
-pull request.
+Check it first. This needs no credentials and contacts nothing:
+
+```sh
+dx deploy //pkg:opam_demo
+```
+
+The dry run lints the file with the pinned opam, a release download pinned by
+sha256. It prints the target path
+`packages/<package>/<package>.<version>/opam`.
+
+Before you publish, you need:
+
+- A GitHub token that can fork and open pull requests, for
+  `OPAM_API_TOKEN`.
+
+Publish:
+
+```sh
+OPAM_PUBLISH_APPROVED=1 OPAM_API_TOKEN=... \
+dx deploy --apply //pkg:opam_demo
+```
+
+This forks `ocaml/opam-repository` and commits the file on a branch named
+`<package>.<version>`. Characters outside `[A-Za-z0-9._-]`, such as `~`,
+become `-` in the branch name. Then it opens the pull request against
+`master`. A rerun updates the file on that branch and reports the pull
+request that is already open.
+
+A live run refuses, with exit code 1, when:
+
+- `OPAM_API_TOKEN` is missing.
+- `OPAM_PUBLISH_APPROVED=1` is missing.
 
 ## packagist_deploy
 
-Asks Packagist to update a package after its git tag is pushed.
+Use `packagist_deploy` to ask Packagist to update a package after you push
+its git tag.
 
 ```starlark
 load("@rules_dx//deploy:defs.bzl", "packagist_deploy")
@@ -1535,23 +1827,50 @@ packagist_deploy(
 )
 ```
 
-- `package`: required. `vendor/name`, lowercase. Must equal `name` in
+- `package`: required. `vendor/name`, lowercase. It must equal `name` in
   `composer_json`.
 - `composer_json`: required. A file named `composer.json`.
 - `repository_url`: required. The `https://` URL registered on Packagist.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
-Default run checks the name and prints the request. It contacts nothing.
-Live run needs `PACKAGIST_USERNAME`, `PACKAGIST_API_TOKEN` and
-`PACKAGIST_PUBLISH_APPROVED=1`, and posts to
-`https://packagist.org/api/update-package`.
+Check it first. This needs no credentials and contacts nothing:
+
+```sh
+dx deploy //pkg:packagist_demo
+```
+
+The dry run checks the name and prints the request.
+
+Before you publish, you need:
+
+- The release tag pushed to the repository.
+- Your Packagist user name for `PACKAGIST_USERNAME`.
+- A Packagist API token for `PACKAGIST_API_TOKEN`.
+
+Publish:
+
+```sh
+PACKAGIST_PUBLISH_APPROVED=1 PACKAGIST_USERNAME=... PACKAGIST_API_TOKEN=... \
+dx deploy --apply //pkg:packagist_demo
+```
+
+This posts to `https://packagist.org/api/update-package`.
+
+A live run refuses, with exit code 1, when:
+
+- `PACKAGIST_USERNAME` or `PACKAGIST_API_TOKEN` is missing.
+- `PACKAGIST_PUBLISH_APPROVED=1` is missing.
 
 ## Registries released by tag
 
-Go, Julia, Swift and dub have no deploy rule. The release is a git tag.
-`github_deploy` with `release_tag` set to the tag adds a GitHub release.
+Go, Julia, Swift and dub have no deploy rule. You release by pushing a git
+tag. To add a GitHub release too, use `github_deploy` with `release_tag` set
+to the tag.
 
-- Go: push the tag `vX.Y.Z`. The module proxy fetches it from the repository.
-- Julia: push the tag, then comment `@JuliaRegistrator register` on the commit.
+- Go: push the tag `vX.Y.Z`. The module proxy fetches it from the
+  repository.
+- Julia: push the tag, then comment `@JuliaRegistrator register` on the
+  commit.
 - Swift: push a semver tag such as `1.2.0`. SwiftPM reads versions from tags.
 - dub: push a semver tag such as `v1.2.0`. The dub registry reads versions
   from tags.
@@ -1565,15 +1884,16 @@ PHP, opam and CPAN have a deploy rule:
 ## Public API compatibility
 
 `crates_deploy`, `maven_deploy`, `npm_deploy`, `pypi_deploy`, `nuget_deploy`,
-`pub_deploy` and `github_deploy` check the public API the same way. Every run compares the version being
-deployed with the highest earlier release and lists the breaking changes.
+`pub_deploy` and `github_deploy` check the public API the same way. Every run
+compares the version you deploy with the highest earlier release and lists
+the breaking changes.
 
-- `api_compat`: `fail` (default), `warn` or `off`. With `fail`, breaking
-  changes refuse the run unless the major version goes up. With `warn` they are
-  only printed.
-- `api_baseline`: `registry` (default) or `git`. `registry` reads the highest
-  published version below the new one from the registry. `git` uses the highest
-  `v*` tag below the new version.
+- `api_compat`: `fail`, `warn` or `off`. Defaults to `fail`. With `fail`,
+  breaking changes refuse the run unless the major version goes up. With
+  `warn`, they are only printed.
+- `api_baseline`: `registry` or `git`. Defaults to `registry`. `registry`
+  reads the highest published version below the new one from the registry.
+  `git` uses the highest `v*` tag below the new version.
 
 A first release passes. When the earlier release cannot be fetched, the check
 prints why and is skipped. The tools are pinned and come with the rule.
@@ -1590,17 +1910,24 @@ prints why and is skipped. The tools are pinned and come with the rule.
 
 ## Common behavior
 
-Except for `cloudflare_pages_deploy`, a default run writes into the
-workspace root, or into the directory given as the first argument. A live
-run without its credentials or its `*_APPROVED=1` variable is refused. Exit
-codes: `0` staged or published, `1` any failure or refusal.
+Except for `cloudflare_pages_deploy`, a dry run writes into the workspace
+root, or into the directory you pass as the first argument. Every deploy
+target, `npm_deploy` included, rejects any other argument.
 
-Every deploy target, `npm_deploy` included, rejects arguments beyond that output
-directory. Deploy targets run through `bazel run` or `dx deploy`, which set
-`DX_DEPLOY_CONFIG`. Publisher tools (`twine`, `dotnet`, `cargo`, `gh`, `octo`,
-`npm`, `cabal`, `luarocks`) run with a cleared environment plus a per-tool keep-list. Secrets reach
-them only through that environment, stdin or a temp file, never
-argv. On Unix the temp file is mode 0600. On Windows it relies on the user
-temp directory's access list. The exception is `wrangler`,
-which has its own narrower list. The `npm`, `twine`, `dotnet` and `octo`
-output has the token replaced with `[redacted]` and appears when the tool exits.
+Deploy targets run through `dx deploy` or `bazel run`, which set
+`DX_DEPLOY_CONFIG`.
+
+A live run without its credentials or its `*_APPROVED=1` variable is refused.
+
+Exit codes:
+
+- `0`: staged or published.
+- `1`: any failure or refusal.
+
+Publisher tools (`twine`, `dotnet`, `cargo`, `gh`, `octo`, `npm`, `cabal`,
+`luarocks`) run with a cleared environment plus a keep-list for each tool.
+`wrangler` has its own, narrower list. Secrets reach a tool only through that
+environment, stdin or a temp file, never its command line. On Unix the temp
+file is mode 0600. On Windows it relies on the access list of your temp
+directory. In `npm`, `twine`, `dotnet` and `octo` output, the token is
+replaced with `[redacted]`, and the output appears when the tool exits.

@@ -47,7 +47,8 @@
   "entry_points": [
     "fortran_library",
     "fortran_binary",
-    "fortran_test"
+    "fortran_test",
+    "fortran_doc_shard"
   ],
   "quality": {
     "bzl": "fortran/private/quality:fortran.bzl",

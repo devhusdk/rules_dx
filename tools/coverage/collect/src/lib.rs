@@ -1,10 +1,21 @@
 //! Collects LLVM coverage for tests with one llvm-profdata and llvm-cov pair.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 pub mod apple;
+pub mod apple_post;
 mod collect;
 mod gcov;
+mod linemap;
 
 use std::env;
 use std::fs;
@@ -85,6 +96,17 @@ impl Context {
         Ok(objects)
     }
 
+    /// Finds a file nvcc kept under `--keep-dir`, in the execroot or in runfiles.
+    fn kept_file(&self, source: &str) -> Option<PathBuf> {
+        let in_execroot = collect::resolve(&self.execroot, source);
+        if in_execroot.exists() {
+            return Some(in_execroot);
+        }
+        let key = gcov::runfiles_key(source, &env::var("TEST_WORKSPACE").ok()?)?;
+        let in_runfiles = self.runfiles_dir.as_ref()?.join(key);
+        in_runfiles.exists().then_some(in_runfiles)
+    }
+
     fn object(&self, line: &str) -> Option<PathBuf> {
         let in_execroot = collect::resolve(&self.execroot, line);
         if in_execroot.exists() {
@@ -97,11 +119,27 @@ impl Context {
 }
 
 fn required(name: &str) -> Result<String, String> {
-    env::var(name).map_err(|_| format!("{name} is not set"))
+    env::var(name).map_err(|error| format!("{name} is not set: {error}"))
 }
 
 fn read_text(path: &Path) -> Result<String, String> {
     fs::read_to_string(path).map_err(|e| format!("cannot read {}: {e}", path.display()))
+}
+
+/// Removes a scratch file or directory tree, ignoring a missing path and reporting other failures on stderr.
+pub fn remove_scratch(path: &Path) {
+    let removed = if path.is_dir() {
+        fs::remove_dir_all(path)
+    } else {
+        fs::remove_file(path)
+    };
+    match removed {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => eprintln!(
+            "dx coverage collector: cannot remove {}: {error}",
+            path.display()
+        ),
+        _ => {}
+    }
 }
 
 fn merge(profdata: &Path, inputs: &[PathBuf], output: &Path) -> Result<(), String> {
@@ -182,9 +220,10 @@ fn export(
         }
         return Err(format!("llvm-cov export failed:\n{stderr}"));
     }
-    let report =
-        String::from_utf8(out.stdout).map_err(|_| "llvm-cov export wrote non-UTF-8".to_owned())?;
+    let report = String::from_utf8(out.stdout)
+        .map_err(|error| format!("llvm-cov export wrote non-UTF-8: {error}"))?;
     let report = collect::rewrite_paths(&report, &ctx.execroot);
+    let report = linemap::remap(&report, &|source| ctx.kept_file(source));
     for source in report.lines().filter(|line| line.starts_with("SF:")) {
         debug_log!("{source}");
     }
@@ -325,7 +364,7 @@ fn collect_all() -> Result<(), String> {
 
     debug_log!("Writing output to {}", output.display());
     fs::write(&output, report).map_err(|e| format!("cannot write report: {e}"))?;
-    fs::remove_file(&merged).ok();
+    remove_scratch(&merged);
     Ok(())
 }
 // LCOV_EXCL_STOP
@@ -401,5 +440,36 @@ mod tests {
             err.contains("version mismatch") && err.contains("cc broke"),
             "{err}"
         );
+    }
+
+    fn scratch_dir(name: &str) -> PathBuf {
+        let base = env::var_os("TEST_TMPDIR").map_or_else(env::temp_dir, PathBuf::from);
+        let dir = base.join(name);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn remove_scratch_removes_a_file() {
+        let file = scratch_dir("remove_scratch_file").join("merged.profdata");
+        fs::write(&file, "data").unwrap();
+        remove_scratch(&file);
+        assert!(!file.exists());
+    }
+
+    #[test]
+    fn remove_scratch_removes_a_directory_tree() {
+        let dir = scratch_dir("remove_scratch_tree").join("profile");
+        fs::create_dir_all(dir.join("nested")).unwrap();
+        fs::write(dir.join("nested").join("a.profraw"), "data").unwrap();
+        remove_scratch(&dir);
+        assert!(!dir.exists());
+    }
+
+    #[test]
+    fn remove_scratch_ignores_a_missing_path() {
+        let missing = scratch_dir("remove_scratch_missing").join("absent");
+        remove_scratch(&missing);
+        assert!(!missing.exists());
     }
 }

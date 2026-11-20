@@ -1,8 +1,8 @@
 """D toolchain pin and acquisition tests."""
 
 load("@dx_pins_data//:pins.bzl", "ARCHIVES")
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//d/private/toolchain:ldmd2.bzl", "ldmd2_descriptor")
 load("//d/private/toolchain:pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_CROSS_CELLS", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_VERSION")
 load("//d/private/toolchain:repos.bzl", "LDC_BUILD", "cross_build", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
@@ -14,12 +14,18 @@ def _checks():
     arm64_build = ldc_build(LDC_CELLS["windows_arm64"])
     hub = hub_build()
     to_arm64 = cross_build(LDC_CROSS_CELLS["linux_x86_64_to_linux_arm64"])
+    to_windows_arm64 = cross_build(LDC_CROSS_CELLS["windows_x86_64_to_windows_arm64"])
+    to_windows_x64 = cross_build(LDC_CROSS_CELLS["windows_arm64_to_windows_x86_64"])
     return hub_checks(hub, "//d/private/toolchain:toolchain_type", len(LDC_CELLS) + len(LDC_CROSS_CELLS), ["@rules_d//"]) + [
-        expect_equal("cross cells", sorted(LDC_CROSS_CELLS.keys()), ["linux_arm64_to_linux_x86_64", "linux_x86_64_to_linux_arm64", "macos_arm64_to_linux_arm64"]),
+        expect_equal("cross cells", sorted(LDC_CROSS_CELLS.keys()), ["linux_arm64_to_linux_x86_64", "linux_x86_64_to_linux_arm64", "macos_arm64_to_linux_arm64", "windows_arm64_to_windows_x86_64", "windows_x86_64_to_windows_arm64"]),
         expect_contains("a cross cell runs the host compiler", to_arm64, 'd_compiler = "@dx_d_toolchains__linux_x86_64//:dmd"'),
         expect_contains("a cross cell links the target druntime", to_arm64, 'druntime = "@dx_d_toolchains__linux_arm64//:druntime"'),
         expect_contains("a cross cell links the target phobos", to_arm64, 'libphobos = "@dx_d_toolchains__linux_arm64//:libphobos"'),
         expect_contains("a cross cell targets the target triple", to_arm64, 'compiler_flags = ["-mtriple=aarch64-linux-gnu"]'),
+        expect_contains("a windows arm64 cross cell links the addon runtime", to_windows_arm64, 'druntime = "@dx_d_toolchains__windows_arm64//:druntime"'),
+        expect_contains("a windows cross cell keeps the target crt and takes the cross triple", to_windows_arm64, 'compiler_flags = ["-mscrtlib=msvcrt", "-mtriple=aarch64-windows-msvc"]'),
+        expect_contains("a windows x64 cross cell drops the host arm64 triple", to_windows_x64, 'compiler_flags = ["-mscrtlib=msvcrt", "-mtriple=x86_64-windows-msvc"]'),
+        expect_contains("a windows cross toolchain runs on the host", hub, 'name = "dx_d_toolchains__windows_x86_64_to_windows_arm64",\n    exec_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64", "@llvm//constraints/windows/abi:msvc"],\n    target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:aarch64", "@llvm//constraints/windows/abi:msvc"],'),
         expect_contains("a cross toolchain runs on the host", hub, 'name = "dx_d_toolchains__linux_x86_64_to_linux_arm64",\n    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:x86_64"],\n    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],'),
         expect_true("hub constraints are the cell constraints", all([repr(cell.exec_compatible_with) in hub for cell in LDC_CELLS.values()])),
         expect_equal("rules_d version", RULES_D_VERSION, "0.12.1"),
@@ -61,7 +67,7 @@ def _checks():
         expect_equal("descriptor with closure", ldmd2_descriptor("k", "c"), "program=k\nenv_dir=LD_LIBRARY_PATH\tc\n"),
         expect_equal("descriptor without closure", ldmd2_descriptor("k", ""), "program=k\n"),
         expect_equal("libdparse version", LIBDPARSE_VERSION, "0.25.1"),
-        expect_equal("tool sources", sorted([name for name in ARCHIVES if name.startswith("dx_d_")]), ["dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_libddoc", "dx_d_libdparse"]),
+        expect_equal("tool sources", sorted([name for name in ARCHIVES if name.startswith("dx_d_")]), ["dx_d_containers", "dx_d_dcd", "dx_d_dscanner", "dx_d_inifiled", "dx_d_libddoc", "dx_d_libdparse"]),
         expect_equal("dcd version", DCD_VERSION, "0.19.4"),
         expect_equal("containers version", CONTAINERS_VERSION, "0.9.0"),
         expect_equal("inifiled version", INIFILED_VERSION, "2.0.0"),

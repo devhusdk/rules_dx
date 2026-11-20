@@ -57,3 +57,19 @@ The guards check the rules of `docs/design/tests.md`.
 - An action is keyed by `<label> <mnemonic> <output path>`. The job fails for an output that differs, for an action in one log only, and for an allowlist line for an action that does not differ or is in neither log.
 - `tools/ci/determinism_allowlist.txt` lists the actions that differ. It only shrinks; `//tools/ci:determinism_allowlist_test` holds the cap.
 - Measured on Linux with warm repository caches: 34 s and 33 s per build, 67 s for both.
+
+## Analysis scaling
+
+- `//tools/testing/deep_graph:defs.bzl` declares one linear chain per language: `go_library`, `java_library`, `kotlin_library`, `typescript_library`, `capnproto_library`, `julia_library` and `ruby_library`. `//tools/testing/deep_graph/d100` and `//tools/testing/deep_graph/d400` hold chains of depth 100 and 400. The targets are incompatible unless `--//tools/testing/deep_graph:deep_graph` is set.
+- `//tools/testing:analysis_scaling_check` runs, for each depth in a fresh output base, `bazel build --nobuild` over the package with the aspects of `dx lint`, `dx typecheck`, `dx format` and `dx docs` and the `dx sync` aspects `dx_env_plan_aspect` and `dx_codegen_plan_aspect`. A warm-up run loads the packages; the measured run changes a `--define`, so it reanalyzes, and writes `--profile`. The analysis time runs from the `Load and analyze dependencies` phase marker to the next phase marker.
+- It fails when depth 400 takes more than 8 or less than 2 times depth 100.
+- The `analysis-scaling` job of `.github/workflows/ci.yml` runs it with `bazel run` and passes Bazel with `--bazel`.
+- Measured on Linux: 61.5 s at depth 100, 204.6 s at depth 400, ratio 3.33 (ci.yml run 44524820323).
+
+## In-graph prebuilt guard
+
+- `//cli/prebuilt:guard_view` is a bool flag. When rules_dx is the root module and the flag is set, `@dx_prebuilt` and `@dx_gazelle` serve `//cli/prebuilt:guard_stub` for every tool they build from source.
+- `tools/testing/consumer/fixtures.bzl` splits `CONSUMER_FIXTURES` into `GO_GUARD_LANGS` and `JAVA_GUARD_LANGS`, held by the nested `go_prebuilt_guard_test` and `java_prebuilt_guard_test`, `IN_GRAPH_GUARD_LANGS`, and `GUARD_PENDING`. `//tools/testing/consumer:in_graph_prebuilt_guard_test` fails unless each fixture is in exactly one list.
+- `//tools/testing/consumer:in_graph_prebuilt_guard` writes, per `IN_GRAPH_GUARD_LANGS` language, `check` and `docs` targets whose `deps` carry the `dx check` and `dx docs` aspects over the non-manual rules of `@dx_api_fixtures//<lang>/tests/consumer`, injects them with `--inject_repository`, and runs `bazel cquery 'deps(...)'` with the flag and `--lockfile_mode=error`.
+- Each label is mapped to the form a consumer sees: the fixtures repo is the main repo, `@@//` is `@@rules_dx+//` and `@@+` is `@@rules_dx++`. The compiled binaries are checked against `tools/testing/consumer/prebuilt_guard_allowlist.txt` by the rules of `//tools/testing/consumer:prebuilt_guard`.
+- The `in-graph-prebuilt-guard` job of `.github/workflows/ci.yml` runs it with `bazel run` and passes Bazel with `--bazel`.

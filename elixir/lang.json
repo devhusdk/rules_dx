@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": {
+    "mix": "@rules_dx//elixir/private/tools:mix"
+  },
   "tools": [
     "credo",
     "dialyzer",
@@ -50,7 +53,8 @@
     "elixir_bench",
     "elixir_escript_archive",
     "elixir_escript_headers",
-    "elixir_test"
+    "elixir_test",
+    "elixir_doc_shard"
   ],
   "quality": {
     "bzl": "erlang/private/quality:beam.bzl",

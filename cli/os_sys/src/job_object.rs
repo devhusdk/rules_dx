@@ -2,7 +2,7 @@
 
 #![expect(unsafe_code, reason = "Job objects have no safe std API")]
 
-use crate::win32::{Access, open, struct_size};
+use crate::win32::{Access, open, owned_or_last_error, struct_size};
 use std::io;
 use std::os::windows::io::{AsRawHandle, BorrowedHandle, HandleOrNull, OwnedHandle};
 use std::ptr::{null, null_mut};
@@ -43,7 +43,7 @@ impl JobObject {
         let raw = unsafe { CreateJobObjectW(null(), null()) };
         // SAFETY: CreateJobObjectW returns a new handle owned by the caller, or null.
         let handle = unsafe { HandleOrNull::from_raw_handle(raw) };
-        let handle = OwnedHandle::try_from(handle).map_err(|_| io::Error::last_os_error())?;
+        let handle = owned_or_last_error(handle)?;
         let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
         info.BasicLimitInformation.LimitFlags = match limit {
             Limit::KillOnClose => JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,

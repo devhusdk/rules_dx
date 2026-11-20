@@ -1,6 +1,14 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 use std::path::{Path, PathBuf};
 
 const UPSTREAM: &str = "_main/pkg/upstream";
+
+/// The canonical name of rules_dx: `_main` in rules_dx itself, `rules_dx+` in a consumer.
+const SELF: &str = "_main";
+const CONSUMER: &str = "rules_dx+";
 
 fn absolute(var: &str) -> PathBuf {
     std::path::absolute(dx_testing::env_file(var)).unwrap_or_else(|error| panic!("{var}: {error}"))
@@ -19,13 +27,24 @@ struct Launch {
 }
 
 fn launch(name: &str, key: &str, coverage: Option<&Path>) -> Launch {
+    launch_in(name, SELF, key, coverage)
+}
+
+/// Runs the launcher with a runfiles manifest where rules_dx is the repository `repo`.
+fn launch_in(name: &str, repo: &str, key: &str, coverage: Option<&Path>) -> Launch {
     let dir = dx_testing::scratch_dir(name);
     let upstream = std::env::current_exe().expect("the test binary path");
     let manifest = dir.join("MANIFEST");
+    let mapping = dir.join("_repo_mapping");
+    dx_testing::write_text(
+        &mapping,
+        &format!(",rules_dx,{repo}\n{repo},rules_dx,{repo}\n"),
+    );
     dx_testing::write_text(
         &manifest,
         &format!(
-            "bazel_tools/tools/bash/runfiles/runfiles.bash {}\n_main/tools/coverage/lib/runfile.sh {}\n{UPSTREAM} {}\n",
+            "_repo_mapping {}\nbazel_tools/tools/bash/runfiles/runfiles.bash {}\n{repo}/tools/coverage/lib/runfile.sh {}\n{UPSTREAM} {}\n",
+            mapping.display(),
             runfiles_bash().display(),
             absolute("DX_RUNFILE_LIB").display(),
             upstream.display(),
@@ -61,6 +80,22 @@ fn runfile_reads_the_manifest_entry() {
     assert!(
         launch.success && ran_upstream(&launch),
         "the upstream did not run through the manifest entry:\n{}{}",
+        launch.stdout,
+        launch.stderr
+    );
+}
+
+#[test]
+fn launcher_finds_runfile_sh_in_a_consumer() {
+    let launch = launch_in(
+        "launcher_finds_runfile_sh_in_a_consumer",
+        CONSUMER,
+        UPSTREAM,
+        None,
+    );
+    assert!(
+        launch.success && ran_upstream(&launch),
+        "the launcher did not find runfile.sh under {CONSUMER}:\n{}{}",
         launch.stdout,
         launch.stderr
     );

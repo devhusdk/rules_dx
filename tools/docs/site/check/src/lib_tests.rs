@@ -6,8 +6,9 @@ use documentation_ir::encode_shard;
 use documentation_ir::proto::{DocIr, Symbol};
 
 use super::{
-    Inputs, anchor_name, check, first_field, has_empty_link_target, inline_targets, link_targets,
-    parse_args, resolve_route, split_reference, tidy,
+    ArgsError, CheckError, Inputs, anchor_name, check, first_field, has_empty_link_target,
+    inline_targets,
+    link_targets, parse_args, resolve_route, split_reference, tidy,
 };
 
 fn args(list: &[&str]) -> Vec<String> {
@@ -119,30 +120,31 @@ fn routes_resolve_against_the_directory_of_the_page() {
 
 #[test]
 fn the_required_arguments_are_checked_in_order() {
-    assert_eq!(
-        parse_args(&args(&["--nope", "x"])).unwrap_err().0,
-        "unknown argument '--nope'"
+    let error = |argv: &[&str]| parse_args(&args(argv)).unwrap_err();
+    let unknown = error(&["--nope", "x"]);
+    assert_eq!(unknown.to_string(), "unknown argument '--nope'");
+    assert!(matches!(unknown, ArgsError::Unknown { .. }), "{unknown:?}");
+    let missing = error(&["--book"]);
+    assert_eq!(missing.to_string(), "--book needs a FILE");
+    assert!(
+        matches!(missing, ArgsError::MissingValue { .. }),
+        "{missing:?}"
     );
-    assert_eq!(
-        parse_args(&args(&["--book"])).unwrap_err().0,
-        "--book needs a FILE"
-    );
-    assert_eq!(
-        parse_args(&args(&["--api", "api.md"])).unwrap_err().0,
-        "--book FILE is required"
-    );
-    assert_eq!(
-        parse_args(&args(&["--book", "b", "--api", "a"]))
-            .unwrap_err()
-            .0,
-        "--shard FILE is required"
-    );
-    assert_eq!(
-        parse_args(&args(&["--book", "b", "--api", "a", "--shard", "s"]))
-            .unwrap_err()
-            .0,
-        "--prose FILE is required"
-    );
+    for (argv, flag) in [
+        (&["--api", "api.md"][..], "--book"),
+        (&["--book", "b", "--api", "a"][..], "--shard"),
+        (
+            &["--book", "b", "--api", "a", "--shard", "s"][..],
+            "--prose",
+        ),
+    ] {
+        let required = error(argv);
+        assert_eq!(required.to_string(), format!("{flag} FILE is required"));
+        assert!(
+            matches!(required, ArgsError::Required { flag: named, .. } if named == flag),
+            "{required:?}"
+        );
+    }
 }
 
 #[test]
@@ -153,7 +155,9 @@ fn a_shard_without_symbols_names_no_symbols() {
     write(dir, "api.md", "# API\n");
     write_shard(dir, &[]);
     write(dir, "guide.md", "# Guide\n");
-    assert_eq!(check(&inputs(dir)), "shard names no symbols");
+    let error = check(&inputs(dir)).unwrap_err();
+    assert!(matches!(error, CheckError::NoSymbols), "{error:?}");
+    assert_eq!(error.to_string(), "shard names no symbols");
 }
 
 #[test]
@@ -164,11 +168,18 @@ fn a_shard_that_does_not_decode_is_refused() {
     write(dir, "api.md", "# API\n");
     write(dir, "shard.ir.pb", "not a shard\n");
     write(dir, "guide.md", "# Guide\n");
-    let refusal = check(&inputs(dir));
-    assert!(refusal.contains("is not a valid DocIr shard"), "{refusal}");
+    let error = check(&inputs(dir)).unwrap_err();
+    assert!(
+        matches!(&error, CheckError::InvalidShard { path, .. } if path.ends_with("shard.ir.pb")),
+        "{error:?}"
+    );
+    assert!(
+        error.to_string().contains("is not a valid DocIr shard"),
+        "{error}"
+    );
 }
 
-fn anchor_site(name: &str, guide_links: &str) -> String {
+fn anchor_site(name: &str, guide_links: &str) -> Result<(), CheckError> {
     let guard = dx_test_scratch::scratch(name).unwrap();
     let dir = guard.path();
     write(dir, "book.toml", "title = \"demo\"\n");
@@ -188,39 +199,47 @@ fn anchor_site(name: &str, guide_links: &str) -> String {
 
 #[test]
 fn an_anchor_with_underscores_or_dashes_resolves() {
-    assert_eq!(
-        anchor_site("anchor-ok", "[a](api.md#rust_library) [b](#--affected)"),
-        ""
-    );
+    let result = anchor_site("anchor-ok", "[a](api.md#rust_library) [b](#--affected)");
+    assert!(result.is_ok(), "{result:?}");
 }
 
 #[test]
 fn a_fragment_without_underscores_is_dangling() {
-    assert_eq!(
-        anchor_site("frag-bad", "[a](api.md#dxrustcrate)"),
-        "dangling fragment 'api.md#dxrustcrate'"
+    let error = anchor_site("frag-bad", "[a](api.md#dxrustcrate)").unwrap_err();
+    assert!(
+        matches!(error, CheckError::DanglingFragment { .. }),
+        "{error:?}"
     );
+    assert_eq!(error.to_string(), "dangling fragment 'api.md#dxrustcrate'");
 }
 
 #[test]
 fn a_collapsed_dash_anchor_is_dangling() {
-    assert_eq!(
-        anchor_site("anchor-bad", "[a](#-affected)"),
-        "dangling anchor '#-affected'"
+    let error = anchor_site("anchor-bad", "[a](#-affected)").unwrap_err();
+    assert!(
+        matches!(error, CheckError::DanglingAnchor { .. }),
+        "{error:?}"
     );
+    assert_eq!(error.to_string(), "dangling anchor '#-affected'");
 }
 
 #[test]
 fn a_fragment_of_the_wrong_case_is_dangling() {
+    let error = anchor_site("frag-case", "[a](api.md#DX_RUST_CRATE)").unwrap_err();
+    assert!(
+        matches!(error, CheckError::DanglingFragment { .. }),
+        "{error:?}"
+    );
     assert_eq!(
-        anchor_site("frag-case", "[a](api.md#DX_RUST_CRATE)"),
+        error.to_string(),
         "dangling fragment 'api.md#DX_RUST_CRATE'"
     );
 }
 
 #[test]
 fn a_percent_encoded_anchor_resolves() {
-    assert_eq!(anchor_site("anchor-pct", "[a](#%E4%B8%AD%E6%96%87)"), "");
+    let result = anchor_site("anchor-pct", "[a](#%E4%B8%AD%E6%96%87)");
+    assert!(result.is_ok(), "{result:?}");
 }
 
 #[test]
@@ -235,23 +254,46 @@ fn a_site_with_nothing_linked_holds_together() {
     );
     write_shard(dir, &["rust:demo:T"]);
     write(dir, "guide.md", "# Guide\n\nPlain prose with no links.\n");
-    assert_eq!(check(&inputs(dir)), "");
+    let result = check(&inputs(dir));
+    assert!(result.is_ok(), "{result:?}");
 }
 
 #[test]
-fn a_missing_book_file_is_reported_as_a_missing_title() {
-    let inputs = Inputs {
-        book: Some("absent.toml".into()),
-        api: Some("absent.md".into()),
-        shards: vec!["absent".into()],
-        prose: vec!["absent.md".into()],
-        data: vec![],
-        records: None,
-    };
-    assert_eq!(check(&inputs), "book has no title");
+fn each_unreadable_input_is_reported_with_its_path() {
+    for missing in [
+        "book.toml",
+        "api.md",
+        "guide.md",
+        "shard.ir.pb",
+        "records.json",
+    ] {
+        let guard = dx_test_scratch::scratch("unreadable").unwrap();
+        let dir = guard.path();
+        write(dir, "book.toml", "title = \"demo\"\n");
+        write(
+            dir,
+            "api.md",
+            "# API\n\n- [`demo::T`](api/rust/demo/T.md)\n",
+        );
+        write_shard(dir, &["rust:demo:T"]);
+        write(dir, "guide.md", "# Guide\n");
+        write(dir, "records.json", "[]");
+        std::fs::remove_file(dir.join(missing)).expect("remove");
+        let mut inputs = inputs(dir);
+        inputs.records = Some(dir.join("records.json").to_string_lossy().into_owned());
+        let error = check(&inputs).unwrap_err();
+        let CheckError::Read(read) = &error else {
+            panic!("{missing}: {error:?}");
+        };
+        assert_eq!(read.path(), dir.join(missing), "{error}");
+        assert!(
+            std::error::Error::source(&error).is_some(),
+            "{missing}: {error:?}"
+        );
+    }
 }
 
-fn records_site(name: &str, records: &str) -> String {
+fn records_site(name: &str, records: &str) -> Result<(), CheckError> {
     let guard = dx_test_scratch::scratch(name).unwrap();
     let dir = guard.path();
     write(dir, "book.toml", "title = \"demo\"\n");
@@ -271,10 +313,16 @@ fn records_site(name: &str, records: &str) -> String {
 #[test]
 fn a_search_record_url_must_resolve_to_a_rendered_page() {
     let good = "[{\"url\": \"api/rust/demo/T.html\", \"title\": \"demo::T\"}]";
-    assert_eq!(records_site("records-ok", good), "");
+    let result = records_site("records-ok", good);
+    assert!(result.is_ok(), "{result:?}");
     let bad = "[{\"title\": \"x\", \"url\": \"api/rust/demo/Gone.html\"}]";
+    let error = records_site("records-bad", bad).unwrap_err();
+    assert!(
+        matches!(&error, CheckError::RecordUrl { url } if url == "api/rust/demo/Gone.html"),
+        "{error:?}"
+    );
     assert_eq!(
-        records_site("records-bad", bad),
+        error.to_string(),
         "search record url 'api/rust/demo/Gone.html' has no rendered page"
     );
 }

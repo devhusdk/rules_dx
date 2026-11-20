@@ -1,9 +1,11 @@
 //! Every command page under docs/cli/commands documents the commands, flags and exit codes that `dx <command> --help` prints and no other flag, outside `tools/ci/command_docs_allowlist.txt`, and every `dx <command>` in the code of any tracked Markdown file names a command and flags the grammar has.
 
-use std::path::Path;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
+use dx_guard::allowlist::{check_lines, line_differences};
 use dx_plan::args::{HelpFlag, HelpSurface, help_surface};
+use dx_testing::allowlist::parse_lines;
 use starlark_syntax as _;
 use yaml_serde as _;
 
@@ -31,7 +33,12 @@ fn code_text(page: &str) -> Vec<String> {
         } else if fenced {
             out.push(line.trim().to_owned());
         } else {
-            out.extend(line.split('`').skip(1).step_by(2).map(|span| span.replace("\\|", "|")));
+            out.extend(
+                line.split('`')
+                    .skip(1)
+                    .step_by(2)
+                    .map(|span| span.replace("\\|", "|")),
+            );
         }
     }
     out
@@ -48,7 +55,10 @@ const COMMAND_ENDS: [&str; 7] = ["|", "||", "&&", ";", ">", ">>", "2>&1"];
 /// Only a command position counts: the start of the text, or after `$` or a shell word that ends a command.
 /// A `dx` inside a sentence or a log line, such as `dx: warning: ... which dx does not render`, is prose.
 fn invocations(code: &str) -> Vec<Vec<&str>> {
-    let words: Vec<&str> = code.split_whitespace().take_while(|word| !word.starts_with('#')).collect();
+    let words: Vec<&str> = code
+        .split_whitespace()
+        .take_while(|word| !word.starts_with('#'))
+        .collect();
     let mut out = Vec::new();
     let mut previous: Option<&str> = None;
     for (at, word) in words.iter().enumerate() {
@@ -73,17 +83,25 @@ fn invocations(code: &str) -> Vec<Vec<&str>> {
 /// Whether `word` is spelled like a command name rather than a placeholder such as `<command>`.
 fn is_name(word: &str) -> bool {
     word.starts_with(|letter: char| letter.is_ascii_lowercase())
-        && word.chars().all(|letter| letter.is_ascii_lowercase() || letter.is_ascii_digit() || letter == '-')
+        && word
+            .chars()
+            .all(|letter| letter.is_ascii_lowercase() || letter.is_ascii_digit() || letter == '-')
 }
 
 /// Every `dx <command>` in the code of `files` whose command the grammar lacks, or whose `--flag` neither the command, its subcommands nor `dx` itself takes.
-fn unknown_invocations(surface: &[HelpSurface], files: &BTreeMap<String, String>) -> BTreeSet<String> {
+fn unknown_invocations(
+    surface: &[HelpSurface],
+    files: &BTreeMap<String, String>,
+) -> BTreeSet<String> {
     let mut root: BTreeSet<&str> = HELP_FLAGS.into_iter().collect();
     let mut commands: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
     for entry in surface {
         let spelled = entry.flags.iter().flat_map(spellings);
         match entry.path.first() {
-            Some(command) => commands.entry(command.as_str()).or_default().extend(spelled),
+            Some(command) => commands
+                .entry(command.as_str())
+                .or_default()
+                .extend(spelled),
             None => root.extend(spelled),
         }
     }
@@ -108,8 +126,13 @@ fn unknown_invocations(surface: &[HelpSurface], files: &BTreeMap<String, String>
                     continue;
                 };
                 for flag in flags_in(&rest.join(" ")) {
-                    if !root.contains(flag.as_str()) && !flags.is_some_and(|flags| flags.contains(flag.as_str())) {
-                        out.insert(format!("{path}: unknown flag `dx {command} {flag}`").replace("dx  ", "dx "));
+                    if !root.contains(flag.as_str())
+                        && !flags.is_some_and(|flags| flags.contains(flag.as_str()))
+                    {
+                        out.insert(
+                            format!("{path}: unknown flag `dx {command} {flag}`")
+                                .replace("dx  ", "dx "),
+                        );
                     }
                 }
             }
@@ -125,7 +148,10 @@ fn flags_in(code: &str) -> Vec<String> {
         .split(|letter: char| letter.is_whitespace() || "|[]()<>,;'\"".contains(letter))
         .filter(|word| !word.is_empty())
         .collect();
-    if words.first().is_some_and(|word| OTHER_PROGRAMS.contains(word)) {
+    if words
+        .first()
+        .is_some_and(|word| OTHER_PROGRAMS.contains(word))
+    {
         return out;
     }
     for word in words {
@@ -136,7 +162,9 @@ fn flags_in(code: &str) -> Vec<String> {
         let body = name.trim_start_matches('-');
         let dashes = name.len() - body.len();
         let named = body.starts_with(|letter: char| letter.is_ascii_lowercase())
-            && body.chars().all(|letter| letter.is_ascii_lowercase() || letter.is_ascii_digit() || letter == '-');
+            && body.chars().all(|letter| {
+                letter.is_ascii_lowercase() || letter.is_ascii_digit() || letter == '-'
+            });
         if named && (dashes == 2 || (dashes == 1 && body.len() == 1)) {
             out.push(name.to_owned());
         }
@@ -170,7 +198,9 @@ fn has_number(text: &str, number: &str) -> bool {
 
 /// Every spelling of one flag.
 fn spellings(flag: &HelpFlag) -> impl Iterator<Item = &str> {
-    std::iter::once(&flag.name).chain(&flag.aliases).map(String::as_str)
+    std::iter::once(&flag.name)
+        .chain(&flag.aliases)
+        .map(String::as_str)
 }
 
 /// Every gap between `surface` and `pages` as one allowlist line each.
@@ -183,8 +213,14 @@ fn gaps(surface: &[HelpSurface], pages: &BTreeMap<String, String>) -> BTreeSet<S
         .collect();
     for entry in surface {
         let command = entry.path.join(" ");
-        let Some((name, page)) = entry.page.and_then(|name| pages.get(name).map(|page| (name, page))) else {
-            out.insert(format!("{} missing-page {command}", entry.page.unwrap_or("-")));
+        let Some((name, page)) = entry
+            .page
+            .and_then(|name| pages.get(name).map(|page| (name, page)))
+        else {
+            out.insert(format!(
+                "{} missing-page {command}",
+                entry.page.unwrap_or("-")
+            ));
             continue;
         };
         let code = code_text(page);
@@ -224,36 +260,15 @@ fn gaps(surface: &[HelpSurface], pages: &BTreeMap<String, String>) -> BTreeSet<S
     out
 }
 
-/// Reads `<page> <kind> <flag or command>` lines.
-fn parse_allowlist(text: &str) -> (BTreeSet<String>, Vec<String>) {
-    let mut lines = BTreeSet::new();
-    let mut problems = Vec::new();
-    let mut previous: Option<&str> = None;
-    for line in text.lines() {
-        if previous.is_some_and(|before| before >= line) {
-            problems.push(format!("not sorted or repeated: {line:?}"));
-        }
-        previous = Some(line);
-        let fields: Vec<&str> = line.splitn(3, ' ').collect();
-        match fields.as_slice() {
-            [page, kind, what] if !page.is_empty() && KINDS.contains(kind) && !what.is_empty() => {
-                lines.insert(line.to_owned());
-            }
-            _ => problems.push(format!("malformed line: {line:?}")),
-        }
-    }
-    (lines, problems)
+/// Whether `line` is `<page> <kind> <flag or command>`.
+fn well_formed(line: &str) -> bool {
+    matches!(line.splitn(3, ' ').collect::<Vec<&str>>().as_slice(),
+        [page, kind, what] if !page.is_empty() && KINDS.contains(kind) && !what.is_empty())
 }
 
-/// Every way the gaps and the allowlist disagree.
-fn differences(found: &BTreeSet<String>, allowed: &BTreeSet<String>) -> Vec<String> {
-    let new = found
-        .difference(allowed)
-        .map(|line| format!("new gap, fix the page or the grammar: {line}"));
-    let spare = allowed
-        .difference(found)
-        .map(|line| format!("no such gap left, delete the line: {line}"));
-    new.chain(spare).collect()
+/// What to do about a new gap.
+fn fix(_line: &str) -> String {
+    "fix the page or the grammar".to_owned()
 }
 
 /// The spellings every command takes.
@@ -268,18 +283,36 @@ fn read_runfile(key: &str) -> String {
 fn command_pages_match_help_outside_the_allowlist() {
     let pages: BTreeMap<String, String> = dx_testing::env_text("DX_COMMAND_DOCS")
         .split_whitespace()
-        .map(|key| (key.rsplit('/').next().unwrap_or(key).to_owned(), read_runfile(key)))
+        .map(|key| {
+            (
+                key.rsplit('/').next().unwrap_or(key).to_owned(),
+                read_runfile(key),
+            )
+        })
         .collect();
     let surface = help_surface();
-    assert!(surface.len() >= 25 && pages.len() >= 15, "{} commands, {} pages", surface.len(), pages.len());
+    assert!(
+        surface.len() >= 25 && pages.len() >= 15,
+        "{} commands, {} pages",
+        surface.len(),
+        pages.len()
+    );
     let found = gaps(&surface, &pages);
-    let (allowed, mut problems) = parse_allowlist(&read_runfile(dx_testing::env_text("DX_ALLOWLIST").trim()));
-    problems.extend(differences(&found, &allowed));
+    let problems = check_lines(
+        &found,
+        &read_runfile(dx_testing::env_text("DX_ALLOWLIST").trim()),
+        well_formed,
+        fix,
+    );
     if problems.is_empty() {
         return;
     }
     if let Some(dir) = std::env::var_os("TEST_UNDECLARED_OUTPUTS_DIR") {
-        let text: String = found.iter().map(|line| format!("{line}\n")).collect::<Vec<String>>().concat();
+        let text: String = found
+            .iter()
+            .map(|line| format!("{line}\n"))
+            .collect::<Vec<String>>()
+            .concat();
         dx_testing::write_text(&Path::new(&dir).join("command_docs_allowlist.txt"), &text);
     }
     panic!(
@@ -309,7 +342,12 @@ fn every_dx_command_in_markdown_is_in_the_grammar() {
 mod tests {
     use super::*;
 
-    fn entry(path: &[&str], page: Option<&'static str>, flags: &[&str], exit_codes: &[&str]) -> HelpSurface {
+    fn entry(
+        path: &[&str],
+        page: Option<&'static str>,
+        flags: &[&str],
+        exit_codes: &[&str],
+    ) -> HelpSurface {
         HelpSurface {
             path: path.iter().map(|part| (*part).to_owned()).collect(),
             page,
@@ -317,7 +355,11 @@ mod tests {
                 .iter()
                 .map(|flag| HelpFlag {
                     name: (*flag).to_owned(),
-                    aliases: if *flag == "--output" { vec!["-o".to_owned()] } else { Vec::new() },
+                    aliases: if *flag == "--output" {
+                        vec!["-o".to_owned()]
+                    } else {
+                        Vec::new()
+                    },
                     values: Vec::new(),
                     defaults: Vec::new(),
                 })
@@ -351,10 +393,18 @@ mod tests {
 
     #[test]
     fn a_flag_the_page_leaves_out_is_detected() {
-        let surface = [entry(&["tidy"], Some("tidy.md"), &["--deep", "--output", "--loose", "--keep_going"], &[])];
+        let surface = [entry(
+            &["tidy"],
+            Some("tidy.md"),
+            &["--deep", "--output", "--loose", "--keep_going"],
+            &[],
+        )];
         assert_eq!(
             found(&surface, &[("tidy.md", PAGE)]),
-            ["tidy.md undocumented-flag --keep_going", "tidy.md undocumented-flag --loose"]
+            [
+                "tidy.md undocumented-flag --keep_going",
+                "tidy.md undocumented-flag --loose"
+            ]
         );
     }
 
@@ -367,8 +417,14 @@ mod tests {
         let other = "`dx other --deep`\n";
         let guide = "`dx tidy --deep --gone`, `bazelisk --batch`\n";
         assert_eq!(
-            found(&surface, &[("tidy.md", PAGE), ("other.md", other), ("guide.md", guide)]),
-            ["guide.md unknown-flag --gone", "tidy.md unknown-flag --deep"]
+            found(
+                &surface,
+                &[("tidy.md", PAGE), ("other.md", other), ("guide.md", guide)]
+            ),
+            [
+                "guide.md unknown-flag --gone",
+                "tidy.md unknown-flag --deep"
+            ]
         );
     }
 
@@ -380,7 +436,10 @@ mod tests {
         ];
         assert_eq!(
             found(&surface, &[("guide.md", "`-o json` and `--deep`\n")]),
-            ["guide.md undocumented-flag --version", "tidy.md missing-page tidy"]
+            [
+                "guide.md undocumented-flag --version",
+                "tidy.md missing-page tidy"
+            ]
         );
     }
 
@@ -408,7 +467,12 @@ mod tests {
 
     #[test]
     fn an_exit_code_outside_the_exit_codes_section_is_detected() {
-        let surface = [entry(&["tidy"], Some("tidy.md"), &["--deep", "--output"], &["0", "1", "2", "12"])];
+        let surface = [entry(
+            &["tidy"],
+            Some("tidy.md"),
+            &["--deep", "--output"],
+            &["0", "1", "2", "12"],
+        )];
         assert_eq!(
             found(&surface, &[("tidy.md", PAGE)]),
             ["tidy.md missing-exit-code 1", "tidy.md missing-exit-code 2"]
@@ -423,7 +487,10 @@ mod tests {
             entry(&["tidy", "sweep"], Some("tidy.md"), &["--fast"], &[]),
         ];
         let readme = "Lock it with `dx lock`.\n\n```sh\n$ tools/dx tidy sweep --fast --deep -o json && dx --output json\ndx tidy --gone | grep --count x # dx lint\n./tools/dx <command> --any\ndx shim where\n```\n\n`dx: warning: dx owns this`, `cargo test -- --deep`, `dx tidy -- --keep_going`\n";
-        let found: Vec<String> = unknown_invocations(&surface, &pages(&[("lang/README.md", readme)])).into_iter().collect();
+        let found: Vec<String> =
+            unknown_invocations(&surface, &pages(&[("lang/README.md", readme)]))
+                .into_iter()
+                .collect();
         assert_eq!(
             found,
             [
@@ -435,17 +502,27 @@ mod tests {
 
     #[test]
     fn a_spare_malformed_or_unsorted_allowlist_line_fails() {
-        let (allowed, problems) = parse_allowlist("a.md missing-page tidy scrub\nb.md unknown-flag --x\n");
+        let (allowed, problems) = parse_lines(
+            "a.md missing-page tidy scrub\nb.md unknown-flag --x\n",
+            well_formed,
+        );
         assert!(problems.is_empty(), "{problems:?}");
-        let gaps: BTreeSet<String> = ["b.md unknown-flag --x".to_owned(), "c.md unknown-flag --y".to_owned()].into();
+        let gaps: BTreeSet<String> = [
+            "b.md unknown-flag --x".to_owned(),
+            "c.md unknown-flag --y".to_owned(),
+        ]
+        .into();
         assert_eq!(
-            differences(&gaps, &allowed),
+            line_differences(&gaps, &allowed, fix),
             [
-                "new gap, fix the page or the grammar: c.md unknown-flag --y",
-                "no such gap left, delete the line: a.md missing-page tidy scrub",
+                "new: c.md unknown-flag --y; fix the page or the grammar",
+                "stale: a.md missing-page tidy scrub; delete the allowlist line",
             ]
         );
-        let (_, problems) = parse_allowlist("b.md unknown-flag --x\na.md other --x\na.md unknown-flag\n");
+        let (_, problems) = parse_lines(
+            "b.md unknown-flag --x\na.md unknown-flag --x\na.md other --x\na.md unknown-flag\n",
+            well_formed,
+        );
         assert_eq!(problems.len(), 3, "{problems:?}");
     }
 }

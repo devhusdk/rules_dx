@@ -12,12 +12,12 @@
   },
   "Glob": {
     "deps": [],
-    "integrity": "sha256-V/yHgHTsqXY0j91wa4qcAzuvdOpUM/XT4KTeSwaLlHU=",
+    "integrity": "sha256-O6H8+J3ktZGBLehfX3FMR0v6vDhyQrGBOo0MrQag4Hw=",
     "urls": [
-      "https://pkg.julialang.org/package/c27321d9-0574-5035-807b-f59d2c89b15c/97285bbd5230dd766e9ef6749b80fc617126d496"
+      "https://pkg.julialang.org/package/c27321d9-0574-5035-807b-f59d2c89b15c/246c628cec062230b7d183aab88841fa94fcabe9"
     ],
     "uuid": "c27321d9-0574-5035-807b-f59d2c89b15c",
-    "version": "1.3.1"
+    "version": "1.5.0"
   },
   "JuliaFormatter": {
     "deps": [
@@ -47,12 +47,12 @@
     "deps": [
       "Preferences"
     ],
-    "integrity": "sha256-+NGAbb3QJMxg6Q+5U2RrbUl40QJuovKm+Dhd15nmCgs=",
+    "integrity": "sha256-IACxnVx78Zb2HTe9ejnWgD2b5FtjDmOBP0xDeigdZgI=",
     "urls": [
-      "https://pkg.julialang.org/package/aea7be01-6a6a-4083-8856-8a6e6704d82a/07a921781cab75691315adc645096ed5e370cb77"
+      "https://pkg.julialang.org/package/aea7be01-6a6a-4083-8856-8a6e6704d82a/1e697ad6f68af89cd3651bbe9b4a7b5d800adf5a"
     ],
     "uuid": "aea7be01-6a6a-4083-8856-8a6e6704d82a",
-    "version": "1.3.3"
+    "version": "1.4.0"
   },
   "Preferences": {
     "deps": [

@@ -1,7 +1,7 @@
-load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
-load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS", "VIS_TOOLS_PUBLIC")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS")
 
 package(default_visibility = VIS_CLI_TOOLS)
 
@@ -20,9 +20,12 @@ rust_library(
         "src/ignores_find.rs",
         "src/ignores_policy.rs",
         "src/ignores_scan.rs",
+        "src/keep.rs",
         "src/lang.rs",
         "src/lib.rs",
         "src/parse.rs",
+        "src/sancov.rs",
+        "src/to_lcov.rs",
         "src/xml.rs",
     ],
     aliases = aliases(
@@ -34,6 +37,7 @@ rust_library(
     visibility = VIS_CLI_TOOLS + ["//php/private/coverage:__pkg__"],
     # keep
     deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/error:dx_error",
         "//cli/path:dx_path",
         "@crates//:lcov",
@@ -59,10 +63,15 @@ rust_test(
         "src/ignores_policy.rs",
         "src/ignores_scan.rs",
         "src/ignores_tests.rs",
+        "src/keep.rs",
+        "src/keep_tests.rs",
         "src/lang.rs",
         "src/lang_tests.rs",
         "src/lib.rs",
         "src/parse.rs",
+        "src/sancov.rs",
+        "src/sancov_tests.rs",
+        "src/to_lcov.rs",
         "src/xml.rs",
         "src/xml_tests.rs",
     ],
@@ -76,48 +85,12 @@ rust_test(
     crate_root = "src/lib.rs",
     # keep
     deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/error:dx_error",
         "//cli/path:dx_path",
         "@crates//:lcov",
         "@crates//:regex",
         "@crates//:thiserror",
-    ],
-)
-
-rust_binary(
-    name = "to_lcov",
-    srcs = ["src/to_lcov.rs"],
-    aliases = aliases(
-        package_name = "cli/dx_lcov",
-        normal = True,
-    ),
-    crate_name = "to_lcov",
-    crate_root = "src/to_lcov.rs",
-    visibility = VIS_TOOLS_PUBLIC,
-    # keep
-    deps = [
-        ":dx_lcov",
-        "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/error:dx_error",
-    ],
-)
-
-rust_test(
-    name = "to_lcov_test",
-    size = "small",
-    aliases = aliases(
-        package_name = "cli/dx_lcov",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate = ":to_lcov",
-    deps = all_crate_deps(
-        package_name = "cli/dx_lcov",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/error:dx_error",
     ],
 )
 

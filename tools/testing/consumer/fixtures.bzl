@@ -25,6 +25,7 @@ CONSUMER_FIXTURES = [
     "elixir",
     "erlang",
     "flatbuffers",
+    "flutter",
     "fortran",
     "fsharp",
     "go",
@@ -58,6 +59,77 @@ CONSUMER_FIXTURES = [
     "typescript",
     "vue",
     "zig",
+]
+
+# The consumer fixtures //tools/testing/consumer:go_prebuilt_guard_test covers.
+GO_GUARD_LANGS = [
+    "go",
+    "lua",
+    "capnproto",
+    "flatbuffers",
+    "thrift",
+    "api_spec",
+    "avro",
+    "rust",
+    "python",
+    "cc",
+]
+
+# The consumer fixtures //tools/testing/consumer:java_prebuilt_guard_test covers.
+JAVA_GUARD_LANGS = [
+    "java",
+    "kotlin",
+    "scala",
+]
+
+# The consumer fixtures //tools/testing/consumer:in_graph_prebuilt_guard covers.
+IN_GRAPH_GUARD_LANGS = [
+    "d",
+    "rego",
+    "sql",
+    "zig",
+]
+
+# The consumer fixtures no prebuilt guard covers yet.
+GUARD_PENDING = [
+    "ansible",
+    "android",
+    "appimage",
+    "apple",
+    "asciidoc",
+    "astro",
+    "bicep",
+    "cloudformation",
+    "cmake",
+    "csharp",
+    "cuda",
+    "dart",
+    "dockerfile",
+    "elixir",
+    "erlang",
+    "flutter",
+    "fortran",
+    "fsharp",
+    "haskell",
+    "helm",
+    "javascript",
+    "julia",
+    "kubernetes",
+    "make",
+    "mdx",
+    "msix",
+    "ocaml",
+    "perl",
+    "php",
+    "powershell",
+    "qt",
+    "rst",
+    "ruby",
+    "svelte",
+    "swift",
+    "terraform",
+    "typescript",
+    "vue",
 ]
 
 def consumer_fixture_tests(name, size):

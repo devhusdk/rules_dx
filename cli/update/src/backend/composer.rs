@@ -1,9 +1,8 @@
+use super::resolver::resolver;
 use super::{
     BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Selection, UvClosure, bazel,
-    composer_argv, composer_env,
+    composer_argv, composer_env, lang_command,
 };
-
-const RESOLVER: &str = "@rules_dx//php/private/tools/lock";
 
 pub(super) fn plan(
     workspace: &Path,
@@ -26,7 +25,7 @@ pub(super) fn plan(
     }
     let dir = workspace.join(&set.dir);
     let dir = dir.to_string_lossy();
-    let mut args = vec![RESOLVER, "--", "--dir", &dir];
+    let mut args = vec![resolver(set)?, "--", "--dir", &dir];
     if let Selection::Packages(packages) = request {
         for package in packages {
             args.extend(["--upgrade", package]);
@@ -52,7 +51,7 @@ pub(super) fn check(
                 workspace,
                 set,
                 head,
-                "@rules_dx//php/private/tools:composer",
+                lang_command(set, "php", "composer")?,
                 &["validate", "--check-lock", "--no-check-publish"],
             )?,
             env: composer_env(set)?,

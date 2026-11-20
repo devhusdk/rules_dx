@@ -1,8 +1,8 @@
-load("@rules_dx//deploy:defs.bzl", "consumer_archive", "dx_resources")
+load("@rules_dx//deploy:defs.bzl", "consumer_archive", "resources")
 
 package(default_visibility = ["//visibility:public"])
 
-dx_resources(
+resources(
     name = "repo_res",
     mappings = {"//:banner.txt": "banner.txt"},
 )

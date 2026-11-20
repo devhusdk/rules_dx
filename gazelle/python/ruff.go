@@ -16,7 +16,7 @@ const (
 	ruffKind   = "ruff_config"
 	ruffName   = "ruff_config"
 	ruffExt    = "python_ruff"
-	nativeDefs = "core/quality:native_config.bzl"
+	nativeDefs = "core:defs.bzl"
 )
 
 // ruffState is the nearest ruff config at or above a directory.

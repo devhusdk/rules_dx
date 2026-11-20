@@ -1,6 +1,6 @@
 use super::{
     BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Run, Selection, UvClosure, bazel,
-    dependency_sets, julia_env, set_dir,
+    dependency_sets, julia_env, lang_command, set_dir,
 };
 
 pub(super) fn plan(
@@ -31,7 +31,7 @@ pub(super) fn plan(
     };
     let dir = set_dir(workspace, set)?;
     let mut update = vec![
-        "@rules_dx//julia/private/tools:pkg_update",
+        lang_command(set, "julia", "pkg_update")?,
         "--",
         dir.as_str(),
     ];

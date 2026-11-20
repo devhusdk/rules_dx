@@ -33,7 +33,7 @@ real_dart_docs_aspect = aspect(
     attrs = {
         "_dart_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/dart/extract:dart_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

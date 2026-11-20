@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
@@ -14,6 +15,7 @@ rust_library(
     ),
     crate_name = "cabal_lock",
     crate_root = "src/resolve.rs",
+    visibility = VIS_TOOLS_PUBLIC + ["//cli/cli:__pkg__"],
     deps = all_crate_deps(
         package_name = "haskell/private/tools/cabal_lock",
         normal = True,
@@ -26,35 +28,15 @@ rust_library(
     ],
 )
 
-rust_binary(
+dx_subcommand(
     name = "lock",
-    srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "haskell/private/tools/cabal_lock",
-        normal = True,
-    ),
-    crate_name = "cabal_lock_bin",
-    crate_root = "src/main.rs",
-    data = [
-        "//haskell:cabal",
-        "//haskell:ghc_exe",
-        "//haskell:ghc_files",
-    ],
-    env = {
-        "DX_CABAL": "$(rlocationpath //haskell:cabal)",
-        "DX_GHC": "$(rlocationpath //haskell:ghc_exe)",
+    data = ["//haskell:ghc_files"],
+    path_args = {
+        "--cabal": "//haskell:cabal",
+        "--ghc": "//haskell:ghc_exe",
     },
+    subcommand = "haskell_lock",
     visibility = VIS_TOOLS_PUBLIC,
-    deps = all_crate_deps(
-        package_name = "haskell/private/tools/cabal_lock",
-        normal = True,
-    ) + [
-        ":cabal_lock_lib",
-        "//cli/families:dx_families",
-        "//cli/lock:dx_lock",
-        "@crates//:serde_json",
-        "@rules_rust//rust/runfiles",
-    ],
 )
 
 rust_test(

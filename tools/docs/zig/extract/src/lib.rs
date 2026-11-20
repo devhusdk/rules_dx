@@ -10,15 +10,62 @@
 use documentation_ir::proto::{
     DocIr, Extension, Param, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
-use documentation_ir::tool::{Source, parse_sources};
+use documentation_ir::tool::{
+    FlagError, PathIoError, Source, SourcesError, WriteShardError, parse_sources, path_io,
+};
 use serde_json::Value;
 use std::collections::BTreeSet;
-use std::fmt::Write as _;
-use std::fs;
+use std::fmt::{self, Write as _};
+use std::path::Path;
 
 const LANGUAGE: &str = "zig";
 const KEY_CONFIG: &str = "zig.config";
 const SCHEMA: u64 = 1;
+
+/// Why one Zig dump could not become a shard.
+#[derive(Debug)]
+pub enum ZigExtractError {
+    Read(PathIoError),
+    Sources(SourcesError),
+    Malformed(serde_json::Error),
+    UnsupportedSchema,
+    NoFiles,
+    NotInManifest { path: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for ZigExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::Sources(error) => error.fmt(f),
+            Self::Malformed(error) => write!(f, "bad JSON: {error}"),
+            Self::UnsupportedSchema => write!(f, "dump schema is not {SCHEMA}"),
+            Self::NoFiles => f.write_str("dump has no files"),
+            Self::NotInManifest { path } => {
+                write!(f, "dumped file '{path}' is not in the srcs manifest")
+            }
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for ZigExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Sources(error) => Some(error),
+            Self::Malformed(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::UnsupportedSchema
+            | Self::NoFiles
+            | Self::NotInManifest { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -42,12 +89,12 @@ pub fn usage() -> &'static str {
     "usage: zig_extract --dump FILE --sources FILE --out FILE --package NAME [--config TEXT]"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
+/// Parses argv into inputs.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+/// Returns an error for an unknown, missing, empty or repeated flag.
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(
         args,
         &["--dump", "--sources", "--out", "--package", "--config"],
@@ -66,14 +113,12 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let read = |path: &str| {
-        fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))
-    };
+pub fn run(options: &Options) -> Result<(), ZigExtractError> {
+    let read = |path: &str| path_io::read_to_string(Path::new(path)).map_err(ZigExtractError::Read);
     let json = read(&options.dump)?;
-    let sources = parse_sources(&read(&options.sources)?)?;
+    let sources = parse_sources(&read(&options.sources)?).map_err(ZigExtractError::Sources)?;
     let shard = convert(&json, &sources, &options.package, &options.config)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(ZigExtractError::Write)
 }
 
 struct Context<'a> {
@@ -93,17 +138,17 @@ pub fn convert(
     sources: &[Source],
     package: &str,
     config: &str,
-) -> Result<DocIr, String> {
-    let root: Value = serde_json::from_str(json).map_err(|error| format!("bad JSON: {error}"))?;
+) -> Result<DocIr, ZigExtractError> {
+    let root: Value = serde_json::from_str(json).map_err(ZigExtractError::Malformed)?;
     if root.get("schema").and_then(Value::as_u64) != Some(SCHEMA) {
-        return Err(format!("dump schema is not {SCHEMA}"));
+        return Err(ZigExtractError::UnsupportedSchema);
     }
     let files = root
         .get("files")
         .and_then(Value::as_array)
-        .ok_or_else(|| "dump has no files".to_owned())?;
+        .ok_or(ZigExtractError::NoFiles)?;
     let Some(main) = files.first() else {
-        return Err("dump has no files".to_owned());
+        return Err(ZigExtractError::NoFiles);
     };
     let mut text = format!("zig-ast={SCHEMA};package={package}");
     if !config.is_empty() {
@@ -130,7 +175,7 @@ pub fn convert(
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(ZigExtractError::InvalidIr)?;
     Ok(shard)
 }
 
@@ -173,7 +218,7 @@ fn module(
     id: &str,
     visited: &mut BTreeSet<String>,
     out: &mut Vec<Symbol>,
-) -> Result<(), String> {
+) -> Result<(), ZigExtractError> {
     let path = text_of(file, "path");
     if !visited.insert(path.to_owned()) {
         return Ok(());
@@ -257,12 +302,14 @@ fn dependency_module(
     ));
 }
 
-fn source_of<'a>(context: &'a Context<'_>, path: &str) -> Result<&'a Source, String> {
+fn source_of<'a>(context: &'a Context<'_>, path: &str) -> Result<&'a Source, ZigExtractError> {
     context
         .sources
         .iter()
         .find(|s| s.exec_path == path)
-        .ok_or_else(|| format!("dumped file '{path}' is not in the srcs manifest"))
+        .ok_or_else(|| ZigExtractError::NotInManifest {
+            path: path.to_owned(),
+        })
 }
 
 fn qualified(parent: &str, name: &str) -> String {

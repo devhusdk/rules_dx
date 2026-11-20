@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": {
+    "java_tool": "@rules_dx//java/private/ide:java_tool"
+  },
   "tools": [
     "google_java_format",
     "javac",
@@ -50,7 +53,8 @@
     "java_binary",
     "java_test",
     "java_fuzz_test",
-    "java_bench"
+    "java_bench",
+    "java_doc_shard"
   ],
   "quality": {
     "bzl": "java/private/quality:jvm.bzl",

@@ -19,9 +19,6 @@ pub const SOURCES_SUFFIX: &str = ".dxcodegen.src";
 /// Repo-relative label; qualify it with [`aspect_label`].
 pub const CODEGEN_ASPECT: &str = "core/codegen:codegen.bzl%dx_codegen_plan_aspect";
 
-/// Repo-relative label; qualify it with [`repository_target`].
-pub const REPOSITORY_TARGET: &str = "dx:codegen";
-
 /// Library rules that return their own codegen plan.
 pub const LIBRARY_KINDS: &[&str] = &[
     "api_spec_go_client",
@@ -110,7 +107,10 @@ pub fn aspect_label(repo: &str) -> String {
 /// Returns the repository target in the `rules_dx` repository named `repo`.
 #[must_use]
 pub fn repository_target(repo: &str) -> String {
-    format!("@{repo}//{REPOSITORY_TARGET}")
+    format!(
+        "@{repo}//{}",
+        dx_families::repo_relative(dx_families::CODEGEN)
+    )
 }
 
 #[must_use]

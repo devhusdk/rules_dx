@@ -99,17 +99,17 @@ def _real_tool_launch(cfg, target, ctx, stage_tools, delegated, has_toolchain, w
             elif spec.get("extra") == "runfiles":
                 extra[tool] = tool_target[DefaultInfo].default_runfiles.files.to_list()
             if spec.get("run_tool", True):
-                run_tools.append(tool_target[DefaultInfo].files_to_run)
+                run_tools.append((tool, tool_target[DefaultInfo].files_to_run))
         elif spec.get("target_tool", False):
             ftr = _tool_files_to_run(target, getattr(ctx.attr, "_" + tool), tool, what)
             binaries[tool] = ftr.executable
-            run_tools.append(ftr)
+            run_tools.append((tool, ftr))
         else:
             ftr = getattr(ctx.attr, "_" + tool)[DefaultInfo].files_to_run
             if ftr == None or ftr.executable == None:
                 fail(what + ": " + tool + " has no executable; set --@rules_dx//config:tool_" + tool + spec["fallback"])
             binaries[tool] = ftr.executable
-            run_tools.append(ftr)
+            run_tools.append((tool, ftr))
         pairs = [real_request_tool_env(pair[0], pair[1]) for pair in spec.get("env", [])]
         if spec.get("runfiles_env", False):
             pairs.append(real_request_tool_env("RUNFILES_DIR", ctx.executable._runner.path + ".runfiles"))
@@ -182,6 +182,7 @@ def real_context(
         inputs = [],
         late_tool_files = [],
         late_inputs = [],
+        late_staged = [],
         upstream = [],
         with_config = None,
         env = [],
@@ -198,6 +199,7 @@ def real_context(
         inputs = inputs,
         late_tool_files = late_tool_files,
         late_inputs = late_inputs,
+        late_staged = late_staged,
         upstream = upstream,
         with_config = with_config,
         env = env,
@@ -205,6 +207,29 @@ def real_context(
         options = options,
         delegated = delegated,
     )
+
+def _staged_line(f):
+    rel = native_config_scratch_rel(f.short_path)
+    if rel == None:
+        return None
+    return rel + "\t" + f.path
+
+def _path_tool(helper):
+    """Returns the request entry of a (name, file) or (name, file, leading args) path tool."""
+    entry = {"binary": helper[1].path, "name": helper[0]}
+    if len(helper) > 2:
+        entry["args"] = helper[2]
+    return entry
+
+def _staged_file_list(ctx, name, staged):
+    """Writes one `rel<TAB>exec path` line per staged file without flattening the depsets."""
+    out = ctx.actions.declare_file(name)
+    args = ctx.actions.args()
+    args.set_param_file_format("multiline")
+    for files in staged:
+        args.add_all(files, map_each = _staged_line, expand_directories = False, uniquify = True)
+    ctx.actions.write(out, args)
+    return out
 
 def _shard_tools(tools, shard, capability):
     """Lists wired tools for one shard and capability, or for every capability when capability is None."""
@@ -456,7 +481,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         if len(found.env) > 0:
             tool_env_entries.setdefault(tool, []).extend(found.env)
         run_tools = run_tools + found.run_tools
-    requirements = dict(dx_stage_execution_requirements(stage_tools, capability))
+    requirements = dict(dx_stage_execution_requirements(stage_tools, capability, [name for (name, _) in run_tools]))
     if "buf" in stage_tools and capability == "lint" and hasattr(ctx.attr, "_breaking_against"):
         images = ctx.files._breaking_against
         if len(images) > 1:
@@ -471,8 +496,10 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         inputs.append(f)
 
     request_tools = {}
+    staged_inputs = []
     for tool in stage_tools:
         found = contexts.get(tool)
+        file_lists = []
         binary_path = None
         if tool not in delegated and cfg.tools[tool]["kind"] != "upstream":
             binary = tool_binaries[tool]
@@ -507,6 +534,10 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
                 inputs.extend(late.inputs)
             tool_files.extend(found.late_tool_files)
             inputs.extend(found.late_inputs)
+            if found.late_staged:
+                file_lists.append(_staged_file_list(ctx, target.label.name + "-real-" + capability + output_suffix + "-" + tool + "-staged.txt", found.late_staged))
+                inputs.append(file_lists[-1])
+                staged_inputs.extend(found.late_staged)
         request_tools[tool] = real_request_tool(
             binary_path = binary_path,
             config_rel = config_rel,
@@ -514,10 +545,11 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
             dialect = options.get("dialect"),
             args = options.get("args", []),
             files = [real_request_tool_file(rel, f.path) for (rel, f) in tool_files],
+            file_lists = [f.path for f in file_lists],
             env = tool_env_entries.get(tool, []),
             upstream = [f.path for f in (found.upstream if found != None else [])],
             search_paths = [f.path for f in options.get("search_paths", [])],
-            path_tools = [{"binary": f.path, "name": name} for (name, f) in options.get("path_tools", [])],
+            path_tools = [_path_tool(helper) for helper in options.get("path_tools", [])],
         )
 
     doc = real_request_doc(
@@ -541,8 +573,8 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
 
     ctx.actions.run(
         executable = ctx.executable._runner,
-        inputs = depset(inputs),
-        tools = run_tools,
+        inputs = depset(inputs, transitive = staged_inputs),
+        tools = [ftr for (_, ftr) in run_tools],
         outputs = [out],
         arguments = [args],
         execution_requirements = requirements,
@@ -555,7 +587,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
     groups = dict(skip_groups)
     if "lychee" in stage_tools and capability == "lint":
         groups["dx_link_requests"] = depset([request_file])
-    groups["dx_inputs"] = depset(inputs)
+    groups["dx_inputs"] = depset(inputs, transitive = staged_inputs)
     return [OutputGroupInfo(dx_results = depset([out]), **groups)]
 
 def real_quality_resource_set(cfg, tools):

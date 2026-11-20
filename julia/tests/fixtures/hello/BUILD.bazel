@@ -24,6 +24,18 @@ julia_precompile_test(
     target = ":Greet_upstream",
 )
 
+julia_library(
+    name = "Flat",
+    testonly = True,
+    srcs = ["Flat.jl"],
+)
+
+julia_precompile_test(
+    name = "flat_precompiles_test",
+    package = "Flat",
+    target = ":Flat_upstream",
+)
+
 julia_forwarded_info_test(
     name = "greet_forwards_info_test",
     package = "Greet",

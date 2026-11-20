@@ -58,10 +58,26 @@ tools/dx test //...
 
 ## Dependencies
 
-### Hex packages
+### Hex packages from a lock
 
-Declare each Hex package once, pinned to a version and the tarball digest.
-Nothing runs `mix deps.get` and no Hex or Mix home is read.
+This is the usual way to get Hex packages. With `mix.exs` and a `mix.lock`
+or `rebar.lock` in the set:
+
+1. Run `dx update --apply`. It writes `hex.lock.json`.
+2. Run `dx generate --apply`. It adds the `hex.lock` stanza for the `@hex`
+   hub to `MODULE.bazel`. A hub is one Bazel repository that holds a target
+   for every locked package.
+3. Depend on a package as `@hex//jason`.
+
+The hub holds one `elixir_app` per locked package. Packages from
+`rebar.lock` get no dependencies. An entry that is not from `hexpm`, such as
+a `:git` or `:path` dependency, fails with a message that names it.
+
+### One Hex package by hand
+
+To pin a single package yourself, declare it once in `MODULE.bazel` with its
+version and the tarball sha256. Nothing runs `mix deps.get`, and no Hex or
+Mix home is read.
 
 ```python
 hex_package = use_repo_rule("@rules_dx//elixir:repositories.bzl", "hex_package")
@@ -75,90 +91,103 @@ hex_package(
 )
 ```
 
-The build file declares the package as an `elixir_app` with
-`visibility = ["//visibility:public"]`. Depend on it as
-`@jason//:erlang_app`. A wrong digest fails the fetch.
-
-#### From hex.lock.json
-
-With `mix.exs` and `mix.lock` or `rebar.lock` in the set, `dx update --apply` writes `hex.lock.json` and `dx generate --apply` adds the `hex.lock` stanza for the `@hex` hub to `MODULE.bazel`. The hub holds one `elixir_app` per locked package; `rebar.lock` packages have no dependencies.
-
-Depend on `@hex//jason`. An entry that is not from `hexpm` (`:git`, `:path`) fails with a message naming it.
+Your build file declares the package as an `elixir_app` with
+`visibility = ["//visibility:public"]`. Depend on that target, for example
+`@jason//:jason` when the build file names it `jason`. A wrong sha256 fails
+the fetch.
 
 ### Adopt a Mix project
 
 1. Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`.
-2. Run `bazel run @rules_dx//:dx -- generate --apply`. A module resolves to the `mix.lock` package named after it (`Jason` is `jason`, `Phoenix.LiveView` is `phoenix_live_view`).
+2. Run `bazel run @rules_dx//:dx -- generate --apply`.
 3. Run `bazel test //...`.
 
-Each directory with a `mix.exs` gets one `elixir_app` from `lib/**/*.ex` and
-one `elixir_test` from `test/**/*_test.exs` and `test/test_helper.exs`. An
-umbrella root gets no rule. A module named in code resolves to the
-`elixir_app` that defines it. Modules that ship with Elixir need no dependency.
+Each directory with a `mix.exs` gets:
 
-- `mix.exs` is read only for `app:`, `version:` and `mod:`. They fill
-  `app_name`, `app_version` and `app_module` when the rule lacks them.
-- `mix.lock` and `config/*.exs` are not read. Put runtime settings in
-  `app_env`.
-- Only `lib/` is compiled. `test/support` is not.
+- one `elixir_app` from `lib/**/*.ex`;
+- one `elixir_test` from `test/**/*_test.exs` and `test/test_helper.exs`.
+
+An umbrella root gets no rule. A module used in code resolves to the
+`elixir_app` that defines it, or to the locked Hex package named after it:
+`Jason` is `jason`, `Phoenix.LiveView` is `phoenix_live_view`. Modules that
+ship with Elixir need no dependency.
+
+What `dx generate` reads and skips:
+
+- From `mix.exs` it reads only `app:`, `version:` and `mod:`. They fill
+  `app_name`, `app_version` and `app_module` when the rule has none.
+- It does not read `config/*.exs`. Put runtime settings in `app_env`.
+- It compiles only `lib/`. `test/support` is not compiled.
 - An existing `elixir_app` with the same `app_name` keeps its name and other
   attributes. It must have a `name`.
-- Erlang dependencies such as `:jsx` are not detected. Add them to `deps`
+- It does not find Erlang dependencies such as `:jsx`. Add them to `deps`
   with a `# keep` comment.
-- Directories without a `mix.exs` are left as written.
-- `deps/` and `_build/` next to a `mix.exs` get no rules, so a checkout after
-  `mix deps.get` generates cleanly. A custom `deps_path` or `build_path` is
-  not read. Add `# gazelle:exclude <dir>` for it.
+- It leaves directories without a `mix.exs` as you wrote them.
+- `deps/` and `_build/` next to a `mix.exs` get no rules, so a checkout
+  after `mix deps.get` generates cleanly. It does not read a custom
+  `deps_path` or `build_path`. Add `# gazelle:exclude <dir>` for it.
 
 ## Quality
 
 ### Formatting
 
 `dx format` checks Elixir sources with `mix format` from the pinned Elixir.
-Select `mix_format` in an `elixir` family. The tool flag overrides the pinned binary:
+Select `mix_format` in an `elixir` family in `dx.toml`:
+
+```toml
+[families.elixir]
+format = ["mix_format"]
+```
 
 ```sh
-dx format -- --@rules_dx//config:tool_mix_format=@rules_dx//elixir/private/tools:mix_format
-dx format --apply -- --@rules_dx//config:tool_mix_format=@rules_dx//elixir/private/tools:mix_format
+dx format
+dx format --apply
 ```
+
+To use another `mix format` binary, pass its label to
+`--@rules_dx//config:tool_mix_format`.
 
 ### Linting
 
-`dx lint` runs Credo 1.7.19 on the pinned Elixir. Select `credo` in the `lint`
-list of an `elixir` family. The tool flag overrides the pinned binary:
+`dx lint` runs Credo 1.7.19 on the pinned Elixir. Select `credo` in the
+`lint` list of an `elixir` family.
 
-```sh
-dx lint -- --@rules_dx//config:tool_credo=@rules_dx//elixir/private/tools:credo
-```
+- Each finding is a warning named `credo/<Category.Check>`.
+- A file Credo cannot parse is an error named `credo/syntax`.
+- The default checks are Credo's own non-strict checks. Bind a
+  `credo_config` to change them. `requires` and `plugins` are not
+  supported.
+- The compiler still checks types and warnings.
 
-Findings are warnings named `credo/<Category.Check>`. A file Credo cannot parse
-is an error named `credo/syntax`. The defaults are Credo's own non-strict
-checks. Bind a `credo_config` to change them; `requires` and `plugins` are not
-supported. The compiler is still the type and warning check.
+To use another Credo binary, pass its label to
+`--@rules_dx//config:tool_credo`.
 
 ### Type checking
 
-`dx typecheck` runs the OTP 29.1.2 dialyzer on the compiled beams of each
-`elixir_app`. Select `dialyzer` in the `typecheck` list of an `elixir` family
-The tool flag, shared with Erlang, overrides the pinned binary:
+`dx typecheck` runs the pinned OTP dialyzer on the compiled `.beam` files of
+each `elixir_app`. Select `dialyzer` in the `typecheck` list of an `elixir`
+family. Dialyzer checks code against its `@spec` contracts, which the
+compiler does not.
 
-```sh
-dx typecheck -- --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/private/tools:dialyzer
-```
+- Bazel builds the Elixir PLT from the pinned `elixir` and `logger`
+  applications.
+- Each finding is a warning named `dialyzer/<rule>`.
+- Silence one with `@dialyzer {:nowarn_function, name: arity}`.
 
-Dialyzer checks code against its `@spec` contracts, which the compiler's own
-type checker does not. The Elixir PLT is built by Bazel from the pinned Elixir
-`elixir` and `logger` applications. Findings are warnings named
-`dialyzer/<rule>`. Silence one with `@dialyzer {:nowarn_function, name: arity}`.
-See `docs/cli/commands/quality.md`.
+To use another dialyzer, pass its label to
+`--@rules_dx//config:tool_dialyzer`. Erlang uses the same flag.
 
 ## Coverage
 
-`elixir_test` writes LCOV under `dx coverage`. A script cover-compiles the workspace apps in the test's `deps` and writes their line hits when the VM exits. Apps from other repositories are not counted. Tag a test `no-coverage` to skip it.
+Under `dx coverage`, `elixir_test` writes LCOV. The apps in the test's
+`deps` that live in your workspace are cover-compiled, and their line hits
+are written when the VM exits. Apps from other repositories are not counted.
+Tag a test `no-coverage` to skip it.
 
 ## Bench and fuzz
 
-`elixir_bench` is an `elixir_test` for `dx bench`. Benchee 1.5.1 comes with rules_dx. Call `DxBench.run/2` once in the test with a map of names to funs. It runs Benchee without formatters and writes `dx-bench.json`, one row per job in ns.
+`elixir_bench` is an `elixir_test` that `dx bench` runs. rules_dx brings
+Benchee 1.5.1.
 
 ```python
 load("@rules_dx//elixir:defs.bzl", "elixir_bench")
@@ -172,7 +201,11 @@ elixir_bench(
 )
 ```
 
-The target is tagged `dx-bench`. Benchee has no coverage-guided fuzzer on the BEAM, so there is no `elixir_fuzz_test`.
+In the test, call `DxBench.run/2` once with a map of names to funs. It runs
+Benchee without formatters and writes `dx-bench.json`, one row per job in
+ns. The target is tagged `dx-bench`.
+
+There is no `elixir_fuzz_test`: the BEAM has no coverage-guided fuzzer.
 
 ## Rules
 
@@ -222,6 +255,14 @@ elixir_test(name, *, srcs = None, visibility = None, **kwargs)
 
 Thin wrapper over the rules_elixir ex_unit_test rule.
 
+### `elixir_doc_shard`
+
+```python
+elixir_doc_shard(name, app, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Elixir app.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Elixir:
@@ -243,9 +284,9 @@ Elixir builds and tests on:
 - Windows arm64
 - Windows x86_64
 
-See the [support matrix](../support-matrix.md).
-
-On other platforms Elixir targets fail toolchain resolution.
+The [support matrix](../support-matrix.md) lists the platforms. On other
+platforms, Elixir targets fail toolchain resolution: Bazel finds no Elixir
+toolchain for that platform.
 
 ## API docs
 
@@ -254,16 +295,13 @@ On other platforms Elixir targets fail toolchain resolution.
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/elixir:defs.bzl", "elixir_doc_shard")
+load("@rules_dx//elixir:defs.bzl", "elixir_doc_shard")
 ```
 
-### `elixir_doc_shard`
+`dx docs` documents an `elixir_app` with `elixir_doc_shard(name, app, package)`
+from `@rules_dx//elixir:defs.bzl`. It reads each module's docs
+with `Code.fetch_docs/1` on the pinned Elixir and writes a DocIr shard.
 
-```python
-elixir_doc_shard(name, app, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one Elixir app.
-
-`dx docs` documents an `elixir_app` with `elixir_doc_shard(name, app, package)` from
-`@rules_dx//tools/docs/elixir:defs.bzl`. It reads each module's docs chunk with `Code.fetch_docs/1` on the pinned Elixir and writes a DocIr shard. Modules marked `@moduledoc false` and functions marked `@doc false` are left out. Windows execution platforms are not covered.
+- Modules marked `@moduledoc false` and functions marked `@doc false` are
+  left out.
+- It does not run on Windows execution platforms.

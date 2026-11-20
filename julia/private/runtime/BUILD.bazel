@@ -1,0 +1,154 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@dx_pins_data//:pins.bzl", "ARCHIVES")
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("//cc/private/toolchain:select.bzl", "cc_toolchain_files")
+load("//core/modules:versions.bzl", "JULIA_RUNTIME_VERSION")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+load(":defs.bzl", "julia_runtime_files", "julia_shipped_libs", "julia_source_toolchain")
+
+package(default_visibility = ["//julia:__subpackages__"])
+
+_LINUX_X86_64 = [
+    "@platforms//os:linux",
+    "@platforms//cpu:x86_64",
+]
+
+exports_files(glob(["*.BUILD.bazel"]))
+
+_MAJOR_MINOR = ".".join(JULIA_RUNTIME_VERSION.split(".")[:2])
+
+_LIBJULIA_INTERNAL = "libjulia-internal.so." + JULIA_RUNTIME_VERSION
+
+# Set by the runtime rules so they resolve the downloaded Julia release, not :source_toolchain.
+bool_flag(
+    name = "stock",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "source_runtime",
+    flag_values = {":stock": "false"},
+)
+
+julia_runtime_files(
+    name = "julia_runtime_files",
+)
+
+julia_source_toolchain(
+    name = "source_julia",
+    library = ":libjulia_internal",
+    target_compatible_with = _LINUX_X86_64,
+)
+
+# On Linux x86_64 every Julia action and binary runs on the source-built libjulia-internal.
+toolchain(
+    name = "source_toolchain",
+    exec_compatible_with = _LINUX_X86_64,
+    target_compatible_with = _LINUX_X86_64,
+    target_settings = [
+        ":source_runtime",
+        "@rules_julia//julia/settings:version_" + JULIA_RUNTIME_VERSION,
+    ],
+    toolchain = ":source_julia",
+    toolchain_type = "@rules_julia//julia:toolchain_type",
+)
+
+starlark_test(
+    name = "julia_src_version_test",
+    size = "small",
+    checks = [
+        expect_equal(
+            "julia runtime source follows canonical",
+            ARCHIVES["julia_src"]["strip_prefix"],
+            "julia-" + JULIA_RUNTIME_VERSION,
+        ),
+    ],
+    mode = "unit",
+)
+
+julia_shipped_libs(
+    name = "shipped_libs",
+    libraries = [
+        "libjulia.so." + _MAJOR_MINOR,
+        "libunwind.so.8",
+        "libz.so.1",
+        "libzstd.so.1",
+        "libatomic.so.1",
+    ],
+    target_compatible_with = _LINUX_X86_64,
+)
+
+cc_binary(
+    name = _LIBJULIA_INTERNAL,
+    additional_linker_inputs = ["@julia_src//:julia_expmap"],
+    linkopts = [
+        "-Wl,--version-script=$(execpath @julia_src//:julia_expmap)",
+        "-Wl,-soname,libjulia-internal.so." + _MAJOR_MINOR,
+        "-Wl,-Bsymbolic-functions",
+        "-Wl,--enable-new-dtags",
+        "-Wl,-z,noexecstack",
+        "-Wl,--gc-sections",
+        "-Wl,-rpath,$$ORIGIN",
+        "-Wl,-rpath,$$ORIGIN/..",
+        "-Wl,--no-as-needed",
+        "-ldl",
+        "-lrt",
+        "-lpthread",
+        "-lm",
+    ],
+    linkshared = True,
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        ":shipped_libs",
+        "@julia_src//:libjulia_internal_objects",
+    ],
+)
+
+cc_toolchain_files(
+    name = "libjulia_internal",
+    srcs = [":" + _LIBJULIA_INTERNAL],
+    compiler = "gcc",
+    platforms = ["//tools/platforms:linux_x86_64"],
+    target_compatible_with = _LINUX_X86_64,
+    visibility = ["//julia:__subpackages__"],
+)
+
+rust_test(
+    name = "libjulia_internal_test",
+    size = "small",
+    srcs = ["libjulia_internal_test.rs"],
+    data = [
+        ":julia_runtime_files",
+        ":libjulia_internal",
+        "@rules_julia//julia:current_julia_toolchain",
+    ],
+    env = {
+        "DX_JULIA": "$(rootpath :julia_runtime_files)",
+        "DX_LIBJULIA_INTERNAL": "$(rootpaths :libjulia_internal)",
+        "DX_TOOLCHAIN_JULIA": "$(JULIA_RLOCATIONPATH)",
+    },
+    target_compatible_with = _LINUX_X86_64,
+    toolchains = ["@rules_julia//julia:current_julia_toolchain"],
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+        "@crates//:object",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "julia_src.BUILD.bazel",
+        "libllvm.BUILD.bazel",
+        "libunwind.BUILD.bazel",
+        "libuv.BUILD.bazel",
+        "utf8proc.BUILD.bazel",
+        "zstd.BUILD.bazel",
+    ],
+    tags = ["corpus"],
+)

@@ -1,7 +1,7 @@
 """Unit tests for the ansible hub checks of the archives."""
 
 load("//ansible/private/lock:hub.bzl", "ansible_manifest_error", "ansible_missing_deps", "ansible_split_name")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 def _entry(name):
     return {"name": name, "version": "1.0.0"}

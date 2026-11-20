@@ -32,6 +32,10 @@
       }
     ]
   },
+  "commands": {
+    "python_interpreter": "@rules_dx//cli/update:python_interpreter",
+    "python_tool": "@rules_dx//python/private/ide:python_tool"
+  },
   "tools": [
     "pydoclint",
     "ruff",
@@ -53,7 +57,8 @@
     "python_test",
     "python_fuzz_test",
     "python_bench",
-    "python_grpc_library"
+    "python_grpc_library",
+    "python_doc_shard"
   ],
   "quality": {
     "bzl": "python/private/quality:python.bzl",

@@ -1,5 +1,10 @@
 //! Resolves the rocks a rockspec depends on from the luarocks.org manifest and the rockspecs it serves.
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 mod rockspec;
 
@@ -427,7 +432,7 @@ impl<'a> Lua<'a> {
             .download
             .bytes(&url)
             .map_err(|error| Error::new(format!("{url}: {error}")))?;
-        String::from_utf8(bytes).map_err(|_| Error::new(format!("{url} is not UTF-8")))
+        String::from_utf8(bytes).map_err(|e| Error::new(format!("{url} is not UTF-8: {e}")))
     }
 
     fn releases(&self, index: &Json, rock: &str) -> Result<Vec<(Version, String)>, Error> {
@@ -571,4 +576,15 @@ impl Resolver for Lua<'_> {
             packages: chosen.into_values().collect(),
         })
     }
+}
+
+/// Runs the luarocks lock step on `args`, the arguments after `dx lua_lock`: 0 when the lock is
+/// fresh or written, 1 when stale, 2 on failure.
+pub fn run_process(args: &[String]) -> i32 {
+    let Some(hub) = dx_families::hub("luarocks") else {
+        eprintln!("luarocks has no registry entry");
+        return 2;
+    };
+    let spec = Lua::spec(hub);
+    dx_lock::run_process(&spec, &Lua::new(&spec, BASE, &Site::new()), args)
 }

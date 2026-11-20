@@ -223,7 +223,7 @@ impl AddRequest {
             }),
             UpdateSet::Ruby => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
-                hint: "edit the ruby manifest and run `bazel run @rules_dx//ruby/private/tools/lock`",
+                hint: "edit the ruby manifest and run `dx update --apply <set>`",
             }),
         }
     }

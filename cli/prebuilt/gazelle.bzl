@@ -40,7 +40,8 @@ def _dx_gazelle_impl(module_ctx):
         repo_prefix = "dx_gazelle_",
     )
     if not [a for a in assets if a.repo]:
-        hub_repo(name = "dx_gazelle", files = {"BUILD.bazel": render_hub_build(labels)})
+        rules_dx_is_root = any([m.name == "rules_dx" and m.is_root for m in module_ctx.modules])
+        hub_repo(name = "dx_gazelle", files = {"BUILD.bazel": render_hub_build(labels, guard = rules_dx_is_root)})
     else:
         declare_downloads(assets)
         hub_repo(name = "dx_gazelle", files = {"BUILD.bazel": prebuilt_build(assets, labels)})

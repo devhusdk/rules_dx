@@ -2,12 +2,14 @@
 
 use std::collections::BTreeMap;
 use std::ffi::OsString;
+use std::fmt;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_release_tools::candidate::{self, Candidate};
-use dx_release_tools::ledger::{ReleaseBackend, sync_assets};
-use dx_release_tools::{GitState, OpRecord, OpState, ledger_exit, render_ledger};
+use dx_release_tools::candidate::{self, Candidate, CandidateError, GitError};
+use dx_release_tools::ledger::{LedgerError, ReleaseBackend, sync_assets};
+use dx_release_tools::{GitState, OpRecord, OpState, ReleaseError, ledger_exit, render_ledger};
 
 const DRY_RUN_TAG: &str = "v0.0.0-dryrun";
 const DEFAULT_REPO: &str = "devhusdk/rules_dx";
@@ -34,15 +36,17 @@ struct GhBackend {
 }
 
 impl GhBackend {
-    fn call(&self, args: &[&str]) -> Result<String, String> {
+    fn call(&self, args: &[&str]) -> Result<String, LedgerError> {
         let mut command = Command::new(&self.program);
         command.args(args);
         let output = dx_process::capture::run_captured(&mut command, GH_TIMEOUT)
-            .map_err(|err| format!("cannot run gh: {err}"))?;
+            .map_err(LedgerError::GhRun)?;
         if output.success() {
             return Ok(output.stdout_text());
         }
-        Err(scrub(&output.stderr_text(), self.token.as_deref()))
+        Err(LedgerError::GhFailed {
+            stderr: scrub(&output.stderr_text(), self.token.as_deref()),
+        })
     }
 }
 
@@ -54,28 +58,57 @@ fn scrub(text: &str, secret: Option<&str>) -> String {
 }
 
 impl ReleaseBackend for GhBackend {
-    fn view(&self, tag: &str) -> Result<String, String> {
+    fn view(&self, tag: &str) -> Result<String, LedgerError> {
         self.call(&["api", &format!("{}/{tag}", self.api)])
     }
 
-    fn upload(&self, tag: &str, path: &str) -> Result<String, String> {
+    fn upload(&self, tag: &str, path: &str) -> Result<String, LedgerError> {
         self.call(&["release", "upload", tag, path])
     }
 }
 
 type StagedAssets = (Vec<(String, String)>, BTreeMap<String, String>);
 
-fn stage_assets(assets: &[String]) -> Result<StagedAssets, String> {
+#[derive(Debug)]
+enum StageError {
+    InvalidPath { asset: String },
+    Hash { asset: String, source: io::Error },
+}
+
+impl fmt::Display for StageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidPath { asset } => write!(f, "release: invalid asset path {asset}"),
+            Self::Hash { asset, source } => write!(f, "release: cannot hash {asset}: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for StageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::InvalidPath { .. } => None,
+            Self::Hash { source, .. } => Some(source),
+        }
+    }
+}
+
+fn stage_assets(assets: &[String]) -> Result<StagedAssets, StageError> {
     let mut staged = Vec::new();
     let mut paths = BTreeMap::new();
     for asset in assets {
         let name = Path::new(asset)
             .file_name()
             .and_then(|name| name.to_str())
-            .ok_or_else(|| format!("release: invalid asset path {asset}"))?
+            .ok_or_else(|| StageError::InvalidPath {
+                asset: asset.clone(),
+            })?
             .to_owned();
-        let sha = dx_digest::sha256_file_hex(Path::new(asset))
-            .map_err(|err| format!("release: cannot hash {asset}: {err}"))?;
+        let sha =
+            dx_digest::sha256_file_hex(Path::new(asset)).map_err(|source| StageError::Hash {
+                asset: asset.clone(),
+                source,
+            })?;
         staged.push((name.clone(), sha));
         paths.insert(name, asset.clone());
     }
@@ -90,7 +123,12 @@ fn asset_records(
 ) -> Vec<OpRecord> {
     let mut records = match stage_assets(assets) {
         Ok((staged, paths)) => sync_assets(backend, tag, &staged, &paths, approved),
-        Err(err) => vec![OpRecord::new("asset-stage", tag, OpState::Failed, &err)],
+        Err(err) => vec![OpRecord::new(
+            "asset-stage",
+            tag,
+            OpState::Failed,
+            &err.to_string(),
+        )],
     };
     records.push(OpRecord::new(
         "publish",
@@ -139,7 +177,7 @@ fn run_with(
     commit: Option<&str>,
     approve: &str,
     dry: bool,
-    git_state: impl FnOnce() -> Result<GitState, String>,
+    git_state: impl FnOnce() -> Result<GitState, CandidateError>,
 ) -> i32 {
     match dx_release_tools::release_run(tag, commit, approve, dry, git_state) {
         Ok(text) => {
@@ -154,11 +192,11 @@ fn live_with(
     tag: &str,
     commit: Option<&str>,
     approve: &str,
-    git_state: impl FnOnce() -> Result<GitState, String>,
-    ls_remote: impl FnOnce(&Candidate) -> Result<String, String>,
+    git_state: impl FnOnce() -> Result<GitState, CandidateError>,
+    ls_remote: impl FnOnce(&Candidate) -> Result<String, GitError>,
     backend: &dyn ReleaseBackend,
     assets: &[String],
-) -> Result<(String, i32), String> {
+) -> Result<(String, i32), ReleaseError> {
     let mut records = dx_release_tools::release_live_records(tag, commit, approve, git_state)?;
     if ledger_exit(&records) == 0 {
         let candidate = dx_release_tools::release_candidate(tag, commit)?;
@@ -219,6 +257,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_release_tools::TagError;
 
     #[test]
     fn release_api_defaults_and_follows_the_fork() {
@@ -265,7 +304,7 @@ mod tests {
         assert!(!dry_of(Some("0")));
     }
 
-    fn git_unread() -> Result<GitState, String> {
+    fn git_unread() -> Result<GitState, CandidateError> {
         panic!("git state read before the dry-run, approval, or placeholder gate")
     }
 
@@ -279,7 +318,7 @@ mod tests {
         clippy::unnecessary_wraps,
         reason = "matches the git state callback signature"
     )]
-    fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, String> {
+    fn git_ok(tree_dirty: bool, head: &str, tag: Option<&str>) -> Result<GitState, CandidateError> {
         Ok(GitState {
             tree_dirty,
             head: head.to_owned(),
@@ -304,8 +343,8 @@ mod tests {
         tag: &str,
         commit: Option<&str>,
         approve: &str,
-        git: impl FnOnce() -> Result<GitState, String>,
-    ) -> Result<(String, i32), String> {
+        git: impl FnOnce() -> Result<GitState, CandidateError>,
+    ) -> Result<(String, i32), ReleaseError> {
         live_with(
             tag,
             commit,
@@ -335,9 +374,22 @@ mod tests {
 
     #[test]
     fn live_dispatch_input_gates_are_errors() {
-        assert!(live("v1.2.3", Some(SHA), "0", git_unread).is_err());
-        assert!(live("v0.0.0-dryrun", Some(SHA), "1", git_unread).is_err());
-        assert!(live("v1.2.3", None, "1", git_unread).is_err());
+        let error = live("v1.2.3", Some(SHA), "0", git_unread).expect_err("approve");
+        assert!(matches!(error, ReleaseError::Tag(TagError::NotApproved)));
+        assert!(error.to_string().contains("RELEASE_APPROVE=1"), "{error}");
+        let error = live("v0.0.0-dryrun", Some(SHA), "1", git_unread).expect_err("placeholder");
+        assert!(matches!(error, ReleaseError::Tag(TagError::PlaceholderTag)));
+        let error = live("v1.2.3", None, "1", git_unread).expect_err("no commit");
+        assert!(matches!(
+            error,
+            ReleaseError::Tag(TagError::NoCommit { .. })
+        ));
+        assert!(
+            error
+                .to_string()
+                .starts_with("release: live release of v1.2.3"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -347,7 +399,9 @@ mod tests {
             git_ok(false, OTHER, Some(SHA)),
             git_ok(false, SHA, None),
             git_ok(false, SHA, Some(OTHER)),
-            Err("release: cannot read git state: x".to_owned()),
+            Err(CandidateError::BadHead {
+                head: "x".to_owned(),
+            }),
         ];
         for case in cases {
             let (text, code) = live("v1.2.3", Some(SHA), "1", || case).expect("ledger");
@@ -375,7 +429,10 @@ mod tests {
         for output in [
             Ok(format!("{OTHER}\trefs/tags/v1.2.3\n")),
             Ok(String::new()),
-            Err("fatal: offline".to_owned()),
+            Err(GitError::Exit {
+                command: "git ls-remote".to_owned(),
+                detail: "fatal: offline".to_owned(),
+            }),
         ] {
             let (text, code) = live_with(
                 "v1.2.3",
@@ -515,5 +572,21 @@ mod tests {
         );
         assert_eq!(code, 1);
         assert!(text.contains("asset-stage"));
+        assert!(text.contains("release: cannot hash"), "{text}");
+    }
+
+    #[test]
+    fn stage_errors_keep_their_text() {
+        let error = stage_assets(&["..".to_owned()]).unwrap_err();
+        assert!(matches!(error, StageError::InvalidPath { .. }));
+        assert_eq!(error.to_string(), "release: invalid asset path ..");
+        let error = stage_assets(&["/nonexistent/a.bin".to_owned()]).unwrap_err();
+        assert!(matches!(error, StageError::Hash { .. }));
+        assert!(
+            error
+                .to_string()
+                .starts_with("release: cannot hash /nonexistent/a.bin: "),
+            "{error}"
+        );
     }
 }

@@ -6,8 +6,9 @@ use crate::run::{
     pages_redact, placeholder_refusal, print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use std::fmt;
 use std::io::{self, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Owner approval gate for hackage_deploy.
 pub(crate) const HACKAGE_GATE: OwnerGate = OwnerGate {
@@ -30,57 +31,164 @@ fn cabal_field<'a>(text: &'a str, key: &str) -> Option<&'a str> {
         })
 }
 
+/// Why an sdist does not carry the declared package and version.
+#[derive(Debug)]
+pub enum HackageError {
+    NotTarGz {
+        file_name: String,
+    },
+    BadFileName {
+        file_name: String,
+    },
+    Open {
+        path: PathBuf,
+        source: io::Error,
+    },
+    ReadCabal {
+        member: String,
+        source: io::Error,
+    },
+    InvalidSdist {
+        file_name: String,
+        source: io::Error,
+    },
+    CabalMismatch {
+        member: String,
+        name: String,
+        declared: String,
+        package: String,
+        version: String,
+    },
+    NoCabal {
+        file_name: String,
+        member: String,
+    },
+    PackageMismatch {
+        actual: String,
+        expected: String,
+    },
+    VersionMismatch {
+        actual: String,
+        expected: String,
+    },
+}
+
+impl fmt::Display for HackageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotTarGz { file_name } => write!(f, "{file_name} is not a .tar.gz sdist"),
+            Self::BadFileName { file_name } => {
+                write!(f, "{file_name} is not named <package>-<version>.tar.gz")
+            }
+            Self::Open { path, source } => write!(f, "cannot open {}: {source}", path.display()),
+            Self::ReadCabal { member, source } => write!(f, "cannot read {member}: {source}"),
+            Self::InvalidSdist { file_name, source } => {
+                write!(f, "{file_name} is not a valid sdist: {source}")
+            }
+            Self::CabalMismatch {
+                member,
+                name,
+                declared,
+                package,
+                version,
+            } => write!(
+                f,
+                "{member} declares {name} {declared}, but the sdist is named {package} {version}"
+            ),
+            Self::NoCabal { file_name, member } => write!(f, "{file_name} has no {member}"),
+            Self::PackageMismatch { actual, expected } => write!(
+                f,
+                "package mismatch: sdist declares {actual}, BUILD declares {expected}"
+            ),
+            Self::VersionMismatch { actual, expected } => write!(
+                f,
+                "version mismatch: .cabal declares {actual}, BUILD declares {expected}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for HackageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Open { source, .. }
+            | Self::ReadCabal { source, .. }
+            | Self::InvalidSdist { source, .. } => Some(source),
+            Self::NotTarGz { .. }
+            | Self::BadFileName { .. }
+            | Self::CabalMismatch { .. }
+            | Self::NoCabal { .. }
+            | Self::PackageMismatch { .. }
+            | Self::VersionMismatch { .. } => None,
+        }
+    }
+}
+
 /// Reads the package name and version the sdist's .cabal file declares.
 ///
 /// The sdist must be named `<package>-<version>.tar.gz` and hold
 /// `<package>-<version>/<package>.cabal`, which must agree with the file name.
-pub fn hackage_read_identity(sdist: &Path) -> Result<(String, String), String> {
+pub fn hackage_read_identity(sdist: &Path) -> Result<(String, String), HackageError> {
     let file_name = sdist
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or_default();
     let stem = file_name
         .strip_suffix(".tar.gz")
-        .ok_or_else(|| format!("{file_name} is not a .tar.gz sdist"))?;
+        .ok_or_else(|| HackageError::NotTarGz {
+            file_name: file_name.to_owned(),
+        })?;
     let (package, version) = stem
         .rsplit_once('-')
         .filter(|(package, version)| !package.is_empty() && !version.is_empty())
-        .ok_or_else(|| format!("{file_name} is not named <package>-<version>.tar.gz"))?;
-    let want = format!("{stem}/{package}.cabal");
-    let open = std::fs::File::open(sdist)
-        .map_err(|error| format!("cannot open {}: {error}", sdist.display()))?;
-    let mut text = None;
+        .ok_or_else(|| HackageError::BadFileName {
+            file_name: file_name.to_owned(),
+        })?;
+    let member = format!("{stem}/{package}.cabal");
+    let open = std::fs::File::open(sdist).map_err(|source| HackageError::Open {
+        path: sdist.to_path_buf(),
+        source,
+    })?;
+    let mut text: Option<io::Result<String>> = None;
     dx_archive::visit(
         open,
         dx_archive::Format::TarGz,
         crate::archive::LISTING_LIMITS,
         |path, _, body| {
-            if text.is_some() || path != want {
+            if text.is_some() || path != member {
                 return Ok(());
             }
             let mut read = String::new();
-            text = Some(
-                body.take(1 << 20)
-                    .read_to_string(&mut read)
-                    .map(|_| read)
-                    .map_err(|error| format!("cannot read {want}: {error}")),
-            );
+            text = Some(body.take(1 << 20).read_to_string(&mut read).map(|_| read));
             Ok(())
         },
     )
-    .map_err(|error| format!("{file_name} is not a valid sdist: {error}"))?;
-    if let Some(text) = text {
-        let text = text?;
-        let name = cabal_field(&text, "name").unwrap_or_default();
-        let declared = cabal_field(&text, "version").unwrap_or_default();
-        if name != package || declared != version {
-            return Err(format!(
-                "{want} declares {name} {declared}, but the sdist is named {package} {version}"
-            ));
-        }
-        return Ok((name.to_owned(), declared.to_owned()));
+    .map_err(|source| HackageError::InvalidSdist {
+        file_name: file_name.to_owned(),
+        source,
+    })?;
+    let Some(text) = text else {
+        return Err(HackageError::NoCabal {
+            file_name: file_name.to_owned(),
+            member,
+        });
+    };
+    let text = text.map_err(|source| HackageError::ReadCabal {
+        member: member.clone(),
+        source,
+    })?;
+    let name = cabal_field(&text, "name").unwrap_or_default();
+    let declared = cabal_field(&text, "version").unwrap_or_default();
+    if name != package || declared != version {
+        return Err(HackageError::CabalMismatch {
+            member,
+            name: name.to_owned(),
+            declared: declared.to_owned(),
+            package: package.to_owned(),
+            version: version.to_owned(),
+        });
     }
-    Err(format!("{file_name} has no {want}"))
+    Ok((name.to_owned(), declared.to_owned()))
 }
 
 /// Checks the sdist identity against the declared package and version.
@@ -88,18 +196,18 @@ pub fn hackage_check_identity(
     actual: &(String, String),
     expected_package: &str,
     expected_version: &str,
-) -> Result<(), String> {
+) -> Result<(), HackageError> {
     if !expected_package.is_empty() && actual.0 != expected_package {
-        return Err(format!(
-            "package mismatch: sdist declares {}, BUILD declares {expected_package}",
-            actual.0
-        ));
+        return Err(HackageError::PackageMismatch {
+            actual: actual.0.clone(),
+            expected: expected_package.to_owned(),
+        });
     }
     if !expected_version.is_empty() && actual.1 != expected_version {
-        return Err(format!(
-            "version mismatch: .cabal declares {}, BUILD declares {expected_version}",
-            actual.1
-        ));
+        return Err(HackageError::VersionMismatch {
+            actual: actual.1.clone(),
+            expected: expected_version.to_owned(),
+        });
     }
     Ok(())
 }
@@ -337,7 +445,9 @@ mod tests {
         let dir = scratch_dir();
         let sdist = dir.path().join("demo-1.2.0.tar.gz");
         std::fs::write(&sdist, raw_tar_gz("../demo.cabal", CABAL.as_bytes())).expect("write");
-        let error = hackage_read_identity(&sdist).expect_err("dot dot");
+        let error = hackage_read_identity(&sdist)
+            .expect_err("dot dot")
+            .to_string();
         assert!(error.contains("is not a valid sdist"), "{error}");
         assert!(error.contains("'..'"), "{error}");
     }
@@ -356,16 +466,18 @@ mod tests {
         );
         let identity = hackage_read_identity(&sdist).expect("identity");
         assert_eq!(identity, ("demo".to_owned(), "1.2.0".to_owned()));
-        assert_eq!(hackage_check_identity(&identity, "demo", "1.2.0"), Ok(()));
-        assert_eq!(hackage_check_identity(&identity, "", ""), Ok(()));
+        hackage_check_identity(&identity, "demo", "1.2.0").expect("declared identity");
+        hackage_check_identity(&identity, "", "").expect("no declared identity");
         assert!(
             hackage_check_identity(&identity, "", "1.2.1")
                 .expect_err("version")
+                .to_string()
                 .contains("BUILD declares 1.2.1")
         );
         assert!(
             hackage_check_identity(&identity, "other", "")
                 .expect_err("package")
+                .to_string()
                 .contains("BUILD declares other")
         );
     }
@@ -379,7 +491,9 @@ mod tests {
             "demo-1.3.0/demo.cabal",
             CABAL,
         );
-        let error = hackage_read_identity(&sdist).expect_err("mismatch");
+        let error = hackage_read_identity(&sdist)
+            .expect_err("mismatch")
+            .to_string();
         assert!(error.contains("declares demo 1.2.0, but the sdist is named demo 1.3.0"));
     }
 
@@ -391,12 +505,14 @@ mod tests {
         assert!(
             hackage_read_identity(&plain)
                 .expect_err("suffix")
+                .to_string()
                 .contains("not a .tar.gz")
         );
         let unversioned = write_sdist(dir.path(), "demo.tar.gz", "demo/demo.cabal", CABAL);
         assert!(
             hackage_read_identity(&unversioned)
                 .expect_err("name")
+                .to_string()
                 .contains("<package>-<version>")
         );
         let missing = write_sdist(
@@ -408,6 +524,7 @@ mod tests {
         assert!(
             hackage_read_identity(&missing)
                 .expect_err("missing")
+                .to_string()
                 .contains("has no demo-1.2.0/demo.cabal")
         );
     }

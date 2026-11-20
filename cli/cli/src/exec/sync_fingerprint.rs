@@ -7,7 +7,6 @@
 //! and of every recorded source with its directory, so a build that regenerates an artifact, an
 //! edited or added source and a new package under a recorded directory all change it.
 
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
@@ -52,7 +51,7 @@ pub(crate) fn record(
         None => text.push_str("ok\n"),
         Some(message) => {
             let message = message.replace(['\r', '\n'], " ");
-            writeln!(text, "error {message}").ok();
+            text.push_str(&format!("error {message}\n"));
         }
     }
     text.push_str("targets");
@@ -62,10 +61,10 @@ pub(crate) fn record(
     }
     text.push('\n');
     for artifact in &record.artifacts {
-        writeln!(text, "artifact {}", artifact.to_string_lossy()).ok();
+        text.push_str(&format!("artifact {}\n", artifact.to_string_lossy()));
     }
     for source in &record.sources {
-        writeln!(text, "source {}", source.to_string_lossy()).ok();
+        text.push_str(&format!("source {}\n", source.to_string_lossy()));
     }
     dx_atomic_fs::write_atomic(
         &dx_path::state::sync_fingerprint_path(workspace),

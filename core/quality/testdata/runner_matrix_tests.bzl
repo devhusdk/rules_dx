@@ -184,6 +184,7 @@ def _runner_matrix_test_impl(ctx):
         if owner not in manifest_tools:
             manifest_tools[owner] = {"env": [], "files": [], "upstream_keys": []}
         manifest_tools[owner].setdefault("path_tools", []).append({
+            "args": ctx.attr.path_tool_args.get(name, []),
             "binary_key": rlocation_path(ctx, _tool_executable(ctx.attr.path_tool_binaries[i])),
             "name": name,
         })
@@ -230,6 +231,7 @@ def _runner_matrix_test_impl(ctx):
     ctx.actions.write(output = manifest_file, content = json.encode(manifest) + "\n")
 
     executable = ctx.actions.declare_file(ctx.label.name)
+
     # Bazel stats the target of an executable symlink, which fails when the target exists only remotely.
     ctx.actions.symlink(output = executable, target_file = harness)
 
@@ -319,6 +321,9 @@ _runner_matrix_test = rule(
         "path_tool_binaries": attr.label_list(
             cfg = "exec",
             doc = "Executable behind each path tool.",
+        ),
+        "path_tool_args": attr.string_list_dict(
+            doc = "Leading args the shim of each named path tool passes.",
         ),
         "toolfile_tools": attr.string_list(),
         "toolfile_rels": attr.string_list(
@@ -456,6 +461,7 @@ _FORWARDED_DEFAULTS = {
     "path_tool_owners": [],
     "path_tool_names": [],
     "path_tool_binaries": [],
+    "path_tool_args": {},
     "rustfmt_from_toolchain": False,
     "toolfile_tools": [],
     "toolfile_srcs": [],

@@ -8,7 +8,10 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
   source "$0.runfiles/$f" 2>/dev/null || \
   { echo >&2 "ERROR: cannot find $f"; exit 1; }
 runfiles_export_envvars
-lib=$(rlocation _main/tools/coverage/lib/runfile.sh 2>/dev/null || rlocation rules_dx+/tools/coverage/lib/runfile.sh) || { echo >&2 "ERROR: cannot find runfile.sh"; exit 1; }
+# rlocation prints nothing and still exits 0 for a missing path once the envvars are exported.
+# The apparent name rules_dx maps to _main here and to rules_dx+ in a consumer.
+lib=$(rlocation rules_dx/tools/coverage/lib/runfile.sh)
+[ -n "$lib" ] || { echo >&2 "ERROR: cannot find runfile.sh"; exit 1; }
 source "$lib"
 
 upstream=$(runfile "$DX_BISECT_UPSTREAM")
@@ -29,7 +32,7 @@ if ! "$(runfile "$DX_BISECT_REPORT")" cobertura --ignore-missing-files \
   echo "dx: bisect-ppx-report failed" >&2
   exit 1
 fi
-if ! "$(runfile "$DX_TO_LCOV")" --from cobertura --sources "$sources" "$work/cobertura.xml" "$COVERAGE_DIR/bisect.dat"; then
+if ! DX_RUNTIME_TOOL=to_lcov "$(runfile "$DX_TO_LCOV")" --from cobertura --sources "$sources" "$work/cobertura.xml" "$COVERAGE_DIR/bisect.dat"; then
   exit 1
 fi
 exit "$status"

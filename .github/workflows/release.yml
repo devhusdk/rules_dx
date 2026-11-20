@@ -121,7 +121,7 @@ jobs:
             printf '%s  %s\n' "$(sha256sum "out/$launcher" | cut -d' ' -f1)" "$launcher" > "out/$launcher.sha256"
             cat "out/$launcher.sha256" >> sums.tmp
             files="$files $launcher $launcher.sha256"
-            for tool in capnp flatc go thrift; do
+            for tool in capnp flatc go oapi-codegen runtime thrift; do
               native="dx-$tool-${asset#dx-}"
               test -s "out/$native" || { echo "want a non-empty out/$native" >&2; exit 1; }
               printf '%s  %s\n' "$(sha256sum "out/$native" | cut -d' ' -f1)" "$native" > "out/$native.sha256"
@@ -139,6 +139,11 @@ jobs:
               ;;
             esac
           done
+          for tool_asset in dx-tree-sitter-windows-arm64.dll dx-tree-sitter-pkl-windows-arm64.dll dx-tree-sitter-LICENSE dx-tree-sitter-pkl-LICENSE; do
+            test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
+            printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> sums.tmp
+            files="$files $tool_asset"
+          done
           for tool in topiary progenitor; do
             for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do
               tool_asset="dx-$tool-$host"
@@ -147,8 +152,11 @@ jobs:
               files="$files $tool_asset"
             done
           done
+          test -s out/dx-oapi-codegen-LICENSE || { echo "want a non-empty out/dx-oapi-codegen-LICENSE" >&2; exit 1; }
+          printf '%s  %s\n' "$(sha256sum out/dx-oapi-codegen-LICENSE | cut -d' ' -f1)" dx-oapi-codegen-LICENSE >> sums.tmp
+          files="$files dx-oapi-codegen-LICENSE"
           : > out/dx-jar-sha256sums.txt
-          for jar in dx-avro-union-any.jar dx-javac-check-any.jar dx-javadoc-extract-any.jar dx-jmh-generate-any.jar dx-kotlinc-check-any.jar dx-scalac-check-any.jar; do
+          for jar in dx-avro-union-any.jar dx-dokka-extract-any.jar dx-javac-check-any.jar dx-javadoc-extract-any.jar dx-jmh-generate-any.jar dx-kotlinc-check-any.jar dx-maven-resolver-any.jar dx-scalac-check-any.jar dx-scaladoc-extract-any.jar; do
             test -s "out/$jar" || { echo "want a non-empty out/$jar" >&2; exit 1; }
             printf '%s  %s\n' "$(sha256sum "out/$jar" | cut -d' ' -f1)" "$jar" >> out/dx-jar-sha256sums.txt
             files="$files $jar"
@@ -156,7 +164,7 @@ jobs:
           files="$files dx-jar-sha256sums.txt"
           : > out/dx-haskell-sha256sums.txt
           for tool in dx-hpc-lcov dx-weeder; do
-            for host in linux-arm64 macos-arm64 windows-x86_64; do
+            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do
               asset="$tool-$host"
               test -s "out/$asset" || { echo "want a non-empty out/$asset" >&2; exit 1; }
               printf '%s  %s\n' "$(sha256sum "out/$asset" | cut -d' ' -f1)" "$asset" >> out/dx-haskell-sha256sums.txt
@@ -166,7 +174,7 @@ jobs:
           test -s out/dx-weeder-LICENSE || { echo "want a non-empty out/dx-weeder-LICENSE" >&2; exit 1; }
           printf '%s  %s\n' "$(sha256sum out/dx-weeder-LICENSE | cut -d' ' -f1)" dx-weeder-LICENSE >> out/dx-haskell-sha256sums.txt
           files="$files dx-weeder-LICENSE"
-          for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch; do
+          for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch dx-haskell-gmp-ghc-source.tar.xz; do
             test -s "out/$asset" || { echo "want a non-empty out/$asset" >&2; exit 1; }
             printf '%s  %s\n' "$(sha256sum "out/$asset" | cut -d' ' -f1)" "$asset" >> out/dx-haskell-sha256sums.txt
             files="$files $asset"
@@ -181,7 +189,7 @@ jobs:
               files="$files $tool_asset"
             done
           done
-          for tool_asset in dx-nixfmt-linux-arm64 dx-kcov-linux-x86_64 dx-kcov-linux-arm64 dx-deadnix-LICENSE dx-selene-LICENSE dx-nixfmt-LICENSE dx-kcov-LICENSE dx-deadnix-source.crate dx-kcov-source.tar.gz; do
+          for tool_asset in dx-nixfmt-linux-arm64 dx-nixfmt-macos-arm64 dx-kcov-linux-x86_64 dx-kcov-linux-arm64 dx-deadnix-LICENSE dx-selene-LICENSE dx-nixfmt-LICENSE dx-kcov-LICENSE dx-deadnix-source.crate dx-kcov-source.tar.gz; do
             test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
             printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> out/dx-tool-sha256sums.txt
             files="$files $tool_asset"
@@ -195,15 +203,15 @@ jobs:
           files="$files dx-tool-sha256sums.txt"
           printf '%s\n' "$files" > out/files.list
           LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
-          test "$(wc -l < out/dx-sha256sums.txt)" -eq 52 || { echo "want 52 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-sha256sums.txt)" -eq 67 || { echo "want 67 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-sha256sums.txt)
           test "$(wc -l < out/dx-gazelle-sha256sums.txt)" -eq 5 || { echo "want 5 gazelle manifest lines, got $(wc -l < out/dx-gazelle-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-gazelle-sha256sums.txt)
-          test "$(wc -l < out/dx-jar-sha256sums.txt)" -eq 6 || { echo "want 6 jar manifest lines, got $(wc -l < out/dx-jar-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-jar-sha256sums.txt)" -eq 9 || { echo "want 9 jar manifest lines, got $(wc -l < out/dx-jar-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-jar-sha256sums.txt)
-          test "$(wc -l < out/dx-haskell-sha256sums.txt)" -eq 15 || { echo "want 15 haskell manifest lines, got $(wc -l < out/dx-haskell-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-haskell-sha256sums.txt)" -eq 18 || { echo "want 18 haskell manifest lines, got $(wc -l < out/dx-haskell-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-haskell-sha256sums.txt)
-          test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 22 || { echo "want 22 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-tool-sha256sums.txt)" -eq 23 || { echo "want 23 tool manifest lines, got $(wc -l < out/dx-tool-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-tool-sha256sums.txt)
       - name: Build and verify the source archive
         env:
@@ -216,7 +224,7 @@ jobs:
           bazel run //deploy/private/release:source_archive -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "$SOURCE_DIR" --pins "$pins"
           (
             cd out
-            for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-launcher-linux-x86_64 dx-launcher-linux-arm64 dx-launcher-macos-arm64 dx-launcher-windows-x86_64 dx-launcher-windows-arm64 dx-capnp-* dx-flatc-* dx-go-* dx-thrift-* dx-topiary-* dx-progenitor-* dx-*-any.jar dx-hpc-lcov-* dx-weeder-* dx-hlint-* dx-ormolu-* dx-haskell-gmp-* dx-deadnix-* dx-selene-* dx-nixfmt-* dx-kcov-* dx-python-tools-*; do
+            for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-launcher-linux-x86_64 dx-launcher-linux-arm64 dx-launcher-macos-arm64 dx-launcher-windows-x86_64 dx-launcher-windows-arm64 dx-runtime-* dx-capnp-* dx-flatc-* dx-go-* dx-oapi-codegen-* dx-thrift-* dx-tree-sitter-* dx-topiary-* dx-progenitor-* dx-*-any.jar dx-hpc-lcov-* dx-weeder-* dx-hlint-* dx-ormolu-* dx-haskell-gmp-* dx-deadnix-* dx-selene-* dx-nixfmt-* dx-kcov-* dx-python-tools-*; do
               case "$file" in *.tar.gz.sha256|*.zip.sha256) continue ;; esac
               cp "$file" "$SOURCE_DIR/"
             done

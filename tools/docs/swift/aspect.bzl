@@ -24,7 +24,7 @@ real_swift_docs_aspect = aspect(
     attrs = {
         "_swift_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/swift/extract:swift_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

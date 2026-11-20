@@ -1,9 +1,9 @@
 //! Finds the `deps` of a Java or Kotlin rule whose jars the compiler never read.
 //!
 //! The aspect writes a JSON Lines map next to the compiler's jdeps file. The first line holds the
-//! target and its direct dependencies with their compile jars. Each later line is either a jar the
-//! target may use without listing it (`{"known": path}`) or one jar of its transitive compile
-//! classpath with the label that owns it (`{"jar": path, "label": owner}`). A dependency is unused
+//! target. Each later line is a direct dependency with its compile jars (`{"dep": label, "jars":
+//! [path]}`), a jar the target may use without listing it (`{"known": path}`) or one jar of its
+//! transitive compile classpath with the label that owns it (`{"jar": path, "label": owner}`). A dependency is unused
 //! when none of its jars is named as used in the jdeps file. A transitive jar is indirect when it
 //! is neither a direct jar nor a known jar and the target itself does not own it.
 
@@ -24,12 +24,12 @@ struct Header {
     package: String,
     target: String,
     label: String,
-    deps: Vec<Dep>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 enum Entry {
+    Dep { dep: String, jars: Vec<String> },
     Known { known: String },
     Classpath { jar: String, label: String },
 }
@@ -48,7 +48,7 @@ struct Indirect {
     label: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 struct Dep {
     label: String,
     jars: Vec<String>,
@@ -70,14 +70,15 @@ fn read_map(tool: &'static str, bytes: &[u8]) -> Result<DepsMap, ParseError> {
         });
     };
     let header: Header = serde_json::from_slice(first).map_err(json)?;
-    let mut known: BTreeSet<String> = header
-        .deps
-        .iter()
-        .flat_map(|dep| dep.jars.iter().cloned())
-        .collect();
+    let mut known = BTreeSet::new();
+    let mut deps = Vec::new();
     let mut classpath = Vec::new();
     for line in lines {
         match serde_json::from_slice(line).map_err(json)? {
+            Entry::Dep { dep, jars } => {
+                known.extend(jars.iter().cloned());
+                deps.push(Dep { label: dep, jars });
+            }
             Entry::Known { known: jar } => {
                 known.insert(jar);
             }
@@ -99,7 +100,7 @@ fn read_map(tool: &'static str, bytes: &[u8]) -> Result<DepsMap, ParseError> {
     Ok(DepsMap {
         package: header.package,
         target: header.target,
-        deps: header.deps,
+        deps,
         indirect,
     })
 }
@@ -331,7 +332,8 @@ fn next_field<'a>(rest: &mut &'a [u8]) -> Result<(u64, u64, &'a [u8]), String> {
         5 => split(body, 4)?,
         2 => {
             let (len, used) = varint(body)?;
-            let len = usize::try_from(len).map_err(|_| "length out of range".to_owned())?;
+            let len =
+                usize::try_from(len).map_err(|error| format!("length out of range: {error}"))?;
             let (_, tail) = split(body, used)?;
             split(tail, len)?
         }
@@ -373,7 +375,10 @@ mod tests {
         out
     }
 
-    const MAP: &str = r#"{"package":"p","target":"lib","label":"//p:lib","deps":[{"label":"//a:used","jars":["a.jar"]},{"label":"//b:idle","jars":["b.jar"]},{"label":"//c:empty","jars":[]}]}"#;
+    const MAP: &str = r#"{"package":"p","target":"lib","label":"//p:lib"}
+{"dep":"//a:used","jars":["a.jar"]}
+{"dep":"//b:idle","jars":["b.jar"]}
+{"dep":"//c:empty","jars":[]}"#;
 
     #[test]
     fn names_the_dependency_whose_jar_is_not_used() {
@@ -412,7 +417,8 @@ mod tests {
         assert!(parse_unused_dependencies("javac", bad_line.as_bytes(), &[]).is_err());
     }
 
-    const INDIRECT_MAP: &str = r#"{"package":"p","target":"lib","label":"//p:lib_upstream","deps":[{"label":"//a:direct","jars":["a.jar"]}]}
+    const INDIRECT_MAP: &str = r#"{"package":"p","target":"lib","label":"//p:lib_upstream"}
+{"dep":"//a:direct","jars":["a.jar"]}
 {"jar":"a.jar","label":"//a:direct"}
 {"jar":"u.jar","label":"//u:used"}
 {"jar":"u2.jar","label":"//u:used_upstream"}
@@ -481,7 +487,7 @@ mod tests {
 
     #[test]
     fn scalac_missing_warning_names_the_indirect_label() {
-        let map = r#"{"package":"p","target":"lib","label":"//p:lib","deps":[]}
+        let map = r#"{"package":"p","target":"lib","label":"//p:lib"}
 {"jar":"t.jar","label":"@@//b:transitive"}"#;
         let log = scalac_log(&[
             (

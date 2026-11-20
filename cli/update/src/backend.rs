@@ -13,7 +13,6 @@ mod julia;
 mod maven;
 mod npm;
 mod opam;
-mod pinned;
 mod pub_dev;
 mod resolver;
 mod ruby;
@@ -245,7 +244,11 @@ pub const UV_PYTHON_VAR: &str = "DX_UV_PYTHON";
 
 pub const UV_LABEL: &str = "@dx_tools//:uv";
 
-pub const UV_PYTHON_LABEL: &str = "@rules_dx//cli/update:python_interpreter";
+/// The label of the Python interpreter uv runs under.
+#[must_use]
+pub fn uv_python_label() -> Option<&'static str> {
+    dx_families::command("python", "python_interpreter")
+}
 
 pub const UV_VERSION_LINE: &str = "uv 0.13.7";
 
@@ -288,6 +291,18 @@ fn node_tool(
             detail: None,
         }),
     }
+}
+
+/// The `commands` label the `lang.json` of `lang` names for `tool`.
+pub(crate) fn lang_command(
+    set: &ResolvedSet,
+    lang: &str,
+    tool: &str,
+) -> Result<&'static str, BackendError> {
+    dx_families::command(lang, tool).ok_or_else(|| BackendError::Unsupported {
+        set: set.name.clone(),
+        reason: "the lang.json of this ecosystem names no command for its tool",
+    })
 }
 
 /// The set directory as UTF-8, or an error naming the path.
@@ -753,7 +768,7 @@ fn plan_backend(
     head: &dx_process::BazelHead,
     closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
-    match set.ecosystem.plan_backend() {
+    match backend_of(workspace, set, set.ecosystem.plan_backend()) {
         "uv" => uv::plan(workspace, set, request, offline, frozen, head, closure),
         "npm" => npm::plan(workspace, set, request, offline, frozen, head, closure),
         "bazel" => bazel::plan(workspace, set, request, offline, frozen, head, closure),
@@ -770,7 +785,7 @@ fn plan_backend(
         "cabal" => cabal::plan(workspace, set, request, offline, frozen, head, closure),
         "ruby" => ruby::plan(workspace, set, request, offline, frozen, head, closure),
         "resolver" => resolver::plan(workspace, set, request, offline, frozen, head),
-        _ => pinned::plan(set, request),
+        _ => Err(no_backend(set)),
     }
 }
 
@@ -796,7 +811,7 @@ fn check_backend(
     head: &dx_process::BazelHead,
     closure: &UvClosure,
 ) -> Result<CheckPlan, BackendError> {
-    match set.ecosystem.check_backend() {
+    match backend_of(workspace, set, set.ecosystem.check_backend()) {
         "uv" => uv::check(workspace, set, request, offline, head, closure),
         "npm" => npm::check(workspace, set, request, offline, head, closure),
         "bazel" => bazel::check(workspace, set, request, offline, head, closure),
@@ -813,7 +828,38 @@ fn check_backend(
         "cabal" => cabal::check(workspace, set, request, offline, head, closure),
         "ruby" => ruby::check(workspace, set, request, offline, head, closure),
         "resolver" => resolver::check(workspace, set, request, offline, head),
-        _ => pinned::check(set, request),
+        _ => Err(no_backend(set)),
+    }
+}
+
+/// The backend that runs for `set`, given its `ecosystems.json` column.
+///
+/// The dart lock step has only the Dart SDK, so pub sets on the Flutter SDK run `pub` from
+/// rules_flutter. Maven sets the java lock step writes go through the registry resolver; sets
+/// pinned by `rules_jvm_external` keep their `pin` run.
+fn backend_of(workspace: &Path, set: &ResolvedSet, column: &'static str) -> &'static str {
+    if set.ecosystem == Ecosystem::Pub && uses_flutter(workspace, set) {
+        "pub_dev"
+    } else if dependency_sets::maven_resolver_set(workspace, set) {
+        "resolver"
+    } else {
+        column
+    }
+}
+
+/// Whether the pubspec of `set` depends on the Flutter SDK.
+fn uses_flutter(workspace: &Path, set: &ResolvedSet) -> bool {
+    set.manifests.first().is_some_and(|manifest| {
+        std::fs::read_to_string(workspace.join(manifest))
+            .is_ok_and(|text| text.lines().any(|line| line.trim() == "sdk: flutter"))
+    })
+}
+
+/// Refuses a set whose `ecosystems.json` row names a backend this crate does not have.
+fn no_backend(set: &ResolvedSet) -> BackendError {
+    BackendError::Unsupported {
+        set: set.name.clone(),
+        reason: "the ecosystems.json row of this ecosystem names no update backend",
     }
 }
 
@@ -896,7 +942,7 @@ fn go_staged(
     inputs.push(sum.clone());
     Ok(StagedRun {
         tool: StagedTool::GoModDownload,
-        argv_head: bazel(&pin_head, "run", &["@rules_dx//go/private/tools:go", "--"]),
+        argv_head: bazel(&pin_head, "run", &[lang_command(set, "go", "go")?, "--"]),
         env: Vec::new(),
         inputs,
         outputs: vec![sum],
@@ -941,7 +987,7 @@ fn hex_staged(
     let mut argv_head = bazel(
         &pin_head,
         "run",
-        &["@rules_dx//elixir/private/tools:mix", "--", command],
+        &[lang_command(set, "elixir", "mix")?, "--", command],
     );
     argv_head.extend(packages.iter().cloned());
     Ok(StagedRun {
@@ -984,7 +1030,7 @@ fn rebar_staged(
     let mut argv_head = bazel(
         &pin_head,
         "run",
-        &["@rules_dx//erlang/private/tools:rebar3", "--"],
+        &[lang_command(set, "erlang", "rebar3")?, "--"],
     );
     argv_head.extend(args.iter().cloned());
     Ok(StagedRun {
@@ -1090,7 +1136,7 @@ fn carton_argv(
     let mut argv = bazel(
         head,
         "run",
-        &[&under, "@rules_dx//perl/private/tools:carton", "--"],
+        &[&under, lang_command(set, "perl", "carton")?, "--"],
     );
     argv.extend(strings(command));
     Ok(argv)
@@ -1169,7 +1215,7 @@ fn swift_argv(
     let mut argv = bazel(
         head,
         "run",
-        &[&under, "@rules_dx//swift/private/tools:swift", "--"],
+        &[&under, lang_command(set, "swift", "swift")?, "--"],
     );
     argv.extend(command.iter().cloned());
     Ok(argv)
@@ -1203,7 +1249,7 @@ fn opam_argv(
     let mut argv = bazel(
         head,
         "run",
-        &[&under, "@rules_dx//ocaml/private/tools:opam", "--"],
+        &[&under, lang_command(set, "ocaml", "opam")?, "--"],
     );
     argv.extend(strings(command));
     Ok(argv)
@@ -1217,34 +1263,18 @@ fn opam_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
     )])
 }
 
-/// A `dart pub` run from the pinned Dart SDK in the set's directory.
-///
-/// Flutter sets run the Dart SDK inside the pinned Flutter toolchain through
-/// `@rules_flutter//flutter/pub`, which points `FLUTTER_ROOT` at a tree for the pinned version.
+/// A `pub` run of a Flutter set through `@rules_flutter//flutter/pub`, which points
+/// `FLUTTER_ROOT` at a tree for the pinned Flutter version.
 fn pub_argv(
     workspace: &Path,
     set: &ResolvedSet,
     head: &dx_process::BazelHead,
     command: &[&str],
 ) -> Result<Vec<String>, BackendError> {
-    let flutter = set.manifests.first().is_some_and(|manifest| {
-        std::fs::read_to_string(workspace.join(manifest))
-            .is_ok_and(|text| text.lines().any(|line| line.trim() == "sdk: flutter"))
-    });
     let dir = set_dir(workspace, set)?;
-    if flutter {
-        let mut argv = bazel(head, "run", &["@rules_flutter//flutter/pub", "--"]);
-        argv.extend(strings(command));
-        argv.extend(["--directory".to_owned(), dir]);
-        return Ok(argv);
-    }
-    let under = format!("--run_under=cd {} &&", dx_process::shell::quote(&dir));
-    let mut argv = bazel(
-        head,
-        "run",
-        &[&under, "@rules_dx//dart/private/tools:dart", "--"],
-    );
+    let mut argv = bazel(head, "run", &["@rules_flutter//flutter/pub", "--"]);
     argv.extend(strings(command));
+    argv.extend(["--directory".to_owned(), dir]);
     Ok(argv)
 }
 

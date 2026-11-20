@@ -1,11 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use dx_release_tools::candidate::{
-    Candidate, PINS_PATH, build_source_archive, candidate_module_file, ls_remote_output,
-    read_git_state, source_archive_error, stage_local_registry, write_release_source,
+    Candidate, CandidateError, GitError, PINS_PATH, build_source_archive, candidate_module_file,
+    ls_remote_output, read_git_state, source_archive_error, stage_local_registry,
+    write_release_source,
 };
 use dx_release_tools::{
-    RELEASE_REMOTE, bcr_candidate_error, bcr_integrity_of_digest, release_remote_error, release_run,
+    BcrError, RELEASE_REMOTE, TagError, bcr_candidate_error, bcr_integrity_of_digest,
+    release_remote_error, release_run,
 };
 
 const VERSION: &str = "1.2.3-rc1";
@@ -126,7 +128,7 @@ impl Fixture {
         )
     }
 
-    fn ls_remote(&self, remote: &Path) -> Result<String, String> {
+    fn ls_remote(&self, remote: &Path) -> Result<String, GitError> {
         ls_remote_output(
             Some(&self.repo),
             remote.to_str().expect("utf8"),
@@ -181,8 +183,8 @@ fn repack(members: &[(String, Vec<u8>, u32)], dst: &Path) {
     dx_deploy_tools::archive_tree(&refs, dst).expect("repack");
 }
 
-fn failed_detail(ledger: Result<String, String>) -> Result<String, String> {
-    let text = ledger?;
+fn failed_detail(ledger: Result<String, TagError>) -> Result<String, String> {
+    let text = ledger.map_err(|error| error.to_string())?;
     if !text.contains("\"state\": \"failed\"") {
         return Ok(text);
     }
@@ -349,16 +351,19 @@ fn archive_check_needs_the_same_pins() {
         fixture.head
     ));
     assert_eq!(
-        source_archive_error(&filled, &fixture.repo, &candidate, Some(b"other\n")),
+        source_archive_error(&filled, &fixture.repo, &candidate, Some(b"other\n"))
+            .map_err(|error| error.to_string()),
         differs
     );
     assert_eq!(
-        source_archive_error(&filled, &fixture.repo, &candidate, None),
+        source_archive_error(&filled, &fixture.repo, &candidate, None)
+            .map_err(|error| error.to_string()),
         differs
     );
     let plain = fixture.archive("plain.tar.gz");
     assert_eq!(
-        source_archive_error(&plain, &fixture.repo, &candidate, Some(FILLED_PINS)),
+        source_archive_error(&plain, &fixture.repo, &candidate, Some(FILLED_PINS))
+            .map_err(|error| error.to_string()),
         differs
     );
 }
@@ -379,7 +384,8 @@ fn archive_check_with_pins_still_rejects_other_changes() {
     let bad = fixture.path("changed.tar.gz");
     repack(&changed, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &candidate, Some(FILLED_PINS)),
+        source_archive_error(&bad, &fixture.repo, &candidate, Some(FILLED_PINS))
+            .map_err(|error| error.to_string()),
         Err(format!(
             "candidate: archive member {module} differs from commit {}",
             fixture.head
@@ -402,13 +408,16 @@ fn pins_need_a_pins_file_in_the_commit() {
     let dst = fixture.path("none.tar.gz");
     let want = Err(format!("candidate: commit has no {PINS_PATH}"));
     assert_eq!(
-        build_source_archive(&fixture.repo, &candidate, &dst, Some(FILLED_PINS)).map(|_| ()),
+        build_source_archive(&fixture.repo, &candidate, &dst, Some(FILLED_PINS))
+            .map(|_| ())
+            .map_err(|error| error.to_string()),
         want
     );
     let plain = fixture.path("plain.tar.gz");
     build_source_archive(&fixture.repo, &candidate, &plain, None).expect("plain");
     assert_eq!(
-        source_archive_error(&plain, &fixture.repo, &candidate, Some(FILLED_PINS)),
+        source_archive_error(&plain, &fixture.repo, &candidate, Some(FILLED_PINS))
+            .map_err(|error| error.to_string()),
         want
     );
 }
@@ -438,7 +447,8 @@ fn archive_rejects_a_dropped_member() {
     let bad = fixture.path("dropped.tar.gz");
     repack(&kept, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None)
+            .map_err(|error| error.to_string()),
         Err(format!("candidate: archive drops member {dropped}"))
     );
     assert_eq!(fixture.refs(), before);
@@ -460,7 +470,8 @@ fn archive_rejects_a_changed_blob_and_mode() {
     let bad = fixture.path("changed.tar.gz");
     repack(&changed, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None)
+            .map_err(|error| error.to_string()),
         Err(format!(
             "candidate: archive member {module} differs from commit {}",
             fixture.head
@@ -475,7 +486,8 @@ fn archive_rejects_a_changed_blob_and_mode() {
     }
     repack(&moded, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None)
+            .map_err(|error| error.to_string()),
         Err(format!(
             "candidate: archive member {tool} has mode 644, want 755"
         ))
@@ -488,7 +500,8 @@ fn archive_rejects_a_changed_blob_and_mode() {
     ));
     repack(&extra, &bad);
     assert_eq!(
-        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None),
+        source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None)
+            .map_err(|error| error.to_string()),
         Err(format!(
             "candidate: archive has extra member rules_dx-{VERSION}/extra.txt"
         ))
@@ -512,7 +525,8 @@ fn archive_rejects_a_wrong_strip_prefix() {
     let bad = fixture.path("prefix.tar.gz");
     repack(&renamed, &bad);
     let error = source_archive_error(&bad, &fixture.repo, &fixture.candidate(), None)
-        .expect_err("wrong prefix");
+        .expect_err("wrong prefix")
+        .to_string();
     assert!(
         error.contains("is outside strip prefix rules_dx-1.2.3-rc1/"),
         "{error}"
@@ -531,15 +545,17 @@ fn archive_rejects_a_foreign_sha() {
     let foreign = dx_test_scratch::git(&other, &other, &["rev-parse", "HEAD"]).unwrap();
     let candidate = Candidate::new(VERSION, &foreign).expect("candidate");
     let dst = fixture.path("foreign.tar.gz");
-    let error =
-        build_source_archive(&fixture.repo, &candidate, &dst, None).expect_err("foreign sha");
+    let error = build_source_archive(&fixture.repo, &candidate, &dst, None)
+        .expect_err("foreign sha")
+        .to_string();
     assert!(
         error.starts_with(&format!("candidate: commit {foreign} is not in ")),
         "{error}"
     );
     assert!(!dst.exists());
     let error = build_source_archive(&fixture.path("missing"), &fixture.candidate(), &dst, None)
-        .expect_err("non-repo");
+        .expect_err("non-repo")
+        .to_string();
     assert!(error.contains("is not in"), "{error}");
 }
 
@@ -563,7 +579,8 @@ fn archive_rejects_symlinks() {
         &fixture.path("link.tar.gz"),
         None,
     )
-    .expect_err("symlink");
+    .expect_err("symlink")
+    .to_string();
     assert_eq!(
         error,
         "candidate: link is a blob with mode 120000; only regular files are archived"
@@ -626,16 +643,28 @@ fn registry_source_rejects_wrong_version_prefix_and_integrity() {
     let source = std::fs::read_to_string(registry.join("modules/rules_dx/1.2.3-rc1/source.json"))
         .expect("source");
     let error = bcr_candidate_error(&source, "rules_dx", "1.2.4", &digest).expect_err("version");
-    assert!(error.contains("strip_prefix mismatch"), "{error}");
+    assert!(matches!(error, BcrError::StripPrefixMismatch { .. }));
+    assert!(
+        error.to_string().contains("strip_prefix mismatch"),
+        "{error}"
+    );
     let prefix = source.replace("\"rules_dx-1.2.3-rc1\"", "\"rules_dx-1.2.3\"");
     let error = bcr_candidate_error(&prefix, "rules_dx", VERSION, &digest).expect_err("prefix");
-    assert!(error.contains("strip_prefix mismatch"), "{error}");
+    assert!(
+        error.to_string().contains("strip_prefix mismatch"),
+        "{error}"
+    );
     let error =
         bcr_candidate_error(&source, "rules_dx", VERSION, &"0".repeat(64)).expect_err("integrity");
-    assert!(error.contains("integrity mismatch"), "{error}");
-    assert!(Candidate::new("0.0.0", &fixture.head).is_err());
+    assert!(matches!(error, BcrError::IntegrityMismatch { .. }));
+    assert!(error.to_string().contains("integrity mismatch"), "{error}");
+    assert!(matches!(
+        Candidate::new("0.0.0", &fixture.head),
+        Err(CandidateError::Bcr(BcrError::UnpublishableVersion))
+    ));
     let error = stage_local_registry(Path::new("relative"), &candidate, &archive)
-        .expect_err("relative registry");
+        .expect_err("relative registry")
+        .to_string();
     assert!(error.contains("must be absolute"), "{error}");
 }
 
@@ -648,8 +677,8 @@ fn tag_lightweight_is_peeled_through_ls_remote() {
     let output = fixture.ls_remote(&fixture.canonical).expect("ls-remote");
     assert_eq!(output, format!("{}\trefs/tags/{TAG}\n", fixture.head));
     assert_eq!(
-        release_remote_error(&fixture.candidate(), Ok(output)),
-        Ok(fixture.head.clone())
+        release_remote_error(&fixture.candidate(), Ok(output)).expect("remote tag"),
+        fixture.head
     );
     let state = read_git_state(Some(&fixture.repo), TAG).expect("state");
     assert!(!state.tree_dirty);
@@ -683,8 +712,8 @@ fn tag_annotated_is_peeled_through_ls_remote() {
         "{output}"
     );
     assert_eq!(
-        release_remote_error(&fixture.candidate(), Ok(output)),
-        Ok(fixture.head.clone())
+        release_remote_error(&fixture.candidate(), Ok(output)).expect("remote tag"),
+        fixture.head
     );
     let state = read_git_state(Some(&fixture.repo), TAG).expect("state");
     assert_eq!(state.tag_commit.as_deref(), Some(fixture.head.as_str()));
@@ -706,12 +735,14 @@ fn tag_moved_to_another_commit_points_elsewhere() {
     let before = fixture.refs();
     let candidate = Candidate::new(VERSION, &newer).expect("candidate");
     let output = fixture.ls_remote(&fixture.canonical).expect("ls-remote");
+    let error = release_remote_error(&candidate, Ok(output)).expect_err("elsewhere");
+    assert!(matches!(error, TagError::RemoteMismatch { .. }));
     assert_eq!(
-        release_remote_error(&candidate, Ok(output)),
-        Err(format!(
+        error.to_string(),
+        format!(
             "release: remote tag {TAG} points at {}, candidate is {newer} (git ls-remote --tags {RELEASE_REMOTE})",
             fixture.head
-        ))
+        )
     );
     assert_eq!(
         live_run(&fixture, &newer),
@@ -761,11 +792,19 @@ fn remote_tag_only_in_the_foreign_remote_fails() {
     assert!(before.1.contains(TAG));
     let output = fixture.ls_remote(&fixture.canonical).expect("ls-remote");
     assert_eq!(output, "");
+    let error = release_remote_error(&fixture.candidate(), Ok(output)).expect_err("no tag");
+    assert!(matches!(
+        error,
+        TagError::RemoteTag {
+            source: CandidateError::NoRemoteTag { .. },
+            ..
+        }
+    ));
     assert_eq!(
-        release_remote_error(&fixture.candidate(), Ok(output)),
-        Err(format!(
+        error.to_string(),
+        format!(
             "release: remote has no tag {TAG} (git ls-remote --tags {RELEASE_REMOTE}); push it beforehand with owner approval (this program never creates or pushes tags)"
-        ))
+        )
     );
     assert_eq!(fixture.refs(), before);
 }
@@ -776,15 +815,26 @@ fn remote_nonexistent_path_surfaces_the_git_error() {
     let before = fixture.refs();
     let missing = fixture.path("nowhere.git");
     let failed = fixture.ls_remote(&missing).expect_err("missing remote");
-    let error =
-        release_remote_error(&fixture.candidate(), Err(failed.clone())).expect_err("failed git");
+    let failed_text = failed.to_string();
+    let error = release_remote_error(&fixture.candidate(), Err(failed)).expect_err("failed git");
+    assert!(matches!(
+        error,
+        TagError::RemoteUnreadable {
+            source: GitError::Exit { .. },
+            ..
+        }
+    ));
+    let error = error.to_string();
     assert!(
         error.starts_with(&format!(
             "release: cannot verify remote tag {TAG} (git ls-remote --tags {RELEASE_REMOTE} failed: "
         )),
         "{error}"
     );
-    assert!(!failed.is_empty() && error.contains(&failed), "{error}");
+    assert!(
+        !failed_text.is_empty() && error.contains(&failed_text),
+        "{error}"
+    );
     assert_eq!(fixture.refs(), before);
 }
 
@@ -891,11 +941,14 @@ fn release_source_rejects_relative_and_conflicting_out_dir() {
     let fixture = Fixture::new();
     let candidate = fixture.candidate();
     let error = write_release_source(&fixture.repo, &candidate, Path::new("relative"), None)
-        .expect_err("relative");
+        .expect_err("relative")
+        .to_string();
     assert!(error.contains("must be absolute"), "{error}");
     let out = fixture.path("conflict");
     write(&out.join("source.json"), b"{}\n");
-    let error = write_release_source(&fixture.repo, &candidate, &out, None).expect_err("conflict");
+    let error = write_release_source(&fixture.repo, &candidate, &out, None)
+        .expect_err("conflict")
+        .to_string();
     assert!(error.contains("different bytes"), "{error}");
     assert!(!out.join(format!("rules_dx-{VERSION}.tar.gz")).exists());
 }

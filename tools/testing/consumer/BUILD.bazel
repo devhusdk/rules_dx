@@ -1,7 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
-load(":fixtures.bzl", "CONSUMER_FIXTURES", "consumer_fixture_tests")
+load(":fixtures.bzl", "CONSUMER_FIXTURES", "GO_GUARD_LANGS", "GUARD_PENDING", "IN_GRAPH_GUARD_LANGS", "JAVA_GUARD_LANGS", "consumer_fixture_tests")
 
 consumer_fixture_tests(
     name = "fixture_tests",
@@ -58,29 +58,116 @@ nested_bazel_test(
     ],
 )
 
-# A nested Go consumer that pins every registry tool of the host with a stub. Fails when it
-# still compiles a rules_dx binary that prebuilt_guard_allowlist.txt does not name.
+rust_library(
+    name = "prebuilt_guard",
+    testonly = True,
+    srcs = ["prebuilt_guard.rs"],
+    crate_name = "prebuilt_guard",
+    crate_root = "prebuilt_guard.rs",
+    deps = [
+        "//cli/families:dx_families",
+        "//cli/plan:dx_plan",
+    ],
+)
+
+rust_test(
+    name = "prebuilt_guard_lib_test",
+    size = "small",
+    crate = ":prebuilt_guard",
+)
+
+# Run with --bazel and --out: rules_dx as the root module with --//cli/prebuilt:guard_view analyzes the
+# IN_GRAPH_GUARD_LANGS consumer fixtures under the dx check and dx docs aspects and fails when they
+# compile a rules_dx binary that prebuilt_guard_allowlist.txt does not name.
+IN_GRAPH_GUARD_ENV = {
+    "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+    "DX_IN_GRAPH_GUARD_LANGS": " ".join(IN_GRAPH_GUARD_LANGS),
+    "DX_PREBUILT_GUARD_ALLOWLIST": "$(rlocationpath prebuilt_guard_allowlist.txt)",
+}
+
+rust_binary(
+    name = "in_graph_prebuilt_guard",
+    testonly = True,
+    srcs = ["in_graph_prebuilt_guard.rs"],
+    crate_name = "in_graph_prebuilt_guard",
+    crate_root = "in_graph_prebuilt_guard.rs",
+    data = [
+        "prebuilt_guard_allowlist.txt",
+        "@dx_test_tags_sources//:consumer.json",
+    ],
+    env = IN_GRAPH_GUARD_ENV,
+    deps = [
+        ":prebuilt_guard",
+        "//cli/adopt:dx_adopt",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "in_graph_prebuilt_guard_test",
+    size = "small",
+    crate = ":in_graph_prebuilt_guard",
+    data = [
+        "prebuilt_guard_allowlist.txt",
+        "@dx_test_tags_sources//:consumer.json",
+    ],
+    env = IN_GRAPH_GUARD_ENV | {
+        "DX_CONSUMER_FIXTURES": " ".join(CONSUMER_FIXTURES),
+        "DX_GO_GUARD_LANGS": " ".join(GO_GUARD_LANGS),
+        "DX_GUARD_PENDING": " ".join(GUARD_PENDING),
+        "DX_JAVA_GUARD_LANGS": " ".join(JAVA_GUARD_LANGS),
+    },
+)
+
+# A nested consumer of the DX_PREBUILT_GUARD_LANGS fixtures that pins every registry tool of the
+# host with a stub. Fails when it still compiles a rules_dx binary that
+# prebuilt_guard_allowlist.txt does not name.
+PREBUILT_GUARD_DATA = [
+    "prebuilt_guard_allowlist.txt",
+    "//:module_srcs",
+    "//cli/prebuilt:go_hub_targets",
+    "//cli/prebuilt:registry",
+    "//patches/rules_py:patches",
+    "@dx_test_tags_sources//:consumer.json",
+]
+
+PREBUILT_GUARD_ENV = {
+    "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+    "DX_PREBUILT_GO_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:go_hub_targets)",
+    "DX_PREBUILT_GUARD_ALLOWLIST": "$(rlocationpath prebuilt_guard_allowlist.txt)",
+    "DX_PREBUILT_REGISTRY": "$(rlocationpath //cli/prebuilt:registry)",
+}
+
 nested_bazel_test(
     name = "go_prebuilt_guard_test",
     size = "small",
     srcs = ["prebuilt_guard_test.rs"],
     crate_name = "prebuilt_guard_test",
     crate_root = "prebuilt_guard_test.rs",
-    data = [
-        "prebuilt_guard_allowlist.txt",
-        "//:module_srcs",
-        "//cli/prebuilt:registry",
-        "//patches/rules_py:patches",
-        "@dx_test_tags_sources//:consumer.json",
-    ],
-    env = {
-        "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
-        "DX_PREBUILT_GUARD_ALLOWLIST": "$(rlocationpath prebuilt_guard_allowlist.txt)",
-        "DX_PREBUILT_GUARD_LANG": "go",
-        "DX_PREBUILT_REGISTRY": "$(rlocationpath //cli/prebuilt:registry)",
-    },
+    data = PREBUILT_GUARD_DATA,
+    env = PREBUILT_GUARD_ENV | {"DX_PREBUILT_GUARD_LANGS": " ".join(GO_GUARD_LANGS)},
     network = True,
     deps = [
+        ":prebuilt_guard",
+        "//cli/adopt:dx_adopt",
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
+)
+
+nested_bazel_test(
+    name = "java_prebuilt_guard_test",
+    size = "small",
+    srcs = ["prebuilt_guard_test.rs"],
+    crate_name = "prebuilt_guard_test",
+    crate_root = "prebuilt_guard_test.rs",
+    data = PREBUILT_GUARD_DATA,
+    env = PREBUILT_GUARD_ENV | {"DX_PREBUILT_GUARD_LANGS": " ".join(JAVA_GUARD_LANGS)},
+    network = True,
+    deps = [
+        ":prebuilt_guard",
+        "//cli/adopt:dx_adopt",
         "//tools/testing:dx_testing",
         "//tools/testing/nested:dx_nested",
     ],

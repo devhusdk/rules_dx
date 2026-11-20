@@ -1,7 +1,15 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
@@ -1034,28 +1042,22 @@ impl Isolation {
             profile.push_str("(deny network*)(allow network-outbound (remote ip \"localhost:*\"))(allow network-bind network-inbound (local ip \"localhost:*\"))(allow network* (remote unix-socket))(allow network* (local unix-socket))");
         }
         for dir in self.sdk_dirs.iter().chain(&self.home_dirs) {
-            write!(
-                profile,
+            profile.push_str(&format!(
                 "(deny file-read* (subpath \"{}\"))",
                 profile_path(dir)
-            )
-            .ok();
+            ));
         }
         for file in &self.home_files {
-            write!(
-                profile,
+            profile.push_str(&format!(
                 "(deny file-read* (literal \"{}\"))",
                 profile_path(file)
-            )
-            .ok();
+            ));
         }
         for tool in &self.tools {
-            write!(
-                profile,
+            profile.push_str(&format!(
                 "(deny process-exec (literal \"{}\"))",
                 profile_path(tool)
-            )
-            .ok();
+            ));
         }
         profile
     }
@@ -1155,12 +1157,14 @@ fn timeline(out: &Path, line: &str) {
         eprintln!("cannot create {}: {err}", logs.display());
         return;
     }
+    let path = logs.join("timeline.log");
     if let Ok(mut file) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(logs.join("timeline.log"))
+        .open(&path)
+        && let Err(err) = writeln!(file, "{line}")
     {
-        writeln!(file, "{line}").ok();
+        eprintln!("cannot write {}: {err}", path.display());
     }
 }
 
@@ -2389,7 +2393,8 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
             source,
             "apple_support",
             &["toolchains_gate.patch", "xcode_absolute_tools.patch"],
-        )?;
+        )?
+        + &write_root_patch_override(workspace, source, "rules_swift", &[])?;
     // A floor search resolves candidate versions: DX_CONSUMER_OVERRIDES=module=version,...
     let module = match std::env::var(dx_floor::OVERRIDES_ENV) {
         Ok(spec) if !spec.trim().is_empty() => {

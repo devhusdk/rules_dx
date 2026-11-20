@@ -1,3 +1,7 @@
+#![expect(
+    clippy::disallowed_methods,
+    reason = "tests run local programs under the Bazel test timeout"
+)]
 fn collect(coverage: Option<&std::path::Path>) -> Option<i32> {
     let collect =
         std::path::absolute(dx_testing::env_file("DX_COLLECT")).expect("collect resolves");

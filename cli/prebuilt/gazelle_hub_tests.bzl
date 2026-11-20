@@ -1,6 +1,6 @@
 """Tests for the @dx_gazelle language list, source decision and hub BUILD text."""
 
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":gazelle_hub.bzl", "DISPATCH", "builds_from_source", "hub_languages", "prebuilt_build", "render_hub_build")
 load(":hub.bzl", "plan_assets", "plan_root")
 load(":pins.bzl", "URL_TEMPLATE")
@@ -50,6 +50,9 @@ def _checks():
         expect_equal("dispatch stays last when listed", _names(hub_languages([DISPATCH, astro])), ["astro", "dispatch"]),
         expect_contains("the build lists each language", render_hub_build([python]), '"%s",\n        "%s",\n    ],' % (python, DISPATCH)),
         expect_contains("the build names the binary", render_hub_build([python]), 'name = "gazelle"'),
+        expect_false("an unguarded build never names guard_view", "guard_view" in render_hub_build([python])),
+        expect_contains("a guarded build selects the stub under guard_view", render_hub_build([python], guard = True), 'name = "gazelle",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",\n        "//conditions:default": ":gazelle_source",\n    }),'),
+        expect_contains("a guarded build keeps the binary as gazelle_source", render_hub_build([python], guard = True), 'gazelle_binary(\n    name = "gazelle_source",\n    languages = [\n        "%s",\n        "%s",\n    ],' % (python, DISPATCH)),
         expect_equal("gazelle ships on every dx platform", TOOLS["gazelle"].platforms, TOOLS["dx"].platforms),
         expect_true("rules_dx as root builds from source", _source([_mod("rules_dx", True, [python])])),
         expect_true("from_source builds from source", _source([_mod("app", True, from_source = True), _mod("rules_dx", False, [python])])),

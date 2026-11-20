@@ -1,7 +1,6 @@
 //! The repository cache of a nested Bazel: built from declared downloads, and listed from a consumer lock.
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 /// The variable naming the runfiles keys of the `nested_repository_cache` manifests, space separated.
@@ -178,7 +177,7 @@ pub fn integrity_hex(integrity: &str) -> Option<String> {
         count += 6;
         if count >= 8 {
             count -= 8;
-            write!(hex, "{:02x}", (bits >> count) & 0xff).ok();
+            hex.push_str(&format!("{:02x}", (bits >> count) & 0xff));
         }
     }
     (algorithm(&hex) == Some(name)).then_some(hex)
@@ -274,7 +273,7 @@ pub fn list(
     Ok(entries
         .iter()
         .fold(String::new(), |mut list, (url, sha256)| {
-            writeln!(list, "{url} {sha256}").ok();
+            list.push_str(&format!("{url} {sha256}\n"));
             list
         }))
 }

@@ -1,12 +1,11 @@
 """Wrapper ownership for every quality taxonomy family."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
 load(":taxonomy.bzl", "FAMILY_OWNERS")
 load(":tool_defs.bzl", "is_canonical_token")
 
 visibility("private")
-
 
 WRAPPER_OWNERS = FAMILY_OWNERS
 
@@ -30,14 +29,15 @@ def uncovered_families():
     """Returns the sorted explicitly uncovered families."""
     return sorted([f for f in WRAPPER_OWNERS if WRAPPER_OWNERS[f] == "other"])
 
+# Kept apart from the colon: the consumer surface walk reads a bare colon-defs string as a load from this package.
+_PUBLIC_DEFS = "defs.bzl"
+
 def _is_owner_label(owner):
     if owner.startswith("@rules_dx//"):
         owner = owner[len("@rules_dx"):]
-    if not owner.startswith("//") or not owner.endswith(":defs.bzl"):
+    if not owner.startswith("//") or not owner.endswith(":" + _PUBLIC_DEFS):
         return False
-    package = owner[len("//"):-len(":defs.bzl")]
-    if package == "core/quality":
-        return True
+    package = owner[len("//"):-len(":" + _PUBLIC_DEFS)]
     segments = package.split("/")
     if not segments[0] or "@" in package:
         return False
@@ -50,7 +50,7 @@ def wrapper_schema_error():
             return "wrapper owners: non-canonical family '" + str(family) + "'"
         owner = WRAPPER_OWNERS[family]
         if owner != "other" and not _is_owner_label(owner):
-            return "wrapper owners: family '" + family + "' owner '" + str(owner) + "' must be a //<lang>:defs.bzl, //<lang>/private:defs.bzl, //core/quality:defs.bzl or @rules_dx// form of these label or \"other\""
+            return "wrapper owners: family '" + family + "' owner '" + str(owner) + "' must be a //<lang>:defs.bzl, //<lang>/private:defs.bzl or @rules_dx// form of these label or \"other\""
     for family in _taxonomy_families():
         if family not in WRAPPER_OWNERS:
             return "wrapper owners: taxonomy family '" + family + "' has no owner or uncovered verdict"
@@ -104,7 +104,7 @@ def wrapper_unit_tests(name):
                 [_is_owner_label(o) for o in [
                     "//cc:defs.bzl",
                     "@rules_dx//csharp:defs.bzl",
-                    "//core/quality:defs.bzl",
+                    "//core:defs.bzl",
                     "//go/private:defs.bzl",
                     "//cuda/rules:defs.bzl",
                     "@rules_dx_cuda//rules:defs.bzl",

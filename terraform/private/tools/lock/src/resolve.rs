@@ -1,8 +1,12 @@
 //! Resolves the `required_providers` of the `*.tf` files of a set to registry provider archives, one per platform.
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use dx_semver::Version;
@@ -476,15 +480,13 @@ pub fn state(packages: &[Package], constraints: &BTreeMap<String, BTreeSet<Strin
     let mut out =
         String::from("# This file is maintained automatically by the terraform lock step.\n");
     for package in packages {
-        writeln!(
-            out,
-            "\nprovider \"{}\" {{\n  version = \"{}\"",
+        out.push_str(&format!(
+            "\nprovider \"{}\" {{\n  version = \"{}\"\n",
             package.name, package.version
-        )
-        .ok();
+        ));
         if let Some(set) = constraints.get(&package.name).filter(|set| !set.is_empty()) {
             let joined: Vec<&str> = set.iter().map(String::as_str).collect();
-            writeln!(out, "  constraints = \"{}\"", joined.join(", ")).ok();
+            out.push_str(&format!("  constraints = \"{}\"\n", joined.join(", ")));
         }
         let hashes: BTreeSet<String> = package
             .archives
@@ -493,7 +495,7 @@ pub fn state(packages: &[Package], constraints: &BTreeMap<String, BTreeSet<Strin
             .collect();
         out.push_str("  hashes = [\n");
         for hash in hashes {
-            writeln!(out, "    \"{hash}\",").ok();
+            out.push_str(&format!("    \"{hash}\",\n"));
         }
         out.push_str("  ]\n}\n");
     }
@@ -567,4 +569,15 @@ impl Resolver for Terraform<'_> {
             ..Resolution::default()
         })
     }
+}
+
+/// Runs the terraform lock step on `args`, the arguments after `dx terraform_lock`: 0 when the lock is
+/// fresh or written, 1 when stale, 2 on failure.
+pub fn run_process(args: &[String]) -> i32 {
+    let Some(hub) = dx_families::hub("terraform") else {
+        eprintln!("terraform has no registry entry");
+        return 2;
+    };
+    let spec = Terraform::spec(hub);
+    dx_lock::run_process(&spec, &Terraform::new(&Site::new(), hub), args)
 }

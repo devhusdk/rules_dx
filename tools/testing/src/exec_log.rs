@@ -1,5 +1,6 @@
 //! Reader for Bazel's `--execution_log_compact_file`, a comparison of two logs, and a diff that
-//! names why spawns missed the cache.
+//! names why cacheable spawns missed the cache, traces each changed input to the source file or
+//! non-reproducible spawn it came from, and sums the uncacheable spawns by mnemonic.
 //!
 //! The log is a zstd stream of varint-length `ExecLogEntry` messages. Every spawn output
 //! becomes the key `<label> <mnemonic> <output path>`, valued with the file digest, the sorted
@@ -34,8 +35,9 @@
 //!   --execution_log_compact_file=$PWD/cache_second.log.zst //:same //:changed //:nocache
 //! ```
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::Read;
+use std::rc::Rc;
 
 pub type Log = BTreeMap<String, String>;
 
@@ -75,6 +77,31 @@ impl Node {
             Self::Symlink { path, target } => Some((path, target.clone())),
             Self::Set { .. } | Self::Runfiles { .. } => None,
         }
+    }
+
+    /// Returns each file path this node stands for with its digest, directories expanded.
+    fn files(&self) -> Vec<(String, String)> {
+        match self {
+            Self::File { path, hash } => vec![(path.clone(), hash.clone())],
+            Self::Directory { path, files } if files.is_empty() => {
+                vec![(path.clone(), String::new())]
+            }
+            Self::Directory { path, files } => files
+                .iter()
+                .map(|(child, hash)| (child_path(path, child), hash.clone()))
+                .collect(),
+            Self::Symlink { path, target } => vec![(path.clone(), format!("-> {target}"))],
+            Self::Set { .. } | Self::Runfiles { .. } => Vec::new(),
+        }
+    }
+}
+
+/// Bazel records a directory's children either relative to it or by their full path.
+fn child_path(dir: &str, child: &str) -> String {
+    if child.starts_with(&format!("{dir}/")) {
+        child.to_owned()
+    } else {
+        format!("{dir}/{child}")
     }
 }
 
@@ -401,25 +428,9 @@ impl ExecLog {
                 Some(Node::Set { direct, transitive }) => {
                     pending.extend(direct.iter().chain(transitive));
                 }
-                Some(Node::File { path, hash }) => {
-                    found.insert(path.clone(), hash.clone());
-                }
-                Some(Node::Directory { path, files }) if !files.is_empty() => {
-                    for (child, hash) in files {
-                        let child = if child.starts_with(&format!("{path}/")) {
-                            child.clone()
-                        } else {
-                            format!("{path}/{child}")
-                        };
-                        found.insert(child, hash.clone());
-                    }
-                }
-                Some(Node::Directory { path, .. }) => {
-                    found.insert(path.clone(), String::new());
-                }
-                Some(Node::Symlink { path, target }) => {
-                    found.insert(path.clone(), format!("-> {target}"));
-                }
+                Some(
+                    node @ (Node::File { .. } | Node::Directory { .. } | Node::Symlink { .. }),
+                ) => found.extend(node.files()),
                 // The tree's files are keyed by their exec path; the manifest sits in the tree.
                 Some(Node::Runfiles {
                     path,
@@ -435,6 +446,21 @@ impl ExecLog {
             }
         }
         Ok(found)
+    }
+
+    /// Maps each output file path, directories expanded, to the index of the first spawn that
+    /// writes it.
+    #[must_use]
+    pub fn producers(&self) -> BTreeMap<String, usize> {
+        let mut found = BTreeMap::new();
+        for (at, spawn) in self.spawns.iter().enumerate() {
+            for node in spawn.outputs.iter().filter_map(|id| self.nodes.get(id)) {
+                for (path, _) in node.files() {
+                    found.entry(path).or_insert(at);
+                }
+            }
+        }
+        found
     }
 
     /// Returns `<label> <mnemonic> <first output path>`, which names a spawn across runs.
@@ -505,16 +531,138 @@ fn args(spawn: &Spawn) -> BTreeMap<String, &str> {
         .collect()
 }
 
-fn spawn_changes(
-    first: &ExecLog,
-    old: &Spawn,
-    second: &ExecLog,
-    new: &Spawn,
-) -> Result<Vec<String>, String> {
-    let (old_inputs, new_inputs) = (first.inputs(old)?, second.inputs(new)?);
+/// Most origin lines one spawn lists before it only counts the rest.
+const ORIGIN_LINES: usize = 5;
+
+/// Returns each path whose value differs between two input maps, in path order.
+fn differing<'m>(
+    old: &'m BTreeMap<String, String>,
+    new: &'m BTreeMap<String, String>,
+) -> Vec<(&'m str, Option<&'m str>, Option<&'m str>)> {
+    let paths: BTreeSet<&String> = old.keys().chain(new.keys()).collect();
+    paths
+        .into_iter()
+        .map(|path| {
+            (
+                path.as_str(),
+                old.get(path).map(String::as_str),
+                new.get(path).map(String::as_str),
+            )
+        })
+        .filter(|(_, old, new)| old != new)
+        .collect()
+}
+
+/// Why a spawn of the second log wrote an output that differs from the first log.
+#[derive(Clone)]
+enum Why {
+    NotInFirst,
+    ArgsOrEnv,
+    SameInputs,
+    Inputs(Rc<Vec<String>>),
+}
+
+/// Follows differing generated inputs back through their producers in the second log.
+struct Tracer<'a> {
+    first: &'a ExecLog,
+    second: &'a ExecLog,
+    earlier: BTreeMap<String, &'a Spawn>,
+    producers: BTreeMap<String, usize>,
+    memo: HashMap<usize, Why>,
+}
+
+impl<'a> Tracer<'a> {
+    fn new(first: &'a ExecLog, second: &'a ExecLog) -> Self {
+        let mut earlier = BTreeMap::new();
+        for spawn in &first.spawns {
+            earlier.entry(first.key(spawn)).or_insert(spawn);
+        }
+        Self {
+            first,
+            second,
+            earlier,
+            producers: second.producers(),
+            memo: HashMap::new(),
+        }
+    }
+
+    /// Returns the `origin:` lines for the inputs that differ, without repeats.
+    fn origins(
+        &mut self,
+        old: &BTreeMap<String, String>,
+        new: &BTreeMap<String, String>,
+    ) -> Result<Vec<String>, String> {
+        let mut out = Vec::new();
+        let mut seen = HashSet::new();
+        for (path, before, after) in differing(old, new) {
+            let found = match self.producers.get(path).copied() {
+                None => vec![match (before, after) {
+                    (Some(before), Some(after)) => format!("origin: {path}: {before} -> {after}"),
+                    (Some(_), None) => format!("origin: {path}: only in the first log"),
+                    (None, _) => format!("origin: {path}: only in the second log"),
+                }],
+                Some(at) => {
+                    let made_by = format!("origin: {path} made by {}", self.key(at));
+                    match self.why(at)? {
+                        Why::NotInFirst => {
+                            vec![format!("{made_by}, which the first log does not have")]
+                        }
+                        Why::ArgsOrEnv => vec![format!("{made_by}, whose args or env differ")],
+                        Why::SameInputs => vec![format!(
+                            "{made_by}, which gave a different output from the same inputs"
+                        )],
+                        Why::Inputs(lines) => lines.to_vec(),
+                    }
+                }
+            };
+            for line in found {
+                if seen.insert(line.clone()) {
+                    out.push(line);
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    fn key(&self, at: usize) -> String {
+        self.second.key(&self.second.spawns[at])
+    }
+
+    fn why(&mut self, at: usize) -> Result<Why, String> {
+        if let Some(why) = self.memo.get(&at) {
+            return Ok(why.clone());
+        }
+        // A spawn that reads its own output would recurse forever; it stops here instead.
+        self.memo.insert(at, Why::Inputs(Rc::default()));
+        let new = &self.second.spawns[at];
+        let why = match self.earlier.get(&self.key(at)).copied() {
+            None => Why::NotInFirst,
+            Some(old) if old.args != new.args || old.env != new.env => Why::ArgsOrEnv,
+            Some(old) if !old.digest.is_empty() && old.digest == new.digest => Why::SameInputs,
+            Some(old) => {
+                let (old_inputs, new_inputs) = (self.first.inputs(old)?, self.second.inputs(new)?);
+                if differing(&old_inputs, &new_inputs).is_empty() {
+                    Why::SameInputs
+                } else {
+                    Why::Inputs(Rc::new(self.origins(&old_inputs, &new_inputs)?))
+                }
+            }
+        };
+        self.memo.insert(at, why.clone());
+        Ok(why)
+    }
+}
+
+fn spawn_changes(tracer: &mut Tracer<'_>, old: &Spawn, new: &Spawn) -> Result<Vec<String>, String> {
+    let (old_inputs, new_inputs) = (tracer.first.inputs(old)?, tracer.second.inputs(new)?);
+    let origins = tracer.origins(&old_inputs, &new_inputs)?;
+    let mut lines: Vec<String> = origins.iter().take(ORIGIN_LINES).cloned().collect();
+    if origins.len() > ORIGIN_LINES {
+        lines.push(format!("{} more origins", origins.len() - ORIGIN_LINES));
+    }
     let mut inputs = Vec::new();
     changed(&mut inputs, "input", &view(&old_inputs), &view(&new_inputs));
-    let mut lines: Vec<String> = inputs.iter().take(INPUT_LINES).cloned().collect();
+    lines.extend(inputs.iter().take(INPUT_LINES).cloned());
     if inputs.len() > INPUT_LINES {
         lines.push(format!("{} more inputs differ", inputs.len() - INPUT_LINES));
     }
@@ -523,33 +671,39 @@ fn spawn_changes(
     Ok(lines)
 }
 
-/// Names why the slowest spawns that ran in the second log missed the cache, against the first.
+fn seconds(millis: u64) -> String {
+    format!("{}.{}s", millis / 1000, millis % 1000 / 100)
+}
+
+/// Names why the slowest cacheable spawns that ran in the second log missed the cache, against
+/// the first, then sums the spawns that can never be cached by mnemonic.
 ///
 /// # Errors
 ///
 /// Returns `Err` when a spawn points at an input with no entry.
 pub fn diff(first: &ExecLog, second: &ExecLog, top: usize) -> Result<Vec<String>, String> {
-    let mut earlier: BTreeMap<String, &Spawn> = BTreeMap::new();
-    for spawn in &first.spawns {
-        earlier.entry(first.key(spawn)).or_insert(spawn);
-    }
-    let mut slow: Vec<&Spawn> = second.spawns.iter().filter(|s| ran_here(s)).collect();
+    let mut tracer = Tracer::new(first, second);
+    let mut slow: Vec<&Spawn> = second
+        .spawns
+        .iter()
+        .filter(|s| ran_here(s) && s.remote_cacheable)
+        .collect();
     slow.sort_by_key(|spawn| std::cmp::Reverse(spawn.total_millis));
     let mut out = Vec::new();
     for spawn in slow.into_iter().take(top) {
         let key = second.key(spawn);
-        let seconds = spawn.total_millis / 1000;
-        let tenths = spawn.total_millis % 1000 / 100;
-        out.push(format!("{seconds}.{tenths}s {key} ({})", spawn.runner));
-        let reasons = if !spawn.remote_cacheable {
-            vec!["not remote cacheable".to_owned()]
-        } else if let Some(old) = earlier.get(&key) {
+        out.push(format!(
+            "{} {key} ({})",
+            seconds(spawn.total_millis),
+            spawn.runner
+        ));
+        let reasons = if let Some(old) = tracer.earlier.get(&key).copied() {
             // Bazel records no digest for some spawns, such as test runs.
             let digested = !old.digest.is_empty() && !spawn.digest.is_empty();
             let found = if digested && old.digest == spawn.digest {
                 Vec::new()
             } else {
-                spawn_changes(first, old, second, spawn)?
+                spawn_changes(&mut tracer, old, spawn)?
             };
             if !found.is_empty() {
                 found
@@ -566,32 +720,45 @@ pub fn diff(first: &ExecLog, second: &ExecLog, top: usize) -> Result<Vec<String>
         };
         out.extend(reasons.into_iter().map(|reason| format!("  {reason}")));
     }
+    let mut uncacheable: BTreeMap<&str, (usize, u64)> = BTreeMap::new();
+    for spawn in second
+        .spawns
+        .iter()
+        .filter(|s| ran_here(s) && !s.remote_cacheable)
+    {
+        let sum = uncacheable.entry(&spawn.mnemonic).or_default();
+        sum.0 += 1;
+        sum.1 += spawn.total_millis;
+    }
+    if !uncacheable.is_empty() {
+        let mut sums: Vec<_> = uncacheable.into_iter().collect();
+        sums.sort_by_key(|(mnemonic, (_, millis))| (std::cmp::Reverse(*millis), *mnemonic));
+        out.push("not remote cacheable, ran every time:".to_owned());
+        for (mnemonic, (count, millis)) in sums {
+            out.push(format!("  {mnemonic}: {count}, {} total", seconds(millis)));
+        }
+    }
     Ok(out)
 }
 
-/// Parses an allowlist file into its entries.
+/// Parses an allowlist file of `<label> <mnemonic> <path>` lines into its entries.
 ///
 /// # Errors
 ///
-/// Returns `Err` when the operation fails.
+/// Returns `Err` listing every malformed, unsorted or repeated line.
 pub fn parse_allowlist(text: &str) -> Result<BTreeSet<String>, String> {
-    let mut keys = BTreeSet::new();
-    let mut previous: Option<&str> = None;
-    for line in text.lines() {
+    let (keys, problems) = crate::allowlist::parse_lines(text, |line| {
         let fields: Vec<&str> = line.split(' ').collect();
         let label_ok = fields
             .first()
             .is_some_and(|label| label.starts_with("//") || label.starts_with('@'));
-        if fields.len() != 3 || fields.iter().any(|f| f.is_empty()) || !label_ok {
-            return Err(format!("`{line}` is not `<label> <mnemonic> <path>`"));
-        }
-        if previous.is_some_and(|p| p >= line) {
-            return Err(format!("`{line}` is not sorted or is repeated"));
-        }
-        previous = Some(line);
-        keys.insert(line.to_owned());
+        fields.len() == 3 && fields.iter().all(|field| !field.is_empty()) && label_ok
+    });
+    if problems.is_empty() {
+        Ok(keys)
+    } else {
+        Err(problems.join("\n"))
     }
-    Ok(keys)
 }
 
 #[must_use]
@@ -711,13 +878,13 @@ mod tests {
         assert_eq!(allow(""), BTreeSet::new());
         assert!(parse_allowlist("//:a M p\n@r//:b M p\n").is_ok());
         for (text, needle) in [
-            ("//:a M\n", "is not `<label> <mnemonic> <path>`"),
-            ("//:a M p q\n", "is not `<label> <mnemonic> <path>`"),
-            ("//:a  M p\n", "is not `<label> <mnemonic> <path>`"),
-            (":a M p\n", "is not `<label> <mnemonic> <path>`"),
+            ("//:a M\n", "malformed line"),
+            ("//:a M p q\n", "malformed line"),
+            ("//:a  M p\n", "malformed line"),
+            (":a M p\n", "malformed line"),
             ("//:b M p\n//:a M p\n", "not sorted"),
             ("//:a M p\n//:a M p\n", "not sorted"),
-            ("\n", "is not `<label> <mnemonic> <path>`"),
+            ("\n", "malformed line"),
         ] {
             let err = parse_allowlist(text).unwrap_err();
             assert!(err.contains(needle), "{text:?}: {err}");
@@ -764,7 +931,8 @@ mod tests {
     const CHANGED: &str = "//:changed Genrule bazel-out/k8-fastbuild/bin/changed.out";
     const NOCACHE: &str = "//:nocache Genrule bazel-out/k8-fastbuild/bin/nocache.out";
     const SAME: &str = "//:same Genrule bazel-out/k8-fastbuild/bin/same.out";
-    const OLD: &str = "01d09d19c2139a46aebfb577780d123d7396e97201bc7ead210a2ebff8239dee";
+    /// The first fixture log built `changed.txt` from this text.
+    const OLD_TEXT: &[u8] = b"old\n";
 
     fn cache_logs() -> (ExecLog, ExecLog) {
         (
@@ -812,7 +980,7 @@ mod tests {
                 "external/bazel_tools/tools/genrule/genrule-setup.sh"
             ]
         );
-        assert_eq!(old["changed.txt"], OLD);
+        assert_eq!(old["changed.txt"], dx_digest::sha256_hex(OLD_TEXT));
         assert_ne!(old["changed.txt"], new["changed.txt"]);
     }
 
@@ -820,18 +988,28 @@ mod tests {
     fn diff_names_the_changed_input_and_the_uncacheable_spawn() {
         let (first, second) = cache_logs();
         let new = second.inputs(by_key(&second, CHANGED)).unwrap();
+        let old = dx_digest::sha256_hex(OLD_TEXT);
         let lines = diff(&first, &second, 20).unwrap();
         let at = |key: &str| lines.iter().position(|l| l.contains(key));
         let changed = at(CHANGED).unwrap();
         assert!(lines[changed].ends_with("(linux-sandbox)"), "{lines:?}");
         assert_eq!(
             lines[changed + 1],
-            format!("  input changed.txt: {OLD} -> {}", new["changed.txt"])
+            format!("  origin: changed.txt: {old} -> {}", new["changed.txt"])
         );
-        let nocache = at(NOCACHE).unwrap();
-        assert_eq!(lines[nocache + 1], "  not remote cacheable");
+        assert_eq!(
+            lines[changed + 2],
+            format!("  input changed.txt: {old} -> {}", new["changed.txt"])
+        );
+        assert_eq!(at(NOCACHE), None, "{lines:?}");
         assert_eq!(at(SAME), None, "{lines:?}");
-        assert_eq!(lines.len(), 4, "{lines:?}");
+        assert_eq!(
+            lines[changed + 3..],
+            [
+                "not remote cacheable, ran every time:",
+                "  Genrule: 1, 0.0s total"
+            ]
+        );
     }
 
     #[test]
@@ -846,7 +1024,15 @@ mod tests {
         }
         let lines = diff(&first, &second, 1).unwrap();
         assert_eq!(lines[0], format!("2.5s {CHANGED} (linux-sandbox)"));
-        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert!(lines[1].starts_with("  origin: changed.txt: "), "{lines:?}");
+        assert!(lines[2].starts_with("  input changed.txt: "), "{lines:?}");
+        assert_eq!(
+            lines[3..],
+            [
+                "not remote cacheable, ran every time:",
+                "  Genrule: 1, 0.1s total"
+            ]
+        );
     }
 
     fn spawn_with(args: &[&str], env: &[(&str, &str)], digest: &str) -> Spawn {
@@ -922,6 +1108,138 @@ mod tests {
             diff(&ExecLog::default(), &second, 20).unwrap()[1],
             "  no spawn with this key in the first log"
         );
+    }
+
+    fn file(path: &str, hash: &str) -> Node {
+        Node::File {
+            path: path.to_owned(),
+            hash: hash.to_owned(),
+        }
+    }
+
+    fn set(direct: &[u64]) -> Node {
+        Node::Set {
+            direct: direct.to_vec(),
+            transitive: Vec::new(),
+        }
+    }
+
+    fn genrule(label: &str, input_set: u64, output: u64, digest: &str, millis: u64) -> Spawn {
+        Spawn {
+            label: label.to_owned(),
+            mnemonic: "Genrule".to_owned(),
+            runner: "linux-sandbox".to_owned(),
+            remote_cacheable: true,
+            digest: digest.to_owned(),
+            total_millis: millis,
+            input_set,
+            outputs: vec![output],
+            ..Spawn::default()
+        }
+    }
+
+    const MID: &str = "//:mid Genrule mid.out";
+
+    /// `//:mid` reads `src.txt` and writes `mid.out`; `//:top` reads `mid.out`.
+    fn chain(src: &str, mid_out: &str, mid_digest: &str) -> ExecLog {
+        let nodes = [
+            (1, file("src.txt", src)),
+            (2, set(&[1])),
+            (3, file("mid.out", mid_out)),
+            (4, set(&[3])),
+            (5, file("top.out", mid_out)),
+        ];
+        ExecLog {
+            nodes: nodes.into_iter().collect(),
+            spawns: vec![
+                genrule("//:mid", 2, 3, mid_digest, 100),
+                genrule("//:top", 4, 5, &format!("top {mid_out}"), 2000),
+            ],
+        }
+    }
+
+    #[test]
+    fn diff_traces_a_generated_input_to_the_changed_source() {
+        let lines = diff(&chain("a", "m1", "d1"), &chain("b", "m2", "d2"), 1).unwrap();
+        assert_eq!(
+            lines,
+            [
+                "2.0s //:top Genrule top.out (linux-sandbox)",
+                "  origin: src.txt: a -> b",
+                "  input mid.out: m1 -> m2",
+            ]
+        );
+    }
+
+    #[test]
+    fn diff_names_the_producer_that_does_not_reproduce() {
+        let first = chain("a", "m1", "d1");
+        let mut second = chain("a", "m2", "d1");
+        second.spawns[0].cache_hit = true;
+        let lines = diff(&first, &second, 20).unwrap();
+        assert_eq!(
+            lines[1],
+            format!(
+                "  origin: mid.out made by {MID}, which gave a different output from the same inputs"
+            )
+        );
+        assert_eq!(lines.len(), 3, "{lines:?}");
+
+        second.spawns[0].args = vec!["-v".to_owned()];
+        assert_eq!(
+            diff(&first, &second, 20).unwrap()[1],
+            format!("  origin: mid.out made by {MID}, whose args or env differ")
+        );
+        let mut first = first;
+        first.spawns[0].label = "//:old".to_owned();
+        assert_eq!(
+            diff(&first, &second, 20).unwrap()[1],
+            format!("  origin: mid.out made by {MID}, which the first log does not have")
+        );
+    }
+
+    #[test]
+    fn diff_sums_uncacheable_spawns_outside_the_ranking() {
+        let first = chain("a", "m1", "d1");
+        let mut second = chain("b", "m2", "d2");
+        for label in ["//:t1", "//:t2"] {
+            second.spawns.push(Spawn {
+                label: label.to_owned(),
+                mnemonic: "TestRunner".to_owned(),
+                runner: "linux-sandbox".to_owned(),
+                total_millis: 5000,
+                ..Spawn::default()
+            });
+        }
+        let lines = diff(&first, &second, 1).unwrap();
+        assert_eq!(lines[0], "2.0s //:top Genrule top.out (linux-sandbox)");
+        assert_eq!(
+            lines[3..],
+            [
+                "not remote cacheable, ran every time:",
+                "  TestRunner: 2, 10.0s total"
+            ]
+        );
+    }
+
+    #[test]
+    fn diff_caps_the_origin_lines() {
+        let log = |hash: &str| {
+            let mut nodes: BTreeMap<u64, Node> = (1..=7)
+                .map(|at| (at, file(&format!("src{at}.txt"), hash)))
+                .collect();
+            nodes.insert(8, set(&[1, 2, 3, 4, 5, 6, 7]));
+            nodes.insert(9, file("out", hash));
+            ExecLog {
+                nodes,
+                spawns: vec![genrule("//:all", 8, 9, hash, 100)],
+            }
+        };
+        let lines = diff(&log("a"), &log("b"), 20).unwrap();
+        assert_eq!(lines[1], "  origin: src1.txt: a -> b");
+        assert_eq!(lines[5], "  origin: src5.txt: a -> b");
+        assert_eq!(lines[6], "  2 more origins");
+        assert_eq!(lines[7], "  input src1.txt: a -> b");
     }
 
     fn entry(id: u8, body: &[u8]) -> Vec<u8> {

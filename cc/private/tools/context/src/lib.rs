@@ -1,6 +1,11 @@
 //! Authoritative C/C++ compile context read from a Bazel aquery action record.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -35,8 +40,8 @@ pub enum Error {
     UnterminatedQuote { path: String },
     #[error("compilation_db: response file '{path}' includes itself")]
     ResponseFileCycle { path: String },
-    #[error("compilation_db: response file '{path}' is not valid UTF-8 or UTF-16LE")]
-    ResponseFileEncoding { path: String },
+    #[error("compilation_db: response file '{path}' is not valid UTF-8 or UTF-16LE: {reason}")]
+    ResponseFileEncoding { path: String, reason: String },
     #[error("compilation_db: source '{input}' has {count} conflicting compile commands")]
     ConflictingSource { input: String, count: usize },
     #[error("compilation_db: required source '{input}' has no compile command")]
@@ -700,12 +705,13 @@ fn read_response_file(execroot: &Path, path: &str) -> Result<String, Error> {
         path: full_text.clone(),
         reason: err.to_string(),
     })?;
-    let encoding = || Error::ResponseFileEncoding {
+    let encoding = |reason: String| Error::ResponseFileEncoding {
         path: full_text.clone(),
+        reason,
     };
     if let Some(rest) = bytes.strip_prefix(&[0xFF, 0xFE]) {
         if rest.len() % 2 != 0 {
-            return Err(encoding());
+            return Err(encoding("odd byte count".to_owned()));
         }
         let units: Vec<u16> = rest
             .as_chunks::<2>()
@@ -713,10 +719,10 @@ fn read_response_file(execroot: &Path, path: &str) -> Result<String, Error> {
             .iter()
             .map(|pair| u16::from_le_bytes(*pair))
             .collect();
-        return String::from_utf16(&units).map_err(|_| encoding());
+        return String::from_utf16(&units).map_err(|err| encoding(err.to_string()));
     }
     let bytes = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(&bytes);
-    String::from_utf8(bytes.to_vec()).map_err(|_| encoding())
+    String::from_utf8(bytes.to_vec()).map_err(|err| encoding(err.to_string()))
 }
 
 /// Splits a response file into arguments the way the selected driver does.

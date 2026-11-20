@@ -5,6 +5,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::rc::Rc;
 
+use dx_testing::allowlist::parse_lines;
+
 use starlark_syntax::syntax::ast::{
     ArgumentP, AssignTargetP, AstExpr, AstLiteral, AstStmt, ExprP, ParameterP, StmtP,
 };
@@ -1415,24 +1417,10 @@ fn lint(tree: &Tree) -> Found {
 
 /// The lines of the allowlist and what is wrong with its form.
 fn parse_allowlist(text: &str) -> (BTreeSet<String>, Vec<String>) {
-    let mut lines = BTreeSet::new();
-    let mut problems = Vec::new();
-    let mut previous: Option<&str> = None;
-    for line in text.lines() {
+    parse_lines(text, |line| {
         let fields: Vec<&str> = line.split(' ').collect();
-        let well_formed =
-            matches!(fields.as_slice(), [rule, path] if RULES.contains(rule) && !path.is_empty());
-        if !well_formed {
-            problems.push(format!("malformed line: {line:?}"));
-            continue;
-        }
-        if previous.is_some_and(|before| before >= line) {
-            problems.push(format!("not sorted or repeated: {line:?}"));
-        }
-        previous = Some(line);
-        lines.insert(line.to_owned());
-    }
-    (lines, problems)
+        matches!(fields.as_slice(), [rule, path] if RULES.contains(rule) && !path.is_empty())
+    })
 }
 
 /// What differs between the violations and the allowlist.

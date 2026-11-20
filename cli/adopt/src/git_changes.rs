@@ -46,7 +46,12 @@ fn change_kind_from_status(status: &str) -> Result<(ChangeKind, bool), DxError> 
 fn utf8_path(bytes: &[u8]) -> Result<String, DxError> {
     std::str::from_utf8(bytes)
         .map(ToOwned::to_owned)
-        .map_err(|_| DxError::failure("git path is not UTF-8: rename the file to a UTF-8 name"))
+        .map_err(|error| {
+            let lossy = String::from_utf8_lossy(bytes);
+            DxError::failure(format!(
+                "git path {lossy:?} is not UTF-8 ({error}): rename the file to a UTF-8 name"
+            ))
+        })
 }
 
 /// Parses `git diff --name-status -z` output into typed changes with rename identities kept.

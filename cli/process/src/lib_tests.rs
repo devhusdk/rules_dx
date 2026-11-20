@@ -1062,6 +1062,15 @@ fn expand_tilde_uses_home_and_leaves_user() {
 }
 
 #[test]
+fn expand_tilde_keeps_the_path_under_home() {
+    let home = || Some(OsString::from("/home/me"));
+    assert_eq!(
+        expand_tilde_with(Path::new("~//ws"), home()),
+        PathBuf::from("/home/me").join("ws")
+    );
+}
+
+#[test]
 fn expand_tilde_without_home_keeps_the_path() {
     assert_eq!(
         expand_tilde_with(Path::new("~/ws"), None),
@@ -1288,12 +1297,14 @@ fn default_bazel_head_is_the_bare_startup_verb_and_verb_options() {
 
 #[test]
 fn probe_is_none_when_the_program_is_missing() {
+    let _fork = dx_testing::forking();
     assert_eq!(probe("dx-no-such-program-2174", ["x"]), None);
 }
 
 #[cfg(unix)]
 #[test]
 fn probe_returns_stdout_only_on_success() {
+    let _fork = dx_testing::forking();
     assert_eq!(probe("sh", ["-c", "echo hi"]).as_deref(), Some("hi\n"));
     assert_eq!(probe("sh", ["-c", "echo partial; exit 1"]), None);
     assert_eq!(probe("false", std::iter::empty::<&str>()), None);
@@ -1302,6 +1313,7 @@ fn probe_returns_stdout_only_on_success() {
 #[cfg(windows)]
 #[test]
 fn probe_returns_stdout_only_on_success() {
+    let _fork = dx_testing::forking();
     assert!(probe("cmd", ["/C", "echo hi"]).is_some_and(|text| text.starts_with("hi")));
     assert_eq!(probe("cmd", ["/C", "exit 1"]), None);
 }
@@ -1378,6 +1390,7 @@ fn os_argv(argv: Vec<String>) -> Vec<std::ffi::OsString> {
 
 #[test]
 fn first_line_within_reads_the_first_stdout_line() {
+    let _fork = dx_testing::forking();
     let argv = os_argv(probe_argv(&["--stdout-text=tool 1.2.3"]));
     assert_eq!(
         first_line_within(argv, &|| None),
@@ -1387,18 +1400,21 @@ fn first_line_within_reads_the_first_stdout_line() {
 
 #[test]
 fn first_line_within_rejects_a_failing_tool() {
+    let _fork = dx_testing::forking();
     let argv = os_argv(probe_argv(&["--exit-code=3"]));
     assert_eq!(first_line_within(argv, &|| None), None);
 }
 
 #[test]
 fn first_line_within_runs_with_no_path() {
+    let _fork = dx_testing::forking();
     let argv = os_argv(probe_argv(&["--forbid-env=PATH", "--stdout-text=x"]));
     assert_eq!(first_line_within(argv, &|| None), Some("x".to_owned()));
 }
 
 #[test]
 fn version_line_of_a_missing_tool_is_none() {
+    let _fork = dx_testing::forking();
     assert_eq!(
         version_line(Path::new("/nonexistent-dx-tool"), &|| None),
         None
@@ -1407,6 +1423,7 @@ fn version_line_of_a_missing_tool_is_none() {
 
 #[test]
 fn first_line_within_ends_early_when_stopped() {
+    let _fork = dx_testing::forking();
     let argv = os_argv(probe_argv(&["--sleep-ms=60000"]));
     let started = std::time::Instant::now();
     assert_eq!(first_line_within(argv, &|| Some(15)), None);

@@ -16,7 +16,7 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 - rules_dx writes no shell scripts for actions, tests or launchers. This covers `run_shell`, `genrule` `cmd`, `sh_test`, `sh_binary` and files with a `#!` shell line.
 - Logic that needs more than one command is a Rust binary in `cli/` or a Starlark rule with one `ctx.actions.run` per program.
 - An upstream program may start `/bin/sh` itself, through a `#!/bin/sh` line or `system()`. That is the only host program an action may reach. Windows actions reach none.
-- An upstream script that needs `bash` is replaced by a native program under the same file name, placed first on `PATH`. `//cli/ocaml_cc_driver` is the model: it replaces the `conda-ocaml-*` scripts.
+- An upstream script that needs `bash` is replaced by a native program under the same file name, placed first on `PATH`. `dx` is the model: it runs as each `conda-ocaml-*` program name the OCaml compiler calls.
 
 ## Coreutils
 
@@ -38,7 +38,8 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 
 - A launcher is what `bazel run`, `bazel test` and `dx` start. It is the native launcher from `//cli/launcher` plus a `.launch` descriptor, on every platform.
 - No rule writes a `#!/usr/bin/env bash` launcher.
-- Apple launchers start `//apple/private/tools/ops:apple_ops` with `env=DX_XCODE_VERSION`; the program finds that Xcode itself.
+- Apple launchers start dx-runtime with `env=DX_RUNTIME_TOOL` set to `apple_ops` and with `env=DX_XCODE_VERSION`; the helper finds that Xcode itself.
+- The exec-config xctestrun hooks `create_test_simulator`, `delete_test_simulator` and `apple_post_action` are `dx_subcommand` launchers.
 - A descriptor line that is missing is added to `cli/launcher/src/launch.rs` with a test. It is not worked around in shell.
 
 ## Tests

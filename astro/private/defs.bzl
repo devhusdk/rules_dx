@@ -7,7 +7,7 @@ visibility(["//..."])
 
 _astro_library_forward = dx_framework_forward_rule("astro", ".astro")
 
-_ASTRO_TOOL = Label("//astro/private:astro_tool")
+_ASTRO_TOOL = Label("//astro/private:astro_build_tool")
 
 def astro_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over js_library for Astro components."""

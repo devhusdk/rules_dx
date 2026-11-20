@@ -83,6 +83,7 @@ dx_conformance_suite(
         "build_test": "flutter has no binary rule that prints to stdout",
         "cross_test": "flutter has no binary rule that prints to stdout",
         "lock_test": "flutter has no binary rule that prints to stdout",
+        "runfiles_test": "flutter has no binary rule that prints to stdout",
     },
     passing_test = ":pass_subject_test",
     quality = {

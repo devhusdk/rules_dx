@@ -83,7 +83,7 @@ fn undeclared(files: &[(String, String)]) -> (usize, Vec<&str>) {
 #[test]
 fn every_internal_bzl_declares_its_load_visibility() {
     let root = dx_testing::source_snapshot();
-    let files = tree(&root);
+    let files = tree(&root).unwrap_or_else(|error| panic!("{}: {error}", root.display()));
     let (checked, missing) = undeclared(&files);
     assert!(
         checked >= MIN_FILES,

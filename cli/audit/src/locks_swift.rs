@@ -6,6 +6,7 @@ const SWIFT_SET: &str = "swifturl";
 /// Reads the `pins` of a lock v2 or v3; pins with only a branch or revision have no
 /// version to match and are skipped. Names follow OSV's `SwiftURL`: host and path, no scheme or `.git`.
 pub fn parse_package_resolved(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let text = crate::locks::strip_bom(text);
     let root: serde_json::Value = serde_json::from_str(text)
         .map_err(|error| DxError::failure(format!("invalid lock: {error}")))?;
     match root.get("version").and_then(serde_json::Value::as_u64) {

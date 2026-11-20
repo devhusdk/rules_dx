@@ -11,7 +11,7 @@ fn release_file(suffix: &str) -> PathBuf {
 
 #[test]
 fn the_aarch64_deployment_archives_the_aarch64_app_and_runs_on_the_host() {
-    let program = release_file("/cross_release");
+    let program = release_file("/cross_release/deploy_tool");
     let header = std::fs::read(&program).expect("read deployment program");
     assert_eq!(&header[..4], b"\x7fELF", "the program is an ELF executable");
     assert_eq!(

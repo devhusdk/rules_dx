@@ -1,5 +1,9 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! Copies an assembly and runs `SharpFuzz` on the copy: `instrument <sharpfuzz> <input> <output>`.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::process::{Command, ExitCode};
 use std::{env, fs};

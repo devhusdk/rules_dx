@@ -124,7 +124,7 @@ impl Walker<'_> {
 }
 
 fn scan_file(path: &str, source: &str) -> FileScan {
-    let ast = parse(path, source);
+    let ast = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     let mut scan = FileScan::default();
     Walker {
         ast: &ast,

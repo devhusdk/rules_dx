@@ -22,7 +22,7 @@ _DX_JS_LIBRARY_PROVIDES = [
 
 _JS_EXTS = [".js", ".jsx", ".mjs", ".cjs"]
 
-_JS_LIBRARY_EXTS = _JS_EXTS + [".css", ".scss", ".less", ".html", ".graphql", ".gql", ".json5", ".jsonc"]
+_JS_LIBRARY_EXTS = _JS_EXTS + [".css", ".scss", ".less", ".html", ".graphql", ".gql", ".json", ".json5", ".jsonc"]
 
 _DX_JS_SOURCE_SPECS = [("javascript", ["js", "mjs", "cjs"]), ("jsx", "jsx")]
 

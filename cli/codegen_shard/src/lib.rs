@@ -15,6 +15,10 @@ pub enum Error {
     BadProducer { value: String },
     #[error("empty language for {producer}: want a non-empty language")]
     EmptyLanguage { producer: String },
+    #[error(
+        "invalid language {value:?} for {producer}: must not contain whitespace or a control character"
+    )]
+    BadLanguage { producer: String, value: String },
     #[error("empty entries for {producer}: want at least one entry")]
     EmptyEntries { producer: String },
     #[error("invalid path for {producer} {path:?}: {reason}")]
@@ -39,6 +43,10 @@ pub enum Error {
     DuplicateLogicalPath { producer: String, path: String },
     #[error("entry not read-only for {producer} {path:?}: projections are always read-only")]
     NotReadOnly { producer: String, path: String },
+}
+
+fn has_blank_or_control(value: &str) -> bool {
+    value.chars().any(|c| c.is_whitespace() || c.is_control())
 }
 
 fn check_path(producer: &str, path: &str) -> Result<(), Error> {
@@ -66,7 +74,7 @@ fn check_exec_path(producer: &str, path: &str) -> Result<(), Error> {
     if path.is_empty() {
         return Ok(());
     }
-    if path.ends_with(".dxcodegen.pb") {
+    if path.to_lowercase().ends_with(".dxcodegen.pb") {
         return Err(Error::BadExecPath {
             producer: producer.to_owned(),
             path: path.to_owned(),
@@ -87,6 +95,7 @@ fn check_exec_path(producer: &str, path: &str) -> Result<(), Error> {
         | Error::EmptyProducer
         | Error::BadProducer { .. }
         | Error::EmptyLanguage { .. }
+        | Error::BadLanguage { .. }
         | Error::EmptyEntries { .. }
         | Error::BadExecPath { .. }
         | Error::BadReplaces { .. }
@@ -111,6 +120,7 @@ fn check_replaces(
             | Error::EmptyProducer
             | Error::BadProducer { .. }
             | Error::EmptyLanguage { .. }
+            | Error::BadLanguage { .. }
             | Error::EmptyEntries { .. }
             | Error::BadExecPath { .. }
             | Error::BadReplaces { .. }
@@ -144,7 +154,11 @@ pub fn validate(shard: &DxCodegenShard) -> Result<(), Error> {
     if shard.producer.is_empty() {
         return Err(Error::EmptyProducer);
     }
-    if !(shard.producer.starts_with("//") || shard.producer.starts_with('@')) {
+    if !(shard.producer.starts_with("//") || shard.producer.starts_with('@'))
+        || shard.producer == "//"
+        || shard.producer == "@"
+        || has_blank_or_control(&shard.producer)
+    {
         return Err(Error::BadProducer {
             value: shard.producer.clone(),
         });
@@ -152,6 +166,12 @@ pub fn validate(shard: &DxCodegenShard) -> Result<(), Error> {
     if shard.language.is_empty() {
         return Err(Error::EmptyLanguage {
             producer: shard.producer.clone(),
+        });
+    }
+    if has_blank_or_control(&shard.language) {
+        return Err(Error::BadLanguage {
+            producer: shard.producer.clone(),
+            value: shard.language.clone(),
         });
     }
     if shard.entries.is_empty() {
@@ -508,6 +528,61 @@ mod tests {
             );
         }
         assert!(validate(&sample()).is_ok());
+    }
+
+    #[test]
+    fn rejects_producers_that_are_not_labels() {
+        for producer in [
+            "//",
+            "@",
+            "//gen:al pha",
+            "//gen:alpha\n",
+            "//gen:alpha\r\n",
+            "@\u{0}x",
+        ] {
+            let mut shard = sample();
+            shard.producer = producer.into();
+            assert_eq!(
+                validate(&shard),
+                Err(Error::BadProducer {
+                    value: producer.into(),
+                }),
+                "producer {producer:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_languages_with_whitespace_or_control_characters() {
+        for language in ["ru st", "rust\n", "rust\r", "ru\u{0}st", "\u{a0}"] {
+            let mut shard = sample();
+            shard.language = language.into();
+            assert_eq!(
+                validate(&shard),
+                Err(Error::BadLanguage {
+                    producer: "//gen:alpha".into(),
+                    value: language.into(),
+                }),
+                "language {language:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_reserved_shard_suffix_is_matched_without_regard_to_case() {
+        for path in ["a.DXCODEGEN.PB", "out/b.DxCodegen.Pb"] {
+            let mut shard = sample();
+            shard.entries[0].exec_path = path.into();
+            assert_eq!(
+                validate(&shard),
+                Err(Error::BadExecPath {
+                    producer: "//gen:alpha".into(),
+                    path: path.into(),
+                    reason: "must not use the reserved shard suffix",
+                }),
+                "exec path {path:?}"
+            );
+        }
     }
 
     #[test]

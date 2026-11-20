@@ -50,15 +50,22 @@ fn union_lists(lists: &[(String, String)]) -> Result<String, String> {
     Ok(text)
 }
 
-/// Returns the one lock text shared by all hosts; differing locks are an error.
+/// Rewrites raw and JSON-escaped CRLF line endings to LF.
+fn lf(text: &str) -> String {
+    // Windows locks carry CRLF inside generated file contents, both raw and as `\r\n` escapes.
+    text.replace("\r\n", "\n").replace("\\r\\n", "\\n")
+}
+
+/// Returns the one LF lock text shared by all hosts; locks that differ beyond CRLF are an error.
 fn same_lock(locks: &[(String, String)]) -> Result<String, String> {
     let (first_origin, first) = locks.first().ok_or("no lock to merge")?;
+    let first = lf(first);
     for (origin, text) in locks.iter().skip(1) {
-        if text != first {
+        if lf(text) != first {
             return Err(format!("{origin} differs from {first_origin}"));
         }
     }
-    Ok(first.clone())
+    Ok(first)
 }
 
 fn read(path: &Path) -> Result<String, String> {
@@ -225,5 +232,20 @@ mod tests {
     fn lock_fails_when_locks_differ() {
         assert_eq!(same_lock(&[list("{}"), list("{}")]).unwrap(), "{}");
         assert!(same_lock(&[list("{}"), list("{\"a\":1}")]).is_err());
+    }
+
+    #[test]
+    fn lock_merges_crlf_only_difference_as_lf() {
+        let unix = "{\n  \"f\": \"a\\nb\\n\"\n}\n";
+        let windows = "{\r\n  \"f\": \"a\\r\\nb\\r\\n\"\r\n}\r\n";
+        assert_eq!(same_lock(&[list(windows), list(unix)]).unwrap(), unix);
+        assert_eq!(same_lock(&[list(unix), list(windows)]).unwrap(), unix);
+    }
+
+    #[test]
+    fn lock_fails_on_real_difference_beside_crlf() {
+        let unix = "{\n  \"f\": \"a\\nb\\n\"\n}\n";
+        let windows = "{\r\n  \"f\": \"a\\r\\nc\\r\\n\"\r\n}\r\n";
+        assert!(same_lock(&[list(unix), list(windows)]).is_err());
     }
 }

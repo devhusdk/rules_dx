@@ -1,55 +1,124 @@
+use std::fmt;
+
 use serde_json::{Map, Value};
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
-pub fn field<'a>(object: &'a Map<String, Value>, key: &str, at: &str) -> Result<&'a Value, String> {
-    object
-        .get(key)
-        .ok_or_else(|| format!("{at} has no '{key}'"))
+/// What is wrong with one key of a JSON object.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum JsonProblem {
+    Missing,
+    NotString,
+    NotNumber,
+    NotBoolean,
+    NotList,
+    NonStringItem,
+}
+
+/// A missing or mistyped key of a JSON object, with the object's description.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JsonError {
+    pub at: String,
+    pub key: String,
+    pub problem: JsonProblem,
+}
+
+impl JsonError {
+    fn new(at: &str, key: &str, problem: JsonProblem) -> Self {
+        Self {
+            at: at.to_owned(),
+            key: key.to_owned(),
+            problem,
+        }
+    }
+}
+
+impl fmt::Display for JsonError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Self { at, key, problem } = self;
+        match problem {
+            JsonProblem::Missing => write!(f, "{at} has no '{key}'"),
+            JsonProblem::NotString => write!(f, "{at} '{key}' is not a string"),
+            JsonProblem::NotNumber => write!(f, "{at} '{key}' is not a number"),
+            JsonProblem::NotBoolean => write!(f, "{at} '{key}' is not a boolean"),
+            JsonProblem::NotList => write!(f, "{at} '{key}' is not a list"),
+            JsonProblem::NonStringItem => write!(f, "{at} '{key}' holds a non-string"),
+        }
+    }
+}
+
+impl std::error::Error for JsonError {}
+
+/// Bridge for callers that still return `String`.
+impl From<JsonError> for String {
+    fn from(error: JsonError) -> Self {
+        error.to_string()
+    }
 }
 
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String, String> {
+/// Returns [`JsonProblem::Missing`] when the key is absent.
+pub fn field<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+    at: &str,
+) -> Result<&'a Value, JsonError> {
+    object
+        .get(key)
+        .ok_or_else(|| JsonError::new(at, key, JsonProblem::Missing))
+}
+
+/// # Errors
+///
+/// Returns an error when the key is absent or not a string.
+pub fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String, JsonError> {
     field(object, key, at)?
         .as_str()
         .map(str::to_owned)
-        .ok_or_else(|| format!("{at} '{key}' is not a string"))
+        .ok_or_else(|| JsonError::new(at, key, JsonProblem::NotString))
 }
 
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn number(object: &Map<String, Value>, key: &str, at: &str) -> Result<u64, String> {
+/// Returns an error when the key is absent or not an unsigned number.
+pub fn number(object: &Map<String, Value>, key: &str, at: &str) -> Result<u64, JsonError> {
     field(object, key, at)?
         .as_u64()
-        .ok_or_else(|| format!("{at} '{key}' is not a number"))
+        .ok_or_else(|| JsonError::new(at, key, JsonProblem::NotNumber))
 }
 
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn boolean(object: &Map<String, Value>, key: &str, at: &str) -> Result<bool, String> {
+/// Returns an error when the key is absent or not a boolean.
+pub fn boolean(object: &Map<String, Value>, key: &str, at: &str) -> Result<bool, JsonError> {
     field(object, key, at)?
         .as_bool()
-        .ok_or_else(|| format!("{at} '{key}' is not a boolean"))
+        .ok_or_else(|| JsonError::new(at, key, JsonProblem::NotBoolean))
 }
 
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn strings(object: &Map<String, Value>, key: &str, at: &str) -> Result<Vec<String>, String> {
+/// Returns an error when the key is absent or not a list.
+pub fn array<'a>(
+    object: &'a Map<String, Value>,
+    key: &str,
+    at: &str,
+) -> Result<&'a Vec<Value>, JsonError> {
     field(object, key, at)?
         .as_array()
-        .ok_or_else(|| format!("{at} '{key}' is not a list"))?
+        .ok_or_else(|| JsonError::new(at, key, JsonProblem::NotList))
+}
+
+/// # Errors
+///
+/// Returns an error when the key is absent, not a list, or holds a non-string.
+pub fn strings(object: &Map<String, Value>, key: &str, at: &str) -> Result<Vec<String>, JsonError> {
+    array(object, key, at)?
         .iter()
         .map(|value| {
             value
                 .as_str()
                 .map(str::to_owned)
-                .ok_or_else(|| format!("{at} '{key}' holds a non-string"))
+                .ok_or_else(|| JsonError::new(at, key, JsonProblem::NonStringItem))
         })
         .collect()
 }
@@ -70,6 +139,11 @@ mod tests {
         }
     }
 
+    fn rejected<T: fmt::Debug>(result: Result<T, JsonError>) -> (JsonProblem, String) {
+        let error = result.expect_err("rejected");
+        (error.problem, error.to_string())
+    }
+
     #[test]
     fn reads_each_type() {
         let o = object();
@@ -80,13 +154,18 @@ mod tests {
             strings(&o, "l", "T"),
             Ok(vec!["x".to_owned(), "y".to_owned()])
         );
+        assert_eq!(array(&o, "m", "T"), Ok(&vec![json!(1)]));
     }
 
     #[test]
     fn reports_missing_key() {
         assert_eq!(
-            field(&object(), "zz", "T").map(|_| ()),
-            Err("T has no 'zz'".to_owned())
+            rejected(field(&object(), "zz", "T")),
+            (JsonProblem::Missing, "T has no 'zz'".to_owned())
+        );
+        assert_eq!(
+            rejected(array(&object(), "zz", "T")),
+            (JsonProblem::Missing, "T has no 'zz'".to_owned())
         );
     }
 
@@ -94,21 +173,40 @@ mod tests {
     fn reports_wrong_types() {
         let o = object();
         assert_eq!(
-            string(&o, "n", "T"),
-            Err("T 'n' is not a string".to_owned())
+            rejected(string(&o, "n", "T")),
+            (JsonProblem::NotString, "T 'n' is not a string".to_owned())
         );
         assert_eq!(
-            number(&o, "s", "T"),
-            Err("T 's' is not a number".to_owned())
+            rejected(number(&o, "s", "T")),
+            (JsonProblem::NotNumber, "T 's' is not a number".to_owned())
         );
         assert_eq!(
-            boolean(&o, "s", "T"),
-            Err("T 's' is not a boolean".to_owned())
+            rejected(boolean(&o, "s", "T")),
+            (JsonProblem::NotBoolean, "T 's' is not a boolean".to_owned())
         );
-        assert_eq!(strings(&o, "s", "T"), Err("T 's' is not a list".to_owned()));
         assert_eq!(
-            strings(&o, "m", "T"),
-            Err("T 'm' holds a non-string".to_owned())
+            rejected(array(&o, "s", "T")),
+            (JsonProblem::NotList, "T 's' is not a list".to_owned())
         );
+        assert_eq!(
+            rejected(strings(&o, "s", "T")),
+            (JsonProblem::NotList, "T 's' is not a list".to_owned())
+        );
+        assert_eq!(
+            rejected(strings(&o, "m", "T")),
+            (
+                JsonProblem::NonStringItem,
+                "T 'm' holds a non-string".to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn string_shim_keeps_the_text() {
+        let text: String = field(&object(), "zz", "T")
+            .map(|_| ())
+            .map_err(String::from)
+            .unwrap_err();
+        assert_eq!(text, "T has no 'zz'");
     }
 }

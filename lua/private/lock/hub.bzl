@@ -29,8 +29,26 @@ def build_file(package):
         "",
     ])
 
+def luarocks_problems(lock):
+    """Returns why a decoded dx lock that `lock_problems` accepts is not a luarocks lock: one message per problem, empty when it is."""
+    problems = []
+    if lock.get("ecosystem") != "luarocks":
+        problems.append("has ecosystem %r, not luarocks" % lock.get("ecosystem"))
+    for package in lock["packages"]:
+        name = package["name"]
+        extra = package.get("extra", {})
+        modules = extra.get("lua_modules") if type(extra) == "dict" else None
+        if type(modules) != "dict" or not modules:
+            problems.append("package %s has no lua_modules object" % name)
+            continue
+        for module, path in sorted(modules.items()):
+            # build_file strips the module path off the file to find the source root.
+            if type(path) != "string" or not ("/" + path).endswith("/" + module.replace(".", "/") + ".lua"):
+                problems.append("package %s module %s has path %r, which does not end in %s.lua" % (name, module, path, module.replace(".", "/")))
+    return problems
+
 def _luarocks_impl(mctx):
-    lock_repos(mctx, build_file)
+    lock_repos(mctx, build_file, luarocks_problems)
     return mctx.extension_metadata(reproducible = True)
 
 luarocks = module_extension(

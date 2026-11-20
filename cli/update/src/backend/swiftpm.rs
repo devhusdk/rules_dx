@@ -1,9 +1,8 @@
+use super::resolver::resolver;
 use super::{
     BackendError, BackendPlan, CheckPlan, Path, ResolvedSet, Run, Selection, UvClosure, bazel,
     set_dir, strings, swift_argv, swift_identity,
 };
-
-const LOCK: &str = "@rules_dx//swift/private/tools/lock";
 
 pub(super) fn plan(
     workspace: &Path,
@@ -35,7 +34,7 @@ pub(super) fn plan(
             env: Vec::new(),
         },
         Run {
-            argv: bazel(head, "run", &[LOCK, "--", "--dir", &dir]),
+            argv: bazel(head, "run", &[resolver(set)?, "--", "--dir", &dir]),
             env: Vec::new(),
         },
     ]))
@@ -69,7 +68,11 @@ pub(super) fn check(
                     env: Vec::new(),
                 },
                 Run {
-                    argv: bazel(head, "run", &[LOCK, "--", "--dir", &dir, "--check"]),
+                    argv: bazel(
+                        head,
+                        "run",
+                        &[resolver(set)?, "--", "--dir", &dir, "--check"],
+                    ),
                     env: Vec::new(),
                 },
             ]))

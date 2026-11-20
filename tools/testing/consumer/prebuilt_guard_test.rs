@@ -1,60 +1,38 @@
 //! A consumer whose root module pins every registry tool for the host compiles no rules_dx tool.
 //!
 //! The test writes a stub file per registry tool of the host, adds one `dx_prebuilt.asset`
-//! (or `dx_gazelle.asset`) per tool to the consumer of `<lang>/tests/consumer`, and runs
-//! `bazel cquery 'deps(...)'` over the fixture and the hub target of every pinned tool. cquery
-//! follows exec and target configurations alike. Any compiled binary that a rules_dx repository
-//! declares fails the test unless `prebuilt_guard_allowlist.txt` names it.
+//! (or `dx_gazelle.asset`) per tool to a consumer of the `<lang>/tests/consumer` fixtures of the
+//! `DX_PREBUILT_GUARD_LANGS` languages (the first at the root, each later one under `<lang>/`),
+//! and runs `bazel cquery 'deps(...)'` over the fixtures, the `@rules_dx` targets dx commands run
+//! and the hub target of every pinned tool.
+//! A jar tool gets `os = "any"` and `cpu = "any"`, and its hub target is a root only when a
+//! language is a JVM language. cquery follows exec and target configurations alike. Any compiled binary that a
+//! rules_dx repository declares fails the test unless `prebuilt_guard_allowlist.txt` names it;
+//! the `java_binary` the `dx_prebuilt` hub wraps around a downloaded jar compiles nothing, and
+//! so does a rules_dx `java_binary` when neither it nor a rules_dx JVM rule under it has `srcs`.
+//!
+//! `cquery --aspects` and `aquery --aspects` leave out the tool targets of command-line aspects,
+//! while cquery follows aspects a rule attribute carries. So the test also writes the
+//! `dx_prebuilt_guard` package: its `check` and `docs` targets depend on every non-manual rule
+//! of the consumer through a `deps` attribute that carries the aspects `dx check` and `dx docs`
+//! pick for the consumer's files.
 //!
 //! cquery only analyzes, so the stubs never run; their sha256 is all the hubs check.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use dx_nested::Case;
+use prebuilt_guard::{
+    allowlist, command_roots, compiled_binaries, compiles_rules_dx_sources, guard_aspects,
+    java_binary_only, jvm_sources_query, problems, resolver_roots, stub_url, wrapper_build,
+    wrapper_bzl,
+};
 
-/// The rule kind prefixes of compiled binaries; shell stubs and `native_binary` stay out.
-const COMPILED: &[&str] = &[
-    "cc_", "gazelle_", "go_", "haskell_", "java_", "kt_jvm_", "rust_", "scala_",
-];
-
-/// The target name crate_universe gives a crate's build script binary.
-const BUILD_SCRIPT: &str = ":_bs_";
+/// The consumer languages whose fixture roots the jar tools.
+const JVM_LANGS: &[&str] = &["java", "kotlin", "scala"];
 
 /// Registry tools served by `dx_gazelle` instead of `dx_prebuilt`.
 const GAZELLE_TOOLS: &[&str] = &["gazelle"];
-
-/// The allowlist: binary labels the consumer may compile, and registry tools no hub takes as an asset tag.
-#[derive(Debug, Default, PartialEq)]
-struct Allowlist {
-    labels: BTreeSet<String>,
-    untagged: BTreeSet<String>,
-}
-
-/// Reads `label <canonical label>` and `untagged <tool>` lines; each needs a `#` reason.
-fn allowlist(text: &str) -> Result<Allowlist, String> {
-    let mut list = Allowlist::default();
-    for (number, line) in text.lines().enumerate() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let (entry, reason) = line.split_once('#').unwrap_or((line, ""));
-        if reason.trim().is_empty() {
-            return Err(format!("line {}: no `# reason`: {line}", number + 1));
-        }
-        match entry.split_whitespace().collect::<Vec<_>>()[..] {
-            ["label", label] => list.labels.insert(label.to_owned()),
-            ["untagged", tool] => list.untagged.insert(tool.to_owned()),
-            _ => {
-                return Err(format!(
-                    "line {}: want `label <label>` or `untagged <tool>`: {line}",
-                    number + 1
-                ));
-            }
-        };
-    }
-    Ok(list)
-}
 
 /// The host as a registry platform key such as `linux_x86_64`, and as `@platforms` os and cpu.
 fn host() -> Result<(String, &'static str, &'static str), String> {
@@ -93,10 +71,19 @@ fn hub(tool: &str) -> &'static str {
     }
 }
 
-/// The hub target of `tool`, by canonical name so the consumer needs no `use_repo`.
-fn hub_target(tool: &str) -> String {
+/// The hub targets of `tool`, by canonical name so the consumer needs no `use_repo`. The `go`
+/// registry tool is the dx-go multicall, served as one hub target per name in `go_names`.
+fn hub_targets(tool: &str, go_names: &str) -> Vec<String> {
     let hub = hub(tool);
-    format!("@@rules_dx++{hub}+{hub}//:{tool}")
+    let names: Vec<&str> = if tool == "go" {
+        go_names.split_whitespace().collect()
+    } else {
+        vec![tool]
+    };
+    names
+        .iter()
+        .map(|name| format!("@@rules_dx++{hub}+{hub}//:{name}"))
+        .collect()
 }
 
 /// The `asset` tag of one stub, on the hub that serves `tool`.
@@ -107,52 +94,9 @@ fn asset_tag(tool: &str, os: &str, cpu: &str, url: &str, sha256: &str) -> String
     )
 }
 
-/// The rules_dx-declared compiled binaries in `cquery --output=label_kind` lines, each with its lines.
-fn compiled_binaries(cquery: &str) -> BTreeMap<String, BTreeSet<String>> {
-    let mut found: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    for line in cquery.lines() {
-        let Some((kind, rest)) = line.split_once(" rule ") else {
-            continue;
-        };
-        let bare = kind.trim().trim_start_matches('_');
-        if !bare.ends_with("_binary") || !COMPILED.iter().any(|prefix| bare.starts_with(prefix)) {
-            continue;
-        }
-        let label = rest.split_whitespace().next().unwrap_or_default();
-        // A crate build script comes with the crate's rust_library; the tool that pulls the
-        // crate in is reported on its own, so the scripts would only bury it.
-        if label.ends_with(BUILD_SCRIPT) {
-            continue;
-        }
-        let repo = label
-            .trim_start_matches('@')
-            .split("//")
-            .next()
-            .unwrap_or_default();
-        if repo.starts_with("rules_dx+") {
-            found
-                .entry(label.to_owned())
-                .or_default()
-                .insert(line.trim().to_owned());
-        }
-    }
-    found
-}
-
-/// The problems: compiled binaries not allowlisted, and allowlisted labels no longer compiled.
-fn problems(found: &BTreeMap<String, BTreeSet<String>>, allowed: &BTreeSet<String>) -> Vec<String> {
-    let mut problems: Vec<String> = found
-        .iter()
-        .filter(|(label, _)| !allowed.contains(*label))
-        .flat_map(|(_, lines)| lines.iter().map(|line| format!("compiles {line}")))
-        .collect();
-    problems.extend(
-        allowed
-            .iter()
-            .filter(|label| !found.contains_key(*label))
-            .map(|label| format!("no longer compiled, remove it from the allowlist: {label}")),
-    );
-    problems
+/// Whether a consumer of `langs` roots the hub target of a tool released for `platform`.
+fn rooted(platform: &str, langs: &[&str]) -> bool {
+    platform != "any" || langs.iter().any(|lang| JVM_LANGS.contains(lang))
 }
 
 fn runfile(var: &str) -> String {
@@ -163,74 +107,138 @@ fn runfile(var: &str) -> String {
 
 #[test]
 fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
-    let lang = dx_testing::env_text("DX_PREBUILT_GUARD_LANG");
-    let lang = lang.trim();
+    let langs = dx_testing::env_text("DX_PREBUILT_GUARD_LANGS");
+    let langs: Vec<&str> = langs.split_whitespace().collect();
+    assert!(
+        !langs.is_empty(),
+        "DX_PREBUILT_GUARD_LANGS names no language"
+    );
+    let named = langs.join(" ");
     let list = allowlist(&runfile("DX_PREBUILT_GUARD_ALLOWLIST")).unwrap_or_else(|error| {
         panic!("prebuilt_guard_allowlist.txt: {error}");
     });
     let (key, os, cpu) = host().unwrap_or_else(|error| panic!("{error}"));
     let tools = host_tools(&runfile("DX_PREBUILT_REGISTRY"), &key);
+    let go_names = runfile("DX_PREBUILT_GO_HUB_TARGETS");
     let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
     let mut tags = String::new();
     let mut roots = vec!["//...".to_owned()];
-    let mut untagged = Vec::new();
+    roots.extend(command_roots("@rules_dx", &langs));
+    roots.extend(resolver_roots(&langs));
     for (tool, platform) in &tools {
         if list.untagged.contains(tool) {
             continue;
         }
-        if platform == "any" {
-            untagged.push(format!(
-                "registry tool {tool} ships for any platform and no hub takes an asset tag for it"
-            ));
-            continue;
-        }
+        let (os, cpu) = if platform == "any" {
+            ("any", "any")
+        } else {
+            (os, cpu)
+        };
         let stub = stubs.join(tool);
         dx_testing::write_text(&stub, &format!("stub {tool}\n"));
         let sha256 = dx_testing::sha256_file(&stub).unwrap_or_else(|error| panic!("{error}"));
-        let url = format!("file://{}", stub.to_string_lossy().replace('\\', "/"));
+        let url = stub_url(&stub);
         tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
-        roots.push(hub_target(tool));
+        if rooted(platform, &langs) {
+            roots.extend(hub_targets(tool, &go_names));
+        }
     }
-    assert!(untagged.is_empty(), "{}", untagged.join("\n"));
     let extra = format!(
         "dx_prebuilt = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\n\
          dx_gazelle = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_gazelle\")\n{tags}"
     );
-    let case = Case::language_consumer(&format!("{lang}_prebuilt_guard"), lang, &extra)
+    let case = Case::languages_consumer(&format!("{}_prebuilt_guard", langs[0]), &langs, &extra)
         .unwrap_or_else(|error| panic!("{error}"));
+    let targets = case.bazel(&[
+        "query",
+        "--color=no",
+        "--curses=no",
+        "--nocheck_bzl_visibility",
+        "--output=label",
+        "kind(rule, //...) except attr(tags, \"\\bmanual\\b\", //...)",
+    ]);
+    assert!(
+        targets.status.success(),
+        "bazel query: {}",
+        targets.combined()
+    );
+    let targets: Vec<&str> = targets
+        .stdout
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect();
+    assert!(
+        !targets.is_empty(),
+        "bazel query found no rule in the {named} consumer"
+    );
+    for lang in &langs[1..] {
+        let package = format!("//{lang}:");
+        assert!(
+            targets.iter().any(|target| target.starts_with(&package)),
+            "bazel query found no {package} rule in the {named} consumer"
+        );
+    }
+    let (check, docs) = guard_aspects(&dx_adopt::file_extensions(case.root()));
+    let wrapper = case.root().join("dx_prebuilt_guard");
+    dx_testing::write_text(
+        &wrapper.join("defs.bzl"),
+        &wrapper_bzl("@rules_dx", &check, &docs),
+    );
+    dx_testing::write_text(&wrapper.join("BUILD.bazel"), &wrapper_build(&targets));
     let query = format!("deps({})", roots.join(" + "));
     let run = case.bazel(&[
         "cquery",
         "--color=no",
         "--curses=no",
         "--consistent_labels",
+        "--nocheck_visibility",
+        "--nocheck_bzl_visibility",
         "--output=label_kind",
         &query,
     ]);
     assert!(run.status.success(), "bazel cquery: {}", run.combined());
-    let found = compiled_binaries(&run.stdout);
-    let problems = problems(&found, &list.labels);
+    let command_labels: Vec<String> = command_roots("@@rules_dx+", &langs);
+    for label in ["@@//dx_prebuilt_guard:check", "@@//dx_prebuilt_guard:docs"]
+        .into_iter()
+        .chain(command_labels.iter().map(String::as_str))
+    {
+        assert!(
+            run.stdout
+                .lines()
+                .any(|line| line.split_whitespace().nth(2) == Some(label)),
+            "bazel cquery left out {label}"
+        );
+    }
+    let mut found = compiled_binaries(&run.stdout);
+    found.retain(|label, lines| {
+        if !java_binary_only(lines) {
+            return true;
+        }
+        let sources = case.bazel(&[
+            "cquery",
+            "--color=no",
+            "--curses=no",
+            "--consistent_labels",
+            "--nocheck_visibility",
+            "--nocheck_bzl_visibility",
+            "--output=label",
+            &jvm_sources_query(label),
+        ]);
+        assert!(
+            sources.status.success(),
+            "bazel cquery: {}",
+            sources.combined()
+        );
+        compiles_rules_dx_sources(&sources.stdout)
+    });
+    let problems = problems(&found, &list.labels_for(&langs));
     assert!(
         problems.is_empty(),
-        "{lang} consumer with host pins for {}:\n{}",
+        "{named} consumer with host pins for {}:\n{}",
         tools.keys().cloned().collect::<Vec<_>>().join(", "),
         problems.join("\n")
     );
-}
-
-#[test]
-fn allowlist_lines_need_a_kind_and_a_reason() {
-    let list = allowlist("# header\nlabel @@rules_dx+//a:b  # why\nuntagged avro_union # jar\n\n")
-        .expect("parses");
-    assert_eq!(
-        list,
-        Allowlist {
-            labels: BTreeSet::from(["@@rules_dx+//a:b".to_owned()]),
-            untagged: BTreeSet::from(["avro_union".to_owned()]),
-        }
-    );
-    assert!(allowlist("label @@rules_dx+//a:b\n").is_err());
-    assert!(allowlist("tool x # why\n").is_err());
 }
 
 #[test]
@@ -255,42 +263,31 @@ fn asset_tags_go_to_the_hub_that_serves_the_tool() {
         asset_tag("selene", "linux", "x86_64", "file:///s", "ab")
             .starts_with("dx_prebuilt.asset(name = \"selene\"")
     );
+    let go_names = "dx_errcheck\ndx_govet\n";
     assert_eq!(
-        hub_target("gazelle"),
-        "@@rules_dx++dx_gazelle+dx_gazelle//:gazelle"
+        hub_targets("gazelle", go_names),
+        ["@@rules_dx++dx_gazelle+dx_gazelle//:gazelle"]
     );
-    assert_eq!(hub_target("dx"), "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx");
+    assert_eq!(
+        hub_targets("dx", go_names),
+        ["@@rules_dx++dx_prebuilt+dx_prebuilt//:dx"]
+    );
+    assert_eq!(
+        hub_targets("go", go_names),
+        [
+            "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_errcheck",
+            "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_govet",
+        ]
+    );
 }
 
 #[test]
-fn only_rules_dx_compiled_binaries_count() {
-    let cquery = "\
-rust_binary rule @@rules_dx+//cli/cli:dx (abc)
-go_binary rule @@rules_dx++dx_gazelle+dx_gazelle//:gazelle (exec)
-native_binary rule @@rules_dx++dx_prebuilt+dx_prebuilt//:selene_linux_x86_64 (abc)
-sh_binary rule @@rules_dx+//tools:stub (abc)
-go_binary rule @@rules_go+//go/tools/builders:builder (exec)
-go_library rule @@rules_dx+//gazelle/go:go (abc)
-rust_binary rule @@rules_dx++crate+dx_crates__anyhow-1.0.104//:_bs_ (abc)
-source file @@rules_dx+//cli/cli:main.rs (null)
-";
-    let found = compiled_binaries(cquery);
-    assert_eq!(
-        found.keys().cloned().collect::<Vec<_>>(),
-        [
-            "@@rules_dx++dx_gazelle+dx_gazelle//:gazelle",
-            "@@rules_dx+//cli/cli:dx"
-        ]
-    );
-    let allowed = BTreeSet::from([
-        "@@rules_dx+//cli/cli:dx".to_owned(),
-        "@@rules_dx+//gone:tool".to_owned(),
-    ]);
-    assert_eq!(
-        problems(&found, &allowed),
-        [
-            "compiles go_binary rule @@rules_dx++dx_gazelle+dx_gazelle//:gazelle (exec)",
-            "no longer compiled, remove it from the allowlist: @@rules_dx+//gone:tool",
-        ]
-    );
+fn only_jvm_consumers_root_the_jar_tools() {
+    assert!(rooted("linux_x86_64", &["go"]));
+    assert!(rooted("linux_x86_64", &["java"]));
+    assert!(!rooted("any", &["go"]));
+    assert!(rooted("any", &["java"]));
+    assert!(rooted("any", &["kotlin"]));
+    assert!(rooted("any", &["scala"]));
+    assert!(rooted("any", &["go", "scala"]));
 }

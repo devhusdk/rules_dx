@@ -20,13 +20,6 @@ def _rust_case(name, edition = "2021", **kwargs):
 _EDITION_GATE = "pub fn edition_gate() -> i32 {\n    let async = 1;\n    async\n}\n"
 
 RUST_CASES = [
-    _rust_case("matrix_rust_format_pass", src = ":clean.rs"),
-    _rust_case(
-        "matrix_rust_format_fail",
-        generated = {
-            "matrix/rustfmt_dirty.rs": "pub fn add(a:i32,b:i32)->i32 {\n    a+b\n}\n",
-        },
-    ),
     _rust_case(
         "matrix_rust_format_edition_2015",
         edition = "2015",

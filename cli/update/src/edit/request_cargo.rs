@@ -21,13 +21,12 @@ pub(super) fn plan_cargo_toml(
             });
         }
     };
-    let mut doc =
-        content
-            .parse::<toml_edit::DocumentMut>()
-            .map_err(|_| EditError::UnsupportedManifest {
-                manifest: manifest.to_owned(),
-                reason: "manifest is not valid TOML".to_owned(),
-            })?;
+    let mut doc = content.parse::<toml_edit::DocumentMut>().map_err(|error| {
+        EditError::UnsupportedManifest {
+            manifest: manifest.to_owned(),
+            reason: format!("manifest is not valid TOML: {error}"),
+        }
+    })?;
     let paths = cargo_dependency_table_paths(&doc);
     let mut matches: Vec<Vec<String>> = Vec::new();
     for path in &paths {

@@ -14,6 +14,9 @@
   "lockfiles": [
     "mix.lock"
   ],
+  "commands": {
+    "rebar3": "@rules_dx//erlang/private/tools:rebar3"
+  },
   "tools": [
     "dialyzer",
     "elvis",
@@ -41,7 +44,8 @@
     "erlang_nif",
     "erlang_release",
     "erlang_test_app",
-    "erlang_xrl_yrl"
+    "erlang_xrl_yrl",
+    "erlang_doc_shard"
   ],
   "quality": {
     "bzl": "erlang/private/quality:beam.bzl",

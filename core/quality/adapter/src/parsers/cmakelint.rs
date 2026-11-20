@@ -122,10 +122,12 @@ pub fn parse_cmakelint(
             ),
         ));
     };
-    let total: usize = total
-        .trim()
-        .parse()
-        .map_err(|_| ParseError::shape(TOOL, format!("malformed {TOTAL}summary: {total:?}")))?;
+    let total: usize = total.trim().parse().map_err(|error| {
+        ParseError::shape(
+            TOOL,
+            format!("malformed {TOTAL}summary: {total:?}: {error}"),
+        )
+    })?;
     if total != findings.len() {
         return Err(ParseError::shape(
             TOOL,

@@ -86,33 +86,39 @@ def _rustdoc_json(ctx, crate_info, lints_info, output_dir, features):
         tools = action.tools,
     )
 
+def _src_line(src):
+    return srcs_manifest_line(src.path, repo_relative_path(src.short_path), False).rstrip("\n")
+
+def _out_dir_line(dep):
+    build_info = getattr(dep, "build_info", None)
+    out_dir = getattr(build_info, "out_dir", None) if build_info else None
+    if not out_dir:
+        return None
+    return srcs_manifest_line(out_dir.path + "/", repo_relative_path(out_dir.short_path) + "/", True).rstrip("\n")
+
 def rust_shard_action(ctx, target, package, stem = None):
     """Runs stable rustdoc JSON and the extractor for one Rust crate target."""
     crate_info = target[rust_common.crate_info]
     package = package or crate_info.name
     stem = stem or ctx.label.name
     inputs = target[RustDocInputsInfo]
-    generated = {path: True for path in inputs.generated}
     features = [] if hasattr(ctx.attr, "crate_features") else inputs.crate_features
-    lines = []
-    for src in crate_info.srcs.to_list():
-        rel = repo_relative_path(src.short_path)
-        lines.append(srcs_manifest_line(src.path, rel, rel in generated))
-    for dep in crate_info.deps.to_list():
-        build_info = getattr(dep, "build_info", None)
-        out_dir = getattr(build_info, "out_dir", None) if build_info else None
-        if out_dir:
-            lines.append(srcs_manifest_line(out_dir.path + "/", repo_relative_path(out_dir.short_path) + "/", True))
     manifest = ctx.actions.declare_file(stem + ".srcs.tsv")
-    ctx.actions.write(manifest, "".join(sorted(lines)))
+    lines = ctx.actions.args()
+    lines.set_param_file_format("multiline")
+    lines.add_all(crate_info.srcs, map_each = _src_line)
+    lines.add_all(crate_info.deps, map_each = _out_dir_line)
+    ctx.actions.write(manifest, lines)
     rustdoc_dir = ctx.actions.declare_directory(stem + ".rustdoc")
     _rustdoc_json(ctx, crate_info, target[LintsInfo] if LintsInfo in target else None, rustdoc_dir, features)
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     args = ctx.actions.args()
+    args.add("rust_extract")
     args.add("--json", rustdoc_dir.path + "/" + crate_info.name + ".json")
     args.add("--package", package)
     args.add("--crate", crate_info.name)
     args.add("--srcs-file", manifest)
+    args.add_all(inputs.generated, before_each = "--generated")
     args.add("--out", shard)
     ctx.actions.run(
         executable = ctx.executable._extract,

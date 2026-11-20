@@ -45,7 +45,8 @@ def _launcher_impl(ctx):
     info = ctx.attr.meta[_SigningInfo]
     xcode = ctx.attr._xcode_config[apple_common.XcodeVersionConfig].xcode_version()
     lines = [
-        "program=" + rlocation_path(ctx, ctx.executable._ops),
+        "program=" + rlocation_path(ctx, ctx.executable._runtime),
+        "env=DX_RUNTIME_TOOL\tapple_ops",
         "arg=" + ctx.attr.op,
         "arg=" + info.bundle_id,
     ]
@@ -54,7 +55,7 @@ def _launcher_impl(ctx):
         lines.append("path=" + rlocation_path(ctx, info.entitlements) if info.entitlements else "arg=")
     lines.append("env=DX_XCODE_VERSION\t" + (str(xcode) if xcode else ""))
     launcher, _, launcher_runfiles = write_native_launcher(ctx, "\n".join(lines) + "\n")
-    runfiles = [ctx.attr._ops[0][DefaultInfo].default_runfiles]
+    runfiles = [ctx.attr._runtime[0][DefaultInfo].default_runfiles]
     if ctx.attr.op == "codesign":
         runfiles.append(ctx.attr.meta[DefaultInfo].default_runfiles)
     return DefaultInfo(executable = launcher, runfiles = launcher_runfiles.merge_all(runfiles))
@@ -65,10 +66,11 @@ _launcher_rule = rule(
     attrs = {
         "meta": attr.label(doc = "The meta target of the app.", mandatory = True, providers = [_SigningInfo]),
         "op": attr.string(doc = "The operation: codesign or notarize.", mandatory = True, values = ["codesign", "notarize"]),
-        "_ops": attr.label(
-            default = Label("//apple/private/tools/ops:apple_ops"),
+        "_runtime": attr.label(
+            default = Label("@dx_prebuilt//:runtime"),
             executable = True,
             cfg = no_coverage_transition,
+            doc = "dx-runtime, whose apple_ops helper runs the operation.",
         ),
         "_xcode_config": attr.label(
             default = configuration_field(name = "xcode_config_label", fragment = "apple"),

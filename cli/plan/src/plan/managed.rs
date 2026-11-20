@@ -55,6 +55,16 @@ pub fn plan_managed_with_roots(
     Ok(BuildPlan { argv, summary })
 }
 
+/// Returns the `dx sync` aspect labels, env first, then codegen.
+#[must_use]
+pub fn managed_aspects() -> [String; 2] {
+    let repo = super::rules_dx_repo();
+    [
+        dx_env_plan::aspect_label(repo),
+        dx_codegen::aspect_label(repo),
+    ]
+}
+
 fn managed_argv(
     command: Command,
     roots: &[String],
@@ -66,11 +76,7 @@ fn managed_argv(
     if !command.is_managed() {
         return Err(unsupported());
     }
-    let repo = super::rules_dx_repo();
-    let aspects = [
-        dx_env_plan::aspect_label(repo),
-        dx_codegen::aspect_label(repo),
-    ];
+    let aspects = managed_aspects();
     let output_groups = [dx_env_plan::OUTPUT_GROUP, dx_codegen::OUTPUT_GROUP];
     let mut required = Vec::with_capacity(aspects.len() + output_groups.len() + 3);
     for aspect in &aspects {

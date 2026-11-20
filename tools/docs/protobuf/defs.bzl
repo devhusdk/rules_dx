@@ -5,6 +5,8 @@ load("//cli/exec_os:defs.bzl", "ExecOsInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 PROTO_TOOLCHAIN = "@protobuf//bazel/private:proto_toolchain_type"
 
 def _root_relative(src, root):
@@ -23,21 +25,19 @@ def protobuf_shard_action(ctx, proto_info, protoc, windows, package, stem, extra
     if not sources:
         fail("protobuf_doc_shard " + str(ctx.label) + ": proto_library lists no .proto srcs")
 
-    own_set = proto_info.direct_descriptor_set
-    dep_sets = [f for f in proto_info.transitive_descriptor_sets.to_list() if f != own_set]
-
+    descriptor_sets = proto_info.transitive_descriptor_sets
     descriptor = ctx.actions.declare_file(stem + ".descriptor.pb")
     names = [_root_relative(src, root) for src in sources]
     args = ctx.actions.args()
     args.add("--proto_path=" + (root if root else "."))
-    args.add_joined("--descriptor_set_in", dep_sets, join_with = ";" if windows else ":", map_each = _path, omit_if_empty = True)
+    args.add_joined("--descriptor_set_in", descriptor_sets, join_with = ";" if windows else ":", map_each = _path, omit_if_empty = True)
     args.add("--include_source_info")
     args.add("--descriptor_set_out", descriptor)
     args.add_all(sources)
     ctx.actions.run(
         executable = protoc,
         arguments = [args],
-        inputs = depset(sources, transitive = [depset(dep_sets)]),
+        inputs = depset(sources, transitive = [descriptor_sets]),
         outputs = [descriptor],
         mnemonic = "DxDocsProtoc",
         toolchain = None,
@@ -46,6 +46,7 @@ def protobuf_shard_action(ctx, proto_info, protoc, windows, package, stem, extra
 
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     extract = ctx.actions.args()
+    extract.add("protobuf_extract")
     extract.add("--descriptor", descriptor)
     extract.add("--package", package)
     extract.add("--out", shard)
@@ -101,7 +102,7 @@ docs_protobuf_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/protobuf/extract:protobuf_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

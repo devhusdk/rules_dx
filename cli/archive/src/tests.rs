@@ -36,6 +36,7 @@ fn zip_file(path: &Path, members: &[(&str, &[u8], u32)]) {
     for (name, data, mode) in members {
         let options = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated)
+            .system(zip::System::Unix)
             .unix_permissions(*mode);
         writer.start_file(*name, options).expect("start");
         writer.write_all(data).expect("data");
@@ -229,20 +230,22 @@ enum ZipEntry<'a> {
     Link(&'a str, &'a str),
 }
 
+fn unix_options() -> zip::write::SimpleFileOptions {
+    zip::write::SimpleFileOptions::default().system(zip::System::Unix)
+}
+
 fn zip_entries(path: &Path, entries: &[ZipEntry<'_>]) {
     let mut writer = zip::ZipWriter::new(io::Cursor::new(Vec::new()));
     for entry in entries {
         match entry {
             ZipEntry::File(name, data, mode) => {
-                let options = zip::write::SimpleFileOptions::default().unix_permissions(*mode);
+                let options = unix_options().unix_permissions(*mode);
                 writer.start_file(*name, options).expect("start");
                 writer.write_all(data).expect("data");
             }
-            ZipEntry::Dir(name) => writer
-                .add_directory(*name, zip::write::SimpleFileOptions::default())
-                .expect("dir"),
+            ZipEntry::Dir(name) => writer.add_directory(*name, unix_options()).expect("dir"),
             ZipEntry::Link(name, target) => writer
-                .add_symlink(*name, *target, zip::write::SimpleFileOptions::default())
+                .add_symlink(*name, *target, unix_options())
                 .expect("symlink"),
         }
     }
@@ -317,26 +320,81 @@ fn directories_and_inner_symlinks_are_extracted_in_both_formats() {
             "{format:?}"
         );
         assert!(dest.join("pkg/empty").is_dir(), "{format:?}");
+        let link = dest.join("pkg/bin/tool");
+        assert!(
+            std::fs::symlink_metadata(&link)
+                .expect("link")
+                .file_type()
+                .is_symlink(),
+            "{format:?}"
+        );
+        assert_eq!(std::fs::read(&link).expect("read"), b"tool body\n");
+        assert!(dest.join("pkg/current").is_dir(), "{format:?}");
+        assert_eq!(
+            std::fs::read(dest.join("pkg/current/lib/tool")).expect("read"),
+            b"tool body\n"
+        );
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
-            let link = dest.join("pkg/bin/tool");
-            assert!(
-                std::fs::symlink_metadata(&link)
-                    .expect("link")
-                    .file_type()
-                    .is_symlink(),
-                "{format:?}"
-            );
-            assert_eq!(std::fs::read(&link).expect("read"), b"tool body\n");
             let mode = std::fs::metadata(&link).expect("meta").permissions().mode();
             assert_eq!(mode & 0o777, 0o755, "{format:?}");
-            assert_eq!(
-                std::fs::read(dest.join("pkg/current/lib/tool")).expect("read"),
-                b"tool body\n"
-            );
         }
     }
+}
+
+#[test]
+fn links_to_links_resolve_before_any_is_created() {
+    let dir = scratch();
+    let tar = dir.path().join("chain.tar.gz");
+    tar_entries(
+        &tar,
+        &[
+            (
+                "top",
+                tar::EntryType::Symlink,
+                "pkg/current/inc",
+                b"",
+                0o777,
+            ),
+            ("pkg/current", tar::EntryType::Symlink, ".", b"", 0o777),
+            (
+                "pkg/inc",
+                tar::EntryType::Symlink,
+                "../src/include",
+                b"",
+                0o777,
+            ),
+            ("src/include/a.h", tar::EntryType::Regular, "", b"a", 0o644),
+            ("loop", tar::EntryType::Symlink, "loop", b"", 0o777),
+        ],
+    );
+    let dest = dir.path().join("out");
+    let keep = |_: &str| true;
+    let mut run = Extraction::new(&dest, &keep, Limits::default());
+    for (name, target) in [
+        ("top", "pkg/current/inc"),
+        ("pkg/current", "."),
+        ("pkg/inc", "../src/include"),
+        ("loop", "loop"),
+    ] {
+        run.add(
+            name.to_owned(),
+            Kind::Symlink {
+                target: target.to_owned(),
+            },
+            &mut io::empty(),
+        )
+        .expect("add");
+    }
+    assert_eq!(
+        run.resolve("top", "pkg/current/inc").as_deref(),
+        Some("src/include")
+    );
+    assert_eq!(run.resolve("loop", "loop"), None);
+    let out = dir.path().join("chain");
+    extract(&tar, Format::TarGz, &out, Limits::default()).expect("extract");
+    assert_eq!(std::fs::read(out.join("top/a.h")).expect("read"), b"a");
 }
 
 #[test]
@@ -674,7 +732,6 @@ fn writers_add_dirs_and_inner_symlinks() {
         extract_bytes(&bytes, format, &dest, Limits::default()).expect("extract");
         assert!(dest.join("d").is_dir());
         assert_eq!(std::fs::read(dest.join("d/f")).expect("read"), b"f");
-        #[cfg(unix)]
         assert_eq!(std::fs::read(dest.join("l")).expect("read link"), b"f");
     }
 }

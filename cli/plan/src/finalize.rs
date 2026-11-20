@@ -54,7 +54,7 @@ fn decode_b64(value: &str) -> Result<Vec<u8>, ()> {
     if value.is_empty() {
         return Ok(Vec::new());
     }
-    STANDARD.decode(value).map_err(|_| ())
+    STANDARD.decode(value).map_err(drop)
 }
 
 fn de_b64<'de, D>(d: D) -> Result<Vec<u8>, D::Error>
@@ -377,7 +377,9 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
     errors.sort_by(|a, b| {
         (&a.language, &a.package, &a.message).cmp(&(&b.language, &b.package, &b.message))
     });
-    errors.dedup();
+    errors.dedup_by(|b, a| {
+        (&a.language, &a.package, &a.message) == (&b.language, &b.package, &b.message)
+    });
 
     let manifest = GenerationManifest {
         mode: if input.check {
@@ -415,7 +417,13 @@ fn write_checked(workspace: &Path, file: &FileResult) -> (WriteOutcome, &'static
     let Ok(candidate) = generation_result::candidate(file) else {
         return (WriteOutcome::NotApplied, FAILURE_WRITE_MISMATCH);
     };
-    let target = workspace.join(&file.path);
+    let target = match dx_path::resolve_target_in_workspace(workspace, &file.path) {
+        Ok(target) => target,
+        Err(err) if err.kind() == std::io::ErrorKind::InvalidInput => {
+            return (WriteOutcome::NotApplied, FAILURE_OUTSIDE_SCOPE);
+        }
+        Err(_) => return (WriteOutcome::NotApplied, FAILURE_UNREADABLE_FILE),
+    };
     let current = match std::fs::read(&target) {
         Ok(bytes) => Some(bytes),
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
@@ -521,6 +529,42 @@ mod tests {
             assert_eq!(file.failure_code, failure, "{writable}");
             assert_eq!(std::fs::read(dir.path().join(path)).unwrap(), after);
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn apply_within_refuses_a_directory_link_out_of_the_workspace() {
+        let dir = dx_test_scratch::scratch("dx-finalize-test-").unwrap();
+        let outside = dx_test_scratch::scratch("dx-finalize-outside-").unwrap();
+        std::fs::write(outside.path().join("BUILD.bazel"), b"abc\n").unwrap();
+        let parent = dir.path().join("rust/tests/fixtures");
+        std::fs::create_dir_all(&parent).unwrap();
+        std::os::unix::fs::symlink(outside.path(), parent.join("hello")).unwrap();
+        let mut manifest = checked(dir.path());
+        apply_within(&mut manifest, dir.path(), &["rust".to_owned()]);
+        let file = &manifest.files[0];
+        assert_eq!(file.outcome, WriteOutcome::NotApplied as i32);
+        assert_eq!(file.failure_code, FAILURE_OUTSIDE_SCOPE);
+        assert_eq!(
+            std::fs::read(outside.path().join("BUILD.bazel")).unwrap(),
+            b"abc\n"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn apply_within_writes_through_a_file_link_inside_the_workspace() {
+        let dir = workspace_with(b"");
+        let hello = dir.path().join("rust/tests/fixtures/hello");
+        std::fs::write(hello.join("real.bazel"), b"abc\n").unwrap();
+        std::fs::remove_file(hello.join("BUILD.bazel")).unwrap();
+        std::os::unix::fs::symlink("real.bazel", hello.join("BUILD.bazel")).unwrap();
+        let mut manifest = checked(dir.path());
+        apply_within(&mut manifest, dir.path(), &["rust".to_owned()]);
+        assert_eq!(manifest.files[0].outcome, WriteOutcome::Applied as i32);
+        let link = std::fs::symlink_metadata(hello.join("BUILD.bazel")).unwrap();
+        assert!(link.file_type().is_symlink());
+        assert_eq!(std::fs::read(hello.join("real.bazel")).unwrap(), b"xyz\n");
     }
 
     #[test]
@@ -1132,6 +1176,19 @@ mod tests {
                 .collect();
             assert_eq!(got, vec![("cc", None, "boom"), ("go", Some("pkg"), "bad")]);
         }
+    }
+
+    #[test]
+    fn errors_sharing_a_key_keep_the_first() {
+        let json = concat!(
+            r#"{"mode":"default","result":"failed","scopes":[{"value":"//...","results_complete":false}],"files":[],"errors":["#,
+            r#"{"language":"go","package":"p","message":"bad","import":"a"},"#,
+            r#"{"language":"go","package":"p","message":"bad","import":"b"},"#,
+            r#"{"language":"go","package":"p","message":"bad","import":"a"}]}"#
+        );
+        let manifest = run_failed(json.as_bytes(), false, 1).unwrap().manifest;
+        assert_eq!(manifest.errors.len(), 1);
+        assert_eq!(manifest.errors[0].import.as_deref(), Some("a"));
     }
 
     #[test]

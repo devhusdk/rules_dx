@@ -1,6 +1,7 @@
 package rust
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -239,7 +240,7 @@ func TestCargoImportValidationAndExpressions(t *testing.T) {
 	if self, _ := selfImport(renamedLib, "app_name"); self {
 		t.Error("selfImport matched the package name instead of the [lib] name")
 	}
-	if !undeclaredImport(renamedLib, "app_name") || undeclaredImport(renamedLib, "core_api") {
+	if !undeclaredImport(&config.Config{}, renamedLib, "app_name") || undeclaredImport(&config.Config{}, renamedLib, "core_api") {
 		t.Error("undeclaredImport did not use the [lib] crate name")
 	}
 	bad := &cargoManifest{packageName: "a.b"}
@@ -251,7 +252,7 @@ func TestCargoImportValidationAndExpressions(t *testing.T) {
 		t.Errorf("local imports = %+v", local)
 	}
 	r := rule.NewRule(libraryKind, "app")
-	setCargoAttrs(r, "pkg/app", manifest, true)
+	setCargoAttrs(r, "pkg/app", manifest, true, importedCrates(imports, true))
 	if r.Attr("deps") == nil || r.Attr("aliases") == nil {
 		t.Errorf("Cargo expressions missing")
 	}
@@ -264,7 +265,7 @@ func TestCargoImportValidationAndExpressions(t *testing.T) {
 		t.Errorf("production local imports include dev: %+v", withoutDev)
 	}
 	empty := rule.NewRule(libraryKind, "empty")
-	setCargoAttrs(empty, "pkg/app", manifest, false)
+	setCargoAttrs(empty, "pkg/app", manifest, false, importedCrates(imports, false))
 	if empty.Attr("deps") == nil || empty.Attr("aliases") == nil {
 		t.Errorf("all-declared Cargo attrs = deps:%v aliases:%v", empty.Attr("deps"), empty.Attr("aliases"))
 	}
@@ -274,7 +275,7 @@ func TestCargoImportValidationAndExpressions(t *testing.T) {
 		devDeps:     map[string]cargoDependency{},
 	}
 	dashed := rule.NewRule(libraryKind, "dashed")
-	setCargoAttrs(dashed, "pkg/app", dashedManifest, false)
+	setCargoAttrs(dashed, "pkg/app", dashedManifest, false, map[string]bool{"quick_xml": true})
 	if got := exprString(dashed.Attr("deps")); got != `all_crate_deps(normal = True, package_name = "pkg/app")` {
 		t.Errorf("dashed deps = %s", got)
 	}
@@ -296,20 +297,81 @@ libc = "0.2"
 		t.Fatal(err)
 	}
 	lib := rule.NewRule(libraryKind, "app")
-	setCargoAttrs(lib, "crates/app", manifest, false)
+	setCargoAttrs(lib, "crates/app", manifest, false, map[string]bool{"libc": true})
 	if got := exprString(lib.Attr("deps")); got != `all_crate_deps(normal = True, package_name = "crates/app")` {
 		t.Errorf("cfg deps = %s", got)
 	}
 	test := rule.NewRule(testKind, "app_test")
-	setCargoAttrs(test, "crates/app", manifest, true)
+	setCargoAttrs(test, "crates/app", manifest, true, map[string]bool{"libc": true})
 	if got := exprString(test.Attr("deps")); got != `all_crate_deps(normal = True, package_name = "crates/app", normal_dev = True)` {
 		t.Errorf("test deps = %s", got)
 	}
 	devOnly := &cargoManifest{packageName: "app", devDeps: map[string]cargoDependency{"x": {external: true}}}
 	prod := rule.NewRule(libraryKind, "app")
-	setCargoAttrs(prod, "crates/app", devOnly, false)
+	setCargoAttrs(prod, "crates/app", devOnly, false, map[string]bool{"x": true})
 	if got := exprString(prod.Attr("deps")); got != "[]" {
 		t.Errorf("dev-only library deps = %s, want []", got)
+	}
+}
+
+func TestCargoAttrsSkipUnimportedCrates(t *testing.T) {
+	manifest := &cargoManifest{
+		packageName: "app",
+		normalDeps:  map[string]cargoDependency{"ruzstd": {external: true}, "serde_json": {external: true}},
+		devDeps:     map[string]cargoDependency{"tempfile": {external: true}},
+	}
+	bin := rule.NewRule(binaryKind, "probe")
+	setCargoAttrs(bin, "tools/app", manifest, false, map[string]bool{"dx_nested": true})
+	if got := exprString(bin.Attr("deps")); got != "[]" {
+		t.Errorf("unimported crates deps = %s, want []", got)
+	}
+	unused := crateDepsCall{call: cargoCall("all_crate_deps", "tools/app", false), external: true, unused: true}
+	if got := exprString(unused.Merge(allCrateDepsFileExpr("tools/app", "//x"))); got != `all_crate_deps(normal = True, package_name = "tools/app") + ["//x"]` {
+		t.Errorf("unused merge = %s, want the file's call kept", got)
+	}
+	if got := exprString(unused.Merge(rule.ExprFromValue([]string{"//x"}))); got != `["//x"]` {
+		t.Errorf("unused merge = %s, want no call added", got)
+	}
+	test := rule.NewRule(testKind, "probe_test")
+	setCargoAttrs(test, "tools/app", manifest, true, map[string]bool{"tempfile": true})
+	if got := exprString(test.Attr("deps")); got != `all_crate_deps(normal = True, package_name = "tools/app", normal_dev = True)` {
+		t.Errorf("dev import deps = %s", got)
+	}
+}
+
+func TestDepsMergeKeepsHandSelects(t *testing.T) {
+	file, err := bzl.Parse("BUILD.bazel", []byte(`x = ["//cli/process:dx_process"] + select({
+    "@platforms//os:windows": [],
+    "//conditions:default": ["//cli/os_sys:dx_os_sys"],
+})
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hand := file.Stmt[0].(*bzl.AssignExpr).RHS
+	const kept = `["//cli/process:dx_process"] + select({
+    "@platforms//os:windows": [],
+    "//conditions:default": ["//cli/os_sys:dx_os_sys"],
+})`
+	none := crateDepsCall{call: cargoCall("all_crate_deps", "cli/app", false)}
+	if got := exprString(none.Merge(hand)); got != kept {
+		t.Errorf("crate deps merge = %s, want the select kept", got)
+	}
+	resolved := depsConcatExpr{extra: []string{"//cli/process:dx_process"}}
+	if got := exprString(resolved.Merge(hand)); got != kept {
+		t.Errorf("resolved deps merge = %s, want the select kept", got)
+	}
+	single, err := bzl.Parse("BUILD.bazel", []byte("x = all_crate_deps(normal = True) + [\n    \"//cli/process:dx_process\",\n] + select({\"//conditions:default\": []})\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	call := crateDepsCall{call: cargoCall("all_crate_deps", "cli/app", false), external: true}
+	if got := exprString(call.Merge(single.Stmt[0].(*bzl.AssignExpr).RHS)); !strings.Contains(got, "[\n    \"//cli/process:dx_process\",\n]") {
+		t.Errorf("one-label merge = %s, want the list kept on its own lines", got)
+	}
+	owned := depsConcatExpr{extra: []string{"//cli/process:dx_process"}, platform: map[string][]string{"@platforms//os:linux": {"//cli/os_sys:dx_os_sys"}}}
+	if got := exprString(owned.Merge(hand)); strings.Contains(got, "windows") {
+		t.Errorf("managed select merge = %s, want the generated select only", got)
 	}
 }
 
@@ -541,7 +603,7 @@ func TestCrateWithoutExternalDepsKeepsHandLabels(t *testing.T) {
 		devDeps:     map[string]cargoDependency{},
 	}
 	r := rule.NewRule(libraryKind, "app")
-	setCargoAttrs(r, "pkg/app", manifest, false)
+	setCargoAttrs(r, "pkg/app", manifest, false, nil)
 	if got := exprString(r.Attr("deps")); got != "[]" {
 		t.Fatalf("deps attr = %s, want []", got)
 	}
@@ -957,6 +1019,99 @@ func TestBuiltinRunfilesImport(t *testing.T) {
 	}
 }
 
+func TestBuiltinProstImports(t *testing.T) {
+	moduleRoot := func(t *testing.T, module string) string {
+		t.Helper()
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "MODULE.bazel"), []byte(module), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return root
+	}
+	withProst := `bazel_dep(name = "rules_dx", version = "1.0.0")
+bazel_dep(name = "rules_rust_prost", version = "0.75.0")
+`
+	newCfg := func(t *testing.T, root, repoName string, apparent map[string]string, directives []rule.Directive) *config.Config {
+		t.Helper()
+		c := resolverConfig(t, directives)
+		c.RepoRoot = root
+		c.RepoName = repoName
+		c.ModuleToApparentName = func(m string) string { return apparent[m] }
+		c.Exts[languageName] = &rustConfig{}
+		return c
+	}
+	resolveDeps := func(t *testing.T, l *rustLang, c *config.Config, ix *resolve.RuleIndex, name string) string {
+		t.Helper()
+		r := rule.NewRule(libraryKind, "app")
+		l.Resolve(c, ix, nil, r, targetImports{production: []string{name}}, label.New(c.RepoName, "app", "app"))
+		return strings.Join(r.AttrStrings("deps"), ",")
+	}
+	bare := &cargoManifest{packageName: "app", normalDeps: map[string]cargoDependency{}, devDeps: map[string]cargoDependency{}}
+
+	t.Run("dependency", func(t *testing.T) {
+		root := moduleRoot(t, withProst)
+		l := &rustLang{}
+		for _, name := range []string{"prost", "prost_types", "tonic"} {
+			c := newCfg(t, root, "", nil, nil)
+			if err := validateCargoImports(c, bare, libraryKind, targetImports{production: []string{name}}); err != nil {
+				t.Errorf("builtin %s rejected: %v", name, err)
+			}
+			if got, want := resolveDeps(t, l, c, resolverIndex(l), name), "@rules_dx//rust:"+name; got != want {
+				t.Errorf("%s deps = %q, want %q", name, got, want)
+			}
+		}
+		if len(l.errors) != 0 {
+			t.Errorf("errors = %v", l.errors)
+		}
+	})
+	t.Run("inside rules_dx", func(t *testing.T) {
+		l := &rustLang{}
+		c := newCfg(t, moduleRoot(t, withProst), "rules_dx", nil, nil)
+		if got := resolveDeps(t, l, c, resolverIndex(l), "prost"); got != "//rust:prost" {
+			t.Errorf("deps = %q, want //rust:prost", got)
+		}
+	})
+	t.Run("repo_name", func(t *testing.T) {
+		l := &rustLang{}
+		c := newCfg(t, moduleRoot(t, withProst), "", map[string]string{"rules_dx": "dx"}, nil)
+		if got := resolveDeps(t, l, c, resolverIndex(l), "prost"); got != "@dx//rust:prost" {
+			t.Errorf("deps = %q, want @dx//rust:prost", got)
+		}
+	})
+	t.Run("no dependency", func(t *testing.T) {
+		l := &rustLang{}
+		c := newCfg(t, moduleRoot(t, `bazel_dep(name = "rules_dx", version = "1.0.0")`+"\n"), "", nil, nil)
+		if builtinImport(c, bare, "prost") || !undeclaredImport(c, bare, "prost") {
+			t.Error("prost took the built-in without rules_rust_prost")
+		}
+		if got := resolveDeps(t, l, c, resolverIndex(l), "prost"); got != "" || len(l.errors) != 1 {
+			t.Errorf("deps = %q errors = %v, want one unresolved error", got, l.errors)
+		}
+	})
+	t.Run("directive wins", func(t *testing.T) {
+		l := &rustLang{}
+		c := newCfg(t, moduleRoot(t, withProst), "", nil, []rule.Directive{{Key: "resolve", Value: "rust prost @crates//:prost"}})
+		if got := resolveDeps(t, l, c, resolverIndex(l), "prost"); got != "@crates//:prost" {
+			t.Errorf("deps = %q, want @crates//:prost", got)
+		}
+	})
+	t.Run("local crate wins", func(t *testing.T) {
+		l := &rustLang{}
+		c := newCfg(t, moduleRoot(t, withProst), "", nil, nil)
+		ix := resolverIndex(l, struct{ pkg, name string }{"lib/prost", "prost"})
+		if got := resolveDeps(t, l, c, ix, "prost"); got != "//lib/prost" {
+			t.Errorf("deps = %q, want //lib/prost", got)
+		}
+	})
+	t.Run("cargo declared", func(t *testing.T) {
+		c := newCfg(t, moduleRoot(t, withProst), "", nil, nil)
+		declared := &cargoManifest{packageName: "app", normalDeps: map[string]cargoDependency{"prost": {external: true}}, devDeps: map[string]cargoDependency{}}
+		if got := localCargoImports(c, declared, targetImports{production: []string{"prost"}}, true); len(got.production) != 0 {
+			t.Errorf("declared external prost became local: %v", got.production)
+		}
+	})
+}
+
 func TestResolveAndroidCfgPathDepSelect(t *testing.T) {
 	l := &rustLang{}
 	index := resolverIndex(l, struct{ pkg, name string }{"lib/droid", "droid"}, struct{ pkg, name string }{"lib/plain", "plain"})
@@ -1036,5 +1191,34 @@ func TestWithoutExcludedDropsUnlistedSubdirs(t *testing.T) {
 	onlyExcluded := []string{"pkg/tests/fake.rs", "pkg/lib.rs"}
 	if got := withoutExcluded(onlyExcluded, language.GenerateArgs{Rel: "pkg", Subdirs: []string{}}); !reflect.DeepEqual(got, []string{"pkg/lib.rs"}) {
 		t.Fatalf("only excluded subdir = %v", got)
+	}
+}
+
+func TestCargoExternalCrateSkipsResolveMapping(t *testing.T) {
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "rust tempfile @crates//:tempfile"}})
+	manifest := &cargoManifest{
+		packageName: "scratch",
+		normalDeps:  map[string]cargoDependency{"tempfile": {external: true, label: "tempfile"}},
+		devDeps:     map[string]cargoDependency{},
+	}
+	got := localCargoImports(cfg, manifest, targetImports{production: []string{"tempfile"}, test: []string{"tempfile"}}, true)
+	if len(got.production) != 0 || len(got.test) != 0 {
+		t.Errorf("local imports = %+v, want the Cargo crate left to all_crate_deps", got)
+	}
+}
+
+func TestDropListedCrates(t *testing.T) {
+	manifest := &cargoManifest{
+		normalDeps: map[string]cargoDependency{"serde_json": {external: true, label: "serde_json"}, "quick_xml": {external: true, label: "quick-xml"}},
+		devDeps:    map[string]cargoDependency{"tempfile": {external: true, label: "tempfile"}},
+	}
+	used := map[string]bool{"serde_json": true, "quick_xml": true, "tempfile": true, "dx_testing": true}
+	dropListedCrates(used, rule.ExprFromValue([]string{":dx_testing", "@crates//:serde_json", "@crates//:quick-xml"}), manifest)
+	if strings.Join(sortedKeys(used), ",") != "dx_testing,tempfile" {
+		t.Errorf("used = %v, want the listed crates dropped", sortedKeys(used))
+	}
+	dropListedCrates(used, nil, manifest)
+	if len(used) != 2 {
+		t.Errorf("used = %v, want no change without deps", sortedKeys(used))
 	}
 }

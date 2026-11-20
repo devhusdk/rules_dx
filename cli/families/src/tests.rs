@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use super::*;
 
 #[test]
@@ -144,7 +142,29 @@ fn quality_marks_list_each_quality_language_with_its_files() {
         .expect("dockerfile has a quality entry");
     assert!(dockerfile.marks.iter().any(|mark| mark == ".dockerfile"));
     assert!(dockerfile.marks.iter().any(|mark| mark == "Dockerfile"));
-    assert!(marks.iter().all(|entry| !entry.marks.is_empty()));
+    let unmarked: Vec<&str> = marks
+        .iter()
+        .filter(|entry| entry.marks.is_empty())
+        .map(|entry| entry.language.as_str())
+        .collect();
+    assert_eq!(unmarked, ["cuda", "dotnet"]);
+    let manifests = shipped();
+    let bzl_of = |language: &str| {
+        manifests
+            .iter()
+            .find(|manifest| manifest.name == language)
+            .and_then(|manifest| manifest.quality.as_ref())
+            .map(|quality| quality.files.bzl.clone())
+    };
+    for language in unmarked {
+        let bzl = bzl_of(language);
+        assert!(
+            marks
+                .iter()
+                .any(|entry| !entry.marks.is_empty() && bzl_of(&entry.language) == bzl),
+            "{language} shares no quality.bzl with a language that has files"
+        );
+    }
 }
 
 fn quality_languages_by_name() -> usize {
@@ -152,4 +172,46 @@ fn quality_languages_by_name() -> usize {
         .iter()
         .filter(|manifest| manifest.quality.is_some())
         .count()
+}
+
+#[test]
+fn every_command_is_a_rules_dx_label() {
+    let all: Vec<&str> = command_labels().collect();
+    assert!(all.len() > COMMAND_TARGETS.len(), "{all:?}");
+    for label in all {
+        assert!(label.starts_with("@rules_dx//"), "{label}");
+    }
+}
+
+#[test]
+fn command_looks_up_a_tool_of_a_language() {
+    assert_eq!(command("go", "go"), Some("@rules_dx//go/private/tools:go"));
+    assert_eq!(command("go", "mix"), None);
+    assert_eq!(command("nope", "go"), None);
+    assert_eq!(
+        language_commands("elixir"),
+        ["@rules_dx//elixir/private/tools:mix"]
+    );
+    assert_eq!(
+        language_commands("rust"),
+        [
+            "@rules_dx//rust/private/ide:discover",
+            "@rules_dx//rust/private/ide:flycheck"
+        ]
+    );
+    assert!(language_commands("haskell").is_empty());
+}
+
+#[test]
+fn repo_relative_drops_the_rules_dx_repo() {
+    assert_eq!(repo_relative(GENERATE), "dx:generate");
+    assert_eq!(repo_relative(DX), ":dx");
+    assert_eq!(repo_relative(TOOL_RESOLVE), "dx/tool_resolve");
+}
+
+#[test]
+fn resolvers_name_the_setup_hub_resolver_labels() {
+    assert_eq!(resolvers("zig"), ["@rules_dx//zig/private/tools/lock"]);
+    assert!(resolvers("go").is_empty());
+    assert!(resolvers("kotlin").is_empty());
 }

@@ -50,7 +50,8 @@
     "haskell_library",
     "haskell_binary",
     "haskell_test",
-    "haskell_bench"
+    "haskell_bench",
+    "haskell_doc_shard"
   ],
   "quality": {
     "bzl": "haskell/private/quality:haskell.bzl",

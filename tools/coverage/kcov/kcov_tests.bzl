@@ -1,4 +1,4 @@
-"""Analysis tests that a native test runs under kcov on the platforms it names, and nowhere else."""
+"""Analysis tests that a native test runs under kcov or sancov on the platforms it names, and nowhere else."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load(":kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
@@ -11,15 +11,23 @@ def _kcov_env_impl(ctx):
         upstream = run_env.get("DX_KCOV_UPSTREAM", "")
         asserts.true(env, upstream.endswith("/" + ctx.attr.upstream), "upstream is " + upstream)
         asserts.true(env, run_env.get("DX_KCOV_SOURCES", "").endswith(".kcov_sources"), "no kcov sources manifest")
+        to_lcov = run_env.get("DX_TO_LCOV", "")
+        asserts.true(env, to_lcov.endswith("/cli/runtime/dx_runtime"), "to_lcov is " + to_lcov)
         instrumented = [f.short_path for f in target[InstrumentedFilesInfo].instrumented_files.to_list()]
         asserts.equals(env, ctx.attr.instrumented, instrumented)
     else:
         asserts.false(env, "DX_KCOV_UPSTREAM" in run_env, "kcov env set: " + str(run_env))
+    sancov = run_env.get("DX_SANCOV_UPSTREAM", "")
+    if ctx.attr.sancov:
+        asserts.true(env, sancov.endswith("/" + ctx.attr.upstream), "sancov upstream is " + sancov)
+    else:
+        asserts.equals(env, "", sancov)
     return analysistest.end(env)
 
 _ATTRS = {
     "instrumented": attr.string_list(),
     "kcov": attr.bool(),
+    "sancov": attr.bool(),
     "upstream": attr.string(),
 }
 
@@ -56,11 +64,11 @@ def _platform_rule(platform):
         fail("dx_kcov_env_test has no analysis rule for {}; add it to kcov_tests.bzl".format(platform))
     return _PLATFORM_TESTS[platform]
 
-def dx_kcov_env_test(name, target, upstream, instrumented, linux_platform, other_platforms = []):
-    """Asserts a test runs under kcov on linux_platform with coverage on, and not on other_platforms."""
+def dx_kcov_env_test(name, target, upstream, instrumented, linux_platform, other_platforms = [], sancov_platforms = []):
+    """Asserts kcov runs on linux_platform, sancov on sancov_platforms, and neither elsewhere."""
     _platform_rule(linux_platform)(name = name, size = "small", target_under_test = target, kcov = True, upstream = upstream, instrumented = instrumented)
     for platform in other_platforms:
-        _platform_rule(platform)(name = name + "_" + Label(platform).name, size = "small", target_under_test = target, kcov = False)
+        _platform_rule(platform)(name = name + "_" + Label(platform).name, size = "small", target_under_test = target, kcov = False, sancov = platform in sancov_platforms, upstream = upstream)
     _off_test(name = name + "_off", size = "small", target_under_test = target, kcov = False)
 
 def _no_kcov_probe_impl(ctx):

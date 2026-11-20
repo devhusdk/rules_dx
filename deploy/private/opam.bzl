@@ -2,7 +2,7 @@
 
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":validate_opam.bzl", "opam_file_error", "opam_name_error", "opam_version_error")
 
 def _opam_config_impl(ctx):
@@ -66,7 +66,7 @@ def opam_deploy(name, package, version, opam_file, build_mode = "release", sbom 
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         config = ":" + config_target,

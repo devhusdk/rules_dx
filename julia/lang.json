@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": {
+    "pkg_update": "@rules_dx//julia/private/tools:pkg_update"
+  },
   "tools": [
     "julia_format",
     "julialint"
@@ -50,7 +53,8 @@
     "julia_binary",
     "julia_test",
     "julia_standalone_binary",
-    "julia_bench"
+    "julia_bench",
+    "julia_doc_shard"
   ],
   "quality": {
     "bzl": "julia/private/quality:julia.bzl",

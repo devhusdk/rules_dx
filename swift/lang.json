@@ -29,6 +29,9 @@
       }
     ]
   },
+  "commands": {
+    "swift": "@rules_dx//swift/private/tools:swift"
+  },
   "tools": [
     "swift_format",
     "swift_lint"
@@ -50,7 +53,8 @@
     "swift_binary",
     "swift_test",
     "swift_fuzz_test",
-    "swift_bench"
+    "swift_bench",
+    "swift_doc_shard"
   ],
   "quality": {
     "bzl": "swift/private/quality:swift.bzl",

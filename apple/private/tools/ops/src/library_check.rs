@@ -1,6 +1,5 @@
 //! Checks that imported Mach-O libraries and framework binaries belong to one app cell.
 
-use std::fmt::Write as _;
 use std::path::Path;
 
 use crate::util::{Failure, Outcome, has_extension, reject, usage};
@@ -148,11 +147,9 @@ pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
                 "{what} needs {os} {newest}, above the {owner} deployment {deployment}"
             )));
         }
-        writeln!(
-            text,
-            "{key}={name} arch={arch} platform={sdk} minos={newest}"
-        )
-        .ok();
+        text.push_str(&format!(
+            "{key}={name} arch={arch} platform={sdk} minos={newest}\n"
+        ));
     }
     std::fs::write(Path::new(report), text).map_err(|error: std::io::Error| -> Failure {
         usage(format!("cannot write {report}: {error}"))

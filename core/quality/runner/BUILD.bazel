@@ -224,7 +224,7 @@ rust_test(
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
         "//core/quality/result:quality_result",
-        "@rules_rust_prost//private/3rdparty/crates:prost",
+        "//rust:prost",
     ],
 )
 

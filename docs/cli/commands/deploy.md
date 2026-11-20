@@ -2,7 +2,7 @@
 
 Use `dx deploy` to check what a deploy target would publish, then publish it with `--apply`.
 
-A target is one thing Bazel builds. A label names it, such as `//app:deploy`: the package directory `app`, then the target name. A deploy target is a `dx_deployment` or one of the deploy rules in the [deploy rules reference](https://github.com/devhusdk/rules_dx/blob/main/deploy/README.md).
+A target is one thing Bazel builds. A label names it, such as `//app:deploy`: the package directory `app`, then the target name. A deploy target is a `deployment` or one of the deploy rules in the [deploy rules reference](https://github.com/devhusdk/rules_dx/blob/main/deploy/README.md).
 
 ## Examples
 
@@ -37,6 +37,8 @@ dx deploy --affected
 dx deploy --apply --affected --since origin/release
 ```
 
+A module, Starlark or deleted-file change selects every release deployment.
+
 ## Usage
 
 ```text
@@ -62,7 +64,7 @@ NPM_PUBLISH_APPROVED=1 tools/dx deploy --apply //pkg:npm
 
 ## Affected deployments
 
-`--affected` finds the files changed since the merge base with the default branch. It then deploys every `dx_deployment` tagged `release` that those changes reach, one after another. `--base <ref>` takes the merge base with that branch instead. `--since <ref>` compares against `<ref>` instead. `--affected` takes no label. Targets under `[scope] exclude` in `dx.toml` are skipped. When nothing is affected, dx prints `no affected targets` and exits `0`.
+`--affected` finds the files changed since the merge base with the default branch. It then deploys every `deployment` tagged `release` that those changes reach, one after another. `--base <ref>` takes the merge base with that branch instead. `--since <ref>` compares against `<ref>` instead. `--affected` takes no label. Targets under `[scope] exclude` in `dx.toml` are skipped. When nothing is affected, dx prints `no affected targets` and exits `0`.
 
 ## Agent sessions
 
@@ -88,7 +90,7 @@ PHP, opam and CPAN have deploy rules: `packagist_deploy`, `opam_deploy` and `cpa
 | `--apply` | Publish. Runs the launcher with `DX_DEPLOY_LIVE=1`. |
 | `--debug` | Build in debug mode. |
 | `--release` | Build in release mode. |
-| `--affected` | Deploy every `dx_deployment` tagged `release` that your change reaches. Takes no label. |
+| `--affected` | Deploy every `deployment` tagged `release` that your change reaches. Takes no label. |
 | `--since <ref>` | With `--affected`, compare against `<ref>` instead of the merge base with the default branch. |
 | `--base <ref>` | With `--affected`, take the merge base with this branch instead of the default branch. Not with `--since`. |
 | `--workspace <dir>` | Run in this workspace. |
@@ -103,7 +105,7 @@ PHP, opam and CPAN have deploy rules: `packagist_deploy`, `opam_deploy` and `cpa
 
 ## Scopes
 
-Exactly one label in your workspace, such as `//app:deploy`. A pattern like `//...`, several labels, or a file path is a usage error. The error lists every `dx_deployment` label in the repository and marks the ones tagged `release`.
+Exactly one label in your workspace, such as `//app:deploy`. A pattern like `//...`, several labels, or a file path is a usage error. The error lists every `deployment` label in the repository and marks the ones tagged `release`.
 
 ## Output
 

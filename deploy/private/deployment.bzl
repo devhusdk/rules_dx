@@ -1,12 +1,12 @@
-"""The dx_deployment rule that dx deploy runs."""
+"""The deployment rule that dx deploy runs."""
 
-load("//core:defs.bzl", "DxSubjectInfo", "display_label")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo", "display_label")
 load(":sbom.bzl", "DxSbomFileInfo")
 load(":config.bzl", "DxDeployConfigInfo", "DxRegistryArtifactsInfo")
 load("//core:rlocation.bzl", "rlocation_path")
 load(":validate.bzl", "parse_size_budget", "size_budget_error")
 
-DxDeployInfo = provider(
+DeployInfo = provider(
     doc = "Deploy entrypoint identity and default build mode for dx deploy dispatch.",
     fields = {
         "app": "Label or None: the deployed app target when distinct from the deploy target.",
@@ -25,21 +25,21 @@ def _dx_deployment_impl(ctx):
     run = deploy_default.files_to_run
     exe = run.executable if run != None else None
     if exe == None:
-        fail("dx_deployment " + str(ctx.label) + ": deploy target " +
+        fail("deployment " + str(ctx.label) + ": deploy target " +
              str(ctx.attr.deploy.label) + " has no executable")
     link = ctx.actions.declare_file(ctx.label.name + "/" + exe.basename)
     ctx.actions.symlink(output = link, target_file = exe, is_executable = True)
     runfiles = ctx.runfiles(files = [link]).merge(deploy_default.default_runfiles)
     budget_error = size_budget_error(ctx.attr.size_budget)
     if budget_error:
-        fail("dx_deployment " + str(ctx.label) + ": " + budget_error)
+        fail("deployment " + str(ctx.label) + ": " + budget_error)
     artifact_labels = []
     artifact_files = []
     for target in ctx.attr.artifacts:
         info = target[DefaultInfo]
         files = info.files.to_list()
         if len(files) == 0:
-            fail("dx_deployment " + str(ctx.label) + ": artifact " +
+            fail("deployment " + str(ctx.label) + ": artifact " +
                  str(target.label) + " provides no files")
         artifact_labels.append(display_label(target.label))
         artifact_files.extend(files)
@@ -97,7 +97,7 @@ def _dx_deployment_impl(ctx):
             files = depset(built),
             runfiles = runfiles,
         ),
-        DxDeployInfo(
+        DeployInfo(
             app = app_label,
             artifacts = [target.label for target in ctx.attr.artifacts],
             build_mode = ctx.attr.build_mode,
@@ -112,7 +112,7 @@ def _dx_deployment_impl(ctx):
         }),
     ] + extra
 
-dx_deployment = rule(
+deployment = rule(
     implementation = _dx_deployment_impl,
     doc = "Deployment that dx deploy runs with a declared build mode.",
     executable = True,
@@ -151,7 +151,7 @@ dx_deployment = rule(
             cfg = "target",
             mandatory = False,
             providers = [DxSbomFileInfo],
-            doc = "dx_sbom target whose SPDX document is staged with the deployment and counted by a dx deploy check.",
+            doc = "sbom target whose SPDX document is staged with the deployment and counted by a dx deploy check.",
         ),
         "size_budget": attr.string(
             doc = "Largest total size of artifacts, such as 25MB (decimal B, KB, MB or GB). Building fails above it and prints both sizes in bytes. Empty means no budget.",

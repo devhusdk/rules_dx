@@ -30,6 +30,9 @@
       }
     ]
   },
+  "commands": {
+    "opam": "@rules_dx//ocaml/private/tools:opam"
+  },
   "tools": [
     "topiary",
     "zanuda"
@@ -55,7 +58,8 @@
     "ocaml_test",
     "ocaml_fuzz_test",
     "ocaml_bench",
-    "ocaml_dune_library"
+    "ocaml_dune_library",
+    "ocaml_doc_shard"
   ],
   "quality": {
     "bzl": "ocaml/private/quality:ocaml.bzl",

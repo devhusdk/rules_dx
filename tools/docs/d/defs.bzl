@@ -4,6 +4,8 @@ load("@rules_d//d/private:providers.bzl", "DInfo")
 load("//core:rlocation.bzl", "repo_relative_path")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
+visibility(["//..."])
+
 D_TOOLCHAIN = str(Label("@rules_d//d:toolchain_type"))
 
 _DDirectSrcsInfo = provider(

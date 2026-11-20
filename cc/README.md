@@ -19,11 +19,28 @@ tools/dx test //cc/...
 
 ### CMake dependencies
 
-`cmake_library` from `@rules_dx//cmake:defs.bzl` only formats and lints CMake files. It never builds them.
+`cmake_library` from `@rules_dx//cmake:defs.bzl` only formats and lints CMake
+files. It never builds them.
 
-To build a CMake project, use the rules_foreign_cc `cmake` rule and register `tools.explicit()` with a pinned cmake and ninja, so no host cmake is used.
+To build a CMake project, use the `cmake` rule from rules_foreign_cc. Add
+`rules_foreign_cc` as a `bazel_dep` and pin cmake and ninja in your
+`MODULE.bazel`. `tools.explicit()` turns off the fallback to a cmake
+installed on the host:
 
 ```starlark
+tools = use_extension("@rules_foreign_cc//foreign_cc:extensions.bzl", "tools")
+tools.explicit()
+tools.cmake(mode = "binary", version = "4.0.7")
+tools.ninja(mode = "binary", version = "1.13.2")
+```
+
+Then build the project and link it like any other library. `lib_source` is a
+filegroup with the project's sources:
+
+```starlark
+load("@rules_dx//cc:defs.bzl", "cc_binary")
+load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+
 cmake(
     name = "zlib_static",
     generate_args = ["-GNinja"],
@@ -38,23 +55,37 @@ cc_binary(
 )
 ```
 
-This is tested on Linux x86_64 with LLVM and GCC, with LLVM cross-compiling to Linux arm64, and on Windows x64 with MSVC (cl.exe through the Ninja generator). On Linux, `bash` is the only host tool. On Windows, ninja is a pinned prebuilt binary.
+This works on Linux x86_64 with LLVM or GCC, from Linux x86_64 to Linux arm64
+with LLVM, and on Windows x64 with MSVC through the Ninja generator. On Linux
+the host needs only `bash`.
 
 ## Quality
 
 ### Warnings
 
-Each wrapper adds the upstream `treat_warnings_as_errors` feature to `features`. Set `warnings_as_errors = False` on a target to leave it out, or `True` to keep it whatever the flag says. Without the attribute, the target follows `//config:warnings_as_errors`, which is on by default. To turn it off for the whole repository:
+Warnings fail the build by default. Each rule adds the upstream
+`treat_warnings_as_errors` feature to `features`. On one target, set
+`warnings_as_errors = False` to allow warnings, or `True` to always fail on
+them. To allow warnings in the whole repository, add this line to `.bazelrc`,
+the file of Bazel flags at the root of your repository:
 
-```sh
+```text
 common --@rules_dx//config:warnings_as_errors=false
 ```
 
-The flags are driver syntax. A GCC or Clang toolchain takes `-Wall -Werror`. An MSVC-style driver takes `/W4 /WX`. Plain C never receives a C++-only option.
+GCC and Clang get `-Wall -Werror`. MSVC gets `/W4 /WX`. C sources never get a
+C++-only flag.
+
+## Coverage
+
+`bazel coverage` and `dx coverage` work for `cc_test` with LLVM and with GCC.
+GCC coverage runs on Linux x86_64 with the gcov that ships with the toolchain.
+It fails when gcov reports a version, stamp or profile mismatch, corrupt data
+or a missing notes file. MSVC builds get no coverage.
 
 ## Bench and fuzz
 
-`cc_bench` links Google Benchmark's `benchmark_main` into a private `<name>_bin` and declares `<name>` as the `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.
+`cc_bench` builds a Google Benchmark binary for `dx bench`:
 
 ```starlark
 load("@rules_dx//cc:defs.bzl", "cc_bench")
@@ -65,76 +96,134 @@ cc_bench(
 )
 ```
 
-The test writes `dx-bench.json` with one row per benchmark, using the real time in the unit the benchmark reports. Google Benchmark comes from the `google_benchmark` Bazel module that rules_dx depends on.
+It links `benchmark_main` from the `google_benchmark` module, which rules_dx
+brings, so you add no `bazel_dep`. `<name>` is the test that `dx bench` runs
+and `<name>_bin` is the binary. `size`, `timeout`, `args`, `data` and `env`
+go to the test. The other attributes go to the binary. The test writes
+`dx-bench.json` with one row per benchmark, in real time and in the unit the
+benchmark reports.
 
 ## API docs
 
-`dx docs` documents the public `hdrs` of a `cc_library` with the pinned Doxygen, with no setup. Declare `cc_doc_shard(name = "docs", lib = ":lib")` from `@rules_dx//tools/docs/cc:defs.bzl` to set the package name. Doxygen publishes no Linux arm64 or Windows arm64 build, so those hosts get no C or C++ API docs.
+`dx docs` documents the public `hdrs` of each `cc_library` with the pinned
+Doxygen. You need no setup. To set the package name, declare a shard:
+
+```starlark
+load("@rules_dx//cc:defs.bzl", "cc_doc_shard")
+
+cc_doc_shard(
+    name = "docs",
+    lib = ":lib",
+    package = "mylib",
+)
+```
+
+Doxygen has no Linux arm64 or Windows arm64 build, so those hosts get no C or
+C++ API docs.
 
 ## Toolchain
 
+LLVM is the default compiler. To use your own compiler instead, see
+[Use your own C/C++ toolchain](../docs/own-cc-toolchain.md).
+
 ### Options
 
-`copts`, `defines`, `features`, `includes` and `linkopts` reach the upstream rule exactly as written. A `select()` value stays a `select()` value. The requested language standard is never translated: `-std=c++23` compiles as C++23.
+`copts`, `defines`, `features`, `includes` and `linkopts` reach the compiler
+exactly as you write them, `select()` values included. The language standard
+is never rewritten: `-std=c++23` compiles as C++23.
 
 ### GCC
 
-To use your own compiler instead, see [Use your own C/C++ toolchain](../docs/own-cc-toolchain.md).
-
-Select the GCC toolchain in `.bazelrc`:
+To build with GCC, add this line to `.bazelrc`:
 
 ```text
 common --@rules_dx//cc:compiler=gcc
 ```
 
-Or per build:
+Or pass the flag to one build:
 
 ```sh
 bazel build --@rules_dx//cc:compiler=gcc //pkg/...
 ```
 
-It targets Linux x86_64 with GCC 16.2.0 and a glibc 2.26 floor. libstdc++ and libgcc link statically, so each shared library carries its own copy. Do not pass `std::` types across a `.so` boundary. Other targets fail at analysis instead of falling back to LLVM.
+GCC 16.2.0 builds for Linux x86_64 and Linux arm64, with a glibc 2.26 floor.
+Any other target fails at analysis, the step where Bazel reads BUILD files
+before it runs anything. It never falls back to LLVM.
 
-The `dynamic_libstdcxx` feature links the toolchain's `libstdc++.so.6` and `libgcc_s.so.1` instead, ships both in runfiles and sets an `$ORIGIN` rpath, so nothing loads from the host. It covers dynamically linked targets (`cc_test`, `linkstatic = False`); a statically linked `cc_binary` keeps the static runtime.
+libstdc++ and libgcc link statically, so each shared library carries its own
+copy. Do not pass `std::` types across a `.so` boundary. To link them
+dynamically instead, turn on the `dynamic_libstdcxx` feature:
 
 ```sh
 bazel test --@rules_dx//cc:compiler=gcc --features=dynamic_libstdcxx //pkg:test
 ```
 
-`cc_test` coverage works with both toolchains. GCC coverage works on Linux x86_64 with the gcov that ships with the toolchain, and collection fails when gcov reports a version, stamp or profile mismatch, corrupt data or a missing notes file. MSVC/Windows coverage is not supported. `//tools/coverage/collect:gcov_native_test` runs the collector on a GCC-instrumented binary.
+The feature ships the toolchain's `libstdc++.so.6` and `libgcc_s.so.1` in
+runfiles, the files Bazel places next to a binary when it runs, and sets an
+`$ORIGIN` rpath, so nothing loads from the host. It covers dynamically linked
+targets, such as `cc_test` or a target with `linkstatic = False`. A statically
+linked `cc_binary` keeps the static runtime.
 
-Sanitizers work under GCC with the `asan` and `ubsan` features. The toolchain links the runtimes statically, so nothing loads from the host. GCC's static libasan still fails its link order check at startup, so `cc_test` sets `ASAN_OPTIONS=verify_asan_link_order=0` under GCC unless the target's `env` sets `ASAN_OPTIONS`. A `cc_binary` run with `bazel run` still needs it set by hand. The asan command:
+### Sanitizers
+
+With GCC, turn on AddressSanitizer or UndefinedBehaviorSanitizer with the
+`asan` or `ubsan` feature:
 
 ```sh
 bazel test --@rules_dx//cc:compiler=gcc --features=asan //pkg:test
 bazel test --@rules_dx//cc:compiler=gcc --features=ubsan //pkg:test
 ```
 
-On a macOS host, `--features=asan`, `ubsan` or `tsan` uses the Xcode toolchain, and the runtimes load from the installed Xcode, so this is not hermetic.
+GCC links the runtimes statically, so nothing loads from the host.
+`cc_test` sets `ASAN_OPTIONS=verify_asan_link_order=0` unless the target's
+`env` sets `ASAN_OPTIONS`. For a `cc_binary` you start with `bazel run`, set
+it yourself:
+
+```sh
+ASAN_OPTIONS=verify_asan_link_order=0 bazel run --@rules_dx//cc:compiler=gcc --features=asan //pkg:app
+```
+
+On a macOS host, `asan`, `ubsan` and `tsan` use the Xcode toolchain, and the
+runtimes load from the installed Xcode.
 
 ### MSVC
 
-Select the MSVC toolchain in `.bazelrc`:
+To build with MSVC, add this line to `.bazelrc`:
 
 ```text
 common --@rules_dx//cc:compiler=msvc
 ```
 
-It supports a Windows x86_64 host that targets Windows x86_64. Accept the license in the root `MODULE.bazel`:
+MSVC builds on a Windows x86_64 or arm64 host for Windows x86_64 or arm64.
+Accept the Visual Studio Build Tools license in your root `MODULE.bazel`:
 
-```text
+```starlark
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
 dx_licenses.accept(ids = ["visual-studio-build-tools"])
 ```
 
-Any other host or target platform fails with a message that names the supported pair. There is no clang-cl fallback.
+Any other host or target fails with a message that names the supported pair.
+It never falls back to clang-cl.
 
 ### macOS
 
-On a macOS host, Apple targets including `macos_*` resolve the Xcode toolchain; `@llvm` with the pinned `@macos_sdk` serves macOS targets only from Linux and Windows hosts. The dx preset sets macOS 14.0 as the minimum for target and host builds; override it with `--macos_minimum_os`, `--host_macos_minimum_os` and the matching `MACOSX_DEPLOYMENT_TARGET` in `--action_env` and `--host_action_env`.
+On a macOS host, Apple targets, `macos_*` included, build with the Xcode
+toolchain. On Linux and Windows hosts, macOS targets build with `@llvm` and
+the pinned `@macos_sdk`.
+
+The minimum macOS version is 14.0 for target and host builds. To change it,
+set all four flags in `.bazelrc`:
+
+```text
+common --macos_minimum_os=15.0
+common --host_macos_minimum_os=15.0
+common --action_env=MACOSX_DEPLOYMENT_TARGET=15.0
+common --host_action_env=MACOSX_DEPLOYMENT_TARGET=15.0
+```
 
 ### Objective-C
 
-`cc_objc_library` is the upstream rule under your name. rules_apple resources
-and frameworks, and rules_swift `module_name`, behave exactly as upstream.
-dx assigns `srcs`, `non_arc_srcs` and `hdrs` to quality checks by their paths.
+`cc_objc_library` is the upstream `objc_library` under a rules_dx name.
+rules_apple resources and frameworks, and the rules_swift `module_name`,
+work exactly as upstream. dx sorts `srcs`, `non_arc_srcs` and `hdrs` into
+quality checks by their file paths.

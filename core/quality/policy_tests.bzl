@@ -1,6 +1,6 @@
 """Unit and analysis tests for workspace policy and applicability."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":applicability.bzl", "capability_selection", "effective_classes", "selected_adapters")
 load(":policy.bzl", "merge_configs", "merge_policy")
 load("//core/quality/private:generated_policy.bzl", "generated_families_error")
@@ -257,6 +257,7 @@ field config.gplint=core/quality/tiers/gplint/standard.json
 field config.graphql_eslint=core/quality/tiers/graphql_eslint/standard.json
 field config.hadolint=core/quality/tiers/hadolint/standard.yaml
 field config.hlint=core/quality/tiers/hlint/standard.yaml
+field config.julialint=core/quality/tiers/julialint/standard.toml
 field config.luals=core/quality/tiers/luals/standard.json
 field config.lychee=core/quality/tiers/lychee/standard.toml
 field config.markdown_check=core/quality/tiers/markdown_check/standard.txt
@@ -308,7 +309,7 @@ field family.python.lint=lint-a
 field family.python.typecheck=
 field tier.python=strict
 aspect_field aspect_seen=True
-aspect_field field_count=76
+aspect_field field_count=77
 aspect_field has_subject=True
 aspect_field subject_label=//core/quality:generated_policy_under_test
 aspect_field transitive_count=0
@@ -361,6 +362,7 @@ field config.gplint=core/quality/tiers/gplint/strict.json
 field config.graphql_eslint=core/quality/tiers/graphql_eslint/strict.json
 field config.hadolint=core/quality/tiers/hadolint/strict.yaml
 field config.hlint=core/quality/tiers/hlint/strict.yaml
+field config.julialint=core/quality/tiers/julialint/strict.toml
 field config.luals=core/quality/tiers/luals/strict.json
 field config.lychee=core/quality/tiers/lychee/strict.toml
 field config.markdown_check=core/quality/tiers/markdown_check/strict.txt
@@ -411,7 +413,7 @@ field family.python.format=
 field family.python.lint=lint-a
 field family.python.typecheck=
 aspect_field aspect_seen=True
-aspect_field field_count=75
+aspect_field field_count=76
 aspect_field has_subject=True
 aspect_field subject_label=//core/quality:strict_generated_policy_under_test
 aspect_field transitive_count=0"""

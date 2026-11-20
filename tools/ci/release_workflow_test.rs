@@ -99,9 +99,23 @@ fn publish_step_maps_every_gate_credential_from_secrets() {
 #[test]
 fn query_matches_the_release_tag_exactly() {
     let script = scripts(WORKFLOW, "plan").unwrap();
+    let regex = script
+        .split_once(r#"attr(tags, ""#)
+        .and_then(|(_, rest)| rest.split_once('"'))
+        .map(|(regex, _)| regex)
+        .unwrap_or_else(|| panic!("the plan step has no attr(tags, ...) query:\n{script}"));
     assert!(
-        script.contains(r#"attr(tags, "[\\[ ]release[,\\]]", kind(dx_deployment, //...))"#),
-        "the plan query must match the exact release tag:\n{script}"
+        !regex.contains(r"\\"),
+        "the release tag regex must use single backslashes: {regex}"
+    );
+    assert!(
+        regex.contains("release"),
+        "the regex must name the release tag: {regex}"
+    );
+    let build = std::fs::read_to_string(resolve_runfiles("deploy/private/BUILD.bazel")).unwrap();
+    assert!(
+        build.contains(&format!(r#"attr(tags, "{regex}""#)),
+        "//deploy/private:release_tag_query must test the workflow regex {regex}"
     );
 }
 

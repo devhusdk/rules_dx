@@ -76,6 +76,14 @@ svelte_test(name, *, srcs, node_modules, data = None, **kwargs)
 
 Runs jest over Svelte components, compiled by the linked svelte. Coverage maps back to the .svelte sources.
 
+### `svelte_doc_shard`
+
+```python
+svelte_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package_json = None, deps = [], **kwargs)
+```
+
+Declares a component metadata run over one Svelte project and its DocIr shard.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for Svelte:
@@ -104,13 +112,5 @@ Svelte builds and tests on:
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/components:defs.bzl", "svelte_doc_shard")
+load("@rules_dx//svelte:defs.bzl", "svelte_doc_shard")
 ```
-
-### `svelte_doc_shard`
-
-```python
-svelte_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package_json = None, deps = [], **kwargs)
-```
-
-Declares a component metadata run over one Svelte project and its DocIr shard.

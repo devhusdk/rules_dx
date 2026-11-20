@@ -23,3 +23,43 @@ pub fn finding_identity(diagnostic: &DiagnosticEvent, bytes: Option<&[u8]>) -> F
         context,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use dx_fingerprint::finding::finding_fingerprint;
+    use dx_output::Severity;
+
+    use super::*;
+
+    fn ranged(start: u64) -> DiagnosticEvent {
+        DiagnosticEvent {
+            rule: Some("t/final-newline".to_owned()),
+            path: Some("a.txt".to_owned()),
+            range: Some((start, start)),
+            ..DiagnosticEvent::new(Severity::Warning, "t", "missing final newline")
+        }
+    }
+
+    #[test]
+    fn end_of_file_findings_get_a_stable_fingerprint() {
+        let first = finding_fingerprint(&finding_identity(&ranged(1), Some(b"a")));
+        assert!(first.is_some());
+        assert_eq!(
+            first,
+            finding_fingerprint(&finding_identity(&ranged(1), Some(b"a")))
+        );
+        assert_eq!(
+            first,
+            finding_fingerprint(&finding_identity(&ranged(0), Some(b"a")))
+        );
+        let trailing = finding_identity(&ranged(2), Some(b"a\n"));
+        assert_eq!(trailing.context, Some(dx_digest::blake3(b"")));
+    }
+
+    #[test]
+    fn findings_past_end_of_file_get_no_fingerprint() {
+        let past = finding_identity(&ranged(2), Some(b"a"));
+        assert_eq!(past.context, None);
+        assert_eq!(finding_fingerprint(&past), None);
+    }
+}

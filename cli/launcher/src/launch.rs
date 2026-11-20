@@ -4,11 +4,14 @@
 //! `<name>` drops a trailing `.exe`, one entry per line:
 //! `program=<key>` or `real_program=<key>` (the program with symlinks resolved), `arg=<literal>`, `path=<key>`,
 //! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>`, `env=<VAR>\t<value>`,
-//! `env_dir=<VAR>\t<key>`, `env_default=<VAR>\t<value>` and `unset=<VAR>`.
+//! `env_dir=<VAR>\t<key>`, `env_default=<VAR>\t<value>`, `unset=<VAR>`, `verb=<word>` and
+//! `default_arg=<literal>`.
 //! A descriptor without a program holds either one `fail=<message>` line, which prints the
 //! message and exits 2, or `copy=<key>\t<path>` lines, which write runfiles files to paths
 //! below `BUILD_WORKSPACE_DIRECTORY`.
-//! The user's arguments follow the listed ones; `unset` names variables removed
+//! The user's arguments follow the listed ones. With `verb` lines, the user's first argument
+//! goes before the listed ones when it is one of the verbs; otherwise the first verb goes
+//! before them and the `default_arg` values go after them. `unset` names variables removed
 //! from the child's environment, `env` sets one, `env_dir` sets one to the
 //! absolute directory of a runfiles file and `env_default` sets one only when
 //! it is unset or empty.
@@ -54,6 +57,10 @@ pub struct Descriptor {
     pub env_dir: Vec<(String, String)>,
     /// Environment variables set only when unset or empty, as name and value.
     pub env_default: Vec<(String, String)>,
+    /// Words the user may name first, in order; the first one is the default.
+    pub verbs: Vec<String>,
+    /// Arguments after the listed ones when the user names no verb.
+    pub default_args: Vec<String>,
 }
 
 /// The runfiles source a child process is told about.
@@ -96,6 +103,8 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
     let mut env_default = Vec::new();
     let mut fail: Option<String> = None;
     let mut copy = Vec::new();
+    let mut verbs = Vec::new();
+    let mut default_args = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
         if let Some(value) = line
             .strip_prefix("program=")
@@ -140,6 +149,13 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
                 return Err(bad(format!("env_default line has a bad name: {line}")));
             }
             env_default.push((name, value));
+        } else if let Some(value) = line.strip_prefix("verb=") {
+            if value.is_empty() || value.contains('\t') {
+                return Err(bad(format!("verb line has a bad word: {line}")));
+            }
+            verbs.push(value.to_owned());
+        } else if let Some(value) = line.strip_prefix("default_arg=") {
+            default_args.push(value.to_owned());
         } else if let Some(value) = line.strip_prefix("unset=") {
             if value.is_empty() || value.contains('=') || value.contains('\t') {
                 return Err(bad(format!("unset line has a bad name: {line}")));
@@ -162,7 +178,12 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
             return Err(bad(format!("unknown descriptor line: {line}")));
         }
     }
+    if verbs.is_empty() && !default_args.is_empty() {
+        return Err(bad("default_arg lines need a verb line"));
+    }
     let bare = items.is_empty()
+        && verbs.is_empty()
+        && default_args.is_empty()
         && unset.is_empty()
         && env.is_empty()
         && env_dir.is_empty()
@@ -186,7 +207,39 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
         env,
         env_dir,
         env_default,
+        verbs,
+        default_args,
     })
+}
+
+/// Joins the resolved descriptor arguments and the user's, placing the verb first.
+pub fn arguments(
+    descriptor: &Descriptor,
+    planned: Vec<OsString>,
+    user_args: &[OsString],
+) -> Vec<OsString> {
+    let Some(default_verb) = descriptor.verbs.first() else {
+        return planned
+            .into_iter()
+            .chain(user_args.iter().cloned())
+            .collect();
+    };
+    if let Some((first, rest)) = user_args.split_first()
+        && descriptor
+            .verbs
+            .iter()
+            .any(|verb| first.as_os_str() == verb.as_str())
+    {
+        return std::iter::once(first.clone())
+            .chain(planned)
+            .chain(rest.iter().cloned())
+            .collect();
+    }
+    std::iter::once(OsString::from(default_verb))
+        .chain(planned)
+        .chain(descriptor.default_args.iter().map(OsString::from))
+        .chain(user_args.iter().cloned())
+        .collect()
 }
 
 /// Names the descriptors that can sit beside one executable, best first.
@@ -422,14 +475,15 @@ pub fn run(exe: &Path, user_args: &[OsString]) -> io::Result<i32> {
         copy_into(&resolver, &descriptor.copy, Path::new(&workspace))?;
         return Ok(0);
     }
-    let plan = plan(&resolver, &descriptor, &|name| std::env::var_os(name))?;
+    let mut plan = plan(&resolver, &descriptor, &|name| std::env::var_os(name))?;
+    plan.args = arguments(&descriptor, std::mem::take(&mut plan.args), user_args);
     let child = child_env(&resolver, &descriptor, &|name| std::env::var_os(name))?;
     let status = command(
         &plan,
         &descriptor.unset,
         &child,
         runfiles_env(&resolver),
-        user_args,
+        &[],
     )
     .status()
     .map_err(|error| {

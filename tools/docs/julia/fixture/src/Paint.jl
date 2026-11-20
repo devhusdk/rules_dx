@@ -3,7 +3,7 @@ Paints shapes.
 """
 module Paint
 
-using Shapes
+import Shapes
 
 export Square
 

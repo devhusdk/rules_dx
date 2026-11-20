@@ -399,7 +399,7 @@ fn nuget_api_check(
     let index = match fetch_with(client, source, 16 << 20) {
         Ok(Some(body)) => body,
         Ok(None) => return Ok(Outcome::Skipped(format!("{source} not found"))),
-        Err(error) => return Ok(Outcome::Skipped(error)),
+        Err(error) => return Ok(Outcome::Skipped(error.to_string())),
     };
     let Some(base) = nuget_package_base(&String::from_utf8_lossy(&index)) else {
         return Ok(Outcome::Skipped(format!(
@@ -411,14 +411,14 @@ fn nuget_api_check(
         match previous_git_tag(workspace, version) {
             Ok(Some(tag)) => tag.trim_start_matches('v').to_owned(),
             Ok(None) => return Ok(Outcome::FirstRelease),
-            Err(error) => return Ok(Outcome::Skipped(error)),
+            Err(error) => return Ok(Outcome::Skipped(error.to_string())),
         }
     } else {
         let url = format!("{base}{id}/index.json");
         let body = match fetch_with(client, &url, 16 << 20) {
             Ok(Some(body)) => body,
             Ok(None) => return Ok(Outcome::FirstRelease),
-            Err(error) => return Ok(Outcome::Skipped(error)),
+            Err(error) => return Ok(Outcome::Skipped(error.to_string())),
         };
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap_or_default();
         let versions = json
@@ -439,7 +439,7 @@ fn nuget_api_check(
     let skipped = match fetch_to_with(client, &url, &old_nupkg, 512 << 20) {
         Ok(true) => None,
         Ok(false) => Some(format!("{url} not found")),
-        Err(error) => Some(error),
+        Err(error) => Some(error.to_string()),
     };
     if let Some(reason) = skipped {
         dx_atomic_fs::discard_dir(&work);
@@ -563,15 +563,16 @@ pub fn nuget_main_checked(
                     api.baseline,
                     &workspace_dir(),
                 ),
-                Err(error) => Ok(Outcome::Skipped(error)),
+                Err(error) => Ok(Outcome::Skipped(error.to_string())),
             },
             None => Ok(Outcome::Skipped(
                 "the .NET toolchain or ApiCompat is not available".to_owned(),
             )),
         };
-        if let Err(message) =
-            outcome.and_then(|outcome| conclude("nuget_deploy", mode, package_version, outcome))
-        {
+        if let Err(message) = outcome.and_then(|outcome| {
+            conclude("nuget_deploy", mode, package_version, outcome)
+                .map_err(|error| error.to_string())
+        }) {
             eprintln!("{message}");
             return 1;
         }

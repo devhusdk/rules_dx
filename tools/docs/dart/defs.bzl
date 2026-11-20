@@ -1,61 +1,48 @@
 """Dart API reference shards built with the pinned `dart doc`."""
 
 load("@rules_dart//dart:providers.bzl", "DartInfo")
-load("//core:rlocation.bzl", "repo_relative_path")
-load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
+
+visibility(["//..."])
 
 _DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
 
-_PUBSPEC = LOCK_REGISTRY["pub"]["manifest"]
+def _package_row(pkg):
+    return pkg.package_name + "\t" + pkg.package_root
 
-def _within(path, root):
-    """Returns `path` relative to the package root `root`, or None when outside it."""
-    if not root:
-        return path
-    if path.startswith(root + "/"):
-        return path[len(root) + 1:]
-    return None
+def _source_row(file):
+    return file.path + "\t" + file.short_path
 
 def dart_shard_action(ctx, info, package, stem, extract_tool):
     """Runs `dart doc` from the pinned Dart SDK and the extractor for one library."""
     sdk = ctx.toolchains[_DART_TOOLCHAIN].dart_sdk_info
-    packages = {}
-    for pkg in info.transitive_packages.to_list():
-        packages[pkg.package_name] = pkg.package_root
-    for pkg in info.packages:
-        packages[pkg.package_name] = pkg.package_root
-    roots = sorted(packages.items(), key = lambda item: -len(item[1]))
-    staged = []
-    for f in sorted(info.transitive_srcs.to_list(), key = lambda f: f.path):
-        rel = repo_relative_path(f.short_path)
-        for name, root in roots:
-            inner = _within(f.short_path, root)
-            if inner == None:
-                inner = _within(rel, root)
-            if inner != None and (not root or inner.startswith("lib/")):
-                link = ctx.actions.declare_file("%s.root/%s/%s" % (stem, name, inner))
-                ctx.actions.symlink(output = link, target_file = f)
-                staged.append(link)
-                break
     own = info.packages[0].package_name if info.packages else package
-    root_dir = ctx.bin_dir.path + "/" + ctx.label.package + "/" + stem + ".root"
-    pubspecs = []
-    for name in sorted(packages.keys()):
-        pubspec = ctx.actions.declare_file("%s.root/%s/%s" % (stem, name, _PUBSPEC))
-        ctx.actions.write(pubspec, "name: %s\nenvironment:\n  sdk: ^3.0.0\n" % name)
-        pubspecs.append(pubspec)
-    entries = []
-    for name in sorted(packages.keys()):
-        entries.append('{"name":"%s","rootUri":"%s","packageUri":"lib/","languageVersion":"3.0"}' % (name, "../" if name == own else "../../" + name + "/"))
-    config = ctx.actions.declare_file("%s.root/%s/.dart_tool/package_config.json" % (stem, own))
-    ctx.actions.write(config, '{"configVersion":2,"packages":[%s]}\n' % ",".join(entries))
+    packages = ctx.actions.declare_file(stem + ".packages.txt")
+    rows = ctx.actions.args()
+    rows.set_param_file_format("multiline")
+    rows.add_all(info.transitive_packages, map_each = _package_row)
+    rows.add_all(info.packages, map_each = _package_row)
+    ctx.actions.write(packages, rows)
+    srcs = ctx.actions.declare_file(stem + ".srcs.txt")
+    files = ctx.actions.args()
+    files.set_param_file_format("multiline")
+    files.add_all(info.transitive_srcs, map_each = _source_row)
+    ctx.actions.write(srcs, files)
     html = ctx.actions.declare_directory(stem + ".html")
     home = ctx.actions.declare_directory(stem + ".home")
+    args = ctx.actions.args()
+    args.add("dart_doc")
+    args.add("--dart", sdk.dart)
+    args.add("--packages", packages)
+    args.add("--srcs", srcs)
+    args.add("--own", own)
+    args.add("--label", str(ctx.label))
+    args.add("--stage", home.path + "/stage")
+    args.add("--html", html.path)
     ctx.actions.run(
-        executable = sdk.dart,
-        arguments = ["doc", "--output", html.path, root_dir + "/" + own],
-        inputs = depset(staged + pubspecs + [config]),
+        executable = extract_tool,
+        arguments = [args],
+        inputs = depset([packages, srcs], transitive = [info.transitive_srcs]),
         tools = sdk.files.all,
         outputs = [html, home],
         mnemonic = "DxDocsDartDoc",
@@ -70,6 +57,7 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
     )
     shard = ctx.actions.declare_file(stem + ".ir.pb")
     args = ctx.actions.args()
+    args.add("dart_extract")
     args.add("--index", html.path + "/index.json")
     args.add("--package", package)
     args.add("--out", shard)
@@ -106,7 +94,7 @@ dart_doc_shard = rule(
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the Dart package name of lib."),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/dart/extract:dart_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
     },

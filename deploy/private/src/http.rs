@@ -15,8 +15,8 @@ fn settings() -> dx_http::Settings {
 }
 
 /// Builds the client for publish and upload calls with proxy and CA from the environment.
-pub fn client() -> Result<dx_http::Client, String> {
-    dx_http::Client::new(settings()).map_err(|error| error.to_string())
+pub fn client() -> Result<dx_http::Client, dx_http::Error> {
+    dx_http::Client::new(settings())
 }
 
 /// A client that ignores the environment and tries each request once.

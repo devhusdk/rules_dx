@@ -9,8 +9,8 @@ pub fn check(args: &[String]) -> Result<(), String> {
     }
     let validated = ::evidence_inputs::validate(|name| std::env::var(name).unwrap_or_default())
         .map_err(|error| format!("evidence input rejected: {error}"))?;
-    let path =
-        std::env::var("GITHUB_OUTPUT").map_err(|_| "GITHUB_OUTPUT is not set".to_string())?;
+    let path = std::env::var("GITHUB_OUTPUT")
+        .map_err(|error| format!("GITHUB_OUTPUT is not set: {error}"))?;
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)

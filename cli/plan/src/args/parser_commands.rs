@@ -1300,6 +1300,8 @@ fn update_pr_takes_a_scope() {
     assert_eq!(got.min_age, Some(0));
     assert!(got.allow_major);
     assert_eq!(got.max_prs, Some(2));
+    let got = parse(&strings(&["update", "--pr", "--min-age=36500"])).expect("max age");
+    assert_eq!(got.min_age, Some(36_500));
     assert!(!parse(&strings(&["update"])).expect("bare").pr);
     for words in [
         vec!["update", "--pr", "--outdated"],
@@ -1318,6 +1320,8 @@ fn update_pr_takes_a_scope() {
         vec!["update", "--pr", "--ignore=cargo:serde"],
         vec!["update", "--pr", "--prereleases"],
         vec!["update", "--pr", "--max-prs=0"],
+        vec!["update", "--pr", "--min-age", "100000000"],
+        vec!["update", "--pr", "--min-age=36501"],
         vec!["build", "--pr"],
     ] {
         assert!(parse(&strings(&words)).is_err(), "{words:?}");

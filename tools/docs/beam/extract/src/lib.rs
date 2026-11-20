@@ -2,17 +2,88 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::fs;
+use std::fmt;
+use std::path::Path;
 
-use documentation_ir::json::{field, number, string, strings};
+use documentation_ir::json::{JsonError, array, number, string, strings};
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use serde_json::Value;
 
 const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "beam.config";
 const KEY_INCOMPLETE: &str = "beam.incomplete";
+
+/// Why one BEAM driver JSON document could not become a shard.
+#[derive(Debug)]
+pub enum BeamExtractError {
+    Read(PathIoError),
+    InvalidPackage { package: String },
+    Malformed(serde_json::Error),
+    NotObject { at: String },
+    Json(JsonError),
+    UnsupportedFormat { found: u64 },
+    UnknownLanguage { language: String },
+    UnknownKind { at: String, kind: String },
+    EmptyName { at: String },
+    NoPublicApi { language: String, package: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for BeamExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::InvalidPackage { package } => write!(f, "invalid package '{package}'"),
+            Self::Malformed(error) => write!(f, "driver JSON is malformed: {error}"),
+            Self::NotObject { at } => write!(f, "{at} is not an object"),
+            Self::Json(error) => error.fmt(f),
+            Self::UnsupportedFormat { found } => write!(
+                f,
+                "driver JSON format {found} is not supported, expected {FORMAT}"
+            ),
+            Self::UnknownLanguage { language } => {
+                write!(f, "driver JSON has unknown language '{language}'")
+            }
+            Self::UnknownKind { at, kind } => write!(f, "{at} has unknown kind '{kind}'"),
+            Self::EmptyName { at } => write!(f, "{at} has an empty module or name"),
+            Self::NoPublicApi { language, package } => write!(
+                f,
+                "driver JSON lists no public {language} API of package '{package}'"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for BeamExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Malformed(error) => Some(error),
+            Self::Json(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::InvalidPackage { .. }
+            | Self::NotObject { .. }
+            | Self::UnsupportedFormat { .. }
+            | Self::UnknownLanguage { .. }
+            | Self::UnknownKind { .. }
+            | Self::EmptyName { .. }
+            | Self::NoPublicApi { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
+
+impl From<JsonError> for BeamExtractError {
+    fn from(error: JsonError) -> Self {
+        Self::Json(error)
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -22,18 +93,24 @@ pub struct Options {
     pub out: String,
 }
 
+/// Runs `beam_extract` with the arguments after its name and returns the exit code.
+#[must_use]
+pub fn run_process(args: &[String]) -> i32 {
+    documentation_ir::tool::run_process("beam_extract", usage(), parse, run, args)
+}
+
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: beam_extract --json FILE --package NAME --out FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
+/// Parses argv into inputs.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+/// Returns an error for an unknown, missing, empty or repeated flag.
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
         json: flags.one("--json")?,
@@ -42,16 +119,15 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
     })
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
+/// Reads, converts, validates and writes one shard.
 ///
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let json = fs::read_to_string(&options.json)
-        .map_err(|error| format!("cannot read {}: {error}", options.json))?;
+pub fn run(options: &Options) -> Result<(), BeamExtractError> {
+    let json = path_io::read_to_string(Path::new(&options.json)).map_err(BeamExtractError::Read)?;
     let shard = convert(&json, &options.package)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(BeamExtractError::Write)
 }
 
 fn normalize(text: &str) -> String {
@@ -65,14 +141,19 @@ fn extension(key: &str, value: &str) -> Extension {
     }
 }
 
-fn kind_of(kind: &str, at: &str) -> Result<SymbolKind, String> {
+fn kind_of(kind: &str, at: &str) -> Result<SymbolKind, BeamExtractError> {
     Ok(match kind {
         "module" => SymbolKind::Module,
         "function" => SymbolKind::Function,
         "macro" => SymbolKind::Macro,
         "type" => SymbolKind::TypeAlias,
         "callback" => SymbolKind::Method,
-        other => return Err(format!("{at} has unknown kind '{other}'")),
+        other => {
+            return Err(BeamExtractError::UnknownKind {
+                at: at.to_owned(),
+                kind: other.to_owned(),
+            });
+        }
     })
 }
 
@@ -84,17 +165,22 @@ fn module_id(prefix: &str, module: &str) -> String {
     format!("{prefix}{}", segments.join("."))
 }
 
-fn symbol(index: usize, value: &Value, prefix: &str, config: &str) -> Result<Symbol, String> {
+fn symbol(
+    index: usize,
+    value: &Value,
+    prefix: &str,
+    config: &str,
+) -> Result<Symbol, BeamExtractError> {
     let at = format!("driver JSON symbol {index}");
     let item = value
         .as_object()
-        .ok_or_else(|| format!("{at} is not an object"))?;
+        .ok_or_else(|| BeamExtractError::NotObject { at: at.clone() })?;
     let kind_name = string(item, "kind", &at)?;
     let kind = kind_of(&kind_name, &at)?;
     let module = string(item, "module", &at)?;
     let name = string(item, "name", &at)?;
     if module.is_empty() || (kind != SymbolKind::Module && name.is_empty()) {
-        return Err(format!("{at} has an empty module or name"));
+        return Err(BeamExtractError::EmptyName { at });
     }
     let arity = number(item, "arity", &at)?;
     let owner = module_id(prefix, &module);
@@ -161,25 +247,24 @@ fn symbol(index: usize, value: &Value, prefix: &str, config: &str) -> Result<Sym
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
+pub fn convert(json: &str, package: &str) -> Result<DocIr, BeamExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
+        return Err(BeamExtractError::InvalidPackage {
+            package: package.to_owned(),
+        });
     }
-    let root: Value =
-        serde_json::from_str(json).map_err(|error| format!("driver JSON is malformed: {error}"))?;
-    let root = root.as_object().ok_or("driver JSON is not an object")?;
+    let root: Value = serde_json::from_str(json).map_err(BeamExtractError::Malformed)?;
     let at = "driver JSON";
+    let root = root
+        .as_object()
+        .ok_or_else(|| BeamExtractError::NotObject { at: at.to_owned() })?;
     match number(root, "format", at)? {
         FORMAT => {}
-        other => {
-            return Err(format!(
-                "driver JSON format {other} is not supported, expected {FORMAT}"
-            ));
-        }
+        found => return Err(BeamExtractError::UnsupportedFormat { found }),
     }
     let language = string(root, "language", at)?;
     if language != "elixir" && language != "erlang" {
-        return Err(format!("driver JSON has unknown language '{language}'"));
+        return Err(BeamExtractError::UnknownLanguage { language });
     }
     let config = format!(
         "language={language};tool={};version={};format={FORMAT}",
@@ -187,17 +272,16 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         string(root, "version", at)?
     );
     let prefix = format!("{language}:{package}:");
-    let items = field(root, "symbols", at)?
-        .as_array()
-        .ok_or("driver JSON 'symbols' is not a list")?;
+    let items = array(root, "symbols", at)?;
     let mut symbols = Vec::new();
     for (index, value) in items.iter().enumerate() {
         symbols.push(symbol(index, value, &prefix, &config)?);
     }
     if symbols.is_empty() {
-        return Err(format!(
-            "driver JSON lists no public {language} API of package '{package}'"
-        ));
+        return Err(BeamExtractError::NoPublicApi {
+            language,
+            package: package.to_owned(),
+        });
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
@@ -205,7 +289,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(BeamExtractError::InvalidIr)?;
     Ok(shard)
 }
 

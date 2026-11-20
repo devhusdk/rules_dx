@@ -1,6 +1,6 @@
 """Unit tests for the shared visibility scopes."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(
     ":visibility.bzl",
     "VIS_CLI",

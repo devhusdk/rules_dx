@@ -2,7 +2,7 @@
 
 load("@rules_fortran//fortran/private:providers.bzl", "FortranToolchainInfo")
 load("//fortran/private/lock:hub.bzl", fpm_build_file = "build_file")
-load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks", "pins_hub")
 load("//fortran/private/toolchain:pins.bzl", "FLANG_RT_PREFIX", "FLANG_VERSION", "FORTRAN_CELLS")
 load("//fortran/private/toolchain:repos.bzl", "FLANG_RT_TREES", "HUB_NAME", "flang_major", "flang_rt_build")

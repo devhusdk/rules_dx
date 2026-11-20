@@ -76,7 +76,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         texts.insert(source.exec_path.clone(), read(&source.exec_path)?);
     }
     let shard = convert(&json, &sources, &texts, &options.package, &options.config)?;
-    documentation_ir::tool::write_shard(&options.out, &shard)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
 }
 
 struct Context<'a> {

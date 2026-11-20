@@ -1884,9 +1884,21 @@ name = "dx_error"
 version = "0.0.0"
 
 [[package]]
+name = "dx_exec_audit"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
 name = "dx_exec_core"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "serde_json",
  "tempfile",
  "thiserror 2.0.20",
@@ -2115,6 +2127,7 @@ version = "0.0.0"
 dependencies = [
  "jsonschema",
  "serde_json",
+ "spdx",
 ]
 
 [[package]]
@@ -2182,6 +2195,7 @@ dependencies = [
 name = "dx_tool_resolve"
 version = "0.0.0"
 dependencies = [
+ "clap",
  "tempfile",
  "thiserror 2.0.20",
 ]
@@ -3473,9 +3487,9 @@ checksum = "2e126dda6f34391ab7b444f9922055facc83c07a910da3eb16f1e4d9c45dc777"
 
 [[package]]
 name = "libz-sys"
-version = "1.1.31"
+version = "1.1.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff20308ecabd635a2dc1dd5834a86c462cca20efba1d5d3ddab1f8aea3455cb2"
+checksum = "fee3f59f4321dab0c78d828942e7aa09d0bd8ad6e78a501977e6bf3d02938045"
 dependencies = [
  "cc",
  "pkg-config",
@@ -6068,13 +6082,6 @@ name = "toml_writer"
 version = "1.1.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
-
-[[package]]
-name = "tool_resolve"
-version = "0.0.0"
-dependencies = [
- "clap",
-]
 
 [[package]]
 name = "tower"

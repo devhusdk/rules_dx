@@ -1,5 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
+load(":defs.bzl", "dx_subcommand")
+load(":defs_tests.bzl", "dx_subcommand_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -35,11 +37,52 @@ rust_test(
     ],
 )
 
+dx_subcommand(
+    name = "toy_lock",
+    subcommand = "toy_lock",
+)
+
+dx_subcommand_test(
+    name = "toy_lock_test",
+    size = "small",
+    subcommand = "toy_lock",
+    target_under_test = ":toy_lock",
+)
+
+dx_subcommand(
+    name = "toy_lock_paths",
+    path_args = {"--tool": "defs.bzl"},
+    subcommand = "toy_lock",
+)
+
+dx_subcommand_test(
+    name = "toy_lock_paths_test",
+    size = "small",
+    extra_lines = ["prefixed=--tool=\t_main/cli/launcher/defs.bzl"],
+    subcommand = "toy_lock",
+    target_under_test = ":toy_lock_paths",
+)
+
+dx_subcommand(
+    name = "toy_lock_args",
+    subcommand = "toy_lock",
+    subcommand_args = ["--check"],
+)
+
+dx_subcommand_test(
+    name = "toy_lock_args_test",
+    size = "small",
+    extra_lines = ["arg=--check"],
+    subcommand = "toy_lock",
+    target_under_test = ":toy_lock_args",
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "defs_tests.bzl",
     ],
     tags = ["corpus"],
 )

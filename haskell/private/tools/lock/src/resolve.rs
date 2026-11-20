@@ -10,7 +10,6 @@
 //! Resolves a cabal project into its freeze file and the packages of its lock.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -427,7 +426,7 @@ pub fn freeze_text(pins: &BTreeMap<String, String>, state: Option<&str>) -> Stri
         .join(",\n             ");
     let mut out = format!("constraints: {body}\n");
     if let Some(state) = state {
-        writeln!(out, "index-state: hackage.haskell.org {state}").ok();
+        out.push_str(&format!("index-state: hackage.haskell.org {state}\n"));
     }
     out
 }
@@ -769,4 +768,25 @@ fn hackage_pairs(plan: &Value) -> BTreeSet<(String, String)> {
             )
         })
         .collect()
+}
+
+/// Runs the cabal lock step on `args`, the arguments after `dx haskell_lock`:
+/// `--cabal=<path> --ghc=<path>` and the `dx_lock::Args` flags. 0 when the lock is fresh or
+/// written, 1 when stale, 2 on failure.
+pub fn run_process(args: &[String]) -> i32 {
+    let (paths, rest) = match dx_lock::tool_paths(args, &["--cabal", "--ghc"]) {
+        Ok(split) => split,
+        Err(error) => {
+            eprintln!("haskell_lock: {error}");
+            return 2;
+        }
+    };
+    let mut paths = paths.into_iter();
+    let (Some(cabal), Some(ghc)) = (paths.next(), paths.next()) else {
+        return 2;
+    };
+    let Some(hub) = dx_families::hub("cabal") else {
+        return dx_lock::missing_hub("cabal");
+    };
+    dx_lock::run_process(&Cabal::spec(hub), &Cabal { cabal, ghc }, &rest)
 }

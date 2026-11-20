@@ -1,6 +1,12 @@
 use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
+/// Runs `dx <subcommand> <args>`.
+fn run_dx(subcommand: &str, args: &[&str]) -> dx_testing::Run {
+    let argv: Vec<&str> = std::iter::once(subcommand).chain(args.iter().copied()).collect();
+    dx_testing::run(&env_file("DX"), &argv, &[]).unwrap()
+}
+
 fn read(path: &Path) -> Vec<u8> {
     std::fs::read(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
 }
@@ -103,7 +109,7 @@ fn fails_and_writes_nothing(name: &str, pdb: Option<&Path>) {
     if let Some(pdb) = pdb {
         args.extend(["--pdb", str_of(pdb)]);
     }
-    let run = dx_testing::run(&env_file("DX_PDB"), &args, &[]).unwrap();
+    let run = run_dx("symbols_pdb", &args);
     assert!(!run.status.success(), "{}", run.stdout);
     assert!(!manifest.exists());
 }

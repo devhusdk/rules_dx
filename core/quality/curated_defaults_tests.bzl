@@ -1,6 +1,6 @@
 """Unit tests for the curated defaults."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":curated_defaults.bzl", "CURATED_DEFAULTS", "LANG_JSON_DEFAULTS", "OTHER_DEFAULTS", "curated_schema_error")
 
 visibility("private")
@@ -24,6 +24,16 @@ def curated_defaults_unit_tests(name):
                 "curated defaults hold every lang.json and other row",
                 len(CURATED_DEFAULTS),
                 len(LANG_JSON_DEFAULTS) + len(OTHER_DEFAULTS),
+            ),
+            expect_equal(
+                "cuda curated defaults come from lang.json",
+                ["cuda" in LANG_JSON_DEFAULTS, CURATED_DEFAULTS["cuda"]],
+                [True, {
+                    "audit": [],
+                    "format": ["clang_format"],
+                    "lint": ["clang_tidy", "typos"],
+                    "typecheck": [],
+                }],
             ),
             expect_equal(
                 "python curated defaults are Ruff + Ty",

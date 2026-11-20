@@ -1,10 +1,10 @@
 """Credential-free release archives for dx deploy."""
 
-load("//core:defs.bzl", "display_label")
+load("//core/private/testing:defs.bzl", "display_label")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget")
 load("//core:rlocation.bzl", "rlocation_path")
-load(":deployment.bzl", "dx_deployment")
+load(":deployment.bzl", "deployment")
 load(":native_runtime.bzl", "NativeRuntimeInfo")
 load(":validate_archive.bzl", "consumer_identity_error")
 load(":validate_resources.bzl", "resource_path_error")
@@ -139,7 +139,7 @@ def archive_deploy(name, app, build_mode = "release", size_budget = None, sbom =
         **attrs
     )
 
-    dx_deployment(
+    deployment(
         name = name,
         sbom = sbom,
         app = app,

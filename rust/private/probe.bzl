@@ -3,7 +3,7 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
 load("//core:canonical.bzl", "strip_canonical")
-load("//core:defs.bzl", "DxSubjectInfo")
+load("//core/private/testing:defs.bzl", "DxSubjectInfo")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//rust/private/toolchain:bindings.bzl", "RUST_TOOLCHAIN_TYPE")
 

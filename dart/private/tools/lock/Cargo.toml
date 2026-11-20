@@ -8,10 +8,6 @@ edition = "2024"
 name = "pub_lock"
 path = "src/resolve.rs"
 
-[[bin]]
-name = "pub_lock_bin"
-path = "src/main.rs"
-
 [[test]]
 name = "resolve_test"
 path = "resolve_test.rs"

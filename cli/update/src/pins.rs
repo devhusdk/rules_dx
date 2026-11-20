@@ -1,4 +1,4 @@
-//! Moves a `pins.json` to the newest release: version, urls and sha256 of every cell.
+//! Moves a `pins.json` to the newest release: version, urls and sha256 of every cell, or of one archive.
 
 use crate::discover::{Candidate, Fetch, Findings, LookupError, github, ruby};
 use dx_error::DxError;
@@ -46,6 +46,9 @@ pub fn listed(workspace: &Path) -> Vec<String> {
 }
 
 /// Checks the `pins.json` at `path` against the newest release of its tool.
+///
+/// The `cells` shape is one candidate named `path`. Each `archives` entry whose GitHub url
+/// names a tag holding its version is one candidate named `path#<archive>`.
 pub fn outdated(
     path: &str,
     text: &str,
@@ -54,40 +57,103 @@ pub fn outdated(
     fetch: &dyn Fetch,
 ) -> Findings {
     let mut found = Findings::default();
-    let problem = |reason: String| LookupError {
+    let problem = |package: &str, reason: String| LookupError {
         set: SET.to_owned(),
-        package: path.to_owned(),
+        package: package.to_owned(),
         reason,
     };
     let pins: Value = match serde_json::from_str(text) {
         Ok(pins) => pins,
         Err(error) => {
-            found.errors.push(problem(error.to_string()));
+            found.errors.push(problem(path, error.to_string()));
             return found;
         }
     };
-    let current = match version_of(&pins) {
-        Ok(version) => version.to_owned(),
-        Err(error) => {
-            found.errors.push(problem(error.to_string()));
-            return found;
+    let archives = pins.get("archives").and_then(Value::as_object);
+    if pins.get("cells").is_some() || archives.is_none() {
+        match version_of(&pins) {
+            Ok(current) => match newest_version(&pins, github_base, rubygems_base, fetch) {
+                Ok(latest) => push_newer(&mut found, path, current, latest),
+                Err(error) => found.errors.push(problem(path, error.to_string())),
+            },
+            Err(error) => found.errors.push(problem(path, error.to_string())),
         }
-    };
-    match newest_version(&pins, github_base, rubygems_base, fetch) {
-        Ok(latest) if latest != current => found.candidates.push(Candidate {
+    }
+    let mut latest: BTreeMap<(String, String), Result<String, String>> = BTreeMap::new();
+    for (name, archive) in archives.into_iter().flatten() {
+        let Some(followed) = followed_archive(archive) else {
+            continue;
+        };
+        let package = format!("{path}#{name}");
+        let key = (followed.repo.clone(), followed.tag_prefix.clone());
+        let newest = latest.entry(key).or_insert_with(|| {
+            github::latest_tag(&followed.repo, &followed.tag_prefix, github_base, fetch)
+                .map_err(|e| e.to_string())
+        });
+        match newest {
+            Ok(newest) => push_newer(&mut found, &package, followed.version, newest.clone()),
+            Err(reason) => found.errors.push(problem(&package, reason.clone())),
+        }
+    }
+    found
+}
+
+fn push_newer(found: &mut Findings, package: &str, current: &str, latest: String) {
+    if latest != current {
+        found.candidates.push(Candidate {
             set: SET.to_owned(),
-            package: path.to_owned(),
-            current,
+            package: package.to_owned(),
+            current: current.to_owned(),
             latest,
             published: None,
             prerelease: false,
             repo: None,
             tags: None,
-        }),
-        Ok(_) => {}
-        Err(error) => found.errors.push(problem(error.to_string())),
+        });
     }
-    found
+}
+
+/// An `archives` entry that `dx update` follows: a GitHub url whose tag holds the version.
+struct FollowedArchive<'a> {
+    repo: String,
+    tag_prefix: String,
+    version: &'a str,
+}
+
+/// The GitHub repository and tag prefix of `archive`, or `None` when its first url names
+/// no GitHub tag that holds its version.
+fn followed_archive(archive: &Value) -> Option<FollowedArchive<'_>> {
+    let version = archive.get("version").and_then(Value::as_str)?;
+    let url = first_url(archive).ok()?;
+    let path = url.strip_prefix("https://github.com/")?;
+    let parts: Vec<&str> = path.split('/').collect();
+    let tag = match parts.as_slice() {
+        [_, _, "releases", "download", tag, _] => *tag,
+        [_, _, "archive", "refs", "tags", file] | [_, _, "archive", file] => {
+            [".tar.gz", ".tar.xz", ".tar.bz2", ".tgz", ".zip"]
+                .iter()
+                .find_map(|ext| file.strip_suffix(ext))?
+        }
+        _ => return None,
+    };
+    let (owner, repo) = (parts.first()?, parts.get(1)?);
+    let tag_prefix = tag.strip_suffix(version)?;
+    if version.is_empty() || owner.is_empty() || repo.is_empty() {
+        return None;
+    }
+    Some(FollowedArchive {
+        repo: format!("{owner}/{repo}"),
+        tag_prefix: tag_prefix.to_owned(),
+        version,
+    })
+}
+
+/// Splits a pins package into its `pins.json` path and, for `path#<archive>`, the archive name.
+pub fn split(package: &str) -> (&str, Option<&str>) {
+    match package.split_once('#') {
+        Some((path, archive)) => (path, Some(archive)),
+        None => (package, None),
+    }
 }
 
 /// Finds the newest version of the pinned tool, from GitHub releases or rubygems.
@@ -106,21 +172,49 @@ pub fn newest_version(
         return ruby::newest(&body, false).map(|(number, _, _)| number);
     }
     let repo = github_repo(url)?;
-    let tag = github::latest_tag(&repo, github_base, fetch)?;
+    let tag = github::latest_tag(&repo, "", github_base, fetch)?;
     Ok(tag.strip_prefix('v').unwrap_or(&tag).to_owned())
 }
 
-/// Rewrites `text` to `latest`, downloading each cell for its sha256.
+/// Rewrites `text` to `latest`, downloading each cell, or only `archive`, for its sha256.
 ///
 /// `download` returns the sha256 of a url's bytes. Returns `None` when the pins already
 /// hold `latest`. Cells with a `stub` are left alone.
 pub fn rewrite(
     text: &str,
+    archive: Option<&str>,
     latest: &str,
     download: &dyn Fn(&str) -> Result<String, DxError>,
 ) -> Result<Option<String>, DxError> {
     let mut pins: Value =
         serde_json::from_str(text).map_err(|e| DxError::failure(e.to_string()))?;
+    let Some(archive) = archive else {
+        return rewrite_cells(pins, latest, download);
+    };
+    let entry = pins
+        .get_mut("archives")
+        .and_then(|archives| archives.get_mut(archive))
+        .and_then(Value::as_object_mut)
+        .ok_or_else(|| DxError::failure(format!("pins.json has no archive {archive}")))?;
+    let old = entry
+        .get("version")
+        .and_then(Value::as_str)
+        .ok_or_else(|| DxError::failure(format!("archive {archive} has no version")))?
+        .to_owned();
+    if old == latest {
+        return Ok(None);
+    }
+    let mut digests = BTreeMap::new();
+    move_entry(entry, &old, latest, &mut digests, download)?;
+    entry.insert("version".to_owned(), Value::String(latest.to_owned()));
+    render(&pins).map(Some)
+}
+
+fn rewrite_cells(
+    mut pins: Value,
+    latest: &str,
+    download: &dyn Fn(&str) -> Result<String, DxError>,
+) -> Result<Option<String>, DxError> {
     let old = version_of(&pins)?.to_owned();
     if old == latest {
         return Ok(None);
@@ -131,37 +225,54 @@ pub fn rewrite(
         .and_then(Value::as_object_mut)
         .ok_or_else(|| DxError::failure("pins.json has no cells"))?;
     for cell in cells.values_mut().filter_map(Value::as_object_mut) {
-        if cell.contains_key("stub") {
+        if cell.contains_key("stub") || !cell.contains_key("urls") {
             continue;
         }
-        let Some(urls) = cell.get("urls").and_then(Value::as_array) else {
-            continue;
-        };
-        let urls: Vec<String> = urls
-            .iter()
-            .filter_map(Value::as_str)
-            .map(|url| url.replace(&old, latest))
-            .collect();
-        let first = urls
-            .first()
-            .ok_or_else(|| DxError::failure("a cell lists no url"))?;
-        let digest = if let Some(digest) = digests.get(first) {
-            digest.clone()
-        } else {
-            let digest = download(first)?;
-            digests.insert(first.clone(), digest.clone());
-            digest
-        };
-        cell.insert("sha256".to_owned(), Value::String(digest));
-        cell.insert(
-            "urls".to_owned(),
-            Value::Array(urls.into_iter().map(Value::String).collect()),
-        );
+        move_entry(cell, &old, latest, &mut digests, download)?;
     }
     pins.as_object_mut()
         .ok_or_else(|| DxError::failure("pins.json is not an object"))?
         .insert("version".to_owned(), Value::String(latest.to_owned()));
     render(&pins).map(Some)
+}
+
+/// Moves the urls and strip_prefix of one entry from `old` to `latest` and sets the sha256
+/// of its first url; `digests` keeps each downloaded url's sha256 so it is fetched once.
+fn move_entry(
+    entry: &mut Map<String, Value>,
+    old: &str,
+    latest: &str,
+    digests: &mut BTreeMap<String, String>,
+    download: &dyn Fn(&str) -> Result<String, DxError>,
+) -> Result<(), DxError> {
+    let urls: Vec<String> = entry
+        .get("urls")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(|url| url.replace(old, latest))
+        .collect();
+    let first = urls
+        .first()
+        .ok_or_else(|| DxError::failure("an entry lists no url"))?;
+    let digest = if let Some(digest) = digests.get(first) {
+        digest.clone()
+    } else {
+        let digest = download(first)?;
+        digests.insert(first.clone(), digest.clone());
+        digest
+    };
+    entry.insert("sha256".to_owned(), Value::String(digest));
+    entry.insert(
+        "urls".to_owned(),
+        Value::Array(urls.into_iter().map(Value::String).collect()),
+    );
+    if let Some(prefix) = entry.get("strip_prefix").and_then(Value::as_str) {
+        let moved = prefix.replace(old, latest);
+        entry.insert("strip_prefix".to_owned(), Value::String(moved));
+    }
+    Ok(())
 }
 
 /// Serializes with sorted keys, 2-space indent and a trailing newline.
@@ -207,7 +318,7 @@ fn first_url(cell: &Value) -> Result<&str, DxError> {
     cell.get("urls")
         .and_then(|urls| urls.get(0))
         .and_then(Value::as_str)
-        .ok_or_else(|| DxError::failure("a cell lists no url"))
+        .ok_or_else(|| DxError::failure("an entry lists no url"))
 }
 
 fn github_repo(url: &str) -> Result<String, DxError> {
@@ -263,10 +374,61 @@ mod tests {
 
     const GEM: &str = r#"{"cells":{"linux_x86_64":{"binary":"b","sha256":"aa","type":"gem","urls":["https://rubygems.org/downloads/sorbet-static-0.6.1-x86_64-linux.gem"]}},"version":"0.6.1"}"#;
 
+    const ARCHIVES: &str = r#"{
+  "archives": {
+    "lib": {
+      "sha256": "aa",
+      "strip_prefix": "lib-lib-v2.0.0",
+      "urls": [
+        "https://github.com/Org/Lib/archive/refs/tags/lib-v2.0.0.tar.gz"
+      ],
+      "version": "2.0.0"
+    },
+    "lib_tool": {
+      "sha256": "aa",
+      "urls": [
+        "https://github.com/Org/Lib/releases/download/lib-v2.0.0/tool"
+      ],
+      "version": "2.0.0"
+    },
+    "nightly": {
+      "sha256": "aa",
+      "urls": [
+        "https://github.com/Org/Tool/releases/download/10082026/tool-1.0.0.tar.xz"
+      ],
+      "version": "1.0.0"
+    },
+    "odd": {
+      "sha256": "aa",
+      "urls": [
+        "https://github.com/Org/Odd/archive/v2.0.0.zip"
+      ],
+      "version": "2.0.0"
+    },
+    "unversioned": {
+      "sha256": "aa"
+    },
+    "vendor": {
+      "sha256": "aa",
+      "urls": [
+        "https://example.com/vendor-1.0.0.tar.gz"
+      ],
+      "version": "1.0.0"
+    }
+  }
+}
+"#;
+
     fn fake(url: &str) -> Result<String, DxError> {
         match url {
             "https://api.github.com/repos/Org/Tool/releases/latest" => {
                 Ok(r#"{"tag_name":"v1.2.0","published_at":"2026-01-01T00:00:00Z"}"#.to_owned())
+            }
+            "https://api.github.com/repos/Org/Lib/releases/latest" => {
+                Ok(r#"{"tag_name":"lib-v2.1.0"}"#.to_owned())
+            }
+            "https://api.github.com/repos/Org/Odd/releases/latest" => {
+                Ok(r#"{"tag_name":"3.0.0"}"#.to_owned())
             }
             "https://rubygems.org/api/v1/versions/sorbet-static.json" => Ok(
                 r#"[{"number":"0.7.0.pre","prerelease":true},{"number":"0.6.9","prerelease":false},{"number":"0.6.1","prerelease":false}]"#
@@ -309,7 +471,7 @@ mod tests {
             seen.borrow_mut().push(url.to_owned());
             Ok("bb".repeat(32))
         };
-        let out = rewrite(PINS, "1.2.0", &download).unwrap().unwrap();
+        let out = rewrite(PINS, None, "1.2.0", &download).unwrap().unwrap();
         let want = PINS
             .replace("1.0.0", "1.2.0")
             .replace("\"aa\"", &format!("\"{}\"", "bb".repeat(32)));
@@ -320,7 +482,7 @@ mod tests {
     #[test]
     fn rewrite_to_the_same_version_changes_nothing() {
         let download = |_: &str| Err(DxError::failure("no download"));
-        assert_eq!(rewrite(PINS, "1.0.0", &download).unwrap(), None);
+        assert_eq!(rewrite(PINS, None, "1.0.0", &download).unwrap(), None);
     }
 
     #[test]
@@ -388,7 +550,7 @@ mod tests {
     #[test]
     fn a_failed_download_fails_the_rewrite() {
         let download = |_: &str| Err(DxError::failure("HTTP 404"));
-        assert!(rewrite(PINS, "1.2.0", &download).is_err());
+        assert!(rewrite(PINS, None, "1.2.0", &download).is_err());
     }
 
     #[test]
@@ -416,5 +578,107 @@ mod tests {
         std::fs::write(odd.join("lang.json"), r#"{"pins":["pins.json"]}"#).unwrap();
         assert_eq!(listed(&root), Vec::<String>::new());
         std::fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn outdated_follows_each_github_archive_that_names_its_version_in_the_tag() {
+        let seen = std::cell::RefCell::new(Vec::new());
+        let fetch = |url: &str| {
+            seen.borrow_mut().push(url.to_owned());
+            fake(url)
+        };
+        let found = outdated(
+            "a/pins.json",
+            ARCHIVES,
+            "https://api.github.com",
+            "https://rubygems.org",
+            &fetch,
+        );
+        let got: Vec<(&str, &str, &str)> = found
+            .candidates
+            .iter()
+            .map(|c| (c.package.as_str(), c.current.as_str(), c.latest.as_str()))
+            .collect();
+        assert_eq!(
+            got,
+            vec![
+                ("a/pins.json#lib", "2.0.0", "2.1.0"),
+                ("a/pins.json#lib_tool", "2.0.0", "2.1.0"),
+            ]
+        );
+        assert_eq!(found.errors.len(), 1);
+        assert_eq!(found.errors[0].package, "a/pins.json#odd");
+        assert!(found.errors[0].reason.contains("does not start with \"v\""));
+        assert_eq!(seen.borrow().len(), 2);
+    }
+
+    #[test]
+    fn outdated_checks_cells_and_archives_of_one_file() {
+        let both = PINS.replacen(
+            "{\n",
+            r#"{"archives":{"lib":{"sha256":"aa","urls":["https://github.com/Org/Lib/archive/refs/tags/lib-v2.0.0.tar.gz"],"version":"2.0.0"}},"#,
+            1,
+        );
+        let found = outdated(
+            "a/pins.json",
+            &both,
+            "https://api.github.com",
+            "https://rubygems.org",
+            &fake,
+        );
+        let packages: Vec<&str> = found
+            .candidates
+            .iter()
+            .map(|c| c.package.as_str())
+            .collect();
+        assert_eq!(packages, vec!["a/pins.json", "a/pins.json#lib"]);
+        assert!(found.errors.is_empty());
+    }
+
+    #[test]
+    fn rewrite_moves_one_archive_and_leaves_the_others() {
+        let download = |url: &str| {
+            assert_eq!(
+                url,
+                "https://github.com/Org/Lib/archive/refs/tags/lib-v2.1.0.tar.gz"
+            );
+            Ok("bb".repeat(32))
+        };
+        let out = rewrite(ARCHIVES, Some("lib"), "2.1.0", &download)
+            .unwrap()
+            .unwrap();
+        let pins = parse(&out);
+        let lib = &pins["archives"]["lib"];
+        assert_eq!(lib["version"], "2.1.0");
+        assert_eq!(lib["strip_prefix"], "lib-lib-v2.1.0");
+        assert_eq!(lib["sha256"], "bb".repeat(32));
+        assert_eq!(
+            pins["archives"]["lib_tool"],
+            parse(ARCHIVES)["archives"]["lib_tool"]
+        );
+        assert_eq!(
+            rewrite(ARCHIVES, Some("lib"), "2.0.0", &download).unwrap(),
+            None
+        );
+        assert!(rewrite(ARCHIVES, Some("missing"), "2.1.0", &download).is_err());
+        assert!(rewrite(ARCHIVES, Some("unversioned"), "2.1.0", &download).is_err());
+    }
+
+    #[test]
+    fn rewrite_moves_the_strip_prefix_of_cells() {
+        let text = r#"{"cells":{"linux_x86_64":{"sha256":"aa","strip_prefix":"tool-1.0.0-linux","urls":["https://github.com/Org/Tool/releases/download/v1.0.0/tool-1.0.0-linux.tar.xz"]}},"version":"1.0.0"}"#;
+        let out = rewrite(text, None, "1.2.0", &|_: &str| Ok("bb".repeat(32)))
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            parse(&out)["cells"]["linux_x86_64"]["strip_prefix"],
+            "tool-1.2.0-linux"
+        );
+    }
+
+    #[test]
+    fn split_names_the_file_and_the_archive() {
+        assert_eq!(split("a/pins.json"), ("a/pins.json", None));
+        assert_eq!(split("a/pins.json#lib"), ("a/pins.json", Some("lib")));
     }
 }

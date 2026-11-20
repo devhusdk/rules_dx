@@ -1,6 +1,6 @@
 """Unit and load tests for the arithmetic subject."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":arithmetic.bzl", "add", "greet", "mul")
 
 LOADED_SUM = add(40, 2)

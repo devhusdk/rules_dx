@@ -658,25 +658,29 @@ fn the_consumer_materializes_from_dx_init() {
     for patch in dx_nested::compose::STARLIB_PATCHES {
         std::fs::write(starlib.join(format!("{patch}.patch")), "").unwrap();
     }
-    let swift = source.join("patches/rules_swift");
-    std::fs::create_dir_all(&swift).unwrap();
-    for patch in dx_nested::compose::RULES_SWIFT_PATCHES {
-        std::fs::write(swift.join(format!("{patch}.patch")), "").unwrap();
-    }
-    let apple = source.join("patches/apple_support");
-    std::fs::create_dir_all(&apple).unwrap();
-    for patch in dx_nested::compose::APPLE_SUPPORT_PATCHES {
-        std::fs::write(apple.join(format!("{patch}.patch")), "").unwrap();
-    }
-    let rules_python = source.join("patches/rules_python");
-    std::fs::create_dir_all(&rules_python).unwrap();
-    std::fs::write(rules_python.join("fix.patch"), "").unwrap();
-    let rules_python_override = "single_version_override(\n    module_name = \"rules_python\",\n    patches = [\"//patches/rules_python:fix.patch\"],\n)\n";
-    std::fs::write(source.join("MODULE.bazel"), rules_python_override).unwrap();
+    let overrides = [
+        ("rules_python", "fix.patch"),
+        ("rules_swift", "xcode_select_absolute_path.patch"),
+    ]
+    .map(|(module, patch)| {
+        let dir = source.join("patches").join(module);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(patch), "").unwrap();
+        (
+            format!(
+                "single_version_override(\n    module_name = \"{module}\",\n    patches = [\"//patches/{module}:{patch}\"],\n)\n"
+            ),
+            format!("patches/{module}/{patch}"),
+        )
+    });
+    let root_module: String = overrides.iter().map(|(block, _)| block.as_str()).collect();
+    std::fs::write(source.join("MODULE.bazel"), root_module).unwrap();
     materialize(&manifest, &workspace, &source, "cc").unwrap();
     let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap();
-    assert!(module.contains(rules_python_override), "{module}");
-    assert!(workspace.join("patches/rules_python/fix.patch").is_file());
+    for (block, patch) in &overrides {
+        assert!(module.contains(block.as_str()), "{module}");
+        assert!(workspace.join(patch).is_file(), "{patch}");
+    }
     for needle in [
         "module(name = \"hermetic_consumer\")",
         "bazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = ",
@@ -1973,7 +1977,6 @@ fn macos_evidence_is_checked_against_macos_markers() {
     let linux = good_evidence();
     assert!(verify_evidence(&linux, "abc123", &manifest).is_ok());
 }
-
 
 #[test]
 fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {

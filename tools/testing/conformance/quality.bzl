@@ -1,6 +1,6 @@
 """Generated from every <lang>/lang.json by //core/modules:lang_projections; refresh with `bazel run //core/modules:update_lang_projections`."""
 
-load("//ansible/private/quality:ansible.bzl", "real_ansible_lint_aspect")
+load("//ansible/private/quality:ansible.bzl", "real_ansible_format_aspect", "real_ansible_lint_aspect")
 load("//bicep/private/quality:bicep.bzl", "real_bicep_format_aspect", "real_bicep_lint_aspect")
 load("//cc/private/quality:cc.bzl", "real_cc_format_aspect", "real_cc_lint_aspect")
 load("//cloudformation/private/quality:cloudformation.bzl", "real_cloudformation_lint_aspect")
@@ -33,6 +33,8 @@ load("//sql/private/quality:sql.bzl", "real_sql_format_aspect", "real_sql_lint_a
 load("//swift/private/quality:swift.bzl", "real_swift_format_aspect", "real_swift_lint_aspect")
 load("//terraform/private/quality:terraform.bzl", "real_terraform_format_aspect", "real_terraform_lint_aspect")
 load("//zig/private/quality:zig.bzl", "real_zig_format_aspect", "real_zig_lint_aspect")
+
+ansible_format_subject = config_subject_rule([real_ansible_format_aspect], [OutputGroupInfo])
 
 ansible_lint_subject = config_subject_rule([real_ansible_lint_aspect], [OutputGroupInfo])
 
@@ -172,6 +174,7 @@ zig_lint_subject = config_subject_rule([real_zig_lint_aspect], [OutputGroupInfo]
 
 QUALITY_SUBJECTS = {
     "ansible": {
+        "format": ansible_format_subject,
         "lint": ansible_lint_subject,
     },
     "api_spec": {

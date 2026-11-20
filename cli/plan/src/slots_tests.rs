@@ -1293,7 +1293,7 @@ fn a_second_taker_waits_until_the_first_drops() {
         let mut holders = Vec::new();
         let slot = acquire(&second_dir, 1, "tree-b", &mut |holder| {
             holders.push(holder.to_owned());
-            sender.send(()).ok();
+            sender.send(()).expect("the test thread is waiting");
         })
         .expect("second");
         (slot.index, holders)
@@ -1511,7 +1511,7 @@ impl Write for Announce {
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         self.buf.extend_from_slice(data);
         if let Some(signal) = self.signal.take() {
-            signal.send(()).ok();
+            signal.send(()).expect("the test thread is waiting");
         }
         Ok(data.len())
     }

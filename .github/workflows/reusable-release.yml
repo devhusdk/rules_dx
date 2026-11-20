@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       deployables:
-        description: 'JSON array of dx_deployment labels to publish, in order. Empty publishes every dx_deployment tagged release.'
+        description: 'JSON array of deployment labels to publish, in order. Empty publishes every deployment tagged release.'
         required: false
         default: ""
         type: string
@@ -64,10 +64,10 @@ jobs:
           if [ -n "$DX_DEPLOYABLES" ]; then
             bazel run --lockfile_mode=error @rules_dx//tools/ci/input_validation:input_validation_bin -- deployables > "$RUNNER_TEMP/deployables.txt"
           else
-            bazel query --output=label 'attr(tags, "[\\[ ]release[,\\]]", kind(dx_deployment, //...))' > "$RUNNER_TEMP/deployables.txt"
+            bazel query --output=label 'attr(tags, "[\[ ]release[,\]]", kind("^deployment rule$", //...))' > "$RUNNER_TEMP/deployables.txt"
           fi
           if [ ! -s "$RUNNER_TEMP/deployables.txt" ]; then
-            echo "dx-release: no dx_deployment is tagged release; tag one or pass deployables." >&2
+            echo "dx-release: no deployment is tagged release; tag one or pass deployables." >&2
             exit 1
           fi
           echo "Deployables for ${GITHUB_REF_NAME}:"

@@ -4,9 +4,9 @@ load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//cc/private/toolchain:hub.bzl", "cc_hub_entries")
 load("//cc/private/toolchain:pins.bzl", "MSVC_TOOLSET_VERSION", "VC_REDIST_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//cc/private/toolchain/msvc:layout.bzl", "msvc_layout")
 load("//cc/private/toolchain/msvc:subject.bzl", "msvc_toolchain_subject")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 
 _ROOT = "cc\\tests\\fixtures\\msvc_layout\\"
 _VC = "sysroot\\Contents\\VC\\Tools\\MSVC\\14.44.35207\\"
@@ -65,6 +65,11 @@ CELLS = [
         toolchain = "toolchain_arm64_arm64",
         expected = _expected("msvc_arm64_arm64_under_test", "arm64_windows", "aarch64-pc-windows-msvc", "/MACHINE:ARM64", "Hostarm64/arm64", [_VC_BIN + "Hostarm64\\arm64", _SDK_BIN + "arm64"], "arm64"),
     ),
+    struct(
+        name = "arm64_x64",
+        toolchain = "toolchain_arm64_x64",
+        expected = _expected("msvc_arm64_x64_under_test", "x64_windows", "x86_64-pc-windows-msvc", "/MACHINE:X64", "Hostarm64/x64", [_VC_BIN + "Hostarm64\\x64", _VC_BIN + "Hostarm64\\arm64", _SDK_BIN + "arm64"], "x64"),
+    ),
 ]
 
 def msvc_toolchain_tests(name):
@@ -103,6 +108,7 @@ def msvc_toolchain_tests(name):
     )
     cross = msvc_layout("14.44.35207", "10.0.26100.0", "x64", "arm64")
     native = msvc_layout("14.44.35207", "10.0.26100.0", "arm64", "arm64")
+    arm64_to_x64 = msvc_layout("14.44.35207", "10.0.26100.0", "arm64", "x64")
     vc = "sysroot/Contents/VC/Tools/MSVC/14.44.35207/bin/"
     sdk_bin = "sysroot/base/c/bin/10.0.26100.0/"
     starlark_test(
@@ -115,6 +121,10 @@ def msvc_toolchain_tests(name):
             expect_equal("cross bin dirs", cross.bin_dirs, [vc + "Hostx64/arm64", vc + "Hostx64/x64", sdk_bin + "x64"]),
             expect_equal("native cl", native.cl, vc + "Hostarm64/arm64/cl.exe"),
             expect_equal("native bin dirs", native.bin_dirs, [vc + "Hostarm64/arm64", sdk_bin + "arm64"]),
+            expect_equal("arm64 to x64 cl", arm64_to_x64.cl, vc + "Hostarm64/x64/cl.exe"),
+            expect_equal("arm64 to x64 ml", arm64_to_x64.ml, vc + "Hostarm64/x64/ml64.exe"),
+            expect_equal("arm64 to x64 lib dirs", arm64_to_x64.lib_dirs[0], "sysroot/Contents/VC/Tools/MSVC/14.44.35207/lib/x64"),
+            expect_equal("arm64 to x64 bin dirs", arm64_to_x64.bin_dirs, [vc + "Hostarm64/x64", vc + "Hostarm64/arm64", sdk_bin + "arm64"]),
         ],
     )
     x64 = "@platforms//cpu:x86_64"
@@ -127,6 +137,7 @@ def msvc_toolchain_tests(name):
                 ("msvc_windows_x86_64", x64, x64),
                 ("msvc_windows_x86_64_to_arm64", x64, arm64),
                 ("msvc_windows_arm64", arm64, arm64),
+                ("msvc_windows_arm64_to_x86_64", arm64, x64),
             ]),
         ],
     )

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde::Deserialize;
 
 use crate::StageSpec;
-use crate::real::REAL_TOOLS;
+use crate::real::{PathTool, REAL_TOOLS};
 
 pub const REQUEST_SCHEMA_VERSION: u32 = 1;
 
@@ -17,11 +17,13 @@ pub struct RequestTool {
     /// Extra tool arguments from build settings; each tool decides which it accepts.
     pub args: Vec<String>,
     pub files: Vec<(String, String)>,
+    /// Files of `rel<TAB>exec` lines, staged like `files`.
+    pub file_lists: Vec<PathBuf>,
     pub env: Vec<(String, String)>,
     pub upstream: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,
-    /// Helper executables the tool finds by name on its own `PATH`: `(name, binary)`.
-    pub path_tools: Vec<(String, PathBuf)>,
+    /// Helper executables the tool finds by name on its own `PATH`.
+    pub path_tools: Vec<PathTool>,
 }
 
 /// Helper names each tool may be given on its `PATH`. One row per tool that shells out.
@@ -139,6 +141,8 @@ struct ToolDoc {
     #[serde(default)]
     files: Vec<ToolFileDoc>,
     #[serde(default)]
+    file_lists: Vec<String>,
+    #[serde(default)]
     env: Vec<EnvDoc>,
     #[serde(default)]
     upstream: Vec<String>,
@@ -153,6 +157,8 @@ struct ToolDoc {
 struct PathToolDoc {
     name: String,
     binary: String,
+    #[serde(default)]
+    args: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -238,8 +244,8 @@ fn non_empty_paths(
     Ok(out)
 }
 
-fn check_path_tools(tool_id: &str, doc: &ToolDoc) -> Result<Vec<(String, PathBuf)>, RequestError> {
-    let mut path_tools: Vec<(String, PathBuf)> = Vec::with_capacity(doc.path_tools.len());
+fn check_path_tools(tool_id: &str, doc: &ToolDoc) -> Result<Vec<PathTool>, RequestError> {
+    let mut path_tools: Vec<PathTool> = Vec::with_capacity(doc.path_tools.len());
     for helper in &doc.path_tools {
         let allowed = PATH_TOOL_ALLOWLIST
             .iter()
@@ -256,13 +262,17 @@ fn check_path_tools(tool_id: &str, doc: &ToolDoc) -> Result<Vec<(String, PathBuf
                 workspace: helper.name.clone(),
             });
         }
-        if path_tools.iter().any(|(name, _)| *name == helper.name) {
+        if path_tools.iter().any(|tool| tool.name == helper.name) {
             return Err(RequestError::DuplicateMapping {
                 role: "tool path helper".to_owned(),
                 path: helper.name.clone(),
             });
         }
-        path_tools.push((helper.name.clone(), PathBuf::from(&helper.binary)));
+        path_tools.push(PathTool {
+            name: helper.name.clone(),
+            binary: PathBuf::from(&helper.binary),
+            args: helper.args.clone(),
+        });
     }
     Ok(path_tools)
 }
@@ -327,6 +337,7 @@ fn check_tool(
     }
     let upstream = non_empty_paths("upstream diagnostics", tool_id, &doc.upstream)?;
     let search_paths = non_empty_paths("tool search path", tool_id, &doc.search_paths)?;
+    let file_lists = non_empty_paths("tool file list", tool_id, &doc.file_lists)?;
     let path_tools = check_path_tools(tool_id, doc)?;
     if binary.is_none() && upstream.is_empty() {
         return Err(RequestError::ToolWithoutBinary {
@@ -340,6 +351,7 @@ fn check_tool(
         dialect: doc.dialect.clone(),
         args: doc.args.clone(),
         files,
+        file_lists,
         env,
         upstream,
         search_paths,
@@ -834,11 +846,16 @@ mod tests {
             }))
             .expect("encodes")
         };
+        let helper = |name: &str, binary: &str, args: &[&str]| PathTool {
+            name: name.to_owned(),
+            binary: PathBuf::from(binary),
+            args: args.iter().map(|arg| (*arg).to_owned()).collect(),
+        };
         let ok = json!([{"name": "rst2html", "binary": "bin/rst2html"}]);
         let request = parse_real_request(&doc("vale", ok.clone())).expect("parses");
         assert_eq!(
             request.tools["vale"].path_tools,
-            [("rst2html".to_owned(), PathBuf::from("bin/rst2html"))]
+            [helper("rst2html", "bin/rst2html", &[])]
         );
         assert!(
             parse_real_request(&doc("vale", json!([{"name": "ruby", "binary": "x"}]))).is_err()
@@ -848,13 +865,13 @@ mod tests {
         );
         assert!(parse_real_request(&doc("vale", json!([ok[0].clone(), ok[0].clone()]))).is_err());
         assert!(parse_real_request(&doc("chktex", ok.clone())).is_err());
-        let diff = json!([{"name": "diff", "binary": "bin/diff"}]);
+        let diff = json!([{"name": "diff", "binary": "bin/dx", "args": ["buf_diff"]}]);
         assert_eq!(
             parse_real_request(&doc("buf", diff.clone()))
                 .expect("parses")
                 .tools["buf"]
                 .path_tools,
-            [("diff".to_owned(), PathBuf::from("bin/diff"))]
+            [helper("diff", "bin/dx", &["buf_diff"])]
         );
         assert!(parse_real_request(&doc("buf", ok)).is_err());
         assert!(parse_real_request(&doc("vale", diff)).is_err());
@@ -864,7 +881,7 @@ mod tests {
                 .expect("parses")
                 .tools["actionlint"]
                 .path_tools,
-            [("shellcheck".to_owned(), PathBuf::from("bin/shellcheck"))]
+            [helper("shellcheck", "bin/shellcheck", &[])]
         );
         assert!(
             parse_real_request(&doc(

@@ -1,6 +1,6 @@
 """Analysis tests proving aspect subjects."""
 
-load("//core:defs.bzl", "starlark_test")
+load("//core/private/testing:defs.bzl", "starlark_test")
 
 EXPECTED_ASPECT_OBSERVATIONS = """subject //core/tests:aspect_group_under_test
 file aspect_group_under_test.txt

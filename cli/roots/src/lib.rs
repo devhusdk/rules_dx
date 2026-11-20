@@ -52,21 +52,55 @@ pub fn resolve_exact_target(targets: &[String]) -> Result<Option<String>, ExactS
     }
 }
 
-// Bazel never reads a label with whitespace, control or invisible characters as the label the user typed.
 fn is_exact_label(value: &str) -> bool {
-    let body = value
-        .strip_prefix("//")
-        .or_else(|| value.strip_prefix("@@"))
-        .or_else(|| value.strip_prefix('@'));
-    match body {
-        Some(body) => {
-            !body.is_empty()
-                && !body.starts_with('@')
-                && !(value.starts_with("//") && body.starts_with('/'))
-                && !value.chars().any(is_unreadable)
-        }
-        None => false,
+    // Bazel never reads a label with whitespace, control or invisible characters as the label the user typed.
+    if value.chars().any(is_unreadable) || value.contains('\\') {
+        return false;
     }
+    let (repo, rest) = if let Some(rest) = value.strip_prefix("//") {
+        ("", Some(rest))
+    } else if let Some(apparent) = value.strip_prefix("@@").or_else(|| value.strip_prefix('@')) {
+        match apparent.split_once("//") {
+            Some((repo, rest)) => (repo, Some(rest)),
+            None => (apparent, None),
+        }
+    } else {
+        return false;
+    };
+    if !repo.chars().all(is_repo_name_char) {
+        return false;
+    }
+    match rest {
+        None => !repo.is_empty(),
+        Some(rest) => match rest.split_once(':') {
+            Some((package, target)) => is_package_name(package) && is_target_name(target),
+            None => !rest.is_empty() && is_package_name(rest),
+        },
+    }
+}
+
+fn is_repo_name_char(character: char) -> bool {
+    character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.' | '+')
+}
+
+fn is_package_name(package: &str) -> bool {
+    package.is_empty()
+        || package.split('/').all(|segment| {
+            !segment.is_empty() && !segment.chars().all(|character| character == '.')
+        })
+}
+
+// Bazel accepts a lone "." target and a trailing "/." segment, but no other dot segment.
+fn is_target_name(target: &str) -> bool {
+    if target == "." {
+        return true;
+    }
+    !target.contains(':')
+        && target
+            .strip_suffix("/.")
+            .unwrap_or(target)
+            .split('/')
+            .all(|segment| !segment.is_empty() && segment != "." && segment != "..")
 }
 
 fn is_unreadable(character: char) -> bool {
@@ -218,5 +252,79 @@ mod tests {
             resolve_exact_target(&labels(&["@//a:b"])),
             Ok(Some(label("@//a:b")))
         );
+    }
+
+    fn assert_not_label(values: &[&str]) {
+        for value in values {
+            assert_eq!(
+                resolve_exact_target(&labels(&[value])),
+                Err(ExactScopeError::NotTargetLabel {
+                    value: label(value)
+                }),
+                "{value:?}"
+            );
+        }
+    }
+
+    fn assert_label(values: &[&str]) {
+        for value in values {
+            assert_eq!(
+                resolve_exact_target(&labels(&[value])),
+                Ok(Some(label(value))),
+                "{value:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn exact_target_rejects_empty_target_name() {
+        assert_not_label(&["//a:", "//:", "@repo//a:", "@repo//"]);
+    }
+
+    #[test]
+    fn exact_target_rejects_extra_colons() {
+        assert_not_label(&["//a:b:c", "//a::b", "@repo//a:b:c"]);
+    }
+
+    #[test]
+    fn exact_target_rejects_windows_backslashes() {
+        assert_not_label(&["//a\\b:c", "//a:b\\c", "@repo//a\\b"]);
+    }
+
+    #[test]
+    fn exact_target_rejects_bad_slashes() {
+        assert_not_label(&["//a/:b", "//a//b:c", "//a:b/", "//a:/b", "//a:b//c", "//a/"]);
+    }
+
+    #[test]
+    fn exact_target_rejects_dot_segments() {
+        assert_not_label(&[
+            "//a/../b:c",
+            "//a/./b:c",
+            "//../a:b",
+            "//a:../b",
+            "//a:./b",
+            "//a:b/../c",
+            "//a:b/./c",
+            "//a:..",
+        ]);
+        assert_label(&["//a:.", "//a:b/.", "//a:.b", "//a:b..c", "//a.b/c:d"]);
+    }
+
+    #[test]
+    fn exact_target_rejects_malformed_repo_names() {
+        assert_not_label(&[
+            "@repo:b",
+            "@repo/a:b",
+            "@~repo//a:b",
+            "@re$po//a:b",
+            "@@re/po//a:b",
+        ]);
+        assert_label(&["@repo", "@@rules_go+//a:b", "@my-repo.v1_2//a:b", "@@//a:b"]);
+    }
+
+    #[test]
+    fn exact_target_keeps_slashes_and_punctuation_in_target_names() {
+        assert_label(&["//a:b-c_d.e/f@g", "//a", "//a/b", "@repo//:b"]);
     }
 }

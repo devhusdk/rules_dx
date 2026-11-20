@@ -77,6 +77,8 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "cuda",
     not_applicable = {
+        "coverage_test:windows_arm64": "nvcc host compiler on Windows is cl.exe, which has no coverage",
+        "coverage_test:windows_x86_64": "nvcc host compiler on Windows is cl.exe, which has no coverage",
         "lint_error_test:windows_arm64": "clang-tidy does not lint CUDA compiled with an MSVC host compiler",
         "lint_error_test:windows_x86_64": "clang-tidy does not lint CUDA compiled with an MSVC host compiler",
         "lint_test:windows_arm64": "clang-tidy does not lint CUDA compiled with an MSVC host compiler",

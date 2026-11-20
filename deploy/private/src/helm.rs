@@ -5,6 +5,8 @@ use crate::run::{
     exit_text, pages_redact, placeholder_refusal, resolve_version, scrubbed_command,
 };
 use crate::stage::copy_verified;
+use std::fmt;
+use std::io;
 use std::path::{Path, PathBuf};
 
 /// One chart file: its path inside the chart and its runfiles location.
@@ -41,8 +43,52 @@ fn chart_yaml_value(text: &str, key: &str) -> Option<String> {
     })
 }
 
+/// Why a chart cannot be staged or does not name a valid chart.
+#[derive(Debug)]
+pub enum HelmError {
+    BadName { name: String },
+    NoVersion,
+    OutsideChart { path: String },
+    Unresolved { rloc: String },
+    Stage { source: io::Error },
+    ReadChart { source: io::Error },
+}
+
+impl fmt::Display for HelmError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BadName { name } => write!(
+                f,
+                "helm_chart_deploy: Chart.yaml name {name:?} must be lowercase letters, digits, '-' or '.'"
+            ),
+            Self::NoVersion => f.write_str("helm_chart_deploy: Chart.yaml has no version"),
+            Self::OutsideChart { path } => write!(
+                f,
+                "helm_chart_deploy: chart file path {path:?} must stay inside the chart"
+            ),
+            Self::Unresolved { rloc } => write!(f, "cannot resolve {rloc}"),
+            Self::Stage { source } => write!(f, "helm_chart_deploy: {source}"),
+            Self::ReadChart { source } => {
+                write!(f, "helm_chart_deploy: cannot read Chart.yaml: {source}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for HelmError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Stage { source } | Self::ReadChart { source } => Some(source),
+            Self::BadName { .. }
+            | Self::NoVersion
+            | Self::OutsideChart { .. }
+            | Self::Unresolved { .. } => None,
+        }
+    }
+}
+
 /// Reads the chart name and version from a Chart.yaml document.
-pub fn helm_chart_identity(text: &str) -> Result<(String, String), String> {
+pub fn helm_chart_identity(text: &str) -> Result<(String, String), HelmError> {
     let name = chart_yaml_value(text, "name").unwrap_or_default();
     let version = chart_yaml_value(text, "version").unwrap_or_default();
     let valid = !name.is_empty()
@@ -50,12 +96,10 @@ pub fn helm_chart_identity(text: &str) -> Result<(String, String), String> {
             .bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'-' | b'.'));
     if !valid {
-        return Err(format!(
-            "helm_chart_deploy: Chart.yaml name {name:?} must be lowercase letters, digits, '-' or '.'"
-        ));
+        return Err(HelmError::BadName { name });
     }
     if version.is_empty() {
-        return Err("helm_chart_deploy: Chart.yaml has no version".to_owned());
+        return Err(HelmError::NoVersion);
     }
     Ok((name, version))
 }
@@ -64,7 +108,7 @@ fn stage_chart(
     files: &[HelmFile],
     resolve: &dyn Fn(&str) -> Option<PathBuf>,
     dir: &Path,
-) -> Result<(), String> {
+) -> Result<(), HelmError> {
     dx_atomic_fs::discard_dir(dir);
     for file in files {
         let relative = Path::new(&file.path);
@@ -72,18 +116,18 @@ fn stage_chart(
             .components()
             .all(|part| matches!(part, std::path::Component::Normal(_)));
         if !plain {
-            return Err(format!(
-                "helm_chart_deploy: chart file path {:?} must stay inside the chart",
-                file.path
-            ));
+            return Err(HelmError::OutsideChart {
+                path: file.path.clone(),
+            });
         }
-        let src = resolve(&file.rloc).ok_or_else(|| format!("cannot resolve {}", file.rloc))?;
+        let src = resolve(&file.rloc).ok_or_else(|| HelmError::Unresolved {
+            rloc: file.rloc.clone(),
+        })?;
         let dest = dir.join(relative);
         if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|error| format!("helm_chart_deploy: {error}"))?;
+            std::fs::create_dir_all(parent).map_err(|source| HelmError::Stage { source })?;
         }
-        copy_verified(&src, &dest).map_err(|error| format!("helm_chart_deploy: {error}"))?;
+        copy_verified(&src, &dest).map_err(|source| HelmError::Stage { source })?;
     }
     Ok(())
 }
@@ -199,7 +243,7 @@ fn helm_main_with(
         return 1;
     }
     let identity = std::fs::read_to_string(stage.join("Chart.yaml"))
-        .map_err(|error| format!("helm_chart_deploy: cannot read Chart.yaml: {error}"))
+        .map_err(|source| HelmError::ReadChart { source })
         .and_then(|text| helm_chart_identity(&text));
     let (chart, version) = match identity {
         Ok(identity) => identity,
@@ -316,11 +360,17 @@ mod tests {
     #[test]
     fn identity_reads_name_and_version() {
         assert_eq!(
-            helm_chart_identity(CHART),
-            Ok(("demo".to_owned(), "1.2.3".to_owned()))
+            helm_chart_identity(CHART).expect("identity"),
+            ("demo".to_owned(), "1.2.3".to_owned())
         );
-        assert!(helm_chart_identity("name: Demo\nversion: 1\n").is_err());
-        assert!(helm_chart_identity("name: demo\n").is_err());
+        assert!(matches!(
+            helm_chart_identity("name: Demo\nversion: 1\n"),
+            Err(HelmError::BadName { name }) if name == "Demo"
+        ));
+        assert!(matches!(
+            helm_chart_identity("name: demo\n"),
+            Err(HelmError::NoVersion)
+        ));
     }
 
     /// Writes a fake helm that records its args and writes the package.

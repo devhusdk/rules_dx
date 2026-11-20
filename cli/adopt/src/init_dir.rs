@@ -12,11 +12,6 @@ pub const DEFAULT_INIT_MODULE: &str = "my_project";
 /// The Bazel version a fresh workspace pins in `.bazelversion`.
 pub const FRESH_BAZEL_VERSION: &str = dx_preset::PRESET_BAZEL_VERSION;
 
-const RESERVED_STEMS: &[&str] = &[
-    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
-    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
-];
-
 fn segment_reason(segment: &str) -> Option<String> {
     if segment.is_empty() || segment == "." || segment == ".." {
         return Some(
@@ -33,11 +28,7 @@ fn segment_reason(segment: &str) -> Option<String> {
     if segment.ends_with(' ') || segment.ends_with('.') {
         return Some("directory segments never end with a space or '.'".to_owned());
     }
-    let stem = segment.split('.').next().unwrap_or(segment);
-    if RESERVED_STEMS
-        .iter()
-        .any(|reserved| stem.eq_ignore_ascii_case(reserved))
-    {
+    if dx_path::host::is_reserved_device(segment) {
         return Some(format!(
             "directory segment {segment:?} is a reserved device name"
         ));
@@ -244,6 +235,21 @@ mod tests {
                 "{error}"
             );
         }
+    }
+
+    #[test]
+    fn reserved_device_segments_match_the_host_list() {
+        for reserved in ["com¹", "teams/LPT³.log", "nul .x", "Con"] {
+            let error = validate_init_dir(reserved).expect_err(reserved);
+            assert!(
+                error.to_string().contains("is a reserved device name"),
+                "{error}"
+            );
+        }
+        assert_eq!(
+            validate_init_dir("console").expect("not a device"),
+            "console"
+        );
     }
 
     #[test]

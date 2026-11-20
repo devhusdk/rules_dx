@@ -28,7 +28,7 @@ load("//cc/private:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
 load("//core:entry.bzl", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz.bzl", "dx_fuzz_runner")
 load("//core:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
-load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
+load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
@@ -356,15 +356,27 @@ def ocaml_fuzz_test(name, *, main = None, deps = None, visibility = None, tags =
     )
     dx_fuzz_runner(name, ":" + name, engine = "crowbar", visibility = visibility)
 
+_ocaml_benchmark_lib = dx_private_dep_rule(
+    Label("//ocaml/private/bench:dx_bench"),
+    _FORWARDED + [_OCamlDepsProvider, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, OCamlCmtInfo, OutputGroupInfo],
+    "Provides the Dx_bench module ocaml_bench links.",
+)
+
 def ocaml_bench(name, *, main = None, deps = None, visibility = None, tags = None, **kwargs):
     """A benchmark `dx bench` runs: `main` calls `Dx_bench.run`, which writes `dx-bench.json`. It is tagged `dx-bench`."""
     main = dx_infer_main("ocaml_bench", name, main, None, dx_main_candidates(name, ".ml"))
     build, run = split_test_kwargs(kwargs)
+    _ocaml_benchmark_lib(
+        name = name + "_dx_bench",
+        testonly = True,
+        tags = ocaml_upstream_tags(tags),
+        visibility = ["//visibility:private"],
+    )
     ocaml_module(
         name = name + "_bin",
         testonly = True,
         struct = main,
-        deps = (deps or []) + [Label("//ocaml/private/bench:dx_bench")],
+        deps = (deps or []) + [":" + name + "_dx_bench"],
         tags = tags,
         visibility = ["//visibility:private"],
         **build

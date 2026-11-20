@@ -347,8 +347,9 @@ pub fn resolve_sha_from_commit_response(text: &str) -> Result<String, GhaResolve
     if text.trim().is_empty() {
         return Err(GhaResolveError::Empty);
     }
-    let value: serde_json::Value =
-        serde_json::from_str(text).map_err(|_| GhaResolveError::InvalidJson)?;
+    let value: serde_json::Value = serde_json::from_str(text)
+        .ok()
+        .ok_or(GhaResolveError::InvalidJson)?;
     let object = value.as_object().ok_or(GhaResolveError::InvalidJson)?;
     match object.get("sha") {
         Some(serde_json::Value::String(sha)) => {

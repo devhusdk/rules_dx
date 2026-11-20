@@ -2,7 +2,7 @@
 load("//astro:defs.bzl", "astro_build")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//javascript:defs.bzl", "javascript_library", "javascript_test")
-load("//typescript:defs.bzl", "ts_config")
+load("//typescript:defs.bzl", "typescript_config")
 
 package(
     default_testonly = True,
@@ -43,7 +43,7 @@ javascript_library(
     deps = ["//:node_modules/astro"],
 )
 
-ts_config(
+typescript_config(
     name = "tsconfig",
     src = "tsconfig.json",
     visibility = ["//visibility:public"],

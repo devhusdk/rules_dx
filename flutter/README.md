@@ -19,20 +19,32 @@ tools/dx test //flutter/...
 
 ### Setup
 
-rules_dx depends on rules_flutter and registers its toolchains. You need no
-host Flutter, Dart or Android SDK.
-
-Start a project:
+rules_dx depends on rules_flutter and registers its toolchains, so you need no
+Flutter, Dart or Android SDK on your machine. Start a project:
 
 ```sh
 dx init --apply demo-app
 ```
 
-Then add a `pub.from_lock` hub from `@rules_dx//flutter:extensions.bzl` to
-`MODULE.bazel`, add a `pubspec.lock`, and declare `flutter_library` and
-`flutter_test` targets.
+Your `MODULE.bazel` needs only `bazel_dep(name = "rules_dx")`. You add no
+`rules_flutter` `bazel_dep`, no `flutter.toolchain` tag and no engine
+`use_repo`. [`tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/flutter/tests/consumer) is a minimal project.
 
-Regenerate `pubspec.lock` for a package directory:
+When your code imports pub packages, add a `pubspec.lock` and declare a hub
+with the `pub` extension. A hub is a Bazel repository that holds one target
+per locked package:
+
+```python
+pub = use_extension("@rules_dx//flutter:extensions.bzl", "pub")
+pub.from_lock(
+    name = "my_flutter_deps",
+    lock = "//app:pubspec.lock",
+)
+use_repo(pub, "my_flutter_deps")
+```
+
+To write or refresh `pubspec.lock` for a package directory, run `pub get`
+from the pinned Flutter SDK:
 
 ```sh
 bazel run @rules_flutter//flutter/pub -- get --directory <dir>
@@ -40,15 +52,24 @@ bazel run @rules_flutter//flutter/pub -- get --directory <dir>
 
 ## API docs
 
-`dart_doc_shard` in `@rules_dx//tools/docs/dart:defs.bzl` runs the pinned `dart doc` over a `flutter_library`. `dx docs` runs it on every Flutter library with a `lib/` source. `dart doc` is not available on `windows_arm64`, where rules_flutter ships no SDK.
+`dx docs` runs the pinned `dart doc` on every `flutter_library` with a `lib/`
+source. To declare a docs target yourself, use `dart_doc_shard` from
+`@rules_dx//dart:defs.bzl`. `dart doc` is not available on
+`windows_arm64`, where rules_flutter ships no SDK.
 
 ## Packaging
 
 ### Apps
 
 - `flutter_web_app` builds the web bundle.
-- `flutter_android_app` wraps the upstream rule and uses `android_binary`, so
-  no Gradle runs. Set `android_abi` to `arm64` (default) or `x64`. It needs
+- `flutter_android_app` builds an Android app with `android_binary`, so no
+  Gradle runs. Set `android_abi` to `arm64`, the default, or `x64`. It needs
   the managed `androidsdk` override from rules_dx.
-- `flutter_ios_app` and every target it generates build only on a macOS host.
-  On other hosts Bazel skips them as incompatible.
+- `flutter_ios_app` and every target it creates build only on a macOS host.
+  Other hosts skip them as incompatible.
+
+### Profile builds
+
+To build a `flutter_application` in profile mode, write a transition that
+sets `@rules_dx//flutter:profile` to `True` and `//command_line_option:compilation_mode`
+to `opt`, and apply it to the app's label attribute.

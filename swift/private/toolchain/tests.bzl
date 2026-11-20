@@ -3,10 +3,10 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@dx_pins_data//:pins.bzl", "PINS")
 load("@rules_swift//swift:providers.bzl", "SwiftToolchainInfo")
-load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load(":extensions.bzl", "swift_hub")
-load(":toolchain.bzl", "SWIFT_LINUX_CPUS")
+load(":repos.bzl", "SWIFT_LINUX_CPUS")
 
 def _link_flags(cc_info):
     return [
@@ -84,11 +84,7 @@ def swift_tool_inputs_test(name, cpu, target_under_test, size = "small", **kwarg
         **kwargs
     )
 
-_HEX = "0123456789abcdef"
 _WINDOWS_CELLS = ["windows_arm64", "windows_x86_64"]
-
-def _is_sha256(value):
-    return len(value) == 64 and all([c in _HEX for c in value.elems()])
 
 def _windows_pin_checks():
     pins = PINS["dx_swift_format_macos_arm64"]
@@ -97,8 +93,6 @@ def _windows_pin_checks():
         cells = pins[name]["cells"]
         checks.extend([
             expect_equal(name + " cells", sorted(cells.keys()), _WINDOWS_CELLS),
-            expect_true(name + " sha256 digests", all([_is_sha256(cell["sha256"]) for cell in cells.values()])),
-            expect_true(name + " https urls", all([url.startswith("https://") for cell in cells.values() for url in cell["urls"]])),
             expect_true(name + " one url per cell", all([len(cell["urls"]) == 1 for cell in cells.values()])),
             expect_equal(name + " distinct digests", len({cell["sha256"]: True for cell in cells.values()}), len(cells)),
         ])

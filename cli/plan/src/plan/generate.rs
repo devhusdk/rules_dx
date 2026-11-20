@@ -7,11 +7,11 @@ use crate::resolve::ResolvedScope;
 
 #[must_use]
 pub fn generate_target(check: bool) -> String {
-    rules_dx_label(if check {
-        "dx:generate_check"
+    rules_dx_label(dx_families::repo_relative(if check {
+        dx_families::GENERATE_CHECK
     } else {
-        "dx:generate"
-    })
+        dx_families::GENERATE
+    }))
 }
 
 pub const GENERATE_ENV_INTENDED: &str = "DX_GENERATE_INTENDED";
@@ -267,6 +267,8 @@ pub fn plan_generate(
             argv.extend(walks.into_iter().map(|walk| {
                 if walk.dir.is_empty() {
                     ".".to_owned()
+                } else if walk.dir.starts_with('-') {
+                    format!("./{}", walk.dir)
                 } else {
                     walk.dir
                 }
@@ -339,6 +341,18 @@ mod tests {
             plan.argv[plan.argv.len() - 3..],
             strings(&["--", "-r=false", "a"])
         );
+    }
+
+    #[test]
+    fn generate_plan_keeps_a_dash_dir_from_reading_as_a_flag() {
+        for target in ["//-x:all", "//-x/..."] {
+            let plan = plan_generate(&resolved(&[target]), &[], false, &[], None).expect("plan");
+            assert_eq!(
+                plan.argv.last().map(String::as_str),
+                Some("./-x"),
+                "{target}"
+            );
+        }
     }
 
     #[test]

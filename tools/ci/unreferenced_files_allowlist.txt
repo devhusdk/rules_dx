@@ -24,9 +24,6 @@ dart/tests/fixtures/dart_app/cli/BUILD.bazel orphan-target 3
 dart/tests/fixtures/dart_app/gen/BUILD.bazel orphan-target 1
 dart/tests/fixtures/dart_app/ledger/BUILD.bazel orphan-target 3
 dart/tests/fixtures/dart_app/model/BUILD.bazel orphan-target 1
-deploy/private/pins/BUILD.bazel orphan-target 1
-deploy/private/pins/repos.bzl unloaded-bzl 1
-deploy/private/release/repos.bzl unloaded-bzl 1
 elixir/tests/fixtures/bench/BUILD.bazel orphan-target 1
 elixir/tests/fixtures/elixir_app/catalog/BUILD.bazel orphan-target 2
 elixir/tests/fixtures/elixir_app/cli/BUILD.bazel orphan-target 2

@@ -28,7 +28,8 @@
   "entry_points": [
     "mdx_library",
     "mdx_build",
-    "mdx_test"
+    "mdx_test",
+    "mdx_doc_shard"
   ],
   "quality": {
     "bzl": "javascript/private/quality:js.bzl",

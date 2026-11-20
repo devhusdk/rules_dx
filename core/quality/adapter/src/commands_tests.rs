@@ -2060,7 +2060,7 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part13() {
     );
     let yaml = Path::new("/scratch/Sample.yaml");
     assert_eq!(
-        argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml], None)),
+        argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml], None, false)),
         vec![
             BIN,
             "-lint",
@@ -2071,12 +2071,12 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part13() {
         ]
     );
     assert_eq!(
-        argv_strings(&yamlfmt_fix(Path::new(BIN), &[yaml], None)),
+        argv_strings(&yamlfmt_fix(Path::new(BIN), &[yaml], None, false)),
         vec![BIN, "-formatter", "line_ending=lf", "/scratch/Sample.yaml"]
     );
     let conf = Path::new("/scratch/conf.yaml");
     assert_eq!(
-        argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml], Some(conf))),
+        argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml], Some(conf), false)),
         vec![
             BIN,
             "-lint",
@@ -2087,8 +2087,32 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags_part13() {
         ]
     );
     assert_eq!(
-        argv_strings(&yamlfmt_fix(Path::new(BIN), &[yaml], Some(conf))),
+        argv_strings(&yamlfmt_fix(Path::new(BIN), &[yaml], Some(conf), false)),
         vec![BIN, "-conf", "/scratch/conf.yaml", "/scratch/Sample.yaml"]
+    );
+    assert_eq!(
+        argv_strings(&yamlfmt_check(Path::new(BIN), &[yaml], None, true)),
+        vec![
+            BIN,
+            "-lint",
+            "-q",
+            "-formatter",
+            "line_ending=lf",
+            "-formatter",
+            "include_document_start=true",
+            "/scratch/Sample.yaml"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&yamlfmt_fix(Path::new(BIN), &[yaml], Some(conf), true)),
+        vec![
+            BIN,
+            "-conf",
+            "/scratch/conf.yaml",
+            "-formatter",
+            "include_document_start=true",
+            "/scratch/Sample.yaml"
+        ]
     );
     assert_eq!(
         argv_strings(&yamllint_check(Path::new(BIN), &[yaml], Some(conf))),

@@ -17,8 +17,8 @@ tools/dx test //qt/...
 
 ## Quality
 
-`dx format` runs `@dx_qt//:qmlformat` when a `qml` family selects
-`qmlformat`:
+Format your QML files with the pinned `qmlformat`. `dx format` runs
+`@dx_qt//:qmlformat` when a `qml` family selects `qmlformat`:
 
 ```sh
 dx format --apply -- --@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat
@@ -26,13 +26,9 @@ dx format --apply -- --@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat
 
 ## Packaging
 
-`qt_bundle` stages what a `qt_cc_binary` runs with: its shared libraries
-under `lib/`, the fonts under `fonts/` (an app must point `FONTCONFIG_FILE` at `fonts/fonts.conf` itself to use them), the platform plugins under `plugins/platforms/` when it links
-`gui`, the `plugins` types under `plugins/<type>/`, the QML import modules under `qml/` and the Qt, ICU and closure
-license texts under `licenses/`. `lib/` holds the libraries the
-binary links, the libraries those need, and the ones the shipped QML
-plugins need. Pass it to `qt_consumer_archive` as a
-resource. `qt_consumer_archive` and `qt_bundle_runtime` load from
+Ship a Qt app as an archive. `qt_bundle` collects what a `qt_cc_binary`
+needs at run time, and `qt_consumer_archive` packs it with the app.
+`qt_consumer_archive` and `qt_bundle_runtime` load from
 `@rules_dx//deploy:defs.bzl`:
 
 ```python
@@ -59,17 +55,23 @@ qt_consumer_archive(
 )
 ```
 
-`qt_bundle_runtime` holds the Windows DLLs of a `qt_bundle` and a `qt.conf` that points Qt at
-`resources/`, so `consumer_archive` puts them next to the executable. It ships
-nothing on cells without DLLs.
+`qt_bundle` stages:
 
-`qt_consumer_archive` takes the arguments of `consumer_archive`. It records the
-os and cpu of the target platform. `min_runtime` defaults to the minimum runtime
-of the targeted cell:
-`glibc-2.34` on `linux_x86_64`, `glibc-2.39` on `linux_arm64` and `macos-14.4`
-on `macos_arm64`. `runtime` gains the OS runtime of the targeted cell. `qt_bundle` is skipped on
-cells without a needs table, such as the Windows cells. On macOS, any
-non-empty `display` ships the `cocoa` platform plugin.
+- under `lib/`: the libraries the binary links, the libraries those
+  need, and the ones the shipped QML plugins need;
+- under `fonts/`: the fonts. To use them, your app must point
+  `FONTCONFIG_FILE` at `fonts/fonts.conf` itself;
+- under `plugins/platforms/`: the platform plugins, when the binary
+  links `gui`;
+- under `plugins/<type>/`: the `plugins` types;
+- under `qml/`: the QML import modules;
+- under `licenses/`: the Qt, ICU and closure license texts.
+
+`qt_bundle` is skipped on cells without a needs table, such as the
+Windows cells. A cell is one platform's Qt archives and runtime closure.
+On macOS, any non-empty `display` ships the `cocoa` platform plugin.
+
+`qt_bundle` takes:
 
 - `binary`: the `qt_cc_binary`.
 - `qml_modules`: import modules to ship, none by default. A module missing from the import tree fails analysis.
@@ -81,11 +83,24 @@ non-empty `display` ships the `cocoa` platform plugin.
 - `plugins`: plugin types to ship, `imageformats`, `platformthemes` and `tls`.
   Each adds its plugins and the libraries they need. Defaults to none. The
   `tls` OpenSSL backend loads the host's OpenSSL 3 `libssl.so.3` at run time.
-- `licenses`: extra license texts to ship, such as `fmt/LICENSE` for a bundled library. Each path needs a `licenses/<name>/` directory and lands under `licenses/<name>/`.
-- `qt`: the Qt repo, `@dx_qt` by default.
+- `licenses`: extra license texts to ship, such as `fmt/LICENSE` for a
+  bundled library. Each path needs a `licenses/<name>/` directory and
+  lands under `licenses/<name>/`.
+- `qt`: the Qt SDK repository. Leave it out to use the Qt SDK rules_dx pins.
+
+`qt_bundle_runtime` holds the Windows DLLs of a `qt_bundle` and a
+`qt.conf` that points Qt at `resources/`, so `consumer_archive` puts them
+next to the executable. It ships nothing on cells without DLLs.
+
+`qt_consumer_archive` takes the arguments of `consumer_archive`. It
+records the os and cpu of the target platform, and `runtime` gains the
+OS runtime of the targeted cell. `min_runtime` defaults to the minimum
+runtime of the targeted cell: `glibc-2.34` on `linux_x86_64`,
+`glibc-2.39` on `linux_arm64` and `macos-14.4` on `macos_arm64`.
 
 `qt_cc_binary` links with RPATH `$ORIGIN/resources/lib`, so the extracted
-archive finds its libraries from any directory with no environment. Qt finds
+archive finds its libraries from any directory, with no environment
+variables set. Qt finds
 `resources/qml` from the location of `libQt6Core`. A `qt.conf` beside the
 binary overrides these paths.
 
@@ -93,10 +108,10 @@ binary overrides these paths.
 
 ### Setup
 
-Adding `rules_dx` is all you need: every Qt module (`qtbase`,
+Adding `rules_dx` is all you need. Every Qt module (`qtbase`,
 `qtdeclarative`, `qttools`) is declared, and Bazel fetches nothing until a
 target needs it. `qttools` carries only `lrelease`. To download from a
-mirror, call `configure` in your root module:
+mirror, call `configure` in your root `MODULE.bazel`:
 
 ```python
 qt = use_extension("@rules_dx//qt:extensions.bzl", "qt")
@@ -117,8 +132,7 @@ most once.
 
 ### Your own cell
 
-A cell is one platform's Qt archives and runtime closure. Declare your own
-with `qt.cell` in the root module:
+Declare your own cell with `qt.cell` in your root `MODULE.bazel`:
 
 ```python
 qt.cell(
@@ -147,7 +161,8 @@ qt.cell(
   `runtime`, and optionally `needs`: the `library`, `plugin` and
   `runtime_plugin` tables of what each shared object needs at run time.
 
-Start from a pinned spec:
+Start from a pinned spec. This copies the `linux_x86_64` spec into your
+repo:
 
 ```sh
 bazel build @rules_dx//qt:linux_x86_64_cell
@@ -160,8 +175,9 @@ needs a sha256. Archives come from `mirror` (or `download.qt.io`) under
 `vault.almalinux.org`). The Qt release must be 6.12.0. Unknown keys fail.
 
 Only the root module may declare cells. `qt_bundle` packages a cell only
-when its spec carries `needs`, and those tables must match its archives;
-without them `@dx_qt//:needs` fails analysis and says why.
+when its spec carries `needs`, and those tables must match its archives.
+Without them, `@dx_qt//:needs` fails analysis, the step where Bazel reads
+BUILD files before it runs anything, and says why.
 
 ### Targets
 
@@ -198,9 +214,9 @@ without them `@dx_qt//:needs` fails analysis and says why.
 | `@dx_qt//:sbom` | every module | Qt SPDX documents |
 | `@dx_qt//:cxx_qt` | `qtbase` | CXX-Qt 0.10.0 C++ runtime for `qt_rust_library` |
 
-A target fetches the repository of the module that owns it and of the modules
-that module requires. Each Qt library exists once, in the repository of its
-module; the other module repositories link to it.
+A target fetches the repository of the module that owns it, and of the
+modules that module requires. Each Qt library exists once, in the
+repository of its module. The other module repositories link to it.
 
 ### Gui, Widgets and Quick
 
@@ -214,12 +230,15 @@ display or GPU. For `bazel run`, pick the plugin yourself:
 QT_QPA_PLATFORM=offscreen bazel run //app:viewer
 ```
 
-`bazel run` and `bazel test` carry only `minimal` and `offscreen`. Any other
-plugin fails with `Could not find the Qt platform plugin`. `qt_bundle` ships
-`xcb` and `wayland` with `display`. They carry no image format, TLS or theme
-plugins either; list `imageformats`, `platformthemes` or `tls` in `plugins` on
-`qt_cc_binary`, `qt_cc_test` or `qt_bundle` to ship them; the first two also
-put them on `QT_PLUGIN_PATH`. The target's `env`
+`bazel run` and `bazel test` carry only the `minimal` and `offscreen`
+platform plugins. Any other platform plugin fails with
+`Could not find the Qt platform plugin`. `qt_bundle` ships `xcb` and
+`wayland` through `display`.
+
+They carry no image format, TLS or theme plugins either. To ship them,
+list `imageformats`, `platformthemes` or `tls` in `plugins` on
+`qt_cc_binary`, `qt_cc_test` or `qt_bundle`. On `qt_cc_binary` and
+`qt_cc_test`, this also puts them on `QT_PLUGIN_PATH`. The target's `env`
 overrides these variables.
 
 Run Qt Quick Test suites through `quick_test_main`, and pass the `tst_*.qml`
@@ -242,7 +261,7 @@ int main(int argc, char **argv) {
 }
 ```
 
-The last argument is the test directory relative to the workspace root.
+The last argument is the test directory, relative to the workspace root.
 
 `dx lint` and `dx format` see only the hand-written C, C++ and QML files.
 Generated `moc`, `uic`, `rcc` and registration sources are never checked.
@@ -265,8 +284,8 @@ qt_rust_library(
 )
 ```
 
-Each bridge file holds one `#[cxx_qt::bridge]` module. A pinned generator
-built from CXX-Qt 0.10.0 and cxx 1.0.202 writes, per bridge,
+Each bridge file holds one `#[cxx_qt::bridge]` module. `dx qt_rust_bridge`,
+built from CXX-Qt 0.10.0 and cxx 1.0.205, writes, per bridge,
 `<name>.cxxqt.h`, `<name>.cxxqt.cpp`, `<name>.cxx.h` and `<name>.cxx.cpp`
 next to the bridge. Include the QObject header as
 `"<package>/<name>.cxxqt.h"`. `moc` and `qmltyperegistrar` run on it, so a
@@ -281,8 +300,8 @@ Attributes:
   `cxx` and `cxx-qt` crates added.
 - `cxx`, `cxx_qt`: the `cxx` and `cxx-qt` crate targets. They default to the
   pinned crates; point them at your own to build against another version.
-- `generator`: the bridge generator executable for `cxx_qt`. It defaults to the
-  pinned one built from cxx 1.0.202.
+- `generator`: the bridge generator executable for `cxx_qt`. It defaults to
+  `dx qt_rust_bridge`, built from cxx 1.0.205.
 - `cc_deps`: C++ dependencies of the generated library.
 - `uri`, `version`, `qml_srcs`, `qml_depends`, `modules`, `qt`, `copts`: as on
   `qt_qml_module`. `modules` defaults to `["qml"]` with a `uri`, else `["core"]`.
@@ -290,24 +309,28 @@ Attributes:
 `qt_rust_cc_library` from `@rules_dx//qt:defs.bzl` builds only the C++
 side for an existing Rust static library, passed as `rust`.
 
-Link one `qt_rust_library` per binary: each carries the Rust standard
-library. Put all bridges of an app in it. CXX-Qt types from `cxx-qt-lib`,
-such as `QString`, are not available. Use `bool`, integer and float
-properties and arguments. Integer properties reach QML as `int`, `uint`,
-`short`, `ushort`, `qint8`, `quint8`, `qlonglong` or `qulonglong`. Mark
-properties Rust owns `READ, NOTIFY`; QML writes to them then fail. A bridge
-error, such as a `NOTIFY` signal that does not exist, fails the
-`QtRustBridge` action with `<file>:<line>:<column>`.
+Rules for bridges:
 
-The generated C++ and `@dx_qt//:cxx_qt` call `cxxbridge1$202$...` symbols, so
-the Rust crate must link `cxx` 1.0.202. Another `cxx` version fails at link
+- Link one `qt_rust_library` per binary, since each carries the Rust
+  standard library. Put all bridges of an app in it.
+- CXX-Qt types from `cxx-qt-lib`, such as `QString`, are not available.
+  Use `bool`, integer and float properties and arguments.
+- Integer properties reach QML as `int`, `uint`, `short`, `ushort`,
+  `qint8`, `quint8`, `qlonglong` or `qulonglong`.
+- Mark properties that Rust owns `READ, NOTIFY`. QML writes to them then
+  fail.
+- A bridge error, such as a `NOTIFY` signal that does not exist, fails
+  the `QtRustBridge` action with `<file>:<line>:<column>`.
+
+The generated C++ and `@dx_qt//:cxx_qt` call `cxxbridge1$205$...` symbols, so
+the Rust crate must link `cxx` 1.0.205. Another `cxx` version fails at link
 time unless you also pass a matching `generator`.
 
 Builds that use no `qt_rust_library` fetch none of the CXX-Qt crates.
 
 ### Linking Qt
 
-Build Qt code for a Qt platform, or a platform with the same `@llvm`
+Build Qt code for a Qt platform, or for a platform with the same `@llvm`
 constraints:
 
 | Platform | `@llvm` constraints |
@@ -315,7 +338,8 @@ constraints:
 | `@rules_dx//qt:linux_x86_64` | `libstdcxx.11.5.0`, `gnu.2.34` |
 | `@rules_dx//qt:linux_arm64` | `libstdcxx.14.3.0`, `gnu.2.39` |
 
-Without the rules, compile with `-fPIC` and link dynamically:
+To use plain `cc_binary` instead of the `qt_` rules, compile with
+`-fPIC` and link dynamically:
 
 ```python
 cc_binary(
@@ -334,13 +358,18 @@ newer on x86_64, 2.39 or newer on arm64.
 
 ### Toolchain
 
-rules_dx declares the Qt SDK and registers its toolchains; a consumer adds no
-`register_toolchains` line. The one tag a consumer may add is
-`qt.configure`.
+rules_dx declares the Qt SDK and registers its toolchains. You add no
+`register_toolchains` line. The one tag you may add is `qt.configure`.
 
 ## Platforms
 
 See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/support-matrix.md).
 
-`qt_cc_binary`, `qt_cc_test` and `qt_bundle` take `platforms`. On a host build they build for the Qt platform of the host, with `--//cc:compiler=msvc` on Windows. Other Qt targets on Windows need `--//cc:compiler=msvc`; without it they are incompatible and skipped. A real display and GPU rendering are not supported. Other platforms fail analysis and list the supported cells. Fetching needs a
+`qt_cc_binary`, `qt_cc_test` and `qt_bundle` take `platforms`. On a host
+build, they build for the Qt platform of the host, with
+`--//cc:compiler=msvc` on Windows. Other Qt targets on Windows need
+`--//cc:compiler=msvc`. Without it, they are incompatible and skipped.
+Other platforms fail analysis and list the supported cells.
+
+A real display and GPU rendering are not supported. Fetching needs a
 Linux x86_64 or Linux arm64 host.

@@ -1,3 +1,5 @@
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
+
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::ExitCode;

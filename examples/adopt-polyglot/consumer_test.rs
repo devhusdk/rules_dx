@@ -1,12 +1,12 @@
 //! Adopts the example in a scratch workspace with `dx init --apply`, which also runs `dx generate`, then tests it.
 
 use std::collections::BTreeMap;
-use std::io::Write as _;
 use std::path::Path;
 use std::time::Instant;
 
 use dx_nested::compose::{
-    rules_dx_override, rules_flutter_override, rules_py_override, write_rules_py_patches,
+    rules_dx_override, rules_flutter_override, rules_py_override, write_root_patch_override,
+    write_rules_py_patches,
 };
 use dx_nested::{self as nested, Case};
 use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
@@ -19,12 +19,7 @@ fn ok(run: &Run, what: &str) {
 fn timed(what: &str, step: impl FnOnce() -> Run) {
     let started = Instant::now();
     let run = step();
-    writeln!(
-        std::io::stderr(),
-        "step {what}: {:.1} s",
-        started.elapsed().as_secs_f64()
-    )
-    .ok();
+    eprintln!("step {what}: {:.1} s", started.elapsed().as_secs_f64());
     ok(&run, what);
 }
 
@@ -127,10 +122,21 @@ fn the_polyglot_example_adopts_and_tests_green() {
         &root.join(".bazelversion"),
         &read_text(&source.join(".bazelversion")),
     );
+    // rules_flutter pulls rules_swift, whose macOS extensions need the root's absolute-path Xcode patches.
+    let apple: String = [
+        ("apple_support", &["toolchains_gate.patch"][..]),
+        ("rules_swift", &[][..]),
+    ]
+    .into_iter()
+    .map(|(module, skip)| {
+        write_root_patch_override(&root, &source, module, skip)
+            .unwrap_or_else(|error| panic!("{error}"))
+    })
+    .collect();
     write_text(
         &root.join("MODULE.bazel"),
         &format!(
-            "module(name = \"adopt_polyglot\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n{}{}{}",
+            "module(name = \"adopt_polyglot\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n{}{}{}{apple}",
             rules_dx_override(&source),
             rules_py_override(),
             rules_flutter_override().unwrap_or_else(|error| panic!("{error}")),

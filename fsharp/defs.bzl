@@ -8,9 +8,11 @@ load(
     _fsharp_library = "fsharp_library",
     _fsharp_test = "fsharp_test",
 )
+load("//tools/docs/dotnet:defs.bzl", _fsharp_doc_shard = "fsharp_doc_shard")
 
 fsharp_bench = _fsharp_bench
 fsharp_binary = _fsharp_binary
 fsharp_fuzz_test = _fsharp_fuzz_test
 fsharp_library = _fsharp_library
 fsharp_test = _fsharp_test
+fsharp_doc_shard = _fsharp_doc_shard

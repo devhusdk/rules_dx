@@ -1387,26 +1387,33 @@ fn pub_plan(
 }
 
 #[test]
-fn pub_update_runs_dart_pub_upgrade() {
+fn pub_update_runs_the_lock_step_with_upgrade() {
     let dir = pub_workspace("name: app\n");
-    let BackendPlan::Run { argv, env } = pub_plan(
+    let app = dir.path().join("app").display().to_string();
+    let BackendPlan::Run { argv, .. } = pub_plan(
         dir.path(),
-        &Selection::Packages(vec!["http".to_owned()]),
+        &Selection::Packages(vec!["http".to_owned(), "path".to_owned()]),
         false,
         false,
     )
     .expect("plan") else {
         panic!("expected a run");
     };
-    assert_eq!(argv[argv.len() - 4..], ["--", "pub", "upgrade", "http"]);
-    assert!(argv.contains(&"@rules_dx//dart/private/tools:dart".to_owned()));
-    assert_eq!(env[0].0, "PUB_CACHE");
+    assert_eq!(
+        argv[argv.len() - 9..].join(" "),
+        format!(
+            "run @rules_dx//dart/private/tools/lock -- --dir {app} --upgrade http --upgrade path"
+        )
+    );
     let BackendPlan::Run { argv, .. } =
         pub_plan(dir.path(), &Selection::Full, false, false).expect("plan")
     else {
         panic!("expected a run");
     };
-    assert_eq!(argv[argv.len() - 2..], ["pub", "upgrade"]);
+    assert_eq!(
+        argv[argv.len() - 6..].join(" "),
+        format!("run @rules_dx//dart/private/tools/lock -- --dir {app} --upgrade-all")
+    );
 }
 
 #[test]
@@ -1494,27 +1501,35 @@ fn flutter_pub_check_enforces_the_lockfile() {
 }
 
 #[test]
-fn pub_check_enforces_the_lockfile() {
+fn pub_check_runs_the_lock_step_check() {
     let dir = pub_workspace("name: app\n");
-    let check = |offline| {
+    let app = dir.path().join("app").display().to_string();
+    let check = |offline, request: &Selection| {
         check_configured(
             dir.path(),
             &pub_set(),
-            &Selection::Full,
+            request,
             offline,
             false,
             &no_head(),
             &UvClosure::default(),
         )
     };
-    let Ok(CheckPlan::Run { argv, .. }) = check(false) else {
+    let Ok(CheckPlan::Run { argv, .. }) = check(false, &Selection::Full) else {
         panic!("expected a run");
     };
-    assert_eq!(argv[argv.len() - 3..], ["pub", "get", "--enforce-lockfile"]);
-    let Ok(CheckPlan::Run { argv, .. }) = check(true) else {
-        panic!("expected a run");
-    };
-    assert_eq!(argv[argv.len() - 1], "--offline");
+    assert_eq!(
+        argv[argv.len() - 6..].join(" "),
+        format!("run @rules_dx//dart/private/tools/lock -- --dir {app} --check")
+    );
+    assert!(matches!(
+        check(true, &Selection::Full),
+        Err(BackendError::OfflineRequired { .. })
+    ));
+    assert!(matches!(
+        check(false, &Selection::Packages(vec!["http".to_owned()])),
+        Err(BackendError::Unsupported { .. })
+    ));
 }
 
 fn bazel_set(dir: &str, lock: &str) -> ResolvedSet {
@@ -1557,78 +1572,81 @@ fn configured_bazel_selective_points_at_update() {
     }
 }
 
-fn pinned_sets() -> Vec<(ResolvedSet, &'static str)> {
-    vec![(
-        ResolvedSet {
-            name: "bicep".to_owned(),
-            ecosystem: Ecosystem::Bicep,
-            dir: "infra".to_owned(),
-            manifests: vec!["infra/*.bicep".to_owned()],
-            locks: vec!["infra/bicep.lock.json".to_owned()],
-            repository: None,
-        },
-        "br/public:avm/res/storage/storage-account",
-    )]
-}
-
-#[test]
-fn configured_pinned_sets_never_run_and_check_as_pinned_under_every_flag() {
-    for (set, _) in pinned_sets() {
-        for offline in [false, true] {
-            for frozen in [false, true] {
-                assert_eq!(
-                    plan_configured(
-                        ws(),
-                        &set,
-                        &Selection::Full,
-                        offline,
-                        frozen,
-                        &no_head(),
-                        &closure()
-                    ),
-                    Ok(BackendPlan::Noop),
-                    "{} offline={offline} frozen={frozen}",
-                    set.name
-                );
-                assert_eq!(
-                    check_configured(
-                        ws(),
-                        &set,
-                        &Selection::Full,
-                        offline,
-                        frozen,
-                        &no_head(),
-                        &UvClosure::default()
-                    ),
-                    Ok(CheckPlan::Pinned),
-                    "{} offline={offline} frozen={frozen}",
-                    set.name
-                );
-            }
-        }
+fn bicep_set() -> ResolvedSet {
+    ResolvedSet {
+        name: "bicep".to_owned(),
+        ecosystem: Ecosystem::Bicep,
+        dir: "infra".to_owned(),
+        manifests: vec!["infra/*.bicep".to_owned()],
+        locks: vec!["infra/bicep.lock.json".to_owned()],
+        repository: None,
     }
 }
 
 #[test]
-fn configured_pinned_selective_is_unsupported() {
-    for (set, package) in pinned_sets() {
-        let request = Selection::Packages(vec![package.to_owned()]);
-        let planned = plan_configured(ws(), &set, &request, false, false, &no_head(), &closure())
-            .expect_err("pinned sets resolve nothing");
-        let checked = check_configured(ws(), &set, &request, false, false, &no_head(), &closure())
-            .expect_err("pinned sets check nothing per package");
-        for error in [planned, checked] {
-            assert!(
-                matches!(
-                    error,
-                    BackendError::Unsupported { set: ref name, reason }
-                        if *name == set.name && reason == "dx only pins this set"
-                ),
-                "{error:?}"
-            );
-            assert_eq!(error.code(), "unsupported");
-        }
+fn bicep_check_and_update_run_the_lock_step() {
+    let dir = dx_test_scratch::scratch("bicep_backend").unwrap();
+    let set = bicep_set();
+    let plan = |request: &Selection, offline: bool, frozen: bool| {
+        plan_configured(
+            dir.path(),
+            &set,
+            request,
+            offline,
+            frozen,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    };
+    let check = |request: &Selection, offline: bool| {
+        check_configured(
+            dir.path(),
+            &set,
+            request,
+            offline,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    };
+    let lock_step = format!(
+        "run @rules_dx//bicep/private/tools/lock -- --dir {}",
+        dir.path().join("infra").display()
+    );
+    let BackendPlan::Run { argv, .. } = plan(&Selection::Full, false, false).expect("plan") else {
+        panic!("expected a run");
+    };
+    assert_eq!(argv[argv.len() - 5..].join(" "), lock_step);
+    let CheckPlan::Run { argv, .. } = check(&Selection::Full, false).expect("check") else {
+        panic!("expected a run");
+    };
+    assert_eq!(
+        argv[argv.len() - 6..].join(" "),
+        format!("{lock_step} --check")
+    );
+    let module = Selection::Packages(vec!["br/public:avm/res/storage/storage-account".to_owned()]);
+    for error in [
+        plan(&module, false, false).expect_err("one module is not resolved alone"),
+        check(&module, false).expect_err("one module is not checked alone"),
+    ] {
+        assert!(
+            matches!(error, BackendError::Unsupported { ref set, .. } if set == "bicep"),
+            "{error:?}"
+        );
     }
+    for error in [
+        plan(&Selection::Full, true, false).expect_err("offline update"),
+        check(&Selection::Full, true).expect_err("offline check"),
+    ] {
+        assert!(
+            matches!(error, BackendError::OfflineRequired { .. }),
+            "{error:?}"
+        );
+    }
+    assert!(matches!(
+        plan(&Selection::Full, false, true),
+        Err(BackendError::FrozenLocked { .. })
+    ));
 }
 
 #[test]
@@ -2578,6 +2596,89 @@ fn maven_set(name: &str, repository: &str) -> ResolvedSet {
     }
 }
 
+fn catalog_set() -> ResolvedSet {
+    ResolvedSet {
+        name: "jvm".to_owned(),
+        ecosystem: Ecosystem::Maven,
+        dir: "jvm".to_owned(),
+        manifests: vec!["jvm/libs.versions.toml".to_owned()],
+        locks: vec!["jvm/maven_install.json".to_owned()],
+        repository: Some("maven".to_owned()),
+    }
+}
+
+fn catalog_workspace(lock: &str) -> dx_test_scratch::TempDir {
+    let dir = dx_test_scratch::scratch("maven_catalog").unwrap();
+    dx_test_scratch::write(dir.path(), "jvm/libs.versions.toml", "[libraries]\n").unwrap();
+    dx_test_scratch::write(dir.path(), "jvm/maven_install.json", lock).unwrap();
+    dir
+}
+
+#[test]
+fn dx_written_maven_set_runs_the_lock_step() {
+    let dir = catalog_workspace("{\n  \"__DX_INPUTS_SHA256\": \"x\"\n}\n");
+    let jvm = dir.path().join("jvm").display().to_string();
+    let run = |request: &Selection| {
+        plan_configured(
+            dir.path(),
+            &catalog_set(),
+            request,
+            false,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    };
+    let Ok(BackendPlan::Run { argv, .. }) = run(&Selection::Full) else {
+        panic!("expected a run");
+    };
+    assert_eq!(
+        argv[argv.len() - 5..].join(" "),
+        format!("run @rules_dx//java/private/tools/lock -- --dir {jvm}")
+    );
+    assert!(matches!(
+        run(&Selection::Packages(vec!["com.google.guava:guava".to_owned()])),
+        Err(BackendError::Unsupported { reason, .. }) if reason.contains("version catalog")
+    ));
+    let Ok(CheckPlan::Run { argv, .. }) = check_configured(
+        dir.path(),
+        &catalog_set(),
+        &Selection::Full,
+        false,
+        false,
+        &no_head(),
+        &UvClosure::default(),
+    ) else {
+        panic!("expected a check run");
+    };
+    assert_eq!(
+        argv[argv.len() - 6..].join(" "),
+        format!("run @rules_dx//java/private/tools/lock -- --dir {jvm} --check")
+    );
+}
+
+#[test]
+fn rules_jvm_external_pinned_catalog_set_keeps_the_pin_target() {
+    let dir = catalog_workspace("{\"__INPUT_ARTIFACTS_HASH\":1,\"__RESOLVED_ARTIFACTS_HASH\":2}\n");
+    let plan = plan_configured(
+        dir.path(),
+        &catalog_set(),
+        &Selection::Full,
+        false,
+        false,
+        &no_head(),
+        &UvClosure::default(),
+    )
+    .expect("maven update");
+    assert_eq!(
+        plan,
+        BackendPlan::Run {
+            argv: [no_head().argv("run"), strings(&["@maven//:pin"])].concat(),
+            env: vec![("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned())],
+        }
+    );
+}
+
 #[test]
 fn configured_maven_update_runs_only_its_pin_target() {
     let head = dx_process::BazelHead {
@@ -2761,18 +2862,10 @@ fn configured_cargo_package_update_repins_one_crate() {
 fn every_ecosystem_row_has_a_backend() {
     for ecosystem in Ecosystem::ALL {
         let module = ecosystem.plan_backend();
-        let expected = if ecosystem == Ecosystem::Pub {
-            "pub_dev"
-        } else {
-            ecosystem.name()
-        };
-        let pinned =
-            ecosystem.supported_check() == "pinned" && ecosystem.supported_update() == "pinned";
+        let expected = ecosystem.name();
         let resolver = dx_families::hub(ecosystem.name()).is_some_and(|hub| hub.resolver.is_some());
         assert!(
-            module == expected
-                || (module == "pinned" && pinned)
-                || (module == "resolver" && resolver),
+            module == expected || (module == "resolver" && resolver),
             "{} dispatches to {module}",
             ecosystem.name()
         );

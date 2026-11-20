@@ -13,7 +13,7 @@ owns_helm_class_test = owns_class_test(
 def _chart_provider_impl(ctx):
     env = analysistest.begin(ctx)
     info = analysistest.target_under_test(env)[HelmChartInfo]
-    asserts.equals(env, "helm/tests", info.chart_root)
+    asserts.equals(env, "helm/tests/fixtures/chart", info.chart_root)
     asserts.equals(env, ctx.attr.expected_release_name, info.release_name)
     asserts.equals(env, "prod", info.namespace)
     asserts.equals(env, ["values-prod.yaml"], [f.basename for f in info.values])

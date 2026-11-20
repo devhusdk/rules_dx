@@ -1,6 +1,6 @@
 """Unit tests for the Conan publisher."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":validate_conan.bzl", "conan_name_error", "conan_remote_error", "conan_remote_url_error", "conan_version_error")
 
 def conan_unit_tests(name):

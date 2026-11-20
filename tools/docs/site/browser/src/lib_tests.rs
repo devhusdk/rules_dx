@@ -4,7 +4,8 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use super::{
-    Browser, Frame, Launch, control_port, firefox_executable, missing_libraries, wait_for_control,
+    Browser, BrowserError, Frame, Launch, control_port, firefox_executable, missing_libraries,
+    wait_for_control,
 };
 
 fn script(dir: &Path, body: &str) -> PathBuf {
@@ -65,7 +66,14 @@ fn a_frame_counts_body_bytes_so_multibyte_text_finishes_at_its_declared_length()
 fn a_frame_refuses_a_length_that_is_not_a_number() {
     let mut frame = Frame::default();
     let error = frame.push(b'x').expect_err("a non-digit length");
-    assert!(error.contains("frame length"), "{error}");
+    assert!(
+        matches!(error, BrowserError::FrameByte { byte: b'x' }),
+        "{error:?}"
+    );
+    assert_eq!(
+        error.to_string(),
+        "browser: frame length holds the byte 'x'"
+    );
 }
 
 #[test]
@@ -110,6 +118,8 @@ fn a_browser_that_exits_at_launch_fails_fast_with_its_log() {
         "{:?}",
         started.elapsed()
     );
+    assert!(matches!(error, BrowserError::Exited { .. }), "{error:?}");
+    let error = error.to_string();
     assert!(error.contains("exited"), "{error}");
     assert!(
         error.contains("browser: missing shared library libfake.so.2 "),
@@ -132,6 +142,7 @@ fn a_browser_missing_system_libraries_names_each_one_once() {
     let Err(error) = Browser::start(&firefox, &profile) else {
         panic!("a browser that exits must not start");
     };
+    let error = error.to_string();
     assert!(
         error.contains("browser: missing shared library libasound.so.2 "),
         "{error}"
@@ -177,6 +188,11 @@ fn a_browser_that_never_opens_its_port_reports_the_timeout() {
     let Err(Launch::Retry(error)) = result else {
         panic!("a silent browser must time out as retryable");
     };
+    assert!(
+        matches!(error, BrowserError::NoControlPort { port: p, .. } if p == port),
+        "{error:?}"
+    );
+    let error = error.to_string();
     assert!(error.contains("opened no control port"), "{error}");
     assert!(error.contains("still starting"), "{error}");
 }

@@ -78,13 +78,21 @@ pub fn fuzz_seconds(raw: &str) -> Option<u64> {
         Some(digits) => (digits, raw.chars().last()),
         None => (raw, Some('s')),
     };
+    // `u64::parse` takes a leading `+`; a budget is plain digits only.
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
     let count: u64 = digits.parse().ok().filter(|count| *count > 0)?;
     let scale = match unit? {
         'm' => 60,
         'h' => 3600,
         _ => 1,
     };
-    count.checked_mul(scale)
+    // libFuzzer reads `-max_total_time` as a C `int`.
+    let max_seconds = u64::try_from(i32::MAX).ok()?;
+    count
+        .checked_mul(scale)
+        .filter(|seconds| *seconds <= max_seconds)
 }
 
 fn fuzz_duration(raw: &str) -> Result<String, dx_error::DxError> {
@@ -703,9 +711,15 @@ flag_group! {
 }
 
 flag_group! {
-    /// Skip versions published fewer than this many days ago (needs --pr; default 3).
+    /// Skip versions published fewer than this many days ago (needs --pr; default 3; max 36500).
     MinAgeFlag, {
-        #[arg(long, value_name = "DAYS", overrides_with = "min_age")]
+        // A larger age has no cutoff date in chrono, which would turn the filter off.
+        #[arg(
+            long,
+            value_name = "DAYS",
+            overrides_with = "min_age",
+            value_parser = clap::value_parser!(u32).range(..=36_500)
+        )]
         min_age: Option<u32>,
     }
 }
@@ -1888,6 +1902,23 @@ mod tests {
                 "words: {words:?}"
             );
         }
+    }
+
+    #[test]
+    fn fuzz_seconds_rejects_budgets_the_engines_cannot_use() {
+        assert_eq!(fuzz_seconds("90"), Some(90));
+        assert_eq!(fuzz_seconds("5m"), Some(300));
+        assert_eq!(fuzz_seconds("1h"), Some(3600));
+        assert_eq!(fuzz_seconds("2147483647"), Some(2_147_483_647));
+        assert_eq!(fuzz_seconds("2147483648"), None);
+        assert_eq!(fuzz_seconds("3000000000"), None);
+        assert_eq!(fuzz_seconds("10000000000"), None);
+        assert_eq!(fuzz_seconds("35791395m"), None);
+        assert_eq!(fuzz_seconds("+5m"), None);
+        assert_eq!(fuzz_seconds("+90"), None);
+        assert_eq!(fuzz_seconds("-5m"), None);
+        assert_eq!(fuzz_seconds("m"), None);
+        assert_eq!(fuzz_seconds("0s"), None);
     }
 
     #[test]

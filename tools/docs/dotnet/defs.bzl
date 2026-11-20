@@ -4,6 +4,8 @@ load("//third_party/dotnet:framework.bzl", "dotnet_tool_pin")
 load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
+visibility(["//..."])
+
 def _shard_impl(ctx):
     language = ctx.attr._language
     library = ctx.attr.library
@@ -38,7 +40,7 @@ _docs_csharp_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/dotnet/extract:dotnet_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_language": attr.string(default = "csharp"),
@@ -63,7 +65,7 @@ _docs_fsharp_shard = rule(
         ),
         "_extract": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/dotnet/extract:dotnet_extract"),
+            default = Label("@dx_prebuilt//:dx"),
             executable = True,
         ),
         "_language": attr.string(default = "fsharp"),

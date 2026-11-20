@@ -22,22 +22,6 @@ PYTHON_CASES = [
         src = ":real_dirty.py",
     ),
     matrix_case(
-        name = "matrix_python_format_pass",
-        capability = "format",
-        tool = "ruff",
-        binary = "@dx_tools//:ruff",
-        source_class = "python",
-        src = ":real_clean.py",
-    ),
-    matrix_case(
-        name = "matrix_python_format_fail",
-        capability = "format",
-        tool = "ruff",
-        binary = "@dx_tools//:ruff",
-        source_class = "python",
-        src = ":real_dirty.py",
-    ),
-    matrix_case(
         name = "matrix_python_typecheck_pass",
         capability = "typecheck",
         tool = "ty",

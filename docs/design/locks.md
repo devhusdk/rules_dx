@@ -116,12 +116,15 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 ## Lock step
 
 - `resolver` labels one runnable rules_dx target. dx runs `bazel run <resolver> -- --dir <set directory>`, plus `--check` to compare only.
+- A `dx_subcommand` resolver target runs `dx <lang>_lock` from the prebuilt dx, each `path_args` entry as `<flag>=<absolute path>`, so the step compiles nothing in a consumer.
 - No user BUILD file declares a lock, pin, resolve or digest target.
 - `dx generate --apply` runs the step for a set with a missing or stale lock, `dx update` to move versions, `dx check` with `--check`.
 - A dx class lock is stale when an `inputs` file has another sha256. For upstream class the resolver's frozen mode decides.
+- The `pub` and `maven` steps record the manifest's sha256 in the lock: `pubspec.lock` gets a `# dx inputs sha256: <hex>` line after pub's header comments, `maven_install.json` a top-level `"__DX_INPUTS_SHA256"` key. A matching marker is fresh without starting `dart` or `java`; a missing or different one is stale. Existing locks need one `dx generate --apply`.
+- `dx check` and `dx generate` skip a `maven_install.json` with `__INPUT_ARTIFACTS_HASH`; rules_jvm_external pins it.
 - The step runs the resolver rules_dx pins by sha256, starts no host program (see `host-tools.md`) and keeps the resolver's home, cache and config in a scratch directory.
 - The `maven` resolver runs the rules_jvm_external Maven resolver with the pinned JDK. It reads `libs.versions.toml`, writes `maven_install.json`.
-- The `pub` resolver runs `pub get` of the pinned Dart SDK on a copy of `pubspec.yaml` and `pubspec.lock` and writes `pubspec.lock`.
+- The `pub` resolver runs `pub get` of the pinned Dart SDK on a copy of `pubspec.yaml` and `pubspec.lock`, with only the pinned coreutils `chmod` on `PATH`, and writes `pubspec.lock`.
 - A step whose `inputs` match makes no network request, and a package with unchanged name, version and URLs keeps its entry.
 
 ## Imports

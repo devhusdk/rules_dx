@@ -34,7 +34,6 @@ exports_files([
     "notice_shared_inventory.txt",
     "notice_tests.bzl",
     "pins.json",
-    "repos.bzl",
     "sbom.bzl",
     "sbom_tests.bzl",
     "signing.bzl",
@@ -81,6 +80,7 @@ rust_library(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/ecosystems:dx_ecosystems",
+        "//cli/error:dx_error",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
@@ -142,6 +142,7 @@ rust_test(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/ecosystems:dx_ecosystems",
+        "//cli/error:dx_error",
         "//cli/families:dx_families",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/process:dx_process",
@@ -327,7 +328,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "deploy/private/dx_release_tools",
         normal = True,
-    ) + [":dx_release_tools"],
+    ) + [
+        ":dx_release_tools",
+        "//cli/atomic_fs:dx_atomic_fs",
+    ],
 )
 
 rust_binary(
@@ -344,6 +348,7 @@ rust_binary(
         normal = True,
     ) + [
         ":dx_release_tools",
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/process:dx_process",
     ],
@@ -463,6 +468,17 @@ matrix_unit_tests(name = "matrix_unit")
 inventory_unit_tests(name = "inventory_unit")
 
 inventory_file_tests(
+    name = "cxx_qt_inventory_test",
+    absent = [],
+    app = "@crates//:cxx-qt-gen",
+    present = ["cxx-qt-gen"],
+    texts_contain = [
+        "KDAB Group company",
+        "Apache License",
+    ],
+)
+
+inventory_file_tests(
     name = "dx_archive_inventory_test",
     absent = [],
     app = "//cli/archive:dx_archive",
@@ -484,7 +500,9 @@ inventory_file_tests(
     present = [
         "serde",
         "serde_json",
+        "starlark_syntax",
     ],
+    texts_contain = ["Source: https://github.com/facebook/starlark-rust@v0.14.2"],
 )
 
 inventory_runtime_file_tests(
@@ -732,7 +750,6 @@ real_source_target(
         "sbom_tests.bzl",
         "signing.bzl",
         "signing_tests.bzl",
-        "repos.bzl",
         "tool.bzl",
         "consumer/consumer.BUILD.bazel",
     ],

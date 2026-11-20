@@ -1,0 +1,63 @@
+Upstream: none (not yet sent upstream; rules_dx issue #13448)
+--- a/src/builtins.c
++++ b/src/builtins.c
+@@ -320,6 +320,35 @@
+ 
+ // object_id ------------------------------------------------------------------
+ 
++// While Julia writes an image, a mutable object outside any image gets its id
++// from a counter, in the order ids are first asked for, instead of from its
++// address. The image stores each mutable object's id (`jl_write_values`) and
++// the hash tables in it are laid out by those ids, so with address hashes the
++// image bytes change whenever an allocation lands elsewhere. The table holds
++// addresses, so it is only exact while nothing is freed; image builds that
++// need identical bytes run with the collector off.
++static htable_t output_object_ids;
++static jl_mutex_t output_object_ids_lock;
++static uintptr_t output_object_ids_next;
++
++static uintptr_t mutable_object_id(jl_value_t *v) JL_NOTSAFEPOINT
++{
++    uintptr_t bits = jl_astaggedvalue(v)->header;
++    if (bits & GC_IN_IMAGE)
++        return ((uintptr_t*)v)[-2];
++    if (!jl_generating_output())
++        return inthash((uintptr_t)v);
++    JL_LOCK_NOGC(&output_object_ids_lock);
++    if (output_object_ids.table == NULL)
++        htable_new(&output_object_ids, 0);
++    void **bp = ptrhash_bp(&output_object_ids, v);
++    if (*bp == HT_NOTFOUND)
++        *bp = (void*)inthash(~++output_object_ids_next);
++    uintptr_t id = (uintptr_t)*bp;
++    JL_UNLOCK_NOGC(&output_object_ids_lock);
++    return id;
++}
++
+ static uintptr_t bits_hash(const void *b, size_t sz) JL_NOTSAFEPOINT
+ {
+     switch (sz) {
+@@ -373,10 +402,7 @@
+             i++;
+             pe = pe->prev;
+         }
+-        uintptr_t bits = jl_astaggedvalue(v)->header;
+-        if (bits & GC_IN_IMAGE)
+-            return ((uintptr_t*)v)[-2];
+-        return inthash((uintptr_t)v);
++        return mutable_object_id(v);
+     }
+     if (tv == jl_uniontype_type) {
+         return bitmix(bitmix(jl_object_id((jl_value_t*)tv),
+@@ -486,10 +512,7 @@
+             jl_module_t *m = (jl_module_t*)v;
+             return m->hash;
+         }
+-        uintptr_t bits = jl_astaggedvalue(v)->header;
+-        if (bits & GC_IN_IMAGE)
+-            return ((uintptr_t*)v)[-2];
+-        return inthash((uintptr_t)v);
++        return mutable_object_id(v);
+     }
+     return immut_id_(dt, v, dt->hash);
+ }

@@ -137,7 +137,7 @@ pub fn merge_base(
         ));
     }
     let text = std::str::from_utf8(&result.stdout)
-        .map_err(|_| git_failure("merge-base", "output is not UTF-8"))?;
+        .map_err(|error| git_failure("merge-base", &format!("output is not UTF-8: {error}")))?;
     let mut lines = text.lines().map(str::trim).filter(|line| !line.is_empty());
     let base = lines
         .next()
@@ -158,10 +158,10 @@ fn parse_untracked(output: &[u8]) -> Result<Vec<dx_adopt::GitChange>, dx_error::
     }
     let mut changes = Vec::with_capacity(fields.len());
     for field in fields {
-        let path = std::str::from_utf8(field).map_err(|_| {
-            dx_error::DxError::failure(
-                "git path is not UTF-8: rename the file to a UTF-8 name".to_owned(),
-            )
+        let path = std::str::from_utf8(field).map_err(|error| {
+            dx_error::DxError::failure(format!(
+                "git path is not UTF-8 ({error}): rename the file to a UTF-8 name"
+            ))
         })?;
         if path.is_empty() {
             return Err(dx_error::DxError::failure(
@@ -277,10 +277,10 @@ fn run_git_lines(
             &git_exit_detail(&result.stderr, result.code),
         ));
     }
-    let text = std::str::from_utf8(&result.stdout).map_err(|_| {
-        dx_error::DxError::failure(
-            "git path is not UTF-8: rename the file to a UTF-8 name".to_owned(),
-        )
+    let text = std::str::from_utf8(&result.stdout).map_err(|error| {
+        dx_error::DxError::failure(format!(
+            "git path is not UTF-8 ({error}): rename the file to a UTF-8 name"
+        ))
     })?;
     let delimiter = if args.iter().any(|arg| arg == "-z") {
         '\0'
@@ -618,7 +618,7 @@ pub(crate) fn show_at_base(
     }
     String::from_utf8(result.stdout)
         .map(Some)
-        .map_err(|_| git_failure("show", "output is not UTF-8"))
+        .map_err(|error| git_failure("show", &format!("output is not UTF-8: {error}")))
 }
 
 fn lock_change(
@@ -628,8 +628,8 @@ fn lock_change(
     runner: &dyn QueryRunner,
     base: Option<(&Path, &str)>,
 ) -> Result<Vec<(String, LockChange)>, dx_error::DxError> {
-    let kind = lock_inputs::classify(path, hubs);
     let workspace_input = || dx_error::DxError::failure(format!("workspace input {path}"));
+    let kind = lock_inputs::classify(path, hubs);
     if kind == LockKind::Unknown {
         return Err(workspace_input());
     }
@@ -676,7 +676,8 @@ fn module_text(
     base: (&Path, &str),
 ) -> Result<(String, String), dx_error::DxError> {
     let workspace_input = || dx_error::DxError::failure(format!("workspace input {path}"));
-    let head = std::fs::read_to_string(workspace.join(path)).map_err(|_| workspace_input())?;
+    let head = std::fs::read_to_string(workspace.join(path))
+        .map_err(|error| dx_error::DxError::failure(format!("workspace input {path}: {error}")))?;
     if !changed {
         return Ok((head.clone(), head));
     }
@@ -720,12 +721,15 @@ fn module_change(
         });
     }
     let read_include = |label: &str| {
-        dx_module_bazel::label_path(label)
-            .and_then(|rel| std::fs::read_to_string(workspace.join(&rel)).map_err(|_| rel))
-            .map_err(|_| format!("workspace input {label}"))
+        let rel = dx_module_bazel::label_path(label)
+            .map_err(|error| format!("workspace input {label}: {error}"))?;
+        std::fs::read_to_string(workspace.join(&rel))
+            .map_err(|error| format!("workspace input {label}: {error}"))
     };
-    let files = dx_module_bazel::load_with_includes(&head_module, &read_include)
-        .map_err(|_| dx_error::DxError::failure(format!("workspace input {ROOT_MODULE}")))?;
+    let files =
+        dx_module_bazel::load_with_includes(&head_module, &read_include).map_err(|error| {
+            dx_error::DxError::failure(format!("workspace input {ROOT_MODULE}: {error}"))
+        })?;
     if let Some(reason) = module_inputs::overrides_that_widen(&files) {
         return Err(dx_error::DxError::failure(reason));
     }

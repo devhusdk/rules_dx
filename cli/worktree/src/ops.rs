@@ -1,5 +1,4 @@
 use std::ffi::OsStr;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -742,7 +741,7 @@ fn lease_once(
                 describe_holder(pool, host, record)
             );
             if let Hold::Waiting(reason) = held {
-                write!(message, "; {reason}").ok();
+                message.push_str(&format!("; {reason}"));
             }
             message.push_str("; pick another branch or pass --force to take it over");
             return Err(WorktreeError::refused("branch_held", &message).into());
@@ -819,7 +818,7 @@ fn lease_once(
     if let Some(dropped) = make_room(pool, host, branch, reuse)? {
         match &mut reclaim_warning {
             Some(warning) => {
-                write!(warning.message, "; {dropped}").ok();
+                warning.message.push_str(&format!("; {dropped}"));
             }
             None => {
                 reclaim_warning = Some(Warning {
@@ -2290,24 +2289,20 @@ fn reclaim_host_wide(
     }
     let reclaimed = !removed.is_empty();
     if reclaimed {
-        write!(
-            message,
+        message.push_str(&format!(
             "; removed {}; {} free now",
             removed.join(" and "),
             size(after.free)
-        )
-        .ok();
+        ));
     } else {
         message.push_str("; nothing to reclaim");
     }
     if !kept.is_empty() {
         let numbers: Vec<String> = kept.iter().map(u32::to_string).collect();
-        write!(
-            message,
+        message.push_str(&format!(
             "; kept the output bases of free slot(s) {} (server would not stop)",
             numbers.join(", ")
-        )
-        .ok();
+        ));
     }
     if is_low(after) {
         message.push_str("; run dx worktree prune --apply");

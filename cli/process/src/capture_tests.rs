@@ -9,6 +9,7 @@ fn probe(flags: &[&str]) -> Command {
 
 #[test]
 fn captures_both_streams_and_the_exit_code() {
+    let _fork = dx_testing::forking();
     let captured = run_captured(
         &mut probe(&["--stdout-text=out", "--stderr-text=err", "--exit-code=3"]),
         Duration::from_secs(30),
@@ -22,6 +23,7 @@ fn captures_both_streams_and_the_exit_code() {
 
 #[test]
 fn checked_run_reports_stderr_of_a_failure() {
+    let _fork = dx_testing::forking();
     let error = run_checked(
         &mut probe(&["--stderr-text=  boom\n", "--exit-code=2"]),
         Duration::from_secs(30),
@@ -34,6 +36,7 @@ fn checked_run_reports_stderr_of_a_failure() {
 
 #[test]
 fn a_failure_without_stderr_names_the_exit_code() {
+    let _fork = dx_testing::forking();
     let error = run_checked(&mut probe(&["--exit-code=4"]), Duration::from_secs(30))
         .expect_err("non-zero exit fails");
     assert!(error.to_string().ends_with("failed with exit 4"), "{error}");
@@ -41,6 +44,7 @@ fn a_failure_without_stderr_names_the_exit_code() {
 
 #[test]
 fn checked_run_returns_output_of_a_success() {
+    let _fork = dx_testing::forking();
     let captured = run_checked(&mut probe(&["--stdout-text=ok"]), Duration::from_secs(30))
         .expect("zero exit passes");
     assert_eq!(captured.stdout_text(), "ok");
@@ -48,6 +52,7 @@ fn checked_run_returns_output_of_a_success() {
 
 #[test]
 fn a_sleeping_child_times_out_and_is_stopped() {
+    let _fork = dx_testing::forking();
     let started = Instant::now();
     let error = run_captured(
         &mut probe(&["--sleep-ms=60000"]),
@@ -55,12 +60,16 @@ fn a_sleeping_child_times_out_and_is_stopped() {
     )
     .expect_err("a sleeping child must time out");
     assert!(matches!(error, RunError::TimedOut { .. }), "{error}");
-    assert!(error.to_string().contains("timed out after 0s"), "{error}");
+    assert!(
+        error.to_string().contains("timed out after 300ms"),
+        "{error}"
+    );
     assert!(started.elapsed() < Duration::from_secs(30));
 }
 
 #[test]
 fn a_missing_program_is_a_spawn_error() {
+    let _fork = dx_testing::forking();
     let error = run_captured(
         &mut Command::new("/nonexistent-dx-program"),
         Duration::from_secs(5),
@@ -99,6 +108,7 @@ fn plain_git_leaves_the_environment_alone() {
 
 #[test]
 fn git_runs_in_the_given_directory() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-process-git-").unwrap();
     let mut command = git(scratch.path());
     command.args(["init", "-q"]);
@@ -109,6 +119,7 @@ fn git_runs_in_the_given_directory() {
 
 #[test]
 fn input_reaches_stdin_of_the_child() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-process-input-").unwrap();
     let mut init = git(scratch.path());
     init.args(["init", "-q"]);
@@ -129,6 +140,7 @@ fn input_reaches_stdin_of_the_child() {
 
 #[test]
 fn a_foreground_child_still_times_out_and_is_stopped() {
+    let _fork = dx_testing::forking();
     let started = Instant::now();
     let error = run_captured_with(
         &mut probe(&["--sleep-ms=60000"]),
@@ -146,6 +158,7 @@ fn a_foreground_child_still_times_out_and_is_stopped() {
 
 #[test]
 fn output_is_unbounded_unless_a_cap_is_set() {
+    let _fork = dx_testing::forking();
     let captured = run_captured(
         &mut probe(&["--stdout-bytes=70000"]),
         Duration::from_secs(60),

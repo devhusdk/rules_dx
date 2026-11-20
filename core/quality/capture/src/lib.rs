@@ -1,6 +1,10 @@
 //! Runs one program with its streams redirected to files and its exit code recorded.
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::fs::File;
 use std::path::{Path, PathBuf};

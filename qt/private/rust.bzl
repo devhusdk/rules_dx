@@ -1,7 +1,7 @@
 """Rust crates with CXX-Qt bridges for Qt Quick applications."""
 
 load("//rust:defs.bzl", "rust_static_library")
-load(":defs.bzl", "QT_COMPATIBLE_WITH", "QT_REPOSITORY", "qt_rust_cc_library")
+load(":defs.bzl", "QT_COMPATIBLE_WITH", "qt_rust_cc_library")
 
 _CXX_CRATE = Label("//qt/private/tools/rust:cxx")
 
@@ -25,11 +25,11 @@ def qt_rust_library(
         qml_srcs = [],
         qml_depends = [],
         modules = None,
-        qt = QT_REPOSITORY,
+        qt = None,
         copts = [],
         visibility = None,
         **kwargs):
-    """Declares a Rust crate with CXX-Qt bridges and the Qt C++ library they generate."""
+    """Declares a Rust crate with CXX-Qt bridges and the Qt C++ library they generate. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
     srcs = srcs or []
     crate_features = crate_features or []
     deps = deps or []

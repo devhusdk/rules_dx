@@ -1,7 +1,7 @@
 """PowerShell toolchain hub tests."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
-load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load("//core:toolchain.bzl", "cell_repo", "hub_checks", "pins_hub")
 
 def _checks():

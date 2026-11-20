@@ -33,17 +33,16 @@ fn check_change(change: &ChangeEvent) -> Result<(), OutputError> {
             let digest = change
                 .source_digest
                 .as_deref()
-                .ok_or(OutputError::BadDigest {
+                .ok_or(OutputError::EmptyField {
                     field: "source_digest",
-                    value: String::new(),
                 })?;
             parse_digest("source_digest", digest)?;
         }
         ChangeKind::Create => {
-            if change.source_digest.is_some() {
-                return Err(OutputError::BadDigest {
-                    field: "source_digest",
-                    value: change.source_digest.clone().unwrap_or_default(),
+            if let Some(digest) = &change.source_digest {
+                return Err(OutputError::BadValue {
+                    field: "create source_digest",
+                    value: digest.clone(),
                 });
             }
             if !matches!(change.edits.as_slice(), [edit] if edit.start == 0 && edit.end == 0) {
@@ -293,6 +292,29 @@ mod tests {
         assert_eq!(event["edit_count"], Value::from(0));
         assert_eq!(event["effect"], Value::from("refused"));
         assert_eq!(event["reason"], Value::from("conflicting_candidates"));
+    }
+
+    #[test]
+    fn digest_errors_say_missing_or_unexpected() {
+        let mut no_digest = modify();
+        no_digest.source_digest = None;
+        assert_eq!(
+            change_event(&no_digest, ChangeEffect::Proposed, None, false)
+                .expect_err("modify needs a digest"),
+            OutputError::EmptyField {
+                field: "source_digest"
+            }
+        );
+        let mut create_digest = create();
+        create_digest.source_digest = Some(DIGEST.to_owned());
+        assert_eq!(
+            change_event(&create_digest, ChangeEffect::Proposed, None, false)
+                .expect_err("create takes no digest"),
+            OutputError::BadValue {
+                field: "create source_digest",
+                value: DIGEST.to_owned(),
+            }
+        );
     }
 
     #[test]

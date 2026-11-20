@@ -3,6 +3,11 @@
 //! The binary comes from the `DX_TEST_BINARY` runfiles key. Its tests are listed with
 //! `--list --format terse`; the shard keeps the tests whose index `i` satisfies
 //! `i % TEST_TOTAL_SHARDS == TEST_SHARD_INDEX` and runs them with `--exact`.
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
 use std::env;
 use std::ffi::OsString;
@@ -59,7 +64,8 @@ fn run() -> Result<ExitCode, String> {
 }
 
 fn test_binary() -> Result<PathBuf, String> {
-    let key = env::var("DX_TEST_BINARY").map_err(|_| "DX_TEST_BINARY is not set".to_owned())?;
+    let key = env::var("DX_TEST_BINARY")
+        .map_err(|error| format!("DX_TEST_BINARY is not set: {error}"))?;
     let runfiles =
         runfiles::Runfiles::create().map_err(|e| format!("cannot open runfiles: {e}"))?;
     runfiles
@@ -99,10 +105,10 @@ impl Shard {
         };
         let index: usize = index
             .parse()
-            .map_err(|_| format!("TEST_SHARD_INDEX={index} is not a number"))?;
+            .map_err(|error| format!("TEST_SHARD_INDEX={index} is not a number: {error}"))?;
         let total: usize = total
             .parse()
-            .map_err(|_| format!("TEST_TOTAL_SHARDS={total} is not a number"))?;
+            .map_err(|error| format!("TEST_TOTAL_SHARDS={total} is not a number: {error}"))?;
         if index >= total {
             return Err(format!(
                 "TEST_SHARD_INDEX={index} is not below TEST_TOTAL_SHARDS={total}"

@@ -1,5 +1,6 @@
+load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//apple:__subpackages__"])
 
@@ -30,6 +31,8 @@ rust_library(
     }),
     visibility = [
         "//apple:__subpackages__",
+        "//cli/cli:__pkg__",
+        "//cli/runtime:__pkg__",
         "//flutter/tests/fixtures/flutter_app:__pkg__",
     ],
     deps = [
@@ -42,32 +45,24 @@ rust_library(
     ],
 )
 
-# keep
-rust_binary(
-    name = "apple_ops",
-    srcs = ["src/main.rs"],
-    crate_root = "src/main.rs",
-    visibility = [
-        "//apple:__subpackages__",
-        "//swift/private/tools:__pkg__",
-    ],
-    deps = [":ops"],
-)
-
-# keep
-rust_binary(
+dx_subcommand(
     name = "create_test_simulator",
-    srcs = ["src/create_test_simulator.rs"],
-    crate_root = "src/create_test_simulator.rs",
-    deps = [":ops"],
+    subcommand = "apple_ops",
+    subcommand_args = ["create-test-simulator"],
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
 
-# keep
-rust_binary(
+dx_subcommand(
     name = "delete_test_simulator",
-    srcs = ["src/delete_test_simulator.rs"],
-    crate_root = "src/delete_test_simulator.rs",
-    deps = [":ops"],
+    subcommand = "apple_ops",
+    subcommand_args = ["delete-test-simulator"],
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
 
 # keep
@@ -231,7 +226,6 @@ exports_files(
     [
         "src/app_check.rs",
         "src/lib.rs",
-        "src/main.rs",
         "src/xcframework_check.rs",
     ],
     visibility = ["//:__subpackages__"],
@@ -251,4 +245,10 @@ rust_test(
         "//cli/archive:dx_archive_testing",
         "//cli/test_scratch:dx_test_scratch",
     ],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
 )

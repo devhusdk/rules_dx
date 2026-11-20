@@ -29,4 +29,10 @@
 // only while a deps call names external crates. A package with the directive
 // but no BUILD file is an error. Moving a package from one non-default hub to
 // another leaves the old hub's load in place; delete it by hand.
+//
+// Built-in crates: an import no Cargo scope declares and no local crate or
+// resolve directive answers takes a built-in label. runfiles resolves to
+// @rules_rust//rust/runfiles. When the root MODULE.bazel has a bazel_dep on
+// rules_rust_prost, prost, prost_types and tonic resolve to
+// @rules_dx//rust:<crate>, under the apparent name of rules_dx.
 package rust

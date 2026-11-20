@@ -1,0 +1,58 @@
+# gazelle:exclude greet.rs
+# gazelle:exclude main.m
+load("//apple:defs.bzl", "apple_macos_app")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_static_library")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rust_static_library(
+    name = "greet",
+    srcs = ["greet.rs"],
+    edition = "2024",
+    tags = ["manual"],
+    target_compatible_with = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:macos",
+    ],
+)
+
+apple_macos_app(
+    name = "conformance",
+    srcs = ["main.m"],
+    bundle_id = "com.example.dxconformance",
+    library = ":greet",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "hello world",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "apple",
+    not_applicable = {
+        "coverage_test": "apple_ios_app_test runs in the iOS Simulator, not on the host",
+        "cross_test": "apple lists one platform, macos_arm64",
+        "fail_test": "apple_ios_app_test runs in the iOS Simulator, not on the host",
+        "lock_test": "apple has no lockfile",
+        "pass_test": "apple_ios_app_test runs in the iOS Simulator, not on the host",
+        "runfiles_test": "a macOS app reads bundled resources, not runfiles",
+    },
+    passing_test = ":conformance",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

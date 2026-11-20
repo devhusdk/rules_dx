@@ -62,7 +62,7 @@ Read [Scope defaults](scope-defaults.md) for details.
 ## Phases
 
 - Every phase runs, even after an earlier phase reports findings. The run still exits nonzero.
-- `generate` compares each `<ecosystem>.lock.json` lock in a package the scope reaches with its manifest. A stale lock prints `dx: lock of <set> is stale; run dx generate --apply` and fails the run.
+- `generate` compares each lock that a rules_dx lock step writes in a package the scope reaches with its manifest, offline: `<ecosystem>.lock.json`, `pubspec.lock` and a dx-written `maven_install.json`. A `maven_install.json` that rules_jvm_external pins is skipped. A `pubspec.lock` or `maven_install.json` without the dx marker is stale until one `dx generate --apply`. A stale lock prints `dx: lock of <set> is stale; run dx generate --apply` and fails the run.
 - Without `--apply`, `format`, `lint` and `typecheck` share one Bazel build. Each phase still reports only its own findings and exit code.
 - The run stops when the scope is bad, `generate` fails, Bazel cannot run, or you cancel.
 - With `--apply`, the run also stops when a phase fails to compile. The remaining phases are skipped.
@@ -100,7 +100,9 @@ Outside a Git checkout, this check is skipped.
 
 ## Output
 
-Text prints `N file(s) need changes. Apply them with: dx check --apply ...` when a phase finds changes. It ends with `dx: <total> actions, <executed> executed, <cached> cached` on stderr.
+Text prints one line per finding, such as `src/lib.rs:12:5: warning: indexing may panic [clippy/clippy::indexing_slicing]`: the path, line, column, severity, message, and `[tool/rule]`. Coding agents get JSON by default; pass `--output text` to see these lines.
+
+Text also prints `N file(s) need changes. Apply them with: dx check --apply ...` when a phase finds changes. It ends with `dx: <total> actions, <executed> executed, <cached> cached` on stderr.
 
 JSON has one `command_started` and one `command_finished` event. Each phase sits between `phase_started` and `phase_finished`. Its events carry `phase` and a `correlation` such as `check/format`. The verify phases after `--apply` use `verify/<phase>`. JSON streams events while the command runs.
 

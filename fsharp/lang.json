@@ -14,6 +14,9 @@
   "lockfiles": [
     "paket.lock"
   ],
+  "commands": {
+    "dotnet_tool": "@rules_dx//fsharp/private/ide:dotnet_tool"
+  },
   "tools": [
     "fantomas",
     "fsc",
@@ -32,6 +35,18 @@
     "fsharp_binary",
     "fsharp_test",
     "fsharp_bench",
-    "fsharp_fuzz_test"
-  ]
+    "fsharp_fuzz_test",
+    "fsharp_doc_shard"
+  ],
+  "quality": {
+    "bzl": "dotnet/private/quality:dotnet.bzl",
+    "classes": [
+      "fsharp"
+    ],
+    "file_extensions": [
+      ".fs",
+      ".fsproj",
+      ".fsx"
+    ]
+  }
 }

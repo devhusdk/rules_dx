@@ -11,6 +11,11 @@ exports_files([
     "verify_test.rs",
 ])
 
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/api:__pkg__"],
+)
+
 platform(
     name = "linux_amd64",
     constraint_values = [
@@ -44,11 +49,11 @@ rust_binary(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = glob(["*.bzl"]) + [
         "BUILD.bazel",
         "Cargo.toml",
-    ]) + ["//deploy/private:module_srcs"],
+        "//deploy/private:module_srcs",
+    ],
     visibility = ["//:__subpackages__"],
 )
 

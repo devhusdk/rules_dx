@@ -152,10 +152,11 @@ _macos_cell = rule(
             default = "",
         ),
         "_arm64": attr.label(default = "@platforms//cpu:arm64"),
-        "_check": attr.label(
-            default = Label("//apple/private/tools/ops:apple_ops"),
+        "_dx": attr.label(
+            default = Label("@dx_prebuilt//:dx"),
             cfg = "exec",
             executable = True,
+            doc = "dx, whose apple_ops subcommand runs the check.",
         ),
         "_macos": attr.label(default = "@platforms//os:macos"),
         "_x86_64": attr.label(default = "@platforms//cpu:x86_64"),
@@ -209,6 +210,7 @@ def _macos_app_check_impl(ctx):
     identity = ctx.actions.declare_file(ctx.label.name + ".app.identity.json")
     zipped = ctx.actions.declare_file(ctx.label.name + ".zip")
     args = ctx.actions.args()
+    args.add("apple_ops")
     args.add("macos-app-check")
     args.add(identity)
     args.add(zipped)
@@ -230,7 +232,7 @@ def _macos_app_check_impl(ctx):
     env = {"PATH": NO_PATH}
     env.update(apple_common.apple_host_system_env(xcode_config))
     ctx.actions.run(
-        executable = ctx.executable._check,
+        executable = ctx.executable._dx,
         arguments = [args],
         inputs = [info.archive],
         outputs = [identity, zipped],
@@ -241,7 +243,8 @@ def _macos_app_check_impl(ctx):
         progress_message = "Checking the macOS app bundle of %{label}",
     )
     launcher, _, launcher_runfiles = write_native_launcher(ctx, "\n".join([
-        "program=" + rlocation_path(ctx, ctx.executable._ops),
+        "program=" + rlocation_path(ctx, ctx.executable._runtime),
+        "env=DX_RUNTIME_TOOL\tapple_ops",
         "arg=run-macos-app",
         "path=" + rlocation_path(ctx, zipped),
     ]) + "\n")
@@ -259,7 +262,7 @@ def _macos_app_check_impl(ctx):
             executable = launcher,
             runfiles = launcher_runfiles.merge_all([
                 ctx.runfiles(files = [zipped]),
-                ctx.attr._ops[0][DefaultInfo].default_runfiles,
+                ctx.attr._runtime[0][DefaultInfo].default_runfiles,
             ]),
         ),
         info,
@@ -306,15 +309,17 @@ _macos_app_check = rule(
         "resources": attr.label_list(doc = "Resource files the bundle must hold.", allow_files = True),
         "version": attr.string(doc = "Bundle version string of the app.", mandatory = True),
         "xcode_version": attr.string(doc = "Xcode version the app build is pinned to.", mandatory = True),
-        "_check": attr.label(
-            default = Label("//apple/private/tools/ops:apple_ops"),
+        "_dx": attr.label(
+            default = Label("@dx_prebuilt//:dx"),
             cfg = "exec",
             executable = True,
+            doc = "dx, whose apple_ops subcommand runs the check.",
         ),
-        "_ops": attr.label(
-            default = Label("//apple/private/tools/ops:apple_ops"),
+        "_runtime": attr.label(
+            default = Label("@dx_prebuilt//:runtime"),
             executable = True,
             cfg = no_coverage_transition,
+            doc = "dx-runtime, whose apple_ops helper runs the operation.",
         ),
         "_xcode_config": attr.label(
             default = configuration_field(

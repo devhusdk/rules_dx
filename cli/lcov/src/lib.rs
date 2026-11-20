@@ -1,8 +1,10 @@
 #![deny(
     clippy::indexing_slicing,
+    clippy::map_err_ignore,
     clippy::print_stderr,
     clippy::print_stdout,
-    clippy::string_slice
+    clippy::string_slice,
+    clippy::unused_result_ok
 )]
 
 // LCOV_EXCL_START - reason: re-export only, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
@@ -12,8 +14,11 @@ pub mod changed;
 mod clover;
 mod cobertura;
 pub mod ignores;
+mod keep;
 mod lang;
 pub mod parse;
+mod sancov;
+pub mod to_lcov;
 mod xml;
 
 pub use accounting::{
@@ -27,8 +32,10 @@ pub use changed::{
 pub use clover::clover_to_lcov;
 pub use cobertura::cobertura_to_lcov;
 pub use ignores::{Ignores, find_ignores, is_ignored};
+pub use keep::keep_sources;
 pub use lang::is_covered_language;
 pub use parse::{FileHits, merge_lcov_reports, parse_lcov, validate_lcov_report};
+pub use sancov::sancov_to_lcov;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LcovError {

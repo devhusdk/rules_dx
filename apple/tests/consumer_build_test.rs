@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use dx_nested::compose::{
-    rules_flutter_archive_override, rules_py_override, write_root_patch_override,
+    rules_flutter_override, rules_py_override, write_root_patch_override,
     write_root_patch_overrides, write_rules_py_patches,
 };
 
@@ -73,7 +73,7 @@ fn one_macro_call_builds_each_app_with_no_flag() {
             "{}{}{}",
             module_body(module),
             rules_py_override(),
-            rules_flutter_archive_override().unwrap_or_else(|error| panic!("{error}")),
+            rules_flutter_override().unwrap_or_else(|error| panic!("{error}")),
         ),
     )
     .unwrap_or_else(|error| panic!("{error}"));

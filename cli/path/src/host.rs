@@ -6,7 +6,8 @@ pub const EXECUTABLE_SUFFIXES: &[&str] = &[".exe", ".bat", ".cmd", ".com"];
 /// Names Windows reserves for devices.
 pub const RESERVED_STEMS: &[&str] = &[
     "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
-    "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9", "com¹", "com²",
+    "com³", "lpt¹", "lpt²", "lpt³",
 ];
 
 /// Maps one logical tool name to its filename on the named platform.
@@ -33,7 +34,7 @@ pub fn executable_suffix(name: &str) -> Option<&'static str> {
 #[must_use]
 pub fn is_reserved_device(name: &str) -> bool {
     let stem = name
-        .split('.')
+        .split(['.', ':'])
         .next()
         .unwrap_or(name)
         .trim_end_matches(' ')
@@ -76,5 +77,22 @@ mod tests {
         }
         assert!(!is_reserved_device(" nul"));
         assert!(!is_reserved_device(""));
+    }
+
+    #[test]
+    fn a_superscript_port_or_a_stream_suffix_is_still_a_device() {
+        for name in [
+            "COM¹",
+            "com².txt",
+            "LPT³",
+            "lpt¹.log",
+            "nul:",
+            "CON:stream",
+            "aux :x",
+        ] {
+            assert!(is_reserved_device(name), "{name:?}");
+        }
+        assert!(!is_reserved_device("com⁴"));
+        assert!(!is_reserved_device("console:x"));
     }
 }

@@ -1,8 +1,9 @@
 Upstream: periareon/rules_julia#52
-diff -ruN a/julia/private/julia.bzl b/julia/private/julia.bzl
+diff --git a/julia/private/julia.bzl b/julia/private/julia.bzl
+index a83d9c4..9d66a52 100644
 --- a/julia/private/julia.bzl
 +++ b/julia/private/julia.bzl
-@@ -78,12 +78,14 @@
+@@ -89,12 +89,14 @@ def _is_precompilable(ctx, layout):
      Returns:
          bool: True if precompilation is enabled, the library has a package
              entry point, and the toolchain supports relocatable
@@ -19,10 +20,11 @@ diff -ruN a/julia/private/julia.bzl b/julia/private/julia.bzl
      )
  
  julia_library = rule(
-diff -ruN a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
+diff --git a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
+index decff04..ffb7376 100644
 --- a/julia/private/julia_common.bzl
 +++ b/julia/private/julia_common.bzl
-@@ -403,7 +403,7 @@
+@@ -437,7 +437,7 @@ def _create_julia_wrapper(ctx, main_file, config, toolchain_info, sysimage = Non
          args.add(new)
      _run_driver(
          ctx,
@@ -31,7 +33,7 @@ diff -ruN a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
          driver = ctx.file._wrapper_maker,
          arguments = args,
          inputs = depset([template_file]),
-@@ -538,6 +538,17 @@
+@@ -573,6 +573,17 @@ def _write_runfiles_manifest(ctx, name, files):
      ctx.actions.write(output = manifest, content = args)
      return manifest
  
@@ -49,7 +51,7 @@ diff -ruN a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
  def _run_driver(
          ctx,
          *,
-@@ -627,7 +638,7 @@
+@@ -661,7 +672,7 @@ def _precompile(ctx, *, name, includes, runfiles, dep_depots, toolchain_info, ar
  
      _run_driver(
          ctx,
@@ -58,7 +60,7 @@ diff -ruN a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
          driver = ctx.file._precompiler,
          arguments = args,
          inputs = depset([config, manifest], transitive = [runfiles.files]),
-@@ -640,6 +651,11 @@
+@@ -674,6 +685,11 @@ def _precompile(ctx, *, name, includes, runfiles, dep_depots, toolchain_info, ar
  
  # Attributes every rule using the build-time drivers needs.
  DRIVER_ATTRS = {
@@ -67,12 +69,12 @@ diff -ruN a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
 +        cfg = "exec",
 +        providers = [platform_common.ToolchainInfo],
 +    ),
-     "package_name": attr.string(
-         doc = "Package name; picks the `<package_name>.jl` entry. Defaults to the target name.",
-     ),
-@@ -676,6 +692,7 @@
-     collect_artifact_depots = _collect_artifact_depots,
+     "_rules_julia_common": attr.label(
+         default = Label("//julia/private:rules_julia_common.jl"),
+         allow_single_file = True,
+@@ -708,6 +724,7 @@ julia_common = struct(
      package_layout = _package_layout,
+     package_name = _package_name,
      precompile = _precompile,
 +    exec_toolchain = _exec_toolchain,
      run_driver = _run_driver,

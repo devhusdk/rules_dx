@@ -127,6 +127,8 @@ LDC_CROSS_CELLS = {
     "linux_arm64_to_linux_x86_64": struct(host = "linux_arm64", target = "linux_x86_64", triple = "x86_64-linux-gnu"),
     "linux_x86_64_to_linux_arm64": struct(host = "linux_x86_64", target = "linux_arm64", triple = "aarch64-linux-gnu"),
     "macos_arm64_to_linux_arm64": struct(host = "macos_arm64", target = "linux_arm64", triple = "aarch64-linux-gnu"),
+    "windows_arm64_to_windows_x86_64": struct(host = "windows_arm64", target = "windows_x86_64", triple = "x86_64-windows-msvc"),
+    "windows_x86_64_to_windows_arm64": struct(host = "windows_x86_64", target = "windows_arm64", triple = "aarch64-windows-msvc"),
 }
 
 LIBDPARSE_VERSION = _ARCHIVES["dx_d_libdparse"]["version"]

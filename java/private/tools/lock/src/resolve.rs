@@ -1,7 +1,12 @@
 //! Runs the `rules_jvm_external` Maven resolver on a version catalog with the pinned JDK.
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use dx_lock::{RESOLVER_TIMEOUT, Scratch};
 use serde_json::{Value, json};
@@ -12,39 +17,6 @@ pub struct Tools {
     pub java: PathBuf,
     /// The resolver deploy jar.
     pub jar: PathBuf,
-}
-
-impl Tools {
-    /// Reads `DX_MAVEN_JAVA` and `DX_MAVEN_RESOLVER` as runfiles paths.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
-    pub fn from_env() -> Result<Self, String> {
-        Ok(Tools {
-            java: runfile("DX_MAVEN_JAVA")?,
-            jar: runfile("DX_MAVEN_RESOLVER")?,
-        })
-    }
-}
-
-fn runfile(var: &str) -> Result<PathBuf, String> {
-    let value = std::env::var(var).map_err(|_| format!("{var} is not set"))?;
-    let relative = value.strip_prefix("../").unwrap_or(&value);
-    let root = match std::env::var_os("RUNFILES_DIR") {
-        Some(root) => PathBuf::from(root),
-        None => std::env::current_dir()
-            .map_err(|error| error.to_string())?
-            .parent()
-            .map(Path::to_path_buf)
-            .ok_or_else(|| "no runfiles directory".to_owned())?,
-    };
-    let path = root.join(relative);
-    if path.exists() {
-        Ok(path)
-    } else {
-        Err(format!("{var}: {} does not exist", path.display()))
-    }
 }
 
 /// One lock step for one dependency set.
@@ -210,7 +182,18 @@ pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String>
     serde_json::to_string_pretty(&config).map_err(|error| error.to_string())
 }
 
-/// Resolves the set's manifest and writes, or with `check` compares, its lock.
+/// The top-level lock key that records the sha256 of the manifest the lock was resolved from.
+pub const MARKER: &str = "__DX_INPUTS_SHA256";
+
+fn recorded(lock: &[u8]) -> Option<String> {
+    let parsed: Value = serde_json::from_slice(lock).ok()?;
+    parsed.get(MARKER)?.as_str().map(str::to_owned)
+}
+
+/// Resolves the set's manifest and writes, or with `check` compares the lock's marker to the
+/// manifest.
+///
+/// A lock whose marker matches the manifest digest is fresh without running the resolver.
 ///
 /// # Errors
 ///
@@ -219,19 +202,25 @@ pub fn lock(tools: &Tools, request: &Request) -> Result<Outcome, String> {
     let manifest_path = request.dir.join(&request.manifest);
     let manifest = std::fs::read_to_string(&manifest_path)
         .map_err(|error| format!("{}: {error}", manifest_path.display()))?;
-    let config = config(&manifest, &request.repositories)?;
-    let resolved = resolve(tools, &config)?;
+    let digest = dx_digest::sha256_hex(manifest.as_bytes());
     let lock_path = request.dir.join(&request.lock);
     let current = std::fs::read(&lock_path).ok();
-    if current.as_deref() == Some(resolved.as_slice()) {
-        Ok(Outcome::Fresh)
-    } else if request.check {
-        Ok(Outcome::Stale)
-    } else {
-        std::fs::write(&lock_path, &resolved)
-            .map_err(|error| format!("{}: {error}", lock_path.display()))?;
-        Ok(Outcome::Written)
+    if current.as_deref().and_then(recorded).as_deref() == Some(digest.as_str()) {
+        return Ok(Outcome::Fresh);
     }
+    if request.check {
+        return Ok(Outcome::Stale);
+    }
+    let config = config(&manifest, &request.repositories)?;
+    let resolved = resolve(tools, &config)?;
+    let Some(body) = resolved.strip_prefix(b"{\n") else {
+        return Err("the maven resolver output does not start with {".to_owned());
+    };
+    let mut marked = format!("{{\n  \"{MARKER}\": \"{digest}\",\n").into_bytes();
+    marked.extend_from_slice(body);
+    std::fs::write(&lock_path, &marked)
+        .map_err(|error| format!("{}: {error}", lock_path.display()))?;
+    Ok(Outcome::Written)
 }
 
 fn resolve(tools: &Tools, config: &str) -> Result<Vec<u8>, String> {
@@ -254,4 +243,57 @@ fn resolve(tools: &Tools, config: &str) -> Result<Vec<u8>, String> {
     Scratch::run(&mut command, RESOLVER_TIMEOUT)
         .map_err(|error| format!("the maven resolver failed: {error}"))?;
     std::fs::read(&output).map_err(|error| format!("{}: {error}", output.display()))
+}
+
+fn parse(args: &[String]) -> Result<(Tools, dx_lock::Args), dx_lock::Error> {
+    let (paths, rest) = dx_lock::tool_paths(args, &["--java", "--resolver-jar"])?;
+    let mut paths = paths.into_iter();
+    let (Some(java), Some(jar)) = (paths.next(), paths.next()) else {
+        return Err(dx_lock::Error::new(
+            "--java and --resolver-jar are required",
+        ));
+    };
+    let args = dx_lock::Args::parse(rest)?;
+    if !args.upgrade.is_empty() {
+        return Err(dx_lock::Error::new(
+            "--upgrade is not supported: the maven lock step resolves the versions the version catalog names; edit the catalog instead",
+        ));
+    }
+    Ok((Tools { java, jar }, args))
+}
+
+/// Runs the lock step on `args`, the arguments after the subcommand name:
+/// `--java=<path> --resolver-jar=<path> --dir <set directory> [--check]`.
+/// Returns 0 when the lock is fresh or written, 1 when stale or the resolver fails, 2 on bad
+/// arguments.
+pub fn run_process(args: &[String]) -> i32 {
+    let (tools, args) = match parse(args) {
+        Ok(parsed) => parsed,
+        Err(error) => {
+            eprintln!("java_lock: {error}");
+            return 2;
+        }
+    };
+    let Some(hub) = dx_families::hub("maven") else {
+        eprintln!("maven has no registry entry");
+        return 2;
+    };
+    let request = Request {
+        dir: args.dir,
+        manifest: hub.manifest.clone(),
+        lock: hub.lock.clone().unwrap_or_default(),
+        repositories: Vec::new(),
+        check: args.check,
+    };
+    match lock(&tools, &request) {
+        Ok(Outcome::Fresh | Outcome::Written) => 0,
+        Ok(Outcome::Stale) => {
+            eprintln!("{} is stale; run dx generate --apply", request.lock);
+            1
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            1
+        }
+    }
 }

@@ -55,8 +55,9 @@ _qt_bundle_runtime = rule(
     },
 )
 
-def qt_bundle_runtime(name, bundle, qt = QT_REPOSITORY, **kwargs):
-    """Declares the Qt DLLs of a qt_bundle and a qt.conf as one consumer_archive runtime."""
+def qt_bundle_runtime(name, bundle, qt = None, **kwargs):
+    """Declares the Qt DLLs of a qt_bundle and a qt.conf as one consumer_archive runtime. `qt` is the Qt SDK repository, such as `"@my_qt"`. `None` uses the Qt SDK rules_dx pins."""
+    qt = qt or QT_REPOSITORY
     compatible = kwargs.pop("target_compatible_with", None)
     _qt_bundle_runtime(
         name = name,

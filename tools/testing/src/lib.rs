@@ -1,8 +1,17 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "runs local tools that exit on their own"
+)]
 
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+pub mod allowlist;
 pub mod cli;
 pub mod exec_log;
 pub mod fatbin;
@@ -654,22 +663,144 @@ pub fn alive_lock_held(lock: &Path) -> bool {
     }
 }
 
-static FORK_GUARD: std::sync::RwLock<()> = std::sync::RwLock::new(());
+/// Which side of the fork guard a test is on.
+#[derive(Clone, Copy)]
+enum ForkSide {
+    /// Starts child processes and holds no lock it expects free.
+    Forking,
+    /// Holds a lock it expects free and starts no child.
+    Holding,
+    /// Does both, so it runs alone.
+    Exclusive,
+}
 
-/// Taken by a test that starts a child process. A fork copies every open lock
-/// handle until exec, so no test may be holding a lock it expects to free.
-pub fn spawning() -> std::sync::RwLockWriteGuard<'static, ()> {
-    FORK_GUARD
-        .write()
+struct ForkState {
+    forking: usize,
+    holding: usize,
+    exclusive: bool,
+    waiting_forking: usize,
+    waiting_holding: usize,
+    waiting_exclusive: usize,
+}
+
+impl ForkState {
+    const IDLE: Self = Self {
+        forking: 0,
+        holding: 0,
+        exclusive: false,
+        waiting_forking: 0,
+        waiting_holding: 0,
+        waiting_exclusive: 0,
+    };
+
+    fn active(&self) -> bool {
+        self.forking > 0 || self.holding > 0 || self.exclusive
+    }
+
+    // A side joins a running group of its own kind only while no other side
+    // waits, and an idle guard goes to a waiting exclusive test first, so no
+    // side starves.
+    fn admits(&self, side: ForkSide) -> bool {
+        let (compatible, others_waiting) = match side {
+            ForkSide::Forking => (
+                self.holding == 0 && !self.exclusive,
+                self.waiting_holding + self.waiting_exclusive,
+            ),
+            ForkSide::Holding => (
+                self.forking == 0 && !self.exclusive,
+                self.waiting_forking + self.waiting_exclusive,
+            ),
+            ForkSide::Exclusive => return !self.active(),
+        };
+        let idle = !self.active() && self.waiting_exclusive == 0;
+        compatible && (idle || others_waiting == 0)
+    }
+
+    fn waiting(&mut self, side: ForkSide) -> &mut usize {
+        match side {
+            ForkSide::Forking => &mut self.waiting_forking,
+            ForkSide::Holding => &mut self.waiting_holding,
+            ForkSide::Exclusive => &mut self.waiting_exclusive,
+        }
+    }
+
+    fn enter(&mut self, side: ForkSide) {
+        match side {
+            ForkSide::Forking => self.forking += 1,
+            ForkSide::Holding => self.holding += 1,
+            ForkSide::Exclusive => self.exclusive = true,
+        }
+    }
+
+    fn leave(&mut self, side: ForkSide) {
+        match side {
+            ForkSide::Forking => self.forking = self.forking.saturating_sub(1),
+            ForkSide::Holding => self.holding = self.holding.saturating_sub(1),
+            ForkSide::Exclusive => self.exclusive = false,
+        }
+    }
+}
+
+static FORK_STATE: std::sync::Mutex<ForkState> = std::sync::Mutex::new(ForkState::IDLE);
+static FORK_CHANGED: std::sync::Condvar = std::sync::Condvar::new();
+
+fn fork_state() -> std::sync::MutexGuard<'static, ForkState> {
+    FORK_STATE
+        .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
+/// Keeps a test on one side of the fork guard until it is dropped.
+#[must_use = "the guard protects the test only while it is held"]
+pub struct ForkGuard(ForkSide);
+
+impl ForkGuard {
+    fn take(side: ForkSide) -> Self {
+        let mut state = fork_state();
+        *state.waiting(side) += 1;
+        while !state.admits(side) {
+            state = FORK_CHANGED
+                .wait(state)
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+        let waiting = state.waiting(side);
+        *waiting = waiting.saturating_sub(1);
+        state.enter(side);
+        drop(state);
+        // A waiter of another side may now be the only thing keeping this
+        // side's peers out, so let everyone re-check.
+        FORK_CHANGED.notify_all();
+        Self(side)
+    }
+}
+
+impl Drop for ForkGuard {
+    fn drop(&mut self) {
+        fork_state().leave(self.0);
+        FORK_CHANGED.notify_all();
+    }
+}
+
+// The guard is not reentrant: a test takes exactly one of these. A fork copies
+// every open lock handle until exec, so a spawn must never overlap a test that
+// holds a lock and then expects it free.
+
+/// Taken by a test that starts a child process while it holds a lock it later
+/// expects free. It runs alone.
+pub fn spawning() -> ForkGuard {
+    ForkGuard::take(ForkSide::Exclusive)
+}
+
+/// Taken by a test that starts a child process and holds no lock it expects
+/// free. Such tests run alongside each other, never during a `holding` test.
+pub fn forking() -> ForkGuard {
+    ForkGuard::take(ForkSide::Forking)
+}
+
 /// Taken for the whole of a test that holds a lock and then expects it free.
-/// Such tests still run alongside each other, just never during a spawn.
-pub fn holding() -> std::sync::RwLockReadGuard<'static, ()> {
-    FORK_GUARD
-        .read()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
+/// Such tests run alongside each other, never during a spawn.
+pub fn holding() -> ForkGuard {
+    ForkGuard::take(ForkSide::Holding)
 }
 
 /// Writes `body` to `path` and marks it executable, without the test process
@@ -1047,7 +1178,7 @@ pub fn snapshot_diff(
                 staged.display()
             );
             if let Some(rel) = workspace_rel {
-                write!(hint, "; copy it to {rel} in the checkout, then re-run").ok();
+                hint.push_str(&format!("; copy it to {rel} in the checkout, then re-run"));
             }
             return Err(hint);
         }
@@ -1099,13 +1230,11 @@ pub fn copy_test_logs(testlogs: &Path, dest: &Path) -> String {
         dx_atomic_fs::write_hint(&target, &content);
         let content = String::from_utf8_lossy(&content);
         let head: Vec<&str> = content.lines().take(40).collect();
-        write!(
-            text,
+        text.push_str(&format!(
             "\nconsumer test log {}:\n{}",
             rel.display(),
             head.join("\n")
-        )
-        .ok();
+        ));
     }
     text
 }
@@ -1128,6 +1257,69 @@ fn collect_test_logs(dir: &Path, found: &mut Vec<PathBuf>) {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn fork_sides_share_only_with_their_own_kind() {
+        let mut state = ForkState::IDLE;
+        assert!(state.admits(ForkSide::Forking));
+        state.enter(ForkSide::Forking);
+        assert!(state.admits(ForkSide::Forking));
+        assert!(!state.admits(ForkSide::Holding));
+        assert!(!state.admits(ForkSide::Exclusive));
+        state.leave(ForkSide::Forking);
+        state.enter(ForkSide::Holding);
+        assert!(state.admits(ForkSide::Holding));
+        assert!(!state.admits(ForkSide::Forking));
+        state.leave(ForkSide::Holding);
+        state.enter(ForkSide::Exclusive);
+        for side in [ForkSide::Forking, ForkSide::Holding, ForkSide::Exclusive] {
+            assert!(!state.admits(side));
+        }
+        state.leave(ForkSide::Exclusive);
+        assert!(!state.active());
+    }
+
+    #[test]
+    fn a_waiting_fork_side_keeps_new_peers_of_the_running_side_out() {
+        let mut state = ForkState::IDLE;
+        state.enter(ForkSide::Forking);
+        state.waiting_holding = 1;
+        assert!(!state.admits(ForkSide::Forking), "holding must not starve");
+        state.leave(ForkSide::Forking);
+        assert!(state.admits(ForkSide::Holding));
+        assert!(
+            state.admits(ForkSide::Forking),
+            "an idle guard admits anyone"
+        );
+        state.waiting_exclusive = 1;
+        assert!(
+            !state.admits(ForkSide::Forking),
+            "idle goes to exclusive first"
+        );
+        assert!(!state.admits(ForkSide::Holding));
+        assert!(state.admits(ForkSide::Exclusive));
+    }
+
+    #[test]
+    fn holding_waits_for_a_forking_test_to_finish() {
+        let forking = forking();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let holder = std::thread::spawn(move || {
+            let _holding = holding();
+            sender.send(()).expect("report the hold");
+        });
+        assert!(
+            receiver
+                .recv_timeout(std::time::Duration::from_millis(200))
+                .is_err(),
+            "a holding test ran during a spawn"
+        );
+        drop(forking);
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .expect("holding runs once the spawn ends");
+        holder.join().expect("holder thread");
+    }
 
     fn scratch(prefix: &str) -> tempfile::TempDir {
         tempfile::Builder::new()
@@ -1167,16 +1359,6 @@ mod tests {
         shell_script(&path, "echo hi\n");
         let out = std::process::Command::new(&path).output().expect("run");
         assert_eq!(String::from_utf8_lossy(&out.stdout), "hi\n");
-    }
-
-    #[test]
-    fn holding_guards_share_and_spawning_waits_for_them() {
-        let first = holding();
-        let second = holding();
-        assert!(FORK_GUARD.try_write().is_err());
-        drop((first, second));
-        let _spawn = spawning();
-        assert!(FORK_GUARD.try_read().is_err());
     }
 
     #[test]
@@ -1647,7 +1829,7 @@ mod tests {
         let case = logs.join("javascript/cli/exit_codes_test");
         std::fs::create_dir_all(&case).unwrap();
         let body: String = (1..=50).fold(String::new(), |mut body, n| {
-            writeln!(body, "line {n}").ok();
+            body.push_str(&format!("line {n}\n"));
             body
         });
         std::fs::write(case.join("test.log"), body).unwrap();

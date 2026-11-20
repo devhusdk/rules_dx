@@ -28,7 +28,6 @@ real_source_target(
         "//:AGENTS.md",
         "//android/tests/fixtures/adopt_android:README.md",
         "//appimage/tests/fixtures/appimage_app:README.md",
-        "//haskell/tests/fixtures/bench:BUILD.bazel",
         "//haskell/tests/fixtures/haskell_app:README.md",
         "//ocaml/tests/fixtures/ocaml_app:README.md",
         "//:CONTRIBUTING.md",

@@ -240,10 +240,7 @@ pub fn probes_for(command: Command, consumer: Consumer<'_>) -> Vec<&'static str>
 /// asks for.
 fn wanted(label: &str, consumer: Consumer<'_>) -> bool {
     let file = label.split_once('%').map_or(label, |(file, _)| file);
-    if let Some(language) = dx_families::quality_languages()
-        .iter()
-        .find(|language| language.bzl == file)
-    {
+    if let Some(language) = quality_owner(file) {
         return language.wanted(consumer.extensions);
     }
     dx_families::docs_languages()
@@ -255,6 +252,15 @@ fn wanted(label: &str, consumer: Consumer<'_>) -> bool {
                 .iter()
                 .any(|extension| consumer.extensions.contains(extension))
         })
+}
+
+/// The language whose files decide whether the aspects of `file` run: the first whose `quality`
+/// entry names aspects or probes in it. A language that only shares a core file, as asciidoc shares
+/// `core.bzl`, decides nothing, so that file's aspects run for every consumer.
+fn quality_owner(file: &str) -> Option<&'static dx_families::QualityFiles> {
+    dx_families::quality_languages().iter().find(|language| {
+        language.bzl == file && (!language.aspects.is_empty() || !language.probes.is_empty())
+    })
 }
 
 /// Every aspect label dx passes to Bazel.
@@ -272,8 +278,7 @@ pub fn all_aspect_labels() -> Vec<String> {
         })
         .map(rules_dx_label)
         .collect();
-    labels.push(dx_codegen::aspect_label(super::rules_dx_repo()));
-    labels.push(dx_env_plan::aspect_label(super::rules_dx_repo()));
+    labels.extend(super::managed::managed_aspects());
     labels.sort();
     labels.dedup();
     labels
@@ -365,6 +370,14 @@ mod tests {
     }
 
     #[test]
+    fn a_language_sharing_the_core_file_does_not_gate_it() {
+        let extensions = extensions(&[".go"]);
+        let lint = aspects_for(Command::Lint, consumer(&extensions));
+        assert!(lint.contains(&"core/quality:families/core.bzl%real_lint_aspect"));
+        assert!(quality_owner("core/quality:families/core.bzl").is_none());
+    }
+
+    #[test]
     fn go_only_consumer_selects_core_and_go() {
         let extensions = extensions(&[".go", ".json", ".md"]);
         for command in [Command::Lint, Command::Typecheck, Command::Format] {
@@ -373,9 +386,7 @@ mod tests {
             let probes = probes_for(command, consumer(&extensions));
             for label in labels.iter().chain(&probes) {
                 let file = label.split_once('%').expect("label has a name").0;
-                let language = dx_families::quality_languages()
-                    .iter()
-                    .find(|language| language.bzl == file);
+                let language = quality_owner(file);
                 assert!(
                     language.is_none_or(|language| language.bzl == "go/private/quality:go.bzl"
                         || language.file_extensions.iter().any(|ext| ext == ".json")),
@@ -548,10 +559,7 @@ mod tests {
                     continue;
                 };
                 let bzl = format!("core/quality:families/{file}.bzl");
-                if !dx_families::quality_languages()
-                    .iter()
-                    .any(|language| language.bzl == bzl)
-                {
+                if quality_owner(&bzl).is_none() {
                     continue;
                 }
                 let probe = format!(

@@ -1,5 +1,5 @@
 {
-  "checksum": "f712ab3c549dee1b540f814f754bb4d95033afb7a883b5d91a3326232dc63d30",
+  "checksum": "f63901b6d819b75f8d7124a1634eb48ce848c4f079c4e0651a2901af6f30e951",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8592,9 +8592,56 @@
       ],
       "version": "0.0.0"
     },
+    "dx_exec_audit 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "chrono 0.4.45",
+            "target": "chrono"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          },
+          {
+            "id": "tracing 0.1.44",
+            "target": "tracing"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_audit",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_audit",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_audit",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "dx_exec_core 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "chrono 0.4.45",
+            "target": "chrono"
+          },
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
@@ -9527,6 +9574,12 @@
             "target": "serde_json"
           }
         ],
+        "deps_dev": [
+          {
+            "id": "spdx 0.13.5",
+            "target": "spdx"
+          }
+        ],
         "edition": "2024"
       },
       "library_target_name": "dx_sbom_schema",
@@ -9800,6 +9853,10 @@
     "dx_tool_resolve 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "clap 4.6.7",
+            "target": "clap"
+          },
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
@@ -11100,7 +11157,7 @@
             "target": "crc32fast"
           },
           {
-            "id": "libz-sys 1.1.31",
+            "id": "libz-sys 1.1.33",
             "target": "libz_sys"
           },
           {
@@ -16043,7 +16100,7 @@
       ],
       "version": "0.3.0"
     },
-    "libz-sys 1.1.31": {
+    "libz-sys 1.1.33": {
       "build_script_attrs": {
         "build_script_env": {
           "common": {
@@ -16115,8 +16172,8 @@
       "package_url": "https://github.com/rust-lang/libz-sys",
       "repository": {
         "Http": {
-          "sha256": "ff20308ecabd635a2dc1dd5834a86c462cca20efba1d5d3ddab1f8aea3455cb2",
-          "url": "https://static.crates.io/crates/libz-sys/1.1.31/download"
+          "sha256": "fee3f59f4321dab0c78d828942e7aa09d0bd8ad6e78a501977e6bf3d02938045",
+          "url": "https://static.crates.io/crates/libz-sys/1.1.33/download"
         }
       },
       "targets": [
@@ -16133,7 +16190,7 @@
           }
         }
       ],
-      "version": "1.1.31"
+      "version": "1.1.33"
     },
     "line-index 0.1.2": {
       "common_attrs": {
@@ -21000,13 +21057,21 @@
         ],
         "edition": "2024"
       },
+      "library_target_name": "qt_rust_bridge",
       "license": "Apache-2.0",
       "license_ids": [
         "Apache-2.0"
       ],
       "name": "qt_rust_bridge",
       "repository": null,
-      "targets": [],
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "qt_rust_bridge",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
       "version": "0.0.0"
     },
     "qt_tests 0.0.0": {
@@ -28595,25 +28660,6 @@
       ],
       "version": "1.1.2+spec-1.1.0"
     },
-    "tool_resolve 0.0.0": {
-      "common_attrs": {
-        "deps": [
-          {
-            "id": "clap 4.6.7",
-            "target": "clap"
-          }
-        ],
-        "edition": "2024"
-      },
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "tool_resolve",
-      "repository": null,
-      "targets": [],
-      "version": "0.0.0"
-    },
     "tower 0.5.3": {
       "common_attrs": {
         "crate_features": [
@@ -30610,21 +30656,13 @@
       "common_attrs": {
         "edition": "2024"
       },
-      "library_target_name": "wasi_run",
       "license": "Apache-2.0",
       "license_ids": [
         "Apache-2.0"
       ],
       "name": "wasi_testing",
       "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "wasi_run",
-            "crate_root": "wasi_run.rs"
-          }
-        }
-      ],
+      "targets": [],
       "version": "0.0.0"
     },
     "wasip2 1.0.4+wasi-0.2.12": {
@@ -33353,6 +33391,7 @@
     "dx_env 0.0.0": "cli/dx_env",
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
     "dx_error 0.0.0": "cli/dx_error",
+    "dx_exec_audit 0.0.0": "cli/dx_exec_audit",
     "dx_exec_core 0.0.0": "cli/dx_exec_core",
     "dx_exec_reports 0.0.0": "cli/dx_exec_reports",
     "dx_families 0.0.0": "cli/dx_families",
@@ -33462,7 +33501,6 @@
     "terraform_lock 0.0.0": "terraform/private/tools/terraform_lock",
     "thrift_tests 0.0.0": "thrift/thrift_tests",
     "tiers 0.0.0": "tools/docs/tiers",
-    "tool_resolve 0.0.0": "dx/tool_resolve",
     "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",
     "typescript_scoped_fixture 0.0.0": "typescript/tests/fixtures/typescript_scoped_fixture",

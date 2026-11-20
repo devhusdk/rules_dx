@@ -383,7 +383,7 @@ pub(crate) fn execute_bench(invocation: &Invocation, mut env: Env<'_>) -> i32 {
         .map_err(|error| format!("failed to read build events: {error}"))
         .and_then(|file| {
             collect_test_events(BufReader::new(file), || {
-                Some(super::test_reports::output_locations(
+                Some(dx_exec_test_reports::output_locations(
                     invocation,
                     workspace,
                     WorkflowVerb::Bench,

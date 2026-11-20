@@ -130,11 +130,48 @@ pub(super) fn tracked_orphans(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::exec::test_support::ScriptQuery;
+    use dx_plan::resolve::QueryResult;
     use dx_testing::cli::strings;
+    use std::cell::RefCell;
+    use std::collections::VecDeque;
 
-    fn script() -> ScriptQuery {
-        ScriptQuery::default()
+    /// Answers git and rule-graph queries in the order they were scripted.
+    #[derive(Default)]
+    struct Script(RefCell<VecDeque<QueryResult>>);
+
+    impl Script {
+        fn push(&self, code: i32, stdout: &str, stderr: &str) {
+            self.0.borrow_mut().push_back(QueryResult {
+                code: Some(code),
+                stdout: stdout.as_bytes().to_vec(),
+                stderr: stderr.as_bytes().to_vec(),
+            });
+        }
+
+        fn script_checkout_git(&self, code: i32, stdout: &str) {
+            self.push(code, stdout, "");
+        }
+
+        fn script_graph(&self, rules: &[String]) {
+            self.push(0, &dx_testing::cli::graph_stdout(rules), "");
+        }
+
+        fn script_failure(&self, code: i32, stderr: &str) {
+            self.push(code, "", stderr);
+        }
+    }
+
+    impl QueryRunner for Script {
+        fn run_query(&self, _argv: &[String], _cwd: &Path) -> std::io::Result<QueryResult> {
+            self.0
+                .borrow_mut()
+                .pop_front()
+                .ok_or_else(|| std::io::Error::other("unscripted query"))
+        }
+    }
+
+    fn script() -> Script {
+        Script::default()
     }
 
     fn workspace(files: &[&str], ignore: &str) -> tempfile::TempDir {

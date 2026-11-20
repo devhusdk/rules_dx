@@ -21,7 +21,7 @@ pub(super) struct ChangedGate<'a> {
 }
 
 /// The lines the working tree adds since `merge_base`, with every untracked file counted in full.
-pub(super) fn changed_lines(
+pub fn changed_lines(
     workspace: &Path,
     runner: &dyn QueryRunner,
     merge_base: &str,
@@ -235,7 +235,3 @@ pub(super) fn changed_line_threshold(
     }
     Ok(error.is_none())
 }
-
-#[cfg(test)]
-#[path = "changed_coverage_tests.rs"]
-mod changed_coverage_tests;

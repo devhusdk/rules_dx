@@ -1165,6 +1165,15 @@ pub fn change_event_for(change: &FileChange) -> ChangeEvent {
     }
 }
 
+/// Removes one scratch file; a missing file is fine and any other failure is logged.
+pub fn remove_scratch(path: &Path) {
+    match std::fs::remove_file(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => tracing::info!(%error, path = %path.display(), "cannot remove scratch file"),
+    }
+}
+
 #[cfg(test)]
 #[path = "common_tests.rs"]
 mod tests;

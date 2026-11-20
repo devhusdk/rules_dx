@@ -1,0 +1,25 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load(":settings.bzl", "lang_platform_setting")
+
+lang_platform_setting(name = "dart")
+
+lang_platform_setting(name = "flutter")
+
+lang_platform_setting(name = "julia")
+
+lang_platform_setting(name = "perl")
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "settings.bzl",
+    ],
+    tags = ["corpus"],
+)

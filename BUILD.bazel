@@ -535,6 +535,7 @@ filegroup(
         "//core/hermetic_launcher:module_srcs",
         "//core/modules:module_srcs",
         "//core/patchelf:module_srcs",
+        "//core/platforms:module_srcs",
         "//core/private:module_srcs",
         "//core/private/testing:module_srcs",
         "//core/quality:module_srcs",

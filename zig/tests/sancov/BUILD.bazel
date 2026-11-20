@@ -27,12 +27,12 @@ rust_test(
     data = [
         "sources.txt",
         ":sancov_subject_test",
-        "//tools/coverage/sancov:sancov_launcher",
+        "//cli/runtime:dx_runtime",
         "@llvm//tools:llvm-symbolizer",
     ],
     env = {
         "DX_LLVM_SYMBOLIZER": "$(rlocationpath @llvm//tools:llvm-symbolizer)",
-        "DX_SANCOV_LAUNCHER": "$(rootpath //tools/coverage/sancov:sancov_launcher)",
+        "DX_RUNTIME": "$(rootpath //cli/runtime:dx_runtime)",
         "DX_SANCOV_SOURCES": "$(rlocationpath sources.txt)",
         "DX_SANCOV_UPSTREAM": "$(rlocationpath :sancov_subject_test)",
     },

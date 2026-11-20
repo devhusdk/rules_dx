@@ -86,7 +86,7 @@ fn run(args: &[OsString]) -> Result<u8, String> {
         .map_err(|e| format!("cannot create {}: {e}", scratch.display()))?;
     let pcs_path = scratch.join("pcs.txt");
     let mut command = Command::new(&test);
-    command.args(args);
+    command.args(args).env_remove("DX_RUNTIME_TOOL");
     if coverage_dir.is_some() {
         command.env("DX_SANCOV_PCS", &pcs_path);
     }
@@ -130,7 +130,8 @@ fn run(args: &[OsString]) -> Result<u8, String> {
     Ok(code)
 }
 
-fn main() -> ExitCode {
+/// Runs the test named in DX_SANCOV_UPSTREAM with the process arguments and writes its LCOV report.
+pub fn main() -> ExitCode {
     let args: Vec<OsString> = env::args_os().skip(1).collect();
     match run(&args) {
         Ok(code) => ExitCode::from(code),

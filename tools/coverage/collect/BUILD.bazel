@@ -18,6 +18,7 @@ rust_library(
         "src/collect.rs",
         "src/gcov.rs",
         "src/lib.rs",
+        "src/linemap.rs",
     ],
     aliases = aliases(
         package_name = "tools/coverage/collect_native",

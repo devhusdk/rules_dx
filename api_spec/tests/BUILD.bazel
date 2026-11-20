@@ -16,8 +16,8 @@ package(default_visibility = ["//visibility:private"])
 api_spec_library(
     name = "spec",
     srcs = ["openapi.yaml"],
-    refs = ["refs/order.yaml"],
-    deps = ["//api_spec/tests/shared"],
+    refs = ["fixtures/refs/order.yaml"],
+    deps = ["//api_spec/tests/fixtures/shared"],
 )
 
 api_spec_typescript_client(
@@ -205,7 +205,7 @@ rust_test(
 
 api_spec_typescript_client(
     name = "wrong_root_client",
-    root = "//api_spec/tests/shared:error.yaml",
+    root = "//api_spec/tests/fixtures/shared:error.yaml",
     spec = ":spec",
     tags = ["manual"],
 )
@@ -222,8 +222,8 @@ api_spec_library(
         "openapi.yaml",
         "petstore.yaml",
     ],
-    refs = ["refs/order.yaml"],
-    deps = ["//api_spec/tests/shared"],
+    refs = ["fixtures/refs/order.yaml"],
+    deps = ["//api_spec/tests/fixtures/shared"],
 )
 
 api_spec_go_client(
@@ -236,21 +236,21 @@ api_spec_go_client(
 api_spec_go_client(
     name = "wrong_root_go_client",
     package = "wrong",
-    root = "//api_spec/tests/shared:error.yaml",
+    root = "//api_spec/tests/fixtures/shared:error.yaml",
     spec = ":spec",
     tags = ["manual"],
 )
 
 api_spec_python_client(
     name = "wrong_root_python_client",
-    root = "//api_spec/tests/shared:error.yaml",
+    root = "//api_spec/tests/fixtures/shared:error.yaml",
     spec = ":spec",
     tags = ["manual"],
 )
 
 api_spec_rust_client(
     name = "wrong_root_rust_client",
-    root = "//api_spec/tests/shared:error.yaml",
+    root = "//api_spec/tests/fixtures/shared:error.yaml",
     spec = ":spec",
     tags = ["manual"],
 )

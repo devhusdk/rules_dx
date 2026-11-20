@@ -13,8 +13,6 @@ fixture-hello helm/tests/conformance/BUILD.bazel
 fixture-hello msix/tests/conformance/BUILD.bazel
 fixture-hello qt/tests/conformance/BUILD.bazel
 fixture-hello rst/tests/conformance/BUILD.bazel
-fixture-name api_spec/tests/refs
-fixture-name api_spec/tests/shared
 fixture-name astro/tests/app
 fixture-name astro/tests/app_config
 fixture-name astro/tests/typecheck

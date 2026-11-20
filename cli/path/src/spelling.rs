@@ -55,7 +55,7 @@ pub fn manifest(path: &Path) -> String {
 /// Returns one path the way Git's `sh` on Windows reads it.
 #[must_use]
 pub fn msys(path: &Path) -> String {
-    let text = posix(path);
+    let text = manifest(path);
     let mut chars = text.chars();
     if let (Some(letter), Some(':')) = (chars.next(), chars.next())
         && letter.is_ascii_alphabetic()
@@ -134,5 +134,14 @@ mod tests {
         assert_eq!(spell_of(r"C:notes\a.md", Spelling::Msys), "C:notes/a.md");
         assert_eq!(spell_of("C:", Spelling::Msys), "C:");
         assert_eq!(spell_of("C:/", Spelling::Msys), "/c/");
+    }
+
+    #[test]
+    fn msys_drops_the_verbatim_prefix() {
+        assert_eq!(spell_of(r"\\?\C:\tmp\a.py", Spelling::Msys), "/c/tmp/a.py");
+        assert_eq!(
+            spell_of(r"\\?\UNC\srv\share\a.py", Spelling::Msys),
+            "//srv/share/a.py"
+        );
     }
 }

@@ -66,6 +66,25 @@ pub fn parse_error(error: &clap::Error, args: &[String]) -> String {
             Some(value) => format!("invalid value {value:?} for {flag}"),
             None => format!("missing value for {flag}"),
         }
+    } else if kind == clap::error::ErrorKind::ValueValidation
+        && let Some(value) = rejected_value(error)
+    {
+        let flag = missing_value_flag(error);
+        match std::error::Error::source(error) {
+            Some(reason) => format!("invalid value {value:?} for {flag}: {reason}"),
+            None => format!("invalid value {value:?} for {flag}"),
+        }
+    } else if kind == clap::error::ErrorKind::MissingRequiredArgument
+        && let Some(clap::error::ContextValue::Strings(missing)) =
+            error.get(clap::error::ContextKind::InvalidArg)
+        && !missing.is_empty()
+    {
+        let noun = if missing.len() == 1 {
+            "argument"
+        } else {
+            "arguments"
+        };
+        format!("missing required {noun} {}", missing.join(" "))
     } else {
         first_line(error)
     }
@@ -199,6 +218,41 @@ mod tests {
         assert_eq!(
             unknown_token(&error(&["--nope=x"]), &["--nope=x".to_owned()]),
             "--nope=x"
+        );
+    }
+
+    #[test]
+    fn a_missing_required_argument_is_named() {
+        let command = clap::Command::new("tool")
+            .arg(clap::Arg::new("target").long("target").required(true))
+            .arg(clap::Arg::new("path").required(true));
+        let one = command
+            .clone()
+            .try_get_matches_from(["tool", "--target", "x"])
+            .expect_err("path required");
+        assert_eq!(parse_error(&one, &[]), "missing required argument <path>");
+        let missing = command
+            .try_get_matches_from(["tool"])
+            .expect_err("both required");
+        assert_eq!(
+            parse_error(&missing, &[]),
+            "missing required arguments --target <target> <path>"
+        );
+    }
+
+    #[test]
+    fn a_value_the_parser_rejects_is_named_with_the_reason() {
+        let command = clap::Command::new("tool").arg(
+            clap::Arg::new("jobs")
+                .long("jobs")
+                .value_parser(clap::value_parser!(u32)),
+        );
+        let rejected = command
+            .try_get_matches_from(["tool", "--jobs", "many"])
+            .expect_err("not a number");
+        assert_eq!(
+            parse_error(&rejected, &["--jobs".to_owned(), "many".to_owned()]),
+            "invalid value \"many\" for --jobs: invalid digit found in string"
         );
     }
 

@@ -74,8 +74,8 @@ def execution_requirements_unit_tests(name):
                 dx_is_remote_qualified("shfmt", "lint"),
             ),
             expect_false(
-                "ruff format stays unqualified",
-                dx_is_remote_qualified("ruff", "format"),
+                "prettier format stays unqualified",
+                dx_is_remote_qualified("prettier", "format"),
             ),
             expect_equal(
                 "shfmt-only format stages lose the local-only marker",
@@ -84,12 +84,12 @@ def execution_requirements_unit_tests(name):
             ),
             expect_equal(
                 "unqualified tool stages stay local-only",
-                dx_stage_execution_requirements(["ruff"], "format"),
+                dx_stage_execution_requirements(["prettier"], "format"),
                 {"no-remote-exec": "1"},
             ),
             expect_equal(
                 "mixed qualified and unqualified stages stay local-only",
-                dx_stage_execution_requirements(["shfmt", "ruff"], "format"),
+                dx_stage_execution_requirements(["shfmt", "prettier"], "format"),
                 {"no-remote-exec": "1"},
             ),
             expect_equal(
@@ -122,9 +122,9 @@ def execution_requirements_unit_tests(name):
                 {},
             ),
             expect_equal(
-                "taplo is qualified for format only",
-                [dx_is_remote_qualified("taplo", "format"), dx_is_remote_qualified("taplo", "lint")],
-                [True, False],
+                "taplo is qualified for format and lint, not typecheck",
+                [dx_is_remote_qualified("taplo", "format"), dx_is_remote_qualified("taplo", "lint"), dx_is_remote_qualified("taplo", "typecheck")],
+                [True, True, False],
             ),
             expect_equal(
                 "the single-tool format stages run remotely",
@@ -173,13 +173,37 @@ def execution_requirements_unit_tests(name):
             ),
             expect_equal(
                 "a qualified launcher in an unqualified stage stays local",
-                dx_stage_execution_requirements(["ruff"], "lint", run_tools = ["rst2html"]),
+                dx_stage_execution_requirements(["eslint"], "lint", run_tools = ["rst2html"]),
                 {DX_NO_REMOTE_EXEC: "1"},
             ),
             expect_equal(
                 "any stage with a runfiles launcher stays local",
                 dx_stage_execution_requirements(["shfmt"], "format", run_tools = ["x"]),
                 {DX_NO_REMOTE_EXEC: "1"},
+            ),
+            expect_equal(
+                "the ruff lint stage runs remotely",
+                dx_stage_execution_requirements(["ruff"], "lint"),
+                {},
+            ),
+            expect_equal(
+                "the ruff format stage runs remotely",
+                dx_stage_execution_requirements(["ruff"], "format"),
+                {},
+            ),
+            expect_equal(
+                "ruff lint beside pydoclint stays local",
+                dx_stage_execution_requirements(["ruff", "pydoclint"], "lint"),
+                {DX_NO_REMOTE_EXEC: "1"},
+            ),
+            expect_equal(
+                "the taplo lint, hadolint and checkmake stages run remotely",
+                [
+                    dx_stage_execution_requirements(["taplo"], "lint"),
+                    dx_stage_execution_requirements(["hadolint"], "lint"),
+                    dx_stage_execution_requirements(["checkmake"], "lint"),
+                ],
+                [{}, {}, {}],
             ),
             expect_equal(
                 "a qualified tool beside an unqualified one stays local",

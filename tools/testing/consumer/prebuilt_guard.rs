@@ -1,6 +1,6 @@
 //! The rules shared by the prebuilt guards: the allowlist, the compiled rules_dx binaries of a
 //! `cquery --output=label_kind`, the `rules_dx` targets dx commands run and the hub resolvers, the aspects `dx check` and `dx docs` pick, the wrapper
-//! package whose `deps` carry them, and the `file://` URL of a stub.
+//! package whose `deps` carry them, the `file://` URL of a stub, and the stub `python_tools` bundle.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -20,11 +20,10 @@ pub const BUILD_SCRIPT: &str = ":_bs_";
 pub const PREBUILT_HUB_REPO: &str = "rules_dx++dx_prebuilt+dx_prebuilt";
 
 /// The allowlist: binary labels the consumer may compile, each with the consumer languages it
-/// applies to (none: every language), and registry tools no hub takes as an asset tag.
+/// applies to (none: every language).
 #[derive(Debug, Default, PartialEq)]
 pub struct Allowlist {
     pub labels: BTreeMap<String, BTreeSet<String>>,
-    pub untagged: BTreeSet<String>,
 }
 
 impl Allowlist {
@@ -38,7 +37,7 @@ impl Allowlist {
     }
 }
 
-/// Reads `label <canonical label> [<lang>...]` and `untagged <tool>` lines; each needs a `#` reason.
+/// Reads `label <canonical label> [<lang>...]` lines; each needs a `#` reason.
 pub fn allowlist(text: &str) -> Result<Allowlist, String> {
     let mut list = Allowlist::default();
     for (number, line) in text.lines().enumerate() {
@@ -57,12 +56,9 @@ pub fn allowlist(text: &str) -> Result<Allowlist, String> {
                     langs.iter().map(|lang| (*lang).to_owned()).collect(),
                 );
             }
-            ["untagged", tool] => {
-                list.untagged.insert(tool.to_owned());
-            }
             _ => {
                 return Err(format!(
-                    "line {}: want `label <label> [<lang>...]` or `untagged <tool>`: {line}",
+                    "line {}: want `label <label> [<lang>...]`: {line}",
                     number + 1
                 ));
             }
@@ -262,6 +258,58 @@ pub fn stub_url(path: &Path) -> String {
     }
 }
 
+/// One tool of the `python_tools` bundle: its hub name, its `bin/` launcher, and the platform
+/// keys whose bundle leaves it out.
+#[derive(Debug, PartialEq)]
+pub struct BundleTool {
+    pub name: String,
+    pub launcher: String,
+    pub missing: BTreeSet<String>,
+}
+
+impl BundleTool {
+    /// The canonical label of the hub target that serves the tool.
+    pub fn hub_target(&self) -> String {
+        format!("@@{PREBUILT_HUB_REPO}//:python_tool_{}", self.name)
+    }
+}
+
+/// Reads `<name> <launcher> [<missing platform key>...]` lines of `//cli/prebuilt:python_hub_targets`.
+pub fn bundle_tools(text: &str) -> Result<Vec<BundleTool>, String> {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(
+            |line| match line.split_whitespace().collect::<Vec<_>>()[..] {
+                [name, launcher, ref missing @ ..] => Ok(BundleTool {
+                    name: name.to_owned(),
+                    launcher: launcher.to_owned(),
+                    missing: missing.iter().map(|key| (*key).to_owned()).collect(),
+                }),
+                _ => Err(format!("want `<name> <launcher> [<missing>...]`: {line}")),
+            },
+        )
+        .collect()
+}
+
+/// A `tar.gz` with an executable `bin/<launcher>` stub per tool, plus `bin/<launcher>.cmd` on
+/// Windows, where the hub runs the `.cmd` launcher.
+pub fn stub_bundle(tools: &[BundleTool], windows: bool) -> std::io::Result<Vec<u8>> {
+    let mut tar = dx_archive::TarWriter::new();
+    for tool in tools {
+        let launcher = format!("bin/{}", tool.launcher);
+        tar.add_file(&launcher, format!("stub {}\n", tool.name).as_bytes(), 0o755)?;
+        if windows {
+            tar.add_file(
+                &format!("{launcher}.cmd"),
+                format!("@echo stub {}\r\n", tool.name).as_bytes(),
+                0o755,
+            )?;
+        }
+    }
+    tar.finish()
+}
+
 /// The `BUILD.bazel` of the `dx_prebuilt_guard` package: `check` and `docs` over `targets`.
 pub fn wrapper_build(targets: &[&str]) -> String {
     let deps: String = targets
@@ -300,6 +348,63 @@ mod tests {
         assert!(compiles_rules_dx_sources(
             "@@rules_dx+//java/private/quality/tools/javac_check:javac_check_lib (abc)\n"
         ));
+    }
+
+    #[test]
+    fn bundle_tools_read_the_launcher_and_missing_platforms() {
+        let tools =
+            bundle_tools("ansible_lint_tool ansible_lint windows_arm64\nyamllint yamllint\n\n")
+                .expect("parses");
+        assert_eq!(
+            tools,
+            [
+                BundleTool {
+                    name: "ansible_lint_tool".to_owned(),
+                    launcher: "ansible_lint".to_owned(),
+                    missing: BTreeSet::from(["windows_arm64".to_owned()]),
+                },
+                BundleTool {
+                    name: "yamllint".to_owned(),
+                    launcher: "yamllint".to_owned(),
+                    missing: BTreeSet::new(),
+                },
+            ]
+        );
+        assert_eq!(
+            tools[1].hub_target(),
+            "@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_yamllint"
+        );
+        assert!(bundle_tools("yamllint\n").is_err());
+    }
+
+    #[test]
+    fn the_stub_bundle_has_a_launcher_per_tool() {
+        let tools = bundle_tools("cfn_lint cfn_lint\nyamllint yamllint\n").expect("parses");
+        let names = |windows| {
+            let archive = stub_bundle(&tools, windows).expect("writes");
+            let mut names = Vec::new();
+            dx_archive::visit(
+                std::io::Cursor::new(archive),
+                dx_archive::Format::TarGz,
+                dx_archive::Limits::default(),
+                |name, _, _| {
+                    names.push(name.to_owned());
+                    Ok(())
+                },
+            )
+            .expect("reads");
+            names
+        };
+        assert_eq!(names(false), ["bin/cfn_lint", "bin/yamllint"]);
+        assert_eq!(
+            names(true),
+            [
+                "bin/cfn_lint",
+                "bin/cfn_lint.cmd",
+                "bin/yamllint",
+                "bin/yamllint.cmd"
+            ]
+        );
     }
 
     #[test]
@@ -354,7 +459,7 @@ mod tests {
     #[test]
     fn allowlist_lines_need_a_kind_and_a_reason() {
         let list = allowlist(
-            "# header\nlabel @@rules_dx+//a:b  # why\nlabel @@rules_dx+//l:c lua  # lua only\nuntagged avro_union # jar\n\n",
+            "# header\nlabel @@rules_dx+//a:b  # why\nlabel @@rules_dx+//l:c lua  # lua only\n\n",
         )
         .expect("parses");
         assert_eq!(
@@ -367,7 +472,6 @@ mod tests {
                         BTreeSet::from(["lua".to_owned()])
                     ),
                 ]),
-                untagged: BTreeSet::from(["avro_union".to_owned()]),
             }
         );
         assert_eq!(
@@ -384,6 +488,7 @@ mod tests {
         );
         assert!(allowlist("label @@rules_dx+//a:b\n").is_err());
         assert!(allowlist("tool x # why\n").is_err());
+        assert!(allowlist("untagged python_tools # why\n").is_err());
     }
 
     #[test]

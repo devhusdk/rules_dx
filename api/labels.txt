@@ -89,6 +89,7 @@
 //cli/env:env runnable rust_binary
 //cli/launcher:exec_launcher runnable rust_binary
 //cli/ocaml_cc_driver:ocaml_cc_driver runnable rust_binary
+//cli/prebuilt:guard_stub runnable native_binary
 //cli/runtime:dx_runtime runnable rust_binary
 //core/quality/lsp_check:lsp_check runnable rust_binary
 //core/quality/markdown:quality_markdown runnable rust_binary

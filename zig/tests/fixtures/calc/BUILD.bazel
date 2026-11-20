@@ -22,6 +22,7 @@ dx_kcov_env_test(
     instrumented = ["zig/tests/fixtures/calc/calc.zig"],
     linux_platform = "//zig/private:kcov_linux_x86_64",
     other_platforms = ["//zig/private:kcov_macos_arm64"],
+    sancov_platforms = ["//zig/private:kcov_macos_arm64"],
     target = ":calc_test",
     upstream = "calc_test_upstream",
 )

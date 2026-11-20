@@ -926,6 +926,7 @@ filegroup(
         "//tools/ci/producers:module_srcs",
         "//tools/coverage/collect:module_srcs",
         "//tools/coverage/kcov:module_srcs",
+        "//tools/coverage/sancov:module_srcs",
         "//tools/docs:module_srcs",
         "//tools/docs/avro:module_srcs",
         "//tools/docs/avro/extract:module_srcs",

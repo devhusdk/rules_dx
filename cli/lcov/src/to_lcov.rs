@@ -65,32 +65,6 @@ fn convert(from: &str, xml: &str) -> Result<String, DxError> {
     lcov.map_err(|e| DxError::failure(e.to_string()))
 }
 
-/// Keeps the records whose path is a listed source or ends in `/<source>`, renamed to the longest such source.
-fn keep_sources(lcov: &str, sources: &[&str]) -> String {
-    let mut out = String::new();
-    let mut keep = false;
-    for line in lcov.lines() {
-        if let Some(path) = line.strip_prefix("SF:") {
-            let found = sources.iter().find(|src| path == **src).or_else(|| {
-                sources
-                    .iter()
-                    .filter(|src| path.ends_with(&format!("/{src}")))
-                    .max_by_key(|src| src.len())
-            });
-            keep = found.is_some();
-            if let Some(src) = found {
-                out.push_str(&format!("SF:{src}\n"));
-            }
-            continue;
-        }
-        if keep {
-            out.push_str(line);
-            out.push('\n');
-        }
-    }
-    out
-}
-
 fn run(args: &[OsString]) -> Result<(), DxError> {
     let args = parse_args(args)?;
     let xml = fs::read_to_string(&args.input)
@@ -100,7 +74,7 @@ fn run(args: &[OsString]) -> Result<(), DxError> {
         let list = fs::read_to_string(path)
             .map_err(|e| DxError::infra(format!("cannot read {}: {e}", path.display())))?;
         let sources: Vec<&str> = list.lines().filter(|line| !line.is_empty()).collect();
-        lcov = keep_sources(&lcov, &sources);
+        lcov = dx_lcov::keep_sources(&lcov, &sources);
     }
     dx_atomic_fs::write_atomic(&args.output, lcov.as_bytes())
         .map_err(|e| DxError::infra(format!("cannot write {}: {e}", args.output.display())))
@@ -159,32 +133,6 @@ mod tests {
     #[test]
     fn rejects_unknown_formats() {
         assert!(convert("jacoco", "<report/>").is_err());
-    }
-
-    #[test]
-    fn keeps_listed_sources_under_their_listed_path() {
-        let lcov = "SF:/x/execroot/_main/src/a.zig\nDA:1,1\nend_of_record\n\
-                    SF:/x/lib/std/mem.zig\nDA:2,0\nend_of_record\n\
-                    SF:src/b.zig\nDA:3,1\nend_of_record\n";
-        assert_eq!(
-            keep_sources(lcov, &["src/a.zig", "src/b.zig"]),
-            "SF:src/a.zig\nDA:1,1\nend_of_record\nSF:src/b.zig\nDA:3,1\nend_of_record\n"
-        );
-    }
-
-    #[test]
-    fn keeps_exact_match_over_shorter_suffix() {
-        let lcov = "SF:tools/main.zig\nDA:1,1\nend_of_record\nSF:main.zig\nDA:2,0\nend_of_record\n";
-        assert_eq!(keep_sources(lcov, &["main.zig", "tools/main.zig"]), lcov);
-    }
-
-    #[test]
-    fn prefers_longest_suffix_in_any_order() {
-        let lcov = "SF:/x/_main/tools/main.zig\nDA:1,1\nend_of_record\n\
-                    SF:/x/_main/main.zig\nDA:2,0\nend_of_record\n";
-        let want = "SF:tools/main.zig\nDA:1,1\nend_of_record\nSF:main.zig\nDA:2,0\nend_of_record\n";
-        assert_eq!(keep_sources(lcov, &["main.zig", "tools/main.zig"]), want);
-        assert_eq!(keep_sources(lcov, &["tools/main.zig", "main.zig"]), want);
     }
 
     #[cfg(unix)]

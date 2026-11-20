@@ -1,3 +1,5 @@
+# gazelle:exclude coverage_runner.zig
+# Why: a zig_test coverage build passes it as test_runner; it is no module.
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = [
@@ -8,8 +10,17 @@ package(default_visibility = [
 
 exports_files([
     "bench_run.sh",
+    "coverage_runner.zig",
     "defs.bzl",
 ])
+
+# A zig_test coverage build on macOS: -ffuzz sancov counters read by coverage_runner.zig, as kcov is Linux-only.
+config_setting(
+    name = "sancov_build",
+    constraint_values = ["@platforms//os:macos"],
+    flag_values = {"//zig:kcov": "true"},
+    visibility = ["//visibility:public"],
+)
 
 platform(
     name = "kcov_linux_x86_64",

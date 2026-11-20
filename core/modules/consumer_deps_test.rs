@@ -14,7 +14,6 @@ const UNPINNED: &[&str] = &[
     "bazel_features",
     "tar.bzl",
     "rules_batch",
-    "rules_flutter",
 ];
 
 type Table = BTreeMap<String, (String, String)>;

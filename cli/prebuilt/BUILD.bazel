@@ -10,7 +10,7 @@ load(":fail.bzl", "dx_unavailable")
 load(":gazelle_hub_tests.bzl", "dx_gazelle_hub_tests")
 load(":hub.bzl", "GO_TOOLS", "unsupported_message")
 load(":hub_tests.bzl", "dx_prebuilt_hub_tests")
-load(":tools.bzl", "registry_lines")
+load(":tools.bzl", "registry_lines", "target_tools")
 
 exports_files(
     [
@@ -93,6 +93,14 @@ write_file(
     name = "go_hub_targets",
     out = "go_hub_targets.txt",
     content = sorted(GO_TOOLS) + [""],
+    visibility = ["//tools/testing/consumer:__pkg__"],
+)
+
+# The tools whose hub selects on the target platform, one name per line.
+write_file(
+    name = "target_tools",
+    out = "target_tools.txt",
+    content = target_tools() + [""],
     visibility = ["//tools/testing/consumer:__pkg__"],
 )
 

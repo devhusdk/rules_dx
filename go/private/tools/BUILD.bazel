@@ -1,8 +1,9 @@
+load("//go:defs.bzl", "go_binary")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
-alias(
+go_binary(
     name = "go",
-    actual = "@rules_go//go",
+    srcs = ["main.go"],
     visibility = ["//:__subpackages__"],
 )
 
@@ -14,6 +15,9 @@ real_source_target(
 
 filegroup(
     name = "module_srcs",
-    srcs = ["BUILD.bazel"],
+    srcs = [
+        "BUILD.bazel",
+        "main.go",
+    ],
     visibility = ["//:__subpackages__"],
 )

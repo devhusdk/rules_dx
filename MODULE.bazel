@@ -91,7 +91,7 @@ bazel_dep(name = "rules_foreign_cc", version = "0.17.0", dev_dependency = True)
 single_version_override(
     module_name = "rules_foreign_cc",
     patch_strip = 1,
-    patches = ["//patches/rules_foreign_cc:cmake_4_5_0.patch"],
+    patches = ["//patches/rules_foreign_cc:cmake_4_1_to_4_5.patch"],
     version = "0.17.0",
 )
 
@@ -105,7 +105,7 @@ _foreign_cc_tools = use_extension("@rules_foreign_cc//foreign_cc:extensions.bzl"
 _foreign_cc_tools.explicit()
 _foreign_cc_tools.cmake(
     mode = "binary",
-    version = "4.5.0",
+    version = "4.5.1",
 )
 _foreign_cc_tools.ninja(
     exec_compatible_with = ["@platforms//os:linux"],

@@ -1843,6 +1843,38 @@ impl Case {
             .collect()
     }
 
+    /// Runs `bazel` with the workspace rules log on and adds the repository rules it ran to `fetches`.
+    ///
+    /// The log sits with the record mode logs, so record mode still sees the downloads of `args`.
+    ///
+    /// # Panics
+    ///
+    /// Panics when the log directory cannot be made or the log cannot be read.
+    #[must_use]
+    #[track_caller]
+    #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
+    pub fn bazel_logged(&self, args: &[&str], fetches: &mut record::Fetches) -> Run {
+        let logs = self.server().home().join(RECORD_LOGS);
+        if let Err(error) = std::fs::create_dir_all(&logs) {
+            panic!("cannot create {}: {error}", logs.display());
+        }
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_nanos());
+        let log = logs.join(format!("logged-{nanos}.log"));
+        let flag = format!("--experimental_workspace_rules_log_file={}", slashed(&log));
+        let mut full = args.to_vec();
+        full.push(&flag);
+        let run = self.bazel(&full);
+        match std::fs::read(&log) {
+            Ok(bytes) => fetches.add(&bytes),
+            // Bazel writes no log when no repository rule ran.
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => panic!("cannot read {}: {error}", log.display()),
+        }
+        run
+    }
+
     /// Stops the server, reruns `args`, and fails with the repository rules that ran.
     ///
     /// # Panics

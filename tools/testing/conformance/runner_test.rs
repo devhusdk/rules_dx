@@ -336,6 +336,10 @@ fn assert_image(key: &str, platform: &str) {
     let mut seen = Vec::new();
     for entry in key.split(' ').filter(|entry| !entry.is_empty()) {
         let path = dx_testing::rlocation(entry).expect("subject must resolve from runfiles");
+        if entry.to_ascii_lowercase().ends_with(".msix") {
+            assert_msix_image(entry, &path, platform);
+            return;
+        }
         let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
         match dx_testing::image_inspect(&bytes) {
             Ok(images) => {
@@ -353,6 +357,35 @@ fn assert_image(key: &str, platform: &str) {
         }
     }
     panic!("no binary image among the subject files: {seen:?}");
+}
+
+fn msix_arch(platform: &str) -> &'static str {
+    match expected_image(platform) {
+        ("pe", "aarch64") => "arm64",
+        ("pe", "x86_64") => "x64",
+        _ => panic!("no msix ProcessorArchitecture for {platform}"),
+    }
+}
+
+fn assert_msix_image(entry: &str, path: &std::path::Path, platform: &str) {
+    let arch = msix_arch(platform);
+    let (format, machine) = expected_image(platform);
+    let package = dx_testing::msix::read(path).unwrap_or_else(|error| panic!("{entry}: {error}"));
+    assert_eq!(
+        package.arch, arch,
+        "{entry}: manifest ProcessorArchitecture for {platform}"
+    );
+    let exe = &package.executable;
+    let images = dx_testing::image_inspect(&package.exe)
+        .unwrap_or_else(|error| panic!("{entry}: packed {exe}: {error}"));
+    assert!(!images.is_empty(), "{entry}: packed {exe}: no image");
+    for image in images {
+        assert_eq!(
+            (image.format.name(), image.machine.as_str()),
+            (format, machine),
+            "{entry}: packed {exe}: format and machine for {platform}"
+        );
+    }
 }
 
 fn assert_runfile_image(name: &str, platform: &str) {
@@ -439,6 +472,18 @@ fn expected_image_names_format_and_machine() {
     assert_eq!(expected_image("windows_x86_64"), ("pe", "x86_64"));
     assert_eq!(expected_image("wasi_wasm32"), ("wasm", "wasm32"));
     assert_eq!(expected_image("none_wasm32"), ("wasm", "wasm32"));
+}
+
+#[test]
+fn msix_arch_names_manifest_values() {
+    assert_eq!(msix_arch("windows_arm64"), "arm64");
+    assert_eq!(msix_arch("windows_x86_64"), "x64");
+}
+
+#[test]
+#[should_panic(expected = "no msix ProcessorArchitecture for linux_arm64")]
+fn msix_arch_rejects_non_windows() {
+    msix_arch("linux_arm64");
 }
 
 fn failure_line(pattern: &str, case: &str) -> String {

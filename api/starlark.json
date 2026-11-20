@@ -16512,7 +16512,86 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "deps",
+              "fonts",
+              "hdrs",
+              "moc_hdrs",
+              "platform_plugins",
+              "platforms",
+              "plugins",
+              "size",
+              "srcs",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_qt_forward_test"
+          },
+          {
+            "attrs": [
+              "copts",
+              "deps",
+              "linkopts",
+              "linkstatic",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "cc_test"
+          },
+          {
+            "attrs": [
+              "output_group",
+              "srcs",
+              "tags",
+              "testonly",
+              "visibility"
+            ],
+            "kind": "filegroup"
+          },
+          {
+            "attrs": [
+              "deps",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "visibility"
+            ],
+            "kind": "qt_frameworks"
+          },
+          {
+            "attrs": [
+              "base",
+              "copts",
+              "defines",
+              "deps",
+              "forms",
+              "hdrs",
+              "metatypes",
+              "moc",
+              "moc_hdrs",
+              "qml_depends",
+              "qml_srcs",
+              "rcc",
+              "resource_prefix",
+              "resources",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "translations",
+              "uic",
+              "uri",
+              "version",
+              "visibility"
+            ],
+            "kind": "qt_generate"
+          }
+        ],
         "name": "qt_cc_test",
         "params": [
           {

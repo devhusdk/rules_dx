@@ -39,6 +39,7 @@ load(
     "qualified_cells",
     "request_errors",
     "runtime_url_for",
+    "stub_build",
     "target_module",
     "url_for",
 )
@@ -434,6 +435,13 @@ def _build_checks():
             for target in hub_targets()
             if ('    name = "%s",' % target) not in cell_build(cell, target_module(target), "@rules_cc//cc:defs.bzl", "//qt/private/toolchain:unsupported.bzl", "//qt/private/toolchain:needs.bzl")
         ], []),
+        expect_equal("a stub cell defines every hub target", [
+            target
+            for target in hub_targets()
+            if ('    name = "%s",' % target) not in stub_build(target_module(target), "//qt/private/toolchain:unsupported.bzl", "no rpm")
+        ], []),
+        expect_contains("a stub cell refuses its libraries", stub_build("qtbase", "//qt/private/toolchain:unsupported.bzl", "no rpm"), 'qt_unsupported(\n    name = "core",\n    reason = "no rpm",'),
+        expect_contains("a stub cell ships no runtime", stub_build("qtbase", "//qt/private/toolchain:unsupported.bzl", "no rpm"), 'filegroup(\n    name = "runtime",\n    srcs = [],'),
         expect_contains("macos core links the framework binary", macos, '    additional_linker_inputs = ["lib/QtCore.framework/Versions/A/QtCore"],\n    linkopts = ["$(execpath lib/QtCore.framework/Versions/A/QtCore)"],'),
         expect_false("macos cell links no srcs", 'srcs = ["lib/' in macos),
         expect_false("macos cell has no closure", 'name = "closure"' in macos or ":gui_closure" in macos),

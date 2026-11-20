@@ -408,3 +408,59 @@ fn suggested_commands_never_name_unsupported_or_destructive_actions() {
         assert!(!text.contains(banned), "{banned}: {text}");
     }
 }
+
+#[test]
+fn check_prints_one_text_line_per_diagnostic_and_keeps_json_events() {
+    let two = || {
+        let mut harness = Harness::new("text-check-lines");
+        harness.write_source("src/a.py", "a = 1\nb = 2\n");
+        let mut first = Harness::diagnostic("unused a", false);
+        first.start_byte = Some(0);
+        first.end_byte = Some(1);
+        let mut second = Harness::diagnostic("unused b", false);
+        second.start_byte = Some(6);
+        second.end_byte = Some(7);
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(vec![first, second], vec![]),
+        );
+        harness
+    };
+    let (code, out, err) = two().run(&["check", "//...", "--output=text"]);
+    assert_eq!(code, 1, "{out}{err}");
+    let text = format!("{out}{err}");
+    let lines: Vec<&str> = text
+        .lines()
+        .filter(|line| line.starts_with("src/a.py:"))
+        .collect();
+    assert!(!lines.is_empty(), "{text}");
+    for line in &lines {
+        assert!(
+            *line == "src/a.py:1:1: warning: unused a [lint-tool/rule]"
+                || *line == "src/a.py:2:1: warning: unused b [lint-tool/rule]",
+            "{line}"
+        );
+    }
+    let first = lines
+        .iter()
+        .filter(|line| line.contains("unused a"))
+        .count();
+    let second = lines
+        .iter()
+        .filter(|line| line.contains("unused b"))
+        .count();
+    assert_eq!(first, second, "{text}");
+    assert!(!text.contains("\"event\""), "{text}");
+
+    let (code, json, _) = two().run(&["check", "//...", "--output=json"]);
+    assert_eq!(code, 1, "{json}");
+    assert!(json.lines().all(|line| line.starts_with('{')), "{json}");
+    let events = json_events(&json);
+    let diagnostics = events_of_kind(&events, "diagnostic");
+    assert_eq!(diagnostics.len(), first + second, "{json}");
+    for diagnostic in &diagnostics {
+        assert_eq!(diagnostic["path"], serde_json::json!("src/a.py"));
+        assert_eq!(diagnostic["rule"], serde_json::json!("lint-tool/rule"));
+    }
+    assert!(!json.contains("src/a.py:1:1:"), "{json}");
+}

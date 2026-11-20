@@ -100,7 +100,9 @@ Outside a Git checkout, this check is skipped.
 
 ## Output
 
-Text prints `N file(s) need changes. Apply them with: dx check --apply ...` when a phase finds changes. It ends with `dx: <total> actions, <executed> executed, <cached> cached` on stderr.
+Text prints one line per finding, such as `src/lib.rs:12:5: warning: indexing may panic [clippy/clippy::indexing_slicing]`: the path, line, column, severity, message, and `[tool/rule]`. Coding agents get JSON by default; pass `--output text` to see these lines.
+
+Text also prints `N file(s) need changes. Apply them with: dx check --apply ...` when a phase finds changes. It ends with `dx: <total> actions, <executed> executed, <cached> cached` on stderr.
 
 JSON has one `command_started` and one `command_finished` event. Each phase sits between `phase_started` and `phase_finished`. Its events carry `phase` and a `correlation` such as `check/format`. The verify phases after `--apply` use `verify/<phase>`. JSON streams events while the command runs.
 

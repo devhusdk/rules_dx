@@ -8,6 +8,7 @@ const TOOLS: &str = ".github/workflows/release-tools.yml";
 const RELEASE: &str = ".github/workflows/release.yml";
 const CONSUMER: &str = ".github/workflows/release-consumer.yml";
 const RELEASE_JARS: &str = "tools/ci/release_jars.txt";
+const KCOV_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" //tools/coverage/kcov:kcov_static";
 
 const HOSTS: [(&str, &str); 4] = [
     ("linux-x86_64", "ubuntu-latest"),
@@ -97,8 +98,15 @@ fn each_host_uploads_its_artifact() {
     assert!(text.contains(
         "bazel test //tools/coverage/kcov:smoke_test //tools/coverage/kcov:static_smoke_test"
     ));
-    assert!(text.contains("bazel build //tools/coverage/kcov:kcov_static"));
     assert!(text.contains("kcov archive sha256 differs from pins.json"));
+    let build = text
+        .find("bazel build //tools/coverage/kcov:kcov_static")
+        .expect("kcov_static build");
+    let case_end = build + text[build..].find(";;").expect("end of the linux case");
+    assert!(
+        text[build..case_end].contains(KCOV_DETERMINISM),
+        "kcov determinism check inside the linux case after the build"
+    );
 }
 
 #[test]

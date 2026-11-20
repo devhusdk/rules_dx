@@ -7,7 +7,7 @@ def _dart_tool_impl(ctx):
     mirrored = []
     aot_runtime = False
     core_lib = False
-    for f in sdk.tool_files.to_list():
+    for f in sdk.files.all.to_list():
         if not f.path.startswith(root):
             continue
         rel = f.path[len(root):]

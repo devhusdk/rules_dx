@@ -9,8 +9,9 @@ load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
+load("//tools/coverage/sancov:sancov.bzl", "dx_sancov_attrs", "dx_sancov_test_coverage")
 
-# Set False to tag zig tests dx-no-coverage-collector instead of running kcov.
+# Set False to tag zig tests dx-no-coverage-collector instead of running kcov or sancov.
 ZIG_COVERAGE_COLLECTOR = True
 
 _DX_ZIG_LIBRARY_PROVIDES = [
@@ -43,7 +44,7 @@ _zig_library_forward = dx_library_forward_rule(
 )
 
 def _kcov_upstream_impl(settings, _attr):
-    """Builds the Zig test upstream for kcov under coverage: LLVM DWARF, unstripped, uninstrumented."""
+    """Builds the Zig test upstream for kcov or sancov under coverage: LLVM DWARF, unstripped."""
     coverage = settings["//command_line_option:collect_code_coverage"]
     return {
         "//command_line_option:collect_code_coverage": False,
@@ -74,17 +75,20 @@ _zig_binary_forward = dx_executable_forward_rule(
 )
 
 def _zig_test_coverage(ctx, upstream):
-    """Runs the upstream Zig test under kcov on Linux."""
+    """Runs the upstream Zig test under kcov on Linux, or reads its sancov PCs on macOS."""
     deps = [dep[_ZigModuleInfo].transitive_inputs for dep in ctx.attr.deps if _ZigModuleInfo in dep]
     sources = [f for f in depset(ctx.files.srcs, transitive = deps).to_list() if f.extension == "zig"]
-    return dx_kcov_test_coverage(ctx, upstream, sources, ["upstream", "deps"])
+    kcov = dx_kcov_test_coverage(ctx, upstream, sources, ["upstream", "deps"])
+    if kcov:
+        return kcov
+    return dx_sancov_test_coverage(ctx, upstream, sources, ["upstream", "deps"])
 
 _zig_forward_test = dx_executable_forward_rule(
     _ZIG,
     "test",
     dx_forward_spec(
         provides = _DX_ZIG_EXEC_PROVIDES,
-        extra_attrs = dx_lcov_merger_attr() | dx_kcov_attrs() | {
+        extra_attrs = dx_lcov_merger_attr() | dx_kcov_attrs() | dx_sancov_attrs() | {
             "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
         },
         upstream_cfg = _kcov_upstream,
@@ -105,17 +109,26 @@ def zig_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_binary. main is name.zig, else the single src."""
     kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("zig_binary", name, main, srcs, dx_main_candidates(name, ".zig"))
-    upstream = dict(kwargs, main = main, tags = dx_upstream_tags(kwargs.get("tags", None)))
+    upstream = dict(kwargs, main = main, tags = dx_upstream_tags(kwargs.get("tags", None)), zigopts = ["-j1"] + kwargs.get("zigopts", []))
     dx_wrap_binary(name, _zig_binary, _zig_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, **kwargs)
 
 def zig_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
-    """Minimal wrapper over zig_test. main is name.zig, else the single src; kcov builds add -fllvm."""
+    """Minimal wrapper over zig_test. main is name.zig, else the single src; coverage builds add -fllvm, and -ffuzz on macOS."""
     kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("zig_test", name, main, srcs, dx_main_candidates(name, ".zig"))
-    upstream = dict(kwargs, main = main, zigopts = kwargs.get("zigopts", []) + select({
-        Label("//zig:kcov_build"): ["-fllvm"],
-        "//conditions:default": [],
-    }))
+    upstream = dict(
+        kwargs,
+        main = main,
+        zigopts = ["-j1"] + kwargs.get("zigopts", []) + select({
+            Label("//zig/private:sancov_build"): ["-fllvm", "-ffuzz"],
+            Label("//zig:kcov_build"): ["-fllvm"],
+            "//conditions:default": [],
+        }),
+        test_runner = select({
+            Label("//zig/private:sancov_build"): Label("//zig/private:coverage_runner.zig"),
+            "//conditions:default": kwargs.get("test_runner"),
+        }),
+    )
     dx_wrap_test(name, _zig_test, _zig_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = ZIG_COVERAGE_COLLECTOR, **kwargs)
 
 def _zig_bench_binary(name, tags = None, **kwargs):

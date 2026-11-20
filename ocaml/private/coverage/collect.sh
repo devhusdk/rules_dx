@@ -32,7 +32,7 @@ if ! "$(runfile "$DX_BISECT_REPORT")" cobertura --ignore-missing-files \
   echo "dx: bisect-ppx-report failed" >&2
   exit 1
 fi
-if ! "$(runfile "$DX_TO_LCOV")" --from cobertura --sources "$sources" "$work/cobertura.xml" "$COVERAGE_DIR/bisect.dat"; then
+if ! DX_RUNTIME_TOOL=to_lcov "$(runfile "$DX_TO_LCOV")" --from cobertura --sources "$sources" "$work/cobertura.xml" "$COVERAGE_DIR/bisect.dat"; then
   exit 1
 fi
 exit "$status"

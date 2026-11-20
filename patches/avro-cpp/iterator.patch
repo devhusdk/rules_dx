@@ -56,3 +56,15 @@ diff --git a/include/avro/Exception.hh b/include/avro/Exception.hh
  #include <stdexcept>
  
  namespace avro {
+diff --git a/impl/avrogencpp.cc b/impl/avrogencpp.cc
+--- a/impl/avrogencpp.cc
++++ b/impl/avrogencpp.cc
+@@ -716,7 +716,7 @@ void CodeGen::emitGeneratedWarning() {
+ string CodeGen::guard() {
+     string h = headerFile_;
+     makeCanonical(h, true);
+-    return h + "_" + lexical_cast<string>(random_()) + "_H";
++    return h + "_H";
+ }
+ 
+ void CodeGen::generate(const ValidSchema &schema) {

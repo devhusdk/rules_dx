@@ -67,6 +67,9 @@ LANGS = json.decode("""{
     ],
     "quality": {
       "aspects": {
+        "format": [
+          "real_ansible_format_aspect"
+        ],
         "lint": [
           "real_ansible_lint_aspect"
         ]
@@ -80,6 +83,9 @@ LANGS = json.decode("""{
         ".yml"
       ],
       "probes": {
+        "format": [
+          "real_ansible_format_probe_aspect"
+        ],
         "lint": [
           "real_ansible_lint_probe_aspect"
         ]
@@ -763,7 +769,10 @@ LANGS = json.decode("""{
       "classes": [
         "csharp"
       ],
-      "file_extensions": []
+      "file_extensions": [
+        ".cs",
+        ".csproj"
+      ]
     },
     "semver": false,
     "setup": {
@@ -972,6 +981,7 @@ LANGS = json.decode("""{
     ],
     "entry_points": [
       "dart_codegen",
+      "dart_package_metadata",
       "dart_library",
       "dart_binary",
       "dart_js_binary",
@@ -989,9 +999,7 @@ LANGS = json.decode("""{
       "pubspec.yaml"
     ],
     "name": "dart",
-    "pins": [
-      "pins.json"
-    ],
+    "pins": [],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -1063,7 +1071,7 @@ LANGS = json.decode("""{
       "dart"
     ],
     "unsupported": {
-      "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK"
+      "windows_arm64": "rules_dart 0.9.1 ships no Windows arm64 SDK"
     }
   },
   "dockerfile": {
@@ -1168,13 +1176,7 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "dotnet/private/quality:dotnet.bzl",
-      "file_extensions": [
-        ".cs",
-        ".csproj",
-        ".fs",
-        ".fsproj",
-        ".fsx"
-      ],
+      "file_extensions": [],
       "probes": {
         "format": [
           "real_dotnet_format_probe_aspect"
@@ -1421,6 +1423,8 @@ LANGS = json.decode("""{
       "flutter_library",
       "flutter_test",
       "flutter_application",
+      "flutter_font_family",
+      "flutter_font",
       "flutter_web_app",
       "flutter_web_bundle",
       "flutter_android_app",
@@ -1434,9 +1438,7 @@ LANGS = json.decode("""{
       "pubspec.yaml"
     ],
     "name": "flutter",
-    "pins": [
-      "pins.json"
-    ],
+    "pins": [],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -1446,7 +1448,7 @@ LANGS = json.decode("""{
     "title": "Flutter",
     "tools": [],
     "unsupported": {
-      "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
+      "windows_arm64": "rules_flutter 0.1.0 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
     }
   },
   "fortran": {
@@ -1597,7 +1599,11 @@ LANGS = json.decode("""{
       "classes": [
         "fsharp"
       ],
-      "file_extensions": []
+      "file_extensions": [
+        ".fs",
+        ".fsproj",
+        ".fsx"
+      ]
     },
     "semver": false,
     "title": "F#",

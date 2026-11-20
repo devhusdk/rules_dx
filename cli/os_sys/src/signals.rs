@@ -125,10 +125,14 @@ extern "C" fn unlink_and_exit(signo: i32) {
 /// On SIGINT or SIGTERM, removes `path` and exits with 128 plus the signal number.
 /// A later call replaces the path; [`keep_on_stop`] clears it.
 pub fn unlink_on_stop(path: &Path) -> io::Result<()> {
-    let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| {
+    let path = CString::new(path.as_os_str().as_bytes()).map_err(|error| {
         io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("{} contains a NUL byte", path.display()),
+            format!(
+                "{} contains a NUL byte at offset {}",
+                path.display(),
+                error.nul_position()
+            ),
         )
     })?;
     // Any earlier path is leaked: the handler may be reading it right now.

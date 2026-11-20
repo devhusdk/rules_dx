@@ -2956,15 +2956,12 @@ Rule.
 | `config` | `string` | no | `""` |
 | `data` | `label_list` | no | `[]` |
 | `deps` | `label_list` | no | `[]` |
-| `generator` | `label` | no | `None` |
+| `generator` | `label` | yes |  |
 | `generator_args` | `string_list` | no | `[]` |
-| `generator_bin` | `label` | no | `None` |
-| `language_version` | `string` | no | `""` |
 | `name` | `name` | yes |  |
 | `output_suffixes` | `string_list` | yes |  |
 | `package` | `label` | no | `None` |
 | `package_config` | `label` | no | `None` |
-| `package_name` | `string` | no | `""` |
 | `parts` | `label_list` | no | `[]` |
 | `src` | `label` | yes |  |
 
@@ -2989,6 +2986,24 @@ Rule.
 | `lib` | `label` | yes |  |
 | `name` | `name` | yes |  |
 | `package` | `string` | no | `""` |
+
+#### `dart_package_metadata`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build_hook` | `label` | no | `None` |
+| `code_assets` | `label_list` | no | `[]` |
+| `data_assets` | `label_list` | no | `[]` |
+| `language_version` | `string` | no | `""` |
+| `license_file` | `label` | no | `None` |
+| `link_hook` | `label` | no | `None` |
+| `link_hook_assets` | `string_list` | no | `[]` |
+| `linked_code_assets` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `package_name` | `string` | yes |  |
+| `version` | `string` | no | `""` |
 
 #### `dart_bench`
 
@@ -3068,23 +3083,37 @@ Macro or function.
 
 Module extension.
 
+Tag `pub.cycle`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `packages` | `string_list` | yes |  |
+
 Tag `pub.from_lock`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
+| `build_from_pubspec` | `string_list` | no | `[]` |
 | `ignore_hooks` | `string_list` | no | `[]` |
+| `ignored` | `string_dict` | no | `{}` |
 | `lock` | `label` | yes |  |
 | `name` | `name` | yes |  |
-| `on_version_conflict` | `string` | no | `"error"` |
+| `resolve` | `label_dict_unary` | no | `{}` |
 
 Tag `pub.package`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
-| `deps` | `string_list` | no | `[]` |
+| `ignore_hook` | `boolean` | no | `False` |
 | `name` | `name` | yes |  |
 | `sha256` | `string` | yes |  |
 | `version` | `string` | yes |  |
+
+Tag `pub.settings`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `check_direct_dependencies` | `string` | no | `"warning"` |
 
 ### `@rules_dx//deploy:defs.bzl`
 
@@ -4050,6 +4079,28 @@ Fields: `direct_srcs`, `direct_staged`, `stage_root`, `stage_roots`, `staged`, `
 
 ### `@rules_dx//flutter:defs.bzl`
 
+#### `flutter_font`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `asset` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+| `style` | `string` | no | `""` |
+| `weight` | `int` | no | `0` |
+
+#### `flutter_font_family`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `family` | `string` | no | `""` |
+| `fonts` | `label_list` | yes |  |
+| `name` | `name` | yes |  |
+
 #### `flutter_gen_l10n`
 
 Rule.
@@ -4079,7 +4130,7 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `application` | yes |  |
-| `package_name` | yes |  |
+| `application_id` | yes |  |
 | `android_abi` | no | `"arm64"` |
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
@@ -4137,8 +4188,7 @@ Macro or function.
 | Argument | Required | Default |
 | --- | --- | --- |
 | `name` | yes |  |
-| `srcs` | no | `None` |
-| `main` | no | `None` |
+| `application` | yes |  |
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
 
@@ -4149,6 +4199,7 @@ Macro or function.
 | Argument | Required | Default |
 | --- | --- | --- |
 | `name` | yes |  |
+| `application` | yes |  |
 | `kwargs` | no |  |
 
 ### `@rules_dx//flutter:extensions.bzl`
@@ -4157,39 +4208,57 @@ Macro or function.
 
 Module extension.
 
-Tag `flutter.plugin_overlays`:
-
-| Attribute | Type | Required | Default |
-| --- | --- | --- | --- |
-| `roots` | `label_list` | no | `[]` |
-
-Tag `flutter.pub`:
-
-| Attribute | Type | Required | Default |
-| --- | --- | --- | --- |
-| `ignore_hooks` | `string_list` | no | `[]` |
-| `lock` | `label` | yes |  |
-| `name` | `name` | yes |  |
-
 Tag `flutter.toolchain`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
-| `flutter_version` | `string` | yes |  |
+| `allow_upgrade_by_dependencies` | `boolean` | no | `False` |
+| `engine` | `label` | no | `None` |
+| `flutter_version` | `string` | no | `""` |
+| `framework` | `label` | no | `None` |
+| `material_fonts_sha256` | `string` | no | `""` |
 | `name` | `name` | no | `"flutter"` |
 
 #### `pub`
 
 Module extension.
 
-Tag `pub.lock`:
+Tag `pub.annotation`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
-| `flutter_version` | `string` | no | `""` |
+| `android_deps` | `label_list` | no | `[]` |
+| `package` | `string` | yes |  |
+
+Tag `pub.cycle`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `packages` | `string_list` | yes |  |
+
+Tag `pub.from_lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build_from_pubspec` | `string_list` | no | `[]` |
 | `ignore_hooks` | `string_list` | no | `[]` |
+| `ignored` | `string_dict` | no | `{}` |
 | `lock` | `label` | yes |  |
 | `name` | `name` | yes |  |
+| `resolve` | `label_dict_unary` | no | `{}` |
+| `swift_package_resolved` | `label` | no | `None` |
+
+Tag `pub.plugin_overlays`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `roots` | `label_list` | no | `[]` |
+
+Tag `pub.settings`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `check_direct_dependencies` | `string` | no | `"warning"` |
 
 ### `@rules_dx//fortran:defs.bzl`
 
@@ -7391,7 +7460,6 @@ Run these with `bazel run <target>`.
 | `@rules_dx//cli/coverage_summary:coverage_summary` | `rust_binary` |
 | `@rules_dx//cli/env:env` | `rust_binary` |
 | `@rules_dx//cli/launcher:exec_launcher` | `rust_binary` |
-| `@rules_dx//cli/ocaml_cc_driver:ocaml_cc_driver` | `rust_binary` |
 | `@rules_dx//cli/prebuilt:guard_stub` | `native_binary` |
 | `@rules_dx//cli/runtime:dx_runtime` | `rust_binary` |
 | `@rules_dx//core/quality/lsp_check:lsp_check` | `rust_binary` |

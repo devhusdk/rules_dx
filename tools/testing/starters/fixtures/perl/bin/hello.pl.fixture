@@ -1,6 +1,0 @@
-use strict;
-use warnings;
-
-use Hello;
-
-print Hello::greet('world'), "\n";

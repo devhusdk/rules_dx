@@ -1,6 +1,7 @@
 //! Shared task and asset board driven by every product adapter.
 
 use std::fmt;
+use std::num::ParseIntError;
 
 pub use shared_tasks_model::{format_board, parse_board, ParseError, Task, TitleError};
 
@@ -11,7 +12,7 @@ pub enum CommandError {
     Empty,
     Unknown(String),
     MissingArgument(&'static str),
-    BadId(String),
+    BadId(String, ParseIntError),
     NoSuchTask(u32),
     AlreadyDone(u32),
     NotDone(u32),
@@ -26,7 +27,7 @@ impl CommandError {
             CommandError::Empty => "empty_command",
             CommandError::Unknown(_) => "unknown_command",
             CommandError::MissingArgument(_) => "missing_argument",
-            CommandError::BadId(_) => "bad_id",
+            CommandError::BadId(..) => "bad_id",
             CommandError::NoSuchTask(_) => "no_such_task",
             CommandError::AlreadyDone(_) => "already_done",
             CommandError::NotDone(_) => "not_done",
@@ -43,7 +44,7 @@ impl fmt::Display for CommandError {
             CommandError::Empty => write!(f, "command is empty"),
             CommandError::Unknown(verb) => write!(f, "unknown command {verb:?}"),
             CommandError::MissingArgument(what) => write!(f, "missing {what}"),
-            CommandError::BadId(raw) => write!(f, "{raw:?} is not a task id"),
+            CommandError::BadId(raw, error) => write!(f, "{raw:?} is not a task id: {error}"),
             CommandError::NoSuchTask(id) => write!(f, "no task {id}"),
             CommandError::AlreadyDone(id) => write!(f, "task {id} is already done"),
             CommandError::NotDone(id) => write!(f, "task {id} is not done"),
@@ -211,7 +212,8 @@ fn parse_id(raw: &str) -> Result<u32, CommandError> {
     if raw.is_empty() {
         return Err(CommandError::MissingArgument("task id"));
     }
-    raw.parse().map_err(|_| CommandError::BadId(raw.to_owned()))
+    raw.parse()
+        .map_err(|error| CommandError::BadId(raw.to_owned(), error))
 }
 
 pub fn asset_digest(bytes: &[u8]) -> String {

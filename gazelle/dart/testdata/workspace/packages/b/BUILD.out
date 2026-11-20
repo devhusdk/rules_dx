@@ -1,9 +1,14 @@
-load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library")
+load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library", "dart_package_metadata")
+
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "b",
+)
 
 dart_library(
     name = "b",
-    package_name = "b",
     srcs = ["lib/b.dart"],
+    package = ":pubspec-metadata",
     visibility = ["//visibility:public"],
     deps = ["//packages/a"],
 )

@@ -3,6 +3,8 @@
 //! With `DX_HERMETIC_MANIFEST` it pins in the materialized consumer of that manifest; without it
 //! it pins the lock every nested consumer shares. `DX_MAVEN_LOCK` is the workspace path of the lock.
 
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
+
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::{ExitCode, Stdio};
@@ -79,8 +81,9 @@ fn pin(case: &dx_nested::Case, name: &str) -> Result<String, String> {
 
 fn run() -> Result<String, String> {
     let workspace = std::env::var("BUILD_WORKSPACE_DIRECTORY")
-        .map_err(|_| "run this tool with `bazel run`".to_owned())?;
-    let rel = std::env::var("DX_MAVEN_LOCK").map_err(|_| "DX_MAVEN_LOCK is not set".to_owned())?;
+        .map_err(|error| format!("run this tool with `bazel run`: {error}"))?;
+    let rel = std::env::var("DX_MAVEN_LOCK")
+        .map_err(|error| format!("DX_MAVEN_LOCK is not set: {error}"))?;
     let lock = PathBuf::from(workspace).join(&rel);
     let committed = std::fs::read_to_string(&lock)
         .map_err(|error| format!("cannot read {}: {error}", lock.display()))?;

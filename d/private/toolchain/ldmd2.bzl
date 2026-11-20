@@ -6,6 +6,7 @@ load("//core:rlocation.bzl", "rlocation_path")
 def ldmd2_descriptor(compiler_key, closure_key):
     """Returns the launch descriptor text; closure_key is empty when there is no runtime closure."""
     text = "program=" + compiler_key + "\n"
+    text += "cwd=-fdebug-prefix-map=\t=.\n"
     if closure_key:
         text += "env_dir=LD_LIBRARY_PATH\t" + closure_key + "\n"
     return text

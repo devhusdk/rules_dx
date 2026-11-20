@@ -1,7 +1,7 @@
 """Target-scoped real capability aspects over real adapters; refresh the GENERATED blocks with `bazel run //core/modules:update_lang_projections`."""
 
 # BEGIN GENERATED LANG ASPECT LOADS
-load("//ansible/private/quality:ansible.bzl", _real_ansible_lint_aspect = "real_ansible_lint_aspect", _real_ansible_lint_probe_aspect = "real_ansible_lint_probe_aspect")
+load("//ansible/private/quality:ansible.bzl", _real_ansible_format_aspect = "real_ansible_format_aspect", _real_ansible_format_probe_aspect = "real_ansible_format_probe_aspect", _real_ansible_lint_aspect = "real_ansible_lint_aspect", _real_ansible_lint_probe_aspect = "real_ansible_lint_probe_aspect")
 load("//bicep/private/quality:bicep.bzl", _real_bicep_format_aspect = "real_bicep_format_aspect", _real_bicep_format_probe_aspect = "real_bicep_format_probe_aspect", _real_bicep_lint_aspect = "real_bicep_lint_aspect", _real_bicep_lint_probe_aspect = "real_bicep_lint_probe_aspect")
 load("//cc/private/quality:cc.bzl", _real_cc_format_aspect = "real_cc_format_aspect", _real_cc_format_probe_aspect = "real_cc_format_probe_aspect", _real_cc_lint_aspect = "real_cc_lint_aspect", _real_cc_lint_probe_aspect = "real_cc_lint_probe_aspect", _real_cc_typecheck_aspect = "real_cc_typecheck_aspect", _real_cc_typecheck_probe_aspect = "real_cc_typecheck_probe_aspect")
 load("//cloudformation/private/quality:cloudformation.bzl", _real_cloudformation_lint_aspect = "real_cloudformation_lint_aspect", _real_cloudformation_lint_probe_aspect = "real_cloudformation_lint_probe_aspect")
@@ -115,6 +115,10 @@ load("//tools/docs:aspect.bzl", _real_docs_aspect = "real_docs_aspect")
 visibility(["//core/..."])
 
 # BEGIN GENERATED LANG ASPECT EXPORTS
+real_ansible_format_aspect = _real_ansible_format_aspect
+
+real_ansible_format_probe_aspect = _real_ansible_format_probe_aspect
+
 real_ansible_lint_aspect = _real_ansible_lint_aspect
 
 real_ansible_lint_probe_aspect = _real_ansible_lint_probe_aspect
@@ -725,6 +729,7 @@ real_core_typecheck_probe_aspect = _real_core_typecheck_probe_aspect
 
 # BEGIN GENERATED LANG SHARD ASPECTS
 _LANG_SHARD_ASPECTS = {
+    "real_ansible_format": _real_ansible_format_aspect,
     "real_ansible_lint": _real_ansible_lint_aspect,
     "real_avro_lint": _real_avro_lint_aspect,
     "real_avro_typecheck": _real_avro_typecheck_aspect,

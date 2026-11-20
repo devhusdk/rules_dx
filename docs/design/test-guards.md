@@ -52,8 +52,9 @@ The guards check the rules of `docs/design/tests.md`.
 
 ## Determinism
 
-- `//tools/testing:determinism_check` builds `//appimage/...` and `//cli/archive/...` twice, each in a fresh output base with `--disk_cache=`, `--remote_cache=` and `--remote_executor=` empty, and compares the two compact execution logs with `dx_testing::exec_log`.
-- The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run` and passes Bazel with `--bazel`.
+- `//tools/testing:determinism_check` builds its patterns twice, each in a fresh output base with `--disk_cache=`, `--remote_cache=` and `--remote_executor=` empty, and compares the two compact execution logs with `dx_testing::exec_log`.
+- With `--kinds` it adds one target per `entry_points` kind of every `<lang>/lang.json`: `bazel query --output=label_kind 'kind(...) except attr(tags, manual, //...)'` lists them, a `cquery` drops those with `IncompatiblePlatformProvider`, and the first label of each kind in sorted order is kept. The builds pass `--skip_incompatible_explicit_targets`.
+- The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run`, passes Bazel with `--bazel`, and runs five shards with `--kinds --shard i/5`. `--shard` keeps the kind targets whose top-level package is every fifth in sorted order. Shard 0 adds `//appimage/...`, shard 1 `//cli/archive/...`, shard 2 `//android/private/packaging/...`, shard 3 `//msix/tests/...`, shard 4 `//deploy/private/...`.
 - An action is keyed by `<label> <mnemonic> <output path>`. The job fails for an output that differs, for an action in one log only, and for an allowlist line for an action that does not differ or is in neither log.
 - `tools/ci/determinism_allowlist.txt` lists the actions that differ. It only shrinks; `//tools/ci:determinism_allowlist_test` holds the cap.
 - Measured on Linux with warm repository caches: 34 s and 33 s per build, 67 s for both.
@@ -68,7 +69,7 @@ The guards check the rules of `docs/design/tests.md`.
 
 ## In-graph prebuilt guard
 
-- `//cli/prebuilt:guard_view` is a bool flag. When rules_dx is the root module and the flag is set, `@dx_prebuilt` and `@dx_gazelle` serve `//cli/prebuilt:guard_stub` for every tool they build from source.
+- `//cli/prebuilt:guard_view` is a bool flag. When rules_dx is the root module and the flag is set, `@dx_prebuilt` and `@dx_gazelle` serve `//cli/prebuilt:guard_stub` for every tool they build from source. Its scope is `universal`, so it keeps its value in the exec configuration. `//cli/prebuilt:guard_view_test` checks that exec-configured hub tools resolve to the stub.
 - `tools/testing/consumer/fixtures.bzl` splits `CONSUMER_FIXTURES` into `GO_GUARD_LANGS` and `JAVA_GUARD_LANGS`, held by the nested `go_prebuilt_guard_test` and `java_prebuilt_guard_test`, `IN_GRAPH_GUARD_LANGS`, and `GUARD_PENDING`. `//tools/testing/consumer:in_graph_prebuilt_guard_test` fails unless each fixture is in exactly one list.
 - `//tools/testing/consumer:in_graph_prebuilt_guard` writes, per `IN_GRAPH_GUARD_LANGS` language, `check` and `docs` targets whose `deps` carry the `dx check` and `dx docs` aspects over the non-manual rules of `@dx_api_fixtures//<lang>/tests/consumer`, injects them with `--inject_repository`, and runs `bazel cquery 'deps(...)'` with the flag and `--lockfile_mode=error`.
 - Each label is mapped to the form a consumer sees: the fixtures repo is the main repo, `@@//` is `@@rules_dx+//` and `@@+` is `@@rules_dx++`. The compiled binaries are checked against `tools/testing/consumer/prebuilt_guard_allowlist.txt` by the rules of `//tools/testing/consumer:prebuilt_guard`.

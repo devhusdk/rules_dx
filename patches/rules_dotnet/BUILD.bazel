@@ -4,6 +4,7 @@ exports_files([
     "canonical_labels.patch",
     "fsharp_signature.patch",
     "launcher_args.patch",
+    "fsharp_pdb_path.patch",
     "reproducible.patch",
     "nuget_group_prefix.patch",
     "sdk_versions.patch",

@@ -35,6 +35,8 @@ fn rejects_bad_descriptors() {
         "program=x\nprefixed=a b\n",
         "program=x\nprefixed=a\t\n",
         "program=x\nprefixed=a\tb\tc\n",
+        "program=x\ncwd=a\n",
+        "program=x\ncwd=a\t\n",
         "program=x\nenv_flag=\tVAR\n",
         "program=x\nenv_flag=--f\n",
         "program=x\nunset=\n",
@@ -236,6 +238,24 @@ fn plans_from_a_runfiles_tree() {
     })
     .unwrap();
     assert_eq!(slashed(&junit.args), slashed(&expected_args(&main, true)));
+}
+
+#[test]
+fn a_cwd_item_puts_the_working_directory_between_its_literals() {
+    let scratch = dx_test_scratch::scratch("exec_launcher_cwd_").unwrap();
+    let main = scratch.path().join("app.runfiles/_main");
+    std::fs::create_dir_all(&main).unwrap();
+    std::fs::write(main.join("prog"), "").unwrap();
+    let resolver = Resolver::for_executable(&scratch.path().join("app.exe")).unwrap();
+    let descriptor = parse("program=_main/prog\ncwd=-map=\t=.\n").unwrap();
+    assert_eq!(
+        descriptor.items,
+        [Item::Cwd("-map=".to_owned(), "=.".to_owned())]
+    );
+    let mut want = OsString::from("-map=");
+    want.push(std::env::current_dir().unwrap());
+    want.push("=.");
+    assert_eq!(plan(&resolver, &descriptor, &|_| None).unwrap().args, [want]);
 }
 
 #[test]

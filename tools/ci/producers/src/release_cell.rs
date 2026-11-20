@@ -60,7 +60,7 @@ struct Env {
 }
 
 fn var(name: &str) -> Result<String, String> {
-    std::env::var(name).map_err(|_| format!("release-cell: set {name}"))
+    std::env::var(name).map_err(|error| format!("release-cell: set {name}: {error}"))
 }
 
 impl Env {
@@ -126,12 +126,37 @@ impl Bazel {
             .map(PathBuf::from)
     }
 
-    /// The one file `target` builds, under `root`.
-    fn file(&self, root: &Path, flags: &[&str], target: &str) -> Result<PathBuf, String> {
+    fn output_base(&self) -> Result<PathBuf, String> {
+        self.output(&["info", CONFIG, "output_base"])
+            .map(PathBuf::from)
+    }
+
+    fn exec_path(&self, flags: &[&str], target: &str) -> Result<String, String> {
         let mut args = vec!["cquery", CONFIG];
         args.extend_from_slice(flags);
         args.extend_from_slice(&["--output=files", target]);
-        Ok(root.join(self.output(&args)?))
+        self.output(&args)
+    }
+
+    /// The one file `target` builds, under `root`.
+    fn file(&self, root: &Path, flags: &[&str], target: &str) -> Result<PathBuf, String> {
+        Ok(root.join(self.exec_path(flags, target)?))
+    }
+
+    /// The external repository source file `label`, under `output_base`.
+    fn source(&self, output_base: &Path, label: &str) -> Result<PathBuf, String> {
+        repository_file(output_base, &self.exec_path(&[], label)?)
+    }
+}
+
+/// Maps the exec path of an external repository source file to its path under `output_base`.
+fn repository_file(output_base: &Path, exec_path: &str) -> Result<PathBuf, String> {
+    if exec_path.starts_with("external/") {
+        Ok(output_base.join(exec_path))
+    } else {
+        Err(format!(
+            "{exec_path} is not an external repository source file"
+        ))
     }
 }
 
@@ -226,13 +251,13 @@ fn library_asset_name(tool: &str, cell: &str) -> String {
 /// Writes the licence files of `library`, separated by a blank line, as `dx-<tool>-LICENSE` in `out`.
 fn write_library_license(
     bazel: &Bazel,
-    root: &Path,
+    output_base: &Path,
     library: &Library,
     out: &Path,
 ) -> Result<(), String> {
     let mut text = String::new();
     for label in library.licenses {
-        let path = bazel.file(root, &[], label)?;
+        let path = bazel.source(output_base, label)?;
         let part = std::fs::read_to_string(&path)
             .map_err(|error| format!("read {}: {error}", path.display()))?;
         if !text.is_empty() {
@@ -366,6 +391,7 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
     let gazelle_flags = [PURE];
     main.build(&gazelle_flags, &[GAZELLE])?;
     let root = main.execution_root()?;
+    let output_base = main.output_base()?;
     let gazelle_asset = tool_asset_name("gazelle", &env.cell);
     release_copy(
         &env.cell,
@@ -390,7 +416,7 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
             &main.file(&root, &[], library.label)?,
             &out.join(library_asset_name(library.tool, &env.cell)),
         )?;
-        write_library_license(&main, &root, library, out)?;
+        write_library_license(&main, &output_base, library, out)?;
     }
     let dx = main.file(&root, &[], "//cli/cli:dx")?;
     if is_macos(&env.cell) && !codesign(&["--verify", "--strict"], &dx)? {
@@ -498,7 +524,21 @@ pub fn cell(args: &[String]) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_macos, libraries, library_asset_name, symbols_name, tool_asset_name};
+    use super::{
+        is_macos, libraries, library_asset_name, repository_file, symbols_name, tool_asset_name,
+    };
+    use std::path::Path;
+
+    #[test]
+    fn repository_files_resolve_under_the_output_base() {
+        let base = Path::new("/base");
+        assert_eq!(
+            repository_file(base, "external/+ext+jvm_tree_sitter/LICENSE"),
+            Ok(base.join("external/+ext+jvm_tree_sitter/LICENSE"))
+        );
+        assert!(repository_file(base, "bazel-out/x64_windows-opt/bin/a.dll").is_err());
+        assert!(repository_file(base, "java/private/LICENSE").is_err());
+    }
 
     #[test]
     fn only_the_windows_arm64_cell_ships_libraries() {

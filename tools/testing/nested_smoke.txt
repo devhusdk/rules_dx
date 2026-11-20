@@ -4,5 +4,6 @@
 //tools/testing/consumer:go_cold_start_test 60
 //tools/testing/consumer:go_prebuilt_guard_test 44
 //tools/testing/consumer:java_prebuilt_guard_test 32
+//tools/testing/consumer:rust_cold_start_test 60
 //tools/testing/hermetic:cpp_rust 591
 //tools/testing:nested_bazel_harness_test 33

@@ -302,12 +302,18 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	}
 	result := language.GenerateResult{}
 	for _, e := range entries {
+		if e.kind == libKind {
+			m := rule.NewRule(MetadataKind, MetadataName)
+			m.SetAttr("package_name", spec.Name)
+			result.Gen = append(result.Gen, m)
+			result.Imports = append(result.Imports, nil)
+		}
 		r := rule.NewRule(e.kind, e.name)
 		if e.kind == testKind {
 			common.SizeSmall(r)
 		}
 		if e.kind == libKind {
-			r.SetAttr("package_name", spec.Name)
+			r.SetAttr("package", ":"+MetadataName)
 		} else {
 			r.SetAttr("main", e.main)
 		}

@@ -20,7 +20,7 @@ dart_wasm_binary(
 javascript_test(
     name = "js_run_test",
     srcs = ["js_test.mjs"],
-    args = ["$(rootpath :hello_js)"],
+    args = ["$(rootpaths :hello_js)"],
     data = [":hello_js"],
     main = "js_test.mjs",
     package_json = "@rules_dx//:package_json",

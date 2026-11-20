@@ -44,10 +44,19 @@ pub struct RealRequest {
     pub sources: Vec<(String, String)>,
     pub siblings: Vec<(String, String)>,
     pub resolves: Vec<(String, String)>,
+    /// Files of `workspace<TAB>exec` lines, resolved like `resolves` unless a mapping holds the path.
+    pub resolve_lists: Vec<ResolveList>,
     pub tools: BTreeMap<String, RequestTool>,
     pub scratch_parent: Option<String>,
     /// `dx <quality> --unsafe`: adapters may also apply the fixes the tool marks unsafe.
     pub unsafe_fixes: bool,
+}
+
+/// One resolve list file and the extensions it keeps; empty keeps every file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolveList {
+    pub list: PathBuf,
+    pub extensions: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -120,6 +129,14 @@ struct ToolFileDoc {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
+struct ResolveListDoc {
+    list: String,
+    #[serde(default)]
+    extensions: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct EnvDoc {
     key: String,
     value: String,
@@ -174,6 +191,8 @@ struct RequestDoc {
     #[serde(default)]
     resolves: Vec<MappingDoc>,
     #[serde(default)]
+    resolve_lists: Vec<ResolveListDoc>,
+    #[serde(default)]
     tools: BTreeMap<String, ToolDoc>,
     #[serde(default)]
     scratch_parent: Option<String>,
@@ -222,6 +241,29 @@ fn check_mappings(
         }
         seen.insert(mapping.workspace.clone());
         out.push((mapping.workspace.clone(), mapping.exec.clone()));
+    }
+    Ok(out)
+}
+
+fn check_resolve_lists(docs: &[ResolveListDoc]) -> Result<Vec<ResolveList>, RequestError> {
+    let mut out = Vec::with_capacity(docs.len());
+    for doc in docs {
+        if doc.list.is_empty() {
+            return Err(RequestError::EmptyExec {
+                role: "resolve list".to_owned(),
+                workspace: String::new(),
+            });
+        }
+        if doc.extensions.iter().any(String::is_empty) {
+            return Err(RequestError::EmptyExec {
+                role: "resolve list extension".to_owned(),
+                workspace: doc.list.clone(),
+            });
+        }
+        out.push(ResolveList {
+            list: PathBuf::from(&doc.list),
+            extensions: doc.extensions.clone(),
+        });
     }
     Ok(out)
 }
@@ -433,6 +475,7 @@ pub fn parse_real_request(bytes: &[u8]) -> Result<RealRequest, RequestError> {
     }
     let siblings = check_mappings("sibling", &doc.siblings, &mut seen, true)?;
     let resolves = check_mappings("resolve", &doc.resolves, &mut seen, true)?;
+    let resolve_lists = check_resolve_lists(&doc.resolve_lists)?;
     let mut tools = BTreeMap::new();
     for (tool_id, entry) in &doc.tools {
         tools.insert(tool_id.clone(), check_tool(tool_id, entry, &staged_tools)?);
@@ -451,6 +494,7 @@ pub fn parse_real_request(bytes: &[u8]) -> Result<RealRequest, RequestError> {
         sources,
         siblings,
         resolves,
+        resolve_lists,
         tools,
         scratch_parent: doc.scratch_parent,
         unsafe_fixes: doc.unsafe_fixes,
@@ -521,6 +565,38 @@ mod tests {
         let request =
             parse_real_request(&serde_json::to_vec(&doc).expect("encodes")).expect("parses");
         assert!(request.unsafe_fixes);
+    }
+
+    #[test]
+    fn resolve_lists_parse_and_reject_empty_entries() {
+        let (stages, sources, tools) = one_source();
+        let request =
+            parse_skeleton(stages.clone(), sources.clone(), tools.clone()).expect("parses");
+        assert!(request.resolve_lists.is_empty());
+
+        let mut doc: serde_json::Value =
+            serde_json::from_slice(&skeleton(stages, sources, tools)).expect("decodes");
+        doc["resolve_lists"] =
+            json!([{"list": "out/ty-resolves.txt", "extensions": ["py", "pyi"]}]);
+        let request =
+            parse_real_request(&serde_json::to_vec(&doc).expect("encodes")).expect("parses");
+        assert_eq!(
+            request.resolve_lists,
+            [ResolveList {
+                list: PathBuf::from("out/ty-resolves.txt"),
+                extensions: vec!["py".to_owned(), "pyi".to_owned()],
+            }]
+        );
+        for bad in [
+            json!({"list": ""}),
+            json!({"list": "a.txt", "extensions": [""]}),
+        ] {
+            doc["resolve_lists"] = json!([bad]);
+            assert!(matches!(
+                parse_real_request(&serde_json::to_vec(&doc).expect("encodes")),
+                Err(RequestError::EmptyExec { .. })
+            ));
+        }
     }
 
     #[test]

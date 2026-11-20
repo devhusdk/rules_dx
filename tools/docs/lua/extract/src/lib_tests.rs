@@ -74,15 +74,58 @@ fn skips_local_functions_and_marks_missing_docs() {
 #[test]
 fn rejects_unknown_formats_and_kinds() {
     let wrong = document(vec![]).replace("\"format\":1", "\"format\":2");
-    assert!(convert(&wrong, "geo").unwrap_err().contains("format 2"));
-    let odd = document(vec![item("spaceship", "x")]);
-    assert!(
-        convert(&odd, "geo")
-            .unwrap_err()
-            .contains("unknown item type")
+    let error = convert(&wrong, "geo").unwrap_err();
+    assert!(matches!(
+        error,
+        LuaExtractError::UnsupportedFormat { found: 2 }
+    ));
+    assert_eq!(
+        error.to_string(),
+        "LDoc JSON format 2 is not supported, expected 1"
     );
-    assert!(convert("[]", "geo").is_err());
-    assert!(convert(&document(vec![]), "bad package").is_err());
+    let odd = document(vec![item("spaceship", "x")]);
+    let error = convert(&odd, "geo").unwrap_err();
+    assert!(matches!(error, LuaExtractError::UnknownItemType { .. }));
+    assert_eq!(
+        error.to_string(),
+        "LDoc JSON module 'geo' item 'x' has unknown item type 'spaceship'"
+    );
+    let error = convert("[]", "geo").unwrap_err();
+    assert!(matches!(error, LuaExtractError::NotObject { .. }));
+    assert_eq!(error.to_string(), "LDoc JSON is not an object");
+    let error = convert(&document(vec![]), "bad package").unwrap_err();
+    assert!(matches!(error, LuaExtractError::InvalidPackage { .. }));
+    assert_eq!(error.to_string(), "invalid package 'bad package'");
+    let error = convert(&document(vec![json!(1)]), "geo").unwrap_err();
+    assert!(matches!(error, LuaExtractError::NotObject { .. }));
+    assert_eq!(
+        error.to_string(),
+        "LDoc JSON module 'geo' 'items' entry 0 is not an object"
+    );
+    let generated = document(vec![]).replace("\"generated\":false", "\"generated\":1");
+    let error = convert(&generated, "geo").unwrap_err();
+    assert!(matches!(error, LuaExtractError::Json(_)));
+    assert_eq!(
+        error.to_string(),
+        "LDoc JSON module 'geo' 'generated' is not a boolean"
+    );
+}
+
+#[test]
+fn run_reports_an_unreadable_input() {
+    let options = Options {
+        json: "/nonexistent/lua.json".to_owned(),
+        package: "geo".to_owned(),
+        out: "out".to_owned(),
+    };
+    let error = run(&options).unwrap_err();
+    assert!(matches!(error, LuaExtractError::Read(_)));
+    assert!(
+        error
+            .to_string()
+            .starts_with("cannot read /nonexistent/lua.json: "),
+        "{error}"
+    );
 }
 
 #[test]

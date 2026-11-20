@@ -84,15 +84,22 @@ JAVA_GUARD_LANGS = [
 
 # The consumer fixtures //tools/testing/consumer:in_graph_prebuilt_guard covers.
 IN_GRAPH_GUARD_LANGS = [
+    "ansible",
     "d",
+    "elixir",
+    "fortran",
+    "ocaml",
+    "perl",
+    "php",
+    "powershell",
     "rego",
+    "ruby",
     "sql",
     "zig",
 ]
 
 # The consumer fixtures no prebuilt guard covers yet.
 GUARD_PENDING = [
-    "ansible",
     "android",
     "appimage",
     "apple",
@@ -105,10 +112,8 @@ GUARD_PENDING = [
     "cuda",
     "dart",
     "dockerfile",
-    "elixir",
     "erlang",
     "flutter",
-    "fortran",
     "fsharp",
     "haskell",
     "helm",
@@ -118,18 +123,46 @@ GUARD_PENDING = [
     "make",
     "mdx",
     "msix",
-    "ocaml",
-    "perl",
-    "php",
-    "powershell",
     "qt",
     "rst",
-    "ruby",
     "svelte",
     "swift",
     "terraform",
     "typescript",
     "vue",
+]
+
+# The fixtures whose test is the consumer evidence of the support matrix row of the same name.
+CONSUMER_ROWS = [
+    "android",
+    "astro",
+    "cc",
+    "csharp",
+    "cuda",
+    "d",
+    "dart",
+    "elixir",
+    "erlang",
+    "fortran",
+    "fsharp",
+    "go",
+    "haskell",
+    "java",
+    "javascript",
+    "julia",
+    "lua",
+    "mdx",
+    "ocaml",
+    "perl",
+    "php",
+    "powershell",
+    "python",
+    "ruby",
+    "rust",
+    "svelte",
+    "typescript",
+    "vue",
+    "zig",
 ]
 
 def consumer_fixture_tests(name, size):
@@ -159,6 +192,7 @@ def consumer_fixture_tests(name, size):
                 "DX_CONSUMER_LANG": lang,
                 "DX_CONSUMER_PENDING": "$(rootpath pending.txt)",
             },
+            tags = ["consumer-row:" + lang] if lang in CONSUMER_ROWS else [],
             deps = ["//tools/testing:dx_testing"],
         )
     native.test_suite(

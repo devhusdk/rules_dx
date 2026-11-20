@@ -1,0 +1,49 @@
+Upstream: none (not yet sent upstream)
+diff --git a/private/elixir_bytecode.bzl b/private/elixir_bytecode.bzl
+--- a/private/elixir_bytecode.bzl
++++ b/private/elixir_bytecode.bzl
+@@ -55,6 +55,9 @@
+     export ERL_LIBS={erl_libs_path}
+ fi
+ 
++# Keeps the absolute source path and the compile options out of the CInf chunk.
++export ERL_COMPILER_OPTIONS=deterministic
++
+ {env}
+ 
+ {setup}
+@@ -77,6 +80,34 @@
+     status=1
+ fi
+ rm -f "$diagnostics"
++if [ "$status" = 0 ]; then
++    # elixirc expands every source to an absolute path, which lands in the
++    # debug info (Dbgi) and the docs (Docs) of each module. The path holds the
++    # sandbox directory, so make it relative to the execroot.
++    "${{ABS_ELIXIR_HOME}}"/bin/elixir -e '
++relative = fn path -> Path.relative_to_cwd(to_string(path)) end
++rewrite = fn
++  ~c"Dbgi", {{:debug_info_v1, backend, {{:elixir_v1, %{{file: file}} = map, specs}}}} ->
++    {{:debug_info_v1, backend, {{:elixir_v1, %{{map | file: relative.(file)}}, specs}}}}
++  ~c"Docs", {{:docs_v1, anno, language, format, moduledoc, %{{source_path: path}} = meta, docs}} ->
++    {{:docs_v1, anno, language, format, moduledoc, %{{meta | source_path: String.to_charlist(relative.(path))}}, docs}}
++  _, term -> term
++end
++for beam <- Path.wildcard(Path.join(hd(System.argv()), "*.beam")) do
++  {{:ok, _module, chunks}} = :beam_lib.all_chunks(String.to_charlist(beam))
++  chunks =
++    for {{id, data}} <- chunks do
++      if id in [~c"Dbgi", ~c"Docs"] do
++        {{id, :erlang.term_to_binary(rewrite.(id, :erlang.binary_to_term(data)), [:compressed])}}
++      else
++        {{id, data}}
++      end
++    end
++  {{:ok, binary}} = :beam_lib.build_module(chunks)
++  File.write!(beam, binary)
++end
++' {out_dir} || status=$?
++fi
+ exit "$status"
+ """.format(
+         maybe_install_erlang = maybe_install_erlang(ctx),

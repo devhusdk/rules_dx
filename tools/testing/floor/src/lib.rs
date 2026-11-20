@@ -5,10 +5,14 @@
 //! overrides (`DX_CONSUMER_OVERRIDES`), the MODULE.bazel edits they imply, and the comparison of
 //! a `bazel mod graph --output=json --verbose` result against the floors.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 
 use dx_module_bazel::{ModuleError, ModuleFile, compare_module_versions};
 use std::cmp::Ordering;
@@ -152,10 +156,9 @@ pub fn parse_overrides(spec: &str, table: &Table) -> Result<Overrides, String> {
 pub fn render_overrides(overrides: &Overrides) -> String {
     let mut text = String::new();
     for (module, version) in overrides {
-        write!(
-            text,
+        text.push_str(&format!(
             "single_version_override(\n    module_name = \"{module}\",\n    version = \"{version}\",\n)\n"
-        ).ok();
+        ));
     }
     text
 }

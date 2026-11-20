@@ -229,12 +229,12 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2046
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test //tools/testing:nested_bazel_harness_test //apple/tests:consumer_build_test $(cat "$RUNNER_TEMP/hermetic-targets")
-      - name: Run the bcr_test_module presubmit tasks for macos_arm64
+      - name: Run the README quickstart and bcr_test_module cases for macos_arm64
         if: ${{ !cancelled() }}
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_output=all --test_timeout=2400 --flaky_test_attempts=2 "$@" //deploy/private/release/tests:release_consumer_smoke_test --test_arg=--exact --test_arg=quickstart_consumer_test::bcr_test_module_runs_its_presubmit_targets
+          bazel test --noshow_progress --test_output=all --test_timeout=2400 --flaky_test_attempts=2 "$@" //deploy/private/release/tests:release_consumer_smoke_test --test_arg=--exact --test_arg=quickstart_consumer_test::bcr_test_module_runs_its_presubmit_targets --test_arg=quickstart_consumer_test::the_readme_quickstart_runs_as_written
       - uses: ./.github/actions/hermetic-evidence
         if: always()
         with:
@@ -319,11 +319,25 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run --noshow_progress "$@" //:dx -- lint //cli/process/... //cli/os_sys/... //cli/shim/...
   determinism:
-    name: determinism (two cold builds, exec logs compared)
-    timeout-minutes: 60
+    name: determinism (two cold builds, exec logs compared, shard ${{ matrix.shard }})
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: 0/5
+            patterns: //appimage/...
+          - shard: 1/5
+            patterns: //cli/archive/...
+          - shard: 2/5
+            patterns: //android/private/packaging/...
+          - shard: 3/5
+            patterns: //msix/tests/...
+          - shard: 4/5
+            patterns: //deploy/private/...
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -332,10 +346,14 @@ jobs:
         with:
           cache-save: false
       - name: Build twice and compare the execution logs
+        env:
+          SHARD: ${{ matrix.shard }}
+          PATTERNS: ${{ matrix.patterns }}
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" //appimage/... //cli/archive/...
+          read -ra patterns <<< "$PATTERNS"
+          bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" --kinds --shard "$SHARD" "${patterns[@]}"
   analysis-scaling:
     name: analysis-scaling (dx check, docs and sync aspects on depth 100 and 400 chains)
     timeout-minutes: 60
@@ -355,7 +373,7 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/testing:analysis_scaling_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/analysis_scaling"
   in-graph-prebuilt-guard:
-    name: in-graph-prebuilt-guard (d, rego, sql and zig consumer fixtures compile no rules_dx tool)
+    name: in-graph-prebuilt-guard (IN_GRAPH_GUARD_LANGS consumer fixtures compile no rules_dx tool)
     timeout-minutes: 60
     runs-on: ubuntu-latest
     permissions:
@@ -723,7 +741,7 @@ jobs:
             sed 's/^/- /' "$RUNNER_TEMP/network-targets" >> "$GITHUB_STEP_SUMMARY"
           fi
   starter-consumer:
-    name: starter-consumer (hello-world fixtures) (${{ matrix.platform }}, shard ${{ matrix.shard }})
+    name: starter-consumer (compiler probes) (${{ matrix.platform }}, shard ${{ matrix.shard }})
     timeout-minutes: 90
     defaults:
       run:
@@ -737,7 +755,7 @@ jobs:
           - macos_arm64
           - windows_x86_64
           - windows_arm64
-        shard: [0, 1, 2, 3]
+        shard: [0, 1]
         include:
           - platform: linux_x86_64
             runner: ubuntu-latest
@@ -749,7 +767,6 @@ jobs:
             runner: windows-latest
           - platform: windows_arm64
             runner: windows-11-arm
-            no-starter-issue: "#4986"
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -770,54 +787,6 @@ jobs:
         run: |
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          fi
-      - name: Run this shard of the starter consumer tests
-        env:
-          SHARD: ${{ matrix.shard }}
-          SHARDS: "4"
-          NO_STARTER_ISSUE: ${{ matrix.no-starter-issue }}
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel query "$@" 'attr(tags, starter-consumer, //...) except filter("_upstream$", //...)' --output=label | sort > "$RUNNER_TEMP/starter-all"
-          awk -v shard="$SHARD" -v shards="$SHARDS" '(NR - 1) % shards == shard' "$RUNNER_TEMP/starter-all" > "$RUNNER_TEMP/starter-targets"
-          if [ ! -s "$RUNNER_TEMP/starter-all" ]; then
-            echo "::error::No starter consumer targets exist."
-            exit 1
-          fi
-          if [ ! -s "$RUNNER_TEMP/starter-targets" ]; then
-            echo "No starter consumer targets in shard ${SHARD}."
-            exit 0
-          fi
-          targets="$(tr '\r\n' '  ' < "$RUNNER_TEMP/starter-targets")"
-          # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets --test_timeout=2400 --flaky_test_attempts=2 "$@" $targets && test_status=0 || test_status=$?
-          testlogs="$PWD/bazel-testlogs"
-          ran=0
-          : > "$RUNNER_TEMP/starter-ran"
-          : > "$RUNNER_TEMP/starter-skipped"
-          for label in $targets; do
-            path="${label#//}"
-            path="$(printf %s "$path" | tr : /)"
-            if [ -f "${testlogs}/${path}/test.xml" ]; then
-              ran=$((ran + 1))
-              echo "$label" >> "$RUNNER_TEMP/starter-ran"
-            else
-              echo "$label" >> "$RUNNER_TEMP/starter-skipped"
-            fi
-          done
-          if [ "$test_status" -ne 0 ]; then
-            exit "$test_status"
-          fi
-          echo "Ran ${ran} starter consumer tests on ${PLATFORM}, shard ${SHARD}."
-          if [ "$ran" -eq 0 ]; then
-            if [ -n "$NO_STARTER_ISSUE" ]; then
-              echo "::warning::${PLATFORM} runs no starter consumer tests. Tracked in ${NO_STARTER_ISSUE}."
-              exit 0
-            fi
-            echo "::error::Every starter consumer test was skipped on ${PLATFORM}, shard ${SHARD}."
-            exit 1
           fi
       - name: Run the compiler probe tests
         id: compiler-probes
@@ -851,26 +820,6 @@ jobs:
         with:
           platform: ${{ matrix.platform }}
           name: starter-${{ matrix.platform }}
-      - name: Write job summary
-        if: always()
-        env:
-          JOB_STATUS: ${{ job.status }}
-          PLATFORM: ${{ matrix.platform }}
-          SHARD: ${{ matrix.shard }}
-        run: |
-          echo "### starter-consumer (${PLATFORM}, shard ${SHARD}) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "The tests tagged starter-consumer: each runs dx init and checks the generated files against a golden listing." >> "$GITHUB_STEP_SUMMARY"
-          if [ -f "$RUNNER_TEMP/starter-ran" ]; then
-            echo "#### Ran" >> "$GITHUB_STEP_SUMMARY"
-            tr -d '\r' < "$RUNNER_TEMP/starter-ran" | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY"
-            if [ -s "$RUNNER_TEMP/starter-skipped" ]; then
-              echo "#### Skipped (incompatible with this platform)" >> "$GITHUB_STEP_SUMMARY"
-              tr -d '\r' < "$RUNNER_TEMP/starter-skipped" | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY"
-            fi
-          elif [ -f "$RUNNER_TEMP/starter-targets" ]; then
-            echo "#### Targets" >> "$GITHUB_STEP_SUMMARY"
-            tr -d '\r' < "$RUNNER_TEMP/starter-targets" | sed 's/^/- /' >> "$GITHUB_STEP_SUMMARY"
-          fi
   msix-install:
     name: msix-install (windows_x86_64)
     timeout-minutes: 60

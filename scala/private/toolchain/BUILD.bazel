@@ -18,9 +18,16 @@ scala_toolchain(
     dependency_mode = "transitive",
     dependency_tracking_method = "ast",
     enable_semanticdb = True,
+    # Scalac writes the compile time into the stats file, so it differs on every build.
+    enable_stats_file = False,
     scalacopts = [
         "-Wunused:imports,privates,locals,implicits",
         "-Wconf:cat=unused:info",
+        # semanticdb-scalac sorts occurrences by start position only, so two that
+        # start together keep hash-map order. Without text the map keys hash the
+        # source's absolute path, and the order changes with the checkout; with
+        # text they hash its relative path and contents.
+        "-P:semanticdb:text:on",
     ],
     semanticdb_bundle_in_jar = True,
     strict_deps_mode = "off",
@@ -41,6 +48,8 @@ toolchain(
 scala_toolchain(
     name = "semanticdb_scala3_impl",
     enable_semanticdb = True,
+    # Scalac writes the compile time into the stats file, so it differs on every build.
+    enable_stats_file = False,
     scalacopts = ["-Wunused:all"],
     semanticdb_bundle_in_jar = True,
     use_argument_file_in_runner = True,

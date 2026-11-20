@@ -1,0 +1,99 @@
+Upstream: none (not yet sent upstream)
+diff -ruN a/julia/private/toolchain_repo.bzl b/julia/private/toolchain_repo.bzl
+--- a/julia/private/toolchain_repo.bzl
++++ b/julia/private/toolchain_repo.bzl
+@@ -1,6 +1,5 @@
+ """Julia toolchain repository configuration"""
+ 
+-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+ load(
+     "//julia/private:versions.bzl",
+     _JULIA_VERSIONS = "JULIA_VERSIONS",
+@@ -106,6 +105,73 @@
+ )
+ """
+ 
++_BYTE_EDITS = {
++    "1.12.5": {
++        "x86_64-linux-gnu": {
++            "310139": [
++                "lib/julia/libjulia-internal.so.1.12.5",
++                "f20f1155b8f20f114dc0e846ae0500f20f",
++                "41c74764000000006641c747680000eb29",
++            ],
++            "461240": [
++                "lib/julia/libjulia-internal.so.1.12.5",
++                "488b45a848c70000000000488b45a848c7401800000000c6402000",
++                "48c7000000000048c740180000000048c74020000000000f1f4000",
++            ],
++            "470298": [
++                "lib/julia/libjulia-internal.so.1.12.5",
++                "e8116c00004989c4e8d9690000",
++                "498b4510904989c431c00f1f00",
++            ],
++        },
++    },
++}
++
++# The edits are hex so the repository attributes stay valid UTF-8. Bazel can
++# hand a repository rule its attributes back from a UTF-8 serialization, which
++# turns raw bytes above 0x7f into U+FFFD (Bazel 9.3.1, extension evaluated in
++# an earlier server), and then no edit matches the file.
++_BYTE_VALUES = "\000\001\002\003\004\005\006\007\010\011\012\013\014\015\016\017\020\021\022\023\024\025\026\027\030\031\032\033\034\035\036\037\040\041\042\043\044\045\046\047\050\051\052\053\054\055\056\057\060\061\062\063\064\065\066\067\070\071\072\073\074\075\076\077\100\101\102\103\104\105\106\107\110\111\112\113\114\115\116\117\120\121\122\123\124\125\126\127\130\131\132\133\134\135\136\137\140\141\142\143\144\145\146\147\150\151\152\153\154\155\156\157\160\161\162\163\164\165\166\167\170\171\172\173\174\175\176\177\200\201\202\203\204\205\206\207\210\211\212\213\214\215\216\217\220\221\222\223\224\225\226\227\230\231\232\233\234\235\236\237\240\241\242\243\244\245\246\247\250\251\252\253\254\255\256\257\260\261\262\263\264\265\266\267\270\271\272\273\274\275\276\277\300\301\302\303\304\305\306\307\310\311\312\313\314\315\316\317\320\321\322\323\324\325\326\327\330\331\332\333\334\335\336\337\340\341\342\343\344\345\346\347\350\351\352\353\354\355\356\357\360\361\362\363\364\365\366\367\370\371\372\373\374\375\376\377"
++
++def _unhex(text):
++    return "".join([_BYTE_VALUES[int(text[i:i + 2], 16)] for i in range(0, len(text), 2)])
++
++def _julia_archive_impl(rctx):
++    rctx.download_and_extract(
++        url = rctx.attr.urls,
++        integrity = rctx.attr.integrity,
++        stripPrefix = rctx.attr.strip_prefix,
++    )
++    for offset, edit in rctx.attr.byte_edits.items():
++        path = edit[0]
++        before = _unhex(edit[1])
++        after = _unhex(edit[2])
++        content = rctx.read(path)
++        start = int(offset)
++        end = start + len(before)
++        if content[start:end] == after:
++            continue
++        if len(after) != len(before) or content[start:end] != before:
++            fail("{}: unexpected bytes at offset {}".format(path, offset))
++        rctx.file(
++            path,
++            content[:start] + after + content[end:],
++            executable = True,
++            legacy_utf8 = False,
++        )
++    rctx.file("BUILD.bazel", rctx.attr.build_file_content)
++
++_julia_archive = repository_rule(
++    implementation = _julia_archive_impl,
++    attrs = {
++        "build_file_content": attr.string(mandatory = True),
++        "byte_edits": attr.string_list_dict(),
++        "integrity": attr.string(mandatory = True),
++        "strip_prefix": attr.string(),
++        "urls": attr.string_list(mandatory = True),
++    },
++)
++
+ def julia_toolchain_repository(*, name, version, triplet, url, integrity, linker = "julia"):
+     """Download a version of Julia and instantiate targets for it.
+ 
+@@ -130,11 +183,12 @@
+     # Julia archives unpack to julia-{version}/ directory
+     strip_prefix = "julia-{}".format(version)
+ 
+-    http_archive(
++    _julia_archive(
+         name = name,
+         urls = [url],
+         integrity = integrity,
+         strip_prefix = strip_prefix,
++        byte_edits = _BYTE_EDITS.get(version, {}).get(triplet, {}),
+         build_file_content = _JULIA_TOOLCHAIN_BUILD_FILE_CONTENT.format(
+             cpu_target = _CPU_TARGETS.get(triplet.split("-")[0], "generic"),
+             linker = linker,

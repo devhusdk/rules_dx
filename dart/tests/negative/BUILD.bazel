@@ -1,7 +1,22 @@
 load("@rules_dx//core:failure_test.bzl", "failure_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library")
+load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library", "dart_package_metadata")
 load(":negative_tests.bzl", "dart_kernel_input_test")
+
+dart_package_metadata(
+    name = "wrong_dep-metadata",
+    package_name = "wrong_dep",
+)
+
+dart_package_metadata(
+    name = "base-metadata",
+    package_name = "base",
+)
+
+dart_package_metadata(
+    name = "other-metadata",
+    package_name = "other",
+)
 
 real_source_target(
     name = "corpus_starlark",
@@ -24,7 +39,7 @@ filegroup(
 
 dart_library(
     name = "wrong_dep",
-    package_name = "wrong_dep",
+    package = ":wrong_dep-metadata",
     testonly = True,
     srcs = ["wrong_dep.dart"],
     tags = ["manual"],
@@ -39,7 +54,7 @@ failure_test(
 
 dart_library(
     name = "base",
-    package_name = "base",
+    package = ":base-metadata",
     testonly = True,
     srcs = ["lib/base.dart"],
     tags = ["manual"],
@@ -47,7 +62,7 @@ dart_library(
 
 dart_library(
     name = "other",
-    package_name = "other",
+    package = ":other-metadata",
     testonly = True,
     srcs = ["lib/other.dart"],
     tags = ["manual"],

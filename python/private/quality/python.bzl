@@ -50,16 +50,11 @@ def _ty_hook(target, _ctx, _resolved, _capability, _what, _shared):
     transitive = getattr(target[_PyInfo], "transitive_sources", None)
     if transitive == None:
         return real_context()
-    pairs = []
     search_dirs = []
-    for f in transitive.to_list():
-        ws_path = f.short_path
-        if ".." not in ws_path.split("/") and (ws_path.endswith(".py") or ws_path.endswith(".pyi")):
-            pairs.append((ws_path, f, False))
     for f in transitive.to_list():
         if f.is_directory and f.short_path.endswith(".install"):
             search_dirs.append(f)
-    return real_context(early_inputs = search_dirs, resolve_pairs = pairs, options = {"search_paths": search_dirs})
+    return real_context(early_inputs = search_dirs, resolve_lists = [(transitive, ["py", "pyi"])], options = {"search_paths": search_dirs})
 
 HOOK_ORDER = ["ty"]
 

@@ -4,11 +4,10 @@ use std::process::{Command, Stdio};
 
 const BAZEL: &str = "bazel";
 
-pub const SETS: [&str; 8] = [
+pub const SETS: [&str; 7] = [
     "workflow",
     "preflight",
     "preflight-windows-arm64",
-    "starter",
     "hermetic",
     "docs",
     "cli",
@@ -51,9 +50,6 @@ pub const WINDOWS_ARM64_PLATFORM: &str = "--platforms=@llvm//platforms:windows_a
 
 pub const CRATE_LOCK_CHECK: &str =
     "--repo_env=CARGO_BAZEL_DIGEST_CHECK=1 @crates @dx_quality_crates @dx_thrift_crates";
-
-pub const STARTER_QUERY: &str =
-    r#"attr(tags, starter-consumer, //...) except filter("_upstream$", //...)"#;
 
 pub const HERMETIC_QUERY: &str = r#"attr(tags, hermetic-consumer, //...) except filter("_upstream$", //...) except filter("_msvc$", //...)"#;
 
@@ -126,14 +122,6 @@ pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
                     .map(str::to_owned),
             );
             vec![Step::Run(BAZEL, args)]
-        }
-        "starter" => {
-            let mut query = words(&["query"], flags, "");
-            query.extend([STARTER_QUERY.to_owned(), "--output=label".to_owned()]);
-            vec![
-                Step::Query(query),
-                Step::Run(BAZEL, words(&["build", "--nobuild"], flags, "")),
-            ]
         }
         "hermetic" => {
             let mut query = words(&["query", "--lockfile_mode=error"], flags, "");
@@ -329,15 +317,13 @@ mod tests {
     }
 
     #[test]
-    fn consumer_sets_query_then_build() {
-        for set in ["starter", "hermetic"] {
-            let steps = plan(set, &flags()).unwrap();
-            assert!(matches!(steps.first(), Some(Step::Query(_))), "{set}");
-            let Some(Step::Run("bazel", args)) = steps.get(1) else {
-                panic!("{steps:?}");
-            };
-            assert_eq!(args.get(..2).unwrap(), ["build", "--nobuild"]);
-        }
+    fn the_consumer_set_queries_then_builds() {
+        let steps = plan("hermetic", &flags()).unwrap();
+        assert!(matches!(steps.first(), Some(Step::Query(_))));
+        let Some(Step::Run("bazel", args)) = steps.get(1) else {
+            panic!("{steps:?}");
+        };
+        assert_eq!(args.get(..2).unwrap(), ["build", "--nobuild"]);
     }
 
     #[test]

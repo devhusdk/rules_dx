@@ -1643,6 +1643,23 @@ fn maven_hub_must_exist_in_the_root_module() {
 }
 
 #[test]
+fn a_catalog_set_without_a_rules_jvm_external_signature_uses_the_lock_step() {
+    let (scratch, set) = maven_workspace(
+        "bazel_dep(name = \"x\", version = \"1\")\n",
+        "{\"__DX_INPUTS_SHA256\":\"00\"}",
+    );
+    let root = scratch.path();
+    assert!(!maven_resolver_set(root, &set));
+    std::fs::write(root.join("third_party/libs.versions.toml"), "[libraries]\n").expect("catalog");
+    assert!(maven_resolver_set(root, &set));
+    assert_eq!(check_backend_settings(root, &set), Ok(()));
+    assert_eq!(check_lock_ready(root, &set), Ok(()));
+    std::fs::write(root.join("third_party/maven_install.json"), SIGNED_LOCK).expect("lock");
+    assert!(!maven_resolver_set(root, &set));
+    assert!(hub_detail(check_backend_settings(root, &set)).contains("no maven.install"));
+}
+
+#[test]
 fn maven_check_needs_a_signed_lock_and_fail_if_repin_required() {
     let (scratch, set) = maven_workspace(MAVEN_MODULE_TEXT, SIGNED_LOCK);
     let root = scratch.path();

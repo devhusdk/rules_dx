@@ -8,6 +8,7 @@ load(
     _dart_config = "dart_config",
     _dart_js_binary = "dart_js_binary",
     _dart_library = "dart_library",
+    _dart_package_metadata = "dart_package_metadata",
     _dart_test = "dart_test",
     _dart_wasm_binary = "dart_wasm_binary",
 )
@@ -19,6 +20,7 @@ dart_codegen = _dart_codegen
 dart_config = _dart_config
 dart_js_binary = _dart_js_binary
 dart_library = _dart_library
+dart_package_metadata = _dart_package_metadata
 dart_test = _dart_test
 dart_wasm_binary = _dart_wasm_binary
 dart_doc_shard = _dart_doc_shard

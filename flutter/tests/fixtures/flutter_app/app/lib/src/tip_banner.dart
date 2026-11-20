@@ -10,7 +10,7 @@ class TipBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: Text(tips[index % tips.length], style: const TextStyle(fontFamily: 'DxSquare', package: 'flutter_app')),
+      child: Text(tips[index % tips.length], style: const TextStyle(fontFamily: 'DxSquare')),
     );
   }
 }

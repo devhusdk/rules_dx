@@ -1,9 +1,15 @@
+load("@rules_dx//dart:defs.bzl", "dart_package_metadata")
 load("@rules_dx//flutter:defs.bzl", "flutter_library")
 
 # dx: written once, yours to edit
 
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "consumer",
+)
+
 flutter_library(
     name = "consumer",
-    package_name = "consumer",
     srcs = ["lib/greet.dart"],
+    package = ":pubspec-metadata",
 )

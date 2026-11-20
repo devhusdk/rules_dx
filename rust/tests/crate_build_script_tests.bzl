@@ -1,4 +1,4 @@
-"""Analysis tests that crate_universe build scripts keep coverage features off."""
+"""Analysis tests that cargo_build_script targets stay analyzable under coverage."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//third_party/rules_rust/crate_universe:build_script_features.bzl", "NO_COVERAGE_FEATURES")
@@ -52,3 +52,20 @@ _crate_build_scripts_test = analysistest.make(
 def crate_build_scripts_no_coverage_test(name, target_under_test, size, **kwargs):
     """Fails when a crate_universe cargo_build_script under target_under_test lacks NO_COVERAGE_FEATURES."""
     _crate_build_scripts_test(name = name, target_under_test = target_under_test, size = size, **kwargs)
+
+def _raw_impl(ctx):
+    env = analysistest.begin(ctx)
+    runs = [a for a in analysistest.target_actions(env) if a.mnemonic == "CargoBuildScriptRun"]
+    asserts.equals(env, 1, len(runs), "CargoBuildScriptRun actions")
+    for action in runs:
+        asserts.false(env, "GCOV_GCNO_FILE" in action.env, "CargoBuildScriptRun env sets GCOV_GCNO_FILE")
+    return analysistest.end(env)
+
+_raw_build_script_coverage_env_test = analysistest.make(
+    _raw_impl,
+    config_settings = {"//command_line_option:collect_code_coverage": True},
+)
+
+def raw_build_script_coverage_env_test(name, target_under_test, size, **kwargs):
+    """Fails when the CargoBuildScriptRun action of target_under_test sets GCOV_GCNO_FILE under coverage."""
+    _raw_build_script_coverage_env_test(name = name, target_under_test = target_under_test, size = size, **kwargs)

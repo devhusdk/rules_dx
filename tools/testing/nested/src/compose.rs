@@ -76,88 +76,41 @@ pub fn rules_py_patches() -> Vec<String> {
     root_pin_patches("rules_py")
 }
 
-/// The patches of `//patches/rules_rust` that `rules_rust_override` names, without `.patch`.
-pub const RULES_RUST_PATCHES: [&str; 11] = [
-    "clippy_metadata_inputs",
-    "pipelined_rmeta_path",
-    "msvc_pdb_output",
-    "static_archive_link_arg",
-    "crate_universe_lazy_host_tools",
-    "cargo_toml_env_vars_flag",
-    "exec_scope_universal",
-    "cargo_build_script_no_coverage",
-    "cargo_build_script_apple_deployment_target",
-    "windows_exec_foreign_target_cc_linker",
-    "crate_universe_module_labels",
-];
-
-/// Pins `rules_rust` 0.75.0 with the patches of the root MODULE.bazel.
+/// Pins the patched `rules_rust` the way the root MODULE.bazel does.
 #[must_use]
 pub fn rules_rust_override() -> String {
-    let patches = RULES_RUST_PATCHES
-        .map(|name| format!("        \"//patches/rules_rust:{name}.patch\",\n"))
-        .concat();
-    format!(
-        "single_version_override(\n    module_name = \"rules_rust\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.75.0\",\n)\n"
-    )
+    root_pin("rules_rust")
 }
 
-/// The patches of `//patches/llvm` that `llvm_override` names, without `.patch`.
-pub const LLVM_PATCHES: [&str; 9] = [
-    "libunwind_copy",
-    "clang_cl_profile_no_mingw",
-    "unwatched_overlay_inputs",
-    "msvc_source_directories",
-    "lse_atomic_sources",
-    "stage0_runtime_features",
-    "macos_sdk_resolve_symlinks",
-    "msvc_fuzzer",
-    "msvc_coverage",
-];
-
-/// Pins llvm 0.8.27 with the patches of the root MODULE.bazel.
+/// Pins the patched llvm the way the root MODULE.bazel does.
 #[must_use]
 pub fn llvm_override() -> String {
-    let patches = LLVM_PATCHES
-        .map(|name| format!("        \"//patches/llvm:{name}.patch\",\n"))
-        .concat();
-    format!(
-        "single_version_override(\n    module_name = \"llvm\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.8.27\",\n)\n"
-    )
+    root_pin("llvm")
 }
 
-/// The patches of `//patches/windows_support` that `windows_support_override` names, without `.patch`.
-pub const WINDOWS_SUPPORT_PATCHES: [&str; 5] = [
-    "host_tools",
-    "rules_dx_hosts",
-    "hostarm64_packages",
-    "dx_msvc_layout",
-    "source_directory_headers",
+/// The root `windows_support` patches a consumer leaves out; `dx_pins.archive` applies them to `@dx_windows_support`.
+const WINDOWS_SUPPORT_ROOT_ONLY: [&str; 4] = [
+    "pins.patch",
+    "reproducible_extensions.patch",
+    "dx_cc_extension.patch",
+    "license_ids.patch",
 ];
 
-/// Pins `windows_support` 0.4.1 with the patches of the root MODULE.bazel.
+/// Pins the patched `windows_support` the way the root MODULE.bazel does, without `WINDOWS_SUPPORT_ROOT_ONLY`.
 #[must_use]
 pub fn windows_support_override() -> String {
-    let patches = WINDOWS_SUPPORT_PATCHES
-        .map(|name| format!("        \"//patches/windows_support:{name}.patch\",\n"))
-        .concat();
-    format!(
-        "single_version_override(\n    module_name = \"windows_support\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"0.4.1\",\n)\n"
-    )
+    without_patches(&root_pin("windows_support"), &WINDOWS_SUPPORT_ROOT_ONLY)
 }
 
 /// The patches of `//patches/rules_flutter` that `rules_flutter_override` names, without `.patch`.
-pub const RULES_FLUTTER_PATCHES: [&str; 6] = [
+pub const RULES_FLUTTER_PATCHES: [&str; 3] = [
     "lock_extension",
     "registrant_javacopts",
-    "required_checksums",
-    "flutter_3_47_9",
-    "ios_target_compatible_with",
-    "coverage_enabled",
+    "windows_golden_comparator",
 ];
 
-/// The `flutter/pins.json` that holds the `rules_flutter` pin.
-const FLUTTER_PINS: &str = include_str!("../../../../flutter/pins.json");
+/// The patches of `//patches/cgrindel_bazel_starlib` that `rules_flutter_override` names, without `.patch`.
+pub const STARLIB_PATCHES: [&str; 1] = ["absent_local_git"];
 
 /// The root MODULE.bazel of rules_dx.
 const ROOT_MODULE: &str = include_str!("../../../../MODULE.bazel");
@@ -172,6 +125,15 @@ fn root_pin_patches(module: &str) -> Vec<String> {
     pin_patches(&root_pin(module), module)
 }
 
+/// `block` without the lines that name one of the `skip` patch files.
+fn without_patches(block: &str, skip: &[&str]) -> String {
+    block
+        .lines()
+        .filter(|line| !skip.iter().any(|file| line.contains(&format!(":{file}\""))))
+        .map(|line| format!("{line}\n"))
+        .collect()
+}
+
 /// The patches of `//patches/<module>` that `block` names outside comments, without `.patch`.
 #[must_use]
 pub fn pin_patches(block: &str, module: &str) -> Vec<String> {
@@ -184,59 +146,30 @@ pub fn pin_patches(block: &str, module: &str) -> Vec<String> {
         .collect()
 }
 
-/// The `sha256-` integrity of a lowercase hex SHA-256.
-fn sha256_integrity(hex: &str) -> Result<String, String> {
-    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let bytes = (0..hex.len() / 2)
-        .map(|at| {
-            let digits = hex
-                .get(at * 2..at * 2 + 2)
-                .ok_or_else(|| format!("sha256 {hex} is not ASCII hex"))?;
-            u8::from_str_radix(digits, 16).map_err(|error| format!("sha256 {hex}: {error}"))
-        })
-        .collect::<Result<Vec<u8>, String>>()?;
-    let mut out = String::from("sha256-");
-    for chunk in bytes.chunks(3) {
-        let word = chunk.iter().enumerate().fold(0u32, |word, (at, byte)| {
-            word | u32::from(*byte) << (16 - 8 * at)
-        });
-        for at in 0..=chunk.len() {
-            let sextet = ALPHABET
-                .get((word >> (18 - 6 * at) & 63) as usize)
-                .ok_or_else(|| format!("base64 sextet of {hex} out of range"))?;
-            out.push(char::from(*sextet));
-        }
-    }
-    out.push_str(&"=".repeat((3 - bytes.len() % 3) % 3));
-    Ok(out)
+/// The `rules_flutter` version the root MODULE.bazel pins.
+pub const RULES_FLUTTER_VERSION: &str = "0.1.0";
+
+/// Pins the patched `rules_flutter` and `cgrindel_bazel_starlib` the way the root MODULE.bazel does.
+#[must_use]
+pub fn rules_flutter_override() -> String {
+    let starlib_patches = STARLIB_PATCHES
+        .map(|name| format!("        \"//patches/cgrindel_bazel_starlib:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "{}single_version_override(\n    module_name = \"cgrindel_bazel_starlib\",\n    patch_strip = 1,\n    patches = [\n{starlib_patches}    ],\n    version = \"0.30.0\",\n)\n",
+        rules_flutter_single_version_override()
+    )
 }
 
-/// Pins the patched `rules_flutter` the way the root MODULE.bazel does, from `flutter/pins.json`.
-///
-/// # Errors
-///
-/// Returns `Err` when `flutter/pins.json` lacks a valid `rules_flutter` pin.
-pub fn rules_flutter_override() -> Result<String, String> {
-    let pins: serde_json::Value = serde_json::from_str(FLUTTER_PINS)
-        .map_err(|error| format!("flutter/pins.json: {error}"))?;
-    let pin = pins.pointer("/archives/rules_flutter");
-    let field = |name: &str| {
-        pin.and_then(|pin| pin.get(name))
-            .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| format!("flutter/pins.json rules_flutter has no {name}"))
-    };
-    let integrity = sha256_integrity(field("sha256")?)?;
-    let strip_prefix = field("strip_prefix")?;
-    let url = pin
-        .and_then(|pin| pin.pointer("/urls/0"))
-        .and_then(serde_json::Value::as_str)
-        .ok_or("flutter/pins.json rules_flutter has no urls")?;
+/// The `single_version_override` of `rules_flutter` in the root MODULE.bazel, without its root-only patches.
+#[must_use]
+pub fn rules_flutter_single_version_override() -> String {
     let patches = RULES_FLUTTER_PATCHES
         .map(|name| format!("        \"//patches/rules_flutter:{name}.patch\",\n"))
         .concat();
-    Ok(format!(
-        "archive_override(\n    module_name = \"rules_flutter\",\n    integrity = \"{integrity}\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"{strip_prefix}\",\n    urls = [\"{url}\"],\n)\n"
-    ))
+    format!(
+        "single_version_override(\n    module_name = \"rules_flutter\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"{RULES_FLUTTER_VERSION}\",\n)\n"
+    )
 }
 
 /// Drops the `module()` line and any comment or blank lines before it.
@@ -300,7 +233,7 @@ pub fn compose_module(
         body,
         rules_dx_override(rules_dx),
         rules_py_override(),
-        rules_flutter_override()?,
+        rules_flutter_override(),
     ))
 }
 
@@ -308,7 +241,7 @@ fn write_patches(
     workspace: &Path,
     rules_dx: &Path,
     module: &str,
-    patches: &[&str],
+    patches: &[String],
 ) -> Result<(), String> {
     let dir = workspace.join("patches").join(module);
     std::fs::create_dir_all(&dir)
@@ -330,7 +263,12 @@ fn write_patches(
 ///
 /// Returns `Err` when the operation fails.
 pub fn write_rules_rust_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
-    write_patches(workspace, rules_dx, "rules_rust", &RULES_RUST_PATCHES)
+    write_patches(
+        workspace,
+        rules_dx,
+        "rules_rust",
+        &root_pin_patches("rules_rust"),
+    )
 }
 
 /// Writes the files `llvm_override` names into the consumer.
@@ -339,7 +277,7 @@ pub fn write_rules_rust_patches(workspace: &Path, rules_dx: &Path) -> Result<(),
 ///
 /// Returns `Err` when the operation fails.
 pub fn write_llvm_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
-    write_patches(workspace, rules_dx, "llvm", &LLVM_PATCHES)
+    write_patches(workspace, rules_dx, "llvm", &root_pin_patches("llvm"))
 }
 
 /// Writes the files `windows_support_override` names into the consumer.
@@ -348,12 +286,8 @@ pub fn write_llvm_patches(workspace: &Path, rules_dx: &Path) -> Result<(), Strin
 ///
 /// Returns `Err` when the operation fails.
 pub fn write_windows_support_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
-    write_patches(
-        workspace,
-        rules_dx,
-        "windows_support",
-        &WINDOWS_SUPPORT_PATCHES,
-    )
+    let patches = pin_patches(&windows_support_override(), "windows_support");
+    write_patches(workspace, rules_dx, "windows_support", &patches)
 }
 
 /// Writes the files `rules_py_override` and `rules_flutter_override` name into the consumer.
@@ -362,10 +296,11 @@ pub fn write_windows_support_patches(workspace: &Path, rules_dx: &Path) -> Resul
 ///
 /// Returns `Err` when the operation fails.
 pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
-    let patches = rules_py_patches();
-    let patches: Vec<&str> = patches.iter().map(String::as_str).collect();
-    write_patches(workspace, rules_dx, "rules_py", &patches)?;
-    write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)
+    write_patches(workspace, rules_dx, "rules_py", &rules_py_patches())?;
+    let flutter = RULES_FLUTTER_PATCHES.map(str::to_owned);
+    write_patches(workspace, rules_dx, "rules_flutter", &flutter)?;
+    let starlib = STARLIB_PATCHES.map(str::to_owned);
+    write_patches(workspace, rules_dx, "cgrindel_bazel_starlib", &starlib)
 }
 
 /// The modules whose root MODULE.bazel `single_version_override` the consumer repeats.
@@ -437,11 +372,7 @@ pub fn write_root_patch_override(
     let Some(block) = root_patch_override(&root_module, module) else {
         return Ok(String::new());
     };
-    let block: String = block
-        .lines()
-        .filter(|line| !skip.iter().any(|file| line.contains(&format!(":{file}\""))))
-        .map(|line| format!("{line}\n"))
-        .collect();
+    let block = without_patches(&block, skip);
     for (package, file) in patch_labels(&block) {
         let dir = workspace.join("patches").join(&package);
         std::fs::create_dir_all(&dir)
@@ -603,7 +534,7 @@ mod tests {
             format!(
                 "module(name = \"hermetic_consumer\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\nbazel_dep(name = \"googletest\", version = \"1.18.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules dx\",\n)\n{}{}",
                 rules_py_override(),
-                rules_flutter_override().unwrap(),
+                rules_flutter_override(),
             )
         );
     }
@@ -627,6 +558,43 @@ mod tests {
             rules_py_patches().len(),
             ROOT_MODULE.matches("\"//patches/rules_py:").count()
         );
+    }
+
+    #[test]
+    fn derived_pins_follow_the_root_pins() {
+        for (module, pin) in [
+            ("rules_rust", rules_rust_override()),
+            ("llvm", llvm_override()),
+            ("windows_support", windows_support_override()),
+        ] {
+            assert!(
+                root_patch_override(ROOT_MODULE, module).is_some(),
+                "{module}"
+            );
+            assert!(
+                pin.starts_with(&format!(
+                    "single_version_override(\n    module_name = \"{module}\","
+                )),
+                "{pin}"
+            );
+            assert!(!pin_patches(&pin, module).is_empty(), "{pin}");
+        }
+        assert_eq!(rules_rust_override(), root_pin("rules_rust"));
+        assert_eq!(llvm_override(), root_pin("llvm"));
+    }
+
+    #[test]
+    fn windows_support_override_leaves_out_the_root_only_patches() {
+        let pin = windows_support_override();
+        let patches = pin_patches(&pin, "windows_support");
+        assert_eq!(
+            patches.len() + WINDOWS_SUPPORT_ROOT_ONLY.len(),
+            root_pin_patches("windows_support").len(),
+            "{pin}"
+        );
+        for file in WINDOWS_SUPPORT_ROOT_ONLY {
+            assert!(!pin.contains(file), "{pin}");
+        }
     }
 
     #[test]
@@ -692,11 +660,13 @@ mod tests {
     }
 
     #[test]
-    fn integrity_pads_like_base64() {
-        assert_eq!(sha256_integrity("ff").unwrap(), "sha256-/w==");
-        assert_eq!(sha256_integrity("ffff").unwrap(), "sha256-//8=");
-        assert_eq!(sha256_integrity("ffffff").unwrap(), "sha256-////");
-        assert_eq!(sha256_integrity("4d616e").unwrap(), "sha256-TWFu");
+    fn rules_flutter_pin_matches_the_root_module() {
+        let root: String = root_pin("rules_flutter")
+            .lines()
+            .filter(|line| !line.contains(":dx_bzl_srcs.patch\""))
+            .map(|line| format!("{line}\n"))
+            .collect();
+        assert_eq!(root, rules_flutter_single_version_override());
     }
 
     #[test]

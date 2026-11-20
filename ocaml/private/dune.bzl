@@ -74,7 +74,7 @@ def _env(ctx, tree):
     env["DX_OCAML_AS_DROP_DEBUG_PREFIX_MAP"] = "1"
     return struct(
         env = env,
-        inputs = depset(tree + drivers + [ctx.executable._cc_driver], transitive = [cc.all_files, applets.files]),
+        inputs = depset(tree + drivers + [ctx.executable._dx], transitive = [cc.all_files, applets.files]),
         ocaml_bin = compiler.dirname,
     )
 
@@ -84,7 +84,7 @@ def _context(ctx):
 
 def _args(ctx, context, mode):
     args = ctx.actions.args()
-    args.add_all(["dune", mode, "--jobs", str(ctx.attr.jobs), "--ocaml-bin", context.ocaml_bin])
+    args.add_all(["ocaml_dune", mode, "--jobs", str(ctx.attr.jobs), "--ocaml-bin", context.ocaml_bin])
     return args
 
 def _dune_bootstrap_impl(ctx):
@@ -96,7 +96,7 @@ def _dune_bootstrap_impl(ctx):
     args = _args(ctx, context, "bootstrap")
     args.add_all(["--source", scripts[0].dirname.removesuffix("/boot"), "--output", out])
     ctx.actions.run(
-        executable = ctx.executable._cc_driver,
+        executable = ctx.executable._dx,
         arguments = [args],
         env = context.env,
         outputs = [out],
@@ -112,7 +112,7 @@ dx_dune_bootstrap = rule(
     attrs = {
         "jobs": attr.int(default = 4, doc = "Bootstrap parallelism."),
         "srcs": attr.label_list(allow_files = True, mandatory = True, doc = "Dune's source tree, including boot/bootstrap.ml."),
-        "_cc_driver": attr.label(default = Label("//cli/ocaml_cc_driver"), executable = True, cfg = "exec"),
+        "_dx": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
         "_macos": attr.label(default = "@platforms//os:macos"),
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },
@@ -128,7 +128,7 @@ def _dune_build_impl(ctx):
     args = _args(ctx, context, "build")
     args.add_all(["--workspace", ctx.file.workspace.dirname, "--dune", dune, "--target", ctx.attr.target, "--output", out])
     ctx.actions.run(
-        executable = ctx.executable._cc_driver,
+        executable = ctx.executable._dx,
         arguments = [args],
         env = context.env,
         outputs = [out],
@@ -152,7 +152,7 @@ dx_dune_build = rule(
         "target": attr.string(mandatory = True, doc = "The executable, relative to the workspace root, for example zanuda/src/main.exe."),
         "workspace": attr.label(allow_single_file = True, mandatory = True, doc = "The workspace's root dune-project file."),
         "_stdlib": attr.label(default = "@dx_ocaml_toolchains//:stdlib", cfg = "exec", allow_files = True, doc = "The OCaml standard library the built tool reads .cmi files from at run time; zanuda finds it through OCAMLLIB."),
-        "_cc_driver": attr.label(default = Label("//cli/ocaml_cc_driver"), executable = True, cfg = "exec"),
+        "_dx": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
         "_macos": attr.label(default = "@platforms//os:macos"),
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },
@@ -187,7 +187,7 @@ def _dune_library_impl(ctx):
         args.add("--archive")
         args.add(name + "=" + archive.path)
     ctx.actions.run(
-        executable = ctx.executable._cc_driver,
+        executable = ctx.executable._dx,
         arguments = [args],
         env = env,
         outputs = [tree] + archives + ([stubs] if stubs else []),
@@ -249,7 +249,7 @@ _dx_dune_library = rule(
         "stubs": attr.bool(doc = "Link lib<library>_stubs.a, the package's C stubs, into native links."),
         "workspace": attr.label(allow_single_file = True, mandatory = True, doc = "The workspace's root dune-project file."),
         "_emitter": attr.label(default = "//ocaml/private/toolchain:emitter"),
-        "_cc_driver": attr.label(default = Label("//cli/ocaml_cc_driver"), executable = True, cfg = "exec"),
+        "_dx": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
         "_macos": attr.label(default = "@platforms//os:macos"),
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },

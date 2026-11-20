@@ -261,6 +261,9 @@ fn run_as_tool() -> Option<i32> {
         Tool::SymbolsSplit => dx_symbols::entry::split(&named("symbols_split", args)),
         Tool::SymbolsDsym => dx_symbols::entry::dsym(&named("symbols_dsym", args)),
         Tool::SymbolsPdb => dx_symbols::entry::pdb(&named("symbols_pdb", args)),
+        Tool::OcamlCcDriver => ocaml_cc_driver::run_tool(&argv0, args.collect()),
+        Tool::OcamlDune => ocaml_cc_driver::run_dune(&lossy(args)),
+        Tool::ApplePostAction => collect_native::apple_post::run_process(&lossy(args)),
     })
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md

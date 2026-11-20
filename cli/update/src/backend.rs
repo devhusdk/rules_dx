@@ -768,7 +768,7 @@ fn plan_backend(
     head: &dx_process::BazelHead,
     closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
-    match set.ecosystem.plan_backend() {
+    match backend_of(workspace, set, set.ecosystem.plan_backend()) {
         "uv" => uv::plan(workspace, set, request, offline, frozen, head, closure),
         "npm" => npm::plan(workspace, set, request, offline, frozen, head, closure),
         "bazel" => bazel::plan(workspace, set, request, offline, frozen, head, closure),
@@ -811,7 +811,7 @@ fn check_backend(
     head: &dx_process::BazelHead,
     closure: &UvClosure,
 ) -> Result<CheckPlan, BackendError> {
-    match set.ecosystem.check_backend() {
+    match backend_of(workspace, set, set.ecosystem.check_backend()) {
         "uv" => uv::check(workspace, set, request, offline, head, closure),
         "npm" => npm::check(workspace, set, request, offline, head, closure),
         "bazel" => bazel::check(workspace, set, request, offline, head, closure),
@@ -830,6 +830,29 @@ fn check_backend(
         "resolver" => resolver::check(workspace, set, request, offline, head),
         _ => Err(no_backend(set)),
     }
+}
+
+/// The backend that runs for `set`, given its `ecosystems.json` column.
+///
+/// The dart lock step has only the Dart SDK, so pub sets on the Flutter SDK run `pub` from
+/// rules_flutter. Maven sets the java lock step writes go through the registry resolver; sets
+/// pinned by `rules_jvm_external` keep their `pin` run.
+fn backend_of(workspace: &Path, set: &ResolvedSet, column: &'static str) -> &'static str {
+    if set.ecosystem == Ecosystem::Pub && uses_flutter(workspace, set) {
+        "pub_dev"
+    } else if dependency_sets::maven_resolver_set(workspace, set) {
+        "resolver"
+    } else {
+        column
+    }
+}
+
+/// Whether the pubspec of `set` depends on the Flutter SDK.
+fn uses_flutter(workspace: &Path, set: &ResolvedSet) -> bool {
+    set.manifests.first().is_some_and(|manifest| {
+        std::fs::read_to_string(workspace.join(manifest))
+            .is_ok_and(|text| text.lines().any(|line| line.trim() == "sdk: flutter"))
+    })
 }
 
 /// Refuses a set whose `ecosystems.json` row names a backend this crate does not have.
@@ -1240,34 +1263,18 @@ fn opam_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
     )])
 }
 
-/// A `dart pub` run from the pinned Dart SDK in the set's directory.
-///
-/// Flutter sets run the Dart SDK inside the pinned Flutter toolchain through
-/// `@rules_flutter//flutter:pub`, which points `FLUTTER_ROOT` at a tree for the pinned version.
+/// A `pub` run of a Flutter set through `@rules_flutter//flutter/pub`, which points
+/// `FLUTTER_ROOT` at a tree for the pinned Flutter version.
 fn pub_argv(
     workspace: &Path,
     set: &ResolvedSet,
     head: &dx_process::BazelHead,
     command: &[&str],
 ) -> Result<Vec<String>, BackendError> {
-    let flutter = set.manifests.first().is_some_and(|manifest| {
-        std::fs::read_to_string(workspace.join(manifest))
-            .is_ok_and(|text| text.lines().any(|line| line.trim() == "sdk: flutter"))
-    });
     let dir = set_dir(workspace, set)?;
-    if flutter {
-        let mut argv = bazel(head, "run", &["@rules_flutter//flutter:pub", "--"]);
-        argv.extend(strings(command));
-        argv.extend(["--directory".to_owned(), dir]);
-        return Ok(argv);
-    }
-    let under = format!("--run_under=cd {} &&", dx_process::shell::quote(&dir));
-    let mut argv = bazel(
-        head,
-        "run",
-        &[&under, lang_command(set, "dart", "dart")?, "--"],
-    );
+    let mut argv = bazel(head, "run", &["@rules_flutter//flutter/pub", "--"]);
     argv.extend(strings(command));
+    argv.extend(["--directory".to_owned(), dir]);
     Ok(argv)
 }
 

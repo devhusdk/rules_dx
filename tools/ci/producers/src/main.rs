@@ -11,7 +11,12 @@
 //! `producers_bin --table EVIDENCE_DIR OUT PLATFORM...` merges the evidence under a directory into OUT and prints the table.
 //! `producers_bin --test-log-tails (--bep FILE | --dx FILE)...` prints the test.log tail of each failing test as a job log group.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"

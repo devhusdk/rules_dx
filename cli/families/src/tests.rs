@@ -147,14 +147,14 @@ fn quality_marks_list_each_quality_language_with_its_files() {
         .filter(|entry| entry.marks.is_empty())
         .map(|entry| entry.language.as_str())
         .collect();
-    assert_eq!(unmarked, ["csharp", "cuda", "fsharp"]);
+    assert_eq!(unmarked, ["cuda", "dotnet"]);
     let manifests = shipped();
     let bzl_of = |language: &str| {
         manifests
             .iter()
             .find(|manifest| manifest.name == language)
             .and_then(|manifest| manifest.quality.as_ref())
-            .map(|quality| quality.bzl.clone())
+            .map(|quality| quality.files.bzl.clone())
     };
     for language in unmarked {
         let bzl = bzl_of(language);
@@ -206,7 +206,6 @@ fn command_looks_up_a_tool_of_a_language() {
 fn repo_relative_drops_the_rules_dx_repo() {
     assert_eq!(repo_relative(GENERATE), "dx:generate");
     assert_eq!(repo_relative(DX), ":dx");
-    assert_eq!(repo_relative(TOOL_RESOLVE), "dx/tool_resolve");
 }
 
 #[test]

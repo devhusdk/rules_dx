@@ -1,5 +1,0 @@
-#pragma once
-
-__host__ __device__ inline float scale_one(float a, float x) {
-  return a * x;
-}

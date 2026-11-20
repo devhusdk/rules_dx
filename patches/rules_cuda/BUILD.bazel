@@ -3,6 +3,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 exports_files([
     "coverage_keep.patch",
     "msvc_dlink_crt.patch",
+    "objdir_as_tempdir.patch",
     "toolchains_gate.patch",
 ])
 
@@ -16,4 +17,9 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+test_suite(
+    name = "coverage_keep_test",
+    tests = ["@rules_cuda//tests/coverage:coverage_tests"],
 )

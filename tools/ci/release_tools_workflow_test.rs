@@ -8,6 +8,11 @@ const TOOLS: &str = ".github/workflows/release-tools.yml";
 const RELEASE: &str = ".github/workflows/release.yml";
 const CONSUMER: &str = ".github/workflows/release-consumer.yml";
 const RELEASE_JARS: &str = "tools/ci/release_jars.txt";
+const KCOV_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" //tools/coverage/kcov:kcov_static";
+const TARGETS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${targets[@]}\"";
+const HASKELL_DETERMINISM: &str = "linux-*) bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"${targets[@]}\" ;;";
+const TOOLS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism-rust\" \"${flags[@]}\" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor";
+const HACKAGE_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"$TARGET\"";
 
 const HOSTS: [(&str, &str); 4] = [
     ("linux-x86_64", "ubuntu-latest"),
@@ -34,6 +39,18 @@ const JARS: [&str; 9] = [
     "dx-maven-resolver-any.jar",
     "dx-scalac-check-any.jar",
     "dx-scaladoc-extract-any.jar",
+];
+
+const HASKELL_EXTRA: [&str; 9] = [
+    "dx-hlint-linux-arm64",
+    "dx-hlint-macos-arm64",
+    "dx-ormolu-linux-arm64",
+    "dx-hlint-LICENSE",
+    "dx-ormolu-LICENSE",
+    "dx-haskell-gmp-LICENSE",
+    "dx-haskell-gmp-source.tar.xz",
+    "dx-haskell-gmp-source.patch",
+    "dx-haskell-gmp-ghc-source.tar.xz",
 ];
 
 const ASSETS: [&str; 10] = [
@@ -97,8 +114,90 @@ fn each_host_uploads_its_artifact() {
     assert!(text.contains(
         "bazel test //tools/coverage/kcov:smoke_test //tools/coverage/kcov:static_smoke_test"
     ));
-    assert!(text.contains("bazel build //tools/coverage/kcov:kcov_static"));
     assert!(text.contains("kcov archive sha256 differs from pins.json"));
+    assert!(text.contains(
+        "linux-x86_64) flags=(--platforms=//tools/platforms:linux_x86_64_musl) ;;"
+    ));
+    assert!(
+        text.contains("linux-arm64) flags=(--platforms=//tools/platforms:linux_arm64_musl) ;;")
+    );
+    assert!(!text.contains("+crt-static"));
+    let build = text
+        .find("bazel build //tools/coverage/kcov:kcov_static")
+        .expect("kcov_static build");
+    let case_end = build + text[build..].find(";;").expect("end of the linux case");
+    assert!(
+        text[build..case_end].contains(KCOV_DETERMINISM),
+        "kcov determinism check inside the linux case after the build"
+    );
+}
+
+/// (job, its last `bazel build`, its determinism check, whether the check sits in a `linux-*)` arm).
+const JOB_DETERMINISM: [(&str, &str, &str, bool); 6] = [
+    (
+        "tools",
+        "bazel build \"${flags[@]}\" //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor",
+        TOOLS_DETERMINISM,
+        true,
+    ),
+    (
+        "python-tools",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
+    (
+        "go",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
+    (
+        "jars",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
+    (
+        "haskell",
+        "bazel build \"${flags[@]}\" \"${targets[@]}\"",
+        HASKELL_DETERMINISM,
+        true,
+    ),
+    (
+        "hackage",
+        "bazel build \"${flags[@]}\" \"$TARGET\"",
+        HACKAGE_DETERMINISM,
+        true,
+    ),
+];
+
+#[test]
+fn each_job_compares_two_builds() {
+    let workflow = document(TOOLS).unwrap();
+    for (job, build, check, in_case) in JOB_DETERMINISM {
+        let run = workflow["jobs"][job]["steps"][2]["run"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{job} build step"));
+        let built = run
+            .find(build)
+            .unwrap_or_else(|| panic!("{job} runs `{build}`"));
+        let at = run
+            .find(check)
+            .unwrap_or_else(|| panic!("{job} runs `{check}`"));
+        assert!(at > built, "{job} compares two builds after its build");
+        if in_case {
+            let end = at + check.len();
+            let arm = run[..end]
+                .rfind("linux-*)")
+                .unwrap_or_else(|| panic!("{job} has a linux-*) arm"));
+            assert!(
+                !run[arm..at].contains(";;")
+                    && (check.ends_with(";;") || run[end..].contains(";;")),
+                "{job} check sits inside its linux-*) arm"
+            );
+        }
+    }
 }
 
 #[test]
@@ -147,7 +246,10 @@ fn jars_job_builds_every_jar_asset() {
             "{TOOLS} must build \"{line}\""
         );
     }
-    assert!(release.contains("test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq 8"));
+    assert!(release.contains(&format!(
+        "test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq {}",
+        release_jars.lines().count()
+    )));
     assert!(release.contains("sha256sum -c dx-jar-sha256sums.txt"));
     assert!(release.contains("--manifest \"$PWD/out/dx-jar-sha256sums.txt\""));
 }
@@ -251,8 +353,11 @@ fn hackage_job_builds_hlint_nixfmt_and_ormolu() {
     assert!(tools.contains("asset=\"dx-$TOOL-$HOST\""));
     assert!(tools.contains("> \"$out/dx-$TOOL-LICENSE\""));
     assert!(!tools.contains("nixfmt_sha256"));
-    assert!(release.contains("for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch dx-haskell-gmp-ghc-source.tar.xz; do"));
-    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 18"));
+    assert!(release.contains(&format!("for asset in {}; do", HASKELL_EXTRA.join(" "))));
+    assert!(release.contains(&format!(
+        "test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq {}",
+        2 * HOSTS.len() + 1 + HASKELL_EXTRA.len()
+    )));
     assert!(release.contains("dx-hlint-* dx-ormolu-* dx-haskell-gmp-*"));
 }
 
@@ -330,7 +435,10 @@ fn release_calls_the_tools_workflow_before_the_source_job() {
 fn release_writes_and_checks_the_tool_manifest() {
     let text = read_runfiles(RELEASE);
     assert!(text.contains("pattern: release-tool-*"));
-    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 23"));
+    assert!(text.contains(&format!(
+        "test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq {}",
+        2 * HOSTS.len() + ASSETS.len() + PYTHON_HOSTS.len()
+    )));
     assert!(text.contains("sha256sum -c dx-tool-sha256sums.txt"));
     assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt)"));
     for asset in ASSETS {

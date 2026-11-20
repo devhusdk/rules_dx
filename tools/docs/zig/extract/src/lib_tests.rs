@@ -111,9 +111,42 @@ fn params_returns_and_kinds() {
 #[test]
 fn unknown_file_and_schema_are_rejected() {
     let error = convert(DUMP, &[], "geometry", "").expect_err("rejected");
-    assert!(error.contains("not in the srcs manifest"), "{error}");
+    assert!(matches!(error, ZigExtractError::NotInManifest { .. }));
+    assert_eq!(
+        error.to_string(),
+        "dumped file 'src/geometry.zig' is not in the srcs manifest"
+    );
     let error = convert(r#"{"schema":2,"files":[]}"#, &[], "g", "").expect_err("rejected");
-    assert!(error.contains("schema"), "{error}");
+    assert!(matches!(error, ZigExtractError::UnsupportedSchema));
+    assert_eq!(error.to_string(), "dump schema is not 1");
+    let error = convert(r#"{"schema":1,"files":[]}"#, &[], "g", "").expect_err("rejected");
+    assert!(matches!(error, ZigExtractError::NoFiles));
+    assert_eq!(error.to_string(), "dump has no files");
+    let error = convert("{", &[], "g", "").expect_err("rejected");
+    assert!(matches!(error, ZigExtractError::Malformed(_)));
+    assert_eq!(
+        error.to_string(),
+        "bad JSON: EOF while parsing an object at line 1 column 1"
+    );
+}
+
+#[test]
+fn run_reports_an_unreadable_input() {
+    let options = Options {
+        dump: "/nonexistent/zig.json".to_owned(),
+        sources: "/nonexistent/srcs".to_owned(),
+        out: "out".to_owned(),
+        package: "geometry".to_owned(),
+        config: String::new(),
+    };
+    let error = run(&options).expect_err("rejected");
+    assert!(matches!(error, ZigExtractError::Read(_)));
+    assert!(
+        error
+            .to_string()
+            .starts_with("cannot read /nonexistent/zig.json: "),
+        "{error}"
+    );
 }
 
 #[test]

@@ -4,17 +4,95 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
-use std::fs;
+use std::fmt::{self, Write as _};
 use std::path::Path;
 
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use serde_json::Value;
 
 const LANGUAGE: &str = "avro";
 const KEY_INCOMPLETE: &str = "avro.incomplete";
+
+/// Why the `avro_extract` arguments were rejected.
+#[derive(Debug)]
+pub enum ArgsError {
+    Flag(FlagError),
+    NotPair { flag: String, value: String },
+    NoSchema,
+}
+
+impl fmt::Display for ArgsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Flag(error) => error.fmt(f),
+            Self::NotPair { flag, value } => write!(f, "{flag} '{value}' is not INPUT=SRC"),
+            Self::NoSchema => f.write_str("at least one --schema or --schema-dir is required"),
+        }
+    }
+}
+
+impl std::error::Error for ArgsError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Flag(error) => Some(error),
+            Self::NotPair { .. } | Self::NoSchema => None,
+        }
+    }
+}
+
+impl From<FlagError> for ArgsError {
+    fn from(error: FlagError) -> Self {
+        Self::Flag(error)
+    }
+}
+
+/// Why a set of Avro schemas could not become a shard.
+#[derive(Debug)]
+pub enum AvroExtractError {
+    Read(PathIoError),
+    InvalidPackage {
+        package: String,
+    },
+    InvalidJson {
+        file: String,
+        source: serde_json::Error,
+    },
+    NoNamedType {
+        package: String,
+    },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for AvroExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::InvalidPackage { package } => write!(f, "invalid package '{package}'"),
+            Self::InvalidJson { file, source } => write!(f, "{file} is not valid JSON: {source}"),
+            Self::NoNamedType { package } => write!(
+                f,
+                "the schemas declare no named Avro type of package '{package}'"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for AvroExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::InvalidJson { source, .. } => Some(source),
+            Self::Write(error) => Some(error),
+            Self::InvalidPackage { .. } | Self::NoNamedType { .. } | Self::InvalidIr(_) => None,
+        }
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -41,21 +119,24 @@ pub fn usage() -> &'static str {
     "usage: avro_extract --package NAME --out FILE (--schema FILE=SRC | --schema-dir DIR=SRC)... [--generated SRC]..."
 }
 
-fn pair(flag: &str, value: &str) -> Result<(String, String), String> {
+fn pair(flag: &str, value: &str) -> Result<(String, String), ArgsError> {
     match value.split_once('=') {
         Some((left, right)) if !left.is_empty() && !right.is_empty() => {
             Ok((left.to_owned(), right.to_owned()))
         }
-        _ => Err(format!("{flag} '{value}' is not INPUT=SRC")),
+        _ => Err(ArgsError::NotPair {
+            flag: flag.to_owned(),
+            value: value.to_owned(),
+        }),
     }
 }
 
-/// Parses argv into inputs, or returns the rejection text.
+/// Parses argv into inputs.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+/// Returns an error for a bad flag, a value that is not INPUT=SRC, or no schema input.
+pub fn parse(args: &[String]) -> Result<Options, ArgsError> {
     let mut flags = documentation_ir::tool::flags(
         args,
         &[
@@ -82,45 +163,34 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
         generated: flags.many("--generated"),
     };
     if options.schemas.is_empty() && options.schema_dirs.is_empty() {
-        return Err("at least one --schema or --schema-dir is required".to_owned());
+        return Err(ArgsError::NoSchema);
     }
     Ok(options)
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
+/// Reads, converts, validates and writes one shard.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
+/// Returns an error when an input cannot be read or converted or the shard cannot be written.
+pub fn run(options: &Options) -> Result<(), AvroExtractError> {
     let mut inputs: Vec<(String, String, String)> = Vec::new();
     for (file, source) in &options.schemas {
-        let text =
-            fs::read_to_string(file).map_err(|error| format!("cannot read {file}: {error}"))?;
+        let text = path_io::read_to_string(Path::new(file)).map_err(AvroExtractError::Read)?;
         inputs.push((text, source.clone(), file.clone()));
     }
     for (dir, source) in &options.schema_dirs {
-        let mut files: Vec<_> = fs::read_dir(dir)
-            .map_err(|error| format!("cannot read {dir}: {error}"))?
-            .filter_map(Result::ok)
-            .map(|entry| entry.path())
-            .filter(|path| {
-                path.extension()
-                    .is_some_and(|ext| ext == "avsc" || ext == "avpr")
-            })
-            .collect();
-        files.sort();
-        for path in files {
-            let text = fs::read_to_string(&path)
-                .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+        let files = path_io::read_dir(Path::new(dir)).map_err(AvroExtractError::Read)?;
+        for path in files.iter().filter(|path| {
+            path.extension()
+                .is_some_and(|ext| ext == "avsc" || ext == "avpr")
+        }) {
+            let text = path_io::read_to_string(path).map_err(AvroExtractError::Read)?;
             inputs.push((text, source.clone(), path.display().to_string()));
         }
     }
     let shard = convert(&inputs, options)?;
-    let bytes = documentation_ir::encode_shard(&shard)
-        .map_err(|error| format!("cannot encode IR: {error:?}"))?;
-    fs::write(Path::new(&options.out), bytes)
-        .map_err(|error| format!("cannot write {}: {error}", options.out))
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(AvroExtractError::Write)
 }
 
 fn str_of<'a>(value: &'a Value, key: &str) -> &'a str {
@@ -507,16 +577,25 @@ impl Builder<'_> {
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn convert(inputs: &[(String, String, String)], options: &Options) -> Result<DocIr, String> {
+/// Returns an error for an invalid package, a schema that is not JSON, no named type, or an
+/// invalid shard.
+pub fn convert(
+    inputs: &[(String, String, String)],
+    options: &Options,
+) -> Result<DocIr, AvroExtractError> {
     let package = options.package.as_str();
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
+        return Err(AvroExtractError::InvalidPackage {
+            package: package.to_owned(),
+        });
     }
     let mut symbols: BTreeMap<String, Symbol> = BTreeMap::new();
     for (text, source, file) in inputs {
-        let value: Value = serde_json::from_str(text)
-            .map_err(|error| format!("{file} is not valid JSON: {error}"))?;
+        let value: Value =
+            serde_json::from_str(text).map_err(|source| AvroExtractError::InvalidJson {
+                file: file.clone(),
+                source,
+            })?;
         // Line numbers only mean something when the schema text is the source itself.
         let own_text = file == source
             || Path::new(source)
@@ -548,16 +627,16 @@ pub fn convert(inputs: &[(String, String, String)], options: &Options) -> Result
         }
     }
     if symbols.is_empty() {
-        return Err(format!(
-            "the schemas declare no named Avro type of package '{package}'"
-        ));
+        return Err(AvroExtractError::NoNamedType {
+            package: package.to_owned(),
+        });
     }
     let shard = DocIr {
         language: LANGUAGE.to_owned(),
         package: package.to_owned(),
         symbols: symbols.into_values().collect(),
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(AvroExtractError::InvalidIr)?;
     Ok(shard)
 }
 

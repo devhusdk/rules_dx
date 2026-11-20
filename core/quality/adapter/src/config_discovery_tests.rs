@@ -185,7 +185,10 @@ fn table_tail() -> Vec<(&'static str, How)> {
         ("ty", Arg(|b, f, c| ty_check(b, &[f], &[], Some(c)))),
         ("typos", Arg(|b, f, c| typos_check(b, &[f], Some(c)))),
         ("vale", Staged("runs from the staged config dir")),
-        ("yamlfmt", Arg(|b, f, c| yamlfmt_check(b, &[f], Some(c)))),
+        (
+            "yamlfmt",
+            Arg(|b, f, c| yamlfmt_check(b, &[f], Some(c), false)),
+        ),
         ("yamllint", Arg(|b, f, c| yamllint_check(b, &[f], Some(c)))),
         ("zanuda", Staged("no config file; flags only")),
         ("zizmor", Staged("no config file; flags only")),

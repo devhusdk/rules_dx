@@ -74,6 +74,11 @@ pub struct RealTool {
     pub path_tools: Vec<PathTool>,
 }
 
+/// Whether a family asked yamlfmt to keep the `---` document start.
+fn yamlfmt_document_start(tool: &RealTool) -> bool {
+    tool.args.iter().any(|arg| arg == "document_start")
+}
+
 /// One helper the tool finds by name on its `PATH`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PathTool {

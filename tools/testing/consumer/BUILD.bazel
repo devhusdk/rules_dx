@@ -31,32 +31,39 @@ rust_test(
     ],
 )
 
-# A nested Bazel consumer build and test from an empty output base. Fails when the
-# repositories a fresh Go-only consumer fetches differ from cold_start/go.txt.
-nested_bazel_test(
-    name = "go_cold_start_test",
-    size = "small",
-    srcs = ["cold_start_test.rs"],
-    crate_name = "cold_start_test",
-    crate_root = "cold_start_test.rs",
-    # //:module_srcs leaves out //patches/rules_py, which write_rules_py_patches copies.
-    data = [
-        "cold_start/go.txt",
-        "//:module_srcs",
-        "//patches/rules_py:patches",
-        "@dx_test_tags_sources//:consumer.json",
-    ],
-    env = {
-        "DX_COLD_START_LANG": "go",
-        "DX_COLD_START_LIST": "$(rlocationpath cold_start/go.txt)",
-        "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
-    },
-    network = True,
-    deps = [
-        "//tools/testing:dx_testing",
-        "//tools/testing/nested:dx_nested",
-    ],
-)
+# A nested Bazel consumer build and test from an empty output base, one per language. Fails when
+# the repositories a fresh one-language consumer fetches differ from cold_start/<lang>.txt or
+# include another language's repositories.
+[
+    nested_bazel_test(
+        name = lang + "_cold_start_test",
+        size = "small",
+        srcs = ["cold_start_test.rs"],
+        crate_name = "cold_start_test",
+        crate_root = "cold_start_test.rs",
+        # //:module_srcs leaves out //patches/rules_py, which write_rules_py_patches copies.
+        data = [
+            "cold_start/%s.txt" % lang,
+            "//:module_srcs",
+            "//patches/rules_py:patches",
+            "@dx_test_tags_sources//:consumer.json",
+        ],
+        env = {
+            "DX_COLD_START_LANG": lang,
+            "DX_COLD_START_LIST": "$(rlocationpath cold_start/%s.txt)" % lang,
+            "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+        },
+        network = True,
+        deps = [
+            "//tools/testing:dx_testing",
+            "//tools/testing/nested:dx_nested",
+        ],
+    )
+    for lang in [
+        "go",
+        "rust",
+    ]
+]
 
 rust_library(
     name = "prebuilt_guard",
@@ -65,6 +72,7 @@ rust_library(
     crate_name = "prebuilt_guard",
     crate_root = "prebuilt_guard.rs",
     deps = [
+        "//cli/archive:dx_archive",
         "//cli/families:dx_families",
         "//cli/plan:dx_plan",
     ],
@@ -127,6 +135,7 @@ PREBUILT_GUARD_DATA = [
     "prebuilt_guard_allowlist.txt",
     "//:module_srcs",
     "//cli/prebuilt:go_hub_targets",
+    "//cli/prebuilt:python_hub_targets",
     "//cli/prebuilt:registry",
     "//patches/rules_py:patches",
     "@dx_test_tags_sources//:consumer.json",
@@ -136,6 +145,7 @@ PREBUILT_GUARD_ENV = {
     "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
     "DX_PREBUILT_GO_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:go_hub_targets)",
     "DX_PREBUILT_GUARD_ALLOWLIST": "$(rlocationpath prebuilt_guard_allowlist.txt)",
+    "DX_PREBUILT_PYTHON_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:python_hub_targets)",
     "DX_PREBUILT_REGISTRY": "$(rlocationpath //cli/prebuilt:registry)",
 }
 

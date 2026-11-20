@@ -1,4 +1,9 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 //! Warm checkout slots for `dx worktree`: the slot pool and its leases, the
 //! Claude Code worktree hooks, and the disk reclaim that runs before a build.
 

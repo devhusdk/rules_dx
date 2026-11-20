@@ -1,116 +1,116 @@
 {
   "android": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:android_consumer_test"
   ],
   "appimage": [
     "//tools/testing/hermetic:appimage"
   ],
   "astro": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:astro_consumer_test"
   ],
   "cc": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:cc_consumer_test"
   ],
   "csharp": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:csharp_consumer_test"
   ],
   "cuda": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:cuda_consumer_test"
   ],
   "d": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:d_consumer_test"
   ],
   "dart": [
-    "//tools/testing/hermetic:dart",
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:dart_consumer_test",
+    "//tools/testing/hermetic:dart"
   ],
   "elixir": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:elixir_consumer_test"
   ],
   "erlang": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:erlang_consumer_test"
   ],
   "flutter": [
     "//tools/testing/hermetic:flutter"
   ],
   "fortran": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:fortran_consumer_test"
   ],
   "fsharp": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:fsharp_consumer_test"
   ],
   "go": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:go_consumer_test"
   ],
   "haskell": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:haskell_consumer_test"
   ],
   "java": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:java_consumer_test"
   ],
   "javascript": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:javascript_consumer_test"
   ],
   "julia": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:julia_consumer_test"
   ],
   "lua": [
-    "//tools/testing/hermetic:lua",
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:lua_consumer_test",
+    "//tools/testing/hermetic:lua"
   ],
   "mdx": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:mdx_consumer_test"
   ],
   "msix": [
     "//tools/testing/hermetic:msix"
   ],
   "ocaml": [
-    "//tools/testing/hermetic:ocaml",
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:ocaml_consumer_test",
+    "//tools/testing/hermetic:ocaml"
   ],
   "perl": [
-    "//tools/testing/hermetic:perl",
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:perl_consumer_test",
+    "//tools/testing/hermetic:perl"
   ],
   "php": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:php_consumer_test"
   ],
   "powershell": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:powershell_consumer_test"
   ],
   "python": [
     "//python/tests:python_init_adopt_test",
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:python_consumer_test"
   ],
   "qt": [
     "//tools/testing/hermetic:qt_rust",
     "//tools/testing/hermetic:qt_tasks"
   ],
   "ruby": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:ruby_consumer_test"
   ],
   "rust": [
+    "//tools/testing/consumer:rust_consumer_test",
     "//tools/testing/hermetic:cpp_rust",
-    "//tools/testing/hermetic:rust_wasi",
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/hermetic:rust_wasi"
   ],
   "scala": [
     "//tools/testing/hermetic:scala_scalafix"
   ],
   "svelte": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:svelte_consumer_test"
   ],
   "typescript": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:typescript_consumer_test"
   ],
   "vue": [
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:vue_consumer_test"
   ],
   "wasi": [
     "//tools/testing/hermetic:rust_wasi"
   ],
   "zig": [
-    "//tools/testing/hermetic:zig",
-    "//tools/testing/starters:starters_test"
+    "//tools/testing/consumer:zig_consumer_test",
+    "//tools/testing/hermetic:zig"
   ]
 }

@@ -3,9 +3,10 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":cargo_bazel_generator_tests.bzl", "cargo_bazel_generator_test")
-load(":crate_build_script_tests.bzl", "crate_build_scripts_no_coverage_test")
+load(":crate_build_script_tests.bzl", "crate_build_scripts_no_coverage_test", "raw_build_script_coverage_env_test")
 load(":cross_link_tests.bzl", "cross_link_tests")
 load(":defs_tests.bzl", "rust_wrapper_registry_tests")
+load(":musl_toolchain_tests.bzl", "musl_toolchain_tests")
 load(":platform_config_tests.bzl", "rust_platform_config_test")
 load(":rust_clippy_tests.bzl", "rust_clippy_test_suite")
 load(":toolchain_tests.bzl", "toolchain_identity_tests")
@@ -23,6 +24,7 @@ real_source_target(
         "crate_build_script_tests.bzl",
         "cross_link_tests.bzl",
         "defs_tests.bzl",
+        "musl_toolchain_tests.bzl",
         "platform_config_tests.bzl",
         "rust_clippy_tests.bzl",
         "toolchain_tests.bzl",
@@ -62,6 +64,12 @@ crate_build_scripts_no_coverage_test(
     target_under_test = "@dx_crates__anyhow-1.0.104//:anyhow",
 )
 
+raw_build_script_coverage_env_test(
+    name = "raw_build_script_coverage_env_test",
+    size = "small",
+    target_under_test = "//tools/docs/rust/fixture:docs_fixture_build_script",
+)
+
 rust_wrapper_registry_tests(
     name = "wrapper_registry_tests",
     size = "small",
@@ -74,6 +82,11 @@ toolchain_identity_tests(
 
 cross_link_tests(
     name = "cross_link",
+    size = "small",
+)
+
+musl_toolchain_tests(
+    name = "musl_toolchain",
     size = "small",
 )
 

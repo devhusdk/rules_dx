@@ -1,0 +1,43 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "sancov.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+rust_library(
+    name = "dx_sancov",
+    srcs = ["src/lib.rs"],
+    crate_name = "dx_sancov",
+    crate_root = "src/lib.rs",
+    visibility = ["//cli/runtime:__pkg__"],
+    deps = [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/error:dx_error",
+        "//cli/lcov:dx_lcov",
+        "@rules_rust//rust/runfiles",
+    ],
+)
+
+alias(
+    name = "launcher_or_none",
+    actual = select({
+        "@platforms//os:macos": "@dx_prebuilt//:runtime",
+        "//conditions:default": "//tools/coverage/kcov:none",
+    }),
+    visibility = VIS_TOOLS_PUBLIC,
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

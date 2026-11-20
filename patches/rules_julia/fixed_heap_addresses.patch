@@ -1,0 +1,177 @@
+Upstream: none (not yet sent upstream)
+diff -ruN a/julia/private/precompile.jl b/julia/private/precompile.jl
+--- a/julia/private/precompile.jl
++++ b/julia/private/precompile.jl
+@@ -37,6 +37,7 @@ function fixed_slug!(compiled)
+ end
+ 
+ function main()
++    fixed_heap_addresses!()
+     flags = parse_flags(ARGS; scalars = ["--config", "--manifest", "--depot", "--package"])
+     config = require_flag(flags, "--config")
+     manifest = require_flag(flags, "--manifest")
+diff -ruN a/julia/private/rules_julia_common.jl b/julia/private/rules_julia_common.jl
+--- a/julia/private/rules_julia_common.jl
++++ b/julia/private/rules_julia_common.jl
+@@ -136,3 +136,129 @@
+     end
+     return paths
+ end
++
++const ADDR_NO_RANDOMIZE = Culong(0x0040000)
++
++# The directory the process is re-run from. Julia sees paths under it and
++# images store some of them, so it is named after the command line: the same in
++# every build of an action, and different for actions that run at the same time.
++launcher_path(key::UInt64) = "/tmp/rules_julia_" * string(key; base = 16, pad = 16)
++
++"""
++    make_launcher(key, root, cwd)
++
++Make a directory at `launcher_path(key)` holding `julia/`, a Julia installation
++that runs the one at `root`, and `cwd/`, a working directory that mirrors `cwd`.
++
++Julia derives `Sys.BINDIR` from the real path of `libjulia`, so the
++installation holds copies of `bin/julia` and `lib/libjulia.*`. Everything else,
++in the installation and in the working directory, is a symbolic link.
++
++A directory left by a killed run is replaced. One in use, by the same action
++in another build that shares `/tmp`, leaves this run a random name of the same
++length, and an image that differs from the other build's.
++"""
++function make_launcher(key::UInt64, root::String, cwd::String)
++    launcher = launcher_path(key)
++    while true
++        try
++            mkdir(launcher)
++            break
++        catch err
++            (err isa Base.IOError && err.code == Base.UV_EEXIST) || rethrow()
++        end
++        owner = tryparse(Int, try read(joinpath(launcher, "pid"), String) catch; "" end)
++        if owner !== nothing && !isdir("/proc/$owner")
++            rm(launcher; force = true, recursive = true)
++        else
++            launcher = launcher_path(rand(UInt64))
++        end
++    end
++    try
++        write(joinpath(launcher, "pid"), string(getpid()))
++        julia = mkdir(joinpath(launcher, "julia"))
++        for name in readdir(root)
++            name in ("bin", "lib") || symlink(joinpath(root, name), joinpath(julia, name))
++        end
++        for dir in ("bin", "lib")
++            mkdir(joinpath(julia, dir))
++            for name in readdir(joinpath(root, dir))
++                src = joinpath(root, dir, name)
++                dst = joinpath(julia, dir, name)
++                if name == "julia" || startswith(name, "libjulia.")
++                    cp(src, dst; follow_symlinks = true)
++                else
++                    symlink(src, dst)
++                end
++            end
++        end
++        mirror = mkdir(joinpath(launcher, "cwd"))
++        for name in readdir(cwd)
++            symlink(joinpath(cwd, name), joinpath(mirror, name))
++        end
++    catch
++        rm(launcher; force = true, recursive = true)
++        rethrow()
++    end
++    return launcher
++end
++
++"""
++    fixed_heap_addresses!()
++
++On Linux, re-run the current process with address space randomization off,
++from a Julia installation and a working directory at fixed paths.
++
++Package and system images store `objectid` of every mutable object they
++serialize (`jl_write_values` in Julia's `staticdata.c`), and that id is a hash
++of the object's heap address, so with randomization the image bytes change on
++every build. A single-threaded Julia lays out its heap the same way each run
++once the address space is fixed, the strings it allocates have the same
++lengths, and the collector frees memory at the same points. The installation
++path and the working directory are among those strings and lie in Bazel's
++output base, so the run is from `make_launcher`. Child processes, such as the
++one `Base.require` starts to precompile a package, inherit all three. The
++collector picks its next heap target from allocation and collection rates it
++measures in time, so the run itself does not collect: building the `hello`
++fixture's system image this way peaks at 6 GB.
++
++The current process waits for the run, removes the launcher and exits with the
++run's status. It skips its own exit hooks, which under `--output-o` would write
++an image over the one the run wrote. Where `personality` is not allowed (the
++default Docker seccomp profile rejects `ADDR_NO_RANDOMIZE`), the build goes on
++with randomized addresses, and where `/tmp` is not writable, from the
++installation path and the real working directory.
++"""
++function fixed_heap_addresses!()
++    Sys.islinux() || return
++    current = ccall(:personality, Cint, (Culong,), typemax(UInt32))
++    current == -1 && return
++    if Culong(current) & ADDR_NO_RANDOMIZE != 0
++        GC.enable(false)
++        return
++    end
++    ccall(:personality, Cint, (Culong,), Culong(current) | ADDR_NO_RANDOMIZE) == -1 && return
++    # Every argument in /proc/self/cmdline ends in a NUL, so the last split
++    # element is the empty string after the final one.
++    argv = String.(split(read("/proc/self/cmdline", String), '\0')[1:end-1])
++    launcher = try
++        make_launcher(hash(join(argv[2:end], '\0')), dirname(Sys.BINDIR), pwd())
++    catch err
++        err isa Base.IOError || rethrow()
++        nothing
++    end
++    if launcher === nothing
++        ptrs = [pointer.(argv); Ptr{UInt8}(C_NULL)]
++        GC.@preserve argv ccall(:execv, Cint, (Cstring, Ptr{Ptr{UInt8}}), "/proc/self/exe", ptrs)
++        systemerror("execv /proc/self/exe")
++    end
++    status = try
++        julia = joinpath(launcher, "julia", "bin", "julia")
++        cmd = Cmd(Cmd([julia; argv[2:end]]); dir = joinpath(launcher, "cwd"))
++        process = run(ignorestatus(cmd))
++        process.termsignal == 0 ? process.exitcode : 128 + process.termsignal
++    finally
++        rm(launcher; force = true, recursive = true)
++    end
++    ccall(:_exit, Cvoid, (Cint,), status)
++end
+diff -ruN a/julia/private/standalone.bzl b/julia/private/standalone.bzl
+--- a/julia/private/standalone.bzl
++++ b/julia/private/standalone.bzl
+@@ -9,10 +9,13 @@
+ 
+ # Resources declared for `JuliaSysimage`. Emitting the system image object
+ # (`julia --output-o`) regenerates native code for the whole image and is the
+-# irreducible step; it parallelizes via `JULIA_IMAGE_THREADS`, so the thread
+-# count and the declared CPUs are kept in sync. Memory was measured on Julia
+-# 1.12.5 / x86_64 Linux at 7.8 GB peak with four threads, with headroom added.
+-_IMAGE_THREADS = 4
++# irreducible step. It runs on one thread: with `JULIA_IMAGE_THREADS` above 1
++# the threads' allocations interleave differently in every run, and LLVM lays
++# out stack slots by those addresses, so the same function compiles to
++# different machine code. The thread count and the declared CPUs are kept in
++# sync. Memory was measured on Julia 1.12.5 / x86_64 Linux at 6 GB peak, with
++# headroom added.
++_IMAGE_THREADS = 1
+ _MEMORY_MB = 10240
+ 
+ def _sysimage_resource_set(_os_name, _inputs_size):
+diff -ruN a/julia/private/sysimage.jl b/julia/private/sysimage.jl
+--- a/julia/private/sysimage.jl
++++ b/julia/private/sysimage.jl
+@@ -57,6 +57,7 @@ function run_precompile_statements(files::Vector{String})
+ end
+ 
+ function main()
++    fixed_heap_addresses!()
+     flags = parse_flags(
+         ARGS;
+         scalars = ["--config", "--manifest"],

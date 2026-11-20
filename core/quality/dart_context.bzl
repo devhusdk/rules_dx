@@ -9,36 +9,36 @@ _PUBSPEC = LOCK_REGISTRY["pub"]["manifest"]
 DART_FORMAT = "format"
 DART_ANALYZE = "analyze"
 
-def _is_external(lib_root):
-    return lib_root.startswith("../")
+def _is_external(package_root):
+    return package_root.startswith("../")
 
-def dart_external_root(lib_root):
+def dart_external_root(package_root):
     """Maps an external `../<repo>[/<sub>]` package root onto the shared `_external/` scratch dir."""
-    return "_external/" + lib_root[3:]
+    return "_external/" + package_root[3:]
 
 def dart_merge_packages(packages, extra):
     """Returns packages plus the extra ones whose root is not already listed."""
-    known = {pkg.lib_root: True for pkg in packages}
-    return packages + [pkg for pkg in extra if pkg.lib_root not in known]
+    known = {pkg.package_root: True for pkg in packages}
+    return packages + [pkg for pkg in extra if pkg.package_root not in known]
 
 def dart_package_entries(packages, mode):
     """Returns the `package_config.json` package entries, sorted by root."""
     roots = {}
     for pkg in packages:
-        if _is_external(pkg.lib_root) and mode != DART_ANALYZE:
+        if _is_external(pkg.package_root) and mode != DART_ANALYZE:
             continue
-        if pkg.lib_root in roots:
+        if pkg.package_root in roots:
             continue
-        roots[pkg.lib_root] = pkg
+        roots[pkg.package_root] = pkg
     entries = []
     names = {}
-    for lib_root in sorted(roots):
-        pkg = roots[lib_root]
+    for package_root in sorted(roots):
+        pkg = roots[package_root]
         name = pkg.package_name or "dx_package_%d" % len(entries)
         if mode == DART_ANALYZE and name in names:
-            fail("dart: package %s is rooted at both '%s' and '%s'" % (name, names[name], lib_root))
-        names[name] = lib_root
-        root_uri = "../" + (dart_external_root(lib_root) if _is_external(lib_root) else lib_root)
+            fail("dart: package %s is rooted at both '%s' and '%s'" % (name, names[name], package_root))
+        names[name] = package_root
+        root_uri = "../" + (dart_external_root(package_root) if _is_external(package_root) else package_root)
         entry = {
             "name": name,
             "packageUri": "lib/",
@@ -71,13 +71,13 @@ def dart_pubspec_stubs(packages, sdk_version = ""):
     """Returns sorted `(scratch_path, content)` stubs, one per in-repo package root."""
     chosen = {}
     for pkg in packages:
-        if _is_external(pkg.lib_root) or not pkg.package_name:
+        if _is_external(pkg.package_root) or not pkg.package_name:
             continue
-        previous = chosen.get(pkg.lib_root)
+        previous = chosen.get(pkg.package_root)
         if previous == None or pkg.package_name < previous:
-            chosen[pkg.lib_root] = pkg.package_name
+            chosen[pkg.package_root] = pkg.package_name
     stubs = []
-    for lib_root in sorted(chosen):
-        path = (lib_root + "/" + _PUBSPEC) if lib_root else _PUBSPEC
-        stubs.append((path, dart_pubspec_stub(packages, chosen[lib_root], sdk_version)))
+    for package_root in sorted(chosen):
+        path = (package_root + "/" + _PUBSPEC) if package_root else _PUBSPEC
+        stubs.append((path, dart_pubspec_stub(packages, chosen[package_root], sdk_version)))
     return stubs

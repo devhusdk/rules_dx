@@ -5,7 +5,10 @@ use crate::run::{
     DeployRun, OwnerGate, deploy_build_mode, env_or_empty, pages_redact, placeholder_refusal,
 };
 use crate::stage::*;
-use std::path::Path;
+use dx_atomic_fs::path_io::{self, PathIoError};
+use std::fmt;
+use std::io;
+use std::path::{Path, PathBuf};
 
 /// Owner approval gate for cpan_deploy.
 pub(crate) const CPAN_GATE: OwnerGate = OwnerGate {
@@ -18,24 +21,138 @@ pub(crate) const CPAN_GATE: OwnerGate = OwnerGate {
 /// PAUSE endpoint that takes authenticated uploads.
 const PAUSE_UPLOAD_URL: &str = "https://pause.perl.org/pause/authenquery?ACTION=add_uri";
 
+/// Why a CPAN dist failed its identity check or its PAUSE upload.
+#[derive(Debug)]
+pub enum CpanError {
+    NotTarGz {
+        file_name: String,
+    },
+    BadFileName {
+        file_name: String,
+    },
+    Open {
+        path: PathBuf,
+        source: io::Error,
+    },
+    InvalidDist {
+        file_name: String,
+        source: io::Error,
+    },
+    NoMeta {
+        file_name: String,
+        stem: String,
+    },
+    PackageMismatch {
+        actual: String,
+        expected: String,
+    },
+    VersionMismatch {
+        actual: String,
+        expected: String,
+    },
+    NoFileName {
+        path: PathBuf,
+    },
+    Read(PathIoError),
+    /// The upload failed before a response; `message` is token-redacted.
+    Transport {
+        url: String,
+        message: String,
+    },
+    Rejected {
+        status: u16,
+    },
+    /// PAUSE answered outside 2xx; `body` is token-redacted.
+    Status {
+        url: String,
+        status: u16,
+        body: String,
+    },
+}
+
+impl fmt::Display for CpanError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotTarGz { file_name } => write!(f, "{file_name} is not a .tar.gz dist"),
+            Self::BadFileName { file_name } => {
+                write!(f, "{file_name} is not named <Dist>-<version>.tar.gz")
+            }
+            Self::Open { path, source } => write!(f, "cannot open {}: {source}", path.display()),
+            Self::InvalidDist { file_name, source } => {
+                write!(f, "{file_name} is not a valid dist: {source}")
+            }
+            Self::NoMeta { file_name, stem } => {
+                write!(f, "{file_name} has no {stem}/META.json or {stem}/META.yml")
+            }
+            Self::PackageMismatch { actual, expected } => write!(
+                f,
+                "package mismatch: dist is {actual}, BUILD declares {expected}"
+            ),
+            Self::VersionMismatch { actual, expected } => write!(
+                f,
+                "version mismatch: dist is {actual}, BUILD declares {expected}"
+            ),
+            Self::NoFileName { path } => {
+                write!(f, "cpan_deploy: {} has no file name", path.display())
+            }
+            Self::Read(source) => write!(f, "cpan_deploy: {source}"),
+            Self::Transport { url, message } => {
+                write!(f, "cpan_deploy: upload to {url} failed: {message}")
+            }
+            Self::Rejected { status } => write!(
+                f,
+                "cpan_deploy: PAUSE rejected CPAN_API_USER and CPAN_API_TOKEN (HTTP {status})"
+            ),
+            Self::Status { url, status, body } => write!(
+                f,
+                "cpan_deploy: upload to {url} failed with HTTP {status}: {body}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CpanError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Open { source, .. } | Self::InvalidDist { source, .. } => Some(source),
+            Self::Read(source) => Some(source),
+            Self::NotTarGz { .. }
+            | Self::BadFileName { .. }
+            | Self::NoMeta { .. }
+            | Self::PackageMismatch { .. }
+            | Self::VersionMismatch { .. }
+            | Self::NoFileName { .. }
+            | Self::Transport { .. }
+            | Self::Rejected { .. }
+            | Self::Status { .. } => None,
+        }
+    }
+}
+
 /// Reads the distribution name and version from a `<Dist>-<version>.tar.gz` file name and checks the archive.
 ///
 /// The archive must hold `<Dist>-<version>/META.json` or `<Dist>-<version>/META.yml`.
-pub fn cpan_read_identity(dist: &Path) -> Result<(String, String), String> {
+pub fn cpan_read_identity(dist: &Path) -> Result<(String, String), CpanError> {
     let file_name = dist
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or_default();
     let stem = file_name
         .strip_suffix(".tar.gz")
-        .ok_or_else(|| format!("{file_name} is not a .tar.gz dist"))?;
+        .ok_or_else(|| CpanError::NotTarGz {
+            file_name: file_name.to_owned(),
+        })?;
     let (name, version) = stem
         .rsplit_once('-')
         .filter(|(name, version)| !name.is_empty() && !version.is_empty())
-        .ok_or_else(|| format!("{file_name} is not named <Dist>-<version>.tar.gz"))?;
+        .ok_or_else(|| CpanError::BadFileName {
+            file_name: file_name.to_owned(),
+        })?;
     let wants = [format!("{stem}/META.json"), format!("{stem}/META.yml")];
-    let open = std::fs::File::open(dist)
-        .map_err(|error| format!("cannot open {}: {error}", dist.display()))?;
+    let open = std::fs::File::open(dist).map_err(|source| CpanError::Open {
+        path: dist.to_path_buf(),
+        source,
+    })?;
     let mut found = false;
     dx_archive::visit(
         open,
@@ -46,11 +163,17 @@ pub fn cpan_read_identity(dist: &Path) -> Result<(String, String), String> {
             Ok(())
         },
     )
-    .map_err(|error| format!("{file_name} is not a valid dist: {error}"))?;
+    .map_err(|source| CpanError::InvalidDist {
+        file_name: file_name.to_owned(),
+        source,
+    })?;
     if found {
         return Ok((name.to_owned(), version.to_owned()));
     }
-    Err(format!("{file_name} has no {} or {}", wants[0], wants[1]))
+    Err(CpanError::NoMeta {
+        file_name: file_name.to_owned(),
+        stem: stem.to_owned(),
+    })
 }
 
 /// Checks the dist identity against the declared package and version.
@@ -58,18 +181,18 @@ pub fn cpan_check_identity(
     actual: &(String, String),
     expected_package: &str,
     expected_version: &str,
-) -> Result<(), String> {
+) -> Result<(), CpanError> {
     if !expected_package.is_empty() && actual.0 != expected_package {
-        return Err(format!(
-            "package mismatch: dist is {}, BUILD declares {expected_package}",
-            actual.0
-        ));
+        return Err(CpanError::PackageMismatch {
+            actual: actual.0.clone(),
+            expected: expected_package.to_owned(),
+        });
     }
     if !expected_version.is_empty() && actual.1 != expected_version {
-        return Err(format!(
-            "version mismatch: dist is {}, BUILD declares {expected_version}",
-            actual.1
-        ));
+        return Err(CpanError::VersionMismatch {
+            actual: actual.1.clone(),
+            expected: expected_version.to_owned(),
+        });
     }
     Ok(())
 }
@@ -81,13 +204,14 @@ fn cpan_live_upload(
     dist: &Path,
     user: &str,
     token: &str,
-) -> Result<(), String> {
+) -> Result<(), CpanError> {
     let file_name = dist
         .file_name()
         .and_then(|name| name.to_str())
-        .ok_or_else(|| format!("cpan_deploy: {} has no file name", dist.display()))?;
-    let bytes = std::fs::read(dist)
-        .map_err(|error| format!("cpan_deploy: cannot read {}: {error}", dist.display()))?;
+        .ok_or_else(|| CpanError::NoFileName {
+            path: dist.to_path_buf(),
+        })?;
+    let bytes = path_io::read(dist).map_err(CpanError::Read)?;
     let hidden_name = user.to_ascii_uppercase();
     let (content_type, body) = crate::http::multipart_form(
         &[
@@ -116,25 +240,22 @@ fn cpan_live_upload(
             dx_http::Body::Bytes(&body),
             2048,
         )
-        .map_err(|error| {
-            format!(
-                "cpan_deploy: upload to {url} failed: {}",
-                pages_redact(&error.to_string(), token)
-            )
+        .map_err(|error| CpanError::Transport {
+            url: url.to_owned(),
+            message: pages_redact(&error.to_string(), token),
         })?;
     let status = response.status;
     if (200..300).contains(&status) {
         return Ok(());
     }
     if status == 401 || status == 403 {
-        return Err(format!(
-            "cpan_deploy: PAUSE rejected CPAN_API_USER and CPAN_API_TOKEN (HTTP {status})"
-        ));
+        return Err(CpanError::Rejected { status });
     }
-    Err(format!(
-        "cpan_deploy: upload to {url} failed with HTTP {status}: {}",
-        pages_redact(&response.text(), token).trim()
-    ))
+    Err(CpanError::Status {
+        url: url.to_owned(),
+        status,
+        body: pages_redact(&response.text(), token).trim().to_owned(),
+    })
 }
 
 /// Runs the CPAN deploy tool.
@@ -244,6 +365,8 @@ mod tests {
         let dist = dir.path().join("Demo-Dist-1.2.0.tar.gz");
         std::fs::write(&dist, raw_tar_gz("../META.json", b"{}")).expect("write dist");
         let error = cpan_read_identity(&dist).expect_err("dot dot");
+        assert!(matches!(error, CpanError::InvalidDist { .. }), "{error}");
+        let error = error.to_string();
         assert!(error.contains("is not a valid dist"), "{error}");
         assert!(error.contains("'..'"), "{error}");
     }
@@ -258,17 +381,19 @@ mod tests {
         );
         let identity = cpan_read_identity(&dist).expect("identity");
         assert_eq!(identity, ("Demo-Dist".to_owned(), "1.2.0".to_owned()));
-        assert_eq!(cpan_check_identity(&identity, "Demo-Dist", "1.2.0"), Ok(()));
-        assert_eq!(cpan_check_identity(&identity, "", ""), Ok(()));
-        assert!(
-            cpan_check_identity(&identity, "", "1.2.1")
-                .expect_err("version")
-                .contains("BUILD declares 1.2.1")
+        assert!(cpan_check_identity(&identity, "Demo-Dist", "1.2.0").is_ok());
+        assert!(cpan_check_identity(&identity, "", "").is_ok());
+        let version = cpan_check_identity(&identity, "", "1.2.1").expect_err("version");
+        assert!(matches!(version, CpanError::VersionMismatch { .. }));
+        assert_eq!(
+            version.to_string(),
+            "version mismatch: dist is 1.2.0, BUILD declares 1.2.1"
         );
-        assert!(
-            cpan_check_identity(&identity, "Other", "")
-                .expect_err("package")
-                .contains("BUILD declares Other")
+        let package = cpan_check_identity(&identity, "Other", "").expect_err("package");
+        assert!(matches!(package, CpanError::PackageMismatch { .. }));
+        assert_eq!(
+            package.to_string(),
+            "package mismatch: dist is Demo-Dist, BUILD declares Other"
         );
         let yml = write_dist(dir.path(), "Demo-1.0.tar.gz", "Demo-1.0/META.yml");
         assert!(cpan_read_identity(&yml).is_ok());
@@ -279,23 +404,27 @@ mod tests {
         let dir = scratch_dir();
         let plain = dir.path().join("Demo.zip");
         std::fs::write(&plain, b"x").expect("write");
-        assert!(
-            cpan_read_identity(&plain)
-                .expect_err("suffix")
-                .contains("not a .tar.gz")
-        );
+        let suffix = cpan_read_identity(&plain).expect_err("suffix");
+        assert!(matches!(suffix, CpanError::NotTarGz { .. }));
+        assert_eq!(suffix.to_string(), "Demo.zip is not a .tar.gz dist");
         let unversioned = write_dist(dir.path(), "Demo.tar.gz", "Demo/META.json");
-        assert!(
-            cpan_read_identity(&unversioned)
-                .expect_err("name")
-                .contains("<Dist>-<version>")
+        let name = cpan_read_identity(&unversioned).expect_err("name");
+        assert!(matches!(name, CpanError::BadFileName { .. }));
+        assert_eq!(
+            name.to_string(),
+            "Demo.tar.gz is not named <Dist>-<version>.tar.gz"
         );
         let missing = write_dist(dir.path(), "Demo-1.0.tar.gz", "Demo-1.0/Makefile.PL");
-        assert!(
-            cpan_read_identity(&missing)
-                .expect_err("missing")
-                .contains("has no Demo-1.0/META.json")
+        let meta = cpan_read_identity(&missing).expect_err("missing");
+        assert!(matches!(meta, CpanError::NoMeta { .. }));
+        assert_eq!(
+            meta.to_string(),
+            "Demo-1.0.tar.gz has no Demo-1.0/META.json or Demo-1.0/META.yml"
         );
+        let absent = dir.path().join("Absent-1.0.tar.gz");
+        let open = cpan_read_identity(&absent).expect_err("absent");
+        assert!(matches!(&open, CpanError::Open { path, .. } if path == &absent));
+        assert!(open.to_string().starts_with("cannot open "), "{open}");
     }
 
     #[test]
@@ -379,7 +508,7 @@ mod tests {
         (url, request)
     }
 
-    fn upload_to(url: &str, dist: &Path) -> Result<(), String> {
+    fn upload_to(url: &str, dist: &Path) -> Result<(), CpanError> {
         cpan_live_upload(
             &crate::http::test_client(),
             url,
@@ -394,7 +523,7 @@ mod tests {
         let dir = scratch_dir();
         let dist = write_dist(dir.path(), "Demo-1.2.0.tar.gz", "Demo-1.2.0/META.json");
         let (url, request) = fake_pause("200 OK", "ok");
-        assert_eq!(upload_to(&url, &dist), Ok(()));
+        assert!(upload_to(&url, &dist).is_ok());
         let seen = request.recv().expect("request");
         let text = String::from_utf8_lossy(&seen).into_owned();
         assert!(text.starts_with("POST /pause/authenquery?ACTION=add_uri HTTP/1.1\r\n"));
@@ -422,28 +551,40 @@ mod tests {
         let dir = scratch_dir();
         let dist = write_dist(dir.path(), "Demo-1.2.0.tar.gz", "Demo-1.2.0/META.json");
         let (url, _request) = fake_pause("401 Unauthorized", "denied");
+        let rejected = upload_to(&url, &dist).expect_err("401");
+        assert!(matches!(rejected, CpanError::Rejected { status: 401 }));
         assert_eq!(
-            upload_to(&url, &dist),
-            Err(
-                "cpan_deploy: PAUSE rejected CPAN_API_USER and CPAN_API_TOKEN (HTTP 401)"
-                    .to_owned()
-            )
+            rejected.to_string(),
+            "cpan_deploy: PAUSE rejected CPAN_API_USER and CPAN_API_TOKEN (HTTP 401)"
         );
         let (url, _request) = fake_pause(
             "500 Internal Server Error",
             &format!("boom {FAKE_PAUSE_TOKEN}\n"),
         );
+        let failed = upload_to(&url, &dist).expect_err("500");
+        assert!(matches!(failed, CpanError::Status { status: 500, .. }));
         assert_eq!(
-            upload_to(&url, &dist),
-            Err(format!(
-                "cpan_deploy: upload to {url} failed with HTTP 500: boom [redacted]"
-            ))
+            failed.to_string(),
+            format!("cpan_deploy: upload to {url} failed with HTTP 500: boom [redacted]")
         );
         let (url, _request) = fake_pause("302 Found", "");
         assert!(
             upload_to(&url, &dist)
                 .expect_err("redirect")
+                .to_string()
                 .contains("failed with HTTP 302")
+        );
+    }
+
+    #[test]
+    fn live_upload_reports_an_unreadable_dist() {
+        let dir = scratch_dir();
+        let missing = dir.path().join("Demo-1.2.0.tar.gz");
+        let error = upload_to("http://127.0.0.1:1/", &missing).expect_err("missing");
+        assert!(matches!(&error, CpanError::Read(io) if io.path() == missing));
+        assert!(
+            error.to_string().starts_with("cpan_deploy: cannot read "),
+            "{error}"
         );
     }
 }

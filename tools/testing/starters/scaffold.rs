@@ -1,4 +1,5 @@
 //! Starts a project with `dx init` and adds a hello-world fixture.
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -31,7 +32,7 @@ pub fn scaffold_fixture(
     name: &str,
     files: &str,
 ) -> Result<PathBuf, String> {
-    let rel = std::env::var("DX_BIN").map_err(|_| "DX_BIN must name dx".to_owned())?;
+    let rel = std::env::var("DX_BIN").map_err(|error| format!("DX_BIN must name dx: {error}"))?;
     let output = Command::new(dx_testing::resolve_runfiles(&rel))
         .current_dir(scratch)
         .args(["init", "--apply", "--no-generate", name])

@@ -73,6 +73,6 @@ tools/docs/components/tests/fixture/consumer/BUILD.bazel orphan-target 2
 tools/docs/site/BUILD.bazel orphan-target 1
 tools/testing/BUILD.bazel orphan-target 4
 tools/testing/repos.bzl unloaded-bzl 1
-tools/testing/starters/fixtures/BUILD.bazel orphan-target 2
+tools/testing/starters/fixtures/BUILD.bazel orphan-target 1
 typescript/private/ide/BUILD.bazel orphan-target 1
 vue/private/BUILD.bazel orphan-target 1

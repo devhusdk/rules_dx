@@ -1,10 +1,14 @@
 //! One reader for literal top-level `MODULE.bazel` calls, shared by every MODULE.bazel tool.
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 pub mod identity;
 
 use std::collections::BTreeSet;
-use std::fmt::Write as _;
 use std::ops::Range;
 
 use starlark_syntax::codemap::Span;
@@ -165,23 +169,23 @@ impl NewTag {
         for (key, arg) in &self.args {
             match arg {
                 Arg::Str(value) => {
-                    writeln!(out, "    {key} = \"{value}\",").ok();
+                    out.push_str(&format!("    {key} = \"{value}\",\n"));
                 }
                 Arg::List(values) => {
                     if let [only] = values.as_slice() {
-                        writeln!(out, "    {key} = [\"{only}\"],").ok();
+                        out.push_str(&format!("    {key} = [\"{only}\"],\n"));
                         continue;
                     }
-                    writeln!(out, "    {key} = [").ok();
+                    out.push_str(&format!("    {key} = [\n"));
                     for value in values {
-                        writeln!(out, "        \"{value}\",").ok();
+                        out.push_str(&format!("        \"{value}\",\n"));
                     }
                     out.push_str("    ],\n");
                 }
                 Arg::Dict(entries) => {
-                    writeln!(out, "    {key} = {{").ok();
+                    out.push_str(&format!("    {key} = {{\n"));
                     for (k, v) in entries {
-                        writeln!(out, "        \"{k}\": \"{v}\",").ok();
+                        out.push_str(&format!("        \"{k}\": \"{v}\",\n"));
                     }
                     out.push_str("    },\n");
                 }
@@ -2103,8 +2107,11 @@ const RULES_DX: &str = "rules_dx";
 pub fn rules_dx_repo(workspace: &std::path::Path) -> String {
     let read_include = |label: &str| {
         label_path(label)
-            .and_then(|rel| std::fs::read_to_string(workspace.join(&rel)).map_err(|_| rel))
-            .map_err(|_| format!("workspace input {label}"))
+            .and_then(|rel| {
+                std::fs::read_to_string(workspace.join(&rel))
+                    .map_err(|error| format!("{rel}: {error}"))
+            })
+            .map_err(|error| format!("workspace input {label}: {error}"))
     };
     std::fs::read_to_string(workspace.join("MODULE.bazel")).map_or_else(
         |_| RULES_DX.to_owned(),

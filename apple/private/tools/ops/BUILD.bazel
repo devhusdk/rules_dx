@@ -1,5 +1,6 @@
+load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//apple:__subpackages__"])
 
@@ -44,20 +45,24 @@ rust_library(
     ],
 )
 
-# keep
-rust_binary(
+dx_subcommand(
     name = "create_test_simulator",
-    srcs = ["src/create_test_simulator.rs"],
-    crate_root = "src/create_test_simulator.rs",
-    deps = [":ops"],
+    subcommand = "apple_ops",
+    subcommand_args = ["create-test-simulator"],
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
 
-# keep
-rust_binary(
+dx_subcommand(
     name = "delete_test_simulator",
-    srcs = ["src/delete_test_simulator.rs"],
-    crate_root = "src/delete_test_simulator.rs",
-    deps = [":ops"],
+    subcommand = "apple_ops",
+    subcommand_args = ["delete-test-simulator"],
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
 
 # keep

@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use dx_nested::compose::{
     llvm_override, rules_flutter_override, rules_py_override, rules_rust_override,
-    windows_support_override, write_llvm_patches, write_rules_py_patches, write_rules_rust_patches,
-    write_windows_support_patches,
+    windows_support_override, write_llvm_patches, write_root_patch_override,
+    write_rules_py_patches, write_rules_rust_patches, write_windows_support_patches,
 };
 use dx_nested::{self as nested, Case};
 use dx_release_tools::candidate::{
@@ -115,14 +115,24 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     rc.extend_from_slice(crate::quickstart_consumer_test::WINDOWS_SYMLINKS.as_bytes());
     write(&root.join(".bazelrc"), &rc);
     let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
+    // The nested server has no PATH, so the macOS python toolchain repo needs the root's
+    // install_name_tool patch, as the hermetic and Apple consumers repeat it.
+    let rules_python = write_root_patch_override(
+        &root,
+        &source,
+        "rules_python",
+        &crate::quickstart_consumer_test::RULES_PYTHON_SKIP,
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
     let module = format!(
-        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n\ndx_licenses = use_extension(\"@my_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"visual-studio-build-tools\"])\n{}{}{}{}{}",
+        "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n\ndx_licenses = use_extension(\"@my_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"visual-studio-build-tools\"])\n{}{}{}{}{}{}",
         candidate.version(),
         rules_py_override(),
-        rules_flutter_override().unwrap_or_else(|error| panic!("{error}")),
+        rules_flutter_override(),
         rules_rust_override(),
         llvm_override(),
         windows_support_override(),
+        rules_python,
     ) + &crate::quickstart_consumer_test::apple_overrides(&source, &root);
     assert!(!module.contains("module_name = \"rules_dx\""), "{module}");
     write_rules_py_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));
@@ -265,7 +275,7 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     }
 }
 
-/// Builds and tests `swift/tests/consumer` on the unpatched BCR rules_swift.
+/// Builds and tests `swift/tests/consumer` on BCR rules_swift.
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 fn assert_swift_consumer(case: &Case) {
     stage("swift consumer");

@@ -198,18 +198,51 @@ fn lines_point_at_the_name_in_the_source() {
 fn bad_input_is_rejected_with_a_reason() {
     let inputs = vec![("{".to_owned(), "x.avsc".to_owned(), "x.avsc".to_owned())];
     let error = convert(&inputs, &options()).expect_err("malformed JSON");
-    assert!(error.contains("not valid JSON"), "{error}");
+    assert!(matches!(error, AvroExtractError::InvalidJson { .. }));
+    assert_eq!(
+        error.to_string(),
+        "x.avsc is not valid JSON: EOF while parsing an object at line 1 column 1"
+    );
     let inputs = vec![(
         "\"string\"".to_owned(),
         "x.avsc".to_owned(),
         "x.avsc".to_owned(),
     )];
     let error = convert(&inputs, &options()).expect_err("no named type");
-    assert!(error.contains("no named Avro type"), "{error}");
+    assert!(matches!(error, AvroExtractError::NoNamedType { .. }));
+    assert_eq!(
+        error.to_string(),
+        "the schemas declare no named Avro type of package 'shop'"
+    );
     let mut bad = options();
     bad.package = "a b".to_owned();
     let error = convert(&[], &bad).expect_err("package");
-    assert!(error.contains("invalid package"), "{error}");
+    assert!(matches!(error, AvroExtractError::InvalidPackage { .. }));
+    assert_eq!(error.to_string(), "invalid package 'a b'");
+}
+
+#[test]
+fn run_reports_an_unreadable_input() {
+    let mut schema = options();
+    schema.schemas = vec![("/nonexistent/a.avsc".to_owned(), "a.avsc".to_owned())];
+    let error = run(&schema).expect_err("unreadable schema");
+    assert!(matches!(error, AvroExtractError::Read(_)));
+    assert!(
+        error
+            .to_string()
+            .starts_with("cannot read /nonexistent/a.avsc: "),
+        "{error}"
+    );
+    let mut dir = options();
+    dir.schema_dirs = vec![("/nonexistent/tree".to_owned(), "b.avdl".to_owned())];
+    let error = run(&dir).expect_err("unlistable directory");
+    assert!(matches!(error, AvroExtractError::Read(_)));
+    assert!(
+        error
+            .to_string()
+            .starts_with("cannot list /nonexistent/tree: "),
+        "{error}"
+    );
 }
 
 #[test]
@@ -234,6 +267,16 @@ fn parse_reads_flags_and_rejects_bad_ones() {
     );
     assert_eq!(parsed.schema_dirs.len(), 1);
     assert_eq!(parsed.generated, vec!["src/b.avdl".to_owned()]);
-    assert!(parse(&args(&["--package", "p", "--out", "o"])).is_err());
-    assert!(parse(&args(&["--package", "p", "--out", "o", "--schema", "nope"])).is_err());
+    let error = parse(&args(&["--package", "p", "--out", "o"])).expect_err("no schema");
+    assert!(matches!(error, ArgsError::NoSchema));
+    assert_eq!(
+        error.to_string(),
+        "at least one --schema or --schema-dir is required"
+    );
+    let error = parse(&args(&["--package", "p", "--out", "o", "--schema", "nope"]))
+        .expect_err("not a pair");
+    assert!(matches!(error, ArgsError::NotPair { .. }));
+    assert_eq!(error.to_string(), "--schema 'nope' is not INPUT=SRC");
+    let error = parse(&args(&["--out", "o", "--schema", "a=b"])).expect_err("no package");
+    assert!(matches!(error, ArgsError::Flag(_)));
 }

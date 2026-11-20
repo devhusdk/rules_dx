@@ -6,6 +6,8 @@ file flutter/tests/fixtures/flutter_app/.dart_tool/package_graph.json
 file flutter/tests/fixtures/flutter_app/BUILD.bazel
 file flutter/tests/fixtures/flutter_app/android/BUILD.bazel
 file flutter/tests/fixtures/flutter_app/app/BUILD.bazel
+file flutter/tests/fixtures/flutter_app/app/assets/fonts/DxSquare.ttf
+file flutter/tests/fixtures/flutter_app/app/assets/items.json
 file flutter/tests/fixtures/flutter_app/app/lib/app.dart
 file flutter/tests/fixtures/flutter_app/app/lib/l10n/app_da.arb
 file flutter/tests/fixtures/flutter_app/app/lib/l10n/app_en.arb
@@ -18,8 +20,6 @@ file flutter/tests/fixtures/flutter_app/app/lib/src/tip_banner.dart
 file flutter/tests/fixtures/flutter_app/app/test/app_test.dart
 file flutter/tests/fixtures/flutter_app/app/test/defines_test.dart
 file flutter/tests/fixtures/flutter_app/app/tips.txt
-file flutter/tests/fixtures/flutter_app/assets/fonts/DxSquare.ttf
-file flutter/tests/fixtures/flutter_app/assets/items.json
 file flutter/tests/fixtures/flutter_app/failures/BUILD.bazel
 file flutter/tests/fixtures/flutter_app/failures/lib/missing_asset.dart
 file flutter/tests/fixtures/flutter_app/failures/lib/type_error.dart

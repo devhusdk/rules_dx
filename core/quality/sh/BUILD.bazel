@@ -1,6 +1,8 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load(":sh_toolchain.bzl", "dx_sh_toolchain")
 
+exports_files(["busybox_apk.BUILD.bazel"])
+
 toolchain_type(
     name = "compile_check_sh_toolchain_type",
     visibility = ["//visibility:public"],
@@ -20,6 +22,23 @@ toolchain(
         "@platforms//cpu:x86_64",
     ],
     toolchain = ":busybox_sh",
+    toolchain_type = ":compile_check_sh_toolchain_type",
+)
+
+dx_sh_toolchain(
+    name = "busybox_sh_arm64",
+    executable = "@dx_busybox_sh_linux_arm64//:file",
+    launcher = "@bazel_tools//tools/launcher:launcher",
+    launcher_maker = "@bazel_tools//tools/launcher:launcher_maker",
+)
+
+toolchain(
+    name = "busybox_sh_linux_arm64",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    toolchain = ":busybox_sh_arm64",
     toolchain_type = ":compile_check_sh_toolchain_type",
 )
 
@@ -45,6 +64,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "sh_toolchain.bzl",
+        "busybox_apk.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

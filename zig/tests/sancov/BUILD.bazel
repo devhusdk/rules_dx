@@ -1,0 +1,48 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+load("//zig:defs.bzl", "zig_test")
+
+package(default_testonly = True)
+
+# Built the way a macOS coverage build is, plus -flld for ELF and unstripped, so Linux proves the sancov path.
+zig_test(
+    name = "sancov_subject_test",
+    size = "small",
+    main = "sancov_subject_test.zig",
+    target_compatible_with = ["@platforms//os:linux"],
+    test_runner = "//zig/private:coverage_runner.zig",
+    zigopts = [
+        "-ffuzz",
+        "-fllvm",
+        "-flld",
+        "-fno-strip",
+    ],
+    deps = ["//zig/tests/conformance"],
+)
+
+rust_test(
+    name = "sancov_launcher_test",
+    size = "small",
+    srcs = ["sancov_launcher_test.rs"],
+    data = [
+        "sources.txt",
+        ":sancov_subject_test",
+        "//cli/runtime:dx_runtime",
+        "@llvm//tools:llvm-symbolizer",
+    ],
+    env = {
+        "DX_LLVM_SYMBOLIZER": "$(rlocationpath @llvm//tools:llvm-symbolizer)",
+        "DX_RUNTIME": "$(rootpath //cli/runtime:dx_runtime)",
+        "DX_SANCOV_SOURCES": "$(rlocationpath sources.txt)",
+        "DX_SANCOV_UPSTREAM": "$(rlocationpath :sancov_subject_test)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

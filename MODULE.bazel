@@ -17,7 +17,6 @@ single_version_override(
         "//patches/rules_rust:crate_universe_lazy_host_tools.patch",
         "//patches/rules_rust:cargo_toml_env_vars_flag.patch",
         "//patches/rules_rust:exec_scope_universal.patch",
-        "//patches/rules_rust:cargo_build_script_no_coverage.patch",
         "//patches/rules_rust:cargo_build_script_apple_deployment_target.patch",
         "//patches/rules_rust:windows_exec_foreign_target_cc_linker.patch",
         "//patches/rules_rust:crate_universe_module_labels.patch",
@@ -74,6 +73,7 @@ single_version_override(
         "//patches/llvm:macos_sdk_resolve_symlinks.patch",
         "//patches/llvm:msvc_fuzzer.patch",
         "//patches/llvm:msvc_coverage.patch",
+        "//patches/llvm:mingw_coff_no_timestamp.patch",
     ],
     version = "0.8.27",
 )
@@ -91,7 +91,7 @@ bazel_dep(name = "rules_foreign_cc", version = "0.17.0", dev_dependency = True)
 single_version_override(
     module_name = "rules_foreign_cc",
     patch_strip = 1,
-    patches = ["//patches/rules_foreign_cc:cmake_4_5_0.patch"],
+    patches = ["//patches/rules_foreign_cc:cmake_4_1_to_4_5.patch"],
     version = "0.17.0",
 )
 
@@ -105,7 +105,7 @@ _foreign_cc_tools = use_extension("@rules_foreign_cc//foreign_cc:extensions.bzl"
 _foreign_cc_tools.explicit()
 _foreign_cc_tools.cmake(
     mode = "binary",
-    version = "4.5.0",
+    version = "4.5.1",
 )
 _foreign_cc_tools.ninja(
     exec_compatible_with = ["@platforms//os:linux"],
@@ -166,7 +166,7 @@ _foreign_cc_tools.pkgconfig(
     mode = "noop",
 )
 
-# floor: equals tested; patched to pass the dynamic CRT flag and -ccbin to nvcc -dlink (#4704, #10975)
+# floor: equals tested; patched to pass the dynamic CRT flag and -ccbin to nvcc -dlink (#4704, #10975) and for reproducible nvcc objects
 bazel_dep(name = "rules_cuda", version = "0.4.0")
 single_version_override(
     module_name = "rules_cuda",
@@ -174,6 +174,7 @@ single_version_override(
     patches = [
         "//patches/rules_cuda:coverage_keep.patch",
         "//patches/rules_cuda:msvc_dlink_crt.patch",
+        "//patches/rules_cuda:objdir_as_tempdir.patch",
         "//patches/rules_cuda:toolchains_gate.patch",
     ],
     version = "0.4.0",
@@ -385,7 +386,8 @@ single_version_override(
     patches = [
         "//patches/rules_android:bundle_keystore_properties.patch",
         "//patches/rules_android:java8_dex_runfiles.patch",
-        "//patches/rules_android:dx_bzl_srcs.patch",
+        "//patches/rules_android:public_bzl_library.patch",
+        "//patches/rules_android:r8_globals_deterministic.patch",
     ],
     version = "0.8.1",
 )
@@ -395,7 +397,7 @@ bazel_dep(name = "rules_kotlin", version = "2.4.21")
 single_version_override(
     module_name = "rules_kotlin",
     patch_strip = 1,
-    patches = ["//patches/rules_kotlin:dx_bzl_srcs.patch"],
+    patches = ["//patches/rules_kotlin:kotlin_filegroup_android.patch"],
     version = "2.4.21",
 )
 
@@ -907,29 +909,6 @@ dx_pins.archive(
     pins = "//cuda:pins.json",
 )
 dx_pins.archive(
-    name = "dx_rules_dart_pub",
-    dropped = ["MODULE.bazel"],
-    key = "rules_dart",
-    patches = [
-        "//patches/rules_dart:hermetic_tar.patch",
-        "//patches/rules_dart:dx_bzl_srcs.patch",
-    ],
-    pins = "//dart:pins.json",
-)
-dx_pins.archive(
-    name = "dx_rules_flutter_pub",
-    dropped = ["MODULE.bazel"],
-    key = "rules_flutter",
-    patches = [
-        "//patches/rules_flutter:registrant_javacopts.patch",
-        "//patches/rules_flutter:engine_labels.patch",
-        "//patches/rules_flutter:hermetic_pub.patch",
-        "//patches/rules_flutter:flutter_3_47_9.patch",
-        "//patches/rules_flutter:dx_bzl_srcs.patch",
-    ],
-    pins = "//flutter:pins.json",
-)
-dx_pins.archive(
     name = "dx_paket",
     pins = "//dotnet:pins.json",
 )
@@ -956,6 +935,7 @@ dx_pins.archive(
         "//patches/rules_dotnet:canonical_labels.patch",
         "//patches/rules_dotnet:toolchains_gate.patch",
         "//patches/rules_dotnet:target_runtime.patch",
+        "//patches/rules_dotnet:fsharp_pdb_path.patch",
     ],
     pins = "//dotnet:pins.json",
 )
@@ -1193,6 +1173,7 @@ dx_pins.archive(
         "//patches/rules_elixir:relocatable_tree.patch",
         "//patches/rules_elixir:windows_ex_unit_test.patch",
         "//patches/rules_elixir:toolchain_type_alias.patch",
+        "//patches/rules_elixir:relative_beam_paths.patch",
     ],
     pins = "//elixir:pins.json",
 )
@@ -1280,15 +1261,19 @@ dx_pins.archive(
     name = "rules_julia",
     patches = [
         "//patches/rules_julia:config_base_toml.patch",
+        "//patches/rules_julia:deterministic_module_build_id.patch",
         "//patches/rules_julia:in_process_resolve_test.patch",
         "//patches/rules_julia:locate_installed_package.patch",
         "//patches/rules_julia:package_annotation_version.patch",
         "//patches/rules_julia:entry.patch",
         "//patches/rules_julia:portable_cpu_target.patch",
+        "//patches/rules_julia:stable_precompile_paths.patch",
         "//patches/rules_julia:template_action_input.patch",
         "//patches/rules_julia:exec_toolchain.patch",
         "//patches/rules_julia:inline_runfiles_sh.patch",
         "//patches/rules_julia:test_tmpdir_runfiles.patch",
+        "//patches/rules_julia:fixed_heap_addresses.patch",
+        "//patches/rules_julia:stable_sysimage_paths.patch",
         "//patches/rules_julia:julia_1_13.patch",
     ],
     pins = "//julia:pins.json",
@@ -1467,6 +1452,11 @@ dx_pins.archive(
     pins = "//core/quality:pins.json",
 )
 dx_pins.archive(
+    name = "dx_busybox_sh_linux_arm64",
+    build = "//core/quality/sh:busybox_apk.BUILD.bazel",
+    pins = "//core/quality:pins.json",
+)
+dx_pins.archive(
     name = "dx_busybox_sh_windows",
     pins = "//core/quality:pins.json",
 )
@@ -1525,6 +1515,7 @@ use_repo(
     "cpp_app_fmt",
     "cuda_redistrib_json",
     "dx_busybox_sh",
+    "dx_busybox_sh_linux_arm64",
     "dx_busybox_sh_windows",
     "dx_coreutils",
     "dx_coreutils__linux_arm64",
@@ -1572,8 +1563,6 @@ use_repo(
     "dx_powershell_toolchains__windows_arm64",
     "dx_powershell_toolchains__windows_x86_64",
     "dx_rebar3",
-    "dx_rules_dart_pub",
-    "dx_rules_flutter_pub",
     "dx_selene_src",
     "dx_sorbet",
     "dx_swift_format_macos_arm64",
@@ -1774,72 +1763,71 @@ swiftpm.lock(
 use_repo(swiftpm, "swiftpkg")
 
 # floor: equals tested
-bazel_dep(name = "rules_dart", version = "0.8.1")
+bazel_dep(name = "rules_dart", version = "0.9.1")
 single_version_override(
     module_name = "rules_dart",
     patch_strip = 1,
     patches = [
-        "//patches/rules_dart:coverage.patch",
         "//patches/rules_dart:external_pkgsrcs.patch",
         "//patches/rules_dart:windows_long_dill.patch",
+        "//patches/rules_dart:summaries_scope.patch",
+        "//patches/rules_dart:cross_revision.patch",
         "//patches/rules_dart:dx_bzl_srcs.patch",
     ],
-    version = "0.8.1",
+    version = "0.9.1",
 )
 
 dart = use_extension("@rules_dart//dart:extensions.bzl", "dart")
 dart.toolchain(dart_version = "3.13.7")
 
 # floor: equals tested
-bazel_dep(name = "rules_flutter", version = "0.0.8")
-
-# Pinned to the commit with aran/rules_flutter#5; drop flutter_3_47_9.patch once a release lists 3.47.9.
-archive_override(
+bazel_dep(name = "rules_flutter", version = "0.1.0")
+single_version_override(
     module_name = "rules_flutter",
-    integrity = "sha256-sNPw28M2Y+oIctymkU3ZY9svCoAG5VaULN5iB+lvzGk=",
     patch_strip = 1,
     patches = [
         "//patches/rules_flutter:lock_extension.patch",
         "//patches/rules_flutter:registrant_javacopts.patch",
-        "//patches/rules_flutter:required_checksums.patch",
-        "//patches/rules_flutter:flutter_3_47_9.patch",
-        "//patches/rules_flutter:ios_target_compatible_with.patch",
-        "//patches/rules_flutter:coverage_enabled.patch",
+        "//patches/rules_flutter:windows_golden_comparator.patch",
         "//patches/rules_flutter:dx_bzl_srcs.patch",
+        "//patches/rules_flutter:deterministic_web_compile.patch",
     ],
-    strip_prefix = "rules_flutter-2b203359a0a79edaae66126ea5c212d1d7b19353",
-    urls = ["https://github.com/aran/rules_flutter/archive/2b203359a0a79edaae66126ea5c212d1d7b19353.tar.gz"],
+    version = "0.1.0",
+)
+
+single_version_override(
+    module_name = "cgrindel_bazel_starlib",
+    patch_strip = 1,
+    patches = ["//patches/cgrindel_bazel_starlib:absent_local_git.patch"],
+    version = "0.30.0",
 )
 
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
 flutter.toolchain(flutter_version = "3.47.9")
 use_repo(
     flutter,
-    "flutter_android_engine_arm64",
-    "flutter_android_engine_arm64_profile",
-    "flutter_android_engine_x64",
-    "flutter_android_engine_x64_profile",
     "flutter_dev_root",
     "flutter_toolchains",
     "flutter_web_sdk",
 )
 
 flutter_pub = use_extension("//flutter:extensions.bzl", "pub", dev_dependency = True)
-flutter_pub.lock(
+flutter_pub.from_lock(
     name = "dx_flutter_app_deps",
     lock = "//flutter/tests/fixtures/flutter_app:pubspec.lock",
 )
-flutter_pub.lock(
+flutter_pub.from_lock(
     name = "dx_flutter_deps",
     lock = "//flutter/tests/runtime:pubspec.lock",
 )
-use_repo(flutter_pub, "dx_flutter_app_deps", "dx_flutter_deps")
+flutter_pub.from_lock(
+    name = "dx_flutter_padded_archive",
+    lock = "//flutter/tests/runtime/padded_archive:pubspec.lock",
+)
+use_repo(flutter_pub, "dx_flutter_app_deps", "dx_flutter_deps", "dx_flutter_padded_archive")
 
 # floor: equals tested
 bazel_dep(name = "tar.bzl", version = "0.10.9")
-
-# needed: @dx_rules_dart_pub (dx_pins extension) loads @yaml.bzl
-bazel_dep(name = "yaml.bzl", version = "0.1.2")
 
 bsd_tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
 use_repo(
@@ -1860,20 +1848,26 @@ pub = use_extension(
 pub.from_lock(
     name = "dx_dart_deps",
     lock = "//third_party/dart:pubspec.lock",
-    on_version_conflict = "upgrade",
 )
 pub.from_lock(
     name = "dx_dart_padded_archive",
     lock = "//dart/tests:padded_archive.pubspec.lock",
+    resolve = {"flutter": "@dx_flutter_deps//:flutter"},
 )
 use_repo(pub, "dx_dart_deps", "dx_dart_padded_archive")
+
+rules_dart_pub = use_extension(
+    "@rules_dart//dart/pub:extensions.bzl",
+    "pub",
+    dev_dependency = True,
+)
+use_repo(rules_dart_pub, "ext_pub_deps")
 
 # pub_deploy's api_compat check runs this pinned dart_apitool.
 pub_tools = use_extension("//dart:extensions.bzl", "pub")
 pub_tools.from_lock(
     name = "dart_apitool_deps",
     lock = "//dart/private/tools/dart_apitool:pubspec.lock",
-    on_version_conflict = "upgrade",
 )
 pub_tools.from_lock(
     name = "dx_dart_bench_deps",
@@ -2071,7 +2065,7 @@ register_toolchains("@dx_fortran_toolchains//:all")
 
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 
-# rules_zig 0.17.0 does not list Zig 0.17.1; drop this index when the rules_zig bazel_dep does.
+# //core/modules:versions_contract fails once the rules_zig bazel_dep lists Zig 0.17.1; then this index goes (#13964).
 zig.index(file = "//zig/private:sdk_versions.json")
 zig.toolchain(zig_version = "0.17.1")
 
@@ -2083,6 +2077,7 @@ zig_hub.lock(
 use_repo(zig_hub, "zig_zig.tests.fixtures.zig_deps")
 
 register_toolchains(
+    "//core/quality/sh:busybox_sh_linux_arm64",
     "//core/quality/sh:busybox_sh_linux_x86_64",
     "//core/quality/sh:busybox_sh_windows_x86_64",
 )
@@ -2465,6 +2460,11 @@ uv.project(
 )
 uv.project(
     hub_name = "dx_pypi",
+    lock = "//core/quality/tools/python/pypi_attestations:uv.lock",
+    pyproject = "//core/quality/tools/python/pypi_attestations:pyproject.toml",
+)
+uv.project(
+    hub_name = "dx_pypi",
     lock = "//gazelle/protobuf/tests/grpc:uv.lock",
     pyproject = "//gazelle/protobuf/tests/grpc:pyproject.toml",
 )
@@ -2568,6 +2568,49 @@ use_repo(
     rust,
     "rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools",
     "rust_toolchains",
+)
+
+# Musl rustc for the static Linux release tools. Bump these versions with
+# RUST_VERSION in core/modules/versions.bzl.
+rust_dev = use_extension(
+    "@rules_rust//rust:extensions.bzl",
+    "rust",
+    dev_dependency = True,
+)
+rust_dev.repository_set(
+    name = "rust_linux_x86_64_musl",
+    edition = "2024",
+    exec_triple = "x86_64-unknown-linux-gnu",
+    target_compatible_with = [
+        "@llvm//constraints/libc:musl",
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_settings = ["//config:toolchains_on"],
+    target_triple = "x86_64-unknown-linux-musl",
+    versions = ["1.99.1"],
+)
+rust_dev.repository_set(
+    name = "rust_linux_aarch64_musl",
+    edition = "2024",
+    exec_triple = "aarch64-unknown-linux-gnu",
+    target_compatible_with = [
+        "@llvm//constraints/libc:musl",
+        "@platforms//cpu:arm64",
+        "@platforms//os:linux",
+    ],
+    target_settings = ["//config:toolchains_on"],
+    target_triple = "aarch64-unknown-linux-musl",
+    versions = ["1.99.1"],
+)
+
+# Before :all, whose gnu toolchains also match the musl platforms.
+register_toolchains(
+    "@rust_toolchains//:rust_linux_aarch64_musl__aarch64-unknown-linux-musl__stable",
+    "@rust_toolchains//:rust_linux_aarch64_musl__aarch64-unknown-linux-musl__stable__cargo",
+    "@rust_toolchains//:rust_linux_x86_64_musl__x86_64-unknown-linux-musl__stable",
+    "@rust_toolchains//:rust_linux_x86_64_musl__x86_64-unknown-linux-musl__stable__cargo",
+    dev_dependency = True,
 )
 
 register_toolchains("@rust_toolchains//:all")

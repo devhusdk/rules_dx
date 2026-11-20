@@ -2,9 +2,9 @@ Upstream: fixed upstream in v0.10.0
 diff -u a/dart/private/BUILD.bazel b/dart/private/BUILD.bazel
 --- a/dart/private/BUILD.bazel
 +++ b/dart/private/BUILD.bazel
-@@ -271,3 +271,9 @@
-     name = "vm_kernel_sdk",
-     visibility = ["//visibility:public"],
+@@ -583,3 +583,9 @@
+     srcs = ["versions.bzl"],
+     visibility = ["//dart:__subpackages__"],
  )
 +
 +filegroup(
@@ -15,7 +15,7 @@ diff -u a/dart/private/BUILD.bazel b/dart/private/BUILD.bazel
 diff -u a/dart/pub/private/BUILD.bazel b/dart/pub/private/BUILD.bazel
 --- a/dart/pub/private/BUILD.bazel
 +++ b/dart/pub/private/BUILD.bazel
-@@ -18,3 +18,9 @@
+@@ -92,3 +92,9 @@
      srcs = ["version.bzl"],
      visibility = ["//dart/pub:__subpackages__"],
  )

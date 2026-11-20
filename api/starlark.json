@@ -20720,6 +20720,7 @@
               "main",
               "size",
               "tags",
+              "test_runner",
               "visibility",
               "zigopts"
             ],

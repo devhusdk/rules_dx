@@ -272,11 +272,10 @@ filegroup(
 
 # Fixtures whose forwards genquery does not build on every host. A genquery loads every select branch of its scope.
 _FORWARDS_PENDING = {
-    "android": "closure selects every host's SDK (#14050)",
-    "cuda": "closure selects every host's SDK (#14050)",
+    "android": "on linux_arm64, macos_arm64, windows_arm64 and windows_x86_64 @dx_androidsdk declares no core-for-system-modules-jar, so the genquery fails to load (#14050)",
     "erlang": "update: generator_function erlc_opts names no public function with a **kwargs param",
     "flutter": "closure selects every host's SDK (#14050)",
-    "qt": "closure selects every host's SDK (#14050)",
+    "qt": "on windows_x86_64 fetching @dx_qt_linux_x86_64_qtbase fails: 7-Zip cannot open its bzip2-libs rpm (#14050)",
 }
 
 _FORWARDS_SUBPACKAGES = {

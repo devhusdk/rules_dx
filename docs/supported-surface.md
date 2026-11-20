@@ -2493,6 +2493,21 @@ Macro or function.
 | `prose_route` | no | `"prose.md"` |
 | `source_url` | no | `""` |
 
+#### `dx_generated_policy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `tier` | yes |  |
+| `families` | no | `None` |
+| `defaults` | no | `True` |
+| `disabled` | no | `[]` |
+| `configs` | no | `[]` |
+| `bases` | no | `{}` |
+| `visibility` | no | `None` |
+
 #### `lua_doc_shard`
 
 Macro or function.

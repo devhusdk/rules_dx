@@ -404,6 +404,10 @@ def rust_test(
     if wasm == "wasi":
         _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs)
         return
+    shard_count = kwargs.get("shard_count")
+    sharded = type(shard_count) == "int" and shard_count > 1
+    if sharded:
+        kwargs["env"] = (kwargs.get("env") or {}) | {"DX_RUNTIME_TOOL": "shard_runner"}
     upstream_kwargs = _libstdcxx_upstream(kwargs, link = True)
     upstream_kwargs["crate"] = crate
     upstream_kwargs["edition"] = edition
@@ -415,10 +419,8 @@ def rust_test(
         forward_kwargs["coverage_lib"] = coverage_lib
     if runtime_dlls != None:
         forward_kwargs["runtime_dlls"] = runtime_dlls
-    shard_count = kwargs.get("shard_count")
-    if type(shard_count) == "int" and shard_count > 1:
+    if sharded:
         forward_kwargs["shard_runner"] = Label("@dx_prebuilt//:runtime")
-        kwargs["env"] = (kwargs.get("env") or {}) | {"DX_RUNTIME_TOOL": "shard_runner"}
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, **kwargs)
 
 def rust_bench(

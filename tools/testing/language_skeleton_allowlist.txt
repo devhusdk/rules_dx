@@ -4,15 +4,7 @@ export-kind elixir/defs.bzl
 extension-label core/quality/artifacts/extension.bzl
 extension-label third_party/dotnet/extension.bzl
 extension-name python/extensions.bzl
-fixture-hello android/tests/conformance/BUILD.bazel
 fixture-hello appimage/tests/conformance/BUILD.bazel
-fixture-hello apple/tests/conformance/BUILD.bazel
-fixture-hello asciidoc/tests/conformance/BUILD.bazel
-fixture-hello flutter/tests/consumer
-fixture-hello helm/tests/conformance/BUILD.bazel
-fixture-hello msix/tests/conformance/BUILD.bazel
-fixture-hello qt/tests/conformance/BUILD.bazel
-fixture-hello rst/tests/conformance/BUILD.bazel
 fixture-name astro/tests/app
 fixture-name astro/tests/app_config
 fixture-name astro/tests/typecheck

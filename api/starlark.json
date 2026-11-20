@@ -5887,6 +5887,7 @@
             "attrs": [
               "check",
               "hdrs",
+              "host_compiler",
               "srcs",
               "target_compatible_with",
               "upstream",

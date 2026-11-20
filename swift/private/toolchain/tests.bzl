@@ -6,7 +6,7 @@ load("@rules_swift//swift:providers.bzl", "SwiftToolchainInfo")
 load("//core/private/testing:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load(":extensions.bzl", "swift_hub")
-load(":repos.bzl", "SWIFT_LINUX_CPUS")
+load(":repos.bzl", "SWIFT_LINUX_CPUS", "swift_libs_build", "swift_linux_stub_build")
 
 def _link_flags(cc_info):
     return [
@@ -130,13 +130,40 @@ def swift_windows_extract_test(name, size):
         },
     )
 
+_STUB_FILEGROUPS = ["files", "swift_tool_inputs", "linux_dynamic_runtime", "linux_static_runtime"]
+
+def _stub_paths(cpu):
+    return [".swift-version"] + [
+        "usr/bin/" + tool
+        for tool in ["ld", "llvm-cov", "llvm-objdump", "llvm-profdata", "swift", "swift-autolink-extract", "swift-symbolgraph-extract", "swiftc"]
+    ] + [
+        "usr/lib/clang/21/lib/linux/libclang_rt.{}-{}.a".format(runtime, cpu)
+        for runtime in ["asan", "asan_static", "fuzzer", "profile"]
+    ]
+
+def _linux_stub_checks():
+    stub_libs = swift_libs_build(None)
+    libs = swift_libs_build(Label("@dx_swift_sysroot_linux_x86_64//:files"))
+    checks = [
+        expect_true("libs stub has no sysroot repo", "sysroot_linux" not in stub_libs),
+        expect_true("libs stub declares sysroot", "name = \"sysroot\"" in stub_libs),
+        expect_true("libs declares sysroot", "name = \"sysroot\"" in libs),
+        expect_true("libs sysroot points at the sysroot repo", "dx_swift_sysroot_linux_x86_64//:files" in libs),
+    ]
+    for cpu in SWIFT_LINUX_CPUS:
+        stub = swift_linux_stub_build(cpu)
+        checks.append(expect_true("stub {} has no sysroot repo".format(cpu), "sysroot_linux" not in stub))
+        checks.append(expect_equal("stub {} missing paths".format(cpu), [p for p in _stub_paths(cpu) if repr(p) not in stub], []))
+        checks.append(expect_equal("stub {} missing filegroups".format(cpu), [n for n in _STUB_FILEGROUPS if repr(n) not in stub], []))
+    return checks
+
 def swift_linux_repo_test(name, size):
     """Asserts the Linux repository declares every target the toolchain consumes."""
     starlark_test(
         name = name,
         size = size,
         mode = "load",
-        checks = [expect_true("linux cpus", len(SWIFT_LINUX_CPUS) == 2)],
+        checks = [expect_true("linux cpus", len(SWIFT_LINUX_CPUS) == 2)] + _linux_stub_checks(),
         file_checks = {
             "//swift/private/toolchain:repos.bzl": "\n".join([
                 "name = \"files\",",
@@ -154,6 +181,7 @@ def swift_linux_repo_test(name, size):
                 "//:linux_dynamic_runtime",
                 "//:linux_static_runtime",
                 "//:host_libs",
+                "//:sysroot",
             ]),
         },
     )

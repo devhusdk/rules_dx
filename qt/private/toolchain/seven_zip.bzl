@@ -19,11 +19,7 @@ def host_cell_of(os_name, arch):
 
 def seven_zip_fetch(rctx, output):
     """Downloads the pinned extractor of the repository host into output and returns its path."""
-    extractors = seven_zip_extractors(json.decode(rctx.read(Label("//qt:pins.json"))))
-    host = host_cell_of(rctx.os.name, rctx.os.arch)
-    if host not in extractors:
-        fail("the pinned 7-Zip extractor runs on " + ", ".join(sorted(extractors.keys())) + " hosts only, not " + rctx.os.name + " " + rctx.os.arch)
-    extractor = extractors[host]
+    extractor = seven_zip_host(rctx)
     canonical_id = "dx-7zip:" + extractor.url
     if extractor.archive == None:
         rctx.download(
@@ -41,6 +37,20 @@ def seven_zip_fetch(rctx, output):
             canonical_id = canonical_id,
         )
     return str(rctx.path(output + "/" + extractor.binary))
+
+def seven_zip_reads_rpm(extractor):
+    """Returns whether one pinned extractor unpacks the rpm and cpio runtime packages."""
+
+    # 7zr is the reduced standalone build: it reads only 7z, xz and lzma archives.
+    return extractor.binary.removesuffix(".exe") != "7zr"
+
+def seven_zip_host(rctx):
+    """Returns the pinned extractor of the repository host."""
+    extractors = seven_zip_extractors(json.decode(rctx.read(Label("//qt:pins.json"))))
+    host = host_cell_of(rctx.os.name, rctx.os.arch)
+    if host not in extractors:
+        fail("the pinned 7-Zip extractor runs on " + ", ".join(sorted(extractors.keys())) + " hosts only, not " + rctx.os.name + " " + rctx.os.arch)
+    return extractors[host]
 
 def seven_zip_extract(rctx, binary, archive, output, args = []):
     """Extracts one .7z archive into output with the fetched extractor, failing with its output."""

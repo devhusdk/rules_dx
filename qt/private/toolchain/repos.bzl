@@ -12,7 +12,7 @@ load(
     "RUNTIME_REPOSITORIES",
     "license_texts",
 )
-load(":seven_zip.bzl", "host_cell_of", "seven_zip_fetch")
+load(":seven_zip.bzl", "host_cell_of", "seven_zip_fetch", "seven_zip_host", "seven_zip_reads_rpm")
 
 VC_REDIST_VERSION = "14.50.35710"
 
@@ -764,6 +764,22 @@ def cell_build(cell, module, rules_cc, unsupported, needs, cells = CELLS, tool =
             lines.extend(_unsupported(name, "not available on the " + cell + " Qt cell"))
     return "\n".join(lines)
 
+def stub_build(module, unsupported, reason):
+    """Returns the BUILD file of one Qt module repository whose cell cannot be acquired on this host."""
+    lines = [
+        'load("%s", "qt_unsupported")' % unsupported,
+        "",
+        'package(default_visibility = ["//visibility:public"])',
+        "",
+    ]
+    files = ["licenses", "runtime", "sbom"]
+    for name in files:
+        lines.extend(_filegroup(name, "[]"))
+    for name in hub_targets():
+        if target_module(name) == module and name not in files:
+            lines.extend(_unsupported(name, reason))
+    return "\n".join(lines)
+
 def _extract(ctx, extractor, archive, output, links = False):
     command = [extractor, "x", "-y", "-bd", "-o" + output]
     if links:
@@ -888,9 +904,17 @@ def _qt_cell_repo_impl(ctx):
     module = ctx.attr.module
     if module not in MODULES:
         fail("qt: module '" + module + "' is not one of " + ", ".join(sorted(MODULES.keys())))
+    entry = cells[ctx.attr.cell]
+    if entry.runtime != None and not seven_zip_reads_rpm(seven_zip_host(ctx)):
+        # Loading a target that selects per cell fetches every cell, so this host still needs a BUILD file here.
+        ctx.file("BUILD.bazel", stub_build(
+            module,
+            str(Label("//qt/private/toolchain:unsupported.bzl")),
+            "the " + ctx.attr.cell + " Qt cell needs rpm runtime packages, which the pinned 7-Zip of this host cannot unpack",
+        ))
+        return ctx.repo_metadata(reproducible = True)
     required = [ctx.path(label).dirname for label in ctx.attr.requires]
     base = len(MODULES[module].requires) == 0
-    entry = cells[ctx.attr.cell]
     layout = entry.layout
     extractor = seven_zip_fetch(ctx, _SEVEN_ZIP)
     for key in (_archive_keys(entry) if base else []) + [module]:

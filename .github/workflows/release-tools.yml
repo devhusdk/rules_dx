@@ -107,6 +107,7 @@ jobs:
                 echo "dx-kcov-$host is dynamically linked" >&2
                 exit 1
               fi
+              bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" //tools/coverage/kcov:kcov_static
               ;;
           esac
           if [ "$host" = linux-x86_64 ]; then

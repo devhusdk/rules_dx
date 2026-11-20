@@ -1,3 +1,0 @@
-fn main() {
-    println!("{}", demo_app::greet("world"));
-}

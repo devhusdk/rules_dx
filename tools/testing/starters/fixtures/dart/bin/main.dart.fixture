@@ -1,5 +1,0 @@
-import 'package:demo_app/hello.dart';
-
-void main() {
-  print(greet('world'));
-}

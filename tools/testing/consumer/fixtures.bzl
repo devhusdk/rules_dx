@@ -132,6 +132,39 @@ GUARD_PENDING = [
     "vue",
 ]
 
+# The fixtures whose test is the consumer evidence of the support matrix row of the same name.
+CONSUMER_ROWS = [
+    "android",
+    "astro",
+    "cc",
+    "csharp",
+    "cuda",
+    "d",
+    "dart",
+    "elixir",
+    "erlang",
+    "fortran",
+    "fsharp",
+    "go",
+    "haskell",
+    "java",
+    "javascript",
+    "julia",
+    "lua",
+    "mdx",
+    "ocaml",
+    "perl",
+    "php",
+    "powershell",
+    "python",
+    "ruby",
+    "rust",
+    "svelte",
+    "typescript",
+    "vue",
+    "zig",
+]
+
 def consumer_fixture_tests(name, size):
     """Declares one test per consumer fixture that runs dx init on a copy of its sources, and a suite of them."""
     tests = []
@@ -159,6 +192,7 @@ def consumer_fixture_tests(name, size):
                 "DX_CONSUMER_LANG": lang,
                 "DX_CONSUMER_PENDING": "$(rootpath pending.txt)",
             },
+            tags = ["consumer-row:" + lang] if lang in CONSUMER_ROWS else [],
             deps = ["//tools/testing:dx_testing"],
         )
     native.test_suite(

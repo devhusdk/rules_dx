@@ -1,6 +1,0 @@
--module(hello_tests).
-
--include_lib("eunit/include/eunit.hrl").
-
-greets_by_name_test() ->
-    ?assertEqual("hello world", hello:greet("world")).

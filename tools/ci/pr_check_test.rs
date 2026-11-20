@@ -6,11 +6,10 @@ const WORKFLOW: &str = ".github/workflows/pr-check.yml";
 const SCRIPT: &str = "tools/ci/producers/src/pr_check.rs";
 const TOOL: &str = "\"$RUNNER_TEMP/pr-check/producers_bin\"";
 const TOOL_STEP: &str = "pr-check tool";
-const SETS: [&str; 8] = [
+const SETS: [&str; 7] = [
     "workflow",
     "preflight",
     "preflight-windows-arm64",
-    "starter",
     "hermetic",
     "docs",
     "cli",

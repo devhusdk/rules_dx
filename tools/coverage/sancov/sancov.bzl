@@ -1,5 +1,6 @@
 """Runs a sancov-instrumented native test and writes its LCOV report for Bazel coverage."""
 
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 
 def dx_sancov_attrs():
@@ -12,9 +13,8 @@ def dx_sancov_attrs():
             cfg = "target",
         ),
         "_dx_sancov_launcher": attr.label(
-            default = Label("//tools/coverage/sancov:sancov_launcher"),
-            executable = True,
-            cfg = "target",
+            default = Label("//tools/coverage/sancov:launcher_or_none"),
+            cfg = no_coverage_transition,
         ),
         "_dx_sancov_macos": attr.label(
             default = Label("@platforms//os:macos"),
@@ -42,6 +42,7 @@ def dx_sancov_test_coverage(ctx, upstream, sources, dependency_attributes = ["up
     exe = upstream[DefaultInfo].files_to_run.executable
     symbolizer = ctx.file._dx_sancov_symbolizer
     dsymutil = ctx.file._dx_sancov_dsymutil
+    launcher = ctx.attr._dx_sancov_launcher[0][DefaultInfo]
     env = {}
     inherited = []
     if RunEnvironmentInfo in upstream:
@@ -51,15 +52,16 @@ def dx_sancov_test_coverage(ctx, upstream, sources, dependency_attributes = ["up
         "DX_DSYMUTIL": rlocation_path(ctx, dsymutil),
         "DX_LLVM_SYMBOLIZER": rlocation_path(ctx, symbolizer),
         "DX_SANCOV_SOURCES": rlocation_path(ctx, manifest),
+        "DX_RUNTIME_TOOL": "sancov",
         "DX_SANCOV_UPSTREAM": rlocation_path(ctx, exe),
     })
     runfiles = ctx.runfiles(files = [manifest, exe, symbolizer, dsymutil] + sources).merge_all([
         upstream[DefaultInfo].default_runfiles,
-        ctx.attr._dx_sancov_launcher[DefaultInfo].default_runfiles,
+        launcher.default_runfiles,
     ])
     return struct(
         instrumented = instrumented,
         env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),
         runfiles = runfiles,
-        executable = ctx.executable._dx_sancov_launcher,
+        executable = launcher.files_to_run.executable,
     )

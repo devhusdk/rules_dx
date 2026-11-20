@@ -181,9 +181,8 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn a_non_utf8_argument_is_rejected_and_writes_nothing() {
+    fn a_non_utf8_argument_is_rejected() {
         use std::os::unix::ffi::OsStringExt;
-        let dir = tempfile::tempdir().expect("scratch");
         let mut bad = b"--entry=src/".to_vec();
         bad.extend([0xff, 0xfe]);
         bad.extend(b".rs|src|a");
@@ -191,7 +190,6 @@ mod tests {
             std::ffi::OsString::from("--producer=//gen:alpha"),
             std::ffi::OsString::from("--language=rust"),
             std::ffi::OsString::from_vec(bad),
-            std::ffi::OsString::from(format!("--output={}", out(&dir).display())),
         ];
         let error = utf8_args(&argv).expect_err("non-UTF-8 is rejected");
         assert!(

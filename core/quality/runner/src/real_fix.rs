@@ -1231,7 +1231,12 @@ impl RealBackend {
                 None => Err(execution(tool_id, "mbake needs a config path".to_owned())),
             },
             "stylua" => Ok(commands::stylua_fix(&tool.binary, refs, config)),
-            "yamlfmt" => Ok(commands::yamlfmt_fix(&tool.binary, refs, config)),
+            "yamlfmt" => Ok(commands::yamlfmt_fix(
+                &tool.binary,
+                refs,
+                config,
+                super::yamlfmt_document_start(tool),
+            )),
             "djlint" => Ok(commands::djlint_format_fix(&tool.binary, refs, config)),
             "psscriptanalyzer" => Ok(commands::psscriptanalyzer_format_fix(
                 &tool.binary,

@@ -1,0 +1,7 @@
+---
+- name: Format dirty play
+  hosts:   all
+  tasks:
+      - name: Print a message
+        ansible.builtin.debug:
+            msg: hello

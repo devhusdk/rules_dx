@@ -1,6 +1,6 @@
-"""Ansible real quality aspects (ansible-lint)."""
+"""Ansible real quality aspects (ansible-lint, yamlfmt)."""
 
-load("//core/quality:real_core.bzl", "real_config", "real_make_aspect", "real_make_probe_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "ansible_lint": {
@@ -10,9 +10,20 @@ TOOLS = {
         "runfiles_env": True,
         "shard": "ansible",
     },
+    "yamlfmt": {
+        "attr": attr.label(default = "@dx_tools//:yamlfmt", allow_single_file = True, cfg = "exec"),
+        "kind": "file",
+        "resources": "light",
+        "shard": "ansible",
+    },
 }
 
 SHARD_SPECS = {
+    "real_ansible_format": {
+        "capability": "format",
+        "doc": "Additive Ansible format family aspect (yamlfmt).",
+        "shard": "ansible",
+    },
     "real_ansible_lint": {
         "capability": "lint",
         "doc": "Additive Ansible lint family aspect (ansible-lint).",
@@ -20,10 +31,22 @@ SHARD_SPECS = {
     },
 }
 
+def _yamlfmt_hook(_target, _ctx, _resolved, _capability, _what, _shared):
+    # ansible-lint rejects a playbook without `---`, which yamlfmt drops by default.
+    return real_context(options = {"args": ["document_start"]})
+
+HOOK_ORDER = ["yamlfmt"]
+
+HOOKS = {"yamlfmt": _yamlfmt_hook}
+
 _CFG = real_config(
     tools = TOOLS,
     shard_specs = SHARD_SPECS,
+    hook_order = HOOK_ORDER,
+    context_hooks = HOOKS,
 )
+
+real_ansible_format_aspect = real_make_aspect(_CFG, "real_ansible_format")
 
 real_ansible_lint_aspect = real_make_aspect(_CFG, "real_ansible_lint")
 
@@ -34,5 +57,7 @@ AnsibleShardProbeInfo = provider(
         "shards": "sorted shard names whose tool filter keeps a resolved stage",
     },
 )
+
+real_ansible_format_probe_aspect = real_make_probe_aspect(_CFG, "format", "ansible", AnsibleShardProbeInfo)
 
 real_ansible_lint_probe_aspect = real_make_probe_aspect(_CFG, "lint", "ansible", AnsibleShardProbeInfo)

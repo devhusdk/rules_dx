@@ -293,6 +293,13 @@ const TERRAFORM_VALIDATE_ARGS: &[&str] = &["validate", "-json", "-no-color"];
 const YAMLFMT_CHECK_ARGS: &[&str] = &["-lint", "-q"];
 const YAMLFMT_FIX_ARGS: &[&str] = &[];
 const YAMLFMT_DEFAULT_ARGS: &[&str] = &["-formatter", "line_ending=lf"];
+const YAMLFMT_DEFAULT_DOCUMENT_START_ARGS: &[&str] = &[
+    "-formatter",
+    "line_ending=lf",
+    "-formatter",
+    "include_document_start=true",
+];
+const YAMLFMT_DOCUMENT_START_ARGS: &[&str] = &["-formatter", "include_document_start=true"];
 const SHFMT_CHECK_ARGS: &[&str] = &["-d"];
 const SHFMT_FIX_ARGS: &[&str] = &["-w"];
 const DJLINT_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
@@ -2458,36 +2465,48 @@ pub fn terraform_fix(binary: &Path, files: &[&Path]) -> Invocation {
     fixed(binary, TERRAFORM_FIX_ARGS, files, "")
 }
 
-/// The yamlfmt flags for a run without a config: LF line endings.
-fn yamlfmt_defaults(config: Option<&Path>) -> &'static [&'static str] {
-    if config.is_some() {
-        SCALAFMT_EMPTY
-    } else {
-        YAMLFMT_DEFAULT_ARGS
+/// The yamlfmt flags after the config: LF line endings without a config, and a kept
+/// `---` when `document_start` is set, since ansible-lint rejects a playbook without it.
+fn yamlfmt_defaults(config: Option<&Path>, document_start: bool) -> &'static [&'static str] {
+    match (config.is_some(), document_start) {
+        (true, false) => SCALAFMT_EMPTY,
+        (true, true) => YAMLFMT_DOCUMENT_START_ARGS,
+        (false, false) => YAMLFMT_DEFAULT_ARGS,
+        (false, true) => YAMLFMT_DEFAULT_DOCUMENT_START_ARGS,
     }
 }
 
 #[must_use]
-pub fn yamlfmt_check(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+pub fn yamlfmt_check(
+    binary: &Path,
+    files: &[&Path],
+    config: Option<&Path>,
+    document_start: bool,
+) -> Invocation {
     optional_flag(
         binary,
         YAMLFMT_CHECK_ARGS,
         "-conf",
         config,
-        yamlfmt_defaults(config),
+        yamlfmt_defaults(config, document_start),
         files,
         "",
     )
 }
 
 #[must_use]
-pub fn yamlfmt_fix(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+pub fn yamlfmt_fix(
+    binary: &Path,
+    files: &[&Path],
+    config: Option<&Path>,
+    document_start: bool,
+) -> Invocation {
     optional_flag(
         binary,
         YAMLFMT_FIX_ARGS,
         "-conf",
         config,
-        yamlfmt_defaults(config),
+        yamlfmt_defaults(config, document_start),
         files,
         "",
     )

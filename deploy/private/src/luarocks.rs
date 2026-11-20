@@ -6,6 +6,8 @@ use crate::run::{
     pages_redact, placeholder_refusal, print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use dx_atomic_fs::path_io::{self, PathIoError};
+use std::fmt;
 use std::path::Path;
 
 /// Owner approval gate for luarocks_deploy.
@@ -39,27 +41,105 @@ fn rockspec_string<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     })
 }
 
+/// Why a rockspec does not carry the declared package and version.
+#[derive(Debug)]
+pub enum LuarocksError {
+    NotRockspec {
+        file_name: String,
+    },
+    Read(PathIoError),
+    NoPackage {
+        file_name: String,
+    },
+    NoVersion {
+        file_name: String,
+    },
+    NameMismatch {
+        file_name: String,
+        package: String,
+        version: String,
+    },
+    PackageMismatch {
+        actual: String,
+        expected: String,
+    },
+    VersionMismatch {
+        actual: String,
+        expected: String,
+    },
+}
+
+impl fmt::Display for LuarocksError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotRockspec { file_name } => write!(f, "{file_name} is not a .rockspec file"),
+            Self::Read(source) => write!(f, "{source}"),
+            Self::NoPackage { file_name } => {
+                write!(f, "{file_name} has no top-level package string")
+            }
+            Self::NoVersion { file_name } => {
+                write!(f, "{file_name} has no top-level version string")
+            }
+            Self::NameMismatch {
+                file_name,
+                package,
+                version,
+            } => write!(
+                f,
+                "{file_name} declares {package} {version}; the file must be named {package}-{version}.rockspec"
+            ),
+            Self::PackageMismatch { actual, expected } => write!(
+                f,
+                "package mismatch: rockspec declares {actual}, BUILD declares {expected}"
+            ),
+            Self::VersionMismatch { actual, expected } => write!(
+                f,
+                "version mismatch: rockspec declares {actual}, BUILD declares {expected}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for LuarocksError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(source) => Some(source),
+            Self::NotRockspec { .. }
+            | Self::NoPackage { .. }
+            | Self::NoVersion { .. }
+            | Self::NameMismatch { .. }
+            | Self::PackageMismatch { .. }
+            | Self::VersionMismatch { .. } => None,
+        }
+    }
+}
+
 /// Reads the package and version a rockspec declares, checked against its file name.
 ///
 /// The file must be named `<package>-<version>.rockspec`, as `luarocks upload` requires.
-pub fn luarocks_read_identity(rockspec: &Path) -> Result<(String, String), String> {
+pub fn luarocks_read_identity(rockspec: &Path) -> Result<(String, String), LuarocksError> {
     let file_name = rockspec
         .file_name()
         .and_then(|name| name.to_str())
         .unwrap_or_default();
     let stem = file_name
         .strip_suffix(".rockspec")
-        .ok_or_else(|| format!("{file_name} is not a .rockspec file"))?;
-    let text = std::fs::read_to_string(rockspec)
-        .map_err(|error| format!("cannot read {}: {error}", rockspec.display()))?;
-    let package = rockspec_string(&text, "package")
-        .ok_or_else(|| format!("{file_name} has no top-level package string"))?;
-    let version = rockspec_string(&text, "version")
-        .ok_or_else(|| format!("{file_name} has no top-level version string"))?;
+        .ok_or_else(|| LuarocksError::NotRockspec {
+            file_name: file_name.to_owned(),
+        })?;
+    let text = path_io::read_to_string(rockspec).map_err(LuarocksError::Read)?;
+    let package = rockspec_string(&text, "package").ok_or_else(|| LuarocksError::NoPackage {
+        file_name: file_name.to_owned(),
+    })?;
+    let version = rockspec_string(&text, "version").ok_or_else(|| LuarocksError::NoVersion {
+        file_name: file_name.to_owned(),
+    })?;
     if stem != format!("{package}-{version}") {
-        return Err(format!(
-            "{file_name} declares {package} {version}; the file must be named {package}-{version}.rockspec"
-        ));
+        return Err(LuarocksError::NameMismatch {
+            file_name: file_name.to_owned(),
+            package: package.to_owned(),
+            version: version.to_owned(),
+        });
     }
     Ok((package.to_owned(), version.to_owned()))
 }
@@ -71,12 +151,12 @@ pub fn luarocks_check_identity(
     actual: &(String, String),
     expected_package: &str,
     expected_version: &str,
-) -> Result<(), String> {
+) -> Result<(), LuarocksError> {
     if !expected_package.is_empty() && actual.0 != expected_package {
-        return Err(format!(
-            "package mismatch: rockspec declares {}, BUILD declares {expected_package}",
-            actual.0
-        ));
+        return Err(LuarocksError::PackageMismatch {
+            actual: actual.0.clone(),
+            expected: expected_package.to_owned(),
+        });
     }
     let upstream = actual
         .1
@@ -84,10 +164,10 @@ pub fn luarocks_check_identity(
         .map_or(actual.1.as_str(), |(v, _)| v);
     if !expected_version.is_empty() && actual.1 != expected_version && upstream != expected_version
     {
-        return Err(format!(
-            "version mismatch: rockspec declares {}, BUILD declares {expected_version}",
-            actual.1
-        ));
+        return Err(LuarocksError::VersionMismatch {
+            actual: actual.1.clone(),
+            expected: expected_version.to_owned(),
+        });
     }
     Ok(())
 }
@@ -321,17 +401,19 @@ mod tests {
         let identity = luarocks_read_identity(&path).expect("identity");
         assert_eq!(identity, ("demo".to_owned(), "1.2.0-1".to_owned()));
         for version in ["", "1.2.0-1", "1.2.0"] {
-            assert_eq!(luarocks_check_identity(&identity, "demo", version), Ok(()));
+            assert!(luarocks_check_identity(&identity, "demo", version).is_ok());
         }
-        assert!(
+        assert_eq!(
             luarocks_check_identity(&identity, "", "1.2.1")
                 .expect_err("version")
-                .contains("BUILD declares 1.2.1")
+                .to_string(),
+            "version mismatch: rockspec declares 1.2.0-1, BUILD declares 1.2.1"
         );
-        assert!(
+        assert_eq!(
             luarocks_check_identity(&identity, "other", "")
                 .expect_err("package")
-                .contains("BUILD declares other")
+                .to_string(),
+            "package mismatch: rockspec declares demo, BUILD declares other"
         );
     }
 
@@ -342,20 +424,24 @@ mod tests {
         assert!(
             luarocks_read_identity(&wrong)
                 .expect_err("name")
+                .to_string()
                 .contains("must be named demo-1.2.0-1.rockspec")
         );
         let bare = write_rockspec(dir.path(), "demo-1.rockspec", "package = \"demo\"\n");
-        assert!(
-            luarocks_read_identity(&bare)
-                .expect_err("version")
-                .contains("no top-level version")
-        );
+        assert!(matches!(
+            luarocks_read_identity(&bare),
+            Err(LuarocksError::NoVersion { .. })
+        ));
         let other = write_rockspec(dir.path(), "demo.txt", ROCKSPEC);
-        assert!(
-            luarocks_read_identity(&other)
-                .expect_err("suffix")
-                .contains("not a .rockspec")
-        );
+        assert!(matches!(
+            luarocks_read_identity(&other),
+            Err(LuarocksError::NotRockspec { .. })
+        ));
+        let gone = dir.path().join("gone-1.0-1.rockspec");
+        let error = luarocks_read_identity(&gone).expect_err("absent");
+        assert!(matches!(&error, LuarocksError::Read(source) if source.path() == gone));
+        assert!(error.to_string().starts_with("cannot read "));
+        assert!(std::error::Error::source(&error).is_some());
     }
 
     #[test]

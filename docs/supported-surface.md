@@ -4127,6 +4127,7 @@ Rule.
 | `name` | `name` | yes |  |
 | `nullable_getter` | `boolean` | no | `True` |
 | `output_class` | `string` | no | `"AppLocalizations"` |
+| `output_dir` | `string` | no | `""` |
 | `output_localization_file` | `string` | no | `"app_localizations.dart"` |
 | `preferred_supported_locales` | `string_list` | no | `[]` |
 | `relax_syntax` | `boolean` | no | `False` |
@@ -4223,16 +4224,57 @@ Macro or function.
 
 Module extension.
 
+Tag `flutter.checkout`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `checkout` | `label` | no | `None` |
+| `engines_env` | `string` | no | `"FLUTTER_LOCAL_ENGINES"` |
+| `material_fonts_sha256` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `path_env` | `string` | no | `"FLUTTER_CHECKOUT"` |
+
+Tag `flutter.custom_engine`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `engine` | `label` | yes |  |
+| `flutter_version` | `string` | yes |  |
+| `hosts` | `string_list` | yes |  |
+| `name` | `name` | yes |  |
+
+Tag `flutter.custom_framework`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `flutter_version` | `string` | yes |  |
+| `framework` | `label` | yes |  |
+| `material_fonts_sha256` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+
+Tag `flutter.custom_sdk`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `engine` | `label` | yes |  |
+| `framework` | `label` | yes |  |
+| `hosts` | `string_list` | yes |  |
+| `material_fonts_sha256` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+
 Tag `flutter.toolchain`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
 | `allow_upgrade_by_dependencies` | `boolean` | no | `False` |
-| `engine` | `label` | no | `None` |
 | `flutter_version` | `string` | no | `""` |
-| `framework` | `label` | no | `None` |
-| `material_fonts_sha256` | `string` | no | `""` |
 | `name` | `name` | no | `"flutter"` |
+
+Tag `flutter.use_sdk`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `name` | `name` | yes |  |
 
 #### `pub`
 
@@ -4243,6 +4285,7 @@ Tag `pub.annotation`:
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
 | `android_deps` | `label_list` | no | `[]` |
+| `build_config_fields` | `string_dict` | no | `{}` |
 | `package` | `string` | yes |  |
 
 Tag `pub.cycle`:

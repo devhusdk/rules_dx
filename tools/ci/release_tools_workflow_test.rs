@@ -126,8 +126,18 @@ fn each_host_uploads_its_artifact() {
 
 /// (job, its last `bazel build`, its determinism check, whether the check sits in a `linux-*)` arm).
 const JOB_DETERMINISM: [(&str, &str, &str, bool); 4] = [
-    ("go", "bazel build \"${targets[@]}\"", TARGETS_DETERMINISM, false),
-    ("jars", "bazel build \"${targets[@]}\"", TARGETS_DETERMINISM, false),
+    (
+        "go",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
+    (
+        "jars",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
     (
         "haskell",
         "bazel build \"${flags[@]}\" \"${targets[@]}\"",

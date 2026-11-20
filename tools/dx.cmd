@@ -35,6 +35,31 @@ if /i "%DX_HERE%"=="%DX_SELF%" goto dxself
 if not exist "%DX_HERE%\tools\dx.cmd" goto dxself
 "%DX_HERE%\tools\dx.cmd" %*
 :dxself
+rem A release checkout pins the released dx in cli\prebuilt\pins.bzl. Run that dx instead of building one when the
+rem checkout is that release: a git checkout at its release tag with no tracked edits, or a release archive.
+rem DX_PIN prints "version url sha256 path" and fails when the checkout does not match. It spells a double quote
+rem as [char]34 because one would end the -Command string. Keep in sync with tools/dx.
+set "DX_PBV="
+set "DX_PBU="
+set "DX_PBS="
+set "DX_PBB="
+set "DX_PIN=try { $r=$env:DX_ROOT; $q=[char]34; switch ($env:PROCESSOR_ARCHITECTURE) { 'AMD64' { $k='windows_x86_64' } 'ARM64' { $k='windows_arm64' } default { exit 1 } }; $v=''; $u=''; $s=''; $in=$false; foreach ($l in [IO.File]::ReadAllLines([IO.Path]::Combine($r, 'cli', 'prebuilt', 'pins.bzl'))) { if ($l.StartsWith('DX_VERSION = ' + $q)) { $v=$l.Substring(13).Trim($q) } elseif ($l.StartsWith('URL_TEMPLATE = ' + $q)) { $u=$l.Substring(15).Trim($q) } elseif ($l -ceq ('    ' + $q + 'dx' + $q + ': {')) { $in=$true } elseif ($l.StartsWith('    }')) { $in=$false } elseif ($in -and $l.StartsWith('        ' + $q + $k + $q + ': ' + $q) -and $l.EndsWith($q + ',')) { $s=$l.Substring($k.Length + 13).TrimEnd(',').TrimEnd($q) } }; if ((-not $v) -or $v -eq '0.0.0' -or (-not $u) -or (-not $s)) { exit 1 }; $g=[IO.Path]::Combine($r, '.git'); if ([IO.Directory]::Exists($g) -or [IO.File]::Exists($g)) { $h=git -C $r rev-parse -q --verify HEAD; if ($LASTEXITCODE -ne 0 -or (-not $h)) { exit 1 }; $t=git -C $r rev-parse -q --verify ('refs/tags/v' + $v + '^{commit}'); if ($LASTEXITCODE -ne 0 -or $h -ne $t) { exit 1 }; git -C $r diff --quiet HEAD --; if ($LASTEXITCODE -ne 0) { exit 1 } }; $c=$env:XDG_CACHE_HOME; if ($c -and -not [IO.Path]::IsPathRooted($c)) { $c=$null }; if (-not $c) { if ($env:HOME) { $c=[IO.Path]::Combine($env:HOME, '.cache') } else { $c=$env:LOCALAPPDATA } }; if (-not $c) { exit 1 }; $b=[IO.Path]::Combine($c, 'dx', 'prebuilt', $s, 'dx.exe').Replace('/', '\'); $a='dx-windows-' + $k.Substring(8); [Console]::Out.WriteLine($v + ' ' + $u.Replace('{version}', $v).Replace('{asset}', $a) + ' ' + $s + ' ' + $b); exit 0 } catch { exit 1 }"
+if exist "%DX_ROOT%\cli\prebuilt\pins.bzl" for /f "tokens=1-3,*" %%A in ('powershell -NoProfile -NonInteractive -Command "%DX_PIN%"') do (
+  set "DX_PBV=%%A"
+  set "DX_PBU=%%B"
+  set "DX_PBS=%%C"
+  set "DX_PBB=%%D"
+)
+if not defined DX_PBB goto dxnopb
+if exist "%DX_PBB%" goto dxpbrun
+call :dxfetch
+if not errorlevel 1 goto dxpbrun
+echo dx: cannot fetch the released dx %DX_PBV%; building //cli/cli:dx instead 1>&2
+goto dxnopb
+:dxpbrun
+set "BIN=%DX_PBB%"
+goto run
+:dxnopb
 rem Worktree add and release run the last built dx without a stale check or a build, unless a worktree source is
 rem newer than that dx. Keep the list and the prefixes in sync with tools/dx.
 set "DX_FAST="
@@ -173,3 +198,18 @@ if not defined DX_APPLY exit /b 0
 if %DX_SEL% GTR 1 exit /b 0
 set "DX_REPIN=1"
 exit /b 0
+
+rem Downloads DX_PBU to DX_PBB through a temp file and keeps it only when its sha256 is DX_PBS. Fails when curl
+rem cannot fetch it or the sha256 does not match.
+:dxfetch
+for %%P in ("%DX_PBB%") do set "DX_PBD=%%~dpP"
+echo dx: fetching the released dx %DX_PBV% to %DX_PBD% 1>&2
+if not exist "%DX_PBD%" mkdir "%DX_PBD%" 2>nul
+set "DX_PBT=%DX_PBB%.%RANDOM%%RANDOM%"
+call curl -fsSL --proto =https --tlsv1.2 --retry 3 -o "%DX_PBT%" "%DX_PBU%"
+if errorlevel 1 (
+  del /q "%DX_PBT%" 2>nul
+  exit /b 1
+)
+call powershell -NoProfile -NonInteractive -Command "$t=$env:DX_PBT; try { $f=[IO.File]::OpenRead($t); try { $h=[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($f)).Replace('-', '').ToLowerInvariant() } finally { $f.Dispose() }; if ($h -ne $env:DX_PBS) { [IO.File]::Delete($t); [Console]::Error.WriteLine('dx: the released dx download does not match its sha256 in cli/prebuilt/pins.bzl'); exit 1 }; try { [IO.File]::Move($t, $env:DX_PBB) } catch { [IO.File]::Delete($t); if (-not [IO.File]::Exists($env:DX_PBB)) { exit 1 } }; exit 0 } catch { try { [IO.File]::Delete($t) } catch { }; exit 1 }"
+exit /b %errorlevel%

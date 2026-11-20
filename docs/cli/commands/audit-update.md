@@ -364,7 +364,7 @@ dx update --apply <set:package>
 | `--outdated` | Lists packages whose newest stable version is outside the declared range. Not with `--apply`, `--floor`, `--reason` or a version. |
 | `--pr` | Opens or refreshes one pull request per dependency set. Not with `--outdated`, `--apply`, `--floor`, `--reason`, `--offline` or a version. |
 | `--automerge=none\|patch\|minor\|all` | Auto-merge level. Default `patch`. Needs `--pr`. |
-| `--min-age=<days>` | Skips versions published fewer than this many days ago. Default `3`. `0` turns it off. Needs `--pr`. |
+| `--min-age=<days>` | Skips versions published fewer than this many days ago. Default `3`. `0` turns it off. At most `36500`. Needs `--pr`. |
 | `--allow-major` | Includes major version updates. Needs `--pr`. |
 | `--max-prs=<n>` | Opens no new pull request once `n` `dx-update/` pull requests are open. Default `5`. Needs `--pr`. |
 | `--floor` | Edits the `bazel_dep` floor instead of the tested override. Needs a version and `--reason`. |

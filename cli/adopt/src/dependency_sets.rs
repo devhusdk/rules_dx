@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use crate::AdoptError;
-use crate::lock_hubs::{lock_of, manifest_of, state_of};
+use crate::lock_hubs::{lock_of, manifest_of, pinned_by_rules_jvm_external, state_of};
 
 pub use dx_ecosystems::{Ecosystem, SUPPORTED_ECOSYSTEMS};
 
@@ -1247,6 +1247,9 @@ pub fn check_backend_settings(
             check_pinned_lock(set, cargo_lock()?)?;
             check_cargo_hub(workspace, set).map(|_| ())
         }
+        Ecosystem::Maven if maven_resolver_set(workspace, set) => {
+            check_pinned_lock(set, Ecosystem::Maven.lockfile())
+        }
         Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
         Ecosystem::Go => check_go_layout(workspace, set),
         other @ (Ecosystem::Bazel
@@ -1567,6 +1570,23 @@ fn check_cargo_hub(workspace: &Path, set: &ResolvedSet) -> Result<String, Depend
     Ok(visible.to_owned())
 }
 
+/// Whether `set` is a maven set the java lock step writes: its manifest is an existing version
+/// catalog named like the one of the maven `setup.hubs` entry, and `rules_jvm_external` did not
+/// sign its lock.
+#[must_use]
+pub fn maven_resolver_set(workspace: &Path, set: &ResolvedSet) -> bool {
+    let catalog = dx_families::hub(Ecosystem::Maven.name()).map(|hub| hub.manifest.as_str());
+    set.ecosystem == Ecosystem::Maven
+        && set.manifests.first().is_some_and(|manifest| {
+            Path::new(manifest)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| Some(name) == catalog)
+                && workspace.join(manifest).is_file()
+        })
+        && !pinned_by_rules_jvm_external(workspace, &set.locks)
+}
+
 const MAVEN_SIGNATURES: [&str; 2] = ["__INPUT_ARTIFACTS_HASH", "__RESOLVED_ARTIFACTS_HASH"];
 
 /// What check mode needs from the maven hub beyond what both modes need.
@@ -1654,6 +1674,7 @@ fn check_maven_hub(workspace: &Path, set: &ResolvedSet) -> Result<MavenHub, Depe
 /// lock carries its signatures; an empty or old-format lock merely prints a note.
 pub fn check_lock_ready(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     match set.ecosystem {
+        Ecosystem::Maven if maven_resolver_set(workspace, set) => Ok(()),
         Ecosystem::Maven => {
             let hub = check_maven_hub(workspace, set)?;
             let unsupported = |detail: String| DependencySetsError::UnsupportedMavenHub {

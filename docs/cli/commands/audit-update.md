@@ -593,7 +593,7 @@ One `set:package` and one version widen that requirement, or declare the package
 | `npm`, `uv` | `package.json` or `pyproject.toml`, then refreshes the lock. |
 | `nuget` | `paket.dependencies` only. Run `paket update`, then `dx update <set>`. |
 | `opam` | Constraint in `depends:` of the `.opam` file. See [opam](#opam). |
-| `pub` | Constraint in `dependencies` or `dev_dependencies` of `pubspec.yaml`, then `dart pub upgrade <package>`. See [pub](#pub). |
+| `pub` | Constraint in `dependencies` or `dev_dependencies` of `pubspec.yaml`, then the pub lock step with the package upgraded. See [pub](#pub). |
 | `ruby` | Literal requirement on the gem's Gemfile line, then the ruby lock step with the gem upgraded. |
 | `swiftpm` | `from:` or `exact:` version in `Package.swift`, then `swift package update <package>`. See [swiftpm](#swiftpm). |
 
@@ -734,6 +734,7 @@ use_repo(maven, "maven")
 - Host `COURSIER_MIRRORS`, `COURSIER_REPOSITORIES`, `COURSIER_CREDENTIALS`, `COURSIER_CONFIG_DIR` and `SCALA_CLI_CONFIG` are refused.
 - A set takes no `set:package` for update or check. Widen with `dx update <set>:<group>:<artifact> <version>`.
 - `--outdated` compares the version in the lock, not the one in `MODULE.bazel`.
+- A set whose manifest is a `libs.versions.toml` version catalog and whose lock has no `__INPUT_ARTIFACTS_HASH` runs the maven lock step instead. `--apply` resolves the versions the catalog names and rewrites `maven_install.json`. A check runs the lock step with `--check` and fails when the lock was not written for the current catalog. To move one artifact, edit its version in the catalog; `set:package` is refused. `--offline` fails with `offline_required`, and `--apply --frozen` with `frozen_locked`.
 - `dx security` matches the lock's `artifacts` against the `maven` snapshot. `dx license` needs `[[inventory]]` with `set = "maven"`.
 
 ### nuget
@@ -845,8 +846,12 @@ cpan.lock(
 
 ### pub
 
-- A pub set is pinned. `dx security` reads the hosted packages of `pubspec.lock` and matches them against the `Pub` advisories.
-- `dx update <set>:<package> <version>` rewrites the package's constraint in `dependencies` or `dev_dependencies` of `pubspec.yaml`, keeping the `^`, exact or `>=` form, then runs `dart pub upgrade <package>`. A package that is not declared there, or is declared as a map such as `sdk: flutter`, is refused.
+- The pub lock step runs `dart pub` of the pinned Dart SDK and writes `pubspec.lock` with a `# dx inputs sha256:` line for `pubspec.yaml`.
+- `dx update --apply <set>` runs the lock step with `dart pub upgrade` for every package. `dx update --apply <set>:<package>` upgrades only that package. `--offline` and `--frozen` fail with `offline_required` and `frozen_locked`.
+- A check runs the lock step with `--check` and fails when `pubspec.lock` was not written for the current `pubspec.yaml`. A check takes no `set:package`. `--offline` fails with `offline_required`.
+- A set whose `pubspec.yaml` has `sdk: flutter` runs `pub` of the pinned Flutter SDK instead: `--apply` runs `pub upgrade [<package>]`, and a check runs `pub get` that fails when `pubspec.lock` would change, offline when you pass `--offline`.
+- `dx update <set>:<package> <version>` rewrites the package's constraint in `dependencies` or `dev_dependencies` of `pubspec.yaml`, keeping the `^`, exact or `>=` form, then upgrades the package as above. A package that is not declared there, or is declared as a map such as `sdk: flutter`, is refused.
+- `dx security` reads the hosted packages of `pubspec.lock` and matches them against the `Pub` advisories.
 
 ### luarocks
 

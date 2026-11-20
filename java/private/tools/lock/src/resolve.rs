@@ -255,7 +255,9 @@ fn parse(args: &[String]) -> Result<(Tools, dx_lock::Args), dx_lock::Error> {
     };
     let args = dx_lock::Args::parse(rest)?;
     if !args.upgrade.is_empty() {
-        return Err(dx_lock::Error::new("--upgrade is not supported"));
+        return Err(dx_lock::Error::new(
+            "--upgrade is not supported: the maven lock step resolves the versions the version catalog names; edit the catalog instead",
+        ));
     }
     Ok((Tools { java, jar }, args))
 }

@@ -218,7 +218,8 @@ pub fn resolver_sets(root: &Path) -> Result<Vec<ResolverSet>, AdoptError> {
     Ok(out)
 }
 
-fn pinned_by_rules_jvm_external(root: &Path, locks: &[String]) -> bool {
+/// Whether the first of `locks` carries the `__INPUT_ARTIFACTS_HASH` that `rules_jvm_external` writes.
+pub(crate) fn pinned_by_rules_jvm_external(root: &Path, locks: &[String]) -> bool {
     locks.first().is_some_and(|lock| {
         std::fs::read(root.join(lock))
             .ok()

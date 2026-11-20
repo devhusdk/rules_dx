@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::lang::{LineComment, line_comment_syntax};
+use crate::lang::{LineComment, has_suffix, line_comment_syntax};
 use crate::{
     FileHits, Ignores, LcovError, find_ignores, is_covered_language, is_ignored, merge_lcov_reports,
 };
@@ -285,17 +285,16 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxE
             test,
             generated,
         };
-        match unpaired.get(*path) {
-            Some(&at)
-                if manifest.rows[at].test != test && manifest.rows[at].generated == generated =>
-            {
-                manifest.rows[at].test = false;
-                unpaired.remove(*path);
-            }
-            _ => {
-                unpaired.insert((*path).to_string(), manifest.rows.len());
-                manifest.rows.push(row);
-            }
+        let pair = unpaired
+            .get(*path)
+            .and_then(|&at| manifest.rows.get_mut(at))
+            .filter(|held| held.test != test && held.generated == generated);
+        if let Some(held) = pair {
+            held.test = false;
+            unpaired.remove(*path);
+        } else {
+            unpaired.insert((*path).to_string(), manifest.rows.len());
+            manifest.rows.push(row);
         }
     }
     let paths: Vec<&str> = manifest.rows.iter().map(|row| row.path.as_str()).collect();
@@ -321,7 +320,7 @@ const UNCOLLECTED: &[(&str, &[&str])] = &[(
 /// False when no collector on `cell` covers the language of `path`.
 fn collected_in(cell: &str, path: &str) -> bool {
     !UNCOLLECTED.iter().any(|(prefix, suffixes)| {
-        cell.starts_with(prefix) && suffixes.iter().any(|suffix| path.ends_with(suffix))
+        cell.starts_with(prefix) && suffixes.iter().any(|suffix| has_suffix(path, suffix))
     })
 }
 
@@ -329,12 +328,14 @@ fn collected_in(cell: &str, path: &str) -> bool {
 fn is_declaration_stub(path: &str) -> bool {
     DECLARATION_SUFFIXES
         .iter()
-        .any(|suffix| path.ends_with(suffix))
+        .any(|suffix| has_suffix(path, suffix))
 }
 
 /// True for C and C++ headers.
 fn is_header(path: &str) -> bool {
-    HEADER_SUFFIXES.iter().any(|suffix| path.ends_with(suffix))
+    HEADER_SUFFIXES
+        .iter()
+        .any(|suffix| has_suffix(path, suffix))
 }
 
 fn read_error(path: &str, error: &LcovError) -> String {

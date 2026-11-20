@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::num::NonZeroU32;
 
 use crate::LcovError;
 use crate::xml::{attribute, tags};
@@ -17,15 +18,20 @@ pub fn clover_to_lcov(xml: &str) -> Result<String, LcovError> {
                 let path = attribute(attrs, "name")
                     .filter(|path| !path.is_empty())
                     .ok_or_else(|| clover_error("file element without a name"))?;
+                if path.contains(['\n', '\r']) {
+                    return Err(clover_error(&format!(
+                        "file name with a line break: {path:?}"
+                    )));
+                }
                 files.entry(path.clone()).or_default();
-                current = Some(path);
+                current = (!tag.empty).then_some(path);
             }
             "/file" => current = None,
             "line" if attribute(attrs, "type").as_deref() == Some("stmt") => {
                 let path = current
                     .as_ref()
                     .ok_or_else(|| clover_error("line element outside a file"))?;
-                let num = number(attrs, "num")?;
+                let num = number::<NonZeroU32>(attrs, "num")?.get();
                 let count = number(attrs, "count")?;
                 let hits = files
                     .entry(path.clone())
@@ -61,7 +67,7 @@ fn clover_error(what: &str) -> LcovError {
 fn number<T: std::str::FromStr>(attrs: &str, key: &str) -> Result<T, LcovError> {
     attribute(attrs, key)
         .and_then(|value| value.parse().ok())
-        .ok_or_else(|| clover_error(&format!("line element without a numeric {key}")))
+        .ok_or_else(|| clover_error(&format!("line element without a valid {key}")))
 }
 
 #[cfg(test)]

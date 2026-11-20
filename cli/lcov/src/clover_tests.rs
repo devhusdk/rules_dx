@@ -84,3 +84,24 @@ fn rejects_an_unterminated_comment() {
         r#"<coverage><file name="/w/a.php"><line num="1" type="stmt" count="1"/></file><!-- a > b"#;
     assert!(clover_to_lcov(xml).is_err());
 }
+
+#[test]
+fn rejects_a_line_after_an_empty_file_element() {
+    let xml = r#"<coverage><project><file name="/w/a.php"/><line num="1" type="stmt" count="1"/></project></coverage>"#;
+    assert!(clover_to_lcov(xml).is_err());
+}
+
+#[test]
+fn rejects_line_number_zero() {
+    let xml = r#"<file name="/w/a.php"><line num="0" type="stmt" count="1"/></file>"#;
+    let error = clover_to_lcov(xml).expect_err("line 0");
+    assert!(error.to_string().contains("num"), "{error}");
+}
+
+#[test]
+fn rejects_a_filename_with_a_line_break() {
+    let xml =
+        r#"<file name="/w/a.php&#13;&#10;DA:9,9"><line num="1" type="stmt" count="1"/></file>"#;
+    let error = clover_to_lcov(xml).expect_err("line break");
+    assert!(error.to_string().contains("line break"), "{error}");
+}

@@ -791,3 +791,20 @@ fn orphan_candidates_accept_ignored_prefixes_with_slashes() {
         strings(&["a.rs", "vendored/x.rs"])
     );
 }
+
+#[test]
+fn suffix_rules_ignore_ascii_case() {
+    let manifests = [manifest(
+        "v2 cell linux_x86_64\nprod source cc/A.H\nprod source ts/a.D.TS\nprod source a.rs\n",
+    )];
+    let result = account(&manifests, &[lcov("a.rs", &[(1, 1)])], &blank_sources());
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!(result.files["cc/A.H"], Disposition::Support);
+    assert_eq!(result.files["ts/a.D.TS"], Disposition::Support);
+    let manifests = [manifest(
+        "v2 cell windows_x86_64\nprod source cc/A.CC\nprod source a.rs\n",
+    )];
+    let result = account(&manifests, &[lcov("a.rs", &[(1, 1)])], &blank_sources());
+    assert!(result.errors.is_empty(), "{:?}", result.errors);
+    assert_eq!(result.files["cc/A.CC"], Disposition::Unsupported);
+}

@@ -1,5 +1,6 @@
 //! With rules_dx as the root module and `--//cli/prebuilt:guard_view`, the consumer fixtures of the
-//! `DX_IN_GRAPH_GUARD_LANGS` languages compile no rules_dx tool.
+//! `DX_IN_GRAPH_GUARD_LANGS` languages, or of the space-separated `--langs` list, compile no
+//! rules_dx tool.
 //!
 //! For each language the checker writes a `<lang>` package of `<out>/roots`: its `check` and
 //! `docs` targets depend on every non-manual consumer rule of `@dx_api_fixtures//<lang>/tests/consumer`
@@ -73,12 +74,22 @@ fn args(items: &[&str]) -> Vec<String> {
     items.iter().map(|item| (*item).to_owned()).collect()
 }
 
-fn check(bazel_bin: &str, workspace: &Path, out: &Path) -> Result<(), String> {
-    let langs = dx_testing::env_text("DX_IN_GRAPH_GUARD_LANGS");
-    let langs: Vec<&str> = langs.split_whitespace().collect();
+/// The languages to check: those of `--langs` when given, else those of `DX_IN_GRAPH_GUARD_LANGS`.
+fn guard_langs(langs: Option<&str>, default: &str) -> Result<Vec<String>, String> {
+    let (source, text) = match langs {
+        Some(langs) => ("--langs", langs),
+        None => ("DX_IN_GRAPH_GUARD_LANGS", default),
+    };
+    let langs: Vec<String> = text.split_whitespace().map(str::to_owned).collect();
     if langs.is_empty() {
-        return Err("DX_IN_GRAPH_GUARD_LANGS names no language".to_owned());
+        return Err(format!("{source} names no language"));
     }
+    Ok(langs)
+}
+
+fn check(bazel_bin: &str, workspace: &Path, out: &Path, langs: Option<&str>) -> Result<(), String> {
+    let langs = guard_langs(langs, &dx_testing::env_text("DX_IN_GRAPH_GUARD_LANGS"))?;
+    let langs: Vec<&str> = langs.iter().map(String::as_str).collect();
     let list = allowlist(&runfile("DX_PREBUILT_GUARD_ALLOWLIST")?)
         .map_err(|error| format!("prebuilt_guard_allowlist.txt: {error}"))?;
     let consumer: BTreeMap<String, String> = serde_json::from_str(&runfile("DX_CONSUMER_JSON")?)
@@ -192,11 +203,13 @@ fn check(bazel_bin: &str, workspace: &Path, out: &Path) -> Result<(), String> {
 fn main() -> Result<(), String> {
     let mut bazel = None;
     let mut out = None;
+    let mut langs = None;
     let mut argv = std::env::args().skip(1);
     while let Some(arg) = argv.next() {
         match arg.as_str() {
             "--bazel" => bazel = argv.next(),
             "--out" => out = argv.next().map(PathBuf::from),
+            "--langs" => langs = Some(argv.next().ok_or("--langs needs a value")?),
             other => return Err(format!("unknown argument {other}")),
         }
     }
@@ -206,7 +219,7 @@ fn main() -> Result<(), String> {
         std::env::var("BUILD_WORKSPACE_DIRECTORY")
             .map_err(|error| format!("run with `bazel run`: {error}"))?,
     );
-    check(&bazel, &workspace, &out)
+    check(&bazel, &workspace, &out, langs.as_deref())
 }
 
 #[cfg(test)]
@@ -255,6 +268,7 @@ mod tests {
             "DX_GO_GUARD_LANGS",
             "DX_JAVA_GUARD_LANGS",
             "DX_IN_GRAPH_GUARD_LANGS",
+            "DX_MACOS_IN_GRAPH_GUARD_LANGS",
             "DX_GUARD_PENDING",
         ] {
             for lang in dx_testing::env_text(var).split_whitespace() {
@@ -265,5 +279,62 @@ mod tests {
         }
         assert_eq!(twice, Vec::<String>::new(), "languages in two guard lists");
         assert_eq!(seen, fixtures);
+    }
+
+    #[test]
+    fn guard_langs_default_to_the_env_list() {
+        assert_eq!(
+            guard_langs(None, "d rego"),
+            Ok(vec!["d".to_owned(), "rego".to_owned()])
+        );
+    }
+
+    #[test]
+    fn guard_langs_prefer_the_override() {
+        assert_eq!(
+            guard_langs(Some("apple swift"), "d rego"),
+            Ok(vec!["apple".to_owned(), "swift".to_owned()])
+        );
+    }
+
+    #[test]
+    fn guard_langs_reject_an_empty_list() {
+        assert_eq!(
+            guard_langs(Some(" "), "d"),
+            Err("--langs names no language".to_owned())
+        );
+        assert_eq!(
+            guard_langs(None, ""),
+            Err("DX_IN_GRAPH_GUARD_LANGS names no language".to_owned())
+        );
+    }
+
+    /// The macos_arm64 leg of the ci.yml job passes `MACOS_IN_GRAPH_GUARD_LANGS` with `--langs`
+    /// and the linux_x86_64 leg passes none.
+    #[test]
+    fn the_macos_leg_runs_the_macos_list() {
+        let workflow = dx_testing::env_text("DX_CI_WORKFLOW");
+        let job = ci_workflow::job(workflow.trim(), "in-graph-prebuilt-guard").unwrap();
+        let legs: BTreeMap<String, String> = job["strategy"]["matrix"]["include"]
+            .as_array()
+            .expect("in-graph-prebuilt-guard declares a matrix include list")
+            .iter()
+            .map(|leg| {
+                (
+                    leg["platform"].as_str().unwrap_or_default().to_owned(),
+                    leg["langs"].as_str().unwrap_or_default().to_owned(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            legs,
+            BTreeMap::from([
+                ("linux_x86_64".to_owned(), String::new()),
+                (
+                    "macos_arm64".to_owned(),
+                    dx_testing::env_text("DX_MACOS_IN_GRAPH_GUARD_LANGS")
+                ),
+            ])
+        );
     }
 }

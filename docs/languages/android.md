@@ -339,8 +339,9 @@ targets above.
 
 Packaging builds read the `androidsdk` repository. It holds the pinned
 build-tools, platform and platform-tools packages that the `android`
-extension downloads, so you need no `ANDROID_HOME` on Linux x86_64. On
-other hosts the repository is empty.
+extension downloads, so you need no `ANDROID_HOME` on Linux x86_64, macOS
+arm64, Windows x86_64 or Windows arm64. On Linux arm64 the repository is
+empty.
 
 rules_dx pins its own `rules_android_maven` install with a lock file. In
 your root `MODULE.bazel`, add your own
@@ -601,7 +602,6 @@ dx runs these tools and reads these package files for Android:
 
 Android builds and tests on:
 
-- Linux arm64
 - Linux x86_64
 - macOS arm64
 - Windows arm64

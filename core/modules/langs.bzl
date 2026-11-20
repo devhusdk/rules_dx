@@ -25,7 +25,6 @@ LANGS = json.decode("""{
       "pins.json"
     ],
     "platforms": [
-      "linux_arm64",
       "linux_x86_64",
       "macos_arm64",
       "windows_arm64",
@@ -36,13 +35,19 @@ LANGS = json.decode("""{
         {
           "id": "android-sdk-license",
           "platforms": [
-            "linux_x86_64"
+            "linux_x86_64",
+            "macos_arm64",
+            "windows_arm64",
+            "windows_x86_64"
           ]
         }
       ]
     },
     "title": "Android",
-    "tools": []
+    "tools": [],
+    "unsupported": {
+      "linux_arm64": "Google ships no Linux arm64 Android build-tools, platform-tools or NDK"
+    }
   },
   "ansible": {
     "ecosystems": [

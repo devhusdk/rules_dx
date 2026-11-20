@@ -1,6 +1,6 @@
 """The host cell of a repository rule: one `<os>_<cpu>` spelling for every toolchain."""
 
-visibility(["//appimage/...", "//core/...", "//lua/...", "//ruby/...", "//swift/...", "//tools/..."])
+visibility(["//android/...", "//appimage/...", "//core/...", "//lua/...", "//ruby/...", "//swift/...", "//tools/..."])
 
 _OSES = {"linux": "linux", "mac os x": "macos"}
 

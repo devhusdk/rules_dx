@@ -1,6 +1,7 @@
 """Opt-in Android NDK and build-tools acquisition."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
+load("//core:host.bzl", "host_cell")
 
 ANDROID_NDK_REVISION = "27.0.12077973"
 
@@ -105,6 +106,22 @@ BUILD_TOOLS_ARTIFACTS = {
         sha256 = "bd3a4966912eb8b30ed0d00b0cda6b6543b949d5ffe00bea54c04c81e1561d88",
         size = 61958799,
     ),
+    "macos_arm64": struct(
+        anchor = "source.properties",
+        archive = "build-tools_r35_macosx.zip",
+        directory = "android-15",
+        sha1 = "93ab8ce91230e067b5add4bfa79919c52b27f072",
+        sha256 = "530cdbd1ec315e1477624d7ed2f0f2962108d69f36eddba5894cef9ea2cedb48",
+        size = 76857898,
+    ),
+    "windows_x86_64": struct(
+        anchor = "source.properties",
+        archive = "build-tools_r35_windows.zip",
+        directory = "android-15",
+        sha1 = "af059bb67cf7786f45ee0db85e2d24985df1b4b6",
+        sha256 = "5753c679a1b90bcf6fbc9945a2ce39dfb9e74f1df0831a1e1866ae5b594326f0",
+        size = 59878107,
+    ),
 }
 
 PLATFORM_ARTIFACTS = {
@@ -151,6 +168,22 @@ PLATFORM_TOOLS_ARTIFACTS = {
         sha256 = "d230f13842f60f782a8645f9c813f8f845bf36089ea7289f28c48f17979313f1",
         size = 9054187,
     ),
+    "macos_arm64": struct(
+        anchor = "adb",
+        archive = "platform-tools_r37.0.1-darwin.zip",
+        directory = "platform-tools",
+        sha1 = "6ae73f4de6452dc57e62ec02b68eed92a4c21661",
+        sha256 = "ee39ad5967e95c2a07f04dbcbde96b1a0c916ba376096db5d2f498b7727a5d1d",
+        size = 16110554,
+    ),
+    "windows_x86_64": struct(
+        anchor = "adb.exe",
+        archive = "platform-tools_r37.0.1-win.zip",
+        directory = "platform-tools",
+        sha1 = "e03e78b1d80b396f1c3358e31251cb31740e1110",
+        sha256 = "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99",
+        size = 8044989,
+    ),
 }
 
 EMULATOR_ARTIFACTS = {
@@ -171,6 +204,15 @@ BUILD_TOOLS_ARCHIVE_PREFIX = "build-tools_r" + BUILD_TOOLS.split(".")[0]
 BUILD_TOOLS_ARCHIVE_SEPARATOR = "_"
 
 PLATFORM_TOOLS_ARCHIVE_PREFIX = "platform-tools_r" + PLATFORM_TOOLS
+
+PACKAGING_HOSTS = ["linux_x86_64"]
+
+APP_SDK_HOSTS = {
+    "linux_x86_64": "linux_x86_64",
+    "macos_arm64": "macos_arm64",
+    "windows_arm64": "windows_x86_64",
+    "windows_x86_64": "windows_x86_64",
+}
 
 PLATFORM_CONSTRAINTS = {
     "linux_x86_64": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
@@ -252,7 +294,7 @@ def build_tools_repository_name(platform):
 
 def build_tools_repositories():
     """Returns the platform-keyed build-tools repository names."""
-    return {platform: build_tools_repository_name(platform) for platform in sorted(BUILD_TOOLS_ARTIFACTS.keys())}
+    return {platform: build_tools_repository_name(platform) for platform in sorted(PACKAGING_HOSTS)}
 
 def platform_repository_name():
     """Returns the repository name the requested platform is acquired into."""
@@ -279,7 +321,7 @@ def no_match_error():
 def build_tools_no_match_error():
     """Returns the diagnostic for a platform with no qualified build-tools."""
     return ("rules_dx: no pinned Android build-tools " + BUILD_TOOLS + " artifact for this " +
-            "platform; want one of " + ", ".join(sorted(BUILD_TOOLS_ARTIFACTS.keys())))
+            "platform; want one of " + ", ".join(sorted(PACKAGING_HOSTS)))
 
 def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX, hosted = True, separator = "-"):
     """Returns one error string per pinned artifact that is not ready to download."""
@@ -299,7 +341,7 @@ def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX, host
                 errors.append("artifact '" + platform + "' archive is '" + artifact.archive +
                               "', want one starting with '" + expected + "'")
         elif prefix != "":
-            expected = prefix + separator + _release_suffix(platform)
+            expected = prefix + separator + _release_suffix(platform, prefix)
             if artifact.archive != expected:
                 errors.append("artifact '" + platform + "' archive is '" + artifact.archive +
                               "', want the pinned '" + expected + "'")
@@ -311,13 +353,15 @@ def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX, host
             errors.append("artifact '" + platform + "' size is not positive")
     return errors
 
-def _release_suffix(platform):
+def _release_suffix(platform, prefix):
     """Returns the upstream file suffix for one qualified execution platform."""
     parts = platform.split("_", 1)
     if parts[0] == "linux":
         return "linux.zip"
     if parts[0] == "macos":
-        return "darwin.zip"
+        return "macosx.zip" if prefix == BUILD_TOOLS_ARCHIVE_PREFIX else "darwin.zip"
+    if parts[0] == "windows" and prefix == PLATFORM_TOOLS_ARCHIVE_PREFIX:
+        return "win.zip"
     return parts[0] + ".zip"
 
 def url_for(artifact, mirror = ""):
@@ -394,12 +438,12 @@ def sdk_level(request):
     """Returns the platform API level one request resolves to."""
     return request.api_level if request.api_level != 0 else DEFAULT_PLATFORM_LEVEL
 
-def app_sdk_layout(request):
-    """Returns the SDK directories rules_android's @androidsdk is assembled from."""
-    if not request.enabled:
+def app_sdk_layout(request, host):
+    """Returns the SDK directories rules_android's @androidsdk is assembled from on one host."""
+    if not request.enabled or host not in APP_SDK_HOSTS:
         return []
     level = sdk_level(request)
-    host = "linux_x86_64"
+    host = APP_SDK_HOSTS[host]
     return [
         struct(dest = "build-tools/" + BUILD_TOOLS, kind = "build-tools", artifact = BUILD_TOOLS_ARTIFACTS[host]),
         struct(dest = "platforms/android-%d" % level, kind = "platform", artifact = PLATFORM_ARTIFACTS[level]),
@@ -500,7 +544,7 @@ def package_repositories(request):
         "platform": {level: platform_repository_name()},
     }
     if "platform-tools" in request.extra_packages:
-        repos["platform_tools"] = {host: platform_tools_repository_name(host) for host in sorted(PLATFORM_TOOLS_ARTIFACTS.keys())}
+        repos["platform_tools"] = {host: platform_tools_repository_name(host) for host in sorted(PACKAGING_HOSTS)}
     if "emulator" in request.extra_packages:
         repos["emulator"] = {host: emulator_repository_name(host) for host in sorted(EMULATOR_ARTIFACTS.keys())}
     return repos
@@ -845,13 +889,13 @@ android_emulator_repo = repository_rule(
 )
 
 def _android_app_sdk_repo_impl(ctx):
-    linux_x86_64 = ctx.os.name == "linux" and ctx.os.arch in ["amd64", "x86_64"]
-    if len(ctx.attr.dirs) == 0 or not linux_x86_64:
+    dirs = json.decode(ctx.attr.host_dirs.get(host_cell(ctx), "{}"))
+    if len(dirs) == 0:
         ctx.template("BUILD.bazel", Label("@rules_android//rules/android_sdk_repository:empty.template.bzl"))
         return ctx.repo_metadata(reproducible = True)
     if ctx.attr.license_error != "":
         fail(ctx.attr.license_error)
-    for dest, fields in ctx.attr.dirs.items():
+    for dest, fields in dirs.items():
         ctx.download_and_extract(
             url = fields[0],
             sha256 = fields[1],
@@ -868,8 +912,8 @@ def _android_app_sdk_repo_impl(ctx):
 android_app_sdk_repo = repository_rule(
     implementation = _android_app_sdk_repo_impl,
     attrs = {
-        "dirs": attr.string_list_dict(
-            doc = "Directory under the SDK root to [url, sha256, canonical_id, strip_prefix].",
+        "host_dirs": attr.string_dict(
+            doc = "Host cell to a JSON map of directory under the SDK root to [url, sha256, canonical_id, strip_prefix].",
         ),
         "license_error": attr.string(doc = "Failure raised when the SDK is fetched without its license accepted."),
         "substitutions": attr.string_dict(doc = "Keys rules_android's SDK BUILD template takes."),
@@ -897,8 +941,7 @@ def unavailable_hub_build(empty_template, rule_bzl):
     return build + "".join(["\n" + stub for stub in stubs])
 
 def _android_app_sdk_hub_repo_impl(ctx):
-    linux_x86_64 = ctx.os.name == "linux" and ctx.os.arch in ["amd64", "x86_64"]
-    if ctx.attr.build == "" or not linux_x86_64:
+    if ctx.attr.build == "" or host_cell(ctx) not in APP_SDK_HOSTS:
         empty = ctx.read(Label("@rules_android//rules/android_sdk_repository:empty.template.bzl"))
         ctx.file("BUILD.bazel", unavailable_hub_build(empty, str(Label("//android/private/sdk:unavailable.bzl"))))
     else:

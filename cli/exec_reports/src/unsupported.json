@@ -1,4 +1,10 @@
 {
+  "//android/private/sdk:unsupported": {
+    "platforms": {
+      "linux_arm64": "Google ships no Linux arm64 Android build-tools, platform-tools or NDK"
+    },
+    "title": "Android"
+  },
   "//dart/private:unsupported": {
     "platforms": {
       "windows_arm64": "rules_dart 0.9.1 ships no Windows arm64 SDK"

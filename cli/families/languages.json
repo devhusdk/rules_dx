@@ -7,7 +7,10 @@
           {
             "id": "android-sdk-license",
             "platforms": [
-              "linux_x86_64"
+              "linux_x86_64",
+              "macos_arm64",
+              "windows_arm64",
+              "windows_x86_64"
             ]
           }
         ]

@@ -58,7 +58,7 @@ The `build_test` through `lock_test` columns are conformance tests: shared tests
 
 | Target | Not supported on |
 | --- | --- |
-| Android | none |
+| Android | `linux_arm64`: Google ships no Linux arm64 Android build-tools, platform-tools or NDK |
 | AppImage | `macos_arm64`, `windows_x86_64`, `windows_arm64`: AppImage is a Linux format |
 | Apple | `linux_x86_64`, `linux_arm64`, `windows_x86_64`, `windows_arm64`: Apple toolchains (Xcode, codesign, iOS SDKs) run only on macOS |
 | CMake | none |

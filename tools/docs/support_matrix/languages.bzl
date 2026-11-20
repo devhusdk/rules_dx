@@ -213,6 +213,7 @@ def _language(name, bench = None, fuzz = None, deps = None, doc = None, dead_cod
 LANGUAGES = [
     _language(
         "android",
+        unsupported = "//android/private/sdk:unsupported",
     ),
     _language(
         "appimage",

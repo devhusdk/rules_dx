@@ -143,10 +143,18 @@ def android_native_library(
         **shared
     )
 
+_SDK_COMPATIBLE_WITH = select({
+    Label("//android/private/sdk:linux_arm64"): [Label("@platforms//:incompatible"), Label("//android/private/sdk:unsupported")],
+    "//conditions:default": [],
+})
+
+def _sdk_kwargs(kwargs):
+    return kwargs | {"target_compatible_with": kwargs.get("target_compatible_with", []) + _SDK_COMPATIBLE_WITH}
+
 def android_java_library(**kwargs):
     """Android Java library over rules_android android_library."""
-    _android_library(**kwargs)
+    _android_library(**_sdk_kwargs(kwargs))
 
 def android_kotlin_library(**kwargs):
     """Android Kotlin library over rules_kotlin kt_android_library."""
-    _kt_android_library(**kwargs)
+    _kt_android_library(**_sdk_kwargs(kwargs))

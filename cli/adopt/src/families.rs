@@ -317,6 +317,7 @@ mod tests {
         let found = detected_families(dir.path());
         assert!(found.contains("lua"), "{found:?}");
         assert!(found.contains("cc"), "{found:?}");
+        assert!(!found.contains("cuda"), "{found:?}");
         assert!(found.contains("yaml"), "{found:?}");
         for content_only in ["ansible", "kubernetes", "cloudformation"] {
             assert!(!found.contains(content_only), "{found:?}");

@@ -57,6 +57,11 @@ def registry_unit_tests(name):
                 [["c", "cpp"], "//cc:defs.bzl", ["go"]],
             ),
             expect_equal(
+                "csharp, cuda and fsharp taxonomy rows come from lang.json",
+                [TAXONOMY["csharp"].owner, TAXONOMY["cuda"].classes, "fsharp" in OTHER_FAMILIES],
+                ["//csharp:defs.bzl", ["cuda"], False],
+            ),
+            expect_equal(
                 "aggregated registry schemas validate",
                 registry_schema_error(),
                 "",

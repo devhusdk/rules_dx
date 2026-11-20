@@ -322,4 +322,12 @@ mod tests {
         assert!(needed_licenses(root, "linux_x86_64").is_empty());
         assert!(known_license_ids().contains("visual-studio-build-tools"));
     }
+
+    #[test]
+    fn cuda_sources_need_no_license_on_linux() {
+        let scratch = dx_test_scratch::scratch("dx-adopt-cuda-licenses-").unwrap();
+        std::fs::write(scratch.path().join("kernel.cu"), "__global__ void k() {}\n")
+            .expect("write");
+        assert!(needed_licenses(scratch.path(), "linux_x86_64").is_empty());
+    }
 }

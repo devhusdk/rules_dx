@@ -758,6 +758,13 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "bzl": "dotnet/private/quality:dotnet.bzl",
+      "classes": [
+        "csharp"
+      ],
+      "file_extensions": []
+    },
     "semver": false,
     "setup": {
       "hubs": [
@@ -804,6 +811,24 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "bzl": "cc/private/quality:cc.bzl",
+      "classes": [
+        "cuda"
+      ],
+      "defaults": {
+        "audit": [],
+        "format": [
+          "clang_format"
+        ],
+        "lint": [
+          "clang_tidy",
+          "typos"
+        ],
+        "typecheck": []
+      },
+      "file_extensions": []
+    },
     "setup": {
       "licenses": [
         {
@@ -1567,6 +1592,13 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "bzl": "dotnet/private/quality:dotnet.bzl",
+      "classes": [
+        "fsharp"
+      ],
+      "file_extensions": []
+    },
     "semver": false,
     "title": "F#",
     "tools": [

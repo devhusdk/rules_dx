@@ -37,5 +37,12 @@
     "fsharp_bench",
     "fsharp_fuzz_test",
     "fsharp_doc_shard"
-  ]
+  ],
+  "quality": {
+    "bzl": "dotnet/private/quality:dotnet.bzl",
+    "classes": [
+      "fsharp"
+    ],
+    "file_extensions": []
+  }
 }

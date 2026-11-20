@@ -12,12 +12,6 @@ OTHER_DEFAULTS = {
         "lint": ["actionlint", "zizmor"],
         "typecheck": [],
     },
-    "cuda": {
-        "audit": [],
-        "format": ["clang_format"],
-        "lint": ["clang_tidy", "typos"],
-        "typecheck": [],
-    },
     "go_module": {
         "audit": [],
         "format": ["modfmt"],

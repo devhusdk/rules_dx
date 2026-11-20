@@ -40,14 +40,7 @@ SHARD_SPECS = {
 def _opa_hook(target, _ctx, _resolved, _capability, _what, _shared):
     if RegoInfo not in target:
         return real_context()
-    pairs = []
-    for f in target[RegoInfo].transitive_srcs.to_list():
-        ws_path = f.short_path
-        if ".." in ws_path.split("/") or f.extension != "rego":
-            continue
-        pairs.append((ws_path, f, False))
-    return real_context(resolve_pairs = pairs)
-
+    return real_context(resolve_lists = [(target[RegoInfo].transitive_srcs, ["rego"])])
 
 HOOK_ORDER = ["opa"]
 

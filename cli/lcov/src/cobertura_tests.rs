@@ -106,3 +106,45 @@ fn rejects_an_unterminated_cdata_section() {
     let xml = r#"<coverage><classes><class filename="/w/a.py"><lines><line number="1" hits="1"/></lines></class></classes><![CDATA[ a > b"#;
     assert!(cobertura_to_lcov(xml).is_err());
 }
+
+#[test]
+fn counts_class_lines_after_an_empty_methods_element() {
+    let xml = r#"<coverage><classes>
+<class name="a" filename="/w/a.py"><methods/><lines><line number="1" hits="1"/></lines></class>
+<class name="b" filename="/w/b.py"><methods/><lines><line number="2" hits="0"/></lines></class>
+</classes></coverage>"#;
+    let lcov = cobertura_to_lcov(xml).expect("converts");
+    assert_eq!(
+        lcov,
+        "SF:/w/a.py\nDA:1,1\nLF:1\nLH:1\nend_of_record\nSF:/w/b.py\nDA:2,0\nLF:1\nLH:0\nend_of_record\n"
+    );
+}
+
+#[test]
+fn rejects_a_line_after_an_empty_class_element() {
+    let xml = r#"<coverage><classes><class filename="/w/a.py"/><line number="1" hits="1"/></classes></coverage>"#;
+    assert!(cobertura_to_lcov(xml).is_err());
+}
+
+#[test]
+fn decodes_entities_in_the_source() {
+    let xml = r#"<coverage><sources><source>/w/R&amp;D/</source></sources><classes>
+<class filename="a.py"><lines><line number="1" hits="1"/></lines></class>
+</classes></coverage>"#;
+    let lcov = cobertura_to_lcov(xml).expect("converts");
+    assert!(lcov.starts_with("SF:/w/R&D/a.py\n"), "{lcov}");
+}
+
+#[test]
+fn rejects_line_number_zero() {
+    let xml = r#"<coverage><classes><class filename="/w/a.py"><lines><line number="0" hits="1"/></lines></class></classes></coverage>"#;
+    let error = cobertura_to_lcov(xml).expect_err("line 0");
+    assert!(error.to_string().contains("number"), "{error}");
+}
+
+#[test]
+fn rejects_a_filename_with_a_line_break() {
+    let xml = r#"<coverage><classes><class filename="/w/a.py&#10;DA:9,9"><lines><line number="1" hits="1"/></lines></class></classes></coverage>"#;
+    let error = cobertura_to_lcov(xml).expect_err("line break");
+    assert!(error.to_string().contains("line break"), "{error}");
+}

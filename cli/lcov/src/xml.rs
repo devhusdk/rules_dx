@@ -2,6 +2,8 @@
 pub(crate) struct Tag<'a> {
     pub name: &'a str,
     pub attrs: &'a str,
+    /// True for an empty-element tag such as `<methods/>`, which has no matching end tag.
+    pub empty: bool,
     /// The text after the closing `>`.
     pub tail: &'a str,
 }
@@ -48,9 +50,15 @@ impl<'a> Iterator for Tags<'a> {
                 return Some(Err(Unterminated("tag")));
             };
             self.rest = tail;
+            let empty = tag.ends_with('/');
             let tag = tag.trim_end_matches('/');
             let (name, attrs) = tag.split_once(char::is_whitespace).unwrap_or((tag, ""));
-            return Some(Ok(Tag { name, attrs, tail }));
+            return Some(Ok(Tag {
+                name,
+                attrs,
+                empty,
+                tail,
+            }));
         }
     }
 }
@@ -88,7 +96,8 @@ pub(crate) fn attribute(attrs: &str, key: &str) -> Option<String> {
     None
 }
 
-fn unescape(text: &str) -> String {
+/// Decodes the predefined entities and character references in text or an attribute value.
+pub(crate) fn unescape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     while let Some((head, tail)) = rest.split_once('&') {

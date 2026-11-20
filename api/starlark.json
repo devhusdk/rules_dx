@@ -5872,7 +5872,41 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "check",
+              "hdrs",
+              "srcs",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_cuda_library_forward"
+          },
+          {
+            "attrs": [
+              "archs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "cuda_check"
+          },
+          {
+            "attrs": [
+              "archs",
+              "features",
+              "hdrs",
+              "rdc",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "cuda_library"
+          }
+        ],
         "name": "cuda_library",
         "params": [
           {

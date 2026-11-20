@@ -73,8 +73,14 @@ def qt_test_coverage(ctx, upstream):
     collector = ctx.executable._collect_cc_coverage
     cc_toolchain = _cc_toolchain(ctx)
     macos = ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo])
-    llvm_cov = (None if macos else _tool(cc_toolchain, "llvm-cov")) or ctx.executable._llvm_cov
-    llvm_profdata = (None if macos else _tool(cc_toolchain, "llvm-profdata")) or ctx.executable._llvm_profdata
+    toolchain_cov = _tool(cc_toolchain, "llvm-cov")
+    toolchain_profdata = _tool(cc_toolchain, "llvm-profdata")
+    llvm_cov = (None if macos else toolchain_cov) or ctx.executable._llvm_cov
+    llvm_profdata = (None if macos else toolchain_profdata) or ctx.executable._llvm_profdata
+
+    # On macOS the subject may carry the Xcode profile runtime, whose raw profile version the
+    # hermetic llvm-profdata rejects; the collector then retries with the cc toolchain's tools.
+    fallback = [toolchain_cov, toolchain_profdata] if macos and toolchain_cov and toolchain_profdata else []
     transitive = []
     if DxDataCoverageInfo in upstream:
         data = upstream[DxDataCoverageInfo]
@@ -82,9 +88,12 @@ def qt_test_coverage(ctx, upstream):
     instrumented = coverage_common.instrumented_files_info(
         ctx,
         dependency_attributes = ["upstream"],
-        metadata_files = depset([collector, llvm_cov, llvm_profdata], transitive = transitive).to_list(),
+        metadata_files = depset([collector, llvm_cov, llvm_profdata] + fallback, transitive = transitive).to_list(),
     )
     env = {"CC_CODE_COVERAGE_SCRIPT": collector.path, "LLVM_COV": llvm_cov.path, "LLVM_PROFDATA": llvm_profdata.path}
+    if fallback:
+        env["DX_CC_LLVM_COV"] = fallback[0].path
+        env["DX_CC_LLVM_PROFDATA"] = fallback[1].path
     inherited = []
     if RunEnvironmentInfo in upstream:
         env = dict(upstream[RunEnvironmentInfo].environment, **env)

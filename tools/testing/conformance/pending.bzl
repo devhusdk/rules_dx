@@ -23,6 +23,5 @@ haskell lint_test macos_arm64
 helm format_error_test *
 helm format_test *
 msix cross_test *
-qt coverage_test macos_arm64
 zig coverage_test windows_x86_64
 """

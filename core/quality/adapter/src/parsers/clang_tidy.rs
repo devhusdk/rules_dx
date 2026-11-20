@@ -69,6 +69,12 @@ pub fn parse_clang_tidy(
             };
             let path = path.strip_prefix("./").unwrap_or(path);
             let Some(file) = checked_file(files, path) else {
+                if severity == ToolSeverity::Error {
+                    return Err(ParseError::Incomplete {
+                        tool: TOOL,
+                        detail: format!("compile error in an unchecked file: {line}"),
+                    });
+                }
                 return Err(ParseError::UnknownFile {
                     tool: TOOL,
                     path: path.to_owned(),
@@ -242,6 +248,13 @@ mod tests {
             parse_clang_tidy(DIRTY.as_bytes(), Some(0), &files),
             Err(ParseError::UnknownFile { .. })
         ));
+        let header = "/sdk/Headers/CoreFoundation.h:12:10: error: 'stdarg.h' file not found [clang-diagnostic-error]\n";
+        let Err(ParseError::Incomplete { detail, .. }) =
+            parse_clang_tidy(header.as_bytes(), Some(1), &files)
+        else {
+            panic!("an error in an unchecked header fails as incomplete");
+        };
+        assert!(detail.contains("'stdarg.h' file not found"), "{detail}");
         assert!(parse_clang_tidy(b"Error while processing x.c.\n", Some(0), &files).is_err());
         assert!(parse_clang_tidy(b"nope\n1 warning generated.\n", Some(0), &files).is_err());
     }

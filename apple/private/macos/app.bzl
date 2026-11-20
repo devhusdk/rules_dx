@@ -365,7 +365,7 @@ def apple_macos_app(
         entitlements = None,
         provisioning_profile = None,
         tags = None,
-        testonly = False,
+        testonly = None,
         visibility = None):
     """Builds one upstream macOS application over a Rust library, checked and ad hoc signed."""
     deployment = deployment or MACOS_DEPLOYMENT

@@ -750,6 +750,7 @@ test_suite(
         ":msvc_arm64_hello_test",
         ":msvc_arm64_pe_machine_test",
         ":msvc_arm64_shared_test",
+        ":msvc_arm64_x64_toolchain",
         ":msvc_c_test",
         ":msvc_hello_c_test",
         ":msvc_hello_lib_test",

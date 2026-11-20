@@ -213,8 +213,8 @@ To build with MSVC, add this line to `.bazelrc`:
 common --@rules_dx//cc:compiler=msvc
 ```
 
-MSVC builds on a Windows x86_64 host for Windows x86_64. Accept the Visual
-Studio Build Tools license in your root `MODULE.bazel`:
+MSVC builds on a Windows x86_64 or arm64 host for Windows x86_64 or arm64.
+Accept the Visual Studio Build Tools license in your root `MODULE.bazel`:
 
 ```starlark
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")

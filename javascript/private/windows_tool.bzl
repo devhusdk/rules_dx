@@ -1,4 +1,4 @@
-"""Windows launcher shim for js_binary build tools. Removal tracked in #13889 (bazel-lib#1296)."""
+"""Windows launcher shim for js_binary build tools. Removal tracked in #13889 (bazel-lib#1296); `//typescript/tests:windows_tool_tests_upstream_launcher` fails once upstream fixes it."""
 
 visibility(["//astro/...", "//javascript/...", "//typescript/..."])
 

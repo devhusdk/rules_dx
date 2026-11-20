@@ -64,7 +64,7 @@ The guards check the rules of `docs/design/tests.md`.
 - `//tools/testing:analysis_scaling_check` runs, for each depth in a fresh output base, `bazel build --nobuild` over the package with the aspects of `dx lint`, `dx typecheck`, `dx format` and `dx docs` and the `dx sync` aspects `dx_env_plan_aspect` and `dx_codegen_plan_aspect`. A warm-up run loads the packages; the measured run changes a `--define`, so it reanalyzes, and writes `--profile`. The analysis time runs from the `Load and analyze dependencies` phase marker to the next phase marker.
 - It fails when depth 400 takes more than 8 or less than 2 times depth 100.
 - The `analysis-scaling` job of `.github/workflows/ci.yml` runs it with `bazel run` and passes Bazel with `--bazel`.
-- Measured on Linux: 12.4 s at depth 100, 35.2 s at depth 400, ratio 2.84.
+- Measured on Linux: 61.5 s at depth 100, 204.6 s at depth 400, ratio 3.33 (ci.yml run 44524820323).
 
 ## In-graph prebuilt guard
 

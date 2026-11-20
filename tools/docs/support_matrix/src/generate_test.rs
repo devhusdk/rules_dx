@@ -152,12 +152,23 @@ fn a_removed_suite_test_fails_without_a_pending_or_not_applicable_entry() {
         .read("tools/docs/support_matrix/facts.json")
         .expect("facts");
     let mut value: serde_json::Value = serde_json::from_str(&facts).expect("facts parse");
+    let languages: Vec<serde_json::Value> = value["rows"]
+        .as_array()
+        .expect("rows")
+        .iter()
+        .filter(|row| row["section"] == "languages")
+        .map(|row| row["name"].clone())
+        .collect();
     let entries = value["conformance"]["entries"]
         .as_array_mut()
         .expect("conformance entries");
     let removed = entries
         .iter()
-        .find(|e| e["status"] == "run" && e["capability"] == "build_test")
+        .find(|e| {
+            e["status"] == "run"
+                && e["capability"] == "build_test"
+                && languages.contains(&e["lang"])
+        })
         .expect("a language runs build_test")["lang"]
         .clone();
     entries.retain(|e| !(e["lang"] == removed && e["capability"] == "build_test"));

@@ -129,4 +129,4 @@ What a consumer writes beyond its sources:
 - It fails when a `consumer.MODULE.bazel` holds anything but `module`, the `rules_dx` `bazel_dep` and license tags.
 - These tests start no Bazel server.
 - `tools/testing/consumer/pending.txt` lists the languages with no passing fixture. It only shrinks.
-- `//deploy/private/release/tests:release_consumer_smoke_test` is the one nested proof of module resolution. It runs the README commands with no text replaced.
+- `//deploy/private/release/tests:release_consumer_smoke_test` is the one nested proof of module resolution. It runs the README `dx init` line with `--no-generate`, adds the overrides `tools/testing/consumer/pending.txt` lists, pins the dx and launcher it built through `dx_prebuilt`, and runs `tools/dx` as `bazel run @rules_dx//:dx --`. `//examples/adopt-polyglot:consumer_test` covers `dx generate`.

@@ -82,6 +82,21 @@ def _objc_case(name, contains, absent):
         "macos_arm64": True,
     }
 
+def _objc_default_case(name, contains, absent):
+    # The default policy's curated objc typecheck is clang_syntax, so no dedicated test config is needed.
+    return {
+        "name": "real_result_clang_syntax_objc_default_" + name,
+        "target": "//core/quality/testdata/clang_syntax:" + name + "_objc",
+        "config": "default",
+        "tool": "clang_syntax",
+        "capability": "typecheck",
+        "class": "objc",
+        "contains": contains,
+        "absent": absent,
+        "target_compatible_with": _MACOS_ONLY,
+        "macos_arm64": True,
+    }
+
 def _nvcc_case(name, contains, absent):
     return {
         "name": "real_result_nvcc_syntax_" + name,
@@ -142,6 +157,8 @@ REAL_RESULT_CASES = [
     _gcc_case("clang_tidy", "lint", "clean", "clean", ["core/quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], "cc_tidy"),
     _objc_case("clean", ["clean.m"], ["undeclared_name", "Fatal error"]),
     _objc_case("dirty", ["undeclared identifier 'undeclared_name'"], []),
+    _objc_default_case("clean", ["clean.m"], ["undeclared_name", "Fatal error"]),
+    _objc_default_case("dirty", ["undeclared identifier 'undeclared_name'"], []),
     {
         "name": "real_result_zanuda_clean",
         "target": "//core/quality/testdata/zanuda_owned:clean",

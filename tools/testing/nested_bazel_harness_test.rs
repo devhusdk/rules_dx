@@ -145,10 +145,7 @@ fn indirect_consumer(name: &str) -> Case {
     );
     case.write(
         "MODULE.bazel",
-        &format!(
-            "{module}{}",
-            nested::compose::rules_flutter_override()
-        ),
+        &format!("{module}{}", nested::compose::rules_flutter_override()),
     );
     let rules = resolve_runfiles("MODULE.bazel");
     let rules = std::path::absolute(&rules).unwrap_or_else(|error| panic!("{rules:?}: {error}"));
@@ -158,11 +155,6 @@ fn indirect_consumer(name: &str) -> Case {
         (
             "cgrindel_bazel_starlib",
             nested::compose::STARLIB_PATCHES.as_slice(),
-        ),
-        ("rules_swift", nested::compose::RULES_SWIFT_PATCHES.as_slice()),
-        (
-            "apple_support",
-            nested::compose::APPLE_SUPPORT_PATCHES.as_slice(),
         ),
     ] {
         case.write(&format!("patches/{package}/BUILD.bazel"), "");

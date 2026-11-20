@@ -125,6 +125,11 @@ before it runs anything. On Windows the extension links the dynamic CRT, so
 an app that ships it must also ship `msvcp140` and `vcruntime140*` from
 `@msvc_runtime`.
 
+## Runfiles
+
+`python_binary` needs a runfiles directory; a runfiles manifest alone is not
+enough. The consumer preset sets `build:windows --enable_runfiles`.
+
 ## Rules
 
 `load` brings rules into a `BUILD.bazel` file. Load the ones you use from `@rules_dx//python:defs.bzl`:

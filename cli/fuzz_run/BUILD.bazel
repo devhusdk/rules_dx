@@ -8,8 +8,8 @@ rust_library(
     srcs = [
         "src/lib.rs",
         "src/run.rs",
-        "src/run_tests.rs",
     ],
+    crate_root = "src/lib.rs",
     visibility = ["//cli/runtime:__pkg__"],
     deps = [
         "//cli/error:dx_error",
@@ -21,8 +21,20 @@ rust_library(
 rust_test(
     name = "dx_fuzz_run_test",
     size = "small",
-    crate = ":dx_fuzz_run",
-    deps = ["//cli/test_scratch:dx_test_scratch"],
+    srcs = [
+        "src/lib.rs",
+        "src/run.rs",
+        "src/run_tests.rs",
+    ],
+    coverage_lib = ":dx_fuzz_run",
+    crate_name = "dx_fuzz_run",
+    crate_root = "src/lib.rs",
+    deps = [
+        "//cli/error:dx_error",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:tempfile",
+        "@rules_rust//rust/runfiles",
+    ],
 )
 
 real_source_target(

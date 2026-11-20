@@ -1,0 +1,24 @@
+load("@rules_dx//rust:defs.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "dx_no_crate_root",
+    srcs = [
+        "src/lib.rs",
+        "src/run.rs",
+    ],
+    crate_root = "src/lib.rs",
+    visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "dx_no_crate_root_test",
+    size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/run.rs",
+        "src/run_tests.rs",
+    ],
+    coverage_lib = ":dx_no_crate_root",
+    crate_name = "dx_no_crate_root",
+    crate_root = "src/lib.rs",
+)

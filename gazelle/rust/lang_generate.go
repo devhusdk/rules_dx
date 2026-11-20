@@ -1078,7 +1078,7 @@ func existingDeps(file *rule.File, kind, root string) bzl.Expr {
 		return nil
 	}
 	for _, r := range file.Rules {
-		if r.Kind() == kind && r.AttrString("crate_root") == root {
+		if r.Kind() == kind && effectiveCrateRoot(r) == root {
 			return r.Attr("deps")
 		}
 	}

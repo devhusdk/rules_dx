@@ -23,7 +23,6 @@ real_source_target(
         "defs.bzl",
         "platforms.bzl",
         "providers.bzl",
-        "pub.bzl",
         "dart_config.bzl",
     ],
     tags = ["corpus"],

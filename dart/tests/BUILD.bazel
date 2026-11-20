@@ -3,7 +3,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_main_candidates")
-load("//dart/private:defs.bzl", "DART_SOURCE_SPECS", "dart_root_package_name")
+load("//dart/private:defs.bzl", "DART_SOURCE_SPECS")
 load("//dart/private:platforms.bzl", "DART_PLATFORMS")
 
 exports_files(["padded_archive.pubspec.lock"])
@@ -85,34 +85,6 @@ dx_wrapper_contract_tests(
             "no rules_dart sdk for windows arm64",
             "windows_arm64" in DART_PLATFORMS,
             False,
-        ),
-        expect_equal(
-            "root library takes its own name",
-            dart_root_package_name("", "tally", {}),
-            "tally",
-        ),
-        expect_equal(
-            "nested library keeps the directory name",
-            dart_root_package_name("pkgs/tally", "lib", {}),
-            None,
-        ),
-        expect_equal(
-            "explicit root package name wins",
-            dart_root_package_name(
-                "",
-                "lib",
-                {"package_name": "tally"},
-            ),
-            None,
-        ),
-        expect_equal(
-            "root package metadata wins",
-            dart_root_package_name(
-                "",
-                "lib",
-                {"package": ":meta"},
-            ),
-            None,
         ),
     ],
     file_classes = [file_class for file_class, _ in DART_SOURCE_SPECS],

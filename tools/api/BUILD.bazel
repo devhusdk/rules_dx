@@ -152,11 +152,6 @@ _UPSTREAM_BZL = [
     "@aspect_rules_ts//ts:defs",
     "@bazel_skylib//rules:copy_file",
     "@dx_pins_data//:pins.bzl",
-    "@dx_rules_dart_pub//dart/ext:registry",
-    "@dx_rules_dart_pub//dart/pub:extensions",
-    "@dx_rules_dart_pub//dart/pub/private:dx_bzl_srcs",
-    "@dx_rules_flutter_pub//flutter:dx_bzl_srcs",
-    "@dx_rules_flutter_pub//flutter/private:dx_bzl_srcs",
     "@dx_windows_support//windows:extensions",
     "@gazelle//:extensions",
     "@llvm//platforms:common",
@@ -173,6 +168,8 @@ _UPSTREAM_BZL = [
     "@rules_dart//dart:utils",
     "@rules_dart//dart/ext:registry",
     "@rules_dart//dart/private:dx_bzl_srcs",
+    "@rules_dart//dart:repositories",
+    "@rules_dart//dart/pub:extensions",
     "@rules_dart//dart/pub:pub_lock_package",
     "@rules_dart//dart/pub:yaml_parser",
     "@rules_dart//dart/pub/private:dx_bzl_srcs",
@@ -180,6 +177,7 @@ _UPSTREAM_BZL = [
     "@rules_elixir//:dx_bzl_srcs",
     "@rules_flutter//flutter:dx_bzl_srcs",
     "@rules_flutter//flutter/private:dx_bzl_srcs",
+    "@rules_flutter//flutter/pub:extensions",
     "@rules_erlang//:dx_bzl_srcs",
     "@rules_dotnet//dotnet:extensions",
     "@rules_fortran//fortran:defs",
@@ -211,8 +209,8 @@ _UPSTREAM_BZL = [
     "@rules_scala//specs2:dx_bzl_srcs",
     "@rules_scala_config//:dx_bzl_srcs",
     "@rules_shell//shell:rules_bzl",
+    "@rules_swift//mixed_language:mixed_language_library",
     "@rules_zig//zig:defs",
-    "@yaml.bzl//:yaml",
 ]
 
 _STARLARK_DOCS = {

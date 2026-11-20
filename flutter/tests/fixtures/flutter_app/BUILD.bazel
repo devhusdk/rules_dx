@@ -8,8 +8,6 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files(
     [
         "BUILD.bazel",
-        "assets/fonts/DxSquare.ttf",
-        "assets/items.json",
         "l10n.yaml",
         "profile.bzl",
         "pubspec.lock",

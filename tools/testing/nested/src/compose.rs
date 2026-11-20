@@ -147,14 +147,14 @@ pub fn windows_support_override() -> String {
 }
 
 /// The patches of `//patches/rules_flutter` that `rules_flutter_override` names, without `.patch`.
-pub const RULES_FLUTTER_PATCHES: [&str; 6] = [
+pub const RULES_FLUTTER_PATCHES: [&str; 3] = [
     "lock_extension",
     "registrant_javacopts",
-    "required_checksums",
-    "flutter_3_47_9",
-    "ios_target_compatible_with",
-    "coverage_enabled",
+    "windows_golden_comparator",
 ];
+
+/// The patches of `//patches/cgrindel_bazel_starlib` that `rules_flutter_override` names, without `.patch`.
+pub const STARLIB_PATCHES: [&str; 1] = ["absent_local_git"];
 
 /// The `flutter/pins.json` that holds the `rules_flutter` pin.
 const FLUTTER_PINS: &str = include_str!("../../../../flutter/pins.json");
@@ -211,7 +211,7 @@ fn sha256_integrity(hex: &str) -> Result<String, String> {
     Ok(out)
 }
 
-/// Pins the patched `rules_flutter` the way the root MODULE.bazel does, from `flutter/pins.json`.
+/// Pins the patched `rules_flutter` and `cgrindel_bazel_starlib` the way the root MODULE.bazel does, from `flutter/pins.json`.
 ///
 /// # Errors
 ///
@@ -234,8 +234,11 @@ pub fn rules_flutter_override() -> Result<String, String> {
     let patches = RULES_FLUTTER_PATCHES
         .map(|name| format!("        \"//patches/rules_flutter:{name}.patch\",\n"))
         .concat();
+    let starlib_patches = STARLIB_PATCHES
+        .map(|name| format!("        \"//patches/cgrindel_bazel_starlib:{name}.patch\",\n"))
+        .concat();
     Ok(format!(
-        "archive_override(\n    module_name = \"rules_flutter\",\n    integrity = \"{integrity}\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"{strip_prefix}\",\n    urls = [\"{url}\"],\n)\n"
+        "archive_override(\n    module_name = \"rules_flutter\",\n    integrity = \"{integrity}\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"{strip_prefix}\",\n    urls = [\"{url}\"],\n)\nsingle_version_override(\n    module_name = \"cgrindel_bazel_starlib\",\n    patch_strip = 1,\n    patches = [\n{starlib_patches}    ],\n    version = \"0.30.0\",\n)\n"
     ))
 }
 
@@ -365,7 +368,13 @@ pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), S
     let patches = rules_py_patches();
     let patches: Vec<&str> = patches.iter().map(String::as_str).collect();
     write_patches(workspace, rules_dx, "rules_py", &patches)?;
-    write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)
+    write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)?;
+    write_patches(
+        workspace,
+        rules_dx,
+        "cgrindel_bazel_starlib",
+        &STARLIB_PATCHES,
+    )
 }
 
 /// The modules whose root MODULE.bazel `single_version_override` the consumer repeats.

@@ -653,6 +653,11 @@ fn the_consumer_materializes_from_dx_init() {
     for patch in dx_nested::compose::RULES_FLUTTER_PATCHES {
         std::fs::write(flutter.join(format!("{patch}.patch")), "").unwrap();
     }
+    let starlib = source.join("patches/cgrindel_bazel_starlib");
+    std::fs::create_dir_all(&starlib).unwrap();
+    for patch in dx_nested::compose::STARLIB_PATCHES {
+        std::fs::write(starlib.join(format!("{patch}.patch")), "").unwrap();
+    }
     let overrides = [
         ("rules_python", "fix.patch"),
         ("rules_swift", "xcode_select_absolute_path.patch"),
@@ -1972,7 +1977,6 @@ fn macos_evidence_is_checked_against_macos_markers() {
     let linux = good_evidence();
     assert!(verify_evidence(&linux, "abc123", &manifest).is_ok());
 }
-
 
 #[test]
 fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {

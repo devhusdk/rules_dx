@@ -1,14 +1,19 @@
 # gazelle:ignore
 
-load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library", "dart_test")
-load("@rules_dx//core/private/testing:defs.bzl", "starlark_test")
 load("@rules_dx//core:tag_probe.bzl", "tag_subject")
+load("@rules_dx//core/private/testing:defs.bzl", "starlark_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library", "dart_package_metadata", "dart_test")
+
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "tags_lib",
+)
 
 dart_library(
     name = "lib",
-    package_name = "tags_lib",
     srcs = ["lib/tags_lib.dart"],
+    package = ":pubspec-metadata",
     tags = [
         "manual",
         "no-lint",
@@ -71,5 +76,6 @@ real_source_target(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],    visibility = ["//:__pkg__"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
 )

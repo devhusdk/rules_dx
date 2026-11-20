@@ -1,5 +1,5 @@
 flutter_pub = use_extension("@rules_dx//flutter:extensions.bzl", "pub")
-flutter_pub.lock(
+flutter_pub.from_lock(
     name = "dx_flutter_app_deps",
     lock = "//flutter/tests/fixtures/flutter_app:pubspec.lock",
 )

@@ -1,5 +1,5 @@
 """Public Dart module extensions."""
 
-load("//dart/private:pub.bzl", _pub = "pub")
+load("@rules_dart//dart/pub:extensions.bzl", _pub = "pub")
 
 pub = _pub

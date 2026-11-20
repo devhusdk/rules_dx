@@ -55,6 +55,9 @@ func generate(t *testing.T, files map[string]string, build string) (language.Gen
 func summary(result language.GenerateResult) []string {
 	var out []string
 	for _, r := range result.Gen {
+		if r.Kind() == MetadataKind {
+			continue
+		}
 		out = append(out, r.Kind()+" "+r.Name()+" main="+r.AttrString("main")+" srcs="+strings.Join(r.AttrStrings("srcs"), ","))
 	}
 	sort.Strings(out)
@@ -149,6 +152,29 @@ func TestGenerateTestMayUseDevDependency(t *testing.T) {
 	}
 }
 
+func TestGenerateDeclaresPackageMetadata(t *testing.T) {
+	result, errs := generate(t, map[string]string{"pubspec.yaml": pubspec, "lib/a.dart": ""}, "")
+	if len(errs) != 0 {
+		t.Fatalf("errors = %v", errs)
+	}
+	f := rule.EmptyFile("BUILD.bazel", "")
+	for _, r := range result.Gen {
+		r.Insert(f)
+	}
+	for _, r := range result.Gen {
+		if r.Kind() == LibraryKind {
+			if got := r.AttrString("package"); got != ":"+MetadataName {
+				t.Errorf("package = %q", got)
+			}
+			if got := packageName(r, f); got != "greet" {
+				t.Errorf("package name = %q, want greet", got)
+			}
+			return
+		}
+	}
+	t.Errorf("no library in %v", summary(result))
+}
+
 func TestGeneratePartFromGenrule(t *testing.T) {
 	result, errs := generate(t, map[string]string{"pubspec.yaml": pubspec, "lib/a.dart": "part 'a.g.dart';\n"},
 		"genrule(name = \"gen\", outs = [\"lib/a.g.dart\"], cmd = \"touch $@\")\n")
@@ -162,7 +188,7 @@ func TestGeneratePartFromGenrule(t *testing.T) {
 
 func TestGenerateKeepsUserOwnedAttrs(t *testing.T) {
 	result, _ := generate(t, map[string]string{"pubspec.yaml": pubspec, "lib/a.dart": ""},
-		"dart_library(name = \"greet\", package_name = \"greet\", srcs = [\"lib/a.dart\"], data = [\"x\"], aspect_hints = [\"//:h\"])\n")
+		"dart_package_metadata(name = \"pubspec-metadata\", package_name = \"greet\")\ndart_library(name = \"greet\", package = \":pubspec-metadata\", srcs = [\"lib/a.dart\"], data = [\"x\"], aspect_hints = [\"//:h\"])\n")
 	for _, r := range result.Gen {
 		if r.AttrStrings("data") != nil || r.AttrStrings("aspect_hints") != nil {
 			t.Errorf("generation sets user-owned attributes on %s", r.Name())

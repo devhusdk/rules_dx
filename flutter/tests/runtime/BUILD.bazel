@@ -1,40 +1,44 @@
 # gazelle:ignore
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("@rules_dx//flutter:defs.bzl", "flutter_application", "flutter_library", "flutter_test", "flutter_web_app")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//dart:defs.bzl", "dart_package_metadata")
 load("@rules_dx//dart/tests/web:web_tests.bzl", "web_owns_main_test")
+load("@rules_dx//flutter:defs.bzl", "flutter_application", "flutter_library", "flutter_test", "flutter_web_app")
 
 package(default_visibility = ["//visibility:public"])
+
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "dx_flutter_probe",
+)
 
 _DEPS = ["@dx_flutter_deps//:flutter"]
 
 flutter_library(
     name = "lib",
-    package_name = "dx_flutter_probe",
     srcs = glob(["lib/**/*.dart"]),
+    package = ":pubspec-metadata",
     deps = _DEPS,
 )
 
 flutter_application(
     name = "app",
-    package_name = "dx_flutter_probe",
     main = "lib/main.dart",
-    deps = [":lib"] + _DEPS,
+    package = ":pubspec-metadata",
+    deps = _DEPS,
 )
 
 flutter_web_app(
     name = "web",
-    package_name = "dx_flutter_probe",
-    main = "lib/main.dart",
-    deps = [":lib"] + _DEPS,
+    application = ":app",
 )
 
 web_owns_main_test(
-    name = "web_owns_main_test",
+    name = "app_owns_main_test",
     size = "small",
     target_compatible_with = ["@platforms//os:linux"],
-    target_under_test = ":web",
+    target_under_test = ":app",
 )
 
 build_test(
@@ -46,8 +50,8 @@ build_test(
 
 flutter_test(
     name = "widget_test",
-    package_name = "dx_flutter_probe",
     main = "test/widget_test.dart",
+    package = ":pubspec-metadata",
     deps = [
         ":lib",
         "@dx_flutter_deps//:flutter_test",

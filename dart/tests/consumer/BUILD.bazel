@@ -1,10 +1,15 @@
-load("@rules_dx//dart:defs.bzl", "dart_library", "dart_test")
+load("@rules_dx//dart:defs.bzl", "dart_library", "dart_package_metadata", "dart_test")
+
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "consumer",
+)
 
 # dx: written once, yours to edit
 
 dart_library(
     name = "consumer",
-    package_name = "consumer",
+    package = ":pubspec-metadata",
     srcs = ["lib/greet.dart"],
     visibility = ["//visibility:public"],
 )

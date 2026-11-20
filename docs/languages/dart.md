@@ -29,11 +29,16 @@ bazel_dep(name = "rules_dx", version = "<release>")
 A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Dart package from [`dart/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/dart/tests/consumer/BUILD.bazel):
 
 ```python
-load("@rules_dx//dart:defs.bzl", "dart_library", "dart_test")
+load("@rules_dx//dart:defs.bzl", "dart_library", "dart_package_metadata", "dart_test")
+
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "consumer",
+)
 
 dart_library(
     name = "consumer",
-    package_name = "consumer",
+    package = ":pubspec-metadata",
     srcs = ["lib/greet.dart"],
     visibility = ["//visibility:public"],
 )
@@ -70,7 +75,6 @@ pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
 pub.from_lock(
     name = "my_pub_deps",
     lock = "//third_party/dart:pubspec.lock",
-    on_version_conflict = "upgrade",
 )
 use_repo(pub, "my_pub_deps")
 ```
@@ -171,10 +175,14 @@ rules.
 `load` brings rules into a `BUILD.bazel` file. Load the ones you use from `@rules_dx//dart:defs.bzl`:
 
 ```python
-load("@rules_dx//dart:defs.bzl", "dart_codegen", "dart_library", "dart_binary")
+load("@rules_dx//dart:defs.bzl", "dart_codegen", "dart_package_metadata", "dart_library")
 ```
 
 ### `dart_codegen`
+
+Re-exported from `@rules_dart//dart:defs.bzl`.
+
+### `dart_package_metadata`
 
 Re-exported from `@rules_dart//dart:defs.bzl`.
 

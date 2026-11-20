@@ -1454,7 +1454,7 @@ fn flutter_pub_update_runs_the_rules_flutter_pub_target() {
     };
     let position = argv
         .iter()
-        .position(|arg| arg == "@rules_flutter//flutter:pub")
+        .position(|arg| arg == "@rules_flutter//flutter/pub")
         .expect("flutter pub target");
     let app = dir.path().join("app").to_string_lossy().into_owned();
     assert_eq!(
@@ -1483,7 +1483,7 @@ fn flutter_pub_check_enforces_the_lockfile() {
     };
     let position = argv
         .iter()
-        .position(|arg| arg == "@rules_flutter//flutter:pub")
+        .position(|arg| arg == "@rules_flutter//flutter/pub")
         .expect("flutter pub target");
     let app = dir.path().join("app").to_string_lossy().into_owned();
     assert_eq!(

@@ -1,7 +1,7 @@
 Upstream: none (rules_dx only: marks the extension not reproducible so the lockfile pins it per host)
 --- a/flutter/extensions.bzl
 +++ b/flutter/extensions.bzl
-@@ -262,7 +262,7 @@
+@@ -326,7 +326,7 @@
      # the full set makes tidy force repos they don't. Letting users maintain
      # their own use_repo lists (rules_python does the same) is the right
      # tradeoff for an extension with this many optional outputs.

@@ -1,10 +1,10 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
-    "coverage.patch",
+    "cross_revision.patch",
     "dx_bzl_srcs.patch",
     "external_pkgsrcs.patch",
-    "hermetic_tar.patch",
+    "summaries_scope.patch",
     "windows_long_dill.patch",
 ])
 

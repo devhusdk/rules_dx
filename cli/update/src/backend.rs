@@ -1263,7 +1263,7 @@ fn opam_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
     )])
 }
 
-/// A `pub` run of a Flutter set through `@rules_flutter//flutter:pub`, which points
+/// A `pub` run of a Flutter set through `@rules_flutter//flutter/pub`, which points
 /// `FLUTTER_ROOT` at a tree for the pinned Flutter version.
 fn pub_argv(
     workspace: &Path,
@@ -1272,7 +1272,7 @@ fn pub_argv(
     command: &[&str],
 ) -> Result<Vec<String>, BackendError> {
     let dir = set_dir(workspace, set)?;
-    let mut argv = bazel(head, "run", &["@rules_flutter//flutter:pub", "--"]);
+    let mut argv = bazel(head, "run", &["@rules_flutter//flutter/pub", "--"]);
     argv.extend(strings(command));
     argv.extend(["--directory".to_owned(), dir]);
     Ok(argv)

@@ -1226,8 +1226,14 @@ rust_test(
     ),
     crate_name = "command_labels_test",
     crate_root = "command_labels_test.rs",
-    data = ["@dx_test_tags_sources//:rust.json"],
-    env = {"DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:rust.json)"},
+    data = [
+        "@dx_test_tags_sources//:rust.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:rust.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
     deps = all_crate_deps(
         package_name = "tools/ci_tests",
         normal = True,

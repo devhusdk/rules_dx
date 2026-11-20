@@ -183,8 +183,6 @@ pub const ENV: &str = "@rules_dx//dx:env";
 pub const CODEGEN: &str = "@rules_dx//dx:codegen";
 /// The `rules_dx` target `dx docs` builds for the site scope tools.
 pub const DOCS_SCOPE_TOOLS: &str = "@rules_dx//tools/docs/site:scope_tools";
-/// The `rules_dx` target the `dx audit` gitleaks hint runs.
-pub const TOOL_RESOLVE: &str = "@rules_dx//dx/tool_resolve";
 
 /// The `rules_dx` targets dx commands run for every language.
 pub const COMMAND_TARGETS: &[&str] = &[
@@ -197,7 +195,6 @@ pub const COMMAND_TARGETS: &[&str] = &[
     ENV,
     CODEGEN,
     DOCS_SCOPE_TOOLS,
-    TOOL_RESOLVE,
 ];
 
 fn commands() -> &'static BTreeMap<String, BTreeMap<String, String>> {

@@ -28,7 +28,7 @@ if [ ! -f "$report" ]; then
   echo "dx: kcov wrote no report for $upstream" >&2
   exit 1
 fi
-if ! "$(runfile "$DX_TO_LCOV")" --from cobertura --sources "$sources" "$report" "$COVERAGE_DIR/kcov.dat"; then
+if ! DX_RUNTIME_TOOL=to_lcov "$(runfile "$DX_TO_LCOV")" --from cobertura --sources "$sources" "$report" "$COVERAGE_DIR/kcov.dat"; then
   exit 1
 fi
 exit "$status"

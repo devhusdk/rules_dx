@@ -1,12 +1,5 @@
 //! Converts a Clover or Cobertura XML coverage report to LCOV.
 
-#![deny(
-    clippy::map_err_ignore,
-    clippy::print_stderr,
-    clippy::print_stdout,
-    clippy::unused_result_ok
-)]
-
 use std::env;
 use std::ffi::OsString;
 use std::fs;
@@ -54,8 +47,8 @@ fn parse_args(args: &[OsString]) -> Result<Args, DxError> {
 
 fn convert(from: &str, xml: &str) -> Result<String, DxError> {
     let lcov = match from {
-        "clover" => dx_lcov::clover_to_lcov(xml),
-        "cobertura" => dx_lcov::cobertura_to_lcov(xml),
+        "clover" => crate::clover_to_lcov(xml),
+        "cobertura" => crate::cobertura_to_lcov(xml),
         _ => {
             return Err(DxError::usage(format!(
                 "unknown --from {from}; want clover or cobertura"
@@ -74,14 +67,15 @@ fn run(args: &[OsString]) -> Result<(), DxError> {
         let list = fs::read_to_string(path)
             .map_err(|e| DxError::infra(format!("cannot read {}: {e}", path.display())))?;
         let sources: Vec<&str> = list.lines().filter(|line| !line.is_empty()).collect();
-        lcov = dx_lcov::keep_sources(&lcov, &sources);
+        lcov = crate::keep_sources(&lcov, &sources);
     }
     dx_atomic_fs::write_atomic(&args.output, lcov.as_bytes())
         .map_err(|e| DxError::infra(format!("cannot write {}: {e}", args.output.display())))
 }
 
 // LCOV_EXCL_START - reason: process entry point that exits, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-fn main() -> ExitCode {
+/// Runs `to_lcov` on the process arguments.
+pub fn main() -> ExitCode {
     let args: Vec<OsString> = env::args_os().skip(1).collect();
     match run(&args) {
         Ok(()) => ExitCode::SUCCESS,

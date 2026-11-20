@@ -49,7 +49,7 @@ alias(
 alias(
     name = "to_lcov_or_none",
     actual = select({
-        "@platforms//os:linux": "//cli/lcov:to_lcov",
+        "@platforms//os:linux": "@dx_prebuilt//:runtime",
         "//conditions:default": ":none",
     }),
     visibility = VIS_TOOLS_PUBLIC,
@@ -117,6 +117,29 @@ rust_test(
     env = {
         "DX_KCOV": "$(rootpath :kcov_static)",
         "DX_KCOV_SMOKE": "$(rootpath :smoke)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "release_launcher_test",
+    size = "small",
+    srcs = ["release_launcher_test.rs"],
+    data = [
+        "smoke.c",
+        ":kcov_launcher",
+        ":kcov_static",
+        ":smoke",
+        "//cli/runtime:dx_runtime",
+        "//tools/coverage/lib:runfile.sh",
+    ],
+    env = {
+        "DX_KCOV_LAUNCHER": "$(rootpath :kcov_launcher)",
+        "DX_KCOV_SMOKE": "$(rootpath :smoke)",
+        "DX_KCOV_STATIC": "$(rootpath :kcov_static)",
+        "DX_RUNFILE_LIB": "$(rootpath //tools/coverage/lib:runfile.sh)",
+        "DX_RUNTIME": "$(rootpath //cli/runtime:dx_runtime)",
     },
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],

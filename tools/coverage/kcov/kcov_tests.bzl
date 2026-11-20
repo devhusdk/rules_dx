@@ -11,6 +11,8 @@ def _kcov_env_impl(ctx):
         upstream = run_env.get("DX_KCOV_UPSTREAM", "")
         asserts.true(env, upstream.endswith("/" + ctx.attr.upstream), "upstream is " + upstream)
         asserts.true(env, run_env.get("DX_KCOV_SOURCES", "").endswith(".kcov_sources"), "no kcov sources manifest")
+        to_lcov = run_env.get("DX_TO_LCOV", "")
+        asserts.true(env, to_lcov.endswith("/cli/runtime/dx_runtime"), "to_lcov is " + to_lcov)
         instrumented = [f.short_path for f in target[InstrumentedFilesInfo].instrumented_files.to_list()]
         asserts.equals(env, ctx.attr.instrumented, instrumented)
     else:

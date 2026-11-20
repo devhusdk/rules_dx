@@ -18,6 +18,7 @@ mod keep;
 mod lang;
 pub mod parse;
 mod sancov;
+pub mod to_lcov;
 mod xml;
 
 pub use accounting::{

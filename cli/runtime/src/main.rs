@@ -24,6 +24,7 @@ const TOOLS: &[(&str, Helper)] = &[
     ("hpc_coverage", dx_hpc_coverage::main),
     ("opa_test", dx_opa_test::main),
     ("php_coverage", dx_php_coverage::main),
+    ("to_lcov", dx_lcov::to_lcov::main),
 ];
 
 /// The helper a rule named, if there is one.

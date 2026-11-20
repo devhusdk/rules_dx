@@ -143,7 +143,7 @@ alias(
 alias(
     name = "to_lcov_or_none",
     actual = select({
-        ":bisect_cell": "//cli/lcov:to_lcov",
+        ":bisect_cell": "@dx_prebuilt//:runtime",
         "//conditions:default": ":none",
     }),
     visibility = VIS_TOOLS_PUBLIC,

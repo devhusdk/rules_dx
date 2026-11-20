@@ -36,10 +36,17 @@ REMOTE_QUALIFIED = [
     _qualified("buildifier", "format"),
     _qualified("buildifier", "lint"),
     _qualified("checkmake", "lint"),
+    _qualified("cue", "format"),
+    _qualified("cue", "typecheck"),
+    _qualified("ffmt", "format"),
+    _qualified("fortitude", "lint"),
     _qualified("gersemi", "format"),
     _qualified("hadolint", "lint"),
+    _qualified("jsonnet_lint", "lint"),
     _qualified("jsonnetfmt", "format"),
     _qualified("keep_sorted", "lint"),
+    _qualified("opa", "format"),
+    _qualified("opa", "typecheck"),
     _qualified("ruff", "format"),
     _qualified("ruff", "lint"),
     _qualified("shellcheck", "lint"),
@@ -49,6 +56,7 @@ REMOTE_QUALIFIED = [
     _qualified("typos", "lint"),
     _qualified("typstyle", "format"),
     _qualified("vale", "lint"),
+    _qualified("xmllint", "lint"),
     _qualified("yamlfmt", "format"),
     _qualified("zizmor", "lint"),
 ]
@@ -82,8 +90,6 @@ PENDING = [
     ("credo", "lint"),
     ("csc", "typecheck"),
     ("csharpier", "format"),
-    ("cue", "format"),
-    ("cue", "typecheck"),
     ("dart", "format"),
     ("dart", "lint"),
     ("dart", "typecheck"),
@@ -101,11 +107,9 @@ PENDING = [
     ("errcheck", "lint"),
     ("eslint", "lint"),
     ("fantomas", "format"),
-    ("ffmt", "format"),
     ("flang", "typecheck"),
     ("flatc", "lint"),
     ("flatc", "typecheck"),
-    ("fortitude", "lint"),
     ("fsc", "typecheck"),
     ("fsharplint", "lint"),
     ("ghc", "typecheck"),
@@ -121,7 +125,6 @@ PENDING = [
     ("hlint", "lint"),
     ("javac", "typecheck"),
     ("jet", "typecheck"),
-    ("jsonnet_lint", "lint"),
     ("julia_format", "format"),
     ("julialint", "lint"),
     ("kotlinc", "typecheck"),
@@ -138,8 +141,6 @@ PENDING = [
     ("notebook_outputs", "lint"),
     ("nvcc_syntax", "typecheck"),
     ("ocaml", "typecheck"),
-    ("opa", "format"),
-    ("opa", "typecheck"),
     ("ormolu", "format"),
     ("perlcritic", "lint"),
     ("perltidy", "format"),
@@ -191,7 +192,6 @@ PENDING = [
     ("tsc", "typecheck"),
     ("ty", "typecheck"),
     ("weeder", "lint"),
-    ("xmllint", "lint"),
     ("yamllint", "lint"),
     ("zanuda", "lint"),
     ("zig", "typecheck"),
@@ -294,7 +294,7 @@ def dx_stage_execution_requirements(stage_tools, capability, run_tools = []):
 
     Args:
       stage_tools: tool ids the stage runs.
-      capability: "format" or "lint".
+      capability: "format", "lint" or "typecheck".
       run_tools: names of the runfiles launchers the stage puts on PATH.
     """
     if len(stage_tools) == 0:

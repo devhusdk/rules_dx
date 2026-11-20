@@ -206,6 +206,25 @@ def execution_requirements_unit_tests(name):
                 [{}, {}, {}],
             ),
             expect_equal(
+                "the cue, ffmt, fortitude, jsonnet_lint, opa and xmllint stages run remotely",
+                [
+                    dx_stage_execution_requirements(["cue"], "format"),
+                    dx_stage_execution_requirements(["cue"], "typecheck"),
+                    dx_stage_execution_requirements(["ffmt"], "format"),
+                    dx_stage_execution_requirements(["fortitude"], "lint"),
+                    dx_stage_execution_requirements(["jsonnet_lint"], "lint"),
+                    dx_stage_execution_requirements(["opa"], "format"),
+                    dx_stage_execution_requirements(["opa"], "typecheck"),
+                    dx_stage_execution_requirements(["xmllint"], "lint"),
+                ],
+                [{}, {}, {}, {}, {}, {}, {}, {}],
+            ),
+            expect_equal(
+                "regal lint stays local",
+                dx_stage_execution_requirements(["regal"], "lint"),
+                {DX_NO_REMOTE_EXEC: "1"},
+            ),
+            expect_equal(
                 "a qualified tool beside an unqualified one stays local",
                 dx_stage_execution_requirements(["actionlint", "lychee"], "lint"),
                 {DX_NO_REMOTE_EXEC: "1"},

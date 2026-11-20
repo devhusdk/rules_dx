@@ -280,7 +280,31 @@ def _android_checks():
         "dx-android-ndk-archive:" + DEFAULT_MIRROR + "/android-ndk-r27-linux.zip",
     ))
     tools = BUILD_TOOLS_ARTIFACTS["linux_x86_64"]
-    checks.append(expect_equal("build-tools hosts", sorted(BUILD_TOOLS_ARTIFACTS.keys()), ["linux_x86_64"]))
+    checks.append(expect_equal("build-tools hosts", sorted(BUILD_TOOLS_ARTIFACTS.keys()), ["linux_x86_64", "macos_arm64", "windows_x86_64"]))
+    mac_tools = BUILD_TOOLS_ARTIFACTS["macos_arm64"]
+    checks.append(expect_equal(
+        "macos build-tools pin",
+        [mac_tools.anchor, mac_tools.archive, mac_tools.directory, mac_tools.sha1, mac_tools.sha256, mac_tools.size],
+        ["source.properties", "build-tools_r35_macosx.zip", "android-15", "93ab8ce91230e067b5add4bfa79919c52b27f072", "530cdbd1ec315e1477624d7ed2f0f2962108d69f36eddba5894cef9ea2cedb48", 76857898],
+    ))
+    win_tools = BUILD_TOOLS_ARTIFACTS["windows_x86_64"]
+    checks.append(expect_equal(
+        "windows build-tools pin",
+        [win_tools.anchor, win_tools.archive, win_tools.directory, win_tools.sha1, win_tools.sha256, win_tools.size],
+        ["source.properties", "build-tools_r35_windows.zip", "android-15", "af059bb67cf7786f45ee0db85e2d24985df1b4b6", "5753c679a1b90bcf6fbc9945a2ce39dfb9e74f1df0831a1e1866ae5b594326f0", 59878107],
+    ))
+    mac_pt = PLATFORM_TOOLS_ARTIFACTS["macos_arm64"]
+    checks.append(expect_equal(
+        "macos platform-tools pin",
+        [mac_pt.anchor, mac_pt.archive, mac_pt.directory, mac_pt.sha1, mac_pt.sha256, mac_pt.size],
+        ["adb", "platform-tools_r37.0.1-darwin.zip", "platform-tools", "6ae73f4de6452dc57e62ec02b68eed92a4c21661", "ee39ad5967e95c2a07f04dbcbde96b1a0c916ba376096db5d2f498b7727a5d1d", 16110554],
+    ))
+    win_pt = PLATFORM_TOOLS_ARTIFACTS["windows_x86_64"]
+    checks.append(expect_equal(
+        "windows platform-tools pin",
+        [win_pt.anchor, win_pt.archive, win_pt.directory, win_pt.sha1, win_pt.sha256, win_pt.size],
+        ["adb.exe", "platform-tools_r37.0.1-win.zip", "platform-tools", "e03e78b1d80b396f1c3358e31251cb31740e1110", "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99", 8044989],
+    ))
     checks.append(expect_equal("build-tools archive prefix", BUILD_TOOLS_ARCHIVE_PREFIX, "build-tools_r35"))
     checks.append(expect_equal("build-tools archive", tools.archive, "build-tools_r35_linux.zip"))
     checks.append(expect_equal("build-tools directory", tools.directory, "android-15"))
@@ -308,7 +332,11 @@ def _android_checks():
     checks.append(expect_equal(
         "build-tools are not an ndk",
         artifact_errors(BUILD_TOOLS_ARTIFACTS),
-        ["artifact 'linux_x86_64' archive is 'build-tools_r35_linux.zip', want the pinned 'android-ndk-r27-linux.zip'"],
+        [
+            "artifact 'linux_x86_64' archive is 'build-tools_r35_linux.zip', want the pinned 'android-ndk-r27-linux.zip'",
+            "artifact 'macos_arm64' archive is 'build-tools_r35_macosx.zip', want the pinned 'android-ndk-r27-darwin.zip'",
+            "artifact 'windows_x86_64' archive is 'build-tools_r35_windows.zip', want the pinned 'android-ndk-r27-windows.zip'",
+        ],
     ))
     checks.append(expect_equal("build-tools repository", build_tools_repository_name("linux_x86_64"), "dx_android_build_tools_linux_x86_64"))
     checks.append(expect_equal("build-tools repositories", build_tools_repositories(), {"linux_x86_64": "dx_android_build_tools_linux_x86_64"}))
@@ -585,14 +613,21 @@ def _android_checks():
     macos_build = ndk_build("source.properties", "macos_arm64")
     checks.append(expect_contains("macos ndk exposes darwin clang", macos_build, '"extracted/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang"'))
     checks.append(expect_contains("macos ndk stages libxml2", macos_build, "extracted/toolchains/llvm/prebuilt/darwin-x86_64/lib/libxml2.2.dylib"))
-    pinned = app_sdk_layout(_request(api_level = 0))
+    pinned = app_sdk_layout(_request(api_level = 0), "linux_x86_64")
     checks.append(expect_equal("app sdk dirs", [entry.dest for entry in pinned], ["build-tools/35.0.0", "platforms/android-34", "platform-tools"]))
     checks.append(expect_equal("app sdk build-tools archive", pinned[0].artifact.archive, "build-tools_r35_linux.zip"))
     checks.append(expect_equal("app sdk platform archive", pinned[1].artifact.archive, PLATFORM_ARTIFACTS[34].archive))
-    leveled = app_sdk_layout(_request(api_level = 33))
+    leveled = app_sdk_layout(_request(api_level = 33), "linux_x86_64")
     checks.append(expect_equal("app sdk leveled dirs", [entry.dest for entry in leveled], ["build-tools/35.0.0", "platforms/android-33", "platform-tools"]))
     checks.append(expect_equal("app sdk leveled platform archive", leveled[1].artifact.archive, PLATFORM_ARTIFACTS[33].archive))
-    checks.append(expect_equal("app sdk disabled", app_sdk_layout(_request(enabled = False)), []))
+    checks.append(expect_equal("app sdk disabled", app_sdk_layout(_request(enabled = False), "linux_x86_64"), []))
+    macos_sdk = app_sdk_layout(_request(api_level = 0), "macos_arm64")
+    checks.append(expect_equal("app sdk macos build-tools archive", macos_sdk[0].artifact.archive, "build-tools_r35_macosx.zip"))
+    checks.append(expect_equal("app sdk macos platform-tools archive", macos_sdk[2].artifact.archive, "platform-tools_r37.0.1-darwin.zip"))
+    windows_arm_sdk = app_sdk_layout(_request(api_level = 0), "windows_arm64")
+    checks.append(expect_equal("app sdk windows arm64 build-tools archive", windows_arm_sdk[0].artifact.archive, "build-tools_r35_windows.zip"))
+    checks.append(expect_equal("app sdk windows arm64 platform-tools archive", windows_arm_sdk[2].artifact.archive, "platform-tools_r37.0.1-win.zip"))
+    checks.append(expect_equal("app sdk linux arm64", app_sdk_layout(_request(api_level = 0), "linux_arm64"), []))
     checks.append(expect_equal("app sdk substitutions", app_sdk_substitutions(_request(api_level = 33)), {
         "__api_levels__": '"33"',
         "__build_tools_directory__": "35.0.0",

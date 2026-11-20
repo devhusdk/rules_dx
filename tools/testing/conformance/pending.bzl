@@ -1,22 +1,10 @@
 """Suite tests that do not pass yet: one `<lang> <test> <platform|*>` line each."""
 
 PENDING = """
-android format_error_test linux_arm64
-android format_error_test macos_arm64
 android format_error_test windows_arm64
-android format_error_test windows_x86_64
-android format_test linux_arm64
-android format_test macos_arm64
 android format_test windows_arm64
-android format_test windows_x86_64
-android lint_error_test linux_arm64
-android lint_error_test macos_arm64
 android lint_error_test windows_arm64
-android lint_error_test windows_x86_64
-android lint_test linux_arm64
-android lint_test macos_arm64
 android lint_test windows_arm64
-android lint_test windows_x86_64
 ansible lock_test *
 apple format_error_test *
 apple format_test *

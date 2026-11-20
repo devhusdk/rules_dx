@@ -3,7 +3,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:license.bzl", "accepted_ids")
 load("//core:repo.bzl", "hub_repo")
-load(":repos.bzl", "APP_SDK_FILES_NAME", "APP_SDK_HUB_NAME", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "DEFAULT_MIRROR", "EMULATOR_ARTIFACTS", "HUB_NAME", "NDK_ARTIFACTS", "PLATFORM_ARTIFACTS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "android_app_sdk_hub_repo", "android_app_sdk_repo", "android_build_tools_repo", "android_emulator_repo", "android_ndk_repo", "android_platform_repo", "android_platform_tools_repo", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "bundletool_url", "canonical_id_for", "default_request", "hub_build", "license_errors", "package_repositories", "request_errors", "sdk_level", "select_request", "url_for")
+load(":repos.bzl", "APP_SDK_FILES_NAME", "APP_SDK_HOSTS", "APP_SDK_HUB_NAME", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "DEFAULT_MIRROR", "EMULATOR_ARTIFACTS", "HUB_NAME", "NDK_ARTIFACTS", "PLATFORM_ARTIFACTS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "android_app_sdk_hub_repo", "android_app_sdk_repo", "android_build_tools_repo", "android_emulator_repo", "android_ndk_repo", "android_platform_repo", "android_platform_tools_repo", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "bundletool_url", "canonical_id_for", "default_request", "hub_build", "license_errors", "package_repositories", "request_errors", "sdk_level", "select_request", "url_for")
 
 def _configure_tag(request, accept_licenses):
     return struct(
@@ -31,14 +31,18 @@ def _declare(rule, name, artifact, kind, mirror, license_error, **kwargs):
 
 def _declare_app_sdk(request, license_error):
     """Declares the @androidsdk replacement rules_android's SDK template builds on."""
-    dirs = {}
+    host_dirs = {}
     mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
-    for entry in app_sdk_layout(request):
-        url = url_for(entry.artifact, mirror)
-        dirs[entry.dest] = [url, entry.artifact.sha256, canonical_id_for(url, entry.kind), entry.artifact.directory]
+    for host in sorted(APP_SDK_HOSTS.keys()):
+        dirs = {}
+        for entry in app_sdk_layout(request, host):
+            url = url_for(entry.artifact, mirror)
+            dirs[entry.dest] = [url, entry.artifact.sha256, canonical_id_for(url, entry.kind), entry.artifact.directory]
+        if len(dirs) > 0:
+            host_dirs[host] = json.encode(dirs)
     android_app_sdk_repo(
         name = APP_SDK_FILES_NAME,
-        dirs = dirs,
+        host_dirs = host_dirs,
         license_error = license_error,
         substitutions = app_sdk_substitutions(request),
     )

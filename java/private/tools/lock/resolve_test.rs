@@ -1,6 +1,6 @@
 //! The maven lock step writes the golden lock from a runfiles repository with an empty `PATH`.
 
-use maven_lock::{Outcome, Request, Tools, config, lock, run_process};
+use maven_lock::{MARKER, Outcome, Request, Tools, config, lock, run_process};
 
 const MANIFEST: &str = "[versions]\nlib = \"2.0\"\n\n[libraries]\napp = \"com.example:app:1.0\"\nlib = { module = \"com.example:lib\", version.ref = \"lib\" }\n";
 
@@ -89,4 +89,27 @@ fn excluded_artifacts_become_global_exclusions() {
     let rendered = config(&manifest, &[]).expect("config");
     let parsed: serde_json::Value = serde_json::from_str(&rendered).expect("json");
     assert_eq!(parsed["globalExclusions"], serde_json::json!(["org.example:skip"]));
+}
+
+#[test]
+fn check_reads_only_the_marker_without_running_java() {
+    let dir = tempfile::tempdir().expect("set directory");
+    let request = set_request(dir.path(), true);
+    std::fs::write(dir.path().join(&request.manifest), MANIFEST).expect("manifest");
+    let tools = Tools {
+        java: "/nonexistent/java".into(),
+        jar: "/nonexistent/resolver.jar".into(),
+    };
+    assert_eq!(lock(&tools, &request), Ok(Outcome::Stale));
+    let lock_path = dir.path().join(&request.lock);
+    std::fs::write(&lock_path, "{\n  \"artifacts\": {}\n}\n").expect("lock");
+    assert_eq!(lock(&tools, &request), Ok(Outcome::Stale));
+    let digest = dx_digest::sha256_hex(MANIFEST.as_bytes());
+    let fresh = format!("{{\n  \"{MARKER}\": \"{digest}\",\n  \"artifacts\": {{}}\n}}\n");
+    std::fs::write(&lock_path, &fresh).expect("lock");
+    assert_eq!(lock(&tools, &request), Ok(Outcome::Fresh));
+    assert_eq!(lock(&tools, &set_request(dir.path(), false)), Ok(Outcome::Fresh));
+    std::fs::write(dir.path().join(&request.manifest), format!("{MANIFEST}\n")).expect("edit");
+    assert_eq!(lock(&tools, &request), Ok(Outcome::Stale));
+    assert_eq!(std::fs::read_to_string(&lock_path).expect("lock"), fresh);
 }

@@ -30,6 +30,7 @@ rust_library(
         package_name = "java/private/tools/maven_lock",
         normal = True,
     ) + [
+        "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
         "@crates//:serde_json",
@@ -80,6 +81,7 @@ rust_test(
         normal_dev = True,
     ) + [
         ":maven_lock_lib",
+        "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//tools/testing:dx_testing",
     ],

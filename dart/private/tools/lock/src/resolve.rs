@@ -1,4 +1,5 @@
-//! Runs `pub get` of the pinned Dart SDK on a copy of a set and writes its lockfile.
+//! Runs `pub get` of the pinned Dart SDK on a copy of a set and writes its lockfile with a
+//! marker that records the manifest digest.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::path::{Path, PathBuf};
@@ -15,6 +16,8 @@ pub struct Request {
     pub lock: String,
     /// Compare only.
     pub check: bool,
+    /// The `PATH` of `pub get`, which runs `chmod` when it unpacks a package with executables.
+    pub path: Option<PathBuf>,
 }
 
 /// What the lock step did.
@@ -31,31 +34,68 @@ pub enum Outcome {
 /// The `pub` arguments the step runs.
 pub const PUB_ARGS: [&str; 4] = ["--suppress-analytics", "pub", "get", "--no-precompile"];
 
-fn copy(from: &Path, to: &Path) -> Result<(), String> {
-    std::fs::copy(from, to)
-        .map(drop)
-        .map_err(|error| format!("{}: {error}", from.display()))
+/// The lock line that records the sha256 of the manifest the lock was resolved from.
+pub const MARKER: &str = "# dx inputs sha256: ";
+
+fn recorded(lock: &str) -> Option<&str> {
+    lock.lines().find_map(|line| line.strip_prefix(MARKER))
 }
 
-/// Resolves the set's manifest with `dart` and writes, or with `check` compares, its lock.
+fn without_marker(lock: &str) -> String {
+    lock.split_inclusive('\n')
+        .filter(|line| !line.starts_with(MARKER))
+        .collect()
+}
+
+/// Places the marker after the lock's leading comment lines.
+fn with_marker(lock: &str, digest: &str) -> String {
+    let mut out = String::with_capacity(lock.len() + MARKER.len() + digest.len() + 1);
+    let mut placed = false;
+    for line in lock.split_inclusive('\n') {
+        if !placed && !line.starts_with('#') {
+            out.push_str(&format!("{MARKER}{digest}\n"));
+            placed = true;
+        }
+        out.push_str(line);
+    }
+    if !placed {
+        out.push_str(&format!("{MARKER}{digest}\n"));
+    }
+    out
+}
+
+/// Writes the set's lock with `dart`, or with `check` compares the lock's marker to the manifest.
+///
+/// A lock whose marker matches the manifest digest is fresh without running `dart`.
 ///
 /// # Errors
 ///
 /// Fails when the manifest cannot be read, `pub get` fails, or the lock cannot be written.
 pub fn lock(dart: &Path, request: &Request) -> Result<Outcome, String> {
-    let scratch = Scratch::new().map_err(|error| error.to_string())?;
-    copy(
-        &request.dir.join(&request.manifest),
-        &scratch.set().join(&request.manifest),
-    )?;
+    let manifest_path = request.dir.join(&request.manifest);
+    let manifest = std::fs::read(&manifest_path)
+        .map_err(|error| format!("{}: {error}", manifest_path.display()))?;
+    let digest = dx_digest::sha256_hex(&manifest);
     let lock_path = request.dir.join(&request.lock);
-    let current = std::fs::read(&lock_path).ok();
-    if let Some(bytes) = &current {
-        std::fs::write(scratch.set().join(&request.lock), bytes)
+    let current = std::fs::read_to_string(&lock_path).ok();
+    if current.as_deref().and_then(recorded) == Some(digest.as_str()) {
+        return Ok(Outcome::Fresh);
+    }
+    if request.check {
+        return Ok(Outcome::Stale);
+    }
+    let scratch = Scratch::new().map_err(|error| error.to_string())?;
+    std::fs::write(scratch.set().join(&request.manifest), &manifest)
+        .map_err(|error| format!("{}: {error}", request.manifest))?;
+    if let Some(text) = &current {
+        std::fs::write(scratch.set().join(&request.lock), without_marker(text))
             .map_err(|error| format!("{}: {error}", request.lock))?;
     }
     let mut command = scratch.command(dart);
     command.env("PUB_CACHE", scratch.tmp().join("pub-cache"));
+    if let Some(path) = &request.path {
+        command.env("PATH", path);
+    }
     if let Some(root) = std::env::var_os("SYSTEMROOT") {
         command.env("SYSTEMROOT", root);
     }
@@ -63,36 +103,32 @@ pub fn lock(dart: &Path, request: &Request) -> Result<Outcome, String> {
     Scratch::run(&mut command, RESOLVER_TIMEOUT)
         .map_err(|error| format!("dart pub get failed: {error}"))?;
     let resolved_path = scratch.set().join(&request.lock);
-    let resolved = std::fs::read(&resolved_path)
+    let resolved = std::fs::read_to_string(&resolved_path)
         .map_err(|error| format!("dart pub get wrote no {}: {error}", request.lock))?;
-    if current.as_deref() == Some(resolved.as_slice()) {
-        Ok(Outcome::Fresh)
-    } else if request.check {
-        Ok(Outcome::Stale)
-    } else {
-        std::fs::write(&lock_path, &resolved)
-            .map_err(|error| format!("{}: {error}", lock_path.display()))?;
-        Ok(Outcome::Written)
-    }
+    let resolved = with_marker(&without_marker(&resolved), &digest);
+    std::fs::write(&lock_path, &resolved)
+        .map_err(|error| format!("{}: {error}", lock_path.display()))?;
+    Ok(Outcome::Written)
 }
 
-fn parse(args: &[String]) -> Result<(PathBuf, dx_lock::Args), dx_lock::Error> {
-    let (paths, rest) = dx_lock::tool_paths(args, &["--dart"])?;
-    let Some(dart) = paths.into_iter().next() else {
-        return Err(dx_lock::Error::new("--dart is required"));
+fn parse(args: &[String]) -> Result<(PathBuf, PathBuf, dx_lock::Args), dx_lock::Error> {
+    let (paths, rest) = dx_lock::tool_paths(args, &["--dart", "--chmod"])?;
+    let mut paths = paths.into_iter();
+    let (Some(dart), Some(chmod)) = (paths.next(), paths.next()) else {
+        return Err(dx_lock::Error::new("--dart and --chmod are required"));
     };
     let args = dx_lock::Args::parse(rest)?;
     if !args.upgrade.is_empty() {
         return Err(dx_lock::Error::new("--upgrade is not supported"));
     }
-    Ok((dart, args))
+    Ok((dart, chmod, args))
 }
 
 /// Runs the pub lock step on `args`, the arguments after `dx dart_lock`:
-/// `--dart=<path> --dir <set directory> [--check]`. 0 when the lock is fresh or written, 1 when
+/// `--dart=<path> --chmod=<path> --dir <set directory> [--check]`. 0 when the lock is fresh or written, 1 when
 /// stale, 2 on failure.
 pub fn run_process(args: &[String]) -> i32 {
-    let (dart, args) = match parse(args) {
+    let (dart, chmod, args) = match parse(args) {
         Ok(parsed) => parsed,
         Err(error) => {
             eprintln!("dart_lock: {error}");
@@ -107,6 +143,7 @@ pub fn run_process(args: &[String]) -> i32 {
         manifest: hub.manifest.clone(),
         lock: hub.lock.clone().unwrap_or_default(),
         check: args.check,
+        path: chmod.parent().map(Path::to_path_buf),
     };
     match lock(&dart, &request) {
         Ok(Outcome::Fresh | Outcome::Written) => 0,

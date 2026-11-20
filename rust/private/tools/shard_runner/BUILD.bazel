@@ -1,21 +1,20 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-rust_binary(
-    name = "shard_runner",
-    testonly = True,
-    srcs = ["src/main.rs"],
-    crate_name = "shard_runner",
-    crate_root = "src/main.rs",
+rust_library(
+    name = "dx_shard_runner",
+    srcs = ["src/lib.rs"],
+    crate_root = "src/lib.rs",
+    visibility = ["//cli/runtime:__pkg__"],
     deps = ["@rules_rust//rust/runfiles"],
 )
 
 rust_test(
-    name = "shard_runner_test",
+    name = "dx_shard_runner_test",
     size = "small",
-    crate = ":shard_runner",
+    crate = ":dx_shard_runner",
 )
 
 filegroup(

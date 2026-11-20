@@ -88,7 +88,7 @@ impl LockKind {
                 npm: false,
             }),
             LockKind::Pip(_) => Ok(LockChange {
-                crates: changed_requirements(base, head),
+                crates: changed_requirements(base, head)?,
                 aliases: BTreeSet::new(),
                 pip: true,
                 maven: false,
@@ -798,23 +798,77 @@ pub(crate) fn pip_hubs(module_text: &str) -> Vec<Hub> {
     hubs
 }
 
-/// Requirement name to its whole logical line (version, markers, hashes).
-fn requirement_lines(text: &str) -> BTreeMap<String, String> {
-    let mut out: BTreeMap<String, String> = BTreeMap::new();
+/// The lines of one requirements file, split by what they install.
+#[derive(Default)]
+struct Requirements {
+    /// Requirement name to its whole logical line (version, markers, hashes).
+    named: BTreeMap<String, String>,
+    /// Option lines that name no package, such as `-r`, `--index-url` or a bare `-e <path>`.
+    options: BTreeSet<String>,
+}
+
+/// The PEP 503 name at the start of `text`, and the text after it.
+fn leading_name(text: &str) -> (String, &str) {
+    let end = text
+        .find(|ch: char| !(ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.')))
+        .unwrap_or(text.len());
+    (
+        dx_ecosystems::pep503_name(text.get(..end).unwrap_or_default()),
+        text.get(end..).unwrap_or_default(),
+    )
+}
+
+/// The package an editable target installs: its `#egg=` fragment or a `name @ url` prefix.
+fn editable_name(target: &str) -> Option<String> {
+    if let Some((_, fragment)) = target.split_once("#egg=") {
+        let (name, _) = leading_name(fragment);
+        return (!name.is_empty()).then_some(name);
+    }
+    let (name, rest) = leading_name(target);
+    let rest = rest.trim_start();
+    // Extras sit between the name and the `@`, as in `foo[bar] @ git+https://...`.
+    let rest = match rest.strip_prefix('[') {
+        Some(extras) => extras.split_once(']').map_or("", |(_, after)| after),
+        None => rest,
+    };
+    (!name.is_empty() && rest.trim_start().starts_with('@')).then_some(name)
+}
+
+/// The target of an `-e`/`--editable` line, in any of its spellings.
+fn editable_target(line: &str) -> Option<&str> {
+    ["--editable", "-e"].iter().find_map(|flag| {
+        let rest = line.strip_prefix(flag)?;
+        rest.strip_prefix('=')
+            .or_else(|| rest.strip_prefix(' '))
+            .or_else(|| (*flag == "-e" && !rest.is_empty()).then_some(rest))
+    })
+}
+
+fn requirement_lines(text: &str) -> Requirements {
+    let mut out = Requirements::default();
     let mut logical = String::new();
     let mut flush = |logical: &mut String| {
         let line = logical.split_whitespace().collect::<Vec<_>>().join(" ");
         logical.clear();
-        if line.is_empty() || line.starts_with('-') {
+        if line.is_empty() {
             return;
         }
-        let end = line
-            .find(|ch: char| !(ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.')))
-            .unwrap_or(line.len());
-        let name = dx_ecosystems::pep503_name(line.get(..end).unwrap_or_default());
+        if line.starts_with('-') {
+            match editable_target(&line).and_then(editable_name) {
+                Some(name) => out
+                    .named
+                    .entry(name)
+                    .or_default()
+                    .push_str(&format!("{line}\n")),
+                None => {
+                    out.options.insert(line);
+                }
+            }
+            return;
+        }
+        let (name, rest) = leading_name(&line);
         if !name.is_empty() {
-            let rest = line.get(end..).unwrap_or_default();
-            let entry = out.entry(name.clone()).or_default();
+            let entry = out.named.entry(name.clone()).or_default();
             entry.push_str(&format!("{name}{rest}\n"));
         }
     };
@@ -835,15 +889,25 @@ fn requirement_lines(text: &str) -> BTreeMap<String, String> {
     out
 }
 
-pub(crate) fn changed_requirements(base: &str, head: &str) -> ChangedCrates {
+/// Packages whose requirement lines differ. A changed option line that names
+/// no package can change any package, so it is an error and the run widens.
+pub(crate) fn changed_requirements(
+    base: &str,
+    head: &str,
+) -> Result<ChangedCrates, dx_error::DxError> {
     let (base, head) = (requirement_lines(base), requirement_lines(head));
+    if let Some(line) = base.options.symmetric_difference(&head.options).next() {
+        return Err(dx_error::DxError::failure(format!(
+            "changed option line names no package: {line}"
+        )));
+    }
     let mut out = ChangedCrates::new();
-    for name in base.keys().chain(head.keys()) {
-        if base.get(name) != head.get(name) {
+    for name in base.named.keys().chain(head.named.keys()) {
+        if base.named.get(name) != head.named.get(name) {
             out.entry(name.clone()).or_default();
         }
     }
-    out
+    Ok(out)
 }
 
 /// Labels of the changed packages in a `pip.parse` hub, and in its per
@@ -1775,9 +1839,36 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
     fn pip_requirements_diff_by_package() {
         let base = "requests==2.0 \\\n    --hash=sha256:a\nFoo_Bar==1\n# c\nnumpy==1\n";
         let head = "requests==2.1 \\\n    --hash=sha256:b\nfoo-bar==1\nflask==3\n";
-        let changed = changed_requirements(base, head);
+        let changed = changed_requirements(base, head).expect("diff");
         let names: Vec<&str> = changed.keys().map(String::as_str).collect();
         assert_eq!(names, ["flask", "numpy", "requests"]);
+    }
+
+    #[test]
+    fn pip_editable_rev_change_names_the_package() {
+        let base =
+            "-e git+https://x/foo@aaa#egg=Foo_Bar\n--editable=bar[extra] @ git+https://x/bar@aaa\n";
+        let head =
+            "-e git+https://x/foo@bbb#egg=Foo_Bar\n--editable=bar[extra] @ git+https://x/bar@bbb\n";
+        let changed = changed_requirements(base, head).expect("diff");
+        let names: Vec<&str> = changed.keys().map(String::as_str).collect();
+        assert_eq!(names, ["bar", "foo-bar"]);
+        assert!(changed_requirements(base, base).expect("diff").is_empty());
+    }
+
+    #[test]
+    fn pip_unnamed_option_change_widens() {
+        for (base, head) in [
+            ("-r other.txt\nfoo==1\n", "-r another.txt\nfoo==1\n"),
+            ("--index-url https://a\n", "--index-url https://b\n"),
+            ("-e ./libs/foo\n", "-e ./libs/bar\n"),
+        ] {
+            assert!(changed_requirements(base, head).is_err(), "{head}");
+        }
+        assert!(
+            changed_requirements("-r other.txt\nfoo==1\n", "-r other.txt\nfoo==2\n")
+                .is_ok_and(|changed| changed.contains_key("foo"))
+        );
     }
 
     #[test]
@@ -1788,7 +1879,7 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
             classify("py/requirements_lock.txt", &hubs),
             LockKind::Pip(vec!["pypi".to_owned()])
         );
-        let changed = changed_requirements("foo-bar==1\n", "foo-bar==2\n");
+        let changed = changed_requirements("foo-bar==1\n", "foo-bar==2\n").expect("diff");
         let labels = [
             "@@rules_python++pip+pypi//foo_bar:pkg",
             "@@rules_python++pip+pypi_311_foo_bar//:pkg",

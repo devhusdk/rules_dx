@@ -33,9 +33,60 @@ fn converts_modules_and_members() {
 #[test]
 fn rejects_unknown_language_and_empty_symbols() {
     let bad = JSON.replace("\"elixir\"", "\"cobol\"");
-    assert!(convert(&bad, "geo").is_err());
+    let error = convert(&bad, "geo").expect_err("rejected");
+    assert!(matches!(error, BeamExtractError::UnknownLanguage { .. }));
+    assert_eq!(
+        error.to_string(),
+        "driver JSON has unknown language 'cobol'"
+    );
     let empty = r#"{"format":1,"language":"erlang","tool":"edoc","version":"1","symbols":[]}"#;
-    assert!(convert(empty, "geo").is_err());
+    let error = convert(empty, "geo").expect_err("rejected");
+    assert!(matches!(error, BeamExtractError::NoPublicApi { .. }));
+    assert_eq!(
+        error.to_string(),
+        "driver JSON lists no public erlang API of package 'geo'"
+    );
+}
+
+#[test]
+fn rejects_malformed_documents() {
+    let error = convert("{", "geo").expect_err("rejected");
+    assert!(matches!(error, BeamExtractError::Malformed(_)));
+    assert_eq!(
+        error.to_string(),
+        "driver JSON is malformed: EOF while parsing an object at line 1 column 1"
+    );
+    let symbols = r#"{"format":1,"language":"erlang","tool":"edoc","version":"1","symbols":{}}"#;
+    let error = convert(symbols, "geo").expect_err("rejected");
+    assert!(matches!(error, BeamExtractError::Json(_)));
+    assert_eq!(error.to_string(), "driver JSON 'symbols' is not a list");
+    let kind = JSON.replace("\"macro\"", "\"record\"");
+    let error = convert(&kind, "geo").expect_err("rejected");
+    assert!(matches!(error, BeamExtractError::UnknownKind { .. }));
+    assert_eq!(
+        error.to_string(),
+        "driver JSON symbol 2 has unknown kind 'record'"
+    );
+    let error = convert(JSON, "a:b").expect_err("rejected");
+    assert!(matches!(error, BeamExtractError::InvalidPackage { .. }));
+    assert_eq!(error.to_string(), "invalid package 'a:b'");
+}
+
+#[test]
+fn run_reports_an_unreadable_input() {
+    let options = Options {
+        json: "/nonexistent/beam.json".to_owned(),
+        package: "geo".to_owned(),
+        out: "out".to_owned(),
+    };
+    let error = run(&options).expect_err("rejected");
+    assert!(matches!(error, BeamExtractError::Read(_)));
+    assert!(
+        error
+            .to_string()
+            .starts_with("cannot read /nonexistent/beam.json: "),
+        "{error}"
+    );
 }
 
 #[test]

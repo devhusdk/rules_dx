@@ -135,26 +135,76 @@ fn constants_follow_the_parameter_attribute() {
 
 #[test]
 fn rejects_bad_input() {
-    assert!(convert("{", "geo").unwrap_err().contains("malformed"));
-    assert!(
-        convert(&document(vec![]), "geo")
-            .unwrap_err()
-            .contains("no public")
+    let error = convert("{", "geo").unwrap_err();
+    assert!(matches!(error, FortranExtractError::Malformed(_)));
+    assert_eq!(
+        error.to_string(),
+        "FORD JSON is malformed: EOF while parsing an object at line 1 column 1"
     );
-    assert!(convert(&document(vec![obj("module", "geo", "")]), "a b").is_err());
+    let error = convert(&document(vec![]), "geo").unwrap_err();
+    assert!(matches!(error, FortranExtractError::NoPublicApi { .. }));
+    assert_eq!(
+        error.to_string(),
+        "FORD JSON lists no public Fortran API of package 'geo'"
+    );
+    let error = convert(&document(vec![obj("module", "geo", "")]), "a b").unwrap_err();
+    assert!(matches!(error, FortranExtractError::InvalidPackage { .. }));
+    assert_eq!(error.to_string(), "invalid package 'a b'");
     let twice = document(vec![obj("module", "geo", ""), obj("module", "geo", "")]);
-    assert!(convert(&twice, "geo").unwrap_err().contains("repeats"));
+    let error = convert(&twice, "geo").unwrap_err();
+    assert!(matches!(error, FortranExtractError::RepeatedPath { .. }));
+    assert_eq!(
+        error.to_string(),
+        "FORD JSON object 1 repeats the path 'geo'"
+    );
     let unknown = document(vec![obj("block", "geo", "")]);
-    assert!(
-        convert(&unknown, "geo")
-            .unwrap_err()
-            .contains("unknown kind")
+    let error = convert(&unknown, "geo").unwrap_err();
+    assert!(matches!(error, FortranExtractError::UnknownKind { .. }));
+    assert_eq!(
+        error.to_string(),
+        "FORD JSON object 0 has unknown kind 'block'"
     );
     let format = json!({"format": 2, "ford": "x", "objects": []}).to_string();
+    let error = convert(&format, "geo").unwrap_err();
+    assert!(matches!(
+        error,
+        FortranExtractError::UnsupportedFormat { found: 2 }
+    ));
+    assert_eq!(
+        error.to_string(),
+        "FORD JSON format 2 is not supported, expected 1"
+    );
+    let mut returns = obj("function", "geo.area", "geo");
+    returns["returns"] = json!(1);
+    let error = convert(&document(vec![returns]), "geo").unwrap_err();
+    assert!(matches!(
+        error,
+        FortranExtractError::ReturnsNotObject { .. }
+    ));
+    assert_eq!(
+        error.to_string(),
+        "FORD JSON object 0 'returns' is neither null nor an object"
+    );
+    let objects = json!({"format": 1, "ford": "x", "objects": {}}).to_string();
+    let error = convert(&objects, "geo").unwrap_err();
+    assert!(matches!(error, FortranExtractError::Json(_)));
+    assert_eq!(error.to_string(), "FORD JSON 'objects' is not a list");
+}
+
+#[test]
+fn run_reports_an_unreadable_input() {
+    let options = Options {
+        json: "/nonexistent/fortran.json".to_owned(),
+        package: "geo".to_owned(),
+        out: "out".to_owned(),
+    };
+    let error = run(&options).unwrap_err();
+    assert!(matches!(error, FortranExtractError::Read(_)));
     assert!(
-        convert(&format, "geo")
-            .unwrap_err()
-            .contains("not supported")
+        error
+            .to_string()
+            .starts_with("cannot read /nonexistent/fortran.json: "),
+        "{error}"
     );
 }
 

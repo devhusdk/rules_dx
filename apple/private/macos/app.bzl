@@ -15,11 +15,15 @@ load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:rlocation.bzl", "repo_relative_path", "rlocation_path")
+load("//core:wrapper.bzl", "dx_quality_sources")
+load("//core/quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS")
 load(":validate.bzl", "macos_app_errors")
 
 _CELL = "macos/arm64"
 
 _MACOS = [Label("@platforms//os:macos")]
+
+_QUALITY_SPECS = [(k, UPSTREAM_CC_CLASS_EXTENSIONS[k]) for k in ("c", "cpp", "objc", "objcpp")]
 
 _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -267,6 +271,7 @@ def _macos_app_check_impl(ctx):
         ),
         info,
         OutputGroupInfo(**groups),
+        dx_quality_sources(ctx.files.srcs + ctx.files.hdrs, _QUALITY_SPECS, str(ctx.label)),
     ]
 
 _MACOS_CPUS = "//command_line_option:macos_cpus"
@@ -305,8 +310,16 @@ _macos_app_check = rule(
             doc = "Frameworks the bundle must embed under Frameworks.",
             providers = [AppleBundleInfo],
         ),
+        "hdrs": attr.label_list(doc = "Headers of the app entry point.", allow_files = True),
         "plugins": attr.label_list(doc = "Plugins the bundle must hold under PlugIns.", allow_files = True),
         "resources": attr.label_list(doc = "Resource files the bundle must hold.", allow_files = True),
+        "srcs": attr.label_list(doc = "Sources of the app entry point.", allow_files = True),
+        "upstream": attr.label(
+            doc = "The app entry point objc_library, compiled for macos/arm64.",
+            cfg = _macos_cell_transition,
+            mandatory = True,
+            providers = [CcInfo],
+        ),
         "version": attr.string(doc = "Bundle version string of the app.", mandatory = True),
         "xcode_version": attr.string(doc = "Xcode version the app build is pinned to.", mandatory = True),
         "_dx": attr.label(
@@ -443,8 +456,11 @@ def apple_macos_app(
         platform = platform,
         deployment = deployment,
         frameworks = frameworks,
+        hdrs = hdrs,
         plugins = plugins,
         resources = resources,
+        srcs = srcs,
+        upstream = ":" + name + "_entry",
         version = version,
         xcode_version = xcode_version,
         tags = tags,

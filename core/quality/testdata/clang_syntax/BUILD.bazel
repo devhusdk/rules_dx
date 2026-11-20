@@ -27,17 +27,23 @@ workspace_policy(
 
 quality_family(
     name = "objc_family",
-    disabled = [
-        "audit",
-        "format",
-        "lint",
-    ],
+    disabled = ["audit"],
     family_id = "objc",
+    format = ["clang_format"],
+    lint = ["clang_tidy"],
     typecheck = ["clang_syntax"],
 )
 
 workspace_policy(
     name = "objc_policy",
+    configs = select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/clang_format:strict"],
+                  "//conditions:default": ["//core/quality/tiers/clang_format:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/clang_tidy:strict"],
+                  "//conditions:default": ["//core/quality/tiers/clang_tidy:standard"],
+              }),
     families = [":objc_family"],
 )
 

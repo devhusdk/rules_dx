@@ -3,6 +3,8 @@
 const char *greet(void);
 
 int main(void) {
-    puts(greet());
-    return 0;
+  if (puts(greet()) == EOF) {
+    return 1;
+  }
+  return 0;
 }

@@ -25,6 +25,7 @@ const TOOLS: &[(&str, Helper)] = &[
     ("opa_test", dx_opa_test::main),
     ("php_coverage", dx_php_coverage::main),
     ("sancov", dx_sancov::main),
+    ("shard_runner", dx_shard_runner::main),
     ("to_lcov", dx_lcov::to_lcov::main),
 ];
 

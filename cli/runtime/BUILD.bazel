@@ -18,6 +18,7 @@ rust_binary(
         "//php/private/coverage:dx_php_coverage",
         "//rego/private/launcher:dx_opa_test",
         "//rust/private/tools/bench_report:dx_bench_report",
+        "//rust/private/tools/shard_runner:dx_shard_runner",
         "//tools/coverage/sancov:dx_sancov",
     ] + select({
         "@platforms//os:windows": [],

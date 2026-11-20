@@ -18,7 +18,8 @@ use std::process::{Command, ExitCode};
 /// Bytes of test names passed to one child process, below the Windows command line limit.
 const BATCH_BYTES: usize = 24 * 1024;
 
-fn main() -> ExitCode {
+/// Runs the shard and returns the exit code of the last failing batch.
+pub fn main() -> ExitCode {
     match run() {
         Ok(code) => code,
         Err(message) => {
@@ -32,13 +33,18 @@ fn run() -> Result<ExitCode, String> {
     let binary = test_binary()?;
     let args: Vec<OsString> = env::args_os().skip(1).collect();
     let Some(shard) = Shard::from_env()? else {
-        return status(Command::new(&binary).args(&args));
+        return status(
+            Command::new(&binary)
+                .env_remove("DX_RUNTIME_TOOL")
+                .args(&args),
+        );
     };
     if let Some(status_file) = env::var_os("TEST_SHARD_STATUS_FILE") {
         File::create(&status_file)
             .map_err(|e| format!("cannot touch TEST_SHARD_STATUS_FILE: {e}"))?;
     }
     let listing = Command::new(&binary)
+        .env_remove("DX_RUNTIME_TOOL")
         .args(&args)
         .args(["--list", "--format", "terse"])
         .output()
@@ -55,7 +61,13 @@ fn run() -> Result<ExitCode, String> {
     let names = shard.select(&test_names(&listing));
     let mut code = ExitCode::SUCCESS;
     for batch in batches(&names, BATCH_BYTES) {
-        let batch_code = status(Command::new(&binary).args(&args).arg("--exact").args(batch))?;
+        let batch_code = status(
+            Command::new(&binary)
+                .env_remove("DX_RUNTIME_TOOL")
+                .args(&args)
+                .arg("--exact")
+                .args(batch),
+        )?;
         if batch_code != ExitCode::SUCCESS {
             code = batch_code;
         }

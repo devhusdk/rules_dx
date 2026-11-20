@@ -48,6 +48,7 @@ toolchain(
     exec_compatible_with = _LINUX_X86_64,
     target_compatible_with = _LINUX_X86_64,
     target_settings = [
+        "//config:toolchains_on",
         ":source_runtime",
         "@rules_julia//julia/settings:version_" + JULIA_RUNTIME_VERSION,
     ],

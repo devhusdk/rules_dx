@@ -22,6 +22,7 @@ const OWN_TYPES: &[&str] = &[
 const GATED: &[&str] = &[
     "//core/hermetic_launcher:all",
     "//java/private/toolchain:all",
+    "//julia/private/runtime:source_toolchain",
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",
     "@android_ndk_toolchain//:all",

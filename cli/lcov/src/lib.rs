@@ -14,8 +14,10 @@ pub mod changed;
 mod clover;
 mod cobertura;
 pub mod ignores;
+mod keep;
 mod lang;
 pub mod parse;
+mod sancov;
 mod xml;
 
 pub use accounting::{
@@ -29,8 +31,10 @@ pub use changed::{
 pub use clover::clover_to_lcov;
 pub use cobertura::cobertura_to_lcov;
 pub use ignores::{Ignores, find_ignores, is_ignored};
+pub use keep::keep_sources;
 pub use lang::is_covered_language;
 pub use parse::{FileHits, merge_lcov_reports, parse_lcov, validate_lcov_report};
+pub use sancov::sancov_to_lcov;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LcovError {

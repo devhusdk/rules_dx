@@ -882,11 +882,19 @@ _EMPTY_SDK_TARGET = """filegroup(
 )"""
 
 def unavailable_hub_build(empty_template, rule_bzl):
-    """Returns rules_android's empty SDK BUILD with :sdk as a ToolchainInfo target."""
+    """Returns rules_android's empty SDK BUILD with :sdk as a ToolchainInfo target and an error stub per missing forwarded name."""
     if empty_template.count(_EMPTY_SDK_TARGET) != 1:
         fail("android: rules_android's empty SDK template no longer declares :sdk as a filegroup")
     sdk = 'unavailable_android_sdk(name = "sdk")'
-    return 'load("%s", "unavailable_android_sdk")\n\n' % rule_bzl + empty_template.replace(_EMPTY_SDK_TARGET, sdk)
+    build = 'load("%s", "unavailable_android_sdk")\n\n' % rule_bzl + empty_template.replace(_EMPTY_SDK_TARGET, sdk)
+
+    # bazel query loads every target rules_android names, on every host.
+    stubs = [
+        'filegroup(\n    name = "%s",\n    srcs = [":error_message"],\n)\n' % name
+        for name in APP_SDK_FORWARDED
+        if "%d" not in name and 'name = "%s"' % name not in build
+    ]
+    return build + "".join(["\n" + stub for stub in stubs])
 
 def _android_app_sdk_hub_repo_impl(ctx):
     linux_x86_64 = ctx.os.name == "linux" and ctx.os.arch in ["amd64", "x86_64"]

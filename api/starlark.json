@@ -129,7 +129,17 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "custom_package",
+              "srcs",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "android_library"
+          }
+        ],
         "name": "android_java_library",
         "params": [
           {

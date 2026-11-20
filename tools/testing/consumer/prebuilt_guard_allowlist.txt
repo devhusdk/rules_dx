@@ -2,4 +2,3 @@
 # `label <canonical label> [<lang>...]  # reason`: a rules_dx binary the consumer may build;
 # with languages, only a consumer of one of those languages.
 label @@rules_dx+//lua/private/runtime:launcher lua  # C++; links liblua, which a Lua consumer already builds from the BCR lua module
-label @@rules_dx+//dx/tool_resolve:tool_resolve  # the dx audit gitleaks hint and reusable-consumer.yml run it (#14082)

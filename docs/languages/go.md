@@ -24,10 +24,6 @@ For a Go project, `MODULE.bazel` then looks like this:
 module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "<release>")
-go = use_extension("@rules_dx//go:extensions.bzl", "go")
-go.from_file(
-    go_mod = "//:go.mod",
-)
 ```
 
 A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small Go package from [`go/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/go/tests/consumer/BUILD.bazel):

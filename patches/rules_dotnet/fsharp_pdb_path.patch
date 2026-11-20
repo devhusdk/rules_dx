@@ -1,0 +1,23 @@
+Upstream: none (not yet sent upstream)
+diff -ruN a/dotnet/private/compiler_wrapper.sh b/dotnet/private/compiler_wrapper.sh
+--- a/dotnet/private/compiler_wrapper.sh
++++ b/dotnet/private/compiler_wrapper.sh
+@@ -15,5 +15,18 @@
+ fi
+ PATHMAP="$PATHMAP_FLAG:$PWD=."
+ 
++if [[ $(basename "$COMPILER") == "fsc.dll" && -d /proc/self/cwd ]]; then
++  for arg in "$@"; do
++    if [[ "$arg" == @* ]]; then
++      while IFS= read -r line; do
++        if [[ "$line" == --pdb:* && "$line" != --pdb:/* ]]; then
++          set -- "$@" "--pdb:/proc/self/cwd/${line#--pdb:}"
++        fi
++      done <"${arg#@}"
++    fi
++  done
++  PATHMAP="$PATHMAP,/proc/self/cwd=."
++fi
++
+ # shellcheck disable=SC2145
+ ./"$@" "$PATHMAP"

@@ -319,11 +319,25 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel run --noshow_progress "$@" //:dx -- lint //cli/process/... //cli/os_sys/... //cli/shim/...
   determinism:
-    name: determinism (two cold builds, exec logs compared)
-    timeout-minutes: 60
+    name: determinism (two cold builds, exec logs compared, shard ${{ matrix.shard }})
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: 0/5
+            patterns: //appimage/...
+          - shard: 1/5
+            patterns: //cli/archive/...
+          - shard: 2/5
+            patterns: //android/private/packaging/...
+          - shard: 3/5
+            patterns: //msix/tests/...
+          - shard: 4/5
+            patterns: //deploy/private/...
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -332,10 +346,14 @@ jobs:
         with:
           cache-save: false
       - name: Build twice and compare the execution logs
+        env:
+          SHARD: ${{ matrix.shard }}
+          PATTERNS: ${{ matrix.patterns }}
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" //appimage/... //cli/archive/...
+          read -ra patterns <<< "$PATTERNS"
+          bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" --kinds --shard "$SHARD" "${patterns[@]}"
   analysis-scaling:
     name: analysis-scaling (dx check, docs and sync aspects on depth 100 and 400 chains)
     timeout-minutes: 60

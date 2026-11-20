@@ -23,6 +23,11 @@ scala_toolchain(
     scalacopts = [
         "-Wunused:imports,privates,locals,implicits",
         "-Wconf:cat=unused:info",
+        # semanticdb-scalac sorts occurrences by start position only, so two that
+        # start together keep hash-map order. Without text the map keys hash the
+        # source's absolute path, and the order changes with the checkout; with
+        # text they hash its relative path and contents.
+        "-P:semanticdb:text:on",
     ],
     semanticdb_bundle_in_jar = True,
     strict_deps_mode = "off",

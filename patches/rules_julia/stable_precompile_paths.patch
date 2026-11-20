@@ -1,0 +1,50 @@
+Upstream: none (not yet sent upstream)
+diff -ruN a/julia/private/precompile.jl b/julia/private/precompile.jl
+--- a/julia/private/precompile.jl
++++ b/julia/private/precompile.jl
+@@ -20,16 +20,35 @@
+     return "generic"
+ end
+ 
++function stable_path(path)
++    Sys.islinux() && !isabspath(path) && return joinpath("/proc/self/cwd", normpath(path))
++    return abspath(path)
++end
++
++function fixed_slug!(compiled)
++    for version in readdir(compiled; join = true), entry in readdir(version; join = true)
++        isdir(entry) || continue
++        for name in readdir(entry)
++            m = match(r"^([A-Za-z0-9_]+)_[A-Za-z0-9]{5}(\..+)$", name)
++            m === nothing && continue
++            mv(joinpath(entry, name), joinpath(entry, m.captures[1] * "_rules" * m.captures[2]))
++        end
++    end
++end
++
+ function main()
+     flags = parse_flags(ARGS; scalars = ["--config", "--manifest", "--depot", "--package"])
+     config = require_flag(flags, "--config")
+     manifest = require_flag(flags, "--manifest")
+-    depot = abspath(require_flag(flags, "--depot"))
++    depot_flag = require_flag(flags, "--depot")
++    depot = stable_path(depot_flag)
+     package = require_flag(flags, "--package")
+ 
+     includes, depots, _ = read_config(config)
+ 
+-    tree = mktempdir(prefix = "rules_julia_precompile_")
++    tree = stable_path(depot_flag * ".tree")
++    rm(tree; force = true, recursive = true)
++    mkpath(tree)
+     install_tree(manifest, tree)
+ 
+     # Julia writes new caches to the first depot. The tree and dependency
+@@ -83,6 +102,7 @@
+         end
+     end
+     found || error("Precompiling `$package` produced no cache files.")
++    fixed_slug!(compiled)
+     isempty(unexpected) || error(
+         "Precompiling `$package` also compiled other packages, meaning their " *
+         "caches were stale or missing:\n  " * join(unexpected, "\n  "),

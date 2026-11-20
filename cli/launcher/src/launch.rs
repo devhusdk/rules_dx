@@ -3,7 +3,7 @@
 //! The descriptor sits beside the executable, or in its runfiles, as `<name>.launch`, where
 //! `<name>` drops a trailing `.exe`, one entry per line:
 //! `program=<key>` or `real_program=<key>` (the program with symlinks resolved), `arg=<literal>`, `path=<key>`,
-//! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>`, `env=<VAR>\t<value>`,
+//! `prefixed=<prefix>\t<key>`, `cwd=<before>\t<after>`, `env_flag=<flag>\t<VAR>`, `env=<VAR>\t<value>`,
 //! `env_dir=<VAR>\t<key>`, `env_default=<VAR>\t<value>`, `unset=<VAR>`, `verb=<word>` and
 //! `default_arg=<literal>`.
 //! A descriptor without a program holds either one `fail=<message>` line, which prints the
@@ -34,6 +34,8 @@ pub enum Item {
     Prefixed(String, String),
     /// A flag and the value of an environment variable, only when the variable is set and not empty.
     EnvFlag(String, String),
+    /// The absolute working directory between two literals.
+    Cwd(String, String),
 }
 
 /// What one `<name>.launch` file describes.
@@ -125,6 +127,9 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
         } else if let Some(value) = line.strip_prefix("prefixed=") {
             let (prefix, key) = pair(line, value)?;
             items.push(Item::Prefixed(prefix, key));
+        } else if let Some(value) = line.strip_prefix("cwd=") {
+            let (before, after) = pair(line, value)?;
+            items.push(Item::Cwd(before, after));
         } else if let Some(value) = line.strip_prefix("env_flag=") {
             let (flag, var) = pair(line, value)?;
             if flag.is_empty() {
@@ -361,6 +366,12 @@ pub fn plan(
             Item::Prefixed(prefix, key) => {
                 let mut value = OsString::from(prefix);
                 value.push(locate(resolver, key)?);
+                args.push(value);
+            }
+            Item::Cwd(before, after) => {
+                let mut value = OsString::from(before);
+                value.push(std::env::current_dir()?);
+                value.push(after);
                 args.push(value);
             }
             Item::EnvFlag(flag, var) => {

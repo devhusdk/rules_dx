@@ -4,7 +4,8 @@
 //!
 //! The log is a zstd stream of varint-length `ExecLogEntry` messages. Every spawn output
 //! becomes the key `<label> <mnemonic> <output path>`, valued with the file digest, the sorted
-//! child digests of a directory, or the target of an unresolved symlink.
+//! child digests of a directory, or the target of an unresolved symlink. An output that
+//! several spawns list is keyed with the smallest of their labels.
 //!
 //! The fixtures in `exec_log_fixtures` were recorded with Bazel 9.3.1 from a scratch workspace
 //! holding `.bazelversion` (`9.3.1`) and an empty `MODULE.bazel`.
@@ -483,13 +484,22 @@ impl ExecLog {
 /// Returns `Err` when the log cannot be parsed or a spawn output has no entry.
 pub fn read(bytes: &[u8]) -> Result<Log, String> {
     let parsed = ExecLog::parse(bytes)?;
-    let mut log = Log::new();
+    let mut owners: BTreeMap<String, (&str, &str, String)> = BTreeMap::new();
     for spawn in &parsed.spawns {
         for (path, value) in parsed.outputs(spawn)? {
-            log.insert(format!("{} {} {path}", spawn.label, spawn.mnemonic), value);
+            let owner = (spawn.label.as_str(), spawn.mnemonic.as_str(), value);
+            match owners.get(&path) {
+                Some(kept) if kept.0 <= owner.0 => {}
+                _ => {
+                    owners.insert(path, owner);
+                }
+            }
         }
     }
-    Ok(log)
+    Ok(owners
+        .into_iter()
+        .map(|(path, (label, mnemonic, value))| (format!("{label} {mnemonic} {path}"), value))
+        .collect())
 }
 
 /// Most differing inputs one spawn lists before it only counts the rest.

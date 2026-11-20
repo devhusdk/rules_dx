@@ -282,6 +282,22 @@ rust_binary(
     ) + [":dx_deploy_tools"],
 )
 
+rust_binary(
+    name = "nfpm_stage",
+    srcs = ["src/bin_nfpm_stage.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "nfpm_stage",
+    crate_root = "src/bin_nfpm_stage.rs",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ) + [":dx_deploy_tools"],
+)
+
 rust_test(
     name = "dx_deploy_tools_test",
     size = "small",

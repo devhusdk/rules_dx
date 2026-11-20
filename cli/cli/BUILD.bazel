@@ -169,6 +169,7 @@ rust_binary(
         "//cli/adopt:dx_adopt",
         "//cli/codegen_shard",
         "//cli/exec_core:dx_exec_core",
+        "//cli/ocaml_cc_driver",
         "//cli/output:dx_output",
         "//cli/path:dx_path",
         "//cli/plan:dx_plan",

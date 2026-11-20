@@ -1,5 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//ocaml:defs.bzl", "ocaml_dune_library", "ocaml_module", "ocaml_test")
+load("//ocaml/tests:defs_tests.bzl", "ocaml_dune_runs_dx_test")
 load("//ocaml/tests/native:defs.bzl", "sys_cell_test")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -28,6 +29,11 @@ ocaml_dune_library(
     stubs = True,
     workspace = "dune-project",
     deps = [":greet"],
+)
+
+ocaml_dune_runs_dx_test(
+    name = "farewell_runs_dx_test",
+    target_under_test = ":farewell",
 )
 
 ocaml_module(

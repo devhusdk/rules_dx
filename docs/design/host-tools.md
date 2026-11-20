@@ -16,7 +16,7 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 - rules_dx writes no shell scripts for actions, tests or launchers. This covers `run_shell`, `genrule` `cmd`, `sh_test`, `sh_binary` and files with a `#!` shell line.
 - Logic that needs more than one command is a Rust binary in `cli/` or a Starlark rule with one `ctx.actions.run` per program.
 - An upstream program may start `/bin/sh` itself, through a `#!/bin/sh` line or `system()`. That is the only host program an action may reach. Windows actions reach none.
-- An upstream script that needs `bash` is replaced by a native program under the same file name, placed first on `PATH`. `//cli/ocaml_cc_driver` is the model: it replaces the `conda-ocaml-*` scripts.
+- An upstream script that needs `bash` is replaced by a native program under the same file name, placed first on `PATH`. `dx` is the model: it runs as each `conda-ocaml-*` program name the OCaml compiler calls.
 
 ## Coreutils
 

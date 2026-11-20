@@ -99,3 +99,24 @@ _compile_runtime_libs_test = analysistest.make(_compile_runtime_libs_impl)
 def ocaml_compile_stages_runtime_libs_test(name, target_under_test):
     """Asserts every compile action of the target stages the shared libraries the compiler loads."""
     _compile_runtime_libs_test(name = name, size = "small", target_under_test = target_under_test)
+
+def _dune_runs_dx_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = analysistest.target_actions(env)
+    dune = [a for a in actions if a.mnemonic == "DxDuneLibrary"]
+    asserts.equals(env, 1, len(dune))
+    argv = dune[0].argv
+    asserts.equals(env, "dx", argv[0].rpartition("/")[2].partition(".")[0])
+    asserts.equals(env, "ocaml_dune", argv[1])
+    links = [a for a in actions if a.outputs.to_list()[0].basename.startswith("conda-ocaml-")]
+    asserts.true(env, len(links) > 0, "no conda-ocaml-* symlink action")
+    for action in links:
+        inputs = [f.basename.partition(".")[0] for f in action.inputs.to_list()]
+        asserts.equals(env, ["dx"], inputs, action.outputs.to_list()[0].basename)
+    return analysistest.end(env)
+
+_dune_runs_dx_test = analysistest.make(_dune_runs_dx_impl)
+
+def ocaml_dune_runs_dx_test(name, target_under_test):
+    """Asserts the dune step runs `dx ocaml_dune` and every conda-ocaml-* program links to dx."""
+    _dune_runs_dx_test(name = name, size = "small", target_under_test = target_under_test)

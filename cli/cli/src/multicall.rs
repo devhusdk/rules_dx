@@ -1,6 +1,7 @@
 //! `dx` runs a bundled tool when started under that tool's name, so the prebuilt hub can ship one
 //! binary and expose it as `quality_runner`, `quality_markdown`, `quality_notebook`, `lsp_check`,
-//! `collect_native`, `env_shard_writer`, `codegen_shard_writer` and `deploy_tool`. Rule helpers
+//! `collect_native`, `env_shard_writer`, `codegen_shard_writer`, `deploy_tool` and the
+//! `conda-ocaml-{ar,as,cc,ld,mkdll,mkexe,ranlib}` names the OCaml compiler calls. Rule helpers
 //! that need no alias run as `dx <tool> [ARG]...`, so a host without symlinks keeps one copy of dx.
 
 use std::ffi::OsStr;
@@ -82,6 +83,8 @@ pub enum Tool {
     SymbolsSplit,
     SymbolsDsym,
     SymbolsPdb,
+    OcamlCcDriver,
+    OcamlDune,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -96,6 +99,10 @@ pub fn tool_for(argv0: &OsStr) -> Option<Tool> {
         "env_shard_writer" => Some(Tool::EnvShardWriter),
         "codegen_shard_writer" => Some(Tool::CodegenShardWriter),
         "deploy_tool" => Some(Tool::DeployTool),
+        "conda-ocaml-ar" | "conda-ocaml-as" | "conda-ocaml-cc" | "conda-ocaml-ld"
+        | "conda-ocaml-mkdll" | "conda-ocaml-mkexe" | "conda-ocaml-ranlib" => {
+            Some(Tool::OcamlCcDriver)
+        }
         _ => None,
     }
 }
@@ -170,6 +177,7 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "symbols_split" => Some(Tool::SymbolsSplit),
         "symbols_dsym" => Some(Tool::SymbolsDsym),
         "symbols_pdb" => Some(Tool::SymbolsPdb),
+        "ocaml_dune" => Some(Tool::OcamlDune),
         _ => None,
     }
 }
@@ -199,6 +207,8 @@ mod tests {
             ("env_shard_writer.exe", Tool::EnvShardWriter),
             ("codegen_shard_writer", Tool::CodegenShardWriter),
             ("deploy_tool.exe", Tool::DeployTool),
+            ("conda-ocaml-cc", Tool::OcamlCcDriver),
+            ("x/bin/conda-ocaml-ranlib.exe", Tool::OcamlCcDriver),
         ] {
             assert_eq!(tool_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -227,6 +237,8 @@ mod tests {
             "",
             "quality_runner_lib",
             "quality",
+            "conda-ocaml",
+            "conda-ocaml-strip",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }
@@ -301,6 +313,7 @@ mod tests {
             ("symbols_split", Tool::SymbolsSplit),
             ("symbols_dsym", Tool::SymbolsDsym),
             ("symbols_pdb", Tool::SymbolsPdb),
+            ("ocaml_dune", Tool::OcamlDune),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -373,12 +386,14 @@ mod tests {
             "symbols_split",
             "symbols_dsym",
             "symbols_pdb",
+            "ocaml_dune",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }
         for name in [
             "quality_runner",
             "deploy_tool",
+            "conda-ocaml-cc",
             "capture.exe",
             "test",
             "check",

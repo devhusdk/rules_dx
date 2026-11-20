@@ -13460,7 +13460,7 @@
           {
             "attrs": [
               "data",
-              "package_name",
+              "entry",
               "srcs",
               "tags",
               "target_compatible_with",
@@ -13527,7 +13527,6 @@
               "deps",
               "julia_flags",
               "main",
-              "package_name",
               "size",
               "srcs",
               "tags",

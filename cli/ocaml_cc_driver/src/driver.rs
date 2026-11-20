@@ -5,7 +5,7 @@
 //! `DX_OCAML_LIBTOOL` makes `ar` archive with libtool.
 //! `DX_OCAML_AS_DROP_DEBUG_PREFIX_MAP` removes `--debug-prefix-map MAP` from the `as` arguments.
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::path::Path;
 use std::process::Command;
 
@@ -89,12 +89,10 @@ pub fn plan(
     })
 }
 
-/// Runs the tool this process was started as and returns its exit code.
-pub fn run_from_env() -> Result<i32, String> {
-    let mut args = std::env::args_os();
-    let program = args.next().unwrap_or_default();
+/// Runs the tool named by `program` with `args` and returns its exit code.
+pub fn run(program: &OsStr, args: Vec<OsString>) -> Result<i32, String> {
     let tool = tool_of(&program.to_string_lossy())?;
-    let planned = plan(tool, &|name| std::env::var(name).ok(), args.collect())?;
+    let planned = plan(tool, &|name| std::env::var(name).ok(), args)?;
     let status = Command::new(&planned.program)
         .args(&planned.args)
         .status()

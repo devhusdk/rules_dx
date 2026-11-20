@@ -1,17 +1,21 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
-rust_binary(
+rust_library(
     name = "ocaml_cc_driver",
     srcs = [
         "src/driver.rs",
+        "src/driver_tests.rs",
         "src/dune.rs",
-        "src/main.rs",
+        "src/dune_tests.rs",
+        "src/lib.rs",
+        "src/lib_tests.rs",
     ],
     crate_name = "ocaml_cc_driver",
-    crate_root = "src/main.rs",
+    crate_root = "src/lib.rs",
+    visibility = ["//cli/cli:__pkg__"],
     deps = [
         "@crates//:tempfile",
     ],
@@ -20,18 +24,9 @@ rust_binary(
 rust_test(
     name = "ocaml_cc_driver_test",
     size = "small",
-    srcs = [
-        "src/driver.rs",
-        "src/driver_tests.rs",
-        "src/dune.rs",
-        "src/dune_tests.rs",
-        "src/main.rs",
-    ],
-    crate_name = "ocaml_cc_driver",
-    crate_root = "src/main.rs",
+    crate = ":ocaml_cc_driver",
     deps = [
         "//cli/test_scratch:dx_test_scratch",
-        "@crates//:tempfile",
     ],
 )
 
@@ -45,9 +40,4 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
-)
-
-exports_files(
-    ["src/main.rs"],
-    visibility = ["//core/quality:__pkg__"],
 )

@@ -3132,6 +3132,17 @@ mod cmd {
             .to_owned()
     }
 
+    /// The URL the launcher fetches on this host. Windows sets PROCESSOR_ARCHITECTURE for each
+    /// process from its own architecture, so a test cannot pick the CPU through the environment.
+    fn released_url() -> String {
+        let cpu = if cfg!(target_arch = "aarch64") {
+            "arm64"
+        } else {
+            "x86_64"
+        };
+        format!("https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/dx-windows-{cpu}\n")
+    }
+
     /// Writes release pins for a payload dx, with its real sha256 when `pinned`, and a fake
     /// curl that serves the payload and logs each URL. A release archive has no .git.
     fn released(name: &str, pinned: bool) -> SourceRepo {
@@ -3148,7 +3159,7 @@ mod cmd {
         std::fs::write(
             repo.root().join("cli/prebuilt/pins.bzl"),
             format!(
-                "SCHEMA = 1\r\n\r\nDX_VERSION = \"1.2.3\"\r\n\r\nURL_TEMPLATE = \"https://github.com/devhusdk/rules_dx/releases/download/v{{version}}/{{asset}}\"\r\n\r\nPINS = {{\r\n    \"dx\": {{\r\n        \"windows_arm64\": \"{zero}\",\r\n        \"windows_x86_64\": \"{sum}\",\r\n    }},\r\n    \"launcher\": {{\r\n        \"windows_x86_64\": \"{zero}\",\r\n    }},\r\n}}\r\n",
+                "SCHEMA = 1\r\n\r\nDX_VERSION = \"1.2.3\"\r\n\r\nURL_TEMPLATE = \"https://github.com/devhusdk/rules_dx/releases/download/v{{version}}/{{asset}}\"\r\n\r\nPINS = {{\r\n    \"dx\": {{\r\n        \"windows_arm64\": \"{sum}\",\r\n        \"windows_x86_64\": \"{sum}\",\r\n    }},\r\n    \"launcher\": {{\r\n        \"windows_x86_64\": \"{zero}\",\r\n    }},\r\n}}\r\n",
                 zero = "1".repeat(64)
             ),
         )
@@ -3175,7 +3186,6 @@ mod cmd {
                 .command(&[], &self.base.join("calls"))
                 .env("HOME", self.base.join("home"))
                 .env_remove("XDG_CACHE_HOME")
-                .env("PROCESSOR_ARCHITECTURE", "AMD64")
                 .output()
                 .expect("launcher runs");
             (
@@ -3205,7 +3215,7 @@ mod cmd {
         assert_eq!(repo.builds(), 0);
         assert_eq!(
             repo.fetches(),
-            "https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/dx-windows-x86_64\n",
+            released_url(),
             "the second run reuses the fetched dx"
         );
         assert!(
@@ -3281,10 +3291,7 @@ mod cmd {
         assert_eq!(repo.fetches(), "", "a tracked edit builds dx");
         std::fs::remove_file(&dirty).expect("clean");
         run_ok();
-        assert_eq!(
-            repo.fetches(),
-            "https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/dx-windows-x86_64\n"
-        );
+        assert_eq!(repo.fetches(), released_url());
     }
 
     #[test]

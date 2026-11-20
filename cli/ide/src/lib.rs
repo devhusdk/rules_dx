@@ -54,17 +54,18 @@ pub struct Plugin {
 impl Plugin {
     /// The `rules_dx`-relative labels of `commands`.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// When a `commands` key names no `lang.json` command; `every_plugin_command_resolves` rules that out.
-    #[must_use]
-    pub fn labels(&self) -> Vec<&'static str> {
+    /// When a `commands` key names no `lang.json` command.
+    pub fn labels(&self) -> Result<Vec<&'static str>, DxError> {
         self.commands
             .iter()
             .map(|(lang, tool)| {
-                let label = dx_families::command(lang, tool)
-                    .unwrap_or_else(|| panic!("{lang}/lang.json has no {tool} command"));
-                dx_families::repo_relative(label)
+                dx_families::command(lang, tool)
+                    .map(dx_families::repo_relative)
+                    .ok_or_else(|| {
+                        DxError::infra(format!("{lang}/lang.json has no {tool} command"))
+                    })
             })
             .collect()
     }
@@ -149,7 +150,7 @@ fn refresh_with(
     remove_stale(workspace, plugins, &active);
     let mut labels: Vec<String> = Vec::new();
     for plugin in &active {
-        for label in plugin.labels() {
+        for label in plugin.labels()? {
             if !labels.iter().any(|l| l == label) {
                 labels.push(label.to_owned());
             }
@@ -195,13 +196,14 @@ fn refresh_with(
 
 fn collect_extensions(dir: &Path, found: &mut Vec<String>) {
     let ignored = bazelignore(dir);
-    walk(dir, &ignored, found);
+    walk(dir, dir, &ignored, found);
 }
 
 fn bazelignore(root: &Path) -> Vec<PathBuf> {
-    std::fs::read_to_string(root.join(".bazelignore"))
-        .map(|text| {
-            text.lines()
+    std::fs::read(root.join(".bazelignore"))
+        .map(|bytes| {
+            String::from_utf8_lossy(&bytes)
+                .lines()
                 .map(str::trim)
                 .filter(|line| !line.is_empty() && !line.starts_with('#'))
                 .map(|line| root.join(line.trim_end_matches('/')))
@@ -210,7 +212,7 @@ fn bazelignore(root: &Path) -> Vec<PathBuf> {
         .unwrap_or_default()
 }
 
-fn walk(dir: &Path, ignored: &[PathBuf], found: &mut Vec<String>) {
+fn walk(root: &Path, dir: &Path, ignored: &[PathBuf], found: &mut Vec<String>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
@@ -223,10 +225,10 @@ fn walk(dir: &Path, ignored: &[PathBuf], found: &mut Vec<String>) {
         if kind.is_dir() {
             let skip = name == ".git"
                 || name == dx_path::state::DX_DIR
-                || name.starts_with("bazel-")
+                || (dir == root && name.starts_with("bazel-"))
                 || ignored.contains(&path);
             if !skip {
-                walk(&path, ignored, found);
+                walk(root, &path, ignored, found);
             }
         } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
             let ext = ext.to_ascii_lowercase();
@@ -368,7 +370,7 @@ mod tests {
         assert!(
             PLUGINS
                 .iter()
-                .flat_map(|plugin| plugin.labels())
+                .flat_map(|plugin| plugin.labels().expect("labels"))
                 .any(|label| label == "go/private/ide:gopackagesdriver")
         );
     }
@@ -749,6 +751,62 @@ mod tests {
         let runner = fake(root);
         assert!(refresh(root, &runner).expect("refresh").ran);
         assert_eq!(runner.calls.get(), 1);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_nested_bazel_named_directory_is_scanned() {
+        let scratch = dx_test_scratch::scratch("dx-ide-nested-bazel-").unwrap();
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("tools/bazel-lint")).expect("dir");
+        std::fs::write(root.join("tools/bazel-lint/app.ts"), "").expect("ts");
+        let runner = fake(root);
+        assert!(refresh(root, &runner).expect("refresh").ran);
+        assert_eq!(runner.calls.get(), 1);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn an_unknown_command_is_an_error_not_a_panic() {
+        let scratch = dx_test_scratch::scratch("dx-ide-unknown-").unwrap();
+        let root = scratch.path();
+        std::fs::write(root.join("app.ts"), "").expect("ts");
+        let plugin = Plugin {
+            name: "bogus",
+            extensions: &["ts"],
+            commands: &[("nope", "nope")],
+            outputs: &[],
+            write: fail,
+        };
+        let runner = fake(root);
+        let error = refresh_with(root, &runner, &[&plugin]).unwrap_err();
+        assert!(error.message().contains("nope/lang.json"), "{error:?}");
+        assert_eq!(runner.calls.get(), 0);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_bazelignore_with_a_non_utf8_byte_still_applies() {
+        let scratch = dx_test_scratch::scratch("dx-ide-ignore-bytes-").unwrap();
+        let root = scratch.path();
+        std::fs::write(root.join(".bazelignore"), b"# caf\xe9\nnode_modules\n").expect("ignore");
+        std::fs::create_dir_all(root.join("node_modules/x")).expect("dir");
+        std::fs::write(root.join("node_modules/x/index.ts"), "").expect("ts");
+        let runner = fake(root);
+        refresh(root, &runner).expect("refresh");
+        assert_eq!(runner.calls.get(), 0);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn a_root_bazel_named_directory_is_skipped() {
+        let scratch = dx_test_scratch::scratch("dx-ide-root-bazel-").unwrap();
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("bazel-out")).expect("dir");
+        std::fs::write(root.join("bazel-out/app.ts"), "").expect("ts");
+        let runner = fake(root);
+        refresh(root, &runner).expect("refresh");
+        assert_eq!(runner.calls.get(), 0);
         scratch.close().expect("cleanup");
     }
 

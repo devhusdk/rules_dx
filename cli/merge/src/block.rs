@@ -39,20 +39,19 @@ pub fn merge(text: &str, begin: &str, end: &str, block: &str) -> Result<String, 
         });
     }
     let eol = eol(text);
-    let block = block.replace("\r\n", "\n").replace('\n', eol);
+    let mut block = block.replace("\r\n", "\n").replace('\n', eol);
     Ok(if let Some((start, stop)) = span(text, begin, end) {
-        format!(
-            "{}{}{}",
-            text.get(..start).unwrap_or_default(),
-            block,
-            text.get(stop..).unwrap_or_default()
-        )
+        let rest = text.get(stop..).unwrap_or_default();
+        if !rest.is_empty() && !block.is_empty() && !block.ends_with('\n') {
+            block.push_str(eol);
+        }
+        format!("{}{}{}", text.get(..start).unwrap_or_default(), block, rest)
     } else {
         let mut out = text.to_owned();
         if !out.is_empty() && !out.ends_with('\n') {
             out.push_str(eol);
         }
-        if !out.is_empty() {
+        if !out.is_empty() && !out.ends_with("\n\n") && !out.ends_with("\n\r\n") {
             out.push_str(eol);
         }
         out.push_str(&block);
@@ -112,5 +111,22 @@ mod tests {
         let block = "<!-- b -->\r\nbody\r\n<!-- e -->\r\n";
         let out = merge(old, B, E, block).unwrap();
         assert_eq!(out, "top\r\n<!-- b -->\r\nbody\r\n<!-- e -->\r\n");
+    }
+
+    #[test]
+    fn a_block_without_a_line_break_does_not_join_the_next_line() {
+        let old = "top\n<!-- b -->\nold\n<!-- e -->\nbottom\n";
+        let out = merge(old, B, E, "<!-- b -->\nbody\n<!-- e -->").unwrap();
+        assert_eq!(out, "top\n<!-- b -->\nbody\n<!-- e -->\nbottom\n");
+    }
+
+    #[test]
+    fn a_trailing_blank_line_is_not_doubled() {
+        assert_eq!(
+            merge("# Mine\n\n", B, E, BLOCK).unwrap(),
+            format!("# Mine\n\n{BLOCK}")
+        );
+        let out = merge("# Mine\r\n\r\n", B, E, BLOCK).unwrap();
+        assert!(out.starts_with("# Mine\r\n\r\n<!-- b -->"), "{out:?}");
     }
 }

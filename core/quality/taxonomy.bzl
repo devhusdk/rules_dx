@@ -9,25 +9,13 @@ OTHER_FAMILIES = {
         owner = "other",
         classes = ["github_workflow"],
     ),
-    "csharp": struct(
-        owner = "@rules_dx//csharp:defs.bzl",
-        classes = ["csharp"],
-    ),
     "css": struct(
         owner = "//javascript:defs.bzl",
         classes = ["css", "less", "scss"],
     ),
-    "cuda": struct(
-        owner = "//cuda:defs.bzl",
-        classes = ["cuda"],
-    ),
     "cue": struct(
         owner = "//core:defs.bzl",
         classes = ["cue"],
-    ),
-    "fsharp": struct(
-        owner = "@rules_dx//fsharp:defs.bzl",
-        classes = ["fsharp"],
     ),
     "gherkin": struct(
         owner = "//core:defs.bzl",

@@ -54,5 +54,12 @@
     "csharp_bench",
     "csharp_fuzz_test",
     "csharp_doc_shard"
-  ]
+  ],
+  "quality": {
+    "bzl": "dotnet/private/quality:dotnet.bzl",
+    "classes": [
+      "csharp"
+    ],
+    "file_extensions": []
+  }
 }

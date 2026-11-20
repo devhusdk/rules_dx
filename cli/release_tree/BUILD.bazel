@@ -23,6 +23,7 @@ rust_test(
         "src/tree.rs",
         "src/tree_tests.rs",
     ],
+    coverage_lib = ":release_tree",
     crate_name = "release_tree",
     crate_root = "src/lib.rs",
     deps = [

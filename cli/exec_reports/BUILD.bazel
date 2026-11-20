@@ -36,20 +36,9 @@ rust_library(
 rust_test(
     name = "dx_exec_reports_test",
     size = "small",
-    srcs = [
-        "src/build_failures.rs",
-        "src/compiler_stderr.rs",
-        "src/failure_reports.rs",
-        "src/lib.rs",
-        "src/pinned_tool.rs",
-        "src/rustc_stderr.rs",
-        "src/skipped_targets.rs",
-    ],
     aliases = {},  # keep
     compile_data = ["src/unsupported.json"],
-    coverage_lib = ":dx_exec_reports",
-    crate_name = "dx_exec_reports",
-    crate_root = "src/lib.rs",
+    crate = ":dx_exec_reports",
     # keep
     deps = [
         "//cli/bep:dx_bep",

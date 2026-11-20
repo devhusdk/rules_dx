@@ -24,7 +24,9 @@ apple format_error_test *
 apple format_test *
 apple lint_error_test *
 apple lint_test *
-cuda cross_test *
+cuda cross_test linux_arm64
+cuda cross_test windows_arm64
+cuda cross_test windows_x86_64
 cuda lint_error_test linux_arm64
 cuda lint_test linux_arm64
 d lint_error_test linux_arm64

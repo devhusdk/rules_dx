@@ -17,7 +17,7 @@ pub use generate::{
     GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, generate_package_scope,
     generate_package_scope_within, generate_scope_json, generate_scope_visits, plan_generate,
 };
-pub use managed::{plan_managed, plan_managed_with_roots};
+pub use managed::{managed_aspects, plan_managed, plan_managed_with_roots};
 pub use quality::{
     Selection, command_aspects, plan_build, plan_build_with, plan_docs, plan_probe,
     plan_shared_build, plan_shared_probe,

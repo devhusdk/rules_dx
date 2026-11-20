@@ -337,7 +337,7 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" //appimage/... //cli/archive/...
   analysis-scaling:
-    name: analysis-scaling (dx check and docs aspects on depth 100 and 400 chains)
+    name: analysis-scaling (dx check, docs and sync aspects on depth 100 and 400 chains)
     timeout-minutes: 60
     runs-on: ubuntu-latest
     permissions:

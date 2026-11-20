@@ -278,8 +278,7 @@ pub fn all_aspect_labels() -> Vec<String> {
         })
         .map(rules_dx_label)
         .collect();
-    labels.push(dx_codegen::aspect_label(super::rules_dx_repo()));
-    labels.push(dx_env_plan::aspect_label(super::rules_dx_repo()));
+    labels.extend(super::managed::managed_aspects());
     labels.sort();
     labels.dedup();
     labels

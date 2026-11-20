@@ -1,4 +1,4 @@
-"""Linear library chains that //tools/testing:analysis_scaling_check analyzes with the dx check and docs aspects."""
+"""Linear library chains that //tools/testing:analysis_scaling_check analyzes with the dx check, docs and sync aspects."""
 
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//capnproto:defs.bzl", "capnproto_library")

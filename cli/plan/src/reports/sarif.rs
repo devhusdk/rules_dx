@@ -494,6 +494,22 @@ mod tests {
     }
 
     #[test]
+    fn sarif_fingerprints_findings_at_the_end_of_the_file() {
+        let snapshots = BTreeMap::from([(
+            (Snapshot::Terminal, "src/a.py".to_owned()),
+            "x = 1".to_owned(),
+        )]);
+        let at_end = render_one(ranged("src/a.py", 5, 5), &snapshots);
+        let at_start = render_one(ranged("src/a.py", 0, 0), &snapshots);
+        let fingerprint = &at_end["results"][0]["partialFingerprints"]["dx/v1"];
+        assert!(fingerprint.is_string());
+        assert_eq!(
+            fingerprint,
+            &at_start["results"][0]["partialFingerprints"]["dx/v1"]
+        );
+    }
+
+    #[test]
     fn sarif_columns_count_code_points() {
         let snapshots = BTreeMap::from([(
             (Snapshot::Terminal, "src/a.py".to_owned()),

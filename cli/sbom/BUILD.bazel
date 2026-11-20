@@ -19,6 +19,7 @@ rust_library(
         package_name = "cli/dx_sbom",
         normal = True,
     ),
+    compile_data = ["//cli/sbom/schema:spdx.schema.json"],
     crate_name = "dx_sbom",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
@@ -40,6 +41,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    compile_data = ["//cli/sbom/schema:spdx.schema.json"],
     coverage_lib = ":dx_sbom",
     crate_name = "dx_sbom",
     crate_root = "src/lib.rs",

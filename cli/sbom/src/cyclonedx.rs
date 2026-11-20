@@ -1,6 +1,7 @@
 //! The `CycloneDX` 1.6 JSON data model dx writes next to the SPDX one.
 
 use std::collections::BTreeSet;
+use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 
@@ -149,16 +150,30 @@ pub fn license_choices(expression: &str) -> Vec<CdxLicenseChoice> {
         return Vec::new();
     }
     match spdx::license_id(expression) {
-        Some(id) => vec![CdxLicenseChoice::License {
+        Some(id) if SCHEMA_LICENSE_IDS.contains(id.name) => vec![CdxLicenseChoice::License {
             license: CdxLicense {
                 id: id.name.to_owned(),
             },
         }],
-        None => vec![CdxLicenseChoice::Expression {
+        _ => vec![CdxLicenseChoice::Expression {
             expression: expression.to_owned(),
         }],
     }
 }
+
+#[derive(Deserialize)]
+struct SpdxEnum {
+    #[serde(rename = "enum")]
+    ids: BTreeSet<String>,
+}
+
+// The `spdx` crate knows newer ids than the 1.6 schema enum, which rejects them under
+// `license.id`. An unreadable schema leaves the set empty, so every id falls back to `expression`.
+static SCHEMA_LICENSE_IDS: LazyLock<BTreeSet<String>> = LazyLock::new(|| {
+    serde_json::from_str::<SpdxEnum>(include_str!("../schema/spdx.schema.json"))
+        .map(|schema| schema.ids)
+        .unwrap_or_default()
+});
 
 /// Graph rules the schema cannot express: non-empty unique bom-refs and known, unrepeated dependency refs.
 #[must_use]

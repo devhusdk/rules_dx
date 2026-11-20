@@ -73,7 +73,9 @@ fn dynamic(path: &Path) -> Dynamic {
     let mut soname = None;
     let mut needed = BTreeSet::new();
     if let Some((entries, link)) = sections.dynamic(endian, &*data).expect("dynamic section") {
-        let strings = sections.strings(endian, &*data, link).expect("dynamic strings");
+        let strings = sections
+            .strings(endian, &*data, link)
+            .expect("dynamic strings");
         for entry in entries {
             let tag = entry.tag32(endian);
             if tag != Some(elf::DT_NEEDED) && tag != Some(elf::DT_SONAME) {
@@ -91,7 +93,9 @@ fn dynamic(path: &Path) -> Dynamic {
     let mut versions = BTreeSet::new();
     let verdef = sections.gnu_verdef(endian, &*data).expect("verdef section");
     if let Some((mut verdefs, link)) = verdef {
-        let strings = sections.strings(endian, &*data, link).expect("verdef strings");
+        let strings = sections
+            .strings(endian, &*data, link)
+            .expect("verdef strings");
         while let Some((_, mut auxs)) = verdefs.next().expect("verdef entry") {
             if let Some(aux) = auxs.next().expect("verdaux entry") {
                 let name = aux.name(endian, strings).expect("version name");
@@ -190,4 +194,39 @@ fn julia_starts_on_the_built_library() {
         "loaded {loaded:?}, expected {}",
         expected.display()
     );
+}
+
+#[test]
+fn the_registered_toolchain_runs_on_the_built_library() {
+    let rel = std::env::var("DX_TOOLCHAIN_JULIA").expect("DX_TOOLCHAIN_JULIA must be set");
+    let julia = dx_testing::resolve_runfiles(&rel);
+    let run = dx_testing::run(
+        &julia,
+        &[
+            "--startup-file=no",
+            "-e",
+            "using Libdl; foreach(println, filter(p -> occursin(\"libjulia-internal\", p), Libdl.dllist()))",
+        ],
+        &[],
+    )
+    .expect("spawn julia");
+    assert!(run.status.success(), "julia failed: {}", run.stderr);
+    let loaded: Vec<_> = run.stdout.lines().collect();
+    let [path] = loaded.as_slice() else {
+        panic!("expected one libjulia-internal, loaded {loaded:?}");
+    };
+    let loaded = std::fs::canonicalize(path).unwrap_or_else(|e| panic!("resolve {path}: {e}"));
+    let root = std::fs::canonicalize(&julia).expect("resolve toolchain julia");
+    let root = root
+        .parent()
+        .and_then(Path::parent)
+        .expect("julia lives in <root>/bin");
+    assert_eq!(loaded, root.join("lib/julia").join(library()));
+    let shipped = std::fs::read(shipped()).expect("read shipped library");
+    let ours = std::fs::read(&loaded).expect("read loaded library");
+    assert!(
+        ours != shipped,
+        "julia loaded the shipped library from {path}"
+    );
+    assert_eq!(dynamic(&loaded).exports, dynamic(&built()).exports);
 }

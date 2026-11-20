@@ -7,15 +7,20 @@ load("//core/modules:versions.bzl", "JULIA_RUNTIME_VERSION")
 
 _JULIA_TOOLCHAIN = "@rules_julia//julia:toolchain_type"
 _VERSION_SETTING = "@rules_julia//julia/settings:version"
+_STOCK_SETTING = str(Label("//julia/private/runtime:stock"))
+
+_LIBRARY = "libjulia-internal.so." + JULIA_RUNTIME_VERSION
 
 def _runtime_version_impl(_settings, _attr):
-    return {_VERSION_SETTING: JULIA_RUNTIME_VERSION}
+    return {_STOCK_SETTING: True, _VERSION_SETTING: JULIA_RUNTIME_VERSION}
 
 # The source-built runtime and the toolchain it links against must be the same Julia release.
+# The stock flag keeps the source toolchain out of resolution here, so these rules see the
+# downloaded release instead of themselves.
 _runtime_version = transition(
     implementation = _runtime_version_impl,
     inputs = [],
-    outputs = [_VERSION_SETTING],
+    outputs = [_STOCK_SETTING, _VERSION_SETTING],
 )
 
 def _julia_runtime_files_impl(ctx):
@@ -74,4 +79,86 @@ julia_shipped_libs = rule(
     },
     fragments = ["cpp"],
     toolchains = use_cc_toolchain() + [_JULIA_TOOLCHAIN],
+)
+
+def _copy(ctx, src, out):
+    ctx.actions.run_shell(
+        inputs = [src],
+        outputs = [out],
+        command = 'cp -- "$1" "$2"',
+        arguments = [src.path, out.path],
+        mnemonic = "JuliaRuntimeCopy",
+        progress_message = "Copying %{output}",
+    )
+
+def _rlocationpath(ctx, file):
+    if file.short_path.startswith("../"):
+        return file.short_path[len("../"):]
+    return ctx.workspace_name + "/" + file.short_path
+
+def _julia_source_toolchain_impl(ctx):
+    stock = ctx.toolchains[_JULIA_TOOLCHAIN]
+    built = [f for f in ctx.files.library if f.basename == _LIBRARY]
+    if len(built) != 1:
+        fail("{} holds no {}".format(ctx.attr.library.label, _LIBRARY))
+    root = stock.julia.dirname.rpartition("/")[0] + "/"
+    alias_dir = "lib/julia/"
+    internal = alias_dir + _LIBRARY
+    aliases = [alias_dir + "libjulia-internal.so", internal.rpartition(".")[0]]
+    tree = {}
+    links = []
+    for f in stock.all_files.to_list():
+        if not f.path.startswith(root):
+            fail("{} lies outside the Julia tree {}".format(f.path, root))
+        rel = f.path[len(root):]
+        if rel in tree:
+            continue
+        out = ctx.actions.declare_file(ctx.label.name + "/" + rel)
+        tree[rel] = out
+
+        # The dynamic loader resolves $ORIGIN and Julia finds libjulia-internal next to
+        # the real path of julia and libjulia, so those must be files in this tree.
+        if rel == internal:
+            _copy(ctx, built[0], out)
+        elif rel.startswith("bin/") or rel.startswith("lib/libjulia.so"):
+            _copy(ctx, f, out)
+        elif rel in aliases:
+            links.append(rel)
+        else:
+            ctx.actions.symlink(output = out, target_file = f)
+    if internal not in tree:
+        fail("the Julia toolchain ships no " + internal)
+    for rel in links:
+        ctx.actions.symlink(output = tree[rel], target_file = tree[internal])
+
+    julia = tree[stock.julia.path[len(root):]]
+    make_variable_info = platform_common.TemplateVariableInfo({
+        "JULIA": julia.path,
+        "JULIA_RLOCATIONPATH": _rlocationpath(ctx, julia),
+    })
+    fields = {
+        name: getattr(stock, name)
+        for name in dir(stock)
+        if type(getattr(stock, name)) != "builtin_function_or_method"
+    }
+    fields.update(
+        all_files = depset(tree.values()),
+        julia = julia,
+        link_files = depset([tree[f.path[len(root):]] for f in stock.link_files.to_list()]),
+        make_variable_info = make_variable_info,
+        sysimage = tree[stock.sysimage.path[len(root):]] if stock.sysimage else None,
+    )
+    return [
+        platform_common.ToolchainInfo(**fields),
+        make_variable_info,
+    ]
+
+julia_source_toolchain = rule(
+    implementation = _julia_source_toolchain_impl,
+    doc = "The runtime's Julia toolchain with the source-built libjulia-internal in its tree.",
+    cfg = _runtime_version,
+    attrs = {
+        "library": attr.label(doc = "The source-built libjulia-internal.", mandatory = True),
+    },
+    toolchains = [_JULIA_TOOLCHAIN],
 )

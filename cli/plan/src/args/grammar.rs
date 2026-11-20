@@ -703,9 +703,15 @@ flag_group! {
 }
 
 flag_group! {
-    /// Skip versions published fewer than this many days ago (needs --pr; default 3).
+    /// Skip versions published fewer than this many days ago (needs --pr; default 3; max 36500).
     MinAgeFlag, {
-        #[arg(long, value_name = "DAYS", overrides_with = "min_age")]
+        // A larger age has no cutoff date in chrono, which would turn the filter off.
+        #[arg(
+            long,
+            value_name = "DAYS",
+            overrides_with = "min_age",
+            value_parser = clap::value_parser!(u32).range(..=36_500)
+        )]
         min_age: Option<u32>,
     }
 }

@@ -32,9 +32,9 @@ use std::collections::BTreeMap;
 use dx_nested::Case;
 use prebuilt_guard::{
     BundleTool, TargetRoot, allowlist, bundle_tools, command_roots, compiled_binaries,
-    compiles_rules_dx_sources, guard_aspects, java_binary_only, jvm_sources_query,
-    missing_target_repos, problems, release_platform, resolver_roots, stub_bundle, stub_url,
-    target_guard_build, target_guard_bzl, wrapper_build, wrapper_bzl,
+    drop_jar_launchers, guard_aspects, jvm_sources_query, missing_target_repos, problems,
+    release_platform, resolver_roots, stub_bundle, stub_url, target_guard_build,
+    target_guard_bzl, wrapper_build, wrapper_bzl,
 };
 
 /// The consumer languages whose fixture roots the jar tools.
@@ -285,10 +285,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         );
     }
     let mut found = compiled_binaries(&run.stdout);
-    found.retain(|label, lines| {
-        if !java_binary_only(lines) {
-            return true;
-        }
+    drop_jar_launchers(&mut found, |label| {
         let sources = case.bazel(&[
             "cquery",
             "--color=no",
@@ -299,13 +296,13 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
             "--output=label",
             &jvm_sources_query(label),
         ]);
-        assert!(
-            sources.status.success(),
-            "bazel cquery: {}",
-            sources.combined()
-        );
-        compiles_rules_dx_sources(&sources.stdout)
-    });
+        if sources.status.success() {
+            Ok(sources.stdout)
+        } else {
+            Err(format!("bazel cquery: {}", sources.combined()))
+        }
+    })
+    .unwrap_or_else(|error| panic!("{error}"));
     let mut problems = problems(&found, &list.labels_for(&langs));
     problems.extend(missing_target_repos(&run.stdout, &target_roots));
     assert!(

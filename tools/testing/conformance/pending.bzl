@@ -6,10 +6,6 @@ android format_test windows_arm64
 android lint_error_test windows_arm64
 android lint_test windows_arm64
 ansible lock_test *
-apple format_error_test *
-apple format_test *
-apple lint_error_test *
-apple lint_test *
 cuda cross_test linux_arm64
 cuda cross_test windows_arm64
 cuda cross_test windows_x86_64

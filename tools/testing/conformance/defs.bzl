@@ -26,6 +26,7 @@ _QUALITY_CONFIG = "default"
 _QUALITY_CONFIGS = {
     "ansible": "shared",
     "api_spec": "shared",
+    "apple": "objc",
     "asciidoc": "shared",
     "astro": "shared",
     "avro": "shared",

@@ -1,9 +1,12 @@
+# gazelle:exclude format_dirty.m
 # gazelle:exclude greet.rs
+# gazelle:exclude lint_dirty.m
 # gazelle:exclude main.m
 load("//apple:defs.bzl", "apple_macos_app")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_static_library")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+load("//tools/testing/conformance:quality.bzl", "cc_format_subject", "cc_lint_subject")
 
 package(
     default_testonly = True,
@@ -30,6 +33,22 @@ apple_macos_app(
     version = "1.0",
 )
 
+apple_macos_app(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.m"],
+    bundle_id = "com.example.dxconformance.lintdirty",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+apple_macos_app(
+    name = "format_dirty",
+    srcs = ["format_dirty.m"],
+    bundle_id = "com.example.dxconformance.formatdirty",
+    tags = ["manual"],
+    version = "1.0",
+)
+
 dx_conformance_suite(
     name = "",
     size = "small",
@@ -48,6 +67,17 @@ dx_conformance_suite(
         "runfiles_test": "a macOS app reads bundled resources, not runfiles",
     },
     passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.m",
+        "format_subject": cc_format_subject,
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 6,
+        "lint_rule": "readability-else-after-return",
+        "lint_source": "lint_dirty.m",
+        "lint_subject": cc_lint_subject,
+    },
 )
 
 real_source_target(

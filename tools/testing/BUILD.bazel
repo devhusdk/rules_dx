@@ -92,7 +92,7 @@ rust_test(
         package_name = "tools/dx_testing",
         normal = True,
         normal_dev = True,
-    ),
+    ) + ["//cli/digest:dx_digest"],
 )
 
 child_runfiles(

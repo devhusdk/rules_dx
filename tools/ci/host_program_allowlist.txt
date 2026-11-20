@@ -9,16 +9,14 @@ cli/cli/src/exec/stream_probe_tests.rs spawn-by-name 1
 cli/cli/tests/agents/tests/dev_launcher.rs spawn-by-name 2
 cli/cli/tests/uv_sets/tests/uv_sets.rs env-path 1
 cli/output/src/clap_errors.rs spawn-by-name 1
-cli/plan/src/disk.rs env-home 2
 cli/process/src/capture.rs spawn-by-name 1
-cli/process/src/lib.rs env-home 2
 cli/process/src/lifecycle_tests.rs spawn-by-name 1
 cli/process/src/procs.rs spawn-by-name 1
 cli/process/src/procs_tests.rs spawn-by-name 3
 cli/shim/src/protocol.rs env-path 1
 cli/shim/src/protocol.rs spawn-by-name 1
 cli/shim/tests/e2e.rs spawn-by-name 1
-cli/test_scratch/src/lib.rs spawn-by-name 4
+cli/test_scratch/src/lib.rs spawn-by-name 2
 cli/worktree/src/host.rs env-path 1
 cli/worktree/src/host.rs spawn-by-name 3
 core/quality/artifacts/acquire_test/repos.bzl rctx-which 1

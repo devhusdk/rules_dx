@@ -256,7 +256,7 @@ pub fn check(args: &[String]) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{SETS, Step, plan};
+    use super::{CRATE_LOCK_CHECK, SETS, Step, plan};
 
     fn flags() -> Vec<String> {
         vec!["--config=ci".to_owned()]
@@ -290,18 +290,11 @@ mod tests {
             steps.get(1),
             Some(&Step::Silent(
                 "bazel",
-                [
-                    "mod",
-                    "show_repo",
-                    "--lockfile_mode=error",
-                    "--config=ci",
-                    "--repo_env=CARGO_BAZEL_DIGEST_CHECK=1",
-                    "@crates",
-                    "@dx_quality_crates",
-                    "@dx_thrift_crates"
-                ]
-                .map(str::to_owned)
-                .to_vec()
+                ["mod", "show_repo", "--lockfile_mode=error", "--config=ci"]
+                    .into_iter()
+                    .chain(CRATE_LOCK_CHECK.split(' '))
+                    .map(str::to_owned)
+                    .collect()
             ))
         );
     }

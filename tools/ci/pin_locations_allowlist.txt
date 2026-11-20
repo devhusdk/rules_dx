@@ -34,7 +34,6 @@ cli/update/src/edit/version.rs digest-outside-pins 2
 core/jammy_runtime.bzl digest-outside-pins 12
 core/modules/versions.bzl digest-outside-pins 6
 core/modules/versions.bzl duplicate-pin 6
-core/pins.bzl no-digest 1
 core/quality/artifacts/ocaml_duniverse.bzl digest-outside-pins 34
 core/toolchain.bzl no-digest 1
 deploy/private/BUILD.bazel mutable-ref 2

@@ -8,6 +8,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load(":bundle.bzl", "dx_bundle_tool", "dx_bundle_tree")
 load(":fail.bzl", "dx_unavailable")
 load(":gazelle_hub_tests.bzl", "dx_gazelle_hub_tests")
+load(":guard_view_tests.bzl", "guard_view_tests")
 load(":hub.bzl", "GO_TOOLS", "unsupported_message")
 load(":hub_tests.bzl", "dx_prebuilt_hub_tests")
 load(":tools.bzl", "registry_lines")
@@ -34,6 +35,7 @@ filegroup(
         "gazelle.bzl",
         "gazelle_hub.bzl",
         "gazelle_hub_tests.bzl",
+        "guard_view_tests.bzl",
         "hub.bzl",
         "hub_tests.bzl",
         "pins.bzl",
@@ -46,10 +48,14 @@ dx_prebuilt_hub_tests(name = "hub_test")
 
 dx_gazelle_hub_tests(name = "gazelle_hub_test")
 
+guard_view_tests(name = "guard_view_test")
+
 # Set: when rules_dx is the root module, @dx_prebuilt and @dx_gazelle serve guard_stub for every source-built tool.
+# Universal scope: the flag keeps its value in the exec configuration.
 bool_flag(
     name = "guard_view",
     build_setting_default = False,
+    scope = "universal",
     visibility = ["//visibility:public"],
 )
 
@@ -153,6 +159,7 @@ real_source_target(
         "gazelle.bzl",
         "gazelle_hub.bzl",
         "gazelle_hub_tests.bzl",
+        "guard_view_tests.bzl",
         "hub.bzl",
         "hub_tests.bzl",
         "pins.bzl",

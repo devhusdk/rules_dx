@@ -329,7 +329,6 @@ mod tests {
                 "@rules_dx//dx:env",
                 "@rules_dx//dx:codegen",
                 "@rules_dx//tools/docs/site:scope_tools",
-                "@rules_dx//dx/tool_resolve",
                 "@rules_dx//go/private/tools:go",
                 "@rules_dx//go/private/ide:gopackagesdriver",
                 "@rules_dx//rust/private/ide:discover",

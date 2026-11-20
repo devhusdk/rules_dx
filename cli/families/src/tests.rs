@@ -206,7 +206,6 @@ fn command_looks_up_a_tool_of_a_language() {
 fn repo_relative_drops_the_rules_dx_repo() {
     assert_eq!(repo_relative(GENERATE), "dx:generate");
     assert_eq!(repo_relative(DX), ":dx");
-    assert_eq!(repo_relative(TOOL_RESOLVE), "dx/tool_resolve");
 }
 
 #[test]

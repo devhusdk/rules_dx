@@ -355,7 +355,7 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/testing:analysis_scaling_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/analysis_scaling"
   in-graph-prebuilt-guard:
-    name: in-graph-prebuilt-guard (d, rego, sql and zig consumer fixtures compile no rules_dx tool)
+    name: in-graph-prebuilt-guard (IN_GRAPH_GUARD_LANGS consumer fixtures compile no rules_dx tool)
     timeout-minutes: 60
     runs-on: ubuntu-latest
     permissions:

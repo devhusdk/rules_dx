@@ -78,14 +78,14 @@ GO_GUARD_LANGS = [
 # The consumer fixtures //tools/testing/consumer:java_prebuilt_guard_test covers.
 JAVA_GUARD_LANGS = [
     "java",
-    "kotlin",
-    "scala",
 ]
 
 # The consumer fixtures //tools/testing/consumer:in_graph_prebuilt_guard covers.
 IN_GRAPH_GUARD_LANGS = [
     "d",
+    "kotlin",
     "rego",
+    "scala",
     "sql",
     "zig",
 ]

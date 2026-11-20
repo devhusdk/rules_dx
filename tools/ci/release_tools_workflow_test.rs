@@ -11,6 +11,7 @@ const RELEASE_JARS: &str = "tools/ci/release_jars.txt";
 const KCOV_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" //tools/coverage/kcov:kcov_static";
 const TARGETS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${targets[@]}\"";
 const HASKELL_DETERMINISM: &str = "linux-*) bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"${targets[@]}\" ;;";
+const TOOLS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism-rust\" \"${flags[@]}\" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor";
 const HACKAGE_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"$TARGET\"";
 
 const HOSTS: [(&str, &str); 4] = [
@@ -114,6 +115,13 @@ fn each_host_uploads_its_artifact() {
         "bazel test //tools/coverage/kcov:smoke_test //tools/coverage/kcov:static_smoke_test"
     ));
     assert!(text.contains("kcov archive sha256 differs from pins.json"));
+    assert!(text.contains(
+        "linux-x86_64) flags=(--platforms=//tools/platforms:linux_x86_64_musl) ;;"
+    ));
+    assert!(
+        text.contains("linux-arm64) flags=(--platforms=//tools/platforms:linux_arm64_musl) ;;")
+    );
+    assert!(!text.contains("+crt-static"));
     let build = text
         .find("bazel build //tools/coverage/kcov:kcov_static")
         .expect("kcov_static build");
@@ -125,7 +133,13 @@ fn each_host_uploads_its_artifact() {
 }
 
 /// (job, its last `bazel build`, its determinism check, whether the check sits in a `linux-*)` arm).
-const JOB_DETERMINISM: [(&str, &str, &str, bool); 4] = [
+const JOB_DETERMINISM: [(&str, &str, &str, bool); 5] = [
+    (
+        "tools",
+        "bazel build \"${flags[@]}\" //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor",
+        TOOLS_DETERMINISM,
+        true,
+    ),
     (
         "go",
         "bazel build \"${targets[@]}\"",

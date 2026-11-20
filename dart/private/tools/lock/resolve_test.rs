@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use pub_lock::{MARKER, Outcome, Request, lock};
+use pub_lock::{MARKER, Outcome, Parsed, Request, lock, parse, pub_args};
 
 const PUBSPEC: &str = "name: app\nenvironment:\n  sdk: ^3.0.0\n";
 
@@ -23,6 +23,7 @@ fn request(dir: &Path, check: bool) -> Request {
         lock: "pubspec.lock".to_owned(),
         check,
         path: None,
+        upgrade: None,
     }
 }
 
@@ -34,7 +35,10 @@ fn a_missing_lock_is_written_then_fresh() {
     assert!(text.contains("packages: {}"), "{text}");
     assert!(text.contains("sdks:"), "{text}");
     let digest = dx_digest::sha256_hex(PUBSPEC.as_bytes());
-    assert!(text.contains(&format!("\n{MARKER}{digest}\npackages:")), "{text}");
+    assert!(
+        text.contains(&format!("\n{MARKER}{digest}\npackages:")),
+        "{text}"
+    );
     assert_eq!(lock(&dart(), &request(&dir, false)), Ok(Outcome::Fresh));
     assert_eq!(lock(&dart(), &request(&dir, true)), Ok(Outcome::Fresh));
     assert_eq!(dx_testing::read(&dir.join("pubspec.lock")), text);
@@ -48,7 +52,10 @@ fn check_reports_a_missing_lock_or_edited_manifest_and_writes_nothing() {
     assert!(!dir.join("pubspec.lock").exists());
     assert_eq!(lock(&dart(), &request(&dir, false)), Ok(Outcome::Written));
     let written = dx_testing::read(&dir.join("pubspec.lock"));
-    dx_testing::write(&dir.join("pubspec.yaml"), &format!("{PUBSPEC}description: edited\n"));
+    dx_testing::write(
+        &dir.join("pubspec.yaml"),
+        &format!("{PUBSPEC}description: edited\n"),
+    );
     assert_eq!(lock(&dart(), &request(&dir, true)), Ok(Outcome::Stale));
     assert_eq!(dx_testing::read(&dir.join("pubspec.lock")), written);
     assert_eq!(lock(&dart(), &request(&dir, false)), Ok(Outcome::Written));
@@ -80,4 +87,82 @@ fn an_unresolvable_manifest_fails_with_the_pub_output() {
     let error = lock(&dart(), &request(&dir, false)).expect_err("unresolvable");
     assert!(error.contains("dart pub get failed"), "{error}");
     assert!(!dir.join("pubspec.lock").exists());
+}
+
+#[test]
+fn upgrade_reruns_pub_on_a_fresh_lock() {
+    let dir = set("upgrade");
+    assert_eq!(lock(&dart(), &request(&dir, false)), Ok(Outcome::Written));
+    let written = dx_testing::read(&dir.join("pubspec.lock"));
+    let upgrade = Request {
+        upgrade: Some(Vec::new()),
+        ..request(&dir, false)
+    };
+    assert_eq!(lock(&dart(), &upgrade), Ok(Outcome::Written));
+    assert_eq!(dx_testing::read(&dir.join("pubspec.lock")), written);
+    assert_eq!(lock(&dart(), &request(&dir, true)), Ok(Outcome::Fresh));
+}
+
+#[test]
+fn upgrade_with_check_is_refused_without_running_dart() {
+    let dir = set("upgrade_check");
+    let missing = PathBuf::from("/nonexistent/dart");
+    let both = Request {
+        upgrade: Some(vec!["http".to_owned()]),
+        ..request(&dir, true)
+    };
+    let error = lock(&missing, &both).expect_err("check and upgrade");
+    assert!(error.contains("cannot be combined"), "{error}");
+}
+
+#[test]
+fn pub_args_run_get_or_upgrade() {
+    assert_eq!(
+        pub_args(None),
+        ["--suppress-analytics", "pub", "get", "--no-precompile"]
+    );
+    assert_eq!(
+        pub_args(Some(&[])),
+        ["--suppress-analytics", "pub", "upgrade", "--no-precompile"]
+    );
+    let names = ["http".to_owned(), "path".to_owned()];
+    assert_eq!(
+        pub_args(Some(&names)),
+        [
+            "--suppress-analytics",
+            "pub",
+            "upgrade",
+            "http",
+            "path",
+            "--no-precompile"
+        ]
+    );
+}
+
+fn parsed(dir: &Path, tail: &[&str]) -> Result<Parsed, String> {
+    let mut args = vec![
+        format!("--dart={}", dir.join("dart").display()),
+        format!("--chmod={}", dir.join("chmod").display()),
+        "--dir".to_owned(),
+        dir.display().to_string(),
+    ];
+    args.extend(tail.iter().map(|arg| (*arg).to_owned()));
+    parse(&args).map_err(|error| error.to_string())
+}
+
+#[test]
+fn parse_reads_upgrade_names_and_upgrade_all() {
+    let dir = dx_testing::scratch_dir("parse");
+    assert_eq!(parsed(&dir, &[]).expect("get").upgrade, None);
+    assert_eq!(
+        parsed(&dir, &["--upgrade", "http", "--upgrade=path"])
+            .expect("names")
+            .upgrade,
+        Some(vec!["http".to_owned(), "path".to_owned()])
+    );
+    let all = parsed(&dir, &["--upgrade-all"]).expect("all");
+    assert_eq!(all.upgrade, Some(Vec::new()));
+    assert_eq!(all.args.dir, dir);
+    let error = parsed(&dir, &["--upgrade-all", "--upgrade", "http"]).expect_err("both");
+    assert!(error.contains("cannot be combined"), "{error}");
 }

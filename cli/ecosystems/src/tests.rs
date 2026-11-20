@@ -197,9 +197,7 @@ fn backend_columns_name_a_module_or_the_resolver() {
     for row in rows() {
         for backend in [&row.plan_backend, &row.check_backend] {
             assert!(
-                backend == "resolver"
-                    || backend == &row.name
-                    || (row.name == "pub" && backend == "pub_dev"),
+                backend == "resolver" || backend == &row.name,
                 "{} names backend {backend}",
                 row.name
             );

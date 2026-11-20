@@ -233,3 +233,129 @@ fn spdx_package_count_reads_the_packages_array() {
     assert_eq!(spdx_package_count(&bad), None);
     assert_eq!(spdx_package_count(&dir.join("missing")), None);
 }
+
+#[test]
+fn purl_parts_survive_an_unencoded_at_in_the_namespace() {
+    assert_eq!(purl_name("pkg:npm/@angular/core@16.0.0"), Some("core"));
+    assert_eq!(purl_version("pkg:npm/@angular/core@16.0.0"), Some("16.0.0"));
+    assert_eq!(purl_name("pkg:npm/@angular/core"), Some("core"));
+    assert_eq!(purl_version("pkg:npm/@angular/core"), None);
+}
+
+#[test]
+fn purl_without_a_name_has_no_name_or_version() {
+    assert_eq!(purl_name("pkg:generic"), None);
+    assert_eq!(purl_name("pkg:dx@abc"), None);
+    assert_eq!(purl_version("pkg:dx@abc"), None);
+    assert_eq!(purl_name("pkg:/dx@abc"), None);
+}
+
+#[test]
+fn reference_errors_accept_none_and_noassertion_targets() {
+    let mut document = valid();
+    document.relationships.push(SpdxRelationship {
+        from: "SPDXRef-Package-1".to_owned(),
+        rel_type: "DEPENDS_ON".to_owned(),
+        to: NOASSERTION.to_owned(),
+    });
+    document
+        .relationships
+        .push(contains("SPDXRef-Package-1", NONE));
+    assert_eq!(reference_errors(&document), Vec::<String>::new());
+}
+
+#[test]
+fn describes_none_is_not_a_root() {
+    let mut document = valid();
+    document.relationships = vec![describes(NONE)];
+    let errors = reference_errors(&document);
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.contains("no SPDXRef-DOCUMENT DESCRIBES")),
+        "{errors:?}"
+    );
+}
+
+#[test]
+fn cyclonedx_reference_errors_reject_an_empty_bom_ref() {
+    let mut document = cyclonedx::CycloneDxDocument::new("app", CREATED, "dx");
+    document.add_library(cyclonedx::CdxComponent {
+        kind: "library".to_owned(),
+        name: "a".to_owned(),
+        ..cyclonedx::CdxComponent::default()
+    });
+    let errors = cyclonedx::reference_errors(&document);
+    assert!(
+        errors.iter().any(|e| e.contains("empty bom-ref")),
+        "{errors:?}"
+    );
+}
+
+#[test]
+fn cyclonedx_reference_errors_reject_repeated_dependency_refs() {
+    let mut document = cyclonedx::CycloneDxDocument::new("app", CREATED, "dx");
+    document.add_library(cyclonedx::CdxComponent {
+        kind: "library".to_owned(),
+        bom_ref: "a".to_owned(),
+        name: "a".to_owned(),
+        ..cyclonedx::CdxComponent::default()
+    });
+    let mut repeated = document.clone();
+    repeated.dependencies[0].depends_on.push("a".to_owned());
+    let errors = cyclonedx::reference_errors(&repeated);
+    assert!(
+        errors.iter().any(|e| e.contains("depends on 'a' twice")),
+        "{errors:?}"
+    );
+    let mut repeated = document;
+    repeated.dependencies.push(cyclonedx::CdxDependency {
+        reference: "a".to_owned(),
+        depends_on: Vec::new(),
+    });
+    let errors = cyclonedx::reference_errors(&repeated);
+    assert!(
+        errors
+            .iter()
+            .any(|e| e.contains("dependency 'a' is listed twice")),
+        "{errors:?}"
+    );
+}
+
+#[test]
+fn cyclonedx_add_library_hangs_off_the_root_entry() {
+    let mut document = cyclonedx::CycloneDxDocument::new("app", CREATED, "dx");
+    document.dependencies.push(cyclonedx::CdxDependency {
+        reference: "other".to_owned(),
+        depends_on: Vec::new(),
+    });
+    document.add_library(cyclonedx::CdxComponent {
+        kind: "library".to_owned(),
+        bom_ref: "a".to_owned(),
+        name: "a".to_owned(),
+        ..cyclonedx::CdxComponent::default()
+    });
+    let root = document
+        .dependencies
+        .iter()
+        .find(|dependency| dependency.reference == cyclonedx::ROOT_REF)
+        .expect("root entry");
+    assert_eq!(root.depends_on, vec!["a".to_owned()]);
+    assert!(
+        document
+            .dependencies
+            .iter()
+            .filter(|dependency| dependency.reference != cyclonedx::ROOT_REF)
+            .all(|dependency| dependency.depends_on.is_empty()),
+        "{:?}",
+        document.dependencies
+    );
+}
+
+#[test]
+fn cyclonedx_license_choices_trim_whitespace() {
+    assert_eq!(
+        cyclonedx::license_choices(" MIT "),
+        cyclonedx::license_choices("MIT")
+    );
+}

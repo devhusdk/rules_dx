@@ -1589,11 +1589,13 @@ fn streamed_without_held_is_unchanged() {
         StreamOutcome::Exited(Exit::Code(0))
     );
     drop(parent_lock);
+    // A test that forks without the guard copies the lease fd until it execs,
+    // so wait for it; the descendant outlives the wait unless it holds the lease.
+    wait_lease_free(&lease);
     assert!(
-        lease_free(&lease),
+        dx_testing::alive_lock_held(&alive),
         "a descendant must not inherit a lock the caller did not hand over"
     );
-    assert!(dx_testing::alive_lock_held(&alive));
 }
 
 const HELD_PARENT_ENV: &str = "DX_STREAM_HELD_PARENT_DIR";

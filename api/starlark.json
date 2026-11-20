@@ -9499,7 +9499,74 @@
     "extensions": [],
     "functions": [
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream",
+              "visibility"
+            ],
+            "kind": "_erlang_app_forward"
+          },
+          {
+            "attrs": [
+              "app_description",
+              "app_env",
+              "app_extra_keys",
+              "app_file_tool",
+              "app_module",
+              "app_name",
+              "app_registered",
+              "app_src",
+              "app_version",
+              "deps",
+              "extra_apps",
+              "modules",
+              "out",
+              "private_stamp_detect",
+              "stamp",
+              "tags",
+              "target_compatible_with",
+              "testonly"
+            ],
+            "kind": "app_file"
+          },
+          {
+            "attrs": [
+              "app",
+              "app_name",
+              "beam",
+              "deps",
+              "extra_apps",
+              "hdrs",
+              "license_files",
+              "priv",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "visibility"
+            ],
+            "kind": "erlang_app_info"
+          },
+          {
+            "attrs": [
+              "app_name",
+              "compile_first",
+              "deps",
+              "dest",
+              "erlc_opts",
+              "hdrs",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly"
+            ],
+            "kind": "erlang_bytecode"
+          }
+        ],
         "name": "erlang_app",
         "params": [
           {
@@ -9556,7 +9623,41 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_erlang_bytecode_forward"
+          },
+          {
+            "attrs": [
+              "base",
+              "tags",
+              "testonly",
+              "values",
+              "visibility"
+            ],
+            "kind": "_warning_erlc_opts"
+          },
+          {
+            "attrs": [
+              "deps",
+              "erlc_opts",
+              "outs",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "visibility"
+            ],
+            "kind": "erlang_bytecode"
+          }
+        ],
         "name": "erlang_bytecode",
         "params": [
           {
@@ -9634,7 +9735,14 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "values"
+            ],
+            "kind": "erlc_opts"
+          }
+        ],
         "name": "erlang_erlc_opts",
         "params": [
           {
@@ -9666,7 +9774,33 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "apps",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_erlang_forward_test"
+          },
+          {
+            "attrs": [
+              "compiled_suites",
+              "coverdata_to_lcov",
+              "is_windows",
+              "size",
+              "tags",
+              "target",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "eunit_test"
+          }
+        ],
         "name": "erlang_eunit_test",
         "params": [
           {
@@ -9728,7 +9862,51 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_erlang_app_forward"
+          },
+          {
+            "attrs": [
+              "app",
+              "app_name",
+              "beam",
+              "deps",
+              "extra_apps",
+              "hdrs",
+              "license_files",
+              "priv",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "visibility"
+            ],
+            "kind": "erlang_app_info"
+          },
+          {
+            "attrs": [
+              "app_name",
+              "compile_first",
+              "deps",
+              "dest",
+              "erlc_opts",
+              "hdrs",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "testonly"
+            ],
+            "kind": "erlang_bytecode"
+          }
+        ],
         "name": "erlang_test_app",
         "params": [
           {

@@ -263,6 +263,13 @@ def asset_name(tool, key):
     os, cpu = split_key(key)
     return TOOLS[tool].asset.format(tool = tool, os = os, cpu = cpu)
 
+def python_hub_lines():
+    """Returns one "<name> <launcher> [<missing key>...]" line per PYTHON_BUNDLE_TOOLS entry, sorted."""
+    return sorted([
+        " ".join([name, tool.launcher] + sorted(tool.missing))
+        for name, tool in PYTHON_BUNDLE_TOOLS.items()
+    ])
+
 def registry_lines():
     """Returns one "<tool> <key> <asset>" line per release asset, sorted, for fill_pins."""
     return sorted([

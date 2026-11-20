@@ -58,23 +58,36 @@ _julia_forward_test = dx_executable_forward_rule(
     ),
 )
 
+def _library_entry(name, srcs):
+    if type(srcs) != "list":
+        return None
+    for candidate in [name + ".jl", "src/" + name + ".jl"]:
+        if candidate in srcs or ":" + candidate in srcs:
+            return candidate
+    return None
+
 def julia_library(name, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over julia_library."""
+    """Thin wrapper over julia_library. entry defaults to name.jl, else src/name.jl, when srcs lists it."""
     kwargs = dx_language_kwargs(kwargs, compatible_with = JULIA_COMPATIBLE_WITH)
-    dx_wrap(name, _julia_library, _julia_library_forward, srcs or [], visibility = visibility, upstream_kwargs = dict(kwargs, package_name = name), **kwargs)
+    upstream = dict(kwargs)
+    if upstream.get("entry") == None:
+        entry = _library_entry(name, srcs)
+        if entry:
+            upstream["entry"] = entry
+    dx_wrap(name, _julia_library, _julia_library_forward, srcs or [], visibility = visibility, upstream_kwargs = upstream, **kwargs)
 
 def julia_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over julia_binary. main is name.jl, else the single src."""
     main = dx_infer_main("julia_binary", name, main, srcs, dx_main_candidates(name, ".jl"))
     kwargs = dx_language_kwargs(kwargs, compatible_with = JULIA_COMPATIBLE_WITH)
-    upstream = dict(kwargs, package_name = name, main = main)
+    upstream = dict(kwargs, main = main)
     dx_wrap_binary(name, _julia_binary, _julia_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def julia_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over julia_test. main is name.jl, else the single src; under coverage it adds --code-coverage=user."""
     main = dx_infer_main("julia_test", name, main, srcs, dx_main_candidates(name, ".jl"))
     kwargs = dx_language_kwargs(kwargs, compatible_with = JULIA_COMPATIBLE_WITH)
-    upstream = dict(kwargs, package_name = name)
+    upstream = dict(kwargs)
     upstream["julia_flags"] = (kwargs.get("julia_flags") or []) + select({
         Label("//core:coverage_on"): ["--code-coverage=user"],
         "//conditions:default": [],

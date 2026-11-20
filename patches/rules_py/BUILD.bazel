@@ -12,12 +12,6 @@ exports_files([
     "win32_x86_32.patch",
 ])
 
-filegroup(
-    name = "patches",
-    srcs = glob(["*.patch"]),
-    visibility = ["//tools/testing:__subpackages__"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],

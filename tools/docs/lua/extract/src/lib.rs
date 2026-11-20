@@ -2,18 +2,89 @@
 
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::fs;
+use std::fmt;
+use std::path::Path;
 
-use documentation_ir::json::{field, number, string, strings};
+use documentation_ir::json::{JsonError, array, boolean, number, string, strings};
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use serde_json::{Map, Value};
 
 const LANGUAGE: &str = "lua";
 const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "lua.config";
 const KEY_INCOMPLETE: &str = "lua.incomplete";
+
+/// Why one `LDoc` JSON document could not become a shard.
+#[derive(Debug)]
+pub enum LuaExtractError {
+    Read(PathIoError),
+    InvalidPackage { package: String },
+    Malformed(serde_json::Error),
+    NotObject { at: String },
+    Json(JsonError),
+    UnsupportedFormat { found: u64 },
+    UnknownModuleType { at: String, kind: String },
+    UnknownItemType { at: String, kind: String },
+    EmptyName { at: String },
+    NoPublicApi { package: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for LuaExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::InvalidPackage { package } => write!(f, "invalid package '{package}'"),
+            Self::Malformed(error) => write!(f, "LDoc JSON is malformed: {error}"),
+            Self::NotObject { at } => write!(f, "{at} is not an object"),
+            Self::Json(error) => error.fmt(f),
+            Self::UnsupportedFormat { found } => write!(
+                f,
+                "LDoc JSON format {found} is not supported, expected {FORMAT}"
+            ),
+            Self::UnknownModuleType { at, kind } => {
+                write!(f, "{at} has unknown module type '{kind}'")
+            }
+            Self::UnknownItemType { at, kind } => write!(f, "{at} has unknown item type '{kind}'"),
+            Self::EmptyName { at } => write!(f, "{at} has an empty name"),
+            Self::NoPublicApi { package } => write!(
+                f,
+                "LDoc JSON lists no public Lua API of package '{package}'"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for LuaExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Malformed(error) => Some(error),
+            Self::Json(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::InvalidPackage { .. }
+            | Self::NotObject { .. }
+            | Self::UnsupportedFormat { .. }
+            | Self::UnknownModuleType { .. }
+            | Self::UnknownItemType { .. }
+            | Self::EmptyName { .. }
+            | Self::NoPublicApi { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
+
+impl From<JsonError> for LuaExtractError {
+    fn from(error: JsonError) -> Self {
+        Self::Json(error)
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -35,12 +106,12 @@ pub fn usage() -> &'static str {
     "usage: lua_extract --json FILE --package NAME --out FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
+/// Parses argv into inputs.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+/// Returns an error for an unknown, missing, empty or repeated flag.
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
         json: flags.one("--json")?,
@@ -49,60 +120,63 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
     })
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
+/// Reads, converts, validates and writes one shard.
 ///
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let json = fs::read_to_string(&options.json)
-        .map_err(|error| format!("cannot read {}: {error}", options.json))?;
+pub fn run(options: &Options) -> Result<(), LuaExtractError> {
+    let json = path_io::read_to_string(Path::new(&options.json)).map_err(LuaExtractError::Read)?;
     let shard = convert(&json, &options.package)?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
-}
-
-fn list<'a>(object: &'a Map<String, Value>, key: &str, at: &str) -> Result<&'a Vec<Value>, String> {
-    field(object, key, at)?
-        .as_array()
-        .ok_or_else(|| format!("{at} '{key}' is not a list"))
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(LuaExtractError::Write)
 }
 
 fn entries<'a>(
     object: &'a Map<String, Value>,
     key: &str,
     at: &str,
-) -> Result<Vec<&'a Map<String, Value>>, String> {
-    list(object, key, at)?
+) -> Result<Vec<&'a Map<String, Value>>, LuaExtractError> {
+    array(object, key, at)?
         .iter()
         .enumerate()
         .map(|(index, value)| {
-            value
-                .as_object()
-                .ok_or_else(|| format!("{at} '{key}' entry {index} is not an object"))
+            value.as_object().ok_or_else(|| LuaExtractError::NotObject {
+                at: format!("{at} '{key}' entry {index}"),
+            })
         })
         .collect()
 }
 
 /// Returns the symbol kind of one `LDoc` module type.
-fn module_kind(name: &str, at: &str) -> Result<Option<SymbolKind>, String> {
+fn module_kind(name: &str, at: &str) -> Result<Option<SymbolKind>, LuaExtractError> {
     Ok(match name {
         "module" | "script" => Some(SymbolKind::Module),
         "classmod" => Some(SymbolKind::Class),
         // Examples and topics carry prose, not API.
         "example" | "topic" => None,
-        other => return Err(format!("{at} has unknown module type '{other}'")),
+        other => {
+            return Err(LuaExtractError::UnknownModuleType {
+                at: at.to_owned(),
+                kind: other.to_owned(),
+            });
+        }
     })
 }
 
 /// Returns the symbol kind of one `LDoc` item type, or None for items that are not API.
-fn item_kind(name: &str, item_name: &str, at: &str) -> Result<Option<SymbolKind>, String> {
+fn item_kind(name: &str, item_name: &str, at: &str) -> Result<Option<SymbolKind>, LuaExtractError> {
     Ok(match name {
         "function" if item_name.contains(':') => Some(SymbolKind::Method),
         "function" | "factory" | "constructor" => Some(SymbolKind::Function),
         "table" => Some(SymbolKind::Variable),
         "field" => Some(SymbolKind::Field),
         "lfunction" | "annotation" => None,
-        other => return Err(format!("{at} has unknown item type '{other}'")),
+        other => {
+            return Err(LuaExtractError::UnknownItemType {
+                at: at.to_owned(),
+                kind: other.to_owned(),
+            });
+        }
     })
 }
 
@@ -156,11 +230,14 @@ struct Parent<'a> {
     config: &'a str,
 }
 
-fn member_symbol(item: &Map<String, Value>, parent: &Parent<'_>) -> Result<Option<Symbol>, String> {
+fn member_symbol(
+    item: &Map<String, Value>,
+    parent: &Parent<'_>,
+) -> Result<Option<Symbol>, LuaExtractError> {
     let item_at = format!("{} item", parent.at);
     let item_name = string(item, "name", &item_at)?;
     if item_name.is_empty() {
-        return Err(format!("{item_at} has an empty name"));
+        return Err(LuaExtractError::EmptyName { at: item_at });
     }
     let item_at = format!("{} item '{item_name}'", parent.at);
     let Some(item_kind) = item_kind(&string(item, "kind", &item_at)?, &item_name, &item_at)? else {
@@ -177,7 +254,7 @@ fn member_symbol(item: &Map<String, Value>, parent: &Parent<'_>) -> Result<Optio
                 doc: normalize(&string(param, "doc", &item_at)?),
             })
         })
-        .collect::<Result<_, String>>()?;
+        .collect::<Result<_, JsonError>>()?;
     let returns = entries(item, "returns", &item_at)?;
     let returns = match returns.as_slice() {
         [] => None,
@@ -254,21 +331,20 @@ fn member_symbol(item: &Map<String, Value>, parent: &Parent<'_>) -> Result<Optio
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
+pub fn convert(json: &str, package: &str) -> Result<DocIr, LuaExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
+        return Err(LuaExtractError::InvalidPackage {
+            package: package.to_owned(),
+        });
     }
-    let root: Value =
-        serde_json::from_str(json).map_err(|error| format!("LDoc JSON is malformed: {error}"))?;
-    let root = root.as_object().ok_or("LDoc JSON is not an object")?;
+    let root: Value = serde_json::from_str(json).map_err(LuaExtractError::Malformed)?;
     let at = "LDoc JSON";
+    let root = root
+        .as_object()
+        .ok_or_else(|| LuaExtractError::NotObject { at: at.to_owned() })?;
     match number(root, "format", at)? {
         FORMAT => {}
-        other => {
-            return Err(format!(
-                "LDoc JSON format {other} is not supported, expected {FORMAT}"
-            ));
-        }
+        found => return Err(LuaExtractError::UnsupportedFormat { found }),
     }
     let config = format!(
         "lua={};ldoc={};format={FORMAT}",
@@ -281,16 +357,14 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         let at = "LDoc JSON module";
         let name = string(module, "name", at)?;
         if name.is_empty() {
-            return Err(format!("{at} has an empty name"));
+            return Err(LuaExtractError::EmptyName { at: at.to_owned() });
         }
         let at = format!("{at} '{name}'");
         let Some(kind) = module_kind(&string(module, "kind", &at)?, &at)? else {
             continue;
         };
         let file = string(module, "file", &at)?;
-        let generated = field(module, "generated", &at)?
-            .as_bool()
-            .ok_or_else(|| format!("{at} 'generated' is not a boolean"))?;
+        let generated = boolean(module, "generated", &at)?;
         let module_id = format!("{prefix}{}", qualified(&name));
         let doc = body(
             &string(module, "summary", &at)?,
@@ -326,9 +400,9 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         }
     }
     if symbols.is_empty() {
-        return Err(format!(
-            "LDoc JSON lists no public Lua API of package '{package}'"
-        ));
+        return Err(LuaExtractError::NoPublicApi {
+            package: package.to_owned(),
+        });
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
@@ -336,7 +410,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(LuaExtractError::InvalidIr)?;
     Ok(shard)
 }
 

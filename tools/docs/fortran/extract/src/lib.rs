@@ -3,18 +3,92 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeSet;
-use std::fs;
+use std::fmt;
+use std::path::Path;
 
-use documentation_ir::json::{field, number, string};
+use documentation_ir::json::{JsonError, array, field, number, string};
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use serde_json::{Map, Value};
 
 const LANGUAGE: &str = "fortran";
 const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "fortran.config";
 const KEY_INCOMPLETE: &str = "fortran.incomplete";
+
+/// Why one FORD JSON document could not become a shard.
+#[derive(Debug)]
+pub enum FortranExtractError {
+    Read(PathIoError),
+    InvalidPackage { package: String },
+    Malformed(serde_json::Error),
+    NotObject { at: String },
+    Json(JsonError),
+    UnsupportedFormat { found: u64 },
+    UnknownKind { at: String, kind: String },
+    ReturnsNotObject { at: String },
+    EmptyPathOrName { at: String },
+    RepeatedPath { at: String, path: String },
+    NoPublicApi { package: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for FortranExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::InvalidPackage { package } => write!(f, "invalid package '{package}'"),
+            Self::Malformed(error) => write!(f, "FORD JSON is malformed: {error}"),
+            Self::NotObject { at } => write!(f, "{at} is not an object"),
+            Self::Json(error) => error.fmt(f),
+            Self::UnsupportedFormat { found } => write!(
+                f,
+                "FORD JSON format {found} is not supported, expected {FORMAT}"
+            ),
+            Self::UnknownKind { at, kind } => write!(f, "{at} has unknown kind '{kind}'"),
+            Self::ReturnsNotObject { at } => {
+                write!(f, "{at} 'returns' is neither null nor an object")
+            }
+            Self::EmptyPathOrName { at } => write!(f, "{at} has an empty path or name"),
+            Self::RepeatedPath { at, path } => write!(f, "{at} repeats the path '{path}'"),
+            Self::NoPublicApi { package } => write!(
+                f,
+                "FORD JSON lists no public Fortran API of package '{package}'"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for FortranExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Malformed(error) => Some(error),
+            Self::Json(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::InvalidPackage { .. }
+            | Self::NotObject { .. }
+            | Self::UnsupportedFormat { .. }
+            | Self::UnknownKind { .. }
+            | Self::ReturnsNotObject { .. }
+            | Self::EmptyPathOrName { .. }
+            | Self::RepeatedPath { .. }
+            | Self::NoPublicApi { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
+
+impl From<JsonError> for FortranExtractError {
+    fn from(error: JsonError) -> Self {
+        Self::Json(error)
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -36,12 +110,12 @@ pub fn usage() -> &'static str {
     "usage: fortran_extract --json FILE --package NAME --out FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
+/// Parses argv into inputs.
 ///
 /// # Errors
 ///
-/// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+/// Returns an error for an unknown, missing, empty or repeated flag.
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
         json: flags.one("--json")?,
@@ -50,16 +124,16 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
     })
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
+/// Reads, converts, validates and writes one shard.
 ///
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let json = fs::read_to_string(&options.json)
-        .map_err(|error| format!("cannot read {}: {error}", options.json))?;
+pub fn run(options: &Options) -> Result<(), FortranExtractError> {
+    let json =
+        path_io::read_to_string(Path::new(&options.json)).map_err(FortranExtractError::Read)?;
     let shard = convert(&json, &options.package)?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(FortranExtractError::Write)
 }
 
 /// Normalizes CRLF line endings and trims trailing whitespace.
@@ -83,7 +157,7 @@ fn symbol_id(package: &str, path: &str) -> String {
     format!("{LANGUAGE}:{package}:{}", qualified.join("."))
 }
 
-fn kind_of(kind: &str, signature: &str, at: &str) -> Result<SymbolKind, String> {
+fn kind_of(kind: &str, signature: &str, at: &str) -> Result<SymbolKind, FortranExtractError> {
     Ok(match kind {
         "module" => SymbolKind::Module,
         "type" => SymbolKind::Class,
@@ -93,7 +167,12 @@ fn kind_of(kind: &str, signature: &str, at: &str) -> Result<SymbolKind, String> 
         "component" => SymbolKind::Field,
         "variable" if signature.contains(", parameter") => SymbolKind::Constant,
         "variable" => SymbolKind::Variable,
-        other => return Err(format!("{at} has unknown kind '{other}'")),
+        other => {
+            return Err(FortranExtractError::UnknownKind {
+                at: at.to_owned(),
+                kind: other.to_owned(),
+            });
+        }
     })
 }
 
@@ -101,17 +180,15 @@ fn params(
     object: &Map<String, Value>,
     at: &str,
     incomplete: &mut Vec<String>,
-) -> Result<Vec<Param>, String> {
-    let list = field(object, "params", at)?
-        .as_array()
-        .ok_or_else(|| format!("{at} 'params' is not a list"))?;
+) -> Result<Vec<Param>, FortranExtractError> {
+    let list = array(object, "params", at)?;
     let mut undocumented = Vec::new();
     let mut out = Vec::new();
     for (index, value) in list.iter().enumerate() {
         let at = format!("{at} param {index}");
         let value = value
             .as_object()
-            .ok_or_else(|| format!("{at} is not an object"))?;
+            .ok_or_else(|| FortranExtractError::NotObject { at: at.clone() })?;
         let name = string(value, "name", &at)?;
         let doc = normalize(&string(value, "doc", &at)?);
         if doc.is_empty() {
@@ -133,7 +210,7 @@ fn returns(
     object: &Map<String, Value>,
     at: &str,
     incomplete: &mut Vec<String>,
-) -> Result<Option<Returns>, String> {
+) -> Result<Option<Returns>, FortranExtractError> {
     match field(object, "returns", at)? {
         Value::Null => Ok(None),
         Value::Object(returns) => {
@@ -148,7 +225,7 @@ fn returns(
             }))
         }
         Value::Bool(_) | Value::Number(_) | Value::String(_) | Value::Array(_) => {
-            Err(format!("{at} 'returns' is neither null nor an object"))
+            Err(FortranExtractError::ReturnsNotObject { at: at.to_owned() })
         }
     }
 }
@@ -158,24 +235,23 @@ fn returns(
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
+pub fn convert(json: &str, package: &str) -> Result<DocIr, FortranExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
+        return Err(FortranExtractError::InvalidPackage {
+            package: package.to_owned(),
+        });
     }
-    let root: Value =
-        serde_json::from_str(json).map_err(|error| format!("FORD JSON is malformed: {error}"))?;
-    let root = root.as_object().ok_or("FORD JSON is not an object")?;
+    let root: Value = serde_json::from_str(json).map_err(FortranExtractError::Malformed)?;
     let at = "FORD JSON";
-    let format = number(root, "format", at)?;
-    if format != FORMAT {
-        return Err(format!(
-            "FORD JSON format {format} is not supported, expected {FORMAT}"
-        ));
+    let root = root
+        .as_object()
+        .ok_or_else(|| FortranExtractError::NotObject { at: at.to_owned() })?;
+    match number(root, "format", at)? {
+        FORMAT => {}
+        found => return Err(FortranExtractError::UnsupportedFormat { found }),
     }
     let config = format!("ford={};format={FORMAT}", string(root, "ford", at)?);
-    let objects = field(root, "objects", at)?
-        .as_array()
-        .ok_or("FORD JSON 'objects' is not a list")?;
+    let objects = array(root, "objects", at)?;
 
     let mut paths = BTreeSet::new();
     let mut symbols = Vec::new();
@@ -183,14 +259,14 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         let at = format!("FORD JSON object {index}");
         let object = value
             .as_object()
-            .ok_or_else(|| format!("{at} is not an object"))?;
+            .ok_or_else(|| FortranExtractError::NotObject { at: at.clone() })?;
         let path = string(object, "path", &at)?;
         let name = string(object, "name", &at)?;
         if path.is_empty() || name.is_empty() {
-            return Err(format!("{at} has an empty path or name"));
+            return Err(FortranExtractError::EmptyPathOrName { at });
         }
         if !paths.insert(path.clone()) {
-            return Err(format!("{at} repeats the path '{path}'"));
+            return Err(FortranExtractError::RepeatedPath { at, path });
         }
         let signature = string(object, "signature", &at)?;
         let kind = kind_of(&string(object, "kind", &at)?, &signature, &at)?;
@@ -246,9 +322,9 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         });
     }
     if symbols.is_empty() {
-        return Err(format!(
-            "FORD JSON lists no public Fortran API of package '{package}'"
-        ));
+        return Err(FortranExtractError::NoPublicApi {
+            package: package.to_owned(),
+        });
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
@@ -256,7 +332,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(FortranExtractError::InvalidIr)?;
     Ok(shard)
 }
 

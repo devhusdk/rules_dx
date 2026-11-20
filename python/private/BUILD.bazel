@@ -13,7 +13,7 @@ python_library(
     name = "bench_plugin",
     srcs = ["dx_bench_plugin.py"],
     imports = ["."],
-    visibility = ["//visibility:public"],
+    visibility = ["//visibility:private"],
 )
 
 exports_files([

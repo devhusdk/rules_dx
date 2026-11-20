@@ -25,7 +25,6 @@ lua_library(
     srcs = ["bench/dx_bench.lua"],
     strip_import_prefix = "/lua/private/bench",
     tags = ["manual"],
-    visibility = ["//visibility:public"],
 )
 
 filegroup(

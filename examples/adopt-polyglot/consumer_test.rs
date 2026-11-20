@@ -139,7 +139,7 @@ fn the_polyglot_example_adopts_and_tests_green() {
             "module(name = \"adopt_polyglot\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n{}{}{}{apple}",
             rules_dx_override(&source),
             rules_py_override(),
-            rules_flutter_override().unwrap_or_else(|error| panic!("{error}")),
+            rules_flutter_override(),
         ),
     );
     write_rules_py_patches(&root, &source).unwrap_or_else(|error| panic!("{error}"));

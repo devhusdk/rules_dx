@@ -156,9 +156,6 @@ pub const RULES_FLUTTER_PATCHES: [&str; 3] = [
 /// The patches of `//patches/cgrindel_bazel_starlib` that `rules_flutter_override` names, without `.patch`.
 pub const STARLIB_PATCHES: [&str; 1] = ["absent_local_git"];
 
-/// The `flutter/pins.json` that holds the `rules_flutter` pin.
-const FLUTTER_PINS: &str = include_str!("../../../../flutter/pins.json");
-
 /// The root MODULE.bazel of rules_dx.
 const ROOT_MODULE: &str = include_str!("../../../../MODULE.bazel");
 
@@ -184,62 +181,30 @@ pub fn pin_patches(block: &str, module: &str) -> Vec<String> {
         .collect()
 }
 
-/// The `sha256-` integrity of a lowercase hex SHA-256.
-fn sha256_integrity(hex: &str) -> Result<String, String> {
-    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let bytes = (0..hex.len() / 2)
-        .map(|at| {
-            let digits = hex
-                .get(at * 2..at * 2 + 2)
-                .ok_or_else(|| format!("sha256 {hex} is not ASCII hex"))?;
-            u8::from_str_radix(digits, 16).map_err(|error| format!("sha256 {hex}: {error}"))
-        })
-        .collect::<Result<Vec<u8>, String>>()?;
-    let mut out = String::from("sha256-");
-    for chunk in bytes.chunks(3) {
-        let word = chunk.iter().enumerate().fold(0u32, |word, (at, byte)| {
-            word | u32::from(*byte) << (16 - 8 * at)
-        });
-        for at in 0..=chunk.len() {
-            let sextet = ALPHABET
-                .get((word >> (18 - 6 * at) & 63) as usize)
-                .ok_or_else(|| format!("base64 sextet of {hex} out of range"))?;
-            out.push(char::from(*sextet));
-        }
-    }
-    out.push_str(&"=".repeat((3 - bytes.len() % 3) % 3));
-    Ok(out)
-}
+/// The `rules_flutter` version the root MODULE.bazel pins.
+pub const RULES_FLUTTER_VERSION: &str = "0.1.0";
 
-/// Pins the patched `rules_flutter` and `cgrindel_bazel_starlib` the way the root MODULE.bazel does, from `flutter/pins.json`.
-///
-/// # Errors
-///
-/// Returns `Err` when `flutter/pins.json` lacks a valid `rules_flutter` pin.
-pub fn rules_flutter_override() -> Result<String, String> {
-    let pins: serde_json::Value = serde_json::from_str(FLUTTER_PINS)
-        .map_err(|error| format!("flutter/pins.json: {error}"))?;
-    let pin = pins.pointer("/archives/rules_flutter");
-    let field = |name: &str| {
-        pin.and_then(|pin| pin.get(name))
-            .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| format!("flutter/pins.json rules_flutter has no {name}"))
-    };
-    let integrity = sha256_integrity(field("sha256")?)?;
-    let strip_prefix = field("strip_prefix")?;
-    let url = pin
-        .and_then(|pin| pin.pointer("/urls/0"))
-        .and_then(serde_json::Value::as_str)
-        .ok_or("flutter/pins.json rules_flutter has no urls")?;
-    let patches = RULES_FLUTTER_PATCHES
-        .map(|name| format!("        \"//patches/rules_flutter:{name}.patch\",\n"))
-        .concat();
+/// Pins the patched `rules_flutter` and `cgrindel_bazel_starlib` the way the root MODULE.bazel does.
+#[must_use]
+pub fn rules_flutter_override() -> String {
     let starlib_patches = STARLIB_PATCHES
         .map(|name| format!("        \"//patches/cgrindel_bazel_starlib:{name}.patch\",\n"))
         .concat();
-    Ok(format!(
-        "archive_override(\n    module_name = \"rules_flutter\",\n    integrity = \"{integrity}\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"{strip_prefix}\",\n    urls = [\"{url}\"],\n)\nsingle_version_override(\n    module_name = \"cgrindel_bazel_starlib\",\n    patch_strip = 1,\n    patches = [\n{starlib_patches}    ],\n    version = \"0.30.0\",\n)\n"
-    ))
+    format!(
+        "{}single_version_override(\n    module_name = \"cgrindel_bazel_starlib\",\n    patch_strip = 1,\n    patches = [\n{starlib_patches}    ],\n    version = \"0.30.0\",\n)\n",
+        rules_flutter_single_version_override()
+    )
+}
+
+/// The `single_version_override` of `rules_flutter` in the root MODULE.bazel, without its root-only patches.
+#[must_use]
+pub fn rules_flutter_single_version_override() -> String {
+    let patches = RULES_FLUTTER_PATCHES
+        .map(|name| format!("        \"//patches/rules_flutter:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "single_version_override(\n    module_name = \"rules_flutter\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    version = \"{RULES_FLUTTER_VERSION}\",\n)\n"
+    )
 }
 
 /// Drops the `module()` line and any comment or blank lines before it.
@@ -303,7 +268,7 @@ pub fn compose_module(
         body,
         rules_dx_override(rules_dx),
         rules_py_override(),
-        rules_flutter_override()?,
+        rules_flutter_override(),
     ))
 }
 
@@ -612,7 +577,7 @@ mod tests {
             format!(
                 "module(name = \"hermetic_consumer\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\nbazel_dep(name = \"googletest\", version = \"1.18.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules dx\",\n)\n{}{}",
                 rules_py_override(),
-                rules_flutter_override().unwrap(),
+                rules_flutter_override(),
             )
         );
     }
@@ -701,11 +666,13 @@ mod tests {
     }
 
     #[test]
-    fn integrity_pads_like_base64() {
-        assert_eq!(sha256_integrity("ff").unwrap(), "sha256-/w==");
-        assert_eq!(sha256_integrity("ffff").unwrap(), "sha256-//8=");
-        assert_eq!(sha256_integrity("ffffff").unwrap(), "sha256-////");
-        assert_eq!(sha256_integrity("4d616e").unwrap(), "sha256-TWFu");
+    fn rules_flutter_pin_matches_the_root_module() {
+        let root: String = root_pin("rules_flutter")
+            .lines()
+            .filter(|line| !line.contains(":dx_bzl_srcs.patch\""))
+            .map(|line| format!("{line}\n"))
+            .collect();
+        assert_eq!(root, rules_flutter_single_version_override());
     }
 
     #[test]

@@ -2049,7 +2049,7 @@ impl Case {
                 "{}{}{}{extra_module}",
                 compose::module_body(module),
                 compose::rules_py_override(),
-                compose::rules_flutter_override()?,
+                compose::rules_flutter_override(),
             ),
         );
         compose::write_rules_py_patches(case.root(), &source)?;

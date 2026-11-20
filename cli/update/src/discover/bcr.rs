@@ -222,6 +222,21 @@ mod tests {
     }
 
     #[test]
+    fn patched_single_version_overrides_are_checked_at_the_override_version() {
+        let text = "bazel_dep(name = \"rules_x\", version = \"0.9.0\")\nsingle_version_override(\n    module_name = \"rules_x\",\n    patch_strip = 1,\n    patches = [\"//patches/rules_x:fix.patch\"],\n    version = \"1.0.0\",\n)\n";
+        let found = run(text, METADATA);
+        assert_eq!(
+            found
+                .candidates
+                .iter()
+                .map(|c| (c.package.as_str(), c.current.as_str(), c.latest.as_str()))
+                .collect::<Vec<_>>(),
+            [("rules_x", "1.0.0", "1.2.0")]
+        );
+        assert_eq!(found.errors, [] as [crate::discover::LookupError; 0]);
+    }
+
+    #[test]
     fn the_newest_snapshot_lists_each_registry_module_once() {
         let text = "bazel_dep(name = \"rules_b\", version = \"1.0.0\")\n\
             bazel_dep(name = \"rules_a\", version = \"2.0.0\", dev_dependency = True)\n\

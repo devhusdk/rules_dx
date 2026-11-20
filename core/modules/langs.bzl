@@ -1438,9 +1438,7 @@ LANGS = json.decode("""{
       "pubspec.yaml"
     ],
     "name": "flutter",
-    "pins": [
-      "pins.json"
-    ],
+    "pins": [],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",

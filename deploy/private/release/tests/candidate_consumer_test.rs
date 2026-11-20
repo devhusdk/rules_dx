@@ -128,7 +128,7 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
         "module(name = \"candidate_consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\", repo_name = \"my_dx\")\n\ndx_licenses = use_extension(\"@my_dx//core:extensions.bzl\", \"dx_licenses\")\ndx_licenses.accept(ids = [\"visual-studio-build-tools\"])\n{}{}{}{}{}{}",
         candidate.version(),
         rules_py_override(),
-        rules_flutter_override().unwrap_or_else(|error| panic!("{error}")),
+        rules_flutter_override(),
         rules_rust_override(),
         llvm_override(),
         windows_support_override(),

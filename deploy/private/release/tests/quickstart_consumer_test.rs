@@ -293,7 +293,7 @@ fn the_readme_quickstart_runs_as_written() {
     let mut module = read_text(&module_path);
     module.push('\n');
     module.push_str(&rules_py_override());
-    module.push_str(&rules_flutter_override().unwrap_or_else(|error| panic!("{error}")));
+    module.push_str(&rules_flutter_override());
     module.push_str(&rules_rust_override());
     module.push_str(&llvm_override());
     module.push_str(&windows_support_override());
@@ -456,7 +456,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
     let mut module = read_text(&module_path);
     module.push_str(&rules_dx_override(&source));
     module.push_str(&rules_py_override());
-    module.push_str(&rules_flutter_override().unwrap_or_else(|error| panic!("{error}")));
+    module.push_str(&rules_flutter_override());
     module.push_str(&rules_rust_override());
     module.push_str(&llvm_override());
     module.push_str(&windows_support_override());

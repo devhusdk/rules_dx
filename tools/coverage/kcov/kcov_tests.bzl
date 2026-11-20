@@ -20,8 +20,16 @@ def _kcov_env_impl(ctx):
     sancov = run_env.get("DX_SANCOV_UPSTREAM", "")
     if ctx.attr.sancov:
         asserts.true(env, sancov.endswith("/" + ctx.attr.upstream), "sancov upstream is " + sancov)
+        asserts.equals(env, "sancov", run_env.get("DX_RUNTIME_TOOL", ""))
+        runfiles = [f.short_path for f in target[DefaultInfo].default_runfiles.files.to_list()]
+        asserts.true(
+            env,
+            [p for p in runfiles if p.endswith("cli/runtime/dx_runtime")] != [],
+            "no dx_runtime in runfiles",
+        )
     else:
         asserts.equals(env, "", sancov)
+        asserts.false(env, "DX_RUNTIME_TOOL" in run_env, "DX_RUNTIME_TOOL set: " + str(run_env))
     return analysistest.end(env)
 
 _ATTRS = {

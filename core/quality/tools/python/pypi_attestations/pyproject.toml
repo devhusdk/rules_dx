@@ -1,0 +1,11 @@
+# Separate project from ../pyproject.toml: sigstore pulls in rfc3161-client,
+# which has no win_arm64 wheel, so the python tools bundles must not carry it.
+# Update flow: bump the bound here, then regenerate with `uv lock` in this
+# directory.
+[project]
+name = "dx-pypi-attestations"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = [
+  "pypi-attestations>=0.0.28",
+]

@@ -9,6 +9,10 @@ const RELEASE: &str = ".github/workflows/release.yml";
 const CONSUMER: &str = ".github/workflows/release-consumer.yml";
 const RELEASE_JARS: &str = "tools/ci/release_jars.txt";
 const KCOV_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" //tools/coverage/kcov:kcov_static";
+const TARGETS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${targets[@]}\"";
+const HASKELL_DETERMINISM: &str = "linux-*) bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"${targets[@]}\" ;;";
+const TOOLS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism-rust\" \"${flags[@]}\" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor";
+const HACKAGE_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"$TARGET\"";
 
 const HOSTS: [(&str, &str); 4] = [
     ("linux-x86_64", "ubuntu-latest"),
@@ -111,6 +115,13 @@ fn each_host_uploads_its_artifact() {
         "bazel test //tools/coverage/kcov:smoke_test //tools/coverage/kcov:static_smoke_test"
     ));
     assert!(text.contains("kcov archive sha256 differs from pins.json"));
+    assert!(text.contains(
+        "linux-x86_64) flags=(--platforms=//tools/platforms:linux_x86_64_musl) ;;"
+    ));
+    assert!(
+        text.contains("linux-arm64) flags=(--platforms=//tools/platforms:linux_arm64_musl) ;;")
+    );
+    assert!(!text.contains("+crt-static"));
     let build = text
         .find("bazel build //tools/coverage/kcov:kcov_static")
         .expect("kcov_static build");
@@ -119,6 +130,74 @@ fn each_host_uploads_its_artifact() {
         text[build..case_end].contains(KCOV_DETERMINISM),
         "kcov determinism check inside the linux case after the build"
     );
+}
+
+/// (job, its last `bazel build`, its determinism check, whether the check sits in a `linux-*)` arm).
+const JOB_DETERMINISM: [(&str, &str, &str, bool); 6] = [
+    (
+        "tools",
+        "bazel build \"${flags[@]}\" //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor",
+        TOOLS_DETERMINISM,
+        true,
+    ),
+    (
+        "python-tools",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
+    (
+        "go",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
+    (
+        "jars",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
+    (
+        "haskell",
+        "bazel build \"${flags[@]}\" \"${targets[@]}\"",
+        HASKELL_DETERMINISM,
+        true,
+    ),
+    (
+        "hackage",
+        "bazel build \"${flags[@]}\" \"$TARGET\"",
+        HACKAGE_DETERMINISM,
+        true,
+    ),
+];
+
+#[test]
+fn each_job_compares_two_builds() {
+    let workflow = document(TOOLS).unwrap();
+    for (job, build, check, in_case) in JOB_DETERMINISM {
+        let run = workflow["jobs"][job]["steps"][2]["run"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{job} build step"));
+        let built = run
+            .find(build)
+            .unwrap_or_else(|| panic!("{job} runs `{build}`"));
+        let at = run
+            .find(check)
+            .unwrap_or_else(|| panic!("{job} runs `{check}`"));
+        assert!(at > built, "{job} compares two builds after its build");
+        if in_case {
+            let end = at + check.len();
+            let arm = run[..end]
+                .rfind("linux-*)")
+                .unwrap_or_else(|| panic!("{job} has a linux-*) arm"));
+            assert!(
+                !run[arm..at].contains(";;")
+                    && (check.ends_with(";;") || run[end..].contains(";;")),
+                "{job} check sits inside its linux-*) arm"
+            );
+        }
+    }
 }
 
 #[test]

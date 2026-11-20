@@ -5,6 +5,8 @@ use crate::run::{
     scrubbed_command,
 };
 use base64::Engine as _;
+use dx_atomic_fs::path_io;
+use std::fmt;
 use std::path::Path;
 
 /// Owner approval gate for opam_deploy.
@@ -19,6 +21,83 @@ const GITHUB_API: &str = "https://api.github.com";
 const UPSTREAM: &str = "ocaml/opam-repository";
 const UPSTREAM_BASE: &str = "master";
 
+/// Why an opam identity check or the opam-repository pull request failed.
+#[derive(Debug)]
+pub enum OpamError {
+    PackageMismatch {
+        declared: String,
+        expected: String,
+    },
+    VersionMismatch {
+        declared: String,
+        expected: String,
+    },
+    Client(dx_http::Error),
+    /// The request failed before a response; `message` is token-redacted.
+    Transport {
+        message: String,
+    },
+    /// GitHub answered outside 2xx; `body` is token-redacted.
+    Status {
+        method: String,
+        path: String,
+        status: u16,
+        body: String,
+    },
+    NoField {
+        pointer: String,
+    },
+    ForkNotReady {
+        fork: String,
+    },
+}
+
+impl OpamError {
+    /// GitHub refused to create a ref or pull request that already exists.
+    fn already_exists(&self) -> bool {
+        matches!(self, Self::Status { status: 422, body, .. } if body.contains("already exists"))
+    }
+}
+
+impl fmt::Display for OpamError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::PackageMismatch { declared, expected } => write!(
+                f,
+                "package mismatch: opam file declares {declared}, BUILD declares {expected}"
+            ),
+            Self::VersionMismatch { declared, expected } => write!(
+                f,
+                "version mismatch: opam file declares {declared}, BUILD declares {expected}"
+            ),
+            Self::Client(source) => write!(f, "{source}"),
+            Self::Transport { message } => f.write_str(message),
+            Self::Status {
+                method,
+                path,
+                status,
+                body,
+            } => write!(f, "{method} {path}: HTTP {status}: {body}"),
+            Self::NoField { pointer } => write!(f, "response has no {pointer}"),
+            Self::ForkNotReady { fork } => write!(f, "fork {fork} did not become available"),
+        }
+    }
+}
+
+impl std::error::Error for OpamError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Client(source) => Some(source),
+            Self::PackageMismatch { .. }
+            | Self::VersionMismatch { .. }
+            | Self::Transport { .. }
+            | Self::Status { .. }
+            | Self::NoField { .. }
+            | Self::ForkNotReady { .. } => None,
+        }
+    }
+}
+
 /// Reads the optional `name:` and `version:` fields of an opam file.
 pub fn opam_read_identity(text: &str) -> (Option<String>, Option<String>) {
     let field = |key: &str| {
@@ -32,17 +111,19 @@ pub fn opam_read_identity(text: &str) -> (Option<String>, Option<String>) {
 }
 
 /// Checks the opam file's own name and version fields against the declared ones.
-pub fn opam_check_identity(text: &str, package: &str, version: &str) -> Result<(), String> {
+pub fn opam_check_identity(text: &str, package: &str, version: &str) -> Result<(), OpamError> {
     let (name, declared) = opam_read_identity(text);
     if let Some(name) = name.filter(|name| name != package) {
-        return Err(format!(
-            "package mismatch: opam file declares {name}, BUILD declares {package}"
-        ));
+        return Err(OpamError::PackageMismatch {
+            declared: name,
+            expected: package.to_owned(),
+        });
     }
     if let Some(declared) = declared.filter(|declared| declared != version) {
-        return Err(format!(
-            "version mismatch: opam file declares {declared}, BUILD declares {version}"
-        ));
+        return Err(OpamError::VersionMismatch {
+            declared,
+            expected: version.to_owned(),
+        });
     }
     Ok(())
 }
@@ -111,7 +192,7 @@ impl Github<'_> {
         method: &str,
         path: &str,
         body: Option<serde_json::Value>,
-    ) -> Result<(u16, serde_json::Value), String> {
+    ) -> Result<(u16, serde_json::Value), OpamError> {
         let url = format!("{GITHUB_API}{path}");
         let authorization = format!("Bearer {}", self.token);
         let mut headers = vec![
@@ -135,22 +216,31 @@ impl Github<'_> {
         let response = self
             .client
             .send(verb, &url, &headers, body, 1 << 20)
-            .map_err(|error| pages_redact(&error.to_string(), self.token))?;
+            .map_err(|error| OpamError::Transport {
+                message: pages_redact(&error.to_string(), self.token),
+            })?;
         let status = response.status;
         let text = pages_redact(&response.text(), self.token);
         if !(200..300).contains(&status) {
-            return Err(format!("{method} {path}: HTTP {status}: {}", text.trim()));
+            return Err(OpamError::Status {
+                method: method.to_owned(),
+                path: path.to_owned(),
+                status,
+                body: text.trim().to_owned(),
+            });
         }
         Ok((status, serde_json::from_str(&text).unwrap_or_default()))
     }
 }
 
-fn text_field(value: &serde_json::Value, pointer: &str) -> Result<String, String> {
+fn text_field(value: &serde_json::Value, pointer: &str) -> Result<String, OpamError> {
     value
         .pointer(pointer)
         .and_then(serde_json::Value::as_str)
         .map(str::to_owned)
-        .ok_or_else(|| format!("response has no {pointer}"))
+        .ok_or_else(|| OpamError::NoField {
+            pointer: pointer.to_owned(),
+        })
 }
 
 /// Forks opam-repository, commits the opam file on a branch and opens the pull request.
@@ -159,9 +249,9 @@ fn opam_live_pull_request(
     version: &str,
     contents: &[u8],
     token: &str,
-) -> Result<String, String> {
+) -> Result<String, OpamError> {
     let github = Github {
-        client: crate::http::client().map_err(|error| error.to_string())?,
+        client: crate::http::client().map_err(OpamError::Client)?,
         token,
     };
     let fork = text_field(
@@ -183,7 +273,7 @@ fn opam_live_pull_request(
         std::thread::sleep(std::time::Duration::from_secs(2));
     }
     if !ready {
-        return Err(format!("fork {fork} did not become available"));
+        return Err(OpamError::ForkNotReady { fork });
     }
     github.call(
         "POST",
@@ -208,7 +298,7 @@ fn opam_live_pull_request(
         Some(serde_json::json!({"ref": format!("refs/heads/{branch}"), "sha": base})),
     ) {
         Ok(_) => {}
-        Err(error) if error.contains("HTTP 422") && error.contains("already exists") => {}
+        Err(error) if error.already_exists() => {}
         Err(error) => return Err(error),
     }
     let path = opam_repository_path(package, version);
@@ -218,7 +308,7 @@ fn opam_live_pull_request(
         None,
     ) {
         Ok((_, value)) => Some(text_field(&value, "/sha")?),
-        Err(error) if error.contains("HTTP 404") => None,
+        Err(OpamError::Status { status: 404, .. }) => None,
         Err(error) => return Err(error),
     };
     let mut put = serde_json::json!({
@@ -244,7 +334,7 @@ fn opam_live_pull_request(
         })),
     ) {
         Ok((_, pull)) => text_field(&pull, "/html_url"),
-        Err(error) if error.contains("HTTP 422") && error.contains("already exists") => {
+        Err(error) if error.already_exists() => {
             let (_, pulls) = github.call(
                 "GET",
                 &format!("/repos/{UPSTREAM}/pulls?state=open&head={head}"),
@@ -279,13 +369,10 @@ pub fn opam_main(
     let (Some(opam), Some(file)) = (run.resolve(opam_rloc), run.resolve(opam_file_rloc)) else {
         return 1;
     };
-    let contents = match std::fs::read(&file) {
+    let contents = match path_io::read(&file) {
         Ok(contents) => contents,
         Err(error) => {
-            eprintln!(
-                "opam_deploy: {target_name}: cannot read {}: {error}",
-                file.display()
-            );
+            eprintln!("opam_deploy: {target_name}: {error}");
             return 1;
         }
     };
@@ -294,11 +381,8 @@ pub fn opam_main(
         return 1;
     }
     let home = run.outdir().join(format!("{target_name}-opam-home"));
-    if let Err(error) = std::fs::create_dir_all(&home) {
-        eprintln!(
-            "opam_deploy: {target_name}: cannot create {}: {error}",
-            home.display()
-        );
+    if let Err(error) = path_io::create_dir_all(&home) {
+        eprintln!("opam_deploy: {target_name}: {error}");
         return 1;
     }
     if !opam_lint(&opam, &file, &home) {
@@ -348,16 +432,18 @@ mod tests {
             opam_read_identity(text),
             (Some("demo".to_owned()), Some("1.0.0".to_owned()))
         );
-        assert_eq!(opam_check_identity(text, "demo", "1.0.0"), Ok(()));
-        assert!(
-            opam_check_identity(text, "other", "1.0.0")
-                .expect_err("name")
-                .contains("BUILD declares other")
+        assert!(opam_check_identity(text, "demo", "1.0.0").is_ok());
+        let name = opam_check_identity(text, "other", "1.0.0").expect_err("name");
+        assert!(matches!(name, OpamError::PackageMismatch { .. }));
+        assert_eq!(
+            name.to_string(),
+            "package mismatch: opam file declares demo, BUILD declares other"
         );
-        assert!(
-            opam_check_identity(text, "demo", "2.0.0")
-                .expect_err("version")
-                .contains("BUILD declares 2.0.0")
+        let version = opam_check_identity(text, "demo", "2.0.0").expect_err("version");
+        assert!(matches!(version, OpamError::VersionMismatch { .. }));
+        assert_eq!(
+            version.to_string(),
+            "version mismatch: opam file declares 1.0.0, BUILD declares 2.0.0"
         );
     }
 
@@ -365,7 +451,41 @@ mod tests {
     fn identity_fields_are_optional() {
         let text = "opam-version: \"2.0\"\nsynopsis: \"x\"\n";
         assert_eq!(opam_read_identity(text), (None, None));
-        assert_eq!(opam_check_identity(text, "demo", "1.0.0"), Ok(()));
+        assert!(opam_check_identity(text, "demo", "1.0.0").is_ok());
+    }
+
+    fn status(status: u16, body: &str) -> OpamError {
+        OpamError::Status {
+            method: "POST".to_owned(),
+            path: "/repos/a/b/git/refs".to_owned(),
+            status,
+            body: body.to_owned(),
+        }
+    }
+
+    #[test]
+    fn status_errors_render_and_detect_existing_objects() {
+        let exists = status(422, r#"{"message":"Reference already exists"}"#);
+        assert_eq!(
+            exists.to_string(),
+            r#"POST /repos/a/b/git/refs: HTTP 422: {"message":"Reference already exists"}"#
+        );
+        assert!(exists.already_exists());
+        assert!(
+            status(
+                422,
+                r#"{"message":"A pull request already exists for a:b."}"#
+            )
+            .already_exists()
+        );
+        assert!(!status(422, r#"{"message":"Validation Failed"}"#).already_exists());
+        assert!(!status(409, "already exists").already_exists());
+        assert!(
+            !OpamError::NoField {
+                pointer: "/sha".to_owned()
+            }
+            .already_exists()
+        );
     }
 
     #[test]

@@ -175,7 +175,8 @@ pub fn run_request(
     let cwd = std::env::current_dir().ok();
     let files = read_inputs(&request.sources, unreadable_source)?;
     let sibling_files = read_inputs(&request.siblings, unreadable_sibling)?;
-    let resolve_files = read_inputs(&request.resolves, unreadable_resolve)?;
+    let resolves = listed_resolves(&request)?;
+    let resolve_files = read_inputs(&resolves, unreadable_resolve)?;
     let mut tools: BTreeMap<String, RealTool> = BTreeMap::new();
     let source_rels: BTreeSet<&str> = request
         .sources
@@ -224,6 +225,48 @@ fn unreadable_sibling(workspace: String, detail: String) -> RunnerError {
 
 fn unreadable_resolve(workspace: String, detail: String) -> RunnerError {
     RunnerError::UnreadableResolve { workspace, detail }
+}
+
+/// Returns the request resolves plus the resolve-list lines whose path no mapping holds yet.
+/// The lists come from depsets, so a path a source, sibling or earlier line holds is skipped.
+fn listed_resolves(
+    request: &crate::request::RealRequest,
+) -> Result<Vec<(String, String)>, RunnerError> {
+    let mut taken: BTreeSet<String> = request
+        .sources
+        .iter()
+        .chain(&request.siblings)
+        .chain(&request.resolves)
+        .map(|(workspace, _)| workspace.clone())
+        .collect();
+    let mut out = request.resolves.clone();
+    for resolve_list in &request.resolve_lists {
+        let unreadable = |detail: String| RunnerError::UnreadableResolve {
+            workspace: resolve_list.list.display().to_string(),
+            detail,
+        };
+        let text = std::fs::read_to_string(&resolve_list.list)
+            .map_err(|error| unreadable(error.to_string()))?;
+        for line in text.lines().filter(|line| !line.is_empty()) {
+            let (workspace, exec) = line
+                .split_once('\t')
+                .ok_or_else(|| unreadable(format!("line {line:?} is not workspace<TAB>exec")))?;
+            if let Some(reason) = dx_path::reject_reason(workspace) {
+                return Err(unreadable(format!("path {workspace:?}: {reason}")));
+            }
+            let kept = resolve_list.extensions.is_empty()
+                || Path::new(workspace).extension().is_some_and(|ext| {
+                    resolve_list
+                        .extensions
+                        .iter()
+                        .any(|want| ext == want.as_str())
+                });
+            if kept && taken.insert(workspace.to_owned()) {
+                out.push((workspace.to_owned(), exec.to_owned()));
+            }
+        }
+    }
+    Ok(out)
 }
 
 fn read_inputs(
@@ -436,6 +479,60 @@ mod tests {
                 ("owned/0/ebin/sub/c.beam".to_owned(), b"c".to_vec()),
             ]
         );
+    }
+
+    #[test]
+    fn resolve_lists_keep_extensions_and_skip_taken_paths() {
+        let dir = tempfile::tempdir().expect("scratch");
+        let list = dir.path().join("opa-resolves.txt");
+        std::fs::write(
+            &list,
+            "pkg/a.rego\tx/a.rego\npkg/b.rego\tx/b.rego\npkg/data.json\tx/data.json\npkg/c.rego\tx/c.rego\npkg/b.rego\ty/b.rego\n",
+        )
+        .expect("list");
+        let request = crate::request::RealRequest {
+            producer: "//pkg:policy".to_owned(),
+            capability: "typecheck".to_owned(),
+            stages: Vec::new(),
+            sources: vec![("pkg/a.rego".to_owned(), "x/a.rego".to_owned())],
+            siblings: Vec::new(),
+            resolves: vec![("pkg/c.rego".to_owned(), "z/c.rego".to_owned())],
+            resolve_lists: vec![crate::request::ResolveList {
+                list: list.clone(),
+                extensions: vec!["rego".to_owned()],
+            }],
+            tools: BTreeMap::new(),
+            scratch_parent: None,
+            unsafe_fixes: false,
+        };
+        assert_eq!(
+            listed_resolves(&request).expect("resolves"),
+            [
+                ("pkg/c.rego".to_owned(), "z/c.rego".to_owned()),
+                ("pkg/b.rego".to_owned(), "x/b.rego".to_owned()),
+            ]
+        );
+        let every = crate::request::RealRequest {
+            resolve_lists: vec![crate::request::ResolveList {
+                list,
+                extensions: Vec::new(),
+            }],
+            ..request.clone()
+        };
+        assert_eq!(listed_resolves(&every).expect("resolves").len(), 3);
+        let bad = dir.path().join("bad.txt");
+        std::fs::write(&bad, b"../escape.rego\tx/escape.rego\n").expect("list");
+        let escaping = crate::request::RealRequest {
+            resolve_lists: vec![crate::request::ResolveList {
+                list: bad,
+                extensions: Vec::new(),
+            }],
+            ..request
+        };
+        assert!(matches!(
+            listed_resolves(&escaping),
+            Err(RunnerError::UnreadableResolve { .. })
+        ));
     }
 
     #[test]

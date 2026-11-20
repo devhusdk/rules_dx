@@ -41,13 +41,8 @@ def _bicep_hook(target, _ctx, _resolved, _capability, _what, _shared):
         rel = f.short_path.partition("/home/.bicep/")[2]
         if rel:
             stage(tool_files, inputs, "dx-bicep/home/.bicep/" + rel, f)
-    pairs = []
-    for f in depset(transitive = [target[BicepInfo].transitive_srcs, target[BicepInfo].transitive_data]).to_list():
-        ws_path = f.short_path
-        if ".." in ws_path.split("/"):
-            continue
-        pairs.append((ws_path, f, False))
-    return real_context(tool_files = tool_files, inputs = inputs, resolve_pairs = pairs)
+    closure = depset(transitive = [target[BicepInfo].transitive_srcs, target[BicepInfo].transitive_data])
+    return real_context(tool_files = tool_files, inputs = inputs, resolve_lists = [(closure, [])])
 
 def _trivy_hook(target, ctx, resolved, capability, what, shared):
     context = _bicep_hook(target, ctx, resolved, capability, what, shared)
@@ -56,7 +51,7 @@ def _trivy_hook(target, ctx, resolved, capability, what, shared):
     return real_context(
         tool_files = context.tool_files,
         inputs = context.inputs + [ctx.file._bicep],
-        resolve_pairs = context.resolve_pairs,
+        resolve_lists = context.resolve_lists,
         options = {"path_tools": [("bicep", ctx.file._bicep)]},
     )
 

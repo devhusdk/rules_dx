@@ -6,6 +6,7 @@ load(":cargo_bazel_generator_tests.bzl", "cargo_bazel_generator_test")
 load(":crate_build_script_tests.bzl", "crate_build_scripts_no_coverage_test")
 load(":cross_link_tests.bzl", "cross_link_tests")
 load(":defs_tests.bzl", "rust_wrapper_registry_tests")
+load(":musl_toolchain_tests.bzl", "musl_toolchain_tests")
 load(":platform_config_tests.bzl", "rust_platform_config_test")
 load(":rust_clippy_tests.bzl", "rust_clippy_test_suite")
 load(":toolchain_tests.bzl", "toolchain_identity_tests")
@@ -23,6 +24,7 @@ real_source_target(
         "crate_build_script_tests.bzl",
         "cross_link_tests.bzl",
         "defs_tests.bzl",
+        "musl_toolchain_tests.bzl",
         "platform_config_tests.bzl",
         "rust_clippy_tests.bzl",
         "toolchain_tests.bzl",
@@ -74,6 +76,11 @@ toolchain_identity_tests(
 
 cross_link_tests(
     name = "cross_link",
+    size = "small",
+)
+
+musl_toolchain_tests(
+    name = "musl_toolchain",
     size = "small",
 )
 

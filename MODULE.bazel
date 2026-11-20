@@ -91,7 +91,7 @@ bazel_dep(name = "rules_foreign_cc", version = "0.17.0", dev_dependency = True)
 single_version_override(
     module_name = "rules_foreign_cc",
     patch_strip = 1,
-    patches = ["//patches/rules_foreign_cc:cmake_4_5_0.patch"],
+    patches = ["//patches/rules_foreign_cc:cmake_4_1_to_4_5.patch"],
     version = "0.17.0",
 )
 
@@ -105,7 +105,7 @@ _foreign_cc_tools = use_extension("@rules_foreign_cc//foreign_cc:extensions.bzl"
 _foreign_cc_tools.explicit()
 _foreign_cc_tools.cmake(
     mode = "binary",
-    version = "4.5.0",
+    version = "4.5.1",
 )
 _foreign_cc_tools.ninja(
     exec_compatible_with = ["@platforms//os:linux"],
@@ -385,7 +385,7 @@ single_version_override(
     patches = [
         "//patches/rules_android:bundle_keystore_properties.patch",
         "//patches/rules_android:java8_dex_runfiles.patch",
-        "//patches/rules_android:dx_bzl_srcs.patch",
+        "//patches/rules_android:public_bzl_library.patch",
     ],
     version = "0.8.1",
 )
@@ -395,7 +395,7 @@ bazel_dep(name = "rules_kotlin", version = "2.4.21")
 single_version_override(
     module_name = "rules_kotlin",
     patch_strip = 1,
-    patches = ["//patches/rules_kotlin:dx_bzl_srcs.patch"],
+    patches = ["//patches/rules_kotlin:kotlin_filegroup_android.patch"],
     version = "2.4.21",
 )
 
@@ -2052,7 +2052,7 @@ register_toolchains("@dx_fortran_toolchains//:all")
 
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 
-# rules_zig 0.17.0 does not list Zig 0.17.1; drop this index when the rules_zig bazel_dep does.
+# //core/modules:versions_contract fails once the rules_zig bazel_dep lists Zig 0.17.1; then this index goes (#13964).
 zig.index(file = "//zig/private:sdk_versions.json")
 zig.toolchain(zig_version = "0.17.1")
 
@@ -2446,6 +2446,11 @@ uv.project(
 )
 uv.project(
     hub_name = "dx_pypi",
+    lock = "//core/quality/tools/python/pypi_attestations:uv.lock",
+    pyproject = "//core/quality/tools/python/pypi_attestations:pyproject.toml",
+)
+uv.project(
+    hub_name = "dx_pypi",
     lock = "//gazelle/protobuf/tests/grpc:uv.lock",
     pyproject = "//gazelle/protobuf/tests/grpc:pyproject.toml",
 )
@@ -2549,6 +2554,49 @@ use_repo(
     rust,
     "rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools",
     "rust_toolchains",
+)
+
+# Musl rustc for the static Linux release tools. Bump these versions with
+# RUST_VERSION in core/modules/versions.bzl.
+rust_dev = use_extension(
+    "@rules_rust//rust:extensions.bzl",
+    "rust",
+    dev_dependency = True,
+)
+rust_dev.repository_set(
+    name = "rust_linux_x86_64_musl",
+    edition = "2024",
+    exec_triple = "x86_64-unknown-linux-gnu",
+    target_compatible_with = [
+        "@llvm//constraints/libc:musl",
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    target_settings = ["//config:toolchains_on"],
+    target_triple = "x86_64-unknown-linux-musl",
+    versions = ["1.99.1"],
+)
+rust_dev.repository_set(
+    name = "rust_linux_aarch64_musl",
+    edition = "2024",
+    exec_triple = "aarch64-unknown-linux-gnu",
+    target_compatible_with = [
+        "@llvm//constraints/libc:musl",
+        "@platforms//cpu:arm64",
+        "@platforms//os:linux",
+    ],
+    target_settings = ["//config:toolchains_on"],
+    target_triple = "aarch64-unknown-linux-musl",
+    versions = ["1.99.1"],
+)
+
+# Before :all, whose gnu toolchains also match the musl platforms.
+register_toolchains(
+    "@rust_toolchains//:rust_linux_aarch64_musl__aarch64-unknown-linux-musl__stable",
+    "@rust_toolchains//:rust_linux_aarch64_musl__aarch64-unknown-linux-musl__stable__cargo",
+    "@rust_toolchains//:rust_linux_x86_64_musl__x86_64-unknown-linux-musl__stable",
+    "@rust_toolchains//:rust_linux_x86_64_musl__x86_64-unknown-linux-musl__stable__cargo",
+    dev_dependency = True,
 )
 
 register_toolchains("@rust_toolchains//:all")

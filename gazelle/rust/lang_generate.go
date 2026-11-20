@@ -1008,20 +1008,46 @@ func mergeStale(file *rule.File, rel string, files []string, result language.Gen
 
 // staleRules lists the owned rules generation no longer produces. A rule
 // for which keep reports true names a present source no generated rule
-// claims, so it is handwritten and stays.
+// claims, so it is handwritten and stays. A crate= rule with no srcs stays
+// with the handwritten crate it wraps.
 func staleRules(file *rule.File, desired map[string]bool, keep func(*rule.Rule) bool) language.GenerateResult {
 	var result language.GenerateResult
 	if file == nil {
 		return result
 	}
+	byName := make(map[string]*rule.Rule, len(file.Rules))
+	for _, existing := range file.Rules {
+		byName[existing.Name()] = existing
+	}
+	// stays reports whether existing survives generation without being a
+	// generated rule itself, so it is handwritten.
+	var stays func(existing *rule.Rule, seen map[string]bool) bool
+	stays = func(existing *rule.Rule, seen map[string]bool) bool {
+		if _, owned := rustKinds[existing.Kind()]; !owned {
+			return true
+		}
+		if desired[existing.Kind()+"\x00"+existing.Name()] {
+			return false
+		}
+		if existing.Kind() == corpusKind && !isGeneratedCorpusName(existing.Name()) {
+			return true
+		}
+		if hasHandwrittenAttr(existing) || keep(existing) {
+			return true
+		}
+		crate := existing.AttrString("crate")
+		if len(crate) < 2 || crate[0] != ':' || seen[existing.Name()] {
+			return false
+		}
+		seen[existing.Name()] = true
+		target := byName[crate[1:]]
+		return target != nil && stays(target, seen)
+	}
 	for _, existing := range file.Rules {
 		if _, owned := rustKinds[existing.Kind()]; !owned || desired[existing.Kind()+"\x00"+existing.Name()] {
 			continue
 		}
-		if existing.Kind() == corpusKind && !isGeneratedCorpusName(existing.Name()) {
-			continue
-		}
-		if hasHandwrittenAttr(existing) || keep(existing) {
+		if stays(existing, map[string]bool{}) {
 			continue
 		}
 		empty := rule.NewRule(existing.Kind(), existing.Name())

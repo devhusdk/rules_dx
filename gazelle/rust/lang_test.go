@@ -165,6 +165,35 @@ func TestGenerateStaleRules(t *testing.T) {
 	}
 }
 
+func TestGenerateKeepsCrateWrapperOfHandwrittenLibrary(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "tools/guard/guard.rs", "#[cfg(test)]\nmod tests {\n    #[test]\n    fn works() {}\n}\n")
+	f := rule.EmptyFile("BUILD.bazel", "tools/guard")
+	lib := rule.NewRule(libraryKind, "guard")
+	lib.SetAttr("testonly", true)
+	lib.SetAttr("srcs", []string{"guard.rs"})
+	lib.SetAttr("crate_root", "guard.rs")
+	unit := rule.NewRule(testKind, "guard_lib_test")
+	unit.SetAttr("size", "small")
+	unit.SetAttr("crate", ":guard")
+	orphan := rule.NewRule(testKind, "orphan_test")
+	orphan.SetAttr("crate", ":gone")
+	f.Rules = append(f.Rules, lib, unit, orphan)
+	result := NewLanguage().GenerateRules(withSubdirs(language.GenerateArgs{
+		Config: &config.Config{RepoRoot: root},
+		Dir:    filepath.Join(root, "tools", "guard"),
+		Rel:    "tools/guard",
+		File:   f,
+	}))
+	var empty []string
+	for _, r := range result.Empty {
+		empty = append(empty, r.Name())
+	}
+	if !slices.Equal(empty, []string{"orphan_test"}) {
+		t.Errorf("empty rules = %v, want [orphan_test]", empty)
+	}
+}
+
 func TestGenerateAdoptsHandwrittenNames(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "crates/demo/src/main.rs", "#[test]\nfn works() {}\n")

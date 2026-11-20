@@ -18,9 +18,9 @@ const ALLOWED_REPOS: &[&str] = &[
 /// Directories outside `core/quality/` whose `.bzl` files are roots.
 const CORE_DIRS: &[&str] = &["core", "core/codegen", "core/modules"];
 
-/// Packages of core tool defaults that load a language rule set; this list only shrinks.
+/// Packages of core tool defaults that load a language rule set; this list only shrinks, and
+/// each entry must still be a package a core default points into.
 const PENDING_TOOL_PACKAGES: &[&str] = &[
-    "core/quality/tools/python",
     "core/quality/tools/nixfmt/bin",
     "rust/private/quality/tools",
 ];
@@ -237,8 +237,13 @@ fn core_loads_only_allowed_external_repos() {
 #[test]
 fn pending_tool_packages_still_offend() {
     let source = dx_testing::source_snapshot();
+    let tool_packages = tool_packages(&source);
     for package in PENDING_TOOL_PACKAGES {
         let root = format!("{package}/BUILD.bazel");
+        assert!(
+            tool_packages.contains(&root),
+            "{package} is no longer a core tool-default package; drop it from PENDING_TOOL_PACKAGES"
+        );
         let found = dx_adopt::external_repos(&source, &[root.clone()]).expect("load graph");
         let offends = found
             .values()

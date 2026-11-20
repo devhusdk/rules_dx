@@ -15,11 +15,11 @@ pub fn normalize_message(message: &str) -> String {
 
 #[must_use]
 pub fn line_context_digest(file_bytes: &[u8], start_byte: u64) -> Option<[u8; 32]> {
-    if file_bytes.is_empty() {
-        return None;
-    }
     let start: usize = start_byte.try_into().ok()?;
-    if start >= file_bytes.len() {
+    // An offset of exactly `len` sits on the last line: the empty line after a
+    // trailing newline, or the unterminated last line. Tools report findings
+    // like "missing final newline" there.
+    if start > file_bytes.len() {
         return None;
     }
     let (head, tail) = file_bytes.split_at_checked(start)?;
@@ -162,7 +162,7 @@ mod tests {
         let again = line_context_digest(body, 0).expect("line start");
         assert_eq!(first, again);
         assert!(line_context_digest(body, 100).is_none());
-        assert!(line_context_digest(b"", 0).is_none());
+        assert!(line_context_digest(b"", 1).is_none());
     }
 
     #[test]
@@ -263,8 +263,24 @@ mod tests {
     }
 
     #[test]
-    fn offset_at_end_of_file_has_no_line() {
-        assert!(line_context_digest(b"a\n", 2).is_none());
-        assert!(line_context_digest(b"a", 1).is_none());
+    fn offset_at_end_of_file_is_the_last_line() {
+        let unterminated = line_context_digest(b"a", 1).expect("end of file");
+        assert_eq!(Some(unterminated), line_context_digest(b"a", 0));
+        assert_eq!(unterminated, dx_digest::blake3(b"a"));
+        let trailing = line_context_digest(b"a\n", 2).expect("after newline");
+        assert_eq!(trailing, dx_digest::blake3(b""));
+        assert_eq!(line_context_digest(b"", 0), Some(dx_digest::blake3(b"")));
+        assert_eq!(
+            line_context_digest(b"a\r\n", 3),
+            Some(dx_digest::blake3(b""))
+        );
+    }
+
+    #[test]
+    fn offset_past_end_of_file_has_no_line() {
+        assert!(line_context_digest(b"a\n", 3).is_none());
+        assert!(line_context_digest(b"a", 2).is_none());
+        assert!(line_context_digest(b"", 1).is_none());
+        assert!(line_context_digest(b"a", u64::MAX).is_none());
     }
 }

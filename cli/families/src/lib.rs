@@ -117,6 +117,8 @@ pub struct LanguageLicenses {
 pub struct LanguageMarks {
     /// The `lang.json` name.
     pub language: String,
+    /// The `dx.toml` family id: `quality.family`, else the name.
+    pub family: String,
     /// The `quality` file extensions and file names of the language.
     pub marks: Vec<String>,
 }
@@ -148,9 +150,19 @@ struct Manifest {
     name: String,
     #[serde(default)]
     commands: BTreeMap<String, String>,
-    quality: Option<QualityFiles>,
+    quality: Option<ManifestQuality>,
     docs: Option<DocsFiles>,
     setup: Option<Setup>,
+}
+
+/// The `quality` entry of one manifest, with the family id that only the single language knows.
+#[derive(Deserialize)]
+struct ManifestQuality {
+    /// The `dx.toml` family id when it differs from the language name, like `capnp`.
+    #[serde(default)]
+    family: Option<String>,
+    #[serde(flatten)]
+    files: QualityFiles,
 }
 
 /// The `rules_dx` target `dx generate` runs.
@@ -256,8 +268,9 @@ pub fn quality_marks() -> &'static [LanguageMarks] {
             .filter_map(|manifest| {
                 let quality = manifest.quality?;
                 Some(LanguageMarks {
+                    family: quality.family.unwrap_or_else(|| manifest.name.clone()),
                     language: manifest.name,
-                    marks: [quality.file_extensions, quality.file_names].concat(),
+                    marks: [quality.files.file_extensions, quality.files.file_names].concat(),
                 })
             })
             .collect();
@@ -279,7 +292,9 @@ pub fn licenses() -> &'static [LanguageLicenses] {
                 }
                 let marks = manifest
                     .quality
-                    .map(|quality| [quality.file_extensions, quality.file_names].concat())
+                    .map(|quality| {
+                        [quality.files.file_extensions, quality.files.file_names].concat()
+                    })
                     .unwrap_or_default();
                 Some(LanguageLicenses {
                     language: manifest.name,
@@ -343,7 +358,7 @@ fn parse_manifests(texts: &[&str]) -> Result<Vec<Manifest>, serde_json::Error> {
 fn merge_quality(manifests: Vec<Manifest>) -> Vec<QualityFiles> {
     let mut merged: BTreeMap<String, QualityFiles> = Default::default();
     for manifest in manifests {
-        if let Some(quality) = manifest.quality {
+        if let Some(ManifestQuality { files: quality, .. }) = manifest.quality {
             let entry = merged.entry(quality.bzl.clone()).or_default();
             entry.bzl = quality.bzl;
             entry.file_extensions.extend(quality.file_extensions);

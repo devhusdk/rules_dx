@@ -43,6 +43,10 @@
     "classes": [
       "fsharp"
     ],
-    "file_extensions": []
+    "file_extensions": [
+      ".fs",
+      ".fsproj",
+      ".fsx"
+    ]
   }
 }

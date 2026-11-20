@@ -1,5 +1,5 @@
 use crate::proto::{DxCodegenEntry, DxCodegenShard};
-use dx_shard_writer::ShardKind;
+use dx_shard_writer::{ShardKind, WriterError};
 
 struct CodegenKind;
 
@@ -26,11 +26,42 @@ impl ShardKind for CodegenKind {
     }
 }
 
+/// Converts raw OS arguments to text; a non-UTF-8 argument is an error, not a lossy copy.
+pub fn utf8_args(args: &[std::ffi::OsString]) -> Result<Vec<String>, WriterError> {
+    args.iter()
+        .map(|arg| {
+            arg.to_str().map(str::to_owned).ok_or_else(|| {
+                WriterError::Usage(format!(
+                    "argument {arg:?} is not valid UTF-8\n{}",
+                    CodegenKind::USAGE
+                ))
+            })
+        })
+        .collect()
+}
+
 // LCOV_EXCL_START - reason: process shim, issue: 9370, policy: docs/cli/commands/build-test-coverage.md
 /// Runs the writer on the given arguments and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     dx_shard_writer::run_process::<CodegenKind>(args)
+}
+
+/// Runs the writer on raw OS arguments and returns the exit code.
+#[must_use]
+pub fn run_os_process(args: &[std::ffi::OsString]) -> i32 {
+    use std::io::Write;
+    match utf8_args(args) {
+        Ok(text) => run_process(&text),
+        Err(error) => {
+            drop(writeln!(
+                std::io::stderr(),
+                "{}: {error}",
+                CodegenKind::PROGRAM
+            ));
+            1
+        }
+    }
 }
 // LCOV_EXCL_STOP - reason: end process shim, issue: 9370, policy: docs/cli/commands/build-test-coverage.md
 
@@ -38,7 +69,7 @@ pub fn run_process(args: &[String]) -> i32 {
 mod tests {
     use super::*;
     use crate::decode_validated;
-    use dx_shard_writer::{WriterError, run};
+    use dx_shard_writer::run;
 
     fn args(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| (*value).to_owned()).collect()
@@ -146,6 +177,25 @@ mod tests {
             path: "src/a.rs".into(),
         };
         assert_eq!(error, WriterError::Codec(expected.to_string()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_non_utf8_argument_is_rejected() {
+        use std::os::unix::ffi::OsStringExt;
+        let mut bad = b"--entry=src/".to_vec();
+        bad.extend([0xff, 0xfe]);
+        bad.extend(b".rs|src|a");
+        let argv = vec![
+            std::ffi::OsString::from("--producer=//gen:alpha"),
+            std::ffi::OsString::from("--language=rust"),
+            std::ffi::OsString::from_vec(bad),
+        ];
+        let error = utf8_args(&argv).expect_err("non-UTF-8 is rejected");
+        assert!(
+            matches!(&error, WriterError::Usage(text) if text.contains("is not valid UTF-8")),
+            "got {error:?}"
+        );
     }
 
     #[test]

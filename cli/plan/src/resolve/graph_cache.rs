@@ -5,15 +5,17 @@ use super::rule_graph::is_graph_query;
 use super::{QueryResult, QueryRunner};
 
 /// Bump when the cache file layout or the key inputs change.
-const FORMAT: &str = "dx-rule-graph-v1";
+const FORMAT: &str = "dx-rule-graph-v2";
 
 /// Query runner that keeps the last successful workspace rule-graph query on disk, so a later
 /// dx command whose BUILD inputs have not changed skips Bazel entirely.
 ///
 /// The key hashes the query argv and every file the unconfigured graph can depend on: BUILD
-/// files, `.bzl` and `.scl` files, module files, the lockfile and the rc files. Anything that
-/// changes the graph changes one of them, so a stale hit cannot happen; a changed file only
-/// costs one query. The cache is best effort: when the workspace cannot be hashed or the file
+/// files, `.bzl` and `.scl` files, module files, the lockfile and the rc files, plus the path
+/// of every other file, because `glob()` results and so each rule's inputs follow which files
+/// exist. Anything that changes the graph changes one of them, so a stale hit cannot happen; a
+/// source edit keeps the key, and a changed graph input or an added or deleted file costs one
+/// query. The cache is best effort: when the workspace cannot be hashed or the file
 /// cannot be read or written, the query simply runs.
 pub struct PersistentGraphQuery<'a> {
     inner: &'a dyn QueryRunner,
@@ -53,9 +55,14 @@ fn is_graph_input(name: &str) -> bool {
 /// one of its graph inputs cannot be read.
 fn cache_key(argv: &[String], workspace: &Path) -> Option<String> {
     let mut inputs: Vec<String> = Vec::new();
+    let mut files: Vec<String> = Vec::new();
+    // `.dx/local` holds this cache file, so its paths must stay out of the key.
+    let local = format!("{}/", dx_path::state::LOCAL_DIR);
     dx_adopt::load_graph::walk_workspace(workspace, &[".git"], |name, rel, _| {
         if is_graph_input(name) {
             inputs.push(rel.to_owned());
+        } else if !rel.starts_with(&local) {
+            files.push(rel.to_owned());
         }
         false
     })
@@ -71,6 +78,10 @@ fn cache_key(argv: &[String], workspace: &Path) -> Option<String> {
     for rel in inputs {
         let digest = dx_digest::sha256_file_hex(&workspace.join(&rel)).ok()?;
         text.push_str(&format!("{digest} {rel}\n"));
+    }
+    files.sort();
+    for rel in files {
+        text.push_str(&format!("- {rel}\n"));
     }
     Some(dx_digest::sha256_hex(text.as_bytes()))
 }
@@ -186,6 +197,32 @@ mod tests {
             assert_eq!(fake.calls().len(), before + 1, "{rel} invalidates");
             assert_ne!(got.stdout, b"one\n");
         }
+    }
+
+    #[test]
+    fn adding_or_deleting_a_source_file_invalidates() {
+        let scratch = workspace();
+        let root = scratch.path();
+        let fake = answers();
+        let argv = graph_argv();
+        PersistentGraphQuery::new(&fake)
+            .run_query(&argv, root)
+            .unwrap();
+        assert_eq!(fake.calls().len(), 1);
+
+        write(root, "pkg/new.py", "y = 1\n").unwrap();
+        let added = PersistentGraphQuery::new(&fake)
+            .run_query(&argv, root)
+            .unwrap();
+        assert_eq!(fake.calls().len(), 2, "an added file can match a glob");
+        assert_eq!(added.stdout, b"two\n");
+
+        std::fs::remove_file(root.join("pkg/new.py")).unwrap();
+        let deleted = PersistentGraphQuery::new(&fake)
+            .run_query(&argv, root)
+            .unwrap();
+        assert_eq!(fake.calls().len(), 3, "a deleted file can leave a glob");
+        assert_eq!(deleted.stdout, b"three\n");
     }
 
     #[test]

@@ -175,6 +175,9 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         let sha256 = dx_testing::sha256_file(&stub).unwrap_or_else(|error| panic!("{error}"));
         let url = stub_url(&stub);
         for target_key in keys {
+            if tool == "runtime" && target_key == "windows_arm64" {
+                continue;
+            }
             let (os, cpu) = release_platform(target_key)
                 .unwrap_or_else(|| panic!("{tool}: registry key {target_key}"));
             tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));

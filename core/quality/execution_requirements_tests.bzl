@@ -220,9 +220,9 @@ def execution_requirements_unit_tests(name):
                 [{}, {}, {}, {}, {}, {}, {}, {}],
             ),
             expect_equal(
-                "regal lint stays local",
+                "regal lint runs remotely",
                 dx_stage_execution_requirements(["regal"], "lint"),
-                {DX_NO_REMOTE_EXEC: "1"},
+                {},
             ),
             expect_equal(
                 "a qualified tool beside an unqualified one stays local",

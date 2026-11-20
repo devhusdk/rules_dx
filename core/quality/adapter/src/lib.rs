@@ -17,6 +17,7 @@ pub mod kubernetes_preflight;
 pub mod launch;
 pub mod parsers;
 pub mod pointer_index;
+pub mod regal_preflight;
 pub mod severity;
 mod severity_gen;
 pub mod sqlfluff_config;

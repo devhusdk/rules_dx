@@ -423,6 +423,8 @@ Each tool reads its own native config file at the repo root. The table lists the
 
 A bound ruff config runs with its own directory as the project root, the same as ruff's own discovery, so `src`, `exclude` and `per-file-ignores` resolve against that directory.
 
+A bound regal config may not set `capabilities.from.url`, use YAML aliases, merge keys or tags. `capabilities.from.file` must be a relative forward-slash path without `.` or `..` segments. Use `capabilities.from.engine` and `version` to pin capabilities.
+
 ### Change a rule
 
 Edit the tool's own root file. Where the Base column says `extends`, the file extends the dx tier base, so your edit is the only thing you keep. Where it says `override copy`, the root file is a copy of the base, and you edit the copy.

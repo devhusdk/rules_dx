@@ -3215,20 +3215,25 @@ fn remote_location(location: &str) -> bool {
     location == "default" || location.contains("://")
 }
 
+/// A non-empty forward-slash relative path with no drive, empty, `.` or `..` segment.
+#[must_use]
+pub fn plain_relative(rel: &str) -> bool {
+    !rel.is_empty()
+        && !rel.starts_with('/')
+        && !rel.contains('\\')
+        && !rel.contains(':')
+        && rel
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != "..")
+}
+
 fn schema_dir(base: &Path, key: &str, rel: &str) -> Result<PathBuf, String> {
     if remote_location(rel) {
         return Err(format!(
             "kubeconform {key} must be a local directory, got {rel:?}"
         ));
     }
-    let bad = rel.is_empty()
-        || rel.starts_with('/')
-        || rel.contains('\\')
-        || rel.contains(':')
-        || rel
-            .split('/')
-            .any(|part| part.is_empty() || part == "." || part == "..");
-    if bad {
+    if !plain_relative(rel) {
         return Err(format!(
             "kubeconform {key} must be a relative forward-slash path below the config, got {rel:?}"
         ));

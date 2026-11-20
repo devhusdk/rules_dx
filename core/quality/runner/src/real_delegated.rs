@@ -1381,6 +1381,21 @@ pub(super) fn regal_lint_reports_errors_and_warnings_and_never_counts_noise_as_c
 }
 
 #[test]
+pub(super) fn regal_lint_refuses_url_capabilities_before_spawning() {
+    let tool = bound_tool(
+        ".regal/config.yaml",
+        b"capabilities:\n  from:\n    url: https://example.com/caps.json\n",
+    );
+    let backend = backend_for("regal", tool, |_, _, _| {
+        Err(io::Error::other("regal must not be spawned"))
+    });
+    let err = backend
+        .diagnose("regal", "lint", &single("p/a.rego", "package p\n"))
+        .expect_err("url capabilities are refused");
+    assert!(err.to_string().contains("capabilities.from.url"), "{err}");
+}
+
+#[test]
 pub(super) fn regal_lint_with_a_missing_binary_is_an_error() {
     let backend = backend_for("regal", plain_tool(), |_, _, _| {
         Err(io::Error::new(io::ErrorKind::NotFound, "no regal"))

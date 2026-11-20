@@ -12,6 +12,10 @@ path = "src/lib.rs"
 name = "deploy_tool"
 path = "src/bin_deploy_tool.rs"
 
+[[bin]]
+name = "nfpm_stage"
+path = "src/bin_nfpm_stage.rs"
+
 [dependencies]
 base64 = "0.23"
 flate2 = { version = "1", default-features = false, features = ["zlib"] }

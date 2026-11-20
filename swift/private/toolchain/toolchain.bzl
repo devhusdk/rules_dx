@@ -39,7 +39,7 @@ _with_link_libs = rule(
     implementation = _with_link_libs_impl,
     attrs = {
         "link_libs": attr.label(mandatory = True, providers = [CcInfo]),
-        "resource_dir": attr.string(doc = "The Swift resource directory of the target cpu, when the tools run on another cpu."),
+        "resource_dir": attr.string(doc = "The Swift resource directory of the target cpu, relative to the execroot."),
         "runtime": attr.label(
             doc = "The toolchain whose Swift runtime the target links, when the tools run on another cpu.",
             providers = [SwiftToolchainInfo],
@@ -122,12 +122,13 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
     )
 
     _swift_cross_toolchain("swift_cross_" + pair, exec_cpu, target_cpu)
-    if exec_cpu == target_cpu:
-        resource_dir = None
-        runtime = None
-    else:
-        resource_dir = Label("@dx_swift_linux_" + target_cpu + "//:files").workspace_root + "/usr/lib/swift"
-        runtime = ":swift_cross_" + target_cpu + "_" + target_cpu
+    runtime = None if exec_cpu == target_cpu else ":swift_cross_" + target_cpu + "_" + target_cpu
+
+    # Passed for native builds too. Without it the frontend derives the
+    # resource dir from the real path of its own binary, which is in the output
+    # base and outside the execroot that `-file-prefix-map` rewrites, so every
+    # object and index record would hold the output base path.
+    resource_dir = Label("@dx_swift_linux_" + target_cpu + "//:files").workspace_root + "/usr/lib/swift"
 
     _with_link_libs(
         name = name,

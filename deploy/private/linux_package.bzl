@@ -9,6 +9,8 @@ def linux_package_filename(package, version, arch, fmt):
     """Returns the file name of one built package."""
     return package + "_" + version + "_" + arch + "." + fmt
 
+_MTIME = "1980-01-01T00:00:00Z"
+
 def linux_package_config(package, version, arch, maintainer, description, contents):
     """Renders the nfpm config; JSON is valid YAML."""
     return json.encode({
@@ -16,6 +18,7 @@ def linux_package_config(package, version, arch, maintainer, description, conten
         "contents": contents,
         "description": description,
         "maintainer": maintainer,
+        "mtime": _MTIME,
         "name": package,
         "platform": "linux",
         "version": version,
@@ -25,6 +28,8 @@ def _linux_package_impl(ctx):
     """Runs nfpm once for one package format."""
     contents = []
     inputs = []
+    config = ctx.actions.declare_file(ctx.label.name + ".nfpm.yaml")
+    stage = ctx.actions.declare_directory(ctx.label.name + ".stage")
     for target, dst in ctx.attr.contents.items():
         dst_error = linux_package_dst_error(dst)
         if dst_error != "":
@@ -40,12 +45,13 @@ def _linux_package_impl(ctx):
                      str(target.label) + " provides " + str(len(files)) +
                      " files, want exactly one")
             src = files[0]
+        contents_src = stage.path + "/" + str(len(inputs))
         inputs.append(src)
         mode = 493 if executable != None else 420
         contents.append({
             "dst": dst,
-            "file_info": {"mode": mode},
-            "src": src.path,
+            "file_info": {"mode": mode, "mtime": _MTIME},
+            "src": contents_src,
             "type": "file",
         })
 
@@ -55,7 +61,6 @@ def _linux_package_impl(ctx):
         fail(arch_error + " (in " + str(ctx.label) + ")")
     arch = LINUX_PACKAGE_ARCHES[id.cpu]
 
-    config = ctx.actions.declare_file(ctx.label.name + ".nfpm.yaml")
     ctx.actions.write(
         output = config,
         content = linux_package_config(
@@ -74,11 +79,18 @@ def _linux_package_impl(ctx):
         ctx.attr.format,
     ))
     nfpm = ctx.executable._nfpm
+    args = ctx.actions.args()
+    args.add(stage.path)
+    args.add_all(inputs)
+    args.add("--")
+    args.add(nfpm)
+    args.add_all(["package", "--config", config, "--packager", ctx.attr.format, "--target", out])
     ctx.actions.run(
-        executable = nfpm,
-        arguments = ["package", "--config", config.path, "--packager", ctx.attr.format, "--target", out.path],
+        executable = ctx.executable._nfpm_stage,
+        arguments = [args],
         inputs = inputs + [config],
-        outputs = [out],
+        tools = [nfpm],
+        outputs = [out, stage],
         env = {"SOURCE_DATE_EPOCH": "315532800"},
         mnemonic = "NfpmPackage",
         progress_message = "Building " + out.basename,
@@ -104,6 +116,11 @@ linux_package = rule(
             cfg = "exec",
             executable = True,
             allow_single_file = True,
+        ),
+        "_nfpm_stage": attr.label(
+            default = Label("//deploy/private:nfpm_stage"),
+            executable = True,
+            cfg = "exec",
         ),
     } | PLATFORM_ATTRS,
 )

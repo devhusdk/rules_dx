@@ -73,6 +73,7 @@ single_version_override(
         "//patches/llvm:macos_sdk_resolve_symlinks.patch",
         "//patches/llvm:msvc_fuzzer.patch",
         "//patches/llvm:msvc_coverage.patch",
+        "//patches/llvm:mingw_coff_no_timestamp.patch",
     ],
     version = "0.8.27",
 )
@@ -165,7 +166,7 @@ _foreign_cc_tools.pkgconfig(
     mode = "noop",
 )
 
-# floor: equals tested; patched to pass the dynamic CRT flag and -ccbin to nvcc -dlink (#4704, #10975)
+# floor: equals tested; patched to pass the dynamic CRT flag and -ccbin to nvcc -dlink (#4704, #10975) and for reproducible nvcc objects
 bazel_dep(name = "rules_cuda", version = "0.4.0")
 single_version_override(
     module_name = "rules_cuda",
@@ -173,6 +174,7 @@ single_version_override(
     patches = [
         "//patches/rules_cuda:coverage_keep.patch",
         "//patches/rules_cuda:msvc_dlink_crt.patch",
+        "//patches/rules_cuda:objdir_as_tempdir.patch",
         "//patches/rules_cuda:toolchains_gate.patch",
     ],
     version = "0.4.0",
@@ -385,6 +387,7 @@ single_version_override(
         "//patches/rules_android:bundle_keystore_properties.patch",
         "//patches/rules_android:java8_dex_runfiles.patch",
         "//patches/rules_android:public_bzl_library.patch",
+        "//patches/rules_android:r8_globals_deterministic.patch",
     ],
     version = "0.8.1",
 )
@@ -932,6 +935,7 @@ dx_pins.archive(
         "//patches/rules_dotnet:canonical_labels.patch",
         "//patches/rules_dotnet:toolchains_gate.patch",
         "//patches/rules_dotnet:target_runtime.patch",
+        "//patches/rules_dotnet:fsharp_pdb_path.patch",
     ],
     pins = "//dotnet:pins.json",
 )
@@ -1169,6 +1173,7 @@ dx_pins.archive(
         "//patches/rules_elixir:relocatable_tree.patch",
         "//patches/rules_elixir:windows_ex_unit_test.patch",
         "//patches/rules_elixir:toolchain_type_alias.patch",
+        "//patches/rules_elixir:relative_beam_paths.patch",
     ],
     pins = "//elixir:pins.json",
 )
@@ -1256,15 +1261,19 @@ dx_pins.archive(
     name = "rules_julia",
     patches = [
         "//patches/rules_julia:config_base_toml.patch",
+        "//patches/rules_julia:deterministic_module_build_id.patch",
         "//patches/rules_julia:in_process_resolve_test.patch",
         "//patches/rules_julia:locate_installed_package.patch",
         "//patches/rules_julia:package_annotation_version.patch",
         "//patches/rules_julia:entry.patch",
         "//patches/rules_julia:portable_cpu_target.patch",
+        "//patches/rules_julia:stable_precompile_paths.patch",
         "//patches/rules_julia:template_action_input.patch",
         "//patches/rules_julia:exec_toolchain.patch",
         "//patches/rules_julia:inline_runfiles_sh.patch",
         "//patches/rules_julia:test_tmpdir_runfiles.patch",
+        "//patches/rules_julia:fixed_heap_addresses.patch",
+        "//patches/rules_julia:stable_sysimage_paths.patch",
         "//patches/rules_julia:julia_1_13.patch",
     ],
     pins = "//julia:pins.json",
@@ -1781,6 +1790,7 @@ single_version_override(
         "//patches/rules_flutter:registrant_javacopts.patch",
         "//patches/rules_flutter:windows_golden_comparator.patch",
         "//patches/rules_flutter:dx_bzl_srcs.patch",
+        "//patches/rules_flutter:deterministic_web_compile.patch",
     ],
     version = "0.1.0",
 )

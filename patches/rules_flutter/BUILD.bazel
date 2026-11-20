@@ -1,6 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "deterministic_web_compile.patch",
     "dx_bzl_srcs.patch",
     "lock_extension.patch",
     "registrant_javacopts.patch",

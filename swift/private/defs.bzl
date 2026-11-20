@@ -51,7 +51,11 @@ SWIFT_WINDOWS_RUNTIME_DLLS = select({
 SWIFT_COMPATIBLE_WITH = _SWIFT_COMPATIBLE_WITH
 SWIFT_FUZZ_COMPATIBLE_WITH = _SWIFT_FUZZ_COMPATIBLE_WITH
 _STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]
-_INDEX = ["swift.index_while_building", "swift.disable_system_index", "-swift.index_store_compress"]
+# `swift.index_while_building` is opt-in. Its unit records name the implicit
+# Clang module cache files, whose hashes include the output base path, so
+# SwiftCompile outputs would differ between checkouts. These settings apply when
+# a build turns it on.
+_INDEX = ["swift.disable_system_index", "-swift.index_store_compress"]
 _SPECS = [("swift", "swift")]
 SWIFT_QUALITY_TOOLS = {
     "swift_format": Label("//swift/private/tools:swift_format"),

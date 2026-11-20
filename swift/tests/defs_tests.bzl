@@ -125,3 +125,28 @@ def swift_warnings_as_errors_tests(name, target_under_test, **kwargs):
     _warnings_on_test(name = name + "_on", size = "small", target_under_test = target_under_test, **kwargs)
     _warnings_off_test(name = name + "_off", size = "small", target_under_test = target_under_test, **kwargs)
     native.test_suite(name = name, tests = [name + "_on", name + "_off"], **kwargs)
+
+def _index_store_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = [a for a in analysistest.target_actions(env) if a.mnemonic == "SwiftCompile"]
+    asserts.true(env, len(actions) > 0, "no SwiftCompile action")
+    stores = [f.path for a in actions for f in a.outputs.to_list() if f.path.endswith(".indexstore")]
+    asserts.equals(env, ctx.attr.expect, len(stores) > 0, "index stores: {}".format(stores))
+    return analysistest.end(env)
+
+_index_store_default_test = analysistest.make(
+    _index_store_impl,
+    attrs = {"expect": attr.bool(default = False)},
+)
+
+_index_store_opt_in_test = analysistest.make(
+    _index_store_impl,
+    attrs = {"expect": attr.bool(default = True)},
+    config_settings = {"//command_line_option:features": ["swift.index_while_building"]},
+)
+
+def swift_index_store_tests(name, target_under_test, **kwargs):
+    """Asserts SwiftCompile writes an index store only when a build turns on swift.index_while_building."""
+    _index_store_default_test(name = name + "_default", size = "small", target_under_test = target_under_test, **kwargs)
+    _index_store_opt_in_test(name = name + "_opt_in", size = "small", target_under_test = target_under_test, **kwargs)
+    native.test_suite(name = name, tests = [name + "_default", name + "_opt_in"], **kwargs)

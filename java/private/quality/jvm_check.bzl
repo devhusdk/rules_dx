@@ -348,6 +348,9 @@ def _scalac_check(target, ctx, attrs):
         return []
     options = ["-Wunused:all" if jars.scala3 else "-Wunused:_"] + list(toolchain.scalacopts) + list(getattr(attrs, "scalacopts", []))
 
+    # rules_scala loads the semanticdb plugin itself; this compile does not, and
+    # scalac rejects options for a plugin it has not loaded.
+    options = [o for o in options if not o.startswith("-P:semanticdb:")]
     options.append("-Wconf:cat=unused:w")
 
     if [o for o in options if "$(" in o]:

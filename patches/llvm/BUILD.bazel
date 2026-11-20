@@ -9,6 +9,7 @@ exports_files([
     "stage0_runtime_features.patch",
     "macos_sdk_resolve_symlinks.patch",
     "msvc_fuzzer.patch",
+    "mingw_coff_no_timestamp.patch",
     "msvc_coverage.patch",
 ])
 

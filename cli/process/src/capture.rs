@@ -129,7 +129,7 @@ impl fmt::Display for RunError {
         match self {
             RunError::Spawn { command, source } => write!(f, "cannot run {command}: {source}"),
             RunError::TimedOut { command, timeout } => {
-                write!(f, "{command} timed out after {}s", timeout.as_secs())
+                write!(f, "{command} timed out after {timeout:?}")
             }
             RunError::OutputTooLarge { command, limit } => {
                 write!(f, "{command} wrote more than {limit} bytes")

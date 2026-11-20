@@ -134,10 +134,14 @@ fn expand_tilde_with(path: &Path, home: Option<OsString>) -> PathBuf {
     let Some(home) = home else {
         return path.to_path_buf();
     };
-    if is_bare {
+    let rest = text
+        .get(1..)
+        .unwrap_or_default()
+        .trim_start_matches(['/', '\\']);
+    if rest.is_empty() {
         return PathBuf::from(home);
     }
-    PathBuf::from(home).join(text.get(2..).unwrap_or_default())
+    PathBuf::from(home).join(rest)
 }
 
 #[must_use]

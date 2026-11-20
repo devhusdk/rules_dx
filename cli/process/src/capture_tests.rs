@@ -55,7 +55,10 @@ fn a_sleeping_child_times_out_and_is_stopped() {
     )
     .expect_err("a sleeping child must time out");
     assert!(matches!(error, RunError::TimedOut { .. }), "{error}");
-    assert!(error.to_string().contains("timed out after 0s"), "{error}");
+    assert!(
+        error.to_string().contains("timed out after 300ms"),
+        "{error}"
+    );
     assert!(started.elapsed() < Duration::from_secs(30));
 }
 

@@ -11,7 +11,7 @@ const RELEASE_JARS: &str = "tools/ci/release_jars.txt";
 const KCOV_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" //tools/coverage/kcov:kcov_static";
 const TARGETS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${targets[@]}\"";
 const HASKELL_DETERMINISM: &str = "linux-*) bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"${targets[@]}\" ;;";
-const TOOLS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism-rust\" \"${flags[@]}\" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor";
+const TOOLS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$bazel_bin\" --out \"$RUNNER_TEMP/determinism-rust\" \"${flags[@]}\" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor";
 const HACKAGE_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"$TARGET\"";
 
 const HOSTS: [(&str, &str); 4] = [
@@ -138,7 +138,7 @@ const JOB_DETERMINISM: [(&str, &str, &str, bool); 6] = [
         "tools",
         "bazel build \"${flags[@]}\" //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor",
         TOOLS_DETERMINISM,
-        true,
+        false,
     ),
     (
         "python-tools",
@@ -198,6 +198,30 @@ fn each_job_compares_two_builds() {
             );
         }
     }
+}
+
+#[test]
+fn tools_check_runs_on_every_host() {
+    let workflow = document(TOOLS).unwrap();
+    let run = workflow["jobs"]["tools"]["steps"][2]["run"]
+        .as_str()
+        .expect("tools build step");
+    let at = run.find(TOOLS_DETERMINISM).expect("tools determinism check");
+    let cygpath = run
+        .find("case \"$host\" in windows-*) bazel_bin=\"$(cygpath -w \"$bazel_bin\")\" ;; esac")
+        .expect("windows bazel path through cygpath");
+    assert!(cygpath < at, "cygpath conversion before the check");
+    let codesign = run
+        .rfind("codesign --verify --strict \"$file\"")
+        .expect("codesign block");
+    assert!(codesign < at, "check after the codesign block");
+    let case = run[..at]
+        .rfind("case \"$host\" in")
+        .expect("a host case before the check");
+    assert!(
+        run[case..at].contains("esac"),
+        "check sits outside every host case"
+    );
 }
 
 #[test]

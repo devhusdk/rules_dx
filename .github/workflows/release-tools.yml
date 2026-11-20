@@ -75,6 +75,9 @@ jobs:
               codesign --verify --strict "$file"
             done
           fi
+          bazel_bin="$(command -v bazel)"
+          case "$host" in windows-*) bazel_bin="$(cygpath -w "$bazel_bin")" ;; esac
+          bazel run //tools/testing:determinism_check -- --bazel "$bazel_bin" --out "$RUNNER_TEMP/determinism-rust" "${flags[@]}" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor
           case "$host" in
             linux-*)
               for tool in deadnix selene topiary progenitor; do
@@ -85,7 +88,6 @@ jobs:
               done
               "$out/dx-deadnix-$host" --version
               "$out/dx-selene-$host" --version
-              bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism-rust" "${flags[@]}" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor
               ;;
           esac
           download="$(mktemp -d)"

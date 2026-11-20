@@ -37,6 +37,18 @@ const JARS: [&str; 9] = [
     "dx-scaladoc-extract-any.jar",
 ];
 
+const HASKELL_EXTRA: [&str; 9] = [
+    "dx-hlint-linux-arm64",
+    "dx-hlint-macos-arm64",
+    "dx-ormolu-linux-arm64",
+    "dx-hlint-LICENSE",
+    "dx-ormolu-LICENSE",
+    "dx-haskell-gmp-LICENSE",
+    "dx-haskell-gmp-source.tar.xz",
+    "dx-haskell-gmp-source.patch",
+    "dx-haskell-gmp-ghc-source.tar.xz",
+];
+
 const ASSETS: [&str; 10] = [
     "dx-nixfmt-LICENSE",
     "dx-nixfmt-linux-arm64",
@@ -155,7 +167,10 @@ fn jars_job_builds_every_jar_asset() {
             "{TOOLS} must build \"{line}\""
         );
     }
-    assert!(release.contains("test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq 8"));
+    assert!(release.contains(&format!(
+        "test \"$(wc -l < out/dx-jar-sha256sums.txt)\" -eq {}",
+        release_jars.lines().count()
+    )));
     assert!(release.contains("sha256sum -c dx-jar-sha256sums.txt"));
     assert!(release.contains("--manifest \"$PWD/out/dx-jar-sha256sums.txt\""));
 }
@@ -259,8 +274,11 @@ fn hackage_job_builds_hlint_nixfmt_and_ormolu() {
     assert!(tools.contains("asset=\"dx-$TOOL-$HOST\""));
     assert!(tools.contains("> \"$out/dx-$TOOL-LICENSE\""));
     assert!(!tools.contains("nixfmt_sha256"));
-    assert!(release.contains("for asset in dx-hlint-linux-arm64 dx-hlint-macos-arm64 dx-ormolu-linux-arm64 dx-hlint-LICENSE dx-ormolu-LICENSE dx-haskell-gmp-LICENSE dx-haskell-gmp-source.tar.xz dx-haskell-gmp-source.patch dx-haskell-gmp-ghc-source.tar.xz; do"));
-    assert!(release.contains("test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq 18"));
+    assert!(release.contains(&format!("for asset in {}; do", HASKELL_EXTRA.join(" "))));
+    assert!(release.contains(&format!(
+        "test \"$(wc -l < out/dx-haskell-sha256sums.txt)\" -eq {}",
+        2 * HOSTS.len() + 1 + HASKELL_EXTRA.len()
+    )));
     assert!(release.contains("dx-hlint-* dx-ormolu-* dx-haskell-gmp-*"));
 }
 
@@ -338,7 +356,10 @@ fn release_calls_the_tools_workflow_before_the_source_job() {
 fn release_writes_and_checks_the_tool_manifest() {
     let text = read_runfiles(RELEASE);
     assert!(text.contains("pattern: release-tool-*"));
-    assert!(text.contains("test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq 23"));
+    assert!(text.contains(&format!(
+        "test \"$(wc -l < out/dx-tool-sha256sums.txt)\" -eq {}",
+        2 * HOSTS.len() + ASSETS.len() + PYTHON_HOSTS.len()
+    )));
     assert!(text.contains("sha256sum -c dx-tool-sha256sums.txt"));
     assert!(text.contains("out/dx-tool-sha256sums.txt; (cd out && sha256sum dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt)"));
     for asset in ASSETS {

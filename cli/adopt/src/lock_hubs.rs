@@ -720,7 +720,7 @@ impl Planner<'_> {
 
     fn go(&mut self) -> Result<(), AdoptError> {
         let go = hub_of("go")?;
-        if !self.exists(&go.manifest) {
+        if !self.exists(&go.manifest) || !self.go_requires_modules(&go.manifest) {
             return Ok(());
         }
         let manifest = root_label(&go.manifest);
@@ -738,6 +738,14 @@ impl Planner<'_> {
         }
         let tags = vec![tag("from_file", vec![("go_mod", string(&manifest))])];
         self.add(go, &tags, &[])
+    }
+
+    /// False only when the go manifest at `rel` parses and requires no module.
+    fn go_requires_modules(&self, rel: &str) -> bool {
+        std::fs::read_to_string(self.root.join(rel))
+            .ok()
+            .and_then(|text| dx_gomod::parse_mod(&text).ok())
+            .is_none_or(|parsed| !parsed.require.is_empty())
     }
 
     /// The root file matching `pattern`, which is a file name or `*<suffix>`.
@@ -1041,7 +1049,10 @@ mod tests {
 
     #[test]
     fn go_mod_gets_a_go_from_file_tag() {
-        let hubs = plan(&[(manifest_of("go").expect("hub"), "module example.com/app\n")]);
+        let hubs = plan(&[(
+            manifest_of("go").expect("hub"),
+            "module example.com/app\n\nrequire github.com/a/b v1.0.0\n",
+        )]);
         let text = new_text(&hubs);
         assert!(
             text.contains(&format!(
@@ -1051,6 +1062,15 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("use_repo"), "{text}");
+    }
+
+    #[test]
+    fn a_go_mod_without_requirements_gets_no_go_tag() {
+        let hubs = plan(&[(
+            manifest_of("go").expect("hub"),
+            "module example.com/app\n\ngo 1.24\n",
+        )]);
+        assert_eq!(hubs.edit, None);
     }
 
     #[test]

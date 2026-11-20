@@ -635,6 +635,7 @@ filegroup(
         "//core/quality/tools/nixfmt/bin:module_srcs",
         "//core/quality/tools/python:module_srcs",
         "//core/quality/tools/python/docstrfmt:module_srcs",
+        "//core/quality/tools/python/pypi_attestations:module_srcs",
         "//core/quality/tools/python/sqlfluff:module_srcs",
         "//core/tests:module_srcs",
         "//core/tests/negative:module_srcs",

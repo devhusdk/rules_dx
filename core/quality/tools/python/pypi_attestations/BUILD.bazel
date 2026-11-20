@@ -1,0 +1,12 @@
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "pyproject.toml",
+    "uv.lock",
+])
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

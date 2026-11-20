@@ -26,6 +26,7 @@ const EXPECTED_NAMES: &[&str] = &[
     "dx_perl_cpan",
     "dx_pypi-docstrfmt",
     "dx_pypi-grpc",
+    "dx_pypi-pypi_attestations",
     "dx_pypi-python",
     "dx_pypi-sqlfluff",
     "dx_pypi_fixtures-hello",

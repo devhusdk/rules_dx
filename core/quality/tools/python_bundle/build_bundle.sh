@@ -28,6 +28,12 @@ for group in "$@"; do
   "$uv" export --frozen --no-emit-project --format requirements-txt --project "$project" ${emit[@]+"${emit[@]}"} -o "$work/$name.txt" >/dev/null
   "$uv" pip install --require-hashes --only-binary :all: --no-deps --python-platform "$platform" --python-version 3.12 \
     --python "$PYTHON_EXEC" --target "$root/site-packages/$name" -r "$work/$name.txt"
+  # Console scripts carry the absolute --python path in their shebangs and RECORD hashes.
+  rm -rf "$root/site-packages/$name/bin"
+  for record in "$root/site-packages/$name"/*.dist-info/RECORD; do
+    grep -v '^bin/' "$record" > "$work/RECORD" || true
+    mv "$work/RECORD" "$record"
+  done
   IFS=, read -ra list <<<"$tools"
   for entry in "${list[@]}"; do
     tool="${entry%%:*}"

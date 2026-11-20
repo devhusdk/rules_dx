@@ -1538,7 +1538,8 @@ or `https://test.pypi.org/_/oidc/mint-token` for `test.pypi.org`. Any other
 registry needs `PYPI_API_TOKEN`.
 
 When the identity variables are set, the run first signs the staged files
-with the `pypi-attestations` pinned in `core/quality/tools/python/uv.lock`.
+with the `pypi-attestations` pinned in
+`core/quality/tools/python/pypi_attestations/uv.lock`.
 It passes the `.publish.attestation` files to `twine upload --attestations`.
 
 The live run does not write `<name>-wheelhouse/` and does not check file

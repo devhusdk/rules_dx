@@ -2,7 +2,8 @@
 
 load("@dx_pins_data//:pins.bzl", _ARCHIVES = "ARCHIVES", _DATA = "DATA", _PINS = "PINS")
 load("@rules_julia//julia/private:versions.bzl", _RULES_JULIA_DEFAULT_VERSION = "JULIA_DEFAULT_VERSION")
-load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
+load("@rules_zig//zig/private:versions.bzl", _RULES_ZIG_TOOL_VERSIONS = "TOOL_VERSIONS")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_false", "starlark_test")
 load(":cuda.bzl", _CUDA_CELLS = "CUDA_CELLS", _CUDA_MAX_HOST_CLANG_MAJOR = "CUDA_MAX_HOST_CLANG_MAJOR", _CUDA_REDIST_SHA256 = "CUDA_REDIST_SHA256", _CUDA_REDIST_URL = "CUDA_REDIST_URL", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION")
 load(":python.bzl", _MOD_PYTHON_VERSION = "PYTHON_VERSION")
 load(":rust.bzl", _CRATE_BAZEL_LOCK = "CRATE_BAZEL_LOCK", _CRATE_CARGO_LOCK = "CRATE_CARGO_LOCK", _MOD_RUST_VERSION = "RUST_VERSION")
@@ -46,6 +47,7 @@ def versions_contract_tests(name):
             expect_equal("dart pins.json follows canonical", _ARCHIVES["dx_rules_dart_pub"]["version"], _RULES_DART_VERSION),
             expect_equal("dotnet pins.json follows canonical", _ARCHIVES["rules_dotnet"]["version"], _RULES_DOTNET_VERSION),
             expect_equal("rules_julia default toolchain follows canonical", _RULES_JULIA_DEFAULT_VERSION, _JULIA_VERSION),
+            expect_false("rules_zig lacks the pinned Zig while //zig/private:sdk_versions.json supplies it; once it lists it, delete that file and its zig.index line and flip this to expect_true (#13964)", _ZIG_VERSION in _RULES_ZIG_TOOL_VERSIONS),
             expect_equal("cuda pins.json follows canonical", _DATA["dx_cuda"]["version"], _CUDA_REDIST_VERSION),
             expect_equal("rust module follows canonical", _MOD_RUST_VERSION, _RUST_VERSION),
             expect_equal("cuda module follows canonical", _MOD_CUDA_VERSION, _CUDA_VERSION),

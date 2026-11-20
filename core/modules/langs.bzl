@@ -769,7 +769,10 @@ LANGS = json.decode("""{
       "classes": [
         "csharp"
       ],
-      "file_extensions": []
+      "file_extensions": [
+        ".cs",
+        ".csproj"
+      ]
     },
     "semver": false,
     "setup": {
@@ -1174,13 +1177,7 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "dotnet/private/quality:dotnet.bzl",
-      "file_extensions": [
-        ".cs",
-        ".csproj",
-        ".fs",
-        ".fsproj",
-        ".fsx"
-      ],
+      "file_extensions": [],
       "probes": {
         "format": [
           "real_dotnet_format_probe_aspect"
@@ -1603,7 +1600,11 @@ LANGS = json.decode("""{
       "classes": [
         "fsharp"
       ],
-      "file_extensions": []
+      "file_extensions": [
+        ".fs",
+        ".fsproj",
+        ".fsx"
+      ]
     },
     "semver": false,
     "title": "F#",

@@ -60,6 +60,9 @@
     "classes": [
       "csharp"
     ],
-    "file_extensions": []
+    "file_extensions": [
+      ".cs",
+      ".csproj"
+    ]
   }
 }

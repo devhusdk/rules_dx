@@ -22,7 +22,8 @@ const OTHER_FAMILIES: &[(&str, &[&str])] = &[
     ("yaml", &[".yaml", ".yml"]),
 ];
 
-/// Each `lang.json` quality language with the files that no other quality language lists.
+/// The `dx.toml` family id of each `lang.json` quality language with the files that no other
+/// quality language lists.
 fn language_marks() -> Vec<(&'static str, Vec<&'static str>)> {
     let languages = dx_families::quality_marks();
     languages
@@ -38,7 +39,7 @@ fn language_marks() -> Vec<(&'static str, Vec<&'static str>)> {
                 })
                 .map(String::as_str)
                 .collect();
-            (language.language.as_str(), own)
+            (language.family.as_str(), own)
         })
         .collect()
 }
@@ -294,6 +295,13 @@ mod tests {
         }
     }
 
+    fn dx_toml_family_ids() -> BTreeSet<String> {
+        dx_config::schema::family_ids()
+            .into_iter()
+            .map(str::to_owned)
+            .collect()
+    }
+
     #[test]
     fn detected_families_are_dx_toml_ids() {
         let dir = scratch("dx-detected-families-").unwrap();
@@ -302,10 +310,45 @@ mod tests {
         write(dir.path(), "src/b.rs", "").unwrap();
         write(dir.path(), "Dockerfile", "").unwrap();
         write(dir.path(), "docs/guide.adoc", "").unwrap();
+        write(dir.path(), "schema/a.capnp", "").unwrap();
+        write(dir.path(), "ui/Main.qml", "").unwrap();
+        write(dir.path(), "app/Program.cs", "").unwrap();
+        write(dir.path(), "lib/Lib.fs", "").unwrap();
+        let found = detected_families(dir.path());
         assert_eq!(
-            detected_families(dir.path()),
-            BTreeSet::from(["asciidoc", "dockerfile", "python", "rust"].map(str::to_owned))
+            found,
+            BTreeSet::from(
+                [
+                    "asciidoc",
+                    "capnp",
+                    "csharp",
+                    "dockerfile",
+                    "fsharp",
+                    "python",
+                    "qml",
+                    "rust",
+                ]
+                .map(str::to_owned)
+            )
         );
+        let ids = dx_toml_family_ids();
+        for id in &found {
+            assert!(ids.contains(id), "{id} is not a dx.toml family id");
+        }
+    }
+
+    #[test]
+    fn every_detectable_family_is_a_dx_toml_id() {
+        let ids = dx_toml_family_ids();
+        for (id, marks) in OTHER_FAMILIES
+            .iter()
+            .map(|(id, marks)| (*id, marks.to_vec()))
+            .chain(language_marks())
+        {
+            if !marks.is_empty() {
+                assert!(ids.contains(id), "{id} is not a dx.toml family id");
+            }
+        }
     }
 
     #[test]

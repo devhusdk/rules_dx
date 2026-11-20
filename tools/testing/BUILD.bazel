@@ -36,6 +36,7 @@ rust_library(
     name = "dx_testing",
     testonly = True,
     srcs = [
+        "src/allowlist.rs",
         "src/cli.rs",
         "src/exec_log.rs",
         "src/fatbin.rs",

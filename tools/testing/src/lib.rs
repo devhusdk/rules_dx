@@ -7,6 +7,7 @@
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+pub mod allowlist;
 pub mod cli;
 pub mod exec_log;
 pub mod fatbin;

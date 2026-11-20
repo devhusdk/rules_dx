@@ -1,10 +1,11 @@
 //! The shared guard helpers split source, check allowlists and match paths as the guards expect.
 
 use dx_guard::allowlist::{
-    Counts, Lines, REMOVE, add, check, check_lines, line_differences, parse, parse_lines, render,
+    Counts, REMOVE, add, check, check_lines, line_differences, parse, render,
 };
 use dx_guard::segments::{Piece, Segment, count_word, rust_segments, starlark_segments};
 use dx_guard::snapshot::{glob_match, tree, under};
+use dx_testing::allowlist::{Lines, parse_lines};
 use serde_json as _;
 use starlark_syntax as _;
 use yaml_serde as _;

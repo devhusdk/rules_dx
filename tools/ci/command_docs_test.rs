@@ -3,8 +3,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use dx_guard::allowlist::{check_lines, line_differences, parse_lines};
+use dx_guard::allowlist::{check_lines, line_differences};
 use dx_plan::args::{HelpFlag, HelpSurface, help_surface};
+use dx_testing::allowlist::parse_lines;
 use starlark_syntax as _;
 use yaml_serde as _;
 

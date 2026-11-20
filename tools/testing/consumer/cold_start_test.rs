@@ -11,21 +11,38 @@ use std::collections::BTreeSet;
 use dx_nested::Case;
 
 /// Name fragments of repositories that belong to a language family the consumer does not use.
-/// A Go consumer has no reason to fetch any of them; another language's list may drop the ones
-/// it does use.
-const FOREIGN: &[(&str, &[&str])] = &[(
-    "go",
-    &[
-        "ocaml",
-        "opam",
-        "cuda",
-        "android",
-        "remotejdk",
-        "maven",
-        "kotlin",
-        "scala",
-    ],
-)];
+const FOREIGN: &[(&str, &[&str])] = &[
+    (
+        "go",
+        &[
+            "ocaml",
+            "opam",
+            "cuda",
+            "android",
+            "remotejdk",
+            "maven",
+            "kotlin",
+            "scala",
+        ],
+    ),
+    (
+        "rust",
+        &[
+            "ocaml",
+            "opam",
+            "cuda",
+            "android",
+            "remotejdk",
+            "maven",
+            "kotlin",
+            "scala",
+            "go_sdk+rules_dx__download",
+            "nodejs_linux",
+            "nodejs_darwin",
+            "nodejs_windows",
+        ],
+    ),
+];
 
 /// The names listed in a cold-start file: one per line, `#` comments and blank lines skipped.
 fn listed(text: &str) -> BTreeSet<String> {

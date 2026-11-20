@@ -1,8 +1,9 @@
-Upstream: none (not yet sent upstream; consumer fix #11418)
+Upstream: none (upstream-ready, not sent yet: #14194)
 diff --git a/cuda/private/actions/compile.bzl b/cuda/private/actions/compile.bzl
+index 2b93b69..6877b91 100644
 --- a/cuda/private/actions/compile.bzl
 +++ b/cuda/private/actions/compile.bzl
-@@ -12,6 +12,7 @@
+@@ -12,6 +12,7 @@ def compile(
          common,
          pic = False,
          rdc = False,
@@ -10,21 +11,21 @@ diff --git a/cuda/private/actions/compile.bzl b/cuda/private/actions/compile.bzl
          _prefix = "_objs"):
      """Perform CUDA compilation, return compiled object files.
  
-@@ -29,6 +30,8 @@
+@@ -29,6 +30,8 @@ def compile(
          common: A cuda common object. Can be obtained with `cuda_helper.create_common(ctx)`
          pic: Whether the `srcs` are compiled for position independent code.
          rdc: Whether the `srcs` are compiled for relocatable device code.
-+        keep_dirs: A list that, when coverage instruments this target, gets the directory each compile keeps nvcc's
-+            intermediate files in.
++        keep_dirs: A list that, when coverage instruments this target and the compiler is nvcc, gets the directory
++            each compile keeps nvcc's intermediate files in.
          _prefix: DON'T USE IT! Prefix of the output dir. Exposed for device link to redirect the output.
  
      Returns:
-@@ -101,11 +104,18 @@
+@@ -101,11 +104,18 @@ def compile(
  
          args = actions.args()
          args.add_all(cmd)
 +        outputs = [obj_file]
-+        if keep_dirs != None and ctx.coverage_instrumented():
++        if keep_dirs != None and cuda_toolchain.toolchain_identifier == "nvcc" and ctx.coverage_instrumented():
 +            keep_dir = actions.declare_directory("{}/{}/{}.keep".format(_prefix, ctx.attr.name, filename))
 +            args.add("--keep")
 +            args.add("--keep-dir", keep_dir.path)
@@ -40,9 +41,10 @@ diff --git a/cuda/private/actions/compile.bzl b/cuda/private/actions/compile.bzl
              env = env,
              mnemonic = "CudaCompile",
 diff --git a/cuda/private/rules/cuda_library.bzl b/cuda/private/rules/cuda_library.bzl
+index fa117da..5d31406 100644
 --- a/cuda/private/rules/cuda_library.bzl
 +++ b/cuda/private/rules/cuda_library.bzl
-@@ -64,10 +64,11 @@
+@@ -64,10 +64,11 @@ def _cuda_library_impl(ctx):
      dlink_rdc_pic_objects = depset(transitive = [dep[CudaInfo].dlink_rdc_pic_objects for dep in attr.deps if CudaInfo in dep])
  
      # direct outputs
@@ -58,7 +60,7 @@ diff --git a/cuda/private/rules/cuda_library.bzl b/cuda/private/rules/cuda_libra
  
      # if rdc is enabled for this `cuda_library`, then we need to do a pass of device link further.
      rdc_dlink_inputs = None
-@@ -174,6 +175,12 @@
+@@ -174,6 +175,12 @@ def _cuda_library_impl(ctx):
              dlink_rdc_objects = rdc_dlink_inputs,
              dlink_rdc_pic_objects = rdc_pic_dlink_inputs,
          ),
@@ -71,7 +73,7 @@ diff --git a/cuda/private/rules/cuda_library.bzl b/cuda/private/rules/cuda_libra
      ]
  
  cuda_library = rule(
-@@ -210,5 +217,5 @@
+@@ -210,5 +217,5 @@ cuda_library = rule(
      },
      fragments = ["cpp"],
      toolchains = use_cpp_toolchain() + use_cuda_toolchain(),
@@ -79,9 +81,10 @@ diff --git a/cuda/private/rules/cuda_library.bzl b/cuda/private/rules/cuda_libra
 +    provides = [DefaultInfo, OutputGroupInfo, CcInfo, CudaInfo, InstrumentedFilesInfo],
  )
 diff --git a/cuda/private/rules/cuda_objects.bzl b/cuda/private/rules/cuda_objects.bzl
+index 582b101..83efb18 100644
 --- a/cuda/private/rules/cuda_objects.bzl
 +++ b/cuda/private/rules/cuda_objects.bzl
-@@ -31,11 +31,12 @@
+@@ -31,11 +31,12 @@ def _cuda_objects_impl(ctx):
      archive_rdc_pic_objects = depset(transitive = [dep[CudaInfo].rdc_pic_objects for dep in attr.deps if CudaInfo in dep] +
                                                    [dep[CudaInfo].archive_rdc_pic_objects for dep in attr.deps if CudaInfo in dep])
  
@@ -97,7 +100,7 @@ diff --git a/cuda/private/rules/cuda_objects.bzl b/cuda/private/rules/cuda_objec
  
      compilation_ctx = cc_common.create_compilation_context(
          headers = common.headers,
-@@ -86,6 +87,12 @@
+@@ -86,6 +87,12 @@ def _cuda_objects_impl(ctx):
              archive_rdc_objects = archive_rdc_objects,
              archive_rdc_pic_objects = archive_rdc_pic_objects,
          ),
@@ -110,3 +113,171 @@ diff --git a/cuda/private/rules/cuda_objects.bzl b/cuda/private/rules/cuda_objec
      ]
  
  cuda_objects = rule(
+@@ -115,5 +122,5 @@ code and device link time optimization source files.""",
+     },
+     fragments = ["cpp"],
+     toolchains = use_cpp_toolchain() + use_cuda_toolchain(),
+-    provides = [DefaultInfo, OutputGroupInfo, CcInfo, CudaInfo],
++    provides = [DefaultInfo, OutputGroupInfo, CcInfo, CudaInfo, InstrumentedFilesInfo],
+ )
+diff --git a/tests/coverage/BUILD.bazel b/tests/coverage/BUILD.bazel
+new file mode 100644
+index 0000000..6cd1352
+--- /dev/null
++++ b/tests/coverage/BUILD.bazel
+@@ -0,0 +1,43 @@
++load("@rules_cuda//cuda:defs.bzl", "cuda_library", "cuda_objects")
++load(":coverage_test.bzl", "coverage_disabled_test", "coverage_library_test", "coverage_objects_test")
++
++cuda_library(
++    name = "lib",
++    srcs = ["kernel.cu"],
++    hdrs = ["kernel.cuh"],
++    target_compatible_with = ["@platforms//os:linux"],
++)
++
++cuda_objects(
++    name = "objs",
++    srcs = ["kernel.cu"],
++    hdrs = ["kernel.cuh"],
++    target_compatible_with = ["@platforms//os:linux"],
++)
++
++coverage_library_test(
++    name = "coverage_library_test",
++    target_compatible_with = ["@platforms//os:linux"],
++    target_under_test = ":lib",
++)
++
++coverage_objects_test(
++    name = "coverage_objects_test",
++    target_compatible_with = ["@platforms//os:linux"],
++    target_under_test = ":objs",
++)
++
++coverage_disabled_test(
++    name = "coverage_disabled_test",
++    target_compatible_with = ["@platforms//os:linux"],
++    target_under_test = ":lib",
++)
++
++test_suite(
++    name = "coverage_tests",
++    tests = [
++        ":coverage_disabled_test",
++        ":coverage_library_test",
++        ":coverage_objects_test",
++    ],
++)
+diff --git a/tests/coverage/coverage_test.bzl b/tests/coverage/coverage_test.bzl
+new file mode 100644
+index 0000000..c10aae7
+--- /dev/null
++++ b/tests/coverage/coverage_test.bzl
+@@ -0,0 +1,86 @@
++"""Analysis tests for coverage support in cuda_library and cuda_objects."""
++
++load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
++
++_COVERAGE = {
++    "//command_line_option:collect_code_coverage": True,
++    "//command_line_option:instrumentation_filter": "/tests/coverage[/:]",
++}
++
++def _compile_actions(env):
++    return [a for a in analysistest.target_actions(env) if a.mnemonic == "CudaCompile"]
++
++def _keep_outputs(action):
++    return [f for f in action.outputs.to_list() if f.basename.endswith(".keep")]
++
++def _assert_keeps(env, action):
++    asserts.true(env, "--keep" in action.argv, "--keep missing from {}".format(action.argv))
++    asserts.true(env, "--keep-dir" in action.argv, "--keep-dir missing from {}".format(action.argv))
++    keep_dirs = _keep_outputs(action)
++    asserts.equals(env, 1, len(keep_dirs))
++    if keep_dirs:
++        asserts.equals(env, keep_dirs[0].path, action.argv[action.argv.index("--keep-dir") + 1])
++
++def _assert_not_keeps(env, action):
++    asserts.false(env, "--keep" in action.argv, "unexpected --keep in {}".format(action.argv))
++    asserts.equals(env, [], _keep_outputs(action))
++
++def _assert_instrumented_files(env, target, keep_dirs):
++    info = target[InstrumentedFilesInfo]
++    asserts.equals(
++        env,
++        sorted(["kernel.cu", "kernel.cuh"]),
++        sorted([f.basename for f in info.instrumented_files.to_list()]),
++    )
++    asserts.equals(
++        env,
++        sorted([f.path for f in keep_dirs]),
++        sorted([f.path for f in info.metadata_files.to_list()]),
++    )
++
++def _coverage_library_test_impl(ctx):
++    env = analysistest.begin(ctx)
++    actions = _compile_actions(env)
++    asserts.true(env, len(actions) > 0, "no CudaCompile actions")
++    keep_dirs = []
++    for action in actions:
++        _assert_keeps(env, action)
++        keep_dirs.extend(_keep_outputs(action))
++    _assert_instrumented_files(env, analysistest.target_under_test(env), keep_dirs)
++    return analysistest.end(env)
++
++coverage_library_test = analysistest.make(
++    _coverage_library_test_impl,
++    config_settings = _COVERAGE,
++)
++
++def _coverage_objects_test_impl(ctx):
++    env = analysistest.begin(ctx)
++    actions = _compile_actions(env)
++    rdc_count = len([a for a in actions if "-rdc=true" in a.argv])
++    asserts.true(env, rdc_count > 0, "no rdc CudaCompile actions")
++    asserts.true(env, rdc_count < len(actions), "no non-rdc CudaCompile actions")
++    keep_dirs = []
++    for action in actions:
++        if "-rdc=true" in action.argv:
++            _assert_keeps(env, action)
++            keep_dirs.extend(_keep_outputs(action))
++        else:
++            _assert_not_keeps(env, action)
++    _assert_instrumented_files(env, analysistest.target_under_test(env), keep_dirs)
++    return analysistest.end(env)
++
++coverage_objects_test = analysistest.make(
++    _coverage_objects_test_impl,
++    config_settings = _COVERAGE,
++)
++
++def _coverage_disabled_test_impl(ctx):
++    env = analysistest.begin(ctx)
++    actions = _compile_actions(env)
++    asserts.true(env, len(actions) > 0, "no CudaCompile actions")
++    for action in actions:
++        _assert_not_keeps(env, action)
++    return analysistest.end(env)
++
++coverage_disabled_test = analysistest.make(_coverage_disabled_test_impl)
+diff --git a/tests/coverage/kernel.cu b/tests/coverage/kernel.cu
+new file mode 100644
+index 0000000..7cc8f10
+--- /dev/null
++++ b/tests/coverage/kernel.cu
+@@ -0,0 +1,5 @@
++#include "kernel.cuh"
++
++__global__ void kernel(int* out) { *out = 42; }
++
++void launch_kernel(int* out) { kernel<<<1, 1>>>(out); }
+diff --git a/tests/coverage/kernel.cuh b/tests/coverage/kernel.cuh
+new file mode 100644
+index 0000000..ef99bcd
+--- /dev/null
++++ b/tests/coverage/kernel.cuh
+@@ -0,0 +1,3 @@
++#pragma once
++
++void launch_kernel(int* out);

@@ -653,11 +653,7 @@ impl<'a> Tracer<'a> {
     }
 }
 
-fn spawn_changes(
-    tracer: &mut Tracer<'_>,
-    old: &Spawn,
-    new: &Spawn,
-) -> Result<Vec<String>, String> {
+fn spawn_changes(tracer: &mut Tracer<'_>, old: &Spawn, new: &Spawn) -> Result<Vec<String>, String> {
     let (old_inputs, new_inputs) = (tracer.first.inputs(old)?, tracer.second.inputs(new)?);
     let origins = tracer.origins(&old_inputs, &new_inputs)?;
     let mut lines: Vec<String> = origins.iter().take(ORIGIN_LINES).cloned().collect();
@@ -745,29 +741,24 @@ pub fn diff(first: &ExecLog, second: &ExecLog, top: usize) -> Result<Vec<String>
     Ok(out)
 }
 
-/// Parses an allowlist file into its entries.
+/// Parses an allowlist file of `<label> <mnemonic> <path>` lines into its entries.
 ///
 /// # Errors
 ///
-/// Returns `Err` when the operation fails.
+/// Returns `Err` listing every malformed, unsorted or repeated line.
 pub fn parse_allowlist(text: &str) -> Result<BTreeSet<String>, String> {
-    let mut keys = BTreeSet::new();
-    let mut previous: Option<&str> = None;
-    for line in text.lines() {
+    let (keys, problems) = crate::allowlist::parse_lines(text, |line| {
         let fields: Vec<&str> = line.split(' ').collect();
         let label_ok = fields
             .first()
             .is_some_and(|label| label.starts_with("//") || label.starts_with('@'));
-        if fields.len() != 3 || fields.iter().any(|f| f.is_empty()) || !label_ok {
-            return Err(format!("`{line}` is not `<label> <mnemonic> <path>`"));
-        }
-        if previous.is_some_and(|p| p >= line) {
-            return Err(format!("`{line}` is not sorted or is repeated"));
-        }
-        previous = Some(line);
-        keys.insert(line.to_owned());
+        fields.len() == 3 && fields.iter().all(|field| !field.is_empty()) && label_ok
+    });
+    if problems.is_empty() {
+        Ok(keys)
+    } else {
+        Err(problems.join("\n"))
     }
-    Ok(keys)
 }
 
 #[must_use]
@@ -887,13 +878,13 @@ mod tests {
         assert_eq!(allow(""), BTreeSet::new());
         assert!(parse_allowlist("//:a M p\n@r//:b M p\n").is_ok());
         for (text, needle) in [
-            ("//:a M\n", "is not `<label> <mnemonic> <path>`"),
-            ("//:a M p q\n", "is not `<label> <mnemonic> <path>`"),
-            ("//:a  M p\n", "is not `<label> <mnemonic> <path>`"),
-            (":a M p\n", "is not `<label> <mnemonic> <path>`"),
+            ("//:a M\n", "malformed line"),
+            ("//:a M p q\n", "malformed line"),
+            ("//:a  M p\n", "malformed line"),
+            (":a M p\n", "malformed line"),
             ("//:b M p\n//:a M p\n", "not sorted"),
             ("//:a M p\n//:a M p\n", "not sorted"),
-            ("\n", "is not `<label> <mnemonic> <path>`"),
+            ("\n", "malformed line"),
         ] {
             let err = parse_allowlist(text).unwrap_err();
             assert!(err.contains(needle), "{text:?}: {err}");
@@ -1012,7 +1003,10 @@ mod tests {
         assert_eq!(at(SAME), None, "{lines:?}");
         assert_eq!(
             lines[changed + 3..],
-            ["not remote cacheable, ran every time:", "  Genrule: 1, 0.0s total"]
+            [
+                "not remote cacheable, ran every time:",
+                "  Genrule: 1, 0.0s total"
+            ]
         );
     }
 
@@ -1032,7 +1026,10 @@ mod tests {
         assert!(lines[2].starts_with("  input changed.txt: "), "{lines:?}");
         assert_eq!(
             lines[3..],
-            ["not remote cacheable, ran every time:", "  Genrule: 1, 0.1s total"]
+            [
+                "not remote cacheable, ran every time:",
+                "  Genrule: 1, 0.1s total"
+            ]
         );
     }
 
@@ -1216,7 +1213,10 @@ mod tests {
         assert_eq!(lines[0], "2.0s //:top Genrule top.out (linux-sandbox)");
         assert_eq!(
             lines[3..],
-            ["not remote cacheable, ran every time:", "  TestRunner: 2, 10.0s total"]
+            [
+                "not remote cacheable, ran every time:",
+                "  TestRunner: 2, 10.0s total"
+            ]
         );
     }
 

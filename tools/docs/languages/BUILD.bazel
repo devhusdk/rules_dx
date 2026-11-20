@@ -28,6 +28,18 @@ python_test(
     runner = "plain",
 )
 
+python_test(
+    name = "languages_links_test",
+    size = "small",
+    srcs = [
+        "languages.py",
+        "languages_links_test.py",
+    ],
+    imports = ["."],
+    main = "languages_links_test.py",
+    runner = "plain",
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],

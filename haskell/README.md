@@ -74,7 +74,7 @@ branch or function coverage.
 [tasty-bench](https://hackage.haskell.org/package/tasty-bench) benchmarks.
 It adds a `dx-bench` test named `<name>` that runs the binary with `--csv`
 and writes `dx-bench.json` for `dx bench`. Lock `tasty-bench` like any other
-Hackage dependency. The [bench fixture](tests/fixtures/bench/BUILD.bazel) is
+Hackage dependency. The [bench fixture](https://github.com/devhusdk/rules_dx/blob/main/haskell/tests/fixtures/bench/BUILD.bazel) is
 a working example.
 
 There is no `haskell_fuzz_test`: Haskell has no maintained libFuzzer-style

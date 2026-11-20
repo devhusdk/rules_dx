@@ -133,12 +133,18 @@ fn each_host_uploads_its_artifact() {
 }
 
 /// (job, its last `bazel build`, its determinism check, whether the check sits in a `linux-*)` arm).
-const JOB_DETERMINISM: [(&str, &str, &str, bool); 5] = [
+const JOB_DETERMINISM: [(&str, &str, &str, bool); 6] = [
     (
         "tools",
         "bazel build \"${flags[@]}\" //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor",
         TOOLS_DETERMINISM,
         true,
+    ),
+    (
+        "python-tools",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
     ),
     (
         "go",

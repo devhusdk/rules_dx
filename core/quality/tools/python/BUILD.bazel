@@ -96,7 +96,7 @@ py_binary(
         "pypi_attestations_main.py",
         "tool_bootstrap.py",
     ],
-    dep_group = "dx-python-tools",
+    dep_group = "dx-pypi-attestations",
     main = "pypi_attestations_main.py",
     deps = ["@pypi//pypi_attestations"],
 )

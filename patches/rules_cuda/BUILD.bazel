@@ -17,3 +17,8 @@ filegroup(
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
 )
+
+test_suite(
+    name = "coverage_keep_test",
+    tests = ["@rules_cuda//tests/coverage:coverage_tests"],
+)

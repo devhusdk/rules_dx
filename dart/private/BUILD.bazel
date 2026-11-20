@@ -1,7 +1,5 @@
-load("@bazel_skylib//lib:selects.bzl", "selects")
 load("//core:cells.bzl", "unsupported_value")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":platforms.bzl", "DART_PLATFORMS")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -17,23 +15,6 @@ exports_files([
     "platforms.bzl",
     "providers.bzl",
 ])
-
-[
-    config_setting(
-        name = name,
-        constraint_values = [
-            "@platforms//os:" + os,
-            "@platforms//cpu:" + cpu,
-        ],
-    )
-    for name, (os, cpu) in DART_PLATFORMS.items()
-]
-
-selects.config_setting_group(
-    name = "rules_dart_platform",
-    match_any = [":" + name for name in DART_PLATFORMS],
-    visibility = ["//visibility:public"],
-)
 
 real_source_target(
     name = "corpus_starlark",

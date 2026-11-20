@@ -1,0 +1,25 @@
+"""The public per-language platform setting that consumer packages use as a select key."""
+
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load("//core:platform_support.bzl", "lang_platforms")
+
+visibility("private")
+
+def lang_platform_setting(name):
+    """Declares a public setting that matches any platform the named language's lang.json lists."""
+    platforms = lang_platforms(name)
+    for id, (os, cpu) in platforms.items():
+        native.config_setting(
+            name = name + "_" + id,
+            constraint_values = [
+                "@platforms//os:" + os,
+                "@platforms//cpu:" + cpu,
+            ],
+        )
+
+    # Public: consumer packages use it as a select key, and Bazel checks select keys against the consumer.
+    selects.config_setting_group(
+        name = name,
+        match_any = [":" + name + "_" + id for id in platforms],
+        visibility = ["//visibility:public"],
+    )

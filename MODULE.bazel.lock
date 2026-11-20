@@ -631,10 +631,10 @@
           "REPO_MAPPING:+dx_pins+dx_rules_dart_pub,bsd_tar_toolchains_windows_amd64 tar.bzl++toolchains+bsd_tar_toolchains_windows_amd64",
           "REPO_MAPPING:+dx_pins+dx_rules_dart_pub,bsd_tar_toolchains_windows_arm64 tar.bzl++toolchains+bsd_tar_toolchains_windows_arm64",
           "REPO_MAPPING:+dx_pins+dx_rules_dart_pub,yaml.bzl yaml.bzl+",
-          "FILE:@@//third_party/dart/pubspec.lock d5a738f744941bbb4f4c2787d00d18d741e1c465fbe950f181884843712971dc",
+          "FILE:@@//third_party/dart/pubspec.lock 2a7a442583728e599f71be9e97956e78c205fa6d766302ec083dc9781125d3bd",
           "FILE:@@//dart/tests/padded_archive.pubspec.lock 387ec4ad36dc402444f6d88dc07d91027c1b65bdfa642254599ad4e7e2d513db",
-          "FILE:@@//dart/private/tools/dart_apitool/pubspec.lock bcde4406b9a37a9d8df7f185033a0a067bfde50c4b786c71f5d6a38e9d138480",
-          "FILE:@@//dart/private/bench/pubspec.lock 1fdb12d41f188d31d09c31a0dd13ee0e902ddc52e6a61f36e5832642c5990e3b"
+          "FILE:@@//dart/private/tools/dart_apitool/pubspec.lock ff37a261d9c1a69f8656b403a9002e5c66522a6efb3b44ca5631b9ceb0cf7707",
+          "FILE:@@//dart/private/bench/pubspec.lock 65a12a2b80004882c571acc1a883a7ff97244655965c3300cf67229d406dfa15"
         ],
         "generatedRepoSpecs": {
           "dart_pub___fe_analyzer_shared": {

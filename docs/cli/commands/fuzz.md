@@ -40,7 +40,7 @@ dx fuzz [--output json] [--here] [--budget <duration>] [--jobs <n>] [scope ...]
 
 | Flag | What it does |
 | --- | --- |
-| `--budget <duration>` | Time budget per target, such as `90`, `90s`, `5m` or `1h`. A bare number is seconds. Default `60s`. |
+| `--budget <duration>` | Time budget per target, such as `90`, `90s`, `5m` or `1h`. A bare number is seconds. At most 2147483647 seconds. Default `60s`. |
 | `--jobs <n>` | Jobs each fuzz runner may use. |
 | `--here` | Run on the current directory tree. |
 | `-o, --output text\|json` | Choose the output format. Default `text`. |

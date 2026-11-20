@@ -258,6 +258,9 @@ fn run_as_tool() -> Option<i32> {
         }
         Tool::NpmPacker => dx_deploy_tools::npm_pack_main(&named("npm_packer", args)),
         Tool::ReleaseTool => dx_release_tools::release_tool_run(&named("release_tool", args)),
+        Tool::SymbolsSplit => dx_symbols::entry::split(&named("symbols_split", args)),
+        Tool::SymbolsDsym => dx_symbols::entry::dsym(&named("symbols_dsym", args)),
+        Tool::SymbolsPdb => dx_symbols::entry::pdb(&named("symbols_pdb", args)),
     })
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md

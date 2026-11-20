@@ -4,6 +4,7 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod cli;
+pub mod entry;
 
 use dx_atomic_fs::path_io::{self, PathIoError};
 use object::{Architecture, Object};

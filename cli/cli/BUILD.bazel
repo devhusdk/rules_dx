@@ -186,6 +186,7 @@ rust_binary(
         "//d/private/tools/lock:dub_lock_lib",
         "//dart/private/tools/lock:pub_lock_lib",
         "//deploy/private/release:dx_release_tools",
+        "//deploy/private/symbols:dx_symbols",
         "//deploy/private:dx_deploy_tools",
         "//elixir/private/tools/lock:hex_lock_lib",
         "//fortran/private/tools/lock:fpm_lock_lib",

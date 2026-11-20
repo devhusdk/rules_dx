@@ -350,3 +350,73 @@ fn pe_codeview_rejects_elf() {
     let err = pe_codeview(&elf(X86, Some(&[1]))).unwrap_err().to_string();
     assert!(err.contains("not a PE file"), "{err}");
 }
+
+fn argv(args: &[&str]) -> Vec<String> {
+    args.iter().map(|a| (*a).to_owned()).collect()
+}
+
+#[test]
+fn entries_reject_bad_flags() {
+    assert_eq!(entry::split(&argv(&["symbols_split", "--in"])), 1);
+    assert_eq!(entry::dsym(&argv(&["symbols_dsym", "--bogus", "x"])), 1);
+    assert_eq!(entry::pdb(&argv(&["symbols_pdb"])), 1);
+    assert_eq!(entry::pdb(&[]), 1);
+}
+
+#[test]
+fn split_without_input_discards_its_outputs() {
+    let scratch = dx_test_scratch::scratch("split-entry-missing").unwrap();
+    let dir = scratch.path();
+    let path = |n: &str| dir.join(n).to_str().unwrap().to_owned();
+    for n in ["stripped", "debug", "manifest"] {
+        std::fs::write(dir.join(n), b"stale").unwrap();
+    }
+    let code = entry::split(&argv(&[
+        "symbols_split",
+        "--objcopy",
+        &path("objcopy"),
+        "--in",
+        &path("missing"),
+        "--stripped",
+        &path("stripped"),
+        "--debug",
+        &path("debug"),
+        "--manifest",
+        &path("manifest"),
+    ]));
+    assert_eq!(code, 1);
+    for n in ["stripped", "debug", "manifest"] {
+        assert!(!dir.join(n).exists(), "{n} was kept");
+    }
+}
+
+#[test]
+fn dsym_and_pdb_entries_write_no_manifest_on_failure() {
+    let scratch = dx_test_scratch::scratch("symbols-entry-fail").unwrap();
+    let dir = scratch.path();
+    let path = |n: &str| dir.join(n).to_str().unwrap().to_owned();
+    let dsym = entry::dsym(&argv(&[
+        "symbols_dsym",
+        "--dsymutil",
+        &path("no-dsymutil"),
+        "--in",
+        &path("bin"),
+        "--bundle",
+        &path("bin.dSYM"),
+        "--manifest",
+        &path("dsym.json"),
+    ]));
+    assert_eq!(dsym, 1);
+    assert!(!dir.join("dsym.json").exists());
+    let pdb = entry::pdb(&argv(&[
+        "symbols_pdb",
+        "--in",
+        &path("bin.exe"),
+        "--pdb",
+        &path("bin.pdb"),
+        "--manifest",
+        &path("pdb.json"),
+    ]));
+    assert_eq!(pdb, 1);
+    assert!(!dir.join("pdb.json").exists());
+}

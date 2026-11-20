@@ -1,4 +1,4 @@
-//! Flag parsing, tool runs and manifest writes shared by the split, dsym and pdb binaries.
+//! Flag parsing, tool runs and manifest writes shared by the split, dsym and pdb helpers.
 
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ use dx_process::capture::{Captured, RunError};
 
 use crate::SymbolsError;
 
-/// Why a symbols binary stopped.
+/// Why a symbols helper stopped.
 #[derive(Debug)]
 pub enum CliError {
     UnknownFlag(String),
@@ -134,8 +134,9 @@ pub fn run_tool(
 ///
 /// Returns an error when the manifest cannot be encoded or written.
 pub fn write_manifest(path: &Path, manifest: &serde_json::Value) -> Result<(), CliError> {
-    let text = serde_json::to_string_pretty(manifest).map_err(CliError::Encode)?;
-    path_io::write_scratch(path, (text + "\n").as_bytes())?;
+    let mut text = serde_json::to_string_pretty(manifest).map_err(CliError::Encode)?;
+    text.push('\n');
+    path_io::write_scratch(path, text.as_bytes())?;
     Ok(())
 }
 

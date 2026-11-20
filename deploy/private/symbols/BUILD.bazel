@@ -1,72 +1,23 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
-
-rust_binary(
-    name = "split",
-    srcs = ["src/bin_split.rs"],
-    aliases = aliases(
-        package_name = "deploy/private/dx_symbols",
-        normal = True,
-    ),
-    crate_name = "split",
-    crate_root = "src/bin_split.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_symbols",
-        normal = True,
-    ) + [
-        ":dx_symbols",
-        "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/digest:dx_digest",
-    ],
-)
-
-rust_binary(
-    name = "dsym",
-    srcs = ["src/bin_dsym.rs"],
-    aliases = aliases(
-        package_name = "deploy/private/dx_symbols",
-        normal = True,
-    ),
-    crate_name = "dsym",
-    crate_root = "src/bin_dsym.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_symbols",
-        normal = True,
-    ) + [":dx_symbols"],
-)
-
-rust_binary(
-    name = "pdb",
-    srcs = ["src/bin_pdb.rs"],
-    aliases = aliases(
-        package_name = "deploy/private/dx_symbols",
-        normal = True,
-    ),
-    crate_name = "pdb",
-    crate_root = "src/bin_pdb.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/private/dx_symbols",
-        normal = True,
-    ) + [":dx_symbols"],
-)
 
 rust_test(
     name = "dsym_test",
     srcs = ["dsym_test.rs"],
     data = [
-        ":dsym",
         "//deploy/private/symbols/fixture:known.c",
         "//deploy/private/symbols/fixture:known_dsym",
         "//deploy/private/symbols/fixture:known_dsym_symbols",
+        "@dx_prebuilt//:dx",
         "@llvm//tools:dsymutil",
         "@llvm//tools:llvm-nm",
         "@llvm//tools:llvm-symbolizer",
     ],
     env = {
-        "DX_DSYM": "$(rootpath :dsym)",
+        "DX": "$(rootpath @dx_prebuilt//:dx)",
         "DX_DSYMUTIL": "$(rootpath @llvm//tools:dsymutil)",
         "DX_KNOWN_BINARY": "$(rootpath //deploy/private/symbols/fixture:known_dsym)",
         "DX_KNOWN_DSYM_SYMBOLS": "$(rootpaths //deploy/private/symbols/fixture:known_dsym_symbols)",
@@ -87,20 +38,20 @@ rust_test(
     name = "pdb_test",
     srcs = ["pdb_test.rs"],
     data = [
-        ":pdb",
         "//deploy/private/symbols/fixture:known.c",
         "//deploy/private/symbols/fixture:known_pdb",
         "//deploy/private/symbols/fixture:known_pdb_symbols",
         "//deploy/private/symbols/fixture:other_pdb_symbols",
+        "@dx_prebuilt//:dx",
         "@llvm//tools:llvm-symbolizer",
     ],
     env = {
+        "DX": "$(rootpath @dx_prebuilt//:dx)",
         "DX_KNOWN_BINARY": "$(rootpath //deploy/private/symbols/fixture:known_pdb)",
         "DX_KNOWN_PDB_SYMBOLS": "$(rootpaths //deploy/private/symbols/fixture:known_pdb_symbols)",
         "DX_KNOWN_SOURCE": "$(rootpath //deploy/private/symbols/fixture:known.c)",
         "DX_LLVM_SYMBOLIZER": "$(rootpath @llvm//tools:llvm-symbolizer)",
         "DX_OTHER_PDB_SYMBOLS": "$(rootpaths //deploy/private/symbols/fixture:other_pdb_symbols)",
-        "DX_PDB": "$(rootpath :pdb)",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:windows"],
@@ -115,18 +66,19 @@ rust_test(
     name = "symbols_test",
     srcs = ["symbols_test.rs"],
     data = [
-        ":split",
         "//deploy/private/symbols/fixture:known",
         "//deploy/private/symbols/fixture:known.c",
         "//deploy/private/symbols/fixture:known_split",
         "//deploy/private/symbols/fixture:known_symbols",
         "//deploy/private/symbols/fixture:no_build_id",
         "//deploy/private/symbols/fixture:other_symbols",
+        "@dx_prebuilt//:dx",
         "@llvm//tools:llvm-nm",
         "@llvm//tools:llvm-objcopy",
         "@llvm//tools:llvm-symbolizer",
     ],
     env = {
+        "DX": "$(rootpath @dx_prebuilt//:dx)",
         "DX_KNOWN_BINARY": "$(rootpath //deploy/private/symbols/fixture:known)",
         "DX_KNOWN_SYMBOLS": "$(rootpaths //deploy/private/symbols/fixture:known_symbols)",
         "DX_KNOWN_SOURCE": "$(rootpath //deploy/private/symbols/fixture:known.c)",
@@ -136,7 +88,6 @@ rust_test(
         "DX_LLVM_SYMBOLIZER": "$(rootpath @llvm//tools:llvm-symbolizer)",
         "DX_NO_BUILD_ID": "$(rootpath //deploy/private/symbols/fixture:no_build_id)",
         "DX_OTHER_SYMBOLS": "$(rootpaths //deploy/private/symbols/fixture:other_symbols)",
-        "DX_SPLIT": "$(rootpath :split)",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
@@ -163,6 +114,7 @@ rust_library(
     name = "dx_symbols",
     srcs = [
         "src/cli.rs",
+        "src/entry.rs",
         "src/lib.rs",
     ],
     aliases = aliases(
@@ -186,6 +138,7 @@ rust_test(
     size = "small",
     srcs = [
         "src/cli.rs",
+        "src/entry.rs",
         "src/lib.rs",
         "src/tests.rs",
     ],
@@ -216,10 +169,8 @@ exports_files(
 
 exports_files(
     [
-        "src/bin_dsym.rs",
-        "src/bin_pdb.rs",
-        "src/bin_split.rs",
         "src/cli.rs",
+        "src/entry.rs",
         "src/lib.rs",
     ],
     visibility = ["//core/quality:__pkg__"],

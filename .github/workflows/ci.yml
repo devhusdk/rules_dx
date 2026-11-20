@@ -1153,7 +1153,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors "$@" //julia/tests/fixtures/hello:hello_standalone_output_test //julia/tests/fixtures/hello:relocate_test //julia/private/tools/lint/... //julia/private/tools/jet/... 2>&1 | tee "$RUNNER_TEMP/launch-heavy.log"
+          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors --skip_incompatible_explicit_targets "$@" //julia/tests/fixtures/hello:hello_standalone_output_test //julia/tests/fixtures/hello:relocate_test //julia/private/tools/lint/... //julia/private/tools/jet/... 2>&1 | tee "$RUNNER_TEMP/launch-heavy.log"
       - name: Write job summary
         if: always()
         env:

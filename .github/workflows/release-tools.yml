@@ -239,6 +239,7 @@ jobs:
           cp "$out/dx-go-linux-x86_64" "$check/dx_modfmt"
           (cd "$check" && ./dx_modfmt -c)
           rm -rf "$check"
+          bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "${targets[@]}"
           ls -l "$out"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -362,6 +363,9 @@ jobs:
                 ;;
             esac
           done
+          case "$HOST" in
+            linux-*) bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "${flags[@]}" "${targets[@]}" ;;
+          esac
           check="$RUNNER_TEMP/weeder-check"
           case "$HOST" in windows-*) check="$check.exe" ;; esac
           cp "$out/dx-weeder-$HOST" "$check"
@@ -462,6 +466,7 @@ jobs:
                 echo "$asset is dynamically linked" >&2
                 exit 1
               fi
+              bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "${flags[@]}" "$TARGET"
               ;;
             macos-*)
               if otool -L "$out/$asset" | grep -q libHS; then

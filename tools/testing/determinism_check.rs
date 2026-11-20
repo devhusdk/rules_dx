@@ -2,6 +2,7 @@
 //! `diff <first> <second> [--top N]` instead names why the slowest cacheable spawns of the second log
 //! missed the cache, traces each changed input to its `origin:`, and sums the uncacheable spawns by
 //! mnemonic.
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -129,7 +130,8 @@ fn main() -> Result<(), String> {
         return Err("at least one pattern is required".to_owned());
     }
     let workspace = PathBuf::from(
-        std::env::var("BUILD_WORKSPACE_DIRECTORY").map_err(|_| "run with `bazel run`")?,
+        std::env::var("BUILD_WORKSPACE_DIRECTORY")
+            .map_err(|error| format!("run with `bazel run`: {error}"))?,
     );
     for name in ["first", "second"] {
         build(&bazel, &out, name, &patterns, &workspace)?;

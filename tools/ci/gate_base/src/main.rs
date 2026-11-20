@@ -1,6 +1,11 @@
 //! `gate_base_bin` pins origin/main for the affected checks and writes `GATE_BASE` to `GITHUB_ENV`.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use gate_base::{Event, export, pin};
 use std::process::ExitCode;
@@ -20,7 +25,8 @@ fn run() -> Result<String, String> {
         merge_group_base: env("MERGE_GROUP_BASE"),
     };
     let (base, head) = pin(&event)?;
-    let file = std::env::var("GITHUB_ENV").map_err(|_| "GITHUB_ENV is not set".to_string())?;
+    let file =
+        std::env::var("GITHUB_ENV").map_err(|error| format!("GITHUB_ENV is not set: {error}"))?;
     export(&file, &base)?;
     Ok(format!("gate: base {base} head {head}"))
 }

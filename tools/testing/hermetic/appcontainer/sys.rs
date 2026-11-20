@@ -486,9 +486,9 @@ impl NamedLock {
         let raw = unsafe { CreateMutexW(null(), 0, wname.as_ptr()) };
         // SAFETY: CreateMutexW returns a new handle owned by the caller, or null.
         let handle = unsafe { HandleOrNull::from_raw_handle(raw) };
-        let mutex = OwnedHandle::try_from(handle).map_err(|_| {
+        let mutex = OwnedHandle::try_from(handle).map_err(|error| {
             format!(
-                "cannot create the lock {name}: {}",
+                "cannot create the lock {name}: {}: {error}",
                 std::io::Error::last_os_error()
             )
         })?;

@@ -1,7 +1,6 @@
 //! Adopts the example in a scratch workspace with `dx init --apply`, which also runs `dx generate`, then tests it.
 
 use std::collections::BTreeMap;
-use std::io::Write as _;
 use std::path::Path;
 use std::time::Instant;
 
@@ -19,12 +18,7 @@ fn ok(run: &Run, what: &str) {
 fn timed(what: &str, step: impl FnOnce() -> Run) {
     let started = Instant::now();
     let run = step();
-    writeln!(
-        std::io::stderr(),
-        "step {what}: {:.1} s",
-        started.elapsed().as_secs_f64()
-    )
-    .ok();
+    eprintln!("step {what}: {:.1} s", started.elapsed().as_secs_f64());
     ok(&run, what);
 }
 

@@ -1,3 +1,5 @@
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
+
 use std::process::ExitCode;
 
 use dx_nested as nested;
@@ -19,7 +21,7 @@ fn server_pid(case: &nested::Case, version: &str) -> Result<String, String> {
 
 fn run() -> Result<String, String> {
     let version = std::env::var("DX_PROBE_BAZEL_VERSION")
-        .map_err(|_| "DX_PROBE_BAZEL_VERSION must name the Bazel version".to_owned())?;
+        .map_err(|error| format!("DX_PROBE_BAZEL_VERSION must name the Bazel version: {error}"))?;
     let first = server_pid(&nested::case("probe"), &version)?;
     let second = server_pid(&nested::case("probe"), &version)?;
     if first != second {

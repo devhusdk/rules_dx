@@ -26,8 +26,8 @@ fn run(args: &[String]) -> Result<(), ExitCode> {
         return Err(ExitCode::from(2));
     };
     let text = read(board_path)?;
-    let text = String::from_utf8(text).map_err(|_| {
-        eprintln!("err:not_utf8: {board_path}");
+    let text = String::from_utf8(text).map_err(|error| {
+        eprintln!("err:not_utf8: {board_path}: {error}");
         ExitCode::from(2)
     })?;
     let mut board = Board::load(&text).map_err(|error| {

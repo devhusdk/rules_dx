@@ -297,7 +297,7 @@ fn expect_version(root: &Path, work: &Path, consumer: &Path, version: &str) -> R
     }
     expect_like_fresh(root, work, consumer, version)?;
     dx(consumer, &["upgrade", "--to", version])
-        .map_err(|_| format!("dx upgrade --to {version} still reports stale files"))
+        .map_err(|error| format!("dx upgrade --to {version} still reports stale files: {error}"))
 }
 
 /// Checks the consumer's resolved rule sets against the floors of rules_dx `version`.

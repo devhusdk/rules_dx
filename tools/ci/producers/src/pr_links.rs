@@ -209,7 +209,7 @@ pub fn check(args: &[String]) -> Result<(), String> {
         _ => return Err("usage: producers_bin --pr-links [COMMIT_MESSAGES_FILE]".into()),
     };
     let path = std::env::var("GITHUB_EVENT_PATH")
-        .map_err(|_| "GITHUB_EVENT_PATH is not set".to_string())?;
+        .map_err(|error| format!("GITHUB_EVENT_PATH is not set: {error}"))?;
     let text = std::fs::read_to_string(&path).map_err(|error| format!("read {path}: {error}"))?;
     let event: serde_json::Value =
         serde_json::from_str(&text).map_err(|error| format!("parse {path}: {error}"))?;

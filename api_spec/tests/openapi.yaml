@@ -18,10 +18,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: refs/order.yaml#/Order
+                $ref: fixtures/refs/order.yaml#/Order
         "404":
           description: No such order.
           content:
             application/json:
               schema:
-                $ref: shared/error.yaml#/ProblemDetail
+                $ref: fixtures/shared/error.yaml#/ProblemDetail

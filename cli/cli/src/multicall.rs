@@ -85,6 +85,7 @@ pub enum Tool {
     SymbolsPdb,
     OcamlCcDriver,
     OcamlDune,
+    ApplePostAction,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -178,6 +179,7 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "symbols_dsym" => Some(Tool::SymbolsDsym),
         "symbols_pdb" => Some(Tool::SymbolsPdb),
         "ocaml_dune" => Some(Tool::OcamlDune),
+        "apple_post_action" => Some(Tool::ApplePostAction),
         _ => None,
     }
 }
@@ -314,6 +316,7 @@ mod tests {
             ("symbols_dsym", Tool::SymbolsDsym),
             ("symbols_pdb", Tool::SymbolsPdb),
             ("ocaml_dune", Tool::OcamlDune),
+            ("apple_post_action", Tool::ApplePostAction),
         ] {
             assert_eq!(subcommand_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -387,6 +390,7 @@ mod tests {
             "symbols_dsym",
             "symbols_pdb",
             "ocaml_dune",
+            "apple_post_action",
         ] {
             assert_eq!(tool_for(OsStr::new(name)), None, "{name}");
         }

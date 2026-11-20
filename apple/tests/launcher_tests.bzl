@@ -1,4 +1,4 @@
-"""Analysis checks that Apple launchers run dx-runtime's apple_ops helper."""
+"""Analysis checks of the Apple launchers and the xctestrun hook launchers."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 
@@ -19,4 +19,22 @@ def _descriptor_impl(ctx):
 apple_launcher_test = analysistest.make(
     _descriptor_impl,
     attrs = {"lines": attr.string_list(doc = "Lines the descriptor must hold.")},
+)
+
+def _hook_impl(ctx):
+    env = analysistest.begin(ctx)
+    lines = []
+    for action in analysistest.target_actions(env):
+        if any([output.basename.endswith(".launch") for output in action.outputs.to_list()]):
+            lines = action.content.splitlines()
+    asserts.equals(env, 1 + len(ctx.attr.prefixes), len(lines), str(lines))
+    if len(lines) == 1 + len(ctx.attr.prefixes):
+        asserts.true(env, lines[0].startswith("program=") and lines[0].removesuffix(".exe").endswith("/dx"), str(lines))
+        for prefix, line in zip(ctx.attr.prefixes, lines[1:]):
+            asserts.true(env, line.startswith(prefix), "{} does not start with {}".format(line, prefix))
+    return analysistest.end(env)
+
+apple_hook_test = analysistest.make(
+    _hook_impl,
+    attrs = {"prefixes": attr.string_list(doc = "The prefix of each descriptor line after the program, in order.")},
 )

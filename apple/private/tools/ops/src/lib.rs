@@ -118,6 +118,8 @@ pub fn run(args: &[String]) -> u8 {
             };
             report(app_check::PREFIX, app_check::run(&tools, rest))
         }
+        "create-test-simulator" => create_test_simulator(),
+        "delete-test-simulator" => delete_test_simulator(),
         "xcframework-check" => {
             let tools = Tools {
                 developer_dir: process_env("DEVELOPER_DIR").map(PathBuf::from),
@@ -131,7 +133,7 @@ pub fn run(args: &[String]) -> u8 {
         _ => report(
             "dx-apple-ops",
             Err(util::usage(
-                "usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|library-check|macos-app-check|xcframework-check> ...",
+                "usage: apple_ops <simctl|swift|run-macos-app|export|codesign|notarize|library-check|macos-app-check|xcframework-check|create-test-simulator|delete-test-simulator> ...",
             )),
         ),
     }
@@ -153,8 +155,7 @@ fn group_alive(group: i32) -> bool {
 }
 
 /// Creates one test simulator and prints its UDID.
-#[must_use]
-pub fn create_test_simulator() -> u8 {
+fn create_test_simulator() -> u8 {
     report(
         test_sim::PREFIX,
         xcode::for_test_runner(&process_env).and_then(|developer_dir| {
@@ -170,8 +171,7 @@ pub fn create_test_simulator() -> u8 {
 }
 
 /// Deletes the test simulator `SIMULATOR_UDID` names.
-#[must_use]
-pub fn delete_test_simulator() -> u8 {
+fn delete_test_simulator() -> u8 {
     report(
         test_sim::PREFIX,
         xcode::for_test_runner(&process_env).and_then(|developer_dir| {

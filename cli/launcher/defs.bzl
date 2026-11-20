@@ -27,15 +27,17 @@ def write_native_launcher(ctx, descriptor_text, launcher_name = None):
     runfiles = ctx.runfiles(files = [launcher, descriptor]).merge(ctx.attr._exec_launcher[0][DefaultInfo].default_runfiles)
     return launcher, descriptor, runfiles
 
-def subcommand_descriptor(program_key, subcommand, path_args = []):
-    """Returns the launch descriptor text that runs `program_key subcommand [FLAG=PATH]...`.
+def subcommand_descriptor(program_key, subcommand, path_args = [], args = []):
+    """Returns the launch descriptor text that runs `program_key subcommand [ARG]... [FLAG=PATH]...`.
 
     Args:
       program_key: the runfiles key of the program.
       subcommand: the first argument.
       path_args: (flag, runfiles key) pairs, each passed as `FLAG=<absolute path>`.
+      args: literal arguments after the subcommand.
     """
     lines = ["program=" + program_key, "arg=" + subcommand]
+    lines.extend(["arg=" + arg for arg in args])
     lines.extend(["prefixed=" + flag + "=\t" + key for flag, key in path_args])
     return "\n".join(lines) + "\n"
 
@@ -47,7 +49,7 @@ def _dx_subcommand_impl(ctx):
         if len(files) != 1:
             fail("path_args[{}] must be exactly one file, got {}".format(flag, len(files)))
         path_args.append((flag, rlocation_path(ctx, files[0])))
-    launcher, _, runfiles = write_native_launcher(ctx, subcommand_descriptor(rlocation_path(ctx, dx), ctx.attr.subcommand, path_args))
+    launcher, _, runfiles = write_native_launcher(ctx, subcommand_descriptor(rlocation_path(ctx, dx), ctx.attr.subcommand, path_args, ctx.attr.subcommand_args))
     runfiles = runfiles.merge(ctx.runfiles(files = [dx])).merge(ctx.attr._dx[DefaultInfo].default_runfiles)
     for target in ctx.attr.data + ctx.attr.path_args.values():
         runfiles = runfiles.merge(ctx.runfiles(transitive_files = target.files)).merge(target[DefaultInfo].default_runfiles)
@@ -61,6 +63,7 @@ dx_subcommand = rule(
         "data": attr.label_list(allow_files = True, doc = "Files the subcommand reads at run time."),
         "path_args": attr.string_keyed_label_dict(allow_files = True, cfg = "target", doc = "Flag to a one-file target; dx gets `FLAG=<absolute path>` after the subcommand."),
         "subcommand": attr.string(mandatory = True, doc = "The dx multicall subcommand."),
+        "subcommand_args": attr.string_list(doc = "Literal arguments after the subcommand, before the `path_args` flags."),
         "_dx": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "target", doc = "The prebuilt dx."),
     }, **NATIVE_LAUNCHER_ATTRS),
 )

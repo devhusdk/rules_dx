@@ -39,6 +39,7 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 - A launcher is what `bazel run`, `bazel test` and `dx` start. It is the native launcher from `//cli/launcher` plus a `.launch` descriptor, on every platform.
 - No rule writes a `#!/usr/bin/env bash` launcher.
 - Apple launchers start dx-runtime with `env=DX_RUNTIME_TOOL` set to `apple_ops` and with `env=DX_XCODE_VERSION`; the helper finds that Xcode itself.
+- The exec-config xctestrun hooks `create_test_simulator`, `delete_test_simulator` and `apple_post_action` are `dx_subcommand` launchers.
 - A descriptor line that is missing is added to `cli/launcher/src/launch.rs` with a test. It is not worked around in shell.
 
 ## Tests

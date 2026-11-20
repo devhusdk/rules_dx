@@ -1,4 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -15,6 +16,7 @@ rust_library(
     name = "collect_native_lib",
     srcs = [
         "src/apple.rs",
+        "src/apple_post.rs",
         "src/collect.rs",
         "src/gcov.rs",
         "src/lib.rs",
@@ -49,31 +51,14 @@ rust_binary(
     ) + [":collect_native_lib"],
 )
 
-rust_binary(
+dx_subcommand(
     name = "apple_post_action",
-    srcs = ["src/apple_main.rs"],
-    aliases = aliases(
-        package_name = "tools/coverage/collect_native",
-        normal = True,
-    ),
-    crate_name = "apple_post_action",
-    crate_root = "src/apple_main.rs",
-    data = [
-        "@llvm//tools:llvm-cov",
-        "@llvm//tools:llvm-profdata",
-    ],
-    rustc_env = {
-        "DX_LLVM_COV": "$(rlocationpath @llvm//tools:llvm-cov)",
-        "DX_LLVM_PROFDATA": "$(rlocationpath @llvm//tools:llvm-profdata)",
+    path_args = {
+        "--llvm-cov": "@llvm//tools:llvm-cov",
+        "--llvm-profdata": "@llvm//tools:llvm-profdata",
     },
+    subcommand = "apple_post_action",
     visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "tools/coverage/collect_native",
-        normal = True,
-    ) + [
-        ":collect_native_lib",
-        "@rules_rust//rust/runfiles",
-    ],
 )
 
 rust_test(

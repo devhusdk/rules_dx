@@ -12,6 +12,7 @@
 )]
 
 pub mod apple;
+pub mod apple_post;
 mod collect;
 mod gcov;
 mod linemap;

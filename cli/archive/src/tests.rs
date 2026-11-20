@@ -125,18 +125,6 @@ fn expect_refused(format: Format, archive: &Path) -> String {
         .to_string()
 }
 
-/// Returns the extracted members on Unix; elsewhere checks that the symlink `link` is refused.
-fn extract_with_links(result: io::Result<Vec<Member>>, link: &str) -> Option<Vec<Member>> {
-    if cfg!(unix) {
-        return Some(result.expect("extract"));
-    }
-    let error = result.expect_err("symlinks are unsupported");
-    assert_eq!(error.kind(), io::ErrorKind::Unsupported, "{error}");
-    let message = error.to_string();
-    assert!(message.contains(&format!("create {link:?}")), "{message}");
-    None
-}
-
 #[test]
 fn unsafe_names_are_refused() {
     for name in ["/etc/passwd", "a/../b", "..", "a\\b", "a//b", "./a", "C:x"] {
@@ -321,12 +309,7 @@ fn directories_and_inner_symlinks_are_extracted_in_both_formats() {
     );
     for (format, archive) in [(Format::TarGz, &tar), (Format::Zip, &zip)] {
         let dest = dir.path().join(format!("out{}", format.suffix()));
-        let Some(members) = extract_with_links(
-            extract(archive, format, &dest, Limits::default()),
-            "pkg/bin/tool",
-        ) else {
-            continue;
-        };
+        let members = extract(archive, format, &dest, Limits::default()).expect("extract");
         assert_eq!(
             members,
             [Member {
@@ -337,26 +320,81 @@ fn directories_and_inner_symlinks_are_extracted_in_both_formats() {
             "{format:?}"
         );
         assert!(dest.join("pkg/empty").is_dir(), "{format:?}");
+        let link = dest.join("pkg/bin/tool");
+        assert!(
+            std::fs::symlink_metadata(&link)
+                .expect("link")
+                .file_type()
+                .is_symlink(),
+            "{format:?}"
+        );
+        assert_eq!(std::fs::read(&link).expect("read"), b"tool body\n");
+        assert!(dest.join("pkg/current").is_dir(), "{format:?}");
+        assert_eq!(
+            std::fs::read(dest.join("pkg/current/lib/tool")).expect("read"),
+            b"tool body\n"
+        );
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt as _;
-            let link = dest.join("pkg/bin/tool");
-            assert!(
-                std::fs::symlink_metadata(&link)
-                    .expect("link")
-                    .file_type()
-                    .is_symlink(),
-                "{format:?}"
-            );
-            assert_eq!(std::fs::read(&link).expect("read"), b"tool body\n");
             let mode = std::fs::metadata(&link).expect("meta").permissions().mode();
             assert_eq!(mode & 0o777, 0o755, "{format:?}");
-            assert_eq!(
-                std::fs::read(dest.join("pkg/current/lib/tool")).expect("read"),
-                b"tool body\n"
-            );
         }
     }
+}
+
+#[test]
+fn links_to_links_resolve_before_any_is_created() {
+    let dir = scratch();
+    let tar = dir.path().join("chain.tar.gz");
+    tar_entries(
+        &tar,
+        &[
+            (
+                "top",
+                tar::EntryType::Symlink,
+                "pkg/current/inc",
+                b"",
+                0o777,
+            ),
+            ("pkg/current", tar::EntryType::Symlink, ".", b"", 0o777),
+            (
+                "pkg/inc",
+                tar::EntryType::Symlink,
+                "../src/include",
+                b"",
+                0o777,
+            ),
+            ("src/include/a.h", tar::EntryType::Regular, "", b"a", 0o644),
+            ("loop", tar::EntryType::Symlink, "loop", b"", 0o777),
+        ],
+    );
+    let dest = dir.path().join("out");
+    let keep = |_: &str| true;
+    let mut run = Extraction::new(&dest, &keep, Limits::default());
+    for (name, target) in [
+        ("top", "pkg/current/inc"),
+        ("pkg/current", "."),
+        ("pkg/inc", "../src/include"),
+        ("loop", "loop"),
+    ] {
+        run.add(
+            name.to_owned(),
+            Kind::Symlink {
+                target: target.to_owned(),
+            },
+            &mut io::empty(),
+        )
+        .expect("add");
+    }
+    assert_eq!(
+        run.resolve("top", "pkg/current/inc").as_deref(),
+        Some("src/include")
+    );
+    assert_eq!(run.resolve("loop", "loop"), None);
+    let out = dir.path().join("chain");
+    extract(&tar, Format::TarGz, &out, Limits::default()).expect("extract");
+    assert_eq!(std::fs::read(out.join("top/a.h")).expect("read"), b"a");
 }
 
 #[test]
@@ -462,12 +500,10 @@ fn members_below_a_symlink_are_refused_in_both_formats() {
     );
     for (format, archive) in [(Format::TarGz, &tar), (Format::Zip, &zip)] {
         let error = expect_refused(format, archive);
-        let expected = if cfg!(unix) {
-            "below an archive symlink"
-        } else {
-            "on this platform"
-        };
-        assert!(error.contains(expected), "{format:?}: {error}");
+        assert!(
+            error.contains("below an archive symlink"),
+            "{format:?}: {error}"
+        );
         assert!(!archive.with_extension("out").join("sub/file").exists());
     }
 }
@@ -693,10 +729,9 @@ fn writers_add_dirs_and_inner_symlinks() {
         (Format::Zip, zip.finish().expect("zip")),
     ] {
         let dest = dir.path().join(format.suffix().trim_start_matches('.'));
-        extract_with_links(extract_bytes(&bytes, format, &dest, Limits::default()), "l");
+        extract_bytes(&bytes, format, &dest, Limits::default()).expect("extract");
         assert!(dest.join("d").is_dir());
         assert_eq!(std::fs::read(dest.join("d/f")).expect("read"), b"f");
-        #[cfg(unix)]
         assert_eq!(std::fs::read(dest.join("l")).expect("read link"), b"f");
     }
 }

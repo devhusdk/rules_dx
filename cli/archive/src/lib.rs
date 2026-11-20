@@ -6,7 +6,7 @@
 //! integrity checks ([`check_zip`]), and deterministic writers ([`TarWriter`], [`TarStream`],
 //! [`ZipWriter`]).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{self, Read, Seek, Write};
 use std::path::Path;
@@ -199,18 +199,43 @@ enum Kind {
     Other,
 }
 
+/// An archive symlink waiting to be created.
+struct Link {
+    name: String,
+    target: String,
+}
+
+/// Most links followed while resolving one link target, like Linux's `ELOOP` limit.
+const MAX_LINK_HOPS: usize = 40;
+
 struct Extraction<'a> {
     dest: &'a Path,
     keep: &'a dyn Fn(&str) -> bool,
     limits: Limits,
     entries: usize,
     seen: HashSet<String>,
-    links: HashSet<String>,
+    /// Lowercased link name to its index in `pending`.
+    links: HashMap<String, usize>,
+    pending: Vec<Link>,
     total: u64,
     members: Vec<Member>,
 }
 
-impl Extraction<'_> {
+impl<'a> Extraction<'a> {
+    fn new(dest: &'a Path, keep: &'a dyn Fn(&str) -> bool, limits: Limits) -> Self {
+        Extraction {
+            dest,
+            keep,
+            limits,
+            entries: 0,
+            seen: HashSet::new(),
+            links: HashMap::new(),
+            pending: Vec::new(),
+            total: 0,
+            members: Vec::new(),
+        }
+    }
+
     fn add(&mut self, name: String, kind: Kind, body: &mut dyn Read) -> io::Result<()> {
         if !(self.keep)(&name) {
             return Ok(());
@@ -248,9 +273,9 @@ impl Extraction<'_> {
                 if let Some(reason) = link_target_error(&name, &target) {
                     return Err(invalid(reason));
                 }
-                create_parent(&path).map_err(context(format!("create {name:?}")))?;
-                symlink(&target, &path).map_err(context(format!("create {name:?}")))?;
-                self.links.insert(key);
+                // Created after the other members, so a Windows link knows whether its target is a directory.
+                self.links.insert(key, self.pending.len());
+                self.pending.push(Link { name, target });
                 Ok(())
             }
             Kind::Other => Err(invalid(format!(
@@ -263,8 +288,62 @@ impl Extraction<'_> {
     fn below_link(&self, key: &str) -> bool {
         key.match_indices('/').any(|(at, _)| {
             key.get(..at)
-                .is_some_and(|parent| self.links.contains(parent))
+                .is_some_and(|parent| self.links.contains_key(parent))
         })
+    }
+
+    /// Creates the archive symlinks in archive order, once every other member exists.
+    fn create_links(&self) -> io::Result<()> {
+        for link in &self.pending {
+            let what = format!("create {:?}", link.name);
+            let path = self.dest.join(&link.name);
+            create_parent(&path).map_err(context(&what))?;
+            let dir = self
+                .resolve(&link.name, &link.target)
+                .is_some_and(|member| self.dest.join(member).is_dir());
+            symlink(&link.target, &path, dir).map_err(context(&what))?;
+        }
+        Ok(())
+    }
+
+    /// Follows the link `name -> target` through the archive's own links to a link-free member path.
+    ///
+    /// Returns `None` for a loop or a chain over [`MAX_LINK_HOPS`] links.
+    fn resolve(&self, name: &str, target: &str) -> Option<String> {
+        let mut parts: Vec<&str> = name.split('/').collect();
+        parts.pop();
+        let mut hops = 0;
+        self.follow(&mut parts, target, &mut hops)?;
+        Some(parts.join("/"))
+    }
+
+    fn follow<'s>(
+        &'s self,
+        parts: &mut Vec<&'s str>,
+        target: &'s str,
+        hops: &mut usize,
+    ) -> Option<()> {
+        for segment in target.split('/') {
+            match segment {
+                "" | "." => {}
+                ".." => {
+                    parts.pop()?;
+                }
+                _ => {
+                    parts.push(segment);
+                    let key = parts.join("/").to_lowercase();
+                    if let Some(link) = self.links.get(&key).and_then(|&at| self.pending.get(at)) {
+                        *hops += 1;
+                        if *hops > MAX_LINK_HOPS {
+                            return None;
+                        }
+                        parts.pop();
+                        self.follow(parts, &link.target, hops)?;
+                    }
+                }
+            }
+        }
+        Some(())
     }
 
     fn write_file(
@@ -313,12 +392,37 @@ fn create_parent(path: &Path) -> io::Result<()> {
 }
 
 #[cfg(unix)]
-fn symlink(target: &str, path: &Path) -> io::Result<()> {
+fn symlink(target: &str, path: &Path, _dir: bool) -> io::Result<()> {
     std::os::unix::fs::symlink(target, path)
 }
 
-#[cfg(not(unix))]
-fn symlink(_target: &str, path: &Path) -> io::Result<()> {
+/// `CreateSymbolicLinkW` fails with this without Developer Mode or an elevated shell.
+#[cfg(windows)]
+const ERROR_PRIVILEGE_NOT_HELD: i32 = 1314;
+
+/// Windows needs the target kind up front: a file link to a directory does not open as one.
+#[cfg(windows)]
+fn symlink(target: &str, path: &Path, dir: bool) -> io::Result<()> {
+    let target = target.replace('/', "\\");
+    let made = if dir {
+        std::os::windows::fs::symlink_dir(&target, path)
+    } else {
+        std::os::windows::fs::symlink_file(&target, path)
+    };
+    made.map_err(|e| {
+        if e.raw_os_error() == Some(ERROR_PRIVILEGE_NOT_HELD) {
+            io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "Windows may not create symlinks for this user; turn on Developer Mode (Settings > System > For developers)",
+            )
+        } else {
+            e
+        }
+    })
+}
+
+#[cfg(not(any(unix, windows)))]
+fn symlink(_target: &str, path: &Path, _dir: bool) -> io::Result<()> {
     Err(io::Error::new(
         io::ErrorKind::Unsupported,
         format!(
@@ -362,8 +466,8 @@ fn prepare_dest(dest: &Path) -> io::Result<()> {
 
 /// Extracts `archive` into the new or empty directory `dest` and returns its regular files.
 ///
-/// Directories and, on Unix, symlinks that stay inside `dest` are created too; elsewhere a symlink
-/// member fails with [`io::ErrorKind::Unsupported`]. Callers discard `dest` on error.
+/// Directories and symlinks that stay inside `dest` are created too; callers discard `dest` on error.
+/// On Windows, symlinks need Developer Mode or an elevated shell.
 pub fn extract(
     archive: &Path,
     format: Format,
@@ -421,16 +525,7 @@ fn unpack(
 ) -> io::Result<Vec<Member>> {
     check_magic(&mut source, label, format)?;
     prepare_dest(dest)?;
-    let mut run = Extraction {
-        dest,
-        keep,
-        limits,
-        entries: 0,
-        seen: HashSet::new(),
-        links: HashSet::new(),
-        total: 0,
-        members: Vec::new(),
-    };
+    let mut run = Extraction::new(dest, keep, limits);
     match format {
         Format::Tar => extract_tar(source, &mut run)?,
         Format::TarGz => {
@@ -443,6 +538,7 @@ fn unpack(
         }
         Format::Zip => extract_zip(source, &mut run)?,
     }
+    run.create_links()?;
     Ok(run.members)
 }
 

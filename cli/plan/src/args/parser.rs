@@ -74,7 +74,7 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let words: Vec<&str> = args
         .iter()
         .map(|word| word.as_ref().to_str())
-        .take_while(|word| word.is_some_and(|word| word != "--"))
+        .take_while(|word| *word != Some("--"))
         .map(|word| word.unwrap_or(""))
         .collect();
     let mut seen: Option<String> = None;
@@ -893,6 +893,20 @@ mod tutorial_tests;
 mod startup_tests {
     use super::*;
     use dx_testing::cli::strings;
+
+    #[cfg(unix)]
+    #[test]
+    fn early_output_flag_reads_past_a_non_utf8_word() {
+        use std::os::unix::ffi::OsStringExt as _;
+        let args = [
+            std::ffi::OsString::from("lint"),
+            std::ffi::OsString::from_vec(vec![0xff]),
+            std::ffi::OsString::from("--output"),
+            std::ffi::OsString::from("json"),
+        ];
+        assert_eq!(early_output_flag(&args), Some("json".to_owned()));
+        assert!(json_output_intent(&args, &|_| None, false));
+    }
 
     #[test]
     #[expect(

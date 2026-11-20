@@ -455,13 +455,12 @@ fn cargo_nodes(text: &str) -> Result<Nodes, dx_error::DxError> {
             "{:?} {:?} {:?}",
             entry.source, entry.checksum, entry.dependencies
         );
-        nodes.insert(
-            (entry.name, entry.version),
-            Node {
-                content,
-                deps: entry.dependencies,
-            },
-        );
+        let node = nodes.entry((entry.name, entry.version)).or_insert(Node {
+            content: String::new(),
+            deps: Vec::new(),
+        });
+        node.content.push_str(&content);
+        node.deps.extend(entry.dependencies);
     }
     Ok(nodes)
 }
@@ -1646,6 +1645,20 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         );
         assert_eq!(changed_crates(&base, &base), Ok(ChangedCrates::new()));
         assert!(changed_crates(&base, "not toml [[[").is_err());
+    }
+
+    #[test]
+    fn a_crate_from_two_sources_keeps_both_entries() {
+        let entry = |source: &str| {
+            format!("\n[[package]]\nname = \"foo\"\nversion = \"1.0.0\"\nsource = \"{source}\"\n")
+        };
+        let git = |rev: &str| entry(&format!("git+https://example.com/foo#{rev}"));
+        let base = format!("version = 3\n{}{}", git("aaa"), entry(REGISTRY));
+        let head = format!("version = 3\n{}{}", git("bbb"), entry(REGISTRY));
+        assert_eq!(
+            changed_crates(&base, &head),
+            Ok(crates(&[("foo", &["1.0.0"])]))
+        );
     }
 
     #[test]

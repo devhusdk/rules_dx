@@ -62,7 +62,7 @@ fn filter_executables(
             continue;
         }
         let (raw_label, flag) = line
-            .split_once('|')
+            .rsplit_once('|')
             .ok_or_else(|| malformed("cquery returned a malformed executable observation"))?;
         match flag.trim() {
             "True" => executables.push(normalize_cquery_label(raw_label.trim())),
@@ -461,13 +461,8 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-run-test-run-empty-many-").unwrap();
         let workspace = scratch.path().to_path_buf();
         let labels: Vec<String> = (0..12).map(|i| format!("//app:b{i:02}")).collect();
-        let listing = labels.join("\n") + "\n";
-        let flags = labels
-            .iter()
-            .map(|l| format!("@@{l}|True"))
-            .collect::<Vec<_>>()
-            .join("\n")
-            + "\n";
+        let listing = format!("{}\n", labels.join("\n"));
+        let flags: String = labels.iter().map(|l| format!("@@{l}|True\n")).collect();
         let query = FakeQuery::new(vec![FakeQuery::ok(&listing), FakeQuery::ok(&flags)]);
         let err = resolve_run(&[], &workspace, &query, &[]).expect_err("many");
         let text = err.to_string();
@@ -805,16 +800,27 @@ mod tests {
     }
 
     #[test]
+    fn executable_probe_reads_a_label_with_a_bar() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-run-test-probe-bar-").unwrap();
+        let workspace = scratch.path().to_path_buf();
+        std::fs::create_dir_all(workspace.join("pkg")).expect("dir");
+        let query = FakeQuery::new(vec![
+            FakeQuery::ok("//pkg:a|b\n//pkg:lib\n"),
+            FakeQuery::ok("@@//pkg:a|b|True\n@@//pkg:lib|False\n"),
+        ]);
+        let got = resolve_run(&strings(&["pkg"]), &workspace, &query, &[]).expect("bar");
+        assert_eq!(got, strings(&["//pkg:a|b"]));
+    }
+
+    #[test]
     fn large_candidate_sets_go_through_a_query_file() {
         let candidates: Vec<String> = (0..4000)
             .map(|index| format!("//services/pkg_{index}:binary_target"))
             .collect();
-        let probe = candidates
+        let probe: String = candidates
             .iter()
-            .map(|label| format!("{label}|True"))
-            .collect::<Vec<_>>()
-            .join("\n")
-            + "\n";
+            .map(|label| format!("{label}|True\n"))
+            .collect();
         let query = FakeQuery::new(vec![FakeQuery::ok(&probe)]);
         let got = filter_executables(&candidates, Path::new("/work"), &query, &[]).expect("probe");
         assert_eq!(got.len(), candidates.len());

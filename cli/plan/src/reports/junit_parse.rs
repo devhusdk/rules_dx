@@ -125,6 +125,23 @@ fn decode_numeric_references(text: &str) -> Cow<'_, str> {
     }
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
+    while let Some((before, tail)) = rest.split_once("<![CDATA[") {
+        decode_markup(&mut out, before);
+        out.push_str("<![CDATA[");
+        let (cdata, after) = tail.split_once("]]>").unwrap_or((tail, ""));
+        out.push_str(cdata);
+        if tail.len() > cdata.len() {
+            out.push_str("]]>");
+        }
+        rest = after;
+    }
+    decode_markup(&mut out, rest);
+    Cow::Owned(out)
+}
+
+/// Decodes the numeric references of `text`, which holds no CDATA section, onto `out`.
+fn decode_markup(out: &mut String, text: &str) {
+    let mut rest = text;
     while let Some((before, tail)) = rest.split_once("&#") {
         out.push_str(before);
         let decoded = tail
@@ -155,7 +172,6 @@ fn decode_numeric_references(text: &str) -> Cow<'_, str> {
         }
     }
     out.push_str(rest);
-    Cow::Owned(out)
 }
 
 fn strip_leading_decl(text: &str) -> &str {
@@ -653,6 +669,16 @@ mod tests {
         assert_eq!(
             normalize_document(r#"<testsuite name="s"><testcase name="a"/></testsuite>"#),
             r#"<testsuite name="s"><testcase name="a"/></testsuite>"#
+        );
+    }
+
+    #[test]
+    fn numeric_references_in_cdata_stay_literal() {
+        let xml = "<testsuite name=\"s\"><testcase name=\"a\"><failure><![CDATA[x &#60; y]]></failure></testcase></testsuite>";
+        let cases = parse_test_xml(xml.as_bytes(), 0, 0).expect("cdata");
+        assert_eq!(
+            cases[0].failure.as_ref().expect("failure").text,
+            "x &#60; y"
         );
     }
 }

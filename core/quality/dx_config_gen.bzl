@@ -66,7 +66,15 @@ _REGISTRY_HEADER = """// Generated from core/quality/real_aspect_labels.bzl.
 """
 
 def _label_const(name, labels):
-    return "pub const %s: &[&str] = &[\n%s];\n" % (name, "".join(['    "%s",\n' % label for label in labels]))
+    # Lay a one-label table out as rustfmt does at its 100-column width, so the file stays rustfmt-clean.
+    head = "pub const %s: &[&str] =" % name
+    if len(labels) == 1:
+        item = '&["%s"];' % labels[0]
+        if len(head) + 1 + len(item) <= 100:
+            return "%s %s\n" % (head, item)
+        if 4 + len(item) <= 100:
+            return "%s\n    %s\n" % (head, item)
+    return "%s &[\n%s];\n" % (head, "".join(['    "%s",\n' % label for label in labels]))
 
 def registry_rust():
     """Returns the full text of cli/plan/src/plan/registry_gen.rs."""

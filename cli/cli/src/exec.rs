@@ -10,10 +10,10 @@ mod bench;
 mod breaking_base;
 #[cfg(test)]
 mod build_failures_tests;
-mod changed_coverage;
+#[cfg(test)]
+mod changed_coverage_tests;
 mod check_build;
 mod clean;
-mod coverage_candidate;
 #[cfg(test)]
 mod current_dir_guard_tests;
 #[cfg(test)]
@@ -56,7 +56,8 @@ mod startup_defaults_launcher_tests;
 mod sync_fingerprint;
 mod sync_prune;
 mod test_filter;
-mod test_reports;
+#[cfg(test)]
+mod test_reports_tests;
 #[cfg(test)]
 pub(crate) mod test_support;
 mod umbrella;
@@ -72,6 +73,7 @@ mod update_version_add;
 mod workflow;
 mod worktree;
 
+use dx_exec_core::common::remove_scratch;
 use dx_plan::args::{Command, Invocation};
 
 pub use dx_exec_core::audit_policy::AUDIT_TODAY_ENV;
@@ -394,15 +396,6 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Worktree => worktree::execute_worktree(invocation, env),
         Command::Fuzz => fuzz::execute_fuzz(invocation, env),
-    }
-}
-
-/// Removes one scratch file; a missing file is fine and any other failure is logged.
-fn remove_scratch(path: &std::path::Path) {
-    match std::fs::remove_file(path) {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => tracing::info!(%error, path = %path.display(), "cannot remove scratch file"),
     }
 }
 
@@ -880,30 +873,5 @@ mod tests {
             )
             .is_none()
         );
-    }
-
-    #[test]
-    fn remove_scratch_removes_a_file() {
-        let dir = super::test_support::temp_dir("remove-scratch-file");
-        let file = dir.path().join("events.bep");
-        std::fs::write(&file, b"x").expect("write scratch");
-        super::remove_scratch(&file);
-        assert!(!file.exists());
-    }
-
-    #[test]
-    fn remove_scratch_returns_for_a_missing_path() {
-        let dir = super::test_support::temp_dir("remove-scratch-missing");
-        super::remove_scratch(&dir.path().join("absent.bep"));
-        assert!(dir.path().is_dir());
-    }
-
-    #[test]
-    fn remove_scratch_returns_and_keeps_a_directory() {
-        let dir = super::test_support::temp_dir("remove-scratch-dir");
-        let nested = dir.path().join("nested");
-        std::fs::create_dir_all(&nested).expect("create dir");
-        super::remove_scratch(&nested);
-        assert!(nested.is_dir());
     }
 }

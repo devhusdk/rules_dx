@@ -110,29 +110,29 @@ pub(super) fn mark_superseded_attempts(reported: &mut [TestOutcome]) {
     }
 }
 
-pub(crate) struct TestReportsRequest<'a> {
-    pub(crate) invocation: &'a Invocation,
-    pub(crate) workspace: &'a Path,
-    pub(crate) out: &'a mut dyn Write,
-    pub(crate) err: &'a mut dyn Write,
-    pub(crate) verb: WorkflowVerb,
-    pub(crate) bep: &'a Path,
-    pub(crate) planned_reports: &'a [PlannedReport],
-    pub(crate) failure_reports: &'a [PlannedReport],
-    pub(crate) results_reports: &'a [PlannedReport],
-    pub(crate) run_id: &'a str,
-    pub(crate) stdout_report: bool,
-    pub(crate) bazel_code: i32,
-    pub(crate) query_runner: &'a dyn QueryRunner,
-    pub(crate) results_complete: &'a mut bool,
-    pub(crate) actions: Option<ActionCounts>,
+pub struct TestReportsRequest<'a> {
+    pub invocation: &'a Invocation,
+    pub workspace: &'a Path,
+    pub out: &'a mut dyn Write,
+    pub err: &'a mut dyn Write,
+    pub verb: WorkflowVerb,
+    pub bep: &'a Path,
+    pub planned_reports: &'a [PlannedReport],
+    pub failure_reports: &'a [PlannedReport],
+    pub results_reports: &'a [PlannedReport],
+    pub run_id: &'a str,
+    pub stdout_report: bool,
+    pub bazel_code: i32,
+    pub query_runner: &'a dyn QueryRunner,
+    pub results_complete: &'a mut bool,
+    pub actions: Option<ActionCounts>,
     /// True when the run resolved to exactly `//...`, so every tracked source is in scope.
-    pub(crate) whole_repo: bool,
+    pub whole_repo: bool,
 }
 
 /// Reads the output roots `bazel info` reports for this run, or workspace-only locations.
 #[expect(clippy::disallowed_methods, reason = "info takes no build settings")]
-pub(crate) fn output_locations(
+pub fn output_locations(
     invocation: &Invocation,
     workspace: &Path,
     verb: WorkflowVerb,

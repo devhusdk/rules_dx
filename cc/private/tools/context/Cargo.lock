@@ -1902,6 +1902,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]
@@ -1909,6 +1910,14 @@ name = "dx_exec_reports"
 version = "0.0.0"
 dependencies = [
  "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "dx_exec_test_reports"
+version = "0.0.0"
+dependencies = [
  "serde_json",
  "tempfile",
 ]

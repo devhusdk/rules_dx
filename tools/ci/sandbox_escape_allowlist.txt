@@ -9,11 +9,11 @@ cli/audit/src/backend.rs tmp-path 13
 cli/bep/src/outputs.rs tmp-path 1
 cli/cli/src/adopt/watch.rs tmp-path 1
 cli/cli/src/exec/first_run.rs tmp-path 1
-cli/cli/src/exec/test_reports_tests.rs tmp-path 1
 cli/cli/src/exec/umbrella_tests.rs tmp-path 6
 cli/cli/src/main.rs tmp-path 1
 cli/cli/tests/startup_consistency/tests/startup_consistency.rs tmp-path 3
 cli/env/src/main.rs tmp-path 2
+cli/exec_test_reports/src/test_reports_tests.rs tmp-path 1
 cli/launcher/src/launch_tests.rs tmp-path 1
 cli/path/src/spelling.rs tmp-path 7
 cli/path/src/uri.rs tmp-path 18

@@ -1,4 +1,16 @@
-use super::coverage_candidate::{Candidate, Unavailable, candidate, tracked_orphans};
+#![deny(
+    clippy::indexing_slicing,
+    clippy::let_underscore_must_use,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok,
+    clippy::wildcard_enum_match_arm
+)]
+
+//! The test and coverage reports of `dx test` and `dx coverage`: test outcomes, `JUnit`,
+//! LCOV, coverage sources and the changed-line gate.
+
+use crate::coverage_candidate::{Candidate, Unavailable, candidate, tracked_orphans};
 use dx_bep::{
     ArtifactReader, OutputLocations, TestEvents, TestResultFile, TestResultRecord,
     collect_test_events,
@@ -31,6 +43,8 @@ use std::io::{BufReader, Write};
 use std::path::Path;
 
 mod account;
+mod changed_coverage;
+mod coverage_candidate;
 use account::BAZEL_TESTS_FAILED;
 use account::{
     Evidence, Summaries, account_stream, attach_log, evidence_gap, filtered_notice,
@@ -38,7 +52,8 @@ use account::{
     mark_superseded_attempts, outcome_for, parse_cases, read_or_record, result_where,
     results_document, stable_exec_path, summary_statuses, tally_cases,
 };
-pub(crate) use account::{TestReportsRequest, output_locations};
+pub use account::{TestReportsRequest, output_locations};
+pub use changed_coverage::changed_lines;
 mod collect;
 use collect::{
     Collected, Sources, announce_no_collector, collect_lcov, collect_sources, collect_test_xml,
@@ -86,7 +101,7 @@ struct Emitted {
     gates_ok: bool,
 }
 
-pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
+pub fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let TestReportsRequest {
         invocation,
         workspace,
@@ -172,7 +187,7 @@ fn gather(
     } else {
         Sources::default()
     };
-    super::remove_scratch(bep);
+    dx_exec_core::common::remove_scratch(bep);
     let (events, stream_problem) = match read {
         Ok(read) => read,
         Err(error) => {
@@ -565,7 +580,7 @@ fn coverage_gates(
         )?;
     }
     let changed_ok = if coverage {
-        let gate = super::changed_coverage::ChangedGate {
+        let gate = crate::changed_coverage::ChangedGate {
             minimum: invocation.min_changed_line_coverage,
             account,
             lcov_documents,
@@ -573,7 +588,7 @@ fn coverage_gates(
             runner: query_runner,
             output: invocation.output,
         };
-        super::changed_coverage::changed_line_threshold(&gate, out, err)?
+        crate::changed_coverage::changed_line_threshold(&gate, out, err)?
     } else {
         true
     };
@@ -629,7 +644,7 @@ fn emit_exit_events(
 }
 
 /// The workspace has no test targets: `dx test //...` passes with a notice.
-pub(super) fn no_tests_in_workspace(
+fn no_tests_in_workspace(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,

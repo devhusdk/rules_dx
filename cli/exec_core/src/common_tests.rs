@@ -1283,3 +1283,28 @@ fn a_git_failure_with_a_line_keeps_its_exit_status() {
         "git diff failed: error: pathspec 'x' did not match (exit 1)"
     );
 }
+
+#[test]
+fn remove_scratch_removes_a_file() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let file = dir.path().join("events.bep");
+    std::fs::write(&file, b"x").expect("write scratch");
+    remove_scratch(&file);
+    assert!(!file.exists());
+}
+
+#[test]
+fn remove_scratch_returns_for_a_missing_path() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    remove_scratch(&dir.path().join("absent.bep"));
+    assert!(dir.path().is_dir());
+}
+
+#[test]
+fn remove_scratch_returns_and_keeps_a_directory() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let nested = dir.path().join("nested");
+    std::fs::create_dir_all(&nested).expect("create dir");
+    remove_scratch(&nested);
+    assert!(nested.is_dir());
+}

@@ -16,6 +16,7 @@ rust_library(
     crate_name = "pub_lock",
     crate_root = "src/resolve.rs",
     deps = [
+        "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
     ],
@@ -23,7 +24,10 @@ rust_library(
 
 dx_subcommand(
     name = "lock",
-    path_args = {"--dart": "//dart/private/tools:dart"},
+    path_args = {
+        "--chmod": "//core/coreutils:chmod",
+        "--dart": "//dart/private/tools:dart",
+    },
     subcommand = "dart_lock",
     target_compatible_with = DART_COMPATIBLE_WITH,
     visibility = ["//:__subpackages__"],
@@ -46,6 +50,7 @@ rust_test(
     target_compatible_with = DART_COMPATIBLE_WITH,
     deps = [
         ":pub_lock_lib",
+        "//cli/digest:dx_digest",
         "//tools/testing:dx_testing",
     ],
 )

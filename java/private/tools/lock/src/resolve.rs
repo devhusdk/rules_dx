@@ -182,7 +182,18 @@ pub fn config(manifest: &str, repositories: &[String]) -> Result<String, String>
     serde_json::to_string_pretty(&config).map_err(|error| error.to_string())
 }
 
-/// Resolves the set's manifest and writes, or with `check` compares, its lock.
+/// The top-level lock key that records the sha256 of the manifest the lock was resolved from.
+pub const MARKER: &str = "__DX_INPUTS_SHA256";
+
+fn recorded(lock: &[u8]) -> Option<String> {
+    let parsed: Value = serde_json::from_slice(lock).ok()?;
+    parsed.get(MARKER)?.as_str().map(str::to_owned)
+}
+
+/// Resolves the set's manifest and writes, or with `check` compares the lock's marker to the
+/// manifest.
+///
+/// A lock whose marker matches the manifest digest is fresh without running the resolver.
 ///
 /// # Errors
 ///
@@ -191,19 +202,25 @@ pub fn lock(tools: &Tools, request: &Request) -> Result<Outcome, String> {
     let manifest_path = request.dir.join(&request.manifest);
     let manifest = std::fs::read_to_string(&manifest_path)
         .map_err(|error| format!("{}: {error}", manifest_path.display()))?;
-    let config = config(&manifest, &request.repositories)?;
-    let resolved = resolve(tools, &config)?;
+    let digest = dx_digest::sha256_hex(manifest.as_bytes());
     let lock_path = request.dir.join(&request.lock);
     let current = std::fs::read(&lock_path).ok();
-    if current.as_deref() == Some(resolved.as_slice()) {
-        Ok(Outcome::Fresh)
-    } else if request.check {
-        Ok(Outcome::Stale)
-    } else {
-        std::fs::write(&lock_path, &resolved)
-            .map_err(|error| format!("{}: {error}", lock_path.display()))?;
-        Ok(Outcome::Written)
+    if current.as_deref().and_then(recorded).as_deref() == Some(digest.as_str()) {
+        return Ok(Outcome::Fresh);
     }
+    if request.check {
+        return Ok(Outcome::Stale);
+    }
+    let config = config(&manifest, &request.repositories)?;
+    let resolved = resolve(tools, &config)?;
+    let Some(body) = resolved.strip_prefix(b"{\n") else {
+        return Err("the maven resolver output does not start with {".to_owned());
+    };
+    let mut marked = format!("{{\n  \"{MARKER}\": \"{digest}\",\n").into_bytes();
+    marked.extend_from_slice(body);
+    std::fs::write(&lock_path, &marked)
+        .map_err(|error| format!("{}: {error}", lock_path.display()))?;
+    Ok(Outcome::Written)
 }
 
 fn resolve(tools: &Tools, config: &str) -> Result<Vec<u8>, String> {

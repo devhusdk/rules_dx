@@ -17,6 +17,11 @@ coreutils_applets(
     name = "applets",
 )
 
+coreutils_applets(
+    name = "chmod",
+    applets = ["chmod"],
+)
+
 coreutils_applet_probe(
     name = "applet_probe",
     tags = ["manual"],

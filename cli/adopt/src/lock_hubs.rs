@@ -185,10 +185,11 @@ pub struct ResolverSet {
     pub resolver: &'static str,
 }
 
-/// The `MODULE.bazel` sets with a dx class lock, `<ecosystem>.lock.json`, whose directory holds the manifest.
+/// The `MODULE.bazel` sets whose `setup.hubs` entry has a resolver and whose directory holds the
+/// manifest.
 ///
-/// Only a dx class resolver skips the network when the lock matches its inputs; the pub and
-/// maven resolvers resolve again on every run, so a plain check would need the network.
+/// A maven set whose lock carries `__INPUT_ARTIFACTS_HASH` is pinned by `rules_jvm_external` and
+/// is left out.
 pub fn resolver_sets(root: &Path) -> Result<Vec<ResolverSet>, AdoptError> {
     let Some(registry) = crate::dependency_sets::load(root).map_err(refuse)? else {
         return Ok(Vec::new());
@@ -201,7 +202,7 @@ pub fn resolver_sets(root: &Path) -> Result<Vec<ResolverSet>, AdoptError> {
         let Some(resolver) = hub.resolver.as_deref() else {
             continue;
         };
-        if hub.lock.as_deref() != Some(format!("{}.lock.json", hub.ecosystem).as_str()) {
+        if hub.ecosystem == "maven" && pinned_by_rules_jvm_external(root, &set.locks) {
             continue;
         }
         let dir = crate::dependency_sets::manifest_dir(&set.manifests);
@@ -215,6 +216,15 @@ pub fn resolver_sets(root: &Path) -> Result<Vec<ResolverSet>, AdoptError> {
         }
     }
     Ok(out)
+}
+
+fn pinned_by_rules_jvm_external(root: &Path, locks: &[String]) -> bool {
+    locks.first().is_some_and(|lock| {
+        std::fs::read(root.join(lock))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+            .is_some_and(|lock| lock.get("__INPUT_ARTIFACTS_HASH").is_some())
+    })
 }
 
 /// The ecosystems whose lock comes from the pinned resolver of their `setup.hubs` entry.
@@ -1170,13 +1180,26 @@ mod tests {
         )
     }
 
+    /// A `rules_jvm_external` hub named `name` whose catalog and lock sit in the directory `name`.
+    fn maven_stanza(name: &str) -> String {
+        format!(
+            "maven.from_toml(name = \"{name}\", libs_versions_toml = \"//{name}:{}\")\nmaven.install(name = \"{name}\", lock_file = \"//{name}:{}\")\n",
+            t("{maven:manifest}"),
+            t("{maven:lock}"),
+        )
+    }
+
     #[test]
-    fn resolver_sets_need_a_dx_class_lock_and_the_manifest() {
+    fn resolver_sets_need_a_resolver_and_the_manifest() {
         let dir = scratch("resolver_sets").unwrap();
         let module = [
             lock_stanza("composer", "web", "php"),
             lock_stanza("composer", "gone", "old"),
             lock_stanza("pub", "dart", "dart"),
+            "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\n"
+                .to_owned(),
+            maven_stanza("jvm"),
+            maven_stanza("rje"),
         ]
         .concat();
         write(dir.path(), MODULE_FILE, &module).unwrap();
@@ -1187,16 +1210,38 @@ mod tests {
             "{}",
         )
         .unwrap();
+        for jvm in ["jvm", "rje"] {
+            write(dir.path(), &format!("{jvm}/{}", t("{maven:manifest}")), "").unwrap();
+        }
+        write(
+            dir.path(),
+            &format!("jvm/{}", t("{maven:lock}")),
+            "{\n  \"__DX_INPUTS_SHA256\": \"00\"\n}\n",
+        )
+        .unwrap();
+        write(
+            dir.path(),
+            &format!("rje/{}", t("{maven:lock}")),
+            "{\n  \"__INPUT_ARTIFACTS_HASH\": 1\n}\n",
+        )
+        .unwrap();
         let sets = resolver_sets(dir.path()).expect("sets");
-        let hub = dx_families::hub("composer").expect("hub");
+        let set = |name: &str, dir: &str, ecosystem: &str| {
+            let hub = dx_families::hub(ecosystem).expect("hub");
+            ResolverSet {
+                name: name.to_owned(),
+                dir: dir.to_owned(),
+                manifest: &hub.manifest,
+                resolver: hub.resolver.as_deref().expect("resolver"),
+            }
+        };
         assert_eq!(
             sets,
-            [ResolverSet {
-                name: "web".to_owned(),
-                dir: "php".to_owned(),
-                manifest: t("{composer:manifest}"),
-                resolver: hub.resolver.as_deref().expect("resolver"),
-            }]
+            [
+                set("dart", "dart", "pub"),
+                set("jvm", "jvm", "maven"),
+                set("web", "php", "composer"),
+            ]
         );
         let none = scratch("resolver_sets_none").unwrap();
         assert_eq!(resolver_sets(none.path()).expect("sets"), []);

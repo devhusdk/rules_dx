@@ -82,7 +82,11 @@ coreutils_applet_probe = rule(
 
 def _coreutils_applets_impl(ctx):
     tools = coreutils(ctx)
-    applets = [f for f in tools.files.to_list() if f != tools.binary]
+    applets = [
+        f
+        for f in tools.files.to_list()
+        if f != tools.binary and (not ctx.attr.applets or f.basename.removesuffix(".exe") in ctx.attr.applets)
+    ]
     return [DefaultInfo(
         files = depset(applets),
         runfiles = ctx.runfiles(transitive_files = tools.files),
@@ -91,5 +95,8 @@ def _coreutils_applets_impl(ctx):
 coreutils_applets = rule(
     implementation = _coreutils_applets_impl,
     doc = "The applet links of the resolved coreutils, with the multicall binary in runfiles.",
+    attrs = {
+        "applets": attr.string_list(doc = "The applets to return; empty returns every applet."),
+    },
     toolchains = [COREUTILS_TOOLCHAIN_TYPE],
 )

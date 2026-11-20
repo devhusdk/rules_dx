@@ -11,7 +11,7 @@ load(":gazelle_hub_tests.bzl", "dx_gazelle_hub_tests")
 load(":guard_view_tests.bzl", "guard_view_tests")
 load(":hub.bzl", "GO_TOOLS", "unsupported_message")
 load(":hub_tests.bzl", "dx_prebuilt_hub_tests")
-load(":tools.bzl", "python_hub_lines", "registry_lines")
+load(":tools.bzl", "python_hub_lines", "registry_lines", "target_tools")
 
 exports_files(
     [
@@ -107,6 +107,14 @@ write_file(
     name = "python_hub_targets",
     out = "python_hub_targets.txt",
     content = python_hub_lines() + [""],
+    visibility = ["//tools/testing/consumer:__pkg__"],
+)
+
+# The tools whose hub selects on the target platform, one name per line.
+write_file(
+    name = "target_tools",
+    out = "target_tools.txt",
+    content = target_tools() + [""],
     visibility = ["//tools/testing/consumer:__pkg__"],
 )
 

@@ -133,14 +133,16 @@ rust_test(
 )
 
 # A nested consumer of the DX_PREBUILT_GUARD_LANGS fixtures that pins every registry tool of the
-# host with a stub. Fails when it still compiles a rules_dx binary that
-# prebuilt_guard_allowlist.txt does not name.
+# host, and every registry key of each DX_PREBUILT_TARGET_TOOLS tool, with a stub. Fails when it
+# still compiles a rules_dx binary that prebuilt_guard_allowlist.txt does not name, or when a
+# target tool does not select its download on each of its release platforms.
 PREBUILT_GUARD_DATA = [
     "prebuilt_guard_allowlist.txt",
     "//:module_srcs",
     "//cli/prebuilt:go_hub_targets",
     "//cli/prebuilt:python_hub_targets",
     "//cli/prebuilt:registry",
+    "//cli/prebuilt:target_tools",
     "//patches/rules_py:patches",
     "@dx_test_tags_sources//:consumer.json",
 ]
@@ -151,6 +153,7 @@ PREBUILT_GUARD_ENV = {
     "DX_PREBUILT_GUARD_ALLOWLIST": "$(rlocationpath prebuilt_guard_allowlist.txt)",
     "DX_PREBUILT_PYTHON_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:python_hub_targets)",
     "DX_PREBUILT_REGISTRY": "$(rlocationpath //cli/prebuilt:registry)",
+    "DX_PREBUILT_TARGET_TOOLS": "$(rlocationpath //cli/prebuilt:target_tools)",
 }
 
 nested_bazel_test(

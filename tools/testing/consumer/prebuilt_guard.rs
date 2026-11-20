@@ -325,9 +325,141 @@ pub fn wrapper_build(targets: &[&str]) -> String {
     build
 }
 
+/// The `@platforms` os and cpu of a registry platform key such as `windows_arm64`.
+pub fn release_platform(key: &str) -> Option<(&str, &str)> {
+    let (os, cpu) = key.split_once('_')?;
+    Some((os, if cpu == "arm64" { "aarch64" } else { cpu }))
+}
+
+/// The `.bzl` file of the `dx_target_guard` package: rule `target_root`, whose `deps` are split
+/// over `<rules_dx>//tools/platforms:<key>` for each of its `keys`.
+pub fn target_guard_bzl(rules_dx: &str) -> String {
+    format!(
+        "_PLATFORMS = Label(\"{rules_dx}//tools/platforms:BUILD.bazel\")\n\n\
+         def _platforms_impl(_settings, attr):\n    return {{key: {{\"//command_line_option:platforms\": [str(_PLATFORMS.same_package_label(key))]}} for key in attr.keys}}\n\n\
+         _platforms = transition(\n    implementation = _platforms_impl,\n    inputs = [],\n    outputs = [\"//command_line_option:platforms\"],\n)\n\n\
+         def _root_impl(_ctx):\n    return []\n\n\
+         target_root = rule(\n    implementation = _root_impl,\n    attrs = {{\n        \"keys\": attr.string_list(),\n        \"deps\": attr.label_list(cfg = _platforms),\n    }},\n)\n"
+    )
+}
+
+/// One target-platform tool of the `dx_target_guard` package: its registry keys and hub targets.
+pub struct TargetRoot {
+    pub tool: String,
+    pub keys: Vec<String>,
+    pub targets: Vec<String>,
+}
+
+/// The `BUILD.bazel` of the `dx_target_guard` package: one `target_root` per tool, and `targets`
+/// over all of them.
+pub fn target_guard_build(roots: &[TargetRoot]) -> String {
+    let quoted = |items: &[String]| -> String {
+        items
+            .iter()
+            .map(|item| format!("        \"{item}\",\n"))
+            .collect()
+    };
+    let mut build = String::from("load(\":defs.bzl\", \"target_root\")\n");
+    for root in roots {
+        build.push_str(&format!(
+            "\ntarget_root(\n    name = \"{}\",\n    testonly = True,\n    keys = [\n{}    ],\n    deps = [\n{}    ],\n)\n",
+            root.tool,
+            quoted(&root.keys),
+            quoted(&root.targets)
+        ));
+    }
+    let names: Vec<String> = roots.iter().map(|root| format!(":{}", root.tool)).collect();
+    build.push_str(&format!(
+        "\nfilegroup(\n    name = \"targets\",\n    testonly = True,\n    srcs = [\n{}    ],\n)\n",
+        quoted(&names)
+    ));
+    build
+}
+
+/// The canonical name of the repo that downloads `tool` for the registry platform `key`.
+pub fn target_repo(tool: &str, key: &str) -> Option<String> {
+    let (os, cpu) = release_platform(key)?;
+    Some(format!(
+        "rules_dx++dx_prebuilt+dx_{tool}_prebuilt_{os}_{cpu}"
+    ))
+}
+
+/// One line per (tool, key) of `roots` whose download repo no target in the `label_kind` cquery
+/// output comes from.
+pub fn missing_target_repos(cquery: &str, roots: &[TargetRoot]) -> Vec<String> {
+    let repos: BTreeSet<&str> = cquery
+        .lines()
+        .filter_map(|line| {
+            line.split_whitespace()
+                .nth(2)?
+                .strip_prefix("@@")?
+                .split_once("//")
+        })
+        .map(|(repo, _)| repo)
+        .collect();
+    roots
+        .iter()
+        .flat_map(|root| {
+            root.keys
+                .iter()
+                .map(move |key| (root.tool.as_str(), key.as_str()))
+        })
+        .filter_map(|(tool, key)| match target_repo(tool, key) {
+            Some(repo) if repos.contains(repo.as_str()) => None,
+            Some(repo) => Some(format!("{tool} on {key} does not select @@{repo}")),
+            None => Some(format!("{tool}: {key} is no registry platform key")),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn release_keys_map_to_platforms_constraints() {
+        assert_eq!(release_platform("linux_x86_64"), Some(("linux", "x86_64")));
+        assert_eq!(
+            release_platform("windows_arm64"),
+            Some(("windows", "aarch64"))
+        );
+        assert_eq!(release_platform("any"), None);
+        assert_eq!(
+            target_repo("runtime", "macos_arm64").as_deref(),
+            Some("rules_dx++dx_prebuilt+dx_runtime_prebuilt_macos_aarch64")
+        );
+    }
+
+    #[test]
+    fn the_target_guard_splits_each_tool_over_its_keys() {
+        let bzl = target_guard_bzl("@rules_dx");
+        assert!(
+            bzl.starts_with("_PLATFORMS = Label(\"@rules_dx//tools/platforms:BUILD.bazel\")\n")
+        );
+        assert!(bzl.contains("[str(_PLATFORMS.same_package_label(key))]"));
+        assert!(bzl.contains("\"deps\": attr.label_list(cfg = _platforms)"));
+        let roots = [TargetRoot {
+            tool: "runtime".to_owned(),
+            keys: vec!["linux_x86_64".to_owned(), "windows_arm64".to_owned()],
+            targets: vec!["@@rules_dx++dx_prebuilt+dx_prebuilt//:runtime".to_owned()],
+        }];
+        let build = target_guard_build(&roots);
+        assert!(build.starts_with("load(\":defs.bzl\", \"target_root\")\n"));
+        assert!(build.contains(
+            "name = \"runtime\",\n    testonly = True,\n    keys = [\n        \"linux_x86_64\",\n        \"windows_arm64\",\n    ],\n    deps = [\n        \"@@rules_dx++dx_prebuilt+dx_prebuilt//:runtime\",\n    ],"
+        ));
+        assert!(build.contains(
+            "name = \"targets\",\n    testonly = True,\n    srcs = [\n        \":runtime\",\n    ],"
+        ));
+        let cquery = "native_binary rule @@rules_dx++dx_prebuilt+dx_prebuilt//:runtime_linux_x86_64 (abc)\n\
+                      source file @@rules_dx++dx_prebuilt+dx_runtime_prebuilt_linux_x86_64//file:runtime (null)\n";
+        assert_eq!(
+            missing_target_repos(cquery, &roots),
+            [
+                "runtime on windows_arm64 does not select @@rules_dx++dx_prebuilt+dx_runtime_prebuilt_windows_aarch64"
+            ]
+        );
+    }
 
     #[test]
     fn a_java_binary_without_rules_dx_sources_launches_jars() {

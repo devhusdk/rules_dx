@@ -270,6 +270,10 @@ def python_hub_lines():
         for name, tool in PYTHON_BUNDLE_TOOLS.items()
     ])
 
+def target_tools():
+    """Returns the sorted names of the tools that run on the target platform."""
+    return sorted([tool for tool, entry in TOOLS.items() if entry.role == "target"])
+
 def registry_lines():
     """Returns one "<tool> <key> <asset>" line per release asset, sorted, for fill_pins."""
     return sorted([

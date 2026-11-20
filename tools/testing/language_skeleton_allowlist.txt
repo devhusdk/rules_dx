@@ -161,7 +161,6 @@ fixture-referenced zig/tests/fixtures/calc
 outside-lang core/quality/tools/python
 private-visibility apple/private/provisioning/BUILD.bazel
 private-visibility astro/private/BUILD.bazel
-private-visibility cc/private/BUILD.bazel
 private-visibility cc/private/toolchain/BUILD.bazel
 private-visibility cc/private/toolchain/gcc_features/BUILD.bazel
 private-visibility cuda/private/toolchain/BUILD.bazel
@@ -181,7 +180,6 @@ private-visibility javascript/private/quality/bin/BUILD.bazel
 private-visibility julia/private/BUILD.bazel
 private-visibility julia/private/tools/BUILD.bazel
 private-visibility kotlin/private/BUILD.bazel
-private-visibility lua/private/BUILD.bazel
 private-visibility lua/private/toolchain/BUILD.bazel
 private-visibility lua/private/tools/BUILD.bazel
 private-visibility msix/private/BUILD.bazel
@@ -195,7 +193,6 @@ private-visibility perl/private/BUILD.bazel
 private-visibility perl/private/tools/BUILD.bazel
 private-visibility php/private/toolchain/BUILD.bazel
 private-visibility php/private/tools/BUILD.bazel
-private-visibility python/private/BUILD.bazel
 private-visibility qt/private/BUILD.bazel
 private-visibility qt/private/platforms/BUILD.bazel
 private-visibility qt/private/toolchain/BUILD.bazel

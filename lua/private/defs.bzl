@@ -2,7 +2,7 @@
 
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags")
-load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_quality_sources", "dx_upstream", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_private_dep_rule", "dx_quality_sources", "dx_upstream", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
 load(
     "//lua/private:lua.bzl",
     "LUA_EXECUTABLE_ATTRS",
@@ -90,14 +90,26 @@ def lua_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """A Lua test; it passes when main returns or calls os.exit(0)."""
     dx_wrap_test(name, _lua_test, _lua_forward_test, srcs or [], visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
+_lua_bench_lib = dx_private_dep_rule(
+    Label("//lua/private:bench"),
+    [_LuaInfo, DefaultInfo, InstrumentedFilesInfo, OutputGroupInfo, QualitySourcesInfo],
+    "Provides the dx_bench module lua_bench requires.",
+)
+
 def lua_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs):
     """A lua_test run by dx bench: main calls require("dx_bench").run({{name, fn}, ...}), which times each function with os.clock and writes dx-bench.json."""
     main = dx_infer_main("lua_bench", name, main, srcs, dx_main_candidates(name, ".lua"))
+    _lua_bench_lib(
+        name = name + "_dx_bench",
+        testonly = True,
+        tags = dx_upstream_tags(tags),
+        visibility = ["//visibility:private"],
+    )
     lua_test(
         name = name,
         srcs = srcs,
         main = main,
-        deps = (deps or []) + [Label("//lua/private:bench")],
+        deps = (deps or []) + [":" + name + "_dx_bench"],
         tags = merge_tags(tags, "dx-bench"),
         **kwargs
     )

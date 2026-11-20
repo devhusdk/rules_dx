@@ -212,7 +212,7 @@ _rust_forward_binary = dx_executable_forward_rule(
 )
 
 def _shard_launcher(ctx):
-    return ctx.attr._shard_runner[DefaultInfo] if ctx.attr.sharded else None
+    return ctx.attr.shard_runner[DefaultInfo] if ctx.attr.shard_runner else None
 
 _rust_forward_test = dx_executable_forward_rule(
     _RUST,
@@ -232,9 +232,8 @@ _rust_forward_test = dx_executable_forward_rule(
             "coverage_lib": attr.label(
                 doc = "The library whose sources the test compiles itself, so coverage counts them as production code.",
             ),
-            "sharded": attr.bool(doc = "Runs the binary through the shard runner, which honours the Bazel test sharding protocol."),
-            "_shard_runner": attr.label(
-                default = Label("//rust/private/tools/shard_runner"),
+            "shard_runner": attr.label(
+                doc = "The dx-runtime binary that runs the test as one Bazel test shard, or None to run it directly.",
                 executable = True,
                 cfg = "target",
             ),
@@ -405,6 +404,10 @@ def rust_test(
     if wasm == "wasi":
         _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs)
         return
+    shard_count = kwargs.get("shard_count")
+    sharded = type(shard_count) == "int" and shard_count > 1
+    if sharded:
+        kwargs["env"] = (kwargs.get("env") or {}) | {"DX_RUNTIME_TOOL": "shard_runner"}
     upstream_kwargs = _libstdcxx_upstream(kwargs, link = True)
     upstream_kwargs["crate"] = crate
     upstream_kwargs["edition"] = edition
@@ -416,9 +419,8 @@ def rust_test(
         forward_kwargs["coverage_lib"] = coverage_lib
     if runtime_dlls != None:
         forward_kwargs["runtime_dlls"] = runtime_dlls
-    shard_count = kwargs.get("shard_count")
-    if type(shard_count) == "int" and shard_count > 1:
-        forward_kwargs["sharded"] = True
+    if sharded:
+        forward_kwargs["shard_runner"] = Label("@dx_prebuilt//:runtime")
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, **kwargs)
 
 def rust_bench(

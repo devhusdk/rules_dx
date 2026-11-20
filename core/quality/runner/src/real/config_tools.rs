@@ -1,4 +1,4 @@
-use quality_adapter::{TextPosition, commands, parsers};
+use quality_adapter::{TextPosition, commands, parsers, regal_preflight};
 
 use super::check::{ToolDef, group_by_parent, without_scratch_url};
 use super::{
@@ -40,6 +40,9 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let Some(config) = config else {
                 return Err(execution(tool_id, "regal needs a config path".to_owned()));
             };
+            let text = std::fs::read_to_string(config)
+                .map_err(|err| execution(tool_id, format!("read config: {err}")))?;
+            regal_preflight::check_config(&text).map_err(|err| execution(tool_id, err))?;
             std::fs::create_dir_all(scratch.root().join(".regal"))
                 .map_err(|err| execution(tool_id, format!("stage .regal: {err}")))?;
             let relative: Vec<&Path> = pairs

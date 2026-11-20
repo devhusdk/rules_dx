@@ -172,6 +172,7 @@ single_version_override(
     module_name = "rules_cuda",
     patch_strip = 1,
     patches = [
+        "//patches/rules_cuda:coverage_keep.patch",
         "//patches/rules_cuda:msvc_dlink_crt.patch",
         "//patches/rules_cuda:toolchains_gate.patch",
     ],

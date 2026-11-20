@@ -31,7 +31,6 @@ apple lint_test *
 apple lock_test *
 apple pass_test *
 apple runfiles_test *
-cuda coverage_test *
 cuda cross_test *
 cuda lint_error_test linux_arm64
 cuda lint_test linux_arm64

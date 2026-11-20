@@ -14,6 +14,7 @@
 pub mod apple;
 mod collect;
 mod gcov;
+mod linemap;
 
 use std::env;
 use std::fs;
@@ -92,6 +93,17 @@ impl Context {
             }
         }
         Ok(objects)
+    }
+
+    /// Finds a file nvcc kept under `--keep-dir`, in the execroot or in runfiles.
+    fn kept_file(&self, source: &str) -> Option<PathBuf> {
+        let in_execroot = collect::resolve(&self.execroot, source);
+        if in_execroot.exists() {
+            return Some(in_execroot);
+        }
+        let key = gcov::runfiles_key(source, &env::var("TEST_WORKSPACE").ok()?)?;
+        let in_runfiles = self.runfiles_dir.as_ref()?.join(key);
+        in_runfiles.exists().then_some(in_runfiles)
     }
 
     fn object(&self, line: &str) -> Option<PathBuf> {
@@ -210,6 +222,7 @@ fn export(
     let report = String::from_utf8(out.stdout)
         .map_err(|error| format!("llvm-cov export wrote non-UTF-8: {error}"))?;
     let report = collect::rewrite_paths(&report, &ctx.execroot);
+    let report = linemap::remap(&report, &|source| ctx.kept_file(source));
     for source in report.lines().filter(|line| line.starts_with("SF:")) {
         debug_log!("{source}");
     }

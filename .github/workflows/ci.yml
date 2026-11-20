@@ -989,7 +989,7 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           mkdir -p "$RUNNER_TEMP/exec-log"
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=all "--execution_log_compact_file=$RUNNER_TEMP/exec-log/launch-smoke.log" "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/... //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia_app/... //julia/private/tools/... 2>&1 | tee "$RUNNER_TEMP/launch-smoke.log"
+          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=all "--execution_log_compact_file=$RUNNER_TEMP/exec-log/launch-smoke.log" "$@" -- //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/... //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia_app/... //julia/private/tools/... -//julia/tests/fixtures/hello:hello_standalone_output_test -//julia/tests/fixtures/hello:relocate_test -//julia/private/tools/lint/... -//julia/private/tools/jet/... 2>&1 | tee "$RUNNER_TEMP/launch-smoke.log"
       - name: Check the upload holds no secret
         id: scan-exec-log
         if: always()
@@ -1024,9 +1024,9 @@ jobs:
           RUNNER_LABEL: ${{ matrix.runner }}
         run: |
           echo "### preflight ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the Zig example and hello fixture on ${RUNNER_LABEL}, and analyzed the gRPC C++ fixture targets." >> "$GITHUB_STEP_SUMMARY"
+          echo "Built dx plus the native hello fixture, installed and replaced the bootstrap environment, then launched dx, hello, and the Zig example and hello fixture on ${RUNNER_LABEL}, and analyzed the gRPC C++ fixture targets. The Julia standalone and tool tests run in launch-heavy." >> "$GITHUB_STEP_SUMMARY"
           if [ -f "$RUNNER_TEMP/launch-smoke.log" ]; then
-            { grep -E '^(@@?[^ ]*)?//[^ ]+ +FLAKY' "$RUNNER_TEMP/launch-smoke.log" || true; } | tr -d '\r' | awk '{print $1}' | sort -u > "$RUNNER_TEMP/launch-smoke-flaky"
+            tr -d '\r' < "$RUNNER_TEMP/launch-smoke.log" | awk '/^(@@?[^ ]*)?\/\/[^ ]+ +FLAKY/ {print $1}' | sort -u > "$RUNNER_TEMP/launch-smoke-flaky"
             if [ -s "$RUNNER_TEMP/launch-smoke-flaky" ]; then
               echo "#### FLAKY (passed on retry)" >> "$GITHUB_STEP_SUMMARY"
               sed 's/^/- /' "$RUNNER_TEMP/launch-smoke-flaky" >> "$GITHUB_STEP_SUMMARY"
@@ -1109,10 +1109,65 @@ jobs:
           echo "### quality-matrix ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
           echo "Ran the per-platform quality runner matrix tests on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
           if [ -f "$RUNNER_TEMP/quality-matrix.log" ]; then
-            { grep -E '^(@@?[^ ]*)?//[^ ]+ +FLAKY' "$RUNNER_TEMP/quality-matrix.log" || true; } | tr -d '\r' | awk '{print $1}' | sort -u > "$RUNNER_TEMP/quality-matrix-flaky"
+            tr -d '\r' < "$RUNNER_TEMP/quality-matrix.log" | awk '/^(@@?[^ ]*)?\/\/[^ ]+ +FLAKY/ {print $1}' | sort -u > "$RUNNER_TEMP/quality-matrix-flaky"
             if [ -s "$RUNNER_TEMP/quality-matrix-flaky" ]; then
               echo "#### FLAKY (passed on retry)" >> "$GITHUB_STEP_SUMMARY"
               sed 's/^/- /' "$RUNNER_TEMP/quality-matrix-flaky" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+  launch-heavy:
+    name: launch-heavy (Julia tools and standalone, long cold builds) (${{ matrix.platform }}, ${{ matrix.runner }})
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux_x86_64
+            runner: ubuntu-latest
+          - platform: linux_arm64
+            runner: ubuntu-24.04-arm
+          - platform: macos_arm64
+            runner: macos-15
+          - platform: windows_x86_64
+            runner: windows-latest
+          - platform: windows_arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - name: Check out files in parallel
+        run: |
+          git init "$GITHUB_WORKSPACE"
+          git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 fetch --depth=1 --no-tags origin "$GITHUB_SHA"
+          git -C "$GITHUB_WORKSPACE" -c checkout.workers=0 checkout --force FETCH_HEAD
+      - uses: ./.github/actions/setup-bazel
+        with:
+          cache-save: ${{ github.event_name != 'pull_request' }}
+      - name: Run the Julia standalone and tool tests
+        run: |
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS
+          # shellcheck disable=SC2086
+          bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors --skip_incompatible_explicit_targets "$@" //julia/tests/fixtures/hello:hello_standalone_output_test //julia/tests/fixtures/hello:relocate_test //julia/private/tools/lint/... //julia/private/tools/jet/... 2>&1 | tee "$RUNNER_TEMP/launch-heavy.log"
+      - name: Write job summary
+        if: always()
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          JOB_STATUS: ${{ job.status }}
+          RUNNER_LABEL: ${{ matrix.runner }}
+        run: |
+          echo "### launch-heavy ${PLATFORM} — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Ran the Julia standalone, relocate, lint and JET tests on ${RUNNER_LABEL}." >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/launch-heavy.log" ]; then
+            tr -d '\r' < "$RUNNER_TEMP/launch-heavy.log" | awk '/^(@@?[^ ]*)?\/\/[^ ]+ +FLAKY/ {print $1}' | sort -u > "$RUNNER_TEMP/launch-heavy-flaky"
+            if [ -s "$RUNNER_TEMP/launch-heavy-flaky" ]; then
+              echo "#### FLAKY (passed on retry)" >> "$GITHUB_STEP_SUMMARY"
+              sed 's/^/- /' "$RUNNER_TEMP/launch-heavy-flaky" >> "$GITHUB_STEP_SUMMARY"
             fi
           fi
   workflow-check:
@@ -1240,6 +1295,7 @@ jobs:
         hermetic,
         hermetic-macos,
         hermetic-windows,
+        launch-heavy,
         llvm-cross-build-macos,
         llvm-cross-build-windows,
         llvm-cross-run-macos-arm64,

@@ -60,6 +60,7 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "hermetic",
         "hermetic-macos",
         "hermetic-windows",
+        "launch-heavy",
         "llvm-cross-build-macos",
         "llvm-cross-build-windows",
         "llvm-cross-run-macos-arm64",

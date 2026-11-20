@@ -231,11 +231,57 @@ func (*rustLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve
 	if r.Kind() != libraryKind && r.Kind() != procMacroKind {
 		return nil
 	}
+	return []resolve.ImportSpec{{Lang: languageName, Imp: effectiveCrateName(r)}}
+}
+
+// effectiveCrateName is the crate name rules_rust gives r: crate_name, else
+// the rule name with "-" and "/" replaced by "_".
+func effectiveCrateName(r *rule.Rule) string {
+	if name := r.AttrString("crate_name"); name != "" {
+		return name
+	}
+	return strings.NewReplacer("-", "_", "/", "_").Replace(r.Name())
+}
+
+// effectiveCrateRoot is the crate root rules_rust compiles r from
+// (crate_root_src in rules_rust/rust/private/utils.bzl), relative to the
+// package. It is "" when r wraps a crate= target, has no plain srcs list or
+// rules_rust could not infer a root.
+func effectiveCrateRoot(r *rule.Rule) string {
+	if root := r.AttrString("crate_root"); root != "" {
+		return root
+	}
+	if r.Attr("crate") != nil {
+		return ""
+	}
+	srcs := plainStrings(r.Attr("srcs"))
+	if len(srcs) == 1 {
+		return srcs[0]
+	}
+	defaultRoot := "lib.rs"
+	if r.Kind() == binaryKind {
+		defaultRoot = "main.rs"
+	} else if r.Kind() == testKind {
+		if harness, ok := r.Attr("use_libtest_harness").(*bzl.Ident); ok && harness.Name == "False" {
+			defaultRoot = "main.rs"
+		}
+	}
 	crateName := r.AttrString("crate_name")
 	if crateName == "" {
 		crateName = r.Name()
 	}
-	return []resolve.ImportSpec{{Lang: languageName, Imp: crateName}}
+	for _, base := range []string{defaultRoot, r.Name() + ".rs", crateName + ".rs"} {
+		shortest := ""
+		for _, src := range srcs {
+			if path.Base(src) == base && (shortest == "" || len(path.Dir(src)) < len(path.Dir(shortest))) {
+				shortest = src
+			}
+		}
+		if shortest != "" {
+			return shortest
+		}
+	}
+	return ""
 }
 
 func (*rustLang) Embeds(*rule.Rule, label.Label) []label.Label { return nil }
@@ -252,10 +298,8 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 		return language.GenerateResult{}
 	}
 	files = withoutExcluded(files, args)
-	for _, name := range args.RegularFiles {
-		if name == cargoManifestFile {
-			return l.generateCargo(args, files)
-		}
+	if hasCargoManifest(args) {
+		return l.generateCargo(args, files)
 	}
 	if len(files) == 0 {
 		return l.finish(args, language.GenerateResult{})
@@ -335,6 +379,15 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 	return l.finish(args, result)
 }
 
+func hasCargoManifest(args language.GenerateArgs) bool {
+	for _, name := range args.RegularFiles {
+		if name == cargoManifestFile {
+			return true
+		}
+	}
+	return false
+}
+
 // sourceOnlyTestImports returns the imports of a source-only unit test. A
 // self-contained test compiles the whole tree, so it needs the production
 // imports too; a crate= wrapper inherits those from its crate.
@@ -348,6 +401,9 @@ func sourceOnlyTestImports(tree map[string]*FileFacts, selfContained bool) targe
 
 func (l *rustLang) finish(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
 	renamed := adoptExistingNames(args.File, result.Gen)
+	if !hasCargoManifest(args) {
+		adoptExistingCrateNames(args.File, result.Gen)
+	}
 	inherited, err := inheritCrateAttrs(args.File, result.Gen)
 	if err != nil {
 		l.fail(common.InPackage(args.Rel), "%v", err)
@@ -485,7 +541,7 @@ func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {
 			continue
 		}
 		old := r.Name()
-		adopted[r] = adopt(r, func(existing *rule.Rule) bool { return existing.AttrString("crate_root") == root })
+		adopted[r] = adopt(r, func(existing *rule.Rule) bool { return effectiveCrateRoot(existing) == root })
 		if r.Name() != old {
 			renamed[old] = r.Name()
 		}
@@ -526,16 +582,63 @@ func adoptExistingNames(file *rule.File, gen []*rule.Rule) map[string]string {
 			continue
 		}
 		// A crate= unit test also adopts the self-contained test it
-		// replaces: same crate root and crate name as its crate target.
+		// replaces: same crate root and crate name as its crate target,
+		// generated or existing.
 		if lib := byName[crate[1:]]; lib != nil && of != "" {
-			root, name := lib.AttrString("crate_root"), lib.AttrString("crate_name")
+			root := lib.AttrString("crate_root")
+			names := map[string]bool{lib.AttrString("crate_name"): true}
+			for _, existing := range file.Rules {
+				if existing.Kind() == lib.Kind() && existing.Name() == lib.Name() {
+					names[effectiveCrateName(existing)] = true
+				}
+			}
 			adopt(r, func(existing *rule.Rule) bool {
 				return existing.Attr("crate") == nil && root != "" &&
-					existing.AttrString("crate_root") == root && existing.AttrString("crate_name") == name
+					effectiveCrateRoot(existing) == root && names[effectiveCrateName(existing)]
 			})
 		}
 	}
 	return renamed
+}
+
+// adoptExistingCrateNames keeps the crate names of the rules in file for a
+// package without a Cargo manifest, where nothing else names the crate. A
+// crate rule takes the crate_name of the existing rule of its kind and name,
+// or drops its own when that rule has none. A self-contained unit test then
+// takes the crate name of its crate target.
+func adoptExistingCrateNames(file *rule.File, gen []*rule.Rule) {
+	if file == nil {
+		return
+	}
+	existing := make(map[string]*rule.Rule, len(file.Rules))
+	for _, r := range file.Rules {
+		existing[r.Kind()+":"+r.Name()] = r
+	}
+	byName := make(map[string]*rule.Rule, len(gen))
+	for _, r := range gen {
+		byName[r.Name()] = r
+		if r.AttrString("crate_root") == "" || unitTestOf(r) != "" {
+			continue
+		}
+		old := existing[r.Kind()+":"+r.Name()]
+		if old == nil {
+			continue
+		}
+		if name := old.Attr("crate_name"); name != nil {
+			r.SetAttr("crate_name", name)
+		} else {
+			r.DelAttr("crate_name")
+		}
+	}
+	for _, r := range gen {
+		of := unitTestOf(r)
+		if of == "" || r.AttrString("crate_root") == "" {
+			continue
+		}
+		if crate := byName[of]; crate != nil {
+			r.SetAttr("crate_name", effectiveCrateName(crate))
+		}
+	}
 }
 
 // crateInheritedAttrs are attributes a crate= unit test inherits from its

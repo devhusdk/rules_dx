@@ -61,6 +61,7 @@ def _checks():
     source_jars = with_jars(alias_build(SOURCE_LABEL), plan_jars("1.2.3", {}, URL_TEMPLATE))
     pinned_jars = plan_jars("1.2.3", {"javac_check": {"any": _HASH}}, URL_TEMPLATE)
     pinned_jars_build = with_jars(pinned_build, pinned_jars)
+    all_jars_build = with_jars(pinned_build, plan_jars("1.2.3", {t: {"any": _HASH} for t in JAR_TOOLS}, URL_TEMPLATE))
     javac = [j for j in pinned_jars if j.tool == "javac_check"][0]
     jar_root = plan_root([_mod("app", True, assets = [_tag(name = "javac_check", os = "any", cpu = "any")])], tools = ["dx"] + JAR_TOOLS)
     jar_linux = plan_root([_mod("app", True, assets = [_tag(name = "javac_check")])], tools = ["dx"] + JAR_TOOLS)
@@ -202,7 +203,10 @@ def _checks():
         expect_contains("a pinned jar tool aliases its download as the deploy jar", pinned_jars_build, 'name = "javac_check_deploy.jar",\n    actual = "@dx_prebuilt_javac_check//file:dx-javac-check-any.jar",'),
         expect_true("a pinned jar hub loads the java rules first", pinned_jars_build.startswith('load("@rules_java//java:defs.bzl", "java_binary", "java_import")\n')),
         expect_contains("a pinned jar is imported", pinned_jars_build, 'name = "javac_check_jar",\n    jars = ["@dx_prebuilt_javac_check//file:dx-javac-check-any.jar"],'),
-        expect_contains("a pinned jar runs its main class", pinned_jars_build, 'name = "javac_check",\n    main_class = "dx.quality.javac.Main",'),
+        expect_contains("a pinned jar runs its main class", pinned_jars_build, 'name = "javac_check_jvm",\n    main_class = "dx.quality.javac.Main",'),
+        expect_contains("a pinned jar tool aliases its java_binary", pinned_jars_build, 'name = "javac_check",\n    actual = ":javac_check_jvm",'),
+        expect_equal("every pinned jar tool runs a suffixed java_binary", [t for t in JAR_TOOLS if 'java_binary(\n    name = "{}_jvm",'.format(t) not in all_jars_build], []),
+        expect_equal("no pinned jar tool declares a deploy jar for its java_binary", [t for t in JAR_TOOLS if 'name = "{}_jvm_deploy.jar"'.format(t) in all_jars_build], []),
         expect_false("a pinned jar never names its source", TOOLS["javac_check"].source in pinned_jars_build),
         expect_equal("pins.bzl is schema 1", SCHEMA, 1),
         expect_equal("pins name only registry tools and platforms", [(t, k) for t, by_key in PINS.items() for k in by_key if t not in TOOLS or k not in TOOLS[t].platforms], []),

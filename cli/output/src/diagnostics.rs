@@ -190,7 +190,10 @@ pub fn diagnostic_excerpt(bytes: &[u8], max_lines: usize, max_bytes: usize) -> O
     }
     let mut text = joined(&head, &tail);
     if text.len() > max_bytes {
-        text = truncate_line(&text, max_bytes);
+        text = truncate_line(&text, max_bytes.saturating_sub(3));
+        if text.len() > max_bytes {
+            text = "...".get(..max_bytes).unwrap_or_default().to_owned();
+        }
         truncated = true;
     }
     Some(Excerpt { text, truncated })
@@ -295,6 +298,22 @@ mod tests {
         let tiny = diagnostic_excerpt(stderr.as_bytes(), 20, 5).expect("excerpt");
         assert!(tiny.text.len() <= 8);
         assert!(tiny.truncated);
+    }
+
+    #[test]
+    fn excerpt_text_never_exceeds_the_byte_cap() {
+        let stderr = format!("ERROR: {}\n", "x".repeat(200));
+        for max_bytes in 0..=12 {
+            let got = diagnostic_excerpt(stderr.as_bytes(), 20, max_bytes).expect("excerpt");
+            assert!(
+                got.text.len() <= max_bytes,
+                "max_bytes {max_bytes}: {:?}",
+                got.text
+            );
+            assert!(got.truncated);
+        }
+        let got = diagnostic_excerpt(stderr.as_bytes(), 20, 10).expect("excerpt");
+        assert_eq!(got.text, "ERROR: ...");
     }
 
     #[test]

@@ -6,9 +6,9 @@ use std::io;
 use std::io::IsTerminal;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 /// How the child sees the environment.
@@ -238,15 +238,16 @@ pub fn run_command_with_input(
         });
     }
     let limit = capture.max_bytes;
-    let stdout_rx = drain_pipe(owned.take_stdout(), limit);
-    let stderr_rx = drain_pipe(owned.take_stderr(), limit);
+    let over = Arc::new(AtomicBool::new(false));
+    let stdout_rx = drain_pipe(owned.take_stdout(), limit, Arc::clone(&over));
+    let stderr_rx = drain_pipe(owned.take_stderr(), limit, Arc::clone(&over));
     let start = Instant::now();
     let soft = after(start, timeout);
     let mut hard = after(soft, cleanup.total());
     let mut status = None;
     let mut wait_error = None;
     while Instant::now() < soft {
-        if stop().is_some() {
+        if stop().is_some() || over.load(Ordering::SeqCst) {
             hard = after(Instant::now(), cleanup.total());
             break;
         }
@@ -303,7 +304,11 @@ pub fn run_command_with_input(
             poll_exit(&mut owned, hard.min(after(Instant::now(), cleanup.forced)));
         let _: Drain = collect(&stdout_rx, hard);
         let _: Drain = collect(&stderr_rx, hard);
-        Ok(ChildOutcome::TimedOut)
+        if over.load(Ordering::SeqCst) {
+            Ok(ChildOutcome::OutputTooLarge { limit })
+        } else {
+            Ok(ChildOutcome::TimedOut)
+        }
     }
 }
 
@@ -364,6 +369,7 @@ fn collect(rx: &mpsc::Receiver<Vec<u8>>, until: Instant) -> Drain {
 fn drain_pipe<R: io::Read + Send + 'static>(
     pipe: Option<R>,
     limit: usize,
+    over: Arc<AtomicBool>,
 ) -> mpsc::Receiver<Vec<u8>> {
     let (tx, rx) = mpsc::channel();
     match pipe {
@@ -380,6 +386,9 @@ fn drain_pipe<R: io::Read + Send + 'static>(
                         Ok(n) => {
                             let room = limit.saturating_add(1).saturating_sub(buf.len());
                             buf.extend(chunk.iter().take(n.min(room)));
+                            if buf.len() > limit {
+                                over.store(true, Ordering::SeqCst);
+                            }
                         }
                         Err(err) if err.kind() == io::ErrorKind::Interrupted => continue,
                         Err(_) => break,

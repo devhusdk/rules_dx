@@ -1979,7 +1979,7 @@ fn waiting_with_nothing_pending_returns() {
 
 #[test]
 fn a_missing_pipe_drains_to_nothing() {
-    let rx = drain_pipe(None::<std::io::Empty>, 16);
+    let rx = drain_pipe(None::<std::io::Empty>, 16, std::sync::Arc::default());
     assert!(matches!(
         collect(&rx, Instant::now() + Duration::from_secs(10)),
         Drain::Ready(buf) if buf.is_empty()
@@ -2006,7 +2006,7 @@ impl io::Read for FlakyPipe {
 
 #[test]
 fn a_drain_retries_interrupts_and_keeps_what_it_read_after_an_error() {
-    let rx = drain_pipe(Some(FlakyPipe { reads: 0 }), 16);
+    let rx = drain_pipe(Some(FlakyPipe { reads: 0 }), 16, std::sync::Arc::default());
     assert!(matches!(
         collect(&rx, Instant::now() + Duration::from_secs(10)),
         Drain::Ready(buf) if buf == b"ok"
@@ -2031,5 +2031,27 @@ fn a_child_that_ignores_term_is_killed_after_the_graceful_wait() {
     assert_eq!(
         run_within(&spec, budget).expect("timeout is an outcome"),
         ChildOutcome::TimedOut
+    );
+}
+
+#[test]
+fn output_past_the_limit_stops_a_child_that_keeps_running() {
+    let _serial = dx_testing::spawning();
+    let scratch = dx_test_scratch::scratch("dx-lifecycle-").unwrap();
+    let mut spec = controlled_spec(
+        scratch.path(),
+        probe_argv(&["--stdout-bytes=64", "--sleep-ms=60000"]),
+        Duration::from_secs(30),
+    );
+    spec.capture = CapturePolicy { max_bytes: 16 };
+    let started = Instant::now();
+    assert_eq!(
+        run(&spec).expect("oversize is an outcome"),
+        ChildOutcome::OutputTooLarge { limit: 16 }
+    );
+    assert!(
+        started.elapsed() < Duration::from_secs(15),
+        "an oversize child must not wait for the deadline: {:?}",
+        started.elapsed()
     );
 }

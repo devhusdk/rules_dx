@@ -1062,6 +1062,15 @@ fn expand_tilde_uses_home_and_leaves_user() {
 }
 
 #[test]
+fn expand_tilde_keeps_the_path_under_home() {
+    let home = || Some(OsString::from("/home/me"));
+    assert_eq!(
+        expand_tilde_with(Path::new("~//ws"), home()),
+        PathBuf::from("/home/me").join("ws")
+    );
+}
+
+#[test]
 fn expand_tilde_without_home_keeps_the_path() {
     assert_eq!(
         expand_tilde_with(Path::new("~/ws"), None),

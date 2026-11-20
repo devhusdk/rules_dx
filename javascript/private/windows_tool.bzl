@@ -48,25 +48,30 @@ windows_js_tool_shim = rule(
     executable = True,
 )
 
-def js_build_tool(name, tool, visibility = None):
+def js_build_tool(name, tool, tags = None, visibility = None):
     """Defines `name` as `tool`, wrapped in `windows_js_tool_shim` on Windows.
 
     Args:
         name: Name of the alias.
         tool: The js_binary to run.
+        tags: Tags of the alias; the shim also gets `manual`.
         visibility: Visibility of the alias.
     """
+    shim_tags = list(tags or [])
+    if "manual" not in shim_tags:
+        shim_tags.append("manual")
     windows_js_tool_shim(
         name = name + "_windows",
         tool = tool,
-        tags = ["manual"],
+        tags = shim_tags,
         visibility = visibility,
     )
     native.alias(
         name = name,
         actual = select({
-            "@platforms//os:windows": ":" + name + "_windows",
+            Label("@platforms//os:windows"): ":" + name + "_windows",
             "//conditions:default": tool,
         }),
+        tags = tags,
         visibility = visibility,
     )

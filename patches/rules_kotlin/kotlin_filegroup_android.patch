@@ -1,0 +1,17 @@
+Upstream: none (upstream-ready, not sent yet: #14257)
+
+diff --git a/kotlin/BUILD.bazel b/kotlin/BUILD.bazel
+index 2f62c01..697d160 100755
+--- a/kotlin/BUILD.bazel
++++ b/kotlin/BUILD.bazel
+@@ -26,9 +26,6 @@ toolchain(
+ 
+ filegroup(
+     name = "kotlin",
+-    srcs = glob(
+-        ["*.bzl"],
+-        exclude = ["android.bzl"],
+-    ),
++    srcs = glob(["*.bzl"]),
+     visibility = ["//visibility:public"],
+ )

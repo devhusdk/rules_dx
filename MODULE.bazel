@@ -385,7 +385,7 @@ single_version_override(
     patches = [
         "//patches/rules_android:bundle_keystore_properties.patch",
         "//patches/rules_android:java8_dex_runfiles.patch",
-        "//patches/rules_android:dx_bzl_srcs.patch",
+        "//patches/rules_android:public_bzl_library.patch",
     ],
     version = "0.8.1",
 )
@@ -395,7 +395,7 @@ bazel_dep(name = "rules_kotlin", version = "2.4.21")
 single_version_override(
     module_name = "rules_kotlin",
     patch_strip = 1,
-    patches = ["//patches/rules_kotlin:dx_bzl_srcs.patch"],
+    patches = ["//patches/rules_kotlin:kotlin_filegroup_android.patch"],
     version = "2.4.21",
 )
 

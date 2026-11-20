@@ -6,6 +6,7 @@ load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_config = "ts_config", _ts_project = "ts_project")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//javascript:defs.bzl", "javascript_binary")
+load("//javascript/private:windows_tool.bzl", "js_build_tool")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
@@ -20,15 +21,22 @@ load(":proto.bzl", "ts_proto_srcs")
 
 visibility(["//..."])
 
-_TS_COMPILER = {
-    "tsc": Label("//typescript/private:tsc"),
-    "tsc_worker": Label("@npm_typescript//:tsc_worker"),
-    "validator": Label("//typescript/private:validator"),
-}
+_TS_BUILD_TOOLS = ["tsc", "validator"]
 
 def _dx_ts_project(**kwargs):
-    for key, label in _TS_COMPILER.items():
-        kwargs.setdefault(key, label)
+    # Per-project tool aliases keep //typescript/private private; they go with the shim in #13889.
+    for key in _TS_BUILD_TOOLS:
+        if key in kwargs:
+            continue
+        tool_name = kwargs["name"] + "_" + key
+        js_build_tool(
+            name = tool_name,
+            tool = Label("@npm_typescript//:" + key),
+            tags = dx_upstream_tags(None),
+            visibility = ["//visibility:private"],
+        )
+        kwargs[key] = ":" + tool_name
+    kwargs.setdefault("tsc_worker", Label("@npm_typescript//:tsc_worker"))
     _ts_project(**kwargs)
 
 _DX_TS_LIBRARY_PROVIDES = [

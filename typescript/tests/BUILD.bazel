@@ -39,6 +39,7 @@ test_suite(
     tests = [
         ":windows_tool_tests",
         ":windows_ts_actions_build_test",
+        "//typescript/tests/fixtures/hello:ts_project_tool_tests",
         "//svelte/tests/typecheck:clean_exit_test",
         "//svelte/tests/typecheck:clean_stdout_test",
         "//typescript/tests/fixtures/hello:hello_typecheck_test",

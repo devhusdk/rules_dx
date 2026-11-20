@@ -19625,6 +19625,14 @@
           },
           {
             "attrs": [
+              "actual",
+              "tags",
+              "visibility"
+            ],
+            "kind": "alias"
+          },
+          {
+            "attrs": [
               "output_group",
               "srcs",
               "tags",
@@ -19696,6 +19704,14 @@
               "visibility"
             ],
             "kind": "tsc_gate"
+          },
+          {
+            "attrs": [
+              "tags",
+              "tool",
+              "visibility"
+            ],
+            "kind": "windows_js_tool_shim"
           }
         ],
         "name": "typescript_binary",
@@ -19909,6 +19925,14 @@
           },
           {
             "attrs": [
+              "actual",
+              "tags",
+              "visibility"
+            ],
+            "kind": "alias"
+          },
+          {
+            "attrs": [
               "output_group",
               "srcs",
               "tags",
@@ -19950,6 +19974,14 @@
               "visibility"
             ],
             "kind": "ts_project"
+          },
+          {
+            "attrs": [
+              "tags",
+              "tool",
+              "visibility"
+            ],
+            "kind": "windows_js_tool_shim"
           }
         ],
         "name": "typescript_library",

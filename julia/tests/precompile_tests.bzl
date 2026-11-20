@@ -36,8 +36,8 @@ def julia_precompile_test(name, target, package = ""):
 def _forwarded_info_impl(ctx):
     env = analysistest.begin(ctx)
     info = analysistest.target_under_test(env)[JuliaInfo]
-    asserts.equals(env, ctx.attr.package, info.app_name)
     asserts.true(env, bool(info.entry), "empty entry")
+    asserts.equals(env, ctx.attr.package + ".jl", info.entry.basename)
     return analysistest.end(env)
 
 _forwarded_info_test = analysistest.make(

@@ -1,10 +1,14 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
 )]
 
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 pub mod allowlist;
@@ -1174,7 +1178,7 @@ pub fn snapshot_diff(
                 staged.display()
             );
             if let Some(rel) = workspace_rel {
-                write!(hint, "; copy it to {rel} in the checkout, then re-run").ok();
+                hint.push_str(&format!("; copy it to {rel} in the checkout, then re-run"));
             }
             return Err(hint);
         }
@@ -1226,13 +1230,11 @@ pub fn copy_test_logs(testlogs: &Path, dest: &Path) -> String {
         dx_atomic_fs::write_hint(&target, &content);
         let content = String::from_utf8_lossy(&content);
         let head: Vec<&str> = content.lines().take(40).collect();
-        write!(
-            text,
+        text.push_str(&format!(
             "\nconsumer test log {}:\n{}",
             rel.display(),
             head.join("\n")
-        )
-        .ok();
+        ));
     }
     text
 }
@@ -1827,7 +1829,7 @@ mod tests {
         let case = logs.join("javascript/cli/exit_codes_test");
         std::fs::create_dir_all(&case).unwrap();
         let body: String = (1..=50).fold(String::new(), |mut body, n| {
-            writeln!(body, "line {n}").ok();
+            body.push_str(&format!("line {n}\n"));
             body
         });
         std::fs::write(case.join("test.log"), body).unwrap();

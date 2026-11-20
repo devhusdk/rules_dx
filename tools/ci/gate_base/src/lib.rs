@@ -1,6 +1,11 @@
 //! Pins refs/remotes/origin/main to the commit the affected checks compare against.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use std::io::Write;
 use std::path::Path;

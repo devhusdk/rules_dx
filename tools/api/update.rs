@@ -1,5 +1,7 @@
 //! `bazel run //tools/api:update` rewrites the API snapshot under `api/` and the page generated from it.
 
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
+
 mod page;
 mod snapshot;
 
@@ -7,7 +9,7 @@ use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root = std::env::var("BUILD_WORKSPACE_DIRECTORY")
-        .map_err(|_| "run with `bazel run //tools/api:update`")?;
+        .map_err(|error| format!("run with `bazel run //tools/api:update`: {error}"))?;
     let root = PathBuf::from(root);
     let dir = root.join("api");
     let builds = |paths: Vec<String>| -> Result<Vec<(String, String)>, String> {

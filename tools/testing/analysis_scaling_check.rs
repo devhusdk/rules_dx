@@ -1,5 +1,6 @@
 //! Analyzes the `//tools/testing/deep_graph` chains of depth 100 and 400 with the `dx check`,
 //! `dx docs` and `dx sync` aspects and fails when the deeper graph's analysis phase grows faster than `MAX_RATIO`.
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -168,7 +169,8 @@ fn main() -> Result<(), String> {
     let bazel = bazel.ok_or("--bazel is required")?;
     let out = out.ok_or("--out is required")?;
     let workspace = PathBuf::from(
-        std::env::var("BUILD_WORKSPACE_DIRECTORY").map_err(|_| "run with `bazel run`")?,
+        std::env::var("BUILD_WORKSPACE_DIRECTORY")
+            .map_err(|error| format!("run with `bazel run`: {error}"))?,
     );
     let aspects = aspects();
     let mut times = Vec::new();

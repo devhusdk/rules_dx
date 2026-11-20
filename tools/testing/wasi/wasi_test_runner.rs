@@ -1,3 +1,5 @@
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -5,7 +7,7 @@ use std::process::ExitCode;
 use dx_testing::serde_json;
 
 fn var(name: &str) -> Result<String, String> {
-    std::env::var(name).map_err(|_| format!("{name} must hold the WASI test wiring"))
+    std::env::var(name).map_err(|error| format!("{name} must hold the WASI test wiring: {error}"))
 }
 
 fn run() -> Result<i32, String> {

@@ -45,7 +45,7 @@ fn u64_at(bytes: &[u8], at: usize) -> Result<u64, String> {
 }
 
 fn to_usize(value: u64) -> Result<usize, String> {
-    usize::try_from(value).map_err(|_| format!("value {value} does not fit in usize"))
+    usize::try_from(value).map_err(|error| format!("value {value} does not fit in usize: {error}"))
 }
 
 /// Decodes every fatbin in a section payload into its entries.

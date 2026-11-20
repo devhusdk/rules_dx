@@ -1,6 +1,11 @@
 //! Runs nested Bazel servers for tests: one server under `TEST_TMPDIR`, hermetic environments and the fake Bazel.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -19,7 +24,6 @@ pub mod record;
 
 use std::cell::{Ref, RefCell};
 use std::ffi::OsString;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::rc::{Rc, Weak};
@@ -76,8 +80,9 @@ use_repo(maven, "maven")
 ///
 /// Returns `Err` when the lock is not declared or names no file.
 pub fn stage_consumer_maven_lock(root: &Path) -> Result<(), String> {
-    let key = std::env::var(CONSUMER_MAVEN_LOCK_ENV)
-        .map_err(|_| format!("{CONSUMER_MAVEN_LOCK_ENV} is not set; add CONSUMER_MAVEN_ENV"))?;
+    let key = std::env::var(CONSUMER_MAVEN_LOCK_ENV).map_err(|error| {
+        format!("{CONSUMER_MAVEN_LOCK_ENV} is not set; add CONSUMER_MAVEN_ENV: {error}")
+    })?;
     let lock = dx_testing::rlocation(&key).map_err(|error| format!("rlocation {key}: {error}"))?;
     let name = lock
         .file_name()
@@ -297,7 +302,9 @@ pub fn reset(root: &Path) -> Result<(), String> {
             // On Windows a directory symlink or junction is removed with remove_dir, never followed.
             std::fs::remove_file(&path).or_else(|error| {
                 if cfg!(windows) {
-                    std::fs::remove_dir(&path).map_err(|_| error)
+                    std::fs::remove_dir(&path).map_err(|dir_error| {
+                        std::io::Error::new(error.kind(), format!("{error}; {dir_error}"))
+                    })
                 } else {
                     Err(error)
                 }
@@ -519,21 +526,25 @@ fn make_file_writable(path: &Path) {
 pub fn bazelrc(config: &Config, downloader: &Path, repository_cache: &Path) -> String {
     let mut text = format!("common --local_resources=cpu={CPUS}\n");
     if config.offline {
-        writeln!(text, "common --downloader_config={}", slashed(downloader)).ok();
+        text.push_str(&format!(
+            "common --downloader_config={}\n",
+            slashed(downloader)
+        ));
         text.push_str("common --lockfile_mode=error\n");
     }
     if config.record.is_some() {
         text.push_str("common --lockfile_mode=update\n");
-        writeln!(text, "try-import {}", slashed(&record_rc(&config.root))).ok();
+        text.push_str(&format!(
+            "try-import {}\n",
+            slashed(&record_rc(&config.root))
+        ));
     }
     text.push_str("common --disk_cache=\n");
     text.push_str("common --remote_cache=\n");
-    writeln!(
-        text,
-        "common --repository_cache={}",
+    text.push_str(&format!(
+        "common --repository_cache={}\n",
         slashed(repository_cache)
-    )
-    .ok();
+    ));
     text.push_str("common --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\n");
     text.push_str("build --spawn_strategy=local\n");
     text
@@ -1469,7 +1480,7 @@ fn write_record(
     }
     let mut list = String::new();
     for (url, sha256) in &entries {
-        writeln!(list, "{url} {sha256}").ok();
+        list.push_str(&format!("{url} {sha256}\n"));
     }
     write(&record.dir.join(format!("{}.txt", record.set)), &list)
 }
@@ -1620,11 +1631,9 @@ pub fn write_rules_dx_config(root: &Path) {
     let mut build = String::from("load(\":flags.bzl\", \"bool_flag\")\n");
     for (name, default) in RULES_DX_FLAGS {
         let default = if *default { "True" } else { "False" };
-        write!(
-            build,
+        build.push_str(&format!(
             "\nbool_flag(name = \"{name}\", build_setting_default = {default})\n"
-        )
-        .ok();
+        ));
     }
     for (file, text) in [("flags.bzl", flags), ("BUILD.bazel", build.as_str())] {
         std::fs::write(dir.join(file), text)
@@ -1959,7 +1968,7 @@ impl Case {
                 format!(".dx/bazelrc/{file}"),
                 &dx_testing::preset_layer(layer),
             );
-            writeln!(imports, "try-import %workspace%/.dx/bazelrc/{file}").ok();
+            imports.push_str(&format!("try-import %workspace%/.dx/bazelrc/{file}\n"));
         }
         case.write(".bazelrc", &imports);
         case.write(".bazelignore", ".dx\n");

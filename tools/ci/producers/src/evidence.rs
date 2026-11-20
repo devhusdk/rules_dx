@@ -274,7 +274,8 @@ pub fn append(args: &[String]) -> Result<(), String> {
         json_file(row_labels)?,
         json_file(consumer_labels)?,
     );
-    let bazel = std::env::var("DX_BAZEL_VERSION").map_err(|_| "DX_BAZEL_VERSION is not set")?;
+    let bazel = std::env::var("DX_BAZEL_VERSION")
+        .map_err(|error| format!("DX_BAZEL_VERSION is not set: {error}"))?;
     let (bin, testlogs) = (
         var_or("DX_BIN", "bazel-bin"),
         var_or("DX_TESTLOGS", "bazel-testlogs"),

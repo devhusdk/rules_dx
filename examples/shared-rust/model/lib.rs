@@ -119,6 +119,7 @@ impl std::error::Error for ParseError {}
 
 pub fn parse_board(text: &str) -> Result<Vec<Task>, ParseError> {
     let mut tasks = Vec::new();
+    let mut id: u32 = 0;
     for (index, raw) in text.lines().enumerate() {
         let line = index + 1;
         let trimmed = raw.trim();
@@ -145,7 +146,7 @@ pub fn parse_board(text: &str) -> Result<Vec<Task>, ParseError> {
         if tasks.len() == MAX_TASKS {
             return Err(ParseError::TooManyTasks);
         }
-        let id = u32::try_from(tasks.len() + 1).map_err(|_| ParseError::TooManyTasks)?;
+        id = id.checked_add(1).ok_or(ParseError::TooManyTasks)?;
         let mut task = Task::new(id, title).map_err(|error| ParseError::Title(line, error))?;
         task.done = done;
         task.asset = asset;

@@ -1,5 +1,8 @@
 //! Runs inside the isolated account: `connect ADDR`, `resolve HOST`, `loopback`, `serve`, `parent`,
 //! `read PATH` or `canon PATH`.
+
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
+
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
 use std::process::{Command, ExitCode, Stdio};
@@ -60,7 +63,7 @@ fn parent() -> Result<(), String> {
     let port: u16 = line
         .trim()
         .parse()
-        .map_err(|_| format!("child said {line:?}"))?;
+        .map_err(|error| format!("child said {line:?}: {error}"))?;
     let mut stream =
         TcpStream::connect(("127.0.0.1", port)).map_err(|err| format!("parent connect: {err}"))?;
     let mut reply = String::new();

@@ -7,6 +7,8 @@
 //! observations, and renders one PASS or FAIL line per assertion. No sh, awk,
 //! grep, cat, or batch interpreter is launched.
 
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
+
 use std::path::{Path, PathBuf};
 
 use dx_path::Resolver;
@@ -447,7 +449,7 @@ fn inherited_tree() -> Option<PathBuf> {
 /// Reads the value of one required environment entry.
 fn env_value(name: &str) -> std::io::Result<String> {
     std::env::var(name)
-        .map_err(|_| bad(format!("missing environment {name}")))
+        .map_err(|error| bad(format!("missing environment {name}: {error}")))
         .and_then(|value| {
             if value.is_empty() {
                 return Err(bad(format!("missing environment {name}")));
@@ -502,35 +504,32 @@ fn finish(
     result: &std::io::Result<Report>,
     out: &mut impl std::io::Write,
     err: &mut impl std::io::Write,
-) -> i32 {
+) -> std::io::Result<i32> {
     match result {
         Ok(report) => {
-            if out
-                .write_all(report.text().as_bytes())
-                .and_then(|()| out.flush())
-                .is_err()
-            {
-                return 1;
-            }
-            i32::from(!report.ok())
+            out.write_all(report.text().as_bytes())?;
+            out.flush()?;
+            Ok(i32::from(!report.ok()))
         }
         Err(error) => {
-            writeln!(err, "starlark_harness: {error}").ok();
-            1
+            writeln!(err, "starlark_harness: {error}")?;
+            Ok(1)
         }
     }
 }
 
 fn main() -> std::process::ExitCode {
-    let code = finish(
+    match finish(
         &run(),
         &mut std::io::stdout().lock(),
         &mut std::io::stderr().lock(),
-    );
-    u8::try_from(code).map_or(
-        std::process::ExitCode::FAILURE,
-        std::process::ExitCode::from,
-    )
+    ) {
+        Ok(code) => u8::try_from(code).map_or(
+            std::process::ExitCode::FAILURE,
+            std::process::ExitCode::from,
+        ),
+        Err(_) => std::process::ExitCode::FAILURE,
+    }
 }
 
 #[cfg(test)]
@@ -1055,7 +1054,7 @@ mod tests {
     fn finish_text(result: &std::io::Result<Report>) -> (i32, String, String) {
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let code = finish(result, &mut out, &mut err);
+        let code = finish(result, &mut out, &mut err).expect("finish writes");
         (
             code,
             String::from_utf8(out).expect("utf-8 stdout"),
@@ -1123,14 +1122,14 @@ mod tests {
     }
 
     #[test]
-    fn finish_exits_one_when_stdout_cannot_be_written() {
+    fn finish_fails_when_stdout_cannot_be_written() {
         let report = Report {
             lines: vec!["starlark_test: 0 passed, 0 failed".to_owned()],
             passed: 0,
             failed: 0,
         };
         let mut err = Vec::new();
-        assert_eq!(finish(&Ok(report), &mut Broken, &mut err), 1);
+        assert!(finish(&Ok(report), &mut Broken, &mut err).is_err());
     }
 
     #[test]

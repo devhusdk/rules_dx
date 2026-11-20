@@ -60,7 +60,7 @@ struct Env {
 }
 
 fn var(name: &str) -> Result<String, String> {
-    std::env::var(name).map_err(|_| format!("release-cell: set {name}"))
+    std::env::var(name).map_err(|error| format!("release-cell: set {name}: {error}"))
 }
 
 impl Env {

@@ -305,15 +305,15 @@ func TestSiblingLibFlavorFallback(t *testing.T) {
 		{kind: libraryKind, name: "plain"},
 		{kind: binaryKind, name: "tool"},
 	}}
-	if got := siblingLibName(ordinary, cargoTarget{kind: binaryKind, name: "tool"}); got != "plain" {
-		t.Errorf("sibling prefers ordinary lib = %q, want plain", got)
+	if got := siblingLib(ordinary); got == nil || got.name != "plain" {
+		t.Errorf("sibling prefers ordinary lib = %+v, want plain", got)
 	}
 	flavored := &cargoManifest{targets: []cargoTarget{
 		{kind: libraryKind, name: "flavored", flavor: "proc-macro"},
 		{kind: binaryKind, name: "tool"},
 	}}
-	if got := siblingLibName(flavored, cargoTarget{kind: binaryKind, name: "tool"}); got != "flavored" {
-		t.Errorf("sibling falls back to flavored lib = %q, want flavored", got)
+	if got := siblingLib(flavored); got == nil || got.name != "flavored" {
+		t.Errorf("sibling falls back to flavored lib = %+v, want flavored", got)
 	}
 }
 

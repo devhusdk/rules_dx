@@ -259,6 +259,9 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 			result.production = append(result.production, name)
 			continue
 		}
+		if providedByCrateDeps(manifest, name, includeDev) {
+			continue
+		}
 		if dep, ok := manifest.normalDeps[name]; ok && !dep.external {
 			result.production = append(result.production, name)
 			noteRename(&result, name, dep)
@@ -287,6 +290,9 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 				result.test = append(result.test, name)
 				continue
 			}
+			if providedByCrateDeps(manifest, name, true) {
+				continue
+			}
 			if dep, normal := manifest.normalDeps[name]; normal && !dep.external {
 				result.test = append(result.test, name)
 				noteRename(&result, name, dep)
@@ -308,6 +314,19 @@ func localCargoImports(c *config.Config, manifest *cargoManifest, imports target
 		appendMirrorPaths(&result, manifest.devDeps)
 	}
 	return result
+}
+
+// providedByCrateDeps reports whether name is an external crate of the
+// manifest in scope. all_crate_deps supplies it, so a resolve mapping for the
+// same crate must not add it again.
+func providedByCrateDeps(manifest *cargoManifest, name string, includeDev bool) bool {
+	if dep, ok := manifest.normalDeps[name]; ok && dep.external {
+		return true
+	}
+	if dep, ok := manifest.devDeps[name]; ok && dep.external && includeDev {
+		return true
+	}
+	return false
 }
 
 func appendMirrorPaths(result *targetImports, scopes ...map[string]cargoDependency) {
@@ -384,11 +403,14 @@ func localCargoBuildImports(c *config.Config, manifest *cargoManifest, imports t
 	return result
 }
 
-// setCargoAttrs reports whether the deps call names external crates.
-func setCargoAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest, includeDev bool) bool {
+// setCargoAttrs reports whether the deps call names external crates. A
+// target that imports none of them gets no new call, since every crate it
+// adds would be an unused dependency; a call the BUILD file has stays.
+func setCargoAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest, includeDev bool, used map[string]bool) bool {
 	packageName := crateUniversePackage(packagePath, manifest)
 	external := hasExternal(manifest.normalDeps) || (includeDev && hasExternal(manifest.devDeps))
-	r.SetAttr("deps", crateDepsCall{call: cargoCall("all_crate_deps", packageName, includeDev), external: external})
+	unused := !usesExternal(manifest.normalDeps, used) && !(includeDev && usesExternal(manifest.devDeps, used))
+	r.SetAttr("deps", crateDepsCall{call: cargoCall("all_crate_deps", packageName, includeDev), external: external, unused: unused})
 	r.SetAttr("aliases", cargoCall("aliases", packageName, includeDev))
 	return external
 }
@@ -401,6 +423,15 @@ func setScriptAttrs(r *rule.Rule, packagePath string, manifest *cargoManifest) {
 		r.SetAttr("deps", crateDepsCall{call: call, external: true})
 	}
 	r.SetAttr("aliases", cargoBuildCall(packageName))
+}
+
+func usesExternal(deps map[string]cargoDependency, used map[string]bool) bool {
+	for name, dep := range deps {
+		if dep.external && used[name] {
+			return true
+		}
+	}
+	return false
 }
 
 func hasExternal(deps map[string]cargoDependency) bool {

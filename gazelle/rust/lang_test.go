@@ -314,7 +314,7 @@ func TestGenerateCargoSplitsTestOnlyModules(t *testing.T) {
 	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"app\"\nedition = \"2021\"\n[dependencies]\nlocal = { path = \"../local\" }\n[dev-dependencies]\ndevlocal = { path = \"../devlocal\" }\n")
 	writeFixture(t, root, "src/lib.rs", "use local::X;\n#[cfg(test)] mod tests;\n")
 	writeFixture(t, root, "src/tests.rs", "use devlocal::Y;\n#[test]\nfn t() {}\n")
-	writeFixture(t, root, "src/main.rs", "#[cfg(test)] mod main_tests;\nfn main() {}\n")
+	writeFixture(t, root, "src/main.rs", "use app as _;\n#[cfg(test)] mod main_tests;\nfn main() {}\n")
 	writeFixture(t, root, "src/main_tests.rs", "#[test]\nfn t() {}\n")
 	l := &rustLang{}
 	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
@@ -911,7 +911,7 @@ func TestGenerateCargoLibBinTakeover(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"demo\"\n[lib]\nname = \"demo\"\npath = \"src/lib.rs\"\n[[bin]]\nname = \"demo\"\npath = \"src/main.rs\"\n")
 	writeFixture(t, root, "src/lib.rs", "#[test]\nfn probe() {}\n")
-	writeFixture(t, root, "src/main.rs", "fn main() {}\n#[test]\nfn bint() {}\n")
+	writeFixture(t, root, "src/main.rs", "use demo as _;\nfn main() {}\n#[test]\nfn bint() {}\n")
 	l := &rustLang{}
 	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 	if len(l.errors) != 0 {
@@ -945,11 +945,36 @@ func TestGenerateCargoLibBinTakeover(t *testing.T) {
 	}
 }
 
+func TestGenerateCargoBinSkipsUnusedSiblingAndCrates(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"kit\"\n[lib]\nname = \"kit\"\npath = \"src/lib.rs\"\n[[bin]]\nname = \"probe\"\npath = \"probe.rs\"\n[dependencies]\nserde_json = \"1\"\n")
+	writeFixture(t, root, "src/lib.rs", "use serde_json as _;\n")
+	writeFixture(t, root, "probe.rs", "fn main() {}\n")
+	l := &rustLang{}
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
+	if len(l.errors) != 0 {
+		t.Fatalf("generation errors = %v", l.errors)
+	}
+	for i, r := range result.Gen {
+		if r.Name() != "probe" {
+			continue
+		}
+		if got := exprString(r.Attr("deps")); got != "[]" {
+			t.Errorf("probe deps = %s, want [] when it imports no crate", got)
+		}
+		if imports, ok := result.Imports[i].(targetImports); !ok || imports.siblingLib != "" {
+			t.Errorf("probe imports = %+v, want no sibling library", result.Imports[i])
+		}
+		return
+	}
+	t.Fatalf("no probe binary: %+v", result.Gen)
+}
+
 func TestGenerateCargoTestLinksSiblingAndMirror(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"app\"\n[dependencies]\nlocal = { path = \"../local\" }\n")
 	writeFixture(t, root, "src/lib.rs", "#[test]\nfn probe() {}\n")
-	writeFixture(t, root, "tests/smoke.rs", "")
+	writeFixture(t, root, "tests/smoke.rs", "use app as _;\n")
 	l := &rustLang{}
 	result := l.GenerateRules(withSubdirs(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: root, RegularFiles: []string{"Cargo.toml"}}))
 	if len(l.errors) != 0 {
@@ -1019,7 +1044,7 @@ func TestAdoptedLibraryRenamesSiblingDep(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "Cargo.toml", "[package]\nname = \"demo\"\n[lib]\nname = \"demo\"\npath = \"src/lib.rs\"\n[[bin]]\nname = \"demo\"\npath = \"src/main.rs\"\n")
 	writeFixture(t, root, "src/lib.rs", "pub fn f() {}\n")
-	writeFixture(t, root, "src/main.rs", "fn main() {}\n")
+	writeFixture(t, root, "src/main.rs", "use demo as _;\nfn main() {}\n")
 	f := rule.EmptyFile("BUILD.bazel", "")
 	hand := rule.NewRule(libraryKind, "handmade")
 	hand.SetAttr("crate_root", "src/lib.rs")

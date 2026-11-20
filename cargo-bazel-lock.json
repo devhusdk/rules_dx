@@ -1,5 +1,5 @@
 {
-  "checksum": "1baf8ab9f014f351a171bfd05d9d6b31ce40929c51ae7814726e420c92956753",
+  "checksum": "35541ee6f771543091e98cba5f17ee4b096c2b29208b135d0af3315d4b03d159",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9572,6 +9572,12 @@
           {
             "id": "serde_json 1.0.151",
             "target": "serde_json"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "spdx 0.13.5",
+            "target": "spdx"
           }
         ],
         "edition": "2024"

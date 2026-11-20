@@ -12,6 +12,7 @@ rust_binary(
         "//android/private/packaging/ops",
         "//cli/fuzz_run:dx_fuzz_run",
         "//cli/hpc_coverage:dx_hpc_coverage",
+        "//cli/lcov:dx_lcov",
         "//d/private/tools/coverage:dx_d_coverage",
         "//dotnet/private/coverage:dx_coverlet",
         "//php/private/coverage:dx_php_coverage",

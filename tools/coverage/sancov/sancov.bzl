@@ -1,6 +1,5 @@
 """Runs a sancov-instrumented native test and writes its LCOV report for Bazel coverage."""
 
-load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path")
 
 def dx_sancov_attrs():
@@ -26,10 +25,6 @@ def dx_sancov_attrs():
             executable = True,
             cfg = "target",
         ),
-        "_dx_sancov_to_lcov": attr.label(
-            default = Label("//cli/lcov:to_lcov"),
-            cfg = no_coverage_transition,
-        ),
     }
 
 def dx_sancov_test_coverage(ctx, upstream, sources, dependency_attributes = ["upstream"]):
@@ -45,7 +40,6 @@ def dx_sancov_test_coverage(ctx, upstream, sources, dependency_attributes = ["up
     manifest = ctx.actions.declare_file(ctx.label.name + ".sancov_sources")
     ctx.actions.write(manifest, "".join([f.short_path + "\n" for f in sources]))
     exe = upstream[DefaultInfo].files_to_run.executable
-    to_lcov = ctx.attr._dx_sancov_to_lcov[0][DefaultInfo]
     symbolizer = ctx.file._dx_sancov_symbolizer
     dsymutil = ctx.file._dx_sancov_dsymutil
     env = {}
@@ -58,11 +52,9 @@ def dx_sancov_test_coverage(ctx, upstream, sources, dependency_attributes = ["up
         "DX_LLVM_SYMBOLIZER": rlocation_path(ctx, symbolizer),
         "DX_SANCOV_SOURCES": rlocation_path(ctx, manifest),
         "DX_SANCOV_UPSTREAM": rlocation_path(ctx, exe),
-        "DX_TO_LCOV": rlocation_path(ctx, to_lcov.files_to_run.executable),
     })
     runfiles = ctx.runfiles(files = [manifest, exe, symbolizer, dsymutil] + sources).merge_all([
         upstream[DefaultInfo].default_runfiles,
-        to_lcov.default_runfiles,
         ctx.attr._dx_sancov_launcher[DefaultInfo].default_runfiles,
     ])
     return struct(

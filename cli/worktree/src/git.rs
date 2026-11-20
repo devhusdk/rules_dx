@@ -282,7 +282,9 @@ pub(super) fn unpushed(
     let args = ["rev-list", "--count", "HEAD", "--not", "--remotes"];
     text.trim()
         .parse()
-        .map_err(|_| WorktreeError::git(&args, &format!("unreadable commit count {text:?}")))
+        .map_err(|error| {
+            WorktreeError::git(&args, &format!("unreadable commit count {text:?}: {error}"))
+        })
 }
 
 /// Branches on origin named `stem` or `stem-*`, read from the remote itself.

@@ -306,12 +306,13 @@ pub(crate) fn main_checkout(dir: &Path) -> Result<PathBuf, WorktreeError> {
             "--git-dir",
         ],
     )
-    .map_err(|_| {
+    .map_err(|error| {
         WorktreeError::usage(
             "not_a_repository",
             &format!(
-                "{} is not inside a git repository; run dx worktree from a git checkout",
-                dir.display()
+                "{} is not inside a git repository ({}); run dx worktree from a git checkout",
+                dir.display(),
+                error.message.trim()
             ),
         )
     })?;

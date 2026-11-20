@@ -3,6 +3,7 @@ use std::process::Command;
 
 #[test]
 fn this_process_is_alive_and_a_reaped_child_is_not() {
+    let _fork = dx_testing::forking();
     assert!(pid_alive(std::process::id()));
     let mut child = Command::new(dx_testing::process_probe())
         .spawn()
@@ -20,6 +21,7 @@ fn a_pid_that_does_not_exist_is_not_alive() {
 #[cfg(windows)]
 #[test]
 fn an_exited_child_with_an_open_handle_is_not_alive() {
+    let _fork = dx_testing::forking();
     let mut child = Command::new("cmd")
         .args(["/C", "exit 0"])
         .spawn()
@@ -34,6 +36,7 @@ fn an_exited_child_with_an_open_handle_is_not_alive() {
 #[cfg(windows)]
 #[test]
 fn a_child_that_exited_with_259_is_not_alive() {
+    let _fork = dx_testing::forking();
     let mut child = Command::new("cmd")
         .args(["/C", "exit 259"])
         .spawn()
@@ -59,6 +62,7 @@ fn the_live_table_has_this_process_and_its_parent() {
 #[cfg(windows)]
 #[test]
 fn command_lines_see_a_child_with_a_marker_and_memory() {
+    let _fork = dx_testing::forking();
     let mut child = Command::new("cmd")
         .args(["/C", "ping -n 30 127.0.0.1 >nul & rem dx-procs-marker"])
         .spawn()
@@ -133,6 +137,7 @@ fn the_command_line_table_has_this_process() {
 #[cfg(unix)]
 #[test]
 fn an_unreaped_child_is_a_zombie() {
+    let _fork = dx_testing::forking();
     let mut child = Command::new(dx_testing::process_probe())
         .spawn()
         .expect("spawn");

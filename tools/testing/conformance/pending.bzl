@@ -13,14 +13,6 @@ apple lint_test *
 cuda cross_test linux_arm64
 cuda cross_test windows_arm64
 cuda cross_test windows_x86_64
-cuda lint_error_test linux_arm64
-cuda lint_test linux_arm64
-d lint_error_test linux_arm64
-d lint_error_test macos_arm64
-d lint_error_test windows_x86_64
-d lint_test linux_arm64
-d lint_test macos_arm64
-d lint_test windows_x86_64
 elixir cross_test windows_x86_64
 erlang cross_test windows_x86_64
 fortran cross_test *
@@ -31,7 +23,6 @@ haskell lint_test macos_arm64
 helm format_error_test *
 helm format_test *
 msix cross_test *
-ocaml cross_test macos_arm64
 qt coverage_test macos_arm64
 zig coverage_test windows_x86_64
 """

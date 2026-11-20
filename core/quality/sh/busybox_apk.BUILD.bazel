@@ -1,0 +1,11 @@
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+
+package(default_visibility = ["//visibility:public"])
+
+# Busybox picks its applet from the file name, so the shell must be called sh.
+copy_file(
+    name = "file",
+    src = "bin/busybox.static",
+    out = "file/sh",
+    is_executable = True,
+)

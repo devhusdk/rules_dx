@@ -10,6 +10,14 @@
         "https://busybox.net/downloads/binaries/1.35.0-x86_64-linux-musl/busybox"
       ]
     },
+    "dx_busybox_sh_linux_arm64": {
+      "version": "1.36.1-r7",
+      "type": "tar.gz",
+      "sha256": "180af566b2276ac663860cca81c76df3d8d4e3ad428a1f71fb167267c3370466",
+      "urls": [
+        "https://dl-cdn.alpinelinux.org/alpine/v3.18/main/aarch64/busybox-static-1.36.1-r7.apk"
+      ]
+    },
     "dx_busybox_sh_windows": {
       "version": "FRP-6354-g5f09fb446",
       "type": "file",

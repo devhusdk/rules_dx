@@ -19,6 +19,7 @@ fn the_reserve_range_matches_the_hand_computed_bounds() {
 
 #[test]
 fn two_holders_share_the_reserve() {
+    let _hold = dx_testing::holding();
     let scratch = dx_test_scratch::scratch("dx-slot-pool-shared-").unwrap();
     let first = hold_reserve(scratch.path(), 0..3);
     let second = hold_reserve(scratch.path(), 1..3);
@@ -32,6 +33,7 @@ fn two_holders_share_the_reserve() {
 
 #[test]
 fn an_exclusively_held_index_is_busy_and_not_waited_on() {
+    let _hold = dx_testing::holding();
     let scratch = dx_test_scratch::scratch("dx-slot-pool-busy-").unwrap();
     let _held = lock_slot(&slot_path(scratch.path(), 0), false)
         .expect("lock")
@@ -43,6 +45,7 @@ fn an_exclusively_held_index_is_busy_and_not_waited_on() {
 
 #[test]
 fn a_read_only_slot_file_still_takes_a_shared_lock() {
+    let _hold = dx_testing::holding();
     let scratch = dx_test_scratch::scratch("dx-slot-pool-readonly-").unwrap();
     let path = slot_path(scratch.path(), 0);
     std::fs::write(&path, "").expect("file");
@@ -133,6 +136,7 @@ fn available_memory_reports_something() {
 
 #[test]
 fn an_empty_range_holds_nothing() {
+    let _hold = dx_testing::holding();
     let scratch = dx_test_scratch::scratch("dx-slot-pool-empty-").unwrap();
     let reserve = hold_reserve(scratch.path(), 2..2);
     assert!(reserve.held.is_empty() && reserve.busy.is_empty());
@@ -140,6 +144,7 @@ fn an_empty_range_holds_nothing() {
 
 #[test]
 fn an_unusable_directory_makes_every_index_busy() {
+    let _hold = dx_testing::holding();
     let scratch = dx_test_scratch::scratch("dx-slot-pool-nodir-").unwrap();
     let blocker = scratch.path().join("file");
     std::fs::write(&blocker, "").expect("file");
@@ -149,6 +154,7 @@ fn an_unusable_directory_makes_every_index_busy() {
 
 #[test]
 fn a_missing_or_non_file_slot_keeps_the_open_error() {
+    let _hold = dx_testing::holding();
     let scratch = dx_test_scratch::scratch("dx-slot-pool-odd-").unwrap();
     let missing = slot_path(scratch.path(), 0);
     assert!(lock_slot(&missing, true).is_ok());
@@ -170,6 +176,7 @@ fn the_tighter_of_memory_and_cgroup_limit_wins() {
 #[cfg(unix)]
 #[test]
 fn an_unreadable_slot_file_keeps_the_permission_error() {
+    let _hold = dx_testing::holding();
     use std::os::unix::fs::PermissionsExt;
     let scratch = dx_test_scratch::scratch("dx-slot-pool-unreadable-").unwrap();
     let path = slot_path(scratch.path(), 0);
@@ -187,6 +194,7 @@ fn an_unreadable_slot_file_keeps_the_permission_error() {
 
 #[test]
 fn a_read_only_slot_file_locks_exclusive_and_reports_contention() {
+    let _hold = dx_testing::holding();
     let scratch = dx_test_scratch::scratch("dx-slot-pool-readonly-exclusive-").unwrap();
     let path = slot_path(scratch.path(), 0);
     std::fs::write(&path, "").expect("file");

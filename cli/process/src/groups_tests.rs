@@ -16,6 +16,7 @@ fn sleeper() -> std::process::Child {
 #[cfg(unix)]
 #[test]
 fn a_lease_without_a_live_dx_stops_its_group() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-dead-").unwrap();
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -37,6 +38,7 @@ fn a_lease_without_a_live_dx_stops_its_group() {
 #[cfg(unix)]
 #[test]
 fn a_lease_held_by_a_live_dx_is_left_alone() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-live-").unwrap();
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -57,6 +59,7 @@ fn a_lease_held_by_a_live_dx_is_left_alone() {
 #[cfg(unix)]
 #[test]
 fn a_lease_for_a_finished_group_is_dropped_quietly() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-gone-").unwrap();
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -85,6 +88,7 @@ fn unrelated_files_are_ignored() {
 #[cfg(unix)]
 #[test]
 fn a_lease_naming_a_reused_group_number_is_dropped_without_a_signal() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-reused-").unwrap();
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -104,6 +108,7 @@ fn a_lease_naming_a_reused_group_number_is_dropped_without_a_signal() {
 #[cfg(unix)]
 #[test]
 fn a_lease_from_another_pid_namespace_is_left_alone() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-namespace-").unwrap();
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -122,6 +127,7 @@ fn a_lease_from_another_pid_namespace_is_left_alone() {
 #[cfg(unix)]
 #[test]
 fn a_lease_dropped_with_its_group_still_running_leaves_nothing_to_reap() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-drop-").unwrap();
     let dir = scratch.path().join("groups");
     let mut child = sleeper();
@@ -182,6 +188,7 @@ const QUICK: crate::lifecycle::CleanupBudget = crate::lifecycle::CleanupBudget {
 #[cfg(unix)]
 #[test]
 fn an_owned_run_holds_a_lease_naming_its_group_and_removes_it() {
+    let _fork = dx_testing::forking();
     use std::cell::Cell;
     let scratch = dx_test_scratch::scratch("dx-groups-run-").unwrap();
     let dir = scratch.path().join("groups");
@@ -227,6 +234,7 @@ fn an_owned_run_holds_a_lease_naming_its_group_and_removes_it() {
 #[cfg(unix)]
 #[test]
 fn a_terminal_run_takes_no_lease() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-terminal-").unwrap();
     let dir = scratch.path().join("groups");
     let outcome = crate::lifecycle::run_streamed_in(
@@ -255,6 +263,7 @@ fn a_terminal_run_takes_no_lease() {
 #[cfg(unix)]
 #[test]
 fn a_failed_owned_spawn_leaves_no_lease() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-missing-").unwrap();
     let dir = scratch.path().join("groups");
     let mut spec = probe_spec(scratch.path(), &[], crate::lifecycle::StreamGroup::Owned);
@@ -298,6 +307,7 @@ fn a_fresh_empty_lease_is_kept() {
 
 #[test]
 fn an_old_empty_lease_held_by_a_live_dx_is_kept() {
+    let _hold = dx_testing::holding();
     let scratch = dx_test_scratch::scratch("dx-groups-held-empty-").unwrap();
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -377,6 +387,7 @@ fn verdict_drops_a_dash_namespace_on_linux() {
 #[cfg(unix)]
 #[test]
 fn a_lease_with_unknown_start_is_dropped_without_a_signal() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-unknown-").unwrap();
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -397,6 +408,7 @@ fn a_lease_with_unknown_start_is_dropped_without_a_signal() {
 #[cfg(target_os = "linux")]
 #[test]
 fn a_lease_from_another_boot_is_dropped_without_a_signal() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-boot-").unwrap();
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -425,6 +437,7 @@ fn a_three_field_lease_is_unparseable() {
 #[cfg(unix)]
 #[test]
 fn a_stop_is_written_to_the_reap_log() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-log-").unwrap();
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -484,6 +497,7 @@ fn the_reap_log_rotates_once_it_passes_its_cap() {
 #[cfg(unix)]
 #[test]
 fn a_group_that_ignores_the_first_signal_is_killed() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-kill-").unwrap();
     let dir = scratch.path().join("groups");
     std::fs::create_dir_all(&dir).expect("dir");
@@ -515,6 +529,7 @@ fn a_group_that_ignores_the_first_signal_is_killed() {
 
 #[test]
 fn recording_a_group_with_an_unknown_start_leaves_the_lease_empty() {
+    let _hold = dx_testing::holding();
     let scratch = dx_test_scratch::scratch("dx-groups-empty-").unwrap();
     let lease = GroupLease::acquire_in(scratch.path()).expect("lease");
     lease.record(i32::MAX).expect("record");
@@ -600,11 +615,16 @@ fn without_unix_groups_only_start_times_are_known_and_a_lease_is_dropped() {
 
 #[test]
 fn a_recorded_line_replaces_the_lease_text() {
+    let _hold = dx_testing::holding();
     use std::io::{Read, Seek, SeekFrom};
     let scratch = dx_test_scratch::scratch("dx-groups-line-").unwrap();
     let mut lease = GroupLease::acquire_in(scratch.path()).expect("lease");
-    lease.write_line(Some(lease_text(4000, "77"))).expect("write");
-    lease.write_line(Some(lease_text(4001, "78"))).expect("write");
+    lease
+        .write_line(Some(lease_text(4000, "77")))
+        .expect("write");
+    lease
+        .write_line(Some(lease_text(4001, "78")))
+        .expect("write");
     let mut text = String::new();
     lease.file.seek(SeekFrom::Start(0)).expect("rewind");
     lease.file.read_to_string(&mut text).expect("lease text");
@@ -669,6 +689,7 @@ fn a_group_with_an_unreadable_leader_keeps_its_lease_and_is_logged() {
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 #[test]
 fn a_child_replaces_its_lease_text_before_spawn_returns() {
+    let _fork = dx_testing::forking();
     let scratch = dx_test_scratch::scratch("dx-groups-child-").unwrap();
     let lease = GroupLease::acquire_in(scratch.path()).expect("lease");
     std::fs::write(&lease.path, format!("{}\n", "9".repeat(200))).expect("stale text");
@@ -689,10 +710,13 @@ fn a_child_replaces_its_lease_text_before_spawn_returns() {
 
 #[test]
 fn a_written_lease_is_not_recorded_again() {
+    let _hold = dx_testing::holding();
     let scratch = dx_test_scratch::scratch("dx-groups-written-").unwrap();
     let lease = GroupLease::acquire_in(scratch.path()).expect("lease");
     let line = lease_line(std::process::id().cast_signed()).expect("line");
-    lease.record_unwritten(std::process::id().cast_signed()).expect("record");
+    lease
+        .record_unwritten(std::process::id().cast_signed())
+        .expect("record");
     assert_eq!(held_text(&lease), format!("{line}\n"));
     lease.record_unwritten(i32::MAX).expect("record");
     assert_eq!(held_text(&lease), format!("{line}\n"));

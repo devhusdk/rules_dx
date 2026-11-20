@@ -10273,7 +10273,27 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "upstream"
+            ],
+            "kind": "_flutter_library_forward"
+          },
+          {
+            "attrs": [
+              "package_name",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "flutter_library"
+          }
+        ],
         "name": "flutter_library",
         "params": [
           {

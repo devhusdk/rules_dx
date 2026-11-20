@@ -17,8 +17,6 @@ android lint_test linux_arm64
 android lint_test macos_arm64
 android lint_test windows_arm64
 android lint_test windows_x86_64
-ansible format_error_test *
-ansible format_test *
 ansible lock_test *
 apple format_error_test *
 apple format_test *

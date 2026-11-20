@@ -67,6 +67,9 @@ LANGS = json.decode("""{
     ],
     "quality": {
       "aspects": {
+        "format": [
+          "real_ansible_format_aspect"
+        ],
         "lint": [
           "real_ansible_lint_aspect"
         ]
@@ -80,6 +83,9 @@ LANGS = json.decode("""{
         ".yml"
       ],
       "probes": {
+        "format": [
+          "real_ansible_format_probe_aspect"
+        ],
         "lint": [
           "real_ansible_lint_probe_aspect"
         ]

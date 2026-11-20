@@ -36,8 +36,12 @@ pub fn set_inheritable(fd: impl AsFd) -> io::Result<()> {
 
 /// Whether `fd` became readable within `wait`.
 pub fn wait_readable(fd: impl AsFd, wait: Duration) -> io::Result<bool> {
-    let timeout =
-        Timespec::try_from(wait).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
+    let timeout = Timespec::try_from(wait).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("poll timeout {wait:?} does not fit a timespec: {error}"),
+        )
+    })?;
     let mut fds = [PollFd::new(&fd, PollFlags::IN)];
     Ok(rustix::event::poll(&mut fds, Some(&timeout))? > 0)
 }

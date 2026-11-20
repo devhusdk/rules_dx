@@ -74,9 +74,13 @@ pub(crate) fn query(
 pub(crate) fn unicode_string(buffer: &[u64]) -> io::Result<String> {
     let outside = || io::Error::other("the UNICODE_STRING points outside its buffer");
     let header = buffer.first().copied().ok_or_else(outside)?;
-    let length = usize::try_from(header & 0xffff).map_err(|_| outside())?;
+    let length = usize::try_from(header & 0xffff).map_err(|error| {
+        io::Error::other(format!("the UNICODE_STRING length does not fit usize: {error}"))
+    })?;
     let pointer = buffer.get(1).copied().ok_or_else(outside)?;
-    let pointer = usize::try_from(pointer).map_err(|_| outside())?;
+    let pointer = usize::try_from(pointer).map_err(|error| {
+        io::Error::other(format!("the UNICODE_STRING pointer does not fit usize: {error}"))
+    })?;
     if length == 0 {
         return Ok(String::new());
     }

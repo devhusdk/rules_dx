@@ -5,7 +5,13 @@
 //! (signal masks, `sigaction`, `fork`, macOS `sysctl`) and the Win32 and ntdll calls
 //! stay in single-operation blocks with a `SAFETY` comment each.
 
-#![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::panic,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 #![cfg_attr(
     test,
     expect(

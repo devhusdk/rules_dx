@@ -37,6 +37,15 @@ fn a_nonblocking_pipe_carries_bytes_and_never_blocks() {
 
 #[cfg(unix)]
 #[test]
+fn a_poll_timeout_past_a_timespec_is_refused() {
+    let (read, _write) = fd::pipe_nonblocking().expect("pipe");
+    let error = fd::wait_readable(&read, std::time::Duration::MAX).expect_err("too long");
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("timespec"), "{error}");
+}
+
+#[cfg(unix)]
+#[test]
 fn set_inheritable_clears_close_on_exec() {
     let (read, _write) = fd::pipe_nonblocking().expect("pipe");
     fd::set_inheritable(&read).expect("fcntl");

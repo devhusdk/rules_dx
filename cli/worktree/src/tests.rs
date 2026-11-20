@@ -677,6 +677,11 @@ fn open_refuses_a_directory_outside_git() {
         "{}",
         refused.message
     );
+    assert!(
+        refused.message.contains("(git rev-parse failed:"),
+        "{}",
+        refused.message
+    );
 }
 
 #[test]
@@ -1480,7 +1485,9 @@ fn bazel_links_do_not_make_a_slot_dirty_and_survive_reuse() {
         "{listing:?}"
     );
     ops::release(&pool, &host, &me, &first.path, false).expect("release with bazel link");
-    std::os::unix::fs::symlink(&target, first.path.join("bazel-bin")).ok();
+    if let Err(error) = std::os::unix::fs::symlink(&target, first.path.join("bazel-bin")) {
+        assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists, "relink: {error}");
+    }
     std::fs::write(first.path.join("junk.txt"), "x").expect("junk");
     let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("reuse");
     assert_eq!(second.slot, first.slot);
@@ -1598,7 +1605,8 @@ fn reuse_skips_a_free_slot_it_cannot_clean() {
     host.unstick();
     let tree = path.join(".cache").join("ob");
     if tree.exists() {
-        std::fs::set_permissions(&tree, std::fs::Permissions::from_mode(0o755)).ok();
+        std::fs::set_permissions(&tree, std::fs::Permissions::from_mode(0o755))
+            .expect("make tree writable for cleanup");
     }
 }
 

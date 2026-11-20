@@ -1,0 +1,57 @@
+# gazelle:exclude main.c
+load("//cc:defs.bzl", "cc_binary")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//msix:defs.bzl", "msix_package")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_binary(
+    name = "hello",
+    srcs = ["main.c"],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+msix_package(
+    name = "conformance",
+    binary = ":hello",
+    identity_name = "Dx.Conformance",
+    logo = "//msix/tests/fixtures/msix_app/app:logo.png",
+    notice = ["//msix/tests/fixtures/msix_app/app:NOTICE.txt"],
+    publisher = "CN=Dx Conformance, O=Dx",
+    version = "1.0.0.0",
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":conformance",
+    covered_source = "",
+    expected = "",
+    failing_case = "",
+    failing_test = ":conformance",
+    lang = "msix",
+    not_applicable = {
+        "build_test": "msix_package is not executable; an MSIX runs only after install",
+        "coverage_test": "msix has no test rule",
+        "fail_test": "msix has no test rule",
+        "format_error_test": "msix has no source files; msix_package writes the manifest from its attributes",
+        "format_test": "msix has no source files; msix_package writes the manifest from its attributes",
+        "lint_error_test": "msix has no source files; msix_package writes the manifest from its attributes",
+        "lint_test": "msix has no source files; msix_package writes the manifest from its attributes",
+        "lock_test": "msix has no lockfile",
+        "pass_test": "msix has no test rule",
+        "runfiles_test": "msix_package is not executable; an MSIX runs only after install",
+    },
+    passing_test = ":conformance",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

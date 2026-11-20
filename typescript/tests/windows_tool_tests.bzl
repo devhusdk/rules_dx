@@ -83,3 +83,26 @@ def windows_tool_tests(name):
         default_select_test(name = prefix + "_default_select", target_under_test = alias, tool = tool, size = "small")
         tests += [prefix + "_shim", prefix + "_windows_select", prefix + "_default_select"]
     native.test_suite(name = name, tests = tests)
+
+def ts_project_tool_tests(name, project):
+    """Declares the shim and select tests for the per-project tsc and validator tools.
+
+    Args:
+        name: Name of the test suite.
+        project: Name of the ts_project in the calling package.
+    """
+    tests = []
+    for tool in ["tsc", "validator"]:
+        prefix = "{}_{}".format(name, tool)
+        alias = ":{}_{}".format(project, tool)
+        upstream = Label("@npm_typescript//:" + tool)
+        shim_test(name = prefix + "_shim", target_under_test = alias + "_windows", tool = upstream, size = "small")
+        windows_select_test(
+            name = prefix + "_windows_select",
+            target_under_test = alias,
+            basename = "{}_{}_windows.bat".format(project, tool),
+            size = "small",
+        )
+        default_select_test(name = prefix + "_default_select", target_under_test = alias, tool = upstream, size = "small")
+        tests += [prefix + "_shim", prefix + "_windows_select", prefix + "_default_select"]
+    native.test_suite(name = name, tests = tests)

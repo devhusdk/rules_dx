@@ -23,7 +23,7 @@ pub const PREFLIGHT_TARGETS: &str = "//cli/cli:dx //cc/tests/fixtures/hello:hell
     //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/...
     //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all
     //julia/tests/fixtures/julia_app/... //julia/private/tools/... //deploy/private:pypi_probe_verify //haskell/private/tools/weeder:weeder_build_test
-    //core/quality/testdata:matrix_python_format_pass //core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail
+    //core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail
     //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_javascript_format_pass //core/quality/testdata:matrix_api_spec_openapi_pass
     //core/quality/testdata:matrix_yaml_format_pass //core/quality/testdata:matrix_yaml_format_fail //core/quality/testdata:matrix_yaml_format_syntax_error
     //core/quality/testdata:matrix_yaml_lint_pass //core/quality/testdata:matrix_yaml_lint_fail //core/quality/testdata:matrix_yaml_lint_syntax_error
@@ -256,7 +256,7 @@ pub fn check(args: &[String]) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{SETS, Step, plan};
+    use super::{CRATE_LOCK_CHECK, SETS, Step, plan};
 
     fn flags() -> Vec<String> {
         vec!["--config=ci".to_owned()]
@@ -290,18 +290,11 @@ mod tests {
             steps.get(1),
             Some(&Step::Silent(
                 "bazel",
-                [
-                    "mod",
-                    "show_repo",
-                    "--lockfile_mode=error",
-                    "--config=ci",
-                    "--repo_env=CARGO_BAZEL_DIGEST_CHECK=1",
-                    "@crates",
-                    "@dx_quality_crates",
-                    "@dx_thrift_crates"
-                ]
-                .map(str::to_owned)
-                .to_vec()
+                ["mod", "show_repo", "--lockfile_mode=error", "--config=ci"]
+                    .into_iter()
+                    .chain(CRATE_LOCK_CHECK.split(' '))
+                    .map(str::to_owned)
+                    .collect()
             ))
         );
     }

@@ -653,11 +653,7 @@ impl<'a> Tracer<'a> {
     }
 }
 
-fn spawn_changes(
-    tracer: &mut Tracer<'_>,
-    old: &Spawn,
-    new: &Spawn,
-) -> Result<Vec<String>, String> {
+fn spawn_changes(tracer: &mut Tracer<'_>, old: &Spawn, new: &Spawn) -> Result<Vec<String>, String> {
     let (old_inputs, new_inputs) = (tracer.first.inputs(old)?, tracer.second.inputs(new)?);
     let origins = tracer.origins(&old_inputs, &new_inputs)?;
     let mut lines: Vec<String> = origins.iter().take(ORIGIN_LINES).cloned().collect();
@@ -745,29 +741,24 @@ pub fn diff(first: &ExecLog, second: &ExecLog, top: usize) -> Result<Vec<String>
     Ok(out)
 }
 
-/// Parses an allowlist file into its entries.
+/// Parses an allowlist file of `<label> <mnemonic> <path>` lines into its entries.
 ///
 /// # Errors
 ///
-/// Returns `Err` when the operation fails.
+/// Returns `Err` listing every malformed, unsorted or repeated line.
 pub fn parse_allowlist(text: &str) -> Result<BTreeSet<String>, String> {
-    let mut keys = BTreeSet::new();
-    let mut previous: Option<&str> = None;
-    for line in text.lines() {
+    let (keys, problems) = crate::allowlist::parse_lines(text, |line| {
         let fields: Vec<&str> = line.split(' ').collect();
         let label_ok = fields
             .first()
             .is_some_and(|label| label.starts_with("//") || label.starts_with('@'));
-        if fields.len() != 3 || fields.iter().any(|f| f.is_empty()) || !label_ok {
-            return Err(format!("`{line}` is not `<label> <mnemonic> <path>`"));
-        }
-        if previous.is_some_and(|p| p >= line) {
-            return Err(format!("`{line}` is not sorted or is repeated"));
-        }
-        previous = Some(line);
-        keys.insert(line.to_owned());
+        fields.len() == 3 && fields.iter().all(|field| !field.is_empty()) && label_ok
+    });
+    if problems.is_empty() {
+        Ok(keys)
+    } else {
+        Err(problems.join("\n"))
     }
-    Ok(keys)
 }
 
 #[must_use]
@@ -887,13 +878,13 @@ mod tests {
         assert_eq!(allow(""), BTreeSet::new());
         assert!(parse_allowlist("//:a M p\n@r//:b M p\n").is_ok());
         for (text, needle) in [
-            ("//:a M\n", "is not `<label> <mnemonic> <path>`"),
-            ("//:a M p q\n", "is not `<label> <mnemonic> <path>`"),
-            ("//:a  M p\n", "is not `<label> <mnemonic> <path>`"),
-            (":a M p\n", "is not `<label> <mnemonic> <path>`"),
+            ("//:a M\n", "malformed line"),
+            ("//:a M p q\n", "malformed line"),
+            ("//:a  M p\n", "malformed line"),
+            (":a M p\n", "malformed line"),
             ("//:b M p\n//:a M p\n", "not sorted"),
             ("//:a M p\n//:a M p\n", "not sorted"),
-            ("\n", "is not `<label> <mnemonic> <path>`"),
+            ("\n", "malformed line"),
         ] {
             let err = parse_allowlist(text).unwrap_err();
             assert!(err.contains(needle), "{text:?}: {err}");
@@ -940,7 +931,8 @@ mod tests {
     const CHANGED: &str = "//:changed Genrule bazel-out/k8-fastbuild/bin/changed.out";
     const NOCACHE: &str = "//:nocache Genrule bazel-out/k8-fastbuild/bin/nocache.out";
     const SAME: &str = "//:same Genrule bazel-out/k8-fastbuild/bin/same.out";
-    const OLD: &str = "01d09d19c2139a46aebfb577780d123d7396e97201bc7ead210a2ebff8239dee";
+    /// The first fixture log built `changed.txt` from this text.
+    const OLD_TEXT: &[u8] = b"old\n";
 
     fn cache_logs() -> (ExecLog, ExecLog) {
         (
@@ -988,7 +980,7 @@ mod tests {
                 "external/bazel_tools/tools/genrule/genrule-setup.sh"
             ]
         );
-        assert_eq!(old["changed.txt"], OLD);
+        assert_eq!(old["changed.txt"], dx_digest::sha256_hex(OLD_TEXT));
         assert_ne!(old["changed.txt"], new["changed.txt"]);
     }
 
@@ -996,23 +988,27 @@ mod tests {
     fn diff_names_the_changed_input_and_the_uncacheable_spawn() {
         let (first, second) = cache_logs();
         let new = second.inputs(by_key(&second, CHANGED)).unwrap();
+        let old = dx_digest::sha256_hex(OLD_TEXT);
         let lines = diff(&first, &second, 20).unwrap();
         let at = |key: &str| lines.iter().position(|l| l.contains(key));
         let changed = at(CHANGED).unwrap();
         assert!(lines[changed].ends_with("(linux-sandbox)"), "{lines:?}");
         assert_eq!(
             lines[changed + 1],
-            format!("  origin: changed.txt: {OLD} -> {}", new["changed.txt"])
+            format!("  origin: changed.txt: {old} -> {}", new["changed.txt"])
         );
         assert_eq!(
             lines[changed + 2],
-            format!("  input changed.txt: {OLD} -> {}", new["changed.txt"])
+            format!("  input changed.txt: {old} -> {}", new["changed.txt"])
         );
         assert_eq!(at(NOCACHE), None, "{lines:?}");
         assert_eq!(at(SAME), None, "{lines:?}");
         assert_eq!(
             lines[changed + 3..],
-            ["not remote cacheable, ran every time:", "  Genrule: 1, 0.0s total"]
+            [
+                "not remote cacheable, ran every time:",
+                "  Genrule: 1, 0.0s total"
+            ]
         );
     }
 
@@ -1032,7 +1028,10 @@ mod tests {
         assert!(lines[2].starts_with("  input changed.txt: "), "{lines:?}");
         assert_eq!(
             lines[3..],
-            ["not remote cacheable, ran every time:", "  Genrule: 1, 0.1s total"]
+            [
+                "not remote cacheable, ran every time:",
+                "  Genrule: 1, 0.1s total"
+            ]
         );
     }
 
@@ -1216,7 +1215,10 @@ mod tests {
         assert_eq!(lines[0], "2.0s //:top Genrule top.out (linux-sandbox)");
         assert_eq!(
             lines[3..],
-            ["not remote cacheable, ran every time:", "  TestRunner: 2, 10.0s total"]
+            [
+                "not remote cacheable, ran every time:",
+                "  TestRunner: 2, 10.0s total"
+            ]
         );
     }
 

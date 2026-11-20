@@ -9,7 +9,7 @@ load("//cc/private/toolchain:bindings.bzl", "cc_compiler_identity")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:msvc_crt.bzl", "dx_msvc_crt_aspect", "dx_msvc_crt_reset_transition", "dx_msvc_crt_validate")
-load("//core:wrapper.bzl", "dx_append_flags", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "dx_append_flags", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 
@@ -201,15 +201,27 @@ def cc_test(name, *, srcs = None, visibility = None, **kwargs):
         })
     dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, env = gcc_env | caller_env, **kwargs)
 
+_cc_fuzz_driver = dx_private_dep_rule(
+    Label("//cc/private:fuzz_driver"),
+    _DX_CC_LIBRARY_PROVIDES + [OutputGroupInfo],
+    "Provides the driver cc_fuzz_test links when libFuzzer is not linked.",
+)
+
 def cc_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer."""
     flags = select({
         Label("@llvm//config:fuzzer_enabled"): ["-fsanitize=fuzzer,address"],
         "//conditions:default": [],
     })
+    _cc_fuzz_driver(
+        name = name + "_fuzz_driver",
+        testonly = True,
+        tags = dx_upstream_tags(tags),
+        visibility = ["//visibility:private"],
+    )
     driver = select({
         Label("@llvm//config:fuzzer_enabled"): [],
-        "//conditions:default": [Label("//cc/private:fuzz_driver")],
+        "//conditions:default": [":" + name + "_fuzz_driver"],
     })
     dx_fuzz_test(name, cc_binary, {"srcs": srcs, "deps": driver, "copts": flags + (copts or []), "linkopts": flags + (linkopts or [])}, tags = tags, visibility = visibility, **kwargs)
 

@@ -172,6 +172,7 @@ single_version_override(
     module_name = "rules_cuda",
     patch_strip = 1,
     patches = [
+        "//patches/rules_cuda:coverage_keep.patch",
         "//patches/rules_cuda:msvc_dlink_crt.patch",
         "//patches/rules_cuda:toolchains_gate.patch",
     ],
@@ -1282,7 +1283,7 @@ dx_pins.archive(
         "//patches/rules_julia:in_process_resolve_test.patch",
         "//patches/rules_julia:locate_installed_package.patch",
         "//patches/rules_julia:package_annotation_version.patch",
-        "//patches/rules_julia:package_name.patch",
+        "//patches/rules_julia:entry.patch",
         "//patches/rules_julia:portable_cpu_target.patch",
         "//patches/rules_julia:template_action_input.patch",
         "//patches/rules_julia:exec_toolchain.patch",
@@ -1886,6 +1887,11 @@ bazel_dep(name = "toml.bzl", version = "0.5.0")
 
 julia_toolchain = use_extension("//julia:extensions.bzl", "julia_toolchain")
 use_repo(julia_toolchain, "julia_toolchains")
+
+register_toolchains(
+    "//julia/private/runtime:source_toolchain",
+    dev_dependency = True,
+)
 
 register_toolchains("@julia_toolchains//:all")
 

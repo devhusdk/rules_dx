@@ -163,3 +163,36 @@ fn a_dangling_cyclonedx_dependency_fails_the_reference_check() {
         cyclonedx_errors(&text)
     );
 }
+
+#[test]
+fn every_spdx_license_id_passes_the_cyclonedx_schema() {
+    use dx_sbom::cyclonedx::*;
+    let mut document = CycloneDxDocument::new("//app", "1970-01-01T00:00:00Z", "dx-license");
+    for (index, license) in spdx::identifiers::LICENSES.iter().enumerate() {
+        document.add_library(CdxComponent {
+            kind: "library".to_owned(),
+            bom_ref: format!("pkg-{index}"),
+            name: license.name.to_owned(),
+            version: "1.0.0".to_owned(),
+            purl: format!("pkg:cargo/dep{index}@1.0.0"),
+            licenses: license_choices(license.name),
+        });
+    }
+    let text = serde_json::to_string(&document).expect("render");
+    assert_eq!(cyclonedx_errors(&text), Vec::<String>::new());
+}
+
+#[test]
+fn a_license_id_newer_than_the_schema_is_an_expression() {
+    use dx_sbom::cyclonedx::*;
+    assert_eq!(
+        license_choices("HDF5"),
+        vec![CdxLicenseChoice::Expression {
+            expression: "HDF5".to_owned()
+        }]
+    );
+    assert!(matches!(
+        license_choices("MIT").as_slice(),
+        [CdxLicenseChoice::License { .. }]
+    ));
+}

@@ -11,11 +11,11 @@ package(default_visibility = [
     "@dx_cc_toolchains//:__pkg__",
 ])
 
-# Upstream: hermeticbuild/hermetic-llvm#973
-# llvm's clang-cl toolchain sets LIB to a placeholder. Once an llvm release has
-# the fix, bump llvm and delete the search_path, *_link_lib_env and link_lib_env
-# targets below and the link_lib_env parameter of clang_cl_toolchains in
-# toolchains.bzl (#11967).
+# Link actions set LIB to the @dx_windows_sdk, @dx_msvc_runtime and C++ standard
+# library lib dirs. rules_rust turns the cc link env LIB into -LIBPATH: for
+# rust-lld, and a set LIB stops clang-cl from probing for Visual Studio.
+# hermetic-llvm#973 does the same for @llvm's own toolchains but names
+# @msvc_runtime, so this stays through llvm bumps (#13059).
 search_path(
     name = "dynamic_crt_link_lib_path",
     directories = [
@@ -387,7 +387,7 @@ cc_args_list(
     }),
 )
 
-clang_cl_toolchains(link_lib_env = ":link_lib_env")
+clang_cl_toolchains()
 
 filegroup(
     name = "module_srcs",

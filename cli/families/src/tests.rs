@@ -142,7 +142,29 @@ fn quality_marks_list_each_quality_language_with_its_files() {
         .expect("dockerfile has a quality entry");
     assert!(dockerfile.marks.iter().any(|mark| mark == ".dockerfile"));
     assert!(dockerfile.marks.iter().any(|mark| mark == "Dockerfile"));
-    assert!(marks.iter().all(|entry| !entry.marks.is_empty()));
+    let unmarked: Vec<&str> = marks
+        .iter()
+        .filter(|entry| entry.marks.is_empty())
+        .map(|entry| entry.language.as_str())
+        .collect();
+    assert_eq!(unmarked, ["csharp", "cuda", "fsharp"]);
+    let manifests = shipped();
+    let bzl_of = |language: &str| {
+        manifests
+            .iter()
+            .find(|manifest| manifest.name == language)
+            .and_then(|manifest| manifest.quality.as_ref())
+            .map(|quality| quality.bzl.clone())
+    };
+    for language in unmarked {
+        let bzl = bzl_of(language);
+        assert!(
+            marks
+                .iter()
+                .any(|entry| !entry.marks.is_empty() && bzl_of(&entry.language) == bzl),
+            "{language} shares no quality.bzl with a language that has files"
+        );
+    }
 }
 
 fn quality_languages_by_name() -> usize {

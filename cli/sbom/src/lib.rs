@@ -239,16 +239,29 @@ fn purl_path(locator: &str) -> Option<&str> {
     rest.get(..end)
 }
 
+/// The name and optional version of a purl, None when it has no `type/name`.
+fn purl_parts(locator: &str) -> Option<(&str, Option<&str>)> {
+    let path = purl_path(locator)?.trim_start_matches('/');
+    let (kind, rest) = path.split_once('/')?;
+    if kind.is_empty() {
+        return None;
+    }
+    let (rest, version) = match rest.rsplit_once('@') {
+        Some((rest, version)) if !version.contains('/') => (rest, Some(version)),
+        _ => (rest, None),
+    };
+    let name = rest.rsplit('/').next().filter(|name| !name.is_empty())?;
+    Some((name, version.filter(|version| !version.is_empty())))
+}
+
 #[must_use]
 pub fn purl_name(locator: &str) -> Option<&str> {
-    let path = purl_path(locator)?.split('@').next()?;
-    path.rsplit('/').next().filter(|name| !name.is_empty())
+    purl_parts(locator).map(|(name, _)| name)
 }
 
 #[must_use]
 pub fn purl_version(locator: &str) -> Option<&str> {
-    let (_, version) = purl_path(locator)?.rsplit_once('@')?;
-    Some(version).filter(|version| !version.is_empty())
+    purl_parts(locator)?.1
 }
 
 /// Returns why `value` is not an SPDX license expression, or `None` when it is (or is a sentinel).
@@ -274,8 +287,8 @@ pub fn is_element_id(id: &str) -> bool {
 }
 
 /// Graph rules the SPDX 2.3 JSON schema does not check: every element id is well formed and
-/// unique, every relationship end is the document or a declared element, and the document
-/// DESCRIBES at least one element.
+/// unique, every relationship end is the document or a declared element (a target may also be
+/// NONE or NOASSERTION), and the document DESCRIBES at least one element.
 #[must_use]
 pub fn reference_errors(document: &SpdxDocument) -> Vec<String> {
     let mut errors = Vec::new();
@@ -304,10 +317,12 @@ pub fn reference_errors(document: &SpdxDocument) -> Vec<String> {
         }
     }
     let known = |id: &str| id == DOCUMENT_ID || declared.contains(id);
+    let sentinel = |id: &str| id == NONE || id == NOASSERTION;
     let mut describes_any = false;
     for relationship in &document.relationships {
-        for end in [&relationship.from, &relationship.to] {
-            if !known(end) {
+        let ends = [(&relationship.from, false), (&relationship.to, true)];
+        for (end, may_be_sentinel) in ends {
+            if !known(end) && !(may_be_sentinel && sentinel(end)) {
                 errors.push(format!(
                     "relationship {} {} {} names undeclared element '{end}'",
                     relationship.from, relationship.rel_type, relationship.to
@@ -316,7 +331,7 @@ pub fn reference_errors(document: &SpdxDocument) -> Vec<String> {
         }
         if relationship.rel_type == DESCRIBES {
             if relationship.from == DOCUMENT_ID && relationship.to != DOCUMENT_ID {
-                describes_any = true;
+                describes_any |= !sentinel(&relationship.to);
             } else {
                 errors.push(format!(
                     "DESCRIBES must run from {DOCUMENT_ID} to an element, got {} DESCRIBES {}",

@@ -1,15 +1,14 @@
 //! Allowlists of `<path> <kind> <count>` lines, and their check against what a guard found.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::Path;
+
+use dx_testing::allowlist::{Lines, parse_lines};
 
 use crate::snapshot::read_input;
 
 /// Occurrences keyed by file path and kind.
 pub type Counts = BTreeMap<(String, String), usize>;
-
-/// Whole-line findings, for guards whose allowlist has no counts.
-pub type Lines = BTreeSet<String>;
 
 /// The fix a guard names for a new occurrence when it has no better one.
 pub const REMOVE: &str = "remove the new one";
@@ -125,25 +124,6 @@ pub fn verify(found: &Counts, kinds: &[&str]) {
         problems.len(),
         problems.join("\n")
     );
-}
-
-/// The lines of a sorted allowlist that `well_formed` accepts, and the lines that break the format.
-pub fn parse_lines(text: &str, well_formed: impl Fn(&str) -> bool) -> (Lines, Vec<String>) {
-    let mut lines = Lines::new();
-    let mut problems = Vec::new();
-    let mut previous: Option<&str> = None;
-    for line in text.lines() {
-        if line.trim() != line || !well_formed(line) {
-            problems.push(format!("malformed line: {line:?}"));
-            continue;
-        }
-        if previous.is_some_and(|before| before >= line) {
-            problems.push(format!("not sorted or repeated: {line:?}"));
-        }
-        previous = Some(line);
-        lines.insert(line.to_owned());
-    }
-    (lines, problems)
 }
 
 /// Lines that differ between the tree and the allowlist; `fix` tells how to drop a new line.

@@ -26,6 +26,16 @@ def curated_defaults_unit_tests(name):
                 len(LANG_JSON_DEFAULTS) + len(OTHER_DEFAULTS),
             ),
             expect_equal(
+                "cuda curated defaults come from lang.json",
+                ["cuda" in LANG_JSON_DEFAULTS, CURATED_DEFAULTS["cuda"]],
+                [True, {
+                    "audit": [],
+                    "format": ["clang_format"],
+                    "lint": ["clang_tidy", "typos"],
+                    "typecheck": [],
+                }],
+            ),
+            expect_equal(
                 "python curated defaults are Ruff + Ty",
                 CURATED_DEFAULTS["python"],
                 {

@@ -29,3 +29,12 @@ msvc_cc_toolchain(
     target_cpu = "arm64",
     tmp = "C:\\Temp",
 )
+
+msvc_cc_toolchain(
+    name = "toolchain_arm64_x64",
+    msvc_version = "14.44.35207",
+    sdk_version = "10.0.26100.0",
+    exec_cpu = "arm64",
+    target_cpu = "x64",
+    tmp = "C:\\Temp",
+)

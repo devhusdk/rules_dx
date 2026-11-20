@@ -1,5 +1,8 @@
 //! The `CycloneDX` 1.6 JSON data model dx writes next to the SPDX one.
 
+use std::collections::BTreeSet;
+use std::sync::LazyLock;
+
 use serde::{Deserialize, Serialize};
 
 pub const BOM_FORMAT: &str = "CycloneDX";
@@ -103,14 +106,26 @@ impl CycloneDxDocument {
 
     /// Adds a library component and lists it under the root in `dependencies`.
     pub fn add_library(&mut self, component: CdxComponent) {
-        if self.dependencies.is_empty() {
-            self.dependencies.push(CdxDependency {
-                reference: ROOT_REF.to_owned(),
-                depends_on: Vec::new(),
-            });
+        let root = &self.metadata.component.bom_ref;
+        if !self
+            .dependencies
+            .iter()
+            .any(|entry| &entry.reference == root)
+        {
+            self.dependencies.insert(
+                0,
+                CdxDependency {
+                    reference: root.clone(),
+                    depends_on: Vec::new(),
+                },
+            );
         }
-        if let Some(root) = self.dependencies.first_mut() {
-            root.depends_on.push(component.bom_ref.clone());
+        if let Some(entry) = self
+            .dependencies
+            .iter_mut()
+            .find(|entry| entry.reference == self.metadata.component.bom_ref)
+        {
+            entry.depends_on.push(component.bom_ref.clone());
         }
         self.dependencies.push(CdxDependency {
             reference: component.bom_ref.clone(),
@@ -125,6 +140,7 @@ pub const ROOT_REF: &str = "root";
 /// The `CycloneDX` `licenses` value for an SPDX expression: one id, an expression, or nothing.
 #[must_use]
 pub fn license_choices(expression: &str) -> Vec<CdxLicenseChoice> {
+    let expression = expression.trim();
     if crate::license_error("license", expression).is_some()
         || matches!(
             expression,
@@ -134,29 +150,63 @@ pub fn license_choices(expression: &str) -> Vec<CdxLicenseChoice> {
         return Vec::new();
     }
     match spdx::license_id(expression) {
-        Some(id) => vec![CdxLicenseChoice::License {
+        Some(id) if SCHEMA_LICENSE_IDS.contains(id.name) => vec![CdxLicenseChoice::License {
             license: CdxLicense {
                 id: id.name.to_owned(),
             },
         }],
-        None => vec![CdxLicenseChoice::Expression {
+        _ => vec![CdxLicenseChoice::Expression {
             expression: expression.to_owned(),
         }],
     }
 }
 
-/// Graph rules the schema cannot express: unique bom-refs and dependencies that name known refs.
+#[derive(Deserialize)]
+struct SpdxEnum {
+    #[serde(rename = "enum")]
+    ids: BTreeSet<String>,
+}
+
+// The `spdx` crate knows newer ids than the 1.6 schema enum, which rejects them under
+// `license.id`. An unreadable schema leaves the set empty, so every id falls back to `expression`.
+static SCHEMA_LICENSE_IDS: LazyLock<BTreeSet<String>> = LazyLock::new(|| {
+    serde_json::from_str::<SpdxEnum>(include_str!("../schema/spdx.schema.json"))
+        .map(|schema| schema.ids)
+        .unwrap_or_default()
+});
+
+/// Graph rules the schema cannot express: non-empty unique bom-refs and known, unrepeated dependency refs.
 #[must_use]
 pub fn reference_errors(document: &CycloneDxDocument) -> Vec<String> {
     let mut errors = Vec::new();
-    let mut known = std::collections::BTreeSet::new();
-    known.insert(document.metadata.component.bom_ref.as_str());
-    for component in &document.components {
-        if !known.insert(component.bom_ref.as_str()) {
+    let mut known = BTreeSet::new();
+    for component in std::iter::once(&document.metadata.component).chain(&document.components) {
+        if component.bom_ref.is_empty() {
+            errors.push(format!(
+                "component '{}' has an empty bom-ref",
+                component.name
+            ));
+        } else if !known.insert(component.bom_ref.as_str()) {
             errors.push(format!("bom-ref '{}' is declared twice", component.bom_ref));
         }
     }
+    let mut listed = BTreeSet::new();
     for dependency in &document.dependencies {
+        if !listed.insert(dependency.reference.as_str()) {
+            errors.push(format!(
+                "dependency '{}' is listed twice",
+                dependency.reference
+            ));
+        }
+        let mut targets = BTreeSet::new();
+        for target in &dependency.depends_on {
+            if !targets.insert(target.as_str()) {
+                errors.push(format!(
+                    "dependency '{}' depends on '{target}' twice",
+                    dependency.reference
+                ));
+            }
+        }
         for end in std::iter::once(&dependency.reference).chain(&dependency.depends_on) {
             if !known.contains(end.as_str()) {
                 errors.push(format!("dependency names undeclared bom-ref '{end}'"));

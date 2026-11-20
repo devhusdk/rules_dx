@@ -3,6 +3,7 @@ load("//python:defs.bzl", "python_binary", "python_library", "python_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
 # gazelle:resolve python pytest @dx_pypi_fixtures//pytest
+# gazelle:resolve python python.runfiles @rules_python//python/runfiles
 
 package(
     default_testonly = True,
@@ -46,6 +47,14 @@ python_binary(
     dep_group = "hello",
     main = "lock_main.py",
     deps = ["@dx_pypi_fixtures//pytest"],
+)
+
+python_binary(
+    name = "runfiles_hello",
+    srcs = ["runfiles_main.py"],
+    data = ["data.txt"],
+    main = "runfiles_main.py",
+    deps = ["@rules_python//python/runfiles"],
 )
 
 python_test(
@@ -103,6 +112,12 @@ dx_conformance_suite(
         "lint_line": 3,
         "lint_rule": "F401",
         "lint_source": "lint_dirty.py",
+    },
+    runfiles = {
+        "binary": ":runfiles_hello",
+        "data": "data.txt",
+        "expected": "hello runfiles",
+        "tree_only": "rules_py venvs need a runfiles directory; a manifest alone cannot expose one",
     },
 )
 

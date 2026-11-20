@@ -287,18 +287,12 @@ fn subject_matches_mode() {
                 .args(&subject_args);
             let only = dx_testing::run_command(&mut command, std::time::Duration::from_secs(120))
                 .expect("subject must execute");
-            assert_eq!(
-                only.status.code(),
-                Some(0),
-                "manifest-only run failed:\n{}",
-                only.combined()
-            );
             let stdout = only.stdout.replace("\r\n", "\n");
-            assert_eq!(
-                stdout.trim_end_matches('\n'),
-                text,
-                "unexpected output with a manifest only"
-            );
+            let passed = only.status.code() == Some(0) && stdout.trim_end_matches('\n') == text;
+            let tree_only = std::env::var("DX_CONFORMANCE_TREE_ONLY").ok();
+            if let Err(message) = manifest_only_verdict(tree_only.as_deref(), passed) {
+                panic!("{message}:\n{}", only.combined());
+            }
         }
         "fail" => {
             assert!(
@@ -402,6 +396,28 @@ fn runfile_keys<'a>(manifest: &'a str, name: &str) -> Vec<&'a str> {
         .map(|line| line.split_once(' ').map_or(line, |(key, _)| key))
         .filter(|key| launcher_stem(key.rsplit('/').next().unwrap_or(key)) == name)
         .collect()
+}
+
+/// A `tree_only` reason inverts the manifest-only check so the exemption fails once the run passes.
+fn manifest_only_verdict(tree_only: Option<&str>, passed: bool) -> Result<(), String> {
+    match (tree_only, passed) {
+        (None, false) => Err("manifest-only run failed or printed unexpected output".to_owned()),
+        (Some(reason), true) => Err(format!(
+            "manifest-only run now passes; drop tree_only ({reason})"
+        )),
+        _ => Ok(()),
+    }
+}
+
+#[test]
+fn manifest_only_verdict_honours_tree_only() {
+    assert_eq!(manifest_only_verdict(None, true), Ok(()));
+    assert!(manifest_only_verdict(None, false).is_err());
+    assert_eq!(manifest_only_verdict(Some("why"), false), Ok(()));
+    assert_eq!(
+        manifest_only_verdict(Some("why"), true),
+        Err("manifest-only run now passes; drop tree_only (why)".to_owned())
+    );
 }
 
 #[test]

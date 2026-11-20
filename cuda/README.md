@@ -170,6 +170,9 @@ Windows needs `--//cc:compiler=msvc`, because nvcc on Windows only drives
 `cl.exe`. With the default `llvm` compiler, CUDA targets are incompatible
 there, and Windows builds skip them.
 
+`bazel coverage` reports CUDA on Linux only. The host side of a `.cu` file is
+reported against that `.cu` file.
+
 ## License
 
 The CUDA Toolkit is licensed under the

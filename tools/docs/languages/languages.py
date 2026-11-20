@@ -13,6 +13,7 @@ import sys
 import tempfile
 
 OUT = "docs/languages"
+REPO_BLOB = "https://github.com/devhusdk/rules_dx/blob/main/"
 UPDATE = "bazel run //tools/docs/languages:languages_bin -- --write"
 PLATFORM_NAMES = {
     "linux_arm64": "Linux arm64",
@@ -359,14 +360,20 @@ def render(name, info):
 
 
 def rebase_links(text, lang):
-    """Rewrites the relative links of <lang>/README.md text to resolve from OUT."""
+    """Rewrites the relative links of <lang>/README.md text to resolve from OUT.
+
+    Links to Markdown files and to paths under docs/ stay relative; links to any
+    other repository path become GitHub blob URLs.
+    """
 
     def rebase(match):
         target = match.group(1)
         if "://" in target or target.startswith(("mailto:", "/")):
             return match.group(0)
-        moved = posixpath.relpath(posixpath.normpath(posixpath.join(lang, target)), OUT)
-        return "](" + moved
+        path = posixpath.normpath(posixpath.join(lang, target))
+        if not path.startswith("docs/") and not path.endswith(".md"):
+            return "](" + REPO_BLOB + path
+        return "](" + posixpath.relpath(path, OUT)
 
     out = []
     fenced = False
@@ -463,8 +470,8 @@ def quick_start(root, lang, title):
     if build is not None:
         out.append(
             "A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds."
-            " This one is a small %s package from [`%s`](https://github.com/devhusdk/rules_dx/blob/main/%s/BUILD.bazel):\n"
-            % (title, consumer, consumer)
+            " This one is a small %s package from [`%s`](%s%s/BUILD.bazel):\n"
+            % (title, consumer, REPO_BLOB, consumer)
         )
         out.append("```python\n%s\n```\n" % without_markers(build))
     out.append(

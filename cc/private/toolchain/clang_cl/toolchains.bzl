@@ -118,7 +118,7 @@ def _tool_map(prefix, exec_os, exec_cpu):
     )
     return ":" + prefix + "_tools"
 
-def clang_cl_toolchains(link_lib_env):
+def clang_cl_toolchains():
     """Declares one clang-cl cc_toolchain per LLVM execution platform for MSVC targets."""
     for (exec_os, exec_cpu) in MSVC_TARGET_STAGE0_SUPPORTED_EXECS:
         prefix = exec_os + "_" + exec_cpu
@@ -126,7 +126,7 @@ def clang_cl_toolchains(link_lib_env):
         msvc_args = [
             ":normalized_default_libs_for_runtime",
             ":normalized_sdk_compile_args",
-            link_lib_env,
+            ":link_lib_env",
         ] + case_overlays
 
         merged_resource_directory(

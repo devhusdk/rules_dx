@@ -6,6 +6,10 @@ load(":repo.bzl", "gem_extract")
 
 visibility(["//cc/...", "//core/...", "//d/...", "//elixir/...", "//erlang/...", "//fortran/...", "//haskell/...", "//lua/...", "//msix/...", "//ocaml/...", "//powershell/...", "//swift/..."])
 
+_HEX = "0123456789abcdef"
+
+_WALK_LIMIT = 1000000
+
 _HOST_CELLS = [
     "linux_arm64",
     "linux_x86_64",
@@ -102,10 +106,39 @@ def pin_checks(cells, version, archive_attr = "archive"):
     """Returns the checks every archive pin table shares."""
     pins = cells.values()
     return [
-        expect_true("digests are sha256", all([len(p.sha256) == 64 for p in pins])),
+        expect_true("digests are sha256", all([is_sha256(p.sha256) for p in pins])),
         expect_true("urls name the version and archive", all([version in p.urls[0] and p.urls[0].endswith(getattr(p, archive_attr)) for p in pins])),
         expect_equal("cells are host cells", [c for c in cells if c not in _HOST_CELLS], []),
     ]
+
+def is_sha256(value):
+    """Returns whether value is a sha256 digest of 64 lowercase hex characters."""
+    return type(value) == "string" and len(value) == 64 and all([c in _HEX for c in value.elems()])
+
+def digest_problems(name, value):
+    """Returns the sorted "<path>: <problem>" strings for every sha256 and urls nested in value.
+
+    A sha256 is one digest or a dict of digests; urls is a non-empty list of https urls.
+    """
+    problems = []
+    stack = [(name, value)]
+    for _ in range(_WALK_LIMIT):
+        if not stack:
+            return sorted(problems)
+        path, node = stack.pop()
+        if type(node) == "list":
+            stack.extend([("{}[{}]".format(path, i), item) for i, item in enumerate(node)])
+        elif type(node) == "dict":
+            if "sha256" in node:
+                digest = node["sha256"]
+                if not (is_sha256(digest) or (type(digest) == "dict" and len(digest) > 0 and all([is_sha256(d) for d in digest.values()]))):
+                    problems.append(path + ": sha256 is not 64 lowercase hex characters")
+            if "urls" in node:
+                urls = node["urls"]
+                if type(urls) != "list" or len(urls) == 0 or not all([type(url) == "string" and url.startswith("https://") for url in urls]):
+                    problems.append(path + ": urls is not a non-empty list of https urls")
+            stack.extend([(path + "." + key, item) for key, item in node.items()])
+    fail("{}: more than {} nested values".format(name, _WALK_LIMIT))
 
 def toolchain_target(name, toolchain, toolchain_type, exec_compatible_with = None, target_compatible_with = None, target_settings = None, visibility = None):
     """Returns one toolchain() target; attributes left as None are omitted."""

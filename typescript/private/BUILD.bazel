@@ -17,13 +17,6 @@ exports_files([
 js_build_tool(
     name = "tsc",
     tool = "@npm_typescript//:tsc",
-    visibility = ["//visibility:public"],
-)
-
-js_build_tool(
-    name = "validator",
-    tool = "@npm_typescript//:validator",
-    visibility = ["//visibility:public"],
 )
 
 real_source_target(

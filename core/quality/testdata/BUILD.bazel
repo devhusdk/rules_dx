@@ -1567,7 +1567,6 @@ runner_matrix_cases(name = "runner_matrix")
 
 _FAKE_FORMAT_TOOLS = [
     "csharpier",
-    "fantomas",
     "modfmt",
     "prettier_file_family",
     "rubocop",

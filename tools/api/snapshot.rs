@@ -7,7 +7,7 @@ use dx_plan::args::{help_environment, help_surface};
 use prost::Message;
 use serde_json::{Value, json};
 use stardoc_output_proto::stardoc_output::{
-    AttributeInfo, FunctionParamInfo, FunctionParamRole, ModuleInfo,
+    AttributeInfo, FunctionParamInfo, FunctionParamRole, ModuleInfo, StarlarkFunctionInfo,
 };
 
 /// The files under `api/` this crate writes, in the order `update` writes them.
@@ -77,10 +77,10 @@ fn starlark_json(
     let mut public_functions: BTreeSet<&str> = BTreeSet::new();
     for module in &modules {
         for function in &module.func_info {
-            public_functions.insert(function.function_name.as_str());
+            public_functions.insert(declared_name(function));
             if has_kwargs(&function.parameter) {
                 kwargs_modules
-                    .entry(function.function_name.as_str())
+                    .entry(declared_name(function))
                     .or_default()
                     .push(module.file.as_str());
             }
@@ -141,7 +141,7 @@ fn starlark_json(
                 entry.insert("name".to_owned(), json!(function.function_name));
                 entry.insert("params".to_owned(), json!(params_json(&function.parameter)));
                 if has_kwargs(&function.parameter) {
-                    let kinds = forwards.remove(&function.function_name).unwrap_or_default();
+                    let kinds = forwards.remove(declared_name(function)).unwrap_or_default();
                     entry.insert(
                         "forwards".to_owned(),
                         kinds
@@ -228,6 +228,17 @@ fn starlark_json(
     let mut text = serde_json::to_string_pretty(&sorted_by_name(entries))?;
     text.push('\n');
     Ok(text)
+}
+
+/// The name a query reports as `generator_function`: the name the function was declared under, which differs
+/// from its public name when the public name aliases an upstream macro.
+fn declared_name(function: &StarlarkFunctionInfo) -> &str {
+    function
+        .origin_key
+        .as_ref()
+        .map(|origin| origin.name.as_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or(function.function_name.as_str())
 }
 
 fn has_kwargs(params: &[FunctionParamInfo]) -> bool {
@@ -599,7 +610,7 @@ mod tests {
     use prost::Message;
     use stardoc_output_proto::stardoc_output::{
         AttributeInfo, AttributeType, FunctionParamInfo, FunctionParamRole, MacroInfo,
-        ModuleExtensionInfo, ModuleExtensionTagClassInfo, ModuleInfo, ProviderFieldInfo,
+        ModuleExtensionInfo, ModuleExtensionTagClassInfo, ModuleInfo, OriginKey, ProviderFieldInfo,
         ProviderInfo, RuleInfo, StarlarkFunctionInfo,
     };
 
@@ -820,6 +831,34 @@ mod tests {
         let json: serde_json::Value = serde_json::from_str(&text).expect("starlark.json parses");
         assert_eq!(json[0]["functions"][0]["name"], "demo_test");
         assert!(json[0]["functions"][0].get("forwards").is_none(), "{text}");
+    }
+
+    #[test]
+    fn an_aliased_macro_takes_the_forwards_of_its_declared_name() {
+        let mut info =
+            ModuleInfo::decode(module("[]", "Docs.").as_slice()).expect("module decodes");
+        for function in &mut info.func_info {
+            function.origin_key = Some(OriginKey {
+                name: "upstream_test".to_owned(),
+                file: "@upstream//:defs.bzl".to_owned(),
+            });
+        }
+        let text = starlark_json(
+            &[info.encode_to_vec()],
+            &[target("upstream_test", "rust_test", "2024")],
+        )
+        .expect("upstream_test is the declared name of demo_test");
+        let json: serde_json::Value = serde_json::from_str(&text).expect("starlark.json parses");
+        assert_eq!(json[0]["functions"][0]["name"], "demo_test");
+        assert_eq!(
+            json[0]["functions"][0]["forwards"],
+            serde_json::json!([{"kind": "rust_test", "attrs": ["edition", "srcs"]}])
+        );
+        starlark_json(
+            &[info.encode_to_vec()],
+            &[target("demo_test", "rust_test", "2024")],
+        )
+        .expect_err("demo_test is not a declared name");
     }
 
     #[test]

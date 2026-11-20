@@ -61,9 +61,10 @@ pub fn uri_to_path(uri: &str) -> Result<PathBuf, UriError> {
             uri: uri.to_owned(),
         });
     }
+    // A backslash separates components only on Windows; elsewhere it is a filename character.
     let escaped_separator = parsed.path().split('/').any(|part| {
         let upper = part.to_ascii_uppercase();
-        upper.contains("%2F") || upper.contains("%5C") || upper.contains("%00")
+        upper.contains("%2F") || (cfg!(windows) && upper.contains("%5C")) || upper.contains("%00")
     });
     if escaped_separator {
         return Err(UriError::NotLocalPath {
@@ -114,6 +115,7 @@ mod tests {
             ("a%20b.pb", "a%2520b.pb"),
             ("a#b.pb", "a%23b.pb"),
             ("a?b.pb", "a%3Fb.pb"),
+            ("a\\b.pb", "a%5Cb.pb"),
             ("täst.pb", "t%C3%A4st.pb"),
         ]
     }

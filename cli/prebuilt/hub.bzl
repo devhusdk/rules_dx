@@ -168,7 +168,7 @@ def _source_actual(source, guard):
     return _select([(GUARD_VIEW, GUARD_STUB)], source) if guard else '"{}"'.format(source)
 
 def with_jars(build, jars, guard = False):
-    """Returns the hub BUILD text build plus two targets per jar tool: the pinned jar on the JVM, else its source, and `<tool>_deploy.jar`, the jar file.
+    """Returns the hub BUILD text build plus three targets per pinned jar tool: `<tool>_jvm`, the pinned jar on the JVM, `<tool>`, its alias, and `<tool>_deploy.jar`, the jar file. An unpinned jar tool aliases `<tool>` to its source.
 
     With guard, an unpinned jar tool selects GUARD_STUB under GUARD_VIEW.
     """

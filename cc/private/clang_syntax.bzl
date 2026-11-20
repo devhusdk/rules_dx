@@ -2,6 +2,7 @@
 
 load("@apple_support//lib:apple_support.bzl", "apple_support")
 load("@apple_support//xcode:providers.bzl", "XcodeVersionInfo")
+load("@bazel_skylib//rules/directory:providers.bzl", "DirectoryInfo")
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
@@ -179,8 +180,11 @@ def _msvc_tidy_argv(tidy, argv, src, identity, config, env):
 
     return struct(argv = [tidy] + _config_flag(config) + [src, "--", "--driver-mode=cl"] + target + imsvc + flags, error = "")
 
-def clang_tidy_argv(tidy, argv, src, identity, config = "", env = {}):
-    """Projects a compile command line into a clang-tidy command line."""
+def clang_tidy_argv(tidy, argv, src, identity, config = "", env = {}, resource_dir = ""):
+    """Projects a compile command line into a clang-tidy command line.
+
+    `resource_dir` is the builtin header directory of `tidy`; it is added when the compile command names none.
+    """
     if identity.driver == "msvc":
         return _msvc_tidy_argv(tidy, argv, src, identity, config, env)
     rewritten = clang_syntax_argv(argv, src, identity)
@@ -197,6 +201,8 @@ def clang_tidy_argv(tidy, argv, src, identity, config = "", env = {}):
             dropped_src = True
             continue
         flags.append(arg)
+    if resource_dir and not [arg for arg in flags if arg.startswith("-resource-dir")]:
+        flags.append("-resource-dir=" + resource_dir)
     return struct(argv = [tidy] + _config_flag(config) + [src, "--"] + flags, error = "")
 
 def cuda_tidy_argv(tidy, argv, src, config = "", extra_includes = []):
@@ -299,6 +305,7 @@ def _clang_syntax_impl(target, ctx):
         context = target[CcInfo].compilation_context
         headers = depset(context.direct_private_headers, transitive = [context.headers])
     tidy = ctx.file._clang_tidy
+    tidy_resources = ctx.attr._clang_tidy_resource_dir[DirectoryInfo]
     tidy_target = bound_config_targets(attrs, ctx.attr._policy[QualityPolicyInfo].configs, str(target.label)).get("clang_tidy")
     tidy_config = ""
     tidy_closure = depset()
@@ -385,12 +392,12 @@ def _clang_syntax_impl(target, ctx):
             resource_set = dx_heavy_resources,
         )
         if not tidy_error:
-            tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config, base_env)
+            tidy_argv = clang_tidy_argv(tidy.path, list(argv), src, identity, tidy_config, base_env, tidy_resources.path)
             tidy_log = ctx.actions.declare_file("dx_clang_tidy/%s.log" % stem)
             if tidy_argv.error != "":
                 _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
             else:
-                tidy_action_inputs = depset([tidy], transitive = [all_inputs, tidy_closure])
+                tidy_action_inputs = depset([tidy], transitive = [all_inputs, tidy_closure, tidy_resources.transitive_files])
                 tidy_inputs.append(tidy_action_inputs)
                 ctx.actions.run(
                     mnemonic = "ClangTidy",
@@ -428,6 +435,7 @@ clang_syntax_aspect = aspect(
             providers = [QualityPolicyInfo],
         ),
         "_clang_tidy": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
+        "_clang_tidy_resource_dir": attr.label(default = "@llvm//:builtin_resource_dir", providers = [DirectoryInfo], cfg = "exec"),
         "_cuda_tidy_headers": attr.label(default = "//cuda:clang_tidy_headers"),
         "_capture": attr.label(default = "@dx_prebuilt//:dx", executable = True, cfg = "exec"),
     },

@@ -931,7 +931,8 @@ mod tests {
     const CHANGED: &str = "//:changed Genrule bazel-out/k8-fastbuild/bin/changed.out";
     const NOCACHE: &str = "//:nocache Genrule bazel-out/k8-fastbuild/bin/nocache.out";
     const SAME: &str = "//:same Genrule bazel-out/k8-fastbuild/bin/same.out";
-    const OLD: &str = "01d09d19c2139a46aebfb577780d123d7396e97201bc7ead210a2ebff8239dee";
+    /// The first fixture log built `changed.txt` from this text.
+    const OLD_TEXT: &[u8] = b"old\n";
 
     fn cache_logs() -> (ExecLog, ExecLog) {
         (
@@ -979,7 +980,7 @@ mod tests {
                 "external/bazel_tools/tools/genrule/genrule-setup.sh"
             ]
         );
-        assert_eq!(old["changed.txt"], OLD);
+        assert_eq!(old["changed.txt"], dx_digest::sha256_hex(OLD_TEXT));
         assert_ne!(old["changed.txt"], new["changed.txt"]);
     }
 
@@ -987,17 +988,18 @@ mod tests {
     fn diff_names_the_changed_input_and_the_uncacheable_spawn() {
         let (first, second) = cache_logs();
         let new = second.inputs(by_key(&second, CHANGED)).unwrap();
+        let old = dx_digest::sha256_hex(OLD_TEXT);
         let lines = diff(&first, &second, 20).unwrap();
         let at = |key: &str| lines.iter().position(|l| l.contains(key));
         let changed = at(CHANGED).unwrap();
         assert!(lines[changed].ends_with("(linux-sandbox)"), "{lines:?}");
         assert_eq!(
             lines[changed + 1],
-            format!("  origin: changed.txt: {OLD} -> {}", new["changed.txt"])
+            format!("  origin: changed.txt: {old} -> {}", new["changed.txt"])
         );
         assert_eq!(
             lines[changed + 2],
-            format!("  input changed.txt: {OLD} -> {}", new["changed.txt"])
+            format!("  input changed.txt: {old} -> {}", new["changed.txt"])
         );
         assert_eq!(at(NOCACHE), None, "{lines:?}");
         assert_eq!(at(SAME), None, "{lines:?}");

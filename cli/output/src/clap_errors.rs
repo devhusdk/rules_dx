@@ -119,9 +119,13 @@ mod tests {
         assert_eq!(recover_unknown_token(&args, "--missing"), "--missing");
     }
 
+    fn tool() -> clap::Command {
+        clap::Command::new("tool")
+    }
+
     fn error(args: &[&str]) -> clap::Error {
         let argv = std::iter::once("tool").chain(args.iter().copied());
-        clap::Command::new("tool")
+        tool()
             .arg(
                 clap::Arg::new("workspace")
                     .long("workspace")
@@ -223,7 +227,7 @@ mod tests {
 
     #[test]
     fn a_missing_required_argument_is_named() {
-        let command = clap::Command::new("tool")
+        let command = tool()
             .arg(clap::Arg::new("target").long("target").required(true))
             .arg(clap::Arg::new("path").required(true));
         let one = command
@@ -242,7 +246,7 @@ mod tests {
 
     #[test]
     fn a_value_the_parser_rejects_is_named_with_the_reason() {
-        let command = clap::Command::new("tool").arg(
+        let command = tool().arg(
             clap::Arg::new("jobs")
                 .long("jobs")
                 .value_parser(clap::value_parser!(u32)),
@@ -258,7 +262,7 @@ mod tests {
 
     #[test]
     fn a_rejected_value_is_named_not_called_missing() {
-        let command = clap::Command::new("tool").arg(
+        let command = tool().arg(
             clap::Arg::new("output")
                 .long("output")
                 .value_parser(["text", "json"]),

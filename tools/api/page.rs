@@ -513,7 +513,7 @@ mod tests {
             "//lua:toolchain_type toolchain_type\n",
             "//:dx alias\n",
             "//deploy:bootstrap_offline runnable native_binary\n",
-            "@crates hub @rules_dx//rust:extensions.bzl%cargo\n",
+            "@demo_crates hub @rules_dx//rust:extensions.bzl%cargo\n",
         );
         let starlark = r#"[{"load":"@rules_dx//demo:defs.bzl",
             "rules":[{"name":"demo_test","executable":true,"test":true,"attrs":[
@@ -548,7 +548,7 @@ mod tests {
             "| `@rules_dx//cuda:is_sm_90` | `config_setting` |",
             "- `@rules_dx//lua:toolchain_type`",
             "| `events.schema.json` | `4.0` |",
-            "| `@crates` | `@rules_dx//rust:extensions.bzl%cargo` |",
+            "| `@demo_crates` | `@rules_dx//rust:extensions.bzl%cargo` |",
             "| `@rules_dx//:dx` | `alias` |",
             "### `@rules_dx//demo:defs.bzl`",
             "#### `demo_test`",
@@ -573,7 +573,7 @@ mod tests {
             .and_then(|(_, rest)| rest.split_once("\n## "))
             .map(|(table, _)| table)
             .expect("a Build settings section");
-        for label in ["@crates", "//:dx", "bootstrap_offline", "is_sm_90"] {
+        for label in ["@demo_crates", "//:dx", "bootstrap_offline", "is_sm_90"] {
             assert!(
                 !settings.contains(label),
                 "{label} in Build settings:\n{settings}"

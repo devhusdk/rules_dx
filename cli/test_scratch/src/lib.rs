@@ -218,6 +218,13 @@ pub fn running_as_root() -> bool {
 mod tests {
     use super::*;
 
+    /// A git command run in `repo`, before any isolation.
+    fn git_in(repo: &Path) -> Command {
+        let mut cmd = Command::new("git");
+        cmd.arg("-C").arg(repo);
+        cmd
+    }
+
     #[cfg(windows)]
     fn directory_link(target: &Path, link: &Path) -> std::io::Result<()> {
         std::os::windows::fs::symlink_dir(target, link)
@@ -371,21 +378,16 @@ mod tests {
         let sandbox = dir.path().canonicalize().expect("canonical");
         let repo = sandbox.join("repo");
         std::fs::create_dir_all(&repo).expect("repo dir");
-        let mut probe = Command::new("git");
-        probe
-            .arg("-C")
-            .arg(&repo)
-            .args(["rev-parse", "--is-inside-work-tree"]);
+        let mut probe = git_in(&repo);
+        probe.args(["rev-parse", "--is-inside-work-tree"]);
         isolate_git(&mut probe, &sandbox);
         assert!(!probe.output().expect("git").status.success(), "not a repo");
-        let mut init = Command::new("git");
-        init.arg("-C").arg(&repo).args(["init", "-q"]);
+        let mut init = git_in(&repo);
+        init.args(["init", "-q"]);
         isolate_git(&mut init, &sandbox);
         assert!(init.status().expect("git").success());
-        let mut list = Command::new("git");
-        list.arg("-C")
-            .arg(&repo)
-            .args(["config", "--global", "--list"]);
+        let mut list = git_in(&repo);
+        list.args(["config", "--global", "--list"]);
         isolate_git(&mut list, &sandbox);
         let out = list.output().expect("git");
         assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "");
@@ -476,8 +478,8 @@ mod tests {
         let root = sandbox.path().join("repo");
         std::fs::create_dir_all(&root).unwrap();
         git(&root, sandbox.path(), &["init", "-q"]).unwrap();
-        let mut commit = Command::new("git");
-        commit.arg("-C").arg(&root).args([
+        let mut commit = git_in(&root);
+        commit.args([
             "-c",
             "user.name=dx",
             "-c",

@@ -15,8 +15,8 @@ pub(crate) struct Producer {
     pub(crate) terminal: Vec<DiagnosticEvent>,
 }
 
-pub struct Conflict {
-    pub path: String,
+pub(crate) struct Conflict {
+    pub(crate) path: String,
     pub(crate) reason: &'static str,
     pub(crate) producers: Vec<String>,
 }

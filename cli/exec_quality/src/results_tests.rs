@@ -1,9 +1,9 @@
-use super::test_support::*;
-use dx_exec_core::common::{FileChange, apply_to_bytes};
-use dx_exec_quality::results::{
+use super::{
     Collected, Unstable, collect_results_in, map_diagnostic, map_severity, stage_artifact,
     stage_result,
 };
+use dx_exec_core::common::{FileChange, apply_to_bytes};
+use dx_exec_quality_testing::{LAST_EVENT, QualityWorkspace, diagnostic, result_full, temp_dir};
 use dx_output::{DiagnosticEvent, Severity, Snapshot};
 use quality_result::decode_validated;
 use quality_result::{encode_validated, proto};
@@ -25,12 +25,8 @@ fn keep_paths_drops_other_files() {
         problems: Vec::new(),
     };
     for path in ["src/a.py", "src/b.py"] {
-        let mut event = map_diagnostic(
-            &Harness::diagnostic("m", false),
-            Snapshot::Initial,
-            Path::new("."),
-        )
-        .expect("event");
+        let mut event = map_diagnostic(&diagnostic("m", false), Snapshot::Initial, Path::new("."))
+            .expect("event");
         event.path = Some(path.to_owned());
         collected.initial.push(event);
         collected.changes.push(FileChange {
@@ -68,7 +64,7 @@ fn severity_mapping_covers_all_arms() {
 
 #[test]
 fn diagnostic_mapping_rejects_bad_shapes() {
-    let base = Harness::diagnostic("m", false);
+    let base = diagnostic("m", false);
     let mut partial = base.clone();
     partial.end_byte = None;
     assert!(map_diagnostic(&partial, Snapshot::Initial, Path::new(".")).is_none());
@@ -88,7 +84,7 @@ fn unused_dependency_is_placed_on_its_build_line() {
     std::fs::create_dir_all(root.path().join("p")).expect("package");
     let build = "rust_library(\n    name = \"lib\",\n    deps = [\"//a:a\"],\n)\n";
     std::fs::write(root.path().join("p/BUILD.bazel"), build).expect("build");
-    let mut diagnostic = Harness::diagnostic("unused", false);
+    let mut diagnostic = diagnostic("unused", false);
     diagnostic.path = String::new();
     diagnostic.start_byte = None;
     diagnostic.end_byte = None;
@@ -113,10 +109,10 @@ fn unused_dependency_is_placed_on_its_build_line() {
 
 #[test]
 fn staging_rejects_results_the_report_cannot_carry() {
-    let harness = Harness::new("stage-reject");
+    let harness = QualityWorkspace::new("stage-reject");
     harness.write_source("src/a.py", "x = 1\n");
     let bytes = harness.valid_result(
-        vec![Harness::diagnostic("unused", false)],
+        vec![diagnostic("unused", false)],
         vec![harness.replacement(b"y")],
     );
     let mut result = decode_validated(&bytes).expect("valid result");
@@ -150,7 +146,7 @@ fn staging_rejects_results_the_report_cannot_carry() {
 
 #[test]
 fn staging_rejects_non_utf8_replacements() {
-    let harness = Harness::new("stage-bytes");
+    let harness = QualityWorkspace::new("stage-bytes");
     harness.write_source("src/a.py", "x = 1\n");
     let bytes = harness.valid_result(vec![], vec![harness.replacement(b"y")]);
     let mut result = decode_validated(&bytes).expect("valid result");
@@ -220,7 +216,7 @@ fn configured(labels: &[&str]) -> String {
     .to_string()
 }
 
-fn produced(harness: &Harness, label: &str, set: &str) -> Vec<String> {
+fn produced(harness: &QualityWorkspace, label: &str, set: &str) -> Vec<String> {
     let artifact = harness.temp.join(format!("{set}.pb"));
     std::fs::write(&artifact, harness.valid_result(vec![], vec![])).expect("artifact");
     vec![
@@ -240,7 +236,7 @@ fn produced(harness: &Harness, label: &str, set: &str) -> Vec<String> {
     ]
 }
 
-fn collect(harness: &Harness, lines: &[String]) -> Collected {
+fn collect(harness: &QualityWorkspace, lines: &[String]) -> Collected {
     let bep = harness.temp.join("events.json");
     std::fs::write(&bep, lines.join("\n")).expect("bep");
     collect_results_in(
@@ -255,7 +251,7 @@ fn collect(harness: &Harness, lines: &[String]) -> Collected {
 
 #[test]
 fn two_producers_both_reported_are_complete() {
-    let harness = Harness::new("producers-both");
+    let harness = QualityWorkspace::new("producers-both");
     harness.write_source("src/a.py", "x = 1\n");
     let mut lines = vec![configured(&["//a:one", "//a:two"])];
     lines.extend(produced(&harness, "//a:one", "0"));
@@ -268,7 +264,7 @@ fn two_producers_both_reported_are_complete() {
 
 #[test]
 fn an_announced_producer_that_never_reports_is_incomplete() {
-    let harness = Harness::new("producers-one-missing");
+    let harness = QualityWorkspace::new("producers-one-missing");
     harness.write_source("src/a.py", "x = 1\n");
     let mut lines = vec![configured(&["//a:one", "//a:two"])];
     lines.extend(produced(&harness, "//a:one", "0"));
@@ -286,7 +282,7 @@ fn an_announced_producer_that_never_reports_is_incomplete() {
 
 #[test]
 fn a_stream_without_bazels_last_event_is_incomplete() {
-    let harness = Harness::new("producers-unterminated");
+    let harness = QualityWorkspace::new("producers-unterminated");
     harness.write_source("src/a.py", "x = 1\n");
     let lines = produced(&harness, "//a:one", "0");
     let collected = collect(&harness, &lines);
@@ -301,7 +297,7 @@ fn a_stream_without_bazels_last_event_is_incomplete() {
 
 #[test]
 fn no_applicable_work_is_complete_only_once_every_target_reported() {
-    let harness = Harness::new("producers-no-work");
+    let harness = QualityWorkspace::new("producers-no-work");
     let done = serde_json::json!({
         "id": {"targetCompleted": {"label": "//a:docs", "configuration": {"id": "cfg1"}}},
         "completed": {"success": true},
@@ -324,7 +320,7 @@ fn no_applicable_work_is_complete_only_once_every_target_reported() {
 
 #[test]
 fn skipped_targets_are_not_missing_results() {
-    let harness = Harness::new("producers-skipped");
+    let harness = QualityWorkspace::new("producers-skipped");
     harness.write_source("src/a.py", "x = 1\n");
     let mut lines = vec![configured(&["//a:one", "//a:windows_only"])];
     lines.extend(produced(&harness, "//a:one", "0"));
@@ -339,7 +335,7 @@ fn skipped_targets_are_not_missing_results() {
 
 #[test]
 fn nobuild_targets_are_not_missing_results() {
-    let harness = Harness::new("producers-nobuild");
+    let harness = QualityWorkspace::new("producers-nobuild");
     let mut lines = vec![configured(&["//a:one"])];
     lines.push(
         serde_json::json!({"id": completion_id("//a:one"), "aborted": {"reason": "NO_BUILD"}})
@@ -352,7 +348,7 @@ fn nobuild_targets_are_not_missing_results() {
 
 #[test]
 fn aborted_and_incomplete_producers_name_their_cause() {
-    let harness = Harness::new("producers-aborted");
+    let harness = QualityWorkspace::new("producers-aborted");
     harness.write_source("src/a.py", "x = 1\n");
     let mut lines = vec![configured(&["//a:one", "//a:two"])];
     lines.extend(produced(&harness, "//a:one", "0"));
@@ -387,7 +383,7 @@ fn aborted_and_incomplete_producers_name_their_cause() {
 
 #[test]
 fn an_invalid_result_names_its_producer() {
-    let harness = Harness::new("producers-invalid");
+    let harness = QualityWorkspace::new("producers-invalid");
     let artifact = harness.temp.join("bad.pb");
     std::fs::write(&artifact, b"not a result").expect("artifact");
     let lines = vec![
@@ -416,7 +412,7 @@ fn an_invalid_result_names_its_producer() {
 
 #[test]
 fn a_cut_off_last_line_is_incomplete_not_invalid() {
-    let harness = Harness::new("producers-cut-off");
+    let harness = QualityWorkspace::new("producers-cut-off");
     harness.write_source("src/a.py", "x = 1\n");
     let mut lines = produced(&harness, "//a:one", "0");
     lines.push(r#"{"id":{"targetCo"#.to_owned());
@@ -439,10 +435,10 @@ fn a_cut_off_last_line_is_incomplete_not_invalid() {
 
 #[test]
 fn an_artifact_reported_by_two_targets_is_read_once() {
-    let harness = Harness::new("producers-shared-artifact");
+    let harness = QualityWorkspace::new("producers-shared-artifact");
     harness.write_source("src/a.py", "x = 1\n");
     let artifact = harness.temp.join("shared.pb");
-    let bytes = harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]);
+    let bytes = harness.valid_result(vec![diagnostic("unused", false)], vec![]);
     std::fs::write(&artifact, bytes).expect("artifact");
     let report = |label: &str| {
         serde_json::json!({
@@ -472,7 +468,7 @@ fn an_artifact_reported_by_two_targets_is_read_once() {
 
 #[test]
 fn a_bad_line_mid_stream_is_reported_not_fatal() {
-    let harness = Harness::new("producers-mid-stream");
+    let harness = QualityWorkspace::new("producers-mid-stream");
     let mut lines = vec!["{\"id\":{\"targetCo".to_owned()];
     lines.extend(produced(&harness, "//a:one", "0"));
     lines.push(LAST_EVENT.to_owned());
@@ -500,7 +496,7 @@ fn a_bad_line_mid_stream_is_reported_not_fatal() {
 const TWO_DEPS: &str = "rust_library(\n    name = \"one\",\n    deps = [\"//a:a\"],\n)\n\nrust_library(\n    name = \"two\",\n    deps = [\"//b:b\"],\n)\n";
 
 fn unused(target: &str, dependency: &str) -> proto::Diagnostic {
-    let mut diagnostic = Harness::diagnostic("unused", false);
+    let mut diagnostic = diagnostic("unused", false);
     diagnostic.path = String::new();
     diagnostic.start_byte = None;
     diagnostic.end_byte = None;
@@ -513,7 +509,7 @@ fn unused(target: &str, dependency: &str) -> proto::Diagnostic {
     diagnostic
 }
 
-fn collect_artifacts(harness: &Harness, artifacts: &[(&str, Vec<u8>)]) -> Collected {
+fn collect_artifacts(harness: &QualityWorkspace, artifacts: &[(&str, Vec<u8>)]) -> Collected {
     let mut lines = vec![configured(
         &artifacts
             .iter()
@@ -546,16 +542,16 @@ fn collect_artifacts(harness: &Harness, artifacts: &[(&str, Vec<u8>)]) -> Collec
     collect(harness, &lines)
 }
 
-fn unused_deps_artifact(harness: &Harness, deps: &[(&str, &str)]) -> Vec<u8> {
+fn unused_deps_artifact(deps: &[(&str, &str)]) -> Vec<u8> {
     let found: Vec<proto::Diagnostic> = deps.iter().map(|(t, d)| unused(t, d)).collect();
-    harness.result_full(found.clone(), found, vec![], vec![])
+    result_full(found.clone(), found, vec![], vec![])
 }
 
 #[test]
 fn unused_deps_in_one_build_file_become_one_change() {
-    let harness = Harness::new("unused-deps-one");
+    let harness = QualityWorkspace::new("unused-deps-one");
     harness.write_source("p/BUILD.bazel", TWO_DEPS);
-    let bytes = unused_deps_artifact(&harness, &[("one", "a"), ("two", "b"), ("one", "a")]);
+    let bytes = unused_deps_artifact(&[("one", "a"), ("two", "b"), ("one", "a")]);
     let collected = collect_artifacts(&harness, &[("//p:one", bytes)]);
     assert!(collected.conflicts.is_empty());
     assert_eq!(collected.changes.len(), 1);
@@ -588,14 +584,14 @@ fn missing(target: &str, label: &str) -> proto::Diagnostic {
 
 #[test]
 fn missing_dep_is_added_while_the_only_entry_is_removed() {
-    let harness = Harness::new("missing-dep-swap");
+    let harness = QualityWorkspace::new("missing-dep-swap");
     harness.write_source("p/BUILD.bazel", TWO_DEPS);
     let found = vec![
         unused("one", "a"),
         missing("one", "@@//q:needed"),
         missing("two", "@@x//:y"),
     ];
-    let bytes = harness.result_full(found.clone(), found, vec![], vec![]);
+    let bytes = result_full(found.clone(), found, vec![], vec![]);
     let collected = collect_artifacts(&harness, &[("//p:one", bytes)]);
     assert_eq!(collected.changes.len(), 1);
     let change = &collected.changes[0];
@@ -624,20 +620,20 @@ fn missing_dep_is_added_while_the_only_entry_is_removed() {
 
 #[test]
 fn unused_dep_edit_conflicts_with_another_editor() {
-    let harness = Harness::new("unused-deps-conflict");
+    let harness = QualityWorkspace::new("unused-deps-conflict");
     harness.write_source("p/BUILD.bazel", TWO_DEPS);
     let digest = dx_digest::blake3(TWO_DEPS.as_bytes()).to_vec();
     let snapshot = proto::FileSnapshot {
         path: "p/BUILD.bazel".to_owned(),
         digest,
     };
-    let editor = harness.result_full(
+    let editor = result_full(
         vec![],
         vec![],
         vec![harness.replacement_in("p/BUILD.bazel", b"X")],
         vec![snapshot],
     );
-    let unused = unused_deps_artifact(&harness, &[("one", "a")]);
+    let unused = unused_deps_artifact(&[("one", "a")]);
     let collected = collect_artifacts(&harness, &[("//p:fmt", editor), ("//p:one", unused)]);
     assert!(collected.changes.is_empty());
     assert_eq!(collected.conflicts.len(), 1);
@@ -646,12 +642,12 @@ fn unused_dep_edit_conflicts_with_another_editor() {
 
 #[test]
 fn rewritten_build_file_makes_the_unused_dep_change_stale() {
-    let harness = Harness::new("unused-deps-stale");
+    let harness = QualityWorkspace::new("unused-deps-stale");
     harness.write_source("p/BUILD.bazel", TWO_DEPS);
-    let bytes = unused_deps_artifact(&harness, &[("one", "a")]);
+    let bytes = unused_deps_artifact(&[("one", "a")]);
     let collected = collect_artifacts(&harness, &[("//p:one", bytes)]);
     harness.write_source("p/BUILD.bazel", "# changed\n");
-    let outcome = dx_exec_quality::quality_apply::apply_collected_changes(
+    let outcome = crate::quality_apply::apply_collected_changes(
         &dx_apply::RealFileSystem,
         &harness.workspace,
         true,

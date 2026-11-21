@@ -13,13 +13,13 @@ mod breaking_base;
 pub mod check_build;
 mod generated_drift;
 pub mod link_check;
-pub mod quality_apply;
+mod quality_apply;
 mod quality_emit;
 mod quality_patch;
 mod quality_reconcile;
 mod quality_reports;
 mod quality_security;
-pub mod results;
+mod results;
 
 use crate::check_build::{SharedChecks, SharedRead};
 use crate::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};

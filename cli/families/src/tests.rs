@@ -105,8 +105,10 @@ fn core_entries_ship_apart_from_the_languages() {
         );
         // A language may share a core file, as asciidoc shares core.bzl, without naming aspects.
         assert!(
-            quality_languages().iter().all(|language| language.bzl != files.bzl
-                || (language.aspects.is_empty() && language.probes.is_empty())),
+            quality_languages()
+                .iter()
+                .all(|language| language.bzl != files.bzl
+                    || (language.aspects.is_empty() && language.probes.is_empty())),
             "{} names aspects in core_aspects.json and in a lang.json",
             files.bzl
         );

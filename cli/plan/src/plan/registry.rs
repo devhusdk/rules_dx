@@ -58,21 +58,11 @@ fn with_languages(command: &'static str, probes: bool) -> &'static [&'static str
             let mut labels: Vec<&'static str> =
                 core_labels(command, probes).into_iter().map(leak).collect();
             for language in dx_families::quality_languages() {
-                labels.extend(
-                    language
-                        .labels(command, probes)
-                        .into_iter()
-                        .map(leak),
-                );
+                labels.extend(language.labels(command, probes).into_iter().map(leak));
             }
             if command == "docs" {
                 for language in dx_families::docs_languages() {
-                    labels.extend(
-                        language
-                            .labels()
-                            .into_iter()
-                            .map(leak),
-                    );
+                    labels.extend(language.labels().into_iter().map(leak));
                 }
             }
             all.insert((command, probes), &*Box::leak(labels.into_boxed_slice()));

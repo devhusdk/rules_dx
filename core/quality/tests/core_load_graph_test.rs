@@ -287,7 +287,10 @@ fn every_core_family_aspect_is_registered() {
     let languages =
         dx_testing::read_text(&dx_testing::resolve_runfiles("cli/families/languages.json"));
     let mut missing = Vec::new();
-    for file in bzl_files(&source.join("core/quality/families"), "core/quality/families") {
+    for file in bzl_files(
+        &source.join("core/quality/families"),
+        "core/quality/families",
+    ) {
         if file.ends_with("_tools.bzl") {
             continue;
         }

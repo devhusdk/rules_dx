@@ -106,9 +106,9 @@
 //core/quality/tools/python:rst2html runnable py_binary
 //core/quality/tools/python:sqlfluff runnable py_binary
 //core/quality/tools/python:yamllint runnable py_binary
-//cuda:cublas alias
-//cuda:cufft alias
-//cuda:curand alias
+//cuda:cublas cuda_component_library
+//cuda:cufft cuda_component_library
+//cuda:curand cuda_component_library
 //cuda:gpu_compute_capability string_flag ""
 //cuda:gpu_driver string_flag ""
 //cuda:gpu_undeclared config_setting

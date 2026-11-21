@@ -1,10 +1,7 @@
 """Analysis-time checks for dx CUDA targets."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("@rules_cuda//cuda/private:providers.bzl", "CudaToolkitInfo")
 load("//core/modules:cuda.bzl", "CUDA_ARCHS", "CUDA_CELLS", "CUDA_REDIST_VERSION", "CUDA_VERSION", "cuda_qualified_cells")
-
-_TOOLCHAIN_TYPE = "//cuda:toolchain_type"
 
 def arch_errors(archs):
     """Returns one error per arch spec token that the pinned nvcc does not support."""
@@ -168,24 +165,4 @@ cuda_check = rule(
         "archs": attr.string_list(doc = "Arch specs of the checked target."),
         "_compiler": attr.label(default = "@rules_cuda//cuda:compiler"),
     },
-)
-
-def _toolkit_check_impl(ctx):
-    toolchain = ctx.toolchains[_TOOLCHAIN_TYPE]
-    if toolchain == None:
-        fail("dx_cuda: no nvcc toolchain for this target; dx CUDA targets build for " + ", ".join(cuda_qualified_cells()))
-    toolkit = toolchain.cuda_toolkit[CudaToolkitInfo]
-    errors = toolkit_errors(
-        toolchain.compiler_executable,
-        toolkit.path,
-        "{}.{}".format(toolkit.version_major, toolkit.version_minor),
-    )
-    if errors:
-        fail("\n".join(errors))
-    return [DefaultInfo()]
-
-cuda_toolkit_check = rule(
-    implementation = _toolkit_check_impl,
-    doc = "Fails analysis when the resolved CUDA toolchain is not the pinned nvcc toolkit.",
-    toolchains = [config_common.toolchain_type(_TOOLCHAIN_TYPE, mandatory = False)],
 )

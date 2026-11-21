@@ -646,6 +646,7 @@ filegroup(
         "//csharp/private/tools/lock:module_srcs",
         "//csharp/tests/fixtures/roslyn:module_srcs",
         "//cuda:module_srcs",
+        "//cuda/private/toolchain/hub:module_srcs",
         "//cuda/tests:module_srcs",
         "//d:module_srcs",
         "//d/private:module_srcs",

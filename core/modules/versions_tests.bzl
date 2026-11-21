@@ -78,6 +78,7 @@ def versions_contract_tests(name):
             "//third_party/dotnet:paket.lock": "Google.Protobuf (3." + _PROTOBUF_VERSION + ")",
             "//third_party/go:go.mod": "go " + _GO_LANGUAGE_FLOOR,
             "//third_party/jvm:scalafix/libs.versions.toml": "module = \"ch.epfl.scala:scalafix-cli_2.13." + _SCALA_VERSION.split(".")[2] + "\", version = \"" + _JVM_TOOL_VERSIONS["scalafix"] + "\"",
+            "//cuda:pins.json": "/download/v" + _RULES_CUDA_VERSION + "/rules_cuda-v" + _RULES_CUDA_VERSION + ".tar.gz",
             "//julia:pins.json": "/download/" + _RULES_JULIA_VERSION + "/rules_julia-" + _RULES_JULIA_VERSION + ".tar.gz",
             "//:MODULE.bazel": "name = \"rules_rust\", version = \"" + _RULES_RUST_VERSION + "\"\n" +
                                "name = \"rules_rust_wasm_bindgen\", version = \"" + _RULES_RUST_WASM_BINDGEN_VERSION + "\"\n" +
@@ -85,7 +86,6 @@ def versions_contract_tests(name):
                                "name = \"rules_android\", version = \"" + _RULES_ANDROID_VERSION + "\"\n" +
                                "name = \"rules_cc\", version = \"" + _RULES_CC_VERSION + "\"\n" +
                                "name = \"llvm\", version = \"" + _LLVM_VERSION + "\"\n" +
-                               "name = \"rules_cuda\", version = \"" + _RULES_CUDA_VERSION + "\"\n" +
                                "name = \"googletest\", version = \"" + _GOOGLETEST_VERSION + "\"\n" +
                                "name = \"rules_python\", version = \"" + _RULES_PYTHON_VERSION + "\"\n" +
                                "name = \"rules_go\", version = \"" + _RULES_GO_VERSION + "\"\n" +

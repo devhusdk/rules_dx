@@ -166,20 +166,6 @@ _foreign_cc_tools.pkgconfig(
     mode = "noop",
 )
 
-# floor: equals tested; patched to pass the dynamic CRT flag and -ccbin to nvcc -dlink (#4704, #10975) and for reproducible nvcc objects
-bazel_dep(name = "rules_cuda", version = "0.4.0")
-single_version_override(
-    module_name = "rules_cuda",
-    patch_strip = 1,
-    patches = [
-        "//patches/rules_cuda:coverage_keep.patch",
-        "//patches/rules_cuda:msvc_dlink_crt.patch",
-        "//patches/rules_cuda:objdir_as_tempdir.patch",
-        "//patches/rules_cuda:toolchains_gate.patch",
-    ],
-    version = "0.4.0",
-)
-
 # floor: equals tested; llvm pins the MSVC and Windows SDK payloads we link; patched for host_tools (#4835)
 bazel_dep(name = "windows_support", version = "0.4.1")
 single_version_override(
@@ -1308,6 +1294,26 @@ dx_pins.archive(
     pins = "//ocaml:pins.json",
 )
 dx_pins.archive(
+    name = "rules_cuda",
+    dropped = [
+        ".bazelrc",
+        ".bazelversion",
+        ".bcr",
+        ".github",
+        "MODULE.bazel",
+        "WORKSPACE.bazel",
+        "docs",
+        "examples",
+    ],
+    patches = [
+        "//patches/rules_cuda:coverage_keep.patch",
+        "//patches/rules_cuda:msvc_dlink_crt.patch",
+        "//patches/rules_cuda:objdir_as_tempdir.patch",
+        "//patches/rules_cuda:toolchain_type_alias.patch",
+    ],
+    pins = "//cuda:pins.json",
+)
+dx_pins.archive(
     name = "dx_ocaml_dune",
     build = "//ocaml/private:dune.BUILD.bazel",
     key = "dune",
@@ -1622,6 +1628,7 @@ use_repo(
     "opam_macos_arm64",
     "opam_macos_x86_64",
     "opam_windows_x86_64",
+    "rules_cuda",
     "rules_d",
     "rules_dotnet",
     "rules_elixir",
@@ -1997,9 +2004,9 @@ cpan.lock(
 use_repo(cpan, perl_cpan = "perl_app_cpan")
 
 cuda = use_extension("//cuda:extensions.bzl", "cuda")
-use_repo(cuda, "cuda")
+use_repo(cuda, "cuda", "dx_cuda_toolchain")
 
-register_toolchains("@cuda//toolchain/...")
+register_toolchains("//cuda/private/toolchain/hub:all")
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
 use_repo(erlang, "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlang_toolchains__windows_arm64", "dx_erlang_toolchains__windows_x86_64", "dx_erlperf")

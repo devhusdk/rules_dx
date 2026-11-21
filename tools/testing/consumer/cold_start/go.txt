@@ -61,14 +61,11 @@ rules_apple+
 rules_cc+
 rules_cc++cc_configure_extension+local_config_cc_toolchains
 rules_cc++compatibility_proxy+cc_compatibility_proxy
-rules_cuda+
-rules_cuda++toolchain+cuda
 rules_dart+
 rules_dart++dart+dart_toolchains
 rules_dx+
 rules_dx++android_ndk_toolchain_repo+android_ndk_toolchain
 rules_dx++cc+dx_cc_toolchains
-rules_dx++cuda+cuda
 rules_dx++d+dx_d_toolchains
 rules_dx++dotnet+dx_dotnet_toolchains
 rules_dx++dx_licenses+dx_licenses

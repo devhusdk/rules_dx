@@ -53,7 +53,6 @@ const FOREIGN: &[(&str, &[&str])] = &[
 /// `toolchain_type` Bazel loads as a configured dependency.
 const UPSTREAM_REGISTERED: &[&str] = &[
     "rules_android+",
-    "rules_cuda+",
     "rules_kotlin+",
     "rules_scala+",
 ];

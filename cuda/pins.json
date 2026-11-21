@@ -9,6 +9,14 @@
         "https://developer.download.nvidia.com/compute/cuda/redist/redistrib_13.4.2.json"
       ],
       "sha256": "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a"
+    },
+    "rules_cuda": {
+      "version": "0.4.0",
+      "sha256": "5e8a32ae93e32724f4159a90ab0da33431181dbf08c02c94db088110f68088ac",
+      "strip_prefix": "rules_cuda-v0.4.0",
+      "urls": [
+        "https://github.com/bazel-contrib/rules_cuda/releases/download/v0.4.0/rules_cuda-v0.4.0.tar.gz"
+      ]
     }
   },
   "cells": {

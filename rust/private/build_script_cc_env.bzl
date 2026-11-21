@@ -8,6 +8,7 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 
 BUILD_SCRIPT_CC_ENV = {
     "CFLAGS": "$(DX_BS_CFLAGS)",
+    "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
     "HOST_AR": "$(DX_BS_HOST_AR)",
     "HOST_CC": "$(DX_BS_HOST_CC)",
     "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -147,8 +148,11 @@ def _build_script_cc_env_impl(ctx):
         host_cflags = ""
         host_cxxflags = ""
     msvc = rust.target_triple.str.endswith("-windows-msvc")
+    cflags = _UNDEF_ISO_STDIO if coverage and msvc else ("" if msvc else _FILE_PREFIX_MAP)
     variables = {
-        "DX_BS_CFLAGS": _UNDEF_ISO_STDIO if coverage and msvc else ("" if msvc else _FILE_PREFIX_MAP),
+        # cc-rs reads CXXFLAGS, not CFLAGS, for C++ sources.
+        "DX_BS_CFLAGS": cflags,
+        "DX_BS_CXXFLAGS": cflags,
         "DX_BS_HOST_CFLAGS": host_cflags,
         "DX_BS_HOST_CXXFLAGS": host_cxxflags,
     }

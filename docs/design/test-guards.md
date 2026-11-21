@@ -58,7 +58,7 @@ The guards check the rules of `docs/design/tests.md`.
 - The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run`, passes Bazel with `--bazel`, and runs five shards with `--kinds --shard i/5`. `--shard` keeps the kind targets whose top-level package is every fifth in sorted order. Shard 0 adds `//appimage/...`, shard 1 `//cli/archive/...`, shard 2 `//android/private/packaging/...`, shard 3 `//msix/tests/...`, shard 4 `//deploy/private/...`.
 - Outputs match between the logs by output path. The `<label> <mnemonic>` in front of the path only names the action. The job fails for an output that differs, for an output in one log only, and for an allowlist line whose output does not differ or is in neither log.
 - `tools/ci/determinism_allowlist.txt` lists the actions that differ. It only shrinks; `//tools/ci:determinism_allowlist_test` holds the cap.
-- Measured on Linux with warm repository caches: 34 s and 33 s per build, 67 s for both.
+- Measured on Linux, first and second cold build per shard (ci.yml run 44892308210): shard 0 279 s and 286 s, shard 1 418 s and 429 s, shard 2 519 s and 504 s, shard 3 522 s and 508 s.
 
 ## Analysis scaling
 

@@ -1,4 +1,4 @@
-use super::super::test_support::*;
+use super::test_support::*;
 use dx_digest::blake3 as digest;
 use quality_result::proto;
 use quality_result::proto::FileSnapshot;
@@ -757,14 +757,14 @@ fn typed_quality_request_preserves_passthrough_and_default_scope() {
     assert_eq!(err, "no findings in 0 target(s)\n", "{err}");
 }
 
-fn quality_phase(harness: &Harness, words: &[&str]) -> super::PhaseRun {
+fn quality_phase(harness: &Harness, words: &[&str]) -> dx_exec_core::common::PhaseRun {
     let parsed = dx_plan::args::parse(&dx_testing::cli::strings(words)).expect("parse");
     let inv = dx_plan::args::apply_here(&parsed, &harness.workspace, &harness.cwd).expect("here");
     let request = inv.quality_request().expect("quality request");
     let runner = harness.runner();
     let mut out = Vec::new();
     let mut err = Vec::new();
-    super::execute_quality_phase(&request, harness.env(&runner, &mut out, &mut err), None)
+    dx_exec_quality::execute_quality_phase(&request, harness.env(&runner, &mut out, &mut err), None)
 }
 
 #[test]
@@ -780,7 +780,7 @@ fn apply_phase_reports_written_effects_in_every_output_mode() {
         assert_eq!(run.code, 0, "{output}");
         assert_eq!(
             run.effects,
-            super::PhaseEffects {
+            dx_exec_core::common::PhaseEffects {
                 changes: 1,
                 applied: 1,
                 not_applied: 0,
@@ -806,8 +806,8 @@ fn clean_apply_phase_touches_nothing() {
     );
     let run = quality_phase(&harness, &["format", "--apply", "--output=text"]);
     assert_eq!(run.code, 0);
-    assert_eq!(run.kind, super::PhaseKind::Clean);
-    assert_eq!(run.effects, super::PhaseEffects::default());
+    assert_eq!(run.kind, dx_exec_core::common::PhaseKind::Clean);
+    assert_eq!(run.effects, dx_exec_core::common::PhaseEffects::default());
     assert!(!run.effects.touched());
 }
 
@@ -838,7 +838,11 @@ fn a_bazel_host_failure_ends_the_phase_as_host() {
         );
         let run = quality_phase(&harness, &["format", "--output=text"]);
         assert_eq!(run.code, code, "{:?}", run.kind);
-        assert_eq!(run.kind, super::PhaseKind::Host, "exit {code}");
+        assert_eq!(
+            run.kind,
+            dx_exec_core::common::PhaseKind::Host,
+            "exit {code}"
+        );
     }
 }
 
@@ -853,7 +857,7 @@ fn a_bazel_exit_with_partial_results_ends_the_phase_as_tool() {
     );
     let run = quality_phase(&harness, &["format", "--output=text"]);
     assert_eq!(run.code, 1);
-    assert_eq!(run.kind, super::PhaseKind::Tool);
+    assert_eq!(run.kind, dx_exec_core::common::PhaseKind::Tool);
 }
 
 #[test]
@@ -881,7 +885,7 @@ fn a_compile_only_bazel_exit_ends_the_phase_as_compile() {
     };
     let run = quality_phase(&harness, &["lint", "--output=text"]);
     assert_eq!(run.code, 1);
-    assert_eq!(run.kind, super::PhaseKind::Compile);
+    assert_eq!(run.kind, dx_exec_core::common::PhaseKind::Compile);
     assert!(!run.effects.touched());
 }
 
@@ -891,10 +895,10 @@ fn a_refused_change_ends_the_phase_as_findings() {
     harness.write_source("src/a.py", "z = 2\n");
     let run = quality_phase(&harness, &["format", "--apply", "--output=text"]);
     assert_eq!(run.code, 1);
-    assert_eq!(run.kind, super::PhaseKind::Findings);
+    assert_eq!(run.kind, dx_exec_core::common::PhaseKind::Findings);
     assert_eq!(
         run.effects,
-        super::PhaseEffects {
+        dx_exec_core::common::PhaseEffects {
             changes: 1,
             applied: 0,
             not_applied: 1,

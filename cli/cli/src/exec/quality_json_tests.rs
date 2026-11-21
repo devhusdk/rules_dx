@@ -1,4 +1,4 @@
-use super::super::test_support::*;
+use super::test_support::*;
 use std::io::{self, Write};
 
 fn finding(harness: &mut Harness, labels: &[&str], start: u64, end: u64) {

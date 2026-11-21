@@ -7,12 +7,12 @@ mod audit_live_tests;
 mod audit_reports_tests;
 mod auto_sync;
 mod bench;
-mod breaking_base;
 #[cfg(test)]
 mod build_failures_tests;
 #[cfg(test)]
 mod changed_coverage_tests;
-mod check_build;
+#[cfg(test)]
+mod check_build_tests;
 mod clean;
 #[cfg(test)]
 mod current_dir_guard_tests;
@@ -27,11 +27,11 @@ mod failure_reports_tests;
 pub mod first_run;
 mod fuzz;
 mod generate;
-mod generated_drift;
 #[cfg(test)]
 mod help_launcher_tests;
 pub(crate) mod ide_refresh;
-mod link_check;
+#[cfg(test)]
+mod link_check_tests;
 mod managed;
 mod managed_codegen;
 mod managed_env;
@@ -39,14 +39,26 @@ mod managed_prepare;
 mod managed_staging;
 pub mod preset_sync;
 mod profile_report;
-mod quality;
-mod quality_apply;
-mod quality_emit;
-mod quality_patch;
-mod quality_reconcile;
-mod quality_reports;
-mod quality_security;
-mod results;
+#[cfg(test)]
+mod quality_apply_tests;
+#[cfg(test)]
+mod quality_convergence_tests;
+#[cfg(test)]
+mod quality_delivery_tests;
+#[cfg(test)]
+mod quality_edits_tests;
+#[cfg(test)]
+mod quality_json_tests;
+#[cfg(test)]
+mod quality_modes_tests;
+#[cfg(test)]
+mod quality_probe_tests;
+#[cfg(test)]
+mod quality_reporting_tests;
+#[cfg(test)]
+mod quality_shared_tests;
+#[cfg(test)]
+mod results_tests;
 mod run;
 mod security_verify;
 #[cfg(test)]
@@ -58,6 +70,8 @@ mod test_filter;
 mod test_reports_tests;
 #[cfg(test)]
 pub(crate) mod test_support;
+#[cfg(test)]
+mod text_output_tests;
 mod umbrella;
 #[cfg(test)]
 mod update_check_tests;
@@ -381,7 +395,7 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Update => dx_exec_update::execute_update(invocation, env, &dispatch_inner),
         Command::Docs => docs::execute_docs(invocation, env),
         Command::Lint | Command::Typecheck | Command::Format => {
-            quality::execute_quality(invocation, env)
+            dx_exec_quality::execute_quality(invocation, env)
         }
         Command::Worktree => worktree::execute_worktree(invocation, env),
         Command::Fuzz => fuzz::execute_fuzz(invocation, env),

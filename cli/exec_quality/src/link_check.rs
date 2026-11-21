@@ -9,17 +9,17 @@ use serde_json::{Value, json};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-const TOOL: &str = "lychee";
+pub const TOOL: &str = "lychee";
 const ONLINE_ENV: &str = "DX_LINT_ONLINE";
 
 /// Where relative exec paths of a request resolve on the host.
-pub(crate) struct Roots {
-    pub(crate) output_base: PathBuf,
-    pub(crate) execution_root: PathBuf,
+pub struct Roots {
+    pub output_base: PathBuf,
+    pub execution_root: PathBuf,
 }
 
 impl Roots {
-    pub(crate) fn query(bazel: &dyn Bazel) -> Result<Roots, String> {
+    pub fn query(bazel: &dyn Bazel) -> Result<Roots, String> {
         let root = |value: Result<String, dx_tool_resolve::ResolveError>| {
             value.map(PathBuf::from).map_err(|error| error.to_string())
         };
@@ -44,13 +44,13 @@ impl Roots {
 
 /// What the replay produced: encoded results and the problems that stopped a request.
 #[derive(Default)]
-pub(crate) struct Outcome {
-    pub(crate) results: Vec<Vec<u8>>,
-    pub(crate) problems: Vec<String>,
+pub struct Outcome {
+    pub results: Vec<Vec<u8>>,
+    pub problems: Vec<String>,
 }
 
 /// The runner request files the build published, each once.
-pub(crate) fn read_requests(
+pub fn read_requests(
     bep: &Path,
     foreign: &BTreeSet<String>,
     workspace: &Path,
@@ -106,7 +106,7 @@ fn rewrite_tool(tool: &mut Value, roots: &Roots) {
 
 /// The lychee stage of one request with absolute exec paths and online mode on,
 /// or None when the request runs no lychee stage.
-pub(crate) fn prepare(
+pub fn prepare(
     bytes: &[u8],
     roots: &Roots,
     scratch_parent: &str,
@@ -178,7 +178,7 @@ pub(crate) fn prepare(
 
 /// Runs the lychee stage of every request through `run_request(request, output)`.
 /// Files go under `dir`, named by `tag`, and are removed afterwards.
-pub(crate) fn run(
+pub fn run(
     requests: &[(String, Vec<u8>)],
     roots: &Roots,
     dir: &Path,

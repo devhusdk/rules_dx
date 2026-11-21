@@ -6,7 +6,7 @@ const TOOLS: [&str; 2] = ["trivy_config", "trivy_image_config"];
 /// Drops `trivy_config` and `trivy_image_config` findings covered by an unexpired `[[exception]]` with
 /// `set` naming the tool, `advisory` naming the trivy ID, `package` naming the file or `*`, and
 /// `versions = "*"`.
-pub(super) fn drop_excepted_findings(
+pub(crate) fn drop_excepted_findings(
     workspace: &Path,
     audit_today: Option<&str>,
     status: &mut Vec<DiagnosticEvent>,

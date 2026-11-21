@@ -1308,3 +1308,16 @@ fn remove_scratch_returns_and_keeps_a_directory() {
     remove_scratch(&nested);
     assert!(nested.is_dir());
 }
+
+#[test]
+fn temp_path_not_utf8_names_the_variable() {
+    let var = if cfg!(windows) {
+        "TMP or TEMP"
+    } else {
+        "TMPDIR"
+    };
+    assert_eq!(
+        temp_path_not_utf8(),
+        format!("temporary event path is not UTF-8; set {var} to a directory with a UTF-8 path")
+    );
+}

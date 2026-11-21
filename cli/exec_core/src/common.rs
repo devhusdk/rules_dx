@@ -1188,6 +1188,40 @@ pub fn remove_scratch(path: &Path) {
     }
 }
 
+/// The environment variable that sets the temporary directory on this host.
+pub fn temp_var() -> &'static str {
+    if cfg!(windows) {
+        "TMP or TEMP"
+    } else {
+        "TMPDIR"
+    }
+}
+
+#[must_use]
+pub fn temp_path_not_utf8() -> String {
+    format!(
+        "temporary event path is not UTF-8; set {} to a directory with a UTF-8 path",
+        temp_var()
+    )
+}
+
+static PRESET_REWRITTEN: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+/// Records `.dx` files the preset sync in this invocation wrote or deleted.
+pub fn record_preset_rewritten(paths: impl IntoIterator<Item = String>) {
+    if let Ok(mut list) = PRESET_REWRITTEN.lock() {
+        list.extend(paths);
+    }
+}
+
+/// The `.dx` files the preset sync in this invocation wrote or deleted.
+pub fn preset_rewritten() -> Vec<String> {
+    PRESET_REWRITTEN
+        .lock()
+        .map(|list| list.clone())
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 #[path = "common_tests.rs"]
 mod tests;

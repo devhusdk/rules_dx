@@ -606,7 +606,7 @@ impl Harness {
         let runner = self.runner();
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let run = super::quality::execute_quality_phase_with_fs(
+        let run = dx_exec_quality::execute_quality_phase_with_fs(
             &request,
             self.env(&runner, &mut out, &mut err),
             fs,

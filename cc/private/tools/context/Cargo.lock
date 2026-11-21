@@ -1759,7 +1759,6 @@ dependencies = [
  "serde-sarif",
  "serde_json",
  "tempfile",
- "thiserror 2.0.20",
  "tracing",
 ]
 
@@ -1898,6 +1897,16 @@ name = "dx_exec_core"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tracing",
+]
+
+[[package]]
+name = "dx_exec_quality"
+version = "0.0.0"
+dependencies = [
  "serde_json",
  "tempfile",
  "thiserror 2.0.20",

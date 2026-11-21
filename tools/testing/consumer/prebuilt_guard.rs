@@ -229,6 +229,20 @@ pub fn guard_aspects(extensions: &BTreeSet<String>) -> (Vec<&'static str>, Vec<&
     (check, aspects_for(Command::Docs, consumer))
 }
 
+/// The languages whose `dx docs` aspects reach no docs tool of the listed other languages, each
+/// with the label fragments that name those tools.
+pub const DOCS_FOREIGN: &[(&str, &[&str])] = &[("java", &["scala", "dokka", "kotlin"])];
+
+/// The labels of a `cquery --output=label` result that contain any of `fragments`.
+pub fn foreign_docs_labels(cquery: &str, fragments: &[&str]) -> Vec<String> {
+    cquery
+        .lines()
+        .filter_map(|line| line.split_whitespace().next())
+        .filter(|label| fragments.iter().any(|fragment| label.contains(fragment)))
+        .map(str::to_owned)
+        .collect()
+}
+
 /// The `.bzl` file of the `dx_prebuilt_guard` package: rules `check_root` and `docs_root`, whose
 /// `deps` carry the `check` and `docs` aspects (`<package>:<file>%<name>` labels in rules_dx, the
 /// repo `rules_dx` names).
@@ -801,6 +815,40 @@ mod tests {
             docs.iter()
                 .any(|label| label.ends_with("%real_jvm_docs_aspect"))
         );
+        assert!(
+            !docs
+                .iter()
+                .any(|label| label.contains("scala") || label.contains("kotlin"))
+        );
+    }
+
+    #[test]
+    fn java_docs_list_scala_and_kotlin_as_foreign() {
+        assert_eq!(
+            DOCS_FOREIGN
+                .iter()
+                .find(|(lang, _)| *lang == "java")
+                .map(|(_, fragments)| *fragments),
+            Some(&["scala", "dokka", "kotlin"][..])
+        );
+    }
+
+    #[test]
+    fn foreign_docs_labels_keep_only_matching_labels() {
+        let cquery = "@@rules_dx++dx_prebuilt+dx_prebuilt//:javadoc_extract (abc)\n\
+                      @@rules_dx++dx_prebuilt+dx_prebuilt//:scaladoc_extract (abc)\n\
+                      @@rules_scala_config//:scala_version (def)\n\
+                      @@rules_dx++dx_prebuilt+dx_prebuilt//:dokka_extract (abc)\n\
+                      \n";
+        assert_eq!(
+            foreign_docs_labels(cquery, &["scala", "dokka", "kotlin"]),
+            [
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:scaladoc_extract",
+                "@@rules_scala_config//:scala_version",
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:dokka_extract",
+            ]
+        );
+        assert_eq!(foreign_docs_labels(cquery, &["kotlin"]), [] as [&str; 0]);
     }
 
     #[test]

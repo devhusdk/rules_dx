@@ -1320,8 +1320,10 @@
     },
     {
       "docs": {
-        "aspects": [],
-        "bzl": "tools/docs/jvm:aspect.bzl",
+        "aspects": [
+          "real_kotlin_docs_aspect"
+        ],
+        "bzl": "tools/docs/kotlin:aspect.bzl",
         "file_extensions": [
           ".kt"
         ]
@@ -2043,8 +2045,10 @@
     },
     {
       "docs": {
-        "aspects": [],
-        "bzl": "tools/docs/jvm:aspect.bzl",
+        "aspects": [
+          "real_scala_docs_aspect"
+        ],
+        "bzl": "tools/docs/scala:aspect.bzl",
         "file_extensions": [
           ".scala"
         ]

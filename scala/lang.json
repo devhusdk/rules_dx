@@ -68,10 +68,12 @@
     }
   },
   "docs": {
-    "bzl": "tools/docs/jvm:aspect.bzl",
+    "bzl": "tools/docs/scala:aspect.bzl",
     "file_extensions": [
       ".scala"
     ],
-    "aspects": []
+    "aspects": [
+      "real_scala_docs_aspect"
+    ]
   }
 }

@@ -7380,6 +7380,7 @@ Pass a platform to Bazel with `--platforms=<platform>`.
 
 Use a toolchain type when you register your own toolchain.
 
+- `@rules_dx//cuda:toolchain_type`
 - `@rules_dx//d:toolchain_type`
 - `@rules_dx//elixir:toolchain_type`
 - `@rules_dx//erlang:exec_toolchain_type`

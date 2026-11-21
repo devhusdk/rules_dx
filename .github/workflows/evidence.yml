@@ -100,7 +100,7 @@ jobs:
 
   evidence:
     name: evidence (${{ matrix.platform }})
-    timeout-minutes: ${{ inputs.release_cell && 90 || 60 }}
+    timeout-minutes: ${{ inputs.release_cell && (startsWith(matrix.platform, 'windows_') && 180 || 90) || 60 }}
     defaults:
       run:
         shell: bash

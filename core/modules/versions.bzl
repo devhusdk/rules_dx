@@ -66,6 +66,7 @@ RULES_JAVA_VERSION = "9.9.0"
 RULES_ANDROID_VERSION = "0.8.1"
 TESTED_RULES_KOTLIN = "2.4.21"
 TESTED_RULES_SCALA = "7.4.1"
+TESTED_BAZEL_WORKER_API = "0.0.11"
 SCALA_VERSION = "2.13.18"
 TESTED_RULES_JVM_EXTERNAL = "7.2"
 
@@ -113,7 +114,7 @@ CONSUMER_BAZEL_DEPS = {
     "rules_java": struct(floor = RULES_JAVA_VERSION, tested = RULES_JAVA_VERSION),
     "rules_android": struct(floor = RULES_ANDROID_VERSION, tested = RULES_ANDROID_VERSION),
     "rules_kotlin": struct(floor = TESTED_RULES_KOTLIN, tested = TESTED_RULES_KOTLIN),
-    "rules_scala": struct(floor = TESTED_RULES_SCALA, tested = TESTED_RULES_SCALA),
+    "bazel_worker_api": struct(floor = TESTED_BAZEL_WORKER_API, tested = TESTED_BAZEL_WORKER_API),
     "bazel_lib": struct(floor = BAZEL_LIB_VERSION, tested = BAZEL_LIB_VERSION),
     "rules_jvm_external": struct(floor = TESTED_RULES_JVM_EXTERNAL, tested = TESTED_RULES_JVM_EXTERNAL),
     "rules_zig": struct(floor = RULES_ZIG_VERSION, tested = RULES_ZIG_VERSION),

@@ -1,0 +1,12 @@
+{
+  "archives": {
+    "rules_scala": {
+      "version": "7.4.1",
+      "sha256": "1f8eb60ae5bd6d7ad08c8e54edcb1492eaf08cceaa9579152d06d2033b4a689d",
+      "strip_prefix": "rules_scala-7.4.1",
+      "urls": [
+        "https://github.com/bazel-contrib/rules_scala/releases/download/v7.4.1/rules_scala-v7.4.1.tar.gz"
+      ]
+    }
+  }
+}

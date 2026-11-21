@@ -2743,7 +2743,7 @@ FILE_FAMILY_CASES = [
         binary = "//core/quality/tools/python:sqlfluff",
         source_class = "sql",
         generated = {
-            "matrix/sql_broken/a.sql": "select from (\n",
+            "matrix/sql_broken/a.sql": "selec from (\n",  # spellchecker:disable-line
         },
         platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
         config = ":sqlfluff_cfg/.sqlfluff",
@@ -3212,7 +3212,7 @@ FILE_FAMILY_CASES = [
         binary = "@dx_tools//:typos",
         source_class = "text",
         generated = {
-            "matrix/typos_dirty.txt": "say the word\n",
+            "matrix/typos_dirty.txt": "say teh word\n",  # spellchecker:disable-line
         },
     ),
     matrix_case(
@@ -3232,7 +3232,7 @@ FILE_FAMILY_CASES = [
         binary = "@dx_tools//:typos",
         source_class = "rust",
         generated = {
-            "matrix/typos_dirty.rs": "// receive the word\n",
+            "matrix/typos_dirty.rs": "// recieve the word\n",  # spellchecker:disable-line
         },
     ),
     matrix_case(

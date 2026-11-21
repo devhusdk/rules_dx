@@ -7,9 +7,6 @@ extension-label scala/private/toolchain/deps_extension.bzl
 extension-label third_party/dotnet/extension.bzl
 extension-name python/extensions.bzl
 fixture-hello appimage/tests/conformance/BUILD.bazel
-fixture-name astro/tests/app
-fixture-name astro/tests/app_config
-fixture-name astro/tests/typecheck
 fixture-name cc/tests/gcc_cross
 fixture-name cc/tests/gcc_linux_arm64
 fixture-name cc/tests/gcc_linux_x86_64
@@ -44,8 +41,6 @@ fixture-name lua/tests/bench
 fixture-name lua/tests/luarocks
 fixture-name lua/tests/negative
 fixture-name lua/tests/runtime
-fixture-name mdx/tests/app
-fixture-name mdx/tests/typecheck
 fixture-name ocaml/tests/native
 fixture-name ocaml/tests/negative
 fixture-name ocaml/tests/runtime
@@ -59,14 +54,9 @@ fixture-name python/tests/analysis
 fixture-name python/tests/sdist_native
 fixture-name qt/tests/tags
 fixture-name rust/tests/tonic
-fixture-name svelte/tests/app
-fixture-name svelte/tests/app_errors
-fixture-name svelte/tests/typecheck
 fixture-name swift/tests/cross
 fixture-name typescript/tests/tags
 fixture-name typescript/tests/typecheck_profiles
-fixture-name vue/tests/app
-fixture-name vue/tests/typecheck
 fixture-referenced android/tests/fixtures/native_lib
 fixture-referenced apple/tests/fixtures/macos_bundle
 fixture-referenced apple/tests/fixtures/shared_core
@@ -85,7 +75,6 @@ fixture-referenced csharp/tests/fixtures/hello
 fixture-referenced csharp/tests/fixtures/profiles
 fixture-referenced csharp/tests/fixtures/proto
 fixture-referenced csharp/tests/fixtures/xunit
-fixture-referenced cuda/tests/fixtures/coverage
 fixture-referenced d/tests/fixtures/bench
 fixture-referenced d/tests/fixtures/coverage
 fixture-referenced d/tests/fixtures/fuzz
@@ -159,7 +148,6 @@ private-visibility cc/private/toolchain/gcc_features/BUILD.bazel
 private-visibility cuda/private/toolchain/BUILD.bazel
 private-visibility d/private/toolchain/BUILD.bazel
 private-visibility dotnet/private/coverage/BUILD.bazel
-private-visibility elixir/private/toolchain/BUILD.bazel
 private-visibility erlang/private/BUILD.bazel
 private-visibility erlang/private/toolchain/BUILD.bazel
 private-visibility fortran/private/toolchain/BUILD.bazel
@@ -184,7 +172,6 @@ private-visibility ocaml/private/quality/BUILD.bazel
 private-visibility ocaml/private/toolchain/BUILD.bazel
 private-visibility ocaml/private/toolchain/platform/emitter/BUILD.bazel
 private-visibility ocaml/private/toolchain/platform/executor/BUILD.bazel
-private-visibility ocaml/private/toolchain/type/BUILD.bazel
 private-visibility ocaml/private/tools/lock/BUILD.bazel
 private-visibility perl/private/BUILD.bazel
 private-visibility perl/private/tools/lock/BUILD.bazel
@@ -198,7 +185,6 @@ private-visibility qt/private/tools/rust/BUILD.bazel
 private-visibility rust/private/BUILD.bazel
 private-visibility rust/private/quality/tools/BUILD.bazel
 private-visibility rust/private/tools/msvc_paths/BUILD.bazel
-private-visibility swift/private/BUILD.bazel
 private-visibility swift/private/platforms/BUILD.bazel
 private-visibility swift/private/toolchain/BUILD.bazel
 private-visibility typescript/private/playwright/BUILD.bazel

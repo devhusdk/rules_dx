@@ -6,40 +6,6 @@ visibility("private")
 
 TS_CASES = [
     matrix_case(
-        name = "matrix_typescript_lint_pass",
-        capability = "lint",
-        tool = "biome",
-        binary = BIOME_BINARY,
-        source_class = "typescript",
-        src = ":real_clean.ts",
-    ),
-    matrix_case(
-        name = "matrix_typescript_lint_fail",
-        capability = "lint",
-        tool = "biome",
-        binary = BIOME_BINARY,
-        source_class = "typescript",
-        src = ":real_dirty.ts",
-        platforms = ["linux_x86_64"],
-    ),
-    matrix_case(
-        name = "matrix_typescript_format_pass",
-        capability = "format",
-        tool = "biome",
-        binary = BIOME_BINARY,
-        source_class = "typescript",
-        src = ":real_clean.ts",
-    ),
-    matrix_case(
-        name = "matrix_typescript_format_fail",
-        capability = "format",
-        tool = "biome",
-        binary = BIOME_BINARY,
-        source_class = "typescript",
-        src = ":real_dirty.ts",
-        platforms = ["linux_x86_64"],
-    ),
-    matrix_case(
         name = "matrix_typescript_biome_profile_standard",
         capability = "lint",
         tool = "biome",

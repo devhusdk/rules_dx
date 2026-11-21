@@ -6,7 +6,7 @@ load(":exec_tool.bzl", "exec_tool")
 # Plain rules_rust rules: the dx Rust macros link through msvc_link.
 
 _RUSTC_FLAGS = select({
-    "//rust/private:msvc": MSVC_LINK_FLAGS,
+    "//core/platforms:msvc": MSVC_LINK_FLAGS,
     "//conditions:default": [],
 })
 

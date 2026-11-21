@@ -73,25 +73,60 @@ fn undocumented_symbols_are_marked_incomplete() {
 
 #[test]
 fn rejects_bad_input() {
-    assert!(convert("{", "geo").unwrap_err().contains("malformed"));
+    let error = convert("{", "geo").unwrap_err();
+    assert!(matches!(error, JuliaExtractError::Malformed(_)));
+    assert!(
+        error
+            .to_string()
+            .starts_with("Documenter JSON is malformed: "),
+        "{error}"
+    );
+    let error = convert("[]", "geo").unwrap_err();
+    assert!(matches!(error, JuliaExtractError::NotObject { .. }));
+    assert_eq!(error.to_string(), "Documenter JSON is not an object");
     let wrong = json!({"format": 2, "julia": "1", "documenter": "1", "objects": []}).to_string();
-    assert!(convert(&wrong, "geo").unwrap_err().contains("format 2"));
-    assert!(
-        convert(&document(vec![]), "geo")
-            .unwrap_err()
-            .contains("no public")
+    let error = convert(&wrong, "geo").unwrap_err();
+    assert!(matches!(
+        error,
+        JuliaExtractError::UnsupportedFormat { found: 2 }
+    ));
+    assert_eq!(
+        error.to_string(),
+        "Documenter JSON format 2 is not supported, expected 1"
     );
-    assert!(
-        convert(&document(base()), "a b")
-            .unwrap_err()
-            .contains("invalid package")
+    let error = convert(&document(vec![]), "geo").unwrap_err();
+    assert!(matches!(error, JuliaExtractError::NoPublicApi { .. }));
+    assert_eq!(
+        error.to_string(),
+        "Documenter JSON lists no public Julia API of package 'geo'"
     );
+    let error = convert(&document(base()), "a b").unwrap_err();
+    assert!(matches!(error, JuliaExtractError::InvalidPackage { .. }));
+    assert_eq!(error.to_string(), "invalid package 'a b'");
     let mut objects = base();
     objects[0]["kind"] = json!("weird");
+    let error = convert(&document(objects), "geo").unwrap_err();
+    assert!(matches!(error, JuliaExtractError::UnknownKind { .. }));
+    assert_eq!(
+        error.to_string(),
+        "Documenter JSON object 0 has unknown kind 'weird'"
+    );
+}
+
+#[test]
+fn run_reports_an_unreadable_input() {
+    let options = Options {
+        json: "/nonexistent/julia.json".to_owned(),
+        package: "geo".to_owned(),
+        out: "out".to_owned(),
+    };
+    let error = run(&options).unwrap_err();
+    assert!(matches!(error, JuliaExtractError::Read(_)));
     assert!(
-        convert(&document(objects), "geo")
-            .unwrap_err()
-            .contains("unknown kind")
+        error
+            .to_string()
+            .starts_with("cannot read /nonexistent/julia.json: "),
+        "{error}"
     );
 }
 

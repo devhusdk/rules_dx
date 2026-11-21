@@ -5,9 +5,95 @@ use crate::run::{
     placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use dx_atomic_fs::path_io::{self, PathIoError};
+use dx_process::capture::RunError;
 use std::collections::BTreeSet;
+use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
+
+/// Why a rubygems deployment failed.
+#[derive(Debug)]
+pub enum RubygemsError {
+    Paths(io::Error),
+    Stage(StageError),
+    TempDir(io::Error),
+    Io(PathIoError),
+    Run(RunError),
+    NameMismatch {
+        found: Option<String>,
+        target: String,
+    },
+    /// An already-prefixed refusal from the shared version, placeholder or owner checks.
+    Refused(String),
+    NoDataArchive {
+        gem: PathBuf,
+    },
+    FileListMismatch {
+        missing: Vec<String>,
+        extra: Vec<String>,
+    },
+    /// A gem command failed; `lines` are token-redacted.
+    GemFailed {
+        step: &'static str,
+        status: String,
+        lines: Vec<String>,
+    },
+    Copy(io::Error),
+}
+
+impl fmt::Display for RubygemsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Paths(source) | Self::TempDir(source) | Self::Copy(source) => {
+                write!(f, "rubygems_deploy: {source}")
+            }
+            Self::Stage(source) => write!(f, "rubygems_deploy: {source}"),
+            Self::Io(source) => write!(f, "rubygems_deploy: {source}"),
+            Self::Run(source) => write!(f, "rubygems_deploy: {source}"),
+            Self::NameMismatch { found, target } => write!(
+                f,
+                "rubygems_deploy: gemspec is {}, target is {target}; refusing",
+                found.as_deref().unwrap_or("(not a plain value)")
+            ),
+            Self::Refused(message) => f.write_str(message),
+            Self::NoDataArchive { gem } => {
+                write!(f, "rubygems_deploy: {} has no data.tar.gz", gem.display())
+            }
+            Self::FileListMismatch { missing, extra } => write!(
+                f,
+                "rubygems_deploy: gem file list differs from the sources; missing {missing:?}, unexpected {extra:?}; refusing"
+            ),
+            Self::GemFailed {
+                step,
+                status,
+                lines,
+            } => {
+                write!(f, "rubygems_deploy: {step} failed with {status}")?;
+                for line in lines {
+                    write!(f, "\ngem: {line}")?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+impl std::error::Error for RubygemsError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Paths(source) | Self::TempDir(source) | Self::Copy(source) => Some(source),
+            Self::Stage(source) => Some(source),
+            Self::Io(source) => Some(source),
+            Self::Run(source) => Some(source),
+            Self::NameMismatch { .. }
+            | Self::Refused(_)
+            | Self::NoDataArchive { .. }
+            | Self::FileListMismatch { .. }
+            | Self::GemFailed { .. } => None,
+        }
+    }
+}
 
 /// Owner approval gate for rubygems_deploy.
 pub(crate) const RUBYGEMS_GATE: OwnerGate = OwnerGate {
@@ -45,13 +131,13 @@ fn gemspec_value(text: &str, field: &str) -> Option<String> {
 }
 
 /// Returns the version to publish, refusing a gemspec that is not the target gem or declares another version.
-fn gemspec_version(text: &str, gem_name: &str, version: &str) -> Result<String, String> {
+fn gemspec_version(text: &str, gem_name: &str, version: &str) -> Result<String, RubygemsError> {
     let name = gemspec_value(text, "name");
     if name.as_deref() != Some(gem_name) {
-        return Err(format!(
-            "rubygems_deploy: gemspec is {}, target is {gem_name}; refusing",
-            name.unwrap_or_else(|| "(not a plain value)".to_owned())
-        ));
+        return Err(RubygemsError::NameMismatch {
+            found: name,
+            target: gem_name.to_owned(),
+        });
     }
     resolve_version(
         "rubygems_deploy",
@@ -59,6 +145,7 @@ fn gemspec_version(text: &str, gem_name: &str, version: &str) -> Result<String, 
         gemspec_value(text, "version").as_deref(),
         version,
     )
+    .map_err(RubygemsError::Refused)
 }
 
 /// Maps gem input files to package-relative paths under the gemspec directory.
@@ -69,26 +156,15 @@ pub fn rubygems_package_paths(
     package_relative_paths(files, &format!("{gem_name}.gemspec"), "rubygems_deploy")
 }
 
-fn rubygems_stage(mapped: &[(PathBuf, String)], staging: &Path) -> Result<(), String> {
-    for (src, rel) in mapped {
-        let dest = staging.join(rel);
-        let staged = dest
-            .parent()
-            .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| copy_verified(src, &dest).map(|_| ()));
-        if staged.is_err() {
-            return Err(format!("rubygems_deploy: cannot stage {}", src.display()));
-        }
-    }
-    Ok(())
-}
-
 /// Returns the file paths packed in the data archive of a built gem.
-fn gem_file_list(gem: &Path) -> Result<BTreeSet<String>, String> {
-    let fail = |error: &dyn std::fmt::Display| {
-        format!("rubygems_deploy: cannot read {}: {error}", gem.display())
+fn gem_file_list(gem: &Path) -> Result<BTreeSet<String>, RubygemsError> {
+    let fail = |source: io::Error| {
+        RubygemsError::Io(PathIoError::Read {
+            path: gem.to_path_buf(),
+            source,
+        })
     };
-    let file = std::fs::File::open(gem).map_err(|error| fail(&error))?;
+    let file = std::fs::File::open(gem).map_err(fail)?;
     let mut data = None;
     dx_archive::visit(
         file,
@@ -103,7 +179,7 @@ fn gem_file_list(gem: &Path) -> Result<BTreeSet<String>, String> {
             Ok(())
         },
     )
-    .map_err(|error| fail(&error))?;
+    .map_err(fail)?;
     if let Some(data) = data {
         let mut paths = BTreeSet::new();
         dx_archive::visit(
@@ -117,13 +193,12 @@ fn gem_file_list(gem: &Path) -> Result<BTreeSet<String>, String> {
                 Ok(())
             },
         )
-        .map_err(|error| fail(&error))?;
+        .map_err(fail)?;
         return Ok(paths);
     }
-    Err(format!(
-        "rubygems_deploy: {} has no data.tar.gz",
-        gem.display()
-    ))
+    Err(RubygemsError::NoDataArchive {
+        gem: gem.to_path_buf(),
+    })
 }
 
 /// Returns a refusal when the gem packs a different file list than the sources.
@@ -131,7 +206,7 @@ fn file_list_refusal(
     packed: &BTreeSet<String>,
     mapped: &[(PathBuf, String)],
     gemspec: &str,
-) -> Option<String> {
+) -> Option<RubygemsError> {
     let want: BTreeSet<String> = mapped
         .iter()
         .map(|(_, rel)| rel.clone())
@@ -140,11 +215,10 @@ fn file_list_refusal(
     if *packed == want {
         return None;
     }
-    let missing: Vec<&String> = want.difference(packed).collect();
-    let extra: Vec<&String> = packed.difference(&want).collect();
-    Some(format!(
-        "rubygems_deploy: gem file list differs from the sources; missing {missing:?}, unexpected {extra:?}; refusing"
-    ))
+    Some(RubygemsError::FileListMismatch {
+        missing: want.difference(packed).cloned().collect(),
+        extra: packed.difference(&want).cloned().collect(),
+    })
 }
 
 /// Returns the last output lines with the token value removed.
@@ -160,15 +234,6 @@ fn gem_failure_lines(output: &dx_process::capture::Captured, token: &str) -> Vec
         .skip(lines.len().saturating_sub(GEM_FAILURE_LINES))
         .map(|line| (*line).to_owned())
         .collect()
-}
-
-fn gem_failure(what: &str, output: &dx_process::capture::Captured, token: &str) -> String {
-    let mut message = format!("rubygems_deploy: {what} failed with {}", exit_text(output));
-    for line in gem_failure_lines(output, token) {
-        message.push_str("\ngem: ");
-        message.push_str(&line);
-    }
-    message
 }
 
 /// Returns PATH with the gem's own directory first, so its `ruby` is the one found.
@@ -192,7 +257,7 @@ fn gem_build(
     staging: &Path,
     gem_name: &str,
     version: &str,
-) -> Result<PathBuf, String> {
+) -> Result<PathBuf, RubygemsError> {
     let gem = staging.join(format!("{gem_name}-{version}.gem"));
     let path = gem_path(program);
     let output = run_publish(
@@ -207,15 +272,19 @@ fn gem_build(
         .arg("--output")
         .arg(&gem),
     )
-    .map_err(|error| format!("rubygems_deploy: {error}"))?;
+    .map_err(RubygemsError::Run)?;
     if !output.success() {
-        return Err(gem_failure("gem build", &output, ""));
+        return Err(RubygemsError::GemFailed {
+            step: "gem build",
+            status: exit_text(&output),
+            lines: gem_failure_lines(&output, ""),
+        });
     }
     Ok(gem)
 }
 
 /// Runs `gem push`; the key goes through GEM_HOST_API_KEY.
-fn gem_push(program: &Path, gem: &Path, token: &str) -> Result<(), String> {
+fn gem_push(program: &Path, gem: &Path, token: &str) -> Result<(), RubygemsError> {
     let path = gem_path(program);
     let output = run_publish(
         scrubbed_command(
@@ -226,11 +295,15 @@ fn gem_push(program: &Path, gem: &Path, token: &str) -> Result<(), String> {
         .arg("push")
         .arg(gem),
     )
-    .map_err(|error| format!("rubygems_deploy: {error}"))?;
+    .map_err(RubygemsError::Run)?;
     if output.success() {
         return Ok(());
     }
-    Err(gem_failure("gem push", &output, token))
+    Err(RubygemsError::GemFailed {
+        step: "gem push",
+        status: exit_text(&output),
+        lines: gem_failure_lines(&output, token),
+    })
 }
 
 /// Stages the sources, checks the gemspec, builds the gem and checks its file list; returns the gem and its version.
@@ -240,11 +313,10 @@ fn rubygems_build_checked(
     staging: &Path,
     gem_name: &str,
     version: &str,
-) -> Result<(PathBuf, String), String> {
-    rubygems_stage(mapped, staging)?;
+) -> Result<(PathBuf, String), RubygemsError> {
+    stage_mapped(mapped, staging).map_err(RubygemsError::Stage)?;
     let gemspec = format!("{gem_name}.gemspec");
-    let text = std::fs::read_to_string(staging.join(&gemspec))
-        .map_err(|error| format!("rubygems_deploy: cannot read {gemspec}: {error}"))?;
+    let text = path_io::read_to_string(&staging.join(&gemspec)).map_err(RubygemsError::Io)?;
     let version = gemspec_version(&text, gem_name, version)?;
     let gem = gem_build(gem_program, staging, gem_name, &version)?;
     if let Some(error) = file_list_refusal(&gem_file_list(&gem)?, mapped, &gemspec) {
@@ -314,25 +386,25 @@ pub fn rubygems_main(
     let staging = match tempfile_stage_dir("rubygems-") {
         Ok(dir) => dir,
         Err(error) => {
-            eprintln!("rubygems_deploy: {error}");
+            eprintln!("{}", RubygemsError::TempDir(error));
             return 1;
         }
     };
     let built = rubygems_package_paths(&files, gem_name)
-        .map_err(|error| format!("rubygems_deploy: {error}"))
+        .map_err(RubygemsError::Paths)
         .and_then(|mapped| {
             rubygems_build_checked(&gem_program, &mapped, &staging, gem_name, version)
         });
     let result = built.and_then(|(gem, version)| {
         if let Some(secrets) = &secrets {
             if let Some(error) = placeholder_refusal("rubygems_deploy", &version) {
-                return Err(error);
+                return Err(RubygemsError::Refused(error));
             }
             gem_push(&gem_program, &gem, secrets.get("RUBYGEMS_API_TOKEN"))
                 .map(|()| format!("rubygems_deploy: pushed {gem_name} {version}"))
         } else {
             let dest = run.outdir().join(format!("{gem_name}-{version}.gem"));
-            copy_verified(&gem, &dest).map_err(|error| format!("rubygems_deploy: {error}"))?;
+            copy_verified(&gem, &dest).map_err(RubygemsError::Copy)?;
             let build_mode = deploy_build_mode();
             Ok(format!(
                 "rubygems_deploy: staged {gem_name} {version} (build_mode: {build_mode})\n  gem: {}",
@@ -363,21 +435,43 @@ mod tests {
     #[test]
     fn gemspec_must_match_target() {
         assert_eq!(
-            gemspec_version(GEMSPEC, "demo", "1.2.3"),
-            Ok("1.2.3".to_owned())
+            gemspec_version(GEMSPEC, "demo", "1.2.3").expect("matching version"),
+            "1.2.3"
         );
-        assert_eq!(gemspec_version(GEMSPEC, "demo", ""), Ok("1.2.3".to_owned()));
+        assert_eq!(
+            gemspec_version(GEMSPEC, "demo", "").expect("declared version"),
+            "1.2.3"
+        );
         let wrong = gemspec_version(GEMSPEC, "other", "").expect_err("name refused");
         assert!(
-            wrong.contains("gemspec is demo, target is other"),
+            matches!(wrong, RubygemsError::NameMismatch { .. }),
+            "{wrong:?}"
+        );
+        assert!(
+            wrong
+                .to_string()
+                .contains("gemspec is demo, target is other"),
             "{wrong}"
         );
         let mismatch = gemspec_version(GEMSPEC, "demo", "2.0.0").expect_err("version refused");
         assert!(
-            mismatch.contains("declares version 1.2.3, BUILD declares 2.0.0"),
+            matches!(mismatch, RubygemsError::Refused(_)),
+            "{mismatch:?}"
+        );
+        assert!(
+            mismatch
+                .to_string()
+                .contains("declares version 1.2.3, BUILD declares 2.0.0"),
             "{mismatch}"
         );
-        assert!(gemspec_version("spec.version = Demo::VERSION\n", "demo", "").is_err());
+        let unnamed =
+            gemspec_version("spec.version = Demo::VERSION\n", "demo", "").expect_err("no name");
+        assert!(
+            unnamed
+                .to_string()
+                .contains("gemspec is (not a plain value), target is demo"),
+            "{unnamed}"
+        );
     }
 
     #[test]
@@ -387,10 +481,15 @@ mod tests {
             (PathBuf::from("b"), "lib/demo.rb".to_owned()),
         ];
         let packed: BTreeSet<String> = ["lib/demo.rb".to_owned()].into();
-        assert_eq!(file_list_refusal(&packed, &mapped, "demo.gemspec"), None);
+        assert!(file_list_refusal(&packed, &mapped, "demo.gemspec").is_none());
         let extra: BTreeSet<String> = ["lib/demo.rb".to_owned(), "x.rb".to_owned()].into();
-        let message = file_list_refusal(&extra, &mapped, "demo.gemspec").expect("refused");
-        assert!(message.contains("unexpected [\"x.rb\"]"), "{message}");
+        let message = file_list_refusal(&extra, &mapped, "demo.gemspec")
+            .expect("refused")
+            .to_string();
+        assert!(
+            message.contains("missing [], unexpected [\"x.rb\"]"),
+            "{message}"
+        );
         let empty = BTreeSet::new();
         assert!(file_list_refusal(&empty, &mapped, "demo.gemspec").is_some());
     }
@@ -414,9 +513,24 @@ mod tests {
         let want: BTreeSet<String> = ["lib/demo.rb", "lib/demo/util.rb"]
             .map(str::to_owned)
             .into();
-        assert_eq!(gem_file_list(&gem), Ok(want));
+        assert_eq!(gem_file_list(&gem).expect("file list"), want);
         std::fs::write(&gem, b"not a tar").expect("corrupt");
-        assert!(gem_file_list(&gem).is_err());
+        let error = gem_file_list(&gem).expect_err("corrupt gem");
+        assert!(
+            error
+                .to_string()
+                .starts_with(&format!("rubygems_deploy: cannot read {}: ", gem.display())),
+            "{error}"
+        );
+        let mut outer = dx_archive::TarWriter::new();
+        outer.add_file("metadata.gz", b"x\n", 0o644).expect("outer");
+        std::fs::write(&gem, outer.finish_tar().expect("tar")).expect("gem");
+        let error = gem_file_list(&gem).expect_err("no data archive");
+        assert!(
+            matches!(error, RubygemsError::NoDataArchive { .. }),
+            "{error:?}"
+        );
+        assert!(error.to_string().contains("has no data.tar.gz"), "{error}");
     }
 
     #[test]
@@ -428,7 +542,7 @@ mod tests {
         outer.add_file("data.tar.gz", &data, 0o644).expect("outer");
         std::fs::write(&gem, outer.finish_tar().expect("tar")).expect("gem");
         let error = gem_file_list(&gem).expect_err("dot dot");
-        assert!(error.contains("'..'"), "{error}");
+        assert!(error.to_string().contains("'..'"), "{error}");
     }
 
     #[test]
@@ -507,13 +621,25 @@ mod tests {
         let error =
             rubygems_build_checked(&bad, &mapped, &scratch.path().join("s2"), "demo", "1.2.3")
                 .expect_err("file list refused");
-        assert!(error.contains("unexpected [\"secret.rb\"]"), "{error}");
+        assert!(
+            matches!(error, RubygemsError::FileListMismatch { .. }),
+            "{error:?}"
+        );
+        assert!(
+            error.to_string().contains("unexpected [\"secret.rb\"]"),
+            "{error}"
+        );
 
         let push = fake_gem(
             &bin,
             "echo \"Repushing of gem versions is not allowed $GEM_HOST_API_KEY\" >&2\nexit 1",
         );
-        let message = gem_push(&push, &gem, "s3cret").expect_err("push fails");
+        let error = gem_push(&push, &gem, "s3cret").expect_err("push fails");
+        assert!(
+            matches!(error, RubygemsError::GemFailed { .. }),
+            "{error:?}"
+        );
+        let message = error.to_string();
         assert!(
             message.contains("gem push failed with exit status: 1"),
             "{message}"

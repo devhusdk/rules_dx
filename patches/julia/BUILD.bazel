@@ -1,6 +1,9 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
-exports_files(["deterministic_objectid.patch"])
+exports_files([
+    "deterministic_image_fields.patch",
+    "deterministic_objectid.patch",
+])
 
 filegroup(
     name = "module_srcs",

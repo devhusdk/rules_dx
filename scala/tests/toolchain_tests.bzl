@@ -91,3 +91,53 @@ def scala_testing_toolchain_tests(name):
         size = "small",
         target_under_test = ":" + name + "_subject",
     )
+
+_THIRD_VERSION = "2.12.21"
+
+_ScalaVersionInfo = provider(
+    doc = "The resolved Scala toolchain's version, whether it is the dx semanticdb one, and whether a testing toolchain resolved.",
+    fields = {
+        "dx": "True when the Scala toolchain is rules_dx's semanticdb toolchain.",
+        "testing": "True when a testing toolchain resolved.",
+        "version": "The Scala toolchain's `scala_version`.",
+    },
+)
+
+def _scala_version_impl(ctx):
+    toolchain = ctx.toolchains[_SCALA_TOOLCHAIN_TYPE]
+    return [_ScalaVersionInfo(
+        dx = "-P:semanticdb:text:on" in toolchain.scalacopts,
+        testing = ctx.toolchains[_TESTING_TOOLCHAIN_TYPE] != None,
+        version = toolchain.scala_version,
+    )]
+
+_scala_version = rule(
+    implementation = _scala_version_impl,
+    doc = "Returns the resolved Scala toolchain's version, whether it is the dx semanticdb one, and whether a testing toolchain resolved.",
+    toolchains = [_SCALA_TOOLCHAIN_TYPE, _TESTING_TOOLCHAIN_TYPE],
+)
+
+def _third_version_impl(ctx):
+    env = analysistest.begin(ctx)
+    info = analysistest.target_under_test(env)[_ScalaVersionInfo]
+    asserts.equals(env, _THIRD_VERSION, info.version)
+    asserts.true(env, info.dx, "the dx semanticdb toolchain did not resolve")
+    asserts.true(env, info.testing, "no Scala testing toolchain resolved")
+    return analysistest.end(env)
+
+_third_version_test = analysistest.make(
+    _third_version_impl,
+    config_settings = {
+        str(Label("//config:toolchains")): True,
+        str(Label("@rules_scala_config//:scala_version")): _THIRD_VERSION,
+    },
+)
+
+def scala_third_version_tests(name, size):
+    """Asserts the dx and testing toolchains resolve for a Scala version the root module adds with `scala_config.settings`."""
+    _scala_version(name = name + "_subject")
+    _third_version_test(
+        name = name,
+        size = size,
+        target_under_test = ":" + name + "_subject",
+    )

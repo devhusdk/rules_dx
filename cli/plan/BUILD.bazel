@@ -1,12 +1,9 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//core/quality:dx_config_gen.bzl", "plan_registry_gen")
 load("//rust:defs.bzl", "rust_bench", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI", "VIS_QUALITY_CLI")
 
 package(default_visibility = VIS_CLI)
-
-plan_registry_gen(name = "update_registry_gen")
 
 exports_files([
     "src/lib.rs",
@@ -34,7 +31,6 @@ rust_library(
         "src/plan/managed.rs",
         "src/plan/quality.rs",
         "src/plan/registry.rs",
-        "src/plan/registry_gen.rs",
         "src/plan/run_deploy.rs",
         "src/plan/run_temp.rs",
         "src/plan/workflow.rs",
@@ -155,7 +151,6 @@ rust_test(
         "src/plan/managed.rs",
         "src/plan/quality.rs",
         "src/plan/registry.rs",
-        "src/plan/registry_gen.rs",
         "src/plan/run_deploy.rs",
         "src/plan/run_temp.rs",
         "src/plan/workflow.rs",

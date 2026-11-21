@@ -9,7 +9,7 @@ Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
 -toolchain_type(
 +alias(
      name = "toolchain",
-+    actual = "@rules_dx//haskell/private/toolchain:toolchain_type",
++    actual = "@rules_dx//haskell:toolchain_type",
      visibility = ["//visibility:public"],
  )
  

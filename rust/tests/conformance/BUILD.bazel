@@ -1,6 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
-load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "dx_coverage_test", "subject_compatible_with")
 
 package(
     default_testonly = True,
@@ -67,6 +67,25 @@ rust_test(
     edition = "2024",
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
+)
+
+rust_test(
+    name = "sharded_subject_test",
+    size = "small",
+    srcs = ["sharded_pass_test.rs"],
+    crate_name = "sharded_subject_test",
+    crate_root = "sharded_pass_test.rs",
+    edition = "2024",
+    shard_count = 2,
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+dx_coverage_test(
+    name = "sharded_coverage_test",
+    size = "small",
+    covered_source = "greet.rs",
+    subject = ":sharded_subject_test",
 )
 
 rust_binary(

@@ -136,3 +136,10 @@ cc_objc_library(
     tags = ["manual"],
     target_compatible_with = ["@platforms//os:macos"],
 )
+
+cc_objc_library(
+    name = "tidy_dirty_objc",
+    srcs = ["tidy_dirty.m"],
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:macos"],
+)

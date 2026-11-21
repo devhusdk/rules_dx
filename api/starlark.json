@@ -16137,40 +16137,6 @@
         ]
       },
       {
-        "name": "sdist_cargo_vendor",
-        "tag_classes": [
-          {
-            "attrs": [
-              {
-                "default": "\"Cargo.lock\"",
-                "mandatory": false,
-                "name": "cargo_lock_path",
-                "type": "STRING"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "lock",
-                "type": "LABEL"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "name",
-                "type": "NAME"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "package",
-                "type": "STRING"
-              }
-            ],
-            "name": "crates"
-          }
-        ]
-      },
-      {
         "name": "uv",
         "tag_classes": [
           {
@@ -19249,6 +19215,39 @@
       }
     ],
     "load": "@rules_dx//scala:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "scala_config",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "\"2.13.18\"",
+                "mandatory": false,
+                "name": "scala_version",
+                "type": "STRING"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "scala_versions",
+                "type": "STRING_LIST"
+              }
+            ],
+            "name": "settings"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//scala:extensions.bzl",
     "macros": [],
     "providers": [],
     "repository_rules": [],

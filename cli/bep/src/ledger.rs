@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 
 use serde_json::{Map, Value};
 
@@ -41,18 +40,18 @@ impl EventGap {
     pub fn describe(&self) -> String {
         let mut text = self.kind.clone();
         if let Some(label) = &self.label {
-            write!(text, " for {label}").ok();
+            text.push_str(&format!(" for {label}"));
         }
         if let Some(aspect) = &self.aspect {
-            write!(text, " ({aspect})").ok();
+            text.push_str(&format!(" ({aspect})"));
         }
         if let (Some(run), Some(shard), Some(attempt)) = (self.run, self.shard, self.attempt) {
-            write!(text, " (run {run}, shard {shard}, attempt {attempt})").ok();
+            text.push_str(&format!(" (run {run}, shard {shard}, attempt {attempt})"));
         }
         match &self.aborted {
             None => text.push_str(" was announced but never reported"),
             Some(reason) => {
-                write!(text, " was aborted: {reason}").ok();
+                text.push_str(&format!(" was aborted: {reason}"));
             }
         }
         text

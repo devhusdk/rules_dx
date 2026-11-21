@@ -15,3 +15,23 @@ dx_wrapper_contract_tests(
         "test": "//svelte/tests/conformance:wrapper_test",
     },
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//svelte/tests/fixtures/app:app_build_test",
+        "//svelte/tests/fixtures/app:site_client_test",
+        "//svelte/tests/fixtures/app:site_ssr_test",
+        "//svelte/tests/fixtures/app:site_static_test",
+        "//svelte/tests/fixtures/app_errors:build_errors_test",
+        "//svelte/tests/fixtures/app_errors:render_client_test",
+        "//svelte/tests/fixtures/app_errors:render_ssr_test",
+        "//svelte/tests/fixtures/typecheck:bad_exit_test",
+        "//svelte/tests/fixtures/typecheck:bad_stdout_test",
+        "//svelte/tests/fixtures/typecheck:broken_exit_test",
+        "//svelte/tests/fixtures/typecheck:broken_stdout_test",
+        "//svelte/tests/fixtures/typecheck:clean_exit_test",
+        "//svelte/tests/fixtures/typecheck:clean_stdout_test",
+    ],
+)

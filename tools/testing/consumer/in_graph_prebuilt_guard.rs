@@ -16,14 +16,14 @@
     reason = "runs the bazel of `bazel run` on its own workspace"
 )]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use prebuilt_guard::{
     allowlist, command_roots, compiled_binaries, consumer_label, consumer_line, drop_jar_launchers,
-    guard_aspects, jvm_sources_query, resolver_roots, root_label, stale, unlisted, wrapper_build,
-    wrapper_bzl,
+    drop_rule_set_repos, guard_aspects, jvm_sources_query, resolver_roots, root_label, stale,
+    stale_repos, unlisted, wrapper_build, wrapper_bzl,
 };
 
 const ROOTS_REPO: &str = "dx_guard_roots";
@@ -160,6 +160,7 @@ fn check(bazel_bin: &str, workspace: &Path, out: &Path, langs: Option<&str>) -> 
         )
     };
     let mut found_all = BTreeMap::new();
+    let mut matched_repos = BTreeSet::new();
     let mut problems = Vec::new();
     for lang in &langs {
         let mut roots = vec![
@@ -185,6 +186,7 @@ fn check(bazel_bin: &str, workspace: &Path, out: &Path, langs: Option<&str>) -> 
             .map(|line| format!("{}\n", consumer_line(line, &fixtures)))
             .collect();
         let mut found = compiled_binaries(&mapped);
+        matched_repos.extend(drop_rule_set_repos(&mut found, &list.repos_for(&[lang])));
         drop_jar_launchers(&mut found, |label| {
             Ok(
                 cquery("--output=label", &jvm_sources_query(&root_label(label)))?
@@ -203,6 +205,7 @@ fn check(bazel_bin: &str, workspace: &Path, out: &Path, langs: Option<&str>) -> 
         found_all.extend(found);
     }
     problems.extend(stale(&found_all, &list.labels_for(&langs)));
+    problems.extend(stale_repos(&list.repos_for(&langs), &matched_repos));
     if problems.is_empty() {
         Ok(())
     } else {
@@ -282,6 +285,7 @@ mod tests {
             "DX_JAVA_GUARD_LANGS",
             "DX_IN_GRAPH_GUARD_LANGS",
             "DX_MACOS_IN_GRAPH_GUARD_LANGS",
+            "DX_WINDOWS_IN_GRAPH_GUARD_LANGS",
             "DX_GUARD_PENDING",
         ] {
             for lang in dx_testing::env_text(var).split_whitespace() {
@@ -322,12 +326,13 @@ mod tests {
         );
     }
 
-    /// The macos_arm64 leg of the ci.yml job passes `MACOS_IN_GRAPH_GUARD_LANGS` with `--langs`
-    /// and the linux_x86_64 leg passes none.
+    /// The macos_arm64 and windows_x86_64 legs of the ci.yml job pass their OS list with
+    /// `--langs` through bash, and the linux_x86_64 leg passes none.
     #[test]
-    fn the_macos_leg_runs_the_macos_list() {
+    fn each_os_leg_runs_its_list() {
         let workflow = dx_testing::env_text("DX_CI_WORKFLOW");
         let job = ci_workflow::job(workflow.trim(), "in-graph-prebuilt-guard").unwrap();
+        assert_eq!(job["defaults"]["run"]["shell"], "bash");
         let legs: BTreeMap<String, String> = job["strategy"]["matrix"]["include"]
             .as_array()
             .expect("in-graph-prebuilt-guard declares a matrix include list")
@@ -346,6 +351,10 @@ mod tests {
                 (
                     "macos_arm64".to_owned(),
                     dx_testing::env_text("DX_MACOS_IN_GRAPH_GUARD_LANGS")
+                ),
+                (
+                    "windows_x86_64".to_owned(),
+                    dx_testing::env_text("DX_WINDOWS_IN_GRAPH_GUARD_LANGS")
                 ),
             ])
         );

@@ -204,7 +204,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | Tool | Checks | Not on |
 | --- | --- | --- |
 | `clang_format` | Format C, C++, CUDA, Objective-C | |
-| `clang_tidy` | Lint C, C++, CUDA, Objective-C | |
+| `clang_tidy` | Lint C, C++, CUDA, Objective-C | Objective-C: not on Linux or Windows |
 | `clang_syntax` | Typecheck C, C++, Objective-C with `-fsyntax-only` | Objective-C: not on Linux or Windows |
 | `nvcc_syntax` | Typecheck CUDA with `nvcc -cuda` | |
 | `rustfmt` | Format Rust | |

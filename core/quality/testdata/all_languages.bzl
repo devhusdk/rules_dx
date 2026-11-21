@@ -1,6 +1,7 @@
 """Target-scoped real capability aspects over real adapters; refresh the GENERATED blocks with `bazel run //core/modules:update_lang_projections`."""
 
 # BEGIN GENERATED LANG ASPECT LOADS
+load("//android/private/quality:android_sdk.bzl", _android_sdk_aspect = "android_sdk_aspect")
 load("//ansible/private/quality:ansible.bzl", _real_ansible_format_aspect = "real_ansible_format_aspect", _real_ansible_format_probe_aspect = "real_ansible_format_probe_aspect", _real_ansible_lint_aspect = "real_ansible_lint_aspect", _real_ansible_lint_probe_aspect = "real_ansible_lint_probe_aspect")
 load("//bicep/private/quality:bicep.bzl", _real_bicep_format_aspect = "real_bicep_format_aspect", _real_bicep_format_probe_aspect = "real_bicep_format_probe_aspect", _real_bicep_lint_aspect = "real_bicep_lint_aspect", _real_bicep_lint_probe_aspect = "real_bicep_lint_probe_aspect")
 load("//cc/private/quality:cc.bzl", _real_cc_format_aspect = "real_cc_format_aspect", _real_cc_format_probe_aspect = "real_cc_format_probe_aspect", _real_cc_lint_aspect = "real_cc_lint_aspect", _real_cc_lint_probe_aspect = "real_cc_lint_probe_aspect", _real_cc_typecheck_aspect = "real_cc_typecheck_aspect", _real_cc_typecheck_probe_aspect = "real_cc_typecheck_probe_aspect")
@@ -119,6 +120,8 @@ load("//tools/docs:aspect.bzl", _real_docs_aspect = "real_docs_aspect")
 visibility(["//core/..."])
 
 # BEGIN GENERATED LANG ASPECT EXPORTS
+android_sdk_aspect = _android_sdk_aspect
+
 real_ansible_format_aspect = _real_ansible_format_aspect
 
 real_ansible_format_probe_aspect = _real_ansible_format_probe_aspect

@@ -2,6 +2,21 @@
   "languages": [
     {
       "name": "android",
+      "quality": {
+        "aspects": {
+          "lint": [
+            "android_sdk_aspect"
+          ],
+          "typecheck": [
+            "android_sdk_aspect"
+          ]
+        },
+        "bzl": "android/private/quality:android_sdk.bzl",
+        "file_extensions": [],
+        "licenses": [
+          "android-sdk-license"
+        ]
+      },
       "setup": {
         "licenses": [
           {

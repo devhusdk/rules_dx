@@ -541,7 +541,34 @@
   {
     "aspects": [],
     "extensions": [],
-    "functions": [],
+    "functions": [
+      {
+        "forwards": [],
+        "name": "api_spec_protobuf_doc_shard",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "proto"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
     "load": "@rules_dx//api_spec:defs.bzl",
     "macros": [],
     "providers": [
@@ -1271,7 +1298,7 @@
             "name": "tags"
           },
           {
-            "default": "False",
+            "default": "None",
             "mandatory": false,
             "name": "testonly"
           },
@@ -2651,32 +2678,6 @@
             "default": "",
             "mandatory": true,
             "name": "lib"
-          },
-          {
-            "default": "\"\"",
-            "mandatory": false,
-            "name": "package"
-          },
-          {
-            "default": "",
-            "mandatory": false,
-            "name": "kwargs"
-          }
-        ]
-      },
-      {
-        "forwards": [],
-        "name": "protobuf_doc_shard",
-        "params": [
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "name"
-          },
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "proto"
           },
           {
             "default": "\"\"",
@@ -15643,7 +15644,12 @@
       },
       {
         "name": "php",
-        "tag_classes": []
+        "tag_classes": [
+          {
+            "attrs": [],
+            "name": "from_source"
+          }
+        ]
       }
     ],
     "functions": [],

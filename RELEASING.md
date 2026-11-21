@@ -85,7 +85,7 @@ After you fix the cause, run the workflow again with the same command.
 
 Open the draft on GitHub, check the notes and files, and publish it.
 
-Publishing starts `release-consumer.yml`. It builds a small consumer project against the published source archive on each platform and checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`, that topiary and progenitor are the prebuilt downloads, and on `windows-arm64` that the `pkl_lsp` natives jar packs the prebuilt tree-sitter DLLs. It skips releases whose tag does not start with `v`, such as `mirror-php-<version>`. To run it again:
+Publishing starts `release-consumer.yml`. On each platform it downloads the published assets, checks the platform archive and the source archive with `gh attestation verify` against the published bundles, and builds a small consumer project whose `bazel_dep` resolves `rules_dx` through a registry: the BCR once it lists the version, otherwise a local registry made from the published `source.json` and the archive's `MODULE.bazel`. It checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`, that topiary and progenitor are the prebuilt downloads, and on `windows-arm64` that the `pkl_lsp` natives jar packs the prebuilt tree-sitter DLLs. It skips releases whose tag does not start with `v`, such as `mirror-php-<version>`. To run it again:
 
 ```sh
 gh workflow run release-consumer.yml -f tag=v0.1.0
@@ -103,6 +103,12 @@ Before the first release, the owner sets up two things once:
 - the repository secret `BCR_PUBLISH_TOKEN`, a classic personal access token with the `repo` and `workflow` scopes that can push to that fork.
 
 The owner reviews the BCR pull request, waits for BCR CI, and marks it ready for review.
+
+After the BCR pull request merges, run the consumer again. Each `consumer` job then resolves `rules_dx` from the BCR alone:
+
+```sh
+gh workflow run release-consumer.yml -f tag=v0.1.0
+```
 
 If the `bcr` job fails, fix the cause and rerun the failed jobs:
 

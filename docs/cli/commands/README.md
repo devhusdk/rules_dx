@@ -346,7 +346,8 @@ Language rules:
 
 - `@rules_dx//android:defs.bzl`: Android libraries.
 - `@rules_dx//ansible:defs.bzl`: Ansible.
-- `@rules_dx//api_spec:defs.bzl`: OpenAPI and AsyncAPI specs.
+- `@rules_dx//api_spec:defs.bzl`: OpenAPI and AsyncAPI specs, and
+  `api_spec_protobuf_doc_shard` for Protobuf API docs.
 - `@rules_dx//apple:defs.bzl`: iOS apps, tests, frameworks and libraries, and macOS apps.
 - `@rules_dx//asciidoc:defs.bzl`: AsciiDoc.
 - `@rules_dx//astro:defs.bzl`: Astro.
@@ -427,8 +428,7 @@ API docs:
 - `@rules_dx//<language>:defs.bzl`: the language's API doc shard, and
   `rust_docs_site` for `rust`.
 - `@rules_dx//core:defs.bzl`: `docs_site`, which builds a docs site from API
-  doc shards, and the `lua_doc_shard`, `php_doc_shard` and
-  `protobuf_doc_shard` rules.
+  doc shards, and the `lua_doc_shard` and `php_doc_shard` rules.
 
 Quality config:
 
@@ -497,6 +497,7 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//ansible:defs.bzl` | `ansible_library` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_go_client` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_library` |
+|  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_protobuf_doc_shard` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_python_client` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_rust_client` |
 |  |  | `@rules_dx//api_spec:defs.bzl` | `api_spec_typescript_client` |
@@ -547,6 +548,7 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_doc_shard` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_js_binary` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_library` |
+|  |  | `@rules_dx//dart:defs.bzl` | `dart_package_metadata` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_test` |
 |  |  | `@rules_dx//dart:defs.bzl` | `dart_wasm_binary` |
 |  |  | `@rules_dx//dockerfile:defs.bzl` | `dockerfile_library` |
@@ -567,6 +569,8 @@ empty upstream column are dx's own rules.
 |  |  | `@rules_dx//flatbuffers:defs.bzl` | `flatbuffers_rust_library` |
 |  |  | `@rules_dx//flutter:defs.bzl` | `flutter_android_app` |
 |  |  | `@rules_dx//flutter:defs.bzl` | `flutter_application` |
+|  |  | `@rules_dx//flutter:defs.bzl` | `flutter_font` |
+|  |  | `@rules_dx//flutter:defs.bzl` | `flutter_font_family` |
 |  |  | `@rules_dx//flutter:defs.bzl` | `flutter_gen_l10n` |
 |  |  | `@rules_dx//flutter:defs.bzl` | `flutter_ios_app` |
 |  |  | `@rules_dx//flutter:defs.bzl` | `flutter_library` |

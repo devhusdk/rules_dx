@@ -189,7 +189,7 @@ fn analyze_check_aspects(case: &Case, fetches: &mut Fetches) {
         .filter(|line| !line.is_empty())
         .collect();
     assert!(!targets.is_empty(), "bazel query found no consumer rule");
-    let (check, _docs) = guard_aspects(&dx_adopt::file_extensions(case.root()));
+    let (check, _docs) = guard_aspects(&dx_adopt::quality_marks(case.root()));
     let wrapper = case.root().join("dx_prebuilt_guard");
     dx_testing::write_text(
         &wrapper.join("defs.bzl"),

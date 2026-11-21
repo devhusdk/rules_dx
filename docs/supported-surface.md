@@ -958,6 +958,17 @@ Rule.
 | `root` | `label` | no | `None` |
 | `spec` | `label` | yes |  |
 
+#### `api_spec_protobuf_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `proto` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
 #### `ApiSpecInfo`
 
 Provider.
@@ -1130,7 +1141,7 @@ Macro or function.
 | `entitlements` | no | `None` |
 | `provisioning_profile` | no | `None` |
 | `tags` | no | `None` |
-| `testonly` | no | `False` |
+| `testonly` | no | `None` |
 | `visibility` | no | `None` |
 
 #### `apple_macos_notarize`
@@ -2527,17 +2538,6 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `lib` | yes |  |
-| `package` | no | `""` |
-| `kwargs` | no |  |
-
-#### `protobuf_doc_shard`
-
-Macro or function.
-
-| Argument | Required | Default |
-| --- | --- | --- |
-| `name` | yes |  |
-| `proto` | yes |  |
 | `package` | no | `""` |
 | `kwargs` | no |  |
 
@@ -5740,7 +5740,9 @@ Tag `composer.lock`:
 
 Module extension.
 
-No tags.
+Tag `php.from_source`:
+
+No attributes.
 
 ### `@rules_dx//powershell:defs.bzl`
 

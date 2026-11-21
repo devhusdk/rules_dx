@@ -149,6 +149,7 @@ load(
     "real_yaml_lint_aspect",
     "real_zig_typecheck_aspect",
 )
+load("//android/private/quality:android_sdk.bzl", "android_sdk_aspect")
 load("//cc/private/quality:cc.bzl", "CcShardProbeInfo")
 load("//core/quality:families/core_probe.bzl", "CoreShardProbeInfo")
 load("//javascript/private/quality:js.bzl", "JsShardProbeInfo")
@@ -345,7 +346,7 @@ real_haskell_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_haskell_lint_a
 
 real_ocaml_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_ocaml_lint_aspect, real_ocaml_format_aspect, real_ocaml_typecheck_aspect])
 
-real_jvm_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_jvm_lint_aspect, real_jvm_format_aspect, real_jvm_typecheck_aspect])
+real_jvm_aspect_subject = _subject_rule([android_sdk_aspect] + _CORE_ASPECTS + [real_jvm_lint_aspect, real_jvm_format_aspect, real_jvm_typecheck_aspect])
 
 real_scala_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_jvm_lint_aspect, real_jvm_format_aspect, real_scala_format_aspect, real_scala_lint_aspect, real_scala_typecheck_aspect])
 

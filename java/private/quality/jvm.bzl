@@ -3,7 +3,8 @@
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//core/quality:family_hooks.bzl", "default_files_hook", "stage", "without")
-load("//java/private/quality:jvm_check.bzl", "JvmCheckInfo", "android_sdk_jars", "jvm_android_sdk_aspect", "jvm_check_aspect")
+load("//java/private/quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
+load("//java/private/quality:jvm_info.bzl", "JvmAndroidSdkInfo", "android_sdk_jars")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//java/private/quality/tools:jar_lsp_tool.bzl", "PklLspToolInfo")
 
@@ -83,7 +84,7 @@ SHARD_SPECS = {
             ),
             "_config_tier": attr.label(default = "//config:config_tier"),
         },
-        "requires": [jvm_android_sdk_aspect],
+        "required_aspect_providers": [[JvmAndroidSdkInfo]],
         "shard": "jvm",
     },
     "real_jvm_typecheck": {

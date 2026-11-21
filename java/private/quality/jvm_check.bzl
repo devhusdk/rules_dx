@@ -1,6 +1,5 @@
 """Type-checks a JVM target with its compiler (javac, kotlinc) and records the diagnostics."""
 
-load("@rules_android//providers:providers.bzl", "AndroidIdeInfo")
 load("@rules_java//java:java_utils.bzl", "utils")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_java//java/common:java_plugin_info.bzl", "JavaPluginInfo")
@@ -8,12 +7,11 @@ load("@rules_kotlin//kotlin/internal:defs.bzl", "KspPluginInfo", "KtCompilerPlug
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions", "kotlinc_options_to_flags")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:sources.bzl", "single_target")
+load("//java/private/quality:jvm_info.bzl", "JvmAndroidSdkInfo", "android_sdk_jars")
 
-visibility(["//java/...", "//scala/..."])
+visibility(["//android/...", "//java/...", "//scala/..."])
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
-_ANDROID_SDK_TOOLCHAIN_TYPE = "@rules_android//toolchains/android_sdk:toolchain_type"
-_ANDROID_KINDS = ["android_library", "kt_android_library"]
 
 # The check drivers speak Bazel's JSON worker protocol (java/private/quality/tools/worker), so local
 # builds keep one warm JVM, and for kotlinc and scalac one loaded compiler, per mnemonic instead of a
@@ -22,32 +20,6 @@ JVM_CHECK_WORKER = {
     "requires-worker-protocol": "json",
     "supports-workers": "1",
 }
-
-JvmAndroidSdkInfo = provider(
-    doc = "Android platform jars an Android JVM target compiles against.",
-    fields = {"jars": "depset[File]: the android.jar of the resolved Android SDK"},
-)
-
-def _jvm_android_sdk_impl(_target, ctx):
-    if ctx.rule.kind not in _ANDROID_KINDS:
-        return []
-    toolchain = ctx.toolchains[_ANDROID_SDK_TOOLCHAIN_TYPE]
-    if toolchain == None or getattr(toolchain, "android_sdk_info", None) == None:
-        fail("%s: %s needs a resolved Android SDK toolchain for quality checks" % (ctx.label, ctx.rule.kind))
-    return [JvmAndroidSdkInfo(jars = depset([toolchain.android_sdk_info.android_jar]))]
-
-jvm_android_sdk_aspect = aspect(
-    implementation = _jvm_android_sdk_impl,
-    doc = "Exposes the android.jar of the resolved Android SDK for android_library and kt_android_library targets. Applies only to targets that advertise AndroidIdeInfo.",
-    required_providers = [AndroidIdeInfo],
-    toolchains = [config_common.toolchain_type(_ANDROID_SDK_TOOLCHAIN_TYPE, mandatory = False)],
-)
-
-def android_sdk_jars(target):
-    """Returns the Android platform jars of one target as a depset."""
-    if JvmAndroidSdkInfo in target:
-        return target[JvmAndroidSdkInfo].jars
-    return depset()
 
 # The jars of the Kotlin compiler distribution the kotlinc driver loads, in the toolchain's kotlin_home.
 _KOTLINC_JARS = [
@@ -285,7 +257,7 @@ jvm_check_aspect = aspect(
     implementation = _jvm_check_impl,
     doc = "Runs javac (rules_java) or kotlinc (rules_kotlin) without emitting classes over a target's sources and records the diagnostics without failing the build.",
     attr_aspects = ["upstream"],
-    requires = [jvm_android_sdk_aspect],
+    required_aspect_providers = [[JvmAndroidSdkInfo]],
     toolchains = [
         config_common.toolchain_type(_KT_TOOLCHAIN_TYPE, mandatory = False),
     ],

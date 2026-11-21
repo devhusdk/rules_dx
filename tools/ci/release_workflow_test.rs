@@ -207,6 +207,44 @@ fn summary_trap_runs_on_exit() {
 }
 
 #[test]
+fn resume_command_names_the_calling_workflow() {
+    let script = publish_script();
+    assert!(script.contains(r#"caller="${GITHUB_WORKFLOW_REF%@*}""#), "{script}");
+    assert!(script.contains("gh workflow run ${caller##*/} --ref"), "{script}");
+    assert!(!script.contains("gh workflow run release.yml"), "{script}");
+}
+
+const E2E: &str = ".github/workflows/release-e2e.yml";
+
+#[test]
+fn release_e2e_runs_only_on_e2e_tags() {
+    assert_eq!(
+        ci_workflow::triggers(E2E).unwrap(),
+        serde_json::json!({"push": {"tags": ["v0.0.0-e2e.*"]}})
+    );
+    assert_eq!(
+        document(E2E).unwrap()["permissions"],
+        serde_json::json!({"contents": "read"})
+    );
+}
+
+#[test]
+fn release_e2e_calls_the_local_reusable_release_without_secrets() {
+    let calls = ci_workflow::reusable_calls(E2E).unwrap();
+    assert_eq!(calls.len(), 1, "{calls:?}");
+    let (_, called, job) = &calls[0];
+    assert_eq!(called, "reusable-release.yml");
+    assert_eq!(job["uses"], "./.github/workflows/reusable-release.yml");
+    assert!(job.get("secrets").is_none(), "{job}");
+    let deployables = job["with"]["deployables"].as_str().unwrap_or_default();
+    assert!(deployables.contains("//tools/testing/release_e2e:a_github"), "{deployables}");
+    assert!(deployables.contains("//tools/testing/release_e2e:b_refuses"), "{deployables}");
+    for scope in ["contents", "id-token", "attestations", "packages"] {
+        assert_eq!(job["permissions"][scope], "write", "{scope}");
+    }
+}
+
+#[test]
 fn workflow_text_is_readable() {
     assert!(
         strings(WORKFLOW)

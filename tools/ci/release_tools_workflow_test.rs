@@ -453,11 +453,11 @@ fn release_writes_and_checks_the_tool_manifest() {
         "for tool in dx-deadnix dx-selene; do\n            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do\n              tool_asset=\"$tool-$host\""
     ));
     assert!(text.contains("--manifest \"$PWD/out/dx-tool-sha256sums.txt\""));
-    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 67"));
+    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 70"));
     assert!(text.contains("for tool_asset in dx-tree-sitter-windows-arm64.dll dx-tree-sitter-pkl-windows-arm64.dll dx-tree-sitter-LICENSE dx-tree-sitter-pkl-LICENSE; do"));
     assert!(text.contains(" dx-thrift-* dx-tree-sitter-* "));
     assert!(text.contains("for tool in capnp flatc go oapi-codegen runtime thrift; do"));
-    assert!(text.contains("files=\"$files dx-oapi-codegen-LICENSE\""));
+    assert!(text.contains("for license in dx-capnp-LICENSE dx-flatc-LICENSE dx-oapi-codegen-LICENSE dx-thrift-LICENSE; do"));
     assert!(text.contains(" dx-go-* dx-oapi-codegen-* "));
     assert!(text.contains("cd out\n            for file in dx-sha256sums.txt "));
     assert!(text.contains("cp \"$file\" \"$SOURCE_DIR/\""));

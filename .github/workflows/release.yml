@@ -152,9 +152,11 @@ jobs:
               files="$files $tool_asset"
             done
           done
-          test -s out/dx-oapi-codegen-LICENSE || { echo "want a non-empty out/dx-oapi-codegen-LICENSE" >&2; exit 1; }
-          printf '%s  %s\n' "$(sha256sum out/dx-oapi-codegen-LICENSE | cut -d' ' -f1)" dx-oapi-codegen-LICENSE >> sums.tmp
-          files="$files dx-oapi-codegen-LICENSE"
+          for license in dx-capnp-LICENSE dx-flatc-LICENSE dx-oapi-codegen-LICENSE dx-thrift-LICENSE; do
+            test -s "out/$license" || { echo "want a non-empty out/$license" >&2; exit 1; }
+            printf '%s  %s\n' "$(sha256sum "out/$license" | cut -d' ' -f1)" "$license" >> sums.tmp
+            files="$files $license"
+          done
           : > out/dx-jar-sha256sums.txt
           for jar in dx-avro-union-any.jar dx-dokka-extract-any.jar dx-javac-check-any.jar dx-javadoc-extract-any.jar dx-jmh-generate-any.jar dx-kotlinc-check-any.jar dx-maven-resolver-any.jar dx-scalac-check-any.jar dx-scaladoc-extract-any.jar; do
             test -s "out/$jar" || { echo "want a non-empty out/$jar" >&2; exit 1; }
@@ -203,7 +205,7 @@ jobs:
           files="$files dx-tool-sha256sums.txt"
           printf '%s\n' "$files" > out/files.list
           LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
-          test "$(wc -l < out/dx-sha256sums.txt)" -eq 67 || { echo "want 67 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-sha256sums.txt)" -eq 70 || { echo "want 70 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-sha256sums.txt)
           test "$(wc -l < out/dx-gazelle-sha256sums.txt)" -eq 5 || { echo "want 5 gazelle manifest lines, got $(wc -l < out/dx-gazelle-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-gazelle-sha256sums.txt)

@@ -4,7 +4,7 @@ use std::path::Path;
 use tempfile::TempDir;
 
 /// The per-platform tools release.yml adds to the dx manifest, one asset per platform each.
-const PLATFORM_TOOLS: [&str; 6] = ["capnp", "flatc", "go", "oapi_codegen", "runtime", "thrift"];
+const PLATFORM_TOOLS: [&str; 7] = ["capnp", "flatc", "go", "ldoc_main", "oapi_codegen", "runtime", "thrift"];
 
 /// The shared libraries release.yml adds to the dx manifest, with their licences: tree-sitter
 /// from the windows-arm64 cell, pcov from the linux and macOS cells and julia-internal from
@@ -46,6 +46,7 @@ fn manifest() -> String {
         format!("{}  dx-capnp-LICENSE\n", hash(9)),
         format!("{}  dx-flatc-LICENSE\n", hash(9)),
         format!("{}  dx-julia-internal-LICENSE\n", hash(9)),
+        format!("{}  dx-ldoc-main-LICENSE\n", hash(9)),
         format!("{}  dx-oapi-codegen-LICENSE\n", hash(9)),
         format!("{}  dx-pcov-LICENSE\n", hash(9)),
         format!("{}  dx-thrift-LICENSE\n", hash(9)),

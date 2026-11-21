@@ -113,7 +113,7 @@ def perl_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     upstream = dict(kwargs, main = main)
     dx_wrap_test(name, _perl_test, _perl_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
-_perl_bench_lib = dx_private_dep_rule(
+_perl_benchmark_lib = dx_private_dep_rule(
     Label("//perl/private:bench"),
     [_PerlInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     "Provides the DxBench module perl_bench requires.",
@@ -121,7 +121,7 @@ _perl_bench_lib = dx_private_dep_rule(
 
 def perl_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs):
     """A perl_test run by dx bench: scripts call DxBench::run_benchmarks, which times them with core Benchmark and writes dx-bench.json."""
-    _perl_bench_lib(
+    _perl_benchmark_lib(
         name = name + "_dx_bench",
         testonly = True,
         tags = dx_upstream_tags(tags),

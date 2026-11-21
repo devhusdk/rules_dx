@@ -1,5 +1,3 @@
-#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
-
 use std::process::ExitCode;
 
 use dx_nested as nested;

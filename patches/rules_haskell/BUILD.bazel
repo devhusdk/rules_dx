@@ -12,6 +12,8 @@ exports_files([
     "cc_wrapper_darwin_ffi.patch",
     "cabal_binary_dep_data.patch",
     "cabal_static_exe.patch",
+    "cabal_ghcversion_relpath.patch",
+    "cc_wrapper_origin_rpath.patch",
     "ghc_xcode_env.patch",
     "llvm_backend.patch",
     "toolchain_type_alias.patch",

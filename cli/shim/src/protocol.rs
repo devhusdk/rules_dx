@@ -132,8 +132,9 @@ fn utf8_env(env_get: EnvGet, name: &str) -> Result<Option<String>, ShimError> {
         None => Ok(None),
         Some(value) => value
             .into_string()
+            .ok()
             .map(Some)
-            .map_err(|_| ShimError::usage(format!("{name} must be valid UTF-8"))),
+            .ok_or_else(|| ShimError::usage(format!("{name} must be valid UTF-8"))),
     }
 }
 

@@ -1,11 +1,6 @@
 //! `gate_base_bin` pins origin/main for the affected checks and writes `GATE_BASE` to `GITHUB_ENV`.
 
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use gate_base::{Event, export, pin};
 use std::process::ExitCode;

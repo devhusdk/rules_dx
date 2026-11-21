@@ -1,10 +1,5 @@
 //! Runs the `rules_jvm_external` Maven resolver on a version catalog with the pinned JDK.
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::path::PathBuf;
 

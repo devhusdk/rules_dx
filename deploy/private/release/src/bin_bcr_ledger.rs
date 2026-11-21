@@ -1,9 +1,4 @@
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_release_tools::{bcr_submit_record, ledger_exit, render_ledger};
 

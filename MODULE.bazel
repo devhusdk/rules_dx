@@ -1138,6 +1138,8 @@ dx_pins.archive(
         "//patches/rules_haskell:cc_wrapper_darwin_ffi.patch",
         "//patches/rules_haskell:cabal_binary_dep_data.patch",
         "//patches/rules_haskell:cabal_static_exe.patch",
+        "//patches/rules_haskell:cabal_ghcversion_relpath.patch",
+        "//patches/rules_haskell:cc_wrapper_origin_rpath.patch",
         "//patches/rules_haskell:ghc_xcode_env.patch",
         "//patches/rules_haskell:llvm_backend.patch",
         "//patches/rules_haskell:toolchain_type_alias.patch",
@@ -1486,19 +1488,6 @@ dx_pins.archive(
     pins = "//cc:pins.json",
 )
 dx_pins.archive(
-    name = "dx_busybox_sh",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
-    name = "dx_busybox_sh_linux_arm64",
-    build = "//core/quality/sh:busybox_apk.BUILD.bazel",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
-    name = "dx_busybox_sh_windows",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
     name = "dx_selene_src",
     build = "//rust/private:selene.BUILD.bazel",
     pins = "//rust:pins.json",
@@ -1591,9 +1580,6 @@ use_repo(
     "cosign_windows_x86_64",
     "cpp_app_fmt",
     "cuda_redistrib_json",
-    "dx_busybox_sh",
-    "dx_busybox_sh_linux_arm64",
-    "dx_busybox_sh_windows",
     "dx_coreutils",
     "dx_coreutils__linux_arm64",
     "dx_coreutils__linux_x86_64",
@@ -2114,12 +2100,6 @@ zig_hub.lock(
     lock = "//zig/tests/fixtures/zig_deps:zig.lock.json",
 )
 use_repo(zig_hub, "zig_zig.tests.fixtures.zig_deps")
-
-register_toolchains(
-    "//core/quality/sh:busybox_sh_linux_arm64",
-    "//core/quality/sh:busybox_sh_linux_x86_64",
-    "//core/quality/sh:busybox_sh_windows_x86_64",
-)
 
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.5.0")
@@ -2867,6 +2847,7 @@ crate.from_cargo(
         "//cli/exec_test_reports:Cargo.toml",
         "//cli/exec_quality:Cargo.toml",
         "//cli/exec_update:Cargo.toml",
+        "//cli/exec_worktree:Cargo.toml",
         "//cli/http:Cargo.toml",
         "//cli/semver:Cargo.toml",
         "//cli/dx_config:Cargo.toml",

@@ -1,5 +1,5 @@
 {
-  "checksum": "56870eb48ae60750759eccf6a65ed2959fb59cfe6e0e27ba7d3b91c0e7818c93",
+  "checksum": "9d6cbc7db28cb92aa060f837fd426d95777212969c8db393a3c4552fcdf6bede",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8814,6 +8814,39 @@
         {
           "Library": {
             "crate_name": "dx_exec_update",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_exec_worktree 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_worktree",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_worktree",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_worktree",
             "crate_root": "src/lib.rs"
           }
         }
@@ -33483,6 +33516,7 @@
     "dx_exec_reports 0.0.0": "cli/dx_exec_reports",
     "dx_exec_test_reports 0.0.0": "cli/dx_exec_test_reports",
     "dx_exec_update 0.0.0": "cli/dx_exec_update",
+    "dx_exec_worktree 0.0.0": "cli/dx_exec_worktree",
     "dx_families 0.0.0": "cli/dx_families",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
     "dx_floor 0.0.0": "tools/testing/dx_floor",

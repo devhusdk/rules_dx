@@ -477,6 +477,36 @@ impl Session {
         }
     }
 
+    /// Waits until the server's stderr contains `needle` and returns the kept stderr.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
+    pub fn wait_stderr(
+        &self,
+        needle: &str,
+        what: &str,
+        deadline: Instant,
+    ) -> Result<String, Error> {
+        loop {
+            self.drain()?;
+            let text = String::from_utf8_lossy(
+                &self.stderr.lock().unwrap_or_else(PoisonError::into_inner),
+            )
+            .into_owned();
+            if text.contains(needle) {
+                return Ok(text);
+            }
+            if Instant::now() >= deadline {
+                return Err(Error::Timeout(format!(
+                    "{what}; stderr: {}",
+                    self.stderr_tail()
+                )));
+            }
+            thread::sleep(Duration::from_millis(25));
+        }
+    }
+
     /// Waits for published diagnostics.
     ///
     /// # Errors

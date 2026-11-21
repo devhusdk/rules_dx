@@ -530,7 +530,6 @@ tools/docs/snippets/BUILD.bazel no-size 1
 tools/docs/support_matrix/BUILD.bazel no-size 2
 tools/docs/support_matrix/facts_tests.bzl no-size 1
 tools/docs/zig/dump/BUILD.bazel no-size 1
-tools/ide/BUILD.bazel size-medium 1
 tools/testing/BUILD.bazel no-size 3
 tools/testing/BUILD.bazel size-large 1
 tools/testing/hermetic/BUILD.bazel no-size 35

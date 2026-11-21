@@ -4,12 +4,11 @@ load("//core:rlocation.bzl", "runfiles_path")
 load("//core:wrapper.bzl", "dx_quality_srcs")
 load(
     "//lua/private:lua.bzl",
-    "LUA_SOURCE_SPECS",
     "entry_lines",
     "lua_executable_name",
     "module_name",
 )
-load("//lua/private:defs.bzl", "LUA_ENTRY_SUFFIX")
+load("//lua/private:defs.bzl", "LUA_ENTRY_SUFFIX", "LUA_SOURCE_SPECS")
 
 def lua_wrapper_contract_tests(name, **kwargs):
     """Instantiates the lua wrapper contract test."""

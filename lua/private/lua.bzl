@@ -128,7 +128,7 @@ def _collect(ctx, srcs):
     runfiles = runfiles.merge_all([d[LuaInfo].runfiles for d in deps])
     return modules, runfiles
 
-def lua_library_impl(ctx):
+def _lua_library_impl(ctx):
     """Returns the providers of one lua_library."""
     srcs = ctx.files.srcs
     modules, runfiles = _collect(ctx, srcs)
@@ -144,7 +144,7 @@ def lua_library_impl(ctx):
         ),
     ]
 
-def lua_executable_impl(ctx):
+def _lua_executable_impl(ctx):
     """Returns the providers of one lua_binary or lua_test."""
     main = ctx.file.main
     srcs = ctx.files.srcs
@@ -198,7 +198,7 @@ _COMMON_ATTRS = {
     ),
 }
 
-LUA_LIBRARY_ATTRS = _COMMON_ATTRS | {
+_LUA_LIBRARY_ATTRS = _COMMON_ATTRS | {
     "import_prefix": attr.string(
         doc = "Module prefix added after strip_import_prefix, for example 'vendor.inspect'.",
     ),
@@ -207,7 +207,7 @@ LUA_LIBRARY_ATTRS = _COMMON_ATTRS | {
     ),
 }
 
-LUA_EXECUTABLE_ATTRS = LUA_LIBRARY_ATTRS | {
+_LUA_EXECUTABLE_ATTRS = _LUA_LIBRARY_ATTRS | {
     "env": attr.string_dict(
         doc = "Environment variables set when the target runs or is tested; $(location) is expanded.",
     ),
@@ -218,7 +218,7 @@ LUA_EXECUTABLE_ATTRS = LUA_LIBRARY_ATTRS | {
     ),
 }
 
-LUA_TEST_ATTRS = LUA_EXECUTABLE_ATTRS | {
+_LUA_TEST_ATTRS = _LUA_EXECUTABLE_ATTRS | {
     "_coverage": attr.label_list(
         default = [Label("//lua/private/coverage:libs")],
         providers = [LuaInfo],
@@ -232,6 +232,28 @@ LUA_TEST_ATTRS = LUA_EXECUTABLE_ATTRS | {
     ),
 }
 
-LUA_TOOLCHAINS = [LUA_TOOLCHAIN_TYPE]
+_LUA_TOOLCHAINS = [LUA_TOOLCHAIN_TYPE]
 
-LUA_SOURCE_SPECS = [("lua", ["lua"])]
+lua_library = rule(
+    implementation = _lua_library_impl,
+    doc = "Lua modules other Lua targets can require.",
+    attrs = _LUA_LIBRARY_ATTRS,
+    provides = [LuaInfo],
+    toolchains = _LUA_TOOLCHAINS,
+)
+
+lua_binary = rule(
+    implementation = _lua_executable_impl,
+    doc = "A Lua program that bazel run starts through the shared launcher.",
+    attrs = _LUA_EXECUTABLE_ATTRS,
+    executable = True,
+    toolchains = _LUA_TOOLCHAINS,
+)
+
+lua_test = rule(
+    implementation = _lua_executable_impl,
+    doc = "A Lua test; it passes when main returns or calls os.exit(0).",
+    attrs = _LUA_TEST_ATTRS,
+    test = True,
+    toolchains = _LUA_TOOLCHAINS,
+)

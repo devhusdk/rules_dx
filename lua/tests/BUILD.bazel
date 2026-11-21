@@ -63,6 +63,11 @@ lua_metadata_tests(
 lua_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     size = "small",
+    wrappers = {
+        "binary": "//lua/tests/conformance:hello",
+        "library": "//lua/tests/conformance:conformance",
+        "test": "//lua/tests/bench:bench_report_test",
+    },
 )
 
 real_source_target(

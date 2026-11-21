@@ -1,3 +1,14 @@
+#![deny(
+    clippy::indexing_slicing,
+    clippy::let_underscore_must_use,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok,
+    clippy::wildcard_enum_match_arm
+)]
+
+//! The `dx worktree` verb and the git hooks it installs: add, release, list, path and prune.
+
 use std::borrow::Cow;
 use std::ffi::OsStr;
 use std::io::Write;
@@ -112,7 +123,7 @@ fn fail(
 }
 
 /// Runs one `dx worktree` subcommand.
-pub(crate) fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
+pub fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
         out,
@@ -906,9 +917,33 @@ fn hook_error(err: &mut dyn Write, error: &WorktreeError) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::parsed;
     use dx_worktree::host::Download;
     use dx_worktree::ops::State;
+
+    fn parsed(words: &[&str]) -> Invocation {
+        dx_plan::args::parse(&dx_testing::cli::strings(words)).expect("parse")
+    }
+
+    fn listing(disk: Option<u64>) -> Listing {
+        Listing {
+            rows: vec![Row {
+                slot: Some(1),
+                path: PathBuf::from("/path"),
+                branch: Some("b".to_owned()),
+                holder: None,
+                state: State::Free,
+                reason: None,
+                server: false,
+                busy: false,
+                disk_bytes: disk,
+                prunable: false,
+            }],
+            servers: 1,
+            servers_rss_bytes: 1024,
+            disk_bytes: disk,
+            disk_cache_bytes: None,
+        }
+    }
 
     #[test]
     fn bases_is_rejected_on_every_subcommand_but_prune() {
@@ -952,64 +987,6 @@ mod tests {
             misplaced_flag(&parsed(&["worktree", "--disk"]), "list"),
             None
         );
-        let harness = crate::exec::test_support::Harness::new("wt_disk");
-        let (code, _, stderr) = harness.run(&["worktree", "prune", "--disk"]);
-        assert_eq!(code, 2, "{stderr}");
-        assert!(
-            stderr.contains("option \"--disk\" is not supported by dx worktree prune"),
-            "{stderr}"
-        );
-    }
-
-    #[test]
-    fn misplaced_flag_under_json_reports_invalid_arguments() {
-        let harness = crate::exec::test_support::Harness::new("wt_misplaced_json");
-        let (code, stdout, stderr) = harness.run(&["worktree", "list", "--apply", "--output=json"]);
-        assert_eq!(code, 2, "{stderr}");
-        assert!(
-            stderr.contains("option \"--apply\" is not supported by dx worktree list"),
-            "{stderr}"
-        );
-        let events: Vec<serde_json::Value> = stdout
-            .lines()
-            .map(|line| serde_json::from_str(line).expect("json line"))
-            .collect();
-        assert!(
-            events
-                .iter()
-                .any(|event| event["event"] == "error" && event["code"] == "invalid_arguments"),
-            "{stdout}"
-        );
-        let last = events.last().expect("events");
-        assert_eq!(last["event"], "command_finished", "{stdout}");
-        assert_eq!(last["exit_code"], 2, "{stdout}");
-        assert!(
-            !events
-                .iter()
-                .any(|event| event["event"] == "command_started"),
-            "{stdout}"
-        );
-    }
-
-    fn listing(disk: Option<u64>) -> Listing {
-        Listing {
-            rows: vec![Row {
-                slot: Some(1),
-                path: PathBuf::from("/path"),
-                branch: Some("b".to_owned()),
-                holder: None,
-                state: State::Free,
-                reason: None,
-                server: false,
-                busy: false,
-                disk_bytes: disk,
-                prunable: false,
-            }],
-            servers: 1,
-            servers_rss_bytes: 1024,
-            disk_bytes: disk,
-            disk_cache_bytes: None,
-        }
     }
 
     #[test]

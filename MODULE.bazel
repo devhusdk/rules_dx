@@ -1289,6 +1289,7 @@ dx_pins.archive(
     ],
     pins = "//ocaml:pins.json",
 )
+
 # Pinned to an upstream main commit (bazel-contrib/rules_cuda#530, after v0.4.0); #14468 moves it to the release.
 dx_pins.archive(
     name = "rules_cuda",
@@ -1354,6 +1355,7 @@ dx_pins.archive(
     patches = ["//patches/rules_powershell:inline_runfiles_sh.patch"],
     pins = "//powershell:pins.json",
 )
+
 # Pinned to an upstream main commit carrying bazel-contrib/rules_ruby#435 and #440 until a release has them.
 dx_pins.archive(
     name = "rules_ruby",
@@ -2872,6 +2874,7 @@ crate.from_cargo(
         "//cli/exec_test_reports:Cargo.toml",
         "//cli/exec_quality:Cargo.toml",
         "//cli/exec_update:Cargo.toml",
+        "//cli/exec_worktree:Cargo.toml",
         "//cli/http:Cargo.toml",
         "//cli/semver:Cargo.toml",
         "//cli/dx_config:Cargo.toml",

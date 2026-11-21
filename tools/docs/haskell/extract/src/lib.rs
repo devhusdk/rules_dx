@@ -7,13 +7,57 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use documentation_ir::proto::{DocIr, Extension, SourceRef, Symbol, SymbolKind, Visibility};
-use documentation_ir::tool::{Source, parse_sources};
+use documentation_ir::tool::{
+    FlagError, PathIoError, Source, SourcesError, WriteShardError, parse_sources, path_io,
+};
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
-use std::fs;
+use std::fmt::{self, Write as _};
+use std::path::Path;
 
 const LANGUAGE: &str = "haskell";
 const KEY_CONFIG: &str = "haskell.config";
+
+/// Why one Hoogle text could not become a shard.
+#[derive(Debug)]
+pub enum HaskellExtractError {
+    Read(PathIoError),
+    NoHoogleFile { dir: String },
+    SeveralHoogleFiles { dir: String },
+    Sources(SourcesError),
+    ModuleNotInManifest { module: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for HaskellExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::NoHoogleFile { dir } => write!(f, "no *.txt Hoogle file in {dir}"),
+            Self::SeveralHoogleFiles { dir } => write!(f, "several *.txt files in {dir}"),
+            Self::Sources(error) => error.fmt(f),
+            Self::ModuleNotInManifest { module } => {
+                write!(f, "module '{module}' is not in the srcs manifest")
+            }
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for HaskellExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Sources(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::NoHoogleFile { .. }
+            | Self::SeveralHoogleFiles { .. }
+            | Self::ModuleNotInManifest { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -42,7 +86,7 @@ pub fn usage() -> &'static str {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(
         args,
         &["--hoogle", "--sources", "--out", "--package", "--config"],
@@ -61,31 +105,37 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let read = |path: &str| {
-        fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))
-    };
-    let mut files = Vec::new();
-    let entries = fs::read_dir(&options.hoogle)
-        .map_err(|error| format!("cannot read {}: {error}", options.hoogle))?;
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().is_some_and(|ext| ext == "txt") {
-            files.push(path.to_string_lossy().into_owned());
-        }
-    }
+pub fn run(options: &Options) -> Result<(), HaskellExtractError> {
+    let read = |path: &Path| path_io::read_to_string(path).map_err(HaskellExtractError::Read);
+    let files: Vec<_> = path_io::read_dir(Path::new(&options.hoogle))
+        .map_err(HaskellExtractError::Read)?
+        .into_iter()
+        .filter(|path| path.extension().is_some_and(|ext| ext == "txt"))
+        .collect();
     let hoogle = match files.as_slice() {
         [one] => read(one)?,
-        [] => return Err(format!("no *.txt Hoogle file in {}", options.hoogle)),
-        _ => return Err(format!("several *.txt files in {}", options.hoogle)),
+        [] => {
+            return Err(HaskellExtractError::NoHoogleFile {
+                dir: options.hoogle.clone(),
+            });
+        }
+        _ => {
+            return Err(HaskellExtractError::SeveralHoogleFiles {
+                dir: options.hoogle.clone(),
+            });
+        }
     };
-    let sources = parse_sources(&read(&options.sources)?)?;
+    let sources =
+        parse_sources(&read(Path::new(&options.sources))?).map_err(HaskellExtractError::Sources)?;
     let mut texts = BTreeMap::new();
     for source in &sources {
-        texts.insert(source.exec_path.clone(), read(&source.exec_path)?);
+        texts.insert(
+            source.exec_path.clone(),
+            read(Path::new(&source.exec_path))?,
+        );
     }
     let shard = convert(&hoogle, &sources, &texts, &options.package, &options.config)?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(HaskellExtractError::Write)
 }
 
 struct Module<'a> {
@@ -202,7 +252,7 @@ pub fn convert(
     texts: &BTreeMap<String, String>,
     package: &str,
     config: &str,
-) -> Result<DocIr, String> {
+) -> Result<DocIr, HaskellExtractError> {
     let mut config_text = format!("hoogle=1;package={package}");
     if !config.is_empty() {
         write!(config_text, ";config={config}").unwrap_or_default();
@@ -292,7 +342,7 @@ pub fn convert(
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(HaskellExtractError::InvalidIr)?;
     Ok(shard)
 }
 
@@ -300,7 +350,7 @@ fn find_source<'a>(
     sources: &'a [Source],
     texts: &'a BTreeMap<String, String>,
     module: &str,
-) -> Result<Module<'a>, String> {
+) -> Result<Module<'a>, HaskellExtractError> {
     let wanted = module.replace('.', "/");
     for source in sources {
         for ext in [".hs", ".lhs"] {
@@ -317,7 +367,9 @@ fn find_source<'a>(
             }
         }
     }
-    Err(format!("module '{module}' is not in the srcs manifest"))
+    Err(HaskellExtractError::ModuleNotInManifest {
+        module: module.to_owned(),
+    })
 }
 
 fn tokens(line: &str) -> impl Iterator<Item = &str> {

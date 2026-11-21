@@ -10,14 +10,61 @@
 use documentation_ir::proto::{
     DocIr, Extension, Param, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
-use documentation_ir::tool::{Source, parse_sources};
+use documentation_ir::tool::{
+    FlagError, PathIoError, Source, SourcesError, WriteShardError, parse_sources, path_io,
+};
 use serde_json::Value;
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
-use std::fs;
+use std::fmt::{self, Write as _};
+use std::path::Path;
 
 const LANGUAGE: &str = "d";
 const KEY_CONFIG: &str = "d.config";
+
+/// Why one compiler JSON document could not become a shard.
+#[derive(Debug)]
+pub enum DExtractError {
+    Read(PathIoError),
+    Sources(SourcesError),
+    Malformed(serde_json::Error),
+    NotArray,
+    NotInManifest { file: String },
+    NoModuleName { file: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for DExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::Sources(error) => error.fmt(f),
+            Self::Malformed(error) => write!(f, "bad JSON: {error}"),
+            Self::NotArray => f.write_str("compiler JSON is not an array"),
+            Self::NotInManifest { file } => {
+                write!(f, "module file '{file}' is not in the srcs manifest")
+            }
+            Self::NoModuleName { file } => write!(f, "module in '{file}' has no name"),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for DExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Sources(error) => Some(error),
+            Self::Malformed(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::NotArray
+            | Self::NotInManifest { .. }
+            | Self::NoModuleName { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -46,7 +93,7 @@ pub fn usage() -> &'static str {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(
         args,
         &["--api", "--sources", "--out", "--package", "--config"],
@@ -65,18 +112,16 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let read = |path: &str| {
-        fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))
-    };
+pub fn run(options: &Options) -> Result<(), DExtractError> {
+    let read = |path: &str| path_io::read_to_string(Path::new(path)).map_err(DExtractError::Read);
     let json = read(&options.api)?;
-    let sources = parse_sources(&read(&options.sources)?)?;
+    let sources = parse_sources(&read(&options.sources)?).map_err(DExtractError::Sources)?;
     let mut texts = BTreeMap::new();
     for source in &sources {
         texts.insert(source.exec_path.clone(), read(&source.exec_path)?);
     }
     let shard = convert(&json, &sources, &texts, &options.package, &options.config)?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(DExtractError::Write)
 }
 
 struct Context<'a> {
@@ -97,11 +142,9 @@ pub fn convert(
     texts: &BTreeMap<String, String>,
     package: &str,
     config: &str,
-) -> Result<DocIr, String> {
-    let root: Value = serde_json::from_str(json).map_err(|error| format!("bad JSON: {error}"))?;
-    let modules = root
-        .as_array()
-        .ok_or_else(|| "compiler JSON is not an array".to_owned())?;
+) -> Result<DocIr, DExtractError> {
+    let root: Value = serde_json::from_str(json).map_err(DExtractError::Malformed)?;
+    let modules = root.as_array().ok_or(DExtractError::NotArray)?;
     let mut text = format!("ldc-json=1;package={package}");
     if !config.is_empty() {
         write!(text, ";config={config}").unwrap_or_default();
@@ -116,11 +159,15 @@ pub fn convert(
     for module in modules.iter().filter(|m| text_of(m, "kind") == "module") {
         let file = text_of(module, "file");
         let Some(source) = sources.iter().find(|s| s.exec_path == file) else {
-            return Err(format!("module file '{file}' is not in the srcs manifest"));
+            return Err(DExtractError::NotInManifest {
+                file: file.to_owned(),
+            });
         };
         let name = text_of(module, "name");
         if name.is_empty() {
-            return Err(format!("module in '{file}' has no name"));
+            return Err(DExtractError::NoModuleName {
+                file: file.to_owned(),
+            });
         }
         let id = qualified("", name);
         symbols.push(symbol(
@@ -148,7 +195,7 @@ pub fn convert(
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(DExtractError::InvalidIr)?;
     Ok(shard)
 }
 

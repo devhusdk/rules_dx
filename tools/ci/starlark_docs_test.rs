@@ -120,7 +120,6 @@ const PACKAGES: &[&str] = &[
     "tools/platforms",
     "tools/testing",
     "tools/testing/hermetic",
-    "tools/testing/starters",
     "tools/visibility",
     "typescript/private",
     "vue/private",

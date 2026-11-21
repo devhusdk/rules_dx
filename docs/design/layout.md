@@ -93,6 +93,7 @@ examples/   tested examples
 - A language's aspects, tool rows and tool packages live in `<lang>/private/quality/`.
 - A file family with no rules, such as Markdown, CSS, GraphQL, YAML, JSON, TOML, XML, shell or plain text, gets no root directory.
 - Such a family's aspects and non-Node tool rows stay in `core/quality/families/`. Its Node tools follow the section below.
+- `core/quality/core_aspects.json` lists those families' aspects and probes, and the core docs aspect, in the shape of the `lang.json` `quality` and `docs` entries.
 - A shard that serves several languages lives with the language that owns its runtime: `js` in `javascript/`, `jvm` in `java/`, `beam` in `erlang/`, `dotnet` in `dotnet/`, `cc` in `cc/`.
 - A tool has all its rows in one `_tools.bzl` table. Moving a tool binary never moves its rows.
 - A `<name>_tools.bzl` file is data and loads only core data files `//core/quality:tool_defs.bzl` and `//core/quality:taxonomy.bzl`.
@@ -121,7 +122,7 @@ examples/   tested examples
 - Its `quality` entry names the aspect file, aspects and probes. dx loads the file when the workspace has a file with an extension in `file_extensions` or a name in `file_names` alone or before a dot.
 - `quality.classes` lists the file classes of its quality taxonomy row, keyed by `quality.family` or else by `name`.
 - Its `commands` entry maps a tool name to the `@rules_dx` label a dx command runs for the language.
-- `cli/families/languages.json` is generated from the `quality`, `docs`, `setup` and `commands` entries and read by the dx plan registry.
+- `cli/families/languages.json` is generated from the `quality`, `docs`, `setup` and `commands` entries, with `core/quality/core_aspects.json` as its `core` section, and read by the dx plan registry.
 
 ## Tool pins
 

@@ -105,10 +105,12 @@ pub fn check_path(path: &str) -> Result<(), OutputError> {
 }
 
 pub fn parse_digest(field: &'static str, text: &str) -> Result<[u8; 32], OutputError> {
-    dx_digest::parse_hex(text).map_err(|_| OutputError::BadDigest {
-        field,
-        value: text.to_owned(),
-    })
+    dx_digest::parse_hex(text)
+        .ok()
+        .ok_or_else(|| OutputError::BadDigest {
+            field,
+            value: text.to_owned(),
+        })
 }
 
 pub fn check_correlation(value: &str) -> Result<(), OutputError> {

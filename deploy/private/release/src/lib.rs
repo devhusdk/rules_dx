@@ -1,6 +1,11 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
-use std::fmt::{self, Write as _};
+use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -1052,37 +1057,29 @@ pub fn render_signing_dry_run(
 ) -> String {
     let mut out = String::new();
     out.push_str("signing: dry run (RELEASE_SIGN_DRY_RUN=1); would sign, publishing nothing:\n");
-    writeln!(out, "  trust root: {SIGNING_TRUST_ROOT}").ok();
-    writeln!(out, "  identity: {identity}").ok();
-    writeln!(out, "  issuer: {issuer}").ok();
-    writeln!(
-        out,
-        "  cosign: {cosign_version} (pinned and sha256-checked per deploy/private/release/pins.json)"
-    ).ok();
-    writeln!(
-        out,
-        "  bundle media type: {SIGNING_BUNDLE_MEDIA_TYPE} (Sigstore bundle v0.3)"
-    )
-    .ok();
+    out.push_str(&format!("  trust root: {SIGNING_TRUST_ROOT}\n"));
+    out.push_str(&format!("  identity: {identity}\n"));
+    out.push_str(&format!("  issuer: {issuer}\n"));
+    out.push_str(&format!(
+        "  cosign: {cosign_version} (pinned and sha256-checked per deploy/private/release/pins.json)\n"
+    ));
+    out.push_str(&format!(
+        "  bundle media type: {SIGNING_BUNDLE_MEDIA_TYPE} (Sigstore bundle v0.3)\n"
+    ));
     for asset in assets {
         let base = basename_of(asset);
         let bundle = signing_bundle_for(asset, outdir);
-        writeln!(out, "  asset: {base} ({asset})").ok();
-        writeln!(
-            out,
-            "  command: cosign sign-blob --yes --bundle {bundle} {asset}"
-        )
-        .ok();
-        writeln!(
-            out,
-            "  command: gh attestation create {asset} --bundle {bundle}"
-        )
-        .ok();
+        out.push_str(&format!("  asset: {base} ({asset})\n"));
+        out.push_str(&format!(
+            "  command: cosign sign-blob --yes --bundle {bundle} {asset}\n"
+        ));
+        out.push_str(&format!(
+            "  command: gh attestation create {asset} --bundle {bundle}\n"
+        ));
     }
-    writeln!(
-        out,
-        "  verify: cosign verify-blob --bundle <bundle> --certificate-identity {identity} --certificate-oidc-issuer {issuer} <binary>"
-    ).ok();
+    out.push_str(&format!(
+        "  verify: cosign verify-blob --bundle <bundle> --certificate-identity {identity} --certificate-oidc-issuer {issuer} <binary>\n"
+    ));
     out
 }
 
@@ -1174,14 +1171,12 @@ fn signing_live(
         return Err(SigningError::Sign(bad.detail.clone()));
     }
     let mut out = String::new();
-    writeln!(
-        out,
-        "signing: live sign with cosign {} on {SIGNING_TRUST_ROOT}:",
+    out.push_str(&format!(
+        "signing: live sign with cosign {} on {SIGNING_TRUST_ROOT}:\n",
         pin.version
-    )
-    .ok();
+    ));
     for record in &records {
-        writeln!(out, "  signed: {} (verified)", record.detail).ok();
+        out.push_str(&format!("  signed: {} (verified)\n", record.detail));
     }
     Ok(out)
 }
@@ -1257,12 +1252,10 @@ fn signing_sign_one(
 pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
     let mut out = String::new();
     out.push_str("release: dry run (RELEASE_DRY_RUN=1); would release, publishing nothing:\n");
-    writeln!(out, "  tag: {tag}").ok();
-    writeln!(
-        out,
-        "  approve: {approve} (real release needs RELEASE_APPROVE=1 + owner approval)"
-    )
-    .ok();
+    out.push_str(&format!("  tag: {tag}\n"));
+    out.push_str(&format!(
+        "  approve: {approve} (real release needs RELEASE_APPROVE=1 + owner approval)\n"
+    ));
     out.push_str("  steps:\n");
     out.push_str(
         "    1. bazel build //deploy/private/release:dx_host_cell //cli/cli:man_pages (this host's release cell)\n",
@@ -1285,10 +1278,9 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
     out.push_str(
         "    7. bazel run //deploy/private/install:dx_verify --binary <dx> --bundle <bundle> --identity <id> --issuer <issuer> --notice <NOTICE> --notice-manifest <manifest> --notice-bundle <NOTICE.bundle> (fail-before-install)\n",
     );
-    writeln!(
-        out,
-        "  tag creation: git tag {tag} must already exist in the remote (pushed beforehand with owner approval); this program never creates or pushes tags"
-    ).ok();
+    out.push_str(&format!(
+        "  tag creation: git tag {tag} must already exist in the remote (pushed beforehand with owner approval); this program never creates or pushes tags\n"
+    ));
     out.push_str("  publishing: nothing (dry run never tags, releases, submits, or pushes)\n");
     out.push_str("  ceiling: this program never creates or pushes tags\n");
     out
@@ -1599,13 +1591,13 @@ pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
         ))
     });
     let mut out = String::new();
-    writeln!(out, "NOTICE for {root}").ok();
+    out.push_str(&format!("NOTICE for {root}\n"));
     out.push_str(
         "Generated by rules_dx notice_bundle from the audited license inventory; do not edit.\n",
     );
     out.push('\n');
     for (entry, words) in &sorted {
-        writeln!(out, "{}", notice_entry_header(entry)).ok();
+        out.push_str(&format!("{}\n", notice_entry_header(entry)));
         let trimmed = words.trim_end_matches('\n');
         out.push_str(trimmed);
         out.push('\n');

@@ -51,6 +51,6 @@ def kotlin_test_entry_kwargs(name, srcs, package, kwargs):
 def kotlin_test_main_class(test_class):
     """Returns the select dict for kt_jvm_test main_class: the test class under Windows coverage, else the dx runner."""
     return {
-        str(Label("//kotlin/private:windows_coverage")): test_class,
+        str(Label("//core/platforms:coverage_windows")): test_class,
         "//conditions:default": DX_JVM_TEST_RUNNER,
     }

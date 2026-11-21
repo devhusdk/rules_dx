@@ -204,7 +204,7 @@ jobs:
           JOB_STATUS: ${{ job.status }}
         run: |
           echo "### hermetic (linux_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, coverage, expected-failure, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
+          echo "Qualified a fresh C++ and Rust consumer: fetch with network, then test, ambient-tool, home-config, network and cache probes with the network denied. Evidence is in the hermetic-evidence artifact." >> "$GITHUB_STEP_SUMMARY"
   hermetic-macos:
     name: hermetic-macos (macOS-compatible consumer qualifications on macos_arm64)
     timeout-minutes: 150
@@ -385,7 +385,13 @@ jobs:
           - platform: macos_arm64
             runner: macos-15
             langs: apple swift
+          - platform: windows_x86_64
+            runner: windows-latest
+            langs: msix
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
     permissions:
       contents: read
     steps:
@@ -1065,7 +1071,7 @@ jobs:
         include:
           - platform: linux_x86_64
             runner: ubuntu-latest
-            quality: "//core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_javascript_format_pass //core/quality/testdata:matrix_api_spec_openapi_pass //core/quality/testdata:matrix_yaml_format_pass //core/quality/testdata:matrix_yaml_format_fail //core/quality/testdata:matrix_yaml_format_syntax_error //core/quality/testdata:matrix_yaml_lint_pass //core/quality/testdata:matrix_yaml_lint_fail //core/quality/testdata:matrix_yaml_lint_syntax_error //core/quality/testdata:matrix_flatbuffers_lint_pass //core/quality/testdata:matrix_capnp_lint_pass //core/quality/testdata:matrix_thrift_lint_pass //core/quality/testdata:matrix_thrift_lint_warning_fail //core/quality/testdata:matrix_thrift_lint_syntax_error //core/quality/testdata:matrix_thrift_lint_semantic_fail //core/quality/testdata:matrix_thrift_lint_include_undeclared //core/quality/testdata:matrix_thrift_typecheck_pass //core/quality/testdata:matrix_thrift_typecheck_semantic_fail //core/quality/testdata:matrix_thrift_typecheck_warning_ignored //core/quality/testdata:matrix_avro_lint_avsc_pass //core/quality/testdata:matrix_avro_lint_avsc_undefined_name //core/quality/testdata:matrix_avro_lint_avsc_syntax_error //core/quality/testdata:matrix_avro_lint_avdl_import_pass //core/quality/testdata:matrix_avro_lint_avdl_syntax_error //core/quality/testdata:matrix_avro_typecheck_avsc_pass //core/quality/testdata:matrix_avro_typecheck_avsc_undefined_name"
+            quality: "//core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_api_spec_openapi_pass //core/quality/testdata:matrix_yaml_format_pass //core/quality/testdata:matrix_yaml_format_fail //core/quality/testdata:matrix_yaml_format_syntax_error //core/quality/testdata:matrix_yaml_lint_pass //core/quality/testdata:matrix_yaml_lint_fail //core/quality/testdata:matrix_yaml_lint_syntax_error //core/quality/testdata:matrix_flatbuffers_lint_pass //core/quality/testdata:matrix_capnp_lint_pass //core/quality/testdata:matrix_thrift_lint_pass //core/quality/testdata:matrix_thrift_lint_warning_fail //core/quality/testdata:matrix_thrift_lint_syntax_error //core/quality/testdata:matrix_thrift_lint_semantic_fail //core/quality/testdata:matrix_thrift_lint_include_undeclared //core/quality/testdata:matrix_thrift_typecheck_pass //core/quality/testdata:matrix_thrift_typecheck_semantic_fail //core/quality/testdata:matrix_thrift_typecheck_warning_ignored //core/quality/testdata:matrix_avro_lint_avsc_pass //core/quality/testdata:matrix_avro_lint_avsc_undefined_name //core/quality/testdata:matrix_avro_lint_avsc_syntax_error //core/quality/testdata:matrix_avro_lint_avdl_import_pass //core/quality/testdata:matrix_avro_lint_avdl_syntax_error //core/quality/testdata:matrix_avro_typecheck_avsc_pass //core/quality/testdata:matrix_avro_typecheck_avsc_undefined_name"
           - platform: linux_arm64
             runner: ubuntu-24.04-arm
             quality: "//core/quality/testdata:runner_matrix_linux_arm64"

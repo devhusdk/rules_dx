@@ -102,7 +102,35 @@ fn docs_signatures_and_positions() {
 #[test]
 fn unknown_module_file_is_rejected() {
     let error = convert(HOOGLE, &[], &BTreeMap::new(), "geometry", "").expect_err("rejected");
-    assert!(error.contains("not in the srcs manifest"), "{error}");
+    assert!(
+        matches!(&error, HaskellExtractError::ModuleNotInManifest { module } if module == "Geometry")
+    );
+    assert_eq!(
+        error.to_string(),
+        "module 'Geometry' is not in the srcs manifest"
+    );
+}
+
+#[test]
+fn run_reports_a_missing_hoogle_dir() {
+    let options = Options {
+        hoogle: "/nonexistent/hoogle".to_owned(),
+        sources: "sources".to_owned(),
+        out: "out".to_owned(),
+        package: "geometry".to_owned(),
+        config: String::new(),
+    };
+    let error = run(&options).unwrap_err();
+    assert!(matches!(
+        error,
+        HaskellExtractError::Read(PathIoError::List { .. })
+    ));
+    assert!(
+        error
+            .to_string()
+            .starts_with("cannot list /nonexistent/hoogle: "),
+        "{error}"
+    );
 }
 
 #[test]

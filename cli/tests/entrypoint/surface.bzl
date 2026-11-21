@@ -93,7 +93,6 @@ def _surface(ctx):
     languages = ctx.read(ctx.attr.languages)
     seeds.extend(_rules_dx_bzl(languages))
     seeds.extend([value for value in _strings(languages) if value.endswith(".bzl") and not value.startswith("@")])
-    seeds.extend([value.split("%")[0] for value in _strings(ctx.read(ctx.attr.aspects)) if ".bzl%" in value])
     seeds.extend(_rules_dx_bzl(ctx.read(ctx.attr.generated)))
     for page in _user_docs(ctx, root):
         seeds.extend(_rules_dx_bzl(ctx.read(page)))
@@ -134,7 +133,6 @@ def _consumer_surface_repo_impl(ctx):
 consumer_surface_repo = repository_rule(
     implementation = _consumer_surface_repo_impl,
     attrs = {
-        "aspects": attr.label(doc = "Quality and docs aspect labels dx loads.", allow_single_file = True, default = Label("//core/quality:real_aspect_labels.bzl")),
         "generated": attr.label(doc = "BUILD file dx writes into a consumer.", allow_single_file = True, default = Label("//.dx:BUILD.bazel")),
         "languages": attr.label(doc = "Language manifest with hub extensions and aspect files.", allow_single_file = True, default = Label("//cli/families:languages.json")),
         "module": attr.label(doc = "Module file whose non-dev extensions consumers evaluate.", allow_single_file = True, default = Label("//:MODULE.bazel")),

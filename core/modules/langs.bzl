@@ -148,7 +148,8 @@ LANGS = json.decode("""{
       "api_spec_library",
       "api_spec_python_client",
       "api_spec_rust_client",
-      "api_spec_typescript_client"
+      "api_spec_typescript_client",
+      "api_spec_protobuf_doc_shard"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -2276,7 +2277,18 @@ LANGS = json.decode("""{
       "windows_x86_64"
     ],
     "quality": {
-      "bzl": "java/private/quality:jvm.bzl",
+      "aspects": {
+        "format": [
+          "real_kotlin_format_aspect"
+        ],
+        "lint": [
+          "real_kotlin_lint_aspect"
+        ],
+        "typecheck": [
+          "real_kotlin_typecheck_aspect"
+        ]
+      },
+      "bzl": "kotlin/private/quality:kotlin.bzl",
       "classes": [
         "kotlin"
       ],
@@ -2296,7 +2308,18 @@ LANGS = json.decode("""{
       "file_extensions": [
         ".kt",
         ".kts"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_kotlin_format_probe_aspect"
+        ],
+        "lint": [
+          "real_kotlin_lint_probe_aspect"
+        ],
+        "typecheck": [
+          "real_kotlin_typecheck_probe_aspect"
+        ]
+      }
     },
     "semver": false,
     "title": "Kotlin",

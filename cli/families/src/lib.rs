@@ -148,13 +148,44 @@ const LANGUAGES: &str = include_str!("../languages.json");
 
 #[derive(Deserialize)]
 struct Languages {
+    #[serde(default)]
+    core: Core,
     languages: Vec<Manifest>,
 }
 
+/// The aspect files of the core families, from `core/quality/core_aspects.json`.
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct Core {
+    quality: Vec<QualityFiles>,
+    docs: Vec<DocsFiles>,
+}
+
+fn shipped_table() -> Option<Languages> {
+    serde_json::from_str::<Languages>(LANGUAGES).ok()
+}
+
 fn shipped() -> Vec<Manifest> {
-    serde_json::from_str::<Languages>(LANGUAGES)
+    shipped_table()
         .map(|table| table.languages)
         .unwrap_or_default()
+}
+
+fn shipped_core() -> &'static Core {
+    static CORE: OnceLock<Core> = OnceLock::new();
+    CORE.get_or_init(|| shipped_table().map(|table| table.core).unwrap_or_default())
+}
+
+/// The quality aspect files of the core families, which run in every workspace, in file order.
+#[must_use]
+pub fn core_quality() -> &'static [QualityFiles] {
+    &shipped_core().quality
+}
+
+/// The docs aspect files of the core, which run in every workspace, in file order.
+#[must_use]
+pub fn core_docs() -> &'static [DocsFiles] {
+    &shipped_core().docs
 }
 
 #[derive(Deserialize)]

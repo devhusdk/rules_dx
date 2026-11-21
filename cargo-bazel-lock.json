@@ -1,5 +1,5 @@
 {
-  "checksum": "75aabed21606aa67be480f93fd66adee5b9dc6e162f25849f70a2fb270d12692",
+  "checksum": "827a4f6d06c7c7009638a0ea64829ed8de47d752c6c45de3ac10645d972c6b6e",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -26813,27 +26813,6 @@
       ],
       "version": "0.14.2"
     },
-    "starter_scaffold 0.0.0": {
-      "common_attrs": {
-        "edition": "2024"
-      },
-      "library_target_name": "starter_scaffold",
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "starter_scaffold",
-      "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "starter_scaffold",
-            "crate_root": "scaffold.rs"
-          }
-        }
-      ],
-      "version": "0.0.0"
-    },
     "static_assertions 1.1.0": {
       "common_attrs": {
         "edition": "2015"
@@ -33675,7 +33654,6 @@
     "site_build 0.0.0": "tools/docs/site/site_build",
     "site_check 0.0.0": "tools/docs/site/site_check",
     "site_tests 0.0.0": "tools/docs/site_tests",
-    "starter_scaffold 0.0.0": "tools/testing/starter_scaffold",
     "support_matrix 0.0.0": "tools/docs/support_matrix",
     "swift_extract 0.0.0": "tools/docs/swift/swift_extract",
     "swift_lock 0.0.0": "swift/private/tools/swift_lock",

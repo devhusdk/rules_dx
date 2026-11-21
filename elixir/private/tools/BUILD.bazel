@@ -4,7 +4,7 @@ load("//erlang/private:dialyzer.bzl", "dialyzer_plt")
 load(":credo.bzl", "credo")
 load(":mix_format.bzl", "mix_format")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "launcher.bzl",

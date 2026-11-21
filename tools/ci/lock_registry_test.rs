@@ -1,19 +1,14 @@
-//! The tree breaks no rule of the Checks section of docs/design/locks.md outside `tools/ci/lock_registry_allowlist.txt`, and the allowlist holds no spare line.
+//! The tree breaks no rule of the Checks section of docs/design/locks.md.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use dx_guard::allowlist::{check_lines, line_differences};
-use dx_testing::allowlist::parse_lines;
 use serde_json::Value;
 use starlark_syntax::syntax::ast::{
     ArgumentP, AssignTargetP, AstExpr, AstLiteral, AstStmt, ExprP, StmtP,
 };
 use starlark_syntax::syntax::{AstModule, Dialect};
 use yaml_serde as _;
-
-/// The allowlist path named in failures.
-const ALLOWLIST: &str = "tools/ci/lock_registry_allowlist.txt";
 
 /// Attribute names no hub extension tag may have.
 const BANNED_ATTRS: [&str; 7] = [
@@ -435,7 +430,7 @@ fn registry_generated(source: &str) -> bool {
     source.starts_with("\"\"\"Generated from every <lang>/lang.json ")
 }
 
-/// One allowlist line per broken rule.
+/// One line per broken rule.
 fn violations(tree: &Tree) -> BTreeSet<String> {
     let langs = languages(&tree.files);
     let mut out = BTreeSet::new();
@@ -546,9 +541,12 @@ fn fix(line: &str) -> &'static str {
     }
 }
 
-/// Whether `line` names a rule this test knows.
-fn well_formed(line: &str) -> bool {
-    !line.is_empty() && fix(line) != fix("")
+/// Each broken rule with what to do about it.
+fn report(violations: &BTreeSet<String>) -> Vec<String> {
+    violations
+        .iter()
+        .map(|line| format!("{line}: {}", fix(line)))
+        .collect()
 }
 
 /// Reads one runfile named by an environment variable.
@@ -611,7 +609,7 @@ composer = module_extension(implementation = _impl, tag_classes = {"lock": _lock
 "#;
 
 #[test]
-fn the_tree_matches_the_allowlist() {
+fn the_tree_breaks_no_rule() {
     let tree = Tree {
         sources: decode_texts("DX_SOURCES_JSON"),
         files: decode_texts("DX_FILES_JSON"),
@@ -643,15 +641,10 @@ fn the_tree_matches_the_allowlist() {
         languages >= MIN_LANGUAGES,
         "only {languages} lang.json files in the files snapshot"
     );
-    let problems = check_lines(
-        &violations(&tree),
-        &read_input("LOCK_REGISTRY_ALLOWLIST"),
-        well_formed,
-        |line| fix(line).to_owned(),
-    );
+    let problems = report(&violations(&tree));
     assert!(
         problems.is_empty(),
-        "{ALLOWLIST} and the tree disagree:\n{}",
+        "the tree breaks a rule of docs/design/locks.md:\n{}",
         problems.join("\n")
     );
 }
@@ -837,6 +830,10 @@ fn a_starlark_lock_parser_fails() {
             ("php/private/composer/lock_tests.bzl", "X = 1\n"),
             ("php/tests/lock.bzl", "X = 1\n"),
             (
+                "python/tests/sdist_cargo_vendor.bzl",
+                "def parse_cargo_lock(text):\n    return []\n",
+            ),
+            (
                 "core/pins.bzl",
                 "def lock_hub(build_file):\n    return None\n",
             ),
@@ -999,46 +996,6 @@ fn a_doc_line_pairing_gazelle_resolve_with_a_hub_label_fails() {
 }
 
 #[test]
-fn a_new_violation_and_a_stale_allowlist_line_fail() {
-    let lines = |entries: &[&str]| -> BTreeSet<String> {
-        entries.iter().map(|line| (*line).to_owned()).collect()
-    };
-    let allowed = lines(&["digests-file d/dub.digests.json", "registry dub"]);
-    assert_eq!(
-        line_differences(&allowed, &allowed, |line| fix(line).to_owned()),
-        Vec::<String>::new()
-    );
-    assert_eq!(
-        line_differences(
-            &lines(&[
-                "digests-file d/dub.digests.json",
-                "registry dub",
-                "tag-attr d/extensions.bzl sha256"
-            ]),
-            &allowed,
-            |line| fix(line).to_owned()
-        ),
-        ["new: tag-attr d/extensions.bzl sha256; remove the attribute; the lock holds the value"]
-    );
-    assert_eq!(
-        line_differences(&lines(&["registry dub"]), &allowed, |line| fix(line)
-            .to_owned()),
-        ["stale: digests-file d/dub.digests.json; delete the allowlist line"]
-    );
-    assert_eq!(
-        line_differences(
-            &lines(&["resolve-doc php/README.md 1"]),
-            &lines(&["resolve-doc php/README.md 2"]),
-            |line| fix(line).to_owned()
-        ),
-        [
-            "new: resolve-doc php/README.md 1; delete the line; the lock resolves the import",
-            "stale: resolve-doc php/README.md 2; delete the allowlist line",
-        ]
-    );
-}
-
-#[test]
 fn a_resolver_that_is_not_a_dx_subcommand_fails() {
     let hub = |lang: &str, resolver: &str| {
         format!(
@@ -1079,26 +1036,11 @@ fn a_resolver_that_is_not_a_dx_subcommand_fails() {
 }
 
 #[test]
-fn the_allowlist_is_sorted_lines_of_known_rules() {
-    let (lines, problems) = parse_lines(
-        "digests-file a/x.digests.json\nregistry dub\nresolver x\n",
-        well_formed,
-    );
-    assert_eq!(lines.len(), 3);
-    assert_eq!(problems, Vec::<String>::new());
-    let (_, problems) = parse_lines(
-        "registry zig\nregistry dub\nregistry dub\n# note\n\nother x\n registry a\n",
-        well_formed,
-    );
+fn a_violation_is_reported_with_its_fix() {
+    let violations = BTreeSet::from(["tag-attr d/extensions.bzl sha256".to_owned()]);
     assert_eq!(
-        problems,
-        [
-            "not sorted or repeated: \"registry dub\"",
-            "not sorted or repeated: \"registry dub\"",
-            "malformed line: \"# note\"",
-            "malformed line: \"\"",
-            "malformed line: \"other x\"",
-            "malformed line: \" registry a\"",
-        ]
+        report(&violations),
+        ["tag-attr d/extensions.bzl sha256: remove the attribute; the lock holds the value"]
     );
+    assert_eq!(report(&BTreeSet::new()), Vec::<String>::new());
 }

@@ -84,6 +84,7 @@ JAVA_GUARD_LANGS = [
 IN_GRAPH_GUARD_LANGS = [
     "android",
     "ansible",
+    "appimage",
     "asciidoc",
     "astro",
     "bicep",
@@ -131,11 +132,14 @@ MACOS_IN_GRAPH_GUARD_LANGS = [
     "swift",
 ]
 
-# The consumer fixtures no prebuilt guard covers yet.
-GUARD_PENDING = [
-    "appimage",  # appimage_packer is a rust_binary
-    "msix",  # msix_package is Windows-only
+# The consumer fixtures the windows_x86_64 leg of the in-graph-prebuilt-guard job of ci.yml passes to
+# //tools/testing/consumer:in_graph_prebuilt_guard with --langs.
+WINDOWS_IN_GRAPH_GUARD_LANGS = [
+    "msix",
 ]
+
+# The consumer fixtures no prebuilt guard covers yet.
+GUARD_PENDING = []
 
 # The fixtures whose test is the consumer evidence of the support matrix row of the same name.
 CONSUMER_ROWS = [

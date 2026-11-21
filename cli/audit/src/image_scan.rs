@@ -110,6 +110,7 @@ pub fn trivy_args(
         "--skip-check-update",
         "--offline-scan",
         "--disable-telemetry",
+        "--skip-version-check",
         "--severity",
         severities,
     ]
@@ -341,6 +342,7 @@ mod tests {
         let text: Vec<_> = args.iter().map(|arg| arg.to_string_lossy()).collect();
         assert!(text.contains(&"--offline-scan".into()));
         assert!(text.contains(&"--skip-db-update".into()));
+        assert!(text.contains(&"--skip-version-check".into()));
         assert!(text.windows(2).any(|pair| pair == ["--output", "r.json"]));
         assert_eq!(text[text.len() - 2..], ["--input", "l"]);
     }

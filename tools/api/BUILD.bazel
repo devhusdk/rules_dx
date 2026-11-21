@@ -125,6 +125,7 @@ _STARLARK_SRCS = [
     "//rust:defs.bzl",
     "//rust:extensions.bzl",
     "//scala:defs.bzl",
+    "//scala:extensions.bzl",
     "//sql:defs.bzl",
     "//svelte:defs.bzl",
     "//swift:defs.bzl",

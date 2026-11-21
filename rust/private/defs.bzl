@@ -27,17 +27,17 @@ _DX_FORWARD_PROVIDES = [
     QualitySourcesInfo,
 ]
 
-_LIBSTDCXX = Label("//rust/private:libstdcxx")
-_LIBSTDCXX_READY = Label("//rust/private:libstdcxx_ready")
+_LIBSTDCXX = Label("//core/platforms:libstdcxx")
+_LIBSTDCXX_READY = Label("//core/platforms:libstdcxx_dynamic_runtime")
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 _UNWIND = Label("//rust/private:unwind")
 _BUILD_SCRIPT_CC_ENV = Label("//rust:build_script_cc_env")
 _NO_COVERAGE_FEATURES = ["-coverage", "-gcc_coverage_map_format", "-llvm_coverage_map_format"]
-_MSVC = Label("//rust/private:msvc")
+_MSVC = Label("//core/platforms:msvc")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib", "-Clink-arg=/ignore:4099"]
-_CLANG_CL = Label("//rust/private:clang_cl")
+_CLANG_CL = Label("//core/platforms:clang_cl")
 CLANG_CL_LINK_FLAGS = ["-Clink-arg=-DEFAULTLIB:libc++.lib"]
-_MSVC_OPT = Label("//rust/private:msvc_opt")
+_MSVC_OPT = Label("//core/platforms:msvc_opt")
 
 _MSVC_LINK = Label("//rust/private/tools/msvc_paths:msvc_link_exec")
 
@@ -583,7 +583,7 @@ _NO_REMOTE_EXEC = "no-remote-exec"
 _TEST_BROWSER = str(Label("@rules_rust_wasm_bindgen//settings:test_browser"))
 
 _BROWSER_CELLS = {
-    Label("//rust/private:browser_linux_x86_64"): "firefox",
+    Label("//core/platforms:linux_x86_64"): "firefox",
 }
 
 def _browser_compatible_with(kwargs):
@@ -773,7 +773,7 @@ def rust_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, r
         "rustc_flags": _FUZZ_RUSTC_FLAGS + (rustc_flags or []),
         "rustc_env": dict(rustc_env or {}, RUSTC_BOOTSTRAP = "1"),
         "target_compatible_with": select({
-            Label("//rust/private:fuzz_sanitizer_runtime"): [],
+            Label("//core/platforms:fuzz_sanitizer_runtime"): [],
             "//conditions:default": [Label("@platforms//:incompatible")],
         }),
     }

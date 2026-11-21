@@ -493,6 +493,13 @@ def _android_checks():
         hub_build({}, {}, BUNDLETOOL_REPOSITORY),
         "\n".join([
             "config_setting(",
+            '    name = "linux_arm64",',
+            "    constraint_values = [",
+            '        "@platforms//os:linux",',
+            '        "@platforms//cpu:arm64",',
+            "    ],",
+            ")",
+            "config_setting(",
             '    name = "linux_x86_64",',
             "    constraint_values = [",
             '        "@platforms//os:linux",',
@@ -526,6 +533,12 @@ def _android_checks():
             '        "@platforms//os:windows",',
             '        "@platforms//cpu:x86_64",',
             "    ],",
+            ")",
+            "",
+            "filegroup(",
+            '    name = "no_sdk_host",',
+            "    srcs = [],",
+            '    target_compatible_with = ["' + str(Label("@platforms//:incompatible")) + '", "' + str(Label("//core/platforms:android_unsupported")) + '"],',
             ")",
             "",
             "filegroup(",
@@ -641,6 +654,10 @@ def _android_checks():
     sdk_hub = hub_build({}, build_tools_repositories(), BUNDLETOOL_REPOSITORY)
     checks.append(expect_contains("hub selects macos zipalign", sdk_hub, '":macos_arm64": "@dx_android_build_tools_macos_arm64//:zipalign"'))
     checks.append(expect_contains("hub selects windows_x86_64 zipalign on windows_arm64", sdk_hub, '":windows_arm64": "@dx_android_build_tools_windows_x86_64//:zipalign"'))
+    checks.append(expect_contains("hub declares linux_arm64", sdk_hub, 'name = "linux_arm64",'))
+    checks.append(expect_contains("hub sends linux_arm64 to no sdk host", sdk_hub, '":linux_arm64": ":no_sdk_host"'))
+    checks.append(expect_contains("hub keeps the build-tools no-match error", sdk_hub, build_tools_no_match_error()))
+    checks.append(expect_contains("no sdk host is incompatible", sdk_hub, '"' + str(Label("@platforms//:incompatible")) + '", "' + str(Label("//core/platforms:android_unsupported")) + '"'))
     anchor_build = ndk_build("source.properties", "linux_x86_64")
     checks.append(expect_contains("ndk build exposes the anchor", anchor_build, "extracted/source.properties"))
     checks.append(expect_contains("ndk build declares runtime libs", anchor_build, 'name = "runtime_libs"'))

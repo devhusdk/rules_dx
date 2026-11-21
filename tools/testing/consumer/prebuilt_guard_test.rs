@@ -32,9 +32,10 @@ use std::collections::BTreeMap;
 use dx_nested::Case;
 use prebuilt_guard::{
     BundleTool, DOCS_FOREIGN, TargetRoot, allowlist, bundle_tools, command_roots,
-    compiled_binaries, drop_jar_launchers, foreign_docs_labels, guard_aspects, jvm_sources_query,
-    missing_target_repos, problems, release_platform, resolver_roots, stub_bundle, stub_url,
-    target_guard_build, target_guard_bzl, wrapper_build, wrapper_bzl,
+    compiled_binaries, drop_jar_launchers, drop_rule_set_repos, foreign_docs_labels, guard_aspects,
+    jvm_sources_query, missing_target_repos, problems, release_platform, resolver_roots,
+    stale_repos, stub_bundle, stub_url, target_guard_build, target_guard_bzl, wrapper_build,
+    wrapper_bzl,
 };
 
 /// The consumer languages whose fixture roots the jar tools.
@@ -285,6 +286,8 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         );
     }
     let mut found = compiled_binaries(&run.stdout);
+    let rule_set_repos = list.repos_for(&langs);
+    let matched_repos = drop_rule_set_repos(&mut found, &rule_set_repos);
     drop_jar_launchers(&mut found, |label| {
         let sources = case.bazel(&[
             "cquery",
@@ -304,6 +307,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     })
     .unwrap_or_else(|error| panic!("{error}"));
     let mut problems = problems(&found, &list.labels_for(&langs));
+    problems.extend(stale_repos(&rule_set_repos, &matched_repos));
     problems.extend(missing_target_repos(&run.stdout, &target_roots));
     if let [lang] = langs.as_slice()
         && let Some((_, fragments)) = DOCS_FOREIGN.iter().find(|(name, _)| name == lang)

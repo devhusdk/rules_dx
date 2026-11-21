@@ -47,6 +47,7 @@ def _appimage_impl(ctx):
     identity = ctx.actions.declare_file(ctx.label.name + ".AppImage.identity.json")
 
     args = ctx.actions.args()
+    args.add("appimage_packer")
     args.add(appimagetool[0].dirname)
     args.add(runtime)
     args.add(name)
@@ -102,7 +103,7 @@ _appimage_package = rule(
         "libs": attr.label_list(doc = "Shared libraries placed under usr/lib.", allow_files = True),
         "notice": attr.label_list(doc = "License and NOTICE files placed under usr/share/licenses/<name>.", allow_files = True, mandatory = True, allow_empty = False),
         "version": attr.string(doc = "Application version.", mandatory = True),
-        "_build": attr.label(default = "//appimage/private/tools/packer:appimage_packer", executable = True, cfg = "exec"),
+        "_build": attr.label(default = "@dx_prebuilt//:dx", executable = True, cfg = "exec"),
         "_runtime_aarch64": attr.label(default = "@dx_appimage_tools//:runtime_aarch64", allow_single_file = True),
         "_runtime_x86_64": attr.label(default = "@dx_appimage_tools//:runtime_x86_64", allow_single_file = True),
         "_tools": attr.label(doc = "The appimagetool closure.", cfg = "exec", default = "@dx_appimage_tools//:tools"),

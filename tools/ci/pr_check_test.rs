@@ -312,6 +312,8 @@ fn shards_come_from_the_plan() {
     // target, 25,758 of them, instead of the tests `bazel test //...` runs.
     assert!(plan_run.contains("let t = tests(set("), "{plan_run}");
     assert!(plan_run.contains("(manual|"), "{plan_run}");
+    // dx test takes main-workspace labels only.
+    assert!(plan_run.contains("($t intersect //...)"), "{plan_run}");
     assert!(plan_run.contains("range(0; length; $per)"), "{plan_run}");
     assert!(plan_run.contains("echo \"labels=$slices\""), "{plan_run}");
     let affected = job(WORKFLOW, "affected").unwrap();

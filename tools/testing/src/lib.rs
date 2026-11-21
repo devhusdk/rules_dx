@@ -836,8 +836,7 @@ pub fn executable_script(path: &Path, body: &str) {
         .expect("write script body");
     let status = child.wait().expect("wait sh");
     assert!(status.success(), "write {}: {status}", path.display());
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
-        .expect("chmod script");
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod script");
 }
 
 /// [`executable_script`] of a POSIX shell script that runs `body`.

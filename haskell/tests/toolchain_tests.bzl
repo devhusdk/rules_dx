@@ -155,6 +155,7 @@ def _checks():
         expect_contains("musl wrapper finds its root with shell builtins only", musl_wrapper("linux_arm64_musl", "ghc-pkg-9.10.3"), "case \"$0\" in */*) bin=\"${0%/*}\" ;; *) bin=. ;; esac\nroot=\"$(cd \"$bin/..\" && pwd)\"\n"),
         expect_contains("musl ghc-pkg names the global database", musl_wrapper("linux_arm64_musl", "ghc-pkg-9.10.3"), "--global-package-db=\"$root/lib/package.conf.d\""),
         expect_contains("musl runghc runs the wrapped ghc", musl_wrapper("linux_arm64_musl", "runghc-9.10.3"), "-f \"$root/bin/ghc\""),
+        expect_contains("musl hsc2hs names the bindist template", musl_wrapper("linux_arm64_musl", "hsc2hs-ghc-9.10.3"), "\"$root/bin/hsc2hs-ghc-9.10.3.musl\" --template=\"$root/lib/template-hsc.h\" \"$@\""),
         expect_contains("musl unlit takes no extra flags", musl_wrapper("linux_arm64_musl", "unlit-ghc-9.10.3"), "\"$root/bin/unlit-ghc-9.10.3.musl\" \"$@\""),
         expect_equal("musl apks pin sha256", [(cell, package.package) for cell in sorted(MUSL_CELLS) for package in MUSL_CELLS[cell].apks if len(package.sha256) != 64], []),
         expect_equal("musl apks match the cell arch", [(cell, package.package) for cell, arch in [("linux_arm64_musl", "aarch64"), ("linux_x86_64_musl", "x86_64")] for package in MUSL_CELLS[cell].apks if "/main/%s/" % arch not in package.url], []),

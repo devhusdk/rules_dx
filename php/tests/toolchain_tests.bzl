@@ -1,15 +1,18 @@
 """PHP toolchain pin and acquisition tests."""
 
-load("@dx_pins_data//:pins.bzl", "PINS")
+load("@dx_pins_data//:pins.bzl", "DATA", "PINS")
 load("//core:cells.bzl", "cell_cases", "cell_setting")
-load("//php/tests:checks.bzl", "expect_contains", "expect_equal", "expect_true", "php_checks_test")
 load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/private:php.bzl", "NATIVE_LAUNCHER_ATTRS", "lit", "rf", "runfiles_path", "write_launcher")
-load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
+load("//php/private/coverage:repos.bzl", "COVERAGE_BUILD")
 load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
-load("//php/private/toolchain:repos.bzl", "COVERAGE_BUILD", "VERSION_FILE", "hub_build", "runtime_build")
+load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
+load("//php/private/toolchain:repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
+load("//php/tests:checks.bzl", "expect_contains", "expect_equal", "expect_true", "php_checks_test")
 
 _PHP = PINS["dx_php"]
+
+_COVERAGE = DATA["dx_php_coverage"]
 
 PHP_VERSION = _PHP["version"]
 
@@ -21,7 +24,7 @@ def _checks():
     hub = hub_build(PHP_CELLS.keys())
     flavors = {"linux_x86_64": "gnu-bulk", "linux_arm64": "gnu-bulk", "macos_arm64": "bulk", "windows_x86_64": "spc-max"}
     mac = PHP_CELLS["macos_arm64"]
-    pins = [_PHP["pcov"]] + _PHP["tools"].values()
+    pins = [_COVERAGE["pcov"]] + _PHP["tools"].values()
     cells = _PHP["cells"]
     cases = cell_cases("//php/private/toolchain", PHP_CELLS.keys(), "php")
     default = cases.pop("//conditions:default")
@@ -38,12 +41,12 @@ def _checks():
         expect_equal("windows interpreter", PHP_CELLS["windows_x86_64"].interpreter, "php.exe"),
         expect_equal("unix interpreters", [PHP_CELLS[c].interpreter for c in ["linux_arm64", "linux_x86_64", "macos_arm64"]], ["php", "php", "php"]),
         expect_true("runtime BUILD names no pcov", "pcov" not in runtime_build(PHP_VERSION) and "pcov" not in runtime_build(PHP_VERSION, "php.exe")),
-        expect_equal("windows has a separate coverage runtime", sorted(_PHP["coverage"].keys()), ["windows_x86_64"]),
-        expect_true("coverage runtimes are windows.php.net builds", all([all([url.startswith("https://downloads.php.net/~windows/") for url in pin["urls"]]) for c in _PHP["coverage"].values() for pin in [c["php"], c["pcov"]]])),
-        expect_true("the coverage php matches the version", all([PHP_VERSION + "-" in url and "-nts-" in url for c in _PHP["coverage"].values() for url in c["php"]["urls"]])),
-        expect_true("the coverage pcov matches the pcov version", all([c["pcov"]["version"] == _PHP["pcov"]["version"] and all([c["pcov"]["version"] in url and "-" + PHP_VERSION.rsplit(".", 1)[0] + "-nts-" in url for url in c["pcov"]["urls"]]) for c in _PHP["coverage"].values()])),
+        expect_equal("windows has a separate coverage runtime", sorted(_COVERAGE["coverage"].keys()), ["windows_x86_64"]),
+        expect_true("coverage runtimes are windows.php.net builds", all([all([url.startswith("https://downloads.php.net/~windows/") for url in pin["urls"]]) for c in _COVERAGE["coverage"].values() for pin in [c["php"], c["pcov"]]])),
+        expect_true("the coverage php matches the version", all([PHP_VERSION + "-" in url and "-nts-" in url for c in _COVERAGE["coverage"].values() for url in c["php"]["urls"]])),
+        expect_true("the coverage pcov matches the pcov version", all([c["pcov"]["version"] == _COVERAGE["pcov"]["version"] and all([c["pcov"]["version"] in url and "-" + PHP_VERSION.rsplit(".", 1)[0] + "-nts-" in url for url in c["pcov"]["urls"]]) for c in _COVERAGE["coverage"].values()])),
         expect_contains("the coverage runtime ships the msvc runtime beside php", COVERAGE_BUILD, '"php.exe", "php8.dll", "ext/php_mbstring.dll", "php_pcov.dll", "vcruntime140.dll"'),
-        expect_equal("pcov headers are pinned per unix cell", sorted(_PHP["headers"].keys()), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
+        expect_equal("pcov headers are pinned per unix cell", sorted(_COVERAGE["headers"].keys()), ["linux_arm64", "linux_x86_64", "macos_arm64"]),
         expect_contains("the windows runtime exports its interpreter", runtime_build(PHP_VERSION, "php.exe"), 'interpreter = "php.exe",'),
         expect_contains("the windows runtime exports the exe", runtime_build(PHP_VERSION, "php.exe"), 'exports_files(["php.exe", "DX_PHP_VERSION"])'),
         expect_equal("the version file is named", VERSION_FILE, "DX_PHP_VERSION"),

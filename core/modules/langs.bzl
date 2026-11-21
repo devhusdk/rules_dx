@@ -2868,7 +2868,8 @@ LANGS = json.decode("""{
     ],
     "name": "php",
     "pins": [
-      "pins.json"
+      "pins.json",
+      "private/coverage/pins.json"
     ],
     "platforms": [
       "linux_arm64",

@@ -454,8 +454,7 @@ impl Scanner<'_> {
 }
 
 fn scan_module(path: &str, source: &str) -> Module {
-    let ast = AstModule::parse(path, source.to_owned(), &Dialect::Extended)
-        .unwrap_or_else(|error| panic!("{path}: does not parse: {}", error.without_diagnostic()));
+    let ast = parse_starlark(path, source);
     let mut module = Module {
         reexports_only: true,
         ..Module::default()
@@ -885,16 +884,147 @@ fn check_outside_lang(tree: &Tree, lang: &str, found: &mut Found) {
     }
 }
 
-fn check_private_visibility(tree: &Tree, lang: &str, found: &mut Found) {
+/// The files that define the shared visibility scopes.
+const VISIBILITY_BUILD: &str = "tools/visibility/BUILD.bazel";
+const VISIBILITY_BZL: &str = "tools/visibility/visibility.bzl";
+
+/// What grants public visibility: labels a BUILD file may name and `tools/visibility/visibility.bzl` constants it may load.
+struct PublicMarkers {
+    labels: BTreeSet<String>,
+    constants: BTreeSet<String>,
+}
+
+/// The top-level statements of a parsed Starlark file.
+fn top_statements(ast: &AstModule) -> Vec<&AstStmt> {
+    match &ast.statement().node {
+        StmtP::Statements(stmts) => stmts.iter().collect(),
+        StmtP::Break
+        | StmtP::Continue
+        | StmtP::Pass
+        | StmtP::Return(_)
+        | StmtP::Expression(_)
+        | StmtP::Assign(_)
+        | StmtP::AssignModify(..)
+        | StmtP::If(..)
+        | StmtP::IfElse(..)
+        | StmtP::For(_)
+        | StmtP::Def(_)
+        | StmtP::Load(_) => vec![ast.statement()],
+    }
+}
+
+fn parse_starlark(path: &str, source: &str) -> AstModule {
+    AstModule::parse(path, source.to_owned(), &Dialect::Extended)
+        .unwrap_or_else(|error| panic!("{path}: does not parse: {}", error.without_diagnostic()))
+}
+
+/// Every string literal and identifier in `expr`.
+fn mentions(expr: &AstExpr, strings: &mut BTreeSet<String>, names: &mut BTreeSet<String>) {
+    if let Some(text) = string_literal(expr) {
+        strings.insert(text.to_owned());
+    }
+    if let ExprP::Identifier(ident) = &expr.node {
+        names.insert(ident.node.ident.clone());
+    }
+    expr.node
+        .visit_expr(|child| mentions(child, strings, names));
+}
+
+fn public_markers(tree: &Tree) -> PublicMarkers {
+    let mut labels = BTreeSet::from(["//visibility:public".to_owned()]);
+    if let Some(source) = tree.text.get(VISIBILITY_BUILD) {
+        let ast = parse_starlark(VISIBILITY_BUILD, source);
+        for stmt in top_statements(&ast) {
+            let StmtP::Expression(expr) = &stmt.node else {
+                continue;
+            };
+            let ExprP::Call(callee, args) = &expr.node else {
+                continue;
+            };
+            if callee_name(callee) != "package_group" {
+                continue;
+            }
+            let mut name = None;
+            let mut packages = BTreeSet::new();
+            for arg in &args.args {
+                match &arg.node {
+                    ArgumentP::Named(key, value) if key.node == "name" => {
+                        name = string_literal(value).map(str::to_owned);
+                    }
+                    ArgumentP::Named(key, value) if key.node == "packages" => {
+                        mentions(value, &mut packages, &mut BTreeSet::new());
+                    }
+                    ArgumentP::Named(..)
+                    | ArgumentP::Positional(_)
+                    | ArgumentP::Args(_)
+                    | ArgumentP::KwArgs(_) => {}
+                }
+            }
+            if let Some(name) = name
+                && packages.contains("public")
+            {
+                labels.insert(format!("//{}:{name}", parent(VISIBILITY_BUILD)));
+            }
+        }
+    }
+    let mut values = Vec::new();
+    if let Some(source) = tree.text.get(VISIBILITY_BZL) {
+        let ast = parse_starlark(VISIBILITY_BZL, source);
+        for stmt in top_statements(&ast) {
+            let StmtP::Assign(assign) = &stmt.node else {
+                continue;
+            };
+            let AssignTargetP::Identifier(ident) = &assign.lhs.node else {
+                continue;
+            };
+            let mut strings = BTreeSet::new();
+            let mut names = BTreeSet::new();
+            mentions(&assign.rhs, &mut strings, &mut names);
+            values.push((ident.node.ident.clone(), strings, names));
+        }
+    }
+    let mut constants = BTreeSet::new();
+    loop {
+        let before = constants.len();
+        for (name, strings, names) in &values {
+            if strings.iter().any(|text| labels.contains(text))
+                || names.iter().any(|other| constants.contains(other))
+            {
+                constants.insert(name.clone());
+            }
+        }
+        if constants.len() == before {
+            break;
+        }
+    }
+    PublicMarkers { labels, constants }
+}
+
+/// Whether `text` names `label` as a whole label, alone or after a repository name.
+fn names_label(text: &str, label: &str) -> bool {
+    text.match_indices(label).any(|(start, _)| {
+        text.as_bytes()
+            .get(start + label.len())
+            .is_none_or(|&next| !is_word(next))
+    })
+}
+
+fn check_private_visibility(tree: &Tree, lang: &str, markers: &PublicMarkers, found: &mut Found) {
     let private = format!("{lang}/private");
     for path in tree.under(&private) {
         if basename(path) != "BUILD.bazel" {
             continue;
         }
-        let public = tree
-            .text
-            .get(path)
-            .is_some_and(|text| text.contains("//visibility:public"));
+        let Some(text) = tree.text.get(path) else {
+            continue;
+        };
+        let public = markers.labels.iter().any(|label| names_label(text, label))
+            || tree.module(path).is_some_and(|module| {
+                module.loads.values().any(|(label, their)| {
+                    label_path(path, label).as_deref() == Some(VISIBILITY_BZL)
+                        && markers.constants.contains(their)
+                })
+            });
         if public {
             found.add(
                 "private-visibility",
@@ -1396,13 +1526,14 @@ fn lint(tree: &Tree) -> Found {
         .map(|source| scan_root_module(source))
         .unwrap_or_default();
     let referenced = referenced_fixtures(tree);
+    let markers = public_markers(tree);
     check_root_module(&langs, &root, &mut found);
     for lang in &langs {
         let manifest = tree.manifest(lang);
         check_entries(tree, lang, &mut found);
         check_private_names(tree, lang, &mut found);
         check_outside_lang(tree, lang, &mut found);
-        check_private_visibility(tree, lang, &mut found);
+        check_private_visibility(tree, lang, &markers, &mut found);
         check_public_names(tree, lang, &manifest, &mut found);
         check_manifest(tree, lang, &manifest, &mut found);
         check_platforms(tree, lang, &mut found);
@@ -1479,6 +1610,12 @@ fn every_language_directory_follows_the_skeleton_or_is_allowlisted() {
         langs >= MIN_LANGS,
         "only {langs} language directories in the snapshot"
     );
+    for path in [VISIBILITY_BUILD, VISIBILITY_BZL] {
+        assert!(
+            tree.text.contains_key(path),
+            "{path} is not in the snapshot"
+        );
+    }
     let key = dx_testing::env_text("LANGUAGE_SKELETON_ALLOWLIST");
     let (allowed, mut problems) = parse_allowlist(&dx_testing::read_runfiles(key.trim()));
     problems.extend(differences(&lint(&tree), &allowed));
@@ -1684,6 +1821,59 @@ fn private_visibility_rejects_public_private_targets() {
         );
     });
     assert_eq!(found, ["private-visibility toy/private/BUILD.bazel"]);
+}
+
+const TOY_VISIBILITY_BUILD: &str = r#"package_group(
+    name = "tools_repo",
+    packages = ["//..."],
+)
+
+package_group(
+    name = "tools_public",
+    packages = ["public"],
+)
+"#;
+
+const TOY_VISIBILITY_BZL: &str = r#""""Shared visibility scopes."""
+
+VIS_TOOLS = ["//tools/visibility:tools_repo"]
+
+VIS_TOOLS_PUBLIC = ["//tools/visibility:tools_public"]
+
+VIS_WIDE = VIS_TOOLS + VIS_TOOLS_PUBLIC
+"#;
+
+/// Lints the toy language with `tools/visibility` beside it and `private_build` as `toy/private/BUILD.bazel`.
+fn private_visibility_with_scopes(private_build: &str) -> Vec<String> {
+    broken("private-visibility", |files| {
+        put(files, VISIBILITY_BUILD, TOY_VISIBILITY_BUILD);
+        put(files, VISIBILITY_BZL, TOY_VISIBILITY_BZL);
+        put(files, "toy/private/BUILD.bazel", private_build);
+    })
+}
+
+#[test]
+fn private_visibility_rejects_a_public_package_group_constant() {
+    let found = private_visibility_with_scopes(
+        "load(\"//tools/visibility:visibility.bzl\", \"VIS_WIDE\")\n\npackage(default_visibility = VIS_WIDE)\n",
+    );
+    assert_eq!(found, ["private-visibility toy/private/BUILD.bazel"]);
+}
+
+#[test]
+fn private_visibility_rejects_a_public_package_group_label() {
+    let found = private_visibility_with_scopes(
+        "x(visibility = [\"@rules_dx//tools/visibility:tools_public\"])\n",
+    );
+    assert_eq!(found, ["private-visibility toy/private/BUILD.bazel"]);
+}
+
+#[test]
+fn private_visibility_accepts_a_repo_scope_constant() {
+    let found = private_visibility_with_scopes(
+        "load(\"//tools/visibility:visibility.bzl\", \"VIS_TOOLS\")\n\nx(visibility = VIS_TOOLS + [\"//tools/visibility:tools_repo\"])\n",
+    );
+    assert!(found.is_empty(), "{found:?}");
 }
 
 #[test]

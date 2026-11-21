@@ -4,7 +4,7 @@ load("//dart/private:defs.bzl", "DART_COMPATIBLE_WITH")
 load("//rust:defs.bzl", "rust_test")
 load(":dart_tool.bzl", "dart_tool")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 dart_tool(
     name = "dart",

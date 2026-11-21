@@ -5,7 +5,7 @@ load(":composer.bzl", "composer_tool")
 load(":phpcs.bzl", "phpcs_tool")
 load(":phpstan.bzl", "phpstan_tool")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "composer.bzl",

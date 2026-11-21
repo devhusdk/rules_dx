@@ -7,7 +7,7 @@ load(":swift_tool.bzl", "swift_format_tool", "swift_format_windows")
 load(":swift_tool_tests.bzl", "swift_format_copy_test")
 load(":xcode_swift.bzl", "swift_xcode_launcher")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 swift_format_tool(
     name = "swift_format_linux",

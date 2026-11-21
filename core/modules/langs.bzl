@@ -3472,9 +3472,12 @@ LANGS = json.decode("""{
         ],
         "lint": [
           "real_scala_lint_aspect"
+        ],
+        "typecheck": [
+          "real_scala_typecheck_aspect"
         ]
       },
-      "bzl": "java/private/quality:jvm.bzl",
+      "bzl": "scala/private/quality:scala.bzl",
       "classes": [
         "scala"
       ],
@@ -3493,7 +3496,18 @@ LANGS = json.decode("""{
       "file_extensions": [
         ".sc",
         ".scala"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_scala_format_probe_aspect"
+        ],
+        "lint": [
+          "real_scala_lint_probe_aspect"
+        ],
+        "typecheck": [
+          "real_scala_typecheck_probe_aspect"
+        ]
+      }
     },
     "semver": false,
     "title": "Scala",

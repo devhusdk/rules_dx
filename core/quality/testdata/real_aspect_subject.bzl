@@ -127,6 +127,7 @@ load(
     "real_rust_lint_aspect",
     "real_scala_format_aspect",
     "real_scala_lint_aspect",
+    "real_scala_typecheck_aspect",
     "real_shard_result_stems",
     "real_shell_format_aspect",
     "real_shell_lint_aspect",
@@ -346,7 +347,7 @@ real_ocaml_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_ocaml_lint_aspec
 
 real_jvm_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_jvm_lint_aspect, real_jvm_format_aspect, real_jvm_typecheck_aspect])
 
-real_scala_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_jvm_lint_aspect, real_jvm_format_aspect, real_jvm_typecheck_aspect, real_scala_format_aspect, real_scala_lint_aspect])
+real_scala_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_jvm_lint_aspect, real_jvm_format_aspect, real_scala_format_aspect, real_scala_lint_aspect, real_scala_typecheck_aspect])
 
 real_beam_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_erlang_lint_aspect, real_erlang_format_aspect, real_erlang_typecheck_aspect, real_elixir_format_aspect, real_elixir_lint_aspect])
 

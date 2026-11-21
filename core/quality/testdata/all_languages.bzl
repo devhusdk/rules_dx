@@ -16,7 +16,7 @@ load("//erlang/private/quality:beam.bzl", _real_beam_format_probe_aspect = "real
 load("//fortran/private/quality:fortran.bzl", _real_fortran_format_aspect = "real_fortran_format_aspect", _real_fortran_format_probe_aspect = "real_fortran_format_probe_aspect", _real_fortran_lint_aspect = "real_fortran_lint_aspect", _real_fortran_lint_probe_aspect = "real_fortran_lint_probe_aspect", _real_fortran_typecheck_aspect = "real_fortran_typecheck_aspect", _real_fortran_typecheck_probe_aspect = "real_fortran_typecheck_probe_aspect")
 load("//go/private/quality:go.bzl", _real_go_format_aspect = "real_go_format_aspect", _real_go_format_probe_aspect = "real_go_format_probe_aspect", _real_go_lint_aspect = "real_go_lint_aspect", _real_go_lint_probe_aspect = "real_go_lint_probe_aspect", _real_go_typecheck_aspect = "real_go_typecheck_aspect", _real_go_typecheck_probe_aspect = "real_go_typecheck_probe_aspect")
 load("//haskell/private/quality:haskell.bzl", _real_haskell_format_aspect = "real_haskell_format_aspect", _real_haskell_format_probe_aspect = "real_haskell_format_probe_aspect", _real_haskell_lint_aspect = "real_haskell_lint_aspect", _real_haskell_lint_probe_aspect = "real_haskell_lint_probe_aspect", _real_haskell_typecheck_aspect = "real_haskell_typecheck_aspect", _real_haskell_typecheck_probe_aspect = "real_haskell_typecheck_probe_aspect")
-load("//java/private/quality:jvm.bzl", _real_jvm_format_aspect = "real_jvm_format_aspect", _real_jvm_format_probe_aspect = "real_jvm_format_probe_aspect", _real_jvm_lint_aspect = "real_jvm_lint_aspect", _real_jvm_lint_probe_aspect = "real_jvm_lint_probe_aspect", _real_jvm_typecheck_aspect = "real_jvm_typecheck_aspect", _real_jvm_typecheck_probe_aspect = "real_jvm_typecheck_probe_aspect", _real_pkl_lint_aspect = "real_pkl_lint_aspect", _real_scala_format_aspect = "real_scala_format_aspect", _real_scala_lint_aspect = "real_scala_lint_aspect")
+load("//java/private/quality:jvm.bzl", _real_jvm_format_aspect = "real_jvm_format_aspect", _real_jvm_format_probe_aspect = "real_jvm_format_probe_aspect", _real_jvm_lint_aspect = "real_jvm_lint_aspect", _real_jvm_lint_probe_aspect = "real_jvm_lint_probe_aspect", _real_jvm_typecheck_aspect = "real_jvm_typecheck_aspect", _real_jvm_typecheck_probe_aspect = "real_jvm_typecheck_probe_aspect", _real_pkl_lint_aspect = "real_pkl_lint_aspect")
 load("//javascript/private/quality:js.bzl", _real_js_format_aspect = "real_js_format_aspect", _real_js_format_probe_aspect = "real_js_format_probe_aspect", _real_js_lint_aspect = "real_js_lint_aspect", _real_js_lint_probe_aspect = "real_js_lint_probe_aspect", _real_js_typecheck_aspect = "real_js_typecheck_aspect", _real_js_typecheck_probe_aspect = "real_js_typecheck_probe_aspect")
 load("//julia/private/quality:julia.bzl", _real_julia_format_aspect = "real_julia_format_aspect", _real_julia_format_probe_aspect = "real_julia_format_probe_aspect", _real_julia_lint_aspect = "real_julia_lint_aspect", _real_julia_lint_probe_aspect = "real_julia_lint_probe_aspect", _real_julia_typecheck_aspect = "real_julia_typecheck_aspect", _real_julia_typecheck_probe_aspect = "real_julia_typecheck_probe_aspect")
 load("//kubernetes/private/quality:kubernetes.bzl", _real_kubernetes_format_aspect = "real_kubernetes_format_aspect", _real_kubernetes_format_probe_aspect = "real_kubernetes_format_probe_aspect", _real_kubernetes_lint_aspect = "real_kubernetes_lint_aspect", _real_kubernetes_lint_probe_aspect = "real_kubernetes_lint_probe_aspect")
@@ -29,6 +29,7 @@ load("//python/private/quality:python.bzl", _real_python_format_aspect = "real_p
 load("//rego/private/quality:rego.bzl", _real_rego_format_aspect = "real_rego_format_aspect", _real_rego_format_probe_aspect = "real_rego_format_probe_aspect", _real_rego_lint_aspect = "real_rego_lint_aspect", _real_rego_lint_probe_aspect = "real_rego_lint_probe_aspect", _real_rego_typecheck_aspect = "real_rego_typecheck_aspect", _real_rego_typecheck_probe_aspect = "real_rego_typecheck_probe_aspect")
 load("//ruby/private/quality:ruby.bzl", _real_ruby_format_aspect = "real_ruby_format_aspect", _real_ruby_format_probe_aspect = "real_ruby_format_probe_aspect", _real_ruby_lint_aspect = "real_ruby_lint_aspect", _real_ruby_lint_probe_aspect = "real_ruby_lint_probe_aspect", _real_ruby_typecheck_aspect = "real_ruby_typecheck_aspect", _real_ruby_typecheck_probe_aspect = "real_ruby_typecheck_probe_aspect")
 load("//rust/private/quality:rust.bzl", _real_rust_format_aspect = "real_rust_format_aspect", _real_rust_format_probe_aspect = "real_rust_format_probe_aspect", _real_rust_lint_aspect = "real_rust_lint_aspect", _real_rust_lint_probe_aspect = "real_rust_lint_probe_aspect", _real_rust_typecheck_aspect = "real_rust_typecheck_aspect", _real_rust_typecheck_probe_aspect = "real_rust_typecheck_probe_aspect")
+load("//scala/private/quality:scala.bzl", _real_scala_format_aspect = "real_scala_format_aspect", _real_scala_format_probe_aspect = "real_scala_format_probe_aspect", _real_scala_lint_aspect = "real_scala_lint_aspect", _real_scala_lint_probe_aspect = "real_scala_lint_probe_aspect", _real_scala_typecheck_aspect = "real_scala_typecheck_aspect", _real_scala_typecheck_probe_aspect = "real_scala_typecheck_probe_aspect")
 load("//sql/private/quality:sql.bzl", _real_sql_format_aspect = "real_sql_format_aspect", _real_sql_format_probe_aspect = "real_sql_format_probe_aspect", _real_sql_lint_aspect = "real_sql_lint_aspect", _real_sql_lint_probe_aspect = "real_sql_lint_probe_aspect")
 load("//swift/private/quality:swift.bzl", _real_swift_format_aspect = "real_swift_format_aspect", _real_swift_format_probe_aspect = "real_swift_format_probe_aspect", _real_swift_lint_aspect = "real_swift_lint_aspect", _real_swift_lint_probe_aspect = "real_swift_lint_probe_aspect", _real_swift_typecheck_aspect = "real_swift_typecheck_aspect", _real_swift_typecheck_probe_aspect = "real_swift_typecheck_probe_aspect")
 load("//terraform/private/quality:terraform.bzl", _real_terraform_format_aspect = "real_terraform_format_aspect", _real_terraform_format_probe_aspect = "real_terraform_format_probe_aspect", _real_terraform_lint_aspect = "real_terraform_lint_aspect", _real_terraform_lint_probe_aspect = "real_terraform_lint_probe_aspect", _real_terraform_typecheck_aspect = "real_terraform_typecheck_aspect", _real_terraform_typecheck_probe_aspect = "real_terraform_typecheck_probe_aspect")
@@ -96,6 +97,7 @@ load("//powershell/private/quality:powershell.bzl", _POWERSHELL_HOOKS = "HOOKS",
 load("//ruby/private/quality:ruby.bzl", _RUBY_HOOKS = "HOOKS", _RUBY_SHARD_SPECS = "SHARD_SPECS", _RUBY_TOOLS = "TOOLS")
 load("//python/private/quality:python.bzl", _PYTHON_HOOKS = "HOOKS", _PYTHON_SHARD_SPECS = "SHARD_SPECS", _PYTHON_TOOLS = "TOOLS")
 load("//java/private/quality:jvm.bzl", _JVM_HOOKS = "HOOKS", _JVM_RECOGNIZER = "RECOGNIZER", _JVM_SHARD_SPECS = "SHARD_SPECS", _JVM_TOOLS = "TOOLS")
+load("//scala/private/quality:scala.bzl", _SCALA_HOOKS = "HOOKS", _SCALA_SHARD_SPECS = "SHARD_SPECS", _SCALA_TOOLS = "TOOLS")
 load("//javascript/private/quality:js.bzl", _JS_HOOKS = "HOOKS", _JS_SHARD_SPECS = "SHARD_SPECS", _JS_TOOLS = "TOOLS")
 load("//julia/private/quality:julia.bzl", _JULIA_HOOKS = "HOOKS", _JULIA_SHARD_SPECS = "SHARD_SPECS", _JULIA_TOOLS = "TOOLS")
 load("//dotnet/private/quality:dotnet.bzl", _DOTNET_HOOKS = "HOOKS", _DOTNET_SHARD_SPECS = "SHARD_SPECS", _DOTNET_TOOLS = "TOOLS")
@@ -299,10 +301,6 @@ real_jvm_typecheck_probe_aspect = _real_jvm_typecheck_probe_aspect
 
 real_pkl_lint_aspect = _real_pkl_lint_aspect
 
-real_scala_format_aspect = _real_scala_format_aspect
-
-real_scala_lint_aspect = _real_scala_lint_aspect
-
 real_js_format_aspect = _real_js_format_aspect
 
 real_js_format_probe_aspect = _real_js_format_probe_aspect
@@ -430,6 +428,18 @@ real_rust_lint_probe_aspect = _real_rust_lint_probe_aspect
 real_rust_typecheck_aspect = _real_rust_typecheck_aspect
 
 real_rust_typecheck_probe_aspect = _real_rust_typecheck_probe_aspect
+
+real_scala_format_aspect = _real_scala_format_aspect
+
+real_scala_format_probe_aspect = _real_scala_format_probe_aspect
+
+real_scala_lint_aspect = _real_scala_lint_aspect
+
+real_scala_lint_probe_aspect = _real_scala_lint_probe_aspect
+
+real_scala_typecheck_aspect = _real_scala_typecheck_aspect
+
+real_scala_typecheck_probe_aspect = _real_scala_typecheck_probe_aspect
 
 real_sql_format_aspect = _real_sql_format_aspect
 
@@ -574,14 +584,14 @@ _HOOK_ORDER = [
     "trivy_image_config",
 ]
 
-_CONTEXT_HOOKS = _JS_HOOKS | _CORE_HOOKS | _GENERATION_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _OCI_IMAGE_HOOKS | _SQL_HOOKS | _DART_HOOKS | _OCAML_HOOKS | _BEAM_HOOKS | _GO_HOOKS | _POWERSHELL_HOOKS | _RUBY_HOOKS | _JULIA_HOOKS | _PYTHON_HOOKS | _CC_HOOKS | _DOTNET_HOOKS | _RUST_HOOKS | _JVM_HOOKS | {
+_CONTEXT_HOOKS = _JS_HOOKS | _CORE_HOOKS | _GENERATION_HOOKS | _CUE_HOOKS | _PKL_HOOKS | _JSONNET_HOOKS | _REGO_HOOKS | _BICEP_HOOKS | _TERRAFORM_HOOKS | _LUA_HOOKS | _PHP_HOOKS | _KUBERNETES_HOOKS | _OCI_IMAGE_HOOKS | _SQL_HOOKS | _DART_HOOKS | _OCAML_HOOKS | _BEAM_HOOKS | _GO_HOOKS | _POWERSHELL_HOOKS | _RUBY_HOOKS | _JULIA_HOOKS | _PYTHON_HOOKS | _CC_HOOKS | _DOTNET_HOOKS | _RUST_HOOKS | _JVM_HOOKS | _SCALA_HOOKS | {
     tool: compile_check_hook(tool)
     for tool in COMPILE_CHECK_TOOLS
 }
 
 _CFG = real_config(
-    tools = _JS_TOOLS | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _OCI_IMAGE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS | _OCAML_TOOLS | _BEAM_TOOLS | _GO_TOOLS | _POWERSHELL_TOOLS | _RUBY_TOOLS | _JULIA_TOOLS | _PYTHON_TOOLS | _JVM_TOOLS | _CC_TOOLS | _DOTNET_TOOLS | _RUST_TOOLS | _FORTRAN_TOOLS | _HASKELL_TOOLS | _GENERATION_TOOLS | _ZIG_TOOLS,
-    shard_specs = _JS_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _OCI_IMAGE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _OCAML_SHARD_SPECS | _BEAM_SHARD_SPECS | _GO_SHARD_SPECS | _POWERSHELL_SHARD_SPECS | _RUBY_SHARD_SPECS | _JULIA_SHARD_SPECS | _PYTHON_SHARD_SPECS | _JVM_SHARD_SPECS | _CC_SHARD_SPECS | _DOTNET_SHARD_SPECS | _RUST_SHARD_SPECS | _FORTRAN_SHARD_SPECS | _HASKELL_SHARD_SPECS | _GENERATION_SHARD_SPECS | _ZIG_SHARD_SPECS,
+    tools = _JS_TOOLS | _CORE_TOOLS | _ANSIBLE_TOOLS | _CLOUDFORMATION_TOOLS | _MAKE_TOOLS | _DOCKERFILE_TOOLS | _OCI_IMAGE_TOOLS | _HTML_TEMPLATE_TOOLS | _XML_TOOLS | _YAML_TOOLS | _NIX_TOOLS | _SHELL_TOOLS | _LATEX_TOOLS | _CMAKE_TOOLS | _TYPST_TOOLS | _TEXT_TOOLS | _SWIFT_TOOLS | _PERL_TOOLS | _CUE_TOOLS | _PKL_TOOLS | _JSONNET_TOOLS | _REGO_TOOLS | _BICEP_TOOLS | _TERRAFORM_TOOLS | _LUA_TOOLS | _PHP_TOOLS | _KUBERNETES_TOOLS | _SQL_TOOLS | _D_TOOLS | _DART_TOOLS | _OCAML_TOOLS | _BEAM_TOOLS | _GO_TOOLS | _POWERSHELL_TOOLS | _RUBY_TOOLS | _JULIA_TOOLS | _PYTHON_TOOLS | _JVM_TOOLS | _SCALA_TOOLS | _CC_TOOLS | _DOTNET_TOOLS | _RUST_TOOLS | _FORTRAN_TOOLS | _HASKELL_TOOLS | _GENERATION_TOOLS | _ZIG_TOOLS,
+    shard_specs = _JS_SHARD_SPECS | _CORE_SHARD_SPECS | _ANSIBLE_SHARD_SPECS | _CLOUDFORMATION_SHARD_SPECS | _MAKE_SHARD_SPECS | _DOCKERFILE_SHARD_SPECS | _OCI_IMAGE_SHARD_SPECS | _HTML_TEMPLATE_SHARD_SPECS | _XML_SHARD_SPECS | _YAML_SHARD_SPECS | _NIX_SHARD_SPECS | _SHELL_SHARD_SPECS | _LATEX_SHARD_SPECS | _CMAKE_SHARD_SPECS | _TYPST_SHARD_SPECS | _TEXT_SHARD_SPECS | _SWIFT_SHARD_SPECS | _PERL_SHARD_SPECS | _CUE_SHARD_SPECS | _PKL_SHARD_SPECS | _JSONNET_SHARD_SPECS | _REGO_SHARD_SPECS | _BICEP_SHARD_SPECS | _TERRAFORM_SHARD_SPECS | _LUA_SHARD_SPECS | _PHP_SHARD_SPECS | _KUBERNETES_SHARD_SPECS | _SQL_SHARD_SPECS | _D_SHARD_SPECS | _DART_SHARD_SPECS | _OCAML_SHARD_SPECS | _BEAM_SHARD_SPECS | _GO_SHARD_SPECS | _POWERSHELL_SHARD_SPECS | _RUBY_SHARD_SPECS | _JULIA_SHARD_SPECS | _PYTHON_SHARD_SPECS | _JVM_SHARD_SPECS | _SCALA_SHARD_SPECS | _CC_SHARD_SPECS | _DOTNET_SHARD_SPECS | _RUST_SHARD_SPECS | _FORTRAN_SHARD_SPECS | _HASKELL_SHARD_SPECS | _GENERATION_SHARD_SPECS | _ZIG_SHARD_SPECS,
     hook_order = _HOOK_ORDER,
     context_hooks = _CONTEXT_HOOKS,
     source_recognizers = _GENERATION_RECOGNIZERS + [_RUST_RECOGNIZER, _CC_RECOGNIZER, _JVM_RECOGNIZER],
@@ -820,6 +830,7 @@ _LANG_SHARD_ASPECTS = {
     "real_rust_typecheck": _real_rust_typecheck_aspect,
     "real_scala_format": _real_scala_format_aspect,
     "real_scala_lint": _real_scala_lint_aspect,
+    "real_scala_typecheck": _real_scala_typecheck_aspect,
     "real_sql_format": _real_sql_format_aspect,
     "real_sql_lint": _real_sql_lint_aspect,
     "real_swift_format": _real_swift_format_aspect,

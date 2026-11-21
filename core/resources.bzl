@@ -1,6 +1,6 @@
 """Resource cost declarations for heavy actions and tests."""
 
-visibility(["//android/...", "//api_spec/...", "//apple/...", "//cc/...", "//core/...", "//dotnet/...", "//erlang/...", "//go/...", "//java/...", "//javascript/...", "//rust/...", "//tools/...", "//typescript/..."])
+visibility(["//android/...", "//api_spec/...", "//apple/...", "//cc/...", "//core/...", "//dotnet/...", "//erlang/...", "//go/...", "//java/...", "//javascript/...", "//rust/...", "//scala/...", "//tools/...", "//typescript/..."])
 
 _EXTRA_MEMORY_MB = 512
 

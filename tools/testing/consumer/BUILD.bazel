@@ -43,17 +43,20 @@ nested_bazel_test(
     # //:module_srcs leaves out //patches/rules_py, which write_rules_py_patches copies.
     data = [
         "cold_start/go.txt",
+        "cold_start/java.txt",
         "cold_start/rust.txt",
         "//:module_srcs",
         "//patches/rules_py:patches",
         "@dx_test_tags_sources//:consumer.json",
     ],
     env = {
-        "DX_COLD_START_LISTS": "$(rlocationpath cold_start/go.txt) $(rlocationpath cold_start/rust.txt)",
+        "DX_COLD_START_LISTS": "$(rlocationpath cold_start/go.txt) $(rlocationpath cold_start/java.txt) $(rlocationpath cold_start/rust.txt)",
         "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
     },
     network = True,
     deps = [
+        ":prebuilt_guard",
+        "//cli/adopt:dx_adopt",
         "//tools/testing:dx_testing",
         "//tools/testing/nested:dx_nested",
     ],

@@ -11,7 +11,7 @@ load("//core/quality:support.bzl", "support_unpinned_tools", "support_unsupporte
 load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs", "missing_required_config_error", "native_config_scratch_rel", "staged_config_rel")
 
-visibility(["//ansible/...", "//bicep/...", "//cc/...", "//cloudformation/...", "//cmake/...", "//core/...", "//d/...", "//dart/...", "//dockerfile/...", "//dotnet/...", "//erlang/...", "//fortran/...", "//go/...", "//haskell/...", "//java/...", "//javascript/...", "//julia/...", "//kubernetes/...", "//lua/...", "//make/...", "//ocaml/...", "//perl/...", "//powershell/...", "//python/...", "//rego/...", "//ruby/...", "//rust/...", "//sql/...", "//swift/...", "//terraform/...", "//zig/..."])
+visibility(["//ansible/...", "//bicep/...", "//cc/...", "//cloudformation/...", "//cmake/...", "//core/...", "//d/...", "//dart/...", "//dockerfile/...", "//dotnet/...", "//erlang/...", "//fortran/...", "//go/...", "//haskell/...", "//java/...", "//javascript/...", "//julia/...", "//kubernetes/...", "//lua/...", "//make/...", "//ocaml/...", "//perl/...", "//powershell/...", "//python/...", "//rego/...", "//ruby/...", "//rust/...", "//scala/...", "//sql/...", "//swift/...", "//terraform/...", "//zig/..."])
 
 _REAL_TOOL_KINDS = ["executable", "file", "setting", "toolchain", "upstream"]
 

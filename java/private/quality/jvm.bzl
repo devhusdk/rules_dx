@@ -1,8 +1,7 @@
-"""JVM and Scala real quality aspects."""
+"""JVM real quality aspects."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
-load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//core/quality:family_hooks.bzl", "default_files_hook", "stage", "without")
 load("//java/private/quality:jvm_check.bzl", "JvmCheckInfo", "android_sdk_jars", "jvm_android_sdk_aspect", "jvm_check_aspect")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
@@ -56,26 +55,6 @@ TOOLS = {
         "resources": "heavy",
         "shard": "pkl",
     },
-    "scalac": {
-        "capabilities": ["typecheck"],
-        "kind": "upstream",
-        "resources": "heavy",
-        "shard": "jvm",
-    },
-    "scalafix": {
-        "attr": attr.label(default = "//java/private/quality/tools:scalafix", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "heavy",
-        "shard": "scala",
-    },
-    "scalafmt": {
-        "attr": attr.label(default = "@dx_tools//:scalafmt", allow_single_file = True, cfg = "exec"),
-        "capabilities": ["format"],
-        "kind": "file",
-        "resources": "heavy",
-        "shard": "scala",
-    },
     "spotbugs": {
         "attr": attr.label(default = "//java/private/quality/tools:spotbugs", cfg = "exec", executable = True),
         "capabilities": ["lint"],
@@ -109,7 +88,7 @@ SHARD_SPECS = {
     },
     "real_jvm_typecheck": {
         "capability": "typecheck",
-        "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets, kotlinc over rules_kotlin targets, scalac over Scala 2.13 rules_scala targets).",
+        "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets and kotlinc over rules_kotlin targets).",
         "requires": [jvm_check_aspect],
         "shard": "jvm",
     },
@@ -117,16 +96,6 @@ SHARD_SPECS = {
         "capability": "lint",
         "doc": "Additive Pkl lint family aspect (pkl-lsp diagnostics through lsp_check).",
         "shard": "pkl",
-    },
-    "real_scala_format": {
-        "capability": "format",
-        "doc": "Additive Scala format family aspect (scalafmt).",
-        "shard": "scala",
-    },
-    "real_scala_lint": {
-        "capability": "lint",
-        "doc": "Additive Scala lint family aspect (Scalafix; target-coupled via SemanticdbInfo and JavaInfo).",
-        "shard": "scala",
     },
 }
 
@@ -143,7 +112,7 @@ def _jacoco_runtime_jars(ctx):
     """Returns the jacoco agent runtime jars (a separate target, not a tool classpath)."""
     return ctx.attr._jacoco_runtime[JavaInfo].transitive_runtime_jars.to_list()
 
-def _jvm_aux_jars(java_info, owned):
+def jvm_aux_jars(java_info, owned):
     """Returns the runtime classpath jars plus compile-only jars not in owned."""
     runtime = [java_info.transitive_runtime_jars]
     compile = [java_info.transitive_compile_time_jars]
@@ -170,24 +139,6 @@ def _jvm_aux_jars(java_info, owned):
         auxiliary[jar.path] = jar
     return auxiliary
 
-def _scalafix_context(target, what):
-    """Returns the semanticdb jars and the dependency jars scalafix reads for one target."""
-    if SemanticdbInfo not in target or not target[SemanticdbInfo].semanticdb_enabled or not target[SemanticdbInfo].is_bundled_in_jar:
-        fail(what + ": scalafix needs semanticdb bundled in the jar; add register_toolchains(\"@rules_dx//scala/private/toolchain/hub:all\") to MODULE.bazel, or set enable_semanticdb = True and semanticdb_bundle_in_jar = True on your own scala_toolchain")
-    if JavaInfo not in target:
-        fail(what + ": scalafix needs a JavaInfo target")
-    owned = {}
-    for output in target[JavaInfo].java_outputs:
-        if output.class_jar != None:
-            owned[output.class_jar.path] = output.class_jar
-    if len(owned) == 0:
-        fail(what + ": scalafix found no compiled jar for this target")
-    auxiliary = _jvm_aux_jars(target[JavaInfo], owned)
-    return (
-        sorted(owned.values(), key = lambda f: f.path),
-        sorted(auxiliary.values(), key = lambda f: f.path),
-    )
-
 def _spotbugs_hook(target, ctx, resolved, _capability, _what, _shared):
     if JavaInfo not in target:
         return without(resolved, "spotbugs")
@@ -195,7 +146,7 @@ def _spotbugs_hook(target, ctx, resolved, _capability, _what, _shared):
     for output in target[JavaInfo].java_outputs:
         if output.class_jar != None and ".." not in output.class_jar.short_path.split("/"):
             owned[output.class_jar.path] = output.class_jar
-    auxiliary = _jvm_aux_jars(target[JavaInfo], owned)
+    auxiliary = jvm_aux_jars(target[JavaInfo], owned)
     for jar in android_sdk_jars(target).to_list():
         if jar.path not in owned:
             auxiliary[jar.path] = jar
@@ -215,17 +166,9 @@ def _spotbugs_hook(target, ctx, resolved, _capability, _what, _shared):
     options = {"args": [effort]}
     return real_context(tool_files = tool_files, inputs = inputs, options = options)
 
-def _scalafix_hook(target, _ctx, _resolved, _capability, what, _shared):
-    (owned, aux) = _scalafix_context(target, what)
-    tool_files = []
-    inputs = []
-    for index, jar in enumerate(owned):
-        stage(tool_files, inputs, "dx-scalafix/owned/%d-%s" % (index, jar.basename), jar)
-    for index, jar in enumerate(aux):
-        stage(tool_files, inputs, "dx-scalafix/aux/%d-%s" % (index, jar.basename), jar)
-    return real_context(tool_files = tool_files, inputs = inputs)
+def jvm_check_hook(tool):
+    """Returns the context hook that hands one JvmCheckInfo tool's log to the runner."""
 
-def _jvm_check_hook(tool):
     def _hook(target, _ctx, resolved, _capability, _what, _shared):
         if JvmCheckInfo not in target or target[JvmCheckInfo].tool != tool:
             return without(resolved, tool)
@@ -244,14 +187,12 @@ def _pkl_lsp_hook(target, ctx, resolved, capability, what, shared):
         options = {"path_tools": [("java", bundle.java), ("pkl-lsp.jar", bundle.jar), ("pkl-lsp-natives.jar", bundle.natives)]},
     )
 
-HOOK_ORDER = ["spotbugs", "scalafix", "javac", "kotlinc", "scalac", "pkl_lsp"]
+HOOK_ORDER = ["spotbugs", "javac", "kotlinc", "pkl_lsp"]
 
 HOOKS = {
     "spotbugs": _spotbugs_hook,
-    "scalafix": _scalafix_hook,
-    "javac": _jvm_check_hook("javac"),
-    "kotlinc": _jvm_check_hook("kotlinc"),
-    "scalac": _jvm_check_hook("scalac"),
+    "javac": jvm_check_hook("javac"),
+    "kotlinc": jvm_check_hook("kotlinc"),
     "pkl_lsp": _pkl_lsp_hook,
 }
 
@@ -282,10 +223,6 @@ real_jvm_lint_aspect = real_make_aspect(_CFG, "real_jvm_lint")
 real_jvm_typecheck_aspect = real_make_aspect(_CFG, "real_jvm_typecheck")
 
 real_pkl_lint_aspect = real_make_aspect(_CFG, "real_pkl_lint")
-
-real_scala_format_aspect = real_make_aspect(_CFG, "real_scala_format")
-
-real_scala_lint_aspect = real_make_aspect(_CFG, "real_scala_lint")
 
 JvmShardProbeInfo = provider(
     doc = "Shard names the jvm shard probe found for one target and capability.",

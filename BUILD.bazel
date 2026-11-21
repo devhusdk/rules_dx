@@ -897,6 +897,7 @@ filegroup(
         "//rust/tests/tonic:module_srcs",
         "//scala:module_srcs",
         "//scala/private:module_srcs",
+        "//scala/private/quality:module_srcs",
         "//scala/private/toolchain:module_srcs",
         "//scala/private/toolchain/hub:module_srcs",
         "//sql/private:module_srcs",

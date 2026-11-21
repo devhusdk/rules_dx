@@ -45,6 +45,7 @@ julia_source_toolchain(
 # On Linux x86_64 every Julia action and binary runs on the source-built libjulia-internal.
 toolchain(
     name = "source_toolchain",
+    # Without a pinned julia_internal prebuilt the source library builds only on a Linux x86_64 exec platform.
     exec_compatible_with = _LINUX_X86_64,
     target_compatible_with = _LINUX_X86_64,
     target_settings = [

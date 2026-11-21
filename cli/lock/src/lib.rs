@@ -1,10 +1,8 @@
 #![deny(
     clippy::indexing_slicing,
-    clippy::map_err_ignore,
     clippy::print_stderr,
     clippy::print_stdout,
-    clippy::string_slice,
-    clippy::unused_result_ok
+    clippy::string_slice
 )]
 
 //! The lock step of a dx class ecosystem and the only writer of `<ecosystem>.lock.json`.
@@ -621,7 +619,10 @@ mod tests {
 
     #[test]
     fn run_process_exits_2_on_bad_arguments() {
-        assert_eq!(run_process(&toy_spec(), &Unreachable, &["--bogus".to_owned()]), 2);
+        assert_eq!(
+            run_process(&toy_spec(), &Unreachable, &["--bogus".to_owned()]),
+            2
+        );
         assert_eq!(run_process(&toy_spec(), &Unreachable, &[]), 2);
     }
 
@@ -633,7 +634,10 @@ mod tests {
     #[test]
     fn run_process_exits_1_when_check_finds_the_lock_stale() {
         let dir = dir_with(&["toy.json"]);
-        let args = ["--check".to_owned(), format!("--dir={}", dir.path().display())];
+        let args = [
+            "--check".to_owned(),
+            format!("--dir={}", dir.path().display()),
+        ];
         assert_eq!(run_process(&toy_spec(), &Unreachable, &args), 1);
     }
 

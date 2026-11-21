@@ -1,7 +1,5 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::fmt::Write as _;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PatchKind {
     Modify,
@@ -127,7 +125,9 @@ fn render_file(out: &mut String, file: &FilePatch<'_>) -> Result<(), DiffError> 
         } else {
             new_start + 1
         };
-        writeln!(out, "@@ -{old_head},{old_len} +{new_head},{new_len} @@").ok();
+        out.push_str(&format!(
+            "@@ -{old_head},{old_len} +{new_head},{new_len} @@\n"
+        ));
         for change in hunk.iter_changes() {
             let tag = match change.tag() {
                 similar::ChangeTag::Equal => ' ',

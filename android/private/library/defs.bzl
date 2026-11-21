@@ -145,7 +145,7 @@ def android_native_library(
     )
 
 SDK_COMPATIBLE_WITH = select({
-    Label("//android/private/sdk:linux_arm64"): [Label("@platforms//:incompatible"), unsupported_constraint("android")],
+    Label("//core/platforms:linux_arm64"): [Label("@platforms//:incompatible"), unsupported_constraint("android")],
     "//conditions:default": [],
 })
 

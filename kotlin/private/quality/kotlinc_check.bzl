@@ -9,7 +9,7 @@ load("//core/quality:sources.bzl", "single_target")
 load("//java/private/quality:jvm_check.bzl", "JVM_CHECK_WORKER", "JvmCheckInfo", "unused_deps_map")
 load("//java/private/quality:jvm_info.bzl", "JvmAndroidSdkInfo", "android_sdk_jars")
 
-visibility(["//kotlin/..."])
+visibility(["//android/tests/...", "//kotlin/..."])
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
 

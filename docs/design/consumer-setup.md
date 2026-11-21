@@ -34,6 +34,7 @@ This page fixes what a consumer writes to use rules_dx, and what rules_dx writes
 cargo.annotation(
     build_script_env = {
         "CFLAGS": "$(DX_BS_CFLAGS)",
+        "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
         "HOST_AR": "$(DX_BS_HOST_AR)",
         "HOST_CC": "$(DX_BS_HOST_CC)",
         "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",

@@ -1,11 +1,11 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//api_spec:defs.bzl", "api_spec_library")
-load("//kubernetes:defs.bzl", "kubernetes_schemas")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:native_config.bzl", "clang_tidy_config", "eslint_config", "rubocop_config", "ruff_config")
 load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
 load("//core/quality/private:generated_policy.bzl", "dx_generated_policy")
+load("//kubernetes:defs.bzl", "kubernetes_schemas")
 
 package(default_visibility = ["//core/quality:__pkg__"])
 
@@ -19,79 +19,6 @@ exports_files([
 
 workspace_policy(
     name = "shared_policy",
-    configs = select({
-            "//config:config_tier_strict": ["//core/quality/tiers/ansible_lint:strict"],
-            "//conditions:default": ["//core/quality/tiers/ansible_lint:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/bicep:strict"],
-            "//conditions:default": ["//core/quality/tiers/bicep:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/buildifier:strict"],
-            "//conditions:default": ["//core/quality/tiers/buildifier:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/checkmake:strict"],
-            "//conditions:default": ["//core/quality/tiers/checkmake:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/cmakelint:strict"],
-            "//conditions:default": ["//core/quality/tiers/cmakelint:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/credo:strict"],
-            "//conditions:default": ["//core/quality/tiers/credo:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/docstrfmt:strict"],
-            "//conditions:default": ["//core/quality/tiers/docstrfmt:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/detekt:strict"],
-            "//conditions:default": ["//core/quality/tiers/detekt:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/elvis:strict"],
-            "//conditions:default": ["//core/quality/tiers/elvis:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/pmd:strict"],
-            "//conditions:default": ["//core/quality/tiers/pmd:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/selene:strict"],
-            "//conditions:default": ["//core/quality/tiers/selene:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/stylua:strict"],
-            "//conditions:default": ["//core/quality/tiers/stylua:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/scalafix:strict"],
-            "//conditions:default": ["//core/quality/tiers/scalafix:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/regal:strict"],
-            "//conditions:default": ["//core/quality/tiers/regal:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/roslyn:strict"],
-            "//conditions:default": ["//core/quality/tiers/roslyn:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/sqlfluff:strict"],
-            "//conditions:default": ["//core/quality/tiers/sqlfluff:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/tflint:strict"],
-            "//conditions:default": ["//core/quality/tiers/tflint:standard"],
-        }) +
-        select({
-            "//config:config_tier_strict": ["//core/quality/tiers/yamllint:strict"],
-            "//conditions:default": ["//core/quality/tiers/yamllint:standard"],
-        }) +
-        [":policy_rubocop_config"],
     bases = select({
         "//config:config_tier_strict": [
             "//core/quality/tiers/gersemi:strict",
@@ -106,6 +33,80 @@ workspace_policy(
             "//core/quality/tiers/mbake:standard",
         ],
     }),
+    configs = select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/ansible_lint:strict"],
+                  "//conditions:default": ["//core/quality/tiers/ansible_lint:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/bicep:strict"],
+                  "//conditions:default": ["//core/quality/tiers/bicep:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/buildifier:strict"],
+                  "//conditions:default": ["//core/quality/tiers/buildifier:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/checkmake:strict"],
+                  "//conditions:default": ["//core/quality/tiers/checkmake:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/cmakelint:strict"],
+                  "//conditions:default": ["//core/quality/tiers/cmakelint:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/credo:strict"],
+                  "//conditions:default": ["//core/quality/tiers/credo:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/docstrfmt:strict"],
+                  "//conditions:default": ["//core/quality/tiers/docstrfmt:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/detekt:strict"],
+                  "//conditions:default": ["//core/quality/tiers/detekt:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/elvis:strict"],
+                  "//conditions:default": ["//core/quality/tiers/elvis:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/pmd:strict"],
+                  "//conditions:default": ["//core/quality/tiers/pmd:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/selene:strict"],
+                  "//conditions:default": ["//core/quality/tiers/selene:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/stylua:strict"],
+                  "//conditions:default": ["//core/quality/tiers/stylua:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/scalafix:strict"],
+                  "//conditions:default": ["//core/quality/tiers/scalafix:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/regal:strict"],
+                  "//conditions:default": ["//core/quality/tiers/regal:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/roslyn:strict"],
+                  "//conditions:default": ["//core/quality/tiers/roslyn:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/sqlfluff:strict"],
+                  "//conditions:default": ["//core/quality/tiers/sqlfluff:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/tflint:strict"],
+                  "//conditions:default": ["//core/quality/tiers/tflint:standard"],
+              }) +
+              select({
+                  "//config:config_tier_strict": ["//core/quality/tiers/yamllint:strict"],
+                  "//conditions:default": ["//core/quality/tiers/yamllint:standard"],
+              }) + [
+        ":policy_rubocop_config",
+    ],
     families = [
         ":ansible_family",
         ":api_spec_family",
@@ -621,11 +622,9 @@ quality_family(
 
 quality_family(
     name = "helm_family",
-    disabled = [
-        "format",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "helm",
+    format = ["helmfmt"],
     lint = ["helm"],
 )
 
@@ -781,7 +780,10 @@ quality_family(
 
 quality_family(
     name = "capnp_family",
-    disabled = ["audit", "format"],
+    disabled = [
+        "audit",
+        "format",
+    ],
     family_id = "capnp",
     lint = ["capnp"],
     typecheck = ["capnp"],
@@ -789,7 +791,10 @@ quality_family(
 
 quality_family(
     name = "flatbuffers_family",
-    disabled = ["audit", "format"],
+    disabled = [
+        "audit",
+        "format",
+    ],
     family_id = "flatbuffers",
     lint = ["flatc"],
     typecheck = ["flatc"],
@@ -797,7 +802,10 @@ quality_family(
 
 quality_family(
     name = "thrift_family",
-    disabled = ["audit", "format"],
+    disabled = [
+        "audit",
+        "format",
+    ],
     family_id = "thrift",
     lint = ["thrift"],
     typecheck = ["thrift"],

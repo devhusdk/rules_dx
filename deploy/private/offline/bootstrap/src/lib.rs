@@ -1,11 +1,6 @@
 //! Installs Bazel and vendored advisory snapshots from an offline bundle.
 
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fmt;
 use std::io;

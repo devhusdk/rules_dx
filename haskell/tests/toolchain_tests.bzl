@@ -1,10 +1,27 @@
 """Haskell toolchain pin and settings tests."""
 
+load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
-load("//haskell/private/toolchain:pins.bzl", "CELLS", "CROSS_CELLS", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
-load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "alias_repository", "cell_matches_host", "closure_library_dirs", "cross_libdir_moves", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "host_cxx_library_dirs", "hub_files", "links_extra_libraries", "llvm_toolchain_attrs", "musl_wrapper", "os_libraries", "toolchain_libraries")
+load("//haskell/private/toolchain:pins.bzl", "CELLS", "CROSS_CELLS", "GHC_VERSION", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
+load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "MUSL_SUFFIX", "MUSL_TOOL_ARGS", "NO_HOST_TOOL", "alias_repository", "cell_matches_host", "closure_library_dirs", "cross_libdir_moves", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "host_cxx_library_dirs", "hub_files", "links_extra_libraries", "llvm_toolchain_attrs", "musl_wrapped", "musl_wrapper", "os_libraries", "toolchain_libraries")
+
+_GHC_BIN = [
+    ("ghc", "ghc-9.10.3"),
+    ("ghc-9.10.3", "ghc-9.10.3"),
+    ("ghc-pkg", "ghc-pkg-9.10.3"),
+    ("ghc-pkg-9.10.3", "ghc-pkg-9.10.3"),
+    ("haddock", "haddock-ghc-9.10.3"),
+    ("haddock-ghc-9.10.3", "haddock-ghc-9.10.3"),
+    ("hsc2hs", "hsc2hs-ghc-9.10.3"),
+    ("hsc2hs-ghc-9.10.3", "hsc2hs-ghc-9.10.3"),
+    ("runghc", "runghc-9.10.3"),
+    ("runghc-9.10.3", "runghc-9.10.3"),
+    ("runhaskell-9.10.3", "runghc-9.10.3"),
+    ("unlit", "unlit-ghc-9.10.3"),
+    ("unlit-ghc-9.10.3", "unlit-ghc-9.10.3"),
+]
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
 ,("C compiler flags", "--target=x86_64-linux-gnu")
@@ -157,6 +174,9 @@ def _checks():
         expect_contains("musl runghc runs the wrapped ghc", musl_wrapper("linux_arm64_musl", "runghc-9.10.3"), "-f \"$root/bin/ghc\""),
         expect_contains("musl hsc2hs names the bindist template", musl_wrapper("linux_arm64_musl", "hsc2hs-ghc-9.10.3"), "\"$root/bin/hsc2hs-ghc-9.10.3.musl\" --template=\"$root/lib/template-hsc.h\" \"$@\""),
         expect_contains("musl unlit takes no extra flags", musl_wrapper("linux_arm64_musl", "unlit-ghc-9.10.3"), "\"$root/bin/unlit-ghc-9.10.3.musl\" \"$@\""),
+        expect_equal("musl wraps regular files and skips symlinks", musl_wrapped(_GHC_BIN), ["ghc-9.10.3", "ghc-pkg-9.10.3", "haddock-ghc-9.10.3", "hsc2hs-ghc-9.10.3", "runghc-9.10.3", "unlit-ghc-9.10.3"]),
+        expect_equal("musl wraps every tool that takes extra args", [key for key in sorted(MUSL_TOOL_ARGS) if key.format(version = GHC_VERSION) not in musl_wrapped(_GHC_BIN)], []),
+        expect_equal("each musl wrapper execs its own renamed binary", [name for name in musl_wrapped(_GHC_BIN) if "\"$root/bin/{}{}\"".format(name, MUSL_SUFFIX) not in musl_wrapper("linux_x86_64_musl", name)], []),
         expect_equal("musl apks pin sha256", [(cell, package.package) for cell in sorted(MUSL_CELLS) for package in MUSL_CELLS[cell].apks if len(package.sha256) != 64], []),
         expect_equal("musl apks match the cell arch", [(cell, package.package) for cell, arch in [("linux_arm64_musl", "aarch64"), ("linux_x86_64_musl", "x86_64")] for package in MUSL_CELLS[cell].apks if "/main/%s/" % arch not in package.url], []),
         expect_equal("host gcc library dirs move into the closure", host_cxx_library_dirs("library-dirs:         /usr/lib/gcc/aarch64-alpine-linux-musl/12.2.1/../../../../lib\nname: x", "dx_closure"), "library-dirs: ${pkgroot}/../dx_closure/lib\nname: x"),
@@ -254,3 +274,17 @@ def haskell_metadata_tests(name, size):
         mode = "load",
         checks = _checks(),
     )
+
+_HASKELL_TOOLCHAIN = Label("@rules_haskell//haskell:toolchain")
+
+def _ghc_pkg_inputs_test_impl(ctx):
+    env = unittest.begin(ctx)
+    toolchain = ctx.toolchains[_HASKELL_TOOLCHAIN]
+    inputs = toolchain.tools_config.tools_for_ghc_pkg
+    asserts.equals(env, [], [f.path for f in toolchain.bindir if f not in inputs])
+    return unittest.end(env)
+
+ghc_pkg_inputs_test = unittest.make(
+    _ghc_pkg_inputs_test_impl,
+    toolchains = [_HASKELL_TOOLCHAIN],
+)

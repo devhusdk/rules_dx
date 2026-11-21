@@ -455,14 +455,25 @@ def _apk_closure(rctx, cell):
     for alias, target in cell.loader_aliases.items():
         rctx.symlink(CLOSURE_DIR + "/lib/" + target, CLOSURE_DIR + "/lib/" + alias)
 
+def musl_wrapped(entries):
+    """Returns the sorted bin names to wrap, given (basename, realpath basename) pairs; symlinks are skipped."""
+    return sorted([name for name, real in entries if name == real])
+
 def _musl_wrappers(rctx, cell_name):
     if not rctx.path(LIBDIR + "/template-hsc.h").exists:
         fail("musl bindist ships no {}/template-hsc.h".format(LIBDIR))
-    for entry in rctx.path("bin").readdir():
-        if entry.realpath.basename != entry.basename:
-            continue
-        rctx.rename(entry, str(entry) + MUSL_SUFFIX)
-        rctx.file(entry, musl_wrapper(cell_name, entry.basename), executable = True)
+    bin_dir = rctx.path("bin")
+    names = musl_wrapped([(entry.basename, entry.realpath.basename) for entry in bin_dir.readdir()])
+    for name in names:
+        rctx.rename(bin_dir.get_child(name), bin_dir.get_child(name + MUSL_SUFFIX))
+        rctx.file(bin_dir.get_child(name), musl_wrapper(cell_name, name), executable = True)
+    for name in names:
+        if not bin_dir.get_child(name + MUSL_SUFFIX).exists:
+            fail("musl wrapper bin/{} has no bin/{}{}".format(name, name, MUSL_SUFFIX))
+    for key in MUSL_TOOL_ARGS:
+        name = key.format(version = GHC_VERSION)
+        if name not in names:
+            fail("musl bindist ships no regular file bin/{}".format(name))
 
 def _cross_libdir(rctx, target):
     rctx.download_and_extract(

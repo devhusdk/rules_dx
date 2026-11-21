@@ -12,8 +12,6 @@ exports_files([
     "extensions.bzl",
 ])
 
-toolchain_type(name = "toolchain_type")
-
 cell_settings(
     name = "cell",
     cells = LDC_CELLS,

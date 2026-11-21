@@ -1,0 +1,32 @@
+Pass GHC the rts ghcversion.h by a relative path so interface files do not record the sandbox path.
+--- a/haskell/private/cabal_wrapper.py
++++ b/haskell/private/cabal_wrapper.py
+@@ -148,6 +148,20 @@
+ 
+ recache_db()
+ 
++def ghcversion_file():
++    """Returns the rts ghcversion.h relative to the working directory.
++
++    GHC force-includes this header in every CPP run and records its path in
++    the interface files. The default path is absolute and names the sandbox,
++    so pass it relative to keep interface files reproducible.
++    """
++    dirs = subprocess.check_output([ghc_pkg, "field", "rts", "include-dirs", "--simple-output", "--global"], universal_newlines=True).split()
++    for d in dirs:
++        header = os.path.join(d, "ghcversion.h")
++        if os.path.isfile(header):
++            return os.path.relpath(header)
++    sys.exit("rts registers no include dir with ghcversion.h: " + " ".join(dirs))
++
+ @contextmanager
+ def mkdtemp(prefix):
+     """Create a temporary directory.
+@@ -326,6 +340,7 @@
+         "--with-ld=" + ld,
+         "--with-strip=" + strip,
+         "--enable-deterministic", \
++        "--ghc-option=-ghcversion-file=" + ghcversion_file(), \
+         ] +
+         [ "--ghc-option=" + flag.replace("$CC", cc).replace("$LD", ld) for flag in toolchain_info["ghc_cc_args"] ] +
+         [ "--hsc2hs-option=-c" + cc,

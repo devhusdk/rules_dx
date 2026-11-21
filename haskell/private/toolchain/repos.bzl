@@ -534,13 +534,8 @@ def _ghc_repo_impl(rctx):
     rctx.file(LIBDIR + "/settings", ghc_settings(rctx.read(LIBDIR + "/settings"), rctx.attr.cc_target), executable = False)
     if cell.runtime or apks:
         _gmp_registration(rctx)
-    gmp_license = getattr(cell, "gmp_license", None)
-    if gmp_license:
-        rctx.download(
-            url = gmp_license.url,
-            output = CLOSURE_DIR + "/licenses/" + gmp_license.name,
-            sha256 = gmp_license.sha256,
-        )
+    if getattr(cell, "gmp_license", False):
+        rctx.file(CLOSURE_DIR + "/licenses/gmp", rctx.read(rctx.attr._gmp_license), executable = False)
     if host.exe_suffix == ".exe":
         _drop_import_libs(rctx)
     for entry in rctx.path(LIBDIR + "/package.conf.d").readdir():
@@ -594,6 +589,7 @@ ghc_repo = repository_rule(
         "cc_target": attr.string(doc = "C compiler target triple of a cross toolchain."),
         "llvm_backend": attr.bool(doc = "Whether GHC compiles through llc and opt instead of its native code generator."),
         "_pkgdb_to_bzl": attr.label(default = Label("@rules_haskell//haskell:private/pkgdb_to_bzl.py")),
+        "_gmp_license": attr.label(default = Label("//haskell/private/toolchain:lgpl-3.0.txt")),
         "python": attr.label(mandatory = True, doc = "Host interpreter for the package database conversion."),
     },
 )

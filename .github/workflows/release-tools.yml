@@ -385,10 +385,11 @@ jobs:
             tar -xzOf "$download/weeder.tar.gz" "weeder-$weeder_version/LICENSE" > "$out/dx-weeder-LICENSE"
             test -s "$out/dx-weeder-LICENSE"
             # The musl cell links libgmp.a from the pinned gmp-dev apk into every tool, so the
-            # release ships GMP's licence, the source it was built from and Alpine's one patch.
-            # The macOS and Windows tools link the GMP inside GHC's libHSghc-bignum, so the
-            # release also ships GHC's in-tree GMP tarball.
-            for gmp in "gmp_license dx-haskell-gmp-LICENSE" "gmp_source dx-haskell-gmp-source.tar.xz" "gmp_source_patch dx-haskell-gmp-source.patch" "gmp_ghc_source dx-haskell-gmp-ghc-source.tar.xz"; do
+            # release ships GMP's checked-in licence, the source it was built from and Alpine's
+            # one patch. The macOS and Windows tools link the GMP inside GHC's libHSghc-bignum,
+            # so the release also ships GHC's in-tree GMP tarball.
+            cp haskell/private/toolchain/lgpl-3.0.txt "$out/dx-haskell-gmp-LICENSE"
+            for gmp in "gmp_source dx-haskell-gmp-source.tar.xz" "gmp_source_patch dx-haskell-gmp-source.patch" "gmp_ghc_source dx-haskell-gmp-ghc-source.tar.xz"; do
               pin="${gmp%% *}"
               asset="${gmp#* }"
               curl --fail --silent --show-error --location -o "$out/$asset" "$(jq -r --arg pin "$pin" '.archives[$pin].urls[0]' haskell/pins.json)"

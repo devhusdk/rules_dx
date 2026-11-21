@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let root = std::env::var("BUILD_WORKSPACE_DIRECTORY")
-        .map_err(|_| "run with `bazel run //cli/audit:config_schemas`")?;
+    let root = std::env::var("BUILD_WORKSPACE_DIRECTORY").map_err(|e| {
+        format!("BUILD_WORKSPACE_DIRECTORY: {e}; run with `bazel run //cli/audit:config_schemas`")
+    })?;
     let dir = PathBuf::from(root).join("cli/audit/schema");
     std::fs::create_dir_all(&dir)?;
     let files = [

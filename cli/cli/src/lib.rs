@@ -1,9 +1,7 @@
 #![deny(
     clippy::indexing_slicing,
     clippy::let_underscore_must_use,
-    clippy::map_err_ignore,
     clippy::string_slice,
-    clippy::unused_result_ok,
     clippy::wildcard_enum_match_arm
 )]
 #![cfg_attr(

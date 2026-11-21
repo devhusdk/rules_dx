@@ -170,6 +170,29 @@ class ReportTest(unittest.TestCase):
         self.assertNotIn("notes.txt", text)
         self.assertNotIn("No `Upstream:` header", text)
 
+    def test_reports_closed_consumer_fix_issues(self):
+        api = FakeGitHub({
+            "/repos/devhusdk/rules_dx/issues/10": {"state": "open"},
+            "/repos/devhusdk/rules_dx/issues/11": {"state": "closed"},
+        })
+        readme = (
+            "- It ends with `Consumer fix: #N` when consumers need the fix too.\n"
+            "| Module | Version | Patches | Why |\n"
+            "| --- | --- | --- | --- |\n"
+            "| `m` | 1.0 | `a.patch` | Fixes a. Consumer fix: #10 |\n"
+            "| `m` | 1.0 | `b.patch` | Fixes b. Consumer fix: #11 |\n"
+            "| `m` | 1.0 | `c.patch` | Root only. Fixes c |\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.join(tmp, "patches")
+            _write(root, "README.md", readme)
+            text = upstream.report(api, root)
+        self.assertEqual(
+            text,
+            "## Consumer fix issue closed while the patch is applied: reclassify as Root only or name an open issue\n\n"
+            "- `m` `b.patch`: [#11](https://github.com/devhusdk/rules_dx/issues/11) is closed\n",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

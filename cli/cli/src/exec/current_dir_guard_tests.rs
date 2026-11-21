@@ -49,6 +49,7 @@ fn raw_current_dir_reads_stay_out_of_cli_production_code() {
         ("cli/exec_reports/src", "pinned_tool.rs"),
         ("cli/exec_test_reports/src", "lib.rs"),
         ("cli/exec_update/src", "lib.rs"),
+        ("cli/exec_worktree/src", "lib.rs"),
     ] {
         let before = sources.len();
         rust_sources(&workspace_root().join(dir), &mut sources);

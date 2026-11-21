@@ -55,6 +55,10 @@ SHARD_SPECS = {
     },
 }
 
+HOOK_ORDER = []
+
+HOOKS = {}
+
 def _weeder_hook(target, ctx, resolved, _capability, _what, _shared):
     if CompileCheckInfo not in target or target[CompileCheckInfo].tool != "ghc":
         return without(resolved, "weeder")

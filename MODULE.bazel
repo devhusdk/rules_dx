@@ -1289,6 +1289,7 @@ dx_pins.archive(
     ],
     pins = "//ocaml:pins.json",
 )
+
 # Pinned to an upstream main commit (bazel-contrib/rules_cuda#530, after v0.4.0); #14468 moves it to the release.
 dx_pins.archive(
     name = "rules_cuda",
@@ -1354,6 +1355,7 @@ dx_pins.archive(
     patches = ["//patches/rules_powershell:inline_runfiles_sh.patch"],
     pins = "//powershell:pins.json",
 )
+
 # Pinned to an upstream main commit carrying bazel-contrib/rules_ruby#435 and #440 until a release has them.
 dx_pins.archive(
     name = "rules_ruby",
@@ -1817,6 +1819,7 @@ single_version_override(
     patches = [
         "//patches/rules_dart:external_pkgsrcs.patch",
         "//patches/rules_dart:windows_long_dill.patch",
+        "//patches/rules_dart:windows_copy_links.patch",
         "//patches/rules_dart:summaries_scope.patch",
         "//patches/rules_dart:cross_revision.patch",
         "//patches/rules_dart:dx_bzl_srcs.patch",

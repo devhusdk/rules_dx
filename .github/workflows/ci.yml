@@ -1307,6 +1307,10 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           bazel mod deps --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+      - name: Check the per-platform lock entries agree
+        run: |
+          # shellcheck disable=SC2086
+          bazel test //tools/ci:config_consistency_test --test_arg=--exact --test_arg=host_dependent_extensions_are_locked_for_every_ci_platform $BAZEL_CONFIG $BB_ARGS
   ci:
     name: ci
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}

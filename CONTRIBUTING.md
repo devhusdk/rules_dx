@@ -76,7 +76,7 @@ After a `bazel_dep` bump, the nested cache sets in `tools/testing/nested_cache` 
 /lock-refresh nested=true
 ```
 
-It dispatches `lock-refresh.yml` on the pull request branch and replies with the run URL. The run commits the merged `MODULE.bazel.lock` and the nested cache sets to the branch, and does nothing when they are unchanged. Leave out `nested=true` to refresh only `MODULE.bazel.lock`. Only owners, members and collaborators can use it, and only on a branch in this repository.
+It dispatches `lock-refresh.yml` on the pull request branch and replies with the run URL. The run commits the merged `MODULE.bazel.lock` and the nested cache sets to the branch, and does nothing when they are unchanged. Leave out `nested=true` to refresh only `MODULE.bazel.lock`. Any change to `MODULE.bazel` or a `bazel_dep` needs `/lock-refresh`, because a Linux `bazel mod deps` refreshes only the linux_amd64 go_sdk and python entries. Only owners, members and collaborators can use it, and only on a branch in this repository.
 
 ## Use the remote cache
 

@@ -9,11 +9,11 @@ fn manifest_error(message: String) -> DepcheckError {
     DepcheckError::ManifestParse(message)
 }
 
-/// Reads the `collections` of an ansible `requirements.yml`: each entry's `name` and `version`.
+/// Reads the `collections` of an ansible manifest: each entry's `name` and `version`.
 pub fn parse_ansible_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let root: yaml_serde::Value = yaml_serde::from_str(&text)
-        .map_err(|error| manifest_error(format!("invalid requirements.yml: {error}")))?;
+        .map_err(|error| manifest_error(format!("invalid {}: {error}", path.display())))?;
     let entries = match root.get("collections") {
         None | Some(yaml_serde::Value::Null) => return Ok(BTreeMap::new()),
         Some(yaml_serde::Value::Sequence(entries)) => entries,
@@ -59,7 +59,7 @@ pub fn parse_ansible_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
     Ok(deps)
 }
 
-/// Maps every collection in an `ansible.lock.json` to its version.
+/// Maps every collection in an ansible lock to its version.
 pub fn parse_ansible_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     Ok(super::lock_packages(path)?
         .into_iter()

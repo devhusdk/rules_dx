@@ -2,6 +2,7 @@
 
 load("@rules_perl//perl:perl_binary.bzl", "perl_binary")
 load("@rules_perl//perl:perl_library.bzl", "perl_library")
+load("//perl/private:pod_dep.bzl", "perl_pod_dep")
 
 _EXCLUDE = ["BUILD", "BUILD.bazel", "WORKSPACE", "*.bazel", "t/**", "xt/**"]
 
@@ -39,12 +40,13 @@ def cpan_package(name, deps):
     else:
         srcs = native.glob(["**"], exclude = _EXCLUDE)
         includes = ["."]
+    perl_pod_dep(name = name + "_dx_pod")
     perl_library(
         name = name,
         srcs = srcs,
         includes = includes,
         visibility = ["//visibility:public"],
-        deps = deps + [Label("//perl/private:pod")],
+        deps = deps + [":" + name + "_dx_pod"],
     )
     for script in native.glob(["bin/*", "script/*"], allow_empty = True):
         perl_binary(

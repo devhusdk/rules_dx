@@ -182,8 +182,9 @@ filegroup(
 )
 """ % _API_INTERNAL_MACROS
 
-def _api_skipped(name):
-    return name == "consumer.MODULE.bazel" or name.endswith(".png")
+def api_skipped(name):
+    """Whether api_fixtures leaves the consumer fixture file name out of @dx_api_fixtures."""
+    return name == "consumer.MODULE.bazel"
 
 def _api_fixtures_impl(rctx):
     root = rctx.path(Label("//:MODULE.bazel")).dirname
@@ -203,7 +204,7 @@ def _api_fixtures_impl(rctx):
             child = path + "/" + entry.basename
             if entry.is_dir:
                 pending.append((child, entry))
-            elif not _api_skipped(entry.basename):
+            elif not api_skipped(entry.basename):
                 text = rctx.read(entry, watch = "yes")
                 if entry.basename == "BUILD.bazel":
                     text += _API_SCOPE
@@ -222,5 +223,5 @@ def _api_fixtures_impl(rctx):
 
 api_fixtures = repository_rule(
     implementation = _api_fixtures_impl,
-    doc = "Copies every file under each <lang>/tests/consumer directory but consumer.MODULE.bazel and .png files, and the top-level files of bcr_test_module but MODULE.bazel, appending to each BUILD.bazel a dx_api_forwards_scope filegroup of the targets a public macro created, watching each directory and file it reads.",
+    doc = "Copies every file under each <lang>/tests/consumer directory but consumer.MODULE.bazel, and the top-level files of bcr_test_module but MODULE.bazel, appending to each BUILD.bazel a dx_api_forwards_scope filegroup of the targets a public macro created, watching each directory and file it reads.",
 )

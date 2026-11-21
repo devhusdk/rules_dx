@@ -5,7 +5,7 @@ use File::Basename qw(dirname);
 use File::Spec;
 use Test::More tests => 3;
 
-my $sf = 'perl/tests/coverage/hello.pl';
+my $sf = 'perl/tests/fixtures/coverage/hello.pl';
 
 sub slurp {
     my ($path) = @_;

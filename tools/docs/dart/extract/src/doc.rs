@@ -18,7 +18,7 @@ pub struct DocOptions {
     pub srcs: String,
     pub own: String,
     pub label: String,
-    pub stage: String,
+    pub scratch: String,
     pub html: String,
 }
 
@@ -40,7 +40,7 @@ pub fn run_process(args: &[String]) -> i32 {
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
-    "usage: dart_doc --dart FILE --packages FILE --srcs FILE --own NAME --label LABEL --stage DIR --html DIR"
+    "usage: dart_doc --dart FILE --packages FILE --srcs FILE --own NAME --label LABEL --scratch DIR --html DIR"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
@@ -57,7 +57,7 @@ pub fn parse(args: &[String]) -> Result<DocOptions, String> {
             "--srcs",
             "--own",
             "--label",
-            "--stage",
+            "--scratch",
             "--html",
         ],
     )?;
@@ -67,29 +67,44 @@ pub fn parse(args: &[String]) -> Result<DocOptions, String> {
         srcs: flags.one("--srcs")?,
         own: flags.one("--own")?,
         label: flags.one("--label")?,
-        stage: flags.one("--stage")?,
+        scratch: flags.one("--scratch")?,
         html: flags.one("--html")?,
     })
 }
 
-/// Stages the packages, runs `dart doc` and removes the staging tree on every path.
+/// Stages the packages under the scratch directory, runs `dart doc` with the
+/// scratch directory as its home and empties it on every path.
 ///
 /// # Errors
 ///
 /// Returns an error when an input cannot be read, two sources stage as one path,
-/// staging fails or `dart doc` fails.
+/// staging fails, `dart doc` fails or the scratch directory cannot be emptied.
 pub fn run(options: &DocOptions) -> Result<(), String> {
     let packages = rows(&options.packages)?;
     let srcs = rows(&options.srcs)?;
     let plan = plan(&packages, &srcs, &options.own, &options.label)?;
-    let stage = Path::new(&options.stage);
-    let result = stage_tree(&plan, stage).and_then(|()| dart_doc(options, stage));
-    let cleanup = match fs::remove_dir_all(stage) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(format!("cannot remove {}: {error}", stage.display())),
-    };
-    result.and(cleanup)
+    let scratch = Path::new(&options.scratch);
+    let stage = scratch.join("stage");
+    let result = stage_tree(&plan, &stage).and_then(|()| dart_doc(options, scratch, &stage));
+    result.and(empty_dir(scratch))
+}
+
+/// Removes every entry of `dir` and keeps `dir`, a declared output of the action.
+fn empty_dir(dir: &Path) -> Result<(), String> {
+    let entries =
+        fs::read_dir(dir).map_err(|error| format!("cannot read {}: {error}", dir.display()))?;
+    for entry in entries {
+        let path = entry
+            .map_err(|error| format!("cannot read {}: {error}", dir.display()))?
+            .path();
+        let removed = if path.is_dir() && !path.is_symlink() {
+            fs::remove_dir_all(&path)
+        } else {
+            fs::remove_file(&path)
+        };
+        removed.map_err(|error| format!("cannot remove {}: {error}", path.display()))?;
+    }
+    Ok(())
 }
 
 fn rows(path: &str) -> Result<Vec<(String, String)>, String> {
@@ -234,9 +249,11 @@ fn link(target: &Path, at: &Path) -> std::io::Result<()> {
     fs::copy(target, at).map(|_| ())
 }
 
-fn dart_doc(options: &DocOptions, stage: &Path) -> Result<(), String> {
+fn dart_doc(options: &DocOptions, home: &Path, stage: &Path) -> Result<(), String> {
     let mut command = Command::new(&options.dart);
     command
+        .env("HOME", home)
+        .env("PUB_CACHE", home.join("pub"))
         .arg("doc")
         .arg("--output")
         .arg(&options.html)

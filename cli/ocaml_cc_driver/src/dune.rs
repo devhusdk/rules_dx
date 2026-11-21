@@ -4,7 +4,6 @@
 //! `$ROOT` stands for the execution root, and paths in ARG relative to that root.
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -270,9 +269,12 @@ fn step_env(
             #[cfg(unix)]
             std::os::unix::fs::symlink(&zstd, static_dir.join("libzstd.a"))
                 .map_err(|e| io("libzstd.a", &e))?;
-            write!(mkexe, " -Wl,-search_paths_first -L{}", static_dir.display()).ok();
+            mkexe.push_str(&format!(
+                " -Wl,-search_paths_first -L{}",
+                static_dir.display()
+            ));
         }
-        write!(mkexe, " -Wl,-rpath,{}", lib.display()).ok();
+        mkexe.push_str(&format!(" -Wl,-rpath,{}", lib.display()));
         env.insert("CONDA_OCAML_MKEXE".to_owned(), mkexe);
     } else {
         let lib_dir = ocaml_bin.join("../lib");

@@ -6,7 +6,7 @@ Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
  )
  
 -toolchain_type(name = "toolchain_type")
-+alias(name = "toolchain_type", actual = "@rules_dx//cuda/private/toolchain/hub:toolchain_type")
++alias(name = "toolchain_type", actual = "@rules_dx//cuda:toolchain_type")
  
  # Command line flag to set ":is_enabled" config setting.
  #

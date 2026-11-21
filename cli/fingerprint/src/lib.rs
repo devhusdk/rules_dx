@@ -1,7 +1,5 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::fmt::Write as _;
-
 pub mod finding;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -30,12 +28,12 @@ pub fn ensure_ascii(text: &str) -> String {
         if code < 0x80 {
             out.push(c);
         } else if code <= 0xFFFF {
-            write!(out, "\\u{code:04x}").ok();
+            out.push_str(&format!("\\u{code:04x}"));
         } else {
             let v = code - 0x10000;
             let high = 0xD800 + (v >> 10);
             let low = 0xDC00 + (v & 0x3FF);
-            write!(out, "\\u{high:04x}\\u{low:04x}").ok();
+            out.push_str(&format!("\\u{high:04x}\\u{low:04x}"));
         }
     }
     out

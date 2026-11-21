@@ -14,7 +14,6 @@ cc_test(
         "$(rootpath :marker.txt)",
     ],
     data = [":marker.txt"],
-    flaky = True,
 )
 
 exports_files([

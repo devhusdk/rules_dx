@@ -1,5 +1,3 @@
-use std::fmt::Write as _;
-
 use super::*;
 use crate::tier_base::Tier;
 
@@ -350,7 +348,7 @@ fn security_toml(entries: &[RiskException]) -> String {
             ("reason", &entry.reason),
             ("expires", &entry.expires),
         ] {
-            writeln!(text, "{key} = {value:?}").ok();
+            text.push_str(&format!("{key} = {value:?}\n"));
         }
     }
     text

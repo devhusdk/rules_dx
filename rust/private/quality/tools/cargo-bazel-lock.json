@@ -2,7 +2,7 @@
   "binary_crates": [
     "deadnix 1.3.1"
   ],
-  "checksum": "041bb6098310cbe12b8589ed2052bfa416a2c9acc5ba6c663167839068e6ad60",
+  "checksum": "465e4da1f3a84fe7d644087bde5c43069308b6eefe56a90bc7d84f19382830c2",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -516,6 +516,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -900,6 +901,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -1687,6 +1689,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -1937,6 +1940,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -2005,6 +2009,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -2069,6 +2074,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -2931,6 +2937,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -3360,6 +3367,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -4003,6 +4011,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -4226,6 +4235,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -4469,6 +4479,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -4655,6 +4666,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -4843,6 +4855,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -5132,6 +5145,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -5292,6 +5306,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -5357,6 +5372,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -5442,6 +5458,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -5512,6 +5529,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -5772,6 +5790,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -5904,6 +5923,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -6573,6 +6593,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -6688,6 +6709,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -6811,6 +6833,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -6968,6 +6991,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -7041,6 +7065,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -7201,6 +7226,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -7879,6 +7905,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -8232,6 +8259,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -8292,6 +8320,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -9324,6 +9353,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -9416,6 +9446,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -9470,6 +9501,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -10004,6 +10036,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -10188,6 +10221,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -10414,6 +10448,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -10514,6 +10549,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -10596,6 +10632,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -10689,6 +10726,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -11120,6 +11158,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",

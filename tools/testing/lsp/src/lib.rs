@@ -1,11 +1,6 @@
 //! A small headless LSP client for tests: framing, a reader thread and deadline-based waits.
 
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::cell::RefCell;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -474,6 +469,36 @@ impl Session {
                 seen = log.len();
             }
             self.next_event(what, deadline)?;
+        }
+    }
+
+    /// Waits until the server's stderr contains `needle` and returns the kept stderr.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the operation fails.
+    pub fn wait_stderr(
+        &self,
+        needle: &str,
+        what: &str,
+        deadline: Instant,
+    ) -> Result<String, Error> {
+        loop {
+            self.drain()?;
+            let text = String::from_utf8_lossy(
+                &self.stderr.lock().unwrap_or_else(PoisonError::into_inner),
+            )
+            .into_owned();
+            if text.contains(needle) {
+                return Ok(text);
+            }
+            if Instant::now() >= deadline {
+                return Err(Error::Timeout(format!(
+                    "{what}; stderr: {}",
+                    self.stderr_tail()
+                )));
+            }
+            thread::sleep(Duration::from_millis(25));
         }
     }
 

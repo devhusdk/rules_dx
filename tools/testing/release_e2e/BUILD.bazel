@@ -1,0 +1,26 @@
+load("//deploy:defs.bzl", "github_deploy")
+
+genrule(
+    name = "notes",
+    outs = ["notes.txt"],
+    cmd = "echo 'rules_dx release-e2e fixture asset.' > $@",
+    tags = ["manual"],
+)
+
+github_deploy(
+    name = "a_github",
+    api_compat = "off",
+    artifacts = [":notes"],
+    notes = "none",
+    sign = "required",
+    tag_from_head = True,
+    tags = ["manual"],
+)
+
+github_deploy(
+    name = "b_refuses",
+    api_compat = "off",
+    artifacts = [":notes"],
+    notes = "none",
+    tags = ["manual"],
+)

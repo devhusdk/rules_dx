@@ -1862,6 +1862,7 @@ rust_test(
         "//.github:workflows/release.yml",
         "//.github:workflows/release-cells.yml",
         "//.github:workflows/release-consumer.yml",
+        "//.github:workflows/release-e2e.yml",
         "//.github:workflows/release-tools.yml",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-release.yml",

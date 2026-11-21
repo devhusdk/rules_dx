@@ -202,7 +202,8 @@ jobs:
                 echo
                 echo "Failed on ${remaining[0]}. Resume with the remaining labels:"
                 echo '```'
-                echo "gh workflow run release.yml --ref ${GITHUB_REF_NAME} -f deployables='[${json%,}]'"
+                caller="${GITHUB_WORKFLOW_REF%@*}"
+                echo "gh workflow run ${caller##*/} --ref ${GITHUB_REF_NAME} -f deployables='[${json%,}]'"
                 echo '```'
               fi
             } >> "$GITHUB_STEP_SUMMARY"

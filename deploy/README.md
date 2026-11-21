@@ -674,7 +674,8 @@ github_deploy(
   (`ACTIONS_ID_TOKEN_REQUEST_URL`). `required` fails without either.
 - `registry_deploys`: `crates_deploy` and `maven_deploy` targets published
   in the same release. The release body gets an `## Attestations` section
-  with one `gh attestation verify <file> -R <owner>/<repo>` line for each
+  with one `gh attestation verify <file> -R <owner>/<repo> --signer-workflow
+  devhusdk/rules_dx/.github/workflows/reusable-release.yml` line for each
   `.crate` and each `maven_deploy` file.
 - `attach`: `True` also uploads the `maven_deploy` files as release assets,
   and the `<name>-<version>.crate` of each `crates_deploy`. A live run

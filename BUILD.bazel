@@ -24,6 +24,7 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude gazelle/rust/testdata
 # gazelle:exclude go/tests/fixtures/gotype
 # gazelle:exclude go/private/tools/modfmt
+# gazelle:exclude go/private/tools/gofumpt
 # gazelle:exclude tools/docs/components/fixture
 # gazelle:exclude bcr_test_module/qt_hello
 # gazelle:exclude bcr_test_module/main_in_dep

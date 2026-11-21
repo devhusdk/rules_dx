@@ -55,10 +55,11 @@ The guards check the rules of `docs/design/tests.md`.
 
 - `//tools/testing:determinism_check` builds its patterns twice, each in a fresh output base with `--disk_cache=`, `--remote_cache=` and `--remote_executor=` empty, and compares the two compact execution logs with `dx_testing::exec_log`.
 - With `--kinds` it adds one target per `entry_points` kind of every `<lang>/lang.json`: `bazel query --output=label_kind 'kind(...) except attr(tags, manual, //...)'` lists them, a `cquery` drops those with `IncompatiblePlatformProvider`, and the first label of each kind in sorted order is kept. The builds pass `--skip_incompatible_explicit_targets`.
-- The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run`, passes Bazel with `--bazel`, and runs five shards with `--kinds --shard i/5`. `--shard` keeps the kind targets whose top-level package is every fifth in sorted order. Shard 0 adds `//appimage/...`, shard 1 `//cli/archive/...`, shard 2 `//android/private/packaging/...`, shard 3 `//msix/tests/...`, shard 4 `//deploy/private/...`.
+- The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run`, passes Bazel with `--bazel`, and runs six shards with `--kinds --shard i/6`. `--shard` keeps every sixth top-level package of kind targets. Shards 0, 1, 2, 3 and 5 add `//appimage/...`, `//cli/archive/...`, `//android/private/packaging/...`, `//msix/tests/...` and `//deploy/private/...`.
+- A 40 min step cap under the 45 min job cap keeps a slow shard's log.
+- Flags precede `--`, patterns follow, so `-//pkg/...` excludes.
 - An action is keyed by `<label> <mnemonic> <output path>`. The job fails for an output that differs, for an action in one log only, and for an allowlist line for an action that does not differ or is in neither log.
 - `tools/ci/determinism_allowlist.txt` lists the actions that differ. It only shrinks; `//tools/ci:determinism_allowlist_test` holds the cap.
-- Measured on Linux with warm repository caches: 34 s and 33 s per build, 67 s for both.
 
 ## Analysis scaling
 

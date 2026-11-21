@@ -822,6 +822,7 @@ filegroup(
         "//patches/protoc-gen-validate:module_srcs",
         "//patches/ring:module_srcs",
         "//patches/rules_android:module_srcs",
+        "//patches/rules_apple:module_srcs",
         "//patches/rules_cuda:module_srcs",
         "//patches/rules_d:module_srcs",
         "//patches/rules_dart:module_srcs",

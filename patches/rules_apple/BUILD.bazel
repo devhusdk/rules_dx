@@ -1,0 +1,20 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
+exports_files(["llvm_coverage_map.patch"])
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)
+
+test_suite(
+    name = "llvm_coverage_map_test",
+    tests = ["//apple/tests/fixtures/rules_apple_covmap:llvm_coverage_map_test"],
+)

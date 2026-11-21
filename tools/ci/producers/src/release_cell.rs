@@ -44,6 +44,12 @@ const NATIVE_TOOLS: [Tool; 5] = [
         licenses: &["@dx_thrift//:LICENSE", "@dx_thrift//:NOTICE"],
     },
 ];
+/// The first-party linker wrapper the Windows cells ship for Rust MSVC opt builds.
+const WINDOWS_TOOLS: [Tool; 1] = [Tool {
+    tool: "msvc-link",
+    label: "//rust/private/tools/msvc_paths:msvc_link",
+    licenses: &[],
+}];
 /// The one cell that writes the `dx-<tool>-LICENSE` assets of the native tools, pcov and julia-internal.
 const LICENSE_CELL: &str = "dx-linux-x86_64";
 /// A tool or shared library a cell ships: its asset stem, its label and the upstream licence files of its licence asset, empty for first-party code.
@@ -287,6 +293,16 @@ fn tool_asset_name(tool: &str, cell: &str) -> String {
     format!("dx-{tool}-{}", cell.strip_prefix("dx-").unwrap_or(cell))
 }
 
+/// The native tools a cell ships: NATIVE_TOOLS, plus WINDOWS_TOOLS on a Windows cell.
+fn cell_tools(cell: &str) -> Vec<&'static Tool> {
+    let windows: &'static [Tool] = if cell.starts_with("dx-windows-") {
+        &WINDOWS_TOOLS
+    } else {
+        &[]
+    };
+    NATIVE_TOOLS.iter().chain(windows).collect()
+}
+
 /// The shared libraries a cell ships.
 fn libraries(cell: &str) -> &'static [Tool] {
     match cell {
@@ -379,7 +395,7 @@ fn rebuild_cell(
     };
     let no_cache = ["--disk_cache=", "--remote_cache="];
     let mut rebuilt_targets = vec![format!("{RELEASE}:dx_host_cell"), LAUNCHER.to_owned()];
-    rebuilt_targets.extend(NATIVE_TOOLS.iter().map(|tool| tool.label.to_owned()));
+    rebuilt_targets.extend(cell_tools(&env.cell).iter().map(|tool| tool.label.to_owned()));
     rebuilt_targets.extend(
         libraries(&env.cell)
             .iter()
@@ -405,7 +421,7 @@ fn rebuild_cell(
     if !same_bytes(&out.join(launcher_asset), &rebuilt_launcher)? {
         return Err(format!("{launcher_asset} differs between two builds"));
     }
-    for tool in &NATIVE_TOOLS {
+    for tool in cell_tools(&env.cell) {
         let asset = tool_asset_name(tool.tool, &env.cell);
         let rebuilt = env.temp.join(format!("rebuilt-{asset}"));
         release_copy(
@@ -462,7 +478,7 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
         format!("{RELEASE}:dx_host_cell_sbom"),
     ];
     let mut targets = vec!["//cli/cli:dx", LAUNCHER];
-    targets.extend(NATIVE_TOOLS.iter().map(|tool| tool.label));
+    targets.extend(cell_tools(&env.cell).iter().map(|tool| tool.label));
     targets.extend(libraries(&env.cell).iter().map(|library| library.label));
     targets.extend(release_targets.iter().map(String::as_str));
     main.build(&[], &targets)?;
@@ -488,7 +504,7 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
         &main.file(&root, &[], LAUNCHER)?,
         &out.join(&launcher_asset),
     )?;
-    for tool in &NATIVE_TOOLS {
+    for tool in cell_tools(&env.cell) {
         release_copy(
             &env.cell,
             &main.file(&root, &[], tool.label)?,
@@ -614,8 +630,8 @@ pub fn cell(args: &[String]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_macos, libraries, library_asset_name, library_licenses, native_licenses, source_file,
-        symbols_name, tool_asset_name, NATIVE_TOOLS,
+        cell_tools, is_macos, libraries, library_asset_name, library_licenses, native_licenses,
+        source_file, symbols_name, tool_asset_name, NATIVE_TOOLS,
     };
     use std::path::Path;
 
@@ -727,6 +743,30 @@ mod tests {
             tool_asset_name("ldoc-main", "dx-windows-arm64"),
             "dx-ldoc-main-windows-arm64"
         );
+    }
+
+    #[test]
+    fn only_windows_cells_ship_msvc_link() {
+        let tools = |cell| {
+            cell_tools(cell)
+                .iter()
+                .map(|tool| tool.tool)
+                .collect::<Vec<_>>()
+        };
+        for cell in ["dx-windows-arm64", "dx-windows-x86_64"] {
+            assert_eq!(
+                tools(cell),
+                ["capnp", "flatc", "ldoc-main", "runtime", "thrift", "msvc-link"],
+                "{cell}"
+            );
+        }
+        for cell in ["dx-linux-arm64", "dx-linux-x86_64", "dx-macos-arm64"] {
+            assert_eq!(
+                tools(cell),
+                ["capnp", "flatc", "ldoc-main", "runtime", "thrift"],
+                "{cell}"
+            );
+        }
     }
 
     #[test]

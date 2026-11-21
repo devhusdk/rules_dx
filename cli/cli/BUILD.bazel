@@ -198,6 +198,7 @@ rust_binary(
     ] + select({
         "@platforms//os:windows": [],
         "//conditions:default": [
+            "//appimage/private/tools/packer:appimage_packer_lib",
             "//apple/private/tools/ops",
             "//cli/os_sys:dx_os_sys",
         ],

@@ -121,6 +121,24 @@ pub fn java_binary_only(lines: &BTreeSet<String>) -> bool {
         .all(|line| line.trim_start_matches('_').starts_with("java_binary "))
 }
 
+/// Drops from `found` each `java_binary` whose `sources` cquery output, for its label, compiles no
+/// rules_dx source.
+pub fn drop_jar_launchers(
+    found: &mut BTreeMap<String, BTreeSet<String>>,
+    mut sources: impl FnMut(&str) -> Result<String, String>,
+) -> Result<(), String> {
+    let mut launchers = Vec::new();
+    for (label, lines) in found.iter() {
+        if java_binary_only(lines) && !compiles_rules_dx_sources(&sources(label)?) {
+            launchers.push(label.clone());
+        }
+    }
+    for label in launchers {
+        found.remove(&label);
+    }
+    Ok(())
+}
+
 /// The problems: compiled binaries not allowlisted, and allowlisted labels no longer compiled.
 pub fn problems(
     found: &BTreeMap<String, BTreeSet<String>>,
@@ -168,6 +186,18 @@ pub fn consumer_label(label: &str, fixtures: &str) -> String {
         format!("@@rules_dx+//{rest}")
     } else if let Some(rest) = label.strip_prefix("@@+") {
         format!("@@rules_dx++{rest}")
+    } else {
+        label.to_owned()
+    }
+}
+
+/// `label` as rules_dx as the root module names it; the inverse of [`consumer_label`] for rules_dx
+/// labels.
+pub fn root_label(label: &str) -> String {
+    if let Some(rest) = label.strip_prefix("@@rules_dx+//") {
+        format!("@@//{rest}")
+    } else if let Some(rest) = label.strip_prefix("@@rules_dx++") {
+        format!("@@+{rest}")
     } else {
         label.to_owned()
     }
@@ -480,6 +510,72 @@ mod tests {
         assert!(compiles_rules_dx_sources(
             "@@rules_dx+//java/private/quality/tools/javac_check:javac_check_lib (abc)\n"
         ));
+    }
+
+    fn launchers() -> BTreeMap<String, BTreeSet<String>> {
+        BTreeMap::from([
+            (
+                "@@rules_dx+//t:detekt".to_owned(),
+                BTreeSet::from(["java_binary rule @@rules_dx+//t:detekt (abc)".to_owned()]),
+            ),
+            (
+                "@@rules_dx+//t:javac_check".to_owned(),
+                BTreeSet::from(["java_binary rule @@rules_dx+//t:javac_check (abc)".to_owned()]),
+            ),
+            (
+                "@@rules_dx+//cli/cli:dx".to_owned(),
+                BTreeSet::from(["rust_binary rule @@rules_dx+//cli/cli:dx (abc)".to_owned()]),
+            ),
+        ])
+    }
+
+    #[test]
+    fn drop_jar_launchers_keeps_binaries_with_rules_dx_sources() {
+        let mut found = launchers();
+        let mut asked = Vec::new();
+        drop_jar_launchers(&mut found, |label| {
+            asked.push(label.to_owned());
+            Ok(if label.ends_with(":javac_check") {
+                "@@rules_dx+//t:javac_check_lib (abc)\n".to_owned()
+            } else {
+                "@@rules_java+//toolchains:singlejar (exec)\n".to_owned()
+            })
+        })
+        .expect("no cquery error");
+        assert_eq!(
+            found.keys().collect::<Vec<_>>(),
+            ["@@rules_dx+//cli/cli:dx", "@@rules_dx+//t:javac_check"]
+        );
+        assert_eq!(
+            asked,
+            ["@@rules_dx+//t:detekt", "@@rules_dx+//t:javac_check"]
+        );
+    }
+
+    #[test]
+    fn drop_jar_launchers_passes_up_a_cquery_error() {
+        let mut found = launchers();
+        assert_eq!(
+            drop_jar_launchers(&mut found, |_| Err("cquery failed".to_owned())),
+            Err("cquery failed".to_owned())
+        );
+        assert_eq!(found, launchers());
+    }
+
+    #[test]
+    fn root_label_inverts_consumer_label() {
+        let fixtures = "+_repo_rules+dx_api_fixtures";
+        for root in [
+            "@@//java/private/quality/tools/kotlinc_check:kotlinc_check",
+            "@@+dx_prebuilt+dx_prebuilt//:javac_check",
+            "@@rules_java+//toolchains:singlejar",
+        ] {
+            assert_eq!(root_label(&consumer_label(root, fixtures)), root);
+        }
+        assert_eq!(
+            root_label("@@rules_dx++dx_prebuilt+dx_prebuilt//:javac_check"),
+            "@@+dx_prebuilt+dx_prebuilt//:javac_check"
+        );
     }
 
     #[test]

@@ -95,6 +95,19 @@ fn read_rust() -> BTreeMap<String, String> {
         .unwrap_or_else(|error| panic!("DX_RUST_JSON: {error}"))
 }
 
+/// The `BUILD.bazel` path of the package `label` names.
+fn build_file(label: &str) -> String {
+    let package = dx_families::repo_relative(label)
+        .split(':')
+        .next()
+        .unwrap_or_default();
+    if package.is_empty() {
+        "BUILD.bazel".to_owned()
+    } else {
+        format!("{package}/BUILD.bazel")
+    }
+}
+
 fn texts(entries: &[(&str, &str)]) -> BTreeMap<String, String> {
     entries
         .iter()
@@ -116,6 +129,30 @@ fn the_tree_spells_no_command_label() {
         "inline @rules_dx command labels; take them from dx_families:\n{}",
         found.into_iter().collect::<Vec<_>>().join("\n")
     );
+}
+
+#[test]
+fn every_command_label_names_a_package() {
+    let key = std::env::var("DX_SOURCES_JSON").expect("DX_SOURCES_JSON is set by the test");
+    let path =
+        dx_testing::rlocation(&key).unwrap_or_else(|error| panic!("DX_SOURCES_JSON: {error}"));
+    let sources: BTreeMap<String, String> = serde_json::from_str(&dx_testing::read_text(&path))
+        .unwrap_or_else(|error| panic!("DX_SOURCES_JSON: {error}"));
+    let missing: BTreeSet<&str> = dx_families::command_labels()
+        .filter(|label| !sources.contains_key(&build_file(label)))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "dx_families command labels name packages with no BUILD.bazel:\n{}",
+        missing.into_iter().collect::<Vec<_>>().join("\n")
+    );
+}
+
+#[test]
+fn build_file_names_the_package_build_file() {
+    assert_eq!(build_file(dx_families::DX), "BUILD.bazel");
+    assert_eq!(build_file("@rules_dx//dx:env"), "dx/BUILD.bazel");
+    assert_eq!(build_file("@rules_dx//dx/x"), "dx/x/BUILD.bazel");
 }
 
 #[test]

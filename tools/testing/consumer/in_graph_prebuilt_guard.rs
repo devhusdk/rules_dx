@@ -21,8 +21,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use prebuilt_guard::{
-    allowlist, command_roots, compiled_binaries, consumer_line, guard_aspects, resolver_roots,
-    stale, unlisted, wrapper_build, wrapper_bzl,
+    allowlist, command_roots, compiled_binaries, consumer_label, consumer_line, drop_jar_launchers,
+    guard_aspects, jvm_sources_query, resolver_roots, root_label, stale, unlisted, wrapper_build,
+    wrapper_bzl,
 };
 
 const ROOTS_REPO: &str = "dx_guard_roots";
@@ -139,17 +140,8 @@ fn check(bazel_bin: &str, workspace: &Path, out: &Path, langs: Option<&str>) -> 
         );
     }
     let inject = format!("--inject_repository={ROOTS_REPO}={}", roots.display());
-    let mut found_all = BTreeMap::new();
-    let mut problems = Vec::new();
-    for lang in &langs {
-        let mut roots = vec![
-            format!("@{ROOTS_REPO}//{lang}:check"),
-            format!("@{ROOTS_REPO}//{lang}:docs"),
-        ];
-        roots.extend(command_roots("", &[*lang]));
-        roots.extend(resolver_roots(&[*lang]));
-        let query = format!("deps({})", roots.join(" + "));
-        let run = bazel(
+    let cquery = |output: &str, query: &str| {
+        bazel(
             bazel_bin,
             workspace,
             &args(&[
@@ -162,10 +154,22 @@ fn check(bazel_bin: &str, workspace: &Path, out: &Path, langs: Option<&str>) -> 
                 "--nocheck_bzl_visibility",
                 "--//cli/prebuilt:guard_view",
                 &inject,
-                "--output=label_kind",
-                &query,
+                output,
+                query,
             ]),
-        )?;
+        )
+    };
+    let mut found_all = BTreeMap::new();
+    let mut problems = Vec::new();
+    for lang in &langs {
+        let mut roots = vec![
+            format!("@{ROOTS_REPO}//{lang}:check"),
+            format!("@{ROOTS_REPO}//{lang}:docs"),
+        ];
+        roots.extend(command_roots("", &[*lang]));
+        roots.extend(resolver_roots(&[*lang]));
+        let query = format!("deps({})", roots.join(" + "));
+        let run = cquery("--output=label_kind", &query)?;
         for name in ["check", "docs"] {
             let root = format!("//{lang}:{name}");
             if !run.lines().any(|line| {
@@ -178,9 +182,18 @@ fn check(bazel_bin: &str, workspace: &Path, out: &Path, langs: Option<&str>) -> 
         }
         let mapped: String = run
             .lines()
-            .map(|line| consumer_line(line, &fixtures) + "\n")
+            .map(|line| format!("{}\n", consumer_line(line, &fixtures)))
             .collect();
-        let found = compiled_binaries(&mapped);
+        let mut found = compiled_binaries(&mapped);
+        drop_jar_launchers(&mut found, |label| {
+            Ok(
+                cquery("--output=label", &jvm_sources_query(&root_label(label)))?
+                    .lines()
+                    .filter_map(|line| line.split_whitespace().next())
+                    .map(|label| format!("{}\n", consumer_label(label, &fixtures)))
+                    .collect(),
+            )
+        })?;
         problems.extend(
             unlisted(&found, &list.labels_for(&[lang]))
                 .into_iter()

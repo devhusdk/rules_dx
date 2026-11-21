@@ -7472,6 +7472,7 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//rust:wasmtime` | `alias` |
 | `@rules_dx//thrift:thrift_compiler` | `alias` |
 | `@rules_dx//zig:kcov_build` | `config_setting` |
+| `@rules_dx//zig:sancov_build` | `config_setting` |
 
 ## Runnable targets
 

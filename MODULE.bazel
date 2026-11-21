@@ -20,6 +20,7 @@ single_version_override(
         "//patches/rules_rust:cargo_build_script_apple_deployment_target.patch",
         "//patches/rules_rust:windows_exec_foreign_target_cc_linker.patch",
         "//patches/rules_rust:crate_universe_module_labels.patch",
+        "//patches/rules_rust:rust_analyzer_rustc_lib.patch",
     ],
     version = "0.75.0",
 )

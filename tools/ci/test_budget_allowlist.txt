@@ -6,7 +6,7 @@ android/tests/fixtures/adopt_android/app/BUILD.bazel no-size 3
 android/tests/fixtures/adopt_android/native/BUILD.bazel no-size 2
 android/tests/fixtures/consumer_android/BUILD.bazel no-size 2
 android/tests/fixtures/native_lib/BUILD.bazel no-size 3
-android/tests/fixtures/rust_apk/BUILD.bazel no-size 26
+android/tests/fixtures/rust_apk/BUILD.bazel no-size 18
 ansible/tests/BUILD.bazel no-size 3
 ansible/tests/layout_tests.bzl no-size 1
 ansible/tests/lock_tests.bzl no-size 1

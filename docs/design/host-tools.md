@@ -25,6 +25,7 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 - `coreutils(ctx)` from `//core/coreutils:defs.bzl` returns `binary`, `files` and `path`. A rule adds `files` to its inputs and sets `PATH` to `path`.
 - `path` is a directory of applets. `COREUTILS_APPLETS` in `core/coreutils/defs.bzl` is the only list of them. Add an applet there when an upstream script needs it.
 - Coreutils serves upstream `/bin/sh` scripts only. rules_dx code never calls an applet to do work it can do in Rust or Starlark.
+- Starlark cannot copy a file; a rule that needs a real copy calls `coreutils_copy`.
 - `grep`, `sed`, `awk`, `tar`, `gzip`, `find` and `xargs` are not coreutils and are not pinned. Code that needs them is rewritten in Rust.
 
 ## Actions

@@ -2,7 +2,7 @@
 
 load("//core:resources.bzl", "dx_test_resource_tags")
 load("//core:rlocation.bzl", "rlocation_path")
-load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "applet_file_name", "coreutils")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils_copy")
 load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "quality_sources_info", "single_target")
 load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
@@ -156,16 +156,7 @@ def dx_symlink_executable(ctx, target_file, directory = ""):
     if not directory:
         ctx.actions.symlink(output = link, target_file = target_file, is_executable = True)
         return link
-    tools = coreutils(ctx)
-    ctx.actions.run(
-        mnemonic = "DxCopyExecutable",
-        executable = tools.path + "/" + applet_file_name("cp", tools.binary.basename),
-        arguments = [target_file.path, link.path],
-        inputs = [target_file],
-        tools = tools.files,
-        outputs = [link],
-        env = {"PATH": tools.path},
-    )
+    coreutils_copy(ctx, target_file, link, "DxCopyExecutable")
     return link
 
 def dx_upstream(ctx):

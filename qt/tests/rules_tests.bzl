@@ -492,7 +492,7 @@ def _moc_test_impl(ctx):
     asserts.true(env, len([arg for arg in argv if arg.startswith("-I") and arg.endswith("/include/QtCore")]) > 0, str(argv))
     asserts.true(env, argv[-1].endswith("qt/tests/fixtures/widgets/ticker.h"), str(argv))
     outputs = [f.basename for action in analysistest.target_actions(env) if action.mnemonic == "QtMoc" for f in action.outputs.to_list()]
-    asserts.equals(env, ["moc_fixtures_ticker.cpp", "moc_fixtures_ticker.cpp.json"], sorted(outputs))
+    asserts.equals(env, ["moc_fixtures_widgets_ticker.cpp", "moc_fixtures_widgets_ticker.cpp.json"], sorted(outputs))
     return analysistest.end(env)
 
 _moc_test = analysistest.make(_moc_test_impl)

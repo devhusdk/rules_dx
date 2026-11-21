@@ -2,7 +2,7 @@
 
 use crate::api_compat::{
     ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir,
-    fetch, latest_published, previous_git_tag, workspace_dir,
+    fetch, fetch_to, latest_published, previous_git_tag, workspace_dir,
 };
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
@@ -40,6 +40,27 @@ pub enum CratesError {
     TempDir(io::Error),
     BaselineExport(ApiCompatError),
     ApiCompat(ApiCompatError),
+    /// The registry has no `version` of `name`.
+    NotPublished {
+        name: String,
+        version: String,
+    },
+    ChecksumMismatch {
+        file_name: String,
+        expected: String,
+        got: String,
+    },
+    /// A member of the published crate is not a pinned source file.
+    ForeignMember {
+        file_name: String,
+        member: String,
+        reason: &'static str,
+    },
+    Fetch(ApiCompatError),
+    InvalidCrate {
+        file_name: String,
+        source: io::Error,
+    },
 }
 
 impl fmt::Display for CratesError {
@@ -79,6 +100,32 @@ impl fmt::Display for CratesError {
             }
             Self::BaselineExport(source) => write!(f, "crates_deploy: api compat: {source}"),
             Self::ApiCompat(source) => write!(f, "{source}"),
+            Self::NotPublished { name, version } => {
+                write!(f, "crates_deploy: crates.io does not list {name} {version}")
+            }
+            Self::ChecksumMismatch {
+                file_name,
+                expected,
+                got,
+            } => write!(
+                f,
+                "crates_deploy: {file_name} has sha256 {got}, the index lists {expected}; refusing"
+            ),
+            Self::ForeignMember {
+                file_name,
+                member,
+                reason,
+            } => write!(
+                f,
+                "crates_deploy: {file_name} member {member} {reason}; refusing"
+            ),
+            Self::Fetch(source) => write!(f, "crates_deploy: {source}"),
+            Self::InvalidCrate { file_name, source } => {
+                write!(
+                    f,
+                    "crates_deploy: {file_name} is not a valid crate: {source}"
+                )
+            }
         }
     }
 }
@@ -90,12 +137,18 @@ impl std::error::Error for CratesError {
             Self::Stage(source) => Some(source),
             Self::Io(source) => Some(source),
             Self::Run(source) => Some(source),
-            Self::BaselineExport(source) | Self::ApiCompat(source) => Some(source),
+            Self::BaselineExport(source) | Self::ApiCompat(source) | Self::Fetch(source) => {
+                Some(source)
+            }
+            Self::InvalidCrate { source, .. } => Some(source),
             Self::NoManifest
             | Self::StagedNoManifest
             | Self::NameMismatch { .. }
             | Self::Refused(_)
-            | Self::CargoFailed { .. } => None,
+            | Self::CargoFailed { .. }
+            | Self::NotPublished { .. }
+            | Self::ChecksumMismatch { .. }
+            | Self::ForeignMember { .. } => None,
         }
     }
 }
@@ -365,11 +418,158 @@ fn index_path(name: &str) -> String {
     }
 }
 
+/// The crates.io sparse index.
+pub(crate) const CRATES_INDEX: &str = "https://index.crates.io";
+/// The crates.io download host.
+pub(crate) const CRATES_DL: &str = "https://static.crates.io/crates";
+/// The byte cap on one index entry or one downloaded `.crate`.
+const CRATES_FETCH_LIMIT: u64 = 64 << 20;
+
 /// Returns the highest published version below `next`; None when there is none.
 fn published_below(crate_name: &str, next: &str) -> Result<Option<String>, ApiCompatError> {
-    let url = format!("https://index.crates.io/{}", index_path(crate_name));
-    Ok(fetch(&url, 64 << 20)?
+    let url = format!("{CRATES_INDEX}/{}", index_path(crate_name));
+    Ok(fetch(&url, CRATES_FETCH_LIMIT)?
         .and_then(|body| latest_published(&String::from_utf8_lossy(&body), next)))
+}
+
+/// Downloads the published `<name>-<version>.crate` into `dest_dir` and returns its path.
+///
+/// The file must match the sha256 `cksum` of the sparse index at `index`, and every member
+/// must be one of the pinned `files`: `Cargo.toml.orig` equals the pinned manifest, the
+/// cargo-generated `Cargo.toml`, `Cargo.lock` and `.cargo_vcs_info.json` are skipped, and
+/// every other member equals the pinned file at the same package-relative path.
+pub(crate) fn fetch_published_crate(
+    index: &str,
+    dl: &str,
+    name: &str,
+    version: &str,
+    files: &[std::path::PathBuf],
+    dest_dir: &Path,
+) -> Result<std::path::PathBuf, CratesError> {
+    let mapped = crates_package_paths(files).map_err(CratesError::Paths)?;
+    let not_published = || CratesError::NotPublished {
+        name: name.to_owned(),
+        version: version.to_owned(),
+    };
+    let index_url = format!("{index}/{}", index_path(name));
+    let body = fetch(&index_url, CRATES_FETCH_LIMIT)
+        .map_err(CratesError::Fetch)?
+        .unwrap_or_default();
+    let expected = String::from_utf8_lossy(&body)
+        .lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .find(|entry| entry.get("vers").and_then(serde_json::Value::as_str) == Some(version))
+        .and_then(|entry| {
+            entry
+                .get("cksum")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_ascii_lowercase)
+        })
+        .ok_or_else(not_published)?;
+    path_io::create_dir_all(dest_dir).map_err(CratesError::Io)?;
+    let file_name = format!("{name}-{version}.crate");
+    let dest = dest_dir.join(&file_name);
+    let checked = fetch_to(
+        &format!("{dl}/{name}/{version}/download"),
+        &dest,
+        CRATES_FETCH_LIMIT,
+    )
+    .map_err(CratesError::Fetch)
+    .and_then(|found| if found { Ok(()) } else { Err(not_published()) })
+    .and_then(|()| {
+        let got =
+            dx_digest::sha256_file_hex(&dest).map_err(|source| CratesError::InvalidCrate {
+                file_name: file_name.clone(),
+                source,
+            })?;
+        if got == expected {
+            Ok(())
+        } else {
+            Err(CratesError::ChecksumMismatch {
+                file_name: file_name.clone(),
+                expected,
+                got,
+            })
+        }
+    })
+    .and_then(|()| check_crate_members(&dest, &file_name, &format!("{name}-{version}/"), &mapped));
+    match checked {
+        Ok(()) => Ok(dest),
+        Err(error) => {
+            drop(std::fs::remove_file(&dest));
+            Err(error)
+        }
+    }
+}
+
+/// Checks that every member of the `.crate` at `path` sits under `prefix` and is a pinned file.
+fn check_crate_members(
+    path: &Path,
+    file_name: &str,
+    prefix: &str,
+    mapped: &[(std::path::PathBuf, String)],
+) -> Result<(), CratesError> {
+    let invalid = |source| CratesError::InvalidCrate {
+        file_name: file_name.to_owned(),
+        source,
+    };
+    let mut pinned = std::collections::HashMap::new();
+    for (src, rel) in mapped {
+        let digest = dx_digest::sha256_file_hex(src).map_err(CratesError::Paths)?;
+        let key = if rel == manifest_name() {
+            format!("{}.orig", manifest_name())
+        } else {
+            rel.clone()
+        };
+        pinned.insert(key, digest);
+    }
+    let generated = [manifest_name(), "Cargo.lock", ".cargo_vcs_info.json"];
+    let open = std::fs::File::open(path).map_err(invalid)?;
+    let mut foreign: Option<(String, &'static str)> = None;
+    dx_archive::visit(
+        open,
+        dx_archive::Format::TarGz,
+        dx_archive::Limits::default(),
+        |member, kind, body| {
+            if foreign.is_some() {
+                return Ok(());
+            }
+            let Some(rel) = member.strip_prefix(prefix) else {
+                foreign = Some((member.to_owned(), "is outside the crate directory"));
+                return Ok(());
+            };
+            match kind {
+                dx_archive::EntryKind::Dir => return Ok(()),
+                dx_archive::EntryKind::File => {}
+                dx_archive::EntryKind::Symlink
+                | dx_archive::EntryKind::HardLink
+                | dx_archive::EntryKind::Other => {
+                    foreign = Some((member.to_owned(), "is not a regular file"));
+                    return Ok(());
+                }
+            }
+            if generated.contains(&rel) {
+                return Ok(());
+            }
+            match pinned.get(rel) {
+                None => foreign = Some((member.to_owned(), "is not a pinned source file")),
+                Some(want) if *want != dx_digest::sha256_reader_hex(body)? => {
+                    foreign = Some((member.to_owned(), "differs from the pinned source file"));
+                }
+                Some(_) => {}
+            }
+            Ok(())
+        },
+    )
+    .map_err(invalid)?;
+    match foreign {
+        Some((member, reason)) => Err(CratesError::ForeignMember {
+            file_name: file_name.to_owned(),
+            member,
+            reason,
+        }),
+        None => Ok(()),
+    }
 }
 
 /// Returns the `--- failure` lines of cargo-semver-checks output.
@@ -1210,5 +1410,143 @@ mod tests {
                 "enum_variant_added: variant added"
             ]
         );
+    }
+
+    /// Packs `members` (paths relative to `crates_demo-0.0.0/`) the way cargo packs a `.crate`.
+    #[cfg(unix)]
+    fn published_crate(members: &[(&str, &str)]) -> Vec<u8> {
+        let mut tar = dx_archive::TarWriter::new();
+        for (rel, body) in members {
+            tar.add_file(&format!("crates_demo-0.0.0/{rel}"), body.as_bytes(), 0o644)
+                .expect("append");
+        }
+        tar.finish().expect("finish tar.gz")
+    }
+
+    /// Serves `body` as crates_demo 0.0.0 with index cksum `cksum` (its own sha256 when None).
+    #[cfg(unix)]
+    fn crates_registry(body: Vec<u8>, index_version: &str, cksum: Option<&str>) -> String {
+        let cksum = cksum.map_or_else(|| dx_digest::sha256_hex(&body), str::to_owned);
+        static_registry(|_| {
+            vec![
+                (
+                    format!("/index/{}", index_path("crates_demo")),
+                    format!(
+                        "{{\"name\":\"crates_demo\",\"vers\":\"{index_version}\",\"cksum\":\"{cksum}\"}}\n"
+                    )
+                    .into_bytes(),
+                ),
+                ("/dl/crates_demo/0.0.0/download".to_owned(), body),
+            ]
+        })
+    }
+
+    #[cfg(unix)]
+    fn fetch_demo(
+        registry: &str,
+        files: &[std::path::PathBuf],
+        dest: &Path,
+    ) -> Result<std::path::PathBuf, CratesError> {
+        fetch_published_crate(
+            &format!("{registry}/index"),
+            &format!("{registry}/dl"),
+            "crates_demo",
+            "0.0.0",
+            files,
+            dest,
+        )
+    }
+
+    #[cfg(unix)]
+    fn pinned_members(manifest: &str) -> Vec<(&str, &str)> {
+        vec![
+            (
+                "Cargo.toml",
+                "[package]\nname = \"crates_demo\"\nversion = \"0.0.0\"\nedition = \"2021\"\n# normalized\n",
+            ),
+            ("Cargo.toml.orig", manifest),
+            ("Cargo.lock", "version = 4\n"),
+            (".cargo_vcs_info.json", "{}\n"),
+            ("src/lib.rs", "pub mod parser;\npub mod lexer;\n"),
+            ("src/parser/mod.rs", "pub fn parse() -> u8 { 1 }\n"),
+        ]
+    }
+
+    #[cfg(unix)]
+    const DEMO_MANIFEST: &str =
+        "[package]\nname = \"crates_demo\"\nversion = \"0.0.0\"\nedition = \"2021\"\n";
+
+    #[cfg(unix)]
+    #[test]
+    fn fetch_published_crate_keeps_a_crate_of_pinned_sources() {
+        let scratch = scratch_dir();
+        let files = nested_crate(&scratch.path().join("in/pkg"));
+        let body = published_crate(&pinned_members(DEMO_MANIFEST));
+        let registry = crates_registry(body.clone(), "0.0.0", None);
+        let dest = scratch.path().join("out");
+        let path = fetch_demo(&registry, &files, &dest).expect("fetched");
+        assert_eq!(path, dest.join("crates_demo-0.0.0.crate"));
+        assert_eq!(std::fs::read(&path).expect("crate"), body);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn fetch_published_crate_refuses_a_checksum_mismatch() {
+        let scratch = scratch_dir();
+        let files = nested_crate(&scratch.path().join("in/pkg"));
+        let body = published_crate(&pinned_members(DEMO_MANIFEST));
+        let registry = crates_registry(body, "0.0.0", Some(&"0".repeat(64)));
+        let dest = scratch.path().join("out");
+        let error = fetch_demo(&registry, &files, &dest).expect_err("mismatch");
+        assert!(
+            matches!(error, CratesError::ChecksumMismatch { .. }),
+            "{error}"
+        );
+        assert!(!dest.join("crates_demo-0.0.0.crate").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn fetch_published_crate_refuses_a_version_missing_from_the_index() {
+        let scratch = scratch_dir();
+        let files = nested_crate(&scratch.path().join("in/pkg"));
+        let body = published_crate(&pinned_members(DEMO_MANIFEST));
+        let registry = crates_registry(body, "0.0.1", None);
+        let error =
+            fetch_demo(&registry, &files, &scratch.path().join("out")).expect_err("missing");
+        assert!(matches!(error, CratesError::NotPublished { .. }), "{error}");
+        assert!(error.to_string().contains("crates_demo 0.0.0"), "{error}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn fetch_published_crate_refuses_an_extra_member() {
+        let scratch = scratch_dir();
+        let files = nested_crate(&scratch.path().join("in/pkg"));
+        let mut members = pinned_members(DEMO_MANIFEST);
+        members.push(("build.rs", "fn main() {}\n"));
+        let registry = crates_registry(published_crate(&members), "0.0.0", None);
+        let error = fetch_demo(&registry, &files, &scratch.path().join("out")).expect_err("extra");
+        let CratesError::ForeignMember { member, reason, .. } = &error else {
+            panic!("{error}");
+        };
+        assert_eq!(member, "crates_demo-0.0.0/build.rs");
+        assert_eq!(*reason, "is not a pinned source file");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn fetch_published_crate_refuses_a_changed_manifest() {
+        let scratch = scratch_dir();
+        let files = nested_crate(&scratch.path().join("in/pkg"));
+        let changed = format!("{DEMO_MANIFEST}build = \"build.rs\"\n");
+        let registry = crates_registry(published_crate(&pinned_members(&changed)), "0.0.0", None);
+        let error =
+            fetch_demo(&registry, &files, &scratch.path().join("out")).expect_err("changed");
+        let CratesError::ForeignMember { member, reason, .. } = &error else {
+            panic!("{error}");
+        };
+        assert_eq!(member, "crates_demo-0.0.0/Cargo.toml.orig");
+        assert_eq!(*reason, "differs from the pinned source file");
     }
 }

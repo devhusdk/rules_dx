@@ -1542,10 +1542,16 @@ GitHub identity for an upload token at `https://pypi.org/_/oidc/mint-token`,
 or `https://test.pypi.org/_/oidc/mint-token` for `test.pypi.org`. Any other
 registry needs `PYPI_API_TOKEN`.
 
-When the identity variables are set, the run first signs the staged files
-with the `pypi-attestations` pinned in
+Trusted publishing needs the upload step in a workflow file of the
+publishing repository. A release through the rules_dx
+`reusable-release.yml` sets `PYPI_API_TOKEN` and uploads without
+attestations.
+
+A trusted-publishing run first signs the staged files with the
+`pypi-attestations` pinned in
 `core/quality/tools/python/pypi_attestations/uv.lock`.
 It passes the `.publish.attestation` files to `twine upload --attestations`.
+A `PYPI_API_TOKEN` upload is not signed.
 
 The live run does not write `<name>-wheelhouse/` and does not check file
 names. It runs `twine check --strict`, then
@@ -1566,6 +1572,9 @@ A live run refuses, with exit code 1, when:
 
 - `PYPI_PUBLISH_APPROVED=1` is missing.
 - Neither `PYPI_API_TOKEN` nor a trusted-publisher identity is set.
+- Trusted publishing runs from a reusable workflow of another repository:
+  the `job_workflow_ref` claim names a repository other than the
+  `repository` claim.
 - It would sign on a windows_arm64 execution platform, where signing is
   unavailable.
 

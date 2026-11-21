@@ -3287,7 +3287,15 @@ nested_repository_cache.set(
     name = "nested_cache_release",
     list = "//tools/testing/nested_cache:release.txt",
 )
-use_repo(nested_repository_cache, "nested_cache_adopt_polyglot", "nested_cache_apple", "nested_cache_harness", "nested_cache_release")
+nested_repository_cache.set(
+    name = "nested_cache_go_prebuilt_guard",
+    list = "//tools/testing/nested_cache:go_prebuilt_guard.txt",
+)
+nested_repository_cache.set(
+    name = "nested_cache_java_prebuilt_guard",
+    list = "//tools/testing/nested_cache:java_prebuilt_guard.txt",
+)
+use_repo(nested_repository_cache, "nested_cache_adopt_polyglot", "nested_cache_apple", "nested_cache_go_prebuilt_guard", "nested_cache_harness", "nested_cache_java_prebuilt_guard", "nested_cache_release")
 
 _fixture_repo(
     name = "shared_consumer",

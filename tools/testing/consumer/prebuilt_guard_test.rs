@@ -210,14 +210,23 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     );
     let case = Case::languages_consumer(&format!("{}_prebuilt_guard", langs[0]), &langs, &extra)
         .unwrap_or_else(|error| panic!("{error}"));
-    let targets = case.bazel(&[
-        "query",
-        "--color=no",
-        "--curses=no",
-        "--nocheck_bzl_visibility",
-        "--output=label",
-        "kind(rule, //...) except attr(tags, \"\\bmanual\\b\", //...)",
-    ]);
+    case.use_lock(&format!("{}_prebuilt_guard", langs[0]));
+    let applets = std::path::absolute(&dx_testing::env_files("DX_COREUTILS")[0])
+        .unwrap_or_else(|error| panic!("DX_COREUTILS: {error}"));
+    let applets = applets.parent().expect("an applet has a directory");
+    let applets = applets.to_string_lossy();
+    let path_env = [("PATH", applets.as_ref())];
+    let targets = case.bazel_with(
+        &[
+            "query",
+            "--color=no",
+            "--curses=no",
+            "--nocheck_bzl_visibility",
+            "--output=label",
+            "kind(rule, //...) except attr(tags, \"\\bmanual\\b\", //...)",
+        ],
+        &path_env,
+    );
     assert!(
         targets.status.success(),
         "bazel query: {}",
@@ -257,16 +266,19 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         &target_guard_build(&target_roots),
     );
     let query = format!("deps({})", roots.join(" + "));
-    let run = case.bazel(&[
-        "cquery",
-        "--color=no",
-        "--curses=no",
-        "--consistent_labels",
-        "--nocheck_visibility",
-        "--nocheck_bzl_visibility",
-        "--output=label_kind",
-        &query,
-    ]);
+    let run = case.bazel_with(
+        &[
+            "cquery",
+            "--color=no",
+            "--curses=no",
+            "--consistent_labels",
+            "--nocheck_visibility",
+            "--nocheck_bzl_visibility",
+            "--output=label_kind",
+            &query,
+        ],
+        &path_env,
+    );
     assert!(run.status.success(), "bazel cquery: {}", run.combined());
     let command_labels: Vec<String> = command_roots("@@rules_dx+", &langs);
     for label in [
@@ -286,16 +298,19 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     }
     let mut found = compiled_binaries(&run.stdout);
     drop_jar_launchers(&mut found, |label| {
-        let sources = case.bazel(&[
-            "cquery",
-            "--color=no",
-            "--curses=no",
-            "--consistent_labels",
-            "--nocheck_visibility",
-            "--nocheck_bzl_visibility",
-            "--output=label",
-            &jvm_sources_query(label),
-        ]);
+        let sources = case.bazel_with(
+            &[
+                "cquery",
+                "--color=no",
+                "--curses=no",
+                "--consistent_labels",
+                "--nocheck_visibility",
+                "--nocheck_bzl_visibility",
+                "--output=label",
+                &jvm_sources_query(label),
+            ],
+            &path_env,
+        );
         if sources.status.success() {
             Ok(sources.stdout)
         } else {
@@ -312,16 +327,19 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
             "deps(@@//dx_prebuilt_guard:docs) except deps({})",
             targets.join(" + ")
         );
-        let docs = case.bazel(&[
-            "cquery",
-            "--color=no",
-            "--curses=no",
-            "--consistent_labels",
-            "--nocheck_visibility",
-            "--nocheck_bzl_visibility",
-            "--output=label",
-            &docs_only,
-        ]);
+        let docs = case.bazel_with(
+            &[
+                "cquery",
+                "--color=no",
+                "--curses=no",
+                "--consistent_labels",
+                "--nocheck_visibility",
+                "--nocheck_bzl_visibility",
+                "--output=label",
+                &docs_only,
+            ],
+            &path_env,
+        );
         assert!(docs.status.success(), "bazel cquery: {}", docs.combined());
         problems.extend(
             foreign_docs_labels(&docs.stdout, fragments)

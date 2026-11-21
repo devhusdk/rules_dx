@@ -4,7 +4,9 @@ exports_files(
     [
         "adopt_polyglot.txt",
         "apple.txt",
+        "go_prebuilt_guard.txt",
         "harness.txt",
+        "java_prebuilt_guard.txt",
         "release.txt",
     ],
     visibility = ["//tools/testing:__pkg__"],
@@ -32,6 +34,13 @@ filegroup(
 )
 
 filegroup(
+    name = "go_prebuilt_guard_locks",
+    testonly = True,
+    srcs = ["go_prebuilt_guard.MODULE.bazel.lock"],
+    visibility = ["//tools/testing/consumer:__pkg__"],
+)
+
+filegroup(
     name = "harness_locks",
     testonly = True,
     srcs = [
@@ -39,6 +48,13 @@ filegroup(
         "indirect.MODULE.bazel.lock",
     ],
     visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "java_prebuilt_guard_locks",
+    testonly = True,
+    srcs = ["java_prebuilt_guard.MODULE.bazel.lock"],
+    visibility = ["//tools/testing/consumer:__pkg__"],
 )
 
 filegroup(

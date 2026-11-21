@@ -16,7 +16,7 @@ def unknown_cells(cells):
 def cell_cases(cells):
     """Returns the select cases that accept only the given OTP cells."""
     cases = {cell_setting(cell): [] for cell in sorted(cells)}
-    cases["//conditions:default"] = [_INCOMPATIBLE, unsupported_constraint("//erlang/private/toolchain")]
+    cases["//conditions:default"] = [_INCOMPATIBLE, unsupported_constraint("erlang")]
     return cases
 
 def otp_compatible_with(cells):

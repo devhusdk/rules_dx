@@ -23,7 +23,7 @@ TOOLCHAIN_TYPE = str(Label("//msix:toolchain_type"))
 
 WINDOWS_CASES = {
     Label("@platforms//os:windows"): [],
-    "//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//msix/private")],
+    "//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("msix")],
 }
 
 def extra_constraints(constraints):

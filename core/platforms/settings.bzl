@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("//core:platform_support.bzl", "lang_platforms")
+load("//core/modules:langs.bzl", "LANGS")
 
 visibility("private")
 
@@ -21,5 +22,19 @@ def lang_platform_setting(name):
     selects.config_setting_group(
         name = name,
         match_any = [":" + name + "_" + id for id in platforms],
+        visibility = ["//visibility:public"],
+    )
+
+def lang_unsupported(name):
+    """Declares the constraint_value <lang>_unsupported that no platform sets, marking that language as unsupported."""
+    lang = name.removesuffix("_unsupported")
+    if lang == name or lang not in LANGS:
+        fail("expected <lang>_unsupported for a language in LANGS, got " + name)
+    native.constraint_setting(name = name + "_setting")
+
+    # Public: target_compatible_with in consumer packages names it, and Bazel checks those labels against the consumer.
+    native.constraint_value(
+        name = name,
+        constraint_setting = ":" + name + "_setting",
         visibility = ["//visibility:public"],
     )

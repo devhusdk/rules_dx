@@ -1,5 +1,6 @@
 load("@rules_dx//php:defs.bzl", "php_library")
-load(":cells.bzl", "PHP_CELLS", "cell_settings", "unsupported_value")
+load("//core:cells.bzl", "cell_settings")
+load(":cells.bzl", "PHP_CELLS")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -11,8 +12,6 @@ exports_files([
     "extensions.bzl",
     "version_check.php",
 ])
-
-unsupported_value("unsupported")
 
 cell_settings(
     name = "cell",

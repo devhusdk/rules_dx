@@ -234,7 +234,7 @@ def support_matrix_facts_tests(name):
             ),
             expect_equal(
                 "unsupported constraint labels name the row's unsupported value",
-                [name for name, label in facts["unsupported_constraints"].items() if not label.endswith(":unsupported")],
+                [name for name, label in facts["unsupported_constraints"].items() if label != "//core/platforms:" + name + "_unsupported"],
                 [],
             ),
             expect_equal(

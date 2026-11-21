@@ -36,6 +36,7 @@ def _github_config_impl(ctx):
         rlocs = [rlocation_path(ctx, f) for f in info.files]
         registry_files.extend(info.files)
         attestations.append({
+            "attach": ctx.attr.attach and info.registry == "crates",
             "crate_name": info.crate_name,
             "registry": info.registry,
             "rlocs": rlocs,
@@ -119,7 +120,7 @@ _github_config = rule(
             doc = "crates_deploy and maven_deploy targets whose artifacts get a gh attestation verify line in the release body.",
             providers = [DxRegistryArtifactsInfo],
         ),
-        "attach": attr.bool(doc = "Also upload the maven_deploy files of registry_deploys as release assets."),
+        "attach": attr.bool(doc = "Also upload the maven_deploy files of registry_deploys, and the crates_deploy .crate that crates.io serves, as release assets."),
         "deploy_name": attr.string(mandatory = True, doc = "Deploy target name."),
         "release_tag": attr.string(doc = "Release tag. Empty when tag_from_head is set."),
         "tag_from_head": attr.bool(doc = "Use the tag that points at HEAD."),

@@ -46,6 +46,55 @@ pub struct Attestation {
     pub crate_name: String,
     #[serde(default)]
     pub version: String,
+    /// Attach the published `.crate` from crates.io as a release asset.
+    #[serde(default)]
+    pub attach: bool,
+}
+
+/// One `.crate` that the live run downloads from crates.io and attaches.
+struct AttachedCrate {
+    name: String,
+    version: String,
+    files: Vec<std::path::PathBuf>,
+}
+
+/// Formats one dry-run asset line per attached `.crate`.
+fn attached_crate_lines(crates: &[AttachedCrate]) -> Vec<String> {
+    crates
+        .iter()
+        .map(|attached| {
+            format!(
+                "  asset: {}-{}.crate (crates.io, after crates_deploy publishes)",
+                attached.name, attached.version
+            )
+        })
+        .collect()
+}
+
+/// Returns the crates marked `attach`, with their versions resolved from the pinned manifest.
+fn attached_crates(
+    attestations: &[Attestation],
+    resolve: &dyn Fn(&str) -> Option<std::path::PathBuf>,
+) -> Result<Vec<AttachedCrate>, String> {
+    let mut crates = Vec::new();
+    for attestation in attestations
+        .iter()
+        .filter(|attestation| attestation.attach && attestation.registry == "crates")
+    {
+        let mut files = Vec::new();
+        for rloc in &attestation.rlocs {
+            files.push(resolve(rloc).ok_or_else(|| format!("cannot resolve {rloc}"))?);
+        }
+        let version =
+            crate::crates::crates_version(&files, &attestation.crate_name, &attestation.version)
+                .map_err(|error| error.to_string())?;
+        crates.push(AttachedCrate {
+            name: attestation.crate_name.clone(),
+            version,
+            files,
+        });
+    }
+    Ok(crates)
 }
 
 /// Returns the file names of the registry artifacts, in config order.
@@ -557,6 +606,13 @@ pub fn github_main_checked(
         eprintln!("github_deploy: invalid sign '{}'", signing.mode);
         return 1;
     };
+    let attached_crates = match attached_crates(attestations, &|rloc| run.resolve(rloc)) {
+        Ok(crates) => crates,
+        Err(error) => {
+            eprintln!("github_deploy: {error}");
+            return 1;
+        }
+    };
     let identity = match plan_identity(sign_mode, &env_or_empty) {
         Ok(identity) => identity,
         Err(error) if live => {
@@ -636,6 +692,32 @@ pub fn github_main_checked(
             eprintln!("github_deploy: 'gh' CLI not found on PATH");
             return 1;
         }
+        let mut assets = assets.clone();
+        for attached in &attached_crates {
+            match crate::crates::fetch_published_crate(
+                crate::crates::CRATES_INDEX,
+                crate::crates::CRATES_DL,
+                &attached.name,
+                &attached.version,
+                &attached.files,
+                &outdir.join("crates"),
+            ) {
+                Ok(path) => assets.push(path),
+                Err(error) => {
+                    eprintln!("github_deploy: {error}");
+                    return 1;
+                }
+            }
+        }
+        let mut sorted: Vec<&std::path::PathBuf> = assets.iter().collect();
+        sorted.sort();
+        let bases = match github_asset_bases(&sorted) {
+            Ok(bases) => bases,
+            Err(error) => {
+                eprintln!("github_deploy: {error}");
+                return 1;
+            }
+        };
         let asset_lines = match github_asset_lines(&sorted, &bases) {
             Ok(lines) => lines,
             Err(error) => {
@@ -734,6 +816,9 @@ pub fn github_main_checked(
             println!("  tag: {tag_text}");
             for (src, base) in sorted.iter().zip(&bases) {
                 println!("  asset: {base} ({})", src.display());
+            }
+            for line in attached_crate_lines(&attached_crates) {
+                println!("{line}");
             }
             for line in sbom_lines(&sorted, &bases) {
                 println!("{line}");
@@ -1266,6 +1351,7 @@ mod attestation_tests {
                 rlocs: vec![manifest.clone(), "crate/src/lib.rs".to_owned()],
                 crate_name: "demo".to_owned(),
                 version: String::new(),
+                attach: true,
             },
             Attestation {
                 registry: "maven".to_owned(),
@@ -1275,6 +1361,7 @@ mod attestation_tests {
                 ],
                 crate_name: String::new(),
                 version: String::new(),
+                attach: false,
             },
         ];
         let outdir = scratch.path().join("out");
@@ -1315,6 +1402,12 @@ mod attestation_tests {
             },
         );
         assert_eq!(code, 0);
+        let attached =
+            attached_crates(&attestations, &|rloc| Some(runfiles.join(rloc))).expect("attached");
+        assert_eq!(
+            attached_crate_lines(&attached),
+            ["  asset: demo-1.2.3.crate (crates.io, after crates_deploy publishes)"]
+        );
         let notes =
             std::fs::read_to_string(outdir.join("demo-release").join("notes.md")).expect("notes");
         assert_eq!(

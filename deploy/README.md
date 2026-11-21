@@ -676,7 +676,12 @@ github_deploy(
   in the same release. The release body gets an `## Attestations` section
   with one `gh attestation verify <file> -R <owner>/<repo>` line for each
   `.crate` and each `maven_deploy` file.
-- `attach`: `True` also uploads the `maven_deploy` files as release assets.
+- `attach`: `True` also uploads the `maven_deploy` files as release assets,
+  and the `<name>-<version>.crate` of each `crates_deploy`. A live run
+  downloads that `.crate` from crates.io, checks its sha256 against the
+  sparse index `cksum`, and checks that it holds only the pinned sources
+  (`Cargo.toml.orig` equal to the pinned `Cargo.toml`). Run the
+  `crates_deploy` before the `github_deploy`; `reusable-release.yml` does.
   Defaults to `True`.
 - `sbom`: also uploaded as a release asset.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.

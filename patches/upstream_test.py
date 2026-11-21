@@ -85,6 +85,10 @@ class ReportTest(unittest.TestCase):
             # A commit pushed without a pull request, released in v2.
             "/repos/o/r/commits/" + "1" * 40: {"commit": {"committer": {"date": "2026-02-01T00:00:00Z"}}},
             "/repos/o/r/compare/v2..." + "1" * 40: {"status": "behind"},
+            # The BCR has no releases or tags: a merged pull request is published.
+            "/repos/bazelbuild/bazel-central-registry/issues/7": {"state": "closed", "pull_request": {}},
+            "/repos/bazelbuild/bazel-central-registry/pulls/7": {"merged": True},
+            "/repos/bazelbuild/bazel-central-registry/issues/8": {"state": "open", "pull_request": {}},
             # A commit no release has yet.
             "/repos/o/r/commits/" + "2" * 40: {"commit": {"committer": {"date": "2026-04-01T00:00:00Z"}}},
         })
@@ -97,6 +101,8 @@ class ReportTest(unittest.TestCase):
             _write(root, "m/local.patch", "Upstream: none (rules_dx only)\n--- a/x\n")
             _write(root, "m/fixed.patch", "Upstream: fixed upstream in v0.9.0\n--- a/x\n")
             _write(root, "m/missing.patch", "--- a/x\n")
+            _write(root, "m/bcr.patch", "Upstream: bazelbuild/bazel-central-registry#7\n--- a/x\n")
+            _write(root, "m/bcr_open.patch", "Upstream: bazelbuild/bazel-central-registry#8\n--- a/x\n")
             _write(root, "m/commit.patch", "Upstream: o/r@%s\n--- a/x\n" % ("1" * 40))
             _write(root, "m/unreleased.patch", "Upstream: o/r@%s\n--- a/x\n" % ("2" * 40))
             _write(root, "m/unknown.patch", "Upstream: o/r@%s\n--- a/x\n" % ("3" * 40))
@@ -104,6 +110,12 @@ class ReportTest(unittest.TestCase):
         self.assertIn("`patches/m/released.patch`: [o/r#1](https://github.com/o/r/pull/1) is in v2", text)
         self.assertIn("`patches/m/landed.patch`: [o/r#5](https://github.com/o/r/pull/5) is in v2", text)
         self.assertIn("`patches/m/fixed.patch`: fixed in v0.9.0", text)
+        self.assertIn(
+            "`patches/m/bcr.patch`: [bazelbuild/bazel-central-registry#7]"
+            "(https://github.com/bazelbuild/bazel-central-registry/pull/7) is in the BCR",
+            text,
+        )
+        self.assertNotIn("bcr_open.patch", text)
         self.assertIn(
             "`patches/m/commit.patch`: [o/r@1111111](https://github.com/o/r/commit/%s) is in v2" % ("1" * 40),
             text,

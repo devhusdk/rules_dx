@@ -11,7 +11,7 @@ This page helps you add, change or drop a patch that rules_dx applies to another
    Upstream: bazelbuild/rules_rust#4390
    ```
 
-   Name several with commas. When the fix landed upstream without a pull request, name its commit with the full sha: `Upstream: aran/rules_flutter@b12fd3fbfb130bb1b90ba03c790f3a8ce101363f`. When the fix will never go upstream, say why: `Upstream: none (rules_dx only: gates the toolchains behind //config:toolchains_on)`. Every Monday `.github/workflows/patch-upstream.yml` checks these lines and opens an issue when an upstream fix is in a release, so you know which patch to drop. `//patches:headers_test` fails a pull request whose patch has no readable `Upstream:` line.
+   Name several with commas. When the fix landed upstream without a pull request, name its commit with the full sha: `Upstream: aran/rules_flutter@b12fd3fbfb130bb1b90ba03c790f3a8ce101363f`. When the fix will never go upstream, say why: `Upstream: none (rules_dx only: gates the toolchains behind //config:toolchains_on)`. Every Monday `.github/workflows/patch-upstream.yml` checks these lines and opens an issue when an upstream fix is in a release, so you know which patch to drop. A `bazelbuild/bazel-central-registry#N` ref counts as released once the pull request merges, so bump the module to the `.bcr.N` version it adds. `//patches:headers_test` fails a pull request whose patch has no readable `Upstream:` line.
 2. Add its label, such as `//patches/rules_rust:my_fix.patch`, to the `patches` list of the module's `single_version_override` in `MODULE.bazel`.
 3. Add a row to the table below. Leave the Version cell as it is; the next step fills it in.
 4. Refresh the page:

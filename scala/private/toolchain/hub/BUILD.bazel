@@ -4,59 +4,19 @@ package(default_visibility = ["//:__subpackages__"])
 
 toolchain_type(
     name = "toolchain_type",
-    visibility = ["@rules_scala//:__subpackages__"],
+    visibility = [
+        "@dx_scala_toolchains//:__pkg__",
+        "@rules_scala//:__subpackages__",
+    ],
 )
 
 toolchain_type(
     name = "testing_toolchain_type",
-    visibility = ["@rules_scala//:__subpackages__"],
-)
-
-toolchain(
-    name = "semanticdb",
-    target_settings = [
-        "//config:toolchains_on",
-        "@rules_scala_config//:scala_version_2_13_18",
+    visibility = [
+        "@dx_scala_toolchains//:__pkg__",
+        "@rules_scala//:__subpackages__",
     ],
-    toolchain = "//scala/private/toolchain:semanticdb_impl",
-    toolchain_type = ":toolchain_type",
 )
-
-toolchain(
-    name = "semanticdb_scala3",
-    target_settings = [
-        "//config:toolchains_on",
-        "@rules_scala_config//:scala_version_3_3_9",
-    ],
-    toolchain = "//scala/private/toolchain:semanticdb_scala3_impl",
-    toolchain_type = ":toolchain_type",
-)
-
-[
-    toolchain(
-        name = "upstream_" + version,
-        target_settings = ["@rules_scala_config//:scala_version_" + version],
-        toolchain = "@rules_scala_toolchains//scala:toolchain_" + version + "_impl",
-        toolchain_type = ":toolchain_type",
-    )
-    for version in [
-        "2_13_18",
-        "3_3_9",
-    ]
-]
-
-[
-    toolchain(
-        name = "testing_" + version,
-        target_settings = ["@rules_scala_config//:scala_version_" + version],
-        toolchain = "@rules_scala_toolchains//testing:testing_toolchain_" + version + "_impl",
-        toolchain_type = ":testing_toolchain_type",
-    )
-    for version in [
-        "2_13_18",
-        "3_3_9",
-    ]
-]
 
 real_source_target(
     name = "corpus_starlark",

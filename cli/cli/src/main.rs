@@ -207,6 +207,10 @@ fn run_as_tool() -> Option<i32> {
         Tool::AndroidOps => i32::from(dx_android_ops::run(&lossy(args))),
         #[cfg(not(windows))]
         Tool::AppleOps => i32::from(dx_apple_ops::run(&lossy(args))),
+        #[cfg(not(windows))]
+        Tool::AppimagePacker => i32::from(appimage_packer::run(&lossy(args))),
+        #[cfg(not(windows))]
+        Tool::AppimageFile => i32::from(appimage_packer::refuse_file()),
         Tool::QtRustBridge => qt_rust_bridge::run_process(&lossy(args)),
         Tool::BeamExtract => dx_docs_beam_extract::run_process(&lossy(args)),
         Tool::CcExtract => dx_docs_cc_extract::run_process(&lossy(args)),

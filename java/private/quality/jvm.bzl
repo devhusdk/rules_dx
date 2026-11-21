@@ -3,9 +3,9 @@
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//core/quality:family_hooks.bzl", "default_files_hook", "stage", "without")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//java/private/quality:jvm_check.bzl", "JvmCheckInfo", "jvm_check_aspect")
 load("//java/private/quality:jvm_info.bzl", "JvmAndroidSdkInfo", "android_sdk_jars")
-load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//java/private/quality/tools:jar_lsp_tool.bzl", "PklLspToolInfo")
 
 TOOLS = {
@@ -164,7 +164,7 @@ def _pkl_lsp_hook(target, ctx, resolved, capability, what, shared):
     context = _PKL_FILES_HOOK(target, ctx, resolved, capability, what, shared)
     bundle = ctx.attr._pkl_lsp[PklLspToolInfo]
     return real_context(
-        resolve_pairs = context.resolve_pairs,
+        resolve_lists = context.resolve_lists,
         options = {"path_tools": [("java", bundle.java), ("pkl-lsp.jar", bundle.jar), ("pkl-lsp-natives.jar", bundle.natives)]},
     )
 

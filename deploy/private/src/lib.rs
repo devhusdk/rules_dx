@@ -522,15 +522,13 @@ mod tests {
             ("semver", "--- failure pub_fn_missing: pub fn removed ---"),
         ] {
             let fake = runfiles.join(tool);
-            std::fs::write(
+            dx_testing::executable_script(
                 &fake,
-                format!(
+                &format!(
                     "#!/bin/sh\ntouch {}\necho '{output}'\nexit 1\n",
                     marker(tool).display()
                 ),
-            )
-            .expect("fake tool");
-            set_mode(&fake, 0o755);
+            );
         }
         let outdir = tempfile_stage_dir("dx-deploy-api-").expect("outdir");
         let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];

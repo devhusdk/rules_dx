@@ -1,5 +1,6 @@
 load("//php:defs.bzl", "php_test")
 load("//php/private/quality:corpus.bzl", "php_corpus")
+load("//php/tests:coverage_tests.bzl", "php_core_coverage_test", "php_forward_coverage_test")
 
 php_test(
     name = "runfiles_test",
@@ -7,6 +8,18 @@ php_test(
     testonly = True,
     srcs = ["RunfilesTest.php"],
     deps = ["//php:runfiles"],
+)
+
+php_core_coverage_test(
+    name = "core_coverage_test",
+    size = "small",
+    target_under_test = ":runfiles_test_upstream",
+)
+
+php_forward_coverage_test(
+    name = "forward_coverage_test",
+    size = "small",
+    target_under_test = ":runfiles_test",
 )
 
 php_corpus(

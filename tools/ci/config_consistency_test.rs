@@ -1112,7 +1112,7 @@ fn host_dependent_extensions_are_locked_for_every_ci_platform() {
             .collect();
         assert!(
             missing.is_empty(),
-            "MODULE.bazel.lock has no {extension} entry for {missing:?}; dispatch lock-refresh.yml and commit its MODULE.bazel.lock artifact"
+            "MODULE.bazel.lock has no {extension} entry for {missing:?}; comment /lock-refresh on the pull request"
         );
         for digest in ["usagesDigest", "bzlTransitiveDigest"] {
             let current = &entries[platforms[0]][digest];
@@ -1122,7 +1122,7 @@ fn host_dependent_extensions_are_locked_for_every_ci_platform() {
                 .collect();
             assert!(
                 stale.is_empty(),
-                "MODULE.bazel.lock has a stale {extension} entry for {stale:?} ({digest}); dispatch lock-refresh.yml and commit its MODULE.bazel.lock artifact"
+                "MODULE.bazel.lock has a stale {extension} entry for {stale:?} ({digest}); comment /lock-refresh on the pull request"
             );
         }
     }

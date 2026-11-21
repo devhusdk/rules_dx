@@ -28,8 +28,9 @@ fn entry_points(workspace: &Path) -> Result<Vec<String>, String> {
         };
         let json: serde_json::Value =
             serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
-        let list = json["entry_points"]
-            .as_array()
+        let list = json
+            .get("entry_points")
+            .and_then(serde_json::Value::as_array)
             .ok_or_else(|| format!("{}: entry_points is not a list", path.display()))?;
         names.extend(list.iter().filter_map(|n| n.as_str().map(str::to_owned)));
     }
@@ -104,15 +105,16 @@ fn one_per_kind(labels: &[(String, String)], compatible: &BTreeSet<String>) -> V
 }
 
 fn capture(argv: &[String], workspace: &Path) -> Result<String, String> {
-    let output = Command::new(&argv[0])
-        .args(&argv[1..])
+    let (program, args) = argv.split_first().ok_or("empty command")?;
+    let output = Command::new(program)
+        .args(args)
         .current_dir(workspace)
         .output()
-        .map_err(|e| format!("{}: {e}", argv[0]))?;
+        .map_err(|e| format!("{program}: {e}"))?;
     if !output.status.success() {
         return Err(format!(
             "`{}` exited with {}: {}",
-            argv[1..].join(" "),
+            args.join(" "),
             output.status,
             String::from_utf8_lossy(&output.stderr)
         ));
@@ -135,7 +137,11 @@ fn kind_targets(bazel: &str, out: &Path, workspace: &Path) -> Result<Vec<String>
     )?);
     std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let set = out.join("kinds.cquery");
-    let expr = labels.iter().map(|(l, _)| l.as_str()).collect::<Vec<_>>().join(" ");
+    let expr = labels
+        .iter()
+        .map(|(l, _)| l.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
     std::fs::write(&set, format!("set({expr})")).map_err(|e| format!("{}: {e}", set.display()))?;
     let compatible = capture(
         &[
@@ -159,7 +165,10 @@ fn kind_targets(bazel: &str, out: &Path, workspace: &Path) -> Result<Vec<String>
         eprintln!("kinds with no non-manual target: {}", unmatched.join(" "));
     }
     if !incompatible.is_empty() {
-        eprintln!("kinds with no Linux-compatible target: {}", incompatible.join(" "));
+        eprintln!(
+            "kinds with no Linux-compatible target: {}",
+            incompatible.join(" ")
+        );
     }
     Ok(one_per_kind(&labels, &compatible))
 }
@@ -179,7 +188,12 @@ fn build_argv(bazel: &str, out: &Path, name: &str, patterns: &[String]) -> Vec<S
         "--noshow_progress".to_owned(),
         format!("--execution_log_compact_file={out}/{name}.log"),
     ];
-    argv.extend(patterns.iter().cloned());
+    // Flags go before `--` so that a `-//pkg/...` pattern after it excludes instead of failing as an option.
+    let (flags, targets): (Vec<&String>, Vec<&String>) =
+        patterns.iter().partition(|p| p.starts_with("--"));
+    argv.extend(flags.into_iter().cloned());
+    argv.push("--".to_owned());
+    argv.extend(targets.into_iter().cloned());
     argv
 }
 
@@ -274,8 +288,8 @@ fn shard(targets: Vec<String>, index: usize, count: usize) -> Vec<String> {
 fn parse_shard(arg: &str) -> Result<(usize, usize), String> {
     let bad = || format!("--shard {arg}: want i/n with i < n");
     let (index, count) = arg.split_once('/').ok_or_else(bad)?;
-    let index: usize = index.parse().map_err(|_| bad())?;
-    let count: usize = count.parse().map_err(|_| bad())?;
+    let index: usize = index.parse().map_err(|e| format!("{}: {e}", bad()))?;
+    let count: usize = count.parse().map_err(|e| format!("{}: {e}", bad()))?;
     if index < count {
         Ok((index, count))
     } else {
@@ -443,12 +457,16 @@ mod tests {
     }
 
     #[test]
-    fn the_build_argv_is_exact() {
+    fn the_build_argv_puts_flags_before_the_patterns() {
         let argv = build_argv(
             "/b/bazel",
             Path::new("/o"),
             "first",
-            &["//a/...".to_owned()],
+            &[
+                "//a/...".to_owned(),
+                "--platforms=//p:x".to_owned(),
+                "-//a/b/...".to_owned(),
+            ],
         );
         assert_eq!(
             argv,
@@ -464,7 +482,10 @@ mod tests {
                 "--experimental_remote_downloader=",
                 "--noshow_progress",
                 "--execution_log_compact_file=/o/first.log",
+                "--platforms=//p:x",
+                "--",
                 "//a/...",
+                "-//a/b/...",
             ]
         );
     }
@@ -497,10 +518,7 @@ mod tests {
             &dir,
         )
         .unwrap();
-        assert!(
-            lines[0].contains(" //:changed Genrule "),
-            "{lines:?}"
-        );
+        assert!(lines[0].contains(" //:changed Genrule "), "{lines:?}");
         assert!(lines[1].starts_with("  origin: changed.txt: "), "{lines:?}");
         assert!(lines[2].starts_with("  input changed.txt: "), "{lines:?}");
         assert_eq!(lines[3], "not remote cacheable, ran every time:");

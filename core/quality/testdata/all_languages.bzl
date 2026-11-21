@@ -45,6 +45,7 @@ load("//tools/docs/haskell:aspect.bzl", _real_haskell_docs_aspect = "real_haskel
 load("//tools/docs/javascript:aspect.bzl", _real_javascript_docs_aspect = "real_javascript_docs_aspect")
 load("//tools/docs/julia:aspect.bzl", _real_julia_docs_aspect = "real_julia_docs_aspect")
 load("//tools/docs/jvm:aspect.bzl", _real_jvm_docs_aspect = "real_jvm_docs_aspect")
+load("//tools/docs/kotlin:aspect.bzl", _real_kotlin_docs_aspect = "real_kotlin_docs_aspect")
 load("//tools/docs/lua:aspect.bzl", _real_lua_docs_aspect = "real_lua_docs_aspect")
 load("//tools/docs/ocaml:aspect.bzl", _real_ocaml_docs_aspect = "real_ocaml_docs_aspect")
 load("//tools/docs/perl:aspect.bzl", _real_perl_docs_aspect = "real_perl_docs_aspect")
@@ -54,6 +55,7 @@ load("//tools/docs/protobuf:aspect.bzl", _real_protobuf_docs_aspect = "real_prot
 load("//tools/docs/python:aspect.bzl", _real_python_docs_aspect = "real_python_docs_aspect")
 load("//tools/docs/ruby:aspect.bzl", _real_ruby_docs_aspect = "real_ruby_docs_aspect")
 load("//tools/docs/rust:aspect.bzl", _real_rust_docs_aspect = "real_rust_docs_aspect")
+load("//tools/docs/scala:aspect.bzl", _real_scala_docs_aspect = "real_scala_docs_aspect")
 load("//tools/docs/swift:aspect.bzl", _real_swift_docs_aspect = "real_swift_docs_aspect")
 load("//tools/docs/typescript:aspect.bzl", _real_typescript_docs_aspect = "real_typescript_docs_aspect")
 load("//tools/docs/zig:aspect.bzl", _real_zig_docs_aspect = "real_zig_docs_aspect")
@@ -487,6 +489,8 @@ real_julia_docs_aspect = _real_julia_docs_aspect
 
 real_jvm_docs_aspect = _real_jvm_docs_aspect
 
+real_kotlin_docs_aspect = _real_kotlin_docs_aspect
+
 real_lua_docs_aspect = _real_lua_docs_aspect
 
 real_ocaml_docs_aspect = _real_ocaml_docs_aspect
@@ -504,6 +508,8 @@ real_python_docs_aspect = _real_python_docs_aspect
 real_ruby_docs_aspect = _real_ruby_docs_aspect
 
 real_rust_docs_aspect = _real_rust_docs_aspect
+
+real_scala_docs_aspect = _real_scala_docs_aspect
 
 real_swift_docs_aspect = _real_swift_docs_aspect
 
@@ -695,6 +701,8 @@ real_docs_aspects = [
     real_julia_docs_aspect,
     real_beam_docs_aspect,
     real_jvm_docs_aspect,
+    real_kotlin_docs_aspect,
+    real_scala_docs_aspect,
     real_lua_docs_aspect,
     real_ocaml_docs_aspect,
     real_perl_docs_aspect,

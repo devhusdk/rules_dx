@@ -2225,8 +2225,10 @@ LANGS = json.decode("""{
   "kotlin": {
     "depcheck": "kotlin",
     "docs": {
-      "aspects": [],
-      "bzl": "tools/docs/jvm:aspect.bzl",
+      "aspects": [
+        "real_kotlin_docs_aspect"
+      ],
+      "bzl": "tools/docs/kotlin:aspect.bzl",
       "file_extensions": [
         ".kt"
       ]
@@ -3432,8 +3434,10 @@ LANGS = json.decode("""{
   "scala": {
     "depcheck": "scala",
     "docs": {
-      "aspects": [],
-      "bzl": "tools/docs/jvm:aspect.bzl",
+      "aspects": [
+        "real_scala_docs_aspect"
+      ],
+      "bzl": "tools/docs/scala:aspect.bzl",
       "file_extensions": [
         ".scala"
       ]
@@ -3457,7 +3461,9 @@ LANGS = json.decode("""{
       "libs.versions.toml"
     ],
     "name": "scala",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",

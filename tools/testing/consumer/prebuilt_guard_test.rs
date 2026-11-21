@@ -31,10 +31,10 @@ use std::collections::BTreeMap;
 
 use dx_nested::Case;
 use prebuilt_guard::{
-    BundleTool, TargetRoot, allowlist, bundle_tools, command_roots, compiled_binaries,
-    drop_jar_launchers, guard_aspects, jvm_sources_query, missing_target_repos, problems,
-    release_platform, resolver_roots, stub_bundle, stub_url, target_guard_build, target_guard_bzl,
-    wrapper_build, wrapper_bzl,
+    BundleTool, DOCS_FOREIGN, TargetRoot, allowlist, bundle_tools, command_roots,
+    compiled_binaries, drop_jar_launchers, foreign_docs_labels, guard_aspects, jvm_sources_query,
+    missing_target_repos, problems, release_platform, resolver_roots, stub_bundle, stub_url,
+    target_guard_build, target_guard_bzl, wrapper_build, wrapper_bzl,
 };
 
 /// The consumer languages whose fixture roots the jar tools.
@@ -305,6 +305,30 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     .unwrap_or_else(|error| panic!("{error}"));
     let mut problems = problems(&found, &list.labels_for(&langs));
     problems.extend(missing_target_repos(&run.stdout, &target_roots));
+    if let [lang] = langs.as_slice()
+        && let Some((_, fragments)) = DOCS_FOREIGN.iter().find(|(name, _)| name == lang)
+    {
+        let docs_only = format!(
+            "deps(@@//dx_prebuilt_guard:docs) except deps({})",
+            targets.join(" + ")
+        );
+        let docs = case.bazel(&[
+            "cquery",
+            "--color=no",
+            "--curses=no",
+            "--consistent_labels",
+            "--nocheck_visibility",
+            "--nocheck_bzl_visibility",
+            "--output=label",
+            &docs_only,
+        ]);
+        assert!(docs.status.success(), "bazel cquery: {}", docs.combined());
+        problems.extend(
+            foreign_docs_labels(&docs.stdout, fragments)
+                .into_iter()
+                .map(|label| format!("{lang} docs reach {label}")),
+        );
+    }
     assert!(
         problems.is_empty(),
         "{named} consumer with host pins for {} and target pins for {}:\n{}",

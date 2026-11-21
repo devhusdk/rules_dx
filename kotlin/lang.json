@@ -59,10 +59,12 @@
     ]
   },
   "docs": {
-    "bzl": "tools/docs/jvm:aspect.bzl",
+    "bzl": "tools/docs/kotlin:aspect.bzl",
     "file_extensions": [
       ".kt"
     ],
-    "aspects": []
+    "aspects": [
+      "real_kotlin_docs_aspect"
+    ]
   }
 }

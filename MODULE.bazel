@@ -1283,6 +1283,7 @@ dx_pins.archive(
     ],
     pins = "//ocaml:pins.json",
 )
+# Pinned to an upstream main commit (bazel-contrib/rules_cuda#530, after v0.4.0); #14468 moves it to the release.
 dx_pins.archive(
     name = "rules_cuda",
     dropped = [
@@ -1297,7 +1298,6 @@ dx_pins.archive(
     ],
     patches = [
         "//patches/rules_cuda:coverage_keep.patch",
-        "//patches/rules_cuda:msvc_dlink_crt.patch",
         "//patches/rules_cuda:objdir_as_tempdir.patch",
         "//patches/rules_cuda:toolchain_type_alias.patch",
     ],

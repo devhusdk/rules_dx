@@ -445,13 +445,17 @@ use_repo(
 Bazel fetches each package only when a build needs it:
 
 - the NDK (`dx_android_ndk_linux_x86_64`)
-- build-tools (`dx_android_build_tools_linux_x86_64`)
+- build-tools (`dx_android_build_tools_<host>`)
 - `platforms;android-<api_level>` for `api_level` 31 to 34, default 34
   (`dx_android_platform`; the name does not depend on the level)
 - through `extra_packages`: `platform-tools`
-  (`dx_android_platform_tools_linux_x86_64`) and `emulator`
+  (`dx_android_platform_tools_<host>`) and `emulator`
   (`dx_android_emulator_linux_x86_64`, about 350 MB). The emulator ships
   no system image.
+
+`<host>` is `linux_x86_64`, `macos_arm64` or `windows_x86_64`. Windows
+arm64 uses the `windows_x86_64` packages. The emulator is pinned for
+Linux x86_64 only.
 
 Any other `extra_packages` entry, a repeated entry, or an `api_level`
 outside 31 to 34 fails with an error that names the allowed values.
@@ -486,8 +490,9 @@ Manifest merge, resources, native ABI placement, DEX, and signing come
 from rules_android and the pinned SDK. App Bundles come from the
 rules_android `android_application` rule.
 
-APK assembly and device install and launch need the Linux x86_64 SDK host
-above. The emulator runs x86_64 code; the `arm64-v8a` library is packaged
+APK assembly and device install need a Linux x86_64, macOS arm64,
+Windows x86_64 or Windows arm64 host. The emulator needs Linux x86_64. It
+runs x86_64 code; the `arm64-v8a` library is packaged
 but not run there. The other tests run on every host:
 
 ```sh

@@ -33,8 +33,8 @@ use dx_nested::Case;
 use prebuilt_guard::{
     BundleTool, TargetRoot, allowlist, bundle_tools, command_roots, compiled_binaries,
     drop_jar_launchers, guard_aspects, jvm_sources_query, missing_target_repos, problems,
-    release_platform, resolver_roots, stub_bundle, stub_url, target_guard_build,
-    target_guard_bzl, wrapper_build, wrapper_bzl,
+    release_platform, resolver_roots, stub_bundle, stub_url, target_guard_build, target_guard_bzl,
+    wrapper_build, wrapper_bzl,
 };
 
 /// The consumer languages whose fixture roots the jar tools.

@@ -219,7 +219,7 @@ jobs:
             *) echo "displays must be xcb, wayland or xcb,wayland, got '$DX_DISPLAYS'"; exit 1 ;;
           esac
           sudo apt-get update
-          sudo apt-get install -y xvfb weston
+          sudo apt-get install -y xvfb x11-utils weston
           runtime="$RUNNER_TEMP/xdg"
           mkdir -p "$runtime"
           chmod 700 "$runtime"
@@ -229,7 +229,11 @@ jobs:
             *,xcb,*)
               Xvfb :99 -screen 0 1280x720x24 > "$RUNNER_TEMP/xvfb.log" 2>&1 &
               echo "DISPLAY=:99" >> "$GITHUB_ENV"
-              sleep 3
+              for _ in $(seq 1 100); do
+                xdpyinfo -display :99 > /dev/null 2>&1 && break
+                sleep 0.2
+              done
+              xdpyinfo -display :99 > /dev/null || { cat "$RUNNER_TEMP/xvfb.log"; exit 1; }
               ;;
           esac
           case ",$DX_DISPLAYS," in
@@ -511,16 +515,27 @@ jobs:
           adb -s emulator-5554 logcat -c
           bazel run --noshow_progress //examples/shared-rust:install
           bazel run --noshow_progress //examples/shared-rust:start
-          sleep 5
+          # Each wait gives up after 60 s and moves on; check_lifecycle.sh then names what is missing.
+          wait_for() {
+            waited=0
+            until "$@"; do
+              [ "$waited" -lt 60 ] || return 0
+              sleep 1
+              waited=$((waited + 1))
+            done
+          }
+          focused() { adb -s emulator-5554 shell dumpsys window | grep mCurrentFocus | grep com.example.dxsharedtasks > /dev/null; }
+          logged() { adb -s emulator-5554 logcat -d -s DxSharedTasks:I | grep -- "$1" > /dev/null; }
+          wait_for focused
+          wait_for logged lifecycle=resume
           adb -s emulator-5554 shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' | tee "$RUNNER_TEMP/evidence/focus-shared-rust.txt"
           adb -s emulator-5554 shell input touchscreen swipe 200 400 200 400 200
-          sleep 2
+          wait_for logged input=touch
           adb -s emulator-5554 shell input touchscreen swipe 200 400 200 400 200
-          sleep 2
           adb -s emulator-5554 shell input keyevent KEYCODE_ENTER
-          sleep 2
+          wait_for logged input=key
           adb -s emulator-5554 shell input keyevent KEYCODE_BACK
-          sleep 2
+          wait_for logged lifecycle=destroy
           adb -s emulator-5554 logcat -d -s DxSharedTasks:I | tee "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
           sh rust/tests/fixtures/shared_rust_checks/check_lifecycle.sh "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
       - name: Run the flutter_app interaction test on the emulator

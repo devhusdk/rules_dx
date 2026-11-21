@@ -2705,6 +2705,7 @@ crate = use_extension("//third_party/rules_rust/crate_universe:extensions.bzl", 
 crate.annotation(
     build_script_env = {
         "CFLAGS": "$(DX_BS_CFLAGS)",
+        "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
         "HOST_AR": "$(DX_BS_HOST_AR)",
         "HOST_CC": "$(DX_BS_HOST_CC)",
         "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",

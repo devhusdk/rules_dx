@@ -118,7 +118,7 @@ Each cell names the tool `dx lint`, `dx format`, or `dx typecheck` runs for that
 | TypeScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `eslint no-unused-vars` |
 | Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | `eslint @typescript-eslint/no-unused-vars` |
 | Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | `zig std.zig.Ast` | `zig ast-check unused local, unused parameter` |
-| Apple | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | n/a |
+| Apple | `clang_tidy` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain), `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | n/a |
 | CMake | `cmakelint`, `typos` | `gersemi` | n/a | n/a | n/a |
 | Dockerfile | `hadolint`, `typos` | `prettier` | n/a | n/a | n/a |
 | Make | `checkmake`, `typos` | `mbake` | n/a | n/a | n/a |

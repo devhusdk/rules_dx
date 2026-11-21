@@ -10,6 +10,12 @@ exports_files([
     "pins.json",
 ])
 
+# Public so users can register their own OCaml toolchain and the build profile
+# toolchain that goes with it.
+toolchain_type(name = "toolchain_type")
+
+toolchain_type(name = "profile_toolchain_type")
+
 alias(
     name = "bisect_ppx_rewriter",
     actual = "//ocaml/private/coverage:bisect_ppx_rewriter",

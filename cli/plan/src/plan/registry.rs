@@ -1,4 +1,3 @@
-use super::registry_gen;
 use super::rules_dx_label;
 use crate::args::Command;
 use crate::reports::StandardFormat;
@@ -22,50 +21,55 @@ impl CommandSpec {
     }
 }
 
+fn leak(label: String) -> &'static str {
+    Box::leak(label.into_boxed_str())
+}
+
+/// The core labels of `command`: those of `core/quality/core_aspects.json`, in file order.
+fn core_labels(command: &str, probes: bool) -> Vec<String> {
+    if command == "docs" {
+        return dx_families::core_docs()
+            .iter()
+            .flat_map(dx_families::DocsFiles::labels)
+            .collect();
+    }
+    dx_families::core_quality()
+        .iter()
+        .flat_map(|files| files.labels(command, probes))
+        .collect()
+}
+
 /// The labels of the aspect files in core, then those of every language's `quality` entry (and,
 /// for `docs`, its `docs` entry) in `lang.json`.
-fn with_languages(
-    command: &'static str,
-    probes: bool,
-    core: &'static [&'static str],
-) -> &'static [&'static str] {
+fn with_languages(command: &'static str, probes: bool) -> &'static [&'static str] {
     type Key = (&'static str, bool);
     static ALL: OnceLock<BTreeMap<Key, &'static [&'static str]>> = OnceLock::new();
     let all = ALL.get_or_init(|| {
         let mut all = BTreeMap::new();
-        for (command, probes, core) in [
-            ("lint", false, registry_gen::LINT_ASPECTS),
-            ("lint", true, registry_gen::LINT_PROBES),
-            ("typecheck", false, registry_gen::TYPECHECK_ASPECTS),
-            ("typecheck", true, registry_gen::TYPECHECK_PROBES),
-            ("format", false, registry_gen::FORMAT_ASPECTS),
-            ("format", true, registry_gen::FORMAT_PROBES),
-            ("docs", false, registry_gen::DOCS_ASPECTS),
+        for (command, probes) in [
+            ("lint", false),
+            ("lint", true),
+            ("typecheck", false),
+            ("typecheck", true),
+            ("format", false),
+            ("format", true),
+            ("docs", false),
         ] {
-            let mut labels: Vec<&'static str> = core.to_vec();
+            let mut labels: Vec<&'static str> =
+                core_labels(command, probes).into_iter().map(leak).collect();
             for language in dx_families::quality_languages() {
-                labels.extend(
-                    language
-                        .labels(command, probes)
-                        .into_iter()
-                        .map(|label| &*Box::leak(label.into_boxed_str())),
-                );
+                labels.extend(language.labels(command, probes).into_iter().map(leak));
             }
             if command == "docs" {
                 for language in dx_families::docs_languages() {
-                    labels.extend(
-                        language
-                            .labels()
-                            .into_iter()
-                            .map(|label| &*Box::leak(label.into_boxed_str())),
-                    );
+                    labels.extend(language.labels().into_iter().map(leak));
                 }
             }
             all.insert((command, probes), &*Box::leak(labels.into_boxed_slice()));
         }
         all
     });
-    all.get(&(command, probes)).copied().unwrap_or(core)
+    all.get(&(command, probes)).copied().unwrap_or_default()
 }
 
 #[must_use]
@@ -81,20 +85,20 @@ pub fn spec(command: Command) -> CommandSpec {
     match command {
         Command::Lint => CommandSpec {
             command,
-            aspects: with_languages("lint", false, registry_gen::LINT_ASPECTS),
-            probes: with_languages("lint", true, registry_gen::LINT_PROBES),
+            aspects: with_languages("lint", false),
+            probes: with_languages("lint", true),
             reports: &[StandardFormat::Sarif],
         },
         Command::Typecheck => CommandSpec {
             command,
-            aspects: with_languages("typecheck", false, registry_gen::TYPECHECK_ASPECTS),
-            probes: with_languages("typecheck", true, registry_gen::TYPECHECK_PROBES),
+            aspects: with_languages("typecheck", false),
+            probes: with_languages("typecheck", true),
             reports: &[StandardFormat::Sarif],
         },
         Command::Format => CommandSpec {
             command,
-            aspects: with_languages("format", false, registry_gen::FORMAT_ASPECTS),
-            probes: with_languages("format", true, registry_gen::FORMAT_PROBES),
+            aspects: with_languages("format", false),
+            probes: with_languages("format", true),
             reports: &[],
         },
         Command::Generate => CommandSpec {
@@ -199,7 +203,7 @@ pub fn spec(command: Command) -> CommandSpec {
         },
         Command::Docs => CommandSpec {
             command,
-            aspects: with_languages("docs", false, registry_gen::DOCS_ASPECTS),
+            aspects: with_languages("docs", false),
             probes: &[],
             reports: &[],
         },
@@ -465,18 +469,20 @@ mod tests {
 
     #[test]
     fn core_table_lists_only_core_files() {
-        for label in [
-            registry_gen::LINT_ASPECTS,
-            registry_gen::LINT_PROBES,
-            registry_gen::TYPECHECK_ASPECTS,
-            registry_gen::TYPECHECK_PROBES,
-            registry_gen::FORMAT_ASPECTS,
-            registry_gen::FORMAT_PROBES,
-            registry_gen::DOCS_ASPECTS,
+        let labels: Vec<String> = [
+            ("lint", false),
+            ("lint", true),
+            ("typecheck", false),
+            ("typecheck", true),
+            ("format", false),
+            ("format", true),
+            ("docs", false),
         ]
         .into_iter()
-        .flatten()
-        {
+        .flat_map(|(command, probes)| core_labels(command, probes))
+        .collect();
+        assert!(labels.len() > 20, "{labels:?}");
+        for label in &labels {
             assert!(
                 label.starts_with("core/quality:families/") || label.starts_with("tools/docs:"),
                 "{label} belongs in its lang.json quality entry"
@@ -615,12 +621,9 @@ mod tests {
     }
 
     fn assert_core_then_languages(entry: &CommandSpec) {
-        let core = match entry.command {
-            Command::Lint => (registry_gen::LINT_ASPECTS, registry_gen::LINT_PROBES),
-            Command::Typecheck => (
-                registry_gen::TYPECHECK_ASPECTS,
-                registry_gen::TYPECHECK_PROBES,
-            ),
+        let command = match entry.command {
+            Command::Lint => "lint",
+            Command::Typecheck => "typecheck",
             Command::Security
             | Command::License
             | Command::Format
@@ -644,8 +647,9 @@ mod tests {
             | Command::Worktree
             | Command::Fuzz
             | Command::Config
-            | Command::Fetch => (registry_gen::FORMAT_ASPECTS, registry_gen::FORMAT_PROBES),
+            | Command::Fetch => "format",
         };
+        let core = (core_labels(command, false), core_labels(command, true));
         assert_eq!(&entry.aspects[..core.0.len()], core.0);
         assert_eq!(&entry.probes[..core.1.len()], core.1);
         let language_aspects: Vec<&str> = entry.aspects[core.0.len()..].to_vec();

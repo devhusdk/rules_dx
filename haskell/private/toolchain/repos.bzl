@@ -78,7 +78,7 @@ GMP_PACKAGE = "ghc-bignum"
 
 _TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
 
-_TOOLCHAIN_TYPE = str(Label("//haskell/private/toolchain:toolchain_type"))
+_TOOLCHAIN_TYPE = str(Label("//haskell:toolchain_type"))
 
 COMMON_LIBRARIES = [
     "array",

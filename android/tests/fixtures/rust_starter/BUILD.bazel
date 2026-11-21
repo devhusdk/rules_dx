@@ -1,0 +1,2 @@
+# Sources the emulator run copies onto a `dx init` project.
+exports_files(glob(["**/*.fixture"]))

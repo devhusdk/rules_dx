@@ -12,8 +12,9 @@
     clippy::string_slice,
     clippy::unused_result_ok
 )]
+// Only the Unix tests call Command::output or Command::status.
 #![cfg_attr(
-    test,
+    all(test, unix),
     expect(
         clippy::disallowed_methods,
         reason = "tests run local programs under the Bazel test timeout"

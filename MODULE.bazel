@@ -716,7 +716,7 @@ dx_pins.pin(
         "flang",
     ],
     pins = "//fortran:pins.json",
-    toolchain_type = "//fortran/private/toolchain:toolchain_type",
+    toolchain_type = "//fortran:toolchain_type",
 )
 dx_pins.pin(
     name = "dx_php",
@@ -2577,7 +2577,7 @@ use_repo(
 )
 
 sdist_cargo_vendor = use_extension(
-    "//python:extensions.bzl",
+    "//python/tests:sdist_cargo_vendor.bzl",
     "sdist_cargo_vendor",
     dev_dependency = True,
 )
@@ -3014,7 +3014,6 @@ crate.from_cargo(
         "//tools/testing/nested:Cargo.toml",
         "//tools/testing/lsp:Cargo.toml",
         "//tools/testing/floor:Cargo.toml",
-        "//tools/testing/starters:Cargo.toml",
         "//core/modules:Cargo.toml",
         "//tools/testing/wasi:Cargo.toml",
         "//api_spec/private/codegen:Cargo.toml",

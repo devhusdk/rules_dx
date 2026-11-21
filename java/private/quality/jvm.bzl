@@ -9,13 +9,6 @@ load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_a
 load("//java/private/quality/tools:jar_lsp_tool.bzl", "PklLspToolInfo")
 
 TOOLS = {
-    "detekt": {
-        "attr": attr.label(default = "//java/private/quality/tools:detekt", cfg = "exec", executable = True),
-        "capabilities": ["lint"],
-        "kind": "executable",
-        "resources": "heavy",
-        "shard": "jvm",
-    },
     "google_java_format": {
         "attr": attr.label(default = "//java/private/quality/tools:google_java_format", cfg = "exec", executable = True),
         "capabilities": ["format"],
@@ -26,19 +19,6 @@ TOOLS = {
     "javac": {
         "capabilities": ["typecheck"],
         "kind": "upstream",
-        "resources": "heavy",
-        "shard": "jvm",
-    },
-    "kotlinc": {
-        "capabilities": ["typecheck"],
-        "kind": "upstream",
-        "resources": "heavy",
-        "shard": "jvm",
-    },
-    "ktfmt": {
-        "attr": attr.label(default = "//java/private/quality/tools:ktfmt", cfg = "exec", executable = True),
-        "capabilities": ["format"],
-        "kind": "executable",
         "resources": "heavy",
         "shard": "jvm",
     },
@@ -70,7 +50,7 @@ _SPOTBUGS_EFFORT = {"standard": "default", "strict": "max"}
 SHARD_SPECS = {
     "real_jvm_format": {
         "capability": "format",
-        "doc": "Additive JVM format family aspect (google-java-format/ktfmt).",
+        "doc": "Additive JVM format family aspect (google-java-format).",
         "shard": "jvm",
     },
     "real_jvm_lint": {
@@ -89,7 +69,7 @@ SHARD_SPECS = {
     },
     "real_jvm_typecheck": {
         "capability": "typecheck",
-        "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets and kotlinc over rules_kotlin targets).",
+        "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets).",
         "requires": [jvm_check_aspect],
         "shard": "jvm",
     },
@@ -188,12 +168,11 @@ def _pkl_lsp_hook(target, ctx, resolved, capability, what, shared):
         options = {"path_tools": [("java", bundle.java), ("pkl-lsp.jar", bundle.jar), ("pkl-lsp-natives.jar", bundle.natives)]},
     )
 
-HOOK_ORDER = ["spotbugs", "javac", "kotlinc", "pkl_lsp"]
+HOOK_ORDER = ["spotbugs", "javac", "pkl_lsp"]
 
 HOOKS = {
     "spotbugs": _spotbugs_hook,
     "javac": jvm_check_hook("javac"),
-    "kotlinc": jvm_check_hook("kotlinc"),
     "pkl_lsp": _pkl_lsp_hook,
 }
 

@@ -198,7 +198,6 @@ private-visibility qt/private/tools/rust/BUILD.bazel
 private-visibility rust/private/BUILD.bazel
 private-visibility rust/private/quality/tools/BUILD.bazel
 private-visibility rust/private/tools/msvc_paths/BUILD.bazel
-private-visibility swift/private/BUILD.bazel
 private-visibility swift/private/platforms/BUILD.bazel
 private-visibility swift/private/toolchain/BUILD.bazel
 private-visibility typescript/private/playwright/BUILD.bazel

@@ -2748,6 +2748,7 @@ FILE_FAMILY_CASES = [
         platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
         config = ":sqlfluff_cfg/.sqlfluff",
         tool_env = ["sqlfluff=RUNFILES_DIR=$TEST_SRCDIR"],
+        drop_messages = True,
     ),
     matrix_case(
         name = "matrix_sql_lint_jinja_pass",
@@ -3214,6 +3215,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/typos_dirty.txt": "say teh word\n",  # spellchecker:disable-line
         },
+        drop_messages = True,
     ),
     matrix_case(
         name = "matrix_rust_typos_pass",
@@ -3234,6 +3236,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/typos_dirty.rs": "// recieve the word\n",  # spellchecker:disable-line
         },
+        drop_messages = True,
     ),
     matrix_case(
         name = "matrix_api_spec_openapi_pass",

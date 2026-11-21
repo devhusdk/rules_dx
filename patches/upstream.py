@@ -14,6 +14,7 @@ report lists refs whose pull request is merged, or closed by the commit that
 landed it, and contained in a release tag, merged bazelbuild/bazel-central-registry
 pull requests, commits contained in a release tag, patches marked fixed in a
 release, refs that were closed without a merge, and patches with no header.
+It also lists README.md rows whose `Consumer fix: #N` issue in rules_dx is closed.
 
 A carry is rules_dx code that stands in for an upstream fix, such as extra
 toolchain args. It names the fix in a comment line of a BUILD or .bzl file,
@@ -34,6 +35,8 @@ _CARRY = re.compile(r"^\s*#\s*Upstream:\s*(.+?)\s*$")
 _REF = re.compile(r"^([\w.-]+/[\w.-]+)#(\d+)$")
 _COMMIT = re.compile(r"^([\w.-]+/[\w.-]+)@([0-9a-f]{40})$")
 _FIXED = re.compile(r"^fixed upstream in (\S+)$")
+_CONSUMER_FIX = re.compile(r"Consumer fix: #(\d+)")
+_REPO = "devhusdk/rules_dx"
 # Keep in sync with _DIFF_START in tools/ci/repos.bzl.
 _DIFF_START = ("--- ", "diff ")
 
@@ -240,6 +243,35 @@ def _classify(api, name, value, released, closed, bad):
             closed.append("- `%s`: [%s](%s)" % (name, label, link))
 
 
+def consumer_fixes(text):
+    """Returns [(row, issue number)] for each README table row that names a consumer fix."""
+    found = []
+    for line in text.splitlines():
+        cells = line.split(" | ", 3)
+        match = _CONSUMER_FIX.search(line)
+        if match and len(cells) == 4 and cells[0].startswith("| `"):
+            found.append(("%s %s" % (cells[0][2:], cells[2]), int(match.group(1))))
+    return found
+
+
+def closed_consumer_fixes(api, root):
+    """Returns a report line for each README row whose consumer fix issue is closed."""
+    path = os.path.join(root, "README.md")
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as handle:
+        rows = consumer_fixes(handle.read())
+    states = {}
+    lines = []
+    for row, number in rows:
+        if number not in states:
+            issue = api.get("/repos/%s/issues/%d" % (_REPO, number))
+            states[number] = issue["state"] if issue else "missing"
+        if states[number] != "open":
+            lines.append("- %s: [#%d](https://github.com/%s/issues/%d) is %s" % (row, number, _REPO, number, states[number]))
+    return lines
+
+
 def report(api, root):
     """Returns the Markdown report, or "" when nothing needs a person.
 
@@ -268,6 +300,10 @@ def report(api, root):
         ("Upstream ref closed without a merge: find where the fix went", closed),
         ("No `Upstream:` header", missing),
         ("Unreadable `Upstream:` header", bad),
+        (
+            "Consumer fix issue closed while the patch is applied: reclassify as Root only or name an open issue",
+            closed_consumer_fixes(api, root),
+        ),
     ]
     out = []
     for title, lines in sections:

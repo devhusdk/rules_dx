@@ -769,6 +769,49 @@
         }
       }
     },
+    "@@envoy_api+//bazel:extensions.bzl%non_module_deps": {
+      "general": {
+        "bzlTransitiveDigest": "ymFxRKT8VYZB7bl2LdEEetpVTAF/Vaa9uW9sSZFWzzo=",
+        "usagesDigest": "E5/jWyjP0oHxvOphqm0vkdpe/na/p0hJ44alfKCNoSc=",
+        "recordedInputs": [
+          "REPO_MAPPING:envoy_api+,bazel_tools bazel_tools",
+          "REPO_MAPPING:envoy_api+,envoy_api envoy_api+"
+        ],
+        "generatedRepoSpecs": {
+          "prometheus_metrics_model": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "urls": [
+                "https://github.com/prometheus/client_model/archive/v0.6.2.tar.gz"
+              ],
+              "sha256": "47c5ea7949f68e7f7b344350c59b6bd31eeb921f0eec6c3a566e27cf1951470c",
+              "strip_prefix": "client_model-0.6.2",
+              "build_file_content": "\nload(\"@envoy_api//bazel:api_build_system.bzl\", \"api_cc_py_proto_library\")\nload(\"@rules_go//proto:def.bzl\", \"go_proto_library\")\n\napi_cc_py_proto_library(\n    name = \"client_model\",\n    srcs = [\n        \"io/prometheus/client/metrics.proto\",\n    ],\n    visibility = [\"//visibility:public\"],\n)\n\ngo_proto_library(\n    name = \"client_model_go_proto\",\n    importpath = \"github.com/prometheus/client_model/go\",\n    proto = \":client_model\",\n    visibility = [\"//visibility:public\"],\n)\n"
+            }
+          },
+          "com_github_chrusty_protoc_gen_jsonschema": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "urls": [
+                "https://github.com/norbjd/protoc-gen-jsonschema/archive/7680e4998426e62b6896995ff73d4d91cc5fb13c.zip"
+              ],
+              "sha256": "ba3e313b10a1b50a6c1232d994c13f6e23d3669be4ae7fea13762f42bb3b2abc",
+              "strip_prefix": "protoc-gen-jsonschema-7680e4998426e62b6896995ff73d4d91cc5fb13c"
+            }
+          },
+          "envoy_toolshed": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "urls": [
+                "https://github.com/envoyproxy/toolshed/releases/download/bazel-v0.4.10/toolshed-bazel-v0.4.10.tar.gz"
+              ],
+              "sha256": "9c0dce46c0caaf33434e21428dda7f5ad2b73011e69a5619af867c4901e7ec85",
+              "strip_prefix": "toolshed-bazel-v0.4.10"
+            }
+          }
+        }
+      }
+    },
     "@@gcc_toolchain+//:internal.bzl%non_bazel_dependencies": {
       "general": {
         "bzlTransitiveDigest": "2lJ032c8fOuugvP5l8O9QCbfJ0bax+IIqOgaFwlNDec=",
@@ -57474,49 +57517,6 @@
         "moduleExtensionMetadata": {
           "explicitRootModuleDirectDeps": [
             "msvc_runtime"
-          ],
-          "explicitRootModuleDirectDevDeps": [],
-          "useAllRepos": "NO",
-          "reproducible": false
-        }
-      }
-    },
-    "@@windows_support+//windows:extensions.bzl%windows_sdk": {
-      "general": {
-        "bzlTransitiveDigest": "/fpjACapwytnUWPsK9hfNxq/3i0vYEbGgvEFP3etVEA=",
-        "usagesDigest": "ZoZvdspZRIYHkLfPrDvTZJtdrLRkVHswp7vAAlEqHZY=",
-        "recordedInputs": [
-          "REPO_MAPPING:windows_support+,bazel_tools bazel_tools"
-        ],
-        "generatedRepoSpecs": {
-          "windows_sdk": {
-            "repoRuleId": "@@windows_support+//windows/private/extensions:windows_sdk.bzl%_windows_sdk_repository",
-            "attributes": {
-              "windows_sdk_version": "10.0.26100.7705",
-              "windows_sdk_integrity": {
-                "Microsoft.Windows.SDK.CPP": "sha256-/0VWYL7gcadEcVqWZWZvopwHaBV509gVlZqe7FpVZCQ=",
-                "Microsoft.Windows.SDK.CPP.x64": "sha256-rWzpD/lAEGmdKVSLPCseUsieuBFD4hmRVdmlw4ABtSs=",
-                "Microsoft.Windows.SDK.CPP.arm64": "sha256-A7wMA9Q5zvhQdLvNQl+dXTptO0Z5Z6zSHaO6bf7q+mc="
-              },
-              "transformations": {
-                "base/c/Include/10.0.26100.0/shared/driverspecs.h": "base/c/Include/10.0.26100.0/shared/DriverSpecs.h",
-                "base/c/Include/10.0.26100.0/shared/specstrings.h": "base/c/Include/10.0.26100.0/shared/SpecStrings.h",
-                "base/c/Include/10.0.26100.0/um/ole2.h": "base/c/Include/10.0.26100.0/um/Ole2.h",
-                "base/c/Include/10.0.26100.0/um/olectl.h": "base/c/Include/10.0.26100.0/um/OleCtl.h",
-                "**/*.h": "lowercase",
-                "**/*.lib": "lowercase",
-                "**/*.Lib": "lowercase"
-              },
-              "architectures": [
-                "x64",
-                "arm64"
-              ]
-            }
-          }
-        },
-        "moduleExtensionMetadata": {
-          "explicitRootModuleDirectDeps": [
-            "windows_sdk"
           ],
           "explicitRootModuleDirectDevDeps": [],
           "useAllRepos": "NO",

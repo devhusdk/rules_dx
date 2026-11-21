@@ -1,5 +1,6 @@
 """Module extension for php/private/toolchain."""
 
+load("//cli/prebuilt:launcher.bzl", "FROM_SOURCE", "native_launcher_repos")
 load(":cells.bzl", "PHP_CELLS")
 load(":repos.bzl", "HEADERS_BUILD", "HUB_NAME", "COVERAGE_PREFIX", "SOURCES_BUILD", "VERSION_FILE", "hub_build", "phar_build", "php_archive", "php_coverage_runtime", "php_hub", "runtime_build", "runtime_repository_name")
 
@@ -81,10 +82,12 @@ def _php_impl(mctx):
             strip_prefix = pin["strip_prefix"],
             urls = pin["urls"],
         )
+    native_launcher_repos(name = "php_launcher", modules = mctx.modules, ext = "php")
     return mctx.extension_metadata(reproducible = True)
 
 
 php = module_extension(
     implementation = _php_impl,
-    doc = "Creates the pinned PHP runtimes, Composer, PHPUnit and the toolchain hub.",
+    doc = "Creates the pinned PHP runtimes, Composer, PHPUnit, the native launcher and the toolchain hub.",
+    tag_classes = {"from_source": FROM_SOURCE},
 )

@@ -65,7 +65,8 @@ const RULE_SETS: [(&str, &[&str]); 3] = [
 ];
 
 /// The only `rules_dx` files a rule-set file may load, as `//` labels.
-const RULES_DX_ALLOW: [&str; 8] = [
+const RULES_DX_ALLOW: [&str; 9] = [
+    "//cli/prebuilt:launcher.bzl",
     "//core:cells.bzl",
     "//core:entry.bzl",
     "//core:fuzz_bench.bzl",

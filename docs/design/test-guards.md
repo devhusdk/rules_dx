@@ -70,7 +70,7 @@ The guards check the rules of `docs/design/tests.md`.
 
 ## In-graph prebuilt guard
 
-- `//cli/prebuilt:guard_view` is a bool flag. When rules_dx is the root module and the flag is set, `@dx_prebuilt` and `@dx_gazelle` serve `//cli/prebuilt:guard_stub` for every tool they build from source. Its scope is `universal`, so it keeps its value in the exec configuration. `//cli/prebuilt:guard_view_test` checks that exec-configured hub tools resolve to the stub.
+- `//cli/prebuilt:guard_view` is a bool flag. When rules_dx is the root module and the flag is set, `@dx_prebuilt`, `@dx_gazelle` and `@php_launcher` serve `//cli/prebuilt:guard_stub` for every tool they build from source. Its scope is `universal`, so it keeps its value in the exec configuration. `//cli/prebuilt:guard_view_test` checks that exec-configured hub tools resolve to the stub.
 - `tools/testing/consumer/fixtures.bzl` splits `CONSUMER_FIXTURES` into `GO_GUARD_LANGS` and `JAVA_GUARD_LANGS`, held by the nested `go_prebuilt_guard_test` and `java_prebuilt_guard_test`, `IN_GRAPH_GUARD_LANGS`, `MACOS_IN_GRAPH_GUARD_LANGS`, and `GUARD_PENDING`. `//tools/testing/consumer:in_graph_prebuilt_guard_test` fails unless each fixture is in exactly one list.
 - `JAVA_GUARD_LANGS` holds `java` only.
 - The nested guards pin every registry key of each `//cli/prebuilt:target_tools` tool and write `dx_target_guard`, whose `targets` depend on the hub target of each such tool through a split transition over `@rules_dx//tools/platforms:<key>` for each of its keys. They fail when a target tool does not select its download for each key.

@@ -188,6 +188,7 @@ TOOLS = {
     "weeder": _haskell("weeder", "exec", "@rules_dx//haskell/private/tools/weeder/bin:source"),
     "tree_sitter": _library("tree_sitter", "tree-sitter.dll", "@jvm_tree_sitter//:tree-sitter.dll"),
     "tree_sitter_pkl": _library("tree_sitter_pkl", "tree-sitter-pkl.dll", "@jvm_tree_sitter_pkl//:tree-sitter-pkl.dll"),
+    "julia_internal": _library("julia_internal", "libjulia-internal.so", "@rules_dx//julia/private/runtime:libjulia_internal", ext = ".so", role = "target", platforms = ["linux_x86_64"]),
     "pcov": _library("pcov", "pcov.so", "@dx_php_pcov//:pcov.so", ext = ".so", role = "target", platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"]),
     "hlint": _hackage("hlint", ["linux_arm64", "macos_arm64"]),
     "ormolu": _hackage("ormolu", ["linux_arm64"]),
@@ -244,7 +245,7 @@ PYTHON_BUNDLE_TOOLS = {
 DEV_SOURCE_FALLBACK = {"kcov": "@rules_dx//tools/coverage/kcov:none"}
 
 # The tools released as one native binary or shared library per platform.
-NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "pcov", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
+NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "julia_internal", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "pcov", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])

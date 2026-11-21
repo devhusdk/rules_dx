@@ -184,6 +184,10 @@ Julia builds and tests on:
 - macOS arm64
 - Windows x86_64
 
+On Linux x86_64, Julia runs on a source-built `libjulia-internal` that
+consumers download as the prebuilt `dx-julia-internal-linux-x86_64.so`
+release asset.
+
 The [support matrix](../support-matrix.md) lists the platforms. There is
 no Julia build for `windows_arm64`.
 

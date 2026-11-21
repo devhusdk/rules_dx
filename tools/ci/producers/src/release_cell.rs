@@ -36,7 +36,7 @@ const NATIVE_TOOLS: [Tool; 4] = [
         licenses: &["@dx_thrift//:LICENSE", "@dx_thrift//:NOTICE"],
     },
 ];
-/// The one cell that writes the `dx-<tool>-LICENSE` assets of the native tools and of pcov.
+/// The one cell that writes the `dx-<tool>-LICENSE` assets of the native tools, pcov and julia-internal.
 const LICENSE_CELL: &str = "dx-linux-x86_64";
 /// A tool or shared library a cell ships: its asset stem, its label and the upstream licence files of its licence asset, empty for first-party code.
 struct Tool {
@@ -62,11 +62,27 @@ const WINDOWS_ARM64_LIBRARIES: [Tool; 2] = [
     },
 ];
 /// The PHP PCOV extension the linux and macOS cells ship for the PHP toolchains.
-const PCOV: [Tool; 1] = [Tool {
+const PCOV_LIBRARY: Tool = Tool {
     tool: "pcov",
     label: "@dx_php_pcov//:pcov.so",
     licenses: &["@dx_php_pcov//:pcov-1.0.12/LICENSE"],
-}];
+};
+const PCOV: [Tool; 1] = [PCOV_LIBRARY];
+/// PCOV and the source-built libjulia-internal the linux-x86_64 Julia toolchain loads, with
+/// the licences of the libuv, utf8proc and LLVM code it links statically.
+const LINUX_X86_64_LIBRARIES: [Tool; 2] = [
+    PCOV_LIBRARY,
+    Tool {
+        tool: "julia-internal",
+        label: "//julia/private/runtime:libjulia_internal",
+        licenses: &[
+            "@julia_src//:LICENSE.md",
+            "@julia_src_libuv//:share/licenses/LibUV/LICENSE",
+            "@julia_src_utf8proc//:LICENSE.md",
+            "@julia_src_libllvm//:share/licenses/libLLVM/LICENSE.TXT",
+        ],
+    },
+];
 const QUERY_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const TOOL_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
@@ -267,7 +283,8 @@ fn tool_asset_name(tool: &str, cell: &str) -> String {
 fn libraries(cell: &str) -> &'static [Tool] {
     match cell {
         "dx-windows-arm64" => &WINDOWS_ARM64_LIBRARIES,
-        "dx-linux-arm64" | "dx-linux-x86_64" | "dx-macos-arm64" => &PCOV,
+        "dx-linux-x86_64" => &LINUX_X86_64_LIBRARIES,
+        "dx-linux-arm64" | "dx-macos-arm64" => &PCOV,
         _ => &[],
     }
 }
@@ -277,7 +294,7 @@ fn libraries(cell: &str) -> &'static [Tool] {
 fn library_licenses(cell: &str) -> &'static [Tool] {
     match cell {
         "dx-windows-arm64" => &WINDOWS_ARM64_LIBRARIES,
-        LICENSE_CELL => &PCOV,
+        LICENSE_CELL => &LINUX_X86_64_LIBRARIES,
         _ => &[],
     }
 }
@@ -295,7 +312,7 @@ fn native_licenses(cell: &str) -> Vec<&'static Tool> {
 }
 
 /// The asset name of a shared library in a cell, such as `dx-tree-sitter-windows-arm64.dll`
-/// or `dx-pcov-linux-x86_64.so`.
+/// or `dx-julia-internal-linux-x86_64.so`.
 fn library_asset_name(tool: &str, cell: &str) -> String {
     let ext = if cell.starts_with("dx-windows-") {
         "dll"
@@ -614,13 +631,17 @@ mod tests {
     }
 
     #[test]
-    fn windows_arm64_ships_tree_sitter_and_unix_cells_ship_pcov() {
+    fn windows_arm64_ships_tree_sitter_and_unix_cells_ship_pcov_and_julia() {
         assert_eq!(
             names(libraries("dx-windows-arm64")),
             ["tree-sitter", "tree-sitter-pkl"]
         );
         assert!(libraries("dx-windows-x86_64").is_empty());
-        for cell in ["dx-linux-arm64", "dx-linux-x86_64", "dx-macos-arm64"] {
+        assert_eq!(
+            names(libraries("dx-linux-x86_64")),
+            ["pcov", "julia-internal"]
+        );
+        for cell in ["dx-linux-arm64", "dx-macos-arm64"] {
             assert_eq!(names(libraries(cell)), ["pcov"], "{cell}");
         }
     }
@@ -631,7 +652,10 @@ mod tests {
             names(library_licenses("dx-windows-arm64")),
             ["tree-sitter", "tree-sitter-pkl"]
         );
-        assert_eq!(names(library_licenses("dx-linux-x86_64")), ["pcov"]);
+        assert_eq!(
+            names(library_licenses("dx-linux-x86_64")),
+            ["pcov", "julia-internal"]
+        );
         for cell in ["dx-linux-arm64", "dx-macos-arm64", "dx-windows-x86_64"] {
             assert!(library_licenses(cell).is_empty(), "{cell}");
         }
@@ -646,6 +670,10 @@ mod tests {
         assert_eq!(
             library_asset_name("pcov", "dx-macos-arm64"),
             "dx-pcov-macos-arm64.so"
+        );
+        assert_eq!(
+            library_asset_name("julia-internal", "dx-linux-x86_64"),
+            "dx-julia-internal-linux-x86_64.so"
         );
         assert_eq!(
             library_asset_name("tree-sitter", "dx-windows-arm64"),

@@ -13,6 +13,7 @@ const EXPECTED_NAMES: &[&str] = &[
     "dx_crates",
     "dx_dart_bench_deps",
     "dx_dart_deps",
+    "dx_dart_ext_deps",
     "dx_dart_padded_archive",
     "dx_dokka",
     "dx_flutter_app_deps",

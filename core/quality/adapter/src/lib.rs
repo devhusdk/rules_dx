@@ -4,6 +4,7 @@ use line_index::LineIndex;
 use quality_result::proto::{self, Diagnostic, Severity};
 
 pub mod api_spec_preflight;
+pub mod buf_preflight;
 pub mod cloudformation_preflight;
 pub mod commands;
 pub mod exec;

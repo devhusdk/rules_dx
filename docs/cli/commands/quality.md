@@ -425,6 +425,8 @@ A bound ruff config runs with its own directory as the project root, the same as
 
 A bound regal config may not set `capabilities.from.url`, use YAML aliases, merge keys or tags. `capabilities.from.file` must be a relative forward-slash path without `.` or `..` segments. Use `capabilities.from.engine` and `version` to pin capabilities.
 
+A bound or root `buf.yaml` may not list `deps`, in v1 or v2, or in a v2 `modules` entry, and may not use YAML aliases, merge keys or tags. `dx` runs buf offline. Declare imported protos as `proto_library` deps instead.
+
 ### Change a rule
 
 Edit the tool's own root file. Where the Base column says `extends`, the file extends the dx tier base, so your edit is the only thing you keep. Where it says `override copy`, the root file is a copy of the base, and you edit the copy.

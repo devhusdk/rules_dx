@@ -83,7 +83,6 @@ def _objc_case(name, contains, absent):
     }
 
 def _objc_default_case(name, contains, absent):
-    # The default policy's curated objc typecheck is clang_syntax, so no dedicated test config is needed.
     return {
         "name": "real_result_clang_syntax_objc_default_" + name,
         "target": "//core/quality/testdata/clang_syntax:" + name + "_objc",

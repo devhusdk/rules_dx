@@ -26,7 +26,6 @@ const RULE_SETS: [(&str, &[&str]); 3] = [
             "php/defs.bzl",
             "php/extensions.bzl",
             "php/private/BUILD.bazel",
-            "php/private/defs.bzl",
             "php/private/php.bzl",
             "php/private/providers.bzl",
             "php/private/lock/",
@@ -40,7 +39,6 @@ const RULE_SETS: [(&str, &[&str]); 3] = [
             "lua/defs.bzl",
             "lua/extensions.bzl",
             "lua/private/BUILD.bazel",
-            "lua/private/defs.bzl",
             "lua/private/lua.bzl",
             "lua/private/providers.bzl",
             "lua/private/lock/",
@@ -60,7 +58,8 @@ const RULE_SETS: [(&str, &[&str]); 3] = [
 ];
 
 /// The only `rules_dx` files a rule-set file may load, as `//` labels.
-const RULES_DX_ALLOW: [&str; 7] = [
+const RULES_DX_ALLOW: [&str; 8] = [
+    "//core:cells.bzl",
     "//core:entry.bzl",
     "//core:fuzz_bench.bzl",
     "//core:pins.bzl",

@@ -14357,9 +14357,18 @@
           {
             "attrs": [
               "srcs",
+              "upstream",
               "visibility"
             ],
-            "kind": "_lua_library"
+            "kind": "_lua_library_forward"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "lua_library"
           }
         ],
         "name": "lua_library",
@@ -14406,7 +14415,7 @@
               "tags",
               "visibility"
             ],
-            "kind": "_lua_test"
+            "kind": "lua_test"
           }
         ],
         "name": "lua_test",

@@ -65,6 +65,7 @@ rules_qt | Qt launcher | C++ | no
 ## Licences
 
 - Every redistributed asset ships the upstream licence text, and the artifact record names the licence and its source URL.
+- When upstream ships no licence file, the repo ships a checked-in copy of the notice, and a test matches it against the pinned source.
 - MPL-2.0 and BSD-3-Clause tools are redistributed unmodified.
 - GPL-3.0 and LGPL-3.0 tools are redistributed only with the exact source archive the binary was built from, published as an asset of the same release.
 - A tool built with patches publishes the patches with that source archive.

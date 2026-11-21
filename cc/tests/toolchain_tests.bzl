@@ -79,6 +79,23 @@ aspect_field has_subject=True
 aspect_field subject_label=//cc/tests:identity_under_test_gcc_arm64_native
 aspect_field transitive_count=0""")
 
+EXPECTED_GCC_X86_64_CROSS_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/tests:identity_under_test_gcc_x86_64_cross
+field cc.abi=itanium
+field cc.builtin_includes=external/+cc+dx_gcc_linux_x86_64_cross_@GCCU@/external/+cc+dx_gcc_linux_x86_64_cross_@GCCU@/lib/gcc/x86_64-linux/@GCC@/include | external/+cc+dx_gcc_linux_x86_64_cross_@GCCU@/external/+cc+dx_gcc_linux_x86_64_cross_@GCCU@/lib/gcc/x86_64-linux/@GCC@/include-fixed | external/+cc+dx_gcc_linux_x86_64_cross_@GCCU@/external/+cc+dx_gcc_linux_x86_64_cross_@GCCU@/sysroot/usr/include | external/+cc+dx_gcc_linux_x86_64_cross_@GCCU@/external/+cc+dx_gcc_linux_x86_64_cross_@GCCU@/x86_64-linux/include/c++/@GCC@ | external/+cc+dx_gcc_linux_x86_64_cross_@GCCU@/external/+cc+dx_gcc_linux_x86_64_cross_@GCCU@/x86_64-linux/include/c++/@GCC@/x86_64-linux
+field cc.compiler=gcc
+field cc.coverage=gcov
+field cc.driver=gnu
+field cc.family=gcc
+field cc.libc=@GLIBC@
+field cc.syntax_only=-fsyntax-only
+field cc.sysroot=None
+field cc.target=x86_64-linux-gnu
+aspect_field aspect_seen=True
+aspect_field field_count=10
+aspect_field has_subject=True
+aspect_field subject_label=//cc/tests:identity_under_test_gcc_x86_64_cross
+aspect_field transitive_count=0""")
+
 EXPECTED_MSVC_IDENTITY_OBSERVATIONS = """subject //cc/tests:identity_under_test_msvc
 field cc.abi=msvc
 field cc.builtin_includes=external/+cc+dx_msvc_runtime/sysroot/Contents/VC/Tools/MSVC/14.50.35717/include | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/shared | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/ucrt | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/um | external/+cc+dx_windows_sdk/sysroot/base/c/Include/10.0.26100.0/winrt
@@ -110,13 +127,15 @@ EXPECTED_MSVC_ARM64_NATIVE_IDENTITY_OBSERVATIONS = EXPECTED_MSVC_ARM64_IDENTITY_
 
 _LINUX_X86_64 = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
-def gcc_cross_build_host(host_constraints):
-    """Returns the target_compatible_with that allows only a Linux x86_64 build host."""
-    if "@platforms//os:linux" in host_constraints and "@platforms//cpu:x86_64" in host_constraints:
+def gcc_cross_build_host(host_constraints, cpu):
+    """Returns the target_compatible_with that allows only a Linux build host with the given cpu."""
+    if "@platforms//os:linux" in host_constraints and "@platforms//cpu:" + cpu in host_constraints:
         return []
     return [Label("@platforms//:incompatible")]
 
-GCC_CROSS_BUILD_HOST = gcc_cross_build_host(HOST_CONSTRAINTS)
+GCC_CROSS_BUILD_HOST = gcc_cross_build_host(HOST_CONSTRAINTS, "x86_64")
+
+GCC_X86_64_CROSS_BUILD_HOST = gcc_cross_build_host(HOST_CONSTRAINTS, "arm64")
 
 def cc_toolchain_identity_tests(name):
     starlark_test(
@@ -212,6 +231,13 @@ def cc_toolchain_identity_tests(name):
         mode = "analysis",
         subjects = [":identity_under_test_gcc_arm64_native"],
         expected_observations = EXPECTED_GCC_ARM64_NATIVE_IDENTITY_OBSERVATIONS,
+        target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:arm64"],
+    )
+    starlark_test(
+        name = name + "_gcc_x86_64_cross",
+        mode = "analysis",
+        subjects = [":identity_under_test_gcc_x86_64_cross"],
+        expected_observations = EXPECTED_GCC_X86_64_CROSS_IDENTITY_OBSERVATIONS,
         target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:arm64"],
     )
     starlark_test(

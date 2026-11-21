@@ -149,6 +149,73 @@ func TestGenerateSourceOnlySharedTestModules(t *testing.T) {
 	}
 }
 
+func TestGenerateSkipsModulesOfAncestorCrate(t *testing.T) {
+	cases := []struct {
+		name     string
+		files    map[string]string
+		existing bool
+		want     []string
+	}{
+		{
+			name: "Cargo package",
+			files: map[string]string{
+				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
+				"crates/demo/src/lib.rs":              "mod real;\n",
+				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
+			},
+		},
+		{
+			name: "source-only crate",
+			files: map[string]string{
+				"crates/demo/src/lib.rs":              "mod real;\n",
+				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
+			},
+		},
+		{
+			name: "BUILD file between",
+			files: map[string]string{
+				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
+				"crates/demo/src/BUILD.bazel":         "",
+				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
+			},
+			want: []string{"common_test"},
+		},
+		{
+			name: "existing package",
+			files: map[string]string{
+				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
+				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
+			},
+			existing: true,
+			want:     []string{"common_test"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			for name, content := range tc.files {
+				writeFixture(t, root, name, content)
+			}
+			args := language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo/src/real"), Rel: "crates/demo/src/real"}
+			if tc.existing {
+				args.File = rule.EmptyFile(filepath.Join(args.Dir, "BUILD.bazel"), args.Rel)
+			}
+			l := &rustLang{}
+			result := l.GenerateRules(withSubdirs(args))
+			if len(l.errors) != 0 {
+				t.Fatalf("errors = %v", l.errors)
+			}
+			var got []string
+			for _, r := range result.Gen {
+				got = append(got, r.Name())
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("generated %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestGenerateStaleRules(t *testing.T) {
 	f := rule.EmptyFile("BUILD.bazel", "crates/demo")
 	f.Rules = append(f.Rules,
@@ -1438,6 +1505,21 @@ func TestCorpusLeavesFilesALanguageCorpusListsByLabel(t *testing.T) {
 	}, true)
 	if len(plan.errs) != 0 || len(plan.gen) != 0 {
 		t.Errorf("generated %v with errors %v, want nothing", plan.gen, plan.errs)
+	}
+}
+
+func TestCorpusCoversNewBuildFileFromOtherLanguage(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "tool.py", "")
+	plan := planCorpus(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          root,
+		RegularFiles: []string{"tool.py"},
+		OtherGen:     []*rule.Rule{rule.NewRule("python_library", "tool")},
+	}, false)
+	if len(plan.errs) != 0 || len(plan.gen) != 1 || plan.gen[0].Name() != "corpus_starlark" ||
+		!reflect.DeepEqual(plan.gen[0].AttrStrings("starlark_srcs"), []string{"BUILD.bazel"}) {
+		t.Errorf("generated %v with errors %v, want corpus_starlark over BUILD.bazel", plan.gen, plan.errs)
 	}
 }
 

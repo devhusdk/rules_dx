@@ -113,10 +113,13 @@
 //cuda:gpu_driver string_flag ""
 //cuda:gpu_undeclared config_setting
 //d:coverage config_setting
+//d:toolchain_type toolchain_type
 //dart:runfiles alias
 //deploy:bootstrap_offline runnable rust_binary
 //deploy:linux_amd64 platform
 //deploy:linux_arm64 platform
+//elixir:toolchain_type toolchain_type
+//erlang:exec_toolchain_type toolchain_type
 //erlang:toolchain_type toolchain_type
 //examples/shared-rust:shared_tasks runnable rust_binary
 //examples/shared-rust:tasks runnable rust_binary
@@ -127,7 +130,9 @@
 //flutter:profile alias
 //fortran:kcov bool_flag False
 //fortran:kcov_build config_setting
+//fortran:toolchain_type toolchain_type
 //haskell:base alias
+//haskell:toolchain_type toolchain_type
 //lua:toolchain_type toolchain_type
 //msix:toolchain_type toolchain_type
 //msix:windows_arm64 platform
@@ -136,6 +141,8 @@
 //ocaml:bisect_ppx_rewriter alias
 //ocaml:dune alias
 //ocaml:emitter alias
+//ocaml:profile_toolchain_type toolchain_type
+//ocaml:toolchain_type toolchain_type
 //php:exec_toolchain_type toolchain_type
 //php:runfiles php_library
 //php:toolchain_type toolchain_type

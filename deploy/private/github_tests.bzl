@@ -118,6 +118,7 @@ def _attested_config_test_impl(ctx):
     attestations = config.get("attestations", [])
     asserts.equals(env, ["crates", "maven"], [a["registry"] for a in attestations])
     asserts.equals(env, "crates_demo", attestations[0]["crate_name"] if attestations else "")
+    asserts.true(env, attestations[0].get("attach", False) if attestations else False, "attach must fetch the published .crate")
     maven_rlocs = attestations[1]["rlocs"] if len(attestations) > 1 else []
     asserts.equals(env, 4, len(maven_rlocs), "want the jar, pom, sources and javadoc")
     for rloc in maven_rlocs:

@@ -16,6 +16,7 @@ pub mod cli;
 pub mod exec_log;
 pub mod fatbin;
 pub mod http;
+pub mod msix;
 
 pub use dx_binfmt::{
     inspect as image_inspect, machine as image_machine, machines as image_machines,

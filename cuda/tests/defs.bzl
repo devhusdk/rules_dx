@@ -81,6 +81,25 @@ hermetic_toolchain_test = analysistest.make(
     extra_target_under_test_aspects = [_compile_aspect],
 )
 
+def _coverage_keep_impl(ctx):
+    env = analysistest.begin(ctx)
+    commands = analysistest.target_under_test(env)[CudaCompileInfo].commands
+    asserts.true(env, len(commands) > 0, "expected at least one CudaCompile action")
+    for _, argv in commands:
+        asserts.true(env, "--keep-dir" in argv, "a coverage compile must keep nvcc intermediates in --keep-dir")
+        asserts.false(env, "--objdir-as-tempdir" in argv, "--objdir-as-tempdir moves kept files out of --keep-dir")
+    return analysistest.end(env)
+
+coverage_keep_test = analysistest.make(
+    _coverage_keep_impl,
+    doc = "Asserts a coverage compile keeps nvcc intermediates where the coverage collector reads them.",
+    config_settings = {
+        "//command_line_option:collect_code_coverage": True,
+        "//command_line_option:instrumentation_filter": "^//cuda/tests/fixtures/saxpy[/:]",
+    },
+    extra_target_under_test_aspects = [_compile_aspect],
+)
+
 def _component_sources_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)

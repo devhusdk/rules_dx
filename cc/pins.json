@@ -14,6 +14,13 @@
       ],
       "version": "16.2.0"
     },
+    "gcc_linux_aarch64_to_x86_64": {
+      "sha256": "600c8d1a6e70eb0b259a01eef3fd4429a43d3cfebe4c6e01659bc6fcf5556415",
+      "urls": [
+        "https://github.com/f0rmiga/gcc-builds/releases/download/10082026/gcc-toolchain-16.2.0-x86_64-host-aarch64.tar.xz"
+      ],
+      "version": "16.2.0"
+    },
     "gcc_linux_x86_64_to_aarch64": {
       "sha256": "6407b35116f21c59e98ab5ad68ddd8ff5f3e0469723a5d465ec08ed615b11a55",
       "urls": [

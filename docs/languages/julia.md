@@ -122,7 +122,7 @@ load("@rules_dx//julia:defs.bzl", "julia_library", "julia_binary", "julia_test")
 julia_library(name, srcs = None, visibility = None, **kwargs)
 ```
 
-Thin wrapper over julia_library.
+Thin wrapper over julia_library. entry defaults to name.jl, else src/name.jl, when srcs lists it.
 
 ### `julia_binary`
 
@@ -186,6 +186,12 @@ Julia builds and tests on:
 
 The [support matrix](../support-matrix.md) lists the platforms. There is
 no Julia build for `windows_arm64`.
+
+On Linux x86_64, Julia runs on a source-built `libjulia-internal` that
+consumers download as the prebuilt `dx-julia-internal-linux-x86_64.so`
+release asset. With that download, a Linux x86_64 target gets the
+source-built library from any exec host. A source build of the library
+needs a Linux exec host.
 
 ## API docs
 

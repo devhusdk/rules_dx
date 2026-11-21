@@ -3,7 +3,7 @@
 load("//android/private/packaging:defs.bzl", "abi_transition_settings")
 load("//android/private/packaging:repos.bzl", "ABI_PLATFORMS", "APP_SDK_API_LEVEL", "APP_SDK_BUILD_TOOLS", "APP_SDK_LICENSES", "APP_SDK_PLATFORM", "APP_SDK_REPOSITORY", "KNOWN_ABIS", "TUPLE_ABIS", "abi_errors", "abi_platforms", "abis_for", "app_id_errors", "manifest_lib_name", "sdk_request_errors")
 load("//android/private/packaging:validate.bzl", "android_aab_check_errors", "android_apk_manifest_errors", "android_apk_set_errors", "android_release_sign_errors", "rust_android_apk_errors")
-load("//android/private/sdk:repos.bzl", "ANDROID_API_LEVEL", "APP_SDK_FORWARDED", "ANDROID_NDK_RELEASE", "ANDROID_NDK_REVISION", "ANDROID_TARGET", "BUILD_TOOLS", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "BUNDLETOOL_VERSION", "DEFAULT_MIRROR", "DEFAULT_PLATFORM_LEVEL", "EMULATOR_ARTIFACTS", "EMULATOR_BUILD", "HUB_NAME", "NDK_ARTIFACTS", "OPT_IN_PACKAGES", "PLATFORM_ARTIFACTS", "PLATFORM_CONSTRAINTS", "PLATFORM_TOOLS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "REQUIRED_LICENSES", "SDK_PACKAGES", "SDK_PLATFORM", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "build_tools_build", "build_tools_no_match_error", "build_tools_repositories", "build_tools_repository_name", "bundletool_url", "canonical_id_for", "default_request", "emulator_build", "emulator_repository_name", "fetches_payload", "hub_build", "ndk_build", "ndk_repositories", "ndk_repository_name", "no_match_error", "package_repositories", "platform_build", "platform_repository_name", "platform_tools_build", "platform_tools_repository_name", "request_errors", "select_request", "unavailable_hub_build", "url_for")
+load("//android/private/sdk:repos.bzl", "ANDROID_API_LEVEL", "ANDROID_NDK_RELEASE", "ANDROID_NDK_REVISION", "ANDROID_TARGET", "APP_SDK_FORWARDED", "BUILD_TOOLS", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "BUNDLETOOL_VERSION", "DEFAULT_MIRROR", "DEFAULT_PLATFORM_LEVEL", "EMULATOR_ARTIFACTS", "EMULATOR_BUILD", "HUB_NAME", "NDK_ARTIFACTS", "OPT_IN_PACKAGES", "PLATFORM_ARTIFACTS", "PLATFORM_CONSTRAINTS", "PLATFORM_TOOLS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "REQUIRED_LICENSES", "SDK_PACKAGES", "SDK_PLATFORM", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "build_tools_build", "build_tools_no_match_error", "build_tools_repositories", "build_tools_repository_name", "bundletool_url", "canonical_id_for", "default_request", "emulator_build", "emulator_repository_name", "fetches_payload", "hub_build", "ndk_build", "ndk_repositories", "ndk_repository_name", "no_match_error", "package_repositories", "platform_build", "platform_repository_name", "platform_tools_build", "platform_tools_repository_name", "request_errors", "select_request", "unavailable_hub_build", "url_for")
 load("//android/private/toolchain:repos.bzl", "toolchain_build", "toolchain_repo_errors")
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 
@@ -339,14 +339,19 @@ def _android_checks():
         ],
     ))
     checks.append(expect_equal("build-tools repository", build_tools_repository_name("linux_x86_64"), "dx_android_build_tools_linux_x86_64"))
-    checks.append(expect_equal("build-tools repositories", build_tools_repositories(), {"linux_x86_64": "dx_android_build_tools_linux_x86_64"}))
+    checks.append(expect_equal("build-tools repositories", build_tools_repositories(), {
+        "linux_x86_64": "dx_android_build_tools_linux_x86_64",
+        "macos_arm64": "dx_android_build_tools_macos_arm64",
+        "windows_arm64": "dx_android_build_tools_windows_x86_64",
+        "windows_x86_64": "dx_android_build_tools_windows_x86_64",
+    }))
     checks.append(expect_equal(
         "build-tools cache identity",
         canonical_id_for(url_for(tools), "build-tools"),
         "dx-android-build-tools-archive:" + DEFAULT_MIRROR + "/build-tools_r35_linux.zip",
     ))
     checks.append(expect_contains("build-tools no-match names the version", build_tools_no_match_error(), "build-tools 35.0.0"))
-    checks.append(expect_contains("build-tools no-match names the host", build_tools_no_match_error(), "linux_x86_64"))
+    checks.append(expect_contains("build-tools no-match names the hosts", build_tools_no_match_error(), "linux_x86_64, macos_arm64, windows_arm64, windows_x86_64"))
     checks.append(expect_equal(
         "ndk constraints",
         PLATFORM_CONSTRAINTS["linux_x86_64"],
@@ -471,7 +476,12 @@ def _android_checks():
     checks.append(expect_equal(
         "platform-tools repositories",
         package_repositories(_request(extra_packages = ["platform-tools"]))["platform_tools"],
-        {"linux_x86_64": "dx_android_platform_tools_linux_x86_64"},
+        {
+            "linux_x86_64": "dx_android_platform_tools_linux_x86_64",
+            "macos_arm64": "dx_android_platform_tools_macos_arm64",
+            "windows_arm64": "dx_android_platform_tools_windows_x86_64",
+            "windows_x86_64": "dx_android_platform_tools_windows_x86_64",
+        },
     ))
     checks.append(expect_equal(
         "emulator repositories",
@@ -482,6 +492,13 @@ def _android_checks():
         "disabled hub selects nothing",
         hub_build({}, {}, BUNDLETOOL_REPOSITORY),
         "\n".join([
+            "config_setting(",
+            '    name = "linux_arm64",',
+            "    constraint_values = [",
+            '        "@platforms//os:linux",',
+            '        "@platforms//cpu:arm64",',
+            "    ],",
+            ")",
             "config_setting(",
             '    name = "linux_x86_64",',
             "    constraint_values = [",
@@ -504,11 +521,24 @@ def _android_checks():
             "    ],",
             ")",
             "config_setting(",
+            '    name = "windows_arm64",',
+            "    constraint_values = [",
+            '        "@platforms//os:windows",',
+            '        "@platforms//cpu:arm64",',
+            "    ],",
+            ")",
+            "config_setting(",
             '    name = "windows_x86_64",',
             "    constraint_values = [",
             '        "@platforms//os:windows",',
             '        "@platforms//cpu:x86_64",',
             "    ],",
+            ")",
+            "",
+            "filegroup(",
+            '    name = "no_sdk_host",',
+            "    srcs = [],",
+            '    target_compatible_with = ["' + str(Label("@platforms//:incompatible")) + '", "' + str(Label("//core/platforms:android_unsupported")) + '"],',
             ")",
             "",
             "filegroup(",
@@ -587,7 +617,16 @@ def _android_checks():
     checks.append(expect_contains("hub selects adb", opt_in_hub, '":linux_x86_64": "@dx_android_platform_tools_linux_x86_64//:adb"'))
     checks.append(expect_contains("hub selects emulator", opt_in_hub, '":linux_x86_64": "@dx_android_emulator_linux_x86_64//:emulator"'))
     checks.append(expect_contains("platform build exposes android.jar", platform_build("android.jar"), '"extracted/android.jar"'))
-    checks.append(expect_contains("platform-tools build exposes adb", platform_tools_build("adb"), '"extracted/adb"'))
+    checks.append(expect_contains("platform-tools build exposes adb", platform_tools_build("adb", "linux_x86_64"), '"extracted/adb"'))
+    windows_adb = platform_tools_build("adb.exe", "windows_x86_64")
+    checks.append(expect_contains("windows platform-tools build exposes adb.exe", windows_adb, 'srcs = ["extracted/adb.exe"]'))
+    checks.append(expect_contains("windows platform-tools build ships AdbWinApi.dll", windows_adb, '"extracted/AdbWinApi.dll"'))
+    checks.append(expect_contains("macos platform-tools build exposes adb", platform_tools_build("adb", "macos_arm64"), 'srcs = ["extracted/adb"]'))
+    checks.append(expect_contains(
+        "hub selects windows_x86_64 adb on windows_arm64",
+        hub_build({}, {}, BUNDLETOOL_REPOSITORY, platform_tools_repos = package_repositories(_request(extra_packages = ["platform-tools"]))["platform_tools"]),
+        '":windows_arm64": "@dx_android_platform_tools_windows_x86_64//:adb"',
+    ))
     checks.append(expect_contains("emulator build ships its tree", emulator_build("emulator"), 'glob(["extracted/**"])'))
     checks.append(expect_contains("enabled hub aliases the anchor", enabled_hub, "@dx_android_ndk_linux_x86_64//:ndk_anchor"))
     checks.append(expect_contains("enabled hub keeps the no-match guard", enabled_hub, "linux_x86_64"))
@@ -596,12 +635,29 @@ def _android_checks():
     checks.append(expect_contains("enabled hub aliases apksigner", enabled_hub, '":linux_x86_64": "@dx_android_build_tools_linux_x86_64//:apksigner_jar"'))
     checks.append(expect_contains("enabled hub guards build-tools", enabled_hub, build_tools_no_match_error()))
     checks.append(expect_contains("enabled hub aliases bundletool", enabled_hub, 'actual = "@dx_android_bundletool//file"'))
-    tools_build = build_tools_build("source.properties")
+    tools_build = build_tools_build("source.properties", "linux_x86_64")
     checks.append(expect_contains("build-tools build exposes zipalign", tools_build, '"extracted/zipalign"'))
     checks.append(expect_contains("build-tools build exposes aapt", tools_build, '"extracted/aapt"'))
     checks.append(expect_contains("build-tools build ships libc++", tools_build, '"extracted/lib64/libc++.so"'))
     checks.append(expect_contains("build-tools build exposes apksigner", tools_build, '"extracted/lib/apksigner.jar"'))
     checks.append(expect_contains("build-tools build exposes the anchor", tools_build, '"extracted/source.properties"'))
+    macos_tools = build_tools_build("source.properties", "macos_arm64")
+    checks.append(expect_contains("macos build-tools build exposes zipalign", macos_tools, 'srcs = ["extracted/zipalign"]'))
+    checks.append(expect_contains("macos build-tools build ships libc++", macos_tools, '"extracted/lib64/libc++.dylib"'))
+    checks.append(expect_false("macos build-tools build ships no .so", ".so" in macos_tools))
+    windows_tools = build_tools_build("source.properties", "windows_x86_64")
+    checks.append(expect_contains("windows build-tools build exposes zipalign.exe", windows_tools, 'srcs = ["extracted/zipalign.exe"]'))
+    checks.append(expect_contains("windows build-tools build exposes aapt.exe", windows_tools, 'srcs = ["extracted/aapt.exe"]'))
+    checks.append(expect_contains("windows build-tools build exposes dexdump.exe", windows_tools, 'srcs = ["extracted/dexdump.exe"]'))
+    checks.append(expect_contains("windows build-tools build exposes apksigner", windows_tools, '"extracted/lib/apksigner.jar"'))
+    checks.append(expect_false("windows build-tools build ships no lib64", "lib64" in windows_tools))
+    sdk_hub = hub_build({}, build_tools_repositories(), BUNDLETOOL_REPOSITORY)
+    checks.append(expect_contains("hub selects macos zipalign", sdk_hub, '":macos_arm64": "@dx_android_build_tools_macos_arm64//:zipalign"'))
+    checks.append(expect_contains("hub selects windows_x86_64 zipalign on windows_arm64", sdk_hub, '":windows_arm64": "@dx_android_build_tools_windows_x86_64//:zipalign"'))
+    checks.append(expect_contains("hub declares linux_arm64", sdk_hub, 'name = "linux_arm64",'))
+    checks.append(expect_contains("hub sends linux_arm64 to no sdk host", sdk_hub, '":linux_arm64": ":no_sdk_host"'))
+    checks.append(expect_contains("hub keeps the build-tools no-match error", sdk_hub, build_tools_no_match_error()))
+    checks.append(expect_contains("no sdk host is incompatible", sdk_hub, '"' + str(Label("@platforms//:incompatible")) + '", "' + str(Label("//core/platforms:android_unsupported")) + '"'))
     anchor_build = ndk_build("source.properties", "linux_x86_64")
     checks.append(expect_contains("ndk build exposes the anchor", anchor_build, "extracted/source.properties"))
     checks.append(expect_contains("ndk build declares runtime libs", anchor_build, 'name = "runtime_libs"'))
@@ -702,6 +758,9 @@ def _toolchain_checks():
     checks.append(expect_contains("windows clang is its own ndk", pinned, 'clang = "@ndk_win//:clang"'))
     checks.append(expect_contains("windows resource dir", pinned, 'clang_resource_dir = "external/ndk_win/extracted/toolchains/llvm/prebuilt/windows-x86_64/lib/clang/18/include"'))
     checks.append(expect_contains("readelf follows the host", pinned, '":windows_x86_64": "@ndk_win//:llvm_readelf",'))
+    checks.append(expect_contains("readelf defaults to no ndk host", pinned, '"//conditions:default": ":no_ndk_host",'))
+    checks.append(expect_contains("declares no ndk host", pinned, 'name = "no_ndk_host",'))
+    checks.append(expect_contains("no ndk host is incompatible", pinned, '"' + str(Label("@platforms//:incompatible")) + '", "' + str(Label("//core/platforms:android_unsupported")) + '"'))
     checks.append(expect_contains("device linker files", pinned, "@ndk_repo//:linker_files_aarch64-linux-android"))
     checks.append(expect_contains("emulator linker files", pinned, "@ndk_repo//:linker_files_x86_64-linux-android"))
     checks.append(expect_contains("linker stages ndk runtime libs", pinned, '"@ndk_repo//:runtime_libs"'))

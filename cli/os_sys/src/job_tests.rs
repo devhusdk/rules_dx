@@ -12,8 +12,11 @@ fn info_from(pid: i32, code: i32) -> libc::siginfo_t {
     let align = std::mem::size_of::<usize>();
     let offset = (12 + align - 1) & !(align - 1);
     let base = std::ptr::addr_of_mut!(info).cast::<u8>();
-    // SAFETY: si_pid follows the three ints of siginfo_t, padded to pointer alignment.
-    unsafe { base.add(offset).cast::<i32>().write(pid) };
+    // SAFETY: si_pid follows the three ints of siginfo_t, padded to pointer alignment,
+    // so base + offset stays inside info.
+    let pid_field = unsafe { base.add(offset) }.cast::<i32>();
+    // SAFETY: pid_field points at the aligned si_pid field of the live info.
+    unsafe { pid_field.write(pid) };
     info
 }
 
@@ -68,8 +71,10 @@ fn settling_reports_pending_stop_signals_before_the_settled_byte() {
     WATCHER_REPORT.store(write.as_raw_fd(), Ordering::SeqCst);
     std::thread::spawn(move || {
         let blocked = Blocked::new(&[libc::SIGHUP]);
+        // SAFETY: pthread_self has no preconditions.
+        let me = unsafe { libc::pthread_self() };
         // SAFETY: pthread_kill targets this live thread, which has SIGHUP blocked.
-        unsafe { libc::pthread_kill(libc::pthread_self(), libc::SIGHUP) };
+        unsafe { libc::pthread_kill(me, libc::SIGHUP) };
         crate::errno::set(9);
         report_settled(libc::SIGUSR1, std::ptr::null_mut(), std::ptr::null_mut());
         assert_eq!(crate::errno::get(), 9);

@@ -6,7 +6,7 @@ load("//cc/private/toolchain/gcc_repo:defs.bzl", "gcc_declare_toolchain")
 load("//cc/private/toolchain/msvc:extensions.bzl", "msvc_hub")
 load("//core:license.bzl", "ACCEPTED_LABEL")
 load(":hub.bzl", "cc_hub")
-load(":pins.bzl", "GCC_GLIBC", "GCC_LINUX_AARCH64", "GCC_LINUX_X86_64", "GCC_LINUX_X86_64_TO_AARCH64", "GCC_VERSION")
+load(":pins.bzl", "GCC_GLIBC", "GCC_LINUX_AARCH64", "GCC_LINUX_AARCH64_TO_X86_64", "GCC_LINUX_X86_64", "GCC_LINUX_X86_64_TO_AARCH64", "GCC_VERSION")
 
 
 _LDFLAGS = ["-static-libasan", "-static-libtsan", "-static-libubsan", "-lm"]
@@ -64,6 +64,16 @@ def _cc_impl(mctx):
         target_arch = "x86_64",
         gcc_version = GCC_VERSION,
         gcc_versions = json.encode({GCC_VERSION: {"x86_64": GCC_LINUX_X86_64}}),
+        target_libc = GCC_GLIBC,
+        extra_ldflags = _LDFLAGS,
+        extra_enabled_features = _EXTRA_ENABLED,
+        extra_known_features = _EXTRA_KNOWN,
+    )
+    gcc_declare_toolchain(
+        name = "dx_gcc_linux_x86_64_cross",
+        target_arch = "x86_64",
+        gcc_version = GCC_VERSION,
+        gcc_versions = json.encode({GCC_VERSION: {"x86_64": GCC_LINUX_AARCH64_TO_X86_64}}),
         target_libc = GCC_GLIBC,
         extra_ldflags = _LDFLAGS,
         extra_enabled_features = _EXTRA_ENABLED,

@@ -46,7 +46,7 @@ mod local_paths_tests;
 
 pub use avro_cpp::{AvroCpp, plan_avro_cpp};
 pub use error::AdoptError;
-pub use families::{detected_families, file_extensions};
+pub use families::{detected_families, file_extensions, quality_marks};
 pub use git_changes::{
     ChangeKind, DEFAULT_BRANCH_CANDIDATES, GitChange, dedupe_changes, dx_config_git_ignored,
     is_dx_state, nearest_package_pattern, parse_name_status_nul,
@@ -65,7 +65,8 @@ pub use licenses::{
     render_license_accept,
 };
 pub use load_graph::{
-    BzlImpact, bzl_impact, external_repos, implicit_dependencies, module_inputs, repo_impact,
+    BzlImpact, bazelrc_flag_targets, bzl_impact, external_repos, implicit_dependencies,
+    module_inputs, repo_impact,
 };
 pub use loaded_deps::plan_loaded_deps;
 pub use lock_hubs::{

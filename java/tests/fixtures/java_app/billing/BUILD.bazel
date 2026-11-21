@@ -1,5 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//java:defs.bzl", "java_library", "java_test")
+load("@rules_dx//java/tests:jvm_compile_tests.bzl", "jvm_classpath_test")
+load("@rules_dx//tools/testing/conformance:defs.bzl", "dx_coverage_test")
 
 package(default_visibility = ["//java/tests/fixtures/java_app:__subpackages__"])
 
@@ -44,6 +46,47 @@ java_library(
         "@maven//:com_google_code_gson_gson",
         "@maven//:com_google_guava_guava",
     ],
+)
+
+# keep
+java_library(
+    name = "without_gson",
+    testonly = True,
+    srcs = [
+        "Invoice.java",
+        "InvoiceException.java",
+        "InvoiceReader.java",
+        "LineItem.java",
+        "Totals.java",
+        ":build_info",  # keep
+    ],
+    tags = ["manual"],
+    deps = ["@maven//:com_google_guava_guava"],
+)
+
+jvm_classpath_test(
+    name = "without_gson_classpath_test",
+    size = "small",
+    jar = "gson",
+    library = "without_gson",
+    mnemonic = "Javac",
+    present = False,
+)
+
+jvm_classpath_test(
+    name = "billing_gson_classpath_test",
+    size = "small",
+    jar = "gson",
+    library = "billing",
+    mnemonic = "Javac",
+    present = True,
+)
+
+dx_coverage_test(
+    name = "invoice_reader_coverage_test",
+    size = "small",
+    covered_source = "InvoiceReader.java",
+    subject = ":invoice_reader_test",
 )
 
 java_test(

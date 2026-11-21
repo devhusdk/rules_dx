@@ -1,7 +1,7 @@
 # gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//android:defs.bzl", "android_java_library", "android_kotlin_library")
-load(":android_library_tests.bzl", "android_library_providers_test")
+load(":android_library_tests.bzl", "android_library_providers_test", "android_sdk_classpath_tests")
 
 package(default_visibility = ["//android/tests:__pkg__"])
 
@@ -10,10 +10,6 @@ android_java_library(
     testonly = True,
     srcs = ["java/Screen.java"],
     custom_package = "com.example.dxjava",
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
     visibility = ["//core/quality/testdata:__pkg__"],
 )
 
@@ -22,10 +18,6 @@ android_kotlin_library(
     testonly = True,
     srcs = ["kotlin/Screen.kt"],
     custom_package = "com.example.dxkotlin",
-    target_compatible_with = [
-        "@platforms//cpu:x86_64",
-        "@platforms//os:linux",
-    ],
     visibility = ["//core/quality/testdata:__pkg__"],
 )
 
@@ -51,4 +43,18 @@ android_library_providers_test(
     size = "small",
     kotlin = True,
     library = "kotlin_screen",
+)
+
+android_sdk_classpath_tests(
+    name = "java_screen_javac",
+    size = "small",
+    library = "java_screen",
+    mnemonic = "JavacCheck",
+)
+
+android_sdk_classpath_tests(
+    name = "kotlin_screen_kotlinc",
+    size = "small",
+    library = "kotlin_screen",
+    mnemonic = "KotlincCheck",
 )

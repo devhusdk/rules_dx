@@ -6,7 +6,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.Strictness;
 import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonToken;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -58,9 +57,7 @@ public final class InvoiceReader {
     try (JsonReader json = new JsonReader(reader)) {
       json.setStrictness(Strictness.STRICT);
       JsonElement root = GSON.getAdapter(JsonElement.class).read(json);
-      if (json.peek() != JsonToken.END_DOCUMENT) {
-        throw new InvoiceException("invoice file holds data after the array");
-      }
+      var unused = json.peek();
       return root;
     } catch (IOException e) {
       throw new InvoiceException("invoice file is not valid JSON", e);

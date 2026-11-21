@@ -958,6 +958,17 @@ Rule.
 | `root` | `label` | no | `None` |
 | `spec` | `label` | yes |  |
 
+#### `api_spec_protobuf_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `proto` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
 #### `ApiSpecInfo`
 
 Provider.
@@ -1130,7 +1141,7 @@ Macro or function.
 | `entitlements` | no | `None` |
 | `provisioning_profile` | no | `None` |
 | `tags` | no | `None` |
-| `testonly` | no | `False` |
+| `testonly` | no | `None` |
 | `visibility` | no | `None` |
 
 #### `apple_macos_notarize`
@@ -2493,6 +2504,21 @@ Macro or function.
 | `prose_route` | no | `"prose.md"` |
 | `source_url` | no | `""` |
 
+#### `dx_generated_policy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `tier` | yes |  |
+| `families` | no | `None` |
+| `defaults` | no | `True` |
+| `disabled` | no | `[]` |
+| `configs` | no | `[]` |
+| `bases` | no | `{}` |
+| `visibility` | no | `None` |
+
 #### `lua_doc_shard`
 
 Macro or function.
@@ -2512,17 +2538,6 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `lib` | yes |  |
-| `package` | no | `""` |
-| `kwargs` | no |  |
-
-#### `protobuf_doc_shard`
-
-Macro or function.
-
-| Argument | Required | Default |
-| --- | --- | --- |
-| `name` | yes |  |
-| `proto` | yes |  |
 | `package` | no | `""` |
 | `kwargs` | no |  |
 
@@ -5725,7 +5740,9 @@ Tag `composer.lock`:
 
 Module extension.
 
-No tags.
+Tag `php.from_source`:
+
+No attributes.
 
 ### `@rules_dx//powershell:defs.bzl`
 
@@ -5887,19 +5904,6 @@ Tag `python.toolchain`:
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
 | `python_version` | `string` | yes |  |
-
-#### `sdist_cargo_vendor`
-
-Module extension.
-
-Tag `sdist_cargo_vendor.crates`:
-
-| Attribute | Type | Required | Default |
-| --- | --- | --- | --- |
-| `cargo_lock_path` | `string` | no | `"Cargo.lock"` |
-| `lock` | `label` | yes |  |
-| `name` | `name` | yes |  |
-| `package` | `string` | yes |  |
 
 #### `uv`
 
@@ -7363,9 +7367,16 @@ Pass a platform to Bazel with `--platforms=<platform>`.
 
 Use a toolchain type when you register your own toolchain.
 
+- `@rules_dx//d:toolchain_type`
+- `@rules_dx//elixir:toolchain_type`
+- `@rules_dx//erlang:exec_toolchain_type`
 - `@rules_dx//erlang:toolchain_type`
+- `@rules_dx//fortran:toolchain_type`
+- `@rules_dx//haskell:toolchain_type`
 - `@rules_dx//lua:toolchain_type`
 - `@rules_dx//msix:toolchain_type`
+- `@rules_dx//ocaml:profile_toolchain_type`
+- `@rules_dx//ocaml:toolchain_type`
 - `@rules_dx//php:exec_toolchain_type`
 - `@rules_dx//php:toolchain_type`
 

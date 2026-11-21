@@ -21,6 +21,8 @@ rust_library(
         "src/results.rs",
     ],
     aliases = {},  # keep
+    # Clippy reads this config for dx_exec_quality instead of the workspace one.
+    compile_data = ["clippy.toml"],
     crate_name = "dx_exec_quality",
     crate_root = "src/lib.rs",
     # keep
@@ -49,6 +51,23 @@ rust_library(
     ],
 )
 
+rust_library(
+    name = "dx_exec_quality_testing",
+    testonly = True,
+    srcs = ["src/testing.rs"],
+    crate_name = "dx_exec_quality_testing",
+    crate_root = "src/testing.rs",
+    # keep
+    deps = [
+        "//cli/apply:dx_apply",
+        "//cli/digest:dx_digest",
+        "//cli/test_scratch:dx_test_scratch",
+        "//core/quality/result:quality_result",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
 rust_test(
     name = "dx_exec_quality_test",
     size = "small",
@@ -61,6 +80,7 @@ rust_test(
         "src/link_check.rs",
         "src/link_check_tests.rs",
         "src/quality_apply.rs",
+        "src/quality_apply_tests.rs",
         "src/quality_emit.rs",
         "src/quality_patch.rs",
         "src/quality_reconcile.rs",
@@ -68,13 +88,18 @@ rust_test(
         "src/quality_security.rs",
         "src/quality_skip_notes_tests.rs",
         "src/results.rs",
+        "src/results_tests.rs",
     ],
     aliases = {},  # keep
+    compile_data = ["clippy.toml"],
     coverage_lib = ":dx_exec_quality",
     crate_name = "dx_exec_quality",
     crate_root = "src/lib.rs",
+    data = ["@dx_tools//:lychee"],
+    env = {"DX_TEST_LYCHEE": "$(rootpath @dx_tools//:lychee)"},
     # keep
     deps = [
+        ":dx_exec_quality_testing",
         "//cli/adopt:dx_adopt",
         "//cli/apply:dx_apply",
         "//cli/atomic_fs:dx_atomic_fs",
@@ -94,6 +119,7 @@ rust_test(
         "//cli/tool_resolve:dx_tool_resolve",
         "//core/quality/result:quality_result",
         "//core/quality/runner:quality_runner_lib",
+        "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:tempfile",
         "@crates//:thiserror",
@@ -104,17 +130,26 @@ rust_test(
 # Read by the dx_cli source guards, which scan every production CLI file.
 filegroup(
     name = "rust_srcs",
-    srcs = glob(["src/**/*.rs"]),
+    srcs = glob(
+        ["src/**/*.rs"],
+        exclude = ["src/testing.rs"],
+    ),
 )
 
 real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
-    toml_srcs = ["Cargo.toml"],
+    toml_srcs = [
+        "Cargo.toml",
+        "clippy.toml",
+    ],
 )
 
 exports_files(
-    ["Cargo.toml"],
+    [
+        "Cargo.toml",
+        "clippy.toml",
+    ],
     visibility = ["//visibility:public"],
 )
 

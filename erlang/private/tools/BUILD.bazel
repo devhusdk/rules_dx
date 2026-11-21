@@ -3,7 +3,7 @@ load("//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH", "ERLANG_DIALYZER_COM
 load("//erlang/private:dialyzer.bzl", "dialyzer_plt", "dialyzer_tool", "otp_tool_binary")
 load("//erlang/private/toolchain:pins.bzl", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 alias(
     name = "elvis",

@@ -23,7 +23,7 @@ pub const PREFLIGHT_TARGETS: &str = "//cli/cli:dx //cc/tests/fixtures/hello:hell
     //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all
     //julia/tests/fixtures/julia_app/... //julia/private/tools/... //deploy/private:pypi_probe_verify //haskell/private/tools/weeder:weeder_build_test
     //core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail
-    //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_javascript_format_pass //core/quality/testdata:matrix_api_spec_openapi_pass
+    //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_api_spec_openapi_pass
     //core/quality/testdata:matrix_yaml_format_pass //core/quality/testdata:matrix_yaml_format_fail //core/quality/testdata:matrix_yaml_format_syntax_error
     //core/quality/testdata:matrix_yaml_lint_pass //core/quality/testdata:matrix_yaml_lint_fail //core/quality/testdata:matrix_yaml_lint_syntax_error
     //core/quality/testdata:matrix_flatbuffers_lint_pass //core/quality/testdata:matrix_capnp_lint_pass //core/quality/testdata:matrix_thrift_lint_pass

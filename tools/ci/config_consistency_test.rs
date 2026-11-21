@@ -1112,7 +1112,7 @@ fn host_dependent_extensions_are_locked_for_every_ci_platform() {
             .collect();
         assert!(
             missing.is_empty(),
-            "MODULE.bazel.lock has no {extension} entry for {missing:?}; dispatch lock-refresh.yml and commit its MODULE.bazel.lock artifact"
+            "MODULE.bazel.lock has no {extension} entry for {missing:?}; comment /lock-refresh on the pull request"
         );
         for digest in ["usagesDigest", "bzlTransitiveDigest"] {
             let current = &entries[platforms[0]][digest];
@@ -1122,7 +1122,7 @@ fn host_dependent_extensions_are_locked_for_every_ci_platform() {
                 .collect();
             assert!(
                 stale.is_empty(),
-                "MODULE.bazel.lock has a stale {extension} entry for {stale:?} ({digest}); dispatch lock-refresh.yml and commit its MODULE.bazel.lock artifact"
+                "MODULE.bazel.lock has a stale {extension} entry for {stale:?} ({digest}); comment /lock-refresh on the pull request"
             );
         }
     }
@@ -1255,8 +1255,18 @@ fn bazelisk_pins_match_pin_env() {
     );
 }
 
+/// Returns the `cli/exec_*` package dirs that `cli/cli/BUILD.bazel` depends on.
+fn exec_crate_dirs(build: &str) -> std::collections::BTreeSet<String> {
+    build
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("\"//cli/exec_"))
+        .filter_map(|rest| rest.split_once(':'))
+        .map(|(name, _)| format!("cli/exec_{name}"))
+        .collect()
+}
+
 #[test]
-fn the_dx_cli_clippy_config_extends_the_workspace_one() {
+fn the_cli_clippy_configs_extend_the_workspace_one() {
     let workspace = read_runfiles("tools/workspace/clippy.toml");
     let cli = read_runfiles("cli/cli/clippy.toml");
     assert!(
@@ -1267,4 +1277,19 @@ fn the_dx_cli_clippy_config_extends_the_workspace_one() {
         cli.contains("path = \"std::fs::write\""),
         "cli/cli/clippy.toml must disallow std::fs::write"
     );
+    // The dx_exec_* crates hold verb code, so they need the dx_cli bans; without a config they get the workspace one.
+    let dirs = exec_crate_dirs(&read_runfiles("cli/cli/BUILD.bazel"));
+    assert!(
+        !dirs.is_empty(),
+        "cli/cli/BUILD.bazel names no cli/exec_* crate"
+    );
+    for dir in dirs {
+        // A missing file fails here: copy cli/cli/clippy.toml, list it in compile_data and in this test's data.
+        let path = format!("{dir}/clippy.toml");
+        assert_eq!(
+            read_runfiles(&path),
+            cli,
+            "{path} must equal cli/cli/clippy.toml"
+        );
+    }
 }

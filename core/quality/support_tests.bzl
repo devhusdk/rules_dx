@@ -194,9 +194,9 @@ def _evidence_checks():
             ["small", "medium"],
         ),
         expect_equal(
-            "only the julia_format and psscriptanalyzer format failure cases are medium",
+            "only the psscriptanalyzer format failure cases are medium",
             sorted([c["name"] for c in RUNNER_MATRIX_CASES if matrix_case_size(c) != "small"]),
-            ["matrix_julia_format_fail", "matrix_julia_format_pass", "matrix_powershell_format_crlf_fail", "matrix_powershell_format_fail"],
+            ["matrix_powershell_format_crlf_fail", "matrix_powershell_format_fail"],
         ),
         expect_equal(
             "matrix_case_tools plain, toolchain and upstream shapes",

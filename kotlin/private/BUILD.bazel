@@ -21,13 +21,6 @@ kotlin_warnings_as_errors_opts(
     warnings_as_errors = dx_warnings_as_errors({}, True, False)[1],
 )
 
-config_setting(
-    name = "windows_coverage",
-    constraint_values = ["@platforms//os:windows"],
-    values = {"collect_code_coverage": "true"},
-    visibility = ["//visibility:public"],
-)
-
 exports_files([
     "defs.bzl",
     "kwargs.bzl",

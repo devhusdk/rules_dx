@@ -986,6 +986,24 @@ mod tests {
     }
 
     #[test]
+    fn no_layer_sets_a_jvm_option() {
+        for layer in Layer::ALL {
+            for warnings in [None, Some(true), Some(false)] {
+                let rendered = render_layer_with(layer, DEFAULT_REPO, warnings);
+                for line in rendered_flag_lines(&rendered) {
+                    for word in line.split_whitespace() {
+                        let option = word.split('=').next().unwrap_or(word);
+                        assert!(
+                            option != "--jvmopt" && option != "--test_jvmopt",
+                            "{layer:?}: {line} sets a JVM option"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn imports_resolve_workspace_targets() {
         let text = "\u{feff}import %workspace%/a.bazelrc\r\n\
                     try-import \"%workspace%/b.bazelrc\"\n\

@@ -4,7 +4,7 @@ load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_flags")
 
 D_CELLS = sorted(LDC_CELLS.keys())
 
-PLATFORM_SUPPORT = cells_support("//d/private:defs.bzl", "D_COMPATIBLE_WITH", LDC_CELLS, lang_cells("d"), "//d/private/toolchain")
+PLATFORM_SUPPORT = cells_support("//d/private:defs.bzl", "D_COMPATIBLE_WITH", LDC_CELLS, lang_cells("d"), "//d/private/toolchain", unsupported = "d")
 
 D_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 

@@ -78,7 +78,7 @@ GMP_PACKAGE = "ghc-bignum"
 
 _TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
 
-_TOOLCHAIN_TYPE = str(Label("//haskell/private/toolchain:toolchain_type"))
+_TOOLCHAIN_TYPE = str(Label("//haskell:toolchain_type"))
 
 COMMON_LIBRARIES = [
     "array",
@@ -401,6 +401,7 @@ MUSL_TOOL_ARGS = {
     "ghc-{version}": "-B\"$root/{libdir}\"",
     "ghc-pkg-{version}": "--global-package-db=\"$root/{libdir}/package.conf.d\"",
     "haddock-ghc-{version}": "-B\"$root/{libdir}\"",
+    "hsc2hs-ghc-{version}": "--template=\"$root/{libdir}/template-hsc.h\"",
     "runghc-{version}": "-f \"$root/bin/ghc\"",
 }
 
@@ -454,12 +455,25 @@ def _apk_closure(rctx, cell):
     for alias, target in cell.loader_aliases.items():
         rctx.symlink(CLOSURE_DIR + "/lib/" + target, CLOSURE_DIR + "/lib/" + alias)
 
+def musl_wrapped(entries):
+    """Returns the sorted bin names to wrap, given (basename, realpath basename) pairs; symlinks are skipped."""
+    return sorted([name for name, real in entries if name == real])
+
 def _musl_wrappers(rctx, cell_name):
-    for entry in rctx.path("bin").readdir():
-        if entry.realpath.basename != entry.basename:
-            continue
-        rctx.rename(entry, str(entry) + MUSL_SUFFIX)
-        rctx.file(entry, musl_wrapper(cell_name, entry.basename), executable = True)
+    if not rctx.path(LIBDIR + "/template-hsc.h").exists:
+        fail("musl bindist ships no {}/template-hsc.h".format(LIBDIR))
+    bin_dir = rctx.path("bin")
+    names = musl_wrapped([(entry.basename, entry.realpath.basename) for entry in bin_dir.readdir()])
+    for name in names:
+        rctx.rename(bin_dir.get_child(name), bin_dir.get_child(name + MUSL_SUFFIX))
+        rctx.file(bin_dir.get_child(name), musl_wrapper(cell_name, name), executable = True)
+    for name in names:
+        if not bin_dir.get_child(name + MUSL_SUFFIX).exists:
+            fail("musl wrapper bin/{} has no bin/{}{}".format(name, name, MUSL_SUFFIX))
+    for key in MUSL_TOOL_ARGS:
+        name = key.format(version = GHC_VERSION)
+        if name not in names:
+            fail("musl bindist ships no regular file bin/{}".format(name))
 
 def _cross_libdir(rctx, target):
     rctx.download_and_extract(
@@ -520,13 +534,8 @@ def _ghc_repo_impl(rctx):
     rctx.file(LIBDIR + "/settings", ghc_settings(rctx.read(LIBDIR + "/settings"), rctx.attr.cc_target), executable = False)
     if cell.runtime or apks:
         _gmp_registration(rctx)
-    gmp_license = getattr(cell, "gmp_license", None)
-    if gmp_license:
-        rctx.download(
-            url = gmp_license.url,
-            output = CLOSURE_DIR + "/licenses/" + gmp_license.name,
-            sha256 = gmp_license.sha256,
-        )
+    if getattr(cell, "gmp_license", False):
+        rctx.file(CLOSURE_DIR + "/licenses/gmp", rctx.read(rctx.attr._gmp_license), executable = False)
     if host.exe_suffix == ".exe":
         _drop_import_libs(rctx)
     for entry in rctx.path(LIBDIR + "/package.conf.d").readdir():
@@ -580,6 +589,7 @@ ghc_repo = repository_rule(
         "cc_target": attr.string(doc = "C compiler target triple of a cross toolchain."),
         "llvm_backend": attr.bool(doc = "Whether GHC compiles through llc and opt instead of its native code generator."),
         "_pkgdb_to_bzl": attr.label(default = Label("@rules_haskell//haskell:private/pkgdb_to_bzl.py")),
+        "_gmp_license": attr.label(default = Label("//haskell/private/toolchain:lgpl-3.0.txt")),
         "python": attr.label(mandatory = True, doc = "Host interpreter for the package database conversion."),
     },
 )

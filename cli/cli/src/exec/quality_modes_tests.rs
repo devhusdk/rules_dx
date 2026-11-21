@@ -14,7 +14,7 @@ fn check_mode_clean_run_succeeds() {
     let (code, out, err) = harness.run(&["lint", "//...", "--output=text"]);
     assert_eq!(code, 0);
     assert!(out.contains("Running lint analysis for"));
-    assert_eq!(err, "no findings in 0 target(s)\n");
+    assert_eq!(err, "no findings in 1 target(s)\n");
 }
 
 #[test]
@@ -228,6 +228,66 @@ fn file_scope_resolves_to_owners_before_planning() {
         calls[0].last().map(String::as_str),
         Some("kind('rule', //...)")
     );
+}
+
+#[test]
+fn clippy_config_scope_reports_its_crate() {
+    let mut harness = Harness::new("clippy-config-scope");
+    harness.write_source("pkg/BUILD.bazel", "");
+    harness.write_source("pkg/clippy.toml", "");
+    harness.write_source("pkg/src/lib.rs", "pub fn a() {}\n");
+    harness.query.script_graph(&[graph_rule(
+        "//pkg:lib",
+        &["//pkg:clippy.toml", "//pkg:src/lib.rs"],
+        &[],
+    )]);
+    harness.results.insert(
+        "//pkg:lib".to_owned(),
+        harness.valid_result(
+            vec![Harness::diagnostic_with(
+                proto::Severity::Warning as i32,
+                "clippy",
+                "pkg/src/lib.rs",
+                "needless",
+                false,
+            )],
+            vec![],
+        ),
+    );
+    let (code, out, err) = harness.run(&["lint", "pkg/clippy.toml", "--output=text"]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(out.contains("pkg/src/lib.rs"), "{out}");
+}
+
+#[test]
+fn workspace_clippy_config_scope_lints_every_crate() {
+    let mut harness = Harness::new("workspace-clippy-config-scope");
+    harness.write_source(
+        ".bazelrc",
+        "build --@rules_rust//rust/settings:clippy.toml=//tools/workspace:clippy.toml\n",
+    );
+    harness.write_source("tools/workspace/BUILD.bazel", "");
+    harness.write_source("tools/workspace/clippy.toml", "");
+    harness.write_source("pkg/BUILD.bazel", "");
+    harness.write_source("pkg/src/lib.rs", "pub fn a() {}\n");
+    harness.results.insert(
+        "//pkg:lib".to_owned(),
+        harness.valid_result(
+            vec![Harness::diagnostic_with(
+                proto::Severity::Warning as i32,
+                "clippy",
+                "pkg/src/lib.rs",
+                "needless",
+                false,
+            )],
+            vec![],
+        ),
+    );
+    let (code, out, err) = harness.run(&["lint", "tools/workspace/clippy.toml", "--output=text"]);
+    assert_eq!(code, 1, "{out}{err}");
+    assert!(out.contains("Running lint analysis for //..."), "{out}");
+    assert!(out.contains("pkg/src/lib.rs"), "{out}");
+    assert!(harness.query.calls.borrow().is_empty());
 }
 
 #[test]
@@ -754,7 +814,7 @@ fn typed_quality_request_preserves_passthrough_and_default_scope() {
     let (code, out, err) = harness.run(&["lint", "--output=text", "--", "--jobs=4"]);
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("Running lint analysis for //..."), "{out}");
-    assert_eq!(err, "no findings in 0 target(s)\n", "{err}");
+    assert_eq!(err, "no findings in 1 target(s)\n", "{err}");
 }
 
 fn quality_phase(harness: &Harness, words: &[&str]) -> dx_exec_core::common::PhaseRun {

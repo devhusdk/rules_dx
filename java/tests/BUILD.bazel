@@ -1,15 +1,17 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/modules:versions.bzl", "JAVA_MAJOR")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//java:defs.bzl", "java_test")
 load("//java/private:jazzer.bzl", "jazzer_target_class")
 load("//java/private:kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors", "java_test_main_class")
 load("//rust:defs.bzl", "rust_test")
+load("//scala/private/quality:scalac_jars.bzl", "runtime_jars_rule", "scalac_toolchain_jars_rule")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 
 exports_files([
     "jmh_tests.bzl",
+    "jvm_compile_tests.bzl",
 ])
 
 ide_acquisition_test(
@@ -52,13 +54,22 @@ java_test(
     deps = ["//java/private/quality/tools/kotlinc_check:kotlinc_check_lib"],
 )
 
+# The compiler jars the driver loads at run time; the aspect passes the consumer toolchain's own.
+scalac_toolchain_jars_rule(name = "scalac_compiler_jars")
+
+# A Scala 3 compiler for the dotc frontend test; the repo's own toolchain stays Scala 2.13.
+runtime_jars_rule(
+    name = "scala3_compiler_jars",
+    deps = ["@dx_scala3_test//:org_scala_lang_scala3_compiler_3"],
+)
+
 # keep
 java_test(
     name = "scalac_check_test",
     size = "small",
     srcs = ["ScalacCheckTest.java"],
-    args = ["$(rlocationpaths //java/private/quality/tools/scalac_check:compiler_jars)"],
-    data = ["//java/private/quality/tools/scalac_check:compiler_jars"],
+    args = ["$(rlocationpaths :scalac_compiler_jars)"],
+    data = [":scalac_compiler_jars"],
     main_class = "dx.quality.scalac.ScalacCheckTest",
     use_testrunner = False,
     deps = ["//java/private/quality/tools/scalac_check:scalac_check_lib"],
@@ -69,8 +80,8 @@ java_test(
     name = "scala3_check_test",
     size = "small",
     srcs = ["Scala3CheckTest.java"],
-    args = ["$(rlocationpaths //java/private/quality/tools/scalac_check:scala3_compiler_jars)"],
-    data = ["//java/private/quality/tools/scalac_check:scala3_compiler_jars"],
+    args = ["$(rlocationpaths :scala3_compiler_jars)"],
+    data = [":scala3_compiler_jars"],
     main_class = "dx.quality.scalac.Scala3CheckTest",
     use_testrunner = False,
     deps = ["//java/private/quality/tools/scalac_check:scalac_check_lib"],
@@ -105,6 +116,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "jmh_tests.bzl",
+        "jvm_compile_tests.bzl",
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],

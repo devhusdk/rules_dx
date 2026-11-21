@@ -101,6 +101,39 @@ fn policy_problems(workflow: &Value) -> Vec<String> {
     problems
 }
 
+/// Longest job timeout a GitHub-hosted runner accepts, in minutes.
+const MAX_TIMEOUT_MINUTES: u64 = 360;
+
+/// Returns the problems with the per-cell job timeouts of the matrix job.
+fn timeout_problems(workflow: &Value) -> Vec<String> {
+    let mut problems = Vec::new();
+    for (id, job) in workflow["jobs"].as_object().expect("jobs") {
+        let Some(include) = job["strategy"]["matrix"]["include"].as_array() else {
+            continue;
+        };
+        if job["timeout-minutes"].as_str() != Some("${{ matrix.timeout }}") {
+            problems.push(format!(
+                "job {id}: timeout-minutes is {}, want ${{{{ matrix.timeout }}}}",
+                job["timeout-minutes"]
+            ));
+        }
+        for entry in include {
+            let name = entry["name"].as_str().unwrap_or("<unnamed>");
+            match entry["timeout"].as_u64() {
+                Some(minutes) if (1..=MAX_TIMEOUT_MINUTES).contains(&minutes) => {}
+                Some(minutes) => problems.push(format!(
+                    "{name}: timeout {minutes} is outside 1..={MAX_TIMEOUT_MINUTES}"
+                )),
+                None => problems.push(format!(
+                    "{name}: timeout is {}, want an integer number of minutes",
+                    entry["timeout"]
+                )),
+            }
+        }
+    }
+    problems
+}
+
 fn parse(text: &str) -> Value {
     yaml_serde::from_str(text).expect("inline YAML")
 }
@@ -128,6 +161,12 @@ fn release_cells_runner_map_matches_the_release_matrix() {
 #[test]
 fn release_cells_is_read_only_and_reports_every_cell() {
     let problems = policy_problems(&document(CELLS).unwrap());
+    assert!(problems.is_empty(), "{problems:#?}");
+}
+
+#[test]
+fn release_cells_sets_a_timeout_per_cell() {
+    let problems = timeout_problems(&document(CELLS).unwrap());
     assert!(problems.is_empty(), "{problems:#?}");
 }
 
@@ -206,4 +245,67 @@ fn write_scopes_and_fail_fast_are_reported() {
         "{found:?}"
     );
     assert!(found.iter().any(|p| p.contains("fail-fast")), "{found:?}");
+}
+
+fn timed_workflow(timeout_minutes: &str, rows: &str) -> Value {
+    parse(&format!(
+        "jobs:\n  cell:\n    strategy:\n      matrix:\n        include:\n{rows}    timeout-minutes: {timeout_minutes}\n"
+    ))
+}
+
+const MATRIX_TIMEOUT: &str = "${{ matrix.timeout }}";
+
+#[test]
+fn a_row_without_a_timeout_is_reported() {
+    let workflow = timed_workflow(
+        MATRIX_TIMEOUT,
+        "          - name: dx-linux-x86_64\n            timeout: 90\n          - name: dx-windows-x86_64\n",
+    );
+    let found = timeout_problems(&workflow);
+    assert!(
+        found
+            .iter()
+            .any(|p| p.starts_with("dx-windows-x86_64: timeout is null")),
+        "{found:?}"
+    );
+    assert_eq!(found.len(), 1, "{found:?}");
+}
+
+#[test]
+fn a_literal_timeout_minutes_is_reported() {
+    let workflow = timed_workflow(
+        "90",
+        "          - name: dx-linux-x86_64\n            timeout: 90\n",
+    );
+    let found = timeout_problems(&workflow);
+    assert!(
+        found.iter().any(|p| p.contains("timeout-minutes is 90")),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn a_timeout_above_the_hosted_runner_maximum_is_reported() {
+    let workflow = timed_workflow(
+        MATRIX_TIMEOUT,
+        "          - name: dx-windows-x86_64\n            timeout: 400\n",
+    );
+    let found = timeout_problems(&workflow);
+    assert!(
+        found.iter().any(|p| p.contains("timeout 400 is outside")),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn a_quoted_timeout_is_reported() {
+    let workflow = timed_workflow(
+        MATRIX_TIMEOUT,
+        "          - name: dx-windows-x86_64\n            timeout: \"180\"\n",
+    );
+    let found = timeout_problems(&workflow);
+    assert!(
+        found.iter().any(|p| p.contains("want an integer")),
+        "{found:?}"
+    );
 }

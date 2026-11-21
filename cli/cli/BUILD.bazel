@@ -310,7 +310,6 @@ rust_test(
         "src/exec/managed_staging.rs",
         "src/exec/preset_sync.rs",
         "src/exec/profile_report.rs",
-        "src/exec/quality_apply_tests.rs",
         "src/exec/quality_convergence_tests.rs",
         "src/exec/quality_delivery_tests.rs",
         "src/exec/quality_edits_tests.rs",
@@ -319,7 +318,6 @@ rust_test(
         "src/exec/quality_probe_tests.rs",
         "src/exec/quality_reporting_tests.rs",
         "src/exec/quality_shared_tests.rs",
-        "src/exec/results_tests.rs",
         "src/exec/run.rs",
         "src/exec/security_verify.rs",
         "src/exec/security_verify_tests.rs",
@@ -406,6 +404,7 @@ rust_test(
         "//cli/exec_audit:dx_exec_audit",
         "//cli/exec_core:dx_exec_core",
         "//cli/exec_quality:dx_exec_quality",
+        "//cli/exec_quality:dx_exec_quality_testing",
         "//cli/exec_reports:dx_exec_reports",
         "//cli/exec_test_reports:dx_exec_test_reports",
         "//cli/exec_update:dx_exec_update",
@@ -427,7 +426,6 @@ rust_test(
         "//cli/update:dx_update",
         "//cli/worktree:dx_worktree",
         "//core/quality/result:quality_result",
-        "//core/quality/runner:quality_runner_lib",
         "//tools/docs/site/aggregate:dx_site_aggregate",
         "//tools/docs/site/build:dx_site_build",
         "//tools/testing:dx_testing",
@@ -449,6 +447,7 @@ rust_test(
 
 exports_files(
     [
+        "BUILD.bazel",
         "Cargo.toml",
         "clippy.toml",
         "src/bin_man.rs",

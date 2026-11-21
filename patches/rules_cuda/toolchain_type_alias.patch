@@ -1,0 +1,12 @@
+Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
+--- a/cuda/BUILD.bazel
++++ b/cuda/BUILD.bazel
+@@ -16,7 +16,7 @@
+     deps = ["//cuda/private:bzl_srcs"],
+ )
+ 
+-toolchain_type(name = "toolchain_type")
++alias(name = "toolchain_type", actual = "@rules_dx//cuda/private/toolchain/hub:toolchain_type")
+ 
+ # Command line flag to set ":is_enabled" config setting.
+ #

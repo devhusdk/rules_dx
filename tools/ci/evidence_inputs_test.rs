@@ -235,6 +235,23 @@ fn the_workflow_runner_map_matches_platforms() {
 }
 
 #[test]
+fn the_release_cell_budget_is_180_minutes_on_windows() {
+    let document = ci_workflow::document(WORKFLOW).unwrap();
+    let timeout = ci_workflow::text_at(
+        &document["jobs"]["evidence"]["timeout-minutes"],
+        "evidence timeout-minutes",
+    )
+    .unwrap();
+    assert_eq!(
+        timeout,
+        "${{ inputs.release_cell && (startsWith(matrix.platform, 'windows_') && 180 || 90) || 60 }}"
+    );
+    let platforms: Vec<&str> = PLATFORMS.iter().map(|(name, _)| *name).collect();
+    assert!(platforms.contains(&"windows_x86_64"), "{platforms:?}");
+    assert!(platforms.contains(&"windows_arm64"), "{platforms:?}");
+}
+
+#[test]
 fn accepts_spaced_platform_lists() {
     for platforms in [
         r#"["linux_x86_64", "windows_arm64"]"#,

@@ -9,10 +9,10 @@ use dx_plan::resolve::path_in_filter;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-pub struct ApplyOutcome {
-    pub sources: BTreeMap<String, SourceRead>,
-    pub applied: BTreeMap<String, bool>,
-    pub not_applied: Vec<(String, &'static str)>,
+pub(crate) struct ApplyOutcome {
+    pub(crate) sources: BTreeMap<String, SourceRead>,
+    pub(crate) applied: BTreeMap<String, bool>,
+    pub(crate) not_applied: Vec<(String, &'static str)>,
 }
 
 /// Resolves links so a write lands on the real file, never replacing the link itself.
@@ -31,7 +31,7 @@ fn resolve_source(workspace: &Path, path: &str) -> Result<PathBuf, &'static str>
 /// `writable`, a change to any other path is reported as `outside_scope`.
 /// A path that links out of the workspace is never read and is reported as
 /// `outside_workspace`.
-pub fn apply_collected_changes(
+pub(crate) fn apply_collected_changes(
     fs: &dyn FileSystem,
     workspace: &Path,
     apply: bool,
@@ -122,7 +122,7 @@ fn reappears(initial: &DiagnosticEvent, terminal: &[DiagnosticEvent], used: &mut
 }
 
 /// Marks unwritten paths whose terminal bytes differ from the original as not on disk.
-pub fn terminal_on_disk(
+pub(crate) fn terminal_on_disk(
     applied: &BTreeMap<String, bool>,
     original_digests: &BTreeMap<String, [u8; 32]>,
     terminal_digests: &BTreeMap<String, [u8; 32]>,
@@ -136,7 +136,7 @@ pub fn terminal_on_disk(
     on_disk
 }
 
-pub fn project_status(
+pub(crate) fn project_status(
     apply: bool,
     initial: &[DiagnosticEvent],
     terminal: &[DiagnosticEvent],
@@ -402,3 +402,7 @@ mod status_tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "quality_apply_tests.rs"]
+mod tests;

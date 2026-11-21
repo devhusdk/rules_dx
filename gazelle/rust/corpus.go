@@ -72,6 +72,9 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 	if rel == "node_modules" || strings.Contains(rel, "/node_modules/") || strings.HasPrefix(rel, "node_modules/") {
 		return plan
 	}
+	// Languages that run before rust put their rules in OtherGen; they still
+	// create the BUILD file, so the corpus must land in the same pass.
+	hasOtherGen = hasOtherGen || len(args.OtherGen) > 0
 	if args.File == nil && !hasOtherGen {
 		return plan
 	}

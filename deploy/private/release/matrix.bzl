@@ -18,6 +18,11 @@ RUNTIME_MEMBERS = {
     "//cc/private/toolchain:windows_ucrt": [],
 }
 
+RUNTIME_NOTICES = {
+    "//cc/private/toolchain:msvc_vcruntime": ["msvc_vcruntime"],
+    "//cc/private/toolchain:windows_ucrt": [],
+}
+
 def _cell(os, arch, min_runtime):
     """Returns one declared release cell; linkage and min_runtime are declared, not measured."""
     windows = os == "windows"
@@ -80,6 +85,7 @@ def release_matrix_json():
             "format": cell["format"],
             "machine": cell["machine"],
             "name": cell["name"],
+            "notices": [notice for runtime in cell["runtime"] for notice in RUNTIME_NOTICES[runtime]],
             "os": cell["os"],
             "runtime": [member for runtime in cell["runtime"] for member in RUNTIME_MEMBERS[runtime]],
         }

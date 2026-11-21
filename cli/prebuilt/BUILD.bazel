@@ -11,7 +11,7 @@ load(":gazelle_hub_tests.bzl", "dx_gazelle_hub_tests")
 load(":guard_view_tests.bzl", "guard_view_tests")
 load(":hub.bzl", "GO_TOOLS", "unsupported_message")
 load(":hub_tests.bzl", "dx_prebuilt_hub_tests")
-load(":tools.bzl", "python_hub_lines", "registry_lines")
+load(":tools.bzl", "python_hub_lines", "registry_lines", "target_tools")
 
 exports_files(
     [
@@ -19,6 +19,7 @@ exports_files(
         "extension.bzl",
         "fail.bzl",
         "hub.bzl",
+        "launcher.bzl",
         "pins.bzl",
         "tools.bzl",
     ],
@@ -38,6 +39,7 @@ filegroup(
         "guard_view_tests.bzl",
         "hub.bzl",
         "hub_tests.bzl",
+        "launcher.bzl",
         "pins.bzl",
         "tools.bzl",
     ],
@@ -50,7 +52,7 @@ dx_gazelle_hub_tests(name = "gazelle_hub_test")
 
 guard_view_tests(name = "guard_view_test")
 
-# Set: when rules_dx is the root module, @dx_prebuilt and @dx_gazelle serve guard_stub for every source-built tool.
+# Set: when rules_dx is the root module, @dx_prebuilt, @dx_gazelle and @php_launcher serve guard_stub for every source-built tool.
 # Universal scope: the flag keeps its value in the exec configuration.
 bool_flag(
     name = "guard_view",
@@ -107,6 +109,14 @@ write_file(
     name = "python_hub_targets",
     out = "python_hub_targets.txt",
     content = python_hub_lines() + [""],
+    visibility = ["//tools/testing/consumer:__pkg__"],
+)
+
+# The tools whose hub selects on the target platform, one name per line.
+write_file(
+    name = "target_tools",
+    out = "target_tools.txt",
+    content = target_tools() + [""],
     visibility = ["//tools/testing/consumer:__pkg__"],
 )
 
@@ -170,6 +180,7 @@ real_source_target(
         "guard_view_tests.bzl",
         "hub.bzl",
         "hub_tests.bzl",
+        "launcher.bzl",
         "pins.bzl",
         "tools.bzl",
     ],

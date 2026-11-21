@@ -19,17 +19,11 @@ package(default_visibility = ["//visibility:public"])
 exports_files(["{interpreter}", "{version_file}"])
 
 php_toolchain(
-    name = "toolchain",{coverage}
+    name = "toolchain",
     interpreter = "{interpreter}",
-    pcov = {pcov},
     version = "{version}",
 )
 """
-
-_COVERAGE_ATTRS = """
-    coverage_extensions = ["@{repo}//:ext/php_mbstring.dll"],
-    coverage_files = "@{repo}//:files",
-    coverage_interpreter = "@{repo}//:php.exe","""
 
 COVERAGE_PREFIX = "dx_php_coverage_"
 
@@ -45,8 +39,6 @@ filegroup(
 )
 """.format(files = repr(COVERAGE_RUNTIME_FILES))
 
-PCOV_LABEL = "@dx_php_pcov//:pcov.so"
-
 HEADERS_BUILD = """load("@rules_cc//cc:defs.bzl", "cc_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -58,16 +50,10 @@ cc_library(
 )
 """
 
-def runtime_build(version, interpreter = "php", pcov = False, coverage = ""):
-    """Returns the BUILD file of one runtime repository; pcov names the PCOV extension it can load and coverage the repository of a separate coverage runtime."""
-    if coverage:
-        pcov_label = repr("@" + coverage + "//:php_pcov.dll")
-    else:
-        pcov_label = repr(PCOV_LABEL) if pcov else "None"
+def runtime_build(version, interpreter = "php"):
+    """Returns the BUILD file of one runtime repository."""
     return _RUNTIME_BUILD.format(
-        coverage = _COVERAGE_ATTRS.format(repo = coverage) if coverage else "",
         interpreter = interpreter,
-        pcov = pcov_label,
         php_bzl = str(Label("//php/private/toolchain:php.bzl")),
         version = version,
         version_file = VERSION_FILE,

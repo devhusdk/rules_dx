@@ -4,9 +4,9 @@ load("//cc:defs.bzl", "cc_test")
 load("//cc/private:defs.bzl", "CC_COVERAGE_INPUTS")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_equal", "expect_true")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/modules:cuda.bzl", "CUDA_CELLS", "CUDA_VERSION", "cuda_qualified_cells")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cuda:defs.bzl", "cuda_binary", "cuda_component_library", "cuda_library", "cuda_test")
 load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH", "cuda_gpu_env", "cuda_split_srcs", "cuda_target_compatible_with")
@@ -15,7 +15,7 @@ load("//cuda/private/toolchain:transition.bzl", "CUDA_HOST_COMPILER_SETTING", "c
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load(":cell_tests.bzl", "cuda_cell_tests")
-load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "gpu_test_declared_test", "hermetic_toolchain_test", "with_clang_compiler", "with_gpu_device")
+load(":defs.bzl", "component_sources_test", "coverage_keep_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "gpu_test_declared_test", "hermetic_toolchain_test", "with_clang_compiler", "with_gpu_device")
 load(":license_gate_tests.bzl", "cuda_license_gate_tests")
 
 # gazelle:lang rust,dx_dispatch
@@ -293,6 +293,13 @@ hermetic_toolchain_test(
     target_under_test = "//cuda/tests/fixtures/saxpy",
 )
 
+coverage_keep_test(
+    name = "coverage_keep_test",
+    size = "small",
+    target_compatible_with = CUDA_COMPATIBLE_WITH + ["@platforms//os:linux"],
+    target_under_test = "//cuda/tests/fixtures/saxpy",
+)
+
 gcc_hermetic_toolchain_test(
     name = "gcc_hermetic_toolchain_test",
     target_compatible_with = CUDA_COMPATIBLE_WITH + ["@platforms//os:linux"],
@@ -419,6 +426,16 @@ cc_toolchain_test(
     test = ":rdc_device_link_hermetic_test",
 )
 
+test_suite(
+    name = "msvc_device_link_flags_test",
+    tests = [
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_md_device_link_flags_test",
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_mdd_device_link_flags_test",
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_mt_device_link_flags_test",
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_mtd_device_link_flags_test",
+    ],
+)
+
 cc_toolchain_test(
     name = "msvc_hermetic_toolchain_test",
     compiler = "msvc",
@@ -491,7 +508,7 @@ _SAXPY_ARCHS = [
     "sm_120",
 ]
 
-_TOOLCHAIN = "external/rules_cuda++toolchain"
+_TOOLCHAIN = "external/rules_dx++cuda"
 
 _NVCC = _TOOLCHAIN + component_markers("nvcc")[0] + "nvcc/bin/nvcc"
 

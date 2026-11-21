@@ -1,6 +1,7 @@
 """Opt-in Android NDK and build-tools acquisition."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
+load("//core:cells.bzl", "unsupported_constraint")
 load("//core:host.bzl", "host_cell")
 
 ANDROID_NDK_REVISION = "27.0.12077973"
@@ -205,9 +206,9 @@ BUILD_TOOLS_ARCHIVE_SEPARATOR = "_"
 
 PLATFORM_TOOLS_ARCHIVE_PREFIX = "platform-tools_r" + PLATFORM_TOOLS
 
-PACKAGING_HOSTS = ["linux_x86_64"]
-
-APP_SDK_HOSTS = {
+# Host cell to the host whose build-tools and platform-tools it runs.
+# windows_arm64 runs the x64 archives under emulation.
+SDK_HOSTS = {
     "linux_x86_64": "linux_x86_64",
     "macos_arm64": "macos_arm64",
     "windows_arm64": "windows_x86_64",
@@ -218,7 +219,29 @@ PLATFORM_CONSTRAINTS = {
     "linux_x86_64": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
     "macos_arm64": ["@platforms//os:macos", "@platforms//cpu:arm64"],
     "macos_x86_64": ["@platforms//os:macos", "@platforms//cpu:x86_64"],
+    "windows_arm64": ["@platforms//os:windows", "@platforms//cpu:arm64"],
     "windows_x86_64": ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+}
+
+# Hosts Google ships no SDK for; every hub alias resolves to an incompatible target there.
+SDK_UNSUPPORTED_HOSTS = {
+    "linux_arm64": ["@platforms//os:linux", "@platforms//cpu:arm64"],
+}
+
+_NO_SDK_HOST_COMPATIBLE_WITH = [str(Label("@platforms//:incompatible")), str(unsupported_constraint("android"))]
+
+# Libraries each build-tools binary loads from the archive; the Windows tools need only the system CRT.
+BUILD_TOOLS_LIBS = {
+    "linux_x86_64": ["lib64/libc++.so", "lib64/libc++.so.1"],
+    "macos_arm64": ["lib64/libc++.dylib"],
+    "windows_x86_64": [],
+}
+
+# Libraries adb loads from the archive.
+PLATFORM_TOOLS_LIBS = {
+    "linux_x86_64": [],
+    "macos_arm64": [],
+    "windows_x86_64": ["AdbWinApi.dll", "AdbWinUsbApi.dll"],
 }
 
 HUB_NAME = "dx_android_sdk"
@@ -293,8 +316,8 @@ def build_tools_repository_name(platform):
     return _BUILD_TOOLS_REPOSITORY_PREFIX + platform
 
 def build_tools_repositories():
-    """Returns the platform-keyed build-tools repository names."""
-    return {platform: build_tools_repository_name(platform) for platform in sorted(PACKAGING_HOSTS)}
+    """Returns the host-keyed build-tools repository names."""
+    return {host: build_tools_repository_name(SDK_HOSTS[host]) for host in sorted(SDK_HOSTS.keys())}
 
 def platform_repository_name():
     """Returns the repository name the requested platform is acquired into."""
@@ -303,6 +326,10 @@ def platform_repository_name():
 def platform_tools_repository_name(host):
     """Returns the repository name one host's platform-tools are acquired into."""
     return _PLATFORM_TOOLS_REPOSITORY_PREFIX + host
+
+def platform_tools_repositories():
+    """Returns the host-keyed platform-tools repository names."""
+    return {host: platform_tools_repository_name(SDK_HOSTS[host]) for host in sorted(SDK_HOSTS.keys())}
 
 def emulator_repository_name(host):
     """Returns the repository name one host's emulator is acquired into."""
@@ -321,7 +348,7 @@ def no_match_error():
 def build_tools_no_match_error():
     """Returns the diagnostic for a platform with no qualified build-tools."""
     return ("rules_dx: no pinned Android build-tools " + BUILD_TOOLS + " artifact for this " +
-            "platform; want one of " + ", ".join(sorted(PACKAGING_HOSTS)))
+            "platform; want one of " + ", ".join(sorted(SDK_HOSTS.keys())))
 
 def artifact_errors(artifacts = NDK_ARTIFACTS, prefix = NDK_ARCHIVE_PREFIX, hosted = True, separator = "-"):
     """Returns one error string per pinned artifact that is not ready to download."""
@@ -440,10 +467,10 @@ def sdk_level(request):
 
 def app_sdk_layout(request, host):
     """Returns the SDK directories rules_android's @androidsdk is assembled from on one host."""
-    if not request.enabled or host not in APP_SDK_HOSTS:
+    if not request.enabled or host not in SDK_HOSTS:
         return []
     level = sdk_level(request)
-    host = APP_SDK_HOSTS[host]
+    host = SDK_HOSTS[host]
     return [
         struct(dest = "build-tools/" + BUILD_TOOLS, kind = "build-tools", artifact = BUILD_TOOLS_ARTIFACTS[host]),
         struct(dest = "platforms/android-%d" % level, kind = "platform", artifact = PLATFORM_ARTIFACTS[level]),
@@ -544,7 +571,7 @@ def package_repositories(request):
         "platform": {level: platform_repository_name()},
     }
     if "platform-tools" in request.extra_packages:
-        repos["platform_tools"] = {host: platform_tools_repository_name(host) for host in sorted(PACKAGING_HOSTS)}
+        repos["platform_tools"] = platform_tools_repositories()
     if "emulator" in request.extra_packages:
         repos["emulator"] = {host: emulator_repository_name(host) for host in sorted(EMULATOR_ARTIFACTS.keys())}
     return repos
@@ -564,6 +591,8 @@ def _hub_target(lines, name, repos, actual, error):
         lines.append("    actual = select({")
         for platform in sorted(repos.keys()):
             lines.append('        ":%s": "@%s//:%s",' % (platform, repos[platform], actual))
+        for platform in sorted(SDK_UNSUPPORTED_HOSTS.keys()):
+            lines.append('        ":%s": ":no_sdk_host",' % platform)
         lines.append("    }, no_match_error = \"%s\")," % error)
         lines.append('    visibility = ["//visibility:public"],')
         lines.append(")")
@@ -589,23 +618,30 @@ def _hub_alias(lines, name, label):
         lines.append('    visibility = ["//visibility:public"],')
         lines.append(")")
 
-def package_no_match_error(package):
+def package_no_match_error(package, hosts):
     """Returns the diagnostic for a platform with no pinned opt-in package."""
-    return "rules_dx: no pinned Android " + package + " artifact for this platform; want one of linux_x86_64"
+    return "rules_dx: no pinned Android " + package + " artifact for this platform; want one of " + ", ".join(sorted(hosts))
 
 def hub_build(ndk_repos, build_tools_repos, bundletool_repo, *, platform_repo = "", platform_tools_repos = {}, emulator_repos = {}):
     """Returns the hub BUILD file for one acquisition state."""
     if bundletool_repo == "":
         fail("rules_dx: hub_build needs the bundletool repository name")
     lines = []
-    for platform in sorted(PLATFORM_CONSTRAINTS.keys()):
+    constraints = PLATFORM_CONSTRAINTS | SDK_UNSUPPORTED_HOSTS
+    for platform in sorted(constraints.keys()):
         lines.append("config_setting(")
         lines.append('    name = "%s",' % platform)
         lines.append("    constraint_values = [")
-        for constraint in PLATFORM_CONSTRAINTS[platform]:
+        for constraint in constraints[platform]:
             lines.append('        "%s",' % constraint)
         lines.append("    ],")
         lines.append(")")
+    lines.append("")
+    lines.append("filegroup(")
+    lines.append('    name = "no_sdk_host",')
+    lines.append("    srcs = [],")
+    lines.append("    target_compatible_with = [%s]," % ", ".join(['"%s"' % label for label in _NO_SDK_HOST_COMPATIBLE_WITH]))
+    lines.append(")")
     lines.append("")
     _hub_target(lines, "ndk", ndk_repos, "ndk_anchor", no_match_error())
     lines.append("")
@@ -621,9 +657,9 @@ def hub_build(ndk_repos, build_tools_repos, bundletool_repo, *, platform_repo = 
     lines.append("")
     _hub_alias(lines, "android_jar", "@%s//:android_jar" % platform_repo if platform_repo != "" else "")
     lines.append("")
-    _hub_target(lines, "adb", platform_tools_repos, "adb", package_no_match_error("platform-tools"))
+    _hub_target(lines, "adb", platform_tools_repos, "adb", package_no_match_error("platform-tools", SDK_HOSTS.keys()))
     lines.append("")
-    _hub_target(lines, "emulator", emulator_repos, "emulator", package_no_match_error("emulator"))
+    _hub_target(lines, "emulator", emulator_repos, "emulator", package_no_match_error("emulator", EMULATOR_ARTIFACTS.keys()))
     return "\n".join(lines) + "\n"
 
 NDK_RUNTIME_LIBS = {
@@ -698,52 +734,32 @@ def ndk_build(anchor, host):
         ndk_toolchain_build("extracted", host),
     ])
 
-def build_tools_build(anchor):
-    """Returns the BUILD file exposing one acquired build-tools archive."""
-    return "\n".join([
+def _tool_lines(name, path, data):
+    """Returns one filegroup exposing a tool and the files it loads."""
+    lines = [
         "filegroup(",
-        '    name = "zipalign",',
-        '    srcs = ["extracted/zipalign"],',
-        "    data = [",
-        '        "extracted/lib64/libc++.so",',
-        '        "extracted/lib64/libc++.so.1",',
-        "    ],",
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "aapt",',
-        '    srcs = ["extracted/aapt"],',
-        "    data = [",
-        '        "extracted/lib64/libc++.so",',
-        '        "extracted/lib64/libc++.so.1",',
-        "    ],",
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "dexdump",',
-        '    srcs = ["extracted/dexdump"],',
-        "    data = [",
-        '        "extracted/lib64/libc++.so",',
-        '        "extracted/lib64/libc++.so.1",',
-        "    ],",
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "apksigner_jar",',
-        '    srcs = ["extracted/lib/apksigner.jar"],',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "build_tools_anchor",',
-        '    srcs = ["extracted/%s"],' % anchor,
+        '    name = "%s",' % name,
+        '    srcs = ["extracted/%s"],' % path,
+    ]
+    if len(data) > 0:
+        lines.append("    data = [")
+        lines.extend(['        "extracted/%s",' % lib for lib in data])
+        lines.append("    ],")
+    lines.extend([
         '    visibility = ["//visibility:public"],',
         ")",
         "",
     ])
+    return lines
+
+def build_tools_build(anchor, host):
+    """Returns the BUILD file exposing one host's acquired build-tools archive."""
+    lines = []
+    for name in ["zipalign", "aapt", "dexdump"]:
+        lines.extend(_tool_lines(name, name + NDK_TOOL_SUFFIX[host], BUILD_TOOLS_LIBS[host]))
+    lines.extend(_tool_lines("apksigner_jar", "lib/apksigner.jar", []))
+    lines.extend(_tool_lines("build_tools_anchor", anchor, []))
+    return "\n".join(lines)
 
 def platform_build(anchor):
     """Returns the BUILD file exposing one acquired platform."""
@@ -762,22 +778,11 @@ def platform_build(anchor):
         "",
     ])
 
-def platform_tools_build(anchor):
-    """Returns the BUILD file exposing one acquired platform-tools archive."""
-    return "\n".join([
-        "filegroup(",
-        '    name = "adb",',
-        '    srcs = ["extracted/adb"],',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "platform_tools_anchor",',
-        '    srcs = ["extracted/%s"],' % anchor,
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-    ])
+def platform_tools_build(anchor, host):
+    """Returns the BUILD file exposing one host's acquired platform-tools archive."""
+    lines = _tool_lines("adb", "adb" + NDK_TOOL_SUFFIX[host], PLATFORM_TOOLS_LIBS[host])
+    lines.extend(_tool_lines("platform_tools_anchor", anchor, []))
+    return "\n".join(lines)
 
 def emulator_build(anchor):
     """Returns the BUILD file exposing one acquired emulator archive."""
@@ -821,7 +826,7 @@ def acquire_ndk(ctx):
 
 def acquire_build_tools(ctx):
     """Downloads, verifies, and extracts one pinned build-tools archive."""
-    return _acquire(ctx, artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX, True, BUILD_TOOLS_ARCHIVE_SEPARATOR), build_tools_build)
+    return _acquire(ctx, artifact_errors(BUILD_TOOLS_ARTIFACTS, BUILD_TOOLS_ARCHIVE_PREFIX, True, BUILD_TOOLS_ARCHIVE_SEPARATOR), lambda anchor: build_tools_build(anchor, ctx.attr.host))
 
 def acquire_platform(ctx):
     """Downloads, verifies, and extracts one pinned platform archive."""
@@ -829,7 +834,7 @@ def acquire_platform(ctx):
 
 def acquire_platform_tools(ctx):
     """Downloads, verifies, and extracts one pinned platform-tools archive."""
-    return _acquire(ctx, artifact_errors(PLATFORM_TOOLS_ARTIFACTS, PLATFORM_TOOLS_ARCHIVE_PREFIX), platform_tools_build)
+    return _acquire(ctx, artifact_errors(PLATFORM_TOOLS_ARTIFACTS, PLATFORM_TOOLS_ARCHIVE_PREFIX), lambda anchor: platform_tools_build(anchor, ctx.attr.host))
 
 def acquire_emulator(ctx):
     """Downloads, verifies, and extracts one pinned emulator archive."""
@@ -870,7 +875,13 @@ android_ndk_repo = repository_rule(
 
 android_build_tools_repo = repository_rule(
     implementation = acquire_build_tools,
-    attrs = NDK_REPOSITORY_ATTRS,
+    attrs = NDK_REPOSITORY_ATTRS | {
+        "host": attr.string(
+            doc = "Host the build-tools archive is built for.",
+            mandatory = True,
+            values = sorted(BUILD_TOOLS_ARTIFACTS.keys()),
+        ),
+    },
 )
 
 android_platform_repo = repository_rule(
@@ -880,7 +891,13 @@ android_platform_repo = repository_rule(
 
 android_platform_tools_repo = repository_rule(
     implementation = acquire_platform_tools,
-    attrs = NDK_REPOSITORY_ATTRS,
+    attrs = NDK_REPOSITORY_ATTRS | {
+        "host": attr.string(
+            doc = "Host the platform-tools archive is built for.",
+            mandatory = True,
+            values = sorted(PLATFORM_TOOLS_ARTIFACTS.keys()),
+        ),
+    },
 )
 
 android_emulator_repo = repository_rule(
@@ -941,7 +958,7 @@ def unavailable_hub_build(empty_template, rule_bzl):
     return build + "".join(["\n" + stub for stub in stubs])
 
 def _android_app_sdk_hub_repo_impl(ctx):
-    if ctx.attr.build == "" or host_cell(ctx) not in APP_SDK_HOSTS:
+    if ctx.attr.build == "" or host_cell(ctx) not in SDK_HOSTS:
         empty = ctx.read(Label("@rules_android//rules/android_sdk_repository:empty.template.bzl"))
         ctx.file("BUILD.bazel", unavailable_hub_build(empty, str(Label("//android/private/sdk:unavailable.bzl"))))
     else:

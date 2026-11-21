@@ -1,4 +1,7 @@
 # What the //tools/testing/consumer:<lang>_prebuilt_guard_test targets let a consumer compile.
 # `label <canonical label> [<lang>...]  # reason`: a rules_dx binary the consumer may build;
 # with languages, only a consumer of one of those languages.
+# `repo rules_dx++dx_pins+rules_<name> <lang>...  # reason`: an upstream rule set whose binaries
+# a consumer of one of those languages may build.
 label @@rules_dx+//lua/private/runtime:launcher lua  # C++; links liblua, which a Lua consumer already builds from the BCR lua module
+repo rules_dx++dx_pins+rules_scala scala  # upstream rules_scala workers (scalac, scalac_bootstrap, exe)

@@ -52,7 +52,7 @@ def _checks():
         expect_contains("erts mismatch names found", erts_mismatch_message("1.2", ["erts-3.4"]), "erts-3.4"),
         expect_contains("erts mismatch handles none", erts_mismatch_message("1.2", []), "found: none"),
         expect_false("the hub names no rules_erlang target", "@rules_erlang" in hub_build()),
-        expect_contains("the hub names the OTP exec toolchain type", hub_build(), "//erlang/private/toolchain:exec_toolchain_type"),
+        expect_contains("the hub names the OTP exec toolchain type", hub_build(), str(Label("//erlang:exec_toolchain_type"))),
         expect_equal("the hub registers an exec and a runtime toolchain per cell", hub_build().count("toolchain("), 2 * len(CELLS)),
         expect_contains("the runtime toolchain matches the target", hub_build(), 'name = "dx_erlang_toolchains__linux_arm64",\n    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],'),
         expect_contains("the rules_erlang toolchain matches the exec platform", hub_build(), 'name = "dx_erlang_toolchains__linux_arm64_exec",\n    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],'),
@@ -78,7 +78,7 @@ def _cell_checks():
     return [
         expect_equal("one case per cell", sorted([str(key) for key in cases if key != _DEFAULT]), sorted([str(cell_setting(cell)) for cell in CELLS])),
         expect_equal("pinned cells allow the target", [cases[key] for key in cases if key != _DEFAULT], [[] for _ in CELLS]),
-        expect_equal("other cells are incompatible", [str(label) for label in cases[_DEFAULT]], [str(Label("@platforms//:incompatible")), str(Label("//erlang/private/toolchain:unsupported"))]),
+        expect_equal("other cells are incompatible", [str(label) for label in cases[_DEFAULT]], [str(Label("@platforms//:incompatible")), str(Label("//core/platforms:erlang_unsupported"))]),
         expect_equal("settings live in the toolchain package", str(cell_setting("linux_arm64")), str(Label("//erlang/private/toolchain:cell_linux_arm64"))),
         expect_equal("unknown cells are reported", unknown_cells(["linux_x86_64", "linux_riscv64"]), ["linux_riscv64"]),
         expect_equal("no cells is always incompatible", list(cell_cases([]).keys()), [_DEFAULT]),

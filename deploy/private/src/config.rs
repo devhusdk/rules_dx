@@ -815,7 +815,7 @@ mod tests {
     fn a_github_config_carries_its_attestations() {
         let manifest = format!("_main/{}", dx_ecosystems::Ecosystem::Cargo.manifest_name());
         let config = parse(&github_config(&format!(
-            r#""asset_rlocs":[],"attestations":[{{"registry":"crates","rlocs":["{manifest}"],"crate_name":"demo","version":"1.0.0"}}]"#,
+            r#""asset_rlocs":[],"attestations":[{{"registry":"crates","rlocs":["{manifest}"],"crate_name":"demo","version":"1.0.0","attach":true}}]"#,
         )));
         let Ok(DeployConfig::Github(github)) = config else {
             panic!("{config:?}");
@@ -827,6 +827,7 @@ mod tests {
                 rlocs: vec![manifest],
                 crate_name: "demo".to_owned(),
                 version: "1.0.0".to_owned(),
+                attach: true,
             }]
         );
     }

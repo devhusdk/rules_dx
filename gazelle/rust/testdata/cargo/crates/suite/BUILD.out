@@ -72,5 +72,5 @@ rust_test(
     crate_name = "delta_test",
     crate_root = "tests/delta.rs",
     edition = "2021",
-    deps = [":suite"],
+    deps = [],
 )

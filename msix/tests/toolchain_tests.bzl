@@ -27,7 +27,7 @@ def _checks():
         expect_contains("unaccepted hub names the license", unaccepted, LICENSE),
         expect_true("unaccepted hub downloads nothing", "bin/" not in unaccepted),
         expect_equal("windows is compatible", WINDOWS_CASES[Label("@platforms//os:windows")], []),
-        expect_equal("other platforms are incompatible and unsupported", [str(label) for label in WINDOWS_CASES["//conditions:default"]], [str(Label("@platforms//:incompatible")), str(Label("//msix/private:unsupported"))]),
+        expect_equal("other platforms are incompatible and unsupported", [str(label) for label in WINDOWS_CASES["//conditions:default"]], [str(Label("@platforms//:incompatible")), str(Label("//core/platforms:msix_unsupported"))]),
         expect_equal("windows is not repeated", extra_constraints(["@platforms//os:windows", "//x:y"]), ["//x:y"]),
         expect_equal("good min version", msix_named_version_errors("min_version", "10.0.17763.0"), []),
         expect_true("short min version", len(msix_named_version_errors("min_version", "10.0")) == 1),

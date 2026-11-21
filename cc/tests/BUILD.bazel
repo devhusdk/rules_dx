@@ -13,7 +13,7 @@ load(":msvc_repos_tests.bzl", "msvc_repos_tests", "msvc_unavailable_tests", "msv
 load(":msvc_toolchain_tests.bzl", "msvc_toolchain_tests", "msvc_version_tests")
 load(":nvcc_syntax_tests.bzl", "nvcc_syntax_unit_tests")
 load(":resolved_toolchain.bzl", "APPLE_SUPPORT_TOOLCHAIN_ID", "resolved_cc_toolchain")
-load(":toolchain_tests.bzl", "GCC_CROSS_BUILD_HOST", "cc_toolchain_identity_tests")
+load(":toolchain_tests.bzl", "GCC_CROSS_BUILD_HOST", "GCC_X86_64_CROSS_BUILD_HOST", "cc_toolchain_identity_tests")
 
 # gazelle:lang rust,dx_dispatch
 
@@ -232,6 +232,13 @@ cc_toolchain_identity_subject(
     compiler = "gcc",
     platforms = ["//tools/platforms:linux_arm64"],
     target_compatible_with = GCC_CROSS_BUILD_HOST,
+)
+
+cc_toolchain_identity_subject(
+    name = "identity_under_test_gcc_x86_64_cross",
+    compiler = "gcc",
+    platforms = ["//tools/platforms:linux_x86_64"],
+    target_compatible_with = GCC_X86_64_CROSS_BUILD_HOST,
 )
 
 cc_toolchain_identity_subject(

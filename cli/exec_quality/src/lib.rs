@@ -12,14 +12,14 @@
 mod breaking_base;
 pub mod check_build;
 mod generated_drift;
-pub mod link_check;
-pub mod quality_apply;
+mod link_check;
+mod quality_apply;
 mod quality_emit;
 mod quality_patch;
 mod quality_reconcile;
 mod quality_reports;
 mod quality_security;
-pub mod results;
+mod results;
 
 use crate::check_build::{SharedChecks, SharedRead};
 use crate::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
@@ -55,7 +55,7 @@ use dx_plan::plan::{
     plan_build_with, plan_shared_probe,
 };
 use dx_plan::reports::{Destination, PlannedReport, plan_reports};
-use dx_plan::resolve::{ResolvedScope, path_filter, resolve};
+use dx_plan::resolve::{ResolvedScope, path_filter, resolve, widen_config_scopes};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -383,6 +383,17 @@ fn run_quality_request(
     };
     let raw = request;
     let request = rewritten.as_ref().unwrap_or(request);
+    let widened = widen_config_scopes(
+        &request.targets,
+        env.workspace,
+        env.query_runner,
+        &request.bazel_startup_options,
+    )
+    .map(|targets| QualityRequest {
+        targets,
+        ..request.clone()
+    });
+    let request = widened.as_ref().unwrap_or(request);
     let resolved = match resolve(
         &request.targets,
         env.workspace,
@@ -397,7 +408,7 @@ fn run_quality_request(
     // An unreadable MODULE.bazel gives no deps, and the rules_dx root carries every family.
     let deps: Vec<String> = dx_adopt::module_deps(env.workspace).into_iter().collect();
     let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(env.workspace))
-        .then(|| dx_adopt::file_extensions(env.workspace));
+        .then(|| dx_adopt::quality_marks(env.workspace));
     let consumer = extensions
         .as_ref()
         .map(|extensions| Consumer { extensions });
@@ -477,7 +488,7 @@ fn run_quality_request(
     if matches!(request.common.output, OutputMode::Text { .. }) && collected.complete && !failed {
         dx_output::write_stderr(
             env.err,
-            format_args!("{}\n", findings_summary(status, resolved.kept.len())),
+            format_args!("{}\n", findings_summary(status, collected.targets)),
         );
     }
     if let Err(exit) = report_incomplete(request, &mut env, &collected, bazel_code) {

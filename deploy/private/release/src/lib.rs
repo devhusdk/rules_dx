@@ -81,10 +81,8 @@ pub enum BcrError {
     UrlMismatch { want: String, have: String },
     /// The `source.json` document could not be rendered.
     Render(FingerprintError),
-    /// A real submission carries the 0.0.0 shape-check placeholder.
-    UnpublishableSubmission,
-    /// A real submission lacks `BCR_APPROVE=1`.
-    NotApproved,
+    /// A live run was requested; only the release-consumer workflow submits.
+    SubmittedByWorkflow,
     /// The archive could not be hashed.
     Hash { path: PathBuf, source: io::Error },
     /// The `source.json` document could not be written.
@@ -125,11 +123,8 @@ impl fmt::Display for BcrError {
                 "bcr: candidate source.json url mismatch: want {want:?}, got {have:?}"
             ),
             Self::Render(source) => write!(f, "cannot render JSON: {source}"),
-            Self::UnpublishableSubmission => f.write_str(
-                "bcr: version 0.0.0 is unpublishable (shape check only); a real submission needs an owner-approved SemVer release version",
-            ),
-            Self::NotApproved => f.write_str(
-                "bcr: submission needs explicit owner approval (BCR_APPROVE=1); run with BCR_DRY_RUN=1 to print the would-submit PR",
+            Self::SubmittedByWorkflow => f.write_str(
+                "bcr: this target only checks the shape (BCR_DRY_RUN=1); the bcr job in .github/workflows/release-consumer.yml submits",
             ),
             Self::Hash { path, source } => write!(f, "cannot hash {}: {source}", path.display()),
             Self::Io(source) => write!(f, "{source}"),
@@ -146,8 +141,7 @@ impl std::error::Error for BcrError {
             Self::Hash { source, .. } => Some(source),
             Self::Io(source) => Some(source),
             Self::UnpublishableVersion
-            | Self::UnpublishableSubmission
-            | Self::NotApproved
+            | Self::SubmittedByWorkflow
             | Self::InvalidVersion { .. }
             | Self::InvalidModule { .. }
             | Self::IntegrityMismatch { .. }
@@ -997,15 +991,9 @@ pub fn render_bcr_dry_run(module: &str, version: &str, inputs: &[String]) -> Str
         out.push_str(input);
         out.push_str(")\n");
     }
-    out.push_str("  command: gh pr create --repo bazelbuild/bazel-central-registry --title \"Add ");
-    out.push_str(module);
-    out.push('@');
-    out.push_str(version);
-    out.push_str("\" --body \"Owner-approved BCR submission for ");
-    out.push_str(module);
-    out.push('@');
-    out.push_str(version);
-    out.push_str("\"\n");
+    out.push_str(
+        "  submit: bcr job in .github/workflows/release-consumer.yml (bazel-contrib/publish-to-bcr)\n",
+    );
     out.push_str("  presubmit: bazel test @rules_dx//... (seed host) + BCR presubmit.yml\n");
     out
 }
@@ -1018,36 +1006,16 @@ pub fn bcr_run(
     version: &str,
     inputs: &[String],
     dry_run: bool,
-    approved: bool,
 ) -> Result<String, BcrError> {
     if module != BCR_WANT_MODULE {
         return Err(BcrError::InvalidModule {
             module: module.to_owned(),
         });
     }
-    if dry_run {
-        return Ok(render_bcr_dry_run(module, version, inputs));
+    if !dry_run {
+        return Err(BcrError::SubmittedByWorkflow);
     }
-    if version == "0.0.0" {
-        return Err(BcrError::UnpublishableSubmission);
-    }
-    if !approved {
-        return Err(BcrError::NotApproved);
-    }
-    let detail = format!(
-        "owner-approved; open the BCR PR manually with the inputs [{}] (this program never pushes itself)",
-        inputs
-            .iter()
-            .map(|input| basename_of(input))
-            .collect::<Vec<_>>()
-            .join(", ")
-    );
-    Ok(render_ledger(&[OpRecord::new(
-        "bcr-submit",
-        &format!("{module}@{version}"),
-        OpState::Validated,
-        &detail,
-    )]))
+    Ok(render_bcr_dry_run(module, version, inputs))
 }
 
 const BCR_PR_PREFIX: &str = "https://github.com/bazelbuild/bazel-central-registry/pull/";
@@ -1061,6 +1029,10 @@ pub fn bcr_submit_record(subject: &str, result: &str, pr_url: &str) -> OpRecord 
         ("success", _) => (
             OpState::Failed,
             "publish-to-bcr succeeded but reported no BCR pull request".to_owned(),
+        ),
+        ("skipped", _) => (
+            OpState::NotAuthorized,
+            "bcr job skipped: repository variable BCR_REGISTRY_FORK is unset".to_owned(),
         ),
         (other, _) => (
             OpState::Failed,
@@ -1308,7 +1280,7 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
         "    5. bazel run //cli/cli:github_draft (stages a notes-only draft with --draft --verify-tag, publishes nothing)\n",
     );
     out.push_str(
-        "    6. BCR_DRY_RUN=1 bazel run //deploy/private/release:bcr_demo (would-submit BCR PR, submits nothing)\n",
+        "    6. BCR_DRY_RUN=1 bazel run //deploy/private/release:bcr_demo (BCR shape check, submits nothing)\n",
     );
     out.push_str(
         "    7. bazel run //deploy/private/install:dx_verify --binary <dx> --bundle <bundle> --identity <id> --issuer <issuer> --notice <NOTICE> --notice-manifest <manifest> --notice-bundle <NOTICE.bundle> (fail-before-install)\n",

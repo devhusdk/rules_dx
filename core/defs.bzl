@@ -1,4 +1,4 @@
-"""Public rules_dx rules that belong to no single language: source libraries, native tool configs and docs sites."""
+"""Public rules_dx rules that belong to no single language: source libraries, native tool configs, the generated policy and docs sites."""
 
 load(
     "//core/quality:native_config.bzl",
@@ -93,16 +93,16 @@ load(
     _yaml_library = "yaml_library",
 )
 load(
+    "//core/quality/private:generated_policy.bzl",
+    _dx_generated_policy = "dx_generated_policy",
+)
+load(
     "//tools/docs/lua:defs.bzl",
     _lua_doc_shard = "lua_doc_shard",
 )
 load(
     "//tools/docs/php:defs.bzl",
     _php_doc_shard = "php_doc_shard",
-)
-load(
-    "//tools/docs/protobuf:defs.bzl",
-    _protobuf_doc_shard = "protobuf_doc_shard",
 )
 load(
     "//tools/docs/site:site.bzl",
@@ -128,6 +128,7 @@ detekt_config = _detekt_config
 djlint_config = _djlint_config
 docs_site = _docs_site
 docstrfmt_config = _docstrfmt_config
+dx_generated_policy = _dx_generated_policy
 elvis_config = _elvis_config
 errcheck_config = _errcheck_config
 eslint_config = _eslint_config
@@ -163,7 +164,6 @@ phpstan_config = _phpstan_config
 pkl_library = _pkl_library
 pmd_config = _pmd_config
 prettier_config = _prettier_config
-protobuf_doc_shard = _protobuf_doc_shard
 psscriptanalyzer_config = _psscriptanalyzer_config
 pydoclint_config = _pydoclint_config
 qmlformat_config = _qmlformat_config

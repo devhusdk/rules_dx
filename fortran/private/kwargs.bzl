@@ -4,7 +4,7 @@ load("//core:platform_support.bzl", "cells_support", "compatible_with", "lang_ce
 load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_flags")
 load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
 
-PLATFORM_SUPPORT = cells_support("//fortran/private:defs.bzl", "FORTRAN_COMPATIBLE_WITH", FORTRAN_CELLS, lang_cells("fortran"), "//fortran/private/toolchain", "constraints", unsupported = False)
+PLATFORM_SUPPORT = cells_support("//fortran/private:defs.bzl", "FORTRAN_COMPATIBLE_WITH", FORTRAN_CELLS, lang_cells("fortran"), "//fortran/private/toolchain", "constraints")
 
 FORTRAN_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 

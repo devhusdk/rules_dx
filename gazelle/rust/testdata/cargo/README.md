@@ -7,3 +7,4 @@ Verifies authoritative Cargo names, paths, editions, dependency scopes, and cust
 build script and its consumer edge.
 
 `suite` covers implicit `tests/*.rs` roots, which must be emitted in sorted order.
+`delta` imports no library item, so its test has no `:suite` dep.

@@ -54,9 +54,9 @@ _TOOL = Label("//php/private:tool.php")
 
 _COVERAGE_RUN = Label("@dx_prebuilt//:runtime")
 
-_COMPOSER = Label("@dx_composer//:composer.phar")
+_COMPOSER = Label("@php_composer//:composer.phar")
 
-_PHPUNIT = Label("@dx_phpunit//:phpunit.phar")
+_PHPUNIT = Label("@php_phpunit//:phpunit.phar")
 
 def autoloader_suffix(label):
     """Returns the Composer autoloader suffix for one label: letters, digits and underscores only."""

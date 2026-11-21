@@ -60,8 +60,8 @@ def _php_impl(mctx):
     )
     php_hub(name = HUB_NAME, files = {"BUILD.bazel": hub_build(PHP_CELLS.keys())})
     for name, file, pin in [
-        ("dx_composer", "composer.phar", tools["composer"]),
-        ("dx_phpunit", "phpunit.phar", tools["phpunit"]),
+        ("php_composer", "composer.phar", tools["composer"]),
+        ("php_phpunit", "phpunit.phar", tools["phpunit"]),
         ("dx_phpbench", "phpbench.phar", tools["phpbench"]),
         ("dx_phpcs", "phpcs.phar", tools["phpcs"]),
         ("dx_phpdocumentor", "phpDocumentor.phar", tools["phpdocumentor"]),

@@ -290,6 +290,12 @@ jobs:
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors "$@" //tools/testing:nested_bazel_harness_test
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc:compiler=msvc //deploy/private:pypi_native_msvc_verify
           fi
+      - name: Run the README quickstart case
+        if: ${{ !cancelled() && matrix.platform == 'windows_x86_64' }}
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          bazel test --noshow_progress --test_output=errors --test_timeout=2400 --flaky_test_attempts=2 "$@" //deploy/private/release/tests:release_consumer_smoke_test --test_arg=--exact --test_arg=quickstart_consumer_test::the_readme_quickstart_runs_as_written
   native-lint:
     name: native-lint (dx lint on cfg(windows) and macOS code on ${{ matrix.platform }})
     timeout-minutes: 60

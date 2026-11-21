@@ -401,6 +401,7 @@ MUSL_TOOL_ARGS = {
     "ghc-{version}": "-B\"$root/{libdir}\"",
     "ghc-pkg-{version}": "--global-package-db=\"$root/{libdir}/package.conf.d\"",
     "haddock-ghc-{version}": "-B\"$root/{libdir}\"",
+    "hsc2hs-ghc-{version}": "--template=\"$root/{libdir}/template-hsc.h\"",
     "runghc-{version}": "-f \"$root/bin/ghc\"",
 }
 
@@ -455,6 +456,8 @@ def _apk_closure(rctx, cell):
         rctx.symlink(CLOSURE_DIR + "/lib/" + target, CLOSURE_DIR + "/lib/" + alias)
 
 def _musl_wrappers(rctx, cell_name):
+    if not rctx.path(LIBDIR + "/template-hsc.h").exists:
+        fail("musl bindist ships no {}/template-hsc.h".format(LIBDIR))
     for entry in rctx.path("bin").readdir():
         if entry.realpath.basename != entry.basename:
             continue

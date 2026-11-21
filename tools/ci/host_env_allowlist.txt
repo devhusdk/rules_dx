@@ -279,7 +279,6 @@ tools/ci/docs_scope_test.rs shebang 1
 tools/coverage/kcov/BUILD.bazel sh-rule 1
 tools/coverage/kcov/kcov.BUILD genrule 3
 tools/coverage/kcov/kcov_launcher.sh shebang 1
-tools/docs/dart/defs.bzl home 1
 tools/docs/dotnet/csharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/fsharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/pinned_driver.sh shebang 1

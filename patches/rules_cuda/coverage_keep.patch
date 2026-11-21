@@ -20,13 +20,19 @@ index 2b93b69..6877b91 100644
          _prefix: DON'T USE IT! Prefix of the output dir. Exposed for device link to redirect the output.
  
      Returns:
-@@ -101,11 +104,18 @@ def compile(
+@@ -101,11 +104,23 @@ def compile(
  
          args = actions.args()
-         args.add_all(cmd)
+-        args.add_all(cmd)
 +        outputs = [obj_file]
++        keep_dir = None
 +        if keep_dirs != None and cuda_toolchain.toolchain_identifier == "nvcc" and ctx.coverage_instrumented():
++            # --objdir-as-tempdir makes nvcc write kept files next to the object, not into --keep-dir.
++            # --keep already names them after the source, so the host object stays reproducible.
++            cmd = [arg for arg in cmd if arg != "--objdir-as-tempdir"]
 +            keep_dir = actions.declare_directory("{}/{}/{}.keep".format(_prefix, ctx.attr.name, filename))
++        args.add_all(cmd)
++        if keep_dir:
 +            args.add("--keep")
 +            args.add("--keep-dir", keep_dir.path)
 +            outputs.append(keep_dir)
@@ -174,7 +180,7 @@ new file mode 100644
 index 0000000..c10aae7
 --- /dev/null
 +++ b/tests/coverage/coverage_test.bzl
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,87 @@
 +"""Analysis tests for coverage support in cuda_library and cuda_objects."""
 +
 +load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
@@ -193,6 +199,7 @@ index 0000000..c10aae7
 +def _assert_keeps(env, action):
 +    asserts.true(env, "--keep" in action.argv, "--keep missing from {}".format(action.argv))
 +    asserts.true(env, "--keep-dir" in action.argv, "--keep-dir missing from {}".format(action.argv))
++    asserts.false(env, "--objdir-as-tempdir" in action.argv, "--objdir-as-tempdir overrides --keep-dir in {}".format(action.argv))
 +    keep_dirs = _keep_outputs(action)
 +    asserts.equals(env, 1, len(keep_dirs))
 +    if keep_dirs:

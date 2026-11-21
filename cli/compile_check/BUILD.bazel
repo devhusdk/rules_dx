@@ -1,0 +1,48 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+
+package(default_visibility = ["//visibility:private"])
+
+rust_library(
+    name = "dx_compile_check",
+    srcs = ["src/lib.rs"],
+    crate_name = "dx_compile_check",
+    crate_root = "src/lib.rs",
+    visibility = ["//cli/cli:__pkg__"],
+)
+
+rust_test(
+    name = "dx_compile_check_test",
+    size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/lib_tests.rs",
+    ],
+    coverage_lib = ":dx_compile_check",
+    crate_name = "dx_compile_check",
+    crate_root = "src/lib.rs",
+)
+
+rust_test(
+    name = "replay_test",
+    size = "small",
+    srcs = ["tests/replay_test.rs"],
+    crate_root = "tests/replay_test.rs",
+    use_libtest_harness = False,
+    deps = [
+        ":dx_compile_check",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

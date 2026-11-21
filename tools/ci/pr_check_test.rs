@@ -6,10 +6,11 @@ const WORKFLOW: &str = ".github/workflows/pr-check.yml";
 const SCRIPT: &str = "tools/ci/producers/src/pr_check.rs";
 const TOOL: &str = "\"$RUNNER_TEMP/pr-check/producers_bin\"";
 const TOOL_STEP: &str = "pr-check tool";
-const SETS: [&str; 7] = [
+const SETS: [&str; 8] = [
     "workflow",
     "preflight",
     "preflight-windows-arm64",
+    "android-linux-arm64",
     "hermetic",
     "docs",
     "cli",
@@ -312,6 +313,8 @@ fn shards_come_from_the_plan() {
     // target, 25,758 of them, instead of the tests `bazel test //...` runs.
     assert!(plan_run.contains("let t = tests(set("), "{plan_run}");
     assert!(plan_run.contains("(manual|"), "{plan_run}");
+    // dx test takes main-workspace labels only.
+    assert!(plan_run.contains("($t intersect //...)"), "{plan_run}");
     assert!(plan_run.contains("range(0; length; $per)"), "{plan_run}");
     assert!(plan_run.contains("echo \"labels=$slices\""), "{plan_run}");
     let affected = job(WORKFLOW, "affected").unwrap();
@@ -411,5 +414,28 @@ fn consumer_queries_skip_the_private_upstream_copies() {
             }
         }
         assert!(seen > 0, "{path} has no consumer query");
+    }
+}
+
+#[test]
+fn android_set_analyses_android_for_linux_arm64() {
+    let steps = steps(WORKFLOW, "analysis").unwrap();
+    let step = steps
+        .iter()
+        .find(|step| step["name"].as_str() == Some("android-linux-arm64"))
+        .expect("android-linux-arm64 step");
+    let run = step["run"].as_str().expect("run");
+    assert!(
+        run.contains(&format!("{TOOL} --pr-check android-linux-arm64 ")),
+        "{run}"
+    );
+    let script = read_runfiles(SCRIPT);
+    let flags = constant(&script, "ANDROID_LINUX_ARM64_FLAGS");
+    for want in [
+        "--platforms=//tools/platforms:linux_arm64",
+        "--host_platform=//tools/platforms:linux_arm64",
+        "//android/...",
+    ] {
+        assert!(flags.contains(want), "{SCRIPT} lacks {want}");
     }
 }

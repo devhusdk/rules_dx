@@ -70,10 +70,11 @@ pub enum Language {
     Powershell,
     Lua,
     Ocaml,
+    Ansible,
 }
 
 impl Language {
-    pub const ALL: [Language; 26] = [
+    pub const ALL: [Language; 27] = [
         Language::Rust,
         Language::Python,
         Language::Js,
@@ -100,6 +101,7 @@ impl Language {
         Language::Powershell,
         Language::Lua,
         Language::Ocaml,
+        Language::Ansible,
     ];
 
     fn row(self) -> Option<&'static LanguageRow> {

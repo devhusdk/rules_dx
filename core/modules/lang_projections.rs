@@ -14,12 +14,15 @@ const NON_LANGUAGE: [&str; 1] = ["appimage"];
 
 const REFRESH: &str = "Generated from every <lang>/lang.json by //core/modules:lang_projections; refresh with `bazel run //core/modules:update_lang_projections`.";
 
-/// The `<kind>=<path>` arguments; `all_languages_src` and `core_aspects` are the inputs.
-const KINDS: [&str; 9] = [
+/// The `<kind>=<path>` arguments; `all_languages_src`, `core_aspects` and `core_probe_src` are the
+/// inputs.
+const KINDS: [&str; 11] = [
     "all_languages.bzl",
     "all_languages_src",
     "conformance_quality.bzl",
     "core_aspects",
+    "core_probe.bzl",
+    "core_probe_src",
     "ecosystems_languages.json",
     "families_languages.json",
     "langs.bzl",
@@ -33,6 +36,16 @@ const EXPORTS_BEGIN: &str = "# BEGIN GENERATED LANG ASPECT EXPORTS\n";
 const EXPORTS_END: &str = "# END GENERATED LANG ASPECT EXPORTS\n";
 const SHARDS_BEGIN: &str = "# BEGIN GENERATED LANG SHARD ASPECTS\n";
 const SHARDS_END: &str = "# END GENERATED LANG SHARD ASPECTS\n";
+const TABLE_LOADS_BEGIN: &str = "# BEGIN GENERATED FAMILY TABLE LOADS\n";
+const TABLE_LOADS_END: &str = "# END GENERATED FAMILY TABLE LOADS\n";
+const TABLES_BEGIN: &str = "# BEGIN GENERATED FAMILY TABLES\n";
+const TABLES_END: &str = "# END GENERATED FAMILY TABLES\n";
+
+/// The family tables every quality file exports, and the union each one becomes.
+const TOOLS: (&str, &str) = ("TOOLS", " | ");
+const SHARD_SPECS: (&str, &str) = ("SHARD_SPECS", " | ");
+const HOOKS: (&str, &str) = ("HOOKS", " | ");
+const HOOK_ORDER: (&str, &str) = ("HOOK_ORDER", " + ");
 
 fn read_manifest(path: &Path) -> Result<Value, String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -63,7 +76,9 @@ fn str_at<'a>(value: &'a Value, what: &str) -> Result<&'a str, String> {
 }
 
 fn pretty(value: &Value) -> Result<String, String> {
-    Ok(serde_json::to_string_pretty(value).map_err(|e| e.to_string())? + "\n")
+    let mut text = serde_json::to_string_pretty(value).map_err(|e| e.to_string())?;
+    text.push('\n');
+    Ok(text)
 }
 
 fn langs_bzl(manifests: &BTreeMap<String, Value>) -> Result<String, String> {
@@ -266,12 +281,111 @@ fn splice(text: &str, begin: &str, end: &str, body: &str) -> Result<String, Stri
     }
 }
 
+/// The quality files whose rows name shard aspects, so they export the family tables. Probe-only
+/// files, like `core_probe.bzl`, merge those tables and export none.
+fn table_files<'a>(
+    manifests: impl IntoIterator<Item = &'a Value>,
+) -> Result<BTreeSet<String>, String> {
+    let mut found = BTreeSet::new();
+    for manifest in manifests {
+        let Some(quality) = manifest.get("quality") else {
+            continue;
+        };
+        if quality
+            .get("aspects")
+            .is_some_and(|aspects| !aspects.is_null())
+        {
+            found.insert(str_at(&quality["bzl"], "quality.bzl")?.to_owned());
+        }
+    }
+    Ok(found)
+}
+
+/// `_<FILE>_` for a quality file label, such as `_CC_` for `cc/private/quality:cc.bzl`.
+fn table_prefix(label: &str) -> Result<String, String> {
+    let stem = label
+        .rsplit(['/', ':'])
+        .next()
+        .and_then(|file| file.strip_suffix(".bzl"))
+        .ok_or_else(|| format!("{label}: quality.bzl is not a .bzl file"))?;
+    Ok(format!("_{}_", stem.to_uppercase()))
+}
+
+/// Each table file's load symbols, `(local, exported)`, for `tables`.
+fn table_symbols(
+    files: &BTreeSet<String>,
+    tables: &[(&str, &str)],
+) -> Result<BTreeMap<String, Vec<(String, String)>>, String> {
+    let mut found = BTreeMap::new();
+    let mut owners: BTreeMap<String, &str> = BTreeMap::new();
+    for label in files {
+        let prefix = table_prefix(label)?;
+        if let Some(other) = owners.insert(prefix.clone(), label) {
+            return Err(format!(
+                "{other} and {label} share the table prefix {prefix}"
+            ));
+        }
+        let symbols = tables
+            .iter()
+            .map(|(table, _)| (format!("{prefix}{table}"), (*table).to_owned()))
+            .collect();
+        found.insert(label.clone(), symbols);
+    }
+    Ok(found)
+}
+
+/// One `_FAMILY_<TABLE> = ...` line per table, joining every file's table in label order.
+fn table_unions(files: &BTreeSet<String>, tables: &[(&str, &str)]) -> Result<String, String> {
+    let mut text = String::new();
+    for (table, join) in tables {
+        let parts = files
+            .iter()
+            .map(|label| table_prefix(label).map(|prefix| format!("{prefix}{table}")))
+            .collect::<Result<Vec<_>, _>>()?;
+        if parts.is_empty() {
+            return Err(format!("no quality file exports {table}"));
+        }
+        writeln!(text, "_FAMILY_{table} = {}", parts.join(join)).map_err(|e| e.to_string())?;
+    }
+    Ok(text)
+}
+
+/// `load(...)` text for `symbols`, `(local, exported)`, sorted by local name as buildifier keeps them.
+fn load_line(label: &str, mut symbols: Vec<(String, String)>) -> String {
+    symbols.sort();
+    let symbols: Vec<String> = symbols
+        .iter()
+        .map(|(local, exported)| format!("{local} = \"{exported}\""))
+        .collect();
+    format!("load(\"//{label}\", {})\n", symbols.join(", "))
+}
+
+/// Rewrites the generated blocks of `core_probe.bzl`: the core rows' family tables and their unions.
+fn core_probe_bzl(core: &Value, current: &str) -> Result<String, String> {
+    let tables = [TOOLS, SHARD_SPECS, HOOK_ORDER, HOOKS];
+    let files = table_files(&core_manifests(core)?)?;
+    let mut loads = String::new();
+    for (label, symbols) in table_symbols(&files, &tables)? {
+        loads.push_str(&load_line(&label, symbols));
+    }
+    let text = splice(current, TABLE_LOADS_BEGIN, TABLE_LOADS_END, &loads)?;
+    splice(
+        &text,
+        TABLES_BEGIN,
+        TABLES_END,
+        &table_unions(&files, &tables)?,
+    )
+}
+
 fn all_languages_bzl(
     manifests: &BTreeMap<String, Value>,
     core: &Value,
     current: &str,
 ) -> Result<String, String> {
     let core = core_manifests(core)?;
+    let tables = [TOOLS, SHARD_SPECS, HOOKS];
+    let files = table_files(manifests.values().chain(&core))?;
+    let mut table_loads = table_symbols(&files, &tables)?;
     let mut aspects = BTreeSet::new();
     let mut shard_aspects = BTreeSet::new();
     for manifest in manifests.values().chain(&core) {
@@ -288,9 +402,12 @@ fn all_languages_bzl(
     }
     let mut loads = String::new();
     for (label, names) in &by_label {
-        let symbols: Vec<String> = names.iter().map(|n| format!("_{n} = \"{n}\"")).collect();
-        writeln!(loads, "load(\"//{label}\", {})", symbols.join(", "))
-            .map_err(|e| e.to_string())?;
+        let mut symbols = table_loads.remove(*label).unwrap_or_default();
+        symbols.extend(names.iter().map(|n| (format!("_{n}"), (*n).to_owned())));
+        loads.push_str(&load_line(label, symbols));
+    }
+    if let Some(label) = table_loads.keys().next() {
+        return Err(format!("{label} names no aspect"));
     }
     let exports: Vec<String> = aspects.iter().map(|(_, n)| format!("{n} = _{n}")).collect();
     let exports = format!("{}\n", exports.join("\n\n"));
@@ -304,6 +421,12 @@ fn all_languages_bzl(
     shards.push_str("}\n");
     let text = splice(current, LOADS_BEGIN, LOADS_END, &loads)?;
     let text = splice(&text, EXPORTS_BEGIN, EXPORTS_END, &exports)?;
+    let text = splice(
+        &text,
+        TABLES_BEGIN,
+        TABLES_END,
+        &table_unions(&files, &tables)?,
+    )?;
     splice(&text, SHARDS_BEGIN, SHARDS_END, &shards)
 }
 
@@ -422,6 +545,14 @@ fn render(
             all_languages_bzl(manifests, core, &current)
         }
         "conformance_quality.bzl" => conformance_quality_bzl(manifests),
+        "core_probe.bzl" => {
+            let src = named
+                .get("core_probe_src")
+                .ok_or("core_probe.bzl needs core_probe_src=<path>")?;
+            let current =
+                std::fs::read_to_string(src).map_err(|e| format!("{}: {e}", src.display()))?;
+            core_probe_bzl(core, &current)
+        }
         "ecosystems_languages.json" => ecosystems_languages_json(manifests),
         "families_languages.json" => families_languages_json(manifests, core),
         "langs.bzl" => langs_bzl(manifests),
@@ -443,7 +574,10 @@ fn run(args: &[OsString]) -> Result<(), String> {
             .ok_or("needs core_aspects=<core_aspects.json>")?,
     )?;
     for (kind, path) in &named {
-        if matches!(*kind, "all_languages_src" | "core_aspects") {
+        if matches!(
+            *kind,
+            "all_languages_src" | "core_aspects" | "core_probe_src"
+        ) {
             continue;
         }
         let text = render(kind, &manifests, &core, &named)?;
@@ -548,14 +682,14 @@ mod tests {
     #[test]
     fn all_languages_bzl_rewrites_only_the_generated_blocks() {
         let current = format!(
-            "\"\"\"Hand header.\"\"\"\n\n{LOADS_BEGIN}stale\n{LOADS_END}\nkeep = 1\n\n{EXPORTS_BEGIN}{EXPORTS_END}\n{SHARDS_BEGIN}{SHARDS_END}"
+            "\"\"\"Hand header.\"\"\"\n\n{LOADS_BEGIN}stale\n{LOADS_END}\nkeep = 1\n\n{EXPORTS_BEGIN}{EXPORTS_END}\n{TABLES_BEGIN}{TABLES_END}\n{SHARDS_BEGIN}{SHARDS_END}"
         );
         let text = all_languages_bzl(&sample(), &no_core(), &current).unwrap();
         assert!(text.starts_with("\"\"\"Hand header.\"\"\""), "{text}");
         assert!(text.contains("keep = 1"), "{text}");
         assert!(!text.contains("stale"), "{text}");
         assert!(
-            text.contains("load(\"//py/private/quality:py.bzl\", _real_py_format_aspect = \"real_py_format_aspect\", _real_py_lint_aspect = \"real_py_lint_aspect\", _real_py_lint_probe_aspect = \"real_py_lint_probe_aspect\")"),
+            text.contains("load(\"//py/private/quality:py.bzl\", _PY_HOOKS = \"HOOKS\", _PY_SHARD_SPECS = \"SHARD_SPECS\", _PY_TOOLS = \"TOOLS\", _real_py_format_aspect = \"real_py_format_aspect\", _real_py_lint_aspect = \"real_py_lint_aspect\", _real_py_lint_probe_aspect = \"real_py_lint_probe_aspect\")"),
             "{text}"
         );
         assert!(
@@ -585,7 +719,7 @@ mod tests {
             }),
         );
         let current = format!(
-            "{LOADS_BEGIN}{LOADS_END}{EXPORTS_BEGIN}{EXPORTS_END}{SHARDS_BEGIN}{SHARDS_END}"
+            "{LOADS_BEGIN}{LOADS_END}{EXPORTS_BEGIN}{EXPORTS_END}{TABLES_BEGIN}{TABLES_END}{SHARDS_BEGIN}{SHARDS_END}"
         );
         let text = all_languages_bzl(&manifests, &no_core(), &current).unwrap();
         assert!(text.contains("sdk_aspect = _sdk_aspect"), "{text}");
@@ -604,11 +738,13 @@ mod tests {
             "docs": [{"bzl": "tools/docs:aspect.bzl", "aspects": ["real_docs_aspect"]}],
         });
         let current = format!(
-            "{LOADS_BEGIN}{LOADS_END}{EXPORTS_BEGIN}{EXPORTS_END}{SHARDS_BEGIN}{SHARDS_END}"
+            "{LOADS_BEGIN}{LOADS_END}{EXPORTS_BEGIN}{EXPORTS_END}{TABLES_BEGIN}{TABLES_END}{SHARDS_BEGIN}{SHARDS_END}"
         );
         let text = all_languages_bzl(&sample(), &core, &current).unwrap();
         for expected in [
-            "load(\"//core/quality:families/core.bzl\", _real_lint_aspect = \"real_lint_aspect\")",
+            "load(\"//core/quality:families/core.bzl\", _CORE_HOOKS = \"HOOKS\", _CORE_SHARD_SPECS = \"SHARD_SPECS\", _CORE_TOOLS = \"TOOLS\", _real_lint_aspect = \"real_lint_aspect\")",
+            "_FAMILY_TOOLS = _CORE_TOOLS | _PY_TOOLS\n",
+            "_FAMILY_HOOKS = _CORE_HOOKS | _PY_HOOKS\n",
             "load(\"//core/quality:families/core_probe.bzl\", _real_core_lint_probe_aspect = \"real_core_lint_probe_aspect\")",
             "load(\"//tools/docs:aspect.bzl\", _real_docs_aspect = \"real_docs_aspect\")",
             "real_core_lint_probe_aspect = _real_core_lint_probe_aspect",
@@ -624,6 +760,45 @@ mod tests {
         let families: Value = serde_json::from_str(&families).unwrap();
         assert_eq!(families["core"], core);
         assert_eq!(families["languages"][0]["name"], "py");
+    }
+
+    #[test]
+    fn core_probe_bzl_merges_the_core_rows_that_name_aspects() {
+        let core = serde_json::json!({
+            "quality": [
+                {"bzl": "core/quality:families/core.bzl", "aspects": {"lint": ["real_lint_aspect"]}},
+                {"bzl": "core/quality:families/core_probe.bzl", "probes": {"lint": ["real_core_lint_probe_aspect"]}},
+                {"bzl": "core/quality:families/yaml.bzl", "aspects": {"format": ["real_yaml_format_aspect"]}},
+            ],
+            "docs": [{"bzl": "tools/docs:aspect.bzl", "aspects": ["real_docs_aspect"]}],
+        });
+        let current = format!(
+            "\"\"\"Probe.\"\"\"\n\n{TABLE_LOADS_BEGIN}stale\n{TABLE_LOADS_END}\nkeep = 1\n\n{TABLES_BEGIN}stale\n{TABLES_END}"
+        );
+        let text = core_probe_bzl(&core, &current).unwrap();
+        assert_eq!(
+            text,
+            format!(
+                "\"\"\"Probe.\"\"\"\n\n{TABLE_LOADS_BEGIN}\
+                 load(\"//core/quality:families/core.bzl\", _CORE_HOOKS = \"HOOKS\", _CORE_HOOK_ORDER = \"HOOK_ORDER\", _CORE_SHARD_SPECS = \"SHARD_SPECS\", _CORE_TOOLS = \"TOOLS\")\n\
+                 load(\"//core/quality:families/yaml.bzl\", _YAML_HOOKS = \"HOOKS\", _YAML_HOOK_ORDER = \"HOOK_ORDER\", _YAML_SHARD_SPECS = \"SHARD_SPECS\", _YAML_TOOLS = \"TOOLS\")\n\
+                 {TABLE_LOADS_END}\nkeep = 1\n\n{TABLES_BEGIN}\
+                 _FAMILY_TOOLS = _CORE_TOOLS | _YAML_TOOLS\n\
+                 _FAMILY_SHARD_SPECS = _CORE_SHARD_SPECS | _YAML_SHARD_SPECS\n\
+                 _FAMILY_HOOK_ORDER = _CORE_HOOK_ORDER + _YAML_HOOK_ORDER\n\
+                 _FAMILY_HOOKS = _CORE_HOOKS | _YAML_HOOKS\n\
+                 {TABLES_END}"
+            )
+        );
+    }
+
+    #[test]
+    fn table_files_with_one_stem_fail() {
+        let files: BTreeSet<String> = ["a/private/quality:x.bzl", "b/private/quality:x.bzl"]
+            .map(str::to_owned)
+            .into();
+        let error = table_symbols(&files, &[TOOLS]).unwrap_err();
+        assert!(error.contains("share the table prefix _X_"), "{error}");
     }
 
     #[test]

@@ -1,3 +1,4 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
@@ -30,6 +31,24 @@ build_test(
         "//conditions:default": ["@platforms//:incompatible"],
     }),
     targets = ["@haskell_hlint_hackage//:clock"],
+)
+
+# The hsc2hs helper of a musl build runs on the glibc exec host.
+platform_transition_filegroup(
+    name = "clock_musl",
+    testonly = True,
+    srcs = ["@haskell_hlint_hackage//:clock"],
+    target_compatible_with = select({
+        "//haskell/private/toolchain:cell_linux_x86_64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    target_platform = "//tools/platforms:linux_x86_64_musl",
+)
+
+build_test(
+    name = "hlint_clock_hsc2hs_musl_build_test",
+    size = "small",
+    targets = [":clock_musl"],
 )
 
 filegroup(

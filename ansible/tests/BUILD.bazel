@@ -8,6 +8,14 @@ load(":defs_tests.bzl", "mixed_split_test", "plain_yaml_test")
 load(":layout_tests.bzl", "layout_unit_tests")
 load(":lock_tests.bzl", "lock_unit_tests")
 
+exports_files(
+    [
+        "fixtures/collections/ansible.lock.json",
+        "fixtures/collections/requirements.yml",
+    ],
+    visibility = ["//ansible/tests/conformance:__pkg__"],
+)
+
 ansible_library(
     name = "mixed",
     srcs = [

@@ -1,8 +1,8 @@
 """Replays the compile actions of a Fortran, D, Haskell, OCaml, Swift or Zig target in a check-only form."""
 
-load("//core/quality:fortran_flags.bzl", "MODULE_FLAG_FORMAT")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:family_hooks.bzl", "stage", "without")
+load("//core/quality:fortran_flags.bzl", "MODULE_FLAG_FORMAT")
 load("//core/quality:real_core.bzl", "real_context")
 load("//core/quality:sources.bzl", "single_target")
 
@@ -299,12 +299,8 @@ COMPILE_CHECK_TOOLS = sorted({spec.tool: True for spec in _SPECS.values()}.keys(
 def _forwarded(info):
     return [info, OutputGroupInfo(compile_check = depset(info.diagnostics + info.statuses))]
 
-_SH_TOOLCHAIN_TYPE = "//core/quality/sh:compile_check_sh_toolchain_type"
-
 def _compile_check_impl(target, ctx):
     if target.label.repo_name != "":
-        return []
-    if ctx.toolchains[_SH_TOOLCHAIN_TYPE] == None:
         return []
     attrs = ctx.rule.attr
 
@@ -365,13 +361,12 @@ def _compile_check_impl(target, ctx):
             if n > 0:
                 command.append("--dx-next--")
             command += steps[n]
-        sh = ctx.toolchains[_SH_TOOLCHAIN_TYPE]
         ctx.actions.run(
             mnemonic = "CompileCheck",
             progress_message = "Check %{label}: " + source,
-            executable = sh.path,
-            arguments = [ctx.file._compile_check_exec.path] + command,
-            inputs = depset([ctx.file._compile_check_exec] + ([sh.executable] if getattr(sh, "executable", None) else []), transitive = [action.inputs]),
+            executable = ctx.executable._dx,
+            arguments = ["compile_check"] + command,
+            inputs = action.inputs,
             outputs = outputs + [log, status],
             env = action.env,
             execution_requirements = getattr(action, "execution_info", None),
@@ -387,16 +382,17 @@ compile_check_aspect = aspect(
     doc = "Replays the Fortran, D, Haskell, OCaml, Swift and Zig compile actions of a target without producing outputs.",
     attr_aspects = ["upstream", "deps"],
     attrs = {
-        "_compile_check_exec": attr.label(
-            default = "//core/quality:compile_check_exec.sh",
-            allow_single_file = True,
+        "_dx": attr.label(
+            default = "@dx_prebuilt//:dx",
+            executable = True,
+            cfg = "exec",
         ),
     },
-    toolchains = [config_common.toolchain_type(_SH_TOOLCHAIN_TYPE, mandatory = False)],
 )
 
 def compile_check_hook(tool):
     """Returns the context hook that hands the replay logs of the tool to the runner."""
+
     def _hook(target, _ctx, resolved, _capability, _what, _shared):
         if CompileCheckInfo not in target or target[CompileCheckInfo].tool != tool:
             return without(resolved, tool)

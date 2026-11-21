@@ -325,6 +325,7 @@ rules_dx++protoc+dx_protoc_toolchains
 rules_dx++python+dx_python_toolchains
 rules_dx++ruby+dx_ruby_toolchains
 rules_dx++rust_toolchains+dx_rust_toolchains
+rules_dx++scala_config+dx_scala_toolchains
 rules_dx++scala_config+rules_scala_config
 rules_dx++swift+dx_swift_toolchains
 rules_flutter+

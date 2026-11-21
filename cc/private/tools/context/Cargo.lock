@@ -1941,6 +1941,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_exec_worktree"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "dx_families"
 version = "0.0.0"
 dependencies = [

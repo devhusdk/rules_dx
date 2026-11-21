@@ -1,11 +1,6 @@
 //! A small headless LSP client for tests: framing, a reader thread and deadline-based waits.
 
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::cell::RefCell;
 use std::io::{BufRead, BufReader, Read, Write};

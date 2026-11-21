@@ -67,7 +67,10 @@ scala_stats_file_off_tests(name = "stats_file_off_test")
 
 scala_testing_toolchain_tests(name = "testing_toolchain_test")
 
-scala_third_version_tests(name = "third_version_test")
+scala_third_version_tests(
+    name = "third_version_test",
+    size = "small",
+)
 
 real_source_target(
     name = "corpus_starlark",

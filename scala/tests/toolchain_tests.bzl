@@ -133,11 +133,11 @@ _third_version_test = analysistest.make(
     },
 )
 
-def scala_third_version_tests(name):
+def scala_third_version_tests(name, size):
     """Asserts the dx and testing toolchains resolve for a Scala version the root module adds with `scala_config.settings`."""
     _scala_version(name = name + "_subject")
     _third_version_test(
         name = name,
-        size = "small",
+        size = size,
         target_under_test = ":" + name + "_subject",
     )

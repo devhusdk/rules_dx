@@ -62,8 +62,8 @@ filegroup(
 _config_repository = repository_rule(
     implementation = _config_impl,
     attrs = {
-        "scala_version": attr.string(mandatory = True),
-        "scala_versions": attr.string_list(mandatory = True),
+        "scala_version": attr.string(mandatory = True, doc = "The default Scala version."),
+        "scala_versions": attr.string_list(mandatory = True, doc = "Every Scala version the hub supports."),
     },
 )
 

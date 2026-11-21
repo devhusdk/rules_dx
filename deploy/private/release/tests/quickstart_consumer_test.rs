@@ -402,6 +402,15 @@ fn the_readme_quickstart_runs_as_written() {
         "dx check //...",
     );
     within_budget("core", &core, "after_check");
+    let core_repos = external_repos(&case);
+    let uv: Vec<&str> = core_repos
+        .split(' ')
+        .filter(|name| name.contains("rules_py++uv+"))
+        .collect();
+    assert!(
+        uv.is_empty(),
+        "a core-only consumer fetches no rules_py uv repo: {uv:?}"
+    );
     write_python_package(&case);
     let started = std::time::Instant::now();
     run_in(

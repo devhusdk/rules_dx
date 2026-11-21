@@ -1,0 +1,26 @@
+Upstream: none (not yet sent upstream)
+--- a/src/gf.c
++++ b/src/gf.c
+@@ -679,6 +679,7 @@
+         jl_atomic_store_relaxed(&codeinst->invoke, jl_fptr_const_return);
+     }
+     codeinst->time_infer_total = 0;
++    codeinst->time_infer_cache_saved = 0;
+     codeinst->time_infer_self = 0;
+     jl_atomic_store_relaxed(&codeinst->time_compile, 0);
+     jl_atomic_store_relaxed(&codeinst->flags, 0);
+@@ -700,9 +701,11 @@
+     //assert((!jl_is_method(codeinst->def->def.value) || max_world != ~(size_t)0 || min_world <= 1 || jl_svec_len(edges) != 0) && "missing edges");
+     codeinst->analysis_results = analysis_results;
+     jl_gc_wb(codeinst, analysis_results);
+-    codeinst->time_infer_total = julia_double_to_half(time_infer_total);
+-    codeinst->time_infer_cache_saved = julia_double_to_half(time_infer_cache_saved);
+-    codeinst->time_infer_self = julia_double_to_half(time_infer_self);
++    // An image stores these timings, so they stay 0 while Julia writes one.
++    int keep_timings = !jl_generating_output();
++    codeinst->time_infer_total = keep_timings ? julia_double_to_half(time_infer_total) : 0;
++    codeinst->time_infer_cache_saved = keep_timings ? julia_double_to_half(time_infer_cache_saved) : 0;
++    codeinst->time_infer_self = keep_timings ? julia_double_to_half(time_infer_self) : 0;
+     jl_atomic_store_relaxed(&codeinst->ipo_purity_bits, effects);
+     jl_atomic_store_relaxed(&codeinst->debuginfo, di);
+     jl_gc_wb(codeinst, di);

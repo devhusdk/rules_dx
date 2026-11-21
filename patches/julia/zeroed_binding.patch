@@ -1,0 +1,18 @@
+Upstream: none (not yet sent upstream)
+--- a/src/module.c
++++ b/src/module.c
+@@ -777,11 +777,9 @@
+     jl_task_t *ct = jl_current_task;
+     assert(jl_is_module(mod) && jl_is_symbol(name));
+     jl_binding_t *b = (jl_binding_t*)jl_gc_alloc(ct->ptls, sizeof(jl_binding_t), jl_binding_type);
+-    jl_atomic_store_relaxed(&b->value, NULL);
+-    jl_atomic_store_relaxed(&b->partitions, NULL);
+-    b->globalref = NULL;
+-    b->backedges = NULL;
+-    jl_atomic_store_relaxed(&b->flags, 0);
++    // An image copies the whole binding, so the padding after `flags` must
++    // not keep whatever bytes the allocator left there.
++    memset((void*)b, 0, sizeof(jl_binding_t));
+     JL_GC_PUSH1(&b);
+     b->globalref = jl_new_globalref(mod, name, b);
+     jl_gc_wb(b, b->globalref);

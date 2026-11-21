@@ -1,0 +1,18 @@
+Upstream: none (not yet sent upstream)
+--- a/src/module.c
++++ b/src/module.c
+@@ -509,7 +509,13 @@
+     static _Atomic(unsigned int) mcounter; // simple counter backup, in case hrtime is not incrementing
+     unsigned int count = jl_atomic_fetch_add_relaxed(&mcounter, 1);
+     // TODO: this is used for ir decompression and is liable to hash collisions so use more of the bits
+-    m->build_id.lo = bitmix(jl_hrtime() + count, jl_rand());
++    // An image stores build_id.lo and hashes that mix it in, so while Julia
++    // writes an image it comes from the module's name and creation order,
++    // not the clock and a random draw, and two builds give the same bytes.
++    if (jl_generating_output())
++        m->build_id.lo = bitmix(count, name->hash);
++    else
++        m->build_id.lo = bitmix(jl_hrtime() + count, jl_rand());
+     if (!m->build_id.lo)
+         m->build_id.lo++; // build id 0 is invalid
+     m->build_id.hi = ~(uint64_t)0;

@@ -15776,7 +15776,12 @@
       },
       {
         "name": "php",
-        "tag_classes": []
+        "tag_classes": [
+          {
+            "attrs": [],
+            "name": "from_source"
+          }
+        ]
       }
     ],
     "functions": [],

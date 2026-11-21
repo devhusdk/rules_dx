@@ -5783,7 +5783,9 @@ Tag `composer.lock`:
 
 Module extension.
 
-No tags.
+Tag `php.from_source`:
+
+No attributes.
 
 ### `@rules_dx//powershell:defs.bzl`
 

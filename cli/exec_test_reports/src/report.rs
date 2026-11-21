@@ -363,7 +363,9 @@ pub(super) fn sources_report(sources: &Sources, account: &CellAccount) -> String
         "errors": errors,
     });
     // a serde_json::Value always serializes
-    serde_json::to_string_pretty(&document).unwrap_or_default() + "\n"
+    let mut text = serde_json::to_string_pretty(&document).unwrap_or_default();
+    text.push('\n');
+    text
 }
 
 /// Prints the account's counts and every gap; true when none.

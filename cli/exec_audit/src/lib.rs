@@ -863,7 +863,7 @@ fn scoped_secrets_config(
     };
     let text = scoped_config(user.as_deref(), &patterns, &base.to_string_lossy())?;
     let path = temp_dir.join(format!("audit-gitleaks-{pid}-{nonce}.toml"));
-    std::fs::write(&path, text).map_err(|error| {
+    dx_atomic_fs::write_scratch(&path, text.as_bytes()).map_err(|error| {
         DxError::from_io(
             format!("failed to write secrets scan config: {error}"),
             &error,

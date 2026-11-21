@@ -22,7 +22,7 @@ Tests use both runners: `catalog_test`, `server_test`, `cli_test` and `broken_te
 
 Coverage instrumentation and runfiles contents are checked in `//python/tests/analysis`.
 
-Refresh the lock with `uv lock --directory python/tests/fixtures/python_service`.
+Refresh the lock with `tools/dx update --apply dx_pypi_fixtures-python_service`.
 
 ```sh
 bazel test //python/tests:python_init_adopt_test

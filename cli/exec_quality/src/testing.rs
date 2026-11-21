@@ -6,9 +6,9 @@
 //! Workspace, file system and `quality_result` fixtures for quality phase tests.
 
 use dx_digest::blake3 as digest;
+use dx_testing::http::{Reply, serve};
 use quality_result::encode_validated;
 use quality_result::proto::{self, Capability, Convergence, FileSnapshot, QualityResult, Stage};
-use dx_testing::http::{Reply, serve};
 use serde_json::json;
 use std::io;
 use std::path::{Path, PathBuf};

@@ -126,7 +126,7 @@ def hermetic_qualification(
         consumer_rows = [],
         workspace_dir = "consumer ws",
         **kwargs):
-    """Declares a consumer manifest and a golden check; smoke also runs the nested qualification."""
+    """Declares a consumer manifest and a golden check; smoke instead runs the consumer on the nested Bazel harness."""
     srcs = srcs or []
     hermetic_manifest(
         name = name + "_manifest",
@@ -170,29 +170,30 @@ def hermetic_qualification(
             ],
         )
         return
-    rust_test(
+    nested_bazel_test(
         name = name,
         timeout = kwargs.pop("timeout", "moderate"),
-        srcs = ["//tools/testing/hermetic:qualification_test.rs"],
-        data = [":" + name + "_manifest"] + select({
-            "@platforms//os:windows": ["//tools/testing/hermetic:appcontainer_run"],
+        srcs = ["//tools/testing/hermetic:harness_qualification_test.rs"],
+        crate_root = "//tools/testing/hermetic:harness_qualification_test.rs",
+        cache = name,
+        cache_locks = "//tools/testing/nested_cache:%s_locks" % name,
+        data = [":" + name + "_manifest", "//:lang_json", "//:module_srcs", "//patches/llvm:patches", "//patches/rules_py:patches"] + select({
+            "@platforms//os:windows": [],
             "//conditions:default": ["//core/coreutils:applets"],
         }),
         env = select({
-            "@platforms//os:windows": {
-                "DX_HERMETIC_APPCONTAINER": "$(rlocationpath //tools/testing/hermetic:appcontainer_run)",
-                "DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name,
-            },
+            "@platforms//os:windows": {"DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name},
             "//conditions:default": {
                 "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
                 "DX_HERMETIC_MANIFEST": "$(rootpath :%s_manifest)" % name,
             },
         }),
-        tags = QUALIFICATION_TAGS + ["hermetic-consumer", "resources:nested_bazel:1"] + ["consumer-row:" + row for row in consumer_rows],
+        tags = ["hermetic-consumer"] + ["consumer-row:" + row for row in consumer_rows],
         target_compatible_with = compatible_with,
         deps = [
             "//tools/testing:dx_testing",
             "//tools/testing/hermetic",
+            "//tools/testing/nested:dx_nested",
         ],
         **kwargs
     )

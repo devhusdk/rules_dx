@@ -300,8 +300,6 @@ jobs:
           mkdir -p "$RUNNER_TEMP/evidence"
           read -ra patterns <<< "$DX_SCOPE"
           read -ra flags <<< "$DX_FLAGS"
-          DX_HERMETIC_BAZELISK="$(command -v bazel)"
-          export DX_HERMETIC_BAZELISK
           startup=()
           extra=(--notrack_incremental_state --nokeep_state_after_build)
           downloads=(--remote_download_minimal "--remote_download_regex=.*/testlogs/.*")
@@ -354,7 +352,7 @@ jobs:
             elif [ "$DX_TASK" = "coverage" ]; then
               bazel run --noshow_progress "${profile[@]}" //cli/cli:dx -- coverage --min-coverage 100 "${patterns[@]}" ${flags[@]:+-- "${flags[@]}"} 2>&1 | tee "$log"
             else
-              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" "--build_event_json_file=$RUNNER_TEMP/bep/$(basename "$log" .log).json" --nobuild_event_json_file_path_conversion --nozip_undeclared_test_outputs --test_timeout="$DX_TEST_TIMEOUT" "--test_env=DX_HERMETIC_BAZELISK=$DX_HERMETIC_BAZELISK" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
+              bazel "${startup[@]}" test --keep_going --noshow_progress "${profile[@]}" "--build_event_json_file=$RUNNER_TEMP/bep/$(basename "$log" .log).json" --nobuild_event_json_file_path_conversion --nozip_undeclared_test_outputs --test_timeout="$DX_TEST_TIMEOUT" "${downloads[@]}" "${extra[@]}" "${patterns[@]}" "${flags[@]}" 2>&1 | tee "$log"
             fi
           }
           run_task "$RUNNER_TEMP/evidence/evidence.log"

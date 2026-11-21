@@ -30,6 +30,61 @@ fn parse_tools(args: &[String]) -> Result<Tools, String> {
     })
 }
 
+/// Names each coverage input the post action lacks, the profile first.
+fn missing_inputs(profile: &Path, profile_exists: bool, objects_env: Option<&str>) -> Vec<String> {
+    let mut reasons = Vec::new();
+    if !profile_exists {
+        reasons.push(format!(
+            "no {} at {} (rules_apple copies it there when COLLECT_PROFDATA=1)",
+            apple::PROFDATA_NAME,
+            profile.display()
+        ));
+    }
+    match objects_env {
+        None => reasons.push("TEST_BINARIES_FOR_LLVM_COV is not set".to_owned()),
+        Some(list) if apple::covered_objects(list).is_empty() => {
+            reasons.push("TEST_BINARIES_FOR_LLVM_COV lists no objects".to_owned());
+        }
+        Some(_) => {}
+    }
+    reasons
+}
+
+const CANDIDATE_DEPTH: usize = 8;
+const CANDIDATE_LIMIT: usize = 20;
+
+/// Lists `.profraw` and `.profdata` files under `root`, relative to it and sorted, without following symlinks.
+fn profile_candidates(root: &Path) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    let mut pending = vec![(root.to_path_buf(), 0_usize)];
+    while let Some((dir, depth)) = pending.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
+            let path = entry.path();
+            if kind.is_dir() {
+                if depth + 1 < CANDIDATE_DEPTH {
+                    pending.push((path, depth + 1));
+                }
+            } else if kind.is_file()
+                && path
+                    .extension()
+                    .is_some_and(|ext| ext == "profraw" || ext == "profdata")
+                && let Ok(relative) = path.strip_prefix(root)
+            {
+                found.push(relative.to_path_buf());
+            }
+        }
+    }
+    found.sort();
+    found.truncate(CANDIDATE_LIMIT);
+    found
+}
+
 // LCOV_EXCL_START - reason: process orchestration over env and the pinned llvm tools, issue: 9981, policy: docs/cli/commands/build-test-coverage.md
 fn export(
     tools: &Tools,
@@ -90,15 +145,37 @@ fn collect(tools: &Tools) -> Result<(), String> {
     let profile = env::var("TEST_UNDECLARED_OUTPUTS_DIR")
         .map(|dir| Path::new(&dir).join(apple::PROFDATA_NAME))
         .map_err(|error| format!("TEST_UNDECLARED_OUTPUTS_DIR is not set: {error}"))?;
-    let objects =
-        apple::covered_objects(&env::var("TEST_BINARIES_FOR_LLVM_COV").unwrap_or_default());
-    let report = if !profile.exists() || objects.is_empty() {
-        eprintln!(
-            "dx apple coverage: no profile or no instrumented objects; writing an empty report"
-        );
-        String::new()
-    } else {
+    let objects_env = env::var("TEST_BINARIES_FOR_LLVM_COV").ok();
+    let objects = apple::covered_objects(objects_env.as_deref().unwrap_or_default());
+    let profile_exists = profile.exists();
+    let missing = missing_inputs(&profile, profile_exists, objects_env.as_deref());
+    let report = if missing.is_empty() {
         export(tools, &root, &profile, &objects)?
+    } else {
+        eprintln!(
+            "dx apple coverage: {}; writing an empty report",
+            missing.join("; ")
+        );
+        if !profile_exists && let Some(tmp) = env::var_os("TEST_TMPDIR") {
+            let tmp = PathBuf::from(tmp);
+            let candidates = profile_candidates(&tmp);
+            if candidates.is_empty() {
+                eprintln!(
+                    "dx apple coverage: no .profraw or .profdata under TEST_TMPDIR {}",
+                    tmp.display()
+                );
+            } else {
+                let listed: Vec<String> = candidates
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect();
+                eprintln!(
+                    "dx apple coverage: profiles under TEST_TMPDIR: {}",
+                    listed.join(", ")
+                );
+            }
+        }
+        String::new()
     };
     fs::write(&output, report).map_err(|e| format!("cannot write {output}: {e}"))
 }
@@ -164,5 +241,87 @@ mod tests {
             parse_tools(&args(&["--llvm-cov=/c", "--llvm-profdata=/p", "--x"])),
             Err("unknown argument --x".to_owned())
         );
+    }
+
+    #[test]
+    fn present_inputs_give_no_reasons() {
+        assert!(missing_inputs(Path::new("/o/Coverage.profdata"), true, Some("a/app")).is_empty());
+    }
+
+    #[test]
+    fn a_missing_profile_names_its_path() {
+        let reasons = missing_inputs(Path::new("/o/Coverage.profdata"), false, Some("a/app"));
+        assert_eq!(reasons.len(), 1, "{reasons:?}");
+        assert!(
+            reasons
+                .iter()
+                .all(|reason| reason.contains("/o/Coverage.profdata")),
+            "{reasons:?}"
+        );
+    }
+
+    #[test]
+    fn an_unset_object_list_is_named() {
+        assert_eq!(
+            missing_inputs(Path::new("/o/Coverage.profdata"), true, None),
+            vec!["TEST_BINARIES_FOR_LLVM_COV is not set".to_owned()]
+        );
+    }
+
+    #[test]
+    fn an_empty_object_list_is_named() {
+        for list in ["", ";"] {
+            assert_eq!(
+                missing_inputs(Path::new("/o/Coverage.profdata"), true, Some(list)),
+                vec!["TEST_BINARIES_FOR_LLVM_COV lists no objects".to_owned()]
+            );
+        }
+    }
+
+    #[test]
+    fn both_missing_inputs_are_named_profile_first() {
+        let reasons = missing_inputs(Path::new("/o/Coverage.profdata"), false, None);
+        assert_eq!(reasons.len(), 2, "{reasons:?}");
+        assert!(
+            reasons
+                .first()
+                .is_some_and(|r| r.starts_with("no Coverage.profdata at /o/"))
+        );
+        assert_eq!(
+            reasons.get(1).map(String::as_str),
+            Some("TEST_BINARIES_FOR_LLVM_COV is not set")
+        );
+    }
+
+    #[test]
+    fn profile_candidates_lists_profiles_within_the_depth() {
+        let base = env::var_os("TEST_TMPDIR").map_or_else(env::temp_dir, PathBuf::from);
+        let root = base.join("apple_post_profile_candidates");
+        let _ = fs::remove_dir_all(&root);
+        let profdata = root.join("t/derived_data/x/Coverage.profdata");
+        let deep = root.join("1/2/3/4/5/6/7/8/9.profraw");
+        for file in [
+            &profdata,
+            &root.join("a.profraw"),
+            &root.join("b.txt"),
+            &deep,
+        ] {
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(file, "").unwrap();
+        }
+        assert_eq!(
+            profile_candidates(&root),
+            vec![
+                PathBuf::from("a.profraw"),
+                PathBuf::from("t/derived_data/x/Coverage.profdata"),
+            ]
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn profile_candidates_of_a_missing_root_is_empty() {
+        let base = env::var_os("TEST_TMPDIR").map_or_else(env::temp_dir, PathBuf::from);
+        assert!(profile_candidates(&base.join("apple_post_no_such_root")).is_empty());
     }
 }

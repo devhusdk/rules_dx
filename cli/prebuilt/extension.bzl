@@ -2,7 +2,7 @@
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 load("//core:repo.bzl", "hub_repo")
-load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "with_jars", "with_native_tools", "with_python_tools")
+load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "downloads_bzl", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "with_jars", "with_native_tools", "with_python_tools")
 load(":pins.bzl", "DX_VERSION", "PINS", "URL_TEMPLATE")
 load(":tools.bzl", "JAR_TOOLS", "NATIVE_TOOLS")
 
@@ -84,7 +84,7 @@ def _dx_prebuilt_impl(module_ctx):
         native_tools = plan_native_tools(DX_VERSION, {}, URL_TEMPLATE, {})
         build = with_native_tools(alias_build(SOURCE_LABEL, guard = rules_dx_is_root), native_tools, consumer = not rules_dx_is_root, guard = rules_dx_is_root)
         build = with_python_tools(build, plan_python_tools(DX_VERSION, {}, URL_TEMPLATE, {}), guard = rules_dx_is_root)
-        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(build, jars, guard = rules_dx_is_root)})
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(build, jars, guard = rules_dx_is_root), "downloads.bzl": downloads_bzl(native_tools)})
     else:
         assets = plan_assets("dx", DX_VERSION, PINS, URL_TEMPLATE, plan.overrides.get("dx", {}))
         go_assets = plan_assets(
@@ -104,7 +104,7 @@ def _dx_prebuilt_impl(module_ctx):
         _declare_bundles(python_tools)
         build = with_native_tools(consumer_build(assets, go_assets), native_tools, consumer = True)
         build = with_python_tools(build, python_tools)
-        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(build, jars)})
+        hub_repo(name = "dx_prebuilt", files = {"BUILD.bazel": with_jars(build, jars), "downloads.bzl": downloads_bzl(native_tools)})
     return module_ctx.extension_metadata(
         reproducible = True,
         root_module_direct_deps = ["dx_prebuilt"] if rules_dx_is_root else [],

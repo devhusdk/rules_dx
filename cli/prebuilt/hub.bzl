@@ -286,6 +286,20 @@ def with_native_tools(build, native_tools, consumer = False, guard = False):
     loads = [_NATIVE_BINARY_LOAD] if binaries and _NATIVE_BINARY_LOAD not in build else []
     return "\n".join(loads + [build.rstrip("\n")] + lines + [""])
 
+def downloads_bzl(native_tools):
+    """Returns the hub downloads.bzl text: DOWNLOADED maps each native tool with a download to its @platforms keys."""
+    lines = [
+        '"""The native tools @dx_prebuilt serves as downloads, by @platforms os_cpu key."""',
+        "",
+    ]
+    downloaded = [(tool, sorted([a.key for a in assets if a.repo])) for tool, assets in sorted(native_tools.items())]
+    entries = ["    \"{}\": {},".format(tool, keys) for tool, keys in downloaded if keys]
+    if entries:
+        lines += ["DOWNLOADED = {"] + entries + ["}"]
+    else:
+        lines.append("DOWNLOADED = {}")
+    return "\n".join(lines + [""])
+
 def alias_build(actual, guard = False):
     """Returns the hub BUILD text that points dx at one label and the tools at their sources; with guard, each selects GUARD_STUB under GUARD_VIEW."""
     lines = []

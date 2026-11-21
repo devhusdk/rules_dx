@@ -11,6 +11,12 @@ _STOCK_SETTING = str(Label("//julia/private/runtime:stock"))
 
 _LIBRARY = "libjulia-internal.so." + JULIA_RUNTIME_VERSION
 
+def source_exec_compatible_with(downloaded, source_constraints):
+    """Returns the exec constraints of the source toolchain: none when @dx_prebuilt downloads julia_internal for linux_x86_64, else source_constraints."""
+    if "linux_x86_64" in downloaded.get("julia_internal", []):
+        return []
+    return source_constraints
+
 def _runtime_version_impl(_settings, _attr):
     return {_STOCK_SETTING: True, _VERSION_SETTING: JULIA_RUNTIME_VERSION}
 

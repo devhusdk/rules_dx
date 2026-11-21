@@ -20,6 +20,8 @@ const BICEP_CONFIG_REL: &str = "bicepconfig.json";
 const BICEP_HOME_REL: &str = "dx-bicep/home";
 const PKL_LSP_HOME_REL: &str = ".dx-pkl-lsp/home";
 const HELMFMT_HOME_REL: &str = "dx-helmfmt/home";
+/// buf's module cache: it would default to `$HOME/.cache/buf`, and the hermetic env has no HOME.
+const BUF_CACHE_REL: &str = "dx-buf/cache";
 const LATEXINDENT_HOME_REL: &str = "dx-latexindent/home";
 /// PAR unpack root of the Windows latexindent.exe, beside the scratch trees.
 const LATEXINDENT_PAR_DIR: &str = "dx-latexindent-par";
@@ -662,6 +664,13 @@ fn tool_specific_env(
             env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
             env.push((OsString::from(name), home.clone().into_os_string()));
         }
+    }
+    if tool_id == "buf" {
+        let cache = scratch.root().join(BUF_CACHE_REL);
+        std::fs::create_dir_all(&cache)
+            .map_err(|err| execution(tool_id, format!("buf cache: {err}")))?;
+        env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("BUF_CACHE_DIR"));
+        env.push((OsString::from("BUF_CACHE_DIR"), cache.into_os_string()));
     }
     if tool_id == "latexindent" {
         let home = scratch.root().join(LATEXINDENT_HOME_REL);

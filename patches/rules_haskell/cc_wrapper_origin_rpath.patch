@@ -1,0 +1,34 @@
+Make absolute rpaths into the execroot relative to $ORIGIN so linked libraries do not record the sandbox path.
+Upstream: none (upstream-ready, not sent yet: #14473)
+--- a/haskell/private/cc_wrapper.py.tpl
++++ b/haskell/private/cc_wrapper.py.tpl
+@@ -607,7 +607,7 @@
+         rpaths, darwin_rewrites = darwin_shorten_rpaths(
+                 rpaths, libraries, output)
+     else:
+-        rpaths = shorten_rpaths(rpaths, libraries, output)
++        rpaths = [origin_rpath(rpath, output) for rpath in shorten_rpaths(rpaths, libraries, output)]
+ 
+     args.extend(rpath_args(rpaths))
+     # See note in cabal_wrapper.py
+@@ -635,6 +635,20 @@
+         darwin_rewrite_load_commands(darwin_rewrites, output)
+ 
+ 
++def origin_rpath(rpath, output):
++    """Make an absolute rpath into the execroot relative to $ORIGIN.
++
++    An absolute path into the execroot names the sandbox, which differs from
++    one action to the next, so it would make the output irreproducible.
++    """
++    if not is_linux() or not os.path.isabs(rpath) or is_temporary_output(output):
++        return rpath
++    execroot = os.path.abspath(os.environ.get("RULES_HASKELL_EXEC_ROOT", "."))
++    if os.path.commonpath([rpath, execroot]) != execroot:
++        return rpath
++    return os.path.join("$ORIGIN", os.path.relpath(rpath, os.path.dirname(os.path.abspath(output))))
++
++
+ def shorten_rpaths(rpaths, libraries, output):
+     """Avoid redundant rpaths.
+ 

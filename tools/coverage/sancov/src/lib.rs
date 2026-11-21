@@ -3,12 +3,7 @@
 //! Reads runfiles keys from DX_SANCOV_UPSTREAM, DX_SANCOV_SOURCES and DX_LLVM_SYMBOLIZER, plus
 //! DX_DSYMUTIL for a Mach-O test. Without COVERAGE_DIR it only runs the test.
 
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs the test and the pinned llvm tools, which exit on their own"

@@ -92,7 +92,6 @@ core/env/private/stubs/BUILD.bazel sh-rule 1
 core/env/private/stubs/BUILD.bazel shebang 1
 core/node_test.bzl env-inherit 1
 core/quality/adapter/src/exec.rs host-path 9
-core/quality/compile_check_exec.sh shebang 1
 core/quality/consumer_policy_tests.bzl shebang 1
 core/quality/runner/src/entry.rs host-path 2
 core/quality/runner/src/lib_determinism.rs host-path 3
@@ -280,7 +279,6 @@ tools/ci/docs_scope_test.rs shebang 1
 tools/coverage/kcov/BUILD.bazel sh-rule 1
 tools/coverage/kcov/kcov.BUILD genrule 3
 tools/coverage/kcov/kcov_launcher.sh shebang 1
-tools/docs/dart/defs.bzl home 1
 tools/docs/dotnet/csharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/fsharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/pinned_driver.sh shebang 1

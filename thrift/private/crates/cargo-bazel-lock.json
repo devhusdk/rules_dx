@@ -1,5 +1,5 @@
 {
-  "checksum": "00ee953177061d81be0652735bc6d684cf2ccc1cfa22d5584193611ae52ce250",
+  "checksum": "6483112298893596506e7015950294ca8008d6ec8c450f15a465c4d4e4ac340d",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -364,6 +364,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -451,6 +452,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -627,6 +629,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -691,6 +694,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -755,6 +759,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -1022,6 +1027,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -1195,6 +1201,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",

@@ -432,15 +432,14 @@ pub fn release_platform(key: &str) -> Option<(&str, &str)> {
 }
 
 /// The `.bzl` file of the `dx_target_guard` package: rule `target_root`, whose `deps` are split
-/// over `<rules_dx>//tools/platforms:<key>` for each of its `keys`. `deps` takes files because
-/// shared-library tools such as `julia_internal` and `pcov` are plain file downloads.
+/// over `<rules_dx>//tools/platforms:<key>` for each of its `keys`.
 pub fn target_guard_bzl(rules_dx: &str) -> String {
     format!(
         "_PLATFORMS = Label(\"{rules_dx}//tools/platforms:BUILD.bazel\")\n\n\
          def _platforms_impl(_settings, attr):\n    return {{key: {{\"//command_line_option:platforms\": [str(_PLATFORMS.same_package_label(key))]}} for key in attr.keys}}\n\n\
          _platforms = transition(\n    implementation = _platforms_impl,\n    inputs = [],\n    outputs = [\"//command_line_option:platforms\"],\n)\n\n\
          def _root_impl(_ctx):\n    return []\n\n\
-         target_root = rule(\n    implementation = _root_impl,\n    attrs = {{\n        \"keys\": attr.string_list(),\n        \"deps\": attr.label_list(allow_files = True, cfg = _platforms),\n    }},\n)\n"
+         target_root = rule(\n    implementation = _root_impl,\n    attrs = {{\n        \"keys\": attr.string_list(),\n        \"deps\": attr.label_list(cfg = _platforms, allow_files = True),\n    }},\n)\n"
     )
 }
 
@@ -538,7 +537,7 @@ mod tests {
             bzl.starts_with("_PLATFORMS = Label(\"@rules_dx//tools/platforms:BUILD.bazel\")\n")
         );
         assert!(bzl.contains("[str(_PLATFORMS.same_package_label(key))]"));
-        assert!(bzl.contains("\"deps\": attr.label_list(allow_files = True, cfg = _platforms)"));
+        assert!(bzl.contains("\"deps\": attr.label_list(cfg = _platforms, allow_files = True)"));
         let roots = [TargetRoot {
             tool: "runtime".to_owned(),
             keys: vec!["linux_x86_64".to_owned(), "windows_arm64".to_owned()],
@@ -740,6 +739,34 @@ mod tests {
             ]
         );
         assert!(command_roots("", &[]).contains(&"//:dx".to_owned()));
+    }
+
+    #[test]
+    fn a_rules_dx_binary_behind_a_command_root_fails_the_guards() {
+        let list = allowlist(include_str!("prebuilt_guard_allowlist.txt")).unwrap();
+
+        assert!(
+            command_roots("@@rules_dx+", &["go"])
+                .contains(&"@@rules_dx+//go/private/tools:go".to_owned())
+        );
+        let nested = compiled_binaries(
+            "alias rule @@rules_dx+//go/private/tools:go (abc)\n\
+             go_binary rule @@rules_dx+//go/private/tools:go_source (exec)\n",
+        );
+        assert_eq!(
+            unlisted(&nested, &list.labels_for(&["go"])),
+            ["compiles go_binary rule @@rules_dx+//go/private/tools:go_source (exec)"]
+        );
+
+        assert!(command_roots("", &["dart"]).contains(&"//dart/private/tools:dart".to_owned()));
+        let in_graph = compiled_binaries(&consumer_line(
+            "rust_binary rule @@//dart/private/tools:dart_source (exec)",
+            "+_repo_rules+dx_api_fixtures",
+        ));
+        assert_eq!(
+            unlisted(&in_graph, &list.labels_for(&["dart"])),
+            ["compiles rust_binary rule @@rules_dx+//dart/private/tools:dart_source (exec)"]
+        );
     }
 
     #[test]

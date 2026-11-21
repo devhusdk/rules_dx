@@ -461,7 +461,7 @@ fn release_writes_and_checks_the_tool_manifest() {
         "for tool in dx-deadnix dx-selene; do\n            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do\n              tool_asset=\"$tool-$host\""
     ));
     assert!(text.contains("--manifest \"$PWD/out/dx-tool-sha256sums.txt\""));
-    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 88"));
+    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 90"));
     assert!(text.contains("for tool_asset in dx-tree-sitter-windows-arm64.dll dx-tree-sitter-pkl-windows-arm64.dll dx-tree-sitter-LICENSE dx-tree-sitter-pkl-LICENSE; do"));
     assert!(text.contains("for tool_asset in dx-pcov-linux-x86_64.so dx-pcov-linux-arm64.so dx-pcov-macos-arm64.so dx-pcov-LICENSE; do"));
     assert!(text.contains(" dx-thrift-* dx-tree-sitter-* dx-pcov-* dx-julia-internal-* "));
@@ -470,7 +470,8 @@ fn release_writes_and_checks_the_tool_manifest() {
     ));
     assert!(text.contains("for tool in capnp flatc go gopackagesdriver ldoc-main oapi-codegen runtime thrift; do"));
     assert!(text.contains("for license in dx-capnp-LICENSE dx-flatc-LICENSE dx-gopackagesdriver-LICENSE dx-ldoc-main-LICENSE dx-oapi-codegen-LICENSE dx-thrift-LICENSE; do"));
-    assert!(text.contains(" dx-go-* dx-gopackagesdriver-* dx-ldoc-main-* dx-oapi-codegen-* "));
+    assert!(text.contains(" dx-go-* dx-gopackagesdriver-* dx-ldoc-main-* dx-msvc-link-* dx-oapi-codegen-* "));
+    assert!(text.contains("msvc_link=\"dx-msvc-link-${asset#dx-}\""));
     assert!(text.contains("cd out\n            for file in dx-sha256sums.txt "));
     assert!(text.contains("cp \"$file\" \"$SOURCE_DIR/\""));
 }

@@ -15,6 +15,9 @@ const PLATFORM_TOOLS: [&str; 8] = [
     "thrift",
 ];
 
+/// The tools release.yml adds to the dx manifest from the Windows cells only.
+const WINDOWS_TOOLS: [&str; 1] = ["msvc_link"];
+
 /// The shared libraries release.yml adds to the dx manifest, with their licences: tree-sitter
 /// from the windows-arm64 cell, pcov from the linux and macOS cells and julia-internal from
 /// the linux-x86_64 cell.
@@ -90,6 +93,11 @@ fn manifest() -> String {
     for tool in LIBRARY_TOOLS {
         for asset in assets(tool) {
             lines.push(format!("{}  {asset}\n", hash(5)));
+        }
+    }
+    for tool in WINDOWS_TOOLS {
+        for asset in assets(tool) {
+            lines.push(format!("{}  {asset}\n", hash(6)));
         }
     }
     lines.concat()
@@ -290,6 +298,21 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
             want.iter()
                 .map(|key| ((*key).to_owned(), hash(5)))
                 .collect::<Vec<_>>()
+        );
+        by_tool.insert(tool.to_owned(), keys);
+    }
+    for tool in WINDOWS_TOOLS {
+        let keys: Vec<(String, String)> = registry()
+            .into_iter()
+            .filter(|e| e.tool == tool)
+            .map(|e| (e.key, hash(6)))
+            .collect();
+        assert_eq!(
+            keys,
+            [
+                ("windows_arm64".to_owned(), hash(6)),
+                ("windows_x86_64".to_owned(), hash(6))
+            ]
         );
         by_tool.insert(tool.to_owned(), keys);
     }

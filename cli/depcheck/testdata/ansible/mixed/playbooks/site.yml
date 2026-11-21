@@ -1,0 +1,11 @@
+---
+- name: Configure hosts
+  hosts: all
+  tasks:
+    - name: Mount data
+      ansible.posix.mount:
+        path: /data
+        state: mounted
+    - name: Start the app container
+      community.docker.docker_container:
+        name: app

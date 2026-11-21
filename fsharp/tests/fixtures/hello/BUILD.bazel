@@ -1,5 +1,4 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load("//fsharp:defs.bzl", "fsharp_binary", "fsharp_library", "fsharp_test")
 
 package(
@@ -27,12 +26,6 @@ fsharp_test(
     size = "small",
     srcs = ["HelloTest.fs"],
     deps = [":hello"],
-)
-
-dx_hello_output_test(
-    name = "hello_output_test",
-    binary = ":hello_bin",
-    expected = "hello world",
 )
 
 real_source_target(

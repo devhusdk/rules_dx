@@ -303,7 +303,15 @@ What runs:
 2. `dry run (<platform>)` runs `dx deploy <label>` for each one on every platform in `platforms`, so the dry run is in the log.
 3. `release` runs `dx deploy --apply <label>` for each, in the order of the list, with only the `*_APPROVED` variables set. A failed deployable stops the rest. The job summary lists the ones already published and a `gh workflow run <caller>.yml` command, naming the workflow that called `reusable-release.yml`, that resumes with the rest.
 
-A `github_deploy` creates a draft release.
+A `github_deploy` creates a draft release. With signing, each asset has a `<asset>.sigstore.json`. Verify an asset with either command:
+
+```sh
+gh attestation verify <asset> -R <owner>/<repo> \
+  --signer-workflow devhusdk/rules_dx/.github/workflows/reusable-release.yml
+cosign verify-blob <asset> --bundle <asset>.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/devhusdk/rules_dx/\.github/workflows/reusable-release\.yml@' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
 
 `publish` gates the `release` job, which also needs a tag ref. With `publish: false`, the plan and dry run run on any ref and nothing is published. The `release.yml` that `dx init` writes has a `workflow_dispatch` with `publish` defaulting to `false`, so dispatching it from a branch only plans and dry-runs. Pass `true` on a tag to publish. Tag pushes always publish.
 

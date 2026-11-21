@@ -83,7 +83,10 @@ starlark_test(
     checks = [
         expect_equal(
             "a downloaded julia_internal leaves the exec platform open",
-            source_exec_compatible_with({"julia_internal": ["linux_x86_64"]}, _SOURCE_EXEC),
+            source_exec_compatible_with(
+                {"julia_internal": ["linux_x86_64"]},
+                _SOURCE_EXEC,
+            ),
             [],
         ),
         expect_equal(
@@ -93,7 +96,10 @@ starlark_test(
         ),
         expect_equal(
             "another tool's download keeps the constraint",
-            source_exec_compatible_with({"pcov": ["linux_x86_64"]}, _SOURCE_EXEC),
+            source_exec_compatible_with(
+                {"pcov": ["linux_x86_64"]},
+                _SOURCE_EXEC,
+            ),
             ["@platforms//os:linux"],
         ),
     ],

@@ -819,14 +819,17 @@ pub fn holding() -> ForkGuard {
 )]
 pub fn executable_script(path: &Path, body: &str) {
     use std::io::Write;
-    // Pin PATH: a parallel test may have pointed the process PATH at a fake bin
-    // directory, and then `cat` and `chmod` would not be found.
+    use std::os::unix::fs::PermissionsExt;
+    // Only shell builtins copy stdin: a parallel test may have pointed the
+    // process PATH at a fake bin directory without `cat`. After EOF, `read`
+    // leaves a final line that has no newline in `$l`.
     let mut child = std::process::Command::new("/bin/sh")
         .arg("-c")
-        .arg("cat > \"$1\" && chmod 755 \"$1\"")
+        .arg(
+            "{ while IFS= read -r l; do printf '%s\\n' \"$l\"; done; printf '%s' \"$l\"; } > \"$1\"",
+        )
         .arg("sh")
         .arg(path)
-        .env("PATH", "/usr/bin:/bin")
         .stdin(std::process::Stdio::piped())
         .spawn()
         .expect("spawn sh");
@@ -838,6 +841,8 @@ pub fn executable_script(path: &Path, body: &str) {
         .expect("write script body");
     let status = child.wait().expect("wait sh");
     assert!(status.success(), "write {}: {status}", path.display());
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
+        .expect("chmod script");
 }
 
 /// [`executable_script`] of a POSIX shell script that runs `body`.

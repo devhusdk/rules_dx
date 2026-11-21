@@ -696,7 +696,6 @@ rust_test(
         "//tools/platforms:corpus_starlark",
         "//tools/testing:corpus_starlark",
         "//tools/testing/hermetic:corpus_starlark",
-        "//tools/testing/starters:corpus_starlark",
         "//tools/testing/wasi:corpus_starlark",
         "//tools/visibility:corpus_starlark",
         "//typescript/private:corpus_starlark",

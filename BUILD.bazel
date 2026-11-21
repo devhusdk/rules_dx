@@ -55,7 +55,6 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude examples/adopt-polyglot
 # gazelle:exclude lua/tests/fixtures/selene
 # gazelle:exclude core/quality/testdata
-# gazelle:exclude tools/testing/starters/fixtures
 # gazelle:exclude deploy/private/release/consumer
 # gazelle:exclude tools/docs/typescript/fixture
 # gazelle:exclude tools/platforms/no_winsdk
@@ -1016,7 +1015,6 @@ filegroup(
         "//tools/testing/lsp:module_srcs",
         "//tools/testing/nested:module_srcs",
         "//tools/testing/process_probe:module_srcs",
-        "//tools/testing/starters:module_srcs",
         "//tools/testing/wasi:module_srcs",
         "//tools/visibility:module_srcs",
         "//typescript:module_srcs",

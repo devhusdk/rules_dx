@@ -674,9 +674,11 @@ mod tests {
     #[test]
     fn resolver_roots_name_the_hub_resolvers_of_the_languages() {
         assert_eq!(
-            resolver_roots(&["go", "zig", "perl", "d", "zig"]),
+            resolver_roots(&["go", "zig", "perl", "d", "zig", "dart", "csharp"]),
             [
+                "@rules_dx//csharp/private/tools/lock",
                 "@rules_dx//d/private/tools/lock",
+                "@rules_dx//dart/private/tools/lock",
                 "@rules_dx//perl/private/tools/lock",
                 "@rules_dx//zig/private/tools/lock",
             ]

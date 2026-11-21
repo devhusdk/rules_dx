@@ -82,26 +82,43 @@ JAVA_GUARD_LANGS = [
 
 # The consumer fixtures //tools/testing/consumer:in_graph_prebuilt_guard covers.
 IN_GRAPH_GUARD_LANGS = [
+    "android",
     "ansible",
+    "asciidoc",
+    "astro",
     "bicep",
     "cloudformation",
+    "cmake",
+    "csharp",
+    "cuda",
     "d",
+    "dart",
     "dockerfile",
     "elixir",
+    "erlang",
+    "flutter",
     "fortran",
+    "fsharp",
     "haskell",
     "helm",
+    "javascript",
     "kotlin",
     "kubernetes",
+    "make",
+    "mdx",
     "ocaml",
     "perl",
     "php",
     "powershell",
     "rego",
+    "rst",
     "ruby",
     "scala",
     "sql",
+    "svelte",
     "terraform",
+    "typescript",
+    "vue",
     "zig",
 ]
 
@@ -114,27 +131,10 @@ MACOS_IN_GRAPH_GUARD_LANGS = [
 
 # The consumer fixtures no prebuilt guard covers yet.
 GUARD_PENDING = [
-    "android",
-    "appimage",
-    "asciidoc",
-    "astro",
-    "cmake",
-    "csharp",
-    "cuda",
-    "dart",
-    "erlang",
-    "flutter",
-    "fsharp",
-    "javascript",
-    "julia",
-    "make",
-    "mdx",
-    "msix",
-    "qt",
-    "rst",
-    "svelte",
-    "typescript",
-    "vue",
+    "appimage",  # appimage_packer is a rust_binary
+    "julia",  # builds libjulia-internal and flisp from source on linux_x86_64
+    "msix",  # msix_package is Windows-only
+    "qt",  # the linux_x86_64 moc, rcc and uic launchers compile from C
 ]
 
 # The fixtures whose test is the consumer evidence of the support matrix row of the same name.

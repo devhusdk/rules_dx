@@ -879,7 +879,8 @@ fn read_head(file: &mut impl Read, head: &mut [u8]) -> io::Result<usize> {
 const MAX_LINK_TARGET: u64 = 4096;
 
 fn utf8(bytes: Vec<u8>, what: &str) -> io::Result<String> {
-    String::from_utf8(bytes).map_err(|_| invalid(format!("archive {what} is not UTF-8")))
+    String::from_utf8(bytes)
+        .map_err(|e| invalid(format!("archive {what} is not UTF-8: {}", e.utf8_error())))
 }
 
 fn extract_tar(source: impl Read, run: &mut Extraction<'_>) -> io::Result<()> {

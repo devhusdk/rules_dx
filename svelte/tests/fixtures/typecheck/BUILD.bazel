@@ -4,12 +4,26 @@ load("//svelte:defs.bzl", "svelte_library")
 
 package(
     default_testonly = True,
-    default_visibility = ["//typescript/tests:__pkg__"],
+    default_visibility = [
+        "//svelte/tests:__pkg__",
+        "//typescript/tests:__pkg__",
+    ],
 )
 
 tsc_framework_cases(
     library_rule = svelte_library,
-    ext = "svelte",
+    lib = "lib.js",
+    srcs = {
+        "bad": "bad.svelte",
+        "broken": "broken.svelte",
+        "clean": "clean.svelte",
+    },
+    exit_expected = {
+        "bad": "bad.exit.expected",
+        "broken": "broken.exit.expected",
+        "clean": "clean.exit.expected",
+    },
+    stdout_expected = {"clean": "clean.stdout.expected"},
     deps = ["//:node_modules/svelte"],
     diagnostics = {
         "bad": """bad.svelte(2,20): error TS2305: Module '"./lib.js"' has no exported member 'missing'.

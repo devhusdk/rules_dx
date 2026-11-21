@@ -3,7 +3,7 @@ load("//svelte:defs.bzl", "svelte_build")
 
 package(
     default_testonly = True,
-    default_visibility = ["//svelte/tests/app_errors:__pkg__"],
+    default_visibility = ["//svelte/tests/fixtures/app_errors:__pkg__"],
 )
 
 svelte_build(

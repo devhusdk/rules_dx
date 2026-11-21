@@ -315,7 +315,7 @@ fn shards_come_from_the_plan() {
     // dx test takes main-workspace labels only, so a suite that wraps @repo tests
     // stays in the plan instead of its expansion.
     assert!(
-        plan_run.contains(r#"filter("^//", $t)"#) && plan_run.contains("rdeps($u, "),
+        plan_run.contains(r#"filter("^//", $t)"#) && plan_run.contains(r#"attr(tests, "@", $u)"#),
         "{plan_run}"
     );
     assert!(plan_run.contains("range(0; length; $per)"), "{plan_run}");

@@ -3715,6 +3715,12 @@ fn ansible_consistency_rejects_a_collection_the_lock_lacks() {
         &mut err,
     ));
     assert_ne!(code, 0);
-    assert!(err.contains("missing lock entry for 'ansible.utils'"), "{err}");
-    assert!(err.contains("stale lock entry for 'ansible.posix'"), "{err}");
+    assert!(
+        err.contains("missing lock entry for 'ansible.utils'"),
+        "{err}"
+    );
+    assert!(
+        err.contains("stale lock entry for 'ansible.posix'"),
+        "{err}"
+    );
 }

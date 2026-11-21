@@ -527,14 +527,12 @@ fn misses(report: &str, source: &str) -> Vec<String> {
     for line in report.lines() {
         if let Some(name) = line.strip_prefix("SF:") {
             inside = name.ends_with(source);
-        } else if inside {
-            if let Some(count) = line.strip_prefix("DA:") {
-                let mut fields = count.split(',');
-                let number = fields.next().unwrap_or_default();
-                let hit = fields.next().and_then(|hit| hit.parse::<u64>().ok());
-                if hit.unwrap_or(0) == 0 {
-                    missed.push(number.to_owned());
-                }
+        } else if inside && let Some(count) = line.strip_prefix("DA:") {
+            let mut fields = count.split(',');
+            let number = fields.next().unwrap_or_default();
+            let hit = fields.next().and_then(|hit| hit.parse::<u64>().ok());
+            if hit.unwrap_or(0) == 0 {
+                missed.push(number.to_owned());
             }
         }
     }
@@ -547,14 +545,12 @@ fn hits(report: &str, source: &str) -> u64 {
     for line in report.lines() {
         if let Some(name) = line.strip_prefix("SF:") {
             inside = name.ends_with(source);
-        } else if inside {
-            if let Some(count) = line.strip_prefix("DA:") {
-                total += count
-                    .split(',')
-                    .nth(1)
-                    .and_then(|hit| hit.parse::<u64>().ok())
-                    .unwrap_or(0);
-            }
+        } else if inside && let Some(count) = line.strip_prefix("DA:") {
+            total += count
+                .split(',')
+                .nth(1)
+                .and_then(|hit| hit.parse::<u64>().ok())
+                .unwrap_or(0);
         }
     }
     total
@@ -589,7 +585,9 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
     }
     lines.sort();
     let manifest = tmp.join("runfiles.manifest");
-    std::fs::write(&manifest, lines.join("\n") + "\n").expect("manifest must be writable");
+    let mut text = lines.join("\n");
+    text.push('\n');
+    std::fs::write(&manifest, text).expect("manifest must be writable");
     manifest
 }
 
@@ -877,8 +875,8 @@ fn tree_rooted_manifest_maps_entries_into_the_tree() {
         "_main/pkg/.hello.venv/pyvenv.cfg {}\n_main/pkg/.hello.venv {}\n\
          _main/pkg/hello.exe /out/bin/pkg/hello.exe\n\
          _main/pkg/absent /out/bin/pkg/absent\n_main/pkg/empty \n",
-        format!("{}/_main/pkg/.hello.venv/pyvenv.cfg", tree.display()),
-        format!("{}/_main/pkg/.hello.venv", tree.display()),
+        tree.join("_main/pkg/.hello.venv/pyvenv.cfg").display(),
+        tree.join("_main/pkg/.hello.venv").display(),
     );
     assert_eq!(tree_rooted_manifest(text, &tree), expected);
     let missing = std::path::Path::new(&tmp)
@@ -909,7 +907,9 @@ fn tree_manifest(root: &std::path::Path) -> String {
         }
     }
     lines.sort();
-    lines.join("\n") + "\n"
+    let mut text = lines.join("\n");
+    text.push('\n');
+    text
 }
 
 #[test]

@@ -30,7 +30,11 @@ pub fn parse_ansible_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, 
                     .ok_or_else(|| manifest_error("a collection entry has no name".to_owned()))?,
                 entry.get("version").and_then(yaml_serde::Value::as_str),
             ),
-            _ => {
+            yaml_serde::Value::Null
+            | yaml_serde::Value::Bool(_)
+            | yaml_serde::Value::Number(_)
+            | yaml_serde::Value::Sequence(_)
+            | yaml_serde::Value::Tagged(_) => {
                 return Err(manifest_error(
                     "a collection entry is neither a name nor a mapping".to_owned(),
                 ));

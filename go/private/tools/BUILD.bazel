@@ -1,8 +1,14 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_go//go:def.bzl", "go_binary")
+
+go_binary(
+    name = "guard_canary",
+    srcs = ["guard_canary.go"],
+)
 
 alias(
     name = "go",
-    actual = "@rules_go//go",
+    actual = ":guard_canary",
     visibility = ["//:__subpackages__"],
 )
 
@@ -14,6 +20,9 @@ real_source_target(
 
 filegroup(
     name = "module_srcs",
-    srcs = ["BUILD.bazel"],
+    srcs = [
+        "BUILD.bazel",
+        "guard_canary.go",
+    ],
     visibility = ["//:__subpackages__"],
 )

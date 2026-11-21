@@ -6143,6 +6143,13 @@ Tag `qt.configure`:
 | `runtime_mirror` | `string` | no | `""` |
 | `version` | `string` | no | `"6.12.0"` |
 
+Tag `qt.msvc_runtime`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `notice` | `label` | yes |  |
+| `runtime` | `label` | yes |  |
+
 ### `@rules_dx//rego:defs.bzl`
 
 #### `rego_library`

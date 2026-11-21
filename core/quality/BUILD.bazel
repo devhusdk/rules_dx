@@ -622,6 +622,12 @@ tools_unit_tests(name = "tools_unit")
 support_unit_tests(name = "support_unit")
 
 write_source_files(
+    name = "update_core_probe",
+    files = {"families/core_probe.bzl": "//core/modules:generated/core_probe.bzl"},
+    visibility = ["//core/modules:__pkg__"],
+)
+
+write_source_files(
     name = "tools_registry",
     files = {"tools_registry.bzl": "//tools/quality:tools_registry"},
     visibility = ["//visibility:private"],

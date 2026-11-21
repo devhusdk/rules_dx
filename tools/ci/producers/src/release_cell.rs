@@ -36,7 +36,7 @@ const NATIVE_TOOLS: [Tool; 4] = [
         licenses: &["@dx_thrift//:LICENSE", "@dx_thrift//:NOTICE"],
     },
 ];
-/// The one cell that writes the `dx-<tool>-LICENSE` assets of the native tools.
+/// The one cell that writes the `dx-<tool>-LICENSE` assets of the native tools and of pcov.
 const LICENSE_CELL: &str = "dx-linux-x86_64";
 /// A tool or shared library a cell ships: its asset stem, its label and the upstream licence files of its licence asset, empty for first-party code.
 struct Tool {
@@ -61,6 +61,12 @@ const WINDOWS_ARM64_LIBRARIES: [Tool; 2] = [
         ],
     },
 ];
+/// The PHP PCOV extension the linux and macOS cells ship for the PHP toolchains.
+const PCOV: [Tool; 1] = [Tool {
+    tool: "pcov",
+    label: "@dx_php_pcov//:pcov.so",
+    licenses: &["@dx_php_pcov//:pcov-1.0.12/LICENSE"],
+}];
 const QUERY_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const TOOL_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
@@ -259,10 +265,20 @@ fn tool_asset_name(tool: &str, cell: &str) -> String {
 
 /// The shared libraries a cell ships.
 fn libraries(cell: &str) -> &'static [Tool] {
-    if cell == "dx-windows-arm64" {
-        &WINDOWS_ARM64_LIBRARIES
-    } else {
-        &[]
+    match cell {
+        "dx-windows-arm64" => &WINDOWS_ARM64_LIBRARIES,
+        "dx-linux-arm64" | "dx-linux-x86_64" | "dx-macos-arm64" => &PCOV,
+        _ => &[],
+    }
+}
+
+/// The shared libraries whose licence assets a cell writes: each library's licence comes
+/// from one cell, `LICENSE_CELL` for a library several cells ship.
+fn library_licenses(cell: &str) -> &'static [Tool] {
+    match cell {
+        "dx-windows-arm64" => &WINDOWS_ARM64_LIBRARIES,
+        LICENSE_CELL => &PCOV,
+        _ => &[],
     }
 }
 
@@ -278,9 +294,15 @@ fn native_licenses(cell: &str) -> Vec<&'static Tool> {
     }
 }
 
-/// The asset name of a shared library in a cell, such as `dx-tree-sitter-windows-arm64.dll`.
+/// The asset name of a shared library in a cell, such as `dx-tree-sitter-windows-arm64.dll`
+/// or `dx-pcov-linux-x86_64.so`.
 fn library_asset_name(tool: &str, cell: &str) -> String {
-    format!("{}.dll", tool_asset_name(tool, cell))
+    let ext = if cell.starts_with("dx-windows-") {
+        "dll"
+    } else {
+        "so"
+    };
+    format!("{}.{ext}", tool_asset_name(tool, cell))
 }
 
 /// Writes the licence files of `tool`, separated by a blank line, as `dx-<tool>-LICENSE` in `out`.
@@ -456,6 +478,8 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
             &main.file(&root, &[], library.label)?,
             &out.join(library_asset_name(library.tool, &env.cell)),
         )?;
+    }
+    for library in library_licenses(&env.cell) {
         write_license(&main, &output_base, &workspace, library, out)?;
     }
     let dx = main.file(&root, &[], "//cli/cli:dx")?;
@@ -565,8 +589,8 @@ pub fn cell(args: &[String]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_macos, libraries, library_asset_name, native_licenses, source_file, symbols_name,
-        tool_asset_name, NATIVE_TOOLS,
+        is_macos, libraries, library_asset_name, library_licenses, native_licenses, source_file,
+        symbols_name, tool_asset_name, NATIVE_TOOLS,
     };
     use std::path::Path;
 
@@ -585,24 +609,44 @@ mod tests {
         assert!(source_file(base, workspace, "bazel-out/x64_windows-opt/bin/a.dll").is_err());
     }
 
-    #[test]
-    fn only_the_windows_arm64_cell_ships_libraries() {
-        let tools = |cell| {
-            libraries(cell)
-                .iter()
-                .map(|library| library.tool)
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(
-            tools("dx-windows-arm64"),
-            ["tree-sitter", "tree-sitter-pkl"]
-        );
-        assert!(tools("dx-windows-x86_64").is_empty());
-        assert!(tools("dx-linux-arm64").is_empty());
+    fn names(tools: &[super::Tool]) -> Vec<&str> {
+        tools.iter().map(|tool| tool.tool).collect()
     }
 
     #[test]
-    fn library_assets_end_in_dll() {
+    fn windows_arm64_ships_tree_sitter_and_unix_cells_ship_pcov() {
+        assert_eq!(
+            names(libraries("dx-windows-arm64")),
+            ["tree-sitter", "tree-sitter-pkl"]
+        );
+        assert!(libraries("dx-windows-x86_64").is_empty());
+        for cell in ["dx-linux-arm64", "dx-linux-x86_64", "dx-macos-arm64"] {
+            assert_eq!(names(libraries(cell)), ["pcov"], "{cell}");
+        }
+    }
+
+    #[test]
+    fn each_library_licence_comes_from_one_cell() {
+        assert_eq!(
+            names(library_licenses("dx-windows-arm64")),
+            ["tree-sitter", "tree-sitter-pkl"]
+        );
+        assert_eq!(names(library_licenses("dx-linux-x86_64")), ["pcov"]);
+        for cell in ["dx-linux-arm64", "dx-macos-arm64", "dx-windows-x86_64"] {
+            assert!(library_licenses(cell).is_empty(), "{cell}");
+        }
+    }
+
+    #[test]
+    fn library_assets_end_in_dll_on_windows_and_so_elsewhere() {
+        assert_eq!(
+            library_asset_name("pcov", "dx-linux-x86_64"),
+            "dx-pcov-linux-x86_64.so"
+        );
+        assert_eq!(
+            library_asset_name("pcov", "dx-macos-arm64"),
+            "dx-pcov-macos-arm64.so"
+        );
         assert_eq!(
             library_asset_name("tree-sitter", "dx-windows-arm64"),
             "dx-tree-sitter-windows-arm64.dll"

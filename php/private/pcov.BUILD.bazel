@@ -2,6 +2,8 @@ load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["pcov-1.0.12/LICENSE"])
+
 cc_binary(
     name = "pcov.so",
     srcs = [

@@ -45,7 +45,7 @@ filegroup(
 )
 """.format(files = repr(COVERAGE_RUNTIME_FILES))
 
-PCOV_LABEL = "@dx_php_pcov//:pcov.so"
+PCOV_LABEL = "@dx_prebuilt//:pcov"
 
 HEADERS_BUILD = """load("@rules_cc//cc:defs.bzl", "cc_library")
 

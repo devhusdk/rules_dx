@@ -57,6 +57,7 @@ A rule-set module (`rules_php`, `rules_lua`, `rules_qt`) builds its Rust tools w
 Rule set | Tool | Source | Prebuilt
 --- | --- | --- | ---
 rules_php | PHP launcher | Rust | yes
+rules_php | PCOV extension | C | yes
 rules_php | composer lock resolver | Rust | yes
 rules_lua | luarocks lock resolver | Rust | yes
 rules_lua | Lua launcher | C | no

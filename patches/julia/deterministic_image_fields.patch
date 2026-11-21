@@ -1,0 +1,54 @@
+Upstream: none (not yet sent upstream; rules_dx issue #13448)
+diff --git a/src/gf.c b/src/gf.c
+--- a/src/gf.c
++++ b/src/gf.c
+@@ -679,6 +679,7 @@
+         jl_atomic_store_relaxed(&codeinst->invoke, jl_fptr_const_return);
+     }
+     codeinst->time_infer_total = 0;
++    codeinst->time_infer_cache_saved = 0;
+     codeinst->time_infer_self = 0;
+     jl_atomic_store_relaxed(&codeinst->time_compile, 0);
+     jl_atomic_store_relaxed(&codeinst->flags, 0);
+diff --git a/src/module.c b/src/module.c
+--- a/src/module.c
++++ b/src/module.c
+@@ -509,7 +509,13 @@
+     static _Atomic(unsigned int) mcounter; // simple counter backup, in case hrtime is not incrementing
+     unsigned int count = jl_atomic_fetch_add_relaxed(&mcounter, 1);
+     // TODO: this is used for ir decompression and is liable to hash collisions so use more of the bits
+-    m->build_id.lo = bitmix(jl_hrtime() + count, jl_rand());
++    if (jl_generating_output())
++        // Image builds take the id from creation order, the name and the
++        // parent, so the same build writes the same bytes. A changed package
++        // keeps its id, so rebuild every image that depends on it.
++        m->build_id.lo = bitmix(bitmix(count, name->hash), parent ? parent->build_id.lo : 0);
++    else
++        m->build_id.lo = bitmix(jl_hrtime() + count, jl_rand());
+     if (!m->build_id.lo)
+         m->build_id.lo++; // build id 0 is invalid
+     m->build_id.hi = ~(uint64_t)0;
+@@ -775,7 +781,8 @@
+     jl_atomic_store_relaxed(&b->partitions, NULL);
+     b->globalref = NULL;
+     b->backedges = NULL;
+-    jl_atomic_store_relaxed(&b->flags, 0);
++    // Zero the padding after `flags` too: the image writer copies it.
++    memset(&b->flags, 0, sizeof(jl_binding_t) - offsetof(jl_binding_t, flags));
+     JL_GC_PUSH1(&b);
+     b->globalref = jl_new_globalref(mod, name, b);
+     jl_gc_wb(b, b->globalref);
+diff --git a/src/staticdata.c b/src/staticdata.c
+--- a/src/staticdata.c
++++ b/src/staticdata.c
+@@ -1768,6 +1768,10 @@
+                     }
+                 }
+                 jl_atomic_store_relaxed(&newci->time_compile, 0.0);
++                // Inference timings are wall clock, so the image keeps none.
++                newci->time_infer_total = 0;
++                newci->time_infer_cache_saved = 0;
++                newci->time_infer_self = 0;
+                 jl_atomic_store_relaxed(&newci->invoke, NULL);
+                 // preserve only JL_CI_FLAGS_NATIVE_CACHE_VALID bits
+                 jl_atomic_store_relaxed(&newci->flags, jl_atomic_load_relaxed(&newci->flags) & JL_CI_FLAGS_NATIVE_CACHE_VALID);

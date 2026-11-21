@@ -1243,7 +1243,6 @@ dx_pins.archive(
     name = "rules_julia",
     patches = [
         "//patches/rules_julia:config_base_toml.patch",
-        "//patches/rules_julia:deterministic_module_build_id.patch",
         "//patches/rules_julia:in_process_resolve_test.patch",
         "//patches/rules_julia:locate_installed_package.patch",
         "//patches/rules_julia:package_annotation_version.patch",
@@ -1503,7 +1502,10 @@ dx_pins.archive(
 dx_pins.archive(
     name = "julia_src",
     build = "//julia/private/runtime:julia_src.BUILD.bazel",
-    patches = ["//patches/julia:deterministic_objectid.patch"],
+    patches = [
+        "//patches/julia:deterministic_image_fields.patch",
+        "//patches/julia:deterministic_objectid.patch",
+    ],
     pins = "//julia:pins.json",
 )
 dx_pins.archive(

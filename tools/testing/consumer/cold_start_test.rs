@@ -1,7 +1,7 @@
 //! A fresh one-language consumer fetches only the repositories its cold-start list names.
 //!
-//! The test builds and tests `<lang>/tests/consumer` in a new workspace with an empty output
-//! base, then lists the repositories under `output_base/external`. That list must equal the
+//! Each language is one case: it builds and tests `<lang>/tests/consumer` in a new workspace with
+//! an empty output base, then lists the repositories under `output_base/external`. That list must equal the
 //! committed `cold_start/<lang>.txt`: a longer list means rules_dx started fetching something
 //! eagerly, a shorter one means the file is stale. Repositories of other language families must
 //! never download, whatever the file says. A toolchain hub whose rule ran and downloaded nothing
@@ -107,13 +107,22 @@ fn run_ok(case: &Case, args: &[&str], fetches: &mut Fetches) -> dx_testing::Run 
     run
 }
 
-#[test]
-fn a_fresh_consumer_fetches_only_its_cold_start_list() {
-    let lang = dx_testing::env_text("DX_COLD_START_LANG");
-    let lang = lang.trim();
+/// The `DX_COLD_START_LISTS` entries, the runfiles paths of `cold_start/<lang>.txt`.
+fn cold_start_lists() -> Vec<String> {
+    dx_testing::env_text("DX_COLD_START_LISTS")
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect()
+}
+
+fn fetches_only_its_cold_start_list(lang: &str) {
+    let suffix = format!("/{lang}.txt");
+    let list = cold_start_lists()
+        .into_iter()
+        .find(|path| path.ends_with(&suffix))
+        .unwrap_or_else(|| panic!("DX_COLD_START_LISTS has no {lang}.txt"));
     let want = listed(&dx_testing::read_text(
-        &dx_testing::rlocation(dx_testing::env_text("DX_COLD_START_LIST").trim())
-            .unwrap_or_else(|error| panic!("DX_COLD_START_LIST: {error}")),
+        &dx_testing::rlocation(&list).unwrap_or_else(|error| panic!("{list}: {error}")),
     ));
     let foreign = FOREIGN
         .iter()
@@ -144,6 +153,32 @@ fn a_fresh_consumer_fetches_only_its_cold_start_list() {
         list.len(),
         list.join("\n")
     );
+}
+
+#[test]
+fn go_fetches_only_its_cold_start_list() {
+    fetches_only_its_cold_start_list("go");
+}
+
+#[test]
+fn rust_fetches_only_its_cold_start_list() {
+    fetches_only_its_cold_start_list("rust");
+}
+
+#[test]
+fn every_cold_start_list_has_foreign_fragments() {
+    let stems: BTreeSet<String> = cold_start_lists()
+        .iter()
+        .map(|path| {
+            std::path::Path::new(path)
+                .file_stem()
+                .unwrap_or_else(|| panic!("{path} has no file name"))
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    let langs: BTreeSet<String> = FOREIGN.iter().map(|(lang, _)| (*lang).to_owned()).collect();
+    assert_eq!(stems, langs);
 }
 
 #[test]

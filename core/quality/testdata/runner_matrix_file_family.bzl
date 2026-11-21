@@ -2264,6 +2264,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/psscriptanalyzer_format_broken.ps1": "function f {\n",
         },
+        size = "medium",
         tags = ["no-remote-exec"],
     ),
     matrix_case(
@@ -3111,6 +3112,7 @@ FILE_FAMILY_CASES = [
             "matrix/ocaml_format_mixed/clean.ml": "let x = 1\n",
         },
         platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
+        size = "medium",
     ),
     matrix_case(
         name = "matrix_nix_deadnix_pass",

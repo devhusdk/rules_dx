@@ -1,18 +1,18 @@
 """Unit tests for explicit tool support records."""
 
-load("//dart/private:platforms.bzl", "DART_PLATFORMS")
-load("//elixir/private/toolchain:pins.bzl", "ELIXIR_CELLS")
-load("//erlang/private/toolchain:pins.bzl", ERLANG_CELLS = "CELLS", "OTP_DIALYZER_UNPORTED_CELLS")
-load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
-load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
-load("//qt/private/toolchain:pins.bzl", QT_CELLS = "CELLS")
 load("@dx_pins_data//:pins.bzl", "DATA")
 load("//cli/prebuilt:tools.bzl", "TOOLS")
+load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS")
+load("//core/quality/testdata:all_languages.bzl", "real_wired_capabilities")
 load("//core/quality/testdata:real_result_cases.bzl", "REAL_RESULT_CASES", "real_result_evidence")
 load("//core/quality/testdata:runner_matrix_cases.bzl", "RUNNER_MATRIX_CASES")
 load("//core/quality/testdata:runner_matrix_tests.bzl", "matrix_case_platforms", "matrix_case_size", "matrix_case_tools", "matrix_platform_case_names")
-load("//core/quality/testdata:all_languages.bzl", "real_wired_capabilities")
+load("//dart/private:platforms.bzl", "DART_PLATFORMS")
+load("//elixir/private/toolchain:pins.bzl", "ELIXIR_CELLS")
+load("//erlang/private/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS", ERLANG_CELLS = "CELLS")
+load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
+load("//qt/private/toolchain:pins.bzl", QT_CELLS = "CELLS")
 load(":support.bzl", "ANSIBLE_YAMLFMT_FORMAT_SUPPORT", "API_SPEC_PRETTIER_FORMAT_SUPPORT", "API_SPEC_REDOCLY_LINT_SUPPORT", "BICEP_BICEP_FORMAT_SUPPORT", "BICEP_BICEP_LINT_SUPPORT", "CC_CLANG_FORMAT_SUPPORT", "CLOUDFORMATION_CFN_LINT_SUPPORT", "CMAKE_CMAKELINT_SUPPORT", "CUDA_CLANG_FORMAT_SUPPORT", "DOCKERFILE_PRETTIER_FORMAT_SUPPORT", "GHERKIN_GPLINT_LINT_SUPPORT", "GHERKIN_PRETTIER_FORMAT_SUPPORT", "JUPYTER_NOTEBOOK_OUTPUTS_LINT_SUPPORT", "JUPYTER_RUFF_FORMAT_SUPPORT", "JUPYTER_RUFF_LINT_SUPPORT", "KUBERNETES_YAMLFMT_FORMAT_SUPPORT", "MAKE_MBAKE_SUPPORT", "OBJC_CLANG_FORMAT_SUPPORT", "PHP_PRETTIER_FORMAT_SUPPORT", "PYTHON_PYDOCLINT_LINT_SUPPORT", "PYTHON_RUFF_FORMAT_SUPPORT", "PYTHON_RUFF_LINT_SUPPORT", "PYTHON_TY_TYPECHECK_SUPPORT", "RUST_RUSTFMT_FORMAT_SUPPORT", "SQL_SQLFLUFF_FORMAT_SUPPORT", "SQL_SQLFLUFF_LINT_SUPPORT", "SUPPORT_PLATFORMS", "SUPPORT_RECORDS", "TERRAFORM_FORMAT_SUPPORT", "TERRAFORM_TYPECHECK_SUPPORT", "TEXT_KEEP_SORTED_SUPPORT", "XML_PRETTIER_FORMAT_SUPPORT", "is_support_tool", "support", "support_gap_error", "support_record_error", "support_record_gap_error", "support_schema_error", "support_state", "support_unpinned_tools", "with_platforms")
 
 visibility("private")
@@ -194,9 +194,9 @@ def _evidence_checks():
             ["small", "medium"],
         ),
         expect_equal(
-            "only the psscriptanalyzer format failure cases are medium",
+            "only the slow-starting psscriptanalyzer and topiary cases are medium",
             sorted([c["name"] for c in RUNNER_MATRIX_CASES if matrix_case_size(c) != "small"]),
-            ["matrix_powershell_format_crlf_fail", "matrix_powershell_format_fail"],
+            ["matrix_ocaml_format_mixed", "matrix_powershell_format_crlf_fail", "matrix_powershell_format_fail", "matrix_powershell_format_syntax_error"],
         ),
         expect_equal(
             "matrix_case_tools plain, toolchain and upstream shapes",

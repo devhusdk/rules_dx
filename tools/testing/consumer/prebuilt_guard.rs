@@ -383,7 +383,7 @@ pub fn target_guard_bzl(rules_dx: &str) -> String {
          def _platforms_impl(_settings, attr):\n    return {{key: {{\"//command_line_option:platforms\": [str(_PLATFORMS.same_package_label(key))]}} for key in attr.keys}}\n\n\
          _platforms = transition(\n    implementation = _platforms_impl,\n    inputs = [],\n    outputs = [\"//command_line_option:platforms\"],\n)\n\n\
          def _root_impl(_ctx):\n    return []\n\n\
-         target_root = rule(\n    implementation = _root_impl,\n    attrs = {{\n        \"keys\": attr.string_list(),\n        \"deps\": attr.label_list(cfg = _platforms),\n    }},\n)\n"
+         target_root = rule(\n    implementation = _root_impl,\n    attrs = {{\n        \"keys\": attr.string_list(),\n        \"deps\": attr.label_list(cfg = _platforms, allow_files = True),\n    }},\n)\n"
     )
 }
 
@@ -481,7 +481,7 @@ mod tests {
             bzl.starts_with("_PLATFORMS = Label(\"@rules_dx//tools/platforms:BUILD.bazel\")\n")
         );
         assert!(bzl.contains("[str(_PLATFORMS.same_package_label(key))]"));
-        assert!(bzl.contains("\"deps\": attr.label_list(cfg = _platforms)"));
+        assert!(bzl.contains("\"deps\": attr.label_list(cfg = _platforms, allow_files = True)"));
         let roots = [TargetRoot {
             tool: "runtime".to_owned(),
             keys: vec!["linux_x86_64".to_owned(), "windows_arm64".to_owned()],

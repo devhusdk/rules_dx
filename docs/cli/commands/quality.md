@@ -168,6 +168,7 @@ To change a rule, edit the tool's root config file. See
 | `kotlin` | `ktfmt` | `detekt`, `typos` | `kotlinc` |
 | `markdown` | disabled | `lychee`, `markdown_check`, `typos` | disabled |
 | `mdx` | `remark` | `lychee`, `typos` | disabled |
+| `objc` | `clang_format` | `typos` | `clang_syntax` |
 | `python` | `ruff` | `ruff`, `typos` | `ty` |
 | `rust` | `rustfmt` | `clippy`, `typos` | `rustc` |
 | `scala` | `scalafmt` | `typos` | `scalac` |
@@ -224,7 +225,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `swift_lint` | Lint Swift | |
 | `swiftc` | Typecheck Swift (opt-in) | |
 
-`clang_syntax` replays each compile action with `-fsyntax-only`, using the command line Bazel configured. Headers are checked only when the target compiles them (`--features=parse_headers`). Toolchains without a readable command line (clang-cl, params files) fail with an explicit error. Select it with `typecheck = ["clang_syntax"]` on the `cc` family. It has no fix support.
+`clang_syntax` replays each compile action with `-fsyntax-only`, using the command line Bazel configured. Headers are checked only when the target compiles them (`--features=parse_headers`). Toolchains without a readable command line (clang-cl, params files) fail with an explicit error. Select it with `typecheck = ["clang_syntax"]` on the `cc` family. It is the default typecheck of the `objc` family. It has no fix support.
 
 `nvcc_syntax` replays each `CudaCompile` action with `-c` changed to `-cuda`. Device compilation still runs for every `-gencode` architecture, so the check is heavy. Select it with `typecheck = ["nvcc_syntax"]` on the `cuda` family. Params files and header-only `cuda_library` targets fail with an explicit error.
 

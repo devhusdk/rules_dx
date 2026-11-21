@@ -52,7 +52,7 @@ def _checks():
         expect_contains("erts mismatch names found", erts_mismatch_message("1.2", ["erts-3.4"]), "erts-3.4"),
         expect_contains("erts mismatch handles none", erts_mismatch_message("1.2", []), "found: none"),
         expect_false("the hub names no rules_erlang target", "@rules_erlang" in hub_build()),
-        expect_contains("the hub names the OTP exec toolchain type", hub_build(), "//erlang/private/toolchain:exec_toolchain_type"),
+        expect_contains("the hub names the OTP exec toolchain type", hub_build(), str(Label("//erlang:exec_toolchain_type"))),
         expect_equal("the hub registers an exec and a runtime toolchain per cell", hub_build().count("toolchain("), 2 * len(CELLS)),
         expect_contains("the runtime toolchain matches the target", hub_build(), 'name = "dx_erlang_toolchains__linux_arm64",\n    target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],'),
         expect_contains("the rules_erlang toolchain matches the exec platform", hub_build(), 'name = "dx_erlang_toolchains__linux_arm64_exec",\n    exec_compatible_with = ["@platforms//os:linux", "@platforms//cpu:aarch64"],'),

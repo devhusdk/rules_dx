@@ -1,0 +1,31 @@
+Upstream: none (rules_dx only: aliases the toolchain types to rules_dx)
+diff --git a/scala/BUILD b/scala/BUILD
+index c4a9d9f..219c2ae 100644
+--- a/scala/BUILD
++++ b/scala/BUILD
+@@ -13,8 +13,9 @@ exports_files(["semanticdb_provider.bzl"])
+ # change.
+ exports_files(["toolchains_repo.bzl"])
+ 
+-toolchain_type(
++alias(
+     name = "toolchain_type",
++    actual = "@rules_dx//scala/private/toolchain/hub:toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 
+diff --git a/testing/toolchain/BUILD b/testing/toolchain/BUILD
+index 65460e9..ba8c6c5 100644
+--- a/testing/toolchain/BUILD
++++ b/testing/toolchain/BUILD
+@@ -1,8 +1,9 @@
+ load("//testing:testing.bzl", "DEP_PROVIDERS")
+ load(":toolchain_deps.bzl", "testing_toolchain_deps")
+ 
+-toolchain_type(
++alias(
+     name = "testing_toolchain_type",
++    actual = "@rules_dx//scala/private/toolchain/hub:testing_toolchain_type",
+     visibility = ["//visibility:public"],
+ )
+ 

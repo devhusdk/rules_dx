@@ -166,20 +166,6 @@ _foreign_cc_tools.pkgconfig(
     mode = "noop",
 )
 
-# floor: equals tested; patched to pass the dynamic CRT flag and -ccbin to nvcc -dlink (#4704, #10975) and for reproducible nvcc objects
-bazel_dep(name = "rules_cuda", version = "0.4.0")
-single_version_override(
-    module_name = "rules_cuda",
-    patch_strip = 1,
-    patches = [
-        "//patches/rules_cuda:coverage_keep.patch",
-        "//patches/rules_cuda:msvc_dlink_crt.patch",
-        "//patches/rules_cuda:objdir_as_tempdir.patch",
-        "//patches/rules_cuda:toolchains_gate.patch",
-    ],
-    version = "0.4.0",
-)
-
 # floor: equals tested; llvm pins the MSVC and Windows SDK payloads we link; patched for host_tools (#4835)
 bazel_dep(name = "windows_support", version = "0.4.1")
 single_version_override(
@@ -223,10 +209,14 @@ single_version_override(
 bazel_dep(name = "elfutils", version = "0.195", dev_dependency = True)
 
 # musl.patch compiles libdwfl without argp, fts and GNU strerror_r on musl.
+# aarch64_config.patch sets the aarch64 Linux configure checks in lib/config.h.
 single_version_override(
     module_name = "elfutils",
     patch_strip = 1,
-    patches = ["//patches/elfutils:musl.patch"],
+    patches = [
+        "//patches/elfutils:musl.patch",
+        "//patches/elfutils:aarch64_config.patch",
+    ],
     version = "0.195",
 )
 
@@ -408,35 +398,21 @@ single_version_override(
 )
 
 # floor: equals tested
-bazel_dep(name = "rules_scala", version = "7.4.1")
-single_version_override(
-    module_name = "rules_scala",
-    patch_strip = 1,
-    patches = [
-        "//patches/rules_scala:manifest_only_wrapper.patch",
-        "//patches/rules_scala:dx_bzl_srcs.patch",
-    ],
-    version = "7.4.1",
-)
+bazel_dep(name = "bazel_worker_api", version = "0.0.11")
 
-scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")
-scala_config.settings(
-    scala_version = "2.13.18",
-    scala_versions = [
-        "2.13.18",
-        "3.3.9",
-    ],
-)
+scala_config = use_extension("//scala/private/toolchain:config_extension.bzl", "scala_config")
 use_repo(scala_config, "rules_scala_config")
 
-scala_deps = use_extension("@rules_scala//scala/extensions:deps.bzl", "scala_deps")
-scala_deps.scala()
-scala_deps.scalatest()
+scala = use_extension("//scala/private/toolchain:deps_extension.bzl", "scala")
+use_repo(
+    scala,
+    "rules_scala_toolchains",
+    "scala_compiler_sources",
+)
 
 register_toolchains(
     "//java/private/toolchain:all",
-    "//scala/private/toolchain:semanticdb",
-    "//scala/private/toolchain:semanticdb_scala3",
+    "//scala/private/toolchain/hub:all",
 )
 
 ansible = use_extension("//ansible:extensions.bzl", "ansible", dev_dependency = True)
@@ -646,7 +622,7 @@ cc.windows_sdk(
     },
     windows_sdk_version = "10.0.26100.7705",
 )
-use_repo(cc, "dx_cc_toolchains", "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64", "dx_msvc", "dx_msvc_runtime", "dx_windows_sdk")
+use_repo(cc, "dx_cc_toolchains", "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64", "dx_gcc_linux_x86_64_cross", "dx_msvc", "dx_msvc_runtime", "dx_windows_sdk")
 
 protoc_prebuilt = use_extension("@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl", "protoc")
 use_repo(
@@ -733,7 +709,7 @@ dx_pins.pin(
         "flang",
     ],
     pins = "//fortran:pins.json",
-    toolchain_type = "//fortran/private/toolchain:toolchain_type",
+    toolchain_type = "//fortran:toolchain_type",
 )
 dx_pins.pin(
     name = "dx_php",
@@ -1306,6 +1282,54 @@ dx_pins.archive(
     ],
     pins = "//ocaml:pins.json",
 )
+# Pinned to an upstream main commit (bazel-contrib/rules_cuda#530, after v0.4.0); #14468 moves it to the release.
+dx_pins.archive(
+    name = "rules_cuda",
+    dropped = [
+        ".bazelrc",
+        ".bazelversion",
+        ".bcr",
+        ".github",
+        "MODULE.bazel",
+        "WORKSPACE.bazel",
+        "docs",
+        "examples",
+    ],
+    patches = [
+        "//patches/rules_cuda:coverage_keep.patch",
+        "//patches/rules_cuda:objdir_as_tempdir.patch",
+        "//patches/rules_cuda:toolchain_type_alias.patch",
+    ],
+    pins = "//cuda:pins.json",
+)
+dx_pins.archive(
+    name = "rules_scala",
+    dropped = [
+        ".bazelci",
+        ".bcr",
+        ".gemini",
+        ".github",
+        "WORKSPACE",
+        "docs",
+        "examples",
+        "manual_test",
+        "test",
+        "test_cross_build",
+        "test_expect_failure",
+        "test_statsfile",
+        "test_thirdparty_version",
+        "test_version",
+        "third_party/test",
+        "tools",
+    ],
+    patches = [
+        "//patches/rules_scala:dx_bzl_srcs.patch",
+        "//patches/rules_scala:manifest_only_wrapper.patch",
+        "//patches/rules_scala:protobuf_repo_name.patch",
+        "//patches/rules_scala:toolchain_type_alias.patch",
+    ],
+    pins = "//scala:pins.json",
+)
 dx_pins.archive(
     name = "dx_ocaml_dune",
     build = "//ocaml/private:dune.BUILD.bazel",
@@ -1323,12 +1347,12 @@ dx_pins.archive(
     patches = ["//patches/rules_powershell:inline_runfiles_sh.patch"],
     pins = "//powershell:pins.json",
 )
+# Pinned to an upstream main commit carrying bazel-contrib/rules_ruby#435 and #440 until a release has them.
 dx_pins.archive(
     name = "rules_ruby",
     crlf = ["ruby/private/binary/binary.cmd.tpl"],
     dropped = ["MODULE.bazel"],
     patches = [
-        "//patches/rules_ruby:reproducible.patch",
         "//patches/rules_ruby:coverage.patch",
         "//patches/rules_ruby:rubyinstaller_archive.patch",
         "//patches/rules_ruby:toolchains_gate.patch",
@@ -1500,6 +1524,11 @@ dx_pins.archive(
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
+    name = "julia_src_libuv_aarch64",
+    build = "//julia/private/runtime:libuv.BUILD.bazel",
+    pins = "//julia:pins.json",
+)
+dx_pins.archive(
     name = "julia_src_utf8proc",
     build = "//julia/private/runtime:utf8proc.BUILD.bazel",
     pins = "//julia:pins.json",
@@ -1613,6 +1642,7 @@ use_repo(
     "julia_src_libllvm",
     "julia_src_libunwind",
     "julia_src_libuv",
+    "julia_src_libuv_aarch64",
     "julia_src_utf8proc",
     "julia_src_zstd",
     "nfpm_linux_arm64",
@@ -1624,6 +1654,7 @@ use_repo(
     "opam_macos_arm64",
     "opam_macos_x86_64",
     "opam_windows_x86_64",
+    "rules_cuda",
     "rules_d",
     "rules_dotnet",
     "rules_elixir",
@@ -1634,6 +1665,7 @@ use_repo(
     "rules_ocaml",
     "rules_powershell",
     "rules_ruby",
+    "rules_scala",
     "shared_tasks_adler2",
 )
 
@@ -1999,9 +2031,9 @@ cpan.lock(
 use_repo(cpan, perl_cpan = "perl_app_cpan")
 
 cuda = use_extension("//cuda:extensions.bzl", "cuda")
-use_repo(cuda, "cuda")
+use_repo(cuda, "cuda", "dx_cuda_toolchain")
 
-register_toolchains("@cuda//toolchain/...")
+register_toolchains("//cuda/private/toolchain/hub:all")
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
 use_repo(erlang, "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlang_toolchains__windows_arm64", "dx_erlang_toolchains__windows_x86_64", "dx_erlperf")
@@ -2103,7 +2135,7 @@ luarocks.lock(
 use_repo(luarocks, "rocks_lua.tests.luarocks")
 
 php = use_extension("//php:extensions.bzl", "php")
-use_repo(php, "dx_composer", "dx_php_pcov", "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_phpunit", "dx_unused_public", "dx_webmozart_assert")
+use_repo(php, "dx_php_coverage_windows_x86_64", "dx_php_pcov", "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_unused_public", "dx_webmozart_assert", "php_composer", "php_launcher", "php_phpunit")
 
 register_toolchains("@dx_php_toolchains//:all")
 
@@ -2284,7 +2316,6 @@ single_version_override(
     module_name = "rules_py",
     patch_strip = 1,
     patches = [
-        "//patches/rules_py:py_cc_toolchain_platform.patch",
         "//patches/rules_py:native_sdist_toolchain_flags.patch",
         "//patches/rules_py:pep517_msvc.patch",
         "//patches/rules_py:venv_bin_files.patch",
@@ -2540,7 +2571,7 @@ use_repo(
 )
 
 sdist_cargo_vendor = use_extension(
-    "//python:extensions.bzl",
+    "//python/tests:sdist_cargo_vendor.bzl",
     "sdist_cargo_vendor",
     dev_dependency = True,
 )
@@ -2977,7 +3008,6 @@ crate.from_cargo(
         "//tools/testing/nested:Cargo.toml",
         "//tools/testing/lsp:Cargo.toml",
         "//tools/testing/floor:Cargo.toml",
-        "//tools/testing/starters:Cargo.toml",
         "//core/modules:Cargo.toml",
         "//tools/testing/wasi:Cargo.toml",
         "//api_spec/private/codegen:Cargo.toml",

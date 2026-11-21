@@ -44,9 +44,10 @@ The guards check the rules of `docs/design/tests.md`.
 
 ## Rule-set loads
 
-- `//tools/ci:rule_set_loads_test` scans the `php`, `lua` and `qt` build-rule files named by `RULE_SETS` in `tools/ci/rule_set_loads_test.rs`: the public `defs.bzl` and `extensions.bzl`, `private/` rule code, toolchain, runtime and lock hub. Quality, coverage, tools, `lang.json` and tests are not rule-set files.
-- It has two kinds:
+- `//tools/ci:rule_set_loads_test` scans the `php`, `lua` and `qt` build-rule files named by `RULE_SETS` in `tools/ci/rule_set_loads_test.rs`: the public `defs.bzl` and `extensions.bzl`, `private/` rule code, toolchain, runtime and lock hub. `private/defs.bzl` is the dx wrapper, not a rule-set file. Quality, coverage, tools, `lang.json` and tests are not rule-set files either.
+- It has three kinds:
   - `foreign-load`: a `load()` in a rule-set file of a label that is not in the same language, in `@rules_cc`, `@platforms`, `@bazel_skylib`, `@bazel_tools`, `@rules_shell`, `@bazel_lib`, `@llvm` or `@crates`, or in `RULES_DX_ALLOW`. `@rules_dx//x` and `//x` are one label and `:x` is resolved.
+  - `foreign-label`: a label string outside `load()` in a rule-set file that names a `dx_` repo or a `rules_dx` package outside the rule set.
   - `reaches-rule-set`: a file in the `load()` closure of `RULES_DX_ALLOW` is a rule-set file. The failure prints the chain.
 - `tools/ci/rule_set_loads_allowlist.txt` has lines `<path> <kind> <count>` under the same rules as the tags allowlist. It only shrinks.
 
@@ -69,11 +70,11 @@ The guards check the rules of `docs/design/tests.md`.
 
 ## In-graph prebuilt guard
 
-- `//cli/prebuilt:guard_view` is a bool flag. When rules_dx is the root module and the flag is set, `@dx_prebuilt` and `@dx_gazelle` serve `//cli/prebuilt:guard_stub` for every tool they build from source. Its scope is `universal`, so it keeps its value in the exec configuration. `//cli/prebuilt:guard_view_test` checks that exec-configured hub tools resolve to the stub.
-- `tools/testing/consumer/fixtures.bzl` splits `CONSUMER_FIXTURES` into `GO_GUARD_LANGS` and `JAVA_GUARD_LANGS`, held by the nested `go_prebuilt_guard_test` and `java_prebuilt_guard_test`, `IN_GRAPH_GUARD_LANGS`, `MACOS_IN_GRAPH_GUARD_LANGS`, and `GUARD_PENDING`. `//tools/testing/consumer:in_graph_prebuilt_guard_test` fails unless each fixture is in exactly one list.
+- `//cli/prebuilt:guard_view` is a bool flag. When rules_dx is the root module and the flag is set, `@dx_prebuilt`, `@dx_gazelle` and `@php_launcher` serve `//cli/prebuilt:guard_stub` for every tool they build from source. Its scope is `universal`, so it keeps its value in the exec configuration. `//cli/prebuilt:guard_view_test` checks that exec-configured hub tools resolve to the stub.
+- `tools/testing/consumer/fixtures.bzl` splits `CONSUMER_FIXTURES` into `GO_GUARD_LANGS` and `JAVA_GUARD_LANGS`, held by the nested `go_prebuilt_guard_test` and `java_prebuilt_guard_test`, `IN_GRAPH_GUARD_LANGS`, `MACOS_IN_GRAPH_GUARD_LANGS`, `WINDOWS_IN_GRAPH_GUARD_LANGS` and `GUARD_PENDING`. `//tools/testing/consumer:in_graph_prebuilt_guard_test` fails unless each fixture is in exactly one list.
 - `JAVA_GUARD_LANGS` holds `java` only.
 - The nested guards pin every registry key of each `//cli/prebuilt:target_tools` tool and write `dx_target_guard`, whose `targets` depend on the hub target of each such tool through a split transition over `@rules_dx//tools/platforms:<key>` for each of its keys. They fail when a target tool does not select its download for each key.
 - `//tools/testing/consumer:in_graph_prebuilt_guard` writes, per `IN_GRAPH_GUARD_LANGS` language or per language of its space-separated `--langs` list, `check` and `docs` targets whose `deps` carry the `dx check` and `dx docs` aspects over the non-manual rules of `@dx_api_fixtures//<lang>/tests/consumer`, injects them with `--inject_repository`, and runs `bazel cquery 'deps(...)'` with the flag and `--lockfile_mode=error`.
 - Each label is mapped to the form a consumer sees: the fixtures repo is the main repo, `@@//` is `@@rules_dx+//` and `@@+` is `@@rules_dx++`. The compiled binaries are checked against `tools/testing/consumer/prebuilt_guard_allowlist.txt` by the rules of `//tools/testing/consumer:prebuilt_guard`.
 - Both guards drop a rules_dx binary whose every rule is a `java_binary` and whose `deps` hold no rules_dx `java_`, `kt_jvm_` or `scala_` rule with `srcs`. The in-graph guard maps each label back with `root_label` for that cquery.
-- The `in-graph-prebuilt-guard` job of `.github/workflows/ci.yml` runs it with `bazel run` and passes Bazel with `--bazel`: on linux_x86_64 over `IN_GRAPH_GUARD_LANGS`, and on macos_arm64 with `--langs` set to `MACOS_IN_GRAPH_GUARD_LANGS`. `in_graph_prebuilt_guard_test` fails when the `langs` of the macos_arm64 matrix entry differ from that list.
+- The `in-graph-prebuilt-guard` job of `.github/workflows/ci.yml` runs it with `bazel run --bazel`: on linux_x86_64 over `IN_GRAPH_GUARD_LANGS`, and on macos_arm64 and windows_x86_64 with `--langs` set to `MACOS_IN_GRAPH_GUARD_LANGS` and `WINDOWS_IN_GRAPH_GUARD_LANGS`. `in_graph_prebuilt_guard_test` fails when a leg's `langs` differ from its list.

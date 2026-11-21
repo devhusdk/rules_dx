@@ -216,7 +216,7 @@ def hub_build():
     return pins_hub(
         HUB_NAME,
         list(LDC_CELLS.keys()) + list(LDC_CROSS_CELLS.keys()),
-        str(Label("//d/private/toolchain:toolchain_type")),
+        str(Label("//d:toolchain_type")),
         "both",
         os_constraints = {"windows": [MSVC_ABI]},
         cell_constraints = cross_constraints,

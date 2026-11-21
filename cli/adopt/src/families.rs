@@ -109,6 +109,20 @@ pub fn file_extensions(root: &Path) -> BTreeSet<String> {
         .collect()
 }
 
+/// The marks that select quality aspect files for the workspace at `root`: its
+/// [`file_extensions`] and a `license:<id>` mark for each license its `MODULE.bazel` accepts.
+#[must_use]
+pub fn quality_marks(root: &Path) -> BTreeSet<String> {
+    let mut marks = file_extensions(root);
+    let module = std::fs::read_to_string(root.join("MODULE.bazel")).unwrap_or_default();
+    marks.extend(
+        crate::licenses::accepted_license_ids(&module)
+            .iter()
+            .map(|id| dx_families::license_mark(id)),
+    );
+    marks
+}
+
 /// Whether a BUILD file under `root` calls `deployment` or a `*_deploy` macro
 /// loaded from rules_dx `deploy:defs.bzl`.
 pub(crate) fn has_deployment(root: &Path) -> bool {
@@ -377,6 +391,21 @@ mod tests {
                 "{id} has a lang.json quality entry; drop its OTHER_FAMILIES row"
             );
         }
+    }
+
+    #[test]
+    fn quality_marks_add_the_accepted_licenses_to_the_extensions() {
+        let dir = workspace(&["app/Main.java"], false);
+        assert!(!quality_marks(dir.path()).contains("license:android-sdk-license"));
+        write(
+            dir.path(),
+            MODULE_FILE,
+            "lic = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_licenses\")\nlic.accept(ids = [\"android-sdk-license\"])\n",
+        )
+        .unwrap();
+        let marks = quality_marks(dir.path());
+        assert!(marks.contains(".java"), "{marks:?}");
+        assert!(marks.contains("license:android-sdk-license"), "{marks:?}");
     }
 
     fn workspace(files: &[&str], with_git: bool) -> dx_test_scratch::TempDir {

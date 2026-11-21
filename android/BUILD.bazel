@@ -97,6 +97,7 @@ filegroup(
         "//android/private/library:module_srcs",
         "//android/private/packaging:module_srcs",
         "//android/private/platforms:module_srcs",
+        "//android/private/quality:module_srcs",
         "//android/private/sdk:module_srcs",
         "//android/private/toolchain:module_srcs",
     ],

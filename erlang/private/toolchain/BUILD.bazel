@@ -12,8 +12,6 @@ exports_files([
     "extensions.bzl",
 ])
 
-toolchain_type(name = "exec_toolchain_type")
-
 otp_cell_settings(name = "cell")
 
 build_test(

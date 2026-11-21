@@ -1,6 +1,7 @@
 """Opt-in Android NDK and build-tools acquisition."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
+load("//core:cells.bzl", "unsupported_constraint")
 load("//core:host.bzl", "host_cell")
 
 ANDROID_NDK_REVISION = "27.0.12077973"
@@ -221,6 +222,13 @@ PLATFORM_CONSTRAINTS = {
     "windows_arm64": ["@platforms//os:windows", "@platforms//cpu:arm64"],
     "windows_x86_64": ["@platforms//os:windows", "@platforms//cpu:x86_64"],
 }
+
+# Hosts Google ships no SDK for; every hub alias resolves to an incompatible target there.
+SDK_UNSUPPORTED_HOSTS = {
+    "linux_arm64": ["@platforms//os:linux", "@platforms//cpu:arm64"],
+}
+
+_NO_SDK_HOST_COMPATIBLE_WITH = [str(Label("@platforms//:incompatible")), str(unsupported_constraint("android"))]
 
 # Libraries each build-tools binary loads from the archive; the Windows tools need only the system CRT.
 BUILD_TOOLS_LIBS = {
@@ -583,6 +591,8 @@ def _hub_target(lines, name, repos, actual, error):
         lines.append("    actual = select({")
         for platform in sorted(repos.keys()):
             lines.append('        ":%s": "@%s//:%s",' % (platform, repos[platform], actual))
+        for platform in sorted(SDK_UNSUPPORTED_HOSTS.keys()):
+            lines.append('        ":%s": ":no_sdk_host",' % platform)
         lines.append("    }, no_match_error = \"%s\")," % error)
         lines.append('    visibility = ["//visibility:public"],')
         lines.append(")")
@@ -617,14 +627,21 @@ def hub_build(ndk_repos, build_tools_repos, bundletool_repo, *, platform_repo = 
     if bundletool_repo == "":
         fail("rules_dx: hub_build needs the bundletool repository name")
     lines = []
-    for platform in sorted(PLATFORM_CONSTRAINTS.keys()):
+    constraints = PLATFORM_CONSTRAINTS | SDK_UNSUPPORTED_HOSTS
+    for platform in sorted(constraints.keys()):
         lines.append("config_setting(")
         lines.append('    name = "%s",' % platform)
         lines.append("    constraint_values = [")
-        for constraint in PLATFORM_CONSTRAINTS[platform]:
+        for constraint in constraints[platform]:
             lines.append('        "%s",' % constraint)
         lines.append("    ],")
         lines.append(")")
+    lines.append("")
+    lines.append("filegroup(")
+    lines.append('    name = "no_sdk_host",')
+    lines.append("    srcs = [],")
+    lines.append("    target_compatible_with = [%s]," % ", ".join(['"%s"' % label for label in _NO_SDK_HOST_COMPATIBLE_WITH]))
+    lines.append(")")
     lines.append("")
     _hub_target(lines, "ndk", ndk_repos, "ndk_anchor", no_match_error())
     lines.append("")

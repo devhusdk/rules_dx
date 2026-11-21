@@ -23,14 +23,6 @@ filegroup(
     ],
 )
 
-filegroup(
-    name = "module_srcs",
-    srcs = [
-        ":extension_srcs",
-        "//:module_srcs",
-    ],
-)
-
 platform(
     name = "linux_arm64",
     constraint_values = [

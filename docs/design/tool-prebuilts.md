@@ -56,12 +56,10 @@ A rule-set module (`rules_php`, `rules_lua`, `rules_qt`) builds its Rust tools w
 
 Rule set | Tool | Source | Prebuilt
 --- | --- | --- | ---
-rules_php | PHP launcher | Rust | yes
-rules_php | PCOV extension | C | yes
+rules_php | PHP launcher | Rust | rules_dx `dx-launcher` through `native_launcher_repos`; no `rules_php-launcher` asset
 rules_php | composer lock resolver | Rust | yes
-rules_lua | luarocks lock resolver | Rust | yes
 rules_lua | Lua launcher | C | no
-rules_qt | Qt launcher | C++ | no
+rules_qt | Qt launcher | Rust | yes
 
 ## Licences
 
@@ -98,7 +96,7 @@ core Python tools | per wheel | wheels on PyPI | rel | rel | rel | rel
 - nixfmt: the executable depends on the `unix` package, so no Windows host is supported.
 - deadnix: the release carries `dx-deadnix-source.crate`.
 - selene: upstream zips lack the Lua 5.2 to 5.4 parsers. The default `std = "lua53+lua54"` (`lua/private/quality/selene.toml`) needs them, so every host is release-built from `@dx_selene_src`. Gate it on `//lua/tests:selene_smoke_test`.
-- kcov: `//tools/coverage/kcov:kcov_static` builds it against musl, statically linking elfutils (with `patches/elfutils/musl.patch`) and zlib. `dx-kcov-source.tar.gz` holds the kcov tarball, its patches, `kcov.BUILD` and the elfutils and zlib sources. Gate it on `//tools/coverage/kcov:smoke_test` and `//tools/coverage/kcov:static_smoke_test`. elfutils, zlib and `@kcov` are rules_dx dev dependencies, so only the rules_dx root builds kcov from source. `DEV_SOURCE_FALLBACK` in `cli/prebuilt/tools.bzl` makes a consumer hub serve `@rules_dx//tools/coverage/kcov:none` on a platform with no kcov pin, and that test writes no coverage.
+- kcov: `//tools/coverage/kcov:kcov_static` builds it against musl, statically linking elfutils (with the `patches/elfutils/` patches) and zlib. `dx-kcov-source.tar.gz` holds the kcov tarball, its patches, `kcov.BUILD` and the elfutils and zlib sources. Gate it on `//tools/coverage/kcov:smoke_test` and `//tools/coverage/kcov:static_smoke_test`. elfutils, zlib and `@kcov` are rules_dx dev dependencies, so only the rules_dx root builds kcov from source. `DEV_SOURCE_FALLBACK` in `cli/prebuilt/tools.bzl` makes a consumer hub serve `@rules_dx//tools/coverage/kcov:none` on a platform with no kcov pin, and that test writes no coverage.
 - zanuda reads `.cmt` files of the consumer's OCaml, whose toolchain has no Windows cell.
 - weeder reads `.hie` files and is built with the consumer's GHC. `windows_arm64` is unsupported because GHC ships no bindist for it.
 - hlint, ormolu and nixfmt: the `hackage` job in `release-tools.yml` builds `@haskell_<tool>_hackage` for each `rel` cell, against musl on linux arm64, and ships `dx-<tool>-LICENSE` from the locked source archive.

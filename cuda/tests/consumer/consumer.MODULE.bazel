@@ -3,4 +3,4 @@ module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "0.0.0")
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
-dx_licenses.accept(ids = ["cuda-eula"], terms_sha256 = {"cuda-eula": "d6de69eacd5644f0f84d2289a54d07d29017377d37ab28d0227b3df3509b1a60"})
+dx_licenses.accept(ids = ["cuda-eula", "visual-studio-build-tools"], terms_sha256 = {"cuda-eula": "d6de69eacd5644f0f84d2289a54d07d29017377d37ab28d0227b3df3509b1a60", "visual-studio-build-tools": "9284a30da91bfdf5c56a681a6c007a0376cec75f069596dc6d28c3218c9e23d3"})

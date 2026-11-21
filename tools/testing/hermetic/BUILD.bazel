@@ -506,11 +506,11 @@ hermetic_qualification(
 hermetic_qualification(
     name = "julia_fixture",
     files = {
-        "//tools/testing/starters/fixtures:julia/BUILD.bazel.fixture": "BUILD.bazel",
-        "//tools/testing/starters/fixtures:julia/Project.toml.fixture": "Project.toml",
-        "//tools/testing/starters/fixtures:julia/main.jl.fixture": "main.jl",
-        "//tools/testing/starters/fixtures:julia/src/DemoApp.jl.fixture": "src/DemoApp.jl",
-        "//tools/testing/starters/fixtures:julia/test/runtests.jl.fixture": "test/runtests.jl",
+        "consumers/julia_fixture/BUILD.bazel.fixture": "BUILD.bazel",
+        "consumers/julia_fixture/Project.toml.fixture": "Project.toml",
+        "consumers/julia_fixture/main.jl.fixture": "main.jl",
+        "consumers/julia_fixture/src/DemoApp.jl.fixture": "src/DemoApp.jl",
+        "consumers/julia_fixture/test/runtests.jl.fixture": "test/runtests.jl",
     },
     languages = ["julia"],
     module_fragment = "consumers/julia_fixture/module_fragment.bazel",
@@ -668,7 +668,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "qt_tasks",
-    srcs = ["//qt:module_srcs"],
+    srcs = ["//:module_srcs"],
     consumer_rows = ["qt"],
     files = {
         "consumers/qt_tasks/consumer.bazelrc": ".bazelrc",
@@ -956,7 +956,7 @@ rust_binary(
 
 hermetic_qualification(
     name = "qt_rust",
-    srcs = ["//qt:module_srcs"],
+    srcs = ["//:module_srcs"],
     consumer_rows = ["qt"],
     files = {
         "consumers/qt_rust/consumer.bazelrc": ".bazelrc",
@@ -1131,11 +1131,11 @@ hermetic_qualification(
     compiler = "llvm",
     failures = {"//probe:cxx_in_c": "cxx_in_c.c:1:10: fatal error: 'string' file not found"},
     files = {
-        "//tools/testing/starters/fixtures:c/BUILD.bazel.fixture": "BUILD.bazel",
-        "//tools/testing/starters/fixtures:c/hello.c.fixture": "hello.c",
-        "//tools/testing/starters/fixtures:c/hello.h.fixture": "hello.h",
-        "//tools/testing/starters/fixtures:c/hello_test.c.fixture": "hello_test.c",
-        "//tools/testing/starters/fixtures:c/main.c.fixture": "main.c",
+        "consumers/cc_fixture/c/BUILD.bazel.fixture": "BUILD.bazel",
+        "consumers/cc_fixture/c/hello.c.fixture": "hello.c",
+        "consumers/cc_fixture/c/hello.h.fixture": "hello.h",
+        "consumers/cc_fixture/c/hello_test.c.fixture": "hello_test.c",
+        "consumers/cc_fixture/c/main.c.fixture": "main.c",
         "consumers/cc_fixture/c_only.c": "probe/c_only.c",
         "consumers/cc_fixture/c_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_in_c.c": "probe/cxx_in_c.c",
@@ -1151,12 +1151,12 @@ hermetic_qualification(
     compiler = "llvm",
     failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:7: error: declaration of anonymous class must be a definition"},
     files = {
-        "//tools/testing/starters/fixtures:cpp/BUILD.bazel.fixture": "BUILD.bazel",
-        "//tools/testing/starters/fixtures:cpp/hello.cc.fixture": "hello.cc",
-        "//tools/testing/starters/fixtures:cpp/hello.h.fixture": "hello.h",
-        "//tools/testing/starters/fixtures:cpp/hello_test.cc.fixture": "hello_test.cc",
-        "//tools/testing/starters/fixtures:cpp/main.cc.fixture": "main.cc",
         "consumers/cc_fixture/c_in_cxx.cc": "probe/c_in_cxx.cc",
+        "consumers/cc_fixture/cpp/BUILD.bazel.fixture": "BUILD.bazel",
+        "consumers/cc_fixture/cpp/hello.cc.fixture": "hello.cc",
+        "consumers/cc_fixture/cpp/hello.h.fixture": "hello.h",
+        "consumers/cc_fixture/cpp/hello_test.cc.fixture": "hello_test.cc",
+        "consumers/cc_fixture/cpp/main.cc.fixture": "main.cc",
         "consumers/cc_fixture/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_only.cc": "probe/cxx_only.cc",
     },

@@ -1,8 +1,54 @@
 Upstream: bazel-contrib/rules_ruby#446
-diff -ruN a/ruby/private/binary/binary.cmd.tpl b/ruby/private/binary/binary.cmd.tpl
+diff --git a/ruby/private/binary.bzl b/ruby/private/binary.bzl
+index ca2a287a..ecbbf479 100644
+--- a/ruby/private/binary.bzl
++++ b/ruby/private/binary.bzl
+@@ -87,26 +87,23 @@ def generate_rb_binary_script(ctx, binary, bundler = False, args = [], env = {},
+     if binary and binary != toolchain.ruby:
+         binary_path = binary.short_path
+ 
+-        # Runfiles library for Windows does not support generated directories,
+-        # so for now we skip locating the binary in runfiles. This only prevents
+-        # running binary scripts directly and should not affect normal `bazel run`.
+-        # See BATCH_RLOCATION_FUNCTION comments for more details.
+-        if _is_windows(ctx):
++        # Binaries outside the main repository are always expected to be
++        # locatable through runfiles. Binaries in the main repository are
++        # resolved through runfiles when possible, so that they can be
++        # executed from any working directory (e.g. via --run_under or by
++        # running the launcher directly), and fall back to the relative
++        # path, which requires the default `bazel run` working directory.
++        if binary.short_path.startswith("../"):
++            binary_path = _to_rlocation_path(ctx, binary)
++            locate_binary_in_runfiles = "true"
++        elif _is_windows(ctx):
++            # The batch rlocation function exits on a miss, so the Windows
++            # launcher has no fallback and uses the relative path.
+             binary_path = _normalize_path(ctx, binary_path)
+         else:
+             binary_path = _to_rlocation_path(ctx, binary)
+-
+-            # Binaries outside the main repository are always expected to be
+-            # locatable through runfiles. Binaries in the main repository are
+-            # resolved through runfiles when possible, so that they can be
+-            # executed from any working directory (e.g. via --run_under or by
+-            # running the launcher directly), and fall back to the relative
+-            # path, which requires the default `bazel run` working directory.
+-            if binary.short_path.startswith("../"):
+-                locate_binary_in_runfiles = "true"
+-            else:
+-                binary_fallback_path = _normalize_path(ctx, binary.short_path)
+-                locate_binary_in_runfiles = "fallback"
++            binary_fallback_path = _normalize_path(ctx, binary.short_path)
++            locate_binary_in_runfiles = "fallback"
+ 
+         # JRuby's .cmd stubs are plain batch files, so they must be executed
+         # directly. MRI's are Ruby polyglots and only work via the interpreter.
+diff --git a/ruby/private/binary/binary.cmd.tpl b/ruby/private/binary/binary.cmd.tpl
+index 9a85eea2..1fe59255 100644
 --- a/ruby/private/binary/binary.cmd.tpl
 +++ b/ruby/private/binary/binary.cmd.tpl
-@@ -44,6 +44,12 @@
+@@ -44,6 +44,12 @@ if "{bundler_command}" neq "" (
    )
  )
  
@@ -14,8 +60,8 @@ diff -ruN a/ruby/private/binary/binary.cmd.tpl b/ruby/private/binary/binary.cmd.
 +
  if "%COVERAGE%" == "1" (
    call :rlocation {coverage_helper} _coverage_helper_path
-   set "RUBYOPT=-r!_coverage_helper_path:\=/! !RUBYOPT!"
-@@ -52,6 +58,6 @@
+   for %%a in ("!_coverage_helper_path!\..") do set "RUBYLIB=%%~fa;!RUBYLIB!"
+@@ -53,6 +59,6 @@ if "%COVERAGE%" == "1" (
    )
  )
  
@@ -23,26 +69,11 @@ diff -ruN a/ruby/private/binary/binary.cmd.tpl b/ruby/private/binary/binary.cmd.
 +{bundler_command} {ruby_binary_name} !binary! {args} %*
  
  :: vim: ft=dosbatch
-diff -ruN a/ruby/private/binary.bzl b/ruby/private/binary.bzl
---- a/ruby/private/binary.bzl
-+++ b/ruby/private/binary.bzl
-@@ -85,11 +85,7 @@
-     if binary and binary != toolchain.ruby:
-         binary_path = binary.short_path
- 
--        # Runfiles library for Windows does not support generated directories,
--        # so for now we skip locating the binary in runfiles. This only prevents
--        # running binary scripts directly and should not affect normal `bazel run`.
--        # See BATCH_RLOCATION_FUNCTION comments for more details.
--        if binary_path.startswith("../") and not _is_windows(ctx):
-+        if binary_path.startswith("../"):
-             binary_path = _to_rlocation_path(ctx, binary)
-             locate_binary_in_runfiles = "true"
-         else:
-diff -ruN a/ruby/private/utils.bzl b/ruby/private/utils.bzl
+diff --git a/ruby/private/utils.bzl b/ruby/private/utils.bzl
+index ed58c75e..0d03ad08 100644
 --- a/ruby/private/utils.bzl
 +++ b/ruby/private/utils.bzl
-@@ -52,29 +52,34 @@
+@@ -52,29 +52,37 @@ set abs_path=
  for /F "tokens=2* usebackq" %%i in (`%SYSTEMROOT%\system32\findstr.exe /l /c:"!runfile_path! " "%MF%"`) do (
    set abs_path=%%i
  )
@@ -63,6 +94,9 @@ diff -ruN a/ruby/private/utils.bzl b/ruby/private/utils.bzl
 -::     )
 -::   )
 -:: )
++:: The manifest has no entries for files inside directories (e.g. Bundler
++:: binstubs under `bin/private`), so look up the nearest parent directory entry
++:: and append the rest of the path to it.
 +if "!abs_path!" equ "" (
 +  set "rlocation_dir=!runfile_path!"
 +  set "rlocation_rest="

@@ -1,0 +1,21 @@
+Upstream: none (upstream-ready, not sent yet: #14414)
+diff --git a/lib/config.h b/lib/config.h
+--- a/lib/config.h
++++ b/lib/config.h
+@@ -49,6 +49,16 @@
+ #define _FILE_OFFSET_BITS 64
+ #define _LARGE_FILES 1
+ 
++/* aarch64 Linux: <sys/user.h> has struct user_regs_struct (glibc 2.20+, musl),
++   and <asm/ptrace.h> has struct user_pac_mask from Linux 5.0.  */
++#if defined __aarch64__ && defined __linux__
++#define HAVE_SYS_USER_REGS 1
++#include <linux/version.h>
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
++#define HAVE_USER_PACK_MASK 1
++#endif
++#endif
++
+ #include <eu-config.h>
+ 
+ #endif

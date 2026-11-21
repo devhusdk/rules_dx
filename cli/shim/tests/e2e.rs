@@ -4,6 +4,10 @@
 )]
 mod support;
 
+// Only the Unix stub_bazel fixture calls dx_testing.
+#[cfg(windows)]
+use dx_testing as _;
+
 use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};

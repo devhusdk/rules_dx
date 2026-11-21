@@ -493,6 +493,13 @@ def _android_checks():
         hub_build({}, {}, BUNDLETOOL_REPOSITORY),
         "\n".join([
             "config_setting(",
+            '    name = "linux_arm64",',
+            "    constraint_values = [",
+            '        "@platforms//os:linux",',
+            '        "@platforms//cpu:arm64",',
+            "    ],",
+            ")",
+            "config_setting(",
             '    name = "linux_x86_64",',
             "    constraint_values = [",
             '        "@platforms//os:linux",',
@@ -526,6 +533,12 @@ def _android_checks():
             '        "@platforms//os:windows",',
             '        "@platforms//cpu:x86_64",',
             "    ],",
+            ")",
+            "",
+            "filegroup(",
+            '    name = "no_sdk_host",',
+            "    srcs = [],",
+            '    target_compatible_with = ["' + str(Label("@platforms//:incompatible")) + '", "' + str(Label("//core/platforms:android_unsupported")) + '"],',
             ")",
             "",
             "filegroup(",
@@ -641,6 +654,10 @@ def _android_checks():
     sdk_hub = hub_build({}, build_tools_repositories(), BUNDLETOOL_REPOSITORY)
     checks.append(expect_contains("hub selects macos zipalign", sdk_hub, '":macos_arm64": "@dx_android_build_tools_macos_arm64//:zipalign"'))
     checks.append(expect_contains("hub selects windows_x86_64 zipalign on windows_arm64", sdk_hub, '":windows_arm64": "@dx_android_build_tools_windows_x86_64//:zipalign"'))
+    checks.append(expect_contains("hub declares linux_arm64", sdk_hub, 'name = "linux_arm64",'))
+    checks.append(expect_contains("hub sends linux_arm64 to no sdk host", sdk_hub, '":linux_arm64": ":no_sdk_host"'))
+    checks.append(expect_contains("hub keeps the build-tools no-match error", sdk_hub, build_tools_no_match_error()))
+    checks.append(expect_contains("no sdk host is incompatible", sdk_hub, '"' + str(Label("@platforms//:incompatible")) + '", "' + str(Label("//core/platforms:android_unsupported")) + '"'))
     anchor_build = ndk_build("source.properties", "linux_x86_64")
     checks.append(expect_contains("ndk build exposes the anchor", anchor_build, "extracted/source.properties"))
     checks.append(expect_contains("ndk build declares runtime libs", anchor_build, 'name = "runtime_libs"'))
@@ -741,6 +758,9 @@ def _toolchain_checks():
     checks.append(expect_contains("windows clang is its own ndk", pinned, 'clang = "@ndk_win//:clang"'))
     checks.append(expect_contains("windows resource dir", pinned, 'clang_resource_dir = "external/ndk_win/extracted/toolchains/llvm/prebuilt/windows-x86_64/lib/clang/18/include"'))
     checks.append(expect_contains("readelf follows the host", pinned, '":windows_x86_64": "@ndk_win//:llvm_readelf",'))
+    checks.append(expect_contains("readelf defaults to no ndk host", pinned, '"//conditions:default": ":no_ndk_host",'))
+    checks.append(expect_contains("declares no ndk host", pinned, 'name = "no_ndk_host",'))
+    checks.append(expect_contains("no ndk host is incompatible", pinned, '"' + str(Label("@platforms//:incompatible")) + '", "' + str(Label("//core/platforms:android_unsupported")) + '"'))
     checks.append(expect_contains("device linker files", pinned, "@ndk_repo//:linker_files_aarch64-linux-android"))
     checks.append(expect_contains("emulator linker files", pinned, "@ndk_repo//:linker_files_x86_64-linux-android"))
     checks.append(expect_contains("linker stages ndk runtime libs", pinned, '"@ndk_repo//:runtime_libs"'))

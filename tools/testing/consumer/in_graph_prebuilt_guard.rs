@@ -282,6 +282,7 @@ mod tests {
             "DX_JAVA_GUARD_LANGS",
             "DX_IN_GRAPH_GUARD_LANGS",
             "DX_MACOS_IN_GRAPH_GUARD_LANGS",
+            "DX_WINDOWS_IN_GRAPH_GUARD_LANGS",
             "DX_GUARD_PENDING",
         ] {
             for lang in dx_testing::env_text(var).split_whitespace() {
@@ -322,12 +323,13 @@ mod tests {
         );
     }
 
-    /// The macos_arm64 leg of the ci.yml job passes `MACOS_IN_GRAPH_GUARD_LANGS` with `--langs`
-    /// and the linux_x86_64 leg passes none.
+    /// The macos_arm64 and windows_x86_64 legs of the ci.yml job pass their OS list with
+    /// `--langs` through bash, and the linux_x86_64 leg passes none.
     #[test]
-    fn the_macos_leg_runs_the_macos_list() {
+    fn each_os_leg_runs_its_list() {
         let workflow = dx_testing::env_text("DX_CI_WORKFLOW");
         let job = ci_workflow::job(workflow.trim(), "in-graph-prebuilt-guard").unwrap();
+        assert_eq!(job["defaults"]["run"]["shell"], "bash");
         let legs: BTreeMap<String, String> = job["strategy"]["matrix"]["include"]
             .as_array()
             .expect("in-graph-prebuilt-guard declares a matrix include list")
@@ -346,6 +348,10 @@ mod tests {
                 (
                     "macos_arm64".to_owned(),
                     dx_testing::env_text("DX_MACOS_IN_GRAPH_GUARD_LANGS")
+                ),
+                (
+                    "windows_x86_64".to_owned(),
+                    dx_testing::env_text("DX_WINDOWS_IN_GRAPH_GUARD_LANGS")
                 ),
             ])
         );

@@ -7,7 +7,7 @@ load("//julia/private:defs.bzl", "JULIA_COMPATIBLE_WITH")
 load("//rust:defs.bzl", "rust_test")
 load(":julia_tool.bzl", "dx_julia_tool")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "Manifest.bazel.json",

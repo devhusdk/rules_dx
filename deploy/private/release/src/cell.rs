@@ -68,6 +68,7 @@ pub struct Cell {
     pub format: String,
     pub exe: String,
     pub runtime: Vec<String>,
+    pub notices: Vec<String>,
 }
 
 impl Cell {
@@ -330,6 +331,18 @@ fn cell_error(cell: &Cell) -> Option<String> {
         }
         if !members.insert(member) {
             return Some(format!("member {member:?} is listed twice"));
+        }
+    }
+    let mut notices = BTreeSet::new();
+    for notice in &cell.notices {
+        if notice.contains('/') {
+            return Some(format!("notice {notice:?} must be a top-level name"));
+        }
+        if let Some(reason) = dx_deploy_tools::member_name_error(notice) {
+            return Some(reason);
+        }
+        if !notices.insert(notice) {
+            return Some(format!("notice {notice:?} is listed twice"));
         }
     }
     None
@@ -812,10 +825,16 @@ fn note_layout(
     exe: &Path,
     verdicts: &mut Verdicts,
 ) {
-    let have: BTreeSet<&str> = listing.iter().map(|entry| entry.0.as_str()).collect();
-    let want: BTreeSet<&str> = ["LICENSE", "NOTICE", "IDENTITY.txt", cell.exe.as_str()]
+    let have: BTreeSet<String> = listing.iter().map(|entry| entry.0.clone()).collect();
+    let want: BTreeSet<String> = ["LICENSE", "NOTICE", "IDENTITY.txt", cell.exe.as_str()]
         .into_iter()
         .chain(cell.runtime.iter().map(String::as_str))
+        .map(str::to_owned)
+        .chain(
+            cell.notices
+                .iter()
+                .map(|notice| format!("notices/{notice}")),
+        )
         .collect();
     verdicts.note(
         "members",

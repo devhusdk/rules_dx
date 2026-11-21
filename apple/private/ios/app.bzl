@@ -13,7 +13,8 @@ load("//apple/private/bundle:defs.bzl", "EXTRA_TOOLCHAINS_SETTING", "NO_PATH", "
 load("//apple/private/bundle:pins.bzl", "IOS_DEPLOYMENT", "XCODE_VERSION")
 load("//apple/private/xcode:license.bzl", "XCODE_LICENSE_ATTR")
 load("//core:resources.bzl", "dx_heavy_resources")
-load("//core/quality:sources.bzl", "single_target")
+load("//core:wrapper.bzl", "dx_quality_sources")
+load("//core/quality:sources.bzl", "UPSTREAM_CC_CLASS_EXTENSIONS", "single_target")
 load(":app_validate.bzl", "ios_app_errors", "ios_test_coverage_kwargs", "ios_test_errors", "ios_test_source_errors", "ios_xcframework_errors", "ios_xcframework_header_name_errors")
 load(
     ":cell.bzl",
@@ -24,8 +25,10 @@ load(
     "ios_platform",
     "target_cell",
 )
-load(":defs.bzl", "AppleIosLibInfo", "ios_platform_errors", "ios_platforms", "ios_slice", "split_platform")
+load(":defs.bzl", "AppleIosLibInfo", "ios_cell_transition", "ios_platform_errors", "ios_platforms", "ios_slice", "split_platform")
 load(":validate.bzl", "ios_arch_errors", "ios_environment_errors", "ios_sdk_for")
+
+_QUALITY_SPECS = [(k, UPSTREAM_CC_CLASS_EXTENSIONS[k]) for k in ("c", "cpp", "objc", "objcpp")]
 
 _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -344,6 +347,7 @@ def _device_app_impl(ctx):
             profile = ctx.file.profile,
         ),
         bundle[AppleBundleInfo],
+        dx_quality_sources(ctx.files.srcs + ctx.files.hdrs, _QUALITY_SPECS, str(ctx.label)),
     ]
     if OutputGroupInfo in bundle:
         providers.append(bundle[OutputGroupInfo])
@@ -366,15 +370,36 @@ _device_app = rule(
     implementation = _device_app_impl,
     doc = "Builds one device app bundle signed ad hoc whatever signing flags are set.",
     attrs = {
+        "arch": attr.string(
+            doc = "Device arch of the app cell.",
+            mandatory = True,
+        ),
         "bundle": attr.label(
             doc = "The upstream ios_application.",
             cfg = _device_cpu_transition,
             mandatory = True,
             providers = [AppleBundleInfo],
         ),
+        "deployment": attr.string(
+            doc = "Minimum iOS version of the app.",
+        ),
+        "environment": attr.string(
+            doc = "Environment of the app cell.",
+            mandatory = True,
+        ),
+        "hdrs": attr.label_list(doc = "Headers of the app entry point.", allow_files = True),
+        "srcs": attr.label_list(doc = "Sources of the app entry point.", allow_files = True),
+        "upstream": attr.label(
+            doc = "The app entry point objc_library, compiled for the app cell.",
+            cfg = ios_cell_transition,
+            providers = [CcInfo],
+        ),
         "profile": attr.label(
             doc = "The declared .mobileprovision file.",
             allow_single_file = [".mobileprovision"],
+        ),
+        "xcode_version": attr.string(
+            doc = "Xcode version the app build is pinned to.",
         ),
     },
 )
@@ -394,7 +419,11 @@ def _simulator_app_impl(ctx):
             runfiles = ctx.runfiles(files = [runner]).merge(bundle[DefaultInfo].default_runfiles),
             executable = runner,
         )
-    providers = [default_info, bundle[AppleBundleInfo]]
+    providers = [
+        default_info,
+        bundle[AppleBundleInfo],
+        dx_quality_sources(ctx.files.srcs + ctx.files.hdrs, _QUALITY_SPECS, str(ctx.label)),
+    ]
     if OutputGroupInfo in bundle:
         providers.append(bundle[OutputGroupInfo])
     return providers
@@ -434,6 +463,13 @@ _simulator_app = rule(
         "environment": attr.string(
             doc = "Environment of the app cell.",
             mandatory = True,
+        ),
+        "hdrs": attr.label_list(doc = "Headers of the app entry point.", allow_files = True),
+        "srcs": attr.label_list(doc = "Sources of the app entry point.", allow_files = True),
+        "upstream": attr.label(
+            doc = "The app entry point objc_library, compiled for the app cell.",
+            cfg = ios_cell_transition,
+            providers = [CcInfo],
         ),
         "xcode_version": attr.string(
             doc = "Xcode version the app build is pinned to, or empty for the build setting.",
@@ -518,7 +554,9 @@ def apple_ios_app(
             visibility = ["//visibility:private"],
         )
         app_deps = [":" + name + "_entry"]
+        upstream = ":" + name + "_entry"
     else:
+        upstream = None
         app_deps = [
             entry,
             ":" + name + "_selection",
@@ -563,8 +601,15 @@ def apple_ios_app(
         )
         _device_app(
             name = name,
+            arch = arch,
             bundle = ":" + name + "_bundle",
+            deployment = deployment,
+            environment = environment,
+            hdrs = hdrs,
             profile = provisioning_profile,
+            srcs = srcs,
+            upstream = upstream,
+            xcode_version = xcode_version,
             tags = tags,
             testonly = testonly,
             target_compatible_with = APPLE_HOSTS,
@@ -593,6 +638,9 @@ def apple_ios_app(
         bundle = ":" + name + "_bundle",
         deployment = deployment,
         environment = environment,
+        hdrs = hdrs,
+        srcs = srcs,
+        upstream = upstream,
         xcode_version = xcode_version,
         tags = tags,
         testonly = testonly,

@@ -17,10 +17,7 @@ const DEFAULT_REPO: &str = "devhusdk/rules_dx";
 /// Releases API path for the repo the release job runs in, so forks work.
 fn release_api(repo: Option<String>) -> String {
     let repo = repo.filter(|r| !r.is_empty());
-    format!(
-        "repos/{}/releases/tags",
-        repo.as_deref().unwrap_or(DEFAULT_REPO)
-    )
+    format!("repos/{}/releases", repo.as_deref().unwrap_or(DEFAULT_REPO))
 }
 
 fn resolve_assets(argv: &[String]) -> &[String] {
@@ -59,7 +56,15 @@ fn scrub(text: &str, secret: Option<&str>) -> String {
 
 impl ReleaseBackend for GhBackend {
     fn view(&self, tag: &str) -> Result<String, LedgerError> {
-        self.call(&["api", &format!("{}/{tag}", self.api)])
+        let filter = format!(".[] | select(.tag_name == \"{tag}\")");
+        let url = format!("{}?per_page=100", self.api);
+        let found = self.call(&["api", "--paginate", &url, "--jq", &filter])?;
+        if found.trim().is_empty() {
+            return Err(LedgerError::GhFailed {
+                stderr: format!("no release for {tag}; create the draft first"),
+            });
+        }
+        Ok(found)
     }
 
     fn upload(&self, tag: &str, path: &str) -> Result<String, LedgerError> {
@@ -261,12 +266,12 @@ mod tests {
 
     #[test]
     fn release_api_defaults_and_follows_the_fork() {
-        let default = "repos/devhusdk/rules_dx/releases/tags";
+        let default = "repos/devhusdk/rules_dx/releases";
         assert_eq!(release_api(None), default);
         assert_eq!(release_api(Some(String::new())), default);
         assert_eq!(
             release_api(Some("me/rules_dx-forktest".to_owned())),
-            "repos/me/rules_dx-forktest/releases/tags"
+            "repos/me/rules_dx-forktest/releases"
         );
     }
 
@@ -555,6 +560,69 @@ mod tests {
         assert_eq!(code, 0);
         assert!(text.contains("\"state\": \"validated\""));
         assert!(text.contains("\"operation\": \"publish\""));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn view_lists_releases_and_filters_by_tag() {
+        let dir = std::env::temp_dir().join(format!("rd-view-{}", std::process::id()));
+        let args = dir.join("args");
+        let backend = GhBackend {
+            program: fake_gh(
+                &dir.join("bin"),
+                &format!(
+                    "printf '%s\\n' \"$@\" > {}; echo '{{\"draft\":true}}'",
+                    args.display()
+                ),
+            ),
+            token: None,
+            api: release_api(None),
+        };
+        assert_eq!(
+            backend.view("v1.2.3").expect("view").trim(),
+            "{\"draft\":true}"
+        );
+        let seen = std::fs::read_to_string(&args).expect("args");
+        let seen: Vec<&str> = seen.lines().collect();
+        assert_eq!(
+            seen,
+            [
+                "api",
+                "--paginate",
+                "repos/devhusdk/rules_dx/releases?per_page=100",
+                "--jq",
+                ".[] | select(.tag_name == \"v1.2.3\")",
+            ]
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn view_without_a_matching_release_fails_naming_the_tag() {
+        let dir = std::env::temp_dir().join(format!("rd-none-{}", std::process::id()));
+        let asset = dir.join("a.bin");
+        std::fs::create_dir_all(&dir).expect("dir");
+        std::fs::write(&asset, b"x").expect("asset");
+        let backend = GhBackend {
+            program: fake_gh(&dir.join("bin"), "exit 0"),
+            token: None,
+            api: release_api(None),
+        };
+        let error = backend.view("v1.2.3").unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "no release for v1.2.3; create the draft first"
+        );
+        let (text, code) = ledger_with(
+            &backend,
+            "v1.2.3",
+            &[asset.to_string_lossy().into_owned()],
+            true,
+        );
+        assert_eq!(code, 1);
+        assert!(text.contains("no release for v1.2.3"), "{text}");
         std::fs::remove_dir_all(&dir).ok();
     }
 

@@ -730,17 +730,6 @@ fn run_fresh_copy(copy: &Path) -> std::process::Output {
     panic!("{copy:?} stayed busy: a concurrent fork kept its write handle open");
 }
 
-#[cfg(not(windows))]
-fn assert_launcher_refusal(code: Option<i32>, stderr: &str) {
-    assert_eq!(code, Some(127));
-    assert!(
-        stderr.starts_with("rules_dx: cannot find the Qt runfiles of ")
-            && stderr.ends_with(" for bin/qmllint\n"),
-        "{stderr}"
-    );
-}
-
-#[cfg(windows)]
 fn assert_launcher_refusal(code: Option<i32>, stderr: &str) {
     assert_eq!(code, Some(1), "{stderr}");
     assert!(

@@ -43,7 +43,7 @@ git push origin v0.1.0
 
 The release workflow checks that `MODULE.bazel`, `cli/prebuilt/pins.bzl` and both constants in `cli/adopt/src/version.rs` say `0.1.0`. If one does not, it fails with `land the version bump first`.
 
-The `source` job also fails when `MODULE.bazel` overrides a `bazel_dep`, such as a rule-set module like `rules_php`, with `local_path_override`. The error names the module. Depend on its released version in the BCR before you tag.
+The `source` job also fails when `MODULE.bazel` overrides a `bazel_dep`, such as a rule-set module like `rules_php`, with `local_path_override` or `git_override`. The error names the module. Depend on its released version in the BCR before you tag.
 
 ## 4. Create the draft release
 
@@ -63,7 +63,7 @@ gh workflow run release.yml --ref v0.1.0
 Run it from the tag: the workflow only attests the files when it runs on the tag. It builds `dx` for every platform and uploads to the draft:
 
 - the source archive `rules_dx-0.1.0.tar.gz`, its `.sha256`, its attestation `rules_dx-0.1.0.tar.gz.intoto.jsonl`, and `source.json`
-- the `dx` archives, the `dx-launcher-<os>-<cpu>`, `dx-runtime-<os>-<cpu>`, `dx-<tool>-<os>-<cpu>` code generator (capnp, flatc, oapi-codegen, thrift) and `dx-go-<os>-<cpu>` binaries, the windows-arm64 `dx-tree-sitter-windows-arm64.dll` and `dx-tree-sitter-pkl-windows-arm64.dll` libraries, the linux and macOS `dx-pcov-<os>-<cpu>.so` PHP extensions, the linux-x86_64 `dx-julia-internal-linux-x86_64.so` library, `dx-capnp-LICENSE`, `dx-flatc-LICENSE`, `dx-julia-internal-LICENSE`, `dx-oapi-codegen-LICENSE`, `dx-pcov-LICENSE`, `dx-thrift-LICENSE`, `dx-tree-sitter-LICENSE` and `dx-tree-sitter-pkl-LICENSE`, listed in `dx-sha256sums.txt`
+- the `dx` archives, the `dx-launcher-<os>-<cpu>`, `dx-runtime-<os>-<cpu>`, `dx-<tool>-<os>-<cpu>` code generator (capnp, flatc, oapi-codegen, thrift), `dx-ldoc-main-<os>-<cpu>` and `dx-go-<os>-<cpu>` binaries, the windows-arm64 `dx-tree-sitter-windows-arm64.dll` and `dx-tree-sitter-pkl-windows-arm64.dll` libraries, the linux and macOS `dx-pcov-<os>-<cpu>.so` PHP extensions, the linux-x86_64 `dx-julia-internal-linux-x86_64.so` library, `dx-capnp-LICENSE`, `dx-flatc-LICENSE`, `dx-julia-internal-LICENSE`, `dx-ldoc-main-LICENSE`, `dx-oapi-codegen-LICENSE`, `dx-pcov-LICENSE`, `dx-thrift-LICENSE`, `dx-tree-sitter-LICENSE` and `dx-tree-sitter-pkl-LICENSE`, listed in `dx-sha256sums.txt`
 - the `dx-gazelle-<os>-<cpu>` binaries, listed in `dx-gazelle-sha256sums.txt`
 - the `dx-<tool>-any.jar` JVM tools (avro_union, dokka_extract, javac_check, javadoc_extract, jmh_generate, kotlinc_check, maven_resolver, scalac_check, scaladoc_extract), listed in `dx-jar-sha256sums.txt`
 - the `dx-<tool>-<os>-<cpu>` Haskell tools (hpc_lcov, weeder) for linux x86_64, linux arm64, macOS arm64 and Windows x86_64, `dx-hlint-linux-arm64`, `dx-hlint-macos-arm64` and `dx-ormolu-linux-arm64`, with `dx-weeder-LICENSE`, `dx-hlint-LICENSE`, `dx-ormolu-LICENSE` and the statically linked GMP's `dx-haskell-gmp-LICENSE`, `dx-haskell-gmp-source.tar.xz`, `dx-haskell-gmp-source.patch` and GHC in-tree GMP source `dx-haskell-gmp-ghc-source.tar.xz`, listed in `dx-haskell-sha256sums.txt`
@@ -85,7 +85,7 @@ After you fix the cause, run the workflow again with the same command.
 
 Open the draft on GitHub, check the notes and files, and publish it.
 
-Publishing starts `release-consumer.yml`. It builds a small consumer project against the published source archive on each platform and checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`, that topiary and progenitor are the prebuilt downloads, and on `windows-arm64` that the `pkl_lsp` natives jar packs the prebuilt tree-sitter DLLs. To run it again:
+Publishing starts `release-consumer.yml`. On each platform it downloads the published assets, checks the platform archive and the source archive with `gh attestation verify` against the published bundles, and builds a small consumer project whose `bazel_dep` resolves `rules_dx` through a registry: the BCR once it lists the version, otherwise a local registry made from the published `source.json` and the archive's `MODULE.bazel`. It checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`, that topiary and progenitor are the prebuilt downloads, and on `windows-arm64` that the `pkl_lsp` natives jar packs the prebuilt tree-sitter DLLs. It skips releases whose tag does not start with `v`, such as `mirror-php-<version>`. To run it again:
 
 ```sh
 gh workflow run release-consumer.yml -f tag=v0.1.0
@@ -95,7 +95,7 @@ Wait until every `consumer` job is green.
 
 ## 7. Submit to the Bazel Central Registry
 
-Once every `consumer` job is green, the `bcr` job in `release-consumer.yml` opens a draft pull request on the BCR that adds `rules_dx` at `0.1.0`. It reads the module root from `.bcr/config.yml`. The `bcr-ledger` job then records the pull request URL, or `failed`, in the run summary and the `bcr-ledger` artifact.
+Once every `consumer` job is green, the `bcr` job in `release-consumer.yml` opens a draft pull request on the BCR that adds `rules_dx` at `0.1.0`. It reads the module root from `.bcr/config.yml`. The `bcr` job skips `v0.0.*` tags. The `bcr-ledger` job then records the pull request URL, `failed`, or `not-authorized` while `BCR_REGISTRY_FORK` is unset, in the run summary and the `bcr-ledger` artifact. The `bcr` job is the only way `rules_dx` is submitted to the BCR.
 
 Before the first release, the owner sets up two things once:
 
@@ -104,13 +104,25 @@ Before the first release, the owner sets up two things once:
 
 The owner reviews the BCR pull request, waits for BCR CI, and marks it ready for review.
 
-If the `bcr` job is skipped or fails, check the entry by hand:
+After the BCR pull request merges, run the consumer again. Each `consumer` job then resolves `rules_dx` from the BCR alone:
+
+```sh
+gh workflow run release-consumer.yml -f tag=v0.1.0
+```
+
+If the `bcr` job fails, fix the cause and rerun the failed jobs:
+
+```sh
+gh run rerun <run-id> --failed
+```
+
+To check the entry shape without submitting:
 
 ```sh
 BCR_DRY_RUN=1 bazel run //deploy/private/release:bcr_demo
 ```
 
-It prints the pull request it would open and submits nothing. A failure names the field that is missing or does not match the module. Then open one BCR pull request yourself that adds `rules_dx` at `0.1.0` with the `source.json` from the release.
+It submits nothing. A failure names the field that is missing or does not match the module. Without `BCR_DRY_RUN=1` it exits with an error naming the `bcr` job.
 
 ## Release order with the rule-set modules
 
@@ -130,6 +142,6 @@ The first releases go:
 
 Versions are `0.x` semver. A minor release may change the API before `1.0`.
 
-While you work across both repositories you may point `rules_dx` at a local checkout of a rule set with `local_path_override`. Remove it before you tag: the `source` job fails and names the module.
+While you work across both repositories you may point `rules_dx` at a local checkout of a rule set with `local_path_override`, or at an unreleased commit with `git_override`. Remove it before you tag: the `source` job fails and names the module.
 
 `rules_dx` users write only `bazel_dep(name = "rules_dx", ...)` and load `@rules_dx//<lang>:defs.bzl`. `dx upgrade` moves them to new rule-set releases through `rules_dx`.

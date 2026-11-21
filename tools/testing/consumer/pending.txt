@@ -7,7 +7,6 @@ override single_version_override grpc
 override single_version_override llvm
 override single_version_override protoc-gen-validate
 override single_version_override rules_android
-override single_version_override rules_cuda
 override single_version_override rules_dart
 override single_version_override rules_go
 override single_version_override rules_py

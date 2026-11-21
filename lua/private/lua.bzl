@@ -1,6 +1,6 @@
 """Core Lua rules: modules, entry files and the shared launcher."""
 
-load(":providers.bzl", "LUA_ENTRY_SUFFIX", "LuaInfo")
+load(":providers.bzl", "LUA_ENTRY_SUFFIX", "LuaEntryInfo", "LuaInfo")
 
 LUA_TOOLCHAIN_TYPE = Label("//lua:toolchain_type")
 
@@ -62,6 +62,15 @@ def entry_lines(main_rlocation, source_repo, modules):
         lines.append(name + "\t" + rlocation)
     return "\n".join(lines) + "\n"
 
+def write_entry(ctx, output, main, source_repo, modules):
+    """Writes one .luaentry file; main is an rlocation and modules a depset of (name, File) tuples."""
+    module_map = _module_map(modules.to_list(), str(ctx.label))
+    ctx.actions.write(output, entry_lines(
+        main,
+        source_repo,
+        [(name, _runfiles_path(ctx.workspace_name, f.short_path)) for name, f in module_map.items()],
+    ))
+
 def lua_executable_name(name, launcher_basename):
     """Returns the executable file name of one Lua target, keeping the launcher's .exe."""
     if launcher_basename.endswith(".exe"):
@@ -118,7 +127,7 @@ def _validation(ctx, srcs):
     return outputs
 
 def _collect(ctx, srcs):
-    deps = ctx.attr.deps + getattr(ctx.attr, "_coverage", [])
+    deps = ctx.attr.deps
     own = _own_modules(ctx, srcs)
     modules = depset(own, transitive = [d[LuaInfo].modules for d in deps])
     _module_map(modules.to_list(), str(ctx.label))
@@ -128,7 +137,7 @@ def _collect(ctx, srcs):
     runfiles = runfiles.merge_all([d[LuaInfo].runfiles for d in deps])
     return modules, runfiles
 
-def lua_library_impl(ctx):
+def _lua_library_impl(ctx):
     """Returns the providers of one lua_library."""
     srcs = ctx.files.srcs
     modules, runfiles = _collect(ctx, srcs)
@@ -144,24 +153,24 @@ def lua_library_impl(ctx):
         ),
     ]
 
-def lua_executable_impl(ctx):
+def _lua_executable_impl(ctx):
     """Returns the providers of one lua_binary or lua_test."""
     main = ctx.file.main
     srcs = ctx.files.srcs
     own_srcs = [main] + [s for s in srcs if s != main]
     modules, runfiles = _collect(ctx, [s for s in own_srcs if s != main])
-    module_map = _module_map(modules.to_list(), str(ctx.label))
 
     toolchain = ctx.toolchains[LUA_TOOLCHAIN_TYPE]
     launcher = toolchain.launcher
     executable = ctx.actions.declare_file(lua_executable_name(ctx.label.name, launcher.basename))
     ctx.actions.symlink(output = executable, target_file = launcher, is_executable = True)
     entry = ctx.actions.declare_file(ctx.label.name + LUA_ENTRY_SUFFIX)
-    ctx.actions.write(entry, entry_lines(
-        _runfiles_path(ctx.workspace_name, main.short_path),
-        ctx.label.repo_name,
-        [(name, _runfiles_path(ctx.workspace_name, f.short_path)) for name, f in module_map.items()],
-    ))
+    entry_info = LuaEntryInfo(
+        main = _runfiles_path(ctx.workspace_name, main.short_path),
+        source_repo = ctx.label.repo_name,
+        modules = modules,
+    )
+    write_entry(ctx, entry, entry_info.main, entry_info.source_repo, entry_info.modules)
 
     runfiles = ctx.runfiles(files = [executable, entry, main]).merge_all([
         runfiles,
@@ -174,6 +183,7 @@ def lua_executable_impl(ctx):
     return [
         DefaultInfo(executable = executable, files = depset([executable, entry]), runfiles = runfiles),
         RunEnvironmentInfo(environment = env),
+        entry_info,
         OutputGroupInfo(_validation = depset(_validation(ctx, own_srcs))),
         coverage_common.instrumented_files_info(
             ctx,
@@ -198,7 +208,7 @@ _COMMON_ATTRS = {
     ),
 }
 
-LUA_LIBRARY_ATTRS = _COMMON_ATTRS | {
+_LUA_LIBRARY_ATTRS = _COMMON_ATTRS | {
     "import_prefix": attr.string(
         doc = "Module prefix added after strip_import_prefix, for example 'vendor.inspect'.",
     ),
@@ -207,7 +217,7 @@ LUA_LIBRARY_ATTRS = _COMMON_ATTRS | {
     ),
 }
 
-LUA_EXECUTABLE_ATTRS = LUA_LIBRARY_ATTRS | {
+_LUA_EXECUTABLE_ATTRS = _LUA_LIBRARY_ATTRS | {
     "env": attr.string_dict(
         doc = "Environment variables set when the target runs or is tested; $(location) is expanded.",
     ),
@@ -218,12 +228,7 @@ LUA_EXECUTABLE_ATTRS = LUA_LIBRARY_ATTRS | {
     ),
 }
 
-LUA_TEST_ATTRS = LUA_EXECUTABLE_ATTRS | {
-    "_coverage": attr.label_list(
-        default = [Label("//lua/private/coverage:libs")],
-        providers = [LuaInfo],
-        doc = "luacov and its LCOV reporter, present only under bazel coverage.",
-    ),
+_LUA_TEST_ATTRS = _LUA_EXECUTABLE_ATTRS | {
     "_lcov_merger": attr.label(
         default = configuration_field(fragment = "coverage", name = "output_generator"),
         executable = True,
@@ -232,6 +237,28 @@ LUA_TEST_ATTRS = LUA_EXECUTABLE_ATTRS | {
     ),
 }
 
-LUA_TOOLCHAINS = [LUA_TOOLCHAIN_TYPE]
+_LUA_TOOLCHAINS = [LUA_TOOLCHAIN_TYPE]
 
-LUA_SOURCE_SPECS = [("lua", ["lua"])]
+lua_library = rule(
+    implementation = _lua_library_impl,
+    doc = "Lua modules other Lua targets can require.",
+    attrs = _LUA_LIBRARY_ATTRS,
+    provides = [LuaInfo],
+    toolchains = _LUA_TOOLCHAINS,
+)
+
+lua_binary = rule(
+    implementation = _lua_executable_impl,
+    doc = "A Lua program that bazel run starts through the shared launcher.",
+    attrs = _LUA_EXECUTABLE_ATTRS,
+    executable = True,
+    toolchains = _LUA_TOOLCHAINS,
+)
+
+lua_test = rule(
+    implementation = _lua_executable_impl,
+    doc = "A Lua test; it passes when main returns or calls os.exit(0).",
+    attrs = _LUA_TEST_ATTRS,
+    test = True,
+    toolchains = _LUA_TOOLCHAINS,
+)

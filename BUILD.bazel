@@ -24,6 +24,7 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude gazelle/rust/testdata
 # gazelle:exclude go/tests/fixtures/gotype
 # gazelle:exclude go/private/tools/modfmt
+# gazelle:exclude go/private/tools/gofumpt
 # gazelle:exclude tools/docs/components/fixture
 # gazelle:exclude bcr_test_module/qt_hello
 # gazelle:exclude bcr_test_module/main_in_dep
@@ -54,7 +55,6 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude examples/adopt-polyglot
 # gazelle:exclude lua/tests/fixtures/selene
 # gazelle:exclude core/quality/testdata
-# gazelle:exclude tools/testing/starters/fixtures
 # gazelle:exclude deploy/private/release/consumer
 # gazelle:exclude tools/docs/typescript/fixture
 # gazelle:exclude tools/platforms/no_winsdk
@@ -250,22 +250,22 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude d/tests/fixtures/hello
 # gazelle:exclude core/quality/tests/fixtures/strict_preset
 # gazelle:exclude core/quality/tests/fixtures/consumer_policy
-# gazelle:exclude astro/tests/app
-# gazelle:exclude astro/tests/app_config/configs
-# gazelle:exclude astro/tests/app_config/src
-# gazelle:exclude astro/tests/typecheck
-# gazelle:exclude mdx/tests/app
-# gazelle:exclude mdx/tests/typecheck
-# gazelle:exclude svelte/tests/app
-# gazelle:exclude svelte/tests/app_errors
-# gazelle:exclude svelte/tests/typecheck
+# gazelle:exclude astro/tests/fixtures/app
+# gazelle:exclude astro/tests/fixtures/app_config/configs
+# gazelle:exclude astro/tests/fixtures/app_config/src
+# gazelle:exclude astro/tests/fixtures/typecheck
+# gazelle:exclude mdx/tests/fixtures/app
+# gazelle:exclude mdx/tests/fixtures/typecheck
+# gazelle:exclude svelte/tests/fixtures/app
+# gazelle:exclude svelte/tests/fixtures/app_errors
+# gazelle:exclude svelte/tests/fixtures/typecheck
 # gazelle:exclude typescript/tests/tags
 # gazelle:exclude typescript/tests/fixtures/declarations
 # gazelle:exclude typescript/tests/fixtures/hello
 # gazelle:exclude typescript/tests/fixtures/proto/stripped
 # gazelle:exclude typescript/tests/fixtures/proto/v1
-# gazelle:exclude vue/tests/app
-# gazelle:exclude vue/tests/typecheck
+# gazelle:exclude vue/tests/fixtures/app
+# gazelle:exclude vue/tests/fixtures/typecheck
 # gazelle:exclude .github/actions/assert-no-secret
 # gazelle:exclude .github/actions/remote-cache-helper
 # gazelle:exclude asciidoc/tests/fixtures
@@ -646,6 +646,7 @@ filegroup(
         "//csharp/private/tools/lock:module_srcs",
         "//csharp/tests/fixtures/roslyn:module_srcs",
         "//cuda:module_srcs",
+        "//cuda/private/toolchain/hub:module_srcs",
         "//cuda/tests:module_srcs",
         "//d:module_srcs",
         "//d/private:module_srcs",
@@ -784,6 +785,7 @@ filegroup(
         "//julia/private/tools/patches:module_srcs",
         "//kotlin:module_srcs",
         "//kotlin/private:module_srcs",
+        "//kotlin/private/quality:module_srcs",
         "//kotlin/tests/fixtures/kotlin_app/cli:module_srcs",
         "//kubernetes/private/quality:module_srcs",
         "//lua:module_srcs",
@@ -804,7 +806,6 @@ filegroup(
         "//ocaml/private/toolchain:module_srcs",
         "//ocaml/private/toolchain/platform/emitter:module_srcs",
         "//ocaml/private/toolchain/platform/executor:module_srcs",
-        "//ocaml/private/toolchain/type:module_srcs",
         "//ocaml/private/tools/lock:module_srcs",
         "//patches/apple_support:module_srcs",
         "//patches/avro-cpp:module_srcs",
@@ -895,7 +896,9 @@ filegroup(
         "//rust/tests/tonic:module_srcs",
         "//scala:module_srcs",
         "//scala/private:module_srcs",
+        "//scala/private/quality:module_srcs",
         "//scala/private/toolchain:module_srcs",
+        "//scala/private/toolchain/hub:module_srcs",
         "//sql/private:module_srcs",
         "//sql/private/quality:module_srcs",
         "//swift:module_srcs",
@@ -966,6 +969,7 @@ filegroup(
         "//tools/docs/julia/extract:module_srcs",
         "//tools/docs/jvm:module_srcs",
         "//tools/docs/jvm/convert:module_srcs",
+        "//tools/docs/kotlin:module_srcs",
         "//tools/docs/licenses:module_srcs",
         "//tools/docs/lua:module_srcs",
         "//tools/docs/lua/extract:module_srcs",
@@ -985,6 +989,7 @@ filegroup(
         "//tools/docs/ruby/extract:module_srcs",
         "//tools/docs/rust:module_srcs",
         "//tools/docs/rust/extract:module_srcs",
+        "//tools/docs/scala:module_srcs",
         "//tools/docs/site:module_srcs",
         "//tools/docs/site/aggregate:module_srcs",
         "//tools/docs/site/browser:module_srcs",
@@ -1010,7 +1015,6 @@ filegroup(
         "//tools/testing/lsp:module_srcs",
         "//tools/testing/nested:module_srcs",
         "//tools/testing/process_probe:module_srcs",
-        "//tools/testing/starters:module_srcs",
         "//tools/testing/wasi:module_srcs",
         "//tools/visibility:module_srcs",
         "//typescript:module_srcs",

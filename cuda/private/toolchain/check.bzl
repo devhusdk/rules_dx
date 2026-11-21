@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cuda//cuda/private:providers.bzl", "CudaToolkitInfo")
 load("//core/modules:cuda.bzl", "CUDA_ARCHS", "CUDA_CELLS", "CUDA_REDIST_VERSION", "CUDA_VERSION", "cuda_qualified_cells")
 
-_TOOLCHAIN_TYPE = "@rules_cuda//cuda:toolchain_type"
+_TOOLCHAIN_TYPE = "//cuda/private/toolchain/hub:toolchain_type"
 
 def arch_errors(archs):
     """Returns one error per arch spec token that the pinned nvcc does not support."""

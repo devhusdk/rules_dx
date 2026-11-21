@@ -61,6 +61,20 @@ def coreutils(ctx):
     """Returns the resolved coreutils: `binary`, `files` to add as inputs, and `path` for PATH."""
     return ctx.toolchains[COREUTILS_TOOLCHAIN_TYPE].coreutils
 
+def coreutils_copy(ctx, src, out, mnemonic):
+    """Copies src to out as a real file with the pinned `cp` applet; the rule must list `COREUTILS_TOOLCHAIN_TYPE`."""
+    tools = coreutils(ctx)
+    ctx.actions.run(
+        mnemonic = mnemonic,
+        executable = tools.path + "/" + applet_file_name("cp", tools.binary.basename),
+        arguments = [src.path, out.path],
+        inputs = [src],
+        tools = tools.files,
+        outputs = [out],
+        env = {"PATH": tools.path},
+        progress_message = "Copying %{output}",
+    )
+
 def _coreutils_applet_test_impl(ctx):
     tools = coreutils(ctx)
     out = ctx.actions.declare_file(ctx.label.name + ".txt")

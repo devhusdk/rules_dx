@@ -40,6 +40,14 @@
         "https://github.com/JuliaBinaryWrappers/LibUV_jll.jl/releases/download/LibUV-v2.0.1%2B22/LibUV.v2.0.1.x86_64-linux-gnu.tar.gz"
       ]
     },
+    "julia_src_libuv_aarch64": {
+      "version": "2.0.1+22",
+      "sha256": "7c39ba24ce5f5bb3737d1e11fbc4410faa1d00d47444cc7fcf997ddf507f150b",
+      "type": "tar.gz",
+      "urls": [
+        "https://github.com/JuliaBinaryWrappers/LibUV_jll.jl/releases/download/LibUV-v2.0.1%2B22/LibUV.v2.0.1.aarch64-linux-gnu.tar.gz"
+      ]
+    },
     "julia_src_utf8proc": {
       "version": "e5e799221b45bbb90f5fdc5c69b6b8dfbf017e78",
       "sha256": "8b9d92ebfc6ff54cf34b0f1d5879e284aebd67f0b44999497a9c7a918061f49b",

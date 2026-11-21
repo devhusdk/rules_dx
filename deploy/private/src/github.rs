@@ -133,11 +133,16 @@ fn attested_names(
     Ok(names)
 }
 
+/// The workflow that runs `actions/attest`, which `gh attestation verify` checks as the signer.
+const SIGNER_WORKFLOW: &str = "devhusdk/rules_dx/.github/workflows/reusable-release.yml";
+
 /// Formats the `## Attestations` section of the release body.
 pub fn attestation_section(repo: &str, names: &[String]) -> String {
     let mut text = String::from("## Attestations\n\n```sh\n");
     for name in names {
-        text.push_str(&format!("gh attestation verify {name} -R {repo}\n"));
+        text.push_str(&format!(
+            "gh attestation verify {name} -R {repo} --signer-workflow {SIGNER_WORKFLOW}\n"
+        ));
     }
     text.push_str("```\n");
     text
@@ -1309,7 +1314,7 @@ mod attestation_tests {
         let names = vec!["demo-1.0.0.crate".to_owned(), "demo-1.0.0.jar".to_owned()];
         assert_eq!(
             attestation_section("acme/demo", &names),
-            "## Attestations\n\n```sh\ngh attestation verify demo-1.0.0.crate -R acme/demo\ngh attestation verify demo-1.0.0.jar -R acme/demo\n```\n"
+            "## Attestations\n\n```sh\ngh attestation verify demo-1.0.0.crate -R acme/demo --signer-workflow devhusdk/rules_dx/.github/workflows/reusable-release.yml\ngh attestation verify demo-1.0.0.jar -R acme/demo --signer-workflow devhusdk/rules_dx/.github/workflows/reusable-release.yml\n```\n"
         );
     }
 

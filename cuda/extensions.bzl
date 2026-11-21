@@ -61,7 +61,7 @@ def _impl(module_ctx):
             )
             alias[component] = "@" + name
 
-    impl_name = "cuda_toolchain_" + version_label
+    impl_name = "dx_cuda_toolchain"
     cuda_toolkit(
         name = impl_name,
         components_mapping = exact,

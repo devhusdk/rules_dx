@@ -1,0 +1,25 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = [
+    "//:__pkg__",
+    "//android:__subpackages__",
+    "//core/quality:__subpackages__",
+    "//tools/ci:__pkg__",
+])
+
+exports_files(["android_sdk.bzl"])
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "android_sdk.bzl",
+    ],
+    tags = ["corpus"],
+)

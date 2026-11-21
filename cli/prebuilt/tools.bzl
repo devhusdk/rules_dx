@@ -58,7 +58,7 @@ def _hackage(tool, platforms):
         role = "exec",
         platforms = platforms,
         fallbacks = {},
-        source = "@rules_dx//haskell/private/tools/" + tool + "/bin:source",
+        source = "@rules_dx//haskell/private/tools/{}/bin:source".format(tool),
         member = "",
         main_class = "",
         library = "",
@@ -160,6 +160,16 @@ TOOLS = {
     "capnp": _native_exec("@dx_capnproto//src/capnp:capnp_tool"),
     "flatc": _native_exec("@dx_flatbuffers//:flatc"),
     "thrift": _native_exec("@dx_thrift//:thrift_compiler"),
+    "ldoc_main": struct(
+        asset = "dx-ldoc-main-{os}-{cpu}",
+        role = "exec",
+        platforms = _NATIVE,
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = "@rules_dx//tools/docs/lua:ldoc_main",
+        member = "",
+        main_class = "",
+        library = "",
+    ),
     # Upstream oapi-codegen, cross-built unmodified by the release-tools go job.
     "oapi_codegen": struct(
         asset = "dx-oapi-codegen-{os}-{cpu}",
@@ -245,7 +255,7 @@ PYTHON_BUNDLE_TOOLS = {
 DEV_SOURCE_FALLBACK = {"kcov": "@rules_dx//tools/coverage/kcov:none"}
 
 # The tools released as one native binary or shared library per platform.
-NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "julia_internal", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "pcov", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
+NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "julia_internal", "kcov", "launcher", "ldoc_main", "nixfmt", "oapi_codegen", "ormolu", "pcov", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])

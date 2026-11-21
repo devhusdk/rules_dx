@@ -13,8 +13,8 @@ const PURE: &str = "--@rules_go//go/config:pure";
 const RELEASE: &str = "//deploy/private/release";
 const GAZELLE: &str = "@dx_gazelle//:gazelle";
 const LAUNCHER: &str = "//cli/launcher:exec_launcher";
-/// The native build tools and the dx runtime a cell ships, by registry name in `cli/prebuilt/tools.bzl`.
-const NATIVE_TOOLS: [Tool; 4] = [
+/// The native build tools and the dx runtime a cell ships, by asset stem.
+const NATIVE_TOOLS: [Tool; 5] = [
     Tool {
         tool: "capnp",
         label: "@dx_capnproto//src/capnp:capnp_tool",
@@ -24,6 +24,14 @@ const NATIVE_TOOLS: [Tool; 4] = [
         tool: "flatc",
         label: "@dx_flatbuffers//:flatc",
         licenses: &["@dx_flatbuffers//:LICENSE"],
+    },
+    Tool {
+        tool: "ldoc-main",
+        label: "//tools/docs/lua:ldoc_main",
+        licenses: &[
+            "//lua/private:lua_LICENSE.txt",
+            "@dx_luafilesystem//:LICENSE",
+        ],
     },
     Tool {
         tool: "runtime",
@@ -715,6 +723,10 @@ mod tests {
             tool_asset_name("runtime", "dx-macos-arm64"),
             "dx-runtime-macos-arm64"
         );
+        assert_eq!(
+            tool_asset_name("ldoc-main", "dx-windows-arm64"),
+            "dx-ldoc-main-windows-arm64"
+        );
     }
 
     #[test]
@@ -725,7 +737,10 @@ mod tests {
                 .map(|tool| tool.tool)
                 .collect::<Vec<_>>()
         };
-        assert_eq!(tools("dx-linux-x86_64"), ["capnp", "flatc", "thrift"]);
+        assert_eq!(
+            tools("dx-linux-x86_64"),
+            ["capnp", "flatc", "ldoc-main", "thrift"]
+        );
         for cell in [
             "dx-linux-arm64",
             "dx-macos-arm64",

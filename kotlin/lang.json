@@ -36,7 +36,7 @@
     "kotlin_doc_shard"
   ],
   "quality": {
-    "bzl": "java/private/quality:jvm.bzl",
+    "bzl": "kotlin/private/quality:kotlin.bzl",
     "classes": [
       "kotlin"
     ],
@@ -56,13 +56,37 @@
     "file_extensions": [
       ".kt",
       ".kts"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_kotlin_format_aspect"
+      ],
+      "lint": [
+        "real_kotlin_lint_aspect"
+      ],
+      "typecheck": [
+        "real_kotlin_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_kotlin_format_probe_aspect"
+      ],
+      "lint": [
+        "real_kotlin_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_kotlin_typecheck_probe_aspect"
+      ]
+    }
   },
   "docs": {
-    "bzl": "tools/docs/jvm:aspect.bzl",
+    "bzl": "tools/docs/kotlin:aspect.bzl",
     "file_extensions": [
       ".kt"
     ],
-    "aspects": []
+    "aspects": [
+      "real_kotlin_docs_aspect"
+    ]
   }
 }

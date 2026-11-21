@@ -1,15 +1,17 @@
+"""Analysis and unit tests of the Lua rules."""
+
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//core:wrapper.bzl", "dx_quality_srcs")
+load("//core/private/testing:defs.bzl", "expect_equal")
+load("//lua/private:defs.bzl", "LUA_ENTRY_SUFFIX", "LUA_SOURCE_SPECS", "LuaEntryInfo")
 load(
     "//lua/private:lua.bzl",
-    "LUA_SOURCE_SPECS",
     "entry_lines",
     "lua_executable_name",
     "module_name",
 )
-load("//lua/private:defs.bzl", "LUA_ENTRY_SUFFIX")
 
 def lua_wrapper_contract_tests(name, **kwargs):
     """Instantiates the lua wrapper contract test."""
@@ -125,3 +127,31 @@ def lua_wrapper_contract_tests(name, **kwargs):
         file_classes = ["lua"],
         **kwargs
     )
+
+_COVERAGE_ON = {"//command_line_option:collect_code_coverage": True}
+
+def _upstream_entry_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    asserts.true(env, LuaEntryInfo in target, "the core lua_test returns LuaEntryInfo")
+    if LuaEntryInfo in target:
+        names = [name for name, _ in target[LuaEntryInfo].modules.to_list()]
+        asserts.false(env, "dx_coverage" in names, "the core lua_test lists dx_coverage")
+        asserts.equals(env, [], [n for n in names if n.startswith("luacov")], "luacov modules in the core lua_test")
+    return analysistest.end(env)
+
+_upstream_entry_test = analysistest.make(_upstream_entry_impl, config_settings = _COVERAGE_ON)
+
+def _wrapper_entry_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    files = target[DefaultInfo].default_runfiles.files.to_list()
+    asserts.true(env, [f for f in files if f.basename == "dx_coverage.lua"] != [], "dx_coverage.lua is in the lua_test runfiles")
+    return analysistest.end(env)
+
+_wrapper_entry_test = analysistest.make(_wrapper_entry_impl, config_settings = _COVERAGE_ON)
+
+def lua_coverage_entry_tests(name, upstream, wrapper, **kwargs):
+    """Instantiates the coverage entry tests of one lua_test and its core target."""
+    _upstream_entry_test(name = name + "_upstream", target_under_test = upstream, **kwargs)
+    _wrapper_entry_test(name = name + "_wrapper", target_under_test = wrapper, **kwargs)

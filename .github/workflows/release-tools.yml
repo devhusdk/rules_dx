@@ -198,14 +198,14 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-      - name: Cross-build dx-go and oapi-codegen
+      - name: Cross-build dx-go, oapi-codegen and gopackagesdriver
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/go-out"
           rm -rf "$out"
           mkdir -p "$out"
           hosts=(linux-x86_64 linux-arm64 macos-arm64 windows-x86_64 windows-arm64)
-          tools=(go:dx_go oapi-codegen:oapi_codegen)
+          tools=(go:dx_go oapi-codegen:oapi_codegen gopackagesdriver:gopackagesdriver)
           targets=()
           for tool in "${tools[@]}"; do
             for host in "${hosts[@]}"; do
@@ -238,6 +238,10 @@ jobs:
           cp "${oapi%%/cmd/oapi-codegen/BUILD*}/LICENSE" "$out/dx-oapi-codegen-LICENSE"
           grep -q "Apache License" "$out/dx-oapi-codegen-LICENSE"
           "$out/dx-oapi-codegen-linux-x86_64" -version
+          # gopackagesdriver ships unmodified under the rules_go Apache-2.0 licence.
+          driver="$(bazel query --output=location @rules_go//go/tools/gopackagesdriver)"
+          cp "${driver%%/go/tools/gopackagesdriver/BUILD*}/LICENSE.txt" "$out/dx-gopackagesdriver-LICENSE"
+          grep -q "Apache License" "$out/dx-gopackagesdriver-LICENSE"
           check="$RUNNER_TEMP/go-check"
           rm -rf "$check"
           mkdir -p "$check"

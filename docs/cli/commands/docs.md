@@ -151,7 +151,7 @@ tools/dx docs //lib:site
 | Dart | `@rules_dx//dart:defs.bzl` | `dart_doc_shard` | `lib`, `package` |
 | C# | `@rules_dx//csharp:defs.bzl` | `csharp_doc_shard` | `library`, `package` |
 | F# | `@rules_dx//fsharp:defs.bzl` | `fsharp_doc_shard` | `library`, `package` |
-| Protobuf | `@rules_dx//core:defs.bzl` | `protobuf_doc_shard` | `proto`, `package` |
+| Protobuf | `@rules_dx//api_spec:defs.bzl` | `api_spec_protobuf_doc_shard` | `proto`, `package` |
 | Avro | `@rules_dx//avro:defs.bzl` | `avro_doc_shard` | `avro`, `package` |
 
 ### Shards you get without a rule

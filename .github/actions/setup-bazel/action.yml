@@ -5,6 +5,10 @@ inputs:
     description: Save the setup-bazel caches.
     required: false
     default: "false"
+  disk-cache:
+    description: Key of the Bazel disk cache that bazel-contrib/setup-bazel restores and, with cache-save, saves. "false" keeps no disk cache.
+    required: false
+    default: "false"
   locate-repository-cache:
     description: Run bazel info to set the repository-cache-root output. It starts a Bazel server, so only jobs that read the output turn it on.
     required: false
@@ -73,6 +77,7 @@ runs:
         bazelisk-version: ${{ steps.pin.outputs.version }}
         bazelisk-cache: false
         cache-save: ${{ inputs.cache-save }}
+        disk-cache: ${{ inputs.disk-cache }}
     - name: Start the Bazel server
       shell: bash
       run: bazel info output_base >/dev/null 2>&1 &

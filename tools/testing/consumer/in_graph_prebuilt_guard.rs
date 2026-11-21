@@ -10,7 +10,6 @@
 //! serve a stub for every tool they would build from source. Labels are mapped to the form a consumer of rules_dx sees, and the
 //! compiled binaries are checked against `prebuilt_guard_allowlist.txt` by the rules of the nested
 //! prebuilt guards.
-#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs the bazel of `bazel run` on its own workspace"

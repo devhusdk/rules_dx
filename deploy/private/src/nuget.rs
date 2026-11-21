@@ -215,7 +215,7 @@ pub fn nuget_build_feed(
     outdir: &Path,
     feed_name: &str,
 ) -> io::Result<std::path::PathBuf> {
-    let feed = outdir.join(feed_name.to_owned() + "-feed");
+    let feed = outdir.join(format!("{feed_name}-feed"));
     std::fs::create_dir_all(&feed)?;
     let base = basename(nupkg_src)?;
     let dest = feed.join(&base);
@@ -703,16 +703,14 @@ API breaking changes found. If those are intentional, the APICompat suppression 
         let args_log = scratch.path().join("args");
         let env_log = scratch.path().join("env");
         let fake = scratch.path().join("dotnet");
-        std::fs::write(
+        dx_testing::executable_script(
             &fake,
-            format!(
+            &format!(
                 "#!/bin/sh\necho \"$@\" > {}\nenv > {}\necho \"CP0002: Member 'void Demo.Api.Hello()' exists on [Baseline] lib/net10.0/Demo.dll but not on lib/net10.0/Demo.dll\"\nexit 1\n",
                 args_log.display(),
                 env_log.display()
             ),
-        )
-        .expect("fake tool");
-        set_mode(&fake, 0o755);
+        );
         let client = crate::http::test_client();
         let source = format!("{registry}/v3/index.json");
         let run = |id: &str, version: &str| {

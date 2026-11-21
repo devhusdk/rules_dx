@@ -11,6 +11,10 @@ fn subject_matches_mode() {
         }
         return;
     }
+    if mode == "lock" && key.is_empty() {
+        assert_lock_check();
+        return;
+    }
     if ["lint", "lint_error", "format", "format_error"].contains(&mode.as_str()) {
         if let Err(error) = conformance_quality::check(&mode, &key, &text) {
             panic!("{error}");
@@ -208,60 +212,7 @@ fn subject_matches_mode() {
             );
             let stdout = run.stdout.replace("\r\n", "\n");
             assert_eq!(stdout.trim_end_matches('\n'), text, "unexpected output");
-            let lock_input = |var: &str| {
-                let key = std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set"));
-                dx_testing::rlocation(&key).expect("lock input must resolve from runfiles")
-            };
-            let depcheck = lock_input("DX_CONFORMANCE_DEPCHECK");
-            let ecosystem = std::env::var("DX_CONFORMANCE_ECOSYSTEM").expect("ecosystem");
-            let package = std::env::var("DX_CONFORMANCE_PACKAGE").expect("package");
-            let manifest = lock_input("DX_CONFORMANCE_MANIFEST");
-            let check = |manifest: &std::path::Path, lock: &std::path::Path| {
-                let (manifest, lock) = (
-                    manifest.to_string_lossy().into_owned(),
-                    lock.to_string_lossy().into_owned(),
-                );
-                let args = [
-                    "consistency",
-                    "--ecosystem",
-                    ecosystem.as_str(),
-                    "--manifest",
-                    manifest.as_str(),
-                    "--lock",
-                    lock.as_str(),
-                ];
-                dx_testing::run(&depcheck, &args, &[]).expect("depcheck must execute")
-            };
-            let lock = lock_input("DX_CONFORMANCE_LOCK");
-            let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
-            let staged = |source: &std::path::Path, dir: &str| {
-                stage_lock(
-                    &manifest,
-                    source,
-                    &lock,
-                    &std::path::Path::new(&tmp).join(dir),
-                )
-            };
-            let (fresh_manifest, fresh_lock) = staged(&lock, "fresh");
-            let fresh = check(&fresh_manifest, &fresh_lock);
-            assert!(
-                fresh.status.success(),
-                "lock check rejected the lockfile:\n{}",
-                fresh.combined()
-            );
-            let (stale_manifest, stale_lock) = staged(&lock_input("DX_CONFORMANCE_STALE"), "stale");
-            let stale = check(&stale_manifest, &stale_lock);
-            assert!(
-                !stale.status.success(),
-                "lock check accepted the stale lockfile:\n{}",
-                stale.combined()
-            );
-            let line = format!("missing lock entry for '{package}'");
-            assert!(
-                stale.combined().contains(&line),
-                "missing {line:?} in:\n{}",
-                stale.combined()
-            );
+            assert_lock_check();
         }
         "runfiles" => {
             assert_eq!(
@@ -576,14 +527,12 @@ fn misses(report: &str, source: &str) -> Vec<String> {
     for line in report.lines() {
         if let Some(name) = line.strip_prefix("SF:") {
             inside = name.ends_with(source);
-        } else if inside {
-            if let Some(count) = line.strip_prefix("DA:") {
-                let mut fields = count.split(',');
-                let number = fields.next().unwrap_or_default();
-                let hit = fields.next().and_then(|hit| hit.parse::<u64>().ok());
-                if hit.unwrap_or(0) == 0 {
-                    missed.push(number.to_owned());
-                }
+        } else if inside && let Some(count) = line.strip_prefix("DA:") {
+            let mut fields = count.split(',');
+            let number = fields.next().unwrap_or_default();
+            let hit = fields.next().and_then(|hit| hit.parse::<u64>().ok());
+            if hit.unwrap_or(0) == 0 {
+                missed.push(number.to_owned());
             }
         }
     }
@@ -596,14 +545,12 @@ fn hits(report: &str, source: &str) -> u64 {
     for line in report.lines() {
         if let Some(name) = line.strip_prefix("SF:") {
             inside = name.ends_with(source);
-        } else if inside {
-            if let Some(count) = line.strip_prefix("DA:") {
-                total += count
-                    .split(',')
-                    .nth(1)
-                    .and_then(|hit| hit.parse::<u64>().ok())
-                    .unwrap_or(0);
-            }
+        } else if inside && let Some(count) = line.strip_prefix("DA:") {
+            total += count
+                .split(',')
+                .nth(1)
+                .and_then(|hit| hit.parse::<u64>().ok())
+                .unwrap_or(0);
         }
     }
     total
@@ -638,7 +585,9 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
     }
     lines.sort();
     let manifest = tmp.join("runfiles.manifest");
-    std::fs::write(&manifest, lines.join("\n") + "\n").expect("manifest must be writable");
+    let mut text = lines.join("\n");
+    text.push('\n');
+    std::fs::write(&manifest, text).expect("manifest must be writable");
     manifest
 }
 
@@ -664,6 +613,65 @@ fn manifest_target_drops_verbatim_prefix() {
         assert_eq!(target(r"\\?\D:/x"), "D:/x");
         assert_eq!(target(r"\\?\UNC\host\share/x"), r"\\host\share/x");
     }
+}
+
+/// Runs depcheck on the fresh lock, which must pass, and on the stale one, which must name the
+/// package it lacks.
+fn assert_lock_check() {
+    let lock_input = |var: &str| {
+        let key = std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set"));
+        dx_testing::rlocation(&key).expect("lock input must resolve from runfiles")
+    };
+    let depcheck = lock_input("DX_CONFORMANCE_DEPCHECK");
+    let ecosystem = std::env::var("DX_CONFORMANCE_ECOSYSTEM").expect("ecosystem");
+    let package = std::env::var("DX_CONFORMANCE_PACKAGE").expect("package");
+    let manifest = lock_input("DX_CONFORMANCE_MANIFEST");
+    let check = |manifest: &std::path::Path, lock: &std::path::Path| {
+        let (manifest, lock) = (
+            manifest.to_string_lossy().into_owned(),
+            lock.to_string_lossy().into_owned(),
+        );
+        let args = [
+            "consistency",
+            "--ecosystem",
+            ecosystem.as_str(),
+            "--manifest",
+            manifest.as_str(),
+            "--lock",
+            lock.as_str(),
+        ];
+        dx_testing::run(&depcheck, &args, &[]).expect("depcheck must execute")
+    };
+    let lock = lock_input("DX_CONFORMANCE_LOCK");
+    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let staged = |source: &std::path::Path, dir: &str| {
+        stage_lock(
+            &manifest,
+            source,
+            &lock,
+            &std::path::Path::new(&tmp).join(dir),
+        )
+    };
+    let (fresh_manifest, fresh_lock) = staged(&lock, "fresh");
+    let fresh = check(&fresh_manifest, &fresh_lock);
+    assert!(
+        fresh.status.success(),
+        "lock check rejected the lockfile:\n{}",
+        fresh.combined()
+    );
+    let (stale_manifest, stale_lock) = staged(&lock_input("DX_CONFORMANCE_STALE"), "stale");
+    let stale = check(&stale_manifest, &stale_lock);
+    assert!(
+        !stale.status.success(),
+        "lock check accepted the stale lockfile:\n{}",
+        stale.combined()
+    );
+    let line = format!("missing lock entry for '{package}'");
+    assert!(
+        stale.combined().contains(&line),
+        "missing {line:?} in:\n{}",
+        stale.combined()
+    );
 }
 
 fn stage_lock(
@@ -867,8 +875,8 @@ fn tree_rooted_manifest_maps_entries_into_the_tree() {
         "_main/pkg/.hello.venv/pyvenv.cfg {}\n_main/pkg/.hello.venv {}\n\
          _main/pkg/hello.exe /out/bin/pkg/hello.exe\n\
          _main/pkg/absent /out/bin/pkg/absent\n_main/pkg/empty \n",
-        format!("{}/_main/pkg/.hello.venv/pyvenv.cfg", tree.display()),
-        format!("{}/_main/pkg/.hello.venv", tree.display()),
+        tree.join("_main/pkg/.hello.venv/pyvenv.cfg").display(),
+        tree.join("_main/pkg/.hello.venv").display(),
     );
     assert_eq!(tree_rooted_manifest(text, &tree), expected);
     let missing = std::path::Path::new(&tmp)
@@ -899,7 +907,9 @@ fn tree_manifest(root: &std::path::Path) -> String {
         }
     }
     lines.sort();
-    lines.join("\n") + "\n"
+    let mut text = lines.join("\n");
+    text.push('\n');
+    text
 }
 
 #[test]

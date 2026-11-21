@@ -1,6 +1,9 @@
 use crate::run::{OwnerGate, pages_redact, run_publish};
 use crate::stage::copy_verified;
+use dx_atomic_fs::path_io::{self, PathIoError};
 use std::ffi::OsString;
+use std::fmt;
+use std::io;
 use std::path::{Path, PathBuf};
 
 const MAX_FILES: usize = 20_000;
@@ -62,6 +65,186 @@ pub struct PagesDeployment {
     pub environment: String,
 }
 
+/// Why a Pages site check, stage or deployment record was refused.
+#[derive(Debug)]
+pub enum PagesError {
+    /// An identity value failed `pages_identity_error`; the message names it.
+    Identity(String),
+    AccountMismatch,
+    NotUtf8 {
+        dir: PathBuf,
+        name: String,
+    },
+    UnsafePath {
+        rel: String,
+        control: bool,
+    },
+    List(PathIoError),
+    Stat {
+        rel: String,
+        source: io::Error,
+    },
+    Executable {
+        rel: String,
+        what: &'static str,
+    },
+    Skipped {
+        rel: String,
+    },
+    BrokenSymlink {
+        rel: String,
+        source: io::Error,
+    },
+    SymlinkNotFile {
+        rel: String,
+    },
+    TooLarge {
+        rel: String,
+        bytes: u64,
+    },
+    Special {
+        rel: String,
+    },
+    TooManyFiles,
+    SiteMissing {
+        root: PathBuf,
+        source: io::Error,
+    },
+    SiteNotDir {
+        root: PathBuf,
+    },
+    SiteEmpty {
+        root: PathBuf,
+    },
+    NoIndex {
+        root: PathBuf,
+    },
+    Stage {
+        rel: String,
+        source: io::Error,
+    },
+    MalformedOutput(serde_json::Error),
+    NoRecord,
+    BadId,
+    BadUrl,
+    WrongProject {
+        reported: String,
+        project: String,
+    },
+    WrongEnvironment {
+        id: String,
+        reported: String,
+        expected: String,
+    },
+}
+
+impl fmt::Display for PagesError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Identity(message) => f.write_str(message),
+            Self::AccountMismatch => f.write_str(
+                "CLOUDFLARE_ACCOUNT_ID does not match the account_id of this target; publishing nothing",
+            ),
+            Self::NotUtf8 { dir, name } => write!(
+                f,
+                "unsafe path under {}: {name} is not UTF-8",
+                dir.display()
+            ),
+            Self::UnsafePath { rel, control: true } => {
+                write!(f, "unsafe path '{rel}': control characters")
+            }
+            Self::UnsafePath { rel, control: false } => write!(f, "unsafe path '{rel}'"),
+            Self::List(source) => write!(f, "{source}"),
+            Self::Stat { rel, source } => write!(f, "cannot stat {rel}: {source}"),
+            Self::Executable { rel, what } => write!(
+                f,
+                "site contains '{rel}', {what}; cloudflare_pages_deploy publishes static files only"
+            ),
+            Self::Skipped { rel } => write!(
+                f,
+                "site contains '{rel}', which Wrangler would silently skip; remove it from the bundle"
+            ),
+            Self::BrokenSymlink { rel, source } => {
+                write!(f, "site contains broken symlink '{rel}': {source}")
+            }
+            Self::SymlinkNotFile { rel } => write!(
+                f,
+                "site contains symlink '{rel}' to something other than a regular file"
+            ),
+            Self::TooLarge { rel, bytes } => write!(
+                f,
+                "'{rel}' is {bytes} bytes; Cloudflare Pages allows at most {MAX_FILE_BYTES} bytes per file"
+            ),
+            Self::Special { rel } => write!(f, "site contains special file '{rel}'"),
+            Self::TooManyFiles => write!(
+                f,
+                "site holds more than {MAX_FILES} files; Cloudflare Pages allows at most {MAX_FILES}"
+            ),
+            Self::SiteMissing { root, source } => {
+                write!(f, "site {} is missing: {source}", root.display())
+            }
+            Self::SiteNotDir { root } => write!(f, "site {} is not a directory", root.display()),
+            Self::SiteEmpty { root } => write!(f, "site {} holds no files", root.display()),
+            Self::NoIndex { root } => {
+                write!(f, "site {} has no index.html at its root", root.display())
+            }
+            Self::Stage { rel, source } => write!(f, "cannot stage {rel}: {source}"),
+            Self::MalformedOutput(source) => write!(
+                f,
+                "wrangler wrote malformed output; the deployment is unconfirmed: {source}"
+            ),
+            Self::NoRecord => f.write_str(
+                "wrangler output holds no pages deployment record; the deployment is unconfirmed",
+            ),
+            Self::BadId => f.write_str("wrangler output has no valid deployment_id"),
+            Self::BadUrl => f.write_str("wrangler output has no valid https url"),
+            Self::WrongProject { reported, project } => write!(
+                f,
+                "wrangler deployed to project '{reported}', expected '{project}'"
+            ),
+            Self::WrongEnvironment {
+                id,
+                reported,
+                expected,
+            } => write!(
+                f,
+                "deployment {id} landed in {reported}, expected {expected}; check the project's production branch"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for PagesError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::List(source) => Some(source),
+            Self::Stat { source, .. }
+            | Self::BrokenSymlink { source, .. }
+            | Self::SiteMissing { source, .. }
+            | Self::Stage { source, .. } => Some(source),
+            Self::MalformedOutput(source) => Some(source),
+            Self::Identity(_)
+            | Self::AccountMismatch
+            | Self::NotUtf8 { .. }
+            | Self::UnsafePath { .. }
+            | Self::Executable { .. }
+            | Self::Skipped { .. }
+            | Self::SymlinkNotFile { .. }
+            | Self::TooLarge { .. }
+            | Self::Special { .. }
+            | Self::TooManyFiles
+            | Self::SiteNotDir { .. }
+            | Self::SiteEmpty { .. }
+            | Self::NoIndex { .. }
+            | Self::NoRecord
+            | Self::BadId
+            | Self::BadUrl
+            | Self::WrongProject { .. }
+            | Self::WrongEnvironment { .. } => None,
+        }
+    }
+}
+
 /// Returns whether the branch deploys to production or preview.
 pub fn pages_intent(branch: &str, production_branch: &str) -> &'static str {
     if branch == production_branch {
@@ -117,35 +300,35 @@ pub fn pages_identity_error(
     None
 }
 
-fn pages_component_error(rel: &str, name: &str) -> Option<String> {
+fn pages_component_error(rel: &str, name: &str) -> Option<PagesError> {
     if name.is_empty() || name == "." || name == ".." || name.contains('\\') {
-        return Some(format!("unsafe path '{rel}'"));
+        return Some(PagesError::UnsafePath {
+            rel: rel.to_owned(),
+            control: false,
+        });
     }
     if name.chars().any(char::is_control) {
-        return Some(format!("unsafe path '{rel}': control characters"));
+        return Some(PagesError::UnsafePath {
+            rel: rel.to_owned(),
+            control: true,
+        });
     }
     None
 }
 
 /// Converts a directory entry name to UTF-8, rejecting anything else.
-fn pages_entry_name(dir: &Path, raw: std::ffi::OsString) -> Result<String, String> {
-    raw.into_string().map_err(|raw| {
-        format!(
-            "unsafe path under {}: {} is not UTF-8",
-            dir.display(),
-            raw.to_string_lossy()
-        )
+fn pages_entry_name(dir: &Path, raw: std::ffi::OsString) -> Result<String, PagesError> {
+    raw.into_string().map_err(|raw| PagesError::NotUtf8 {
+        dir: dir.to_path_buf(),
+        name: raw.to_string_lossy().into_owned(),
     })
 }
 
-fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<(), String> {
-    let mut entries = std::fs::read_dir(dir)
-        .map_err(|error| format!("cannot read {}: {error}", dir.display()))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| format!("cannot read {}: {error}", dir.display()))?;
-    entries.sort_by_key(std::fs::DirEntry::file_name);
-    for entry in entries {
-        let name = pages_entry_name(dir, entry.file_name())?;
+fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<(), PagesError> {
+    for path in path_io::read_dir(dir).map_err(PagesError::List)? {
+        // read_dir joins each entry name onto dir, so the last component is always there.
+        let raw = path.file_name().unwrap_or_default().to_owned();
+        let name = pages_entry_name(dir, raw)?;
         let rel = if prefix.is_empty() {
             name.clone()
         } else {
@@ -157,27 +340,24 @@ fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<()
         if prefix.is_empty() {
             for (reject, what) in REJECTED_ROOTS {
                 if name == reject {
-                    return Err(format!(
-                        "site contains '{rel}', {what}; cloudflare_pages_deploy publishes static files only"
-                    ));
+                    return Err(PagesError::Executable { rel, what });
                 }
             }
         }
         if SKIPPED_NAMES.contains(&name.as_str()) {
-            return Err(format!(
-                "site contains '{rel}', which Wrangler would silently skip; remove it from the bundle"
-            ));
+            return Err(PagesError::Skipped { rel });
         }
-        let path = entry.path();
-        let link = std::fs::symlink_metadata(&path)
-            .map_err(|error| format!("cannot stat {rel}: {error}"))?;
+        let link = match std::fs::symlink_metadata(&path) {
+            Ok(link) => link,
+            Err(source) => return Err(PagesError::Stat { rel, source }),
+        };
         let meta = if link.file_type().is_symlink() {
-            let target = std::fs::metadata(&path)
-                .map_err(|error| format!("site contains broken symlink '{rel}': {error}"))?;
+            let target = match std::fs::metadata(&path) {
+                Ok(target) => target,
+                Err(source) => return Err(PagesError::BrokenSymlink { rel, source }),
+            };
             if !target.is_file() {
-                return Err(format!(
-                    "site contains symlink '{rel}' to something other than a regular file"
-                ));
+                return Err(PagesError::SymlinkNotFile { rel });
             }
             target
         } else {
@@ -187,10 +367,10 @@ fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<()
             pages_walk(&path, &rel, files)?;
         } else if meta.is_file() {
             if meta.len() > MAX_FILE_BYTES {
-                return Err(format!(
-                    "'{rel}' is {} bytes; Cloudflare Pages allows at most {MAX_FILE_BYTES} bytes per file",
-                    meta.len()
-                ));
+                return Err(PagesError::TooLarge {
+                    rel,
+                    bytes: meta.len(),
+                });
             }
             files.push(PagesFile {
                 path: rel,
@@ -198,34 +378,37 @@ fn pages_walk(dir: &Path, prefix: &str, files: &mut Vec<PagesFile>) -> Result<()
                 size: meta.len(),
             });
         } else {
-            return Err(format!("site contains special file '{rel}'"));
+            return Err(PagesError::Special { rel });
         }
         if files.len() > MAX_FILES {
-            return Err(format!(
-                "site holds more than {MAX_FILES} files; Cloudflare Pages allows at most {MAX_FILES}"
-            ));
+            return Err(PagesError::TooManyFiles);
         }
     }
     Ok(())
 }
 
 /// Lists the files of one static site directory after validating them.
-pub fn pages_scan_site(root: &Path) -> Result<Vec<PagesFile>, String> {
-    let meta = std::fs::metadata(root)
-        .map_err(|error| format!("site {} is missing: {error}", root.display()))?;
+pub fn pages_scan_site(root: &Path) -> Result<Vec<PagesFile>, PagesError> {
+    let meta = std::fs::metadata(root).map_err(|source| PagesError::SiteMissing {
+        root: root.to_path_buf(),
+        source,
+    })?;
     if !meta.is_dir() {
-        return Err(format!("site {} is not a directory", root.display()));
+        return Err(PagesError::SiteNotDir {
+            root: root.to_path_buf(),
+        });
     }
     let mut files = Vec::new();
     pages_walk(root, "", &mut files)?;
     if files.is_empty() {
-        return Err(format!("site {} holds no files", root.display()));
+        return Err(PagesError::SiteEmpty {
+            root: root.to_path_buf(),
+        });
     }
     if !files.iter().any(|file| file.path == "index.html") {
-        return Err(format!(
-            "site {} has no index.html at its root",
-            root.display()
-        ));
+        return Err(PagesError::NoIndex {
+            root: root.to_path_buf(),
+        });
     }
     Ok(files)
 }
@@ -249,48 +432,47 @@ pub fn pages_parse_output(
     text: &str,
     project: &str,
     expected_environment: &str,
-) -> Result<PagesDeployment, String> {
+) -> Result<PagesDeployment, PagesError> {
     let mut found = None;
     for line in text.lines().filter(|line| !line.trim().is_empty()) {
-        let value: serde_json::Value = serde_json::from_str(line).map_err(|error| {
-            format!("wrangler wrote malformed output; the deployment is unconfirmed: {error}")
-        })?;
+        let value: serde_json::Value =
+            serde_json::from_str(line).map_err(PagesError::MalformedOutput)?;
         if value.get("type").and_then(serde_json::Value::as_str) == Some("pages-deploy-detailed") {
             found = Some(value);
         }
     }
     let Some(value) = found else {
-        return Err(
-            "wrangler output holds no pages deployment record; the deployment is unconfirmed"
-                .to_owned(),
-        );
+        return Err(PagesError::NoRecord);
     };
     let text_field = |key: &str| value.get(key).and_then(serde_json::Value::as_str);
     let id = text_field("deployment_id").unwrap_or_default();
     let id_ok = pages_name_ok(id, 64, |c| c.is_ascii_alphanumeric() || c == '-');
     if !id_ok {
-        return Err("wrangler output has no valid deployment_id".to_owned());
+        return Err(PagesError::BadId);
     }
     let url = text_field("url").unwrap_or_default();
     let url_ok = url.starts_with("https://")
         && url.len() > "https://".len()
         && url.chars().all(|c| c.is_ascii_graphic());
     if !url_ok {
-        return Err("wrangler output has no valid https url".to_owned());
+        return Err(PagesError::BadUrl);
     }
     if let Some(reported) = text_field("pages_project")
         && reported != project
     {
-        return Err(format!(
-            "wrangler deployed to project '{reported}', expected '{project}'"
-        ));
+        return Err(PagesError::WrongProject {
+            reported: reported.to_owned(),
+            project: project.to_owned(),
+        });
     }
     let environment = match text_field("environment") {
         Some(reported) if reported == expected_environment => reported.to_owned(),
         Some(reported) => {
-            return Err(format!(
-                "deployment {id} landed in {reported}, expected {expected_environment}; check the project's production branch"
-            ));
+            return Err(PagesError::WrongEnvironment {
+                id: id.to_owned(),
+                reported: reported.to_owned(),
+                expected: expected_environment.to_owned(),
+            });
         }
         None => expected_environment.to_owned(),
     };
@@ -311,15 +493,17 @@ fn pages_token_error(token: &str) -> Option<&'static str> {
     None
 }
 
-fn pages_stage(files: &[PagesFile], staged: &Path) -> Result<(), String> {
+fn pages_stage(files: &[PagesFile], staged: &Path) -> Result<(), PagesError> {
     for file in files {
+        let failed = |source| PagesError::Stage {
+            rel: file.path.clone(),
+            source,
+        };
         let dest = staged.join(&file.path);
         if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|error| format!("cannot stage {}: {error}", file.path))?;
+            std::fs::create_dir_all(parent).map_err(failed)?;
         }
-        copy_verified(&file.source, &dest)
-            .map_err(|error| format!("cannot stage {}: {error}", file.path))?;
+        copy_verified(&file.source, &dest).map_err(failed)?;
     }
     Ok(())
 }
@@ -354,7 +538,10 @@ fn pages_failure_text(output: &dx_process::capture::Captured, token: &str) -> St
 }
 
 fn pages_fail(err: &mut dyn std::io::Write, name: &str, message: &str) -> i32 {
-    dx_output::write_stderr(err, format_args!("cloudflare_pages_deploy: {name}: {message}\n"));
+    dx_output::write_stderr(
+        err,
+        format_args!("cloudflare_pages_deploy: {name}: {message}\n"),
+    );
     1
 }
 
@@ -397,22 +584,19 @@ fn pages_validate(
     launch: &PagesLaunch<'_>,
     site: &Path,
     account_id: Option<&str>,
-) -> Result<(Vec<PagesFile>, &'static str), String> {
+) -> Result<(Vec<PagesFile>, &'static str), PagesError> {
     if let Some(message) = pages_identity_error(
         launch.account_id,
         launch.project,
         launch.branch,
         launch.production_branch,
     ) {
-        return Err(message);
+        return Err(PagesError::Identity(message));
     }
     if let Some(account) = account_id.filter(|value| !value.is_empty())
         && account != launch.account_id
     {
-        return Err(
-                "CLOUDFLARE_ACCOUNT_ID does not match the account_id of this target; publishing nothing"
-                    .to_owned(),
-            );
+        return Err(PagesError::AccountMismatch);
     }
     let files = pages_scan_site(site)?;
     Ok((files, pages_intent(launch.branch, launch.production_branch)))
@@ -429,7 +613,7 @@ fn pages_check_run(
 ) -> i32 {
     let (files, intent) = match pages_validate(launch, site, account_id) {
         Ok(checked) => checked,
-        Err(message) => return pages_fail(err, launch.deploy_name, &message),
+        Err(error) => return pages_fail(err, launch.deploy_name, &error.to_string()),
     };
     let bytes: u64 = files.iter().map(|file| file.size).sum();
     pages_report(
@@ -475,7 +659,7 @@ fn pages_deploy_with(
     }
     let (files, intent) = match pages_validate(launch, site, env.account_id.as_deref()) {
         Ok(checked) => checked,
-        Err(message) => return pages_fail(err, name, &message),
+        Err(error) => return pages_fail(err, name, &error.to_string()),
     };
     let work = match stage_dir("cloudflare-pages-") {
         Ok(dir) => dir,
@@ -520,8 +704,8 @@ fn pages_deploy_staged(
             );
         }
     }
-    if let Err(message) = pages_stage(files, &staged) {
-        return pages_fail(err, name, &message);
+    if let Err(error) = pages_stage(files, &staged) {
+        return pages_fail(err, name, &error.to_string());
     }
     let mut command = std::process::Command::new(wrangler);
     command
@@ -566,7 +750,7 @@ fn pages_deploy_staged(
     let text = std::fs::read_to_string(&result_file).unwrap_or_default();
     let deployment = match pages_parse_output(&text, launch.project, intent) {
         Ok(deployment) => deployment,
-        Err(message) => return pages_fail(err, name, &pages_redact(&message, &env.token)),
+        Err(error) => return pages_fail(err, name, &pages_redact(&error.to_string(), &env.token)),
     };
     let bytes: u64 = files.iter().map(|file| file.size).sum();
     pages_report(
@@ -691,8 +875,8 @@ pub fn cloudflare_pages_verify_main(argv: &[String]) -> i32 {
     }
     let files = match pages_scan_site(Path::new(site)) {
         Ok(files) => files,
-        Err(message) => {
-            eprintln!("cloudflare_pages_deploy: {message}");
+        Err(error) => {
+            eprintln!("cloudflare_pages_deploy: {error}");
             return 1;
         }
     };
@@ -706,7 +890,7 @@ pub fn cloudflare_pages_verify_main(argv: &[String]) -> i32 {
             .map(|file| serde_json::json!({"path": file.path, "size": file.size}))
             .collect::<Vec<_>>(),
     });
-    let text = manifest.to_string() + "\n";
+    let text = format!("{manifest}\n");
     match std::fs::write(out, text) {
         Ok(()) => 0,
         Err(error) => super::bin_cannot("cloudflare_verify", "write", Path::new(out), error),
@@ -988,23 +1172,28 @@ exit 7
     fn parse_output_rejects_bad_fields() {
         let ok = r#"{"type":"pages-deploy-detailed","deployment_id":"d-1","url":"https://x.pages.dev","pages_project":"p"}"#;
         assert_eq!(
-            pages_parse_output(ok, "p", "preview"),
-            Ok(PagesDeployment {
+            pages_parse_output(ok, "p", "preview").expect("ok"),
+            PagesDeployment {
                 id: "d-1".to_owned(),
                 url: "https://x.pages.dev".to_owned(),
                 environment: "preview".to_owned()
-            })
+            }
         );
         let bad_url = ok.replace("https://x.pages.dev", "http://x.pages.dev");
-        assert!(pages_parse_output(&bad_url, "p", "preview").is_err());
+        assert!(matches!(
+            pages_parse_output(&bad_url, "p", "preview"),
+            Err(PagesError::BadUrl)
+        ));
         let bad_id = ok.replace("d-1", "d 1");
-        assert!(pages_parse_output(&bad_id, "p", "preview").is_err());
+        assert!(matches!(
+            pages_parse_output(&bad_id, "p", "preview"),
+            Err(PagesError::BadId)
+        ));
         let other = ok.replace("\"p\"", "\"other\"");
-        assert!(
-            pages_parse_output(&other, "p", "preview")
-                .expect_err("project")
-                .contains("project 'other'")
-        );
+        assert!(matches!(
+            pages_parse_output(&other, "p", "preview").expect_err("project"),
+            PagesError::WrongProject { reported, .. } if reported == "other"
+        ));
     }
 
     #[test]
@@ -1012,69 +1201,64 @@ exit 7
         for bad in ["_worker.js", "functions/api.js", "_routes.json"] {
             let dir = site(&[("index.html", "x"), (bad, "x")]);
             let error = pages_scan_site(dir.path()).expect_err(bad);
-            assert!(error.contains("static files only"), "{bad}: {error}");
+            assert!(
+                matches!(error, PagesError::Executable { .. }),
+                "{bad}: {error}"
+            );
         }
     }
 
     #[test]
     fn scan_rejects_missing_index_empty_and_skipped_names() {
         let dir = site(&[("a.txt", "x")]);
-        assert!(
-            pages_scan_site(dir.path())
-                .expect_err("index")
-                .contains("no index.html")
-        );
+        assert!(matches!(
+            pages_scan_site(dir.path()).expect_err("index"),
+            PagesError::NoIndex { .. }
+        ));
         let empty = tempfile::TempDir::new().expect("empty");
-        assert!(
-            pages_scan_site(empty.path())
-                .expect_err("empty")
-                .contains("holds no files")
-        );
+        assert!(matches!(
+            pages_scan_site(empty.path()).expect_err("empty"),
+            PagesError::SiteEmpty { .. }
+        ));
         let skipped = site(&[("index.html", "x"), ("node_modules/a.js", "x")]);
-        assert!(
-            pages_scan_site(skipped.path())
-                .expect_err("skip")
-                .contains("silently skip")
-        );
+        assert!(matches!(
+            pages_scan_site(skipped.path()).expect_err("skip"),
+            PagesError::Skipped { .. }
+        ));
         let missing = empty.path().join("absent");
-        assert!(
-            pages_scan_site(&missing)
-                .expect_err("missing")
-                .contains("is missing")
-        );
+        assert!(matches!(
+            pages_scan_site(&missing).expect_err("missing"),
+            PagesError::SiteMissing { .. }
+        ));
         let file = dir.path().join("a.txt");
-        assert!(
-            pages_scan_site(&file)
-                .expect_err("file")
-                .contains("not a directory")
-        );
+        assert!(matches!(
+            pages_scan_site(&file).expect_err("file"),
+            PagesError::SiteNotDir { .. }
+        ));
     }
 
     #[test]
     fn scan_rejects_directory_and_broken_symlinks_and_oversize_files() {
         let dir = site(&[("index.html", "x")]);
         std::os::unix::fs::symlink("/etc", dir.path().join("link")).expect("symlink");
-        assert!(
-            pages_scan_site(dir.path())
-                .expect_err("symlink")
-                .contains("symlink 'link'")
-        );
+        assert!(matches!(
+            pages_scan_site(dir.path()).expect_err("symlink"),
+            PagesError::SymlinkNotFile { rel } if rel == "link"
+        ));
         let broken = site(&[("index.html", "x")]);
         std::os::unix::fs::symlink("/nonexistent/target", broken.path().join("gone"))
             .expect("symlink");
-        assert!(
-            pages_scan_site(broken.path())
-                .expect_err("broken")
-                .contains("broken symlink 'gone'")
-        );
+        assert!(matches!(
+            pages_scan_site(broken.path()).expect_err("broken"),
+            PagesError::BrokenSymlink { rel, .. } if rel == "gone"
+        ));
         let big = site(&[("index.html", "x")]);
         let file = std::fs::File::create(big.path().join("big.bin")).expect("big");
         file.set_len(MAX_FILE_BYTES + 1).expect("len");
-        assert!(
-            pages_scan_site(big.path())
-                .expect_err("big")
-                .contains("at most")
-        );
+        assert!(matches!(
+            pages_scan_site(big.path()).expect_err("big"),
+            PagesError::TooLarge { .. }
+        ));
     }
 
     #[test]
@@ -1401,34 +1585,30 @@ exit 7
         use std::os::unix::ffi::OsStrExt as _;
         // APFS refuses non-UTF-8 names, so test the conversion directly.
         let raw = std::ffi::OsStr::from_bytes(b"bad\xff").to_owned();
-        assert!(
-            pages_entry_name(Path::new("/site"), raw)
-                .expect_err("utf8")
-                .contains("not UTF-8")
-        );
+        assert!(matches!(
+            pages_entry_name(Path::new("/site"), raw).expect_err("utf8"),
+            PagesError::NotUtf8 { .. }
+        ));
         let control = site(&[("index.html", "x"), ("a\u{1}b", "x")]);
-        assert!(
-            pages_scan_site(control.path())
-                .expect_err("control")
-                .contains("control characters")
-        );
+        assert!(matches!(
+            pages_scan_site(control.path()).expect_err("control"),
+            PagesError::UnsafePath { control: true, .. }
+        ));
         let slash = site(&[("index.html", "x"), ("a\\b", "x")]);
-        assert!(
-            pages_scan_site(slash.path())
-                .expect_err("backslash")
-                .contains("unsafe path")
-        );
+        assert!(matches!(
+            pages_scan_site(slash.path()).expect_err("backslash"),
+            PagesError::UnsafePath { control: false, .. }
+        ));
         let special = site(&[("index.html", "x")]);
         let made = std::process::Command::new("mkfifo")
             .arg(special.path().join("sock"))
             .status()
             .expect("mkfifo");
         assert!(made.success());
-        assert!(
-            pages_scan_site(special.path())
-                .expect_err("special")
-                .contains("special file 'sock'")
-        );
+        assert!(matches!(
+            pages_scan_site(special.path()).expect_err("special"),
+            PagesError::Special { rel } if rel == "sock"
+        ));
     }
 
     #[test]
@@ -1437,11 +1617,10 @@ exit 7
         for index in 0..MAX_FILES {
             std::fs::write(dir.path().join(format!("f{index}")), "").expect("file");
         }
-        assert!(
-            pages_scan_site(dir.path())
-                .expect_err("count")
-                .contains("more than")
-        );
+        assert!(matches!(
+            pages_scan_site(dir.path()).expect_err("count"),
+            PagesError::TooManyFiles
+        ));
     }
 
     #[test]

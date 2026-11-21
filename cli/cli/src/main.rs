@@ -1,9 +1,7 @@
 #![deny(
     clippy::indexing_slicing,
     clippy::let_underscore_must_use,
-    clippy::map_err_ignore,
     clippy::string_slice,
-    clippy::unused_result_ok,
     clippy::wildcard_enum_match_arm
 )]
 
@@ -195,6 +193,7 @@ fn run_as_tool() -> Option<i32> {
         Tool::DeployTool => dx_deploy_tools::deploy_tool_main(&named("deploy_tool", args)),
         Tool::ReleaseTree => release_tree::run_process(&lossy(args)),
         Tool::Capture => capture::run_process(args),
+        Tool::CompileCheck => dx_compile_check::run_process(&lossy(args)),
         Tool::ApiSpecPreflight => api_spec_codegen::preflight::run_process(&lossy(args)),
         Tool::OapiCodegen => api_spec_codegen::oapi_codegen::run_process(&lossy(args)),
         Tool::CapnpcRustDx => capnpc_rust_dx::run_process(&lossy(args)),

@@ -2,7 +2,6 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "config_base_toml.patch",
-    "deterministic_module_build_id.patch",
     "entry.patch",
     "exec_toolchain.patch",
     "fixed_heap_addresses.patch",

@@ -1,4 +1,9 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 #![cfg_attr(
     test,
     expect(
@@ -7,7 +12,7 @@
     )
 )]
 
-use std::fmt::{self, Write as _};
+use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -440,15 +445,13 @@ pub fn verify(request: &VerifyArgs, verifier: &dyn Verifier) -> Result<String, I
     let binary = PathBuf::from(&request.binary);
     let bundle = PathBuf::from(&request.bundle);
     check_inputs(request, verifier, &binary, &bundle)?;
-    writeln!(out, "dx_verify: trust root {TRUST_ROOT} (Sigstore TUF public-good; verifiers bootstrapped from the trust root, never alongside the binary)").ok();
+    out.push_str(&format!("dx_verify: trust root {TRUST_ROOT} (Sigstore TUF public-good; verifiers bootstrapped from the trust root, never alongside the binary)\n"));
     let method = verify_binary(request, verifier, &binary, &bundle, &mut out)?;
     verify_sbom(request, verifier, &mut out)?;
     verify_notice_files(request, verifier, &mut out)?;
-    writeln!(
-        out,
-        "dx_verify: OK (verified via {method}; nothing installed, binary never executed)"
-    )
-    .ok();
+    out.push_str(&format!(
+        "dx_verify: OK (verified via {method}; nothing installed, binary never executed)\n"
+    ));
     Ok(out)
 }
 
@@ -463,20 +466,16 @@ fn verify_binary(
     let gh = verifier.gh_bin();
     let method: &'static str;
     if verifier.have(&cosign) {
-        writeln!(
-            out,
-            "dx_verify: verifying {} against bundle via {cosign} verify-blob",
+        out.push_str(&format!(
+            "dx_verify: verifying {} against bundle via {cosign} verify-blob\n",
             binary.display()
-        )
-        .ok();
+        ));
         if verifier.cosign_verify(&cosign, bundle, &request.identity, &request.issuer, binary) {
             method = "cosign";
-            writeln!(
-                out,
-                "dx_verify: cosign publisher-identity OK (identity={} issuer={})",
+            out.push_str(&format!(
+                "dx_verify: cosign publisher-identity OK (identity={} issuer={})\n",
                 request.identity, request.issuer
-            )
-            .ok();
+            ));
         } else {
             return Err(InstallError::CosignFailed);
         }
@@ -484,12 +483,10 @@ fn verify_binary(
         if request.owner.is_empty() {
             return Err(InstallError::OwnerRequired);
         }
-        writeln!(
-            out,
-            "dx_verify: verifying {} against attestation via {gh} attestation verify",
+        out.push_str(&format!(
+            "dx_verify: verifying {} against attestation via {gh} attestation verify\n",
             binary.display()
-        )
-        .ok();
+        ));
         let attestation = PathBuf::from(&request.attestation);
         if verifier.gh_verify(
             &gh,
@@ -500,12 +497,10 @@ fn verify_binary(
             &request.owner,
         ) {
             method = "gh-attestation";
-            writeln!(
-                out,
-                "dx_verify: attestation publisher-identity OK (identity={} issuer={} owner={})",
+            out.push_str(&format!(
+                "dx_verify: attestation publisher-identity OK (identity={} issuer={} owner={})\n",
                 request.identity, request.issuer, request.owner
-            )
-            .ok();
+            ));
         } else {
             return Err(InstallError::AttestationFailed);
         }
@@ -530,12 +525,10 @@ fn verify_sbom(
                 cosign,
             });
         }
-        writeln!(
-            out,
-            "dx_verify: verifying SBOM {} via {cosign} verify-blob",
+        out.push_str(&format!(
+            "dx_verify: verifying SBOM {} via {cosign} verify-blob\n",
             sbom.display()
-        )
-        .ok();
+        ));
         if verifier.cosign_verify(
             &cosign,
             &sbom_bundle,
@@ -566,12 +559,10 @@ fn verify_notice_files(
                 cosign,
             });
         }
-        writeln!(
-            out,
-            "dx_verify: verifying NOTICE {} via {cosign} verify-blob",
+        out.push_str(&format!(
+            "dx_verify: verifying NOTICE {} via {cosign} verify-blob\n",
             notice_path.display()
-        )
-        .ok();
+        ));
         if verifier.cosign_verify(
             &cosign,
             &notice_bundle,
@@ -602,7 +593,7 @@ fn verify_notice_files(
             .read_text(&manifest_path)
             .map_err(unreadable("notice manifest", &request.notice_manifest))?;
         let count = verify_notice(&notice_text, &manifest_text)?;
-        writeln!(out, "dx_verify: NOTICE OK ({count} entries bundled)").ok();
+        out.push_str(&format!("dx_verify: NOTICE OK ({count} entries bundled)\n"));
     }
     Ok(())
 }
@@ -733,8 +724,10 @@ mod tests {
                 .files
                 .get(path)
                 .ok_or_else(|| read_error(io::ErrorKind::NotFound, "missing file"))?;
-            String::from_utf8(data.clone())
-                .map_err(|_| read_error(io::ErrorKind::InvalidData, "not UTF-8"))
+            String::from_utf8(data.clone()).map_err(|error| PathIoError::Read {
+                path: path.to_path_buf(),
+                source: io::Error::new(io::ErrorKind::InvalidData, error),
+            })
         }
     }
 

@@ -1,4 +1,9 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use std::collections::BTreeMap;
 use std::ffi::OsString;
@@ -457,10 +462,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn failed_tag_check_uploads_nothing() {
-        let dir = std::env::temp_dir().join(format!("rd-noup-{}", std::process::id()));
+        let dir = dx_testing::scratch_dir("rd-noup");
         let mark = dir.join("called");
         let asset = dir.join("a.bin");
-        std::fs::create_dir_all(&dir).expect("dir");
         std::fs::write(&asset, b"x").expect("asset");
         let backend = GhBackend {
             program: fake_gh(&dir.join("bin"), &format!("touch {}", mark.display())),
@@ -480,7 +484,6 @@ mod tests {
         assert_eq!(code, 1);
         assert_eq!(states(&text), [("tag-local".into(), "failed".into())]);
         assert!(!mark.exists());
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
@@ -514,9 +517,8 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn gh_failure_output_never_leaks_the_token() {
-        let dir = std::env::temp_dir().join(format!("rd-leak-{}", std::process::id()));
+        let dir = dx_testing::scratch_dir("rd-leak");
         let asset = dir.join("a.bin");
-        std::fs::create_dir_all(&dir).expect("dir");
         std::fs::write(&asset, b"x").expect("asset");
         let backend = GhBackend {
             program: fake_gh(&dir.join("bin"), "echo \"token s3cret-token\" >&2; exit 1"),
@@ -532,15 +534,13 @@ mod tests {
         assert_eq!(code, 1);
         assert!(!text.contains("s3cret-token"));
         assert!(text.contains("***"));
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[cfg(unix)]
     #[test]
     fn matching_draft_release_validates_and_publish_stays_unauthorized() {
-        let dir = std::env::temp_dir().join(format!("rd-ok-{}", std::process::id()));
+        let dir = dx_testing::scratch_dir("rd-ok");
         let asset = dir.join("a.bin");
-        std::fs::create_dir_all(&dir).expect("dir");
         std::fs::write(&asset, b"x").expect("asset");
         let sha = dx_digest::sha256_file_hex(&asset).expect("sha");
         let json = format!(
@@ -560,13 +560,12 @@ mod tests {
         assert_eq!(code, 0);
         assert!(text.contains("\"state\": \"validated\""));
         assert!(text.contains("\"operation\": \"publish\""));
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[cfg(unix)]
     #[test]
     fn view_lists_releases_and_filters_by_tag() {
-        let dir = std::env::temp_dir().join(format!("rd-view-{}", std::process::id()));
+        let dir = dx_testing::scratch_dir("rd-view");
         let args = dir.join("args");
         let backend = GhBackend {
             program: fake_gh(
@@ -595,15 +594,13 @@ mod tests {
                 ".[] | select(.tag_name == \"v1.2.3\")",
             ]
         );
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[cfg(unix)]
     #[test]
     fn view_without_a_matching_release_fails_naming_the_tag() {
-        let dir = std::env::temp_dir().join(format!("rd-none-{}", std::process::id()));
+        let dir = dx_testing::scratch_dir("rd-none");
         let asset = dir.join("a.bin");
-        std::fs::create_dir_all(&dir).expect("dir");
         std::fs::write(&asset, b"x").expect("asset");
         let backend = GhBackend {
             program: fake_gh(&dir.join("bin"), "exit 0"),
@@ -623,7 +620,6 @@ mod tests {
         );
         assert_eq!(code, 1);
         assert!(text.contains("no release for v1.2.3"), "{text}");
-        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

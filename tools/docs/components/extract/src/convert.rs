@@ -10,6 +10,8 @@ use documentation_ir::proto::{
 use serde_json::Value;
 use std::collections::BTreeSet;
 
+use crate::ComponentExtractError;
+
 /// The metadata format this converter reads.
 pub const SCHEMA: &str = "dx-component-meta/1";
 
@@ -27,28 +29,27 @@ pub struct Settings {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
-    let root: Value =
-        serde_json::from_str(json).map_err(|error| format!("invalid JSON: {error}"))?;
+pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, ComponentExtractError> {
+    let root: Value = serde_json::from_str(json).map_err(ComponentExtractError::Malformed)?;
     let schema = text(&root, "schema");
     if schema != SCHEMA {
-        return Err(format!(
-            "unsupported schema '{schema}', expected '{SCHEMA}'"
-        ));
+        return Err(ComponentExtractError::UnsupportedSchema {
+            found: schema.to_owned(),
+        });
     }
     let framework = text(&root, "framework");
     if framework != settings.language {
-        return Err(format!(
-            "metadata is for framework '{framework}', not '{}'",
-            settings.language
-        ));
+        return Err(ComponentExtractError::WrongFramework {
+            found: framework.to_owned(),
+            expected: settings.language.clone(),
+        });
     }
     let components = root
         .get("components")
         .and_then(Value::as_array)
-        .ok_or_else(|| "components must be an array".to_owned())?;
+        .ok_or(ComponentExtractError::ComponentsNotArray)?;
     if components.is_empty() {
-        return Err("metadata has no components".to_owned());
+        return Err(ComponentExtractError::NoComponents);
     }
     let mut names = BTreeSet::new();
     let mut symbols = Vec::new();
@@ -56,10 +57,14 @@ pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
         let name = text(component, "name");
         check_name("component", name)?;
         if name.contains('.') {
-            return Err(format!("component name '{name}' must not contain '.'"));
+            return Err(ComponentExtractError::DottedName {
+                name: name.to_owned(),
+            });
         }
         if !names.insert(name.to_owned()) {
-            return Err(format!("duplicate component '{name}'"));
+            return Err(ComponentExtractError::DuplicateComponent {
+                name: name.to_owned(),
+            });
         }
         component_symbols(component, name, settings, &mut symbols)?;
     }
@@ -75,9 +80,12 @@ fn text<'a>(node: &'a Value, key: &str) -> &'a str {
     node.get(key).and_then(Value::as_str).unwrap_or_default()
 }
 
-fn check_name(what: &str, name: &str) -> Result<(), String> {
+fn check_name(what: &'static str, name: &str) -> Result<(), ComponentExtractError> {
     if name.is_empty() || name.chars().any(|c| c.is_control() || c.is_whitespace()) {
-        return Err(format!("{what} name '{name}' is empty or has whitespace"));
+        return Err(ComponentExtractError::BadName {
+            what,
+            name: name.to_owned(),
+        });
     }
     Ok(())
 }
@@ -93,7 +101,7 @@ fn component_symbols(
     name: &str,
     settings: &Settings,
     out: &mut Vec<Symbol>,
-) -> Result<(), String> {
+) -> Result<(), ComponentExtractError> {
     let id = format!(
         "{}:{}:{}",
         settings.language,
@@ -128,9 +136,11 @@ fn component_symbols(
             let member = text(item, "name");
             check_name(prefix, member)?;
             if !seen.insert(member.to_owned()) {
-                return Err(format!(
-                    "duplicate {prefix} '{member}' in component '{name}'"
-                ));
+                return Err(ComponentExtractError::DuplicateMember {
+                    what: prefix,
+                    member: member.to_owned(),
+                    component: name.to_owned(),
+                });
             }
             let ty = text(item, "type");
             let (kind, signature) = match prefix {

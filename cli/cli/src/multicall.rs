@@ -1,7 +1,8 @@
 //! `dx` runs a bundled tool when started under that tool's name, so the prebuilt hub can ship one
 //! binary and expose it as `quality_runner`, `quality_markdown`, `quality_notebook`, `lsp_check`,
 //! `collect_native`, `env_shard_writer`, `codegen_shard_writer`, `deploy_tool` and the
-//! `conda-ocaml-{ar,as,cc,ld,mkdll,mkexe,ranlib}` names the OCaml compiler calls. Rule helpers
+//! `conda-ocaml-{ar,as,cc,ld,mkdll,mkexe,ranlib}` names the OCaml compiler calls, and `file`, which
+//! `dx appimage_packer` puts on appimagetool's PATH. Rule helpers
 //! that need no alias run as `dx <tool> [ARG]...`, so a host without symlinks keeps one copy of dx.
 
 use std::ffi::OsStr;
@@ -38,6 +39,10 @@ pub enum Tool {
     AndroidOps,
     #[cfg(not(windows))]
     AppleOps,
+    #[cfg(not(windows))]
+    AppimagePacker,
+    #[cfg(not(windows))]
+    AppimageFile,
     QtRustBridge,
     BeamExtract,
     CcExtract,
@@ -105,6 +110,8 @@ pub fn tool_for(argv0: &OsStr) -> Option<Tool> {
         | "conda-ocaml-mkdll" | "conda-ocaml-mkexe" | "conda-ocaml-ranlib" => {
             Some(Tool::OcamlCcDriver)
         }
+        #[cfg(not(windows))]
+        "file" => Some(Tool::AppimageFile),
         _ => None,
     }
 }
@@ -134,6 +141,8 @@ pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
         "android_ops" => Some(Tool::AndroidOps),
         #[cfg(not(windows))]
         "apple_ops" => Some(Tool::AppleOps),
+        #[cfg(not(windows))]
+        "appimage_packer" => Some(Tool::AppimagePacker),
         "qt_rust_bridge" => Some(Tool::QtRustBridge),
         "beam_extract" => Some(Tool::BeamExtract),
         "cc_extract" => Some(Tool::CcExtract),
@@ -213,6 +222,8 @@ mod tests {
             ("deploy_tool.exe", Tool::DeployTool),
             ("conda-ocaml-cc", Tool::OcamlCcDriver),
             ("x/bin/conda-ocaml-ranlib.exe", Tool::OcamlCcDriver),
+            #[cfg(not(windows))]
+            ("work/path/file", Tool::AppimageFile),
         ] {
             assert_eq!(tool_for(OsStr::new(name)), Some(tool), "{name}");
         }
@@ -272,6 +283,8 @@ mod tests {
             ("android_ops", Tool::AndroidOps),
             #[cfg(not(windows))]
             ("apple_ops", Tool::AppleOps),
+            #[cfg(not(windows))]
+            ("appimage_packer", Tool::AppimagePacker),
             ("qt_rust_bridge", Tool::QtRustBridge),
             ("beam_extract", Tool::BeamExtract),
             ("cc_extract", Tool::CcExtract),
@@ -346,6 +359,7 @@ mod tests {
             "zig_extract",
             "android_ops",
             "apple_ops",
+            "appimage_packer",
             "qt_rust_bridge",
             "beam_extract",
             "cc_extract",
@@ -402,6 +416,7 @@ mod tests {
             "quality_runner",
             "deploy_tool",
             "conda-ocaml-cc",
+            "file",
             "capture.exe",
             "test",
             "check",

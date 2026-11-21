@@ -3,11 +3,13 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
+use std::fmt;
+use std::path::Path;
 
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use prost::Message;
 use prost_types::field_descriptor_proto::{Label, Type};
 use prost_types::{
@@ -27,6 +29,91 @@ const MESSAGE_NESTED: i32 = 3;
 const MESSAGE_ENUM: i32 = 4;
 const ENUM_VALUE: i32 = 2;
 const SERVICE_METHOD: i32 = 2;
+
+/// Why the `protobuf_extract` arguments were rejected.
+#[derive(Debug)]
+pub enum ArgsError {
+    Flag(FlagError),
+    NotPair { value: String },
+    RepeatedSrc { name: String },
+}
+
+impl fmt::Display for ArgsError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Flag(error) => error.fmt(f),
+            Self::NotPair { value } => write!(f, "--src '{value}' is not PROTO=PATH"),
+            Self::RepeatedSrc { name } => write!(f, "--src given twice for '{name}'"),
+        }
+    }
+}
+
+impl std::error::Error for ArgsError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Flag(error) => Some(error),
+            Self::NotPair { .. } | Self::RepeatedSrc { .. } => None,
+        }
+    }
+}
+
+impl From<FlagError> for ArgsError {
+    fn from(error: FlagError) -> Self {
+        Self::Flag(error)
+    }
+}
+
+/// Why one descriptor set could not become a shard.
+#[derive(Debug)]
+pub enum ProtobufExtractError {
+    Read(PathIoError),
+    InvalidPackage { package: String },
+    Malformed(prost::DecodeError),
+    NoSourceInfo { file: String },
+    NotASource { file: String },
+    NoPublicApi { package: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for ProtobufExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::InvalidPackage { package } => write!(f, "invalid package '{package}'"),
+            Self::Malformed(error) => write!(f, "descriptor set is malformed: {error}"),
+            Self::NoSourceInfo { file } => write!(
+                f,
+                "{file} has no source info; run protoc with --include_source_info"
+            ),
+            Self::NotASource { file } => write!(
+                f,
+                "descriptor set holds '{file}', which is not one of the library's sources"
+            ),
+            Self::NoPublicApi { package } => write!(
+                f,
+                "descriptor set declares no Protobuf API of package '{package}'"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for ProtobufExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Malformed(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::InvalidPackage { .. }
+            | Self::NoSourceInfo { .. }
+            | Self::NotASource { .. }
+            | Self::NoPublicApi { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -57,7 +144,7 @@ pub fn usage() -> &'static str {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+pub fn parse(args: &[String]) -> Result<Options, ArgsError> {
     let mut flags = documentation_ir::tool::flags(
         args,
         &["--src", "--generated", "--descriptor", "--package", "--out"],
@@ -69,18 +156,20 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
         ..Options::default()
     };
     for value in flags.many("--src") {
-        let Some((name, path)) = value.split_once('=') else {
-            return Err(format!("--src '{value}' is not PROTO=PATH"));
+        let Some((name, path)) = value
+            .split_once('=')
+            .filter(|(name, path)| !name.is_empty() && !path.is_empty())
+        else {
+            return Err(ArgsError::NotPair { value });
         };
-        if name.is_empty() || path.is_empty() {
-            return Err(format!("--src '{value}' is not PROTO=PATH"));
-        }
         if options
             .srcs
             .insert(name.to_owned(), path.to_owned())
             .is_some()
         {
-            return Err(format!("--src given twice for '{name}'"));
+            return Err(ArgsError::RepeatedSrc {
+                name: name.to_owned(),
+            });
         }
     }
     options.generated.extend(flags.many("--generated"));
@@ -92,11 +181,11 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let bytes = fs::read(&options.descriptor)
-        .map_err(|error| format!("cannot read {}: {error}", options.descriptor))?;
+pub fn run(options: &Options) -> Result<(), ProtobufExtractError> {
+    let bytes =
+        path_io::read(Path::new(&options.descriptor)).map_err(ProtobufExtractError::Read)?;
     let shard = convert(&bytes, options)?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(ProtobufExtractError::Write)
 }
 
 /// Strips the comment markers' shared leading space and trailing blank space.
@@ -115,12 +204,11 @@ struct Locations {
 }
 
 impl Locations {
-    fn new(file: &FileDescriptorProto) -> Result<Self, String> {
+    fn new(file: &FileDescriptorProto) -> Result<Self, ProtobufExtractError> {
         let Some(info) = file.source_code_info.as_ref() else {
-            return Err(format!(
-                "{} has no source info; run protoc with --include_source_info",
-                file.name()
-            ));
+            return Err(ProtobufExtractError::NoSourceInfo {
+                file: file.name().to_owned(),
+            });
         };
         let mut by_path = BTreeMap::new();
         for location in &info.location {
@@ -417,20 +505,20 @@ impl Builder<'_> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(descriptor: &[u8], options: &Options) -> Result<DocIr, String> {
+pub fn convert(descriptor: &[u8], options: &Options) -> Result<DocIr, ProtobufExtractError> {
     let package = options.package.as_str();
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
+        return Err(ProtobufExtractError::InvalidPackage {
+            package: package.to_owned(),
+        });
     }
-    let set = FileDescriptorSet::decode(descriptor)
-        .map_err(|error| format!("descriptor set is malformed: {error}"))?;
+    let set = FileDescriptorSet::decode(descriptor).map_err(ProtobufExtractError::Malformed)?;
     let mut symbols = Vec::new();
     for file in &set.file {
         let Some(source) = options.srcs.get(file.name()) else {
-            return Err(format!(
-                "descriptor set holds '{}', which is not one of the library's sources",
-                file.name()
-            ));
+            return Err(ProtobufExtractError::NotASource {
+                file: file.name().to_owned(),
+            });
         };
         let mut builder = Builder {
             file,
@@ -466,9 +554,9 @@ pub fn convert(descriptor: &[u8], options: &Options) -> Result<DocIr, String> {
         symbols.append(&mut builder.symbols);
     }
     if symbols.is_empty() {
-        return Err(format!(
-            "descriptor set declares no Protobuf API of package '{package}'"
-        ));
+        return Err(ProtobufExtractError::NoPublicApi {
+            package: package.to_owned(),
+        });
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
@@ -476,7 +564,7 @@ pub fn convert(descriptor: &[u8], options: &Options) -> Result<DocIr, String> {
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(ProtobufExtractError::InvalidIr)?;
     Ok(shard)
 }
 

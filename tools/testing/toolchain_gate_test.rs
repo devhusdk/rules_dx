@@ -2,7 +2,6 @@ use std::collections::BTreeSet;
 
 /// Registrations for toolchain types `rules_dx` defines.
 const OWN_TYPES: &[&str] = &[
-    "//scala/private/toolchain/hub:all",
     "@dx_coreutils//:all",
     "@dx_d_toolchains//:all",
     "@dx_elixir_toolchains//:all",
@@ -13,6 +12,7 @@ const OWN_TYPES: &[&str] = &[
     "@dx_ocaml_toolchains//:all",
     "@dx_php_toolchains//:all",
     "@dx_powershell_toolchains//:all",
+    "@dx_scala_toolchains//:all",
     "@julia_toolchains//:all",
 ];
 

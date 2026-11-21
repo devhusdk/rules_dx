@@ -1,8 +1,10 @@
 #![deny(
     clippy::indexing_slicing,
+    clippy::map_err_ignore,
     clippy::print_stderr,
     clippy::print_stdout,
-    clippy::string_slice
+    clippy::string_slice,
+    clippy::unused_result_ok
 )]
 
 //! The lock step of a dx class ecosystem and the only writer of `<ecosystem>.lock.json`.
@@ -352,7 +354,8 @@ fn fetched_all(jobs: &[Job], fetch: &dyn Fetch) -> Result<BTreeMap<Vec<String>, 
             results.extend(
                 handle
                     .join()
-                    .map_err(|_| Error::new("an archive download thread panicked"))?,
+                    .ok()
+                    .ok_or_else(|| Error::new("an archive download thread panicked"))?,
             );
         }
         Ok::<_, Error>(results)

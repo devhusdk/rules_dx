@@ -55,7 +55,6 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude examples/adopt-polyglot
 # gazelle:exclude lua/tests/fixtures/selene
 # gazelle:exclude core/quality/testdata
-# gazelle:exclude tools/testing/starters/fixtures
 # gazelle:exclude deploy/private/release/consumer
 # gazelle:exclude tools/docs/typescript/fixture
 # gazelle:exclude tools/platforms/no_winsdk
@@ -251,22 +250,22 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude d/tests/fixtures/hello
 # gazelle:exclude core/quality/tests/fixtures/strict_preset
 # gazelle:exclude core/quality/tests/fixtures/consumer_policy
-# gazelle:exclude astro/tests/app
-# gazelle:exclude astro/tests/app_config/configs
-# gazelle:exclude astro/tests/app_config/src
-# gazelle:exclude astro/tests/typecheck
-# gazelle:exclude mdx/tests/app
-# gazelle:exclude mdx/tests/typecheck
-# gazelle:exclude svelte/tests/app
-# gazelle:exclude svelte/tests/app_errors
-# gazelle:exclude svelte/tests/typecheck
+# gazelle:exclude astro/tests/fixtures/app
+# gazelle:exclude astro/tests/fixtures/app_config/configs
+# gazelle:exclude astro/tests/fixtures/app_config/src
+# gazelle:exclude astro/tests/fixtures/typecheck
+# gazelle:exclude mdx/tests/fixtures/app
+# gazelle:exclude mdx/tests/fixtures/typecheck
+# gazelle:exclude svelte/tests/fixtures/app
+# gazelle:exclude svelte/tests/fixtures/app_errors
+# gazelle:exclude svelte/tests/fixtures/typecheck
 # gazelle:exclude typescript/tests/tags
 # gazelle:exclude typescript/tests/fixtures/declarations
 # gazelle:exclude typescript/tests/fixtures/hello
 # gazelle:exclude typescript/tests/fixtures/proto/stripped
 # gazelle:exclude typescript/tests/fixtures/proto/v1
-# gazelle:exclude vue/tests/app
-# gazelle:exclude vue/tests/typecheck
+# gazelle:exclude vue/tests/fixtures/app
+# gazelle:exclude vue/tests/fixtures/typecheck
 # gazelle:exclude .github/actions/assert-no-secret
 # gazelle:exclude .github/actions/remote-cache-helper
 # gazelle:exclude asciidoc/tests/fixtures
@@ -786,6 +785,7 @@ filegroup(
         "//julia/private/tools/patches:module_srcs",
         "//kotlin:module_srcs",
         "//kotlin/private:module_srcs",
+        "//kotlin/private/quality:module_srcs",
         "//kotlin/tests/fixtures/kotlin_app/cli:module_srcs",
         "//kubernetes/private/quality:module_srcs",
         "//lua:module_srcs",
@@ -806,7 +806,6 @@ filegroup(
         "//ocaml/private/toolchain:module_srcs",
         "//ocaml/private/toolchain/platform/emitter:module_srcs",
         "//ocaml/private/toolchain/platform/executor:module_srcs",
-        "//ocaml/private/toolchain/type:module_srcs",
         "//ocaml/private/tools/lock:module_srcs",
         "//patches/apple_support:module_srcs",
         "//patches/avro-cpp:module_srcs",
@@ -896,6 +895,7 @@ filegroup(
         "//rust/tests/tonic:module_srcs",
         "//scala:module_srcs",
         "//scala/private:module_srcs",
+        "//scala/private/quality:module_srcs",
         "//scala/private/toolchain:module_srcs",
         "//scala/private/toolchain/hub:module_srcs",
         "//sql/private:module_srcs",
@@ -1014,7 +1014,6 @@ filegroup(
         "//tools/testing/lsp:module_srcs",
         "//tools/testing/nested:module_srcs",
         "//tools/testing/process_probe:module_srcs",
-        "//tools/testing/starters:module_srcs",
         "//tools/testing/wasi:module_srcs",
         "//tools/visibility:module_srcs",
         "//typescript:module_srcs",

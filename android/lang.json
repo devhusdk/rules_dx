@@ -29,6 +29,21 @@
   "unsupported": {
     "linux_arm64": "Google ships no Linux arm64 Android build-tools, platform-tools or NDK"
   },
+  "quality": {
+    "bzl": "android/private/quality:android_sdk.bzl",
+    "file_extensions": [],
+    "licenses": [
+      "android-sdk-license"
+    ],
+    "aspects": {
+      "lint": [
+        "android_sdk_aspect"
+      ],
+      "typecheck": [
+        "android_sdk_aspect"
+      ]
+    }
+  },
   "pins": [
     "pins.json"
   ],

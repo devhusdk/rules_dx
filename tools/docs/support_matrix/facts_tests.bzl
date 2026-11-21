@@ -23,7 +23,7 @@ load("//tools/docs/ocaml:defs.bzl", "ocaml_doc_shard")
 load("//tools/docs/perl:defs.bzl", "perl_doc_shard")
 load("//tools/docs/php:defs.bzl", "php_doc_shard")
 load("//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
-load("//tools/docs/protobuf:defs.bzl", "protobuf_doc_shard")
+load("//tools/docs/protobuf:defs.bzl", "api_spec_protobuf_doc_shard")
 load("//tools/docs/python:defs.bzl", "python_doc_shard")
 load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
 load("//tools/docs/rust:site.bzl", "rust_docs_site")
@@ -57,7 +57,7 @@ _SHARD_RULES = {
     "perl_doc_shard": perl_doc_shard,
     "php_doc_shard": php_doc_shard,
     "powershell_doc_shard": powershell_doc_shard,
-    "protobuf_doc_shard": protobuf_doc_shard,
+    "api_spec_protobuf_doc_shard": api_spec_protobuf_doc_shard,
     "python_doc_shard": python_doc_shard,
     "ruby_doc_shard": ruby_doc_shard,
     "rust_docs_site": rust_docs_site,

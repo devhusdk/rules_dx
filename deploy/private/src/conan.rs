@@ -5,7 +5,75 @@ use crate::run::{
     placeholder_refusal, print_redacted, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use dx_atomic_fs::path_io::{self, PathIoError};
+use dx_process::capture::RunError;
+use std::fmt;
+use std::io;
 use std::path::{Path, PathBuf};
+
+/// Why a conan deployment failed.
+#[derive(Debug)]
+pub enum ConanError {
+    Paths(io::Error),
+    Stage(StageError),
+    TempDir(io::Error),
+    Io(PathIoError),
+    Run(RunError),
+    NameMismatch {
+        declared: String,
+        target: String,
+    },
+    NoVersion,
+    /// An already-prefixed refusal from the shared version, placeholder or owner checks.
+    Refused(String),
+    ConanFailed {
+        step: String,
+        status: String,
+    },
+    NoConan,
+    Export(io::Error),
+}
+
+impl fmt::Display for ConanError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Paths(source) | Self::TempDir(source) | Self::Export(source) => {
+                write!(f, "conan_deploy: {source}")
+            }
+            Self::Stage(source) => write!(f, "conan_deploy: {source}"),
+            Self::Io(source) => write!(f, "conan_deploy: {source}"),
+            Self::Run(source) => write!(f, "conan_deploy: {source}"),
+            Self::NameMismatch { declared, target } => write!(
+                f,
+                "conan_deploy: conanfile.py declares name {declared}, target is {target}; refusing"
+            ),
+            Self::NoVersion => f.write_str(
+                "conan_deploy: conanfile.py declares no plain version and BUILD sets none",
+            ),
+            Self::Refused(message) => f.write_str(message),
+            Self::ConanFailed { step, status } => {
+                write!(f, "conan_deploy: conan {step} failed with {status}")
+            }
+            Self::NoConan => f.write_str("conan_deploy: no conan executable"),
+        }
+    }
+}
+
+impl std::error::Error for ConanError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Paths(source) | Self::TempDir(source) | Self::Export(source) => Some(source),
+            Self::Stage(source) => Some(source),
+            Self::Io(source) => Some(source),
+            Self::Run(source) => Some(source),
+            Self::NameMismatch { .. }
+            | Self::NoVersion
+            | Self::Refused(_)
+            | Self::ConanFailed { .. }
+            | Self::NoConan => None,
+        }
+    }
+}
 
 /// Owner approval gate for `conan_deploy`.
 pub(crate) const CONAN_GATE: OwnerGate = OwnerGate {
@@ -41,35 +109,21 @@ fn recipe_string<'a>(text: &'a str, key: &str) -> Option<&'a str> {
 }
 
 /// Checks the recipe's declared name and returns the version to publish.
-fn recipe_version(text: &str, package: &str, version: &str) -> Result<String, String> {
+fn recipe_version(text: &str, package: &str, version: &str) -> Result<String, ConanError> {
     if let Some(name) = recipe_string(text, "name")
         && name != package
     {
-        return Err(format!(
-            "conan_deploy: conanfile.py declares name {name}, target is {package}; refusing"
-        ));
+        return Err(ConanError::NameMismatch {
+            declared: name.to_owned(),
+            target: package.to_owned(),
+        });
     }
     match recipe_string(text, "version") {
-        Some(declared) => resolve_version("conan_deploy", "conanfile.py", Some(declared), version),
+        Some(declared) => resolve_version("conan_deploy", "conanfile.py", Some(declared), version)
+            .map_err(ConanError::Refused),
         None if !version.is_empty() => Ok(version.to_owned()),
-        None => Err(
-            "conan_deploy: conanfile.py declares no plain version and BUILD sets none".to_owned(),
-        ),
+        None => Err(ConanError::NoVersion),
     }
-}
-
-fn stage_recipe(mapped: &[(PathBuf, String)], staging: &Path) -> Result<(), String> {
-    for (src, rel) in mapped {
-        let dest = staging.join(rel);
-        let staged = dest
-            .parent()
-            .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| copy_verified(src, &dest).map(|_| ()));
-        if staged.is_err() {
-            return Err(format!("conan_deploy: cannot stage {}", src.display()));
-        }
-    }
-    Ok(())
 }
 
 /// Runs one conan command in an isolated CONAN_HOME.
@@ -79,13 +133,13 @@ fn conan_run(
     dir: &Path,
     args: &[&str],
     secrets: &[(&str, &str)],
-) -> Result<(), String> {
+) -> Result<(), ConanError> {
     let home = home.to_string_lossy();
     let mut extra = vec![("CONAN_HOME", home.as_ref())];
     extra.extend_from_slice(secrets);
     let mut cmd = scrubbed_command(conan, &[PUBLISH_CHILD_ENV_KEEP], &extra);
     cmd.current_dir(dir).args(args);
-    let out = run_publish(&mut cmd).map_err(|error| format!("conan_deploy: {error}"))?;
+    let out = run_publish(&mut cmd).map_err(ConanError::Run)?;
     let password = secrets
         .iter()
         .find(|(key, _)| *key == "CONAN_PASSWORD")
@@ -94,11 +148,10 @@ fn conan_run(
     if out.success() {
         return Ok(());
     }
-    Err(format!(
-        "conan_deploy: conan {} failed with {}",
-        args.first().copied().unwrap_or_default(),
-        exit_text(&out)
-    ))
+    Err(ConanError::ConanFailed {
+        step: args.first().copied().unwrap_or_default().to_owned(),
+        status: exit_text(&out),
+    })
 }
 
 /// Creates the package from the staged recipe and uploads it to the remote.
@@ -108,7 +161,7 @@ fn conan_publish(
     spec: &ConanLaunch<'_>,
     version: &str,
     secrets: &[(&str, &str)],
-) -> Result<(), String> {
+) -> Result<(), ConanError> {
     let home = staging.join(".conan-home");
     let source = staging.join("recipe");
     let reference = format!("{}/{version}", spec.package);
@@ -148,7 +201,7 @@ pub fn conan_main(spec: &ConanLaunch<'_>, argv: &[String]) -> i32 {
     let staging = match tempfile_stage_dir("conan-") {
         Ok(dir) => dir,
         Err(error) => {
-            eprintln!("conan_deploy: {error}");
+            eprintln!("{}", ConanError::TempDir(error));
             return 1;
         }
     };
@@ -171,23 +224,22 @@ fn conan_deploy_checked(
     spec: &ConanLaunch<'_>,
     files: &[PathBuf],
     staging: &Path,
-) -> Result<String, String> {
-    let mapped = package_relative_paths(files, "conanfile.py", "conan_deploy")
-        .map_err(|error| format!("conan_deploy: {error}"))?;
+) -> Result<String, ConanError> {
+    let mapped =
+        package_relative_paths(files, "conanfile.py", "conan_deploy").map_err(ConanError::Paths)?;
     let source = staging.join("recipe");
-    stage_recipe(&mapped, &source)?;
-    let text = std::fs::read_to_string(source.join("conanfile.py"))
-        .map_err(|error| format!("conan_deploy: cannot read conanfile.py: {error}"))?;
+    stage_mapped(&mapped, &source).map_err(ConanError::Stage)?;
+    let text = path_io::read_to_string(&source.join("conanfile.py")).map_err(ConanError::Io)?;
     let version = recipe_version(&text, spec.package, spec.version)?;
     let package = spec.package;
     if OwnerGate::requested(env_or_empty) {
         if let Some(error) = placeholder_refusal("conan_deploy", &version) {
-            return Err(error);
+            return Err(ConanError::Refused(error));
         }
-        let secrets = CONAN_GATE.authorize(env_or_empty)?;
-        let conan = run
-            .resolve(spec.conan_rloc)
-            .ok_or_else(|| "conan_deploy: no conan executable".to_owned())?;
+        let secrets = CONAN_GATE
+            .authorize(env_or_empty)
+            .map_err(ConanError::Refused)?;
+        let conan = run.resolve(spec.conan_rloc).ok_or(ConanError::NoConan)?;
         conan_publish(
             &conan,
             staging,
@@ -210,7 +262,7 @@ fn conan_deploy_checked(
             .parent()
             .map_or(Ok(()), std::fs::create_dir_all)
             .and_then(|()| copy_verified(&source.join(rel), &to).map(|_| ()));
-        staged.map_err(|error| format!("conan_deploy: {error}"))?;
+        staged.map_err(ConanError::Export)?;
     }
     Ok(format!(
         "conan_deploy: staged {package}/{version} (build_mode: {})\n  recipe: {}",
@@ -228,27 +280,42 @@ mod tests {
 
     #[test]
     fn recipe_must_match_target() {
-        assert_eq!(recipe_version(RECIPE, "demo", ""), Ok("1.2.0".to_owned()));
         assert_eq!(
-            recipe_version(RECIPE, "demo", "1.2.0"),
-            Ok("1.2.0".to_owned())
+            recipe_version(RECIPE, "demo", "").expect("declared version"),
+            "1.2.0"
+        );
+        assert_eq!(
+            recipe_version(RECIPE, "demo", "1.2.0").expect("matching version"),
+            "1.2.0"
+        );
+        let error = recipe_version(RECIPE, "other", "").expect_err("name");
+        assert!(
+            matches!(error, ConanError::NameMismatch { .. }),
+            "{error:?}"
         );
         assert!(
-            recipe_version(RECIPE, "other", "")
-                .expect_err("name")
-                .contains("declares name demo, target is other")
+            error
+                .to_string()
+                .contains("declares name demo, target is other"),
+            "{error}"
         );
+        let error = recipe_version(RECIPE, "demo", "2.0.0").expect_err("version");
+        assert!(matches!(error, ConanError::Refused(_)), "{error:?}");
         assert!(
-            recipe_version(RECIPE, "demo", "2.0.0")
-                .expect_err("version")
-                .contains("declares version 1.2.0, BUILD declares 2.0.0")
+            error
+                .to_string()
+                .contains("declares version 1.2.0, BUILD declares 2.0.0"),
+            "{error}"
         );
         let bare = "class Demo(ConanFile):\n    pass\n";
         assert_eq!(
-            recipe_version(bare, "demo", "3.0.0"),
-            Ok("3.0.0".to_owned())
+            recipe_version(bare, "demo", "3.0.0").expect("BUILD version"),
+            "3.0.0"
         );
-        assert!(recipe_version(bare, "demo", "").is_err());
+        assert!(matches!(
+            recipe_version(bare, "demo", ""),
+            Err(ConanError::NoVersion)
+        ));
     }
 
     #[test]

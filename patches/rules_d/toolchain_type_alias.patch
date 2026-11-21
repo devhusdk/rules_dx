@@ -8,7 +8,7 @@ Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
 -toolchain_type(
 +alias(
      name = "toolchain_type",
-+    actual = "@rules_dx//d/private/toolchain:toolchain_type",
++    actual = "@rules_dx//d:toolchain_type",
      visibility = ["//visibility:public"],
  )
  

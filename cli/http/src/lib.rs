@@ -1,4 +1,10 @@
-#![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::panic,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 //! The one HTTP client dx uses: proxy and CA trust from the environment, explicit
 //! timeouts, retries with backoff, and downloads that hash while they stream.
@@ -199,9 +205,9 @@ impl Client {
     /// # Errors
     /// Fails like [`Client::bytes`], and when the body is not UTF-8.
     pub fn text(&self, url: &str, headers: &[(&str, &str)], limit: u64) -> Result<String, Error> {
-        String::from_utf8(self.bytes(url, headers, limit)?).map_err(|_| Error::Transport {
+        String::from_utf8(self.bytes(url, headers, limit)?).map_err(|error| Error::Transport {
             url: url.to_owned(),
-            message: "the body is not UTF-8 text".to_owned(),
+            message: format!("the body is not UTF-8 text: {error}"),
         })
     }
 

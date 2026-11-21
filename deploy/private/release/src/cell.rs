@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::{self, Write as _};
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use dx_atomic_fs::path_io::{self, PathIoError};
@@ -1638,9 +1638,8 @@ pub fn render_verification(verification: &Verification) -> String {
     for outcome in &verification.cells {
         if let (Some(record), true) = (&outcome.record, outcome.qualified()) {
             {
-                writeln!(
-                    text,
-                    "{} qualified {} sha256 {} sha {} version {} job {} run {}",
+                text.push_str(&format!(
+                    "{} qualified {} sha256 {} sha {} version {} job {} run {}\n",
                     record.cell,
                     record.archive.name,
                     record.archive.sha256,
@@ -1648,18 +1647,17 @@ pub fn render_verification(verification: &Verification) -> String {
                     record.version,
                     record.job,
                     record.run_id
-                )
-                .ok();
+                ));
             }
         } else {
-            writeln!(text, "{} rejected", outcome.cell).ok();
+            text.push_str(&format!("{} rejected\n", outcome.cell));
             for reason in &outcome.reasons {
-                writeln!(text, "  {reason}").ok();
+                text.push_str(&format!("  {reason}\n"));
             }
         }
     }
     for problem in &verification.stray {
-        writeln!(text, "stray: {problem}").ok();
+        text.push_str(&format!("stray: {problem}\n"));
     }
     text
 }

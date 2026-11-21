@@ -179,18 +179,18 @@ def _swift_coverage_kwargs(kwargs):
         "//conditions:default": [],
     }))
     out = dx_append_flags(out, "linkopts", select({
-        Label("//swift/private:coverage_windows_static_crt"): [],
-        Label("//swift/private:coverage_windows"): ["-NODEFAULTLIB:libcmt.lib"],
+        Label("//core/platforms:coverage_windows_static_crt"): [],
+        Label("//core/platforms:coverage_windows"): ["-NODEFAULTLIB:libcmt.lib"],
         "//conditions:default": [],
     }))
     out = dx_append_flags(out, "features", select({
-        Label("//swift/private:coverage_linux"): ["-llvm_coverage_map_format"],
-        Label("//swift/private:coverage_windows"): ["-llvm_coverage_map_format"],
+        Label("//core/platforms:coverage_linux"): ["-llvm_coverage_map_format"],
+        Label("//core/platforms:coverage_windows"): ["-llvm_coverage_map_format"],
         "//conditions:default": [],
     }))
     return dx_append_flags(out, "deps", select({
-        Label("//swift/private:coverage_linux"): [Label("//swift/private/toolchain:profile_runtime")],
-        Label("//swift/private:coverage_windows"): [Label("//swift/private/toolchain:profile_runtime")],
+        Label("//core/platforms:coverage_linux"): [Label("//swift/private/toolchain:profile_runtime")],
+        Label("//core/platforms:coverage_windows"): [Label("//swift/private/toolchain:profile_runtime")],
         "//conditions:default": [],
     }))
 

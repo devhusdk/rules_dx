@@ -209,10 +209,14 @@ single_version_override(
 bazel_dep(name = "elfutils", version = "0.195", dev_dependency = True)
 
 # musl.patch compiles libdwfl without argp, fts and GNU strerror_r on musl.
+# aarch64_config.patch sets the aarch64 Linux configure checks in lib/config.h.
 single_version_override(
     module_name = "elfutils",
     patch_strip = 1,
-    patches = ["//patches/elfutils:musl.patch"],
+    patches = [
+        "//patches/elfutils:musl.patch",
+        "//patches/elfutils:aarch64_config.patch",
+    ],
     version = "0.195",
 )
 
@@ -396,8 +400,15 @@ single_version_override(
 # floor: equals tested
 bazel_dep(name = "bazel_worker_api", version = "0.0.11")
 
-scala_config = use_extension("//scala/private/toolchain:config_extension.bzl", "scala_config")
-use_repo(scala_config, "rules_scala_config")
+scala_config = use_extension("//scala:extensions.bzl", "scala_config")
+use_repo(scala_config, "dx_scala_toolchains", "rules_scala_config")
+
+# A third Scala version for //scala/tests:third_version_test; consumers set their own.
+scala_config_dev = use_extension("//scala:extensions.bzl", "scala_config", dev_dependency = True)
+scala_config_dev.settings(scala_versions = [
+    "3.3.9",
+    "2.12.21",
+])
 
 scala = use_extension("//scala/private/toolchain:deps_extension.bzl", "scala")
 use_repo(
@@ -408,7 +419,7 @@ use_repo(
 
 register_toolchains(
     "//java/private/toolchain:all",
-    "//scala/private/toolchain/hub:all",
+    "@dx_scala_toolchains//:all",
 )
 
 ansible = use_extension("//ansible:extensions.bzl", "ansible", dev_dependency = True)
@@ -705,7 +716,7 @@ dx_pins.pin(
         "flang",
     ],
     pins = "//fortran:pins.json",
-    toolchain_type = "//fortran/private/toolchain:toolchain_type",
+    toolchain_type = "//fortran:toolchain_type",
 )
 dx_pins.pin(
     name = "dx_php",
@@ -1239,7 +1250,6 @@ dx_pins.archive(
     name = "rules_julia",
     patches = [
         "//patches/rules_julia:config_base_toml.patch",
-        "//patches/rules_julia:deterministic_module_build_id.patch",
         "//patches/rules_julia:in_process_resolve_test.patch",
         "//patches/rules_julia:locate_installed_package.patch",
         "//patches/rules_julia:package_annotation_version.patch",
@@ -1279,6 +1289,7 @@ dx_pins.archive(
     ],
     pins = "//ocaml:pins.json",
 )
+# Pinned to an upstream main commit (bazel-contrib/rules_cuda#530, after v0.4.0); #14468 moves it to the release.
 dx_pins.archive(
     name = "rules_cuda",
     dropped = [
@@ -1293,7 +1304,6 @@ dx_pins.archive(
     ],
     patches = [
         "//patches/rules_cuda:coverage_keep.patch",
-        "//patches/rules_cuda:msvc_dlink_crt.patch",
         "//patches/rules_cuda:objdir_as_tempdir.patch",
         "//patches/rules_cuda:toolchain_type_alias.patch",
     ],
@@ -1344,12 +1354,12 @@ dx_pins.archive(
     patches = ["//patches/rules_powershell:inline_runfiles_sh.patch"],
     pins = "//powershell:pins.json",
 )
+# Pinned to an upstream main commit carrying bazel-contrib/rules_ruby#435 and #440 until a release has them.
 dx_pins.archive(
     name = "rules_ruby",
     crlf = ["ruby/private/binary/binary.cmd.tpl"],
     dropped = ["MODULE.bazel"],
     patches = [
-        "//patches/rules_ruby:reproducible.patch",
         "//patches/rules_ruby:coverage.patch",
         "//patches/rules_ruby:rubyinstaller_archive.patch",
         "//patches/rules_ruby:toolchains_gate.patch",
@@ -1499,7 +1509,10 @@ dx_pins.archive(
 dx_pins.archive(
     name = "julia_src",
     build = "//julia/private/runtime:julia_src.BUILD.bazel",
-    patches = ["//patches/julia:deterministic_objectid.patch"],
+    patches = [
+        "//patches/julia:deterministic_image_fields.patch",
+        "//patches/julia:deterministic_objectid.patch",
+    ],
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
@@ -2303,7 +2316,6 @@ single_version_override(
     module_name = "rules_py",
     patch_strip = 1,
     patches = [
-        "//patches/rules_py:py_cc_toolchain_platform.patch",
         "//patches/rules_py:native_sdist_toolchain_flags.patch",
         "//patches/rules_py:pep517_msvc.patch",
         "//patches/rules_py:venv_bin_files.patch",
@@ -2559,7 +2571,7 @@ use_repo(
 )
 
 sdist_cargo_vendor = use_extension(
-    "//python:extensions.bzl",
+    "//python/tests:sdist_cargo_vendor.bzl",
     "sdist_cargo_vendor",
     dev_dependency = True,
 )
@@ -2996,7 +3008,6 @@ crate.from_cargo(
         "//tools/testing/nested:Cargo.toml",
         "//tools/testing/lsp:Cargo.toml",
         "//tools/testing/floor:Cargo.toml",
-        "//tools/testing/starters:Cargo.toml",
         "//core/modules:Cargo.toml",
         "//tools/testing/wasi:Cargo.toml",
         "//api_spec/private/codegen:Cargo.toml",

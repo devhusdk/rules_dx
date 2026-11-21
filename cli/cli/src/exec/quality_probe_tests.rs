@@ -35,7 +35,11 @@ fn probed_shards_narrow_the_build_aspects() {
     assert_eq!(builds.len(), 1);
     assert_eq!(
         aspects_of(&builds[0]),
-        vec!["real_lint_aspect", "real_rust_lint_aspect"]
+        vec![
+            "real_lint_aspect",
+            "android_sdk_aspect",
+            "real_rust_lint_aspect"
+        ]
     );
     let probe = &harness.probe_argv.borrow()[0];
     let expected: Vec<String> = dx_plan::plan::spec(dx_plan::args::Command::Lint)

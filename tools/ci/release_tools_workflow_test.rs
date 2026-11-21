@@ -115,9 +115,9 @@ fn each_host_uploads_its_artifact() {
         "bazel test //tools/coverage/kcov:smoke_test //tools/coverage/kcov:static_smoke_test"
     ));
     assert!(text.contains("kcov archive sha256 differs from pins.json"));
-    assert!(text.contains(
-        "linux-x86_64) flags=(--platforms=//tools/platforms:linux_x86_64_musl) ;;"
-    ));
+    assert!(
+        text.contains("linux-x86_64) flags=(--platforms=//tools/platforms:linux_x86_64_musl) ;;")
+    );
     assert!(
         text.contains("linux-arm64) flags=(--platforms=//tools/platforms:linux_arm64_musl) ;;")
     );
@@ -385,9 +385,9 @@ fn haskell_job_ships_the_gmp_licence_and_source() {
         );
     }
     assert!(tools.contains("sha256 differs from haskell/pins.json $pin"));
-    assert!(tools.contains(
-        "cp haskell/private/toolchain/lgpl-3.0.txt \"$out/dx-haskell-gmp-LICENSE\""
-    ));
+    assert!(
+        tools.contains("cp haskell/private/toolchain/lgpl-3.0.txt \"$out/dx-haskell-gmp-LICENSE\"")
+    );
     assert!(release.contains(" dx-haskell-gmp-LICENSE"));
     assert!(pins["archives"].get("gmp_license").is_none());
     for cell in ["linux_arm64_musl", "linux_x86_64_musl"] {
@@ -460,7 +460,9 @@ fn release_writes_and_checks_the_tool_manifest() {
     assert!(text.contains("for tool_asset in dx-tree-sitter-windows-arm64.dll dx-tree-sitter-pkl-windows-arm64.dll dx-tree-sitter-LICENSE dx-tree-sitter-pkl-LICENSE; do"));
     assert!(text.contains("for tool_asset in dx-pcov-linux-x86_64.so dx-pcov-linux-arm64.so dx-pcov-macos-arm64.so dx-pcov-LICENSE; do"));
     assert!(text.contains(" dx-thrift-* dx-tree-sitter-* dx-pcov-* dx-julia-internal-* "));
-    assert!(text.contains("for tool_asset in dx-julia-internal-linux-x86_64.so dx-julia-internal-LICENSE; do"));
+    assert!(text.contains(
+        "for tool_asset in dx-julia-internal-linux-x86_64.so dx-julia-internal-LICENSE; do"
+    ));
     assert!(text.contains("for tool in capnp flatc go ldoc-main oapi-codegen runtime thrift; do"));
     assert!(text.contains("for license in dx-capnp-LICENSE dx-flatc-LICENSE dx-ldoc-main-LICENSE dx-oapi-codegen-LICENSE dx-thrift-LICENSE; do"));
     assert!(text.contains(" dx-go-* dx-ldoc-main-* dx-oapi-codegen-* "));
@@ -518,6 +520,23 @@ fn release_consumer_skips_mirrors_and_v0_0_bcr() {
         "{condition}"
     );
     assert!(condition.contains("'v0.0.'"), "{condition}");
+}
+
+#[test]
+fn release_consumer_resolves_through_a_registry_and_verifies() {
+    let text = read_runfiles(CONSUMER);
+    assert!(!text.contains("archive_override"));
+    assert!(text.contains("echo \"common --registry=https://bcr.bazel.build/\""));
+    assert!(text.contains("modules/rules_dx/$version/source.json"));
+    assert!(text.contains("gh attestation verify \"${pair%%:*}\""));
+    assert!(text.contains("--cert-identity \"https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG\""));
+    assert!(text.contains("--deny-self-hosted-runners"));
+    let consumer = job(CONSUMER, "consumer").unwrap_or_else(|error| panic!("{error}"));
+    assert!(
+        consumer["permissions"]["contents"] != "write",
+        "{:?}",
+        consumer["permissions"]
+    );
 }
 
 #[test]

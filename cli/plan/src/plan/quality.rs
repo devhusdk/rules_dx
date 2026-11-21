@@ -61,7 +61,9 @@ fn shard_name(aspect: &str) -> &str {
 /// The core shard of each capability runs on every target, so the probe never drops it.
 const CORE_SHARDS: [&str; 3] = ["real_lint", "real_format", "real_typecheck"];
 
-/// The registry aspects to pass: all of them, or the core ones plus the shards the probe named.
+/// The registry aspects to pass: all of them, or the core ones, the helpers and the shards the
+/// probe named. A helper aspect, one whose name lacks the `real_` prefix of a shard, provides for
+/// the shards after it, so the probe never drops it.
 #[must_use]
 pub fn select_aspects(
     aspects: Vec<&'static str>,
@@ -71,7 +73,9 @@ pub fn select_aspects(
         .into_iter()
         .filter(|aspect| {
             let name = shard_name(aspect);
-            shards.is_none_or(|shards| CORE_SHARDS.contains(&name) || shards.contains(name))
+            shards.is_none_or(|shards| {
+                !name.starts_with("real_") || CORE_SHARDS.contains(&name) || shards.contains(name)
+            })
         })
         .collect()
 }
@@ -841,6 +845,38 @@ mod tests {
         assert!(!aspects.contains("go.bzl"));
     }
 
+    const ANDROID_SDK_ASPECT: &str = "android/private/quality:android_sdk.bzl%android_sdk_aspect";
+
+    #[test]
+    fn accepted_android_license_runs_the_sdk_aspect_before_the_jvm_aspects() {
+        let accepted: BTreeSet<String> = [
+            ".java".to_owned(),
+            dx_families::license_mark("android-sdk-license"),
+        ]
+        .into();
+        for command in [Command::Lint, Command::Typecheck] {
+            let aspects = command_aspects(
+                command,
+                Some(Consumer {
+                    extensions: &accepted,
+                }),
+            );
+            let sdk = aspects
+                .iter()
+                .position(|label| *label == ANDROID_SDK_ASPECT);
+            let jvm = aspects
+                .iter()
+                .position(|label| label.starts_with("java/private/quality:jvm.bzl%"));
+            assert!(sdk.is_some() && jvm.is_some(), "{aspects:?}");
+            assert!(sdk < jvm, "{aspects:?}");
+        }
+        let java: BTreeSet<String> = [".java".to_owned()].into();
+        for command in [Command::Lint, Command::Typecheck] {
+            let aspects = command_aspects(command, Some(Consumer { extensions: &java }));
+            assert!(!aspects.contains(&ANDROID_SDK_ASPECT), "{aspects:?}");
+        }
+    }
+
     #[test]
     fn select_aspects_keeps_core_shards_and_the_probed_ones() {
         let lint = spec(Command::Lint);
@@ -853,6 +889,7 @@ mod tests {
             select_aspects(lint.aspects.to_vec(), Some(&rust)),
             vec![
                 "core/quality:families/core.bzl%real_lint_aspect",
+                ANDROID_SDK_ASPECT,
                 "rust/private/quality:rust.bzl%real_rust_lint_aspect",
             ]
         );
@@ -862,12 +899,16 @@ mod tests {
             vec![
                 "core/quality:families/core.bzl%real_lint_aspect",
                 "core/quality:families/core.bzl%real_biome_lint_aspect",
+                ANDROID_SDK_ASPECT,
             ]
         );
         let unknown: BTreeSet<String> = ["real_nonexistent_lint".to_owned()].into();
         assert_eq!(
             select_aspects(lint.aspects.to_vec(), Some(&unknown)),
-            vec!["core/quality:families/core.bzl%real_lint_aspect"]
+            vec![
+                "core/quality:families/core.bzl%real_lint_aspect",
+                ANDROID_SDK_ASPECT,
+            ]
         );
         let format = spec(Command::Format);
         assert_eq!(
@@ -914,6 +955,7 @@ mod tests {
             [
                 "real_format",
                 "real_lint",
+                "android_sdk",
                 "real_rust_lint",
                 "real_typecheck"
             ]
@@ -960,7 +1002,7 @@ mod tests {
         )
         .expect("plan");
         assert!(plan.argv.contains(
-            &"--aspects=@rules_dx//core/quality:families/core.bzl%real_lint_aspect,@rules_dx//rust/private/quality:rust.bzl%real_rust_lint_aspect".to_owned()
+            &"--aspects=@rules_dx//core/quality:families/core.bzl%real_lint_aspect,@rules_dx//android/private/quality:android_sdk.bzl%android_sdk_aspect,@rules_dx//rust/private/quality:rust.bzl%real_rust_lint_aspect".to_owned()
         ));
     }
 
@@ -982,10 +1024,11 @@ mod tests {
         )
         .expect("shared plan")
         .argv;
-        let union: Vec<&str> = commands
-            .iter()
-            .flat_map(|command| spec(*command).aspects.iter().copied())
-            .collect();
+        let union = super::union(
+            commands
+                .iter()
+                .flat_map(|command| spec(*command).aspects.iter().copied()),
+        );
         let lint = plan_build_with(
             Command::Lint,
             &resolved(&["//pkg:lib"]),

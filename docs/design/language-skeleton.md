@@ -28,7 +28,7 @@ Entry | Required | Holds
 - A repository `BUILD` template is `<lang>/private/<repo>.BUILD.bazel`.
 - A public platform, constraint value or flag is a target in `<lang>/BUILD.bazel`. No public package sits below it.
 - Language code lives under `<lang>/`, not in `core/quality/tools/<lang>` or `tools/coverage/<lang>`.
-- No target in a `<lang>/private/` `BUILD.bazel` file has `//visibility:public`.
+- No target in a `<lang>/private/` `BUILD.bazel` file has `//visibility:public`, a `tools/visibility` package group whose `packages` include `public`, or a `tools/visibility/visibility.bzl` constant that names either.
 
 ## Private directories
 

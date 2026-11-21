@@ -1,18 +1,8 @@
 load("//java:defs.bzl", "java_binary", "java_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
-load(":jars.bzl", "runtime_jars_rule", "scalac_toolchain_jars_rule")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
-
-# The compiler jars the driver loads at run time; the aspect passes the consumer toolchain's own.
-scalac_toolchain_jars_rule(name = "compiler_jars")
-
-# A Scala 3 compiler for the dotc frontend test; the repo's own toolchain stays Scala 2.13.
-runtime_jars_rule(
-    name = "scala3_compiler_jars",
-    deps = ["@dx_scala3_test//:org_scala_lang_scala3_compiler_3"],
-)
 
 java_library(
     name = "scalac_check_lib",
@@ -35,9 +25,6 @@ java_binary(
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = [
-        "BUILD.bazel",
-        "jars.bzl",
-    ],
+    starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

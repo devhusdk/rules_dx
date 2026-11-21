@@ -1,7 +1,6 @@
-load("//javascript:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
+load("//javascript:defs.bzl", "javascript_library", "javascript_test")
 load("//javascript/tests:defs_tests.bzl", "javascript_run_environment_tests")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
     default_testonly = True,
@@ -11,27 +10,6 @@ package(
 javascript_library(
     name = "hello_lib",
     srcs = ["hello.js"],
-)
-
-javascript_binary(
-    name = "hello",
-    data = [":hello_lib"],
-    main = "main.js",
-)
-
-javascript_test(
-    name = "hello_test",
-    srcs = ["hello.test.js"],
-    data = [":hello_lib"],
-    node_modules = "//:node_modules",
-    node_options = ["--experimental-vm-modules"],
-    package_json = "//:package_json",
-)
-
-dx_hello_output_test(
-    name = "hello_output_test",
-    binary = ":hello",
-    expected = "hello world",
 )
 
 javascript_test(

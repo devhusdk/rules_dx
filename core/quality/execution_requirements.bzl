@@ -9,9 +9,12 @@ DX_NO_REMOTE_EXEC = "no-remote-exec"
 
 DX_FORBIDDEN_NO_REMOTE = "no-remote"
 
-def _qualified(tool, capability):
-    """One remote record for a pinned single-binary tool on every qualified platform."""
-    return {
+def _qualified(tool, capability, artifact = None):
+    """One remote record for a pinned single-binary tool on every qualified platform.
+
+    `artifact` names the pinned @dx_tools binary when it differs from the adapter name.
+    """
+    record = {
         "capability": capability,
         "closure": "declared",
         "platforms": list(TOOL_PLATFORMS),
@@ -19,6 +22,9 @@ def _qualified(tool, capability):
         "state": "qualified",
         "tool": tool,
     }
+    if artifact != None:
+        record["artifact"] = artifact
+    return record
 
 SHFMT_FORMAT_REMOTE = _qualified("shfmt", "format")
 
@@ -42,9 +48,11 @@ REMOTE_QUALIFIED = [
     _qualified("fortitude", "lint"),
     _qualified("gersemi", "format"),
     _qualified("hadolint", "lint"),
+    _qualified("helmfmt", "format"),
     _qualified("jsonnet_lint", "lint"),
     _qualified("jsonnetfmt", "format"),
     _qualified("keep_sorted", "lint"),
+    _qualified("kubeconform", "lint"),
     _qualified("opa", "format"),
     _qualified("opa", "typecheck"),
     _qualified("regal", "lint"),
@@ -54,6 +62,8 @@ REMOTE_QUALIFIED = [
     _qualified("stylua", "format"),
     _qualified("taplo", "format"),
     _qualified("taplo", "lint"),
+    _qualified("tflint", "lint"),
+    _qualified("trivy_image_config", "lint", artifact = "trivy"),
     _qualified("typos", "lint"),
     _qualified("typstyle", "format"),
     _qualified("vale", "lint"),
@@ -122,7 +132,6 @@ PENDING = [
     ("graphql_eslint", "lint"),
     ("graphql_eslint", "typecheck"),
     ("helm", "lint"),
-    ("helmfmt", "format"),
     ("hlint", "lint"),
     ("javac", "typecheck"),
     ("jet", "typecheck"),
@@ -130,7 +139,6 @@ PENDING = [
     ("julialint", "lint"),
     ("kotlinc", "typecheck"),
     ("ktfmt", "format"),
-    ("kubeconform", "lint"),
     ("latexindent", "format"),
     ("ldc", "typecheck"),
     ("luals", "typecheck"),
@@ -182,13 +190,11 @@ PENDING = [
     ("taplo", "typecheck"),
     ("terraform", "format"),
     ("terraform", "typecheck"),
-    ("tflint", "lint"),
     ("thrift", "lint"),
     ("thrift", "typecheck"),
     ("tinymist", "lint"),
     ("topiary", "format"),
     ("trivy_config", "lint"),
-    ("trivy_image_config", "lint"),
     ("tsc", "typecheck"),
     ("ty", "typecheck"),
     ("weeder", "lint"),
@@ -260,7 +266,7 @@ def remote_record_error(record):
 
 def remote_platform_error(record, artifact_platforms):
     """Reports the platforms a remote record claims without a pinned artifact."""
-    covered = artifact_platforms.get(record["tool"], [])
+    covered = artifact_platforms.get(record.get("artifact", record["tool"]), [])
     missing = [platform for platform in record["platforms"] if platform not in covered]
     if len(missing) > 0:
         return "remote: tool '" + record["tool"] + "' is remote-qualified for " + ", ".join(missing) + " without a pinned artifact"

@@ -137,6 +137,7 @@ run_binary(
     name = "lang_projections_generated",
     srcs = [
         "//:lang_json",
+        "//core/quality:core_aspects.json",
         "//core/quality/testdata:all_languages.bzl",
     ],
     outs = [
@@ -152,6 +153,7 @@ run_binary(
         "all_languages.bzl=$(execpath generated/all_languages.bzl)",
         "all_languages_src=$(execpath //core/quality/testdata:all_languages.bzl)",
         "conformance_quality.bzl=$(execpath generated/conformance_quality.bzl)",
+        "core_aspects=$(execpath //core/quality:core_aspects.json)",
         "ecosystems_languages.json=$(execpath generated/ecosystems_languages.json)",
         "families_languages.json=$(execpath generated/families_languages.json)",
         "langs.bzl=$(execpath generated/langs.bzl)",

@@ -133,7 +133,7 @@ dx_wrapper_contract_tests(
             "windows coverage launches the test class",
             kotlin_test_main_class("a.BTest"),
             {
-                str(label_string("//kotlin/private:windows_coverage")): "a.BTest",
+                str(label_string("//core/platforms:coverage_windows")): "a.BTest",
                 "//conditions:default": "com.google.testing.junit.runner.BazelTestRunner",
             },
         ),

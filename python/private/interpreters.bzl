@@ -7,11 +7,11 @@ _TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
 _EXEC_TOOLS_ENABLED = str(Label("@rules_python//python/config_settings:is_exec_tools_toolchain_enabled"))
 
 _PLATFORMS = {
-    "aarch64-apple-darwin": struct(os = "macos", cpu = "aarch64"),
-    "aarch64-pc-windows-msvc": struct(os = "windows", cpu = "aarch64"),
-    "aarch64-unknown-linux-gnu": struct(os = "linux", cpu = "aarch64"),
-    "x86_64-pc-windows-msvc": struct(os = "windows", cpu = "x86_64"),
-    "x86_64-unknown-linux-gnu": struct(os = "linux", cpu = "x86_64"),
+    "aarch64-apple-darwin": struct(os = "macos", cpu = "aarch64", sys_platform = "darwin", platform_tag = "darwin"),
+    "aarch64-pc-windows-msvc": struct(os = "windows", cpu = "aarch64", sys_platform = "win32", platform_tag = "win_arm64"),
+    "aarch64-unknown-linux-gnu": struct(os = "linux", cpu = "aarch64", sys_platform = "linux", platform_tag = "aarch64-linux-gnu"),
+    "x86_64-pc-windows-msvc": struct(os = "windows", cpu = "x86_64", sys_platform = "win32", platform_tag = "win_amd64"),
+    "x86_64-unknown-linux-gnu": struct(os = "linux", cpu = "x86_64", sys_platform = "linux", platform_tag = "x86_64-linux-gnu"),
 }
 
 def _repo_name(version, triple):
@@ -22,8 +22,17 @@ toolchain(
     name = "{name}",
     {constraint_attr} = {constraints},
     target_settings = {settings},
-    toolchain = "@{repo}//:{target}",
+    toolchain = "{toolchain}",
     toolchain_type = "{toolchain_type}",
+)"""
+
+_PY_CC_TOOLCHAIN = """
+dx_py_cc_toolchain(
+    name = "{name}",
+    base = "@{repo}//:py_cc_toolchain",
+    platform_machine = "{platform_machine}",
+    platform_tag = "{platform_tag}",
+    sys_platform = "{sys_platform}",
 )"""
 
 _WINDOWS_TOOLCHAIN = """
@@ -43,6 +52,7 @@ _WINDOWS_RUNTIMES = {
 def _hub_impl(rctx):
     version = rctx.attr.python_version
     lines = [
+        'load("{}", "dx_py_cc_toolchain")'.format(str(Label("//python/private:py_cc_toolchain.bzl"))),
         'package(default_visibility = ["//visibility:public"])',
     ]
     for triple, platform in sorted(_PLATFORMS.items()):
@@ -52,10 +62,17 @@ def _hub_impl(rctx):
             "@platforms//cpu:" + platform.cpu,
         ]
         settings = [_TOOLCHAINS_ON]
-        for suffix, target, toolchain_type, target_side in [
-            ("", "runtime", "@bazel_tools//tools/python:toolchain_type", True),
-            ("_py_cc", "py_cc_toolchain", "@rules_python//python/cc:toolchain_type", True),
-            ("_exec_tools", "runtime", "@rules_py//py/private/toolchain:exec_tools_toolchain_type", False),
+        lines.append(_PY_CC_TOOLCHAIN.format(
+            name = repo + "_py_cc_toolchain",
+            repo = repo,
+            platform_machine = platform.cpu,
+            platform_tag = platform.platform_tag,
+            sys_platform = platform.sys_platform,
+        ))
+        for suffix, toolchain, toolchain_type, target_side in [
+            ("", "@{}//:runtime".format(repo), "@bazel_tools//tools/python:toolchain_type", True),
+            ("_py_cc", ":{}_py_cc_toolchain".format(repo), "@rules_python//python/cc:toolchain_type", True),
+            ("_exec_tools", "@{}//:runtime".format(repo), "@rules_py//py/private/toolchain:exec_tools_toolchain_type", False),
         ]:
             constraint_attr = "target_compatible_with" if target_side else "exec_compatible_with"
             lines.append(_TOOLCHAIN.format(
@@ -63,8 +80,7 @@ def _hub_impl(rctx):
                 constraint_attr = constraint_attr,
                 constraints = repr(constraints),
                 settings = repr(settings if target_side else [_TOOLCHAINS_ON]),
-                repo = repo,
-                target = target,
+                toolchain = toolchain,
                 toolchain_type = toolchain_type,
             ))
     for cpu, repo in sorted(_WINDOWS_RUNTIMES.items()):

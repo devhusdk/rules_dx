@@ -16,9 +16,11 @@ pub enum RecordProblem {
 }
 
 fn validated_generation_id(hex: &str) -> Result<GenerationId, RecordProblem> {
-    GenerationId::new(hex).map_err(|_| RecordProblem::MalformedDigest {
-        value: hex.to_owned(),
-    })
+    GenerationId::new(hex)
+        .ok()
+        .ok_or_else(|| RecordProblem::MalformedDigest {
+            value: hex.to_owned(),
+        })
 }
 
 pub fn validate_record(

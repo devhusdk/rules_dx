@@ -1,6 +1,7 @@
 use super::*;
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
 use serde_json::{Value, json};
+use std::fs;
 
 fn settings() -> Settings {
     Settings {
@@ -156,42 +157,93 @@ fn components_sort_by_id_regardless_of_input_order() {
     assert_eq!(shard.symbols[1].display_name, "Zed");
 }
 
-fn failure(json: &str) -> String {
+fn failure(json: &str) -> ComponentExtractError {
     convert(json, &settings()).expect_err("must fail")
 }
 
 #[test]
 fn rejects_malformed_or_mismatched_metadata() {
-    assert!(failure("{").contains("invalid JSON"));
-    assert!(
-        failure(
-            &json!({"schema": "x/2", "framework": "vue", "components": [{"name": "A"}]})
-                .to_string()
-        )
-        .contains("unsupported schema")
+    let error = failure("{");
+    assert!(matches!(error, ComponentExtractError::Malformed(_)));
+    assert!(error.to_string().starts_with("invalid JSON: "), "{error}");
+    let error = failure(
+        &json!({"schema": "x/2", "framework": "vue", "components": [{"name": "A"}]}).to_string(),
     );
-    assert!(
-        failure(
-            &json!({"schema": SCHEMA, "framework": "svelte", "components": [{"name": "A"}]})
-                .to_string()
-        )
-        .contains("framework 'svelte'")
+    assert!(matches!(&error, ComponentExtractError::UnsupportedSchema { found } if found == "x/2"));
+    assert_eq!(
+        error.to_string(),
+        "unsupported schema 'x/2', expected 'dx-component-meta/1'"
     );
-    assert!(failure(&doc(json!([]))).contains("no components"));
-    assert!(
-        failure(&json!({"schema": SCHEMA, "framework": "vue"}).to_string())
-            .contains("components must be an array")
+    let error = failure(
+        &json!({"schema": SCHEMA, "framework": "svelte", "components": [{"name": "A"}]})
+            .to_string(),
     );
+    assert!(matches!(
+        error,
+        ComponentExtractError::WrongFramework { .. }
+    ));
+    assert_eq!(
+        error.to_string(),
+        "metadata is for framework 'svelte', not 'vue'"
+    );
+    let error = failure(&doc(json!([])));
+    assert!(matches!(error, ComponentExtractError::NoComponents));
+    assert_eq!(error.to_string(), "metadata has no components");
+    let error = failure(&json!({"schema": SCHEMA, "framework": "vue"}).to_string());
+    assert!(matches!(error, ComponentExtractError::ComponentsNotArray));
+    assert_eq!(error.to_string(), "components must be an array");
 }
 
 #[test]
 fn rejects_duplicates_and_unusable_names() {
-    assert!(failure(&doc(json!([{"name": "A"}, {"name": "A"}]))).contains("duplicate component"));
-    assert!(failure(&doc(json!([{"name": ""}]))).contains("empty"));
-    assert!(failure(&doc(json!([{"name": "A.B"}]))).contains("'.'"));
+    let error = failure(&doc(json!([{"name": "A"}, {"name": "A"}])));
+    assert!(matches!(&error, ComponentExtractError::DuplicateComponent { name } if name == "A"));
+    assert_eq!(error.to_string(), "duplicate component 'A'");
+    let error = failure(&doc(json!([{"name": ""}])));
+    assert!(matches!(
+        error,
+        ComponentExtractError::BadName {
+            what: "component",
+            ..
+        }
+    ));
+    assert_eq!(
+        error.to_string(),
+        "component name '' is empty or has whitespace"
+    );
+    let error = failure(&doc(json!([{"name": "A.B"}])));
+    assert!(matches!(error, ComponentExtractError::DottedName { .. }));
+    assert_eq!(
+        error.to_string(),
+        "component name 'A.B' must not contain '.'"
+    );
     let twice =
         json!({"name": "A", "props": [{"name": "x", "type": "t"}, {"name": "x", "type": "t"}]});
-    assert!(failure(&doc(json!([twice]))).contains("duplicate prop"));
+    let error = failure(&doc(json!([twice])));
+    assert!(matches!(
+        error,
+        ComponentExtractError::DuplicateMember { what: "prop", .. }
+    ));
+    assert_eq!(error.to_string(), "duplicate prop 'x' in component 'A'");
+}
+
+#[test]
+fn run_reports_an_unreadable_input() {
+    let options = Options {
+        meta: "/nonexistent/meta.json".to_owned(),
+        out: "out".to_owned(),
+        language: "vue".to_owned(),
+        package: "ui".to_owned(),
+        ..Options::default()
+    };
+    let error = run(&options).unwrap_err();
+    assert!(matches!(error, ComponentExtractError::Read(_)));
+    assert!(
+        error
+            .to_string()
+            .starts_with("cannot read /nonexistent/meta.json: "),
+        "{error}"
+    );
 }
 
 #[test]

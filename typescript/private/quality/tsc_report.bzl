@@ -40,18 +40,25 @@ def tsc_stdout_test(name, report, expected, diagnostics = "", size = "small"):
         testonly = True,
     )
 
-def tsc_framework_cases(library_rule, ext, deps = [], diagnostics = {}):
-    """Declares the lib, bad, broken and clean libraries of one framework with their tsc reports and tests; diagnostics maps a case to its expected diagnostic lines."""
+def tsc_framework_cases(library_rule, lib, srcs, exit_expected, stdout_expected = {}, deps = [], diagnostics = {}):
+    """Declares a lib library and one library per case of a framework with their tsc reports and tests.
+
+    srcs maps each case to its source file and names the cases. exit_expected maps each case to its expected exit status file. Each case has either a stdout_expected file or diagnostics, its expected diagnostic lines.
+    """
+    for case in srcs:
+        if case not in exit_expected:
+            fail("tsc_framework_cases case %r has no exit_expected file" % case)
+        if (case in stdout_expected) == (case in diagnostics):
+            fail("tsc_framework_cases case %r needs exactly one of stdout_expected or diagnostics" % case)
     javascript_library(
         name = "lib",
-        srcs = ["lib.js"],
+        srcs = [lib],
         testonly = True,
     )
-    cases = ["bad", "broken", "clean"]
-    for case in cases:
+    for case, src in srcs.items():
         library_rule(
             name = case,
-            srcs = ["%s.%s" % (case, ext)],
+            srcs = [src],
             deps = [":lib"] + deps,
             testonly = True,
         )
@@ -62,19 +69,17 @@ def tsc_framework_cases(library_rule, ext, deps = [], diagnostics = {}):
                 target = ":" + case,
                 testonly = True,
             )
-            if kind == "stdout":
-                tsc_stdout_test(
-                    name = "%s_stdout_test" % case,
-                    report = ":%s_stdout_report" % case,
-                    expected = "%s.stdout.expected" % case,
-                    diagnostics = diagnostics.get(case, ""),
-                    size = "small",
-                )
-            else:
-                diff_test(
-                    name = "%s_exit_test" % case,
-                    file1 = "%s.exit.expected" % case,
-                    file2 = ":%s_exit_report" % case,
-                    size = "small",
-                    testonly = True,
-                )
+        tsc_stdout_test(
+            name = "%s_stdout_test" % case,
+            report = ":%s_stdout_report" % case,
+            expected = stdout_expected.get(case),
+            diagnostics = diagnostics.get(case, ""),
+            size = "small",
+        )
+        diff_test(
+            name = "%s_exit_test" % case,
+            file1 = exit_expected[case],
+            file2 = ":%s_exit_report" % case,
+            size = "small",
+            testonly = True,
+        )

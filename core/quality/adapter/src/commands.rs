@@ -370,6 +370,7 @@ const TRIVY_CONFIG_PREFIX: &[&str] = &[
     "--quiet",
     "--skip-check-update",
     "--disable-telemetry",
+    "--skip-version-check",
 ];
 const TRIVY_IMAGE_CONFIG_PREFIX: &[&str] = &[
     "image",
@@ -382,6 +383,7 @@ const TRIVY_IMAGE_CONFIG_PREFIX: &[&str] = &[
     "--skip-check-update",
     "--offline-scan",
     "--disable-telemetry",
+    "--skip-version-check",
     "--scanners",
     "secret",
     "--image-config-scanners",

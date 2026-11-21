@@ -1,5 +1,8 @@
 """Rules that generate CXX-Qt bridge C++ and stage the CXX-Qt runtime."""
 
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("//core:msvc_crt.bzl", "msvc_crt_static_flag")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":constants.bzl", "QT_TOOL_ENV")
 load(":text.bzl", "qt_package_path", "qt_relative", "qt_stem")
 
@@ -118,5 +121,37 @@ qt_rust_runtime_files = rule(
         "files": attr.label(allow_files = [".h", ".cpp", ".rs"], default = _CXX_QT_FILES, doc = "CXX-Qt crate headers, C++ sources and bridges."),
         "generator": attr.label(cfg = "exec", executable = True, doc = "Bridge generator; defaults to `dx qt_rust_bridge`."),
         "_dx": attr.label(default = Label("@dx_prebuilt//:dx"), executable = True, cfg = "exec"),
+    },
+)
+
+_EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
+
+# Qt links against the dynamic MSVC CRT (/MD). A +crt-static crate would pull
+# /MT objects, such as cxx.cc from the cxx build script, into the same binary.
+def _dynamic_crt_impl(settings, _attr):
+    return {_EXTRA_RUSTC_FLAG: [flag for flag in settings[_EXTRA_RUSTC_FLAG] if not msvc_crt_static_flag(flag)]}
+
+_dynamic_crt_transition = transition(
+    implementation = _dynamic_crt_impl,
+    inputs = [_EXTRA_RUSTC_FLAG],
+    outputs = [_EXTRA_RUSTC_FLAG],
+)
+
+def _qt_rust_crate_impl(ctx):
+    crate = ctx.attr.crate[0]
+    providers = [
+        DefaultInfo(files = crate[DefaultInfo].files, runfiles = crate[DefaultInfo].default_runfiles),
+        crate[CcInfo],
+        coverage_common.instrumented_files_info(ctx, dependency_attributes = ["crate"]),
+    ]
+    if QualitySourcesInfo in crate:
+        providers.append(crate[QualitySourcesInfo])
+    return providers
+
+qt_rust_crate = rule(
+    implementation = _qt_rust_crate_impl,
+    doc = "Builds a Rust static library with the dynamic MSVC CRT that Qt uses.",
+    attrs = {
+        "crate": attr.label(mandatory = True, providers = [CcInfo], cfg = _dynamic_crt_transition, doc = "Rust static library to link into Qt C++."),
     },
 )

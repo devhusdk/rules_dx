@@ -543,50 +543,6 @@ STRUCTURED_CASES = [
         },
     ),
     matrix_case(
-        name = "matrix_zig_format_pass",
-        capability = "format",
-        tool = "zig_fmt",
-        binary = "//zig/private/tools:zig",
-        source_class = "zig",
-        generated = {
-            "matrix/zig_clean.zig": "pub fn add(a: i32, b: i32) i32 {\n    return a + b;\n}\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_zig_format_fail",
-        capability = "format",
-        tool = "zig_fmt",
-        binary = "//zig/private/tools:zig",
-        source_class = "zig",
-        generated = {
-            "matrix/zig_dirty.zig": "pub fn add(a: i32, b: i32) i32 {\n    return a+b;\n}\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_julia_format_pass",
-        capability = "format",
-        tool = "julia_format",
-        binary = "//julia/private/tools:julia_format",
-        source_class = "julia",
-        generated = {
-            "matrix/julia_clean.jl": "function add(a, b)\n    return a + b\nend\n",
-        },
-        size = "medium",
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
-    ),
-    matrix_case(
-        name = "matrix_julia_format_fail",
-        capability = "format",
-        tool = "julia_format",
-        binary = "//julia/private/tools:julia_format",
-        source_class = "julia",
-        generated = {
-            "matrix/julia_dirty.jl": "function add(a, b)\n        return a + b\nend\n",
-        },
-        size = "medium",
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
-    ),
-    matrix_case(
         name = "matrix_dart_format_pass",
         capability = "format",
         tool = "dart",

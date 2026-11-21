@@ -38,7 +38,7 @@ def cross_link_tests(name, size = "small"):
     _flags_probe(
         name = probe,
         flags = select({
-            Label("//rust/private:clang_cl"): CLANG_CL_LINK_FLAGS,
+            Label("//core/platforms:clang_cl"): CLANG_CL_LINK_FLAGS,
             "//conditions:default": [],
         }),
         tags = ["manual"],

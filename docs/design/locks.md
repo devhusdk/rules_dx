@@ -137,7 +137,7 @@ dx class, as ecosystem (languages): manifest; state; hub. The lock is `<ecosyste
 
 ## Checks
 
-- `//tools/ci:lock_registry_test` fails on an ecosystem without a registry entry, a banned tag attribute, a `*.digests.json` file, a Starlark lock parser, a manifest or lock name outside the registry, a doc line pairing `gazelle:resolve` with a hub label, and a `setup.hubs` resolver that is not a `dx_subcommand` target. Its allowlist only shrinks.
+- `//tools/ci:lock_registry_test` fails on an ecosystem without a registry entry, a banned tag attribute, a `*.digests.json` file, a Starlark lock parser, a manifest or lock name outside the registry, a doc line pairing `gazelle:resolve` with a hub label, and a `setup.hubs` resolver that is not a `dx_subcommand` target.
 - Each ecosystem has one fixture set under `<lang>/tests/fixtures/`. One test runs its resolver with an empty `PATH` against a registry fixture in runfiles and compares the lock bytes.
 - One table test in `cli/adopt` plans the stanza for every registry entry.
 - One table test in `gazelle/common` resolves an import from each ecosystem's fixture to its hub label with no directive.

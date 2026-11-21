@@ -49,9 +49,6 @@ pub const WINDOWS_ARM64_BLOCKED: &str = "//core/quality/testdata:runner_matrix_w
 pub const ANDROID_LINUX_ARM64_FLAGS: &str = "--platforms=//tools/platforms:linux_arm64
     --host_platform=//tools/platforms:linux_arm64 //android/...";
 
-/// Path prefixes whose changes can make an Android target compatible with `linux_arm64`.
-pub const ANDROID_LINUX_ARM64_PATHS: [&str; 3] = ["android/", "core/platforms/", "cc/"];
-
 pub const KOTLIN_BENCH_TARGETS: &str = "//kotlin/tests/fixtures/bench:all";
 
 pub const WINDOWS_ARM64_PLATFORM: &str = "--platforms=@llvm//platforms:windows_aarch64";
@@ -68,13 +65,11 @@ const HERMETIC_TARGETS: [&str; 2] = [
 
 /// One command of a set; a query step appends the labels it prints to the next `Run` step.
 /// A `Silent` step discards its stdout and takes no query labels.
-/// A `Changed` step ends the set early when the last commit touches none of its path prefixes.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Step {
     Run(&'static str, Vec<String>),
     Query(Vec<String>),
     Silent(&'static str, Vec<String>),
-    Changed(&'static [&'static str]),
 }
 
 fn words(list: &[&str], flags: &[String], tail: &str) -> Vec<String> {
@@ -133,22 +128,19 @@ pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
             );
             vec![Step::Run(BAZEL, args)]
         }
-        "android-linux-arm64" => vec![
-            Step::Changed(&ANDROID_LINUX_ARM64_PATHS),
-            Step::Run(
-                BAZEL,
-                words(
-                    &[
-                        "build",
-                        "--nobuild",
-                        "--keep_going",
-                        "--lockfile_mode=error",
-                    ],
-                    flags,
-                    ANDROID_LINUX_ARM64_FLAGS,
-                ),
+        "android-linux-arm64" => vec![Step::Run(
+            BAZEL,
+            words(
+                &[
+                    "build",
+                    "--nobuild",
+                    "--keep_going",
+                    "--lockfile_mode=error",
+                ],
+                flags,
+                ANDROID_LINUX_ARM64_FLAGS,
             ),
-        ],
+        )],
         "hermetic" => {
             let mut query = words(&["query", "--lockfile_mode=error"], flags, "");
             query.extend([HERMETIC_QUERY.to_owned(), "--output=label".to_owned()]);
@@ -196,33 +188,10 @@ pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
     Ok(steps)
 }
 
-/// Returns whether a path in the newline-separated `diff` starts with one of `prefixes`.
-fn touches(diff: &str, prefixes: &[&str]) -> bool {
-    diff.lines()
-        .any(|path| prefixes.iter().any(|prefix| path.starts_with(prefix)))
-}
-
 fn execute(steps: Vec<Step>) -> Result<(), String> {
     let mut found: Vec<String> = Vec::new();
     for step in steps {
         match step {
-            Step::Changed(prefixes) => {
-                // The checkout holds two commits: the PR merge commit and its base.
-                let out = Command::new("git")
-                    .args(["diff", "--name-only", "HEAD^1", "HEAD"])
-                    .output()
-                    .map_err(|error| format!("spawn git: {error}"))?;
-                if !out.status.success() {
-                    return Err(format!(
-                        "git diff --name-only HEAD^1 HEAD failed: {}",
-                        String::from_utf8_lossy(&out.stderr)
-                    ));
-                }
-                if !touches(&String::from_utf8_lossy(&out.stdout), prefixes) {
-                    println!("skipped: no change under {}", prefixes.join(" "));
-                    return Ok(());
-                }
-            }
             Step::Query(args) => {
                 let out = Command::new(BAZEL)
                     .args(&args)
@@ -293,7 +262,7 @@ pub fn check(args: &[String]) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ANDROID_LINUX_ARM64_PATHS, CRATE_LOCK_CHECK, SETS, Step, plan, touches};
+    use super::{CRATE_LOCK_CHECK, SETS, Step, plan};
 
     fn flags() -> Vec<String> {
         vec!["--config=ci".to_owned()]
@@ -352,13 +321,9 @@ mod tests {
     }
 
     #[test]
-    fn android_linux_arm64_analyses_android_after_the_path_check() {
+    fn android_linux_arm64_analyses_android() {
         let steps = plan("android-linux-arm64", &flags()).unwrap();
-        assert_eq!(
-            steps.first(),
-            Some(&Step::Changed(&ANDROID_LINUX_ARM64_PATHS))
-        );
-        let Some(Step::Run("bazel", args)) = steps.get(1) else {
+        let [Step::Run("bazel", args)] = steps.as_slice() else {
             panic!("{steps:?}");
         };
         assert_eq!(
@@ -378,16 +343,6 @@ mod tests {
         ] {
             assert!(args.contains(&want.to_owned()), "{want}");
         }
-    }
-
-    #[test]
-    fn touches_matches_path_prefixes() {
-        let prefixes = ANDROID_LINUX_ARM64_PATHS;
-        assert!(touches("README.md\nandroid/defs.bzl\n", &prefixes));
-        assert!(touches("core/platforms/BUILD.bazel", &prefixes));
-        assert!(touches("cc/private/x.bzl", &prefixes));
-        assert!(!touches("docs/cc/x.md\nrust/android/y.rs\n", &prefixes));
-        assert!(!touches("", &prefixes));
     }
 
     #[test]

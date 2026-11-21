@@ -427,7 +427,6 @@ fn android_set_analyses_android_for_linux_arm64() {
         run.contains(&format!("{TOOL} --pr-check android-linux-arm64 ")),
         "{run}"
     );
-    assert!(step.get("if").is_none(), "the set checks the paths itself");
     let script = read_runfiles(SCRIPT);
     let flags = constant(&script, "ANDROID_LINUX_ARM64_FLAGS");
     for want in [
@@ -436,9 +435,5 @@ fn android_set_analyses_android_for_linux_arm64() {
         "//android/...",
     ] {
         assert!(flags.contains(want), "{SCRIPT} lacks {want}");
-    }
-    let paths = constant(&script, "ANDROID_LINUX_ARM64_PATHS");
-    for want in ["\"android/\"", "\"core/platforms/\"", "\"cc/\""] {
-        assert!(paths.contains(want), "{SCRIPT} does not check {want}");
     }
 }

@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:failure_test.bzl", "failure_test")
+load("//core:msvc_crt.bzl", "DxMsvcCrtInfo", "dx_msvc_crt_aspect")
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//qt/private:defs.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "QT_BUNDLE_MACOS_RUNPATH", "QT_COMPATIBLE_WITH", "QT_CONF", "qt_bundle_members", "qt_consumer_identity", "qt_framework_path", "qt_identifier", "qt_library_stem", "qt_module_path", "qt_package_path", "qt_qmldir", "qt_qrc", "qt_runtime_members")
@@ -445,6 +446,19 @@ def _library_link_test_impl(ctx):
 
 _library_link_test = analysistest.make(_library_link_test_impl, attrs = {"static": attr.bool()})
 
+def _crt_static_test_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    asserts.equals(env, ctx.attr.crt_static, target[DxMsvcCrtInfo].crt_static, "Rustc +crt-static under " + str(target.label))
+    return analysistest.end(env)
+
+_crt_static_test = analysistest.make(
+    _crt_static_test_impl,
+    attrs = {"crt_static": attr.bool(doc = "Whether a Rustc action below the target keeps +crt-static.")},
+    config_settings = {str(Label("@rules_rust//rust/settings:extra_rustc_flag")): ["-Ctarget-feature=+crt-static"]},
+    extra_target_under_test_aspects = [dx_msvc_crt_aspect],
+)
+
 def _bridge_test_impl(ctx):
     env = analysistest.begin(ctx)
     actions = [action for action in analysistest.target_actions(env) if action.mnemonic == "QtRustBridge"]
@@ -685,6 +699,18 @@ def qt_rules_tests(name):
         target_under_test = "//qt/tests/fixtures/qt_rust/model",
         target_compatible_with = QT_COMPATIBLE_WITH,
     )
+    _crt_static_test(
+        name = name + "_rust_dynamic_crt",
+        crt_static = False,
+        target_under_test = "//qt/tests/fixtures/qt_rust/model:model_crate",
+        target_compatible_with = QT_COMPATIBLE_WITH,
+    )
+    _crt_static_test(
+        name = name + "_rust_static_crt",
+        crt_static = True,
+        target_under_test = "//qt/tests/fixtures/qt_rust/model:model_rust",
+        target_compatible_with = QT_COMPATIBLE_WITH,
+    )
     _bridge_test(
         name = name + "_bridge",
         target_under_test = "//qt/tests/fixtures/qt_rust/model:model_bridge",
@@ -713,5 +739,5 @@ def qt_rules_tests(name):
         )
     native.test_suite(
         name = name,
-        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "bridge_generator", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "macos_runpath", "macos_test_runpath", "macos_bundle", "macos_library_link", "linux_library_link"] + sorted(failures.keys())],
+        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "rust_dynamic_crt", "rust_static_crt", "bridge", "bridge_generator", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "macos_runpath", "macos_test_runpath", "macos_bundle", "macos_library_link", "linux_library_link"] + sorted(failures.keys())],
     )

@@ -97,6 +97,7 @@ rules_dx++protoc+dx_protoc_toolchains
 rules_dx++python+dx_python_toolchains
 rules_dx++ruby+dx_ruby_toolchains
 rules_dx++rust_toolchains+dx_rust_toolchains
+rules_dx++scala_config+rules_scala_config
 rules_dx++swift+dx_swift_toolchains
 rules_flutter+
 rules_flutter++flutter+flutter_toolchains
@@ -230,9 +231,6 @@ rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools
 rules_rust++rust+rust_toolchains
 rules_rust_prost+
 rules_rust_wasm_bindgen+
-rules_scala+
-rules_scala++scala_config+rules_scala_config
-rules_scala++scala_deps+rules_scala_toolchains
 rules_shell+
 rules_shell++sh_configure+local_config_shell
 rules_swift+

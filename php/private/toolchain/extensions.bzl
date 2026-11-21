@@ -21,11 +21,10 @@ def _php_impl(mctx):
             php = [coverage["php"]["sha256"]] + coverage["php"]["urls"],
         )
     for cell in sorted(PHP_CELLS.keys()):
-        coverage = COVERAGE_PREFIX + cell if cell in pins["coverage"] else ""
         php_archive(
             name = runtime_repository_name(cell),
             files = {
-                "BUILD.bazel": runtime_build(php_version, PHP_CELLS[cell].interpreter, PHP_CELLS[cell].pcov, coverage),
+                "BUILD.bazel": runtime_build(php_version, PHP_CELLS[cell].interpreter),
                 VERSION_FILE: php_version + "\n",
             },
             required = [PHP_CELLS[cell].interpreter],

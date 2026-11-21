@@ -2,7 +2,8 @@
 
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
-load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "KOTLIN_TOOLCHAIN", "SCALA_VERSION_ATTRS", "jvm_shard_action", "unsupported_scala_version")
+load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
+load("//tools/docs/scala:version.bzl", "SCALA_VERSION_ATTRS", "unsupported_scala_version")
 
 visibility(["//..."])
 

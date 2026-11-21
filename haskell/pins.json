@@ -150,12 +150,6 @@
         "https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-x86_64-unknown-mingw32.tar.xz"
       ]
     },
-    "gmp_license": {
-      "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
-      "urls": [
-        "https://www.gnu.org/licenses/lgpl-3.0.txt"
-      ]
-    },
     "gmp_source": {
       "sha256": "fd4829912cddd12f84181c3451cc752be224643e87fac497b69edddadc49b4f2",
       "urls": [

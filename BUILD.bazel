@@ -24,6 +24,7 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude gazelle/rust/testdata
 # gazelle:exclude go/tests/fixtures/gotype
 # gazelle:exclude go/private/tools/modfmt
+# gazelle:exclude go/private/tools/gofumpt
 # gazelle:exclude tools/docs/components/fixture
 # gazelle:exclude bcr_test_module/qt_hello
 # gazelle:exclude bcr_test_module/main_in_dep
@@ -898,6 +899,7 @@ filegroup(
         "//scala/private:module_srcs",
         "//scala/private/quality:module_srcs",
         "//scala/private/toolchain:module_srcs",
+        "//scala/private/toolchain/hub:module_srcs",
         "//sql/private:module_srcs",
         "//sql/private/quality:module_srcs",
         "//swift:module_srcs",
@@ -968,6 +970,7 @@ filegroup(
         "//tools/docs/julia/extract:module_srcs",
         "//tools/docs/jvm:module_srcs",
         "//tools/docs/jvm/convert:module_srcs",
+        "//tools/docs/kotlin:module_srcs",
         "//tools/docs/licenses:module_srcs",
         "//tools/docs/lua:module_srcs",
         "//tools/docs/lua/extract:module_srcs",
@@ -987,6 +990,7 @@ filegroup(
         "//tools/docs/ruby/extract:module_srcs",
         "//tools/docs/rust:module_srcs",
         "//tools/docs/rust/extract:module_srcs",
+        "//tools/docs/scala:module_srcs",
         "//tools/docs/site:module_srcs",
         "//tools/docs/site/aggregate:module_srcs",
         "//tools/docs/site/browser:module_srcs",

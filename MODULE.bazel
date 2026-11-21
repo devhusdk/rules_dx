@@ -209,10 +209,14 @@ single_version_override(
 bazel_dep(name = "elfutils", version = "0.195", dev_dependency = True)
 
 # musl.patch compiles libdwfl without argp, fts and GNU strerror_r on musl.
+# aarch64_config.patch sets the aarch64 Linux configure checks in lib/config.h.
 single_version_override(
     module_name = "elfutils",
     patch_strip = 1,
-    patches = ["//patches/elfutils:musl.patch"],
+    patches = [
+        "//patches/elfutils:musl.patch",
+        "//patches/elfutils:aarch64_config.patch",
+    ],
     version = "0.195",
 )
 
@@ -394,35 +398,21 @@ single_version_override(
 )
 
 # floor: equals tested
-bazel_dep(name = "rules_scala", version = "7.4.1")
-single_version_override(
-    module_name = "rules_scala",
-    patch_strip = 1,
-    patches = [
-        "//patches/rules_scala:manifest_only_wrapper.patch",
-        "//patches/rules_scala:dx_bzl_srcs.patch",
-    ],
-    version = "7.4.1",
-)
+bazel_dep(name = "bazel_worker_api", version = "0.0.11")
 
-scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")
-scala_config.settings(
-    scala_version = "2.13.18",
-    scala_versions = [
-        "2.13.18",
-        "3.3.9",
-    ],
-)
+scala_config = use_extension("//scala/private/toolchain:config_extension.bzl", "scala_config")
 use_repo(scala_config, "rules_scala_config")
 
-scala_deps = use_extension("@rules_scala//scala/extensions:deps.bzl", "scala_deps")
-scala_deps.scala()
-scala_deps.scalatest()
+scala = use_extension("//scala/private/toolchain:deps_extension.bzl", "scala")
+use_repo(
+    scala,
+    "rules_scala_toolchains",
+    "scala_compiler_sources",
+)
 
 register_toolchains(
     "//java/private/toolchain:all",
-    "//scala/private/toolchain:semanticdb",
-    "//scala/private/toolchain:semanticdb_scala3",
+    "//scala/private/toolchain/hub:all",
 )
 
 ansible = use_extension("//ansible:extensions.bzl", "ansible", dev_dependency = True)
@@ -1314,6 +1304,34 @@ dx_pins.archive(
     pins = "//cuda:pins.json",
 )
 dx_pins.archive(
+    name = "rules_scala",
+    dropped = [
+        ".bazelci",
+        ".bcr",
+        ".gemini",
+        ".github",
+        "WORKSPACE",
+        "docs",
+        "examples",
+        "manual_test",
+        "test",
+        "test_cross_build",
+        "test_expect_failure",
+        "test_statsfile",
+        "test_thirdparty_version",
+        "test_version",
+        "third_party/test",
+        "tools",
+    ],
+    patches = [
+        "//patches/rules_scala:dx_bzl_srcs.patch",
+        "//patches/rules_scala:manifest_only_wrapper.patch",
+        "//patches/rules_scala:protobuf_repo_name.patch",
+        "//patches/rules_scala:toolchain_type_alias.patch",
+    ],
+    pins = "//scala:pins.json",
+)
+dx_pins.archive(
     name = "dx_ocaml_dune",
     build = "//ocaml/private:dune.BUILD.bazel",
     key = "dune",
@@ -1645,6 +1663,7 @@ use_repo(
     "rules_ocaml",
     "rules_powershell",
     "rules_ruby",
+    "rules_scala",
     "shared_tasks_adler2",
 )
 
@@ -2114,7 +2133,7 @@ luarocks.lock(
 use_repo(luarocks, "rocks_lua.tests.luarocks")
 
 php = use_extension("//php:extensions.bzl", "php")
-use_repo(php, "dx_php_pcov", "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_unused_public", "dx_webmozart_assert", "php_composer", "php_launcher", "php_phpunit")
+use_repo(php, "dx_php_coverage_windows_x86_64", "dx_php_pcov", "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_unused_public", "dx_webmozart_assert", "php_composer", "php_launcher", "php_phpunit")
 
 register_toolchains("@dx_php_toolchains//:all")
 

@@ -11,7 +11,8 @@ diff, which every patch tool skips:
 A header may name several refs separated by commas. A ref is a pull request, an
 issue, or a full commit sha for a fix that landed without a pull request. The
 report lists refs whose pull request is merged, or closed by the commit that
-landed it, and contained in a release tag, commits contained in a release tag, patches marked fixed in a
+landed it, and contained in a release tag, merged bazelbuild/bazel-central-registry
+pull requests, commits contained in a release tag, patches marked fixed in a
 release, refs that were closed without a merge, and patches with no header.
 
 A carry is rules_dx code that stands in for an upstream fix, such as extra
@@ -39,6 +40,9 @@ _DIFF_START = ("--- ", "diff ")
 # The newest releases (or tags, for repositories without releases) checked for
 # the merge commit. Upstream fixes that matter land in a recent release.
 _RECENT = 20
+
+# Repositories that publish a pull request when it merges, with no release or tag.
+_SHIPS_ON_MERGE = ("bazelbuild/bazel-central-registry",)
 
 
 def header(text):
@@ -144,6 +148,8 @@ def status(api, repo, number):
         # A closed issue: someone has to find the fix and its release.
         return ("closed", None)
     pull = api.get("/repos/%s/pulls/%d" % (repo, number))
+    if pull["merged"] and repo in _SHIPS_ON_MERGE:
+        return ("released", "the BCR")
     if pull["merged"]:
         sha, merged_at = pull["merge_commit_sha"], pull["merged_at"]
     else:

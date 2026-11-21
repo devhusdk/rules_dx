@@ -9,3 +9,12 @@ PhpInfo = provider(
         "transitive_srcs": "Depset of every PHP source of the target and its deps.",
     },
 )
+
+PhpTestInfo = provider(
+    doc = "What a php_test runs, so a wrapper can write its own launcher.",
+    fields = {
+        "autoload_root": "Runfiles path of the staged autoload tree.",
+        "ini": "The php.ini settings of the test, as a dict.",
+        "tokens": "Launcher tokens after the php flags: PHPUnit, its flags and the test files.",
+    },
+)

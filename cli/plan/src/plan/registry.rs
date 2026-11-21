@@ -370,6 +370,31 @@ mod tests {
     }
 
     #[test]
+    fn java_only_consumer_docs_select_only_the_java_aspect() {
+        let extensions = extensions(&[".java"]);
+        let labels = aspects_for(Command::Docs, consumer(&extensions));
+        assert_eq!(
+            labels,
+            [
+                "tools/docs:aspect.bzl%real_docs_aspect",
+                "tools/docs/jvm:aspect.bzl%real_jvm_docs_aspect"
+            ]
+        );
+    }
+
+    #[test]
+    fn scala_and_kotlin_consumer_docs_select_their_own_aspects() {
+        let scala = extensions(&[".scala"]);
+        let labels = aspects_for(Command::Docs, consumer(&scala));
+        assert!(labels.contains(&"tools/docs/scala:aspect.bzl%real_scala_docs_aspect"));
+        assert!(!labels.contains(&"tools/docs/jvm:aspect.bzl%real_jvm_docs_aspect"));
+        let kotlin = extensions(&[".kt"]);
+        let labels = aspects_for(Command::Docs, consumer(&kotlin));
+        assert!(labels.contains(&"tools/docs/kotlin:aspect.bzl%real_kotlin_docs_aspect"));
+        assert!(!labels.contains(&"tools/docs/jvm:aspect.bzl%real_jvm_docs_aspect"));
+    }
+
+    #[test]
     fn a_language_sharing_the_core_file_does_not_gate_it() {
         let extensions = extensions(&[".go"]);
         let lint = aspects_for(Command::Lint, consumer(&extensions));

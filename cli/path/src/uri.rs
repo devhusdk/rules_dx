@@ -13,8 +13,8 @@ pub enum UriError {
     NotAbsolute { path: String },
     #[error("path {path:?} has no file URI that reads back as the same path")]
     NotEncodable { path: String },
-    #[error("{uri:?} is not a URI")]
-    Malformed { uri: String },
+    #[error("{uri:?} is not a URI: {reason}")]
+    Malformed { uri: String, reason: String },
     #[error("{uri:?} is not a file URI")]
     NotAFileUri { uri: String },
     #[error("file URI {uri:?} carries a query or fragment: it does not name one path")]
@@ -45,8 +45,9 @@ pub fn uri(path: &Path) -> Result<String, UriError> {
 
 /// Returns the local path one `file://` URI names.
 pub fn uri_to_path(uri: &str) -> Result<PathBuf, UriError> {
-    let parsed = Url::parse(uri).map_err(|_| UriError::Malformed {
+    let parsed = Url::parse(uri).map_err(|error| UriError::Malformed {
         uri: uri.to_owned(),
+        reason: error.to_string(),
     })?;
     if parsed.scheme() != "file" {
         return Err(UriError::NotAFileUri {
@@ -238,7 +239,8 @@ mod tests {
             assert_eq!(
                 uri_to_path(uri).expect_err(uri),
                 UriError::Malformed {
-                    uri: uri.to_owned()
+                    uri: uri.to_owned(),
+                    reason: url::ParseError::RelativeUrlWithoutBase.to_string(),
                 },
                 "uri: {uri:?}"
             );
@@ -308,8 +310,9 @@ mod tests {
             (
                 UriError::Malformed {
                     uri: "x".to_owned(),
+                    reason: url::ParseError::RelativeUrlWithoutBase.to_string(),
                 },
-                "\"x\" is not a URI",
+                "\"x\" is not a URI: relative URL without a base",
             ),
             (
                 UriError::NotAFileUri {

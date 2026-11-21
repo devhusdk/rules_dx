@@ -3,7 +3,6 @@
     reason = "tests run local programs under the Bazel test timeout"
 )]
 use dx_testing::env_file;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -127,7 +126,7 @@ fn manifest(dir: &Path, names: &[String], trailing_newline: bool) {
     for name in names {
         let digest = dx_digest::sha256_file_hex(&dir.join(name))
             .unwrap_or_else(|error| panic!("hash {name}: {error}"));
-        write!(text, "{digest}  {name}\n").ok();
+        text.push_str(&format!("{digest}  {name}\n"));
     }
     if !trailing_newline && text.ends_with('\n') {
         text.pop();

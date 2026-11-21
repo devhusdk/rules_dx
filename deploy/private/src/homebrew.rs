@@ -8,7 +8,6 @@ use crate::run::{
 };
 use crate::stage::*;
 use base64::Engine as _;
-use std::fmt::Write as _;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -128,24 +127,21 @@ pub fn homebrew_render_formula(
         if in_os.is_empty() {
             continue;
         }
-        write!(out, "\n  on_{os} do\n").ok();
+        out.push_str(&format!("\n  on_{os} do\n"));
         for arch in ["arm", "intel"] {
             for asset in in_os.iter().filter(|asset| asset.arch == arch) {
-                write!(
-                    out,
+                out.push_str(&format!(
                     "    on_{arch} do\n      url \"https://github.com/{}/releases/download/{tag}/{}\"\n      sha256 \"{}\"\n    end\n",
                     launch.repo, asset.name, asset.sha256
-                ).ok();
+                ));
             }
         }
         out.push_str("  end\n");
     }
-    write!(
-        out,
+    out.push_str(&format!(
         "\n  def install\n    bin.install \"{}\"\n  end\nend\n",
         ruby_escape(launch.binary)
-    )
-    .ok();
+    ));
     out
 }
 

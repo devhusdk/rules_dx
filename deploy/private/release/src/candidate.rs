@@ -1,7 +1,7 @@
 //! Release candidate identity, source archive, local registry and tag checks.
 
 use std::collections::BTreeMap;
-use std::fmt::{self, Write as _};
+use std::fmt;
 use std::io::{self, BufRead};
 use std::num::ParseIntError;
 use std::path::{Path, PathBuf};
@@ -781,7 +781,7 @@ fn cat_blobs(
 ) -> Result<Vec<Vec<u8>>, CandidateError> {
     let mut input = String::new();
     for (path, _) in entries {
-        writeln!(input, "{commit}:{path}").ok();
+        input.push_str(&format!("{commit}:{path}\n"));
     }
     let mut blobs = git_pipe(repo, &["cat-file", "--batch"], input.as_bytes(), |stdout| {
         read_batch(stdout, commit, entries)

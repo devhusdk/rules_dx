@@ -592,11 +592,11 @@ fn record_shard_count(
             "shard count must be a non-negative integer",
         )
     })?;
-    let count = u32::try_from(raw).map_err(|_| {
+    let count = u32::try_from(raw).map_err(|error| {
         malformed(
             line,
             "testSummary.shardCount",
-            "shard count must be a non-negative integer",
+            &format!("shard count {raw} does not fit in u32: {error}"),
         )
     })?;
     if count > 0 {
@@ -1762,6 +1762,9 @@ mod tests {
             let err = collect_test_events(Cursor::new(stream), || None).expect_err("must fail");
             let reason = err.to_string();
             assert!(reason.contains("testSummary.shardCount"), "{reason}");
+            if count == "4294967296" {
+                assert!(reason.contains("does not fit"), "{reason}");
+            }
         }
     }
 

@@ -132,7 +132,10 @@ pub fn nest_phase_event(
 
 /// Parses one NDJSON line and rejects any schema major this dx does not write.
 pub fn read_event(line: &str) -> Result<Value, OutputError> {
-    let value: Value = serde_json::from_str(line).map_err(|_| OutputError::NotAnEvent)?;
+    let value: Value = serde_json::from_str(line).map_err(|error| {
+        tracing::debug!(%error, "NDJSON line is not JSON");
+        OutputError::NotAnEvent
+    })?;
     let Value::Object(map) = &value else {
         return Err(OutputError::NotAnEvent);
     };

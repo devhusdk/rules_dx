@@ -5,9 +5,76 @@ use crate::run::{
     placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_ecosystems::Ecosystem;
+use dx_process::capture::RunError;
+use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
+
+/// Why a hex deployment failed.
+#[derive(Debug)]
+pub enum HexError {
+    UnknownTool {
+        tool: String,
+    },
+    Paths(io::Error),
+    Stage(StageError),
+    NoAppSrc,
+    /// An already-prefixed refusal from the shared version, placeholder or owner checks.
+    Refused(String),
+    Io(PathIoError),
+    TempDir(io::Error),
+    Run(RunError),
+    /// A mix or rebar3 command failed; `lines` are key-redacted.
+    ToolFailed {
+        command: String,
+        status: String,
+        lines: Vec<String>,
+    },
+}
+
+impl fmt::Display for HexError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnknownTool { tool } => {
+                write!(f, "hex_deploy: unknown tool {tool:?}: want mix or rebar3")
+            }
+            Self::Paths(source) | Self::TempDir(source) => write!(f, "hex_deploy: {source}"),
+            Self::Stage(source) => write!(f, "hex_deploy: {source}"),
+            Self::NoAppSrc => f.write_str("hex_deploy: package has no .app.src file; refusing"),
+            Self::Refused(message) => f.write_str(message),
+            Self::Io(source) => write!(f, "hex_deploy: {source}"),
+            Self::Run(source) => write!(f, "hex_deploy: {source}"),
+            Self::ToolFailed {
+                command,
+                status,
+                lines,
+            } => {
+                write!(f, "hex_deploy: {command} failed with {status}")?;
+                for line in lines {
+                    write!(f, "\nhex: {line}")?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+impl std::error::Error for HexError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Paths(source) | Self::TempDir(source) => Some(source),
+            Self::Stage(source) => Some(source),
+            Self::Io(source) => Some(source),
+            Self::Run(source) => Some(source),
+            Self::UnknownTool { .. }
+            | Self::NoAppSrc
+            | Self::Refused(_)
+            | Self::ToolFailed { .. } => None,
+        }
+    }
+}
 
 /// Owner approval gate for hex_deploy.
 pub(crate) const HEX_GATE: OwnerGate = OwnerGate {
@@ -24,13 +91,13 @@ const HEX_CHILD_ENV_EXTRA: &[&str] = &["ERL_LIBS", "ERL_ROOTDIR", "HEX_HOME", "M
 const HEX_FAILURE_LINES: usize = 40;
 
 /// Returns the manifest file name that marks the package root for one tool.
-fn hex_manifest(tool: &str) -> Result<&'static str, String> {
+fn hex_manifest(tool: &str) -> Result<&'static str, HexError> {
     match tool {
         "mix" => Ok(Ecosystem::Hex.manifest_name()),
         "rebar3" => Ok("rebar.config"),
-        _ => Err(format!(
-            "hex_deploy: unknown tool {tool:?}: want mix or rebar3"
-        )),
+        _ => Err(HexError::UnknownTool {
+            tool: tool.to_owned(),
+        }),
     }
 }
 
@@ -40,7 +107,7 @@ pub fn hex_package_paths(
     tool: &str,
 ) -> io::Result<Vec<(PathBuf, String)>> {
     let manifest = hex_manifest(tool)
-        .map_err(|message| io::Error::new(io::ErrorKind::InvalidInput, message))?;
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error.to_string()))?;
     package_relative_paths(package_files, manifest, "hex_deploy")
 }
 
@@ -76,37 +143,23 @@ fn hex_version_refusal(
     mapped: &[(PathBuf, String)],
     tool: &str,
     version: &str,
-) -> Result<String, String> {
+) -> Result<String, HexError> {
     let (file, found) = if tool == "mix" {
         let file = Ecosystem::Hex.manifest_name();
         let text = std::fs::read_to_string(staging.join(file)).unwrap_or_default();
         (file.to_owned(), mix_version(&text))
     } else {
         let Some((_, rel)) = mapped.iter().find(|(_, rel)| rel.ends_with(".app.src")) else {
-            return Err("hex_deploy: package has no .app.src file; refusing".to_owned());
+            return Err(HexError::NoAppSrc);
         };
         let text = std::fs::read_to_string(staging.join(rel)).unwrap_or_default();
         (rel.clone(), app_src_version(&text))
     };
-    resolve_version("hex_deploy", &file, found.as_deref(), version)
-}
-
-fn hex_stage(mapped: &[(PathBuf, String)], staging: &Path) -> Result<(), String> {
-    for (src, rel) in mapped {
-        let dest = staging.join(rel);
-        let staged = dest
-            .parent()
-            .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| copy_verified(src, &dest).map(|_| ()));
-        if staged.is_err() {
-            return Err(format!("cannot stage {}", src.display()));
-        }
-    }
-    Ok(())
+    resolve_version("hex_deploy", &file, found.as_deref(), version).map_err(HexError::Refused)
 }
 
 /// Returns the last output lines of a failed child with the key removed.
-fn hex_failure_lines(out: &dx_process::capture::Captured, key: &str) -> String {
+fn hex_failure_lines(out: &dx_process::capture::Captured, key: &str) -> Vec<String> {
     let text = crate::run::pages_redact(
         &format!(
             "{}\n{}",
@@ -119,13 +172,13 @@ fn hex_failure_lines(out: &dx_process::capture::Captured, key: &str) -> String {
     lines
         .iter()
         .skip(lines.len().saturating_sub(HEX_FAILURE_LINES))
-        .map(|line| format!("\nhex: {line}"))
+        .map(|line| (*line).to_owned())
         .collect()
 }
 
 /// Runs one mix or rebar3 command in the staged package with an empty HOME.
-fn hex_run(program: &Path, args: &[&str], dir: &Path, key: &str) -> Result<(), String> {
-    let home = tempfile_stage_dir("hex-home-").map_err(|error| format!("hex_deploy: {error}"))?;
+fn hex_run(program: &Path, args: &[&str], dir: &Path, key: &str) -> Result<(), HexError> {
+    let home = tempfile_stage_dir("hex-home-").map_err(HexError::TempDir)?;
     let home_text = home.to_string_lossy().into_owned();
     let mut cmd = scrubbed_command(
         program,
@@ -139,17 +192,15 @@ fn hex_run(program: &Path, args: &[&str], dir: &Path, key: &str) -> Result<(), S
     cmd.args(args).current_dir(dir);
     let output = run_publish(&mut cmd);
     dx_atomic_fs::discard_dir(&home);
-    let output = output.map_err(|error| format!("hex_deploy: {error}"))?;
+    let output = output.map_err(HexError::Run)?;
     if output.success() {
         return Ok(());
     }
-    Err(format!(
-        "hex_deploy: {} {} failed with {}{}",
-        program.display(),
-        args.join(" "),
-        exit_text(&output),
-        hex_failure_lines(&output, key)
-    ))
+    Err(HexError::ToolFailed {
+        command: format!("{} {}", program.display(), args.join(" ")),
+        status: exit_text(&output),
+        lines: hex_failure_lines(&output, key),
+    })
 }
 
 /// Returns the tool arguments that build the package, writing a mix tarball to `tarball`.
@@ -176,9 +227,9 @@ fn hex_stage_checked(
     dir: &Path,
     tool: &str,
     version: &str,
-) -> Result<String, String> {
-    let mapped = hex_package_paths(files, tool).map_err(|error| format!("hex_deploy: {error}"))?;
-    hex_stage(&mapped, dir).map_err(|error| format!("hex_deploy: {error}"))?;
+) -> Result<String, HexError> {
+    let mapped = hex_package_paths(files, tool).map_err(HexError::Paths)?;
+    stage_mapped(&mapped, dir).map_err(HexError::Stage)?;
     hex_version_refusal(dir, &mapped, tool, version)
 }
 
@@ -214,8 +265,8 @@ pub fn hex_main(
     let house = run.outdir().join(format!("{package_name}-hex"));
     let package_dir = house.join("package");
     dx_atomic_fs::discard_dir(&house);
-    let staged = std::fs::create_dir_all(&package_dir)
-        .map_err(|error| format!("hex_deploy: {error}"))
+    let staged = path_io::create_dir_all(&package_dir)
+        .map_err(HexError::Io)
         .and_then(|()| hex_stage_checked(&files, &package_dir, tool, version));
     let version = match staged {
         Ok(version) => version,
@@ -268,7 +319,7 @@ fn hex_publish(files: &[PathBuf], package_name: &str, version: &str, tool: &str)
     };
     let published = hex_stage_checked(files, &staging, tool, version).and_then(|version| {
         if let Some(error) = placeholder_refusal("hex_deploy", &version) {
-            return Err(error);
+            return Err(HexError::Refused(error));
         }
         hex_run(
             &program,
@@ -339,16 +390,17 @@ mod tests {
         ];
         let staging = scratch.path().join("staging");
         assert_eq!(
-            hex_stage_checked(&files, &staging, "mix", "1.0.0"),
-            Ok("1.0.0".to_owned())
+            hex_stage_checked(&files, &staging, "mix", "1.0.0").expect("matching version"),
+            "1.0.0"
         );
         assert_eq!(
-            hex_stage_checked(&files, &staging, "mix", ""),
-            Ok("1.0.0".to_owned())
+            hex_stage_checked(&files, &staging, "mix", "").expect("declared version"),
+            "1.0.0"
         );
         let error = hex_stage_checked(&files, &staging, "mix", "2.0.0").expect_err("mismatch");
+        assert!(matches!(error, HexError::Refused(_)), "{error:?}");
         assert!(
-            error.contains(&format!(
+            error.to_string().contains(&format!(
                 "{} declares version 1.0.0, BUILD declares 2.0.0",
                 Ecosystem::Hex.manifest_name()
             )),
@@ -366,17 +418,19 @@ mod tests {
         ];
         let staging = scratch.path().join("erl_staging");
         assert_eq!(
-            hex_stage_checked(&files, &staging, "rebar3", "0.2.0"),
-            Ok("0.2.0".to_owned())
+            hex_stage_checked(&files, &staging, "rebar3", "0.2.0").expect("matching version"),
+            "0.2.0"
         );
         assert_eq!(
-            hex_stage_checked(&files, &staging, "rebar3", ""),
-            Ok("0.2.0".to_owned())
+            hex_stage_checked(&files, &staging, "rebar3", "").expect("declared version"),
+            "0.2.0"
         );
-        assert!(hex_stage_checked(&files, &staging, "rebar3", "0.3.0").is_err());
+        let error = hex_stage_checked(&files, &staging, "rebar3", "0.3.0").expect_err("mismatch");
+        assert!(matches!(error, HexError::Refused(_)), "{error:?}");
         let error =
             hex_stage_checked(&files, &staging, "gleam", "0.2.0").expect_err("unknown tool");
-        assert!(error.contains("unknown tool"), "{error}");
+        assert!(matches!(error, HexError::Paths(_)), "{error:?}");
+        assert!(error.to_string().contains("unknown tool"), "{error}");
     }
 
     #[test]
@@ -396,8 +450,10 @@ mod tests {
             &fake,
             "#!/bin/sh\necho \"key $HEX_API_KEY\" >&2\nls -A \"$HOME\" | wc -l >&2\nexit 1\n",
         );
-        let message = hex_run(&fake, &["hex.publish", "--yes"], scratch.path(), "s3cret")
+        let error = hex_run(&fake, &["hex.publish", "--yes"], scratch.path(), "s3cret")
             .expect_err("publish fails");
+        assert!(matches!(error, HexError::ToolFailed { .. }), "{error:?}");
+        let message = error.to_string();
         assert!(
             message.contains("hex.publish --yes failed with"),
             "{message}"
@@ -406,6 +462,6 @@ mod tests {
         assert!(message.contains("\nhex: 0"), "{message}");
         assert!(!message.contains("s3cret"), "{message}");
         std::fs::write(&fake, "#!/bin/sh\nexit 0\n").expect("rewrite");
-        assert_eq!(hex_run(&fake, &[], scratch.path(), ""), Ok(()));
+        hex_run(&fake, &[], scratch.path(), "").expect("tool succeeds");
     }
 }

@@ -1,6 +1,6 @@
 """Analysis tests for the Windows tsc shim."""
 
-load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts", "unittest")
 
 def _bin_relative(ctx, file):
     return file.path[len(ctx.bin_dir.path) + 1:]
@@ -59,27 +59,105 @@ _UPSTREAM_CHANGED = "the upstream Windows js_binary launcher changed; check whet
 _RLOCATION_START = ":: Start of rlocation"
 _RLOCATION_END = ":: End of rlocation"
 
+_RUN_SCRIPT_RLOCATION = "if not exist \"!run_script!\" call :rlocation"
+_RUNFILES_UNSET = "RUNFILES environment variable is not set"
+
+def _upstream_fix_signals(bat_content, init_runfiles):
+    """Lists the ways the upstream launcher pair differs from the broken one; empty while it is still broken.
+
+    Args:
+        bat_content: Content of bazel-lib's generated `.bat` launcher.
+        init_runfiles: rules_js's `{{initialize_runfiles}}` substitution, or None if absent.
+
+    Returns:
+        A list of signal strings.
+    """
+    signals = []
+    if _RLOCATION_START not in bat_content or _RLOCATION_END not in bat_content:
+        signals.append("bat: rlocation markers missing")
+    else:
+        body = bat_content[:bat_content.index(_RLOCATION_START)] + bat_content[bat_content.index(_RLOCATION_END):]
+        if _RUN_SCRIPT_RLOCATION not in body:
+            signals.append("bat: run_script rlocation fallback missing")
+        if "RUNFILES_MANIFEST_FILE" in body:
+            signals.append("bat: body sets RUNFILES_MANIFEST_FILE")
+    if init_runfiles == None:
+        signals.append("bash: {{initialize_runfiles}} substitution missing")
+    else:
+        if _RUNFILES_UNSET not in init_runfiles:
+            signals.append("bash: unset RUNFILES no longer fatal")
+        if ".bat" in init_runfiles:
+            signals.append("bash: runfiles init mentions .bat")
+    return signals
+
 def _upstream_launcher_impl(ctx):
     env = analysistest.begin(ctx)
     executable = analysistest.target_under_test(env)[DefaultInfo].files_to_run.executable
     asserts.equals(env, "tsc.bat", executable.basename, _UPSTREAM_CHANGED)
-    writes = [a for a in analysistest.target_actions(env) if a.mnemonic == "FileWrite" and executable in a.outputs.to_list()]
+    actions = analysistest.target_actions(env)
+    writes = [a for a in actions if a.mnemonic == "FileWrite" and executable in a.outputs.to_list()]
     asserts.equals(env, 1, len(writes), _UPSTREAM_CHANGED)
-    if len(writes) != 1:
+    bash_path = executable.path[:-len(".bat")]
+    expands = [a for a in actions if a.mnemonic == "TemplateExpand" and bash_path in [f.path for f in a.outputs.to_list()]]
+    asserts.equals(env, 1, len(expands), _UPSTREAM_CHANGED)
+    if len(writes) != 1 or len(expands) != 1:
         return analysistest.end(env)
-    content = writes[0].content
-    if _RLOCATION_START not in content or _RLOCATION_END not in content:
-        asserts.true(env, False, _UPSTREAM_CHANGED)
-        return analysistest.end(env)
-    body = content[:content.index(_RLOCATION_START)] + content[content.index(_RLOCATION_END):]
-    asserts.true(env, "if not exist \"!run_script!\" call :rlocation" in body, _UPSTREAM_CHANGED)
-    asserts.false(env, "RUNFILES_MANIFEST_FILE" in body, _UPSTREAM_CHANGED)
+    signals = _upstream_fix_signals(writes[0].content, expands[0].substitutions.get("{{initialize_runfiles}}"))
+    asserts.equals(env, [], signals, _UPSTREAM_CHANGED + ": " + ", ".join(signals))
     return analysistest.end(env)
 
 upstream_launcher_test = analysistest.make(
     _upstream_launcher_impl,
     config_settings = {"//command_line_option:platforms": str(Label("//tools/platforms:windows_x86_64"))},
 )
+
+_FIXTURE_BAT = "\r\n".join([
+    "@echo off",
+    "SETLOCAL ENABLEEXTENSIONS",
+    "SETLOCAL ENABLEDELAYEDEXPANSION",
+    "set RUNFILES_MANIFEST_ONLY=1",
+    ":: Start of rlocation",
+    "goto :rlocation_end",
+    ":rlocation",
+    "set \"runfiles_manifest_file=%RUNFILES_MANIFEST_FILE%\"",
+    ":rlocation_end",
+    ":: End of rlocation",
+    "set \"run_script=%~dp0tsc\"",
+    "if not exist \"!run_script!\" call :rlocation \"_main/tsc_/tsc\" run_script",
+    "set \"run_script=!run_script:\\=/!\"",
+    "for %%a in (\"C:/bash.exe\") do set \"bash_bin_dir=%%~dpa\"",
+    "set PATH=%bash_bin_dir%;%PATH%",
+    "set args=%*",
+    "\"C:/bash.exe\" -c \"'!run_script!' !args!\"",
+    "",
+])
+
+_FIXTURE_INIT = """\
+if [ "${RUNFILES_MANIFEST_FILE:-}" ]; then
+    RUNFILES=${RUNFILES_MANIFEST_FILE%_manifest}
+elif [ ! "${RUNFILES:-}" ]; then
+    log_fatal "RUNFILES environment variable is not set"
+    exit 1
+fi
+"""
+
+_RUN_SCRIPT_LINE = "if not exist \"!run_script!\" call :rlocation \"_main/tsc_/tsc\" run_script\r\n"
+
+def _upstream_fix_signals_impl(ctx):
+    env = unittest.begin(ctx)
+    asserts.equals(env, [], _upstream_fix_signals(_FIXTURE_BAT, _FIXTURE_INIT))
+    for bat, init, signal in [
+        (_FIXTURE_BAT.replace(_RLOCATION_START, ""), _FIXTURE_INIT, "bat: rlocation markers missing"),
+        (_FIXTURE_BAT.replace(_RUN_SCRIPT_LINE, ""), _FIXTURE_INIT, "bat: run_script rlocation fallback missing"),
+        (_FIXTURE_BAT.replace("@echo off\r\n", "@echo off\r\nset \"RUNFILES_MANIFEST_FILE=%~f0.runfiles\\MANIFEST\"\r\n"), _FIXTURE_INIT, "bat: body sets RUNFILES_MANIFEST_FILE"),
+        (_FIXTURE_BAT, None, "bash: {{initialize_runfiles}} substitution missing"),
+        (_FIXTURE_BAT, _FIXTURE_INIT.replace(_RUNFILES_UNSET, "RUNFILES fallback"), "bash: unset RUNFILES no longer fatal"),
+        (_FIXTURE_BAT, _FIXTURE_INIT.replace("fi\n", "elif [ -d \"$0.bat.runfiles\" ]; then\n    RUNFILES=\"$0.bat.runfiles\"\nfi\n"), "bash: runfiles init mentions .bat"),
+    ]:
+        asserts.equals(env, [signal], _upstream_fix_signals(bat, init))
+    return unittest.end(env)
+
+upstream_fix_signals_test = unittest.make(_upstream_fix_signals_impl)
 
 _CASES = [
     ("tsc", "//typescript/private:tsc", "@npm_typescript//:tsc"),
@@ -109,7 +187,8 @@ def windows_tool_tests(name):
         default_select_test(name = prefix + "_default_select", target_under_test = alias, tool = tool, size = "small")
         tests += [prefix + "_shim", prefix + "_windows_select", prefix + "_default_select"]
     upstream_launcher_test(name = name + "_upstream_launcher", target_under_test = "@npm_typescript//:tsc", size = "small")
-    tests.append(name + "_upstream_launcher")
+    upstream_fix_signals_test(name = name + "_upstream_fix_signals", size = "small")
+    tests += [name + "_upstream_launcher", name + "_upstream_fix_signals"]
     native.test_suite(name = name, tests = tests)
 
 def ts_project_tool_tests(name, project):

@@ -199,9 +199,9 @@ pub(crate) fn package_relative_paths(
     let root = first.parent().unwrap_or_else(|| Path::new(""));
     let mut mapped: Vec<(std::path::PathBuf, String)> = Vec::new();
     for src in crate_files {
-        let rel = src.strip_prefix(root).map_err(|_| {
+        let rel = src.strip_prefix(root).map_err(|error| {
             bad(format!(
-                "{label}: '{}' is outside the package root '{}'",
+                "{label}: '{}' is outside the package root '{}': {error}",
                 src.display(),
                 root.display()
             ))

@@ -109,7 +109,10 @@ write_file(
     name = "python_hub_targets",
     out = "python_hub_targets.txt",
     content = python_hub_lines() + [""],
-    visibility = ["//tools/testing/consumer:__pkg__"],
+    visibility = [
+        "//deploy/private/release/tests:__pkg__",
+        "//tools/testing/consumer:__pkg__",
+    ],
 )
 
 # The tools whose hub selects on the target platform, one name per line.

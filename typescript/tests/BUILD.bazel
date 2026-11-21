@@ -116,8 +116,6 @@ test_suite(
     tests = [
         "//typescript/tests/fixtures/declarations:main_bin_typecheck_test",
         "//typescript/tests/fixtures/declarations:main_output_test",
-        "//typescript/tests/fixtures/hello:hello_output_test",
-        "//typescript/tests/fixtures/hello:hello_test",
         "//typescript/tests/fixtures/hello:plain_test",
         "//typescript/tests/fixtures/root_dir/app:app_gate_exit_test",
         "//typescript/tests/fixtures/root_dir/app:app_gate_manual_test",

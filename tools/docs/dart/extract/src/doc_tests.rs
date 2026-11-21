@@ -118,7 +118,7 @@ fn parse_reads_every_flag() {
         "o",
         "--label",
         "l",
-        "--stage",
+        "--scratch",
         "st",
         "--html",
         "h",
@@ -128,6 +128,22 @@ fn parse_reads_every_flag() {
     .collect();
     let options = parse(&args).unwrap();
     assert_eq!(options.own, "o");
-    assert_eq!(options.stage, "st");
+    assert_eq!(options.scratch, "st");
     assert!(parse(&args[2..]).is_err());
+}
+
+#[test]
+fn empty_dir_keeps_the_directory_and_drops_its_entries() {
+    let dir = std::env::temp_dir().join("dart_doc_empty_dir");
+    if dir.exists() {
+        fs::remove_dir_all(&dir).unwrap();
+    }
+    fs::create_dir_all(dir.join("stage/pkg/lib")).unwrap();
+    fs::write(dir.join("stage/pkg/lib/a.dart"), "").unwrap();
+    fs::create_dir_all(dir.join("pub")).unwrap();
+    fs::write(dir.join(".dartServer"), "").unwrap();
+    empty_dir(&dir).unwrap();
+    assert!(dir.is_dir());
+    assert_eq!(fs::read_dir(&dir).unwrap().count(), 0);
+    fs::remove_dir(&dir).unwrap();
 }

@@ -257,8 +257,9 @@ def rust_build_script(name, build_script_env = None, toolchains = None, use_cc_t
         user = env
         env = dict(BUILD_SCRIPT_CC_ENV)
         env.update(user)
-        if "CFLAGS" in user:
-            env["CFLAGS"] = BUILD_SCRIPT_CC_ENV["CFLAGS"] + " " + user["CFLAGS"]
+        for flags in ["CFLAGS", "CXXFLAGS"]:
+            if flags in user:
+                env[flags] = BUILD_SCRIPT_CC_ENV[flags] + " " + user[flags]
         toolchains.append(_BUILD_SCRIPT_CC_ENV)
     features = list(kwargs.pop("features", []))
     features += [f for f in _NO_COVERAGE_FEATURES if f not in features]

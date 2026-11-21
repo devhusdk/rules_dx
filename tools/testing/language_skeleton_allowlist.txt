@@ -75,7 +75,6 @@ fixture-referenced csharp/tests/fixtures/hello
 fixture-referenced csharp/tests/fixtures/profiles
 fixture-referenced csharp/tests/fixtures/proto
 fixture-referenced csharp/tests/fixtures/xunit
-fixture-referenced cuda/tests/fixtures/coverage
 fixture-referenced d/tests/fixtures/bench
 fixture-referenced d/tests/fixtures/coverage
 fixture-referenced d/tests/fixtures/fuzz

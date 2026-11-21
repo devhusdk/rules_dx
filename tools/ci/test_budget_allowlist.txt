@@ -157,7 +157,6 @@ csharp/tests/fixtures/profiles/BUILD.bazel no-size 1
 csharp/tests/fixtures/proto/BUILD.bazel no-size 1
 csharp/tests/fixtures/xunit/BUILD.bazel no-size 2
 cuda/tests/BUILD.bazel no-size 28
-cuda/tests/fixtures/coverage/BUILD.bazel no-size 1
 cuda/tests/fixtures/cuda_app/checks/BUILD.bazel no-size 2
 cuda/tests/fixtures/cuda_app/gpu/BUILD.bazel no-size 1
 cuda/tests/fixtures/executable/BUILD.bazel no-size 3

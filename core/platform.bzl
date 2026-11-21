@@ -10,6 +10,9 @@ DxPlatformInfo = provider(
     },
 )
 
+# The rules_dx C++ compiler choice; rule sets set it per platform and read it in transitions.
+CC_COMPILER_FLAG = str(Label("//cc:compiler"))
+
 _PLATFORMS = "//command_line_option:platforms"
 
 def _attr_platforms(attr, _current):

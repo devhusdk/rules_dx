@@ -5905,19 +5905,6 @@ Tag `python.toolchain`:
 | --- | --- | --- | --- |
 | `python_version` | `string` | yes |  |
 
-#### `sdist_cargo_vendor`
-
-Module extension.
-
-Tag `sdist_cargo_vendor.crates`:
-
-| Attribute | Type | Required | Default |
-| --- | --- | --- | --- |
-| `cargo_lock_path` | `string` | no | `"Cargo.lock"` |
-| `lock` | `label` | yes |  |
-| `name` | `name` | yes |  |
-| `package` | `string` | yes |  |
-
 #### `uv`
 
 Module extension.

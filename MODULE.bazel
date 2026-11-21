@@ -1348,12 +1348,12 @@ dx_pins.archive(
     patches = ["//patches/rules_powershell:inline_runfiles_sh.patch"],
     pins = "//powershell:pins.json",
 )
+# Pinned to an upstream main commit carrying bazel-contrib/rules_ruby#435 and #440 until a release has them.
 dx_pins.archive(
     name = "rules_ruby",
     crlf = ["ruby/private/binary/binary.cmd.tpl"],
     dropped = ["MODULE.bazel"],
     patches = [
-        "//patches/rules_ruby:reproducible.patch",
         "//patches/rules_ruby:coverage.patch",
         "//patches/rules_ruby:rubyinstaller_archive.patch",
         "//patches/rules_ruby:toolchains_gate.patch",

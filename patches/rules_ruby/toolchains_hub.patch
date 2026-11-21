@@ -2,24 +2,20 @@ Upstream: none (rules_dx only: names the toolchains repo dx_<name>_toolchains)
 diff --git a/ruby/extensions.bzl b/ruby/extensions.bzl
 --- a/ruby/extensions.bzl
 +++ b/ruby/extensions.bzl
-@@ -146,10 +146,10 @@
-                 )
-                 if module_ctx.is_dev_dependency(toolchain):
-                     direct_dev_dep_names.append(toolchain.name)
--                    direct_dev_dep_names.append("%s_toolchains" % toolchain.name)
-+                    direct_dev_dep_names.append("dx_%s_toolchains" % toolchain.name)
-                 else:
-                     direct_dep_names.append(toolchain.name)
--                    direct_dep_names.append("%s_toolchains" % toolchain.name)
-+                    direct_dep_names.append("dx_%s_toolchains" % toolchain.name)
+@@ -109,7 +109,7 @@ def _ruby_module_extension(module_ctx):
  
-     for name, config in registrations.items():
-         (
+         if mod.is_root:
+             for toolchain in mod.tags.toolchain:
+-                names = [toolchain.name, "%s_toolchains" % toolchain.name]
++                names = [toolchain.name, "dx_%s_toolchains" % toolchain.name]
+                 if module_ctx.is_dev_dependency(toolchain):
+                     direct_dev_dep_names.extend(names)
+                 else:
 diff --git a/ruby/private/toolchain.bzl b/ruby/private/toolchain.bzl
 --- a/ruby/private/toolchain.bzl
 +++ b/ruby/private/toolchain.bzl
-@@ -94,7 +94,7 @@
-         register: whether to register the resulting toolchains, should be False under bzlmod
+@@ -99,7 +99,7 @@ def rb_register_toolchains(
+             path since its archive is platform-independent).
          **kwargs: additional parameters to the downloader for this interpreter type
      """
 -    proxy_repo_name = name + "_toolchains"

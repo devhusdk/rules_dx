@@ -2,9 +2,8 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//cli/launcher:defs.bzl", "dx_subcommand")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
-load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
-package(default_visibility = VIS_TOOLS_PUBLIC)
+package(default_visibility = ["//:__subpackages__"])
 
 rust_library(
     name = "perl_lock_lib",
@@ -28,7 +27,7 @@ rust_library(
 dx_subcommand(
     name = "lock",
     subcommand = "perl_lock",
-    visibility = VIS_TOOLS_PUBLIC,
+    visibility = ["//:__subpackages__"],
 )
 
 rust_test(
@@ -73,6 +72,7 @@ rust_test(
     srcs = ["subcommand_test.rs"],
     aliases = aliases(
         package_name = "perl/private/tools/perl_lock",
+        normal = True,
         normal_dev = True,
     ),
     crate_name = "subcommand_test",
@@ -82,6 +82,7 @@ rust_test(
     tags = ["block-network"],
     deps = all_crate_deps(
         package_name = "perl/private/tools/perl_lock",
+        normal = True,
         normal_dev = True,
     ) + ["//tools/testing:dx_testing"],
 )
@@ -100,7 +101,7 @@ real_source_target(
 
 exports_files(
     ["Cargo.toml"],
-    visibility = VIS_TOOLS_PUBLIC,
+    visibility = ["//:__subpackages__"],
 )
 
 filegroup(

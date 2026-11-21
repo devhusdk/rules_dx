@@ -1,4 +1,173 @@
 {
+  "core": {
+    "docs": [
+      {
+        "aspects": [
+          "real_docs_aspect"
+        ],
+        "bzl": "tools/docs:aspect.bzl"
+      }
+    ],
+    "quality": [
+      {
+        "aspects": {
+          "format": [
+            "real_format_aspect",
+            "real_biome_format_aspect"
+          ],
+          "lint": [
+            "real_lint_aspect",
+            "real_biome_lint_aspect",
+            "real_vale_lint_aspect"
+          ],
+          "typecheck": [
+            "real_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/core.bzl"
+      },
+      {
+        "bzl": "core/quality:families/core_probe.bzl",
+        "probes": {
+          "format": [
+            "real_core_format_probe_aspect"
+          ],
+          "lint": [
+            "real_core_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_core_typecheck_probe_aspect"
+          ]
+        }
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_cue_format_aspect"
+          ],
+          "typecheck": [
+            "real_cue_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/cue.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_html_template_format_aspect"
+          ],
+          "lint": [
+            "real_html_template_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/html_template.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_jsonnet_format_aspect"
+          ],
+          "lint": [
+            "real_jsonnet_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/jsonnet.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_latex_format_aspect"
+          ],
+          "lint": [
+            "real_latex_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/latex.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_nix_format_aspect"
+          ],
+          "lint": [
+            "real_nix_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/nix.bzl"
+      },
+      {
+        "aspects": {
+          "lint": [
+            "real_oci_image_lint_aspect"
+          ],
+          "typecheck": [
+            "real_oci_image_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/oci_image.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_pkl_format_aspect"
+          ],
+          "typecheck": [
+            "real_pkl_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/pkl.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_shell_format_aspect"
+          ],
+          "lint": [
+            "real_shell_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/shell.bzl"
+      },
+      {
+        "aspects": {
+          "lint": [
+            "real_text_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/text.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_typst_format_aspect"
+          ],
+          "lint": [
+            "real_typst_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/typst.bzl"
+      },
+      {
+        "aspects": {
+          "lint": [
+            "real_xml_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/xml.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_yaml_format_aspect"
+          ],
+          "lint": [
+            "real_yaml_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/yaml.bzl"
+      }
+    ]
+  },
   "languages": [
     {
       "name": "android",

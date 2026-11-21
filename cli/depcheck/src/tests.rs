@@ -729,6 +729,7 @@ fn manifest_name(eco: Language) -> &'static str {
         Language::Swift => "Package.swift",
         Language::Powershell => "Hello.psd1",
         Language::Ocaml => "project.opam",
+        Language::Ansible => "requirements.yml",
     }
 }
 
@@ -755,6 +756,7 @@ fn lock_name(eco: Language) -> &'static str {
         Language::Swift => "Package.resolved",
         Language::Powershell => "powershell.lock.json",
         Language::Ocaml => "opam.locked",
+        Language::Ansible => "ansible.lock.json",
     }
 }
 
@@ -786,6 +788,7 @@ fn eco_dir(eco: Language) -> &'static str {
         Language::Powershell => "powershell",
         Language::Lua => "lua",
         Language::Ocaml => "ocaml",
+        Language::Ansible => "ansible",
     }
 }
 
@@ -1356,6 +1359,7 @@ fn ecosystem_parse_covers_every_name() {
         ("powershell", Language::Powershell),
         ("lua", Language::Lua),
         ("ocaml", Language::Ocaml),
+        ("ansible", Language::Ansible),
     ] {
         assert_eq!(Language::parse(text), Some(eco), "{text}");
     }
@@ -3658,4 +3662,65 @@ fn an_unreadable_go_source_fails_the_missing_scan() {
     let found = crate::missing::find_missing_go(&manifest, dir.path(), &[]);
     unlock(&locked);
     assert_unreadable_sources(found.expect_err("unreadable source"), &locked);
+}
+
+#[test]
+fn ansible_manifest_reads_named_and_bare_collections() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let manifest = dir.path().join("requirements.yml");
+    write_file(
+        &manifest,
+        "---\ncollections:\n  - name: ansible.posix\n    version: \"2.2.2\"\n  - community.general\nroles:\n  - name: geerlingguy.java\n",
+    );
+    let deps = parse_ansible_manifest(&manifest).expect("parse");
+    let names: Vec<&str> = deps.keys().map(String::as_str).collect();
+    assert_eq!(names, ["ansible.posix", "community.general"]);
+    assert_eq!(deps["ansible.posix"].spec, "2.2.2");
+    assert_eq!(deps["community.general"].spec, "*");
+    write_file(&manifest, "collections: ansible.posix\n");
+    assert!(parse_ansible_manifest(&manifest).is_err());
+}
+
+#[test]
+fn ansible_fixture_checks_the_lock_and_reports_the_missing_collection() {
+    assert_eq!(consistency(Language::Ansible, "mixed"), 0);
+    let base = testdata_root().join("ansible/mixed");
+    let lock = parse_ansible_lock(&base.join("ansible.lock.json")).expect("parse");
+    assert_eq!(lock["community.docker"], "3.10.0");
+    let (unused, missing) = unused_and_missing(Language::Ansible);
+    assert_eq!(unused, ["community.general"]);
+    assert_eq!(missing, ["community.docker"]);
+}
+
+#[test]
+fn ansible_consistency_rejects_a_collection_the_lock_lacks() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let manifest = dir.path().join("requirements.yml");
+    let lock = dir.path().join("ansible.lock.json");
+    write_file(
+        &manifest,
+        "collections:\n  - name: ansible.posix\n    version: 2.2.2\n  - name: ansible.utils\n    version: 5.1.2\n",
+    );
+    write_file(
+        &lock,
+        r#"{"packages": [{"name": "ansible.posix", "version": "2.2.1"}]}"#,
+    );
+    let mut out = String::new();
+    let mut err = String::new();
+    let code = exit_code(cmd_consistency(
+        Language::Ansible,
+        &manifest,
+        &lock,
+        &mut out,
+        &mut err,
+    ));
+    assert_ne!(code, 0);
+    assert!(
+        err.contains("missing lock entry for 'ansible.utils'"),
+        "{err}"
+    );
+    assert!(
+        err.contains("stale lock entry for 'ansible.posix'"),
+        "{err}"
+    );
 }

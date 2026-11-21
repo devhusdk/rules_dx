@@ -786,6 +786,7 @@ filegroup(
         "//julia/private/tools/patches:module_srcs",
         "//kotlin:module_srcs",
         "//kotlin/private:module_srcs",
+        "//kotlin/private/quality:module_srcs",
         "//kotlin/tests/fixtures/kotlin_app/cli:module_srcs",
         "//kubernetes/private/quality:module_srcs",
         "//lua:module_srcs",

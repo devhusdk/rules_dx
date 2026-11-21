@@ -2,8 +2,8 @@
 //! `jvm_aux_jars`, which keeps compile-only (neverlink) jars. A tool that reads
 //! `transitive_runtime_jars` directly silently loses them.
 //!
-//! Scans `core/quality/*.bzl`, `core/quality/families/*.bzl`, `java/private/quality` and
-//! `scala/private/quality` (the data); JVM aspect
+//! Scans `core/quality/*.bzl`, `core/quality/families/*.bzl`, `java/private/quality`,
+//! `kotlin/private/quality` and `scala/private/quality` (the data); JVM aspect
 //! code moved into another subpackage must extend the globs.
 
 use std::path::Path;
@@ -68,6 +68,7 @@ fn bzl_sources() -> Vec<(String, String)> {
         "core/quality",
         "core/quality/families",
         "java/private/quality",
+        "kotlin/private/quality",
         "scala/private/quality",
     ] {
         let dir = runfiles_root().join(sub);
@@ -79,6 +80,7 @@ fn bzl_sources() -> Vec<(String, String)> {
                     "core/quality" => file,
                     "core/quality/families" => format!("families/{file}"),
                     "java/private/quality" => format!("java/{file}"),
+                    "kotlin/private/quality" => format!("kotlin/{file}"),
                     _ => format!("scala/{file}"),
                 };
                 out.push((file, std::fs::read_to_string(&path).expect("readable bzl")));
@@ -140,6 +142,7 @@ fn scanned_sources_are_not_empty() {
     let files = bzl_sources();
     assert!(!files.is_empty(), "no .bzl files in runfiles");
     assert!(files.iter().any(|(f, _)| f == "java/jvm.bzl"));
+    assert!(files.iter().any(|(f, _)| f == "kotlin/kotlinc_check.bzl"));
     assert!(files.iter().any(|(f, _)| f == "scala/scala.bzl"));
 }
 

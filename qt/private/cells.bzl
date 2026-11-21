@@ -1,5 +1,6 @@
 """Qualified Qt cells as target compatibility settings."""
 
+load("//core:cells.bzl", "unsupported_constraint")
 load("//qt/private/toolchain:pins.bzl", "CELLS", "IDENTITIES")
 load("//qt/private/toolchain:repos.bzl", "qualified_cells")
 
@@ -16,7 +17,7 @@ def _cell_setting(cell):
 
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 
-_UNSUPPORTED = Label("//qt/private:unsupported")
+_UNSUPPORTED = unsupported_constraint("qt")
 
 QT_COMPATIBLE_WITH = select(
     {setting: [] for setting in [_cell_setting(cell) for cell in sorted(CELLS)]} |

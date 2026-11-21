@@ -213,7 +213,7 @@ def _language(name, bench = None, fuzz = None, deps = None, doc = None, dead_cod
 LANGUAGES = [
     _language(
         "android",
-        unsupported = "//android/private/sdk:unsupported",
+        unsupported = "//core/platforms:android_unsupported",
     ),
     _language(
         "appimage",
@@ -290,7 +290,7 @@ LANGUAGES = [
         deps = "`pub`",
         doc = struct(tool = "dart doc", shard = "dart_doc_shard"),
         dead_code = ["dart unused_element"],
-        unsupported = "//dart/private:unsupported",
+        unsupported = "//core/platforms:dart_unsupported",
     ),
     _language(
         "elixir",
@@ -311,7 +311,7 @@ LANGUAGES = [
         deps = "`pub`",
         doc = struct(tool = "dart doc", shard = "dart_doc_shard"),
         dead_code = ["dart unused_element"],
-        unsupported = "//flutter/private:unsupported",
+        unsupported = "//core/platforms:flutter_unsupported",
     ),
     _language(
         "fortran",
@@ -341,7 +341,7 @@ LANGUAGES = [
         deps = "`hackage` from `" + LOCK_REGISTRY["cabal"]["state"] + "`; none for `stack.yaml.lock`",
         doc = struct(tool = "haddock", shard = "haskell_doc_shard"),
         dead_code = ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
-        unsupported = "//haskell/private/toolchain:unsupported",
+        unsupported = "//core/platforms:haskell_unsupported",
     ),
     _language(
         "java",
@@ -365,7 +365,7 @@ LANGUAGES = [
         deps = "`julia`",
         doc = struct(tool = "documenter", shard = "julia_doc_shard"),
         dead_code = ["none"],
-        unsupported = "//julia/private:unsupported",
+        unsupported = "//core/platforms:julia_unsupported",
     ),
     _language(
         "kotlin",
@@ -390,7 +390,7 @@ LANGUAGES = [
     ),
     _language(
         "msix",
-        unsupported = "//msix/private:unsupported",
+        unsupported = "//core/platforms:msix_unsupported",
     ),
     _language(
         "nix",
@@ -417,7 +417,7 @@ LANGUAGES = [
         deps = "`packagist`",
         doc = struct(tool = "phpdocumentor", shard = "php_doc_shard"),
         dead_code = ["phpcs Generic.CodeAnalysis.UnusedFunctionParameter"],
-        unsupported = "//php/private/toolchain:unsupported",
+        unsupported = "//core/platforms:php_unsupported",
     ),
     _language(
         "powershell",

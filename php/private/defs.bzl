@@ -1,6 +1,7 @@
 """Thin dx wrappers over the owned PHP rules."""
 
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
+load("//core:platform_support.bzl", "cells_support", "compatible_with")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_kwargs", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
@@ -11,18 +12,9 @@ PhpInfo = _PhpInfo
 
 PHP_SOURCE_SPECS = [("php", ["php"])]
 
-PLATFORM_SUPPORT = struct(
-    key = "//php/private:defs.bzl%PHP_COMPATIBLE_WITH",
-    any_of = [PHP_CELLS[cell].exec_compatible_with for cell in sorted(PHP_CELLS)],
-    settings = [Label("//php/private/toolchain:cell_" + cell) for cell in sorted(PHP_CELLS)],
-    package = "//php/private/toolchain",
-)
+PLATFORM_SUPPORT = cells_support("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH", PHP_CELLS, sorted(PHP_CELLS), "//php/private/toolchain", unsupported = "php")
 
-PHP_COMPATIBLE_WITH = select(
-    {setting: [] for setting in PLATFORM_SUPPORT.settings} | {
-        "//conditions:default": [Label("@platforms//:incompatible"), Label("//php/private/toolchain:unsupported")],
-    },
-)
+PHP_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 
 _PHP = dx_language_spec(what = "php_*", quality_specs = PHP_SOURCE_SPECS, allow_files = PHP_SOURCE_EXTS)
 

@@ -4,6 +4,7 @@ load("@rules_android//rules:rules.bzl", _android_library = "android_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//cc:defs.bzl", "cc_binary", "cc_library")
+load("//core:cells.bzl", "unsupported_constraint")
 load("//rust:defs.bzl", "rust_static_library")
 load("//rust/private:edition.bzl", "RUST_EDITION")
 load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
@@ -144,7 +145,7 @@ def android_native_library(
     )
 
 _SDK_COMPATIBLE_WITH = select({
-    Label("//android/private/sdk:linux_arm64"): [Label("@platforms//:incompatible"), Label("//android/private/sdk:unsupported")],
+    Label("//android/private/sdk:linux_arm64"): [Label("@platforms//:incompatible"), unsupported_constraint("android")],
     "//conditions:default": [],
 })
 

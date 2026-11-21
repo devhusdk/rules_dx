@@ -650,14 +650,14 @@ mod tests {
               ],
               "quality": {}, "support": [], "deferred_families": [],
               "platform_not_applicable": {"hs": {"b": "no bindist"}, "go": {"a": "x"}},
-              "unsupported_constraints": {"hs": "//haskell/private/toolchain:unsupported"},
+              "unsupported_constraints": {"hs": "//core/platforms:haskell_unsupported"},
               "not_languages": []
             }"#,
         )
         .expect("facts");
         assert_eq!(
             unsupported_json(&facts),
-            "{\n  \"//haskell/private/toolchain:unsupported\": {\n    \"platforms\": {\n      \"b\": \"no bindist\"\n    },\n    \"title\": \"Haskell\"\n  }\n}\n"
+            "{\n  \"//core/platforms:haskell_unsupported\": {\n    \"platforms\": {\n      \"b\": \"no bindist\"\n    },\n    \"title\": \"Haskell\"\n  }\n}\n"
         );
     }
 

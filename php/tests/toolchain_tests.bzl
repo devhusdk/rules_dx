@@ -1,11 +1,12 @@
 """PHP toolchain pin and acquisition tests."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
+load("//core:cells.bzl", "cell_cases", "cell_setting")
 load("//php/tests:checks.bzl", "expect_contains", "expect_equal", "expect_true", "php_checks_test")
 load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/private:php.bzl", "NATIVE_LAUNCHER_ATTRS", "lit", "rf", "runfiles_path", "write_launcher")
 load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
-load("//php/private/toolchain:cells.bzl", "PHP_CELLS", "cell_cases", "cell_setting")
+load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
 load("//php/private/toolchain:repos.bzl", "COVERAGE_BUILD", "COVERAGE_PREFIX", "VERSION_FILE", "hub_build", "runtime_build")
 
 _PHP = PINS["dx_php"]
@@ -22,13 +23,13 @@ def _checks():
     mac = PHP_CELLS["macos_arm64"]
     pins = [_PHP["pcov"]] + _PHP["tools"].values()
     cells = _PHP["cells"]
-    cases = cell_cases("//php/private/toolchain", PHP_CELLS.keys())
+    cases = cell_cases("//php/private/toolchain", PHP_CELLS.keys(), "php")
     default = cases.pop("//conditions:default")
     return [
         expect_true("pinned tools name their version", all([all([pin["version"] in url for url in pin["urls"]]) for pin in pins])),
         expect_equal("one case per pinned cell", sorted([str(key) for key in cases]), sorted([str(cell_setting("//php/private/toolchain", cell)) for cell in PHP_CELLS])),
         expect_equal("pinned cells allow the target", cases.values(), [[] for _ in PHP_CELLS]),
-        expect_equal("other platforms are incompatible and unsupported", [str(label) for label in default], [str(Label("@platforms//:incompatible")), str(Label("//php/private/toolchain:unsupported"))]),
+        expect_equal("other platforms are incompatible and unsupported", [str(label) for label in default], [str(Label("@platforms//:incompatible")), str(Label("//core/platforms:php_unsupported"))]),
         expect_equal("pinned cells are the language cells", sorted(cells.keys()), sorted(PHP_CELLS.keys())),
         expect_true("cell urls", all([cells[c]["urls"][0].startswith(MIRROR) and cells[c]["urls"][1].startswith(STATIC_PHP + flavors[c] + "/") for c in PHP_CELLS])),
         expect_equal("cell binaries are the interpreters", {c: cells[c]["binary"] for c in cells}, {c: PHP_CELLS[c].interpreter for c in PHP_CELLS}),

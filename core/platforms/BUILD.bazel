@@ -1,5 +1,5 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load(":settings.bzl", "lang_platform_setting")
+load(":settings.bzl", "lang_platform_setting", "lang_unsupported")
 
 lang_platform_setting(name = "dart")
 
@@ -8,6 +8,30 @@ lang_platform_setting(name = "flutter")
 lang_platform_setting(name = "julia")
 
 lang_platform_setting(name = "perl")
+
+lang_unsupported(name = "android_unsupported")
+
+lang_unsupported(name = "d_unsupported")
+
+lang_unsupported(name = "dart_unsupported")
+
+lang_unsupported(name = "elixir_unsupported")
+
+lang_unsupported(name = "erlang_unsupported")
+
+lang_unsupported(name = "flutter_unsupported")
+
+lang_unsupported(name = "haskell_unsupported")
+
+lang_unsupported(name = "julia_unsupported")
+
+lang_unsupported(name = "msix_unsupported")
+
+lang_unsupported(name = "perl_unsupported")
+
+lang_unsupported(name = "php_unsupported")
+
+lang_unsupported(name = "qt_unsupported")
 
 filegroup(
     name = "module_srcs",

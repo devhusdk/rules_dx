@@ -14,10 +14,24 @@ diff -ruN a/julia/private/precompile.jl b/julia/private/precompile.jl
  function fixed_slug!(compiled)
      for version in readdir(compiled; join = true), entry in readdir(version; join = true)
          isdir(entry) || continue
+@@ -47,9 +42,10 @@
+ 
+     includes, depots, _ = read_config(config)
+ 
+-    tree = stable_path(depot_flag * ".tree")
+-    rm(tree; force = true, recursive = true)
+-    mkpath(tree)
++    tree_dir = depot_flag * ".tree"
++    rm(tree_dir; force = true, recursive = true)
++    mkpath(tree_dir)
++    tree = stable_path(tree_dir)
+     install_tree(manifest, tree)
+ 
+     # Julia writes new caches to the first depot. The tree and dependency
 diff -ruN a/julia/private/rules_julia_common.jl b/julia/private/rules_julia_common.jl
 --- a/julia/private/rules_julia_common.jl
 +++ b/julia/private/rules_julia_common.jl
-@@ -262,3 +262,17 @@
+@@ -262,3 +262,45 @@
      end
      ccall(:_exit, Cvoid, (Cint,), status)
  end
@@ -29,16 +43,44 @@ diff -ruN a/julia/private/rules_julia_common.jl b/julia/private/rules_julia_comm
 +
 +Under a sandbox the working directory differs between builds, and package
 +paths end up in the caches and images built from them. On Linux a relative
-+path is anchored at `/proc/self/cwd` instead of the real directory.
++path is anchored at `/proc/self/cwd` instead of the real directory. macOS has
++no such path, so a symlink in `/tmp` named after `path` points at it instead.
 +"""
 +function stable_path(path)
-+    Sys.islinux() && !isabspath(path) && return joinpath("/proc/self/cwd", normpath(path))
-+    return abspath(path)
++    isabspath(path) && return path
++    Sys.islinux() && return joinpath("/proc/self/cwd", normpath(path))
++    Sys.iswindows() && return abspath(path)
++    return stable_link(normpath(path))
++end
++
++# Open lock files by link, kept so their locks last until the process exits.
++# A second `flock` on a new handle would wait on this process's own lock.
++const STABLE_LINK_LOCKS = Dict{String, IOStream}()
++
++"""
++    stable_link(path)
++
++Point `/tmp/rules_julia_<hash of path>` at `path` and return the link.
++
++Two output bases can run the same action at once and want the same link, so
++each holds an exclusive `flock` on the link's lock file until it exits.
++"""
++function stable_link(path)
++    link = "/tmp/rules_julia_" * string(hash(path); base = 16, pad = 2 * sizeof(UInt))
++    if !haskey(STABLE_LINK_LOCKS, link)
++        io = open(link * ".lock", "a")
++        ccall(:flock, Cint, (Cint, Cint), fd(io), 2) == 0 ||
++            error("Could not lock `$link.lock`: $(Libc.strerror())")
++        STABLE_LINK_LOCKS[link] = io
++    end
++    rm(link; force = true, recursive = true)
++    symlink(abspath(path), link)
++    return link
 +end
 diff -ruN a/julia/private/sysimage.jl b/julia/private/sysimage.jl
 --- a/julia/private/sysimage.jl
 +++ b/julia/private/sysimage.jl
-@@ -71,7 +71,12 @@
+@@ -71,7 +71,13 @@
  
      includes, depots, _ = read_config(config)
  
@@ -46,9 +88,10 @@ diff -ruN a/julia/private/sysimage.jl b/julia/private/sysimage.jl
 +    # The image stores the file of every method it holds, so the packages are
 +    # installed at a path that is the same in every build: next to the output.
 +    # Julia makes `--output-o` absolute against the real working directory.
-+    tree = stable_path(relpath(unsafe_string(Base.JLOptions().outputo)) * ".tree")
-+    rm(tree; force = true, recursive = true)
-+    mkpath(tree)
++    tree_dir = relpath(unsafe_string(Base.JLOptions().outputo)) * ".tree"
++    rm(tree_dir; force = true, recursive = true)
++    mkpath(tree_dir)
++    tree = stable_path(tree_dir)
      install_tree(manifest, tree)
  
      empty!(DEPOT_PATH)

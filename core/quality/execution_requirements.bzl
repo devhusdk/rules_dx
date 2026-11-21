@@ -37,8 +37,13 @@ SHFMT_FORMAT_REMOTE = _qualified("shfmt", "format")
 REMOTE_QUALIFIED = [
     SHFMT_FORMAT_REMOTE,
     _qualified("actionlint", "lint"),
+    _qualified("bicep", "format"),
+    _qualified("bicep", "lint"),
     _qualified("biome", "format"),
     _qualified("biome", "lint"),
+    _qualified("buf", "format"),
+    _qualified("buf", "lint"),
+    _qualified("buf", "typecheck"),
     _qualified("buildifier", "format"),
     _qualified("buildifier", "lint"),
     _qualified("checkmake", "lint"),
@@ -83,11 +88,6 @@ PENDING = [
     ("ansible_lint", "lint"),
     ("avro_tools", "lint"),
     ("avro_tools", "typecheck"),
-    ("bicep", "format"),
-    ("bicep", "lint"),
-    ("buf", "format"),
-    ("buf", "lint"),
-    ("buf", "typecheck"),
     ("capnp", "lint"),
     ("capnp", "typecheck"),
     ("cfn_lint", "lint"),
@@ -295,18 +295,31 @@ REMOTE_QUALIFIED_LAUNCHERS = [
     "rst2html",
 ]
 
-def dx_stage_execution_requirements(stage_tools, capability, run_tools = []):
-    """Returns remote-capable requirements only when every stage and every runfiles launcher is qualified.
+def _path_tool_qualified(name):
+    """Reports whether a PATH helper may ship to an executor: any name that is not a real adapter, or an adapter with a qualified capability."""
+    if name not in REAL_ADAPTERS:
+        return True
+    for capability in REAL_ADAPTERS[name]:
+        if dx_is_remote_qualified(name, capability):
+            return True
+    return False
+
+def dx_stage_execution_requirements(stage_tools, capability, run_tools = [], path_tools = []):
+    """Returns remote-capable requirements only when every stage, runfiles launcher and adapter PATH helper is qualified.
 
     Args:
       stage_tools: tool ids the stage runs.
       capability: "format", "lint" or "typecheck".
       run_tools: names of the runfiles launchers the stage puts on PATH.
+      path_tools: names of the pinned files the stage puts on PATH.
     """
     if len(stage_tools) == 0:
         return {DX_NO_REMOTE_EXEC: "1"}
     for name in run_tools:
         if name not in REMOTE_QUALIFIED_LAUNCHERS:
+            return {DX_NO_REMOTE_EXEC: "1"}
+    for name in path_tools:
+        if not _path_tool_qualified(name):
             return {DX_NO_REMOTE_EXEC: "1"}
     for tool in stage_tools:
         if not dx_is_remote_qualified(tool, capability):

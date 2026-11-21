@@ -904,6 +904,9 @@ rust_test(
     ]) + [
         "//java/private/quality:jvm.bzl",
         "//java/private/quality:jvm_check.bzl",
+        "//java/private/quality:jvm_info.bzl",
+        "//scala/private/quality:scala.bzl",
+        "//scala/private/quality:scalac_check.bzl",
     ],
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],

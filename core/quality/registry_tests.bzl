@@ -44,7 +44,7 @@ def registry_unit_tests(name):
             expect_equal(
                 "lang.json quality languages without classes",
                 sorted([lang for lang, row in LANGS.items() if "quality" in row and "classes" not in row["quality"]]),
-                ["dotnet"],
+                ["android", "dotnet"],
             ),
             expect_equal(
                 "taxonomy keys a lang.json row by its quality family",

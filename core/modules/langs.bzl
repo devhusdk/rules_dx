@@ -30,6 +30,21 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "aspects": {
+        "lint": [
+          "android_sdk_aspect"
+        ],
+        "typecheck": [
+          "android_sdk_aspect"
+        ]
+      },
+      "bzl": "android/private/quality:android_sdk.bzl",
+      "file_extensions": [],
+      "licenses": [
+        "android-sdk-license"
+      ]
+    },
     "setup": {
       "licenses": [
         {
@@ -3478,9 +3493,12 @@ LANGS = json.decode("""{
         ],
         "lint": [
           "real_scala_lint_aspect"
+        ],
+        "typecheck": [
+          "real_scala_typecheck_aspect"
         ]
       },
-      "bzl": "java/private/quality:jvm.bzl",
+      "bzl": "scala/private/quality:scala.bzl",
       "classes": [
         "scala"
       ],
@@ -3499,7 +3517,18 @@ LANGS = json.decode("""{
       "file_extensions": [
         ".sc",
         ".scala"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_scala_format_probe_aspect"
+        ],
+        "lint": [
+          "real_scala_lint_probe_aspect"
+        ],
+        "typecheck": [
+          "real_scala_typecheck_probe_aspect"
+        ]
+      }
     },
     "semver": false,
     "title": "Scala",

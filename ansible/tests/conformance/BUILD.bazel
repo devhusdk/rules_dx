@@ -35,6 +35,13 @@ dx_conformance_suite(
     failing_case = "",
     failing_test = ":conformance",
     lang = "ansible",
+    lock = {
+        "ecosystem": "ansible",
+        "lockfile": "//ansible/tests:fixtures/collections/ansible.lock.json",
+        "manifest": "//ansible/tests:fixtures/collections/requirements.yml",
+        "package": "ansible.posix",
+        "stale": "ansible.stale.lock.json",
+    },
     not_applicable = {
         "build_test": "ansible has no binary rule",
         "coverage_test": "ansible has no test rule",

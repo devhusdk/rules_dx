@@ -5,7 +5,6 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 # gazelle:resolve python pytest @dx_pypi_fixtures//pytest
 load("//core/tests:thin_compare.bzl", "thin_compare_py_tests", "thin_compare_subject")
 load("//python:defs.bzl", "python_bench", "python_binary", "python_library", "python_test")
-load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
     default_testonly = True,
@@ -107,12 +106,6 @@ exports_files([
     "pyproject.toml",
     "uv.lock",
 ])
-
-dx_hello_output_test(
-    name = "hello_output_test",
-    binary = ":hello",
-    expected = "Hello, world!",
-)
 
 thin_compare_subject(
     name = "thin_py_subject",

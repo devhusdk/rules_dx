@@ -80,6 +80,7 @@ rust_library(
 rust_test(
     name = "prebuilt_guard_lib_test",
     size = "small",
+    compile_data = ["prebuilt_guard_allowlist.txt"],
     crate = ":prebuilt_guard",
 )
 

@@ -502,6 +502,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     `cross_platforms` names the package whose `<os>_<cpu>` platforms cross_test builds the binary for.
     A quality `<kind>_subject` names the subject rule of a `lint` or `format` kind whose aspect another lang.json declares.
     A runfiles `tree_only` reason makes runfiles_test require the manifest-only run to fail.
+    A `lock` without `binary` and `expected` runs only the depcheck half of lock_test.
     """
     if lang not in LANGS:
         fail("unknown lang %r" % lang)
@@ -510,9 +511,11 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
     if not covered_source and "coverage_test" not in not_applicable:
         fail("%s: covered_source is required unless coverage_test is not applicable" % lang)
     if lock:
-        for key in ["binary", "expected", "ecosystem", "package", "manifest", "lockfile", "stale"]:
+        for key in ["ecosystem", "package", "manifest", "lockfile", "stale"]:
             if key not in lock:
                 fail("%s: lock needs %r" % (lang, key))
+        if ("binary" in lock) != ("expected" in lock):
+            fail("%s: lock needs both 'binary' and 'expected', or neither" % lang)
         if _compatible_with(lang, "lock_test", not_applicable) == ["@platforms//:incompatible"]:
             fail("%s: lock is set but lock_test is pending or not applicable" % lang)
     elif _compatible_with(lang, "lock_test", not_applicable) != ["@platforms//:incompatible"]:
@@ -604,7 +607,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
         rust_test(
             name = prefix + "lock_test",
             srcs = [Label("//tools/testing/conformance:runner_test.rs")],
-            data = [lock["binary"], lock["lockfile"], lock["manifest"], lock["stale"], Label("//cli/depcheck")],
+            data = [lock["lockfile"], lock["manifest"], lock["stale"], Label("//cli/depcheck")] + ([lock["binary"]] if "binary" in lock else []),
             deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
             env = {
                 "DX_CONFORMANCE_DEPCHECK": "$(rlocationpath %s)" % Label("//cli/depcheck"),
@@ -614,8 +617,8 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
                 "DX_CONFORMANCE_MODE": "lock",
                 "DX_CONFORMANCE_PACKAGE": lock["package"],
                 "DX_CONFORMANCE_STALE": "$(rlocationpath %s)" % lock["stale"],
-                "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths %s)" % lock["binary"],
-                "DX_CONFORMANCE_TEXT": lock["expected"],
+                "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths %s)" % lock["binary"] if "binary" in lock else "",
+                "DX_CONFORMANCE_TEXT": lock.get("expected", ""),
             },
             size = size,
             target_compatible_with = _compatible_with(lang, "lock_test", not_applicable),

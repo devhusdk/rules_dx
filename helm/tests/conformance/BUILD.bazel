@@ -2,7 +2,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//helm:defs.bzl", "helm_library")
 load("//kubernetes:defs.bzl", "kubernetes_schemas")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
-load("//tools/testing/conformance:quality.bzl", "kubernetes_lint_subject")
+load("//tools/testing/conformance:quality.bzl", "kubernetes_format_subject", "kubernetes_lint_subject")
 
 package(
     default_testonly = True,
@@ -46,6 +46,9 @@ dx_conformance_suite(
     passing_test = ":conformance",
     quality = {
         "clean": ":conformance",
+        "format_dirty": "//helm/tests/fixtures/format_dirty",
+        "format_source": "//helm/tests/fixtures/format_dirty:templates/configmap.yaml",
+        "format_subject": kubernetes_format_subject,
         "lint_dirty": "//helm/tests/fixtures/dirty",
         "lint_line": 1,
         "lint_rule": "invalid",

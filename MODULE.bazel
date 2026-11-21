@@ -1138,6 +1138,8 @@ dx_pins.archive(
         "//patches/rules_haskell:cc_wrapper_darwin_ffi.patch",
         "//patches/rules_haskell:cabal_binary_dep_data.patch",
         "//patches/rules_haskell:cabal_static_exe.patch",
+        "//patches/rules_haskell:cabal_ghcversion_relpath.patch",
+        "//patches/rules_haskell:cc_wrapper_origin_rpath.patch",
         "//patches/rules_haskell:ghc_xcode_env.patch",
         "//patches/rules_haskell:llvm_backend.patch",
         "//patches/rules_haskell:toolchain_type_alias.patch",
@@ -1289,6 +1291,7 @@ dx_pins.archive(
     ],
     pins = "//ocaml:pins.json",
 )
+
 # Pinned to an upstream main commit (bazel-contrib/rules_cuda#530, after v0.4.0); #14468 moves it to the release.
 dx_pins.archive(
     name = "rules_cuda",
@@ -1354,6 +1357,7 @@ dx_pins.archive(
     patches = ["//patches/rules_powershell:inline_runfiles_sh.patch"],
     pins = "//powershell:pins.json",
 )
+
 # Pinned to an upstream main commit carrying bazel-contrib/rules_ruby#435 and #440 until a release has them.
 dx_pins.archive(
     name = "rules_ruby",
@@ -1484,19 +1488,6 @@ dx_pins.archive(
     pins = "//cc:pins.json",
 )
 dx_pins.archive(
-    name = "dx_busybox_sh",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
-    name = "dx_busybox_sh_linux_arm64",
-    build = "//core/quality/sh:busybox_apk.BUILD.bazel",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
-    name = "dx_busybox_sh_windows",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
     name = "dx_selene_src",
     build = "//rust/private:selene.BUILD.bazel",
     pins = "//rust:pins.json",
@@ -1589,9 +1580,6 @@ use_repo(
     "cosign_windows_x86_64",
     "cpp_app_fmt",
     "cuda_redistrib_json",
-    "dx_busybox_sh",
-    "dx_busybox_sh_linux_arm64",
-    "dx_busybox_sh_windows",
     "dx_coreutils",
     "dx_coreutils__linux_arm64",
     "dx_coreutils__linux_x86_64",
@@ -1903,13 +1891,6 @@ pub.from_lock(
 )
 use_repo(pub, "dx_dart_deps", "dx_dart_padded_archive")
 
-rules_dart_pub = use_extension(
-    "@rules_dart//dart/pub:extensions.bzl",
-    "pub",
-    dev_dependency = True,
-)
-use_repo(rules_dart_pub, "ext_pub_deps")
-
 # pub_deploy's api_compat check runs this pinned dart_apitool.
 pub_tools = use_extension("//dart:extensions.bzl", "pub")
 pub_tools.from_lock(
@@ -2120,12 +2101,6 @@ zig_hub.lock(
 )
 use_repo(zig_hub, "zig_zig.tests.fixtures.zig_deps")
 
-register_toolchains(
-    "//core/quality/sh:busybox_sh_linux_arm64",
-    "//core/quality/sh:busybox_sh_linux_x86_64",
-    "//core/quality/sh:busybox_sh_windows_x86_64",
-)
-
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.5.0")
 
@@ -2313,7 +2288,7 @@ use_repo(
 bazel_dep(name = "hermetic_launcher", version = "0.0.17")
 
 hermetic_launcher_stubs = use_extension("@hermetic_launcher//launcher/private:extensions.bzl", "non_module_dependencies")
-use_repo(hermetic_launcher_stubs, "finalize_stub_aarch64_windows", "runfiles_stub_aarch64_windows")
+use_repo(hermetic_launcher_stubs, "finalize_stub_aarch64_linux", "finalize_stub_aarch64_macos", "finalize_stub_aarch64_windows", "finalize_stub_s390x_linux", "finalize_stub_x86_64_linux", "finalize_stub_x86_64_macos", "finalize_stub_x86_64_windows", "runfiles_stub_aarch64_linux", "runfiles_stub_aarch64_macos", "runfiles_stub_aarch64_windows", "runfiles_stub_s390x_linux", "runfiles_stub_x86_64_linux", "runfiles_stub_x86_64_macos", "runfiles_stub_x86_64_windows")
 
 register_toolchains("//core/hermetic_launcher:all")
 
@@ -2713,6 +2688,7 @@ crate = use_extension("//third_party/rules_rust/crate_universe:extensions.bzl", 
 crate.annotation(
     build_script_env = {
         "CFLAGS": "$(DX_BS_CFLAGS)",
+        "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
         "HOST_AR": "$(DX_BS_HOST_AR)",
         "HOST_CC": "$(DX_BS_HOST_CC)",
         "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -2872,6 +2848,7 @@ crate.from_cargo(
         "//cli/exec_test_reports:Cargo.toml",
         "//cli/exec_quality:Cargo.toml",
         "//cli/exec_update:Cargo.toml",
+        "//cli/exec_worktree:Cargo.toml",
         "//cli/http:Cargo.toml",
         "//cli/semver:Cargo.toml",
         "//cli/dx_config:Cargo.toml",

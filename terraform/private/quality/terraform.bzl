@@ -50,7 +50,7 @@ def _terraform_hook(target, ctx, resolved, capability, what, shared):
     if capability != "typecheck":
         return real_context()
 
-    pairs = default_files_hook(["tf", "json", "hcl"])(target, ctx, resolved, capability, what, shared).resolve_pairs
+    lists = default_files_hook(["tf", "json", "hcl"])(target, ctx, resolved, capability, what, shared).resolve_lists
     mirror_roots = {}
     provider_files = []
     if TerraformModuleInfo in target:
@@ -59,8 +59,7 @@ def _terraform_hook(target, ctx, resolved, capability, what, shared):
             provider_files.extend(provider.files.to_list())
 
     env = [real_request_tool_env("DX_TERRAFORM_PLUGIN_DIRS", "|".join(sorted(mirror_roots.keys())))]
-    return real_context(early_inputs = provider_files, resolve_pairs = pairs, env = env)
-
+    return real_context(early_inputs = provider_files, resolve_lists = lists, env = env)
 
 HOOK_ORDER = ["terraform"]
 

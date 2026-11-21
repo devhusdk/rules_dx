@@ -80,7 +80,8 @@ mod update_version_add_tests;
 #[cfg(test)]
 mod update_version_tests;
 mod workflow;
-mod worktree;
+#[cfg(test)]
+mod worktree_tests;
 
 use dx_exec_core::common::remove_scratch;
 use dx_plan::args::{Command, Invocation};
@@ -91,8 +92,8 @@ pub use dx_exec_core::failure::{
     cancel, install_panic_events, install_panic_hint, set_usage_command, slot_stop,
 };
 pub use dx_exec_update::COMMIT_JSON_ENV as EDIT_COMMIT_JSON_ENV;
+pub use dx_exec_worktree::{hook_kind, run_worktree_hook};
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
-pub use worktree::{hook_kind, run_worktree_hook};
 
 /// Runs one invocation; a `dx run` app is stopped once `withdraw` holds.
 pub(crate) fn execute_until(
@@ -393,7 +394,7 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         Command::Lint | Command::Typecheck | Command::Format => {
             dx_exec_quality::execute_quality(invocation, env)
         }
-        Command::Worktree => worktree::execute_worktree(invocation, env),
+        Command::Worktree => dx_exec_worktree::execute_worktree(invocation, env),
         Command::Fuzz => fuzz::execute_fuzz(invocation, env),
     }
 }

@@ -201,7 +201,7 @@ exports_files(["{version_file}"])
 haskell_toolchain(
     name = "toolchain-impl",
     docdir_path = "doc",
-    fully_static_link = False,
+    fully_static_link = {fully_static_link},
     libdir = [":lib"],
     libraries = toolchain_libraries,{llvm}
     locale = "{locale}",
@@ -574,6 +574,8 @@ def _ghc_repo_impl(rctx):
         libraries = result["file_content"],
         llvm = llvm_toolchain_attrs(rctx.attr.llvm_backend),
         locale = host.locale,
+        # musl hsc2hs helpers run on the exec host, which may lack the musl loader.
+        fully_static_link = bool(apks),
         static_runtime = cell.exe_suffix == ".exe",
         version = GHC_VERSION,
         version_file = VERSION_FILE,

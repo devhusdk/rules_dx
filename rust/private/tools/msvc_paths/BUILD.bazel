@@ -6,7 +6,7 @@ load(":exec_tool.bzl", "exec_tool")
 # Plain rules_rust rules: the dx Rust macros link through msvc_link.
 
 _RUSTC_FLAGS = select({
-    "//rust/private:msvc": MSVC_LINK_FLAGS,
+    "//core/platforms:msvc": MSVC_LINK_FLAGS,
     "//conditions:default": [],
 })
 
@@ -29,9 +29,10 @@ rust_binary(
     deps = [":msvc_paths"],
 )
 
+# A release serves its prebuilt msvc_link; an unpinned platform builds :msvc_link.
 exec_tool(
     name = "msvc_link_exec",
-    tool = ":msvc_link",
+    tool = "@dx_prebuilt//:msvc_link",
     visibility = ["//visibility:public"],
 )
 

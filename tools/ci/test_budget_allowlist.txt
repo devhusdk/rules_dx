@@ -1,7 +1,7 @@
 //deploy/private/release/tests:release_consumer_smoke_test nested-cold-over-60 300
 //examples/adopt-polyglot:consumer_test nested-cold-over-60 147
 //tools/testing/consumer:cold_start_test nested-cold-over-60 140
-//tools/testing/hermetic:cpp_rust nested-cold-over-60 591
+//tools/testing/hermetic:cpp_rust nested-cold-over-60 417
 android/tests/fixtures/adopt_android/app/BUILD.bazel no-size 3
 android/tests/fixtures/adopt_android/native/BUILD.bazel no-size 2
 android/tests/fixtures/consumer_android/BUILD.bazel no-size 2
@@ -261,8 +261,8 @@ flutter/tests/fixtures/flutter_app/web/BUILD.bazel no-size 1
 flutter/tests/negative/BUILD.bazel no-size 2
 flutter/tests/runtime/BUILD.bazel no-size 1
 fortran/tests/fixtures/calc/BUILD.bazel no-size 2
-fortran/tests/negative/BUILD.bazel no-size 3
-fortran/tests/runtime/BUILD.bazel no-size 5
+fortran/tests/fixtures/negative/BUILD.bazel no-size 3
+fortran/tests/fixtures/runtime/BUILD.bazel no-size 5
 fsharp/private/ide/BUILD.bazel no-size 1
 fsharp/tests/fixtures/bench/BUILD.bazel no-size 2
 fsharp/tests/fixtures/fuzz/BUILD.bazel no-size 7
@@ -425,12 +425,12 @@ patches/BUILD.bazel no-size 1
 patches/windows_support/BUILD.bazel no-size 1
 patches/windows_support/source_directory_headers_test.bzl no-size 1
 perl/tests/BUILD.bazel no-size 1
-perl/tests/bench/BUILD.bazel no-size 3
-perl/tests/coverage/BUILD.bazel no-size 1
+perl/tests/fixtures/bench/BUILD.bazel no-size 3
+perl/tests/fixtures/coverage/BUILD.bazel no-size 1
+perl/tests/fixtures/negative/BUILD.bazel no-size 3
 perl/tests/fixtures/perl_app/cli/BUILD.bazel no-size 1
 perl/tests/fixtures/perl_app/report/BUILD.bazel no-size 1
-perl/tests/negative/BUILD.bazel no-size 3
-perl/tests/runtime/BUILD.bazel no-size 2
+perl/tests/fixtures/runtime/BUILD.bazel no-size 2
 php/tests/bench/BUILD.bazel no-size 2
 php/tests/fixtures/hello/BUILD.bazel no-size 1
 php/tests/negative/BUILD.bazel no-size 3

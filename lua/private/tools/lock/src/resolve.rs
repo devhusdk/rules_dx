@@ -1,10 +1,5 @@
 //! Resolves the rocks a rockspec depends on from the luarocks.org manifest and the rockspecs it serves.
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 mod rockspec;
 

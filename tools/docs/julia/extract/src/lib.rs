@@ -3,18 +3,87 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeSet;
-use std::fs;
+use std::fmt;
+use std::path::Path;
 
-use documentation_ir::json::{boolean, field, number, string, strings};
+use documentation_ir::json::{JsonError, boolean, field, number, string, strings};
 use documentation_ir::proto::{
     DocIr, Extension, Relations, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use serde_json::Value;
 
 const LANGUAGE: &str = "julia";
 const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "julia.config";
 const KEY_INCOMPLETE: &str = "julia.incomplete";
+
+/// Why one Documenter JSON document could not become a shard.
+#[derive(Debug)]
+pub enum JuliaExtractError {
+    Read(PathIoError),
+    InvalidPackage { package: String },
+    Malformed(serde_json::Error),
+    NotObject { at: String },
+    ObjectsNotList,
+    Json(JsonError),
+    UnsupportedFormat { found: u64 },
+    UnknownKind { at: String, kind: String },
+    EmptyPathOrName { at: String },
+    NoPublicApi { package: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for JuliaExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::InvalidPackage { package } => write!(f, "invalid package '{package}'"),
+            Self::Malformed(error) => write!(f, "Documenter JSON is malformed: {error}"),
+            Self::NotObject { at } => write!(f, "{at} is not an object"),
+            Self::ObjectsNotList => f.write_str("Documenter JSON 'objects' is not a list"),
+            Self::Json(error) => error.fmt(f),
+            Self::UnsupportedFormat { found } => write!(
+                f,
+                "Documenter JSON format {found} is not supported, expected {FORMAT}"
+            ),
+            Self::UnknownKind { at, kind } => write!(f, "{at} has unknown kind '{kind}'"),
+            Self::EmptyPathOrName { at } => write!(f, "{at} has an empty path or name"),
+            Self::NoPublicApi { package } => write!(
+                f,
+                "Documenter JSON lists no public Julia API of package '{package}'"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for JuliaExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Malformed(error) => Some(error),
+            Self::Json(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::InvalidPackage { .. }
+            | Self::NotObject { .. }
+            | Self::ObjectsNotList
+            | Self::UnsupportedFormat { .. }
+            | Self::UnknownKind { .. }
+            | Self::EmptyPathOrName { .. }
+            | Self::NoPublicApi { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
+
+impl From<JsonError> for JuliaExtractError {
+    fn from(error: JsonError) -> Self {
+        Self::Json(error)
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -41,7 +110,7 @@ pub fn usage() -> &'static str {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
         json: flags.one("--json")?,
@@ -55,11 +124,11 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let json = fs::read_to_string(&options.json)
-        .map_err(|error| format!("cannot read {}: {error}", options.json))?;
+pub fn run(options: &Options) -> Result<(), JuliaExtractError> {
+    let json =
+        path_io::read_to_string(Path::new(&options.json)).map_err(JuliaExtractError::Read)?;
     let shard = convert(&json, &options.package)?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(JuliaExtractError::Write)
 }
 
 /// One documented binding of the driver JSON.
@@ -78,7 +147,7 @@ struct Object {
     line: u64,
 }
 
-fn kind_of(name: &str, at: &str) -> Result<SymbolKind, String> {
+fn kind_of(name: &str, at: &str) -> Result<SymbolKind, JuliaExtractError> {
     Ok(match name {
         "module" => SymbolKind::Module,
         "struct" | "mutable_struct" | "primitive" => SymbolKind::Class,
@@ -88,18 +157,23 @@ fn kind_of(name: &str, at: &str) -> Result<SymbolKind, String> {
         "constant" => SymbolKind::Constant,
         "alias" => SymbolKind::TypeAlias,
         "variable" => SymbolKind::Variable,
-        other => return Err(format!("{at} has unknown kind '{other}'")),
+        other => {
+            return Err(JuliaExtractError::UnknownKind {
+                at: at.to_owned(),
+                kind: other.to_owned(),
+            });
+        }
     })
 }
 
-fn object(value: &Value, at: &str) -> Result<Object, String> {
+fn object(value: &Value, at: &str) -> Result<Object, JuliaExtractError> {
     let object = value
         .as_object()
-        .ok_or_else(|| format!("{at} is not an object"))?;
+        .ok_or_else(|| JuliaExtractError::NotObject { at: at.to_owned() })?;
     let path = string(object, "path", at)?;
     let name = string(object, "name", at)?;
     if path.is_empty() || name.is_empty() {
-        return Err(format!("{at} has an empty path or name"));
+        return Err(JuliaExtractError::EmptyPathOrName { at: at.to_owned() });
     }
     Ok(Object {
         path,
@@ -208,21 +282,20 @@ fn symbol(object: &Object, modules: &BTreeSet<&str>, prefix: &str, config: &str)
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
+pub fn convert(json: &str, package: &str) -> Result<DocIr, JuliaExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
+        return Err(JuliaExtractError::InvalidPackage {
+            package: package.to_owned(),
+        });
     }
-    let root: Value = serde_json::from_str(json)
-        .map_err(|error| format!("Documenter JSON is malformed: {error}"))?;
-    let root = root.as_object().ok_or("Documenter JSON is not an object")?;
+    let root: Value = serde_json::from_str(json).map_err(JuliaExtractError::Malformed)?;
     let at = "Documenter JSON";
+    let root = root
+        .as_object()
+        .ok_or_else(|| JuliaExtractError::NotObject { at: at.to_owned() })?;
     match number(root, "format", at)? {
         FORMAT => {}
-        other => {
-            return Err(format!(
-                "Documenter JSON format {other} is not supported, expected {FORMAT}"
-            ));
-        }
+        found => return Err(JuliaExtractError::UnsupportedFormat { found }),
     }
     let config = format!(
         "julia={};documenter={};format={FORMAT}",
@@ -231,7 +304,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     );
     let objects: Vec<Object> = field(root, "objects", at)?
         .as_array()
-        .ok_or("Documenter JSON 'objects' is not a list")?
+        .ok_or(JuliaExtractError::ObjectsNotList)?
         .iter()
         .enumerate()
         .map(|(index, value)| object(value, &format!("Documenter JSON object {index}")))
@@ -248,9 +321,9 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         symbols.push(symbol(object, &modules, &prefix, &config));
     }
     if symbols.is_empty() {
-        return Err(format!(
-            "Documenter JSON lists no public Julia API of package '{package}'"
-        ));
+        return Err(JuliaExtractError::NoPublicApi {
+            package: package.to_owned(),
+        });
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
@@ -258,7 +331,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(JuliaExtractError::InvalidIr)?;
     Ok(shard)
 }
 

@@ -462,7 +462,7 @@ pub fn commit_prepared_with_timeout(
         empty_environment,
         empty_generated,
     })
-    .map_err(|_| CommitError::NoCapability)?;
+    .map_err(|ResolveError::NoCapability| CommitError::NoCapability)?;
     let setups_dir = dx_dir.join(SETUPS_DIR_NAME);
     let prior = read_current_pair(workspace_root)?;
     let outcome = install_and_swap(&setups_dir, prior.as_ref(), &pair)?;

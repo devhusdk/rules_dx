@@ -9,7 +9,10 @@ fn run(argv: &[String]) -> i32 {
         return usage();
     };
     let (head, tail) = argv.split_at(split);
-    let (Some((stage, srcs)), Some((nfpm, args))) = (head.get(1..).and_then(|h| h.split_first()), tail.get(1..).and_then(|t| t.split_first())) else {
+    let (Some((stage, srcs)), Some((nfpm, args))) = (
+        head.get(1..).and_then(|h| h.split_first()),
+        tail.get(1..).and_then(|t| t.split_first()),
+    ) else {
         return usage();
     };
     let stage = Path::new(stage);

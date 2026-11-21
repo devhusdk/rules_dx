@@ -1,4 +1,3 @@
 import %workspace%/.dx/bazelrc/correctness.bazelrc
 build --config=consumer
 build:consumer --copt=-DDX_CONSUMER_CONFIG=1
-build --jvmopt=-Ddx.consumer.choice=kept

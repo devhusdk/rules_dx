@@ -1,10 +1,5 @@
 //! Resolves the `required_providers` of the `*.tf` files of a set to registry provider archives, one per platform.
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
 

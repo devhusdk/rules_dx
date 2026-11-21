@@ -400,8 +400,15 @@ single_version_override(
 # floor: equals tested
 bazel_dep(name = "bazel_worker_api", version = "0.0.11")
 
-scala_config = use_extension("//scala/private/toolchain:config_extension.bzl", "scala_config")
-use_repo(scala_config, "rules_scala_config")
+scala_config = use_extension("//scala:extensions.bzl", "scala_config")
+use_repo(scala_config, "dx_scala_toolchains", "rules_scala_config")
+
+# A third Scala version for //scala/tests:third_version_test; consumers set their own.
+scala_config_dev = use_extension("//scala:extensions.bzl", "scala_config", dev_dependency = True)
+scala_config_dev.settings(scala_versions = [
+    "3.3.9",
+    "2.12.21",
+])
 
 scala = use_extension("//scala/private/toolchain:deps_extension.bzl", "scala")
 use_repo(
@@ -412,7 +419,7 @@ use_repo(
 
 register_toolchains(
     "//java/private/toolchain:all",
-    "//scala/private/toolchain/hub:all",
+    "@dx_scala_toolchains//:all",
 )
 
 ansible = use_extension("//ansible:extensions.bzl", "ansible", dev_dependency = True)
@@ -1245,7 +1252,6 @@ dx_pins.archive(
     name = "rules_julia",
     patches = [
         "//patches/rules_julia:config_base_toml.patch",
-        "//patches/rules_julia:deterministic_module_build_id.patch",
         "//patches/rules_julia:in_process_resolve_test.patch",
         "//patches/rules_julia:locate_installed_package.patch",
         "//patches/rules_julia:package_annotation_version.patch",
@@ -1285,6 +1291,8 @@ dx_pins.archive(
     ],
     pins = "//ocaml:pins.json",
 )
+
+# Pinned to an upstream main commit (bazel-contrib/rules_cuda#530, after v0.4.0); #14468 moves it to the release.
 dx_pins.archive(
     name = "rules_cuda",
     dropped = [
@@ -1299,7 +1307,6 @@ dx_pins.archive(
     ],
     patches = [
         "//patches/rules_cuda:coverage_keep.patch",
-        "//patches/rules_cuda:msvc_dlink_crt.patch",
         "//patches/rules_cuda:objdir_as_tempdir.patch",
         "//patches/rules_cuda:toolchain_type_alias.patch",
     ],
@@ -1350,12 +1357,13 @@ dx_pins.archive(
     patches = ["//patches/rules_powershell:inline_runfiles_sh.patch"],
     pins = "//powershell:pins.json",
 )
+
+# Pinned to an upstream main commit carrying bazel-contrib/rules_ruby#435 and #440 until a release has them.
 dx_pins.archive(
     name = "rules_ruby",
     crlf = ["ruby/private/binary/binary.cmd.tpl"],
     dropped = ["MODULE.bazel"],
     patches = [
-        "//patches/rules_ruby:reproducible.patch",
         "//patches/rules_ruby:coverage.patch",
         "//patches/rules_ruby:rubyinstaller_archive.patch",
         "//patches/rules_ruby:toolchains_gate.patch",
@@ -1480,19 +1488,6 @@ dx_pins.archive(
     pins = "//cc:pins.json",
 )
 dx_pins.archive(
-    name = "dx_busybox_sh",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
-    name = "dx_busybox_sh_linux_arm64",
-    build = "//core/quality/sh:busybox_apk.BUILD.bazel",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
-    name = "dx_busybox_sh_windows",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
     name = "dx_selene_src",
     build = "//rust/private:selene.BUILD.bazel",
     pins = "//rust:pins.json",
@@ -1505,7 +1500,10 @@ dx_pins.archive(
 dx_pins.archive(
     name = "julia_src",
     build = "//julia/private/runtime:julia_src.BUILD.bazel",
-    patches = ["//patches/julia:deterministic_objectid.patch"],
+    patches = [
+        "//patches/julia:deterministic_image_fields.patch",
+        "//patches/julia:deterministic_objectid.patch",
+    ],
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
@@ -1582,9 +1580,6 @@ use_repo(
     "cosign_windows_x86_64",
     "cpp_app_fmt",
     "cuda_redistrib_json",
-    "dx_busybox_sh",
-    "dx_busybox_sh_linux_arm64",
-    "dx_busybox_sh_windows",
     "dx_coreutils",
     "dx_coreutils__linux_arm64",
     "dx_coreutils__linux_x86_64",
@@ -1896,13 +1891,6 @@ pub.from_lock(
 )
 use_repo(pub, "dx_dart_deps", "dx_dart_padded_archive")
 
-rules_dart_pub = use_extension(
-    "@rules_dart//dart/pub:extensions.bzl",
-    "pub",
-    dev_dependency = True,
-)
-use_repo(rules_dart_pub, "ext_pub_deps")
-
 # pub_deploy's api_compat check runs this pinned dart_apitool.
 pub_tools = use_extension("//dart:extensions.bzl", "pub")
 pub_tools.from_lock(
@@ -2113,12 +2101,6 @@ zig_hub.lock(
 )
 use_repo(zig_hub, "zig_zig.tests.fixtures.zig_deps")
 
-register_toolchains(
-    "//core/quality/sh:busybox_sh_linux_arm64",
-    "//core/quality/sh:busybox_sh_linux_x86_64",
-    "//core/quality/sh:busybox_sh_windows_x86_64",
-)
-
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.5.0")
 
@@ -2306,7 +2288,7 @@ use_repo(
 bazel_dep(name = "hermetic_launcher", version = "0.0.17")
 
 hermetic_launcher_stubs = use_extension("@hermetic_launcher//launcher/private:extensions.bzl", "non_module_dependencies")
-use_repo(hermetic_launcher_stubs, "finalize_stub_aarch64_windows", "runfiles_stub_aarch64_windows")
+use_repo(hermetic_launcher_stubs, "finalize_stub_aarch64_linux", "finalize_stub_aarch64_macos", "finalize_stub_aarch64_windows", "finalize_stub_s390x_linux", "finalize_stub_x86_64_linux", "finalize_stub_x86_64_macos", "finalize_stub_x86_64_windows", "runfiles_stub_aarch64_linux", "runfiles_stub_aarch64_macos", "runfiles_stub_aarch64_windows", "runfiles_stub_s390x_linux", "runfiles_stub_x86_64_linux", "runfiles_stub_x86_64_macos", "runfiles_stub_x86_64_windows")
 
 register_toolchains("//core/hermetic_launcher:all")
 
@@ -2865,6 +2847,7 @@ crate.from_cargo(
         "//cli/exec_test_reports:Cargo.toml",
         "//cli/exec_quality:Cargo.toml",
         "//cli/exec_update:Cargo.toml",
+        "//cli/exec_worktree:Cargo.toml",
         "//cli/http:Cargo.toml",
         "//cli/semver:Cargo.toml",
         "//cli/dx_config:Cargo.toml",

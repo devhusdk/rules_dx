@@ -1,6 +1,5 @@
 //! Analyzes the `//tools/testing/deep_graph` chains of depth 100 and 400 with the `dx check`,
 //! `dx docs` and `dx sync` aspects and fails when the deeper graph's analysis phase grows faster than `MAX_RATIO`.
-#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -123,8 +122,17 @@ fn analysis_ms(profile: &str) -> Result<f64, String> {
     Ok((end - markers[start].1) / 1000.0)
 }
 
-fn measure(bazel: &str, out: &Path, depth: u32, aspects: &str, workspace: &Path) -> Result<f64, String> {
-    run(&analyze_argv(bazel, out, depth, aspects, "warm", None), workspace)?;
+fn measure(
+    bazel: &str,
+    out: &Path,
+    depth: u32,
+    aspects: &str,
+    workspace: &Path,
+) -> Result<f64, String> {
+    run(
+        &analyze_argv(bazel, out, depth, aspects, "warm", None),
+        workspace,
+    )?;
     let profile = out.join(format!("d{depth}.profile.json"));
     run(
         &analyze_argv(bazel, out, depth, aspects, "measure", Some(&profile)),
@@ -229,7 +237,14 @@ mod tests {
 
     #[test]
     fn the_argv_carries_the_aspects_flag_and_profile() {
-        let argv = analyze_argv("/b", Path::new("/o"), 400, "A,B", "measure", Some(Path::new("/o/p.json")));
+        let argv = analyze_argv(
+            "/b",
+            Path::new("/o"),
+            400,
+            "A,B",
+            "measure",
+            Some(Path::new("/o/p.json")),
+        );
         assert_eq!(argv[1], "--output_base=/o/d400/base");
         assert!(argv.contains(&"--aspects=A,B".to_owned()));
         assert!(argv.contains(&"--//tools/testing/deep_graph:deep_graph".to_owned()));
@@ -257,7 +272,10 @@ mod tests {
         );
         let labels: Vec<&str> = aspects.split(',').collect();
         for (index, label) in labels.iter().enumerate() {
-            assert!(!labels[..index].contains(label), "{label} twice in {aspects}");
+            assert!(
+                !labels[..index].contains(label),
+                "{label} twice in {aspects}"
+            );
         }
     }
 }

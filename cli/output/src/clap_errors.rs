@@ -1,5 +1,3 @@
-use std::fmt::Write as _;
-
 #[must_use]
 pub fn invalid_token(error: &clap::Error) -> String {
     match error.get(clap::error::ContextKind::InvalidArg) {
@@ -57,7 +55,7 @@ pub fn parse_error(error: &clap::Error, args: &[String]) -> String {
         if let Some(clap::error::ContextValue::String(arg)) =
             error.get(clap::error::ContextKind::SuggestedArg)
         {
-            write!(message, "; did you mean {arg}?").ok();
+            message.push_str(&format!("; did you mean {arg}?"));
         }
         message
     } else if kind == clap::error::ErrorKind::InvalidValue {

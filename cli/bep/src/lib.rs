@@ -104,6 +104,8 @@ pub enum BepError {
     MalformedEvent { line: u64, reason: String },
     #[error("unsupported artifact URI {uri:?}: want a local file:// URI")]
     UnsupportedUri { uri: String },
+    #[error("unsupported artifact URI: {0}")]
+    BadFileUri(dx_path::UriError),
     #[error("missing named set {id:?} referenced at line {line}")]
     MissingNamedSet { id: String, line: u64 },
     #[error("unreadable artifact {path:?}: {message}")]
@@ -262,9 +264,7 @@ pub(crate) fn is_plain_relative(value: &str) -> bool {
 }
 
 pub(crate) fn file_uri_to_path(uri: &str) -> Result<PathBuf, BepError> {
-    dx_path::uri_to_path(uri).map_err(|_| BepError::UnsupportedUri {
-        uri: uri.to_owned(),
-    })
+    dx_path::uri_to_path(uri).map_err(BepError::BadFileUri)
 }
 
 #[must_use]
@@ -814,8 +814,8 @@ mod tests {
             "file:///out/a.pb#frag",
         ] {
             assert!(
-                matches!(file_uri_to_path(uri), Err(BepError::UnsupportedUri { .. })),
-                "{uri} must fail as UnsupportedUri"
+                matches!(file_uri_to_path(uri), Err(BepError::BadFileUri(_))),
+                "{uri} must fail as BadFileUri"
             );
         }
         let unc_host = on_windows(Some(r"\\otherhost\out\a.pb"), None);

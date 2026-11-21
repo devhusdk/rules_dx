@@ -225,6 +225,60 @@ def execution_requirements_unit_tests(name):
                 {},
             ),
             expect_equal(
+                "the kubeconform, tflint, helmfmt and trivy_image_config stages run remotely",
+                [
+                    dx_stage_execution_requirements(["kubeconform"], "lint"),
+                    dx_stage_execution_requirements(["tflint"], "lint"),
+                    dx_stage_execution_requirements(["helmfmt"], "format"),
+                    dx_stage_execution_requirements(["trivy_image_config"], "lint"),
+                ],
+                [{}, {}, {}, {}],
+            ),
+            expect_equal(
+                "the buf format, lint and typecheck stages run remotely",
+                [
+                    dx_stage_execution_requirements(["buf"], "format"),
+                    dx_stage_execution_requirements(["buf"], "lint"),
+                    dx_stage_execution_requirements(["buf"], "typecheck"),
+                ],
+                [{}, {}, {}],
+            ),
+            expect_equal(
+                "the bicep format and lint stages run remotely",
+                [
+                    dx_stage_execution_requirements(["bicep"], "format"),
+                    dx_stage_execution_requirements(["bicep"], "lint"),
+                ],
+                [{}, {}],
+            ),
+            expect_equal(
+                "a PATH helper that is an adapter with no qualified capability keeps the stage local",
+                dx_stage_execution_requirements(["shellcheck"], "lint", [], ["lychee"]),
+                {DX_NO_REMOTE_EXEC: "1"},
+            ),
+            expect_equal(
+                "qualified adapter PATH helpers and non-adapter PATH helpers stay remote",
+                [
+                    dx_stage_execution_requirements(["actionlint"], "lint", [], ["shellcheck"]),
+                    dx_stage_execution_requirements(["buf"], "lint", [], ["diff"]),
+                    dx_stage_execution_requirements(["hadolint"], "lint", [], ["bicep", "kubeconform"]),
+                ],
+                [{}, {}, {}],
+            ),
+            expect_equal(
+                "kubeconform and tflint beside trivy_config stay local",
+                [
+                    dx_stage_execution_requirements(["kubeconform", "trivy_config"], "lint"),
+                    dx_stage_execution_requirements(["tflint", "trivy_config"], "lint"),
+                ],
+                [{DX_NO_REMOTE_EXEC: "1"}, {DX_NO_REMOTE_EXEC: "1"}],
+            ),
+            expect_match(
+                "an adapter without its own pinned artifact fails without the artifact key",
+                remote_platform_error(_remote_record(tool = "trivy_image_config", capability = "lint"), _artifact_platforms()),
+                "without a pinned artifact",
+            ),
+            expect_equal(
                 "a qualified tool beside an unqualified one stays local",
                 dx_stage_execution_requirements(["actionlint", "lychee"], "lint"),
                 {DX_NO_REMOTE_EXEC: "1"},

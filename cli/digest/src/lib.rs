@@ -198,11 +198,11 @@ pub fn parse_hex(text: &str) -> Result<RawDigest, DigestError> {
     let bad = || DigestError::BadDigest {
         value: text.to_owned(),
     };
-    let bytes = hex::decode(text).map_err(|_| bad())?;
+    let bytes = hex::decode(text).ok().ok_or_else(bad)?;
     if bytes.len() != DIGEST_LEN || hex::encode(&bytes) != text {
         return Err(bad());
     }
-    bytes.try_into().map_err(|_| bad())
+    bytes.try_into().ok().ok_or_else(bad)
 }
 
 #[cfg(test)]

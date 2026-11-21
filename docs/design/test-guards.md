@@ -55,10 +55,11 @@ The guards check the rules of `docs/design/tests.md`.
 
 - `//tools/testing:determinism_check` builds its patterns twice, each in a fresh output base with `--disk_cache=`, `--remote_cache=` and `--remote_executor=` empty, and compares the two compact execution logs with `dx_testing::exec_log`.
 - With `--kinds` it adds one target per `entry_points` kind of every `<lang>/lang.json`: `bazel query --output=label_kind 'kind(...) except attr(tags, manual, //...)'` lists them, a `cquery` drops those with `IncompatiblePlatformProvider`, and the first label of each kind in sorted order is kept. The builds pass `--skip_incompatible_explicit_targets`.
-- The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run`, passes Bazel with `--bazel`, and runs five shards with `--kinds --shard i/5`. `--shard` keeps the kind targets whose top-level package is every fifth in sorted order. Shard 0 adds `//appimage/...`, shard 1 `//cli/archive/...`, shard 2 `//android/private/packaging/...`, shard 3 `//msix/tests/...`, shard 4 `//deploy/private/...`.
+- The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run`, passes Bazel with `--bazel`, and runs six shards with `--kinds --shard i/6`. `--shard` keeps every sixth top-level package of kind targets. Shards 0, 1, 2, 3 and 5 add `//appimage/...`, `//cli/archive/...`, `//android/private/packaging/...`, `//msix/tests/...` and `//deploy/private/...`.
+- A 40 min step cap under the 45 min job cap keeps a slow shard's log.
+- Flags precede `--`, patterns follow, so `-//pkg/...` excludes.
 - An action is keyed by `<label> <mnemonic> <output path>`. The job fails for an output that differs, for an action in one log only, and for an allowlist line for an action that does not differ or is in neither log.
 - `tools/ci/determinism_allowlist.txt` lists the actions that differ. It only shrinks; `//tools/ci:determinism_allowlist_test` holds the cap.
-- Measured on Linux with warm repository caches: 34 s and 33 s per build, 67 s for both.
 
 ## Analysis scaling
 
@@ -76,5 +77,6 @@ The guards check the rules of `docs/design/tests.md`.
 - The nested guards pin every registry key of each `//cli/prebuilt:target_tools` tool and write `dx_target_guard`, whose `targets` depend on the hub target of each such tool through a split transition over `@rules_dx//tools/platforms:<key>` for each of its keys. They fail when a target tool does not select its download for each key.
 - `//tools/testing/consumer:in_graph_prebuilt_guard` writes, per `IN_GRAPH_GUARD_LANGS` language or per language of its space-separated `--langs` list, `check` and `docs` targets whose `deps` carry the `dx check` and `dx docs` aspects over the non-manual rules of `@dx_api_fixtures//<lang>/tests/consumer`, injects them with `--inject_repository`, and runs `bazel cquery 'deps(...)'` with the flag and `--lockfile_mode=error`.
 - Each label is mapped to the form a consumer sees: the fixtures repo is the main repo, `@@//` is `@@rules_dx+//` and `@@+` is `@@rules_dx++`. The compiled binaries are checked against `tools/testing/consumer/prebuilt_guard_allowlist.txt` by the rules of `//tools/testing/consumer:prebuilt_guard`.
+- Both guards drop each binary of a repo named by a `repo <canonical repo> <lang>...` allowlist line for a consumer of one of its languages; such a line names a `rules_dx++dx_pins+rules_*` repo of an upstream rule set, and an unused one is reported as stale.
 - Both guards drop a rules_dx binary whose every rule is a `java_binary` and whose `deps` hold no rules_dx `java_`, `kt_jvm_` or `scala_` rule with `srcs`. The in-graph guard maps each label back with `root_label` for that cquery.
 - The `in-graph-prebuilt-guard` job of `.github/workflows/ci.yml` runs it with `bazel run --bazel`: on linux_x86_64 over `IN_GRAPH_GUARD_LANGS`, and on macos_arm64 and windows_x86_64 with `--langs` set to `MACOS_IN_GRAPH_GUARD_LANGS` and `WINDOWS_IN_GRAPH_GUARD_LANGS`. `in_graph_prebuilt_guard_test` fails when a leg's `langs` differ from its list.

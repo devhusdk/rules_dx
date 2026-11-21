@@ -37,7 +37,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 | `//tools/testing/consumer:*_consumer_test` | `dx init --apply` on a consumer fixture writes its checked-in files | One in-graph test per fixture, no `manual` |
 | `//tools/testing/hermetic:*` golden checks | The consumer manifest matches its golden | In-graph already. Stay |
 | `//tools/testing/hermetic:c_*_fixture`, `cpp_*_fixture` | The selected compiler built the binary | In-graph fixtures per toolchain that check the producer string |
-| `//tools/testing/hermetic:cpp_rust` | A consumer fetches, builds and tests with no install and no network | Stays nested, on the harness |
+| `//tools/testing/hermetic:cpp_rust` | A C/C++ and Rust consumer fetches, builds and tests with no install and no network | Stays nested, on the harness |
 | `//tools/testing/hermetic:isolation_probe_test` | The isolation layer denies network and host tools | Deleted with the isolation layer |
 | `//tools/testing/hermetic:*_maven_pin` | The Maven lock matches a fresh pin | `bazel run` update tools. `consumer_maven_lock_test` stays |
 | `//tools/testing/hermetic:cuda_gpu_nested_test` | A GPU test runs through a consumer | Deleted. `cuda_gpu_facts_test` stays |

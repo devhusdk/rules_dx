@@ -9,7 +9,7 @@ use std::path::Path;
 use yaml_serde as _;
 
 /// The lints of core/quality/tiers/clippy/strict.txt that no source may allow.
-const LINTS: [&str; 26] = [
+const LINTS: [&str; 28] = [
     "clippy::allow_attributes",
     "clippy::allow_attributes_without_reason",
     "clippy::create_dir",
@@ -19,6 +19,7 @@ const LINTS: [&str; 26] = [
     "clippy::get_unwrap",
     "clippy::indexing_slicing",
     "clippy::let_underscore_must_use",
+    "clippy::map_err_ignore",
     "clippy::mem_forget",
     "clippy::multiple_unsafe_ops_per_block",
     "clippy::panic",
@@ -30,6 +31,7 @@ const LINTS: [&str; 26] = [
     "clippy::undocumented_unsafe_blocks",
     "clippy::unimplemented",
     "clippy::unreachable",
+    "clippy::unused_result_ok",
     "clippy::unwrap_in_result",
     "clippy::unwrap_used",
     "clippy::wildcard_enum_match_arm",

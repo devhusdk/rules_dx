@@ -1,5 +1,4 @@
 use super::*;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use dx_ecosystems::Language;
@@ -2226,21 +2225,17 @@ fn js_fixture(manifest: &str, lock_pkgs: &[(&str, &str)], source: &str) -> tempf
         for (name, spec) in map {
             let Some(spec) = spec.as_str() else { continue };
             if let Some((_, ver)) = lock_pkgs.iter().find(|(n, _)| n == name) {
-                writeln!(
-                    lock,
-                    "      '{name}':\n        specifier: '{spec}'\n        version: {ver}"
-                )
-                .ok();
+                lock.push_str(&format!(
+                    "      '{name}':\n        specifier: '{spec}'\n        version: {ver}\n"
+                ));
             }
         }
     }
     lock.push_str("\npackages:\n");
     for (name, ver) in lock_pkgs {
-        writeln!(
-            lock,
-            "  '{name}@{ver}':\n    resolution: {{integrity: sha512-x}}"
-        )
-        .ok();
+        lock.push_str(&format!(
+            "  '{name}@{ver}':\n    resolution: {{integrity: sha512-x}}\n"
+        ));
     }
     write_file(&dir.path().join("pnpm-lock.yaml"), &lock);
     write_file(&dir.path().join("src/index.js"), source);

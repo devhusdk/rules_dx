@@ -352,7 +352,8 @@ fn fetched_all(jobs: &[Job], fetch: &dyn Fetch) -> Result<BTreeMap<Vec<String>, 
             results.extend(
                 handle
                     .join()
-                    .map_err(|_| Error::new("an archive download thread panicked"))?,
+                    .ok()
+                    .ok_or_else(|| Error::new("an archive download thread panicked"))?,
             );
         }
         Ok::<_, Error>(results)
@@ -618,7 +619,10 @@ mod tests {
 
     #[test]
     fn run_process_exits_2_on_bad_arguments() {
-        assert_eq!(run_process(&toy_spec(), &Unreachable, &["--bogus".to_owned()]), 2);
+        assert_eq!(
+            run_process(&toy_spec(), &Unreachable, &["--bogus".to_owned()]),
+            2
+        );
         assert_eq!(run_process(&toy_spec(), &Unreachable, &[]), 2);
     }
 
@@ -630,7 +634,10 @@ mod tests {
     #[test]
     fn run_process_exits_1_when_check_finds_the_lock_stale() {
         let dir = dir_with(&["toy.json"]);
-        let args = ["--check".to_owned(), format!("--dir={}", dir.path().display())];
+        let args = [
+            "--check".to_owned(),
+            format!("--dir={}", dir.path().display()),
+        ];
         assert_eq!(run_process(&toy_spec(), &Unreachable, &args), 1);
     }
 

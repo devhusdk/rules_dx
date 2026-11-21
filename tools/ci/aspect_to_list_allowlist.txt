@@ -4,7 +4,6 @@ cc/private/quality/cc.bzl aspect-to-list 2
 core/codegen/codegen.bzl aspect-to-list 1
 core/quality/families/generation.bzl aspect-to-list 2
 core/quality/families/php.bzl aspect-to-list 3
-core/quality/family_hooks.bzl aspect-to-list 1
 core/quality/pipeline.bzl aspect-to-list 1
 core/quality/sources.bzl aspect-to-list 1
 core/quality/testdata/upstream_ownership.bzl aspect-to-list 1

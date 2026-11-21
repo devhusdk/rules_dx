@@ -1,7 +1,7 @@
 //! Native runtimes in the shipped inventory: records with packaged-byte hashes
 //! and the NOTICE section they add.
 
-use std::fmt::{self, Write as _};
+use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -217,22 +217,18 @@ pub fn render_section(records: &[RuntimeRecord]) -> String {
     for record in sorted {
         match (&record.notice, record.redistribution.as_str()) {
             (Some(notice), "app_local") => {
-                write!(
-                    out,
+                out.push_str(&format!(
                     "=== {} {} (app_local) [runtime] ===\n{}\n",
                     record.name,
                     record.version,
                     notice.trim_end_matches('\n')
-                )
-                .ok();
+                ));
             }
             _ => {
-                writeln!(
-                    out,
-                    "{} {} ({})",
+                out.push_str(&format!(
+                    "{} {} ({})\n",
                     record.name, record.version, record.redistribution
-                )
-                .ok();
+                ));
             }
         }
     }

@@ -2,7 +2,7 @@
 //! and writes the NOTICE manifest plus one text per crate.
 
 use std::collections::BTreeMap;
-use std::fmt::{self, Write as _};
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use dx_atomic_fs::path_io::{self, PathIoError};
@@ -305,7 +305,7 @@ fn crate_words(krate: &ShippedCrate, license: &str, texts: &[(String, String)]) 
         if index > 0 {
             out.push('\n');
         }
-        writeln!(out, "--- {name} ---").ok();
+        out.push_str(&format!("--- {name} ---\n"));
         out.push_str(words.trim_end_matches('\n'));
         out.push('\n');
     }

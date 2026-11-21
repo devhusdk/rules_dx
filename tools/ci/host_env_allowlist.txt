@@ -92,7 +92,6 @@ core/env/private/stubs/BUILD.bazel sh-rule 1
 core/env/private/stubs/BUILD.bazel shebang 1
 core/node_test.bzl env-inherit 1
 core/quality/adapter/src/exec.rs host-path 9
-core/quality/compile_check_exec.sh shebang 1
 core/quality/consumer_policy_tests.bzl shebang 1
 core/quality/runner/src/entry.rs host-path 2
 core/quality/runner/src/lib_determinism.rs host-path 3
@@ -294,15 +293,6 @@ tools/testing/BUILD.bazel env-inherit 1
 tools/testing/hermetic/appcontainer/args.rs host-path 2
 tools/testing/hermetic/consumers/cpp_rust/apps/c_store.BUILD.bazel genrule 1
 tools/testing/hermetic/consumers/cpp_rust/apps/cpp_core.BUILD.bazel genrule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/java_billing.BUILD.bazel genrule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/java_cli.BUILD.bazel sh-rule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/java_exit_codes.sh shebang 1
-tools/testing/hermetic/consumers/cpp_rust/apps/kotlin_cli.BUILD.bazel sh-rule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/kotlin_exit_codes.sh shebang 1
-tools/testing/hermetic/consumers/cpp_rust/apps/kotlin_grades.BUILD.bazel genrule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/node_cli.BUILD.bazel sh-rule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/node_exit_codes.sh shebang 1
-tools/testing/hermetic/consumers/cpp_rust/apps/node_registry.BUILD.bazel genrule 1
 tools/testing/hermetic/consumers/cuda/apps/format.BUILD.bazel sh-rule 1
 tools/testing/hermetic/consumers/cuda/apps/format_test.sh shebang 1
 tools/testing/hermetic/consumers/msix/apps/app.BUILD.bazel sh-rule 1

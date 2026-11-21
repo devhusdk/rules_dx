@@ -29,7 +29,7 @@ def _absolute(value):
 def _impl(ctx):
     env = analysistest.begin(ctx)
     info = analysistest.target_under_test(env)[ProbeInfo]
-    asserts.true(env, info.bundle_build_env != None, "toolchain has no bundle_build_env; the reproducible patch is missing")
+    asserts.true(env, info.bundle_build_env != None, "rules_ruby toolchain has no bundle_build_env")
     bundle_env = info.bundle_build_env or {}
     for src in [info.env, bundle_env]:
         for k, v in src.items():

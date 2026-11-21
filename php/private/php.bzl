@@ -1,7 +1,7 @@
 """Core PHP rules: php_library, php_binary and php_test on the pinned PHP, Composer and PHPUnit."""
 
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE", "TOOLCHAIN_TYPE")
-load(":providers.bzl", "PhpInfo")
+load(":providers.bzl", "PhpInfo", "PhpTestInfo")
 
 PHP_SOURCE_EXTS = [".php"]
 
@@ -51,8 +51,6 @@ def write_native_launcher(ctx, descriptor_text, launcher_name = None):
     return launcher, descriptor, runfiles
 
 _TOOL = Label("//php/private:tool.php")
-
-_COVERAGE_RUN = Label("@dx_prebuilt//:runtime")
 
 _COMPOSER = Label("@php_composer//:composer.phar")
 
@@ -144,7 +142,8 @@ def env_flag(flag, var):
     """Returns a launcher token for a flag and the value of an environment variable, left out when the variable is unset or empty."""
     return ("env_flag", flag, var)
 
-def _descriptor_line(token):
+def descriptor_line(token):
+    """Returns the descriptor line of one launcher token."""
     kind = token[0]
     for text in token[1:]:
         if "\n" in text or "\r" in text or (kind in ("prefixed", "env_flag") and "\t" in text):
@@ -158,7 +157,7 @@ def launcher_descriptor(php, ini, tokens):
     lines = ["program=" + php, "arg=-n"]
     for flag in ini_flags(ini):
         lines.append("arg=" + flag)
-    lines.extend([_descriptor_line(token) for token in tokens])
+    lines.extend([descriptor_line(token) for token in tokens])
     return "\n".join(lines) + "\n"
 
 def write_launcher(ctx, php, ini, tokens):
@@ -172,32 +171,6 @@ def _write_launcher(ctx, tokens):
     php = ctx.toolchains[TOOLCHAIN_TYPE].php
     launcher, runfiles = write_launcher(ctx, php, ctx.attr.ini, tokens)
     return launcher, runfiles.merge(ctx.runfiles(transitive_files = php.files))
-
-def coverage_descriptor(runner, tree, pcov, php, ini, tokens, extensions = []):
-    """Returns the descriptor of a php_test under coverage: dx-runtime running its php_coverage helper with the autoload tree, PCOV, php, its extensions, its flags and the tokens."""
-    lines = ["program=" + runner, "env=DX_RUNTIME_TOOL\tphp_coverage", "path=" + tree, "path=" + pcov, "path=" + php, "arg=-n"]
-    for extension in extensions:
-        lines.extend(["arg=-d", _descriptor_line(rf_prefixed("extension=", extension))])
-    for flag in ini_flags(ini):
-        lines.append("arg=" + flag)
-    lines.append("arg=--")
-    lines.extend([_descriptor_line(token) for token in tokens])
-    return "\n".join(lines) + "\n"
-
-def _write_coverage_launcher(ctx, tokens, tree):
-    """Writes the launcher of a test under coverage, with PCOV and the coverage runner in its runfiles."""
-    php = ctx.toolchains[TOOLCHAIN_TYPE].php
-    launcher, _, runfiles = write_native_launcher(ctx, coverage_descriptor(
-        runfiles_path(ctx.workspace_name, ctx.executable._coverage_run.short_path),
-        tree,
-        runfiles_path(ctx.workspace_name, php.pcov.short_path),
-        runfiles_path(ctx.workspace_name, php.coverage.interpreter.short_path),
-        ctx.attr.ini,
-        tokens,
-        [runfiles_path(ctx.workspace_name, f.short_path) for f in php.coverage.extensions],
-    ))
-    runfiles = runfiles.merge(ctx.runfiles(files = [php.pcov, ctx.executable._coverage_run] + php.coverage.extensions, transitive_files = php.coverage.files))
-    return launcher, runfiles.merge(ctx.attr._coverage_run[0][DefaultInfo].default_runfiles)
 
 def _runfiles(ctx, files, transitive, base = None):
     runfiles = ctx.runfiles(files = files + ctx.files.data, transitive_files = depset(transitive = transitive))
@@ -263,14 +236,11 @@ def _php_test_impl(ctx):
         tokens.append(lit("--no-configuration"))
     tokens += [lit("--fail-on-empty-test-suite"), lit("--do-not-cache-test-index"), lit("--do-not-cache-result"), env_flag("--log-junit", "XML_OUTPUT_FILE")]
     tokens += [rf(root + "/" + external_path(f.short_path)) for f in srcs]
-    php = ctx.toolchains[TOOLCHAIN_TYPE].php
-    if ctx.configuration.coverage_enabled and php.pcov:
-        launcher, base = _write_coverage_launcher(ctx, tokens, root)
-    else:
-        launcher, base = _write_launcher(ctx, tokens)
+    launcher, base = _write_launcher(ctx, tokens)
     extra = [phpunit] + ([ctx.file.config] if ctx.file.config else [])
     return [
         info,
+        PhpTestInfo(autoload_root = root, ini = ctx.attr.ini, tokens = tokens),
         DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = _runfiles(ctx, [tree] + extra, [], base)),
         OutputGroupInfo(_validation = depset(_lint(ctx, srcs)), php_autoload = depset([tree])),
         _instrumented(ctx),
@@ -315,7 +285,6 @@ php_test = rule(
     attrs = _RUN_ATTRS | {
         "config": attr.label(allow_single_file = [".xml", ".dist"], doc = "A phpunit.xml; without it PHPUnit runs with --no-configuration."),
         "srcs": attr.label_list(mandatory = True, allow_files = PHP_SOURCE_EXTS, doc = "PHPUnit test files PHPUnit runs."),
-        "_coverage_run": attr.label(default = _COVERAGE_RUN, executable = True, cfg = no_coverage_transition, doc = "dx-runtime, whose php_coverage helper runs PHPUnit under PCOV and converts its Clover report to LCOV."),
         "_phpunit": attr.label(default = _PHPUNIT, allow_single_file = True, doc = "The pinned PHPUnit phar."),
     },
     test = True,

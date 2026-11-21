@@ -255,7 +255,7 @@ pub fn maven_build_file_repo(
 /// Reads the text of every element path in one POM.
 fn maven_pom_fields(pom: &[u8]) -> Result<std::collections::HashMap<String, String>, String> {
     use quick_xml::events::Event;
-    let xml = std::str::from_utf8(pom).map_err(|_| "pom is not UTF-8".to_owned())?;
+    let xml = std::str::from_utf8(pom).map_err(|error| format!("pom is not UTF-8: {error}"))?;
     let mut reader = quick_xml::Reader::from_str(xml);
     let mut stack: Vec<String> = Vec::new();
     let mut fields = std::collections::HashMap::new();
@@ -414,8 +414,10 @@ enum MavenSigningKey {
 impl MavenSigner {
     /// Parses an armored secret key and unlocks its signing key with the passphrase.
     pub fn from_armored(key: &str, passphrase: &str) -> Result<Self, String> {
-        let (secret, _) = SignedSecretKey::from_armor_single(key.as_bytes()).map_err(|_| {
-            "maven_deploy: MAVEN_GPG_KEY is not an armored OpenPGP secret key; refusing".to_owned()
+        let (secret, _) = SignedSecretKey::from_armor_single(key.as_bytes()).map_err(|error| {
+            format!(
+                "maven_deploy: MAVEN_GPG_KEY is not an armored OpenPGP secret key ({error}); refusing"
+            )
         })?;
         let password = Password::from(passphrase);
         let subkey = secret
@@ -430,8 +432,8 @@ impl MavenSigner {
             MavenSigningKey::Primary(primary) => primary.remove_password(&password),
             MavenSigningKey::Subkey(sub) => sub.remove_password(&password),
         };
-        unlocked.map_err(|_| {
-            "maven_deploy: MAVEN_GPG_PASSPHRASE does not unlock MAVEN_GPG_KEY; refusing".to_owned()
+        unlocked.map_err(|error| {
+            format!("maven_deploy: MAVEN_GPG_PASSPHRASE does not unlock MAVEN_GPG_KEY ({error}); refusing")
         })?;
         Ok(Self { key })
     }
@@ -1318,29 +1320,32 @@ pub(crate) mod tests {
             (
                 "not a key",
                 PASSPHRASE,
-                "maven_deploy: MAVEN_GPG_KEY is not an armored OpenPGP secret key; refusing",
+                "maven_deploy: MAVEN_GPG_KEY is not an armored OpenPGP secret key",
             ),
             (
                 public.as_str(),
                 PASSPHRASE,
-                "maven_deploy: MAVEN_GPG_KEY is not an armored OpenPGP secret key; refusing",
+                "maven_deploy: MAVEN_GPG_KEY is not an armored OpenPGP secret key",
             ),
             (
                 secret.as_str(),
                 "wrong-passphrase",
-                "maven_deploy: MAVEN_GPG_PASSPHRASE does not unlock MAVEN_GPG_KEY; refusing",
+                "maven_deploy: MAVEN_GPG_PASSPHRASE does not unlock MAVEN_GPG_KEY",
             ),
             (
                 secret.as_str(),
                 "",
-                "maven_deploy: MAVEN_GPG_PASSPHRASE does not unlock MAVEN_GPG_KEY; refusing",
+                "maven_deploy: MAVEN_GPG_PASSPHRASE does not unlock MAVEN_GPG_KEY",
             ),
         ] {
             let mut vars = APPROVED.to_vec();
             vars.push(("MAVEN_GPG_KEY", key));
             vars.push(("MAVEN_GPG_PASSPHRASE", passphrase));
             let error = gate_error(&vars, "1.0.0").expect("refused");
-            assert_eq!(error, want);
+            assert!(
+                error.starts_with(want) && error.ends_with("; refusing"),
+                "{error}"
+            );
             assert!(!error.contains(PASSPHRASE) && !error.contains("wrong-passphrase"));
             assert!(!error.contains("PGP PRIVATE KEY"));
         }

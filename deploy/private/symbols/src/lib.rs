@@ -1,7 +1,12 @@
 //! Checks that a binary and its debug info belong together: ELF build-ids and
 //! macOS dSYM UUIDs and Windows PDB GUIDs.
 
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 pub mod cli;
 pub mod entry;
@@ -80,6 +85,7 @@ pub enum SymbolsError {
     DwarfOutsideBundle {
         dwarf: PathBuf,
         bundle: PathBuf,
+        source: std::path::StripPrefixError,
     },
     Io(PathIoError),
 }
@@ -142,7 +148,7 @@ impl fmt::Display for SymbolsError {
                 "{}: want one DWARF file, found {found}",
                 bundle.display()
             ),
-            Self::DwarfOutsideBundle { dwarf, bundle } => {
+            Self::DwarfOutsideBundle { dwarf, bundle, .. } => {
                 write!(f, "{} is not inside {}", dwarf.display(), bundle.display())
             }
             Self::Io(error) => error.fmt(f),
@@ -171,8 +177,8 @@ impl std::error::Error for SymbolsError {
             | Self::NoInfoStream
             | Self::NoDbiStream
             | Self::NoPdbName
-            | Self::DwarfCount { .. }
-            | Self::DwarfOutsideBundle { .. } => None,
+            | Self::DwarfCount { .. } => None,
+            Self::DwarfOutsideBundle { source, .. } => Some(source),
         }
     }
 }
@@ -346,9 +352,10 @@ pub fn dsym_manifest(
     let pair = check_dsym(&bin, &dbg)?;
     let rel = dwarf
         .strip_prefix(bundle)
-        .map_err(|_| SymbolsError::DwarfOutsideBundle {
+        .map_err(|source| SymbolsError::DwarfOutsideBundle {
             dwarf: dwarf.clone(),
             bundle: bundle.to_path_buf(),
+            source,
         })?;
     Ok(serde_json::json!({
         "uuid": pair.uuid,

@@ -1471,6 +1471,37 @@ dx_pins.archive(
     pins = "//deploy/private/pins:pins.json",
 )
 dx_pins.archive(
+    name = "julia_src",
+    build = "//julia/private/runtime:julia_src.BUILD.bazel",
+    patches = ["//patches/julia:deterministic_objectid.patch"],
+    pins = "//julia:pins.json",
+)
+dx_pins.archive(
+    name = "julia_src_libllvm",
+    build = "//julia/private/runtime:libllvm.BUILD.bazel",
+    pins = "//julia:pins.json",
+)
+dx_pins.archive(
+    name = "julia_src_libunwind",
+    build = "//julia/private/runtime:libunwind.BUILD.bazel",
+    pins = "//julia:pins.json",
+)
+dx_pins.archive(
+    name = "julia_src_libuv",
+    build = "//julia/private/runtime:libuv.BUILD.bazel",
+    pins = "//julia:pins.json",
+)
+dx_pins.archive(
+    name = "julia_src_utf8proc",
+    build = "//julia/private/runtime:utf8proc.BUILD.bazel",
+    pins = "//julia:pins.json",
+)
+dx_pins.archive(
+    name = "julia_src_zstd",
+    build = "//julia/private/runtime:zstd.BUILD.bazel",
+    pins = "//julia:pins.json",
+)
+dx_pins.archive(
     name = "opam_linux_arm64",
     pins = "//deploy/private/pins:pins.json",
 )
@@ -1570,6 +1601,12 @@ use_repo(
     "dx_thrift_slf4j",
     "dx_windows_support",
     "japicmp_jar",
+    "julia_src",
+    "julia_src_libllvm",
+    "julia_src_libunwind",
+    "julia_src_libuv",
+    "julia_src_utf8proc",
+    "julia_src_zstd",
     "nfpm_linux_arm64",
     "nfpm_linux_x86_64",
     "nfpm_macos_arm64",
@@ -1604,37 +1641,6 @@ dx_pins_dev.archive(
     pins = "//cc:pins.json",
 )
 dx_pins_dev.archive(
-    name = "julia_src",
-    build = "//julia/private/runtime:julia_src.BUILD.bazel",
-    patches = ["//patches/julia:deterministic_objectid.patch"],
-    pins = "//julia:pins.json",
-)
-dx_pins_dev.archive(
-    name = "julia_src_libllvm",
-    build = "//julia/private/runtime:libllvm.BUILD.bazel",
-    pins = "//julia:pins.json",
-)
-dx_pins_dev.archive(
-    name = "julia_src_libunwind",
-    build = "//julia/private/runtime:libunwind.BUILD.bazel",
-    pins = "//julia:pins.json",
-)
-dx_pins_dev.archive(
-    name = "julia_src_libuv",
-    build = "//julia/private/runtime:libuv.BUILD.bazel",
-    pins = "//julia:pins.json",
-)
-dx_pins_dev.archive(
-    name = "julia_src_utf8proc",
-    build = "//julia/private/runtime:utf8proc.BUILD.bazel",
-    pins = "//julia:pins.json",
-)
-dx_pins_dev.archive(
-    name = "julia_src_zstd",
-    build = "//julia/private/runtime:zstd.BUILD.bazel",
-    pins = "//julia:pins.json",
-)
-dx_pins_dev.archive(
     name = "kcov",
     build = "//tools/coverage/kcov:kcov.BUILD",
     patches = [
@@ -1658,12 +1664,6 @@ use_repo(
     dx_pins_dev,
     "erlang_app_thoas",
     "foreign_cmake_zlib",
-    "julia_src",
-    "julia_src_libllvm",
-    "julia_src_libunwind",
-    "julia_src_libuv",
-    "julia_src_utf8proc",
-    "julia_src_zstd",
     "kcov",
     "lua_app_inspect",
     "zig_app_xxhash",
@@ -1882,10 +1882,7 @@ bazel_dep(name = "toml.bzl", version = "0.5.0")
 julia_toolchain = use_extension("//julia:extensions.bzl", "julia_toolchain")
 use_repo(julia_toolchain, "julia_toolchains")
 
-register_toolchains(
-    "//julia/private/runtime:source_toolchain",
-    dev_dependency = True,
-)
+register_toolchains("//julia/private/runtime:source_toolchain")
 
 register_toolchains("@julia_toolchains//:all")
 

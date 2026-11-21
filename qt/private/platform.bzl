@@ -1,11 +1,11 @@
 """The Qt platform an executable or bundle builds for."""
 
 load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
-load("//core:platform.bzl", "CC_COMPILER_FLAG", "platforms_transition")
+load("//core:platform.bzl", "platforms_transition")
 load("//qt/private/toolchain:pins.bzl", "CELLS")
 load("//qt/private/toolchain:repos.bzl", "qualified_cells")
 
-_COMPILER = CC_COMPILER_FLAG
+_COMPILER = str(Label("//cc:compiler"))
 
 _HOST_PLATFORMS = [
     str(Label("@bazel_tools//tools:host_platform")),

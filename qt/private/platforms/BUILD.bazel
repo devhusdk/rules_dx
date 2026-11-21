@@ -1,5 +1,4 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
-load("//core:platform.bzl", "CC_COMPILER_FLAG")
 load("//qt/private:corpus.bzl", "qt_corpus")
 load("//qt/private/toolchain:pins.bzl", "CELLS")
 load("//qt/private/toolchain:repos.bzl", "qualified_cells")
@@ -11,7 +10,7 @@ package(default_visibility = ["//visibility:public"])
     config_setting(
         name = "cell_" + cell,
         constraint_values = CELLS[cell].constraints,
-        flag_values = {CC_COMPILER_FLAG: CELLS[cell].layout.compiler} if CELLS[cell].layout.compiler else {},
+        flag_values = {"//cc:compiler": CELLS[cell].layout.compiler} if CELLS[cell].layout.compiler else {},
     )
     for cell in qualified_cells()
     if CELLS[cell].layout.os != "linux"

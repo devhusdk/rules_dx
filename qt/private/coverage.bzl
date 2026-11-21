@@ -1,13 +1,12 @@
 """LLVM coverage for qt_cc_test."""
 
-load("//core:platform.bzl", "CC_COMPILER_FLAG")
 load("//core:wrapper.bzl", "DxDataCoverageInfo", "dx_collect_cc_coverage_attr")
 
 _CC_TOOLCHAIN_TYPE = "@bazel_tools//tools/cpp:toolchain_type"
 _LLVM_COMPILERS = ["clang", "clang-cl"]
 _OTHER_COMPILERS = ["gcc", "mingw-gcc", "msvc-cl"]
 _LLVM_FEATURES = ["llvm_coverage_map_format", "-gcc_coverage_map_format"]
-_COMPILER_FLAG = CC_COMPILER_FLAG
+_COMPILER_FLAG = str(Label("//cc:compiler"))
 
 def _features(features, collect_code_coverage, compiler):
     if not collect_code_coverage:

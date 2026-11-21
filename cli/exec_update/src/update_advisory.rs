@@ -5,7 +5,7 @@ use super::update_pr::{
     ACTIONS_PR_REFUSAL, BOT_EMAIL, BOT_NAME, Tools, WORKFLOW_SKIP, open_update_prs, program, push,
 };
 use dx_error::DxError;
-use dx_exec_core::common::{Env, check_stdout_write, emit_built, report_dx_error};
+use dx_exec_core::common::{Dispatch, Env, check_stdout_write, emit_built, report_dx_error};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, notice_event,
 };
@@ -27,12 +27,22 @@ pub(super) fn selected(invocation: &Invocation) -> bool {
         && invocation.targets == [advisory::SET]
 }
 
-pub(crate) fn execute_update_advisory(invocation: &Invocation, env: Env<'_>) -> i32 {
+pub(crate) fn execute_update_advisory(
+    invocation: &Invocation,
+    env: Env<'_>,
+    dispatch: Dispatch<'_>,
+) -> i32 {
     let fetch = registry_fetch();
-    run(invocation, env, fetch.as_ref(), &Tools::system())
+    run(invocation, env, fetch.as_ref(), &Tools::system(), dispatch)
 }
 
-fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) -> i32 {
+fn run(
+    invocation: &Invocation,
+    env: Env<'_>,
+    fetch: &dyn Fetch,
+    tools: &Tools,
+    dispatch: Dispatch<'_>,
+) -> i32 {
     let Env {
         workspace,
         runner,
@@ -82,7 +92,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         };
         let mut step_out = Vec::new();
         let mut step_err = Vec::new();
-        super::dispatch_inner(
+        dispatch(
             &inner,
             Env {
                 workspace,
@@ -339,7 +349,7 @@ mod tests {
     }
 
     fn run_words(words: &[&str]) -> (i32, String, String) {
-        let harness = super::super::test_support::Harness::new("update-advisory");
+        let harness = crate::test_env::TestEnv::new("update-advisory");
         let root = &harness.workspace;
         std::fs::create_dir_all(root.join(".dx")).expect("mkdir");
         std::fs::write(root.join(PINS), pins_text()).expect("pins");
@@ -355,8 +365,9 @@ mod tests {
         let code = run(
             &inv,
             harness.env(&runner, &mut out, &mut err),
-            &super::super::update_outdated::DirFetch(registry),
+            &crate::update_outdated::DirFetch(registry),
             &Tools::system(),
+            &crate::test_env::dispatch,
         );
         let pins = std::fs::read_to_string(root.join(PINS)).expect("pins");
         (

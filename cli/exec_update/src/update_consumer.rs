@@ -1,13 +1,14 @@
-use super::super::staged::{StagedError, ToolRun, run_staged_core, write_outputs};
 use super::{
     RunMode, SetDetail, SlotGate, record_backend_error, record_named, runner_status,
     unavailable_message,
 };
+use crate::staged::{StagedError, ToolRun, run_staged_core, write_outputs};
 use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, ResolvedTarget, Selection};
 use dx_exec_core::common::{
-    Env, check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec,
+    Env, check_stdout_write, emit_built, frozen_summary, offline_summary, pre_exec, windows_env,
 };
-use dx_exec_reports::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
+use dx_exec_reports::pinned_tool::QueryBazel;
+use dx_exec_reports::uv_tools::UvTools;
 use dx_plan::args::Invocation;
 use std::collections::BTreeMap;
 
@@ -68,7 +69,7 @@ pub(super) fn execute_configured(
             &mut gate,
         ) {
             drop(gate);
-            return crate::exec::slot_stop(invocation.output, out, err, stop);
+            return dx_exec_core::failure::slot_stop(invocation.output, out, err, stop);
         }
     }
     gate.phase.release();
@@ -92,21 +93,6 @@ pub(super) fn execute_configured(
         mode,
         locks,
     })
-}
-
-pub(super) fn uv_closure(
-    runner: &dyn dx_process::Runner,
-    query_runner: &dyn dx_plan::resolve::QueryRunner,
-    workspace: &std::path::Path,
-    startup: &[String],
-    offline: bool,
-) -> dx_update::backend::UvClosure {
-    let bazel = QueryBazel {
-        query_runner,
-        workspace,
-        startup,
-    };
-    UvTools::new(runner, &bazel, offline).closure()
 }
 
 /// What each set run reports back.
@@ -450,17 +436,6 @@ fn launch(
     }
 }
 
-/// The host variables a hermetic tool still needs on Windows; none elsewhere.
-pub(crate) fn windows_env() -> Vec<(&'static str, String)> {
-    if !cfg!(windows) {
-        return Vec::new();
-    }
-    ["SYSTEMROOT", "TEMP", "TMP", "USERPROFILE"]
-        .into_iter()
-        .filter_map(|key| std::env::var(key).ok().map(|value| (key, value)))
-        .collect()
-}
-
 /// Runs a generator on copies of the set's inputs and compares what it wrote with the
 /// declared locks. Check reports drift; apply writes only the declared files that differ.
 fn run_staged(
@@ -610,88 +585,6 @@ impl CheckGuard {
             wrote.push(rel);
         }
         (!wrote.is_empty()).then_some(wrote)
-    }
-}
-
-/// One resolved tool: its path and, when Bazel was tried and failed, why.
-type Resolved = (Option<String>, Option<String>);
-
-/// Resolves uv and its interpreter at most once per run, from the environment
-/// first and Bazel second. `PATH` is never searched.
-struct UvTools<'a> {
-    runner: &'a dyn dx_process::Runner,
-    bazel: &'a dyn dx_tool_resolve::Bazel,
-    offline: bool,
-    uv: Option<Resolved>,
-    python: Option<Resolved>,
-}
-
-impl<'a> UvTools<'a> {
-    fn new(
-        runner: &'a dyn dx_process::Runner,
-        bazel: &'a dyn dx_tool_resolve::Bazel,
-        offline: bool,
-    ) -> Self {
-        UvTools {
-            runner,
-            bazel,
-            offline,
-            uv: None,
-            python: None,
-        }
-    }
-
-    fn resolve(&self, var: &str, label: &str) -> Resolved {
-        let tool = PinnedTool { var, label };
-        match resolve_pinned(self.runner, self.bazel, &tool, self.offline) {
-            Ok(path) => (Some(path.to_string_lossy().into_owned()), None),
-            Err(PinnedToolError::Invalid) => (None, None),
-            Err(PinnedToolError::Unresolved { detail }) => (None, Some(detail)),
-        }
-    }
-
-    fn closure(&mut self) -> dx_update::backend::UvClosure {
-        use dx_update::backend as be;
-        let runner = self.runner;
-        let (uv, uv_detail) = if let Some(done) = self.uv.take() {
-            done
-        } else {
-            let (path, detail) = self.resolve(be::UV_BIN_VAR, be::UV_LABEL);
-            let path = path.filter(|path| {
-                runner
-                    .tool_version(std::path::Path::new(path))
-                    .is_some_and(|line| {
-                        let name_and_version: Vec<&str> = line.split_whitespace().take(2).collect();
-                        name_and_version.join(" ") == be::UV_VERSION_LINE
-                    })
-            });
-            (path, detail)
-        };
-        self.uv = Some((uv.clone(), uv_detail.clone()));
-        // A missing uv already fails the set, so skip resolving the interpreter.
-        let (python, python_detail) = if uv.is_some() {
-            let done = match self.python.take() {
-                Some(done) => done,
-                None => match be::uv_python_label() {
-                    Some(label) => self.resolve(be::UV_PYTHON_VAR, label),
-                    None => (
-                        None,
-                        Some("python/lang.json names no python_interpreter command".to_owned()),
-                    ),
-                },
-            };
-            self.python = Some(done.clone());
-            done
-        } else {
-            (None, None)
-        };
-        be::UvClosure {
-            uv,
-            python,
-            uv_detail,
-            python_detail,
-            ..Default::default()
-        }
     }
 }
 

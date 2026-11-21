@@ -213,7 +213,7 @@ pub(crate) fn execute_upgrade(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
-    let newest = || latest_release(&*crate::exec::update_outdated::registry_fetch());
+    let newest = || latest_release(&*dx_exec_update::registry_fetch());
     upgrade_with(
         invocation,
         workspace,

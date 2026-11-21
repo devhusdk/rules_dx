@@ -1752,7 +1752,6 @@ version = "0.0.0"
 dependencies = [
  "assert_cmd",
  "base64 0.23.1",
- "chrono",
  "clap",
  "flate2",
  "predicates",
@@ -1920,6 +1919,16 @@ version = "0.0.0"
 dependencies = [
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "dx_exec_update"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]

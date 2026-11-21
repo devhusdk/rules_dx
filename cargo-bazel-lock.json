@@ -1,5 +1,5 @@
 {
-  "checksum": "895ff81d865253160e591f5532f3f999b0da9e417c7644efd23f4a115026d37f",
+  "checksum": "3c83899b7f2681cfe795e5482a205bfb5057dfc5adb4602b5cf2e7d143beb76a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8041,10 +8041,6 @@
             "target": "base64"
           },
           {
-            "id": "chrono 0.4.45",
-            "target": "chrono"
-          },
-          {
             "id": "clap 4.6.7",
             "target": "clap"
           },
@@ -8744,6 +8740,45 @@
         {
           "Library": {
             "crate_name": "dx_exec_test_reports",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_exec_update 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "chrono 0.4.45",
+            "target": "chrono"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          },
+          {
+            "id": "tracing 0.1.44",
+            "target": "tracing"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_update",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_update",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_update",
             "crate_root": "src/lib.rs"
           }
         }
@@ -33432,6 +33467,7 @@
     "dx_exec_core 0.0.0": "cli/dx_exec_core",
     "dx_exec_reports 0.0.0": "cli/dx_exec_reports",
     "dx_exec_test_reports 0.0.0": "cli/dx_exec_test_reports",
+    "dx_exec_update 0.0.0": "cli/dx_exec_update",
     "dx_families 0.0.0": "cli/dx_families",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
     "dx_floor 0.0.0": "tools/testing/dx_floor",

@@ -141,7 +141,3 @@ fn plan_insert(
         }
     })
 }
-
-#[cfg(test)]
-#[path = "update_version_add_tests.rs"]
-mod tests;

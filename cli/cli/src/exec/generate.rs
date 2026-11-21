@@ -301,7 +301,7 @@ fn has_root_build(workspace: &Path) -> bool {
 
 /// Runs `uv lock` at the root with the pinned uv and interpreter.
 fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
-    let closure = super::update::configured_uv_closure(
+    let closure = dx_exec_reports::uv_tools::configured_uv_closure(
         env.runner,
         env.query_runner,
         env.workspace,
@@ -324,7 +324,7 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wirin
             return;
         }
     };
-    let host = super::update::windows_env();
+    let host = dx_exec_core::common::windows_env();
     let pairs: Vec<(&str, &str)> = host
         .iter()
         .map(|(key, value)| (*key, value.as_str()))

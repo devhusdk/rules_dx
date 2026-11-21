@@ -1,0 +1,135 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI")
+
+package(default_visibility = VIS_CLI)
+
+rust_library(
+    name = "dx_exec_update",
+    srcs = [
+        "src/dep_edit.rs",
+        "src/lib.rs",
+        "src/staged.rs",
+        "src/update.rs",
+        "src/update_add_missing.rs",
+        "src/update_advisory.rs",
+        "src/update_consumer.rs",
+        "src/update_outdated.rs",
+        "src/update_pr.rs",
+        "src/update_prune.rs",
+        "src/update_unused.rs",
+        "src/update_version.rs",
+        "src/update_version_add.rs",
+    ],
+    aliases = {},  # keep
+    crate_name = "dx_exec_update",
+    crate_root = "src/lib.rs",
+    # keep
+    deps = [
+        "//cli/adopt:dx_adopt",
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/audit:dx_audit",
+        "//cli/depcheck:depcheck_lib",
+        "//cli/digest:dx_digest",
+        "//cli/ecosystems:dx_ecosystems",
+        "//cli/error:dx_error",
+        "//cli/exec_core:dx_exec_core",
+        "//cli/exec_reports:dx_exec_reports",
+        "//cli/families:dx_families",
+        "//cli/http:dx_http",
+        "//cli/module_bazel:dx_module_bazel",
+        "//cli/output:dx_output",
+        "//cli/path:dx_path",
+        "//cli/plan:dx_plan",
+        "//cli/process:dx_process",
+        "//cli/update:dx_update",
+        "@crates//:chrono",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:tracing",
+    ],
+)
+
+rust_test(
+    name = "dx_exec_update_test",
+    size = "small",
+    srcs = [
+        "src/dep_edit.rs",
+        "src/lib.rs",
+        "src/staged.rs",
+        "src/test_env.rs",
+        "src/update.rs",
+        "src/update_add_missing.rs",
+        "src/update_advisory.rs",
+        "src/update_check.rs",
+        "src/update_consumer.rs",
+        "src/update_consumer_tests.rs",
+        "src/update_outdated.rs",
+        "src/update_pr.rs",
+        "src/update_prune.rs",
+        "src/update_unused.rs",
+        "src/update_version.rs",
+        "src/update_version_add.rs",
+        "src/update_version_tests.rs",
+    ],
+    aliases = {},  # keep
+    coverage_lib = ":dx_exec_update",
+    crate_name = "dx_exec_update",
+    crate_root = "src/lib.rs",
+    # keep
+    deps = [
+        "//cli/adopt:dx_adopt",
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/audit:dx_audit",
+        "//cli/depcheck:depcheck_lib",
+        "//cli/digest:dx_digest",
+        "//cli/ecosystems:dx_ecosystems",
+        "//cli/error:dx_error",
+        "//cli/exec_core:dx_exec_core",
+        "//cli/exec_reports:dx_exec_reports",
+        "//cli/families:dx_families",
+        "//cli/http:dx_http",
+        "//cli/module_bazel:dx_module_bazel",
+        "//cli/output:dx_output",
+        "//cli/path:dx_path",
+        "//cli/plan:dx_plan",
+        "//cli/process:dx_process",
+        "//cli/test_scratch:dx_test_scratch",
+        "//cli/update:dx_update",
+        "//tools/testing:dx_testing",
+        "@crates//:chrono",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:tracing",
+    ],
+)
+
+# Read by the dx_cli source guards, which scan every production CLI file.
+filegroup(
+    name = "rust_srcs",
+    srcs = glob(["src/**/*.rs"]),
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

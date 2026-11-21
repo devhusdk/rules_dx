@@ -124,7 +124,7 @@ fn github_auth(url: &str, token: Option<&str>) -> Option<(&'static str, String)>
         .then(|| ("Authorization", format!("Bearer {token}")))
 }
 
-pub(crate) fn registry_fetch() -> Box<dyn Fetch> {
+pub fn registry_fetch() -> Box<dyn Fetch> {
     match std::env::var_os(REGISTRY_DIR_ENV) {
         Some(dir) => Box::new(DirFetch(PathBuf::from(dir))),
         None => Box::new(HttpFetch::new()),
@@ -577,7 +577,7 @@ fn collect_cabal(acc: &mut Acc, cx: &Ctx<'_>) {
         ..
     } = *cx;
     acc.registries.insert(name.to_owned(), Registry::Hackage);
-    let cabal_files = cabal_files(workspace, &target.set.manifests);
+    let cabal_files = dx_update::discover::cabal::cabal_files(workspace, &target.set.manifests);
     let freezes: Vec<String> = target
         .set
         .locks
@@ -843,32 +843,6 @@ pub(super) fn registry_for(
         return Some(Registry::BazelReleases);
     }
     registries.get(&candidate.set).copied()
-}
-
-/// The `.cabal` files next to each cabal project file.
-pub(super) fn cabal_files(workspace: &Path, projects: &[String]) -> Vec<String> {
-    let mut files = Vec::new();
-    for project in projects {
-        let dir = project.rsplit_once('/').map_or("", |(dir, _)| dir);
-        let Ok(entries) = std::fs::read_dir(workspace.join(dir)) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let file = entry.file_name().to_string_lossy().into_owned();
-            if Path::new(&file)
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("cabal"))
-            {
-                files.push(if dir.is_empty() {
-                    file
-                } else {
-                    format!("{dir}/{file}")
-                });
-            }
-        }
-    }
-    files.sort();
-    files
 }
 
 fn read_texts(

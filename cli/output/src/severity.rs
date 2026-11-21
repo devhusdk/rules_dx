@@ -66,9 +66,11 @@ impl Threshold {
 
     pub fn parse(text: &str) -> Result<Self, OutputError> {
         use clap::ValueEnum;
-        Self::from_str(text, false).map_err(|_| OutputError::BadThreshold {
-            value: text.to_owned(),
-        })
+        Self::from_str(text, false)
+            .ok()
+            .ok_or_else(|| OutputError::BadThreshold {
+                value: text.to_owned(),
+            })
     }
 }
 

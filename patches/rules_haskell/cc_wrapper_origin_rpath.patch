@@ -1,4 +1,5 @@
 Make absolute rpaths into the execroot relative to $ORIGIN so linked libraries do not record the sandbox path.
+Upstream: none (upstream-ready, not sent yet: #14473)
 --- a/haskell/private/cc_wrapper.py.tpl
 +++ b/haskell/private/cc_wrapper.py.tpl
 @@ -607,7 +607,7 @@

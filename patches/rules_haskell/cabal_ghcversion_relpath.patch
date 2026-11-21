@@ -1,4 +1,5 @@
 Pass GHC the rts ghcversion.h by a relative path so interface files do not record the sandbox path.
+Upstream: none (upstream-ready, not sent yet: #14473)
 --- a/haskell/private/cabal_wrapper.py
 +++ b/haskell/private/cabal_wrapper.py
 @@ -148,6 +148,20 @@

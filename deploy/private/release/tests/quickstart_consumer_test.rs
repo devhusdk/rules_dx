@@ -9,6 +9,7 @@ use dx_nested::{self as nested, Case, footprint, plain_fixture};
 use dx_release_tools::candidate::file_url;
 use dx_release_tools::presubmit;
 use dx_testing::{Run, read_text, resolve_runfiles, rules_dx_source, write_text};
+use prebuilt_guard::{bundle_tools, stub_bundle};
 
 /// Asserts `run` passed; a failing run's last lines also go to the uncaptured stderr, so a test
 /// killed by its timeout still shows them.
@@ -111,19 +112,34 @@ pub(crate) const RULES_PYTHON_SKIP: [&str; 1] = ["lock_extension.patch"];
 /// The symlink line `docs/cli/commands/windows.md` has a Windows user add to `.bazelrc` or `user.bazelrc`.
 pub(crate) const WINDOWS_SYMLINKS: &str = "startup:windows --windows_enable_symlinks\n";
 
-/// The root `dx_prebuilt.asset` lines that serve `dx` and `launcher`, the ones this test built.
-fn built_dx_asset(dx: &std::path::Path) -> String {
+/// The root `dx_prebuilt.asset` lines that serve `dx` and `launcher`, the ones this test built,
+/// and a stub `python_tools` bundle with a launcher per bundle tool.
+fn built_dx_asset(dx: &std::path::Path, case_name: &str) -> String {
     let launcher = resolve_runfiles(
         &std::env::var("DX_LAUNCHER").expect("DX_LAUNCHER must name the launcher"),
     );
+    let tools = bundle_tools(&read_text(&dx_testing::env_file(
+        "DX_PREBUILT_PYTHON_HUB_TARGETS",
+    )))
+    .unwrap_or_else(|error| panic!("python_hub_targets.txt: {error}"));
+    let bundle = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim())
+        .join("python_tools_stub")
+        .join(format!("{case_name}.tar.gz"));
+    let archive = stub_bundle(&tools, cfg!(windows))
+        .unwrap_or_else(|error| panic!("stub python_tools bundle: {error}"));
+    std::fs::create_dir_all(bundle.parent().expect("stub directory"))
+        .and_then(|()| std::fs::write(&bundle, archive))
+        .unwrap_or_else(|error| panic!("write {}: {error}", bundle.display()));
     let sha256 = |path: &std::path::Path| {
         dx_testing::sha256_file(path).unwrap_or_else(|error| panic!("{error}"))
     };
     let (dx_url, dx_sha256) = (file_url(dx), sha256(dx));
     let (launcher_url, launcher_sha256) = (file_url(&launcher), sha256(&launcher));
+    let (bundle_url, bundle_sha256) = (file_url(&bundle), sha256(&bundle));
     dx_prebuilt_assets(&[
         ("dx", &dx_url, &dx_sha256),
         ("launcher", &launcher_url, &launcher_sha256),
+        ("python_tools", &bundle_url, &bundle_sha256),
     ])
     .unwrap_or_else(|error| panic!("{error}"))
 }
@@ -289,7 +305,8 @@ fn the_readme_quickstart_runs_as_written() {
     }
 
     // The overrides `tools/testing/consumer/pending.txt` still lists; a registry release needs none.
-    // The consumer pins the dx and launcher this test built, as a release's `pins.bzl` serves them.
+    // The consumer pins the dx and launcher this test built and a stub python_tools bundle, as a
+    // release's `pins.bzl` serves them.
     copy_rules_py_patches(&source, &case);
     let module_path = case.root().join("MODULE.bazel");
     let mut module = read_text(&module_path);
@@ -306,7 +323,7 @@ fn the_readme_quickstart_runs_as_written() {
         &write_root_patch_override(case.root(), &source, "rules_python", &RULES_PYTHON_SKIP)
             .unwrap_or_else(|error| panic!("{error}")),
     );
-    module.push_str(&built_dx_asset(&dx));
+    module.push_str(&built_dx_asset(&dx, "quickstart_readme"));
     write_text(&module_path, &module);
     if cfg!(windows) {
         let rc_path = case.root().join(".bazelrc");
@@ -402,6 +419,19 @@ fn the_readme_quickstart_runs_as_written() {
     );
     eprintln!("fetch python after_check: {}s", started.elapsed().as_secs());
     within_budget("python", &python, "after_check");
+    let repos = external_repos(&case);
+    assert!(
+        repos.contains("+dx_python_tools_prebuilt_"),
+        "the consumer serves the python tools from the pinned bundle: {repos}"
+    );
+    let built: Vec<&str> = repos
+        .split(' ')
+        .filter(|name| name.contains("+project__dx_docstrfmt"))
+        .collect();
+    assert!(
+        built.is_empty(),
+        "a pinned python_tools bundle builds no tool from source: {built:?}"
+    );
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
@@ -463,7 +493,7 @@ fn bcr_test_module_runs_its_presubmit_targets() {
     module.push_str(&llvm_override());
     module.push_str(&windows_support_override());
     module.push_str(&apple_overrides(&source, case.root()));
-    module.push_str(&built_dx_asset(&dx));
+    module.push_str(&built_dx_asset(&dx, "quickstart_bcr"));
     write_text(&module_path, &module);
     case.use_lock("release_bcr");
 

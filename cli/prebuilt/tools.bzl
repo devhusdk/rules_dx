@@ -181,6 +181,17 @@ TOOLS = {
         main_class = "",
         library = "",
     ),
+    # Upstream rules_go gopackagesdriver, cross-built unmodified by the release-tools go job.
+    "gopackagesdriver": struct(
+        asset = "dx-gopackagesdriver-{os}-{cpu}",
+        role = "exec",
+        platforms = _NATIVE,
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = "@rules_go//go/tools/gopackagesdriver",
+        member = "",
+        main_class = "",
+        library = "",
+    ),
     "deadnix": _exec_native("deadnix"),
     "progenitor": _exec_native("progenitor"),
     "selene": _exec_native("selene"),
@@ -255,7 +266,7 @@ PYTHON_BUNDLE_TOOLS = {
 DEV_SOURCE_FALLBACK = {"kcov": "@rules_dx//tools/coverage/kcov:none"}
 
 # The tools released as one native binary or shared library per platform.
-NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "julia_internal", "kcov", "launcher", "ldoc_main", "nixfmt", "oapi_codegen", "ormolu", "pcov", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
+NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "gopackagesdriver", "hlint", "hpc_lcov", "julia_internal", "kcov", "launcher", "ldoc_main", "nixfmt", "oapi_codegen", "ormolu", "pcov", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])

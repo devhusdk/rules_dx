@@ -216,11 +216,16 @@ fn go_job_cross_builds_every_host() {
     let workflow = document(TOOLS).unwrap();
     assert_eq!(workflow["jobs"]["go"]["runs-on"], "ubuntu-latest");
     let text = read_runfiles(TOOLS);
-    assert!(text.contains("tools=(go:dx_go oapi-codegen:oapi_codegen)"));
+    assert!(
+        text.contains(
+            "tools=(go:dx_go oapi-codegen:oapi_codegen gopackagesdriver:gopackagesdriver)"
+        )
+    );
     assert!(text.contains("//go/private/tools/analysis/dx_go:${tool#*:}_${host//-/_}"));
     assert!(text.contains("asset=\"$out/dx-${tool%%:*}-$host\""));
     assert!(text.contains("\"$out/dx-oapi-codegen-LICENSE\""));
     assert!(text.contains("\"$out/dx-oapi-codegen-linux-x86_64\" -version"));
+    assert!(text.contains("\"$out/dx-gopackagesdriver-LICENSE\""));
     assert!(text.contains("cp \"$out/dx-go-linux-x86_64\" \"$check/dx_modfmt\""));
     assert!(text.contains("./dx_modfmt -c"));
     assert!(text.contains("name: release-tool-go"));
@@ -456,16 +461,16 @@ fn release_writes_and_checks_the_tool_manifest() {
         "for tool in dx-deadnix dx-selene; do\n            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do\n              tool_asset=\"$tool-$host\""
     ));
     assert!(text.contains("--manifest \"$PWD/out/dx-tool-sha256sums.txt\""));
-    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 82"));
+    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 88"));
     assert!(text.contains("for tool_asset in dx-tree-sitter-windows-arm64.dll dx-tree-sitter-pkl-windows-arm64.dll dx-tree-sitter-LICENSE dx-tree-sitter-pkl-LICENSE; do"));
     assert!(text.contains("for tool_asset in dx-pcov-linux-x86_64.so dx-pcov-linux-arm64.so dx-pcov-macos-arm64.so dx-pcov-LICENSE; do"));
     assert!(text.contains(" dx-thrift-* dx-tree-sitter-* dx-pcov-* dx-julia-internal-* "));
     assert!(text.contains(
         "for tool_asset in dx-julia-internal-linux-x86_64.so dx-julia-internal-LICENSE; do"
     ));
-    assert!(text.contains("for tool in capnp flatc go ldoc-main oapi-codegen runtime thrift; do"));
-    assert!(text.contains("for license in dx-capnp-LICENSE dx-flatc-LICENSE dx-ldoc-main-LICENSE dx-oapi-codegen-LICENSE dx-thrift-LICENSE; do"));
-    assert!(text.contains(" dx-go-* dx-ldoc-main-* dx-oapi-codegen-* "));
+    assert!(text.contains("for tool in capnp flatc go gopackagesdriver ldoc-main oapi-codegen runtime thrift; do"));
+    assert!(text.contains("for license in dx-capnp-LICENSE dx-flatc-LICENSE dx-gopackagesdriver-LICENSE dx-ldoc-main-LICENSE dx-oapi-codegen-LICENSE dx-thrift-LICENSE; do"));
+    assert!(text.contains(" dx-go-* dx-gopackagesdriver-* dx-ldoc-main-* dx-oapi-codegen-* "));
     assert!(text.contains("cd out\n            for file in dx-sha256sums.txt "));
     assert!(text.contains("cp \"$file\" \"$SOURCE_DIR/\""));
 }

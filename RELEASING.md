@@ -85,7 +85,7 @@ After you fix the cause, run the workflow again with the same command.
 
 Open the draft on GitHub, check the notes and files, and publish it.
 
-Publishing starts `release-consumer.yml`. It builds a small consumer project against the published source archive on each platform and checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`, that topiary and progenitor are the prebuilt downloads, and on `windows-arm64` that the `pkl_lsp` natives jar packs the prebuilt tree-sitter DLLs. To run it again:
+Publishing starts `release-consumer.yml`. It builds a small consumer project against the published source archive on each platform and checks that `@rules_dx//:dx` is the prebuilt download and prints `0.1.0`, that topiary and progenitor are the prebuilt downloads, and on `windows-arm64` that the `pkl_lsp` natives jar packs the prebuilt tree-sitter DLLs. It skips releases whose tag does not start with `v`, such as `mirror-php-<version>`. To run it again:
 
 ```sh
 gh workflow run release-consumer.yml -f tag=v0.1.0
@@ -95,7 +95,7 @@ Wait until every `consumer` job is green.
 
 ## 7. Submit to the Bazel Central Registry
 
-Once every `consumer` job is green, the `bcr` job in `release-consumer.yml` opens a draft pull request on the BCR that adds `rules_dx` at `0.1.0`. It reads the module root from `.bcr/config.yml`. The `bcr-ledger` job then records the pull request URL, or `failed`, in the run summary and the `bcr-ledger` artifact.
+Once every `consumer` job is green, the `bcr` job in `release-consumer.yml` opens a draft pull request on the BCR that adds `rules_dx` at `0.1.0`. It reads the module root from `.bcr/config.yml`. The `bcr` job skips `v0.0.*` tags. The `bcr-ledger` job then records the pull request URL, or `failed`, in the run summary and the `bcr-ledger` artifact.
 
 Before the first release, the owner sets up two things once:
 

@@ -1,7 +1,7 @@
 //! Pins the tool release build in release-tools.yml and its wiring in release.yml and
 //! release-consumer.yml.
 
-use ci_workflow::document;
+use ci_workflow::{document, job};
 use dx_testing::read_runfiles;
 
 const TOOLS: &str = ".github/workflows/release-tools.yml";
@@ -499,6 +499,22 @@ fn release_consumer_checks_prebuilt_quality_tools() {
         "bazel build --output_groups=natives @rules_dx//java/private/quality/tools:pkl_lsp"
     ));
     assert!(text.contains("- pkl_lsp natives: $natives"));
+}
+
+#[test]
+fn release_consumer_skips_mirrors_and_v0_0_bcr() {
+    let consumer = job(CONSUMER, "consumer").unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(
+        consumer["if"],
+        "startsWith(inputs.tag || github.event.release.tag_name, 'v')"
+    );
+    let bcr = job(CONSUMER, "bcr").unwrap_or_else(|error| panic!("{error}"));
+    let condition = bcr["if"].as_str().unwrap_or_default();
+    assert!(
+        condition.contains("vars.BCR_REGISTRY_FORK != ''"),
+        "{condition}"
+    );
+    assert!(condition.contains("'v0.0.'"), "{condition}");
 }
 
 #[test]

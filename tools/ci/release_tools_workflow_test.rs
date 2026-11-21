@@ -10,9 +10,9 @@ const CONSUMER: &str = ".github/workflows/release-consumer.yml";
 const RELEASE_JARS: &str = "tools/ci/release_jars.txt";
 const KCOV_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" //tools/coverage/kcov:kcov_static";
 const TARGETS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${targets[@]}\"";
-const HASKELL_DETERMINISM: &str = "linux-*) bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"${targets[@]}\" ;;";
-const TOOLS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism-rust\" \"${flags[@]}\" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor";
-const HACKAGE_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${flags[@]}\" \"$TARGET\"";
+const HASKELL_DETERMINISM: &str = "linux-*) bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" ${flags[@]+\"${flags[@]}\"} \"${targets[@]}\" ;;";
+const TOOLS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism-rust\" ${flags[@]+\"${flags[@]}\"} //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor";
+const HACKAGE_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" ${flags[@]+\"${flags[@]}\"} \"$TARGET\"";
 
 const HOSTS: [(&str, &str); 4] = [
     ("linux-x86_64", "ubuntu-latest"),
@@ -136,7 +136,7 @@ fn each_host_uploads_its_artifact() {
 const JOB_DETERMINISM: [(&str, &str, &str, bool); 6] = [
     (
         "tools",
-        "bazel build \"${flags[@]}\" //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor",
+        "bazel build ${flags[@]+\"${flags[@]}\"} //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor",
         TOOLS_DETERMINISM,
         true,
     ),
@@ -160,13 +160,13 @@ const JOB_DETERMINISM: [(&str, &str, &str, bool); 6] = [
     ),
     (
         "haskell",
-        "bazel build \"${flags[@]}\" \"${targets[@]}\"",
+        "bazel build ${flags[@]+\"${flags[@]}\"} \"${targets[@]}\"",
         HASKELL_DETERMINISM,
         true,
     ),
     (
         "hackage",
-        "bazel build \"${flags[@]}\" \"$TARGET\"",
+        "bazel build ${flags[@]+\"${flags[@]}\"} \"$TARGET\"",
         HACKAGE_DETERMINISM,
         true,
     ),
@@ -523,4 +523,15 @@ fn release_verifies_every_manifest_against_the_bundle() {
     assert!(text.contains(
         "for manifest in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt; do\n            gh attestation verify \"out/$manifest\" \\\n              --bundle out/dx-sha256sums.txt.sigstore.json"
     ));
+}
+
+#[test]
+fn flags_expand_when_empty_on_bash_3_2() {
+    let text = read_runfiles(TOOLS);
+    let guarded = "${flags[@]+\"${flags[@]}\"}";
+    assert_eq!(text.matches(guarded).count(), 13);
+    assert!(
+        !text.replace(guarded, "").contains("${flags[@]}"),
+        "macOS bash 3.2 under set -u fails on an empty flags array; expand it as {guarded}"
+    );
 }

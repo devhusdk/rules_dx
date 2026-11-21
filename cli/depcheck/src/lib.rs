@@ -12,6 +12,7 @@ mod usage;
 mod version;
 
 pub use consistency::{cmd_consistency, cmd_locks};
+pub use ecosystem::ansible::{parse_ansible_lock, parse_ansible_manifest};
 pub use ecosystem::beam::{parse_elixir_manifest, parse_erlang_manifest};
 pub use ecosystem::cc::{parse_cc_lock, parse_cc_lock_sha, parse_cc_manifest};
 pub use ecosystem::dart::{

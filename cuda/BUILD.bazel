@@ -1,6 +1,8 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH", "cuda_component_library")
+load("//core:platform_support.bzl", "compatible_with")
+load("//cuda/private:components.bzl", "cuda_component_library")
+load("//cuda/private/toolchain:settings.bzl", "PLATFORM_SUPPORT")
 
 exports_files([
     "README.md",
@@ -33,6 +35,13 @@ string_flag(
     visibility = ["//visibility:public"],
 )
 
+# Public so users can register their own CUDA toolchain. Declared here, not in rules_cuda,
+# so toolchain resolution never loads a rules_cuda .bzl file.
+toolchain_type(
+    name = "toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
 config_setting(
     name = "gpu_undeclared",
     flag_values = {":gpu_compute_capability": ""},
@@ -43,7 +52,7 @@ cuda_component_library(
     name = "cublas",
     component = "@cuda//:cublas",
     component_name = "cublas",
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_compatible_with = compatible_with(PLATFORM_SUPPORT),
     visibility = ["//visibility:public"],
 )
 
@@ -52,7 +61,7 @@ cuda_component_library(
     component = "@cuda//:cufft",
     component_name = "cufft",
     tags = ["manual"],
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_compatible_with = compatible_with(PLATFORM_SUPPORT),
     visibility = ["//visibility:public"],
 )
 
@@ -61,7 +70,7 @@ cuda_component_library(
     component = "@cuda//:curand",
     component_name = "curand",
     tags = ["manual"],
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_compatible_with = compatible_with(PLATFORM_SUPPORT),
     visibility = ["//visibility:public"],
 )
 

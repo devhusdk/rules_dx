@@ -114,7 +114,7 @@ core/tests/wrapper_forward_fixture.bzl env-inherit 1
 core/tests/wrapper_forward_fixture.bzl home 2
 core/tests/wrapper_tests.bzl env-inherit 3
 core/tests/wrapper_tests.bzl home 3
-core/wrapper.bzl env-inherit 7
+core/wrapper.bzl env-inherit 3
 csharp/tests/fixtures/fuzz/BUILD.bazel sh-rule 2
 csharp/tests/fixtures/fuzz/run_test.sh shebang 1
 cuda/tests/fixtures/cuda_app/app/BUILD.bazel sh-rule 1
@@ -279,7 +279,6 @@ tools/ci/docs_scope_test.rs shebang 1
 tools/coverage/kcov/BUILD.bazel sh-rule 1
 tools/coverage/kcov/kcov.BUILD genrule 3
 tools/coverage/kcov/kcov_launcher.sh shebang 1
-tools/docs/dart/defs.bzl home 1
 tools/docs/dotnet/csharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/fsharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/pinned_driver.sh shebang 1

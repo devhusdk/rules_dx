@@ -5,6 +5,7 @@ exports_files([
     "dx_bzl_srcs.patch",
     "external_pkgsrcs.patch",
     "summaries_scope.patch",
+    "windows_copy_links.patch",
     "windows_long_dill.patch",
 ])
 

@@ -78,6 +78,7 @@ rules_dx++dx_pins+rules_dotnet
 rules_dx++dx_pins+rules_julia
 rules_dx++dx_pins+rules_powershell
 rules_dx++dx_pins+rules_ruby
+rules_dx++dx_prebuilt+dx_prebuilt
 rules_dx++elixir+dx_elixir_toolchains
 rules_dx++erlang+dx_erlang_toolchains
 rules_dx++haskell+dx_haskell_toolchains

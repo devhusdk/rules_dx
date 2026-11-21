@@ -157,7 +157,6 @@ rules_oci+
 rules_oci++oci+oci_crane_toolchains
 rules_oci++oci+oci_regctl_toolchains
 rules_perl+
-rules_proto+
 rules_py+
 rules_py++host_platform+rules_py_uv_host
 rules_py++py_tools+rules_py_tools

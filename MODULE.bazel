@@ -1131,6 +1131,8 @@ dx_pins.archive(
         "//patches/rules_haskell:cc_wrapper_darwin_ffi.patch",
         "//patches/rules_haskell:cabal_binary_dep_data.patch",
         "//patches/rules_haskell:cabal_static_exe.patch",
+        "//patches/rules_haskell:cabal_ghcversion_relpath.patch",
+        "//patches/rules_haskell:cc_wrapper_origin_rpath.patch",
         "//patches/rules_haskell:ghc_xcode_env.patch",
         "//patches/rules_haskell:llvm_backend.patch",
         "//patches/rules_haskell:toolchain_type_alias.patch",

@@ -1,11 +1,11 @@
-use super::test_support::{FailingWrites, temp_dir};
+use super::apply_collected_changes;
 use dx_apply::RealFileSystem;
 use dx_digest::blake3 as digest;
 use dx_exec_core::common::{
     FileChange, REASON_INCOMPLETE_COLLECTION, REASON_INVALID_EDITS, REASON_OUTSIDE_SCOPE,
     REASON_OUTSIDE_WORKSPACE, REASON_STALE_SOURCE, REASON_WRITE_FAILED,
 };
-use dx_exec_quality::quality_apply::apply_collected_changes;
+use dx_exec_quality_testing::{FailingWrites, temp_dir};
 
 fn write_workspace(name: &str, files: &[(&str, &[u8])]) -> tempfile::TempDir {
     let workspace = temp_dir(name);

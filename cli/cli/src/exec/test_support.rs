@@ -1,6 +1,6 @@
 use super::{ActionTally, Env, execute};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use dx_digest::blake3 as digest;
+use dx_exec_quality_testing as quality;
 use dx_plan::args::Invocation;
 use dx_plan::plan::GENERATE_ENV_INTENDED;
 use dx_plan::resolve::{QueryResult, QueryRunner};
@@ -8,9 +8,8 @@ use dx_process::{ChildStatus, Runner};
 use dx_setup::{
     ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME, GenerationId, SetupPair, commit_pair, setup_hex,
 };
-use quality_result::encode_validated;
 use quality_result::proto;
-use quality_result::proto::{Capability, Convergence, FileSnapshot, QualityResult, Stage};
+use quality_result::proto::FileSnapshot;
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self};
@@ -29,39 +28,7 @@ pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-test-{prefix}-")).unwrap()
 }
 
-/// A real file system whose atomic writes fail for the listed paths, so tests
-/// can make one apply write fail without chmod tricks.
-pub(crate) struct FailingWrites {
-    failing: Vec<PathBuf>,
-}
-
-impl FailingWrites {
-    /// Canonicalizes each path, since writes go to the resolved file.
-    pub(crate) fn new(failing: &[PathBuf]) -> Self {
-        Self {
-            failing: failing
-                .iter()
-                .map(|path| std::fs::canonicalize(path).unwrap_or_else(|_| path.clone()))
-                .collect(),
-        }
-    }
-}
-
-impl dx_apply::FileSystem for FailingWrites {
-    fn read(&self, path: &Path) -> io::Result<Option<Vec<u8>>> {
-        dx_apply::RealFileSystem.read(path)
-    }
-
-    fn write_atomic(&self, path: &Path, content: &[u8]) -> io::Result<()> {
-        if self.failing.iter().any(|failing| failing == path) {
-            return Err(io::Error::other("injected write failure"));
-        }
-        dx_apply::RealFileSystem.write_atomic(path, content)
-    }
-}
-
-/// The event Bazel ends every complete build event stream with.
-pub(crate) const LAST_EVENT: &str = r#"{"id":{"buildMetrics":{}},"lastMessage":true}"#;
+pub(crate) use dx_exec_quality_testing::{FailingWrites, LAST_EVENT};
 
 #[expect(
     clippy::struct_excessive_bools,
@@ -336,9 +303,7 @@ impl Harness {
     }
 
     pub(crate) fn write_source(&self, path: &str, text: &str) {
-        let full = self.workspace.join(path);
-        std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
-        std::fs::write(full, text).expect("write source");
+        quality::write_source(&self.workspace, path, text);
     }
 
     pub(crate) fn valid_result(
@@ -346,40 +311,12 @@ impl Harness {
         initial: Vec<proto::Diagnostic>,
         replacements: Vec<proto::FileEdits>,
     ) -> Vec<u8> {
-        let original = std::fs::read(self.workspace.join("src/a.py")).unwrap_or_default();
-        self.result_full(
-            initial,
-            vec![],
-            replacements,
-            vec![FileSnapshot {
-                path: "src/a.py".to_owned(),
-                digest: digest(&original).to_vec(),
-            }],
-        )
+        quality::valid_result(&self.workspace, initial, replacements)
     }
 
     /// A result with one fixable warning and snapshot per path, changes in the order given.
     pub(crate) fn paths_result(&self, paths: &[&str], changes: Vec<proto::FileEdits>) -> Vec<u8> {
-        let initial = paths
-            .iter()
-            .map(|path| {
-                Self::diagnostic_with(
-                    proto::Severity::Warning as i32,
-                    "lint-tool",
-                    path,
-                    "unused",
-                    true,
-                )
-            })
-            .collect();
-        let snapshots = paths
-            .iter()
-            .map(|path| FileSnapshot {
-                path: (*path).to_owned(),
-                digest: digest(&std::fs::read(self.workspace.join(path)).expect("source")).to_vec(),
-            })
-            .collect();
-        self.result_full(initial, vec![], changes, snapshots)
+        quality::paths_result(&self.workspace, paths, changes)
     }
 
     #[expect(clippy::unused_self, reason = "Harness methods keep one call shape")]
@@ -390,33 +327,11 @@ impl Harness {
         replacements: Vec<proto::FileEdits>,
         snapshots: Vec<FileSnapshot>,
     ) -> Vec<u8> {
-        let result = QualityResult {
-            producer: "//test:corpus".to_owned(),
-            capability: Capability::Lint as i32,
-            stages: vec![Stage {
-                tool_id: "lint-tool".to_owned(),
-                class_ids: vec!["python".to_owned()],
-                source_paths: vec!["src/a.py".to_owned()],
-            }],
-            completed_rounds: 1,
-            convergence: Convergence::Stable as i32,
-            original_snapshot: snapshots.clone(),
-            terminal_snapshot: snapshots,
-            initial_diagnostics: initial,
-            terminal_diagnostics: terminal,
-            replacements,
-        };
-        encode_validated(&result).expect("encode")
+        quality::result_full(initial, terminal, replacements, snapshots)
     }
 
     pub(crate) fn diagnostic(message: &str, fixable: bool) -> proto::Diagnostic {
-        Self::diagnostic_with(
-            proto::Severity::Warning as i32,
-            "lint-tool",
-            "src/a.py",
-            message,
-            fixable,
-        )
+        quality::diagnostic(message, fixable)
     }
 
     pub(crate) fn diagnostic_with(
@@ -426,37 +341,16 @@ impl Harness {
         message: &str,
         fixable: bool,
     ) -> proto::Diagnostic {
-        proto::Diagnostic {
-            severity,
-            message: message.to_owned(),
-            tool_id: tool.to_owned(),
-            rule_id: format!("{tool}/rule"),
-            path: path.to_owned(),
-            start_byte: Some(0),
-            end_byte: Some(1),
-            fixable,
-            unfixable_reason: String::new(),
-            build_dep: None,
-            related: Vec::new(),
-        }
+        quality::diagnostic_with(severity, tool, path, message, fixable)
     }
 
     pub(crate) fn replacement(&self, replacement: &[u8]) -> proto::FileEdits {
-        self.replacement_in("src/a.py", replacement)
+        quality::replacement_in(&self.workspace, "src/a.py", replacement)
     }
 
     /// A 0..1 edit of `path` against its current digest.
     pub(crate) fn replacement_in(&self, path: &str, replacement: &[u8]) -> proto::FileEdits {
-        let original = std::fs::read(self.workspace.join(path)).expect("source");
-        self.replacement_at(
-            path,
-            digest(&original).to_vec(),
-            vec![proto::Edit {
-                start_byte: 0,
-                end_byte: 1,
-                replacement: replacement.to_vec(),
-            }],
-        )
+        quality::replacement_in(&self.workspace, path, replacement)
     }
 
     #[expect(clippy::unused_self, reason = "Harness methods keep one call shape")]
@@ -466,11 +360,7 @@ impl Harness {
         original_digest: Vec<u8>,
         edits: Vec<proto::Edit>,
     ) -> proto::FileEdits {
-        proto::FileEdits {
-            path: path.to_owned(),
-            original_digest,
-            edits,
-        }
+        quality::replacement_at(path, original_digest, edits)
     }
 
     /// Pairs every canned result label with its BEP artifact path and bytes.

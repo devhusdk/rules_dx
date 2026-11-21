@@ -40,8 +40,6 @@ mod managed_staging;
 pub mod preset_sync;
 mod profile_report;
 #[cfg(test)]
-mod quality_apply_tests;
-#[cfg(test)]
 mod quality_convergence_tests;
 #[cfg(test)]
 mod quality_delivery_tests;
@@ -57,8 +55,6 @@ mod quality_probe_tests;
 mod quality_reporting_tests;
 #[cfg(test)]
 mod quality_shared_tests;
-#[cfg(test)]
-mod results_tests;
 mod run;
 mod security_verify;
 #[cfg(test)]

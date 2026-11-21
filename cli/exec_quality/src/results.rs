@@ -10,7 +10,7 @@ use crate::quality_reconcile::{Conflict, Producer, reconcile};
 use dx_exec_core::common::{FileChange, apply_to_bytes, collect_own_account};
 
 #[derive(Default)]
-pub struct Staged {
+struct Staged {
     tools: Vec<String>,
     initial: Vec<DiagnosticEvent>,
     terminal: Vec<DiagnosticEvent>,
@@ -93,18 +93,18 @@ impl Staged {
 
 /// One valid result whose pipeline stopped before it converged.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Unstable {
-    pub label: String,
-    pub configuration: Option<String>,
-    pub producer: String,
-    pub convergence: &'static str,
-    pub rounds: u32,
-    pub tools: Vec<String>,
+pub(crate) struct Unstable {
+    pub(crate) label: String,
+    pub(crate) configuration: Option<String>,
+    pub(crate) producer: String,
+    pub(crate) convergence: &'static str,
+    pub(crate) rounds: u32,
+    pub(crate) tools: Vec<String>,
 }
 
 impl Unstable {
     /// Names the producer, its cause and the tools it ran.
-    pub fn describe(&self) -> String {
+    pub(crate) fn describe(&self) -> String {
         let mut text = self.label.clone();
         if self.producer.trim_start_matches("@@") != self.label {
             text.push_str(&format!(" ({})", self.producer));
@@ -123,12 +123,12 @@ impl Unstable {
 }
 
 /// Decodes one result artifact into the collected shape, or None when it is not one.
-pub fn stage_artifact(bytes: &[u8], workspace: &Path) -> Option<Staged> {
+fn stage_artifact(bytes: &[u8], workspace: &Path) -> Option<Staged> {
     stage_result(&decode_validated(bytes).ok()?, workspace)
 }
 
 /// Maps one decoded result, or None when a field is outside what the report can carry.
-pub fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Staged> {
+fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Staged> {
     let mut staged = Staged::default();
     for stage in &result.stages {
         staged.tools.push(stage.tool_id.clone());
@@ -180,22 +180,22 @@ pub fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<S
     Some(staged)
 }
 
-pub struct Collected {
-    pub tools: Vec<String>,
-    pub initial: Vec<DiagnosticEvent>,
-    pub terminal: Vec<DiagnosticEvent>,
-    pub changes: Vec<FileChange>,
-    pub terminal_digests: BTreeMap<String, [u8; 32]>,
-    pub original_digests: BTreeMap<String, [u8; 32]>,
-    pub conflicts: Vec<Conflict>,
-    pub unstable: Vec<Unstable>,
-    pub complete: bool,
-    pub problems: Vec<String>,
+pub(crate) struct Collected {
+    pub(crate) tools: Vec<String>,
+    pub(crate) initial: Vec<DiagnosticEvent>,
+    pub(crate) terminal: Vec<DiagnosticEvent>,
+    pub(crate) changes: Vec<FileChange>,
+    pub(crate) terminal_digests: BTreeMap<String, [u8; 32]>,
+    pub(crate) original_digests: BTreeMap<String, [u8; 32]>,
+    pub(crate) conflicts: Vec<Conflict>,
+    pub(crate) unstable: Vec<Unstable>,
+    pub(crate) complete: bool,
+    pub(crate) problems: Vec<String>,
 }
 
 impl Collected {
     /// Drops findings, changes and conflicts for paths outside `filter`; pathless findings stay.
-    pub fn keep_paths(&mut self, filter: &[String]) {
+    pub(crate) fn keep_paths(&mut self, filter: &[String]) {
         let wanted = |path: &str| path_in_filter(path, filter);
         let wanted_event = |event: &DiagnosticEvent| event.path.as_deref().is_none_or(wanted);
         self.initial.retain(wanted_event);
@@ -207,7 +207,7 @@ impl Collected {
     }
 
     /// Adds the findings of one host-run result artifact, attributed to `label`.
-    pub fn absorb_host_result(&mut self, bytes: &[u8], label: &str, workspace: &Path) {
+    pub(crate) fn absorb_host_result(&mut self, bytes: &[u8], label: &str, workspace: &Path) {
         let Some(mut staged) = stage_artifact(bytes, workspace) else {
             self.problems
                 .push(format!("{label} reported an invalid quality result"));
@@ -237,7 +237,7 @@ impl Collected {
     }
 
     /// Names the first missing or invalid result, with how many there were.
-    pub fn problem_detail(&self) -> Option<String> {
+    pub(crate) fn problem_detail(&self) -> Option<String> {
         let first = self.problems.first()?;
         Some(match self.problems.len() {
             1 => first.clone(),
@@ -246,7 +246,7 @@ impl Collected {
     }
 }
 
-pub fn map_severity(value: i32) -> Option<Severity> {
+fn map_severity(value: i32) -> Option<Severity> {
     match proto::Severity::try_from(value).ok()? {
         proto::Severity::Unspecified => None,
         proto::Severity::Info => Some(Severity::Info),
@@ -318,7 +318,7 @@ fn kept_by_tag(diagnostic: &proto::Diagnostic, workspace: &Path) -> bool {
     })
 }
 
-pub fn map_diagnostic(
+fn map_diagnostic(
     diagnostic: &proto::Diagnostic,
     snapshot: Snapshot,
     workspace: &Path,
@@ -498,10 +498,10 @@ fn whole_edit(before: &[u8], after: &[u8]) -> Option<(u64, u64, String)> {
 }
 
 /// Reads canonical to apparent repo names, or None when they cannot be read.
-pub type RepoMapping<'a> = &'a dyn Fn() -> Option<BTreeMap<String, String>>;
+pub(crate) type RepoMapping<'a> = &'a dyn Fn() -> Option<BTreeMap<String, String>>;
 
 /// Inverts the JSON object of apparent to canonical names `bazel mod dump_repo_mapping` prints.
-pub fn invert_repo_mapping(json: &[u8]) -> Option<BTreeMap<String, String>> {
+pub(crate) fn invert_repo_mapping(json: &[u8]) -> Option<BTreeMap<String, String>> {
     let map: BTreeMap<String, String> = serde_json::from_slice(json).ok()?;
     let mut inverted = BTreeMap::new();
     for (apparent, canonical) in map {
@@ -532,7 +532,7 @@ fn name_external_repos(
 }
 
 /// Collects the results in `bep`, leaving out those of the `foreign` aspects.
-pub fn collect_results(
+pub(crate) fn collect_results(
     bep: &Path,
     foreign: &BTreeSet<String>,
     workspace: &Path,
@@ -620,7 +620,7 @@ fn mark_removals_fixable(
     }
 }
 
-pub fn collect_results_in(
+pub(crate) fn collect_results_in(
     bep: &Path,
     foreign: &BTreeSet<String>,
     group: &str,
@@ -716,3 +716,7 @@ pub fn collect_results_in(
         problems,
     })
 }
+
+#[cfg(test)]
+#[path = "results_tests.rs"]
+mod tests;

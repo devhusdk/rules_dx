@@ -49,6 +49,21 @@ rust_library(
     ],
 )
 
+rust_library(
+    name = "dx_exec_quality_testing",
+    testonly = True,
+    srcs = ["src/testing.rs"],
+    crate_name = "dx_exec_quality_testing",
+    crate_root = "src/testing.rs",
+    # keep
+    deps = [
+        "//cli/apply:dx_apply",
+        "//cli/digest:dx_digest",
+        "//cli/test_scratch:dx_test_scratch",
+        "//core/quality/result:quality_result",
+    ],
+)
+
 rust_test(
     name = "dx_exec_quality_test",
     size = "small",
@@ -61,6 +76,7 @@ rust_test(
         "src/link_check.rs",
         "src/link_check_tests.rs",
         "src/quality_apply.rs",
+        "src/quality_apply_tests.rs",
         "src/quality_emit.rs",
         "src/quality_patch.rs",
         "src/quality_reconcile.rs",
@@ -68,6 +84,7 @@ rust_test(
         "src/quality_security.rs",
         "src/quality_skip_notes_tests.rs",
         "src/results.rs",
+        "src/results_tests.rs",
     ],
     aliases = {},  # keep
     coverage_lib = ":dx_exec_quality",
@@ -75,6 +92,7 @@ rust_test(
     crate_root = "src/lib.rs",
     # keep
     deps = [
+        ":dx_exec_quality_testing",
         "//cli/adopt:dx_adopt",
         "//cli/apply:dx_apply",
         "//cli/atomic_fs:dx_atomic_fs",
@@ -104,7 +122,10 @@ rust_test(
 # Read by the dx_cli source guards, which scan every production CLI file.
 filegroup(
     name = "rust_srcs",
-    srcs = glob(["src/**/*.rs"]),
+    srcs = glob(
+        ["src/**/*.rs"],
+        exclude = ["src/testing.rs"],
+    ),
 )
 
 real_source_target(

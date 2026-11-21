@@ -48,7 +48,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 
 ## Scopes
 
-No scope means `//...`, every target in the workspace. A Bazel target is one buildable unit, such as a library or a test. Pass Bazel labels such as `//cli:dx` or patterns such as `//cli/...`, or workspace-relative files and dirs. `--here` cannot be combined with explicit scopes or with `--affected`. `--affected` with scopes keeps only the affected targets inside them. When every scope is a file or directory, findings and fixes are limited to those paths; the rest of the owning target is checked but neither reported nor rewritten. A label or pattern among the scopes reports its whole target. With `--affected`, `--apply` writes only the changed files and the `BUILD` file of each one's package. A fix to any other file is refused as `outside_scope`. Targets that do not fit the target platform are skipped, even when named. See [Scope defaults](scope-defaults.md).
+No scope means `//...`, every target in the workspace. A Bazel target is one buildable unit, such as a library or a test. Pass Bazel labels such as `//cli:dx` or patterns such as `//cli/...`, or workspace-relative files and dirs. `--here` cannot be combined with explicit scopes or with `--affected`. `--affected` with scopes keeps only the affected targets inside them. When every scope is a file or directory, findings and fixes are limited to those paths; the rest of the owning target is checked but neither reported nor rewritten. A `clippy.toml` scope stands for its package. A label or pattern among the scopes reports its whole target. With `--affected`, `--apply` writes only the changed files and the `BUILD` file of each one's package. A fix to any other file is refused as `outside_scope`. Targets that do not fit the target platform are skipped, even when named. See [Scope defaults](scope-defaults.md).
 
 ## Bazel options
 
@@ -68,7 +68,7 @@ Text prints one line per finding:
 path:line:column: severity: message [tool/rule]
 ```
 
-Lines and columns count Unicode characters. A finding without a position prints `path:`. A finding without a file prints `(no file):`. Identical findings print once with `(xN)`. Text ends with a summary on stderr, such as `2 error(s), 5 warning(s) in 4 file(s), 3 fixable with --apply`, or `no findings in N target(s)` when clean, followed by a `dx: <total> actions, ...` line. With color on, the severity word is red for errors and yellow for warnings.
+Lines and columns count Unicode characters. A finding without a position prints `path:`. A finding without a file prints `(no file):`. Identical findings print once with `(xN)`. Text ends with a summary on stderr, such as `2 error(s), 5 warning(s) in 4 file(s), 3 fixable with --apply`, or `no findings in N target(s)` when clean, where N counts the targets a tool reported on, followed by a `dx: <total> actions, ...` line. With color on, the severity word is red for errors and yellow for warnings.
 
 When files need changes, text prints `N file(s) need changes. Apply them with: dx <command> --apply ...`. Failures print a `next:` line with the fix.
 

@@ -14,6 +14,7 @@ use std::path::Path;
 fn keep_paths_drops_other_files() {
     let mut collected = Collected {
         tools: Vec::new(),
+        targets: 0,
         initial: Vec::new(),
         terminal: Vec::new(),
         changes: Vec::new(),
@@ -260,6 +261,7 @@ fn two_producers_both_reported_are_complete() {
     let collected = collect(&harness, &lines);
     assert!(collected.complete, "{:?}", collected.problems);
     assert!(collected.problem_detail().is_none());
+    assert_eq!(collected.targets, 2);
 }
 
 #[test]
@@ -314,6 +316,7 @@ fn no_applicable_work_is_complete_only_once_every_target_reported() {
     );
     assert!(clean.complete, "{:?}", clean.problems);
     assert!(clean.tools.is_empty(), "{:?}", clean.tools);
+    assert_eq!(clean.targets, 0);
     let missing = collect(&harness, &[announce, LAST_EVENT.to_owned()]);
     assert!(!missing.complete);
 }

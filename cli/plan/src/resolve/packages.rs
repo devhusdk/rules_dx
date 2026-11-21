@@ -22,7 +22,7 @@ impl PackageCache {
         found
     }
 
-    fn enclosing(&mut self, workspace: &Path, rel: &str) -> Option<(String, String)> {
+    pub(crate) fn enclosing(&mut self, workspace: &Path, rel: &str) -> Option<(String, String)> {
         let mut dir = rel.rsplit_once('/').map_or("", |(dir, _)| dir);
         loop {
             if self.is_package(workspace, dir) {

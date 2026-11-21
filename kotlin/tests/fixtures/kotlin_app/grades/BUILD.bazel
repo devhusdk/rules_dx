@@ -1,6 +1,9 @@
 # gazelle:ignore
-load("@rules_dx//kotlin:defs.bzl", "kotlin_library", "kotlin_test")
+
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//java/tests:jvm_compile_tests.bzl", "jvm_classpath_test")
+load("@rules_dx//kotlin:defs.bzl", "kotlin_library", "kotlin_test")
+load("@rules_dx//tools/testing/conformance:defs.bzl", "dx_coverage_test")
 
 package(
     default_testonly = True,
@@ -45,6 +48,45 @@ kotlin_library(
         "@maven//:com_google_code_gson_gson",
         "@maven//:com_google_guava_guava",
     ],
+)
+
+kotlin_library(
+    name = "without_gson",
+    testonly = True,
+    srcs = [
+        "GradeException.kt",
+        "GradeReader.kt",
+        "Stats.kt",
+        "Student.kt",
+        ":build_info",
+    ],
+    tags = ["manual"],
+    deps = ["@maven//:com_google_guava_guava"],
+)
+
+jvm_classpath_test(
+    name = "without_gson_classpath_test",
+    size = "small",
+    jar = "gson",
+    library = "without_gson",
+    mnemonic = "KotlinCompile",
+    present = False,
+)
+
+jvm_classpath_test(
+    name = "grades_gson_classpath_test",
+    size = "small",
+    jar = "gson",
+    library = "grades",
+    mnemonic = "KotlinCompile",
+    present = True,
+)
+
+dx_coverage_test(
+    name = "grade_reader_coverage_test",
+    size = "small",
+    covered_source = "GradeReader.kt",
+    subject = ":grade_reader_test",
 )
 
 kotlin_test(

@@ -1,6 +1,6 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/modules:versions.bzl", "JAVA_MAJOR")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//java:defs.bzl", "java_test")
 load("//java/private:jazzer.bzl", "jazzer_target_class")
@@ -10,6 +10,7 @@ load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 
 exports_files([
     "jmh_tests.bzl",
+    "jvm_compile_tests.bzl",
 ])
 
 ide_acquisition_test(
@@ -105,6 +106,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "jmh_tests.bzl",
+        "jvm_compile_tests.bzl",
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],

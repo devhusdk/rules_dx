@@ -1,4 +1,4 @@
-use super::super::test_support::*;
+use super::test_support::*;
 
 const CARGO_PATH: &str = "rust/tests/fixtures/hello/Cargo.toml";
 

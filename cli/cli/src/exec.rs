@@ -18,7 +18,6 @@ mod clean;
 mod current_dir_guard_tests;
 #[cfg(test)]
 mod delivery_sink;
-mod dep_edit;
 mod deploy;
 mod docs;
 mod docs_index;
@@ -50,7 +49,6 @@ mod quality_security;
 mod results;
 mod run;
 mod security_verify;
-mod staged;
 #[cfg(test)]
 mod startup_defaults_launcher_tests;
 mod sync_fingerprint;
@@ -61,15 +59,16 @@ mod test_reports_tests;
 #[cfg(test)]
 pub(crate) mod test_support;
 mod umbrella;
-mod update;
-mod update_add_missing;
-mod update_advisory;
-pub(crate) mod update_outdated;
-mod update_pr;
-mod update_prune;
-mod update_unused;
-mod update_version;
-mod update_version_add;
+#[cfg(test)]
+mod update_check_tests;
+#[cfg(test)]
+mod update_consumer_tests;
+#[cfg(test)]
+mod update_live;
+#[cfg(test)]
+mod update_version_add_tests;
+#[cfg(test)]
+mod update_version_tests;
 mod workflow;
 mod worktree;
 
@@ -81,8 +80,8 @@ pub use dx_exec_core::common::{ActionTally, Env, print_actions, print_cache_retr
 pub use dx_exec_core::failure::{
     cancel, install_panic_events, install_panic_hint, set_usage_command, slot_stop,
 };
+pub use dx_exec_update::COMMIT_JSON_ENV as EDIT_COMMIT_JSON_ENV;
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
-pub use update_version::COMMIT_JSON_ENV as EDIT_COMMIT_JSON_ENV;
 pub use worktree::{hook_kind, run_worktree_hook};
 
 /// Runs one invocation; a `dx run` app is stopped once `withdraw` holds.
@@ -379,17 +378,7 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
             security_verify::execute_verify(invocation, env)
         }
         Command::Security | Command::License => dx_exec_audit::execute_audit(invocation, env),
-        Command::Update if update_advisory::selected(invocation) => {
-            update_advisory::execute_update_advisory(invocation, env)
-        }
-        Command::Update if invocation.pr => update_pr::execute_update_pr(invocation, env),
-        Command::Update if invocation.outdated => {
-            update_outdated::execute_update_outdated(invocation, env)
-        }
-        Command::Update if invocation.edits_version() => {
-            update_version::execute_update_version(invocation, env)
-        }
-        Command::Update => update::execute_update(invocation, env),
+        Command::Update => dx_exec_update::execute_update(invocation, env, &dispatch_inner),
         Command::Docs => docs::execute_docs(invocation, env),
         Command::Lint | Command::Typecheck | Command::Format => {
             quality::execute_quality(invocation, env)

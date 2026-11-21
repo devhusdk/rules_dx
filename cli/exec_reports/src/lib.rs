@@ -18,3 +18,4 @@ pub mod pinned_tool;
 pub mod rustc_stderr;
 #[deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 pub mod skipped_targets;
+pub mod uv_tools;

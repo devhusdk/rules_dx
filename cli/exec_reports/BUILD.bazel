@@ -14,6 +14,7 @@ rust_library(
         "src/pinned_tool.rs",
         "src/rustc_stderr.rs",
         "src/skipped_targets.rs",
+        "src/uv_tools.rs",
     ],
     aliases = {},  # keep
     compile_data = ["src/unsupported.json"],
@@ -28,6 +29,7 @@ rust_library(
         "//cli/plan:dx_plan",
         "//cli/process:dx_process",
         "//cli/tool_resolve:dx_tool_resolve",
+        "//cli/update:dx_update",
         "@crates//:serde",
         "@crates//:serde_json",
     ],
@@ -49,6 +51,7 @@ rust_test(
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
         "//cli/tool_resolve:dx_tool_resolve",
+        "//cli/update:dx_update",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:tempfile",

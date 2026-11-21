@@ -368,6 +368,20 @@ pub struct PhaseRun {
     pub effects: PhaseEffects,
 }
 
+/// Runs one inner invocation; a verb that steps through other verbs is handed this.
+pub type Dispatch<'a> = &'a dyn Fn(&Invocation, Env<'_>) -> i32;
+
+/// The host variables a hermetic tool still needs on Windows; none elsewhere.
+pub fn windows_env() -> Vec<(&'static str, String)> {
+    if !cfg!(windows) {
+        return Vec::new();
+    }
+    ["SYSTEMROOT", "TEMP", "TMP", "USERPROFILE"]
+        .into_iter()
+        .filter_map(|key| std::env::var(key).ok().map(|value| (key, value)))
+        .collect()
+}
+
 pub struct Env<'a> {
     pub workspace: &'a Path,
     pub runner: &'a dyn Runner,

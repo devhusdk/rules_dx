@@ -3,7 +3,9 @@ use super::update_outdated::{
 };
 use dx_adopt::dependency_sets::{self, Selection};
 use dx_error::DxError;
-use dx_exec_core::common::{Env, check_stdout_write, emit_built, pre_exec, report_dx_error};
+use dx_exec_core::common::{
+    Dispatch, Env, check_stdout_write, emit_built, pre_exec, report_dx_error,
+};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
     notice_event,
@@ -54,12 +56,22 @@ struct Outcome {
     result: Result<String, DxError>,
 }
 
-pub(crate) fn execute_update_pr(invocation: &Invocation, env: Env<'_>) -> i32 {
+pub(crate) fn execute_update_pr(
+    invocation: &Invocation,
+    env: Env<'_>,
+    dispatch: Dispatch<'_>,
+) -> i32 {
     let fetch = registry_fetch();
-    run(invocation, env, fetch.as_ref(), &Tools::system())
+    run(invocation, env, fetch.as_ref(), &Tools::system(), dispatch)
 }
 
-fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) -> i32 {
+fn run(
+    invocation: &Invocation,
+    env: Env<'_>,
+    fetch: &dyn Fetch,
+    tools: &Tools,
+    dispatch: Dispatch<'_>,
+) -> i32 {
     let Env {
         workspace,
         runner,
@@ -117,7 +129,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
             dx_plan::args::parse(words).map_err(|error| DxError::failure(format!("{error:?}")))?;
         let mut step_out = Vec::new();
         let mut step_err = Vec::new();
-        let code = super::dispatch_inner(
+        let code = dispatch(
             &inner,
             Env {
                 workspace,
@@ -781,7 +793,7 @@ mod tests {
         hook: Option<&str>,
         fail: Option<(&str, &str)>,
     ) -> Fixture {
-        let dir = super::super::test_support::temp_dir("update-pr");
+        let dir = crate::test_env::temp_dir("update-pr");
         let origin = dir.path().join("origin.git");
         let work = dir.path().join("work");
         std::fs::create_dir_all(&work).expect("mkdir");
@@ -1380,7 +1392,7 @@ mod tests {
     /// Runs `dx update --pr` over one crates set with open pull request 5 and `index` as the serde registry entry.
     fn run_crates_with_open_pr(index: Option<&str>, json: bool) -> (i32, String, String, String) {
         let fx = fixture("[{\"number\":5,\"headRefName\":\"dx-update/crates\"}]");
-        let harness = super::super::test_support::Harness::new("update-pr-run");
+        let harness = crate::test_env::TestEnv::new("update-pr-run");
         let root = &harness.workspace;
         std::fs::write(
             root.join("MODULE.bazel"),
@@ -1430,8 +1442,9 @@ mod tests {
         let code = run(
             &inv,
             harness.env(&runner, &mut out, &mut err),
-            &super::super::update_outdated::DirFetch(registry),
+            &crate::update_outdated::DirFetch(registry),
             &fx.tools,
+            &crate::test_env::dispatch,
         );
         let out = String::from_utf8_lossy(&out).into_owned();
         let err = String::from_utf8_lossy(&err).into_owned();
@@ -1483,7 +1496,7 @@ mod tests {
         mirror: &[(&str, &str)],
     ) -> (i32, String, String, String) {
         let fx = fixture("[]");
-        let harness = super::super::test_support::Harness::new("update-pr-all");
+        let harness = crate::test_env::TestEnv::new("update-pr-all");
         let root = &harness.workspace;
         for (name, text) in files {
             let path = root.join(name);
@@ -1520,8 +1533,9 @@ mod tests {
         let code = run(
             &inv,
             harness.env(&runner, &mut out, &mut err),
-            &super::super::update_outdated::DirFetch(registry),
+            &crate::update_outdated::DirFetch(registry),
             &fx.tools,
+            &crate::test_env::dispatch,
         );
         let out = String::from_utf8_lossy(&out).into_owned();
         let err = String::from_utf8_lossy(&err).into_owned();

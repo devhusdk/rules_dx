@@ -170,7 +170,8 @@ pub(crate) fn configured_set(
         (_, Some(kind)) => {
             let cabal_manifests;
             let manifests = if kind == dx_update::edit::ConfiguredKind::Cabal {
-                cabal_manifests = super::update_outdated::cabal_files(workspace, &set.manifests);
+                cabal_manifests =
+                    dx_update::discover::cabal::cabal_files(workspace, &set.manifests);
                 &cabal_manifests
             } else {
                 &set.manifests
@@ -891,7 +892,7 @@ fn refresh_plan(
             dx_adopt::dependency_sets::Selection::Full,
             match tools {
                 Some((runner, query_runner)) if !invocation.offline && !invocation.frozen => {
-                    super::update::configured_uv_closure(
+                    dx_exec_reports::uv_tools::configured_uv_closure(
                         runner,
                         query_runner,
                         workspace,

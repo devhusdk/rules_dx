@@ -15,3 +15,20 @@ dx_wrapper_contract_tests(
         "test": "//mdx/tests/conformance:wrapper_test",
     },
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//mdx/tests/fixtures/app:app_build_test",
+        "//mdx/tests/fixtures/app:site_client_test",
+        "//mdx/tests/fixtures/app:site_ssr_test",
+        "//mdx/tests/fixtures/app:site_static_test",
+        "//mdx/tests/fixtures/typecheck:bad_exit_test",
+        "//mdx/tests/fixtures/typecheck:bad_stdout_test",
+        "//mdx/tests/fixtures/typecheck:broken_exit_test",
+        "//mdx/tests/fixtures/typecheck:broken_stdout_test",
+        "//mdx/tests/fixtures/typecheck:clean_exit_test",
+        "//mdx/tests/fixtures/typecheck:clean_stdout_test",
+    ],
+)

@@ -4,12 +4,23 @@ load("//vue:defs.bzl", "vue_library")
 
 package(
     default_testonly = True,
-    default_visibility = ["//visibility:private"],
+    default_visibility = ["//vue/tests:__pkg__"],
 )
 
 tsc_framework_cases(
     library_rule = vue_library,
-    ext = "vue",
+    lib = "lib.js",
+    srcs = {
+        "bad": "bad.vue",
+        "broken": "broken.vue",
+        "clean": "clean.vue",
+    },
+    exit_expected = {
+        "bad": "bad.exit.expected",
+        "broken": "broken.exit.expected",
+        "clean": "clean.exit.expected",
+    },
+    stdout_expected = {"clean": "clean.stdout.expected"},
     deps = ["//:node_modules/vue"],
     diagnostics = {
         "bad": """bad.vue(2,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.

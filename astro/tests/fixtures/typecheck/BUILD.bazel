@@ -4,12 +4,23 @@ load("//astro:defs.bzl", "astro_library")
 
 package(
     default_testonly = True,
-    default_visibility = ["//visibility:private"],
+    default_visibility = ["//astro/tests:__pkg__"],
 )
 
 tsc_framework_cases(
     library_rule = astro_library,
-    ext = "astro",
+    lib = "lib.js",
+    srcs = {
+        "bad": "bad.astro",
+        "broken": "broken.astro",
+        "clean": "clean.astro",
+    },
+    exit_expected = {
+        "bad": "bad.exit.expected",
+        "broken": "broken.exit.expected",
+        "clean": "clean.exit.expected",
+    },
+    stdout_expected = {"clean": "clean.stdout.expected"},
     deps = ["//:node_modules/astro"],
     diagnostics = {
         "bad": """bad.astro(2,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.

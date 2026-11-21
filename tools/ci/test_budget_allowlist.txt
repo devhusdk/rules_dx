@@ -21,7 +21,7 @@ apple/tests/fixtures/swift_app/BUILD.bazel size-large 1
 apple/tests/fixtures/xcframework_share/BUILD.bazel no-size 1
 asciidoc/tests/BUILD.bazel no-size 1
 astro/private/ide/BUILD.bazel no-size 1
-astro/tests/app_config/BUILD.bazel no-size 1
+astro/tests/fixtures/app_config/BUILD.bazel no-size 1
 avro/tests/BUILD.bazel no-size 6
 bicep/tests/BUILD.bazel no-size 3
 bicep/tests/defs_tests.bzl no-size 1
@@ -498,7 +498,7 @@ scala/tests/fixtures/fuzz/BUILD.bazel no-size 2
 scala/tests/fixtures/hello/BUILD.bazel no-size 4
 scala/tests/fixtures/no_srcs/BUILD.bazel no-size 1
 sql/tests/BUILD.bazel no-size 1
-svelte/tests/app_errors/BUILD.bazel no-size 3
+svelte/tests/fixtures/app_errors/BUILD.bazel no-size 3
 swift/tests/BUILD.bazel no-size 1
 swift/tests/cross/BUILD.bazel no-size 1
 swift/tests/fixtures/bench/BUILD.bazel no-size 3

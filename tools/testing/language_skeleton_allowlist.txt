@@ -7,9 +7,6 @@ extension-label scala/private/toolchain/deps_extension.bzl
 extension-label third_party/dotnet/extension.bzl
 extension-name python/extensions.bzl
 fixture-hello appimage/tests/conformance/BUILD.bazel
-fixture-name astro/tests/app
-fixture-name astro/tests/app_config
-fixture-name astro/tests/typecheck
 fixture-name cc/tests/gcc_cross
 fixture-name cc/tests/gcc_linux_arm64
 fixture-name cc/tests/gcc_linux_x86_64
@@ -44,8 +41,6 @@ fixture-name lua/tests/bench
 fixture-name lua/tests/luarocks
 fixture-name lua/tests/negative
 fixture-name lua/tests/runtime
-fixture-name mdx/tests/app
-fixture-name mdx/tests/typecheck
 fixture-name ocaml/tests/native
 fixture-name ocaml/tests/negative
 fixture-name ocaml/tests/runtime
@@ -59,14 +54,9 @@ fixture-name python/tests/analysis
 fixture-name python/tests/sdist_native
 fixture-name qt/tests/tags
 fixture-name rust/tests/tonic
-fixture-name svelte/tests/app
-fixture-name svelte/tests/app_errors
-fixture-name svelte/tests/typecheck
 fixture-name swift/tests/cross
 fixture-name typescript/tests/tags
 fixture-name typescript/tests/typecheck_profiles
-fixture-name vue/tests/app
-fixture-name vue/tests/typecheck
 fixture-referenced android/tests/fixtures/native_lib
 fixture-referenced apple/tests/fixtures/macos_bundle
 fixture-referenced apple/tests/fixtures/shared_core

@@ -25,7 +25,7 @@ javascript_test(
 javascript_test(
     name = "render_ssr_test",
     srcs = ["render_ssr.test.js"],
-    data = ["//svelte/tests/app_errors/throwing:site_ssr"],
+    data = ["//svelte/tests/fixtures/app_errors/throwing:site_ssr"],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
     package_json = "//:package_json",
@@ -36,7 +36,7 @@ javascript_test(
     srcs = ["render_client.test.js"],
     data = [
         "//:node_modules/jest-environment-jsdom",
-        "//svelte/tests/app_errors/throwing:site",
+        "//svelte/tests/fixtures/app_errors/throwing:site",
     ],
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],

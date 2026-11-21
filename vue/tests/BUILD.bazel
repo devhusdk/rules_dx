@@ -21,3 +21,20 @@ real_source_target(
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//vue/tests/fixtures/app:app_build_test",
+        "//vue/tests/fixtures/app:site_client_test",
+        "//vue/tests/fixtures/app:site_ssr_test",
+        "//vue/tests/fixtures/app:site_static_test",
+        "//vue/tests/fixtures/typecheck:bad_exit_test",
+        "//vue/tests/fixtures/typecheck:bad_stdout_test",
+        "//vue/tests/fixtures/typecheck:broken_exit_test",
+        "//vue/tests/fixtures/typecheck:broken_stdout_test",
+        "//vue/tests/fixtures/typecheck:clean_exit_test",
+        "//vue/tests/fixtures/typecheck:clean_stdout_test",
+    ],
+)

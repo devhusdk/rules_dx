@@ -42,6 +42,7 @@ rust_library(
         "src/fatbin.rs",
         "src/http.rs",
         "src/lib.rs",
+        "src/msix.rs",
     ],
     aliases = aliases(
         package_name = "tools/dx_testing",
@@ -54,6 +55,7 @@ rust_library(
         package_name = "tools/dx_testing",
         normal = True,
     ) + [
+        "//cli/archive:dx_archive",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
@@ -93,7 +95,10 @@ rust_test(
         package_name = "tools/dx_testing",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/digest:dx_digest"],
+    ) + [
+        "//cli/archive:dx_archive_testing",
+        "//cli/digest:dx_digest",
+    ],
 )
 
 child_runfiles(

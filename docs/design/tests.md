@@ -88,7 +88,7 @@ Test | Passes when
 `format_test` | The format aspect reports nothing on the clean fixture.
 `format_error_test` | The format aspect reports the unformatted fixture file.
 `lock_test` | The fixture binary imports a package pinned by the checked-in lockfile. The lock check rejects a lockfile without it.
-`cross_test` | The fixture binary, built for another platform of the language, has that platform's object format, OS and CPU.
+`cross_test` | The fixture binary, built for another platform of the language, has that platform's object format, OS and CPU. For an `.msix` package, the manifest's `ProcessorArchitecture` names that CPU and the packed executable has that format and CPU.
 `runfiles_test` | The fixture binary reads a `data` file through the language's runfiles library and prints it. With a `tree_only` reason, the manifest-only run must fail instead of pass.
 
 - A subject test is a fixture declared with the suite's `subject_rule`: a `lang.json` `entry_points` name that declares a test target. Outside the suite's transition it is incompatible, so a pattern skips it.

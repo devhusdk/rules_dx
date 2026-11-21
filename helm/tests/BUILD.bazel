@@ -1,6 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:failure_test.bzl", "failure_test")
-load(":defs_tests.bzl", "chart_provider_test", "owns_helm_class_test")
+load(":defs_tests.bzl", "chart_provider_test", "external_chart_provider_test", "owns_helm_class_test")
 
 owns_helm_class_test(
     name = "owns_helm_class_test",
@@ -81,6 +81,19 @@ failure_test(
     size = "small",
     expected_failure_substring = "src 'helm/lang.json' must be under the chart package 'helm/tests/fixtures/chart'",
     target = "//helm/tests/fixtures/chart:foreign_src",
+)
+
+external_chart_provider_test(
+    name = "external_chart_provider_test",
+    size = "small",
+    target_under_test = "@dx_api_fixtures//helm/tests/consumer:helm",
+)
+
+failure_test(
+    name = "foreign_repo_src_fails",
+    size = "small",
+    expected_failure_substring = "dx_api_fixtures/helm/tests/consumer/Chart.yaml' is in another Bazel repository",
+    target = "//helm/tests/fixtures/chart:foreign_repo_src",
 )
 
 real_source_target(

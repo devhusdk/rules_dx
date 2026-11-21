@@ -1,7 +1,8 @@
 """Helm chart ownership for dx lint."""
 
-load("//helm/private:providers.bzl", "HelmChartInfo")
+load("//core:rlocation.bzl", "repo_relative_path")
 load("//core/quality:sources.bzl", "quality_sources_info")
+load("//helm/private:providers.bzl", "HelmChartInfo")
 
 _HELM_RELEASE_NAME_MAX = 53
 
@@ -27,6 +28,11 @@ def _dns_label_error(what, value, max_len, limit_note = "", dotted = False):
 def _join(package, rel):
     return rel if package == "" else package + "/" + rel
 
+def _repo_path(who, what, f, repo_name):
+    if f.owner == None or f.owner.repo_name != repo_name:
+        fail(who + what + " '" + f.short_path + "' is in another Bazel repository")
+    return repo_relative_path(f.short_path)
+
 def _helm_chart_impl(ctx):
     who = "helm_library " + str(ctx.label) + ": "
     package = ctx.label.package
@@ -41,17 +47,22 @@ def _helm_chart_impl(ctx):
         if f.short_path in seen:
             fail(who + "duplicate file '" + f.short_path + "'")
         seen[f.short_path] = True
+    repo_name = ctx.label.repo_name
+    src_paths = []
     for f in ctx.files.srcs:
+        rel = _repo_path(who, "src", f, repo_name)
         if f.extension == "tgz":
-            fail(who + "archive '" + f.short_path + "' belongs in subcharts, not srcs")
-        if f.short_path.startswith("../") or not f.short_path.startswith(_join(package, "")):
-            fail(who + "src '" + f.short_path + "' must be under the chart package '" + package + "'")
+            fail(who + "archive '" + rel + "' belongs in subcharts, not srcs")
+        if not rel.startswith(_join(package, "")):
+            fail(who + "src '" + rel + "' must be under the chart package '" + package + "'")
+        src_paths.append(rel)
     chart_yaml = _join(package, "Chart.yaml")
-    if chart_yaml not in [f.short_path for f in ctx.files.srcs]:
+    if chart_yaml not in src_paths:
         fail(who + "srcs must contain " + chart_yaml)
     for f in ctx.files.subcharts:
-        if f.extension != "tgz" or not f.short_path.startswith(_join(package, "charts/")):
-            fail(who + "subchart '" + f.short_path + "' must be a .tgz under " + _join(package, "charts/"))
+        rel = _repo_path(who, "subchart", f, repo_name)
+        if f.extension != "tgz" or not rel.startswith(_join(package, "charts/")):
+            fail(who + "subchart '" + rel + "' must be a .tgz under " + _join(package, "charts/"))
     return [
         DefaultInfo(files = depset(ctx.files.srcs + ctx.files.values + ctx.files.subcharts)),
         quality_sources_info({"helm": ctx.files.srcs + ctx.files.values}, str(ctx.label)),

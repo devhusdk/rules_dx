@@ -24,3 +24,13 @@ chart_provider_test = analysistest.make(
     _chart_provider_impl,
     attrs = {"expected_release_name": attr.string(mandatory = True)},
 )
+
+def _external_chart_provider_impl(ctx):
+    env = analysistest.begin(ctx)
+    info = analysistest.target_under_test(env)[HelmChartInfo]
+    asserts.equals(env, "helm/tests/consumer", info.chart_root)
+    asserts.equals(env, "release", info.release_name)
+    asserts.equals(env, "default", info.namespace)
+    return analysistest.end(env)
+
+external_chart_provider_test = analysistest.make(_external_chart_provider_impl)

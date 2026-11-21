@@ -4,10 +4,12 @@ set -eu
 run="$TEST_SRCDIR/$1"
 bin="$2"
 target="$3"
+# The seed holds the planted crash, so the first run finds it.
+seeds="$(dirname "$4")"
 
 out="$TEST_TMPDIR/out"
 status=0
-"$run" jazzer "$bin" "$target" --time 10 --out "$out" || status=$?
+"$run" jazzer "$bin" "$target" --time 10 --corpus "$seeds" --out "$out" || status=$?
 [ "$status" = 77 ] || { echo "runner exit $status, want 77" >&2; exit 1; }
 set -- "$out"/crash-*
 [ -f "$1" ] || { echo "no crash file in $out" >&2; exit 1; }

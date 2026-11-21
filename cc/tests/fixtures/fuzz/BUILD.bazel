@@ -17,9 +17,13 @@ sh_test(
     name = "parse_fuzz_run_test",
     env = {"DX_RUNTIME_TOOL": "fuzz_run"},
     srcs = ["run_test.sh"],
-    args = ["$(rootpath :parse_fuzz)"],
+    args = [
+        "$(rootpath :parse_fuzz)",
+        "$(rootpath corpus/planted)",
+    ],
     data = [
         ":parse_fuzz",
+        "corpus/planted",
         "//cli/runtime:dx_runtime",
     ],
     target_compatible_with = select({

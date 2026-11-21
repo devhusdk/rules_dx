@@ -21,9 +21,11 @@ sh_test(
     args = [
         "$(rlocationpath @rules_dx//cli/runtime:dx_runtime)",
         "$(rootpath :parse_fuzz)",
+        "$(rootpath corpus/planted)",
     ],
     data = [
         ":parse_fuzz",
+        "corpus/planted",
         "@rules_dx//cli/runtime:dx_runtime",
     ],
     target_compatible_with = [

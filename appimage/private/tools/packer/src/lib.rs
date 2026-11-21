@@ -326,8 +326,9 @@ fn pack_in(request: &Request, work: &Path) -> Result<(), String> {
         "image_sha256": hash_file(&request.image)?,
         "files": Value::Object(digests),
     });
-    let text = serde_json::to_string_pretty(&identity).map_err(|e| e.to_string())?;
-    dx_atomic_fs::write_scratch(&request.identity, (text + "\n").as_bytes())
+    let mut text = serde_json::to_string_pretty(&identity).map_err(|e| e.to_string())?;
+    text.push('\n');
+    dx_atomic_fs::write_scratch(&request.identity, text.as_bytes())
         .map_err(|e| format!("write identity: {e}"))
 }
 
@@ -346,19 +347,19 @@ fn check_desktop(desktop: &Path, name: &str) -> Result<(), String> {
     }
 }
 
+/// The `file` command appimagetool finds on its PATH: dx itself, which answers to that name.
 pub const FILE_COMMAND: &str = "file";
 
+/// Runs as `file`; appimagetool calls it only when ARCH is unset or appstream checks run.
 #[must_use]
-pub fn run(invoked: &str, args: &[String]) -> u8 {
-    if Path::new(invoked)
-        .file_name()
-        .is_some_and(|name| name == FILE_COMMAND)
-    {
-        eprintln!(
-            "dx_appimage: the file command is not provided; set ARCH and pass --no-appstream"
-        );
-        return 2;
-    }
+pub fn refuse_file() -> u8 {
+    eprintln!("dx_appimage: the file command is not provided; set ARCH and pass --no-appstream");
+    2
+}
+
+/// Runs `dx appimage_packer ARG...`: packs one AppImage and writes its identity file.
+#[must_use]
+pub fn run(args: &[String]) -> u8 {
     match parse(args).and_then(|request| pack(&request)) {
         Ok(()) => 0,
         Err(message) => {
@@ -750,8 +751,8 @@ mod tests {
 
     #[test]
     fn run_refuses_the_file_command_and_reports_failures() {
-        assert_eq!(run("/work/path/file", &[]), 2);
-        assert_eq!(run("dx_appimage", &[]), 1);
+        assert_eq!(refuse_file(), 2);
+        assert_eq!(run(&[]), 1);
         let fixture = Fixture::new(WRITE_IMAGE);
         let request = fixture.request();
         let mut args: Vec<String> = [
@@ -772,8 +773,8 @@ mod tests {
         .iter()
         .map(|p| p.display().to_string())
         .collect();
-        assert_eq!(run("dx_appimage", &args), 0);
+        assert_eq!(run(&args), 0);
         args.push("bogus:x".into());
-        assert_eq!(run("dx_appimage", &args), 1);
+        assert_eq!(run(&args), 1);
     }
 }

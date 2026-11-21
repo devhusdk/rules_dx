@@ -284,7 +284,6 @@ rules_dx++dx_pins+rules_powershell
 rules_dx++dx_pins+rules_ruby
 rules_dx++dx_prebuilt+dx_prebuilt
 rules_dx++dx_prebuilt+dx_prebuilt_javac_check
-rules_dx++dx_prebuilt+dx_prebuilt_kotlinc_check
 rules_dx++dx_tools+dx_actionlint_linux_x86_64
 rules_dx++dx_tools+dx_biome_linux_x86_64
 rules_dx++dx_tools+dx_buildifier_linux_x86_64
@@ -310,9 +309,7 @@ rules_dx++dx_tools+dx_vale_linux_x86_64
 rules_dx++dx_tools+dx_xmllint_linux_x86_64
 rules_dx++dx_tools+dx_yamlfmt_linux_x86_64
 rules_dx++dx_tools+dx_zizmor_linux_x86_64
-rules_dx++dx_tools+jvm_detekt
 rules_dx++dx_tools+jvm_google_java_format
-rules_dx++dx_tools+jvm_ktfmt
 rules_dx++dx_tools+jvm_pkl_lsp
 rules_dx++dx_tools+jvm_pmd_dist
 rules_dx++dx_tools+jvm_spotbugs_dist
@@ -383,9 +380,6 @@ rules_java++toolchains+remotejdk25_macos_toolchain_config_repo
 rules_java++toolchains+remotejdk25_win_arm64_toolchain_config_repo
 rules_java++toolchains+remotejdk25_win_toolchain_config_repo
 rules_kotlin+
-rules_kotlin++rules_kotlin_extensions+com_github_jetbrains_kotlin
-rules_kotlin++rules_kotlin_extensions+com_github_jetbrains_kotlin_git
-rules_kotlin++rules_kotlin_extensions+kotlin_build_tools_api
 rules_license+
 rules_multitool+
 rules_multitool++multitool+multitool

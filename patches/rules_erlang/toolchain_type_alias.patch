@@ -8,7 +8,7 @@ Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
 -toolchain_type(
 +alias(
      name = "toolchain_type",
-+    actual = "@rules_dx//erlang/private/toolchain:exec_toolchain_type",
++    actual = "@rules_dx//erlang:exec_toolchain_type",
      visibility = ["//visibility:public"],
  )
  

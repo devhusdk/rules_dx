@@ -15,7 +15,10 @@ def dx_web_app_logo(name = "logo"):
     )
 
 def dx_web_app(build, library, library_srcs, srcs, tests, size, library_name = "components", **kwargs):
-    """Declares the web app fixture: logo, component library, site build, server, jest tests and a build test."""
+    """Declares the web app fixture: logo, component library, site build, server, jest tests and a build test.
+
+    tests maps each jest source file, such as "site_static.test.js", to its data; the test is named after the file with .test.js replaced by _test.
+    """
     dx_web_app_logo()
     library(
         name = library_name,
@@ -31,11 +34,13 @@ def dx_web_app(build, library, library_srcs, srcs, tests, size, library_name = "
         name = "serve",
         app = ":site",
     )
-    for test, data in tests.items():
+    for src, data in tests.items():
+        if not src.endswith(".test.js"):
+            fail("dx_web_app tests keys must end in .test.js, got %r" % src)
         javascript_test(
-            name = test,
+            name = src[:-len(".test.js")] + "_test",
             size = size,
-            srcs = [test[:-len("_test")] + ".test.js"],
+            srcs = [src],
             data = data,
             node_modules = "//:node_modules",
             node_options = ["--experimental-vm-modules"],

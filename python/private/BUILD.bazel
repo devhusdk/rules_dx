@@ -19,7 +19,7 @@ python_library(
 exports_files([
     "defs.bzl",
     "interpreters.bzl",
-    "sdist_cargo_vendor.bzl",
+    "py_cc_toolchain.bzl",
 ])
 
 real_source_target(
@@ -28,7 +28,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "interpreters.bzl",
-        "sdist_cargo_vendor.bzl",
+        "py_cc_toolchain.bzl",
     ],
     tags = ["corpus"],
 )

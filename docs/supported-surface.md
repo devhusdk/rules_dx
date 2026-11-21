@@ -5905,19 +5905,6 @@ Tag `python.toolchain`:
 | --- | --- | --- | --- |
 | `python_version` | `string` | yes |  |
 
-#### `sdist_cargo_vendor`
-
-Module extension.
-
-Tag `sdist_cargo_vendor.crates`:
-
-| Attribute | Type | Required | Default |
-| --- | --- | --- | --- |
-| `cargo_lock_path` | `string` | no | `"Cargo.lock"` |
-| `lock` | `label` | yes |  |
-| `name` | `name` | yes |  |
-| `package` | `string` | yes |  |
-
 #### `uv`
 
 Module extension.
@@ -6723,6 +6710,19 @@ Macro or function.
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
 
+### `@rules_dx//scala:extensions.bzl`
+
+#### `scala_config`
+
+Module extension.
+
+Tag `scala_config.settings`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `scala_version` | `string` | no | `"2.13.18"` |
+| `scala_versions` | `string_list` | no | `[]` |
+
 ### `@rules_dx//sql:defs.bzl`
 
 #### `sql_library`
@@ -7380,9 +7380,16 @@ Pass a platform to Bazel with `--platforms=<platform>`.
 
 Use a toolchain type when you register your own toolchain.
 
+- `@rules_dx//d:toolchain_type`
+- `@rules_dx//elixir:toolchain_type`
+- `@rules_dx//erlang:exec_toolchain_type`
 - `@rules_dx//erlang:toolchain_type`
+- `@rules_dx//fortran:toolchain_type`
+- `@rules_dx//haskell:toolchain_type`
 - `@rules_dx//lua:toolchain_type`
 - `@rules_dx//msix:toolchain_type`
+- `@rules_dx//ocaml:profile_toolchain_type`
+- `@rules_dx//ocaml:toolchain_type`
 - `@rules_dx//php:exec_toolchain_type`
 - `@rules_dx//php:toolchain_type`
 

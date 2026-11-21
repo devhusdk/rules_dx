@@ -1,6 +1,7 @@
 [default]
 locale = "en"
-extend-ignore-re = ["~2E\\w+"]
+# Lines ending in a `spellchecker:disable-line` comment are skipped.
+extend-ignore-re = ["~2E\\w+", "(?Rm)^.*(#|//)\\s*spellchecker:disable-line$"]
 
 [default.extend-words]
 intoto = "intoto"

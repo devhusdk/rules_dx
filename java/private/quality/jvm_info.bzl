@@ -1,6 +1,6 @@
 """Providers the JVM quality aspects share with the aspects of other families."""
 
-visibility(["//android/...", "//java/...", "//scala/..."])
+visibility(["//android/...", "//java/...", "//kotlin/...", "//scala/..."])
 
 JvmAndroidSdkInfo = provider(
     doc = "Android platform jars an Android JVM target compiles against.",

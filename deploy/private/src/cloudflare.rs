@@ -252,8 +252,8 @@ pub fn pages_parse_output(
 ) -> Result<PagesDeployment, String> {
     let mut found = None;
     for line in text.lines().filter(|line| !line.trim().is_empty()) {
-        let value: serde_json::Value = serde_json::from_str(line).map_err(|_| {
-            "wrangler wrote malformed output; the deployment is unconfirmed".to_owned()
+        let value: serde_json::Value = serde_json::from_str(line).map_err(|error| {
+            format!("wrangler wrote malformed output; the deployment is unconfirmed: {error}")
         })?;
         if value.get("type").and_then(serde_json::Value::as_str) == Some("pages-deploy-detailed") {
             found = Some(value);

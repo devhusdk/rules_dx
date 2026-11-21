@@ -463,7 +463,7 @@ jobs:
             set -e
             cd "$RUNNER_TEMP"
             ./dx init --apply demo-app --workspace "$RUNNER_TEMP"
-            fixture="$checkout/tools/testing/starters/fixtures/rust-android"
+            fixture="$checkout/android/tests/fixtures/rust_starter"
             (cd "$fixture" && find . -type f -name '*.fixture') | while read -r file; do
               dest="demo-app/${file#./}"
               dest="${dest%.fixture}"

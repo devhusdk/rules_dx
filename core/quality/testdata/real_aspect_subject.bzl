@@ -63,6 +63,9 @@ load(
     "real_jvm_format_aspect",
     "real_jvm_lint_aspect",
     "real_jvm_typecheck_aspect",
+    "real_kotlin_format_aspect",
+    "real_kotlin_lint_aspect",
+    "real_kotlin_typecheck_aspect",
     "real_kubernetes_format_aspect",
     "real_kubernetes_lint_aspect",
     "real_latex_format_aspect",
@@ -281,6 +284,9 @@ _REAL_ASPECTS = [
     real_cue_typecheck_aspect,
     real_jvm_lint_aspect,
     real_jvm_format_aspect,
+    real_kotlin_format_aspect,
+    real_kotlin_lint_aspect,
+    real_kotlin_typecheck_aspect,
     real_erlang_format_aspect,
     real_erlang_lint_aspect,
     real_erlang_typecheck_aspect,
@@ -348,6 +354,8 @@ real_ocaml_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_ocaml_lint_aspec
 
 real_jvm_aspect_subject = _subject_rule([android_sdk_aspect] + _CORE_ASPECTS + [real_jvm_lint_aspect, real_jvm_format_aspect, real_jvm_typecheck_aspect])
 
+real_kotlin_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_kotlin_format_aspect, real_kotlin_lint_aspect, real_kotlin_typecheck_aspect])
+
 real_scala_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_jvm_lint_aspect, real_jvm_format_aspect, real_scala_format_aspect, real_scala_lint_aspect, real_scala_typecheck_aspect])
 
 real_beam_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_erlang_lint_aspect, real_erlang_format_aspect, real_erlang_typecheck_aspect, real_elixir_format_aspect, real_elixir_lint_aspect])
@@ -387,7 +395,7 @@ REAL_SUBJECT_BY_CLASS = {
     "go": real_go_aspect_subject,
     "haskell": real_haskell_aspect_subject,
     "java": real_jvm_aspect_subject,
-    "kotlin": real_jvm_aspect_subject,
+    "kotlin": real_kotlin_aspect_subject,
     "objc": real_cc_aspect_subject,
     "ocaml": real_ocaml_aspect_subject,
     "python": real_python_aspect_subject,

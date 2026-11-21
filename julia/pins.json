@@ -50,11 +50,11 @@
     },
     "julia_src_utf8proc": {
       "version": "e5e799221b45bbb90f5fdc5c69b6b8dfbf017e78",
-      "sha256": "3e01616be4c767492b084d5eaece31b5d007b846522a5e19783c438277e6b0e8",
-      "strip_prefix": "JuliaStrings-utf8proc-e5e7992",
+      "sha256": "8b9d92ebfc6ff54cf34b0f1d5879e284aebd67f0b44999497a9c7a918061f49b",
+      "strip_prefix": "utf8proc-e5e799221b45bbb90f5fdc5c69b6b8dfbf017e78",
       "type": "tar.gz",
       "urls": [
-        "https://api.github.com/repos/JuliaStrings/utf8proc/tarball/e5e799221b45bbb90f5fdc5c69b6b8dfbf017e78"
+        "https://github.com/JuliaStrings/utf8proc/archive/e5e799221b45bbb90f5fdc5c69b6b8dfbf017e78.tar.gz"
       ]
     },
     "julia_src_zstd": {

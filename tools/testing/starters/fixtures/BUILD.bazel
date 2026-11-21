@@ -1,8 +1,0 @@
-# Hello-world sources the hermetic qualifications and the rust-android emulator run use.
-# Every file ends in .fixture so Bazel, Gazelle and the linters leave it alone; the hermetic
-# qualifications map single files to their workspace paths.
-
-exports_files(
-    glob(["**/*.fixture"]),
-    visibility = ["//visibility:public"],
-)

@@ -231,6 +231,7 @@ testing_rust_test(
     },
     deps = [
         ":dx_testing",
+        "//tools/ci:dx_guard",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
     ],

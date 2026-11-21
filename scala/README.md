@@ -4,6 +4,8 @@ This directory helps you build, run and test Scala code with rules_dx.
 
 Load its rules in a `BUILD.bazel` file, the file that declares what Bazel
 builds, from `@rules_dx//scala:defs.bzl`.
+`extensions.bzl` holds the module extension: the part you call from
+`MODULE.bazel` to set up toolchains.
 The tests live in `tests/`. The [Scala page](../docs/languages/scala.md) shows
 setup, every rule and the tools dx runs.
 
@@ -12,6 +14,25 @@ Run the Scala tests from a rules_dx checkout:
 ```sh
 tools/dx test //scala/...
 ```
+
+## Scala versions
+
+rules_dx builds with Scala 2.13.18 by default, and with 3.3.9 for targets that
+ask for it. To choose your own versions, add this to your `MODULE.bazel`:
+
+```starlark
+scala_config = use_extension("@rules_dx//scala:extensions.bzl", "scala_config")
+scala_config.settings(
+    scala_version = "2.13.18",
+    scala_versions = ["3.3.9", "2.12.21"],
+)
+```
+
+`scala_version` is the default. `scala_versions` lists the others. rules_dx
+sets up a compiler and a test toolchain for each one. A target picks a version
+with the `@rules_scala_config//:scala_version` build setting, for example
+`--@rules_scala_config//:scala_version=2.12.21`. Only your root module's
+`settings` count, and it may appear once.
 
 ## Dependencies
 

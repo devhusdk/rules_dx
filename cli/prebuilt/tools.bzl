@@ -58,7 +58,7 @@ def _hackage(tool, platforms):
         role = "exec",
         platforms = platforms,
         fallbacks = {},
-        source = "@rules_dx//haskell/private/tools/" + tool + "/bin:source",
+        source = "@rules_dx//haskell/private/tools/{}/bin:source".format(tool),
         member = "",
         main_class = "",
         library = "",

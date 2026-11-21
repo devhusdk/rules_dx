@@ -1,9 +1,14 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//deploy:defs.bzl", "github_deploy")
 
-genrule(
+write_file(
     name = "notes",
-    outs = ["notes.txt"],
-    cmd = "echo 'rules_dx release-e2e fixture asset.' > $@",
+    out = "notes.txt",
+    content = [
+        "rules_dx release-e2e fixture asset.",
+        "",
+    ],
     tags = ["manual"],
 )
 
@@ -23,4 +28,10 @@ github_deploy(
     artifacts = [":notes"],
     notes = "none",
     tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

@@ -8,6 +8,7 @@ use std::rc::Rc;
 use dx_guard::starlark::{callee_name, is_true, parse, string};
 use dx_testing::allowlist::parse_lines;
 
+use starlark_syntax::syntax::AstModule;
 use starlark_syntax::syntax::ast::{
     ArgumentP, AssignTargetP, AstExpr, AstStmt, ExprP, ParameterP, StmtP,
 };

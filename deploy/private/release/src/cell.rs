@@ -830,7 +830,11 @@ fn note_layout(
         .into_iter()
         .chain(cell.runtime.iter().map(String::as_str))
         .map(str::to_owned)
-        .chain(cell.notices.iter().map(|notice| format!("notices/{notice}")))
+        .chain(
+            cell.notices
+                .iter()
+                .map(|notice| format!("notices/{notice}")),
+        )
         .collect();
     verdicts.note(
         "members",

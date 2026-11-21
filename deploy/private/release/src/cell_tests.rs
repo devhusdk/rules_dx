@@ -574,7 +574,10 @@ fn qualify_checks_runtime_notices() {
     let mut cell = synthetic_cell("zip");
     cell.notices = vec!["demo_runtime".to_owned()];
     let members = members_of(&cell, synthetic_exe());
-    let record = qualify(&stage(cell.clone(), members.clone()).inputs, &FakeRunner::new());
+    let record = qualify(
+        &stage(cell.clone(), members.clone()).inputs,
+        &FakeRunner::new(),
+    );
     assert_eq!(verdict_of(&record, "members").0, Verdict::Ok);
     let dropped: Members = members
         .iter()

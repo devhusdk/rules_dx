@@ -3,16 +3,16 @@
 load("@rules_android//rules:rules.bzl", _android_library = "android_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//cc:defs.bzl", "cc_binary", "cc_library")
-load("//core:cells.bzl", "unsupported_constraint")
-load("//rust:defs.bzl", "rust_static_library")
-load("//rust/private:edition.bzl", "RUST_EDITION")
 load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
 load("//android/private/platforms:defs.bzl", "effective_api_level", "platform_label")
 load("//android/private/platforms:validate.bzl", "android_tuple_errors", "android_tuples")
-load(":kwargs.bzl", "android_split_native_kwargs")
+load("//cc:defs.bzl", "cc_binary", "cc_library")
+load("//core:cells.bzl", "unsupported_constraint")
 load("//core:platform.bzl", "platforms_transition")
 load("//core/quality:sources.bzl", "single_target")
+load("//rust:defs.bzl", "rust_static_library")
+load("//rust/private:edition.bzl", "RUST_EDITION")
+load(":kwargs.bzl", "android_split_native_kwargs")
 
 _ANDROID_PLATFORMS = {name: platform_label(name) for name in android_tuples()}
 
@@ -144,13 +144,13 @@ def android_native_library(
         **shared
     )
 
-_SDK_COMPATIBLE_WITH = select({
+SDK_COMPATIBLE_WITH = select({
     Label("//android/private/sdk:linux_arm64"): [Label("@platforms//:incompatible"), unsupported_constraint("android")],
     "//conditions:default": [],
 })
 
 def _sdk_kwargs(kwargs):
-    return kwargs | {"target_compatible_with": kwargs.get("target_compatible_with", []) + _SDK_COMPATIBLE_WITH}
+    return kwargs | {"target_compatible_with": kwargs.get("target_compatible_with", []) + SDK_COMPATIBLE_WITH}
 
 def android_java_library(**kwargs):
     """Android Java library over rules_android android_library."""

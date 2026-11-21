@@ -4,7 +4,7 @@
 
 use std::fmt::{self, Write as _};
 use std::io::{self, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::num::ParseIntError;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
@@ -14,12 +14,13 @@ use std::time::{Duration, Instant};
 use dx_atomic_fs::path_io::{self, PathIoError};
 use serde_json::Value;
 
-const CONTROL_PORT: u16 = 2828;
 const LAUNCH_BUDGET: Duration = Duration::from_secs(90);
 const LAUNCH_ATTEMPTS: u32 = 3;
 const STEP_TIMEOUT: Duration = Duration::from_secs(45);
 const LOG_TAIL_LINES: usize = 40;
-const SETTLE: Duration = Duration::from_millis(600);
+const POLL: Duration = Duration::from_millis(50);
+/// Firefox writes the control port it bound to this file in the profile.
+const ACTIVE_PORT_FILE: &str = "MarionetteActivePort";
 
 /// Why the browser cannot be started or driven.
 #[derive(Debug)]
@@ -32,11 +33,9 @@ pub enum BrowserError {
     },
     Exited {
         status: ExitStatus,
-        port: u16,
         report: String,
     },
     NoControlPort {
-        port: u16,
         last: io::Error,
         tail: String,
     },
@@ -67,6 +66,10 @@ pub enum BrowserError {
     NeverLoaded {
         url: String,
     },
+    NeverResized {
+        width: u64,
+        height: u64,
+    },
 }
 
 impl fmt::Display for BrowserError {
@@ -77,17 +80,13 @@ impl fmt::Display for BrowserError {
             Self::Spawn { firefox, source } => {
                 write!(f, "browser: cannot run '{}': {source}", firefox.display())
             }
-            Self::Exited {
-                status,
-                port,
-                report,
-            } => write!(
+            Self::Exited { status, report } => write!(
                 f,
-                "browser: Firefox exited with {status} before opening its control port on {port}\n{report}"
+                "browser: Firefox exited with {status} before opening its control port\n{report}"
             ),
-            Self::NoControlPort { port, last, tail } => write!(
+            Self::NoControlPort { last, tail } => write!(
                 f,
-                "browser: Firefox opened no control port on {port} ({last})\n{tail}"
+                "browser: Firefox opened no control port ({last})\n{tail}"
             ),
             Self::ArmSocket(error) => {
                 write!(f, "browser: cannot arm the control socket: {error}")
@@ -111,6 +110,9 @@ impl fmt::Display for BrowserError {
                 char::from(*byte)
             ),
             Self::NeverLoaded { url } => write!(f, "browser: '{url}' never finished loading"),
+            Self::NeverResized { width, height } => {
+                write!(f, "browser: the window never reached {width}x{height}")
+            }
         }
     }
 }
@@ -131,7 +133,8 @@ impl std::error::Error for BrowserError {
             | Self::NoReply { .. }
             | Self::Failed { .. }
             | Self::FrameByte { .. }
-            | Self::NeverLoaded { .. } => None,
+            | Self::NeverLoaded { .. }
+            | Self::NeverResized { .. } => None,
         }
     }
 }
@@ -146,7 +149,7 @@ pub struct Browser {
 }
 
 impl Browser {
-    /// Starts Firefox on a private profile and opens one control session, retrying a lost port race.
+    /// Starts Firefox on a private profile and opens one control session, retrying a failed launch.
     ///
     /// # Errors
     ///
@@ -174,14 +177,13 @@ impl Browser {
         attempt: u32,
         deadline: Instant,
     ) -> Result<Self, Launch> {
-        let port = control_port();
         let home = profile.join(format!("attempt-{attempt}"));
         dx_atomic_fs::discard_dir(&home);
         let profile_error = |error| Launch::Fatal(BrowserError::Profile(error));
         path_io::create_dir_all(&home).map_err(profile_error)?;
         path_io::write_scratch(
             &home.join("user.js"),
-            format!("user_pref(\"marionette.port\", {port});\n").as_bytes(),
+            b"user_pref(\"marionette.port\", 0);\n",
         )
         .map_err(profile_error)?;
         let log = home.join("browser.log");
@@ -208,7 +210,7 @@ impl Browser {
                     source,
                 })
             })?;
-        let control = match wait_for_control(&mut child, &log, port, deadline) {
+        let control = match wait_for_control(&mut child, &home, &log, deadline) {
             Ok(control) => control,
             Err(error) => {
                 drop(child.kill());
@@ -216,9 +218,10 @@ impl Browser {
                 return Err(error);
             }
         };
+        let (stream, port) = control;
         let mut browser = Browser {
             child,
-            stream: control,
+            stream,
             profile: profile.to_path_buf(),
             next_id: 0,
             port,
@@ -239,17 +242,23 @@ impl Browser {
         self.port
     }
 
-    /// Sizes the viewport to one CSS pixel width and height.
+    /// Sizes the window to one width and height and waits until the page sees that size.
     ///
     /// # Errors
     ///
     /// Returns an error when the operation fails.
     pub fn set_viewport(&mut self, width: u64, height: u64) -> Result<(), BrowserError> {
-        self.call(
+        let rect = self.call(
             "WebDriver:SetWindowRect",
             serde_json::json!({ "x": 0, "y": 0, "width": width, "height": height }),
         )?;
-        settle();
+        let width = rect.get("width").and_then(Value::as_u64).unwrap_or(width);
+        let height = rect.get("height").and_then(Value::as_u64).unwrap_or(height);
+        let resized =
+            format!("return window.outerWidth === {width} && window.outerHeight === {height};");
+        if !wait_for(self, &resized, 30)? {
+            return Err(BrowserError::NeverResized { width, height });
+        }
         Ok(())
     }
 
@@ -272,7 +281,7 @@ impl Browser {
         Ok(())
     }
 
-    /// Sends one key press to whatever element holds the focus.
+    /// Sends one key press to whatever element holds the focus; wait for its effect with `wait_for`.
     ///
     /// # Errors
     ///
@@ -289,7 +298,6 @@ impl Browser {
             }],
         });
         self.call("WebDriver:PerformActions", actions)?;
-        settle();
         Ok(())
     }
 
@@ -462,14 +470,6 @@ impl Frame {
     }
 }
 
-/// Returns the loopback port the next browser should bind its control socket to.
-#[must_use]
-pub fn control_port() -> u16 {
-    TcpListener::bind("127.0.0.1:0").map_or(CONTROL_PORT, |listener| {
-        listener.local_addr().map_or(0, |addr| addr.port())
-    })
-}
-
 /// Returns the layout of one acquired Firefox tree, or "" when it holds no browser.
 #[must_use]
 pub fn firefox_executable(root: &Path) -> String {
@@ -480,42 +480,52 @@ pub fn firefox_executable(root: &Path) -> String {
     String::new()
 }
 
-/// Tells a launch that cannot succeed apart from one worth retrying on a fresh port.
+/// Tells a launch that cannot succeed apart from one worth retrying with a fresh profile.
 enum Launch {
     Fatal(BrowserError),
     Retry(BrowserError),
 }
 
+/// Reads the control port Firefox bound from its profile and connects to it.
 fn wait_for_control(
     child: &mut Child,
+    home: &Path,
     log: &Path,
-    port: u16,
     deadline: Instant,
-) -> Result<TcpStream, Launch> {
+) -> Result<(TcpStream, u16), Launch> {
     loop {
         if let Ok(Some(status)) = child.try_wait() {
             return Err(Launch::Fatal(BrowserError::Exited {
                 status,
-                port,
                 report: format!("{}{}", missing_libraries(log), log_tail(log)),
             }));
         }
-        let last = match TcpStream::connect(("127.0.0.1", port)) {
-            Ok(stream) => {
-                drop(stream.set_nodelay(true));
-                return Ok(stream);
-            }
+        let last = match active_port(home) {
+            Ok(port) => match TcpStream::connect(("127.0.0.1", port)) {
+                Ok(stream) => {
+                    drop(stream.set_nodelay(true));
+                    return Ok((stream, port));
+                }
+                Err(error) => error,
+            },
             Err(error) => error,
         };
         if Instant::now() >= deadline {
             return Err(Launch::Retry(BrowserError::NoControlPort {
-                port,
                 last,
                 tail: log_tail(log),
             }));
         }
-        thread::sleep(Duration::from_millis(500));
+        thread::sleep(POLL);
     }
+}
+
+/// The port in the profile's `MarionetteActivePort` file, once Firefox has written it.
+fn active_port(home: &Path) -> io::Result<u16> {
+    let text = std::fs::read_to_string(home.join(ACTIVE_PORT_FILE))?;
+    text.trim()
+        .parse()
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
 }
 
 /// Marks the dynamic loader's report of a shared library it could not open.
@@ -557,10 +567,6 @@ fn log_tail(log: &Path) -> String {
         .join("\n")
 }
 
-fn settle() {
-    thread::sleep(SETTLE);
-}
-
 /// Polls one script until it reads as yes, or reports how long it waited.
 ///
 /// # Errors
@@ -575,7 +581,7 @@ pub fn wait_for(browser: &mut Browser, source: &str, seconds: u64) -> Result<boo
         if Instant::now() >= deadline {
             return Ok(false);
         }
-        thread::sleep(Duration::from_millis(250));
+        thread::sleep(POLL);
     }
 }
 

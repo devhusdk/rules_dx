@@ -4,8 +4,8 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use super::{
-    Browser, BrowserError, Frame, Launch, control_port, firefox_executable, missing_libraries,
-    wait_for_control,
+    ACTIVE_PORT_FILE, Browser, BrowserError, Frame, Launch, active_port, firefox_executable,
+    missing_libraries, wait_for_control,
 };
 
 fn script(dir: &Path, body: &str) -> PathBuf {
@@ -77,10 +77,41 @@ fn a_frame_refuses_a_length_that_is_not_a_number() {
 }
 
 #[test]
-fn the_control_port_is_a_bound_loopback_port() {
-    let port = control_port();
-    assert!(port > 1024, "{port} is a privileged port");
-    assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_ok());
+fn the_active_port_is_read_from_the_profile() {
+    let scratch_tmp = dx_test_scratch::scratch("browser-active-port").unwrap();
+    let home = scratch_tmp.path();
+    let missing = active_port(home).expect_err("no file yet");
+    assert_eq!(missing.kind(), std::io::ErrorKind::NotFound);
+    std::fs::write(home.join(ACTIVE_PORT_FILE), "not a port").expect("a port file");
+    let garbled = active_port(home).expect_err("a garbled file");
+    assert_eq!(garbled.kind(), std::io::ErrorKind::InvalidData);
+    std::fs::write(home.join(ACTIVE_PORT_FILE), "40123\n").expect("a port file");
+    assert_eq!(active_port(home).expect("a port"), 40123);
+}
+
+#[test]
+fn a_browser_connects_to_the_port_its_profile_names() {
+    let scratch_tmp = dx_test_scratch::scratch("browser-connects").unwrap();
+    let home = scratch_tmp.path();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("a listener");
+    let port = listener.local_addr().expect("an address").port();
+    std::fs::write(home.join(ACTIVE_PORT_FILE), port.to_string()).expect("a port file");
+    let mut child = Command::new("sleep")
+        .arg("30")
+        .spawn()
+        .expect("a running child");
+    let result = wait_for_control(
+        &mut child,
+        home,
+        &home.join("browser.log"),
+        Instant::now() + Duration::from_secs(10),
+    );
+    drop(child.kill());
+    drop(child.wait());
+    let Ok((_stream, connected)) = result else {
+        panic!("the browser must connect to the port its profile names");
+    };
+    assert_eq!(connected, port);
 }
 
 #[test]
@@ -176,11 +207,10 @@ fn a_browser_that_never_opens_its_port_reports_the_timeout() {
         .arg("30")
         .spawn()
         .expect("a silent child");
-    let port = control_port();
     let result = wait_for_control(
         &mut child,
+        &scratch,
         &log,
-        port,
         Instant::now() + Duration::from_secs(1),
     );
     drop(child.kill());
@@ -189,7 +219,7 @@ fn a_browser_that_never_opens_its_port_reports_the_timeout() {
         panic!("a silent browser must time out as retryable");
     };
     assert!(
-        matches!(error, BrowserError::NoControlPort { port: p, .. } if p == port),
+        matches!(error, BrowserError::NoControlPort { .. }),
         "{error:?}"
     );
     let error = error.to_string();

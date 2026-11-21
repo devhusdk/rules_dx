@@ -99,18 +99,31 @@ fn profile_files(root: &Path, extensions: &[&str]) -> Vec<PathBuf> {
     found
 }
 
+/// Names the llvm-profdata that reads `raw` profiles from Xcode's clang runtime, or the pinned one otherwise.
+fn merge_program(tools: &Tools, raw: bool) -> (PathBuf, Vec<&'static str>) {
+    // Xcode's runtime writes an older raw profile version than the pinned llvm-profdata reads,
+    // so raw profiles go through Xcode's own llvm-profdata.
+    if raw {
+        (PathBuf::from("xcrun"), vec!["llvm-profdata"])
+    } else {
+        (tools.llvm_profdata.clone(), Vec::new())
+    }
+}
+
 // LCOV_EXCL_START - reason: process orchestration over env and the pinned llvm tools, issue: 9981, policy: docs/cli/commands/build-test-coverage.md
 fn export(
     tools: &Tools,
     root: &Path,
     profiles: &[PathBuf],
+    raw: bool,
     objects: &[PathBuf],
 ) -> Result<String, String> {
-    let profdata = &tools.llvm_profdata;
+    let (profdata, profdata_args) = merge_program(tools, raw);
     let cov = &tools.llvm_cov;
     let scratch = PathBuf::from(env::var("TEST_TMPDIR").unwrap_or_else(|_| ".".into()));
     let merged = scratch.join("_dx_merged.profdata");
-    let out = Command::new(profdata)
+    let out = Command::new(&profdata)
+        .args(profdata_args)
         .args(["merge", "--sparse"])
         .args(profiles)
         .arg("--output")
@@ -179,7 +192,7 @@ fn collect(tools: &Tools) -> Result<(), String> {
                 profiles.len()
             );
         }
-        let report = export(tools, &root, &profiles, &objects);
+        let report = export(tools, &root, &profiles, !profile_exists, &objects);
         crate::remove_scratch(&profile);
         report?
     } else {
@@ -272,6 +285,22 @@ mod tests {
         assert_eq!(
             parse_tools(&args(&["--llvm-cov=/c", "--llvm-profdata=/p", "--x"])),
             Err("unknown argument --x".to_owned())
+        );
+    }
+
+    #[test]
+    fn raw_profiles_merge_with_xcode_llvm_profdata() {
+        let tools = Tools {
+            llvm_cov: PathBuf::from("/c"),
+            llvm_profdata: PathBuf::from("/p"),
+        };
+        assert_eq!(
+            merge_program(&tools, true),
+            (PathBuf::from("xcrun"), vec!["llvm-profdata"])
+        );
+        assert_eq!(
+            merge_program(&tools, false),
+            (PathBuf::from("/p"), Vec::new())
         );
     }
 

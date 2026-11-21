@@ -5,7 +5,7 @@ load("//cc/private/toolchain:select.bzl", "cc_toolchain_test", "toolchain_transi
 load("//rust:defs.bzl", "rust_test")
 load(":defs.bzl", "COMPILER_PRODUCERS")
 
-_STARTERS = "//tools/testing/starters/fixtures:"
+_STARTERS = "consumers/cc_fixture/"
 
 def _renamed_impl(ctx):
     ctx.actions.symlink(output = ctx.outputs.out, target_file = ctx.file.src)

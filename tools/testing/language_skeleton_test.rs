@@ -5,12 +5,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::rc::Rc;
 
+use dx_guard::starlark::{callee_name, is_true, parse, string};
 use dx_testing::allowlist::parse_lines;
 
 use starlark_syntax::syntax::ast::{
-    ArgumentP, AssignTargetP, AstExpr, AstLiteral, AstStmt, ExprP, ParameterP, StmtP,
+    ArgumentP, AssignTargetP, AstExpr, AstStmt, ExprP, ParameterP, StmtP,
 };
-use starlark_syntax::syntax::{AstModule, Dialect};
 
 /// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/testing/language_skeleton_allowlist.txt";
@@ -196,61 +196,6 @@ impl Found {
     }
 }
 
-fn callee_name(callee: &AstExpr) -> String {
-    match &callee.node {
-        ExprP::Identifier(ident) => ident.node.ident.clone(),
-        ExprP::Dot(_, name) => name.node.clone(),
-        ExprP::Tuple(_)
-        | ExprP::Call(..)
-        | ExprP::Index(_)
-        | ExprP::Index2(_)
-        | ExprP::Slice(..)
-        | ExprP::Lambda(_)
-        | ExprP::Literal(_)
-        | ExprP::Not(_)
-        | ExprP::Minus(_)
-        | ExprP::Plus(_)
-        | ExprP::BitNot(_)
-        | ExprP::Op(..)
-        | ExprP::If(_)
-        | ExprP::List(_)
-        | ExprP::Dict(_)
-        | ExprP::ListComprehension(..)
-        | ExprP::DictComprehension(..)
-        | ExprP::FString(_) => String::new(),
-    }
-}
-
-fn string_literal(expr: &AstExpr) -> Option<&str> {
-    match &expr.node {
-        ExprP::Literal(AstLiteral::String(text)) => Some(text.node.as_str()),
-        ExprP::Tuple(_)
-        | ExprP::Dot(..)
-        | ExprP::Call(..)
-        | ExprP::Index(_)
-        | ExprP::Index2(_)
-        | ExprP::Slice(..)
-        | ExprP::Identifier(_)
-        | ExprP::Lambda(_)
-        | ExprP::Literal(_)
-        | ExprP::Not(_)
-        | ExprP::Minus(_)
-        | ExprP::Plus(_)
-        | ExprP::BitNot(_)
-        | ExprP::Op(..)
-        | ExprP::If(_)
-        | ExprP::List(_)
-        | ExprP::Dict(_)
-        | ExprP::ListComprehension(..)
-        | ExprP::DictComprehension(..)
-        | ExprP::FString(_) => None,
-    }
-}
-
-fn is_true(expr: &AstExpr) -> bool {
-    matches!(&expr.node, ExprP::Identifier(ident) if ident.node.ident == "True")
-}
-
 /// The attr kind of `attr.<kind>(...)`.
 fn attr_kind(expr: &AstExpr) -> Option<String> {
     let ExprP::Call(callee, _) = &expr.node else {
@@ -266,7 +211,7 @@ fn attr_kind(expr: &AstExpr) -> Option<String> {
 fn rhs_of(expr: &AstExpr) -> Rhs {
     match &expr.node {
         ExprP::Identifier(ident) => Rhs::Name(ident.node.ident.clone()),
-        ExprP::Call(callee, _) => Rhs::Call(callee_name(callee)),
+        ExprP::Call(callee, _) => Rhs::Call(callee_name(callee).to_owned()),
         ExprP::Tuple(_)
         | ExprP::Dot(..)
         | ExprP::Index(_)
@@ -363,7 +308,7 @@ impl Scanner<'_> {
                 self.stmt(&each.body, false, false);
             }
             StmtP::Expression(expr) => {
-                let docstring = top && first && string_literal(expr).is_some();
+                let docstring = top && first && string(expr).is_some();
                 if !docstring {
                     self.module.reexports_only = false;
                 }
@@ -412,7 +357,7 @@ impl Scanner<'_> {
                 }
             }
             ExprP::Call(callee, args) => {
-                self.module.calls.insert(callee_name(callee));
+                self.module.calls.insert(callee_name(callee).to_owned());
                 for arg in &args.args {
                     if let ArgumentP::Named(key, value) = &arg.node
                         && key.node == "platforms"
@@ -424,7 +369,7 @@ impl Scanner<'_> {
             }
             ExprP::Dict(entries) => {
                 for (key, value) in entries {
-                    if string_literal(key) == Some("platforms")
+                    if string(key) == Some("platforms")
                         && let Some(kind) = attr_kind(value)
                     {
                         self.module.platform_attrs.insert(kind);
@@ -454,7 +399,7 @@ impl Scanner<'_> {
 }
 
 fn scan_module(path: &str, source: &str) -> Module {
-    let ast = parse_starlark(path, source);
+    let ast = parse(path, source).unwrap_or_else(|error| panic!("{error}"));
     let mut module = Module {
         reexports_only: true,
         ..Module::default()
@@ -468,13 +413,7 @@ fn scan_module(path: &str, source: &str) -> Module {
 }
 
 fn scan_root_module(source: &str) -> RootModule {
-    let ast = AstModule::parse("MODULE.bazel", source.to_owned(), &Dialect::Extended)
-        .unwrap_or_else(|error| {
-            panic!(
-                "MODULE.bazel: does not parse: {}",
-                error.without_diagnostic()
-            )
-        });
+    let ast = parse("MODULE.bazel", source).unwrap_or_else(|error| panic!("{error}"));
     let mut root = RootModule::default();
     let StmtP::Statements(stmts) = &ast.statement().node else {
         root_stmt(ast.statement(), &mut root);
@@ -503,7 +442,7 @@ fn root_stmt(stmt: &AstStmt, root: &mut RootModule) {
             for arg in &args.args {
                 match &arg.node {
                     ArgumentP::Positional(value) => {
-                        positional.push(string_literal(value).unwrap_or_default().to_owned());
+                        positional.push(string(value).unwrap_or_default().to_owned());
                     }
                     ArgumentP::Named(key, value) if key.node == "dev_dependency" => {
                         dev = is_true(value);
@@ -537,7 +476,7 @@ fn root_stmt(stmt: &AstStmt, root: &mut RootModule) {
                 match &arg.node {
                     ArgumentP::Positional(value) => {
                         root.registered
-                            .push(string_literal(value).unwrap_or_default().to_owned());
+                            .push(string(value).unwrap_or_default().to_owned());
                     }
                     ArgumentP::Named(key, _) if key.node == "dev_dependency" => {
                         root.registers_dev = true;
@@ -913,14 +852,9 @@ fn top_statements(ast: &AstModule) -> Vec<&AstStmt> {
     }
 }
 
-fn parse_starlark(path: &str, source: &str) -> AstModule {
-    AstModule::parse(path, source.to_owned(), &Dialect::Extended)
-        .unwrap_or_else(|error| panic!("{path}: does not parse: {}", error.without_diagnostic()))
-}
-
 /// Every string literal and identifier in `expr`.
 fn mentions(expr: &AstExpr, strings: &mut BTreeSet<String>, names: &mut BTreeSet<String>) {
-    if let Some(text) = string_literal(expr) {
+    if let Some(text) = string(expr) {
         strings.insert(text.to_owned());
     }
     if let ExprP::Identifier(ident) = &expr.node {
@@ -933,7 +867,7 @@ fn mentions(expr: &AstExpr, strings: &mut BTreeSet<String>, names: &mut BTreeSet
 fn public_markers(tree: &Tree) -> PublicMarkers {
     let mut labels = BTreeSet::from(["//visibility:public".to_owned()]);
     if let Some(source) = tree.text.get(VISIBILITY_BUILD) {
-        let ast = parse_starlark(VISIBILITY_BUILD, source);
+        let ast = parse(VISIBILITY_BUILD, source).unwrap_or_else(|error| panic!("{error}"));
         for stmt in top_statements(&ast) {
             let StmtP::Expression(expr) = &stmt.node else {
                 continue;
@@ -949,7 +883,7 @@ fn public_markers(tree: &Tree) -> PublicMarkers {
             for arg in &args.args {
                 match &arg.node {
                     ArgumentP::Named(key, value) if key.node == "name" => {
-                        name = string_literal(value).map(str::to_owned);
+                        name = string(value).map(str::to_owned);
                     }
                     ArgumentP::Named(key, value) if key.node == "packages" => {
                         mentions(value, &mut packages, &mut BTreeSet::new());
@@ -969,7 +903,7 @@ fn public_markers(tree: &Tree) -> PublicMarkers {
     }
     let mut values = Vec::new();
     if let Some(source) = tree.text.get(VISIBILITY_BZL) {
-        let ast = parse_starlark(VISIBILITY_BZL, source);
+        let ast = parse(VISIBILITY_BZL, source).unwrap_or_else(|error| panic!("{error}"));
         for stmt in top_statements(&ast) {
             let StmtP::Assign(assign) = &stmt.node else {
                 continue;

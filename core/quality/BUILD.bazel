@@ -778,6 +778,8 @@ test_suite(
         ":consumer_policy_case_default_powershell_test",
         ":consumer_policy_case_default_swift_test",
         ":consumer_policy_case_default_zig_test",
+        ":consumer_policy_case_generated_no_dx_toml_rust_binary_test",
+        ":consumer_policy_case_generated_no_dx_toml_rust_test_test",
         ":consumer_policy_case_generated_no_dx_toml_test",
         ":consumer_policy_case_haskell_formatted_test",
         ":consumer_policy_case_helm_linted_test",

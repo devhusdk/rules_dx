@@ -55,8 +55,8 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
     """Declares the Swift toolchain whose tools run on one Linux cpu and build for that or another."""
     exec_repo = "@dx_swift_linux_" + exec_cpu
     target_repo = "@dx_swift_linux_" + target_cpu
-    exec_sysroot = "@dx_swift_sysroot_linux_" + exec_cpu
-    target_sysroot = "@dx_swift_sysroot_linux_" + target_cpu
+    exec_libs = "@dx_swift_libs_linux_" + exec_cpu
+    target_libs = "@dx_swift_libs_linux_" + target_cpu
 
     swift_tools(
         name = name + "_tools",
@@ -65,10 +65,10 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
             label: True
             for label in [
                 exec_repo + "//:swift_tool_inputs",
-                "@dx_swift_libs_linux_" + exec_cpu + "//:host_libs",
-                exec_sysroot + "//:files",
+                exec_libs + "//:host_libs",
+                exec_libs + "//:sysroot",
                 target_repo + "//:swift_tool_inputs",
-                target_sysroot + "//:files",
+                target_libs + "//:sysroot",
             ]
         }.keys(),
         swift_autolink_extract = exec_repo + "//:usr/bin/swift-autolink-extract",
@@ -92,7 +92,7 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
         ],
         os = "linux",
         parsed_version = _VERSION,
-        sdkroot = Label(target_sysroot + "//:files").workspace_root,
+        sdkroot = Label("@dx_swift_sysroot_linux_" + target_cpu + "//:files").workspace_root,
         static_runtime = [target_repo + "//:linux_static_runtime"],
         swift_tools = name + "_tools",
         version_file = exec_repo + "//:.swift-version",

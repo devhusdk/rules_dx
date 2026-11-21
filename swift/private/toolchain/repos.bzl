@@ -126,7 +126,39 @@ filegroup(
 )
 """
 
+_SYSROOT_ALIAS = """
+alias(
+    name = "sysroot",
+    actual = {actual},
+)
+"""
+
+_SYSROOT_STUB = """
+filegroup(
+    name = "sysroot",
+    srcs = [],
+)
+"""
+
+def swift_libs_build(sysroot):
+    """Returns the BUILD file of the libraries repository, with a stub sysroot when `sysroot` is None."""
+    host_libs = ["host_libs/" + lib for lib in _HOST_LIBS]
+    build = _SWIFT_LIBS_BUILD.format(
+        files = repr(host_libs + ["link_libs/" + name for name in sorted(_LINK_LIBS)]),
+        host_libs = repr(host_libs),
+        runtime_libs = repr(["host_libs/" + lib for lib in _HOST_LIBS if lib not in _TOOL_ONLY_LIBS]),
+    )
+    if sysroot == None:
+        return build + _SYSROOT_STUB
+    return build + _SYSROOT_ALIAS.format(actual = repr(str(sysroot)))
+
+def _linux_host(repository_ctx):
+    return host_cell(repository_ctx).startswith("linux_")
+
 def _swift_libs_linux_impl(repository_ctx):
+    if not _linux_host(repository_ctx):
+        repository_ctx.file("BUILD.bazel", swift_libs_build(None))
+        return repository_ctx.repo_metadata(reproducible = True)
     triple = repository_ctx.attr.triple
     sysroot = repository_ctx.path(repository_ctx.attr.sysroot.same_package_label("REPO.bazel")).dirname
     patchelf = repository_ctx.attr._patchelf
@@ -142,12 +174,7 @@ def _swift_libs_linux_impl(repository_ctx):
             fail("patchelf {} failed ({}):\n{}\n{}".format(lib, result.return_code, result.stdout, result.stderr))
     for name, path in _LINK_LIBS.items():
         repository_ctx.symlink(sysroot.get_child(path.format(triple = triple)).realpath, "link_libs/" + name)
-    host_libs = ["host_libs/" + lib for lib in _HOST_LIBS]
-    repository_ctx.file("BUILD.bazel", _SWIFT_LIBS_BUILD.format(
-        files = repr(host_libs + ["link_libs/" + name for name in sorted(_LINK_LIBS)]),
-        host_libs = repr(host_libs),
-        runtime_libs = repr(["host_libs/" + lib for lib in _HOST_LIBS if lib not in _TOOL_ONLY_LIBS]),
-    ))
+    repository_ctx.file("BUILD.bazel", swift_libs_build(repository_ctx.attr.sysroot))
     return repository_ctx.repo_metadata(reproducible = True)
 
 swift_libs_linux_repo = repository_rule(
@@ -157,11 +184,54 @@ swift_libs_linux_repo = repository_rule(
         "triple": attr.string(mandatory = True, values = ["aarch64-linux-gnu", "x86_64-linux-gnu"]),
         "_patchelf": attr.label(default = Label("@dx_patchelf//:bin/patchelf")),
     },
-    doc = "The sysroot libraries the Swift tools load, with their RUNPATH set to their own directory, and the libraries Swift binaries link.",
+    doc = "The sysroot libraries the Swift tools load, with their RUNPATH set to their own directory, and the libraries Swift binaries link, stubbed on non-Linux hosts.",
 )
+
+_SWIFT_LINUX_STUB_TOOLS = [
+    "ld",
+    "llvm-cov",
+    "llvm-objdump",
+    "llvm-profdata",
+    "swift",
+    "swift-autolink-extract",
+    "swift-symbolgraph-extract",
+    "swiftc",
+]
+
+_SWIFT_LINUX_STUB_RUNTIMES = ["asan", "asan_static", "fuzzer", "profile"]
+
+_SWIFT_LINUX_STUB_BUILD = """package(default_visibility = ["//visibility:public"])
+
+exports_files({files})
+
+[
+    filegroup(
+        name = name,
+        srcs = {files},
+    )
+    for name in [
+        "files",
+        "swift_tool_inputs",
+        "linux_dynamic_runtime",
+        "linux_static_runtime",
+    ]
+]
+"""
+
+def swift_linux_stub_build(cpu):
+    """Returns the BUILD file of the Linux toolchain repository on a non-Linux host."""
+    files = [".swift-version"] + ["usr/bin/" + tool for tool in _SWIFT_LINUX_STUB_TOOLS] + [
+        "usr/lib/clang/21/lib/linux/libclang_rt.{}-{}.a".format(runtime, cpu)
+        for runtime in _SWIFT_LINUX_STUB_RUNTIMES
+    ]
+    return _SWIFT_LINUX_STUB_BUILD.format(files = repr(files))
 
 def _swift_linux_impl(repository_ctx):
     version = repository_ctx.attr.version
+    if not _linux_host(repository_ctx):
+        repository_ctx.file(".swift-version", version + "\n")
+        repository_ctx.file("BUILD.bazel", swift_linux_stub_build("aarch64" if repository_ctx.attr.cell == "linux_arm64" else "x86_64"))
+        return repository_ctx.repo_metadata(reproducible = True)
     prefix = "swift-{}-RELEASE-ubuntu22.04{}".format(version, "-aarch64" if repository_ctx.attr.cell == "linux_arm64" else "")
     repository_ctx.download_and_extract(
         url = repository_ctx.attr.urls,
@@ -190,7 +260,7 @@ swift_linux_repo = repository_rule(
         "urls": attr.string_list(mandatory = True),
         "version": attr.string(mandatory = True),
     },
-    doc = "The sha256-pinned swift.org Ubuntu 22.04 toolchain, with the host libraries of its sysroot.",
+    doc = "The sha256-pinned swift.org Ubuntu 22.04 toolchain, with the host libraries of its sysroot, stubbed on non-Linux hosts.",
 )
 
 _SWIFT_WINDOWS_BUILD = """load("@rules_swift//swift/toolchains:swift_tools.bzl", "swift_tools")

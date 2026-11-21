@@ -1,9 +1,4 @@
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -818,19 +813,29 @@ pub fn holding() -> ForkGuard {
     reason = "test helper: a failed setup fails the test"
 )]
 pub fn executable_script(path: &Path, body: &str) {
-    use std::os::unix::fs::PermissionsExt as _;
-    // Only shell builtins run in the child: a parallel test may have pointed the
-    // process PATH at a fake bin directory, so `cat` or `chmod` may not resolve.
-    let status = std::process::Command::new("/bin/sh")
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    // Only shell builtins copy stdin: a parallel test may have pointed the
+    // process PATH at a fake bin directory without `cat`. After EOF, `read`
+    // leaves a final line that has no newline in `$l`.
+    let mut child = std::process::Command::new("/bin/sh")
         .arg("-c")
-        .arg("printf '%s' \"$2\" > \"$1\"")
+        .arg(
+            "{ while IFS= read -r l; do printf '%s\\n' \"$l\"; done; printf '%s' \"$l\"; } > \"$1\"",
+        )
         .arg("sh")
         .arg(path)
-        .arg(body)
-        .status()
+        .stdin(std::process::Stdio::piped())
+        .spawn()
         .expect("spawn sh");
+    child
+        .stdin
+        .take()
+        .expect("stdin")
+        .write_all(body.as_bytes())
+        .expect("write script body");
+    let status = child.wait().expect("wait sh");
     assert!(status.success(), "write {}: {status}", path.display());
-    // chmod by path opens no fd, so it keeps the no-write-fd guarantee.
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod script");
 }
 

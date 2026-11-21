@@ -92,7 +92,6 @@ core/env/private/stubs/BUILD.bazel sh-rule 1
 core/env/private/stubs/BUILD.bazel shebang 1
 core/node_test.bzl env-inherit 1
 core/quality/adapter/src/exec.rs host-path 9
-core/quality/compile_check_exec.sh shebang 1
 core/quality/consumer_policy_tests.bzl shebang 1
 core/quality/runner/src/entry.rs host-path 2
 core/quality/runner/src/lib_determinism.rs host-path 3
@@ -115,7 +114,7 @@ core/tests/wrapper_forward_fixture.bzl env-inherit 1
 core/tests/wrapper_forward_fixture.bzl home 2
 core/tests/wrapper_tests.bzl env-inherit 3
 core/tests/wrapper_tests.bzl home 3
-core/wrapper.bzl env-inherit 7
+core/wrapper.bzl env-inherit 3
 csharp/tests/fixtures/fuzz/BUILD.bazel sh-rule 2
 csharp/tests/fixtures/fuzz/run_test.sh shebang 1
 cuda/tests/fixtures/cuda_app/app/BUILD.bazel sh-rule 1

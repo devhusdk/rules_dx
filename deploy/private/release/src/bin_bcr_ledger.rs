@@ -45,6 +45,13 @@ mod tests {
     }
 
     #[test]
+    fn a_skipped_bcr_job_is_not_authorized_and_exits_zero() {
+        let (text, code) = run(&args(&["bcr_ledger", "rules_dx@1.2.3", "skipped", ""]));
+        assert_eq!(code, 0);
+        assert!(text.contains("\"state\": \"not-authorized\""), "{text}");
+    }
+
+    #[test]
     fn wrong_argument_count_is_a_usage_error() {
         assert_eq!(run(&args(&["bcr_ledger"])).1, 2);
     }

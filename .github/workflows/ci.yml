@@ -385,7 +385,13 @@ jobs:
           - platform: macos_arm64
             runner: macos-15
             langs: apple swift
+          - platform: windows_x86_64
+            runner: windows-latest
+            langs: msix
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
     permissions:
       contents: read
     steps:

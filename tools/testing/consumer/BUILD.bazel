@@ -1,7 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
-load(":fixtures.bzl", "CONSUMER_FIXTURES", "GO_GUARD_LANGS", "GUARD_PENDING", "IN_GRAPH_GUARD_LANGS", "JAVA_GUARD_LANGS", "MACOS_IN_GRAPH_GUARD_LANGS", "consumer_fixture_tests")
+load(":fixtures.bzl", "CONSUMER_FIXTURES", "GO_GUARD_LANGS", "GUARD_PENDING", "IN_GRAPH_GUARD_LANGS", "JAVA_GUARD_LANGS", "MACOS_IN_GRAPH_GUARD_LANGS", "WINDOWS_IN_GRAPH_GUARD_LANGS", "consumer_fixture_tests")
 
 consumer_fixture_tests(
     name = "fixture_tests",
@@ -122,6 +122,7 @@ rust_test(
         "DX_GUARD_PENDING": " ".join(GUARD_PENDING),
         "DX_JAVA_GUARD_LANGS": " ".join(JAVA_GUARD_LANGS),
         "DX_MACOS_IN_GRAPH_GUARD_LANGS": " ".join(MACOS_IN_GRAPH_GUARD_LANGS),
+        "DX_WINDOWS_IN_GRAPH_GUARD_LANGS": " ".join(WINDOWS_IN_GRAPH_GUARD_LANGS),
     },
     deps = ["//tools/ci/ci_workflow"],
 )

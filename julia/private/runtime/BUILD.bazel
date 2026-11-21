@@ -38,7 +38,7 @@ julia_runtime_files(
 
 julia_source_toolchain(
     name = "source_julia",
-    library = ":libjulia_internal",
+    library = "@dx_prebuilt//:julia_internal",
     target_compatible_with = _LINUX_X86_64,
 )
 
@@ -113,7 +113,10 @@ cc_toolchain_files(
     compiler = "gcc",
     platforms = ["//tools/platforms:linux_x86_64"],
     target_compatible_with = _LINUX_X86_64,
-    visibility = ["//julia:__subpackages__"],
+    visibility = [
+        "//julia:__subpackages__",
+        "@dx_prebuilt//:__pkg__",
+    ],
 )
 
 rust_test(

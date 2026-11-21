@@ -2,6 +2,8 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["LICENSE.md"])
+
 config_setting(
     name = "gcc",
     flag_values = {"@rules_dx//cc:compiler": "gcc"},

@@ -98,9 +98,11 @@ def _rlocationpath(ctx, file):
 
 def _julia_source_toolchain_impl(ctx):
     stock = ctx.toolchains[_JULIA_TOOLCHAIN]
-    built = [f for f in ctx.files.library if f.basename == _LIBRARY]
+    # The source build carries the versioned file among others; the hub file and the
+    # guard stub are the one file of their target.
+    built = [f for f in ctx.files.library if f.basename == _LIBRARY] or ctx.files.library
     if len(built) != 1:
-        fail("{} holds no {}".format(ctx.attr.library.label, _LIBRARY))
+        fail("{} holds no {} and is not one file".format(ctx.attr.library.label, _LIBRARY))
     root = stock.julia.dirname.rpartition("/")[0] + "/"
     alias_dir = "lib/julia/"
     internal = alias_dir + _LIBRARY
@@ -158,7 +160,7 @@ julia_source_toolchain = rule(
     doc = "The runtime's Julia toolchain with the source-built libjulia-internal in its tree.",
     cfg = _runtime_version,
     attrs = {
-        "library": attr.label(doc = "The source-built libjulia-internal.", mandatory = True),
+        "library": attr.label(doc = "The libjulia-internal: the source build, its release prebuilt or the guard stub.", mandatory = True, allow_files = True),
     },
     toolchains = [_JULIA_TOOLCHAIN],
 )

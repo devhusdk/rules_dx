@@ -61,16 +61,32 @@ python_bench(
     ],
 )
 
+# Never runs: the load-time check below reads `flaky` on the forwarder and the upstream test.
 python_test(
     name = "flaky_passthrough_fixture",
     srcs = ["flaky_passthrough_test.py"],
     dep_group = "hello",
     flaky = True,
     imports = ["."],
+    target_compatible_with = ["@platforms//:incompatible"],
     deps = [
         "@dx_pypi_fixtures//coverage",  # keep
         "@dx_pypi_fixtures//pytest",
     ],
+)
+
+dx_runner_attr_test(
+    name = "flaky_passthrough_test",
+    size = "small",
+    expected = {"flaky": True},
+    runner = "flaky_passthrough_fixture",
+)
+
+dx_runner_attr_test(
+    name = "flaky_passthrough_upstream_test",
+    size = "small",
+    expected = {"flaky": True},
+    runner = "flaky_passthrough_fixture_upstream",
 )
 
 python_test(

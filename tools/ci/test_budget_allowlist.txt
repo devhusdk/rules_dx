@@ -30,7 +30,6 @@ cc/tests/BUILD.bazel no-size 39
 cc/tests/failure_tests.bzl no-size 1
 cc/tests/fixtures/adopt_cpp/greet/BUILD.bazel no-size 1
 cc/tests/fixtures/adopt_cpp/solo/BUILD.bazel no-size 1
-cc/tests/fixtures/args/BUILD.bazel flaky 1
 cc/tests/fixtures/args/BUILD.bazel no-size 1
 cc/tests/fixtures/bench/BUILD.bazel no-size 3
 cc/tests/fixtures/bench/BUILD.bazel size-large 1
@@ -86,7 +85,6 @@ core/env/BUILD.bazel no-size 12
 core/env/tests/defs_tests.bzl no-size 5
 core/env/tests/plan_tests.bzl no-size 2
 core/fuzz.bzl no-size 1
-core/fuzz_bench_tests.bzl no-size 1
 core/modules/BUILD.bazel no-size 3
 core/modules/versions_tests.bzl no-size 1
 core/quality/BUILD.bazel no-size 30

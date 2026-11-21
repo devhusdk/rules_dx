@@ -61,6 +61,8 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/test_scratch:dx_test_scratch",
         "//core/quality/result:quality_result",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
     ],
 )
 
@@ -90,6 +92,8 @@ rust_test(
     coverage_lib = ":dx_exec_quality",
     crate_name = "dx_exec_quality",
     crate_root = "src/lib.rs",
+    data = ["@dx_tools//:lychee"],
+    env = {"DX_TEST_LYCHEE": "$(rootpath @dx_tools//:lychee)"},
     # keep
     deps = [
         ":dx_exec_quality_testing",
@@ -112,6 +116,7 @@ rust_test(
         "//cli/tool_resolve:dx_tool_resolve",
         "//core/quality/result:quality_result",
         "//core/quality/runner:quality_runner_lib",
+        "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:tempfile",
         "@crates//:thiserror",

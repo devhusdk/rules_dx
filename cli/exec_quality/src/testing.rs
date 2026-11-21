@@ -8,6 +8,8 @@
 use dx_digest::blake3 as digest;
 use quality_result::encode_validated;
 use quality_result::proto::{self, Capability, Convergence, FileSnapshot, QualityResult, Stage};
+use dx_testing::http::{Reply, serve};
+use serde_json::json;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -233,4 +235,37 @@ pub fn replacement_at(
         original_digest,
         edits,
     }
+}
+
+/// A loopback link host: `/ok` answers 200, every other target 404. Returns the base URL.
+#[must_use]
+pub fn serve_links() -> String {
+    let (base, _) = serve(|target| {
+        (target == "/ok").then(|| Reply {
+            content_type: "text/plain",
+            body: Vec::new(),
+        })
+    })
+    .expect("link server");
+    base
+}
+
+/// A runner request for `docs/README.md` whose lychee stage uses `lychee`.
+#[must_use]
+pub fn online_link_request(lychee: &Path) -> Vec<u8> {
+    serde_json::to_vec(&json!({
+        "schema_version": 1,
+        "producer": "//docs:readme",
+        "capability": "lint",
+        "stages": [
+            {"tool": "lychee", "classes": ["markdown"], "sources": ["docs/README.md"]},
+            {"tool": "typos", "classes": ["markdown"], "sources": ["docs/README.md"]},
+        ],
+        "sources": [{"workspace": "docs/README.md", "exec": "docs/README.md"}],
+        "tools": {
+            "lychee": {"binary": lychee.to_string_lossy()},
+            "typos": {"binary": "external/typos+/typos"},
+        },
+    }))
+    .expect("encode link request")
 }

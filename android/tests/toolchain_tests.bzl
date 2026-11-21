@@ -230,16 +230,18 @@ def _android_checks():
         "ndk;27.0.12077973",
     ]))
     checks.append(expect_equal("opt-in packages", OPT_IN_PACKAGES, ["platform-tools", "emulator"]))
-    checks.append(expect_equal("supported hosts", sorted(NDK_ARTIFACTS.keys()), ["linux_x86_64", "macos_arm64", "macos_x86_64", "windows_x86_64"]))
+    checks.append(expect_equal("supported hosts", sorted(NDK_ARTIFACTS.keys()), ["linux_x86_64", "macos_arm64", "macos_x86_64", "windows_arm64", "windows_x86_64"]))
     checks.append(expect_equal("artifact errors", artifact_errors(), []))
     checks.append(expect_equal("ndk repositories", ndk_repositories(), {
         "linux_x86_64": "dx_android_ndk_linux_x86_64",
         "macos_arm64": "dx_android_ndk_macos_arm64",
         "macos_x86_64": "dx_android_ndk_macos_x86_64",
+        "windows_arm64": "dx_android_ndk_windows_arm64",
         "windows_x86_64": "dx_android_ndk_windows_x86_64",
     }))
     checks.append(expect_equal("windows ndk archive", NDK_ARTIFACTS["windows_x86_64"].archive, "android-ndk-r27-windows.zip"))
     checks.append(expect_equal("windows ndk sha256", NDK_ARTIFACTS["windows_x86_64"].sha256, "342ceafd7581ae26a0bd650a5e0bbcd0aa2ee15eadfd7508b3dedeb1372d7596"))
+    checks.append(expect_equal("windows hosts share the x64 archive", NDK_ARTIFACTS["windows_arm64"], NDK_ARTIFACTS["windows_x86_64"]))
     checks.append(expect_equal("macos ndk archive", NDK_ARTIFACTS["macos_arm64"].archive, "android-ndk-r27-darwin.zip"))
     checks.append(expect_equal("macos hosts share the universal archive", NDK_ARTIFACTS["macos_x86_64"], NDK_ARTIFACTS["macos_arm64"]))
     checks.append(expect_equal("macos ndk sha256", NDK_ARTIFACTS["macos_arm64"].sha256, "2f2ef00b22fe22c1c9c78fda1b38ea7ffa6528e25eac0b70a92f8cb0093143be"))

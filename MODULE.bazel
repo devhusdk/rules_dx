@@ -3211,6 +3211,7 @@ use_repo(
     "dx_android_ndk_linux_x86_64",
     "dx_android_ndk_macos_arm64",
     "dx_android_ndk_macos_x86_64",
+    "dx_android_ndk_windows_arm64",
     "dx_android_ndk_windows_x86_64",
     "dx_android_sdk",
     "dx_androidsdk",

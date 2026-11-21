@@ -6,6 +6,7 @@ load("@rules_java//java:defs.bzl", "JavaInfo")
 load("@rules_kotlin//kotlin/internal:defs.bzl", "KtJvmInfo")
 load("//android/private/quality:android_sdk.bzl", "android_sdk_aspect")
 load("//java/private/quality:jvm_check.bzl", "jvm_check_aspect")
+load("//kotlin/private/quality:kotlinc_check.bzl", "kotlinc_check_aspect")
 
 def _providers_impl(ctx):
     env = analysistest.begin(ctx)
@@ -57,17 +58,27 @@ _opt_transition = transition(
     outputs = ["//command_line_option:compilation_mode"],
 )
 
-_with_sdk_subject = rule(
-    implementation = _check_subject_impl,
-    doc = "Applies android_sdk_aspect and then jvm_check_aspect to the library.",
-    attrs = {"library": attr.label(mandatory = True, aspects = [android_sdk_aspect, jvm_check_aspect])},
-)
+def _subjects(check_aspect, compiler):
+    with_sdk = rule(
+        implementation = _check_subject_impl,
+        doc = "Applies android_sdk_aspect and then the %s check aspect to the library." % compiler,
+        attrs = {"library": attr.label(mandatory = True, aspects = [android_sdk_aspect, check_aspect])},
+    )
+    without_sdk = rule(
+        implementation = _check_subject_impl,
+        doc = "Applies the %s check aspect alone to the library." % compiler,
+        attrs = {"library": attr.label(mandatory = True, cfg = _opt_transition, aspects = [check_aspect])},
+    )
+    return (with_sdk, without_sdk)
 
-_without_sdk_subject = rule(
-    implementation = _check_subject_impl,
-    doc = "Applies jvm_check_aspect alone to the library.",
-    attrs = {"library": attr.label(mandatory = True, cfg = _opt_transition, aspects = [jvm_check_aspect])},
-)
+(_javac_with_sdk_subject, _javac_without_sdk_subject) = _subjects(jvm_check_aspect, "javac")
+(_kotlinc_with_sdk_subject, _kotlinc_without_sdk_subject) = _subjects(kotlinc_check_aspect, "kotlinc")
+
+# Each check mnemonic comes from its own language's aspect.
+_SUBJECTS = {
+    "JavacCheck": (_javac_with_sdk_subject, _javac_without_sdk_subject),
+    "KotlincCheck": (_kotlinc_with_sdk_subject, _kotlinc_without_sdk_subject),
+}
 
 def _android_jar_inputs(env, mnemonic):
     target = analysistest.target_under_test(env)
@@ -91,7 +102,8 @@ _without_sdk_test = analysistest.make(_without_sdk_impl, attrs = {"mnemonic": at
 
 def android_sdk_classpath_tests(name, library, mnemonic, size = "small"):
     """Asserts the `mnemonic` check of `library` gets android.jar only after android_sdk_aspect."""
-    _with_sdk_subject(name = name + "_with_sdk_subject", library = ":" + library, testonly = True)
-    _without_sdk_subject(name = name + "_without_sdk_subject", library = ":" + library, testonly = True)
+    (with_sdk_subject, without_sdk_subject) = _SUBJECTS[mnemonic]
+    with_sdk_subject(name = name + "_with_sdk_subject", library = ":" + library, testonly = True)
+    without_sdk_subject(name = name + "_without_sdk_subject", library = ":" + library, testonly = True)
     _with_sdk_test(name = name + "_with_sdk", size = size, target_under_test = name + "_with_sdk_subject", mnemonic = mnemonic)
     _without_sdk_test(name = name + "_without_sdk", size = size, target_under_test = name + "_without_sdk_subject", mnemonic = mnemonic)

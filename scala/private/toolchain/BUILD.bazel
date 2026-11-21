@@ -25,6 +25,7 @@ scala_toolchain(
     strict_deps_mode = "off",
     unused_dependency_checker_mode = "warn",
     use_argument_file_in_runner = True,
+    visibility = ["@dx_scala_toolchains//:__pkg__"],
 )
 
 scala_toolchain(
@@ -35,11 +36,16 @@ scala_toolchain(
     scalacopts = ["-Wunused:all"],
     semanticdb_bundle_in_jar = True,
     use_argument_file_in_runner = True,
+    visibility = ["@dx_scala_toolchains//:__pkg__"],
 )
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "config_extension.bzl",
+        "deps_extension.bzl",
+    ],
     tags = ["corpus"],
 )
 

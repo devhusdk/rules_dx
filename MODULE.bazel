@@ -400,8 +400,15 @@ single_version_override(
 # floor: equals tested
 bazel_dep(name = "bazel_worker_api", version = "0.0.11")
 
-scala_config = use_extension("//scala/private/toolchain:config_extension.bzl", "scala_config")
-use_repo(scala_config, "rules_scala_config")
+scala_config = use_extension("//scala:extensions.bzl", "scala_config")
+use_repo(scala_config, "dx_scala_toolchains", "rules_scala_config")
+
+# A third Scala version for //scala/tests:third_version_test; consumers set their own.
+scala_config_dev = use_extension("//scala:extensions.bzl", "scala_config", dev_dependency = True)
+scala_config_dev.settings(scala_versions = [
+    "3.3.9",
+    "2.12.21",
+])
 
 scala = use_extension("//scala/private/toolchain:deps_extension.bzl", "scala")
 use_repo(
@@ -412,7 +419,7 @@ use_repo(
 
 register_toolchains(
     "//java/private/toolchain:all",
-    "//scala/private/toolchain/hub:all",
+    "@dx_scala_toolchains//:all",
 )
 
 ansible = use_extension("//ansible:extensions.bzl", "ansible", dev_dependency = True)

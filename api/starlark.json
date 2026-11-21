@@ -19256,6 +19256,39 @@
   },
   {
     "aspects": [],
+    "extensions": [
+      {
+        "name": "scala_config",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "\"2.13.18\"",
+                "mandatory": false,
+                "name": "scala_version",
+                "type": "STRING"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "scala_versions",
+                "type": "STRING_LIST"
+              }
+            ],
+            "name": "settings"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//scala:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
     "extensions": [],
     "functions": [],
     "load": "@rules_dx//sql:defs.bzl",

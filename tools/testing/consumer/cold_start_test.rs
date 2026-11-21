@@ -25,6 +25,13 @@ const FOREIGN: &[(&str, &[&str])] = &[
             "maven",
             "kotlin",
             "scala",
+            "rules_rust++rust+rust_linux",
+            "rules_rust++rust+rust_darwin",
+            "rules_rust++rust+rust_windows",
+            "rules_rust++rust+rustfmt_",
+            "nodejs_linux",
+            "nodejs_darwin",
+            "nodejs_windows",
         ],
     ),
     (
@@ -183,4 +190,47 @@ fn growth_shrinkage_and_downloading_foreign_repos_are_reported() {
             "no longer fetched, remove it from the list: b",
         ]
     );
+}
+
+#[test]
+fn each_language_flags_the_other_toolchain_downloads_but_not_its_hubs() {
+    let foreign = |lang: &str| {
+        FOREIGN
+            .iter()
+            .find(|(name, _)| *name == lang)
+            .map_or(&[][..], |(_, fragments)| fragments)
+    };
+    let downloads = |lang: &str, repo: &str| {
+        let measured: BTreeSet<String> = [repo.to_owned()].into_iter().collect();
+        let fetches = Fetches {
+            ran: measured.clone(),
+            downloaded: measured.clone(),
+        };
+        !problems(&measured, &measured, foreign(lang), &fetches).is_empty()
+    };
+    for (lang, repo) in [
+        (
+            "go",
+            "rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools",
+        ),
+        (
+            "go",
+            "rules_rust++rust+rustfmt_1.99.1__x86_64-unknown-linux-gnu_tools",
+        ),
+        ("go", "rules_nodejs++node+nodejs_linux_amd64"),
+        ("rust", "rules_go++go_sdk+rules_dx__download_0_linux_amd64"),
+        ("rust", "rules_nodejs++node+nodejs_linux_amd64"),
+    ] {
+        assert!(downloads(lang, repo), "{lang} must flag {repo}");
+    }
+    for (lang, repo) in [
+        ("go", "rules_rust++rust+rust_toolchains"),
+        ("go", "rules_nodejs++node+nodejs_toolchains"),
+        ("rust", "rules_nodejs++node+nodejs_toolchains"),
+    ] {
+        assert!(
+            !downloads(lang, repo),
+            "{lang} must not flag the hub {repo}"
+        );
+    }
 }

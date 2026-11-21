@@ -21,6 +21,7 @@ BUILD_SCRIPT_CC_ENV = {
 
 _UNDEF_ISO_STDIO = "/U_CRT_STDIO_ISO_WIDE_SPECIFIERS"
 _FILE_PREFIX_MAP = "-ffile-prefix-map=${pwd}=."
+_CLANG_CL_FILE_PREFIX_MAP = "/clang:" + _FILE_PREFIX_MAP
 
 _PATH_PLACEHOLDERS = [
     apple_support.path_placeholders.xcode(),
@@ -94,6 +95,15 @@ def _pwd_flags(args):
     ]
     return " ".join([prefix + arg if wrapped[i] else arg for i, arg in enumerate(args)])
 
+def build_script_cflags(msvc, clang_cl, coverage):
+    """Returns the target CFLAGS for cc-rs: strip the execroot from objects, which cl.exe cannot do."""
+    flags = []
+    if not msvc or clang_cl:
+        flags.append(_CLANG_CL_FILE_PREFIX_MAP if msvc else _FILE_PREFIX_MAP)
+    if msvc and coverage:
+        flags.append(_UNDEF_ISO_STDIO)
+    return " ".join(flags)
+
 def _configure(ctx, cc_toolchain):
     return cc_common.configure_features(
         ctx = ctx,
@@ -148,9 +158,10 @@ def _build_script_cc_env_impl(ctx):
         host_cflags = ""
         host_cxxflags = ""
     msvc = rust.target_triple.str.endswith("-windows-msvc")
+    clang_cl = paths.basename(target_tools["CC"]).startswith("clang-cl")
     variables = {
-        "DX_BS_CFLAGS": _UNDEF_ISO_STDIO if coverage and msvc else ("" if msvc else _FILE_PREFIX_MAP),
-        "DX_BS_CXXFLAGS": "" if msvc else _FILE_PREFIX_MAP,
+        "DX_BS_CFLAGS": build_script_cflags(msvc, clang_cl, coverage),
+        "DX_BS_CXXFLAGS": build_script_cflags(msvc, clang_cl, False),
         "DX_BS_HOST_CFLAGS": host_cflags,
         "DX_BS_HOST_CXXFLAGS": host_cxxflags,
     }

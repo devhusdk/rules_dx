@@ -7,6 +7,7 @@ load("@rules_rust_wasm_bindgen//:providers.bzl", "RustWasmBindgenInfo")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
+load("//rust/private:build_script_cc_env.bzl", "build_script_cflags")
 load("//rust/private:defs.bzl", "CLANG_CL_LINK_FLAGS", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS")
 
 def rust_wrapper_registry_tests(name, size):
@@ -25,6 +26,10 @@ def rust_wrapper_registry_tests(name, size):
             expect_equal("rust is a known class", RUST in KNOWN_SEMANTIC_FILE_CLASSES, True),
             expect_equal("msvc link flags", MSVC_LINK_FLAGS, ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib", "-Clink-arg=/ignore:4099"]),
             expect_equal("clang-cl link flags", CLANG_CL_LINK_FLAGS, ["-Clink-arg=-DEFAULTLIB:libc++.lib"]),
+            expect_equal("build script cflags", build_script_cflags(msvc = False, clang_cl = False, coverage = False), "-ffile-prefix-map=${pwd}=."),
+            expect_equal("clang-cl build script cflags", build_script_cflags(msvc = True, clang_cl = True, coverage = False), "/clang:-ffile-prefix-map=${pwd}=."),
+            expect_equal("clang-cl coverage build script cflags", build_script_cflags(msvc = True, clang_cl = True, coverage = True), "/clang:-ffile-prefix-map=${pwd}=. /U_CRT_STDIO_ISO_WIDE_SPECIFIERS"),
+            expect_equal("cl.exe build script cflags", build_script_cflags(msvc = True, clang_cl = False, coverage = False), ""),
             expect_equal("msvc opt link flags", MSVC_OPT_LINK_FLAGS, [
                 "-Clinker=$(execpath {})".format(Label("//rust/private/tools/msvc_paths:msvc_link_exec")),
                 "-Clinker-flavor=lld-link",

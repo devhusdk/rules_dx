@@ -905,6 +905,49 @@ fn fix_apply_verifies_quality_apply_with_clean_recheck() {
 }
 
 #[test]
+fn check_apply_workspace_config_scope_applies_crate_fixes() {
+    let mut harness = Harness::new("umbrella-config-scope-apply");
+    harness.write_source(
+        ".bazelrc",
+        "build --@rules_rust//rust/settings:clippy.toml=//tools/workspace:clippy.toml\n",
+    );
+    harness.write_source("tools/workspace/BUILD.bazel", "");
+    harness.write_source("tools/workspace/clippy.toml", "");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+    );
+    harness.intended = Some(intended_witness("default", true, "", ""));
+    let staged = harness.staged_artifacts();
+    let clean = harness.result_full(vec![], vec![], vec![], vec![]);
+    let verify_files: Vec<(PathBuf, Vec<u8>)> = staged
+        .iter()
+        .map(|(path, _)| (path.clone(), clean.clone()))
+        .collect();
+    let (code, out, err) = fix_apply_format_edit_then_verify(
+        &harness,
+        verify_files,
+        Some(intended_witness("check", true, "", "")),
+        5,
+        &[
+            "check",
+            "--apply",
+            "tools/workspace/clippy.toml",
+            "--output=text",
+        ],
+    );
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("Running format analysis for //..."), "{out}");
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        b"y = 1\n",
+        "the config scope stands for the workspace, so the edit is in scope"
+    );
+    assert!(out.contains("Applied 1 file(s)."), "{out}");
+}
+
+#[test]
 fn fix_apply_clean_runs_no_verification() {
     let mut harness = umbrella_clean("umbrella-fix-clean-no-verify");
     harness.intended = Some(intended_witness("default", true, "", ""));

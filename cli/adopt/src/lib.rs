@@ -65,7 +65,8 @@ pub use licenses::{
     render_license_accept,
 };
 pub use load_graph::{
-    BzlImpact, bzl_impact, external_repos, implicit_dependencies, module_inputs, repo_impact,
+    BzlImpact, bazelrc_flag_targets, bzl_impact, external_repos, implicit_dependencies,
+    module_inputs, repo_impact,
 };
 pub use loaded_deps::plan_loaded_deps;
 pub use lock_hubs::{

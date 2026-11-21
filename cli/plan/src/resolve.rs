@@ -2,6 +2,7 @@ pub mod base;
 pub mod changed;
 pub mod classify;
 pub mod codegen_expand;
+pub mod config_scope;
 pub mod entry;
 pub mod exclude;
 #[cfg(test)]
@@ -28,6 +29,7 @@ pub(crate) use classify::{
 };
 pub use classify::{first_line, path_filter, path_in_filter};
 pub use codegen_expand::expand_codegen_roots;
+pub use config_scope::widen_config_scopes;
 pub use entry::{resolve, resolve_for_generate, resolve_for_test_with_selection};
 #[cfg(test)]
 pub(crate) use fake_query::FakeQuery;

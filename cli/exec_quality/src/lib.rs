@@ -55,7 +55,7 @@ use dx_plan::plan::{
     plan_build_with, plan_shared_probe,
 };
 use dx_plan::reports::{Destination, PlannedReport, plan_reports};
-use dx_plan::resolve::{ResolvedScope, path_filter, resolve};
+use dx_plan::resolve::{ResolvedScope, path_filter, resolve, widen_config_scopes};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -383,6 +383,17 @@ fn run_quality_request(
     };
     let raw = request;
     let request = rewritten.as_ref().unwrap_or(request);
+    let widened = widen_config_scopes(
+        &request.targets,
+        env.workspace,
+        env.query_runner,
+        &request.bazel_startup_options,
+    )
+    .map(|targets| QualityRequest {
+        targets,
+        ..request.clone()
+    });
+    let request = widened.as_ref().unwrap_or(request);
     let resolved = match resolve(
         &request.targets,
         env.workspace,

@@ -4,7 +4,7 @@ use std::path::{Component, Path};
 use super::packages::PackageCache;
 use super::{QueryFailure, ResolveError, RuleGraph};
 
-fn normalize_rel(raw: &str) -> Result<String, ResolveError> {
+pub(crate) fn normalize_rel(raw: &str) -> Result<String, ResolveError> {
     if raw.is_empty() {
         return Err(ResolveError::EmptyScope);
     }

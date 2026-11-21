@@ -805,9 +805,10 @@ def _acquire_runtime(ctx, extractor, cells):
             for text in ctx.path("licenses/" + package.license_from).readdir():
                 ctx.symlink(text, "licenses/" + package.name + "/" + text.basename)
 
-def _place_vcruntime(ctx):
+def _place_vcruntime(ctx, runtime):
+    """Links the MSVC runtime DLLs from the repository whose BUILD.bazel file is runtime."""
     arch = "arm64" if "arm64" in ctx.attr.cell else "x64"
-    redist = ctx.path(ctx.attr.msvc_runtime).dirname.get_child("sysroot/Contents/VC/Redist/MSVC/{}/{}".format(VC_REDIST_VERSION, arch))
+    redist = ctx.path(runtime).dirname.get_child("sysroot/Contents/VC/Redist/MSVC/{}/{}".format(VC_REDIST_VERSION, arch))
     if not redist.exists:
         return
     for directory in redist.readdir():
@@ -915,7 +916,7 @@ def _qt_cell_repo_impl(ctx):
             if ctx.attr.msvc_runtime == None or ctx.attr.msvc_notice == None:
                 fail("qt: the " + ctx.attr.cell + " Qt cell ships the MSVC runtime; declare it with qt.msvc_runtime(runtime = ..., notice = ...)")
             _place_font(ctx)
-            _place_vcruntime(ctx)
+            _place_vcruntime(ctx, ctx.attr.msvc_runtime)
             ctx.file("licenses/msvc-redistributable/NOTICE.txt", ctx.read(ctx.attr.msvc_notice))
     if layout.link == "framework":
         _normalize_frameworks(ctx)

@@ -1,4 +1,4 @@
-load("@dx_pins_data//:pins.bzl", "PINS")
+load("@dx_pins_data//:pins.bzl", "DATA")
 load("//php/private/quality:corpus.bzl", "php_corpus")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
@@ -11,18 +11,22 @@ php_corpus(
     starlark_srcs = [
         "BUILD.bazel",
         "coverage.bzl",
+        "extensions.bzl",
+        "pcov.BUILD.bazel",
+        "repos.bzl",
     ],
     tags = ["corpus"],
 )
 
 php_pcov_runtimes(
     name = "runtime",
-    coverage_cells = PINS["dx_php"]["coverage"].keys(),
+    coverage_cells = DATA["dx_php_coverage"]["coverage"].keys(),
 )
 
 rust_library(
     name = "dx_php_coverage",
     srcs = ["src/lib.rs"],
+    crate_root = "src/lib.rs",
     visibility = ["//cli/runtime:__pkg__"],
     deps = [
         "//cli/lcov:dx_lcov",

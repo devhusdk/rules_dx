@@ -11,8 +11,6 @@ exports_files([
     "BUILD.bazel",
     "BenchTest.php",
     "defs.bzl",
-    "patches/pcov_user_opcode_handlers.patch",
-    "pcov.BUILD.bazel",
     "php.bzl",
     "providers.bzl",
     "Runfiles.php",
@@ -21,12 +19,8 @@ exports_files([
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = glob(["*.bzl"]) + [
         "BUILD.bazel",
-        "patches/*.patch",
-        "pcov.BUILD.bazel",
-    ]) + [
         "BenchTest.php",
         "Runfiles.php",
         "tool.php",

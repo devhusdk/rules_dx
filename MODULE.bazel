@@ -723,6 +723,10 @@ dx_pins.pin(
     pins = "//php:pins.json",
 )
 dx_pins.data(
+    name = "dx_php_coverage",
+    pins = "//php/private/coverage:pins.json",
+)
+dx_pins.data(
     name = "dx_quality_pins",
     pins = "//core/quality/artifacts:pins.json",
 )
@@ -1289,6 +1293,7 @@ dx_pins.archive(
     ],
     pins = "//ocaml:pins.json",
 )
+
 # Pinned to an upstream main commit (bazel-contrib/rules_cuda#530, after v0.4.0); #14468 moves it to the release.
 dx_pins.archive(
     name = "rules_cuda",
@@ -1354,6 +1359,7 @@ dx_pins.archive(
     patches = ["//patches/rules_powershell:inline_runfiles_sh.patch"],
     pins = "//powershell:pins.json",
 )
+
 # Pinned to an upstream main commit carrying bazel-contrib/rules_ruby#435 and #440 until a release has them.
 dx_pins.archive(
     name = "rules_ruby",
@@ -2142,9 +2148,12 @@ luarocks.lock(
 use_repo(luarocks, "rocks_lua.tests.luarocks")
 
 php = use_extension("//php:extensions.bzl", "php")
-use_repo(php, "dx_php_coverage_windows_x86_64", "dx_php_pcov", "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_unused_public", "dx_webmozart_assert", "php_composer", "php_launcher", "php_phpunit")
+use_repo(php, "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_unused_public", "dx_webmozart_assert", "php_composer", "php_launcher", "php_phpunit")
 
 register_toolchains("@dx_php_toolchains//:all")
+
+php_coverage = use_extension("//php/private/coverage:extensions.bzl", "php_coverage")
+use_repo(php_coverage, "dx_php_coverage_windows_x86_64", "dx_php_pcov")
 
 composer = use_extension("//php:extensions.bzl", "composer", dev_dependency = True)
 composer.lock(

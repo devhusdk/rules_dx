@@ -25,7 +25,6 @@ php_corpus(
         "//php:extensions.bzl",
         "//php/private:BUILD.bazel",
         "//php/private:defs.bzl",
-        "//php/private:pcov.BUILD.bazel",
         "//php/private:php.bzl",
         "//php/private:providers.bzl",
         "//php/private/lock:BUILD.bazel",
@@ -42,9 +41,6 @@ php_corpus(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
-        "BUILD.bazel",
-    ]),
+    srcs = glob(["*.bzl"]) + ["BUILD.bazel"],
     visibility = ["//:__subpackages__"],
 )

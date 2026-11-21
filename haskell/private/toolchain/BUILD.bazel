@@ -13,8 +13,6 @@ exports_files([
     "transition.bzl",
 ])
 
-toolchain_type(name = "toolchain_type")
-
 cell_settings(
     name = "cell",
     cells = CELLS,

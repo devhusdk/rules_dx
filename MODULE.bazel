@@ -709,7 +709,7 @@ dx_pins.pin(
         "flang",
     ],
     pins = "//fortran:pins.json",
-    toolchain_type = "//fortran/private/toolchain:toolchain_type",
+    toolchain_type = "//fortran:toolchain_type",
 )
 dx_pins.pin(
     name = "dx_php",

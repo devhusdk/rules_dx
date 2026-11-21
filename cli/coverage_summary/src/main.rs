@@ -1,5 +1,7 @@
 //! Writes the coverage summary comment of one consumer coverage cell.
 
+#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
+
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};

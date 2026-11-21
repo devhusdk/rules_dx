@@ -1,3 +1,5 @@
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@dx_pins_data//:pins.bzl", "ARCHIVES")
 load("@dx_prebuilt//:downloads.bzl", "DOWNLOADED")
@@ -8,6 +10,7 @@ load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":defs.bzl", "julia_runtime_files", "julia_shipped_libs", "julia_source_toolchain", "source_exec_compatible_with")
+load(":resolved_toolchain.bzl", "resolved_source_julia_toolchain")
 
 package(default_visibility = ["//julia:__subpackages__"])
 
@@ -15,6 +18,9 @@ _LINUX_X86_64 = [
     "@platforms//os:linux",
     "@platforms//cpu:x86_64",
 ]
+
+# macOS has no gcc that targets Linux.
+_SOURCE_EXEC = ["@platforms//os:linux"]
 
 exports_files(glob(["*.BUILD.bazel"]))
 
@@ -46,8 +52,8 @@ julia_source_toolchain(
 # On Linux x86_64 every Julia action and binary runs on the source-built libjulia-internal.
 toolchain(
     name = "source_toolchain",
-    # A downloaded libjulia-internal serves any exec host; the source build needs the linux x86_64 gcc (#14377).
-    exec_compatible_with = source_exec_compatible_with(DOWNLOADED, _LINUX_X86_64),
+    # A downloaded libjulia-internal serves any exec host; the source build needs a Linux gcc.
+    exec_compatible_with = source_exec_compatible_with(DOWNLOADED, _SOURCE_EXEC),
     target_compatible_with = _LINUX_X86_64,
     target_settings = [
         "//config:toolchains_on",
@@ -77,21 +83,47 @@ starlark_test(
     checks = [
         expect_equal(
             "a downloaded julia_internal leaves the exec platform open",
-            source_exec_compatible_with({"julia_internal": ["linux_x86_64"]}, _LINUX_X86_64),
+            source_exec_compatible_with(
+                {"julia_internal": ["linux_x86_64"]},
+                _SOURCE_EXEC,
+            ),
             [],
         ),
         expect_equal(
-            "with no downloads the source build needs linux x86_64",
-            source_exec_compatible_with({}, _LINUX_X86_64),
-            _LINUX_X86_64,
+            "with no downloads the source build needs a linux exec host",
+            source_exec_compatible_with({}, _SOURCE_EXEC),
+            ["@platforms//os:linux"],
         ),
         expect_equal(
             "another tool's download keeps the constraint",
-            source_exec_compatible_with({"pcov": ["linux_x86_64"]}, _LINUX_X86_64),
-            _LINUX_X86_64,
+            source_exec_compatible_with(
+                {"pcov": ["linux_x86_64"]},
+                _SOURCE_EXEC,
+            ),
+            ["@platforms//os:linux"],
         ),
     ],
     mode = "unit",
+)
+
+resolved_source_julia_toolchain(
+    name = "source_toolchain_resolved",
+    testonly = True,
+    target_compatible_with = _LINUX_X86_64,
+)
+
+platform_transition_filegroup(
+    name = "source_toolchain_linux_x86_64",
+    testonly = True,
+    srcs = [":source_toolchain_resolved"],
+    target_platform = "//tools/platforms:linux_x86_64",
+)
+
+build_test(
+    name = "source_toolchain_cross_test",
+    size = "small",
+    target_compatible_with = ["@platforms//os:linux"],
+    targets = [":source_toolchain_linux_x86_64"],
 )
 
 julia_shipped_libs(
@@ -176,6 +208,7 @@ real_source_target(
         "libllvm.BUILD.bazel",
         "libunwind.BUILD.bazel",
         "libuv.BUILD.bazel",
+        "resolved_toolchain.bzl",
         "utf8proc.BUILD.bazel",
         "zstd.BUILD.bazel",
     ],

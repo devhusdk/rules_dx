@@ -673,6 +673,7 @@ rust_test(
         "//rust/tests/fixtures/wasi_guest:corpus_starlark",
         "//scala/private:corpus_starlark",
         "//scala/private/toolchain:corpus_starlark",
+        "//scala/private/toolchain/hub:corpus_starlark",
         "//sql/private:corpus_starlark",
         "//sql/private/quality:corpus_starlark",
         "//svelte/private:corpus_starlark",

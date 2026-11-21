@@ -2,6 +2,8 @@ entry-points appimage/lang.json
 entry-points elixir/lang.json
 export-kind elixir/defs.bzl
 extension-label core/quality/artifacts/extension.bzl
+extension-label scala/private/toolchain/config_extension.bzl
+extension-label scala/private/toolchain/deps_extension.bzl
 extension-label third_party/dotnet/extension.bzl
 extension-name python/extensions.bzl
 fixture-hello appimage/tests/conformance/BUILD.bazel
@@ -195,7 +197,7 @@ private-visibility typescript/private/playwright/BUILD.bazel
 private-visibility zig/private/tools/BUILD.bazel
 register-label core/quality/sh
 register-label java/private/toolchain
-register-label scala/private/toolchain
+register-label scala/private/toolchain/hub
 test-location api_spec/private/codegen/BUILD.bazel
 test-location astro/private/ide/BUILD.bazel
 test-location csharp/private/ide/BUILD.bazel

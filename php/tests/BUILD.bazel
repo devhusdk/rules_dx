@@ -1,6 +1,7 @@
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_SOURCE_SPECS")
-load("//php/private:php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_descriptor", "env_flag", "ini_flags", "launcher_descriptor", "lit", "rf", "rf_prefixed", "runfiles_path")
+load("//php/private:php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "env_flag", "ini_flags", "launcher_descriptor", "lit", "rf", "rf_prefixed", "runfiles_path")
+load("//php/private/coverage:coverage.bzl", "coverage_descriptor")
 load("//php/private/quality:corpus.bzl", "php_corpus")
 load(":checks.bzl", "expect_contains", "expect_equal", "label_string", "php_checks_test")
 load(":hub_tests.bzl", "php_hub_tests")
@@ -208,6 +209,7 @@ php_corpus(
     starlark_srcs = [
         "BUILD.bazel",
         "checks.bzl",
+        "coverage_tests.bzl",
         "hub_tests.bzl",
         "toolchain_tests.bzl",
     ],

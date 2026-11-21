@@ -8,6 +8,7 @@ _FIRST = [
     "gcc_linux_x86_64",
     "gcc_linux_x86_64_to_arm64",
     "gcc_linux_arm64",
+    "gcc_linux_arm64_to_x86_64",
     "gcc_unsupported",
     "msvc_windows_x86_64",
     "msvc_windows_x86_64_to_arm64",

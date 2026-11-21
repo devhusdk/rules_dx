@@ -6,7 +6,7 @@ Upstream: f0rmiga/gcc-toolchain#260
  
      cxx_builtin_includes = []
 -    if target_arch == ARCHS.x86_64:
-+    if target_arch == ARCHS.x86_64 or not rctx.path("{}include/c++".format(include_prefix)).exists:
++    if not rctx.path("{}include/c++".format(include_prefix)).exists:
          cxx_builtin_includes.extend([
              include.format(
                  gcc_version = rctx.attr.gcc_version,

@@ -668,7 +668,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "qt_tasks",
-    srcs = ["//qt:module_srcs"],
+    srcs = ["//:module_srcs"],
     consumer_rows = ["qt"],
     files = {
         "consumers/qt_tasks/consumer.bazelrc": ".bazelrc",
@@ -956,7 +956,7 @@ rust_binary(
 
 hermetic_qualification(
     name = "qt_rust",
-    srcs = ["//qt:module_srcs"],
+    srcs = ["//:module_srcs"],
     consumer_rows = ["qt"],
     files = {
         "consumers/qt_rust/consumer.bazelrc": ".bazelrc",

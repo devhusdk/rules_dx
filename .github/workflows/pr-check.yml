@@ -126,18 +126,15 @@ jobs:
           fi
           # A widened plan is a pattern such as //..., so keep only the tests it names and drop
           # the ones `bazel test` would skip: manual tests and those other workflows own.
-          # tests() expands a test_suite that wraps another repository's tests into @repo
-          # labels, which dx test rejects, so the plan keeps such a suite instead. attr()
-          # reads the suite's own tests list; rdeps() would load the whole closure.
-          # $t and $u are query variables, not shell ones.
+          # A test_suite can name tests in other repositories, and `dx test` takes only
+          # main-repository labels, so the set stays inside //....
+          # $t is a query variable, not a shell one.
           query="$RUNNER_TEMP/affected/query"
           # shellcheck disable=SC2016
           {
             printf 'let t = tests(set('
             tr '\n' ' ' < "$labels"
-            printf ')) in let u = filter("^//", kind("test_suite", set('
-            tr '\n' ' ' < "$labels"
-            printf '%s\n' '))) in (filter("^//", $t) + attr(tests, "@", $u)) except attr(tags, "(\[|, )(manual|resources:nested_bazel:1|starter-consumer|network-consumer)(,|\])", $t + $u)'
+            printf '%s\n' ')) in ($t intersect //...) except attr(tags, "(\[|, )(manual|resources:nested_bazel:1|starter-consumer|network-consumer)(,|\])", $t)'
           } > "$query"
           # A change to a shared library can reach most of the repository (2,544 tests for
           # cli/path), far more than one runner tests in 30 minutes, so the tests run as

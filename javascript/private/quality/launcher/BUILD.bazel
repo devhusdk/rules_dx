@@ -1,9 +1,8 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library")
-load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
-package(default_visibility = VIS_PUBLIC)
+package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "Cargo.toml",

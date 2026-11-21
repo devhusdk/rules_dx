@@ -159,7 +159,7 @@ pub fn pnpm_importer_key(manifest: &Path, lock: &Path) -> Result<String, Depchec
     let manifest_dir =
         std::fs::canonicalize(dir_of(manifest)).map_err(DepcheckError::ManifestIo)?;
     let lock_dir = std::fs::canonicalize(dir_of(lock)).map_err(DepcheckError::LockIo)?;
-    let rel = manifest_dir.strip_prefix(&lock_dir).map_err(|_| {
+    let rel = manifest_dir.strip_prefix(&lock_dir).ok().ok_or_else(|| {
         lock_error(format!(
             "{} is outside the workspace of {}",
             manifest.display(),

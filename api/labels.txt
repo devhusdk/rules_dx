@@ -166,6 +166,7 @@
 //thrift:thrift_compiler alias
 //zig:kcov bool_flag False
 //zig:kcov_build config_setting
+//zig:sancov_build config_setting
 @* hub @rules_dx//go:extensions.bzl%go
 @ansible_collections hub @rules_dx//ansible:extensions.bzl%ansible
 @bicep hub @rules_dx//bicep:extensions.bzl%bicep

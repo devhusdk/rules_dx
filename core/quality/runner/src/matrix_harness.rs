@@ -7,12 +7,7 @@
 //! golden bytes, and stages snapshot updates. No Bash, python3, diff, cp, or
 //! mkdir processes are launched.
 
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

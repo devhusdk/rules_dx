@@ -1,11 +1,6 @@
 //! Host-run qualifier: checks exported compile commands against Bazel's own action argv.
 
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"

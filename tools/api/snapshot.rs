@@ -1001,7 +1001,7 @@ load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
 native_binary(name = "bootstrap_offline", src = ":bootstrap", visibility = VIS_PUBLIC)
 
-sh_binary(name = "release", srcs = ["release.sh"], visibility = ["//visibility:public"])
+py_binary(name = "release", srcs = ["release.py"], visibility = ["//visibility:public"])
 
 rust_binary(name = "maintainer")
 
@@ -1022,7 +1022,7 @@ filegroup(name = "srcs", visibility = ["//visibility:public"])
             target_labels_txt(&builds).expect("BUILD files parse"),
             concat!(
                 "//deploy:bootstrap_offline runnable native_binary\n",
-                "//deploy:release runnable sh_binary\n",
+                "//deploy:release runnable py_binary\n",
                 "//deploy:update_docs runnable write_source_files\n",
             )
         );

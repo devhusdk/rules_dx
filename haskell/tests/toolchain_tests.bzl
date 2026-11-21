@@ -1,10 +1,28 @@
 """Haskell toolchain pin and settings tests."""
 
+load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
+load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
-load("//haskell/private/toolchain:pins.bzl", "CELLS", "CROSS_CELLS", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
-load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "alias_repository", "cell_matches_host", "closure_library_dirs", "cross_libdir_moves", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "host_cxx_library_dirs", "hub_files", "links_extra_libraries", "llvm_toolchain_attrs", "musl_wrapper", "os_libraries", "toolchain_libraries")
+load("//haskell/private/toolchain:pins.bzl", "ALL_CELLS", "CELLS", "CROSS_CELLS", "GHC_VERSION", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
+load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "MUSL_SUFFIX", "MUSL_TOOL_ARGS", "NO_HOST_TOOL", "alias_repository", "cell_matches_host", "closure_library_dirs", "cross_libdir_moves", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "host_cxx_library_dirs", "hub_files", "links_extra_libraries", "llvm_toolchain_attrs", "musl_wrapped", "musl_wrapper", "os_libraries", "toolchain_libraries")
+
+_GHC_BIN = [
+    ("ghc", "ghc-9.10.3"),
+    ("ghc-9.10.3", "ghc-9.10.3"),
+    ("ghc-pkg", "ghc-pkg-9.10.3"),
+    ("ghc-pkg-9.10.3", "ghc-pkg-9.10.3"),
+    ("haddock", "haddock-ghc-9.10.3"),
+    ("haddock-ghc-9.10.3", "haddock-ghc-9.10.3"),
+    ("hsc2hs", "hsc2hs-ghc-9.10.3"),
+    ("hsc2hs-ghc-9.10.3", "hsc2hs-ghc-9.10.3"),
+    ("runghc", "runghc-9.10.3"),
+    ("runghc-9.10.3", "runghc-9.10.3"),
+    ("runhaskell-9.10.3", "runghc-9.10.3"),
+    ("unlit", "unlit-ghc-9.10.3"),
+    ("unlit-ghc-9.10.3", "unlit-ghc-9.10.3"),
+]
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
 ,("C compiler flags", "--target=x86_64-linux-gnu")
@@ -75,7 +93,7 @@ def _cell_checks(name):
         expect_equal(name + " executable suffix", cell.exe_suffix, ".exe" if windows else ""),
         expect_equal(name + " os libraries", list(cell.os_libraries), ["Win32"] if windows else ["unix"]),
         expect_true(name + " ships the common libraries", "base" in toolchain_libraries(name)),
-        expect_true(name + " without a runtime closure ships the gmp license", has_runtime or cell.gmp_license.sha256 != ""),
+        expect_true(name + " without a runtime closure ships the gmp license", has_runtime or getattr(cell, "gmp_license", False)),
         expect_contains(name + " gmp resolves in the closure", conf, "library-dirs: ${pkgroot}/../dx_closure/lib ${pkgroot}/../lib/" + triple + "-ghc-9.10.3/ghc-bignum-1.3-0000"),
         expect_contains(name + " shared gmp resolves in the closure", conf, "dynamic-library-dirs: ${pkgroot}/../dx_closure/lib ${pkgroot}/../lib/" + triple + "-ghc-9.10.3"),
         expect_contains(name + " gmp stays an extra library", conf, "extra-libraries: gmp"),
@@ -123,7 +141,7 @@ def _checks():
     darwin_rts = drop_host_sdk_dirs(_DARWIN_RTS_CONF)
     settings = ghc_settings(_SETTINGS)
     windows_settings = ghc_settings(_SETTINGS.replace("\"Merge objects command\", \"/usr/bin/ld.gold\"", "\"Merge objects command\", \"\"").replace("\"ar command\", \"/usr/bin/ar\"", "\"ar command\", \"$topdir/../mingw//bin/llvm-ar.exe\"").replace("\"windres command\", \"/bin/false\"", "\"windres command\", \"$topdir/../mingw//bin/llvm-windres.exe\"").replace("\"C compiler link flags\", \"--target=x86_64-linux-gnu -fuse-ld=gold\"", "\"C compiler link flags\", \"-fuse-ld=lld --rtlib=compiler-rt -D_UCRT\""))
-    checks = hub_checks(hub_files()["BUILD.bazel"], str(Label("//haskell/private/toolchain:toolchain_type")), 10, ["@rules_haskell"]) + [
+    checks = hub_checks(hub_files()["BUILD.bazel"], str(Label("//haskell:toolchain_type")), 10, ["@rules_haskell"]) + [
         expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("qualified cells", qualified_cells(), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("windows is unblocked", CELLS["windows_x86_64"].blocker, ""),
@@ -155,7 +173,11 @@ def _checks():
         expect_contains("musl wrapper finds its root with shell builtins only", musl_wrapper("linux_arm64_musl", "ghc-pkg-9.10.3"), "case \"$0\" in */*) bin=\"${0%/*}\" ;; *) bin=. ;; esac\nroot=\"$(cd \"$bin/..\" && pwd)\"\n"),
         expect_contains("musl ghc-pkg names the global database", musl_wrapper("linux_arm64_musl", "ghc-pkg-9.10.3"), "--global-package-db=\"$root/lib/package.conf.d\""),
         expect_contains("musl runghc runs the wrapped ghc", musl_wrapper("linux_arm64_musl", "runghc-9.10.3"), "-f \"$root/bin/ghc\""),
+        expect_contains("musl hsc2hs names the bindist template", musl_wrapper("linux_arm64_musl", "hsc2hs-ghc-9.10.3"), "\"$root/bin/hsc2hs-ghc-9.10.3.musl\" --template=\"$root/lib/template-hsc.h\" \"$@\""),
         expect_contains("musl unlit takes no extra flags", musl_wrapper("linux_arm64_musl", "unlit-ghc-9.10.3"), "\"$root/bin/unlit-ghc-9.10.3.musl\" \"$@\""),
+        expect_equal("musl wraps regular files and skips symlinks", musl_wrapped(_GHC_BIN), ["ghc-9.10.3", "ghc-pkg-9.10.3", "haddock-ghc-9.10.3", "hsc2hs-ghc-9.10.3", "runghc-9.10.3", "unlit-ghc-9.10.3"]),
+        expect_equal("musl wraps every tool that takes extra args", [key for key in sorted(MUSL_TOOL_ARGS) if key.format(version = GHC_VERSION) not in musl_wrapped(_GHC_BIN)], []),
+        expect_equal("each musl wrapper execs its own renamed binary", [name for name in musl_wrapped(_GHC_BIN) if "\"$root/bin/{}{}\"".format(name, MUSL_SUFFIX) not in musl_wrapper("linux_x86_64_musl", name)], []),
         expect_equal("musl apks pin sha256", [(cell, package.package) for cell in sorted(MUSL_CELLS) for package in MUSL_CELLS[cell].apks if len(package.sha256) != 64], []),
         expect_equal("musl apks match the cell arch", [(cell, package.package) for cell, arch in [("linux_arm64_musl", "aarch64"), ("linux_x86_64_musl", "x86_64")] for package in MUSL_CELLS[cell].apks if "/main/%s/" % arch not in package.url], []),
         expect_equal("host gcc library dirs move into the closure", host_cxx_library_dirs("library-dirs:         /usr/lib/gcc/aarch64-alpine-linux-musl/12.2.1/../../../../lib\nname: x", "dx_closure"), "library-dirs: ${pkgroot}/../dx_closure/lib\nname: x"),
@@ -166,6 +188,8 @@ def _checks():
         expect_equal("windows cell gets one gated cc toolchain", hub_files()["BUILD.bazel"].count("@bazel_tools//tools/cpp:toolchain_type"), 1),
         expect_contains("windows cell cc toolchain is gated", hub_files()["BUILD.bazel"], "target_settings = [\"@@//config:toolchains_on\", \"@@//haskell/private/toolchain:ghc_mingw_enabled\"]"),
         expect_true("glibc floor covers the bindist", _version_at_least(GLIBC_FLOOR, "2.28")),
+        expect_equal("haskell pins fetch nothing from www.gnu.org", [name for name, pin in sorted(DATA["dx_haskell"]["archives"].items()) if [url for url in pin["urls"] if "://www.gnu.org/" in url]], []),
+        expect_equal("cells that ship the checked-in gmp license", [name for name in sorted(ALL_CELLS) if getattr(ALL_CELLS[name], "gmp_license", False)], ["linux_arm64_musl", "linux_x86_64_musl", "macos_arm64", "windows_x86_64"]),
         expect_equal("runtime package names match across cells", [[package.package for package in CELLS[name].runtime] for name in sorted(CELLS) if name.startswith("linux_")], [["libgmp10", "libtinfo6"]] * 2),
         expect_equal("darwin has no runtime closure", CELLS["macos_arm64"].runtime, []),
         expect_true("arm64 mac runs the macos cell", cell_matches_host("macos_arm64", "mac os x", "aarch64")),
@@ -253,3 +277,17 @@ def haskell_metadata_tests(name, size):
         mode = "load",
         checks = _checks(),
     )
+
+_HASKELL_TOOLCHAIN = Label("@rules_haskell//haskell:toolchain")
+
+def _ghc_pkg_inputs_test_impl(ctx):
+    env = unittest.begin(ctx)
+    toolchain = ctx.toolchains[_HASKELL_TOOLCHAIN]
+    inputs = toolchain.tools_config.tools_for_ghc_pkg
+    asserts.equals(env, [], [f.path for f in toolchain.bindir if f not in inputs])
+    return unittest.end(env)
+
+ghc_pkg_inputs_test = unittest.make(
+    _ghc_pkg_inputs_test_impl,
+    toolchains = [_HASKELL_TOOLCHAIN],
+)

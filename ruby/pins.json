@@ -15,12 +15,12 @@
       "version": "2.6.9"
     },
     "rules_ruby": {
-      "sha256": "c92c2102ead9f051b7bb19ed7075cc5c4617cdd20b313b5b2f598f9f45b3e315",
-      "strip_prefix": "rules_ruby-0.29.0",
+      "sha256": "7464e30662fd00289a85ee6237e20ed90658bb5c237c82b6f33ee2e1c58bb89e",
+      "strip_prefix": "rules_ruby-2192f552bad57e8444930de2704c2ac6f6214022",
       "urls": [
-        "https://github.com/bazel-contrib/rules_ruby/releases/download/v0.29.0/rules_ruby-v0.29.0.tar.gz"
+        "https://github.com/bazel-contrib/rules_ruby/archive/2192f552bad57e8444930de2704c2ac6f6214022.tar.gz"
       ],
-      "version": "0.29.0"
+      "version": "2192f552bad57e8444930de2704c2ac6f6214022"
     },
     "simplecov": {
       "sha256": "2a22ec1759f1b8db60881a2e038758956fc69ef93ed669be0bde0678de6d0e85",

@@ -1,0 +1,37 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//deploy:defs.bzl", "github_deploy")
+
+write_file(
+    name = "notes",
+    out = "notes.txt",
+    content = [
+        "rules_dx release-e2e fixture asset.",
+        "",
+    ],
+    tags = ["manual"],
+)
+
+github_deploy(
+    name = "a_github",
+    api_compat = "off",
+    artifacts = [":notes"],
+    notes = "none",
+    sign = "required",
+    tag_from_head = True,
+    tags = ["manual"],
+)
+
+github_deploy(
+    name = "b_refuses",
+    api_compat = "off",
+    artifacts = [":notes"],
+    notes = "none",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -219,6 +219,7 @@ testing_rust_test(
     },
     deps = [
         ":dx_testing",
+        "//tools/ci:dx_guard",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",
     ],
@@ -287,7 +288,6 @@ rust_test(
         "//cuda:module_srcs",
         "//deploy:module_srcs",
         "//erlang:module_srcs",
-        "//qt:module_srcs",
     ],
     deps = [":dx_testing"],
 )

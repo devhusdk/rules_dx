@@ -1,7 +1,8 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools", "with_python_tools")
+load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "downloads_bzl", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools", "with_python_tools")
+load(":launcher.bzl", "launcher_hub")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
 load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "TOOLS", "asset_name", "registry_lines", "target_tools")
 
@@ -88,6 +89,12 @@ def _checks():
     tree_sitter = plan_native_tools("1.2.3", {"tree_sitter": {"windows_arm64": _HASH}}, URL_TEMPLATE, {})
     tree_sitter_build = with_native_tools(alias_build(SOURCE_LABEL), tree_sitter, consumer = True)
     tree_sitter_windows_arm = tree_sitter["tree_sitter"][0]
+    pcov = plan_native_tools("1.2.3", {"pcov": {"linux_x86_64": _HASH, "macos_arm64": _HASH}}, URL_TEMPLATE, {})
+    pcov_build = with_native_tools(alias_build(SOURCE_LABEL), pcov, consumer = True)
+    pcov_linux = [a for a in pcov["pcov"] if a.key == "linux_x86_64"][0]
+    unpinned_guard = with_native_tools(alias_build(SOURCE_LABEL, guard = True), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}), guard = True)
+    julia_internal = plan_native_tools("1.2.3", {"julia_internal": {"linux_x86_64": _HASH}}, URL_TEMPLATE, {})
+    julia_internal_build = with_native_tools(alias_build(SOURCE_LABEL), julia_internal, consumer = True)
     tree_sitter_root = plan_root([_mod("app", True, assets = [_tag(name = "tree_sitter", os = "windows", cpu = "aarch64")])], tools = ["dx", "go"] + NATIVE_TOOLS)
     python_unpinned_build = with_python_tools(unpinned_build, plan_python_tools("1.2.3", {}, URL_TEMPLATE, {}))
     python_pins = {"python_tools": {"linux_x86_64": _HASH, "windows_arm64": _HASH, "windows_x86_64": _HASH}}
@@ -111,7 +118,24 @@ def _checks():
         expect_false("a tree-sitter download is not executable", tree_sitter_windows_arm.executable),
         expect_true("a native tool download is executable", topiary_windows_arm.executable),
         expect_equal("a root asset may name tree-sitter", tree_sitter_root.overrides.keys(), ["tree_sitter"]),
-        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]),
+        expect_equal("julia-internal assets", [asset_name("julia_internal", k) for k in TOOLS["julia_internal"].platforms], ["dx-julia-internal-linux-x86_64.so"]),
+        expect_equal("julia-internal ships with the target", TOOLS["julia_internal"].role, "target"),
+        expect_contains("the registry lists julia-internal for fill_pins", registry_lines(), "julia_internal linux_x86_64 dx-julia-internal-linux-x86_64.so"),
+        expect_contains("downloads.bzl lists a pinned julia-internal", downloads_bzl(julia_internal), '"julia_internal": ["linux_x86_64"],'),
+        expect_contains("downloads.bzl is empty with nothing pinned", downloads_bzl(plan_native_tools("1.2.3", {}, URL_TEMPLATE, {})), "DOWNLOADED = {}\n"),
+        expect_contains("downloads.bzl keys use @platforms spelling", downloads_bzl(pcov), '"pcov": ["linux_x86_64", "macos_aarch64"],'),
+        expect_contains("a pinned julia-internal selects the downloaded file", julia_internal_build, '":native_linux_x86_64": "@dx_julia_internal_prebuilt_linux_x86_64//file:libjulia-internal.so",'),
+        expect_contains("a guarded unpinned julia-internal selects the stub", unpinned_guard, 'name = "julia_internal",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",\n        "//conditions:default": "@rules_dx//julia/private/runtime:libjulia_internal",\n    }),'),
+        expect_equal("pcov assets", [asset_name("pcov", k) for k in TOOLS["pcov"].platforms], ["dx-pcov-linux-arm64.so", "dx-pcov-linux-x86_64.so", "dx-pcov-macos-arm64.so"]),
+        expect_equal("pcov ships with the target", TOOLS["pcov"].role, "target"),
+        expect_contains("the registry lists pcov for fill_pins", registry_lines(), "pcov linux_x86_64 dx-pcov-linux-x86_64.so"),
+        expect_contains("a pinned pcov selects the downloaded file", pcov_build, '":native_linux_x86_64": "@dx_pcov_prebuilt_linux_x86_64//file:pcov.so",'),
+        expect_contains("a pinned pcov builds from source elsewhere", pcov_build, '"//conditions:default": "@dx_php_pcov//:pcov.so",'),
+        expect_false("pcov gets no native_binary", "pcov_linux_x86_64" in pcov_build),
+        expect_equal("a pcov download keeps the loaded file name", pcov_linux.exe, "pcov.so"),
+        expect_false("a pcov download is not executable", pcov_linux.executable),
+        expect_contains("a guarded unpinned pcov selects the stub", unpinned_guard, 'name = "pcov",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",\n        "//conditions:default": "@dx_php_pcov//:pcov.so",\n    }),'),
+        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "julia_internal", "kcov", "launcher", "ldoc_main", "nixfmt", "oapi_codegen", "ormolu", "pcov", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]),
         expect_equal("runtime assets", [asset_name("runtime", k) for k in TOOLS["runtime"].platforms], ["dx-runtime-linux-arm64", "dx-runtime-linux-x86_64", "dx-runtime-macos-arm64", "dx-runtime-windows-arm64", "dx-runtime-windows-x86_64"]),
         expect_equal("the runtime runs on the target platform", TOOLS["runtime"].role, "target"),
         expect_contains("the registry lists the runtime for fill_pins", registry_lines(), "runtime windows_arm64 dx-runtime-windows-arm64"),
@@ -124,10 +148,13 @@ def _checks():
         expect_equal("a root asset may name the runtime", runtime_root.overrides.keys(), ["runtime"]),
         expect_equal("oapi-codegen assets", [asset_name("oapi_codegen", k) for k in TOOLS["oapi_codegen"].platforms], ["dx-oapi-codegen-linux-arm64", "dx-oapi-codegen-linux-x86_64", "dx-oapi-codegen-macos-arm64", "dx-oapi-codegen-windows-arm64", "dx-oapi-codegen-windows-x86_64"]),
         expect_contains("the registry lists oapi-codegen for fill_pins", registry_lines(), "oapi_codegen linux_arm64 dx-oapi-codegen-linux-arm64"),
+        expect_equal("ldoc_main assets", [asset_name("ldoc_main", k) for k in TOOLS["ldoc_main"].platforms], ["dx-ldoc-main-linux-arm64", "dx-ldoc-main-linux-x86_64", "dx-ldoc-main-macos-arm64", "dx-ldoc-main-windows-arm64", "dx-ldoc-main-windows-x86_64"]),
+        expect_contains("the registry lists ldoc_main for fill_pins", registry_lines(), "ldoc_main windows_arm64 dx-ldoc-main-windows-arm64"),
+        expect_contains("an unpinned ldoc_main builds from source", source_native, 'name = "ldoc_main",\n    actual = "@rules_dx//tools/docs/lua:ldoc_main",'),
         expect_equal("capnp assets", [asset_name("capnp", k) for k in TOOLS["capnp"].platforms], ["dx-capnp-linux-arm64", "dx-capnp-linux-x86_64", "dx-capnp-macos-arm64", "dx-capnp-windows-arm64", "dx-capnp-windows-x86_64"]),
         expect_contains("the registry lists the code generators for fill_pins", registry_lines(), "thrift macos_arm64 dx-thrift-macos-arm64"),
-        expect_equal("native tools run on the exec platform except hpc_lcov, kcov, launcher and runtime", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov", "kcov", "launcher", "runtime"]),
-        expect_equal("the target tools", target_tools(), ["hpc_lcov", "kcov", "launcher", "runtime"]),
+        expect_equal("native tools run on the exec platform except hpc_lcov, julia_internal, kcov, launcher, pcov and runtime", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov", "julia_internal", "kcov", "launcher", "pcov", "runtime"]),
+        expect_equal("the target tools", target_tools(), ["hpc_lcov", "julia_internal", "kcov", "launcher", "pcov", "runtime"]),
         expect_equal("release tool assets", [asset_name(t, k) for t in ["deadnix", "selene", "nixfmt", "kcov"] for k in TOOLS[t].platforms], ["dx-deadnix-linux-arm64", "dx-deadnix-linux-x86_64", "dx-deadnix-macos-arm64", "dx-deadnix-windows-x86_64", "dx-selene-linux-arm64", "dx-selene-linux-x86_64", "dx-selene-macos-arm64", "dx-selene-windows-x86_64", "dx-nixfmt-linux-arm64", "dx-nixfmt-macos-arm64", "dx-kcov-linux-arm64", "dx-kcov-linux-x86_64"]),
         expect_equal("python bundle assets", [asset_name("python_tools", k) for k in TOOLS["python_tools"].platforms], ["dx-python-tools-linux-arm64.tar.gz", "dx-python-tools-linux-x86_64.tar.gz", "dx-python-tools-macos-arm64.tar.gz", "dx-python-tools-windows-arm64.tar.gz", "dx-python-tools-windows-x86_64.tar.gz"]),
         expect_contains("the registry lists the python bundle for fill_pins", registry_lines(), "python_tools windows_arm64 dx-python-tools-windows-arm64.tar.gz"),
@@ -306,10 +333,28 @@ def _checks():
         expect_equal("the go multicall answers to seven names", sorted(GO_TOOLS.keys()), ["dx_errcheck", "dx_godoc_json", "dx_gofumpt", "dx_gotype", "dx_govet", "dx_modfmt", "dx_staticcheck"]),
     ]
 
+def _launcher_checks():
+    pins = {"launcher": {"linux_x86_64": _HASH}}
+    rooted = launcher_hub("php_launcher", [_mod("rules_dx", True)], "php", pins)
+    pinned = launcher_hub("php_launcher", [_mod("app", True), _mod("rules_dx", False)], "php", pins)
+    sourced = launcher_hub("php_launcher", [_mod("app", True, from_source = True)], "php", pins)
+    middle = launcher_hub("php_launcher", [_mod("app", True), _mod("middle", False, from_source = True)], "php", pins)
+    return [
+        expect_contains("the rules_dx root launcher hub guards the source launcher", rooted.build, 'name = "launcher",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",\n        "//conditions:default": "@rules_dx//cli/launcher:exec_launcher",\n    }),'),
+        expect_equal("the rules_dx root launcher hub downloads nothing", [a.repo for a in rooted.assets if a.repo], []),
+        expect_contains("a pinned launcher hub runs its own download", pinned.build, 'src = "@php_launcher_linux_x86_64//file:launcher",'),
+        expect_contains("a pinned launcher hub selects its download", pinned.build, '":native_linux_x86_64": ":launcher_linux_x86_64",'),
+        expect_false("a consumer launcher hub never names guard_view", "guard_view" in pinned.build),
+        expect_equal("a pinned launcher hub downloads under its own name", [a.repo for a in pinned.assets if a.repo], ["php_launcher_linux_x86_64"]),
+        expect_equal("a root from_source downloads nothing", [a.repo for a in sourced.assets if a.repo], []),
+        expect_false("a root from_source is not guarded", "guard_view" in sourced.build),
+        expect_equal("a non-root from_source is an error", middle.error, "php: only the root module may set from_source tags; middle sets them"),
+    ]
+
 def dx_prebuilt_hub_tests(name):
     """Declares the @dx_prebuilt hub test."""
     starlark_test(
         name = name,
         mode = "load",
-        checks = _checks(),
+        checks = _checks() + _launcher_checks(),
     )

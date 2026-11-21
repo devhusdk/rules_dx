@@ -13,8 +13,8 @@ const PURE: &str = "--@rules_go//go/config:pure";
 const RELEASE: &str = "//deploy/private/release";
 const GAZELLE: &str = "@dx_gazelle//:gazelle";
 const LAUNCHER: &str = "//cli/launcher:exec_launcher";
-/// The native build tools and the dx runtime a cell ships, by registry name in `cli/prebuilt/tools.bzl`.
-const NATIVE_TOOLS: [Tool; 4] = [
+/// The native build tools and the dx runtime a cell ships, by asset stem.
+const NATIVE_TOOLS: [Tool; 5] = [
     Tool {
         tool: "capnp",
         label: "@dx_capnproto//src/capnp:capnp_tool",
@@ -24,6 +24,14 @@ const NATIVE_TOOLS: [Tool; 4] = [
         tool: "flatc",
         label: "@dx_flatbuffers//:flatc",
         licenses: &["@dx_flatbuffers//:LICENSE"],
+    },
+    Tool {
+        tool: "ldoc-main",
+        label: "//tools/docs/lua:ldoc_main",
+        licenses: &[
+            "//lua/private:lua_LICENSE.txt",
+            "@dx_luafilesystem//:LICENSE",
+        ],
     },
     Tool {
         tool: "runtime",
@@ -36,7 +44,7 @@ const NATIVE_TOOLS: [Tool; 4] = [
         licenses: &["@dx_thrift//:LICENSE", "@dx_thrift//:NOTICE"],
     },
 ];
-/// The one cell that writes the `dx-<tool>-LICENSE` assets of the native tools.
+/// The one cell that writes the `dx-<tool>-LICENSE` assets of the native tools, pcov and julia-internal.
 const LICENSE_CELL: &str = "dx-linux-x86_64";
 /// A tool or shared library a cell ships: its asset stem, its label and the upstream licence files of its licence asset, empty for first-party code.
 struct Tool {
@@ -58,6 +66,28 @@ const WINDOWS_ARM64_LIBRARIES: [Tool; 2] = [
         licenses: &[
             "@jvm_tree_sitter_pkl//:LICENSE.txt",
             "@jvm_tree_sitter_pkl//:NOTICE.txt",
+        ],
+    },
+];
+/// The PHP PCOV extension the linux and macOS cells ship for the PHP toolchains.
+const PCOV_LIBRARY: Tool = Tool {
+    tool: "pcov",
+    label: "@dx_php_pcov//:pcov.so",
+    licenses: &["@dx_php_pcov//:pcov-1.0.12/LICENSE"],
+};
+const PCOV: [Tool; 1] = [PCOV_LIBRARY];
+/// PCOV and the source-built libjulia-internal the linux-x86_64 Julia toolchain loads, with
+/// the licences of the libuv, utf8proc and LLVM code it links statically.
+const LINUX_X86_64_LIBRARIES: [Tool; 2] = [
+    PCOV_LIBRARY,
+    Tool {
+        tool: "julia-internal",
+        label: "//julia/private/runtime:libjulia_internal",
+        licenses: &[
+            "@julia_src//:LICENSE.md",
+            "@julia_src_libuv//:share/licenses/LibUV/LICENSE",
+            "@julia_src_utf8proc//:LICENSE.md",
+            "@julia_src_libllvm//:share/licenses/libLLVM/LICENSE.TXT",
         ],
     },
 ];
@@ -259,10 +289,21 @@ fn tool_asset_name(tool: &str, cell: &str) -> String {
 
 /// The shared libraries a cell ships.
 fn libraries(cell: &str) -> &'static [Tool] {
-    if cell == "dx-windows-arm64" {
-        &WINDOWS_ARM64_LIBRARIES
-    } else {
-        &[]
+    match cell {
+        "dx-windows-arm64" => &WINDOWS_ARM64_LIBRARIES,
+        "dx-linux-x86_64" => &LINUX_X86_64_LIBRARIES,
+        "dx-linux-arm64" | "dx-macos-arm64" => &PCOV,
+        _ => &[],
+    }
+}
+
+/// The shared libraries whose licence assets a cell writes: each library's licence comes
+/// from one cell, `LICENSE_CELL` for a library several cells ship.
+fn library_licenses(cell: &str) -> &'static [Tool] {
+    match cell {
+        "dx-windows-arm64" => &WINDOWS_ARM64_LIBRARIES,
+        LICENSE_CELL => &LINUX_X86_64_LIBRARIES,
+        _ => &[],
     }
 }
 
@@ -278,9 +319,15 @@ fn native_licenses(cell: &str) -> Vec<&'static Tool> {
     }
 }
 
-/// The asset name of a shared library in a cell, such as `dx-tree-sitter-windows-arm64.dll`.
+/// The asset name of a shared library in a cell, such as `dx-tree-sitter-windows-arm64.dll`
+/// or `dx-julia-internal-linux-x86_64.so`.
 fn library_asset_name(tool: &str, cell: &str) -> String {
-    format!("{}.dll", tool_asset_name(tool, cell))
+    let ext = if cell.starts_with("dx-windows-") {
+        "dll"
+    } else {
+        "so"
+    };
+    format!("{}.{ext}", tool_asset_name(tool, cell))
 }
 
 /// Writes the licence files of `tool`, separated by a blank line, as `dx-<tool>-LICENSE` in `out`.
@@ -456,6 +503,8 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
             &main.file(&root, &[], library.label)?,
             &out.join(library_asset_name(library.tool, &env.cell)),
         )?;
+    }
+    for library in library_licenses(&env.cell) {
         write_license(&main, &output_base, &workspace, library, out)?;
     }
     let dx = main.file(&root, &[], "//cli/cli:dx")?;
@@ -565,8 +614,8 @@ pub fn cell(args: &[String]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_macos, libraries, library_asset_name, native_licenses, source_file, symbols_name,
-        tool_asset_name, NATIVE_TOOLS,
+        is_macos, libraries, library_asset_name, library_licenses, native_licenses, source_file,
+        symbols_name, tool_asset_name, NATIVE_TOOLS,
     };
     use std::path::Path;
 
@@ -585,24 +634,55 @@ mod tests {
         assert!(source_file(base, workspace, "bazel-out/x64_windows-opt/bin/a.dll").is_err());
     }
 
-    #[test]
-    fn only_the_windows_arm64_cell_ships_libraries() {
-        let tools = |cell| {
-            libraries(cell)
-                .iter()
-                .map(|library| library.tool)
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(
-            tools("dx-windows-arm64"),
-            ["tree-sitter", "tree-sitter-pkl"]
-        );
-        assert!(tools("dx-windows-x86_64").is_empty());
-        assert!(tools("dx-linux-arm64").is_empty());
+    fn names(tools: &[super::Tool]) -> Vec<&str> {
+        tools.iter().map(|tool| tool.tool).collect()
     }
 
     #[test]
-    fn library_assets_end_in_dll() {
+    fn windows_arm64_ships_tree_sitter_and_unix_cells_ship_pcov_and_julia() {
+        assert_eq!(
+            names(libraries("dx-windows-arm64")),
+            ["tree-sitter", "tree-sitter-pkl"]
+        );
+        assert!(libraries("dx-windows-x86_64").is_empty());
+        assert_eq!(
+            names(libraries("dx-linux-x86_64")),
+            ["pcov", "julia-internal"]
+        );
+        for cell in ["dx-linux-arm64", "dx-macos-arm64"] {
+            assert_eq!(names(libraries(cell)), ["pcov"], "{cell}");
+        }
+    }
+
+    #[test]
+    fn each_library_licence_comes_from_one_cell() {
+        assert_eq!(
+            names(library_licenses("dx-windows-arm64")),
+            ["tree-sitter", "tree-sitter-pkl"]
+        );
+        assert_eq!(
+            names(library_licenses("dx-linux-x86_64")),
+            ["pcov", "julia-internal"]
+        );
+        for cell in ["dx-linux-arm64", "dx-macos-arm64", "dx-windows-x86_64"] {
+            assert!(library_licenses(cell).is_empty(), "{cell}");
+        }
+    }
+
+    #[test]
+    fn library_assets_end_in_dll_on_windows_and_so_elsewhere() {
+        assert_eq!(
+            library_asset_name("pcov", "dx-linux-x86_64"),
+            "dx-pcov-linux-x86_64.so"
+        );
+        assert_eq!(
+            library_asset_name("pcov", "dx-macos-arm64"),
+            "dx-pcov-macos-arm64.so"
+        );
+        assert_eq!(
+            library_asset_name("julia-internal", "dx-linux-x86_64"),
+            "dx-julia-internal-linux-x86_64.so"
+        );
         assert_eq!(
             library_asset_name("tree-sitter", "dx-windows-arm64"),
             "dx-tree-sitter-windows-arm64.dll"
@@ -643,6 +723,10 @@ mod tests {
             tool_asset_name("runtime", "dx-macos-arm64"),
             "dx-runtime-macos-arm64"
         );
+        assert_eq!(
+            tool_asset_name("ldoc-main", "dx-windows-arm64"),
+            "dx-ldoc-main-windows-arm64"
+        );
     }
 
     #[test]
@@ -653,7 +737,10 @@ mod tests {
                 .map(|tool| tool.tool)
                 .collect::<Vec<_>>()
         };
-        assert_eq!(tools("dx-linux-x86_64"), ["capnp", "flatc", "thrift"]);
+        assert_eq!(
+            tools("dx-linux-x86_64"),
+            ["capnp", "flatc", "ldoc-main", "thrift"]
+        );
         for cell in [
             "dx-linux-arm64",
             "dx-macos-arm64",

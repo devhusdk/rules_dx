@@ -26,7 +26,9 @@
     "windows_arm64",
     "windows_x86_64"
   ],
-  "pins": [],
+  "pins": [
+    "pins.json"
+  ],
   "entry_points": [
     "scala_library",
     "scala_binary",
@@ -36,7 +38,7 @@
     "scala_doc_shard"
   ],
   "quality": {
-    "bzl": "java/private/quality:jvm.bzl",
+    "bzl": "scala/private/quality:scala.bzl",
     "classes": [
       "scala"
     ],
@@ -62,14 +64,30 @@
       ],
       "lint": [
         "real_scala_lint_aspect"
+      ],
+      "typecheck": [
+        "real_scala_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_scala_format_probe_aspect"
+      ],
+      "lint": [
+        "real_scala_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_scala_typecheck_probe_aspect"
       ]
     }
   },
   "docs": {
-    "bzl": "tools/docs/jvm:aspect.bzl",
+    "bzl": "tools/docs/scala:aspect.bzl",
     "file_extensions": [
       ".scala"
     ],
-    "aspects": []
+    "aspects": [
+      "real_scala_docs_aspect"
+    ]
   }
 }

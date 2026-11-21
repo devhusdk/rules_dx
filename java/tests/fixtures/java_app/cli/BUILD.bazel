@@ -1,9 +1,15 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//java:defs.bzl", "java_binary", "java_library", "java_test")
+load("@rules_dx//java/tests:jvm_compile_tests.bzl", "java_strict_deps_test")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 
 # gazelle:resolve java billing.BuildInfo //java/tests/fixtures/java_app/billing
+# gazelle:resolve java billing.Invoice //java/tests/fixtures/java_app/billing
+# gazelle:resolve java billing.InvoiceException //java/tests/fixtures/java_app/billing
+# gazelle:resolve java billing.InvoiceReader //java/tests/fixtures/java_app/billing
+# gazelle:resolve java billing.LineItem //java/tests/fixtures/java_app/billing
+# gazelle:resolve java billing.Totals //java/tests/fixtures/java_app/billing
 
 package(default_visibility = ["//java/tests/fixtures/java_app:__subpackages__"])
 
@@ -21,6 +27,13 @@ java_library(
     testonly = True,
     srcs = ["Cli.java"],
     deps = ["//java/tests/fixtures/java_app/billing"],
+)
+
+java_strict_deps_test(
+    name = "cli_strict_deps_test",
+    size = "small",
+    indirect = "gson",
+    library = "cli",
 )
 
 java_binary(

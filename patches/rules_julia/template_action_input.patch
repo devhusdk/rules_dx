@@ -1,8 +1,9 @@
 Upstream: periareon/rules_julia#44
-diff -ruN a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
---- a/julia/private/julia_common.bzl	2026-11-09 15:12:22.821045394 +0100
-+++ b/julia/private/julia_common.bzl	2026-11-09 15:12:22.830896307 +0100
-@@ -383,19 +383,32 @@
+diff --git a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
+index 9d6b83e..81b4ea4 100644
+--- a/julia/private/julia_common.bzl
++++ b/julia/private/julia_common.bzl
+@@ -417,19 +417,32 @@ def _create_julia_wrapper(ctx, main_file, config, toolchain_info, sysimage = Non
      else:
          julia_flags_str = " ".join([_shell_quote(arg) for arg in all_flags])
  
@@ -39,7 +40,7 @@ diff -ruN a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
 +        args.add(new)
 +    _run_driver(
 +        ctx,
-+        toolchain_info = toolchain_info,
++        toolchain_info = ctx.attr._julia_toolchain_exec[platform_common.ToolchainInfo],
 +        driver = ctx.file._wrapper_maker,
 +        arguments = args,
 +        inputs = depset([template_file]),
@@ -48,10 +49,16 @@ diff -ruN a/julia/private/julia_common.bzl b/julia/private/julia_common.bzl
      )
  
      return wrapper
-@@ -642,6 +655,10 @@
+@@ -673,6 +686,16 @@ BINARY_ATTRS = dicts.add(DRIVER_ATTRS, {
          default = Label("//julia/private:entrypoint.jl"),
          allow_single_file = True,
      ),
++    "_julia_toolchain_exec": attr.label(
++        doc = "The Julia toolchain of the execution platform, which renders the wrapper.",
++        cfg = "exec",
++        default = Label("//julia:current_julia_toolchain"),
++        providers = [platform_common.ToolchainInfo],
++    ),
 +    "_wrapper_maker": attr.label(
 +        default = Label("//julia/private:binary_wrapper_maker.jl"),
 +        allow_single_file = True,

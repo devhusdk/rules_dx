@@ -15,3 +15,20 @@ dx_wrapper_contract_tests(
         "test": "//astro/tests/conformance:wrapper_test",
     },
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//astro/tests/fixtures/app:app_build_test",
+        "//astro/tests/fixtures/app:site_island_test",
+        "//astro/tests/fixtures/app:site_static_test",
+        "//astro/tests/fixtures/app_config:config_file_test",
+        "//astro/tests/fixtures/typecheck:bad_exit_test",
+        "//astro/tests/fixtures/typecheck:bad_stdout_test",
+        "//astro/tests/fixtures/typecheck:broken_exit_test",
+        "//astro/tests/fixtures/typecheck:broken_stdout_test",
+        "//astro/tests/fixtures/typecheck:clean_exit_test",
+        "//astro/tests/fixtures/typecheck:clean_stdout_test",
+    ],
+)

@@ -6,11 +6,17 @@ load("//haskell/private:kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs"
 load("//haskell/private/toolchain:pins.bzl", "qualified_cells")
 load(":coverage_tests.bzl", "dx_haskell_coverage_tests")
 load(":profile_tests.bzl", "profile_ghcopts_tests")
-load(":toolchain_tests.bzl", "haskell_metadata_tests")
+load(":toolchain_tests.bzl", "ghc_pkg_inputs_test", "haskell_metadata_tests")
 
 haskell_metadata_tests(
     name = "metadata",
     size = "small",
+)
+
+ghc_pkg_inputs_test(
+    name = "ghc_pkg_inputs",
+    size = "small",
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
 )
 
 dx_haskell_coverage_tests(

@@ -417,47 +417,83 @@ def _quality_kinds(lang, quality, not_applicable):
         kinds.append(kind)
     return kinds
 
+def _quality_case(name, lang, kind, mode, fixture, source, text, subject_rule, size, compatible, kwargs):
+    subject_rule(
+        name = name + "_subject",
+        config = quality_config(lang, kind),
+        target = fixture,
+        testonly = True,
+        target_compatible_with = compatible,
+        visibility = ["//visibility:private"],
+    )
+    config_results(
+        name = name + "_results",
+        config = quality_config(lang, kind),
+        subject = ":" + name + "_subject",
+        testonly = True,
+        target_compatible_with = compatible,
+        visibility = ["//visibility:private"],
+    )
+    rust_test(
+        name = name,
+        srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+        data = [":" + name + "_results", source],
+        deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
+        env = {
+            "DX_CONFORMANCE_MODE": mode,
+            "DX_CONFORMANCE_SOURCE": "$(rlocationpath %s)" % source,
+            "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s_results)" % name,
+            "DX_CONFORMANCE_TEXT": text,
+        },
+        size = size,
+        target_compatible_with = compatible,
+        **kwargs
+    )
+
+def _lint_text(quality, kind):
+    return "%s %d" % (quality["lint_rule"], quality["lint_line"]) if kind == "lint" else ""
+
+def _quality_subject(lang, quality, kind):
+    return quality.get(kind + "_subject") or (_CORE_QUALITY_SUBJECTS[lang] if lang in _CORE_QUALITY_SUBJECTS else QUALITY_SUBJECTS[lang])[kind]
+
 def _quality_tests(prefix, lang, quality, not_applicable, size, kwargs):
     labels = []
     for kind in _quality_kinds(lang, quality, not_applicable):
         clean, error = _QUALITY_TESTS[kind]
-        source = quality[kind + "_source"]
-        text = "%s %d" % (quality["lint_rule"], quality["lint_line"]) if kind == "lint" else ""
         for test, fixture, mode in [(clean, quality["clean"], kind), (error, quality[kind + "_dirty"], kind + "_error")]:
-            subject_rule = quality.get(kind + "_subject") or (_CORE_QUALITY_SUBJECTS[lang] if lang in _CORE_QUALITY_SUBJECTS else QUALITY_SUBJECTS[lang])[kind]
-            subject_rule(
-                name = prefix + test + "_subject",
-                config = quality_config(lang, kind),
-                target = fixture,
-                testonly = True,
-                target_compatible_with = _compatible_with(lang, test, not_applicable),
-                visibility = ["//visibility:private"],
-            )
-            config_results(
-                name = prefix + test + "_results",
-                config = quality_config(lang, kind),
-                subject = ":" + prefix + test + "_subject",
-                testonly = True,
-                target_compatible_with = _compatible_with(lang, test, not_applicable),
-                visibility = ["//visibility:private"],
-            )
-            rust_test(
-                name = prefix + test,
-                srcs = [Label("//tools/testing/conformance:runner_test.rs")],
-                data = [":" + prefix + test + "_results", source],
-                deps = [_CONFORMANCE_QUALITY, Label("//tools/testing:dx_testing")],
-                env = {
-                    "DX_CONFORMANCE_MODE": mode,
-                    "DX_CONFORMANCE_SOURCE": "$(rlocationpath %s)" % source,
-                    "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s_results)" % (prefix + test),
-                    "DX_CONFORMANCE_TEXT": text,
-                },
-                size = size,
-                target_compatible_with = _compatible_with(lang, test, not_applicable),
-                **kwargs
+            _quality_case(
+                prefix + test,
+                lang,
+                kind,
+                mode,
+                fixture,
+                quality[kind + "_source"],
+                _lint_text(quality, kind),
+                _quality_subject(lang, quality, kind),
+                size,
+                _compatible_with(lang, test, not_applicable),
+                kwargs,
             )
             labels.append(test)
     return labels
+
+def dx_quality_error_tests(name, lang, quality, size = "small", **kwargs):
+    """Adds `<name>_lint_error_test` and `<name>_format_error_test` over more dirty fixtures of one conformance language."""
+    for kind in _quality_kinds(lang, dict(quality, clean = None), {}):
+        _, error = _QUALITY_TESTS[kind]
+        _quality_case(
+            name + "_" + error,
+            lang,
+            kind,
+            kind + "_error",
+            quality[kind + "_dirty"],
+            quality[kind + "_source"],
+            _lint_text(quality, kind),
+            _quality_subject(lang, quality, kind),
+            size,
+            _compatible_with(lang, error, {}),
+            kwargs,
+        )
 
 def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "--- FAIL: {case}", lock = {}, runfiles = {}, quality = {}, not_applicable = {}, cross_runfile = "", cross_platforms = "//tools/platforms", size = "small", **kwargs):
     """Declares the conformance tests of one language.

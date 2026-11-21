@@ -1,7 +1,8 @@
 //! Staging helpers shared by every publisher: runfiles, outdirs, private dirs.
 
+use std::fmt;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub fn bin_usage(prog: &str, usage: &str) -> i32 {
     eprintln!("usage: {prog} {usage}");
@@ -28,6 +29,40 @@ pub fn copy_verified(src: &Path, dest: &Path) -> io::Result<String> {
         ));
     }
     Ok(want)
+}
+
+/// A package file that could not be staged.
+#[derive(Debug)]
+pub struct StageError {
+    pub(crate) path: PathBuf,
+    source: io::Error,
+}
+
+impl fmt::Display for StageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "cannot stage {}", self.path.display())
+    }
+}
+
+impl std::error::Error for StageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
+/// Copies each mapped source to its package-relative path under `staging`, verifying bytes.
+pub(crate) fn stage_mapped(mapped: &[(PathBuf, String)], staging: &Path) -> Result<(), StageError> {
+    for (src, rel) in mapped {
+        let dest = staging.join(rel);
+        dest.parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .and_then(|()| copy_verified(src, &dest).map(|_| ()))
+            .map_err(|source| StageError {
+                path: src.clone(),
+                source,
+            })?;
+    }
+    Ok(())
 }
 
 /// Copies each source to `<stage>/<index>` as a regular file, following symlinks.
@@ -387,7 +422,11 @@ mod tests {
         for index in ["0", "1"] {
             let staged = stage.join(index);
             let meta = std::fs::symlink_metadata(&staged).expect("staged metadata");
-            assert!(meta.file_type().is_file(), "{} is not a regular file", staged.display());
+            assert!(
+                meta.file_type().is_file(),
+                "{} is not a regular file",
+                staged.display()
+            );
             assert_eq!(std::fs::read(&staged).expect("read staged"), b"key=value");
         }
         let missing = [scratch.path().join("missing").display().to_string()];
@@ -408,7 +447,10 @@ mod tests {
         std::fs::write(&src, b"second").expect("rewrite src");
         set_mode(&src, 0o444);
         stage_regular_files(&stage, &srcs).expect("second stage");
-        assert_eq!(std::fs::read(stage.join("0")).expect("read staged"), b"second");
+        assert_eq!(
+            std::fs::read(stage.join("0")).expect("read staged"),
+            b"second"
+        );
     }
 
     #[test]

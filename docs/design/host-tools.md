@@ -18,6 +18,13 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 - An upstream program may start `/bin/sh` itself, through a `#!/bin/sh` line or `system()`. That is the only host program an action may reach. Windows actions reach none.
 - An upstream script that needs `bash` is replaced by a native program under the same file name, placed first on `PATH`. `dx` is the model: it runs as each `conda-ocaml-*` program name the OCaml compiler calls.
 
+## Helpers found by name
+
+- A helper an upstream tool finds on `PATH` is a quality-runner `path_tools` entry `(name, dx, [subcommand])`. `_buf_format_context` in `core/quality/families/generation.bzl` is the model: buf format's `diff` runs `dx buf_diff`.
+- A helper an upstream tool starts by a fixed program name is a `ctx.actions.symlink` of dx under that name, plus a `tool_for` arm in `cli/cli/src/multicall.rs`. `cc_drivers` in `ocaml/private/toolchain/ocaml.bzl` is the model. Only rules with no Windows exec cell use it: Bazel on Windows without symlinks copies dx once per name.
+- A helper that dx itself is linked or built through, such as the Rust MSVC linker in `rust/private/defs.bzl`, is its own small binary, never a dx subcommand.
+- Every other helper is `dx <subcommand>` from `ctx.actions.run`, or a `dx_subcommand` launcher from `cli/launcher/defs.bzl`.
+
 ## Coreutils
 
 - The pinned coreutils is the uutils multicall binary. `core/coreutils/pins.json` holds one cell per host: Linux, macOS and Windows on x86_64 and arm64, each with a `sha256`.
@@ -25,6 +32,7 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 - `coreutils(ctx)` from `//core/coreutils:defs.bzl` returns `binary`, `files` and `path`. A rule adds `files` to its inputs and sets `PATH` to `path`.
 - `path` is a directory of applets. `COREUTILS_APPLETS` in `core/coreutils/defs.bzl` is the only list of them. Add an applet there when an upstream script needs it.
 - Coreutils serves upstream `/bin/sh` scripts only. rules_dx code never calls an applet to do work it can do in Rust or Starlark.
+- Starlark cannot copy a file; a rule that needs a real copy calls `coreutils_copy`.
 - `grep`, `sed`, `awk`, `tar`, `gzip`, `find` and `xargs` are not coreutils and are not pinned. Code that needs them is rewritten in Rust.
 
 ## Actions

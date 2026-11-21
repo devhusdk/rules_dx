@@ -1,19 +1,26 @@
 //! A fresh one-language consumer fetches only the repositories its cold-start list names.
 //!
-//! The test builds and tests `<lang>/tests/consumer` in a new workspace with an empty output
-//! base, then lists the repositories under `output_base/external`. That list must equal the
+//! Each language is one case: it builds and tests `<lang>/tests/consumer` in a new workspace with
+//! an empty output base, then lists the repositories under `output_base/external`. That list must equal the
 //! committed `cold_start/<lang>.txt`: a longer list means rules_dx started fetching something
-//! eagerly, a shorter one means the file is stale. Repositories of other language families must
+//! eagerly, a shorter one means the file is stale. A case that names `CHECK_ANALYSIS` also analyzes
+//! the `dx check` aspects over every consumer target, so a quality aspect that loads another
+//! family's rules fails it. Repositories of other language families must
 //! never download, whatever the file says. A toolchain hub whose rule ran and downloaded nothing
-//! is fine; it still has to be in the list.
+//! is fine; it still has to be in the list. `UPSTREAM_REGISTERED` names the module archives a
+//! consumer fetches for the toolchains their own MODULE.bazel registers; they are listed, not
+//! foreign. Both commands run with the repo contents cache off, so every listed repository's rule
+//! runs in the case that fetches it.
 
 use std::collections::BTreeSet;
 
 use dx_nested::Case;
 use dx_nested::record::Fetches;
+use prebuilt_guard::{guard_aspects, stub_url, wrapper_build, wrapper_bzl};
 
 /// Name fragments of repositories that belong to a language family the consumer does not use.
 const FOREIGN: &[(&str, &[&str])] = &[
+    ("java", &["ocaml", "opam", "cuda", "scala", "kotlin", "android"]),
     (
         "go",
         &[
@@ -46,6 +53,45 @@ const FOREIGN: &[(&str, &[&str])] = &[
     ),
 ];
 
+/// Languages whose case also analyzes the `dx check` aspects.
+const CHECK_ANALYSIS: &[&str] = &["java"];
+
+/// The `dx_prebuilt` asset tags that pin every jar tool of `DX_PREBUILT_REGISTRY` to a stub, as a
+/// released rules_dx pins them to downloads; unpinned, a jar tool builds from rules_dx sources that
+/// `//:module_srcs` leaves out.
+fn jar_pins() -> String {
+    let registry = dx_testing::env_text("DX_PREBUILT_REGISTRY");
+    let registry = dx_testing::read_text(
+        &dx_testing::rlocation(registry.trim())
+            .unwrap_or_else(|error| panic!("DX_PREBUILT_REGISTRY: {error}")),
+    );
+    let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
+    let mut tags = String::from(
+        "dx_prebuilt = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\n",
+    );
+    for line in registry.lines() {
+        let mut fields = line.split_whitespace();
+        let (Some(tool), Some("any")) = (fields.next(), fields.next()) else {
+            continue;
+        };
+        let stub = stubs.join(tool);
+        dx_testing::write_text(&stub, &format!("stub {tool}\n"));
+        let sha256 = dx_testing::sha256_file(&stub).unwrap_or_else(|error| panic!("{error}"));
+        let url = stub_url(&stub);
+        tags.push_str(&format!(
+            "dx_prebuilt.asset(name = \"{tool}\", os = \"any\", cpu = \"any\", url = \"{url}\", sha256 = \"{sha256}\")\n"
+        ));
+    }
+    tags
+}
+
+/// Module archives fetched in every consumer because their MODULE.bazel registers toolchains whose
+/// `toolchain_type` Bazel loads as a configured dependency.
+const UPSTREAM_REGISTERED: &[&str] = &[
+    "rules_android+",
+    "rules_kotlin+",
+];
+
 /// The names listed in a cold-start file: one per line, `#` comments and blank lines skipped.
 fn listed(text: &str) -> BTreeSet<String> {
     text.lines()
@@ -66,22 +112,27 @@ fn fetched(external: &std::path::Path) -> BTreeSet<String> {
         .collect()
 }
 
-/// The problems of a measured list against the committed one and the foreign fragments.
+/// The problems of a measured list against the committed one, the foreign fragments and the
+/// upstream-registered archives.
 fn problems(
     measured: &BTreeSet<String>,
     want: &BTreeSet<String>,
     foreign: &[&str],
+    upstream: &[&str],
     fetches: &Fetches,
 ) -> Vec<String> {
     let mut problems = Vec::new();
     for name in measured {
-        if fetches.download_free(name) {
+        if fetches.download_free(name) || upstream.contains(&name.as_str()) {
             continue;
         }
         if let Some(fragment) = foreign.iter().find(|fragment| name.contains(**fragment)) {
-            problems.push(format!(
-                "fetched {name}, a {fragment} repository that downloads or came from a cache"
-            ));
+            let how = if fetches.ran.contains(name) {
+                "that downloads"
+            } else {
+                "whose rule did not run (came from a cache)"
+            };
+            problems.push(format!("fetched {name}, a {fragment} repository {how}"));
         }
     }
     problems.extend(
@@ -92,6 +143,16 @@ fn problems(
     problems.extend(
         want.difference(measured)
             .map(|name| format!("no longer fetched, remove it from the list: {name}")),
+    );
+    problems.extend(
+        upstream
+            .iter()
+            .filter(|name| !measured.contains(**name))
+            .map(|name| {
+                format!(
+                    "no longer fetched; drop it from UPSTREAM_REGISTERED and close #14346: {name}"
+                )
+            }),
     );
     problems
 }
@@ -107,35 +168,110 @@ fn run_ok(case: &Case, args: &[&str], fetches: &mut Fetches) -> dx_testing::Run 
     run
 }
 
-#[test]
-fn a_fresh_consumer_fetches_only_its_cold_start_list() {
-    let lang = dx_testing::env_text("DX_COLD_START_LANG");
-    let lang = lang.trim();
+/// Analyzes the `dx check` aspects the consumer's file extensions select over its rules, through
+/// the same `dx_prebuilt_guard` wrapper `prebuilt_guard_test` writes.
+fn analyze_check_aspects(case: &Case, fetches: &mut Fetches) {
+    let targets = run_ok(
+        case,
+        &[
+            "query",
+            "--color=no",
+            "--curses=no",
+            "--output=label",
+            "kind(rule, //...) except attr(tags, \"\\bmanual\\b\", //...)",
+        ],
+        fetches,
+    );
+    let targets: Vec<&str> = targets
+        .stdout
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect();
+    assert!(!targets.is_empty(), "bazel query found no consumer rule");
+    let (check, _docs) = guard_aspects(&dx_adopt::quality_marks(case.root()));
+    let wrapper = case.root().join("dx_prebuilt_guard");
+    dx_testing::write_text(
+        &wrapper.join("defs.bzl"),
+        &wrapper_bzl("@rules_dx", &check, &[]),
+    );
+    dx_testing::write_text(&wrapper.join("BUILD.bazel"), &wrapper_build(&targets));
+    run_ok(
+        case,
+        &[
+            "cquery",
+            "--color=no",
+            "--curses=no",
+            "--nocheck_visibility",
+            "--nocheck_bzl_visibility",
+            "--repo_contents_cache=",
+            "--output=label",
+            "deps(//dx_prebuilt_guard:check)",
+        ],
+        fetches,
+    );
+}
+
+/// The `DX_COLD_START_LISTS` entries, the runfiles paths of `cold_start/<lang>.txt`.
+fn cold_start_lists() -> Vec<String> {
+    dx_testing::env_text("DX_COLD_START_LISTS")
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect()
+}
+
+fn fetches_only_its_cold_start_list(lang: &str) {
+    let suffix = format!("/{lang}.txt");
+    let list = cold_start_lists()
+        .into_iter()
+        .find(|path| path.ends_with(&suffix))
+        .unwrap_or_else(|| panic!("DX_COLD_START_LISTS has no {lang}.txt"));
     let want = listed(&dx_testing::read_text(
-        &dx_testing::rlocation(dx_testing::env_text("DX_COLD_START_LIST").trim())
-            .unwrap_or_else(|error| panic!("DX_COLD_START_LIST: {error}")),
+        &dx_testing::rlocation(&list).unwrap_or_else(|error| panic!("{list}: {error}")),
     ));
     let foreign = FOREIGN
         .iter()
         .find(|(name, _)| *name == lang)
         .map_or(&[][..], |(_, fragments)| fragments);
-    let case = Case::language_consumer(&format!("{lang}_cold_start"), lang, "")
+    let extra = if CHECK_ANALYSIS.contains(&lang) {
+        jar_pins()
+    } else {
+        String::new()
+    };
+    let case = Case::language_consumer(&format!("{lang}_cold_start"), lang, &extra)
         .unwrap_or_else(|error| panic!("{error}"));
     let mut fetches = Fetches::default();
+    // The cases share one repository cache; with the contents cache on, a later case reuses an
+    // earlier case's repositories without running their rules.
     run_ok(
         &case,
-        &["build", "--color=no", "--curses=no", "//..."],
+        &[
+            "build",
+            "--color=no",
+            "--curses=no",
+            "--repo_contents_cache=",
+            "//...",
+        ],
         &mut fetches,
     );
     run_ok(
         &case,
-        &["test", "--color=no", "--curses=no", "//..."],
+        &[
+            "test",
+            "--color=no",
+            "--curses=no",
+            "--repo_contents_cache=",
+            "//...",
+        ],
         &mut fetches,
     );
+    if CHECK_ANALYSIS.contains(&lang) {
+        analyze_check_aspects(&case, &mut fetches);
+    }
     let info = case.bazel(&["info", "output_base"]);
     assert!(info.status.success(), "bazel info: {}", info.combined());
     let measured = fetched(&std::path::PathBuf::from(info.stdout.trim()).join("external"));
-    let problems = problems(&measured, &want, foreign, &fetches);
+    let problems = problems(&measured, &want, foreign, UPSTREAM_REGISTERED, &fetches);
     let list: Vec<&str> = measured.iter().map(String::as_str).collect();
     assert!(
         problems.is_empty(),
@@ -144,6 +280,37 @@ fn a_fresh_consumer_fetches_only_its_cold_start_list() {
         list.len(),
         list.join("\n")
     );
+}
+
+#[test]
+fn java_fetches_only_its_cold_start_list() {
+    fetches_only_its_cold_start_list("java");
+}
+
+#[test]
+fn go_fetches_only_its_cold_start_list() {
+    fetches_only_its_cold_start_list("go");
+}
+
+#[test]
+fn rust_fetches_only_its_cold_start_list() {
+    fetches_only_its_cold_start_list("rust");
+}
+
+#[test]
+fn every_cold_start_list_has_foreign_fragments() {
+    let stems: BTreeSet<String> = cold_start_lists()
+        .iter()
+        .map(|path| {
+            std::path::Path::new(path)
+                .file_stem()
+                .unwrap_or_else(|| panic!("{path} has no file name"))
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    let langs: BTreeSet<String> = FOREIGN.iter().map(|(lang, _)| (*lang).to_owned()).collect();
+    assert_eq!(stems, langs);
 }
 
 #[test]
@@ -173,14 +340,46 @@ fn growth_shrinkage_and_downloading_foreign_repos_are_reported() {
             .collect(),
     };
     assert_eq!(
-        problems(&measured, &want, &["ocaml", "opam"], &fetches),
+        problems(&measured, &want, &["ocaml", "opam"], &[], &fetches),
         [
-            "fetched rules_dx++ocaml+dx_opam_repository, a ocaml repository that downloads or came from a cache",
-            "fetched rules_ocaml+, a ocaml repository that downloads or came from a cache",
+            "fetched rules_dx++ocaml+dx_opam_repository, a ocaml repository that downloads",
+            "fetched rules_ocaml+, a ocaml repository whose rule did not run (came from a cache)",
             "new fetch: c",
             "new fetch: rules_dx++ocaml+dx_opam_repository",
             "new fetch: rules_ocaml+",
             "no longer fetched, remove it from the list: b",
+        ]
+    );
+}
+
+#[test]
+fn upstream_registered_archives_skip_the_foreign_check_but_stay_listed() {
+    let want = listed("rules_kotlin+\n");
+    let measured: BTreeSet<String> = ["rules_kotlin+", "rules_scala+"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    let fetches = Fetches {
+        ran: ["rules_kotlin+", "rules_scala+"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        downloaded: ["rules_kotlin+", "rules_scala+"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+    };
+    assert_eq!(
+        problems(
+            &measured,
+            &want,
+            &["kotlin", "scala", "cuda"],
+            &["rules_kotlin+", "rules_scala+", "rules_cuda+"],
+            &fetches,
+        ),
+        [
+            "new fetch: rules_scala+",
+            "no longer fetched; drop it from UPSTREAM_REGISTERED and close #14346: rules_cuda+",
         ]
     );
 }

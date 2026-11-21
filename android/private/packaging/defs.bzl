@@ -4,6 +4,7 @@ load("@rules_android//providers:providers.bzl", "AndroidBundleInfo", "ApkInfo")
 load("@rules_android//rules:rules.bzl", "android_binary")
 load("@rules_android//rules/android_application:android_application_rule.bzl", "android_application")
 load("@rules_java//java/common:java_common.bzl", "java_common")
+load("//android/private/library:defs.bzl", "SDK_COMPATIBLE_WITH")
 load("//android/private/platforms:defs.bzl", "api_floor")
 load("//android/private/sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
@@ -188,6 +189,7 @@ def android_rust_apk(
     """Packages one APK and one unsigned App Bundle from native CcInfo deps with a Rust entry point."""
     tags = tags or []
     testonly = kwargs.get("testonly", False)
+    compatible = kwargs.pop("target_compatible_with", []) + SDK_COMPATIBLE_WITH
     inner = ":" + name + "_bin"
     abis = abis_for_platforms(platforms)
     package = custom_package if custom_package != "" else app_id
@@ -200,6 +202,7 @@ def android_rust_apk(
         app_id = app_id,
         version_code = version_code,
         tags = ["manual"],
+        target_compatible_with = compatible,
         testonly = testonly,
         visibility = ["//visibility:private"],
     )
@@ -215,13 +218,15 @@ def android_rust_apk(
             version_code = version_code,
             version_name = version_name,
             tags = ["manual"],
-            testonly = testonly,
+            target_compatible_with = compatible,
+        testonly = testonly,
             visibility = ["//visibility:private"],
         )
     _apk_file(
         name = name + "_file",
         src = ":" + name,
         tags = ["manual"],
+        target_compatible_with = compatible,
         testonly = testonly,
         visibility = visibility,
     )
@@ -230,6 +235,7 @@ def android_rust_apk(
         src = ":" + name,
         unsigned = True,
         tags = ["manual"],
+        target_compatible_with = compatible,
         testonly = testonly,
         visibility = visibility,
     )
@@ -241,6 +247,7 @@ def android_rust_apk(
         custom_package = package,
         manifest_values = dict(kwargs.get("manifest_values", {}), applicationId = app_id),
         tags = ["manual"],
+        target_compatible_with = compatible,
         testonly = testonly,
         visibility = ["//visibility:private"],
     )
@@ -250,6 +257,7 @@ def android_rust_apk(
         src = None if invalid else ":" + name + "_bundle",
         validation = ":" + name + "_validation",
         tags = ["manual"],
+        target_compatible_with = compatible,
         testonly = testonly,
         visibility = visibility,
     )
@@ -262,6 +270,7 @@ def android_rust_apk(
         resource_files = resource_files,
         deps = deps,
         tags = sorted(set(tags + ["manual"])),
+        target_compatible_with = compatible,
         visibility = ["//visibility:private"],
         **kwargs
     )
@@ -269,6 +278,7 @@ def android_rust_apk(
         name = name,
         abis = abis,
         binary = None if invalid else inner,
+        target_compatible_with = compatible,
         testonly = testonly,
         validation = ":" + name + "_validation",
         tags = sorted(set(tags + ["manual"])),

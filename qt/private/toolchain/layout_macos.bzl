@@ -10,7 +10,6 @@ LAYOUT = struct(
     compiler = "",
     display_plugins = {"cocoa": ["plugins/platforms/libqcocoa.dylib"]},
     icu_libraries = [],
-    launcher = "posix",
     library = _library,
     link = "framework",
     os = "macos",

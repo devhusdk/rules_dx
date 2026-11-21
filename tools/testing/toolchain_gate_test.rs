@@ -5,6 +5,7 @@ const OWN_TYPES: &[&str] = &[
     "//core/quality/sh:busybox_sh_linux_arm64",
     "//core/quality/sh:busybox_sh_linux_x86_64",
     "//core/quality/sh:busybox_sh_windows_x86_64",
+    "//scala/private/toolchain/hub:all",
     "@dx_coreutils//:all",
     "@dx_d_toolchains//:all",
     "@dx_elixir_toolchains//:all",
@@ -21,12 +22,10 @@ const OWN_TYPES: &[&str] = &[
 /// Registrations that carry `//config:toolchains_on` or `//cc:compiler` in `target_settings`.
 const GATED: &[&str] = &[
     "//core/hermetic_launcher:all",
+    "//cuda/private/toolchain/hub:all",
     "//java/private/toolchain:all",
     "//julia/private/runtime:source_toolchain",
-    "//scala/private/toolchain:semanticdb",
-    "//scala/private/toolchain:semanticdb_scala3",
     "@android_ndk_toolchain//:all",
-    "@cuda//toolchain/...",
     "@dx_cc_toolchains//:all",
     "@dx_dotnet_toolchains//:all",
     "@dx_haskell_toolchains//:all",

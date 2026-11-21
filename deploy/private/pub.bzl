@@ -1,9 +1,10 @@
 """Local-first pub.dev publisher for dx deploy."""
 
+load("@rules_dart//dart:providers.bzl", "DartCompileInfo")
+load("//core:rlocation.bzl", "rlocation_path")
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget")
-load("//core:rlocation.bzl", "rlocation_path")
 load(":deployment.bzl", "deployment")
 load(":validate_pub.bzl", "PUB_DEFAULT_REGISTRY_URL", "pub_name_error", "pub_registry_url_error", "pub_version_error")
 
@@ -39,14 +40,17 @@ def _pub_config_impl(ctx):
                 fail("pub_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a " + _MANIFEST + " in this " +
                      "repository, but " + pubspec.short_path + " comes from an external repository")
             package_dir = pubspec.short_path.rpartition("/")[0]
-        dill = [f for f in ctx.files._dart_apitool if f.extension == "dill"]
+        kernel = ctx.attr._dart_apitool[DartCompileInfo].executable
+        if kernel.extension != "dill":
+            fail("pub_deploy " + str(ctx.label) + ": " + str(ctx.attr._dart_apitool.label) + " compiles to " +
+                 kernel.basename + ", want a .dill kernel")
         values["api_compat"] = ctx.attr.api_compat
         values["api_baseline"] = ctx.attr.api_baseline
-        values["apitool_rloc"] = rlocation_path(ctx, dill[0]) if dill else ""
+        values["apitool_rloc"] = rlocation_path(ctx, kernel)
         values["dart_rloc"] = rlocation_path(ctx, ctx.executable._dart)
         values["package_dir"] = package_dir
         runfiles = runfiles.merge_all([
-            ctx.runfiles(files = dill),
+            ctx.runfiles(files = [kernel]),
             ctx.attr._dart[DefaultInfo].default_runfiles,
         ])
         flutter = ctx.toolchains[_FLUTTER_TOOLCHAIN]
@@ -85,6 +89,7 @@ _pub_config = rule(
         "_dart_apitool": attr.label(
             default = Label("//dart/private/tools/dart_apitool"),
             cfg = "exec",
+            providers = [DartCompileInfo],
         ),
         "registry_url": attr.string(
             doc = "HTTPS URL of the pub server.",

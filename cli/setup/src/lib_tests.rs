@@ -771,3 +771,58 @@ fn current_links_outside_the_layout_fail_closed() {
         Err(CommitError::CurrentInvalid { .. })
     ));
 }
+
+#[test]
+fn current_pointer_outside_setups_fails_closed() {
+    let scratch = dx_test_scratch::scratch("dx-setup-test-pointer-outside-").unwrap();
+    let workspace = workspace_of(scratch.path());
+    fs::create_dir_all(&workspace).expect("workspace");
+    let selected = pair('1', '2');
+    commit_ok(&workspace, &selected);
+    let foreign = scratch.path().join("foreign").join(setup_hex(&selected));
+    fs::create_dir_all(&foreign).expect("foreign record");
+    for (link, target) in [
+        (
+            ENVIRONMENT_LINK_NAME,
+            expected_environment_target(&selected),
+        ),
+        (GENERATED_LINK_NAME, expected_generated_target(&selected)),
+    ] {
+        create_pointer(
+            Path::new(&target),
+            &foreign.join(link),
+            PointerKind::Directory,
+        )
+        .expect("foreign link");
+    }
+    let current = state::local_dir(&workspace)
+        .join(SETUPS_DIR_NAME)
+        .join(CURRENT_LINK_NAME);
+    dx_test_scratch::remove_directory_link(&current).expect("remove pointer");
+    create_pointer(&foreign, &current, PointerKind::Directory).expect("foreign pointer");
+    assert!(matches!(
+        read_current_pair(&workspace),
+        Err(CommitError::CurrentInvalid { .. })
+    ));
+}
+
+#[test]
+fn missing_current_link_names_the_link() {
+    let scratch = dx_test_scratch::scratch("dx-setup-test-missing-link-").unwrap();
+    let workspace = workspace_of(scratch.path());
+    fs::create_dir_all(&workspace).expect("workspace");
+    let selected = pair('1', '2');
+    commit_ok(&workspace, &selected);
+    let record = state::local_dir(&workspace)
+        .join(SETUPS_DIR_NAME)
+        .join(setup_hex(&selected));
+    dx_test_scratch::remove_directory_link(&record.join(GENERATED_LINK_NAME)).expect("remove link");
+    let Err(CommitError::CurrentInvalid { reason }) = read_current_pair(&workspace) else {
+        panic!("a missing generated link is invalid");
+    };
+    let link = state::local_dir(&workspace)
+        .join(SETUPS_DIR_NAME)
+        .join(CURRENT_LINK_NAME)
+        .join(GENERATED_LINK_NAME);
+    assert!(reason.contains(&link.display().to_string()), "{reason}");
+}

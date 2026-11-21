@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   consumer:
+    if: startsWith(inputs.tag || github.event.release.tag_name, 'v')
     strategy:
       fail-fast: false
       matrix:
@@ -50,24 +51,69 @@ jobs:
       - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
-      - name: Write the quickstart consumer from the published source.json
+      - name: Resolve rules_dx through a registry from the published release
         run: |
           set -euo pipefail
           version="${TAG#v}"
+          case "$KEY" in
+            windows_*) cell_archive="$CELL.zip" ;;
+            *) cell_archive="$CELL.tar.gz" ;;
+          esac
           mkdir "$RUNNER_TEMP/consumer"
           cd "$RUNNER_TEMP/consumer"
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern source.json
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern source.json \
+            --pattern "rules_dx-$version.tar.gz" \
+            --pattern "rules_dx-$version.tar.gz.intoto.jsonl" \
+            --pattern dx-sha256sums.txt.sigstore.json \
+            --pattern "$cell_archive"
           echo "9.3.1" > .bazelversion
           echo "common --repo_env=DO_NOT_TRACK=1" > .bazelrc
-          {
-            echo "bazel_dep(name = \"rules_dx\", version = \"$version\")"
-            echo 'archive_override('
-            echo '    module_name = "rules_dx",'
-            echo "    urls = [\"$(jq -r .url source.json)\"],"
-            echo "    integrity = \"$(jq -r .integrity source.json)\","
-            echo "    strip_prefix = \"$(jq -r .strip_prefix source.json)\","
-            echo ')'
-          } > MODULE.bazel
+          echo "bazel_dep(name = \"rules_dx\", version = \"$version\")" > MODULE.bazel
+          if curl -fsSL -o /dev/null "https://bcr.bazel.build/modules/rules_dx/$version/source.json"; then
+            registry=bcr
+          else
+            module="$RUNNER_TEMP/registry/modules/rules_dx"
+            mkdir -p "$module/$version"
+            jq -n --arg repo "$GITHUB_REPOSITORY" --arg version "$version" '{
+              homepage: ("https://github.com/" + $repo),
+              maintainers: [{github: "devhusdk", name: "devhusdk"}],
+              repository: ["github:" + $repo],
+              versions: [$version],
+              yanked_versions: {}
+            }' > "$module/metadata.json"
+            cp source.json "$module/$version/source.json"
+            strip_prefix="$(jq -r '.strip_prefix // ""' source.json)"
+            tar -xzOf "rules_dx-$version.tar.gz" "${strip_prefix:+$strip_prefix/}MODULE.bazel" > "$module/$version/MODULE.bazel"
+            test -s "$module/$version/MODULE.bazel"
+            case "$KEY" in
+              windows_*) registry="file:///$(cygpath -m "$RUNNER_TEMP/registry")" ;;
+              *) registry="file://$RUNNER_TEMP/registry" ;;
+            esac
+            {
+              echo "common --registry=$registry"
+              echo "common --registry=https://bcr.bazel.build/"
+            } >> .bazelrc
+          fi
+          echo "REGISTRY=$registry" >> "$GITHUB_ENV"
+      - name: Verify the archives against the published attestations
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/consumer"
+          version="${TAG#v}"
+          case "$KEY" in
+            windows_*) cell_archive="$CELL.zip" ;;
+            *) cell_archive="$CELL.tar.gz" ;;
+          esac
+          for pair in "$cell_archive:dx-sha256sums.txt.sigstore.json" "rules_dx-$version.tar.gz:rules_dx-$version.tar.gz.intoto.jsonl"; do
+            gh attestation verify "${pair%%:*}" \
+              --bundle "${pair#*:}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --cert-identity "https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG" \
+              --cert-oidc-issuer https://token.actions.githubusercontent.com \
+              --source-ref "refs/tags/$TAG" \
+              --deny-self-hosted-runners
+          done
       - name: Run the prebuilt dx and check its version
         run: |
           set -euo pipefail
@@ -87,6 +133,7 @@ jobs:
           esac
           {
             echo "### $CELL"
+            echo "- registry: $REGISTRY"
             echo "- version: $printed"
             echo "- dx: $files"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -158,7 +205,7 @@ jobs:
 
   bcr:
     needs: consumer
-    if: vars.BCR_REGISTRY_FORK != ''
+    if: vars.BCR_REGISTRY_FORK != '' && !startsWith(inputs.tag || github.event.release.tag_name, 'v0.0.')
     permissions:
       contents: write
       id-token: write
@@ -172,8 +219,8 @@ jobs:
       publish_token: ${{ secrets.BCR_PUBLISH_TOKEN }}
 
   bcr-ledger:
-    needs: bcr
-    if: always() && needs.bcr.result != 'skipped'
+    needs: [consumer, bcr]
+    if: always() && needs.consumer.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

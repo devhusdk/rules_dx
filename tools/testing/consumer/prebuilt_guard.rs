@@ -19,11 +19,16 @@ pub const BUILD_SCRIPT: &str = ":_bs_";
 /// The repository of the `dx_prebuilt` hub.
 pub const PREBUILT_HUB_REPO: &str = "rules_dx++dx_prebuilt+dx_prebuilt";
 
+/// The prefix of the repos of the upstream rule sets that `dx_pins` fetches.
+pub const RULE_SET_REPO: &str = "rules_dx++dx_pins+rules_";
+
 /// The allowlist: binary labels the consumer may compile, each with the consumer languages it
-/// applies to (none: every language).
+/// applies to (none: every language), and upstream rule set repos whose binaries a consumer of
+/// one of their languages may compile.
 #[derive(Debug, Default, PartialEq)]
 pub struct Allowlist {
     pub labels: BTreeMap<String, BTreeSet<String>>,
+    pub repos: BTreeMap<String, BTreeSet<String>>,
 }
 
 impl Allowlist {
@@ -35,9 +40,19 @@ impl Allowlist {
             .map(|(label, _)| label.clone())
             .collect()
     }
+
+    /// The rule set repos whose binaries a consumer of `langs` may compile.
+    pub fn repos_for(&self, langs: &[&str]) -> BTreeSet<String> {
+        self.repos
+            .iter()
+            .filter(|(_, only)| langs.iter().any(|lang| only.contains(*lang)))
+            .map(|(repo, _)| repo.clone())
+            .collect()
+    }
 }
 
-/// Reads `label <canonical label> [<lang>...]` lines; each needs a `#` reason.
+/// Reads `label <canonical label> [<lang>...]` and `repo <canonical repo> <lang>...` lines; each
+/// needs a `#` reason, and a `repo` line names a [`RULE_SET_REPO`] repo and at least one language.
 pub fn allowlist(text: &str) -> Result<Allowlist, String> {
     let mut list = Allowlist::default();
     for (number, line) in text.lines().enumerate() {
@@ -56,9 +71,19 @@ pub fn allowlist(text: &str) -> Result<Allowlist, String> {
                     langs.iter().map(|lang| (*lang).to_owned()).collect(),
                 );
             }
+            ["repo", repo, ref langs @ ..]
+                if repo.starts_with(RULE_SET_REPO)
+                    && repo.len() > RULE_SET_REPO.len()
+                    && !langs.is_empty() =>
+            {
+                list.repos.insert(
+                    repo.to_owned(),
+                    langs.iter().map(|lang| (*lang).to_owned()).collect(),
+                );
+            }
             _ => {
                 return Err(format!(
-                    "line {}: want `label <label> [<lang>...]`: {line}",
+                    "line {}: want `label <label> [<lang>...]` or `repo {RULE_SET_REPO}<name> <lang>...`: {line}",
                     number + 1
                 ));
             }
@@ -84,11 +109,7 @@ pub fn compiled_binaries(cquery: &str) -> BTreeMap<String, BTreeSet<String>> {
         if label.ends_with(BUILD_SCRIPT) {
             continue;
         }
-        let repo = label
-            .trim_start_matches('@')
-            .split("//")
-            .next()
-            .unwrap_or_default();
+        let repo = label_repo(label);
         if bare == "java_binary" && repo == PREBUILT_HUB_REPO {
             continue;
         }
@@ -100,6 +121,41 @@ pub fn compiled_binaries(cquery: &str) -> BTreeMap<String, BTreeSet<String>> {
         }
     }
     found
+}
+
+/// The canonical repo of `label`.
+fn label_repo(label: &str) -> &str {
+    label
+        .trim_start_matches('@')
+        .split("//")
+        .next()
+        .unwrap_or_default()
+}
+
+/// Drops from `found` each binary of a repo in `repos`, and returns the repos that held one.
+pub fn drop_rule_set_repos(
+    found: &mut BTreeMap<String, BTreeSet<String>>,
+    repos: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    let mut matched = BTreeSet::new();
+    found.retain(|label, _| {
+        let repo = label_repo(label);
+        if repos.contains(repo) {
+            matched.insert(repo.to_owned());
+            false
+        } else {
+            true
+        }
+    });
+    matched
+}
+
+/// One problem per allowlisted repo that `matched` leaves out.
+pub fn stale_repos(repos: &BTreeSet<String>, matched: &BTreeSet<String>) -> Vec<String> {
+    repos
+        .difference(matched)
+        .map(|repo| format!("no longer compiled, remove it from the allowlist: repo {repo}"))
+        .collect()
 }
 
 /// The `srcs` query whose labels are the source-compiled JVM rules `label` depends on.
@@ -227,6 +283,20 @@ pub fn guard_aspects(extensions: &BTreeSet<String>) -> (Vec<&'static str>, Vec<&
         }
     }
     (check, aspects_for(Command::Docs, consumer))
+}
+
+/// The languages whose `dx docs` aspects reach no docs tool of the listed other languages, each
+/// with the label fragments that name those tools.
+pub const DOCS_FOREIGN: &[(&str, &[&str])] = &[("java", &["scala", "dokka", "kotlin"])];
+
+/// The labels of a `cquery --output=label` result that contain any of `fragments`.
+pub fn foreign_docs_labels(cquery: &str, fragments: &[&str]) -> Vec<String> {
+    cquery
+        .lines()
+        .filter_map(|line| line.split_whitespace().next())
+        .filter(|label| fragments.iter().any(|fragment| label.contains(fragment)))
+        .map(str::to_owned)
+        .collect()
 }
 
 /// The `.bzl` file of the `dx_prebuilt_guard` package: rules `check_root` and `docs_root`, whose
@@ -674,9 +744,11 @@ mod tests {
     #[test]
     fn resolver_roots_name_the_hub_resolvers_of_the_languages() {
         assert_eq!(
-            resolver_roots(&["go", "zig", "perl", "d", "zig"]),
+            resolver_roots(&["go", "zig", "perl", "d", "zig", "dart", "csharp"]),
             [
+                "@rules_dx//csharp/private/tools/lock",
                 "@rules_dx//d/private/tools/lock",
+                "@rules_dx//dart/private/tools/lock",
                 "@rules_dx//perl/private/tools/lock",
                 "@rules_dx//zig/private/tools/lock",
             ]
@@ -700,6 +772,7 @@ mod tests {
                         BTreeSet::from(["lua".to_owned()])
                     ),
                 ]),
+                repos: BTreeMap::new(),
             }
         );
         assert_eq!(
@@ -717,6 +790,44 @@ mod tests {
         assert!(allowlist("label @@rules_dx+//a:b\n").is_err());
         assert!(allowlist("tool x # why\n").is_err());
         assert!(allowlist("untagged python_tools # why\n").is_err());
+        let repos =
+            allowlist("repo rules_dx++dx_pins+rules_scala scala  # upstream\n").expect("parses");
+        assert_eq!(
+            repos.repos_for(&["scala"]),
+            BTreeSet::from(["rules_dx++dx_pins+rules_scala".to_owned()])
+        );
+        assert!(repos.repos_for(&["java"]).is_empty());
+        assert!(repos.labels_for(&["scala"]).is_empty());
+        assert!(allowlist("repo rules_dx++dx_pins+rules_scala  # no language\n").is_err());
+        assert!(allowlist("repo rules_dx++dx_pins+dx_selene_src lua  # tool\n").is_err());
+        assert!(allowlist("repo rules_dx+ scala  # main repo\n").is_err());
+        assert!(allowlist("repo rules_dx++dx_pins+rules_ scala  # no name\n").is_err());
+    }
+
+    #[test]
+    fn rule_set_repos_drop_their_binaries_only() {
+        let mut found = compiled_binaries(
+            "\
+scala_binary rule @@rules_dx++dx_pins+rules_scala//src/java/io/bazel/rulesscala/exe:exe (exec)
+rust_binary rule @@rules_dx++dx_pins+dx_selene_src//:selene (exec)
+rust_binary rule @@rules_dx+//cli/cli:dx (abc)
+",
+        );
+        let matched = drop_rule_set_repos(
+            &mut found,
+            &BTreeSet::from(["rules_dx++dx_pins+rules_scala".to_owned()]),
+        );
+        assert_eq!(
+            matched,
+            BTreeSet::from(["rules_dx++dx_pins+rules_scala".to_owned()])
+        );
+        assert_eq!(
+            found.keys().cloned().collect::<Vec<_>>(),
+            [
+                "@@rules_dx++dx_pins+dx_selene_src//:selene",
+                "@@rules_dx+//cli/cli:dx",
+            ]
+        );
     }
 
     #[test]
@@ -799,6 +910,52 @@ mod tests {
             docs.iter()
                 .any(|label| label.ends_with("%real_jvm_docs_aspect"))
         );
+        assert!(
+            !docs
+                .iter()
+                .any(|label| label.contains("scala") || label.contains("kotlin"))
+        );
+        assert!(
+            !check
+                .iter()
+                .any(|label| label.starts_with("kotlin/private/quality"))
+        );
+        let kotlin = BTreeSet::from([".kt".to_owned()]);
+        let (check, _) = guard_aspects(&kotlin);
+        assert!(
+            check
+                .iter()
+                .any(|label| label.ends_with("%real_kotlin_typecheck_aspect"))
+        );
+    }
+
+    #[test]
+    fn java_docs_list_scala_and_kotlin_as_foreign() {
+        assert_eq!(
+            DOCS_FOREIGN
+                .iter()
+                .find(|(lang, _)| *lang == "java")
+                .map(|(_, fragments)| *fragments),
+            Some(&["scala", "dokka", "kotlin"][..])
+        );
+    }
+
+    #[test]
+    fn foreign_docs_labels_keep_only_matching_labels() {
+        let cquery = "@@rules_dx++dx_prebuilt+dx_prebuilt//:javadoc_extract (abc)\n\
+                      @@rules_dx++dx_prebuilt+dx_prebuilt//:scaladoc_extract (abc)\n\
+                      @@rules_scala_config//:scala_version (def)\n\
+                      @@rules_dx++dx_prebuilt+dx_prebuilt//:dokka_extract (abc)\n\
+                      \n";
+        assert_eq!(
+            foreign_docs_labels(cquery, &["scala", "dokka", "kotlin"]),
+            [
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:scaladoc_extract",
+                "@@rules_scala_config//:scala_version",
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:dokka_extract",
+            ]
+        );
+        assert_eq!(foreign_docs_labels(cquery, &["kotlin"]), [] as [&str; 0]);
     }
 
     #[test]
@@ -859,6 +1016,19 @@ mod tests {
         assert_eq!(
             stale(&found, &allowed),
             ["no longer compiled, remove it from the allowlist: @@rules_dx+//gone:tool"]
+        );
+    }
+
+    #[test]
+    fn an_unused_repo_line_is_stale() {
+        let repos = BTreeSet::from([
+            "rules_dx++dx_pins+rules_scala".to_owned(),
+            "rules_dx++dx_pins+rules_ruby".to_owned(),
+        ]);
+        let matched = BTreeSet::from(["rules_dx++dx_pins+rules_scala".to_owned()]);
+        assert_eq!(
+            stale_repos(&repos, &matched),
+            ["no longer compiled, remove it from the allowlist: repo rules_dx++dx_pins+rules_ruby"]
         );
     }
 }

@@ -541,7 +541,34 @@
   {
     "aspects": [],
     "extensions": [],
-    "functions": [],
+    "functions": [
+      {
+        "forwards": [],
+        "name": "api_spec_protobuf_doc_shard",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "proto"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
     "load": "@rules_dx//api_spec:defs.bzl",
     "macros": [],
     "providers": [
@@ -1271,7 +1298,7 @@
             "name": "tags"
           },
           {
-            "default": "False",
+            "default": "None",
             "mandatory": false,
             "name": "testonly"
           },
@@ -2651,32 +2678,6 @@
             "default": "",
             "mandatory": true,
             "name": "lib"
-          },
-          {
-            "default": "\"\"",
-            "mandatory": false,
-            "name": "package"
-          },
-          {
-            "default": "",
-            "mandatory": false,
-            "name": "kwargs"
-          }
-        ]
-      },
-      {
-        "forwards": [],
-        "name": "protobuf_doc_shard",
-        "params": [
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "name"
-          },
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "proto"
           },
           {
             "default": "\"\"",
@@ -14357,9 +14358,18 @@
           {
             "attrs": [
               "srcs",
+              "upstream",
               "visibility"
             ],
-            "kind": "_lua_library"
+            "kind": "_lua_library_forward"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "lua_library"
           }
         ],
         "name": "lua_library",
@@ -14406,7 +14416,7 @@
               "tags",
               "visibility"
             ],
-            "kind": "_lua_test"
+            "kind": "lua_test"
           }
         ],
         "name": "lua_test",
@@ -15634,7 +15644,12 @@
       },
       {
         "name": "php",
-        "tag_classes": []
+        "tag_classes": [
+          {
+            "attrs": [],
+            "name": "from_source"
+          }
+        ]
       }
     ],
     "functions": [],
@@ -16118,40 +16133,6 @@
               }
             ],
             "name": "toolchain"
-          }
-        ]
-      },
-      {
-        "name": "sdist_cargo_vendor",
-        "tag_classes": [
-          {
-            "attrs": [
-              {
-                "default": "\"Cargo.lock\"",
-                "mandatory": false,
-                "name": "cargo_lock_path",
-                "type": "STRING"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "lock",
-                "type": "LABEL"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "name",
-                "type": "NAME"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "package",
-                "type": "STRING"
-              }
-            ],
-            "name": "crates"
           }
         ]
       },

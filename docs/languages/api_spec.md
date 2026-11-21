@@ -114,6 +114,14 @@ Generates one self-contained TypeScript client from an OpenAPI root of an api_sp
 | `_preflight` | `label` | no |  |
 | `_redocly` | `label` | no |  |
 
+### `api_spec_protobuf_doc_shard`
+
+```python
+api_spec_protobuf_doc_shard(name, proto, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one proto_library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for OpenAPI and AsyncAPI:

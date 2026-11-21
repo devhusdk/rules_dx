@@ -91,6 +91,20 @@ TOOLS = [
                 fix = "check_only",
                 platforms = ["linux_arm64", "linux_x86_64"],
             ),
+            row(
+                capability = "lint",
+                classes = ["objc", "objcpp"],
+                context = "target_coupled",
+                family = "objc",
+                fix = "check_only",
+                platforms = ["macos_arm64"],
+                unsupported = {
+                    "linux_arm64": "objc_library builds only with an Apple toolchain",
+                    "linux_x86_64": "objc_library builds only with an Apple toolchain",
+                    "windows_arm64": "objc_library builds only with an Apple toolchain",
+                    "windows_x86_64": "objc_library builds only with an Apple toolchain",
+                },
+            ),
         ],
     ),
     tool(

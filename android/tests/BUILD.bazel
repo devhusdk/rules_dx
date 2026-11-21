@@ -1,5 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("//android/private/library:defs.bzl", "SDK_COMPATIBLE_WITH")
 load("//android/private/packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check_selection", "android_rust_apk", "android_sign")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -13,14 +14,11 @@ load(":toolchain_tests.bzl", "android_metadata_tests", "android_packaging_tests"
 build_test(
     name = "androidsdk_build_test",
     size = "small",
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
+    target_compatible_with = SDK_COMPATIBLE_WITH,
     targets = [
         "@dx_androidsdk//:sdk",
         "@dx_androidsdk//:sdk-toolchain",
-        "@dx_androidsdk//:aapt2_binary",
+        "@dx_androidsdk//:aapt2",
         "@dx_androidsdk//:d8_jar_import",
         "@dx_androidsdk//:files",
     ],

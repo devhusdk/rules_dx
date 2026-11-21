@@ -1,0 +1,110 @@
+Upstream: none (rules_dx only: rules_dx depends on protobuf under its module name)
+diff --git a/protoc/BUILD b/protoc/BUILD
+index 776c714..bf6b146 100644
+--- a/protoc/BUILD
++++ b/protoc/BUILD
+@@ -1,5 +1,5 @@
+ load(
+-    "@com_google_protobuf//bazel/toolchains:proto_lang_toolchain.bzl",
++    "@protobuf//bazel/toolchains:proto_lang_toolchain.bzl",
+     "proto_lang_toolchain",
+ )
+ 
+@@ -31,7 +31,7 @@ proto_lang_toolchain(
+ # keeps it out of wildcard builds.
+ alias(
+     name = "prefer_prebuilt_protoc",
+-    actual = "@com_google_protobuf//bazel/toolchains:prefer_prebuilt_protoc",
++    actual = "@protobuf//bazel/toolchains:prefer_prebuilt_protoc",
+     tags = ["manual"],
+     visibility = ["//visibility:public"],
+ )
+diff --git a/protoc/private/protoc_toolchains.bzl b/protoc/private/protoc_toolchains.bzl
+index 12dc81a..f458703 100644
+--- a/protoc/private/protoc_toolchains.bzl
++++ b/protoc/private/protoc_toolchains.bzl
+@@ -3,7 +3,7 @@
+ Provides prebuilt protocol compiler toolchains.
+ """
+ 
+-load("@com_google_protobuf//:protobuf_version.bzl", "PROTOC_VERSION")
++load("@protobuf//:protobuf_version.bzl", "PROTOC_VERSION")
+ load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
+ load(":private/protoc_integrity.bzl", "PROTOC_BUILDS", "PROTOC_DOWNLOAD_URL")
+ load(
+@@ -132,7 +132,7 @@ scala_protoc_toolchains = repository_rule(
+ 
+ _PROTOC_TOOLCHAIN_BUILD = """load(":platforms.bzl", "PROTOC_PLATFORMS")
+ load(
+-    "@com_google_protobuf//bazel/toolchains:proto_toolchain.bzl",
++    "@protobuf//bazel/toolchains:proto_toolchain.bzl",
+     "proto_toolchain",
+ )
+ 
+diff --git a/protoc/private/toolchain_impl.bzl b/protoc/private/toolchain_impl.bzl
+index 53665b7..a6c987f 100644
+--- a/protoc/private/toolchain_impl.bzl
++++ b/protoc/private/toolchain_impl.bzl
+@@ -51,7 +51,7 @@ def protoc_executable(ctx):
+     toolchain = ctx.toolchains[PROTOC_TOOLCHAIN_TYPE]
+     protoc = toolchain and toolchain.proto.proto_compiler.executable or None
+ 
+-    if protoc == None or protoc.owner == Label("@com_google_protobuf//:protoc"):
++    if protoc == None or protoc.owner == Label("@protobuf//:protoc"):
+         fail(
+             "Couldn't resolve prebuilt protocol compiler toolchain " +
+             "for toolchain type: " + str(PROTOC_TOOLCHAIN_TYPE),
+diff --git a/scala_proto/default/default_deps.bzl b/scala_proto/default/default_deps.bzl
+index 830b0bc..fe88a3b 100644
+--- a/scala_proto/default/default_deps.bzl
++++ b/scala_proto/default/default_deps.bzl
+@@ -22,7 +22,7 @@ def scala_proto_deps_providers(
+ 
+ DEFAULT_SCALAPB_COMPILE_DEPS = [
+     Label("//scala/private/toolchain_deps:scala_library_classpath"),
+-    "@com_google_protobuf//:protobuf_java",
++    "@protobuf//:protobuf_java",
+     "@com_lihaoyi_fastparse",
+     "@scala_proto_rules_scalapb_lenses",
+     "@scala_proto_rules_scalapb_runtime",
+@@ -58,7 +58,7 @@ DEFAULT_SCALAPB_GRPC_DEPS = [
+ ]
+ 
+ DEFAULT_SCALAPB_WORKER_DEPS = [
+-    "@com_google_protobuf//:protobuf_java",
++    "@protobuf//:protobuf_java",
+     "@scala_proto_rules_scalapb_compilerplugin",
+     "@scala_proto_rules_scalapb_protoc_bridge",
+ ] + select_for_scala_version(
+diff --git a/src/java/io/bazel/rulesscala/scalac/reporter/BUILD b/src/java/io/bazel/rulesscala/scalac/reporter/BUILD
+index cbdb666..192774d 100644
+--- a/src/java/io/bazel/rulesscala/scalac/reporter/BUILD
++++ b/src/java/io/bazel/rulesscala/scalac/reporter/BUILD
+@@ -1,5 +1,5 @@
+ load(
+-    "@com_google_protobuf//bazel:java_proto_library.bzl",
++    "@protobuf//bazel:java_proto_library.bzl",
+     "java_proto_library",
+ )
+ load("@rules_java//java:java_library.bzl", "java_library")
+diff --git a/src/java/io/bazel/rulesscala/worker/BUILD b/src/java/io/bazel/rulesscala/worker/BUILD
+index 848f228..183fedb 100644
+--- a/src/java/io/bazel/rulesscala/worker/BUILD
++++ b/src/java/io/bazel/rulesscala/worker/BUILD
+@@ -1,4 +1,4 @@
+-load("@com_google_protobuf//bazel:java_proto_library.bzl", "java_proto_library")
++load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+ load("@rules_java//java:defs.bzl", "java_library", "java_test")
+ 
+ java_library(
+diff --git a/src/protobuf/io/bazel/rules_scala/BUILD b/src/protobuf/io/bazel/rules_scala/BUILD
+index 4bd0438..747b174 100644
+--- a/src/protobuf/io/bazel/rules_scala/BUILD
++++ b/src/protobuf/io/bazel/rules_scala/BUILD
+@@ -1,5 +1,5 @@
+ load(
+-    "@com_google_protobuf//bazel:java_proto_library.bzl",
++    "@protobuf//bazel:java_proto_library.bzl",
+     "java_proto_library",
+ )
+ load("@rules_proto//proto:defs.bzl", "proto_library")

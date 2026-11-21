@@ -1,9 +1,9 @@
 """The JVM API reference shard action shared by the rules and the docs aspect."""
 
-load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:rlocation.bzl", "repo_relative_path")
-load("//tools/docs/ir:shard.bzl", "srcs_manifest_line")
+load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "srcs_manifest_line")
 
 JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
 KOTLIN_TOOLCHAIN = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
@@ -13,20 +13,6 @@ JVM_LANGUAGES = {
     "kotlin": struct(extension = "kt", mnemonic = "DxDocsDokka"),
     "scala": struct(extension = "scala", mnemonic = "DxDocsScaladoc"),
 }
-
-# scaladoc_extract bundles the Scala 2.13 compiler, so it can only read 2.13 sources.
-_SCALADOC_VERSION_PREFIX = "2.13."
-
-SCALA_VERSION_ATTRS = {
-    "_scala_version": attr.label(default = Label("@rules_scala_config//:scala_version")),
-}
-
-def unsupported_scala_version(ctx):
-    """Returns the configured Scala version when Scaladoc cannot read it, else None."""
-    version = ctx.attr._scala_version[BuildSettingInfo].value
-    if version.startswith(_SCALADOC_VERSION_PREFIX):
-        return None
-    return version
 
 def _path(file):
     return file.path
@@ -101,3 +87,21 @@ def jvm_shard_action(ctx, language, java_info, own, package, dep_shards, stem, a
         progress_message = "Converting " + language + " API docs for %{label}",
     )
     return struct(api_json = api_json, manifest = manifest, shard = shard)
+
+def jvm_docs_aspect_result(target, ctx, language):
+    """Returns the docs aspect output groups for a library written only in `language`."""
+    if JavaInfo not in target or DocsShardInfo in target:
+        return []
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary") or ctx.label.name.endswith("_upstream"):
+        return []
+    srcs = sorted(getattr(ctx.rule.files, "srcs", []), key = lambda f: f.path)
+    if not srcs or getattr(ctx.rule.attr, "plugins", []):
+        return []
+    extension = JVM_LANGUAGES[language].extension
+    if not all([f.extension == extension for f in srcs]):
+        return []
+    if ctx.toolchains[JAVA_TOOLCHAIN] == None:
+        return []
+    adapter = getattr(ctx.executable, "_" + language + "_extract")
+    action = jvm_shard_action(ctx, language, target[JavaInfo], srcs, ctx.label.name, [], "_dx_docs/" + ctx.label.name, adapter, ctx.executable._jvm_convert)
+    return [OutputGroupInfo(dx_results = depset([action.shard]), dx_docs_shards = depset([action.shard]))]

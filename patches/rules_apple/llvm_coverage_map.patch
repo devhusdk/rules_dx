@@ -1,0 +1,85 @@
+Upstream: none (upstream-ready, not sent yet: #14286)
+diff --git a/apple/internal/linking_support.bzl b/apple/internal/linking_support.bzl
+index b02406cc..b600f4f8 100644
+--- a/apple/internal/linking_support.bzl
++++ b/apple/internal/linking_support.bzl
+@@ -542,9 +542,16 @@ def _register_binary_linking_action(
+         link_inputs.append(bundle_loader_file)
+ 
+     requested_features = list(extra_requested_features)
++    disabled_features = list(extra_disabled_features)
+     if ctx.attr.generate_linkmap or ctx.fragments.cpp.objc_generate_linkmap:
+         requested_features.append("generate_linkmap")
+ 
++    # Swift only supports LLVM coverage instrumentation, so the link must use the LLVM coverage
++    # map format; the GCC format does not add the profile runtime to `objc-executable` links.
++    if ctx.configuration.coverage_enabled:
++        requested_features.append("llvm_coverage_map_format")
++        disabled_features.append("gcc_coverage_map_format")
++
+     linking_outputs = _link_multi_arch_binary(
+         ctx = ctx,
+         avoid_deps = all_avoid_deps,
+@@ -554,7 +561,7 @@ def _register_binary_linking_action(
+         extra_requested_features = requested_features,
+         # TODO(321109350): Disable include scanning to work around issue with GrepIncludes actions
+         # being routed to the wrong exec platform.
+-        extra_disabled_features = extra_disabled_features + ["cc_include_scanning"],
++        extra_disabled_features = disabled_features + ["cc_include_scanning"],
+         stamp = stamp,
+     )
+ 
+diff --git a/test/starlark_tests/ios_coverage_tests.bzl b/test/starlark_tests/ios_coverage_tests.bzl
+index caf1220f..3d619a89 100644
+--- a/test/starlark_tests/ios_coverage_tests.bzl
++++ b/test/starlark_tests/ios_coverage_tests.bzl
+@@ -15,6 +15,10 @@
+ """iOS coverage Starlark tests."""
+ 
+ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
++load(
++    "//test/starlark_tests/rules:action_command_line_test.bzl",
++    "make_action_command_line_test_rule",
++)
+ load(
+     "//test/starlark_tests/rules:apple_coverage_test.bzl",
+     "apple_coverage_test",
+@@ -63,6 +67,14 @@ _covered_binaries_without_instrumentation_test = analysistest.make(
+     config_settings = {"//command_line_option:collect_code_coverage": False},
+ )
+ 
++_coverage_link_test = make_action_command_line_test_rule(
++    config_settings = {"//command_line_option:collect_code_coverage": True},
++)
++
++_no_coverage_link_test = make_action_command_line_test_rule(
++    config_settings = {"//command_line_option:collect_code_coverage": False},
++)
++
+ def ios_coverage_test_suite(name):
+     """Test suite for iOS coverage.
+ 
+@@ -89,6 +101,23 @@ def ios_coverage_test_suite(name):
+         tags = [name],
+     )
+ 
++    _coverage_link_test(
++        name = "{}_swift_app_llvm_coverage_map_link_test".format(name),
++        expected_argv = ["-fprofile-instr-generate"],
++        mnemonic = "ObjcLink",
++        not_expected_argv = ["--coverage"],
++        target_under_test = "//test/starlark_tests/targets_under_test/ios:coverage_swift_app",
++        tags = [name],
++    )
++
++    _no_coverage_link_test(
++        name = "{}_swift_app_no_coverage_link_test".format(name),
++        mnemonic = "ObjcLink",
++        not_expected_argv = ["-fprofile-instr-generate"],
++        target_under_test = "//test/starlark_tests/targets_under_test/ios:coverage_swift_app",
++        tags = [name],
++    )
++
+     apple_coverage_test(
+         name = "{}_standalone_unit_test_coverage".format(name),
+         coverage_manifest = [_COVERAGE_SHARED_LOGIC],

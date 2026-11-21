@@ -1,7 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
-load(":fixtures.bzl", "CONSUMER_FIXTURES", "GO_GUARD_LANGS", "GUARD_PENDING", "IN_GRAPH_GUARD_LANGS", "JAVA_GUARD_LANGS", "MACOS_IN_GRAPH_GUARD_LANGS", "consumer_fixture_tests")
+load(":fixtures.bzl", "CONSUMER_FIXTURES", "GO_GUARD_LANGS", "GUARD_PENDING", "IN_GRAPH_GUARD_LANGS", "JAVA_GUARD_LANGS", "MACOS_IN_GRAPH_GUARD_LANGS", "WINDOWS_IN_GRAPH_GUARD_LANGS", "consumer_fixture_tests")
 
 consumer_fixture_tests(
     name = "fixture_tests",
@@ -31,39 +31,38 @@ rust_test(
     ],
 )
 
-# A nested Bazel consumer build and test from an empty output base, one per language. Fails when
-# the repositories a fresh one-language consumer fetches differ from cold_start/<lang>.txt or
-# include another language's repositories.
-[
-    nested_bazel_test(
-        name = lang + "_cold_start_test",
-        size = "small",
-        srcs = ["cold_start_test.rs"],
-        crate_name = "cold_start_test",
-        crate_root = "cold_start_test.rs",
-        # //:module_srcs leaves out //patches/rules_py, which write_rules_py_patches copies.
-        data = [
-            "cold_start/%s.txt" % lang,
-            "//:module_srcs",
-            "//patches/rules_py:patches",
-            "@dx_test_tags_sources//:consumer.json",
-        ],
-        env = {
-            "DX_COLD_START_LANG": lang,
-            "DX_COLD_START_LIST": "$(rlocationpath cold_start/%s.txt)" % lang,
-            "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
-        },
-        network = True,
-        deps = [
-            "//tools/testing:dx_testing",
-            "//tools/testing/nested:dx_nested",
-        ],
-    )
-    for lang in [
-        "go",
-        "rust",
-    ]
-]
+# A nested Bazel consumer build and test per language, each case in a fresh workspace with an empty
+# output base. Fails when the repositories a one-language consumer fetches differ from
+# cold_start/<lang>.txt or include another language's repositories.
+nested_bazel_test(
+    name = "cold_start_test",
+    size = "small",
+    srcs = ["cold_start_test.rs"],
+    crate_name = "cold_start_test",
+    crate_root = "cold_start_test.rs",
+    # //:module_srcs leaves out //patches/rules_py, which write_rules_py_patches copies.
+    data = [
+        "cold_start/go.txt",
+        "cold_start/java.txt",
+        "cold_start/rust.txt",
+        "//:module_srcs",
+        "//cli/prebuilt:registry",
+        "//patches/rules_py:patches",
+        "@dx_test_tags_sources//:consumer.json",
+    ],
+    env = {
+        "DX_COLD_START_LISTS": "$(rlocationpath cold_start/go.txt) $(rlocationpath cold_start/java.txt) $(rlocationpath cold_start/rust.txt)",
+        "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+        "DX_PREBUILT_REGISTRY": "$(rlocationpath //cli/prebuilt:registry)",
+    },
+    network = True,
+    deps = [
+        ":prebuilt_guard",
+        "//cli/adopt:dx_adopt",
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
+)
 
 rust_library(
     name = "prebuilt_guard",
@@ -128,6 +127,7 @@ rust_test(
         "DX_GUARD_PENDING": " ".join(GUARD_PENDING),
         "DX_JAVA_GUARD_LANGS": " ".join(JAVA_GUARD_LANGS),
         "DX_MACOS_IN_GRAPH_GUARD_LANGS": " ".join(MACOS_IN_GRAPH_GUARD_LANGS),
+        "DX_WINDOWS_IN_GRAPH_GUARD_LANGS": " ".join(WINDOWS_IN_GRAPH_GUARD_LANGS),
     },
     deps = ["//tools/ci/ci_workflow"],
 )

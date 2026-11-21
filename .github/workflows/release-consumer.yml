@@ -173,8 +173,8 @@ jobs:
       publish_token: ${{ secrets.BCR_PUBLISH_TOKEN }}
 
   bcr-ledger:
-    needs: bcr
-    if: always() && needs.bcr.result != 'skipped'
+    needs: [consumer, bcr]
+    if: always() && needs.consumer.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

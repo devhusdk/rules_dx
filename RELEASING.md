@@ -95,7 +95,7 @@ Wait until every `consumer` job is green.
 
 ## 7. Submit to the Bazel Central Registry
 
-Once every `consumer` job is green, the `bcr` job in `release-consumer.yml` opens a draft pull request on the BCR that adds `rules_dx` at `0.1.0`. It reads the module root from `.bcr/config.yml`. The `bcr` job skips `v0.0.*` tags. The `bcr-ledger` job then records the pull request URL, or `failed`, in the run summary and the `bcr-ledger` artifact.
+Once every `consumer` job is green, the `bcr` job in `release-consumer.yml` opens a draft pull request on the BCR that adds `rules_dx` at `0.1.0`. It reads the module root from `.bcr/config.yml`. The `bcr` job skips `v0.0.*` tags. The `bcr-ledger` job then records the pull request URL, `failed`, or `not-authorized` while `BCR_REGISTRY_FORK` is unset, in the run summary and the `bcr-ledger` artifact. The `bcr` job is the only way `rules_dx` is submitted to the BCR.
 
 Before the first release, the owner sets up two things once:
 
@@ -104,13 +104,19 @@ Before the first release, the owner sets up two things once:
 
 The owner reviews the BCR pull request, waits for BCR CI, and marks it ready for review.
 
-If the `bcr` job is skipped or fails, check the entry by hand:
+If the `bcr` job fails, fix the cause and rerun the failed jobs:
+
+```sh
+gh run rerun <run-id> --failed
+```
+
+To check the entry shape without submitting:
 
 ```sh
 BCR_DRY_RUN=1 bazel run //deploy/private/release:bcr_demo
 ```
 
-It prints the pull request it would open and submits nothing. A failure names the field that is missing or does not match the module. Then open one BCR pull request yourself that adds `rules_dx` at `0.1.0` with the `source.json` from the release.
+It submits nothing. A failure names the field that is missing or does not match the module. Without `BCR_DRY_RUN=1` it exits with an error naming the `bcr` job.
 
 ## Release order with the rule-set modules
 

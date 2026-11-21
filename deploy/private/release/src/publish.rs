@@ -396,7 +396,7 @@ fn operations() -> Vec<OpRecord> {
         record(
             "bcr",
             "rules_dx module",
-            "BCR submission is owner-gated (//deploy/private/release:bcr_demo); dry run does not submit",
+            "BCR submission runs in the bcr job of .github/workflows/release-consumer.yml; dry run does not submit",
         ),
         record(
             "docs",

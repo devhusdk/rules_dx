@@ -115,14 +115,13 @@ pub fn bcr_deploy(
     config: &BcrDeployConfig,
     argv: &[String],
     dry_run: bool,
-    approved: bool,
     resolve: Resolve<'_>,
 ) -> Result<String, DeployError> {
     if argv.len() > 1 {
         return Err(DeployError::BcrArgs);
     }
     let inputs = resolve_all("bcr", &config.input_rlocs, resolve)?;
-    bcr_run(&config.module, &config.version, &inputs, dry_run, approved).map_err(DeployError::Bcr)
+    bcr_run(&config.module, &config.version, &inputs, dry_run).map_err(DeployError::Bcr)
 }
 
 /// Runs the signing deploy: at most an outdir arg, every rloc resolved, then `signing_run`.
@@ -184,7 +183,6 @@ pub fn release_deploy_tool_main(argv: &[String]) -> i32 {
             bcr,
             argv,
             flag("BCR_DRY_RUN"),
-            flag("BCR_APPROVE"),
             &dx_deploy_tools::resolve_runfile,
         ),
         ReleaseDeployConfig::Signing(signing) => signing_deploy(
@@ -280,7 +278,7 @@ mod tests {
 
     #[test]
     fn arg_limits() {
-        let error = bcr_deploy(&bcr_cfg("1.0.0"), &argv(2), true, false, &ok).unwrap_err();
+        let error = bcr_deploy(&bcr_cfg("1.0.0"), &argv(2), true, &ok).unwrap_err();
         assert!(error.to_string().contains("takes no extra args"), "{error}");
         assert!(matches!(error, DeployError::BcrArgs));
         let error = signing_deploy(&signing_cfg(), &argv(3), true, &ok).unwrap_err();
@@ -294,7 +292,7 @@ mod tests {
 
     #[test]
     fn unresolved_rlocs_are_named() {
-        let error = bcr_deploy(&bcr_cfg("1.0.0"), &argv(1), true, false, &missing).unwrap_err();
+        let error = bcr_deploy(&bcr_cfg("1.0.0"), &argv(1), true, &missing).unwrap_err();
         assert_eq!(error.to_string(), "bcr: runfile not found for 'w/a.json'");
         assert!(matches!(error, DeployError::Runfile { prefix: "bcr", .. }));
         assert!(std::error::Error::source(&error).is_some());
@@ -339,7 +337,7 @@ mod tests {
 
     #[test]
     fn bcr_dry_run_lists_inputs() {
-        let text = bcr_deploy(&bcr_cfg("1.0.0"), &argv(1), true, false, &ok).unwrap();
+        let text = bcr_deploy(&bcr_cfg("1.0.0"), &argv(1), true, &ok).unwrap();
         assert!(
             text.contains("/r/w/a.json") && text.contains("/r/w/b.json"),
             "{text}"
@@ -348,15 +346,18 @@ mod tests {
 
     #[test]
     fn bcr_gates() {
-        let error = bcr_deploy(&bcr_cfg("1.0.0"), &argv(1), false, false, &ok).unwrap_err();
-        assert!(error.to_string().contains("BCR_APPROVE"), "{error}");
-        assert!(matches!(error, DeployError::Bcr(BcrError::NotApproved)));
-        assert!(std::error::Error::source(&error).is_some());
-        let error = bcr_deploy(&bcr_cfg("0.0.0"), &argv(1), false, true, &ok).unwrap_err();
-        assert!(matches!(
-            error,
-            DeployError::Bcr(BcrError::UnpublishableSubmission)
-        ));
+        for version in ["1.0.0", "0.0.0"] {
+            let error = bcr_deploy(&bcr_cfg(version), &argv(1), false, &ok).unwrap_err();
+            assert!(
+                error.to_string().contains("release-consumer.yml"),
+                "{error}"
+            );
+            assert!(
+                matches!(error, DeployError::Bcr(BcrError::SubmittedByWorkflow)),
+                "{error:?}"
+            );
+            assert!(std::error::Error::source(&error).is_some());
+        }
     }
 
     #[test]

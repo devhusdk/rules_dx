@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":api_compat.bzl", "api_compat_error")
-load(":validate_pub.bzl", "PUB_DEFAULT_REGISTRY_URL", "pub_registry_url_error", "pub_name_error", "pub_version_error")
+load(":validate_pub.bzl", "PUB_DEFAULT_REGISTRY_URL", "pub_name_error", "pub_registry_url_error", "pub_version_error")
 
 def pub_unit_tests(name):
     starlark_test(
@@ -73,7 +73,8 @@ def _config_content_test_impl(ctx):
     content = writes[0].content if writes else ""
     asserts.true(env, "\"api_compat\":\"fail\"" in content, "config must default api_compat to fail: " + content)
     asserts.true(env, "\"api_baseline\":\"registry\"" in content, "config must default api_baseline to registry: " + content)
-    asserts.true(env, "dart_apitool.dill" in content, "config must carry the dart_apitool kernel: " + content)
+    apitool = json.decode(content)["config"]["apitool_rloc"] if content else ""
+    asserts.true(env, apitool.startswith("_main/dart/private/tools/dart_apitool/") and apitool.endswith(".dill"), "config must carry the dart_apitool kernel: " + content)
     asserts.true(env, "flutter_dart_rloc" in content, "config must carry the pinned flutter dart: " + content)
     asserts.true(env, "flutter.version.json" in content, "config must carry the flutter root: " + content)
     return analysistest.end(env)

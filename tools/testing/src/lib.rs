@@ -819,11 +819,14 @@ pub fn holding() -> ForkGuard {
 )]
 pub fn executable_script(path: &Path, body: &str) {
     use std::io::Write;
+    // Pin PATH: a parallel test may have pointed the process PATH at a fake bin
+    // directory, and then `cat` and `chmod` would not be found.
     let mut child = std::process::Command::new("/bin/sh")
         .arg("-c")
         .arg("cat > \"$1\" && chmod 755 \"$1\"")
         .arg("sh")
         .arg(path)
+        .env("PATH", "/usr/bin:/bin")
         .stdin(std::process::Stdio::piped())
         .spawn()
         .expect("spawn sh");

@@ -9,8 +9,10 @@ use crate::candidate::{call_end, string_fields};
 pub enum ModuleError {
     /// The `module()` version is not the release version.
     VersionMismatch { have: String, want: String },
-    /// `local_path_override` replaces these `bazel_dep` modules.
-    LocalOverride { modules: Vec<String> },
+    /// A root-only override replaces these `bazel_dep` modules, as (module, override function) pairs.
+    RootOnlyOverride {
+        overrides: Vec<(String, &'static str)>,
+    },
 }
 
 impl fmt::Display for ModuleError {
@@ -20,10 +22,14 @@ impl fmt::Display for ModuleError {
                 f,
                 "release: MODULE.bazel module() version is {have:?}, want {want:?}; land the version bump first"
             ),
-            Self::LocalOverride { modules } => write!(
+            Self::RootOnlyOverride { overrides } => write!(
                 f,
-                "release: MODULE.bazel overrides bazel_dep {} with local_path_override; depend on a released version first",
-                modules.join(", ")
+                "release: MODULE.bazel overrides {}; depend on a released version first",
+                overrides
+                    .iter()
+                    .map(|(module, function)| format!("bazel_dep {module} with {function}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ),
         }
     }
@@ -80,24 +86,34 @@ pub fn module_version_error(text: &str, version: &str) -> Result<(), ModuleError
     Ok(())
 }
 
-/// Fails when the root `MODULE.bazel` text overrides one of its `bazel_dep` modules with `local_path_override`.
+/// Overrides that only the root module sees, so a released module that keeps one builds differently for consumers.
+const ROOT_ONLY_OVERRIDES: [&str; 2] = ["local_path_override", "git_override"];
+
+/// Fails when the root `MODULE.bazel` text overrides one of its `bazel_dep` modules with a root-only override.
+///
+/// `archive_override` and `single_version_override` are allowed: release cells copy them for patched deps
+/// (`cell.rs` `root_overrides`).
 ///
 /// # Errors
 ///
-/// Returns an error naming every such module.
-pub fn local_override_error(text: &str) -> Result<(), ModuleError> {
+/// Returns an error naming every such module and its override function.
+pub fn root_only_override_error(text: &str) -> Result<(), ModuleError> {
     let deps = calls(text, "bazel_dep");
-    let overrides = calls(text, "local_path_override");
-    let modules: Vec<String> = overrides
+    let overrides: Vec<(String, &'static str)> = ROOT_ONLY_OVERRIDES
         .iter()
-        .filter_map(|call| field(call, "module_name"))
-        .filter(|name| deps.iter().any(|dep| field(dep, "name") == Some(*name)))
-        .map(str::to_owned)
+        .flat_map(|&function| {
+            calls(text, function)
+                .into_iter()
+                .filter_map(|call| field(&call, "module_name").map(str::to_owned))
+                .filter(|name| deps.iter().any(|dep| field(dep, "name") == Some(name)))
+                .map(move |name| (name, function))
+                .collect::<Vec<_>>()
+        })
         .collect();
-    if modules.is_empty() {
+    if overrides.is_empty() {
         return Ok(());
     }
-    Err(ModuleError::LocalOverride { modules })
+    Err(ModuleError::RootOnlyOverride { overrides })
 }
 
 #[cfg(test)]
@@ -128,7 +144,7 @@ mod tests {
             "{}\nbazel_dep(name = \"rules_php\", version = \"0.1.0\")\nlocal_path_override(module_name = \"bcr_only\", path = \"x\")\n",
             core("1.2.3")
         );
-        local_override_error(&text).expect("no overridden dep");
+        root_only_override_error(&text).expect("no overridden dep");
     }
 
     #[test]
@@ -137,9 +153,9 @@ mod tests {
             "{}\nbazel_dep(name = \"rules_php\", version = \"0.1.0\")\nbazel_dep(name = \"rules_lua\", version = \"0.1.0\")\nlocal_path_override(\n    module_name = \"rules_lua\",\n    path = \"../rules_lua\",\n)\n",
             core("1.2.3")
         );
-        let error = local_override_error(&text).expect_err("override");
+        let error = root_only_override_error(&text).expect_err("override");
         assert!(
-            matches!(&error, ModuleError::LocalOverride { modules } if modules == &["rules_lua"])
+            matches!(&error, ModuleError::RootOnlyOverride { overrides } if overrides == &[("rules_lua".to_owned(), "local_path_override")])
         );
         let error = error.to_string();
         assert!(
@@ -147,5 +163,54 @@ mod tests {
             "{error}"
         );
         assert!(!error.contains("rules_php"), "{error}");
+    }
+
+    #[test]
+    fn a_rule_set_dep_with_git_override_fails_and_is_named() {
+        let text = format!(
+            "{}\nbazel_dep(name = \"rules_qt\", version = \"0.1.0\")\ngit_override(\n    module_name = \"rules_qt\",\n    remote = \"https://example.com/rules_qt.git\",\n    commit = \"0123456789abcdef0123456789abcdef01234567\",\n)\n",
+            core("1.2.3")
+        );
+        let error = root_only_override_error(&text).expect_err("override");
+        assert!(
+            matches!(&error, ModuleError::RootOnlyOverride { overrides } if overrides == &[("rules_qt".to_owned(), "git_override")])
+        );
+        let error = error.to_string();
+        assert!(error.contains("bazel_dep rules_qt with git_override"), "{error}");
+    }
+
+    #[test]
+    fn local_and_git_overrides_are_named_together() {
+        let text = format!(
+            "{}\nbazel_dep(name = \"rules_lua\", version = \"0.1.0\")\nbazel_dep(name = \"rules_qt\", version = \"0.1.0\")\nlocal_path_override(module_name = \"rules_lua\", path = \"../rules_lua\")\ngit_override(module_name = \"rules_qt\", remote = \"https://example.com/rules_qt.git\", commit = \"0123456789abcdef0123456789abcdef01234567\")\n",
+            core("1.2.3")
+        );
+        let error = root_only_override_error(&text)
+            .expect_err("overrides")
+            .to_string();
+        assert!(
+            error.contains(
+                "overrides bazel_dep rules_lua with local_path_override, bazel_dep rules_qt with git_override;"
+            ),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn archive_override_on_a_bazel_dep_passes() {
+        let text = format!(
+            "{}\nbazel_dep(name = \"rules_cc\", version = \"0.1.0\")\narchive_override(module_name = \"rules_cc\", urls = [\"https://example.com/rules_cc.tar.gz\"], integrity = \"sha256-x\")\n",
+            core("1.2.3")
+        );
+        root_only_override_error(&text).expect("archive_override is copied into release cells");
+    }
+
+    #[test]
+    fn git_override_on_a_module_that_is_no_bazel_dep_passes() {
+        let text = format!(
+            "{}\nbazel_dep(name = \"rules_php\", version = \"0.1.0\")\ngit_override(module_name = \"bcr_only\", remote = \"https://example.com/x.git\", commit = \"0123456789abcdef0123456789abcdef01234567\")\n",
+            core("1.2.3")
+        );
+        root_only_override_error(&text).expect("no overridden dep");
     }
 }

@@ -43,7 +43,7 @@ git push origin v0.1.0
 
 The release workflow checks that `MODULE.bazel`, `cli/prebuilt/pins.bzl` and both constants in `cli/adopt/src/version.rs` say `0.1.0`. If one does not, it fails with `land the version bump first`.
 
-The `source` job also fails when `MODULE.bazel` overrides a `bazel_dep`, such as a rule-set module like `rules_php`, with `local_path_override`. The error names the module. Depend on its released version in the BCR before you tag.
+The `source` job also fails when `MODULE.bazel` overrides a `bazel_dep`, such as a rule-set module like `rules_php`, with `local_path_override` or `git_override`. The error names the module. Depend on its released version in the BCR before you tag.
 
 ## 4. Create the draft release
 
@@ -136,6 +136,6 @@ The first releases go:
 
 Versions are `0.x` semver. A minor release may change the API before `1.0`.
 
-While you work across both repositories you may point `rules_dx` at a local checkout of a rule set with `local_path_override`. Remove it before you tag: the `source` job fails and names the module.
+While you work across both repositories you may point `rules_dx` at a local checkout of a rule set with `local_path_override`, or at an unreleased commit with `git_override`. Remove it before you tag: the `source` job fails and names the module.
 
 `rules_dx` users write only `bazel_dep(name = "rules_dx", ...)` and load `@rules_dx//<lang>:defs.bzl`. `dx upgrade` moves them to new rule-set releases through `rules_dx`.

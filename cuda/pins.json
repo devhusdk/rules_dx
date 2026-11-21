@@ -11,11 +11,11 @@
       "sha256": "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a"
     },
     "rules_cuda": {
-      "version": "0.4.0",
-      "sha256": "5e8a32ae93e32724f4159a90ab0da33431181dbf08c02c94db088110f68088ac",
-      "strip_prefix": "rules_cuda-v0.4.0",
+      "version": "1b8809eba124d1d2ab5c7bda2683cf1d51ad619d",
+      "sha256": "8221706104fd49eb52d5b572fada7eb802a1007ce49eaee36a2daeb51bd90352",
+      "strip_prefix": "rules_cuda-1b8809eba124d1d2ab5c7bda2683cf1d51ad619d",
       "urls": [
-        "https://github.com/bazel-contrib/rules_cuda/releases/download/v0.4.0/rules_cuda-v0.4.0.tar.gz"
+        "https://github.com/bazel-contrib/rules_cuda/archive/1b8809eba124d1d2ab5c7bda2683cf1d51ad619d.tar.gz"
       ]
     }
   },

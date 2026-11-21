@@ -108,12 +108,6 @@ The runner resolves the output directory against `BUILD_WORKSPACE_DIRECTORY` and
 bazel run //pkg:parser_run -- --repro <file>
 ```
 
-The rules_dx runner also takes `--corpus <dir>` when you start it yourself. It copies the files in that directory into the corpus before fuzzing, so a known input is tried first. It works with libFuzzer, Jazzer and .NET targets:
-
-```sh
-bazel run //pkg:parser_run -- --time 10 --out .dx/local/fuzz/pkg/parser/ --corpus pkg/seeds
-```
-
 | Runner exit | Meaning |
 | --- | --- |
 | `0` | No crash. |

@@ -818,26 +818,20 @@ pub fn holding() -> ForkGuard {
     reason = "test helper: a failed setup fails the test"
 )]
 pub fn executable_script(path: &Path, body: &str) {
-    use std::io::Write;
-    // Pin PATH: a parallel test may have pointed the process PATH at a fake bin
-    // directory, and then `cat` and `chmod` would not be found.
-    let mut child = std::process::Command::new("/bin/sh")
+    use std::os::unix::fs::PermissionsExt as _;
+    // Only shell builtins run in the child: a parallel test may have pointed the
+    // process PATH at a fake bin directory, so `cat` or `chmod` may not resolve.
+    let status = std::process::Command::new("/bin/sh")
         .arg("-c")
-        .arg("cat > \"$1\" && chmod 755 \"$1\"")
+        .arg("printf '%s' \"$2\" > \"$1\"")
         .arg("sh")
         .arg(path)
-        .env("PATH", "/usr/bin:/bin")
-        .stdin(std::process::Stdio::piped())
-        .spawn()
+        .arg(body)
+        .status()
         .expect("spawn sh");
-    child
-        .stdin
-        .take()
-        .expect("stdin")
-        .write_all(body.as_bytes())
-        .expect("write script body");
-    let status = child.wait().expect("wait sh");
     assert!(status.success(), "write {}: {status}", path.display());
+    // chmod by path opens no fd, so it keeps the no-write-fd guarantee.
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod script");
 }
 
 /// [`executable_script`] of a POSIX shell script that runs `body`.

@@ -3679,6 +3679,10 @@ windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "win
 use_repo(windows_sdk_ext, "windows_sdk")
 
 qt = use_extension("//qt:extensions.bzl", "qt")
+qt.msvc_runtime(
+    notice = "//cc/private/toolchain:notices/MSVC_REDISTRIBUTABLE.txt",
+    runtime = "@dx_msvc_runtime//:BUILD.bazel",
+)
 use_repo(qt, "dx_qt")
 
 rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")

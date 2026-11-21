@@ -807,7 +807,7 @@ def _acquire_runtime(ctx, extractor, cells):
 
 def _place_vcruntime(ctx):
     arch = "arm64" if "arm64" in ctx.attr.cell else "x64"
-    redist = ctx.path(Label("@dx_msvc_runtime//:BUILD.bazel")).dirname.get_child("sysroot/Contents/VC/Redist/MSVC/{}/{}".format(VC_REDIST_VERSION, arch))
+    redist = ctx.path(ctx.attr.msvc_runtime).dirname.get_child("sysroot/Contents/VC/Redist/MSVC/{}/{}".format(VC_REDIST_VERSION, arch))
     if not redist.exists:
         return
     for directory in redist.readdir():
@@ -912,9 +912,11 @@ def _qt_cell_repo_impl(ctx):
         if entry.runtime != None:
             _acquire_runtime(ctx, extractor, cells)
         if layout.os == "windows":
+            if ctx.attr.msvc_runtime == None or ctx.attr.msvc_notice == None:
+                fail("qt: the " + ctx.attr.cell + " Qt cell ships the MSVC runtime; declare it with qt.msvc_runtime(runtime = ..., notice = ...)")
             _place_font(ctx)
             _place_vcruntime(ctx)
-            ctx.file("licenses/msvc-redistributable/NOTICE.txt", ctx.read(Label("//cc/private/toolchain:notices/MSVC_REDISTRIBUTABLE.txt")))
+            ctx.file("licenses/msvc-redistributable/NOTICE.txt", ctx.read(ctx.attr.msvc_notice))
     if layout.link == "framework":
         _normalize_frameworks(ctx)
     _check_module(ctx, _MODULE_FILES[module])
@@ -955,6 +957,12 @@ qt_cell_repo = repository_rule(
         "module": attr.string(
             doc = "Qt module whose archive this repository extracts.",
             mandatory = True,
+        ),
+        "msvc_notice": attr.label(
+            doc = "Notice text of the MSVC redistributable; Windows cells only.",
+        ),
+        "msvc_runtime": attr.label(
+            doc = "BUILD.bazel file of the MSVC redistributable repository; Windows cells only.",
         ),
         "prefix": attr.string(
             doc = "Repository name prefix of the cell's module repositories.",

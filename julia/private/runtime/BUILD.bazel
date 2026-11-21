@@ -1,12 +1,13 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@dx_pins_data//:pins.bzl", "ARCHIVES")
+load("@dx_prebuilt//:downloads.bzl", "DOWNLOADED")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_files")
 load("//core/modules:versions.bzl", "JULIA_RUNTIME_VERSION")
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
-load(":defs.bzl", "julia_runtime_files", "julia_shipped_libs", "julia_source_toolchain")
+load(":defs.bzl", "julia_runtime_files", "julia_shipped_libs", "julia_source_toolchain", "source_exec_compatible_with")
 
 package(default_visibility = ["//julia:__subpackages__"])
 
@@ -45,8 +46,8 @@ julia_source_toolchain(
 # On Linux x86_64 every Julia action and binary runs on the source-built libjulia-internal.
 toolchain(
     name = "source_toolchain",
-    # Without a pinned julia_internal prebuilt the source library builds only on a Linux x86_64 exec platform.
-    exec_compatible_with = _LINUX_X86_64,
+    # A downloaded libjulia-internal serves any exec host; the source build needs the linux x86_64 gcc (#14377).
+    exec_compatible_with = source_exec_compatible_with(DOWNLOADED, _LINUX_X86_64),
     target_compatible_with = _LINUX_X86_64,
     target_settings = [
         "//config:toolchains_on",
@@ -65,6 +66,29 @@ starlark_test(
             "julia runtime source follows canonical",
             ARCHIVES["julia_src"]["strip_prefix"],
             "julia-" + JULIA_RUNTIME_VERSION,
+        ),
+    ],
+    mode = "unit",
+)
+
+starlark_test(
+    name = "source_toolchain_exec_test",
+    size = "small",
+    checks = [
+        expect_equal(
+            "a downloaded julia_internal leaves the exec platform open",
+            source_exec_compatible_with({"julia_internal": ["linux_x86_64"]}, _LINUX_X86_64),
+            [],
+        ),
+        expect_equal(
+            "with no downloads the source build needs linux x86_64",
+            source_exec_compatible_with({}, _LINUX_X86_64),
+            _LINUX_X86_64,
+        ),
+        expect_equal(
+            "another tool's download keeps the constraint",
+            source_exec_compatible_with({"pcov": ["linux_x86_64"]}, _LINUX_X86_64),
+            _LINUX_X86_64,
         ),
     ],
     mode = "unit",

@@ -1,7 +1,7 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools", "with_python_tools")
+load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "downloads_bzl", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools", "with_python_tools")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
 load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "TOOLS", "asset_name", "registry_lines", "target_tools")
 
@@ -120,6 +120,9 @@ def _checks():
         expect_equal("julia-internal assets", [asset_name("julia_internal", k) for k in TOOLS["julia_internal"].platforms], ["dx-julia-internal-linux-x86_64.so"]),
         expect_equal("julia-internal ships with the target", TOOLS["julia_internal"].role, "target"),
         expect_contains("the registry lists julia-internal for fill_pins", registry_lines(), "julia_internal linux_x86_64 dx-julia-internal-linux-x86_64.so"),
+        expect_contains("downloads.bzl lists a pinned julia-internal", downloads_bzl(julia_internal), '"julia_internal": ["linux_x86_64"],'),
+        expect_contains("downloads.bzl is empty with nothing pinned", downloads_bzl(plan_native_tools("1.2.3", {}, URL_TEMPLATE, {})), "DOWNLOADED = {}\n"),
+        expect_contains("downloads.bzl keys use @platforms spelling", downloads_bzl(pcov), '"pcov": ["linux_x86_64", "macos_aarch64"],'),
         expect_contains("a pinned julia-internal selects the downloaded file", julia_internal_build, '":native_linux_x86_64": "@dx_julia_internal_prebuilt_linux_x86_64//file:libjulia-internal.so",'),
         expect_contains("a guarded unpinned julia-internal selects the stub", unpinned_guard, 'name = "julia_internal",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",\n        "//conditions:default": "@rules_dx//julia/private/runtime:libjulia_internal",\n    }),'),
         expect_equal("pcov assets", [asset_name("pcov", k) for k in TOOLS["pcov"].platforms], ["dx-pcov-linux-arm64.so", "dx-pcov-linux-x86_64.so", "dx-pcov-macos-arm64.so"]),

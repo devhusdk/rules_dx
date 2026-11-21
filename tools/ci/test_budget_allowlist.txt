@@ -152,7 +152,7 @@ core/tests/wrapper_tests.bzl no-size 5
 csharp/private/ide/BUILD.bazel no-size 1
 csharp/tests/fixtures/bench/BUILD.bazel no-size 2
 csharp/tests/fixtures/fuzz/BUILD.bazel no-size 8
-csharp/tests/fixtures/hello/BUILD.bazel no-size 2
+csharp/tests/fixtures/hello/BUILD.bazel no-size 1
 csharp/tests/fixtures/profiles/BUILD.bazel no-size 1
 csharp/tests/fixtures/proto/BUILD.bazel no-size 1
 csharp/tests/fixtures/xunit/BUILD.bazel no-size 2
@@ -266,7 +266,6 @@ fortran/tests/runtime/BUILD.bazel no-size 5
 fsharp/private/ide/BUILD.bazel no-size 1
 fsharp/tests/fixtures/bench/BUILD.bazel no-size 2
 fsharp/tests/fixtures/fuzz/BUILD.bazel no-size 7
-fsharp/tests/fixtures/hello/BUILD.bazel no-size 1
 fsharp/tests/fixtures/order/BUILD.bazel no-size 1
 fsharp/tests/fixtures/profiles/BUILD.bazel no-size 1
 fsharp/tests/fixtures/select/BUILD.bazel no-size 1
@@ -351,7 +350,7 @@ java/tests/fixtures/bench/BUILD.bazel no-size 8
 java/tests/fixtures/bench/BUILD.bazel size-large 1
 java/tests/fixtures/bench/BUILD.bazel timeout-long 1
 java/tests/fixtures/fuzz/BUILD.bazel no-size 6
-java/tests/fixtures/hello/BUILD.bazel no-size 5
+java/tests/fixtures/hello/BUILD.bazel no-size 4
 java/tests/fixtures/java_app/diagnostics/BUILD.bazel no-size 2
 java/tests/fixtures/junit/BUILD.bazel no-size 1
 java/tests/fixtures/no_srcs/BUILD.bazel no-size 3
@@ -443,7 +442,7 @@ python/tests/fixtures/adopt_python/tests/BUILD.bazel no-size 1
 python/tests/fixtures/entries/BUILD.bazel no-size 3
 python/tests/fixtures/fuzz/BUILD.bazel no-size 3
 python/tests/fixtures/hello/BUILD.bazel flaky 1
-python/tests/fixtures/hello/BUILD.bazel no-size 9
+python/tests/fixtures/hello/BUILD.bazel no-size 8
 python/tests/fixtures/native_ext/BUILD.bazel no-size 3
 python/tests/fixtures/no_srcs/BUILD.bazel no-size 1
 python/tests/fixtures/python_service/ledger/cli/BUILD.bazel no-size 3
@@ -464,7 +463,7 @@ rst/tests/BUILD.bazel no-size 1
 ruby/private/coverage/extensions.bzl no-size 1
 ruby/tests/fixtures/adopt_ruby/solo/BUILD.bazel no-size 1
 ruby/tests/fixtures/bench/BUILD.bazel no-size 2
-ruby/tests/fixtures/hello/BUILD.bazel no-size 2
+ruby/tests/fixtures/hello/BUILD.bazel no-size 1
 ruby/tests/fixtures/rspec/BUILD.bazel no-size 1
 rust/tests/fixtures/adopt_rust/crates/api/BUILD.bazel no-size 4
 rust/tests/fixtures/adopt_rust/solo/BUILD.bazel no-size 1
@@ -494,7 +493,7 @@ scala/tests/fixtures/bench/BUILD.bazel no-size 6
 scala/tests/fixtures/bench/BUILD.bazel size-large 1
 scala/tests/fixtures/bench/BUILD.bazel timeout-long 1
 scala/tests/fixtures/fuzz/BUILD.bazel no-size 2
-scala/tests/fixtures/hello/BUILD.bazel no-size 4
+scala/tests/fixtures/hello/BUILD.bazel no-size 3
 scala/tests/fixtures/no_srcs/BUILD.bazel no-size 1
 sql/tests/BUILD.bazel no-size 1
 svelte/tests/fixtures/app_errors/BUILD.bazel no-size 3

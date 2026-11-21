@@ -85,9 +85,9 @@ fn bypass_entries(value: &str) -> Vec<String> {
 }
 
 fn proxy(name: &str, value: &str, bypass: &[String]) -> Result<Proxy, Error> {
-    // The value can hold a password, so the error names only the variable.
+    // The value can hold a password, so the error names only the variable and drops the parse error.
     let invalid = || Error::Config(format!("{name} is not a proxy URL"));
-    let parsed = Proxy::new(value.trim()).map_err(|_| invalid())?;
+    let parsed = Proxy::new(value.trim()).ok().ok_or_else(invalid)?;
     let mut builder = Proxy::builder(parsed.protocol())
         .host(parsed.host())
         .port(parsed.port());
@@ -100,7 +100,7 @@ fn proxy(name: &str, value: &str, bypass: &[String]) -> Result<Proxy, Error> {
     for entry in bypass {
         builder = builder.no_proxy(entry);
     }
-    builder.build().map_err(|_| invalid())
+    builder.build().ok().ok_or_else(invalid)
 }
 
 #[cfg(test)]

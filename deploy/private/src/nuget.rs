@@ -10,7 +10,6 @@ use crate::run::{
     env_or_empty, exit_text, print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
-use std::fmt::Write as _;
 use std::io;
 use std::path::Path;
 
@@ -35,13 +34,13 @@ pub fn nuget_normalize_version(raw: &str) -> Result<String, String> {
                 "invalid NuGet version {text:?}: want numeric version parts"
             ));
         }
-        *slot = part
-            .parse()
-            .map_err(|_| format!("invalid NuGet version {text:?}: version part too large"))?;
+        *slot = part.parse().map_err(|error| {
+            format!("invalid NuGet version {text:?}: version part too large: {error}")
+        })?;
     }
     let mut out = format!("{}.{}.{}", numbers[0], numbers[1], numbers[2]);
     if numbers[3] != 0 {
-        write!(out, ".{}", numbers[3]).ok();
+        out.push_str(&format!(".{}", numbers[3]));
     }
     if let Some(release) = release {
         let valid = !release.is_empty()

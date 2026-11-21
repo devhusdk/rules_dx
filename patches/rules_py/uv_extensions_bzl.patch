@@ -1,7 +1,26 @@
-Upstream: none (not yet sent upstream, #14036)
+Upstream: none (upstream-ready, not sent yet: #14492)
+diff --git a/BUILD.bazel b/BUILD.bazel
+index 368cfba..0cb08c9 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -10,12 +10,6 @@
+ # in for diff_test regression coverage; they aren't real Starlark sources.
+ # gazelle:exclude uv/private/uv_hub/snapshots
+ 
+-# uv/extensions.bzl transitively loads @bazel_tools http.bzl whose own
+-# transitive cache.bzl/utils.bzl loads have no bzl_library targets to declare,
+-# which breaks starlark_doc_extract validation. Skip it until @bazel_tools
+-# exposes those. See https://github.com/bazelbuild/bazel/issues/12444.
+-# gazelle:exclude uv/extensions.bzl
+-
+ # Use aspect_bazel_lib's bzl_library, which auto-generates the
+ # starlark_doc_extract targets queried at release time.
+ # gazelle:map_kind bzl_library bzl_library @bazel_lib//:bzl_library.bzl
+diff --git a/uv/BUILD.bazel b/uv/BUILD.bazel
+index 70d1a4b..f5426c5 100644
 --- a/uv/BUILD.bazel
 +++ b/uv/BUILD.bazel
-@@ -16,3 +16,14 @@
+@@ -16,3 +16,13 @@ bzl_library(
          "//uv/private/py_entrypoint_binary:defs",
      ],
  )
@@ -11,8 +30,33 @@ Upstream: none (not yet sent upstream, #14036)
 +    srcs = ["extensions.bzl"],
 +    visibility = ["//visibility:public"],
 +    deps = [
-+        "//uv/private/constraints:defs",
 +        "//uv/private/extension:defs",
 +        "//uv/private/extension:uv_bin",
 +    ],
 +)
+diff --git a/uv/private/extension/BUILD.bazel b/uv/private/extension/BUILD.bazel
+index b4c5fe4..71efd31 100644
+--- a/uv/private/extension/BUILD.bazel
++++ b/uv/private/extension/BUILD.bazel
+@@ -23,7 +23,9 @@ bzl_library(
+         "//uv/private/whl_install:metadata",
+         "//uv/private/whl_install:repository",
+         "@bazel_lib//lib:resource_sets",
++        "@bazel_tools//tools/build_defs/repo:cache.bzl",  # keep
+         "@bazel_tools//tools/build_defs/repo:http.bzl",
++        "@bazel_tools//tools/build_defs/repo:utils.bzl",  # keep
+     ],
+ )
+ 
+diff --git a/uv/private/whl_install/BUILD.bazel b/uv/private/whl_install/BUILD.bazel
+index c8b0600..37382b4 100644
+--- a/uv/private/whl_install/BUILD.bazel
++++ b/uv/private/whl_install/BUILD.bazel
+@@ -44,6 +44,7 @@ bzl_library(
+     srcs = ["repository.bzl"],
+     deps = [
+         "//uv/private:parse_whl_name",
++        "//uv/private/constraints:defs",
+         "//uv/private/constraints/platform:defs",
+         "//uv/private/constraints/python:defs",
+         "//uv/private/pprint:defs",

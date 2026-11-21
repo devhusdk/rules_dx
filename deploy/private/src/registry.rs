@@ -2,7 +2,7 @@
 
 use crate::http::{basic_auth, query_escape};
 use dx_atomic_fs::path_io::{self, PathIoError};
-use std::fmt::{self, Write as _};
+use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -464,10 +464,10 @@ impl<'a> Session<'a> {
                 let mut url = realm.clone();
                 url.push(if url.contains('?') { '&' } else { '?' });
                 if let Some(service) = service {
-                    write!(url, "service={}&", query_escape(service)).ok();
+                    url.push_str(&format!("service={}&", query_escape(service)));
                 }
                 let scope = format!("repository:{}:pull,push", target.name);
-                write!(url, "scope={}", query_escape(&scope)).ok();
+                url.push_str(&format!("scope={}", query_escape(&scope)));
                 let basic = basic_auth(creds.user, creds.secret);
                 let reply = client
                     .send(
@@ -532,7 +532,7 @@ impl<'a> Session<'a> {
             url.truncate(hash);
         }
         url.push(if url.contains('?') { '&' } else { '?' });
-        write!(url, "digest={}", query_escape(digest)).ok();
+        url.push_str(&format!("digest={}", query_escape(digest)));
         Ok(url)
     }
 

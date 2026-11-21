@@ -31,7 +31,6 @@ def _ruby_impl(module_ctx):
             portable_ruby = True,
             portable_ruby_checksums = _PORTABLE_RUBY["sha256"],
             resolved_version = RUBY_VERSION,
-            register = False,
         )
     return module_ctx.extension_metadata(
         reproducible = True,

@@ -1,7 +1,6 @@
 //! Shared test fixtures: the env lock, scratch dirs and child-process env tests.
 
 use crate::tar_archive;
-use std::fmt::Write as _;
 use std::path::Path;
 
 /// Gzips a one-member tar whose name is written raw, so unsafe names like `../x` survive.
@@ -408,7 +407,7 @@ fn fake_serve(mut stream: std::net::TcpStream, state: &std::sync::Mutex<FakeStat
         reply.len()
     );
     for (key, value) in extra {
-        write!(text, "{key}: {value}\r\n").ok();
+        text.push_str(&format!("{key}: {value}\r\n"));
     }
     text.push_str("\r\n");
     let mut bytes = text.into_bytes();

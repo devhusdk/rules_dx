@@ -924,6 +924,20 @@ pub fn implicit_dependencies(
     Ok(labels)
 }
 
+/// Main-repository targets the workspace bazelrc files give as flag values, as `//package:name`.
+///
+/// # Errors
+///
+/// Returns an error when `MODULE.bazel` or a bazelrc file cannot be read.
+pub fn bazelrc_flag_targets(workspace: &Path) -> Result<BTreeSet<String>, DxError> {
+    let names = module_roots(workspace)?.names;
+    Ok(bazelrc_roots(workspace)?
+        .flag_labels
+        .iter()
+        .filter_map(|label| main_repo_label(label, &names))
+        .collect())
+}
+
 /// Whether `label` names a `.bzl` or `.scl` file, which `bzl_impact` covers.
 fn is_starlark_file(label: &str) -> bool {
     label.ends_with(".bzl") || label.ends_with(".scl")
@@ -932,7 +946,11 @@ fn is_starlark_file(label: &str) -> bool {
 /// `label` as the `//package:name` form the query graph uses, when it names the main repository.
 fn main_repo_label(label: &str, names: &[String]) -> Option<String> {
     let parsed = Label::parse(label)?;
-    if parsed.relative || parsed.repo_name().is_some_and(|repo| !main_repo(repo, names)) {
+    if parsed.relative
+        || parsed
+            .repo_name()
+            .is_some_and(|repo| !main_repo(repo, names))
+    {
         return None;
     }
     Some(format!("//{}:{}", parsed.package, parsed.name))
@@ -1470,6 +1488,32 @@ mod tests {
                 packages("plain.bzl", &[]),
                 global("rc/rc_helper.bzl", "aspect input"),
             ]
+        );
+    }
+
+    #[test]
+    fn bazelrc_flag_targets_keep_main_repo_labels() {
+        let scratch = dx_test_scratch::scratch("dx-load-flag-targets-").unwrap();
+        let root = scratch.path();
+        write(root, "MODULE.bazel", "module(name = \"demo\")\n").unwrap();
+        write(
+            root,
+            ".bazelrc",
+            "try-import %workspace%/tools/preset.bazelrc\nbuild --@other//:p=@other//:v\n",
+        )
+        .unwrap();
+        write(
+            root,
+            "tools/preset.bazelrc",
+            "build --@rules_dx//:policy=//.dx:policy\nbuild --@rules_rust//rust/settings:clippy.toml=@demo//tools/workspace:clippy.toml\nbuild --@rules_rust//rust/settings:clippy_flag=-Dclippy::panic\n",
+        )
+        .unwrap();
+        assert_eq!(
+            super::bazelrc_flag_targets(root).unwrap(),
+            BTreeSet::from([
+                "//.dx:policy".to_owned(),
+                "//tools/workspace:clippy.toml".to_owned(),
+            ])
         );
     }
 

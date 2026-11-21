@@ -1,7 +1,7 @@
 load("@rules_dx//core:failure_test.bzl", "failure_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//perl:defs.bzl", "perl_binary", "perl_library")
-load("//perl/tests/negative:negative_tests.bzl", "perl_runfile_test")
+load("//perl/tests/fixtures/negative:negative_tests.bzl", "perl_runfile_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -41,14 +41,14 @@ perl_binary(
 
 perl_runfile_test(
     name = "undeclared_module_is_not_a_runfile_test",
-    file = "perl/tests/negative/Base.pm",
+    file = "perl/tests/fixtures/negative/Base.pm",
     present = False,
     target = ":undeclared_dep",
 )
 
 perl_runfile_test(
     name = "declared_module_is_a_runfile_test",
-    file = "perl/tests/negative/Base.pm",
+    file = "perl/tests/fixtures/negative/Base.pm",
     present = True,
     target = ":declared_dep",
 )

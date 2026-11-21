@@ -1,4 +1,4 @@
-use quality_adapter::parsers;
+use quality_adapter::{buf_preflight, parsers};
 
 use super::check::{ToolDef, without_scratch_root};
 use super::{Path, PathBuf, RealBackend, RunnerError, commands, execution, parsed};
@@ -14,6 +14,15 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let cwd_rel = RealBackend::cwd_rel(call.tool_id, call.tool.config_rel.as_deref());
 
             let root = call.staged.scratch.root().join(&cwd_rel);
+            let config = call
+                .config
+                .map(Path::to_path_buf)
+                .or_else(|| Some(root.join("buf.yaml")).filter(|path| path.is_file()));
+            if let Some(config) = config {
+                let text = std::fs::read_to_string(&config)
+                    .map_err(|err| execution(call.tool_id, format!("read config: {err}")))?;
+                buf_preflight::check_config(&text).map_err(|err| execution(call.tool_id, err))?;
+            }
             if capability == "format" {
                 let mut findings = Vec::new();
                 for (workspace, absolute) in pairs {

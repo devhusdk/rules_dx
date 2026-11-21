@@ -62,8 +62,8 @@ fortran_test(
     name = "same_basename_test",
     srcs = ["same_basename_test.f90"],
     deps = [
-        "//fortran/tests/runtime/kinds_a",
-        "//fortran/tests/runtime/kinds_b",
+        "//fortran/tests/fixtures/runtime/kinds_a",
+        "//fortran/tests/fixtures/runtime/kinds_b",
     ],
 )
 

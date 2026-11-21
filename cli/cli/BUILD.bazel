@@ -131,6 +131,7 @@ rust_binary(
         "//capnproto/private/tools/capnpc_rust_dx",
         "//cli/adopt:dx_adopt",
         "//cli/codegen_shard",
+        "//cli/compile_check:dx_compile_check",
         "//cli/exec_core:dx_exec_core",
         "//cli/ocaml_cc_driver",
         "//cli/output:dx_output",

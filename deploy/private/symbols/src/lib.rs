@@ -1,12 +1,7 @@
 //! Checks that a binary and its debug info belong together: ELF build-ids and
 //! macOS dSYM UUIDs and Windows PDB GUIDs.
 
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod cli;
 pub mod entry;

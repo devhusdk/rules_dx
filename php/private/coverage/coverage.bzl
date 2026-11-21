@@ -54,7 +54,7 @@ php_pcov_runtime = rule(
 )
 
 def php_pcov_runtimes(name, coverage_cells):
-    """Declares `name`: the PCOV runtime of the target cell under coverage, an empty filegroup otherwise."""
+    """Declares `name`: the PCOV runtime of the target cell under coverage, an empty filegroup otherwise; `<name>_static` is incompatible with the coverage cells."""
     visibility = ["//:__subpackages__"]
     cases = {}
     for cell in sorted(coverage_cells):
@@ -71,6 +71,10 @@ def php_pcov_runtimes(name, coverage_cells):
     php_pcov_runtime(
         name = name + "_static",
         pcov = "@dx_prebuilt//:pcov",
+        target_compatible_with = select({
+            setting: [Label("@platforms//:incompatible")]
+            for setting in cases
+        } | {"//conditions:default": []}),
         visibility = visibility,
     )
     cases["//conditions:default"] = ":" + name + "_static"

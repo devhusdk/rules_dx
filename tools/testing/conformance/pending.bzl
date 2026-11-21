@@ -11,7 +11,5 @@ cuda cross_test windows_x86_64
 elixir cross_test windows_x86_64
 erlang cross_test windows_x86_64
 fortran cross_test *
-helm format_error_test *
-helm format_test *
 zig coverage_test windows_x86_64
 """

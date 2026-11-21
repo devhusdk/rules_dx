@@ -516,6 +516,7 @@ consumer_policy_tests(
         {
             "case": "helm_linted",
             "expected_dx_results": [
+                "clean_helm-real-format-kubernetes.pb",
                 "clean_helm-real-lint-kubernetes.pb",
             ],
             "config": "shared",

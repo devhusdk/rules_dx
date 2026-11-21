@@ -104,6 +104,7 @@ const PACKAGES: &[&str] = &[
     "rust/private/toolchain",
     "scala/private",
     "scala/private/toolchain",
+    "scala/private/toolchain/hub",
     "sql/private",
     "svelte/private",
     "swift/private",

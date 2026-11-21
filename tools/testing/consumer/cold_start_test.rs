@@ -54,7 +54,6 @@ const FOREIGN: &[(&str, &[&str])] = &[
 const UPSTREAM_REGISTERED: &[&str] = &[
     "rules_android+",
     "rules_kotlin+",
-    "rules_scala+",
 ];
 
 /// The names listed in a cold-start file: one per line, `#` comments and blank lines skipped.

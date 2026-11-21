@@ -368,7 +368,6 @@ fn haskell_job_ships_the_gmp_licence_and_source() {
     let pins: serde_json::Value =
         serde_json::from_str(&read_runfiles("haskell/pins.json")).expect("haskell/pins.json");
     for (pin, asset) in [
-        ("gmp_license", "dx-haskell-gmp-LICENSE"),
         ("gmp_source", "dx-haskell-gmp-source.tar.xz"),
         ("gmp_source_patch", "dx-haskell-gmp-source.patch"),
         ("gmp_ghc_source", "dx-haskell-gmp-ghc-source.tar.xz"),
@@ -381,12 +380,16 @@ fn haskell_job_ships_the_gmp_licence_and_source() {
             entry["urls"][0]
                 .as_str()
                 .is_some_and(|url| url.starts_with("https://gmplib.org/")
-                    || url.starts_with("https://www.gnu.org/")
                     || url.starts_with("https://gitlab.haskell.org/ghc/gmp-tarballs/")),
             "{pin}"
         );
     }
     assert!(tools.contains("sha256 differs from haskell/pins.json $pin"));
+    assert!(tools.contains(
+        "cp haskell/private/toolchain/lgpl-3.0.txt \"$out/dx-haskell-gmp-LICENSE\""
+    ));
+    assert!(release.contains(" dx-haskell-gmp-LICENSE"));
+    assert!(pins["archives"].get("gmp_license").is_none());
     for cell in ["linux_arm64_musl", "linux_x86_64_musl"] {
         assert!(
             pins["archives"][format!("apk__gmp-dev__{cell}")]["urls"][0]

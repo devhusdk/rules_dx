@@ -1,10 +1,11 @@
 """Haskell toolchain pin and settings tests."""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
+load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load("//haskell/private/toolchain:packages.bzl", "cabal_libraries", "components", "is_sha256", "package_build", "package_deps", "pin_problems", "render_deps", "tool_labels")
-load("//haskell/private/toolchain:pins.bzl", "CELLS", "CROSS_CELLS", "GHC_VERSION", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
+load("//haskell/private/toolchain:pins.bzl", "ALL_CELLS", "CELLS", "CROSS_CELLS", "GHC_VERSION", "GLIBC_FLOOR", "MUSL_CELLS", "qualified_cells")
 load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "MUSL_SUFFIX", "MUSL_TOOL_ARGS", "NO_HOST_TOOL", "alias_repository", "cell_matches_host", "closure_library_dirs", "cross_libdir_moves", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "host_cxx_library_dirs", "hub_files", "links_extra_libraries", "llvm_toolchain_attrs", "musl_wrapped", "musl_wrapper", "os_libraries", "toolchain_libraries")
 
 _GHC_BIN = [
@@ -92,7 +93,7 @@ def _cell_checks(name):
         expect_equal(name + " executable suffix", cell.exe_suffix, ".exe" if windows else ""),
         expect_equal(name + " os libraries", list(cell.os_libraries), ["Win32"] if windows else ["unix"]),
         expect_true(name + " ships the common libraries", "base" in toolchain_libraries(name)),
-        expect_true(name + " without a runtime closure ships the gmp license", has_runtime or cell.gmp_license.sha256 != ""),
+        expect_true(name + " without a runtime closure ships the gmp license", has_runtime or getattr(cell, "gmp_license", False)),
         expect_contains(name + " gmp resolves in the closure", conf, "library-dirs: ${pkgroot}/../dx_closure/lib ${pkgroot}/../lib/" + triple + "-ghc-9.10.3/ghc-bignum-1.3-0000"),
         expect_contains(name + " shared gmp resolves in the closure", conf, "dynamic-library-dirs: ${pkgroot}/../dx_closure/lib ${pkgroot}/../lib/" + triple + "-ghc-9.10.3"),
         expect_contains(name + " gmp stays an extra library", conf, "extra-libraries: gmp"),
@@ -187,6 +188,8 @@ def _checks():
         expect_equal("windows cell gets one gated cc toolchain", hub_files()["BUILD.bazel"].count("@bazel_tools//tools/cpp:toolchain_type"), 1),
         expect_contains("windows cell cc toolchain is gated", hub_files()["BUILD.bazel"], "target_settings = [\"@@//config:toolchains_on\", \"@@//haskell/private/toolchain:ghc_mingw_enabled\"]"),
         expect_true("glibc floor covers the bindist", _version_at_least(GLIBC_FLOOR, "2.28")),
+        expect_equal("haskell pins fetch nothing from www.gnu.org", [name for name, pin in sorted(DATA["dx_haskell"]["archives"].items()) if [url for url in pin["urls"] if "://www.gnu.org/" in url]], []),
+        expect_equal("cells that ship the checked-in gmp license", [name for name in sorted(ALL_CELLS) if getattr(ALL_CELLS[name], "gmp_license", False)], ["linux_arm64_musl", "linux_x86_64_musl", "macos_arm64", "windows_x86_64"]),
         expect_equal("runtime package names match across cells", [[package.package for package in CELLS[name].runtime] for name in sorted(CELLS) if name.startswith("linux_")], [["libgmp10", "libtinfo6"]] * 2),
         expect_equal("darwin has no runtime closure", CELLS["macos_arm64"].runtime, []),
         expect_true("arm64 mac runs the macos cell", cell_matches_host("macos_arm64", "mac os x", "aarch64")),

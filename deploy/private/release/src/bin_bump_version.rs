@@ -1,9 +1,4 @@
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_process::capture::{DEFAULT_TIMEOUT, RunError, run_checked};

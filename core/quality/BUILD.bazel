@@ -238,6 +238,28 @@ consumer_policy_tests(
             "subject": "//core/quality/tests/fixtures/consumer_policy:policy_bound_py",
         },
         {
+            "case": "generated_no_dx_toml_rust_binary",
+            "expected_dx_results": [
+                "app-real-format-rust.pb",
+                "app-real-lint-rust.pb",
+                "app-real-lint-text.pb",
+                "app-real-typecheck-rust.pb",
+            ],
+            "config": "generated",
+            "subject": "//core/quality/tests/fixtures/rust_policy:app",
+        },
+        {
+            "case": "generated_no_dx_toml_rust_test",
+            "expected_dx_results": [
+                "app_test-real-format-rust.pb",
+                "app_test-real-lint-rust.pb",
+                "app_test-real-lint-text.pb",
+                "app_test-real-typecheck-rust.pb",
+            ],
+            "config": "generated",
+            "subject": "//core/quality/tests/fixtures/rust_policy:app_test",
+        },
+        {
             "case": "default_d",
             "absent_keys": [
                 "format-d",

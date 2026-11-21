@@ -1,0 +1,24 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_test")
+
+package(default_visibility = ["//core/quality:__pkg__"])
+
+rust_binary(
+    name = "app",
+    srcs = ["main.rs"],
+)
+
+rust_test(
+    name = "app_test",
+    size = "small",
+    srcs = ["app_test.rs"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+    ],
+    tags = ["corpus"],
+)

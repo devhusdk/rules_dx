@@ -83,7 +83,7 @@ fn case(name: &str) -> Inputs {
     match name {
         "standard" => inputs(Some(standard), &["python"], &["ruff.toml"]),
         "strict" => inputs(Some(strict), &["python"], &["ruff.toml"]),
-        "no_dx_toml" => inputs(None, &["python", "core"], &[]),
+        "no_dx_toml" => inputs(None, &["python", "core", "rust"], &[]),
         "existing_exports" => Inputs {
             root_build: Some(RootBuild {
                 name: "BUILD".to_owned(),
@@ -263,6 +263,15 @@ fn renders_no_dx_toml() {
                 ],
                 "typecheck": ["ty"],
             },
+            "rust": {
+                "disabled": ["audit"],
+                "format": ["rustfmt"],
+                "lint": [
+                    "clippy",
+                    "typos",
+                ],
+                "typecheck": ["rustc"],
+            },
         },
         tier = "strict",
     )
@@ -270,6 +279,10 @@ fn renders_no_dx_toml() {
 
     # The workspace policy dx generates from dx.toml.
     common --@rules_dx//config:workspace=//.dx:policy
+
+    # The clippy tier.
+    common --@rules_dx//config:clippy_flag=-Wclippy::all
+    common --@rules_dx//config:clippy_flag=-Dwarnings
 
     # The python setup flags.
     common --modify_execution_info=PySdist.*=+block-network

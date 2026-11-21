@@ -1855,14 +1855,28 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-watch-slot-wait-").unwrap();
         let dir = scratch.path().join("slots");
         let held = dx_plan::slots::acquire(&dir, 1, "tree-a", &mut |_| {}).expect("hold");
+        let (blocked, waiting) = std::sync::mpsc::channel();
         let releaser = std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(600));
+            waiting
+                .recv_timeout(Duration::from_secs(30))
+                .expect("the watch iteration waits for the slot");
             drop(held);
+            // Kept open until the watch returns, so a later wait still has a listener.
+            waiting
         });
-        let (code, busy, err) =
-            slot_watch(&dir, &["watch", "build", "//a:one"], Some(1), |_, _| {
-                Ok(Vec::new())
+        // The reaper runs inside the wait, just before the wait notice.
+        let gate = dx_plan::slots::Gate::new(dir.clone(), 1, "watch-tree".to_owned(), false)
+            .reaping(move |_, _| {
+                blocked.send(()).expect("the releaser is listening");
+                0
             });
+        let (code, busy, err) = slot_watch_through(
+            gate,
+            &dir,
+            &["watch", "build", "//a:one"],
+            Some(1),
+            |_, _| Ok(Vec::new()),
+        );
         releaser.join().expect("join");
         assert_eq!(code, 0, "{err}");
         assert_eq!(busy, [(true, true)]);

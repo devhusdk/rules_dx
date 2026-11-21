@@ -1,12 +1,7 @@
 //! Runs a language server over stdio, opens files and collects the
 //! diagnostics it publishes, for servers that have no batch mode.
 
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod entry;
 

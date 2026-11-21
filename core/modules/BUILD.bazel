@@ -138,11 +138,13 @@ run_binary(
     srcs = [
         "//:lang_json",
         "//core/quality:core_aspects.json",
+        "//core/quality:families/core_probe.bzl",
         "//core/quality/testdata:all_languages.bzl",
     ],
     outs = [
         "generated/all_languages.bzl",
         "generated/conformance_quality.bzl",
+        "generated/core_probe.bzl",
         "generated/ecosystems_languages.json",
         "generated/families_languages.json",
         "generated/langs.bzl",
@@ -154,6 +156,8 @@ run_binary(
         "all_languages_src=$(execpath //core/quality/testdata:all_languages.bzl)",
         "conformance_quality.bzl=$(execpath generated/conformance_quality.bzl)",
         "core_aspects=$(execpath //core/quality:core_aspects.json)",
+        "core_probe.bzl=$(execpath generated/core_probe.bzl)",
+        "core_probe_src=$(execpath //core/quality:families/core_probe.bzl)",
         "ecosystems_languages.json=$(execpath generated/ecosystems_languages.json)",
         "families_languages.json=$(execpath generated/families_languages.json)",
         "langs.bzl=$(execpath generated/langs.bzl)",
@@ -170,6 +174,7 @@ write_source_files(
     additional_update_targets = [
         "//cli/ecosystems:update_languages",
         "//cli/families:update_languages",
+        "//core/quality:update_core_probe",
         "//core/quality/testdata:update_all_languages",
         "//gazelle/common:update_lock_registry",
         "//tools/testing/conformance:update_quality",

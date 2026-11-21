@@ -248,7 +248,7 @@ pub fn pypi_build_wheelhouse(
     dist_name: &str,
 ) -> io::Result<std::path::PathBuf> {
     let (project, _) = pypi_check_pair(wheel_src, sdist_src)?;
-    let house = outdir.join(dist_name.to_owned() + "-wheelhouse");
+    let house = outdir.join(format!("{dist_name}-wheelhouse"));
     std::fs::create_dir_all(&house)?;
     let mut entries: Vec<(String, String)> = Vec::new();
     let mut sources: Vec<&Path> = vec![wheel_src];
@@ -858,7 +858,7 @@ pub fn pypi_main_checked(
             Path::new("twine"),
             &wheel,
             sdist.as_deref(),
-            &outdir.join(dist_name.to_owned() + "-upload"),
+            &outdir.join(format!("{dist_name}-upload")),
             registry_url,
             &token,
             signer.as_deref(),
@@ -923,15 +923,13 @@ mod tests {
         });
         let args_log = scratch.path().join("args");
         let fake = scratch.path().join("griffe");
-        std::fs::write(
+        dx_testing::executable_script(
             &fake,
-            format!(
+            &format!(
                 "#!/bin/sh\necho \"$@\" > {}\necho 'src/pkg/__init__.py:1: pkg.hello: Public object was removed'\nexit 1\n",
                 args_log.display()
             ),
-        )
-        .expect("fake tool");
-        set_mode(&fake, 0o755);
+        );
         let check = PypiApiCheck {
             mode: "fail",
             baseline: "git",

@@ -70,15 +70,17 @@ typescript_playwright_test(
 )
 ```
 
-The test sets `DX_PLAYWRIGHT_PORT` to a free port and `DX_PLAYWRIGHT_APP` to
-the `app` binary. Start the app from the config:
+The test sets `DX_PLAYWRIGHT_APP` to the `app` binary. Have the app listen on
+port 0 and print its URL, such as `listening on http://127.0.0.1:41234`. The
+config starts the app, waits for that line and uses the URL:
 
 ```ts
-const port = Number(process.env.DX_PLAYWRIGHT_PORT);
-
 export default defineConfig({
-  use: { baseURL: `http://127.0.0.1:${port}`, screenshot: "only-on-failure" },
-  webServer: { command: process.env.DX_PLAYWRIGHT_APP ?? "", port },
+  use: { baseURL: process.env.DX_PLAYWRIGHT_URL, screenshot: "only-on-failure" },
+  webServer: {
+    command: process.env.DX_PLAYWRIGHT_APP ?? "",
+    wait: { stdout: /listening on (?<dx_playwright_url>http:\/\/\S+)/ },
+  },
 });
 ```
 

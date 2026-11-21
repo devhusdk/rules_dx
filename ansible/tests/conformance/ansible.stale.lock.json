@@ -1,0 +1,8 @@
+{
+  "ecosystem": "ansible",
+  "inputs": {
+    "requirements.yml": "20a4db55bce7bc74a3e374a2ab2d0271379935849a42be69bb0f1c424be8f6e6"
+  },
+  "packages": [],
+  "schema": 1
+}

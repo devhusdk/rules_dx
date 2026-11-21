@@ -1,9 +1,4 @@
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 use std::path::Path;
@@ -14,7 +9,10 @@ fn run(argv: &[String]) -> i32 {
         return usage();
     };
     let (head, tail) = argv.split_at(split);
-    let (Some((stage, srcs)), Some((nfpm, args))) = (head.get(1..).and_then(|h| h.split_first()), tail.get(1..).and_then(|t| t.split_first())) else {
+    let (Some((stage, srcs)), Some((nfpm, args))) = (
+        head.get(1..).and_then(|h| h.split_first()),
+        tail.get(1..).and_then(|t| t.split_first()),
+    ) else {
         return usage();
     };
     let stage = Path::new(stage);

@@ -5,7 +5,6 @@
 )]
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -268,7 +267,7 @@ fn fresh_clone_regenerates_dx_on_first_command() {
     let mut actual = String::new();
     for (path, bytes) in &after {
         let text = std::str::from_utf8(bytes).expect("utf-8");
-        write!(actual, "=== {}\n{text}", path.display()).ok();
+        actual.push_str(&format!("=== {}\n{text}", path.display()));
     }
     let golden = env_file("DX_FRESH_INIT_GOLDEN");
     assert!(

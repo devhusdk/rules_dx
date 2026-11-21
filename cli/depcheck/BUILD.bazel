@@ -10,6 +10,7 @@ rust_library(
     srcs = [
         "src/consistency.rs",
         "src/dep_key.rs",
+        "src/ecosystem/ansible.rs",
         "src/ecosystem/beam.rs",
         "src/ecosystem/cc.rs",
         "src/ecosystem/dart.rs",
@@ -88,6 +89,7 @@ rust_test(
     srcs = [
         "src/consistency.rs",
         "src/dep_key.rs",
+        "src/ecosystem/ansible.rs",
         "src/ecosystem/beam.rs",
         "src/ecosystem/cc.rs",
         "src/ecosystem/dart.rs",
@@ -128,6 +130,7 @@ rust_test(
     crate_name = "dx_depcheck",
     crate_root = "src/lib.rs",
     data = [
+        ":ansible_testdata",
         ":cc_testdata",
         ":csharp_testdata",
         ":d_testdata",
@@ -325,6 +328,7 @@ rust_test(
         srcs = glob(["testdata/" + eco + "/**"]),
     )
     for eco in [
+        "ansible",
         "rust",
         "python",
         "js",

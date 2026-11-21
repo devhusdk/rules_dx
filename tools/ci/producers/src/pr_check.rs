@@ -4,10 +4,11 @@ use std::process::{Command, Stdio};
 
 const BAZEL: &str = "bazel";
 
-pub const SETS: [&str; 7] = [
+pub const SETS: [&str; 8] = [
     "workflow",
     "preflight",
     "preflight-windows-arm64",
+    "android-linux-arm64",
     "hermetic",
     "docs",
     "cli",
@@ -43,6 +44,10 @@ pub const WINDOWS_ARM64_TARGETS: &str = "//cc/tests/fixtures/hello:hello //cc/te
 /// Preflight labels left out of `WINDOWS_ARM64_TARGETS`.
 /// `runner_matrix_windows_arm64` has no erlang toolchain for `windows_arm64` (`//erlang/private/tools:dialyzer_bin`).
 pub const WINDOWS_ARM64_BLOCKED: &str = "//core/quality/testdata:runner_matrix_windows_arm64";
+
+/// Android is unsupported on `linux_arm64`, so every target under it must be skipped there.
+pub const ANDROID_LINUX_ARM64_FLAGS: &str = "--platforms=//tools/platforms:linux_arm64
+    --host_platform=//tools/platforms:linux_arm64 //android/...";
 
 pub const KOTLIN_BENCH_TARGETS: &str = "//kotlin/tests/fixtures/bench:all";
 
@@ -123,6 +128,19 @@ pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
             );
             vec![Step::Run(BAZEL, args)]
         }
+        "android-linux-arm64" => vec![Step::Run(
+            BAZEL,
+            words(
+                &[
+                    "build",
+                    "--nobuild",
+                    "--keep_going",
+                    "--lockfile_mode=error",
+                ],
+                flags,
+                ANDROID_LINUX_ARM64_FLAGS,
+            ),
+        )],
         "hermetic" => {
             let mut query = words(&["query", "--lockfile_mode=error"], flags, "");
             query.extend([HERMETIC_QUERY.to_owned(), "--output=label".to_owned()]);
@@ -297,6 +315,31 @@ mod tests {
             "--platforms=@llvm//platforms:windows_aarch64",
             "--skip_incompatible_explicit_targets",
             "//dart/private/tools:all",
+        ] {
+            assert!(args.contains(&want.to_owned()), "{want}");
+        }
+    }
+
+    #[test]
+    fn android_linux_arm64_analyses_android() {
+        let steps = plan("android-linux-arm64", &flags()).unwrap();
+        let [Step::Run("bazel", args)] = steps.as_slice() else {
+            panic!("{steps:?}");
+        };
+        assert_eq!(
+            args.get(..5).unwrap(),
+            [
+                "build",
+                "--nobuild",
+                "--keep_going",
+                "--lockfile_mode=error",
+                "--config=ci"
+            ]
+        );
+        for want in [
+            "--platforms=//tools/platforms:linux_arm64",
+            "--host_platform=//tools/platforms:linux_arm64",
+            "//android/...",
         ] {
             assert!(args.contains(&want.to_owned()), "{want}");
         }

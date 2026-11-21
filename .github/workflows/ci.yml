@@ -55,6 +55,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: dx-reports-coverage-*
@@ -104,6 +105,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Prove dx init scaffold matches checked-in definition
         run: |
           # shellcheck disable=SC2086
@@ -135,6 +137,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Allow unprivileged user namespaces
         run: |
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
@@ -171,11 +174,10 @@ jobs:
           facts="$(bazel info "$@" bazel-bin)/tools/docs/support_matrix/facts.json"
           jq -r --slurpfile labels tools/docs/support_matrix/row_labels.json '.rows[] | select(.section == "compilers") | .identity.probe, ($labels[0][.name] // [])[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ' > "$RUNNER_TEMP/compiler-targets"
           targets="$(cat "$RUNNER_TEMP/compiler-targets")"
-          # shellcheck disable=SC2086
-          bazel build --noshow_progress --skip_incompatible_explicit_targets --output_groups=starlark_manifest "$@" $targets
           status=0
+          # One invocation builds the probes' Starlark manifests and runs the probe tests.
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets "$@" $targets && status=0 || status=$?
+          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets --output_groups=+starlark_manifest "$@" $targets && status=0 || status=$?
           if [ "$status" -ne 0 ] && [ "$status" -ne 4 ]; then
             exit "$status"
           fi
@@ -219,6 +221,7 @@ jobs:
         id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
           locate-repository-cache: "true"
       - name: Qualify the consumer without installs or network
         run: |
@@ -262,6 +265,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Deny the host MSVC trees to hermetic runs
         run: |
           denies=()
@@ -313,6 +317,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Lint the platform-specific process crates with the .bazelrc clippy deny set
         run: |
           # shellcheck disable=SC2086
@@ -328,15 +333,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - shard: 0/5
+          - shard: 0/6
             patterns: //appimage/...
-          - shard: 1/5
+          - shard: 1/6
             patterns: //cli/archive/...
-          - shard: 2/5
+          - shard: 2/6
             patterns: //android/private/packaging/...
-          - shard: 3/5
+          - shard: 3/6
             patterns: //msix/tests/...
-          - shard: 4/5
+          - shard: 4/6
+            patterns: ""
+          - shard: 5/6
             patterns: //deploy/private/...
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -346,6 +353,8 @@ jobs:
         with:
           cache-save: false
       - name: Build twice and compare the execution logs
+        # A step timeout fails the step and keeps the log; the job cap above discards it.
+        timeout-minutes: 40
         env:
           SHARD: ${{ matrix.shard }}
           PATTERNS: ${{ matrix.patterns }}
@@ -424,6 +433,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Cross-build the ARM64 fixtures with GCC
         run: |
           # shellcheck disable=SC2086
@@ -519,6 +529,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Cross-build the linux_arm64 conformance binaries with LLVM
         run: |
           test "$(uname -s)" = Darwin
@@ -587,6 +598,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Cross-build the ARM64 app with MSVC
         run: |
           # shellcheck disable=SC2086
@@ -667,6 +679,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Cross-build the Windows conformance binaries with LLVM
         run: |
           # shellcheck disable=SC2086
@@ -736,6 +749,7 @@ jobs:
         id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
           locate-repository-cache: "true"
       - name: Allow unprivileged user namespaces
         run: |
@@ -802,6 +816,7 @@ jobs:
         id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
           locate-repository-cache: "true"
       - name: Allow unprivileged user namespaces
         if: runner.os == 'Linux'
@@ -821,11 +836,10 @@ jobs:
           facts="$PWD/bazel-bin/tools/docs/support_matrix/facts.json"
           jq -r --arg platform "$PLATFORM" --slurpfile labels tools/docs/support_matrix/row_labels.json '.rows[] | select(.section == "compilers") | (.identity.platform_probes[$platform] // .identity.probe), ($labels[0][.name] // [])[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ' > "$RUNNER_TEMP/compiler-targets"
           targets="$(cat "$RUNNER_TEMP/compiler-targets")"
-          # shellcheck disable=SC2086
-          bazel build --noshow_progress --skip_incompatible_explicit_targets --output_groups=starlark_manifest "$@" $targets
           status=0
+          # One invocation builds the probes' Starlark manifests and runs the probe tests.
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets "$@" $targets && status=0 || status=$?
+          bazel test --noshow_progress --test_output=errors --skip_incompatible_explicit_targets --output_groups=+starlark_manifest "$@" $targets && status=0 || status=$?
           if [ "$status" -ne 0 ] && [ "$status" -ne 4 ]; then
             exit "$status"
           fi
@@ -874,6 +888,7 @@ jobs:
         if: steps.changes.outputs.run == 'true'
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Install and launch the signed package
         if: steps.changes.outputs.run == 'true'
         run: |
@@ -921,6 +936,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Build the bootstrap closure
         id: bootstrap-build
         run: |
@@ -1097,6 +1113,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Run the quality runner matrix
         env:
           QUALITY_TARGETS: ${{ matrix.quality }}
@@ -1146,8 +1163,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # The hello_standalone sysimage build against the source libjulia-internal alone fills the 16 GB of RAM here.
           - platform: linux_x86_64
             runner: ubuntu-latest
+            local_args: --show_progress --show_progress_rate_limit=60
+            swap_gb: 16
           - platform: linux_arm64
             runner: ubuntu-24.04-arm
           - platform: macos_arm64
@@ -1169,11 +1189,25 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Run the Julia standalone and tool tests
+        env:
+          LOCAL_ARGS: ${{ matrix.local_args }}
+          SWAP_GB: ${{ matrix.swap_gb }}
         run: |
           # shellcheck disable=SC2086
-          set -- $BAZEL_CONFIG $BB_ARGS
+          set -- $BAZEL_CONFIG $BB_ARGS $LOCAL_ARGS
           mkdir -p "$RUNNER_TEMP/exec-log"
+          if [ -n "$SWAP_GB" ]; then
+            sudo fallocate -l "${SWAP_GB}G" /mnt/dx-swap
+            sudo chmod 600 /mnt/dx-swap
+            sudo mkswap /mnt/dx-swap
+            sudo swapon /mnt/dx-swap
+          fi
+          if [ "$RUNNER_OS" = Linux ]; then
+            # A runner out of memory or disk dies with no Bazel error; this log shows which one ran out.
+            (while sleep 30; do echo "resources: $(free -m | sed -n 2,3p | tr -s ' \n' ' ') | $(df -h / /mnt | tail -2 | tr -s ' \n' ' ')"; done) &
+          fi
           # shellcheck disable=SC2086
           bazel test --noshow_progress --nocache_test_results --flaky_test_attempts=2 --test_output=errors --skip_incompatible_explicit_targets "--execution_log_compact_file=$RUNNER_TEMP/exec-log/launch-heavy.log" "$@" //julia/tests/fixtures/hello:hello_standalone_output_test //julia/tests/fixtures/hello:relocate_test //julia/private/tools/lint/... //julia/private/tools/jet/... 2>&1 | tee "$RUNNER_TEMP/launch-heavy.log"
       - name: Check the upload holds no secret
@@ -1218,6 +1252,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Validate workflow semantics with the pinned actionlint
         run: |
           # shellcheck disable=SC2086
@@ -1278,6 +1313,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - uses: ./.github/actions/gate
       - name: Check generated Rust BUILD files
         if: ${{ !cancelled() }}

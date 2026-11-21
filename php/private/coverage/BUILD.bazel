@@ -1,10 +1,9 @@
 load("@dx_pins_data//:pins.bzl", "DATA")
 load("//php/private/quality:corpus.bzl", "php_corpus")
 load("//rust:defs.bzl", "rust_library", "rust_test")
-load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 load(":coverage.bzl", "php_pcov_runtimes")
 
-package(default_visibility = VIS_TOOLS_PUBLIC)
+package(default_visibility = ["//:__subpackages__"])
 
 php_corpus(
     name = "corpus_starlark",

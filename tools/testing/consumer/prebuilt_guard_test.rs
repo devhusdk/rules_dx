@@ -211,6 +211,7 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     );
     let case = Case::languages_consumer(&format!("{}_prebuilt_guard", langs[0]), &langs, &extra)
         .unwrap_or_else(|error| panic!("{error}"));
+    case.use_lock(&format!("{}_prebuilt_guard", langs[0]));
     let targets = case.bazel(&[
         "query",
         "--color=no",

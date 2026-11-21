@@ -116,7 +116,7 @@ aspect_field subject_label=//core/quality/testdata:fixture_real_jsx_subject
 aspect_field transitive_count=0
 subject //core/quality/testdata:fixture_real_kotlin_subject
 field dx_count=3
-field dx_results=fixture_real_kotlin-real-format-jvm.pb,fixture_real_kotlin-real-lint-jvm.pb,fixture_real_kotlin-real-lint-text.pb
+field dx_results=fixture_real_kotlin-real-format-kotlin.pb,fixture_real_kotlin-real-lint-kotlin.pb,fixture_real_kotlin-real-lint-text.pb
 field has_quality_sources=True
 field label=//core/quality/testdata:fixture_real_kotlin
 aspect_field aspect_seen=True

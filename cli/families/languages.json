@@ -1345,7 +1345,18 @@
       },
       "name": "kotlin",
       "quality": {
-        "bzl": "java/private/quality:jvm.bzl",
+        "aspects": {
+          "format": [
+            "real_kotlin_format_aspect"
+          ],
+          "lint": [
+            "real_kotlin_lint_aspect"
+          ],
+          "typecheck": [
+            "real_kotlin_typecheck_aspect"
+          ]
+        },
+        "bzl": "kotlin/private/quality:kotlin.bzl",
         "classes": [
           "kotlin"
         ],
@@ -1365,7 +1376,18 @@
         "file_extensions": [
           ".kt",
           ".kts"
-        ]
+        ],
+        "probes": {
+          "format": [
+            "real_kotlin_format_probe_aspect"
+          ],
+          "lint": [
+            "real_kotlin_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_kotlin_typecheck_probe_aspect"
+          ]
+        }
       }
     },
     {

@@ -905,6 +905,8 @@ rust_test(
         "//java/private/quality:jvm.bzl",
         "//java/private/quality:jvm_check.bzl",
         "//java/private/quality:jvm_info.bzl",
+        "//kotlin/private/quality:kotlin.bzl",
+        "//kotlin/private/quality:kotlinc_check.bzl",
         "//scala/private/quality:scala.bzl",
         "//scala/private/quality:scalac_check.bzl",
     ],

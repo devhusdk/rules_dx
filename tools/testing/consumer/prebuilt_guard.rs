@@ -820,6 +820,18 @@ mod tests {
                 .iter()
                 .any(|label| label.contains("scala") || label.contains("kotlin"))
         );
+        assert!(
+            !check
+                .iter()
+                .any(|label| label.starts_with("kotlin/private/quality"))
+        );
+        let kotlin = BTreeSet::from([".kt".to_owned()]);
+        let (check, _) = guard_aspects(&kotlin);
+        assert!(
+            check
+                .iter()
+                .any(|label| label.ends_with("%real_kotlin_typecheck_aspect"))
+        );
     }
 
     #[test]

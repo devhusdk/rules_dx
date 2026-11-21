@@ -20,7 +20,7 @@ use prebuilt_guard::{guard_aspects, stub_url, wrapper_build, wrapper_bzl};
 
 /// Name fragments of repositories that belong to a language family the consumer does not use.
 const FOREIGN: &[(&str, &[&str])] = &[
-    ("java", &["ocaml", "opam", "cuda", "scala"]),
+    ("java", &["ocaml", "opam", "cuda", "scala", "kotlin", "android"]),
     (
         "go",
         &[

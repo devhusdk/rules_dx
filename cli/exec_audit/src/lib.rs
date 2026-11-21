@@ -204,6 +204,10 @@ fn set_package(set: &dx_adopt::dependency_sets::DependencySet) -> String {
 
 /// The sets `scopes` name or own. A set found through a scope, not by its name,
 /// is skipped when a `dx.toml` exclude covers its package.
+///
+/// # Errors
+///
+/// Returns `Err` when a scope names no set and no set owns it.
 pub fn resolve_configured_audit_sets(
     registry: &dx_adopt::dependency_sets::Registry,
     scopes: &[String],
@@ -246,6 +250,11 @@ fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, AuditError
     )?)
 }
 
+/// Loads the pinned advisories for the `key` ecosystem and their pin.
+///
+/// # Errors
+///
+/// Returns `Err` when `key` has no advisory source, or the pinned snapshot cannot be read or fetched.
 pub fn load_advisories(
     workspace: &Path,
     key: &str,
@@ -724,6 +733,11 @@ fn package_ref(
     })
 }
 
+/// Loads the workspace licence policy.
+///
+/// # Errors
+///
+/// Returns `Err` when the policy file cannot be read or does not parse.
 pub fn load_license_policy(
     workspace: &Path,
 ) -> Result<dx_audit::license_policy::LicensePolicy, AuditError> {

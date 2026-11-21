@@ -53,6 +53,11 @@ impl Digest {
         to_hex(&self.0)
     }
 
+    /// Parses a 64-character hex sha256.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when `text` is not 64 hex digits.
     pub fn parse_hex(text: &str) -> Result<Self, DigestError> {
         parse_hex(text).map(Self)
     }
@@ -138,6 +143,10 @@ impl io::Write for Sha256Writer {
 }
 
 /// Hex sha256 of a reader's bytes, read in fixed-size chunks.
+///
+/// # Errors
+///
+/// Returns `Err` when reading from `reader` fails.
 pub fn sha256_reader_hex(mut reader: impl io::Read) -> io::Result<String> {
     let mut sink = Sha256Writer::new();
     let mut buf = vec![0u8; FILE_CHUNK];
@@ -159,6 +168,10 @@ pub fn sha256_reader_hex(mut reader: impl io::Read) -> io::Result<String> {
 }
 
 /// Hex sha256 of a file's bytes, read in fixed-size chunks.
+///
+/// # Errors
+///
+/// Returns `Err` when `path` cannot be opened or read.
 pub fn sha256_file_hex(path: &Path) -> io::Result<String> {
     sha256_reader_hex(std::fs::File::open(path)?)
 }
@@ -199,6 +212,11 @@ pub fn to_hex_bytes(bytes: &[u8]) -> String {
     hex::encode(bytes)
 }
 
+/// Parses a 64-character hex sha256.
+///
+/// # Errors
+///
+/// Returns `Err` when `text` is not 64 hex digits.
 pub fn parse_hex(text: &str) -> Result<RawDigest, DigestError> {
     let bad = || DigestError::BadDigest {
         value: text.to_owned(),

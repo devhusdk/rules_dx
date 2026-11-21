@@ -7,8 +7,6 @@
 //! observations, and renders one PASS or FAIL line per assertion. No sh, awk,
 //! grep, cat, or batch interpreter is launched.
 
-#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
-
 use std::path::{Path, PathBuf};
 
 use dx_path::Resolver;

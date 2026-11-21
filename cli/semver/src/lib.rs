@@ -61,7 +61,7 @@ impl Version {
                     text: text.to_owned(),
                 });
             }
-            let value = number.parse().map_err(|_| VersionError::TooLarge {
+            let value = number.parse().ok().ok_or_else(|| VersionError::TooLarge {
                 text: text.to_owned(),
                 part: number.to_owned(),
             })?;

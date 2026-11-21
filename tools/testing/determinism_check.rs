@@ -4,7 +4,6 @@
 //! mnemonic.
 //! With `--kinds` it also builds one Linux-compatible target of each `entry_points` kind of every `<lang>/lang.json`.
 //! `--shard i/n` keeps the kind targets whose top-level package is the i-th of every n, counting from 0.
-#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -135,7 +134,11 @@ fn kind_targets(bazel: &str, out: &Path, workspace: &Path) -> Result<Vec<String>
     )?);
     std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let set = out.join("kinds.cquery");
-    let expr = labels.iter().map(|(l, _)| l.as_str()).collect::<Vec<_>>().join(" ");
+    let expr = labels
+        .iter()
+        .map(|(l, _)| l.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
     std::fs::write(&set, format!("set({expr})")).map_err(|e| format!("{}: {e}", set.display()))?;
     let compatible = capture(
         &[
@@ -159,7 +162,10 @@ fn kind_targets(bazel: &str, out: &Path, workspace: &Path) -> Result<Vec<String>
         eprintln!("kinds with no non-manual target: {}", unmatched.join(" "));
     }
     if !incompatible.is_empty() {
-        eprintln!("kinds with no Linux-compatible target: {}", incompatible.join(" "));
+        eprintln!(
+            "kinds with no Linux-compatible target: {}",
+            incompatible.join(" ")
+        );
     }
     Ok(one_per_kind(&labels, &compatible))
 }
@@ -274,8 +280,8 @@ fn shard(targets: Vec<String>, index: usize, count: usize) -> Vec<String> {
 fn parse_shard(arg: &str) -> Result<(usize, usize), String> {
     let bad = || format!("--shard {arg}: want i/n with i < n");
     let (index, count) = arg.split_once('/').ok_or_else(bad)?;
-    let index: usize = index.parse().map_err(|_| bad())?;
-    let count: usize = count.parse().map_err(|_| bad())?;
+    let index: usize = index.parse().map_err(|e| format!("{}: {e}", bad()))?;
+    let count: usize = count.parse().map_err(|e| format!("{}: {e}", bad()))?;
     if index < count {
         Ok((index, count))
     } else {
@@ -497,10 +503,7 @@ mod tests {
             &dir,
         )
         .unwrap();
-        assert!(
-            lines[0].contains(" //:changed Genrule "),
-            "{lines:?}"
-        );
+        assert!(lines[0].contains(" //:changed Genrule "), "{lines:?}");
         assert!(lines[1].starts_with("  origin: changed.txt: "), "{lines:?}");
         assert!(lines[2].starts_with("  input changed.txt: "), "{lines:?}");
         assert_eq!(lines[3], "not remote cacheable, ran every time:");

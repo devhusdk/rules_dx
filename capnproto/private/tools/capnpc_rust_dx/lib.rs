@@ -1,9 +1,4 @@
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 //! Generates the Rust crate sources of one `capnproto_rust_library`.
 //!
 //! The driver runs the pinned `capnp` compiler over the staged import closure,

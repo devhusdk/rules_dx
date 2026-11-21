@@ -15,6 +15,7 @@ exports_files(
 )
 
 # LDoc needs the C module LuaFileSystem; this runner links it into the pinned Lua.
+# The release cells ship this target as the ldoc_main prebuilt.
 cc_binary(
     name = "ldoc_main",
     srcs = ["ldoc_main.c"],

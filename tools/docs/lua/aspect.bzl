@@ -53,7 +53,7 @@ real_lua_docs_aspect = aspect(
         ),
         "_lua_runner": attr.label(
             cfg = "exec",
-            default = Label("//tools/docs/lua:ldoc_main"),
+            default = Label("@dx_prebuilt//:ldoc_main"),
             executable = True,
         ),
     },

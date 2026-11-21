@@ -149,6 +149,11 @@ impl Bazel {
             .map(PathBuf::from)
     }
 
+    fn workspace(&self) -> Result<PathBuf, String> {
+        self.output(&["info", CONFIG, "workspace"])
+            .map(PathBuf::from)
+    }
+
     fn exec_path(&self, flags: &[&str], target: &str) -> Result<String, String> {
         let mut args = vec!["cquery", CONFIG];
         args.extend_from_slice(flags);
@@ -161,20 +166,20 @@ impl Bazel {
         Ok(root.join(self.exec_path(flags, target)?))
     }
 
-    /// The external repository source file `label`, under `output_base`.
-    fn source(&self, output_base: &Path, label: &str) -> Result<PathBuf, String> {
-        repository_file(output_base, &self.exec_path(&[], label)?)
+    /// The source file `label`, under `output_base` for an external repository and under `workspace` for the main one.
+    fn source(&self, output_base: &Path, workspace: &Path, label: &str) -> Result<PathBuf, String> {
+        source_file(output_base, workspace, &self.exec_path(&[], label)?)
     }
 }
 
-/// Maps the exec path of an external repository source file to its path under `output_base`.
-fn repository_file(output_base: &Path, exec_path: &str) -> Result<PathBuf, String> {
+/// Maps the exec path of a source file to its path under `output_base` or `workspace`.
+fn source_file(output_base: &Path, workspace: &Path, exec_path: &str) -> Result<PathBuf, String> {
     if exec_path.starts_with("external/") {
         Ok(output_base.join(exec_path))
+    } else if exec_path.starts_with("bazel-out/") || Path::new(exec_path).is_absolute() {
+        Err(format!("{exec_path} is not a source file"))
     } else {
-        Err(format!(
-            "{exec_path} is not an external repository source file"
-        ))
+        Ok(workspace.join(exec_path))
     }
 }
 
@@ -279,10 +284,16 @@ fn library_asset_name(tool: &str, cell: &str) -> String {
 }
 
 /// Writes the licence files of `tool`, separated by a blank line, as `dx-<tool>-LICENSE` in `out`.
-fn write_license(bazel: &Bazel, output_base: &Path, tool: &Tool, out: &Path) -> Result<(), String> {
+fn write_license(
+    bazel: &Bazel,
+    output_base: &Path,
+    workspace: &Path,
+    tool: &Tool,
+    out: &Path,
+) -> Result<(), String> {
     let mut text = String::new();
     for label in tool.licenses {
-        let path = bazel.source(output_base, label)?;
+        let path = bazel.source(output_base, workspace, label)?;
         let part = std::fs::read_to_string(&path)
             .map_err(|error| format!("read {}: {error}", path.display()))?;
         if !text.is_empty() {
@@ -417,6 +428,7 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
     main.build(&gazelle_flags, &[GAZELLE])?;
     let root = main.execution_root()?;
     let output_base = main.output_base()?;
+    let workspace = main.workspace()?;
     let gazelle_asset = tool_asset_name("gazelle", &env.cell);
     release_copy(
         &env.cell,
@@ -437,14 +449,14 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
         )?;
     }
     for tool in native_licenses(&env.cell) {
-        write_license(&main, &output_base, tool, out)?;
+        write_license(&main, &output_base, &workspace, tool, out)?;
     }
     for library in libraries(&env.cell) {
         copy(
             &main.file(&root, &[], library.label)?,
             &out.join(library_asset_name(library.tool, &env.cell)),
         )?;
-        write_license(&main, &output_base, library, out)?;
+        write_license(&main, &output_base, &workspace, library, out)?;
     }
     let dx = main.file(&root, &[], "//cli/cli:dx")?;
     if is_macos(&env.cell) && !codesign(&["--verify", "--strict"], &dx)? {
@@ -553,20 +565,24 @@ pub fn cell(args: &[String]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_macos, libraries, library_asset_name, native_licenses, repository_file, symbols_name,
+        is_macos, libraries, library_asset_name, native_licenses, source_file, symbols_name,
         tool_asset_name, NATIVE_TOOLS,
     };
     use std::path::Path;
 
     #[test]
-    fn repository_files_resolve_under_the_output_base() {
+    fn source_files_resolve_under_the_output_base_or_the_workspace() {
         let base = Path::new("/base");
+        let workspace = Path::new("/workspace");
         assert_eq!(
-            repository_file(base, "external/+ext+jvm_tree_sitter/LICENSE"),
+            source_file(base, workspace, "external/+ext+jvm_tree_sitter/LICENSE"),
             Ok(base.join("external/+ext+jvm_tree_sitter/LICENSE"))
         );
-        assert!(repository_file(base, "bazel-out/x64_windows-opt/bin/a.dll").is_err());
-        assert!(repository_file(base, "java/private/LICENSE").is_err());
+        assert_eq!(
+            source_file(base, workspace, "lua/private/lua_LICENSE.txt"),
+            Ok(workspace.join("lua/private/lua_LICENSE.txt"))
+        );
+        assert!(source_file(base, workspace, "bazel-out/x64_windows-opt/bin/a.dll").is_err());
     }
 
     #[test]
@@ -649,14 +665,12 @@ mod tests {
     }
 
     #[test]
-    fn every_third_party_native_tool_names_its_licence() {
-        for tool in &NATIVE_TOOLS {
-            assert_eq!(
-                tool.licenses.is_empty(),
-                tool.label.starts_with("//"),
-                "{}",
-                tool.tool
-            );
-        }
+    fn only_the_dx_runtime_ships_without_a_licence() {
+        let unlicensed: Vec<_> = NATIVE_TOOLS
+            .iter()
+            .filter(|tool| tool.licenses.is_empty())
+            .map(|tool| tool.tool)
+            .collect();
+        assert_eq!(unlicensed, ["runtime"]);
     }
 }

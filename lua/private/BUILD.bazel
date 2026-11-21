@@ -16,6 +16,7 @@ exports_files([
     "luafilesystem.BUILD.bazel",
     "penlight.BUILD.bazel",
     "lua.bzl",
+    "lua_LICENSE.txt",
     "luals.BUILD.bazel",
     "providers.bzl",
 ])

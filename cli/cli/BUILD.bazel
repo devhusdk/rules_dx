@@ -447,6 +447,7 @@ rust_test(
 
 exports_files(
     [
+        "BUILD.bazel",
         "Cargo.toml",
         "clippy.toml",
         "src/bin_man.rs",

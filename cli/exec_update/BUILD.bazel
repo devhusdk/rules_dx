@@ -22,6 +22,8 @@ rust_library(
         "src/update_version_add.rs",
     ],
     aliases = {},  # keep
+    # Clippy reads this config for dx_exec_update instead of the workspace one.
+    compile_data = ["clippy.toml"],
     crate_name = "dx_exec_update",
     crate_root = "src/lib.rs",
     # keep
@@ -73,6 +75,7 @@ rust_test(
         "src/update_version_tests.rs",
     ],
     aliases = {},  # keep
+    compile_data = ["clippy.toml"],
     coverage_lib = ":dx_exec_update",
     crate_name = "dx_exec_update",
     crate_root = "src/lib.rs",
@@ -113,11 +116,17 @@ filegroup(
 real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
-    toml_srcs = ["Cargo.toml"],
+    toml_srcs = [
+        "Cargo.toml",
+        "clippy.toml",
+    ],
 )
 
 exports_files(
-    ["Cargo.toml"],
+    [
+        "Cargo.toml",
+        "clippy.toml",
+    ],
     visibility = ["//visibility:public"],
 )
 

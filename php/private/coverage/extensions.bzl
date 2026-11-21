@@ -6,7 +6,7 @@ load(":repos.bzl", "COVERAGE_PREFIX", "HEADERS_BUILD", "php_coverage_runtime")
 _PHP_INCLUDES = ["include/php", "include/php/main", "include/php/Zend", "include/php/TSRM", "include/php/ext"]
 
 def _php_coverage_impl(mctx):
-    pins = json.decode(mctx.read(Label(":pins.json")))
+    pins = json.decode(mctx.read(Label("//php:pins.json")))
     pcov = pins["pcov"]
     pcre2 = pins["pcre2"]
     for cell, coverage in sorted(pins["coverage"].items()):
@@ -36,7 +36,7 @@ def _php_coverage_impl(mctx):
     )
     php_archive(
         name = "dx_php_pcov",
-        files = {"BUILD.bazel": mctx.read(Label(":pcov.BUILD.bazel"))},
+        files = {"BUILD.bazel": mctx.read(Label("//php/private:pcov.BUILD.bazel"))},
         patches = [Label(":patches/pcov_user_opcode_handlers.patch")],
         required = ["pcov-" + pcov["version"] + "/pcov.c"],
         sha256 = pcov["sha256"],

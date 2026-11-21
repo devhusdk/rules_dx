@@ -724,10 +724,6 @@ dx_pins.pin(
     pins = "//php:pins.json",
 )
 dx_pins.data(
-    name = "dx_php_coverage",
-    pins = "//php/private/coverage:pins.json",
-)
-dx_pins.data(
     name = "dx_quality_pins",
     pins = "//core/quality/artifacts:pins.json",
 )
@@ -2126,7 +2122,7 @@ use_repo(php, "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor"
 
 register_toolchains("@dx_php_toolchains//:all")
 
-php_coverage = use_extension("//php/private/coverage:extensions.bzl", "php_coverage")
+php_coverage = use_extension("//php:extensions.bzl", "php_coverage")
 use_repo(php_coverage, "dx_php_coverage_windows_x86_64", "dx_php_pcov")
 
 composer = use_extension("//php:extensions.bzl", "composer", dev_dependency = True)

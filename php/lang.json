@@ -47,8 +47,7 @@
     "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build"
   },
   "pins": [
-    "pins.json",
-    "private/coverage/pins.json"
+    "pins.json"
   ],
   "entry_points": [
     "php_library",

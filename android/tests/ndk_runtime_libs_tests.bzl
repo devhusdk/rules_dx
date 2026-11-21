@@ -1,6 +1,7 @@
 """Analysis tests for the shared libraries the NDK linker loads."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//android/private/library:defs.bzl", "SDK_COMPATIBLE_WITH")
 load("//android/private/sdk:repos.bzl", "NDK_PREBUILT", "NDK_RUNTIME_LIBS", "NDK_TOOL_SUFFIX")
 
 def _ld_lld_host(path):
@@ -35,4 +36,4 @@ _ld_lld_runtime_libs_test = analysistest.make(
 
 def ndk_link_stages_runtime_libs_test(name, target_under_test):
     """Asserts every action that stages the NDK ld.lld also stages the libraries it loads."""
-    _ld_lld_runtime_libs_test(name = name, size = "small", target_under_test = target_under_test)
+    _ld_lld_runtime_libs_test(name = name, size = "small", target_under_test = target_under_test, target_compatible_with = SDK_COMPATIBLE_WITH)

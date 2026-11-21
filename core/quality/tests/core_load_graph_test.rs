@@ -60,20 +60,22 @@ fn default_labels(text: &str) -> Vec<String> {
 
 /// The `BUILD.bazel` paths of the packages the core tool defaults point into.
 fn tool_packages(source: &Path) -> Vec<String> {
-    let labels = dx_testing::read_text(&source.join("core/quality/real_aspect_labels.bzl"));
-    let mut files: BTreeSet<String> = labels
-        .lines()
-        .filter_map(|line| {
-            line.trim()
-                .strip_prefix('"')?
-                .split('%')
-                .next()?
-                .split_once(':')
+    let core = dx_testing::read_json(&dx_testing::resolve_runfiles(
+        "core/quality/core_aspects.json",
+    ))
+    .expect("core_aspects.json");
+    let files: BTreeSet<String> = ["quality", "docs"]
+        .into_iter()
+        .flat_map(|key| core[key].as_array().cloned().unwrap_or_default())
+        .filter_map(|row| {
+            let (package, file) = row["bzl"].as_str()?.split_once(':')?;
+            Some(format!("{package}/{file}"))
         })
-        .map(|(package, file)| format!("{package}/{file}"))
-        .filter(|path| path.ends_with(".bzl"))
         .collect();
-    files.insert("core/quality/families/core.bzl".to_owned());
+    assert!(
+        files.contains("core/quality/families/core.bzl"),
+        "core_aspects.json lists no core.bzl: {files:?}"
+    );
     let config = dx_testing::read_text(&source.join("config/BUILD.bazel"));
     let mut packages = BTreeSet::new();
     for file in &files {
@@ -276,5 +278,36 @@ fn core_reaches_no_language_package() {
     assert!(
         offenders.is_empty(),
         "core loads or labels reach a language package or a private/ package:\n{offenders:#?}"
+    );
+}
+
+#[test]
+fn every_core_family_aspect_is_registered() {
+    let source = dx_testing::source_snapshot();
+    let languages =
+        dx_testing::read_text(&dx_testing::resolve_runfiles("cli/families/languages.json"));
+    let mut missing = Vec::new();
+    for file in bzl_files(
+        &source.join("core/quality/families"),
+        "core/quality/families",
+    ) {
+        if file.ends_with("_tools.bzl") {
+            continue;
+        }
+        for line in dx_testing::read_text(&source.join(&file)).lines() {
+            let Some((name, _)) = line.split_once(" = ") else {
+                continue;
+            };
+            if name.starts_with("real_")
+                && name.ends_with("_aspect")
+                && !languages.contains(&format!("\"{name}\""))
+            {
+                missing.push(format!("{file}: {name}"));
+            }
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "add these aspects to core/quality/core_aspects.json or their lang.json: {missing:#?}"
     );
 }

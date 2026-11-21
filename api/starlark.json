@@ -16137,40 +16137,6 @@
         ]
       },
       {
-        "name": "sdist_cargo_vendor",
-        "tag_classes": [
-          {
-            "attrs": [
-              {
-                "default": "\"Cargo.lock\"",
-                "mandatory": false,
-                "name": "cargo_lock_path",
-                "type": "STRING"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "lock",
-                "type": "LABEL"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "name",
-                "type": "NAME"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "package",
-                "type": "STRING"
-              }
-            ],
-            "name": "crates"
-          }
-        ]
-      },
-      {
         "name": "uv",
         "tag_classes": [
           {

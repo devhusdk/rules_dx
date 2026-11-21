@@ -21,7 +21,7 @@ apple/tests/fixtures/swift_app/BUILD.bazel size-large 1
 apple/tests/fixtures/xcframework_share/BUILD.bazel no-size 1
 asciidoc/tests/BUILD.bazel no-size 1
 astro/private/ide/BUILD.bazel no-size 1
-astro/tests/app_config/BUILD.bazel no-size 1
+astro/tests/fixtures/app_config/BUILD.bazel no-size 1
 avro/tests/BUILD.bazel no-size 6
 bicep/tests/BUILD.bazel no-size 3
 bicep/tests/defs_tests.bzl no-size 1
@@ -157,7 +157,6 @@ csharp/tests/fixtures/profiles/BUILD.bazel no-size 1
 csharp/tests/fixtures/proto/BUILD.bazel no-size 1
 csharp/tests/fixtures/xunit/BUILD.bazel no-size 2
 cuda/tests/BUILD.bazel no-size 28
-cuda/tests/fixtures/coverage/BUILD.bazel no-size 1
 cuda/tests/fixtures/cuda_app/checks/BUILD.bazel no-size 2
 cuda/tests/fixtures/cuda_app/gpu/BUILD.bazel no-size 1
 cuda/tests/fixtures/executable/BUILD.bazel no-size 3
@@ -365,7 +364,7 @@ javascript/tests/fixtures/args/BUILD.bazel no-size 1
 javascript/tests/fixtures/bench/BUILD.bazel no-size 2
 javascript/tests/fixtures/entries/BUILD.bazel no-size 1
 javascript/tests/fixtures/fuzz/BUILD.bazel no-size 4
-javascript/tests/fixtures/hello/BUILD.bazel no-size 5
+javascript/tests/fixtures/hello/BUILD.bazel no-size 3
 javascript/tests/fixtures/node_app/cli/BUILD.bazel no-size 2
 javascript/tests/fixtures/node_app/diagnostics/BUILD.bazel no-size 2
 javascript/tests/fixtures/node_app/registry/BUILD.bazel no-size 2
@@ -498,7 +497,7 @@ scala/tests/fixtures/fuzz/BUILD.bazel no-size 2
 scala/tests/fixtures/hello/BUILD.bazel no-size 4
 scala/tests/fixtures/no_srcs/BUILD.bazel no-size 1
 sql/tests/BUILD.bazel no-size 1
-svelte/tests/app_errors/BUILD.bazel no-size 3
+svelte/tests/fixtures/app_errors/BUILD.bazel no-size 3
 swift/tests/BUILD.bazel no-size 1
 swift/tests/cross/BUILD.bazel no-size 1
 swift/tests/fixtures/bench/BUILD.bazel no-size 3
@@ -548,7 +547,7 @@ typescript/tests/fixtures/args/BUILD.bazel no-size 1
 typescript/tests/fixtures/bench/BUILD.bazel no-size 3
 typescript/tests/fixtures/declarations/BUILD.bazel no-size 1
 typescript/tests/fixtures/fuzz/BUILD.bazel no-size 4
-typescript/tests/fixtures/hello/BUILD.bazel no-size 3
+typescript/tests/fixtures/hello/BUILD.bazel no-size 2
 typescript/tests/fixtures/playwright/BUILD.bazel no-size 1
 typescript/tests/fixtures/proto/BUILD.bazel no-size 1
 typescript/tests/tags/BUILD.bazel no-size 1

@@ -1,7 +1,7 @@
 """Coverage of the walk behind @dx_test_tags_sources."""
 
 load("//core/private/testing:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":repos.bzl", "consumer_fixture_file", "ignored_paths", "patch_header", "skipped", "walk")
+load(":repos.bzl", "api_skipped", "consumer_fixture_file", "ignored_paths", "patch_header", "skipped", "walk")
 
 _BAZELIGNORE = """node_modules
 .claude/
@@ -110,6 +110,8 @@ def _checks():
         expect_false("file beside the consumer directory", consumer_fixture_file("go/tests/consumer.bzl", {"go": True})),
         expect_false("another fixture", consumer_fixture_file("go/tests/fixtures/consumer/a.go", {"go": True})),
         expect_false("binary image in the consumer directory", consumer_fixture_file("msix/tests/consumer/logo.png", {"msix": True})),
+        expect_false("api fixture image", api_skipped("logo.png")),
+        expect_true("api fixture consumer module", api_skipped("consumer.MODULE.bazel")),
         expect_equal("listed directories", before.listed, _DIRECTORIES),
         expect_equal("returned directories", before.directories, _DIRECTORIES),
         expect_equal("files", before.files, _FILES),

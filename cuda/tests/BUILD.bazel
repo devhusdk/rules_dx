@@ -426,6 +426,16 @@ cc_toolchain_test(
     test = ":rdc_device_link_hermetic_test",
 )
 
+test_suite(
+    name = "msvc_device_link_flags_test",
+    tests = [
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_md_device_link_flags_test",
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_mdd_device_link_flags_test",
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_mt_device_link_flags_test",
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_mtd_device_link_flags_test",
+    ],
+)
+
 cc_toolchain_test(
     name = "msvc_hermetic_toolchain_test",
     compiler = "msvc",

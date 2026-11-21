@@ -323,7 +323,7 @@ publish: ${{ github.event_name != 'workflow_dispatch' || inputs.publish }}
 
 The caller grants `contents`, `id-token`, `attestations` and `packages` write.
 
-A `pypi_deploy` through this workflow uploads with `PYPI_API_TOKEN` and without attestations. For trusted publishing and attestations, run the upload step in a workflow file of your own repository. See [`pypi_deploy`](../deploy/README.md#pypi_deploy).
+A `pypi_deploy` through this workflow uploads with `PYPI_API_TOKEN` and without attestations. For trusted publishing and attestations, run the upload step in a workflow file of your own repository. See [`pypi_deploy`](https://github.com/devhusdk/rules_dx/blob/main/deploy/README.md#pypi_deploy).
 
 | Input | Meaning |
 |---|---|

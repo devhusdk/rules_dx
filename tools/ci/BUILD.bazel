@@ -696,7 +696,6 @@ rust_test(
         "//tools/platforms:corpus_starlark",
         "//tools/testing:corpus_starlark",
         "//tools/testing/hermetic:corpus_starlark",
-        "//tools/testing/starters:corpus_starlark",
         "//tools/testing/wasi:corpus_starlark",
         "//tools/visibility:corpus_starlark",
         "//typescript/private:corpus_starlark",
@@ -1809,7 +1808,6 @@ rust_test(
     crate_name = "lock_registry_test",
     crate_root = "lock_registry_test.rs",
     data = [
-        "lock_registry_allowlist.txt",
         "@dx_test_tags_sources//:files.json",
         "@dx_test_tags_sources//:lock_scan.json",
         "@dx_test_tags_sources//:paths.json",
@@ -1822,14 +1820,12 @@ rust_test(
         "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:paths.json)",
         "DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:rust.json)",
         "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
-        "LOCK_REGISTRY_ALLOWLIST": "$(rlocationpath lock_registry_allowlist.txt)",
     },
     deps = all_crate_deps(
         package_name = "tools/ci_tests",
         normal = True,
         normal_dev = True,
     ) + [
-        ":dx_guard",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:starlark_syntax",

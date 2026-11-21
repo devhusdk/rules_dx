@@ -25,11 +25,12 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
+# Only the analysis test reads this path; nothing runs it.
 write_file(
     name = "stub_generator",
     testonly = True,
     out = "stub_generator.sh",
-    content = ["#!/bin/sh"],
+    content = [],
     is_executable = True,
 )
 

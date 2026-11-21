@@ -19,6 +19,7 @@ load("//haskell/private/quality:haskell.bzl", "real_haskell_format_aspect", "rea
 load("//java/private/quality:jvm.bzl", "real_jvm_format_aspect", "real_jvm_lint_aspect", "real_pkl_lint_aspect")
 load("//javascript/private/quality:js.bzl", "real_js_format_aspect", "real_js_lint_aspect")
 load("//julia/private/quality:julia.bzl", "real_julia_format_aspect", "real_julia_lint_aspect")
+load("//kotlin/private/quality:kotlin.bzl", "real_kotlin_format_aspect", "real_kotlin_lint_aspect")
 load("//kubernetes/private/quality:kubernetes.bzl", "real_kubernetes_format_aspect", "real_kubernetes_lint_aspect")
 load("//lua/private/quality:lua.bzl", "real_lua_format_aspect", "real_lua_lint_aspect")
 load("//make/private/quality:make.bzl", "real_make_format_aspect", "real_make_lint_aspect")
@@ -108,6 +109,10 @@ javascript_lint_subject = config_subject_rule([real_js_lint_aspect], [OutputGrou
 julia_format_subject = config_subject_rule([real_julia_format_aspect], [OutputGroupInfo])
 
 julia_lint_subject = config_subject_rule([real_julia_lint_aspect], [OutputGroupInfo])
+
+kotlin_format_subject = config_subject_rule([real_kotlin_format_aspect], [OutputGroupInfo])
+
+kotlin_lint_subject = config_subject_rule([real_kotlin_lint_aspect], [OutputGroupInfo])
 
 kubernetes_format_subject = config_subject_rule([real_kubernetes_format_aspect], [OutputGroupInfo])
 
@@ -252,6 +257,10 @@ QUALITY_SUBJECTS = {
     "julia": {
         "format": julia_format_subject,
         "lint": julia_lint_subject,
+    },
+    "kotlin": {
+        "format": kotlin_format_subject,
+        "lint": kotlin_lint_subject,
     },
     "kubernetes": {
         "format": kubernetes_format_subject,

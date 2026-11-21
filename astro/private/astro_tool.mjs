@@ -42,7 +42,8 @@ function scratchConfig(root, config) {
 // uid, so the app is copied to a path with neither the sandbox directory nor a
 // random suffix in it: <tmp>/astro-src-<hash>/<bindir>/<package>. Every
 // node_modules on the way up from the app is linked at the same relative place,
-// so packages resolve from the copy as they do from the app.
+// so packages resolve from the copy as they do from the app. Runfiles trees and
+// dangling symlinks of sibling targets are not copied.
 function materialize(root, out) {
 	const bindir = process.env.BAZEL_BINDIR;
 	if (!bindir) usage("BAZEL_BINDIR is not set; run astro_tool through js_run_binary");
@@ -60,7 +61,8 @@ function materialize(root, out) {
 		fs.cpSync(path.join(root, entry), path.join(copy, entry), {
 			recursive: true,
 			dereference: true,
-			filter: (source) => path.basename(source) !== "node_modules",
+			filter: (source) =>
+				path.basename(source) !== "node_modules" && !source.endsWith(".runfiles") && fs.existsSync(source),
 		});
 	}
 	for (let dir = root; ; dir = path.dirname(dir)) {

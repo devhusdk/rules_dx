@@ -1,7 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":zig_tool.bzl", "zig_lib_marker", "zig_tool")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//:__subpackages__"])
 
 zig_tool(name = "zig")
 

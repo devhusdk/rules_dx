@@ -12,30 +12,6 @@ exports_files([
     "swift_format.BUILD.bazel",
 ])
 
-config_setting(
-    name = "coverage_linux",
-    constraint_values = ["@platforms//os:linux"],
-    values = {"collect_code_coverage": "true"},
-    visibility = ["//visibility:public"],
-)
-
-config_setting(
-    name = "coverage_windows",
-    constraint_values = ["@platforms//os:windows"],
-    values = {"collect_code_coverage": "true"},
-    visibility = ["//visibility:public"],
-)
-
-config_setting(
-    name = "coverage_windows_static_crt",
-    constraint_values = ["@platforms//os:windows"],
-    values = {
-        "collect_code_coverage": "true",
-        "features": "static_link_msvcrt",
-    },
-    visibility = ["//visibility:public"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

@@ -95,8 +95,6 @@ _QML = [":qml", ":network", ":core"]
 
 _CLOSURE_DEPS = [":closure", ":gui_closure"]
 
-_LAUNCHERS = {"exec": "", "posix": "_launcher"}
-
 _MODULE_FILES = {"qtbase": "Core", "qtdeclarative": "Qml", "qttools": "Linguist"}
 
 _LINKED = ["bin", "lib", "metatypes", "plugins", "qml"]
@@ -128,13 +126,6 @@ _WINDOWS_FONT = struct(
     sha256 = "fa9ca4d13871dd122f61258a80d01751d603b4d3ee14095d65453b4e846e17d7",
     url = "https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.tar.bz2",
 )
-
-_LAUNCH = """int dx_qt_launch(int argc, char **argv, const char *repository, const char *tool);
-
-int main(int argc, char **argv) {
-  return dx_qt_launch(argc, argv, "%s", "%s");
-}
-"""
 
 def cell_repository_name(cell):
     """Returns the repository name prefix of one qualified cell."""
@@ -234,8 +225,6 @@ def cell_errors(cell, entry):
     if entry.layout == None:
         errors.append("cell '" + cell + "' names no layout")
         return errors
-    if entry.layout.launcher not in _LAUNCHERS:
-        errors.append("cell '" + cell + "' layout launcher '" + entry.layout.launcher + "' is not one of " + ", ".join(sorted(_LAUNCHERS.keys())))
     if entry.runtime == None and entry.layout.os == "linux":
         errors.append("cell '" + cell + "' pins no runtime closure")
     for key in _archive_keys(entry) + sorted(MODULES.keys()):
@@ -635,22 +624,13 @@ def _library(name, spec, layout, closures, prefix):
 def _tool(name, layout):
     tool = TOOLS[name]
     path = layout.tool(tool.path)
-    if layout.launcher == "exec":
-        return [
-            "qt_tool(",
-            '    name = "%s",' % name,
-            '    program = "%s",' % path,
-            "    data = [%s]," % ", ".join(['"%s"' % label for label in tool.data] + ['":runtime"']),
-            ")",
-            "",
-        ]
-    data = ['"%s"' % path] + ['"%s"' % label for label in tool.data] + ['":runtime"']
+    library = ['    library = "lib/%s",' % layout.library("Core")] if layout.os == "linux" else []
     return [
-        "cc_binary(",
+        "qt_tool(",
         '    name = "%s",' % name,
-        '    srcs = ["launcher/launcher.c", "launcher/%s.c"],' % name,
-        "    data = [%s]," % ", ".join(data),
-        '    features = ["-static_link_cpp_runtimes"],',
+        '    program = "%s",' % path,
+    ] + library + [
+        "    data = [%s]," % ", ".join(['"%s"' % label for label in tool.data] + ['":runtime"']),
         ")",
         "",
     ]
@@ -700,7 +680,7 @@ def _merged(name, glob, labels):
     srcs = glob + "".join([' + ["%s"]' % label for label in labels])
     return _filegroup(name, srcs)
 
-def cell_build(cell, module, rules_cc, unsupported, needs, cells = CELLS, tool = "", repository = ""):
+def cell_build(cell, module, rules_cc, unsupported, needs, tool, cells = CELLS, repository = ""):
     """Returns the BUILD file of one Qt module repository of one acquired cell."""
     entry = cells[cell]
     layout = entry.layout
@@ -708,14 +688,11 @@ def cell_build(cell, module, rules_cc, unsupported, needs, cells = CELLS, tool =
     required = ["@%s_%s" % (prefix, name) for name in MODULES[module].requires]
     owned = [target for target in hub_targets() if target_module(target) == module]
     lines = [
-        'load("%s", "cc_binary", "cc_import", "cc_library")' % rules_cc,
+        'load("%s", "cc_import", "cc_library")' % rules_cc,
         'load("%s", "qt_needs")' % needs,
+        'load("%s", "qt_tool")' % tool,
         'load("%s", "qt_unsupported")' % unsupported,
         "",
-    ]
-    if layout.launcher == "exec":
-        lines.insert(3, 'load("%s", "qt_tool")' % tool)
-    lines += [
         'package(default_visibility = ["//visibility:public"])',
         "",
     ]
@@ -948,19 +925,14 @@ def _qt_cell_repo_impl(ctx):
         ctx.file("bin/qt.conf", "[Paths]\nPrefix = ..\n")
     for root in required:
         _link_required(ctx, root)
-    tools = [name for name in sorted(TOOLS.keys()) if name in MODULES[module].targets]
-    if layout.launcher == "posix" and len(tools) > 0:
-        ctx.file("launcher/launcher.c", ctx.read(getattr(ctx.attr, _LAUNCHERS[layout.launcher])))
-        for name in tools:
-            ctx.file("launcher/" + name + ".c", _LAUNCH % (ctx.name, TOOLS[name].path))
     ctx.file("BUILD.bazel", cell_build(
         ctx.attr.cell,
         module,
         str(Label("@rules_cc//cc:defs.bzl")),
         str(Label("//qt/private/toolchain:unsupported.bzl")),
         str(Label("//qt/private/toolchain:needs.bzl")),
-        cells,
         str(Label("//qt/private/toolchain:tool.bzl")),
+        cells,
         ctx.attr.prefix,
     ))
     return ctx.repo_metadata(reproducible = True)
@@ -996,7 +968,6 @@ qt_cell_repo = repository_rule(
             doc = "Optional https mirror for the Qt runtime packages.",
             default = "",
         ),
-        "_launcher": attr.label(default = "//qt/private/toolchain:launcher.c"),
         "_pins": attr.label(default = "//qt:pins.json"),
     },
 )

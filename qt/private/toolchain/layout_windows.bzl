@@ -13,7 +13,6 @@ LAYOUT = struct(
     compiler = "msvc",
     display_plugins = {},
     icu_libraries = [],
-    launcher = "exec",
     library = _library,
     link = "import",
     os = "windows",

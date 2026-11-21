@@ -110,6 +110,7 @@ IN_GRAPH_GUARD_LANGS = [
     "perl",
     "php",
     "powershell",
+    "qt",
     "rego",
     "rst",
     "ruby",
@@ -134,7 +135,6 @@ GUARD_PENDING = [
     "appimage",  # appimage_packer is a rust_binary
     "julia",  # builds libjulia-internal and flisp from source on linux_x86_64
     "msix",  # msix_package is Windows-only
-    "qt",  # the linux_x86_64 moc, rcc and uic launchers compile from C
 ]
 
 # The fixtures whose test is the consumer evidence of the support matrix row of the same name.

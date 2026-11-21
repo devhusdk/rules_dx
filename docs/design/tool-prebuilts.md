@@ -61,7 +61,7 @@ rules_php | PCOV extension | C | yes
 rules_php | composer lock resolver | Rust | yes
 rules_lua | luarocks lock resolver | Rust | yes
 rules_lua | Lua launcher | C | no
-rules_qt | Qt launcher | C++ | no
+rules_qt | Qt launcher | Rust | yes
 
 ## Licences
 

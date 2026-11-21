@@ -182,6 +182,8 @@ fn stage_result(result: &proto::QualityResult, workspace: &Path) -> Option<Stage
 
 pub(crate) struct Collected {
     pub(crate) tools: Vec<String>,
+    /// Distinct labels that built successfully and reported at least one result file.
+    pub(crate) targets: usize,
     pub(crate) initial: Vec<DiagnosticEvent>,
     pub(crate) terminal: Vec<DiagnosticEvent>,
     pub(crate) changes: Vec<FileChange>,
@@ -636,6 +638,7 @@ pub(crate) fn collect_results_in(
     let mut build_dep_keys = BTreeMap::new();
     let mut complete = true;
     let mut seen = BTreeSet::new();
+    let mut reported = BTreeSet::new();
     let mut problems = account_problems(&account);
     for target in &account.targets {
         if target.incomplete {
@@ -655,6 +658,9 @@ pub(crate) fn collect_results_in(
             ));
             continue;
         };
+        if !target.artifacts.is_empty() {
+            reported.insert(target.label.clone());
+        }
         label_origins(&mut staged, target);
         tools.extend(staged.tools.iter().cloned());
         for mut item in staged.unstable {
@@ -702,6 +708,7 @@ pub(crate) fn collect_results_in(
     );
     Ok(Collected {
         tools: tools.into_iter().collect(),
+        targets: reported.len(),
         initial,
         terminal: reconciled.terminal,
         changes: reconciled.changes,

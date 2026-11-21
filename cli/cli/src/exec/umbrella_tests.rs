@@ -580,7 +580,7 @@ fn check_clean_runs_every_phase_in_order() {
         generate < format && format < lint && lint < typecheck,
         "{out}"
     );
-    assert_eq!(err, "no findings in 0 target(s)\n".repeat(3), "{err}");
+    assert_eq!(err, "no findings in 1 target(s)\n".repeat(3), "{err}");
     assert_eq!(
         harness.seen_env.borrow().len(),
         2,
@@ -2084,7 +2084,7 @@ fn check_missing_capture_fails_the_run_and_keeps_valid_partial_runs() {
     );
     assert_eq!(code, 1, "{out}{err}");
     assert_eq!(
-        err.replace("no findings in 0 target(s)\n", ""),
+        err.replace("no findings in 1 target(s)\n", ""),
         "dx: collection_failed: lint wrote no sarif capture\n",
         "{err}"
     );
@@ -2151,7 +2151,7 @@ fn check_unreadable_capture_fails_the_run() {
     );
     assert_eq!(code, 1, "{out}{err}");
     assert_eq!(
-        err.replace("no findings in 0 target(s)\n", ""),
+        err.replace("no findings in 1 target(s)\n", ""),
         "dx: collection_failed: lint sarif capture is unreadable\n",
         "{err}"
     );
@@ -2192,7 +2192,7 @@ fn fix_apply_mode_shares_the_same_capture_collector() {
     let (code, out, err) = harness.execute_with(&inv, &breaking);
     assert_eq!(code, 1, "{out}{err}");
     assert_eq!(
-        err.replace("no findings in 0 target(s)\n", ""),
+        err.replace("no findings in 1 target(s)\n", ""),
         "dx: collection_failed: lint wrote no sarif capture\n",
         "{err}"
     );
@@ -2238,7 +2238,7 @@ fn check_malformed_capture_fails_the_run() {
         );
         assert_eq!(code, 1, "{name}: {out}{err}");
         assert_eq!(
-            err.replace("no findings in 0 target(s)\n", ""),
+            err.replace("no findings in 1 target(s)\n", ""),
             "dx: collection_failed: lint sarif capture is malformed\n",
             "{name}: {err}"
         );

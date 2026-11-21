@@ -477,7 +477,7 @@ fn run_quality_request(
     if matches!(request.common.output, OutputMode::Text { .. }) && collected.complete && !failed {
         dx_output::write_stderr(
             env.err,
-            format_args!("{}\n", findings_summary(status, resolved.kept.len())),
+            format_args!("{}\n", findings_summary(status, collected.targets)),
         );
     }
     if let Err(exit) = report_incomplete(request, &mut env, &collected, bazel_code) {

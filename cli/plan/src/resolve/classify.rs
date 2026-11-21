@@ -30,9 +30,11 @@ fn normalize_rel(raw: &str) -> Result<String, ResolveError> {
 }
 
 /// The workspace-relative files and directories named when every scope is a path.
+/// A `clippy.toml` inside a package stands for that package's directory, the crates it configures.
 /// A scope with a label gives `None`: its whole target is wanted.
 #[must_use]
 pub fn path_filter(scopes: &[String], workspace: &Path) -> Option<Vec<String>> {
+    let mut cache = PackageCache::default();
     let mut paths = Vec::new();
     for raw in scopes {
         if raw.starts_with('@') || raw.starts_with(':') || raw.starts_with("//") {
@@ -40,7 +42,11 @@ pub fn path_filter(scopes: &[String], workspace: &Path) -> Option<Vec<String>> {
         }
         let rel = normalize_rel(raw).ok()?;
         std::fs::symlink_metadata(workspace.join(&rel)).ok()?;
-        paths.push(rel);
+        let is_clippy_config = rel.rsplit('/').next() == Some("clippy.toml");
+        match cache.enclosing(workspace, &rel) {
+            Some((package, _)) if is_clippy_config => paths.push(package),
+            _ => paths.push(rel),
+        }
     }
     (!paths.is_empty()).then_some(paths)
 }
@@ -989,6 +995,19 @@ mod tests {
         assert!(path_in_filter("src/a.py", &strings(&["src"])));
         assert!(!path_in_filter("src/b.py", &strings(&["src/a.py"])));
         assert!(!path_in_filter("src2/a.py", &strings(&["src"])));
+    }
+
+    #[test]
+    fn path_filter_widens_a_clippy_config_to_its_package() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-path-filter-clippy-").unwrap();
+        let workspace = scratch.path();
+        write(workspace, "crate/BUILD.bazel", "").unwrap();
+        write(workspace, "crate/clippy.toml", "").unwrap();
+        write(workspace, "crate/src/lib.rs", "").unwrap();
+        let filter = path_filter(&strings(&["crate/clippy.toml"]), workspace).expect("paths");
+        assert_eq!(filter, strings(&["crate"]));
+        let filter = path_filter(&strings(&["crate/src/lib.rs"]), workspace).expect("paths");
+        assert_eq!(filter, strings(&["crate/src/lib.rs"]));
     }
 
     #[test]

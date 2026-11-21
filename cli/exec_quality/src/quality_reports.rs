@@ -263,6 +263,7 @@ mod tests {
     fn collected() -> Collected {
         Collected {
             tools: vec!["lint".to_owned()],
+            targets: 0,
             initial: Vec::new(),
             terminal: Vec::new(),
             changes: vec![FileChange {

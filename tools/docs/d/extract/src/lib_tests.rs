@@ -68,7 +68,30 @@ fn signature_params_and_sections() {
 #[test]
 fn unknown_module_file_is_rejected() {
     let error = convert(JSON, &[], &BTreeMap::new(), "geometry", "").expect_err("rejected");
-    assert!(error.contains("not in the srcs manifest"), "{error}");
+    assert!(matches!(&error, DExtractError::NotInManifest { file } if file == "src/geometry.d"));
+    assert_eq!(
+        error.to_string(),
+        "module file 'src/geometry.d' is not in the srcs manifest"
+    );
+}
+
+#[test]
+fn run_reports_an_unreadable_input() {
+    let options = Options {
+        api: "/nonexistent/d.json".to_owned(),
+        sources: "sources".to_owned(),
+        out: "out".to_owned(),
+        package: "geometry".to_owned(),
+        config: String::new(),
+    };
+    let error = run(&options).unwrap_err();
+    assert!(matches!(error, DExtractError::Read(_)));
+    assert!(
+        error
+            .to_string()
+            .starts_with("cannot read /nonexistent/d.json: "),
+        "{error}"
+    );
 }
 
 #[test]

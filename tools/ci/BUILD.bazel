@@ -490,6 +490,7 @@ rust_test(
         "//cli/exec_reports:clippy.toml",
         "//cli/exec_test_reports:clippy.toml",
         "//cli/exec_update:clippy.toml",
+        "//cli/exec_worktree:clippy.toml",
         "//cli/generate:src/tools_gen.rs",
         "//cli/path:src/state.rs",
         "//core/quality:corpus_styles/Dx/Markers.yml",

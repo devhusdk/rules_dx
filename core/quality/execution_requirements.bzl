@@ -10,10 +10,7 @@ DX_NO_REMOTE_EXEC = "no-remote-exec"
 DX_FORBIDDEN_NO_REMOTE = "no-remote"
 
 def _qualified(tool, capability, artifact = None):
-    """One remote record for a pinned single-binary tool on every qualified platform.
-
-    `artifact` names the pinned @dx_tools binary when it differs from the adapter name.
-    """
+    """One remote record for a pinned tool on every qualified platform; `artifact` names a differing @dx_tools binary."""
     record = {
         "capability": capability,
         "closure": "declared",
@@ -305,14 +302,7 @@ def _path_tool_qualified(name):
     return False
 
 def dx_stage_execution_requirements(stage_tools, capability, run_tools = [], path_tools = []):
-    """Returns remote-capable requirements only when every stage, runfiles launcher and adapter PATH helper is qualified.
-
-    Args:
-      stage_tools: tool ids the stage runs.
-      capability: "format", "lint" or "typecheck".
-      run_tools: names of the runfiles launchers the stage puts on PATH.
-      path_tools: names of the pinned files the stage puts on PATH.
-    """
+    """Returns remote-capable requirements only when every stage tool, runfiles launcher and adapter PATH helper is qualified."""
     if len(stage_tools) == 0:
         return {DX_NO_REMOTE_EXEC: "1"}
     for name in run_tools:

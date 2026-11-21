@@ -1,17 +1,104 @@
 //! crates.io publisher: vendor staging and the cargo publish.
 
 use crate::api_compat::{
-    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir, fetch,
-    latest_published, previous_git_tag, workspace_dir,
+    ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir,
+    fetch, latest_published, previous_git_tag, workspace_dir,
 };
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
     placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_ecosystems::Ecosystem;
+use dx_process::capture::RunError;
+use std::fmt;
 use std::io;
 use std::path::Path;
+
+/// Why a crates deployment failed.
+#[derive(Debug)]
+pub enum CratesError {
+    Paths(io::Error),
+    Stage(StageError),
+    NoManifest,
+    StagedNoManifest,
+    NameMismatch {
+        found: Option<String>,
+        target: String,
+    },
+    /// An already-prefixed refusal from the shared version check.
+    Refused(String),
+    Io(PathIoError),
+    Run(RunError),
+    /// A cargo command failed; `lines` are token-redacted.
+    CargoFailed {
+        command: &'static str,
+        status: String,
+        lines: Vec<String>,
+    },
+    TempDir(io::Error),
+    BaselineExport(ApiCompatError),
+    ApiCompat(ApiCompatError),
+}
+
+impl fmt::Display for CratesError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Paths(source) | Self::TempDir(source) => write!(f, "crates_deploy: {source}"),
+            Self::Stage(source) => write!(f, "crates_deploy: {source}"),
+            Self::NoManifest => write!(
+                f,
+                "crates_deploy: crate has no {}; refusing",
+                manifest_name()
+            ),
+            Self::StagedNoManifest => write!(
+                f,
+                "crates_deploy: staged crate is missing {}; refusing",
+                manifest_name()
+            ),
+            Self::NameMismatch { found, target } => write!(
+                f,
+                "crates_deploy: {} is {}, target is {target}; refusing",
+                manifest_name(),
+                found.as_deref().unwrap_or("(not a plain value)")
+            ),
+            Self::Refused(message) => f.write_str(message),
+            Self::Io(source) => write!(f, "crates_deploy: {source}"),
+            Self::Run(source) => write!(f, "crates_deploy: {source}"),
+            Self::CargoFailed {
+                command,
+                status,
+                lines,
+            } => {
+                write!(f, "crates_deploy: {command} failed with {status}")?;
+                for line in lines {
+                    write!(f, "\ncargo: {line}")?;
+                }
+                Ok(())
+            }
+            Self::BaselineExport(source) => write!(f, "crates_deploy: api compat: {source}"),
+            Self::ApiCompat(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for CratesError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Paths(source) | Self::TempDir(source) => Some(source),
+            Self::Stage(source) => Some(source),
+            Self::Io(source) => Some(source),
+            Self::Run(source) => Some(source),
+            Self::BaselineExport(source) | Self::ApiCompat(source) => Some(source),
+            Self::NoManifest
+            | Self::StagedNoManifest
+            | Self::NameMismatch { .. }
+            | Self::Refused(_)
+            | Self::CargoFailed { .. } => None,
+        }
+    }
+}
 
 /// The file name of the manifest.
 fn manifest_name() -> &'static str {
@@ -119,15 +206,12 @@ fn crates_publish_staged(
     crate_name: &str,
     version: &str,
     token: &str,
-) -> Result<(), String> {
-    let mapped = crates_package_paths(files).map_err(|error| format!("crates_deploy: {error}"))?;
-    crates_stage(&mapped, staging).map_err(|error| format!("crates_deploy: {error}"))?;
+) -> Result<(), CratesError> {
+    let mapped = crates_package_paths(files).map_err(CratesError::Paths)?;
+    stage_mapped(&mapped, staging).map_err(CratesError::Stage)?;
     let manifest = staging.join(manifest_name());
     if !manifest.is_file() {
-        return Err(format!(
-            "crates_deploy: staged crate is missing {}; refusing",
-            manifest_name()
-        ));
+        return Err(CratesError::StagedNoManifest);
     }
     let text = std::fs::read_to_string(&manifest).unwrap_or_default();
     manifest_version(&text, crate_name, version)?;
@@ -135,26 +219,22 @@ fn crates_publish_staged(
 }
 
 /// Runs `cargo publish`; a failure carries cargo's last stderr lines.
-fn cargo_publish(program: &Path, manifest: &Path, token: &str) -> Result<(), String> {
+fn cargo_publish(program: &Path, manifest: &Path, token: &str) -> Result<(), CratesError> {
     let mut cmd = scrubbed_command(
         program,
         &[PUBLISH_CHILD_ENV_KEEP, CARGO_CHILD_ENV_EXTRA],
         &[("CARGO_REGISTRY_TOKEN", token)],
     );
     cmd.arg("publish").arg("--manifest-path").arg(manifest);
-    let output = run_publish(&mut cmd).map_err(|error| format!("crates_deploy: {error}"))?;
+    let output = run_publish(&mut cmd).map_err(CratesError::Run)?;
     if output.success() {
         return Ok(());
     }
-    let mut message = format!(
-        "crates_deploy: cargo publish failed with {}",
-        exit_text(&output)
-    );
-    for line in cargo_failure_lines(&output.stderr, token) {
-        message.push_str("\ncargo: ");
-        message.push_str(&line);
-    }
-    Err(message)
+    Err(CratesError::CargoFailed {
+        command: "cargo publish",
+        status: exit_text(&output),
+        lines: cargo_failure_lines(&output.stderr, token),
+    })
 }
 
 /// Returns the last stderr lines with the token value removed.
@@ -201,16 +281,16 @@ fn manifest_identity(text: &str) -> (Option<String>, Option<String>) {
 }
 
 /// Returns the version to publish, refusing a manifest that is not the target crate or declares another version.
-fn manifest_version(text: &str, crate_name: &str, version: &str) -> Result<String, String> {
+fn manifest_version(text: &str, crate_name: &str, version: &str) -> Result<String, CratesError> {
     let (name, found) = manifest_identity(text);
     if name.as_deref() != Some(crate_name) {
-        return Err(format!(
-            "crates_deploy: {} is {}, target is {crate_name}; refusing",
-            manifest_name(),
-            name.unwrap_or_else(|| "(not a plain value)".to_owned())
-        ));
+        return Err(CratesError::NameMismatch {
+            found: name,
+            target: crate_name.to_owned(),
+        });
     }
     resolve_version("crates_deploy", manifest_name(), found.as_deref(), version)
+        .map_err(CratesError::Refused)
 }
 
 /// Reads the version to publish from the crate's manifest.
@@ -218,53 +298,34 @@ pub(crate) fn crates_version(
     files: &[std::path::PathBuf],
     crate_name: &str,
     version: &str,
-) -> Result<String, String> {
-    let mapped = crates_package_paths(files).map_err(|error| format!("crates_deploy: {error}"))?;
+) -> Result<String, CratesError> {
+    let mapped = crates_package_paths(files).map_err(CratesError::Paths)?;
     let Some((manifest, _)) = mapped.iter().find(|(_, rel)| rel == manifest_name()) else {
-        return Err(format!(
-            "crates_deploy: crate has no {}; refusing",
-            manifest_name()
-        ));
+        return Err(CratesError::NoManifest);
     };
-    let text = std::fs::read_to_string(manifest)
-        .map_err(|error| format!("crates_deploy: cannot read {}: {error}", manifest_name()))?;
+    let text = path_io::read_to_string(manifest).map_err(CratesError::Io)?;
     manifest_version(&text, crate_name, version)
-}
-
-fn crates_stage(mapped: &[(std::path::PathBuf, String)], staging: &Path) -> Result<(), String> {
-    for (src, rel) in mapped {
-        let dest = staging.join(rel);
-        let staged = dest
-            .parent()
-            .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| copy_verified(src, &dest).map(|_| ()));
-        if staged.is_err() {
-            return Err(format!("cannot stage {}", src.display()));
-        }
-    }
-    Ok(())
 }
 
 /// Runs `cargo package --list` on a staged copy; a missing cargo skips the check.
 fn crates_package_check(
     cargo: Option<&Path>,
     mapped: &[(std::path::PathBuf, String)],
-) -> Result<(), String> {
+) -> Result<(), CratesError> {
     let Some(program) = cargo else {
         println!("crates_deploy: cargo not found on PATH; skipped cargo package --list check");
         return Ok(());
     };
-    let staging =
-        tempfile_stage_dir("crates-check-").map_err(|error| format!("crates_deploy: {error}"))?;
-    let checked = crates_stage(mapped, &staging)
-        .map_err(|error| format!("crates_deploy: {error}"))
+    let staging = tempfile_stage_dir("crates-check-").map_err(CratesError::TempDir)?;
+    let checked = stage_mapped(mapped, &staging)
+        .map_err(CratesError::Stage)
         .and_then(|()| cargo_package_list(program, &staging.join(manifest_name())));
     dx_atomic_fs::discard_dir(&staging);
     checked
 }
 
 /// Runs `cargo package --list` offline; a failure carries cargo's last stderr lines.
-fn cargo_package_list(program: &Path, manifest: &Path) -> Result<(), String> {
+fn cargo_package_list(program: &Path, manifest: &Path) -> Result<(), CratesError> {
     let mut cmd = scrubbed_command(
         program,
         &[PUBLISH_CHILD_ENV_KEEP, CARGO_CHILD_ENV_EXTRA],
@@ -278,19 +339,15 @@ fn cargo_package_list(program: &Path, manifest: &Path) -> Result<(), String> {
         "--manifest-path",
     ])
     .arg(manifest);
-    let output = run_publish(&mut cmd).map_err(|error| format!("crates_deploy: {error}"))?;
+    let output = run_publish(&mut cmd).map_err(CratesError::Run)?;
     if output.success() {
         return Ok(());
     }
-    let mut message = format!(
-        "crates_deploy: cargo package --list failed with {}",
-        exit_text(&output)
-    );
-    for line in cargo_failure_lines(&output.stderr, "") {
-        message.push_str("\ncargo: ");
-        message.push_str(&line);
-    }
-    Err(message)
+    Err(CratesError::CargoFailed {
+        command: "cargo package --list",
+        status: exit_text(&output),
+        lines: cargo_failure_lines(&output.stderr, ""),
+    })
 }
 
 /// Where the sparse index entry of a crate lives.
@@ -309,10 +366,9 @@ fn index_path(name: &str) -> String {
 }
 
 /// Returns the highest published version below `next`; None when there is none.
-fn published_below(crate_name: &str, next: &str) -> Result<Option<String>, String> {
+fn published_below(crate_name: &str, next: &str) -> Result<Option<String>, ApiCompatError> {
     let url = format!("https://index.crates.io/{}", index_path(crate_name));
-    Ok(fetch(&url, 64 << 20)
-        .map_err(|error| error.to_string())?
+    Ok(fetch(&url, 64 << 20)?
         .and_then(|body| latest_published(&String::from_utf8_lossy(&body), next)))
 }
 
@@ -334,7 +390,7 @@ fn crates_api_check(
     crate_name: &str,
     baseline: Baseline,
     crate_dir: &str,
-) -> Result<Outcome, String> {
+) -> Result<Outcome, CratesError> {
     let mut export_dir = None;
     let (previous, baseline_args) = if baseline == Baseline::Git {
         let tag = match previous_git_tag(&workspace_dir(), version) {
@@ -342,8 +398,7 @@ fn crates_api_check(
             Ok(None) => return Ok(Outcome::FirstRelease),
             Err(error) => return Ok(Outcome::Skipped(error.to_string())),
         };
-        let dest = tempfile_stage_dir("crates-api-base-")
-            .map_err(|error| format!("crates_deploy: {error}"))?;
+        let dest = tempfile_stage_dir("crates-api-base-").map_err(CratesError::TempDir)?;
         match export_git_dir(&workspace_dir(), crate_dir, &tag, &dest, manifest_name()) {
             Ok(true) => {}
             Ok(false) => {
@@ -355,7 +410,7 @@ fn crates_api_check(
             }
             Err(error) => {
                 dx_atomic_fs::discard_dir(&dest);
-                return Err(format!("crates_deploy: api compat: {error}"));
+                return Err(CratesError::BaselineExport(error));
             }
         }
         let root = dest.display().to_string();
@@ -371,7 +426,7 @@ fn crates_api_check(
                 vec!["--baseline-version".to_owned(), published],
             ),
             Ok(None) => return Ok(Outcome::FirstRelease),
-            Err(error) => return Ok(Outcome::Skipped(error)),
+            Err(error) => return Ok(Outcome::Skipped(error.to_string())),
         }
     };
     let staging = match tempfile_stage_dir("crates-api-") {
@@ -380,11 +435,11 @@ fn crates_api_check(
             if let Some(dir) = &export_dir {
                 dx_atomic_fs::discard_dir(dir);
             }
-            return Err(format!("crates_deploy: {error}"));
+            return Err(CratesError::TempDir(error));
         }
     };
-    let ran = crates_stage(mapped, &staging)
-        .map_err(|error| format!("crates_deploy: {error}"))
+    let ran = stage_mapped(mapped, &staging)
+        .map_err(CratesError::Stage)
         .and_then(|()| {
             let mut cmd = scrubbed_command(
                 program,
@@ -394,7 +449,7 @@ fn crates_api_check(
             cmd.args(["semver-checks", "check-release", "--manifest-path"])
                 .arg(staging.join(manifest_name()))
                 .args(&baseline_args);
-            run_publish(&mut cmd).map_err(|error| format!("crates_deploy: {error}"))
+            run_publish(&mut cmd).map_err(CratesError::Run)
         });
     dx_atomic_fs::discard_dir(&staging);
     if let Some(dir) = &export_dir {
@@ -421,7 +476,7 @@ fn crates_api_report(
     (crate_name, version): (&str, &str),
     (mode, baseline): (ApiCompatMode, Baseline),
     crate_dir: &str,
-) -> Result<(), String> {
+) -> Result<(), CratesError> {
     if mode == ApiCompatMode::Off {
         return Ok(());
     }
@@ -431,7 +486,7 @@ fn crates_api_report(
         }
         None => Outcome::Skipped("cargo-semver-checks is not available".to_owned()),
     };
-    conclude("crates_deploy", mode, version, outcome).map_err(|error| error.to_string())
+    conclude("crates_deploy", mode, version, outcome).map_err(CratesError::ApiCompat)
 }
 
 /// Runs the crates deploy tool without an API compatibility check.
@@ -516,7 +571,7 @@ pub fn crates_main_checked(
     };
     let live = OwnerGate::requested(env_or_empty);
     let checked = crates_package_paths(&files)
-        .map_err(|error| format!("crates_deploy: {error}"))
+        .map_err(CratesError::Paths)
         .and_then(|mapped| {
             crates_api_report(
                 semver_checks.as_deref(),
@@ -614,14 +669,29 @@ mod tests {
     fn manifest_must_match_target() {
         let ok = "[package]\nname = \"demo\"\nversion = \"1.2.3\" # x\n[dependencies]\nname = \"other\"\n";
         assert_eq!(
-            manifest_version(ok, "demo", "1.2.3"),
-            Ok("1.2.3".to_owned())
+            manifest_version(ok, "demo", "1.2.3").expect("matches"),
+            "1.2.3"
         );
-        assert_eq!(manifest_version(ok, "demo", ""), Ok("1.2.3".to_owned()));
+        assert_eq!(manifest_version(ok, "demo", "").expect("reads"), "1.2.3");
         let wrong_name = manifest_version(ok, "other", "").expect_err("name refused");
-        assert!(wrong_name.contains(&format!("{} is demo, target is other", manifest_name())));
+        assert!(
+            matches!(&wrong_name, CratesError::NameMismatch { found: Some(found), target }
+            if found == "demo" && target == "other")
+        );
+        assert_eq!(
+            wrong_name.to_string(),
+            format!(
+                "crates_deploy: {} is demo, target is other; refusing",
+                manifest_name()
+            )
+        );
         let mismatch = manifest_version(ok, "demo", "2.0.0").expect_err("version refused");
-        assert!(mismatch.contains("declares version 1.2.3, BUILD declares 2.0.0"));
+        assert!(matches!(mismatch, CratesError::Refused(_)));
+        assert!(
+            mismatch
+                .to_string()
+                .contains("declares version 1.2.3, BUILD declares 2.0.0")
+        );
         let workspace = "[package]\nname = \"demo\"\nversion.workspace = true\n";
         assert!(manifest_version(workspace, "demo", "").is_err());
         assert!(manifest_version("", "demo", "").is_err());
@@ -686,20 +756,42 @@ mod tests {
     }
 
     #[test]
-    fn crates_stage_copies_and_verifies_each_file() {
+    fn stage_mapped_copies_and_verifies_each_file() {
         let scratch = scratch_dir();
         let files = nested_crate(&scratch.path().join("in/pkg"));
         let mapped = crates_package_paths(&files).expect("paths");
         let staging = scratch.path().join("staging");
-        crates_stage(&mapped, &staging).expect("stage");
+        stage_mapped(&mapped, &staging).expect("stage");
         for (src, rel) in &mapped {
             assert_eq!(
                 std::fs::read(staging.join(rel)).expect("staged"),
                 std::fs::read(src).expect("source"),
             );
         }
-        let missing = vec![(scratch.path().join("missing.rs"), "missing.rs".to_owned())];
-        assert!(crates_stage(&missing, &staging).is_err());
+        let source = scratch.path().join("missing.rs");
+        let missing = vec![(source.clone(), "missing.rs".to_owned())];
+        let error = stage_mapped(&missing, &staging).expect_err("missing source");
+        assert_eq!(error.path, source);
+        assert_eq!(
+            error.to_string(),
+            format!("cannot stage {}", source.display())
+        );
+    }
+
+    #[test]
+    fn crates_version_reports_an_unreadable_manifest() {
+        let scratch = scratch_dir();
+        let manifest = scratch.path().join(format!("pkg/{}", manifest_name()));
+        let error = crates_version(std::slice::from_ref(&manifest), "crates_demo", "")
+            .expect_err("unreadable");
+        assert!(matches!(&error, CratesError::Io(source) if source.path() == manifest));
+        assert!(
+            error.to_string().starts_with(&format!(
+                "crates_deploy: cannot read {}",
+                manifest.display()
+            )),
+            "{error}"
+        );
     }
 
     #[test]
@@ -716,7 +808,12 @@ mod tests {
             "t",
         )
         .expect_err("stage fails");
-        assert!(error.starts_with("crates_deploy:"));
+        assert!(matches!(error, CratesError::Stage(_)));
+        assert!(
+            error
+                .to_string()
+                .starts_with("crates_deploy: cannot stage ")
+        );
     }
 
     fn nested_crate(root: &Path) -> Vec<std::path::PathBuf> {
@@ -847,8 +944,17 @@ mod tests {
             &fake,
             "#!/bin/sh\necho 'error: crate version 0.0.0 is already uploaded' >&2\necho \"token $CARGO_REGISTRY_TOKEN\" >&2\nexit 101\n",
         );
-        let message = cargo_publish(&fake, &scratch.path().join(manifest_name()), "s3cret")
+        let error = cargo_publish(&fake, &scratch.path().join(manifest_name()), "s3cret")
             .expect_err("publish fails");
+        assert!(matches!(
+            error,
+            CratesError::CargoFailed {
+                command: "cargo publish",
+                ..
+            }
+        ));
+        assert!(!format!("{error:?}").contains("s3cret"));
+        let message = error.to_string();
         assert!(
             message.contains("cargo publish failed with exit status: 101"),
             "{message}"
@@ -872,7 +978,15 @@ mod tests {
             &fake,
             "#!/bin/sh\necho 'error: no license or license-file' >&2\nexit 101\n",
         );
-        let message = crates_package_check(Some(&fake), &mapped).expect_err("rejected");
+        let error = crates_package_check(Some(&fake), &mapped).expect_err("rejected");
+        assert!(matches!(
+            error,
+            CratesError::CargoFailed {
+                command: "cargo package --list",
+                ..
+            }
+        ));
+        let message = error.to_string();
         assert!(
             message.contains("cargo: error: no license or license-file"),
             "{message}"
@@ -986,7 +1100,8 @@ mod tests {
         };
         let run = |version: &str, mode: ApiCompatMode| run_in("pkg", version, mode);
         let refused = run("1.2.1", ApiCompatMode::Fail).expect_err("patch bump refused");
-        assert!(refused.contains("1.2.0 -> 1.2.1"), "{refused}");
+        assert!(matches!(refused, CratesError::ApiCompat(_)));
+        assert!(refused.to_string().contains("1.2.0 -> 1.2.1"), "{refused}");
         let logged = std::fs::read_to_string(&args_log).expect("args");
         assert!(logged.contains("--baseline-root"), "{logged}");
         assert!(!logged.contains("--baseline-rev"), "{logged}");
@@ -1080,7 +1195,8 @@ mod tests {
             })
         };
         let refused = run("1.2.1").expect_err("patch bump refused");
-        assert!(refused.contains("1.2.0 -> 1.2.1"), "{refused}");
+        assert!(matches!(refused, CratesError::ApiCompat(_)));
+        assert!(refused.to_string().contains("1.2.0 -> 1.2.1"), "{refused}");
         assert!(run("2.0.0").is_ok());
     }
 

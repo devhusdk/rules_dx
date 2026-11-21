@@ -65,7 +65,8 @@ fn attested_names(
                     &paths,
                     &attestation.crate_name,
                     &attestation.version,
-                )?;
+                )
+                .map_err(|error| error.to_string())?;
                 names.push(format!("{}-{version}.crate", attestation.crate_name));
             }
             "maven" => {

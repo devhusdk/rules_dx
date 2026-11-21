@@ -1,15 +1,18 @@
 //! pub.dev publisher: package staging, pubspec checks and the dart or flutter publish.
 
 use crate::api_compat::{
-    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir, fetch_with,
-    highest_below, previous_git_tag, workspace_dir,
+    ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir,
+    fetch_with, highest_below, previous_git_tag, workspace_dir,
 };
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
     placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_ecosystems::Ecosystem;
+use dx_process::capture::RunError;
+use std::fmt;
 use std::io;
 use std::path::Path;
 
@@ -39,6 +42,119 @@ const PUB_CHILD_ENV_EXTRA: &[&str] = &["PUB_CACHE", "PUB_HOSTED_URL", "FLUTTER_R
 /// Most tool output lines shown when a step fails.
 const PUB_FAILURE_LINES: usize = 40;
 
+/// Why a pub deployment failed.
+#[derive(Debug)]
+pub enum PubError {
+    Stage(StageError),
+    Io(PathIoError),
+    TempDir(io::Error),
+    /// An already-prefixed refusal from the shared version checks.
+    Refused(String),
+    NameMismatch {
+        found: Option<String>,
+        target: String,
+    },
+    NoChangelog,
+    NoChangelogHeading {
+        version: String,
+    },
+    Run(RunError),
+    /// A dart or flutter step failed; `lines` are token-redacted.
+    ToolFailed {
+        step: &'static str,
+        status: String,
+        lines: Vec<String>,
+    },
+    ToolNotFound {
+        tool: &'static str,
+    },
+    InvalidBaseline {
+        baseline: String,
+    },
+    FlutterSdk(io::Error),
+    BadFlutterDart {
+        path: std::path::PathBuf,
+    },
+    FlutterUnsupported,
+    BaselineExport(ApiCompatError),
+    JoinPaths(std::env::JoinPathsError),
+    Apitool(RunError),
+    ApiCompat(ApiCompatError),
+}
+
+impl fmt::Display for PubError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Stage(source) => write!(f, "pub_deploy: {source}"),
+            Self::Io(source) => write!(f, "pub_deploy: {source}"),
+            Self::TempDir(source) => write!(f, "pub_deploy: {source}"),
+            Self::Refused(message) => f.write_str(message),
+            Self::NameMismatch { found, target } => write!(
+                f,
+                "pub_deploy: {} is {}, target is {target}; refusing",
+                manifest_name(),
+                found.as_deref().unwrap_or("(missing)")
+            ),
+            Self::NoChangelog => {
+                f.write_str("pub_deploy: package has no CHANGELOG.md; pub.dev wants one")
+            }
+            Self::NoChangelogHeading { version } => write!(
+                f,
+                "pub_deploy: CHANGELOG.md has no heading for version {version}"
+            ),
+            Self::Run(source) => write!(f, "pub_deploy: {source}"),
+            Self::ToolFailed {
+                step,
+                status,
+                lines,
+            } => {
+                write!(f, "pub_deploy: {step} failed with {status}")?;
+                for line in lines {
+                    write!(f, "\npub: {line}")?;
+                }
+                Ok(())
+            }
+            Self::ToolNotFound { tool } => write!(f, "pub_deploy: '{tool}' CLI not found on PATH"),
+            Self::InvalidBaseline { baseline } => {
+                write!(f, "pub_deploy: invalid api_baseline '{baseline}'")
+            }
+            Self::FlutterSdk(source) => write!(f, "pub_deploy: flutter SDK: {source}"),
+            Self::BadFlutterDart { path } => {
+                write!(f, "pub_deploy: bad flutter dart {}", path.display())
+            }
+            Self::FlutterUnsupported => {
+                f.write_str("pub_deploy: flutter SDK trees are not supported here")
+            }
+            Self::BaselineExport(source) => write!(f, "pub_deploy: api compat: {source}"),
+            Self::JoinPaths(source) => write!(f, "pub_deploy: {source}"),
+            Self::Apitool(source) => write!(f, "pub_deploy: dart_apitool: {source}"),
+            Self::ApiCompat(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for PubError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Stage(source) => Some(source),
+            Self::Io(source) => Some(source),
+            Self::TempDir(source) | Self::FlutterSdk(source) => Some(source),
+            Self::Run(source) | Self::Apitool(source) => Some(source),
+            Self::BaselineExport(source) | Self::ApiCompat(source) => Some(source),
+            Self::JoinPaths(source) => Some(source),
+            Self::Refused(_)
+            | Self::NameMismatch { .. }
+            | Self::NoChangelog
+            | Self::NoChangelogHeading { .. }
+            | Self::ToolFailed { .. }
+            | Self::ToolNotFound { .. }
+            | Self::InvalidBaseline { .. }
+            | Self::BadFlutterDart { .. }
+            | Self::FlutterUnsupported => None,
+        }
+    }
+}
+
 /// Returns the unquoted value of a top-level `key:` line, None when absent or not a plain scalar.
 fn pubspec_field(text: &str, key: &str) -> Option<String> {
     for line in text.lines() {
@@ -61,22 +177,21 @@ fn pubspec_is_flutter(text: &str) -> bool {
 }
 
 /// Returns a refusal when the pubspec is not the target package.
-fn pubspec_refusal(text: &str, package_name: &str) -> Option<String> {
+fn pubspec_refusal(text: &str, package_name: &str) -> Option<PubError> {
     let name = pubspec_field(text, "name");
     if name.as_deref() == Some(package_name) {
         return None;
     }
-    Some(format!(
-        "pub_deploy: {} is {}, target is {package_name}; refusing",
-        manifest_name(),
-        name.as_deref().unwrap_or("(missing)")
-    ))
+    Some(PubError::NameMismatch {
+        found: name,
+        target: package_name.to_owned(),
+    })
 }
 
 /// Returns a refusal when CHANGELOG.md has no heading for the version, which pub.dev warns about.
-fn changelog_refusal(changelog: Option<&str>, version: &str) -> Option<String> {
+fn changelog_refusal(changelog: Option<&str>, version: &str) -> Option<PubError> {
     let Some(text) = changelog else {
-        return Some("pub_deploy: package has no CHANGELOG.md; pub.dev wants one".to_owned());
+        return Some(PubError::NoChangelog);
     };
     let has_heading = text.lines().any(|line| {
         line.starts_with('#')
@@ -85,21 +200,9 @@ fn changelog_refusal(changelog: Option<&str>, version: &str) -> Option<String> {
                 .split(|c: char| c.is_whitespace() || matches!(c, '[' | ']' | '(' | ')'))
                 .any(|word| word.trim_start_matches('v') == version)
     });
-    (!has_heading).then(|| format!("pub_deploy: CHANGELOG.md has no heading for version {version}"))
-}
-
-fn pub_stage(mapped: &[(std::path::PathBuf, String)], staging: &Path) -> Result<(), String> {
-    for (src, rel) in mapped {
-        let dest = staging.join(rel);
-        let staged = dest
-            .parent()
-            .map_or(Ok(()), std::fs::create_dir_all)
-            .and_then(|()| copy_verified(src, &dest).map(|_| ()));
-        if staged.is_err() {
-            return Err(format!("cannot stage {}", src.display()));
-        }
-    }
-    Ok(())
+    (!has_heading).then(|| PubError::NoChangelogHeading {
+        version: version.to_owned(),
+    })
 }
 
 /// Stages the package, checks the manifest and CHANGELOG.md against the target and returns
@@ -109,10 +212,9 @@ fn pub_checked_stage(
     staging: &Path,
     package_name: &str,
     version: &str,
-) -> Result<(bool, String), String> {
-    pub_stage(mapped, staging).map_err(|error| format!("pub_deploy: {error}"))?;
-    let pubspec = std::fs::read_to_string(staging.join(manifest_name()))
-        .map_err(|error| format!("pub_deploy: cannot read {}: {error}", manifest_name()))?;
+) -> Result<(bool, String), PubError> {
+    stage_mapped(mapped, staging).map_err(PubError::Stage)?;
+    let pubspec = path_io::read_to_string(&staging.join(manifest_name())).map_err(PubError::Io)?;
     if let Some(error) = pubspec_refusal(&pubspec, package_name) {
         return Err(error);
     }
@@ -121,7 +223,8 @@ fn pub_checked_stage(
         manifest_name(),
         pubspec_field(&pubspec, "version").as_deref(),
         version,
-    )?;
+    )
+    .map_err(PubError::Refused)?;
     let changelog = std::fs::read_to_string(staging.join("CHANGELOG.md")).ok();
     if let Some(error) = changelog_refusal(changelog.as_deref(), &version) {
         return Err(error);
@@ -133,33 +236,35 @@ fn tool_name(flutter: bool) -> &'static str {
     if flutter { "flutter" } else { "dart" }
 }
 
-fn failure_message(step: &str, status: &str, out: &[u8], token: &str) -> String {
+/// Builds a step failure from the tool output, keeping only redacted trailing lines.
+fn tool_failed(step: &'static str, status: String, out: &[u8], token: &str) -> PubError {
     let text = crate::run::pages_redact(&String::from_utf8_lossy(out), token);
     let lines: Vec<&str> = text.lines().collect();
-    let mut message = format!("pub_deploy: {step} failed with {status}");
-    for line in lines
+    let lines = lines
         .iter()
         .skip(lines.len().saturating_sub(PUB_FAILURE_LINES))
-    {
-        message.push_str("\npub: ");
-        message.push_str(line);
+        .map(|line| (*line).to_owned())
+        .collect();
+    PubError::ToolFailed {
+        step,
+        status,
+        lines,
     }
-    message
 }
 
 /// Runs `<tool> pub publish --dry-run` in the staged package.
-fn pub_dry_run(program: &Path, staging: &Path) -> Result<(), String> {
+fn pub_dry_run(program: &Path, staging: &Path) -> Result<(), PubError> {
     let mut cmd = scrubbed_command(program, &[PUBLISH_CHILD_ENV_KEEP, PUB_CHILD_ENV_EXTRA], &[]);
     cmd.current_dir(staging)
         .args(["pub", "publish", "--dry-run"]);
-    let output = run_publish(&mut cmd).map_err(|error| format!("pub_deploy: {error}"))?;
+    let output = run_publish(&mut cmd).map_err(PubError::Run)?;
     if output.success() {
         return Ok(());
     }
     let status = exit_text(&output);
     let mut both = output.stdout;
     both.extend_from_slice(&output.stderr);
-    Err(failure_message("pub publish --dry-run", &status, &both, ""))
+    Err(tool_failed("pub publish --dry-run", status, &both, ""))
 }
 
 /// Publishes the staged package with a token held only in a temporary pub cache.
@@ -169,7 +274,7 @@ fn pub_publish(
     cache: &Path,
     registry_url: &str,
     token: &str,
-) -> Result<(), String> {
+) -> Result<(), PubError> {
     let command = || {
         let mut cmd = scrubbed_command(
             program,
@@ -191,16 +296,16 @@ fn pub_publish(
         "--env-var",
         "PUB_TOKEN",
     ]);
-    let added = run_publish(&mut add).map_err(|error| format!("pub_deploy: {error}"))?;
+    let added = run_publish(&mut add).map_err(PubError::Run)?;
     if !added.success() {
         let status = exit_text(&added);
         let mut both = added.stdout;
         both.extend_from_slice(&added.stderr);
-        return Err(failure_message("pub token add", &status, &both, token));
+        return Err(tool_failed("pub token add", status, &both, token));
     }
     let mut publish = command();
     publish.args(["pub", "publish", "--force"]);
-    let output = run_publish(&mut publish).map_err(|error| format!("pub_deploy: {error}"))?;
+    let output = run_publish(&mut publish).map_err(PubError::Run)?;
     let status = exit_text(&output);
     let success = output.success();
     let mut both = output.stdout;
@@ -208,7 +313,7 @@ fn pub_publish(
     if success {
         return Ok(());
     }
-    Err(failure_message("pub publish", &status, &both, token))
+    Err(tool_failed("pub publish", status, &both, token))
 }
 
 /// Copies the package files into `<name>-package` under the output directory.
@@ -216,10 +321,10 @@ fn pub_build_package(
     mapped: &[(std::path::PathBuf, String)],
     outdir: &Path,
     package_name: &str,
-) -> Result<std::path::PathBuf, String> {
+) -> Result<std::path::PathBuf, PubError> {
     let house = outdir.join(package_name.to_owned() + "-package");
-    std::fs::create_dir_all(&house).map_err(|error| format!("pub_deploy: {error}"))?;
-    pub_stage(mapped, &house).map_err(|error| format!("pub_deploy: {error}"))?;
+    path_io::create_dir_all(&house).map_err(PubError::Io)?;
+    stage_mapped(mapped, &house).map_err(PubError::Stage)?;
     Ok(house)
 }
 
@@ -283,9 +388,10 @@ fn pub_api_check(
     (staging, registry_url): (&Path, &str),
     (baseline, package_dir): (&str, &str),
     workspace: &Path,
-) -> Result<Outcome, String> {
-    let baseline = Baseline::parse(baseline)
-        .ok_or_else(|| format!("pub_deploy: invalid api_baseline '{baseline}'"))?;
+) -> Result<Outcome, PubError> {
+    let baseline = Baseline::parse(baseline).ok_or_else(|| PubError::InvalidBaseline {
+        baseline: baseline.to_owned(),
+    })?;
     let pubspec = std::fs::read_to_string(staging.join(manifest_name())).unwrap_or_default();
     let needs_flutter =
         pubspec_is_flutter(&pubspec) || pubspec.lines().any(|line| line.trim() == "sdk: flutter");
@@ -294,7 +400,7 @@ fn pub_api_check(
             "flutter packages need the pinned flutter SDK".to_owned(),
         ));
     }
-    let work = tempfile_stage_dir("pub-api-").map_err(|error| format!("pub_deploy: {error}"))?;
+    let work = tempfile_stage_dir("pub-api-").map_err(PubError::TempDir)?;
     let tools = match flutter {
         Some((flutter_dart, root)) if needs_flutter => {
             flutter_sdk_tree(flutter_dart, &work).map(|dart| (dart, Some(root)))
@@ -322,13 +428,15 @@ fn pub_api_check(
 /// pinned dart is copied to `bin/cache/dart-sdk/bin/dart` with the rest of the SDK linked.
 /// Returns the copied dart.
 #[cfg(unix)]
-fn flutter_sdk_tree(flutter_dart: &Path, work: &Path) -> Result<std::path::PathBuf, String> {
+fn flutter_sdk_tree(flutter_dart: &Path, work: &Path) -> Result<std::path::PathBuf, PubError> {
     use std::os::unix::fs::{PermissionsExt, symlink};
-    let fail = |error: std::io::Error| format!("pub_deploy: flutter SDK: {error}");
+    let fail = PubError::FlutterSdk;
     let sdk = flutter_dart
         .parent()
         .and_then(Path::parent)
-        .ok_or_else(|| format!("pub_deploy: bad flutter dart {}", flutter_dart.display()))?;
+        .ok_or_else(|| PubError::BadFlutterDart {
+            path: flutter_dart.to_path_buf(),
+        })?;
     let bin = work.join("flutter/bin");
     let dart_sdk = bin.join("cache/dart-sdk");
     std::fs::create_dir_all(dart_sdk.join("bin")).map_err(fail)?;
@@ -357,8 +465,8 @@ fn flutter_sdk_tree(flutter_dart: &Path, work: &Path) -> Result<std::path::PathB
 }
 
 #[cfg(not(unix))]
-fn flutter_sdk_tree(_: &Path, _: &Path) -> Result<std::path::PathBuf, String> {
-    Err("pub_deploy: flutter SDK trees are not supported here".to_owned())
+fn flutter_sdk_tree(_: &Path, _: &Path) -> Result<std::path::PathBuf, PubError> {
+    Err(PubError::FlutterUnsupported)
 }
 
 fn pub_api_compare(
@@ -369,7 +477,7 @@ fn pub_api_compare(
     (baseline, package_dir): (Baseline, &str),
     workspace: &Path,
     work: &Path,
-) -> Result<Outcome, String> {
+) -> Result<Outcome, PubError> {
     let (previous, old) = if baseline == Baseline::Git {
         let tag = match previous_git_tag(workspace, version) {
             Ok(Some(tag)) => tag,
@@ -385,7 +493,7 @@ fn pub_api_compare(
                     manifest_name()
                 )));
             }
-            Err(error) => return Err(format!("pub_deploy: api compat: {error}")),
+            Err(error) => return Err(PubError::BaselineExport(error)),
         }
         (tag, dest.display().to_string())
     } else {
@@ -408,11 +516,11 @@ fn pub_api_compare(
     };
     let cache = work.join("pub-cache");
     let report = work.join("report.json");
-    std::fs::create_dir_all(&cache).map_err(|error| format!("pub_deploy: {error}"))?;
+    path_io::create_dir_all(&cache).map_err(PubError::Io)?;
     let mut dirs: Vec<std::path::PathBuf> =
         dart.parent().map(Path::to_path_buf).into_iter().collect();
     dirs.extend(std::env::split_paths(&env_or_empty("PATH")));
-    let path = std::env::join_paths(dirs).map_err(|error| format!("pub_deploy: {error}"))?;
+    let path = std::env::join_paths(dirs).map_err(PubError::JoinPaths)?;
     let mut env = vec![
         ("PATH", path.to_str().unwrap_or("")),
         ("PUB_CACHE", cache.to_str().unwrap_or("")),
@@ -431,7 +539,7 @@ fn pub_api_compare(
             .arg("--report-file-path")
             .arg(&report),
     )
-    .map_err(|error| format!("pub_deploy: dart_apitool: {error}"))?;
+    .map_err(PubError::Apitool)?;
     let text = format!(
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
@@ -525,7 +633,7 @@ pub fn pub_main_checked(
                 Some((dart, root))
             })
     };
-    let api_check = |staging: &Path, version: &str| -> Result<(), String> {
+    let api_check = |staging: &Path, version: &str| -> Result<(), PubError> {
         if mode == ApiCompatMode::Off {
             return Ok(());
         }
@@ -549,7 +657,7 @@ pub fn pub_main_checked(
             )),
         };
         outcome.and_then(|outcome| {
-            conclude("pub_deploy", mode, version, outcome).map_err(|error| error.to_string())
+            conclude("pub_deploy", mode, version, outcome).map_err(PubError::ApiCompat)
         })
     };
     let live = OwnerGate::requested(env_or_empty);
@@ -615,20 +723,20 @@ fn pub_run_checked(
     version: &str,
     registry_url: &str,
     secrets: Option<crate::run::Secrets>,
-    api_check: &dyn Fn(&Path, &str) -> Result<(), String>,
-) -> Result<String, String> {
+    api_check: &dyn Fn(&Path, &str) -> Result<(), PubError>,
+) -> Result<String, PubError> {
     let (flutter, version) = pub_checked_stage(mapped, staging, package_name, version)?;
     if let Some(error) = secrets
         .as_ref()
         .and_then(|_| placeholder_refusal("pub_deploy", &version))
     {
-        return Err(error);
+        return Err(PubError::Refused(error));
     }
     api_check(staging, &version)?;
     let tool = tool_name(flutter);
     let Some(program) = which_on_path(tool) else {
         if secrets.is_some() {
-            return Err(format!("pub_deploy: '{tool}' CLI not found on PATH"));
+            return Err(PubError::ToolNotFound { tool });
         }
         println!("pub_deploy: {tool} not found on PATH; skipped {tool} pub publish --dry-run");
         return Ok(version);
@@ -637,7 +745,7 @@ fn pub_run_checked(
         return pub_dry_run(&program, staging).map(|()| version);
     };
     pub_dry_run(&program, staging)?;
-    let cache = tempfile_stage_dir("pub-cache-").map_err(|error| format!("pub_deploy: {error}"))?;
+    let cache = tempfile_stage_dir("pub-cache-").map_err(PubError::TempDir)?;
     let published = pub_publish(
         &program,
         staging,
@@ -659,11 +767,18 @@ mod tests {
 
     #[test]
     fn pubspec_must_match_target() {
-        assert_eq!(pubspec_refusal(PUBSPEC, "pub_demo"), None);
+        assert!(pubspec_refusal(PUBSPEC, "pub_demo").is_none());
         let wrong = pubspec_refusal(PUBSPEC, "other").expect("name refused");
-        assert!(wrong.contains("is pub_demo") && wrong.contains("target is other"));
+        assert!(
+            matches!(&wrong, PubError::NameMismatch { found: Some(found), target }
+            if found == "pub_demo" && target == "other")
+        );
+        assert_eq!(
+            wrong.to_string(),
+            "pub_deploy: pubspec.yaml is pub_demo, target is other; refusing"
+        );
         let missing = pubspec_refusal("version: 1.2.3\n", "pub_demo").expect("missing");
-        assert!(missing.contains("(missing)"), "{missing}");
+        assert!(missing.to_string().contains("(missing)"), "{missing}");
         assert!(pubspec_refusal("  name: pub_demo\n", "pub_demo").is_some());
     }
 
@@ -679,20 +794,22 @@ mod tests {
 
     #[test]
     fn changelog_needs_a_version_heading() {
-        assert_eq!(
-            changelog_refusal(Some("## 1.2.3\n\n- first\n"), "1.2.3"),
-            None
-        );
-        assert_eq!(
-            changelog_refusal(Some("# [v1.2.3] - 2026\n"), "1.2.3"),
-            None
-        );
-        assert!(changelog_refusal(Some("## 1.2.30\n"), "1.2.3").is_some());
-        assert!(changelog_refusal(Some("1.2.3\n"), "1.2.3").is_some());
+        assert!(changelog_refusal(Some("## 1.2.3\n\n- first\n"), "1.2.3").is_none());
+        assert!(changelog_refusal(Some("# [v1.2.3] - 2026\n"), "1.2.3").is_none());
+        let unheaded = changelog_refusal(Some("## 1.2.30\n"), "1.2.3").expect("no heading");
         assert!(
-            changelog_refusal(None, "1.2.3")
-                .expect("missing")
-                .contains("no CHANGELOG.md")
+            matches!(&unheaded, PubError::NoChangelogHeading { version } if version == "1.2.3")
+        );
+        assert_eq!(
+            unheaded.to_string(),
+            "pub_deploy: CHANGELOG.md has no heading for version 1.2.3"
+        );
+        assert!(changelog_refusal(Some("1.2.3\n"), "1.2.3").is_some());
+        let missing = changelog_refusal(None, "1.2.3").expect("missing");
+        assert!(matches!(missing, PubError::NoChangelog));
+        assert_eq!(
+            missing.to_string(),
+            "pub_deploy: package has no CHANGELOG.md; pub.dev wants one"
         );
     }
 
@@ -984,7 +1101,17 @@ mod tests {
         let stage = scratch.path().join("stage");
         std::fs::create_dir_all(&stage).expect("stage");
         let error = pub_dry_run(&dart, &stage).expect_err("dry run fails");
-        assert!(error.contains("pub publish --dry-run failed"), "{error}");
+        assert!(matches!(
+            error,
+            PubError::ToolFailed {
+                step: "pub publish --dry-run",
+                ..
+            }
+        ));
+        assert!(
+            error.to_string().contains("pub publish --dry-run failed"),
+            "{error}"
+        );
         let error = pub_publish(
             &dart,
             &stage,
@@ -993,6 +1120,15 @@ mod tests {
             "sekret",
         )
         .expect_err("token add fails");
-        assert!(error.contains("pub token add failed") && !error.contains("sekret"));
+        assert!(matches!(
+            error,
+            PubError::ToolFailed {
+                step: "pub token add",
+                ..
+            }
+        ));
+        let message = error.to_string();
+        assert!(message.contains("pub token add failed") && !message.contains("sekret"));
+        assert!(!format!("{error:?}").contains("sekret"));
     }
 }

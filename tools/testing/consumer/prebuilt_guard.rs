@@ -742,6 +742,34 @@ mod tests {
     }
 
     #[test]
+    fn a_rules_dx_binary_behind_a_command_root_fails_the_guards() {
+        let list = allowlist(include_str!("prebuilt_guard_allowlist.txt")).unwrap();
+
+        assert!(
+            command_roots("@@rules_dx+", &["go"])
+                .contains(&"@@rules_dx+//go/private/tools:go".to_owned())
+        );
+        let nested = compiled_binaries(
+            "alias rule @@rules_dx+//go/private/tools:go (abc)\n\
+             go_binary rule @@rules_dx+//go/private/tools:go_source (exec)\n",
+        );
+        assert_eq!(
+            unlisted(&nested, &list.labels_for(&["go"])),
+            ["compiles go_binary rule @@rules_dx+//go/private/tools:go_source (exec)"]
+        );
+
+        assert!(command_roots("", &["dart"]).contains(&"//dart/private/tools:dart".to_owned()));
+        let in_graph = compiled_binaries(&consumer_line(
+            "rust_binary rule @@//dart/private/tools:dart_source (exec)",
+            "+_repo_rules+dx_api_fixtures",
+        ));
+        assert_eq!(
+            unlisted(&in_graph, &list.labels_for(&["dart"])),
+            ["compiles rust_binary rule @@rules_dx+//dart/private/tools:dart_source (exec)"]
+        );
+    }
+
+    #[test]
     fn resolver_roots_name_the_hub_resolvers_of_the_languages() {
         assert_eq!(
             resolver_roots(&["go", "zig", "perl", "d", "zig", "dart", "csharp"]),

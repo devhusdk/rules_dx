@@ -1,21 +1,28 @@
-//! Rule-set files load only same-language files, a fixed set of external repos and `RULES_DX_ALLOW`, and nothing in `RULES_DX_ALLOW` reaches them, outside `tools/ci/rule_set_loads_allowlist.txt`.
+//! Rule-set files load only same-language files, a fixed set of external repos and `RULES_DX_ALLOW`, name no label outside their rule set or in a `dx_` repo, and nothing in `RULES_DX_ALLOW` reaches them, outside `tools/ci/rule_set_loads_allowlist.txt`.
 
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 
 use dx_guard::allowlist::{Counts, REMOVE, add, render};
 use dx_guard::masked::{calls, masked};
 use dx_guard::snapshot::{is_skipped, tree};
-use dx_guard::starlark::is_bazel_file;
+use dx_guard::starlark::{exprs, is_bazel_file, parse, string};
 use serde_json as _;
-use starlark_syntax as _;
+use starlark_syntax::syntax::ast::{AstExpr, ExprP};
 use yaml_serde as _;
 
 /// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/ci/rule_set_loads_allowlist.txt";
 
 const FOREIGN: &str = "foreign-load";
+const FOREIGN_LABEL: &str = "foreign-label";
 const REACHES: &str = "reaches-rule-set";
-const KINDS: [&str; 2] = [FOREIGN, REACHES];
+const KINDS: [&str; 3] = [FOREIGN, FOREIGN_LABEL, REACHES];
+
+/// Label names that stand for a package or tree, not a target.
+const PACKAGE_NAMES: [&str; 2] = ["__pkg__", "__subpackages__"];
+
+/// Built-in `rules_dx`-shaped packages that are not source packages.
+const BUILTIN_PACKAGES: [&str; 3] = ["visibility", "conditions", "command_line_option"];
 
 /// Path prefixes of the files that become the `rules_<lang>` modules, per language. A prefix ending in `/` is a directory; any other is one file.
 const RULE_SETS: [(&str, &[&str]); 3] = [
@@ -146,6 +153,65 @@ fn loads(path: &str, text: &str) -> Vec<String> {
         .collect()
 }
 
+/// String literals of `text` outside `+` or `%` operands; `load` statements carry no expressions, so their labels stay out.
+fn label_strings(path: &str, text: &str) -> Vec<String> {
+    let module = parse(path, text).unwrap_or_else(|error| panic!("{error}"));
+    let all = exprs(module.statement());
+    let operands: HashSet<*const AstExpr> = all
+        .iter()
+        .filter_map(|expr| {
+            if let ExprP::Op(lhs, _, rhs) = &expr.node {
+                Some([&**lhs as *const AstExpr, &**rhs as *const AstExpr])
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .collect();
+    all.into_iter()
+        .filter(|expr| !operands.contains(&(*expr as *const AstExpr)))
+        .filter_map(|expr| string(expr).map(str::to_owned))
+        .collect()
+}
+
+/// True when `s` is a `[@[@]repo]//pkg[:name]` label a rule-set file of `lang` must not name: a `dx_` repo, or a `rules_dx` package outside the rule set.
+fn foreign_label(lang: &str, s: &str) -> bool {
+    if s.chars()
+        .any(|c| c.is_whitespace() || matches!(c, '%' | '{' | '$'))
+    {
+        return false;
+    }
+    let Some((repo, rest)) = s.split_once("//") else {
+        return false;
+    };
+    let repo = if repo.is_empty() {
+        repo
+    } else if let Some(name) = repo.strip_prefix("@@").or_else(|| repo.strip_prefix('@')) {
+        name
+    } else {
+        return false;
+    };
+    if repo.contains(['@', '/', ':']) {
+        return false;
+    }
+    let (package, name) = rest.split_once(':').unwrap_or((rest, ""));
+    if PACKAGE_NAMES.contains(&name) || BUILTIN_PACKAGES.contains(&package) {
+        return false;
+    }
+    if repo.starts_with("dx_") {
+        return true;
+    }
+    if !repo.is_empty() && repo != "rules_dx" {
+        return false;
+    }
+    let build = if package.is_empty() {
+        "BUILD.bazel".to_owned()
+    } else {
+        format!("{package}/BUILD.bazel")
+    };
+    rule_set_of(&build) != Some(lang)
+}
+
 /// True when a rule-set file of `lang` may load `label`.
 fn allowed(lang: &str, label: &str) -> bool {
     if let Some(rest) = label.strip_prefix("//") {
@@ -179,6 +245,12 @@ fn scan_files(files: &[(String, String)]) -> (Counts, Vec<String>) {
             if !allowed(lang, &label) {
                 add(&mut counts, path, FOREIGN, 1);
                 details.push(format!("{path} loads {label}"));
+            }
+        }
+        for label in label_strings(path, text) {
+            if foreign_label(lang, &label) {
+                add(&mut counts, path, FOREIGN_LABEL, 1);
+                details.push(format!("{path} names {label}"));
             }
         }
     }
@@ -328,4 +400,36 @@ fn a_closure_that_reaches_a_rule_set_prints_the_chain() {
         details,
         ["rust/defs.bzl reaches rust/defs.bzl -> core/x.bzl -> lua/private/lua.bzl"]
     );
+}
+
+#[test]
+fn a_foreign_label_string_is_counted_and_named() {
+    let source = "load(\"//lua/private:providers.bzl\", \"L\")\n\
+        X = Label(\"//lua/private/coverage:libs\")\n\
+        Y = [\"@dx_luacov//:sources\", \"@rules_dx//core:x\"]\n\
+        Z = \"//lua:toolchain_type\"\n\
+        V = [\"//visibility:public\", \"//core:__pkg__\", \"@platforms//os:linux\"]\n\
+        T = \"//%s:x\" % \"core\"\n\
+        U = \"//core\" + \":x\"\n\
+        W = \"//conditions:default\"\n";
+    let (counts, details) = scan_files(&fixture(&[("lua/private/lua.bzl", source)]));
+    assert_eq!(render(&counts), "lua/private/lua.bzl foreign-label 3\n");
+    assert_eq!(
+        details,
+        [
+            "lua/private/lua.bzl names //lua/private/coverage:libs",
+            "lua/private/lua.bzl names @dx_luacov//:sources",
+            "lua/private/lua.bzl names @rules_dx//core:x"
+        ]
+    );
+}
+
+#[test]
+fn a_root_package_label_is_foreign() {
+    let (counts, details) = scan_files(&fixture(&[(
+        "qt/BUILD.bazel",
+        "filegroup(name = \"x\", srcs = [\"//:module_srcs\"])\n",
+    )]));
+    assert_eq!(render(&counts), "qt/BUILD.bazel foreign-label 1\n");
+    assert_eq!(details, ["qt/BUILD.bazel names //:module_srcs"]);
 }

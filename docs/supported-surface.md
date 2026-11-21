@@ -7380,6 +7380,7 @@ Pass a platform to Bazel with `--platforms=<platform>`.
 
 Use a toolchain type when you register your own toolchain.
 
+- `@rules_dx//cuda:toolchain_type`
 - `@rules_dx//d:toolchain_type`
 - `@rules_dx//elixir:toolchain_type`
 - `@rules_dx//erlang:exec_toolchain_type`
@@ -7443,9 +7444,9 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//capnproto:std` | `filegroup` |
 | `@rules_dx//cc:gcc_linux_glibc` | `alias` |
 | `@rules_dx//cc:gcc_linux_libstdcxx` | `alias` |
-| `@rules_dx//cuda:cublas` | `cuda_component_library` |
-| `@rules_dx//cuda:cufft` | `cuda_component_library` |
-| `@rules_dx//cuda:curand` | `cuda_component_library` |
+| `@rules_dx//cuda:cublas` | `alias` |
+| `@rules_dx//cuda:cufft` | `alias` |
+| `@rules_dx//cuda:curand` | `alias` |
 | `@rules_dx//cuda:gpu_undeclared` | `config_setting` |
 | `@rules_dx//d:coverage` | `config_setting` |
 | `@rules_dx//dart:runfiles` | `alias` |

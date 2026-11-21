@@ -5,10 +5,10 @@ load("//core/modules:python.bzl", "PYTHON_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//python:defs.bzl", "python_test")
 load("//python/private:defs.bzl", "python_main", "python_main_rejection", "python_test_rejection")
-load("//python/private:sdist_cargo_vendor.bzl", "parse_cargo_lock", "parse_uv_lock_sdist")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load(":runtime_tests.bzl", "python_runtime_unit_tests")
+load(":sdist_cargo_vendor.bzl", "parse_cargo_lock", "parse_uv_lock_sdist")
 load(":soabi_tests.bzl", "soabi_test")
 
 # gazelle:dx_ignore_import python rpds
@@ -100,6 +100,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "runtime_tests.bzl",
+        "sdist_cargo_vendor.bzl",
         "soabi_tests.bzl",
     ],
     tags = ["corpus"],

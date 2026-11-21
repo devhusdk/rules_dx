@@ -2570,7 +2570,7 @@ use_repo(
 )
 
 sdist_cargo_vendor = use_extension(
-    "//python:extensions.bzl",
+    "//python/tests:sdist_cargo_vendor.bzl",
     "sdist_cargo_vendor",
     dev_dependency = True,
 )

@@ -1130,7 +1130,7 @@ Macro or function.
 | `entitlements` | no | `None` |
 | `provisioning_profile` | no | `None` |
 | `tags` | no | `None` |
-| `testonly` | no | `False` |
+| `testonly` | no | `None` |
 | `visibility` | no | `None` |
 
 #### `apple_macos_notarize`

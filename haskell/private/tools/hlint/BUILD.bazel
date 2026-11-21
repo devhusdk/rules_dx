@@ -47,6 +47,7 @@ platform_transition_filegroup(
 
 build_test(
     name = "hlint_clock_hsc2hs_musl_build_test",
+    size = "small",
     targets = [":clock_musl"],
 )
 

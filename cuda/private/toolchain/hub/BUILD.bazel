@@ -1,0 +1,35 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+toolchain_type(name = "toolchain_type")
+
+toolchain(
+    name = "nvcc_linux",
+    exec_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = ["@platforms//os:linux"],
+    target_settings = ["//config:toolchains_on"],
+    toolchain = "@dx_cuda_toolchain//toolchain:nvcc-linux",
+    toolchain_type = ":toolchain_type",
+)
+
+toolchain(
+    name = "nvcc_windows",
+    exec_compatible_with = ["@platforms//os:windows"],
+    target_compatible_with = ["@platforms//os:windows"],
+    target_settings = ["//config:toolchains_on"],
+    toolchain = "@dx_cuda_toolchain//toolchain:nvcc-windows",
+    toolchain_type = ":toolchain_type",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = ["BUILD.bazel"],
+    visibility = ["//:__subpackages__"],
+)

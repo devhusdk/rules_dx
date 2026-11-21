@@ -491,7 +491,7 @@ _SAXPY_ARCHS = [
     "sm_120",
 ]
 
-_TOOLCHAIN = "external/rules_cuda++toolchain"
+_TOOLCHAIN = "external/rules_dx++cuda"
 
 _NVCC = _TOOLCHAIN + component_markers("nvcc")[0] + "nvcc/bin/nvcc"
 

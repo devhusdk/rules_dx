@@ -465,6 +465,11 @@ jobs:
             set -e
             cd "$RUNNER_TEMP"
             ./dx init --apply demo-app --workspace "$RUNNER_TEMP"
+            sources="$checkout/android/tests/fixtures/consumer_android"
+            mkdir -p demo-app/src demo-app/res/values
+            cp "$sources/activity.c" demo-app/activity.c
+            cp "$sources/src/lib.rs" demo-app/src/lib.rs
+            cp "$sources/res/values/strings.xml" demo-app/res/values/strings.xml
             fixture="$checkout/android/tests/fixtures/rust_starter"
             (cd "$fixture" && find . -type f -name '*.fixture') | while read -r file; do
               dest="demo-app/${file#./}"

@@ -1137,11 +1137,13 @@ mod tests {
         let env = hermetic_env(&cwd, &[], &ambient);
         let scratch = descendant_scratch();
         let marker = scratch.path().join("descendant.finished");
+        let lock = scratch.path().join("descendant.alive");
         let argv = vec![
             probe.into_os_string(),
             OsString::from("--spawn-descendant"),
-            OsString::from("--descendant-sleep-ms=1500"),
+            OsString::from("--descendant-sleep-ms=30000"),
             OsString::from(format!("--descendant-marker={}", marker.display())),
+            OsString::from(format!("--descendant-alive-lock={}", lock.display())),
         ];
         let started = std::time::Instant::now();
         let err = spawn_with_timeout(&argv, &cwd, &env, Duration::from_millis(500))
@@ -1152,18 +1154,12 @@ mod tests {
             "the pipes must not outlive the deadline: {:?}",
             started.elapsed()
         );
-        let deadline = started + Duration::from_millis(1900);
-        loop {
-            assert!(
-                !marker.exists(),
-                "the descendant survived the tool run: {}",
-                marker.display()
-            );
-            if std::time::Instant::now() >= deadline {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(50));
-        }
+        dx_testing::assert_alive_lock_released(&lock);
+        assert!(
+            !marker.exists(),
+            "the descendant ran to the end: {}",
+            marker.display()
+        );
     }
 
     #[test]
@@ -1174,13 +1170,15 @@ mod tests {
         let env = hermetic_env(&cwd, &[], &ambient);
         let scratch = descendant_scratch();
         let marker = scratch.path().join("descendant.finished");
+        let lock = scratch.path().join("descendant.alive");
         let argv = vec![
             probe.into_os_string(),
             OsString::from("--exit-code=0"),
             OsString::from("--spawn-descendant"),
             OsString::from("--detached-descendant"),
-            OsString::from("--descendant-sleep-ms=3000"),
+            OsString::from("--descendant-sleep-ms=30000"),
             OsString::from(format!("--descendant-marker={}", marker.display())),
+            OsString::from(format!("--descendant-alive-lock={}", lock.display())),
         ];
         let started = std::time::Instant::now();
         let out = spawn_within(
@@ -1201,18 +1199,12 @@ mod tests {
             elapsed < Duration::from_secs(10),
             "the runner returns on its own bound: {elapsed:?}"
         );
-        let deadline = started + Duration::from_millis(3600);
-        loop {
-            assert!(
-                !marker.exists(),
-                "the descendant survived the tool run: {}",
-                marker.display()
-            );
-            if std::time::Instant::now() >= deadline {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        }
+        dx_testing::assert_alive_lock_released(&lock);
+        assert!(
+            !marker.exists(),
+            "the descendant ran to the end: {}",
+            marker.display()
+        );
     }
 
     #[test]

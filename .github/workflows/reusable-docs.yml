@@ -93,7 +93,7 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
       - name: Configure the remote cache credential helper
-        uses: devhusdk/rules_dx/.github/actions/remote-cache-helper@350af4eb152d0de18a87b523844c0fd0c7c7d1a5 # main
+        uses: devhusdk/rules_dx/.github/actions/remote-cache-helper@01b9bd4792fce3d503a6b83b034d4c57315d22a0 # main
       - name: Lint the docs scope
         env:
           DX_DOCS_SCOPE: ${{ inputs.docs_scope }}
@@ -150,7 +150,7 @@ jobs:
         with:
           bazelisk-version: ${{ env.BAZELISK_VERSION }}
       - name: Configure the remote cache credential helper
-        uses: devhusdk/rules_dx/.github/actions/remote-cache-helper@350af4eb152d0de18a87b523844c0fd0c7c7d1a5 # main
+        uses: devhusdk/rules_dx/.github/actions/remote-cache-helper@01b9bd4792fce3d503a6b83b034d4c57315d22a0 # main
       - name: Build rendered site
         run: |
           # shellcheck disable=SC2086
@@ -185,7 +185,7 @@ jobs:
           bazel run "$@" @rules_dx//:dx -- site_check --rendered "$PAGES_STAGE" "${check[@]}"
       - name: Check the upload holds no secret
         id: scan-site
-        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@350af4eb152d0de18a87b523844c0fd0c7c7d1a5 # main
+        uses: devhusdk/rules_dx/.github/actions/assert-no-secret@7cc1515005e920d19b0ac8c4fc79353e43010834 # main
         with:
           path: ${{ env.PAGES_STAGE }}
       - name: Upload rendered site as Pages artifact

@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-pub const SHIM_VERSION: &str = "0.0.1";
+pub const SHIM_VERSION: &str = "0.0.0";
 pub const DEFAULT_RELEASE_BASE: &str = "https://github.com/devhusdk/rules_dx/releases/download";
 
 pub const VERSION_FILE: &str = ".dx/pins";

@@ -6,8 +6,8 @@ use dx_output::{
     Resolution, Snapshot, Span, change_value, finding_value, notice_event, refusal_value,
 };
 
-use super::quality_reconcile::Conflict;
-use super::quality_reports::Snapshots;
+use crate::quality_reconcile::Conflict;
+use crate::quality_reports::Snapshots;
 use dx_exec_core::common::{
     FileChange, REASON_INCOMPLETE_COLLECTION, change_event_for, check_stdout_write, emit_built,
     emit_event, text_finding,

@@ -8,13 +8,14 @@ use yaml_serde as _;
 /// Fewer snapshot entries than this under the checked dirs means the sweep lost the tree.
 const MIN_RUST: usize = 100;
 
-const DIRS: [&str; 12] = [
+const DIRS: [&str; 13] = [
     "cli/update/",
     "cli/cli/",
     "cli/audit/",
     "cli/exec_audit/",
     "cli/exec_test_reports/",
     "cli/exec_update/",
+    "cli/exec_quality/",
     "cli/plan/",
     "cli/ide/",
     "cli/shim/",

@@ -2,20 +2,9 @@
 
 use std::io::Write;
 use std::path::Path;
-use std::sync::Mutex;
 
 use dx_generate::Mode;
 use dx_plan::args::{Command, Invocation};
-
-static REWRITTEN: Mutex<Vec<String>> = Mutex::new(Vec::new());
-
-/// The `.dx` files the sync in this invocation wrote or deleted.
-pub fn rewritten() -> Vec<String> {
-    REWRITTEN
-        .lock()
-        .map(|list| list.clone())
-        .unwrap_or_default()
-}
 
 /// Syncs `.dx`; a failure prints one warning and changes nothing else.
 pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut dyn Write) {
@@ -55,9 +44,9 @@ pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut d
     };
     match dx_generate::sync(workspace, mode, &mut dx_adopt::detected_families) {
         Ok(report) => {
-            if let Ok(mut list) = REWRITTEN.lock() {
-                list.extend(report.written.iter().chain(&report.deleted).cloned());
-            }
+            dx_exec_core::common::record_preset_rewritten(
+                report.written.iter().chain(&report.deleted).cloned(),
+            );
             for warning in report.warnings {
                 dx_output::write_stderr(err, format_args!("{warning}\n"));
             }

@@ -14,7 +14,7 @@ const PIN_RULE: &str = "dx/pin-mismatch";
 
 /// One finding per tracked `.dx` file that is not what the generator renders, and one for a
 /// `.dx/pins` version that is not this dx. `rewritten` is what the pre-command hook changed.
-pub(super) fn findings(
+pub(crate) fn findings(
     workspace: &Path,
     runner: &dyn QueryRunner,
     rewritten: &[String],
@@ -95,6 +95,7 @@ mod tests {
     use dx_plan::resolve::QueryResult;
     use std::io;
     use std::process::Command;
+    use std::time::Duration;
 
     const BASE: &str = ".dx/config/ruff/base.toml";
 
@@ -102,12 +103,12 @@ mod tests {
 
     impl QueryRunner for Git {
         fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<QueryResult> {
-            let output = Command::new(&argv[0])
-                .args(&argv[1..])
-                .current_dir(cwd)
-                .output()?;
+            let mut command = Command::new(&argv[0]);
+            command.args(&argv[1..]).current_dir(cwd);
+            let output = dx_process::capture::run_captured(&mut command, Duration::from_secs(60))
+                .map_err(io::Error::other)?;
             Ok(QueryResult {
-                code: output.status.code(),
+                code: output.code,
                 stdout: output.stdout,
                 stderr: output.stderr,
             })

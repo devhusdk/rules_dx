@@ -1,13 +1,34 @@
-use super::breaking_base;
-use super::check_build::{SharedChecks, SharedRead};
-use super::link_check;
-use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
-use super::quality_emit::{EmitCounts, EmitInputs, emit_findings};
-use super::quality_patch::render_diff_patch;
-use super::quality_reports::{
+#![deny(
+    clippy::indexing_slicing,
+    clippy::let_underscore_must_use,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok,
+    clippy::wildcard_enum_match_arm
+)]
+
+//! The `dx lint`, `dx typecheck` and `dx format` verbs and the quality phases of `dx check`.
+
+mod breaking_base;
+pub mod check_build;
+mod generated_drift;
+pub mod link_check;
+pub mod quality_apply;
+mod quality_emit;
+mod quality_patch;
+mod quality_reconcile;
+mod quality_reports;
+mod quality_security;
+pub mod results;
+
+use crate::check_build::{SharedChecks, SharedRead};
+use crate::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
+use crate::quality_emit::{EmitCounts, EmitInputs, emit_findings};
+use crate::quality_patch::render_diff_patch;
+use crate::quality_reports::{
     Snapshots, StandardReports, verified_snapshots, write_standard_reports,
 };
-use super::results::{Collected, collect_results, invert_repo_mapping};
+use crate::results::{Collected, collect_results, invert_repo_mapping};
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_exec_core::bazel_hint::{recorded, refine};
 use dx_exec_core::common::{
@@ -16,8 +37,9 @@ use dx_exec_core::common::{
     Failure, FileChange, LatchedOut, PhaseEffects, PhaseKind, PhaseRun,
     REASON_INCOMPLETE_COLLECTION, SourceRead, bazel_exit_event, bazel_failure_code, bep_error_code,
     check_stdout_write, collect_output_account, collect_own_account, emit_built, emit_event,
-    findings_summary, operational_output, pre_exec, read_actions, report_dx_error, report_failure,
-    resolve_failed, run_bazel_output, server_died, warn_scope_excluded,
+    findings_summary, operational_output, pre_exec, preset_rewritten, read_actions, remove_scratch,
+    report_dx_error, report_failure, resolve_failed, run_bazel_output, server_died,
+    temp_path_not_utf8, warn_scope_excluded,
 };
 use dx_exec_core::guidance::{apply_hint, rerun_hint};
 use dx_exec_core::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
@@ -38,7 +60,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
+pub fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     let request = match invocation.quality_request() {
         Ok(request) => request,
         Err(message) => {
@@ -49,7 +71,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
     execute_quality_request(&request, env)
 }
 
-pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) -> i32 {
+pub fn execute_quality_request(request: &QualityRequest, env: Env<'_>) -> i32 {
     run_quality(
         request,
         env,
@@ -61,7 +83,7 @@ pub(crate) fn execute_quality_request(request: &QualityRequest, env: Env<'_>) ->
 }
 
 /// Runs one umbrella quality phase, from the build it shares with the other phases when given.
-pub(crate) fn execute_quality_phase(
+pub fn execute_quality_phase(
     request: &QualityRequest,
     env: Env<'_>,
     shared: Option<&mut SharedChecks>,
@@ -70,7 +92,7 @@ pub(crate) fn execute_quality_phase(
 }
 
 /// Runs one quality phase whose apply writes go through `fs`.
-pub(crate) fn execute_quality_phase_with_fs(
+pub fn execute_quality_phase_with_fs(
     request: &QualityRequest,
     env: Env<'_>,
     fs: &dyn FileSystem,
@@ -135,7 +157,7 @@ fn run_quality(
     latched.exit_code(code)
 }
 
-pub(super) fn operational_build_output(
+pub(crate) fn operational_build_output(
     output: OutputMode,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -150,7 +172,7 @@ pub(super) fn operational_build_output(
     )
 }
 
-pub(super) fn guard_build_output(
+pub fn guard_build_output(
     workspace: &Path,
     output: OutputMode,
     out: &mut dyn Write,
@@ -192,7 +214,7 @@ pub(super) fn guard_build_output(
 
 /// Why a shard probe ended the phase instead of falling back to every shard.
 #[derive(Debug, PartialEq, Eq)]
-pub(super) enum ProbeStop {
+pub(crate) enum ProbeStop {
     /// Bazel died by a signal.
     Signalled,
     /// dx recorded a stop signal or Bazel exited as interrupted.
@@ -212,7 +234,7 @@ pub(super) enum ProbeStop {
     clippy::too_many_arguments,
     reason = "each argument is a distinct input"
 )]
-pub(super) fn probe_shards(
+pub(crate) fn probe_shards(
     commands: &[Command],
     request: &QualityRequest,
     resolved: &dx_plan::resolve::ResolvedScope,
@@ -248,7 +270,7 @@ pub(super) fn probe_shards(
         Ok(status) if status.code == Some(0) => Ok(read_probe_shards(&bep, workspace)),
         _ => Ok(None),
     };
-    super::remove_scratch(&bep);
+    remove_scratch(&bep);
     shards
 }
 
@@ -274,7 +296,7 @@ fn read_probe_shards(bep: &Path, workspace: &Path) -> Option<BTreeSet<String>> {
 }
 
 /// The skip notes of every target in the event file, one per tool however many targets dropped it.
-pub(super) fn read_skip_notes(
+pub(crate) fn read_skip_notes(
     bep: &Path,
     foreign: &BTreeSet<String>,
     workspace: &Path,
@@ -299,7 +321,7 @@ pub(super) fn read_skip_notes(
 }
 
 /// The warning for a skip note of the form `<tool>: <reason>`.
-pub(super) fn skip_notice(command: &str, note: &str) -> NoticeEvent {
+pub(crate) fn skip_notice(command: &str, note: &str) -> NoticeEvent {
     NoticeEvent {
         related_command: Some(command.to_owned()),
         ..NoticeEvent::warning(CODE_TOOL_SKIPPED, note)
@@ -325,7 +347,7 @@ struct BepRead {
 impl BepRead {
     fn discard(&self) {
         if self.owned {
-            super::remove_scratch(&self.path);
+            remove_scratch(&self.path);
         }
     }
 }
@@ -352,7 +374,7 @@ fn run_quality_request(
             env.out,
             env.err,
             CODE_UNREADABLE_BEP,
-            &crate::startup::temp_path_not_utf8(),
+            &temp_path_not_utf8(),
         );
     };
     let rewritten = match rewrite_breaking_base(request, &mut env) {
@@ -513,7 +535,7 @@ fn run_quality_build(
     ) {
         Ok(code) => code,
         Err(exit) => {
-            super::remove_scratch(bep);
+            remove_scratch(bep);
             *kind = PhaseKind::Host;
             return Err(exit);
         }
@@ -528,7 +550,7 @@ fn run_quality_build(
         match report_build_failures(bep, request.common.output, env.out, env.err) {
             Ok(reported) => (reported.compile_only, reported.build_stage),
             Err(exit) => {
-                super::remove_scratch(bep);
+                remove_scratch(bep);
                 return Err(exit);
             }
         }
@@ -725,7 +747,7 @@ fn plan_quality_build(
 }
 
 /// Reports a probe that ended the phase and returns the phase's exit.
-pub(super) fn probe_stop_exit(
+pub(crate) fn probe_stop_exit(
     stop: &ProbeStop,
     request: &QualityRequest,
     env: &mut Env<'_>,
@@ -953,12 +975,12 @@ fn settle_changes(
         request.fail_on,
         !collected.changes.is_empty(),
     );
-    super::quality_security::drop_excepted_findings(workspace, audit_today, &mut status);
+    crate::quality_security::drop_excepted_findings(workspace, audit_today, &mut status);
     if request.command == Command::Lint {
-        status.extend(super::generated_drift::findings(
+        status.extend(crate::generated_drift::findings(
             workspace,
             query_runner,
-            &super::preset_sync::rewritten(),
+            &preset_rewritten(),
         ));
     }
     let mut failed = status
@@ -1185,32 +1207,5 @@ fn quality_phase(
 }
 
 #[cfg(test)]
-#[path = "quality_convergence.rs"]
-mod quality_convergence;
-#[cfg(test)]
-#[path = "quality_delivery_tests.rs"]
-mod quality_delivery_tests;
-#[cfg(test)]
-#[path = "quality_edits.rs"]
-mod quality_edits;
-#[cfg(test)]
-#[path = "quality_json.rs"]
-mod quality_json;
-#[cfg(test)]
-#[path = "quality_modes.rs"]
-mod quality_modes;
-#[cfg(test)]
-#[path = "quality_probe_tests.rs"]
-mod quality_probe_tests;
-#[cfg(test)]
-#[path = "quality_reporting.rs"]
-mod quality_reporting;
-#[cfg(test)]
-#[path = "quality_shared.rs"]
-mod quality_shared;
-#[cfg(test)]
 #[path = "quality_skip_notes_tests.rs"]
 mod quality_skip_notes_tests;
-#[cfg(test)]
-#[path = "text_output_tests.rs"]
-mod text_output_tests;

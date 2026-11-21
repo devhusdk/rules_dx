@@ -1,4 +1,4 @@
-use super::super::test_support::*;
+use super::test_support::*;
 use dx_plan::resolve::QueryResult;
 use quality_result::proto::Convergence;
 use quality_result::{decode_validated, encode_validated};

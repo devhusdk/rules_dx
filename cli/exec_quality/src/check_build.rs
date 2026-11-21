@@ -5,7 +5,7 @@
 //! Bazel's exit code only when a failure there may be its own, so a lint failure leaves format
 //! clean.
 
-use super::quality::{probe_shards, probe_stop_exit};
+use crate::{probe_shards, probe_stop_exit};
 use dx_bep::aspect_key;
 use dx_exec_core::common::{
     BAZEL_INTERRUPTED, Env, PhaseKind, collect_output_account, read_actions, run_bazel_output,
@@ -19,7 +19,7 @@ use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 /// The check-mode quality phases of one umbrella run and the build they share.
-pub(crate) struct SharedChecks {
+pub struct SharedChecks {
     /// The phase requests that have not run yet, in phase order.
     pending: Vec<QualityRequest>,
     build: Option<SharedBuild>,
@@ -40,19 +40,19 @@ struct SharedBuild {
 }
 
 /// What one phase takes from the shared build.
-pub(super) struct SharedRead {
-    pub(super) bep: PathBuf,
+pub(crate) struct SharedRead {
+    pub(crate) bep: PathBuf,
     /// The other members' aspects, whose outputs and gaps this phase leaves out.
-    pub(super) foreign: BTreeSet<String>,
+    pub(crate) foreign: BTreeSet<String>,
     /// Bazel's exit code as this phase owns it.
-    pub(super) code: i32,
+    pub(crate) code: i32,
     /// The build's action counts, given to the phase that ran it so they count once.
-    pub(super) actions: Option<ActionCounts>,
+    pub(crate) actions: Option<ActionCounts>,
 }
 
 impl SharedChecks {
     /// The quality phases `request` will run in check mode.
-    pub(crate) fn new(request: &UmbrellaRequest) -> Self {
+    pub fn new(request: &UmbrellaRequest) -> Self {
         let pending = [Command::Format, Command::Lint, Command::Typecheck]
             .into_iter()
             .filter_map(|phase| request.phase_quality_request(phase, Vec::new()).ok())
@@ -68,7 +68,7 @@ impl SharedChecks {
     /// `raw` is the phase request before `--breaking-against` was resolved and `request` the one
     /// after. `Ok(None)` means the phase runs its own build; `Err` carries the phase's exit after
     /// Bazel could not run.
-    pub(super) fn read(
+    pub(crate) fn read(
         &mut self,
         raw: &QualityRequest,
         request: &QualityRequest,
@@ -110,7 +110,7 @@ impl SharedChecks {
     }
 
     /// Records that one member has read the build events, removing them after the last one.
-    pub(super) fn finish_read(&mut self) {
+    pub(crate) fn finish_read(&mut self) {
         if let Some(build) = &mut self.build {
             build.unread = build.unread.saturating_sub(1);
             if build.unread == 0 {

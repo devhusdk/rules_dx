@@ -1,4 +1,4 @@
-use super::super::test_support::*;
+use super::test_support::*;
 use quality_result::proto::{self, Convergence};
 use quality_result::{decode_validated, encode_validated};
 

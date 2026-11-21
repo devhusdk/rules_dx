@@ -1,4 +1,4 @@
-use super::super::test_support::*;
+use super::test_support::*;
 use dx_digest::blake3 as digest;
 use quality_result::assert_all_equal;
 use quality_result::proto;

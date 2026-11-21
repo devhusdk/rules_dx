@@ -1,4 +1,4 @@
-use super::super::test_support::*;
+use super::test_support::*;
 
 fn aspects_of(argv: &[String]) -> Vec<String> {
     argv.iter()
@@ -113,9 +113,12 @@ fn interrupted_probe_cancels_the_phase_without_a_build() {
     let request = inv.quality_request().expect("quality request");
     let runner = harness.runner();
     let (mut out, mut err) = (Vec::new(), Vec::new());
-    let run =
-        super::execute_quality_phase(&request, harness.env(&runner, &mut out, &mut err), None);
-    assert_eq!(run.kind, super::PhaseKind::Cancelled);
+    let run = dx_exec_quality::execute_quality_phase(
+        &request,
+        harness.env(&runner, &mut out, &mut err),
+        None,
+    );
+    assert_eq!(run.kind, dx_exec_core::common::PhaseKind::Cancelled);
     assert_ne!(run.code, 0);
     assert_eq!(harness.probe_argv.borrow().len(), 1);
     assert!(

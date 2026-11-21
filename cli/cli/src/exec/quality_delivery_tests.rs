@@ -1,5 +1,5 @@
-use super::super::delivery_sink::{Fault, Sink};
-use super::super::test_support::*;
+use super::delivery_sink::{Fault, Sink};
+use super::test_support::*;
 use std::io;
 
 fn harness(name: &str, fixable: bool) -> Harness {

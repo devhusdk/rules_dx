@@ -41,7 +41,10 @@ fn assets(tool: &str) -> Vec<String> {
 /// Windows symbols and SBOMs, the native launcher assets, the native build tools, the dx runtime, the shared libraries and the licences.
 fn manifest() -> String {
     let mut lines = vec![
+        format!("{}  dx-capnp-LICENSE\n", hash(9)),
+        format!("{}  dx-flatc-LICENSE\n", hash(9)),
         format!("{}  dx-oapi-codegen-LICENSE\n", hash(9)),
+        format!("{}  dx-thrift-LICENSE\n", hash(9)),
         format!("{}  dx-tree-sitter-LICENSE\n", hash(9)),
         format!("{}  dx-tree-sitter-pkl-LICENSE\n", hash(9)),
     ];

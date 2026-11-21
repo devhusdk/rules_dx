@@ -3278,6 +3278,7 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "dx_capnproto",
+    build = "//capnproto/private:root.BUILD.bazel",
     patches = [
         "//patches/capnproto:dynamic_cstddef.patch",
         "//patches/capnproto:repo_relative_labels.patch",

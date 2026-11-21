@@ -181,6 +181,15 @@ instead of running the host PHP. Launchers start through a bash script. On
 Windows, a small native launcher starts PHP from a descriptor file beside
 the `.exe`.
 
+The native launcher is the pinned rules_dx launcher for the host. To build
+it from source instead, which needs Rust and C toolchains, add this to the
+root `MODULE.bazel`:
+
+```starlark
+php = use_extension("@rules_dx//php:extensions.bzl", "php")
+php.from_source()
+```
+
 ### Refresh the PHP pins
 
 1. Download each archive from `dl.static-php.dev`.

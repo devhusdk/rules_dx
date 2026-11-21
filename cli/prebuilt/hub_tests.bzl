@@ -2,6 +2,7 @@
 
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":hub.bzl", "GO_TOOLS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "downloads_bzl", "plan_assets", "plan_jars", "plan_native_tools", "plan_python_tools", "plan_root", "valid_sha256", "with_jars", "with_native_tools", "with_python_tools")
+load(":launcher.bzl", "launcher_hub")
 load(":pins.bzl", "DX_VERSION", "PINS", "SCHEMA", "URL_TEMPLATE")
 load(":tools.bzl", "DEV_SOURCE_FALLBACK", "JAR_TOOLS", "NATIVE_TOOLS", "PYTHON_BUNDLE_TOOLS", "TOOLS", "asset_name", "registry_lines", "target_tools")
 
@@ -332,10 +333,28 @@ def _checks():
         expect_equal("the go multicall answers to seven names", sorted(GO_TOOLS.keys()), ["dx_errcheck", "dx_godoc_json", "dx_gofumpt", "dx_gotype", "dx_govet", "dx_modfmt", "dx_staticcheck"]),
     ]
 
+def _launcher_checks():
+    pins = {"launcher": {"linux_x86_64": _HASH}}
+    rooted = launcher_hub("php_launcher", [_mod("rules_dx", True)], "php", pins)
+    pinned = launcher_hub("php_launcher", [_mod("app", True), _mod("rules_dx", False)], "php", pins)
+    sourced = launcher_hub("php_launcher", [_mod("app", True, from_source = True)], "php", pins)
+    middle = launcher_hub("php_launcher", [_mod("app", True), _mod("middle", False, from_source = True)], "php", pins)
+    return [
+        expect_contains("the rules_dx root launcher hub guards the source launcher", rooted.build, 'name = "launcher",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",\n        "//conditions:default": "@rules_dx//cli/launcher:exec_launcher",\n    }),'),
+        expect_equal("the rules_dx root launcher hub downloads nothing", [a.repo for a in rooted.assets if a.repo], []),
+        expect_contains("a pinned launcher hub runs its own download", pinned.build, 'src = "@php_launcher_linux_x86_64//file:launcher",'),
+        expect_contains("a pinned launcher hub selects its download", pinned.build, '":native_linux_x86_64": ":launcher_linux_x86_64",'),
+        expect_false("a consumer launcher hub never names guard_view", "guard_view" in pinned.build),
+        expect_equal("a pinned launcher hub downloads under its own name", [a.repo for a in pinned.assets if a.repo], ["php_launcher_linux_x86_64"]),
+        expect_equal("a root from_source downloads nothing", [a.repo for a in sourced.assets if a.repo], []),
+        expect_false("a root from_source is not guarded", "guard_view" in sourced.build),
+        expect_equal("a non-root from_source is an error", middle.error, "php: only the root module may set from_source tags; middle sets them"),
+    ]
+
 def dx_prebuilt_hub_tests(name):
     """Declares the @dx_prebuilt hub test."""
     starlark_test(
         name = name,
         mode = "load",
-        checks = _checks(),
+        checks = _checks() + _launcher_checks(),
     )

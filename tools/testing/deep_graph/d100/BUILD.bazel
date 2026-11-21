@@ -1,3 +1,10 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/testing/deep_graph:defs.bzl", "deep_graph_chains")
 
 deep_graph_chains(depth = 100)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

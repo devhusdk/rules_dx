@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load(":family_tools.bzl", "tools_registry_bzl")
 
 exports_files(
@@ -11,4 +12,13 @@ write_file(
     out = "tools_registry.bzl.out",
     content = tools_registry_bzl().splitlines() + [""],
     visibility = ["//core/quality:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "family_tools.bzl",
+    ],
+    tags = ["corpus"],
 )

@@ -1508,6 +1508,21 @@ func TestCorpusLeavesFilesALanguageCorpusListsByLabel(t *testing.T) {
 	}
 }
 
+func TestCorpusCoversNewBuildFileFromOtherLanguage(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "tool.py", "")
+	plan := planCorpus(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          root,
+		RegularFiles: []string{"tool.py"},
+		OtherGen:     []*rule.Rule{rule.NewRule("python_library", "tool")},
+	}, false)
+	if len(plan.errs) != 0 || len(plan.gen) != 1 || plan.gen[0].Name() != "corpus_starlark" ||
+		!reflect.DeepEqual(plan.gen[0].AttrStrings("starlark_srcs"), []string{"BUILD.bazel"}) {
+		t.Errorf("generated %v with errors %v, want corpus_starlark over BUILD.bazel", plan.gen, plan.errs)
+	}
+}
+
 func withSubdirs(args language.GenerateArgs) language.GenerateArgs {
 	entries, err := os.ReadDir(args.Dir)
 	if err != nil {

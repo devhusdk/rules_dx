@@ -61,7 +61,10 @@ rust_test(
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "exec_tool.bzl",
+    ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
 )

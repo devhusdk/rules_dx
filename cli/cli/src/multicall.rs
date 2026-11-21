@@ -18,6 +18,7 @@ pub enum Tool {
     CodegenShardWriter,
     DeployTool,
     Capture,
+    CompileCheck,
     ReleaseTree,
     ApiSpecPreflight,
     OapiCodegen,
@@ -113,6 +114,7 @@ pub fn tool_for(argv0: &OsStr) -> Option<Tool> {
 pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
     match arg1.to_str()? {
         "capture" => Some(Tool::Capture),
+        "compile_check" => Some(Tool::CompileCheck),
         "release_tree" => Some(Tool::ReleaseTree),
         "api_spec_preflight" => Some(Tool::ApiSpecPreflight),
         "oapi_codegen" => Some(Tool::OapiCodegen),
@@ -250,6 +252,7 @@ mod tests {
     fn subcommands_pick_their_tool() {
         for (name, tool) in [
             ("capture", Tool::Capture),
+            ("compile_check", Tool::CompileCheck),
             ("release_tree", Tool::ReleaseTree),
             ("api_spec_preflight", Tool::ApiSpecPreflight),
             ("oapi_codegen", Tool::OapiCodegen),
@@ -326,6 +329,7 @@ mod tests {
     fn subcommands_have_no_alias_and_aliases_are_not_subcommands() {
         for name in [
             "capture",
+            "compile_check",
             "release_tree",
             "capture.exe",
             "api_spec_preflight",

@@ -195,7 +195,6 @@ private-visibility swift/private/toolchain/BUILD.bazel
 private-visibility swift/private/tools/BUILD.bazel
 private-visibility typescript/private/playwright/BUILD.bazel
 private-visibility zig/private/tools/BUILD.bazel
-register-label core/quality/sh
 register-label java/private/toolchain
 register-label scala/private/toolchain/hub
 test-location api_spec/private/codegen/BUILD.bazel

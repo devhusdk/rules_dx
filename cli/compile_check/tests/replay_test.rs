@@ -1,13 +1,9 @@
-//! compile_check_exec.sh runs under busybox sh with this binary as the step it replays.
-#![expect(
-    clippy::disallowed_methods,
-    reason = "tests run local programs under the Bazel test timeout"
-)]
+//! `dx compile_check` replays steps that are this binary started with `--fake`.
 
-use dx_testing::{env_file, path_text, scratch_dir};
+use dx_testing::{path_text, scratch_dir};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
+/// Prints argv[0], then the file at argv[2] if one is named, to stderr and exits with argv[1].
 fn fake(args: &[String]) -> ! {
     eprintln!("{}", args[0]);
     if let Some(file) = args.get(2).filter(|f| !f.is_empty()) {
@@ -23,27 +19,27 @@ fn fake(args: &[String]) -> ! {
 }
 
 struct Env {
-    sh: PathBuf,
-    exec_sh: String,
     me: String,
     tmp: PathBuf,
 }
 
 impl Env {
-    fn run(&self, name: &str, options: &[&str], steps: &[&[&str]]) -> bool {
-        let mut cmd = Command::new(&self.sh);
-        cmd.arg(&self.exec_sh)
-            .arg(self.tmp.join(format!("{name}.log")))
-            .arg(self.tmp.join(format!("{name}.exit")))
-            .args(options)
-            .arg("--");
+    fn run(&self, name: &str, options: &[&str], steps: &[&[&str]]) -> i32 {
+        let mut args = vec![
+            self.path(&format!("{name}.log")),
+            self.path(&format!("{name}.exit")),
+        ];
+        args.extend(options.iter().map(|&o| o.to_owned()));
+        args.push("--".to_owned());
         for (i, step) in steps.iter().enumerate() {
             if i > 0 {
-                cmd.arg("--dx-next--");
+                args.push("--dx-next--".to_owned());
             }
-            cmd.arg(&self.me).arg("--fake").args(*step);
+            args.push(self.me.clone());
+            args.push("--fake".to_owned());
+            args.extend(step.iter().map(|&s| s.to_owned()));
         }
-        cmd.status().expect("run compile_check_exec.sh").success()
+        dx_compile_check::run_process(&args)
     }
 
     fn read(&self, name: &str) -> String {
@@ -67,15 +63,14 @@ fn main() {
         fake(&args[2..]);
     }
     let env = Env {
-        sh: env_file("BUSYBOX_SH"),
-        exec_sh: path_text(&env_file("COMPILE_CHECK_EXEC")),
         me: path_text(&std::env::current_exe().expect("current exe")),
-        tmp: scratch_dir("compile_check_exec"),
+        tmp: scratch_dir("compile_check"),
     };
 
-    assert!(
+    assert_eq!(
         env.run("a", &[], &[&["one", "0"], &["two", "3"]]),
-        "helper exits 0"
+        0,
+        "the replay exits 0"
     );
     assert_eq!(env.read("a.exit"), "3", "status is the last exit code");
     assert_eq!(env.read("a.log"), "one\ntwo", "both steps log");
@@ -104,31 +99,11 @@ fn main() {
         "File \"p/m.ml\", line 2, X and aXb",
         "aliases are fixed strings"
     );
-    env.run(
-        "c2",
-        &["--alias", "dir with space/x", "y"],
-        &[&["in dir with space/x:1", "1"]],
-    );
-    assert_eq!(env.read("c2.log"), "in y:1", "aliases handle spaces");
-
-    env.run(
-        "c3",
-        &["--alias", "bazel-out/k8/bin/_ocaml/foo.ml", "R&D/foo.ml"],
-        &[&[
-            "File \"bazel-out/k8/bin/_ocaml/foo.ml\", line 1: Error",
-            "1",
-        ]],
-    );
-    assert_eq!(
-        env.read("c3.log"),
-        "File \"R&D/foo.ml\", line 1: Error",
-        "ampersand in alias"
-    );
 
     std::fs::write(env.tmp.join("flags"), "-a\n-b\n").expect("write flags");
     let flags = env.path("flags");
     let flags_out = env.path("flags.out");
-    assert!(
+    assert_eq!(
         env.run(
             "d",
             &[
@@ -136,6 +111,7 @@ fn main() {
             ],
             &[&["x", "0", &flags]]
         ),
+        0,
         "append exits 0"
     );
     assert_eq!(env.read("flags"), "-a\n-b", "the original is unchanged");
@@ -143,6 +119,11 @@ fn main() {
         env.read("flags.out"),
         "-a\n-b\n-c\n-d e",
         "append adds one line per flag"
+    );
+    assert_eq!(
+        env.read("d.log"),
+        "x\n-a\n-b\n-c\n-d e",
+        "the step reads the copy"
     );
 
     let none_out = env.path("none.out");
@@ -153,10 +134,30 @@ fn main() {
         &[&["x", "0", &missing]],
     );
     assert_eq!(env.read("e.exit"), "2", "missing append source is an error");
+    assert_eq!(
+        env.read("e.log"),
+        "compile_check: no file at argv[4] to append to"
+    );
 
-    assert!(
-        !env.run("f", &["--bogus"], &[&["x", "0"]]),
+    assert_eq!(
+        env.run("f", &["--bogus"], &[&["x", "0"]]),
+        2,
         "unknown option must fail"
+    );
+
+    let unwritable = env.path("no/such/dir/g.log");
+    assert_eq!(
+        dx_compile_check::run_process(&[
+            unwritable,
+            env.path("g.exit"),
+            "--".to_owned(),
+            env.me.clone(),
+            "--fake".to_owned(),
+            "x".to_owned(),
+            "0".to_owned(),
+        ]),
+        1,
+        "an unwritable log fails the replay"
     );
     println!("PASS");
 }

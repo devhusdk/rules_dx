@@ -1478,19 +1478,6 @@ dx_pins.archive(
     pins = "//cc:pins.json",
 )
 dx_pins.archive(
-    name = "dx_busybox_sh",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
-    name = "dx_busybox_sh_linux_arm64",
-    build = "//core/quality/sh:busybox_apk.BUILD.bazel",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
-    name = "dx_busybox_sh_windows",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
     name = "dx_selene_src",
     build = "//rust/private:selene.BUILD.bazel",
     pins = "//rust:pins.json",
@@ -1580,9 +1567,6 @@ use_repo(
     "cosign_windows_x86_64",
     "cpp_app_fmt",
     "cuda_redistrib_json",
-    "dx_busybox_sh",
-    "dx_busybox_sh_linux_arm64",
-    "dx_busybox_sh_windows",
     "dx_coreutils",
     "dx_coreutils__linux_arm64",
     "dx_coreutils__linux_x86_64",
@@ -2110,12 +2094,6 @@ zig_hub.lock(
     lock = "//zig/tests/fixtures/zig_deps:zig.lock.json",
 )
 use_repo(zig_hub, "zig_zig.tests.fixtures.zig_deps")
-
-register_toolchains(
-    "//core/quality/sh:busybox_sh_linux_arm64",
-    "//core/quality/sh:busybox_sh_linux_x86_64",
-    "//core/quality/sh:busybox_sh_windows_x86_64",
-)
 
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.5.0")

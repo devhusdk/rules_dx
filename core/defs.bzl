@@ -105,10 +105,6 @@ load(
     _php_doc_shard = "php_doc_shard",
 )
 load(
-    "//tools/docs/protobuf:defs.bzl",
-    _protobuf_doc_shard = "protobuf_doc_shard",
-)
-load(
     "//tools/docs/site:site.bzl",
     _docs_site = "docs_site",
 )
@@ -168,7 +164,6 @@ phpstan_config = _phpstan_config
 pkl_library = _pkl_library
 pmd_config = _pmd_config
 prettier_config = _prettier_config
-protobuf_doc_shard = _protobuf_doc_shard
 psscriptanalyzer_config = _psscriptanalyzer_config
 pydoclint_config = _pydoclint_config
 qmlformat_config = _qmlformat_config

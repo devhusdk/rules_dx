@@ -1,6 +1,6 @@
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//tools/docs/protobuf:defs.bzl", "protobuf_doc_shard")
+load("//tools/docs/protobuf:defs.bzl", "api_spec_protobuf_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -25,7 +25,7 @@ proto_library(
     deps = [":common_proto"],
 )
 
-protobuf_doc_shard(
+api_spec_protobuf_doc_shard(
     name = "shop_docs",
     testonly = True,
     package = "shop",

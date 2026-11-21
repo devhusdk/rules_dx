@@ -4,7 +4,15 @@ use std::path::Path;
 use tempfile::TempDir;
 
 /// The per-platform tools release.yml adds to the dx manifest, one asset per platform each.
-const PLATFORM_TOOLS: [&str; 7] = ["capnp", "flatc", "go", "ldoc_main", "oapi_codegen", "runtime", "thrift"];
+const PLATFORM_TOOLS: [&str; 7] = [
+    "capnp",
+    "flatc",
+    "go",
+    "ldoc_main",
+    "oapi_codegen",
+    "runtime",
+    "thrift",
+];
 
 /// The tools release.yml adds to the dx manifest from the Windows cells only.
 const WINDOWS_TOOLS: [&str; 1] = ["msvc_link"];

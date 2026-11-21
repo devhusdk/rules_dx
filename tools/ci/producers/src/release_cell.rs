@@ -395,7 +395,11 @@ fn rebuild_cell(
     };
     let no_cache = ["--disk_cache=", "--remote_cache="];
     let mut rebuilt_targets = vec![format!("{RELEASE}:dx_host_cell"), LAUNCHER.to_owned()];
-    rebuilt_targets.extend(cell_tools(&env.cell).iter().map(|tool| tool.label.to_owned()));
+    rebuilt_targets.extend(
+        cell_tools(&env.cell)
+            .iter()
+            .map(|tool| tool.label.to_owned()),
+    );
     rebuilt_targets.extend(
         libraries(&env.cell)
             .iter()
@@ -630,8 +634,8 @@ pub fn cell(args: &[String]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        cell_tools, is_macos, libraries, library_asset_name, library_licenses, native_licenses,
-        source_file, symbols_name, tool_asset_name, NATIVE_TOOLS,
+        NATIVE_TOOLS, cell_tools, is_macos, libraries, library_asset_name, library_licenses,
+        native_licenses, source_file, symbols_name, tool_asset_name,
     };
     use std::path::Path;
 
@@ -756,7 +760,14 @@ mod tests {
         for cell in ["dx-windows-arm64", "dx-windows-x86_64"] {
             assert_eq!(
                 tools(cell),
-                ["capnp", "flatc", "ldoc-main", "runtime", "thrift", "msvc-link"],
+                [
+                    "capnp",
+                    "flatc",
+                    "ldoc-main",
+                    "runtime",
+                    "thrift",
+                    "msvc-link"
+                ],
                 "{cell}"
             );
         }

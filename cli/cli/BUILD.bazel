@@ -426,7 +426,6 @@ rust_test(
         "//cli/update:dx_update",
         "//cli/worktree:dx_worktree",
         "//core/quality/result:quality_result",
-        "//core/quality/runner:quality_runner_lib",
         "//tools/docs/site/aggregate:dx_site_aggregate",
         "//tools/docs/site/build:dx_site_build",
         "//tools/testing:dx_testing",

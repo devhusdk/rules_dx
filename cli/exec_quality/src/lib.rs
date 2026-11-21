@@ -12,7 +12,7 @@
 mod breaking_base;
 pub mod check_build;
 mod generated_drift;
-pub mod link_check;
+mod link_check;
 mod quality_apply;
 mod quality_emit;
 mod quality_patch;

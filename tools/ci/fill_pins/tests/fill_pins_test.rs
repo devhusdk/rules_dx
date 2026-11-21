@@ -6,8 +6,9 @@ use tempfile::TempDir;
 /// The per-platform tools release.yml adds to the dx manifest, one asset per platform each.
 const PLATFORM_TOOLS: [&str; 6] = ["capnp", "flatc", "go", "oapi_codegen", "runtime", "thrift"];
 
-/// The shared libraries release.yml adds to the dx manifest from the windows-arm64 cell, with their licences.
-const LIBRARY_TOOLS: [&str; 2] = ["tree_sitter", "tree_sitter_pkl"];
+/// The shared libraries release.yml adds to the dx manifest, with their licences: tree-sitter
+/// from the windows-arm64 cell and pcov from the linux and macOS cells.
+const LIBRARY_TOOLS: [&str; 3] = ["pcov", "tree_sitter", "tree_sitter_pkl"];
 
 const REPO: &str = "devhusdk/rules_dx";
 const NATIVE_TOOLS: [&str; 2] = ["progenitor", "topiary"];
@@ -44,6 +45,7 @@ fn manifest() -> String {
         format!("{}  dx-capnp-LICENSE\n", hash(9)),
         format!("{}  dx-flatc-LICENSE\n", hash(9)),
         format!("{}  dx-oapi-codegen-LICENSE\n", hash(9)),
+        format!("{}  dx-pcov-LICENSE\n", hash(9)),
         format!("{}  dx-thrift-LICENSE\n", hash(9)),
         format!("{}  dx-tree-sitter-LICENSE\n", hash(9)),
         format!("{}  dx-tree-sitter-pkl-LICENSE\n", hash(9)),
@@ -263,7 +265,17 @@ fn writes_one_pin_per_tool_and_platform_and_keeps_the_head() {
             .filter(|e| e.tool == tool)
             .map(|e| (e.key, hash(5)))
             .collect();
-        assert_eq!(keys, [("windows_arm64".to_owned(), hash(5))]);
+        let want: &[&str] = if tool == "pcov" {
+            &["linux_arm64", "linux_x86_64", "macos_arm64"]
+        } else {
+            &["windows_arm64"]
+        };
+        assert_eq!(
+            keys,
+            want.iter()
+                .map(|key| ((*key).to_owned(), hash(5)))
+                .collect::<Vec<_>>()
+        );
         by_tool.insert(tool.to_owned(), keys);
     }
     assert!(by_tool.contains_key("javac_check"));

@@ -88,6 +88,10 @@ def _checks():
     tree_sitter = plan_native_tools("1.2.3", {"tree_sitter": {"windows_arm64": _HASH}}, URL_TEMPLATE, {})
     tree_sitter_build = with_native_tools(alias_build(SOURCE_LABEL), tree_sitter, consumer = True)
     tree_sitter_windows_arm = tree_sitter["tree_sitter"][0]
+    pcov = plan_native_tools("1.2.3", {"pcov": {"linux_x86_64": _HASH, "macos_arm64": _HASH}}, URL_TEMPLATE, {})
+    pcov_build = with_native_tools(alias_build(SOURCE_LABEL), pcov, consumer = True)
+    pcov_linux = [a for a in pcov["pcov"] if a.key == "linux_x86_64"][0]
+    pcov_guard = with_native_tools(alias_build(SOURCE_LABEL, guard = True), plan_native_tools("1.2.3", {}, URL_TEMPLATE, {}), guard = True)
     tree_sitter_root = plan_root([_mod("app", True, assets = [_tag(name = "tree_sitter", os = "windows", cpu = "aarch64")])], tools = ["dx", "go"] + NATIVE_TOOLS)
     python_unpinned_build = with_python_tools(unpinned_build, plan_python_tools("1.2.3", {}, URL_TEMPLATE, {}))
     python_pins = {"python_tools": {"linux_x86_64": _HASH, "windows_arm64": _HASH, "windows_x86_64": _HASH}}
@@ -111,7 +115,16 @@ def _checks():
         expect_false("a tree-sitter download is not executable", tree_sitter_windows_arm.executable),
         expect_true("a native tool download is executable", topiary_windows_arm.executable),
         expect_equal("a root asset may name tree-sitter", tree_sitter_root.overrides.keys(), ["tree_sitter"]),
-        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]),
+        expect_equal("pcov assets", [asset_name("pcov", k) for k in TOOLS["pcov"].platforms], ["dx-pcov-linux-arm64.so", "dx-pcov-linux-x86_64.so", "dx-pcov-macos-arm64.so"]),
+        expect_equal("pcov ships with the target", TOOLS["pcov"].role, "target"),
+        expect_contains("the registry lists pcov for fill_pins", registry_lines(), "pcov linux_x86_64 dx-pcov-linux-x86_64.so"),
+        expect_contains("a pinned pcov selects the downloaded file", pcov_build, '":native_linux_x86_64": "@dx_pcov_prebuilt_linux_x86_64//file:pcov.so",'),
+        expect_contains("a pinned pcov builds from source elsewhere", pcov_build, '"//conditions:default": "@dx_php_pcov//:pcov.so",'),
+        expect_false("pcov gets no native_binary", "pcov_linux_x86_64" in pcov_build),
+        expect_equal("a pcov download keeps the loaded file name", pcov_linux.exe, "pcov.so"),
+        expect_false("a pcov download is not executable", pcov_linux.executable),
+        expect_contains("a guarded unpinned pcov selects the stub", pcov_guard, 'name = "pcov",\n    actual = select({\n        "@rules_dx//cli/prebuilt:guard_view_set": "@rules_dx//cli/prebuilt:guard_stub",\n        "//conditions:default": "@dx_php_pcov//:pcov.so",\n    }),'),
+        expect_equal("the native tools", NATIVE_TOOLS, ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "pcov", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]),
         expect_equal("runtime assets", [asset_name("runtime", k) for k in TOOLS["runtime"].platforms], ["dx-runtime-linux-arm64", "dx-runtime-linux-x86_64", "dx-runtime-macos-arm64", "dx-runtime-windows-arm64", "dx-runtime-windows-x86_64"]),
         expect_equal("the runtime runs on the target platform", TOOLS["runtime"].role, "target"),
         expect_contains("the registry lists the runtime for fill_pins", registry_lines(), "runtime windows_arm64 dx-runtime-windows-arm64"),
@@ -126,8 +139,8 @@ def _checks():
         expect_contains("the registry lists oapi-codegen for fill_pins", registry_lines(), "oapi_codegen linux_arm64 dx-oapi-codegen-linux-arm64"),
         expect_equal("capnp assets", [asset_name("capnp", k) for k in TOOLS["capnp"].platforms], ["dx-capnp-linux-arm64", "dx-capnp-linux-x86_64", "dx-capnp-macos-arm64", "dx-capnp-windows-arm64", "dx-capnp-windows-x86_64"]),
         expect_contains("the registry lists the code generators for fill_pins", registry_lines(), "thrift macos_arm64 dx-thrift-macos-arm64"),
-        expect_equal("native tools run on the exec platform except hpc_lcov, kcov, launcher and runtime", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov", "kcov", "launcher", "runtime"]),
-        expect_equal("the target tools", target_tools(), ["hpc_lcov", "kcov", "launcher", "runtime"]),
+        expect_equal("native tools run on the exec platform except hpc_lcov, kcov, launcher, pcov and runtime", [t for t in NATIVE_TOOLS if TOOLS[t].role != "exec"], ["hpc_lcov", "kcov", "launcher", "pcov", "runtime"]),
+        expect_equal("the target tools", target_tools(), ["hpc_lcov", "kcov", "launcher", "pcov", "runtime"]),
         expect_equal("release tool assets", [asset_name(t, k) for t in ["deadnix", "selene", "nixfmt", "kcov"] for k in TOOLS[t].platforms], ["dx-deadnix-linux-arm64", "dx-deadnix-linux-x86_64", "dx-deadnix-macos-arm64", "dx-deadnix-windows-x86_64", "dx-selene-linux-arm64", "dx-selene-linux-x86_64", "dx-selene-macos-arm64", "dx-selene-windows-x86_64", "dx-nixfmt-linux-arm64", "dx-nixfmt-macos-arm64", "dx-kcov-linux-arm64", "dx-kcov-linux-x86_64"]),
         expect_equal("python bundle assets", [asset_name("python_tools", k) for k in TOOLS["python_tools"].platforms], ["dx-python-tools-linux-arm64.tar.gz", "dx-python-tools-linux-x86_64.tar.gz", "dx-python-tools-macos-arm64.tar.gz", "dx-python-tools-windows-arm64.tar.gz", "dx-python-tools-windows-x86_64.tar.gz"]),
         expect_contains("the registry lists the python bundle for fill_pins", registry_lines(), "python_tools windows_arm64 dx-python-tools-windows-arm64.tar.gz"),

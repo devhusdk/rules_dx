@@ -37,7 +37,7 @@ def _checks():
         expect_equal("windows constraints", PHP_CELLS["windows_x86_64"].exec_compatible_with, ["@platforms//os:windows", "@platforms//cpu:x86_64"]),
         expect_equal("windows interpreter", PHP_CELLS["windows_x86_64"].interpreter, "php.exe"),
         expect_equal("unix interpreters", [PHP_CELLS[c].interpreter for c in ["linux_arm64", "linux_x86_64", "macos_arm64"]], ["php", "php", "php"]),
-        expect_contains("a pcov runtime names the extension", runtime_build(PHP_VERSION, "php", True), 'pcov = "@dx_php_pcov//:pcov.so",'),
+        expect_contains("a pcov runtime names the extension", runtime_build(PHP_VERSION, "php", True), 'pcov = "@dx_prebuilt//:pcov",'),
         expect_contains("a runtime without pcov names none", runtime_build(PHP_VERSION), "pcov = None,"),
         expect_equal("every cell loads pcov", sorted([c for c in PHP_CELLS if PHP_CELLS[c].pcov]), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"]),
         expect_equal("windows has a separate coverage runtime", sorted(_PHP["coverage"].keys()), ["windows_x86_64"]),

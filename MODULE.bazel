@@ -2095,7 +2095,7 @@ luarocks.lock(
 use_repo(luarocks, "rocks_lua.tests.luarocks")
 
 php = use_extension("//php:extensions.bzl", "php")
-use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_phpunit", "dx_unused_public", "dx_webmozart_assert")
+use_repo(php, "dx_composer", "dx_php_pcov", "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_phpunit", "dx_unused_public", "dx_webmozart_assert")
 
 register_toolchains("@dx_php_toolchains//:all")
 

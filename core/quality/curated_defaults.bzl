@@ -48,6 +48,12 @@ OTHER_DEFAULTS = {
         "lint": ["deadnix", "typos"],
         "typecheck": [],
     },
+    "objc": {
+        "audit": [],
+        "format": ["clang_format"],
+        "lint": ["typos"],
+        "typecheck": ["clang_syntax"],
+    },
     "oci_image": {
         "audit": [],
         "format": [],

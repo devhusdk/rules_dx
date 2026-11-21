@@ -1428,14 +1428,14 @@ perl_subject(
     name = "perl_subject",
     testonly = True,
     tags = ["manual"],
-    target = "//perl/tests/runtime:dx_probe",
+    target = "//perl/tests/fixtures/runtime:dx_probe",
 )
 
 perl_lint_subject(
     name = "perl_lint_subject",
     testonly = True,
     tags = ["manual"],
-    target = "//perl/tests/runtime:dx_probe",
+    target = "//perl/tests/fixtures/runtime:dx_probe",
 )
 
 zig_subject(

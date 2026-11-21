@@ -27,7 +27,7 @@ load(":coverage.bzl", "QT_COVERAGE_TRANSITION", "QtCoverageProbeInfo", "qt_cover
 load(":generate.bzl", _qt_generate = "qt_generate")
 load(":platform.bzl", "QT_PLATFORMS_ATTR", "QT_PLATFORM_TRANSITION")
 load(":providers.bzl", "QtInfo")
-load(":rust_bridge.bzl", _qt_rust_bridge = "qt_rust_bridge", _qt_rust_runtime_files = "qt_rust_runtime_files")
+load(":rust_bridge.bzl", _qt_rust_bridge = "qt_rust_bridge", _qt_rust_crate = "qt_rust_crate", _qt_rust_runtime_files = "qt_rust_runtime_files")
 load(":text.bzl", _qt_framework_path = "qt_framework_path", _qt_identifier = "qt_identifier", _qt_module_path = "qt_module_path", _qt_package_path = "qt_package_path", _qt_qmldir = "qt_qmldir", _qt_qrc = "qt_qrc", _qt_version_parts = "qt_version_parts")
 
 QT_CONF = _QT_CONF
@@ -597,6 +597,13 @@ def qt_rust_cc_library(
         visibility = visibility,
         **shared
     )
+    _qt_rust_crate(
+        name = name + "_crate",
+        crate = rust,
+        tags = kwargs.get("tags", None),
+        visibility = visibility,
+        **shared
+    )
     _output_group(name + "_bridge_hdrs", ":" + name + "_bridge", "qt_rust_hdrs", testonly)
     _output_group(name + "_bridge_moc", ":" + name + "_bridge", "qt_rust_moc_hdrs", testonly)
     _output_group(name + "_bridge_srcs", ":" + name + "_bridge", "qt_rust_srcs", testonly)
@@ -609,7 +616,7 @@ def qt_rust_cc_library(
         [],
         "/",
         [],
-        cc_deps + [rust, qt + "//:cxx_qt"],
+        cc_deps + [":" + name + "_crate", qt + "//:cxx_qt"],
         modules if modules != None else (["qml"] if uri != None else ["core"]),
         qt,
         qml_srcs,

@@ -60,11 +60,11 @@ jobs:
             fi
           }
           bazel test //lua/tests:selene_smoke_test
-          bazel build "${flags[@]}" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene
-          bazel build "${flags[@]}" //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor
-          root="$(bazel info "${flags[@]}" execution_root)"
+          bazel build ${flags[@]+"${flags[@]}"} //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene
+          bazel build ${flags[@]+"${flags[@]}"} //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor
+          root="$(bazel info ${flags[@]+"${flags[@]}"} execution_root)"
           for tool in topiary progenitor deadnix selene; do
-            cp "$root/$(bazel cquery "${flags[@]}" --output=files "//rust/private/quality/tools:$tool")" "$out/dx-$tool-$host"
+            cp "$root/$(bazel cquery ${flags[@]+"${flags[@]}"} --output=files "//rust/private/quality/tools:$tool")" "$out/dx-$tool-$host"
             chmod +x "$out/dx-$tool-$host"
           done
           if test "$host" = "macos-arm64"; then
@@ -85,7 +85,7 @@ jobs:
               done
               "$out/dx-deadnix-$host" --version
               "$out/dx-selene-$host" --version
-              bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism-rust" "${flags[@]}" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor
+              bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism-rust" ${flags[@]+"${flags[@]}"} //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor
               ;;
           esac
           download="$(mktemp -d)"
@@ -347,10 +347,10 @@ jobs:
           for tool in "${tools[@]}"; do
             targets+=("${tool%% *}")
           done
-          bazel build "${flags[@]}" "${targets[@]}"
-          root="$(bazel info "${flags[@]}" execution_root)"
+          bazel build ${flags[@]+"${flags[@]}"} "${targets[@]}"
+          root="$(bazel info ${flags[@]+"${flags[@]}"} execution_root)"
           for tool in "${tools[@]}"; do
-            built="$(bazel cquery "${flags[@]}" --output=files "${tool%% *}" | grep -v '\.sh$' | head -n 1)"
+            built="$(bazel cquery ${flags[@]+"${flags[@]}"} --output=files "${tool%% *}" | grep -v '\.sh$' | head -n 1)"
             cp "$root/$built" "$out/${tool#* }"
             chmod +x "$out/${tool#* }"
             case "$HOST" in
@@ -370,7 +370,7 @@ jobs:
             esac
           done
           case "$HOST" in
-            linux-*) bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "${flags[@]}" "${targets[@]}" ;;
+            linux-*) bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" ${flags[@]+"${flags[@]}"} "${targets[@]}" ;;
           esac
           check="$RUNNER_TEMP/weeder-check"
           case "$HOST" in windows-*) check="$check.exe" ;; esac
@@ -460,9 +460,9 @@ jobs:
           case "$HOST" in
             linux-arm64) flags=(--platforms=//tools/platforms:linux_arm64_musl --features=fully_static_link) ;;
           esac
-          bazel build "${flags[@]}" "$TARGET"
-          root="$(bazel info "${flags[@]}" execution_root)"
-          built="$(bazel cquery "${flags[@]}" --output=files "$TARGET" | grep -v '\.sh$' | head -n 1)"
+          bazel build ${flags[@]+"${flags[@]}"} "$TARGET"
+          root="$(bazel info ${flags[@]+"${flags[@]}"} execution_root)"
+          built="$(bazel cquery ${flags[@]+"${flags[@]}"} --output=files "$TARGET" | grep -v '\.sh$' | head -n 1)"
           asset="dx-$TOOL-$HOST"
           cp "$root/$built" "$out/$asset"
           chmod +x "$out/$asset"
@@ -472,7 +472,7 @@ jobs:
                 echo "$asset is dynamically linked" >&2
                 exit 1
               fi
-              bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "${flags[@]}" "$TARGET"
+              bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" ${flags[@]+"${flags[@]}"} "$TARGET"
               ;;
             macos-*)
               if otool -L "$out/$asset" | grep -q libHS; then

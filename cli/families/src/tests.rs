@@ -73,7 +73,7 @@ fn every_quality_language_is_wanted_by_a_file() {
 #[test]
 fn every_language_aspect_label_is_listed_once() {
     let mut seen = std::collections::BTreeSet::new();
-    for language in quality_languages() {
+    for language in core_quality().iter().chain(quality_languages()) {
         for command in ["format", "lint", "typecheck"] {
             for probes in [false, true] {
                 // A helper aspect like android_sdk_aspect feeds the real aspects of several commands.
@@ -88,6 +88,38 @@ fn every_language_aspect_label_is_listed_once() {
         }
     }
     assert!(seen.len() > 100);
+}
+
+#[test]
+fn core_entries_ship_apart_from_the_languages() {
+    let core = core_quality();
+    assert_eq!(
+        core.first().map(|files| files.bzl.as_str()),
+        Some("core/quality:families/core.bzl")
+    );
+    for files in core {
+        assert!(
+            !files.aspects.is_empty() || !files.probes.is_empty(),
+            "{}",
+            files.bzl
+        );
+        // A language may share a core file, as asciidoc shares core.bzl, without naming aspects.
+        assert!(
+            quality_languages()
+                .iter()
+                .all(|language| language.bzl != files.bzl
+                    || (language.aspects.is_empty() && language.probes.is_empty())),
+            "{} names aspects in core_aspects.json and in a lang.json",
+            files.bzl
+        );
+    }
+    assert_eq!(
+        core_docs()
+            .iter()
+            .flat_map(DocsFiles::labels)
+            .collect::<Vec<_>>(),
+        vec!["tools/docs:aspect.bzl%real_docs_aspect".to_owned()]
+    );
 }
 
 #[test]

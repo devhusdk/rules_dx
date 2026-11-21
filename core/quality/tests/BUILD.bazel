@@ -90,6 +90,7 @@ rust_test(
     srcs = ["core_load_graph_test.rs"],
     data = [
         "//:MODULE.bazel",
+        "//cli/families:languages.json",
         "//config:BUILD.bazel",
         "//core/quality:family_bzls",
         "@dx_test_tags_sources//:files.json",

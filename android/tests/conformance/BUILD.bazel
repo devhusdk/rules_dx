@@ -1,7 +1,8 @@
 load("//android:defs.bzl", "android_java_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
-load("//tools/testing/conformance:quality.bzl", "java_format_subject", "java_lint_subject")
+load("//tools/testing/conformance:quality.bzl", "java_format_subject")
+load(":subjects.bzl", "android_lint_subject")
 
 package(
     default_testonly = True,
@@ -56,13 +57,16 @@ dx_conformance_suite(
         "lint_line": 4,
         "lint_rule": "UnusedPrivateMethod",
         "lint_source": "LintDirty.java",
-        "lint_subject": java_lint_subject,
+        "lint_subject": android_lint_subject,
     },
 )
 
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "subjects.bzl",
+    ],
     tags = ["corpus"],
 )

@@ -408,7 +408,7 @@ fn run_quality_request(
     // An unreadable MODULE.bazel gives no deps, and the rules_dx root carries every family.
     let deps: Vec<String> = dx_adopt::module_deps(env.workspace).into_iter().collect();
     let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(env.workspace))
-        .then(|| dx_adopt::file_extensions(env.workspace));
+        .then(|| dx_adopt::quality_marks(env.workspace));
     let consumer = extensions
         .as_ref()
         .map(|extensions| Consumer { extensions });

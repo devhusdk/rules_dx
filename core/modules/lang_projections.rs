@@ -208,6 +208,12 @@ fn aspect_names(value: &Value) -> Result<Vec<String>, String> {
         .collect()
 }
 
+/// Whether `name` is a shard aspect. Others, like `android_sdk_aspect`, only provide for the shards
+/// after them.
+fn is_shard(name: &str) -> bool {
+    name.starts_with("real_")
+}
+
 /// Every (bzl label, aspect) pair a lang.json names under quality and docs.
 fn lang_aspects(manifest: &Value) -> Result<Vec<(String, String)>, String> {
     let mut found = Vec::new();
@@ -247,7 +253,7 @@ fn all_languages_bzl(manifests: &BTreeMap<String, Value>, current: &str) -> Resu
         if let Some(groups @ Value::Object(_)) =
             manifest.get("quality").and_then(|q| q.get("aspects"))
         {
-            shard_aspects.extend(aspect_names(groups)?);
+            shard_aspects.extend(aspect_names(groups)?.into_iter().filter(|n| is_shard(n)));
         }
     }
     let mut by_label: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
@@ -290,7 +296,13 @@ fn conformance_quality_bzl(manifests: &BTreeMap<String, Value>) -> Result<String
             else {
                 continue;
             };
-            let names = aspect_names(names)?;
+            let names: Vec<String> = aspect_names(names)?
+                .into_iter()
+                .filter(|n| is_shard(n))
+                .collect();
+            if names.is_empty() {
+                continue;
+            }
             let label = str_at(&quality["bzl"], "quality.bzl")?;
             let (package, file) = label
                 .split_once(':')
@@ -519,6 +531,31 @@ mod tests {
             "{text}"
         );
         assert!(!text.contains("\"real_py_lint_probe\""), "{text}");
+    }
+
+    #[test]
+    fn helper_aspects_get_no_shard_and_no_conformance_subject() {
+        let mut manifests = BTreeMap::new();
+        manifests.insert(
+            "sdk".to_owned(),
+            serde_json::json!({
+                "name": "sdk",
+                "quality": {
+                    "bzl": "sdk/private/quality:sdk.bzl",
+                    "file_extensions": [],
+                    "licenses": ["sdk-eula"],
+                    "aspects": {"lint": ["sdk_aspect"], "typecheck": ["sdk_aspect"]}
+                }
+            }),
+        );
+        let current = format!(
+            "{LOADS_BEGIN}{LOADS_END}{EXPORTS_BEGIN}{EXPORTS_END}{SHARDS_BEGIN}{SHARDS_END}"
+        );
+        let text = all_languages_bzl(&manifests, &current).unwrap();
+        assert!(text.contains("sdk_aspect = _sdk_aspect"), "{text}");
+        assert!(!text.contains("\"sdk\": _sdk_aspect"), "{text}");
+        let conformance = conformance_quality_bzl(&manifests).unwrap();
+        assert!(!conformance.contains("sdk"), "{conformance}");
     }
 
     #[test]

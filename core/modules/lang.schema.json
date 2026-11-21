@@ -96,6 +96,7 @@
         },
         "file_extensions": {"$ref": "#/$defs/strings"},
         "file_names": {"$ref": "#/$defs/strings"},
+        "licenses": {"$ref": "#/$defs/strings"},
         "aspects": {"$ref": "#/$defs/commands"},
         "probes": {"$ref": "#/$defs/commands"}
       }

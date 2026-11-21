@@ -30,6 +30,21 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "aspects": {
+        "lint": [
+          "android_sdk_aspect"
+        ],
+        "typecheck": [
+          "android_sdk_aspect"
+        ]
+      },
+      "bzl": "android/private/quality:android_sdk.bzl",
+      "file_extensions": [],
+      "licenses": [
+        "android-sdk-license"
+      ]
+    },
     "setup": {
       "licenses": [
         {

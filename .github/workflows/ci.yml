@@ -55,6 +55,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: dx-reports-coverage-*
@@ -104,6 +105,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Prove dx init scaffold matches checked-in definition
         run: |
           # shellcheck disable=SC2086
@@ -135,6 +137,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Allow unprivileged user namespaces
         run: |
           if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
@@ -219,6 +222,7 @@ jobs:
         id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
           locate-repository-cache: "true"
       - name: Qualify the consumer without installs or network
         run: |
@@ -262,6 +266,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Deny the host MSVC trees to hermetic runs
         run: |
           denies=()
@@ -313,6 +318,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Lint the platform-specific process crates with the .bazelrc clippy deny set
         run: |
           # shellcheck disable=SC2086
@@ -424,6 +430,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Cross-build the ARM64 fixtures with GCC
         run: |
           # shellcheck disable=SC2086
@@ -519,6 +526,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Cross-build the linux_arm64 conformance binaries with LLVM
         run: |
           test "$(uname -s)" = Darwin
@@ -587,6 +595,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Cross-build the ARM64 app with MSVC
         run: |
           # shellcheck disable=SC2086
@@ -667,6 +676,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Cross-build the Windows conformance binaries with LLVM
         run: |
           # shellcheck disable=SC2086
@@ -736,6 +746,7 @@ jobs:
         id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
           locate-repository-cache: "true"
       - name: Allow unprivileged user namespaces
         run: |
@@ -802,6 +813,7 @@ jobs:
         id: setup
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
           locate-repository-cache: "true"
       - name: Allow unprivileged user namespaces
         if: runner.os == 'Linux'
@@ -874,6 +886,7 @@ jobs:
         if: steps.changes.outputs.run == 'true'
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Install and launch the signed package
         if: steps.changes.outputs.run == 'true'
         run: |
@@ -921,6 +934,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Build the bootstrap closure
         id: bootstrap-build
         run: |
@@ -1097,6 +1111,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Run the quality runner matrix
         env:
           QUALITY_TARGETS: ${{ matrix.quality }}
@@ -1169,6 +1184,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Run the Julia standalone and tool tests
         run: |
           # shellcheck disable=SC2086
@@ -1218,6 +1234,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - name: Validate workflow semantics with the pinned actionlint
         run: |
           # shellcheck disable=SC2086
@@ -1278,6 +1295,7 @@ jobs:
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: ${{ github.event_name != 'pull_request' }}
+          disk-cache: ${{ env.BUILDBUDDY_API_KEY == '' && format('{0}-{1}', github.job, strategy.job-index) || 'false' }}
       - uses: ./.github/actions/gate
       - name: Check generated Rust BUILD files
         if: ${{ !cancelled() }}

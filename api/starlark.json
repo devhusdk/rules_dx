@@ -1271,7 +1271,7 @@
             "name": "tags"
           },
           {
-            "default": "False",
+            "default": "None",
             "mandatory": false,
             "name": "testonly"
           },
@@ -10642,6 +10642,12 @@
             "type": "STRING"
           },
           {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "output_dir",
+            "type": "STRING"
+          },
+          {
             "default": "\"app_localizations.dart\"",
             "mandatory": false,
             "name": "output_localization_file",
@@ -10711,26 +10717,78 @@
           {
             "attrs": [
               {
-                "default": "False",
-                "mandatory": false,
-                "name": "allow_upgrade_by_dependencies",
-                "type": "BOOLEAN"
-              },
-              {
                 "default": "None",
                 "mandatory": false,
-                "name": "engine",
+                "name": "checkout",
                 "type": "LABEL"
+              },
+              {
+                "default": "\"FLUTTER_LOCAL_ENGINES\"",
+                "mandatory": false,
+                "name": "engines_env",
+                "type": "STRING"
               },
               {
                 "default": "\"\"",
                 "mandatory": false,
+                "name": "material_fonts_sha256",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "\"FLUTTER_CHECKOUT\"",
+                "mandatory": false,
+                "name": "path_env",
+                "type": "STRING"
+              }
+            ],
+            "name": "checkout"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "engine",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
                 "name": "flutter_version",
                 "type": "STRING"
               },
               {
-                "default": "None",
-                "mandatory": false,
+                "default": "",
+                "mandatory": true,
+                "name": "hosts",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "custom_engine"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "flutter_version",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
                 "name": "framework",
                 "type": "LABEL"
               },
@@ -10741,6 +10799,64 @@
                 "type": "STRING"
               },
               {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "custom_framework"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "engine",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "framework",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "hosts",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "material_fonts_sha256",
+                "type": "STRING"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "custom_sdk"
+          },
+          {
+            "attrs": [
+              {
+                "default": "False",
+                "mandatory": false,
+                "name": "allow_upgrade_by_dependencies",
+                "type": "BOOLEAN"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "flutter_version",
+                "type": "STRING"
+              },
+              {
                 "default": "\"flutter\"",
                 "mandatory": false,
                 "name": "name",
@@ -10748,6 +10864,17 @@
               }
             ],
             "name": "toolchain"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              }
+            ],
+            "name": "use_sdk"
           }
         ]
       },
@@ -10761,6 +10888,12 @@
                 "mandatory": false,
                 "name": "android_deps",
                 "type": "LABEL_LIST"
+              },
+              {
+                "default": "{}",
+                "mandatory": false,
+                "name": "build_config_fields",
+                "type": "STRING_DICT"
               },
               {
                 "default": "",
@@ -15643,7 +15776,12 @@
       },
       {
         "name": "php",
-        "tag_classes": []
+        "tag_classes": [
+          {
+            "attrs": [],
+            "name": "from_source"
+          }
+        ]
       }
     ],
     "functions": [],

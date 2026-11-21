@@ -653,11 +653,6 @@ fn the_consumer_materializes_from_dx_init() {
     for patch in dx_nested::compose::RULES_FLUTTER_PATCHES {
         std::fs::write(flutter.join(format!("{patch}.patch")), "").unwrap();
     }
-    let starlib = source.join("patches/cgrindel_bazel_starlib");
-    std::fs::create_dir_all(&starlib).unwrap();
-    for patch in dx_nested::compose::STARLIB_PATCHES {
-        std::fs::write(starlib.join(format!("{patch}.patch")), "").unwrap();
-    }
     let overrides = [
         ("rules_python", "fix.patch"),
         ("rules_swift", "xcode_select_absolute_path.patch"),

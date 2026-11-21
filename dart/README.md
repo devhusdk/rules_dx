@@ -37,8 +37,9 @@ pub.from_lock(
 use_repo(pub, "my_pub_deps")
 ```
 
-Pick any hub name except `ext_pub_deps`. rules_dart shares one pub hub with
-that name across modules and allows only one version of each package in it.
+Every hub gets one version of each package: the highest version any lock or
+`pub.package()` in the build asks for. List every package you import in your
+own lock.
 
 ## Generate
 

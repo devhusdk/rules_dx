@@ -1801,47 +1801,34 @@ swiftpm.lock(
 use_repo(swiftpm, "swiftpkg")
 
 # floor: equals tested
-bazel_dep(name = "rules_dart", version = "0.9.1")
+bazel_dep(name = "rules_dart", version = "0.10.0")
 single_version_override(
     module_name = "rules_dart",
     patch_strip = 1,
     patches = [
-        "//patches/rules_dart:external_pkgsrcs.patch",
         "//patches/rules_dart:windows_long_dill.patch",
-        "//patches/rules_dart:summaries_scope.patch",
         "//patches/rules_dart:cross_revision.patch",
-        "//patches/rules_dart:dx_bzl_srcs.patch",
     ],
-    version = "0.9.1",
+    version = "0.10.0",
 )
 
 dart = use_extension("@rules_dart//dart:extensions.bzl", "dart")
-dart.toolchain(dart_version = "3.13.7")
+dart.toolchain(dart_version = "3.14.1")
 
 # floor: equals tested
-bazel_dep(name = "rules_flutter", version = "0.1.0")
+bazel_dep(name = "rules_flutter", version = "0.2.0")
 single_version_override(
     module_name = "rules_flutter",
     patch_strip = 1,
     patches = [
         "//patches/rules_flutter:lock_extension.patch",
-        "//patches/rules_flutter:registrant_javacopts.patch",
         "//patches/rules_flutter:windows_golden_comparator.patch",
-        "//patches/rules_flutter:dx_bzl_srcs.patch",
-        "//patches/rules_flutter:deterministic_web_compile.patch",
     ],
-    version = "0.1.0",
-)
-
-single_version_override(
-    module_name = "cgrindel_bazel_starlib",
-    patch_strip = 1,
-    patches = ["//patches/cgrindel_bazel_starlib:absent_local_git.patch"],
-    version = "0.30.0",
+    version = "0.2.0",
 )
 
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
-flutter.toolchain(flutter_version = "3.47.9")
+flutter.toolchain(flutter_version = "3.50.0")
 use_repo(
     flutter,
     "flutter_dev_root",
@@ -1894,12 +1881,18 @@ pub.from_lock(
 )
 use_repo(pub, "dx_dart_deps", "dx_dart_padded_archive")
 
+# //dart/tests/codegen builds the rules_dart builder shim against its own hub,
+# resolved with rules_dart's own hubs so the shim gets the versions it expects.
 rules_dart_pub = use_extension(
     "@rules_dart//dart/pub:extensions.bzl",
     "pub",
     dev_dependency = True,
 )
-use_repo(rules_dart_pub, "ext_pub_deps")
+rules_dart_pub.from_lock(
+    name = "dx_dart_ext_deps",
+    lock = "//dart/tests/codegen:pubspec.lock",
+)
+use_repo(rules_dart_pub, "dx_dart_ext_deps")
 
 # pub_deploy's api_compat check runs this pinned dart_apitool.
 pub_tools = use_extension("//dart:extensions.bzl", "pub")

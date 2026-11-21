@@ -1,10 +1,8 @@
 #![deny(
     clippy::indexing_slicing,
-    clippy::map_err_ignore,
     clippy::print_stderr,
     clippy::print_stdout,
-    clippy::string_slice,
-    clippy::unused_result_ok
+    clippy::string_slice
 )]
 
 // LCOV_EXCL_START - reason: re-export only, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

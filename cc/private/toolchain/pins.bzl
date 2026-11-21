@@ -29,3 +29,5 @@ GCC_LINUX_X86_64 = _archive("gcc_linux_x86_64")
 GCC_LINUX_X86_64_TO_AARCH64 = _archive("gcc_linux_x86_64_to_aarch64")
 
 GCC_LINUX_AARCH64 = _archive("gcc_linux_aarch64")
+
+GCC_LINUX_AARCH64_TO_X86_64 = _archive("gcc_linux_aarch64_to_x86_64")

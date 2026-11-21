@@ -9,6 +9,14 @@ config_setting(
     flag_values = {"@rules_dx//cc:compiler": "gcc"},
 )
 
+_MARCH = select({
+    "@platforms//cpu:x86_64": [
+        "-march=x86-64",
+        "-mtune=generic",
+    ],
+    "//conditions:default": [],
+})
+
 _CPPFLAGS = [
     "-DJULIA_HAS_IFUNC_SUPPORT=1",
     "-DJULIA_NUM_THREADS=1",
@@ -19,8 +27,7 @@ _CPPFLAGS = [
 _C_SHIPFLAGS = _CPPFLAGS + [
     "-std=gnu11",
     "-O3",
-    "-march=x86-64",
-    "-mtune=generic",
+] + _MARCH + [
     "-fasynchronous-unwind-tables",
     "-fno-strict-aliasing",
     "-falign-functions",
@@ -152,8 +159,10 @@ cc_binary(
     ],
     deps = [
         ":flisp_lib",
-        "@julia_src_libuv//:libuv",
-    ],
+    ] + select({
+        "@platforms//cpu:arm64": ["@julia_src_libuv_aarch64//:libuv"],
+        "//conditions:default": ["@julia_src_libuv//:libuv"],
+    }),
 )
 
 _FLISP_RUN = "d=$$(mktemp -d) && cp $(execpath :flisp) $$d/flisp && cp $(execpath src/flisp/flisp.boot) $$d/flisp.boot && "
@@ -310,8 +319,7 @@ cc_library(
     copts = _CPPFLAGS + [
         "-std=c++17",
         "-O3",
-        "-march=x86-64",
-        "-mtune=generic",
+    ] + _MARCH + [
         "-fno-exceptions",
         "-funwind-tables",
         "-fasynchronous-unwind-tables",

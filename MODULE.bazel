@@ -632,7 +632,7 @@ cc.windows_sdk(
     },
     windows_sdk_version = "10.0.26100.7705",
 )
-use_repo(cc, "dx_cc_toolchains", "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64", "dx_msvc", "dx_msvc_runtime", "dx_windows_sdk")
+use_repo(cc, "dx_cc_toolchains", "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64", "dx_gcc_linux_x86_64_cross", "dx_msvc", "dx_msvc_runtime", "dx_windows_sdk")
 
 protoc_prebuilt = use_extension("@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl", "protoc")
 use_repo(
@@ -1504,6 +1504,11 @@ dx_pins.archive(
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
+    name = "julia_src_libuv_aarch64",
+    build = "//julia/private/runtime:libuv.BUILD.bazel",
+    pins = "//julia:pins.json",
+)
+dx_pins.archive(
     name = "julia_src_utf8proc",
     build = "//julia/private/runtime:utf8proc.BUILD.bazel",
     pins = "//julia:pins.json",
@@ -1617,6 +1622,7 @@ use_repo(
     "julia_src_libllvm",
     "julia_src_libunwind",
     "julia_src_libuv",
+    "julia_src_libuv_aarch64",
     "julia_src_utf8proc",
     "julia_src_zstd",
     "nfpm_linux_arm64",

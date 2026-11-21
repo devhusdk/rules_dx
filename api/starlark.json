@@ -2568,6 +2568,51 @@
         ]
       },
       {
+        "name": "dx_generated_policy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "tier"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "families"
+          },
+          {
+            "default": "True",
+            "mandatory": false,
+            "name": "defaults"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "disabled"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "configs"
+          },
+          {
+            "default": "{}",
+            "mandatory": false,
+            "name": "bases"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          }
+        ]
+      },
+      {
         "forwards": [],
         "name": "lua_doc_shard",
         "params": [

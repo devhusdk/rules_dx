@@ -219,6 +219,7 @@ def _runner_matrix_test_impl(ctx):
         "printer_key": rlocation_path(ctx, printer),
         "producer": producer,
         "runner_failure": ctx.attr.runner_failure,
+        "drop_messages": ctx.attr.drop_messages,
         "runner_key": rlocation_path(ctx, runner),
         "siblings": manifest_siblings,
         "sources": manifest_sources,
@@ -373,6 +374,9 @@ _runner_matrix_test = rule(
         "rustfmt_from_toolchain": attr.bool(
             default = False,
         ),
+        "drop_messages": attr.bool(
+            doc = "Whether the golden leaves out each diagnostic's message text, for tools whose wording changes between versions.",
+        ),
         "runner_failure": attr.bool(
             default = False,
         ),
@@ -484,6 +488,7 @@ _FORWARDED_DEFAULTS = {
     "upstream_generated": {},
     "expected": "",
     "runner_failure": False,
+    "drop_messages": False,
     "ambient_files": {},
 }
 

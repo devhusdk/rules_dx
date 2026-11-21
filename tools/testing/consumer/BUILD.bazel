@@ -137,12 +137,14 @@ PREBUILT_GUARD_DATA = [
     "//cli/prebuilt:python_hub_targets",
     "//cli/prebuilt:registry",
     "//cli/prebuilt:target_tools",
+    "//core/coreutils:applets",
     "//patches/rules_py:patches",
     "@dx_test_tags_sources//:consumer.json",
 ]
 
 PREBUILT_GUARD_ENV = {
     "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+    "DX_COREUTILS": "$(rootpaths //core/coreutils:applets)",
     "DX_PREBUILT_GO_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:go_hub_targets)",
     "DX_PREBUILT_GUARD_ALLOWLIST": "$(rlocationpath prebuilt_guard_allowlist.txt)",
     "DX_PREBUILT_PYTHON_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:python_hub_targets)",

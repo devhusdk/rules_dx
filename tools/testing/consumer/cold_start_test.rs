@@ -5,7 +5,10 @@
 //! committed `cold_start/<lang>.txt`: a longer list means rules_dx started fetching something
 //! eagerly, a shorter one means the file is stale. Repositories of other language families must
 //! never download, whatever the file says. A toolchain hub whose rule ran and downloaded nothing
-//! is fine; it still has to be in the list.
+//! is fine; it still has to be in the list. `UPSTREAM_REGISTERED` names the module archives a
+//! consumer fetches for the toolchains their own MODULE.bazel registers; they are listed, not
+//! foreign. Both commands run with the repo contents cache off, so every listed repository's rule
+//! runs in the case that fetches it.
 
 use std::collections::BTreeSet;
 
@@ -46,6 +49,15 @@ const FOREIGN: &[(&str, &[&str])] = &[
     ),
 ];
 
+/// Module archives fetched in every consumer because their MODULE.bazel registers toolchains whose
+/// `toolchain_type` Bazel loads as a configured dependency.
+const UPSTREAM_REGISTERED: &[&str] = &[
+    "rules_android+",
+    "rules_cuda+",
+    "rules_kotlin+",
+    "rules_scala+",
+];
+
 /// The names listed in a cold-start file: one per line, `#` comments and blank lines skipped.
 fn listed(text: &str) -> BTreeSet<String> {
     text.lines()
@@ -66,22 +78,27 @@ fn fetched(external: &std::path::Path) -> BTreeSet<String> {
         .collect()
 }
 
-/// The problems of a measured list against the committed one and the foreign fragments.
+/// The problems of a measured list against the committed one, the foreign fragments and the
+/// upstream-registered archives.
 fn problems(
     measured: &BTreeSet<String>,
     want: &BTreeSet<String>,
     foreign: &[&str],
+    upstream: &[&str],
     fetches: &Fetches,
 ) -> Vec<String> {
     let mut problems = Vec::new();
     for name in measured {
-        if fetches.download_free(name) {
+        if fetches.download_free(name) || upstream.contains(&name.as_str()) {
             continue;
         }
         if let Some(fragment) = foreign.iter().find(|fragment| name.contains(**fragment)) {
-            problems.push(format!(
-                "fetched {name}, a {fragment} repository that downloads or came from a cache"
-            ));
+            let how = if fetches.ran.contains(name) {
+                "that downloads"
+            } else {
+                "whose rule did not run (came from a cache)"
+            };
+            problems.push(format!("fetched {name}, a {fragment} repository {how}"));
         }
     }
     problems.extend(
@@ -92,6 +109,16 @@ fn problems(
     problems.extend(
         want.difference(measured)
             .map(|name| format!("no longer fetched, remove it from the list: {name}")),
+    );
+    problems.extend(
+        upstream
+            .iter()
+            .filter(|name| !measured.contains(**name))
+            .map(|name| {
+                format!(
+                    "no longer fetched; drop it from UPSTREAM_REGISTERED and close #14346: {name}"
+                )
+            }),
     );
     problems
 }
@@ -131,20 +158,34 @@ fn fetches_only_its_cold_start_list(lang: &str) {
     let case = Case::language_consumer(&format!("{lang}_cold_start"), lang, "")
         .unwrap_or_else(|error| panic!("{error}"));
     let mut fetches = Fetches::default();
+    // The cases share one repository cache; with the contents cache on, a later case reuses an
+    // earlier case's repositories without running their rules.
     run_ok(
         &case,
-        &["build", "--color=no", "--curses=no", "//..."],
+        &[
+            "build",
+            "--color=no",
+            "--curses=no",
+            "--repo_contents_cache=",
+            "//...",
+        ],
         &mut fetches,
     );
     run_ok(
         &case,
-        &["test", "--color=no", "--curses=no", "//..."],
+        &[
+            "test",
+            "--color=no",
+            "--curses=no",
+            "--repo_contents_cache=",
+            "//...",
+        ],
         &mut fetches,
     );
     let info = case.bazel(&["info", "output_base"]);
     assert!(info.status.success(), "bazel info: {}", info.combined());
     let measured = fetched(&std::path::PathBuf::from(info.stdout.trim()).join("external"));
-    let problems = problems(&measured, &want, foreign, &fetches);
+    let problems = problems(&measured, &want, foreign, UPSTREAM_REGISTERED, &fetches);
     let list: Vec<&str> = measured.iter().map(String::as_str).collect();
     assert!(
         problems.is_empty(),
@@ -208,14 +249,46 @@ fn growth_shrinkage_and_downloading_foreign_repos_are_reported() {
             .collect(),
     };
     assert_eq!(
-        problems(&measured, &want, &["ocaml", "opam"], &fetches),
+        problems(&measured, &want, &["ocaml", "opam"], &[], &fetches),
         [
-            "fetched rules_dx++ocaml+dx_opam_repository, a ocaml repository that downloads or came from a cache",
-            "fetched rules_ocaml+, a ocaml repository that downloads or came from a cache",
+            "fetched rules_dx++ocaml+dx_opam_repository, a ocaml repository that downloads",
+            "fetched rules_ocaml+, a ocaml repository whose rule did not run (came from a cache)",
             "new fetch: c",
             "new fetch: rules_dx++ocaml+dx_opam_repository",
             "new fetch: rules_ocaml+",
             "no longer fetched, remove it from the list: b",
+        ]
+    );
+}
+
+#[test]
+fn upstream_registered_archives_skip_the_foreign_check_but_stay_listed() {
+    let want = listed("rules_kotlin+\n");
+    let measured: BTreeSet<String> = ["rules_kotlin+", "rules_scala+"]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    let fetches = Fetches {
+        ran: ["rules_kotlin+", "rules_scala+"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        downloaded: ["rules_kotlin+", "rules_scala+"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+    };
+    assert_eq!(
+        problems(
+            &measured,
+            &want,
+            &["kotlin", "scala", "cuda"],
+            &["rules_kotlin+", "rules_scala+", "rules_cuda+"],
+            &fetches,
+        ),
+        [
+            "new fetch: rules_scala+",
+            "no longer fetched; drop it from UPSTREAM_REGISTERED and close #14346: rules_cuda+",
         ]
     );
 }

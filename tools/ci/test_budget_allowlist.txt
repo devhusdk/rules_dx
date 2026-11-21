@@ -364,7 +364,7 @@ javascript/tests/fixtures/args/BUILD.bazel no-size 1
 javascript/tests/fixtures/bench/BUILD.bazel no-size 2
 javascript/tests/fixtures/entries/BUILD.bazel no-size 1
 javascript/tests/fixtures/fuzz/BUILD.bazel no-size 4
-javascript/tests/fixtures/hello/BUILD.bazel no-size 5
+javascript/tests/fixtures/hello/BUILD.bazel no-size 3
 javascript/tests/fixtures/node_app/cli/BUILD.bazel no-size 2
 javascript/tests/fixtures/node_app/diagnostics/BUILD.bazel no-size 2
 javascript/tests/fixtures/node_app/registry/BUILD.bazel no-size 2
@@ -547,7 +547,7 @@ typescript/tests/fixtures/args/BUILD.bazel no-size 1
 typescript/tests/fixtures/bench/BUILD.bazel no-size 3
 typescript/tests/fixtures/declarations/BUILD.bazel no-size 1
 typescript/tests/fixtures/fuzz/BUILD.bazel no-size 4
-typescript/tests/fixtures/hello/BUILD.bazel no-size 3
+typescript/tests/fixtures/hello/BUILD.bazel no-size 2
 typescript/tests/fixtures/playwright/BUILD.bazel no-size 1
 typescript/tests/fixtures/proto/BUILD.bazel no-size 1
 typescript/tests/tags/BUILD.bazel no-size 1

@@ -465,6 +465,8 @@ but not run there. The other tests run on every host:
 bazel test //android/...
 ```
 
+On Linux arm64 this skips the APK, native-library and packaging targets.
+
 ## Platforms
 
 ### Native platforms

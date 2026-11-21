@@ -96,7 +96,7 @@ def android_native_library(
              (", got unknown " + ", ".join(unknown) if len(unknown) > 0 else ""))
     tuples = [_TUPLES_BY_PLATFORM[label] for label in labels]
     shared, rust_kwargs = android_split_native_kwargs(kwargs)
-    proxy_shared = dict(shared)
+    proxy_shared = _sdk_kwargs(shared)
     proxy_shared["tags"] = sorted({tag: True for tag in shared.get("tags", []) + ["manual"]}.keys())
     if len(rust_srcs) == 1:
         rust_kwargs["crate_root"] = rust_srcs[0]
@@ -141,7 +141,7 @@ def android_native_library(
         name = name,
         srcs = [name + "_" + tuple for tuple in tuples],
         visibility = visibility,
-        **shared
+        **_sdk_kwargs(shared)
     )
 
 SDK_COMPATIBLE_WITH = select({

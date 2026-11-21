@@ -5,10 +5,7 @@ load("//dart/private:defs.bzl", "DART_COMPATIBLE_WITH")
 
 # gazelle:dx_external pub dart/tests/codegen/pubspec.lock dx_dart_ext_deps
 
-exports_files([
-    "pubspec.lock",
-    "pubspec.yaml",
-])
+exports_files(["pubspec.lock"])
 
 dart_package_metadata(
     name = "pubspec-metadata",

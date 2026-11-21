@@ -8,7 +8,7 @@ def _action_impl(ctx):
     action = [a for a in analysistest.target_actions(env) if a.mnemonic == "DxAppImage"][0]
     asserts.equals(env, None, action.env.get("PATH"))
     asserts.equals(env, "C", action.env.get("LC_ALL"))
-    asserts.true(env, action.argv[0].endswith("/appimage_packer"), "action runs " + action.argv[0])
+    asserts.equals(env, "appimage_packer", action.argv[1])
     asserts.true(env, ctx.attr.arch in action.argv, "arch " + ctx.attr.arch + " missing from " + str(action.argv))
     runtimes = [f.basename for f in action.inputs.to_list() if f.basename.startswith("runtime-")]
     asserts.equals(env, ["runtime-" + ctx.attr.arch], runtimes)

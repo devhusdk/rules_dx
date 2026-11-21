@@ -84,6 +84,7 @@ JAVA_GUARD_LANGS = [
 IN_GRAPH_GUARD_LANGS = [
     "android",
     "ansible",
+    "appimage",
     "asciidoc",
     "astro",
     "bicep",
@@ -138,9 +139,7 @@ WINDOWS_IN_GRAPH_GUARD_LANGS = [
 ]
 
 # The consumer fixtures no prebuilt guard covers yet.
-GUARD_PENDING = [
-    "appimage",  # appimage_packer is a rust_binary
-]
+GUARD_PENDING = []
 
 # The fixtures whose test is the consumer evidence of the support matrix row of the same name.
 CONSUMER_ROWS = [

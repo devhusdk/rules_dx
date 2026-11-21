@@ -1,7 +1,14 @@
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dart//dart/ext:defs.bzl", "builder_shim_library")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//dart:defs.bzl", "dart_binary", "dart_codegen", "dart_library", "dart_package_metadata", "dart_test")
 load("//dart/private:defs.bzl", "DART_COMPATIBLE_WITH")
+
+# gazelle:dx_external pub dart/tests/codegen/pubspec.lock dx_dart_ext_deps
+
+exports_files([
+    "pubspec.lock",
+    "pubspec.yaml",
+])
 
 dart_package_metadata(
     name = "pubspec-metadata",
@@ -10,40 +17,43 @@ dart_package_metadata(
 
 builder_shim_library(
     name = "shim_runner",
-    pub_hub = "@ext_pub_deps",
+    pub_hub = "@dx_dart_ext_deps",
 )
 
+# keep
 dart_binary(
     name = "generator",
     main = "generator.dart",
     target_compatible_with = DART_COMPATIBLE_WITH,
     deps = [
         ":shim_runner",
-        "@ext_pub_deps//:build",
+        "@dx_dart_ext_deps//:build",
     ],
 )
 
 dart_codegen(
     name = "model_gen",
-    package = ":pubspec-metadata",
     src = "lib/model.dart",
     generator = ":generator",
     output_suffixes = [".g.dart"],
+    package = ":pubspec-metadata",
     target_compatible_with = DART_COMPATIBLE_WITH,
 )
 
 # keep
 dart_library(
     name = "codegen",
-    package = ":pubspec-metadata",
     srcs = [":model_gen"],
+    package = ":pubspec-metadata",
 )
 
 dart_test(
     name = "codegen_test",
+    size = "small",
+    main = "test/codegen_test.dart",
     deps = [
         ":codegen",
-        "@dx_dart_deps//:test",
+        "@dx_dart_ext_deps//:test",
     ],
 )
 

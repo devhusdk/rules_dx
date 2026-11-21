@@ -1877,12 +1877,18 @@ pub.from_lock(
 )
 use_repo(pub, "dx_dart_deps", "dx_dart_padded_archive")
 
+# //dart/tests/codegen builds the rules_dart builder shim against its own hub,
+# resolved with rules_dart's own hubs so the shim gets the versions it expects.
 rules_dart_pub = use_extension(
     "@rules_dart//dart/pub:extensions.bzl",
     "pub",
     dev_dependency = True,
 )
-use_repo(rules_dart_pub, "ext_pub_deps")
+rules_dart_pub.from_lock(
+    name = "dx_dart_ext_deps",
+    lock = "//dart/tests/codegen:pubspec.lock",
+)
+use_repo(rules_dart_pub, "dx_dart_ext_deps")
 
 # pub_deploy's api_compat check runs this pinned dart_apitool.
 pub_tools = use_extension("//dart:extensions.bzl", "pub")

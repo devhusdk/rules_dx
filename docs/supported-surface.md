@@ -6710,6 +6710,19 @@ Macro or function.
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
 
+### `@rules_dx//scala:extensions.bzl`
+
+#### `scala_config`
+
+Module extension.
+
+Tag `scala_config.settings`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `scala_version` | `string` | no | `"2.13.18"` |
+| `scala_versions` | `string_list` | no | `[]` |
+
 ### `@rules_dx//sql:defs.bzl`
 
 #### `sql_library`

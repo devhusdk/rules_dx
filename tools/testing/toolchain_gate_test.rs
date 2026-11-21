@@ -5,7 +5,6 @@ const OWN_TYPES: &[&str] = &[
     "//core/quality/sh:busybox_sh_linux_arm64",
     "//core/quality/sh:busybox_sh_linux_x86_64",
     "//core/quality/sh:busybox_sh_windows_x86_64",
-    "//scala/private/toolchain/hub:all",
     "@dx_coreutils//:all",
     "@dx_d_toolchains//:all",
     "@dx_elixir_toolchains//:all",
@@ -16,6 +15,7 @@ const OWN_TYPES: &[&str] = &[
     "@dx_ocaml_toolchains//:all",
     "@dx_php_toolchains//:all",
     "@dx_powershell_toolchains//:all",
+    "@dx_scala_toolchains//:all",
     "@julia_toolchains//:all",
 ];
 

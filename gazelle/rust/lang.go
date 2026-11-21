@@ -301,7 +301,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 	if hasCargoManifest(args) {
 		return l.generateCargo(args, files)
 	}
-	if len(files) == 0 {
+	if len(files) == 0 || (args.File == nil && ownedByAncestorCrate(args.Config, args.Rel)) {
 		return l.finish(args, language.GenerateResult{})
 	}
 
@@ -758,4 +758,33 @@ func withoutExcluded(files []string, args language.GenerateArgs) []string {
 		kept = append(kept, name)
 	}
 	return kept
+}
+
+// ownedByAncestorCrate reports whether a crate in an ancestor package already
+// compiles the .rs files under rel. That crate's source walk reaches rel when
+// no BUILD file stands between them, so a new package at rel would cut its
+// modules out of it. The nearest ancestor with a BUILD file ends the search.
+func ownedByAncestorCrate(c *config.Config, rel string) bool {
+	if c == nil || rel == "" {
+		return false
+	}
+	for dir := path.Dir(rel); ; dir = path.Dir(dir) {
+		if dir == "." {
+			dir = ""
+		}
+		abs := filepath.Join(c.RepoRoot, filepath.FromSlash(dir))
+		for _, marker := range []string{cargoManifestFile, "src/lib.rs", "src/main.rs"} {
+			if isRegularFile(filepath.Join(abs, filepath.FromSlash(marker))) {
+				return true
+			}
+		}
+		if dir == "" || isRegularFile(filepath.Join(abs, "BUILD.bazel")) || isRegularFile(filepath.Join(abs, "BUILD")) {
+			return false
+		}
+	}
+}
+
+func isRegularFile(name string) bool {
+	info, err := os.Stat(name)
+	return err == nil && info.Mode().IsRegular()
 }

@@ -1,8 +1,13 @@
-#![deny(clippy::indexing_slicing, clippy::string_slice)]
+#![deny(
+    clippy::indexing_slicing,
+    clippy::map_err_ignore,
+    clippy::string_slice,
+    clippy::unused_result_ok
+)]
 
 use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_process::capture::{DEFAULT_TIMEOUT, RunError, run_checked};
-use std::fmt::{self, Write as _};
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 const USAGE: &str = "usage: bazel run //deploy/private/release:bump_version -- <version> [--workflow-ref <commit>]\n\nSets the rules_dx version, the starter workflow pin and the assert-no-secret and remote-cache-helper action pins in every file that carries them and refreshes tools/ci/starter_pin.sha256 from the workflows in the checkout.\n--workflow-ref defaults to origin/main, must have the affected_on_pr input and must carry the assert-no-secret and remote-cache-helper actions.";
@@ -217,7 +222,7 @@ fn redigest(root: &Path, record: &str) -> Result<String, BumpError> {
             line: line.to_owned(),
         })?;
         let bytes = path_io::read(&root.join(path)).map_err(BumpError::DigestInput)?;
-        writeln!(out, "{}  {path}", dx_digest::sha256_hex(&bytes)).ok();
+        out.push_str(&format!("{}  {path}\n", dx_digest::sha256_hex(&bytes)));
     }
     Ok(out)
 }

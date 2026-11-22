@@ -418,14 +418,16 @@ exports_files([
     "Cargo.toml",
 ])
 
-sh_binary(
+rust_binary(
     name = "deploy_program",
-    srcs = ["deploy_fixture.sh"],
+    srcs = ["deploy_fixture.rs"],
+    crate_root = "deploy_fixture.rs",
 )
 
-sh_binary(
+rust_binary(
     name = "deploy_app",
-    srcs = ["deploy_fixture.sh"],
+    srcs = ["deploy_fixture.rs"],
+    crate_root = "deploy_fixture.rs",
 )
 
 deployment(

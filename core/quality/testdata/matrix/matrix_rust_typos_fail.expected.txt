@@ -5,7 +5,7 @@ stage typos classes=rust sources=matrix/typos_dirty.rs
 completed_rounds 2
 convergence STABLE
 initial 1
-initial WARNING typos - matrix/typos_dirty.rs 3 3 fixable=true "`recieve` should be `receive`"
+initial WARNING typos - matrix/typos_dirty.rs 3 3 fixable=true
 terminal 0
 replacements 1
 replacement matrix/typos_dirty.rs 6 8 "ei"

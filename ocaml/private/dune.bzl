@@ -9,6 +9,7 @@ load("@rules_ocaml//build:providers.bzl", "OCamlArchiveProvider", "OCamlCcInfo",
 load("//core:wrapper.bzl", "dx_language_kwargs")
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils")
 load("//ocaml/private/toolchain:ocaml.bzl", "cc_drivers", "native_cc_env")
+load("//ocaml/private/toolchain:repos.bzl", "EXEC_TOOLCHAIN_TYPE")
 load(":defs.bzl", "OCAML_COMPATIBLE_WITH")
 
 DEPSET_ORDER = "postorder"
@@ -117,7 +118,7 @@ dx_dune_bootstrap = rule(
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },
     executable = True,
-    toolchains = use_cc_toolchain() + [COREUTILS_TOOLCHAIN_TYPE],
+    toolchains = use_cc_toolchain() + [COREUTILS_TOOLCHAIN_TYPE, EXEC_TOOLCHAIN_TYPE],
     fragments = ["cpp"],
 )
 
@@ -157,7 +158,7 @@ dx_dune_build = rule(
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },
     executable = True,
-    toolchains = use_cc_toolchain() + [COREUTILS_TOOLCHAIN_TYPE],
+    toolchains = use_cc_toolchain() + [COREUTILS_TOOLCHAIN_TYPE, EXEC_TOOLCHAIN_TYPE],
     fragments = ["cpp"],
 )
 
@@ -253,7 +254,7 @@ _dx_dune_library = rule(
         "_macos": attr.label(default = "@platforms//os:macos"),
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },
-    toolchains = use_cc_toolchain() + [COREUTILS_TOOLCHAIN_TYPE],
+    toolchains = use_cc_toolchain() + [COREUTILS_TOOLCHAIN_TYPE, EXEC_TOOLCHAIN_TYPE],
     fragments = ["cpp"],
 )
 

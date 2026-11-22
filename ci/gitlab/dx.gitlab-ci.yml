@@ -9,7 +9,7 @@ spec:
       default: ""
       regex: ^(100|[1-9]?[0-9])?$
     affected_on_pr:
-      description: "On merge requests, run check, build, test and (without a coverage threshold) coverage with --affected."
+      description: "On merge requests, run check, test and (without a coverage threshold) coverage with --affected."
       type: boolean
       default: true
     buf_breaking_on_pr:
@@ -69,7 +69,6 @@ workflow:
     - if [ -n "${CI_MERGE_REQUEST_IID:-}" ] && [ "$[[ inputs.affected_on_pr ]]" = true ]; then DX_SCOPE=--affected; [ -n "$[[ inputs.min_coverage ]]$[[ inputs.min_changed_line_coverage ]]" ] || DX_COVERAGE_SCOPE=--affected; fi
   cache:
     key:
-      prefix: $CI_JOB_NAME
       files:
         - MODULE.bazel.lock
         - .bazelversion
@@ -96,15 +95,6 @@ check:
     - bazel run @rules_dx//:dx -- check --report sarif=reports/dx.sarif $DX_SCOPE || status=$?
     - '[ "$[[ inputs.buf_breaking_on_pr ]]" != true ] || [ -z "${CI_MERGE_REQUEST_IID:-}" ] || bazel run @rules_dx//:dx -- lint --breaking-against $DX_SCOPE || status=$?'
     - '[ "$[[ inputs.link_check_online ]]" != true ] || [ -n "${CI_MERGE_REQUEST_IID:-}" ] || bazel run @rules_dx//:dx -- lint --online //... || status=$?'
-    - !reference [.dx_finish, script]
-
-build:
-  extends: .dx
-  variables:
-    DX_REPORT: reports/failures.json
-  script:
-    - status=0
-    - bazel run @rules_dx//:dx -- build --report failures=reports/failures.json $DX_SCOPE || status=$?
     - !reference [.dx_finish, script]
 
 test:

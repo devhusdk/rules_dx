@@ -36,6 +36,10 @@ SHARD_SPECS = {
     },
 }
 
+HOOK_ORDER = []
+
+HOOKS = {}
+
 _CFG = real_config(
     tools = TOOLS,
     shard_specs = SHARD_SPECS,

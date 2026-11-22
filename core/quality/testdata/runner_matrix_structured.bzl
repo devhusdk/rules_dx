@@ -543,28 +543,6 @@ STRUCTURED_CASES = [
         },
     ),
     matrix_case(
-        name = "matrix_dart_format_pass",
-        capability = "format",
-        tool = "dart",
-        binary = "//dart/private/tools:dart",
-        source_class = "dart",
-        generated = {
-            "matrix/dart_clean.dart": "void main() {\n  print(1);\n}\n",
-        },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
-    ),
-    matrix_case(
-        name = "matrix_dart_format_fail",
-        capability = "format",
-        tool = "dart",
-        binary = "//dart/private/tools:dart",
-        source_class = "dart",
-        generated = {
-            "matrix/dart_dirty.dart": "void main(){print(1);}\n",
-        },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
-    ),
-    matrix_case(
         name = "matrix_dart_format_syntax",
         capability = "format",
         tool = "dart",

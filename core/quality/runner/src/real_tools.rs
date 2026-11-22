@@ -699,6 +699,62 @@ fn buf_lint_names_a_broken_import() {
     assert!(!text.contains("unchecked file"), "{text}");
 }
 
+#[test]
+fn buf_refuses_bsr_deps_before_spawning() {
+    const PROTO: &str = "syntax = \"proto3\";\n\npackage a.v1;\n";
+    for capability in ["format", "lint", "typecheck"] {
+        let tool = bound_tool(
+            "buf.yaml",
+            b"version: v2\ndeps:\n  - buf.build/googleapis/googleapis\n",
+        );
+        let backend = backend_for("buf", tool, |_, _, _| {
+            Err(io::Error::other("buf must not be spawned"))
+        });
+        let err = backend
+            .diagnose("buf", capability, &single("a/v1/a.proto", PROTO))
+            .expect_err("deps are refused");
+        assert!(err.to_string().contains("proto_library deps"), "{err}");
+    }
+}
+
+fn buf_format_in_scratch_cache(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let cache = env
+        .iter()
+        .find(|(key, _)| key == "BUF_CACHE_DIR")
+        .map(|(_, value)| PathBuf::from(value))
+        .expect("BUF_CACHE_DIR is set");
+    assert!(cache.is_dir(), "{}", cache.display());
+    assert!(cache.ends_with("dx-buf/cache"), "{}", cache.display());
+    let file = argv
+        .iter()
+        .position(|arg| arg == "--path")
+        .and_then(|at| argv.get(at + 1))
+        .expect("--path");
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: std::fs::read(file)?,
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn buf_runs_with_a_scratch_cache_dir() {
+    let backend = backend_for("buf", plain_tool(), buf_format_in_scratch_cache);
+    let findings = backend
+        .diagnose(
+            "buf",
+            "format",
+            &single("a/v1/a.proto", "syntax = \"proto3\";\n"),
+        )
+        .expect("formatted file passes");
+    assert!(findings.is_empty(), "{findings:?}");
+}
+
 fn buf_breaking_fake(
     argv: &[OsString],
     _cwd: &Path,

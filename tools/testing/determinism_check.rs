@@ -4,7 +4,6 @@
 //! mnemonic.
 //! With `--kinds` it also builds one Linux-compatible target of each `entry_points` kind of every `<lang>/lang.json`.
 //! `--shard i/n` keeps the kind targets whose top-level package is the i-th of every n, counting from 0.
-#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"

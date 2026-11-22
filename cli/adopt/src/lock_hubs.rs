@@ -958,7 +958,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("cargo.annotation(\n    build_script_env = {\n        \"CFLAGS\": \"$(DX_BS_CFLAGS)\",\n"),
+            text.contains("cargo.annotation(\n    build_script_env = {\n        \"CFLAGS\": \"$(DX_BS_CFLAGS)\",\n        \"CXXFLAGS\": \"$(DX_BS_CXXFLAGS)\",\n        \"HOST_AR\""),
             "{text}"
         );
         assert!(

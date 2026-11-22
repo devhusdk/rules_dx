@@ -18,7 +18,8 @@ ocaml_executable_marker = rule(
     implementation = _marker_impl,
     doc = "Re-exports an executable with the OcamlExecutableMarker provider so rules_ocaml accepts it as a ppx.",
     attrs = {
-        "exe": attr.label(executable = True, cfg = "exec", mandatory = True),
+        # The marker is itself a ppx, already built for the exec platform; a second exec hop could leave the OCaml cells.
+        "exe": attr.label(executable = True, cfg = "target", mandatory = True, doc = "The executable to re-export."),
     },
     executable = True,
     provides = [DefaultInfo, OcamlExecutableMarker],

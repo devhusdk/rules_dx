@@ -148,11 +148,9 @@ def _build_script_cc_env_impl(ctx):
         host_cflags = ""
         host_cxxflags = ""
     msvc = rust.target_triple.str.endswith("-windows-msvc")
-    cflags = _UNDEF_ISO_STDIO if coverage and msvc else ("" if msvc else _FILE_PREFIX_MAP)
     variables = {
-        # cc-rs reads CXXFLAGS, not CFLAGS, for C++ sources.
-        "DX_BS_CFLAGS": cflags,
-        "DX_BS_CXXFLAGS": cflags,
+        "DX_BS_CFLAGS": _UNDEF_ISO_STDIO if coverage and msvc else ("" if msvc else _FILE_PREFIX_MAP),
+        "DX_BS_CXXFLAGS": "" if msvc else _FILE_PREFIX_MAP,
         "DX_BS_HOST_CFLAGS": host_cflags,
         "DX_BS_HOST_CXXFLAGS": host_cxxflags,
     }

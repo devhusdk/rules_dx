@@ -175,10 +175,16 @@ const JVM_FLAGS: [Flag; 3] = [
     ),
 ];
 
-const WORKER_FLAGS: [Flag; 1] = [(
-    "build --worker_sandboxing",
-    "Run persistent workers, such as the JVM checks, in a sandbox like other local actions.",
-)];
+const WORKER_FLAGS: [Flag; 2] = [
+    (
+        "build --worker_sandboxing",
+        "Run persistent workers, such as the JVM checks, in a sandbox like other local actions.",
+    ),
+    (
+        "build:windows --noworker_sandboxing",
+        "On Windows, run persistent workers unsandboxed, since the rules_android Desugar worker JVM fails at startup in a Windows worker sandbox.",
+    ),
+];
 
 const CI_CORRECTNESS_FLAGS: [Flag; 3] = [
     (
@@ -844,6 +850,7 @@ mod tests {
                 "build --tool_java_runtime_version=remotejdk_21",
                 "build --tool_java_language_version=17",
                 "build --worker_sandboxing",
+                "build:windows --noworker_sandboxing",
                 "common --repo_env=DO_NOT_TRACK=1",
                 "build --@rules_dx//config:clippy_output_diagnostics=true",
                 "build --@rules_dx//config:rustc_output_diagnostics=true",
@@ -955,8 +962,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 65);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 65);
+        assert_eq!(total, 66);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 66);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -1066,7 +1073,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 65);
+        assert_eq!(flags.len(), 66);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

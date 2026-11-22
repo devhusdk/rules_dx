@@ -2148,7 +2148,7 @@ mod cmd {
         }
 
         fn command_in(&self, cwd: &Path, args: &[&str], log: &Path) -> Command {
-            let system = std::env::var("SystemRoot").expect("SystemRoot");
+            let system = system32();
             let mut cmd = Command::new("cmd");
             cmd.arg("/c")
                 .arg(self.root().join("tools/dx.cmd"))
@@ -2157,8 +2157,10 @@ mod cmd {
                 .env(
                     "PATH",
                     format!(
-                        "{};{system}\\System32;{system}\\System32\\WindowsPowerShell\\v1.0",
-                        self.base.join("stub").display()
+                        "{};{};{}",
+                        self.base.join("stub").display(),
+                        system.display(),
+                        system.join("WindowsPowerShell\\v1.0").display()
                     ),
                 )
                 .env("STUB_LOG", log)
@@ -2390,10 +2392,13 @@ mod cmd {
         );
     }
 
+    /// The Windows system directory; the cmd stubs and PATHs below all start from it.
+    fn system32() -> std::path::PathBuf {
+        Path::new(&std::env::var("SystemRoot").expect("system root")).join("System32")
+    }
+
     fn system_exe(name: &str) -> std::path::PathBuf {
-        Path::new(&std::env::var("SystemRoot").expect("SystemRoot"))
-            .join("System32")
-            .join(name)
+        system32().join(name)
     }
 
     fn touch_preset(root: &Path) {
@@ -2520,8 +2525,7 @@ mod cmd {
         let repo = source_repo("cmd-no-powershell");
         let (code, out) = repo.run(&[]);
         assert_eq!(code, Some(0), "{out}");
-        let system = std::env::var("SystemRoot").expect("SystemRoot");
-        let path = format!("{}\\stub;{system}\\System32", repo.base.display());
+        let path = format!("{}\\stub;{}", repo.base.display(), system32().display());
         let (code, out) = run_with_path(&repo, path, "0");
         assert_eq!(code, Some(1), "{out}");
         assert!(out.contains("powershell is needed to rebuild dx"), "{out}");
@@ -2540,10 +2544,10 @@ mod cmd {
             "@exit /b %STUB_PS_EXIT%\r\n",
         )
         .expect("powershell stub");
-        let system = std::env::var("SystemRoot").expect("SystemRoot");
         let path = format!(
-            "{0}\\nops;{0}\\stub;{system}\\System32",
-            repo.base.display()
+            "{0}\\nops;{0}\\stub;{1}",
+            repo.base.display(),
+            system32().display()
         );
         let name = hostname();
         for (ps, runs) in [
@@ -3147,9 +3151,8 @@ mod cmd {
     /// curl that serves the payload and logs each URL. A release archive has no .git.
     fn released(name: &str, pinned: bool) -> SourceRepo {
         let repo = source_repo(name);
-        let system = std::env::var("SystemRoot").expect("SystemRoot");
         let served = repo.base.join("payload.exe");
-        std::fs::copy(format!("{system}\\System32\\hostname.exe"), &served).expect("payload");
+        std::fs::copy(system_exe("hostname.exe"), &served).expect("payload");
         let sum = if pinned {
             sha256(&served)
         } else {

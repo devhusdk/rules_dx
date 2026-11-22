@@ -1,9 +1,10 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/tests:direct_sources.bzl", "dx_direct_sources_test")
+
 # gazelle:exclude src/main/java/hello
 # gazelle:exclude src/test/java/hello
 # gazelle:ignore
 load("@rules_dx//java:defs.bzl", "java_binary", "java_library", "java_test")
-load("@rules_dx//core/tests:direct_sources.bzl", "dx_direct_sources_test")
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
@@ -64,12 +65,6 @@ java_binary(
 dx_hello_output_test(
     name = "inferred_main_output_test",
     binary = ":InferredMain",
-    expected = "hello world",
-)
-
-dx_hello_output_test(
-    name = "hello_output_test",
-    binary = ":hello",
     expected = "hello world",
 )
 

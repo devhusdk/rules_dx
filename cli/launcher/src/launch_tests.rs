@@ -255,7 +255,10 @@ fn a_cwd_item_puts_the_working_directory_between_its_literals() {
     let mut want = OsString::from("-map=");
     want.push(std::env::current_dir().unwrap());
     want.push("=.");
-    assert_eq!(plan(&resolver, &descriptor, &|_| None).unwrap().args, [want]);
+    assert_eq!(
+        plan(&resolver, &descriptor, &|_| None).unwrap().args,
+        [want]
+    );
 }
 
 #[test]
@@ -350,7 +353,6 @@ fn command_removes_unset_names_and_sets_runfiles() {
     )));
 }
 
-#[expect(unsafe_code, reason = "set_var has no safe form in edition 2024")]
 #[cfg(unix)]
 #[test]
 fn run_scrubs_unset_variables() {
@@ -368,11 +370,15 @@ fn run_scrubs_unset_variables() {
         "program=_main/prog\nunset=EXEC_LAUNCHER_UNSET_PROBE\n",
     )
     .unwrap();
-    // Only this test uses this name, so setting it cannot disturb the others.
-    // SAFETY: no other thread reads this variable name while it is set.
-    unsafe { std::env::set_var("EXEC_LAUNCHER_UNSET_PROBE", "1") };
-    let code = run(&dir.join("app.exe"), &[]).unwrap();
-    assert_eq!(code, 0);
+    // The built launcher runs as `app.exe` with the variable set on that child only.
+    let launcher = dx_testing::env_file("DX_EXEC_LAUNCHER");
+    let app = dir.join("app.exe");
+    std::fs::copy(&launcher, &app).unwrap();
+    let status = std::process::Command::new(&app)
+        .env("EXEC_LAUNCHER_UNSET_PROBE", "1")
+        .status()
+        .unwrap();
+    assert_eq!(status.code(), Some(0));
 }
 
 #[test]

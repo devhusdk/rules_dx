@@ -276,6 +276,19 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
+                "objc curated defaults are clang-format, typos and clang_syntax",
+                (CURATED_DEFAULTS["objc"], "objc" in OTHER_DEFAULTS),
+                (
+                    {
+                        "audit": [],
+                        "format": ["clang_format"],
+                        "lint": ["typos"],
+                        "typecheck": ["clang_syntax"],
+                    },
+                    True,
+                ),
+            ),
+            expect_equal(
                 "java curated defaults",
                 CURATED_DEFAULTS["java"],
                 {

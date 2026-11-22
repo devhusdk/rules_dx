@@ -353,6 +353,15 @@ fn long_path(path: &Path) -> io::Result<std::path::PathBuf> {
 pub const LOCK_POLL: Duration = Duration::from_millis(50);
 
 pub fn lock_exclusive(file: &File, timeout: Duration) -> Result<(), std::fs::TryLockError> {
+    lock_exclusive_waiting(file, timeout, &mut || {})
+}
+
+/// Like `lock_exclusive`, calling `on_wait` each time the lock is busy and it is about to sleep.
+fn lock_exclusive_waiting(
+    file: &File,
+    timeout: Duration,
+    on_wait: &mut dyn FnMut(),
+) -> Result<(), std::fs::TryLockError> {
     let start = Instant::now();
     loop {
         match file.try_lock() {
@@ -361,6 +370,7 @@ pub fn lock_exclusive(file: &File, timeout: Duration) -> Result<(), std::fs::Try
                 if start.elapsed() >= timeout {
                     return Err(std::fs::TryLockError::WouldBlock);
                 }
+                on_wait();
                 std::thread::sleep(LOCK_POLL);
             }
             Err(other) => return Err(other), // LCOV_EXCL_LINE - reason: non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
@@ -959,13 +969,22 @@ mod tests {
         let held = open_lock_file(&path);
         lock_exclusive(&held, Duration::from_secs(10)).expect("hold lock");
         let waiter_path = path.clone();
+        let (blocked, waiting) = std::sync::mpsc::channel();
         let waiter = std::thread::spawn(move || {
             let file = open_lock_file(&waiter_path);
-            lock_exclusive(&file, Duration::from_secs(30)).expect("waiter acquires");
+            let mut waits = 0;
+            lock_exclusive_waiting(&file, Duration::from_secs(30), &mut || {
+                waits += 1;
+                blocked.send(()).expect("the test is listening");
+            })
+            .expect("waiter acquires");
+            waits
         });
-        std::thread::sleep(Duration::from_millis(500));
+        waiting
+            .recv_timeout(Duration::from_secs(30))
+            .expect("waiter blocks on the held lock");
         drop(held);
-        waiter.join().expect("waiter thread");
+        assert!(waiter.join().expect("waiter thread") >= 1);
         scratch.close().expect("cleanup");
     }
 

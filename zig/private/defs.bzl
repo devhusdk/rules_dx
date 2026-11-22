@@ -120,12 +120,12 @@ def zig_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
         kwargs,
         main = main,
         zigopts = ["-j1"] + kwargs.get("zigopts", []) + select({
-            Label("//zig/private:sancov_build"): ["-fllvm", "-ffuzz"],
+            Label("//zig:sancov_build"): ["-fllvm", "-ffuzz"],
             Label("//zig:kcov_build"): ["-fllvm"],
             "//conditions:default": [],
         }),
         test_runner = select({
-            Label("//zig/private:sancov_build"): Label("//zig/private:coverage_runner.zig"),
+            Label("//zig:sancov_build"): Label("//zig/private:coverage_runner.zig"),
             "//conditions:default": kwargs.get("test_runner"),
         }),
     )

@@ -160,6 +160,10 @@ fn bytes_at<const N: usize>(data: &[u8], at: usize) -> Option<[u8; N]> {
 }
 
 /// Reads every image in one binary; a fat Mach-O yields one image per slice.
+///
+/// # Errors
+///
+/// Returns `Err` when the bytes are not a binary format dx reads, or a header is truncated.
 pub fn inspect(bytes: &[u8]) -> Result<Vec<Image>, Error> {
     if bytes.starts_with(WASM_MAGIC) {
         return Ok(vec![Image {
@@ -194,6 +198,10 @@ pub fn inspect(bytes: &[u8]) -> Result<Vec<Image>, Error> {
 /// Names the machine of every image in a binary, COFF object or archive member.
 ///
 /// Unlike `inspect`, this accepts COFF objects, import objects and `.lib` or `.a` archives.
+///
+/// # Errors
+///
+/// Returns `Err` when the bytes are not a binary, object or archive format dx reads.
 pub fn machines(bytes: &[u8]) -> Result<Vec<String>, Error> {
     let kind = FileKind::parse(bytes).map_err(|error| fail("unknown binary format", error))?;
     match kind {

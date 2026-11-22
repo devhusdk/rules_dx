@@ -50,12 +50,13 @@ The guards check the rules of `docs/design/tests.md`.
 
 ## Determinism
 
-- `//tools/testing:determinism_check` builds its patterns twice, each in a fresh output base with `--disk_cache=`, `--remote_cache=` and `--remote_executor=` empty, and compares the two compact execution logs with `dx_testing::exec_log`.
-- With `--kinds` it adds one target per `entry_points` kind of every `<lang>/lang.json`: `bazel query --output=label_kind 'kind(...) except attr(tags, manual, //...)'` lists them, a `cquery` drops those with `IncompatiblePlatformProvider`, and the first label of each kind in sorted order is kept. The builds pass `--skip_incompatible_explicit_targets`.
-- The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run`, passes Bazel with `--bazel`, and runs six shards with `--kinds --shard i/6`. `--shard` keeps every sixth top-level package of kind targets. Shards 0, 1, 2, 3 and 5 add `//appimage/...`, `//cli/archive/...`, `//android/private/packaging/...`, `//msix/tests/...` and `//deploy/private/...`.
-- A 40 min step cap under the 45 min job cap keeps a slow shard's log.
+- `//tools/testing:determinism_check` builds its patterns twice, each in a fresh output base with no disk or remote cache, and compares the two compact execution logs with `dx_testing::exec_log`.
+- With `--kinds` it adds one target per `entry_points` kind of every `<lang>/lang.json`: a `query` lists the non-manual ones, a `cquery` drops those with `IncompatiblePlatformProvider`, and the first label of each kind is kept. The builds pass `--skip_incompatible_explicit_targets`.
+- The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run` in seven shards with `--kinds --shard i/7`, which keeps every seventh top-level package of kind targets. Shards 0 to 3 add `//appimage/...`, `//cli/archive/...`, `//android/private/packaging/...` and `//msix/tests/...`; shards 5 and 6 split `//deploy/private/...` into `:all` and its subpackages.
+- Each build deletes its output base after `shutdown`.
+- A 40 min step cap keeps a slow shard's log. Cold build times: shards 1 to 3 570 s, shard 4 360 s, `//deploy/private/...` 1067 s.
 - Flags precede `--`, patterns follow, so `-//pkg/...` excludes.
-- Outputs match between the logs by path; the `<label> <mnemonic>` before it only names the action. The job fails for an output that differs or is in one log only, and for an allowlist line whose output does not differ or is in neither log.
+- Outputs match between the logs by path; `<label> <mnemonic>` only names the action. The job fails for an output that differs or is in one log only, and for a stale allowlist line.
 - `tools/ci/determinism_allowlist.txt` lists the actions that differ; `//tools/ci:determinism_allowlist_test` holds its cap.
 
 ## Analysis scaling

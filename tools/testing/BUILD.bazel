@@ -378,6 +378,7 @@ rust_binary(
     crate_root = "determinism_check.rs",
     deps = [
         ":dx_testing",
+        "//cli/process:dx_process",
         "@crates//:serde_json",
     ],
 )

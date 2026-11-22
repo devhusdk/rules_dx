@@ -1,8 +1,8 @@
 load("@bazel_lib//lib:run_binary.bzl", "run_binary")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("//cc:defs.bzl", "cc_binary")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":bundle.bzl", "dx_bundle_tool", "dx_bundle_tree")
@@ -67,19 +67,21 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
-# A compiled stub, not a shell script, so it runs the same on every host.
 write_file(
-    name = "guard_stub_src",
-    out = "guard_stub.c",
+    name = "guard_stub_script",
+    out = "guard_stub.sh",
     content = [
-        "int main(void) { return 1; }",
+        "#!/bin/sh",
+        "exit 1",
         "",
     ],
+    is_executable = True,
 )
 
-cc_binary(
+native_binary(
     name = "guard_stub",
-    srcs = [":guard_stub_src"],
+    src = ":guard_stub_script",
+    out = "guard_stub",
     visibility = ["//visibility:public"],
 )
 

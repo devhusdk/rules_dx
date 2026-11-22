@@ -21,7 +21,7 @@ _exec_tools = rule(
 def _guard_view_impl(ctx):
     env = analysistest.begin(ctx)
     executables = analysistest.target_under_test(env)[_ExecToolsInfo].executables
-    asserts.equals(env, ["guard_stub"] * len(executables), [paths.basename(f.path).removesuffix(".exe") for f in executables])
+    asserts.equals(env, ["guard_stub"] * len(executables), [paths.basename(f.path) for f in executables])
     return analysistest.end(env)
 
 _guard_view_test = analysistest.make(

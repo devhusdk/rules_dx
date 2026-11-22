@@ -1,6 +1,5 @@
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
 use super::{
@@ -10,9 +9,15 @@ use super::{
 
 fn script(dir: &Path, body: &str) -> PathBuf {
     let path = dir.join("firefox");
-    std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("a fake browser");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("an executable");
+    dx_testing::executable_script(&path, &format!("#!/bin/sh\n{body}\n"));
     path
+}
+
+fn silent_child() -> Child {
+    Command::new("sleep")
+        .arg("30")
+        .spawn()
+        .expect("a silent child")
 }
 
 #[test]
@@ -96,10 +101,7 @@ fn a_browser_connects_to_the_port_its_profile_names() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("a listener");
     let port = listener.local_addr().expect("an address").port();
     std::fs::write(home.join(ACTIVE_PORT_FILE), port.to_string()).expect("a port file");
-    let mut child = Command::new("sleep")
-        .arg("30")
-        .spawn()
-        .expect("a running child");
+    let mut child = silent_child();
     let result = wait_for_control(
         &mut child,
         home,
@@ -203,10 +205,7 @@ fn a_browser_that_never_opens_its_port_reports_the_timeout() {
     let scratch = scratch_tmp.path().to_path_buf();
     let log = scratch.join("browser.log");
     std::fs::write(&log, "still starting\n").expect("a browser log");
-    let mut child = Command::new("sleep")
-        .arg("30")
-        .spawn()
-        .expect("a silent child");
+    let mut child = silent_child();
     let result = wait_for_control(
         &mut child,
         &scratch,

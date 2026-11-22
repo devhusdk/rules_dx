@@ -263,8 +263,25 @@ fn unreadable_resolve(workspace: String, detail: String) -> RunnerError {
     RunnerError::UnreadableResolve { workspace, detail }
 }
 
+/// Reads one strip-roots file, each root with a trailing `/` and longest first, so a nested
+/// root wins over its parent.
+fn read_strip_roots(path: &Path) -> Result<Vec<String>, RunnerError> {
+    let text = std::fs::read_to_string(path).map_err(|error| RunnerError::UnreadableResolve {
+        workspace: path.display().to_string(),
+        detail: error.to_string(),
+    })?;
+    let mut roots: Vec<String> = text
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(|root| format!("{root}/"))
+        .collect();
+    roots.sort_by_key(|root| std::cmp::Reverse(root.len()));
+    Ok(roots)
+}
+
 /// Returns the request resolves plus the resolve-list lines whose path no mapping holds yet.
 /// The lists come from depsets, so a path a source, sibling or earlier line holds is skipped.
+/// A list with strip roots drops the longest root that prefixes each line's path first.
 fn listed_resolves(
     request: &crate::request::RealRequest,
 ) -> Result<Vec<(String, String)>, RunnerError> {
@@ -281,12 +298,20 @@ fn listed_resolves(
             workspace: resolve_list.list.display().to_string(),
             detail,
         };
+        let roots = match &resolve_list.strip_roots {
+            Some(path) => read_strip_roots(path)?,
+            None => Vec::new(),
+        };
         let text = std::fs::read_to_string(&resolve_list.list)
             .map_err(|error| unreadable(error.to_string()))?;
         for line in text.lines().filter(|line| !line.is_empty()) {
-            let (workspace, exec) = line
+            let (listed, exec) = line
                 .split_once('\t')
                 .ok_or_else(|| unreadable(format!("line {line:?} is not workspace<TAB>exec")))?;
+            let workspace = roots
+                .iter()
+                .find_map(|root| listed.strip_prefix(root.as_str()))
+                .unwrap_or(listed);
             if let Some(reason) = dx_path::reject_reason(workspace) {
                 return Err(unreadable(format!("path {workspace:?}: {reason}")));
             }
@@ -537,6 +562,7 @@ mod tests {
             resolve_lists: vec![crate::request::ResolveList {
                 list: list.clone(),
                 extensions: vec!["rego".to_owned()],
+                strip_roots: None,
             }],
             tools: BTreeMap::new(),
             scratch_parent: None,
@@ -553,6 +579,7 @@ mod tests {
             resolve_lists: vec![crate::request::ResolveList {
                 list,
                 extensions: Vec::new(),
+                strip_roots: None,
             }],
             ..request.clone()
         };
@@ -563,11 +590,73 @@ mod tests {
             resolve_lists: vec![crate::request::ResolveList {
                 list: bad,
                 extensions: Vec::new(),
+                strip_roots: None,
             }],
             ..request
         };
         assert!(matches!(
             listed_resolves(&escaping),
+            Err(RunnerError::UnreadableResolve { .. })
+        ));
+    }
+
+    #[test]
+    fn resolve_lists_strip_the_longest_root() {
+        let dir = tempfile::tempdir().expect("scratch");
+        let list = dir.path().join("buf-resolves.txt");
+        std::fs::write(
+            &list,
+            "bin/api/_virtual_imports/api/v1/a.proto\tbin/api/_virtual_imports/api/v1/a.proto\n\
+             external/wkt/src/google/any.proto\texternal/wkt/src/google/any.proto\n\
+             pkg/b.proto\tpkg/b.proto\n\
+             bin/c.proto\tbin/c.proto\n",
+        )
+        .expect("list");
+        let roots = dir.path().join("buf-roots.txt");
+        std::fs::write(
+            &roots,
+            "bin\nexternal/wkt/src\nbin/api/_virtual_imports/api\n",
+        )
+        .expect("roots");
+        let request = crate::request::RealRequest {
+            producer: "//api:api".to_owned(),
+            capability: "lint".to_owned(),
+            stages: Vec::new(),
+            sources: vec![("c.proto".to_owned(), "c.proto".to_owned())],
+            siblings: Vec::new(),
+            resolves: Vec::new(),
+            resolve_lists: vec![crate::request::ResolveList {
+                list,
+                extensions: Vec::new(),
+                strip_roots: Some(roots),
+            }],
+            tools: BTreeMap::new(),
+            scratch_parent: None,
+            unsafe_fixes: false,
+        };
+        assert_eq!(
+            listed_resolves(&request).expect("resolves"),
+            [
+                (
+                    "v1/a.proto".to_owned(),
+                    "bin/api/_virtual_imports/api/v1/a.proto".to_owned()
+                ),
+                (
+                    "google/any.proto".to_owned(),
+                    "external/wkt/src/google/any.proto".to_owned()
+                ),
+                ("pkg/b.proto".to_owned(), "pkg/b.proto".to_owned()),
+            ]
+        );
+        let missing = crate::request::RealRequest {
+            resolve_lists: vec![crate::request::ResolveList {
+                strip_roots: Some(dir.path().join("absent.txt")),
+                ..request.resolve_lists[0].clone()
+            }],
+            ..request
+        };
+        assert!(matches!(
+            listed_resolves(&missing),
             Err(RunnerError::UnreadableResolve { .. })
         ));
     }

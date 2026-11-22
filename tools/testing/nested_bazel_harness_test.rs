@@ -151,13 +151,16 @@ fn indirect_consumer(name: &str) -> Case {
     let rules = std::path::absolute(&rules).unwrap_or_else(|error| panic!("{rules:?}: {error}"));
     let rules = rules.parent().expect("rules_dx runfiles directory");
     for (package, patches) in [
-        ("rules_flutter", nested::compose::RULES_FLUTTER_PATCHES.as_slice()),
+        (
+            "rules_flutter",
+            nested::compose::RULES_FLUTTER_PATCHES.as_slice(),
+        ),
         (
             "cgrindel_bazel_starlib",
             nested::compose::STARLIB_PATCHES.as_slice(),
         ),
     ] {
-        case.write(&format!("patches/{package}/BUILD.bazel"), "");
+        case.write(format!("patches/{package}/BUILD.bazel"), "");
         for patch in patches {
             let rel = format!("patches/{package}/{patch}.patch");
             case.write(&rel, &dx_testing::read_text(&rules.join(&rel)));
@@ -314,7 +317,7 @@ fn a_consumer_that_loads_an_internal_bzl_fails() {
     // `taxonomy.bzl` declares `visibility("private")`; tools/ci:bzl_visibility_test keeps every internal file declared.
     case.write(
         "BUILD.bazel",
-        "load(\"@rules_dx//core/quality:taxonomy.bzl\", \"OTHER_FAMILIES\")\n\nfilegroup(name = \"all\", tags = [str(len(OTHER_FAMILIES))])\n",
+        "load(\"@rules_dx//core/quality:taxonomy.bzl\", \"TAXONOMY\")\n\nfilegroup(name = \"all\", tags = [str(len(TAXONOMY))])\n",
     );
     case.build_fails_with("//:all", &["is not visible for loading"]);
 }

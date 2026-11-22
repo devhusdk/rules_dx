@@ -4139,3 +4139,312 @@ LANGS = json.decode("""{
     ]
   }
 }""")
+
+# File families with no lang.json, from core/quality/core_aspects.json.
+CORE_FAMILIES = json.decode("""{
+  "core": {
+    "classes": [
+      "github_workflow"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "yamlfmt"
+      ],
+      "lint": [
+        "actionlint",
+        "zizmor"
+      ],
+      "typecheck": []
+    },
+    "owner": "other"
+  },
+  "css": {
+    "classes": [
+      "css",
+      "less",
+      "scss"
+    ],
+    "owner": "javascript"
+  },
+  "cue": {
+    "classes": [
+      "cue"
+    ],
+    "owner": "core"
+  },
+  "gherkin": {
+    "classes": [
+      "gherkin"
+    ],
+    "owner": "core"
+  },
+  "go_module": {
+    "classes": [
+      "go_module"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "modfmt"
+      ],
+      "lint": [
+        "typos"
+      ],
+      "typecheck": []
+    },
+    "owner": "other"
+  },
+  "graphql": {
+    "classes": [
+      "graphql"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "prettier"
+      ],
+      "lint": [
+        "typos"
+      ],
+      "typecheck": []
+    },
+    "owner": "javascript"
+  },
+  "html": {
+    "classes": [
+      "html"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "prettier"
+      ],
+      "lint": [
+        "typos"
+      ],
+      "typecheck": []
+    },
+    "owner": "javascript"
+  },
+  "html_template": {
+    "classes": [
+      "html_template"
+    ],
+    "owner": "core"
+  },
+  "json": {
+    "classes": [
+      "json",
+      "json5",
+      "jsonc"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "biome"
+      ],
+      "lint": [
+        "biome"
+      ],
+      "typecheck": []
+    },
+    "owner": "other"
+  },
+  "jsonnet": {
+    "classes": [
+      "jsonnet"
+    ],
+    "owner": "core"
+  },
+  "jupyter": {
+    "classes": [
+      "jupyter"
+    ],
+    "owner": "core"
+  },
+  "latex": {
+    "classes": [
+      "latex"
+    ],
+    "owner": "core"
+  },
+  "markdown": {
+    "classes": [
+      "markdown"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [],
+      "lint": [
+        "lychee",
+        "markdown_check",
+        "typos"
+      ],
+      "typecheck": []
+    },
+    "owner": "other"
+  },
+  "nix": {
+    "classes": [
+      "nix"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [],
+      "lint": [
+        "deadnix",
+        "typos"
+      ],
+      "typecheck": []
+    },
+    "owner": "core"
+  },
+  "objc": {
+    "classes": [
+      "objc",
+      "objcpp"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "clang_format"
+      ],
+      "lint": [
+        "typos"
+      ],
+      "typecheck": [
+        "clang_syntax"
+      ]
+    },
+    "owner": "cc"
+  },
+  "oci_image": {
+    "classes": [
+      "oci_image"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [],
+      "lint": [
+        "trivy_image_config"
+      ],
+      "typecheck": [
+        "container_structure_test"
+      ]
+    },
+    "owner": "deploy"
+  },
+  "pkl": {
+    "classes": [
+      "pkl"
+    ],
+    "owner": "core"
+  },
+  "protobuf": {
+    "classes": [
+      "protobuf"
+    ],
+    "owner": "other"
+  },
+  "rst": {
+    "classes": [
+      "rst"
+    ],
+    "owner": "rst"
+  },
+  "shell": {
+    "classes": [
+      "shell"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "shfmt"
+      ],
+      "lint": [
+        "shellcheck",
+        "typos"
+      ],
+      "typecheck": []
+    },
+    "owner": "other"
+  },
+  "starlark": {
+    "classes": [
+      "starlark"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "buildifier"
+      ],
+      "lint": [
+        "buildifier",
+        "typos"
+      ],
+      "typecheck": []
+    },
+    "owner": "other"
+  },
+  "text": {
+    "classes": [
+      "text"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [],
+      "lint": [
+        "keep_sorted",
+        "typos"
+      ],
+      "typecheck": []
+    },
+    "owner": "other"
+  },
+  "toml": {
+    "classes": [
+      "toml"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "taplo"
+      ],
+      "lint": [
+        "taplo",
+        "typos"
+      ],
+      "typecheck": []
+    },
+    "owner": "other"
+  },
+  "typst": {
+    "classes": [
+      "typst"
+    ],
+    "owner": "core"
+  },
+  "xml": {
+    "classes": [
+      "xml"
+    ],
+    "owner": "core"
+  },
+  "yaml": {
+    "classes": [
+      "yaml"
+    ],
+    "defaults": {
+      "audit": [],
+      "format": [
+        "yamlfmt"
+      ],
+      "lint": [
+        "yamllint"
+      ],
+      "typecheck": []
+    },
+    "owner": "core"
+  }
+}""")

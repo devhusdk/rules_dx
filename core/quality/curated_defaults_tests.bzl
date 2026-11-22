@@ -2,7 +2,7 @@
 
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
-load(":curated_defaults.bzl", "CURATED_DEFAULTS", "LANG_JSON_DEFAULTS", "OTHER_DEFAULTS", "curated_schema_error")
+load(":curated_defaults.bzl", "CORE_DEFAULTS", "CURATED_DEFAULTS", "LANG_JSON_DEFAULTS", "curated_schema_error")
 load(":tools.bzl", "TOOLS")
 
 visibility("private")
@@ -96,14 +96,14 @@ def curated_defaults_unit_tests(name):
                 "",
             ),
             expect_equal(
-                "lang.json curated rows and the other rows do not overlap",
-                [family for family in LANG_JSON_DEFAULTS if family in OTHER_DEFAULTS],
+                "lang.json curated rows and the core rows do not overlap",
+                [family for family in LANG_JSON_DEFAULTS if family in CORE_DEFAULTS],
                 [],
             ),
             expect_equal(
-                "curated defaults hold every lang.json and other row",
+                "curated defaults hold every lang.json and core row",
                 len(CURATED_DEFAULTS),
-                len(LANG_JSON_DEFAULTS) + len(OTHER_DEFAULTS),
+                len(LANG_JSON_DEFAULTS) + len(CORE_DEFAULTS),
             ),
             expect_equal(
                 "cuda curated defaults come from lang.json",
@@ -357,7 +357,7 @@ def curated_defaults_unit_tests(name):
             ),
             expect_equal(
                 "objc curated defaults are clang-format, typos and clang_syntax",
-                (CURATED_DEFAULTS["objc"], "objc" in OTHER_DEFAULTS),
+                (CURATED_DEFAULTS["objc"], "objc" in CORE_DEFAULTS),
                 (
                     {
                         "audit": [],

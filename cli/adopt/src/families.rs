@@ -3,24 +3,16 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-/// The `dx.toml` families without a `lang.json` `quality` entry and the files that mean one is
+/// The core file families of `core/quality/core_aspects.json` with the files that mean one is
 /// present: an extension with its dot, or an exact file name.
-const OTHER_FAMILIES: &[(&str, &[&str])] = &[
-    ("core", &[".yaml", ".yml"]),
-    ("graphql", &[".gql", ".graphql"]),
-    ("html", &[".htm", ".html"]),
-    ("json", &[".json"]),
-    ("markdown", &[".md"]),
-    ("nix", &[".nix"]),
-    ("shell", &[".bash", ".sh"]),
-    (
-        "starlark",
-        &[".bazel", ".bzl", ".star", "BUILD", "WORKSPACE"],
-    ),
-    ("text", &[".txt"]),
-    ("toml", &[".toml"]),
-    ("yaml", &[".yaml", ".yml"]),
-];
+fn core_marks() -> impl Iterator<Item = (&'static str, Vec<&'static str>)> {
+    dx_families::core_families().iter().map(|family| {
+        (
+            family.family.as_str(),
+            family.marks.iter().map(String::as_str).collect(),
+        )
+    })
+}
 
 /// The `dx.toml` family id of each `lang.json` quality language with the files that no other
 /// quality language lists.
@@ -59,9 +51,7 @@ pub fn detected_families(root: &Path) -> BTreeSet<String> {
         names.insert(name.to_owned());
     }
     let languages = language_marks();
-    let mut found: BTreeSet<String> = OTHER_FAMILIES
-        .iter()
-        .map(|(id, marks)| (*id, marks.to_vec()))
+    let mut found: BTreeSet<String> = core_marks()
         .chain(languages)
         .filter(|(_, marks)| {
             marks.iter().any(|mark| {
@@ -243,6 +233,7 @@ fn walk(root: &Path) -> Vec<String> {
 mod tests {
     use super::*;
     use dx_test_scratch::{scratch, write};
+    use std::collections::BTreeMap;
 
     const MODULE_FILE: &str = "MODULE.bazel";
     const MODULE: &str =
@@ -354,11 +345,7 @@ mod tests {
     #[test]
     fn every_detectable_family_is_a_dx_toml_id() {
         let ids = dx_toml_family_ids();
-        for (id, marks) in OTHER_FAMILIES
-            .iter()
-            .map(|(id, marks)| (*id, marks.to_vec()))
-            .chain(language_marks())
-        {
+        for (id, marks) in core_marks().chain(language_marks()) {
             if !marks.is_empty() {
                 assert!(ids.contains(id), "{id} is not a dx.toml family id");
             }
@@ -382,15 +369,27 @@ mod tests {
     }
 
     #[test]
-    fn other_families_have_no_lang_json_quality_entry() {
-        for (id, _) in OTHER_FAMILIES {
+    fn core_families_have_no_lang_json_quality_entry() {
+        for (id, _) in core_marks() {
             assert!(
                 dx_families::quality_marks()
                     .iter()
-                    .all(|language| language.language != *id),
-                "{id} has a lang.json quality entry; drop its OTHER_FAMILIES row"
+                    .all(|language| language.language != id && language.family != id),
+                "{id} has a lang.json quality entry; drop its core_aspects.json family"
             );
         }
+    }
+
+    #[test]
+    fn core_families_keep_their_marks() {
+        let marks: BTreeMap<&str, Vec<&str>> = core_marks().collect();
+        assert_eq!(marks.get("json"), Some(&vec![".json"]));
+        assert_eq!(
+            marks.get("starlark"),
+            Some(&vec![".bazel", ".bzl", ".star", "BUILD", "WORKSPACE"])
+        );
+        assert_eq!(marks.get("core"), Some(&vec![".yaml", ".yml"]));
+        assert_eq!(marks.get("css"), Some(&vec![]));
     }
 
     #[test]

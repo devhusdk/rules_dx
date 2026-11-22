@@ -103,7 +103,7 @@ dx_conformance_suite(
         "format_dirty": ":format_dirty",
         "format_source": "FormatDirty.java",
         "lint_dirty": ":lint_dirty",
-        "lint_line": 4,
+        "lint_line": 5,
         "lint_rule": "UnusedPrivateMethod",
         "lint_source": "LintDirty.java",
     },

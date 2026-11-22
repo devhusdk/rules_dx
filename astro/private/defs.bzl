@@ -2,9 +2,14 @@
 
 load("@aspect_rules_js//js:defs.bzl", _js_library = "js_library")
 load("//core:wrapper.bzl", "dx_private_dep_rule")
-load("//javascript/private:frameworks.bzl", "dx_framework_build", "dx_framework_forward_rule", "dx_framework_library", "dx_framework_test")
+load("//javascript/private:frameworks.bzl", "dx_framework_build", "dx_framework_forward_rule", "dx_framework_jest_config_rule", "dx_framework_library", "dx_framework_test")
 
 visibility(["//..."])
+
+_jest_config = dx_framework_jest_config_rule(
+    Label("//astro/private:jest_config"),
+    "Provides the Astro jest config.",
+)
 
 _astro_library_forward = dx_framework_forward_rule("astro", ".astro")
 
@@ -24,4 +29,4 @@ def astro_build(name, srcs, config, node_modules, package_json = None, public = 
 
 def astro_test(name, *, srcs, node_modules, data = None, **kwargs):
     """Runs jest over Astro components, compiled by the linked @astrojs/compiler-rs."""
-    dx_framework_test(name, srcs, Label("//astro/private:jest_config"), Label("//astro/private:jest_transform"), ["@astrojs/compiler-rs", "astro"], node_modules, data = data, **kwargs)
+    dx_framework_test(name, srcs, _jest_config, ["@astrojs/compiler-rs", "astro"], node_modules, data = data, **kwargs)

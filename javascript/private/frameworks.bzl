@@ -26,6 +26,32 @@ _vite_tool_entry = dx_private_dep_rule(
     "Provides the script that runs one Vite build.",
 )
 
+def _jest_config_impl(ctx):
+    upstream = ctx.attr._config[DefaultInfo]
+    files = upstream.files.to_list()
+    if len(files) != 1:
+        fail(str(ctx.attr._config.label) + ": a framework jest config must be exactly one file")
+    out = ctx.actions.declare_file(ctx.label.name + ".cjs")
+
+    # rules_jest anchors rootDir at a config that sits in the test's package, so
+    # coverage globs resolve against the test's sources. This file sits there and
+    # loads the shared config the same way rules_jest loads user configs.
+    ctx.actions.write(out, "\n".join([
+        "\"use strict\";",
+        "const path = require(\"node:path\");",
+        "module.exports = require(path.join(process.env.JS_BINARY__RUNFILES, process.env.JS_BINARY__WORKSPACE, " + json.encode(files[0].short_path) + "));",
+        "",
+    ]))
+    return [DefaultInfo(files = depset([out]), runfiles = ctx.runfiles(files = [out] + files).merge(upstream.default_runfiles))]
+
+def dx_framework_jest_config_rule(config, doc):
+    """Creates the rule that loads one framework's jest config from the test's package."""
+    return rule(
+        implementation = _jest_config_impl,
+        doc = doc,
+        attrs = {"_config": attr.label(default = config)},
+    )
+
 def dx_framework_forward_rule(language, ext):
     """Creates the forwarding rule for one JS-framework wrapper."""
     return dx_library_forward_rule(
@@ -41,36 +67,45 @@ def dx_framework_library(name, srcs, upstream_rule, forward_rule, visibility = N
     """Instantiates one JS-framework library."""
     dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = visibility, **kwargs)
 
-def dx_framework_jest_files(transform):
-    """Declares jest_config and jest_transform for one framework."""
+def dx_framework_jest_files(name, transform):
+    """Declares the framework's jest config, with its transform in runfiles."""
     copy_to_bin(
-        name = "jest_config",
-        visibility = ["//visibility:public"],
+        name = name + "_file",
         srcs = ["jest.config.cjs"],
     )
     copy_to_bin(
         name = "jest_transform",
-        visibility = ["//visibility:public"],
         srcs = [transform],
     )
 
-def dx_framework_test(name, srcs, config, transform, packages, node_modules, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
-    """Runs jest over framework components. `transform` compiles them, `config` builds the jest config from the shared helper, and `packages` are the node_modules packages (the compiler) the transform needs."""
+    # The transform rides in the config's runfiles, not the test's data, so
+    # coverage of a test in the same package as the forwarder never instruments it.
+    native.filegroup(
+        name = name,
+        srcs = [":" + name + "_file"],
+        data = [":jest_transform"],
+    )
+
+def dx_framework_test(name, srcs, config, packages, node_modules, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
+    """Runs jest over framework components. `config` is the framework's dx_framework_jest_config_rule, whose config carries the transform that compiles them; `packages` are the node_modules packages (the compiler) the transform needs."""
     if "config" in kwargs:
         fail(name + ": config is set by the framework test rule")
     rejection = javascript_test_rejection("jest", node_modules, None, kwargs)
     if rejection != None:
         fail(rejection)
-    kwargs["config"] = config
+    upstream_tags = dx_upstream_tags(kwargs.get("tags"))
+    jest_config = name + "_dx_framework_jest_config"
+    config_name = name + "_dx_jest_config"
+    for rule, target in [(_framework_jest_config, jest_config), (config, config_name)]:
+        rule(
+            name = target,
+            tags = upstream_tags,
+            visibility = ["//visibility:private"],
+        )
+    kwargs["config"] = ":" + config_name
     kwargs["node_options"] = ["--experimental-vm-modules"]
     upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs, package_json)
-    jest_config = name + "_dx_framework_jest_config"
-    _framework_jest_config(
-        name = jest_config,
-        tags = dx_upstream_tags(kwargs.get("tags")),
-        visibility = ["//visibility:private"],
-    )
-    upstream_data = list(srcs) + list(data or []) + [transform, ":" + jest_config] + [node_modules + "/" + package for package in packages]
+    upstream_data = list(srcs) + list(data or []) + [":" + jest_config] + [node_modules + "/" + package for package in packages]
     a = node_test_wrap_args(name, srcs, upstream_data, package_json, upstream_kwargs, env_inherit, kwargs)
     dx_wrap_test(name, _jest_test, javascript_forward_test, None, visibility = visibility, quality_srcs = dx_entry_quality_srcs(None, srcs), upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)
 

@@ -9,15 +9,78 @@
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
-use documentation_ir::tool::{Source, parse_sources};
+use documentation_ir::tool::{
+    FlagError, PathIoError, Source, SourcesError, WriteShardError, parse_sources, path_io,
+};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
-use std::fs;
+use std::fmt::{self, Write as _};
+use std::path::Path;
 
 const LANGUAGE: &str = "swift";
 const KEY_CONFIG: &str = "swift.config";
 const KEY_EXTENDS: &str = "swift.extends";
+
+/// Why one symbol graph could not become a shard.
+#[derive(Debug)]
+pub enum SwiftExtractError {
+    Io(PathIoError),
+    Sources(SourcesError),
+    BadGraph(serde_json::Error),
+    BadExtensionGraph {
+        module: String,
+        other: String,
+        source: serde_json::Error,
+    },
+    WrongModule {
+        found: String,
+        module: String,
+    },
+    EmptyPath,
+    SourceOutOfRange {
+        index: usize,
+    },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for SwiftExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(error) => error.fmt(f),
+            Self::Sources(error) => error.fmt(f),
+            Self::BadGraph(error) => write!(f, "bad symbol graph: {error}"),
+            Self::BadExtensionGraph {
+                module,
+                other,
+                source,
+            } => write!(f, "bad symbol graph for {module}@{other}: {source}"),
+            Self::WrongModule { found, module } => {
+                write!(f, "symbol graph is for module '{found}', not '{module}'")
+            }
+            Self::EmptyPath => f.write_str("a symbol has an empty path"),
+            Self::SourceOutOfRange { index } => write!(f, "source index {index} is out of range"),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for SwiftExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(error) => Some(error),
+            Self::Sources(error) => Some(error),
+            Self::BadGraph(error) => Some(error),
+            Self::BadExtensionGraph { source, .. } => Some(source),
+            Self::Write(error) => Some(error),
+            Self::WrongModule { .. }
+            | Self::EmptyPath
+            | Self::SourceOutOfRange { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -47,7 +110,7 @@ pub fn usage() -> &'static str {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(
         args,
         &[
@@ -74,16 +137,14 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let read = |path: &str| {
-        fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))
-    };
+pub fn run(options: &Options) -> Result<(), SwiftExtractError> {
+    let read = |path: &str| path_io::read_to_string(Path::new(path)).map_err(SwiftExtractError::Io);
     let graph = read(&format!(
         "{}/{}.symbols.json",
         options.graphs, options.module
     ))?;
     let extensions = read_extension_graphs(&options.graphs, &options.module)?;
-    let sources = parse_sources(&read(&options.sources)?)?;
+    let sources = parse_sources(&read(&options.sources)?).map_err(SwiftExtractError::Sources)?;
     let mut texts = BTreeMap::new();
     for source in &sources {
         texts.insert(source.exec_path.clone(), read(&source.exec_path)?);
@@ -97,26 +158,28 @@ pub fn run(options: &Options) -> Result<(), String> {
         &options.package,
         &options.config,
     )?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(SwiftExtractError::Write)
 }
 
 /// Reads every `<module>@<Other>.symbols.json` of `dir` as (Other, text), ordered by name.
-fn read_extension_graphs(dir: &str, module: &str) -> Result<Vec<(String, String)>, String> {
+fn read_extension_graphs(
+    dir: &str,
+    module: &str,
+) -> Result<Vec<(String, String)>, SwiftExtractError> {
     let prefix = format!("{module}@");
     let mut found: Vec<(String, String)> = Vec::new();
-    let listing = fs::read_dir(dir).map_err(|error| format!("cannot read {dir}: {error}"))?;
-    for item in listing {
-        let item = item.map_err(|error| format!("cannot read {dir}: {error}"))?;
-        let name = item.file_name().to_string_lossy().into_owned();
+    for path in path_io::read_dir(Path::new(dir)).map_err(SwiftExtractError::Io)? {
+        let Some(name) = path.file_name() else {
+            continue;
+        };
+        let name = name.to_string_lossy();
         let Some(other) = name
             .strip_prefix(&prefix)
             .and_then(|rest| rest.strip_suffix(".symbols.json"))
         else {
             continue;
         };
-        let path = item.path();
-        let text = fs::read_to_string(&path)
-            .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+        let text = path_io::read_to_string(&path).map_err(SwiftExtractError::Io)?;
         found.push((other.to_owned(), text));
     }
     found.sort();
@@ -236,17 +299,17 @@ pub fn convert(
     texts: &BTreeMap<String, String>,
     package: &str,
     config: &str,
-) -> Result<DocIr, String> {
-    let root: Value =
-        serde_json::from_str(graph).map_err(|error| format!("bad symbol graph: {error}"))?;
+) -> Result<DocIr, SwiftExtractError> {
+    let root: Value = serde_json::from_str(graph).map_err(SwiftExtractError::BadGraph)?;
     let graph_module = root
         .pointer("/module/name")
         .and_then(Value::as_str)
         .unwrap_or_default();
     if graph_module != module {
-        return Err(format!(
-            "symbol graph is for module '{graph_module}', not '{module}'"
-        ));
+        return Err(SwiftExtractError::WrongModule {
+            found: graph_module.to_owned(),
+            module: module.to_owned(),
+        });
     }
     let mut config_text = format!("symbolgraph=1;package={package};module={module}");
     if !config.is_empty() {
@@ -272,9 +335,13 @@ pub fn convert(
         .map(|(other, text)| {
             serde_json::from_str(text)
                 .map(|value| (other.as_str(), value))
-                .map_err(|error| format!("bad symbol graph for {module}@{other}: {error}"))
+                .map_err(|source| SwiftExtractError::BadExtensionGraph {
+                    module: module.to_owned(),
+                    other: other.clone(),
+                    source,
+                })
         })
-        .collect::<Result<_, String>>()?;
+        .collect::<Result<_, _>>()?;
     for (other, value) in &extension_roots {
         collect(value, Some(other), &mut entries);
     }
@@ -331,7 +398,7 @@ pub fn convert(
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(SwiftExtractError::InvalidIr)?;
     Ok(shard)
 }
 
@@ -349,7 +416,7 @@ struct Assembly<'a> {
 }
 
 impl Assembly<'_> {
-    fn symbol(&mut self, entry: &Entry<'_>) -> Result<Symbol, String> {
+    fn symbol(&mut self, entry: &Entry<'_>) -> Result<Symbol, SwiftExtractError> {
         let (sources, source_lines, order) = (self.sources, self.source_lines, self.order);
         let (module_id, package, config_text) = (self.module_id, self.package, self.config_text);
         let mut id = entry.other.as_ref().map_or_else(
@@ -366,7 +433,7 @@ impl Assembly<'_> {
             id = format!("{id}@{count}");
         }
         let Some((name, parent_path)) = entry.path.split_last() else {
-            return Err("a symbol has an empty path".to_owned());
+            return Err(SwiftExtractError::EmptyPath);
         };
         let name = name.as_str();
         let parent_id = match entry.other {
@@ -518,10 +585,10 @@ fn build(
     }
 }
 
-fn source_ref(sources: &[Source], place: Place) -> Result<SourceRef, String> {
+fn source_ref(sources: &[Source], place: Place) -> Result<SourceRef, SwiftExtractError> {
     let source = sources
         .get(place.0)
-        .ok_or_else(|| format!("source index {} is out of range", place.0))?;
+        .ok_or(SwiftExtractError::SourceOutOfRange { index: place.0 })?;
     Ok(SourceRef {
         file: source.rel.clone(),
         line: place.1 as u64,

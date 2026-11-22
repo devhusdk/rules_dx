@@ -172,6 +172,10 @@ pub fn git(root: &Path, sandbox: &Path, args: &[&str]) -> Result<String, String>
 }
 
 /// Removes a directory link without following it into its target.
+///
+/// # Errors
+///
+/// Returns `Err` when the link cannot be removed.
 pub fn remove_directory_link(path: &Path) -> std::io::Result<()> {
     #[cfg(windows)]
     let removed = std::fs::remove_dir(path);

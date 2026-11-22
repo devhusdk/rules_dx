@@ -470,7 +470,7 @@ mod sh {
                 .env("STUB_QUERY_FAIL", base.join("query-fails"))
                 .env("STUB_CQUERY_FAIL", base.join("cquery-fails"))
                 .env("STUB_KEEP", base.join("keep-dx"))
-                .env("DX_RESTART_WAIT", "0.1");
+                .env("DX_RESTART_WAIT", "0");
             cmd
         }
 

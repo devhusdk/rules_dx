@@ -268,9 +268,7 @@ def _cuda_executable(cc_rule, forward_rule, test, name, srcs, cuda_archs, deps, 
     if test:
         # env stays on the cc_test, next to the data its $(location) values expand over.
         upstream_kwargs = dx_test_upstream_kwargs(upstream_kwargs, srcs = host, upstream_env = True)
-        forward_kwargs = dx_test_forward_kwargs(kwargs)
-        forward_kwargs.pop("env", None)
-        forward_kwargs.pop("env_inherit", None)
+        forward_kwargs = dx_test_forward_kwargs(kwargs, run_env = False)
         forward_kwargs["testonly"] = True
     else:
         upstream_kwargs = dx_binary_upstream_kwargs(upstream_kwargs, host)

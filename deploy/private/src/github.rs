@@ -344,7 +344,7 @@ pub fn github_build_staging_with_notes(
     let mut sorted: Vec<&std::path::PathBuf> = asset_srcs.iter().collect();
     sorted.sort();
     let bases = github_asset_bases(&sorted)?;
-    let staging = outdir.join(deploy_name.to_owned() + "-release");
+    let staging = outdir.join(format!("{deploy_name}-release"));
     std::fs::create_dir_all(&staging)?;
     let mut lines = vec![String::from("# would-run manifest for github_deploy")];
     for (src, base) in sorted.iter().zip(&bases) {
@@ -926,24 +926,19 @@ mod tests {
         std::fs::write(runfiles.join("asset.tar.gz"), b"asset").expect("asset");
         let marker = scratch.path().join("apidiff-ran");
         let apidiff = runfiles.join("apidiff");
-        std::fs::write(
+        dx_testing::executable_script(
             &apidiff,
-            format!(
+            &format!(
                 "#!/bin/sh\ntouch {}\ncase \"$*\" in *-w*) exit 0;; esac\necho 'Incompatible changes:'\necho '- Hello: removed'\n",
                 marker.display()
             ),
-        )
-        .expect("fake apidiff");
-        set_mode(&apidiff, 0o755);
-        std::fs::write(runfiles.join("go"), "#!/bin/sh\nexit 0\n").expect("fake go");
-        set_mode(&runfiles.join("go"), 0o755);
+        );
+        dx_testing::executable_script(&runfiles.join("go"), "#!/bin/sh\nexit 0\n");
         let gh_log = bin.join("gh.log");
-        std::fs::write(
-            bin.join("gh"),
-            format!("#!/bin/sh\ntouch {}\n", gh_log.display()),
-        )
-        .expect("fake gh");
-        set_mode(&bin.join("gh"), 0o755);
+        dx_testing::executable_script(
+            &bin.join("gh"),
+            &format!("#!/bin/sh\ntouch {}\n", gh_log.display()),
+        );
         let path = format!(
             "{}:{}",
             bin.display(),

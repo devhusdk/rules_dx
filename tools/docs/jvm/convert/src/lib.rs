@@ -8,12 +8,7 @@
 //! is named `Name$` in `qualified`, so a class and its companion get distinct ids. Kinds `object`, `trait`, `typealias`, `function` and
 //! `property` are accepted only for the languages that have them.
 
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;

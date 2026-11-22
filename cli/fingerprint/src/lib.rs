@@ -1,7 +1,5 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::fmt::Write as _;
-
 pub mod finding;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -18,6 +16,11 @@ impl From<serde_json::Error> for FingerprintError {
     }
 }
 
+/// Serializes `view` as compact JSON.
+///
+/// # Errors
+///
+/// Returns `Err` when `view` cannot be serialized.
 pub fn to_json<T: serde::Serialize>(view: &T) -> Result<String, FingerprintError> {
     serde_json::to_string(view).map_err(FingerprintError::from)
 }
@@ -30,20 +33,27 @@ pub fn ensure_ascii(text: &str) -> String {
         if code < 0x80 {
             out.push(c);
         } else if code <= 0xFFFF {
-            write!(out, "\\u{code:04x}").ok();
+            out.push_str(&format!("\\u{code:04x}"));
         } else {
             let v = code - 0x10000;
             let high = 0xD800 + (v >> 10);
             let low = 0xDC00 + (v & 0x3FF);
-            write!(out, "\\u{high:04x}\\u{low:04x}").ok();
+            out.push_str(&format!("\\u{high:04x}\\u{low:04x}"));
         }
     }
     out
 }
 
+/// Serializes `value` as pretty, ASCII-only JSON ending in a newline.
+///
+/// # Errors
+///
+/// Returns `Err` when `value` cannot be serialized.
 pub fn to_json_ascii_pretty(value: &serde_json::Value) -> Result<String, FingerprintError> {
     let pretty = serde_json::to_string_pretty(value).map_err(FingerprintError::from)?;
-    Ok(ensure_ascii(&pretty) + "\n")
+    let mut out = ensure_ascii(&pretty);
+    out.push('\n');
+    Ok(out)
 }
 
 #[cfg(test)]

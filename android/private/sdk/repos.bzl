@@ -14,6 +14,7 @@ NDK_PREBUILT = {
     "linux_x86_64": "toolchains/llvm/prebuilt/linux-x86_64",
     "macos_arm64": "toolchains/llvm/prebuilt/darwin-x86_64",
     "macos_x86_64": "toolchains/llvm/prebuilt/darwin-x86_64",
+    "windows_arm64": "toolchains/llvm/prebuilt/windows-x86_64",
     "windows_x86_64": "toolchains/llvm/prebuilt/windows-x86_64",
 }
 
@@ -21,6 +22,7 @@ NDK_TOOL_SUFFIX = {
     "linux_x86_64": "",
     "macos_arm64": "",
     "macos_x86_64": "",
+    "windows_arm64": ".exe",
     "windows_x86_64": ".exe",
 }
 
@@ -63,6 +65,7 @@ OPT_IN_PACKAGES = [
 
 _NDK_PINS = DATA["dx_android"]["archives"]
 
+# windows_arm64 runs the x64 NDK under emulation; Google ships no arm64 Windows NDK.
 NDK_ARTIFACTS = {
     "linux_x86_64": struct(
         anchor = "source.properties",
@@ -87,6 +90,14 @@ NDK_ARTIFACTS = {
         sha1 = "1a4a8c39c018430ff170657fc1673d895f5e4570",
         sha256 = _NDK_PINS["android-ndk-r27-darwin.zip"]["sha256"],
         size = 836135405,
+    ),
+    "windows_arm64": struct(
+        anchor = "source.properties",
+        archive = "android-ndk-r27-windows.zip",
+        directory = "android-ndk-r27",
+        sha1 = "0ea2756e6815356831bda3af358cce4cdb6a981e",
+        sha256 = _NDK_PINS["android-ndk-r27-windows.zip"]["sha256"],
+        size = 781482169,
     ),
     "windows_x86_64": struct(
         anchor = "source.properties",
@@ -666,6 +677,7 @@ NDK_RUNTIME_LIBS = {
     "linux_x86_64": ["lib/libxml2.so.2"],
     "macos_arm64": ["lib/libc++.dylib", "lib/libxml2.2.dylib"],
     "macos_x86_64": ["lib/libc++.dylib", "lib/libxml2.2.dylib"],
+    "windows_arm64": ["bin/libwinpthread-1.dll", "bin/libxml2.dll"],
     "windows_x86_64": ["bin/libwinpthread-1.dll", "bin/libxml2.dll"],
 }
 

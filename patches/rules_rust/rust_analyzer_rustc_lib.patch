@@ -1,0 +1,49 @@
+Upstream: none (upstream PR to open: the rust-analyzer toolchain must carry rustc_lib, which the binary loads from $ORIGIN/../lib)
+diff --git a/rust/private/repository_utils.bzl b/rust/private/repository_utils.bzl
+--- a/rust/private/repository_utils.bzl
++++ b/rust/private/repository_utils.bzl
+@@ -753,6 +753,7 @@
+     proc_macro_srv = {proc_macro_srv},
+     rust_analyzer = {rust_analyzer},
+     rustc = "{rustc}",
++    rustc_lib = "//:rustc_lib",
+     rustc_srcs = "//lib/rustlib/src:rustc_srcs",
+     version = "{version}",
+     visibility = ["//visibility:public"],
+diff --git a/rust/private/rust_analyzer.bzl b/rust/private/rust_analyzer.bzl
+--- a/rust/private/rust_analyzer.bzl
++++ b/rust/private/rust_analyzer.bzl
+@@ -353,6 +353,7 @@
+         proc_macro_srv = ctx.executable.proc_macro_srv,
+         rust_analyzer = ctx.executable.rust_analyzer,
+         rustc = ctx.executable.rustc,
++        rustc_lib = depset(ctx.files.rustc_lib),
+         rustc_srcs = ctx.attr.rustc_srcs,
+         rustc_srcs_path = ctx.attr.rustc_srcs_path,
+         version = ctx.attr.version,
+@@ -387,6 +388,11 @@
+             allow_single_file = True,
+             mandatory = True,
+         ),
++        "rustc_lib": attr.label(
++            doc = "The shared libraries `rust-analyzer` and the proc-macro server load at runtime.",
++            cfg = "exec",
++            allow_files = True,
++        ),
+         "rustc_srcs": attr.label(
+             doc = "The source code of rustc.",
+             mandatory = True,
+@@ -424,11 +430,13 @@
+     if toolchain.rustc:
+         files.append(toolchain.rustc)
+ 
++    # rust-analyzer and the proc-macro server load librustc_driver from $ORIGIN/../lib.
+     return [
+         toolchain,
+         toolchain.make_variables,
+         DefaultInfo(
+             files = depset(files),
++            runfiles = ctx.runfiles(transitive_files = toolchain.rustc_lib),
+         ),
+     ]
+ 

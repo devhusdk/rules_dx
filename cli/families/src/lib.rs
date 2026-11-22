@@ -385,6 +385,10 @@ pub fn hub(ecosystem: &str) -> Option<&'static Hub> {
 
 /// Merges the `quality` entries of `lang.json` texts by aspect file, sorted by file. A text
 /// without a `quality` entry is skipped.
+///
+/// # Errors
+///
+/// Returns `Err` when a text is not valid `lang.json`.
 pub fn parse_quality(texts: &[&str]) -> Result<Vec<QualityFiles>, serde_json::Error> {
     Ok(merge_quality(parse_manifests(texts)?))
 }
@@ -431,6 +435,10 @@ fn merge_quality(manifests: Vec<Manifest>) -> Vec<QualityFiles> {
 
 /// Merges the `docs` entries of `lang.json` texts by aspect file, sorted by file. A text
 /// without a `docs` entry is skipped.
+///
+/// # Errors
+///
+/// Returns `Err` when a text is not valid `lang.json`.
 pub fn parse_docs(texts: &[&str]) -> Result<Vec<DocsFiles>, serde_json::Error> {
     Ok(merge_docs(parse_manifests(texts)?))
 }

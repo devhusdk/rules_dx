@@ -6,8 +6,8 @@ completed_rounds 1
 convergence STABLE
 initial 2
 initial WARNING perlcritic Variables::ProhibitUnusedVariables matrix/perlcritic_profile.pl 77 77 fixable=false "\"$unused\" is declared but not used"
-initial WARNING perlcritic ValuesAndExpressions::ProhibitMagicNumbers matrix/perlcritic_profile.pl 100 100 fixable=false "42 is not one of the allowed literal values (0, 1, 2). Use the Readonly or Const::Fast module or the \"constant\" pragma instead"
+initial WARNING perlcritic InputOutput::RequireCheckedSyscalls matrix/perlcritic_profile.pl 93 93 fixable=false "Return value of flagged function ignored - unlink"
 terminal 2
 terminal WARNING perlcritic Variables::ProhibitUnusedVariables matrix/perlcritic_profile.pl 77 77 fixable=false "\"$unused\" is declared but not used"
-terminal WARNING perlcritic ValuesAndExpressions::ProhibitMagicNumbers matrix/perlcritic_profile.pl 100 100 fixable=false "42 is not one of the allowed literal values (0, 1, 2). Use the Readonly or Const::Fast module or the \"constant\" pragma instead"
+terminal WARNING perlcritic InputOutput::RequireCheckedSyscalls matrix/perlcritic_profile.pl 93 93 fixable=false "Return value of flagged function ignored - unlink"
 replacements 0

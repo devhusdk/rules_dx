@@ -1836,7 +1836,7 @@ FILE_FAMILY_CASES = [
         binary = "//perl/private/tools:perlcritic",
         source_class = "perl",
         generated = {
-            "matrix/perlcritic_profile.pl": "package main;\nuse strict;\nuse warnings;\nour $VERSION = '1.0';\n\nsub run {\n    my $unused;\n    return 42;\n}\n\n1;\n",
+            "matrix/perlcritic_profile.pl": "package main;\nuse strict;\nuse warnings;\nour $VERSION = '1.0';\n\nsub run {\n    my $unused;\n    unlink q{x};\n    return 42;\n}\n\n1;\n",
         },
         platforms = ["linux_x86_64"],
         config = "//core/quality/tiers/perlcritic:standard.perlcriticrc",
@@ -1849,7 +1849,7 @@ FILE_FAMILY_CASES = [
         binary = "//perl/private/tools:perlcritic",
         source_class = "perl",
         generated = {
-            "matrix/perlcritic_profile.pl": "package main;\nuse strict;\nuse warnings;\nour $VERSION = '1.0';\n\nsub run {\n    my $unused;\n    return 42;\n}\n\n1;\n",
+            "matrix/perlcritic_profile.pl": "package main;\nuse strict;\nuse warnings;\nour $VERSION = '1.0';\n\nsub run {\n    my $unused;\n    unlink q{x};\n    return 42;\n}\n\n1;\n",
         },
         platforms = ["linux_x86_64"],
         config = "//core/quality/tiers/perlcritic:strict.perlcriticrc",

@@ -239,6 +239,8 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `kubeconform` runs with `-strict` in the strict tier, so duplicate keys fail; the tier comes from the build, not from `kubernetes_schemas`, which carries only the schemas and `skip_kinds`.
 
+`perlcritic` takes its tier from `core/quality/tiers/perlcritic/`. Standard runs severity 3 policies. Strict runs severity 1 policies and requires `use strict` and `use warnings`, checked `open`, `close` and other builtin calls, three-argument `open` with lexical handles, and a policy name on every `## no critic`. It bans string `eval`, `return undef`, and `no strict` or `no warnings` without a category. It leaves out layout and style noise such as `ProhibitMagicNumbers`, `RequireTrailingCommas`, `ProhibitPostfixControls`, `RequireExtendedFormatting`, `RequirePodSections` and `RequireArgUnpacking`.
+
 `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 
 ### JVM and .NET

@@ -46,6 +46,15 @@ use_repo(julia, "app_pkgs")
 
 ## Quality
 
+`julia_binary` and `julia_test` run with `--depwarn=error` and
+`--warn-overwrite=yes`, so a deprecated call throws and a redefined method
+warns. Set `warnings_as_errors = False` on one target to drop both, or turn
+them off for the whole build in `.bazelrc`:
+
+```text
+common --@rules_dx//config:warnings_as_errors=false
+```
+
 Select the tools in a `julia` family in `dx.toml`:
 
 ```toml

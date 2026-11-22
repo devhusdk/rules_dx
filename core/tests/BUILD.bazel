@@ -169,6 +169,7 @@ starlark_test(
         "//go/private:defs.bzl": "dx_warnings_flags(",
         "//haskell/private:kwargs.bzl": "dx_warnings_as_errors(",
         "//java/private:kwargs.bzl": "dx_warnings_as_errors(",
+        "//julia/private:defs.bzl": "dx_warnings_flags(",
         "//kotlin/private:defs.bzl": "dx_warnings_as_errors(",
         "//ocaml/private:defs.bzl": "dx_warnings_as_errors(",
         "//rust/private:defs.bzl": "dx_warnings_flags(",

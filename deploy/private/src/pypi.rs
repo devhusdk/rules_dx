@@ -1,8 +1,8 @@
 //! PyPI publisher: wheelhouse staging and the twine upload.
 
 use crate::api_compat::{
-    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch, fetch_to, highest_below,
-    previous_git_tag, workspace_dir,
+    ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch,
+    fetch_to, highest_below, previous_git_tag, workspace_dir,
 };
 use crate::archive::*;
 use crate::run::{
@@ -10,8 +10,268 @@ use crate::run::{
     run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use dx_atomic_fs::path_io::{self, PathIoError};
+use dx_process::capture::RunError;
+use std::fmt;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// A wheel and sdist filename pair that name different projects or versions.
+#[derive(Debug)]
+pub struct PairMismatch {
+    pub wheel: String,
+    pub project: String,
+    pub version: String,
+    pub sdist: String,
+    pub sdist_project: String,
+    pub sdist_version: String,
+}
+
+/// Why a PyPI artifact check, credential step or API check failed.
+#[derive(Debug)]
+pub enum PypiError {
+    InvalidWheelName(String),
+    InvalidSdistName(String),
+    UnsupportedArtifact(String),
+    InvalidIdentity(String),
+    Basename(io::Error),
+    OpenWheel {
+        name: String,
+        source: io::Error,
+    },
+    NotZip {
+        name: String,
+        source: io::Error,
+    },
+    NoRecord(String),
+    ReadMember {
+        member: String,
+        name: String,
+        source: io::Error,
+    },
+    MissingMember {
+        member: String,
+        name: String,
+    },
+    MemberUtf8 {
+        member: String,
+        name: String,
+        source: std::string::FromUtf8Error,
+    },
+    NativeInNoneAny {
+        name: String,
+        path: String,
+    },
+    BuildOnlyFile {
+        name: String,
+        path: String,
+    },
+    TagNotListed {
+        name: String,
+        tag: String,
+    },
+    PurelibWithPlatform(String),
+    WrongPlatform {
+        name: String,
+        platforms: String,
+        path: String,
+    },
+    WrongAbi {
+        name: String,
+        abi: String,
+        path: String,
+        built: String,
+    },
+    /// The wheel and sdist name different projects or versions.
+    PairMismatch(Box<PairMismatch>),
+    Wheelhouse(PathIoError),
+    Copy {
+        path: PathBuf,
+        source: io::Error,
+    },
+    NoTrustedPublishing(String),
+    HttpClient(dx_http::Error),
+    IdentityRequest(dx_http::Error),
+    IdentityNoValue,
+    /// A trusted-publishing token from a reusable workflow in another repository.
+    CrossRepo {
+        workflow_ref: String,
+        repository: String,
+    },
+    Exchange(dx_http::Error),
+    /// The token exchange answered without a token; `detail` has the token redacted.
+    ExchangeRefused {
+        status: u16,
+        detail: String,
+    },
+    MissingCredentials,
+    SignRun(RunError),
+    SignFailed(String),
+    NoAttestation(PathBuf),
+    InvalidBaseline(String),
+    TempDir(io::Error),
+    Griffe(RunError),
+    ApiCompat(ApiCompatError),
+}
+
+impl fmt::Display for PypiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidWheelName(base) => write!(
+                f,
+                "invalid wheel filename {base:?}: want name-version-python-abi-platform.whl"
+            ),
+            Self::InvalidSdistName(base) => {
+                write!(
+                    f,
+                    "invalid sdist filename {base:?}: want name-version.tar.gz"
+                )
+            }
+            Self::UnsupportedArtifact(base) => {
+                write!(f, "unsupported artifact {base:?}: want a .whl or .tar.gz")
+            }
+            Self::InvalidIdentity(base) => {
+                write!(f, "invalid distribution name or version in {base:?}")
+            }
+            Self::Basename(source) => write!(f, "{source}"),
+            Self::OpenWheel { name, source } => write!(f, "cannot open wheel {name}: {source}"),
+            Self::NotZip { name, source } => {
+                write!(f, "wheel {name} is not a zip file: {source}")
+            }
+            Self::NoRecord(name) => write!(f, "wheel {name} has no .dist-info/RECORD"),
+            Self::ReadMember {
+                member,
+                name,
+                source,
+            } => write!(f, "cannot read {member} in wheel {name}: {source}"),
+            Self::MissingMember { member, name } => {
+                write!(f, "cannot read {member} in wheel {name}: no such member")
+            }
+            Self::MemberUtf8 {
+                member,
+                name,
+                source,
+            } => write!(f, "cannot read {member} in wheel {name}: {source}"),
+            Self::NativeInNoneAny { name, path } => {
+                write!(f, "wheel {name} is tagged none-any but contains {path}")
+            }
+            Self::BuildOnlyFile { name, path } => {
+                write!(f, "wheel {name} ships build-only file {path}")
+            }
+            Self::TagNotListed { name, tag } => write!(
+                f,
+                "wheel {name} is named {tag} but its WHEEL file does not list that tag"
+            ),
+            Self::PurelibWithPlatform(name) => write!(
+                f,
+                "wheel {name} has a platform tag but its WHEEL file says Root-Is-Purelib: true"
+            ),
+            Self::WrongPlatform {
+                name,
+                platforms,
+                path,
+            } => write!(f, "wheel {name} is tagged {platforms} but contains {path}"),
+            Self::WrongAbi {
+                name,
+                abi,
+                path,
+                built,
+            } => write!(
+                f,
+                "wheel {name} is tagged {abi} but contains {path} built for {built}"
+            ),
+            Self::PairMismatch(pair) => write!(
+                f,
+                "wheel {} is {} {} but sdist {} is {} {}",
+                pair.wheel,
+                pair.project,
+                pair.version,
+                pair.sdist,
+                pair.sdist_project,
+                pair.sdist_version
+            ),
+            Self::Wheelhouse(source) => write!(f, "{source}"),
+            Self::Copy { path, source } => {
+                write!(f, "cannot stage {}: {source}", path.display())
+            }
+            Self::NoTrustedPublishing(url) => write!(
+                f,
+                "trusted publishing is not available for {url}; set PYPI_API_TOKEN"
+            ),
+            Self::HttpClient(source) => write!(f, "{source}"),
+            Self::IdentityRequest(source) => {
+                write!(f, "CI identity token request failed: {source}")
+            }
+            Self::IdentityNoValue => f.write_str("CI identity token response has no value"),
+            Self::CrossRepo {
+                workflow_ref,
+                repository,
+            } => write!(
+                f,
+                "PyPI trusted publishing does not accept a reusable workflow from another \
+                 repository ({workflow_ref}); set PYPI_API_TOKEN or publish from a workflow in {repository}"
+            ),
+            Self::Exchange(source) => write!(f, "token exchange failed: {source}"),
+            Self::ExchangeRefused { status, detail } => {
+                write!(f, "token exchange failed with HTTP {status}: {detail}")
+            }
+            Self::MissingCredentials => f.write_str(
+                "live upload needs PYPI_API_TOKEN or a trusted-publisher identity \
+                 (ACTIONS_ID_TOKEN_REQUEST_URL and ACTIONS_ID_TOKEN_REQUEST_TOKEN); refusing",
+            ),
+            Self::SignRun(source) => write!(f, "{source}"),
+            Self::SignFailed(exit) => write!(f, "pypi-attestations sign failed with {exit}"),
+            Self::NoAttestation(path) => {
+                write!(f, "pypi-attestations wrote no {}", path.display())
+            }
+            Self::InvalidBaseline(baseline) => write!(f, "invalid api_baseline '{baseline}'"),
+            Self::TempDir(source) => write!(f, "{source}"),
+            Self::Griffe(source) => write!(f, "griffe: {source}"),
+            Self::ApiCompat(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for PypiError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Basename(source)
+            | Self::OpenWheel { source, .. }
+            | Self::NotZip { source, .. }
+            | Self::ReadMember { source, .. }
+            | Self::Copy { source, .. }
+            | Self::TempDir(source) => Some(source),
+            Self::MemberUtf8 { source, .. } => Some(source),
+            Self::Wheelhouse(source) => Some(source),
+            Self::HttpClient(source) | Self::IdentityRequest(source) | Self::Exchange(source) => {
+                Some(source)
+            }
+            Self::SignRun(source) | Self::Griffe(source) => Some(source),
+            Self::ApiCompat(source) => Some(source),
+            Self::InvalidWheelName(_)
+            | Self::InvalidSdistName(_)
+            | Self::UnsupportedArtifact(_)
+            | Self::InvalidIdentity(_)
+            | Self::NoRecord(_)
+            | Self::MissingMember { .. }
+            | Self::NativeInNoneAny { .. }
+            | Self::BuildOnlyFile { .. }
+            | Self::TagNotListed { .. }
+            | Self::PurelibWithPlatform(_)
+            | Self::WrongPlatform { .. }
+            | Self::WrongAbi { .. }
+            | Self::PairMismatch(_)
+            | Self::NoTrustedPublishing(_)
+            | Self::IdentityNoValue
+            | Self::CrossRepo { .. }
+            | Self::ExchangeRefused { .. }
+            | Self::MissingCredentials
+            | Self::SignFailed(_)
+            | Self::NoAttestation(_)
+            | Self::InvalidBaseline(_) => None,
+        }
+    }
+}
 
 fn pypi_valid_name(name: &str) -> bool {
     let bytes = name.as_bytes();
@@ -24,30 +284,21 @@ fn pypi_valid_name(name: &str) -> bool {
 }
 
 /// Reads the distribution name and version from one wheel or sdist filename.
-pub fn pypi_artifact_identity(base: &str) -> Result<(String, String), String> {
+pub fn pypi_artifact_identity(base: &str) -> Result<(String, String), PypiError> {
     let (name, version) = if let Some(stem) = base.strip_suffix(".whl") {
         let parts: Vec<&str> = stem.split('-').collect();
         match parts.as_slice() {
             &[name, version, _, _, _] | &[name, version, _, _, _, _] => (name, version),
-            _ => {
-                return Err(format!(
-                    "pypi_deploy: invalid wheel filename {base:?}: want name-version-python-abi-platform.whl"
-                ));
-            }
+            _ => return Err(PypiError::InvalidWheelName(base.to_owned())),
         }
     } else if let Some(stem) = base.strip_suffix(".tar.gz") {
-        stem.rsplit_once('-').ok_or_else(|| {
-            format!("pypi_deploy: invalid sdist filename {base:?}: want name-version.tar.gz")
-        })?
+        stem.rsplit_once('-')
+            .ok_or_else(|| PypiError::InvalidSdistName(base.to_owned()))?
     } else {
-        return Err(format!(
-            "pypi_deploy: unsupported artifact {base:?}: want a .whl or .tar.gz"
-        ));
+        return Err(PypiError::UnsupportedArtifact(base.to_owned()));
     };
     if !pypi_valid_name(name) || version.is_empty() {
-        return Err(format!(
-            "pypi_deploy: invalid distribution name or version in {base:?}"
-        ));
+        return Err(PypiError::InvalidIdentity(base.to_owned()));
     }
     Ok((dx_ecosystems::pep503_name(name), version.to_owned()))
 }
@@ -56,15 +307,20 @@ const NATIVE_SUFFIXES: &[&str] = &[".so", ".pyd", ".dylib"];
 const BUILD_ONLY_SUFFIXES: &[&str] = &[".h", ".a", ".lib", ".obj", ".o", ".pdb"];
 
 /// Reads the RECORD of one wheel and rejects native code in a none-any wheel and build-only files.
-fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), String> {
-    let name = basename(wheel).map_err(|error| error.to_string())?;
-    let file = std::fs::File::open(wheel)
-        .map_err(|error| format!("pypi_deploy: cannot open wheel {name}: {error}"))?;
-    let record_name = dx_archive::zip_names(file)
-        .map_err(|error| format!("pypi_deploy: wheel {name} is not a zip file: {error}"))?
+fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), PypiError> {
+    let name = basename(wheel).map_err(PypiError::Basename)?;
+    let file = std::fs::File::open(wheel).map_err(|source| PypiError::OpenWheel {
+        name: name.clone(),
+        source,
+    })?;
+    let names = dx_archive::zip_names(file).map_err(|source| PypiError::NotZip {
+        name: name.clone(),
+        source,
+    })?;
+    let record_name = names
         .into_iter()
         .find(|entry| entry.ends_with(".dist-info/RECORD") && entry.matches('/').count() == 1)
-        .ok_or_else(|| format!("pypi_deploy: wheel {name} has no .dist-info/RECORD"))?;
+        .ok_or_else(|| PypiError::NoRecord(name.clone()))?;
     let record = read_wheel_text(wheel, &name, &record_name)?;
     let none_any = name.ends_with("-none-any.whl");
     let tags = FilenameTags::parse(&name);
@@ -78,17 +334,19 @@ fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), String> {
             tags.check_native(&name, path, &lower)?;
         }
         if none_any && NATIVE_SUFFIXES.iter().any(|suffix| lower.ends_with(suffix)) {
-            return Err(format!(
-                "pypi_deploy: wheel {name} is tagged none-any but contains {path}"
-            ));
+            return Err(PypiError::NativeInNoneAny {
+                name,
+                path: path.to_owned(),
+            });
         }
         if BUILD_ONLY_SUFFIXES
             .iter()
             .any(|suffix| lower.ends_with(suffix))
         {
-            return Err(format!(
-                "pypi_deploy: wheel {name} ships build-only file {path}"
-            ));
+            return Err(PypiError::BuildOnlyFile {
+                name,
+                path: path.to_owned(),
+            });
         }
     }
     if let Some(tags) = tags
@@ -102,14 +360,22 @@ fn pypi_check_wheel_contents(wheel: &Path) -> Result<(), String> {
 }
 
 /// Reads one UTF-8 member of a wheel.
-fn read_wheel_text(wheel: &Path, name: &str, member: &str) -> Result<String, String> {
-    let error = |error: &dyn std::fmt::Display| {
-        format!("pypi_deploy: cannot read {member} in wheel {name}: {error}")
-    };
+fn read_wheel_text(wheel: &Path, name: &str, member: &str) -> Result<String, PypiError> {
     let bytes = dx_archive::read_zip_member(wheel, member, 64 << 20)
-        .map_err(|e| error(&e))?
-        .ok_or_else(|| error(&"no such member"))?;
-    String::from_utf8(bytes).map_err(|e| error(&e))
+        .map_err(|source| PypiError::ReadMember {
+            member: member.to_owned(),
+            name: name.to_owned(),
+            source,
+        })?
+        .ok_or_else(|| PypiError::MissingMember {
+            member: member.to_owned(),
+            name: name.to_owned(),
+        })?;
+    String::from_utf8(bytes).map_err(|source| PypiError::MemberUtf8 {
+        member: member.to_owned(),
+        name: name.to_owned(),
+        source,
+    })
 }
 
 /// The python, abi and platform tags from a wheel filename, with dotted forms expanded.
@@ -138,7 +404,7 @@ impl FilenameTags {
         self.abis.join(".")
     }
 
-    fn check_metadata(&self, name: &str, metadata: &str) -> Result<(), String> {
+    fn check_metadata(&self, name: &str, metadata: &str) -> Result<(), PypiError> {
         let declared: Vec<&str> = metadata
             .lines()
             .filter_map(|line| line.strip_prefix("Tag:"))
@@ -149,9 +415,10 @@ impl FilenameTags {
                 for platform in &self.platforms {
                     let tag = format!("{python}-{abi}-{platform}");
                     if !declared.contains(&tag.as_str()) {
-                        return Err(format!(
-                            "pypi_deploy: wheel {name} is named {tag} but its WHEEL file does not list that tag"
-                        ));
+                        return Err(PypiError::TagNotListed {
+                            name: name.to_owned(),
+                            tag,
+                        });
                     }
                 }
             }
@@ -162,42 +429,41 @@ impl FilenameTags {
             .filter_map(|line| line.strip_prefix("Root-Is-Purelib:"))
             .any(|value| value.trim().eq_ignore_ascii_case("true"));
         if !platform_any && purelib {
-            return Err(format!(
-                "pypi_deploy: wheel {name} has a platform tag but its WHEEL file says Root-Is-Purelib: true"
-            ));
+            return Err(PypiError::PurelibWithPlatform(name.to_owned()));
         }
         Ok(())
     }
 
-    fn check_native(&self, name: &str, path: &str, lower: &str) -> Result<(), String> {
+    fn check_native(&self, name: &str, path: &str, lower: &str) -> Result<(), PypiError> {
         let abi = self.abi_label();
         let on = |needle: &str| {
             self.platforms
                 .iter()
                 .any(|platform| platform.contains(needle))
         };
+        let wrong_platform = || PypiError::WrongPlatform {
+            name: name.to_owned(),
+            platforms: self.platforms.join("."),
+            path: path.to_owned(),
+        };
         if lower.ends_with(".pyd") && on("linux") {
-            return Err(format!(
-                "pypi_deploy: wheel {name} is tagged {} but contains {path}",
-                self.platforms.join(".")
-            ));
+            return Err(wrong_platform());
         }
         if lower.ends_with(".so") && self.platforms.iter().any(|p| p.starts_with("win")) {
-            return Err(format!(
-                "pypi_deploy: wheel {name} is tagged {} but contains {path}",
-                self.platforms.join(".")
-            ));
+            return Err(wrong_platform());
         }
+        let wrong_abi = |built: String| PypiError::WrongAbi {
+            name: name.to_owned(),
+            abi: abi.clone(),
+            path: path.to_owned(),
+            built,
+        };
         if let Some(built) = path_python_tag(lower) {
             if !self.abis.contains(&built) {
-                return Err(format!(
-                    "pypi_deploy: wheel {name} is tagged {abi} but contains {path} built for {built}"
-                ));
+                return Err(wrong_abi(built));
             }
         } else if lower.contains(".abi3.") && !self.abis.iter().any(|tag| tag == "abi3") {
-            return Err(format!(
-                "pypi_deploy: wheel {name} is tagged {abi} but contains {path} built for abi3"
-            ));
+            return Err(wrong_abi("abi3".to_owned()));
         }
         Ok(())
     }
@@ -222,19 +488,25 @@ fn path_python_tag(lower: &str) -> Option<String> {
 }
 
 /// Checks the wheel and sdist name the same project and version.
-fn pypi_check_pair(wheel_src: &Path, sdist_src: Option<&Path>) -> io::Result<(String, String)> {
-    let invalid = |message: String| io::Error::new(io::ErrorKind::InvalidData, message);
-    let (project, version) = pypi_artifact_identity(&basename(wheel_src)?).map_err(invalid)?;
-    pypi_check_wheel_contents(wheel_src).map_err(invalid)?;
-    if let Some(sdist) = sdist_src {
-        let (sdist_project, sdist_version) =
-            pypi_artifact_identity(&basename(sdist)?).map_err(invalid)?;
+fn pypi_check_pair(
+    wheel_src: &Path,
+    sdist_src: Option<&Path>,
+) -> Result<(String, String), PypiError> {
+    let wheel = basename(wheel_src).map_err(PypiError::Basename)?;
+    let (project, version) = pypi_artifact_identity(&wheel)?;
+    pypi_check_wheel_contents(wheel_src)?;
+    if let Some(sdist_src) = sdist_src {
+        let sdist = basename(sdist_src).map_err(PypiError::Basename)?;
+        let (sdist_project, sdist_version) = pypi_artifact_identity(&sdist)?;
         if sdist_project != project || sdist_version != version {
-            return Err(invalid(format!(
-                "pypi_deploy: wheel {} is {project} {version} but sdist {} is {sdist_project} {sdist_version}",
-                basename(wheel_src)?,
-                basename(sdist)?,
-            )));
+            return Err(PypiError::PairMismatch(Box::new(PairMismatch {
+                wheel,
+                project,
+                version,
+                sdist,
+                sdist_project,
+                sdist_version,
+            })));
         }
     }
     Ok((project, version))
@@ -246,24 +518,27 @@ pub fn pypi_build_wheelhouse(
     sdist_src: Option<&Path>,
     outdir: &Path,
     dist_name: &str,
-) -> io::Result<std::path::PathBuf> {
+) -> Result<PathBuf, PypiError> {
     let (project, _) = pypi_check_pair(wheel_src, sdist_src)?;
     let house = outdir.join(format!("{dist_name}-wheelhouse"));
-    std::fs::create_dir_all(&house)?;
+    path_io::create_dir_all(&house).map_err(PypiError::Wheelhouse)?;
     let mut entries: Vec<(String, String)> = Vec::new();
     let mut sources: Vec<&Path> = vec![wheel_src];
     if let Some(sdist) = sdist_src {
         sources.push(sdist);
     }
     for src in sources {
-        let base = basename(src)?;
+        let base = basename(src).map_err(PypiError::Basename)?;
         let dest = house.join(&base);
-        let digest = copy_verified(src, &dest)?;
+        let digest = copy_verified(src, &dest).map_err(|source| PypiError::Copy {
+            path: src.to_path_buf(),
+            source,
+        })?;
         entries.push((base, digest));
     }
     entries.sort();
     let index_dir = house.join("simple-index").join(&project);
-    std::fs::create_dir_all(&index_dir)?;
+    path_io::create_dir_all(&index_dir).map_err(PypiError::Wheelhouse)?;
     let mut body = String::from("<!DOCTYPE html>\n<html><body>\n");
     for (base, digest) in &entries {
         body.push_str(&format!(
@@ -271,7 +546,8 @@ pub fn pypi_build_wheelhouse(
         ));
     }
     body.push_str("</body></html>\n");
-    std::fs::write(index_dir.join("index.html"), body.as_bytes())?;
+    path_io::write_scratch(&index_dir.join("index.html"), body.as_bytes())
+        .map_err(PypiError::Wheelhouse)?;
     Ok(house)
 }
 
@@ -333,7 +609,7 @@ fn pypi_mint_endpoint(registry_url: &str) -> Option<(&'static str, String)> {
 
 /// Reads the unverified claims of a CI identity token and returns the refusal for a
 /// `job_workflow_ref` outside the `repository` claim.
-fn pypi_cross_repo_refusal(jwt: &str) -> Option<String> {
+fn pypi_cross_repo_refusal(jwt: &str) -> Option<PypiError> {
     use base64::Engine as _;
     let payload = jwt.split('.').nth(1)?.trim_end_matches('=');
     let claims: serde_json::Value = serde_json::from_slice(
@@ -345,11 +621,9 @@ fn pypi_cross_repo_refusal(jwt: &str) -> Option<String> {
     let workflow_ref = claims.get("job_workflow_ref")?.as_str()?;
     let repository = claims.get("repository")?.as_str()?;
     let (workflow_repo, _) = workflow_ref.split_once("/.github/workflows/")?;
-    (!workflow_repo.eq_ignore_ascii_case(repository)).then(|| {
-        format!(
-            "pypi_deploy: PyPI trusted publishing does not accept a reusable workflow from another \
-             repository ({workflow_ref}); set PYPI_API_TOKEN or publish from a workflow in {repository}"
-        )
+    (!workflow_repo.eq_ignore_ascii_case(repository)).then(|| PypiError::CrossRepo {
+        workflow_ref: workflow_ref.to_owned(),
+        repository: repository.to_owned(),
     })
 }
 
@@ -383,10 +657,9 @@ fn pypi_mint_token(
     client: &dx_http::Client,
     registry_url: &str,
     var: impl Fn(&str) -> String,
-) -> Result<String, String> {
-    let (audience, mint) = pypi_mint_endpoint(registry_url).ok_or_else(|| {
-        format!("pypi_deploy: trusted publishing is not available for {registry_url}; set PYPI_API_TOKEN")
-    })?;
+) -> Result<String, PypiError> {
+    let (audience, mint) = pypi_mint_endpoint(registry_url)
+        .ok_or_else(|| PypiError::NoTrustedPublishing(registry_url.to_owned()))?;
     let mut url = var("ACTIONS_ID_TOKEN_REQUEST_URL");
     url.push(if url.contains('?') { '&' } else { '?' });
     url.push_str("audience=");
@@ -394,11 +667,11 @@ fn pypi_mint_token(
     let authorization = format!("bearer {}", var("ACTIONS_ID_TOKEN_REQUEST_TOKEN"));
     let identity = client
         .text(&url, &[("Authorization", authorization.as_str())], 64 << 10)
-        .map_err(|error| format!("pypi_deploy: CI identity token request failed: {error}"))?;
+        .map_err(PypiError::IdentityRequest)?;
     let jwt = serde_json::from_str::<serde_json::Value>(&identity)
         .ok()
         .and_then(|value| value.get("value")?.as_str().map(str::to_owned))
-        .ok_or("pypi_deploy: CI identity token response has no value")?;
+        .ok_or(PypiError::IdentityNoValue)?;
     if let Some(refusal) = pypi_cross_repo_refusal(&jwt) {
         return Err(refusal);
     }
@@ -411,7 +684,7 @@ fn pypi_mint_token(
             dx_http::Body::Bytes(body.as_bytes()),
             64 << 10,
         )
-        .map_err(|error| format!("pypi_deploy: token exchange failed: {error}"))?;
+        .map_err(PypiError::Exchange)?;
     let token = serde_json::from_slice::<serde_json::Value>(&reply.body)
         .ok()
         .and_then(|value| value.get("token")?.as_str().map(str::to_owned))
@@ -419,47 +692,32 @@ fn pypi_mint_token(
     if let (true, Some(token)) = ((200..300).contains(&reply.status), token) {
         return Ok(token);
     }
-    let detail = pypi_mint_errors(&reply.body);
-    Err(pypi_scrub(
-        format!(
-            "pypi_deploy: token exchange failed with HTTP {}: {detail}",
-            reply.status
-        )
-        .as_bytes(),
-        &jwt,
-    ))
+    Err(PypiError::ExchangeRefused {
+        status: reply.status,
+        detail: pypi_scrub(pypi_mint_errors(&reply.body).as_bytes(), &jwt),
+    })
 }
 
 /// Picks the upload token and whether to sign: only trusted-publishing uploads carry attestations.
 fn pypi_credentials(
     auth: PypiAuth,
-    mint: impl FnOnce() -> Result<String, String>,
-) -> Result<(String, bool), String> {
+    mint: impl FnOnce() -> Result<String, PypiError>,
+) -> Result<(String, bool), PypiError> {
     match auth {
         PypiAuth::Token(token) => Ok((token, false)),
         PypiAuth::TrustedPublishing => mint().map(|token| (token, true)),
-        PypiAuth::Missing => Err(
-            "pypi_deploy: live upload needs PYPI_API_TOKEN or a trusted-publisher identity \
-             (ACTIONS_ID_TOKEN_REQUEST_URL and ACTIONS_ID_TOKEN_REQUEST_TOKEN); refusing"
-                .to_owned(),
-        ),
+        PypiAuth::Missing => Err(PypiError::MissingCredentials),
     }
 }
 
 /// Signs the staged files with the pinned pypi-attestations; returns the attestation file for each.
-fn pypi_sign(
-    signer: &Path,
-    files: &[std::path::PathBuf],
-) -> Result<Vec<std::path::PathBuf>, String> {
+fn pypi_sign(signer: &Path, files: &[std::path::PathBuf]) -> Result<Vec<PathBuf>, PypiError> {
     let mut cmd = scrubbed_command(signer, &[PUBLISH_CHILD_ENV_KEEP, PYPI_OIDC_ENV], &[]);
     cmd.arg("sign").args(files);
-    let out = run_publish(&mut cmd).map_err(|error| format!("pypi_deploy: {error}"))?;
+    let out = run_publish(&mut cmd).map_err(PypiError::SignRun)?;
     if !out.success() {
         eprint!("{}", pypi_scrub(&out.stderr, ""));
-        return Err(format!(
-            "pypi_deploy: pypi-attestations sign failed with {}",
-            exit_text(&out)
-        ));
+        return Err(PypiError::SignFailed(exit_text(&out)));
     }
     let attestations: Vec<std::path::PathBuf> = files
         .iter()
@@ -470,10 +728,7 @@ fn pypi_sign(
         })
         .collect();
     match attestations.iter().find(|path| !path.is_file()) {
-        Some(missing) => Err(format!(
-            "pypi_deploy: pypi-attestations wrote no {}",
-            missing.display()
-        )),
+        Some(missing) => Err(PypiError::NoAttestation(missing.clone())),
         None => Ok(attestations),
     }
 }
@@ -574,7 +829,7 @@ fn pypi_upload_staged(
     let attestations = match signer.map(|signer| pypi_sign(signer, &files)) {
         Some(Ok(paths)) => paths,
         Some(Err(error)) => {
-            eprintln!("{error}");
+            eprintln!("pypi_deploy: {error}");
             return 1;
         }
         None => Vec::new(),
@@ -702,10 +957,10 @@ fn pypi_api_check(
     wheel: &Path,
     check: &PypiApiCheck,
     workspace: &Path,
-) -> Result<Outcome, String> {
+) -> Result<Outcome, PypiError> {
     let baseline = Baseline::parse(check.baseline)
-        .ok_or_else(|| format!("pypi_deploy: invalid api_baseline '{}'", check.baseline))?;
-    let work = tempfile_stage_dir("pypi-api-").map_err(|error| format!("pypi_deploy: {error}"))?;
+        .ok_or_else(|| PypiError::InvalidBaseline(check.baseline.to_owned()))?;
+    let work = tempfile_stage_dir("pypi-api-").map_err(PypiError::TempDir)?;
     let found = if baseline == Baseline::Git {
         match previous_git_tag(workspace, version) {
             Ok(Some(tag)) => Ok((
@@ -730,7 +985,7 @@ fn pypi_api_check(
                 .args(&args)
                 .current_dir(workspace);
             run_publish(&mut cmd)
-                .map_err(|error| format!("pypi_deploy: {error}"))
+                .map_err(PypiError::Griffe)
                 .map(|output| {
                     let text = format!(
                         "{}\n{}",
@@ -801,28 +1056,33 @@ pub fn pypi_main_checked(
         eprintln!("pypi_deploy: invalid api_compat '{}'", api.mode);
         return 1;
     };
-    let checked = pypi_check_pair(&wheel, sdist.as_deref())
-        .map_err(|error| error.to_string())
-        .and_then(|(project, version)| {
-            if mode == ApiCompatMode::Off {
-                return Ok(());
+    let checked = pypi_check_pair(&wheel, sdist.as_deref()).and_then(|(project, version)| {
+        if mode == ApiCompatMode::Off {
+            return Ok(());
+        }
+        let griffe = if api.griffe_rloc.is_empty() {
+            None
+        } else {
+            run.resolve(api.griffe_rloc)
+        };
+        let outcome = match griffe {
+            Some(griffe) => {
+                pypi_api_check(&griffe, (&project, &version), &wheel, api, &workspace_dir())?
             }
-            let griffe = if api.griffe_rloc.is_empty() {
-                None
-            } else {
-                run.resolve(api.griffe_rloc)
-            };
-            let outcome = match griffe {
-                Some(griffe) => {
-                    pypi_api_check(&griffe, (&project, &version), &wheel, api, &workspace_dir())?
-                }
-                None => Outcome::Skipped("griffe is not available".to_owned()),
-            };
-            conclude("pypi_deploy", mode, &version, outcome).map_err(|error| error.to_string())
-        });
-    if let Err(message) = checked {
-        eprintln!("{message}");
-        return 1;
+            None => Outcome::Skipped("griffe is not available".to_owned()),
+        };
+        conclude("pypi_deploy", mode, &version, outcome).map_err(PypiError::ApiCompat)
+    });
+    match checked {
+        Ok(()) => {}
+        Err(PypiError::ApiCompat(error)) => {
+            eprintln!("{error}");
+            return 1;
+        }
+        Err(error) => {
+            eprintln!("pypi_deploy: {error}");
+            return 1;
+        }
     }
     if OwnerGate::requested(env_or_empty) {
         if let Err(error) = PYPI_GATE.authorize(env_or_empty) {
@@ -831,13 +1091,13 @@ pub fn pypi_main_checked(
         }
         let credentials = pypi_credentials(pypi_auth(env_or_empty), || {
             crate::http::client()
-                .map_err(|error| format!("pypi_deploy: {error}"))
+                .map_err(PypiError::HttpClient)
                 .and_then(|client| pypi_mint_token(&client, registry_url, env_or_empty))
         });
         let (token, attest) = match credentials {
             Ok(credentials) => credentials,
             Err(error) => {
-                eprintln!("{error}");
+                eprintln!("pypi_deploy: {error}");
                 return 1;
             }
         };
@@ -867,10 +1127,8 @@ pub fn pypi_main_checked(
     match pypi_build_wheelhouse(&wheel, sdist.as_deref(), outdir, dist_name) {
         Ok(house) => {
             let project = basename(&wheel)
-                .and_then(|base| {
-                    pypi_artifact_identity(&base)
-                        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-                })
+                .map_err(PypiError::Basename)
+                .and_then(|base| pypi_artifact_identity(&base))
                 .map(|(project, _)| project)
                 .unwrap_or_default();
             let build_mode = deploy_build_mode();
@@ -961,7 +1219,7 @@ mod tests {
         );
         let logged = std::fs::read_to_string(&args_log).expect("args");
         assert_eq!(logged.trim(), "check pkg --against v1.2.0 --search src");
-        assert_eq!(run("1.0.0"), Ok(Outcome::FirstRelease));
+        assert_eq!(run("1.0.0").expect("ran"), Outcome::FirstRelease);
     }
 
     #[test]
@@ -1030,7 +1288,7 @@ mod tests {
         let bytes = wheel_bytes(&["pkg/_core.so"]);
         assert_eq!(
             wheel_error("pkg-1.0-py3-none-any.whl", &bytes),
-            "pypi_deploy: wheel pkg-1.0-py3-none-any.whl is tagged none-any but contains pkg/_core.so"
+            "wheel pkg-1.0-py3-none-any.whl is tagged none-any but contains pkg/_core.so"
         );
         let scratch = scratch_dir();
         let wheel = scratch.path().join("pkg-1.0-cp312-cp312-linux_x86_64.whl");
@@ -1064,7 +1322,7 @@ mod tests {
         );
         assert_eq!(
             wheel_error("pkg-1.0-cp311-cp311-linux_x86_64.whl", &bytes),
-            "pypi_deploy: wheel pkg-1.0-cp311-cp311-linux_x86_64.whl is tagged cp311 but contains pkg/_core.cpython-312-x86_64-linux-gnu.so built for cp312"
+            "wheel pkg-1.0-cp311-cp311-linux_x86_64.whl is tagged cp311 but contains pkg/_core.cpython-312-x86_64-linux-gnu.so built for cp312"
         );
     }
 
@@ -1096,7 +1354,7 @@ mod tests {
         let bytes = wheel_bytes(&["pkg/include/pkg.h"]);
         assert_eq!(
             wheel_error("pkg-1.0-py3-none-any.whl", &bytes),
-            "pypi_deploy: wheel pkg-1.0-py3-none-any.whl ships build-only file pkg/include/pkg.h"
+            "wheel pkg-1.0-py3-none-any.whl ships build-only file pkg/include/pkg.h"
         );
     }
 
@@ -1349,7 +1607,7 @@ mod tests {
         }))
     }
 
-    const CROSS_REPO_REFUSAL: &str = "pypi_deploy: PyPI trusted publishing does not accept a \
+    const CROSS_REPO_REFUSAL: &str = "PyPI trusted publishing does not accept a \
         reusable workflow from another repository \
         (devhusdk/rules_dx/.github/workflows/reusable-release.yml@refs/tags/x/y); \
         set PYPI_API_TOKEN or publish from a workflow in acme/widget";
@@ -1357,15 +1615,17 @@ mod tests {
     #[test]
     fn pypi_cross_repo_workflow_is_refused() {
         assert_eq!(
-            pypi_cross_repo_refusal(&cross_repo_jwt()).as_deref(),
+            pypi_cross_repo_refusal(&cross_repo_jwt())
+                .map(|refusal| refusal.to_string())
+                .as_deref(),
             Some(CROSS_REPO_REFUSAL)
         );
         let same = fake_jwt(&serde_json::json!({
             "repository": "Acme/Widget",
             "job_workflow_ref": "acme/widget/.github/workflows/release.yml@refs/heads/main",
         }));
-        assert_eq!(pypi_cross_repo_refusal(&same), None);
-        assert_eq!(pypi_cross_repo_refusal("junk"), None);
+        assert!(pypi_cross_repo_refusal(&same).is_none());
+        assert!(pypi_cross_repo_refusal("junk").is_none());
     }
 
     #[cfg(unix)]
@@ -1389,7 +1649,8 @@ mod tests {
                 &crate::http::test_client(),
                 "https://test.pypi.org/legacy/",
                 vars
-            ),
+            )
+            .map_err(|error| error.to_string()),
             Err(CROSS_REPO_REFUSAL.to_owned())
         );
     }
@@ -1411,8 +1672,8 @@ mod tests {
                 .expect("credentials");
         assert_eq!((token.as_str(), attest), ("pypi-x", false));
         assert_eq!(
-            pypi_credentials(PypiAuth::TrustedPublishing, || Ok("m".to_owned())),
-            Ok(("m".to_owned(), true))
+            pypi_credentials(PypiAuth::TrustedPublishing, || Ok("m".to_owned())).expect("minted"),
+            ("m".to_owned(), true)
         );
         let scratch = scratch_dir();
         let dir = scratch.path();

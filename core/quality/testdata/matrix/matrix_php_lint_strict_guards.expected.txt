@@ -1,0 +1,27 @@
+producer //core/quality/testdata:matrix_php_lint_strict_guards
+capability LINT
+stages 1
+stage phpcs classes=php sources=matrix/phpcs_strict_guards.php
+completed_rounds 1
+convergence STABLE
+initial 9
+initial WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 146 146 fixable=false "The use of function var_dump() is forbidden"
+initial WARNING phpcs phpcs/Squiz.PHP.DiscouragedFunctions.Discouraged matrix/phpcs_strict_guards.php 146 146 fixable=false "The use of function var_dump() is discouraged"
+initial WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 171 171 fixable=false "The use of function print_r() is forbidden"
+initial WARNING phpcs phpcs/Squiz.PHP.DiscouragedFunctions.Discouraged matrix/phpcs_strict_guards.php 171 171 fixable=false "The use of function print_r() is discouraged"
+initial WARNING phpcs phpcs/Generic.PHP.NoSilencedErrors.Discouraged matrix/phpcs_strict_guards.php 204 204 fixable=false "Silencing errors is discouraged; found: @unserialize($data..."
+initial WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 205 205 fixable=false "The use of function unserialize() is forbidden"
+initial WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 233 233 fixable=false "The use of function extract() is forbidden"
+initial WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 267 267 fixable=false "The use of function shell_exec() is forbidden"
+initial WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 294 294 fixable=false "The use of function exit() is forbidden"
+terminal 9
+terminal WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 146 146 fixable=false "The use of function var_dump() is forbidden"
+terminal WARNING phpcs phpcs/Squiz.PHP.DiscouragedFunctions.Discouraged matrix/phpcs_strict_guards.php 146 146 fixable=false "The use of function var_dump() is discouraged"
+terminal WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 171 171 fixable=false "The use of function print_r() is forbidden"
+terminal WARNING phpcs phpcs/Squiz.PHP.DiscouragedFunctions.Discouraged matrix/phpcs_strict_guards.php 171 171 fixable=false "The use of function print_r() is discouraged"
+terminal WARNING phpcs phpcs/Generic.PHP.NoSilencedErrors.Discouraged matrix/phpcs_strict_guards.php 204 204 fixable=false "Silencing errors is discouraged; found: @unserialize($data..."
+terminal WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 205 205 fixable=false "The use of function unserialize() is forbidden"
+terminal WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 233 233 fixable=false "The use of function extract() is forbidden"
+terminal WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 267 267 fixable=false "The use of function shell_exec() is forbidden"
+terminal WARNING phpcs phpcs/Generic.PHP.ForbiddenFunctions.Found matrix/phpcs_strict_guards.php 294 294 fixable=false "The use of function exit() is forbidden"
+replacements 0

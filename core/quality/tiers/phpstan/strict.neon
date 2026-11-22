@@ -4,3 +4,9 @@ includes:
 parameters:
     level: max
     reportUnmatchedIgnoredErrors: true
+    checkTooWideReturnTypesInProtectedAndPublicMethods: true
+    checkUninitializedProperties: true
+    checkMissingCallableSignature: true
+    checkBenevolentUnionTypes: true
+    reportAlwaysTrueInLastCondition: true
+    checkMissingOverrideMethodAttribute: true

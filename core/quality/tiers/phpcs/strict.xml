@@ -31,7 +31,31 @@
     <rule ref="Generic.PHP.DisallowRequestSuperglobal"/>
     <rule ref="Generic.PHP.DisallowShortOpenTag"/>
     <rule ref="Generic.PHP.DiscourageGoto"/>
-    <rule ref="Generic.PHP.ForbiddenFunctions"/>
+    <rule ref="Generic.PHP.ForbiddenFunctions">
+        <properties>
+            <property name="forbiddenFunctions" type="array">
+                <element key="sizeof" value="count"/>
+                <element key="delete" value="unset"/>
+                <element key="eval" value="null"/>
+                <element key="extract" value="null"/>
+                <element key="var_dump" value="null"/>
+                <element key="var_export" value="null"/>
+                <element key="print_r" value="null"/>
+                <element key="dd" value="null"/>
+                <element key="dump" value="null"/>
+                <element key="die" value="null"/>
+                <element key="exit" value="null"/>
+                <element key="error_log" value="null"/>
+                <element key="create_function" value="null"/>
+                <element key="assert" value="null"/>
+                <element key="shell_exec" value="null"/>
+                <element key="passthru" value="null"/>
+                <element key="system" value="null"/>
+                <element key="exec" value="null"/>
+                <element key="unserialize" value="null"/>
+            </property>
+        </properties>
+    </rule>
     <rule ref="Generic.PHP.LowerCaseConstant"/>
     <rule ref="Generic.PHP.LowerCaseKeyword"/>
     <rule ref="Generic.PHP.LowerCaseType"/>

@@ -73,6 +73,7 @@ gazelle/    shared Gazelle plugins
 ci/         CI templates consumers include by URL
 tools/      maintainer-only scripts and generators
 patches/    upstream patches
+platforms/  target platform names, flags and the platform hub
 third_party/ dependency manifests and lock files
 bcr_test_module/ the BCR presubmit module
 docs/       user docs

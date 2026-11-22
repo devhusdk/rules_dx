@@ -1,0 +1,29 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load(":platforms_tests.bzl", "hub_unit_tests", "names_unit_tests", "select_unit_tests", "transition_analysis_tests", "transition_unit_tests")
+
+names_unit_tests(name = "names_unit")
+
+select_unit_tests(name = "select_unit")
+
+hub_unit_tests(name = "hub_unit")
+
+transition_unit_tests(name = "transition_unit")
+
+transition_analysis_tests(name = "transition_analysis")
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "platforms_tests.bzl",
+        "subject.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

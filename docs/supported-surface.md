@@ -5750,6 +5750,52 @@ Module extension.
 
 No tags.
 
+### `@rules_dx//platforms:defs.bzl`
+
+#### `platform_select`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `branches` | yes |  |
+
+#### `platforms_error`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `platforms` | yes |  |
+| `native` | yes |  |
+
+#### `DxPlatformInfo`
+
+Provider.
+
+Fields: `name`, `platforms`.
+
+#### `DxTargetInfo`
+
+Provider.
+
+Fields: `check`, `java_deps`, `link_flags`, `min_os_floor`, `runner`.
+
+### `@rules_dx//platforms:extensions.bzl`
+
+#### `dx_platforms`
+
+Module extension.
+
+Tag `dx_platforms.platform`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `constraint_values` | `label_list` | no | `[]` |
+| `hosts` | `string_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `parent` | `label` | no | `None` |
+
 ### `@rules_dx//powershell:defs.bzl`
 
 #### `powershell_doc_shard`

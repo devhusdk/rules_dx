@@ -1,0 +1,85 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//platforms/private:names.bzl", "PLATFORMS")
+load("//platforms/private:target.bzl", "current_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "defs.bzl",
+    "extensions.bzl",
+])
+
+# One alias per platform name. The hub writes a real, wrong-host or stub platform behind each.
+[
+    alias(
+        name = name,
+        actual = "@dx_platforms//:" + name,
+    )
+    for name in PLATFORMS
+]
+
+# The platform name a build is for. Empty means the host.
+string_flag(
+    name = "current",
+    build_setting_default = "",
+)
+
+# Minimum Android API level for the whole closure. Empty means the family floor.
+string_flag(
+    name = "min_os_android",
+    build_setting_default = "",
+)
+
+# Minimum Windows version for the whole closure. Empty means the family floor.
+string_flag(
+    name = "min_os_windows",
+    build_setting_default = "",
+)
+
+# A stub or wrong-host platform carries a value other than family_ok, so targets that need family_ok become incompatible.
+constraint_setting(
+    name = "family",
+    default_constraint_value = ":family_ok",
+)
+
+constraint_value(
+    name = "family_ok",
+    constraint_setting = ":family",
+)
+
+constraint_value(
+    name = "needs_rules_dx_apple",
+    constraint_setting = ":family",
+)
+
+constraint_value(
+    name = "needs_rules_dx_android",
+    constraint_setting = ":family",
+)
+
+constraint_value(
+    name = "needs_macos_host",
+    constraint_setting = ":family",
+)
+
+# Families register toolchains of this type that return ToolchainInfo(dx_target = DxTargetInfo(...)).
+toolchain_type(name = "target_toolchain_type")
+
+current_target(name = "current_target")
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "extensions.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

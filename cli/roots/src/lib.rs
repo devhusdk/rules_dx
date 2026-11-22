@@ -25,6 +25,11 @@ impl std::fmt::Display for ExactScopeError {
 
 impl std::error::Error for ExactScopeError {}
 
+/// The one exact target in `targets`, or `None` when it is empty.
+///
+/// # Errors
+///
+/// Returns `Err` when `targets` holds more than one target or a pattern that is not an exact label.
 pub fn resolve_exact_target(targets: &[String]) -> Result<Option<String>, ExactScopeError> {
     match targets {
         [] => Ok(None),

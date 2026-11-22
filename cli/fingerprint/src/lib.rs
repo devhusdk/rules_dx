@@ -16,6 +16,11 @@ impl From<serde_json::Error> for FingerprintError {
     }
 }
 
+/// Serializes `view` as compact JSON.
+///
+/// # Errors
+///
+/// Returns `Err` when `view` cannot be serialized.
 pub fn to_json<T: serde::Serialize>(view: &T) -> Result<String, FingerprintError> {
     serde_json::to_string(view).map_err(FingerprintError::from)
 }
@@ -39,9 +44,16 @@ pub fn ensure_ascii(text: &str) -> String {
     out
 }
 
+/// Serializes `value` as pretty, ASCII-only JSON ending in a newline.
+///
+/// # Errors
+///
+/// Returns `Err` when `value` cannot be serialized.
 pub fn to_json_ascii_pretty(value: &serde_json::Value) -> Result<String, FingerprintError> {
     let pretty = serde_json::to_string_pretty(value).map_err(FingerprintError::from)?;
-    Ok(ensure_ascii(&pretty) + "\n")
+    let mut out = ensure_ascii(&pretty);
+    out.push('\n');
+    Ok(out)
 }
 
 #[cfg(test)]

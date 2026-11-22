@@ -49,6 +49,11 @@ fn check_path(path: &str) -> Result<(), DiffError> {
     Ok(())
 }
 
+/// Renders `files` as one unified patch, ordered by path.
+///
+/// # Errors
+///
+/// Returns `Err` when a path is not valid in a patch, such as one with a tab or newline.
 pub fn render_patch(files: &[FilePatch<'_>]) -> Result<String, DiffError> {
     let mut ordered: Vec<&FilePatch<'_>> = files.iter().collect();
     ordered.sort_by(|a, b| a.path.as_bytes().cmp(b.path.as_bytes()));

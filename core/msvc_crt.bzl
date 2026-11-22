@@ -1,5 +1,6 @@
 """Analysis-time check that Rust and its C/C++ deps agree on the MSVC CRT."""
 
+load("//core:platform.bzl", "msvc_crt_static_flag")
 load("//core:wrapper.bzl", "dx_upstream")
 
 # Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
@@ -43,10 +44,6 @@ dx_msvc_crt_reset_transition = transition(
     inputs = [_FEATURES, MSVC_CRT_FROM_RUST],
     outputs = [_FEATURES, MSVC_CRT_FROM_RUST],
 )
-
-def msvc_crt_static_flag(arg):
-    """Whether a rustc argument turns on +crt-static."""
-    return arg.startswith(("-Ctarget-feature=", "--codegen=target-feature=")) and "+crt-static" in arg
 
 def _crt_static(argv):
     return any([msvc_crt_static_flag(arg) for arg in argv])

@@ -6149,6 +6149,10 @@ Tag `qt.configure`:
 | `runtime_mirror` | `string` | no | `""` |
 | `version` | `string` | no | `"6.12.0"` |
 
+Tag `qt.from_source`:
+
+No attributes.
+
 Tag `qt.msvc_runtime`:
 
 | Attribute | Type | Required | Default |

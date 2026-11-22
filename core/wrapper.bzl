@@ -217,11 +217,11 @@ def dx_lcov_merger_attr():
         ),
     }
 
-def dx_collect_cc_coverage_attr(collector):
+def dx_collect_cc_coverage_attr():
     """Returns the C/C++ coverage collector attribute for test forwarders."""
     return {
         "_collect_cc_coverage": attr.label(
-            default = collector,
+            default = Label("@dx_prebuilt//:collect_native"),
             executable = True,
             cfg = config.exec(exec_group = "test"),
         ),

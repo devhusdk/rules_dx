@@ -3666,7 +3666,7 @@ qt.msvc_runtime(
     notice = "//cc/private/toolchain:notices/MSVC_REDISTRIBUTABLE.txt",
     runtime = "@dx_msvc_runtime//:BUILD.bazel",
 )
-use_repo(qt, "dx_qt")
+use_repo(qt, "dx_qt", "qt_launcher")
 
 rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")
 use_repo(rules_kotlin_extensions, "btapi_impl", "com_github_google_ksp", "com_github_jetbrains_kotlin", "com_github_jetbrains_kotlin_git", "com_github_pinterest_ktlint", "jarjar", "kotlin_build_tools_api", "kotlinx_coroutines_core_jvm", "kotlinx_serialization_core_jvm", "kotlinx_serialization_json", "kotlinx_serialization_json_jvm")

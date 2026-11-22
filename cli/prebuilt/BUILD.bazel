@@ -52,7 +52,7 @@ dx_gazelle_hub_tests(name = "gazelle_hub_test")
 
 guard_view_tests(name = "guard_view_test")
 
-# Set: when rules_dx is the root module, @dx_prebuilt, @dx_gazelle and @php_launcher serve guard_stub for every source-built tool.
+# Set: when rules_dx is the root module, @dx_prebuilt, @dx_gazelle, @php_launcher and @qt_launcher serve guard_stub for every source-built tool.
 # Universal scope: the flag keeps its value in the exec configuration.
 bool_flag(
     name = "guard_view",

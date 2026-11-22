@@ -1,5 +1,6 @@
 use super::*;
 use serde_json::json;
+use std::fs;
 
 const P: &str = "ruby:geo:";
 
@@ -372,7 +373,7 @@ fn every_malformed_document_is_rejected() {
         (document(&[]).to_string(), "no public Ruby API"),
     ];
     for (json, needle) in cases {
-        let error = convert(&json, "geo").unwrap_err();
+        let error = convert(&json, "geo").unwrap_err().to_string();
         assert!(error.contains(needle), "{needle}: {error}");
     }
     for package in ["", "a:b", "a b"] {
@@ -385,7 +386,8 @@ fn an_id_collision_fails_validation() {
     let mut objects = base();
     objects.push(obj("constant", "Geo::Circle", "Circle", "Geo"));
     let error = convert(&document(&objects).to_string(), "geo").unwrap_err();
-    assert!(error.contains("DuplicateSymbolId"), "{error}");
+    assert!(matches!(error, RubyExtractError::InvalidIr(_)), "{error}");
+    assert!(error.to_string().contains("DuplicateSymbolId"), "{error}");
 }
 
 #[test]

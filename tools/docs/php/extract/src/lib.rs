@@ -3,19 +3,91 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeSet;
-use std::fmt::Write as _;
-use std::fs;
+use std::fmt::{self, Write as _};
+use std::path::Path;
 
-use documentation_ir::json::{boolean, field, number, string, strings};
+use documentation_ir::json::{JsonError, boolean, field, number, string, strings};
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use serde_json::{Map, Value};
 
 const LANGUAGE: &str = "php";
 const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "php.config";
 const KEY_INCOMPLETE: &str = "php.incomplete";
+
+/// Why one `php_dump` JSON document could not become a shard.
+#[derive(Debug)]
+pub enum PhpExtractError {
+    Read(PathIoError),
+    InvalidPackage { package: String },
+    Malformed(serde_json::Error),
+    NotObject { at: String },
+    NotList { at: String, key: &'static str },
+    Json(JsonError),
+    UnsupportedFormat { found: u64 },
+    UnknownType { at: String, kind: String },
+    EmptyFqsenOrName { at: String },
+    NoPublicApi { package: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for PhpExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::InvalidPackage { package } => write!(f, "invalid package '{package}'"),
+            Self::Malformed(error) => write!(f, "php_dump JSON is malformed: {error}"),
+            Self::NotObject { at } => write!(f, "{at} is not an object"),
+            Self::NotList { at, key } => write!(f, "{at} '{key}' is not a list"),
+            Self::Json(error) => error.fmt(f),
+            Self::UnsupportedFormat { found } => write!(
+                f,
+                "php_dump JSON format {found} is not supported, expected {FORMAT}"
+            ),
+            Self::UnknownType { at, kind } => write!(f, "{at} has unknown type '{kind}'"),
+            Self::EmptyFqsenOrName { at } => write!(f, "{at} has an empty fqsen or name"),
+            Self::NoPublicApi { package } => write!(
+                f,
+                "php_dump JSON lists no public PHP API of package '{package}'"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for PhpExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Malformed(error) => Some(error),
+            Self::Json(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::InvalidPackage { .. }
+            | Self::NotObject { .. }
+            | Self::NotList { .. }
+            | Self::UnsupportedFormat { .. }
+            | Self::UnknownType { .. }
+            | Self::EmptyFqsenOrName { .. }
+            | Self::NoPublicApi { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
+
+impl From<JsonError> for PhpExtractError {
+    fn from(error: JsonError) -> Self {
+        Self::Json(error)
+    }
+}
+
+fn not_object(at: &str) -> PhpExtractError {
+    PhpExtractError::NotObject { at: at.to_owned() }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -42,7 +114,7 @@ pub fn usage() -> &'static str {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
         json: flags.one("--json")?,
@@ -56,11 +128,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let json = fs::read_to_string(&options.json)
-        .map_err(|error| format!("cannot read {}: {error}", options.json))?;
+pub fn run(options: &Options) -> Result<(), PhpExtractError> {
+    let json = path_io::read_to_string(Path::new(&options.json)).map_err(PhpExtractError::Read)?;
     let shard = convert(&json, &options.package)?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(PhpExtractError::Write)
 }
 
 pub use documentation_ir::escape_segment;
@@ -111,17 +182,18 @@ struct Element {
     value: String,
 }
 
-fn tags(object: &Map<String, Value>, at: &str) -> Result<Vec<Tag>, String> {
+fn tags(object: &Map<String, Value>, at: &str) -> Result<Vec<Tag>, PhpExtractError> {
     let list = field(object, "tags", at)?
         .as_array()
-        .ok_or_else(|| format!("{at} 'tags' is not a list"))?;
+        .ok_or_else(|| PhpExtractError::NotList {
+            at: at.to_owned(),
+            key: "tags",
+        })?;
     list.iter()
         .enumerate()
         .map(|(index, tag)| {
             let at = format!("{at} tag {index}");
-            let tag = tag
-                .as_object()
-                .ok_or_else(|| format!("{at} is not an object"))?;
+            let tag = tag.as_object().ok_or_else(|| not_object(&at))?;
             Ok(Tag {
                 tag: string(tag, "tag", &at)?,
                 name: string(tag, "name", &at)?,
@@ -132,17 +204,18 @@ fn tags(object: &Map<String, Value>, at: &str) -> Result<Vec<Tag>, String> {
         .collect()
 }
 
-fn arguments(object: &Map<String, Value>, at: &str) -> Result<Vec<Argument>, String> {
+fn arguments(object: &Map<String, Value>, at: &str) -> Result<Vec<Argument>, PhpExtractError> {
     let list = field(object, "params", at)?
         .as_array()
-        .ok_or_else(|| format!("{at} 'params' is not a list"))?;
+        .ok_or_else(|| PhpExtractError::NotList {
+            at: at.to_owned(),
+            key: "params",
+        })?;
     list.iter()
         .enumerate()
         .map(|(index, argument)| {
             let at = format!("{at} param {index}");
-            let argument = argument
-                .as_object()
-                .ok_or_else(|| format!("{at} is not an object"))?;
+            let argument = argument.as_object().ok_or_else(|| not_object(&at))?;
             Ok(Argument {
                 name: string(argument, "name", &at)?,
                 r#type: string(argument, "type", &at)?,
@@ -154,10 +227,8 @@ fn arguments(object: &Map<String, Value>, at: &str) -> Result<Vec<Argument>, Str
         .collect()
 }
 
-fn element(value: &Value, at: &str) -> Result<Element, String> {
-    let object = value
-        .as_object()
-        .ok_or_else(|| format!("{at} is not an object"))?;
+fn element(value: &Value, at: &str) -> Result<Element, PhpExtractError> {
+    let object = value.as_object().ok_or_else(|| not_object(at))?;
     let kind = string(object, "type", at)?;
     if !matches!(
         kind.as_str(),
@@ -171,12 +242,15 @@ fn element(value: &Value, at: &str) -> Result<Element, String> {
             | "property"
             | "constant"
     ) {
-        return Err(format!("{at} has unknown type '{kind}'"));
+        return Err(PhpExtractError::UnknownType {
+            at: at.to_owned(),
+            kind,
+        });
     }
     let fqsen = string(object, "fqsen", at)?;
     let name = string(object, "name", at)?;
     if fqsen.is_empty() || name.is_empty() {
-        return Err(format!("{at} has an empty fqsen or name"));
+        return Err(PhpExtractError::EmptyFqsenOrName { at: at.to_owned() });
     }
     Ok(Element {
         kind,
@@ -527,21 +601,18 @@ fn symbol(
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
+pub fn convert(json: &str, package: &str) -> Result<DocIr, PhpExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
+        return Err(PhpExtractError::InvalidPackage {
+            package: package.to_owned(),
+        });
     }
-    let root: Value = serde_json::from_str(json)
-        .map_err(|error| format!("php_dump JSON is malformed: {error}"))?;
-    let root = root.as_object().ok_or("php_dump JSON is not an object")?;
+    let root: Value = serde_json::from_str(json).map_err(PhpExtractError::Malformed)?;
     let at = "php_dump JSON";
+    let root = root.as_object().ok_or_else(|| not_object(at))?;
     match number(root, "format", at)? {
         FORMAT => {}
-        other => {
-            return Err(format!(
-                "php_dump JSON format {other} is not supported, expected {FORMAT}"
-            ));
-        }
+        found => return Err(PhpExtractError::UnsupportedFormat { found }),
     }
     let config = format!(
         "php={};phpdocumentor={};format={FORMAT}",
@@ -550,7 +621,10 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     );
     let elements: Vec<Element> = field(root, "objects", at)?
         .as_array()
-        .ok_or("php_dump JSON 'objects' is not a list")?
+        .ok_or_else(|| PhpExtractError::NotList {
+            at: at.to_owned(),
+            key: "objects",
+        })?
         .iter()
         .enumerate()
         .map(|(index, value)| element(value, &format!("php_dump JSON object {index}")))
@@ -592,9 +666,9 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         symbols.push(symbol(element, id_of(element), &known, &prefix, &config));
     }
     if symbols.is_empty() {
-        return Err(format!(
-            "php_dump JSON lists no public PHP API of package '{package}'"
-        ));
+        return Err(PhpExtractError::NoPublicApi {
+            package: package.to_owned(),
+        });
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
@@ -602,7 +676,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(PhpExtractError::InvalidIr)?;
     Ok(shard)
 }
 

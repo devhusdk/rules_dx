@@ -3322,6 +3322,27 @@ FILE_FAMILY_CASES = [
         toolfile_rels = [""],
     ),
     matrix_case(
+        name = "matrix_terraform_trivy_lint_local_module_pass",
+        capability = "lint",
+        tool = "trivy_config",
+        binary = "@dx_tools//:trivy",
+        source_class = "terraform",
+        generated = {
+            "matrix/trivy_module/main.tf": "module \"net\" {\n  source = \"./net\"\n}\n",
+            "matrix/trivy_module/net/main.tf": "variable \"name\" {\n  type = string\n}\n",
+        },
+    ),
+    matrix_case(
+        name = "matrix_terraform_trivy_lint_remote_module_fail",
+        capability = "lint",
+        tool = "trivy_config",
+        binary = "@dx_tools//:trivy",
+        source_class = "terraform",
+        generated = {
+            "matrix/trivy_remote/main.tf": "module \"consul\" {\n  source = \"hashicorp/consul/aws\"\n}\n",
+        },
+    ),
+    matrix_case(
         name = "matrix_cloudformation_trivy_lint_pass",
         capability = "lint",
         tool = "trivy_config",

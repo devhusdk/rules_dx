@@ -18,6 +18,7 @@ pub mod severity;
 mod severity_gen;
 pub mod sqlfluff_config;
 pub mod sqlfluff_preflight;
+pub mod terraform_preflight;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolSeverity {

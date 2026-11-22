@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_terraform_trivy_lint_local_module_pass
+capability LINT
+stages 1
+stage trivy_config classes=terraform sources=matrix/trivy_module/main.tf,matrix/trivy_module/net/main.tf
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

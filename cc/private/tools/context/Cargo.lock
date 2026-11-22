@@ -1893,6 +1893,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_exec_bench"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "dx_exec_core"
 version = "0.0.0"
 dependencies = [

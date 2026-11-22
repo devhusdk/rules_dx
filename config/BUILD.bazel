@@ -235,7 +235,7 @@ label_flag(
 
 label_flag(
     name = "tool_thrift",
-    build_setting_default = "@dx_prebuilt//:thrift",
+    build_setting_default = "@dx_thrift//:thrift_compiler",
     scope = "universal",
 )
 

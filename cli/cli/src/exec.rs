@@ -6,7 +6,8 @@ mod audit_live_tests;
 #[cfg(test)]
 mod audit_reports_tests;
 mod auto_sync;
-mod bench;
+#[cfg(test)]
+mod bench_tests;
 #[cfg(test)]
 mod build_failures_tests;
 #[cfg(test)]
@@ -375,7 +376,7 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Watch => crate::adopt::watch::execute_watch(invocation, env),
         Command::Check => umbrella::execute_umbrella(invocation, env),
-        Command::Bench => bench::execute_bench(invocation, env),
+        Command::Bench => dx_exec_bench::execute_bench(invocation, env),
         Command::Build
         | Command::Test
         | Command::Coverage

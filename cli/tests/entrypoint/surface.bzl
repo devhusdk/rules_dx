@@ -92,7 +92,9 @@ def _surface(ctx):
         seeds.append(label.removeprefix("@rules_dx//"))
     languages = ctx.read(ctx.attr.languages)
     seeds.extend(_rules_dx_bzl(languages))
-    seeds.extend([value for value in _strings(languages) if value.endswith(".bzl") and not value.startswith("@")])
+
+    # Only `pkg:file.bzl` labels; file marks such as ".bzl" also end in .bzl.
+    seeds.extend([value for value in _strings(languages) if value.endswith(".bzl") and ":" in value and not value.startswith("@")])
     seeds.extend(_rules_dx_bzl(ctx.read(ctx.attr.generated)))
     for page in _user_docs(ctx, root):
         seeds.extend(_rules_dx_bzl(ctx.read(page)))

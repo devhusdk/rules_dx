@@ -10,6 +10,8 @@ php_corpus(
     starlark_srcs = [
         "BUILD.bazel",
         "coverage.bzl",
+        "extensions.bzl",
+        "repos.bzl",
     ],
     tags = ["corpus"],
 )

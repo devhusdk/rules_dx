@@ -2118,9 +2118,12 @@ luarocks.lock(
 use_repo(luarocks, "rocks_lua.tests.luarocks")
 
 php = use_extension("//php:extensions.bzl", "php")
-use_repo(php, "dx_php_coverage_windows_x86_64", "dx_php_pcov", "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_unused_public", "dx_webmozart_assert", "php_composer", "php_launcher", "php_phpunit")
+use_repo(php, "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_unused_public", "dx_webmozart_assert", "php_composer", "php_launcher", "php_phpunit")
 
 register_toolchains("@dx_php_toolchains//:all")
+
+php_coverage = use_extension("//php:extensions.bzl", "php_coverage")
+use_repo(php_coverage, "dx_php_coverage_windows_x86_64", "dx_php_pcov")
 
 composer = use_extension("//php:extensions.bzl", "composer", dev_dependency = True)
 composer.lock(

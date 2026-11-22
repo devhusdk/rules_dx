@@ -5944,6 +5944,7 @@
           {
             "attrs": [
               "archs",
+              "copts",
               "tags",
               "target_compatible_with",
               "visibility"
@@ -5953,6 +5954,7 @@
           {
             "attrs": [
               "archs",
+              "copts",
               "features",
               "hdrs",
               "rdc",

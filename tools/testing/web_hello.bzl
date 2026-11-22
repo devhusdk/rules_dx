@@ -14,12 +14,25 @@ def dx_web_app_logo(name = "logo"):
         testonly = False,
     )
 
-def dx_web_app(build, library, library_srcs, srcs, tests, size, library_name = "components", **kwargs):
+def dx_web_app(build, library, library_srcs, srcs, tests, size, library_name = "components", client_test = False, **kwargs):
     """Declares the web app fixture: logo, component library, site build, server, jest tests and a build test.
 
     tests maps each jest source file, such as "site_static.test.js", to its data; the test is named after the file with .test.js replaced by _test.
+    client_test adds site_client_test, the shared jsdom test that mounts the site and clicks its counter.
     """
     dx_web_app_logo()
+    if client_test:
+        # The test finds the site next to itself, so it is copied into this package.
+        copy_file(
+            name = "site_client_src",
+            src = Label("//tools/testing:web_app_site_client.test.js"),
+            out = "site_client.test.js",
+        )
+        tests = dict(tests)
+        tests["site_client.test.js"] = [
+            ":site",
+            "//:node_modules/jest-environment-jsdom",
+        ]
     library(
         name = library_name,
         srcs = library_srcs,

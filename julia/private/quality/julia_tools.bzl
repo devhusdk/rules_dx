@@ -1,6 +1,6 @@
 """Quality tool rows for the julia family."""
 
-load("//core/quality:tool_defs.bzl", "config", "row", "tool")
+load("//core/quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
 TOOLS = [
     tool(
@@ -27,6 +27,7 @@ TOOLS = [
     ),
     tool(
         id = "julialint",
+        severity = severity(floor = "warning"),
         adapters = {"lint": ["julia"]},
         config = config(suffixes = [".toml"], tier_active = True),
         support = [

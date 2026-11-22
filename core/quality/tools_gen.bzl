@@ -147,15 +147,14 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
 def severity_rust():
     """Returns the full text of core/quality/adapter/src/severity_gen.rs."""
     out = _SEVERITY_HEADER
-    mapped = [tool for tool in TOOLS if tool.severity.default != None or tool.severity.categories]
+    mapped = [tool for tool in TOOLS if _has_map(tool.severity)]
     if not mapped:
         return out.rstrip("\n") + "];\n"
     for tool in sorted(TOOLS, key = lambda tool: tool.id):
         severity = tool.severity
-        if severity.default == None and not severity.categories:
+        if not _has_map(severity):
             continue
-        default = "None" if severity.default == None else "Some(%s)" % _level(severity.default)
-        out += "    (\n        %s,\n        crate::severity::ToolSeverityMap {\n            default: %s,\n" % (_str(tool.id), default)
+        out += "    (\n        %s,\n        crate::severity::ToolSeverityMap {\n            default: %s,\n            floor: %s,\n" % (_str(tool.id), _optional_level(severity.default), _optional_level(severity.floor))
         if not severity.categories:
             out += "            categories: &[],\n        },\n    ),\n"
             continue
@@ -172,6 +171,12 @@ def severity_rust():
                 out += "                (%s),\n" % pair
         out += "            ],\n        },\n    ),\n"
     return out + "];\n"
+
+def _has_map(severity):
+    return severity.default != None or severity.floor != None or bool(severity.categories)
+
+def _optional_level(level):
+    return "None" if level == None else "Some(%s)" % _level(level)
 
 def _level(level):
     return {"error": "crate::ToolSeverity::Error", "info": "crate::ToolSeverity::Info", "warning": "crate::ToolSeverity::Warning"}[level]

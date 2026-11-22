@@ -1,6 +1,6 @@
 """Quality tool rows for the haskell family."""
 
-load("//core/quality:tool_defs.bzl", "config", "row", "tool")
+load("//core/quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
 TOOLS = [
     tool(
@@ -47,6 +47,7 @@ TOOLS = [
     ),
     tool(
         id = "weeder",
+        severity = severity(floor = "warning"),
         adapters = {"lint": ["haskell"]},
         concerns = {"lint": "unused_code"},
         support = [

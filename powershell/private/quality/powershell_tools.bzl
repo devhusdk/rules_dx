@@ -1,10 +1,11 @@
 """Quality tool rows for the powershell family."""
 
-load("//core/quality:tool_defs.bzl", "config", "row", "tool")
+load("//core/quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
 TOOLS = [
     tool(
         id = "psscriptanalyzer",
+        severity = severity(floor = "warning"),
         adapters = {
             "format": ["powershell"],
             "lint": ["powershell"],

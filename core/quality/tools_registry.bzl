@@ -47,7 +47,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "load-failure": "error",
           "syntax-check": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -112,7 +113,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "credo",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -172,7 +174,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "dialyzer",
       "severity": {
         "categories": {},
-        "default": "error"
+        "default": "error",
+        "floor": null
       },
       "support": [
         {
@@ -253,7 +256,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "elvis",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -312,7 +316,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "elixirc",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -373,7 +378,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "erlc",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -432,7 +438,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "erlfmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -495,7 +502,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "mix_format",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -564,7 +572,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "bicep",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -638,7 +647,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "clang_format",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -740,7 +750,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "clang_syntax",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -831,6 +842,7 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "bugprone-": "warning",
           "cert-": "warning",
           "clang-analyzer-": "warning",
+          "clang-diagnostic-": "warning",
           "clang-diagnostic-error": "error",
           "cppcoreguidelines-": "warning",
           "misc-": "warning",
@@ -838,7 +850,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "performance-": "warning",
           "readability-": "warning"
         },
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -936,7 +949,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "nvcc_syntax",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -999,7 +1013,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "cfn_lint",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": "warning"
       },
       "support": [
         {
@@ -1064,7 +1079,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "cmakelint",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -1128,7 +1144,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "gersemi",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -1189,7 +1206,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "actionlint",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -1245,7 +1263,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "avro_tools",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -1337,7 +1356,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
         "categories": {
           "COMPILE": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -1442,7 +1462,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "buildifier",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -1524,7 +1545,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "capnp",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -1606,7 +1628,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "flatc",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -1687,7 +1710,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "gplint",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -1752,7 +1776,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "graphql_eslint",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -1830,7 +1855,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "lychee",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -1932,7 +1958,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "markdown_check",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": []
     },
@@ -1999,7 +2026,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "prettier",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -2213,7 +2241,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "qmlformat",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -2278,7 +2307,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "qmllint",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": "warning"
       },
       "support": [
         {
@@ -2359,7 +2389,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "redocly",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -2430,7 +2461,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "taplo",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -2531,7 +2563,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "thrift",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -2615,7 +2648,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "trivy_config",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": "warning"
       },
       "support": [
         {
@@ -2830,7 +2864,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "typos",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -4209,7 +4244,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "zizmor",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": "warning"
       },
       "support": [
         {
@@ -4267,7 +4303,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "cue",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -4333,7 +4370,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "dscanner",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -4388,7 +4426,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "ldc",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": []
     }
@@ -4441,7 +4480,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "dart",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": "warning"
       },
       "support": [
         {
@@ -4551,7 +4591,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
         "categories": {
           "DL1": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -4605,7 +4646,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "csc",
       "severity": {
         "categories": {},
-        "default": "error"
+        "default": "error",
+        "floor": null
       },
       "support": [
         {
@@ -4666,7 +4708,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "csharpier",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -4725,7 +4768,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "fantomas",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -4784,7 +4828,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "fsc",
       "severity": {
         "categories": {},
-        "default": "error"
+        "default": "error",
+        "floor": null
       },
       "support": [
         {
@@ -4841,7 +4886,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "fsharplint",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -4910,7 +4956,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "CA3": "error",
           "CA5": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -4975,7 +5022,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "ffmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -5030,7 +5078,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "flang",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": []
     },
@@ -5071,7 +5120,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "fortitude",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -5130,7 +5180,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "errcheck",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -5189,7 +5240,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "gofumpt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -5248,7 +5300,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "gotype",
       "severity": {
         "categories": {},
-        "default": "error"
+        "default": "error",
+        "floor": null
       },
       "support": [
         {
@@ -5309,7 +5362,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "govet",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -5368,7 +5422,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "modfmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -5435,7 +5490,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "S": "warning",
           "U1000": "warning"
         },
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -5496,7 +5552,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "ghc",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": []
     },
@@ -5539,7 +5596,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "hlint",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -5598,7 +5656,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "ormolu",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -5657,7 +5716,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "weeder",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": "warning"
       },
       "support": [
         {
@@ -5727,7 +5787,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "djlint",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -5849,7 +5910,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "lint/style": "warning",
           "lint/suspicious": "warning"
         },
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -6000,7 +6062,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
         "categories": {
           "security/": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -6157,7 +6220,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "remark",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -6232,7 +6296,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "stylelint",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -6298,7 +6363,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "tsc",
       "severity": {
         "categories": {},
-        "default": "error"
+        "default": "error",
+        "floor": null
       },
       "support": []
     }
@@ -6339,7 +6405,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "jsonnet_lint",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -6391,7 +6458,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "jsonnetfmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -6445,7 +6513,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "jet",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": []
     },
@@ -6484,7 +6553,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "julia_format",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -6547,7 +6617,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "julialint",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": "warning"
       },
       "support": [
         {
@@ -6613,7 +6684,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "detekt",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -6672,7 +6744,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "google_java_format",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -6731,7 +6804,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "javac",
       "severity": {
         "categories": {},
-        "default": "error"
+        "default": "error",
+        "floor": null
       },
       "support": [
         {
@@ -6790,7 +6864,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "kotlinc",
       "severity": {
         "categories": {},
-        "default": "error"
+        "default": "error",
+        "floor": null
       },
       "support": [
         {
@@ -6849,7 +6924,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "ktfmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -6913,7 +6989,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "HardCodedCryptoKey": "error",
           "InsecureCryptoIv": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -6972,7 +7049,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "scalac",
       "severity": {
         "categories": {},
-        "default": "error"
+        "default": "error",
+        "floor": null
       },
       "support": [
         {
@@ -7033,7 +7111,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "scalafix",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": "warning"
       },
       "support": [
         {
@@ -7096,7 +7175,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "scalafmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -7160,7 +7240,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "USO_": "error",
           "XSS_": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -7221,7 +7302,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "helm",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -7285,7 +7367,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "helmfmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -7348,7 +7431,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "kubeconform",
       "severity": {
         "categories": {},
-        "default": "error"
+        "default": "error",
+        "floor": null
       },
       "support": [
         {
@@ -7409,7 +7493,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "chktex",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -7471,7 +7556,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "latexindent",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -7540,7 +7626,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "luals/param-type-mismatch": "error",
           "luals/return-type-mismatch": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": []
     },
@@ -7581,7 +7668,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "selene",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -7644,7 +7732,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "stylua",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -7702,7 +7791,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "checkmake",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -7759,7 +7849,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "mbake",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -7818,7 +7909,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "deadnix",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -7879,7 +7971,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "nixfmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -7942,7 +8035,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "ocaml",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": []
     },
@@ -7981,7 +8075,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "topiary",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -8041,7 +8136,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "zanuda",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -8104,7 +8200,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "container_structure_test",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -8163,7 +8260,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "trivy_image_config",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": "warning"
       },
       "support": [
         {
@@ -8227,7 +8325,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "perlcritic",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -8293,7 +8392,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "perltidy",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -8359,7 +8459,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "phpcs",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -8422,10 +8523,9 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       },
       "id": "phpstan",
       "severity": {
-        "categories": {
-          "phpstan/public.": "info"
-        },
-        "default": "error"
+        "categories": {},
+        "default": "error",
+        "floor": null
       },
       "support": [
         {
@@ -8492,7 +8592,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "pkl",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -8556,7 +8657,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "pkl_lsp",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -8625,7 +8727,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "psscriptanalyzer",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": "warning"
       },
       "support": [
         {
@@ -8705,7 +8808,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "notebook_outputs",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -8767,7 +8871,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "pydoclint",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -8866,7 +8971,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "S6": "error",
           "S7": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -8960,7 +9066,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "ty",
       "severity": {
         "categories": {},
-        "default": "error"
+        "default": "error",
+        "floor": null
       },
       "support": [
         {
@@ -9031,7 +9138,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "opa",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -9100,7 +9208,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "regal",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -9168,7 +9277,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
         "categories": {
           "Security/": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -9250,7 +9360,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "sorbet",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -9382,7 +9493,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "clippy::wrong_transmute": "error",
           "clippy::zst_offset": "error"
         },
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -9441,7 +9553,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "rustc",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -9505,7 +9618,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "rustfmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -9571,7 +9685,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "shellcheck",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -9634,7 +9749,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "shfmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -9711,7 +9827,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "ST": "error",
           "TMP": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -9789,7 +9906,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "swiftc",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": []
     },
@@ -9831,7 +9949,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "swift_format",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -9893,7 +10012,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "swift_lint",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -9958,7 +10078,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "terraform",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -10026,7 +10147,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
         "categories": {
           "tflint-diagnostic": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -10084,7 +10206,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "docstrfmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -10143,7 +10266,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "keep_sorted",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -10211,7 +10335,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "vale",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -10310,7 +10435,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "tinymist",
       "severity": {
         "categories": {},
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -10362,7 +10488,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "typstyle",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -10416,7 +10543,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "xmllint",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -10485,7 +10613,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "yamlfmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {
@@ -10585,7 +10714,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
           "key-duplicates": "error",
           "syntax": "error"
         },
-        "default": "warning"
+        "default": "warning",
+        "floor": null
       },
       "support": [
         {
@@ -10646,7 +10776,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "zig",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": []
     },
@@ -10685,7 +10816,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "zig_ast_check",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": []
     },
@@ -10724,7 +10856,8 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "zig_fmt",
       "severity": {
         "categories": {},
-        "default": null
+        "default": null,
+        "floor": null
       },
       "support": [
         {

@@ -147,7 +147,7 @@ Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs
 ```diff
 --- a/core/quality/tiers/eslint/strict.mjs
 +++ b/core/quality/tiers/eslint/strict.mjs
-@@ -1,13 +1,42 @@
+@@ -1,13 +1,44 @@
  import { defineConfig } from "eslint/config";
  import globals from "globals";
  import tseslint from "typescript-eslint";
@@ -165,8 +165,10 @@ Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs
 +		message: "Remove .only and .skip before committing; every test runs.",
 +	},
 +	{
-+		selector: "CallExpression[callee.name=/^(fdescribe|fit|xdescribe|xit|xtest)$/]",
-+		message: "Remove focused and disabled test calls before committing; every test runs.",
++		selector:
++			"CallExpression[callee.name=/^(fdescribe|fit|xdescribe|xit|xtest)$/]",
++		message:
++			"Remove focused and disabled test calls before committing; every test runs.",
 +	},
 +];
 +
@@ -191,7 +193,7 @@ Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs
  	"for-direction": "error",
  	"getter-return": "error",
  	"no-async-promise-executor": "error",
-@@ -92,39 +121,66 @@
+@@ -92,39 +123,66 @@
  	"no-undef": "off",
  	"no-unreachable": "off",
  	"no-unsafe-negation": "off",
@@ -261,7 +263,7 @@ Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs
  	"@typescript-eslint/no-unsafe-enum-comparison": "error",
  	"@typescript-eslint/no-unsafe-function-type": "error",
  	"@typescript-eslint/no-unsafe-member-access": "error",
-@@ -134,19 +190,52 @@
+@@ -134,19 +192,52 @@
  	"@typescript-eslint/no-unused-expressions": "error",
  	"no-unused-vars": "off",
  	"@typescript-eslint/no-unused-vars": "error",
@@ -316,7 +318,7 @@ Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs
  };
  
  export default defineConfig(
-@@ -172,4 +261,6 @@
+@@ -172,4 +263,6 @@
  			: {},
  	},
  	frameworks,

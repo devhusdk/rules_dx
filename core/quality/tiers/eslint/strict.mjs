@@ -14,8 +14,10 @@ const testOnly = [
 		message: "Remove .only and .skip before committing; every test runs.",
 	},
 	{
-		selector: "CallExpression[callee.name=/^(fdescribe|fit|xdescribe|xit|xtest)$/]",
-		message: "Remove focused and disabled test calls before committing; every test runs.",
+		selector:
+			"CallExpression[callee.name=/^(fdescribe|fit|xdescribe|xit|xtest)$/]",
+		message:
+			"Remove focused and disabled test calls before committing; every test runs.",
 	},
 ];
 

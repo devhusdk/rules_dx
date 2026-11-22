@@ -10,12 +10,12 @@ load("//core/private/testing:defs.bzl", "expect_equal", "expect_true")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cuda:defs.bzl", "cuda_binary", "cuda_component_library", "cuda_library", "cuda_test")
 load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH", "cuda_gpu_env", "cuda_split_srcs", "cuda_target_compatible_with")
-load("//cuda/private/toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "component_markers", "cuda_check", "cuda_gpu_check", "gpu_device_errors", "gpu_device_source", "gpu_requirement_errors", "toolkit_errors")
+load("//cuda/private/toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "component_markers", "copt_errors", "cuda_check", "cuda_gpu_check", "gpu_device_errors", "gpu_device_source", "gpu_requirement_errors", "toolkit_errors")
 load("//cuda/private/toolchain:transition.bzl", "CUDA_HOST_COMPILER_SETTING", "cuda_host_settings")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load(":cell_tests.bzl", "cuda_cell_tests")
-load(":defs.bzl", "component_sources_test", "coverage_keep_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "gpu_test_declared_test", "hermetic_toolchain_test", "with_clang_compiler", "with_gpu_device")
+load(":defs.bzl", "component_sources_test", "coverage_keep_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "gpu_test_declared_test", "hermetic_toolchain_test", "strict_flags_test", "with_clang_compiler", "with_gpu_device")
 load(":license_gate_tests.bzl", "cuda_license_gate_tests")
 
 # gazelle:lang rust,dx_dispatch
@@ -320,6 +320,92 @@ failure_test(
     target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
+_NVCC_STRICT = [
+    "-Wreorder",
+    "-Wdefault-stream-launch",
+    "-Wmissing-launch-bounds",
+    "-Wext-lambda-captures-this",
+    "--display-error-number",
+]
+
+_NVCC_WERROR = "-Werror=all-warnings,cross-execution-space-call"
+
+strict_flags_test(
+    name = "strict_flags_test",
+    size = "small",
+    present = _NVCC_STRICT + [_NVCC_WERROR],
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_under_test = "//cuda/tests/fixtures/saxpy",
+)
+
+cuda_library(
+    name = "warnings_allowed",
+    srcs = ["//cuda/tests/fixtures/saxpy:saxpy.cu"],
+    gpu_archs = ["sm_89"],
+    tags = ["manual"],
+    warnings_as_errors = False,
+)
+
+strict_flags_test(
+    name = "warnings_allowed_flags_test",
+    size = "small",
+    absent = [_NVCC_WERROR],
+    present = _NVCC_STRICT,
+    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_under_test = ":warnings_allowed",
+)
+
+[
+    (
+        cuda_library(
+            name = "banned_copt_" + name,
+            srcs = ["//cuda/tests/fixtures/saxpy:saxpy.cu"],
+            copts = copts,
+            gpu_archs = ["sm_89"],
+            tags = ["manual"],
+        ),
+        failure_test(
+            name = "banned_copt_" + name + "_failure_test",
+            expected_failure_substring = "dx_cuda: copt '" + copts[-1] + "' silences warnings or relaxes device code",
+            target = ":banned_copt_" + name,
+            target_compatible_with = CUDA_COMPATIBLE_WITH,
+        ),
+    )
+    for name, copts in [
+        (
+            "diag_suppress",
+            ["--diag-suppress=177"],
+        ),
+        (
+            "wno",
+            ["-Wno-deprecated-declarations"],
+        ),
+        (
+            "w",
+            ["-w"],
+        ),
+        (
+            "xcompiler_w",
+            [
+                "-Xcompiler",
+                "-w",
+            ],
+        ),
+        (
+            "xcompiler_joined",
+            ["-Xcompiler=-O2,-Wno-unused"],
+        ),
+        (
+            "relaxed_constexpr",
+            ["--expt-relaxed-constexpr"],
+        ),
+        (
+            "fast_math",
+            ["--use_fast_math"],
+        ),
+    ]
+]
+
 cuda_library(
     name = "unsupported_arch",
     srcs = ["//cuda/tests/fixtures/saxpy:saxpy.cu"],
@@ -516,6 +602,25 @@ dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     size = "small",
     extra_checks = [
+        expect_equal(
+            "copts that keep warnings pass the copt check",
+            copt_errors([
+                "-DX=1",
+                "-Xcompiler",
+                "-O2",
+                "-Wreorder",
+            ]),
+            [],
+        ),
+        expect_equal(
+            "a host -w after -Xcompiler fails the copt check",
+            copt_errors([
+                "-Xcompiler",
+                "-w",
+                "-w2",
+            ]),
+            ["dx_cuda: copt '-w' silences warnings or relaxes device code; fix the code instead"],
+        ),
         expect_equal(
             "nvcc compile adds llvm coverage maps under coverage",
             cuda_host_settings(

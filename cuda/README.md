@@ -43,6 +43,38 @@ See `cuda/tests/fixtures/cublas`.
 
 ## Quality
 
+### Warnings
+
+nvcc warnings fail the build by default. `cuda_library`, `cuda_objects`,
+`cuda_binary` and `cuda_test` pass nvcc these flags:
+
+```text
+-Werror=all-warnings,cross-execution-space-call
+-Wreorder -Wdefault-stream-launch -Wmissing-launch-bounds
+-Wext-lambda-captures-this --display-error-number
+```
+
+So give every kernel `__launch_bounds__` and every launch an explicit stream:
+
+```cuda
+__global__ void __launch_bounds__(256) saxpy(int n, float a, const float* x, float* y);
+
+saxpy<<<(n + 255) / 256, 256, 0, stream>>>(n, a, x, y);
+```
+
+On one target, set `warnings_as_errors = False` to keep the warnings but not
+fail on them. To allow warnings in the whole repository, add this line to
+`.bazelrc`:
+
+```text
+common --@rules_dx//config:warnings_as_errors=false
+```
+
+`copts` and `host_copts` may not hide warnings or relax device code. Analysis
+fails on `-w`, `--disable-warnings`, `-Wno-*`, `--diag-suppress`,
+`--expt-relaxed-constexpr` and `--use_fast_math`, also when passed to the host
+compiler through `-Xcompiler`. Fix the code instead.
+
 ### GPU tests
 
 ```python
@@ -142,6 +174,7 @@ rules_dx declares the pinned nvcc toolchain; a consumer adds no
 | `dx_cuda: unknown license '<name>'; the only one is 'cuda-eula'` | Accept `cuda-eula`. |
 | `dx_cuda: gpu_archs is empty; set gpu_archs, for example gpu_archs = ["sm_89"]` | Set `gpu_archs`. |
 | `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |
+| `dx_cuda: copt '<flag>' silences warnings or relaxes device code; fix the code instead` | Remove the flag from `copts`, `host_copts` or `cuda_copts` and fix the warning. |
 | `dx_cuda: @rules_cuda//cuda:compiler is '<compiler>'; dx CUDA targets compile with nvcc only` | Remove the `@rules_cuda//cuda:compiler` setting. |
 | `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); remove your own rules_cuda cuda.redist_json and cuda.toolkit tags` | Remove your own rules_cuda `cuda.redist_json` and `cuda.toolkit` tags. |
 | `dx_cuda: the CUDA toolkit is <version>; dx CUDA targets need 13.4` | Use the versions from Setup. |

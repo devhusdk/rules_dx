@@ -45,6 +45,7 @@ ocaml_module(
 
 ocaml_test(
     name = "greet_dune_run_test",
+    size = "small",
     main = ":greet_dune_test_main",
     target_compatible_with = select({
         "//ocaml/private/toolchain:emitter_sys": [],

@@ -428,6 +428,8 @@ A bound regal config may not set `capabilities.from.url`, use YAML aliases, merg
 
 A bound or root `buf.yaml` may not list `deps`, in v1 or v2, or in a v2 `modules` entry, and may not use YAML aliases, merge keys or tags. `dx` runs buf offline. Declare imported protos as `proto_library` deps instead.
 
+trivy config scans a Terraform file (`.tf` or `.tf.json`) only when every `module` it calls has a plain `./` or `../` string `source` that stays inside the target's files, and the same holds for every local module those call. Otherwise the file gets a `dx/terraform-module-source` error and trivy skips it, because trivy would download the module and `dx` runs trivy offline. Vendor the module into your repo and point `source` at that directory.
+
 ### Change a rule
 
 Edit the tool's own root file. Where the Base column says `extends`, the file extends the dx tier base, so your edit is the only thing you keep. Where it says `override copy`, the root file is a copy of the base, and you edit the copy.

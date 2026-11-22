@@ -229,9 +229,9 @@ elixir/tests/fixtures/bench/BUILD.bazel no-size 2
 elixir/tests/fixtures/elixir_app/catalog/BUILD.bazel no-size 1
 elixir/tests/fixtures/elixir_app/cli/BUILD.bazel no-size 1
 elixir/tests/fixtures/elixir_app/stock/BUILD.bazel no-size 1
-elixir/tests/negative/BUILD.bazel no-size 3
-elixir/tests/runtime/BUILD.bazel no-size 2
-elixir/tests/tags/BUILD.bazel no-size 1
+elixir/tests/fixtures/negative/BUILD.bazel no-size 3
+elixir/tests/fixtures/runtime/BUILD.bazel no-size 2
+elixir/tests/fixtures/tags/BUILD.bazel no-size 1
 erlang/private/toolchain/BUILD.bazel no-size 2
 erlang/tests/fixtures/bench/BUILD.bazel no-size 2
 erlang/tests/fixtures/erlang_app/checksum/BUILD.bazel no-size 1

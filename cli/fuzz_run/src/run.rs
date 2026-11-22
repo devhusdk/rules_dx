@@ -4,8 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-pub const USAGE: &str =
-    "usage: bazel run <name>_run -- [--time <seconds>] [--out <dir>] [--jobs <n>] [--repro <file>]";
+pub const USAGE: &str = "usage: bazel run <name>_run -- [--time <seconds>] [--out <dir>] [--jobs <n>] [--corpus <dir>] [--repro <file>]";
 const CRASH_EXIT: i32 = 77;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -32,6 +31,11 @@ impl Engine {
     fn takes_target(self) -> bool {
         !matches!(self, Engine::Libfuzzer | Engine::Crowbar)
     }
+
+    /// Whether the engine reads a corpus directory that `--corpus` can seed.
+    fn takes_corpus(self) -> bool {
+        matches!(self, Engine::Libfuzzer | Engine::Jazzer | Engine::Dotnet)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -39,6 +43,7 @@ pub struct Options {
     pub seconds: String,
     pub out: Option<String>,
     pub jobs: Option<String>,
+    pub corpus: Option<String>,
     pub repro: Option<String>,
 }
 
@@ -47,6 +52,7 @@ pub fn parse_options(args: &[String]) -> Result<Options, String> {
         seconds: "60".to_owned(),
         out: None,
         jobs: None,
+        corpus: None,
         repro: None,
     };
     let mut iter = args.iter();
@@ -55,6 +61,7 @@ pub fn parse_options(args: &[String]) -> Result<Options, String> {
             "--time" => &mut options.seconds,
             "--out" => options.out.get_or_insert_with(String::new),
             "--jobs" => options.jobs.get_or_insert_with(String::new),
+            "--corpus" => options.corpus.get_or_insert_with(String::new),
             "--repro" => options.repro.get_or_insert_with(String::new),
             _ => return Err(USAGE.to_owned()),
         };
@@ -204,6 +211,27 @@ fn from_user(arg: &str) -> PathBuf {
     base.join(path)
 }
 
+/// Copies the files in `seeds` into the engine's working corpus.
+fn seed_corpus(engine: Engine, seeds: &Path, corpus: &Path) -> Result<(), Failure> {
+    if !engine.takes_corpus() {
+        return Err((
+            2,
+            "fuzz runner: --corpus needs a libfuzzer, jazzer or dotnet engine".to_owned(),
+        ));
+    }
+    let entries = fs::read_dir(seeds)
+        .map_err(|e| (1, format!("fuzz runner: corpus {}: {e}", seeds.display())))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| (1, format!("fuzz runner: corpus: {e}")))?;
+        let path = entry.path();
+        if path.is_file() {
+            fs::copy(&path, corpus.join(entry.file_name()))
+                .map_err(|e| (1, format!("fuzz runner: corpus {}: {e}", path.display())))?;
+        }
+    }
+    Ok(())
+}
+
 fn exit_code(status: std::process::ExitStatus) -> i32 {
     #[cfg(unix)]
     {
@@ -311,6 +339,9 @@ fn execute(
     let out = options.out.as_deref().ok_or_else(usage)?;
     let out = from_user(out);
     fs::create_dir_all(&out).map_err(|e| io_error("out", e))?;
+    if let Some(seeds) = &options.corpus {
+        seed_corpus(engine, &from_user(seeds), &work.join("corpus"))?;
+    }
     let status = if engine == Engine::Crowbar {
         crowbar_rounds(&spawn, options, &crashes)?
     } else {

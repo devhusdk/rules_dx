@@ -22,7 +22,7 @@ dx worktree release [<path>|<slot-number>] [--force]
 dx worktree list [--disk]
 dx worktree path <branch>
 dx worktree prune [--apply] [--bases]
-dx worktree hook create|remove|stop|guard
+dx worktree hook create|remove|stop|guard|bazel [-- <bazel-args>]
 ```
 
 A bare `dx worktree` runs `list`. Slots live in `<cache>/dx/worktrees/<repo>/<n>`.
@@ -139,9 +139,13 @@ print `dx worktree: low disk at <path>: <free> free; removed <what>; <free> free
 If the disk stays full, `add` refuses with `disk_full`. Run
 `dx worktree prune --apply --bases`.
 
+The first `add` that turns on the main-checkout rule also prints
+`dx worktree: the main checkout <path> is now protected: ...`.
+
 `--output=json` streams `command_started`, one `slot` event per slot and
 `command_finished`. `list` adds a `summary` event. A fetch failure adds a
-`notice` event with code `fetch_failed`.
+`notice` event with code `fetch_failed`. Turning on the main-checkout rule adds
+an `info` notice.
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`, `prune_cache`, `prune_downloads`), `path`, `state`, `server`, and
@@ -157,7 +161,7 @@ optional `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, `entries`,
 | --- | --- |
 | `0` | Success. |
 | `1` | Operational failure: branch checked out elsewhere, dirty or unpushed slot on `release`, `slot_busy`, `lease_changed`, `no_home`, `disk_full`, `path` finds no checkout, `prune` found work without `--apply`, or a `hook` failure. |
-| `2` | Usage error: unknown subcommand or hook, wrong arguments, `invalid_branch`, `not_a_slot`, a flag on the wrong subcommand, an unknown `--create` ref, `release` of another holder's slot without `--force`, or any other `dx` command in a slot leased to another session. |
+| `2` | Usage error: unknown subcommand or hook, wrong arguments, `invalid_branch`, `not_a_slot`, a flag on the wrong subcommand, an unknown `--create` ref, `release` of another holder's slot without `--force`, any other `dx` command in a slot leased to another session, or a command the main-checkout rule refuses. |
 | `128` plus signal | Ctrl-C, `SIGTERM` or `SIGHUP` stopped `list --disk` or `prune`. |
 
 ## Shared disk cache
@@ -190,6 +194,7 @@ Cursor or Gemini CLI. They ignore `DX_*` variables and print text.
 | `create` | `name`, `cwd` | Leases a slot on branch `worktree-<name>` and prints the path. |
 | `remove` | `worktree_path` | Releases that slot. Paths outside the pool are ignored. |
 | `stop` | `agent_id` | Marks the slots that agent holds as held by a gone holder and stops their Bazel servers. |
+| `bazel` | nothing; the Bazel arguments follow `--` | Exits `2` when the main-checkout rule refuses this Bazel call, or for `bazel clean` in a slot. |
 | `guard` | `tool_input.command` | Exits `2` for `git worktree add`, `remove` or `prune`. Exits `2` for `git checkout`, `switch`, `reset`, `rebase`, `fetch`, `pull`, `stash` or `commit`, `bazel`, and `dx build`, `test` or `check` in a slot another agent holds. Exits `2` for the same commands in the primary checkout when the caller holds a slot; the message names the slot. Read-only git, `gh` and `dx worktree add`, `release` and `list` stay allowed. |
 
 `create`, `remove` and `stop` exit `1` on any failure, including empty or
@@ -245,10 +250,41 @@ hook entries. It also writes the launcher and the agent commands block in
 reports the `agents` check as `warn` when a hook is missing or `CLAUDE.md` does
 not import `AGENTS.md`.
 
+## Main checkout
+
+The main checkout is the clone itself, not a slot. The git config key
+`dx.primary` keeps Bazel work out of it:
+
+| `dx.primary` | Who is refused in the main checkout |
+| --- | --- |
+| unset | Nobody. |
+| `protected` | Everyone. |
+| `open` | Agent sessions only; see [Agent sessions](#agent-sessions). |
+
+The first `dx worktree add` sets `dx.primary` to `protected` when it is unset.
+To refuse only agents:
+
+```sh
+git config dx.primary open
+```
+
+A refused command exits `2` and prints
+`dx: refused: no Bazel in the main checkout <path>. Work in a slot: tools/dx worktree add <branch>`.
+JSON reports error code `main_checkout`. `dx worktree`, `dx completion`,
+`--help` and `--version` still run. With `CI=true` nothing is refused.
+
+`tools/dx` does not rebuild dx in a refused main checkout. It runs the last
+built dx instead.
+
+With `dx.primary` set, `dx worktree hook bazel -- clean` in a slot exits `2`:
+a clean drops the slot's warm outputs and does not fix a stale cache. Rerun
+with `--noremote_accept_cached`, or release the slot and add a fresh one.
+
 ## Agent sessions
 
-When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, `AI_AGENT`,
-`AGENT`, `GOOSE_TERMINAL`, `OPENCODE` or `AMP_CURRENT_THREAD_ID` is set, the default output is `json` for commands that support it,
+When `CLAUDECODE`, `CODEX_THREAD_ID`, `CODEX_SANDBOX`, `CURSOR_AGENT`, `GEMINI_CLI`,
+`QWEN_CODE`, `AMP_CURRENT_THREAD_ID`, `AUGMENT_AGENT`, `OPENCODE`, `COPILOT_CLI`,
+`AI_AGENT`, `AGENT` or `GOOSE_TERMINAL` is set, the default output is `json` for commands that support it,
 and Bazel progress stays off stderr. `--output` and `DX_OUTPUT` still win. In CI
 these variables are ignored.
 

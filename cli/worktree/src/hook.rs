@@ -78,15 +78,18 @@ pub enum HookKind {
     Remove,
     Stop,
     Guard,
+    /// Runs before a Bazel call, not from an agent.
+    Bazel,
 }
 
 impl HookKind {
     /// Every hook kind, in the order help text lists them.
-    pub const ALL: [HookKind; 4] = [
+    pub const ALL: [HookKind; 5] = [
         HookKind::Create,
         HookKind::Remove,
         HookKind::Stop,
         HookKind::Guard,
+        HookKind::Bazel,
     ];
 
     /// The hook kind a command-line word names.
@@ -103,17 +106,19 @@ impl HookKind {
             HookKind::Remove => "remove",
             HookKind::Stop => "stop",
             HookKind::Guard => "guard",
+            HookKind::Bazel => "bazel",
         }
     }
 
-    /// The Claude Code event that runs this hook, for error text.
+    /// The Claude Code event that runs this hook, for error text; none for a hook no agent runs.
     #[must_use]
-    pub fn event(self) -> &'static str {
+    pub fn event(self) -> Option<&'static str> {
         match self {
-            HookKind::Create => "WorktreeCreate",
-            HookKind::Remove => "WorktreeRemove",
-            HookKind::Stop => "SubagentStop",
-            HookKind::Guard => "PreToolUse",
+            HookKind::Create => Some("WorktreeCreate"),
+            HookKind::Remove => Some("WorktreeRemove"),
+            HookKind::Stop => Some("SubagentStop"),
+            HookKind::Guard => Some("PreToolUse"),
+            HookKind::Bazel => None,
         }
     }
 
@@ -129,7 +134,7 @@ fn missing(kind: HookKind, field: &str) -> WorktreeError {
         &format!(
             "hook input has no {field}; run dx worktree hook {} from the {} hook",
             kind.word(),
-            kind.event()
+            kind.event().unwrap_or("agent")
         ),
     )
 }

@@ -2,26 +2,6 @@ pub const DX_OUTPUT_ENV: &str = "DX_OUTPUT";
 pub const DX_BUILD_SLOTS_ENV: &str = "DX_BUILD_SLOTS";
 pub const DX_BUILD_SLOTS_WAIT_ENV: &str = "DX_BUILD_SLOTS_WAIT";
 
-/// Environment variables that mark a process started by a coding agent.
-pub const AGENT_ENVS: [&str; 9] = [
-    "CLAUDECODE",
-    "CODEX_THREAD_ID",
-    "CURSOR_AGENT",
-    "GEMINI_CLI",
-    "AI_AGENT",
-    "AGENT",
-    "GOOSE_TERMINAL",
-    "OPENCODE",
-    "AMP_CURRENT_THREAD_ID",
-];
-
-/// Whether any agent marker is set to a non-empty value.
-pub fn is_agent(get: &dyn Fn(&str) -> Option<String>) -> bool {
-    AGENT_ENVS
-        .iter()
-        .any(|name| env_string(get, name).is_some())
-}
-
 /// Environment defaults, the flag each one defaults, and the value shape.
 pub const ENV_DEFAULTS: [(&str, &str, &str); 3] = [
     (DX_OUTPUT_ENV, "--output", "mode"),

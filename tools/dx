@@ -89,7 +89,7 @@ if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ]; then
     esac
     exit 0
     ;;
-  stop) exit 0 ;;
+  stop | bazel) exit 0 ;;
   esac
 fi
 here=$(pwd -P) || here=/
@@ -273,11 +273,11 @@ input_newer() {
   done <"$state/inputs"
   return 1
 }
-# Worktree add and release must stay fast and must not wait on Bazel: run the last built dx without a stale check,
-# unless a worktree source is newer than that dx. Keep this list and the prefixes in sync with tools/dx.cmd.
+# Worktree add, release and --help must stay fast and must not wait on Bazel: run the last built dx without a stale
+# check, unless a worktree source is newer than that dx. Keep this list and the prefixes in sync with tools/dx.cmd.
 if [ "${1:-}" = worktree ]; then
   case "${2:-}" in
-  add | release)
+  add | release | --help | -h)
     if [ -s "$state/inputs" ] && [ -f "$state/built" ] && input_newer cli/worktree/ cli/process/; then
       echo "dx: worktree sources are newer than the built dx; rebuilding" >&2
     else
@@ -494,6 +494,15 @@ guard_temps() {
   trap 'on_signal HUP' HUP
 }
 if stale; then
+  # In a main checkout that dx.primary protects, run the built dx instead of Bazel; it refuses or runs the command.
+  # An older dx without the bazel hook fails without a refusal, so the build goes on.
+  hk_ec=0
+  hk_err=
+  [ ! -x "$state/dx$exe" ] ||
+    hk_err=$(cd "$root" && "$state/dx$exe" worktree hook bazel -- build //cli/cli:dx 2>&1 >/dev/null) || hk_ec=$?
+  case $hk_ec:$hk_err in
+  2:*refused:*) exec "$state/dx$exe" "$@" ;;
+  esac
   command -v bazel >/dev/null 2>&1 || die "bazel is not on PATH"
   mkdir -p "$state"
   tag_state

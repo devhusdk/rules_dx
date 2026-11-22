@@ -342,7 +342,7 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     assert!(
         bogus
             .stderr
-            .contains("want one of: create, remove, stop, guard"),
+            .contains("want one of: create, remove, stop, guard, bazel"),
         "{}",
         bogus.stderr
     );

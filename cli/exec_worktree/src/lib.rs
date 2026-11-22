@@ -28,6 +28,7 @@ use dx_worktree::pool::{Pool, Who, cache_base};
 use dx_worktree::{HookKind, WorktreeError, hook};
 
 const CODE_WORKTREE_FAILED: &str = "worktree_failed";
+const CODE_MAIN_CHECKOUT_PROTECTED: &str = "main_checkout_protected";
 
 fn env_var(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|value| !value.is_empty())
@@ -148,6 +149,9 @@ pub fn execute_worktree(invocation: &Invocation, env: Env<'_>) -> i32 {
     if let ["hook", word] = words.as_slice()
         && let Some(kind) = HookKind::from_word(word)
     {
+        if kind == HookKind::Bazel {
+            return bazel_hook(workspace, &[], err);
+        }
         let stdin = read_stdin();
         return run_hook(kind, &stdin, workspace, &host, &who, out, err);
     }
@@ -271,6 +275,13 @@ fn add_output(
     start(out, invocation, "default")?;
     if invocation.output == OutputMode::Json {
         warning_events(out, &added.warnings)?;
+        if let Some(notice) = &added.notice {
+            let notice = NoticeEvent {
+                related_command: Some("worktree".to_owned()),
+                ..NoticeEvent::info(CODE_MAIN_CHECKOUT_PROTECTED, notice.clone())
+            };
+            emit_built(out, notice_event(&notice))?;
+        }
         let event = slot_event(&SlotEvent {
             action: "add".to_owned(),
             path: added.path.to_string_lossy().into_owned(),
@@ -287,6 +298,7 @@ fn add_output(
         emit_event(out, &event)?;
     } else if invocation.path_only || quiet_text(invocation) {
         warn_lines(err, &added.warnings);
+        notice_line(err, added);
         if let Some(base) = &added.base {
             dx_output::write_stderr(
                 err,
@@ -297,6 +309,9 @@ fn add_output(
     } else {
         for warning in &added.warnings {
             write_line(out, &format!("dx worktree: {}", warning.message))?;
+        }
+        if let Some(notice) = &added.notice {
+            write_line(out, &format!("dx worktree: {notice}"))?;
         }
         if let Some(base) = &added.base {
             write_line(out, &format!("dx worktree: started {branch} from {base}"))?;
@@ -788,23 +803,39 @@ fn read_stdin() -> String {
     std::io::read_to_string(std::io::stdin()).unwrap_or_default()
 }
 
-/// The hook kind for an argv that is exactly `worktree hook <kind>`.
-pub fn hook_kind<S: AsRef<OsStr>>(args: &[S]) -> Option<HookKind> {
-    match args {
-        [command, sub, word] if command.as_ref() == "worktree" && sub.as_ref() == "hook" => {
-            word.as_ref().to_str().and_then(HookKind::from_word)
+/// The hook kind and Bazel arguments for an argv that is exactly `worktree hook <kind>` or `worktree hook bazel -- <args>`.
+pub fn hook_kind<S: AsRef<OsStr>>(args: &[S]) -> Option<(HookKind, Vec<String>)> {
+    let [command, sub, word, rest @ ..] = args else {
+        return None;
+    };
+    if command.as_ref() != "worktree" || sub.as_ref() != "hook" {
+        return None;
+    }
+    let kind = word.as_ref().to_str().and_then(HookKind::from_word)?;
+    match rest {
+        [] => Some((kind, Vec::new())),
+        [dashes, bazel_args @ ..] if kind == HookKind::Bazel && dashes.as_ref() == "--" => {
+            let bazel_args = bazel_args
+                .iter()
+                .map(|arg| arg.as_ref().to_string_lossy().into_owned())
+                .collect();
+            Some((kind, bazel_args))
         }
         _ => None,
     }
 }
 
-/// Runs one agent hook without loading dx defaults.
+/// Runs one hook without loading dx defaults; `bazel_args` are the Bazel call's for the `bazel` hook.
 pub fn run_worktree_hook(
     kind: HookKind,
+    bazel_args: &[String],
     workspace: &Path,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
+    if kind == HookKind::Bazel {
+        return bazel_hook(workspace, bazel_args, err);
+    }
     let stdin = read_stdin();
     if kind == HookKind::Guard {
         return guard_hook(&stdin, &Who::from_env(&env_var), out, err);
@@ -814,14 +845,32 @@ pub fn run_worktree_hook(
     run_hook(kind, &stdin, workspace, &SystemHost, &who, out, err)
 }
 
+/// Refuses a Bazel call in a refused main checkout, or `bazel clean` in a slot, with exit 2.
+fn bazel_hook(dir: &Path, bazel_args: &[String], err: &mut dyn Write) -> i32 {
+    match dx_worktree::primary::bazel_refusal(dir, bazel_args, dx_process::is_ci(), &env_var) {
+        Some(reason) => {
+            dx_output::write_stderr(err, format_args!("dx: refused: {reason}\n"));
+            dx_process::pre_exec_code()
+        }
+        None => 0,
+    }
+}
+
 fn warn_lines(err: &mut dyn Write, warnings: &[Warning]) {
     for warning in warnings {
         dx_output::write_stderr(err, format_args!("dx worktree: {}\n", warning.message));
     }
 }
 
+fn notice_line(err: &mut dyn Write, added: &Added) {
+    if let Some(notice) = &added.notice {
+        dx_output::write_stderr(err, format_args!("dx worktree: {notice}\n"));
+    }
+}
+
 fn create_output(out: &mut dyn Write, err: &mut dyn Write, added: &Added) -> i32 {
     warn_lines(err, &added.warnings);
+    notice_line(err, added);
     match write_line(out, &added.path.to_string_lossy()) {
         Ok(()) => 0,
         Err(exit) => exit,
@@ -846,6 +895,7 @@ fn run_hook(
 ) -> i32 {
     match kind {
         HookKind::Guard => guard_hook(stdin, who, out, err),
+        HookKind::Bazel => bazel_hook(workspace, &[], err),
         HookKind::Create => pool_hook(kind, stdin, workspace, err, |pool, input, err| {
             hook::create(pool, host, who, input).map(|added| create_output(out, err, &added))
         }),
@@ -1030,6 +1080,7 @@ mod tests {
                 code: "fetch_failed",
                 message: "cannot fetch origin, using local refs: offline".to_owned(),
             }],
+            notice: None,
         }
     }
 
@@ -1066,6 +1117,41 @@ mod tests {
         assert_eq!(events[2]["action"], "add");
         assert_eq!(events[2]["state"], "held");
         assert_eq!(events[2]["base"], "origin/main");
+    }
+
+    #[test]
+    fn add_prints_the_protect_notice_once_in_every_mode() {
+        let protected = Added {
+            warnings: Vec::new(),
+            notice: Some("the main checkout /repo is now protected".to_owned()),
+            ..added()
+        };
+        for (words, on_out, on_err) in [
+            (&["worktree", "add", "x"][..], 1, 0),
+            (&["worktree", "add", "x", "--path-only"][..], 0, 1),
+        ] {
+            let mut out = Vec::new();
+            let mut err = Vec::new();
+            add_output(&mut out, &mut err, &parsed(words), "x", &protected).expect("output");
+            let out = String::from_utf8(out).expect("utf8");
+            let err = String::from_utf8(err).expect("utf8");
+            let line = "dx worktree: the main checkout /repo is now protected\n";
+            assert_eq!(out.matches(line).count(), on_out, "{words:?}: {out}");
+            assert_eq!(err.matches(line).count(), on_err, "{words:?}: {err}");
+        }
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let json = parsed(&["worktree", "add", "x", "--output=json"]);
+        add_output(&mut out, &mut err, &json, "x", &protected).expect("output");
+        let notices: Vec<serde_json::Value> = String::from_utf8(out)
+            .expect("utf8")
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("json"))
+            .filter(|event: &serde_json::Value| event["event"] == "notice")
+            .collect();
+        assert_eq!(notices.len(), 1);
+        assert_eq!(notices[0]["severity"], "info");
+        assert_eq!(notices[0]["code"], "main_checkout_protected");
     }
 
     #[test]
@@ -1809,8 +1895,20 @@ mod tests {
     #[test]
     fn hook_kind_matches_only_the_bare_hook_argv() {
         for kind in HookKind::ALL {
-            assert_eq!(hook_kind(&["worktree", "hook", kind.word()]), Some(kind));
+            assert_eq!(
+                hook_kind(&["worktree", "hook", kind.word()]),
+                Some((kind, Vec::new()))
+            );
         }
+        assert_eq!(
+            hook_kind(&["worktree", "hook", "bazel", "--", "clean", "--async"]),
+            Some((
+                HookKind::Bazel,
+                vec!["clean".to_owned(), "--async".to_owned()]
+            ))
+        );
+        assert_eq!(hook_kind(&["worktree", "hook", "bazel", "clean"]), None);
+        assert_eq!(hook_kind(&["worktree", "hook", "guard", "--", "x"]), None);
         assert_eq!(hook_kind(&["worktree", "hook", "bogus"]), None);
         assert_eq!(hook_kind(&["worktree", "hook", "guard", "x"]), None);
         assert_eq!(hook_kind(&["--verbose", "worktree", "hook", "guard"]), None);
@@ -1848,7 +1946,9 @@ mod tests {
                         .expect("launcher prefix")
                         .split_whitespace()
                         .collect();
-                    hook_kind(&argv).unwrap_or_else(|| panic!("{command} is not a hook argv"))
+                    hook_kind(&argv)
+                        .unwrap_or_else(|| panic!("{command} is not a hook argv"))
+                        .0
                 })
                 .collect();
             kinds.sort_by_key(|kind| kind.word());
@@ -1930,7 +2030,7 @@ mod tests {
 
     #[test]
     fn hook_names_list_every_kind() {
-        assert_eq!(HookKind::names(), "create, remove, stop, guard");
+        assert_eq!(HookKind::names(), "create, remove, stop, guard, bazel");
         for kind in HookKind::ALL {
             assert_eq!(HookKind::from_word(kind.word()), Some(kind));
         }

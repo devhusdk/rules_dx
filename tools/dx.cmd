@@ -7,6 +7,7 @@ set "DX_COPY="
 set "DX_SYNC=$c=[IO.Path]::Combine($env:DX_STATE, 'dx.exe'); function M { try { $x=[IO.FileInfo]::new($c); $y=[IO.FileInfo]::new($env:BIN); return ($x.Exists -and $y.Exists -and $x.Length -eq $y.Length -and $x.LastWriteTimeUtc -eq $y.LastWriteTimeUtc) } catch { return $false } }; function O { try { foreach ($f in [IO.Directory]::GetFiles($env:DX_STATE, 'dx.exe.old.*')) { try { [IO.File]::Delete($f) } catch { } } } catch { } }; O; $k=[datetime]::UtcNow.AddHours(-24); try { foreach ($f in [IO.Directory]::GetFiles($env:DX_STATE)) { if ([IO.Path]::GetFileName($f) -match '^(dx\.exe|built|inputs|query|deps|dc)\.[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$' -and [IO.File]::GetLastWriteTimeUtc($f) -lt $k) { try { [IO.File]::Delete($f) } catch { } } } } catch { }; if (M) { exit 0 }; if (-not [IO.File]::Exists($env:BIN)) { exit 2 }; $g=[guid]::NewGuid().ToString(); $n=$c + '.' + $g; try { [IO.File]::Copy($env:BIN, $n); if (-not (M)) { if ([IO.File]::Exists($c)) { [IO.File]::Move($c, $c + '.old.' + $g) }; [IO.File]::Move($n, $c) } } catch { }; try { [IO.File]::Delete($n) } catch { }; O; if (M) { exit 0 }; exit 2"
 if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%DX_STATE%\dx.exe" set "BIN=%DX_STATE%\dx.exe"
 if /i "%~1"=="worktree" if /i "%~2"=="hook" if exist "%BIN%" goto run
+if /i "%~1"=="worktree" if /i "%~2"=="hook" if /i "%~3"=="bazel" exit /b 0
 for %%P in ("%DX_ROOT%") do set "DX_SELF=%%~fP"
 set "DX_HERE=%CD%"
 :dxup
@@ -60,11 +61,13 @@ goto dxnopb
 set "BIN=%DX_PBB%"
 goto run
 :dxnopb
-rem Worktree add and release run the last built dx without a stale check or a build, unless a worktree source is
-rem newer than that dx. Keep the list and the prefixes in sync with tools/dx.
+rem Worktree add, release and --help run the last built dx without a stale check or a build, unless a worktree source
+rem is newer than that dx. Keep the list and the prefixes in sync with tools/dx.
 set "DX_FAST="
 if /i "%~1"=="worktree" if /i "%~2"=="add" set "DX_FAST=1"
 if /i "%~1"=="worktree" if /i "%~2"=="release" set "DX_FAST=1"
+if /i "%~1"=="worktree" if /i "%~2"=="--help" set "DX_FAST=1"
+if /i "%~1"=="worktree" if /i "%~2"=="-h" set "DX_FAST=1"
 if defined DX_FAST call powershell -NoProfile -NonInteractive -Command "try { $s=$env:DX_STATE; $b=[IO.Path]::Combine($s, 'built'); $i=[IO.Path]::Combine($s, 'inputs'); if (-not ([IO.File]::Exists($b) -and [IO.File]::Exists($i))) { exit 0 }; $t=[IO.File]::GetLastWriteTimeUtc($b); foreach ($l in [IO.File]::ReadAllLines($i)) { $f=$l.TrimStart('/').TrimStart(':').Replace(':', '/'); if (($f.StartsWith('cli/worktree/') -or $f.StartsWith('cli/process/')) -and [IO.File]::GetLastWriteTimeUtc([IO.Path]::Combine($env:DX_ROOT, $f)) -gt $t) { exit 1 } }; exit 0 } catch { exit 0 }"
 if defined DX_FAST if errorlevel 1 (
   echo dx: worktree sources are newer than the built dx; rebuilding 1>&2
@@ -79,6 +82,18 @@ if not "%DX_EC%"=="0" goto dxbuild
 set "BIN=%DX_STATE%\dx.exe"
 goto run
 :dxbuild
+rem In a main checkout that dx.primary protects, run the built dx instead of Bazel; it refuses or runs the command.
+rem An older dx without the bazel hook fails without a refusal, so the build goes on. Keep in sync with tools/dx.
+if not exist "%DX_STATE%\dx.exe" goto dxbuildgo
+pushd "%DX_ROOT%"
+"%DX_STATE%\dx.exe" worktree hook bazel -- build //cli/cli:dx 2>&1 >nul | findstr /c:"refused:" >nul
+set "DX_EC=%errorlevel%"
+popd
+if "%DX_EC%"=="0" (
+  set "BIN=%DX_STATE%\dx.exe"
+  goto run
+)
+:dxbuildgo
 if not exist "%DX_STATE%" mkdir "%DX_STATE%"
 if not exist "%DX_STATE%\CACHEDIR.TAG" (echo Signature: 8a477f597d28d172789f06886806bc55& echo # Rebuildable copy of dx kept by tools/dx.cmd; see https://bford.info/cachedir/) > "%DX_STATE%\CACHEDIR.TAG" 2>nul
 set "DX_TAG="

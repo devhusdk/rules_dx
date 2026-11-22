@@ -891,6 +891,42 @@ mod sh {
     }
 
     #[test]
+    fn worktree_help_runs_the_built_dx_without_bazel() {
+        let repo = source_repo("dx-launcher-fast-help-");
+        repo.run_ok();
+        repo.touch_build_file();
+        let (code, out, err) = repo.run_in(&repo.root(), &["worktree", "--help"]);
+        assert_eq!(
+            (code, out.as_str()),
+            (Some(0), "ran worktree --help\n"),
+            "{err}"
+        );
+        assert!(!err.contains("dx: building"), "{err}");
+        assert_eq!(repo.builds(), 1);
+    }
+
+    #[test]
+    fn a_refused_bazel_hook_runs_the_built_dx_instead_of_a_build() {
+        for (stderr, builds) in [
+            ("dx: refused: no Bazel in the main checkout here", 1),
+            ("dx: worktree: want one of: create, remove, stop, guard", 2),
+        ] {
+            let repo = source_repo("dx-launcher-refused-");
+            repo.run_ok();
+            dx_testing::executable_script(
+                &state(&repo.root()).join("dx"),
+                &format!(
+                    "#!/bin/sh\ncase \"$*\" in\n'worktree hook bazel -- build //cli/cli:dx') echo '{stderr}' >&2; exit 2 ;;\nesac\necho ran \"$@\"\n"
+                ),
+            );
+            repo.touch_build_file();
+            let (code, out, err) = repo.run_in(&repo.root(), &["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert_eq!(repo.builds(), builds, "{stderr}: {err}");
+        }
+    }
+
+    #[test]
     fn worktree_add_and_release_rebuild_a_dx_older_than_the_worktree_sources() {
         let repo = source_repo("dx-launcher-fast-worktree-src-");
         repo.run_ok();

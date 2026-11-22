@@ -1,7 +1,5 @@
-php/private/toolchain/repos.bzl foreign-label 1
 qt/private/coverage.bzl foreign-label 2
 qt/private/platform.bzl foreign-label 1
 qt/private/platforms/BUILD.bazel foreign-label 1
 qt/private/rust_bridge.bzl foreign-label 2
 qt/private/toolchain/launcher.bzl foreign-label 1
-qt/private/toolchain/repos.bzl foreign-label 2

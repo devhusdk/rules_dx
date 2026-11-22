@@ -3,10 +3,13 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
+use std::fmt;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
 use documentation_ir::proto::{DocIr, Extension, Relations, Symbol, SymbolKind, Visibility};
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use serde_json::Value;
 
 mod html;
@@ -18,6 +21,68 @@ const PAGE_FILE: &str = "index.html.json";
 const KEY_INCOMPLETE: &str = "ocaml.incomplete";
 const KEY_CONFIG: &str = "ocaml.config";
 const KEY_ITEM: &str = "ocaml.item";
+
+/// Why the odoc pages could not become a shard.
+#[derive(Debug)]
+pub enum OcamlExtractError {
+    Io(PathIoError),
+    Stat {
+        path: PathBuf,
+        source: io::Error,
+    },
+    InvalidPackage {
+        package: String,
+    },
+    Malformed {
+        key: String,
+        source: serde_json::Error,
+    },
+    NotBelowPackage {
+        key: String,
+    },
+    NoPublicApi {
+        package: String,
+    },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for OcamlExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(error) => error.fmt(f),
+            Self::Stat { path, source } => write!(f, "cannot stat {}: {source}", path.display()),
+            Self::InvalidPackage { package } => write!(f, "invalid package '{package}'"),
+            Self::Malformed { key, source } => {
+                write!(f, "odoc page '{key}' is malformed: {source}")
+            }
+            Self::NotBelowPackage { key } => {
+                write!(f, "odoc page '{key}' is not below a package directory")
+            }
+            Self::NoPublicApi { package } => write!(
+                f,
+                "odoc output lists no public OCaml API of package '{package}'"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for OcamlExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(error) => Some(error),
+            Self::Stat { source, .. } => Some(source),
+            Self::Malformed { source, .. } => Some(source),
+            Self::Write(error) => Some(error),
+            Self::InvalidPackage { .. }
+            | Self::NotBelowPackage { .. }
+            | Self::NoPublicApi { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -45,7 +110,7 @@ pub fn usage() -> &'static str {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse_args(args: &[String]) -> Result<Options, String> {
+pub fn parse_args(args: &[String]) -> Result<Options, FlagError> {
     let mut flags =
         documentation_ir::tool::flags(args, &["--html", "--package", "--config", "--out"])?;
     let package = flags.one("--package")?;
@@ -53,7 +118,9 @@ pub fn parse_args(args: &[String]) -> Result<Options, String> {
     let out = flags.one("--out")?;
     let html = flags.many("--html");
     if html.is_empty() {
-        return Err("--html is required".to_owned());
+        return Err(FlagError::Required {
+            flag: "--html".to_owned(),
+        });
     }
     Ok(Options {
         html,
@@ -68,34 +135,40 @@ pub fn parse_args(args: &[String]) -> Result<Options, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
+pub fn run(options: &Options) -> Result<(), OcamlExtractError> {
     let mut pages = Vec::new();
     for html in &options.html {
         collect(Path::new(html), Path::new(""), &mut pages)?;
     }
     pages.sort_by(|a, b| a.0.cmp(&b.0));
     let shard = convert(&pages, &options.package, &options.config)?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(OcamlExtractError::Write)
 }
 
 /// Reads every page below `root`, keyed by its directory relative to `root`.
-fn collect(root: &Path, relative: &Path, pages: &mut Vec<(String, String)>) -> Result<(), String> {
+fn collect(
+    root: &Path,
+    relative: &Path,
+    pages: &mut Vec<(String, String)>,
+) -> Result<(), OcamlExtractError> {
     let directory: PathBuf = root.join(relative);
-    let entries = fs::read_dir(&directory)
-        .map_err(|error| format!("cannot read {}: {error}", directory.display()))?;
-    for entry in entries {
-        let entry =
-            entry.map_err(|error| format!("cannot read {}: {error}", directory.display()))?;
-        let name = entry.file_name().to_string_lossy().into_owned();
+    for entry in path_io::read_dir(&directory).map_err(OcamlExtractError::Io)? {
+        let Some(name) = entry.file_name() else {
+            continue;
+        };
+        let name = name.to_string_lossy().into_owned();
         let path = relative.join(&name);
-        let kind = entry
-            .file_type()
-            .map_err(|error| format!("cannot stat {}: {error}", entry.path().display()))?;
+        // Not followed: odoc writes plain directories, and a symlink loop must not recurse.
+        let kind = fs::symlink_metadata(&entry)
+            .map_err(|source| OcamlExtractError::Stat {
+                path: entry.clone(),
+                source,
+            })?
+            .file_type();
         if kind.is_dir() {
             collect(root, &path, pages)?;
         } else if name == PAGE_FILE {
-            let json = fs::read_to_string(entry.path())
-                .map_err(|error| format!("cannot read {}: {error}", entry.path().display()))?;
+            let json = path_io::read_to_string(&entry).map_err(OcamlExtractError::Io)?;
             let key = relative
                 .components()
                 .map(|c| c.as_os_str().to_string_lossy().into_owned())
@@ -166,12 +239,12 @@ fn keyword(label: &str) -> &'static str {
 
 /// Returns the names the page directory stands for, such as `["Shapes", "Sub"]`, and the label
 /// of its last segment.
-fn page_names(key: &str) -> Result<(Vec<String>, &'static str), String> {
+fn page_names(key: &str) -> Result<(Vec<String>, &'static str), OcamlExtractError> {
     let mut segments: Vec<&str> = key.split('/').filter(|s| !s.is_empty()).collect();
     if segments.len() < 2 {
-        return Err(format!(
-            "odoc page '{key}' is not below a package directory"
-        ));
+        return Err(OcamlExtractError::NotBelowPackage {
+            key: key.to_owned(),
+        });
     }
     segments.remove(0);
     let mut names = Vec::new();
@@ -251,14 +324,23 @@ fn qualified(path: &str) -> String {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(pages: &[(String, String)], package: &str, config: &str) -> Result<DocIr, String> {
+pub fn convert(
+    pages: &[(String, String)],
+    package: &str,
+    config: &str,
+) -> Result<DocIr, OcamlExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
+        return Err(OcamlExtractError::InvalidPackage {
+            package: package.to_owned(),
+        });
     }
     let mut items: Vec<Item> = Vec::new();
     for (key, json) in pages {
-        let root: Value = serde_json::from_str(json)
-            .map_err(|error| format!("odoc page '{key}' is malformed: {error}"))?;
+        let root: Value =
+            serde_json::from_str(json).map_err(|source| OcamlExtractError::Malformed {
+                key: key.clone(),
+                source,
+            })?;
         let field = |name: &str| -> String {
             root.get(name)
                 .and_then(Value::as_str)
@@ -334,9 +416,9 @@ pub fn convert(pages: &[(String, String)], package: &str, config: &str) -> Resul
         });
     }
     if symbols.is_empty() {
-        return Err(format!(
-            "odoc output lists no public OCaml API of package '{package}'"
-        ));
+        return Err(OcamlExtractError::NoPublicApi {
+            package: package.to_owned(),
+        });
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
@@ -344,7 +426,7 @@ pub fn convert(pages: &[(String, String)], package: &str, config: &str) -> Resul
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(OcamlExtractError::InvalidIr)?;
     Ok(shard)
 }
 

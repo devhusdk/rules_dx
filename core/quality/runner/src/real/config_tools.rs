@@ -1,4 +1,8 @@
-use quality_adapter::{TextPosition, commands, parsers, regal_preflight};
+use quality_adapter::parsers::FileFinding;
+use quality_adapter::{
+    ColumnEncoding, Finding, TextPosition, ToolSeverity, commands, parsers, regal_preflight,
+    terraform_preflight,
+};
 
 use super::check::{ToolDef, group_by_parent, without_scratch_url};
 use super::{
@@ -289,6 +293,10 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let (_, names) = super::single_run::paths(call);
             let mut findings = Vec::new();
             for name in &names {
+                if let Some(problem) = terraform_module_problem(tool_id, scratch.root(), name)? {
+                    findings.push(problem);
+                    continue;
+                }
                 let invocation = commands::trivy_config_check(
                     &tool.binary,
                     Path::new(name),
@@ -739,6 +747,37 @@ fn scan_chart(
         found.finding.end = None;
     }
     Ok(findings)
+}
+
+/// Refuses a Terraform file whose modules trivy would download, as an error finding on that file.
+fn terraform_module_problem(
+    tool_id: &str,
+    root: &Path,
+    name: &str,
+) -> Result<Option<FileFinding>, RunnerError> {
+    let path = Path::new(name);
+    if !terraform_preflight::is_terraform(path) {
+        return Ok(None);
+    }
+    let problem =
+        terraform_preflight::check_file(root, path).map_err(|err| execution(tool_id, err))?;
+    Ok(problem.map(|problem| FileFinding {
+        file: name.to_owned(),
+        finding: Finding {
+            tool_id: tool_id.to_owned(),
+            rule_id: terraform_preflight::RULE_MODULE_SOURCE.to_owned(),
+            message: problem.message,
+            severity: ToolSeverity::Error,
+            start: TextPosition {
+                line: problem.line,
+                column: problem.column,
+            },
+            end: None,
+            suggestions: Vec::new(),
+            encoding: ColumnEncoding::Scalars,
+            related: Vec::new(),
+        },
+    }))
 }
 
 const TRIVY_DEFAULT_SEVERITIES: &str = include_str!("../../../tiers/trivy_config/standard.txt");

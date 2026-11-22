@@ -171,24 +171,33 @@ fn keyboard_navigation_walks_the_book_forward_and_back() {
         .expect("the landing path");
     assert_eq!(landing, "/index.html");
     browser.press("\u{e014}").expect("press the right arrow");
-    let forward = browser
-        .text("return location.pathname")
-        .expect("the next path");
-    assert_ne!(forward, landing, "the right arrow must open the next page");
+    assert!(
+        wait_for(
+            &mut browser,
+            "return location.pathname !== '/index.html' && document.readyState === 'complete';",
+            30,
+        )
+        .expect("poll the next page"),
+        "the right arrow must open the next page"
+    );
     browser.press("\u{e012}").expect("press the left arrow");
-    assert_eq!(
-        browser
-            .text("return location.pathname")
-            .expect("the back path"),
-        landing,
+    assert!(
+        wait_for(
+            &mut browser,
+            "return location.pathname === '/index.html' && document.readyState === 'complete';",
+            30,
+        )
+        .expect("poll the landing page"),
         "the left arrow must return to the landing page"
     );
     browser.press("/").expect("press the slash key");
-    assert_eq!(
-        browser
-            .text("return document.activeElement.id")
-            .expect("the focused element"),
-        "mdbook-searchbar",
+    assert!(
+        wait_for(
+            &mut browser,
+            "return document.activeElement && document.activeElement.id === 'mdbook-searchbar';",
+            30,
+        )
+        .expect("poll the focus"),
         "the slash key must focus the search bar"
     );
 }

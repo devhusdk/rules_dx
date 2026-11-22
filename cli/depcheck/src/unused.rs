@@ -92,7 +92,8 @@ fn native_ignores(eco: Language, text: &str) -> Result<BTreeSet<String>, Depchec
         | Language::Swift
         | Language::Powershell
         | Language::Lua
-        | Language::Ocaml => Vec::new(),
+        | Language::Ocaml
+        | Language::Ansible => Vec::new(),
     };
     Ok(names
         .iter()

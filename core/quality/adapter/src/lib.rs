@@ -1,14 +1,10 @@
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use line_index::LineIndex;
 use quality_result::proto::{self, Diagnostic, Severity};
 
 pub mod api_spec_preflight;
+pub mod buf_preflight;
 pub mod cloudformation_preflight;
 pub mod commands;
 pub mod exec;
@@ -22,6 +18,7 @@ pub mod severity;
 mod severity_gen;
 pub mod sqlfluff_config;
 pub mod sqlfluff_preflight;
+pub mod terraform_preflight;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolSeverity {

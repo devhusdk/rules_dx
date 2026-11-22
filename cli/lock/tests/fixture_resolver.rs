@@ -37,7 +37,7 @@ fn closure(index: &Value, roots: &[String]) -> Result<BTreeSet<String>, String> 
 
 /// The scratch directory a variable points at, when it is a directory beside the working directory.
 fn scratch_dir(variable: &str, cwd: &Path) -> Result<PathBuf, String> {
-    let dir = PathBuf::from(std::env::var(variable).map_err(|_| format!("{variable} is not set"))?);
+    let dir = PathBuf::from(std::env::var(variable).map_err(|e| format!("{variable}: {e}"))?);
     // Compare canonical paths: on macOS `current_dir()` resolves `/var` to `/private/var` while
     // the variable keeps `/var`, so the raw parents never match.
     let canonical = |path: &Path| {

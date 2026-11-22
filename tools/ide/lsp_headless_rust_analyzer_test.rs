@@ -259,11 +259,21 @@ fn rust_project_syntax_diagnostic_publishes_without_check_runner() {
             }),
         )
         .expect("rust-analyzer opens the typed file");
-    let quiet = Instant::now() + Duration::from_secs(60);
-    let err = session
-        .wait_diagnostics(&fixture.typed_uri, "native type diagnostics", quiet)
-        .expect_err("without a check runner there are no native type diagnostics");
-    assert!(matches!(err, Error::Timeout(_)), "unexpected {err}");
+    // rust-analyzer pushes each opened file's native diagnostics once; the typed file's
+    // first publication is its full set.
+    let published = session
+        .wait_publication(
+            &fixture.typed_uri,
+            false,
+            "native type diagnostics",
+            deadline,
+        )
+        .expect("rust-analyzer publishes the typed file");
+    assert_eq!(
+        published.get("diagnostics"),
+        Some(&serde_json::json!([])),
+        "without a check runner there are no native type diagnostics: {published}"
+    );
     session.shutdown().expect("rust-analyzer exits cleanly");
 }
 
@@ -282,16 +292,22 @@ fn rust_project_malformed_json_is_explicit() {
             deadline,
         )
         .expect("rust-analyzer initializes");
-    let quiet = Instant::now() + Duration::from_secs(30);
-    let err = session
-        .wait_diagnostics(&fixture.lib_uri, "malformed project", quiet)
-        .expect_err("a malformed project publishes no diagnostics");
-    let Error::Timeout(detail) = err else {
-        panic!("unexpected {err}");
-    };
+    session
+        .wait_stderr(
+            "Failed to deserialize json file",
+            "malformed project must be reported on stderr",
+            deadline,
+        )
+        .expect("rust-analyzer reports the malformed project");
+    let published = session
+        .publications(&fixture.lib_uri)
+        .expect("server messages read");
     assert!(
-        detail.contains("Failed to deserialize json file"),
-        "malformed project must be reported on stderr: {detail}"
+        published.iter().all(|params| params
+            .get("diagnostics")
+            .and_then(serde_json::Value::as_array)
+            .is_none_or(Vec::is_empty)),
+        "a malformed project publishes no diagnostics: {published:?}"
     );
     session.shutdown().expect("server stays usable");
 }

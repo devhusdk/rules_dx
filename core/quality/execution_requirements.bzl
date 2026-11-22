@@ -10,10 +10,7 @@ DX_NO_REMOTE_EXEC = "no-remote-exec"
 DX_FORBIDDEN_NO_REMOTE = "no-remote"
 
 def _qualified(tool, capability, artifact = None):
-    """One remote record for a pinned single-binary tool on every qualified platform.
-
-    `artifact` names the pinned @dx_tools binary when it differs from the adapter name.
-    """
+    """One remote record for a pinned tool on every qualified platform; `artifact` names a differing @dx_tools binary."""
     record = {
         "capability": capability,
         "closure": "declared",
@@ -37,8 +34,13 @@ SHFMT_FORMAT_REMOTE = _qualified("shfmt", "format")
 REMOTE_QUALIFIED = [
     SHFMT_FORMAT_REMOTE,
     _qualified("actionlint", "lint"),
+    _qualified("bicep", "format"),
+    _qualified("bicep", "lint"),
     _qualified("biome", "format"),
     _qualified("biome", "lint"),
+    _qualified("buf", "format"),
+    _qualified("buf", "lint"),
+    _qualified("buf", "typecheck"),
     _qualified("buildifier", "format"),
     _qualified("buildifier", "lint"),
     _qualified("checkmake", "lint"),
@@ -63,6 +65,7 @@ REMOTE_QUALIFIED = [
     _qualified("taplo", "format"),
     _qualified("taplo", "lint"),
     _qualified("tflint", "lint"),
+    _qualified("trivy_config", "lint", artifact = "trivy"),
     _qualified("trivy_image_config", "lint", artifact = "trivy"),
     _qualified("typos", "lint"),
     _qualified("typstyle", "format"),
@@ -83,11 +86,6 @@ PENDING = [
     ("ansible_lint", "lint"),
     ("avro_tools", "lint"),
     ("avro_tools", "typecheck"),
-    ("bicep", "format"),
-    ("bicep", "lint"),
-    ("buf", "format"),
-    ("buf", "lint"),
-    ("buf", "typecheck"),
     ("capnp", "lint"),
     ("capnp", "typecheck"),
     ("cfn_lint", "lint"),
@@ -194,7 +192,6 @@ PENDING = [
     ("thrift", "typecheck"),
     ("tinymist", "lint"),
     ("topiary", "format"),
-    ("trivy_config", "lint"),
     ("tsc", "typecheck"),
     ("ty", "typecheck"),
     ("weeder", "lint"),
@@ -295,18 +292,24 @@ REMOTE_QUALIFIED_LAUNCHERS = [
     "rst2html",
 ]
 
-def dx_stage_execution_requirements(stage_tools, capability, run_tools = []):
-    """Returns remote-capable requirements only when every stage and every runfiles launcher is qualified.
+def _path_tool_qualified(name):
+    """Reports whether a PATH helper may ship to an executor: any name that is not a real adapter, or an adapter with a qualified capability."""
+    if name not in REAL_ADAPTERS:
+        return True
+    for capability in REAL_ADAPTERS[name]:
+        if dx_is_remote_qualified(name, capability):
+            return True
+    return False
 
-    Args:
-      stage_tools: tool ids the stage runs.
-      capability: "format", "lint" or "typecheck".
-      run_tools: names of the runfiles launchers the stage puts on PATH.
-    """
+def dx_stage_execution_requirements(stage_tools, capability, run_tools = [], path_tools = []):
+    """Returns remote-capable requirements only when every stage tool, runfiles launcher and adapter PATH helper is qualified."""
     if len(stage_tools) == 0:
         return {DX_NO_REMOTE_EXEC: "1"}
     for name in run_tools:
         if name not in REMOTE_QUALIFIED_LAUNCHERS:
+            return {DX_NO_REMOTE_EXEC: "1"}
+    for name in path_tools:
+        if not _path_tool_qualified(name):
             return {DX_NO_REMOTE_EXEC: "1"}
     for tool in stage_tools:
         if not dx_is_remote_qualified(tool, capability):

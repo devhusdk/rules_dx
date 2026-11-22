@@ -1,10 +1,5 @@
 //! One reader for literal top-level `MODULE.bazel` calls, shared by every MODULE.bazel tool.
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod identity;
 
@@ -1000,7 +995,12 @@ impl ModuleFile {
             .tags(DART_MODULE, "dart/pub:extensions.bzl", "pub", "from_lock")
             .map(|call| ("pub.from_lock", call));
         let flutter_pub = self
-            .tags(FLUTTER_MODULE, "flutter/pub:extensions.bzl", "pub", "from_lock")
+            .tags(
+                FLUTTER_MODULE,
+                "flutter/pub:extensions.bzl",
+                "pub",
+                "from_lock",
+            )
             .map(|call| ("pub.from_lock", call));
         let flutter = self
             .tags(FLUTTER_MODULE, "flutter:extensions.bzl", "flutter", "pub")

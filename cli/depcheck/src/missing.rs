@@ -172,6 +172,7 @@ fn lock_packages(eco: Language, lock: &Path) -> Result<Vec<String>, DepcheckErro
         Language::Powershell => Ok(crate::parse_powershell_lock(lock)?.into_keys().collect()),
         Language::Lua => Ok(crate::parse_lua_lock(lock)?.into_keys().collect()),
         Language::Ocaml => Ok(crate::parse_ocaml_lock(lock)?.into_keys().collect()),
+        Language::Ansible => Ok(crate::parse_ansible_lock(lock)?.into_keys().collect()),
         Language::Go
         | Language::Java
         | Language::Kotlin
@@ -234,6 +235,7 @@ pub fn find_missing(
             .first()
             .map_or("", String::as_str),
         Language::Ocaml => dx_families::hub("opam").map_or("", |hub| hub.manifest.as_str()),
+        Language::Ansible => Ecosystem::Ansible.manifest_name(),
         Language::Js
         | Language::Ts
         | Language::Go

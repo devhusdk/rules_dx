@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_terraform_trivy_lint_remote_module_fail
+capability LINT
+stages 1
+stage trivy_config classes=terraform sources=matrix/trivy_remote/main.tf
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR trivy_config dx/terraform-module-source matrix/trivy_remote/main.tf 20 20 fixable=false "module source \"hashicorp/consul/aws\" is not a local ./ or ../ path: trivy would download it, and dx runs trivy offline"
+terminal 1
+terminal ERROR trivy_config dx/terraform-module-source matrix/trivy_remote/main.tf 20 20 fixable=false "module source \"hashicorp/consul/aws\" is not a local ./ or ../ path: trivy would download it, and dx runs trivy offline"
+replacements 0

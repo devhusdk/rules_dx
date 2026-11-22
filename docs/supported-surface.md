@@ -5744,6 +5744,12 @@ Tag `php.from_source`:
 
 No attributes.
 
+#### `php_coverage`
+
+Module extension.
+
+No tags.
+
 ### `@rules_dx//powershell:defs.bzl`
 
 #### `powershell_doc_shard`
@@ -6142,6 +6148,13 @@ Tag `qt.configure`:
 | `mirror` | `string` | no | `""` |
 | `runtime_mirror` | `string` | no | `""` |
 | `version` | `string` | no | `"6.12.0"` |
+
+Tag `qt.msvc_runtime`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `notice` | `label` | yes |  |
+| `runtime` | `label` | yes |  |
 
 ### `@rules_dx//rego:defs.bzl`
 
@@ -7380,6 +7393,7 @@ Pass a platform to Bazel with `--platforms=<platform>`.
 
 Use a toolchain type when you register your own toolchain.
 
+- `@rules_dx//cuda:toolchain_type`
 - `@rules_dx//d:toolchain_type`
 - `@rules_dx//elixir:toolchain_type`
 - `@rules_dx//erlang:exec_toolchain_type`
@@ -7472,6 +7486,7 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//rust:wasmtime` | `alias` |
 | `@rules_dx//thrift:thrift_compiler` | `alias` |
 | `@rules_dx//zig:kcov_build` | `config_setting` |
+| `@rules_dx//zig:sancov_build` | `config_setting` |
 
 ## Runnable targets
 

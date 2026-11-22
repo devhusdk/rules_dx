@@ -21,6 +21,10 @@ pub(super) struct ChangedGate<'a> {
 }
 
 /// The lines the working tree adds since `merge_base`, with every untracked file counted in full.
+///
+/// # Errors
+///
+/// Returns `Err` when a git command fails or its output cannot be read.
 pub fn changed_lines(
     workspace: &Path,
     runner: &dyn QueryRunner,

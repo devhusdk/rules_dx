@@ -12,6 +12,7 @@ rust_library(
     name = "quality_adapter",
     srcs = [
         "src/api_spec_preflight.rs",
+        "src/buf_preflight.rs",
         "src/cloudformation_preflight.rs",
         "src/commands.rs",
         "src/exec.rs",
@@ -161,6 +162,7 @@ rust_library(
         "src/severity_gen.rs",
         "src/sqlfluff_config.rs",
         "src/sqlfluff_preflight.rs",
+        "src/terraform_preflight.rs",
     ],
     aliases = aliases(
         package_name = "core/quality/quality_adapter",
@@ -188,6 +190,7 @@ rust_test(
     size = "small",
     srcs = [
         "src/api_spec_preflight.rs",
+        "src/buf_preflight.rs",
         "src/cloudformation_preflight.rs",
         "src/commands.rs",
         "src/commands_tests.rs",
@@ -340,6 +343,7 @@ rust_test(
         "src/severity_gen.rs",
         "src/sqlfluff_config.rs",
         "src/sqlfluff_preflight.rs",
+        "src/terraform_preflight.rs",
     ],
     aliases = aliases(
         package_name = "core/quality/quality_adapter",

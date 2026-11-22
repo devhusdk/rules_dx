@@ -15,8 +15,9 @@ use crate::module_pin::ModuleEdit;
 const MODULE_FILE: &str = "MODULE.bazel";
 
 /// The keys of `BUILD_SCRIPT_CC_ENV` in `rust/private/build_script_cc_env.bzl`.
-const BUILD_SCRIPT_CC_ENV: [&str; 9] = [
+const BUILD_SCRIPT_CC_ENV: [&str; 10] = [
     "CFLAGS",
+    "CXXFLAGS",
     "HOST_AR",
     "HOST_CC",
     "HOST_CFLAGS",
@@ -957,7 +958,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("cargo.annotation(\n    build_script_env = {\n        \"CFLAGS\": \"$(DX_BS_CFLAGS)\",\n"),
+            text.contains("cargo.annotation(\n    build_script_env = {\n        \"CFLAGS\": \"$(DX_BS_CFLAGS)\",\n        \"CXXFLAGS\": \"$(DX_BS_CXXFLAGS)\",\n        \"HOST_AR\""),
             "{text}"
         );
         assert!(

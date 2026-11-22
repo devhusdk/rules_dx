@@ -29,6 +29,8 @@ rust_test(
     ],
     crate_name = "launcher",
     crate_root = "src/main.rs",
+    data = [":exec_launcher"],
+    env = {"DX_EXEC_LAUNCHER": "$(rlocationpath :exec_launcher)"},
     deps = [
         "//cli/error:dx_error",
         "//cli/path:dx_path",

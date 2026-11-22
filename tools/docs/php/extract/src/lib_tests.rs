@@ -251,28 +251,53 @@ fn constructors_need_no_return() {
 
 #[test]
 fn rejects_malformed_input() {
-    assert!(convert("{", "geo").unwrap_err().contains("malformed"));
-    assert!(convert("[]", "geo").unwrap_err().contains("not an object"));
+    assert!(matches!(
+        convert("{", "geo"),
+        Err(PhpExtractError::Malformed(_))
+    ));
+    let error = convert("[]", "geo").unwrap_err();
+    assert!(matches!(error, PhpExtractError::NotObject { .. }));
+    assert_eq!(error.to_string(), "php_dump JSON is not an object");
     let wrong = json!({"format": 2, "php": "", "phpdocumentor": "", "objects": []});
-    assert!(
-        convert(&wrong.to_string(), "geo")
-            .unwrap_err()
-            .contains("not supported")
-    );
-    assert!(
-        convert(&document(vec![]).to_string(), "bad pkg")
-            .unwrap_err()
-            .contains("invalid package")
-    );
-    assert!(
-        convert(&document(vec![]).to_string(), "geo")
-            .unwrap_err()
-            .contains("no public PHP API")
-    );
+    assert!(matches!(
+        convert(&wrong.to_string(), "geo"),
+        Err(PhpExtractError::UnsupportedFormat { found: 2 })
+    ));
+    assert!(matches!(
+        convert(&document(vec![]).to_string(), "bad pkg"),
+        Err(PhpExtractError::InvalidPackage { .. })
+    ));
+    assert!(matches!(
+        convert(&document(vec![]).to_string(), "geo"),
+        Err(PhpExtractError::NoPublicApi { .. })
+    ));
     let unknown = document(vec![element("alien", "A", "A", "")]);
+    let error = convert(&unknown.to_string(), "geo").unwrap_err();
+    assert!(matches!(error, PhpExtractError::UnknownType { .. }));
+    assert_eq!(
+        error.to_string(),
+        "php_dump JSON object 0 has unknown type 'alien'"
+    );
+    let mut list = document(vec![]);
+    list["objects"] = json!({});
+    assert_eq!(
+        convert(&list.to_string(), "geo").unwrap_err().to_string(),
+        "php_dump JSON 'objects' is not a list"
+    );
+}
+
+#[test]
+fn run_reports_the_unreadable_path() {
+    let options = Options {
+        json: "/nonexistent/php_dump.json".to_owned(),
+        package: "geo".to_owned(),
+        out: "/nonexistent/out.json".to_owned(),
+    };
+    let error = run(&options).unwrap_err();
+    assert!(matches!(error, PhpExtractError::Read(_)));
     assert!(
-        convert(&unknown.to_string(), "geo")
-            .unwrap_err()
-            .contains("unknown type")
+        error
+            .to_string()
+            .starts_with("cannot read /nonexistent/php_dump.json: ")
     );
 }

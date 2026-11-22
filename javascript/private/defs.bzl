@@ -10,6 +10,7 @@ load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
 load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
+load("//javascript/private:drivers.bzl", "javascript_driver")
 
 visibility(["//..."])
 
@@ -186,7 +187,7 @@ def javascript_bench(name, *, srcs, main = None, node_modules, data = None, args
         name = name,
         srcs = srcs,
         runner = "node",
-        main = Label("//javascript/private:bench_driver"),
+        main = javascript_driver(name, "bench", tags),
         data = list(data or []) + [node_modules],
         args = ["$(rootpath %s)" % _source_label(main or srcs[0])] + list(args or []),
         tags = merge_tags(tags, "dx-bench"),
@@ -205,7 +206,7 @@ def javascript_fuzz_test(name, *, srcs, main = None, node_modules, data = None, 
         visibility = visibility,
         fuzz_rule = javascript_binary,
         fuzz_kwargs = {
-            "main": Label("//javascript/private:fuzz_driver"),
+            "main": javascript_driver(name, "fuzz", tags),
             "data": [":" + name + "_bin", node_modules] + list(srcs) + list(data or []),
             "fixed_args": fixed_args,
         },

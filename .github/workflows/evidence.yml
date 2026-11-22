@@ -376,6 +376,31 @@ jobs:
       - name: Print the failing test log tails
         if: ${{ failure() && steps.task.outcome == 'failure' && steps.inputs.outputs.task == 'test' }}
         run: bazel run --noshow_progress //tools/ci/producers:producers_bin -- --test-log-tails --bep "$RUNNER_TEMP/bep/evidence.json" --bep "$RUNNER_TEMP/bep/relocated.json"
+      - name: Print JVM crash logs and the JDKs Android tools resolve
+        if: ${{ failure() && steps.task.outcome == 'failure' }}
+        run: |
+          out="$RUNNER_TEMP/evidence/jvm"
+          mkdir -p "$out"
+          base="$(bazel info --noshow_progress output_base)"
+          # A JVM that dies at startup writes hs_err_pid*.log to its working directory; a worker's is under bazel-workers.
+          find "$base/execroot" "$base/bazel-workers" "$base/sandbox" -name 'hs_err_pid*.log' 2>/dev/null | while read -r log; do
+            cp "$log" "$out/"
+            echo "== $log"
+            sed -n '1,30p' "$log"
+            grep -E 'jvm\.dll|libjvm|java_command|jvm_args|java\.home|modules' "$log" | head -n 40
+          done
+          # For each desugar or dex launcher, show the java its runfiles name and whether lib/modules sits next to it,
+          # both through the manifest and through the runfiles directory.
+          find "$base/execroot/_main/bazel-out" -name '*.runfiles_manifest' 2>/dev/null | grep -E 'desugar|d8|dex' | while read -r manifest; do
+            grep -E '/bin/java(\.exe)? ' "$manifest" | while read -r entry path; do
+              echo "== $manifest: $entry -> $path"
+              for java in "$path" "${manifest%_manifest}/$entry"; do
+                home="$(dirname "$(dirname "$java")")"
+                ls -lL "$java" "$home/bin/server/jvm.dll" "$home/lib/modules" "$home/lib/server/classes.jsa" 2>&1
+                grep JAVA_VERSION "$home/release" 2>&1
+              done
+            done
+          done 2>&1 | tee "$out/java-runtimes.txt"
       - name: Record the Apple executor
         if: ${{ always() && matrix.platform == 'macos_arm64' }}
         run: |

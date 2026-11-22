@@ -4,20 +4,9 @@ bazel_dep(name = "googletest", version = "1.18.0")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_cc", version = "0.2.28")
 bazel_dep(name = "rules_shell", version = "0.10.0")
-bazel_dep(name = "rules_scala", version = "7.4.1")
 
 dx_licenses = use_extension("@my_dx//core:extensions.bzl", "dx_licenses")
 dx_licenses.accept(ids = ["visual-studio-build-tools"])
-
-scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")
-scala_config.settings(
-    scala_version = "2.13.18",
-    scala_versions = [
-        "2.13.18",
-        "3.3.9",
-    ],
-)
-use_repo(scala_config, "rules_scala_config")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
@@ -37,49 +26,11 @@ http_archive(
     urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.2.1.tar.gz"],
 )
 
-bazel_dep(name = "rules_jvm_external", version = "7.2")
-
-# Refresh maven_install.json: bazel run //tools/testing/hermetic:cpp_rust_maven_pin
-maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-maven.install(
-    artifacts = [
-        "com.google.code.gson:gson:2.14.0",
-        "com.google.guava:guava:32.0.1-jre",
-        "junit:junit:4.13.2",
-    ],
-    fail_if_repin_required = True,
-    known_contributing_modules = ["protobuf"],
-    lock_file = "//:maven_install.json",
-    repositories = [
-        "https://maven-central.storage-download.googleapis.com/maven2",
-        "https://repo1.maven.org/maven2",
-    ],
-)
-use_repo(maven, "maven")
-
-bazel_dep(name = "aspect_rules_js", version = "3.6.0")
-bazel_dep(name = "aspect_rules_ts", version = "3.10.1")
-bazel_dep(name = "aspect_rules_jest", version = "0.26.0")
-
-typescript = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")
-typescript.deps(
-    integrity = "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==",
-    version = "6.0.3",
-)
-use_repo(typescript, "npm_typescript")
-
-npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
-npm.npm_translate_lock(
-    name = "npm_consumer_app",
-    npmrc = "//:.npmrc",
-    pnpm_lock = "//javascript/tests/fixtures/node_app:pnpm-lock.yaml",
-)
-use_repo(npm, "npm_consumer_app")
-
 cargo = use_extension("@my_dx//rust:extensions.bzl", "cargo")
 cargo.annotation(
     build_script_env = {
         "CFLAGS": "$(DX_BS_CFLAGS)",
+        "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
         "HOST_AR": "$(DX_BS_HOST_AR)",
         "HOST_CC": "$(DX_BS_HOST_CC)",
         "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",

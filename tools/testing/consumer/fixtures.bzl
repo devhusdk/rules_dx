@@ -78,24 +78,13 @@ GO_GUARD_LANGS = [
 # The consumer fixtures //tools/testing/consumer:java_prebuilt_guard_test covers.
 JAVA_GUARD_LANGS = [
     "java",
-    "kotlin",
-    "scala",
 ]
 
 # The consumer fixtures //tools/testing/consumer:in_graph_prebuilt_guard covers.
 IN_GRAPH_GUARD_LANGS = [
-    "d",
-    "rego",
-    "sql",
-    "zig",
-]
-
-# The consumer fixtures no prebuilt guard covers yet.
-GUARD_PENDING = [
-    "ansible",
     "android",
+    "ansible",
     "appimage",
-    "apple",
     "asciidoc",
     "astro",
     "bicep",
@@ -103,6 +92,7 @@ GUARD_PENDING = [
     "cmake",
     "csharp",
     "cuda",
+    "d",
     "dart",
     "dockerfile",
     "elixir",
@@ -114,22 +104,74 @@ GUARD_PENDING = [
     "helm",
     "javascript",
     "julia",
+    "kotlin",
     "kubernetes",
     "make",
     "mdx",
-    "msix",
     "ocaml",
     "perl",
     "php",
     "powershell",
     "qt",
+    "rego",
     "rst",
     "ruby",
+    "scala",
+    "sql",
     "svelte",
-    "swift",
     "terraform",
     "typescript",
     "vue",
+    "zig",
+]
+
+# The consumer fixtures the macos_arm64 leg of the in-graph-prebuilt-guard job of ci.yml passes to
+# //tools/testing/consumer:in_graph_prebuilt_guard with --langs.
+MACOS_IN_GRAPH_GUARD_LANGS = [
+    "apple",
+    "swift",
+]
+
+# The consumer fixtures the windows_x86_64 leg of the in-graph-prebuilt-guard job of ci.yml passes to
+# //tools/testing/consumer:in_graph_prebuilt_guard with --langs.
+WINDOWS_IN_GRAPH_GUARD_LANGS = [
+    "msix",
+]
+
+# The consumer fixtures no prebuilt guard covers yet.
+GUARD_PENDING = []
+
+# The fixtures whose test is the consumer evidence of the support matrix row of the same name.
+CONSUMER_ROWS = [
+    "android",
+    "astro",
+    "cc",
+    "csharp",
+    "cuda",
+    "d",
+    "dart",
+    "elixir",
+    "erlang",
+    "fortran",
+    "fsharp",
+    "go",
+    "haskell",
+    "java",
+    "javascript",
+    "julia",
+    "lua",
+    "mdx",
+    "ocaml",
+    "perl",
+    "php",
+    "powershell",
+    "python",
+    "ruby",
+    "rust",
+    "svelte",
+    "typescript",
+    "vue",
+    "zig",
 ]
 
 def consumer_fixture_tests(name, size):
@@ -159,6 +201,7 @@ def consumer_fixture_tests(name, size):
                 "DX_CONSUMER_LANG": lang,
                 "DX_CONSUMER_PENDING": "$(rootpath pending.txt)",
             },
+            tags = ["consumer-row:" + lang] if lang in CONSUMER_ROWS else [],
             deps = ["//tools/testing:dx_testing"],
         )
     native.test_suite(

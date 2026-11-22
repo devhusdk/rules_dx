@@ -36,8 +36,8 @@ pub enum Error {
     DuplicateFile { path: String },
     #[error("missing change for {path:?}")]
     MissingChange { path: String },
-    #[error("invalid UTF-8 at {at}")]
-    InvalidUtf8 { at: String },
+    #[error("invalid UTF-8 at {at}: {reason}")]
+    InvalidUtf8 { at: String, reason: String },
     #[error("invalid digest length for {path:?}: found {found} bytes, want {len}", len = DIGEST_LEN)]
     BadDigestLen { path: String, found: usize },
     #[error("digest mismatch for {path:?}: original digest does not match content")]
@@ -50,8 +50,12 @@ pub enum Error {
     EditOutOfBounds { path: String, index: usize },
     #[error("edit not on UTF-8 boundary at {path:?}[{index}]")]
     EditNotUtf8Boundary { path: String, index: usize },
-    #[error("invalid UTF-8 replacement at {path:?}[{index}]")]
-    InvalidUtf8Replacement { path: String, index: usize },
+    #[error("invalid UTF-8 replacement at {path:?}[{index}]: {reason}")]
+    InvalidUtf8Replacement {
+        path: String,
+        index: usize,
+        reason: String,
+    },
     #[error("no-op edit at {path:?}[{index}]: replacement is identical")]
     NoopEdit { path: String, index: usize },
     #[error("unordered edit at {path:?}[{index}]: edits must be ordered and non-overlapping")]
@@ -168,8 +172,9 @@ fn modification_text<'a>(
     modification: &'a Modification,
 ) -> Result<ModificationText<'a>, Error> {
     let original =
-        str::from_utf8(&modification.original_content).map_err(|_| Error::InvalidUtf8 {
+        str::from_utf8(&modification.original_content).map_err(|error| Error::InvalidUtf8 {
             at: path.to_owned(),
+            reason: error.to_string(),
         })?;
     if modification.original_digest.len() != DIGEST_LEN {
         return Err(Error::BadDigestLen {
@@ -216,9 +221,10 @@ fn modification_text<'a>(
             });
         }
         let text =
-            str::from_utf8(&edit.replacement).map_err(|_| Error::InvalidUtf8Replacement {
+            str::from_utf8(&edit.replacement).map_err(|error| Error::InvalidUtf8Replacement {
                 path: path.to_owned(),
                 index,
+                reason: error.to_string(),
             })?;
         if original.as_bytes().get(start..end) == Some(edit.replacement.as_slice()) {
             return Err(Error::NoopEdit {
@@ -277,8 +283,9 @@ pub fn file_text(file: &FileResult) -> Result<FileText<'_>, Error> {
     })?;
     match change {
         file_result::Change::CreateContent(content) => Ok(FileText::Created {
-            content: str::from_utf8(content).map_err(|_| Error::InvalidUtf8 {
+            content: str::from_utf8(content).map_err(|error| Error::InvalidUtf8 {
                 at: file.path.clone(),
+                reason: error.to_string(),
             })?,
         }),
         file_result::Change::Modification(modification) => Ok(FileText::Modified(
@@ -429,9 +436,11 @@ fn validate_ancestor_owned(items: &[AncestorOwned]) -> Result<(), Error> {
 }
 
 pub fn validate(manifest: &GenerationManifest) -> Result<(), Error> {
-    let mode = Mode::try_from(manifest.mode).map_err(|_| Error::InvalidMode {
-        found: manifest.mode,
-    })?;
+    let mode = Mode::try_from(manifest.mode)
+        .ok()
+        .ok_or(Error::InvalidMode {
+            found: manifest.mode,
+        })?;
     if mode == Mode::Unspecified {
         return Err(Error::InvalidMode {
             found: manifest.mode,
@@ -933,6 +942,10 @@ mod tests {
                 Error::InvalidUtf8Replacement {
                     path: "pkg/BUILD.bazel".into(),
                     index: 0,
+                    reason: String::from_utf8(vec![0xff])
+                        .expect_err("0xff is not UTF-8")
+                        .utf8_error()
+                        .to_string(),
                 },
             ),
             (

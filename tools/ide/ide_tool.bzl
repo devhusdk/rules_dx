@@ -76,8 +76,8 @@ ide_dotnet_tool = rule(
 )
 
 def _rust_analyzer_impl(ctx):
-    tool = ctx.toolchains["@rules_rust//rust/rust_analyzer:toolchain_type"].rust_analyzer
-    return _tool_info(ctx, tool)
+    toolchain = ctx.toolchains["@rules_rust//rust/rust_analyzer:toolchain_type"]
+    return _tool_info(ctx, toolchain.rust_analyzer, None, toolchain.rustc_lib)
 
 ide_rust_analyzer_tool = rule(
     implementation = _rust_analyzer_impl,

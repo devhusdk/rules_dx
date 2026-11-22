@@ -66,6 +66,7 @@ RULES_JAVA_VERSION = "9.9.0"
 RULES_ANDROID_VERSION = "0.8.1"
 TESTED_RULES_KOTLIN = "2.4.21"
 TESTED_RULES_SCALA = "7.4.1"
+TESTED_BAZEL_WORKER_API = "0.0.11"
 SCALA_VERSION = "2.13.18"
 TESTED_RULES_JVM_EXTERNAL = "7.2"
 
@@ -82,7 +83,8 @@ RULES_SWIFT_VERSION = "4.3.0"
 SWIFT_VERSION = "6.4.2"
 
 RULES_JULIA_VERSION = "0.8.0"
-RULES_DART_VERSION = "0.8.1"
+RULES_DART_VERSION = "0.9.1"
+RULES_FLUTTER_VERSION = "0.1.0"
 DART_SDK_VERSION = "3.13.7"
 FLUTTER_SDK_VERSION = "3.47.9"
 JULIA_VERSION = "1.13.4"
@@ -112,7 +114,7 @@ CONSUMER_BAZEL_DEPS = {
     "rules_java": struct(floor = RULES_JAVA_VERSION, tested = RULES_JAVA_VERSION),
     "rules_android": struct(floor = RULES_ANDROID_VERSION, tested = RULES_ANDROID_VERSION),
     "rules_kotlin": struct(floor = TESTED_RULES_KOTLIN, tested = TESTED_RULES_KOTLIN),
-    "rules_scala": struct(floor = TESTED_RULES_SCALA, tested = TESTED_RULES_SCALA),
+    "bazel_worker_api": struct(floor = TESTED_BAZEL_WORKER_API, tested = TESTED_BAZEL_WORKER_API),
     "bazel_lib": struct(floor = BAZEL_LIB_VERSION, tested = BAZEL_LIB_VERSION),
     "rules_jvm_external": struct(floor = TESTED_RULES_JVM_EXTERNAL, tested = TESTED_RULES_JVM_EXTERNAL),
     "rules_zig": struct(floor = RULES_ZIG_VERSION, tested = RULES_ZIG_VERSION),
@@ -120,6 +122,7 @@ CONSUMER_BAZEL_DEPS = {
     "bazel_linux_packages": struct(floor = "0.4.1", tested = "0.4.1"),
     "toml.bzl": struct(floor = "0.5.0", tested = "0.5.0"),
     "rules_dart": struct(floor = RULES_DART_VERSION, tested = RULES_DART_VERSION),
+    "rules_flutter": struct(floor = RULES_FLUTTER_VERSION, tested = RULES_FLUTTER_VERSION),
     "rules_perl": struct(floor = RULES_PERL_VERSION, tested = RULES_PERL_VERSION),
     "rules_oci": struct(floor = "2.3.0", tested = "2.3.0"),
     "rules_pkg": struct(floor = "1.3.0", tested = "1.3.0"),
@@ -134,7 +137,6 @@ CONSUMER_BAZEL_DEPS = {
     "windows_support": struct(floor = "0.4.1", tested = "0.4.1"),
     "google_benchmark": struct(floor = "1.10.0", tested = "1.10.0"),
     "rules_rust_prost": struct(floor = "0.75.0", tested = "0.75.0"),
-    "rules_cuda": struct(floor = RULES_CUDA_VERSION, tested = RULES_CUDA_VERSION),
 }
 
 NPM_HUBS = ["dx_npm_tools"]

@@ -39,7 +39,7 @@ _with_link_libs = rule(
     implementation = _with_link_libs_impl,
     attrs = {
         "link_libs": attr.label(mandatory = True, providers = [CcInfo]),
-        "resource_dir": attr.string(doc = "The Swift resource directory of the target cpu, when the tools run on another cpu."),
+        "resource_dir": attr.string(doc = "The Swift resource directory of the target cpu, relative to the execroot."),
         "runtime": attr.label(
             doc = "The toolchain whose Swift runtime the target links, when the tools run on another cpu.",
             providers = [SwiftToolchainInfo],
@@ -55,8 +55,8 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
     """Declares the Swift toolchain whose tools run on one Linux cpu and build for that or another."""
     exec_repo = "@dx_swift_linux_" + exec_cpu
     target_repo = "@dx_swift_linux_" + target_cpu
-    exec_sysroot = "@dx_swift_sysroot_linux_" + exec_cpu
-    target_sysroot = "@dx_swift_sysroot_linux_" + target_cpu
+    exec_libs = "@dx_swift_libs_linux_" + exec_cpu
+    target_libs = "@dx_swift_libs_linux_" + target_cpu
 
     swift_tools(
         name = name + "_tools",
@@ -65,10 +65,10 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
             label: True
             for label in [
                 exec_repo + "//:swift_tool_inputs",
-                "@dx_swift_libs_linux_" + exec_cpu + "//:host_libs",
-                exec_sysroot + "//:files",
+                exec_libs + "//:host_libs",
+                exec_libs + "//:sysroot",
                 target_repo + "//:swift_tool_inputs",
-                target_sysroot + "//:files",
+                target_libs + "//:sysroot",
             ]
         }.keys(),
         swift_autolink_extract = exec_repo + "//:usr/bin/swift-autolink-extract",
@@ -92,7 +92,7 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
         ],
         os = "linux",
         parsed_version = _VERSION,
-        sdkroot = Label(target_sysroot + "//:files").workspace_root,
+        sdkroot = Label("@dx_swift_sysroot_linux_" + target_cpu + "//:files").workspace_root,
         static_runtime = [target_repo + "//:linux_static_runtime"],
         swift_tools = name + "_tools",
         version_file = exec_repo + "//:.swift-version",
@@ -122,12 +122,13 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
     )
 
     _swift_cross_toolchain("swift_cross_" + pair, exec_cpu, target_cpu)
-    if exec_cpu == target_cpu:
-        resource_dir = None
-        runtime = None
-    else:
-        resource_dir = Label("@dx_swift_linux_" + target_cpu + "//:files").workspace_root + "/usr/lib/swift"
-        runtime = ":swift_cross_" + target_cpu + "_" + target_cpu
+    runtime = None if exec_cpu == target_cpu else ":swift_cross_" + target_cpu + "_" + target_cpu
+
+    # Passed for native builds too. Without it the frontend derives the
+    # resource dir from the real path of its own binary, which is in the output
+    # base and outside the execroot that `-file-prefix-map` rewrites, so every
+    # object and index record would hold the output base path.
+    resource_dir = Label("@dx_swift_linux_" + target_cpu + "//:files").workspace_root + "/usr/lib/swift"
 
     _with_link_libs(
         name = name,

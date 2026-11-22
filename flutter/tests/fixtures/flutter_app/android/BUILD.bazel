@@ -11,19 +11,17 @@ exports_files(
 
 flutter_android_app(
     name = "apk",
-    package_name = "dk.devhus.flutterapp",
+    application_id = "dk.devhus.flutterapp",
     android_abi = "x64",
     application = "//flutter/tests/fixtures/flutter_app/app:native",
-    pub_hub_name = "dx_flutter_app_deps",
     tags = ["manual"],
     visibility = ["//flutter/tests/fixtures/flutter_app/apk:__pkg__"],
 )
 
 flutter_android_app(
     name = "apk_arm64",
-    package_name = "dk.devhus.flutterapp",
+    application_id = "dk.devhus.flutterapp",
     application = "//flutter/tests/fixtures/flutter_app/app:native",
-    pub_hub_name = "dx_flutter_app_deps",
     tags = ["manual"],
     visibility = ["//flutter/tests/fixtures/flutter_app/apk:__pkg__"],
 )

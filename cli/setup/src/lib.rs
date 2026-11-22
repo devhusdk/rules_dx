@@ -231,6 +231,22 @@ fn generation_from_link_target(target: &Path) -> Option<GenerationId> {
         .and_then(|text| GenerationId::new(text).ok())
 }
 
+fn read_record_side(current: &Path, link: &str) -> Result<(PathBuf, GenerationId), CommitError> {
+    let path = current.join(link);
+    let target = fs::read_link(&path).map_err(|e| CommitError::CurrentInvalid {
+        reason: format!("cannot read {}: {e}", path.display()),
+    })?;
+    match generation_from_link_target(&target) {
+        Some(generation) => Ok((target, generation)),
+        None => Err(CommitError::CurrentInvalid {
+            reason: format!(
+                "{} points at {target:?}, want a generation digest",
+                path.display()
+            ),
+        }),
+    }
+}
+
 fn foreign_parent(workspace_root: &Path) -> Option<PathBuf> {
     let dx = state::dx_dir(workspace_root);
     let local = state::local_dir(workspace_root);
@@ -279,30 +295,15 @@ pub fn read_current_pair(workspace_root: &Path) -> Result<Option<SetupPair>, Com
     let pointer_target = fs::read_link(&current).map_err(|e| CommitError::CurrentInvalid {
         reason: format!("cannot read {}: {e}", current.display()),
     })?;
-    let environment_target = fs::read_link(current.join(ENVIRONMENT_LINK_NAME)).ok();
-    let generated_target = fs::read_link(current.join(GENERATED_LINK_NAME)).ok();
-    let environment = environment_target
-        .as_deref()
-        .and_then(generation_from_link_target);
-    let generated = generated_target
-        .as_deref()
-        .and_then(generation_from_link_target);
-    let (Some(environment), Some(generated)) = (environment, generated) else {
-        return Err(CommitError::CurrentInvalid {
-            reason: format!(
-                "{} does not resolve to a complete setup record",
-                current.display()
-            ),
-        });
-    };
+    let (environment_target, environment) = read_record_side(&current, ENVIRONMENT_LINK_NAME)?;
+    let (generated_target, generated) = read_record_side(&current, GENERATED_LINK_NAME)?;
     let pair = SetupPair {
         environment,
         generated,
     };
-    let in_layout = environment_target.as_deref().and_then(Path::to_str)
+    let in_layout = environment_target.to_str()
         == Some(expected_environment_target(&pair).as_str())
-        && generated_target.as_deref().and_then(Path::to_str)
-            == Some(expected_generated_target(&pair).as_str());
+        && generated_target.to_str() == Some(expected_generated_target(&pair).as_str());
     if !in_layout {
         return Err(CommitError::CurrentInvalid {
             reason: format!(
@@ -312,14 +313,10 @@ pub fn read_current_pair(workspace_root: &Path) -> Result<Option<SetupPair>, Com
         });
     }
     let want = setup_hex(&pair);
-    let pointed = pointer_target
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("");
-    if pointed != want {
+    if pointer_target.to_str() != Some(want.as_str()) {
         return Err(CommitError::CurrentInvalid {
             reason: format!(
-                "{} points at {pointed:?}, want setup {want:?}; refusing digest-spoofed state",
+                "{} points at {pointer_target:?}, want setup {want:?}; refusing foreign or digest-spoofed state",
                 current.display()
             ),
         });
@@ -465,7 +462,7 @@ pub fn commit_prepared_with_timeout(
         empty_environment,
         empty_generated,
     })
-    .map_err(|_| CommitError::NoCapability)?;
+    .map_err(|ResolveError::NoCapability| CommitError::NoCapability)?;
     let setups_dir = dx_dir.join(SETUPS_DIR_NAME);
     let prior = read_current_pair(workspace_root)?;
     let outcome = install_and_swap(&setups_dir, prior.as_ref(), &pair)?;

@@ -1,13 +1,200 @@
 {
+  "core": {
+    "docs": [
+      {
+        "aspects": [
+          "real_docs_aspect"
+        ],
+        "bzl": "tools/docs:aspect.bzl"
+      }
+    ],
+    "quality": [
+      {
+        "aspects": {
+          "format": [
+            "real_format_aspect",
+            "real_biome_format_aspect"
+          ],
+          "lint": [
+            "real_lint_aspect",
+            "real_biome_lint_aspect",
+            "real_vale_lint_aspect"
+          ],
+          "typecheck": [
+            "real_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/core.bzl"
+      },
+      {
+        "bzl": "core/quality:families/core_probe.bzl",
+        "probes": {
+          "format": [
+            "real_core_format_probe_aspect"
+          ],
+          "lint": [
+            "real_core_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_core_typecheck_probe_aspect"
+          ]
+        }
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_cue_format_aspect"
+          ],
+          "typecheck": [
+            "real_cue_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/cue.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_html_template_format_aspect"
+          ],
+          "lint": [
+            "real_html_template_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/html_template.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_jsonnet_format_aspect"
+          ],
+          "lint": [
+            "real_jsonnet_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/jsonnet.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_latex_format_aspect"
+          ],
+          "lint": [
+            "real_latex_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/latex.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_nix_format_aspect"
+          ],
+          "lint": [
+            "real_nix_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/nix.bzl"
+      },
+      {
+        "aspects": {
+          "lint": [
+            "real_oci_image_lint_aspect"
+          ],
+          "typecheck": [
+            "real_oci_image_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/oci_image.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_pkl_format_aspect"
+          ],
+          "typecheck": [
+            "real_pkl_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/pkl.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_shell_format_aspect"
+          ],
+          "lint": [
+            "real_shell_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/shell.bzl"
+      },
+      {
+        "aspects": {
+          "lint": [
+            "real_text_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/text.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_typst_format_aspect"
+          ],
+          "lint": [
+            "real_typst_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/typst.bzl"
+      },
+      {
+        "aspects": {
+          "lint": [
+            "real_xml_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/xml.bzl"
+      },
+      {
+        "aspects": {
+          "format": [
+            "real_yaml_format_aspect"
+          ],
+          "lint": [
+            "real_yaml_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/yaml.bzl"
+      }
+    ]
+  },
   "languages": [
     {
       "name": "android",
+      "quality": {
+        "aspects": {
+          "lint": [
+            "android_sdk_aspect"
+          ],
+          "typecheck": [
+            "android_sdk_aspect"
+          ]
+        },
+        "bzl": "android/private/quality:android_sdk.bzl",
+        "file_extensions": [],
+        "licenses": [
+          "android-sdk-license"
+        ]
+      },
       "setup": {
         "licenses": [
           {
             "id": "android-sdk-license",
             "platforms": [
-              "linux_x86_64"
+              "linux_x86_64",
+              "macos_arm64",
+              "windows_arm64",
+              "windows_x86_64"
             ]
           }
         ]
@@ -1317,15 +1504,28 @@
     },
     {
       "docs": {
-        "aspects": [],
-        "bzl": "tools/docs/jvm:aspect.bzl",
+        "aspects": [
+          "real_kotlin_docs_aspect"
+        ],
+        "bzl": "tools/docs/kotlin:aspect.bzl",
         "file_extensions": [
           ".kt"
         ]
       },
       "name": "kotlin",
       "quality": {
-        "bzl": "java/private/quality:jvm.bzl",
+        "aspects": {
+          "format": [
+            "real_kotlin_format_aspect"
+          ],
+          "lint": [
+            "real_kotlin_lint_aspect"
+          ],
+          "typecheck": [
+            "real_kotlin_typecheck_aspect"
+          ]
+        },
+        "bzl": "kotlin/private/quality:kotlin.bzl",
         "classes": [
           "kotlin"
         ],
@@ -1345,7 +1545,18 @@
         "file_extensions": [
           ".kt",
           ".kts"
-        ]
+        ],
+        "probes": {
+          "format": [
+            "real_kotlin_format_probe_aspect"
+          ],
+          "lint": [
+            "real_kotlin_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_kotlin_typecheck_probe_aspect"
+          ]
+        }
       }
     },
     {
@@ -2040,8 +2251,10 @@
     },
     {
       "docs": {
-        "aspects": [],
-        "bzl": "tools/docs/jvm:aspect.bzl",
+        "aspects": [
+          "real_scala_docs_aspect"
+        ],
+        "bzl": "tools/docs/scala:aspect.bzl",
         "file_extensions": [
           ".scala"
         ]
@@ -2054,9 +2267,12 @@
           ],
           "lint": [
             "real_scala_lint_aspect"
+          ],
+          "typecheck": [
+            "real_scala_typecheck_aspect"
           ]
         },
-        "bzl": "java/private/quality:jvm.bzl",
+        "bzl": "scala/private/quality:scala.bzl",
         "classes": [
           "scala"
         ],
@@ -2075,7 +2291,18 @@
         "file_extensions": [
           ".sc",
           ".scala"
-        ]
+        ],
+        "probes": {
+          "format": [
+            "real_scala_format_probe_aspect"
+          ],
+          "lint": [
+            "real_scala_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_scala_typecheck_probe_aspect"
+          ]
+        }
       }
     },
     {

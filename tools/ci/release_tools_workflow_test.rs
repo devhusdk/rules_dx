@@ -1,7 +1,7 @@
 //! Pins the tool release build in release-tools.yml and its wiring in release.yml and
 //! release-consumer.yml.
 
-use ci_workflow::document;
+use ci_workflow::{document, job};
 use dx_testing::read_runfiles;
 
 const TOOLS: &str = ".github/workflows/release-tools.yml";
@@ -9,6 +9,10 @@ const RELEASE: &str = ".github/workflows/release.yml";
 const CONSUMER: &str = ".github/workflows/release-consumer.yml";
 const RELEASE_JARS: &str = "tools/ci/release_jars.txt";
 const KCOV_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" //tools/coverage/kcov:kcov_static";
+const TARGETS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" \"${targets[@]}\"";
+const HASKELL_DETERMINISM: &str = "linux-*) bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" ${flags[@]+\"${flags[@]}\"} \"${targets[@]}\" ;;";
+const TOOLS_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism-rust\" ${flags[@]+\"${flags[@]}\"} //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor";
+const HACKAGE_DETERMINISM: &str = "bazel run //tools/testing:determinism_check -- --bazel \"$(command -v bazel)\" --out \"$RUNNER_TEMP/determinism\" ${flags[@]+\"${flags[@]}\"} \"$TARGET\"";
 
 const HOSTS: [(&str, &str); 4] = [
     ("linux-x86_64", "ubuntu-latest"),
@@ -111,6 +115,13 @@ fn each_host_uploads_its_artifact() {
         "bazel test //tools/coverage/kcov:smoke_test //tools/coverage/kcov:static_smoke_test"
     ));
     assert!(text.contains("kcov archive sha256 differs from pins.json"));
+    assert!(
+        text.contains("linux-x86_64) flags=(--platforms=//tools/platforms:linux_x86_64_musl) ;;")
+    );
+    assert!(
+        text.contains("linux-arm64) flags=(--platforms=//tools/platforms:linux_arm64_musl) ;;")
+    );
+    assert!(!text.contains("+crt-static"));
     let build = text
         .find("bazel build //tools/coverage/kcov:kcov_static")
         .expect("kcov_static build");
@@ -119,6 +130,74 @@ fn each_host_uploads_its_artifact() {
         text[build..case_end].contains(KCOV_DETERMINISM),
         "kcov determinism check inside the linux case after the build"
     );
+}
+
+/// (job, its last `bazel build`, its determinism check, whether the check sits in a `linux-*)` arm).
+const JOB_DETERMINISM: [(&str, &str, &str, bool); 6] = [
+    (
+        "tools",
+        "bazel build ${flags[@]+\"${flags[@]}\"} //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor",
+        TOOLS_DETERMINISM,
+        true,
+    ),
+    (
+        "python-tools",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
+    (
+        "go",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
+    (
+        "jars",
+        "bazel build \"${targets[@]}\"",
+        TARGETS_DETERMINISM,
+        false,
+    ),
+    (
+        "haskell",
+        "bazel build ${flags[@]+\"${flags[@]}\"} \"${targets[@]}\"",
+        HASKELL_DETERMINISM,
+        true,
+    ),
+    (
+        "hackage",
+        "bazel build ${flags[@]+\"${flags[@]}\"} \"$TARGET\"",
+        HACKAGE_DETERMINISM,
+        true,
+    ),
+];
+
+#[test]
+fn each_job_compares_two_builds() {
+    let workflow = document(TOOLS).unwrap();
+    for (job, build, check, in_case) in JOB_DETERMINISM {
+        let run = workflow["jobs"][job]["steps"][2]["run"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{job} build step"));
+        let built = run
+            .find(build)
+            .unwrap_or_else(|| panic!("{job} runs `{build}`"));
+        let at = run
+            .find(check)
+            .unwrap_or_else(|| panic!("{job} runs `{check}`"));
+        assert!(at > built, "{job} compares two builds after its build");
+        if in_case {
+            let end = at + check.len();
+            let arm = run[..end]
+                .rfind("linux-*)")
+                .unwrap_or_else(|| panic!("{job} has a linux-*) arm"));
+            assert!(
+                !run[arm..at].contains(";;")
+                    && (check.ends_with(";;") || run[end..].contains(";;")),
+                "{job} check sits inside its linux-*) arm"
+            );
+        }
+    }
 }
 
 #[test]
@@ -137,11 +216,16 @@ fn go_job_cross_builds_every_host() {
     let workflow = document(TOOLS).unwrap();
     assert_eq!(workflow["jobs"]["go"]["runs-on"], "ubuntu-latest");
     let text = read_runfiles(TOOLS);
-    assert!(text.contains("tools=(go:dx_go oapi-codegen:oapi_codegen)"));
+    assert!(
+        text.contains(
+            "tools=(go:dx_go oapi-codegen:oapi_codegen gopackagesdriver:gopackagesdriver)"
+        )
+    );
     assert!(text.contains("//go/private/tools/analysis/dx_go:${tool#*:}_${host//-/_}"));
     assert!(text.contains("asset=\"$out/dx-${tool%%:*}-$host\""));
     assert!(text.contains("\"$out/dx-oapi-codegen-LICENSE\""));
     assert!(text.contains("\"$out/dx-oapi-codegen-linux-x86_64\" -version"));
+    assert!(text.contains("\"$out/dx-gopackagesdriver-LICENSE\""));
     assert!(text.contains("cp \"$out/dx-go-linux-x86_64\" \"$check/dx_modfmt\""));
     assert!(text.contains("./dx_modfmt -c"));
     assert!(text.contains("name: release-tool-go"));
@@ -289,7 +373,6 @@ fn haskell_job_ships_the_gmp_licence_and_source() {
     let pins: serde_json::Value =
         serde_json::from_str(&read_runfiles("haskell/pins.json")).expect("haskell/pins.json");
     for (pin, asset) in [
-        ("gmp_license", "dx-haskell-gmp-LICENSE"),
         ("gmp_source", "dx-haskell-gmp-source.tar.xz"),
         ("gmp_source_patch", "dx-haskell-gmp-source.patch"),
         ("gmp_ghc_source", "dx-haskell-gmp-ghc-source.tar.xz"),
@@ -302,12 +385,16 @@ fn haskell_job_ships_the_gmp_licence_and_source() {
             entry["urls"][0]
                 .as_str()
                 .is_some_and(|url| url.starts_with("https://gmplib.org/")
-                    || url.starts_with("https://www.gnu.org/")
                     || url.starts_with("https://gitlab.haskell.org/ghc/gmp-tarballs/")),
             "{pin}"
         );
     }
     assert!(tools.contains("sha256 differs from haskell/pins.json $pin"));
+    assert!(
+        tools.contains("cp haskell/private/toolchain/lgpl-3.0.txt \"$out/dx-haskell-gmp-LICENSE\"")
+    );
+    assert!(release.contains(" dx-haskell-gmp-LICENSE"));
+    assert!(pins["archives"].get("gmp_license").is_none());
     for cell in ["linux_arm64_musl", "linux_x86_64_musl"] {
         assert!(
             pins["archives"][format!("apk__gmp-dev__{cell}")]["urls"][0]
@@ -374,12 +461,17 @@ fn release_writes_and_checks_the_tool_manifest() {
         "for tool in dx-deadnix dx-selene; do\n            for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do\n              tool_asset=\"$tool-$host\""
     ));
     assert!(text.contains("--manifest \"$PWD/out/dx-tool-sha256sums.txt\""));
-    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 67"));
+    assert!(text.contains("test \"$(wc -l < out/dx-sha256sums.txt)\" -eq 90"));
     assert!(text.contains("for tool_asset in dx-tree-sitter-windows-arm64.dll dx-tree-sitter-pkl-windows-arm64.dll dx-tree-sitter-LICENSE dx-tree-sitter-pkl-LICENSE; do"));
-    assert!(text.contains(" dx-thrift-* dx-tree-sitter-* "));
-    assert!(text.contains("for tool in capnp flatc go oapi-codegen runtime thrift; do"));
-    assert!(text.contains("files=\"$files dx-oapi-codegen-LICENSE\""));
-    assert!(text.contains(" dx-go-* dx-oapi-codegen-* "));
+    assert!(text.contains("for tool_asset in dx-pcov-linux-x86_64.so dx-pcov-linux-arm64.so dx-pcov-macos-arm64.so dx-pcov-LICENSE; do"));
+    assert!(text.contains(" dx-thrift-* dx-tree-sitter-* dx-pcov-* dx-julia-internal-* "));
+    assert!(text.contains(
+        "for tool_asset in dx-julia-internal-linux-x86_64.so dx-julia-internal-LICENSE; do"
+    ));
+    assert!(text.contains("for tool in capnp flatc go gopackagesdriver ldoc-main oapi-codegen runtime thrift; do"));
+    assert!(text.contains("for license in dx-capnp-LICENSE dx-flatc-LICENSE dx-gopackagesdriver-LICENSE dx-ldoc-main-LICENSE dx-oapi-codegen-LICENSE dx-thrift-LICENSE; do"));
+    assert!(text.contains(" dx-go-* dx-gopackagesdriver-* dx-ldoc-main-* dx-msvc-link-* dx-oapi-codegen-* "));
+    assert!(text.contains("msvc_link=\"dx-msvc-link-${asset#dx-}\""));
     assert!(text.contains("cd out\n            for file in dx-sha256sums.txt "));
     assert!(text.contains("cp \"$file\" \"$SOURCE_DIR/\""));
 }
@@ -421,9 +513,53 @@ fn release_consumer_checks_prebuilt_quality_tools() {
 }
 
 #[test]
+fn release_consumer_skips_mirrors_and_v0_0_bcr() {
+    let consumer = job(CONSUMER, "consumer").unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(
+        consumer["if"],
+        "startsWith(inputs.tag || github.event.release.tag_name, 'v')"
+    );
+    let bcr = job(CONSUMER, "bcr").unwrap_or_else(|error| panic!("{error}"));
+    let condition = bcr["if"].as_str().unwrap_or_default();
+    assert!(
+        condition.contains("vars.BCR_REGISTRY_FORK != ''"),
+        "{condition}"
+    );
+    assert!(condition.contains("'v0.0.'"), "{condition}");
+}
+
+#[test]
+fn release_consumer_resolves_through_a_registry_and_verifies() {
+    let text = read_runfiles(CONSUMER);
+    assert!(!text.contains("archive_override"));
+    assert!(text.contains("echo \"common --registry=https://bcr.bazel.build/\""));
+    assert!(text.contains("modules/rules_dx/$version/source.json"));
+    assert!(text.contains("gh attestation verify \"${pair%%:*}\""));
+    assert!(text.contains("--cert-identity \"https://github.com/$GITHUB_REPOSITORY/.github/workflows/release.yml@refs/tags/$TAG\""));
+    assert!(text.contains("--deny-self-hosted-runners"));
+    let consumer = job(CONSUMER, "consumer").unwrap_or_else(|error| panic!("{error}"));
+    assert!(
+        consumer["permissions"]["contents"] != "write",
+        "{:?}",
+        consumer["permissions"]
+    );
+}
+
+#[test]
 fn release_verifies_every_manifest_against_the_bundle() {
     let text = read_runfiles(RELEASE);
     assert!(text.contains(
         "for manifest in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt; do\n            gh attestation verify \"out/$manifest\" \\\n              --bundle out/dx-sha256sums.txt.sigstore.json"
     ));
+}
+
+#[test]
+fn flags_expand_when_empty_on_bash_3_2() {
+    let text = read_runfiles(TOOLS);
+    let guarded = "${flags[@]+\"${flags[@]}\"}";
+    assert_eq!(text.matches(guarded).count(), 13);
+    assert!(
+        !text.replace(guarded, "").contains("${flags[@]}"),
+        "macOS bash 3.2 under set -u fails on an empty flags array; expand it as {guarded}"
+    );
 }

@@ -1,7 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing/hermetic:defs.bzl", "nested_bazel_test")
-load(":fixtures.bzl", "CONSUMER_FIXTURES", "GO_GUARD_LANGS", "GUARD_PENDING", "IN_GRAPH_GUARD_LANGS", "JAVA_GUARD_LANGS", "consumer_fixture_tests")
+load(":fixtures.bzl", "CONSUMER_FIXTURES", "GO_GUARD_LANGS", "GUARD_PENDING", "IN_GRAPH_GUARD_LANGS", "JAVA_GUARD_LANGS", "MACOS_IN_GRAPH_GUARD_LANGS", "WINDOWS_IN_GRAPH_GUARD_LANGS", "consumer_fixture_tests")
 
 consumer_fixture_tests(
     name = "fixture_tests",
@@ -31,10 +31,11 @@ rust_test(
     ],
 )
 
-# A nested Bazel consumer build and test from an empty output base. Fails when the
-# repositories a fresh Go-only consumer fetches differ from cold_start/go.txt.
+# A nested Bazel consumer build and test per language, each case in a fresh workspace with an empty
+# output base. Fails when the repositories a one-language consumer fetches differ from
+# cold_start/<lang>.txt or include another language's repositories.
 nested_bazel_test(
-    name = "go_cold_start_test",
+    name = "cold_start_test",
     size = "small",
     srcs = ["cold_start_test.rs"],
     crate_name = "cold_start_test",
@@ -42,17 +43,22 @@ nested_bazel_test(
     # //:module_srcs leaves out //patches/rules_py, which write_rules_py_patches copies.
     data = [
         "cold_start/go.txt",
+        "cold_start/java.txt",
+        "cold_start/rust.txt",
         "//:module_srcs",
+        "//cli/prebuilt:registry",
         "//patches/rules_py:patches",
         "@dx_test_tags_sources//:consumer.json",
     ],
     env = {
-        "DX_COLD_START_LANG": "go",
-        "DX_COLD_START_LIST": "$(rlocationpath cold_start/go.txt)",
+        "DX_COLD_START_LISTS": "$(rlocationpath cold_start/go.txt) $(rlocationpath cold_start/java.txt) $(rlocationpath cold_start/rust.txt)",
         "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
+        "DX_PREBUILT_REGISTRY": "$(rlocationpath //cli/prebuilt:registry)",
     },
     network = True,
     deps = [
+        ":prebuilt_guard",
+        "//cli/adopt:dx_adopt",
         "//tools/testing:dx_testing",
         "//tools/testing/nested:dx_nested",
     ],
@@ -65,6 +71,7 @@ rust_library(
     crate_name = "prebuilt_guard",
     crate_root = "prebuilt_guard.rs",
     deps = [
+        "//cli/archive:dx_archive",
         "//cli/families:dx_families",
         "//cli/plan:dx_plan",
     ],
@@ -73,12 +80,13 @@ rust_library(
 rust_test(
     name = "prebuilt_guard_lib_test",
     size = "small",
+    compile_data = ["prebuilt_guard_allowlist.txt"],
     crate = ":prebuilt_guard",
 )
 
 # Run with --bazel and --out: rules_dx as the root module with --//cli/prebuilt:guard_view analyzes the
-# IN_GRAPH_GUARD_LANGS consumer fixtures under the dx check and dx docs aspects and fails when they
-# compile a rules_dx binary that prebuilt_guard_allowlist.txt does not name.
+# IN_GRAPH_GUARD_LANGS consumer fixtures, or those of --langs, under the dx check and dx docs aspects
+# and fails when they compile a rules_dx binary that prebuilt_guard_allowlist.txt does not name.
 IN_GRAPH_GUARD_ENV = {
     "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
     "DX_IN_GRAPH_GUARD_LANGS": " ".join(IN_GRAPH_GUARD_LANGS),
@@ -110,24 +118,32 @@ rust_test(
     crate = ":in_graph_prebuilt_guard",
     data = [
         "prebuilt_guard_allowlist.txt",
+        "//.github:workflows/ci.yml",
         "@dx_test_tags_sources//:consumer.json",
     ],
     env = IN_GRAPH_GUARD_ENV | {
+        "DX_CI_WORKFLOW": "$(rlocationpath //.github:workflows/ci.yml)",
         "DX_CONSUMER_FIXTURES": " ".join(CONSUMER_FIXTURES),
         "DX_GO_GUARD_LANGS": " ".join(GO_GUARD_LANGS),
         "DX_GUARD_PENDING": " ".join(GUARD_PENDING),
         "DX_JAVA_GUARD_LANGS": " ".join(JAVA_GUARD_LANGS),
+        "DX_MACOS_IN_GRAPH_GUARD_LANGS": " ".join(MACOS_IN_GRAPH_GUARD_LANGS),
+        "DX_WINDOWS_IN_GRAPH_GUARD_LANGS": " ".join(WINDOWS_IN_GRAPH_GUARD_LANGS),
     },
+    deps = ["//tools/ci/ci_workflow"],
 )
 
 # A nested consumer of the DX_PREBUILT_GUARD_LANGS fixtures that pins every registry tool of the
-# host with a stub. Fails when it still compiles a rules_dx binary that
-# prebuilt_guard_allowlist.txt does not name.
+# host, and every registry key of each DX_PREBUILT_TARGET_TOOLS tool, with a stub. Fails when it
+# still compiles a rules_dx binary that prebuilt_guard_allowlist.txt does not name, or when a
+# target tool does not select its download on each of its release platforms.
 PREBUILT_GUARD_DATA = [
     "prebuilt_guard_allowlist.txt",
     "//:module_srcs",
     "//cli/prebuilt:go_hub_targets",
+    "//cli/prebuilt:python_hub_targets",
     "//cli/prebuilt:registry",
+    "//cli/prebuilt:target_tools",
     "//patches/rules_py:patches",
     "@dx_test_tags_sources//:consumer.json",
 ]
@@ -136,7 +152,9 @@ PREBUILT_GUARD_ENV = {
     "DX_CONSUMER_JSON": "$(rlocationpath @dx_test_tags_sources//:consumer.json)",
     "DX_PREBUILT_GO_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:go_hub_targets)",
     "DX_PREBUILT_GUARD_ALLOWLIST": "$(rlocationpath prebuilt_guard_allowlist.txt)",
+    "DX_PREBUILT_PYTHON_HUB_TARGETS": "$(rlocationpath //cli/prebuilt:python_hub_targets)",
     "DX_PREBUILT_REGISTRY": "$(rlocationpath //cli/prebuilt:registry)",
+    "DX_PREBUILT_TARGET_TOOLS": "$(rlocationpath //cli/prebuilt:target_tools)",
 }
 
 nested_bazel_test(

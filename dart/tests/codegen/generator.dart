@@ -1,9 +1,18 @@
-import 'dart:io';
+import 'package:build/build.dart';
+import 'package:rules_dart_ext/worker_entry.dart';
 
-void main(List<String> args) {
-  final outputs = <String>[];
-  for (var i = 0; i < args.length - 1; i++) {
-    if (args[i] == '--output') outputs.add(args[i + 1]);
-  }
-  File(outputs.single).writeAsStringSync("const generatedValue = 'generated';\n");
+class _ModelBuilder implements Builder {
+  @override
+  final buildExtensions = const {
+    '.dart': ['.g.dart'],
+  };
+
+  @override
+  Future<void> build(BuildStep buildStep) => buildStep.writeAsString(
+    buildStep.inputId.changeExtension('.g.dart'),
+    "const generatedValue = 'generated';\n",
+  );
 }
+
+Future<void> main(List<String> args) =>
+    shimMain(args, (BuilderOptions _) => _ModelBuilder());

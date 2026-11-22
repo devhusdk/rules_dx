@@ -35,6 +35,7 @@ go_binary(
     )
     for name, target in {
         "dx_go": ":dx_go",
+        "gopackagesdriver": "@rules_go//go/tools/gopackagesdriver",
         "oapi_codegen": "@com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen",
     }.items()
     for host, go_platform in {

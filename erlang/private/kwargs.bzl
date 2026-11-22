@@ -6,7 +6,7 @@ load("//erlang/private/toolchain:pins.bzl", "CELLS")
 
 ERLANG_CELLS = lang_cells("erlang")
 
-PLATFORM_SUPPORT = cells_support("//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH", CELLS, ERLANG_CELLS, "//erlang/private/toolchain")
+PLATFORM_SUPPORT = cells_support("//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH", CELLS, ERLANG_CELLS, "//erlang/private/toolchain", unsupported = "erlang")
 
 ERLANG_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 

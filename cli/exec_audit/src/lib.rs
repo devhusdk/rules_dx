@@ -1,9 +1,7 @@
 #![deny(
     clippy::indexing_slicing,
     clippy::let_underscore_must_use,
-    clippy::map_err_ignore,
     clippy::string_slice,
-    clippy::unused_result_ok,
     clippy::wildcard_enum_match_arm
 )]
 
@@ -204,6 +202,10 @@ fn set_package(set: &dx_adopt::dependency_sets::DependencySet) -> String {
 
 /// The sets `scopes` name or own. A set found through a scope, not by its name,
 /// is skipped when a `dx.toml` exclude covers its package.
+///
+/// # Errors
+///
+/// Returns `Err` when a scope names no set and no set owns it.
 pub fn resolve_configured_audit_sets(
     registry: &dx_adopt::dependency_sets::Registry,
     scopes: &[String],
@@ -246,6 +248,11 @@ fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, AuditError
     )?)
 }
 
+/// Loads the pinned advisories for the `key` ecosystem and their pin.
+///
+/// # Errors
+///
+/// Returns `Err` when `key` has no advisory source, or the pinned snapshot cannot be read or fetched.
 pub fn load_advisories(
     workspace: &Path,
     key: &str,
@@ -724,6 +731,11 @@ fn package_ref(
     })
 }
 
+/// Loads the workspace licence policy.
+///
+/// # Errors
+///
+/// Returns `Err` when the policy file cannot be read or does not parse.
 pub fn load_license_policy(
     workspace: &Path,
 ) -> Result<dx_audit::license_policy::LicensePolicy, AuditError> {
@@ -863,7 +875,7 @@ fn scoped_secrets_config(
     };
     let text = scoped_config(user.as_deref(), &patterns, &base.to_string_lossy())?;
     let path = temp_dir.join(format!("audit-gitleaks-{pid}-{nonce}.toml"));
-    std::fs::write(&path, text).map_err(|error| {
+    dx_atomic_fs::write_scratch(&path, text.as_bytes()).map_err(|error| {
         DxError::from_io(
             format!("failed to write secrets scan config: {error}"),
             &error,

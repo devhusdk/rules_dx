@@ -48,7 +48,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 
 ## Scopes
 
-No scope means `//...`, every target in the workspace. A Bazel target is one buildable unit, such as a library or a test. Pass Bazel labels such as `//cli:dx` or patterns such as `//cli/...`, or workspace-relative files and dirs. `--here` cannot be combined with explicit scopes or with `--affected`. `--affected` with scopes keeps only the affected targets inside them. When every scope is a file or directory, findings and fixes are limited to those paths; the rest of the owning target is checked but neither reported nor rewritten. A label or pattern among the scopes reports its whole target. With `--affected`, `--apply` writes only the changed files and the `BUILD` file of each one's package. A fix to any other file is refused as `outside_scope`. Targets that do not fit the target platform are skipped, even when named. See [Scope defaults](scope-defaults.md).
+No scope means `//...`, every target in the workspace. A Bazel target is one buildable unit, such as a library or a test. Pass Bazel labels such as `//cli:dx` or patterns such as `//cli/...`, or workspace-relative files and dirs. `--here` cannot be combined with explicit scopes or with `--affected`. `--affected` with scopes keeps only the affected targets inside them. When every scope is a file or directory, findings and fixes are limited to those paths; the rest of the owning target is checked but neither reported nor rewritten. A `clippy.toml` scope stands for its package. A file that a `.bazelrc` flag names, or one that reaches such a target, stands for `//...`. A label or pattern among the scopes reports its whole target. With `--affected`, `--apply` writes only the changed files and the `BUILD` file of each one's package. A fix to any other file is refused as `outside_scope`. Targets that do not fit the target platform are skipped, even when named. See [Scope defaults](scope-defaults.md).
 
 ## Bazel options
 
@@ -68,7 +68,7 @@ Text prints one line per finding:
 path:line:column: severity: message [tool/rule]
 ```
 
-Lines and columns count Unicode characters. A finding without a position prints `path:`. A finding without a file prints `(no file):`. Identical findings print once with `(xN)`. Text ends with a summary on stderr, such as `2 error(s), 5 warning(s) in 4 file(s), 3 fixable with --apply`, or `no findings in N target(s)` when clean, followed by a `dx: <total> actions, ...` line. With color on, the severity word is red for errors and yellow for warnings.
+Lines and columns count Unicode characters. A finding without a position prints `path:`. A finding without a file prints `(no file):`. Identical findings print once with `(xN)`. Text ends with a summary on stderr, such as `2 error(s), 5 warning(s) in 4 file(s), 3 fixable with --apply`, or `no findings in N target(s)` when clean, where N counts the targets a tool reported on, followed by a `dx: <total> actions, ...` line. With color on, the severity word is red for errors and yellow for warnings.
 
 When files need changes, text prints `N file(s) need changes. Apply them with: dx <command> --apply ...`. Failures print a `next:` line with the fix.
 
@@ -168,6 +168,7 @@ To change a rule, edit the tool's root config file. See
 | `kotlin` | `ktfmt` | `detekt`, `typos` | `kotlinc` |
 | `markdown` | disabled | `lychee`, `markdown_check`, `typos` | disabled |
 | `mdx` | `remark` | `lychee`, `typos` | disabled |
+| `objc` | `clang_format` | `typos` | `clang_syntax` |
 | `python` | `ruff` | `ruff`, `typos` | `ty` |
 | `rust` | `rustfmt` | `clippy`, `typos` | `rustc` |
 | `scala` | `scalafmt` | `typos` | `scalac` |
@@ -203,7 +204,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | Tool | Checks | Not on |
 | --- | --- | --- |
 | `clang_format` | Format C, C++, CUDA, Objective-C | |
-| `clang_tidy` | Lint C, C++, CUDA, Objective-C | |
+| `clang_tidy` | Lint C, C++, CUDA, Objective-C | Objective-C: not on Linux or Windows |
 | `clang_syntax` | Typecheck C, C++, Objective-C with `-fsyntax-only` | Objective-C: not on Linux or Windows |
 | `nvcc_syntax` | Typecheck CUDA with `nvcc -cuda` | |
 | `rustfmt` | Format Rust | |
@@ -224,7 +225,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `swift_lint` | Lint Swift | |
 | `swiftc` | Typecheck Swift (opt-in) | |
 
-`clang_syntax` replays each compile action with `-fsyntax-only`, using the command line Bazel configured. Headers are checked only when the target compiles them (`--features=parse_headers`). Toolchains without a readable command line (clang-cl, params files) fail with an explicit error. Select it with `typecheck = ["clang_syntax"]` on the `cc` family. It has no fix support.
+`clang_syntax` replays each compile action with `-fsyntax-only`, using the command line Bazel configured. Headers are checked only when the target compiles them (`--features=parse_headers`). Toolchains without a readable command line (clang-cl, params files) fail with an explicit error. Select it with `typecheck = ["clang_syntax"]` on the `cc` family. It is the default typecheck of the `objc` family. It has no fix support.
 
 `nvcc_syntax` replays each `CudaCompile` action with `-c` changed to `-cuda`. Device compilation still runs for every `-gencode` architecture, so the check is heavy. Select it with `typecheck = ["nvcc_syntax"]` on the `cuda` family. Params files and header-only `cuda_library` targets fail with an explicit error.
 
@@ -234,7 +235,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `standard` and `strict` clang-tidy tiers live in `core/quality/tiers/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a tier is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
 
-`clippy` takes its tier from `core/quality/tiers/clippy/`. Standard runs `clippy::all` with warnings as errors. Strict adds `clippy::pedantic` and denies `unwrap_used`, `expect_used`, `panic`, `unreachable`, `todo`, `unimplemented`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap`, `string_slice`, `fallible_impl_from`, `wildcard_enum_match_arm`, `let_underscore_must_use`, `undocumented_unsafe_blocks`, `allow_attributes_without_reason`, `allow_attributes`, `match_wildcard_for_single_variants`, `let_underscore_future`, `let_underscore_untyped`, `unchecked_time_subtraction`, `large_futures`, `try_err`, `infinite_loop`, `cast_possible_truncation`, `cast_possible_wrap`, `mem_forget`, `rc_mutex`, `multiple_unsafe_ops_per_block`, `string_add`, `create_dir`, `iter_over_hash_type`, and the rustc lints `unsafe_code`, `unsafe_op_in_unsafe_fn` and `unused_must_use`. `rust_test` targets and `testonly` crates skip `unwrap_used`, `expect_used`, `panic`, `unreachable`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap` and `string_slice`. Mark a needed exception with `#[expect(<lint>, reason = "...")]` on the item.
+`clippy` takes its tier from `core/quality/tiers/clippy/`. Standard runs `clippy::all` with warnings as errors. Strict adds `clippy::pedantic` and denies `unwrap_used`, `expect_used`, `panic`, `unreachable`, `todo`, `unimplemented`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap`, `string_slice`, `fallible_impl_from`, `wildcard_enum_match_arm`, `let_underscore_must_use`, `undocumented_unsafe_blocks`, `allow_attributes_without_reason`, `allow_attributes`, `match_wildcard_for_single_variants`, `let_underscore_future`, `let_underscore_untyped`, `unchecked_time_subtraction`, `large_futures`, `try_err`, `infinite_loop`, `cast_possible_truncation`, `cast_possible_wrap`, `mem_forget`, `rc_mutex`, `multiple_unsafe_ops_per_block`, `string_add`, `create_dir`, `iter_over_hash_type`, `map_err_ignore`, `unused_result_ok`, and the rustc lints `unsafe_code`, `unsafe_op_in_unsafe_fn` and `unused_must_use`. `rust_test` targets and `testonly` crates skip `unwrap_used`, `expect_used`, `panic`, `unreachable`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap` and `string_slice`. Mark a needed exception with `#[expect(<lint>, reason = "...")]` on the item.
 
 `kubeconform` runs with `-strict` in the strict tier, so duplicate keys fail; the tier comes from the build, not from `kubernetes_schemas`, which carries only the schemas and `skip_kinds`.
 
@@ -422,6 +423,12 @@ Set `root` and `baseline_root` when a library owns more than one schema.
 Each tool reads its own native config file at the repo root. The table lists the file, whether dx can extend a tier base from it, and where the tier comes from. Tag a target `no-lint` or `no-format` to skip it.
 
 A bound ruff config runs with its own directory as the project root, the same as ruff's own discovery, so `src`, `exclude` and `per-file-ignores` resolve against that directory.
+
+A bound regal config may not set `capabilities.from.url`, use YAML aliases, merge keys or tags. `capabilities.from.file` must be a relative forward-slash path without `.` or `..` segments. Use `capabilities.from.engine` and `version` to pin capabilities.
+
+A bound or root `buf.yaml` may not list `deps`, in v1 or v2, or in a v2 `modules` entry, and may not use YAML aliases, merge keys or tags. `dx` runs buf offline. Declare imported protos as `proto_library` deps instead.
+
+trivy config scans a Terraform file (`.tf` or `.tf.json`) only when every `module` it calls has a plain `./` or `../` string `source` that stays inside the target's files, and the same holds for every local module those call. Otherwise the file gets a `dx/terraform-module-source` error and trivy skips it, because trivy would download the module and `dx` runs trivy offline. Vendor the module into your repo and point `source` at that directory.
 
 ### Change a rule
 

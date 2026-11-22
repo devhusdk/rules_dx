@@ -189,6 +189,32 @@ fn parse_entry(text: &str, start: usize, end: usize) -> Option<Depend> {
     })
 }
 
+/// The `.cabal` files next to each cabal project file.
+pub fn cabal_files(workspace: &std::path::Path, projects: &[String]) -> Vec<String> {
+    let mut files = Vec::new();
+    for project in projects {
+        let dir = project.rsplit_once('/').map_or("", |(dir, _)| dir);
+        let Ok(entries) = std::fs::read_dir(workspace.join(dir)) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let file = entry.file_name().to_string_lossy().into_owned();
+            if std::path::Path::new(&file)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("cabal"))
+            {
+                files.push(if dir.is_empty() {
+                    file
+                } else {
+                    format!("{dir}/{file}")
+                });
+            }
+        }
+    }
+    files.sort();
+    files
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -275,6 +301,27 @@ mod tests {
                 ("text", ""),
                 ("containers", "==0.6.*")
             ]
+        );
+    }
+
+    #[test]
+    fn cabal_files_lists_the_packages_next_to_each_project_sorted() {
+        let dir = dx_test_scratch::scratch("cabal_files").unwrap();
+        let root = dir.path();
+        for (path, text) in [
+            ("cabal.project", "packages: .\n"),
+            ("zeta.cabal", ""),
+            ("alpha.CABAL", ""),
+            ("README.md", ""),
+            ("sub/cabal.project", "packages: .\n"),
+            ("sub/beta.cabal", ""),
+        ] {
+            dx_test_scratch::write(root, path, text).unwrap();
+        }
+        let projects = ["cabal.project".to_owned(), "sub/cabal.project".to_owned()];
+        assert_eq!(
+            cabal_files(root, &projects),
+            vec!["alpha.CABAL", "sub/beta.cabal", "zeta.cabal"]
         );
     }
 }

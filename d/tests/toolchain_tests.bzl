@@ -16,7 +16,7 @@ def _checks():
     to_arm64 = cross_build(LDC_CROSS_CELLS["linux_x86_64_to_linux_arm64"])
     to_windows_arm64 = cross_build(LDC_CROSS_CELLS["windows_x86_64_to_windows_arm64"])
     to_windows_x64 = cross_build(LDC_CROSS_CELLS["windows_arm64_to_windows_x86_64"])
-    return hub_checks(hub, "//d/private/toolchain:toolchain_type", len(LDC_CELLS) + len(LDC_CROSS_CELLS), ["@rules_d//"]) + [
+    return hub_checks(hub, str(Label("//d:toolchain_type")), len(LDC_CELLS) + len(LDC_CROSS_CELLS), ["@rules_d//"]) + [
         expect_equal("cross cells", sorted(LDC_CROSS_CELLS.keys()), ["linux_arm64_to_linux_x86_64", "linux_x86_64_to_linux_arm64", "macos_arm64_to_linux_arm64", "windows_arm64_to_windows_x86_64", "windows_x86_64_to_windows_arm64"]),
         expect_contains("a cross cell runs the host compiler", to_arm64, 'd_compiler = "@dx_d_toolchains__linux_x86_64//:dmd"'),
         expect_contains("a cross cell links the target druntime", to_arm64, 'druntime = "@dx_d_toolchains__linux_arm64//:druntime"'),
@@ -64,8 +64,8 @@ def _checks():
         expect_contains("linux launches ldmd2 natively", ldc_build(linux), "dx_ldmd2("),
         expect_contains("linux marks the closure", ldc_build(linux), "DX_CLOSURE"),
         expect_true("the macos build has no closure marker", "closure_marker = None" in ldc_build(LDC_CELLS["macos_arm64"])),
-        expect_equal("descriptor with closure", ldmd2_descriptor("k", "c"), "program=k\nenv_dir=LD_LIBRARY_PATH\tc\n"),
-        expect_equal("descriptor without closure", ldmd2_descriptor("k", ""), "program=k\n"),
+        expect_equal("descriptor with closure", ldmd2_descriptor("k", "c"), "program=k\ncwd=-fdebug-prefix-map=\t=.\nenv_dir=LD_LIBRARY_PATH\tc\n"),
+        expect_equal("descriptor without closure", ldmd2_descriptor("k", ""), "program=k\ncwd=-fdebug-prefix-map=\t=.\n"),
         expect_equal("libdparse version", LIBDPARSE_VERSION, "0.25.1"),
         expect_equal("tool sources", sorted([name for name in ARCHIVES if name.startswith("dx_d_")]), ["dx_d_containers", "dx_d_dcd", "dx_d_dscanner", "dx_d_inifiled", "dx_d_libddoc", "dx_d_libdparse"]),
         expect_equal("dcd version", DCD_VERSION, "0.19.4"),

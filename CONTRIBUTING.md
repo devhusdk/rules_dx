@@ -76,7 +76,7 @@ After a `bazel_dep` bump, the nested cache sets in `tools/testing/nested_cache` 
 /lock-refresh nested=true
 ```
 
-It dispatches `lock-refresh.yml` on the pull request branch and replies with the run URL. The run commits the merged `MODULE.bazel.lock` and the nested cache sets to the branch, and does nothing when they are unchanged. Leave out `nested=true` to refresh only `MODULE.bazel.lock`. Only owners, members and collaborators can use it, and only on a branch in this repository.
+It dispatches `lock-refresh.yml` on the pull request branch and replies with the run URL. The run commits the merged `MODULE.bazel.lock` and the nested cache sets to the branch, and does nothing when they are unchanged. Leave out `nested=true` to refresh only `MODULE.bazel.lock`. Any change to `MODULE.bazel` or a `bazel_dep` needs `/lock-refresh`, because a Linux `bazel mod deps` refreshes only the linux_amd64 go_sdk and python entries. Only owners, members and collaborators can use it, and only on a branch in this repository.
 
 ## Use the remote cache
 
@@ -119,7 +119,7 @@ Use these steps when you or an agent start from a fresh Linux checkout, such as 
 
    With the read-only remote cache, on 4 CPUs and 15 GB of memory, the first `tools/dx --version` takes about 3 minutes.
 
-   A release checkout skips that build. When `cli/prebuilt/pins.bzl` pins a release and the checkout is that release, a git checkout at tag `v<DX_VERSION>` with no edits to tracked files or a release archive, `tools/dx` on Linux downloads the released `dx` from GitHub releases, checks its sha256 and keeps it in `~/.cache/dx/prebuilt`. Any other checkout builds `dx` from source. If the download fails, `tools/dx` builds from source too.
+   A release checkout skips that build. When `cli/prebuilt/pins.bzl` pins a release and the checkout is that release, a git checkout at tag `v<DX_VERSION>` with no edits to tracked files or a release archive, `tools/dx` on Linux and `tools\dx.cmd` on Windows download the released `dx` from GitHub releases, check its sha256 and keep it in `~/.cache/dx/prebuilt`, or in `%LOCALAPPDATA%\dx\prebuilt` on Windows when `HOME` is not set. Any other checkout builds `dx` from source. If the download fails, the launcher builds from source too.
 
    The first run needs these hosts: `github.com` and `release-assets.githubusercontent.com` for the Bazelisk and Bazel downloads, and `bcr.bazel.build`, the Bazel module registry. If the network blocks one, `tools/dx` stops with a line that names the host; allow it in the container's network settings.
 

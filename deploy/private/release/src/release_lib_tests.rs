@@ -302,37 +302,26 @@ fn bcr_dry_run_matches_shell() {
     assert!(out.contains("  module: rules_dx"));
     assert!(out.contains("  version: 0.0.0"));
     assert!(out.contains("  input: a.spdx.json (/tmp/a.spdx.json)"));
-    assert!(out.contains("gh pr create --repo bazelbuild/bazel-central-registry"));
+    assert!(out.contains(
+        "  submit: bcr job in .github/workflows/release-consumer.yml (bazel-contrib/publish-to-bcr)"
+    ));
     assert!(out.contains("presubmit: bazel test @rules_dx//..."));
-    let ok = bcr_run("rules_dx", "0.0.0", &[], true, false).expect("dry");
+    let ok = bcr_run("rules_dx", "0.0.0", &[], true).expect("dry");
     assert!(ok.contains("would submit, submitting nothing"));
-    let err = bcr_run("other", "0.0.0", &[], true, false).expect_err("other");
+    let err = bcr_run("other", "0.0.0", &[], true).expect_err("other");
     assert!(matches!(err, BcrError::InvalidModule { .. }), "got {err:?}");
-    let err = bcr_run("rules_dx", "0.0.0", &[], false, false).expect_err("0.0.0");
-    assert!(
-        matches!(err, BcrError::UnpublishableSubmission),
-        "got {err:?}"
-    );
-    let err = bcr_run("rules_dx", "0.0.0", &[], false, true).expect_err("0.0.0");
-    assert!(
-        matches!(err, BcrError::UnpublishableSubmission),
-        "got {err:?}"
-    );
-    assert!(err.to_string().contains("unpublishable (shape check only)"));
-    let err = bcr_run("rules_dx", "1.2.3", &[], false, false).expect_err("unapproved");
-    assert!(matches!(err, BcrError::NotApproved), "got {err:?}");
-    assert!(err.to_string().contains("BCR_APPROVE=1"), "{err}");
-    let live = bcr_run("rules_dx", "1.2.3", &["/x/y.json".to_owned()], false, true).expect("live");
-    assert!(live.contains("\"schema\": \"release-ledger/v1\""));
-    assert!(live.contains("\"subject\": \"rules_dx@1.2.3\""));
-    assert!(live.contains("\"state\": \"validated\""));
-    assert!(live.contains("never pushes itself"));
+    for version in ["0.0.0", "1.2.3"] {
+        let err =
+            bcr_run("rules_dx", version, &["/x/y.json".to_owned()], false).expect_err(version);
+        assert!(matches!(err, BcrError::SubmittedByWorkflow), "got {err:?}");
+        assert!(err.to_string().contains("release-consumer.yml"), "{err}");
+    }
 }
 
 #[test]
 fn bcr_run_rejects_other_names() {
     for module in ["rules_dxx", "rules_dx_", "rules_dx_rust", "other"] {
-        let err = bcr_run(module, "0.0.0", &[], true, false).expect_err(module);
+        let err = bcr_run(module, "0.0.0", &[], true).expect_err(module);
         assert!(
             matches!(err, BcrError::InvalidModule { .. }),
             "{module}: {err:?}"
@@ -363,6 +352,13 @@ fn bcr_submit_record_needs_success_and_a_bcr_pull_request() {
         bcr_submit_record("s", "failure", "")
             .detail
             .contains("failure")
+    );
+    let skipped = bcr_submit_record("rules_dx@1.2.3", "skipped", "");
+    assert_eq!(skipped.state, OpState::NotAuthorized);
+    assert!(
+        skipped.detail.contains("BCR_REGISTRY_FORK"),
+        "{}",
+        skipped.detail
     );
 }
 

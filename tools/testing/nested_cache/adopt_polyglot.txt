@@ -41,6 +41,7 @@ https://bcr.bazel.build/modules/aspect_bazel_lib/2.14.0/MODULE.bazel 2b31ffcc9bd
 https://bcr.bazel.build/modules/aspect_bazel_lib/2.19.2/MODULE.bazel 30dfabbfae0139b1f0036e01c201dd4c0167da3017f0b7ef3820d78e07622989
 https://bcr.bazel.build/modules/aspect_bazel_lib/2.19.3/MODULE.bazel 253d739ba126f62a5767d832765b12b59e9f8d2bc88cc1572f4a73e46eb298ca
 https://bcr.bazel.build/modules/aspect_bazel_lib/2.21.1/MODULE.bazel 07e3ce3eaaa50dbd0be7fa0094e36890478937adc780ec53e77fd9fe543af8b1
+https://bcr.bazel.build/modules/aspect_bazel_lib/2.22.4/MODULE.bazel a05cbd9bc16712a58dc27ffe0dceaefd0da59a9bd87a227379b2a934b26a39ab
 https://bcr.bazel.build/modules/aspect_bazel_lib/2.22.5/MODULE.bazel 004ba890363d05372a97248c37205ae64b6fa31047629cd2c0895a9d0c7779e8
 https://bcr.bazel.build/modules/aspect_bazel_lib/2.22.5/patches/go_dev_dep.patch 96370666d2676a6fb19e0ed75be487f2e9c0c7a969c13cb248f361847ff9a81f
 https://bcr.bazel.build/modules/aspect_bazel_lib/2.22.5/patches/module_dot_bazel_version.patch 7eb48e5ee1a4a5dcf94777ac654b7a302932b289ea06bc994da3b557245e6831
@@ -147,8 +148,20 @@ https://bcr.bazel.build/modules/bazel_worker_java/0.0.4/MODULE.bazel 82494a01018
 https://bcr.bazel.build/modules/bazel_worker_java/0.0.8/MODULE.bazel e76479eae70bd4e8f5f4c2dfc5d03ab971cfb18750246c7b3f3454c5c2ee6629
 https://bcr.bazel.build/modules/bazelrc-preset.bzl/1.6.0/MODULE.bazel 11bc946a2e1a9c1bea066e44a704091b482e6049164b75b2381e8419bf055cf1
 https://bcr.bazel.build/modules/bazelrc-preset.bzl/1.6.0/source.json ad6cee6b42b5def78f6b3082c0bd7041a330003cbace330aaf1d3f94a122c48b
+https://bcr.bazel.build/modules/buildifier_prebuilt/7.3.1/MODULE.bazel 537faf0ad9f5892910074b8e43b4c91c96f1d5d86b6ed04bdbe40cf68aa48b68
+https://bcr.bazel.build/modules/buildifier_prebuilt/8.2.1.1/MODULE.bazel 2e2e306add04b7c7cd21e73c9293dcbd7528a08a84338e919036f402eb6b1e2e
+https://bcr.bazel.build/modules/buildifier_prebuilt/8.2.1.1/patches/module_dot_bazel_version.patch 3c138a84b567641739c68561d5eda98fd0e502e20557040e173ed08afecd5537
+https://bcr.bazel.build/modules/buildifier_prebuilt/8.2.1.1/source.json 4c86fd3a384a09613c2213fb1f71562d6d70471977e6e81173e6625fd6ce53bc
+https://bcr.bazel.build/modules/buildozer/10.1.0.bcr.1/MODULE.bazel 637733ba15c237d790e3504cabe910c87523dc4a56cdc2177a4eee30cfa1869b
+https://bcr.bazel.build/modules/buildozer/10.1.0.bcr.1/source.json 2d10423740f536f02ff9e4dbebbbae2d9134a46960a5e4a6c5224d0b43671c4a
 https://bcr.bazel.build/modules/buildozer/8.5.1/MODULE.bazel a35d9561b3fc5b18797c330793e99e3b834a473d5fbd3d7d7634aafc9bdb6f8f
 https://bcr.bazel.build/modules/buildozer/8.5.1/source.json e3386e6ff4529f2442800dee47ad28d3e6487f36a1f75ae39ae56c70f0cd2fbd
+https://bcr.bazel.build/modules/cgrindel_bazel_starlib/0.30.0/MODULE.bazel 2430544fffd8569ad0ffc1a3a1a8c4e57968633b38ba062cf0f62cd1b92a2731
+https://bcr.bazel.build/modules/cgrindel_bazel_starlib/0.30.0/patches/module_dot_bazel_version.patch ff2cbccb61b388a90d6311b4a866c51de0a0cd539bd07c298fb11e38df5bd7f0
+https://bcr.bazel.build/modules/cgrindel_bazel_starlib/0.30.0/patches/remove_last_green.patch c3d54006ed06d8ba22e6f859150ca7b6277327bad4babd9ff1aef589f1418dbc
+https://bcr.bazel.build/modules/cgrindel_bazel_starlib/0.30.0/source.json 7be4b8aa40ecb041128100a38f676917ceba3552a9877a1ac7862b944dd4e0bb
+https://bcr.bazel.build/modules/elfutils/0.195/MODULE.bazel e76f1f423235a390e29c649f266a960a7563270cbffac9cdfb02136d449fc161
+https://bcr.bazel.build/modules/elfutils/0.195/source.json 3375293960b28396fc6e403ceebae20cca34537de22e1ad2acf586c3b8780c9f
 https://bcr.bazel.build/modules/gawk/5.3.2.bcr.1/MODULE.bazel cdf8cbe5ee750db04b78878c9633cc76e80dcf4416cbe982ac3a9222f80713c8
 https://bcr.bazel.build/modules/gawk/5.3.2.bcr.3/MODULE.bazel f1b7bb2dd53e8f2ef984b39485ec8a44e9076dda5c4b8efd2fb4c6a6e856a31d
 https://bcr.bazel.build/modules/gawk/5.3.2.bcr.7/MODULE.bazel 1e5e03c383fa64ebbe0942a225c32168fd6ef6b270351bbec481d47d19d1b96d
@@ -160,7 +173,9 @@ https://bcr.bazel.build/modules/gazelle/0.33.0/MODULE.bazel a13a0f279b462b784fb8
 https://bcr.bazel.build/modules/gazelle/0.34.0/MODULE.bazel abdd8ce4d70978933209db92e436deb3a8b737859e9354fb5fd11fb5c2004c8a
 https://bcr.bazel.build/modules/gazelle/0.36.0/MODULE.bazel e375d5d6e9a6ca59b0cb38b0540bc9a05b6aa926d322f2de268ad267a2ee74c0
 https://bcr.bazel.build/modules/gazelle/0.40.0/MODULE.bazel 42ba5378ebe845fca43989a53186ab436d956db498acde790685fe0e8f9c6146
+https://bcr.bazel.build/modules/gazelle/0.44.0/MODULE.bazel fd3177ca0938da57a1e416cad3f39b9c4334defbc717e89aba9d9ddbbb0341da
 https://bcr.bazel.build/modules/gazelle/0.47.0/MODULE.bazel b61bb007c4efad134aa30ee7f4a8e2a39b22aa5685f005edaa022fbd1de43ebc
+https://bcr.bazel.build/modules/gazelle/0.50.0/MODULE.bazel 5dce69aa1d7b5bc85d1e1cfe61f0a9a27426c46425ec1d064685f941a5977329
 https://bcr.bazel.build/modules/gazelle/0.51.3/MODULE.bazel 618a729142f66de1e2cb776d026413763be5b80d5e3d29ffb9d3d90c5defde90
 https://bcr.bazel.build/modules/gazelle/0.54.0/MODULE.bazel 10620287bdf57c55c2321ed5a387ade11c7187aba444fdec583c9f21c3263f45
 https://bcr.bazel.build/modules/gazelle/0.54.0/patches/module_dot_bazel_version.patch 6a93d355ba0ff944784ad313e45a7818320a4d000b8abbc6b9f761252b61eed9
@@ -206,6 +221,8 @@ https://bcr.bazel.build/modules/nlohmann_json/3.12.0.bcr.1/source.json 93f82a5ae
 https://bcr.bazel.build/modules/nlohmann_json/3.6.1/MODULE.bazel 6f7b417dcc794d9add9e556673ad25cb3ba835224290f4f848f8e2db1e1fca74
 https://bcr.bazel.build/modules/package_metadata/0.0.13/MODULE.bazel a9cc7e81640c1e7eaca5a465cdf4b63c88d416ca998fcded3680181b1602eee2
 https://bcr.bazel.build/modules/package_metadata/0.0.13/source.json f488e4534468eac223f6417dfdf8d3b7299166d36536408d37c2493ca1e8539d
+https://bcr.bazel.build/modules/package_metadata/0.0.15/MODULE.bazel d9c06292392870150584c2f4f84fad636b7012ac7255b2801b424826bad48749
+https://bcr.bazel.build/modules/package_metadata/0.0.15/source.json 5a9945ed1fa35e1887d6b4c3921758bfd9fa4d78b4be0b9549cab9d6db2d8ea1
 https://bcr.bazel.build/modules/package_metadata/0.0.2/MODULE.bazel fb8d25550742674d63d7b250063d4580ca530499f045d70748b1b142081ebb92
 https://bcr.bazel.build/modules/package_metadata/0.0.3/MODULE.bazel 77890552ecea9e284b5424c9de827a58099348763a4359e975c359a83d4faa83
 https://bcr.bazel.build/modules/package_metadata/0.0.5/MODULE.bazel ef4f9439e3270fdd6b9fd4dbc3d2f29d13888e44c529a1b243f7a31dfbc2e8e4
@@ -264,6 +281,7 @@ https://bcr.bazel.build/modules/rules_android/0.8.1/MODULE.bazel 1870a20db4ac1a8
 https://bcr.bazel.build/modules/rules_android/0.8.1/source.json 3a5595fcccd0128bfb77683793d3f6d7a87ba48fc3eff96581b9f2a90a7a78d7
 https://bcr.bazel.build/modules/rules_apple/3.16.0/MODULE.bazel 0d1caf0b8375942ce98ea944be754a18874041e4e0459401d925577624d3a54a
 https://bcr.bazel.build/modules/rules_apple/4.1.0/MODULE.bazel 76e10fd4a48038d3fc7c5dc6e63b7063bbf5304a2e3bd42edda6ec660eebea68
+https://bcr.bazel.build/modules/rules_apple/4.3.3/MODULE.bazel c5c2c4adeeac5f3f2f9b7f16abfa8be7ffefa596171d0d92bed4cae9ade0a498
 https://bcr.bazel.build/modules/rules_apple/5.2.0/MODULE.bazel 9b46da6889ba44e1b61dda2b4456f69606064cf38a95c1aacab5ae408f2aa735
 https://bcr.bazel.build/modules/rules_apple/5.4.0/MODULE.bazel 35332c590fdb8e03f208e200b6077856b2504ef8fd52aebca729d1a4e2ced010
 https://bcr.bazel.build/modules/rules_apple/5.4.0/patches/module_dot_bazel_version.patch af013eb04d39435f1d73c04013e3e7ff19a63d2dff805dff4d52f2f7f987ebbe
@@ -305,6 +323,8 @@ https://bcr.bazel.build/modules/rules_cuda/0.4.0/source.json b2f3ff92e6aea97740a
 https://bcr.bazel.build/modules/rules_dart/0.8.1/MODULE.bazel 33619834fd31d962818d096d9a39195a8c656752e0734237e159254df9b3dc79
 https://bcr.bazel.build/modules/rules_dart/0.8.1/patches/module_dot_bazel_version.patch 98d7a613234f32d3898934961e7bc5398c58193ae3b3717dc8d17b34ca6a21d6
 https://bcr.bazel.build/modules/rules_dart/0.8.1/source.json ef64102b1100ed61c1eb00e11ee049265523d8469d624e7e8a4484cac55a321f
+https://bcr.bazel.build/modules/rules_dart/0.9.1/MODULE.bazel f217634c3a587cfc055e311314aad71a4f0759abab2cab6078417c6063f6ba9e
+https://bcr.bazel.build/modules/rules_dart/0.9.1/source.json 77adf8baa965216c56313ade09d13ef64ac30eb1a7b3d7bab390e2f3e3fa55b9
 https://bcr.bazel.build/modules/rules_foreign_cc/0.9.0/MODULE.bazel c9e8c682bf75b0e7c704166d79b599f93b72cfca5ad7477df596947891feeef6
 https://bcr.bazel.build/modules/rules_fuzzing/0.5.2/MODULE.bazel 40c97d1144356f52905566c55811f13b299453a14ac7769dfba2ac38192337a8
 https://bcr.bazel.build/modules/rules_go/0.33.0/MODULE.bazel a2b11b64cd24bf94f57454f53288a5dacfe6cb86453eee7761b7637728c1910c
@@ -315,8 +335,10 @@ https://bcr.bazel.build/modules/rules_go/0.42.0/MODULE.bazel 8cfa875b9aa8c6fce2b
 https://bcr.bazel.build/modules/rules_go/0.46.0/MODULE.bazel 3477df8bdcc49e698b9d25f734c4f3a9f5931ff34ee48a2c662be168f5f2d3fd
 https://bcr.bazel.build/modules/rules_go/0.50.1/MODULE.bazel b91a308dc5782bb0a8021ad4330c81fea5bda77f96b9e4c117b9b9c8f6665ee0
 https://bcr.bazel.build/modules/rules_go/0.51.0-rc2/MODULE.bazel edfc3a9cea7bedb0eaaff37b0d7817c1a4bf72b3c615580b0ffcee6c52690fd4
+https://bcr.bazel.build/modules/rules_go/0.51.0/MODULE.bazel b6920f505935bfd69381651c942496d99b16e2a12f3dd5263b90ded16f3b4d0f
 https://bcr.bazel.build/modules/rules_go/0.53.0/MODULE.bazel a4ed760d3ac0dbc0d7b967631a9a3fd9100d28f7d9fcf214b4df87d4bfff5f9a
 https://bcr.bazel.build/modules/rules_go/0.59.0/MODULE.bazel b7e43e7414a3139a7547d1b4909b29085fbe5182b6c58cbe1ed4c6272815aeae
+https://bcr.bazel.build/modules/rules_go/0.60.0/MODULE.bazel 4a57ff2ffc2a3570e3c5646575c5a4b07287e91bcdac5d1f72383d51502b48cb
 https://bcr.bazel.build/modules/rules_go/0.62.0/MODULE.bazel 8ee616065c3d2b2f7ac0880108316ce8d0c332b3a30aad24e95c0bc124ec853e
 https://bcr.bazel.build/modules/rules_go/0.64.2/MODULE.bazel 178287400ec88bc4e20c048b5cf9b8e619d9879eb6118592f8572e49d5342c74
 https://bcr.bazel.build/modules/rules_go/0.65.0/MODULE.bazel 9aedb8cc7186d99881b438b545334e6c8ea38619a43b79b4240d1181d5e88abe
@@ -375,6 +397,10 @@ https://bcr.bazel.build/modules/rules_license/0.0.7/MODULE.bazel 088fbeb0b6a4190
 https://bcr.bazel.build/modules/rules_license/0.0.8/MODULE.bazel 5669c6fe49b5134dbf534db681ad3d67a2d49cfc197e4a95f1ca2fd7f3aebe96
 https://bcr.bazel.build/modules/rules_license/1.0.0/MODULE.bazel a7fda60eefdf3d8c827262ba499957e4df06f659330bbe6cdbdb975b768bb65c
 https://bcr.bazel.build/modules/rules_license/1.0.0/source.json a52c89e54cc311196e478f8382df91c15f7a2bfdf4c6cd0e2675cc2ff0b56efb
+https://bcr.bazel.build/modules/rules_m4/0.3.1/MODULE.bazel dcfb70aa14ba4ab99bcda9605d6fd0c8de4531a74bf854fb76ecd9f93a6f1e7e
+https://bcr.bazel.build/modules/rules_m4/0.3.1/source.json 43e9093a7921c709a70395f4af26da7af6e1419c8e9d76726bce1ea9d90557fd
+https://bcr.bazel.build/modules/rules_multitool/1.0.0/MODULE.bazel 7f75dc8378368a10dcedcff6cbfee8254fff10748a219a6cb8de94fde4b6a574
+https://bcr.bazel.build/modules/rules_multitool/1.0.0/source.json 5b92dc9b267b024bb2174bdf5d8e32821abb53fd84545e00699c4e35826a1c78
 https://bcr.bazel.build/modules/rules_nodejs/5.8.2/MODULE.bazel 6bc03c8f37f69401b888023bf511cb6ee4781433b0cb56236b2e55a21e3a026a
 https://bcr.bazel.build/modules/rules_nodejs/6.2.0/MODULE.bazel ec27907f55eb34705adb4e8257952162a2d4c3ed0f0b3b4c3c1aad1fac7be35e
 https://bcr.bazel.build/modules/rules_nodejs/6.7.3/MODULE.bazel c22a48b2a0dbf05a9dc5f83837bbc24c226c1f6e618de3c3a610044c9f336056
@@ -456,6 +482,9 @@ https://bcr.bazel.build/modules/rules_swift/4.1.2/MODULE.bazel a76383e8994cee3dd
 https://bcr.bazel.build/modules/rules_swift/4.3.0/MODULE.bazel 335a87d2114b4ce9642629c28404d4533a27c40c5f932f66c5a40e47f5bfab24
 https://bcr.bazel.build/modules/rules_swift/4.3.0/patches/module_dot_bazel_version.patch 2239c85237b025c873fbd468944a0a187a21e22ada39b5be0eb33c14f8c22a21
 https://bcr.bazel.build/modules/rules_swift/4.3.0/source.json 526d39340367fcfc769760efdfcc88c53857b3b9f35c1bf84563597ecca3a054
+https://bcr.bazel.build/modules/rules_swift_package_manager/1.25.0/MODULE.bazel 5532470cab076b376bc23a175d827f010f26a0ad1eefaf5784a903d068cc4d99
+https://bcr.bazel.build/modules/rules_swift_package_manager/1.25.0/patches/module_dot_bazel_version.patch 4abce495e338b4a659f610137a527d434649e1f52669ce06298488287fc3b75f
+https://bcr.bazel.build/modules/rules_swift_package_manager/1.25.0/source.json f06bc902ccb84fa4f5e9da7cba3ce260a6b507cd4f0294e09899d3e6d5872ed2
 https://bcr.bazel.build/modules/rules_zig/0.17.0/MODULE.bazel 2c1c08adc986cfdb5fee97e21982cac846f8a20a6a8054ae9cab8b02721c2011
 https://bcr.bazel.build/modules/rules_zig/0.17.0/patches/module_dot_bazel_version.patch 8a196f332cecae8a1d884ecd99f2889a3c47fad3ca381516ae5bd9e8efae30e9
 https://bcr.bazel.build/modules/rules_zig/0.17.0/source.json 488f71f57c596ed9b7635ebeb28066b23c6fc1802c30749d06bdad261d7b04a2
@@ -471,6 +500,8 @@ https://bcr.bazel.build/modules/stardoc/0.7.0/MODULE.bazel 05e3d6d30c099b6770e97
 https://bcr.bazel.build/modules/stardoc/0.7.1/MODULE.bazel 3548faea4ee5dda5580f9af150e79d0f6aea934fc60c1cc50f4efdd9420759e7
 https://bcr.bazel.build/modules/stardoc/0.7.2/MODULE.bazel fc152419aa2ea0f51c29583fab1e8c99ddefd5b3778421845606ee628629e0e5
 https://bcr.bazel.build/modules/stardoc/0.7.2/source.json 58b029e5e901d6802967754adf0a9056747e8176f017cfe3607c0851f4d42216
+https://bcr.bazel.build/modules/stardoc/0.8.0/MODULE.bazel bbad4298d7ba185684f5fcd71b049c95b0575d1248891fd80b8d7077d647c9d8
+https://bcr.bazel.build/modules/stardoc/0.8.0/source.json 7321db37080ee8a445dc60e8516a98ab3a27884d1457b892485d73759ccb7f4d
 https://bcr.bazel.build/modules/swift_argument_parser/1.3.1.1/MODULE.bazel 5e463fbfba7b1701d957555ed45097d7f984211330106ccd1352c6e0af0dcf91
 https://bcr.bazel.build/modules/swift_argument_parser/1.3.1.2/MODULE.bazel 75aab2373a4bbe2a1260b9bf2a1ebbdbf872d3bd36f80bff058dccd82e89422f
 https://bcr.bazel.build/modules/swift_argument_parser/1.7.0/MODULE.bazel 40d4e44950e44973dcf8590bcee637591de196b5dbe3696d07eb342b74d53672
@@ -697,7 +728,9 @@ https://download.visualstudio.microsoft.com/download/pr/eef0996f-4334-4b1a-a344-
 https://download.visualstudio.microsoft.com/download/pr/fdc37f6e-59f6-4054-838a-b476eeaa6ec3/1d82370739911457e0a2f6be15d8b5f569531b352b2eabb961429eea1e99e356/VisualStudio.vsman a8e854fa9f3fbaeac27d7304e297f1660d7137401389deb57cf7983f33c16fef
 https://github.com/TrapsterDK/gotreesitter/archive/a8d5183f93260b8c3743375f70f4dee5b1778569.tar.gz 6c915c29ff5db03bcb2f2db690caed293c689c32bf445d48b5c0e2f5997a7a4a
 https://github.com/aran/rules_dart/releases/download/v0.8.1/rules_dart-v0.8.1.tar.gz e7d9271bb10e5ed0a20415a70a120b367a22d8dd7afe7b0368810f1a08f43170
+https://github.com/aran/rules_dart/releases/download/v0.9.1/rules_dart-v0.9.1.tar.gz aff7ea3660caab2c862048a91af28c746ca8fe0c7b1a952c9a1c5de9510dbcc0
 https://github.com/aran/rules_flutter/archive/2b203359a0a79edaae66126ea5c212d1d7b19353.tar.gz b0d3f0dbc33663ea0872dca6914dd963db2f0a8006e556942cde6207e96fcc69
+https://github.com/aran/rules_flutter/releases/download/v0.1.0/rules_flutter-v0.1.0.tar.gz 508bc0a01b26707eb959ff42f8965d5dddf68f5ef7ef7093fd0d54678955ec4f
 https://github.com/aspect-build/rules_jest/releases/download/v0.26.0/rules_jest-v0.26.0.tar.gz fadef7b26dba31a0c7c93a72210514831a9cb85849f2abb3f4ac3cff1c922154
 https://github.com/aspect-build/rules_js/releases/download/v3.6.0/rules_js-v3.6.0.tar.gz 9f7105ff2a247aa7f16b555953c8a1d0fd88b579b57833fb3d1fc02c666f7d3a
 https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz 4e50948fbb8564a8b3a3b1f354cd9ec7ffdfe304f63c6a5feb1fdbcfbfc782bd
@@ -731,6 +764,7 @@ https://github.com/bazel-contrib/rules_ruby/releases/download/v0.29.0/rules_ruby
 https://github.com/bazel-contrib/rules_scala/releases/download/v7.4.1/rules_scala-v7.4.1.tar.gz 1f8eb60ae5bd6d7ad08c8e54edcb1492eaf08cceaa9579152d06d2033b4a689d
 https://github.com/bazel-contrib/rules_shell/releases/download/v0.10.0/rules_shell-v0.10.0.tar.gz 12edf8c13d46c4408a860da4fd109b58e56f68cd1eb757746291f89e9ea6c17c
 https://github.com/bazel-contrib/supply-chain/releases/download/package_metadata-0.0.13/package_metadata-0.0.13.tar.gz 755bd6c8a3751982e2555d96c913ec070954ca9d01f935563392255da4ebad72
+https://github.com/bazel-contrib/supply-chain/releases/download/package_metadata-0.0.15/package_metadata-0.0.15.tar.gz 20122816cf2d09988e26f1a0c32d8cc9497df4e56e2fac6b2e3ab271f190c2f7
 https://github.com/bazel-contrib/tar.bzl/releases/download/v0.10.9/tar.bzl-v0.10.9.tar.gz 8a3b78120510962fc74b577aaaf52412537cfbc25c88a596a375bd409e66b98a
 https://github.com/bazel-contrib/yq.bzl/releases/download/v0.3.4/yq.bzl-v0.3.4.tar.gz 975dd1db2663d1809ae8f07ed00ef9b0e5396a58fb73777a84bac379667f6ea2
 https://github.com/bazelbuild/apple_support/releases/download/2.12.0/apple_support.2.12.0.tar.gz 2c1990c275a451ae20c14550770638a948fd0096e1f4f9c38fe1cf9fb2352bcf
@@ -750,6 +784,8 @@ https://github.com/bazelbuild/rules_swift/releases/download/4.3.0/rules_swift.4.
 https://github.com/bminor/glibc/archive/92d25389c255b0da9b56bc05694f0702cd22921a.tar.gz f4cf37f12e0c3a81485ea8743dc41dbcec31ae326b22d6265e724c7ee753529e
 https://github.com/cerisier/glibc-headers/releases/download/2.28-20250512/x86_64-linux-gnu.2.28.tar.zst 8015f4a710987439dfdcde7539b62cc5db52d2cd9456af5e2e297494f13c56f3
 https://github.com/cerisier/kernel-headers/releases/download/4.19.325-20250511/4.19.325-x86.tar.zst 55b232aa55b9f4aedbed6a743db0a2b7f4e92bb07b3ffeeb614e9dda30d34851
+https://github.com/cgrindel/bazel-starlib/releases/download/v0.30.0/bazel-starlib.v0.30.0.tar.gz 5edef722277a1a69fddc3a21268c1b116fb65d2d757253f07670f3e081445bbe
+https://github.com/cgrindel/rules_swift_package_manager/releases/download/v1.25.0/rules_swift_package_manager.v1.25.0.tar.gz 19ad90c3ec12d765a50ecc87bde645282ad92978a1e45d5add8ca3e3a796ac54
 https://github.com/fmeum/with_cfg.bzl/releases/download/v0.12.0/with_cfg.bzl-v0.12.0.tar.gz 23c39c6dfca14dbd1607025c736c8bf4843f31958c0a87fbdb2c7d206585fea4
 https://github.com/hermeticbuild/bsdtar-prebuilt/releases/download/v3.8.1-3/tar_darwin_arm64 f78ae63e48f58be8e88bb1e44ab165503b8bdc7374cebdeb7fa9327629c88907
 https://github.com/hermeticbuild/bsdtar-prebuilt/releases/download/v3.8.1-3/tar_linux_amd64 ae24dbc3ecf6ad628c2fdd205a52347fd4446589e750469766669e25cb80e22b
@@ -773,6 +809,8 @@ https://github.com/hermeticbuild/toml2json/releases/download/v0.0.26/toml2json_l
 https://github.com/hermeticbuild/toml2json/releases/download/v0.0.26/toml2json_windows_amd64.exe 3fb037472c7ec2485b1c965253404841bfa32d571489b76dfbbc1c7ad6848884
 https://github.com/hermeticbuild/windows_support/releases/download/v0.4.1/windows_support-v0.4.1.tar.gz 98fa582e4cce11509c78f760e8ac74abf755872b3ba90dd25427024d2e53a890
 https://github.com/jvolkman/toml.bzl/releases/download/v0.5.0/toml.bzl-v0.5.0.tar.gz b5bfdd5c5488ad37d60db188d2d17bc093f719b88b20886ce9fb092bff6b0e67
+https://github.com/keith/buildifier-prebuilt/archive/refs/tags/8.2.1.1.tar.gz 0a9ea71b0fee1f85c0f7971a036521938aeb68b2e41bf2b5c079e8549fd91cb1
+https://github.com/miinso/rules_fortran/archive/f0cac73ebdcbda7bc01b38b8a4ee33869416c220.tar.gz ca07c12300ade0a7e5fff92eb95cc27e4618af993841b92a9784d239c34c7557
 https://github.com/mikefarah/yq/releases/download/v4.45.2/yq_darwin_arm64 6e76794eab06e6971607a802f3b40aac1ae370a62674e7120fb4e915578253a363ef3e5e81e6739b8047d451dbaa8d1e
 https://github.com/mikefarah/yq/releases/download/v4.45.2/yq_linux_amd64 8c439d3171cfbd189a1575919d2039330e355422a434fbf8da2df98bd062571ac09dfca5ff7fcb8bf8b24328f5e9022b
 https://github.com/mikefarah/yq/releases/download/v4.45.2/yq_windows_amd64.exe bc6f11dbeb3fb03f036de08cf47d310b2e4982d00e208ed22d1c7683e00bb506565bfab75e35e5ccdd82296ff353e107
@@ -781,6 +819,8 @@ https://github.com/periareon/rules_julia/releases/download/0.8.0/rules_julia-0.8
 https://github.com/periareon/rules_powershell/releases/download/0.3.1/rules_powershell-0.3.1.tar.gz 8ef875aa1dad8dc0f8f568547d2283f3d4b686b8e50374d6cdda4c5688fe6b7f
 https://github.com/protocolbuffers/protobuf/releases/download/v37.0-rc3/protobuf-37.0-rc3.bazel.tar.gz e55e3380c67ae237c806e9ce9490d0b98ac3ea7d43283a9c1c1051d6647e2662
 https://github.com/scottpledger/yaml.bzl/releases/download/v0.1.2/yaml.bzl-v0.1.2.tar.gz 8262749910722af6c943b30ae16ba48f12abd8c00eeab525783892ca531dd8ab
+https://github.com/theoremlp/rules_multitool/releases/download/v1.0.0/rules_multitool-1.0.0.tar.gz b9a89272141733ba869e358726b5042c60a535c1d695c97b9c7df9b05ae34020
+https://github.com/tweag/rules_haskell/archive/826018312ea91c80ff66fde1e1e39f76c42c07b8.tar.gz 86d126db53fa06ee935d94ee109420d3a68733377091f7914f62abe36c1972a1
 https://github.com/uutils/coreutils/releases/download/0.12.0/coreutils-0.12.0-aarch64-apple-darwin.tar.gz 7caea447564405b3eb50cce2a89d314df07d1b7a67090dc4cc7c82eba7014052
 https://github.com/uutils/coreutils/releases/download/0.12.0/coreutils-0.12.0-x86_64-pc-windows-msvc.zip 45d6760c136ef42cdba1e2dbb492b0858be98099d6c7fb3e300a3adcfbc54cfe
 https://github.com/uutils/coreutils/releases/download/0.12.0/coreutils-0.12.0-x86_64-unknown-linux-musl.tar.gz 9b555b01457279bcc3e46753f0ef324fd3d02a0535111200a4632d1297263b54

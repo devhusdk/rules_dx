@@ -1,6 +1,6 @@
 //! The rules shared by the prebuilt guards: the allowlist, the compiled rules_dx binaries of a
 //! `cquery --output=label_kind`, the `rules_dx` targets dx commands run and the hub resolvers, the aspects `dx check` and `dx docs` pick, the wrapper
-//! package whose `deps` carry them, and the `file://` URL of a stub.
+//! package whose `deps` carry them, the `file://` URL of a stub, and the stub `python_tools` bundle.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -19,12 +19,16 @@ pub const BUILD_SCRIPT: &str = ":_bs_";
 /// The repository of the `dx_prebuilt` hub.
 pub const PREBUILT_HUB_REPO: &str = "rules_dx++dx_prebuilt+dx_prebuilt";
 
+/// The prefix of the repos of the upstream rule sets that `dx_pins` fetches.
+pub const RULE_SET_REPO: &str = "rules_dx++dx_pins+rules_";
+
 /// The allowlist: binary labels the consumer may compile, each with the consumer languages it
-/// applies to (none: every language), and registry tools no hub takes as an asset tag.
+/// applies to (none: every language), and upstream rule set repos whose binaries a consumer of
+/// one of their languages may compile.
 #[derive(Debug, Default, PartialEq)]
 pub struct Allowlist {
     pub labels: BTreeMap<String, BTreeSet<String>>,
-    pub untagged: BTreeSet<String>,
+    pub repos: BTreeMap<String, BTreeSet<String>>,
 }
 
 impl Allowlist {
@@ -36,9 +40,19 @@ impl Allowlist {
             .map(|(label, _)| label.clone())
             .collect()
     }
+
+    /// The rule set repos whose binaries a consumer of `langs` may compile.
+    pub fn repos_for(&self, langs: &[&str]) -> BTreeSet<String> {
+        self.repos
+            .iter()
+            .filter(|(_, only)| langs.iter().any(|lang| only.contains(*lang)))
+            .map(|(repo, _)| repo.clone())
+            .collect()
+    }
 }
 
-/// Reads `label <canonical label> [<lang>...]` and `untagged <tool>` lines; each needs a `#` reason.
+/// Reads `label <canonical label> [<lang>...]` and `repo <canonical repo> <lang>...` lines; each
+/// needs a `#` reason, and a `repo` line names a [`RULE_SET_REPO`] repo and at least one language.
 pub fn allowlist(text: &str) -> Result<Allowlist, String> {
     let mut list = Allowlist::default();
     for (number, line) in text.lines().enumerate() {
@@ -57,12 +71,19 @@ pub fn allowlist(text: &str) -> Result<Allowlist, String> {
                     langs.iter().map(|lang| (*lang).to_owned()).collect(),
                 );
             }
-            ["untagged", tool] => {
-                list.untagged.insert(tool.to_owned());
+            ["repo", repo, ref langs @ ..]
+                if repo.starts_with(RULE_SET_REPO)
+                    && repo.len() > RULE_SET_REPO.len()
+                    && !langs.is_empty() =>
+            {
+                list.repos.insert(
+                    repo.to_owned(),
+                    langs.iter().map(|lang| (*lang).to_owned()).collect(),
+                );
             }
             _ => {
                 return Err(format!(
-                    "line {}: want `label <label> [<lang>...]` or `untagged <tool>`: {line}",
+                    "line {}: want `label <label> [<lang>...]` or `repo {RULE_SET_REPO}<name> <lang>...`: {line}",
                     number + 1
                 ));
             }
@@ -88,11 +109,7 @@ pub fn compiled_binaries(cquery: &str) -> BTreeMap<String, BTreeSet<String>> {
         if label.ends_with(BUILD_SCRIPT) {
             continue;
         }
-        let repo = label
-            .trim_start_matches('@')
-            .split("//")
-            .next()
-            .unwrap_or_default();
+        let repo = label_repo(label);
         if bare == "java_binary" && repo == PREBUILT_HUB_REPO {
             continue;
         }
@@ -104,6 +121,41 @@ pub fn compiled_binaries(cquery: &str) -> BTreeMap<String, BTreeSet<String>> {
         }
     }
     found
+}
+
+/// The canonical repo of `label`.
+fn label_repo(label: &str) -> &str {
+    label
+        .trim_start_matches('@')
+        .split("//")
+        .next()
+        .unwrap_or_default()
+}
+
+/// Drops from `found` each binary of a repo in `repos`, and returns the repos that held one.
+pub fn drop_rule_set_repos(
+    found: &mut BTreeMap<String, BTreeSet<String>>,
+    repos: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    let mut matched = BTreeSet::new();
+    found.retain(|label, _| {
+        let repo = label_repo(label);
+        if repos.contains(repo) {
+            matched.insert(repo.to_owned());
+            false
+        } else {
+            true
+        }
+    });
+    matched
+}
+
+/// One problem per allowlisted repo that `matched` leaves out.
+pub fn stale_repos(repos: &BTreeSet<String>, matched: &BTreeSet<String>) -> Vec<String> {
+    repos
+        .difference(matched)
+        .map(|repo| format!("no longer compiled, remove it from the allowlist: repo {repo}"))
+        .collect()
 }
 
 /// The `srcs` query whose labels are the source-compiled JVM rules `label` depends on.
@@ -123,6 +175,24 @@ pub fn java_binary_only(lines: &BTreeSet<String>) -> bool {
     lines
         .iter()
         .all(|line| line.trim_start_matches('_').starts_with("java_binary "))
+}
+
+/// Drops from `found` each `java_binary` whose `sources` cquery output, for its label, compiles no
+/// rules_dx source.
+pub fn drop_jar_launchers(
+    found: &mut BTreeMap<String, BTreeSet<String>>,
+    mut sources: impl FnMut(&str) -> Result<String, String>,
+) -> Result<(), String> {
+    let mut launchers = Vec::new();
+    for (label, lines) in found.iter() {
+        if java_binary_only(lines) && !compiles_rules_dx_sources(&sources(label)?) {
+            launchers.push(label.clone());
+        }
+    }
+    for label in launchers {
+        found.remove(&label);
+    }
+    Ok(())
 }
 
 /// The problems: compiled binaries not allowlisted, and allowlisted labels no longer compiled.
@@ -177,6 +247,18 @@ pub fn consumer_label(label: &str, fixtures: &str) -> String {
     }
 }
 
+/// `label` as rules_dx as the root module names it; the inverse of [`consumer_label`] for rules_dx
+/// labels.
+pub fn root_label(label: &str) -> String {
+    if let Some(rest) = label.strip_prefix("@@rules_dx+//") {
+        format!("@@//{rest}")
+    } else if let Some(rest) = label.strip_prefix("@@rules_dx++") {
+        format!("@@+{rest}")
+    } else {
+        label.to_owned()
+    }
+}
+
 /// A `cquery --output=label_kind` line with its label mapped by `consumer_label`.
 pub fn consumer_line(line: &str, fixtures: &str) -> String {
     let Some((kind, rest)) = line.split_once(" rule ") else {
@@ -201,6 +283,20 @@ pub fn guard_aspects(extensions: &BTreeSet<String>) -> (Vec<&'static str>, Vec<&
         }
     }
     (check, aspects_for(Command::Docs, consumer))
+}
+
+/// The languages whose `dx docs` aspects reach no docs tool of the listed other languages, each
+/// with the label fragments that name those tools.
+pub const DOCS_FOREIGN: &[(&str, &[&str])] = &[("java", &["scala", "dokka", "kotlin"])];
+
+/// The labels of a `cquery --output=label` result that contain any of `fragments`.
+pub fn foreign_docs_labels(cquery: &str, fragments: &[&str]) -> Vec<String> {
+    cquery
+        .lines()
+        .filter_map(|line| line.split_whitespace().next())
+        .filter(|label| fragments.iter().any(|fragment| label.contains(fragment)))
+        .map(str::to_owned)
+        .collect()
 }
 
 /// The `.bzl` file of the `dx_prebuilt_guard` package: rules `check_root` and `docs_root`, whose
@@ -262,6 +358,58 @@ pub fn stub_url(path: &Path) -> String {
     }
 }
 
+/// One tool of the `python_tools` bundle: its hub name, its `bin/` launcher, and the platform
+/// keys whose bundle leaves it out.
+#[derive(Debug, PartialEq)]
+pub struct BundleTool {
+    pub name: String,
+    pub launcher: String,
+    pub missing: BTreeSet<String>,
+}
+
+impl BundleTool {
+    /// The canonical label of the hub target that serves the tool.
+    pub fn hub_target(&self) -> String {
+        format!("@@{PREBUILT_HUB_REPO}//:python_tool_{}", self.name)
+    }
+}
+
+/// Reads `<name> <launcher> [<missing platform key>...]` lines of `//cli/prebuilt:python_hub_targets`.
+pub fn bundle_tools(text: &str) -> Result<Vec<BundleTool>, String> {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(
+            |line| match line.split_whitespace().collect::<Vec<_>>()[..] {
+                [name, launcher, ref missing @ ..] => Ok(BundleTool {
+                    name: name.to_owned(),
+                    launcher: launcher.to_owned(),
+                    missing: missing.iter().map(|key| (*key).to_owned()).collect(),
+                }),
+                _ => Err(format!("want `<name> <launcher> [<missing>...]`: {line}")),
+            },
+        )
+        .collect()
+}
+
+/// A `tar.gz` with an executable `bin/<launcher>` stub per tool, plus `bin/<launcher>.cmd` on
+/// Windows, where the hub runs the `.cmd` launcher.
+pub fn stub_bundle(tools: &[BundleTool], windows: bool) -> std::io::Result<Vec<u8>> {
+    let mut tar = dx_archive::TarWriter::new();
+    for tool in tools {
+        let launcher = format!("bin/{}", tool.launcher);
+        tar.add_file(&launcher, format!("stub {}\n", tool.name).as_bytes(), 0o755)?;
+        if windows {
+            tar.add_file(
+                &format!("{launcher}.cmd"),
+                format!("@echo stub {}\r\n", tool.name).as_bytes(),
+                0o755,
+            )?;
+        }
+    }
+    tar.finish()
+}
+
 /// The `BUILD.bazel` of the `dx_prebuilt_guard` package: `check` and `docs` over `targets`.
 pub fn wrapper_build(targets: &[&str]) -> String {
     let deps: String = targets
@@ -277,9 +425,141 @@ pub fn wrapper_build(targets: &[&str]) -> String {
     build
 }
 
+/// The `@platforms` os and cpu of a registry platform key such as `windows_arm64`.
+pub fn release_platform(key: &str) -> Option<(&str, &str)> {
+    let (os, cpu) = key.split_once('_')?;
+    Some((os, if cpu == "arm64" { "aarch64" } else { cpu }))
+}
+
+/// The `.bzl` file of the `dx_target_guard` package: rule `target_root`, whose `deps` are split
+/// over `<rules_dx>//tools/platforms:<key>` for each of its `keys`.
+pub fn target_guard_bzl(rules_dx: &str) -> String {
+    format!(
+        "_PLATFORMS = Label(\"{rules_dx}//tools/platforms:BUILD.bazel\")\n\n\
+         def _platforms_impl(_settings, attr):\n    return {{key: {{\"//command_line_option:platforms\": [str(_PLATFORMS.same_package_label(key))]}} for key in attr.keys}}\n\n\
+         _platforms = transition(\n    implementation = _platforms_impl,\n    inputs = [],\n    outputs = [\"//command_line_option:platforms\"],\n)\n\n\
+         def _root_impl(_ctx):\n    return []\n\n\
+         target_root = rule(\n    implementation = _root_impl,\n    attrs = {{\n        \"keys\": attr.string_list(),\n        \"deps\": attr.label_list(cfg = _platforms, allow_files = True),\n    }},\n)\n"
+    )
+}
+
+/// One target-platform tool of the `dx_target_guard` package: its registry keys and hub targets.
+pub struct TargetRoot {
+    pub tool: String,
+    pub keys: Vec<String>,
+    pub targets: Vec<String>,
+}
+
+/// The `BUILD.bazel` of the `dx_target_guard` package: one `target_root` per tool, and `targets`
+/// over all of them.
+pub fn target_guard_build(roots: &[TargetRoot]) -> String {
+    let quoted = |items: &[String]| -> String {
+        items
+            .iter()
+            .map(|item| format!("        \"{item}\",\n"))
+            .collect()
+    };
+    let mut build = String::from("load(\":defs.bzl\", \"target_root\")\n");
+    for root in roots {
+        build.push_str(&format!(
+            "\ntarget_root(\n    name = \"{}\",\n    testonly = True,\n    keys = [\n{}    ],\n    deps = [\n{}    ],\n)\n",
+            root.tool,
+            quoted(&root.keys),
+            quoted(&root.targets)
+        ));
+    }
+    let names: Vec<String> = roots.iter().map(|root| format!(":{}", root.tool)).collect();
+    build.push_str(&format!(
+        "\nfilegroup(\n    name = \"targets\",\n    testonly = True,\n    srcs = [\n{}    ],\n)\n",
+        quoted(&names)
+    ));
+    build
+}
+
+/// The canonical name of the repo that downloads `tool` for the registry platform `key`.
+pub fn target_repo(tool: &str, key: &str) -> Option<String> {
+    let (os, cpu) = release_platform(key)?;
+    Some(format!(
+        "rules_dx++dx_prebuilt+dx_{tool}_prebuilt_{os}_{cpu}"
+    ))
+}
+
+/// One line per (tool, key) of `roots` whose download repo no target in the `label_kind` cquery
+/// output comes from.
+pub fn missing_target_repos(cquery: &str, roots: &[TargetRoot]) -> Vec<String> {
+    let repos: BTreeSet<&str> = cquery
+        .lines()
+        .filter_map(|line| {
+            line.split_whitespace()
+                .nth(2)?
+                .strip_prefix("@@")?
+                .split_once("//")
+        })
+        .map(|(repo, _)| repo)
+        .collect();
+    roots
+        .iter()
+        .flat_map(|root| {
+            root.keys
+                .iter()
+                .map(move |key| (root.tool.as_str(), key.as_str()))
+        })
+        .filter_map(|(tool, key)| match target_repo(tool, key) {
+            Some(repo) if repos.contains(repo.as_str()) => None,
+            Some(repo) => Some(format!("{tool} on {key} does not select @@{repo}")),
+            None => Some(format!("{tool}: {key} is no registry platform key")),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn release_keys_map_to_platforms_constraints() {
+        assert_eq!(release_platform("linux_x86_64"), Some(("linux", "x86_64")));
+        assert_eq!(
+            release_platform("windows_arm64"),
+            Some(("windows", "aarch64"))
+        );
+        assert_eq!(release_platform("any"), None);
+        assert_eq!(
+            target_repo("runtime", "macos_arm64").as_deref(),
+            Some("rules_dx++dx_prebuilt+dx_runtime_prebuilt_macos_aarch64")
+        );
+    }
+
+    #[test]
+    fn the_target_guard_splits_each_tool_over_its_keys() {
+        let bzl = target_guard_bzl("@rules_dx");
+        assert!(
+            bzl.starts_with("_PLATFORMS = Label(\"@rules_dx//tools/platforms:BUILD.bazel\")\n")
+        );
+        assert!(bzl.contains("[str(_PLATFORMS.same_package_label(key))]"));
+        assert!(bzl.contains("\"deps\": attr.label_list(cfg = _platforms, allow_files = True)"));
+        let roots = [TargetRoot {
+            tool: "runtime".to_owned(),
+            keys: vec!["linux_x86_64".to_owned(), "windows_arm64".to_owned()],
+            targets: vec!["@@rules_dx++dx_prebuilt+dx_prebuilt//:runtime".to_owned()],
+        }];
+        let build = target_guard_build(&roots);
+        assert!(build.starts_with("load(\":defs.bzl\", \"target_root\")\n"));
+        assert!(build.contains(
+            "name = \"runtime\",\n    testonly = True,\n    keys = [\n        \"linux_x86_64\",\n        \"windows_arm64\",\n    ],\n    deps = [\n        \"@@rules_dx++dx_prebuilt+dx_prebuilt//:runtime\",\n    ],"
+        ));
+        assert!(build.contains(
+            "name = \"targets\",\n    testonly = True,\n    srcs = [\n        \":runtime\",\n    ],"
+        ));
+        let cquery = "native_binary rule @@rules_dx++dx_prebuilt+dx_prebuilt//:runtime_linux_x86_64 (abc)\n\
+                      source file @@rules_dx++dx_prebuilt+dx_runtime_prebuilt_linux_x86_64//file:runtime (null)\n";
+        assert_eq!(
+            missing_target_repos(cquery, &roots),
+            [
+                "runtime on windows_arm64 does not select @@rules_dx++dx_prebuilt+dx_runtime_prebuilt_windows_aarch64"
+            ]
+        );
+    }
 
     #[test]
     fn a_java_binary_without_rules_dx_sources_launches_jars() {
@@ -300,6 +580,129 @@ mod tests {
         assert!(compiles_rules_dx_sources(
             "@@rules_dx+//java/private/quality/tools/javac_check:javac_check_lib (abc)\n"
         ));
+    }
+
+    fn launchers() -> BTreeMap<String, BTreeSet<String>> {
+        BTreeMap::from([
+            (
+                "@@rules_dx+//t:detekt".to_owned(),
+                BTreeSet::from(["java_binary rule @@rules_dx+//t:detekt (abc)".to_owned()]),
+            ),
+            (
+                "@@rules_dx+//t:javac_check".to_owned(),
+                BTreeSet::from(["java_binary rule @@rules_dx+//t:javac_check (abc)".to_owned()]),
+            ),
+            (
+                "@@rules_dx+//cli/cli:dx".to_owned(),
+                BTreeSet::from(["rust_binary rule @@rules_dx+//cli/cli:dx (abc)".to_owned()]),
+            ),
+        ])
+    }
+
+    #[test]
+    fn drop_jar_launchers_keeps_binaries_with_rules_dx_sources() {
+        let mut found = launchers();
+        let mut asked = Vec::new();
+        drop_jar_launchers(&mut found, |label| {
+            asked.push(label.to_owned());
+            Ok(if label.ends_with(":javac_check") {
+                "@@rules_dx+//t:javac_check_lib (abc)\n".to_owned()
+            } else {
+                "@@rules_java+//toolchains:singlejar (exec)\n".to_owned()
+            })
+        })
+        .expect("no cquery error");
+        assert_eq!(
+            found.keys().collect::<Vec<_>>(),
+            ["@@rules_dx+//cli/cli:dx", "@@rules_dx+//t:javac_check"]
+        );
+        assert_eq!(
+            asked,
+            ["@@rules_dx+//t:detekt", "@@rules_dx+//t:javac_check"]
+        );
+    }
+
+    #[test]
+    fn drop_jar_launchers_passes_up_a_cquery_error() {
+        let mut found = launchers();
+        assert_eq!(
+            drop_jar_launchers(&mut found, |_| Err("cquery failed".to_owned())),
+            Err("cquery failed".to_owned())
+        );
+        assert_eq!(found, launchers());
+    }
+
+    #[test]
+    fn root_label_inverts_consumer_label() {
+        let fixtures = "+_repo_rules+dx_api_fixtures";
+        for root in [
+            "@@//java/private/quality/tools/kotlinc_check:kotlinc_check",
+            "@@+dx_prebuilt+dx_prebuilt//:javac_check",
+            "@@rules_java+//toolchains:singlejar",
+        ] {
+            assert_eq!(root_label(&consumer_label(root, fixtures)), root);
+        }
+        assert_eq!(
+            root_label("@@rules_dx++dx_prebuilt+dx_prebuilt//:javac_check"),
+            "@@+dx_prebuilt+dx_prebuilt//:javac_check"
+        );
+    }
+
+    #[test]
+    fn bundle_tools_read_the_launcher_and_missing_platforms() {
+        let tools =
+            bundle_tools("ansible_lint_tool ansible_lint windows_arm64\nyamllint yamllint\n\n")
+                .expect("parses");
+        assert_eq!(
+            tools,
+            [
+                BundleTool {
+                    name: "ansible_lint_tool".to_owned(),
+                    launcher: "ansible_lint".to_owned(),
+                    missing: BTreeSet::from(["windows_arm64".to_owned()]),
+                },
+                BundleTool {
+                    name: "yamllint".to_owned(),
+                    launcher: "yamllint".to_owned(),
+                    missing: BTreeSet::new(),
+                },
+            ]
+        );
+        assert_eq!(
+            tools[1].hub_target(),
+            "@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_yamllint"
+        );
+        assert!(bundle_tools("yamllint\n").is_err());
+    }
+
+    #[test]
+    fn the_stub_bundle_has_a_launcher_per_tool() {
+        let tools = bundle_tools("cfn_lint cfn_lint\nyamllint yamllint\n").expect("parses");
+        let names = |windows| {
+            let archive = stub_bundle(&tools, windows).expect("writes");
+            let mut names = Vec::new();
+            dx_archive::visit(
+                std::io::Cursor::new(archive),
+                dx_archive::Format::TarGz,
+                dx_archive::Limits::default(),
+                |name, _, _| {
+                    names.push(name.to_owned());
+                    Ok(())
+                },
+            )
+            .expect("reads");
+            names
+        };
+        assert_eq!(names(false), ["bin/cfn_lint", "bin/yamllint"]);
+        assert_eq!(
+            names(true),
+            [
+                "bin/cfn_lint",
+                "bin/cfn_lint.cmd",
+                "bin/yamllint",
+                "bin/yamllint.cmd"
+            ]
+        );
     }
 
     #[test]
@@ -329,7 +732,6 @@ mod tests {
                 "@rules_dx//dx:env",
                 "@rules_dx//dx:codegen",
                 "@rules_dx//tools/docs/site:scope_tools",
-                "@rules_dx//dx/tool_resolve",
                 "@rules_dx//go/private/tools:go",
                 "@rules_dx//go/private/ide:gopackagesdriver",
                 "@rules_dx//rust/private/ide:discover",
@@ -340,11 +742,42 @@ mod tests {
     }
 
     #[test]
+    fn a_rules_dx_binary_behind_a_command_root_fails_the_guards() {
+        let list = allowlist(include_str!("prebuilt_guard_allowlist.txt")).unwrap();
+
+        assert!(
+            command_roots("@@rules_dx+", &["go"])
+                .contains(&"@@rules_dx+//go/private/tools:go".to_owned())
+        );
+        let nested = compiled_binaries(
+            "alias rule @@rules_dx+//go/private/tools:go (abc)\n\
+             go_binary rule @@rules_dx+//go/private/tools:go_source (exec)\n",
+        );
+        assert_eq!(
+            unlisted(&nested, &list.labels_for(&["go"])),
+            ["compiles go_binary rule @@rules_dx+//go/private/tools:go_source (exec)"]
+        );
+
+        assert!(command_roots("", &["dart"]).contains(&"//dart/private/tools:dart".to_owned()));
+        let in_graph = compiled_binaries(&consumer_line(
+            "rust_binary rule @@//dart/private/tools:dart_source (exec)",
+            "+_repo_rules+dx_api_fixtures",
+        ));
+        assert_eq!(
+            unlisted(&in_graph, &list.labels_for(&["dart"])),
+            ["compiles rust_binary rule @@rules_dx+//dart/private/tools:dart_source (exec)"]
+        );
+    }
+
+    #[test]
     fn resolver_roots_name_the_hub_resolvers_of_the_languages() {
         assert_eq!(
-            resolver_roots(&["go", "zig", "d", "zig"]),
+            resolver_roots(&["go", "zig", "perl", "d", "zig", "dart", "csharp"]),
             [
+                "@rules_dx//csharp/private/tools/lock",
                 "@rules_dx//d/private/tools/lock",
+                "@rules_dx//dart/private/tools/lock",
+                "@rules_dx//perl/private/tools/lock",
                 "@rules_dx//zig/private/tools/lock",
             ]
         );
@@ -354,7 +787,7 @@ mod tests {
     #[test]
     fn allowlist_lines_need_a_kind_and_a_reason() {
         let list = allowlist(
-            "# header\nlabel @@rules_dx+//a:b  # why\nlabel @@rules_dx+//l:c lua  # lua only\nuntagged avro_union # jar\n\n",
+            "# header\nlabel @@rules_dx+//a:b  # why\nlabel @@rules_dx+//l:c lua  # lua only\n\n",
         )
         .expect("parses");
         assert_eq!(
@@ -367,7 +800,7 @@ mod tests {
                         BTreeSet::from(["lua".to_owned()])
                     ),
                 ]),
-                untagged: BTreeSet::from(["avro_union".to_owned()]),
+                repos: BTreeMap::new(),
             }
         );
         assert_eq!(
@@ -384,6 +817,45 @@ mod tests {
         );
         assert!(allowlist("label @@rules_dx+//a:b\n").is_err());
         assert!(allowlist("tool x # why\n").is_err());
+        assert!(allowlist("untagged python_tools # why\n").is_err());
+        let repos =
+            allowlist("repo rules_dx++dx_pins+rules_scala scala  # upstream\n").expect("parses");
+        assert_eq!(
+            repos.repos_for(&["scala"]),
+            BTreeSet::from(["rules_dx++dx_pins+rules_scala".to_owned()])
+        );
+        assert!(repos.repos_for(&["java"]).is_empty());
+        assert!(repos.labels_for(&["scala"]).is_empty());
+        assert!(allowlist("repo rules_dx++dx_pins+rules_scala  # no language\n").is_err());
+        assert!(allowlist("repo rules_dx++dx_pins+dx_selene_src lua  # tool\n").is_err());
+        assert!(allowlist("repo rules_dx+ scala  # main repo\n").is_err());
+        assert!(allowlist("repo rules_dx++dx_pins+rules_ scala  # no name\n").is_err());
+    }
+
+    #[test]
+    fn rule_set_repos_drop_their_binaries_only() {
+        let mut found = compiled_binaries(
+            "\
+scala_binary rule @@rules_dx++dx_pins+rules_scala//src/java/io/bazel/rulesscala/exe:exe (exec)
+rust_binary rule @@rules_dx++dx_pins+dx_selene_src//:selene (exec)
+rust_binary rule @@rules_dx+//cli/cli:dx (abc)
+",
+        );
+        let matched = drop_rule_set_repos(
+            &mut found,
+            &BTreeSet::from(["rules_dx++dx_pins+rules_scala".to_owned()]),
+        );
+        assert_eq!(
+            matched,
+            BTreeSet::from(["rules_dx++dx_pins+rules_scala".to_owned()])
+        );
+        assert_eq!(
+            found.keys().cloned().collect::<Vec<_>>(),
+            [
+                "@@rules_dx++dx_pins+dx_selene_src//:selene",
+                "@@rules_dx+//cli/cli:dx",
+            ]
+        );
     }
 
     #[test]
@@ -466,6 +938,52 @@ mod tests {
             docs.iter()
                 .any(|label| label.ends_with("%real_jvm_docs_aspect"))
         );
+        assert!(
+            !docs
+                .iter()
+                .any(|label| label.contains("scala") || label.contains("kotlin"))
+        );
+        assert!(
+            !check
+                .iter()
+                .any(|label| label.starts_with("kotlin/private/quality"))
+        );
+        let kotlin = BTreeSet::from([".kt".to_owned()]);
+        let (check, _) = guard_aspects(&kotlin);
+        assert!(
+            check
+                .iter()
+                .any(|label| label.ends_with("%real_kotlin_typecheck_aspect"))
+        );
+    }
+
+    #[test]
+    fn java_docs_list_scala_and_kotlin_as_foreign() {
+        assert_eq!(
+            DOCS_FOREIGN
+                .iter()
+                .find(|(lang, _)| *lang == "java")
+                .map(|(_, fragments)| *fragments),
+            Some(&["scala", "dokka", "kotlin"][..])
+        );
+    }
+
+    #[test]
+    fn foreign_docs_labels_keep_only_matching_labels() {
+        let cquery = "@@rules_dx++dx_prebuilt+dx_prebuilt//:javadoc_extract (abc)\n\
+                      @@rules_dx++dx_prebuilt+dx_prebuilt//:scaladoc_extract (abc)\n\
+                      @@rules_scala_config//:scala_version (def)\n\
+                      @@rules_dx++dx_prebuilt+dx_prebuilt//:dokka_extract (abc)\n\
+                      \n";
+        assert_eq!(
+            foreign_docs_labels(cquery, &["scala", "dokka", "kotlin"]),
+            [
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:scaladoc_extract",
+                "@@rules_scala_config//:scala_version",
+                "@@rules_dx++dx_prebuilt+dx_prebuilt//:dokka_extract",
+            ]
+        );
+        assert_eq!(foreign_docs_labels(cquery, &["kotlin"]), [] as [&str; 0]);
     }
 
     #[test]
@@ -526,6 +1044,19 @@ mod tests {
         assert_eq!(
             stale(&found, &allowed),
             ["no longer compiled, remove it from the allowlist: @@rules_dx+//gone:tool"]
+        );
+    }
+
+    #[test]
+    fn an_unused_repo_line_is_stale() {
+        let repos = BTreeSet::from([
+            "rules_dx++dx_pins+rules_scala".to_owned(),
+            "rules_dx++dx_pins+rules_ruby".to_owned(),
+        ]);
+        let matched = BTreeSet::from(["rules_dx++dx_pins+rules_scala".to_owned()]);
+        assert_eq!(
+            stale_repos(&repos, &matched),
+            ["no longer compiled, remove it from the allowlist: repo rules_dx++dx_pins+rules_ruby"]
         );
     }
 }

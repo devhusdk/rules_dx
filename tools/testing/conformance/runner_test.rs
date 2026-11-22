@@ -11,6 +11,10 @@ fn subject_matches_mode() {
         }
         return;
     }
+    if mode == "lock" && key.is_empty() {
+        assert_lock_check();
+        return;
+    }
     if ["lint", "lint_error", "format", "format_error"].contains(&mode.as_str()) {
         if let Err(error) = conformance_quality::check(&mode, &key, &text) {
             panic!("{error}");
@@ -208,60 +212,7 @@ fn subject_matches_mode() {
             );
             let stdout = run.stdout.replace("\r\n", "\n");
             assert_eq!(stdout.trim_end_matches('\n'), text, "unexpected output");
-            let lock_input = |var: &str| {
-                let key = std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set"));
-                dx_testing::rlocation(&key).expect("lock input must resolve from runfiles")
-            };
-            let depcheck = lock_input("DX_CONFORMANCE_DEPCHECK");
-            let ecosystem = std::env::var("DX_CONFORMANCE_ECOSYSTEM").expect("ecosystem");
-            let package = std::env::var("DX_CONFORMANCE_PACKAGE").expect("package");
-            let manifest = lock_input("DX_CONFORMANCE_MANIFEST");
-            let check = |manifest: &std::path::Path, lock: &std::path::Path| {
-                let (manifest, lock) = (
-                    manifest.to_string_lossy().into_owned(),
-                    lock.to_string_lossy().into_owned(),
-                );
-                let args = [
-                    "consistency",
-                    "--ecosystem",
-                    ecosystem.as_str(),
-                    "--manifest",
-                    manifest.as_str(),
-                    "--lock",
-                    lock.as_str(),
-                ];
-                dx_testing::run(&depcheck, &args, &[]).expect("depcheck must execute")
-            };
-            let lock = lock_input("DX_CONFORMANCE_LOCK");
-            let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
-            let staged = |source: &std::path::Path, dir: &str| {
-                stage_lock(
-                    &manifest,
-                    source,
-                    &lock,
-                    &std::path::Path::new(&tmp).join(dir),
-                )
-            };
-            let (fresh_manifest, fresh_lock) = staged(&lock, "fresh");
-            let fresh = check(&fresh_manifest, &fresh_lock);
-            assert!(
-                fresh.status.success(),
-                "lock check rejected the lockfile:\n{}",
-                fresh.combined()
-            );
-            let (stale_manifest, stale_lock) = staged(&lock_input("DX_CONFORMANCE_STALE"), "stale");
-            let stale = check(&stale_manifest, &stale_lock);
-            assert!(
-                !stale.status.success(),
-                "lock check accepted the stale lockfile:\n{}",
-                stale.combined()
-            );
-            let line = format!("missing lock entry for '{package}'");
-            assert!(
-                stale.combined().contains(&line),
-                "missing {line:?} in:\n{}",
-                stale.combined()
-            );
+            assert_lock_check();
         }
         "runfiles" => {
             assert_eq!(
@@ -336,6 +287,10 @@ fn assert_image(key: &str, platform: &str) {
     let mut seen = Vec::new();
     for entry in key.split(' ').filter(|entry| !entry.is_empty()) {
         let path = dx_testing::rlocation(entry).expect("subject must resolve from runfiles");
+        if entry.to_ascii_lowercase().ends_with(".msix") {
+            assert_msix_image(entry, &path, platform);
+            return;
+        }
         let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("read {path:?}: {error}"));
         match dx_testing::image_inspect(&bytes) {
             Ok(images) => {
@@ -353,6 +308,35 @@ fn assert_image(key: &str, platform: &str) {
         }
     }
     panic!("no binary image among the subject files: {seen:?}");
+}
+
+fn msix_arch(platform: &str) -> &'static str {
+    match expected_image(platform) {
+        ("pe", "aarch64") => "arm64",
+        ("pe", "x86_64") => "x64",
+        _ => panic!("no msix ProcessorArchitecture for {platform}"),
+    }
+}
+
+fn assert_msix_image(entry: &str, path: &std::path::Path, platform: &str) {
+    let arch = msix_arch(platform);
+    let (format, machine) = expected_image(platform);
+    let package = dx_testing::msix::read(path).unwrap_or_else(|error| panic!("{entry}: {error}"));
+    assert_eq!(
+        package.arch, arch,
+        "{entry}: manifest ProcessorArchitecture for {platform}"
+    );
+    let exe = &package.executable;
+    let images = dx_testing::image_inspect(&package.exe)
+        .unwrap_or_else(|error| panic!("{entry}: packed {exe}: {error}"));
+    assert!(!images.is_empty(), "{entry}: packed {exe}: no image");
+    for image in images {
+        assert_eq!(
+            (image.format.name(), image.machine.as_str()),
+            (format, machine),
+            "{entry}: packed {exe}: format and machine for {platform}"
+        );
+    }
 }
 
 fn assert_runfile_image(name: &str, platform: &str) {
@@ -439,6 +423,18 @@ fn expected_image_names_format_and_machine() {
     assert_eq!(expected_image("windows_x86_64"), ("pe", "x86_64"));
     assert_eq!(expected_image("wasi_wasm32"), ("wasm", "wasm32"));
     assert_eq!(expected_image("none_wasm32"), ("wasm", "wasm32"));
+}
+
+#[test]
+fn msix_arch_names_manifest_values() {
+    assert_eq!(msix_arch("windows_arm64"), "arm64");
+    assert_eq!(msix_arch("windows_x86_64"), "x64");
+}
+
+#[test]
+#[should_panic(expected = "no msix ProcessorArchitecture for linux_arm64")]
+fn msix_arch_rejects_non_windows() {
+    msix_arch("linux_arm64");
 }
 
 fn failure_line(pattern: &str, case: &str) -> String {
@@ -531,14 +527,12 @@ fn misses(report: &str, source: &str) -> Vec<String> {
     for line in report.lines() {
         if let Some(name) = line.strip_prefix("SF:") {
             inside = name.ends_with(source);
-        } else if inside {
-            if let Some(count) = line.strip_prefix("DA:") {
-                let mut fields = count.split(',');
-                let number = fields.next().unwrap_or_default();
-                let hit = fields.next().and_then(|hit| hit.parse::<u64>().ok());
-                if hit.unwrap_or(0) == 0 {
-                    missed.push(number.to_owned());
-                }
+        } else if inside && let Some(count) = line.strip_prefix("DA:") {
+            let mut fields = count.split(',');
+            let number = fields.next().unwrap_or_default();
+            let hit = fields.next().and_then(|hit| hit.parse::<u64>().ok());
+            if hit.unwrap_or(0) == 0 {
+                missed.push(number.to_owned());
             }
         }
     }
@@ -551,14 +545,12 @@ fn hits(report: &str, source: &str) -> u64 {
     for line in report.lines() {
         if let Some(name) = line.strip_prefix("SF:") {
             inside = name.ends_with(source);
-        } else if inside {
-            if let Some(count) = line.strip_prefix("DA:") {
-                total += count
-                    .split(',')
-                    .nth(1)
-                    .and_then(|hit| hit.parse::<u64>().ok())
-                    .unwrap_or(0);
-            }
+        } else if inside && let Some(count) = line.strip_prefix("DA:") {
+            total += count
+                .split(',')
+                .nth(1)
+                .and_then(|hit| hit.parse::<u64>().ok())
+                .unwrap_or(0);
         }
     }
     total
@@ -593,7 +585,9 @@ fn manifest_file(runfiles: &str, tmp: &std::path::Path) -> std::path::PathBuf {
     }
     lines.sort();
     let manifest = tmp.join("runfiles.manifest");
-    std::fs::write(&manifest, lines.join("\n") + "\n").expect("manifest must be writable");
+    let mut text = lines.join("\n");
+    text.push('\n');
+    std::fs::write(&manifest, text).expect("manifest must be writable");
     manifest
 }
 
@@ -619,6 +613,65 @@ fn manifest_target_drops_verbatim_prefix() {
         assert_eq!(target(r"\\?\D:/x"), "D:/x");
         assert_eq!(target(r"\\?\UNC\host\share/x"), r"\\host\share/x");
     }
+}
+
+/// Runs depcheck on the fresh lock, which must pass, and on the stale one, which must name the
+/// package it lacks.
+fn assert_lock_check() {
+    let lock_input = |var: &str| {
+        let key = std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set"));
+        dx_testing::rlocation(&key).expect("lock input must resolve from runfiles")
+    };
+    let depcheck = lock_input("DX_CONFORMANCE_DEPCHECK");
+    let ecosystem = std::env::var("DX_CONFORMANCE_ECOSYSTEM").expect("ecosystem");
+    let package = std::env::var("DX_CONFORMANCE_PACKAGE").expect("package");
+    let manifest = lock_input("DX_CONFORMANCE_MANIFEST");
+    let check = |manifest: &std::path::Path, lock: &std::path::Path| {
+        let (manifest, lock) = (
+            manifest.to_string_lossy().into_owned(),
+            lock.to_string_lossy().into_owned(),
+        );
+        let args = [
+            "consistency",
+            "--ecosystem",
+            ecosystem.as_str(),
+            "--manifest",
+            manifest.as_str(),
+            "--lock",
+            lock.as_str(),
+        ];
+        dx_testing::run(&depcheck, &args, &[]).expect("depcheck must execute")
+    };
+    let lock = lock_input("DX_CONFORMANCE_LOCK");
+    let tmp = std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR must be set");
+    let staged = |source: &std::path::Path, dir: &str| {
+        stage_lock(
+            &manifest,
+            source,
+            &lock,
+            &std::path::Path::new(&tmp).join(dir),
+        )
+    };
+    let (fresh_manifest, fresh_lock) = staged(&lock, "fresh");
+    let fresh = check(&fresh_manifest, &fresh_lock);
+    assert!(
+        fresh.status.success(),
+        "lock check rejected the lockfile:\n{}",
+        fresh.combined()
+    );
+    let (stale_manifest, stale_lock) = staged(&lock_input("DX_CONFORMANCE_STALE"), "stale");
+    let stale = check(&stale_manifest, &stale_lock);
+    assert!(
+        !stale.status.success(),
+        "lock check accepted the stale lockfile:\n{}",
+        stale.combined()
+    );
+    let line = format!("missing lock entry for '{package}'");
+    assert!(
+        stale.combined().contains(&line),
+        "missing {line:?} in:\n{}",
+        stale.combined()
+    );
 }
 
 fn stage_lock(
@@ -727,7 +780,11 @@ fn stage(
         }
     }
     if let (true, Ok(tree)) = (mirror, std::env::var("RUNFILES_DIR")) {
-        for suffix in [".runfiles", "_upstream.runfiles"] {
+        for suffix in [
+            ".runfiles",
+            "_upstream.runfiles",
+            "_upstream_upstream.runfiles",
+        ] {
             let mirror = with_suffix(&staged, suffix);
             std::fs::create_dir_all(&mirror).expect("runfiles mirror must be creatable");
             for entry in std::fs::read_dir(&tree)
@@ -818,8 +875,8 @@ fn tree_rooted_manifest_maps_entries_into_the_tree() {
         "_main/pkg/.hello.venv/pyvenv.cfg {}\n_main/pkg/.hello.venv {}\n\
          _main/pkg/hello.exe /out/bin/pkg/hello.exe\n\
          _main/pkg/absent /out/bin/pkg/absent\n_main/pkg/empty \n",
-        format!("{}/_main/pkg/.hello.venv/pyvenv.cfg", tree.display()),
-        format!("{}/_main/pkg/.hello.venv", tree.display()),
+        tree.join("_main/pkg/.hello.venv/pyvenv.cfg").display(),
+        tree.join("_main/pkg/.hello.venv").display(),
     );
     assert_eq!(tree_rooted_manifest(text, &tree), expected);
     let missing = std::path::Path::new(&tmp)
@@ -850,7 +907,9 @@ fn tree_manifest(root: &std::path::Path) -> String {
         }
     }
     lines.sort();
-    lines.join("\n") + "\n"
+    let mut text = lines.join("\n");
+    text.push('\n');
+    text
 }
 
 #[test]

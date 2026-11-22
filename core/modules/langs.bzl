@@ -25,26 +25,47 @@ LANGS = json.decode("""{
       "pins.json"
     ],
     "platforms": [
-      "linux_arm64",
       "linux_x86_64",
       "macos_arm64",
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "aspects": {
+        "lint": [
+          "android_sdk_aspect"
+        ],
+        "typecheck": [
+          "android_sdk_aspect"
+        ]
+      },
+      "bzl": "android/private/quality:android_sdk.bzl",
+      "file_extensions": [],
+      "licenses": [
+        "android-sdk-license"
+      ]
+    },
     "setup": {
       "licenses": [
         {
           "id": "android-sdk-license",
           "platforms": [
-            "linux_x86_64"
+            "linux_x86_64",
+            "macos_arm64",
+            "windows_arm64",
+            "windows_x86_64"
           ]
         }
       ]
     },
     "title": "Android",
-    "tools": []
+    "tools": [],
+    "unsupported": {
+      "linux_arm64": "Google ships no Linux arm64 Android build-tools, platform-tools or NDK"
+    }
   },
   "ansible": {
+    "depcheck": "ansible",
     "ecosystems": [
       "ansible"
     ],
@@ -91,6 +112,7 @@ LANGS = json.decode("""{
         ]
       }
     },
+    "semver": false,
     "setup": {
       "hubs": [
         {
@@ -128,7 +150,8 @@ LANGS = json.decode("""{
       "api_spec_library",
       "api_spec_python_client",
       "api_spec_rust_client",
-      "api_spec_typescript_client"
+      "api_spec_typescript_client",
+      "api_spec_protobuf_doc_shard"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -981,6 +1004,7 @@ LANGS = json.decode("""{
     ],
     "entry_points": [
       "dart_codegen",
+      "dart_package_metadata",
       "dart_library",
       "dart_binary",
       "dart_js_binary",
@@ -998,9 +1022,7 @@ LANGS = json.decode("""{
       "pubspec.yaml"
     ],
     "name": "dart",
-    "pins": [
-      "pins.json"
-    ],
+    "pins": [],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -1072,7 +1094,7 @@ LANGS = json.decode("""{
       "dart"
     ],
     "unsupported": {
-      "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK"
+      "windows_arm64": "rules_dart 0.9.1 ships no Windows arm64 SDK"
     }
   },
   "dockerfile": {
@@ -1424,6 +1446,8 @@ LANGS = json.decode("""{
       "flutter_library",
       "flutter_test",
       "flutter_application",
+      "flutter_font_family",
+      "flutter_font",
       "flutter_web_app",
       "flutter_web_bundle",
       "flutter_android_app",
@@ -1437,9 +1461,7 @@ LANGS = json.decode("""{
       "pubspec.yaml"
     ],
     "name": "flutter",
-    "pins": [
-      "pins.json"
-    ],
+    "pins": [],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -1449,7 +1471,7 @@ LANGS = json.decode("""{
     "title": "Flutter",
     "tools": [],
     "unsupported": {
-      "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
+      "windows_arm64": "rules_flutter 0.1.0 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
     }
   },
   "fortran": {
@@ -2221,8 +2243,10 @@ LANGS = json.decode("""{
   "kotlin": {
     "depcheck": "kotlin",
     "docs": {
-      "aspects": [],
-      "bzl": "tools/docs/jvm:aspect.bzl",
+      "aspects": [
+        "real_kotlin_docs_aspect"
+      ],
+      "bzl": "tools/docs/kotlin:aspect.bzl",
       "file_extensions": [
         ".kt"
       ]
@@ -2255,7 +2279,18 @@ LANGS = json.decode("""{
       "windows_x86_64"
     ],
     "quality": {
-      "bzl": "java/private/quality:jvm.bzl",
+      "aspects": {
+        "format": [
+          "real_kotlin_format_aspect"
+        ],
+        "lint": [
+          "real_kotlin_lint_aspect"
+        ],
+        "typecheck": [
+          "real_kotlin_typecheck_aspect"
+        ]
+      },
+      "bzl": "kotlin/private/quality:kotlin.bzl",
       "classes": [
         "kotlin"
       ],
@@ -2275,7 +2310,18 @@ LANGS = json.decode("""{
       "file_extensions": [
         ".kt",
         ".kts"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_kotlin_format_probe_aspect"
+        ],
+        "lint": [
+          "real_kotlin_lint_probe_aspect"
+        ],
+        "typecheck": [
+          "real_kotlin_typecheck_probe_aspect"
+        ]
+      }
     },
     "semver": false,
     "title": "Kotlin",
@@ -3428,8 +3474,10 @@ LANGS = json.decode("""{
   "scala": {
     "depcheck": "scala",
     "docs": {
-      "aspects": [],
-      "bzl": "tools/docs/jvm:aspect.bzl",
+      "aspects": [
+        "real_scala_docs_aspect"
+      ],
+      "bzl": "tools/docs/scala:aspect.bzl",
       "file_extensions": [
         ".scala"
       ]
@@ -3453,7 +3501,9 @@ LANGS = json.decode("""{
       "libs.versions.toml"
     ],
     "name": "scala",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -3468,9 +3518,12 @@ LANGS = json.decode("""{
         ],
         "lint": [
           "real_scala_lint_aspect"
+        ],
+        "typecheck": [
+          "real_scala_typecheck_aspect"
         ]
       },
-      "bzl": "java/private/quality:jvm.bzl",
+      "bzl": "scala/private/quality:scala.bzl",
       "classes": [
         "scala"
       ],
@@ -3489,7 +3542,18 @@ LANGS = json.decode("""{
       "file_extensions": [
         ".sc",
         ".scala"
-      ]
+      ],
+      "probes": {
+        "format": [
+          "real_scala_format_probe_aspect"
+        ],
+        "lint": [
+          "real_scala_lint_probe_aspect"
+        ],
+        "typecheck": [
+          "real_scala_typecheck_probe_aspect"
+        ]
+      }
     },
     "semver": false,
     "title": "Scala",

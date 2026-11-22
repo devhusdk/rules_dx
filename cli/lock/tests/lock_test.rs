@@ -111,7 +111,8 @@ impl Fetch for Archives {
         let path = index.parent().expect("registry directory").join(name);
         std::fs::read(&path)
             .map(|bytes| dx_digest::sha256_hex(&bytes))
-            .map_err(|_| Error::new("HTTP 404"))
+            .ok()
+            .ok_or_else(|| Error::new("HTTP 404"))
     }
 }
 

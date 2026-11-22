@@ -3,6 +3,7 @@
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils_copy")
 load("//core/modules:versions.bzl", "JULIA_RUNTIME_VERSION")
 
 _JULIA_TOOLCHAIN = "@rules_julia//julia:toolchain_type"
@@ -10,6 +11,12 @@ _VERSION_SETTING = "@rules_julia//julia/settings:version"
 _STOCK_SETTING = str(Label("//julia/private/runtime:stock"))
 
 _LIBRARY = "libjulia-internal.so." + JULIA_RUNTIME_VERSION
+
+def source_exec_compatible_with(downloaded, source_constraints):
+    """Returns the exec constraints of the source toolchain: none when @dx_prebuilt downloads julia_internal for linux_x86_64, else source_constraints."""
+    if "linux_x86_64" in downloaded.get("julia_internal", []):
+        return []
+    return source_constraints
 
 def _runtime_version_impl(_settings, _attr):
     return {_STOCK_SETTING: True, _VERSION_SETTING: JULIA_RUNTIME_VERSION}
@@ -81,16 +88,6 @@ julia_shipped_libs = rule(
     toolchains = use_cc_toolchain() + [_JULIA_TOOLCHAIN],
 )
 
-def _copy(ctx, src, out):
-    ctx.actions.run_shell(
-        inputs = [src],
-        outputs = [out],
-        command = 'cp -- "$1" "$2"',
-        arguments = [src.path, out.path],
-        mnemonic = "JuliaRuntimeCopy",
-        progress_message = "Copying %{output}",
-    )
-
 def _rlocationpath(ctx, file):
     if file.short_path.startswith("../"):
         return file.short_path[len("../"):]
@@ -98,9 +95,11 @@ def _rlocationpath(ctx, file):
 
 def _julia_source_toolchain_impl(ctx):
     stock = ctx.toolchains[_JULIA_TOOLCHAIN]
-    built = [f for f in ctx.files.library if f.basename == _LIBRARY]
+    # The source build carries the versioned file among others; the hub file and the
+    # guard stub are the one file of their target.
+    built = [f for f in ctx.files.library if f.basename == _LIBRARY] or ctx.files.library
     if len(built) != 1:
-        fail("{} holds no {}".format(ctx.attr.library.label, _LIBRARY))
+        fail("{} holds no {} and is not one file".format(ctx.attr.library.label, _LIBRARY))
     root = stock.julia.dirname.rpartition("/")[0] + "/"
     alias_dir = "lib/julia/"
     internal = alias_dir + _LIBRARY
@@ -119,9 +118,9 @@ def _julia_source_toolchain_impl(ctx):
         # The dynamic loader resolves $ORIGIN and Julia finds libjulia-internal next to
         # the real path of julia and libjulia, so those must be files in this tree.
         if rel == internal:
-            _copy(ctx, built[0], out)
+            coreutils_copy(ctx, built[0], out, "JuliaRuntimeCopy")
         elif rel.startswith("bin/") or rel.startswith("lib/libjulia.so"):
-            _copy(ctx, f, out)
+            coreutils_copy(ctx, f, out, "JuliaRuntimeCopy")
         elif rel in aliases:
             links.append(rel)
         else:
@@ -158,7 +157,7 @@ julia_source_toolchain = rule(
     doc = "The runtime's Julia toolchain with the source-built libjulia-internal in its tree.",
     cfg = _runtime_version,
     attrs = {
-        "library": attr.label(doc = "The source-built libjulia-internal.", mandatory = True),
+        "library": attr.label(doc = "The libjulia-internal: the source build, its release prebuilt or the guard stub.", mandatory = True, allow_files = True),
     },
-    toolchains = [_JULIA_TOOLCHAIN],
+    toolchains = [_JULIA_TOOLCHAIN, COREUTILS_TOOLCHAIN_TYPE],
 )

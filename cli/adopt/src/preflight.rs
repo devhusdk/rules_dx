@@ -14,7 +14,6 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_cc", "0.2.28"),
     ("gcc_toolchain", "0.13.0"),
     ("llvm", "0.8.27"),
-    ("rules_cuda", "0.4.0"),
     ("windows_support", "0.4.1"),
     ("google_benchmark", "1.10.0"),
     ("rules_python", "2.4.6"),
@@ -31,17 +30,16 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_java", "9.9.0"),
     ("rules_android", "0.8.1"),
     ("rules_kotlin", "2.4.21"),
-    ("rules_scala", "7.4.1"),
+    ("bazel_worker_api", "0.0.11"),
     ("bazel_lib", "3.8.0"),
     ("rules_jvm_external", "7.2"),
     ("bazel_features", "1.56.0"),
     ("rules_zig", "0.17.0"),
     ("rules_swift", "4.3.0"),
     ("bazel_linux_packages", "0.4.1"),
-    ("rules_dart", "0.8.1"),
-    ("rules_flutter", "0.0.8"),
+    ("rules_dart", "0.9.1"),
+    ("rules_flutter", "0.1.0"),
     ("tar.bzl", "0.10.9"),
-    ("yaml.bzl", "0.1.2"),
     ("toml.bzl", "0.5.0"),
     ("rules_perl", "2.1.0"),
     ("rules_batch", "0.1.1"),
@@ -576,7 +574,7 @@ mod tests {
             ("MODULE.bazel", "include(\"//tools:mine.MODULE.bazel\")\n"),
             (
                 "tools/mine.MODULE.bazel",
-                "\nsingle_version_override(module_name = \"rules_scala\", version = \"7.4.0\")\n",
+                "\nsingle_version_override(module_name = \"rules_java\", version = \"9.8.0\")\n",
             ),
         ]);
         let plan = preflight(dir.path(), &snippet());
@@ -597,9 +595,9 @@ mod tests {
 
     #[test]
     fn override_at_or_above_floor_is_not_a_conflict() {
-        for version in ["7.4.1", "7.4.2"] {
+        for version in ["9.9.0", "9.9.1"] {
             let text = format!(
-                "single_version_override(module_name = \"rules_scala\", version = \"{version}\")\n"
+                "single_version_override(module_name = \"rules_java\", version = \"{version}\")\n"
             );
             let dir = scratch(&[("MODULE.bazel", &text)]);
             assert!(
@@ -611,9 +609,9 @@ mod tests {
 
     #[test]
     fn override_below_floor_or_without_version_is_advisory() {
-        let below = "single_version_override(module_name = \"rules_scala\", version = \"7.4.0\")\n";
+        let below = "single_version_override(module_name = \"rules_java\", version = \"9.8.0\")\n";
         let no_version =
-            "git_override(module_name = \"rules_scala\", remote = \"x\", commit = \"y\")\n";
+            "git_override(module_name = \"rules_java\", remote = \"x\", commit = \"y\")\n";
         for text in [below, no_version] {
             let dir = scratch(&[("MODULE.bazel", text)]);
             let plan = preflight(dir.path(), &snippet());

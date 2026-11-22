@@ -1,5 +1,5 @@
-use super::super::test_support::*;
-use super::changed_lines;
+use super::test_support::*;
+use dx_exec_test_reports::changed_lines;
 use dx_plan::resolve::{QueryResult, QueryRunner};
 use std::path::Path;
 

@@ -480,9 +480,11 @@ def _shard_runner_impl(ctx):
         asserts.equals(env, binary[0].short_path, run_env.get("DX_COVERAGE_TEST_BINARY"))
         runfiles = [f.short_path for f in info.default_runfiles.files.to_list()]
         asserts.true(env, binary[0].short_path in runfiles, "binary not in runfiles")
-        asserts.true(env, [p for p in runfiles if p.removesuffix(".exe").endswith("/shard_runner")] != [], "shard runner not in runfiles")
+        asserts.true(env, [p for p in runfiles if p.removesuffix(".exe").endswith("/dx_runtime")] != [], "dx_runtime not in runfiles")
+        asserts.equals(env, "shard_runner", run_env.get("DX_RUNTIME_TOOL"))
     else:
         asserts.false(env, "DX_TEST_BINARY" in run_env, "unsharded test sets DX_TEST_BINARY")
+        asserts.false(env, "DX_RUNTIME_TOOL" in run_env, "unsharded test sets DX_RUNTIME_TOOL")
         asserts.false(env, info.files_to_run.executable.dirname.endswith(".launcher"), "unsharded test uses a launcher")
     return analysistest.end(env)
 

@@ -22,6 +22,7 @@ rust_test(
         "src/run.rs",
         "src/run_tests.rs",
     ],
+    coverage_lib = ":dx_hpc_coverage",
     crate_name = "dx_hpc_coverage",
     crate_root = "src/lib.rs",
     deps = [

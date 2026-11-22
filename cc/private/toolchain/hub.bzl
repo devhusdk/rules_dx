@@ -45,6 +45,7 @@ def _gcc():
         ("x86_64", "x86_64", "dx_gcc_linux_x86_64"),
         ("x86_64", "arm64", "dx_gcc_linux_aarch64_cross"),
         ("arm64", "arm64", "dx_gcc_linux_aarch64"),
+        ("arm64", "x86_64", "dx_gcc_linux_x86_64_cross"),
     ]
     return [
         _entry(

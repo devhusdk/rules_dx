@@ -1,0 +1,18 @@
+Upstream: none (not yet sent upstream)
+diff -ruN a/dart/private/tools/kernel_tool/declared_view.dart b/dart/private/tools/kernel_tool/declared_view.dart
+--- a/dart/private/tools/kernel_tool/declared_view.dart
++++ b/dart/private/tools/kernel_tool/declared_view.dart
+@@ -80,9 +80,11 @@
+         Directory(_parent(at)).createSync(recursive: true);
+       }
+       // A link costs a fifth of a copy. Windows makes links only for an
+-      // administrator or in developer mode, so there it is a copy.
++      // administrator or in developer mode, so there it is a copy. Dart's
++      // Windows copy refuses a link as its source (PathNotFoundException), and
++      // Bazel stages inputs as links when symlinks are on, so copy the target.
+       if (Platform.isWindows) {
+-        File(f).copySync(at);
++        File(File(f).resolveSymbolicLinksSync()).copySync(at);
+       } else {
+         Link(at).createSync(_isAbsolute(f) ? f : _normal('$cwd/$f'));
+       }

@@ -1,8 +1,8 @@
 //! NuGet publisher: feed staging, nuspec identity checks and the dotnet push.
 
 use crate::api_compat::{
-    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch_to_with, fetch_with,
-    highest_below, previous_git_tag, workspace_dir,
+    ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch_to_with,
+    fetch_with, highest_below, previous_git_tag, workspace_dir,
 };
 use crate::archive::*;
 use crate::run::{
@@ -10,12 +10,173 @@ use crate::run::{
     env_or_empty, exit_text, print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
-use std::fmt::Write as _;
+use dx_atomic_fs::path_io::{self, PathIoError};
+use dx_process::capture::RunError;
+use std::fmt;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// Why a NuGet identity check or API check failed.
+#[derive(Debug)]
+pub enum NugetError {
+    /// A version that is not a NuGet version; `reason` says which rule it breaks.
+    InvalidVersion {
+        text: String,
+        reason: &'static str,
+    },
+    VersionPartTooLarge {
+        text: String,
+        source: std::num::ParseIntError,
+    },
+    NuspecXml(quick_xml::Error),
+    NuspecText(quick_xml::encoding::EncodingError),
+    NuspecEntity,
+    NuspecMissing(&'static str),
+    NuspecEmpty(&'static str),
+    NuspecDuplicate(&'static str),
+    Open {
+        path: PathBuf,
+        source: io::Error,
+    },
+    NotZip {
+        path: PathBuf,
+        source: io::Error,
+    },
+    NoNuspec(PathBuf),
+    ManyNuspecs {
+        path: PathBuf,
+        names: Vec<String>,
+    },
+    ReadNuspec {
+        name: String,
+        source: io::Error,
+    },
+    NuspecGone {
+        name: String,
+        path: PathBuf,
+    },
+    NuspecUtf8 {
+        name: String,
+        source: std::string::FromUtf8Error,
+    },
+    /// An error found inside the nuspec called `name`.
+    InNuspec {
+        name: String,
+        source: Box<NugetError>,
+    },
+    InvalidId {
+        name: String,
+        id: String,
+    },
+    IdMismatch {
+        packaged: String,
+        declared: String,
+    },
+    VersionMismatch {
+        packaged: String,
+        declared: String,
+    },
+    InvalidBaseline(String),
+    TempDir(io::Error),
+    ApiCompatHome(PathIoError),
+    ApiCompatRun(RunError),
+    ApiCompat(ApiCompatError),
+}
+
+impl fmt::Display for NugetError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidVersion { text, reason } => {
+                write!(f, "invalid NuGet version {text:?}: {reason}")
+            }
+            Self::VersionPartTooLarge { text, source } => {
+                write!(
+                    f,
+                    "invalid NuGet version {text:?}: version part too large: {source}"
+                )
+            }
+            Self::NuspecXml(source) => write!(f, "nuspec is not valid XML: {source}"),
+            Self::NuspecText(source) => write!(f, "nuspec text is not valid: {source}"),
+            Self::NuspecEntity => f.write_str("nuspec id or version contains an entity reference"),
+            Self::NuspecMissing(name) => write!(f, "nuspec has no <{name}> in <metadata>"),
+            Self::NuspecEmpty(name) => write!(f, "nuspec <{name}> is empty"),
+            Self::NuspecDuplicate(name) => {
+                write!(f, "nuspec has more than one <{name}> in <metadata>")
+            }
+            Self::Open { path, source } => write!(f, "cannot open {}: {source}", path.display()),
+            Self::NotZip { path, source } => {
+                write!(
+                    f,
+                    "{} is not a valid nupkg archive: {source}",
+                    path.display()
+                )
+            }
+            Self::NoNuspec(path) => write!(f, "{} has no root .nuspec", path.display()),
+            Self::ManyNuspecs { path, names } => write!(
+                f,
+                "{} has more than one root .nuspec: {}",
+                path.display(),
+                names.join(", ")
+            ),
+            Self::ReadNuspec { name, source } => write!(f, "cannot read {name}: {source}"),
+            Self::NuspecGone { name, path } => {
+                write!(f, "cannot read {name}: missing from {}", path.display())
+            }
+            Self::NuspecUtf8 { name, source } => write!(f, "cannot read {name}: {source}"),
+            Self::InNuspec { name, source } => write!(f, "{name}: {source}"),
+            Self::InvalidId { name, id } => write!(f, "{name}: invalid NuGet package id {id:?}"),
+            Self::IdMismatch { packaged, declared } => write!(
+                f,
+                "package id mismatch: nupkg declares {packaged}, BUILD declares {declared}"
+            ),
+            Self::VersionMismatch { packaged, declared } => write!(
+                f,
+                "package version mismatch: nupkg declares {packaged}, BUILD declares {declared}"
+            ),
+            Self::InvalidBaseline(baseline) => {
+                write!(f, "nuget_deploy: invalid api_baseline '{baseline}'")
+            }
+            Self::TempDir(source) => write!(f, "nuget_deploy: {source}"),
+            Self::ApiCompatHome(source) => write!(f, "nuget_deploy: ApiCompat: {source}"),
+            Self::ApiCompatRun(source) => write!(f, "nuget_deploy: ApiCompat: {source}"),
+            Self::ApiCompat(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for NugetError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::VersionPartTooLarge { source, .. } => Some(source),
+            Self::NuspecXml(source) => Some(source),
+            Self::NuspecText(source) => Some(source),
+            Self::Open { source, .. }
+            | Self::NotZip { source, .. }
+            | Self::ReadNuspec { source, .. } => Some(source),
+            Self::TempDir(source) => Some(source),
+            Self::NuspecUtf8 { source, .. } => Some(source),
+            Self::InNuspec { source, .. } => Some(source.as_ref()),
+            Self::ApiCompatHome(source) => Some(source),
+            Self::ApiCompatRun(source) => Some(source),
+            Self::ApiCompat(source) => Some(source),
+            Self::InvalidVersion { .. }
+            | Self::NuspecEntity
+            | Self::NuspecMissing(_)
+            | Self::NuspecEmpty(_)
+            | Self::NuspecDuplicate(_)
+            | Self::NoNuspec(_)
+            | Self::ManyNuspecs { .. }
+            | Self::NuspecGone { .. }
+            | Self::InvalidId { .. }
+            | Self::IdMismatch { .. }
+            | Self::VersionMismatch { .. }
+            | Self::InvalidBaseline(_) => None,
+        }
+    }
+}
 
 /// Returns one NuGet version with the NuGet normalization applied.
-pub fn nuget_normalize_version(raw: &str) -> Result<String, String> {
+pub fn nuget_normalize_version(raw: &str) -> Result<String, NugetError> {
     let text = raw.trim();
     let without_meta = text.split('+').next().unwrap_or("");
     let (core, release) = match without_meta.split_once('-') {
@@ -24,24 +185,29 @@ pub fn nuget_normalize_version(raw: &str) -> Result<String, String> {
     };
     let parts: Vec<&str> = core.split('.').collect();
     if parts.len() > 4 {
-        return Err(format!(
-            "invalid NuGet version {text:?}: want at most four numeric parts"
-        ));
+        return Err(NugetError::InvalidVersion {
+            text: text.to_owned(),
+            reason: "want at most four numeric parts",
+        });
     }
     let mut numbers = [0u64; 4];
     for (slot, part) in numbers.iter_mut().zip(&parts) {
         if part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit()) {
-            return Err(format!(
-                "invalid NuGet version {text:?}: want numeric version parts"
-            ));
+            return Err(NugetError::InvalidVersion {
+                text: text.to_owned(),
+                reason: "want numeric version parts",
+            });
         }
         *slot = part
             .parse()
-            .map_err(|_| format!("invalid NuGet version {text:?}: version part too large"))?;
+            .map_err(|source| NugetError::VersionPartTooLarge {
+                text: text.to_owned(),
+                source,
+            })?;
     }
     let mut out = format!("{}.{}.{}", numbers[0], numbers[1], numbers[2]);
     if numbers[3] != 0 {
-        write!(out, ".{}", numbers[3]).ok();
+        out.push_str(&format!(".{}", numbers[3]));
     }
     if let Some(release) = release {
         let valid = !release.is_empty()
@@ -52,9 +218,10 @@ pub fn nuget_normalize_version(raw: &str) -> Result<String, String> {
                         .all(|b| b.is_ascii_alphanumeric() || b == b'-')
             });
         if !valid {
-            return Err(format!(
-                "invalid NuGet version {text:?}: bad prerelease label"
-            ));
+            return Err(NugetError::InvalidVersion {
+                text: text.to_owned(),
+                reason: "bad prerelease label",
+            });
         }
         out.push('-');
         out.push_str(&release.to_ascii_lowercase());
@@ -63,16 +230,14 @@ pub fn nuget_normalize_version(raw: &str) -> Result<String, String> {
 }
 
 /// Reads the id and version declared in one nuspec document.
-fn nuget_parse_nuspec(xml: &str) -> Result<(String, String), String> {
+fn nuget_parse_nuspec(xml: &str) -> Result<(String, String), NugetError> {
     use quick_xml::events::Event;
     let mut reader = quick_xml::Reader::from_str(xml);
     let mut stack: Vec<String> = Vec::new();
     let mut id: Vec<String> = Vec::new();
     let mut version: Vec<String> = Vec::new();
     loop {
-        let event = reader
-            .read_event()
-            .map_err(|error| format!("nuspec is not valid XML: {error}"))?;
+        let event = reader.read_event().map_err(NugetError::NuspecXml)?;
         match event {
             Event::Start(start) => {
                 stack.push(String::from_utf8_lossy(start.local_name().as_ref()).into_owned());
@@ -92,9 +257,7 @@ fn nuget_parse_nuspec(xml: &str) -> Result<(String, String), String> {
             }
             Event::Text(text) => {
                 if let Some(list) = nuget_identity_slot(&stack, &mut id, &mut version) {
-                    let text = text
-                        .xml10_content()
-                        .map_err(|error| format!("nuspec text is not valid: {error}"))?;
+                    let text = text.xml10_content().map_err(NugetError::NuspecText)?;
                     if let Some(last) = list.last_mut() {
                         last.push_str(&text);
                     }
@@ -102,9 +265,7 @@ fn nuget_parse_nuspec(xml: &str) -> Result<(String, String), String> {
             }
             Event::CData(text) => {
                 if let Some(list) = nuget_identity_slot(&stack, &mut id, &mut version) {
-                    let text = text
-                        .decode()
-                        .map_err(|error| format!("nuspec text is not valid: {error}"))?;
+                    let text = text.decode().map_err(NugetError::NuspecText)?;
                     if let Some(last) = list.last_mut() {
                         last.push_str(&text);
                     }
@@ -112,25 +273,25 @@ fn nuget_parse_nuspec(xml: &str) -> Result<(String, String), String> {
             }
             Event::GeneralRef(_) => {
                 if nuget_identity_slot(&stack, &mut id, &mut version).is_some() {
-                    return Err("nuspec id or version contains an entity reference".to_owned());
+                    return Err(NugetError::NuspecEntity);
                 }
             }
             Event::Eof => break,
             Event::Comment(_) | Event::Decl(_) | Event::PI(_) | Event::DocType(_) => {}
         }
     }
-    let one = |name: &str, values: Vec<String>| -> Result<String, String> {
+    let one = |name: &'static str, values: Vec<String>| -> Result<String, NugetError> {
         match values.as_slice() {
-            [] => Err(format!("nuspec has no <{name}> in <metadata>")),
+            [] => Err(NugetError::NuspecMissing(name)),
             [value] => {
                 let value = value.trim().to_owned();
                 if value.is_empty() {
-                    Err(format!("nuspec <{name}> is empty"))
+                    Err(NugetError::NuspecEmpty(name))
                 } else {
                     Ok(value)
                 }
             }
-            _ => Err(format!("nuspec has more than one <{name}> in <metadata>")),
+            _ => Err(NugetError::NuspecDuplicate(name)),
         }
     };
     Ok((one("id", id)?, one("version", version)?))
@@ -149,30 +310,47 @@ fn nuget_identity_slot<'a>(
 }
 
 /// Reads the package id and normalized version embedded in one nupkg.
-pub fn nuget_read_identity(nupkg: &Path) -> Result<(String, String), String> {
-    let file = std::fs::File::open(nupkg)
-        .map_err(|error| format!("cannot open {}: {error}", nupkg.display()))?;
+pub fn nuget_read_identity(nupkg: &Path) -> Result<(String, String), NugetError> {
+    let file = std::fs::File::open(nupkg).map_err(|source| NugetError::Open {
+        path: nupkg.to_path_buf(),
+        source,
+    })?;
     let names: Vec<String> = dx_archive::zip_names(file)
-        .map_err(|error| format!("{} is not a valid nupkg archive: {error}", nupkg.display()))?
+        .map_err(|source| NugetError::NotZip {
+            path: nupkg.to_path_buf(),
+            source,
+        })?
         .into_iter()
         .filter(|name| !name.contains('/') && name.to_ascii_lowercase().ends_with(".nuspec"))
         .collect();
     let name = match names.as_slice() {
-        [] => return Err(format!("{} has no root .nuspec", nupkg.display())),
+        [] => return Err(NugetError::NoNuspec(nupkg.to_path_buf())),
         [one] => one.clone(),
         _ => {
-            return Err(format!(
-                "{} has more than one root .nuspec: {}",
-                nupkg.display(),
-                names.join(", ")
-            ));
+            return Err(NugetError::ManyNuspecs {
+                path: nupkg.to_path_buf(),
+                names,
+            });
         }
     };
+    let in_nuspec = |source| NugetError::InNuspec {
+        name: name.clone(),
+        source: Box::new(source),
+    };
     let xml = dx_archive::read_zip_member(nupkg, &name, 1 << 20)
-        .map_err(|error| format!("cannot read {name}: {error}"))?
-        .ok_or_else(|| format!("cannot read {name}: missing from {}", nupkg.display()))?;
-    let xml = String::from_utf8(xml).map_err(|error| format!("cannot read {name}: {error}"))?;
-    let (id, version) = nuget_parse_nuspec(&xml).map_err(|error| format!("{name}: {error}"))?;
+        .map_err(|source| NugetError::ReadNuspec {
+            name: name.clone(),
+            source,
+        })?
+        .ok_or_else(|| NugetError::NuspecGone {
+            name: name.clone(),
+            path: nupkg.to_path_buf(),
+        })?;
+    let xml = String::from_utf8(xml).map_err(|source| NugetError::NuspecUtf8 {
+        name: name.clone(),
+        source,
+    })?;
+    let (id, version) = nuget_parse_nuspec(&xml).map_err(in_nuspec)?;
     if id.len() > 100
         || id.starts_with(['.', '-', '_'])
         || id.ends_with(['.', '-', '_'])
@@ -180,9 +358,9 @@ pub fn nuget_read_identity(nupkg: &Path) -> Result<(String, String), String> {
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-'))
     {
-        return Err(format!("{name}: invalid NuGet package id {id:?}"));
+        return Err(NugetError::InvalidId { name, id });
     }
-    let version = nuget_normalize_version(&version).map_err(|error| format!("{name}: {error}"))?;
+    let version = nuget_normalize_version(&version).map_err(in_nuspec)?;
     Ok((id, version))
 }
 
@@ -191,20 +369,20 @@ pub fn nuget_check_identity(
     actual: &(String, String),
     expected_id: &str,
     expected_version: &str,
-) -> Result<(), String> {
+) -> Result<(), NugetError> {
     if !expected_id.is_empty() && !actual.0.eq_ignore_ascii_case(expected_id) {
-        return Err(format!(
-            "package id mismatch: nupkg declares {}, BUILD declares {expected_id}",
-            actual.0
-        ));
+        return Err(NugetError::IdMismatch {
+            packaged: actual.0.clone(),
+            declared: expected_id.to_owned(),
+        });
     }
     if !expected_version.is_empty() {
         let want = nuget_normalize_version(expected_version)?;
         if want != actual.1 {
-            return Err(format!(
-                "package version mismatch: nupkg declares {}, BUILD declares {expected_version}",
-                actual.1
-            ));
+            return Err(NugetError::VersionMismatch {
+                packaged: actual.1.clone(),
+                declared: expected_version.to_owned(),
+            });
         }
     }
     Ok(())
@@ -216,7 +394,7 @@ pub fn nuget_build_feed(
     outdir: &Path,
     feed_name: &str,
 ) -> io::Result<std::path::PathBuf> {
-    let feed = outdir.join(feed_name.to_owned() + "-feed");
+    let feed = outdir.join(format!("{feed_name}-feed"));
     std::fs::create_dir_all(&feed)?;
     let base = basename(nupkg_src)?;
     let dest = feed.join(&base);
@@ -393,9 +571,9 @@ fn nuget_api_check(
     (nupkg, source): (&Path, &str),
     baseline: &str,
     workspace: &Path,
-) -> Result<Outcome, String> {
+) -> Result<Outcome, NugetError> {
     let baseline = Baseline::parse(baseline)
-        .ok_or_else(|| format!("nuget_deploy: invalid api_baseline '{baseline}'"))?;
+        .ok_or_else(|| NugetError::InvalidBaseline(baseline.to_owned()))?;
     let index = match fetch_with(client, source, 16 << 20) {
         Ok(Some(body)) => body,
         Ok(None) => return Ok(Outcome::Skipped(format!("{source} not found"))),
@@ -433,8 +611,7 @@ fn nuget_api_check(
     };
     let lower = previous.to_ascii_lowercase();
     let url = format!("{base}{id}/{lower}/{id}.{lower}.nupkg");
-    let work =
-        tempfile_stage_dir("nuget-api-").map_err(|error| format!("nuget_deploy: {error}"))?;
+    let work = tempfile_stage_dir("nuget-api-").map_err(NugetError::TempDir)?;
     let old_nupkg = work.join(format!("{id}.{lower}.nupkg"));
     let skipped = match fetch_to_with(client, &url, &old_nupkg, 512 << 20) {
         Ok(true) => None,
@@ -446,8 +623,8 @@ fn nuget_api_check(
         return Ok(Outcome::Skipped(reason));
     }
     let home = work.join("home");
-    let output = std::fs::create_dir_all(&home)
-        .map_err(|error| error.to_string())
+    let output = path_io::create_dir_all(&home)
+        .map_err(NugetError::ApiCompatHome)
         .and_then(|()| {
             let home = home.display().to_string();
             run_publish(
@@ -469,10 +646,10 @@ fn nuget_api_check(
                 .arg("--baseline-package")
                 .arg(&old_nupkg),
             )
-            .map_err(|error| error.to_string())
+            .map_err(NugetError::ApiCompatRun)
         });
     dx_atomic_fs::discard_dir(&work);
-    let output = output.map_err(|error| format!("nuget_deploy: ApiCompat: {error}"))?;
+    let output = output?;
     let text = format!(
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
@@ -569,11 +746,10 @@ pub fn nuget_main_checked(
                 "the .NET toolchain or ApiCompat is not available".to_owned(),
             )),
         };
-        if let Err(message) = outcome.and_then(|outcome| {
-            conclude("nuget_deploy", mode, package_version, outcome)
-                .map_err(|error| error.to_string())
+        if let Err(error) = outcome.and_then(|outcome| {
+            conclude("nuget_deploy", mode, package_version, outcome).map_err(NugetError::ApiCompat)
         }) {
-            eprintln!("{message}");
+            eprintln!("{error}");
             return 1;
         }
     }
@@ -704,16 +880,14 @@ API breaking changes found. If those are intentional, the APICompat suppression 
         let args_log = scratch.path().join("args");
         let env_log = scratch.path().join("env");
         let fake = scratch.path().join("dotnet");
-        std::fs::write(
+        dx_testing::executable_script(
             &fake,
-            format!(
+            &format!(
                 "#!/bin/sh\necho \"$@\" > {}\nenv > {}\necho \"CP0002: Member 'void Demo.Api.Hello()' exists on [Baseline] lib/net10.0/Demo.dll but not on lib/net10.0/Demo.dll\"\nexit 1\n",
                 args_log.display(),
                 env_log.display()
             ),
-        )
-        .expect("fake tool");
-        set_mode(&fake, 0o755);
+        );
         let client = crate::http::test_client();
         let source = format!("{registry}/v3/index.json");
         let run = |id: &str, version: &str| {
@@ -791,10 +965,23 @@ API breaking changes found. If those are intentional, the APICompat suppression 
         assert!(nuget_check_identity(&identity, "dx.plugin", "1.2").is_ok());
         assert!(nuget_check_identity(&identity, "", "").is_ok());
         let id_error = nuget_check_identity(&identity, "Other", "").expect_err("id");
-        assert!(id_error.contains("package id mismatch"), "{id_error}");
+        assert!(
+            matches!(id_error, NugetError::IdMismatch { .. }),
+            "{id_error:?}"
+        );
+        assert_eq!(
+            id_error.to_string(),
+            "package id mismatch: nupkg declares Dx.Plugin, BUILD declares Other"
+        );
         let version_error = nuget_check_identity(&identity, "", "2.0.0").expect_err("version");
         assert!(
-            version_error.contains("package version mismatch"),
+            matches!(version_error, NugetError::VersionMismatch { .. }),
+            "{version_error:?}"
+        );
+        assert!(
+            version_error
+                .to_string()
+                .contains("package version mismatch"),
             "{version_error}"
         );
     }
@@ -807,12 +994,14 @@ API breaking changes found. If those are intentional, the APICompat suppression 
         assert!(
             nuget_read_identity(&path)
                 .expect_err("zip")
+                .to_string()
                 .contains("not a valid nupkg")
         );
         write_nupkg(&path, &[("lib/a.dll", "x")]);
         assert!(
             nuget_read_identity(&path)
                 .expect_err("none")
+                .to_string()
                 .contains("no root .nuspec")
         );
         write_nupkg(
@@ -825,6 +1014,7 @@ API breaking changes found. If those are intentional, the APICompat suppression 
         assert!(
             nuget_read_identity(&path)
                 .expect_err("two")
+                .to_string()
                 .contains("more than one root .nuspec")
         );
         write_nupkg(
@@ -837,6 +1027,7 @@ API breaking changes found. If those are intentional, the APICompat suppression 
         assert!(
             nuget_read_identity(&path)
                 .expect_err("no version")
+                .to_string()
                 .contains("no <version>")
         );
         write_nupkg(
@@ -849,6 +1040,7 @@ API breaking changes found. If those are intentional, the APICompat suppression 
         assert!(
             nuget_read_identity(&path)
                 .expect_err("dup")
+                .to_string()
                 .contains("more than one <id>")
         );
         write_nupkg(&path, &[("a.nuspec", "<package><metadata><id>A</id>")]);
@@ -857,12 +1049,14 @@ API breaking changes found. If those are intentional, the APICompat suppression 
         assert!(
             nuget_read_identity(&path)
                 .expect_err("id chars")
+                .to_string()
                 .contains("invalid NuGet package id")
         );
         write_nupkg(&path, &[("a.nuspec", &nuspec("A", "one"))]);
         assert!(
             nuget_read_identity(&path)
                 .expect_err("version")
+                .to_string()
                 .contains("invalid NuGet version")
         );
     }

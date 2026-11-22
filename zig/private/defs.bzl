@@ -109,7 +109,7 @@ def zig_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_binary. main is name.zig, else the single src."""
     kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("zig_binary", name, main, srcs, dx_main_candidates(name, ".zig"))
-    upstream = dict(kwargs, main = main, tags = dx_upstream_tags(kwargs.get("tags", None)))
+    upstream = dict(kwargs, main = main, tags = dx_upstream_tags(kwargs.get("tags", None)), zigopts = ["-j1"] + kwargs.get("zigopts", []))
     dx_wrap_binary(name, _zig_binary, _zig_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, **kwargs)
 
 def zig_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
@@ -119,13 +119,13 @@ def zig_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     upstream = dict(
         kwargs,
         main = main,
-        zigopts = kwargs.get("zigopts", []) + select({
-            Label("//zig/private:sancov_build"): ["-fllvm", "-ffuzz"],
+        zigopts = ["-j1"] + kwargs.get("zigopts", []) + select({
+            Label("//zig:sancov_build"): ["-fllvm", "-ffuzz"],
             Label("//zig:kcov_build"): ["-fllvm"],
             "//conditions:default": [],
         }),
         test_runner = select({
-            Label("//zig/private:sancov_build"): Label("//zig/private:coverage_runner.zig"),
+            Label("//zig:sancov_build"): Label("//zig/private:coverage_runner.zig"),
             "//conditions:default": kwargs.get("test_runner"),
         }),
     )

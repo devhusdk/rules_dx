@@ -1,7 +1,6 @@
 use super::deploy::execute_deploy;
 use super::profile_report;
 use super::run::execute_run;
-use super::test_reports::{TestReportsRequest, execute_test_reports};
 use dx_exec_core::common::{
     CODE_UNREADABLE_BEP, Env, bazel_failure_code, check_stdout_write, emit_bazel_exit, emit_built,
     emit_event, emit_started, flush_out, kept_child, operational, pre_exec, read_actions,
@@ -10,6 +9,7 @@ use dx_exec_core::common::{
 use dx_exec_reports::build_failures::report_build_failures;
 use dx_exec_reports::failure_reports::write_failure_reports;
 use dx_exec_reports::skipped_targets::{group_skipped, read_skipped, skipped_notice};
+use dx_exec_test_reports::{TestReportsRequest, execute_test_reports};
 use dx_output::{
     ActionCounts, FinishedCounts, NoticeEvent, OutputMode, command_finished, notice_event,
 };

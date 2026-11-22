@@ -279,7 +279,13 @@ fn a_descriptor_without_source_info_is_rejected() {
     let mut bare = file();
     bare.source_code_info = None;
     let error = convert(&encode(vec![bare]), &options()).unwrap_err();
-    assert!(error.contains("--include_source_info"), "{error}");
+    assert!(
+        matches!(&error, ProtobufExtractError::NoSourceInfo { file } if file == "shop/v1/shop.proto")
+    );
+    assert_eq!(
+        error.to_string(),
+        "shop/v1/shop.proto has no source info; run protoc with --include_source_info"
+    );
 }
 
 #[test]
@@ -290,7 +296,13 @@ fn a_file_outside_the_sources_is_rejected() {
         .srcs
         .insert("x.proto".to_owned(), "x.proto".to_owned());
     let error = convert(&encode(vec![file()]), &other).unwrap_err();
-    assert!(error.contains("shop/v1/shop.proto"), "{error}");
+    assert!(
+        matches!(&error, ProtobufExtractError::NotASource { file } if file == "shop/v1/shop.proto")
+    );
+    assert_eq!(
+        error.to_string(),
+        "descriptor set holds 'shop/v1/shop.proto', which is not one of the library's sources"
+    );
 }
 
 #[test]
@@ -351,5 +363,30 @@ fn parse_collects_sources_and_rejects_a_src_without_a_path() {
     .unwrap();
     assert_eq!(parsed.srcs["a.proto"], "x/a.proto");
     assert!(parsed.generated.contains("a.proto"));
-    assert!(parse(&args(&["--src", "nopath"])).is_err());
+    let required = ["--descriptor", "d", "--package", "p", "--out", "o"];
+    let with = |extra: &[&str]| args(&[&required[..], extra].concat());
+    let error = parse(&with(&["--src", "nopath"])).unwrap_err();
+    assert!(matches!(&error, ArgsError::NotPair { value } if value == "nopath"));
+    assert_eq!(error.to_string(), "--src 'nopath' is not PROTO=PATH");
+    let error = parse(&with(&["--src", "a.proto=x", "--src", "a.proto=y"])).unwrap_err();
+    assert!(matches!(&error, ArgsError::RepeatedSrc { name } if name == "a.proto"));
+    assert_eq!(error.to_string(), "--src given twice for 'a.proto'");
+}
+
+#[test]
+fn run_reports_an_unreadable_input() {
+    let options = Options {
+        descriptor: "/nonexistent/descriptor.pb".to_owned(),
+        package: "shop".to_owned(),
+        out: "out".to_owned(),
+        ..Options::default()
+    };
+    let error = run(&options).unwrap_err();
+    assert!(matches!(error, ProtobufExtractError::Read(_)));
+    assert!(
+        error
+            .to_string()
+            .starts_with("cannot read /nonexistent/descriptor.pb: "),
+        "{error}"
+    );
 }

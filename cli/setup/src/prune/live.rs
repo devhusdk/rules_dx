@@ -1,5 +1,4 @@
 use std::ffi::OsString;
-use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -41,6 +40,7 @@ fn classify_managed_path(
     let (Some(root), Some(name)) = (root.as_os_str().to_str(), name.as_os_str().to_str()) else {
         return (None, None);
     };
+    let name = name.strip_suffix(DELETED_SUFFIX).unwrap_or(name);
     if GenerationId::new(name).is_err() {
         return (None, None);
     }
@@ -68,6 +68,19 @@ fn classify_managed_path(
 }
 
 const ESRCH: i32 = 3;
+
+const DELETED_SUFFIX: &str = " (deleted)";
+
+#[cfg(unix)]
+fn mapped_path(bytes: &[u8]) -> PathBuf {
+    use std::os::unix::ffi::OsStrExt;
+    PathBuf::from(std::ffi::OsStr::from_bytes(bytes))
+}
+
+#[cfg(not(unix))]
+fn mapped_path(bytes: &[u8]) -> PathBuf {
+    PathBuf::from(String::from_utf8_lossy(bytes).into_owned())
+}
 
 fn gone(error: &io::Error) -> bool {
     error.kind() == io::ErrorKind::NotFound || error.raw_os_error() == Some(ESRCH)
@@ -138,11 +151,11 @@ fn read_targets(
     }
     let maps_path = dir.join("maps");
     let maps = checked(&maps_path, proc.read(&maps_path))?.unwrap_or_default();
-    for line in String::from_utf8_lossy(&maps).lines() {
-        if let Some(start) = line.find('/') {
-            let mapped = Path::new(line.get(start..).unwrap_or_default());
+    for line in maps.split(|byte| *byte == b'\n') {
+        if let Some(start) = line.iter().position(|byte| *byte == b'/') {
+            let mapped = mapped_path(line.get(start..).unwrap_or_default());
             if dx_dirs.iter().any(|dx_dir| mapped.starts_with(dx_dir)) {
-                targets.push(mapped.to_path_buf());
+                targets.push(mapped);
             }
         }
     }
@@ -158,9 +171,7 @@ fn observe_process(
     let mut targets: Vec<PathBuf> = Vec::new();
     let outcome = read_targets(proc, dir, dx_dirs, &mut targets);
     for target in &targets {
-        let text = target.to_string_lossy();
-        let trimmed: &str = text.trim_end_matches(" (deleted)");
-        let (setup, generation) = classify_managed_path(dx_dirs, Path::new(trimmed));
+        let (setup, generation) = classify_managed_path(dx_dirs, target);
         if let Some(hex) = setup {
             live.setup.push(hex);
         }
@@ -234,12 +245,10 @@ fn scan_with(proc: &dyn ProcFs, proc_root: &Path, dx_dir: &Path) -> LiveObservat
     };
     let mut reason = first.clone();
     if unreadable.len() > 1 {
-        write!(
-            reason,
+        reason.push_str(&format!(
             " (+{} more unreadable processes)",
             unreadable.len() - 1
-        )
-        .ok();
+        ));
     }
     LiveObservation::Unknown {
         partial: live,
@@ -843,6 +852,46 @@ mod tests {
         fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
             self.error(path)?;
             Ok(self.files.get(path).ok_or(io::ErrorKind::NotFound)?.clone())
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn non_utf8_workspace_paths_stay_live() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::{OsStrExt, OsStringExt};
+        let dx_dir = Path::new(OsStr::from_bytes(b"/ws\xff")).join(".dx/local");
+        let setup = digest('3');
+        let environment = digest('1');
+        let mut proc = FakeProc::default();
+        let pid = proc.process("7");
+        proc.links
+            .insert(pid.join("cwd"), dx_dir.join("setups").join(&setup));
+        let mut maps = b"7f00-7f01 r-xp 00000000 08:01 42   ".to_vec();
+        maps.extend(
+            dx_dir
+                .join("environments")
+                .join(&environment)
+                .join("lib.so")
+                .into_os_string()
+                .into_vec(),
+        );
+        maps.extend(b" (deleted)\n");
+        proc.files.insert(pid.join("maps"), maps);
+        match scan_with(&proc, &FakeProc::root(), &dx_dir) {
+            LiveObservation::Known(live) => {
+                assert_eq!(live.setup, vec![setup]);
+                assert_eq!(
+                    live.generations,
+                    vec![GenerationView {
+                        kind: GenerationUse::Environment,
+                        hex: environment,
+                    }]
+                );
+            }
+            other @ (LiveObservation::Unknown { .. } | LiveObservation::Unavailable { .. }) => {
+                panic!("a listed proc root is known: {other:?}")
+            }
         }
     }
 

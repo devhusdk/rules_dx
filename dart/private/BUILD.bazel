@@ -1,4 +1,3 @@
-load("//core:cells.bzl", "unsupported_value")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = [
@@ -6,8 +5,6 @@ package(default_visibility = [
     "//dart:__subpackages__",
     "//tools/ci:__pkg__",
 ])
-
-unsupported_value("unsupported")
 
 exports_files([
     "dart_config.bzl",
@@ -23,7 +20,6 @@ real_source_target(
         "defs.bzl",
         "platforms.bzl",
         "providers.bzl",
-        "pub.bzl",
         "dart_config.bzl",
     ],
     tags = ["corpus"],

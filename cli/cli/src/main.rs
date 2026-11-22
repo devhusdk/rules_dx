@@ -1,9 +1,7 @@
 #![deny(
     clippy::indexing_slicing,
     clippy::let_underscore_must_use,
-    clippy::map_err_ignore,
     clippy::string_slice,
-    clippy::unused_result_ok,
     clippy::wildcard_enum_match_arm
 )]
 
@@ -195,6 +193,7 @@ fn run_as_tool() -> Option<i32> {
         Tool::DeployTool => dx_deploy_tools::deploy_tool_main(&named("deploy_tool", args)),
         Tool::ReleaseTree => release_tree::run_process(&lossy(args)),
         Tool::Capture => capture::run_process(args),
+        Tool::CompileCheck => dx_compile_check::run_process(&lossy(args)),
         Tool::ApiSpecPreflight => api_spec_codegen::preflight::run_process(&lossy(args)),
         Tool::OapiCodegen => api_spec_codegen::oapi_codegen::run_process(&lossy(args)),
         Tool::CapnpcRustDx => capnpc_rust_dx::run_process(&lossy(args)),
@@ -207,6 +206,10 @@ fn run_as_tool() -> Option<i32> {
         Tool::AndroidOps => i32::from(dx_android_ops::run(&lossy(args))),
         #[cfg(not(windows))]
         Tool::AppleOps => i32::from(dx_apple_ops::run(&lossy(args))),
+        #[cfg(not(windows))]
+        Tool::AppimagePacker => i32::from(appimage_packer::run(&lossy(args))),
+        #[cfg(not(windows))]
+        Tool::AppimageFile => i32::from(appimage_packer::refuse_file()),
         Tool::QtRustBridge => qt_rust_bridge::run_process(&lossy(args)),
         Tool::BeamExtract => dx_docs_beam_extract::run_process(&lossy(args)),
         Tool::CcExtract => dx_docs_cc_extract::run_process(&lossy(args)),

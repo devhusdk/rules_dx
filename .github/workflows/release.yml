@@ -121,7 +121,7 @@ jobs:
             printf '%s  %s\n' "$(sha256sum "out/$launcher" | cut -d' ' -f1)" "$launcher" > "out/$launcher.sha256"
             cat "out/$launcher.sha256" >> sums.tmp
             files="$files $launcher $launcher.sha256"
-            for tool in capnp flatc go oapi-codegen runtime thrift; do
+            for tool in capnp flatc go gopackagesdriver ldoc-main oapi-codegen runtime thrift; do
               native="dx-$tool-${asset#dx-}"
               test -s "out/$native" || { echo "want a non-empty out/$native" >&2; exit 1; }
               printf '%s  %s\n' "$(sha256sum "out/$native" | cut -d' ' -f1)" "$native" > "out/$native.sha256"
@@ -129,6 +129,11 @@ jobs:
               files="$files $native $native.sha256"
             done
             case "$asset" in dx-windows-*)
+              msvc_link="dx-msvc-link-${asset#dx-}"
+              test -s "out/$msvc_link" || { echo "want a non-empty out/$msvc_link" >&2; exit 1; }
+              printf '%s  %s\n' "$(sha256sum "out/$msvc_link" | cut -d' ' -f1)" "$msvc_link" > "out/$msvc_link.sha256"
+              cat "out/$msvc_link.sha256" >> sums.tmp
+              files="$files $msvc_link $msvc_link.sha256"
               pdb="$asset-pdb.zip"
               for file in "$pdb" "$pdb.sha256" "$pdb.spdx.json"; do
                 test -s "out/$file" || { echo "want a non-empty out/$file" >&2; exit 1; }
@@ -144,6 +149,16 @@ jobs:
             printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> sums.tmp
             files="$files $tool_asset"
           done
+          for tool_asset in dx-pcov-linux-x86_64.so dx-pcov-linux-arm64.so dx-pcov-macos-arm64.so dx-pcov-LICENSE; do
+            test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
+            printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> sums.tmp
+            files="$files $tool_asset"
+          done
+          for tool_asset in dx-julia-internal-linux-x86_64.so dx-julia-internal-LICENSE; do
+            test -s "out/$tool_asset" || { echo "want a non-empty out/$tool_asset" >&2; exit 1; }
+            printf '%s  %s\n' "$(sha256sum "out/$tool_asset" | cut -d' ' -f1)" "$tool_asset" >> sums.tmp
+            files="$files $tool_asset"
+          done
           for tool in topiary progenitor; do
             for host in linux-x86_64 linux-arm64 macos-arm64 windows-x86_64; do
               tool_asset="dx-$tool-$host"
@@ -152,9 +167,11 @@ jobs:
               files="$files $tool_asset"
             done
           done
-          test -s out/dx-oapi-codegen-LICENSE || { echo "want a non-empty out/dx-oapi-codegen-LICENSE" >&2; exit 1; }
-          printf '%s  %s\n' "$(sha256sum out/dx-oapi-codegen-LICENSE | cut -d' ' -f1)" dx-oapi-codegen-LICENSE >> sums.tmp
-          files="$files dx-oapi-codegen-LICENSE"
+          for license in dx-capnp-LICENSE dx-flatc-LICENSE dx-gopackagesdriver-LICENSE dx-ldoc-main-LICENSE dx-oapi-codegen-LICENSE dx-thrift-LICENSE; do
+            test -s "out/$license" || { echo "want a non-empty out/$license" >&2; exit 1; }
+            printf '%s  %s\n' "$(sha256sum "out/$license" | cut -d' ' -f1)" "$license" >> sums.tmp
+            files="$files $license"
+          done
           : > out/dx-jar-sha256sums.txt
           for jar in dx-avro-union-any.jar dx-dokka-extract-any.jar dx-javac-check-any.jar dx-javadoc-extract-any.jar dx-jmh-generate-any.jar dx-kotlinc-check-any.jar dx-maven-resolver-any.jar dx-scalac-check-any.jar dx-scaladoc-extract-any.jar; do
             test -s "out/$jar" || { echo "want a non-empty out/$jar" >&2; exit 1; }
@@ -203,7 +220,7 @@ jobs:
           files="$files dx-tool-sha256sums.txt"
           printf '%s\n' "$files" > out/files.list
           LC_ALL=C sort -k2 sums.tmp > out/dx-sha256sums.txt
-          test "$(wc -l < out/dx-sha256sums.txt)" -eq 67 || { echo "want 67 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
+          test "$(wc -l < out/dx-sha256sums.txt)" -eq 90 || { echo "want 90 manifest lines, got $(wc -l < out/dx-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-sha256sums.txt)
           test "$(wc -l < out/dx-gazelle-sha256sums.txt)" -eq 5 || { echo "want 5 gazelle manifest lines, got $(wc -l < out/dx-gazelle-sha256sums.txt)" >&2; exit 1; }
           (cd out && sha256sum -c dx-gazelle-sha256sums.txt)
@@ -224,7 +241,7 @@ jobs:
           bazel run //deploy/private/release:source_archive -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "$SOURCE_DIR" --pins "$pins"
           (
             cd out
-            for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-launcher-linux-x86_64 dx-launcher-linux-arm64 dx-launcher-macos-arm64 dx-launcher-windows-x86_64 dx-launcher-windows-arm64 dx-runtime-* dx-capnp-* dx-flatc-* dx-go-* dx-oapi-codegen-* dx-thrift-* dx-tree-sitter-* dx-topiary-* dx-progenitor-* dx-*-any.jar dx-hpc-lcov-* dx-weeder-* dx-hlint-* dx-ormolu-* dx-haskell-gmp-* dx-deadnix-* dx-selene-* dx-nixfmt-* dx-kcov-* dx-python-tools-*; do
+            for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt dx-jar-sha256sums.txt dx-haskell-sha256sums.txt dx-tool-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64 dx-launcher-linux-x86_64 dx-launcher-linux-arm64 dx-launcher-macos-arm64 dx-launcher-windows-x86_64 dx-launcher-windows-arm64 dx-runtime-* dx-capnp-* dx-flatc-* dx-go-* dx-gopackagesdriver-* dx-ldoc-main-* dx-msvc-link-* dx-oapi-codegen-* dx-thrift-* dx-tree-sitter-* dx-pcov-* dx-julia-internal-* dx-topiary-* dx-progenitor-* dx-*-any.jar dx-hpc-lcov-* dx-weeder-* dx-hlint-* dx-ormolu-* dx-haskell-gmp-* dx-deadnix-* dx-selene-* dx-nixfmt-* dx-kcov-* dx-python-tools-*; do
               case "$file" in *.tar.gz.sha256|*.zip.sha256) continue ;; esac
               cp "$file" "$SOURCE_DIR/"
             done
@@ -376,7 +393,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: read
+      contents: write
       id-token: write
       attestations: write
       artifact-metadata: write
@@ -585,7 +602,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

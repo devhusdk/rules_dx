@@ -3,6 +3,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 exports_files([
     "elixir_app_deps.patch",
     "elixir_app_name.patch",
+    "relative_beam_paths.patch",
     "relocatable_tree.patch",
     "toolchain_type_alias.patch",
     "warnings_as_errors.patch",

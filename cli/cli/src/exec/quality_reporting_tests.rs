@@ -1,0 +1,611 @@
+use super::test_support::*;
+use dx_digest::blake3 as digest;
+use quality_result::assert_all_equal;
+use quality_result::proto;
+use quality_result::proto::FileSnapshot;
+
+#[test]
+fn json_clean_check_succeeds() {
+    let mut harness = Harness::new("json-clean");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let (code, out, _) = harness.run(&["lint", "--output=json"]);
+    assert_eq!(code, 0);
+    let events = json_events(&out);
+    assert_eq!(
+        event(&events, "command_finished")["exit_code"],
+        serde_json::json!(0)
+    );
+}
+
+#[test]
+fn sarif_unreadable_snapshot_fails_report() {
+    let mut harness = Harness::new("sarif-unreadable");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
+    );
+    std::fs::remove_file(harness.workspace.join("src/a.py")).expect("remove");
+    let (code, _, err) = harness.run(&["lint", "--output=text", "--report=sarif=out.sarif"]);
+    assert_eq!(code, 1);
+    assert!(err.contains("dx: report_failed: failed to render SARIF report"));
+}
+
+#[test]
+fn sarif_stale_snapshot_fails_report() {
+    let mut harness = Harness::new("sarif-stale");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
+    );
+    harness.write_source("src/a.py", "changed = true\n");
+    let (code, _, err) = harness.run(&["lint", "--output=text", "--report=sarif=out.sarif"]);
+    assert_eq!(code, 1);
+    assert!(err.contains("dx: report_failed: failed to render SARIF report"));
+}
+
+#[test]
+fn sarif_non_utf8_snapshot_fails_report() {
+    let mut harness = Harness::new("sarif-nonutf8");
+    std::fs::create_dir_all(harness.workspace.join("src")).expect("dirs");
+    std::fs::write(harness.workspace.join("src/a.py"), b"\xff").expect("bytes");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
+    );
+    let (code, _, err) = harness.run(&["lint", "--output=text", "--report=sarif=out.sarif"]);
+    assert_eq!(code, 1);
+    assert!(err.contains("dx: report_failed: failed to render SARIF report"));
+}
+
+#[test]
+fn sarif_stdout_report_owns_stdout() {
+    let mut harness = Harness::new("sarif-stdout");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![Harness::diagnostic("unused", false)], vec![]),
+    );
+    let (code, out, err) = harness.run(&["lint", "--output=text", "--report=sarif=-"]);
+    assert_eq!(code, 1);
+    assert!(out.contains("2.1.0"));
+    assert!(!out.contains("Running lint"));
+    assert!(!err.contains("Running lint"));
+    assert!(err.contains("unused"));
+}
+
+#[test]
+fn json_report_write_failure_emits_error() {
+    let mut harness = Harness::new("report-write-fail");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let (code, out, err) =
+        harness.run(&["lint", "--output=json", "--report=sarif=nodir/out.sarif"]);
+    assert_eq!(code, 1);
+    assert!(
+        err.contains("dx: report_failed: failed to write sarif report to "),
+        "{err}"
+    );
+    assert!(err.contains("nodir"), "{err}");
+    assert!(err.contains("out.sarif"), "{err}");
+    assert!(err.contains("parent directory"), "{err}");
+    assert!(err.contains("does not exist"), "{err}");
+    let events = json_events(&out);
+    assert_eq!(
+        event(&events, "error")["code"],
+        serde_json::json!("report_failed")
+    );
+}
+
+#[test]
+fn json_file_report_emits_report_event() {
+    let mut harness = Harness::new("report-ok");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let (code, out, _) = harness.run(&["lint", "--output=json", "--report=sarif=out.sarif"]);
+    assert_eq!(code, 0);
+    let events = json_events(&out);
+    let report = event(&events, "report");
+    assert_eq!(report["format"], serde_json::json!("sarif"));
+    assert!(harness.workspace.join("out.sarif").exists());
+}
+
+#[test]
+fn diff_file_report_notes_to_stderr() {
+    let mut harness = Harness::new("diff-report");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let (code, _, err) = harness.run(&["lint", "--diff", "--report=sarif=out.sarif"]);
+    assert_eq!(code, 0);
+    assert!(err.contains("Wrote sarif report to out.sarif."));
+    assert!(harness.workspace.join("out.sarif").exists());
+}
+
+#[test]
+fn unknown_tool_finding_fails_sarif_render() {
+    let mut harness = Harness::new("unknown-tool");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(
+            vec![Harness::diagnostic_with(
+                proto::Severity::Warning as i32,
+                "other-tool",
+                "src/a.py",
+                "stray",
+                false,
+            )],
+            vec![],
+        ),
+    );
+    let (code, out, err) = harness.run(&["lint", "--output=json", "--report=sarif=out.sarif"]);
+    assert_eq!(code, 1);
+    assert!(err.contains("dx: report_failed: failed to render SARIF report"));
+    let events = json_events(&out);
+    assert_eq!(
+        event(&events, "error")["code"],
+        serde_json::json!("report_failed")
+    );
+}
+
+#[test]
+fn json_check_and_default_emit_identical_change_with_byte_equality() {
+    fn changes(out: &str) -> Vec<serde_json::Value> {
+        json_events(out)
+            .into_iter()
+            .filter(|event| event["event"] == serde_json::json!("change"))
+            .collect()
+    }
+    let check = umbrella_findings("json-change-check");
+    let (check_code, check_out, _) = check.run(&["lint", "--output=json", "--include-edits"]);
+    assert_eq!(check_code, 1);
+    assert_eq!(
+        std::fs::read(check.workspace.join("src/a.py")).expect("source"),
+        b"x = 1\n"
+    );
+    let check_changes = changes(&check_out);
+    assert_eq!(check_changes.len(), 1);
+    let default = umbrella_findings("json-change-default");
+    let (default_code, default_out, _) = default.run(&["lint", "--output=json", "--include-edits"]);
+    assert_eq!(default_code, 1);
+    assert_eq!(
+        std::fs::read(default.workspace.join("src/a.py")).expect("source"),
+        b"x = 1\n"
+    );
+    let default_changes = changes(&default_out);
+    assert_eq!(default_changes, check_changes);
+    let applied = umbrella_findings("json-change-apply");
+    let (apply_code, apply_out, _) =
+        applied.run(&["lint", "--apply", "--output=json", "--include-edits"]);
+    assert_eq!(apply_code, 0);
+    assert_eq!(
+        std::fs::read(applied.workspace.join("src/a.py")).expect("source"),
+        b"y = 1\n"
+    );
+    let change = &check_changes[0];
+    assert_eq!(change["path"], serde_json::json!("src/a.py"));
+    assert_eq!(change["kind"], serde_json::json!("modify"));
+    let original = b"x = 1\n";
+    let expected_digest = dx_digest::to_hex(&digest(original));
+    assert_eq!(change["source_digest"], serde_json::json!(expected_digest));
+    let edits = change["edits"].as_array().expect("edits");
+    assert_eq!(edits.len(), 1);
+    assert_eq!(edits[0]["start_byte"], serde_json::json!(0));
+    assert_eq!(edits[0]["end_byte"], serde_json::json!(1));
+    assert_eq!(edits[0]["replacement"], serde_json::json!("y"));
+    let mut planned = Vec::new();
+    planned.extend_from_slice(&original[0..0]);
+    planned.extend_from_slice(b"y");
+    planned.extend_from_slice(&original[1..]);
+    assert_eq!(planned, b"y = 1\n");
+    assert_eq!(
+        std::fs::read(applied.workspace.join("src/a.py")).expect("source"),
+        planned
+    );
+    assert_eq!(change["effect"], serde_json::json!("proposed"));
+    let mut applied_change = changes(&apply_out).remove(0);
+    assert_eq!(applied_change["effect"], serde_json::json!("applied"));
+    applied_change["effect"] = serde_json::json!("proposed");
+    assert_eq!(&applied_change, change, "apply only changes the effect");
+    let (_, compact_out, _) = check.run(&["lint", "--output=json"]);
+    let compact = changes(&compact_out);
+    assert_eq!(compact[0]["edit_count"], serde_json::json!(1));
+    assert!(compact[0].get("edits").is_none());
+    assert!(compact[0].get("source_digest").is_none());
+    assert!(!compact_out.contains("replacement"), "{compact_out}");
+}
+
+#[test]
+fn diff_check_and_default_emit_identical_patch_with_byte_equality() {
+    let check = umbrella_findings("diff-patch-check");
+    let (check_code, check_out, _) = check.run(&["lint", "--diff"]);
+    assert_eq!(check_code, 1);
+    assert_eq!(
+        std::fs::read(check.workspace.join("src/a.py")).expect("source"),
+        b"x = 1\n"
+    );
+    assert_eq!(
+        check.seen_env.borrow().len(),
+        1,
+        "diff check must launch Bazel exactly once, no rerun"
+    );
+    let default = umbrella_findings("diff-patch-default");
+    let (default_code, default_out, _) = default.run(&["lint", "--diff"]);
+    assert_eq!(default_code, 1);
+    assert_eq!(
+        std::fs::read(default.workspace.join("src/a.py")).expect("source"),
+        b"x = 1\n"
+    );
+    assert_eq!(
+        default.seen_env.borrow().len(),
+        1,
+        "diff default must launch Bazel exactly once, no rerun"
+    );
+    assert_eq!(
+        default_out, check_out,
+        "diff check and default must emit byte-identical patches"
+    );
+    assert!(check_out.contains("--- a/src/a.py"));
+    assert!(check_out.contains("+++ b/src/a.py"));
+    assert!(check_out.contains("-x = 1"));
+    assert!(check_out.contains("+y = 1"));
+}
+
+#[test]
+fn apply_mode_applies_in_sorted_path_order_despite_reversed_arrival() {
+    let mut harness = Harness::new("sorted-apply-order");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.write_source("src/b.py", "a = 1\n");
+    harness.write_source("src/c.py", "m = 1\n");
+    let original_a = std::fs::read(harness.workspace.join("src/a.py")).expect("source");
+    let original_b = std::fs::read(harness.workspace.join("src/b.py")).expect("source");
+    let original_c = std::fs::read(harness.workspace.join("src/c.py")).expect("source");
+    let change_a = harness.replacement_at(
+        "src/a.py",
+        digest(&original_a).to_vec(),
+        vec![proto::Edit {
+            start_byte: 0,
+            end_byte: 1,
+            replacement: b"y".to_vec(),
+        }],
+    );
+    let change_b = harness.replacement_at(
+        "src/b.py",
+        digest(&original_b).to_vec(),
+        vec![proto::Edit {
+            start_byte: 0,
+            end_byte: 1,
+            replacement: b"b".to_vec(),
+        }],
+    );
+    let change_c = harness.replacement_at(
+        "src/c.py",
+        digest(&original_c).to_vec(),
+        vec![proto::Edit {
+            start_byte: 0,
+            end_byte: 1,
+            replacement: b"z".to_vec(),
+        }],
+    );
+    let bytes = harness.result_full(
+        vec![
+            Harness::diagnostic("unused", true),
+            Harness::diagnostic_with(
+                proto::Severity::Warning as i32,
+                "lint-tool",
+                "src/b.py",
+                "unused",
+                true,
+            ),
+            Harness::diagnostic_with(
+                proto::Severity::Warning as i32,
+                "lint-tool",
+                "src/c.py",
+                "unused",
+                true,
+            ),
+        ],
+        vec![],
+        vec![change_c, change_b, change_a],
+        vec![
+            FileSnapshot {
+                path: "src/a.py".to_owned(),
+                digest: digest(&original_a).to_vec(),
+            },
+            FileSnapshot {
+                path: "src/b.py".to_owned(),
+                digest: digest(&original_b).to_vec(),
+            },
+            FileSnapshot {
+                path: "src/c.py".to_owned(),
+                digest: digest(&original_c).to_vec(),
+            },
+        ],
+    );
+    harness.results.insert("//test:corpus".to_owned(), bytes);
+    let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+    assert_eq!(code, 0);
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        b"y = 1\n"
+    );
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/b.py")).expect("source"),
+        b"b = 1\n"
+    );
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/c.py")).expect("source"),
+        b"z = 1\n"
+    );
+    let events = json_events(&out);
+    let changes = events_of_kind(&events, "change");
+    assert_eq!(changes.len(), 3);
+    assert_eq!(changes[0]["path"], serde_json::json!("src/a.py"));
+    assert_eq!(changes[1]["path"], serde_json::json!("src/b.py"));
+    assert_eq!(changes[2]["path"], serde_json::json!("src/c.py"));
+    for change in &changes {
+        assert_eq!(change["effect"], serde_json::json!("applied"));
+    }
+    let mutations = &changes;
+    let terminals: std::collections::BTreeMap<&str, &[u8]> = [
+        ("src/a.py", b"y = 1\n".as_slice()),
+        ("src/b.py", b"b = 1\n".as_slice()),
+        ("src/c.py", b"z = 1\n".as_slice()),
+    ]
+    .into_iter()
+    .collect();
+    let originals: std::collections::BTreeMap<&str, &[u8]> = [
+        ("src/a.py", original_a.as_slice()),
+        ("src/b.py", original_b.as_slice()),
+        ("src/c.py", original_c.as_slice()),
+    ]
+    .into_iter()
+    .collect();
+    for prefix_len in 0..=3 {
+        let mut expected: std::collections::BTreeMap<&str, &[u8]> = originals.clone();
+        for mutation in mutations.iter().take(prefix_len) {
+            let path = mutation["path"].as_str().expect("path");
+            expected.insert(path, terminals[path]);
+        }
+        for (path, body) in &expected {
+            let original = originals[path];
+            let terminal = terminals[path];
+            assert!(body == &original || body == &terminal);
+        }
+    }
+    assert_eq!(
+        harness.seen_env.borrow().len(),
+        1,
+        "sorted apply must launch Bazel exactly once, no rerun"
+    );
+}
+
+#[test]
+fn apply_depends_on_bytes_not_git_status() {
+    let statuses = ["tracked", "modified", "staged", "untracked"];
+    let mut digests = Vec::with_capacity(statuses.len());
+    for status in statuses {
+        let mut harness = Harness::new(&format!("git-status-{status}"));
+        harness.write_source("src/a.py", "x = 1\n");
+        harness.write_source(".git/HEAD", "ref: refs/heads/main\n");
+        harness.write_source(&format!(".git/status-{status}"), status);
+        harness.results.insert(
+            "//test:corpus".to_owned(),
+            harness.valid_result(
+                vec![Harness::diagnostic("unused", true)],
+                vec![harness.replacement(b"y")],
+            ),
+        );
+        let (code, out, _) = harness.run(&["lint", "--apply", "--output=json"]);
+        assert_eq!(code, 0, "{status}");
+        assert_eq!(
+            std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+            b"y = 1\n",
+            "{status}"
+        );
+        assert_eq!(
+            harness.seen_env.borrow().len(),
+            1,
+            "{status}: apply must launch Bazel exactly once, no rerun"
+        );
+        assert_eq!(
+            std::fs::read(harness.workspace.join(".git/HEAD")).expect("git head"),
+            b"ref: refs/heads/main\n",
+            "{status}"
+        );
+        assert_eq!(
+            std::fs::read(harness.workspace.join(format!(".git/status-{status}")))
+                .expect("git status marker"),
+            status.as_bytes(),
+            "{status}"
+        );
+        let events = json_events(&out);
+        let change = event(&events, "change");
+        assert_eq!(change["path"], serde_json::json!("src/a.py"));
+        digests.push(change["source_digest"].clone());
+    }
+    assert_all_equal(&digests);
+    let mut stale = Harness::new("git-status-stale");
+    stale.write_source("src/a.py", "x = 1\n");
+    stale.write_source(".git/HEAD", "ref: refs/heads/main\n");
+    stale.write_source(".git/status-staged", "staged");
+    let bytes = stale.valid_result(
+        vec![Harness::diagnostic("unused", true)],
+        vec![stale.replacement(b"y")],
+    );
+    stale.results.insert("//test:corpus".to_owned(), bytes);
+    stale.write_source("src/a.py", "z = 2\n");
+    let (code, _, err) = stale.run(&["lint", "--apply", "--output=text"]);
+    assert_eq!(code, 1);
+    assert!(err.contains("Not applied: src/a.py (stale_source)"));
+    assert_eq!(
+        std::fs::read(stale.workspace.join("src/a.py")).expect("source"),
+        b"z = 2\n"
+    );
+}
+
+#[test]
+fn invalid_edits_in_one_file_do_not_block_valid_sibling() {
+    let mut harness = Harness::new("invalid-edits-sibling");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.write_source("src/b.py", "a = 1\n");
+    let original_a = std::fs::read(harness.workspace.join("src/a.py")).expect("source");
+    let original_b = std::fs::read(harness.workspace.join("src/b.py")).expect("source");
+    let change_a = harness.replacement_at(
+        "src/a.py",
+        digest(&original_a).to_vec(),
+        vec![proto::Edit {
+            start_byte: 0,
+            end_byte: 1,
+            replacement: b"y".to_vec(),
+        }],
+    );
+    let change_b = harness.replacement_at(
+        "src/b.py",
+        digest(&original_b).to_vec(),
+        vec![proto::Edit {
+            start_byte: 0,
+            end_byte: 100,
+            replacement: b"x".to_vec(),
+        }],
+    );
+    let bytes = harness.result_full(
+        vec![
+            Harness::diagnostic("unused", true),
+            Harness::diagnostic_with(
+                proto::Severity::Warning as i32,
+                "lint-tool",
+                "src/b.py",
+                "unused",
+                true,
+            ),
+        ],
+        vec![],
+        vec![change_a, change_b],
+        vec![
+            FileSnapshot {
+                path: "src/a.py".to_owned(),
+                digest: digest(&original_a).to_vec(),
+            },
+            FileSnapshot {
+                path: "src/b.py".to_owned(),
+                digest: digest(&original_b).to_vec(),
+            },
+        ],
+    );
+    harness.results.insert("//test:corpus".to_owned(), bytes);
+    let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
+    assert_eq!(code, 1);
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        b"y = 1\n"
+    );
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/b.py")).expect("source"),
+        original_b
+    );
+    assert!(out.contains("Applied 1 file(s)."));
+    assert!(err.contains("Not applied: src/b.py (invalid_edits)"));
+    assert_eq!(
+        harness.seen_env.borrow().len(),
+        1,
+        "invalid sibling must launch Bazel exactly once, no rerun"
+    );
+}
+
+#[test]
+fn alias_reports_are_rejected_before_any_write() {
+    let mut harness = Harness::new("report-alias-collision");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    let (code, _, err) = harness.run(&[
+        "lint",
+        "--output=text",
+        "--report=sarif=out.sarif",
+        "--report=sarif=./out.sarif",
+    ]);
+    assert_eq!(code, 2, "{err}");
+    assert!(err.contains("same file"), "{err}");
+    assert!(!harness.workspace.join("out.sarif").exists());
+    assert_eq!(
+        harness.seen_env.borrow().len(),
+        0,
+        "a colliding plan must not launch Bazel"
+    );
+}
+
+#[test]
+#[cfg(unix)]
+fn unwritable_report_destination_fails_with_cause() {
+    let mut harness = Harness::new("report-unwritable");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    // A name longer than NAME_MAX fails the write even for root, which ignores mode bits.
+    let name = format!("{}.sarif", "x".repeat(300));
+    let (code, _, err) = harness.run(&["lint", "--output=text", &format!("--report=sarif={name}")]);
+    assert_eq!(code, 1, "{err}");
+    assert!(
+        err.contains("dx: report_failed: failed to write sarif report to "),
+        "{err}"
+    );
+    assert!(err.contains(&name), "{err}");
+}
+
+#[test]
+#[cfg(unix)]
+fn failed_report_write_keeps_stale_report_bytes() {
+    let mut harness = Harness::new("report-stale-kept");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![]),
+    );
+    harness.write_source("reports/out.sarif", "stale\n");
+    let reports = harness.workspace.join("reports");
+    let mut permissions = std::fs::metadata(&reports).expect("metadata").permissions();
+    permissions.set_readonly(true);
+    std::fs::set_permissions(&reports, permissions).expect("readonly");
+    let (code, _, err) =
+        harness.run(&["lint", "--output=text", "--report=sarif=reports/out.sarif"]);
+    let mut permissions = std::fs::metadata(&reports).expect("metadata").permissions();
+    #[expect(
+        clippy::permissions_set_readonly_false,
+        reason = "the test restores write access"
+    )]
+    permissions.set_readonly(false);
+    std::fs::set_permissions(&reports, permissions).expect("writable");
+    let report =
+        std::fs::read_to_string(harness.workspace.join("reports/out.sarif")).expect("report");
+    // Root may replace a file in a read-only directory, so for root the write lands.
+    if dx_test_scratch::running_as_root() {
+        assert_eq!(code, 0, "{err}");
+        assert_ne!(report, "stale\n");
+        return;
+    }
+    assert_eq!(code, 1, "{err}");
+    assert!(
+        err.contains("dx: report_failed: failed to write sarif report to "),
+        "{err}"
+    );
+    assert_eq!(report, "stale\n");
+}

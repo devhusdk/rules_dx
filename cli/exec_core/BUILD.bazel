@@ -17,6 +17,8 @@ rust_library(
         "src/notice_codes.rs",
     ],
     aliases = {},  # keep
+    # Clippy reads this config for dx_exec_core instead of the workspace one.
+    compile_data = ["clippy.toml"],
     crate_name = "dx_exec_core",
     crate_root = "src/lib.rs",
     # keep
@@ -35,6 +37,7 @@ rust_library(
         "@crates//:chrono",
         "@crates//:serde_json",
         "@crates//:thiserror",
+        "@crates//:tracing",
     ],
 )
 
@@ -54,6 +57,7 @@ rust_test(
         "src/notice_codes.rs",
     ],
     aliases = {},  # keep
+    compile_data = ["clippy.toml"],
     coverage_lib = ":dx_exec_core",
     crate_name = "dx_exec_core",
     crate_root = "src/lib.rs",
@@ -75,6 +79,7 @@ rust_test(
         "@crates//:serde_json",
         "@crates//:tempfile",
         "@crates//:thiserror",
+        "@crates//:tracing",
     ],
 )
 
@@ -87,11 +92,17 @@ filegroup(
 real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
-    toml_srcs = ["Cargo.toml"],
+    toml_srcs = [
+        "Cargo.toml",
+        "clippy.toml",
+    ],
 )
 
 exports_files(
-    ["Cargo.toml"],
+    [
+        "Cargo.toml",
+        "clippy.toml",
+    ],
     visibility = ["//visibility:public"],
 )
 

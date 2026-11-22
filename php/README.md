@@ -157,7 +157,8 @@ flags and family setup.
 On Linux, macOS and Windows, `dx coverage` runs `php_test` with PCOV and
 writes LCOV. On Windows, coverage runs on the official windows.php.net NTS
 build with the prebuilt `php_pcov.dll`. Every other Windows action uses the
-static `spc-max` build.
+static `spc-max` build. On Linux and macOS, PCOV is the prebuilt `dx-pcov-<os>-<cpu>.so`
+release asset, built from source on a platform without a pin.
 
 ## API docs
 
@@ -179,6 +180,15 @@ Elsewhere the rules mark their targets incompatible, so a build fails
 instead of running the host PHP. Launchers start through a bash script. On
 Windows, a small native launcher starts PHP from a descriptor file beside
 the `.exe`.
+
+The native launcher is the pinned rules_dx launcher for the host. To build
+it from source instead, which needs Rust and C toolchains, add this to the
+root `MODULE.bazel`:
+
+```starlark
+php = use_extension("@rules_dx//php:extensions.bzl", "php")
+php.from_source()
+```
 
 ### Refresh the PHP pins
 

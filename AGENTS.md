@@ -19,6 +19,7 @@ This repository uses Bazel.
 - Don't wait on upstream. Patch it here, or fetch the fixed rule set in rules_dx's own module extension, so consumers get the fix now. Then fix it upstream too: open an upstream issue first, then a small PR that follows that repo's contributing guide and style and includes a regression test. Link both from the rules_dx issue. Delete our patch once a release carries the fix.
 - No `actions: write`? Comment `/evidence platforms=["macos_arm64"] task=test scope=//pkg/...` on the issue or PR. It dispatches `evidence.yml` and replies with the run URL. Wait with `gh pr checks <n> --watch`.
 - Need a nested lock re-record? Comment `/lock-refresh nested=true` on the PR. It dispatches `lock-refresh.yml` on the PR branch, which commits the refreshed locks and nested cache sets there, and replies with the run URL.
+- Changed `MODULE.bazel` or a `bazel_dep`? Comment `/lock-refresh` on the PR. A Linux `bazel mod deps` refreshes only the linux_amd64 go_sdk and python entries.
 - Fresh container or clone: run `tools/dx --version` first. It fetches Bazelisk when `bazel` is missing and builds dx. See "Work in a cloud container" in CONTRIBUTING.md.
 - A PR that touches `.github/review-paths.txt` paths gets `needs-review` and a second-session `Review:` comment before merge. See CONTRIBUTING.md.
 

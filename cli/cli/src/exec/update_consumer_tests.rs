@@ -1,25 +1,6 @@
-#[test]
-fn stop_of_reports_the_holder_once_then_the_signal() {
-    let (mut err, mut events) = (Vec::new(), Vec::new());
-    let mut gate = super::SlotGate {
-        err: &mut err,
-        events: &mut events,
-        phase: dx_plan::slots::Phase::new(dx_plan::args::Command::Update),
-        busy: Some("pid 7".to_owned()),
-    };
-    assert_eq!(
-        super::stop_of(&mut gate, 1),
-        dx_plan::slots::Stop::Busy("pid 7".to_owned())
-    );
-    assert_eq!(
-        super::stop_of(&mut gate, 130),
-        dx_plan::slots::Stop::Signal(130)
-    );
-}
-
-use super::super::super::test_support::Harness;
-use super::super::super::test_support::{event, event_kinds, json_events};
-use super::super::update_live::{Launch, ScriptRunner, fake_pinned};
+use super::test_support::Harness;
+use super::test_support::{event, event_kinds, json_events};
+use super::update_live::{Launch, ScriptRunner, fake_pinned};
 
 fn uv_call(check: bool, dir: &str) -> Vec<String> {
     let mut argv = vec![fake_pinned("uv"), "lock".to_owned()];
@@ -172,7 +153,7 @@ fn script_resolution(harness: &Harness, base: &std::path::Path, rel: &str) {
 
 #[test]
 fn consumer_unset_uv_resolves_through_bazel_once_for_every_set() {
-    let base = super::super::super::test_support::temp_dir("uv-fallback");
+    let base = super::test_support::temp_dir("uv-fallback");
     let mut runner = ScriptRunner::new(&[]);
     runner.pinned = false;
     let harness = consumer_harness("fallback", UV_MODULE, true);
@@ -197,7 +178,7 @@ fn consumer_unset_uv_resolves_through_bazel_once_for_every_set() {
 
 #[test]
 fn consumer_offline_check_disables_repository_downloads_for_resolution() {
-    let base = super::super::super::test_support::temp_dir("uv-offline");
+    let base = super::test_support::temp_dir("uv-offline");
     let mut runner = ScriptRunner::new(&[]);
     runner.pinned = false;
     let harness = consumer_harness("offline", UV_MODULE, true);
@@ -236,7 +217,7 @@ fn consumer_failed_resolution_is_unavailable_with_the_detail_and_queried_once() 
 
 #[test]
 fn consumer_resolved_uv_with_the_wrong_version_is_rejected() {
-    let base = super::super::super::test_support::temp_dir("uv-wrong-version");
+    let base = super::test_support::temp_dir("uv-wrong-version");
     let mut runner = ScriptRunner::new(&[]);
     runner.pinned = false;
     runner.version = Some("uv 0.1.0".to_owned());
@@ -989,28 +970,6 @@ fn cargo_bytes(harness: &Harness) -> Vec<Vec<u8>> {
         .iter()
         .map(|rel| read_bytes(harness, rel))
         .collect()
-}
-
-#[test]
-fn consumer_cargo_env_forces_both_repin_triggers() {
-    assert_eq!(
-        cargo_env("false", "crates"),
-        vec![
-            ("CARGO_BAZEL_ISOLATED".to_owned(), "true".to_owned()),
-            ("CARGO_BAZEL_REPIN".to_owned(), "false".to_owned()),
-            ("CARGO_BAZEL_REPIN_ONLY".to_owned(), "crates".to_owned()),
-            ("REPIN".to_owned(), "false".to_owned()),
-            ("CARGO_BAZEL_DIGEST_CHECK".to_owned(), "1".to_owned()),
-        ]
-    );
-}
-
-#[test]
-fn consumer_cargo_check_env_checks_the_lock_digest_but_apply_does_not() {
-    let has = |env: Vec<(String, String)>| env.iter().any(|(k, _)| k == "CARGO_BAZEL_DIGEST_CHECK");
-    assert!(has(cargo_env("false", "crates")));
-    assert!(!has(cargo_env("workspace", "crates")));
-    assert!(!has(cargo_env("serde", "crates")));
 }
 
 #[test]
@@ -1777,20 +1736,6 @@ fn consumer_go_layout_refusal_never_launches() {
         assert!(runner.launches.borrow().is_empty());
         assert!(format!("{out}{err}").contains("local path"), "{out}{err}");
     }
-}
-
-#[cfg(unix)]
-#[test]
-fn scratch_removal_survives_a_read_only_module_cache() {
-    use std::os::unix::fs::PermissionsExt;
-    let scratch = crate::exec::staged::Scratch::create("readonly").expect("scratch");
-    let dir = scratch.0.join("gomodcache/pkg/mod");
-    std::fs::create_dir_all(&dir).expect("dir");
-    std::fs::write(dir.join("f.go"), "package f\n").expect("file");
-    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o500)).expect("chmod");
-    let path = scratch.0.clone();
-    drop(scratch);
-    assert!(!path.exists(), "{path:?}");
 }
 
 #[cfg(unix)]

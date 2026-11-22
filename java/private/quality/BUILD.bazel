@@ -10,6 +10,7 @@ package(default_visibility = [
 exports_files([
     "jvm.bzl",
     "jvm_check.bzl",
+    "jvm_info.bzl",
     "jvm_tools.bzl",
 ])
 
@@ -19,6 +20,7 @@ real_source_target(
         "BUILD.bazel",
         "jvm.bzl",
         "jvm_check.bzl",
+        "jvm_info.bzl",
         "jvm_tools.bzl",
     ],
     tags = ["corpus"],

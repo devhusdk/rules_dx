@@ -74,6 +74,7 @@ def matrix_unit_tests(name):
                     "      \"format\": \"tar.gz\",\n" +
                     "      \"machine\": \"x86_64\",\n" +
                     "      \"name\": \"dx-linux-x86_64\",\n" +
+                    "      \"notices\": [],\n" +
                     "      \"os\": \"linux\",\n" +
                     "      \"runtime\": []\n" +
                     "    },\n" +
@@ -83,6 +84,7 @@ def matrix_unit_tests(name):
                     "      \"format\": \"tar.gz\",\n" +
                     "      \"machine\": \"aarch64\",\n" +
                     "      \"name\": \"dx-linux-arm64\",\n" +
+                    "      \"notices\": [],\n" +
                     "      \"os\": \"linux\",\n" +
                     "      \"runtime\": []\n" +
                     "    },\n" +
@@ -92,6 +94,7 @@ def matrix_unit_tests(name):
                     "      \"format\": \"tar.gz\",\n" +
                     "      \"machine\": \"aarch64\",\n" +
                     "      \"name\": \"dx-macos-arm64\",\n" +
+                    "      \"notices\": [],\n" +
                     "      \"os\": \"macos\",\n" +
                     "      \"runtime\": []\n" +
                     "    },\n" +
@@ -101,6 +104,9 @@ def matrix_unit_tests(name):
                     "      \"format\": \"zip\",\n" +
                     "      \"machine\": \"x86_64\",\n" +
                     "      \"name\": \"dx-windows-x86_64\",\n" +
+                    "      \"notices\": [\n" +
+                    "        \"msvc_vcruntime\"\n" +
+                    "      ],\n" +
                     "      \"os\": \"windows\",\n" +
                     "      \"runtime\": [\n" +
                     "        \"msvcp140.dll\",\n" +
@@ -116,6 +122,9 @@ def matrix_unit_tests(name):
                     "      \"format\": \"zip\",\n" +
                     "      \"machine\": \"aarch64\",\n" +
                     "      \"name\": \"dx-windows-arm64\",\n" +
+                    "      \"notices\": [\n" +
+                    "        \"msvc_vcruntime\"\n" +
+                    "      ],\n" +
                     "      \"os\": \"windows\",\n" +
                     "      \"runtime\": [\n" +
                     "        \"msvcp140.dll\",\n" +

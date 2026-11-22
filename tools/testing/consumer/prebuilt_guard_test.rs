@@ -5,6 +5,11 @@
 //! `DX_PREBUILT_GUARD_LANGS` languages (the first at the root, each later one under `<lang>/`),
 //! and runs `bazel cquery 'deps(...)'` over the fixtures, the `@rules_dx` targets dx commands run
 //! and the hub target of every pinned tool.
+//! A tool of `DX_PREBUILT_TARGET_TOOLS` runs on the target platform, so it gets one tag per
+//! registry key instead, and the test writes the `dx_target_guard` package: its `targets` depend
+//! on the hub target of each such tool through a split transition over
+//! `@rules_dx//tools/platforms:<key>` for each registry key of the tool. A target tool that does
+//! not select the download of each of its keys fails the test.
 //! A jar tool gets `os = "any"` and `cpu = "any"`, and its hub target is a root only when a
 //! language is a JVM language. cquery follows exec and target configurations alike. Any compiled binary that a
 //! rules_dx repository declares fails the test unless `prebuilt_guard_allowlist.txt` names it;
@@ -17,14 +22,19 @@
 //! of the consumer through a `deps` attribute that carries the aspects `dx check` and `dx docs`
 //! pick for the consumer's files.
 //!
+//! The `python_tools` stub is a `tar.gz` with a `bin/` launcher per bundled tool, so the hub's
+//! `python_tool_<name>` targets analyze the pinned bundle path.
+//!
 //! cquery only analyzes, so the stubs never run; their sha256 is all the hubs check.
 
 use std::collections::BTreeMap;
 
 use dx_nested::Case;
 use prebuilt_guard::{
-    allowlist, command_roots, compiled_binaries, compiles_rules_dx_sources, guard_aspects,
-    java_binary_only, jvm_sources_query, problems, resolver_roots, stub_url, wrapper_build,
+    BundleTool, DOCS_FOREIGN, TargetRoot, allowlist, bundle_tools, command_roots,
+    compiled_binaries, drop_jar_launchers, drop_rule_set_repos, foreign_docs_labels, guard_aspects,
+    jvm_sources_query, missing_target_repos, problems, release_platform, resolver_roots,
+    stale_repos, stub_bundle, stub_url, target_guard_build, target_guard_bzl, wrapper_build,
     wrapper_bzl,
 };
 
@@ -34,20 +44,35 @@ const JVM_LANGS: &[&str] = &["java", "kotlin", "scala"];
 /// Registry tools served by `dx_gazelle` instead of `dx_prebuilt`.
 const GAZELLE_TOOLS: &[&str] = &["gazelle"];
 
-/// The host as a registry platform key such as `linux_x86_64`, and as `@platforms` os and cpu.
-fn host() -> Result<(String, &'static str, &'static str), String> {
-    let (key_os, os) = match std::env::consts::OS {
-        "linux" => ("linux", "linux"),
-        "macos" => ("macos", "macos"),
-        "windows" => ("windows", "windows"),
+/// The host as a registry platform key such as `linux_x86_64`.
+fn host() -> Result<String, String> {
+    let os = match std::env::consts::OS {
+        os @ ("linux" | "macos" | "windows") => os,
         other => return Err(format!("no registry platform for os {other}")),
     };
-    let (key_cpu, cpu) = match std::env::consts::ARCH {
-        "x86_64" => ("x86_64", "x86_64"),
-        "aarch64" => ("arm64", "aarch64"),
+    let cpu = match std::env::consts::ARCH {
+        "x86_64" => "x86_64",
+        "aarch64" => "arm64",
         other => return Err(format!("no registry platform for cpu {other}")),
     };
-    Ok((format!("{key_os}_{key_cpu}"), os, cpu))
+    Ok(format!("{os}_{cpu}"))
+}
+
+/// The registry keys of each tool in `names`.
+fn target_keys(registry: &str, names: &str) -> BTreeMap<String, Vec<String>> {
+    let names: Vec<&str> = names.split_whitespace().collect();
+    let mut keys: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for line in registry.lines() {
+        let mut fields = line.split_whitespace();
+        if let (Some(tool), Some(key)) = (fields.next(), fields.next())
+            && names.contains(&tool)
+        {
+            keys.entry(tool.to_owned())
+                .or_default()
+                .push(key.to_owned());
+        }
+    }
+    keys
 }
 
 /// The registry tools released for `key`, plus every tool released as a jar for any platform.
@@ -71,19 +96,23 @@ fn hub(tool: &str) -> &'static str {
     }
 }
 
-/// The hub targets of `tool`, by canonical name so the consumer needs no `use_repo`. The `go`
-/// registry tool is the dx-go multicall, served as one hub target per name in `go_names`.
-fn hub_targets(tool: &str, go_names: &str) -> Vec<String> {
+/// The hub targets of `tool` on platform `key`, by canonical name so the consumer needs no
+/// `use_repo`. The `go` registry tool is the dx-go multicall, served as one hub target per name in
+/// `go_names`; `python_tools` is served as one `python_tool_<name>` per bundled tool not missing on `key`.
+fn hub_targets(tool: &str, key: &str, go_names: &str, bundle: &[BundleTool]) -> Vec<String> {
     let hub = hub(tool);
-    let names: Vec<&str> = if tool == "go" {
-        go_names.split_whitespace().collect()
-    } else {
-        vec![tool]
-    };
-    names
-        .iter()
-        .map(|name| format!("@@rules_dx++{hub}+{hub}//:{name}"))
-        .collect()
+    match tool {
+        "go" => go_names
+            .split_whitespace()
+            .map(|name| format!("@@rules_dx++{hub}+{hub}//:{name}"))
+            .collect(),
+        "python_tools" => bundle
+            .iter()
+            .filter(|tool| !tool.missing.contains(key))
+            .map(BundleTool::hub_target)
+            .collect(),
+        _ => vec![format!("@@rules_dx++{hub}+{hub}//:{tool}")],
+    }
 }
 
 /// The `asset` tag of one stub, on the hub that serves `tool`.
@@ -117,16 +146,21 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     let list = allowlist(&runfile("DX_PREBUILT_GUARD_ALLOWLIST")).unwrap_or_else(|error| {
         panic!("prebuilt_guard_allowlist.txt: {error}");
     });
-    let (key, os, cpu) = host().unwrap_or_else(|error| panic!("{error}"));
-    let tools = host_tools(&runfile("DX_PREBUILT_REGISTRY"), &key);
+    let key = host().unwrap_or_else(|error| panic!("{error}"));
+    let (os, cpu) = release_platform(&key).unwrap_or_else(|| panic!("host key {key}"));
+    let registry = runfile("DX_PREBUILT_REGISTRY");
+    let tools = host_tools(&registry, &key);
+    let targeted = target_keys(&registry, &runfile("DX_PREBUILT_TARGET_TOOLS"));
     let go_names = runfile("DX_PREBUILT_GO_HUB_TARGETS");
+    let bundle = bundle_tools(&runfile("DX_PREBUILT_PYTHON_HUB_TARGETS"))
+        .unwrap_or_else(|error| panic!("python_hub_targets.txt: {error}"));
     let stubs = std::path::PathBuf::from(dx_testing::env_text("TEST_TMPDIR").trim()).join("stubs");
     let mut tags = String::new();
     let mut roots = vec!["//...".to_owned()];
     roots.extend(command_roots("@rules_dx", &langs));
     roots.extend(resolver_roots(&langs));
     for (tool, platform) in &tools {
-        if list.untagged.contains(tool) {
+        if targeted.contains_key(tool) {
             continue;
         }
         let (os, cpu) = if platform == "any" {
@@ -135,13 +169,41 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
             (os, cpu)
         };
         let stub = stubs.join(tool);
-        dx_testing::write_text(&stub, &format!("stub {tool}\n"));
+        if tool == "python_tools" {
+            let archive = stub_bundle(&bundle, os == "windows")
+                .unwrap_or_else(|error| panic!("stub python_tools bundle: {error}"));
+            std::fs::create_dir_all(&stubs)
+                .and_then(|()| std::fs::write(&stub, archive))
+                .unwrap_or_else(|error| panic!("write {}: {error}", stub.display()));
+        } else {
+            dx_testing::write_text(&stub, &format!("stub {tool}\n"));
+        }
         let sha256 = dx_testing::sha256_file(&stub).unwrap_or_else(|error| panic!("{error}"));
         let url = stub_url(&stub);
         tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
         if rooted(platform, &langs) {
-            roots.extend(hub_targets(tool, &go_names));
+            roots.extend(hub_targets(tool, &key, &go_names, &bundle));
         }
+    }
+    let mut target_roots = Vec::new();
+    for (tool, keys) in &targeted {
+        let stub = stubs.join(tool);
+        dx_testing::write_text(&stub, &format!("stub {tool}\n"));
+        let sha256 = dx_testing::sha256_file(&stub).unwrap_or_else(|error| panic!("{error}"));
+        let url = stub_url(&stub);
+        for target_key in keys {
+            let (os, cpu) = release_platform(target_key)
+                .unwrap_or_else(|| panic!("{tool}: registry key {target_key}"));
+            tags.push_str(&asset_tag(tool, os, cpu, &url, &sha256));
+        }
+        if keys.contains(&key) {
+            roots.extend(hub_targets(tool, &key, &go_names, &bundle));
+        }
+        target_roots.push(TargetRoot {
+            tool: tool.clone(),
+            keys: keys.clone(),
+            targets: hub_targets(tool, &key, &go_names, &bundle),
+        });
     }
     let extra = format!(
         "dx_prebuilt = use_extension(\"@rules_dx//core:extensions.bzl\", \"dx_prebuilt\")\n\
@@ -186,6 +248,15 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         &wrapper_bzl("@rules_dx", &check, &docs),
     );
     dx_testing::write_text(&wrapper.join("BUILD.bazel"), &wrapper_build(&targets));
+    let target_guard = case.root().join("dx_target_guard");
+    dx_testing::write_text(
+        &target_guard.join("defs.bzl"),
+        &target_guard_bzl("@rules_dx"),
+    );
+    dx_testing::write_text(
+        &target_guard.join("BUILD.bazel"),
+        &target_guard_build(&target_roots),
+    );
     let query = format!("deps({})", roots.join(" + "));
     let run = case.bazel(&[
         "cquery",
@@ -199,9 +270,13 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
     ]);
     assert!(run.status.success(), "bazel cquery: {}", run.combined());
     let command_labels: Vec<String> = command_roots("@@rules_dx+", &langs);
-    for label in ["@@//dx_prebuilt_guard:check", "@@//dx_prebuilt_guard:docs"]
-        .into_iter()
-        .chain(command_labels.iter().map(String::as_str))
+    for label in [
+        "@@//dx_prebuilt_guard:check",
+        "@@//dx_prebuilt_guard:docs",
+        "@@//dx_target_guard:targets",
+    ]
+    .into_iter()
+    .chain(command_labels.iter().map(String::as_str))
     {
         assert!(
             run.stdout
@@ -211,10 +286,9 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
         );
     }
     let mut found = compiled_binaries(&run.stdout);
-    found.retain(|label, lines| {
-        if !java_binary_only(lines) {
-            return true;
-        }
+    let rule_set_repos = list.repos_for(&langs);
+    let matched_repos = drop_rule_set_repos(&mut found, &rule_set_repos);
+    drop_jar_launchers(&mut found, |label| {
         let sources = case.bazel(&[
             "cquery",
             "--color=no",
@@ -225,18 +299,45 @@ fn a_consumer_with_every_host_pin_compiles_no_rules_dx_tool() {
             "--output=label",
             &jvm_sources_query(label),
         ]);
-        assert!(
-            sources.status.success(),
-            "bazel cquery: {}",
-            sources.combined()
+        if sources.status.success() {
+            Ok(sources.stdout)
+        } else {
+            Err(format!("bazel cquery: {}", sources.combined()))
+        }
+    })
+    .unwrap_or_else(|error| panic!("{error}"));
+    let mut problems = problems(&found, &list.labels_for(&langs));
+    problems.extend(stale_repos(&rule_set_repos, &matched_repos));
+    problems.extend(missing_target_repos(&run.stdout, &target_roots));
+    if let [lang] = langs.as_slice()
+        && let Some((_, fragments)) = DOCS_FOREIGN.iter().find(|(name, _)| name == lang)
+    {
+        let docs_only = format!(
+            "deps(@@//dx_prebuilt_guard:docs) except deps({})",
+            targets.join(" + ")
         );
-        compiles_rules_dx_sources(&sources.stdout)
-    });
-    let problems = problems(&found, &list.labels_for(&langs));
+        let docs = case.bazel(&[
+            "cquery",
+            "--color=no",
+            "--curses=no",
+            "--consistent_labels",
+            "--nocheck_visibility",
+            "--nocheck_bzl_visibility",
+            "--output=label",
+            &docs_only,
+        ]);
+        assert!(docs.status.success(), "bazel cquery: {}", docs.combined());
+        problems.extend(
+            foreign_docs_labels(&docs.stdout, fragments)
+                .into_iter()
+                .map(|label| format!("{lang} docs reach {label}")),
+        );
+    }
     assert!(
         problems.is_empty(),
-        "{named} consumer with host pins for {}:\n{}",
+        "{named} consumer with host pins for {} and target pins for {}:\n{}",
         tools.keys().cloned().collect::<Vec<_>>().join(", "),
+        targeted.keys().cloned().collect::<Vec<_>>().join(", "),
         problems.join("\n")
     );
 }
@@ -264,16 +365,30 @@ fn asset_tags_go_to_the_hub_that_serves_the_tool() {
             .starts_with("dx_prebuilt.asset(name = \"selene\"")
     );
     let go_names = "dx_errcheck\ndx_govet\n";
+    let bundle = bundle_tools("ansible_lint_tool ansible_lint windows_arm64\nyamllint yamllint\n")
+        .expect("parses");
+    let key = "linux_x86_64";
     assert_eq!(
-        hub_targets("gazelle", go_names),
+        hub_targets("gazelle", key, go_names, &bundle),
         ["@@rules_dx++dx_gazelle+dx_gazelle//:gazelle"]
     );
     assert_eq!(
-        hub_targets("dx", go_names),
+        hub_targets("dx", key, go_names, &bundle),
         ["@@rules_dx++dx_prebuilt+dx_prebuilt//:dx"]
     );
     assert_eq!(
-        hub_targets("go", go_names),
+        hub_targets("python_tools", key, go_names, &bundle),
+        [
+            "@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_ansible_lint_tool",
+            "@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_yamllint",
+        ]
+    );
+    assert_eq!(
+        hub_targets("python_tools", "windows_arm64", go_names, &bundle),
+        ["@@rules_dx++dx_prebuilt+dx_prebuilt//:python_tool_yamllint"]
+    );
+    assert_eq!(
+        hub_targets("go", key, go_names, &bundle),
         [
             "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_errcheck",
             "@@rules_dx++dx_prebuilt+dx_prebuilt//:dx_govet",
@@ -290,4 +405,25 @@ fn only_jvm_consumers_root_the_jar_tools() {
     assert!(rooted("any", &["kotlin"]));
     assert!(rooted("any", &["scala"]));
     assert!(rooted("any", &["go", "scala"]));
+}
+
+#[test]
+fn target_keys_list_every_registry_key_of_the_named_tools() {
+    let registry = "dx linux_x86_64 dx-linux-x86_64\nkcov linux_arm64 dx-kcov-linux-arm64\nkcov linux_x86_64 dx-kcov-linux-x86_64\nruntime windows_arm64 dx-runtime-windows-arm64\n";
+    assert_eq!(
+        target_keys(registry, "kcov\nruntime\n"),
+        BTreeMap::from([
+            (
+                "kcov".to_owned(),
+                vec!["linux_arm64".to_owned(), "linux_x86_64".to_owned()]
+            ),
+            ("runtime".to_owned(), vec!["windows_arm64".to_owned()]),
+        ])
+    );
+}
+
+#[test]
+fn the_host_is_a_registry_key() {
+    let key = host().unwrap();
+    assert!(release_platform(&key).is_some(), "{key}");
 }

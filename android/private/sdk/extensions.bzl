@@ -3,7 +3,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:license.bzl", "accepted_ids")
 load("//core:repo.bzl", "hub_repo")
-load(":repos.bzl", "APP_SDK_FILES_NAME", "APP_SDK_HUB_NAME", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "DEFAULT_MIRROR", "EMULATOR_ARTIFACTS", "HUB_NAME", "NDK_ARTIFACTS", "PLATFORM_ARTIFACTS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "android_app_sdk_hub_repo", "android_app_sdk_repo", "android_build_tools_repo", "android_emulator_repo", "android_ndk_repo", "android_platform_repo", "android_platform_tools_repo", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "bundletool_url", "canonical_id_for", "default_request", "hub_build", "license_errors", "package_repositories", "request_errors", "sdk_level", "select_request", "url_for")
+load(":repos.bzl", "APP_SDK_FILES_NAME", "APP_SDK_HUB_NAME", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "DEFAULT_MIRROR", "EMULATOR_ARTIFACTS", "HUB_NAME", "NDK_ARTIFACTS", "PLATFORM_ARTIFACTS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "SDK_HOSTS", "android_app_sdk_hub_repo", "android_app_sdk_repo", "android_build_tools_repo", "android_emulator_repo", "android_ndk_repo", "android_platform_repo", "android_platform_tools_repo", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "build_tools_repository_name", "bundletool_url", "canonical_id_for", "default_request", "hub_build", "license_errors", "package_repositories", "platform_tools_repository_name", "request_errors", "sdk_level", "select_request", "url_for")
 
 def _configure_tag(request, accept_licenses):
     return struct(
@@ -31,14 +31,18 @@ def _declare(rule, name, artifact, kind, mirror, license_error, **kwargs):
 
 def _declare_app_sdk(request, license_error):
     """Declares the @androidsdk replacement rules_android's SDK template builds on."""
-    dirs = {}
+    host_dirs = {}
     mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
-    for entry in app_sdk_layout(request):
-        url = url_for(entry.artifact, mirror)
-        dirs[entry.dest] = [url, entry.artifact.sha256, canonical_id_for(url, entry.kind), entry.artifact.directory]
+    for host in sorted(SDK_HOSTS.keys()):
+        dirs = {}
+        for entry in app_sdk_layout(request, host):
+            url = url_for(entry.artifact, mirror)
+            dirs[entry.dest] = [url, entry.artifact.sha256, canonical_id_for(url, entry.kind), entry.artifact.directory]
+        if len(dirs) > 0:
+            host_dirs[host] = json.encode(dirs)
     android_app_sdk_repo(
         name = APP_SDK_FILES_NAME,
-        dirs = dirs,
+        host_dirs = host_dirs,
         license_error = license_error,
         substitutions = app_sdk_substitutions(request),
     )
@@ -86,12 +90,12 @@ def _android_impl(module_ctx):
         mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
         for platform in sorted(repos["ndk"].keys()):
             _declare(android_ndk_repo, repos["ndk"][platform], NDK_ARTIFACTS[platform], "ndk", mirror, license_error, host = platform)
-        for platform in sorted(repos["build_tools"].keys()):
-            _declare(android_build_tools_repo, repos["build_tools"][platform], BUILD_TOOLS_ARTIFACTS[platform], "build-tools", mirror, license_error)
+        for host in sorted({SDK_HOSTS[cell]: True for cell in repos["build_tools"].keys()}.keys()):
+            _declare(android_build_tools_repo, build_tools_repository_name(host), BUILD_TOOLS_ARTIFACTS[host], "build-tools", mirror, license_error, host = host)
         for level in sorted(repos["platform"].keys()):
             _declare(android_platform_repo, repos["platform"][level], PLATFORM_ARTIFACTS[level], "platform", mirror, license_error)
-        for host in sorted(repos.get("platform_tools", {}).keys()):
-            _declare(android_platform_tools_repo, repos["platform_tools"][host], PLATFORM_TOOLS_ARTIFACTS[host], "platform-tools", mirror, license_error)
+        for host in sorted({SDK_HOSTS[cell]: True for cell in repos.get("platform_tools", {}).keys()}.keys()):
+            _declare(android_platform_tools_repo, platform_tools_repository_name(host), PLATFORM_TOOLS_ARTIFACTS[host], "platform-tools", mirror, license_error, host = host)
         for host in sorted(repos.get("emulator", {}).keys()):
             _declare(android_emulator_repo, repos["emulator"][host], EMULATOR_ARTIFACTS[host], "emulator", mirror, license_error)
     _declare_app_sdk(request, license_error)

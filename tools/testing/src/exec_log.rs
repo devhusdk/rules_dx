@@ -4,7 +4,8 @@
 //!
 //! The log is a zstd stream of varint-length `ExecLogEntry` messages. Every spawn output
 //! becomes the key `<label> <mnemonic> <output path>`, valued with the file digest, the sorted
-//! child digests of a directory, or the target of an unresolved symlink.
+//! child digests of a directory, or the target of an unresolved symlink. An output that
+//! several spawns list is keyed with the smallest of their labels.
 //!
 //! The fixtures in `exec_log_fixtures` were recorded with Bazel 9.3.1 from a scratch workspace
 //! holding `.bazelversion` (`9.3.1`) and an empty `MODULE.bazel`.
@@ -483,13 +484,22 @@ impl ExecLog {
 /// Returns `Err` when the log cannot be parsed or a spawn output has no entry.
 pub fn read(bytes: &[u8]) -> Result<Log, String> {
     let parsed = ExecLog::parse(bytes)?;
-    let mut log = Log::new();
+    let mut owners: BTreeMap<String, (&str, &str, String)> = BTreeMap::new();
     for spawn in &parsed.spawns {
         for (path, value) in parsed.outputs(spawn)? {
-            log.insert(format!("{} {} {path}", spawn.label, spawn.mnemonic), value);
+            let owner = (spawn.label.as_str(), spawn.mnemonic.as_str(), value);
+            match owners.get(&path) {
+                Some(kept) if kept.0 <= owner.0 => {}
+                _ => {
+                    owners.insert(path, owner);
+                }
+            }
         }
     }
-    Ok(log)
+    Ok(owners
+        .into_iter()
+        .map(|(path, (label, mnemonic, value))| (format!("{label} {mnemonic} {path}"), value))
+        .collect())
 }
 
 /// Most differing inputs one spawn lists before it only counts the rest.
@@ -761,26 +771,38 @@ pub fn parse_allowlist(text: &str) -> Result<BTreeSet<String>, String> {
     }
 }
 
+/// Maps each output path of `log` to its `<label> <mnemonic> <path>` key.
+fn keys_by_path(log: &Log) -> BTreeMap<&str, &str> {
+    log.keys()
+        .map(|key| (key.splitn(3, ' ').nth(2).unwrap_or(""), key.as_str()))
+        .collect()
+}
+
+/// Compares two logs by output path; the label in a key only names the entry,
+/// because a shared action's owner can change between builds.
 #[must_use]
 pub fn problems(first: &Log, second: &Log, allowlist: &BTreeSet<String>) -> Vec<String> {
     let mut out = Vec::new();
-    for (key, value) in first {
-        match second.get(key) {
-            None => out.push(format!("`{key}` is only in the first log")),
-            Some(other) if other != value => {
-                if !allowlist.contains(key) {
-                    out.push(format!("`{key}` differs between the logs"));
-                }
+    let first_paths = keys_by_path(first);
+    let second_paths = keys_by_path(second);
+    for (path, key) in &first_paths {
+        let Some(other_key) = second_paths.get(path) else {
+            out.push(format!("`{key}` is only in the first log"));
+            continue;
+        };
+        let allowed = allowlist.contains(*key) || allowlist.contains(*other_key);
+        if first[*key] == second[*other_key] {
+            if allowed {
+                out.push(format!("`{key}` no longer differs: delete the line"));
             }
-            Some(_) => {
-                if allowlist.contains(key) {
-                    out.push(format!("`{key}` no longer differs: delete the line"));
-                }
-            }
+        } else if !allowed {
+            out.push(format!("`{key}` differs between the logs"));
         }
     }
-    for key in second.keys().filter(|key| !first.contains_key(*key)) {
-        out.push(format!("`{key}` is only in the second log"));
+    for (path, key) in &second_paths {
+        if !first_paths.contains_key(path) {
+            out.push(format!("`{key}` is only in the second log"));
+        }
     }
     for key in allowlist {
         if !first.contains_key(key) && !second.contains_key(key) {
@@ -862,6 +884,23 @@ mod tests {
         assert!(found[0].contains("only in the first log"));
         let found = problems(&second, &first, &allow(&format!("{STAMPED}\n")));
         assert!(found[0].contains("only in the second log"), "{found:?}");
+    }
+
+    #[test]
+    fn a_relabelled_output_matches_by_path() {
+        let (first, mut second) = logs();
+        for key in [STABLE, STAMPED] {
+            let value = second.remove(key).unwrap();
+            second.insert(key.replacen("//:", "//other:", 1), value);
+        }
+        let found = problems(&first, &second, &allow(""));
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].contains(STAMPED) && found[0].contains("differs"));
+        let relabelled = format!("{}\n", STAMPED.replacen("//:", "//other:", 1));
+        assert_eq!(
+            problems(&first, &second, &allow(&relabelled)),
+            Vec::<String>::new()
+        );
     }
 
     #[test]

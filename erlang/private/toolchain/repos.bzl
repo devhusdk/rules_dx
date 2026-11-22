@@ -201,7 +201,7 @@ def hub_build():
     """Returns the hub BUILD file: per qualified cell an exec Erlang toolchain and a target runtime toolchain, and the erl_nif alias."""
     return "\n".join([
         'load("@rules_cc//cc:defs.bzl", "cc_library")\n\npackage(default_visibility = ["//visibility:public"])\n',
-        pins_hub(HUB_NAME, CELLS.keys(), RUNTIME_TOOLCHAIN_TYPE, "target", exec_toolchain_type = str(Label("//erlang/private/toolchain:exec_toolchain_type"))),
+        pins_hub(HUB_NAME, CELLS.keys(), RUNTIME_TOOLCHAIN_TYPE, "target", exec_toolchain_type = str(Label("//erlang:exec_toolchain_type"))),
         _HUB_NIF.format(
             compatible = repr(nif_compatible_cases(CELLS.keys())),
             deps = repr(nif_header_cases(CELLS.keys())),

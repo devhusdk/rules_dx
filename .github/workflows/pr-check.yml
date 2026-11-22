@@ -49,10 +49,10 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           "$RUNNER_TEMP/pr-check/producers_bin" --pr-check preflight-windows-arm64 $BAZEL_CONFIG $BB_ARGS
-      - name: starter
+      - name: android-linux-arm64
         run: |
           # shellcheck disable=SC2086
-          "$RUNNER_TEMP/pr-check/producers_bin" --pr-check starter $BAZEL_CONFIG $BB_ARGS
+          "$RUNNER_TEMP/pr-check/producers_bin" --pr-check android-linux-arm64 $BAZEL_CONFIG $BB_ARGS
       - name: hermetic
         run: |
           # shellcheck disable=SC2086
@@ -130,13 +130,15 @@ jobs:
           fi
           # A widened plan is a pattern such as //..., so keep only the tests it names and drop
           # the ones `bazel test` would skip: manual tests and those other workflows own.
+          # A test_suite can name tests in other repositories, and `dx test` takes only
+          # main-repository labels, so the set stays inside //....
           # $t is a query variable, not a shell one.
           query="$RUNNER_TEMP/affected/query"
           # shellcheck disable=SC2016
           {
             printf 'let t = tests(set('
             tr '\n' ' ' < "$labels"
-            printf '%s\n' ')) in $t except attr(tags, "(\[|, )(manual|resources:nested_bazel:1|starter-consumer|network-consumer)(,|\])", $t)'
+            printf '%s\n' ')) in ($t intersect //...) except attr(tags, "(\[|, )(manual|resources:nested_bazel:1|starter-consumer|network-consumer)(,|\])", $t)'
           } > "$query"
           # A change to a shared library can reach most of the repository (2,544 tests for
           # cli/path), far more than one runner tests in 30 minutes, so the tests run as

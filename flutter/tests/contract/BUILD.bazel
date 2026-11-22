@@ -4,7 +4,6 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     file_classes = ["dart"],
-    known_gaps = {"library": {"upstream_instrumented": "False"}},
     wrappers = {
         "library": "//flutter/tests/runtime:lib",
         "test": "//flutter/tests/runtime:widget_test",

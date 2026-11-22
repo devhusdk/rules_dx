@@ -14,9 +14,14 @@ rust_library(
         "src/pinned_tool.rs",
         "src/rustc_stderr.rs",
         "src/skipped_targets.rs",
+        "src/uv_tools.rs",
     ],
     aliases = {},  # keep
-    compile_data = ["src/unsupported.json"],
+    # Clippy reads clippy.toml for dx_exec_reports instead of the workspace one.
+    compile_data = [
+        "clippy.toml",
+        "src/unsupported.json",
+    ],
     crate_name = "dx_exec_reports",
     crate_root = "src/lib.rs",
     # keep
@@ -28,6 +33,7 @@ rust_library(
         "//cli/plan:dx_plan",
         "//cli/process:dx_process",
         "//cli/tool_resolve:dx_tool_resolve",
+        "//cli/update:dx_update",
         "@crates//:serde",
         "@crates//:serde_json",
     ],
@@ -36,20 +42,9 @@ rust_library(
 rust_test(
     name = "dx_exec_reports_test",
     size = "small",
-    srcs = [
-        "src/build_failures.rs",
-        "src/compiler_stderr.rs",
-        "src/failure_reports.rs",
-        "src/lib.rs",
-        "src/pinned_tool.rs",
-        "src/rustc_stderr.rs",
-        "src/skipped_targets.rs",
-    ],
     aliases = {},  # keep
     compile_data = ["src/unsupported.json"],
-    coverage_lib = ":dx_exec_reports",
-    crate_name = "dx_exec_reports",
-    crate_root = "src/lib.rs",
+    crate = ":dx_exec_reports",
     # keep
     deps = [
         "//cli/bep:dx_bep",
@@ -60,6 +55,7 @@ rust_test(
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
         "//cli/tool_resolve:dx_tool_resolve",
+        "//cli/update:dx_update",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:tempfile",
@@ -75,12 +71,16 @@ filegroup(
 real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
-    toml_srcs = ["Cargo.toml"],
+    toml_srcs = [
+        "Cargo.toml",
+        "clippy.toml",
+    ],
 )
 
 exports_files(
     [
         "Cargo.toml",
+        "clippy.toml",
         "src/unsupported.json",
     ],
     visibility = ["//visibility:public"],

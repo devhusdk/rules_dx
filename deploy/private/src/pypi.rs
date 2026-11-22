@@ -10,7 +10,6 @@ use crate::run::{
     run_publish, scrubbed_command,
 };
 use crate::stage::*;
-use std::fmt::Write as _;
 use std::io;
 use std::path::Path;
 
@@ -249,7 +248,7 @@ pub fn pypi_build_wheelhouse(
     dist_name: &str,
 ) -> io::Result<std::path::PathBuf> {
     let (project, _) = pypi_check_pair(wheel_src, sdist_src)?;
-    let house = outdir.join(dist_name.to_owned() + "-wheelhouse");
+    let house = outdir.join(format!("{dist_name}-wheelhouse"));
     std::fs::create_dir_all(&house)?;
     let mut entries: Vec<(String, String)> = Vec::new();
     let mut sources: Vec<&Path> = vec![wheel_src];
@@ -267,11 +266,9 @@ pub fn pypi_build_wheelhouse(
     std::fs::create_dir_all(&index_dir)?;
     let mut body = String::from("<!DOCTYPE html>\n<html><body>\n");
     for (base, digest) in &entries {
-        writeln!(
-            body,
-            "<a href=\"../../{base}#sha256={digest}\">{base}</a><br/>"
-        )
-        .ok();
+        body.push_str(&format!(
+            "<a href=\"../../{base}#sha256={digest}\">{base}</a><br/>\n"
+        ));
     }
     body.push_str("</body></html>\n");
     std::fs::write(index_dir.join("index.html"), body.as_bytes())?;
@@ -286,10 +283,7 @@ pub(crate) const PYPI_GATE: OwnerGate = OwnerGate {
     approved: "PYPI_PUBLISH_APPROVED",
 };
 
-/// Python used for the trusted-publisher token exchange.
-const PYPI_PYTHON: &str = "python3";
-
-/// Env names the signing and token-exchange children keep for the CI identity.
+/// Env names the signing child keeps for the CI identity.
 const PYPI_OIDC_ENV: &[&str] = &[
     "ACTIONS_ID_TOKEN_REQUEST_URL",
     "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
@@ -297,18 +291,6 @@ const PYPI_OIDC_ENV: &[&str] = &[
     "REQUESTS_CA_BUNDLE",
     "SSL_CERT_FILE",
 ];
-
-/// Fetches the CI identity token and exchanges it for a PyPI upload token.
-const PYPI_MINT_SCRIPT: &str = r#"
-import json, os, sys, urllib.parse, urllib.request
-audience, mint = sys.argv[1], sys.argv[2]
-url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
-url += ("&" if "?" in url else "?") + urllib.parse.urlencode({"audience": audience})
-request = urllib.request.Request(url, headers={"Authorization": "bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]})
-jwt = json.load(urllib.request.urlopen(request))["value"]
-request = urllib.request.Request(mint, json.dumps({"token": jwt}).encode(), {"Content-Type": "application/json"})
-sys.stdout.write(json.load(urllib.request.urlopen(request))["token"])
-"#;
 
 /// True when a trusted-publisher identity is available.
 fn pypi_oidc_present(var: impl Fn(&str) -> String) -> bool {
@@ -349,23 +331,119 @@ fn pypi_mint_endpoint(registry_url: &str) -> Option<(&'static str, String)> {
     }
 }
 
+/// Reads the unverified claims of a CI identity token and returns the refusal for a
+/// `job_workflow_ref` outside the `repository` claim.
+fn pypi_cross_repo_refusal(jwt: &str) -> Option<String> {
+    use base64::Engine as _;
+    let payload = jwt.split('.').nth(1)?.trim_end_matches('=');
+    let claims: serde_json::Value = serde_json::from_slice(
+        &base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(payload)
+            .ok()?,
+    )
+    .ok()?;
+    let workflow_ref = claims.get("job_workflow_ref")?.as_str()?;
+    let repository = claims.get("repository")?.as_str()?;
+    let (workflow_repo, _) = workflow_ref.split_once("/.github/workflows/")?;
+    (!workflow_repo.eq_ignore_ascii_case(repository)).then(|| {
+        format!(
+            "pypi_deploy: PyPI trusted publishing does not accept a reusable workflow from another \
+             repository ({workflow_ref}); set PYPI_API_TOKEN or publish from a workflow in {repository}"
+        )
+    })
+}
+
+/// Names the `errors[].code: description` pairs of a refused token exchange.
+fn pypi_mint_errors(body: &[u8]) -> String {
+    let Ok(value) = serde_json::from_slice::<serde_json::Value>(body) else {
+        return String::from_utf8_lossy(body).trim().to_owned();
+    };
+    value
+        .get("errors")
+        .and_then(serde_json::Value::as_array)
+        .map(|errors| {
+            errors
+                .iter()
+                .map(|error| {
+                    let field = |key| error.get(key).and_then(serde_json::Value::as_str);
+                    format!(
+                        "{}: {}",
+                        field("code").unwrap_or("?"),
+                        field("description").unwrap_or("")
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("; ")
+        })
+        .unwrap_or_default()
+}
+
 /// Exchanges the CI identity token for a short-lived PyPI upload token.
-fn pypi_mint_token(python: &Path, registry_url: &str) -> Result<String, String> {
+fn pypi_mint_token(
+    client: &dx_http::Client,
+    registry_url: &str,
+    var: impl Fn(&str) -> String,
+) -> Result<String, String> {
     let (audience, mint) = pypi_mint_endpoint(registry_url).ok_or_else(|| {
         format!("pypi_deploy: trusted publishing is not available for {registry_url}; set PYPI_API_TOKEN")
     })?;
-    let mut cmd = scrubbed_command(python, &[PUBLISH_CHILD_ENV_KEEP, PYPI_OIDC_ENV], &[]);
-    cmd.args(["-I", "-c", PYPI_MINT_SCRIPT, audience, &mint]);
-    let out = run_publish(&mut cmd).map_err(|error| format!("pypi_deploy: {error}"))?;
-    let token = String::from_utf8_lossy(&out.stdout).trim().to_owned();
-    if out.success() && !token.is_empty() {
+    let mut url = var("ACTIONS_ID_TOKEN_REQUEST_URL");
+    url.push(if url.contains('?') { '&' } else { '?' });
+    url.push_str("audience=");
+    url.push_str(&crate::http::query_escape(audience));
+    let authorization = format!("bearer {}", var("ACTIONS_ID_TOKEN_REQUEST_TOKEN"));
+    let identity = client
+        .text(&url, &[("Authorization", authorization.as_str())], 64 << 10)
+        .map_err(|error| format!("pypi_deploy: CI identity token request failed: {error}"))?;
+    let jwt = serde_json::from_str::<serde_json::Value>(&identity)
+        .ok()
+        .and_then(|value| value.get("value")?.as_str().map(str::to_owned))
+        .ok_or("pypi_deploy: CI identity token response has no value")?;
+    if let Some(refusal) = pypi_cross_repo_refusal(&jwt) {
+        return Err(refusal);
+    }
+    let body = serde_json::json!({ "token": jwt }).to_string();
+    let reply = client
+        .send(
+            dx_http::Method::Post,
+            &mint,
+            &[("Content-Type", "application/json")],
+            dx_http::Body::Bytes(body.as_bytes()),
+            64 << 10,
+        )
+        .map_err(|error| format!("pypi_deploy: token exchange failed: {error}"))?;
+    let token = serde_json::from_slice::<serde_json::Value>(&reply.body)
+        .ok()
+        .and_then(|value| value.get("token")?.as_str().map(str::to_owned))
+        .filter(|token| !token.is_empty());
+    if let (true, Some(token)) = ((200..300).contains(&reply.status), token) {
         return Ok(token);
     }
-    eprint!("{}", pypi_scrub(&out.stderr, &token));
-    Err(format!(
-        "pypi_deploy: token exchange failed with {}",
-        exit_text(&out)
+    let detail = pypi_mint_errors(&reply.body);
+    Err(pypi_scrub(
+        format!(
+            "pypi_deploy: token exchange failed with HTTP {}: {detail}",
+            reply.status
+        )
+        .as_bytes(),
+        &jwt,
     ))
+}
+
+/// Picks the upload token and whether to sign: only trusted-publishing uploads carry attestations.
+fn pypi_credentials(
+    auth: PypiAuth,
+    mint: impl FnOnce() -> Result<String, String>,
+) -> Result<(String, bool), String> {
+    match auth {
+        PypiAuth::Token(token) => Ok((token, false)),
+        PypiAuth::TrustedPublishing => mint().map(|token| (token, true)),
+        PypiAuth::Missing => Err(
+            "pypi_deploy: live upload needs PYPI_API_TOKEN or a trusted-publisher identity \
+             (ACTIONS_ID_TOKEN_REQUEST_URL and ACTIONS_ID_TOKEN_REQUEST_TOKEN); refusing"
+                .to_owned(),
+        ),
+    }
 }
 
 /// Signs the staged files with the pinned pypi-attestations; returns the attestation file for each.
@@ -751,21 +829,15 @@ pub fn pypi_main_checked(
             eprintln!("{error}");
             return 1;
         }
-        let python = Path::new(PYPI_PYTHON);
-        let (token, attest) = match pypi_auth(env_or_empty) {
-            PypiAuth::Token(token) => (token, pypi_oidc_present(env_or_empty)),
-            PypiAuth::TrustedPublishing => match pypi_mint_token(python, registry_url) {
-                Ok(token) => (token, true),
-                Err(error) => {
-                    eprintln!("{error}");
-                    return 1;
-                }
-            },
-            PypiAuth::Missing => {
-                eprintln!(
-                    "pypi_deploy: live upload needs PYPI_API_TOKEN or a trusted-publisher identity \
-                     (ACTIONS_ID_TOKEN_REQUEST_URL and ACTIONS_ID_TOKEN_REQUEST_TOKEN); refusing"
-                );
+        let credentials = pypi_credentials(pypi_auth(env_or_empty), || {
+            crate::http::client()
+                .map_err(|error| format!("pypi_deploy: {error}"))
+                .and_then(|client| pypi_mint_token(&client, registry_url, env_or_empty))
+        });
+        let (token, attest) = match credentials {
+            Ok(credentials) => credentials,
+            Err(error) => {
+                eprintln!("{error}");
                 return 1;
             }
         };
@@ -786,7 +858,7 @@ pub fn pypi_main_checked(
             Path::new("twine"),
             &wheel,
             sdist.as_deref(),
-            &outdir.join(dist_name.to_owned() + "-upload"),
+            &outdir.join(format!("{dist_name}-upload")),
             registry_url,
             &token,
             signer.as_deref(),
@@ -851,15 +923,13 @@ mod tests {
         });
         let args_log = scratch.path().join("args");
         let fake = scratch.path().join("griffe");
-        std::fs::write(
+        dx_testing::executable_script(
             &fake,
-            format!(
+            &format!(
                 "#!/bin/sh\necho \"$@\" > {}\necho 'src/pkg/__init__.py:1: pkg.hello: Public object was removed'\nexit 1\n",
                 args_log.display()
             ),
-        )
-        .expect("fake tool");
-        set_mode(&fake, 0o755);
+        );
         let check = PypiApiCheck {
             mode: "fail",
             baseline: "git",
@@ -929,7 +999,7 @@ mod tests {
     fn wheel_bytes_with(files: &[&str], wheel_file: Option<&str>) -> Vec<u8> {
         let mut record = String::from("pkg-1.0.dist-info/RECORD,,\n");
         for file in files {
-            writeln!(record, "{file},sha256=x,1").ok();
+            record.push_str(&format!("{file},sha256=x,1\n"));
         }
         let mut members = vec![("pkg-1.0.dist-info/RECORD", record.as_bytes(), 0o644)];
         if let Some(wheel_file) = wheel_file {
@@ -941,7 +1011,7 @@ mod tests {
     fn wheel_file(tags: &[&str], purelib: bool) -> String {
         let mut text = format!("Wheel-Version: 1.0\nRoot-Is-Purelib: {purelib}\n");
         for tag in tags {
-            writeln!(text, "Tag: {tag}").ok();
+            text.push_str(&format!("Tag: {tag}\n"));
         }
         text
     }
@@ -1260,6 +1330,108 @@ mod tests {
         let (files, attestations) = upload.split_once(" --attestations ").expect(upload);
         assert!(!files.contains(".publish.attestation"), "{upload}");
         assert_eq!(attestations.matches(".publish.attestation").count(), 2);
+    }
+
+    fn fake_jwt(claims: &serde_json::Value) -> String {
+        use base64::Engine as _;
+        let part = |bytes: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+        format!(
+            "{}.{}.sig",
+            part(br#"{"alg":"RS256"}"#),
+            part(claims.to_string().as_bytes())
+        )
+    }
+
+    fn cross_repo_jwt() -> String {
+        fake_jwt(&serde_json::json!({
+            "repository": "acme/widget",
+            "job_workflow_ref": "devhusdk/rules_dx/.github/workflows/reusable-release.yml@refs/tags/x/y",
+        }))
+    }
+
+    const CROSS_REPO_REFUSAL: &str = "pypi_deploy: PyPI trusted publishing does not accept a \
+        reusable workflow from another repository \
+        (devhusdk/rules_dx/.github/workflows/reusable-release.yml@refs/tags/x/y); \
+        set PYPI_API_TOKEN or publish from a workflow in acme/widget";
+
+    #[test]
+    fn pypi_cross_repo_workflow_is_refused() {
+        assert_eq!(
+            pypi_cross_repo_refusal(&cross_repo_jwt()).as_deref(),
+            Some(CROSS_REPO_REFUSAL)
+        );
+        let same = fake_jwt(&serde_json::json!({
+            "repository": "Acme/Widget",
+            "job_workflow_ref": "acme/widget/.github/workflows/release.yml@refs/heads/main",
+        }));
+        assert_eq!(pypi_cross_repo_refusal(&same), None);
+        assert_eq!(pypi_cross_repo_refusal("junk"), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn pypi_mint_refuses_cross_repo_before_exchange() {
+        let jwt = cross_repo_jwt();
+        let origin = static_registry(|_| {
+            vec![(
+                "/token?audience=testpypi".to_owned(),
+                serde_json::json!({ "value": jwt }).to_string().into_bytes(),
+            )]
+        });
+        let url = format!("{origin}/token");
+        let vars = |key: &str| match key {
+            "ACTIONS_ID_TOKEN_REQUEST_URL" => url.clone(),
+            "ACTIONS_ID_TOKEN_REQUEST_TOKEN" => "request".to_owned(),
+            _ => String::new(),
+        };
+        assert_eq!(
+            pypi_mint_token(
+                &crate::http::test_client(),
+                "https://test.pypi.org/legacy/",
+                vars
+            ),
+            Err(CROSS_REPO_REFUSAL.to_owned())
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn pypi_token_upload_is_not_attested() {
+        let vars = |key: &str| {
+            match key {
+                "ACTIONS_ID_TOKEN_REQUEST_URL" => "https://ci/token",
+                "ACTIONS_ID_TOKEN_REQUEST_TOKEN" => "t",
+                "PYPI_API_TOKEN" => "pypi-x",
+                _ => "",
+            }
+            .to_owned()
+        };
+        let (token, attest) =
+            pypi_credentials(pypi_auth(vars), || panic!("a token upload mints nothing"))
+                .expect("credentials");
+        assert_eq!((token.as_str(), attest), ("pypi-x", false));
+        assert_eq!(
+            pypi_credentials(PypiAuth::TrustedPublishing, || Ok("m".to_owned())),
+            Ok(("m".to_owned(), true))
+        );
+        let scratch = scratch_dir();
+        let dir = scratch.path();
+        let argv = dir.join("argv");
+        let twine = fake_twine(dir, &format!("echo \"$@\" >> {}", argv.display()));
+        let (wheel, sdist) = upload_fixture(dir, "pkg-1.0.tar.gz");
+        let code = pypi_upload(
+            &twine,
+            &wheel,
+            Some(&sdist),
+            &dir.join("stage"),
+            "https://u",
+            &token,
+            None,
+        );
+        assert_eq!(code, 0);
+        let lines = std::fs::read_to_string(&argv).expect("argv");
+        let upload = lines.lines().nth(1).expect("upload line");
+        assert!(!upload.contains("--attestations"), "{upload}");
     }
 
     #[test]

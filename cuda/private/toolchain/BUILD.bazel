@@ -1,11 +1,10 @@
-load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//core:cells.bzl", "cell_settings", "cells_compatible_with")
 load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":check.bzl", "cuda_toolkit_check")
-load(":settings.bzl", "CUDA_CELL_SETTINGS")
 load(":static_runtime.bzl", "cuda_windows_static_runtime")
+load(":toolkit_check.bzl", "cuda_toolkit_check")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,18 +12,6 @@ cell_settings(
     name = "cell",
     cells = CUDA_CELLS,
 )
-
-[
-    selects.config_setting_group(
-        name = "cell_%s_msvc" % cell,
-        match_all = [
-            ":cell_" + cell,
-            "//cc/private/toolchain:msvc_selected",
-        ],
-    )
-    for cell in CUDA_CELLS
-    if cell.startswith("windows_")
-]
 
 exports_files([
     "check.bzl",
@@ -40,6 +27,18 @@ bool_flag(
 config_setting(
     name = "static_runtime_enabled",
     flag_values = {":static_runtime": "True"},
+)
+
+config_setting(
+    name = "windows_msvc",
+    constraint_values = ["@platforms//os:windows"],
+    flag_values = {"//cc:compiler": "msvc"},
+)
+
+write_file(
+    name = "empty_cu",
+    out = "empty.cu",
+    content = [""],
 )
 
 cuda_windows_static_runtime(
@@ -66,7 +65,6 @@ cuda_toolkit_check(
         CUDA_CELLS,
         "//cuda/private/toolchain",
         cuda_qualified_cells(),
-        settings = CUDA_CELL_SETTINGS,
     ),
 )
 
@@ -77,6 +75,7 @@ real_source_target(
         "check.bzl",
         "settings.bzl",
         "static_runtime.bzl",
+        "toolkit_check.bzl",
         "transition.bzl",
     ],
     tags = ["corpus"],
@@ -84,9 +83,6 @@ real_source_target(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
-        "BUILD.bazel",
-    ]),
+    srcs = glob(["*.bzl"]) + ["BUILD.bazel"],
     visibility = ["//:__subpackages__"],
 )

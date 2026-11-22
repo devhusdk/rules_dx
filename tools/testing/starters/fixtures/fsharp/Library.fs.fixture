@@ -1,3 +1,0 @@
-module Hello
-
-let greet name = "hello " + name

@@ -3,6 +3,7 @@
 load("//android/private/platforms:defs.bzl", "api_floor", "constraint_list")
 load("//android/private/platforms:validate.bzl", "android_cxx_runtime_errors", "android_ndk_revision_errors")
 load("//android/private/sdk:repos.bzl", "ANDROID_NDK_CLANG_VERSION", "ANDROID_NDK_REVISION", "NDK_ARTIFACTS", "NDK_PREBUILT", "PLATFORM_CONSTRAINTS", "ndk_repository_name")
+load("//core:cells.bzl", "unsupported_constraint")
 
 def toolchain_repo_errors(revision, api_level, cxx_runtime):
     """Returns one error string per rejected toolchain repository selection."""
@@ -14,6 +15,8 @@ def toolchain_repo_errors(revision, api_level, cxx_runtime):
     return errors
 
 _TOOLCHAINS_ON = str(Label("//config:toolchains_on"))
+_INCOMPATIBLE = str(Label("@platforms//:incompatible"))
+_ANDROID_UNSUPPORTED = str(unsupported_constraint("android"))
 
 _TUPLE_BUILD = """
 filegroup(
@@ -144,10 +147,16 @@ def toolchain_build(ndks, api_level, cxx_runtime):
                 toolchains_on = _TOOLCHAINS_ON,
             ))
     chunks.extend([
+        "filegroup(",
+        '    name = "no_ndk_host",',
+        '    target_compatible_with = ["%s", "%s"],' % (_INCOMPATIBLE, _ANDROID_UNSUPPORTED),
+        ")",
+        "",
         "alias(",
         '    name = "llvm_readelf",',
         "    actual = select({",
     ] + ['        ":%s": "%s:llvm_readelf",' % (host, ndks[host].label) for host in sorted(ndks.keys())] + [
+        '        "//conditions:default": ":no_ndk_host",',
         "    }),",
         ")",
     ])

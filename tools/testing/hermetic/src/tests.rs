@@ -27,7 +27,7 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
     }
 }
 
-const CPP_RUST_LANGUAGES: &[&str] = &["cpp", "java", "javascript", "kotlin", "rust", "typescript"];
+const CPP_RUST_LANGUAGES: &[&str] = &["cpp", "rust"];
 
 fn cpp_rust() -> Manifest {
     manifest_for("//tools/testing/hermetic:cpp_rust", CPP_RUST_LANGUAGES)
@@ -60,7 +60,7 @@ fn good_evidence() -> Value {
     json!({
         "schema": SCHEMA,
         "qualification": "//tools/testing/hermetic:cpp_rust",
-        "languages": ["cpp", "java", "javascript", "kotlin", "rust", "typescript"],
+        "languages": ["cpp", "rust"],
         "rules_dx": {"commit": "abc123", "dirty": false},
         "result": "qualified",
         "host": {"os": "linux", "arch": "x86_64", "kernel": "6.8.0"},
@@ -121,7 +121,7 @@ fn consumer_paths_stay_inside_the_workspace() {
 fn manifest_parses_and_resolves_against_the_runfiles_base() {
     let text = json!({
         "label": "//tools/testing/hermetic:cpp_rust",
-        "languages": ["cpp", "java", "javascript", "kotlin", "rust", "typescript"],
+        "languages": ["cpp", "rust"],
         "module": "hermetic_consumer",
         "repo_name": "my_dx",
         "workspace_dir": "consumer ws",
@@ -140,7 +140,7 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
     assert_eq!(manifest.workspace_dir, "consumer ws");
     assert_eq!(
         manifest.languages,
-        vec!["cpp", "java", "javascript", "kotlin", "rust", "typescript"]
+        vec!["cpp", "rust"]
     );
     assert_eq!(
         manifest.files,
@@ -594,7 +594,7 @@ fn the_cpp_rust_target_names_a_real_consumer() {
     assert_eq!(manifest.label, "//tools/testing/hermetic:cpp_rust");
     assert_eq!(
         manifest.languages,
-        vec!["cpp", "java", "javascript", "kotlin", "rust", "typescript"]
+        vec!["cpp", "rust"]
     );
     assert_eq!(manifest.repo_name, "my_dx");
     assert!(
@@ -652,6 +652,11 @@ fn the_consumer_materializes_from_dx_init() {
     std::fs::create_dir_all(&flutter).unwrap();
     for patch in dx_nested::compose::RULES_FLUTTER_PATCHES {
         std::fs::write(flutter.join(format!("{patch}.patch")), "").unwrap();
+    }
+    let starlib = source.join("patches/cgrindel_bazel_starlib");
+    std::fs::create_dir_all(&starlib).unwrap();
+    for patch in dx_nested::compose::STARLIB_PATCHES {
+        std::fs::write(starlib.join(format!("{patch}.patch")), "").unwrap();
     }
     let overrides = [
         ("rules_python", "fix.patch"),
@@ -1972,7 +1977,6 @@ fn macos_evidence_is_checked_against_macos_markers() {
     let linux = good_evidence();
     assert!(verify_evidence(&linux, "abc123", &manifest).is_ok());
 }
-
 
 #[test]
 fn windows_tool_dirs_lists_python_node_jdk_and_llvm() {

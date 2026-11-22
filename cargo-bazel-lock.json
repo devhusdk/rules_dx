@@ -1,5 +1,5 @@
 {
-  "checksum": "f63901b6d819b75f8d7124a1634eb48ce848c4f079c4e0651a2901af6f30e951",
+  "checksum": "afc2f3187522639baf5f20357121668137c892e338dadfa59ec874d0f278f1e5",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -547,6 +547,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -682,6 +683,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -1164,6 +1166,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -1441,6 +1444,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -1607,6 +1611,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -2305,6 +2310,7 @@
           "common": {
             "CFLAGS": "$(DX_BS_CFLAGS)",
             "CFLAGS_aarch64_apple_darwin": "-fno-profile-instr-generate -fno-coverage-mapping",
+            "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
             "HOST_AR": "$(DX_BS_HOST_AR)",
             "HOST_CC": "$(DX_BS_HOST_CC)",
             "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -4904,6 +4910,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -4957,6 +4964,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -5050,6 +5058,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -5118,6 +5127,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -5182,6 +5192,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -5518,6 +5529,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -8041,10 +8053,6 @@
             "target": "base64"
           },
           {
-            "id": "chrono 0.4.45",
-            "target": "chrono"
-          },
-          {
             "id": "clap 4.6.7",
             "target": "clap"
           },
@@ -8067,10 +8075,6 @@
           {
             "id": "tempfile 3.27.0",
             "target": "tempfile"
-          },
-          {
-            "id": "thiserror 2.0.20",
-            "target": "thiserror"
           },
           {
             "id": "tracing 0.1.44",
@@ -8635,6 +8639,41 @@
       ],
       "version": "0.0.0"
     },
+    "dx_exec_bench 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_bench",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_bench",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_bench",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "dx_exec_core 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -8649,6 +8688,10 @@
           {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
+          },
+          {
+            "id": "tracing 0.1.44",
+            "target": "tracing"
           }
         ],
         "deps_dev": [
@@ -8670,6 +8713,45 @@
         {
           "Library": {
             "crate_name": "dx_exec_core",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_exec_quality 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          },
+          {
+            "id": "thiserror 2.0.20",
+            "target": "thiserror"
+          },
+          {
+            "id": "tracing 0.1.44",
+            "target": "tracing"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_quality",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_quality",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_quality",
             "crate_root": "src/lib.rs"
           }
         }
@@ -8707,6 +8789,111 @@
         {
           "Library": {
             "crate_name": "dx_exec_reports",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_exec_test_reports 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_test_reports",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_test_reports",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_test_reports",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_exec_update 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "chrono 0.4.45",
+            "target": "chrono"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          },
+          {
+            "id": "tracing 0.1.44",
+            "target": "tracing"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_update",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_update",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_update",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_exec_worktree 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_worktree",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_worktree",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_worktree",
             "crate_root": "src/lib.rs"
           }
         }
@@ -10689,6 +10876,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -11988,6 +12176,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -12115,6 +12304,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -12258,6 +12448,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -12828,6 +13019,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -13275,6 +13467,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -13653,6 +13846,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -13877,6 +14071,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -13993,6 +14188,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -14477,6 +14673,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -14849,6 +15046,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -14950,6 +15148,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -15381,6 +15580,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -15954,6 +16154,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -16019,6 +16220,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -16105,6 +16307,7 @@
         "build_script_env": {
           "common": {
             "CFLAGS": "$(DX_BS_CFLAGS)",
+            "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
             "HOST_AR": "$(DX_BS_HOST_AR)",
             "HOST_CC": "$(DX_BS_HOST_CC)",
             "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -16234,6 +16437,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -16580,6 +16784,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -17267,6 +17472,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -17890,6 +18096,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -18189,6 +18396,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -18437,6 +18645,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -19324,6 +19533,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -20498,6 +20708,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -20598,6 +20809,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -20860,6 +21072,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -21547,6 +21760,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -21669,6 +21883,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -22104,6 +22319,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -22203,6 +22419,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -22851,6 +23068,7 @@
         "build_script_env": {
           "common": {
             "CFLAGS": "$(DX_BS_CFLAGS)",
+            "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
             "HOST_AR": "$(DX_BS_HOST_AR)",
             "HOST_CC": "$(DX_BS_HOST_CC)",
             "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -23301,6 +23519,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -23459,6 +23678,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -23838,6 +24058,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -24421,6 +24642,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -24716,6 +24938,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -24790,6 +25013,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -24904,6 +25128,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -25064,6 +25289,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -26482,6 +26708,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -26653,27 +26880,6 @@
         }
       ],
       "version": "0.14.2"
-    },
-    "starter_scaffold 0.0.0": {
-      "common_attrs": {
-        "edition": "2024"
-      },
-      "library_target_name": "starter_scaffold",
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "starter_scaffold",
-      "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "starter_scaffold",
-            "crate_root": "scaffold.rs"
-          }
-        }
-      ],
-      "version": "0.0.0"
     },
     "static_assertions 1.1.0": {
       "common_attrs": {
@@ -27182,6 +27388,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -27893,6 +28100,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -27953,6 +28161,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -29411,6 +29620,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -29608,6 +29818,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -30327,6 +30538,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -30704,6 +30916,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -30934,6 +31147,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -31705,6 +31919,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -31759,6 +31974,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -31813,6 +32029,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -31867,6 +32084,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -31921,6 +32139,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -31975,6 +32194,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -32029,6 +32249,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -32083,6 +32304,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -32173,6 +32395,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -32578,6 +32801,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -33178,6 +33402,7 @@
       "build_script_attrs": {
         "build_script_env": {
           "CFLAGS": "$(DX_BS_CFLAGS)",
+          "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
           "HOST_AR": "$(DX_BS_HOST_AR)",
           "HOST_CC": "$(DX_BS_HOST_CC)",
           "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -33392,8 +33617,13 @@
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
     "dx_error 0.0.0": "cli/dx_error",
     "dx_exec_audit 0.0.0": "cli/dx_exec_audit",
+    "dx_exec_bench 0.0.0": "cli/dx_exec_bench",
     "dx_exec_core 0.0.0": "cli/dx_exec_core",
+    "dx_exec_quality 0.0.0": "cli/dx_exec_quality",
     "dx_exec_reports 0.0.0": "cli/dx_exec_reports",
+    "dx_exec_test_reports 0.0.0": "cli/dx_exec_test_reports",
+    "dx_exec_update 0.0.0": "cli/dx_exec_update",
+    "dx_exec_worktree 0.0.0": "cli/dx_exec_worktree",
     "dx_families 0.0.0": "cli/dx_families",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
     "dx_floor 0.0.0": "tools/testing/dx_floor",
@@ -33494,7 +33724,6 @@
     "site_build 0.0.0": "tools/docs/site/site_build",
     "site_check 0.0.0": "tools/docs/site/site_check",
     "site_tests 0.0.0": "tools/docs/site_tests",
-    "starter_scaffold 0.0.0": "tools/testing/starter_scaffold",
     "support_matrix 0.0.0": "tools/docs/support_matrix",
     "swift_extract 0.0.0": "tools/docs/swift/swift_extract",
     "swift_lock 0.0.0": "swift/private/tools/swift_lock",

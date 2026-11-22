@@ -2,12 +2,12 @@
 
 import http.client
 import os
+import queue
 import re
 import socket
 import subprocess
 import sys
 import threading
-import time
 
 import pytest
 import web_server
@@ -152,14 +152,39 @@ def _stop(process):
     process.stderr.close()
 
 
-def _released(host, port):
-    for _ in range(50):
-        try:
-            socket.create_connection((host, port), timeout=1).close()
-        except OSError:
-            return True
-        time.sleep(0.1)
-    return False
+def _ready_line(process, timeout=20):
+    # A reader thread gives readline() a deadline; select() does not work on
+    # Windows pipes.
+    lines = queue.Queue()
+    threading.Thread(
+        target=lambda: lines.put(process.stdout.readline()), daemon=True
+    ).start()
+    try:
+        return lines.get(timeout=timeout)
+    except queue.Empty:
+        pytest.fail("no ready line within %d s" % timeout)
+
+
+def _listening_inodes(port):
+    # Linux names each socket by inode in /proc/net, so this tells our listener
+    # apart from one a parallel test may later bind to the same port. Other
+    # hosts return None and rely on the exit check: the kernel closes every
+    # socket of a process that exited.
+    inodes = set()
+    tables = [
+        table for table in ("/proc/net/tcp", "/proc/net/tcp6") if os.path.exists(table)
+    ]
+    if not tables:
+        return None
+    for table in tables:
+        with open(table) as rows:
+            next(rows, None)
+            for row in rows:
+                fields = row.split()
+                local, state, inode = fields[1], fields[3], fields[9]
+                if state == "0A" and int(local.rsplit(":", 1)[1], 16) == port:
+                    inodes.add(inode)
+    return inodes
 
 
 @needs_ipv6
@@ -167,29 +192,38 @@ def test_launch_serves_on_ipv6_loopback(staged):
     _, root = staged
     process = _launch(root, "::1")
     try:
-        ready = process.stdout.readline()
+        ready = _ready_line(process)
         match = re.match(r"dx-web-serve ready url=http://\[::1\]:(\d+)/ ", ready)
         assert match, ready
         port = int(match.group(1))
         assert port != 0
+        listener = _listening_inodes(port)
+        assert listener != set()
         assert _request("::1", port, "GET") == (200, b"home")
         assert _request("::1", port, "HEAD") == (200, b"")
     finally:
         _stop(process)
     assert process.returncode is not None
-    assert _released("::1", port)
+    if listener is not None:
+        assert not listener & _listening_inodes(port)
 
 
 def test_launch_serves_on_ipv4_loopback(staged):
     _, root = staged
     process = _launch(root, "127.0.0.1")
     try:
-        ready = process.stdout.readline()
+        ready = _ready_line(process)
         match = re.match(r"dx-web-serve ready url=http://127\.0\.0\.1:(\d+)/ ", ready)
         assert match, ready
-        assert _request("127.0.0.1", int(match.group(1)), "GET") == (200, b"home")
+        port = int(match.group(1))
+        listener = _listening_inodes(port)
+        assert listener != set()
+        assert _request("127.0.0.1", port, "GET") == (200, b"home")
     finally:
         _stop(process)
+    assert process.returncode is not None
+    if listener is not None:
+        assert not listener & _listening_inodes(port)
 
 
 @pytest.mark.parametrize(

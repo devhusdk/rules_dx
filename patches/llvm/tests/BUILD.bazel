@@ -1,4 +1,5 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":fuzzer_build.bzl", "fuzzer_build")
@@ -75,6 +76,35 @@ rust_test(
     srcs = ["macos_sdk_symlinks_test.rs"],
     data = ["@macos_sdk//sysroot"],
     env = {"DX_MACOS_SYSROOT": "$(rootpath @macos_sdk//sysroot)"},
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+cc_library(
+    name = "mingw_coff",
+    srcs = ["mingw_coff.c"],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+filegroup(
+    name = "mingw_coff_objects",
+    srcs = [":mingw_coff"],
+    output_group = "compilation_outputs",
+)
+
+platform_transition_filegroup(
+    name = "mingw_coff_windows_x86_64",
+    srcs = [":mingw_coff_objects"],
+    target_compatible_with = ["@platforms//os:linux"],
+    target_platform = "@llvm//platforms:windows_x86_64",
+)
+
+rust_test(
+    name = "mingw_coff_no_timestamp_test",
+    size = "small",
+    srcs = ["mingw_coff_no_timestamp_test.rs"],
+    data = [":mingw_coff_windows_x86_64"],
+    env = {"DX_MINGW_COFF_OBJECTS": "$(rootpaths :mingw_coff_windows_x86_64)"},
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )

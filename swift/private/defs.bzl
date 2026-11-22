@@ -51,7 +51,11 @@ SWIFT_WINDOWS_RUNTIME_DLLS = select({
 SWIFT_COMPATIBLE_WITH = _SWIFT_COMPATIBLE_WITH
 SWIFT_FUZZ_COMPATIBLE_WITH = _SWIFT_FUZZ_COMPATIBLE_WITH
 _STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]
-_INDEX = ["swift.index_while_building", "swift.disable_system_index", "-swift.index_store_compress"]
+# `swift.index_while_building` is opt-in. Its unit records name the implicit
+# Clang module cache files, whose hashes include the output base path, so
+# SwiftCompile outputs would differ between checkouts. These settings apply when
+# a build turns it on.
+_INDEX = ["swift.disable_system_index", "-swift.index_store_compress"]
 _SPECS = [("swift", "swift")]
 SWIFT_QUALITY_TOOLS = {
     "swift_format": Label("//swift/private/tools:swift_format"),
@@ -175,18 +179,18 @@ def _swift_coverage_kwargs(kwargs):
         "//conditions:default": [],
     }))
     out = dx_append_flags(out, "linkopts", select({
-        Label("//swift/private:coverage_windows_static_crt"): [],
-        Label("//swift/private:coverage_windows"): ["-NODEFAULTLIB:libcmt.lib"],
+        Label("//core/platforms:coverage_windows_static_crt"): [],
+        Label("//core/platforms:coverage_windows"): ["-NODEFAULTLIB:libcmt.lib"],
         "//conditions:default": [],
     }))
     out = dx_append_flags(out, "features", select({
-        Label("//swift/private:coverage_linux"): ["-llvm_coverage_map_format"],
-        Label("//swift/private:coverage_windows"): ["-llvm_coverage_map_format"],
+        Label("//core/platforms:coverage_linux"): ["-llvm_coverage_map_format"],
+        Label("//core/platforms:coverage_windows"): ["-llvm_coverage_map_format"],
         "//conditions:default": [],
     }))
     return dx_append_flags(out, "deps", select({
-        Label("//swift/private:coverage_linux"): [Label("//swift/private/toolchain:profile_runtime")],
-        Label("//swift/private:coverage_windows"): [Label("//swift/private/toolchain:profile_runtime")],
+        Label("//core/platforms:coverage_linux"): [Label("//swift/private/toolchain:profile_runtime")],
+        Label("//core/platforms:coverage_windows"): [Label("//swift/private/toolchain:profile_runtime")],
         "//conditions:default": [],
     }))
 

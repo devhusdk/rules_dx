@@ -14,6 +14,7 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	bzl "github.com/bazelbuild/buildtools/build"
 
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
@@ -148,6 +149,73 @@ func TestGenerateSourceOnlySharedTestModules(t *testing.T) {
 	}
 }
 
+func TestGenerateSkipsModulesOfAncestorCrate(t *testing.T) {
+	cases := []struct {
+		name     string
+		files    map[string]string
+		existing bool
+		want     []string
+	}{
+		{
+			name: "Cargo package",
+			files: map[string]string{
+				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
+				"crates/demo/src/lib.rs":              "mod real;\n",
+				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
+			},
+		},
+		{
+			name: "source-only crate",
+			files: map[string]string{
+				"crates/demo/src/lib.rs":              "mod real;\n",
+				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
+			},
+		},
+		{
+			name: "BUILD file between",
+			files: map[string]string{
+				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
+				"crates/demo/src/BUILD.bazel":         "",
+				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
+			},
+			want: []string{"common_test"},
+		},
+		{
+			name: "existing package",
+			files: map[string]string{
+				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
+				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
+			},
+			existing: true,
+			want:     []string{"common_test"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			for name, content := range tc.files {
+				writeFixture(t, root, name, content)
+			}
+			args := language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "crates/demo/src/real"), Rel: "crates/demo/src/real"}
+			if tc.existing {
+				args.File = rule.EmptyFile(filepath.Join(args.Dir, "BUILD.bazel"), args.Rel)
+			}
+			l := &rustLang{}
+			result := l.GenerateRules(withSubdirs(args))
+			if len(l.errors) != 0 {
+				t.Fatalf("errors = %v", l.errors)
+			}
+			var got []string
+			for _, r := range result.Gen {
+				got = append(got, r.Name())
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("generated %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestGenerateStaleRules(t *testing.T) {
 	f := rule.EmptyFile("BUILD.bazel", "crates/demo")
 	f.Rules = append(f.Rules,
@@ -222,6 +290,148 @@ func TestGenerateAdoptsHandwrittenNames(t *testing.T) {
 		if empty.Name() == "tool" || empty.Name() == "tool_unit" {
 			t.Errorf("handwritten %s(%s) marked stale", empty.Kind(), empty.Name())
 		}
+	}
+}
+
+func TestEffectiveCrateRoot(t *testing.T) {
+	newRule := func(kind, name string, attrs map[string]any) *rule.Rule {
+		r := rule.NewRule(kind, name)
+		for k, v := range attrs {
+			r.SetAttr(k, v)
+		}
+		return r
+	}
+	noHarness := newRule(testKind, "t", map[string]any{"srcs": []string{"src/lib.rs", "src/main.rs"}})
+	noHarness.SetAttr("use_libtest_harness", &bzl.Ident{Name: "False"})
+	for _, tc := range []struct {
+		name string
+		r    *rule.Rule
+		want string
+	}{
+		{"explicit", newRule(libraryKind, "a", map[string]any{"crate_root": "x.rs", "srcs": []string{"src/lib.rs"}}), "x.rs"},
+		{"single src", newRule(libraryKind, "a", map[string]any{"srcs": []string{"src/other.rs"}}), "src/other.rs"},
+		{"shortest lib.rs", newRule(libraryKind, "a", map[string]any{"srcs": []string{"src/a/lib.rs", "src/lib.rs", "src/run.rs"}}), "src/lib.rs"},
+		{"binary main.rs", newRule(binaryKind, "a", map[string]any{"srcs": []string{"src/lib.rs", "src/main.rs"}}), "src/main.rs"},
+		{"test lib.rs", newRule(testKind, "a", map[string]any{"srcs": []string{"src/lib.rs", "src/main.rs"}}), "src/lib.rs"},
+		{"test without harness", noHarness, "src/main.rs"},
+		{"rule name", newRule(libraryKind, "tool", map[string]any{"srcs": []string{"tool.rs", "util.rs"}}), "tool.rs"},
+		{"crate name", newRule(libraryKind, "tool", map[string]any{"crate_name": "core", "srcs": []string{"core.rs", "util.rs"}}), "core.rs"},
+		{"no root", newRule(libraryKind, "a", map[string]any{"srcs": []string{"x.rs", "y.rs"}}), ""},
+		{"crate wrapper", newRule(testKind, "a", map[string]any{"crate": ":lib", "srcs": []string{"extra.rs"}}), ""},
+		{"glob srcs", newRule(libraryKind, "a", map[string]any{"srcs": &bzl.CallExpr{X: &bzl.Ident{Name: "glob"}}}), ""},
+	} {
+		if got := effectiveCrateRoot(tc.r); got != tc.want {
+			t.Errorf("%s: effectiveCrateRoot = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+// generateExisting runs the generator over files with existing as the BUILD
+// file of crates/demo, or without a BUILD file when existing is nil.
+func generateExisting(t *testing.T, files map[string]string, existing []*rule.Rule) language.GenerateResult {
+	t.Helper()
+	root := t.TempDir()
+	var regular []string
+	for name, content := range files {
+		writeFixture(t, root, name, content)
+		if rel, ok := strings.CutPrefix(name, "crates/demo/"); ok && !strings.Contains(rel, "/") {
+			regular = append(regular, rel)
+		}
+	}
+	var f *rule.File
+	if existing != nil {
+		f = rule.EmptyFile("BUILD.bazel", "crates/demo")
+		f.Rules = append(f.Rules, existing...)
+	}
+	l := &rustLang{}
+	result := l.GenerateRules(withSubdirs(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          filepath.Join(root, "crates", "demo"),
+		Rel:          "crates/demo",
+		File:         f,
+		RegularFiles: regular,
+	}))
+	if len(l.errors) != 0 {
+		t.Fatalf("errors = %v", l.errors)
+	}
+	return result
+}
+
+func TestGenerateAdoptsRuleWithoutCrateRoot(t *testing.T) {
+	lib := rule.NewRule(libraryKind, "dx_demo")
+	lib.SetAttr("srcs", []string{"src/lib.rs", "src/run.rs", "src/run_tests.rs"})
+	unit := rule.NewRule(testKind, "dx_demo_test")
+	unit.SetAttr("crate", ":dx_demo")
+	result := generateExisting(t, map[string]string{
+		"crates/demo/src/lib.rs":       "mod run;\n#[cfg(test)]\nmod run_tests;\n",
+		"crates/demo/src/run.rs":       "pub fn run() {}\n",
+		"crates/demo/src/run_tests.rs": "#[test]\nfn works() {}\n",
+	}, []*rule.Rule{lib, unit})
+	if len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules, want 2", len(result.Gen))
+	}
+	gotLib, gotTest := result.Gen[0], result.Gen[1]
+	if gotLib.Name() != "dx_demo" || gotLib.Attr("crate_name") != nil {
+		t.Errorf("library = %s crate_name=%q, want dx_demo without crate_name", gotLib.Name(), gotLib.AttrString("crate_name"))
+	}
+	if gotTest.Name() != "dx_demo_test" || gotTest.AttrString("crate_name") != "dx_demo" || unitTestOf(gotTest) != "dx_demo" {
+		t.Errorf("unit test = %s crate_name=%q of=%q, want dx_demo_test crate_name=dx_demo", gotTest.Name(), gotTest.AttrString("crate_name"), unitTestOf(gotTest))
+	}
+	for _, empty := range result.Empty {
+		t.Errorf("%s(%s) marked stale", empty.Kind(), empty.Name())
+	}
+}
+
+func TestGenerateKeepsExistingCrateName(t *testing.T) {
+	binary := map[string]string{"crates/demo/src/main.rs": "fn main() {}\n"}
+	library := map[string]string{"crates/demo/src/lib.rs": "pub fn f() {}\n"}
+	for _, tc := range []struct {
+		name      string
+		files     map[string]string
+		existing  func() []*rule.Rule
+		wantName  string
+		wantCrate string
+	}{
+		{"binary with crate_name", binary, func() []*rule.Rule {
+			r := rule.NewRule(binaryKind, "dx_runtime")
+			r.SetAttr("srcs", []string{"src/main.rs"})
+			r.SetAttr("crate_name", "dx_runtime")
+			return []*rule.Rule{r}
+		}, "dx_runtime", "dx_runtime"},
+		{"library without crate_name", library, func() []*rule.Rule {
+			r := rule.NewRule(libraryKind, "dx_bench_report")
+			r.SetAttr("srcs", []string{"src/lib.rs"})
+			r.SetAttr("crate_root", "src/lib.rs")
+			return []*rule.Rule{r}
+		}, "dx_bench_report", ""},
+		{"explicit crate_name", library, func() []*rule.Rule {
+			r := rule.NewRule(libraryKind, "dx_sancov")
+			r.SetAttr("srcs", []string{"src/lib.rs"})
+			r.SetAttr("crate_name", "dx_sancov")
+			r.SetAttr("crate_root", "src/lib.rs")
+			return []*rule.Rule{r}
+		}, "dx_sancov", "dx_sancov"},
+		{"no BUILD file", library, func() []*rule.Rule { return nil }, "demo", "demo"},
+		{"cargo package", map[string]string{
+			"crates/demo/Cargo.toml": "[package]\nname = \"demo\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+			"crates/demo/src/lib.rs": "pub fn f() {}\n",
+		}, func() []*rule.Rule {
+			r := rule.NewRule(libraryKind, "dx_demo")
+			r.SetAttr("srcs", []string{"src/lib.rs"})
+			r.SetAttr("crate_root", "src/lib.rs")
+			return []*rule.Rule{r}
+		}, "dx_demo", "demo"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := generateExisting(t, tc.files, tc.existing())
+			if len(result.Gen) == 0 {
+				t.Fatal("generated no rules")
+			}
+			got := result.Gen[0]
+			if got.Name() != tc.wantName || got.AttrString("crate_name") != tc.wantCrate {
+				t.Errorf("rule = %s crate_name=%q, want %s crate_name=%q", got.Name(), got.AttrString("crate_name"), tc.wantName, tc.wantCrate)
+			}
+		})
 	}
 }
 
@@ -1295,6 +1505,21 @@ func TestCorpusLeavesFilesALanguageCorpusListsByLabel(t *testing.T) {
 	}, true)
 	if len(plan.errs) != 0 || len(plan.gen) != 0 {
 		t.Errorf("generated %v with errors %v, want nothing", plan.gen, plan.errs)
+	}
+}
+
+func TestCorpusCoversNewBuildFileFromOtherLanguage(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "tool.py", "")
+	plan := planCorpus(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          root,
+		RegularFiles: []string{"tool.py"},
+		OtherGen:     []*rule.Rule{rule.NewRule("python_library", "tool")},
+	}, false)
+	if len(plan.errs) != 0 || len(plan.gen) != 1 || plan.gen[0].Name() != "corpus_starlark" ||
+		!reflect.DeepEqual(plan.gen[0].AttrStrings("starlark_srcs"), []string{"BUILD.bazel"}) {
+		t.Errorf("generated %v with errors %v, want corpus_starlark over BUILD.bazel", plan.gen, plan.errs)
 	}
 }
 

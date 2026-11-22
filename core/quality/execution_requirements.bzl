@@ -9,9 +9,9 @@ DX_NO_REMOTE_EXEC = "no-remote-exec"
 
 DX_FORBIDDEN_NO_REMOTE = "no-remote"
 
-def _qualified(tool, capability):
-    """One remote record for a pinned single-binary tool on every qualified platform."""
-    return {
+def _qualified(tool, capability, artifact = None):
+    """One remote record for a pinned tool on every qualified platform; `artifact` names a differing @dx_tools binary."""
+    record = {
         "capability": capability,
         "closure": "declared",
         "platforms": list(TOOL_PLATFORMS),
@@ -19,6 +19,9 @@ def _qualified(tool, capability):
         "state": "qualified",
         "tool": tool,
     }
+    if artifact != None:
+        record["artifact"] = artifact
+    return record
 
 SHFMT_FORMAT_REMOTE = _qualified("shfmt", "format")
 
@@ -31,24 +34,43 @@ SHFMT_FORMAT_REMOTE = _qualified("shfmt", "format")
 REMOTE_QUALIFIED = [
     SHFMT_FORMAT_REMOTE,
     _qualified("actionlint", "lint"),
+    _qualified("bicep", "format"),
+    _qualified("bicep", "lint"),
     _qualified("biome", "format"),
     _qualified("biome", "lint"),
+    _qualified("buf", "format"),
+    _qualified("buf", "lint"),
+    _qualified("buf", "typecheck"),
     _qualified("buildifier", "format"),
     _qualified("buildifier", "lint"),
     _qualified("checkmake", "lint"),
+    _qualified("cue", "format"),
+    _qualified("cue", "typecheck"),
+    _qualified("ffmt", "format"),
+    _qualified("fortitude", "lint"),
     _qualified("gersemi", "format"),
     _qualified("hadolint", "lint"),
+    _qualified("helmfmt", "format"),
+    _qualified("jsonnet_lint", "lint"),
     _qualified("jsonnetfmt", "format"),
     _qualified("keep_sorted", "lint"),
+    _qualified("kubeconform", "lint"),
+    _qualified("opa", "format"),
+    _qualified("opa", "typecheck"),
+    _qualified("regal", "lint"),
     _qualified("ruff", "format"),
     _qualified("ruff", "lint"),
     _qualified("shellcheck", "lint"),
     _qualified("stylua", "format"),
     _qualified("taplo", "format"),
     _qualified("taplo", "lint"),
+    _qualified("tflint", "lint"),
+    _qualified("trivy_config", "lint", artifact = "trivy"),
+    _qualified("trivy_image_config", "lint", artifact = "trivy"),
     _qualified("typos", "lint"),
     _qualified("typstyle", "format"),
     _qualified("vale", "lint"),
+    _qualified("xmllint", "lint"),
     _qualified("yamlfmt", "format"),
     _qualified("zizmor", "lint"),
 ]
@@ -64,11 +86,6 @@ PENDING = [
     ("ansible_lint", "lint"),
     ("avro_tools", "lint"),
     ("avro_tools", "typecheck"),
-    ("bicep", "format"),
-    ("bicep", "lint"),
-    ("buf", "format"),
-    ("buf", "lint"),
-    ("buf", "typecheck"),
     ("capnp", "lint"),
     ("capnp", "typecheck"),
     ("cfn_lint", "lint"),
@@ -82,8 +99,6 @@ PENDING = [
     ("credo", "lint"),
     ("csc", "typecheck"),
     ("csharpier", "format"),
-    ("cue", "format"),
-    ("cue", "typecheck"),
     ("dart", "format"),
     ("dart", "lint"),
     ("dart", "typecheck"),
@@ -101,11 +116,9 @@ PENDING = [
     ("errcheck", "lint"),
     ("eslint", "lint"),
     ("fantomas", "format"),
-    ("ffmt", "format"),
     ("flang", "typecheck"),
     ("flatc", "lint"),
     ("flatc", "typecheck"),
-    ("fortitude", "lint"),
     ("fsc", "typecheck"),
     ("fsharplint", "lint"),
     ("ghc", "typecheck"),
@@ -117,16 +130,13 @@ PENDING = [
     ("graphql_eslint", "lint"),
     ("graphql_eslint", "typecheck"),
     ("helm", "lint"),
-    ("helmfmt", "format"),
     ("hlint", "lint"),
     ("javac", "typecheck"),
     ("jet", "typecheck"),
-    ("jsonnet_lint", "lint"),
     ("julia_format", "format"),
     ("julialint", "lint"),
     ("kotlinc", "typecheck"),
     ("ktfmt", "format"),
-    ("kubeconform", "lint"),
     ("latexindent", "format"),
     ("ldc", "typecheck"),
     ("luals", "typecheck"),
@@ -138,8 +148,6 @@ PENDING = [
     ("notebook_outputs", "lint"),
     ("nvcc_syntax", "typecheck"),
     ("ocaml", "typecheck"),
-    ("opa", "format"),
-    ("opa", "typecheck"),
     ("ormolu", "format"),
     ("perlcritic", "lint"),
     ("perltidy", "format"),
@@ -157,7 +165,6 @@ PENDING = [
     ("qmllint", "lint"),
     ("qmllint", "typecheck"),
     ("redocly", "lint"),
-    ("regal", "lint"),
     ("remark", "format"),
     ("roslyn", "lint"),
     ("rubocop", "format"),
@@ -181,17 +188,13 @@ PENDING = [
     ("taplo", "typecheck"),
     ("terraform", "format"),
     ("terraform", "typecheck"),
-    ("tflint", "lint"),
     ("thrift", "lint"),
     ("thrift", "typecheck"),
     ("tinymist", "lint"),
     ("topiary", "format"),
-    ("trivy_config", "lint"),
-    ("trivy_image_config", "lint"),
     ("tsc", "typecheck"),
     ("ty", "typecheck"),
     ("weeder", "lint"),
-    ("xmllint", "lint"),
     ("yamllint", "lint"),
     ("zanuda", "lint"),
     ("zig", "typecheck"),
@@ -260,7 +263,7 @@ def remote_record_error(record):
 
 def remote_platform_error(record, artifact_platforms):
     """Reports the platforms a remote record claims without a pinned artifact."""
-    covered = artifact_platforms.get(record["tool"], [])
+    covered = artifact_platforms.get(record.get("artifact", record["tool"]), [])
     missing = [platform for platform in record["platforms"] if platform not in covered]
     if len(missing) > 0:
         return "remote: tool '" + record["tool"] + "' is remote-qualified for " + ", ".join(missing) + " without a pinned artifact"
@@ -289,18 +292,24 @@ REMOTE_QUALIFIED_LAUNCHERS = [
     "rst2html",
 ]
 
-def dx_stage_execution_requirements(stage_tools, capability, run_tools = []):
-    """Returns remote-capable requirements only when every stage and every runfiles launcher is qualified.
+def _path_tool_qualified(name):
+    """Reports whether a PATH helper may ship to an executor: any name that is not a real adapter, or an adapter with a qualified capability."""
+    if name not in REAL_ADAPTERS:
+        return True
+    for capability in REAL_ADAPTERS[name]:
+        if dx_is_remote_qualified(name, capability):
+            return True
+    return False
 
-    Args:
-      stage_tools: tool ids the stage runs.
-      capability: "format" or "lint".
-      run_tools: names of the runfiles launchers the stage puts on PATH.
-    """
+def dx_stage_execution_requirements(stage_tools, capability, run_tools = [], path_tools = []):
+    """Returns remote-capable requirements only when every stage tool, runfiles launcher and adapter PATH helper is qualified."""
     if len(stage_tools) == 0:
         return {DX_NO_REMOTE_EXEC: "1"}
     for name in run_tools:
         if name not in REMOTE_QUALIFIED_LAUNCHERS:
+            return {DX_NO_REMOTE_EXEC: "1"}
+    for name in path_tools:
+        if not _path_tool_qualified(name):
             return {DX_NO_REMOTE_EXEC: "1"}
     for tool in stage_tools:
         if not dx_is_remote_qualified(tool, capability):

@@ -3,12 +3,18 @@
 load("//flutter:defs.bzl", "flutter_library")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality/private:generated_policy.bzl", "dx_generated_policy")
+load("//dart:defs.bzl", "dart_package_metadata")
+
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "dx_flutter_negative",
+)
 
 flutter_library(
     name = "broken",
     testonly = True,
     srcs = ["lib/broken.dart"],
-    package_name = "dx_flutter_negative",
+    package = ":pubspec-metadata",
     tags = ["manual"],
     visibility = ["//:__subpackages__"],
     deps = ["@dx_flutter_deps//:flutter"],
@@ -22,7 +28,7 @@ failure_test(
 
 failure_test(
     name = "missing_font_fails_test",
-    expected_failure_substring = "fonts_json names font asset 'assets/fonts/Missing.ttf' but font_files does not provide it",
+    expected_failure_substring = "is not in the Dart package rooted at flutter/tests/fixtures/flutter_app/failures",
     target = "//flutter/tests/fixtures/flutter_app/failures:missing_font",
 )
 

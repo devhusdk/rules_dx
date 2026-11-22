@@ -255,13 +255,21 @@ function Test-SignedPackage([string]$Label, [string]$Path, $Identity, $Certifica
 }
 
 function Start-TimestampServer([int]$Status) {
-    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
-    $listener.Start()
-    $port = $listener.LocalEndpoint.Port
-    $listener.Stop()
-    $http = [System.Net.HttpListener]::new()
-    $http.Prefixes.Add("http://127.0.0.1:$port/")
-    $http.Start()
+    # HttpListener cannot bind port 0, so start it on a random port and pick
+    # another one when a parallel test already holds it.
+    $http = $null
+    for ($attempt = 0; $null -eq $http; $attempt++) {
+        $port = Get-Random -Minimum 20000 -Maximum 40000
+        $candidate = [System.Net.HttpListener]::new()
+        $candidate.Prefixes.Add("http://127.0.0.1:$port/")
+        try {
+            $candidate.Start()
+            $http = $candidate
+        } catch [System.Net.HttpListenerException] {
+            $candidate.Close()
+            if ($attempt -ge 20) { throw }
+        }
+    }
     $job = Start-ThreadJob -ArgumentList $http, $Status -ScriptBlock {
         param($Http, $Status)
         $served = 0
@@ -460,10 +468,7 @@ foreach ($case in @(@{ Label = "rejected timestamp"; Status = 500 }, @{ Label = 
     Assert-That ($served -ge 1) "$($case.Label): the server got no request"
 }
 
-$closed = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
-$closed.Start()
-$closedUrl = "http://127.0.0.1:$($closed.LocalEndpoint.Port)/"
-$closed.Stop()
+$closedUrl = "http://127.0.0.1:1/"
 Assert-Refused "unreachable timestamp" (Invoke-Sign @("-Pfx", $good, "-Out", $rejected, "-Timestamp", $closedUrl)) 4 "timestamp server $closedUrl rejected" $rejected
 $timestamp = Start-TimestampServer 200
 $result = Invoke-Sign @("-Pfx", $server, "-Out", $rejected, "-Timestamp", $timestamp.Url)

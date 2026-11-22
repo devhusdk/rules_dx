@@ -4,6 +4,8 @@ load(
     "//flutter/private:defs.bzl",
     _flutter_android_app = "flutter_android_app",
     _flutter_application = "flutter_application",
+    _flutter_font = "flutter_font",
+    _flutter_font_family = "flutter_font_family",
     _flutter_gen_l10n = "flutter_gen_l10n",
     _flutter_ios_app = "flutter_ios_app",
     _flutter_library = "flutter_library",
@@ -14,6 +16,8 @@ load(
 
 flutter_android_app = _flutter_android_app
 flutter_application = _flutter_application
+flutter_font = _flutter_font
+flutter_font_family = _flutter_font_family
 flutter_gen_l10n = _flutter_gen_l10n
 flutter_ios_app = _flutter_ios_app
 flutter_library = _flutter_library

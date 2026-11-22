@@ -2,8 +2,6 @@ use std::collections::BTreeSet;
 
 /// Registrations for toolchain types `rules_dx` defines.
 const OWN_TYPES: &[&str] = &[
-    "//core/quality/sh:busybox_sh_linux_x86_64",
-    "//core/quality/sh:busybox_sh_windows_x86_64",
     "@dx_coreutils//:all",
     "@dx_d_toolchains//:all",
     "@dx_elixir_toolchains//:all",
@@ -14,17 +12,17 @@ const OWN_TYPES: &[&str] = &[
     "@dx_ocaml_toolchains//:all",
     "@dx_php_toolchains//:all",
     "@dx_powershell_toolchains//:all",
+    "@dx_scala_toolchains//:all",
     "@julia_toolchains//:all",
 ];
 
 /// Registrations that carry `//config:toolchains_on` or `//cc:compiler` in `target_settings`.
 const GATED: &[&str] = &[
     "//core/hermetic_launcher:all",
+    "//cuda/private/toolchain/hub:all",
     "//java/private/toolchain:all",
-    "//scala/private/toolchain:semanticdb",
-    "//scala/private/toolchain:semanticdb_scala3",
+    "//julia/private/runtime:source_toolchain",
     "@android_ndk_toolchain//:all",
-    "@cuda//toolchain/...",
     "@dx_cc_toolchains//:all",
     "@dx_dotnet_toolchains//:all",
     "@dx_haskell_toolchains//:all",

@@ -9,7 +9,7 @@ Upstream: none (rules_dx only: aliases the toolchain type to rules_dx)
 -toolchain_type(name = "toolchain_type")
 +alias(
 +    name = "toolchain_type",
-+    actual = "@rules_dx//fortran/private/toolchain:toolchain_type",
++    actual = "@rules_dx//fortran:toolchain_type",
 +)
  
  # Public API

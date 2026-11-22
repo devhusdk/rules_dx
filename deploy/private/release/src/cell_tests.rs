@@ -238,6 +238,7 @@ fn synthetic_cell(format: &str) -> Cell {
         format: format.to_owned(),
         exe: "dx".to_owned(),
         runtime: vec!["libextra.so.1".to_owned()],
+        notices: Vec::new(),
     }
 }
 
@@ -270,6 +271,7 @@ fn host_cell(format: &str) -> (Cell, Vec<u8>) {
         format: format.to_owned(),
         exe: exe.to_owned(),
         runtime,
+        notices: Vec::new(),
     };
     (cell, bytes)
 }
@@ -292,6 +294,9 @@ fn members_of(cell: &Cell, exe: Vec<u8>) -> Members {
     ];
     for name in &cell.runtime {
         members.push((name.clone(), b"runtime\n".to_vec(), 0o644));
+    }
+    for notice in &cell.notices {
+        members.push((format!("notices/{notice}"), b"notice\n".to_vec(), 0o644));
     }
     members.push(("LICENSE".to_owned(), b"license\n".to_vec(), 0o644));
     members
@@ -565,6 +570,32 @@ fn qualify_rejects_a_missing_runtime_member() {
 }
 
 #[test]
+fn qualify_checks_runtime_notices() {
+    let mut cell = synthetic_cell("zip");
+    cell.notices = vec!["demo_runtime".to_owned()];
+    let members = members_of(&cell, synthetic_exe());
+    let record = qualify(
+        &stage(cell.clone(), members.clone()).inputs,
+        &FakeRunner::new(),
+    );
+    assert_eq!(verdict_of(&record, "members").0, Verdict::Ok);
+    let dropped: Members = members
+        .iter()
+        .filter(|member| member.0 != "notices/demo_runtime")
+        .cloned()
+        .collect();
+    let record = qualify(&stage(cell.clone(), dropped).inputs, &FakeRunner::new());
+    assert_failed(
+        &record,
+        "members",
+        "missing [\"notices/demo_runtime\"], unexpected []",
+    );
+    cell.notices.clear();
+    let record = qualify(&stage(cell, members).inputs, &FakeRunner::new());
+    assert_failed(&record, "members", "unexpected [\"notices/demo_runtime\"]");
+}
+
+#[test]
 fn qualify_rejects_an_extra_member_bad_modes_and_identity() {
     let fixture = synthetic("tar.gz", |members| {
         members.push(("stray.txt".to_owned(), b"x".to_vec(), 0o644));
@@ -760,6 +791,10 @@ fn parse_matrix_reads_cells_and_rejects_bad_ones() {
     assert!(with(|cell| cell.exe = "bin/dx".to_owned()).contains("top-level name"));
     assert!(with(|cell| cell.exe = "a=b".to_owned()).contains("must not contain '='"));
     assert!(with(|cell| cell.runtime = vec!["NOTICE".to_owned()]).contains("listed twice"));
+    assert!(with(|cell| cell.notices = vec!["a/b".to_owned()]).contains("top-level name"));
+    assert!(
+        with(|cell| cell.notices = vec!["x".to_owned(), "x".to_owned()]).contains("listed twice")
+    );
     assert!(
         parse_matrix("{")
             .expect_err("json")

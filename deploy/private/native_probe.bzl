@@ -1,4 +1,4 @@
-load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "applet_file_name", "coreutils")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils_copy")
 load(":native_runtime.bzl", "NativeRuntimeInfo")
 
 """Platform constraints and wheel tags for the native probe wheel."""
@@ -15,18 +15,10 @@ NATIVE_PROBE_PLATFORM = select({
 })
 
 def _runtime_files_impl(ctx):
-    tools = coreutils(ctx)
     out = []
     for file in ctx.attr.runtime[NativeRuntimeInfo].files:
         copy = ctx.actions.declare_file(file.basename)
-        ctx.actions.run(
-            executable = tools.path + "/" + applet_file_name("cp", tools.binary.basename),
-            arguments = [file.path, copy.path],
-            inputs = depset([file], transitive = [tools.files]),
-            outputs = [copy],
-            mnemonic = "CopyRuntimeFile",
-            env = {"PATH": tools.path},
-        )
+        coreutils_copy(ctx, file, copy, "CopyRuntimeFile")
         out.append(copy)
     return [DefaultInfo(files = depset(out))]
 

@@ -22,7 +22,7 @@ composer_tool = rule(
     doc = "Runs the pinned Composer phar on the pinned PHP; `dx update` uses it to check and update composer sets.",
     executable = True,
     attrs = NATIVE_LAUNCHER_ATTRS | {
-        "_composer": attr.label(default = Label("@dx_composer//:composer.phar"), allow_single_file = True, doc = "The pinned Composer phar."),
+        "_composer": attr.label(default = Label("@php_composer//:composer.phar"), allow_single_file = True, doc = "The pinned Composer phar."),
     },
     toolchains = [TOOLCHAIN_TYPE],
 )

@@ -4,18 +4,18 @@ load("//cc:defs.bzl", "cc_test")
 load("//cc/private:defs.bzl", "CC_COVERAGE_INPUTS")
 load("//cc/private/toolchain:select.bzl", "cc_toolchain_test")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_equal", "expect_true")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/modules:cuda.bzl", "CUDA_CELLS", "CUDA_VERSION", "cuda_qualified_cells")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cuda:defs.bzl", "cuda_binary", "cuda_component_library", "cuda_library", "cuda_test")
 load("//cuda/private:defs.bzl", "CUDA_COMPATIBLE_WITH", "cuda_gpu_env", "cuda_split_srcs", "cuda_target_compatible_with")
 load("//cuda/private/toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "component_markers", "cuda_check", "cuda_gpu_check", "gpu_device_errors", "gpu_device_source", "gpu_requirement_errors", "toolkit_errors")
-load("//cuda/private/toolchain:transition.bzl", "cuda_host_settings")
+load("//cuda/private/toolchain:transition.bzl", "CUDA_HOST_COMPILER_SETTING", "cuda_host_settings")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load(":cell_tests.bzl", "cuda_cell_tests")
-load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "gpu_test_declared_test", "hermetic_toolchain_test", "with_clang_compiler", "with_gpu_device")
+load(":defs.bzl", "component_sources_test", "coverage_keep_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "gpu_test_declared_test", "hermetic_toolchain_test", "with_clang_compiler", "with_gpu_device")
 load(":license_gate_tests.bzl", "cuda_license_gate_tests")
 
 # gazelle:lang rust,dx_dispatch
@@ -107,10 +107,6 @@ dx_hello_output_test(
 
 device_link_hermetic_test(
     name = "rdc_device_link_hermetic_test",
-    host_compiler = select({
-        "//cc/private/toolchain:msvc_selected": "msvc_runtime",
-        "//conditions:default": "llvm",
-    }),
     target_compatible_with = CUDA_COMPATIBLE_WITH,
     target_under_test = "//cuda/tests/fixtures/rdc:axpy",
 )
@@ -123,7 +119,7 @@ device_link_hermetic_test(
 
 gcc_device_link_hermetic_test(
     name = "gcc_rdc_device_link_hermetic_test",
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_compatible_with = CUDA_COMPATIBLE_WITH + ["@platforms//os:linux"],
     target_under_test = "//cuda/tests/fixtures/rdc:axpy",
 )
 
@@ -249,7 +245,7 @@ rust_test(
         "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/cublas:cublas_app)",
         "DX_CUDA_MAJOR": CUDA_VERSION.split(".")[0],
     },
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_compatible_with = CUDA_COMPATIBLE_WITH + ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
 
@@ -269,7 +265,7 @@ dx_hello_output_test(
     name = "cublas_output_test",
     binary = "//cuda/tests/fixtures/cublas:cublas_app",
     expected = "cublas saxpy n=1024 sum=1048576",
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_compatible_with = CUDA_COMPATIBLE_WITH + ["@platforms//os:linux"],
 )
 
 component_sources_test(
@@ -293,17 +289,20 @@ dx_hello_output_test(
 
 hermetic_toolchain_test(
     name = "hermetic_toolchain_test",
-    host_compiler = select({
-        "//cc/private/toolchain:msvc_selected": "msvc_runtime",
-        "//conditions:default": "llvm",
-    }),
     target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_under_test = "//cuda/tests/fixtures/saxpy",
+)
+
+coverage_keep_test(
+    name = "coverage_keep_test",
+    size = "small",
+    target_compatible_with = CUDA_COMPATIBLE_WITH + ["@platforms//os:linux"],
     target_under_test = "//cuda/tests/fixtures/saxpy",
 )
 
 gcc_hermetic_toolchain_test(
     name = "gcc_hermetic_toolchain_test",
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_compatible_with = CUDA_COMPATIBLE_WITH + ["@platforms//os:linux"],
     target_under_test = "//cuda/tests/fixtures/saxpy",
 )
 
@@ -427,6 +426,16 @@ cc_toolchain_test(
     test = ":rdc_device_link_hermetic_test",
 )
 
+test_suite(
+    name = "msvc_device_link_flags_test",
+    tests = [
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_md_device_link_flags_test",
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_mdd_device_link_flags_test",
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_mt_device_link_flags_test",
+        "@rules_cuda//tests/toolchain_configs:nvcc_msvc_mtd_device_link_flags_test",
+    ],
+)
+
 cc_toolchain_test(
     name = "msvc_hermetic_toolchain_test",
     compiler = "msvc",
@@ -499,7 +508,7 @@ _SAXPY_ARCHS = [
     "sm_120",
 ]
 
-_TOOLCHAIN = "external/rules_cuda++toolchain"
+_TOOLCHAIN = "external/rules_dx++cuda"
 
 _NVCC = _TOOLCHAIN + component_markers("nvcc")[0] + "nvcc/bin/nvcc"
 
@@ -509,15 +518,18 @@ dx_wrapper_contract_tests(
     extra_checks = [
         expect_equal(
             "nvcc compile adds llvm coverage maps under coverage",
-            cuda_host_settings(dict(zip(
-                CC_COVERAGE_INPUTS,
-                [
-                    [],
-                    True,
-                    "",
-                    "",
-                ],
-            )))["//command_line_option:features"],
+            cuda_host_settings(
+                dict(zip(
+                    CC_COVERAGE_INPUTS,
+                    [
+                        [],
+                        True,
+                        "",
+                        "",
+                    ],
+                )),
+                "",
+            )["//command_line_option:features"],
             [
                 "llvm_coverage_map_format",
                 "-gcc_coverage_map_format",
@@ -525,16 +537,51 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "nvcc compile keeps features without coverage",
-            cuda_host_settings(dict(zip(
-                CC_COVERAGE_INPUTS,
-                [
-                    ["a"],
-                    False,
-                    "",
-                    "",
-                ],
-            )))["//command_line_option:features"],
+            cuda_host_settings(
+                dict(zip(
+                    CC_COVERAGE_INPUTS,
+                    [
+                        ["a"],
+                        False,
+                        "",
+                        "",
+                    ],
+                )),
+                "",
+            )["//command_line_option:features"],
             ["a"],
+        ),
+        expect_equal(
+            "nvcc compile keeps the current compiler without a host compiler",
+            cuda_host_settings(
+                dict(zip(
+                    CC_COVERAGE_INPUTS,
+                    [
+                        [],
+                        False,
+                        "",
+                        "gcc",
+                    ],
+                )),
+                "",
+            )[CUDA_HOST_COMPILER_SETTING],
+            "gcc",
+        ),
+        expect_equal(
+            "nvcc compile switches to the host compiler",
+            cuda_host_settings(
+                dict(zip(
+                    CC_COVERAGE_INPUTS,
+                    [
+                        [],
+                        False,
+                        "",
+                        "llvm",
+                    ],
+                )),
+                "msvc",
+            )[CUDA_HOST_COMPILER_SETTING],
+            "msvc",
         ),
         expect_equal(
             "device and host sources split",

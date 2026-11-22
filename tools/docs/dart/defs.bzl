@@ -8,7 +8,7 @@ visibility(["//..."])
 _DART_TOOLCHAIN = "@rules_dart//dart:toolchain_type"
 
 def _package_row(pkg):
-    return pkg.package_name + "\t" + pkg.lib_root
+    return pkg.package_name + "\t" + pkg.package_root
 
 def _source_row(file):
     return file.path + "\t" + file.short_path
@@ -16,11 +16,12 @@ def _source_row(file):
 def dart_shard_action(ctx, info, package, stem, extract_tool):
     """Runs `dart doc` from the pinned Dart SDK and the extractor for one library."""
     sdk = ctx.toolchains[_DART_TOOLCHAIN].dart_sdk_info
+    own = info.packages[0].package_name if info.packages else package
     packages = ctx.actions.declare_file(stem + ".packages.txt")
     rows = ctx.actions.args()
     rows.set_param_file_format("multiline")
     rows.add_all(info.transitive_packages, map_each = _package_row)
-    rows.add(info.package_name + "\t" + info.lib_root)
+    rows.add_all(info.packages, map_each = _package_row)
     ctx.actions.write(packages, rows)
     srcs = ctx.actions.declare_file(stem + ".srcs.txt")
     files = ctx.actions.args()
@@ -34,15 +35,15 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
     args.add("--dart", sdk.dart)
     args.add("--packages", packages)
     args.add("--srcs", srcs)
-    args.add("--own", info.package_name)
+    args.add("--own", own)
     args.add("--label", str(ctx.label))
-    args.add("--stage", home.path + "/stage")
+    args.add("--scratch", home.path)
     args.add("--html", html.path)
     ctx.actions.run(
         executable = extract_tool,
         arguments = [args],
         inputs = depset([packages, srcs], transitive = [info.transitive_srcs]),
-        tools = sdk.tool_files,
+        tools = sdk.files.all,
         outputs = [html, home],
         mnemonic = "DxDocsDartDoc",
         toolchain = _DART_TOOLCHAIN,
@@ -50,8 +51,6 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
         use_default_shell_env = False,
         env = {
             "DART_SUPPRESS_ANALYTICS": "true",
-            "HOME": home.path,
-            "PUB_CACHE": home.path + "/pub",
         },
     )
     shard = ctx.actions.declare_file(stem + ".ir.pb")
@@ -73,7 +72,7 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
 
 def _dart_doc_shard_impl(ctx):
     info = ctx.attr.lib[DartInfo]
-    package = ctx.attr.package or info.package_name
+    package = ctx.attr.package or info.packages[0].package_name
     action = dart_shard_action(ctx, info, package, ctx.label.name, ctx.executable._extract)
     return [
         DefaultInfo(files = depset([action.shard])),

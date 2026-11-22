@@ -1,0 +1,530 @@
+Upstream: none (upstream-ready, not sent yet: #14228)
+diff --git a/toolchains/prebuilt_toolchains.py b/toolchains/prebuilt_toolchains.py
+index a6afbaf..5b837eb 100755
+--- a/toolchains/prebuilt_toolchains.py
++++ b/toolchains/prebuilt_toolchains.py
+@@ -38,6 +38,11 @@ from pathlib import Path
+ # used for BOTH the prebuilt binary and the from-source build, so the two modes
+ # always accept the same versions.
+ CMAKE_MINORS = (
++    "4.5",
++    "4.4",
++    "4.3",
++    "4.2",
++    "4.1",
+     "4.0",
+     "3.31",
+     "3.30",
+diff --git a/toolchains/private/cmake_versions.bzl b/toolchains/private/cmake_versions.bzl
+index 96cf6cb..1c7af8b 100644
+--- a/toolchains/private/cmake_versions.bzl
++++ b/toolchains/private/cmake_versions.bzl
+@@ -1048,6 +1048,401 @@ CMAKE_BIN_SRCS = {
+             bin = "cmake.exe",
+         ),
+     },
++    "4.1.6": {
++        ("linux", "aarch64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.1.6/cmake-4.1.6-linux-aarch64.tar.gz",
++            ],
++            strip_prefix = "cmake-4.1.6-linux-aarch64",
++            sha256 = "",
++            integrity = "sha256-iz46+OS06VIkpEkPR3Ktt6USvjTIOA/nbnvgA+D9Q5Q=",
++            constraints = [
++                "@platforms//cpu:aarch64",
++                "@platforms//os:linux",
++            ],
++            bin = "cmake",
++        ),
++        ("linux", "x86_64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.1.6/cmake-4.1.6-linux-x86_64.tar.gz",
++            ],
++            strip_prefix = "cmake-4.1.6-linux-x86_64",
++            sha256 = "",
++            integrity = "sha256-1cLnKCDgHxw6BwktCiniCSY6fSL1W0rX9BTuhwrmuOA=",
++            constraints = [
++                "@platforms//cpu:x86_64",
++                "@platforms//os:linux",
++            ],
++            bin = "cmake",
++        ),
++        ("macos", "universal"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.1.6/cmake-4.1.6-macos-universal.tar.gz",
++            ],
++            strip_prefix = "cmake-4.1.6-macos-universal/CMake.app/Contents",
++            sha256 = "",
++            integrity = "sha256-epEobOloRV1RIdVmssf58w6fOE0/1PCgcDLjjDGY10Q=",
++            constraints = [
++                "@platforms//os:macos",
++            ],
++            bin = "cmake",
++        ),
++        ("windows", "aarch64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.1.6/cmake-4.1.6-windows-arm64.zip",
++            ],
++            strip_prefix = "cmake-4.1.6-windows-arm64",
++            sha256 = "",
++            integrity = "sha256-v7q2Qmo2UE07nHuFjIoNrjz13noZ4s0HewbjjLIYmWc=",
++            constraints = [
++                "@platforms//cpu:aarch64",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++        ("windows", "x86_32"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.1.6/cmake-4.1.6-windows-i386.zip",
++            ],
++            strip_prefix = "cmake-4.1.6-windows-i386",
++            sha256 = "",
++            integrity = "sha256-SBtXjpBp7WOPmC/8u5dqH0mrqAQx6m4GV59ehVhy6Js=",
++            constraints = [
++                "@platforms//cpu:x86_32",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++        ("windows", "x86_64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.1.6/cmake-4.1.6-windows-x86_64.zip",
++            ],
++            strip_prefix = "cmake-4.1.6-windows-x86_64",
++            sha256 = "",
++            integrity = "sha256-0GJ4hXplp6bN0ELH8DPYqf2meSP9ZlThMpb6Ihhtyp4=",
++            constraints = [
++                "@platforms//cpu:x86_64",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++    },
++    "4.2.8": {
++        ("linux", "aarch64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.2.8/cmake-4.2.8-linux-aarch64.tar.gz",
++            ],
++            strip_prefix = "cmake-4.2.8-linux-aarch64",
++            sha256 = "",
++            integrity = "sha256-p/GXTMRqxJSg4Cgz+eyv85Sq/cJyn751HoKdu+MiwxM=",
++            constraints = [
++                "@platforms//cpu:aarch64",
++                "@platforms//os:linux",
++            ],
++            bin = "cmake",
++        ),
++        ("linux", "x86_64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.2.8/cmake-4.2.8-linux-x86_64.tar.gz",
++            ],
++            strip_prefix = "cmake-4.2.8-linux-x86_64",
++            sha256 = "",
++            integrity = "sha256-/cmb8swHfzp9x4O8GgZPyz0d64Bq3QmjVYFMz/bkCRQ=",
++            constraints = [
++                "@platforms//cpu:x86_64",
++                "@platforms//os:linux",
++            ],
++            bin = "cmake",
++        ),
++        ("macos", "universal"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.2.8/cmake-4.2.8-macos-universal.tar.gz",
++            ],
++            strip_prefix = "cmake-4.2.8-macos-universal/CMake.app/Contents",
++            sha256 = "",
++            integrity = "sha256-4cRqiicVOhWgwk7s4l49VOcTloKMkEoV5OoPqJn6uGE=",
++            constraints = [
++                "@platforms//os:macos",
++            ],
++            bin = "cmake",
++        ),
++        ("windows", "aarch64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.2.8/cmake-4.2.8-windows-arm64.zip",
++            ],
++            strip_prefix = "cmake-4.2.8-windows-arm64",
++            sha256 = "",
++            integrity = "sha256-AaPBxhm4gpc/6t6KT80seYJpgnv0989tmxL8IAu0G/o=",
++            constraints = [
++                "@platforms//cpu:aarch64",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++        ("windows", "x86_32"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.2.8/cmake-4.2.8-windows-i386.zip",
++            ],
++            strip_prefix = "cmake-4.2.8-windows-i386",
++            sha256 = "",
++            integrity = "sha256-hz8mlZNszDd39mcJPMWVLjTVIyjGZhEAWQkGpZJSDHU=",
++            constraints = [
++                "@platforms//cpu:x86_32",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++        ("windows", "x86_64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.2.8/cmake-4.2.8-windows-x86_64.zip",
++            ],
++            strip_prefix = "cmake-4.2.8-windows-x86_64",
++            sha256 = "",
++            integrity = "sha256-0zcgpOAxFK58lkwYToj2imQL5Bn5c79PtoXwkA0YZO4=",
++            constraints = [
++                "@platforms//cpu:x86_64",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++    },
++    "4.3.6": {
++        ("linux", "aarch64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.3.6/cmake-4.3.6-linux-aarch64.tar.gz",
++            ],
++            strip_prefix = "cmake-4.3.6-linux-aarch64",
++            sha256 = "",
++            integrity = "sha256-MQ33Np+Bh3niadkArlo+8Cxgift7Gkn8GiqvfnJ1otw=",
++            constraints = [
++                "@platforms//cpu:aarch64",
++                "@platforms//os:linux",
++            ],
++            bin = "cmake",
++        ),
++        ("linux", "x86_64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.3.6/cmake-4.3.6-linux-x86_64.tar.gz",
++            ],
++            strip_prefix = "cmake-4.3.6-linux-x86_64",
++            sha256 = "",
++            integrity = "sha256-+6lntEx7QPFV+UktrLVHequDM2mZhuHgen2QgDq6chk=",
++            constraints = [
++                "@platforms//cpu:x86_64",
++                "@platforms//os:linux",
++            ],
++            bin = "cmake",
++        ),
++        ("macos", "universal"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.3.6/cmake-4.3.6-macos-universal.tar.gz",
++            ],
++            strip_prefix = "cmake-4.3.6-macos-universal/CMake.app/Contents",
++            sha256 = "",
++            integrity = "sha256-uYZJic6gVG8kguDWRckkAqD8WyVPHXRfBqgjuPtACqA=",
++            constraints = [
++                "@platforms//os:macos",
++            ],
++            bin = "cmake",
++        ),
++        ("windows", "aarch64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.3.6/cmake-4.3.6-windows-arm64.zip",
++            ],
++            strip_prefix = "cmake-4.3.6-windows-arm64",
++            sha256 = "",
++            integrity = "sha256-N7ZPjlflhVQdybOEUvyHAVyfh8i4p/aufLqASdaElco=",
++            constraints = [
++                "@platforms//cpu:aarch64",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++        ("windows", "x86_32"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.3.6/cmake-4.3.6-windows-i386.zip",
++            ],
++            strip_prefix = "cmake-4.3.6-windows-i386",
++            sha256 = "",
++            integrity = "sha256-yicIuW07YiuGOwfk5QP/EAaJ6sj05xUQOpuax2IK8cc=",
++            constraints = [
++                "@platforms//cpu:x86_32",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++        ("windows", "x86_64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.3.6/cmake-4.3.6-windows-x86_64.zip",
++            ],
++            strip_prefix = "cmake-4.3.6-windows-x86_64",
++            sha256 = "",
++            integrity = "sha256-VwoNbh+E/aJLjLW7lkZbFkcmx8BmukTNrdE268uL970=",
++            constraints = [
++                "@platforms//cpu:x86_64",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++    },
++    "4.4.5": {
++        ("linux", "aarch64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-linux-aarch64.tar.gz",
++            ],
++            strip_prefix = "cmake-4.4.5-linux-aarch64",
++            sha256 = "",
++            integrity = "sha256-MB1QY6sllXfBtXzlSQsaq56lxW3EyCL3NJlVPauUkl8=",
++            constraints = [
++                "@platforms//cpu:aarch64",
++                "@platforms//os:linux",
++            ],
++            bin = "cmake",
++        ),
++        ("linux", "x86_64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-linux-x86_64.tar.gz",
++            ],
++            strip_prefix = "cmake-4.4.5-linux-x86_64",
++            sha256 = "",
++            integrity = "sha256-7YUTXFpRNbReUEI8tAbeoEyjM42guO88nt6WNVloC+A=",
++            constraints = [
++                "@platforms//cpu:x86_64",
++                "@platforms//os:linux",
++            ],
++            bin = "cmake",
++        ),
++        ("macos", "universal"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-macos-universal.tar.gz",
++            ],
++            strip_prefix = "cmake-4.4.5-macos-universal/CMake.app/Contents",
++            sha256 = "",
++            integrity = "sha256-Z553qWue+UhMxsFEUlX8T4Qga0imVCDvvt8WvatV+/8=",
++            constraints = [
++                "@platforms//os:macos",
++            ],
++            bin = "cmake",
++        ),
++        ("windows", "aarch64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-windows-arm64.zip",
++            ],
++            strip_prefix = "cmake-4.4.5-windows-arm64",
++            sha256 = "",
++            integrity = "sha256-sLVOvdPnufWtcz2GVUHW4KO3dBguQxiyaJAiFDKDU1k=",
++            constraints = [
++                "@platforms//cpu:aarch64",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++        ("windows", "x86_32"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-windows-i386.zip",
++            ],
++            strip_prefix = "cmake-4.4.5-windows-i386",
++            sha256 = "",
++            integrity = "sha256-Kh4a9s8x3MJnuKjJoFvFQ67ynzBdbrP50T3U+fz0wfI=",
++            constraints = [
++                "@platforms//cpu:x86_32",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++        ("windows", "x86_64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-windows-x86_64.zip",
++            ],
++            strip_prefix = "cmake-4.4.5-windows-x86_64",
++            sha256 = "",
++            integrity = "sha256-MmyCZIbUaiPPnVocnuOlZ9QnvdAsSjQHGTeipnXP8AQ=",
++            constraints = [
++                "@platforms//cpu:x86_64",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++    },
++    "4.5.1": {
++        ("linux", "aarch64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.5.1/cmake-4.5.1-linux-aarch64.tar.gz",
++            ],
++            strip_prefix = "cmake-4.5.1-linux-aarch64",
++            sha256 = "",
++            integrity = "sha256-O+wgjxHtlsFzAy7q+Xk3xU3SRqzv7iKs13lKa05w1TY=",
++            constraints = [
++                "@platforms//cpu:aarch64",
++                "@platforms//os:linux",
++            ],
++            bin = "cmake",
++        ),
++        ("linux", "x86_64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.5.1/cmake-4.5.1-linux-x86_64.tar.gz",
++            ],
++            strip_prefix = "cmake-4.5.1-linux-x86_64",
++            sha256 = "",
++            integrity = "sha256-g7cRgftitP6PJgZ6kyFEhXLnpDvQT/bH9UokwzaY8W0=",
++            constraints = [
++                "@platforms//cpu:x86_64",
++                "@platforms//os:linux",
++            ],
++            bin = "cmake",
++        ),
++        ("macos", "universal"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.5.1/cmake-4.5.1-macos-universal.tar.gz",
++            ],
++            strip_prefix = "cmake-4.5.1-macos-universal/CMake.app/Contents",
++            sha256 = "",
++            integrity = "sha256-4fsohUPk6ypBDjhezrxkMjvaUfAgV4LysJTM1dVyyi0=",
++            constraints = [
++                "@platforms//os:macos",
++            ],
++            bin = "cmake",
++        ),
++        ("windows", "aarch64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.5.1/cmake-4.5.1-windows-arm64.zip",
++            ],
++            strip_prefix = "cmake-4.5.1-windows-arm64",
++            sha256 = "",
++            integrity = "sha256-Z4LxE4KUG7hcQG6zvTKnAiItiVZTWunOxe53OVvizHg=",
++            constraints = [
++                "@platforms//cpu:aarch64",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++        ("windows", "x86_32"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.5.1/cmake-4.5.1-windows-i386.zip",
++            ],
++            strip_prefix = "cmake-4.5.1-windows-i386",
++            sha256 = "",
++            integrity = "sha256-4P2R/HNRBjPhd5MVeT+rrohhmgOEu47vqVNEf/XrCNw=",
++            constraints = [
++                "@platforms//cpu:x86_32",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++        ("windows", "x86_64"): struct(
++            urls = [
++                "https://github.com/Kitware/CMake/releases/download/v4.5.1/cmake-4.5.1-windows-x86_64.zip",
++            ],
++            strip_prefix = "cmake-4.5.1-windows-x86_64",
++            sha256 = "",
++            integrity = "sha256-v+bq2yRdyCE+DT/uoxa1IMsqrpL1Zn/9dgWbprBcQww=",
++            constraints = [
++                "@platforms//cpu:x86_64",
++                "@platforms//os:windows",
++            ],
++            bin = "cmake.exe",
++        ),
++    },
+ }
+ 
+ CMAKE_BIN_WILDCARDS = {
+@@ -1065,6 +1460,11 @@ CMAKE_BIN_WILDCARDS = {
+     "3.30.x": "3.30.9",
+     "3.31.x": "3.31.12",
+     "4.0.x": "4.0.7",
++    "4.1.x": "4.1.6",
++    "4.2.x": "4.2.8",
++    "4.3.x": "4.3.6",
++    "4.4.x": "4.4.5",
++    "4.5.x": "4.5.1",
+ }
+ 
+ CMAKE_SRC_SRCS = {
+@@ -1320,4 +1720,94 @@ CMAKE_SRC_SRCS = {
+         integrity = "sha256-NWkhF40Bd4LZcBrt0Je1HB6S4YbpQQEeowA5olCdlBc=",
+         patches = [],
+     ),
++    "4.1.6": struct(
++        urls = [
++            "https://github.com/Kitware/CMake/releases/download/v4.1.6/cmake-4.1.6.tar.gz",
++        ],
++        strip_prefix = "cmake-4.1.6",
++        sha256 = "",
++        integrity = "sha256-UTOEifT7rjWgpptZQW9RLcnHVxKXWaSHxHsz39IVUg4=",
++        patches = [],
++    ),
++    "4.1.x": struct(
++        urls = [
++            "https://github.com/Kitware/CMake/releases/download/v4.1.6/cmake-4.1.6.tar.gz",
++        ],
++        strip_prefix = "cmake-4.1.6",
++        sha256 = "",
++        integrity = "sha256-UTOEifT7rjWgpptZQW9RLcnHVxKXWaSHxHsz39IVUg4=",
++        patches = [],
++    ),
++    "4.2.8": struct(
++        urls = [
++            "https://github.com/Kitware/CMake/releases/download/v4.2.8/cmake-4.2.8.tar.gz",
++        ],
++        strip_prefix = "cmake-4.2.8",
++        sha256 = "",
++        integrity = "sha256-8fvPJ1YCnhT7T/N7RYLWyBpR9D1f+nsISfzL9Tzzm/k=",
++        patches = [],
++    ),
++    "4.2.x": struct(
++        urls = [
++            "https://github.com/Kitware/CMake/releases/download/v4.2.8/cmake-4.2.8.tar.gz",
++        ],
++        strip_prefix = "cmake-4.2.8",
++        sha256 = "",
++        integrity = "sha256-8fvPJ1YCnhT7T/N7RYLWyBpR9D1f+nsISfzL9Tzzm/k=",
++        patches = [],
++    ),
++    "4.3.6": struct(
++        urls = [
++            "https://github.com/Kitware/CMake/releases/download/v4.3.6/cmake-4.3.6.tar.gz",
++        ],
++        strip_prefix = "cmake-4.3.6",
++        sha256 = "",
++        integrity = "sha256-UiA9SzH9sg6Li2MLmPY4Hx0Df9LB63WNQnFFXxMtHu0=",
++        patches = [],
++    ),
++    "4.3.x": struct(
++        urls = [
++            "https://github.com/Kitware/CMake/releases/download/v4.3.6/cmake-4.3.6.tar.gz",
++        ],
++        strip_prefix = "cmake-4.3.6",
++        sha256 = "",
++        integrity = "sha256-UiA9SzH9sg6Li2MLmPY4Hx0Df9LB63WNQnFFXxMtHu0=",
++        patches = [],
++    ),
++    "4.4.5": struct(
++        urls = [
++            "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5.tar.gz",
++        ],
++        strip_prefix = "cmake-4.4.5",
++        sha256 = "",
++        integrity = "sha256-oMVMiKu4B43Y7MrbcX/GuxlL8Y59RMhjCZECiIhuBOI=",
++        patches = [],
++    ),
++    "4.4.x": struct(
++        urls = [
++            "https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5.tar.gz",
++        ],
++        strip_prefix = "cmake-4.4.5",
++        sha256 = "",
++        integrity = "sha256-oMVMiKu4B43Y7MrbcX/GuxlL8Y59RMhjCZECiIhuBOI=",
++        patches = [],
++    ),
++    "4.5.1": struct(
++        urls = [
++            "https://github.com/Kitware/CMake/releases/download/v4.5.1/cmake-4.5.1.tar.gz",
++        ],
++        strip_prefix = "cmake-4.5.1",
++        sha256 = "",
++        integrity = "sha256-p5vzPL4FaG/fecK7vP5ejmKtFtPVQPpzfL7f7tQftp4=",
++        patches = [],
++    ),
++    "4.5.x": struct(
++        urls = [
++            "https://github.com/Kitware/CMake/releases/download/v4.5.1/cmake-4.5.1.tar.gz",
++        ],
++        strip_prefix = "cmake-4.5.1",
++        sha256 = "",
++        integrity = "sha256-p5vzPL4FaG/fecK7vP5ejmKtFtPVQPpzfL7f7tQftp4=",
++        patches = [],
++    ),
+ }

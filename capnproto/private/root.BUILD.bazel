@@ -1,0 +1,3 @@
+"""Exports the Cap'n Proto licence from the root of the C++ release tree."""
+
+exports_files(["LICENSE.txt"])

@@ -13,33 +13,87 @@ const PURE: &str = "--@rules_go//go/config:pure";
 const RELEASE: &str = "//deploy/private/release";
 const GAZELLE: &str = "@dx_gazelle//:gazelle";
 const LAUNCHER: &str = "//cli/launcher:exec_launcher";
-/// The native build tools and the dx runtime a cell ships, by registry name in `cli/prebuilt/tools.bzl`.
-const NATIVE_TOOLS: [(&str, &str); 4] = [
-    ("capnp", "@dx_capnproto//src/capnp:capnp_tool"),
-    ("flatc", "@dx_flatbuffers//:flatc"),
-    ("runtime", "//cli/runtime:dx_runtime"),
-    ("thrift", "@dx_thrift//:thrift_compiler"),
+/// The native build tools and the dx runtime a cell ships, by asset stem.
+const NATIVE_TOOLS: [Tool; 5] = [
+    Tool {
+        tool: "capnp",
+        label: "@dx_capnproto//src/capnp:capnp_tool",
+        licenses: &["@dx_capnproto//:LICENSE.txt"],
+    },
+    Tool {
+        tool: "flatc",
+        label: "@dx_flatbuffers//:flatc",
+        licenses: &["@dx_flatbuffers//:LICENSE"],
+    },
+    Tool {
+        tool: "ldoc-main",
+        label: "//tools/docs/lua:ldoc_main",
+        licenses: &[
+            "//lua/private:lua_LICENSE.txt",
+            "@dx_luafilesystem//:LICENSE",
+        ],
+    },
+    Tool {
+        tool: "runtime",
+        label: "//cli/runtime:dx_runtime",
+        licenses: &[],
+    },
+    Tool {
+        tool: "thrift",
+        label: "@dx_thrift//:thrift_compiler",
+        licenses: &["@dx_thrift//:LICENSE", "@dx_thrift//:NOTICE"],
+    },
 ];
-/// A shared library a cell ships: its asset stem, its label and the upstream licence files of its licence asset.
-struct Library {
+/// The first-party linker wrapper the Windows cells ship for Rust MSVC opt builds.
+const WINDOWS_TOOLS: [Tool; 1] = [Tool {
+    tool: "msvc-link",
+    label: "//rust/private/tools/msvc_paths:msvc_link",
+    licenses: &[],
+}];
+/// The one cell that writes the `dx-<tool>-LICENSE` assets of the native tools, pcov and julia-internal.
+const LICENSE_CELL: &str = "dx-linux-x86_64";
+/// A tool or shared library a cell ships: its asset stem, its label and the upstream licence files of its licence asset, empty for first-party code.
+struct Tool {
     tool: &'static str,
     label: &'static str,
     licenses: &'static [&'static str],
 }
 
 /// The tree-sitter libraries pkl-lsp loads on windows-arm64.
-const WINDOWS_ARM64_LIBRARIES: [Library; 2] = [
-    Library {
+const WINDOWS_ARM64_LIBRARIES: [Tool; 2] = [
+    Tool {
         tool: "tree-sitter",
         label: "@jvm_tree_sitter//:tree-sitter.dll",
         licenses: &["@jvm_tree_sitter//:LICENSE"],
     },
-    Library {
+    Tool {
         tool: "tree-sitter-pkl",
         label: "@jvm_tree_sitter_pkl//:tree-sitter-pkl.dll",
         licenses: &[
             "@jvm_tree_sitter_pkl//:LICENSE.txt",
             "@jvm_tree_sitter_pkl//:NOTICE.txt",
+        ],
+    },
+];
+/// The PHP PCOV extension the linux and macOS cells ship for the PHP toolchains.
+const PCOV_LIBRARY: Tool = Tool {
+    tool: "pcov",
+    label: "@dx_php_pcov//:pcov.so",
+    licenses: &["@dx_php_pcov//:pcov-1.0.12/LICENSE"],
+};
+const PCOV: [Tool; 1] = [PCOV_LIBRARY];
+/// PCOV and the source-built libjulia-internal the linux-x86_64 Julia toolchain loads, with
+/// the licences of the libuv, utf8proc and LLVM code it links statically.
+const LINUX_X86_64_LIBRARIES: [Tool; 2] = [
+    PCOV_LIBRARY,
+    Tool {
+        tool: "julia-internal",
+        label: "//julia/private/runtime:libjulia_internal",
+        licenses: &[
+            "@julia_src//:LICENSE.md",
+            "@julia_src_libuv//:share/licenses/LibUV/LICENSE",
+            "@julia_src_utf8proc//:LICENSE.md",
+            "@julia_src_libllvm//:share/licenses/libLLVM/LICENSE.TXT",
         ],
     },
 ];
@@ -131,6 +185,11 @@ impl Bazel {
             .map(PathBuf::from)
     }
 
+    fn workspace(&self) -> Result<PathBuf, String> {
+        self.output(&["info", CONFIG, "workspace"])
+            .map(PathBuf::from)
+    }
+
     fn exec_path(&self, flags: &[&str], target: &str) -> Result<String, String> {
         let mut args = vec!["cquery", CONFIG];
         args.extend_from_slice(flags);
@@ -143,20 +202,20 @@ impl Bazel {
         Ok(root.join(self.exec_path(flags, target)?))
     }
 
-    /// The external repository source file `label`, under `output_base`.
-    fn source(&self, output_base: &Path, label: &str) -> Result<PathBuf, String> {
-        repository_file(output_base, &self.exec_path(&[], label)?)
+    /// The source file `label`, under `output_base` for an external repository and under `workspace` for the main one.
+    fn source(&self, output_base: &Path, workspace: &Path, label: &str) -> Result<PathBuf, String> {
+        source_file(output_base, workspace, &self.exec_path(&[], label)?)
     }
 }
 
-/// Maps the exec path of an external repository source file to its path under `output_base`.
-fn repository_file(output_base: &Path, exec_path: &str) -> Result<PathBuf, String> {
+/// Maps the exec path of a source file to its path under `output_base` or `workspace`.
+fn source_file(output_base: &Path, workspace: &Path, exec_path: &str) -> Result<PathBuf, String> {
     if exec_path.starts_with("external/") {
         Ok(output_base.join(exec_path))
+    } else if exec_path.starts_with("bazel-out/") || Path::new(exec_path).is_absolute() {
+        Err(format!("{exec_path} is not a source file"))
     } else {
-        Err(format!(
-            "{exec_path} is not an external repository source file"
-        ))
+        Ok(workspace.join(exec_path))
     }
 }
 
@@ -234,30 +293,70 @@ fn tool_asset_name(tool: &str, cell: &str) -> String {
     format!("dx-{tool}-{}", cell.strip_prefix("dx-").unwrap_or(cell))
 }
 
-/// The shared libraries a cell ships.
-fn libraries(cell: &str) -> &'static [Library] {
-    if cell == "dx-windows-arm64" {
-        &WINDOWS_ARM64_LIBRARIES
+/// The native tools a cell ships: NATIVE_TOOLS, plus WINDOWS_TOOLS on a Windows cell.
+fn cell_tools(cell: &str) -> Vec<&'static Tool> {
+    let windows: &'static [Tool] = if cell.starts_with("dx-windows-") {
+        &WINDOWS_TOOLS
     } else {
         &[]
+    };
+    NATIVE_TOOLS.iter().chain(windows).collect()
+}
+
+/// The shared libraries a cell ships.
+fn libraries(cell: &str) -> &'static [Tool] {
+    match cell {
+        "dx-windows-arm64" => &WINDOWS_ARM64_LIBRARIES,
+        "dx-linux-x86_64" => &LINUX_X86_64_LIBRARIES,
+        "dx-linux-arm64" | "dx-macos-arm64" => &PCOV,
+        _ => &[],
     }
 }
 
-/// The asset name of a shared library in a cell, such as `dx-tree-sitter-windows-arm64.dll`.
-fn library_asset_name(tool: &str, cell: &str) -> String {
-    format!("{}.dll", tool_asset_name(tool, cell))
+/// The shared libraries whose licence assets a cell writes: each library's licence comes
+/// from one cell, `LICENSE_CELL` for a library several cells ship.
+fn library_licenses(cell: &str) -> &'static [Tool] {
+    match cell {
+        "dx-windows-arm64" => &WINDOWS_ARM64_LIBRARIES,
+        LICENSE_CELL => &LINUX_X86_64_LIBRARIES,
+        _ => &[],
+    }
 }
 
-/// Writes the licence files of `library`, separated by a blank line, as `dx-<tool>-LICENSE` in `out`.
-fn write_library_license(
+/// The native tools whose licence assets a cell writes.
+fn native_licenses(cell: &str) -> Vec<&'static Tool> {
+    if cell == LICENSE_CELL {
+        NATIVE_TOOLS
+            .iter()
+            .filter(|tool| !tool.licenses.is_empty())
+            .collect()
+    } else {
+        Vec::new()
+    }
+}
+
+/// The asset name of a shared library in a cell, such as `dx-tree-sitter-windows-arm64.dll`
+/// or `dx-julia-internal-linux-x86_64.so`.
+fn library_asset_name(tool: &str, cell: &str) -> String {
+    let ext = if cell.starts_with("dx-windows-") {
+        "dll"
+    } else {
+        "so"
+    };
+    format!("{}.{ext}", tool_asset_name(tool, cell))
+}
+
+/// Writes the licence files of `tool`, separated by a blank line, as `dx-<tool>-LICENSE` in `out`.
+fn write_license(
     bazel: &Bazel,
     output_base: &Path,
-    library: &Library,
+    workspace: &Path,
+    tool: &Tool,
     out: &Path,
 ) -> Result<(), String> {
     let mut text = String::new();
-    for label in library.licenses {
-        let path = bazel.source(output_base, label)?;
+    for label in tool.licenses {
+        let path = bazel.source(output_base, workspace, label)?;
         let part = std::fs::read_to_string(&path)
             .map_err(|error| format!("read {}: {error}", path.display()))?;
         if !text.is_empty() {
@@ -268,7 +367,7 @@ fn write_library_license(
             text.push('\n');
         }
     }
-    write(&out.join(format!("dx-{}-LICENSE", library.tool)), &text)
+    write(&out.join(format!("dx-{}-LICENSE", tool.tool)), &text)
 }
 
 fn same_bytes(left: &Path, right: &Path) -> Result<bool, String> {
@@ -296,7 +395,11 @@ fn rebuild_cell(
     };
     let no_cache = ["--disk_cache=", "--remote_cache="];
     let mut rebuilt_targets = vec![format!("{RELEASE}:dx_host_cell"), LAUNCHER.to_owned()];
-    rebuilt_targets.extend(NATIVE_TOOLS.iter().map(|(_, label)| (*label).to_owned()));
+    rebuilt_targets.extend(
+        cell_tools(&env.cell)
+            .iter()
+            .map(|tool| tool.label.to_owned()),
+    );
     rebuilt_targets.extend(
         libraries(&env.cell)
             .iter()
@@ -322,12 +425,12 @@ fn rebuild_cell(
     if !same_bytes(&out.join(launcher_asset), &rebuilt_launcher)? {
         return Err(format!("{launcher_asset} differs between two builds"));
     }
-    for (tool, label) in NATIVE_TOOLS {
-        let asset = tool_asset_name(tool, &env.cell);
+    for tool in cell_tools(&env.cell) {
+        let asset = tool_asset_name(tool.tool, &env.cell);
         let rebuilt = env.temp.join(format!("rebuilt-{asset}"));
         release_copy(
             &env.cell,
-            &rebuild.file(&rebuild_root, &[], label)?,
+            &rebuild.file(&rebuild_root, &[], tool.label)?,
             &rebuilt,
         )?;
         if !same_bytes(&out.join(&asset), &rebuilt)? {
@@ -379,7 +482,7 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
         format!("{RELEASE}:dx_host_cell_sbom"),
     ];
     let mut targets = vec!["//cli/cli:dx", LAUNCHER];
-    targets.extend(NATIVE_TOOLS.iter().map(|(_, label)| *label));
+    targets.extend(cell_tools(&env.cell).iter().map(|tool| tool.label));
     targets.extend(libraries(&env.cell).iter().map(|library| library.label));
     targets.extend(release_targets.iter().map(String::as_str));
     main.build(&[], &targets)?;
@@ -392,6 +495,7 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
     main.build(&gazelle_flags, &[GAZELLE])?;
     let root = main.execution_root()?;
     let output_base = main.output_base()?;
+    let workspace = main.workspace()?;
     let gazelle_asset = tool_asset_name("gazelle", &env.cell);
     release_copy(
         &env.cell,
@@ -404,19 +508,24 @@ fn build_cell(env: &Env, out: &Path) -> Result<(), String> {
         &main.file(&root, &[], LAUNCHER)?,
         &out.join(&launcher_asset),
     )?;
-    for (tool, label) in NATIVE_TOOLS {
+    for tool in cell_tools(&env.cell) {
         release_copy(
             &env.cell,
-            &main.file(&root, &[], label)?,
-            &out.join(tool_asset_name(tool, &env.cell)),
+            &main.file(&root, &[], tool.label)?,
+            &out.join(tool_asset_name(tool.tool, &env.cell)),
         )?;
+    }
+    for tool in native_licenses(&env.cell) {
+        write_license(&main, &output_base, &workspace, tool, out)?;
     }
     for library in libraries(&env.cell) {
         copy(
             &main.file(&root, &[], library.label)?,
             &out.join(library_asset_name(library.tool, &env.cell)),
         )?;
-        write_library_license(&main, &output_base, library, out)?;
+    }
+    for library in library_licenses(&env.cell) {
+        write_license(&main, &output_base, &workspace, library, out)?;
     }
     let dx = main.file(&root, &[], "//cli/cli:dx")?;
     if is_macos(&env.cell) && !codesign(&["--verify", "--strict"], &dx)? {
@@ -525,39 +634,75 @@ pub fn cell(args: &[String]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_macos, libraries, library_asset_name, repository_file, symbols_name, tool_asset_name,
+        NATIVE_TOOLS, cell_tools, is_macos, libraries, library_asset_name, library_licenses,
+        native_licenses, source_file, symbols_name, tool_asset_name,
     };
     use std::path::Path;
 
     #[test]
-    fn repository_files_resolve_under_the_output_base() {
+    fn source_files_resolve_under_the_output_base_or_the_workspace() {
         let base = Path::new("/base");
+        let workspace = Path::new("/workspace");
         assert_eq!(
-            repository_file(base, "external/+ext+jvm_tree_sitter/LICENSE"),
+            source_file(base, workspace, "external/+ext+jvm_tree_sitter/LICENSE"),
             Ok(base.join("external/+ext+jvm_tree_sitter/LICENSE"))
         );
-        assert!(repository_file(base, "bazel-out/x64_windows-opt/bin/a.dll").is_err());
-        assert!(repository_file(base, "java/private/LICENSE").is_err());
+        assert_eq!(
+            source_file(base, workspace, "lua/private/lua_LICENSE.txt"),
+            Ok(workspace.join("lua/private/lua_LICENSE.txt"))
+        );
+        assert!(source_file(base, workspace, "bazel-out/x64_windows-opt/bin/a.dll").is_err());
+    }
+
+    fn names(tools: &[super::Tool]) -> Vec<&str> {
+        tools.iter().map(|tool| tool.tool).collect()
     }
 
     #[test]
-    fn only_the_windows_arm64_cell_ships_libraries() {
-        let tools = |cell| {
-            libraries(cell)
-                .iter()
-                .map(|library| library.tool)
-                .collect::<Vec<_>>()
-        };
+    fn windows_arm64_ships_tree_sitter_and_unix_cells_ship_pcov_and_julia() {
         assert_eq!(
-            tools("dx-windows-arm64"),
+            names(libraries("dx-windows-arm64")),
             ["tree-sitter", "tree-sitter-pkl"]
         );
-        assert!(tools("dx-windows-x86_64").is_empty());
-        assert!(tools("dx-linux-arm64").is_empty());
+        assert!(libraries("dx-windows-x86_64").is_empty());
+        assert_eq!(
+            names(libraries("dx-linux-x86_64")),
+            ["pcov", "julia-internal"]
+        );
+        for cell in ["dx-linux-arm64", "dx-macos-arm64"] {
+            assert_eq!(names(libraries(cell)), ["pcov"], "{cell}");
+        }
     }
 
     #[test]
-    fn library_assets_end_in_dll() {
+    fn each_library_licence_comes_from_one_cell() {
+        assert_eq!(
+            names(library_licenses("dx-windows-arm64")),
+            ["tree-sitter", "tree-sitter-pkl"]
+        );
+        assert_eq!(
+            names(library_licenses("dx-linux-x86_64")),
+            ["pcov", "julia-internal"]
+        );
+        for cell in ["dx-linux-arm64", "dx-macos-arm64", "dx-windows-x86_64"] {
+            assert!(library_licenses(cell).is_empty(), "{cell}");
+        }
+    }
+
+    #[test]
+    fn library_assets_end_in_dll_on_windows_and_so_elsewhere() {
+        assert_eq!(
+            library_asset_name("pcov", "dx-linux-x86_64"),
+            "dx-pcov-linux-x86_64.so"
+        );
+        assert_eq!(
+            library_asset_name("pcov", "dx-macos-arm64"),
+            "dx-pcov-macos-arm64.so"
+        );
+        assert_eq!(
+            library_asset_name("julia-internal", "dx-linux-x86_64"),
+            "dx-julia-internal-linux-x86_64.so"
+        );
         assert_eq!(
             library_asset_name("tree-sitter", "dx-windows-arm64"),
             "dx-tree-sitter-windows-arm64.dll"
@@ -598,5 +743,72 @@ mod tests {
             tool_asset_name("runtime", "dx-macos-arm64"),
             "dx-runtime-macos-arm64"
         );
+        assert_eq!(
+            tool_asset_name("ldoc-main", "dx-windows-arm64"),
+            "dx-ldoc-main-windows-arm64"
+        );
+    }
+
+    #[test]
+    fn only_windows_cells_ship_msvc_link() {
+        let tools = |cell| {
+            cell_tools(cell)
+                .iter()
+                .map(|tool| tool.tool)
+                .collect::<Vec<_>>()
+        };
+        for cell in ["dx-windows-arm64", "dx-windows-x86_64"] {
+            assert_eq!(
+                tools(cell),
+                [
+                    "capnp",
+                    "flatc",
+                    "ldoc-main",
+                    "runtime",
+                    "thrift",
+                    "msvc-link"
+                ],
+                "{cell}"
+            );
+        }
+        for cell in ["dx-linux-arm64", "dx-linux-x86_64", "dx-macos-arm64"] {
+            assert_eq!(
+                tools(cell),
+                ["capnp", "flatc", "ldoc-main", "runtime", "thrift"],
+                "{cell}"
+            );
+        }
+    }
+
+    #[test]
+    fn native_licenses_ship_from_linux_x86_64_only() {
+        let tools = |cell| {
+            native_licenses(cell)
+                .iter()
+                .map(|tool| tool.tool)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            tools("dx-linux-x86_64"),
+            ["capnp", "flatc", "ldoc-main", "thrift"]
+        );
+        for cell in [
+            "dx-linux-arm64",
+            "dx-macos-arm64",
+            "dx-windows-arm64",
+            "dx-windows-x86_64",
+        ] {
+            assert!(tools(cell).is_empty(), "{cell}");
+        }
+    }
+
+    #[test]
+    fn only_the_dx_runtime_ships_without_a_licence() {
+        let unlicensed: Vec<_> = NATIVE_TOOLS
+            .iter()
+            .filter(|tool| tool.licenses.is_empty())
+            .map(|tool| tool.tool)
+            .collect();
+        assert_eq!(unlicensed, ["runtime"]);
     }
 }

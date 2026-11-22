@@ -5,8 +5,8 @@ load(":dart_context.bzl", "DART_ANALYZE", "DART_FORMAT", "dart_merge_packages", 
 
 visibility("private")
 
-def _pkg(name, lib_root, language_version = ""):
-    return struct(package_name = name, lib_root = lib_root, language_version = language_version)
+def _pkg(name, package_root, language_version = ""):
+    return struct(package_name = name, package_root = package_root, language_version = language_version)
 
 _PACKAGES = [
     _pkg("app", "", "3.4"),

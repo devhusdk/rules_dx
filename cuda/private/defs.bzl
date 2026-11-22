@@ -4,14 +4,15 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_cuda//cuda:defs.bzl", _cuda_library = "cuda_library", _cuda_objects = "cuda_objects")
 load("@rules_cuda//cuda/private:providers.bzl", "CudaInfo")
 load("//cc:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
+load("//cc/private:defs.bzl", "CC_TEST_COVERAGE_ATTRS", "CC_TEST_COVERAGE_TOOLCHAINS")
+load("//core:platform_support.bzl", "compatible_with")
+load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_private_dep_rule", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags")
+load("//core/modules:cuda.bzl", "CUDA_VERSION")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 load("//cuda/private:components.bzl", _cuda_component_library = "cuda_component_library")
 load("//cuda/private/toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//cuda/private/toolchain:settings.bzl", "PLATFORM_SUPPORT")
 load("//cuda/private/toolchain:transition.bzl", "cuda_host_transition")
-load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags")
-load("//core/modules:cuda.bzl", "CUDA_VERSION")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 cuda_component_library = _cuda_component_library
 
@@ -50,6 +51,7 @@ _cuda_library_forward = dx_library_forward_rule(
                 mandatory = True,
                 cfg = cuda_host_transition,
             ),
+            "host_compiler": attr.string(doc = "The //cc:compiler nvcc compiles with; empty keeps the current one."),
             "_toolkit_check": attr.label(default = Label("//cuda/private/toolchain:toolkit_check"), cfg = cuda_host_transition),
         },
         runtime = "besteffort",
@@ -58,7 +60,56 @@ _cuda_library_forward = dx_library_forward_rule(
     ),
 )
 
-# Outside cuda_host_transition the upstream library needs the dynamic CUDA runtime.
+# nvcc on Windows only drives cl.exe.
+_HOST_COMPILER = select({
+    Label("@platforms//os:windows"): "msvc",
+    "//conditions:default": "",
+})
+
+# cl.exe objects carry the MSVC STL, so on Windows only an msvc link may take them.
+_MSVC_LINK_ON_WINDOWS = select({
+    Label("//cuda/private/toolchain:windows_msvc"): [],
+    Label("@platforms//os:windows"): [Label("@platforms//:incompatible")],
+    "//conditions:default": [],
+})
+
+_CUDA_HOST = dx_language_spec(what = "cuda_*", quality_specs = [(k, UPSTREAM_CC_CLASS_EXTENSIONS[k]) for k in ("c", "cpp")], allow_files = True)
+
+_HOST_COMPILER_ATTR = {
+    "host_compiler": attr.string(doc = "The //cc:compiler the executable and its CUDA deps build with; empty keeps the current one."),
+}
+
+_cuda_binary_forward = dx_executable_forward_rule(
+    _CUDA_HOST,
+    "executable",
+    dx_forward_spec(
+        upstream_providers = [[CcInfo]],
+        optional_providers = [CcInfo],
+        extra_attrs = _HOST_COMPILER_ATTR,
+        upstream_cfg = cuda_host_transition,
+    ),
+)
+
+_cuda_forward_test = dx_executable_forward_rule(
+    _CUDA_HOST,
+    "test",
+    dx_forward_spec(
+        upstream_providers = [[CcInfo]],
+        optional_providers = [CcInfo],
+        extra_attrs = _HOST_COMPILER_ATTR | CC_TEST_COVERAGE_ATTRS,
+        upstream_cfg = cuda_host_transition,
+        toolchains = CC_TEST_COVERAGE_TOOLCHAINS,
+        runtime = "mandatory",
+    ),
+)
+
+# lib.exe writes no archive for a library without objects.
+_EMPTY_SRCS = select({
+    Label("@platforms//os:windows"): [Label("//cuda/private/toolchain:empty.cu")],
+    "//conditions:default": [],
+})
+
+# Outside cuda_host_transition an upstream target needs the dynamic CUDA runtime and, on Windows, a cl.exe link.
 _UPSTREAM_ONLY_UNDER_TRANSITION = select({
     Label("//cuda/private/toolchain:static_runtime_enabled"): [],
     "//conditions:default": [Label("@platforms//:incompatible")],
@@ -81,6 +132,9 @@ def _cuda_features(features):
         return features + _ALLOW_UNSUPPORTED_COMPILER + _STATIC_MSVCRT
     return list(features) + _ALLOW_UNSUPPORTED_COMPILER + _STATIC_MSVCRT
 
+def _cuda_library_compatible_with(target_compatible_with):
+    return cuda_target_compatible_with(target_compatible_with) + _MSVC_LINK_ON_WINDOWS
+
 def cuda_target_compatible_with(target_compatible_with):
     """Returns the target constraints of a dx CUDA target."""
     extra = target_compatible_with if target_compatible_with != None else []
@@ -102,10 +156,10 @@ def cuda_split_srcs(srcs):
 def cuda_library(name, srcs, cuda_archs, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, **kwargs):
     """Minimal wrapper over rules_cuda cuda_library; cuda_archs is required and rdc enables relocatable device code."""
     features = _cuda_features(kwargs.pop("features", None))
-    compatible = cuda_target_compatible_with(target_compatible_with)
+    compatible = _cuda_library_compatible_with(target_compatible_with)
     _cuda_library(
         name = name + "_upstream",
-        srcs = srcs,
+        srcs = srcs if srcs else _EMPTY_SRCS,
         hdrs = hdrs or [],
         archs = cuda_archs,
         rdc = rdc,
@@ -133,6 +187,7 @@ def cuda_library(name, srcs, cuda_archs, hdrs = None, visibility = None, tags = 
         name = name,
         upstream = name + "_upstream",
         check = name + "_cuda_check",
+        host_compiler = _HOST_COMPILER,
         srcs = srcs,
         hdrs = hdrs or [],
         target_compatible_with = compatible,
@@ -143,7 +198,7 @@ def cuda_library(name, srcs, cuda_archs, hdrs = None, visibility = None, tags = 
 def cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = None, tags = None, target_compatible_with = None, **kwargs):
     """Compiles .cu sources to relocatable device objects for the deps of an rdc cuda_library."""
     features = _cuda_features(kwargs.pop("features", None))
-    compatible = cuda_target_compatible_with(target_compatible_with)
+    compatible = _cuda_library_compatible_with(target_compatible_with)
     _cuda_objects(
         name = name + "_upstream",
         srcs = srcs,
@@ -174,6 +229,7 @@ def cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = 
         name = name,
         upstream = name + "_upstream",
         check = name + "_cuda_check",
+        host_compiler = _HOST_COMPILER,
         srcs = srcs,
         hdrs = hdrs or [],
         target_compatible_with = compatible,
@@ -181,7 +237,7 @@ def cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = 
         **forward_kwargs
     )
 
-def _cuda_executable(cc_rule, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, library_tags = None, rdc = False, cuda_copts = None, executable_compatible_with = []):
+def _cuda_executable(cc_rule, forward_rule, test, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, library_tags = None, rdc = False, cuda_copts = None, executable_compatible_with = []):
     device, host = cuda_split_srcs(srcs)
     compatible = cuda_target_compatible_with(target_compatible_with)
     cuda_library(
@@ -204,19 +260,32 @@ def _cuda_executable(cc_rule, name, srcs, cuda_archs, deps, hdrs, visibility, ta
             "@platforms//os:windows": ["/IGNORE:4001"],
             "//conditions:default": [],
         })
-    cc_rule(
+    kwargs["deps"] = (deps or []) + [name + "_cuda"]
+    kwargs["tags"] = tags
+    kwargs["target_compatible_with"] = compatible + executable_compatible_with
+    upstream_kwargs = dict(kwargs)
+    upstream_kwargs["target_compatible_with"] = kwargs["target_compatible_with"] + _UPSTREAM_ONLY_UNDER_TRANSITION
+    if test:
+        # env stays on the cc_test, next to the data its $(location) values expand over.
+        upstream_kwargs = dx_test_upstream_kwargs(upstream_kwargs, srcs = host, upstream_env = True)
+        forward_kwargs = dx_test_forward_kwargs(kwargs, run_env = False)
+        forward_kwargs["testonly"] = True
+    else:
+        upstream_kwargs = dx_binary_upstream_kwargs(upstream_kwargs, host)
+        forward_kwargs = dx_binary_forward_kwargs(kwargs)
+    cc_rule(name = name + "_upstream", **upstream_kwargs)
+    forward_rule(
         name = name,
+        upstream = name + "_upstream",
         srcs = host,
-        deps = (deps or []) + [name + "_cuda"],
-        tags = tags,
-        target_compatible_with = compatible + executable_compatible_with,
+        host_compiler = _HOST_COMPILER,
         visibility = visibility,
-        **kwargs
+        **forward_kwargs
     )
 
 def cuda_binary(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, cuda_copts = None, **kwargs):
     """Compiles .cu sources with nvcc and links them into a cc_binary; cuda_copts go to nvcc."""
-    _cuda_executable(_cc_binary, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc, cuda_copts = cuda_copts)
+    _cuda_executable(_cc_binary, _cuda_binary_forward, False, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc, cuda_copts = cuda_copts)
 
 _GPU_TAGS = ["requires-gpu", "resources:gpu:1"]
 
@@ -249,7 +318,7 @@ def cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = 
         if data != None:
             kwargs["data"] = data
         kwargs["testonly"] = True
-        _cuda_executable(_cc_test, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc, cuda_copts = cuda_copts)
+        _cuda_executable(_cc_test, _cuda_forward_test, True, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc, cuda_copts = cuda_copts)
         return
     compatible = cuda_target_compatible_with(target_compatible_with)
     cuda_gpu_check(
@@ -275,6 +344,8 @@ def cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = 
     kwargs["data"] = list(data or []) + [name + "_gpu_check"]
     _cuda_executable(
         _cc_test,
+        _cuda_forward_test,
+        True,
         name,
         srcs,
         cuda_archs,

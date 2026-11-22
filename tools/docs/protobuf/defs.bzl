@@ -23,7 +23,7 @@ def protobuf_shard_action(ctx, proto_info, protoc, windows, package, stem, extra
     root = proto_info.proto_source_root
     sources = proto_info.direct_sources
     if not sources:
-        fail("protobuf_doc_shard " + str(ctx.label) + ": proto_library lists no .proto srcs")
+        fail("api_spec_protobuf_doc_shard " + str(ctx.label) + ": proto_library lists no .proto srcs")
 
     descriptor_sets = proto_info.transitive_descriptor_sets
     descriptor = ctx.actions.declare_file(stem + ".descriptor.pb")
@@ -68,7 +68,7 @@ def protobuf_shard_action(ctx, proto_info, protoc, windows, package, stem, extra
 def _protobuf_doc_shard_impl(ctx):
     toolchain = ctx.toolchains[PROTO_TOOLCHAIN]
     if toolchain == None:
-        fail("protobuf_doc_shard " + str(ctx.label) + ": no protobuf toolchain is registered for this platform")
+        fail("api_spec_protobuf_doc_shard " + str(ctx.label) + ": no protobuf toolchain is registered for this platform")
     package = ctx.attr.package or ctx.attr.proto.label.name
     action = protobuf_shard_action(
         ctx,
@@ -110,7 +110,7 @@ docs_protobuf_shard = rule(
     toolchains = [config_common.toolchain_type(PROTO_TOOLCHAIN, mandatory = False)],
 )
 
-def protobuf_doc_shard(name, proto, package = "", **kwargs):
+def api_spec_protobuf_doc_shard(name, proto, package = "", **kwargs):
     """Declares the DocIr shard of one proto_library."""
     docs_protobuf_shard(
         name = name,

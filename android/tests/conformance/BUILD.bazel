@@ -1,24 +1,18 @@
 load("//android:defs.bzl", "android_java_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
-load("//tools/testing/conformance:quality.bzl", "java_format_subject", "java_lint_subject")
+load("//tools/testing/conformance:quality.bzl", "java_format_subject")
+load(":subjects.bzl", "android_lint_subject")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-# Like //android/tests/fixtures/android_library, these build on linux_x86_64 only; other hosts keep pending lines.
-_SDK_HOST = [
-    "@platforms//cpu:x86_64",
-    "@platforms//os:linux",
-]
-
 android_java_library(
     name = "conformance",
     srcs = ["Clean.java"],
     custom_package = "com.example.dxconformance",
-    target_compatible_with = _SDK_HOST,
 )
 
 android_java_library(
@@ -26,7 +20,6 @@ android_java_library(
     srcs = ["LintDirty.java"],
     custom_package = "com.example.dxconformance",
     tags = ["manual"],
-    target_compatible_with = _SDK_HOST,
 )
 
 android_java_library(
@@ -34,7 +27,6 @@ android_java_library(
     srcs = ["FormatDirty.java"],
     custom_package = "com.example.dxconformance",
     tags = ["manual"],
-    target_compatible_with = _SDK_HOST,
 )
 
 dx_conformance_suite(
@@ -65,13 +57,16 @@ dx_conformance_suite(
         "lint_line": 4,
         "lint_rule": "UnusedPrivateMethod",
         "lint_source": "LintDirty.java",
-        "lint_subject": java_lint_subject,
+        "lint_subject": android_lint_subject,
     },
 )
 
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "subjects.bzl",
+    ],
     tags = ["corpus"],
 )

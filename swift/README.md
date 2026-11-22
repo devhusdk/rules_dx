@@ -101,6 +101,9 @@ type from another module are not documented.
 platform, pass `platforms = ["//your:platform"]` to the rule. It takes one
 label. Leave it empty to use the current target platform.
 
+Builds write no index store; build with
+`--features=swift.index_while_building` to get one for your editor.
+
 ### Linux
 
 - The compiler is the Swift 6.4.2 Ubuntu 22.04 archive from swift.org.

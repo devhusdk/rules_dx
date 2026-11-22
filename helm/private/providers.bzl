@@ -3,7 +3,7 @@
 HelmChartInfo = provider(
     doc = "The chart root, ordered values files and release settings of a helm_library.",
     fields = {
-        "chart_root": "string: workspace-relative package path holding Chart.yaml.",
+        "chart_root": "string: package path holding Chart.yaml, relative to the root of the chart's own repository.",
         "subcharts": "list[File]: vendored subchart archives under charts/.",
         "namespace": "string: namespace passed to helm template.",
         "release_name": "string: release name passed to helm template.",

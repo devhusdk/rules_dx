@@ -16,7 +16,7 @@ rust_test(
         "DX_CUDA_ARCHIVES": "$(rootpaths //cuda/tests/fixtures/cuda_app/kernels)",
         "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/cuda_app/app:cuda_app)",
     },
-    target_compatible_with = CUDA_COMPATIBLE_WITH,
+    target_compatible_with = CUDA_COMPATIBLE_WITH + ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
 

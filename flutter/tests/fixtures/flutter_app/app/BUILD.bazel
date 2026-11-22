@@ -1,22 +1,32 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("@rules_dx//flutter:defs.bzl", "flutter_application", "flutter_gen_l10n", "flutter_library", "flutter_test", "flutter_web_app", "flutter_web_bundle")
+load("@rules_dx//dart:defs.bzl", "dart_package_metadata")
+load("@rules_dx//flutter:defs.bzl", "flutter_application", "flutter_font_family", "flutter_gen_l10n", "flutter_library", "flutter_test", "flutter_web_app", "flutter_web_bundle")
 load("@rules_dx//flutter/private:defs.bzl", "FLUTTER_COMPATIBLE_WITH")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//flutter/tests/fixtures/flutter_app:profile.bzl", "profile_app")
 
 package(default_visibility = ["//flutter/tests/fixtures/flutter_app:__subpackages__"])
 
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "flutter_app",
+)
+
 exports_files(
     glob([
+        "assets/**",
         "lib/**",
         "test/**",
     ]) + [
         "BUILD.bazel",
         "tips.txt",
     ],
-    visibility = ["//tools/testing/hermetic:__pkg__"],
+    visibility = [
+        "//flutter/tests/fixtures/flutter_app/failures:__pkg__",
+        "//tools/testing/hermetic:__pkg__",
+    ],
 )
 
 _PUB = [
@@ -47,40 +57,43 @@ flutter_gen_l10n(
     target_compatible_with = FLUTTER_COMPATIBLE_WITH,
 )
 
+flutter_font_family(
+    name = "dx_square",
+    family = "DxSquare",
+    fonts = ["assets/fonts/DxSquare.ttf"],
+)
+
 flutter_library(
     name = "app",
-    package_name = "flutter_app",
     srcs = glob(["lib/**/*.dart"]) + [
         ":l10n",
         ":tips_g_dart",
     ],
-    font_files = {"//flutter/tests/fixtures/flutter_app:assets/fonts/DxSquare.ttf": "assets/fonts/DxSquare.ttf"},
-    fonts_json = json.encode([{
-        "family": "DxSquare",
-        "fonts": [{"asset": "assets/fonts/DxSquare.ttf"}],
-    }]),
-    pkg_assets = {"//flutter/tests/fixtures/flutter_app:assets/items.json": "assets/items.json"},
+    assets = ["assets/items.json"],
+    fonts = [":dx_square"],
+    package = ":pubspec-metadata",
     visibility = ["//visibility:public"],
     deps = _PUB,
 )
 
 flutter_application(
     name = "native",
-    package_name = "flutter_app",
     main = "lib/main.dart",
+    package = ":pubspec-metadata",
     visibility = [
         "//flutter/tests/fixtures/flutter_app:__pkg__",
         "//flutter/tests/fixtures/flutter_app/android:__pkg__",
         "//flutter/tests/fixtures/flutter_app/failures:__pkg__",
     ],
-    deps = [":app"] + _PUB,
+    deps = [
+        ":app",
+        "@dx_flutter_app_deps//:flutter",
+    ],
 )
 
 flutter_web_app(
     name = "web",
-    package_name = "flutter_app",
-    main = "lib/main.dart",
-    deps = [":app"] + _PUB,
+    application = ":native",
 )
 
 write_file(
@@ -105,21 +118,13 @@ write_file(
 # sends fallback font requests to the same server instead of gstatic.
 flutter_web_bundle(
     name = "web_canvaskit",
-    package_name = "flutter_app",
+    application = ":native",
     bootstrap_js = ":web_bootstrap",
     compiler = "dart2js",
-    main = "lib/main.dart",
     pwa = False,
     renderer = "canvaskit",
     use_local_canvaskit = True,
     visibility = ["//flutter/tests/fixtures/flutter_app/web:__pkg__"],
-    deps = [
-        ":app",
-        "@dx_flutter_app_deps//:collection",
-        "@dx_flutter_app_deps//:flutter",
-        "@dx_flutter_app_deps//:flutter_localizations",
-        "@dx_flutter_app_deps//:intl",
-    ],
 )
 
 build_test(
@@ -145,17 +150,17 @@ build_test(
 
 flutter_test(
     name = "defines_test",
-    package_name = "flutter_app",
     defines = ["PARTS_MODE=nondefault"],
     main = "test/defines_test.dart",
+    package = ":pubspec-metadata",
     tags = ["block-network"],
     deps = ["@dx_flutter_app_deps//:flutter_test"],
 )
 
 flutter_test(
     name = "app_test",
-    package_name = "flutter_app",
     main = "test/app_test.dart",
+    package = ":pubspec-metadata",
     tags = ["block-network"],
     deps = [
         ":app",

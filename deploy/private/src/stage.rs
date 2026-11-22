@@ -1,7 +1,8 @@
 //! Staging helpers shared by every publisher: runfiles, outdirs, private dirs.
 
+use std::fmt;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub fn bin_usage(prog: &str, usage: &str) -> i32 {
     eprintln!("usage: {prog} {usage}");
@@ -28,6 +29,54 @@ pub fn copy_verified(src: &Path, dest: &Path) -> io::Result<String> {
         ));
     }
     Ok(want)
+}
+
+/// A package file that could not be staged.
+#[derive(Debug)]
+pub struct StageError {
+    pub(crate) path: PathBuf,
+    source: io::Error,
+}
+
+impl fmt::Display for StageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "cannot stage {}", self.path.display())
+    }
+}
+
+impl std::error::Error for StageError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
+/// Copies each mapped source to its package-relative path under `staging`, verifying bytes.
+pub(crate) fn stage_mapped(mapped: &[(PathBuf, String)], staging: &Path) -> Result<(), StageError> {
+    for (src, rel) in mapped {
+        let dest = staging.join(rel);
+        dest.parent()
+            .map_or(Ok(()), std::fs::create_dir_all)
+            .and_then(|()| copy_verified(src, &dest).map(|_| ()))
+            .map_err(|source| StageError {
+                path: src.clone(),
+                source,
+            })?;
+    }
+    Ok(())
+}
+
+/// Copies each source to `<stage>/<index>` as a regular file, following symlinks.
+pub fn stage_regular_files(stage: &Path, srcs: &[String]) -> io::Result<()> {
+    std::fs::create_dir_all(stage)?;
+    for (index, src) in srcs.iter().enumerate() {
+        let dest = stage.join(index.to_string());
+        match std::fs::remove_file(&dest) {
+            Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(error),
+            _ => {}
+        }
+        std::fs::copy(src, dest)?;
+    }
+    Ok(())
 }
 
 /// Resolves one runfiles rlocation through the Bazel runfiles library.
@@ -150,9 +199,9 @@ pub(crate) fn package_relative_paths(
     let root = first.parent().unwrap_or_else(|| Path::new(""));
     let mut mapped: Vec<(std::path::PathBuf, String)> = Vec::new();
     for src in crate_files {
-        let rel = src.strip_prefix(root).map_err(|_| {
+        let rel = src.strip_prefix(root).map_err(|error| {
             bad(format!(
-                "{label}: '{}' is outside the package root '{}'",
+                "{label}: '{}' is outside the package root '{}': {error}",
                 src.display(),
                 root.display()
             ))
@@ -357,6 +406,51 @@ mod tests {
         let digest = copy_verified(&src, &dest).expect("copy");
         assert_eq!(digest, dx_digest::sha256_file_hex(&src).expect("hex"));
         assert_eq!(std::fs::read(&dest).expect("read dest"), b"payload");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn stage_regular_files_replaces_symlinks_with_their_bytes() {
+        let scratch = scratch_dir();
+        let real = scratch.path().join("real.conf");
+        std::fs::write(&real, b"key=value").expect("write real");
+        let link = scratch.path().join("link.conf");
+        std::os::unix::fs::symlink(&real, &link).expect("symlink");
+        let stage = scratch.path().join("stage");
+        let srcs = [real.display().to_string(), link.display().to_string()];
+        stage_regular_files(&stage, &srcs).expect("stage");
+        for index in ["0", "1"] {
+            let staged = stage.join(index);
+            let meta = std::fs::symlink_metadata(&staged).expect("staged metadata");
+            assert!(
+                meta.file_type().is_file(),
+                "{} is not a regular file",
+                staged.display()
+            );
+            assert_eq!(std::fs::read(&staged).expect("read staged"), b"key=value");
+        }
+        let missing = [scratch.path().join("missing").display().to_string()];
+        assert!(stage_regular_files(&stage, &missing).is_err());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn stage_regular_files_restages_over_read_only_copies() {
+        let scratch = scratch_dir();
+        let src = scratch.path().join("src.bin");
+        std::fs::write(&src, b"first").expect("write src");
+        set_mode(&src, 0o444);
+        let stage = scratch.path().join("stage");
+        let srcs = [src.display().to_string()];
+        stage_regular_files(&stage, &srcs).expect("first stage");
+        set_mode(&src, 0o644);
+        std::fs::write(&src, b"second").expect("rewrite src");
+        set_mode(&src, 0o444);
+        stage_regular_files(&stage, &srcs).expect("second stage");
+        assert_eq!(
+            std::fs::read(stage.join("0")).expect("read staged"),
+            b"second"
+        );
     }
 
     #[test]

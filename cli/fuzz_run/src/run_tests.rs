@@ -15,12 +15,13 @@ fn options_default_to_sixty_seconds() {
 #[test]
 fn options_read_every_flag() {
     let options = parse_options(&strings(&[
-        "--time", "5", "--out", "o", "--jobs", "2", "--repro", "r",
+        "--time", "5", "--out", "o", "--jobs", "2", "--corpus", "c", "--repro", "r",
     ]))
     .expect("options");
     assert_eq!(options.seconds, "5");
     assert_eq!(options.out.as_deref(), Some("o"));
     assert_eq!(options.jobs.as_deref(), Some("2"));
+    assert_eq!(options.corpus.as_deref(), Some("c"));
     assert_eq!(options.repro.as_deref(), Some("r"));
 }
 
@@ -96,4 +97,23 @@ fn crowbar_takes_no_fuzz_flags_of_its_own() {
         Path::new("/c"),
     );
     assert_eq!(args, [] as [String; 0]);
+}
+
+#[test]
+fn go_rejects_a_seed_corpus_before_fuzzing() {
+    let scratch = dx_test_scratch::scratch("dx-fuzz-corpus-").unwrap();
+    let out = scratch.path().join("out");
+    let seeds = scratch.path().join("seeds");
+    std::fs::create_dir_all(&seeds).expect("seeds");
+    let bin = scratch.path().join("absent");
+    let code = main_code(&strings(&[
+        "go",
+        &bin.display().to_string(),
+        "FuzzX",
+        "--out",
+        &out.display().to_string(),
+        "--corpus",
+        &seeds.display().to_string(),
+    ]));
+    assert_eq!(code, 2);
 }

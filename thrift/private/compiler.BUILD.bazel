@@ -4,6 +4,11 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("@rules_java//java:java_library.bzl", "java_library")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 
+exports_files([
+    "LICENSE",
+    "NOTICE",
+])
+
 # Generators register by static constructor, so all sources compile into the binary.
 cc_binary(
     name = "thrift_compiler",

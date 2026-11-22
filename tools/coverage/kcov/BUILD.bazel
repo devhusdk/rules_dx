@@ -1,4 +1,5 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -68,6 +69,24 @@ platform_transition_filegroup(
         "@platforms//cpu:aarch64": "@llvm//platforms:linux_aarch64_musl",
         "//conditions:default": "@llvm//platforms:linux_x86_64_musl",
     }),
+)
+
+platform_transition_filegroup(
+    name = "kcov_linux_arm64",
+    testonly = True,
+    srcs = [
+        ":kcov",
+        ":kcov_static",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    target_platform = "//tools/platforms:linux_arm64",
+)
+
+build_test(
+    name = "linux_arm64_build_test",
+    size = "small",
+    target_compatible_with = ["@platforms//os:linux"],
+    targets = [":kcov_linux_arm64"],
 )
 
 sh_binary(

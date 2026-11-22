@@ -16,18 +16,18 @@ def lang_platforms(lang):
     """Returns {id: (os, cpu)} for the platforms a language's lang.json lists."""
     return {id: tuple(id.split("_", 1)) for id in lang_cells(lang)}
 
-def platform_support(label, symbol, any_of, settings, package = None):
+def platform_support(label, symbol, any_of, settings, unsupported = None):
     """Returns the platforms a language's targets accept."""
-    return struct(key = label + "%" + symbol, any_of = any_of, settings = settings, package = package)
+    return struct(key = label + "%" + symbol, any_of = any_of, settings = settings, unsupported = unsupported)
 
 def compatible_with(support):
     """Returns the target_compatible_with select of a platform_support."""
     default = [_INCOMPATIBLE]
-    if support.package:
-        default.append(unsupported_constraint(support.package))
+    if support.unsupported:
+        default.append(unsupported_constraint(support.unsupported))
     return select({setting: [] for setting in support.settings} | {"//conditions:default": default})
 
-def cells_support(label, symbol, pinned, cells, package, field = "exec_compatible_with", unsupported = True, settings = {}):
+def cells_support(label, symbol, pinned, cells, package, field = "exec_compatible_with", unsupported = None, settings = {}):
     """Returns the platform_support of the given pinned cells."""
     unknown = unknown_cells(pinned, cells)
     if unknown:
@@ -37,15 +37,15 @@ def cells_support(label, symbol, pinned, cells, package, field = "exec_compatibl
         symbol,
         [getattr(pinned[cell], field) for cell in cells],
         [settings.get(cell, cell_setting(package, cell)) for cell in sorted(cells)],
-        package if unsupported else None,
+        unsupported,
     )
 
-def os_cpu_support(label, symbol, platforms, settings, package):
+def os_cpu_support(label, symbol, platforms, settings, unsupported):
     """Returns the platform_support of an {id: (os, cpu)} table matched by the given settings."""
     return platform_support(
         label,
         symbol,
         [["@platforms//os:" + os, "@platforms//cpu:" + cpu] for os, cpu in sorted(platforms.values())],
         settings,
-        package,
+        unsupported,
     )

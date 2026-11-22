@@ -167,7 +167,9 @@ rust_test(
     ),
     crate_name = "isolation_probe_test",
     crate_root = "isolation_test.rs",
-    tags = QUALIFICATION_TAGS,
+    # Not exclusive: the probe runs beside other tests. Still no-cache, because it checks the
+    # runner's namespaces, which are not in the cache key.
+    tags = [tag for tag in QUALIFICATION_TAGS if tag != "exclusive"],
     target_compatible_with = MANIFEST_HOSTS,
     deps = all_crate_deps(
         package_name = "tools/testing/hermetic",
@@ -256,29 +258,9 @@ rust_test(
 
 hermetic_qualification(
     name = "cpp_rust",
-    # macOS takes about 870s (run 42173489188), Linux 591s (ci.yml run 44226680067).
+    # macOS takes about 329s and Linux 417s (ci.yml run 44857005940).
     timeout = "eternal",
     consumer_rows = ["rust"],
-    coverage = [
-        "//java/tests/fixtures/java_app/...",
-        "//kotlin/tests/fixtures/kotlin_app/...",
-    ],
-    covered = [
-        "java/tests/fixtures/java_app/billing/Invoice.java",
-        "java/tests/fixtures/java_app/billing/InvoiceReader.java",
-        "java/tests/fixtures/java_app/billing/LineItem.java",
-        "java/tests/fixtures/java_app/billing/Totals.java",
-        "java/tests/fixtures/java_app/cli/Cli.java",
-        "kotlin/tests/fixtures/kotlin_app/cli/Cli.kt",
-        "kotlin/tests/fixtures/kotlin_app/grades/GradeReader.kt",
-        "kotlin/tests/fixtures/kotlin_app/grades/Stats.kt",
-        "kotlin/tests/fixtures/kotlin_app/grades/Student.kt",
-    ],
-    failures = {
-        "//java/tests/fixtures/java_app/billing/without_gson": "package com.google.gson does not exist",
-        "//java/tests/fixtures/java_app/cli/indirect": "[strict] Using type billing.BuildInfo from an indirect dependency",
-        "//kotlin/tests/fixtures/kotlin_app/grades/without_gson": "unresolved reference 'gson'",
-    },
     files = {
         "consumers/cpp_rust/config_test.cc": "config_test.cc",
         "consumers/cpp_rust/consumer.bazelrc": ".bazelrc",
@@ -326,73 +308,10 @@ hermetic_qualification(
         "//cc/tests/fixtures/cpp_app/app:report.cc": "cc/tests/fixtures/cpp_app/app/report.cc",
         "//cc/tests/fixtures/cpp_app/app:report.h": "cc/tests/fixtures/cpp_app/app/report.h",
         "//cc/tests/fixtures/cpp_app/app:report_test.cc": "cc/tests/fixtures/cpp_app/app/report_test.cc",
-        "consumers/cpp_rust/maven_install.json": "maven_install.json",
-        "consumers/cpp_rust/apps/java_billing.BUILD.bazel": "java/tests/fixtures/java_app/billing/BUILD.bazel",
-        "consumers/cpp_rust/apps/java_billing_without_gson.BUILD.bazel": "java/tests/fixtures/java_app/billing/without_gson/BUILD.bazel",
-        "//java/tests/fixtures/java_app/billing:VERSION": "java/tests/fixtures/java_app/billing/VERSION",
-        "//java/tests/fixtures/java_app/billing:invoices.json": "java/tests/fixtures/java_app/billing/invoices.json",
-        "//java/tests/fixtures/java_app/billing:LineItem.java": "java/tests/fixtures/java_app/billing/LineItem.java",
-        "//java/tests/fixtures/java_app/billing:Invoice.java": "java/tests/fixtures/java_app/billing/Invoice.java",
-        "//java/tests/fixtures/java_app/billing:InvoiceException.java": "java/tests/fixtures/java_app/billing/InvoiceException.java",
-        "//java/tests/fixtures/java_app/billing:InvoiceReader.java": "java/tests/fixtures/java_app/billing/InvoiceReader.java",
-        "//java/tests/fixtures/java_app/billing:Totals.java": "java/tests/fixtures/java_app/billing/Totals.java",
-        "//java/tests/fixtures/java_app/billing:InvoiceReaderTest.java": "java/tests/fixtures/java_app/billing/InvoiceReaderTest.java",
-        "//java/tests/fixtures/java_app/billing:TotalsTest.java": "java/tests/fixtures/java_app/billing/TotalsTest.java",
-        "//java/tests/fixtures/java_app/billing:ClasspathTest.java": "java/tests/fixtures/java_app/billing/ClasspathTest.java",
-        "consumers/cpp_rust/apps/java_cli.BUILD.bazel": "java/tests/fixtures/java_app/cli/BUILD.bazel",
-        "consumers/cpp_rust/apps/java_cli_indirect.BUILD.bazel": "java/tests/fixtures/java_app/cli/indirect/BUILD.bazel",
-        "consumers/cpp_rust/apps/ConsumerChoiceTest.java": "java/tests/fixtures/java_app/cli/ConsumerChoiceTest.java",
-        "consumers/cpp_rust/apps/java_exit_codes.sh": "java/tests/fixtures/java_app/cli/exit_codes.sh",
-        "//java/tests/fixtures/java_app/cli:Cli.java": "java/tests/fixtures/java_app/cli/Cli.java",
-        "//java/tests/fixtures/java_app/cli:CliTest.java": "java/tests/fixtures/java_app/cli/CliTest.java",
-        "//java/tests/fixtures/java_app/cli:Main.java": "java/tests/fixtures/java_app/cli/Main.java",
-        "consumers/cpp_rust/apps/kotlin_grades.BUILD.bazel": "kotlin/tests/fixtures/kotlin_app/grades/BUILD.bazel",
-        "consumers/cpp_rust/apps/kotlin_grades_without_gson.BUILD.bazel": "kotlin/tests/fixtures/kotlin_app/grades/without_gson/BUILD.bazel",
-        "//kotlin/tests/fixtures/kotlin_app/grades:VERSION": "kotlin/tests/fixtures/kotlin_app/grades/VERSION",
-        "//kotlin/tests/fixtures/kotlin_app/grades:grades.json": "kotlin/tests/fixtures/kotlin_app/grades/grades.json",
-        "//kotlin/tests/fixtures/kotlin_app/grades:Student.kt": "kotlin/tests/fixtures/kotlin_app/grades/Student.kt",
-        "//kotlin/tests/fixtures/kotlin_app/grades:GradeException.kt": "kotlin/tests/fixtures/kotlin_app/grades/GradeException.kt",
-        "//kotlin/tests/fixtures/kotlin_app/grades:GradeReader.kt": "kotlin/tests/fixtures/kotlin_app/grades/GradeReader.kt",
-        "//kotlin/tests/fixtures/kotlin_app/grades:Stats.kt": "kotlin/tests/fixtures/kotlin_app/grades/Stats.kt",
-        "//kotlin/tests/fixtures/kotlin_app/grades:GradeReaderTest.kt": "kotlin/tests/fixtures/kotlin_app/grades/GradeReaderTest.kt",
-        "//kotlin/tests/fixtures/kotlin_app/grades:StatsTest.kt": "kotlin/tests/fixtures/kotlin_app/grades/StatsTest.kt",
-        "//kotlin/tests/fixtures/kotlin_app/grades:ClasspathTest.kt": "kotlin/tests/fixtures/kotlin_app/grades/ClasspathTest.kt",
-        "consumers/cpp_rust/apps/kotlin_cli.BUILD.bazel": "kotlin/tests/fixtures/kotlin_app/cli/BUILD.bazel",
-        "consumers/cpp_rust/apps/ConsumerChoiceTest.kt": "kotlin/tests/fixtures/kotlin_app/cli/ConsumerChoiceTest.kt",
-        "consumers/cpp_rust/apps/kotlin_exit_codes.sh": "kotlin/tests/fixtures/kotlin_app/cli/exit_codes.sh",
-        "//kotlin/tests/fixtures/kotlin_app/cli:Cli.kt": "kotlin/tests/fixtures/kotlin_app/cli/Cli.kt",
-        "//kotlin/tests/fixtures/kotlin_app/cli:CliTest.kt": "kotlin/tests/fixtures/kotlin_app/cli/CliTest.kt",
-        "//kotlin/tests/fixtures/kotlin_app/cli:Main.kt": "kotlin/tests/fixtures/kotlin_app/cli/Main.kt",
-        "consumers/cpp_rust/consumer.npmrc": ".npmrc",
-        "consumers/cpp_rust/node_root.package.json": "package.json",
-        "//javascript/tests/fixtures/node_app:package.json": "javascript/tests/fixtures/node_app/package.json",
-        "//javascript/tests/fixtures/node_app:pnpm-lock.yaml": "javascript/tests/fixtures/node_app/pnpm-lock.yaml",
-        "//javascript/tests/fixtures/node_app:pnpm-workspace.yaml": "javascript/tests/fixtures/node_app/pnpm-workspace.yaml",
-        "consumers/cpp_rust/apps/node_app.BUILD.bazel": "javascript/tests/fixtures/node_app/BUILD.bazel",
-        "consumers/cpp_rust/apps/node_registry.BUILD.bazel": "javascript/tests/fixtures/node_app/registry/BUILD.bazel",
-        "//javascript/tests/fixtures/node_app/registry:VERSION": "javascript/tests/fixtures/node_app/registry/VERSION",
-        "//javascript/tests/fixtures/node_app/registry:package.json": "javascript/tests/fixtures/node_app/registry/package.json",
-        "//javascript/tests/fixtures/node_app/registry:packages.json": "javascript/tests/fixtures/node_app/registry/packages.json",
-        "//javascript/tests/fixtures/node_app/registry:registry.ts": "javascript/tests/fixtures/node_app/registry/registry.ts",
-        "//javascript/tests/fixtures/node_app/registry:registry_test.ts": "javascript/tests/fixtures/node_app/registry/registry_test.ts",
-        "//javascript/tests/fixtures/node_app/registry:plain_test.ts": "javascript/tests/fixtures/node_app/registry/plain_test.ts",
-        "//javascript/tests/fixtures/node_app/registry:jest.config.cjs": "javascript/tests/fixtures/node_app/registry/jest.config.cjs",
-        "//javascript/tests/fixtures/node_app/registry:tsconfig.json": "javascript/tests/fixtures/node_app/registry/tsconfig.json",
-        "consumers/cpp_rust/apps/node_cli.BUILD.bazel": "javascript/tests/fixtures/node_app/cli/BUILD.bazel",
-        "consumers/cpp_rust/apps/node_exit_codes.sh": "javascript/tests/fixtures/node_app/cli/exit_codes.sh",
-        "//javascript/tests/fixtures/node_app/cli:cli.ts": "javascript/tests/fixtures/node_app/cli/cli.ts",
-        "//javascript/tests/fixtures/node_app/cli:cli_test.ts": "javascript/tests/fixtures/node_app/cli/cli_test.ts",
-        "//javascript/tests/fixtures/node_app/cli:main.js": "javascript/tests/fixtures/node_app/cli/main.js",
-        "//javascript/tests/fixtures/node_app/cli:jest.config.cjs": "javascript/tests/fixtures/node_app/cli/jest.config.cjs",
-        "//javascript/tests/fixtures/node_app/cli:tsconfig.json": "javascript/tests/fixtures/node_app/cli/tsconfig.json",
     },
     languages = [
         "cpp",
-        "java",
-        "javascript",
-        "kotlin",
         "rust",
-        "typescript",
     ],
     module_fragment = "consumers/cpp_rust/module_fragment.bazel",
     patterns = [
@@ -402,10 +321,6 @@ hermetic_qualification(
         "//rust/tests/fixtures/cc-rs/...",
         "//cc/tests/fixtures/c_app/...",
         "//cc/tests/fixtures/cpp_app/...",
-        "//java/tests/fixtures/java_app/...",
-        "//kotlin/tests/fixtures/kotlin_app/...",
-        "//javascript/tests/fixtures/node_app/cli/...",
-        "//javascript/tests/fixtures/node_app/registry/...",
     ],
     smoke = True,
 )
@@ -506,11 +421,11 @@ hermetic_qualification(
 hermetic_qualification(
     name = "julia_fixture",
     files = {
-        "//tools/testing/starters/fixtures:julia/BUILD.bazel.fixture": "BUILD.bazel",
-        "//tools/testing/starters/fixtures:julia/Project.toml.fixture": "Project.toml",
-        "//tools/testing/starters/fixtures:julia/main.jl.fixture": "main.jl",
-        "//tools/testing/starters/fixtures:julia/src/DemoApp.jl.fixture": "src/DemoApp.jl",
-        "//tools/testing/starters/fixtures:julia/test/runtests.jl.fixture": "test/runtests.jl",
+        "consumers/julia_fixture/BUILD.bazel.fixture": "BUILD.bazel",
+        "consumers/julia_fixture/Project.toml.fixture": "Project.toml",
+        "consumers/julia_fixture/main.jl.fixture": "main.jl",
+        "consumers/julia_fixture/src/DemoApp.jl.fixture": "src/DemoApp.jl",
+        "consumers/julia_fixture/test/runtests.jl.fixture": "test/runtests.jl",
     },
     languages = ["julia"],
     module_fragment = "consumers/julia_fixture/module_fragment.bazel",
@@ -520,7 +435,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "proto_bindings",
-    timeout = "long",
     files = {
         "consumers/proto_bindings/root.BUILD.bazel": "BUILD.bazel",
         "consumers/proto_bindings/go.mod": "go.mod",
@@ -668,7 +582,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "qt_tasks",
-    srcs = ["//qt:module_srcs"],
+    srcs = ["//:module_srcs"],
     consumer_rows = ["qt"],
     files = {
         "consumers/qt_tasks/consumer.bazelrc": ".bazelrc",
@@ -789,7 +703,7 @@ hermetic_qualification(
     name = "flutter",
     consumer_rows = ["flutter"],
     failures = {
-        "//flutter/tests/fixtures/flutter_app/failures:missing_font": "font_files does not provide it",
+        "//flutter/tests/fixtures/flutter_app/failures:missing_font": "is not in the Dart package rooted at flutter/tests/fixtures/flutter_app/failures",
         "//flutter/tests/fixtures/flutter_app/failures:missing_asset": "1 input file(s) do not exist",
         "//flutter/tests/fixtures/flutter_app/failures:type_error": "The argument type 'int' can't be assigned to the parameter type 'String'",
         "//flutter/tests/fixtures/flutter_app/failures:undeclared_dep": "is not a direct dependency of",
@@ -801,6 +715,8 @@ hermetic_qualification(
         "//flutter/tests/fixtures/flutter_app:.dart_tool/package_graph.json": "flutter/tests/fixtures/flutter_app/.dart_tool/package_graph.json",
         "//flutter/tests/fixtures/flutter_app:BUILD.bazel": "flutter/tests/fixtures/flutter_app/BUILD.bazel",
         "//flutter/tests/fixtures/flutter_app/app:BUILD.bazel": "flutter/tests/fixtures/flutter_app/app/BUILD.bazel",
+        "//flutter/tests/fixtures/flutter_app/app:assets/fonts/DxSquare.ttf": "flutter/tests/fixtures/flutter_app/app/assets/fonts/DxSquare.ttf",
+        "//flutter/tests/fixtures/flutter_app/app:assets/items.json": "flutter/tests/fixtures/flutter_app/app/assets/items.json",
         "//flutter/tests/fixtures/flutter_app/app:lib/app.dart": "flutter/tests/fixtures/flutter_app/app/lib/app.dart",
         "//flutter/tests/fixtures/flutter_app/app:lib/l10n/app_da.arb": "flutter/tests/fixtures/flutter_app/app/lib/l10n/app_da.arb",
         "//flutter/tests/fixtures/flutter_app/app:lib/l10n/app_en.arb": "flutter/tests/fixtures/flutter_app/app/lib/l10n/app_en.arb",
@@ -813,8 +729,6 @@ hermetic_qualification(
         "//flutter/tests/fixtures/flutter_app/app:test/app_test.dart": "flutter/tests/fixtures/flutter_app/app/test/app_test.dart",
         "//flutter/tests/fixtures/flutter_app/app:test/defines_test.dart": "flutter/tests/fixtures/flutter_app/app/test/defines_test.dart",
         "//flutter/tests/fixtures/flutter_app/app:tips.txt": "flutter/tests/fixtures/flutter_app/app/tips.txt",
-        "//flutter/tests/fixtures/flutter_app:assets/fonts/DxSquare.ttf": "flutter/tests/fixtures/flutter_app/assets/fonts/DxSquare.ttf",
-        "//flutter/tests/fixtures/flutter_app:assets/items.json": "flutter/tests/fixtures/flutter_app/assets/items.json",
         "//flutter/tests/fixtures/flutter_app/failures:BUILD.bazel": "flutter/tests/fixtures/flutter_app/failures/BUILD.bazel",
         "//flutter/tests/fixtures/flutter_app/failures:lib/missing_asset.dart": "flutter/tests/fixtures/flutter_app/failures/lib/missing_asset.dart",
         "//flutter/tests/fixtures/flutter_app/failures:lib/type_error.dart": "flutter/tests/fixtures/flutter_app/failures/lib/type_error.dart",
@@ -840,7 +754,6 @@ hermetic_qualification(
     files = {
         "consumers/cuda/apps/format.BUILD.bazel": "cuda/tests/fixtures/cuda_app/format/BUILD.bazel",
         "consumers/cuda/apps/format_test.sh": "cuda/tests/fixtures/cuda_app/format/format_test.sh",
-        "consumers/cuda/consumer.bazelrc": ".bazelrc",
         "//:.clang-format": "cuda/tests/fixtures/cuda_app/format/.clang-format",
         "//cuda/tests/fixtures/cuda_app/app:BUILD.bazel": "cuda/tests/fixtures/cuda_app/app/BUILD.bazel",
         "//cuda/tests/fixtures/cuda_app/app:main.cc": "cuda/tests/fixtures/cuda_app/app/main.cc",
@@ -865,7 +778,6 @@ hermetic_qualification(
     failures = {"//cuda/tests/fixtures/cuda_app/app:cuda_app": "is not accepted; add dx_licenses.accept(ids = [\"cuda-eula\"])"},
     fetch_fails = True,
     files = {
-        "consumers/cuda/consumer.bazelrc": ".bazelrc",
         "//cuda/tests/fixtures/cuda_app/app:BUILD.bazel": "cuda/tests/fixtures/cuda_app/app/BUILD.bazel",
         "//cuda/tests/fixtures/cuda_app/app:main.cc": "cuda/tests/fixtures/cuda_app/app/main.cc",
         "//cuda/tests/fixtures/cuda_app/app:output_test.sh": "cuda/tests/fixtures/cuda_app/app/output_test.sh",
@@ -921,26 +833,6 @@ rust_test(
 )
 
 rust_binary(
-    name = "cpp_rust_maven_pin",
-    testonly = True,
-    srcs = ["maven_pin.rs"],
-    data = [
-        "consumers/cpp_rust/maven_install.json",
-        ":cpp_rust_manifest",
-    ] + NESTED_BAZEL_DATA,
-    env = NESTED_BAZEL_NETWORK_ENV | {
-        "DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)",
-        "DX_MAVEN_LOCK": "$(rootpath consumers/cpp_rust/maven_install.json)",
-    },
-    deps = [
-        ":hermetic",
-        "//cli/families:dx_families",
-        "//tools/testing:dx_testing",
-        "//tools/testing/nested:dx_nested",
-    ],
-)
-
-rust_binary(
     name = "consumer_maven_pin",
     testonly = True,
     srcs = ["maven_pin.rs"],
@@ -958,7 +850,7 @@ rust_binary(
 
 hermetic_qualification(
     name = "qt_rust",
-    srcs = ["//qt:module_srcs"],
+    srcs = ["//:module_srcs"],
     consumer_rows = ["qt"],
     files = {
         "consumers/qt_rust/consumer.bazelrc": ".bazelrc",
@@ -1133,11 +1025,11 @@ hermetic_qualification(
     compiler = "llvm",
     failures = {"//probe:cxx_in_c": "cxx_in_c.c:1:10: fatal error: 'string' file not found"},
     files = {
-        "//tools/testing/starters/fixtures:c/BUILD.bazel.fixture": "BUILD.bazel",
-        "//tools/testing/starters/fixtures:c/hello.c.fixture": "hello.c",
-        "//tools/testing/starters/fixtures:c/hello.h.fixture": "hello.h",
-        "//tools/testing/starters/fixtures:c/hello_test.c.fixture": "hello_test.c",
-        "//tools/testing/starters/fixtures:c/main.c.fixture": "main.c",
+        "consumers/cc_fixture/c/BUILD.bazel.fixture": "BUILD.bazel",
+        "consumers/cc_fixture/c/hello.c.fixture": "hello.c",
+        "consumers/cc_fixture/c/hello.h.fixture": "hello.h",
+        "consumers/cc_fixture/c/hello_test.c.fixture": "hello_test.c",
+        "consumers/cc_fixture/c/main.c.fixture": "main.c",
         "consumers/cc_fixture/c_only.c": "probe/c_only.c",
         "consumers/cc_fixture/c_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_in_c.c": "probe/cxx_in_c.c",
@@ -1153,12 +1045,12 @@ hermetic_qualification(
     compiler = "llvm",
     failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:7: error: declaration of anonymous class must be a definition"},
     files = {
-        "//tools/testing/starters/fixtures:cpp/BUILD.bazel.fixture": "BUILD.bazel",
-        "//tools/testing/starters/fixtures:cpp/hello.cc.fixture": "hello.cc",
-        "//tools/testing/starters/fixtures:cpp/hello.h.fixture": "hello.h",
-        "//tools/testing/starters/fixtures:cpp/hello_test.cc.fixture": "hello_test.cc",
-        "//tools/testing/starters/fixtures:cpp/main.cc.fixture": "main.cc",
         "consumers/cc_fixture/c_in_cxx.cc": "probe/c_in_cxx.cc",
+        "consumers/cc_fixture/cpp/BUILD.bazel.fixture": "BUILD.bazel",
+        "consumers/cc_fixture/cpp/hello.cc.fixture": "hello.cc",
+        "consumers/cc_fixture/cpp/hello.h.fixture": "hello.h",
+        "consumers/cc_fixture/cpp/hello_test.cc.fixture": "hello_test.cc",
+        "consumers/cc_fixture/cpp/main.cc.fixture": "main.cc",
         "consumers/cc_fixture/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_only.cc": "probe/cxx_only.cc",
     },
@@ -1262,16 +1154,6 @@ real_source_target(
         "consumers/cpp_rust/apps/c_store.BUILD.bazel",  # keep
         "consumers/cpp_rust/apps/cpp_app.BUILD.bazel",  # keep
         "consumers/cpp_rust/apps/cpp_core.BUILD.bazel",  # keep
-        "consumers/cpp_rust/apps/java_billing.BUILD.bazel",  # keep
-        "consumers/cpp_rust/apps/java_billing_without_gson.BUILD.bazel",  # keep
-        "consumers/cpp_rust/apps/java_cli.BUILD.bazel",  # keep
-        "consumers/cpp_rust/apps/java_cli_indirect.BUILD.bazel",  # keep
-        "consumers/cpp_rust/apps/kotlin_cli.BUILD.bazel",  # keep
-        "consumers/cpp_rust/apps/kotlin_grades.BUILD.bazel",  # keep
-        "consumers/cpp_rust/apps/kotlin_grades_without_gson.BUILD.bazel",  # keep
-        "consumers/cpp_rust/apps/node_app.BUILD.bazel",  # keep
-        "consumers/cpp_rust/apps/node_cli.BUILD.bazel",  # keep
-        "consumers/cpp_rust/apps/node_registry.BUILD.bazel",  # keep
         "consumers/cpp_rust/root.BUILD.bazel",  # keep
         "consumers/cuda/apps/format.BUILD.bazel",  # keep
         "consumers/msix/apps/app.BUILD.bazel",  # keep

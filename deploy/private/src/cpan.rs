@@ -21,7 +21,7 @@ pub(crate) const CPAN_GATE: OwnerGate = OwnerGate {
 /// PAUSE endpoint that takes authenticated uploads.
 const PAUSE_UPLOAD_URL: &str = "https://pause.perl.org/pause/authenquery?ACTION=add_uri";
 
-/// Why a dist does not carry the declared distribution and version.
+/// Why a CPAN dist failed its identity check or its PAUSE upload.
 #[derive(Debug)]
 pub enum CpanError {
     NotTarGz {
@@ -40,8 +40,7 @@ pub enum CpanError {
     },
     NoMeta {
         file_name: String,
-        json: String,
-        yml: String,
+        stem: String,
     },
     PackageMismatch {
         actual: String,
@@ -50,6 +49,24 @@ pub enum CpanError {
     VersionMismatch {
         actual: String,
         expected: String,
+    },
+    NoFileName {
+        path: PathBuf,
+    },
+    Read(PathIoError),
+    /// The upload failed before a response; `message` is token-redacted.
+    Transport {
+        url: String,
+        message: String,
+    },
+    Rejected {
+        status: u16,
+    },
+    /// PAUSE answered outside 2xx; `body` is token-redacted.
+    Status {
+        url: String,
+        status: u16,
+        body: String,
     },
 }
 
@@ -64,11 +81,9 @@ impl fmt::Display for CpanError {
             Self::InvalidDist { file_name, source } => {
                 write!(f, "{file_name} is not a valid dist: {source}")
             }
-            Self::NoMeta {
-                file_name,
-                json,
-                yml,
-            } => write!(f, "{file_name} has no {json} or {yml}"),
+            Self::NoMeta { file_name, stem } => {
+                write!(f, "{file_name} has no {stem}/META.json or {stem}/META.yml")
+            }
             Self::PackageMismatch { actual, expected } => write!(
                 f,
                 "package mismatch: dist is {actual}, BUILD declares {expected}"
@@ -77,54 +92,12 @@ impl fmt::Display for CpanError {
                 f,
                 "version mismatch: dist is {actual}, BUILD declares {expected}"
             ),
-        }
-    }
-}
-
-impl std::error::Error for CpanError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Open { source, .. } | Self::InvalidDist { source, .. } => Some(source),
-            Self::NotTarGz { .. }
-            | Self::BadFileName { .. }
-            | Self::NoMeta { .. }
-            | Self::PackageMismatch { .. }
-            | Self::VersionMismatch { .. } => None,
-        }
-    }
-}
-
-/// Why the PAUSE upload failed.
-#[derive(Debug)]
-pub enum CpanUploadError {
-    NoFileName {
-        path: PathBuf,
-    },
-    Read(PathIoError),
-    // The transport error is kept as redacted text: its message can echo the token.
-    Send {
-        url: String,
-        detail: String,
-    },
-    Rejected {
-        status: u16,
-    },
-    Status {
-        url: String,
-        status: u16,
-        body: String,
-    },
-}
-
-impl fmt::Display for CpanUploadError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
             Self::NoFileName { path } => {
                 write!(f, "cpan_deploy: {} has no file name", path.display())
             }
             Self::Read(source) => write!(f, "cpan_deploy: {source}"),
-            Self::Send { url, detail } => {
-                write!(f, "cpan_deploy: upload to {url} failed: {detail}")
+            Self::Transport { url, message } => {
+                write!(f, "cpan_deploy: upload to {url} failed: {message}")
             }
             Self::Rejected { status } => write!(
                 f,
@@ -138,12 +111,18 @@ impl fmt::Display for CpanUploadError {
     }
 }
 
-impl std::error::Error for CpanUploadError {
+impl std::error::Error for CpanError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Open { source, .. } | Self::InvalidDist { source, .. } => Some(source),
             Self::Read(source) => Some(source),
-            Self::NoFileName { .. }
-            | Self::Send { .. }
+            Self::NotTarGz { .. }
+            | Self::BadFileName { .. }
+            | Self::NoMeta { .. }
+            | Self::PackageMismatch { .. }
+            | Self::VersionMismatch { .. }
+            | Self::NoFileName { .. }
+            | Self::Transport { .. }
             | Self::Rejected { .. }
             | Self::Status { .. } => None,
         }
@@ -169,7 +148,7 @@ pub fn cpan_read_identity(dist: &Path) -> Result<(String, String), CpanError> {
         .ok_or_else(|| CpanError::BadFileName {
             file_name: file_name.to_owned(),
         })?;
-    let [json, yml] = [format!("{stem}/META.json"), format!("{stem}/META.yml")];
+    let wants = [format!("{stem}/META.json"), format!("{stem}/META.yml")];
     let open = std::fs::File::open(dist).map_err(|source| CpanError::Open {
         path: dist.to_path_buf(),
         source,
@@ -180,7 +159,7 @@ pub fn cpan_read_identity(dist: &Path) -> Result<(String, String), CpanError> {
         dx_archive::Format::TarGz,
         crate::archive::LISTING_LIMITS,
         |path, _, _| {
-            found |= path == json || path == yml;
+            found |= wants.iter().any(|want| want == path);
             Ok(())
         },
     )
@@ -193,8 +172,7 @@ pub fn cpan_read_identity(dist: &Path) -> Result<(String, String), CpanError> {
     }
     Err(CpanError::NoMeta {
         file_name: file_name.to_owned(),
-        json,
-        yml,
+        stem: stem.to_owned(),
     })
 }
 
@@ -226,14 +204,14 @@ fn cpan_live_upload(
     dist: &Path,
     user: &str,
     token: &str,
-) -> Result<(), CpanUploadError> {
+) -> Result<(), CpanError> {
     let file_name = dist
         .file_name()
         .and_then(|name| name.to_str())
-        .ok_or_else(|| CpanUploadError::NoFileName {
+        .ok_or_else(|| CpanError::NoFileName {
             path: dist.to_path_buf(),
         })?;
-    let bytes = path_io::read(dist).map_err(CpanUploadError::Read)?;
+    let bytes = path_io::read(dist).map_err(CpanError::Read)?;
     let hidden_name = user.to_ascii_uppercase();
     let (content_type, body) = crate::http::multipart_form(
         &[
@@ -262,18 +240,18 @@ fn cpan_live_upload(
             dx_http::Body::Bytes(&body),
             2048,
         )
-        .map_err(|error| CpanUploadError::Send {
+        .map_err(|error| CpanError::Transport {
             url: url.to_owned(),
-            detail: pages_redact(&error.to_string(), token),
+            message: pages_redact(&error.to_string(), token),
         })?;
     let status = response.status;
     if (200..300).contains(&status) {
         return Ok(());
     }
     if status == 401 || status == 403 {
-        return Err(CpanUploadError::Rejected { status });
+        return Err(CpanError::Rejected { status });
     }
-    Err(CpanUploadError::Status {
+    Err(CpanError::Status {
         url: url.to_owned(),
         status,
         body: pages_redact(&response.text(), token).trim().to_owned(),
@@ -405,16 +383,16 @@ mod tests {
         assert_eq!(identity, ("Demo-Dist".to_owned(), "1.2.0".to_owned()));
         assert!(cpan_check_identity(&identity, "Demo-Dist", "1.2.0").is_ok());
         assert!(cpan_check_identity(&identity, "", "").is_ok());
+        let version = cpan_check_identity(&identity, "", "1.2.1").expect_err("version");
+        assert!(matches!(version, CpanError::VersionMismatch { .. }));
         assert_eq!(
-            cpan_check_identity(&identity, "", "1.2.1")
-                .expect_err("version")
-                .to_string(),
+            version.to_string(),
             "version mismatch: dist is 1.2.0, BUILD declares 1.2.1"
         );
+        let package = cpan_check_identity(&identity, "Other", "").expect_err("package");
+        assert!(matches!(package, CpanError::PackageMismatch { .. }));
         assert_eq!(
-            cpan_check_identity(&identity, "Other", "")
-                .expect_err("package")
-                .to_string(),
+            package.to_string(),
             "package mismatch: dist is Demo-Dist, BUILD declares Other"
         );
         let yml = write_dist(dir.path(), "Demo-1.0.tar.gz", "Demo-1.0/META.yml");
@@ -426,26 +404,27 @@ mod tests {
         let dir = scratch_dir();
         let plain = dir.path().join("Demo.zip");
         std::fs::write(&plain, b"x").expect("write");
-        assert_eq!(
-            cpan_read_identity(&plain).expect_err("suffix").to_string(),
-            "Demo.zip is not a .tar.gz dist"
-        );
+        let suffix = cpan_read_identity(&plain).expect_err("suffix");
+        assert!(matches!(suffix, CpanError::NotTarGz { .. }));
+        assert_eq!(suffix.to_string(), "Demo.zip is not a .tar.gz dist");
         let unversioned = write_dist(dir.path(), "Demo.tar.gz", "Demo/META.json");
-        assert!(matches!(
-            cpan_read_identity(&unversioned),
-            Err(CpanError::BadFileName { .. })
-        ));
-        let missing = write_dist(dir.path(), "Demo-1.0.tar.gz", "Demo-1.0/Makefile.PL");
+        let name = cpan_read_identity(&unversioned).expect_err("name");
+        assert!(matches!(name, CpanError::BadFileName { .. }));
         assert_eq!(
-            cpan_read_identity(&missing)
-                .expect_err("missing")
-                .to_string(),
+            name.to_string(),
+            "Demo.tar.gz is not named <Dist>-<version>.tar.gz"
+        );
+        let missing = write_dist(dir.path(), "Demo-1.0.tar.gz", "Demo-1.0/Makefile.PL");
+        let meta = cpan_read_identity(&missing).expect_err("missing");
+        assert!(matches!(meta, CpanError::NoMeta { .. }));
+        assert_eq!(
+            meta.to_string(),
             "Demo-1.0.tar.gz has no Demo-1.0/META.json or Demo-1.0/META.yml"
         );
-        let gone = dir.path().join("Gone-1.0.tar.gz");
-        let error = cpan_read_identity(&gone).expect_err("absent");
-        assert!(matches!(error, CpanError::Open { ref path, .. } if path == &gone));
-        assert!(std::error::Error::source(&error).is_some());
+        let absent = dir.path().join("Absent-1.0.tar.gz");
+        let open = cpan_read_identity(&absent).expect_err("absent");
+        assert!(matches!(&open, CpanError::Open { path, .. } if path == &absent));
+        assert!(open.to_string().starts_with("cannot open "), "{open}");
     }
 
     #[test]
@@ -529,7 +508,7 @@ mod tests {
         (url, request)
     }
 
-    fn upload_to(url: &str, dist: &Path) -> Result<(), CpanUploadError> {
+    fn upload_to(url: &str, dist: &Path) -> Result<(), CpanError> {
         cpan_live_upload(
             &crate::http::test_client(),
             url,
@@ -544,7 +523,7 @@ mod tests {
         let dir = scratch_dir();
         let dist = write_dist(dir.path(), "Demo-1.2.0.tar.gz", "Demo-1.2.0/META.json");
         let (url, request) = fake_pause("200 OK", "ok");
-        upload_to(&url, &dist).expect("upload");
+        assert!(upload_to(&url, &dist).is_ok());
         let seen = request.recv().expect("request");
         let text = String::from_utf8_lossy(&seen).into_owned();
         assert!(text.starts_with("POST /pause/authenquery?ACTION=add_uri HTTP/1.1\r\n"));
@@ -572,26 +551,40 @@ mod tests {
         let dir = scratch_dir();
         let dist = write_dist(dir.path(), "Demo-1.2.0.tar.gz", "Demo-1.2.0/META.json");
         let (url, _request) = fake_pause("401 Unauthorized", "denied");
+        let rejected = upload_to(&url, &dist).expect_err("401");
+        assert!(matches!(rejected, CpanError::Rejected { status: 401 }));
         assert_eq!(
-            upload_to(&url, &dist).expect_err("401").to_string(),
+            rejected.to_string(),
             "cpan_deploy: PAUSE rejected CPAN_API_USER and CPAN_API_TOKEN (HTTP 401)"
         );
         let (url, _request) = fake_pause(
             "500 Internal Server Error",
             &format!("boom {FAKE_PAUSE_TOKEN}\n"),
         );
+        let failed = upload_to(&url, &dist).expect_err("500");
+        assert!(matches!(failed, CpanError::Status { status: 500, .. }));
         assert_eq!(
-            upload_to(&url, &dist).expect_err("500").to_string(),
+            failed.to_string(),
             format!("cpan_deploy: upload to {url} failed with HTTP 500: boom [redacted]")
         );
         let (url, _request) = fake_pause("302 Found", "");
-        assert!(matches!(
-            upload_to(&url, &dist),
-            Err(CpanUploadError::Status { status: 302, .. })
-        ));
-        let gone = dir.path().join("Gone-1.0.tar.gz");
-        let error = upload_to("http://127.0.0.1:1/", &gone).expect_err("unreadable");
-        assert!(matches!(&error, CpanUploadError::Read(source) if source.path() == gone));
-        assert!(error.to_string().starts_with("cpan_deploy: cannot read "));
+        assert!(
+            upload_to(&url, &dist)
+                .expect_err("redirect")
+                .to_string()
+                .contains("failed with HTTP 302")
+        );
+    }
+
+    #[test]
+    fn live_upload_reports_an_unreadable_dist() {
+        let dir = scratch_dir();
+        let missing = dir.path().join("Demo-1.2.0.tar.gz");
+        let error = upload_to("http://127.0.0.1:1/", &missing).expect_err("missing");
+        assert!(matches!(&error, CpanError::Read(io) if io.path() == missing));
+        assert!(
+            error.to_string().starts_with("cpan_deploy: cannot read "),
+            "{error}"
+        );
     }
 }

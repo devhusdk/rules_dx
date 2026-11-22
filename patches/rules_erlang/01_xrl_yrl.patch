@@ -2,7 +2,7 @@ Upstream: bazelverse/rules_erlang#12
 diff --git a/private/erlang_xrl_yrl.bzl b/private/erlang_xrl_yrl.bzl
 --- a/private/erlang_xrl_yrl.bzl
 +++ b/private/erlang_xrl_yrl.bzl
-@@ -35,6 +35,7 @@ def _impl(ctx):
+@@ -35,10 +35,12 @@ def _impl(ctx):
  
      script = """set -euo pipefail
  
@@ -10,3 +10,8 @@ diff --git a/private/erlang_xrl_yrl.bzl b/private/erlang_xrl_yrl.bzl
  
  mkdir -p {out_dir}
  
+ "{erlang_home}"/bin/erlc \\
++    +deterministic \\
+     -o "{out_dir}" \\
+     "$@"
+     """.format(

@@ -49,7 +49,8 @@ jobs:
           mkdir -p "$out"
           flags=()
           case "$host" in
-            linux-*) flags=(--@rules_rust//rust/settings:extra_rustc_flag=-Ctarget-feature=+crt-static) ;;
+            linux-x86_64) flags=(--platforms=//tools/platforms:linux_x86_64_musl) ;;
+            linux-arm64) flags=(--platforms=//tools/platforms:linux_arm64_musl) ;;
           esac
           sha256_of() {
             if command -v sha256sum >/dev/null 2>&1; then
@@ -58,12 +59,12 @@ jobs:
               shasum -a 256 -- "$1" | cut -d' ' -f1
             fi
           }
-          bazel test "${flags[@]}" //lua/tests:selene_smoke_test
-          bazel build "${flags[@]}" //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene
-          bazel build "${flags[@]}" //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor
-          root="$(bazel info "${flags[@]}" execution_root)"
+          bazel test //lua/tests:selene_smoke_test
+          bazel build ${flags[@]+"${flags[@]}"} //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene
+          bazel build ${flags[@]+"${flags[@]}"} //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor
+          root="$(bazel info ${flags[@]+"${flags[@]}"} execution_root)"
           for tool in topiary progenitor deadnix selene; do
-            cp "$root/$(bazel cquery "${flags[@]}" --output=files "//rust/private/quality/tools:$tool")" "$out/dx-$tool-$host"
+            cp "$root/$(bazel cquery ${flags[@]+"${flags[@]}"} --output=files "//rust/private/quality/tools:$tool")" "$out/dx-$tool-$host"
             chmod +x "$out/dx-$tool-$host"
           done
           if test "$host" = "macos-arm64"; then
@@ -82,6 +83,9 @@ jobs:
                   exit 1
                 fi
               done
+              "$out/dx-deadnix-$host" --version
+              "$out/dx-selene-$host" --version
+              bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism-rust" ${flags[@]+"${flags[@]}"} //rust/private/quality/tools:deadnix //rust/private/quality/tools:selene //rust/private/quality/tools:topiary //rust/private/quality/tools:progenitor
               ;;
           esac
           download="$(mktemp -d)"
@@ -173,6 +177,7 @@ jobs:
             esac
             tar -tzf "$asset" | grep -Fx "$want" >/dev/null || { echo "$asset has no $want" >&2; exit 1; }
           done
+          bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "${targets[@]}"
           ls -l "$out"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -193,14 +198,14 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-      - name: Cross-build dx-go and oapi-codegen
+      - name: Cross-build dx-go, oapi-codegen and gopackagesdriver
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/go-out"
           rm -rf "$out"
           mkdir -p "$out"
           hosts=(linux-x86_64 linux-arm64 macos-arm64 windows-x86_64 windows-arm64)
-          tools=(go:dx_go oapi-codegen:oapi_codegen)
+          tools=(go:dx_go oapi-codegen:oapi_codegen gopackagesdriver:gopackagesdriver)
           targets=()
           for tool in "${tools[@]}"; do
             for host in "${hosts[@]}"; do
@@ -233,12 +238,17 @@ jobs:
           cp "${oapi%%/cmd/oapi-codegen/BUILD*}/LICENSE" "$out/dx-oapi-codegen-LICENSE"
           grep -q "Apache License" "$out/dx-oapi-codegen-LICENSE"
           "$out/dx-oapi-codegen-linux-x86_64" -version
+          # gopackagesdriver ships unmodified under the rules_go Apache-2.0 licence.
+          driver="$(bazel query --output=location @rules_go//go/tools/gopackagesdriver)"
+          cp "${driver%%/go/tools/gopackagesdriver/BUILD*}/LICENSE.txt" "$out/dx-gopackagesdriver-LICENSE"
+          grep -q "Apache License" "$out/dx-gopackagesdriver-LICENSE"
           check="$RUNNER_TEMP/go-check"
           rm -rf "$check"
           mkdir -p "$check"
           cp "$out/dx-go-linux-x86_64" "$check/dx_modfmt"
           (cd "$check" && ./dx_modfmt -c)
           rm -rf "$check"
+          bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "${targets[@]}"
           ls -l "$out"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -286,6 +296,7 @@ jobs:
             cp "$root/$(bazel cquery --output=files "${jar%% *}")" "$out/${jar#* }"
             unzip -l "$out/${jar#* }" META-INF/MANIFEST.MF >/dev/null || { echo "$out/${jar#* } is not a jar" >&2; exit 1; }
           done
+          bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" "${targets[@]}"
           ls -l "$out"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -340,10 +351,10 @@ jobs:
           for tool in "${tools[@]}"; do
             targets+=("${tool%% *}")
           done
-          bazel build "${flags[@]}" "${targets[@]}"
-          root="$(bazel info "${flags[@]}" execution_root)"
+          bazel build ${flags[@]+"${flags[@]}"} "${targets[@]}"
+          root="$(bazel info ${flags[@]+"${flags[@]}"} execution_root)"
           for tool in "${tools[@]}"; do
-            built="$(bazel cquery "${flags[@]}" --output=files "${tool%% *}" | grep -v '\.sh$' | head -n 1)"
+            built="$(bazel cquery ${flags[@]+"${flags[@]}"} --output=files "${tool%% *}" | grep -v '\.sh$' | head -n 1)"
             cp "$root/$built" "$out/${tool#* }"
             chmod +x "$out/${tool#* }"
             case "$HOST" in
@@ -362,6 +373,9 @@ jobs:
                 ;;
             esac
           done
+          case "$HOST" in
+            linux-*) bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" ${flags[@]+"${flags[@]}"} "${targets[@]}" ;;
+          esac
           check="$RUNNER_TEMP/weeder-check"
           case "$HOST" in windows-*) check="$check.exe" ;; esac
           cp "$out/dx-weeder-$HOST" "$check"
@@ -375,10 +389,11 @@ jobs:
             tar -xzOf "$download/weeder.tar.gz" "weeder-$weeder_version/LICENSE" > "$out/dx-weeder-LICENSE"
             test -s "$out/dx-weeder-LICENSE"
             # The musl cell links libgmp.a from the pinned gmp-dev apk into every tool, so the
-            # release ships GMP's licence, the source it was built from and Alpine's one patch.
-            # The macOS and Windows tools link the GMP inside GHC's libHSghc-bignum, so the
-            # release also ships GHC's in-tree GMP tarball.
-            for gmp in "gmp_license dx-haskell-gmp-LICENSE" "gmp_source dx-haskell-gmp-source.tar.xz" "gmp_source_patch dx-haskell-gmp-source.patch" "gmp_ghc_source dx-haskell-gmp-ghc-source.tar.xz"; do
+            # release ships GMP's checked-in licence, the source it was built from and Alpine's
+            # one patch. The macOS and Windows tools link the GMP inside GHC's libHSghc-bignum,
+            # so the release also ships GHC's in-tree GMP tarball.
+            cp haskell/private/toolchain/lgpl-3.0.txt "$out/dx-haskell-gmp-LICENSE"
+            for gmp in "gmp_source dx-haskell-gmp-source.tar.xz" "gmp_source_patch dx-haskell-gmp-source.patch" "gmp_ghc_source dx-haskell-gmp-ghc-source.tar.xz"; do
               pin="${gmp%% *}"
               asset="${gmp#* }"
               curl --fail --silent --show-error --location -o "$out/$asset" "$(jq -r --arg pin "$pin" '.archives[$pin].urls[0]' haskell/pins.json)"
@@ -450,9 +465,9 @@ jobs:
           case "$HOST" in
             linux-arm64) flags=(--platforms=//tools/platforms:linux_arm64_musl --features=fully_static_link) ;;
           esac
-          bazel build "${flags[@]}" "$TARGET"
-          root="$(bazel info "${flags[@]}" execution_root)"
-          built="$(bazel cquery "${flags[@]}" --output=files "$TARGET" | grep -v '\.sh$' | head -n 1)"
+          bazel build ${flags[@]+"${flags[@]}"} "$TARGET"
+          root="$(bazel info ${flags[@]+"${flags[@]}"} execution_root)"
+          built="$(bazel cquery ${flags[@]+"${flags[@]}"} --output=files "$TARGET" | grep -v '\.sh$' | head -n 1)"
           asset="dx-$TOOL-$HOST"
           cp "$root/$built" "$out/$asset"
           chmod +x "$out/$asset"
@@ -462,6 +477,7 @@ jobs:
                 echo "$asset is dynamically linked" >&2
                 exit 1
               fi
+              bazel run //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" ${flags[@]+"${flags[@]}"} "$TARGET"
               ;;
             macos-*)
               if otool -L "$out/$asset" | grep -q libHS; then

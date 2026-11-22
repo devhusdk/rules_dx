@@ -1,0 +1,32 @@
+# gazelle:ignore
+load("@rules_apple//apple:ios.bzl", "ios_application")
+load("//apple/private/bundle:pins.bzl", "IOS_DEPLOYMENT")
+load("//apple/private/ios:cell.bzl", "APPLE_HOSTS")
+load("//apple/tests:coverage_tests.bzl", "apple_coverage_link_test")
+load("//swift:defs.bzl", "swift_library")
+
+package(default_visibility = ["//patches/rules_apple:__pkg__"])
+
+swift_library(
+    name = "covmap_lib",
+    srcs = ["CovmapApp.swift"],
+    module_name = "CovmapApp",
+    tags = ["manual"],
+    target_compatible_with = APPLE_HOSTS,
+)
+
+ios_application(
+    name = "covmap_app",
+    bundle_id = "com.example.covmap",
+    families = ["iphone"],
+    infoplists = ["Info.plist"],
+    minimum_os_version = IOS_DEPLOYMENT,
+    tags = ["manual"],
+    target_compatible_with = APPLE_HOSTS,
+    deps = [":covmap_lib"],
+)
+
+apple_coverage_link_test(
+    name = "llvm_coverage_map_test",
+    target_under_test = ":covmap_app",
+)

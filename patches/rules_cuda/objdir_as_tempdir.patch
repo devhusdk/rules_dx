@@ -1,0 +1,16 @@
+Upstream: none (not yet sent upstream)
+--- a/cuda/private/toolchain_configs/nvcc.bzl
++++ b/cuda/private/toolchain_configs/nvcc.bzl
+@@ -593,6 +593,12 @@
+                 ],
+                 flag_groups = [flag_group(flags = ["--frandom-seed=%{output_file}"])],
+             ),
++            # The host object names its source after the intermediate file, which
++            # lives in TMPDIR as tmpxft_<pid>_... unless it is kept next to the object.
++            flag_set(
++                actions = [ACTION_NAMES.cuda_compile],
++                flag_groups = [flag_group(flags = ["--objdir-as-tempdir"])],
++            ),
+         ] if nvcc_version_ge(ctx, 12, 9) else [],
+     )
+ 

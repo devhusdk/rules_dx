@@ -2016,15 +2016,13 @@ mod tests {
         .expect("pack");
         let marker = scratch.path().join("extractor-ran");
         let extractor = runfiles.join("api-extractor");
-        std::fs::write(
+        dx_testing::executable_script(
             &extractor,
-            format!(
+            &format!(
                 "#!/bin/sh\ntouch {}\ndir=$(sed -n 's/.*\"reportFolder\":\"\\([^\"]*\\)\".*/\\1/p' \"$3\")\nmkdir -p \"$dir\"\ncase \"$PWD\" in */staged/*) echo 'export function b' ;; *) echo 'export function a' ;; esac > \"$dir/pkg.api.md\"\n",
                 marker.display()
             ),
-        )
-        .expect("fake extractor");
-        set_mode(&extractor, 0o755);
+        );
         let path = format!(
             "{}:{}",
             bin.display(),

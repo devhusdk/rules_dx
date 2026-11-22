@@ -151,6 +151,8 @@ def hermetic_qualification(
         workspace_dir = workspace_dir,
     )
     if not smoke:
+        if kwargs:
+            fail("hermetic_qualification %s takes %s only with smoke = True" % (name, ", ".join(sorted(kwargs))))
         golden = "//tools/testing/hermetic:golden/%s.txt" % name
         rust_test(
             name = name,

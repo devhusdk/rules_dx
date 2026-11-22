@@ -168,7 +168,7 @@ def _source_actual(source, guard):
     return _select([(GUARD_VIEW, GUARD_STUB)], source) if guard else '"{}"'.format(source)
 
 def with_jars(build, jars, guard = False):
-    """Returns the hub BUILD text build plus two targets per jar tool: the pinned jar on the JVM, else its source, and `<tool>_deploy.jar`, the jar file.
+    """Returns the hub BUILD text build plus three targets per pinned jar tool: `<tool>_jvm`, the pinned jar on the JVM, `<tool>`, its alias, and `<tool>_deploy.jar`, the jar file. An unpinned jar tool aliases `<tool>` to its source.
 
     With guard, an unpinned jar tool selects GUARD_STUB under GUARD_VIEW.
     """
@@ -199,11 +199,18 @@ def with_jars(build, jars, guard = False):
             '    jars = ["@{}//file:{}"],'.format(jar.repo, jar.asset),
             ")",
             "",
+            # java_binary declares <name>_deploy.jar itself, so the binary takes a
+            # suffix and the hub names the tool and its deploy jar with aliases.
             "java_binary(",
-            '    name = "{}",'.format(jar.tool),
+            '    name = "{}_jvm",'.format(jar.tool),
             '    main_class = "{}",'.format(jar.main_class),
-            '    visibility = ["//visibility:public"],',
             '    runtime_deps = [":{}_jar"],'.format(jar.tool),
+            ")",
+            "",
+            "alias(",
+            '    name = "{}",'.format(jar.tool),
+            '    actual = ":{}_jvm",'.format(jar.tool),
+            '    visibility = ["//visibility:public"],',
             ")",
             "",
             "alias(",
@@ -278,6 +285,20 @@ def with_native_tools(build, native_tools, consumer = False, guard = False):
         ]
     loads = [_NATIVE_BINARY_LOAD] if binaries and _NATIVE_BINARY_LOAD not in build else []
     return "\n".join(loads + [build.rstrip("\n")] + lines + [""])
+
+def downloads_bzl(native_tools):
+    """Returns the hub downloads.bzl text: DOWNLOADED maps each native tool with a download to its @platforms keys."""
+    lines = [
+        '"""The native tools @dx_prebuilt serves as downloads, by @platforms os_cpu key."""',
+        "",
+    ]
+    downloaded = [(tool, sorted([a.key for a in assets if a.repo])) for tool, assets in sorted(native_tools.items())]
+    entries = ["    \"{}\": {},".format(tool, keys) for tool, keys in downloaded if keys]
+    if entries:
+        lines += ["DOWNLOADED = {"] + entries + ["}"]
+    else:
+        lines.append("DOWNLOADED = {}")
+    return "\n".join(lines + [""])
 
 def alias_build(actual, guard = False):
     """Returns the hub BUILD text that points dx at one label and the tools at their sources; with guard, each selects GUARD_STUB under GUARD_VIEW."""

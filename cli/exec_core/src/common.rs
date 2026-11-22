@@ -368,6 +368,20 @@ pub struct PhaseRun {
     pub effects: PhaseEffects,
 }
 
+/// Runs one inner invocation; a verb that steps through other verbs is handed this.
+pub type Dispatch<'a> = &'a dyn Fn(&Invocation, Env<'_>) -> i32;
+
+/// The host variables a hermetic tool still needs on Windows; none elsewhere.
+pub fn windows_env() -> Vec<(&'static str, String)> {
+    if !cfg!(windows) {
+        return Vec::new();
+    }
+    ["SYSTEMROOT", "TEMP", "TMP", "USERPROFILE"]
+        .into_iter()
+        .filter_map(|key| std::env::var(key).ok().map(|value| (key, value)))
+        .collect()
+}
+
 pub struct Env<'a> {
     pub workspace: &'a Path,
     pub runner: &'a dyn Runner,
@@ -1163,6 +1177,49 @@ pub fn change_event_for(change: &FileChange) -> ChangeEvent {
         source_digest: Some(dx_digest::to_hex(&change.original_digest)),
         edits,
     }
+}
+
+/// Removes one scratch file; a missing file is fine and any other failure is logged.
+pub fn remove_scratch(path: &Path) {
+    match std::fs::remove_file(path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => tracing::info!(%error, path = %path.display(), "cannot remove scratch file"),
+    }
+}
+
+/// The environment variable that sets the temporary directory on this host.
+pub fn temp_var() -> &'static str {
+    if cfg!(windows) {
+        "TMP or TEMP"
+    } else {
+        "TMPDIR"
+    }
+}
+
+#[must_use]
+pub fn temp_path_not_utf8() -> String {
+    format!(
+        "temporary event path is not UTF-8; set {} to a directory with a UTF-8 path",
+        temp_var()
+    )
+}
+
+static PRESET_REWRITTEN: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+/// Records `.dx` files the preset sync in this invocation wrote or deleted.
+pub fn record_preset_rewritten(paths: impl IntoIterator<Item = String>) {
+    if let Ok(mut list) = PRESET_REWRITTEN.lock() {
+        list.extend(paths);
+    }
+}
+
+/// The `.dx` files the preset sync in this invocation wrote or deleted.
+pub fn preset_rewritten() -> Vec<String> {
+    PRESET_REWRITTEN
+        .lock()
+        .map(|list| list.clone())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

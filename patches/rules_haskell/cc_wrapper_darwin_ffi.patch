@@ -1,3 +1,4 @@
+Needs cc_interop_info's unsupported_features from ghc_xcode_env.patch.
 Upstream: none (rules_dx only: @macos_sdk hermetic SDK wiring)
 diff --git a/haskell/BUILD.bazel b/haskell/BUILD.bazel
 --- a/haskell/BUILD.bazel
@@ -333,32 +334,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
 diff --git a/haskell/cc.bzl b/haskell/cc.bzl
 --- a/haskell/cc.bzl
 +++ b/haskell/cc.bzl
-@@ -41,13 +41,14 @@ CcInteropInfo = provider(
-     },
- )
- 
--def cc_interop_info(ctx, override_cc_toolchain = None):
-+def cc_interop_info(ctx, override_cc_toolchain = None, unsupported_features = []):
-     """Gather information from any CC dependencies.
- 
-     *Internal function - do not use.*
- 
-     Args:
-       ctx: Rule context.
-+      unsupported_features: Features disabled on top of the rule's.
- 
-     Returns:
-       CcInteropInfo: Information needed for CC interop.
-@@ -91,7 +92,7 @@ def cc_interop_info(ctx, override_cc_toolchain = None):
-         ctx = real_ctx,
-         cc_toolchain = cc_toolchain,
-         requested_features = ctx.features,
--        unsupported_features = ctx.disabled_features,
-+        unsupported_features = ctx.disabled_features + unsupported_features,
-     )
-     compile_variables = cc_common.create_compile_variables(
-         feature_configuration = feature_configuration,
-@@ -230,6 +231,11 @@ def ghc_cc_program_args(hs, cc, ld):
+@@ -230,6 +230,11 @@ def ghc_cc_program_args(hs, cc, ld):
          args.append("-pgml-supports-no-pie")
      elif hs.toolchain.numeric_version >= [8, 10, 3]:
          args.append("-pgmc-supports-no-pie")

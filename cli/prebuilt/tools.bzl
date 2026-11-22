@@ -58,7 +58,7 @@ def _hackage(tool, platforms):
         role = "exec",
         platforms = platforms,
         fallbacks = {},
-        source = "@rules_dx//haskell/private/tools/" + tool + "/bin:source",
+        source = "@rules_dx//haskell/private/tools/{}/bin:source".format(tool),
         member = "",
         main_class = "",
         library = "",
@@ -88,11 +88,11 @@ def _native_exec(source):
         library = "",
     )
 
-def _library(tool, file, source):
+def _library(tool, file, source, ext = ".dll", role = "exec", platforms = ["windows_arm64"]):
     return struct(
-        asset = "dx-" + tool.replace("_", "-") + "-{os}-{cpu}.dll",
-        role = "exec",
-        platforms = ["windows_arm64"],
+        asset = "dx-" + tool.replace("_", "-") + "-{os}-{cpu}" + ext,
+        role = role,
+        platforms = platforms,
         fallbacks = {},
         source = source,
         member = "",
@@ -160,6 +160,16 @@ TOOLS = {
     "capnp": _native_exec("@dx_capnproto//src/capnp:capnp_tool"),
     "flatc": _native_exec("@dx_flatbuffers//:flatc"),
     "thrift": _native_exec("@dx_thrift//:thrift_compiler"),
+    "ldoc_main": struct(
+        asset = "dx-ldoc-main-{os}-{cpu}",
+        role = "exec",
+        platforms = _NATIVE,
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = "@rules_dx//tools/docs/lua:ldoc_main",
+        member = "",
+        main_class = "",
+        library = "",
+    ),
     # Upstream oapi-codegen, cross-built unmodified by the release-tools go job.
     "oapi_codegen": struct(
         asset = "dx-oapi-codegen-{os}-{cpu}",
@@ -167,6 +177,28 @@ TOOLS = {
         platforms = _NATIVE,
         fallbacks = {"windows_arm64": "windows_x86_64"},
         source = "@com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen",
+        member = "",
+        main_class = "",
+        library = "",
+    ),
+    # Upstream rules_go gopackagesdriver, cross-built unmodified by the release-tools go job.
+    "gopackagesdriver": struct(
+        asset = "dx-gopackagesdriver-{os}-{cpu}",
+        role = "exec",
+        platforms = _NATIVE,
+        fallbacks = {"windows_arm64": "windows_x86_64"},
+        source = "@rules_go//go/tools/gopackagesdriver",
+        member = "",
+        main_class = "",
+        library = "",
+    ),
+    # The linker wrapper Rust links through on Windows MSVC opt builds.
+    "msvc_link": struct(
+        asset = "dx-msvc-link-{os}-{cpu}",
+        role = "exec",
+        platforms = ["windows_arm64", "windows_x86_64"],
+        fallbacks = {},
+        source = "@rules_dx//rust/private/tools/msvc_paths:msvc_link",
         member = "",
         main_class = "",
         library = "",
@@ -188,6 +220,8 @@ TOOLS = {
     "weeder": _haskell("weeder", "exec", "@rules_dx//haskell/private/tools/weeder/bin:source"),
     "tree_sitter": _library("tree_sitter", "tree-sitter.dll", "@jvm_tree_sitter//:tree-sitter.dll"),
     "tree_sitter_pkl": _library("tree_sitter_pkl", "tree-sitter-pkl.dll", "@jvm_tree_sitter_pkl//:tree-sitter-pkl.dll"),
+    "julia_internal": _library("julia_internal", "libjulia-internal.so", "@rules_dx//julia/private/runtime:libjulia_internal", ext = ".so", role = "target", platforms = ["linux_x86_64"]),
+    "pcov": _library("pcov", "pcov.so", "@dx_php_pcov//:pcov.so", ext = ".so", role = "target", platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"]),
     "hlint": _hackage("hlint", ["linux_arm64", "macos_arm64"]),
     "ormolu": _hackage("ormolu", ["linux_arm64"]),
     "nixfmt": struct(
@@ -243,7 +277,7 @@ PYTHON_BUNDLE_TOOLS = {
 DEV_SOURCE_FALLBACK = {"kcov": "@rules_dx//tools/coverage/kcov:none"}
 
 # The tools released as one native binary or shared library per platform.
-NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "hlint", "hpc_lcov", "kcov", "launcher", "nixfmt", "oapi_codegen", "ormolu", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
+NATIVE_TOOLS = ["capnp", "deadnix", "flatc", "gopackagesdriver", "hlint", "hpc_lcov", "julia_internal", "kcov", "launcher", "ldoc_main", "msvc_link", "nixfmt", "oapi_codegen", "ormolu", "pcov", "progenitor", "runtime", "selene", "thrift", "topiary", "tree_sitter", "tree_sitter_pkl", "weeder"]
 
 # The tools released as one platform-independent jar each.
 JAR_TOOLS = sorted([tool for tool, entry in TOOLS.items() if entry.main_class])
@@ -262,6 +296,17 @@ def asset_name(tool, key):
     """Returns the release asset name of tool on the platform key."""
     os, cpu = split_key(key)
     return TOOLS[tool].asset.format(tool = tool, os = os, cpu = cpu)
+
+def python_hub_lines():
+    """Returns one "<name> <launcher> [<missing key>...]" line per PYTHON_BUNDLE_TOOLS entry, sorted."""
+    return sorted([
+        " ".join([name, tool.launcher] + sorted(tool.missing))
+        for name, tool in PYTHON_BUNDLE_TOOLS.items()
+    ])
+
+def target_tools():
+    """Returns the sorted names of the tools that run on the target platform."""
+    return sorted([tool for tool, entry in TOOLS.items() if entry.role == "target"])
 
 def registry_lines():
     """Returns one "<tool> <key> <asset>" line per release asset, sorted, for fill_pins."""

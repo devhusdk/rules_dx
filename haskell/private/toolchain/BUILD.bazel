@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("//core:cells.bzl", "cell_settings", "unsupported_value")
+load("//core:cells.bzl", "cell_settings")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":pins.bzl", "CELLS")
 
@@ -12,10 +12,6 @@ exports_files([
     "repos.bzl",
     "transition.bzl",
 ])
-
-toolchain_type(name = "toolchain_type")
-
-unsupported_value("unsupported")
 
 cell_settings(
     name = "cell",

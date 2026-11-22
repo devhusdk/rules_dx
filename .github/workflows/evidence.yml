@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target. Apple on macos_arm64: //apple/... //apple/tests/fixtures/macos_ledger/... //apple/tests/fixtures/macos_bundle/... //apple/tests/fixtures/swift_app/... Android on linux_x86_64: //android/tests:androidsdk_build_test."
+        description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target. Apple on macos_arm64: //apple/... //apple/tests/fixtures/macos_ledger/... //apple/tests/fixtures/macos_bundle/... //apple/tests/fixtures/swift_app/... Android SDK on every host but linux_arm64: //android/tests:androidsdk_build_test //android/tests/fixtures/android_library/..."
         required: true
       task:
         description: "One of test, build, coverage or build_scripts. build_scripts lists each cargo_build_script in deps of the non-manual targets in scope configured with collect_code_coverage on, with a somepath from the scope, in build-scripts.txt."
@@ -100,7 +100,7 @@ jobs:
 
   evidence:
     name: evidence (${{ matrix.platform }})
-    timeout-minutes: ${{ inputs.release_cell && 90 || 60 }}
+    timeout-minutes: ${{ inputs.release_cell && (startsWith(matrix.platform, 'windows_') && 180 || 90) || 60 }}
     defaults:
       run:
         shell: bash
@@ -219,7 +219,7 @@ jobs:
             *) echo "displays must be xcb, wayland or xcb,wayland, got '$DX_DISPLAYS'"; exit 1 ;;
           esac
           sudo apt-get update
-          sudo apt-get install -y xvfb weston
+          sudo apt-get install -y xvfb x11-utils weston
           runtime="$RUNNER_TEMP/xdg"
           mkdir -p "$runtime"
           chmod 700 "$runtime"
@@ -229,7 +229,11 @@ jobs:
             *,xcb,*)
               Xvfb :99 -screen 0 1280x720x24 > "$RUNNER_TEMP/xvfb.log" 2>&1 &
               echo "DISPLAY=:99" >> "$GITHUB_ENV"
-              sleep 3
+              for _ in $(seq 1 100); do
+                xdpyinfo -display :99 > /dev/null 2>&1 && break
+                sleep 0.2
+              done
+              xdpyinfo -display :99 > /dev/null || { cat "$RUNNER_TEMP/xvfb.log"; exit 1; }
               ;;
           esac
           case ",$DX_DISPLAYS," in
@@ -465,7 +469,12 @@ jobs:
             set -e
             cd "$RUNNER_TEMP"
             ./dx init --apply demo-app --workspace "$RUNNER_TEMP"
-            fixture="$checkout/tools/testing/starters/fixtures/rust-android"
+            sources="$checkout/android/tests/fixtures/consumer_android"
+            mkdir -p demo-app/src demo-app/res/values
+            cp "$sources/activity.c" demo-app/activity.c
+            cp "$sources/src/lib.rs" demo-app/src/lib.rs
+            cp "$sources/res/values/strings.xml" demo-app/res/values/strings.xml
+            fixture="$checkout/android/tests/fixtures/rust_starter"
             (cd "$fixture" && find . -type f -name '*.fixture') | while read -r file; do
               dest="demo-app/${file#./}"
               dest="${dest%.fixture}"
@@ -506,16 +515,27 @@ jobs:
           adb -s emulator-5554 logcat -c
           bazel run --noshow_progress //examples/shared-rust:install
           bazel run --noshow_progress //examples/shared-rust:start
-          sleep 5
+          # Each wait gives up after 60 s and moves on; check_lifecycle.sh then names what is missing.
+          wait_for() {
+            waited=0
+            until "$@"; do
+              [ "$waited" -lt 60 ] || return 0
+              sleep 1
+              waited=$((waited + 1))
+            done
+          }
+          focused() { adb -s emulator-5554 shell dumpsys window | grep mCurrentFocus | grep com.example.dxsharedtasks > /dev/null; }
+          logged() { adb -s emulator-5554 logcat -d -s DxSharedTasks:I | grep -- "$1" > /dev/null; }
+          wait_for focused
+          wait_for logged lifecycle=resume
           adb -s emulator-5554 shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' | tee "$RUNNER_TEMP/evidence/focus-shared-rust.txt"
           adb -s emulator-5554 shell input touchscreen swipe 200 400 200 400 200
-          sleep 2
+          wait_for logged input=touch
           adb -s emulator-5554 shell input touchscreen swipe 200 400 200 400 200
-          sleep 2
           adb -s emulator-5554 shell input keyevent KEYCODE_ENTER
-          sleep 2
+          wait_for logged input=key
           adb -s emulator-5554 shell input keyevent KEYCODE_BACK
-          sleep 2
+          wait_for logged lifecycle=destroy
           adb -s emulator-5554 logcat -d -s DxSharedTasks:I | tee "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
           sh rust/tests/fixtures/shared_rust_checks/check_lifecycle.sh "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
       - name: Run the flutter_app interaction test on the emulator

@@ -86,3 +86,9 @@ names through the pinned Documenter.jl 1.20.0, and writes a DocIr shard.
 
 The [support matrix](../docs/support-matrix.md) lists the platforms. There is
 no Julia build for `windows_arm64`.
+
+On Linux x86_64, Julia runs on a source-built `libjulia-internal` that
+consumers download as the prebuilt `dx-julia-internal-linux-x86_64.so`
+release asset. With that download, a Linux x86_64 target gets the
+source-built library from any exec host. A source build of the library
+needs a Linux exec host.

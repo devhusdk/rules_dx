@@ -8,7 +8,11 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//javascript:defs.bzl", "javascript_library")
 load("//javascript/private:windows_tool.bzl", "js_build_tool")
 
-package(default_visibility = ["//javascript:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//javascript:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "defs.bzl",
@@ -22,20 +26,18 @@ exports_files([
 
 javascript_library(
     name = "bench_driver",
-    visibility = ["//visibility:public"],
     srcs = ["bench_driver.mjs"],
 )
 
 js_library(
     name = "fuzz_driver",
-    visibility = ["//visibility:public"],
     srcs = ["fuzz_driver.cjs"],
 )
 
 js_binary(
     name = "vite_tool",
-    visibility = ["//visibility:public"],
     entry_point = "vite_tool.mjs",
+    visibility = ["//visibility:public"],
 )
 
 js_build_tool(
@@ -46,14 +48,14 @@ js_build_tool(
 
 copy_to_bin(
     name = "framework_jest_config",
-    visibility = ["//visibility:public"],
     srcs = ["framework_jest_config.cjs"],
+    visibility = ["//visibility:public"],
 )
 
 copy_to_bin(
     name = "vite_tool_entry",
-    visibility = ["//svelte:__subpackages__"],
     srcs = ["vite_tool.mjs"],
+    visibility = ["//svelte:__subpackages__"],
 )
 
 real_source_target(
@@ -62,6 +64,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "dev_hub.bzl",
+        "drivers.bzl",
         "frameworks.bzl",
         "web.bzl",
         "windows_tool.bzl",
@@ -71,10 +74,8 @@ real_source_target(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = glob(["*.bzl"]) + [
         "BUILD.bazel",
-    ]) + [
         "bench_driver.mjs",
         "framework_jest_config.cjs",
         "fuzz_driver.cjs",

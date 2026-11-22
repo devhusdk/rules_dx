@@ -674,9 +674,15 @@ github_deploy(
   (`ACTIONS_ID_TOKEN_REQUEST_URL`). `required` fails without either.
 - `registry_deploys`: `crates_deploy` and `maven_deploy` targets published
   in the same release. The release body gets an `## Attestations` section
-  with one `gh attestation verify <file> -R <owner>/<repo>` line for each
+  with one `gh attestation verify <file> -R <owner>/<repo> --signer-workflow
+  devhusdk/rules_dx/.github/workflows/reusable-release.yml` line for each
   `.crate` and each `maven_deploy` file.
-- `attach`: `True` also uploads the `maven_deploy` files as release assets.
+- `attach`: `True` also uploads the `maven_deploy` files as release assets,
+  and the `<name>-<version>.crate` of each `crates_deploy`. A live run
+  downloads that `.crate` from crates.io, checks its sha256 against the
+  sparse index `cksum`, and checks that it holds only the pinned sources
+  (`Cargo.toml.orig` equal to the pinned `Cargo.toml`). Run the
+  `crates_deploy` before the `github_deploy`; `reusable-release.yml` does.
   Defaults to `True`.
 - `sbom`: also uploaded as a release asset.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
@@ -1537,9 +1543,16 @@ GitHub identity for an upload token at `https://pypi.org/_/oidc/mint-token`,
 or `https://test.pypi.org/_/oidc/mint-token` for `test.pypi.org`. Any other
 registry needs `PYPI_API_TOKEN`.
 
-When the identity variables are set, the run first signs the staged files
-with the `pypi-attestations` pinned in `core/quality/tools/python/uv.lock`.
+Trusted publishing needs the upload step in a workflow file of the
+publishing repository. A release through the rules_dx
+`reusable-release.yml` sets `PYPI_API_TOKEN` and uploads without
+attestations.
+
+A trusted-publishing run first signs the staged files with the
+`pypi-attestations` pinned in
+`core/quality/tools/python/pypi_attestations/uv.lock`.
 It passes the `.publish.attestation` files to `twine upload --attestations`.
+A `PYPI_API_TOKEN` upload is not signed.
 
 The live run does not write `<name>-wheelhouse/` and does not check file
 names. It runs `twine check --strict`, then
@@ -1560,6 +1573,9 @@ A live run refuses, with exit code 1, when:
 
 - `PYPI_PUBLISH_APPROVED=1` is missing.
 - Neither `PYPI_API_TOKEN` nor a trusted-publisher identity is set.
+- Trusted publishing runs from a reusable workflow of another repository:
+  the `job_workflow_ref` claim names a repository other than the
+  `repository` claim.
 - It would sign on a windows_arm64 execution platform, where signing is
   unavailable.
 

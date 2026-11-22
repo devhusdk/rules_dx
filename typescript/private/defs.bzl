@@ -5,14 +5,15 @@ load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_test = "js_t
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_config = "ts_config", _ts_project = "ts_project")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//javascript:defs.bzl", "javascript_binary")
-load("//javascript/private:windows_tool.bzl", "js_build_tool")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
 load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap_test")
 load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
+load("//javascript:defs.bzl", "javascript_binary")
+load("//javascript/private:drivers.bzl", "javascript_driver")
+load("//javascript/private:windows_tool.bzl", "js_build_tool")
 load("//typescript/private/playwright:closure.bzl", "CLOSURE_DIR")
 load("//typescript/private/playwright:pins.bzl", "CHROMIUM_REVISION", "PLAYWRIGHT_VERSION", "playwright_compatible_with")
 load("//typescript/private/quality:tsc_gate.bzl", "tsc_gate")
@@ -496,7 +497,7 @@ def typescript_bench(name, *, srcs, main = None, node_modules, data = None, args
         name = name,
         srcs = srcs,
         runner = "node",
-        main = Label("//javascript/private:bench_driver"),
+        main = javascript_driver(name, "bench", tags),
         data = list(data or []) + [node_modules],
         args = [_entry_path("typescript_bench", main or srcs[0])] + list(args or []),
         tags = merge_tags(tags, "dx-bench"),
@@ -515,7 +516,7 @@ def typescript_fuzz_test(name, *, srcs, main = None, node_modules, data = None, 
         visibility = visibility,
         fuzz_rule = javascript_binary,
         fuzz_kwargs = {
-            "main": Label("//javascript/private:fuzz_driver"),
+            "main": javascript_driver(name, "fuzz", tags),
             "data": [":" + name + "_bin", node_modules] + list(data or []),
             "fixed_args": fixed_args,
         },
@@ -527,7 +528,7 @@ _PLAYWRIGHT_BROWSER = [Label("@dx_playwright_chromium//:" + name) for name in ("
 _playwright_test = node_test_forward_rule("typescript_playwright_test", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
 
 def typescript_playwright_test(name, *, srcs, config, node_modules, app = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
-    """Runs Playwright tests in a pinned headless Chromium; app is started by the config's webServer from DX_PLAYWRIGHT_APP on DX_PLAYWRIGHT_PORT."""
+    """Runs Playwright tests in a pinned headless Chromium; app is started by the config's webServer from DX_PLAYWRIGHT_APP."""
     rejection = typescript_srcs_rejection(srcs, "typescript_playwright_test")
     if rejection != None:
         fail(rejection)

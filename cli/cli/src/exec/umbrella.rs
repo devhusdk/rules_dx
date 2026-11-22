@@ -1,9 +1,6 @@
 use super::affected::writable_paths;
-use super::check_build::SharedChecks;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
-use super::quality::execute_quality_request;
-use super::quality::{execute_quality_phase, guard_build_output};
 use dx_exec_core::common::{
     ActionTally, BAZEL_TESTS_FAILED, CODE_COLLECTION_FAILED, CODE_COMMIT_NOT_CONVENTIONAL,
     CODE_UMBRELLA_PHASE_FINDINGS, CODE_UMBRELLA_PHASE_SKIPPED, CODE_VERIFICATION_FAILED, Env,
@@ -11,6 +8,9 @@ use dx_exec_core::common::{
     kept_child, pre_exec, report_failed, write_report_file,
 };
 use dx_exec_core::failure::CODE_INVALID_SCOPE;
+use dx_exec_quality::check_build::SharedChecks;
+use dx_exec_quality::execute_quality_request;
+use dx_exec_quality::{execute_quality_phase, guard_build_output};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
     nest_phase_event, notice_event, quality_started, read_event, report_event, with_correlation,
@@ -19,7 +19,7 @@ use dx_output::{
 use dx_plan::args::{Command, Invocation, ReportRequest, UmbrellaRequest};
 use dx_plan::plan::spec;
 use dx_plan::reports::plan_reports;
-use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner, path_filter};
+use dx_plan::resolve::{MemoizedGraphQuery, QueryRunner, path_filter, widen_config_scopes};
 use dx_process::{Runner, interrupted};
 use serde_json::{Value, json};
 use serde_sarif::sarif::Sarif;
@@ -866,6 +866,13 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
     };
     if request.writable.is_none()
         && let Some(paths) = path_filter(&request.targets, env.workspace)
+        && widen_config_scopes(
+            &request.targets,
+            env.workspace,
+            env.query_runner,
+            &request.bazel_startup_options,
+        )
+        .is_none()
     {
         request.writable = Some(writable_paths(env.workspace, &paths));
     }

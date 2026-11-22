@@ -26,26 +26,6 @@ NATIVE_CASES = [
         },
     ),
     matrix_case(
-        name = "matrix_cpp_format_pass",
-        capability = "format",
-        tool = "clang_format",
-        binary = "//core/quality/testdata:llvm_clang_format",
-        source_class = "cpp",
-        generated = {
-            "matrix/clang_format_clean.cpp": "// Seed C++ format fixture.\n\nint greet(const char *name) { return 0; }\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_cpp_format_fail",
-        capability = "format",
-        tool = "clang_format",
-        binary = "//core/quality/testdata:llvm_clang_format",
-        source_class = "cpp",
-        generated = {
-            "matrix/clang_format_dirty.cpp": "// Seed C++ format fixture.\n\nint greet( const char*name){return 0;}\n",
-        },
-    ),
-    matrix_case(
         name = "matrix_cuda_format_pass",
         capability = "format",
         tool = "clang_format",

@@ -3,7 +3,7 @@
 load("//core/quality:pipeline.bzl", "drop_pipeline_tool")
 load("//core/quality:real_core.bzl", "real_context")
 
-visibility(["//bicep/...", "//cc/...", "//core/...", "//dart/...", "//dotnet/...", "//erlang/...", "//go/...", "//haskell/...", "//java/...", "//javascript/...", "//julia/...", "//kubernetes/...", "//lua/...", "//ocaml/...", "//ruby/...", "//rust/...", "//terraform/..."])
+visibility(["//bicep/...", "//cc/...", "//core/...", "//dart/...", "//dotnet/...", "//erlang/...", "//go/...", "//haskell/...", "//java/...", "//javascript/...", "//julia/...", "//kubernetes/...", "//lua/...", "//ocaml/...", "//ruby/...", "//rust/...", "//scala/...", "//terraform/..."])
 
 def stage(files, inputs, rel, f):
     """Stages f at rel for the tool and lists it as an action input."""
@@ -20,13 +20,7 @@ def default_files_hook(extensions, only_capability = None, except_capability = N
             return real_context()
         if capability == except_capability:
             return real_context()
-        pairs = []
-        for f in target[DefaultInfo].files.to_list():
-            ws_path = f.short_path
-            if ".." in ws_path.split("/") or f.extension not in extensions:
-                continue
-            pairs.append((ws_path, f, False))
-        return real_context(resolve_pairs = pairs)
+        return real_context(resolve_lists = [(target[DefaultInfo].files, extensions)])
 
     return _hook
 

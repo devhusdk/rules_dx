@@ -16,6 +16,9 @@ pub struct QualityFiles {
     pub file_extensions: Vec<String>,
     /// Exact file names, like `CMakeLists.txt`.
     pub file_names: Vec<String>,
+    /// License ids whose acceptance in the consumer's `MODULE.bazel` asks for the aspect file, as
+    /// the `license:<id>` marks of `wanted`.
+    pub licenses: Vec<String>,
     /// Aspect names defined in `bzl`, by command.
     pub aspects: BTreeMap<String, Vec<String>>,
     /// Probe aspect names defined in `bzl`, by command.
@@ -23,14 +26,18 @@ pub struct QualityFiles {
 }
 
 impl QualityFiles {
-    /// Whether a workspace with the extensions and file names of `extensions` needs the aspect
-    /// file.
+    /// Whether a workspace with the extensions, file names and `license:<id>` marks of `marks`
+    /// needs the aspect file.
     #[must_use]
-    pub fn wanted(&self, extensions: &BTreeSet<String>) -> bool {
+    pub fn wanted(&self, marks: &BTreeSet<String>) -> bool {
         self.file_extensions
             .iter()
             .chain(&self.file_names)
-            .any(|mark| extensions.contains(mark))
+            .any(|mark| marks.contains(mark))
+            || self
+                .licenses
+                .iter()
+                .any(|id| marks.contains(&license_mark(id)))
     }
 
     /// The `bzl%name` labels of the aspects (or probes) of `command`.
@@ -44,6 +51,12 @@ impl QualityFiles {
             .map(|name| format!("{}%{name}", self.bzl))
             .collect()
     }
+}
+
+/// The mark of an accepted license id, like `license:android-sdk-license`.
+#[must_use]
+pub fn license_mark(id: &str) -> String {
+    format!("license:{id}")
 }
 
 /// The `docs` entry of one `<lang>/lang.json`.
@@ -135,13 +148,44 @@ const LANGUAGES: &str = include_str!("../languages.json");
 
 #[derive(Deserialize)]
 struct Languages {
+    #[serde(default)]
+    core: Core,
     languages: Vec<Manifest>,
 }
 
+/// The aspect files of the core families, from `core/quality/core_aspects.json`.
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct Core {
+    quality: Vec<QualityFiles>,
+    docs: Vec<DocsFiles>,
+}
+
+fn shipped_table() -> Option<Languages> {
+    serde_json::from_str::<Languages>(LANGUAGES).ok()
+}
+
 fn shipped() -> Vec<Manifest> {
-    serde_json::from_str::<Languages>(LANGUAGES)
+    shipped_table()
         .map(|table| table.languages)
         .unwrap_or_default()
+}
+
+fn shipped_core() -> &'static Core {
+    static CORE: OnceLock<Core> = OnceLock::new();
+    CORE.get_or_init(|| shipped_table().map(|table| table.core).unwrap_or_default())
+}
+
+/// The quality aspect files of the core families, which run in every workspace, in file order.
+#[must_use]
+pub fn core_quality() -> &'static [QualityFiles] {
+    &shipped_core().quality
+}
+
+/// The docs aspect files of the core, which run in every workspace, in file order.
+#[must_use]
+pub fn core_docs() -> &'static [DocsFiles] {
+    &shipped_core().docs
 }
 
 #[derive(Deserialize)]
@@ -183,8 +227,6 @@ pub const ENV: &str = "@rules_dx//dx:env";
 pub const CODEGEN: &str = "@rules_dx//dx:codegen";
 /// The `rules_dx` target `dx docs` builds for the site scope tools.
 pub const DOCS_SCOPE_TOOLS: &str = "@rules_dx//tools/docs/site:scope_tools";
-/// The `rules_dx` target the `dx audit` gitleaks hint runs.
-pub const TOOL_RESOLVE: &str = "@rules_dx//dx/tool_resolve";
 
 /// The `rules_dx` targets dx commands run for every language.
 pub const COMMAND_TARGETS: &[&str] = &[
@@ -197,7 +239,6 @@ pub const COMMAND_TARGETS: &[&str] = &[
     ENV,
     CODEGEN,
     DOCS_SCOPE_TOOLS,
-    TOOL_RESOLVE,
 ];
 
 fn commands() -> &'static BTreeMap<String, BTreeMap<String, String>> {
@@ -344,6 +385,10 @@ pub fn hub(ecosystem: &str) -> Option<&'static Hub> {
 
 /// Merges the `quality` entries of `lang.json` texts by aspect file, sorted by file. A text
 /// without a `quality` entry is skipped.
+///
+/// # Errors
+///
+/// Returns `Err` when a text is not valid `lang.json`.
 pub fn parse_quality(texts: &[&str]) -> Result<Vec<QualityFiles>, serde_json::Error> {
     Ok(merge_quality(parse_manifests(texts)?))
 }
@@ -363,6 +408,7 @@ fn merge_quality(manifests: Vec<Manifest>) -> Vec<QualityFiles> {
             entry.bzl = quality.bzl;
             entry.file_extensions.extend(quality.file_extensions);
             entry.file_names.extend(quality.file_names);
+            entry.licenses.extend(quality.licenses);
             for (target, source) in [
                 (&mut entry.aspects, quality.aspects),
                 (&mut entry.probes, quality.probes),
@@ -380,6 +426,8 @@ fn merge_quality(manifests: Vec<Manifest>) -> Vec<QualityFiles> {
             files.file_extensions = extensions.into_iter().collect();
             let names: BTreeSet<String> = files.file_names.drain(..).collect();
             files.file_names = names.into_iter().collect();
+            let licenses: BTreeSet<String> = files.licenses.drain(..).collect();
+            files.licenses = licenses.into_iter().collect();
             files
         })
         .collect()
@@ -387,6 +435,10 @@ fn merge_quality(manifests: Vec<Manifest>) -> Vec<QualityFiles> {
 
 /// Merges the `docs` entries of `lang.json` texts by aspect file, sorted by file. A text
 /// without a `docs` entry is skipped.
+///
+/// # Errors
+///
+/// Returns `Err` when a text is not valid `lang.json`.
 pub fn parse_docs(texts: &[&str]) -> Result<Vec<DocsFiles>, serde_json::Error> {
     Ok(merge_docs(parse_manifests(texts)?))
 }

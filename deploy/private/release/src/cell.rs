@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::{self, Write as _};
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use dx_atomic_fs::path_io::{self, PathIoError};
@@ -68,6 +68,7 @@ pub struct Cell {
     pub format: String,
     pub exe: String,
     pub runtime: Vec<String>,
+    pub notices: Vec<String>,
 }
 
 impl Cell {
@@ -330,6 +331,18 @@ fn cell_error(cell: &Cell) -> Option<String> {
         }
         if !members.insert(member) {
             return Some(format!("member {member:?} is listed twice"));
+        }
+    }
+    let mut notices = BTreeSet::new();
+    for notice in &cell.notices {
+        if notice.contains('/') {
+            return Some(format!("notice {notice:?} must be a top-level name"));
+        }
+        if let Some(reason) = dx_deploy_tools::member_name_error(notice) {
+            return Some(reason);
+        }
+        if !notices.insert(notice) {
+            return Some(format!("notice {notice:?} is listed twice"));
         }
     }
     None
@@ -812,10 +825,16 @@ fn note_layout(
     exe: &Path,
     verdicts: &mut Verdicts,
 ) {
-    let have: BTreeSet<&str> = listing.iter().map(|entry| entry.0.as_str()).collect();
-    let want: BTreeSet<&str> = ["LICENSE", "NOTICE", "IDENTITY.txt", cell.exe.as_str()]
+    let have: BTreeSet<String> = listing.iter().map(|entry| entry.0.clone()).collect();
+    let want: BTreeSet<String> = ["LICENSE", "NOTICE", "IDENTITY.txt", cell.exe.as_str()]
         .into_iter()
         .chain(cell.runtime.iter().map(String::as_str))
+        .map(str::to_owned)
+        .chain(
+            cell.notices
+                .iter()
+                .map(|notice| format!("notices/{notice}")),
+        )
         .collect();
     verdicts.note(
         "members",
@@ -1619,9 +1638,8 @@ pub fn render_verification(verification: &Verification) -> String {
     for outcome in &verification.cells {
         if let (Some(record), true) = (&outcome.record, outcome.qualified()) {
             {
-                writeln!(
-                    text,
-                    "{} qualified {} sha256 {} sha {} version {} job {} run {}",
+                text.push_str(&format!(
+                    "{} qualified {} sha256 {} sha {} version {} job {} run {}\n",
                     record.cell,
                     record.archive.name,
                     record.archive.sha256,
@@ -1629,18 +1647,17 @@ pub fn render_verification(verification: &Verification) -> String {
                     record.version,
                     record.job,
                     record.run_id
-                )
-                .ok();
+                ));
             }
         } else {
-            writeln!(text, "{} rejected", outcome.cell).ok();
+            text.push_str(&format!("{} rejected\n", outcome.cell));
             for reason in &outcome.reasons {
-                writeln!(text, "  {reason}").ok();
+                text.push_str(&format!("  {reason}\n"));
             }
         }
     }
     for problem in &verification.stray {
-        writeln!(text, "stray: {problem}").ok();
+        text.push_str(&format!("stray: {problem}\n"));
     }
     text
 }

@@ -66,6 +66,16 @@ def clang_syntax_unit_tests(name, **kwargs):
                 ["tidy", "--header-filter=", "pkg/a.m", "--", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc"],
             ),
             expect_equal(
+                "clang-tidy gets its own resource dir when the compile command names none",
+                clang_tidy_argv("tidy", ["wrapped_clang", "-fobjc-arc", "-c", "pkg/a.m"], "pkg/a.m", _LLVM, resource_dir = "external/llvm/lib/clang/21").argv[-1],
+                "-resource-dir=external/llvm/lib/clang/21",
+            ),
+            expect_equal(
+                "clang-tidy keeps the resource dir of the compile command",
+                [arg for arg in clang_tidy_argv("tidy", [_CLANG, "-resource-dir=r", "-c", "a.c"], "a.c", _LLVM, resource_dir = "t").argv if arg.startswith("-resource-dir")],
+                ["-resource-dir=r"],
+            ),
+            expect_equal(
                 "-c becomes -fsyntax-only and output flags are dropped",
                 _rewrite([_CLANG, "-MD", "-MF", "a.d", "-DX=1", "-c", "a.c", "-o", "a.o"]).argv,
                 [_CLANG, "-DX=1", "-fsyntax-only", "a.c", "-fno-caret-diagnostics", "-fno-color-diagnostics"],

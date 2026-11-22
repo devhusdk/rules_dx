@@ -2,6 +2,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":defs_tests.bzl", "lua_wrapper_contract_tests")
 load(":hub_tests.bzl", "lua_hub_tests")
+load(":lua_header.bzl", "lua_header")
 load(":toolchain_tests.bzl", "lua_metadata_tests")
 
 rust_test(
@@ -25,6 +26,30 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+lua_header(
+    name = "lua_h",
+    testonly = True,
+    header = "lua.h",
+    lib = "@lua//:liblua",
+)
+
+rust_test(
+    name = "lua_license_test",
+    size = "small",
+    srcs = ["lua_license_test.rs"],
+    data = [
+        ":lua_h",
+        "//lua/private:lua_LICENSE.txt",
+        "@dx_luafilesystem//:LICENSE",
+    ],
+    env = {
+        "LUAFILESYSTEM_LICENSE": "$(rootpath @dx_luafilesystem//:LICENSE)",
+        "LUA_H": "$(rootpath :lua_h)",
+        "LUA_LICENSE": "$(rootpath //lua/private:lua_LICENSE.txt)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
 lua_hub_tests(
     name = "hub",
     size = "small",
@@ -38,6 +63,11 @@ lua_metadata_tests(
 lua_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     size = "small",
+    wrappers = {
+        "binary": "//lua/tests/conformance:hello",
+        "library": "//lua/tests/conformance:conformance",
+        "test": "//lua/tests/bench:bench_report_test",
+    },
 )
 
 real_source_target(
@@ -48,6 +78,7 @@ real_source_target(
         "hub_tests.bzl",
         "toolchain_tests.bzl",
         "defs_tests.bzl",
+        "lua_header.bzl",
     ],
     tags = ["corpus"],
 )

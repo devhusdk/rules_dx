@@ -1,7 +1,0 @@
-<?php
-
-declare(strict_types=1);
-
-use Hello\Greeter;
-
-echo (new Greeter())->greet('world'), "\n";

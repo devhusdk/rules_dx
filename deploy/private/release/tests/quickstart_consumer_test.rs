@@ -104,8 +104,29 @@ pub(crate) fn bazel(case: &Case, args: &[&str]) -> Run {
     case.bazel_with(args, &pairs)
 }
 
+/// The root rules_python patches the release consumers leave out. lock_extension.patch locks the python
+/// extension per host, and one release lock serves every platform.
+pub(crate) const RULES_PYTHON_SKIP: [&str; 1] = ["lock_extension.patch"];
+
 /// The symlink line `docs/cli/commands/windows.md` has a Windows user add to `.bazelrc` or `user.bazelrc`.
 pub(crate) const WINDOWS_SYMLINKS: &str = "startup:windows --windows_enable_symlinks\n";
+
+/// The root `dx_prebuilt.asset` lines that serve `dx` and `launcher`, the ones this test built.
+fn built_dx_asset(dx: &std::path::Path) -> String {
+    let launcher = resolve_runfiles(
+        &std::env::var("DX_LAUNCHER").expect("DX_LAUNCHER must name the launcher"),
+    );
+    let sha256 = |path: &std::path::Path| {
+        dx_testing::sha256_file(path).unwrap_or_else(|error| panic!("{error}"))
+    };
+    let (dx_url, dx_sha256) = (file_url(dx), sha256(dx));
+    let (launcher_url, launcher_sha256) = (file_url(&launcher), sha256(&launcher));
+    dx_prebuilt_assets(&[
+        ("dx", &dx_url, &dx_sha256),
+        ("launcher", &launcher_url, &launcher_sha256),
+    ])
+    .unwrap_or_else(|error| panic!("{error}"))
+}
 
 /// The `.bazelrc` the consumer starts with: the preset's `//config:toolchains` lines, which a
 /// source-built dx needs before `dx init` writes the preset, and on Windows the preset's Windows
@@ -172,6 +193,7 @@ fn copy_rules_py_patches(source: &std::path::Path, case: &Case) {
     for package in [
         "rules_py",
         "rules_flutter",
+        "cgrindel_bazel_starlib",
         "rules_rust",
         "llvm",
         "windows_support",
@@ -253,6 +275,8 @@ fn the_readme_quickstart_runs_as_written() {
     // consumer_test covers generate.
     let mut args = init_args(&blocks);
     args.push("--no-generate".to_owned());
+    // A local test's case root sits under its execroot, whose MODULE.bazel discovery would pick.
+    args.push(format!("--workspace={root}"));
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     crate::stage("quickstart_consumer_test", "dx init --apply --no-generate");
     let init = case.run(&dx, &args, &pairs);
@@ -271,27 +295,18 @@ fn the_readme_quickstart_runs_as_written() {
     let mut module = read_text(&module_path);
     module.push('\n');
     module.push_str(&rules_py_override());
-    module.push_str(&rules_flutter_override().unwrap_or_else(|error| panic!("{error}")));
+    module.push_str(&rules_flutter_override());
     module.push_str(&rules_rust_override());
     module.push_str(&llvm_override());
     module.push_str(&windows_support_override());
     module.push_str(&apple_overrides(&source, case.root()));
     module.push_str(&rules_dx_override(&source));
-    let launcher = resolve_runfiles(
-        &std::env::var("DX_LAUNCHER").expect("DX_LAUNCHER must name the launcher"),
-    );
-    let sha256 = |path: &std::path::Path| {
-        dx_testing::sha256_file(path).unwrap_or_else(|error| panic!("{error}"))
-    };
-    let (dx_url, dx_sha256) = (file_url(&dx), sha256(&dx));
-    let (launcher_url, launcher_sha256) = (file_url(&launcher), sha256(&launcher));
+    // The nested server has no PATH; see candidate_consumer_test's rules_python override.
     module.push_str(
-        &dx_prebuilt_assets(&[
-            ("dx", &dx_url, &dx_sha256),
-            ("launcher", &launcher_url, &launcher_sha256),
-        ])
-        .unwrap_or_else(|error| panic!("{error}")),
+        &write_root_patch_override(case.root(), &source, "rules_python", &RULES_PYTHON_SKIP)
+            .unwrap_or_else(|error| panic!("{error}")),
     );
+    module.push_str(&built_dx_asset(&dx));
     write_text(&module_path, &module);
     if cfg!(windows) {
         let rc_path = case.root().join(".bazelrc");
@@ -418,6 +433,8 @@ fn bcr_test_module_runs_its_presubmit_targets() {
     let source = rules_dx_source().unwrap_or_else(|error| panic!("{error}"));
     let presubmit = read_text(&source.join(".bcr/presubmit.yml"));
     let case = nested::case("quickstart_bcr");
+    // `run @rules_dx//:dx` takes the dx this test built, as a release's `pins.bzl` serves dx.
+    let dx = resolve_runfiles(&std::env::var("DX_BIN").expect("DX_BIN must name dx"));
     for name in [
         "BUILD.bazel",
         "MODULE.bazel",
@@ -437,18 +454,17 @@ fn bcr_test_module_runs_its_presubmit_targets() {
     );
     copy_rules_py_patches(&source, &case);
     write_source_dx_rc(&case);
-    let module = case.root().join("MODULE.bazel");
-    write_text(
-        &module,
-        &(read_text(&module)
-            + &rules_dx_override(&source)
-            + &rules_py_override()
-            + &rules_flutter_override().unwrap_or_else(|error| panic!("{error}"))
-            + &rules_rust_override()
-            + &llvm_override()
-            + &windows_support_override()
-            + &apple_overrides(&source, case.root())),
-    );
+    let module_path = case.root().join("MODULE.bazel");
+    let mut module = read_text(&module_path);
+    module.push_str(&rules_dx_override(&source));
+    module.push_str(&rules_py_override());
+    module.push_str(&rules_flutter_override());
+    module.push_str(&rules_rust_override());
+    module.push_str(&llvm_override());
+    module.push_str(&windows_support_override());
+    module.push_str(&apple_overrides(&source, case.root()));
+    module.push_str(&built_dx_asset(&dx));
+    write_text(&module_path, &module);
     case.use_lock("release_bcr");
 
     let host = presubmit::host_platforms();

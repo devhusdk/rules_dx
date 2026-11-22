@@ -27,17 +27,17 @@ _DX_FORWARD_PROVIDES = [
     QualitySourcesInfo,
 ]
 
-_LIBSTDCXX = Label("//rust/private:libstdcxx")
-_LIBSTDCXX_READY = Label("//rust/private:libstdcxx_ready")
+_LIBSTDCXX = Label("//core/platforms:libstdcxx")
+_LIBSTDCXX_READY = Label("//core/platforms:libstdcxx_dynamic_runtime")
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 _UNWIND = Label("//rust/private:unwind")
 _BUILD_SCRIPT_CC_ENV = Label("//rust:build_script_cc_env")
 _NO_COVERAGE_FEATURES = ["-coverage", "-gcc_coverage_map_format", "-llvm_coverage_map_format"]
-_MSVC = Label("//rust/private:msvc")
+_MSVC = Label("//core/platforms:msvc")
 MSVC_LINK_FLAGS = ["-Clink-arg=kernel32.lib", "-Clink-arg=ntdll.lib", "-Clink-arg=/ignore:4099"]
-_CLANG_CL = Label("//rust/private:clang_cl")
+_CLANG_CL = Label("//core/platforms:clang_cl")
 CLANG_CL_LINK_FLAGS = ["-Clink-arg=-DEFAULTLIB:libc++.lib"]
-_MSVC_OPT = Label("//rust/private:msvc_opt")
+_MSVC_OPT = Label("//core/platforms:msvc_opt")
 
 _MSVC_LINK = Label("//rust/private/tools/msvc_paths:msvc_link_exec")
 
@@ -212,7 +212,7 @@ _rust_forward_binary = dx_executable_forward_rule(
 )
 
 def _shard_launcher(ctx):
-    return ctx.attr._shard_runner[DefaultInfo] if ctx.attr.sharded else None
+    return ctx.attr.shard_runner[DefaultInfo] if ctx.attr.shard_runner else None
 
 _rust_forward_test = dx_executable_forward_rule(
     _RUST,
@@ -232,9 +232,8 @@ _rust_forward_test = dx_executable_forward_rule(
             "coverage_lib": attr.label(
                 doc = "The library whose sources the test compiles itself, so coverage counts them as production code.",
             ),
-            "sharded": attr.bool(doc = "Runs the binary through the shard runner, which honours the Bazel test sharding protocol."),
-            "_shard_runner": attr.label(
-                default = Label("//rust/private/tools/shard_runner"),
+            "shard_runner": attr.label(
+                doc = "The dx-runtime binary that runs the test as one Bazel test shard, or None to run it directly.",
                 executable = True,
                 cfg = "target",
             ),
@@ -258,8 +257,9 @@ def rust_build_script(name, build_script_env = None, toolchains = None, use_cc_t
         user = env
         env = dict(BUILD_SCRIPT_CC_ENV)
         env.update(user)
-        if "CFLAGS" in user:
-            env["CFLAGS"] = BUILD_SCRIPT_CC_ENV["CFLAGS"] + " " + user["CFLAGS"]
+        for flags in ["CFLAGS", "CXXFLAGS"]:
+            if flags in user:
+                env[flags] = BUILD_SCRIPT_CC_ENV[flags] + " " + user[flags]
         toolchains.append(_BUILD_SCRIPT_CC_ENV)
     features = list(kwargs.pop("features", []))
     features += [f for f in _NO_COVERAGE_FEATURES if f not in features]
@@ -405,6 +405,10 @@ def rust_test(
     if wasm == "wasi":
         _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs)
         return
+    shard_count = kwargs.get("shard_count")
+    sharded = type(shard_count) == "int" and shard_count > 1
+    if sharded:
+        kwargs["env"] = (kwargs.get("env") or {}) | {"DX_RUNTIME_TOOL": "shard_runner"}
     upstream_kwargs = _libstdcxx_upstream(kwargs, link = True)
     upstream_kwargs["crate"] = crate
     upstream_kwargs["edition"] = edition
@@ -416,9 +420,8 @@ def rust_test(
         forward_kwargs["coverage_lib"] = coverage_lib
     if runtime_dlls != None:
         forward_kwargs["runtime_dlls"] = runtime_dlls
-    shard_count = kwargs.get("shard_count")
-    if type(shard_count) == "int" and shard_count > 1:
-        forward_kwargs["sharded"] = True
+    if sharded:
+        forward_kwargs["shard_runner"] = Label("@dx_prebuilt//:runtime")
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, **kwargs)
 
 def rust_bench(
@@ -580,7 +583,7 @@ _NO_REMOTE_EXEC = "no-remote-exec"
 _TEST_BROWSER = str(Label("@rules_rust_wasm_bindgen//settings:test_browser"))
 
 _BROWSER_CELLS = {
-    Label("//rust/private:browser_linux_x86_64"): "firefox",
+    Label("//core/platforms:linux_x86_64"): "firefox",
 }
 
 def _browser_compatible_with(kwargs):
@@ -770,7 +773,7 @@ def rust_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, r
         "rustc_flags": _FUZZ_RUSTC_FLAGS + (rustc_flags or []),
         "rustc_env": dict(rustc_env or {}, RUSTC_BOOTSTRAP = "1"),
         "target_compatible_with": select({
-            Label("//rust/private:fuzz_sanitizer_runtime"): [],
+            Label("//core/platforms:fuzz_sanitizer_runtime"): [],
             "//conditions:default": [Label("@platforms//:incompatible")],
         }),
     }

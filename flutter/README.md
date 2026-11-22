@@ -36,7 +36,7 @@ per locked package:
 
 ```python
 pub = use_extension("@rules_dx//flutter:extensions.bzl", "pub")
-pub.lock(
+pub.from_lock(
     name = "my_flutter_deps",
     lock = "//app:pubspec.lock",
 )
@@ -47,7 +47,7 @@ To write or refresh `pubspec.lock` for a package directory, run `pub get`
 from the pinned Flutter SDK:
 
 ```sh
-bazel run @rules_flutter//flutter:pub -- get --directory <dir>
+bazel run @rules_flutter//flutter/pub -- get --directory <dir>
 ```
 
 ## API docs

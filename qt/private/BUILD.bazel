@@ -13,14 +13,6 @@ qt_coverage_probe(
     visibility = ["//:__subpackages__"],
 )
 
-constraint_setting(name = "unsupported_setting")
-
-constraint_value(
-    name = "unsupported",
-    constraint_setting = ":unsupported_setting",
-    visibility = ["//visibility:public"],
-)
-
 exports_files([
     "bundle.bzl",
     "cells.bzl",

@@ -34,16 +34,16 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 | Test | Proves | Decision |
 | --- | --- | --- |
 | `//cli/cli/tests/cli_argv_e2e:cli_argv_e2e_test` | `dx test` forwards `--test_arg` | Converted to a unit test in `//cli/cli:dx_cli_test` |
-| `//tools/testing/starters:*` | `dx init` plus a starter fixture gives the listed files and `bazel_dep` names | One in-graph test over all fixtures, no `manual` |
+| `//tools/testing/consumer:*_consumer_test` | `dx init --apply` on a consumer fixture writes its checked-in files | One in-graph test per fixture, no `manual` |
 | `//tools/testing/hermetic:*` golden checks | The consumer manifest matches its golden | In-graph already. Stay |
 | `//tools/testing/hermetic:c_*_fixture`, `cpp_*_fixture` | The selected compiler built the binary | In-graph fixtures per toolchain that check the producer string |
-| `//tools/testing/hermetic:cpp_rust` | A consumer fetches, builds and tests with no install and no network | Stays nested, on the harness |
+| `//tools/testing/hermetic:cpp_rust` | A C/C++ and Rust consumer fetches, builds and tests with no install and no network | Stays nested, on the harness |
 | `//tools/testing/hermetic:isolation_probe_test` | The isolation layer denies network and host tools | Deleted with the isolation layer |
 | `//tools/testing/hermetic:*_maven_pin` | The Maven lock matches a fresh pin | `bazel run` update tools. `consumer_maven_lock_test` stays |
 | `//tools/testing/hermetic:cuda_gpu_nested_test` | A GPU test runs through a consumer | Deleted. `cuda_gpu_facts_test` stays |
 | `//tools/testing:nested_bazel_harness_test` | The harness runs the pinned Bazel offline and stops its server | Stays nested |
 | `//core/quality/tests:quality_check_smoke_test` | `dx check` reports each phase and diagnostic | Unit test for the events, in-graph fixtures for the diagnostics |
-| `//deploy/private/release/tests:release_consumer_smoke_test` | A release archive works through a registry with no override. The README quickstart and `bcr_test_module` run as written, and builds and tests a Swift package on BCR rules_swift (Linux x86_64) | One target. Stays nested, on the harness |
+| `//deploy/private/release/tests:release_consumer_smoke_test` | A release archive works through a registry with no override. The README quickstart (`dx init` with `--no-generate`) and `bcr_test_module` run, and builds and tests a Swift package on BCR rules_swift (Linux x86_64) | One target. Stays nested, on the harness |
 | `//examples/adopt-polyglot:consumer_test` | `dx init` and `dx generate` adopt a tree with no BUILD files, twice with no change | Stays nested, on the harness |
 
 - `tools/docs/support_matrix` lists the in-graph test of a language once its nested test is converted.

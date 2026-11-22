@@ -8,7 +8,7 @@ pub const SETS: [&str; 8] = [
     "workflow",
     "preflight",
     "preflight-windows-arm64",
-    "starter",
+    "android-linux-arm64",
     "hermetic",
     "docs",
     "cli",
@@ -24,7 +24,7 @@ pub const PREFLIGHT_TARGETS: &str = "//cli/cli:dx //cc/tests/fixtures/hello:hell
     //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all
     //julia/tests/fixtures/julia_app/... //julia/private/tools/... //deploy/private:pypi_probe_verify //haskell/private/tools/weeder:weeder_build_test
     //core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail
-    //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_javascript_format_pass //core/quality/testdata:matrix_api_spec_openapi_pass
+    //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_api_spec_openapi_pass
     //core/quality/testdata:matrix_yaml_format_pass //core/quality/testdata:matrix_yaml_format_fail //core/quality/testdata:matrix_yaml_format_syntax_error
     //core/quality/testdata:matrix_yaml_lint_pass //core/quality/testdata:matrix_yaml_lint_fail //core/quality/testdata:matrix_yaml_lint_syntax_error
     //core/quality/testdata:matrix_flatbuffers_lint_pass //core/quality/testdata:matrix_capnp_lint_pass //core/quality/testdata:matrix_thrift_lint_pass
@@ -45,15 +45,16 @@ pub const WINDOWS_ARM64_TARGETS: &str = "//cc/tests/fixtures/hello:hello //cc/te
 /// `runner_matrix_windows_arm64` has no erlang toolchain for `windows_arm64` (`//erlang/private/tools:dialyzer_bin`).
 pub const WINDOWS_ARM64_BLOCKED: &str = "//core/quality/testdata:runner_matrix_windows_arm64";
 
+/// Android is unsupported on `linux_arm64`, so every target under it must be skipped there.
+pub const ANDROID_LINUX_ARM64_FLAGS: &str = "--platforms=//tools/platforms:linux_arm64
+    --host_platform=//tools/platforms:linux_arm64 //android/...";
+
 pub const KOTLIN_BENCH_TARGETS: &str = "//kotlin/tests/fixtures/bench:all";
 
 pub const WINDOWS_ARM64_PLATFORM: &str = "--platforms=@llvm//platforms:windows_aarch64";
 
 pub const CRATE_LOCK_CHECK: &str =
     "--repo_env=CARGO_BAZEL_DIGEST_CHECK=1 @crates @dx_quality_crates @dx_thrift_crates";
-
-pub const STARTER_QUERY: &str =
-    r#"attr(tags, starter-consumer, //...) except filter("_upstream$", //...)"#;
 
 pub const HERMETIC_QUERY: &str = r#"attr(tags, hermetic-consumer, //...) except filter("_upstream$", //...) except filter("_msvc$", //...)"#;
 
@@ -127,14 +128,19 @@ pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
             );
             vec![Step::Run(BAZEL, args)]
         }
-        "starter" => {
-            let mut query = words(&["query"], flags, "");
-            query.extend([STARTER_QUERY.to_owned(), "--output=label".to_owned()]);
-            vec![
-                Step::Query(query),
-                Step::Run(BAZEL, words(&["build", "--nobuild"], flags, "")),
-            ]
-        }
+        "android-linux-arm64" => vec![Step::Run(
+            BAZEL,
+            words(
+                &[
+                    "build",
+                    "--nobuild",
+                    "--keep_going",
+                    "--lockfile_mode=error",
+                ],
+                flags,
+                ANDROID_LINUX_ARM64_FLAGS,
+            ),
+        )],
         "hermetic" => {
             let mut query = words(&["query", "--lockfile_mode=error"], flags, "");
             query.extend([HERMETIC_QUERY.to_owned(), "--output=label".to_owned()]);
@@ -315,6 +321,31 @@ mod tests {
     }
 
     #[test]
+    fn android_linux_arm64_analyses_android() {
+        let steps = plan("android-linux-arm64", &flags()).unwrap();
+        let [Step::Run("bazel", args)] = steps.as_slice() else {
+            panic!("{steps:?}");
+        };
+        assert_eq!(
+            args.get(..5).unwrap(),
+            [
+                "build",
+                "--nobuild",
+                "--keep_going",
+                "--lockfile_mode=error",
+                "--config=ci"
+            ]
+        );
+        for want in [
+            "--platforms=//tools/platforms:linux_arm64",
+            "--host_platform=//tools/platforms:linux_arm64",
+            "//android/...",
+        ] {
+            assert!(args.contains(&want.to_owned()), "{want}");
+        }
+    }
+
+    #[test]
     fn kotlin_bench_builds_the_bench_fixtures() {
         let steps = plan("kotlin-bench", &flags()).unwrap();
         assert_eq!(
@@ -329,15 +360,13 @@ mod tests {
     }
 
     #[test]
-    fn consumer_sets_query_then_build() {
-        for set in ["starter", "hermetic"] {
-            let steps = plan(set, &flags()).unwrap();
-            assert!(matches!(steps.first(), Some(Step::Query(_))), "{set}");
-            let Some(Step::Run("bazel", args)) = steps.get(1) else {
-                panic!("{steps:?}");
-            };
-            assert_eq!(args.get(..2).unwrap(), ["build", "--nobuild"]);
-        }
+    fn the_consumer_set_queries_then_builds() {
+        let steps = plan("hermetic", &flags()).unwrap();
+        assert!(matches!(steps.first(), Some(Step::Query(_))));
+        let Some(Step::Run("bazel", args)) = steps.get(1) else {
+            panic!("{steps:?}");
+        };
+        assert_eq!(args.get(..2).unwrap(), ["build", "--nobuild"]);
     }
 
     #[test]

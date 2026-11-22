@@ -1,7 +1,5 @@
 //! Renders the per-cell coverage summary comment of the consumer coverage job.
 
-use std::fmt::Write as _;
-
 use serde_json::Value;
 
 #[cfg(test)]
@@ -212,35 +210,29 @@ pub fn render(inputs: &Inputs) -> String {
     let mut body = String::new();
     body.push_str(&marker(&cell));
     body.push('\n');
-    writeln!(body, "## Coverage summary — {cell} — {status}\n").ok();
-    writeln!(
-        body,
-        "Analyzed revision: `{}` | Run: {}/{}/actions/runs/{} | Cell: `{cell}`.\n",
+    body.push_str(&format!("## Coverage summary — {cell} — {status}\n\n"));
+    body.push_str(&format!(
+        "Analyzed revision: `{}` | Run: {}/{}/actions/runs/{} | Cell: `{cell}`.\n\n",
         run.sha, run.server_url, run.repository, run.run_id
-    )
-    .ok();
+    ));
     if let Some(line) = gate_line(&events) {
         body.push_str(&line);
         body.push_str("\n\n");
     }
     fenced(&mut body, &source_lines(&events));
     fenced(&mut body, &profile_lines(&inputs.profiles));
-    writeln!(
-        body,
-        "Gate exit: {dx_rc} (comment never changes this outcome).\n"
-    )
-    .ok();
-    writeln!(body, "Changed-line gate exit: {changed_rc}\n").ok();
+    body.push_str(&format!(
+        "Gate exit: {dx_rc} (comment never changes this outcome).\n\n"
+    ));
+    body.push_str(&format!("Changed-line gate exit: {changed_rc}\n\n"));
     if let Some(line) = changed_line {
         body.push_str(line);
         body.push_str("\n\n");
     }
-    writeln!(
-        body,
-        "LCOV: Bazel-owned combined report for this cell (see workflow run {}).\n",
+    body.push_str(&format!(
+        "LCOV: Bazel-owned combined report for this cell (see workflow run {}).\n\n",
         run.run_id
-    )
-    .ok();
+    ));
     body.push_str("Scope: per-cell exact counts only; no cross-cell union, no averaged percentages, no rounding up. Codecov stays opt-in only, never required.\n\n");
     body.push_str("Findings outside the diff stay in counts only; no invented review locations.\n");
     body

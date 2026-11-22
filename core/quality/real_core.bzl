@@ -11,7 +11,7 @@ load("//core/quality:support.bzl", "support_unpinned_tools", "support_unsupporte
 load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs", "missing_required_config_error", "native_config_scratch_rel", "staged_config_rel")
 
-visibility(["//ansible/...", "//bicep/...", "//cc/...", "//cloudformation/...", "//cmake/...", "//core/...", "//d/...", "//dart/...", "//dockerfile/...", "//dotnet/...", "//erlang/...", "//fortran/...", "//go/...", "//haskell/...", "//java/...", "//javascript/...", "//julia/...", "//kubernetes/...", "//lua/...", "//make/...", "//ocaml/...", "//perl/...", "//powershell/...", "//python/...", "//rego/...", "//ruby/...", "//rust/...", "//sql/...", "//swift/...", "//terraform/...", "//zig/..."])
+visibility(["//ansible/...", "//bicep/...", "//cc/...", "//cloudformation/...", "//cmake/...", "//core/...", "//d/...", "//dart/...", "//dockerfile/...", "//dotnet/...", "//erlang/...", "//fortran/...", "//go/...", "//haskell/...", "//java/...", "//javascript/...", "//julia/...", "//kotlin/...", "//kubernetes/...", "//lua/...", "//make/...", "//ocaml/...", "//perl/...", "//powershell/...", "//python/...", "//rego/...", "//ruby/...", "//rust/...", "//scala/...", "//sql/...", "//swift/...", "//terraform/...", "//zig/..."])
 
 _REAL_TOOL_KINDS = ["executable", "file", "setting", "toolchain", "upstream"]
 
@@ -177,6 +177,7 @@ def real_context(
         resolved = None,
         early_inputs = [],
         resolve_pairs = [],
+        resolve_lists = [],
         reserved = [],
         tool_files = [],
         inputs = [],
@@ -189,11 +190,12 @@ def real_context(
         run_tools = [],
         options = {},
         delegated = False):
-    """Builds what one tool's context hook hands the core."""
+    """Builds what one tool's context hook hands the core; resolve_lists holds (depset, extensions) pairs."""
     return struct(
         resolved = resolved,
         early_inputs = early_inputs,
         resolve_pairs = resolve_pairs,
+        resolve_lists = resolve_lists,
         reserved = reserved,
         tool_files = tool_files,
         inputs = inputs,
@@ -213,6 +215,20 @@ def _staged_line(f):
     if rel == None:
         return None
     return rel + "\t" + f.path
+
+def _resolve_line(f):
+    if ".." in f.short_path.split("/"):
+        return None
+    return f.short_path + "\t" + f.path
+
+def _resolve_list(ctx, name, files):
+    """Writes one `workspace<TAB>exec path` line per in-workspace file without flattening the depset."""
+    out = ctx.actions.declare_file(name)
+    args = ctx.actions.args()
+    args.set_param_file_format("multiline")
+    args.add_all(files, map_each = _resolve_line, expand_directories = False, uniquify = True)
+    ctx.actions.write(out, args)
+    return out
 
 def _path_tool(helper):
     """Returns the request entry of a (name, file) or (name, file, leading args) path tool."""
@@ -461,6 +477,8 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         inputs.append(f)
 
     resolve_pairs = {}
+    request_resolve_lists = []
+    staged_inputs = []
     tool_env_entries = launch.env
     run_tools = launch.run_tools
     for tool in cfg.hook_order:
@@ -475,13 +493,19 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
                     fail(what + ": " + tool + " would stage two different files at " + ws_path + ": " + staged_as.path + " and " + f.path)
                 continue
             resolve_pairs[ws_path] = f
+        for (index, (files, extensions)) in enumerate(found.resolve_lists):
+            listed = _resolve_list(ctx, target.label.name + "-real-" + capability + output_suffix + "-" + tool + "-resolves-" + str(index) + ".txt", files)
+            request_resolve_lists.append({"extensions": extensions, "list": listed.path})
+            inputs.append(listed)
+            staged_inputs.append(files)
         for (ws_path, error) in found.reserved:
             if _staged([path_to_file, sibling_pairs, resolve_pairs], ws_path) != None:
                 fail(what + ": " + error)
         if len(found.env) > 0:
             tool_env_entries.setdefault(tool, []).extend(found.env)
         run_tools = run_tools + found.run_tools
-    requirements = dict(dx_stage_execution_requirements(stage_tools, capability, [name for (name, _) in run_tools]))
+    path_tool_names = [helper[0] for tool in stage_tools if contexts.get(tool) != None for helper in contexts[tool].options.get("path_tools", [])]
+    requirements = dict(dx_stage_execution_requirements(stage_tools, capability, [name for (name, _) in run_tools], path_tool_names))
     if "buf" in stage_tools and capability == "lint" and hasattr(ctx.attr, "_breaking_against"):
         images = ctx.files._breaking_against
         if len(images) > 1:
@@ -496,7 +520,6 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         inputs.append(f)
 
     request_tools = {}
-    staged_inputs = []
     for tool in stage_tools:
         found = contexts.get(tool)
         file_lists = []
@@ -560,6 +583,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         request_siblings,
         request_resolves,
         request_tools,
+        resolve_lists = request_resolve_lists,
         unsafe_fixes = ctx.attr.unsafe_fixes == "true",
     )
     request_file = ctx.actions.declare_file(target.label.name + "-real-" + capability + output_suffix + "-request.json")

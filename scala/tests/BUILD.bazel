@@ -1,6 +1,8 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/private/testing:defs.bzl", "expect_equal")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//scala/private:validate.bzl", "scala_scalacopts_with_warnings_as_errors")
+load(":toolchain_tests.bzl", "scala_stats_file_off_tests", "scala_testing_toolchain_tests", "scala_third_version_tests")
 
 _ON = {"warnings_as_errors": True}
 
@@ -59,4 +61,23 @@ test_suite(
         "//scala/tests/fixtures/adopt_scala/greet:greet_test",
         "//scala/tests/fixtures/adopt_scala/solo:pure_test",
     ],
+)
+
+scala_stats_file_off_tests(name = "stats_file_off_test")
+
+scala_testing_toolchain_tests(name = "testing_toolchain_test")
+
+scala_third_version_tests(
+    name = "third_version_test",
+    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "toolchain_tests.bzl",
+    ],
+    tags = ["corpus"],
 )

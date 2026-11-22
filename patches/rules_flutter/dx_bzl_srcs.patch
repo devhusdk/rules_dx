@@ -2,9 +2,9 @@ Upstream: aran/rules_flutter@b12fd3fbfb130bb1b90ba03c790f3a8ce101363f
 diff -u a/flutter/BUILD.bazel b/flutter/BUILD.bazel
 --- a/flutter/BUILD.bazel
 +++ b/flutter/BUILD.bazel
-@@ -216,3 +216,9 @@
-     visibility = ["//visibility:public"],
-     deps = [":providers"],
+@@ -338,3 +338,9 @@
+     srcs = glob(["*.bzl"]),
+     visibility = ["//tools/download_guard:__pkg__"],
  )
 +
 +filegroup(
@@ -15,13 +15,15 @@ diff -u a/flutter/BUILD.bazel b/flutter/BUILD.bazel
 diff -u a/flutter/private/BUILD.bazel b/flutter/private/BUILD.bazel
 --- a/flutter/private/BUILD.bazel
 +++ b/flutter/private/BUILD.bazel
-@@ -531,3 +531,9 @@
+@@ -1083,3 +1083,11 @@
      visibility = ["//flutter:__subpackages__"],
-     deps = [":artifact_urls"],
+     deps = [":engine_labels"],
  )
 +
 +filegroup(
 +    name = "dx_bzl_srcs",
-+    srcs = glob(["*.bzl"]),
++    srcs = glob(["*.bzl"]) + [
++        "@rules_swift_package_manager//swiftpkg:defs",
++    ],
 +    visibility = ["//visibility:public"],
 +)

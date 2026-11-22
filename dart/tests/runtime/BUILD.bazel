@@ -1,11 +1,16 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library", "dart_test")
+load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library", "dart_package_metadata", "dart_test")
+
+dart_package_metadata(
+    name = "pubspec-metadata",
+    package_name = "greet",
+)
 
 package(default_visibility = ["//visibility:public"])
 
 dart_library(
     name = "greet",
-    package_name = "greet",
+    package = ":pubspec-metadata",
     srcs = ["lib/greet.dart"],
 )
 

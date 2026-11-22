@@ -10,12 +10,6 @@ def _archive(name):
     pin = _PINS["archives"][name]
     return struct(sha256 = pin["sha256"], strip_prefix = pin.get("strip_prefix", ""), urls = pin["urls"])
 
-_GMP_LICENSE = struct(
-    name = "gmp",
-    sha256 = _PINS["archives"]["gmp_license"]["sha256"],
-    url = _PINS["archives"]["gmp_license"]["urls"][0],
-)
-
 GLIBC_FLOOR = "2.28"
 
 RUNTIME_MIRROR = "https://snapshot.debian.org/archive"
@@ -100,7 +94,7 @@ CELLS = {
         ghc = _archive("ghc__macos_arm64"),
         cabal = _archive("cabal__macos_arm64"),
         runtime = [],
-        gmp_license = _GMP_LICENSE,
+        gmp_license = True,
     ),
     "windows_x86_64": struct(
         blocker = "",
@@ -115,7 +109,7 @@ CELLS = {
         ghc = _archive("ghc__windows_x86_64"),
         cabal = _archive("cabal__windows_x86_64"),
         runtime = [],
-        gmp_license = _GMP_LICENSE,
+        gmp_license = True,
         mingw_cc = True,
     ),
 }
@@ -165,7 +159,7 @@ def _musl_cell(cell, glibc, arch):
             "libgmp.so": "libgmp.so.10",
             "libstdc++.so": "libstdc++.so.6",
         },
-        gmp_license = _GMP_LICENSE,
+        gmp_license = True,
     )
 
 MUSL_CELLS = {

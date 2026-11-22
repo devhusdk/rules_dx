@@ -10,6 +10,8 @@ const CONTEXT: u64 = 2;
 const DOWNLOAD: u64 = 4;
 /// The `WorkspaceEvent` field of a `DownloadAndExtractEvent`.
 const DOWNLOAD_AND_EXTRACT: u64 = 5;
+/// What Bazel puts before the canonical repository name in a repository rule's context.
+const REPOSITORY: &str = "repository @@";
 
 struct Reader<'a> {
     bytes: &'a [u8],
@@ -129,6 +131,56 @@ pub fn contexts(log: &[u8]) -> Vec<String> {
     found.into_iter().collect()
 }
 
+/// The repositories whose rule ran during one or more logged commands, and which of them downloaded.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Fetches {
+    /// Canonical names of the repositories whose rule ran.
+    pub ran: BTreeSet<String>,
+    /// Canonical names of the repositories whose rule called `download` or `download_and_extract`.
+    pub downloaded: BTreeSet<String>,
+}
+
+impl Fetches {
+    /// Adds the repository rules of a delimited `WorkspaceEvent` log; other contexts are skipped.
+    pub fn add(&mut self, log: &[u8]) {
+        let mut reader = Reader { bytes: log };
+        while !reader.bytes.is_empty() {
+            let Some(len) = reader.varint() else { break };
+            let Some(event) = reader.take(len) else { break };
+            let mut fields = Reader { bytes: event };
+            let mut repo = None;
+            let mut downloads = false;
+            while !fields.bytes.is_empty() {
+                let Some((number, payload)) = fields.field() else {
+                    break;
+                };
+                match number {
+                    CONTEXT => {
+                        repo = String::from_utf8_lossy(payload)
+                            .strip_prefix(REPOSITORY)
+                            .map(str::to_owned);
+                    }
+                    DOWNLOAD | DOWNLOAD_AND_EXTRACT => downloads = true,
+                    _ => {}
+                }
+            }
+            if let Some(repo) = repo {
+                if downloads {
+                    self.downloaded.insert(repo.clone());
+                }
+                self.ran.insert(repo);
+            }
+        }
+    }
+
+    /// Whether `repo` was made by its own rule without a download. A repository that came from a
+    /// cache ran no rule, so it does not count: its rule may well download.
+    #[must_use]
+    pub fn download_free(&self, repo: &str) -> bool {
+        self.ran.contains(repo) && !self.downloaded.contains(repo)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,6 +256,36 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].0, "https://a/x");
         assert_eq!(found[0].1.len(), 64);
+    }
+
+    #[test]
+    fn tells_download_free_repositories_from_downloading_and_cached_ones() {
+        let with = |context: &[u8], number: u8| {
+            let mut inner = field(1, b"location");
+            inner.extend(field(2, context));
+            inner.extend(field(number, &field(1, b"file:///x")));
+            let mut out = vec![u8::try_from(inner.len()).expect("short")];
+            out.extend(inner);
+            out
+        };
+        let mut log = with(b"repository @@+ext+hub", 8);
+        log.extend(with(b"repository @@+ext+dl", 4));
+        log.extend(with(b"repository @@+ext+dl", 8));
+        log.extend(with(b"repository @@rules_x+", 5));
+        log.extend(with(b"@@other//:r", 4));
+        let mut fetches = Fetches::default();
+        fetches.add(&log);
+        assert_eq!(
+            fetches.ran.iter().collect::<Vec<_>>(),
+            ["+ext+dl", "+ext+hub", "rules_x+"]
+        );
+        assert_eq!(
+            fetches.downloaded.iter().collect::<Vec<_>>(),
+            ["+ext+dl", "rules_x+"]
+        );
+        assert!(fetches.download_free("+ext+hub"));
+        assert!(!fetches.download_free("+ext+dl"));
+        assert!(!fetches.download_free("cached+"));
     }
 
     #[test]

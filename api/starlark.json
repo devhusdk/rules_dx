@@ -541,7 +541,34 @@
   {
     "aspects": [],
     "extensions": [],
-    "functions": [],
+    "functions": [
+      {
+        "forwards": [],
+        "name": "api_spec_protobuf_doc_shard",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "proto"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "package"
+          },
+          {
+            "default": "",
+            "mandatory": false,
+            "name": "kwargs"
+          }
+        ]
+      }
+    ],
     "load": "@rules_dx//api_spec:defs.bzl",
     "macros": [],
     "providers": [
@@ -1271,7 +1298,7 @@
             "name": "tags"
           },
           {
-            "default": "False",
+            "default": "None",
             "mandatory": false,
             "name": "testonly"
           },
@@ -2568,6 +2595,51 @@
         ]
       },
       {
+        "name": "dx_generated_policy",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "tier"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "families"
+          },
+          {
+            "default": "True",
+            "mandatory": false,
+            "name": "defaults"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "disabled"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "configs"
+          },
+          {
+            "default": "{}",
+            "mandatory": false,
+            "name": "bases"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "visibility"
+          }
+        ]
+      },
+      {
         "forwards": [],
         "name": "lua_doc_shard",
         "params": [
@@ -2606,32 +2678,6 @@
             "default": "",
             "mandatory": true,
             "name": "lib"
-          },
-          {
-            "default": "\"\"",
-            "mandatory": false,
-            "name": "package"
-          },
-          {
-            "default": "",
-            "mandatory": false,
-            "name": "kwargs"
-          }
-        ]
-      },
-      {
-        "forwards": [],
-        "name": "protobuf_doc_shard",
-        "params": [
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "name"
-          },
-          {
-            "default": "",
-            "mandatory": true,
-            "name": "proto"
           },
           {
             "default": "\"\"",
@@ -5887,6 +5933,7 @@
             "attrs": [
               "check",
               "hdrs",
+              "host_compiler",
               "srcs",
               "target_compatible_with",
               "upstream",
@@ -6589,7 +6636,7 @@
           },
           {
             "attrs": [
-              "package_name",
+              "package",
               "srcs",
               "tags",
               "target_compatible_with",
@@ -6740,8 +6787,8 @@
             "type": "LABEL_LIST"
           },
           {
-            "default": "None",
-            "mandatory": false,
+            "default": "",
+            "mandatory": true,
             "name": "generator",
             "type": "LABEL"
           },
@@ -6750,18 +6797,6 @@
             "mandatory": false,
             "name": "generator_args",
             "type": "STRING_LIST"
-          },
-          {
-            "default": "None",
-            "mandatory": false,
-            "name": "generator_bin",
-            "type": "LABEL"
-          },
-          {
-            "default": "\"\"",
-            "mandatory": false,
-            "name": "language_version",
-            "type": "STRING"
           },
           {
             "default": "",
@@ -6786,12 +6821,6 @@
             "mandatory": false,
             "name": "package_config",
             "type": "LABEL"
-          },
-          {
-            "default": "\"\"",
-            "mandatory": false,
-            "name": "package_name",
-            "type": "STRING"
           },
           {
             "default": "[]",
@@ -6871,6 +6900,79 @@
         "executable": false,
         "name": "dart_doc_shard",
         "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "build_hook",
+            "type": "LABEL"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "code_assets",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "data_assets",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "language_version",
+            "type": "STRING"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "license_file",
+            "type": "LABEL"
+          },
+          {
+            "default": "None",
+            "mandatory": false,
+            "name": "link_hook",
+            "type": "LABEL"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "link_hook_assets",
+            "type": "STRING_LIST"
+          },
+          {
+            "default": "[]",
+            "mandatory": false,
+            "name": "linked_code_assets",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "package_name",
+            "type": "STRING"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "version",
+            "type": "STRING"
+          }
+        ],
+        "executable": false,
+        "name": "dart_package_metadata",
+        "test": false
       }
     ]
   },
@@ -6883,10 +6985,33 @@
           {
             "attrs": [
               {
+                "default": "",
+                "mandatory": true,
+                "name": "packages",
+                "type": "STRING_LIST"
+              }
+            ],
+            "name": "cycle"
+          },
+          {
+            "attrs": [
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "build_from_pubspec",
+                "type": "STRING_LIST"
+              },
+              {
                 "default": "[]",
                 "mandatory": false,
                 "name": "ignore_hooks",
                 "type": "STRING_LIST"
+              },
+              {
+                "default": "{}",
+                "mandatory": false,
+                "name": "ignored",
+                "type": "STRING_DICT"
               },
               {
                 "default": "",
@@ -6901,10 +7026,10 @@
                 "type": "NAME"
               },
               {
-                "default": "\"error\"",
+                "default": "{}",
                 "mandatory": false,
-                "name": "on_version_conflict",
-                "type": "STRING"
+                "name": "resolve",
+                "type": "LABEL_DICT_UNARY"
               }
             ],
             "name": "from_lock"
@@ -6912,10 +7037,10 @@
           {
             "attrs": [
               {
-                "default": "[]",
+                "default": "False",
                 "mandatory": false,
-                "name": "deps",
-                "type": "STRING_LIST"
+                "name": "ignore_hook",
+                "type": "BOOLEAN"
               },
               {
                 "default": "",
@@ -6937,6 +7062,17 @@
               }
             ],
             "name": "package"
+          },
+          {
+            "attrs": [
+              {
+                "default": "\"warning\"",
+                "mandatory": false,
+                "name": "check_direct_dependencies",
+                "type": "STRING"
+              }
+            ],
+            "name": "settings"
           }
         ]
       }
@@ -10206,7 +10342,7 @@
           {
             "default": "",
             "mandatory": true,
-            "name": "package_name"
+            "name": "application_id"
           },
           {
             "default": "\"arm64\"",
@@ -10295,7 +10431,7 @@
           },
           {
             "attrs": [
-              "package_name",
+              "package",
               "srcs",
               "tags",
               "target_compatible_with",
@@ -10369,14 +10505,9 @@
             "name": "name"
           },
           {
-            "default": "None",
-            "mandatory": false,
-            "name": "srcs"
-          },
-          {
-            "default": "None",
-            "mandatory": false,
-            "name": "main"
+            "default": "",
+            "mandatory": true,
+            "name": "application"
           },
           {
             "default": "None",
@@ -10401,6 +10532,11 @@
           },
           {
             "default": "",
+            "mandatory": true,
+            "name": "application"
+          },
+          {
+            "default": "",
             "mandatory": false,
             "name": "kwargs"
           }
@@ -10412,6 +10548,68 @@
     "providers": [],
     "repository_rules": [],
     "rules": [
+      {
+        "attrs": [
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "asset",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "src",
+            "type": "LABEL"
+          },
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "style",
+            "type": "STRING"
+          },
+          {
+            "default": "0",
+            "mandatory": false,
+            "name": "weight",
+            "type": "INT"
+          }
+        ],
+        "executable": false,
+        "name": "flutter_font",
+        "test": false
+      },
+      {
+        "attrs": [
+          {
+            "default": "\"\"",
+            "mandatory": false,
+            "name": "family",
+            "type": "STRING"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "fonts",
+            "type": "LABEL_LIST"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "name",
+            "type": "NAME"
+          }
+        ],
+        "executable": false,
+        "name": "flutter_font_family",
+        "test": false
+      },
       {
         "attrs": [
           {
@@ -10514,43 +10712,33 @@
           {
             "attrs": [
               {
-                "default": "[]",
+                "default": "False",
                 "mandatory": false,
-                "name": "roots",
-                "type": "LABEL_LIST"
-              }
-            ],
-            "name": "plugin_overlays"
-          },
-          {
-            "attrs": [
-              {
-                "default": "[]",
-                "mandatory": false,
-                "name": "ignore_hooks",
-                "type": "STRING_LIST"
+                "name": "allow_upgrade_by_dependencies",
+                "type": "BOOLEAN"
               },
               {
-                "default": "",
-                "mandatory": true,
-                "name": "lock",
+                "default": "None",
+                "mandatory": false,
+                "name": "engine",
                 "type": "LABEL"
               },
               {
-                "default": "",
-                "mandatory": true,
-                "name": "name",
-                "type": "NAME"
-              }
-            ],
-            "name": "pub"
-          },
-          {
-            "attrs": [
-              {
-                "default": "",
-                "mandatory": true,
+                "default": "\"\"",
+                "mandatory": false,
                 "name": "flutter_version",
+                "type": "STRING"
+              },
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "framework",
+                "type": "LABEL"
+              },
+              {
+                "default": "\"\"",
+                "mandatory": false,
+                "name": "material_fonts_sha256",
                 "type": "STRING"
               },
               {
@@ -10570,16 +10758,50 @@
           {
             "attrs": [
               {
-                "default": "\"\"",
+                "default": "[]",
                 "mandatory": false,
-                "name": "flutter_version",
+                "name": "android_deps",
+                "type": "LABEL_LIST"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "package",
                 "type": "STRING"
+              }
+            ],
+            "name": "annotation"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "packages",
+                "type": "STRING_LIST"
+              }
+            ],
+            "name": "cycle"
+          },
+          {
+            "attrs": [
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "build_from_pubspec",
+                "type": "STRING_LIST"
               },
               {
                 "default": "[]",
                 "mandatory": false,
                 "name": "ignore_hooks",
                 "type": "STRING_LIST"
+              },
+              {
+                "default": "{}",
+                "mandatory": false,
+                "name": "ignored",
+                "type": "STRING_DICT"
               },
               {
                 "default": "",
@@ -10592,9 +10814,43 @@
                 "mandatory": true,
                 "name": "name",
                 "type": "NAME"
+              },
+              {
+                "default": "{}",
+                "mandatory": false,
+                "name": "resolve",
+                "type": "LABEL_DICT_UNARY"
+              },
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "swift_package_resolved",
+                "type": "LABEL"
               }
             ],
-            "name": "lock"
+            "name": "from_lock"
+          },
+          {
+            "attrs": [
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "roots",
+                "type": "LABEL_LIST"
+              }
+            ],
+            "name": "plugin_overlays"
+          },
+          {
+            "attrs": [
+              {
+                "default": "\"warning\"",
+                "mandatory": false,
+                "name": "check_direct_dependencies",
+                "type": "STRING"
+              }
+            ],
+            "name": "settings"
           }
         ]
       }
@@ -14102,9 +14358,18 @@
           {
             "attrs": [
               "srcs",
+              "upstream",
               "visibility"
             ],
-            "kind": "_lua_library"
+            "kind": "_lua_library_forward"
+          },
+          {
+            "attrs": [
+              "srcs",
+              "tags",
+              "visibility"
+            ],
+            "kind": "lua_library"
           }
         ],
         "name": "lua_library",
@@ -14151,7 +14416,7 @@
               "tags",
               "visibility"
             ],
-            "kind": "_lua_test"
+            "kind": "lua_test"
           }
         ],
         "name": "lua_test",
@@ -15053,6 +15318,13 @@
               "visibility"
             ],
             "kind": "perl_library"
+          },
+          {
+            "attrs": [
+              "tags",
+              "visibility"
+            ],
+            "kind": "perl_pod_dep"
           }
         ],
         "name": "perl_library",
@@ -15092,6 +15364,13 @@
               "upstream"
             ],
             "kind": "_perl_forward_test"
+          },
+          {
+            "attrs": [
+              "tags",
+              "visibility"
+            ],
+            "kind": "perl_pod_dep"
           },
           {
             "attrs": [
@@ -15379,6 +15658,15 @@
       },
       {
         "name": "php",
+        "tag_classes": [
+          {
+            "attrs": [],
+            "name": "from_source"
+          }
+        ]
+      },
+      {
+        "name": "php_coverage",
         "tag_classes": []
       }
     ],
@@ -15867,40 +16155,6 @@
         ]
       },
       {
-        "name": "sdist_cargo_vendor",
-        "tag_classes": [
-          {
-            "attrs": [
-              {
-                "default": "\"Cargo.lock\"",
-                "mandatory": false,
-                "name": "cargo_lock_path",
-                "type": "STRING"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "lock",
-                "type": "LABEL"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "name",
-                "type": "NAME"
-              },
-              {
-                "default": "",
-                "mandatory": true,
-                "name": "package",
-                "type": "STRING"
-              }
-            ],
-            "name": "crates"
-          }
-        ]
-      },
-      {
         "name": "uv",
         "tag_classes": [
           {
@@ -16303,7 +16557,86 @@
         ]
       },
       {
-        "forwards": [],
+        "forwards": [
+          {
+            "attrs": [
+              "deps",
+              "fonts",
+              "hdrs",
+              "moc_hdrs",
+              "platform_plugins",
+              "platforms",
+              "plugins",
+              "size",
+              "srcs",
+              "target_compatible_with",
+              "testonly",
+              "upstream"
+            ],
+            "kind": "_qt_forward_test"
+          },
+          {
+            "attrs": [
+              "copts",
+              "deps",
+              "linkopts",
+              "linkstatic",
+              "size",
+              "srcs",
+              "tags",
+              "target_compatible_with",
+              "visibility"
+            ],
+            "kind": "cc_test"
+          },
+          {
+            "attrs": [
+              "output_group",
+              "srcs",
+              "tags",
+              "testonly",
+              "visibility"
+            ],
+            "kind": "filegroup"
+          },
+          {
+            "attrs": [
+              "deps",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "visibility"
+            ],
+            "kind": "qt_frameworks"
+          },
+          {
+            "attrs": [
+              "base",
+              "copts",
+              "defines",
+              "deps",
+              "forms",
+              "hdrs",
+              "metatypes",
+              "moc",
+              "moc_hdrs",
+              "qml_depends",
+              "qml_srcs",
+              "rcc",
+              "resource_prefix",
+              "resources",
+              "tags",
+              "target_compatible_with",
+              "testonly",
+              "translations",
+              "uic",
+              "uri",
+              "version",
+              "visibility"
+            ],
+            "kind": "qt_generate"
+          }
+        ],
         "name": "qt_cc_test",
         "params": [
           {
@@ -16745,6 +17078,23 @@
               }
             ],
             "name": "configure"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "notice",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "runtime",
+                "type": "LABEL"
+              }
+            ],
+            "name": "msvc_runtime"
           }
         ]
       }
@@ -18900,6 +19250,39 @@
       }
     ],
     "load": "@rules_dx//scala:defs.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "scala_config",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "\"2.13.18\"",
+                "mandatory": false,
+                "name": "scala_version",
+                "type": "STRING"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "scala_versions",
+                "type": "STRING_LIST"
+              }
+            ],
+            "name": "settings"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//scala:extensions.bzl",
     "macros": [],
     "providers": [],
     "repository_rules": [],

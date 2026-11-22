@@ -779,7 +779,8 @@ index 2e10f82..4f1f750 100644
      libdir = ctx.files.libdir
 @@ -409,7 +390,6 @@ def _haskell_toolchain_impl(ctx):
      ctx.actions.run_shell(
-         inputs = [ghc_pkg],
+-        inputs = [ghc_pkg],
++        inputs = ctx.files.tools + ctx.files.libdir,
          outputs = [pkgdb_file],
 -        tools = ctx.files.tools if ctx.attr.asterius_binaries else [],
          mnemonic = "HaskellPackageDatabaseDump",
@@ -809,7 +810,7 @@ index 2e10f82..4f1f750 100644
 +        path_for_run_ghc = default_tools_config.path_for_run_ghc,
 +        tools_for_ghc = default_tools_config.tools_for_ghc,
 +        path_for_cabal = default_tools_config.path_for_cabal,
-+        tools_for_ghc_pkg = [
++        tools_for_ghc_pkg = ctx.files.tools + [
 +            f
 +            for f in libdir
 +            if f.extension == "so" or f.extension == "dylib" or ".so." in f.basename or f.dirname.endswith("/package.conf.d") or f.basename == "settings"

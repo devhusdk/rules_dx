@@ -7,6 +7,8 @@ HUB_NAME = "dx_ocaml_toolchains"
 
 VERSION_FILE = "DX_OCAML_VERSION"
 
+EXEC_TOOLCHAIN_TYPE = str(Label("//ocaml/private/toolchain:exec_toolchain_type"))
+
 EMITTERS = {
     "sys": struct(
         exec_compatible_with = [str(Label("//ocaml/private/toolchain/platform/emitter:sys"))],
@@ -172,12 +174,14 @@ def hub_build():
         pins_hub(
             HUB_NAME,
             OCAML_CELLS.keys(),
-            str(Label("//ocaml/private/toolchain/type:std")),
+            str(Label("//ocaml:toolchain_type")),
             "both",
             aliases,
             variants = EMITTERS,
-            companion_types = {"profile": str(Label("//ocaml/private/toolchain/type:profile"))},
+            companion_types = {"profile": str(Label("//ocaml:profile_toolchain_type"))},
             alias_defaults = {alias: ":none" for alias in EMPTY_DEFAULT_ALIASES},
+            exec_toolchain_type = EXEC_TOOLCHAIN_TYPE,
+            target = "vm",
         ),
         _NONE,
     ])

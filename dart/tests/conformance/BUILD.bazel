@@ -1,7 +1,22 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//dart:defs.bzl", "dart_binary", "dart_library", "dart_test")
+load("//dart:defs.bzl", "dart_binary", "dart_library", "dart_package_metadata", "dart_test")
 load("//dart/private:defs.bzl", "DART_COMPATIBLE_WITH")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+dart_package_metadata(
+    name = "conformance-metadata",
+    package_name = "conformance",
+)
+
+dart_package_metadata(
+    name = "conformance_lint_dirty-metadata",
+    package_name = "conformance_lint_dirty",
+)
+
+dart_package_metadata(
+    name = "conformance_format_dirty-metadata",
+    package_name = "conformance_format_dirty",
+)
 
 package(
     default_testonly = True,
@@ -10,20 +25,20 @@ package(
 
 dart_library(
     name = "conformance",
-    package_name = "conformance",
+    package = ":conformance-metadata",
     srcs = ["lib/greet.dart"],
 )
 
 dart_library(
     name = "lint_dirty",
-    package_name = "conformance_lint_dirty",
+    package = ":conformance_lint_dirty-metadata",
     srcs = ["lib/lint_dirty.dart"],
     tags = ["manual"],
 )
 
 dart_library(
     name = "format_dirty",
-    package_name = "conformance_format_dirty",
+    package = ":conformance_format_dirty-metadata",
     srcs = ["lib/format_dirty.dart"],
     tags = ["manual"],
 )

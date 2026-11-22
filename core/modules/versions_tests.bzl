@@ -2,11 +2,12 @@
 
 load("@dx_pins_data//:pins.bzl", _ARCHIVES = "ARCHIVES", _DATA = "DATA", _PINS = "PINS")
 load("@rules_julia//julia/private:versions.bzl", _RULES_JULIA_DEFAULT_VERSION = "JULIA_DEFAULT_VERSION")
-load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
+load("@rules_zig//zig/private:versions.bzl", _RULES_ZIG_TOOL_VERSIONS = "TOOL_VERSIONS")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_false", "starlark_test")
 load(":cuda.bzl", _CUDA_CELLS = "CUDA_CELLS", _CUDA_MAX_HOST_CLANG_MAJOR = "CUDA_MAX_HOST_CLANG_MAJOR", _CUDA_REDIST_SHA256 = "CUDA_REDIST_SHA256", _CUDA_REDIST_URL = "CUDA_REDIST_URL", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION")
 load(":python.bzl", _MOD_PYTHON_VERSION = "PYTHON_VERSION")
 load(":rust.bzl", _CRATE_BAZEL_LOCK = "CRATE_BAZEL_LOCK", _CRATE_CARGO_LOCK = "CRATE_CARGO_LOCK", _MOD_RUST_VERSION = "RUST_VERSION")
-load(":versions.bzl", _APPLE_SUPPORT_VERSION = "TESTED_APPLE_SUPPORT", _ASPECT_RULES_JEST_VERSION = "ASPECT_RULES_JEST_VERSION", _ASPECT_RULES_JS_VERSION = "ASPECT_RULES_JS_VERSION", _ASPECT_RULES_TS_VERSION = "ASPECT_RULES_TS_VERSION", _AVRO_CPP_VERSION = "AVRO_CPP_VERSION", _BAZEL_LIB_VERSION = "BAZEL_LIB_VERSION", _BAZEL_SKYLIB_VERSION = "BAZEL_SKYLIB_VERSION", _CUDA_VERSION = "CUDA_VERSION", _DART_SDK_VERSION = "DART_SDK_VERSION", _DOTNET_VERSION = "DOTNET_VERSION", _FLUTTER_SDK_VERSION = "FLUTTER_SDK_VERSION", _FMT_VERSION = "FMT_VERSION", _GAZELLE_VERSION = "GAZELLE_VERSION", _GOOGLETEST_VERSION = "GOOGLETEST_VERSION", _GO_LANGUAGE_FLOOR = "GO_LANGUAGE_FLOOR", _GO_SDK_SDKS = "GO_SDK_SDKS", _GO_SDK_VERSION = "GO_SDK_VERSION", _JAVA_RUNTIME_VERSION = "JAVA_RUNTIME_VERSION", _JULIA_VERSION = "JULIA_VERSION", _JVM_TOOL_VERSIONS = "JVM_TOOL_VERSIONS", _LLVM_VERSION = "LLVM_VERSION", _LUA_VERSION = "LUA_VERSION", _NPM_DEV_HUBS = "NPM_DEV_HUBS", _NPM_HUBS = "NPM_HUBS", _NPM_LOCKS = "NPM_LOCKS", _PLATFORMS_VERSION = "PLATFORMS_VERSION", _PNPM_VERSION = "PNPM_VERSION", _PROTOBUF_VERSION = "TESTED_PROTOBUF", _PYTHON_VERSION = "PYTHON_VERSION", _RUBY_VERSION = "RUBY_VERSION", _RULES_ANDROID_VERSION = "RULES_ANDROID_VERSION", _RULES_APPLE_VERSION = "TESTED_RULES_APPLE", _RULES_CC_VERSION = "RULES_CC_VERSION", _RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _RULES_DART_VERSION = "RULES_DART_VERSION", _RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION", _RULES_GO_VERSION = "TESTED_RULES_GO", _RULES_JAVA_VERSION = "RULES_JAVA_VERSION", _RULES_JULIA_VERSION = "RULES_JULIA_VERSION", _RULES_JVM_EXTERNAL_VERSION = "TESTED_RULES_JVM_EXTERNAL", _RULES_KOTLIN_VERSION = "TESTED_RULES_KOTLIN", _RULES_NODEJS_VERSION = "RULES_NODEJS_VERSION", _RULES_PERL_VERSION = "RULES_PERL_VERSION", _RULES_PROTO_VERSION = "RULES_PROTO_VERSION", _RULES_PYTHON_VERSION = "RULES_PYTHON_VERSION", _RULES_PY_VERSION = "RULES_PY_VERSION", _RULES_RUST_VERSION = "RULES_RUST_VERSION", _RULES_RUST_WASM_BINDGEN_VERSION = "RULES_RUST_WASM_BINDGEN_VERSION", _RULES_SCALA_VERSION = "TESTED_RULES_SCALA", _RULES_SHELL_VERSION = "RULES_SHELL_VERSION", _RULES_SWIFT_VERSION = "RULES_SWIFT_VERSION", _RULES_ZIG_VERSION = "RULES_ZIG_VERSION", _RUSTFMT_VERSION = "RUSTFMT_VERSION", _RUST_EDITION = "RUST_EDITION", _RUST_VERSION = "RUST_VERSION", _SCALA_VERSION = "SCALA_VERSION", _SWIFT_VERSION = "SWIFT_VERSION", _TYPEDOC_VERSION = "TYPEDOC_VERSION", _TYPESCRIPT_API_VERSION = "TYPESCRIPT_API_VERSION", _TYPESCRIPT_INTEGRITY = "TYPESCRIPT_INTEGRITY", _TYPESCRIPT_VERSION = "TYPESCRIPT_VERSION", _VUE_COMPONENT_META_VERSION = "VUE_COMPONENT_META_VERSION", _ZIG_VERSION = "ZIG_VERSION")
+load(":versions.bzl", _APPLE_SUPPORT_VERSION = "TESTED_APPLE_SUPPORT", _ASPECT_RULES_JEST_VERSION = "ASPECT_RULES_JEST_VERSION", _ASPECT_RULES_JS_VERSION = "ASPECT_RULES_JS_VERSION", _ASPECT_RULES_TS_VERSION = "ASPECT_RULES_TS_VERSION", _AVRO_CPP_VERSION = "AVRO_CPP_VERSION", _BAZEL_LIB_VERSION = "BAZEL_LIB_VERSION", _BAZEL_SKYLIB_VERSION = "BAZEL_SKYLIB_VERSION", _BAZEL_WORKER_API_VERSION = "TESTED_BAZEL_WORKER_API", _CUDA_VERSION = "CUDA_VERSION", _DART_SDK_VERSION = "DART_SDK_VERSION", _DOTNET_VERSION = "DOTNET_VERSION", _FLUTTER_SDK_VERSION = "FLUTTER_SDK_VERSION", _FMT_VERSION = "FMT_VERSION", _GAZELLE_VERSION = "GAZELLE_VERSION", _GOOGLETEST_VERSION = "GOOGLETEST_VERSION", _GO_LANGUAGE_FLOOR = "GO_LANGUAGE_FLOOR", _GO_SDK_SDKS = "GO_SDK_SDKS", _GO_SDK_VERSION = "GO_SDK_VERSION", _JAVA_RUNTIME_VERSION = "JAVA_RUNTIME_VERSION", _JULIA_VERSION = "JULIA_VERSION", _JVM_TOOL_VERSIONS = "JVM_TOOL_VERSIONS", _LLVM_VERSION = "LLVM_VERSION", _LUA_VERSION = "LUA_VERSION", _NPM_DEV_HUBS = "NPM_DEV_HUBS", _NPM_HUBS = "NPM_HUBS", _NPM_LOCKS = "NPM_LOCKS", _PLATFORMS_VERSION = "PLATFORMS_VERSION", _PNPM_VERSION = "PNPM_VERSION", _PROTOBUF_VERSION = "TESTED_PROTOBUF", _PYTHON_VERSION = "PYTHON_VERSION", _RUBY_VERSION = "RUBY_VERSION", _RULES_ANDROID_VERSION = "RULES_ANDROID_VERSION", _RULES_APPLE_VERSION = "TESTED_RULES_APPLE", _RULES_CC_VERSION = "RULES_CC_VERSION", _RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _RULES_DART_VERSION = "RULES_DART_VERSION", _RULES_DOTNET_VERSION = "RULES_DOTNET_VERSION", _RULES_FLUTTER_VERSION = "RULES_FLUTTER_VERSION", _RULES_GO_VERSION = "TESTED_RULES_GO", _RULES_JAVA_VERSION = "RULES_JAVA_VERSION", _RULES_JULIA_VERSION = "RULES_JULIA_VERSION", _RULES_JVM_EXTERNAL_VERSION = "TESTED_RULES_JVM_EXTERNAL", _RULES_KOTLIN_VERSION = "TESTED_RULES_KOTLIN", _RULES_NODEJS_VERSION = "RULES_NODEJS_VERSION", _RULES_PERL_VERSION = "RULES_PERL_VERSION", _RULES_PROTO_VERSION = "RULES_PROTO_VERSION", _RULES_PYTHON_VERSION = "RULES_PYTHON_VERSION", _RULES_PY_VERSION = "RULES_PY_VERSION", _RULES_RUST_VERSION = "RULES_RUST_VERSION", _RULES_RUST_WASM_BINDGEN_VERSION = "RULES_RUST_WASM_BINDGEN_VERSION", _RULES_SCALA_VERSION = "TESTED_RULES_SCALA", _RULES_SHELL_VERSION = "RULES_SHELL_VERSION", _RULES_SWIFT_VERSION = "RULES_SWIFT_VERSION", _RULES_ZIG_VERSION = "RULES_ZIG_VERSION", _RUSTFMT_VERSION = "RUSTFMT_VERSION", _RUST_EDITION = "RUST_EDITION", _RUST_VERSION = "RUST_VERSION", _SCALA_VERSION = "SCALA_VERSION", _SWIFT_VERSION = "SWIFT_VERSION", _TYPEDOC_VERSION = "TYPEDOC_VERSION", _TYPESCRIPT_API_VERSION = "TYPESCRIPT_API_VERSION", _TYPESCRIPT_INTEGRITY = "TYPESCRIPT_INTEGRITY", _TYPESCRIPT_VERSION = "TYPESCRIPT_VERSION", _VUE_COMPONENT_META_VERSION = "VUE_COMPONENT_META_VERSION", _ZIG_VERSION = "ZIG_VERSION")
 
 visibility("private")
 
@@ -39,13 +40,11 @@ def versions_contract_tests(name):
         mode = "execution",
         checks = [
             expect_equal("python module follows canonical", _MOD_PYTHON_VERSION, _PYTHON_VERSION),
-            expect_equal("dart archive url follows canonical", _ARCHIVES["dx_rules_dart_pub"]["urls"][0], "https://github.com/aran/rules_dart/releases/download/v" + _RULES_DART_VERSION + "/rules_dart-v" + _RULES_DART_VERSION + ".tar.gz"),
-            expect_equal("dart archive strip prefix follows canonical", _ARCHIVES["dx_rules_dart_pub"]["strip_prefix"], "rules_dart-" + _RULES_DART_VERSION),
             expect_equal("dotnet archive url follows canonical", _ARCHIVES["rules_dotnet"]["urls"][0], "https://github.com/bazel-contrib/rules_dotnet/releases/download/v" + _RULES_DOTNET_VERSION + "/rules_dotnet-v" + _RULES_DOTNET_VERSION + ".tar.gz"),
             expect_equal("dotnet archive strip prefix follows canonical", _ARCHIVES["rules_dotnet"]["strip_prefix"], "rules_dotnet-" + _RULES_DOTNET_VERSION),
-            expect_equal("dart pins.json follows canonical", _ARCHIVES["dx_rules_dart_pub"]["version"], _RULES_DART_VERSION),
             expect_equal("dotnet pins.json follows canonical", _ARCHIVES["rules_dotnet"]["version"], _RULES_DOTNET_VERSION),
             expect_equal("rules_julia default toolchain follows canonical", _RULES_JULIA_DEFAULT_VERSION, _JULIA_VERSION),
+            expect_false("rules_zig lacks the pinned Zig while //zig/private:sdk_versions.json supplies it; once it lists it, delete that file and its zig.index line and flip this to expect_true (#13964)", _ZIG_VERSION in _RULES_ZIG_TOOL_VERSIONS),
             expect_equal("cuda pins.json follows canonical", _DATA["dx_cuda"]["version"], _CUDA_REDIST_VERSION),
             expect_equal("rust module follows canonical", _MOD_RUST_VERSION, _RUST_VERSION),
             expect_equal("cuda module follows canonical", _MOD_CUDA_VERSION, _CUDA_VERSION),
@@ -79,6 +78,9 @@ def versions_contract_tests(name):
             "//third_party/dotnet:paket.lock": "Google.Protobuf (3." + _PROTOBUF_VERSION + ")",
             "//third_party/go:go.mod": "go " + _GO_LANGUAGE_FLOOR,
             "//third_party/jvm:scalafix/libs.versions.toml": "module = \"ch.epfl.scala:scalafix-cli_2.13." + _SCALA_VERSION.split(".")[2] + "\", version = \"" + _JVM_TOOL_VERSIONS["scalafix"] + "\"",
+            "//cuda:pins.json": "/download/v" + _RULES_CUDA_VERSION + "/rules_cuda-v" + _RULES_CUDA_VERSION + ".tar.gz",
+            "//scala:pins.json": "/download/v" + _RULES_SCALA_VERSION + "/rules_scala-v" + _RULES_SCALA_VERSION + ".tar.gz",
+            "//scala/private/toolchain:config_extension.bzl": "SCALA_VERSION = \"" + _SCALA_VERSION + "\"",
             "//julia:pins.json": "/download/" + _RULES_JULIA_VERSION + "/rules_julia-" + _RULES_JULIA_VERSION + ".tar.gz",
             "//:MODULE.bazel": "name = \"rules_rust\", version = \"" + _RULES_RUST_VERSION + "\"\n" +
                                "name = \"rules_rust_wasm_bindgen\", version = \"" + _RULES_RUST_WASM_BINDGEN_VERSION + "\"\n" +
@@ -86,7 +88,6 @@ def versions_contract_tests(name):
                                "name = \"rules_android\", version = \"" + _RULES_ANDROID_VERSION + "\"\n" +
                                "name = \"rules_cc\", version = \"" + _RULES_CC_VERSION + "\"\n" +
                                "name = \"llvm\", version = \"" + _LLVM_VERSION + "\"\n" +
-                               "name = \"rules_cuda\", version = \"" + _RULES_CUDA_VERSION + "\"\n" +
                                "name = \"googletest\", version = \"" + _GOOGLETEST_VERSION + "\"\n" +
                                "name = \"rules_python\", version = \"" + _RULES_PYTHON_VERSION + "\"\n" +
                                "name = \"rules_go\", version = \"" + _RULES_GO_VERSION + "\"\n" +
@@ -99,12 +100,13 @@ def versions_contract_tests(name):
                                "name = \"rules_proto\", version = \"" + _RULES_PROTO_VERSION + "\"\n" +
                                "name = \"rules_java\", version = \"" + _RULES_JAVA_VERSION + "\"\n" +
                                "name = \"rules_kotlin\", version = \"" + _RULES_KOTLIN_VERSION + "\"\n" +
-                               "name = \"rules_scala\", version = \"" + _RULES_SCALA_VERSION + "\"\n" +
+                               "name = \"bazel_worker_api\", version = \"" + _BAZEL_WORKER_API_VERSION + "\"\n" +
                                "name = \"bazel_lib\", version = \"" + _BAZEL_LIB_VERSION + "\"\n" +
                                "name = \"rules_jvm_external\", version = \"" + _RULES_JVM_EXTERNAL_VERSION + "\"\n" +
                                "name = \"rules_zig\", version = \"" + _RULES_ZIG_VERSION + "\"\n" +
                                "name = \"rules_swift\", version = \"" + _RULES_SWIFT_VERSION + "\"\n" +
                                "name = \"rules_dart\", version = \"" + _RULES_DART_VERSION + "\"\n" +
+                               "name = \"rules_flutter\", version = \"" + _RULES_FLUTTER_VERSION + "\"\n" +
                                "dart.toolchain(dart_version = \"" + _DART_SDK_VERSION + "\")\n" +
                                "flutter.toolchain(flutter_version = \"" + _FLUTTER_SDK_VERSION + "\")\n" +
                                "zig.toolchain(zig_version = \"" + _ZIG_VERSION + "\")\n" +
@@ -124,7 +126,6 @@ def versions_contract_tests(name):
                                _TYPESCRIPT_INTEGRITY + "\n" +
                                "python_version = \"" + _PYTHON_VERSION + "\"\n" +
                                "versions = [\"" + _RUST_VERSION + "\"]\n" +
-                               "scala_version = \"" + _SCALA_VERSION + "\"\n" +
                                npm_pins + "\n" +
                                mirror_pins,
         },

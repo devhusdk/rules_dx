@@ -353,6 +353,15 @@ fn long_path(path: &Path) -> io::Result<std::path::PathBuf> {
 pub const LOCK_POLL: Duration = Duration::from_millis(50);
 
 pub fn lock_exclusive(file: &File, timeout: Duration) -> Result<(), std::fs::TryLockError> {
+    lock_exclusive_waiting(file, timeout, &mut || {})
+}
+
+/// Like `lock_exclusive`, calling `on_wait` each time the lock is busy and it is about to sleep.
+fn lock_exclusive_waiting(
+    file: &File,
+    timeout: Duration,
+    on_wait: &mut dyn FnMut(),
+) -> Result<(), std::fs::TryLockError> {
     let start = Instant::now();
     loop {
         match file.try_lock() {
@@ -361,6 +370,7 @@ pub fn lock_exclusive(file: &File, timeout: Duration) -> Result<(), std::fs::Try
                 if start.elapsed() >= timeout {
                     return Err(std::fs::TryLockError::WouldBlock);
                 }
+                on_wait();
                 std::thread::sleep(LOCK_POLL);
             }
             Err(other) => return Err(other), // LCOV_EXCL_LINE - reason: non-contention lock error, issue: 1381, policy: docs/cli/commands/build-test-coverage.md
@@ -491,12 +501,12 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-").unwrap();
         for durability in [Durability::Synced, Durability::Unsynced] {
             let mut staging = staging_for(&scratch.path().join("tool")).expect("stage");
-            staging.write_all(b"#!/bin/sh\n").expect("write");
+            staging.write_all(b"tool bytes\n").expect("write");
             let path = staging.path().canonicalize().expect("canonical");
             assert!(open_paths().contains(&path));
             let sealed = seal(staging, durability).expect("seal");
             assert!(!open_paths().contains(&path));
-            assert_eq!(std::fs::read(&sealed).expect("read"), b"#!/bin/sh\n");
+            assert_eq!(std::fs::read(&sealed).expect("read"), b"tool bytes\n");
         }
     }
 
@@ -598,13 +608,13 @@ mod tests {
             use std::os::unix::fs::PermissionsExt as _;
             let scratch = dx_test_scratch::scratch("dx-atomic-fs-mode-").unwrap();
             let executable = scratch.path().join("run.sh");
-            write_atomic(&executable, b"#!/bin/sh\necho hi\n").expect("create executable");
+            write_atomic(&executable, b"echo hi\n").expect("create executable");
             std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))
                 .expect("chmod 755");
-            write_atomic(&executable, b"#!/bin/sh\necho updated\n").expect("overwrite executable");
+            write_atomic(&executable, b"echo updated\n").expect("overwrite executable");
             assert_eq!(
                 std::fs::read(&executable).expect("read back"),
-                b"#!/bin/sh\necho updated\n"
+                b"echo updated\n"
             );
             assert_eq!(
                 std::fs::metadata(&executable)
@@ -824,12 +834,12 @@ mod tests {
     fn copy_atomic_keeps_exec_bit_as_0755() {
         let scratch = dx_test_scratch::scratch("dx-atomic-fs-copy-exec-").unwrap();
         let src = scratch.path().join("tool");
-        std::fs::write(&src, b"#!/bin/sh\n").expect("write src");
+        std::fs::write(&src, b"tool bytes\n").expect("write src");
         chmod(&src, 0o555);
         let dest = scratch.path().join("staged-tool");
         copy_atomic(&src, &dest).expect("first copy");
         copy_atomic(&src, &dest).expect("second copy");
-        assert_eq!(std::fs::read(&dest).expect("read dest"), b"#!/bin/sh\n");
+        assert_eq!(std::fs::read(&dest).expect("read dest"), b"tool bytes\n");
         assert_eq!(mode_of(&dest), 0o755);
         scratch.close().expect("cleanup");
     }
@@ -959,13 +969,22 @@ mod tests {
         let held = open_lock_file(&path);
         lock_exclusive(&held, Duration::from_secs(10)).expect("hold lock");
         let waiter_path = path.clone();
+        let (blocked, waiting) = std::sync::mpsc::channel();
         let waiter = std::thread::spawn(move || {
             let file = open_lock_file(&waiter_path);
-            lock_exclusive(&file, Duration::from_secs(30)).expect("waiter acquires");
+            let mut waits = 0;
+            lock_exclusive_waiting(&file, Duration::from_secs(30), &mut || {
+                waits += 1;
+                blocked.send(()).expect("the test is listening");
+            })
+            .expect("waiter acquires");
+            waits
         });
-        std::thread::sleep(Duration::from_millis(500));
+        waiting
+            .recv_timeout(Duration::from_secs(30))
+            .expect("waiter blocks on the held lock");
         drop(held);
-        waiter.join().expect("waiter thread");
+        assert!(waiter.join().expect("waiter thread") >= 1);
         scratch.close().expect("cleanup");
     }
 

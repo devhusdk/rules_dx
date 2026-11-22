@@ -6,19 +6,19 @@ mod audit_live_tests;
 #[cfg(test)]
 mod audit_reports_tests;
 mod auto_sync;
-mod bench;
-mod breaking_base;
+#[cfg(test)]
+mod bench_tests;
 #[cfg(test)]
 mod build_failures_tests;
-mod changed_coverage;
-mod check_build;
+#[cfg(test)]
+mod changed_coverage_tests;
+#[cfg(test)]
+mod check_build_tests;
 mod clean;
-mod coverage_candidate;
 #[cfg(test)]
 mod current_dir_guard_tests;
 #[cfg(test)]
 mod delivery_sink;
-mod dep_edit;
 mod deploy;
 mod docs;
 mod docs_index;
@@ -28,11 +28,11 @@ mod failure_reports_tests;
 pub mod first_run;
 mod fuzz;
 mod generate;
-mod generated_drift;
 #[cfg(test)]
 mod help_launcher_tests;
 pub(crate) mod ide_refresh;
-mod link_check;
+#[cfg(test)]
+mod link_check_tests;
 mod managed;
 mod managed_codegen;
 mod managed_env;
@@ -40,38 +40,51 @@ mod managed_prepare;
 mod managed_staging;
 pub mod preset_sync;
 mod profile_report;
-mod quality;
-mod quality_apply;
-mod quality_emit;
-mod quality_patch;
-mod quality_reconcile;
-mod quality_reports;
-mod quality_security;
-mod results;
+#[cfg(test)]
+mod quality_convergence_tests;
+#[cfg(test)]
+mod quality_delivery_tests;
+#[cfg(test)]
+mod quality_edits_tests;
+#[cfg(test)]
+mod quality_json_tests;
+#[cfg(test)]
+mod quality_modes_tests;
+#[cfg(test)]
+mod quality_probe_tests;
+#[cfg(test)]
+mod quality_reporting_tests;
+#[cfg(test)]
+mod quality_shared_tests;
 mod run;
 mod security_verify;
-mod staged;
 #[cfg(test)]
 mod startup_defaults_launcher_tests;
 mod sync_fingerprint;
 mod sync_prune;
 mod test_filter;
-mod test_reports;
+#[cfg(test)]
+mod test_reports_tests;
 #[cfg(test)]
 pub(crate) mod test_support;
+#[cfg(test)]
+mod text_output_tests;
 mod umbrella;
-mod update;
-mod update_add_missing;
-mod update_advisory;
-pub(crate) mod update_outdated;
-mod update_pr;
-mod update_prune;
-mod update_unused;
-mod update_version;
-mod update_version_add;
+#[cfg(test)]
+mod update_check_tests;
+#[cfg(test)]
+mod update_consumer_tests;
+#[cfg(test)]
+mod update_live;
+#[cfg(test)]
+mod update_version_add_tests;
+#[cfg(test)]
+mod update_version_tests;
 mod workflow;
-mod worktree;
+#[cfg(test)]
+mod worktree_tests;
 
+use dx_exec_core::common::remove_scratch;
 use dx_plan::args::{Command, Invocation};
 
 pub use dx_exec_core::audit_policy::AUDIT_TODAY_ENV;
@@ -79,9 +92,9 @@ pub use dx_exec_core::common::{ActionTally, Env, print_actions, print_cache_retr
 pub use dx_exec_core::failure::{
     cancel, install_panic_events, install_panic_hint, set_usage_command, slot_stop,
 };
+pub use dx_exec_update::COMMIT_JSON_ENV as EDIT_COMMIT_JSON_ENV;
+pub use dx_exec_worktree::{hook_kind, run_worktree_hook};
 pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
-pub use update_version::COMMIT_JSON_ENV as EDIT_COMMIT_JSON_ENV;
-pub use worktree::{hook_kind, run_worktree_hook};
 
 /// Runs one invocation; a `dx run` app is stopped once `withdraw` holds.
 pub(crate) fn execute_until(
@@ -363,7 +376,7 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Watch => crate::adopt::watch::execute_watch(invocation, env),
         Command::Check => umbrella::execute_umbrella(invocation, env),
-        Command::Bench => bench::execute_bench(invocation, env),
+        Command::Bench => dx_exec_bench::execute_bench(invocation, env),
         Command::Build
         | Command::Test
         | Command::Coverage
@@ -377,32 +390,13 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
             security_verify::execute_verify(invocation, env)
         }
         Command::Security | Command::License => dx_exec_audit::execute_audit(invocation, env),
-        Command::Update if update_advisory::selected(invocation) => {
-            update_advisory::execute_update_advisory(invocation, env)
-        }
-        Command::Update if invocation.pr => update_pr::execute_update_pr(invocation, env),
-        Command::Update if invocation.outdated => {
-            update_outdated::execute_update_outdated(invocation, env)
-        }
-        Command::Update if invocation.edits_version() => {
-            update_version::execute_update_version(invocation, env)
-        }
-        Command::Update => update::execute_update(invocation, env),
+        Command::Update => dx_exec_update::execute_update(invocation, env, &dispatch_inner),
         Command::Docs => docs::execute_docs(invocation, env),
         Command::Lint | Command::Typecheck | Command::Format => {
-            quality::execute_quality(invocation, env)
+            dx_exec_quality::execute_quality(invocation, env)
         }
-        Command::Worktree => worktree::execute_worktree(invocation, env),
+        Command::Worktree => dx_exec_worktree::execute_worktree(invocation, env),
         Command::Fuzz => fuzz::execute_fuzz(invocation, env),
-    }
-}
-
-/// Removes one scratch file; a missing file is fine and any other failure is logged.
-fn remove_scratch(path: &std::path::Path) {
-    match std::fs::remove_file(path) {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => tracing::info!(%error, path = %path.display(), "cannot remove scratch file"),
     }
 }
 
@@ -880,30 +874,5 @@ mod tests {
             )
             .is_none()
         );
-    }
-
-    #[test]
-    fn remove_scratch_removes_a_file() {
-        let dir = super::test_support::temp_dir("remove-scratch-file");
-        let file = dir.path().join("events.bep");
-        std::fs::write(&file, b"x").expect("write scratch");
-        super::remove_scratch(&file);
-        assert!(!file.exists());
-    }
-
-    #[test]
-    fn remove_scratch_returns_for_a_missing_path() {
-        let dir = super::test_support::temp_dir("remove-scratch-missing");
-        super::remove_scratch(&dir.path().join("absent.bep"));
-        assert!(dir.path().is_dir());
-    }
-
-    #[test]
-    fn remove_scratch_returns_and_keeps_a_directory() {
-        let dir = super::test_support::temp_dir("remove-scratch-dir");
-        let nested = dir.path().join("nested");
-        std::fs::create_dir_all(&nested).expect("create dir");
-        super::remove_scratch(&nested);
-        assert!(nested.is_dir());
     }
 }

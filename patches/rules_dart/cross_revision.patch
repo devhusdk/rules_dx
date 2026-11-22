@@ -1,0 +1,14 @@
+Upstream: none (not yet sent upstream)
+--- a/dart/toolchain.bzl
++++ b/dart/toolchain.bzl
+@@ -35,6 +35,10 @@
+         "bin/snapshots/gen_kernel_aot.dart.snapshot",
+         "bin/utils/gen_snapshot",
+         "bin/utils/gen_snapshot.exe",
++        # A cross compile resolves its target's archive folder from the SDK's
++        # `revision` even when `sdk_cache` already holds the target binaries,
++        # and fails without it where only declared inputs exist.
++        "revision",
+     ],
+     # The front end run directly on the AOT runtime, as the kernel actions run
+     # it: its snapshots, the VM platforms and the `dart:` library list. An

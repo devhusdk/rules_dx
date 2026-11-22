@@ -119,6 +119,10 @@ fn default_branch(runner: &dyn QueryRunner, workspace: &Path) -> Result<String, 
 }
 
 /// The commit a `--since` ref names.
+///
+/// # Errors
+///
+/// Returns `Err` when `workspace` is not a git work tree or `rev` names no commit.
 pub fn since_base(
     workspace: &Path,
     runner: &dyn QueryRunner,
@@ -134,6 +138,11 @@ pub fn since_base(
     .ok_or_else(|| PlanError::Git(format!("--since {rev:?} does not name a commit")))
 }
 
+/// The merge-base `--affected` compares against.
+///
+/// # Errors
+///
+/// Returns `Err` when `workspace` is not a git work tree or no base branch is found.
 pub fn affected_base(
     workspace: &Path,
     runner: &dyn QueryRunner,
@@ -144,6 +153,10 @@ pub fn affected_base(
 }
 
 /// The base branch (see [`base_branch`]) and its merge-base with `HEAD`.
+///
+/// # Errors
+///
+/// Returns `Err` when no base branch is found or git cannot compute the merge-base.
 pub fn named_base(
     workspace: &Path,
     runner: &dyn QueryRunner,

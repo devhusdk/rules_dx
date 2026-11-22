@@ -3,7 +3,7 @@ android/tests/fixtures/adopt_android/app/BUILD.bazel sh-rule 1
 android/tests/fixtures/adopt_android/app/inspect_apk.sh shebang 1
 android/tests/fixtures/native_lib/BUILD.bazel default-shell-env 1
 android/tests/fixtures/rust_apk/BUILD.bazel genrule 1
-android/tests/fixtures/rust_apk/BUILD.bazel sh-rule 29
+android/tests/fixtures/rust_apk/BUILD.bazel sh-rule 22
 android/tests/fixtures/rust_apk/adapter_test.sh shebang 1
 android/tests/fixtures/rust_apk/apk_set_rejects.sh shebang 1
 android/tests/fixtures/rust_apk/check_aab_rejects.sh shebang 1
@@ -49,7 +49,6 @@ cli/adopt/src/launcher.rs shebang 30
 cli/adopt/src/scaffold.rs host-path 1
 cli/adopt/src/scaffold.rs shebang 1
 cli/archive/src/tests.rs shebang 1
-cli/atomic_fs/src/lib.rs shebang 5
 cli/atomic_fs/src/managed.rs shebang 1
 cli/binfmt/src/tests.rs shebang 1
 cli/cli/BUILD.bazel genrule 1
@@ -66,13 +65,13 @@ cli/cli/src/exec/build_slots_launcher_tests.rs shebang 1
 cli/cli/src/exec/error_boundary_launcher_tests.rs shebang 1
 cli/cli/src/exec/stream_probe_tests.rs shebang 2
 cli/cli/src/exec/test_case_launcher_tests.rs shebang 1
-cli/cli/src/exec/update_pr.rs shebang 2
 cli/cli/src/multicall.rs host-path 1
 cli/cli/tests/adopt/tests/adopt.rs shebang 1
 cli/cli/tests/agents/tests/dev_launcher.rs host-path 9
 cli/cli/tests/agents/tests/dev_launcher.rs shebang 15
 cli/cli/tests/uv_sets/tests/uv_sets.rs shebang 2
 cli/env/src/lib_tests.rs shebang 2
+cli/exec_update/src/update_pr.rs shebang 2
 cli/ide/src/go.rs shebang 1
 cli/launcher/src/launch_tests.rs shebang 3
 cli/process/src/bazel_sh.rs host-path 1
@@ -92,7 +91,6 @@ core/env/private/stubs/BUILD.bazel sh-rule 1
 core/env/private/stubs/BUILD.bazel shebang 1
 core/node_test.bzl env-inherit 1
 core/quality/adapter/src/exec.rs host-path 9
-core/quality/compile_check_exec.sh shebang 1
 core/quality/consumer_policy_tests.bzl shebang 1
 core/quality/runner/src/entry.rs host-path 2
 core/quality/runner/src/lib_determinism.rs host-path 3
@@ -115,7 +113,7 @@ core/tests/wrapper_forward_fixture.bzl env-inherit 1
 core/tests/wrapper_forward_fixture.bzl home 2
 core/tests/wrapper_tests.bzl env-inherit 3
 core/tests/wrapper_tests.bzl home 3
-core/wrapper.bzl env-inherit 7
+core/wrapper.bzl env-inherit 3
 csharp/tests/fixtures/fuzz/BUILD.bazel sh-rule 2
 csharp/tests/fixtures/fuzz/run_test.sh shebang 1
 cuda/tests/fixtures/cuda_app/app/BUILD.bazel sh-rule 1
@@ -280,7 +278,6 @@ tools/ci/docs_scope_test.rs shebang 1
 tools/coverage/kcov/BUILD.bazel sh-rule 1
 tools/coverage/kcov/kcov.BUILD genrule 3
 tools/coverage/kcov/kcov_launcher.sh shebang 1
-tools/docs/dart/defs.bzl home 1
 tools/docs/dotnet/csharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/fsharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/pinned_driver.sh shebang 1
@@ -294,15 +291,6 @@ tools/testing/BUILD.bazel env-inherit 1
 tools/testing/hermetic/appcontainer/args.rs host-path 2
 tools/testing/hermetic/consumers/cpp_rust/apps/c_store.BUILD.bazel genrule 1
 tools/testing/hermetic/consumers/cpp_rust/apps/cpp_core.BUILD.bazel genrule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/java_billing.BUILD.bazel genrule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/java_cli.BUILD.bazel sh-rule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/java_exit_codes.sh shebang 1
-tools/testing/hermetic/consumers/cpp_rust/apps/kotlin_cli.BUILD.bazel sh-rule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/kotlin_exit_codes.sh shebang 1
-tools/testing/hermetic/consumers/cpp_rust/apps/kotlin_grades.BUILD.bazel genrule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/node_cli.BUILD.bazel sh-rule 1
-tools/testing/hermetic/consumers/cpp_rust/apps/node_exit_codes.sh shebang 1
-tools/testing/hermetic/consumers/cpp_rust/apps/node_registry.BUILD.bazel genrule 1
 tools/testing/hermetic/consumers/cuda/apps/format.BUILD.bazel sh-rule 1
 tools/testing/hermetic/consumers/cuda/apps/format_test.sh shebang 1
 tools/testing/hermetic/consumers/msix/apps/app.BUILD.bazel sh-rule 1

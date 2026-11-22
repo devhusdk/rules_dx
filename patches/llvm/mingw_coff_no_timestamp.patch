@@ -1,0 +1,29 @@
+Upstream: none (not yet sent upstream)
+diff -ruN a/toolchain/args/windows/BUILD.bazel b/toolchain/args/windows/BUILD.bazel
+--- a/toolchain/args/windows/BUILD.bazel	2026-11-16 19:03:48.709207431 +0100
++++ b/toolchain/args/windows/BUILD.bazel	2026-11-16 19:03:57.181321875 +0100
+@@ -100,7 +100,7 @@
+             "//toolchain/args/windows/msvc:deterministic_coff_object_flags",
+             "//toolchain/args/windows/msvc:deterministic_codeview_flags",
+         ],
+-        "//conditions:default": [],
++        "//conditions:default": ["//toolchain/args/windows/mingw:deterministic_coff_object_flags"],
+     }),
+ )
+ 
+diff -ruN a/toolchain/args/windows/mingw/BUILD.bazel b/toolchain/args/windows/mingw/BUILD.bazel
+--- a/toolchain/args/windows/mingw/BUILD.bazel	2026-11-16 19:03:48.713207407 +0100
++++ b/toolchain/args/windows/mingw/BUILD.bazel	2026-11-16 19:03:57.181353955 +0100
+@@ -56,6 +56,12 @@
+ )
+ 
+ cc_args(
++    name = "deterministic_coff_object_flags",
++    actions = ["@rules_cc//cc/toolchains/actions:source_compile_actions"],
++    args = ["-mno-incremental-linker-compatible"],
++)
++
++cc_args(
+     name = "deterministic_link_flags",
+     actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
+     args = ["-Wl,--no-insert-timestamp"],

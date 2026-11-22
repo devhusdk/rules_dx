@@ -1,29 +1,35 @@
 {
-  "//dart/private:unsupported": {
+  "//core/platforms:android_unsupported": {
     "platforms": {
-      "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK"
+      "linux_arm64": "Google ships no Linux arm64 Android build-tools, platform-tools or NDK"
+    },
+    "title": "Android"
+  },
+  "//core/platforms:dart_unsupported": {
+    "platforms": {
+      "windows_arm64": "rules_dart 0.9.1 ships no Windows arm64 SDK"
     },
     "title": "Dart"
   },
-  "//flutter/private:unsupported": {
+  "//core/platforms:flutter_unsupported": {
     "platforms": {
-      "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
+      "windows_arm64": "rules_flutter 0.1.0 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
     },
     "title": "Flutter"
   },
-  "//haskell/private/toolchain:unsupported": {
+  "//core/platforms:haskell_unsupported": {
     "platforms": {
       "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist"
     },
     "title": "Haskell"
   },
-  "//julia/private:unsupported": {
+  "//core/platforms:julia_unsupported": {
     "platforms": {
       "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build"
     },
     "title": "Julia"
   },
-  "//msix/private:unsupported": {
+  "//core/platforms:msix_unsupported": {
     "platforms": {
       "linux_arm64": "MakeAppx and SignTool from the Windows SDK run only on Windows",
       "linux_x86_64": "MakeAppx and SignTool from the Windows SDK run only on Windows",
@@ -31,7 +37,7 @@
     },
     "title": "MSIX"
   },
-  "//php/private/toolchain:unsupported": {
+  "//core/platforms:php_unsupported": {
     "platforms": {
       "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build"
     },

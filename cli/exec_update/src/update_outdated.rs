@@ -1,0 +1,1710 @@
+use super::update_unused::{self, Missing, Unused};
+use dx_adopt::dependency_sets::{self, Ecosystem, Selection};
+use dx_error::DxError;
+use dx_exec_core::common::{
+    CODE_OFFLINE_REQUIRED, Env, check_stdout_write, emit_built, operational, pre_exec,
+};
+use dx_output::{
+    FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
+    notice_event,
+};
+use dx_plan::args::Invocation;
+use dx_update::discover::{
+    Candidate, Fetch, Findings, Registry, bcr, cabal, cargo, composer, containers, cpan, dub,
+    github, go, hex, julia, luarocks, maven, npm, nuget, opam, pub_dev, pypi, ruby, swiftpm,
+};
+use std::collections::BTreeMap;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+pub(crate) const REGISTRY_DIR_ENV: &str = "DX_UPDATE_REGISTRY_DIR";
+const OPAM_SNAPSHOT_ENV: &str = "DX_OPAM_SNAPSHOT_DIR";
+
+pub(crate) const CODE_UPDATE_OUTDATED: &str = "update_outdated";
+pub(crate) const CODE_UPDATE_OUTDATED_UNSUPPORTED: &str = "update_outdated_unsupported";
+pub(crate) const CODE_UPDATE_OUTDATED_LOOKUP: &str = "update_outdated_lookup_failed";
+pub(crate) const CODE_UPDATE_OUTDATED_UNKNOWN: &str = "update_outdated_unknown";
+pub(crate) const CODE_UPDATE_OUTDATED_OVERRIDDEN: &str = "update_outdated_overridden";
+
+const ACTIONS_SELECTOR: &str = "github-actions";
+const BAZELVERSION_SELECTOR: &str = "bazel:.bazelversion";
+const CONTAINERS_SELECTOR: &str = containers::SET;
+const PINS_SELECTOR: &str = dx_update::pins::SET;
+const BCR_NEWEST_SELECTOR: &str = "bcr:newest";
+const BCR_NEWEST_FILE: &str = "core/modules/bcr_newest.json";
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub(super) struct Builtins {
+    actions: Option<Vec<String>>,
+    bazelversion: bool,
+    bcr_newest: bool,
+    containers: Option<Vec<String>>,
+    pins: Option<Vec<String>>,
+}
+
+impl Builtins {
+    pub(super) fn selects_all_actions(&self) -> bool {
+        self.actions.as_ref().is_some_and(Vec::is_empty)
+    }
+
+    pub(super) fn selects_all_containers(&self) -> bool {
+        self.containers.as_ref().is_some_and(Vec::is_empty)
+    }
+
+    pub(super) fn selects_all_pins(&self) -> bool {
+        self.pins.as_ref().is_some_and(Vec::is_empty)
+    }
+}
+
+pub(super) fn split_builtin(targets: &[String]) -> (Builtins, Vec<String>) {
+    let mut builtins = Builtins::default();
+    let mut rest = Vec::new();
+    if targets.is_empty() {
+        builtins.actions = Some(Vec::new());
+        builtins.bazelversion = true;
+        builtins.containers = Some(Vec::new());
+        builtins.pins = Some(Vec::new());
+        return (builtins, rest);
+    }
+    for target in targets {
+        if target == ACTIONS_SELECTOR {
+            builtins.actions = Some(Vec::new());
+        } else if let Some(repo) = target
+            .strip_prefix(ACTIONS_SELECTOR)
+            .and_then(|r| r.strip_prefix(':'))
+        {
+            if let Some(only) = builtins.actions.as_mut() {
+                if !only.is_empty() {
+                    only.push(repo.to_owned());
+                }
+            } else {
+                builtins.actions = Some(vec![repo.to_owned()]);
+            }
+        } else if target == CONTAINERS_SELECTOR {
+            builtins.containers = Some(Vec::new());
+        } else if let Some(name) = target
+            .strip_prefix(CONTAINERS_SELECTOR)
+            .and_then(|r| r.strip_prefix(':'))
+        {
+            if let Some(only) = builtins.containers.as_mut() {
+                if !only.is_empty() {
+                    only.push(name.to_owned());
+                }
+            } else {
+                builtins.containers = Some(vec![name.to_owned()]);
+            }
+        } else if target == PINS_SELECTOR {
+            builtins.pins = Some(Vec::new());
+        } else if let Some(path) = target
+            .strip_prefix(PINS_SELECTOR)
+            .and_then(|r| r.strip_prefix(':'))
+        {
+            if let Some(only) = builtins.pins.as_mut() {
+                if !only.is_empty() {
+                    only.push(path.to_owned());
+                }
+            } else {
+                builtins.pins = Some(vec![path.to_owned()]);
+            }
+        } else if target == BAZELVERSION_SELECTOR {
+            builtins.bazelversion = true;
+        } else if target == BCR_NEWEST_SELECTOR {
+            builtins.bcr_newest = true;
+        } else {
+            rest.push(target.clone());
+        }
+    }
+    (builtins, rest)
+}
+
+fn github_auth(url: &str, token: Option<&str>) -> Option<(&'static str, String)> {
+    let token = token.filter(|token| !token.is_empty())?;
+    url.starts_with("https://api.github.com/")
+        .then(|| ("Authorization", format!("Bearer {token}")))
+}
+
+pub fn registry_fetch() -> Box<dyn Fetch> {
+    match std::env::var_os(REGISTRY_DIR_ENV) {
+        Some(dir) => Box::new(DirFetch(PathBuf::from(dir))),
+        None => Box::new(HttpFetch::new()),
+    }
+}
+
+pub(crate) fn execute_update_outdated(invocation: &Invocation, env: Env<'_>) -> i32 {
+    let fetch = registry_fetch();
+    run(invocation, env, fetch.as_ref())
+}
+
+fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
+    let Env {
+        workspace,
+        query_runner,
+        out,
+        err,
+        ..
+    } = env;
+    if invocation.offline {
+        return operational(
+            invocation,
+            out,
+            err,
+            CODE_OFFLINE_REQUIRED,
+            "dx update --outdated reads package registries; drop --offline",
+        );
+    }
+    let (builtins, selectors) = split_builtin(&invocation.targets);
+    let only_builtins = !invocation.targets.is_empty() && selectors.is_empty();
+    let resolved = if only_builtins {
+        Vec::new()
+    } else {
+        match dependency_sets::load(workspace) {
+            Ok(Some(registry)) => match dependency_sets::resolve(&registry, &selectors) {
+                Ok(resolved) => resolved,
+                Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+            },
+            Ok(None) if selectors.is_empty() => Vec::new(),
+            Ok(None) => {
+                let message = super::update::no_sets_message(workspace);
+                return pre_exec(invocation.output, out, err, &message);
+            }
+            Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+        }
+    };
+    let json = invocation.output == OutputMode::Json;
+    if json && let Err(exit) = emit_built(out, command_started("update", COMMAND_MODE)) {
+        return exit;
+    }
+    let Collected {
+        found,
+        unsupported,
+        ecosystems,
+        ..
+    } = collect(workspace, &resolved, &builtins, false, fetch);
+    let unused = match update_unused::find(
+        workspace,
+        &resolved,
+        query_runner,
+        &invocation.bazel_startup_options,
+    ) {
+        Ok(found) => found,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
+    let missing = match update_unused::find_missing(
+        workspace,
+        &resolved,
+        query_runner,
+        &invocation.bazel_startup_options,
+    ) {
+        Ok(found) => found,
+        Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
+    };
+    let findings_fail =
+        dx_output::meets_threshold(dx_output::Severity::Warning, invocation.fail_on)
+            && !(unused.is_empty() && missing.is_empty());
+    let exit = i32::from(!found.errors.is_empty() || findings_fail);
+    if let Err(code) = if json {
+        emit_json(
+            out,
+            &found,
+            &unsupported,
+            &ecosystems,
+            (&unused, &missing),
+            exit,
+        )
+    } else {
+        emit_text(out, &found, &unsupported, &ecosystems, (&unused, &missing))
+    } {
+        return code;
+    }
+    for error in &found.errors {
+        dx_output::write_stderr(
+            err,
+            format_args!(
+                "dx: {CODE_UPDATE_OUTDATED_LOOKUP}: {}:{} ({})\n",
+                error.set, error.package, error.reason
+            ),
+        );
+    }
+    exit
+}
+
+const BAZEL_TIMEOUT: Duration = Duration::from_mins(30);
+
+/// Finds the pinned opam-repository snapshot checkout through the pinned opam wrapper.
+fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, DxError> {
+    if let Some(dir) = std::env::var_os(OPAM_SNAPSHOT_ENV) {
+        return Ok(PathBuf::from(dir));
+    }
+    let mut argv = dx_process::BazelHead::default().argv("run");
+    let opam = dx_families::command("ocaml", "opam")
+        .ok_or_else(|| DxError::infra("ocaml/lang.json names no opam command".to_owned()))?;
+    argv.extend([opam, "--", "snapshot-dir"].map(str::to_owned));
+    let Some((program, tail)) = argv.split_first() else {
+        return Err(DxError::infra("bazel run has no program".to_owned()));
+    };
+    let output = dx_process::capture::run_checked_with(
+        std::process::Command::new(program)
+            .args(tail)
+            .current_dir(workspace),
+        BAZEL_TIMEOUT,
+        dx_process::capture::RunOptions {
+            foreground: true,
+            ..Default::default()
+        },
+    )
+    .map_err(|error| match error {
+        dx_process::capture::RunError::Spawn { source, .. } => {
+            DxError::infra(format!("cannot run bazel for the opam snapshot: {source}"))
+        }
+        dx_process::capture::RunError::TimedOut { .. }
+        | dx_process::capture::RunError::OutputTooLarge { .. }
+        | dx_process::capture::RunError::Failed { .. } => {
+            DxError::failure("bazel could not provide the opam-repository snapshot")
+        }
+    })?;
+    let text = output.stdout_text();
+    match text.lines().last().map(str::trim).filter(|l| !l.is_empty()) {
+        Some(dir) => Ok(PathBuf::from(dir)),
+        None => Err(DxError::failure(
+            "the opam wrapper printed no snapshot directory",
+        )),
+    }
+}
+
+/// What the registries said about the resolved sets.
+pub(super) struct Collected {
+    pub found: Findings,
+    pub unsupported: Vec<String>,
+    pub registries: BTreeMap<String, Registry>,
+    pub ecosystems: BTreeMap<String, Ecosystem>,
+}
+
+/// Looks up every resolved set and returns sorted, unique candidates.
+fn hub_name(
+    lookup: Result<&'static str, dx_adopt::AdoptError>,
+    set: &str,
+    read_errors: &mut Vec<dx_update::discover::LookupError>,
+) -> Option<&'static str> {
+    match lookup {
+        Ok(name) => Some(name),
+        Err(error) => {
+            read_errors.push(dx_update::discover::LookupError {
+                set: set.to_owned(),
+                package: String::new(),
+                reason: error.to_string(),
+            });
+            None
+        }
+    }
+}
+
+#[derive(Default)]
+struct Acc {
+    found: Findings,
+    read_errors: Vec<dx_update::discover::LookupError>,
+    unsupported: Vec<String>,
+    registries: BTreeMap<String, Registry>,
+    ecosystems: BTreeMap<String, Ecosystem>,
+}
+
+#[derive(Clone, Copy)]
+struct Ctx<'a> {
+    workspace: &'a Path,
+    target: &'a dependency_sets::ResolvedTarget,
+    only: &'a [String],
+    name: &'a str,
+    prereleases: bool,
+    fetch: &'a dyn Fetch,
+}
+
+pub(super) fn collect(
+    workspace: &Path,
+    resolved: &[dependency_sets::ResolvedTarget],
+    builtins: &Builtins,
+    prereleases: bool,
+    fetch: &dyn Fetch,
+) -> Collected {
+    let mut acc = Acc::default();
+    run_builtins(builtins, workspace, fetch, &mut acc.found);
+    for target in resolved {
+        let only: &[String] = match &target.request {
+            Selection::Full => &[],
+            Selection::Packages(names) => names,
+        };
+        let name = target.set.name.as_str();
+        acc.ecosystems.insert(name.to_owned(), target.set.ecosystem);
+        let cx = Ctx {
+            workspace,
+            target,
+            only,
+            name,
+            prereleases,
+            fetch,
+        };
+        collect_set(&mut acc, &cx);
+    }
+    let Acc {
+        mut found,
+        read_errors,
+        unsupported,
+        registries,
+        ecosystems,
+    } = acc;
+    found.errors.extend(read_errors);
+    found
+        .candidates
+        .sort_by(|a, b| (&a.set, &a.package, &a.current).cmp(&(&b.set, &b.package, &b.current)));
+    found.candidates.dedup();
+    Collected {
+        found,
+        unsupported,
+        registries,
+        ecosystems,
+    }
+}
+
+fn collect_set(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+    } = *cx;
+    match target.set.ecosystem {
+        Ecosystem::Cargo => {
+            acc.registries.insert(name.to_owned(), Registry::Crates);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                cargo::outdated(
+                    name,
+                    &texts,
+                    only,
+                    prereleases,
+                    cargo::DEFAULT_BASE,
+                    cargo::API_BASE,
+                    fetch,
+                ),
+            );
+        }
+        Ecosystem::Go => {
+            acc.registries.insert(name.to_owned(), Registry::Go);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                go::outdated(name, &texts, only, prereleases, go::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Nuget => {
+            acc.registries.insert(name.to_owned(), Registry::Nuget);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                nuget::outdated(name, &texts, only, prereleases, nuget::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Ruby => {
+            acc.registries.insert(name.to_owned(), Registry::Rubygems);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                ruby::outdated(name, &texts, only, prereleases, ruby::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Cpan => {
+            acc.registries.insert(name.to_owned(), Registry::Metacpan);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                cpan::outdated(name, &texts, only, prereleases, cpan::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Npm => {
+            acc.registries.insert(name.to_owned(), Registry::Npm);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                npm::outdated(name, &texts, only, prereleases, npm::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Uv => {
+            acc.registries.insert(name.to_owned(), Registry::Pypi);
+            let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+            merge(
+                &mut acc.found,
+                pypi::outdated(name, &texts, only, prereleases, pypi::DEFAULT_BASE, fetch),
+            );
+        }
+        Ecosystem::Bazel => collect_bazel(acc, cx),
+        Ecosystem::Maven => collect_maven(acc, cx),
+        Ecosystem::Composer => collect_composer(acc, cx),
+        Ecosystem::Cabal => collect_cabal(acc, cx),
+        Ecosystem::SwiftPm => collect_swiftpm(acc, cx),
+        Ecosystem::Opam => collect_opam(acc, cx),
+        Ecosystem::Julia => collect_julia(acc, cx),
+        Ecosystem::Dub => collect_dub(acc, cx),
+        Ecosystem::LuaRocks => collect_luarocks(acc, cx),
+        Ecosystem::Pub => collect_pub_dev(acc, cx),
+        Ecosystem::Hex => collect_hex(acc, cx),
+        Ecosystem::PowerShell
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => acc.unsupported.push(name.to_owned()),
+    }
+}
+
+fn collect_bazel(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Bcr);
+    for manifest in &target.set.manifests {
+        let parsed = std::fs::read_to_string(workspace.join(manifest))
+            .map_err(|e| e.to_string())
+            .and_then(|text| dx_module_bazel::ModuleFile::parse(&text).map_err(|e| e.to_string()));
+        match parsed {
+            Ok(module) => merge(
+                &mut acc.found,
+                bcr::outdated(name, &module, only, prereleases, bcr::DEFAULT_BASE, fetch),
+            ),
+            Err(reason) => acc.found.errors.push(dx_update::discover::LookupError {
+                set: name.to_owned(),
+                package: manifest.clone(),
+                reason,
+            }),
+        }
+    }
+}
+
+fn collect_maven(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Maven);
+    let resolved: BTreeMap<String, String> =
+        read_texts(workspace, name, &target.set.locks, &mut acc.read_errors)
+            .iter()
+            .filter_map(|text| dx_audit::locks::parse_maven_install(text).ok())
+            .flatten()
+            .map(|package| (package.name, package.version))
+            .collect();
+    for manifest in &target.set.manifests {
+        let parsed = std::fs::read_to_string(workspace.join(manifest))
+            .map_err(|e| e.to_string())
+            .and_then(|text| dx_module_bazel::ModuleFile::parse(&text).map_err(|e| e.to_string()));
+        match parsed {
+            Ok(module) => merge(
+                &mut acc.found,
+                maven::outdated(
+                    name,
+                    &module,
+                    &resolved,
+                    only,
+                    prereleases,
+                    maven::DEFAULT_BASE,
+                    fetch,
+                ),
+            ),
+            Err(reason) => acc.found.errors.push(dx_update::discover::LookupError {
+                set: name.to_owned(),
+                package: manifest.clone(),
+                reason,
+            }),
+        }
+    }
+}
+
+fn collect_composer(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Packagist);
+    let texts = read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors);
+    let Some(lock_name) = hub_name(dependency_sets::composer_lock(), name, &mut acc.read_errors)
+    else {
+        return;
+    };
+    let locks: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.ends_with(lock_name))
+        .cloned()
+        .collect();
+    merge(
+        &mut acc.found,
+        composer::outdated(
+            name,
+            &texts,
+            &read_texts(workspace, name, &locks, &mut acc.read_errors),
+            only,
+            prereleases,
+            composer::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_cabal(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Hackage);
+    let cabal_files = dx_update::discover::cabal::cabal_files(workspace, &target.set.manifests);
+    let freezes: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.ends_with(Ecosystem::Cabal.lockfile()))
+        .cloned()
+        .collect();
+    if freezes.is_empty() {
+        acc.read_errors
+            .extend(stack_lock_errors(name, &target.set.locks));
+    }
+    merge(
+        &mut acc.found,
+        cabal::outdated(
+            name,
+            &read_texts(workspace, name, &cabal_files, &mut acc.read_errors),
+            &read_texts(workspace, name, &freezes, &mut acc.read_errors),
+            only,
+            cabal::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_swiftpm(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::SwiftUrl);
+    let Some(lock_name) = hub_name(
+        dependency_sets::package_resolved(),
+        name,
+        &mut acc.read_errors,
+    ) else {
+        return;
+    };
+    let resolved: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.rsplit('/').next() == Some(lock_name))
+        .cloned()
+        .collect();
+    let texts = read_texts(workspace, name, &resolved, &mut acc.read_errors);
+    merge(
+        &mut acc.found,
+        swiftpm::outdated(
+            name,
+            &texts,
+            only,
+            prereleases,
+            swiftpm::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_opam(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Opam);
+    let texts = read_texts(workspace, name, &target.set.locks, &mut acc.read_errors);
+    match opam_snapshot_dir(workspace) {
+        Ok(snapshot) => merge(
+            &mut acc.found,
+            opam::outdated(name, &texts, only, prereleases, &snapshot),
+        ),
+        Err(reason) => acc.found.errors.push(dx_update::discover::LookupError {
+            set: name.to_owned(),
+            package: String::new(),
+            reason: reason.message().to_owned(),
+        }),
+    }
+}
+
+fn collect_julia(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries
+        .insert(name.to_owned(), Registry::JuliaGeneral);
+    let manifests: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.ends_with(Ecosystem::Julia.lockfile()))
+        .cloned()
+        .collect();
+    merge(
+        &mut acc.found,
+        julia::outdated(
+            name,
+            &read_texts(workspace, name, &target.set.manifests, &mut acc.read_errors),
+            &read_texts(workspace, name, &manifests, &mut acc.read_errors),
+            only,
+            prereleases,
+            julia::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_dub(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::CodeDlang);
+    let Some(lock_name) = hub_name(
+        dependency_sets::dub_selections(),
+        name,
+        &mut acc.read_errors,
+    ) else {
+        return;
+    };
+    let locks: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.ends_with(lock_name))
+        .cloned()
+        .collect();
+    merge(
+        &mut acc.found,
+        dub::outdated(
+            name,
+            &read_texts(workspace, name, &locks, &mut acc.read_errors),
+            only,
+            prereleases,
+            dub::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_luarocks(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries
+        .insert(name.to_owned(), Registry::LuaRocksOrg);
+    let Some(lock_name) = hub_name(dependency_sets::luarocks_lock(), name, &mut acc.read_errors)
+    else {
+        return;
+    };
+    let locks: Vec<String> = target
+        .set
+        .locks
+        .iter()
+        .filter(|lock| lock.ends_with(lock_name))
+        .cloned()
+        .collect();
+    let mut pins = Vec::new();
+    for text in read_texts(workspace, name, &locks, &mut acc.read_errors) {
+        match dx_audit::locks::parse_luarocks_lock(&text) {
+            Ok(parsed) => {
+                pins.extend(parsed.into_iter().map(|p| (p.name, p.version)));
+            }
+            Err(reason) => acc.read_errors.push(dx_update::discover::LookupError {
+                set: name.to_owned(),
+                package: lock_name.to_owned(),
+                reason: reason.message().to_owned(),
+            }),
+        }
+    }
+    merge(
+        &mut acc.found,
+        luarocks::outdated(
+            name,
+            &pins,
+            only,
+            prereleases,
+            luarocks::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_pub_dev(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::PubDev);
+    let texts = read_texts(workspace, name, &target.set.locks, &mut acc.read_errors);
+    merge(
+        &mut acc.found,
+        pub_dev::outdated(
+            name,
+            &texts,
+            only,
+            prereleases,
+            pub_dev::DEFAULT_BASE,
+            fetch,
+        ),
+    );
+}
+
+fn collect_hex(acc: &mut Acc, cx: &Ctx<'_>) {
+    let Ctx {
+        workspace,
+        target,
+        only,
+        name,
+        prereleases,
+        fetch,
+        ..
+    } = *cx;
+    acc.registries.insert(name.to_owned(), Registry::Hex);
+    let texts = read_texts(workspace, name, &target.set.locks, &mut acc.read_errors);
+    merge(
+        &mut acc.found,
+        hex::outdated(name, &texts, only, prereleases, hex::DEFAULT_BASE, fetch),
+    );
+}
+
+/// The registry page for a candidate, including the built-in items.
+pub(super) fn registry_for(
+    registries: &BTreeMap<String, Registry>,
+    candidate: &Candidate,
+) -> Option<Registry> {
+    if candidate.set == github::ACTIONS_SET {
+        return Some(Registry::GitHub);
+    }
+    if candidate.set == dx_update::pins::SET {
+        return Some(Registry::GitHub);
+    }
+    if candidate.set == "bazel" && candidate.package == ".bazelversion" {
+        return Some(Registry::BazelReleases);
+    }
+    registries.get(&candidate.set).copied()
+}
+
+fn read_texts(
+    workspace: &Path,
+    set: &str,
+    manifests: &[String],
+    errors: &mut Vec<dx_update::discover::LookupError>,
+) -> Vec<String> {
+    let mut texts = Vec::new();
+    for manifest in manifests {
+        let read = dx_path::workspace::resolve_in_workspace(workspace, manifest)
+            .and_then(std::fs::read_to_string);
+        match read {
+            Ok(text) => texts.push(text),
+            Err(e) => errors.push(dx_update::discover::LookupError {
+                set: set.to_owned(),
+                package: manifest.clone(),
+                reason: format!("cannot read {manifest}: {e}"),
+            }),
+        }
+    }
+    texts
+}
+
+fn run_builtins(builtins: &Builtins, workspace: &Path, fetch: &dyn Fetch, found: &mut Findings) {
+    if let Some(only) = &builtins.actions {
+        let mut flows = Vec::new();
+        for path in dx_update::edit::gha::list_workflows(workspace).unwrap_or_default() {
+            if let Ok(text) = std::fs::read_to_string(workspace.join(&path)) {
+                flows.push((path, text));
+            }
+        }
+        merge(
+            found,
+            github::actions(&flows, only, github::DEFAULT_BASE, fetch),
+        );
+    }
+    if let Some(only) = &builtins.containers
+        && let Ok(text) = std::fs::read_to_string(workspace.join("MODULE.bazel"))
+    {
+        match dx_module_bazel::ModuleFile::parse(&text) {
+            Ok(module) => merge(found, containers::outdated(&module, only, fetch)),
+            Err(error) => found.errors.push(dx_update::discover::LookupError {
+                set: containers::SET.to_owned(),
+                package: "MODULE.bazel".to_owned(),
+                reason: error.to_string(),
+            }),
+        }
+    }
+    if let Some(only) = &builtins.pins {
+        let listed = dx_update::pins::listed(workspace);
+        let paths: Vec<String> = if only.is_empty() {
+            listed
+        } else {
+            only.clone()
+        };
+        for path in paths {
+            let read = dx_path::workspace::resolve_in_workspace(workspace, &path)
+                .and_then(std::fs::read_to_string);
+            match read {
+                Ok(text) => merge(
+                    found,
+                    dx_update::pins::outdated(
+                        &path,
+                        &text,
+                        github::DEFAULT_BASE,
+                        ruby::DEFAULT_BASE,
+                        fetch,
+                    ),
+                ),
+                Err(error) => found.errors.push(dx_update::discover::LookupError {
+                    set: dx_update::pins::SET.to_owned(),
+                    package: path.clone(),
+                    reason: format!("cannot read {path}: {error}"),
+                }),
+            }
+        }
+    }
+    if builtins.bcr_newest {
+        write_bcr_newest(workspace, fetch, found);
+    }
+    if builtins.bazelversion
+        && let Ok(text) = std::fs::read_to_string(workspace.join(".bazelversion"))
+    {
+        merge(
+            found,
+            github::bazelversion(&text, github::DEFAULT_BASE, fetch),
+        );
+    }
+}
+
+fn write_bcr_newest(workspace: &Path, fetch: &dyn Fetch, found: &mut Findings) {
+    let mut fail = |reason: String| {
+        found.errors.push(dx_update::discover::LookupError {
+            set: "bcr".to_owned(),
+            package: "newest".to_owned(),
+            reason,
+        });
+    };
+    let text = match std::fs::read_to_string(workspace.join("MODULE.bazel")) {
+        Ok(text) => text,
+        Err(error) => return fail(format!("cannot read MODULE.bazel: {error}")),
+    };
+    let module = match dx_module_bazel::ModuleFile::parse(&text) {
+        Ok(module) => module,
+        Err(error) => return fail(error.to_string()),
+    };
+    match bcr::newest_snapshot(&module, bcr::DEFAULT_BASE, fetch) {
+        Ok(snapshot) => {
+            if let Err(error) =
+                dx_atomic_fs::write_atomic(&workspace.join(BCR_NEWEST_FILE), snapshot.as_bytes())
+            {
+                fail(format!("cannot write {BCR_NEWEST_FILE}: {error}"));
+            }
+        }
+        Err(error) => fail(error.to_string()),
+    }
+}
+
+fn merge(into: &mut Findings, from: Findings) {
+    into.unknown.extend(from.unknown);
+    into.candidates.extend(from.candidates);
+    into.errors.extend(from.errors);
+    into.overridden.extend(from.overridden);
+}
+
+fn command_for(candidate: &Candidate, ecosystem: Ecosystem) -> Option<String> {
+    if matches!(ecosystem, Ecosystem::Dub | Ecosystem::LuaRocks) {
+        return None;
+    }
+    Some(format!(
+        "dx update {}:{} {}",
+        candidate.set, candidate.package, candidate.latest
+    ))
+}
+
+fn ecosystem_of(ecosystems: &BTreeMap<String, Ecosystem>, candidate: &Candidate) -> Ecosystem {
+    ecosystems
+        .get(&candidate.set)
+        .copied()
+        .unwrap_or(Ecosystem::Bazel)
+}
+
+fn emit_json(
+    out: &mut dyn Write,
+    found: &Findings,
+    unsupported: &[String],
+    ecosystems: &BTreeMap<String, Ecosystem>,
+    (unused, missing): (&[Unused], &[Missing]),
+    exit: i32,
+) -> Result<(), i32> {
+    for candidate in &found.candidates {
+        let scope = format!("{}:{}", candidate.set, candidate.package);
+        let published = candidate
+            .published
+            .as_ref()
+            .map(|time| format!(", published {time}"))
+            .unwrap_or_default();
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                related_command: command_for(candidate, ecosystem_of(ecosystems, candidate)),
+                scope: Some(vec![scope]),
+                ..NoticeEvent::info(
+                    CODE_UPDATE_OUTDATED,
+                    format!(
+                        "{} is at {}, newest is {}{published}",
+                        candidate.package, candidate.current, candidate.latest
+                    ),
+                )
+            }),
+        )?;
+    }
+    for set in unsupported {
+        emit_built(out, unsupported_notice(set))?;
+    }
+    for unknown in &found.unknown {
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                scope: Some(vec![format!("{}:{}", unknown.set, unknown.package)]),
+                ..NoticeEvent::warning(
+                    CODE_UPDATE_OUTDATED_UNKNOWN,
+                    format!("{}: {}", unknown.package, unknown.reason),
+                )
+            }),
+        )?;
+    }
+    for over in &found.overridden {
+        emit_built(
+            out,
+            notice_event(&NoticeEvent {
+                scope: Some(vec![format!("{}:{}", over.set, over.package)]),
+                ..NoticeEvent::warning(CODE_UPDATE_OUTDATED_OVERRIDDEN, overridden_message(over))
+            }),
+        )?;
+    }
+    for error in &found.errors {
+        emit_built(
+            out,
+            error_event(
+                CODE_UPDATE_OUTDATED_LOOKUP,
+                &format!("{}:{}: {}", error.set, error.package, error.reason),
+                None,
+                None,
+                Some("execute"),
+            ),
+        )?;
+    }
+    update_unused::emit_json(out, unused)?;
+    update_unused::emit_missing_json(out, missing)?;
+    emit_built(
+        out,
+        Ok(command_finished(
+            exit,
+            &FinishedCounts {
+                results_complete: Some(exit == 0),
+                ..FinishedCounts::default()
+            },
+        )),
+    )
+}
+
+fn overridden_message(over: &dx_update::discover::Overridden) -> String {
+    format!(
+        "{} asks for {}, but the lock resolved {}",
+        over.package, over.requested, over.resolved
+    )
+}
+
+fn unsupported_notice(set: &str) -> Result<serde_json::Value, dx_output::OutputError> {
+    notice_event(&NoticeEvent {
+        related_command: Some("dx update".to_owned()),
+        scope: Some(vec![set.to_owned()]),
+        ..NoticeEvent::warning(
+            CODE_UPDATE_OUTDATED_UNSUPPORTED,
+            format!("--outdated does not cover {set} yet"),
+        )
+    })
+}
+
+fn emit_text(
+    out: &mut dyn Write,
+    found: &Findings,
+    unsupported: &[String],
+    ecosystems: &BTreeMap<String, Ecosystem>,
+    (unused, missing): (&[Unused], &[Missing]),
+) -> Result<(), i32> {
+    for candidate in &found.candidates {
+        let published = candidate
+            .published
+            .as_ref()
+            .map(|time| format!(" (published {time})"))
+            .unwrap_or_default();
+        check_stdout_write(writeln!(
+            out,
+            "{}:{} {} -> {}{published}: {}",
+            candidate.set,
+            candidate.package,
+            candidate.current,
+            candidate.latest,
+            command_for(candidate, ecosystem_of(ecosystems, candidate))
+                .unwrap_or_else(|| { outdated_hint(ecosystem_of(ecosystems, candidate)) })
+        ))?;
+    }
+    for set in unsupported {
+        check_stdout_write(writeln!(
+            out,
+            "{set}: --outdated does not cover this set yet"
+        ))?;
+    }
+    for unknown in &found.unknown {
+        check_stdout_write(writeln!(
+            out,
+            "{}:{}: unknown ({})",
+            unknown.set, unknown.package, unknown.reason
+        ))?;
+    }
+    for over in &found.overridden {
+        check_stdout_write(writeln!(
+            out,
+            "{}:{}: overridden ({})",
+            over.set,
+            over.package,
+            overridden_message(over)
+        ))?;
+    }
+    if found.candidates.is_empty()
+        && found.errors.is_empty()
+        && found.unknown.is_empty()
+        && found.overridden.is_empty()
+    {
+        check_stdout_write(writeln!(out, "nothing is outdated"))?;
+    }
+    update_unused::emit_text(out, unused)?;
+    update_unused::emit_missing_text(out, missing)
+}
+
+pub(super) struct DirFetch(pub(super) PathBuf);
+
+impl Fetch for DirFetch {
+    fn download_sha256(&self, url: &str) -> Result<String, DxError> {
+        let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
+        std::fs::read(self.0.join(rest))
+            .map(|bytes| dx_digest::sha256_hex(&bytes))
+            .map_err(|error| fixture_error(url, &error))
+    }
+
+    fn digest(&self, url: &str) -> Result<String, DxError> {
+        self.get(url).map(|text| text.trim().to_owned())
+    }
+
+    fn get(&self, url: &str) -> Result<String, DxError> {
+        let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
+        let path: &Path = &self.0.join(rest);
+        std::fs::read_to_string(path).map_err(|error| fixture_error(url, &error))
+    }
+}
+
+/// A missing fixture file answers like a registry 404.
+fn fixture_error(url: &str, error: &std::io::Error) -> DxError {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        DxError::failure("HTTP 404")
+    } else {
+        DxError::from_io(format!("cannot read the registry fixture for {url}"), error)
+    }
+}
+
+/// Registry lookups through the shared dx HTTP client, with an optional GitHub token.
+struct HttpFetch(Result<dx_http::Client, dx_http::Error>, Option<String>);
+
+const MANIFEST_ACCEPT: &str = "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json";
+
+/// The largest archive `dx update` hashes; it streams, so this bounds time, not memory.
+const ARCHIVE_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
+/// The largest registry document `dx update` reads into memory.
+const DOCUMENT_LIMIT: u64 = 10 * 1024 * 1024;
+
+fn http_settings(https_only: bool) -> dx_http::Settings {
+    dx_http::Settings {
+        https_only,
+        user_agent: concat!("rules_dx/", env!("CARGO_PKG_VERSION")).to_owned(),
+        ..dx_http::Settings::default()
+    }
+}
+
+/// A status the registry sent is a failure; anything that kept dx from an answer is infra.
+fn http_error(error: dx_http::Error) -> DxError {
+    match error {
+        dx_http::Error::Status { code, .. } => DxError::failure(format!("HTTP {code}")),
+        dx_http::Error::Config(message) | dx_http::Error::Blocked(message) => {
+            DxError::failure(message)
+        }
+        other @ (dx_http::Error::Transport { .. }
+        | dx_http::Error::TooLarge { .. }
+        | dx_http::Error::Write { .. }) => DxError::infra(other.to_string()),
+    }
+}
+
+impl HttpFetch {
+    fn new() -> HttpFetch {
+        let token = ["GH_TOKEN", "GITHUB_TOKEN"]
+            .iter()
+            .find_map(|name| std::env::var(name).ok().filter(|value| !value.is_empty()));
+        HttpFetch(dx_http::Client::new(http_settings(true)), token)
+    }
+
+    fn client(&self) -> Result<&dx_http::Client, DxError> {
+        self.0.as_ref().map_err(|error| http_error(error.clone()))
+    }
+}
+
+impl Fetch for HttpFetch {
+    fn download_sha256(&self, url: &str) -> Result<String, DxError> {
+        self.client()?
+            .sha256(url, &[], ARCHIVE_LIMIT)
+            .map_err(|error| match error {
+                dx_http::Error::Status { code, url } => {
+                    DxError::failure(format!("HTTP {code} for {url}"))
+                }
+                other @ (dx_http::Error::Config(_)
+                | dx_http::Error::Blocked(_)
+                | dx_http::Error::Transport { .. }
+                | dx_http::Error::TooLarge { .. }
+                | dx_http::Error::Write { .. }) => http_error(other),
+            })
+    }
+
+    fn digest(&self, url: &str) -> Result<String, DxError> {
+        let headers = self
+            .client()?
+            .head(url, &[("Accept", MANIFEST_ACCEPT)])
+            .map_err(http_error)?;
+        headers
+            .get("docker-content-digest")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned)
+            .ok_or_else(|| DxError::failure("no Docker-Content-Digest header"))
+    }
+
+    fn get(&self, url: &str) -> Result<String, DxError> {
+        let auth = github_auth(url, self.1.as_deref());
+        let headers: Vec<(&str, &str)> = match &auth {
+            Some((name, value)) => vec![
+                (*name, value.as_str()),
+                ("Accept", "application/vnd.github+json"),
+            ],
+            None => Vec::new(),
+        };
+        self.client()?
+            .text(url, &headers, DOCUMENT_LIMIT)
+            .map_err(http_error)
+    }
+}
+
+const COMMAND_MODE: &str = "default";
+
+fn stack_lock_errors(set: &str, locks: &[String]) -> Vec<dx_update::discover::LookupError> {
+    locks
+        .iter()
+        .filter(|l| l.ends_with("stack.yaml.lock"))
+        .map(|lock| dx_update::discover::LookupError {
+            set: set.to_owned(),
+            package: lock.clone(),
+            reason: format!(
+                "dx does not run stack; pin the {lock} versions in the project file and run the cabal lock step to write {}",
+                Ecosystem::Cabal.lockfile()
+            ),
+        })
+        .collect()
+}
+
+fn outdated_hint(ecosystem: Ecosystem) -> String {
+    match ecosystem {
+        Ecosystem::LuaRocks => {
+            "edit the dependencies in the rockspec, then run dx update".to_owned()
+        }
+        Ecosystem::Uv
+        | Ecosystem::Npm
+        | Ecosystem::Bazel
+        | Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Cargo
+        | Ecosystem::Maven
+        | Ecosystem::Nuget
+        | Ecosystem::Go
+        | Ecosystem::Cpan
+        | Ecosystem::Pub
+        | Ecosystem::Julia
+        | Ecosystem::Hex
+        | Ecosystem::Composer
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::Opam
+        | Ecosystem::SwiftPm
+        | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep => "edit the dub manifest, then run dx update".to_owned(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Read, Write};
+
+    fn serve_once(response: &'static str) -> String {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/x", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0u8; 4096];
+            drop(stream.read(&mut buf));
+            stream.write_all(response.as_bytes()).unwrap();
+        });
+        url
+    }
+
+    #[test]
+    fn stack_lock_without_freeze_is_refused() {
+        let locks = vec![
+            "app/stack.yaml.lock".to_owned(),
+            Ecosystem::Cabal.lockfile().to_owned(),
+        ];
+        let errors = stack_lock_errors("hackage", &locks);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].package, "app/stack.yaml.lock");
+        assert!(errors[0].reason.starts_with("dx does not run stack"));
+    }
+
+    #[test]
+    fn the_started_event_passes_the_event_validator() {
+        let started = command_started("update", COMMAND_MODE).expect("valid started event");
+        assert_eq!(started["mode"], "default");
+    }
+
+    /// A fetcher for loopback URLs that ignores the host's proxy settings. It tries once,
+    /// since each test server answers one request; dx_http's own tests cover retries.
+    fn plain_fetch() -> HttpFetch {
+        let settings = dx_http::Settings {
+            attempts: 1,
+            ..http_settings(false)
+        };
+        HttpFetch(dx_http::Client::with_env(settings, |_| None), None)
+    }
+
+    const NOT_FOUND: &str =
+        "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+
+    #[test]
+    fn http_fetch_reports_404_as_http_404() {
+        let fetch = plain_fetch();
+        assert_eq!(
+            fetch.get(&serve_once(NOT_FOUND)),
+            Err(DxError::failure("HTTP 404"))
+        );
+        assert_eq!(
+            fetch.digest(&serve_once(NOT_FOUND)),
+            Err(DxError::failure("HTTP 404"))
+        );
+    }
+
+    #[test]
+    fn http_fetch_reports_500_as_http_500() {
+        let url = serve_once(
+            "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        );
+        assert_eq!(plain_fetch().get(&url), Err(DxError::failure("HTTP 500")));
+    }
+
+    #[test]
+    fn http_fetch_digest_reads_header() {
+        let url = serve_once(
+            "HTTP/1.1 200 OK\r\nDocker-Content-Digest: sha256:abc\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+        );
+        assert_eq!(plain_fetch().digest(&url), Ok("sha256:abc".to_owned()));
+    }
+
+    #[test]
+    fn a_missing_manifest_is_a_lookup_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let gone = format!("gone/{}", Ecosystem::Npm.manifest_name());
+        let target = dependency_sets::ResolvedTarget {
+            set: dependency_sets::ResolvedSet {
+                name: "web".into(),
+                ecosystem: Ecosystem::Npm,
+                dir: ".".into(),
+                manifests: vec![gone.clone()],
+                locks: Vec::new(),
+                repository: None,
+            },
+            request: Selection::Full,
+        };
+        let collected = collect(
+            dir.path(),
+            &[target],
+            &Builtins::default(),
+            false,
+            &DirFetch(dir.path().to_owned()),
+        );
+        assert!(
+            collected.found.candidates.is_empty(),
+            "{:?}",
+            collected.found.candidates
+        );
+        assert_eq!(collected.found.errors.len(), 1);
+        assert_eq!(collected.found.errors[0].set, "web");
+        assert_eq!(collected.found.errors[0].package, gone);
+    }
+
+    #[test]
+    fn registry_for_picks_builtins_before_the_set_map() {
+        let cand = |set: &str, package: &str| Candidate {
+            set: set.into(),
+            package: package.into(),
+            current: "1".into(),
+            latest: "2".into(),
+            published: None,
+            prerelease: false,
+            repo: None,
+            tags: None,
+        };
+        let mut map = BTreeMap::new();
+        map.insert("bazel".to_owned(), Registry::Bcr);
+        assert_eq!(
+            registry_for(&map, &cand("github-actions", "actions/checkout")),
+            Some(Registry::GitHub)
+        );
+        assert_eq!(
+            registry_for(&map, &cand("bazel", ".bazelversion")),
+            Some(Registry::BazelReleases)
+        );
+        assert_eq!(
+            registry_for(&map, &cand("bazel", "rules_go")),
+            Some(Registry::Bcr)
+        );
+        assert_eq!(registry_for(&map, &cand("other", "x")), None);
+    }
+
+    #[test]
+    fn dir_fetch_maps_urls_to_mirrored_files() {
+        let dir = std::env::temp_dir().join(format!("dx-outdated-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("index.crates.io/3/o")).expect("mkdir");
+        std::fs::write(dir.join("index.crates.io/3/o/old"), "body").expect("write");
+        let fetch = DirFetch(dir.clone());
+        assert_eq!(
+            fetch.get("https://index.crates.io/3/o/old"),
+            Ok("body".into())
+        );
+        assert_eq!(
+            fetch.get("https://index.crates.io/3/o/none"),
+            Err(DxError::failure("HTTP 404"))
+        );
+        dx_atomic_fs::discard_dir(dir);
+    }
+
+    #[test]
+    fn dir_fetch_maps_scoped_npm_urls() {
+        let dir = std::env::temp_dir().join(format!("dx-outdated-npm-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("registry.npmjs.org/@scope")).expect("mkdir");
+        std::fs::write(dir.join("registry.npmjs.org/@scope/pkg"), "{}").expect("write");
+        let fetch = DirFetch(dir.clone());
+        assert_eq!(
+            fetch.get("https://registry.npmjs.org/@scope/pkg"),
+            Ok("{}".into())
+        );
+        dx_atomic_fs::discard_dir(dir);
+    }
+
+    #[test]
+    fn pins_selectors_narrow_to_listed_files() {
+        let list = |words: &[&str]| words.iter().map(|w| (*w).to_owned()).collect::<Vec<_>>();
+        let (all, _) = split_builtin(&[]);
+        assert!(all.selects_all_pins());
+        let (one, rest) = split_builtin(&list(&["pins:ruby/pins.json"]));
+        assert_eq!(one.pins, Some(vec!["ruby/pins.json".to_owned()]));
+        assert!(!one.selects_all_pins() && rest.is_empty());
+        let (whole, _) = split_builtin(&list(&["pins:a/pins.json", "pins"]));
+        assert!(whole.selects_all_pins());
+    }
+
+    #[test]
+    fn download_sha256_reads_the_file_a_dir_fetch_serves() {
+        let dir = std::env::temp_dir().join(format!("dx-pins-dl-{}", std::process::id()));
+        dx_atomic_fs::discard_dir(&dir);
+        std::fs::create_dir_all(dir.join("host/p")).unwrap();
+        std::fs::write(dir.join("host/p/f.tgz"), b"abc").unwrap();
+        let fetch = DirFetch(dir.clone());
+        assert_eq!(
+            fetch.download_sha256("https://host/p/f.tgz").unwrap(),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        assert!(fetch.download_sha256("https://host/p/none.tgz").is_err());
+        dx_atomic_fs::discard_dir(dir);
+    }
+
+    #[test]
+    fn commands_name_the_set_package_and_version() {
+        let candidate = Candidate {
+            set: "cargo".into(),
+            package: "serde".into(),
+            current: "1".into(),
+            latest: "2.0.0".into(),
+            published: None,
+            prerelease: false,
+            repo: None,
+            tags: None,
+        };
+        assert_eq!(
+            command_for(&candidate, Ecosystem::Cargo),
+            Some("dx update cargo:serde 2.0.0".to_owned())
+        );
+    }
+
+    #[test]
+    fn text_output_lists_candidates_or_says_nothing() {
+        let mut out = Vec::new();
+        emit_text(
+            &mut out,
+            &Findings::default(),
+            &[],
+            &BTreeMap::new(),
+            (&[], &[]),
+        )
+        .expect("text");
+        assert_eq!(String::from_utf8_lossy(&out), "nothing is outdated\n");
+        let found = Findings {
+            candidates: vec![Candidate {
+                set: "cargo".into(),
+                package: "serde".into(),
+                current: "1".into(),
+                latest: "2.0.0".into(),
+                published: Some("2026-01-01T00:00:00Z".into()),
+                prerelease: false,
+                repo: None,
+                tags: None,
+            }],
+            ..Findings::default()
+        };
+        let mut out = Vec::new();
+        emit_text(
+            &mut out,
+            &found,
+            &["gradle".into()],
+            &BTreeMap::new(),
+            (&[], &[]),
+        )
+        .expect("text");
+        let text = String::from_utf8_lossy(&out);
+        assert!(text.contains(
+            "cargo:serde 1 -> 2.0.0 (published 2026-01-01T00:00:00Z): dx update cargo:serde 2.0.0"
+        ));
+        assert!(text.contains("gradle: --outdated does not cover"));
+    }
+
+    #[test]
+    fn builtin_selectors_split_from_sets() {
+        let list = |items: &[&str]| items.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        let (all, rest) = split_builtin(&[]);
+        assert!(all.actions.is_some() && all.bazelversion && rest.is_empty());
+        let (one, rest) = split_builtin(&list(&["github-actions:o/r", "dx_crates"]));
+        assert_eq!(one.actions, Some(list(&["o/r"])));
+        assert!(!one.bazelversion);
+        assert_eq!(rest, list(&["dx_crates"]));
+        let (bazel, rest) = split_builtin(&list(&["bazel:.bazelversion", "github-actions"]));
+        assert!(bazel.bazelversion && rest.is_empty());
+        assert_eq!(bazel.actions, Some(Vec::new()));
+    }
+
+    #[test]
+    fn containers_builtin_reports_a_moved_latest_digest() {
+        let old = format!("sha256:{}", "1".repeat(64));
+        let new = format!("sha256:{}", "2".repeat(64));
+        let root = std::env::temp_dir().join(format!("dx-containers-{}", std::process::id()));
+        let manifest = root.join("mirror/gcr.io/v2/distroless/static-debian12/manifests");
+        std::fs::create_dir_all(&manifest).expect("mirror");
+        std::fs::write(manifest.join("latest"), format!("{new}\n")).expect("digest");
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            format!(
+                "oci.pull(name = \"distroless_static\", image = \"gcr.io/distroless/static-debian12\", digest = \"{old}\")\n"
+            ),
+        )
+        .expect("module");
+        let (builtins, rest) = split_builtin(&["containers".to_owned()]);
+        assert!(builtins.selects_all_containers() && rest.is_empty());
+        let fetch = DirFetch(root.join("mirror"));
+        let collected = collect(&root, &[], &builtins, false, &fetch);
+        dx_atomic_fs::discard_dir(&root);
+        let candidate = &collected.found.candidates[0];
+        assert_eq!(candidate.set, "containers");
+        assert_eq!(candidate.package, "distroless_static");
+        assert_eq!((&candidate.current, &candidate.latest), (&old, &new));
+        assert!(
+            collected.found.errors.is_empty(),
+            "{:?}",
+            collected.found.errors
+        );
+    }
+
+    #[test]
+    fn bcr_newest_selector_writes_the_snapshot() {
+        let root = std::env::temp_dir().join(format!("dx-bcr-newest-{}", std::process::id()));
+        let metadata = root.join("mirror/bcr.bazel.build/modules/rules_cc");
+        std::fs::create_dir_all(&metadata).expect("mirror");
+        std::fs::create_dir_all(root.join("core/modules")).expect("out dir");
+        std::fs::write(
+            metadata.join("metadata.json"),
+            r#"{"versions": ["0.1.0", "0.2.0", "0.3.0-rc1"], "yanked_versions": {}}"#,
+        )
+        .expect("metadata");
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "bazel_dep(name = \"rules_cc\", version = \"0.1.0\")\n",
+        )
+        .expect("module");
+        let (builtins, rest) = split_builtin(&["bcr:newest".to_owned()]);
+        assert!(builtins.bcr_newest && rest.is_empty());
+        let collected = collect(&root, &[], &builtins, false, &DirFetch(root.join("mirror")));
+        let written = std::fs::read_to_string(root.join(BCR_NEWEST_FILE));
+        dx_atomic_fs::discard_dir(&root);
+        assert!(
+            collected.found.errors.is_empty(),
+            "{:?}",
+            collected.found.errors
+        );
+        assert_eq!(
+            written.expect("snapshot"),
+            "{\n  \"rules_cc\": \"0.2.0\"\n}\n"
+        );
+        assert!(!split_builtin(&[]).0.bcr_newest);
+    }
+
+    #[test]
+    fn token_goes_to_api_github_only() {
+        let api = "https://api.github.com/repos/o/r/releases/latest";
+        assert_eq!(
+            github_auth(api, Some("t")),
+            Some(("Authorization", "Bearer t".to_owned()))
+        );
+        assert_eq!(github_auth(api, None), None);
+        assert_eq!(github_auth("https://bcr.bazel.build/x", Some("t")), None);
+        assert_eq!(github_auth("https://index.crates.io/x", Some("t")), None);
+        assert_eq!(
+            github_auth("https://api.github.com.evil.io/x", Some("t")),
+            None
+        );
+    }
+
+    #[test]
+    fn dir_fetch_maps_github_release_urls() {
+        let dir = std::env::temp_dir().join(format!("dx-outdated-gh-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("api.github.com/repos/o/r/releases")).expect("mkdir");
+        std::fs::write(dir.join("api.github.com/repos/o/r/releases/latest"), "{}").expect("write");
+        let fetch = DirFetch(dir.clone());
+        assert_eq!(
+            fetch.get("https://api.github.com/repos/o/r/releases/latest"),
+            Ok("{}".into())
+        );
+        dx_atomic_fs::discard_dir(dir);
+    }
+
+    #[test]
+    fn text_output_shows_unknown_pins() {
+        let found = Findings {
+            unknown: vec![dx_update::discover::LookupError {
+                set: "github-actions".into(),
+                package: "o/r".into(),
+                reason: "no GitHub release".into(),
+            }],
+            ..Findings::default()
+        };
+        let mut out = Vec::new();
+        emit_text(&mut out, &found, &[], &BTreeMap::new(), (&[], &[])).expect("text");
+        assert_eq!(
+            String::from_utf8_lossy(&out),
+            "github-actions:o/r: unknown (no GitHub release)\n"
+        );
+    }
+
+    #[test]
+    fn an_overridden_version_warns_in_text_and_json() {
+        let found = Findings {
+            overridden: vec![dx_update::discover::Overridden {
+                set: "maven".into(),
+                package: "com.google.guava:guava".into(),
+                requested: "33.4.0-jre".into(),
+                resolved: "33.6.0-android".into(),
+            }],
+            ..Findings::default()
+        };
+        let mut out = Vec::new();
+        emit_text(&mut out, &found, &[], &BTreeMap::new(), (&[], &[])).expect("text");
+        assert_eq!(
+            String::from_utf8_lossy(&out),
+            "maven:com.google.guava:guava: overridden (com.google.guava:guava asks for 33.4.0-jre, but the lock resolved 33.6.0-android)\n"
+        );
+        let mut out = Vec::new();
+        emit_json(&mut out, &found, &[], &BTreeMap::new(), (&[], &[]), 0).expect("json");
+        let json = String::from_utf8_lossy(&out);
+        assert!(json.contains(CODE_UPDATE_OUTDATED_OVERRIDDEN), "{json}");
+        assert!(json.contains("\"maven:com.google.guava:guava\""), "{json}");
+    }
+}

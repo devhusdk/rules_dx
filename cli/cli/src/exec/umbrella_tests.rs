@@ -580,7 +580,7 @@ fn check_clean_runs_every_phase_in_order() {
         generate < format && format < lint && lint < typecheck,
         "{out}"
     );
-    assert_eq!(err, "no findings in 0 target(s)\n".repeat(3), "{err}");
+    assert_eq!(err, "no findings in 1 target(s)\n".repeat(3), "{err}");
     assert_eq!(
         harness.seen_env.borrow().len(),
         2,
@@ -902,6 +902,49 @@ fn fix_apply_verifies_quality_apply_with_clean_recheck() {
         7,
         "five apply launches plus generate and format verification"
     );
+}
+
+#[test]
+fn check_apply_workspace_config_scope_applies_crate_fixes() {
+    let mut harness = Harness::new("umbrella-config-scope-apply");
+    harness.write_source(
+        ".bazelrc",
+        "build --@rules_rust//rust/settings:clippy.toml=//tools/workspace:clippy.toml\n",
+    );
+    harness.write_source("tools/workspace/BUILD.bazel", "");
+    harness.write_source("tools/workspace/clippy.toml", "");
+    harness.write_source("src/a.py", "x = 1\n");
+    harness.results.insert(
+        "//test:corpus".to_owned(),
+        harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+    );
+    harness.intended = Some(intended_witness("default", true, "", ""));
+    let staged = harness.staged_artifacts();
+    let clean = harness.result_full(vec![], vec![], vec![], vec![]);
+    let verify_files: Vec<(PathBuf, Vec<u8>)> = staged
+        .iter()
+        .map(|(path, _)| (path.clone(), clean.clone()))
+        .collect();
+    let (code, out, err) = fix_apply_format_edit_then_verify(
+        &harness,
+        verify_files,
+        Some(intended_witness("check", true, "", "")),
+        5,
+        &[
+            "check",
+            "--apply",
+            "tools/workspace/clippy.toml",
+            "--output=text",
+        ],
+    );
+    assert_eq!(code, 0, "{out}{err}");
+    assert!(out.contains("Running format analysis for //..."), "{out}");
+    assert_eq!(
+        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
+        b"y = 1\n",
+        "the config scope stands for the workspace, so the edit is in scope"
+    );
+    assert!(out.contains("Applied 1 file(s)."), "{out}");
 }
 
 #[test]
@@ -2084,7 +2127,7 @@ fn check_missing_capture_fails_the_run_and_keeps_valid_partial_runs() {
     );
     assert_eq!(code, 1, "{out}{err}");
     assert_eq!(
-        err.replace("no findings in 0 target(s)\n", ""),
+        err.replace("no findings in 1 target(s)\n", ""),
         "dx: collection_failed: lint wrote no sarif capture\n",
         "{err}"
     );
@@ -2151,7 +2194,7 @@ fn check_unreadable_capture_fails_the_run() {
     );
     assert_eq!(code, 1, "{out}{err}");
     assert_eq!(
-        err.replace("no findings in 0 target(s)\n", ""),
+        err.replace("no findings in 1 target(s)\n", ""),
         "dx: collection_failed: lint sarif capture is unreadable\n",
         "{err}"
     );
@@ -2192,7 +2235,7 @@ fn fix_apply_mode_shares_the_same_capture_collector() {
     let (code, out, err) = harness.execute_with(&inv, &breaking);
     assert_eq!(code, 1, "{out}{err}");
     assert_eq!(
-        err.replace("no findings in 0 target(s)\n", ""),
+        err.replace("no findings in 1 target(s)\n", ""),
         "dx: collection_failed: lint wrote no sarif capture\n",
         "{err}"
     );
@@ -2238,7 +2281,7 @@ fn check_malformed_capture_fails_the_run() {
         );
         assert_eq!(code, 1, "{name}: {out}{err}");
         assert_eq!(
-            err.replace("no findings in 0 target(s)\n", ""),
+            err.replace("no findings in 1 target(s)\n", ""),
             "dx: collection_failed: lint sarif capture is malformed\n",
             "{name}: {err}"
         );

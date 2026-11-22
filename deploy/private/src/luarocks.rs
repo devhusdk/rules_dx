@@ -28,20 +28,7 @@ const LUAROCKS_CHILD_ENV_EXTRA: &[&str] = &[
     "XDG_CACHE_HOME",
 ];
 
-/// Returns the string a rockspec assigns to one top-level variable.
-fn rockspec_string<'a>(text: &'a str, key: &str) -> Option<&'a str> {
-    text.lines().find_map(|line| {
-        let (name, value) = line.split_once('=')?;
-        if name.trim_end() != key {
-            return None;
-        }
-        let value = value.trim().trim_end_matches(',');
-        let quote = value.chars().next().filter(|c| matches!(c, '"' | '\''))?;
-        value.strip_prefix(quote)?.strip_suffix(quote)
-    })
-}
-
-/// Why a rockspec does not carry the declared package and version.
+/// Why a rockspec failed its identity check.
 #[derive(Debug)]
 pub enum LuarocksError {
     NotRockspec {
@@ -54,7 +41,7 @@ pub enum LuarocksError {
     NoVersion {
         file_name: String,
     },
-    NameMismatch {
+    FileName {
         file_name: String,
         package: String,
         version: String,
@@ -80,7 +67,7 @@ impl fmt::Display for LuarocksError {
             Self::NoVersion { file_name } => {
                 write!(f, "{file_name} has no top-level version string")
             }
-            Self::NameMismatch {
+            Self::FileName {
                 file_name,
                 package,
                 version,
@@ -107,11 +94,24 @@ impl std::error::Error for LuarocksError {
             Self::NotRockspec { .. }
             | Self::NoPackage { .. }
             | Self::NoVersion { .. }
-            | Self::NameMismatch { .. }
+            | Self::FileName { .. }
             | Self::PackageMismatch { .. }
             | Self::VersionMismatch { .. } => None,
         }
     }
+}
+
+/// Returns the string a rockspec assigns to one top-level variable.
+fn rockspec_string<'a>(text: &'a str, key: &str) -> Option<&'a str> {
+    text.lines().find_map(|line| {
+        let (name, value) = line.split_once('=')?;
+        if name.trim_end() != key {
+            return None;
+        }
+        let value = value.trim().trim_end_matches(',');
+        let quote = value.chars().next().filter(|c| matches!(c, '"' | '\''))?;
+        value.strip_prefix(quote)?.strip_suffix(quote)
+    })
 }
 
 /// Reads the package and version a rockspec declares, checked against its file name.
@@ -135,7 +135,7 @@ pub fn luarocks_read_identity(rockspec: &Path) -> Result<(String, String), Luaro
         file_name: file_name.to_owned(),
     })?;
     if stem != format!("{package}-{version}") {
-        return Err(LuarocksError::NameMismatch {
+        return Err(LuarocksError::FileName {
             file_name: file_name.to_owned(),
             package: package.to_owned(),
             version: version.to_owned(),
@@ -403,16 +403,16 @@ mod tests {
         for version in ["", "1.2.0-1", "1.2.0"] {
             assert!(luarocks_check_identity(&identity, "demo", version).is_ok());
         }
+        let mismatch = luarocks_check_identity(&identity, "", "1.2.1").expect_err("version");
+        assert!(matches!(mismatch, LuarocksError::VersionMismatch { .. }));
         assert_eq!(
-            luarocks_check_identity(&identity, "", "1.2.1")
-                .expect_err("version")
-                .to_string(),
+            mismatch.to_string(),
             "version mismatch: rockspec declares 1.2.0-1, BUILD declares 1.2.1"
         );
+        let mismatch = luarocks_check_identity(&identity, "other", "").expect_err("package");
+        assert!(matches!(mismatch, LuarocksError::PackageMismatch { .. }));
         assert_eq!(
-            luarocks_check_identity(&identity, "other", "")
-                .expect_err("package")
-                .to_string(),
+            mismatch.to_string(),
             "package mismatch: rockspec declares demo, BUILD declares other"
         );
     }
@@ -421,27 +421,32 @@ mod tests {
     fn rejects_a_rockspec_that_disagrees_with_its_file_name() {
         let dir = scratch_dir();
         let wrong = write_rockspec(dir.path(), "demo-1.3.0-1.rockspec", ROCKSPEC);
-        assert!(
-            luarocks_read_identity(&wrong)
-                .expect_err("name")
-                .to_string()
-                .contains("must be named demo-1.2.0-1.rockspec")
+        let name = luarocks_read_identity(&wrong).expect_err("name");
+        assert!(matches!(name, LuarocksError::FileName { .. }));
+        assert_eq!(
+            name.to_string(),
+            "demo-1.3.0-1.rockspec declares demo 1.2.0-1; the file must be named demo-1.2.0-1.rockspec"
         );
         let bare = write_rockspec(dir.path(), "demo-1.rockspec", "package = \"demo\"\n");
+        let version = luarocks_read_identity(&bare).expect_err("version");
+        assert!(matches!(version, LuarocksError::NoVersion { .. }));
+        assert_eq!(
+            version.to_string(),
+            "demo-1.rockspec has no top-level version string"
+        );
+        let unnamed = write_rockspec(dir.path(), "demo-2.rockspec", "version = \"2\"\n");
         assert!(matches!(
-            luarocks_read_identity(&bare),
-            Err(LuarocksError::NoVersion { .. })
+            luarocks_read_identity(&unnamed).expect_err("package"),
+            LuarocksError::NoPackage { .. }
         ));
         let other = write_rockspec(dir.path(), "demo.txt", ROCKSPEC);
-        assert!(matches!(
-            luarocks_read_identity(&other),
-            Err(LuarocksError::NotRockspec { .. })
-        ));
-        let gone = dir.path().join("gone-1.0-1.rockspec");
-        let error = luarocks_read_identity(&gone).expect_err("absent");
-        assert!(matches!(&error, LuarocksError::Read(source) if source.path() == gone));
-        assert!(error.to_string().starts_with("cannot read "));
-        assert!(std::error::Error::source(&error).is_some());
+        let suffix = luarocks_read_identity(&other).expect_err("suffix");
+        assert!(matches!(suffix, LuarocksError::NotRockspec { .. }));
+        assert_eq!(suffix.to_string(), "demo.txt is not a .rockspec file");
+        let missing = dir.path().join("missing-1.0-1.rockspec");
+        let error = luarocks_read_identity(&missing).expect_err("missing");
+        assert!(matches!(&error, LuarocksError::Read(io) if io.path() == missing));
+        assert!(error.to_string().starts_with("cannot read "), "{error}");
     }
 
     #[test]

@@ -1,67 +1,28 @@
 """Module extension for php/private/toolchain."""
 
+load("//cli/prebuilt:launcher.bzl", "FROM_SOURCE", "native_launcher_repos")
 load(":cells.bzl", "PHP_CELLS")
-load(":repos.bzl", "HEADERS_BUILD", "HUB_NAME", "COVERAGE_PREFIX", "SOURCES_BUILD", "VERSION_FILE", "hub_build", "phar_build", "php_archive", "php_coverage_runtime", "php_hub", "runtime_build", "runtime_repository_name")
-
-
-_PHP_INCLUDES = ["include/php", "include/php/main", "include/php/Zend", "include/php/TSRM", "include/php/ext"]
-
+load(":repos.bzl", "HUB_NAME", "SOURCES_BUILD", "VERSION_FILE", "hub_build", "phar_build", "php_archive", "php_hub", "runtime_build", "runtime_repository_name")
 
 def _php_impl(mctx):
     pins = json.decode(mctx.read(Label("//php:pins.json")))
     php_version = pins["version"]
-    pcov = pins["pcov"]
-    pcre2 = pins["pcre2"]
     tools = pins["tools"]
-    for cell, coverage in sorted(pins["coverage"].items()):
-        php_coverage_runtime(
-            name = COVERAGE_PREFIX + cell,
-            pcov = [coverage["pcov"]["sha256"]] + coverage["pcov"]["urls"],
-            php = [coverage["php"]["sha256"]] + coverage["php"]["urls"],
-        )
     for cell in sorted(PHP_CELLS.keys()):
-        coverage = COVERAGE_PREFIX + cell if cell in pins["coverage"] else ""
         php_archive(
             name = runtime_repository_name(cell),
             files = {
-                "BUILD.bazel": runtime_build(php_version, PHP_CELLS[cell].interpreter, PHP_CELLS[cell].pcov, coverage),
+                "BUILD.bazel": runtime_build(php_version, PHP_CELLS[cell].interpreter),
                 VERSION_FILE: php_version + "\n",
             },
             required = [PHP_CELLS[cell].interpreter],
             sha256 = pins["cells"][cell]["sha256"],
             urls = pins["cells"][cell]["urls"],
         )
-    for cell, headers in sorted(pins["headers"].items()):
-        php_archive(
-            name = "dx_php_headers_" + cell,
-            files = {"BUILD.bazel": HEADERS_BUILD.format(includes = repr(_PHP_INCLUDES))},
-            inner = [headers["inner"]],
-            required = ["include/php/main/php_config.h"],
-            sha256 = headers["sha256"],
-            type = "zip",
-            urls = headers["urls"],
-        )
-    php_archive(
-        name = "dx_php_pcre2",
-        files = {"BUILD.bazel": HEADERS_BUILD.format(includes = repr(["include"]))},
-        inner = [pcre2["inner"]],
-        required = ["include/pcre2.h"],
-        sha256 = pcre2["sha256"],
-        type = "zip",
-        urls = pcre2["urls"],
-    )
-    php_archive(
-        name = "dx_php_pcov",
-        files = {"BUILD.bazel": mctx.read(Label("//php/private:pcov.BUILD.bazel"))},
-        patches = [Label("//php/private:patches/pcov_user_opcode_handlers.patch")],
-        required = ["pcov-" + pcov["version"] + "/pcov.c"],
-        sha256 = pcov["sha256"],
-        urls = pcov["urls"],
-    )
     php_hub(name = HUB_NAME, files = {"BUILD.bazel": hub_build(PHP_CELLS.keys())})
     for name, file, pin in [
-        ("dx_composer", "composer.phar", tools["composer"]),
-        ("dx_phpunit", "phpunit.phar", tools["phpunit"]),
+        ("php_composer", "composer.phar", tools["composer"]),
+        ("php_phpunit", "phpunit.phar", tools["phpunit"]),
         ("dx_phpbench", "phpbench.phar", tools["phpbench"]),
         ("dx_phpcs", "phpcs.phar", tools["phpcs"]),
         ("dx_phpdocumentor", "phpDocumentor.phar", tools["phpdocumentor"]),
@@ -81,10 +42,11 @@ def _php_impl(mctx):
             strip_prefix = pin["strip_prefix"],
             urls = pin["urls"],
         )
+    native_launcher_repos(name = "php_launcher", modules = mctx.modules, ext = "php")
     return mctx.extension_metadata(reproducible = True)
-
 
 php = module_extension(
     implementation = _php_impl,
-    doc = "Creates the pinned PHP runtimes, Composer, PHPUnit and the toolchain hub.",
+    doc = "Creates the pinned PHP runtimes, Composer, PHPUnit, the native launcher and the toolchain hub.",
+    tag_classes = {"from_source": FROM_SOURCE},
 )

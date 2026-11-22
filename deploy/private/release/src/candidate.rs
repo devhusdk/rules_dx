@@ -1,7 +1,7 @@
 //! Release candidate identity, source archive, local registry and tag checks.
 
 use std::collections::BTreeMap;
-use std::fmt::{self, Write as _};
+use std::fmt;
 use std::io::{self, BufRead};
 use std::num::ParseIntError;
 use std::path::{Path, PathBuf};
@@ -17,7 +17,7 @@ use dx_fingerprint::FingerprintError;
 use crate::{
     BCR_WANT_MODULE, BcrError, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_error,
     bcr_candidate_version_error, bcr_integrity_of_digest, bcr_source_url, bcr_strip_prefix,
-    modules::{ModuleError, local_override_error, module_version_error},
+    modules::{ModuleError, root_only_override_error, module_version_error},
     pretty_json, render_bcr_source_for_digest, write_bcr_source_for_archive,
 };
 
@@ -781,7 +781,7 @@ fn cat_blobs(
 ) -> Result<Vec<Vec<u8>>, CandidateError> {
     let mut input = String::new();
     for (path, _) in entries {
-        writeln!(input, "{commit}:{path}").ok();
+        input.push_str(&format!("{commit}:{path}\n"));
     }
     let mut blobs = git_pipe(repo, &["cat-file", "--batch"], input.as_bytes(), |stdout| {
         read_batch(stdout, commit, entries)
@@ -1039,7 +1039,7 @@ fn stage_release_source(
     source_archive_error(staged, repo, candidate, pins)?;
     let module_text = commit_module_file(repo, candidate)?;
     module_version_error(&module_text, candidate.version())?;
-    local_override_error(&module_text)?;
+    root_only_override_error(&module_text)?;
     let archive = path_io::read(staged)?;
     let sidecar = format!("{}  {name}\n", built.digest).into_bytes();
     let integrity = write_bcr_source_for_archive(staged_json, candidate.version(), staged)

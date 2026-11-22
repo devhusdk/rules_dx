@@ -1,5 +1,6 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load(":settings.bzl", "lang_platform_setting")
+load(":settings.bzl", "lang_platform_setting", "lang_unsupported")
 
 lang_platform_setting(name = "dart")
 
@@ -8,6 +9,124 @@ lang_platform_setting(name = "flutter")
 lang_platform_setting(name = "julia")
 
 lang_platform_setting(name = "perl")
+
+lang_unsupported(name = "android_unsupported")
+
+lang_unsupported(name = "d_unsupported")
+
+lang_unsupported(name = "dart_unsupported")
+
+lang_unsupported(name = "elixir_unsupported")
+
+lang_unsupported(name = "erlang_unsupported")
+
+lang_unsupported(name = "flutter_unsupported")
+
+lang_unsupported(name = "haskell_unsupported")
+
+lang_unsupported(name = "julia_unsupported")
+
+lang_unsupported(name = "msix_unsupported")
+
+lang_unsupported(name = "perl_unsupported")
+
+lang_unsupported(name = "php_unsupported")
+
+lang_unsupported(name = "qt_unsupported")
+
+# Select keys shared by language packages.
+config_setting(
+    name = "coverage_linux",
+    constraint_values = ["@platforms//os:linux"],
+    values = {"collect_code_coverage": "true"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "coverage_windows",
+    constraint_values = ["@platforms//os:windows"],
+    values = {"collect_code_coverage": "true"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "coverage_windows_static_crt",
+    constraint_values = ["@platforms//os:windows"],
+    values = {
+        "collect_code_coverage": "true",
+        "features": "static_link_msvcrt",
+    },
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:linux",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "linux_x86_64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "msvc",
+    constraint_values = [
+        "@llvm//constraints/windows/abi:msvc",
+        "@platforms//os:windows",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "clang_cl",
+    constraint_values = [
+        "@llvm//constraints/windows/abi:msvc",
+        "@platforms//os:windows",
+    ],
+    flag_values = {"//cc:compiler": "llvm"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "msvc_opt",
+    constraint_values = [
+        "@llvm//constraints/windows/abi:msvc",
+        "@platforms//os:windows",
+    ],
+    values = {"compilation_mode": "opt"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "libstdcxx",
+    constraint_values = ["@llvm//constraints/cxxstdlib:libstdcxx"],
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "libstdcxx_dynamic_runtime",
+    constraint_values = ["@llvm//constraints/cxxstdlib:libstdcxx"],
+    values = {"features": "-static_link_cpp_runtimes"},
+    visibility = ["//visibility:public"],
+)
+
+selects.config_setting_group(
+    name = "fuzz_sanitizer_runtime",
+    match_any = [
+        "@llvm//config:asan_enabled",
+        "@platforms//os:windows",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 filegroup(
     name = "module_srcs",

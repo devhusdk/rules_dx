@@ -14,6 +14,7 @@ fn quality_entries_merge_by_aspect_file() {
             bzl: "core/quality:families/a.bzl".to_owned(),
             file_extensions: vec![".x".to_owned(), ".y".to_owned()],
             file_names: Vec::new(),
+            licenses: Vec::new(),
             aspects: BTreeMap::from([("lint".to_owned(), vec!["a_lint".to_owned()])]),
             probes: BTreeMap::from([("lint".to_owned(), vec!["a_probe".to_owned()])]),
         }]
@@ -34,10 +35,27 @@ fn file_name_entry_is_wanted_by_its_file_name() {
 }
 
 #[test]
+fn license_entry_is_wanted_by_its_accepted_license() {
+    let merged = parse_quality(&[
+        r#"{"quality": {"bzl": "a:a.bzl", "file_extensions": [], "licenses": ["some-eula"]}}"#,
+    ])
+    .expect("parse");
+    let accepted = std::collections::BTreeSet::from([license_mark("some-eula")]);
+    assert!(merged[0].wanted(&accepted));
+    let other =
+        std::collections::BTreeSet::from([license_mark("other-eula"), "some-eula".to_owned()]);
+    assert!(!merged[0].wanted(&other));
+}
+
+#[test]
 fn every_quality_language_is_wanted_by_a_file() {
     let mut owners: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for language in quality_languages() {
-        assert!(!language.file_extensions.is_empty(), "{}", language.bzl);
+        assert!(
+            !language.file_extensions.is_empty() || !language.licenses.is_empty(),
+            "{}",
+            language.bzl
+        );
         for ext in &language.file_extensions {
             owners.entry(ext).or_default().push(&language.bzl);
         }
@@ -55,16 +73,53 @@ fn every_quality_language_is_wanted_by_a_file() {
 #[test]
 fn every_language_aspect_label_is_listed_once() {
     let mut seen = std::collections::BTreeSet::new();
-    for language in quality_languages() {
+    for language in core_quality().iter().chain(quality_languages()) {
         for command in ["format", "lint", "typecheck"] {
             for probes in [false, true] {
-                for label in language.labels(command, probes) {
+                // A helper aspect like android_sdk_aspect feeds the real aspects of several commands.
+                for label in language
+                    .labels(command, probes)
+                    .into_iter()
+                    .filter(|label| label.contains("%real_"))
+                {
                     assert!(seen.insert(label.clone()), "{label} is listed twice");
                 }
             }
         }
     }
     assert!(seen.len() > 100);
+}
+
+#[test]
+fn core_entries_ship_apart_from_the_languages() {
+    let core = core_quality();
+    assert_eq!(
+        core.first().map(|files| files.bzl.as_str()),
+        Some("core/quality:families/core.bzl")
+    );
+    for files in core {
+        assert!(
+            !files.aspects.is_empty() || !files.probes.is_empty(),
+            "{}",
+            files.bzl
+        );
+        // A language may share a core file, as asciidoc shares core.bzl, without naming aspects.
+        assert!(
+            quality_languages()
+                .iter()
+                .all(|language| language.bzl != files.bzl
+                    || (language.aspects.is_empty() && language.probes.is_empty())),
+            "{} names aspects in core_aspects.json and in a lang.json",
+            files.bzl
+        );
+    }
+    assert_eq!(
+        core_docs()
+            .iter()
+            .flat_map(DocsFiles::labels)
+            .collect::<Vec<_>>(),
+        vec!["tools/docs:aspect.bzl%real_docs_aspect".to_owned()]
+    );
 }
 
 #[test]
@@ -142,13 +197,22 @@ fn quality_marks_list_each_quality_language_with_its_files() {
         .expect("dockerfile has a quality entry");
     assert!(dockerfile.marks.iter().any(|mark| mark == ".dockerfile"));
     assert!(dockerfile.marks.iter().any(|mark| mark == "Dockerfile"));
+    let manifests = shipped();
+    let licensed = |language: &str| {
+        manifests.iter().any(|manifest| {
+            manifest.name == language
+                && manifest
+                    .quality
+                    .as_ref()
+                    .is_some_and(|quality| !quality.files.licenses.is_empty())
+        })
+    };
     let unmarked: Vec<&str> = marks
         .iter()
-        .filter(|entry| entry.marks.is_empty())
+        .filter(|entry| entry.marks.is_empty() && !licensed(&entry.language))
         .map(|entry| entry.language.as_str())
         .collect();
     assert_eq!(unmarked, ["cuda", "dotnet"]);
-    let manifests = shipped();
     let bzl_of = |language: &str| {
         manifests
             .iter()
@@ -206,7 +270,6 @@ fn command_looks_up_a_tool_of_a_language() {
 fn repo_relative_drops_the_rules_dx_repo() {
     assert_eq!(repo_relative(GENERATE), "dx:generate");
     assert_eq!(repo_relative(DX), ":dx");
-    assert_eq!(repo_relative(TOOL_RESOLVE), "dx/tool_resolve");
 }
 
 #[test]

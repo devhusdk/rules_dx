@@ -958,6 +958,17 @@ Rule.
 | `root` | `label` | no | `None` |
 | `spec` | `label` | yes |  |
 
+#### `api_spec_protobuf_doc_shard`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `proto` | yes |  |
+| `package` | no | `""` |
+| `kwargs` | no |  |
+
 #### `ApiSpecInfo`
 
 Provider.
@@ -1130,7 +1141,7 @@ Macro or function.
 | `entitlements` | no | `None` |
 | `provisioning_profile` | no | `None` |
 | `tags` | no | `None` |
-| `testonly` | no | `False` |
+| `testonly` | no | `None` |
 | `visibility` | no | `None` |
 
 #### `apple_macos_notarize`
@@ -2493,6 +2504,21 @@ Macro or function.
 | `prose_route` | no | `"prose.md"` |
 | `source_url` | no | `""` |
 
+#### `dx_generated_policy`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `name` | yes |  |
+| `tier` | yes |  |
+| `families` | no | `None` |
+| `defaults` | no | `True` |
+| `disabled` | no | `[]` |
+| `configs` | no | `[]` |
+| `bases` | no | `{}` |
+| `visibility` | no | `None` |
+
 #### `lua_doc_shard`
 
 Macro or function.
@@ -2512,17 +2538,6 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `lib` | yes |  |
-| `package` | no | `""` |
-| `kwargs` | no |  |
-
-#### `protobuf_doc_shard`
-
-Macro or function.
-
-| Argument | Required | Default |
-| --- | --- | --- |
-| `name` | yes |  |
-| `proto` | yes |  |
 | `package` | no | `""` |
 | `kwargs` | no |  |
 
@@ -2956,15 +2971,12 @@ Rule.
 | `config` | `string` | no | `""` |
 | `data` | `label_list` | no | `[]` |
 | `deps` | `label_list` | no | `[]` |
-| `generator` | `label` | no | `None` |
+| `generator` | `label` | yes |  |
 | `generator_args` | `string_list` | no | `[]` |
-| `generator_bin` | `label` | no | `None` |
-| `language_version` | `string` | no | `""` |
 | `name` | `name` | yes |  |
 | `output_suffixes` | `string_list` | yes |  |
 | `package` | `label` | no | `None` |
 | `package_config` | `label` | no | `None` |
-| `package_name` | `string` | no | `""` |
 | `parts` | `label_list` | no | `[]` |
 | `src` | `label` | yes |  |
 
@@ -2989,6 +3001,24 @@ Rule.
 | `lib` | `label` | yes |  |
 | `name` | `name` | yes |  |
 | `package` | `string` | no | `""` |
+
+#### `dart_package_metadata`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build_hook` | `label` | no | `None` |
+| `code_assets` | `label_list` | no | `[]` |
+| `data_assets` | `label_list` | no | `[]` |
+| `language_version` | `string` | no | `""` |
+| `license_file` | `label` | no | `None` |
+| `link_hook` | `label` | no | `None` |
+| `link_hook_assets` | `string_list` | no | `[]` |
+| `linked_code_assets` | `label_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `package_name` | `string` | yes |  |
+| `version` | `string` | no | `""` |
 
 #### `dart_bench`
 
@@ -3068,23 +3098,37 @@ Macro or function.
 
 Module extension.
 
+Tag `pub.cycle`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `packages` | `string_list` | yes |  |
+
 Tag `pub.from_lock`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
+| `build_from_pubspec` | `string_list` | no | `[]` |
 | `ignore_hooks` | `string_list` | no | `[]` |
+| `ignored` | `string_dict` | no | `{}` |
 | `lock` | `label` | yes |  |
 | `name` | `name` | yes |  |
-| `on_version_conflict` | `string` | no | `"error"` |
+| `resolve` | `label_dict_unary` | no | `{}` |
 
 Tag `pub.package`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
-| `deps` | `string_list` | no | `[]` |
+| `ignore_hook` | `boolean` | no | `False` |
 | `name` | `name` | yes |  |
 | `sha256` | `string` | yes |  |
 | `version` | `string` | yes |  |
+
+Tag `pub.settings`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `check_direct_dependencies` | `string` | no | `"warning"` |
 
 ### `@rules_dx//deploy:defs.bzl`
 
@@ -4050,6 +4094,28 @@ Fields: `direct_srcs`, `direct_staged`, `stage_root`, `stage_roots`, `staged`, `
 
 ### `@rules_dx//flutter:defs.bzl`
 
+#### `flutter_font`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `asset` | `string` | no | `""` |
+| `name` | `name` | yes |  |
+| `src` | `label` | yes |  |
+| `style` | `string` | no | `""` |
+| `weight` | `int` | no | `0` |
+
+#### `flutter_font_family`
+
+Rule.
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `family` | `string` | no | `""` |
+| `fonts` | `label_list` | yes |  |
+| `name` | `name` | yes |  |
+
 #### `flutter_gen_l10n`
 
 Rule.
@@ -4079,7 +4145,7 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `application` | yes |  |
-| `package_name` | yes |  |
+| `application_id` | yes |  |
 | `android_abi` | no | `"arm64"` |
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
@@ -4137,8 +4203,7 @@ Macro or function.
 | Argument | Required | Default |
 | --- | --- | --- |
 | `name` | yes |  |
-| `srcs` | no | `None` |
-| `main` | no | `None` |
+| `application` | yes |  |
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
 
@@ -4149,6 +4214,7 @@ Macro or function.
 | Argument | Required | Default |
 | --- | --- | --- |
 | `name` | yes |  |
+| `application` | yes |  |
 | `kwargs` | no |  |
 
 ### `@rules_dx//flutter:extensions.bzl`
@@ -4157,39 +4223,57 @@ Macro or function.
 
 Module extension.
 
-Tag `flutter.plugin_overlays`:
-
-| Attribute | Type | Required | Default |
-| --- | --- | --- | --- |
-| `roots` | `label_list` | no | `[]` |
-
-Tag `flutter.pub`:
-
-| Attribute | Type | Required | Default |
-| --- | --- | --- | --- |
-| `ignore_hooks` | `string_list` | no | `[]` |
-| `lock` | `label` | yes |  |
-| `name` | `name` | yes |  |
-
 Tag `flutter.toolchain`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
-| `flutter_version` | `string` | yes |  |
+| `allow_upgrade_by_dependencies` | `boolean` | no | `False` |
+| `engine` | `label` | no | `None` |
+| `flutter_version` | `string` | no | `""` |
+| `framework` | `label` | no | `None` |
+| `material_fonts_sha256` | `string` | no | `""` |
 | `name` | `name` | no | `"flutter"` |
 
 #### `pub`
 
 Module extension.
 
-Tag `pub.lock`:
+Tag `pub.annotation`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
-| `flutter_version` | `string` | no | `""` |
+| `android_deps` | `label_list` | no | `[]` |
+| `package` | `string` | yes |  |
+
+Tag `pub.cycle`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `packages` | `string_list` | yes |  |
+
+Tag `pub.from_lock`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `build_from_pubspec` | `string_list` | no | `[]` |
 | `ignore_hooks` | `string_list` | no | `[]` |
+| `ignored` | `string_dict` | no | `{}` |
 | `lock` | `label` | yes |  |
 | `name` | `name` | yes |  |
+| `resolve` | `label_dict_unary` | no | `{}` |
+| `swift_package_resolved` | `label` | no | `None` |
+
+Tag `pub.plugin_overlays`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `roots` | `label_list` | no | `[]` |
+
+Tag `pub.settings`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `check_direct_dependencies` | `string` | no | `"warning"` |
 
 ### `@rules_dx//fortran:defs.bzl`
 
@@ -5656,6 +5740,14 @@ Tag `composer.lock`:
 
 Module extension.
 
+Tag `php.from_source`:
+
+No attributes.
+
+#### `php_coverage`
+
+Module extension.
+
 No tags.
 
 ### `@rules_dx//powershell:defs.bzl`
@@ -5818,19 +5910,6 @@ Tag `python.toolchain`:
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
 | `python_version` | `string` | yes |  |
-
-#### `sdist_cargo_vendor`
-
-Module extension.
-
-Tag `sdist_cargo_vendor.crates`:
-
-| Attribute | Type | Required | Default |
-| --- | --- | --- | --- |
-| `cargo_lock_path` | `string` | no | `"Cargo.lock"` |
-| `lock` | `label` | yes |  |
-| `name` | `name` | yes |  |
-| `package` | `string` | yes |  |
 
 #### `uv`
 
@@ -6069,6 +6148,13 @@ Tag `qt.configure`:
 | `mirror` | `string` | no | `""` |
 | `runtime_mirror` | `string` | no | `""` |
 | `version` | `string` | no | `"6.12.0"` |
+
+Tag `qt.msvc_runtime`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `notice` | `label` | yes |  |
+| `runtime` | `label` | yes |  |
 
 ### `@rules_dx//rego:defs.bzl`
 
@@ -6636,6 +6722,19 @@ Macro or function.
 | `srcs` | no | `None` |
 | `visibility` | no | `None` |
 | `kwargs` | no |  |
+
+### `@rules_dx//scala:extensions.bzl`
+
+#### `scala_config`
+
+Module extension.
+
+Tag `scala_config.settings`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `scala_version` | `string` | no | `"2.13.18"` |
+| `scala_versions` | `string_list` | no | `[]` |
 
 ### `@rules_dx//sql:defs.bzl`
 
@@ -7294,9 +7393,17 @@ Pass a platform to Bazel with `--platforms=<platform>`.
 
 Use a toolchain type when you register your own toolchain.
 
+- `@rules_dx//cuda:toolchain_type`
+- `@rules_dx//d:toolchain_type`
+- `@rules_dx//elixir:toolchain_type`
+- `@rules_dx//erlang:exec_toolchain_type`
 - `@rules_dx//erlang:toolchain_type`
+- `@rules_dx//fortran:toolchain_type`
+- `@rules_dx//haskell:toolchain_type`
 - `@rules_dx//lua:toolchain_type`
 - `@rules_dx//msix:toolchain_type`
+- `@rules_dx//ocaml:profile_toolchain_type`
+- `@rules_dx//ocaml:toolchain_type`
 - `@rules_dx//php:exec_toolchain_type`
 - `@rules_dx//php:toolchain_type`
 
@@ -7379,6 +7486,7 @@ Use a toolchain type when you register your own toolchain.
 | `@rules_dx//rust:wasmtime` | `alias` |
 | `@rules_dx//thrift:thrift_compiler` | `alias` |
 | `@rules_dx//zig:kcov_build` | `config_setting` |
+| `@rules_dx//zig:sancov_build` | `config_setting` |
 
 ## Runnable targets
 
@@ -7391,7 +7499,7 @@ Run these with `bazel run <target>`.
 | `@rules_dx//cli/coverage_summary:coverage_summary` | `rust_binary` |
 | `@rules_dx//cli/env:env` | `rust_binary` |
 | `@rules_dx//cli/launcher:exec_launcher` | `rust_binary` |
-| `@rules_dx//cli/prebuilt:guard_stub` | `native_binary` |
+| `@rules_dx//cli/prebuilt:guard_stub` | `cc_binary` |
 | `@rules_dx//cli/runtime:dx_runtime` | `rust_binary` |
 | `@rules_dx//core/quality/lsp_check:lsp_check` | `rust_binary` |
 | `@rules_dx//core/quality/markdown:quality_markdown` | `rust_binary` |

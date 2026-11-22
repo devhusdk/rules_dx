@@ -125,6 +125,7 @@ _STARLARK_SRCS = [
     "//rust:defs.bzl",
     "//rust:extensions.bzl",
     "//scala:defs.bzl",
+    "//scala:extensions.bzl",
     "//sql:defs.bzl",
     "//svelte:defs.bzl",
     "//swift:defs.bzl",
@@ -152,16 +153,11 @@ _UPSTREAM_BZL = [
     "@aspect_rules_ts//ts:defs",
     "@bazel_skylib//rules:copy_file",
     "@dx_pins_data//:pins.bzl",
-    "@dx_rules_dart_pub//dart/ext:registry",
-    "@dx_rules_dart_pub//dart/pub:extensions",
-    "@dx_rules_dart_pub//dart/pub/private:dx_bzl_srcs",
-    "@dx_rules_flutter_pub//flutter:dx_bzl_srcs",
-    "@dx_rules_flutter_pub//flutter/private:dx_bzl_srcs",
     "@dx_windows_support//windows:extensions",
     "@gazelle//:extensions",
     "@llvm//platforms:common",
-    "@rules_android//android:dx_bzl_srcs",
-    "@rules_android//rules:dx_bzl_srcs",
+    "@rules_android//android:bzl",
+    "@rules_android//rules:bzl",
     "@rules_apple//apple:apple",
     "@rules_apple//apple:ios",
     "@rules_apple//apple:macos",
@@ -173,6 +169,8 @@ _UPSTREAM_BZL = [
     "@rules_dart//dart:utils",
     "@rules_dart//dart/ext:registry",
     "@rules_dart//dart/private:dx_bzl_srcs",
+    "@rules_dart//dart:repositories",
+    "@rules_dart//dart/pub:extensions",
     "@rules_dart//dart/pub:pub_lock_package",
     "@rules_dart//dart/pub:yaml_parser",
     "@rules_dart//dart/pub/private:dx_bzl_srcs",
@@ -180,6 +178,7 @@ _UPSTREAM_BZL = [
     "@rules_elixir//:dx_bzl_srcs",
     "@rules_flutter//flutter:dx_bzl_srcs",
     "@rules_flutter//flutter/private:dx_bzl_srcs",
+    "@rules_flutter//flutter/pub:extensions",
     "@rules_erlang//:dx_bzl_srcs",
     "@rules_dotnet//dotnet:extensions",
     "@rules_fortran//fortran:defs",
@@ -191,7 +190,6 @@ _UPSTREAM_BZL = [
     "@rules_jvm_external//:implementation",
     "@rules_julia//julia:defs_bzl",
     "@rules_kotlin//kotlin/internal:internal",
-    "@rules_kotlin//kotlin:dx_bzl_srcs",
     "@rules_kotlin//kotlin:kotlin",
     "@rules_oci//oci:defs",
     "@rules_perl//perl:defs_bzl",
@@ -212,8 +210,8 @@ _UPSTREAM_BZL = [
     "@rules_scala//specs2:dx_bzl_srcs",
     "@rules_scala_config//:dx_bzl_srcs",
     "@rules_shell//shell:rules_bzl",
+    "@rules_swift//mixed_language:mixed_language_library",
     "@rules_zig//zig:defs",
-    "@yaml.bzl//:yaml",
 ]
 
 _STARLARK_DOCS = {
@@ -271,9 +269,7 @@ filegroup(
 )
 
 # Fixtures whose forwards genquery does not build on every host. A genquery loads every select branch of its scope.
-_FORWARDS_PENDING = {
-    "qt": "on windows_x86_64 fetching @dx_qt_linux_x86_64_qtbase fails: 7-Zip cannot open its bzip2-libs rpm (#14050)",
-}
+_FORWARDS_PENDING = {}
 
 _FORWARDS_SUBPACKAGES = {
     "apple": [

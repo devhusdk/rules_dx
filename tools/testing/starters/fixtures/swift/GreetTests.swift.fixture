@@ -1,8 +1,0 @@
-import Greet
-import XCTest
-
-final class GreetTests: XCTestCase {
-    func testGreetsByName() {
-        XCTAssertEqual(greeting("world"), "hello world")
-    }
-}

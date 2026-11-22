@@ -14,12 +14,12 @@ cli/audit/src/advisory.rs digest-outside-pins 4
 cli/audit/src/advisory.rs duplicate-pin 1
 cli/cli/src/adopt/status_tools.rs digest-outside-pins 3
 cli/cli/src/adopt/status_tools.rs duplicate-pin 2
-cli/cli/src/exec/update_advisory.rs digest-outside-pins 2
-cli/cli/src/exec/update_advisory.rs duplicate-pin 2
-cli/cli/src/exec/update_outdated.rs digest-outside-pins 1
-cli/cli/src/exec/update_outdated.rs duplicate-pin 1
 cli/digest/src/lib.rs digest-outside-pins 2
 cli/digest/src/lib.rs duplicate-pin 2
+cli/exec_update/src/update_advisory.rs digest-outside-pins 2
+cli/exec_update/src/update_advisory.rs duplicate-pin 2
+cli/exec_update/src/update_outdated.rs digest-outside-pins 1
+cli/exec_update/src/update_outdated.rs duplicate-pin 1
 cli/output/src/changes.rs digest-outside-pins 1
 cli/output/src/changes.rs duplicate-pin 1
 cli/output/src/lifecycle.rs digest-outside-pins 1

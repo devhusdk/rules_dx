@@ -179,6 +179,13 @@ pub const FAMILIES: &[CuratedFamily] = &[
         audit: &[],
     },
     CuratedFamily {
+        id: "objc",
+        lint: &["typos"],
+        format: &["clang_format"],
+        typecheck: &["clang_syntax"],
+        audit: &[],
+    },
+    CuratedFamily {
         id: "ocaml",
         lint: &["typos"],
         format: &["topiary"],
@@ -313,7 +320,6 @@ pub const OPT_IN_FAMILIES: &[&str] = &[
     "latex",
     "lua",
     "make",
-    "objc",
     "perl",
     "php",
     "pkl",

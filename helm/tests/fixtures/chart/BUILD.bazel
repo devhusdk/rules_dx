@@ -111,6 +111,15 @@ helm_library(
     tags = ["manual"],
 )
 
+helm_library(
+    name = "foreign_repo_src",
+    srcs = [
+        "Chart.yaml",
+        "@dx_api_fixtures//helm/tests/consumer:helm",
+    ],
+    tags = ["manual"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

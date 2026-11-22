@@ -1,9 +1,12 @@
+# gazelle:exclude format_dirty.m
 # gazelle:exclude greet.rs
+# gazelle:exclude lint_dirty.m
 # gazelle:exclude main.m
-load("//apple:defs.bzl", "apple_macos_app")
+load("//apple:defs.bzl", "apple_ios_app", "apple_ios_lib", "apple_macos_app")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_static_library")
-load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "dx_quality_error_tests")
+load("//tools/testing/conformance:quality.bzl", "cc_format_subject", "cc_lint_subject")
 
 package(
     default_testonly = True,
@@ -21,11 +24,30 @@ rust_static_library(
     ],
 )
 
+# keep
 apple_macos_app(
     name = "conformance",
     srcs = ["main.m"],
     bundle_id = "com.example.dxconformance",
     library = ":greet",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+# keep
+apple_macos_app(
+    name = "lint_dirty",
+    srcs = ["lint_dirty.m"],
+    bundle_id = "com.example.dxconformance.lintdirty",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+# keep
+apple_macos_app(
+    name = "format_dirty",
+    srcs = ["format_dirty.m"],
+    bundle_id = "com.example.dxconformance.formatdirty",
     tags = ["manual"],
     version = "1.0",
 )
@@ -48,6 +70,61 @@ dx_conformance_suite(
         "runfiles_test": "a macOS app reads bundled resources, not runfiles",
     },
     passing_test = ":conformance",
+    quality = {
+        "clean": ":conformance",
+        "format_dirty": ":format_dirty",
+        "format_source": "format_dirty.m",
+        "format_subject": cc_format_subject,
+        "lint_dirty": ":lint_dirty",
+        "lint_line": 6,
+        "lint_rule": "readability-else-after-return",
+        "lint_source": "lint_dirty.m",
+        "lint_subject": cc_lint_subject,
+    },
+)
+
+apple_ios_lib(
+    name = "ios_greet",
+    srcs = ["greet.rs"],
+    platform = "//apple:ios_sim_arm64",
+    tags = ["manual"],
+)
+
+# keep
+apple_ios_app(
+    name = "ios_lint_dirty",
+    srcs = ["lint_dirty.m"],
+    bundle_id = "com.example.dxconformance.ioslintdirty",
+    library = ":ios_greet",
+    platform = "//apple:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+# keep
+apple_ios_app(
+    name = "ios_format_dirty",
+    srcs = ["format_dirty.m"],
+    bundle_id = "com.example.dxconformance.iosformatdirty",
+    library = ":ios_greet",
+    platform = "//apple:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+dx_quality_error_tests(
+    name = "ios",
+    lang = "apple",
+    quality = {
+        "format_dirty": ":ios_format_dirty",
+        "format_source": "format_dirty.m",
+        "format_subject": cc_format_subject,
+        "lint_dirty": ":ios_lint_dirty",
+        "lint_line": 6,
+        "lint_rule": "readability-else-after-return",
+        "lint_source": "lint_dirty.m",
+        "lint_subject": cc_lint_subject,
+    },
 )
 
 real_source_target(

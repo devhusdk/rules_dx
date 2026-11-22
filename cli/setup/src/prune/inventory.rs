@@ -117,15 +117,11 @@ pub fn collect_inventory(
             let target = fs::read_link(&current_link).map_err(|e| PruneError::CurrentInvalid {
                 reason: format!("cannot read {}: {e}", current_link.display()),
             })?;
-            let hex = target
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or_default()
-                .to_owned();
+            let hex = target.to_str().unwrap_or_default().to_owned();
             if GenerationId::new(&hex).is_err() {
                 return Err(PruneError::CurrentInvalid {
                     reason: format!(
-                        "{} points at {hex:?}, want a setup digest; refusing digest-spoofed state",
+                        "{} points at {target:?}, want a setup digest beside it; refusing foreign or digest-spoofed state",
                         current_link.display()
                     ),
                 });
@@ -266,6 +262,26 @@ mod tests {
         assert!(matches!(
             collect_inventory(&workspace, &[], &[]),
             Err(PruneError::Install { .. })
+        ));
+    }
+
+    #[test]
+    fn current_pointer_outside_setups_is_refused() {
+        let scratch = dx_test_scratch::scratch("dx-prune-test-pointer-outside-").unwrap();
+        let workspace = workspace_of(scratch.path());
+        fs::create_dir_all(&workspace).expect("workspace");
+        crate::commit_pair(&workspace, &setup_pair('1', '2')).expect("commit");
+        let (hex, _, _) = pair_env_gen('1', '2');
+        let foreign = scratch.path().join("foreign").join(&hex);
+        fs::create_dir_all(&foreign).expect("foreign record");
+        let current = dx_path::state::local_dir(&workspace)
+            .join("setups")
+            .join("current");
+        dx_test_scratch::remove_directory_link(&current).expect("remove pointer");
+        symlink_dir(&foreign, &current);
+        assert!(matches!(
+            collect_inventory(&workspace, &[], &[]),
+            Err(PruneError::CurrentInvalid { .. })
         ));
     }
 

@@ -4,7 +4,7 @@ load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//d/private:defs.bzl", "D_CELLS", "D_COVERAGE_COLLECTOR", "d_quality_srcs")
-load("//d/private:kwargs.bzl", "d_kwargs")
+load("//d/private:kwargs.bzl", "d_kwargs", "d_unchecked_dopts")
 load("//d/private/toolchain:pins.bzl", "LDC_CELLS")
 load(":hub_tests.bzl", "dub_hub_tests")
 load(":toolchain_tests.bzl", "d_metadata_tests")
@@ -27,6 +27,50 @@ dx_wrapper_contract_tests(
             "d keeps user tags",
             d_kwargs({"tags": ["t"]})["tags"],
             ["t"],
+        ),
+        expect_equal(
+            "release and bounds-check-off dopts are unchecked",
+            d_unchecked_dopts([
+                "-O",
+                "-release",
+                "--boundscheck=off",
+                "-boundscheck=off",
+            ]),
+            [
+                "-release",
+                "--boundscheck=off",
+                "-boundscheck=off",
+            ],
+        ),
+        expect_equal(
+            "safe dopts are not unchecked",
+            d_unchecked_dopts([
+                "-O",
+                "-boundscheck=safeonly",
+                "-g",
+            ]),
+            [],
+        ),
+        expect_equal(
+            "a select of dopts is not checked",
+            d_unchecked_dopts(select({"//conditions:default": ["-release"]})),
+            [],
+        ),
+        expect_equal(
+            "the unchecked_dopts opt-in does not reach rules_d",
+            "unchecked_dopts" in d_kwargs({
+                "dopts": ["-release"],
+                "unchecked_dopts": True,
+            }),
+            False,
+        ),
+        expect_equal(
+            "an opted-in target passes its dopts on",
+            type(d_kwargs({
+                "dopts": ["-release"],
+                "unchecked_dopts": True,
+            })["dopts"]),
+            "select",
         ),
         expect_equal(
             "d tests have a coverage collector",

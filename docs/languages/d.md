@@ -108,6 +108,29 @@ Two directives change resolution. Put them in a BUILD file:
 
 ## Quality
 
+D targets build with `-w -de`, so warnings and deprecations fail the build.
+Set `warnings_as_errors = False` on one target to keep them as warnings, or
+turn them off for the whole build in `.bazelrc`:
+
+```text
+common --@rules_dx//config:warnings_as_errors=false
+```
+
+`-release` and `-boundscheck=off` in `dopts` turn off bounds and contract
+checks, so a target that sets them fails to load. Set
+`unchecked_dopts = True` on that target to allow them:
+
+```python
+d_binary(
+    name = "fast",
+    srcs = ["fast.d"],
+    dopts = ["-O3", "-release"],
+    unchecked_dopts = True,
+)
+```
+
+Packages from the `@dub` hub keep their warnings as warnings.
+
 `dx format` has no D formatter.
 
 ## Coverage

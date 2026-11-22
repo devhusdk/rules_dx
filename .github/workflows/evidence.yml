@@ -402,12 +402,17 @@ jobs:
                 grep JAVA_VERSION "$home/release"
               done
             done
-            launcher="${manifest%.runfiles_manifest}"
-            if [ -x "$launcher" ]; then
+            # Start the desugar launcher, and the java launcher it runs, with the worker's runfiles env but as a plain process.
+            case "$manifest" in *desugar_java8*) ;; *) continue ;; esac
+            launchers="${manifest%.runfiles_manifest}"
+            launchers+=$'\n'"$(grep -E '/r8/desugar(\.exe)? ' "$manifest" | cut -d' ' -f2-)"
+            while read -r launcher; do
+              [ -x "$launcher" ] || continue
               echo "== $launcher --help"
-              timeout 120 "$launcher" --help < /dev/null 2>&1 | head -n 15
+              RUNFILES_MANIFEST_FILE="$manifest" RUNFILES_DIR="${manifest%_manifest}" JAVA_RUNFILES="${manifest%_manifest}" \
+                timeout 120 "$launcher" --help < /dev/null 2>&1 | head -n 15
               echo "exit ${PIPESTATUS[0]}"
-            fi
+            done <<< "$launchers"
           done 2>&1 | tee "$out/java-runtimes.txt"
       - name: Record the Apple executor
         if: ${{ always() && matrix.platform == 'macos_arm64' }}

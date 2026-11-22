@@ -49,7 +49,6 @@ cli/adopt/src/launcher.rs shebang 30
 cli/adopt/src/scaffold.rs host-path 1
 cli/adopt/src/scaffold.rs shebang 1
 cli/archive/src/tests.rs shebang 1
-cli/atomic_fs/src/lib.rs shebang 5
 cli/atomic_fs/src/managed.rs shebang 1
 cli/binfmt/src/tests.rs shebang 1
 cli/cli/BUILD.bazel genrule 1

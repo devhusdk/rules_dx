@@ -3,6 +3,10 @@ use dx_path::Resolver;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
+/// A program that exits with its argument count plus 4.
+#[cfg(unix)]
+const ARG_COUNT_EXIT: &str = "#!/bin/sh\nexit $(( $# + 4 ))\n";
+
 const GOOD: &str = "program=_main/bin/php\narg=-n\narg=-d\narg=memory_limit=64M\npath=_main/x.phar\nprefixed=auto_prepend_file=\t_main/t.php/vendor/autoload.php\nenv_flag=--log-junit\tXML_OUTPUT_FILE\n";
 
 #[test]
@@ -181,7 +185,7 @@ fn runs_from_the_descriptor_in_the_runfiles() {
         let dir = scratch.path().join("bazel-out/cfg/bin/pkg");
         let main = dir.join(format!("{name}.runfiles/_main"));
         std::fs::create_dir_all(main.join("pkg")).unwrap();
-        dx_testing::executable_script(&main.join("prog"), "#!/bin/sh\nexit $(( $# + 4 ))\n");
+        dx_testing::executable_script(&main.join("prog"), ARG_COUNT_EXIT);
         std::fs::write(
             main.join("pkg").join(descriptor),
             "program=_main/prog\narg=one\n",
@@ -315,7 +319,7 @@ fn runs_the_program_and_passes_the_exit_code() {
     let main = dir.join("app.runfiles/_main");
     std::fs::create_dir_all(&main).unwrap();
     let script = main.join("prog");
-    dx_testing::executable_script(&script, "#!/bin/sh\nexit $(( $# + 4 ))\n");
+    dx_testing::executable_script(&script, ARG_COUNT_EXIT);
     std::fs::write(dir.join("app.launch"), "program=_main/prog\narg=one\n").unwrap();
     let code = run(&dir.join("app.exe"), &[OsString::from("two")]).unwrap();
     assert_eq!(code, 6);
@@ -374,10 +378,21 @@ fn run_scrubs_unset_variables() {
     let launcher = dx_testing::env_file("DX_EXEC_LAUNCHER");
     let app = dir.join("app.exe");
     std::fs::copy(&launcher, &app).unwrap();
-    let status = std::process::Command::new(&app)
-        .env("EXEC_LAUNCHER_UNSET_PROBE", "1")
-        .status()
-        .unwrap();
+    // A parallel test that forks while the copy is open holds its write fd until
+    // its child execs, so exec of `app.exe` may briefly fail with ETXTBSY.
+    let mut tries = 0;
+    let status = loop {
+        match std::process::Command::new(&app)
+            .env("EXEC_LAUNCHER_UNSET_PROBE", "1")
+            .status()
+        {
+            Err(error) if error.kind() == std::io::ErrorKind::ExecutableFileBusy && tries < 50 => {
+                tries += 1;
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            other => break other.unwrap(),
+        }
+    };
     assert_eq!(status.code(), Some(0));
 }
 

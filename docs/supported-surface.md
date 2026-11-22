@@ -5791,7 +5791,7 @@ Tag `dx_platforms.platform`:
 
 | Attribute | Type | Required | Default |
 | --- | --- | --- | --- |
-| `constraint_values` | `label_list` | no | `[]` |
+| `constraint_values` | `label_list` | yes |  |
 | `hosts` | `string_list` | no | `[]` |
 | `name` | `name` | yes |  |
 | `parent` | `label` | no | `None` |

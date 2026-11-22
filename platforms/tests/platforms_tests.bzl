@@ -5,7 +5,7 @@ load("//platforms:defs.bzl", "platform_select")
 load("//platforms/private:extension.bzl", "registration_error")
 load("//platforms/private:hub.bzl", "hub_entries", "render_hub")
 load("//platforms/private:names.bzl", "host_name", "matches", "platforms_error")
-load("//platforms/private:select.bzl", "resolve")
+load("//platforms/private:select.bzl", "os_label", "resolve")
 load("//platforms/private:target.bzl", "min_os_error", "move_to")
 load(":subject.bzl", "moved_subject")
 
@@ -53,28 +53,21 @@ def select_unit_tests(name):
     """Checks which platform_select key wins for each name."""
     resolved = resolve({"apple": "a", "default": "d", "ios": "i", "ios_sim_arm64": "s", "windows": "w"})
     wasm = resolve({"wasm": "wasm", "web": "web"})
+    web_names = resolve({"web": "os", "web_wasm32": "full"})
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
-            expect_equal("full name beats os", resolved["ios_sim_arm64"], "s"),
-            expect_equal("os beats group", resolved["ios_arm64"], "i"),
-            expect_equal("group covers macos", resolved["macos_arm64"], "a"),
-            expect_equal("os key covers every cpu", [resolved["windows_arm64"], resolved["windows_x86_64"]], ["w", "w"]),
-            expect_equal("default is left to select", "linux_x86_64" in resolved, False),
-            expect_equal("web os beats wasm group", wasm["web_wasm32"], "web"),
-            expect_equal("wasm group covers wasip1", wasm["wasip1_wasm32"], "wasm"),
-            expect_equal("posix group", sorted(resolve({"posix": 1}).keys()), [
-                "android_arm64",
-                "android_x86_64",
-                "ios_arm64",
-                "ios_sim_arm64",
-                "ios_sim_x86_64",
-                "linux_arm64",
-                "linux_x86_64",
-                "macos_arm64",
-                "macos_x86_64",
-            ]),
+            expect_equal("full name keys use the hub", resolved.names, {"ios_sim_arm64": "s"}),
+            expect_equal("os beats group", resolved.oses["ios"], "i"),
+            expect_equal("group covers macos", resolved.oses["macos"], "a"),
+            expect_equal("os key", resolved.oses["windows"], "w"),
+            expect_equal("default is left to select", "linux" in resolved.oses, False),
+            expect_equal("web os beats wasm group", wasm.oses["web"], "web"),
+            expect_equal("wasm group covers wasip1", wasm.oses["wasip1"], "wasm"),
+            expect_equal("full names that cover an os drop its arm", [web_names.names, web_names.oses], [{"web_wasm32": "full"}, {}]),
+            expect_equal("posix group", sorted(resolve({"posix": 1}).oses.keys()), ["android", "ios", "linux", "macos"]),
+            expect_equal("os arm label", str(os_label("linux")).endswith("//platforms:os_linux"), True),
         ],
     )
 
@@ -104,21 +97,26 @@ def hub_unit_tests(name):
             ),
             expect_equal("one platform and config per name", render_hub({}, "linux_x86_64").count("\nplatform("), 13),
             expect_equal("render names the parent", "parents = [\"@apple_support//platforms:ios_sim_arm64\"]" in render_hub({"ios_sim_arm64": _SIM_TAG}, "macos_arm64"), True),
-            expect_equal("tag for a family name", registration_error("ios_arm64", ["macos_arm64"], "rules_dx_apple", {}), ""),
+            expect_equal("tag for a family name", registration_error("ios_arm64", ["macos_arm64"], ["@platforms//os:ios"], "rules_dx_apple", {}), ""),
             expect_equal(
                 "tag for a core name",
-                registration_error("linux_x86_64", [], "m", {}),
+                registration_error("linux_x86_64", [], ["@platforms//os:ios"], "m", {}),
                 "dx.platform: linux_x86_64 is a core platform; only family platforms are registered",
             ),
-            expect_equal("tag for an unknown name", registration_error("ios", [], "m", {}), "dx.platform: unknown platform ios"),
+            expect_equal("tag for an unknown name", registration_error("ios", [], ["@platforms//os:ios"], "m", {}), "dx.platform: unknown platform ios"),
             expect_equal(
                 "tag with a family host",
-                registration_error("ios_arm64", ["ios_sim_arm64"], "m", {}),
+                registration_error("ios_arm64", ["ios_sim_arm64"], ["@platforms//os:ios"], "m", {}),
                 "dx.platform: ios_arm64 lists host ios_sim_arm64, which is not a core platform name",
             ),
             expect_equal(
+                "tag without constraint_values",
+                registration_error("ios_arm64", [], [], "m", {}),
+                "dx.platform: ios_arm64 needs constraint_values, which platform_select matches on",
+            ),
+            expect_equal(
                 "tag registered twice",
-                registration_error("ios_sim_arm64", [], "other", {"ios_sim_arm64": _SIM_TAG}),
+                registration_error("ios_sim_arm64", [], ["@platforms//os:ios"], "other", {"ios_sim_arm64": _SIM_TAG}),
                 "dx.platform: ios_sim_arm64 is registered by both rules_dx_apple and other",
             ),
         ],
@@ -133,6 +131,10 @@ def transition_unit_tests(name):
             expect_equal("no platforms stays", move_to([], "ios_arm64"), ""),
             expect_equal("listed current stays", move_to(["ios_arm64", "ios_sim_arm64"], "ios_sim_arm64"), ""),
             expect_equal("os entry covers current", move_to(["android"], "android_x86_64"), ""),
+            expect_equal("os-only entry never moves", move_to(["android"], "linux_x86_64"), ""),
+            expect_equal("os-only entry on an unknown host stays", move_to(["android"], ""), ""),
+            expect_equal("first full name wins over an os-only entry", move_to(["android", "android_arm64"], "linux_x86_64"), "android_arm64"),
+            expect_equal("unknown current name does not match", matches("linux", "freebsd_x86_64"), False),
             expect_equal("unlisted current moves to the first", move_to(["ios_arm64", "ios_sim_arm64"], "macos_arm64"), "ios_arm64"),
             expect_equal("valid min_os", min_os_error({"android": "29", "ios": "17.0"}), ""),
             expect_equal("unknown min_os", min_os_error({"tvos": "1"}), "min_os: unknown OS tvos: use one of android, ios, macos, windows"),
@@ -153,10 +155,14 @@ def transition_analysis_tests(name):
     moved_subject(name = name + "_wasi", platforms = ["wasip1_wasm32"], value = platform_select(_SELECT))
     moved_subject(name = name + "_web", platforms = ["web_wasm32"], value = platform_select(_SELECT))
     moved_subject(name = name + "_min_os", min_os = {"android": "29"}, value = platform_select(_SELECT))
-    subjects = ["min_os", "os_only", "stay", "wasi", "web"]
+
+    # The host is linux, macos or windows, so an OS key matches it whatever its CPU.
+    moved_subject(name = name + "_os_key", value = platform_select({"linux": "os", "macos": "os", "windows": "os"}))
+    subjects = ["min_os", "os_key", "os_only", "stay", "wasi", "web"]
     observations = []
     for subject, fields in [
         ("min_os", {"current": "", "min_os_android": "29", "value": "host"}),
+        ("os_key", {"current": "", "min_os_android": "", "value": "os"}),
         ("os_only", {"current": "", "min_os_android": "", "value": "host"}),
         ("stay", {"current": "", "min_os_android": "", "value": "host"}),
         ("wasi", {"current": "wasip1_wasm32", "min_os_android": "", "value": "wasm"}),

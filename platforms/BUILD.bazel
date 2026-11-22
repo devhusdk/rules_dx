@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//platforms/private:names.bzl", "PLATFORMS")
+load("//platforms/private:names.bzl", "OS_CONSTRAINTS", "PLATFORMS")
 load("//platforms/private:target.bzl", "current_target")
 
 package(default_visibility = ["//visibility:public"])
@@ -19,10 +19,20 @@ exports_files([
     for name in PLATFORMS
 ]
 
+# One config_setting per OS, for OS and group keys in platform_select.
+[
+    config_setting(
+        name = "os_" + os,
+        constraint_values = constraints,
+    )
+    for os, constraints in OS_CONSTRAINTS.items()
+]
+
 # The platform name a build is for. Empty means the host.
 string_flag(
     name = "current",
     build_setting_default = "",
+    values = [""] + sorted(PLATFORMS),
 )
 
 # Minimum Android API level for the whole closure. Empty means the family floor.

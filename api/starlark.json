@@ -15740,8 +15740,8 @@
           {
             "attrs": [
               {
-                "default": "[]",
-                "mandatory": false,
+                "default": "",
+                "mandatory": true,
                 "name": "constraint_values",
                 "type": "LABEL_LIST"
               },

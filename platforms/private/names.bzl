@@ -35,6 +35,17 @@ PLATFORMS = {
 # OS-only names, valid only on rules whose output does not depend on the CPU.
 OS_NAMES = ["android", "ios", "linux", "macos", "web", "windows"]
 
+# The constraints that identify each OS, for OS and group keys in platform_select.
+OS_CONSTRAINTS = {
+    "android": [_ANDROID],
+    "ios": [_IOS],
+    "linux": [_LINUX],
+    "macos": [_MACOS],
+    "wasip1": ["@platforms//os:wasi"],
+    "web": ["@platforms//os:none", _WASM32],
+    "windows": [_WINDOWS],
+}
+
 # Groups exist only as platform_select keys.
 GROUPS = {
     "apple": ["ios", "macos"],
@@ -72,7 +83,7 @@ def matches(entry, name):
     """Returns whether a platforms entry, a full or OS-only name, covers the platform name."""
     if entry == name:
         return True
-    return entry in OS_NAMES and PLATFORMS[name].os == entry
+    return entry in OS_NAMES and name in PLATFORMS and PLATFORMS[name].os == entry
 
 def platforms_error(platforms, native):
     """Returns why a platforms list is invalid, or "" when it is valid."""

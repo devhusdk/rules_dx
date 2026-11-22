@@ -5,8 +5,10 @@ load(":names.bzl", "PLATFORMS")
 
 visibility(["//platforms/..."])
 
-def registration_error(tag_name, hosts, owner_module, registered):
+def registration_error(tag_name, hosts, constraint_values, owner_module, registered):
     """Returns why a dx.platform tag cannot be accepted, or "" when it can."""
+    if not constraint_values:
+        return "dx.platform: {} needs constraint_values, which platform_select matches on".format(tag_name)
     for host in hosts:
         if host not in PLATFORMS or PLATFORMS[host].owner != "core":
             return "dx.platform: {} lists host {}, which is not a core platform name".format(tag_name, host)
@@ -22,7 +24,7 @@ def _dx_platforms_impl(mctx):
     registered = {}
     for mod in mctx.modules:
         for tag in mod.tags.platform:
-            error = registration_error(tag.name, tag.hosts, mod.name, registered)
+            error = registration_error(tag.name, tag.hosts, tag.constraint_values, mod.name, registered)
             if error:
                 fail(error)
             registered[tag.name] = {
@@ -37,7 +39,11 @@ def _dx_platforms_impl(mctx):
 _platform = tag_class(
     doc = "Registers one family platform name.",
     attrs = {
-        "constraint_values": attr.label_list(doc = "Constraints that identify the platform in platform_select."),
+        "constraint_values": attr.label_list(
+            mandatory = True,
+            allow_empty = False,
+            doc = "Constraints that identify the platform in platform_select.",
+        ),
         "hosts": attr.string_list(doc = "Host platform names that can build for it."),
         "name": attr.string(mandatory = True, doc = "Platform name from @rules_dx//platforms."),
         "parent": attr.label(doc = "Family platform the hub platform inherits from."),

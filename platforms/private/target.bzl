@@ -1,7 +1,7 @@
 """Platform providers, the transition that moves a target to its platform, and current_target."""
 
 load("@dx_platforms//:host.bzl", "HOST")
-load(":names.bzl", "matches")
+load(":names.bzl", "PLATFORMS", "matches")
 
 visibility(["//platforms/..."])
 
@@ -43,13 +43,16 @@ def current_name(current):
 
 def move_to(platforms, current):
     """Returns the platform name a target with this platforms list moves to, or "" when it stays."""
-    if not platforms:
-        return ""
     name = current_name(current)
     for entry in platforms:
         if name and matches(entry, name):
             return ""
-    return platforms[0]
+
+    # An OS-only name has no platform of its own, so only a full name can move the target.
+    for entry in platforms:
+        if entry in PLATFORMS:
+            return entry
+    return ""
 
 def min_os_error(min_os):
     """Returns why a min_os dict is invalid, or "" when it is valid."""

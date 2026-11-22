@@ -1,20 +1,14 @@
 //! Maps the dotnet API facts onto the versioned documentation IR.
 
+use crate::DotnetExtractError as E;
 use crate::types::{Api, Item, SCHEMA, parse_api};
 use documentation_ir::escape_id_segment;
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::Source;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
-
-/// One declared source file of the documented library.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Source {
-    pub exec_path: String,
-    pub file: String,
-    pub generated: bool,
-}
 
 /// The identity inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -25,47 +19,21 @@ pub struct Settings {
     pub sources: Vec<Source>,
 }
 
-/// Parses the tab-separated srcs manifest.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
-pub fn parse_sources(text: &str) -> Result<Vec<Source>, String> {
-    let mut sources = Vec::new();
-    for line in text.lines().filter(|line| !line.is_empty()) {
-        let fields: Vec<&str> = line.split('\t').collect();
-        let [exec_path, file, generated] = fields.as_slice() else {
-            return Err(format!("srcs line needs three fields: {line}"));
-        };
-        let generated = match *generated {
-            "1" => true,
-            "0" => false,
-            other => return Err(format!("srcs line has a bad generated flag '{other}'")),
-        };
-        sources.push(Source {
-            exec_path: (*exec_path).to_owned(),
-            file: (*file).to_owned(),
-            generated,
-        });
-    }
-    Ok(sources)
-}
-
 /// Converts one dx.dotnet-api/1 document into a validated IR shard.
 ///
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
+pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, E> {
     let api = parse_api(json)?;
     if api.language != settings.language {
-        return Err(format!(
-            "API JSON language '{}' does not match '{}'",
-            api.language, settings.language
-        ));
+        return Err(E::LanguageMismatch {
+            found: api.language,
+            expected: settings.language.clone(),
+        });
     }
     if api.items.is_empty() {
-        return Err("API JSON has no public items".to_owned());
+        return Err(E::NoItems);
     }
     let ids = assign_ids(&api, settings)?;
     let mut symbols = Vec::with_capacity(api.items.len());
@@ -78,16 +46,18 @@ pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
         package: settings.package.clone(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(E::InvalidIr)?;
     Ok(shard)
 }
 
-fn assign_ids(api: &Api, settings: &Settings) -> Result<BTreeMap<String, String>, String> {
+fn assign_ids(api: &Api, settings: &Settings) -> Result<BTreeMap<String, String>, E> {
     let by_doc_id: BTreeMap<&str, &Item> = {
         let mut map = BTreeMap::new();
         for item in &api.items {
             if map.insert(item.doc_id.as_str(), item).is_some() {
-                return Err(format!("duplicate doc id '{}'", item.doc_id));
+                return Err(E::DuplicateDocId {
+                    doc_id: item.doc_id.clone(),
+                });
             }
         }
         map
@@ -111,14 +81,20 @@ fn assign_ids(api: &Api, settings: &Settings) -> Result<BTreeMap<String, String>
             match current.parent_doc_id.as_deref() {
                 None => break,
                 Some(parent) => {
-                    current = by_doc_id.get(parent).copied().ok_or_else(|| {
-                        format!("'{}' has unknown parent '{parent}'", current.doc_id)
-                    })?;
+                    current = by_doc_id
+                        .get(parent)
+                        .copied()
+                        .ok_or_else(|| E::UnknownParent {
+                            doc_id: current.doc_id.clone(),
+                            parent: parent.to_owned(),
+                        })?;
                 }
             }
         }
         if current.parent_doc_id.is_some() {
-            return Err(format!("parent cycle at '{}'", item.doc_id));
+            return Err(E::ParentCycle {
+                doc_id: item.doc_id.clone(),
+            });
         }
         segments.reverse();
         let id = format!(
@@ -128,19 +104,22 @@ fn assign_ids(api: &Api, settings: &Settings) -> Result<BTreeMap<String, String>
             segments.join(".")
         );
         if let Some(other) = folded.insert(id.to_ascii_lowercase(), item.doc_id.clone()) {
-            return Err(format!(
-                "id collision after case folding between '{other}' and '{}': {id}",
-                item.doc_id
-            ));
+            return Err(E::IdCollision {
+                other,
+                doc_id: item.doc_id.clone(),
+                id,
+            });
         }
         ids.insert(item.doc_id.clone(), id);
     }
     Ok(ids)
 }
 
-fn segment_group(item: &Item, overloaded: bool) -> Result<String, String> {
+fn segment_group(item: &Item, overloaded: bool) -> Result<String, E> {
     if item.name.is_empty() {
-        return Err(format!("'{}' has an empty name", item.doc_id));
+        return Err(E::EmptyName {
+            doc_id: item.doc_id.clone(),
+        });
     }
     if item.kind == "namespace" {
         return Ok(item
@@ -163,7 +142,7 @@ fn segment_group(item: &Item, overloaded: bool) -> Result<String, String> {
     Ok(segment)
 }
 
-fn symbol_kind(kind: &str) -> Result<SymbolKind, String> {
+fn symbol_kind(kind: &str) -> Result<SymbolKind, E> {
     Ok(match kind {
         "class" | "struct" | "record" => SymbolKind::Class,
         "interface" => SymbolKind::Interface,
@@ -176,7 +155,11 @@ fn symbol_kind(kind: &str) -> Result<SymbolKind, String> {
         "delegate" | "abbreviation" => SymbolKind::TypeAlias,
         "namespace" | "module" => SymbolKind::Module,
         "function" => SymbolKind::Function,
-        other => return Err(format!("unknown item kind '{other}'")),
+        other => {
+            return Err(E::UnknownKind {
+                kind: other.to_owned(),
+            });
+        }
     })
 }
 
@@ -185,7 +168,7 @@ fn normalize(path: &str) -> String {
     path.strip_prefix("./").unwrap_or(&path).to_owned()
 }
 
-fn source_ref(item: &Item, settings: &Settings) -> Result<Option<SourceRef>, String> {
+fn source_ref(item: &Item, settings: &Settings) -> Result<Option<SourceRef>, E> {
     if item.file.is_empty() {
         return Ok(None);
     }
@@ -195,13 +178,13 @@ fn source_ref(item: &Item, settings: &Settings) -> Result<Option<SourceRef>, Str
         file == exec || file.ends_with(&format!("/{exec}"))
     });
     let Some(source) = found else {
-        return Err(format!(
-            "'{}' is declared in '{}', which is not a declared source",
-            item.doc_id, item.file
-        ));
+        return Err(E::UndeclaredSource {
+            doc_id: item.doc_id.clone(),
+            file: item.file.clone(),
+        });
     };
     Ok(Some(SourceRef {
-        file: source.file.clone(),
+        file: source.rel.clone(),
         line: item.line,
         generated: source.generated,
     }))
@@ -220,12 +203,11 @@ fn symbol(
     item: &Item,
     ids: &BTreeMap<String, String>,
     settings: &Settings,
-) -> Result<Symbol, String> {
+) -> Result<Symbol, E> {
     let lang = &settings.language;
-    let id = ids
-        .get(&item.doc_id)
-        .cloned()
-        .ok_or_else(|| format!("no id for '{}'", item.doc_id))?;
+    let id = ids.get(&item.doc_id).cloned().ok_or_else(|| E::NoId {
+        doc_id: item.doc_id.clone(),
+    })?;
     let mut config = format!("assembly={};api={SCHEMA}", api.assembly);
     if !settings.config.is_empty() {
         write!(config, ";config={}", settings.config).unwrap_or_default();

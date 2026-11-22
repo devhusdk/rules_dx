@@ -275,6 +275,8 @@ fn the_readme_quickstart_runs_as_written() {
     // consumer_test covers generate.
     let mut args = init_args(&blocks);
     args.push("--no-generate".to_owned());
+    // A local test's case root sits under its execroot, whose MODULE.bazel discovery would pick.
+    args.push(format!("--workspace={root}"));
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     crate::stage("quickstart_consumer_test", "dx init --apply --no-generate");
     let init = case.run(&dx, &args, &pairs);

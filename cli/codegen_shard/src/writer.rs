@@ -27,6 +27,10 @@ impl ShardKind for CodegenKind {
 }
 
 /// Converts raw OS arguments to text; a non-UTF-8 argument is an error, not a lossy copy.
+///
+/// # Errors
+///
+/// Returns `Err` naming the first argument that is not UTF-8.
 pub fn utf8_args(args: &[std::ffi::OsString]) -> Result<Vec<String>, WriterError> {
     args.iter()
         .map(|arg| {

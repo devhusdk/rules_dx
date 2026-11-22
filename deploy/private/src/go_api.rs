@@ -417,15 +417,13 @@ mod tests {
         let repo = git_fixture(scratch.path());
         let args_log = scratch.path().join("args");
         let fake = scratch.path().join("apidiff");
-        std::fs::write(
+        dx_testing::executable_script(
             &fake,
-            format!(
+            &format!(
                 "#!/bin/sh\necho \"$@\" >> {}\ncase \"$*\" in *-w*) exit 0;; esac\necho 'Incompatible changes:'\necho '- Hello: removed'\n",
                 args_log.display()
             ),
-        )
-        .expect("fake tool");
-        set_mode(&fake, 0o755);
+        );
         let modules = vec!["lib".to_owned()];
         let run = |tag: &str| go_api_check((&fake, None), &repo, &modules, tag, Baseline::Git);
         assert_eq!(

@@ -7,9 +7,9 @@ load("//core/quality/testdata:config_subject.bzl", "config_subject_rule")
 load("//go/private:go_analysis.bzl", "go_lang_version")
 load("//sql/private:providers.bzl", "sql_dialect_error")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
+load(":families/core.bzl", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS")
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load(":policy.bzl", "family_section_error")
-load(":families/core.bzl", _CORE_SHARD_SPECS = "SHARD_SPECS", _CORE_TOOLS = "TOOLS")
 load(":real_core.bzl", "real_config", "real_merged_output_groups")
 load(":unavailable_tool.bzl", "DxUnavailableToolInfo")
 
@@ -1230,6 +1230,15 @@ _zanuda_policy_test = analysistest.make(
     config_settings = {"//command_line_option:extra_execution_platforms": str(Label("//qt:windows_x86_64"))},
 )
 
+# Coverage adds the bisect_ppx driver, a dune-built tool that must still resolve on an OCaml exec cell.
+_zanuda_policy_coverage_test = analysistest.make(
+    _unsupported_platform_impl,
+    config_settings = {
+        "//command_line_option:collect_code_coverage": True,
+        "//command_line_option:extra_execution_platforms": str(Label("//qt:windows_x86_64")),
+    },
+)
+
 def unsupported_platform_analysis_tests(name):
     """Instantiates the forced unsupported platform analysis test as one suite."""
     _haskell_subject(
@@ -1264,4 +1273,9 @@ def unsupported_platform_analysis_tests(name):
         size = "small",
         target_under_test = name + "_zanuda_windows_subject",
     )
-    native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_swift_format_tool", name + "_zanuda_windows"])
+    _zanuda_policy_coverage_test(
+        name = name + "_zanuda_windows_coverage",
+        size = "small",
+        target_under_test = name + "_zanuda_windows_subject",
+    )
+    native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_swift_format_tool", name + "_zanuda_windows", name + "_zanuda_windows_coverage"])

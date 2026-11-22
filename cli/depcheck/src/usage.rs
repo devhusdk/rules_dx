@@ -161,7 +161,7 @@ pub fn is_test_file(eco: Language, path: &Path) -> bool {
         Language::Lua => {
             name.ends_with("_spec.lua") || s.contains("/spec/") || s.contains("/tests/")
         }
-        Language::Ocaml => s.contains("/test/") || s.contains("/tests/"),
+        Language::Ocaml | Language::Ansible => s.contains("/test/") || s.contains("/tests/"),
         Language::Perl => {
             std::path::Path::new(&name)
                 .extension()
@@ -174,8 +174,9 @@ pub fn is_test_file(eco: Language, path: &Path) -> bool {
     }
 }
 
-fn source_suffixes() -> BTreeSet<&'static str> {
-    [
+/// File name endings depcheck scans for imports. Ansible names collections in its YAML playbooks.
+fn source_suffixes(eco: Language) -> BTreeSet<&'static str> {
+    let mut suffixes: BTreeSet<&'static str> = [
         ".rs",
         ".py",
         ".js",
@@ -230,7 +231,11 @@ fn source_suffixes() -> BTreeSet<&'static str> {
         "dune",
     ]
     .into_iter()
-    .collect()
+    .collect();
+    if eco == Language::Ansible {
+        suffixes.extend([".yml", ".yaml"]);
+    }
+    suffixes
 }
 
 fn skip_names() -> BTreeSet<&'static str> {
@@ -494,6 +499,10 @@ fn dep_patterns(eco: Language, dep: &str) -> Result<DepPatterns, DepcheckError> 
                 r"\((?:libraries|pps|preprocess_deps)\b[^()]*?[\s(]{name}(?:\.[\w.]+)?[\s)]"
             )]
         }
+        Language::Ansible => {
+            let name = regex_escape(dep);
+            vec![format!(r"(?m)\b{name}\.\w|^\s*-\s*{name}\s*$")]
+        }
         Language::Zig => {
             let name = regex_escape(dep);
             vec![
@@ -589,7 +598,7 @@ pub(crate) fn find_first_imports(
     names: &[String],
 ) -> Result<BTreeMap<String, (String, usize)>, DepcheckError> {
     let skips = skip_names();
-    let suffixes = source_suffixes();
+    let suffixes = source_suffixes(eco);
     let mut texts: Vec<(String, String)> = Vec::new();
     for file in collect_sources(root, Some(nested))? {
         let Some(fname) = file.file_name().map(|n| n.to_string_lossy().into_owned()) else {
@@ -653,7 +662,7 @@ pub fn find_usages(
         .collect();
     let files = collect_sources(sources_root, None)?;
     let skips = skip_names();
-    let suffixes = source_suffixes();
+    let suffixes = source_suffixes(eco);
     let cfg_test =
         regex::Regex::new(r"(?m)^\s*#!\[cfg\(test\)\]").map_err(DepcheckError::SourcesRegex)?;
     let mut texts: Vec<(FileKind, String)> = Vec::new();

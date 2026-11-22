@@ -1,7 +1,6 @@
 //! Runs inside the isolated account: `connect ADDR`, `resolve HOST`, `loopback`, `serve`, `parent`,
 //! `read PATH` or `canon PATH`.
 
-#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};

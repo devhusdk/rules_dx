@@ -37,7 +37,7 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
     args.add("--srcs", srcs)
     args.add("--own", own)
     args.add("--label", str(ctx.label))
-    args.add("--stage", home.path + "/stage")
+    args.add("--scratch", home.path)
     args.add("--html", html.path)
     ctx.actions.run(
         executable = extract_tool,
@@ -51,8 +51,6 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
         use_default_shell_env = False,
         env = {
             "DART_SUPPRESS_ANALYTICS": "true",
-            "HOME": home.path,
-            "PUB_CACHE": home.path + "/pub",
         },
     )
     shard = ctx.actions.declare_file(stem + ".ir.pb")

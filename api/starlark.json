@@ -15318,6 +15318,13 @@
               "visibility"
             ],
             "kind": "perl_library"
+          },
+          {
+            "attrs": [
+              "tags",
+              "visibility"
+            ],
+            "kind": "perl_pod_dep"
           }
         ],
         "name": "perl_library",
@@ -15357,6 +15364,13 @@
               "upstream"
             ],
             "kind": "_perl_forward_test"
+          },
+          {
+            "attrs": [
+              "tags",
+              "visibility"
+            ],
+            "kind": "perl_pod_dep"
           },
           {
             "attrs": [

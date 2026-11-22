@@ -5744,6 +5744,12 @@ Tag `php.from_source`:
 
 No attributes.
 
+#### `php_coverage`
+
+Module extension.
+
+No tags.
+
 ### `@rules_dx//powershell:defs.bzl`
 
 #### `powershell_doc_shard`

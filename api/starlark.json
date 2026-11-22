@@ -15650,6 +15650,10 @@
             "name": "from_source"
           }
         ]
+      },
+      {
+        "name": "php_coverage",
+        "tag_classes": []
       }
     ],
     "functions": [],

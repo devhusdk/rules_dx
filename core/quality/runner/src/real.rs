@@ -688,8 +688,35 @@ fn tool_specific_env(
             ));
         }
     }
+    if tool_id == "chktex" {
+        // kpathsea otherwise probes texmf.cnf in directories above the tool tree. The pinned
+        // texmf.cnf sets TEXMFMAIN to the tree, so the global chktexrc is the pinned one.
+        env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case("TEXMFCNF"));
+        env.push((
+            OsString::from("TEXMFCNF"),
+            chktex_texmfcnf(tool_id, &tool.binary)?.into_os_string(),
+        ));
+    }
     tool_quirk_env(tool_id, scratch, env);
     Ok(())
+}
+
+/// The pinned `texmf-dist/web2c` dir; chktex sits at `bin/<platform>/chktex` in its TeX Live tree.
+fn chktex_texmfcnf(tool_id: &str, binary: &Path) -> Result<PathBuf, RunnerError> {
+    let binary = if binary.is_absolute() {
+        binary.to_owned()
+    } else {
+        std::env::current_dir()
+            .map_err(|err| execution(tool_id, format!("current dir: {err}")))?
+            .join(binary)
+    };
+    let root = binary.ancestors().nth(3).ok_or_else(|| {
+        execution(
+            tool_id,
+            format!("{} is not in a TeX Live bin dir", binary.display()),
+        )
+    })?;
+    Ok(root.join("texmf-dist").join("web2c"))
 }
 
 /// The shared PAR unpack root next to `scratch`, created on first use.

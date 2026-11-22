@@ -23,11 +23,15 @@ runs:
       run: |
         # shellcheck disable=SC2086
         set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+        # Build verify once and call it per label; a bazel run per label repeats the analysis.
+        bazel build --noshow_progress "$@" //tools/testing/hermetic:verify
+        verify="$PWD/$(bazel cquery --noshow_progress "$@" --output=files //tools/testing/hermetic:verify)"
+        commit="$(git rev-parse HEAD)"
         while read -r label; do
           pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
           evidence="$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json"
           manifest="$PWD/bazel-bin/$pkg/${name}_manifest.json"
-          bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$evidence" --commit "$(git rev-parse HEAD)" --manifest "$manifest"
+          "$verify" --evidence "$evidence" --commit "$commit" --manifest "$manifest"
         done < "$RUNNER_TEMP/hermetic-targets"
     - name: Check the upload holds no secret
       id: scan-hermetic-evidence

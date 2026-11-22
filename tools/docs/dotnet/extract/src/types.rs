@@ -1,5 +1,6 @@
 //! The dx.dotnet-api/1 contract written by the C# and F# drivers.
 
+use crate::DotnetExtractError;
 use serde::Deserialize;
 
 /// The only contract version this mapper reads.
@@ -70,18 +71,17 @@ pub struct Returns {
 }
 
 /// Parses one API document, rejecting a wrong schema version or unknown fields.
-pub fn parse_api(json: &str) -> Result<Api, String> {
+pub fn parse_api(json: &str) -> Result<Api, DotnetExtractError> {
     let value: serde_json::Value =
-        serde_json::from_str(json).map_err(|error| format!("API JSON is malformed: {error}"))?;
+        serde_json::from_str(json).map_err(DotnetExtractError::MalformedApi)?;
     match value.get("schema").and_then(serde_json::Value::as_str) {
         Some(SCHEMA) => {}
         Some(other) => {
-            return Err(format!(
-                "API JSON schema '{other}' is not supported, expected '{SCHEMA}'"
-            ));
+            return Err(DotnetExtractError::UnsupportedSchema {
+                schema: other.to_owned(),
+            });
         }
-        None => return Err("API JSON has no schema".to_owned()),
+        None => return Err(DotnetExtractError::NoSchema),
     }
-    serde_json::from_value(value)
-        .map_err(|error| format!("API JSON does not match {SCHEMA}: {error}"))
+    serde_json::from_value(value).map_err(DotnetExtractError::ApiShape)
 }

@@ -10,7 +10,110 @@ pub use convert::{Settings, clean, convert, signature};
 pub use exports::wildcard_match;
 pub use types::SCHEMA;
 
-use std::fs;
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
+use std::fmt;
+use std::path::Path;
+
+/// A function defined twice, or twice up to case, among the exports.
+#[derive(Debug)]
+pub struct Duplicate {
+    pub rel: String,
+    pub line: u64,
+    pub name: String,
+    pub reason: &'static str,
+    pub first: String,
+    pub first_rel: String,
+    pub first_line: u64,
+}
+
+/// Why one PowerShell API document could not become a shard.
+#[derive(Debug)]
+pub enum PowershellExtractError {
+    Flag(FlagError),
+    Io(PathIoError),
+    MalformedApi(serde_json::Error),
+    UnsupportedSchema { schema: String },
+    NoSchema,
+    ApiShape(serde_json::Error),
+    BinaryRootModule { rel: String, root: String },
+    BadFunctionsToExport { rel: String, value: String },
+    DynamicExport { rel: String },
+    UndefinedExport { rel: String, pattern: String },
+    NoExports,
+    DuplicateFunction(Box<Duplicate>),
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for PowershellExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Flag(error) => error.fmt(f),
+            Self::Io(error) => error.fmt(f),
+            Self::MalformedApi(error) => write!(f, "API JSON is malformed: {error}"),
+            Self::UnsupportedSchema { schema } => write!(
+                f,
+                "API JSON schema '{schema}' is not supported, expected '{SCHEMA}'"
+            ),
+            Self::NoSchema => f.write_str("API JSON has no schema"),
+            Self::ApiShape(error) => write!(f, "API JSON does not match {SCHEMA}: {error}"),
+            Self::BinaryRootModule { rel, root } => write!(
+                f,
+                "{rel}: RootModule '{root}' is a binary module, which is not supported"
+            ),
+            Self::BadFunctionsToExport { rel, value } => write!(
+                f,
+                "{rel}: FunctionsToExport '{value}' must be '*' or a list"
+            ),
+            Self::DynamicExport { rel } => write!(
+                f,
+                "{rel}: Export-ModuleMember -Function is not a literal list"
+            ),
+            Self::UndefinedExport { rel, pattern } => write!(
+                f,
+                "{rel}: exports '{pattern}' but no source file defines it"
+            ),
+            Self::NoExports => f.write_str("the module exports no functions"),
+            Self::DuplicateFunction(duplicate) => {
+                let Duplicate {
+                    rel,
+                    line,
+                    name,
+                    reason,
+                    first,
+                    first_rel,
+                    first_line,
+                } = duplicate.as_ref();
+                write!(
+                    f,
+                    "{rel}:{line}: function '{name}' {reason} '{first}' at {first_rel}:{first_line}"
+                )
+            }
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for PowershellExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Flag(error) => Some(error),
+            Self::Io(error) => Some(error),
+            Self::MalformedApi(error) | Self::ApiShape(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::UnsupportedSchema { .. }
+            | Self::NoSchema
+            | Self::BinaryRootModule { .. }
+            | Self::BadFunctionsToExport { .. }
+            | Self::DynamicExport { .. }
+            | Self::UndefinedExport { .. }
+            | Self::NoExports
+            | Self::DuplicateFunction(_)
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -38,7 +141,7 @@ pub fn usage() -> &'static str {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags =
         documentation_ir::tool::flags(args, &["--api", "--out", "--package", "--config"])?;
     Ok(Options {
@@ -54,9 +157,9 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let json = fs::read_to_string(&options.api)
-        .map_err(|error| format!("cannot read {}: {error}", options.api))?;
+pub fn run(options: &Options) -> Result<(), PowershellExtractError> {
+    let json =
+        path_io::read_to_string(Path::new(&options.api)).map_err(PowershellExtractError::Io)?;
     let shard = convert(
         &json,
         &Settings {
@@ -64,7 +167,7 @@ pub fn run(options: &Options) -> Result<(), String> {
             config: options.config.clone(),
         },
     )?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(PowershellExtractError::Write)
 }
 
 #[cfg(test)]

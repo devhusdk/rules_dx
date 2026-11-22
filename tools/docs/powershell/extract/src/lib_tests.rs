@@ -1,6 +1,7 @@
 use super::*;
 use documentation_ir::proto::{DocIr, Symbol};
 use serde_json::{Value, json};
+use std::fs;
 
 fn settings() -> Settings {
     Settings {
@@ -66,8 +67,12 @@ fn only(value: &Value) -> Symbol {
     shard.symbols[0].clone()
 }
 
-fn error(value: &Value) -> String {
+fn error(value: &Value) -> PowershellExtractError {
     convert(&value.to_string(), &settings()).expect_err("rejects")
+}
+
+fn message(value: &Value) -> String {
+    error(value).to_string()
 }
 
 fn extension(symbol: &Symbol, key: &str) -> Option<String> {
@@ -232,16 +237,23 @@ fn exports_reject_undefined_name() {
     let mut f = file("m.psm1", vec![function("Get-A", 1)]);
     f["exports"] = json!({"kind": "literal", "functions": ["Get-A", "Get-Missing"]});
     assert_eq!(
-        error(&api(vec![f])),
+        message(&api(vec![f.clone()])),
         "m.psm1: exports 'Get-Missing' but no source file defines it"
     );
+    assert!(matches!(
+        error(&api(vec![f])),
+        PowershellExtractError::UndefinedExport { .. }
+    ));
 }
 
 #[test]
 fn exports_reject_empty_set() {
     let mut f = file("m.psm1", vec![function("Get-A", 1)]);
     f["exports"] = json!({"kind": "literal", "functions": []});
-    assert_eq!(error(&api(vec![f])), "the module exports no functions");
+    assert!(matches!(
+        error(&api(vec![f])),
+        PowershellExtractError::NoExports
+    ));
 }
 
 #[test]
@@ -258,9 +270,13 @@ fn rejects_dynamic_export() {
     let mut f = file("m.psm1", vec![function("Get-A", 1)]);
     f["exports"] = json!({"kind": "dynamic", "functions": []});
     assert_eq!(
-        error(&api(vec![f])),
+        message(&api(vec![f.clone()])),
         "m.psm1: Export-ModuleMember -Function is not a literal list"
     );
+    assert!(matches!(
+        error(&api(vec![f])),
+        PowershellExtractError::DynamicExport { .. }
+    ));
 }
 
 #[test]
@@ -270,9 +286,13 @@ fn rejects_case_duplicate() {
         vec![function("Get-Thing", 1), function("Get-THING", 2)],
     )]);
     assert_eq!(
-        error(&value),
+        message(&value),
         "m.psm1:2: function 'Get-THING' differs only by case from 'Get-Thing' at m.psm1:1"
     );
+    assert!(matches!(
+        error(&value),
+        PowershellExtractError::DuplicateFunction(duplicate) if duplicate.line == 2
+    ));
 }
 
 #[test]
@@ -280,7 +300,7 @@ fn rejects_binary_root_module() {
     let mut value = api(vec![file("m.psm1", vec![function("Get-A", 1)])]);
     value["manifest"] = json!({"rel": "m.psd1", "root_module": "Bin.DLL"});
     assert_eq!(
-        error(&value),
+        message(&value),
         "m.psd1: RootModule 'Bin.DLL' is a binary module, which is not supported"
     );
 }
@@ -290,13 +310,26 @@ fn rejects_unknown_schema() {
     let mut value = api(vec![file("m.psm1", vec![function("Get-A", 1)])]);
     value["schema"] = json!("dx.powershell.api/2");
     assert_eq!(
-        error(&value),
+        message(&value),
         "API JSON schema 'dx.powershell.api/2' is not supported, expected 'dx.powershell.api/1'"
     );
     let mut extra = api(vec![file("m.psm1", vec![function("Get-A", 1)])]);
     extra["surprise"] = json!(true);
-    assert!(error(&extra).contains("unknown field `surprise`"));
-    assert_eq!(error(&json!({"files": []})), "API JSON has no schema");
+    assert!(message(&extra).contains("unknown field `surprise`"));
+    assert!(matches!(error(&extra), PowershellExtractError::ApiShape(_)));
+    assert!(matches!(
+        error(&value),
+        PowershellExtractError::UnsupportedSchema { .. }
+    ));
+    assert_eq!(message(&json!({"files": []})), "API JSON has no schema");
+    assert!(matches!(
+        error(&json!({"files": []})),
+        PowershellExtractError::NoSchema
+    ));
+    assert!(matches!(
+        convert("{", &settings()),
+        Err(PowershellExtractError::MalformedApi(_))
+    ));
 }
 
 #[test]
@@ -422,8 +455,18 @@ fn no_output_on_error() {
         package: "Demo".to_owned(),
         config: String::new(),
     };
-    assert!(run(&options).is_err());
+    assert!(matches!(
+        run(&options),
+        Err(PowershellExtractError::DynamicExport { .. })
+    ));
     assert!(!out.exists());
+    let unread = Options {
+        api: dir.join("absent.json").to_string_lossy().into_owned(),
+        ..options
+    };
+    let failure = run(&unread).expect_err("missing input");
+    assert!(matches!(failure, PowershellExtractError::Io(_)));
+    assert!(failure.to_string().starts_with("cannot read "), "{failure}");
 }
 
 #[test]

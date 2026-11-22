@@ -3,6 +3,7 @@
 //! missed the cache, traces each changed input to its `origin:`, and sums the uncacheable spawns by
 //! mnemonic.
 //! With `--kinds` it also builds one Linux-compatible target of each `entry_points` kind of every `<lang>/lang.json`.
+//! `--keep <dir>` copies each differing output of both builds to `<dir>/first` and `<dir>/second`.
 //! `--shard i/n` keeps the kind targets whose top-level package is the i-th of every n, counting from 0.
 #![expect(
     clippy::disallowed_methods,
@@ -196,13 +197,53 @@ fn build_argv(bazel: &str, out: &Path, name: &str, patterns: &[String]) -> Vec<S
     argv
 }
 
-fn compare(first: &[u8], second: &[u8], allowlist: &str) -> Result<Vec<String>, String> {
+/// Returns the problems and the exec-root-relative paths of the outputs that differ.
+fn compare(
+    first: &[u8],
+    second: &[u8],
+    allowlist: &str,
+) -> Result<(Vec<String>, Vec<String>), String> {
     let allowlist = exec_log::parse_allowlist(allowlist)?;
-    Ok(exec_log::problems(
-        &exec_log::read(first)?,
-        &exec_log::read(second)?,
-        &allowlist,
-    ))
+    let (first, second) = (exec_log::read(first)?, exec_log::read(second)?);
+    let paths = first
+        .iter()
+        .filter(|(key, value)| {
+            !allowlist.contains(*key) && second.get(*key).is_some_and(|other| other != *value)
+        })
+        .filter_map(|(key, _)| key.splitn(3, ' ').nth(2).map(str::to_owned))
+        .collect();
+    Ok((exec_log::problems(&first, &second, &allowlist), paths))
+}
+
+fn copy_tree(from: &Path, to: &Path) -> Result<(), String> {
+    let error = |path: &Path, e: std::io::Error| format!("{}: {e}", path.display());
+    if std::fs::metadata(from)
+        .map_err(|e| error(from, e))?
+        .is_dir()
+    {
+        std::fs::create_dir_all(to).map_err(|e| error(to, e))?;
+        for entry in std::fs::read_dir(from).map_err(|e| error(from, e))? {
+            let entry = entry.map_err(|e| error(from, e))?;
+            copy_tree(&entry.path(), &to.join(entry.file_name()))?;
+        }
+        return Ok(());
+    }
+    if let Some(parent) = to.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| error(parent, e))?;
+    }
+    std::fs::copy(from, to).map_err(|e| error(from, e))?;
+    Ok(())
+}
+
+/// Copies each output path of both builds' exec roots under `keep`.
+fn keep_outputs(out: &Path, keep: &Path, paths: &[String]) -> Result<(), String> {
+    for name in ["first", "second"] {
+        let root = out.join(name).join("base").join("execroot").join("_main");
+        for path in paths {
+            copy_tree(&root.join(path), &keep.join(name).join(path))?;
+        }
+    }
+    Ok(())
 }
 
 fn run(argv: &[String], workspace: &Path) -> Result<(), String> {
@@ -317,6 +358,7 @@ fn main() -> Result<(), String> {
     }
     let mut bazel = None;
     let mut out = None;
+    let mut keep = None;
     let mut patterns = Vec::new();
     let mut kinds = false;
     let mut part = (0, 1);
@@ -325,6 +367,7 @@ fn main() -> Result<(), String> {
         match arg.as_str() {
             "--bazel" => bazel = args.next(),
             "--out" => out = args.next().map(PathBuf::from),
+            "--keep" => keep = args.next().map(PathBuf::from),
             "--kinds" => kinds = true,
             "--shard" => part = parse_shard(&args.next().unwrap_or_default())?,
             _ => patterns.push(arg),
@@ -354,7 +397,17 @@ fn main() -> Result<(), String> {
     let allowlist = workspace.join(ALLOWLIST);
     let allowlist =
         std::fs::read_to_string(&allowlist).map_err(|e| format!("{}: {e}", allowlist.display()))?;
-    let found = compare(&read("first")?, &read("second")?, &allowlist)?;
+    let (found, paths) = compare(&read("first")?, &read("second")?, &allowlist)?;
+    if let Some(keep) = keep.filter(|_| !paths.is_empty()) {
+        match keep_outputs(&out, &keep, &paths) {
+            Ok(()) => println!(
+                "kept {} differing outputs in {}",
+                paths.len(),
+                keep.display()
+            ),
+            Err(error) => eprintln!("cannot keep the differing outputs: {error}"),
+        }
+    }
     for line in &found {
         eprintln!("{line}");
     }
@@ -498,9 +551,39 @@ mod tests {
 
     #[test]
     fn an_empty_allowlist_reports_the_stamped_action() {
-        let found = compare(FIRST, SECOND, "").unwrap();
+        let (found, paths) = compare(FIRST, SECOND, "").unwrap();
         assert_eq!(found.len(), 1, "{found:?}");
         assert!(found[0].contains("//:stamped"));
+        assert_eq!(paths, ["bazel-out/k8-fastbuild/bin/stamped.txt"]);
+    }
+
+    #[test]
+    fn the_differing_outputs_of_both_builds_are_kept() {
+        let dir = PathBuf::from(std::env::var("TEST_TMPDIR").unwrap()).join("keep");
+        for name in ["first", "second"] {
+            let root = dir
+                .join("out")
+                .join(name)
+                .join("base/execroot/_main/bazel-out/bin");
+            std::fs::create_dir_all(root.join("tree/sub")).unwrap();
+            std::fs::write(root.join("file.txt"), name).unwrap();
+            std::fs::write(root.join("tree/sub/a.o"), name).unwrap();
+        }
+        let paths = ["bazel-out/bin/file.txt", "bazel-out/bin/tree"].map(str::to_owned);
+        keep_outputs(&dir.join("out"), &dir.join("kept"), &paths).unwrap();
+        for name in ["first", "second"] {
+            let kept = dir.join("kept").join(name).join("bazel-out/bin");
+            assert_eq!(
+                std::fs::read_to_string(kept.join("file.txt")).unwrap(),
+                name
+            );
+            assert_eq!(
+                std::fs::read_to_string(kept.join("tree/sub/a.o")).unwrap(),
+                name
+            );
+        }
+        let missing = ["bazel-out/bin/missing".to_owned()];
+        assert!(keep_outputs(&dir.join("out"), &dir.join("kept"), &missing).is_err());
     }
 
     #[test]
@@ -539,7 +622,7 @@ mod tests {
     fn the_stamped_line_clears_the_report() {
         assert_eq!(
             compare(FIRST, SECOND, &format!("{STAMPED}\n")).unwrap(),
-            Vec::<String>::new()
+            (Vec::<String>::new(), Vec::<String>::new())
         );
     }
 }

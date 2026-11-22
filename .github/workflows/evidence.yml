@@ -37,7 +37,7 @@ on:
         required: false
         default: false
       relocate:
-        description: "test or build only: test reruns the task under a fresh output base with caches bypassed, logged to relocated.log; build runs //tools/testing:determinism_check on the scope, logged to determinism.txt."
+        description: "test or build only: test reruns the task under a fresh output base with caches bypassed, logged to relocated.log; build runs //tools/testing:determinism_check on the scope, logged to determinism.txt, with differing outputs in determinism/."
         type: boolean
         required: false
         default: false
@@ -365,7 +365,7 @@ jobs:
           if [ "$DX_RELOCATE" = true ] && [ "$DX_TASK" = build ]; then
             bazel_bin="$(command -v bazel)"
             [ "$RUNNER_OS" != Windows ] || bazel_bin="$(cygpath -w "$bazel_bin")"
-            bazel run --noshow_progress "${flags[@]}" //tools/testing:determinism_check -- --bazel "$bazel_bin" --out "$RUNNER_TEMP/determinism" "${flags[@]}" "${patterns[@]}" 2>&1 | tee "$RUNNER_TEMP/evidence/determinism.txt"
+            bazel run --noshow_progress "${flags[@]}" //tools/testing:determinism_check -- --bazel "$bazel_bin" --out "$RUNNER_TEMP/determinism" --keep "$RUNNER_TEMP/evidence/determinism" "${flags[@]}" "${patterns[@]}" 2>&1 | tee "$RUNNER_TEMP/evidence/determinism.txt"
           elif [ "$DX_RELOCATE" = true ]; then
             base="$RUNNER_TEMP/relocated-base"
             rm -rf "$base"

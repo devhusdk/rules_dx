@@ -120,7 +120,7 @@ func generateCuda(args language.GenerateArgs, rep common.Reporter) language.Gene
 	if len(hdrs) > 0 {
 		r.SetAttr("hdrs", hdrs)
 	}
-	r.SetAttr("cuda_archs", archs)
+	r.SetAttr("gpu_archs", archs)
 	if common.FixtureTestonly(args.Config, args.Rel) {
 		r.SetAttr("testonly", true)
 	}

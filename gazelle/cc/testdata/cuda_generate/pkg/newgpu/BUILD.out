@@ -13,6 +13,6 @@ cuda_library(
     name = "newgpu_cuda",
     srcs = ["kernel.cu"],
     hdrs = ["kernel.cuh"],
-    cuda_archs = ["sm_89"],
+    gpu_archs = ["sm_89"],
     visibility = ["//visibility:public"],
 )

@@ -36,7 +36,7 @@ load("@rules_dx//cuda:defs.bzl", "cuda_library")
 cuda_library(
     name = "my_project_cuda",
     srcs = ["kernel.cu"],
-    cuda_archs = ["sm_89"],
+    gpu_archs = ["sm_89"],
     visibility = ["//visibility:public"],
 )
 ```
@@ -62,7 +62,7 @@ Depend on the pinned labels:
 cuda_library(
     name = "gemm",
     srcs = ["gemm.cu"],
-    cuda_archs = ["sm_89"],
+    gpu_archs = ["sm_89"],
     deps = ["@rules_dx//cuda:cublas"],  # or :cufft, :curand
 )
 ```
@@ -83,7 +83,7 @@ load("@rules_dx//cuda:defs.bzl", "cuda_test")
 cuda_test(
     name = "saxpy_gpu_test",
     srcs = ["saxpy_gpu_test.cu"],
-    cuda_archs = ["compute_89:compute_89,sm_89", "sm_120"],
+    gpu_archs = ["compute_89:compute_89,sm_89", "sm_120"],
     min_compute_capability = "8.9",
     min_driver = "13.0",
     deps = [":saxpy"],
@@ -116,9 +116,9 @@ when a kernel launch fails. Return 0.
 
 Set `min_compute_capability` and `min_driver` on `cuda_test` to run it on a GPU. Set both.
 
-- `cuda_archs`: required arch specs, as for `cuda_library`.
+- `gpu_archs`: required arch specs, as for `cuda_library`.
 - `min_compute_capability`: lowest device compute capability, `X.Y`.
-  It must be at least the lowest arch in `cuda_archs`.
+  It must be at least the lowest arch in `gpu_archs`.
 - `min_driver`: lowest CUDA driver version, `X.Y`, from `13.0` to `13.4`.
 
 The runtime version is always the pinned toolkit, 13.4.
@@ -172,7 +172,7 @@ rules_dx declares the pinned nvcc toolchain; a consumer adds no
 | --- | --- |
 | `dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add dx_licenses.accept(ids = ["cuda-eula"]) to the root MODULE.bazel` | Add the license tag to the root `MODULE.bazel`. |
 | `dx_cuda: unknown license '<name>'; the only one is 'cuda-eula'` | Accept `cuda-eula`. |
-| `dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = ["sm_89"]` | Set `cuda_archs`. |
+| `dx_cuda: gpu_archs is empty; set gpu_archs, for example gpu_archs = ["sm_89"]` | Set `gpu_archs`. |
 | `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |
 | `dx_cuda: @rules_cuda//cuda:compiler is '<compiler>'; dx CUDA targets compile with nvcc only` | Remove the `@rules_cuda//cuda:compiler` setting. |
 | `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); remove your own rules_cuda cuda.redist_json and cuda.toolkit tags` | Remove your own rules_cuda `cuda.redist_json` and `cuda.toolkit` tags. |
@@ -200,15 +200,15 @@ load("@rules_dx//cuda:defs.bzl", "cuda_library", "cuda_binary", "cuda_test")
 ### `cuda_library`
 
 ```python
-cuda_library(name, srcs, cuda_archs, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, **kwargs)
+cuda_library(name, srcs, gpu_archs, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, **kwargs)
 ```
 
-Minimal wrapper over rules_cuda cuda_library; cuda_archs is required and rdc enables relocatable device code.
+Minimal wrapper over rules_cuda cuda_library; gpu_archs is required and rdc enables relocatable device code.
 
 ### `cuda_binary`
 
 ```python
-cuda_binary(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, cuda_copts = None, **kwargs)
+cuda_binary(name, *, srcs, gpu_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, cuda_copts = None, **kwargs)
 ```
 
 Compiles .cu sources with nvcc and links them into a cc_binary; cuda_copts go to nvcc.
@@ -216,7 +216,7 @@ Compiles .cu sources with nvcc and links them into a cc_binary; cuda_copts go to
 ### `cuda_test`
 
 ```python
-cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, min_compute_capability = None, min_driver = None, env = None, data = None, cuda_copts = None, **kwargs)
+cuda_test(name, *, srcs, gpu_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, min_compute_capability = None, min_driver = None, env = None, data = None, cuda_copts = None, **kwargs)
 ```
 
 Compiles .cu sources into a cc_test; min_compute_capability.
@@ -224,7 +224,7 @@ Compiles .cu sources into a cc_test; min_compute_capability.
 ### `cuda_objects`
 
 ```python
-cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = None, tags = None, target_compatible_with = None, **kwargs)
+cuda_objects(name, srcs, gpu_archs, hdrs = None, deps = None, visibility = None, tags = None, target_compatible_with = None, **kwargs)
 ```
 
 Compiles .cu sources to relocatable device objects for the deps of an rdc cuda_library.

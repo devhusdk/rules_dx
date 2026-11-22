@@ -49,7 +49,7 @@ rust_test(
 cuda_test(
     name = "saxpy_gpu_test",
     srcs = ["saxpy_gpu_test.cu"],
-    cuda_archs = [
+    gpu_archs = [
         "compute_89:compute_89,sm_89",
         "sm_120",
     ],
@@ -132,7 +132,7 @@ hermetic_toolchain_test(
 cuda_test(
     name = "rdc_gpu_test",
     srcs = ["rdc_gpu_test.cu"],
-    cuda_archs = [
+    gpu_archs = [
         "sm_89",
         "sm_120",
     ],
@@ -146,7 +146,7 @@ cuda_binary(
     name = "saxpy_gpu_probe_undeclared",
     testonly = True,
     srcs = ["saxpy_gpu_test.cu"],
-    cuda_archs = [
+    gpu_archs = [
         "compute_89:compute_89,sm_89",
         "sm_120",
     ],
@@ -210,7 +210,7 @@ rust_test(
 )
 
 cuda_gpu_check(
-    name = "gpu_cc_below_cuda_archs",
+    name = "gpu_cc_below_gpu_archs",
     archs = ["sm_89"],
     min_compute_capability = "7.5",
     min_driver = "13.0",
@@ -218,9 +218,9 @@ cuda_gpu_check(
 )
 
 failure_test(
-    name = "gpu_cc_below_cuda_archs_failure_test",
-    expected_failure_substring = "dx_cuda: min_compute_capability 7.5 is below the lowest arch in cuda_archs (8.9)",
-    target = ":gpu_cc_below_cuda_archs",
+    name = "gpu_cc_below_gpu_archs_failure_test",
+    expected_failure_substring = "dx_cuda: min_compute_capability 7.5 is below the lowest arch in gpu_archs (8.9)",
+    target = ":gpu_cc_below_gpu_archs",
     target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
@@ -252,7 +252,7 @@ rust_test(
 cuda_test(
     name = "cublas_gpu_test",
     srcs = ["cublas_gpu_test.cu"],
-    cuda_archs = [
+    gpu_archs = [
         "compute_89:compute_89,sm_89",
         "sm_120",
     ],
@@ -307,23 +307,23 @@ gcc_hermetic_toolchain_test(
 )
 
 cuda_library(
-    name = "missing_cuda_archs",
+    name = "missing_gpu_archs",
     srcs = ["//cuda/tests/fixtures/saxpy:saxpy.cu"],
-    cuda_archs = [],
+    gpu_archs = [],
     tags = ["manual"],
 )
 
 failure_test(
-    name = "missing_cuda_archs_failure_test",
-    expected_failure_substring = "dx_cuda: cuda_archs is empty",
-    target = ":missing_cuda_archs",
+    name = "missing_gpu_archs_failure_test",
+    expected_failure_substring = "dx_cuda: gpu_archs is empty",
+    target = ":missing_gpu_archs",
     target_compatible_with = CUDA_COMPATIBLE_WITH,
 )
 
 cuda_library(
     name = "unsupported_arch",
     srcs = ["//cuda/tests/fixtures/saxpy:saxpy.cu"],
-    cuda_archs = ["sm_70"],
+    gpu_archs = ["sm_70"],
     tags = ["manual"],
 )
 
@@ -710,8 +710,8 @@ dx_wrapper_contract_tests(
             [],
         ),
         expect_true(
-            "empty cuda_archs fail",
-            "cuda_archs is empty" in arch_errors([])[0],
+            "empty gpu_archs fail",
+            "gpu_archs is empty" in arch_errors([])[0],
         ),
         expect_true(
             "sm_70 fails",
@@ -785,7 +785,7 @@ dx_wrapper_contract_tests(
         ),
         expect_true(
             "cc below the lowest arch fails",
-            "below the lowest arch in cuda_archs (8.9)" in gpu_requirement_errors(_SAXPY_ARCHS, "8.6", "13.0")[0],
+            "below the lowest arch in gpu_archs (8.9)" in gpu_requirement_errors(_SAXPY_ARCHS, "8.6", "13.0")[0],
         ),
         expect_true(
             "malformed cc fails",

@@ -1,8 +1,7 @@
-# gazelle:dx_rust_corpus false
-
 load("@rules_dx//cc:defs.bzl", "cc_library")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//erlang:defs.bzl", "erlang_nif")
-load("//erlang/tests/negative:negative_tests.bzl", "nif_header_test")
+load("//erlang/tests/fixtures/negative:negative_tests.bzl", "nif_header_test")
 
 erlang_nif(
     name = "probe_nif",
@@ -24,4 +23,11 @@ cc_library(
     srcs = ["probe_nif.c"],
     hdrs = ["hidden.h"],
     deps = ["@dx_erlang_toolchains//:erl_nif"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

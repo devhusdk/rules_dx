@@ -53,3 +53,32 @@ elixirc_script_test_suite(
     name = "elixirc_script_unit",
     size = "small",
 )
+
+test_suite(
+    name = "fixture_tests",
+    tests = [
+        "//erlang/tests/fixtures/negative/declared_dep:attr_false_wins_over_flag_test",
+        "//erlang/tests/fixtures/negative/declared_dep:attr_true_wins_over_flag_test",
+        "//erlang/tests/fixtures/negative/declared_dep:bytecode_fails_on_warnings_test",
+        "//erlang/tests/fixtures/negative/declared_dep:bytecode_follows_flag_off_test",
+        "//erlang/tests/fixtures/negative/declared_dep:declared_dep_shows_header_test",
+        "//erlang/tests/fixtures/negative/declared_dep:erlc_fails_on_warnings_test",
+        "//erlang/tests/fixtures/negative/declared_dep:erlc_follows_flag_off_test",
+        "//erlang/tests/fixtures/negative/declared_header:nif_define_passthrough_test",
+        "//erlang/tests/fixtures/negative/declared_header:nif_header_visible_test",
+        "//erlang/tests/fixtures/negative/declared_header:nif_lint_test",
+        "//erlang/tests/fixtures/negative/missing_dep:undeclared_dep_hides_header_test",
+        "//erlang/tests/fixtures/negative/undeclared_header:nif_header_hidden_test",
+        "//erlang/tests/fixtures/nif_cpp:eunit",
+        "//erlang/tests/fixtures/nif_cpp:nif_cpp_release_layout_test",
+        "//erlang/tests/fixtures/nif_escript:refusal_test",
+        "//erlang/tests/fixtures/runtime:beam_info_test",
+        "//erlang/tests/fixtures/runtime:diagnostics_SUITE",
+        "//erlang/tests/fixtures/runtime:diagnostics_SUITE_coverage_test",
+        "//erlang/tests/fixtures/runtime:eunit",
+        "//erlang/tests/fixtures/runtime:eunit_coverage_test",
+        "//erlang/tests/fixtures/runtime:nif_coverage_test",
+        "//erlang/tests/fixtures/runtime:nif_cpp_coverage_test",
+        "//erlang/tests/fixtures/tags:tags_test",
+    ],
+)

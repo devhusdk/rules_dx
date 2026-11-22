@@ -1,12 +1,11 @@
-# gazelle:dx_rust_corpus false
-
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_erlc_opts")
-load("//erlang/tests/negative:negative_tests.bzl", "erlc_input_test", "erlc_warnings_as_errors_test", "erlc_warnings_flag_off_test")
+load("//erlang/tests/fixtures/negative:negative_tests.bzl", "erlc_input_test", "erlc_warnings_as_errors_test", "erlc_warnings_flag_off_test")
 
 erlang_app(
     app_name = "needs_dep",
     app_version = "1.0.0",
-    deps = ["//erlang/tests/negative/base_dep:erlang_app"],
+    deps = ["//erlang/tests/fixtures/negative/base_dep:erlang_app"],
 )
 
 erlc_warnings_as_errors_test(
@@ -24,7 +23,7 @@ erlang_bytecode(
     srcs = glob(["src/*.erl"]),
     dest = "strict",
     warnings_as_errors = True,
-    deps = ["//erlang/tests/negative/base_dep:erlang_app"],
+    deps = ["//erlang/tests/fixtures/negative/base_dep:erlang_app"],
 )
 
 erlc_warnings_flag_off_test(
@@ -47,7 +46,7 @@ erlang_bytecode(
     dest = "bytecode",
     erlc_opts = ":strict_erlc_opts",
     tags = ["manual"],
-    deps = ["//erlang/tests/negative/base_dep:erlang_app"],
+    deps = ["//erlang/tests/fixtures/negative/base_dep:erlang_app"],
 )
 
 erlc_warnings_as_errors_test(
@@ -67,7 +66,7 @@ erlang_bytecode(
     erlc_opts = ":strict_erlc_opts",
     tags = ["manual"],
     warnings_as_errors = False,
-    deps = ["//erlang/tests/negative/base_dep:erlang_app"],
+    deps = ["//erlang/tests/fixtures/negative/base_dep:erlang_app"],
 )
 
 erlc_warnings_as_errors_test(
@@ -81,4 +80,11 @@ erlc_input_test(
     file = "base_dep.hrl",
     present = True,
     target = ":beam_files",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

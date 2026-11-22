@@ -34,9 +34,8 @@ erlang/tests/fixtures/bench/BUILD.bazel orphan-target 2
 erlang/tests/fixtures/erlang_app/checksum/BUILD.bazel orphan-target 2
 erlang/tests/fixtures/erlang_app/proto/BUILD.bazel orphan-target 1
 erlang/tests/fixtures/erlang_app/store/BUILD.bazel orphan-target 1
-erlang/tests/nif_cpp/BUILD.bazel orphan-target 1
-erlang/tests/nif_escript/BUILD.bazel orphan-target 2
-erlang/tests/runtime/BUILD.bazel orphan-target 2
+erlang/tests/fixtures/nif_escript/BUILD.bazel orphan-target 1
+erlang/tests/fixtures/runtime/BUILD.bazel orphan-target 1
 flatbuffers/tests/fixtures/lost/BUILD.bazel orphan-target 1
 flutter/tests/fixtures/flutter_app/BUILD.bazel orphan-target 1
 flutter/tests/fixtures/flutter_app/app/BUILD.bazel orphan-target 2

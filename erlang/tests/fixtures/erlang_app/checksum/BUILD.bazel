@@ -54,7 +54,7 @@ erlang_eunit_test(
     name = "eunit",
     compiled_suites = [":test_modules"],
     target = ":test_erlang_app",
-    visibility = ["//erlang/tests/runtime:__pkg__"],
+    visibility = ["//erlang/tests/fixtures/runtime:__pkg__"],
 )
 
 real_source_target(

@@ -1358,21 +1358,21 @@ erlang_subject(
     name = "erlang_subject",
     testonly = True,
     tags = ["manual"],
-    target = "//erlang/tests/runtime:erlang_app",
+    target = "//erlang/tests/fixtures/runtime:erlang_app",
 )
 
 erlang_lint_subject(
     name = "erlang_lint_subject",
     testonly = True,
     tags = ["manual"],
-    target = "//erlang/tests/runtime:erlang_app",
+    target = "//erlang/tests/fixtures/runtime:erlang_app",
 )
 
 erlang_typecheck_subject(
     name = "erlang_typecheck_subject",
     testonly = True,
     tags = ["manual"],
-    target = "//erlang/tests/runtime:erlang_app",
+    target = "//erlang/tests/fixtures/runtime:erlang_app",
 )
 
 erlang_typecheck_subject(

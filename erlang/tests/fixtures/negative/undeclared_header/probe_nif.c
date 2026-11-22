@@ -1,4 +1,4 @@
-#include "erlang/tests/negative/undeclared_header/hidden.h"
+#include "erlang/tests/fixtures/negative/undeclared_header/hidden.h"
 #include <erl_nif.h>
 
 static ERL_NIF_TERM probe(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {

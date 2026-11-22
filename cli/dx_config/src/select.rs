@@ -215,7 +215,7 @@ fn apply(
 }
 
 /// The curated selection with the `dx.toml` overrides applied. No file means the
-/// curated tools at the standard tier.
+/// curated tools at the strict tier.
 pub fn effective(config: Option<&DxConfig>) -> Result<Selection, SelectionProblem> {
     let root = config.and_then(|config| config.tier).unwrap_or_default();
     let skip = config

@@ -50,6 +50,8 @@ source = { registry = "https://pypi.org/simple" }
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
         let harness = Harness::new(&format!("audit-consumer-{name}-{id}"));
         harness.write_source("MODULE.bazel", module);
+        // The consumer cases have no yanked-version snapshots, which only the standard base allows.
+        harness.write_source("dx.toml", "schema_version = 1\ntier = \"standard\"\n");
         harness.write_source(
             &format!("apps/frontend/{}", manifest_of(Ecosystem::Uv)),
             PYPROJECT,

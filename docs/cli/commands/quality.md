@@ -126,7 +126,7 @@ each root tool config. Never edit `.dx/`; it is generated.
 
 ```toml
 schema_version = 1
-tier = "strict"
+tier = "standard"
 
 [families.toml]
 lint = ["taplo"]
@@ -145,7 +145,8 @@ family can set its own `tier`. `[families.<id>]` replaces the tools of one
 capability (`lint`, `format`, `typecheck`, `audit`); a capability left out
 keeps the default tools. `disabled = true` turns the family off. `[scope]
 exclude` lists Bazel label patterns dx leaves out. Without `dx.toml`, every
-family found in the tree runs the default tools at the standard tier. See the
+family found in the tree runs the default tools at the strict tier. Set
+`tier = "standard"` to opt down. See the
 [config reference](config.md#dxtoml) for every key.
 
 To change a rule, edit the tool's root config file. See

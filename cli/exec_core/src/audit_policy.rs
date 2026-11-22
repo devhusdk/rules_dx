@@ -43,7 +43,7 @@ pub fn read_workspace_text(workspace: &Path, rel: &str) -> Result<String, Policy
     }
 }
 
-/// The tier from the dx.toml `tier`; standard without one.
+/// The tier from the dx.toml `tier`; strict without one.
 pub fn audit_tier(workspace: &Path) -> Result<dx_audit::tier_base::Tier, DxError> {
     match dx_config::load(workspace) {
         Ok(config) => Ok(config.and_then(|config| config.tier).unwrap_or_default()),

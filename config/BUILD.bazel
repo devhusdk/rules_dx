@@ -22,7 +22,7 @@ bool_flag(
 
 string_flag(
     name = "config_tier",
-    build_setting_default = "standard",
+    build_setting_default = "strict",
     values = [
         "standard",
         "strict",

@@ -121,7 +121,7 @@ fn intro(title: &str, purpose: &str, tier: &str, reference: &str) -> String {
          2. Set `tier`:\n\n\
          \x20  ```toml\n   schema_version = 1\n   tier = \"{tier}\"\n   ```\n\n\
          3. Run `tools/dx config <tool>`, such as `tools/dx config ruff`, to see the files that tool now reads.\n\n\
-         Without `dx.toml`, every tool runs at the standard tier. To give one family, such as `rust`, its own tier, set `tier` under `[families.rust]`. The [config reference](cli/commands/config.md#dxtoml) lists every key.\n\n\
+         Without `dx.toml`, every tool runs at the strict tier. Set `tier = \"standard\"` to opt down. To give one family, such as `rust`, its own tier, set `tier` under `[families.rust]`. The [config reference](cli/commands/config.md#dxtoml) lists every key.\n\n\
          To change a single setting, edit the tool's own config file at the root of your repo. The [quality page](cli/commands/quality.md) lists the file each tool reads.\n\n\
          ## Tools\n\n\
          {reference} Each section names the tool, where its tier config comes from, and the native config file you edit to change it. This page is generated. To refresh it, run `{UPDATE_COMMAND}`.\n\n"
@@ -137,7 +137,7 @@ pub fn standard_page(
 ) -> Result<String, TiersError> {
     let mut out = intro(
         "Standard tiers",
-        "This page shows the config each lint and format tool runs with when you use the standard tier, the default.",
+        "This page shows the config each lint and format tool runs with when you opt down to the standard tier.",
         "standard",
         "Each section below shows the full standard config of one tool.",
     );
@@ -156,7 +156,7 @@ pub fn standard_page(
 pub fn strict_page(tiers: &[Tier], files: &BTreeMap<String, String>) -> Result<String, TiersError> {
     let mut out = intro(
         "Strict tiers",
-        "This page shows what each lint and format tool checks on top of the standard tier when you switch to the strict tier.",
+        "This page shows what each lint and format tool checks on top of the standard tier. Strict is the default tier.",
         "strict",
         "Each section below is a diff from the standard config of one tool to its strict config. Each tier file is complete on its own, so the diff is the whole difference.",
     );

@@ -808,7 +808,7 @@ mod tests {
     #[test]
     fn status_without_dx_toml_is_the_default_standard_tier() {
         let out = status_with(&[], &["status"]);
-        assert!(out.contains("tier: standard [source: default]\n"), "{out}");
+        assert!(out.contains("tier: strict [source: default]\n"), "{out}");
         assert!(!out.contains("\nconfig "), "{out}");
     }
 
@@ -831,7 +831,7 @@ mod tests {
             ),
         ];
         let out = status_with(&files, &["status"]);
-        assert!(out.contains("tier: standard [source: default]\n"), "{out}");
+        assert!(out.contains("tier: strict [source: default]\n"), "{out}");
         assert!(
             out.contains("tier python: strict [source: dx.toml]\n"),
             "{out}"
@@ -904,7 +904,7 @@ mod tests {
         let out = status_with(&files, &["status"]);
         assert!(out.contains("dx.toml: warn"), "{out}");
         assert!(out.contains("unknown family `nosuchfamily`"), "{out}");
-        assert!(out.contains("tier: standard [source: default]\n"), "{out}");
+        assert!(out.contains("tier: strict [source: default]\n"), "{out}");
     }
 
     #[test]
@@ -914,7 +914,7 @@ mod tests {
         assert!(out.contains("config ruff: ruff.toml\n"), "{out}");
         let json = json_events(&status_with(&files, &["status", "--output=json"]));
         let tier = event(&json, "tier");
-        assert_eq!(tier["tier"], "standard");
+        assert_eq!(tier["tier"], "strict");
         assert_eq!(tier["source"], "default");
         let config = event(&json, "config_file");
         assert_eq!(config["tool"], "ruff");

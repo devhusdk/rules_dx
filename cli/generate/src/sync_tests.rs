@@ -108,7 +108,7 @@ fn editing_dx_toml_rerenders() {
     write(
         dir.path(),
         "dx.toml",
-        "schema_version = 1\ntier = \"strict\"\n",
+        "schema_version = 1\ntier = \"standard\"\n",
     )
     .unwrap();
     let mut count = 0;
@@ -118,7 +118,7 @@ fn editing_dx_toml_rerenders() {
         report.written.iter().any(|path| path == ".dx/BUILD.bazel"),
         "{report:?}"
     );
-    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("tier = \"strict\""));
+    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("tier = \"standard\""));
 }
 
 #[test]
@@ -338,16 +338,16 @@ fn removing_a_user_export_rerenders() {
 fn a_dx_toml_edit_during_a_sync_is_not_marked_synced() {
     let dir = workspace();
     let mut detect = |root: &Path| {
-        write(root, "dx.toml", "schema_version = 1\ntier = \"strict\"\n").unwrap();
+        write(root, "dx.toml", "schema_version = 1\ntier = \"standard\"\n").unwrap();
         BTreeSet::from(["python".to_owned()])
     };
     sync(dir.path(), Mode::Fast, &mut detect).expect("sync");
-    assert!(!read(dir.path(), ".dx/BUILD.bazel").contains("tier = \"strict\""));
+    assert!(!read(dir.path(), ".dx/BUILD.bazel").contains("tier = \"standard\""));
 
     let mut count = 0;
     run(dir.path(), Mode::Fast, &mut count);
     assert_eq!(count, 1);
-    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("tier = \"strict\""));
+    assert!(read(dir.path(), ".dx/BUILD.bazel").contains("tier = \"standard\""));
 }
 
 #[test]

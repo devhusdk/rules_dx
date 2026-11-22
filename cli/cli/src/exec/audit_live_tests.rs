@@ -344,6 +344,11 @@ pub(super) fn write_pin(harness: &Harness, family: &str, url: &str, date: &str, 
     harness.write_source(".dx/pins", &pins);
 }
 
+/// Pins the standard tier, whose audit base passes without a yanked-version snapshot.
+pub(super) fn write_standard_tier(harness: &Harness) {
+    harness.write_source("dx.toml", "schema_version = 1\ntier = \"standard\"\n");
+}
+
 pub(super) fn write_yanked(harness: &Harness, key: &str, json: &str) {
     let url = format!("https://example.invalid/{key}.json");
     write_pin(harness, key, &url, TEST_AUDIT_TODAY, json);
@@ -381,13 +386,14 @@ tier = \"{profile}\"
 }
 
 #[test]
-pub(super) fn audit_live_missing_yanked_snapshot_only_warns() {
+pub(super) fn audit_live_missing_yanked_snapshot_only_warns_under_the_standard_base() {
     let (code, out, err) = run_with(
         &["security", "//cc/private/tools/context:hello"],
         &AuditRunner::clean(),
         &|harness| {
             write_cargo_lock(harness);
             write_advisory(harness, "cargo", "[]");
+            write_standard_tier(harness);
         },
     );
     assert_eq!(code, 0, "{out}{err}");
@@ -969,6 +975,7 @@ pub(super) fn audit_live_old_advisory_pin_warns_and_still_assesses() {
             write_cargo_lock(harness);
             let url = dx_audit::advisory::advisory_source("cargo").expect("source");
             write_pin(harness, "cargo", url, "2000-01-01", "[]");
+            write_standard_tier(harness);
         },
     );
     assert_eq!(code, 0, "{out}{err}");
@@ -1007,6 +1014,7 @@ pub(super) fn audit_live_pinned_snapshot_ignores_a_newer_upstream_advisory() {
             let cache = write_cargo_pin_from_file(harness, "[]", true);
             std::fs::write(harness.workspace.join("upstream/cargo.json"), newer).expect("newer");
             assert!(harness.workspace.join(cache).is_file());
+            write_standard_tier(harness);
         },
     );
     assert_eq!(code, 0, "{out}{err}");
@@ -1024,6 +1032,7 @@ pub(super) fn audit_live_pinned_snapshot_is_fetched_into_the_cache_on_a_miss() {
         &AuditRunner::clean(),
         &|harness| {
             *cache_rel.borrow_mut() = write_cargo_pin_from_file(harness, "[]", false);
+            write_standard_tier(harness);
         },
     );
     assert_eq!(code, 0, "{out}{err}");

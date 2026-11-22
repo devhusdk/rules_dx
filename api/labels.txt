@@ -142,6 +142,7 @@
 //ocaml:bisect_ppx_rewriter alias
 //ocaml:dune alias
 //ocaml:emitter alias
+//ocaml:exec_toolchain_type toolchain_type
 //ocaml:profile_toolchain_type toolchain_type
 //ocaml:toolchain_type toolchain_type
 //php:exec_toolchain_type toolchain_type

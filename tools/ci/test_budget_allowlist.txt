@@ -412,12 +412,12 @@ ocaml/tests/fixtures/bench/BUILD.bazel size-large 1
 ocaml/tests/fixtures/bench/BUILD.bazel timeout-long 1
 ocaml/tests/fixtures/dune_lib/BUILD.bazel no-size 1
 ocaml/tests/fixtures/fuzz/BUILD.bazel no-size 2
+ocaml/tests/fixtures/native/BUILD.bazel no-size 2
+ocaml/tests/fixtures/negative/BUILD.bazel no-size 4
 ocaml/tests/fixtures/ocaml_app/checksum/BUILD.bazel no-size 1
 ocaml/tests/fixtures/ocaml_app/ledger/BUILD.bazel no-size 1
 ocaml/tests/fixtures/ocaml_app/lexer/BUILD.bazel no-size 1
-ocaml/tests/native/BUILD.bazel no-size 2
-ocaml/tests/negative/BUILD.bazel no-size 4
-ocaml/tests/runtime/BUILD.bazel no-size 4
+ocaml/tests/fixtures/runtime/BUILD.bazel no-size 4
 patches/BUILD.bazel no-size 1
 patches/windows_support/BUILD.bazel no-size 1
 patches/windows_support/source_directory_headers_test.bzl no-size 1

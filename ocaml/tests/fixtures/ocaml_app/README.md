@@ -61,5 +61,5 @@ Both are `manual`, so a wildcard build skips them.
 ## Platforms
 
 The example is qualified on `linux_x86_64` with the bytecode cell. The native
-cell is tested in the repository through `//ocaml/tests/native`, but it is not
+cell is tested in the repository through `//ocaml/tests/fixtures/native`, but it is not
 yet qualified in a hermetic consumer.

@@ -4,6 +4,6 @@
 #include <stdint.h>
 
 /* Called from OCaml as an unboxed, untagged native external. */
-intptr_t dx_add(intptr_t a, intptr_t b);
+intptr_t dx_add(intptr_t lhs, intptr_t rhs);
 
 #endif

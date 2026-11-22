@@ -117,8 +117,8 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude gazelle/d/testdata
 # gazelle:exclude gazelle/dart/testdata
 # gazelle:exclude rust/tests/fixtures/wasm_bindgen
-# gazelle:exclude ocaml/tests/runtime
-# gazelle:exclude ocaml/tests/native
+# gazelle:exclude ocaml/tests/fixtures/runtime
+# gazelle:exclude ocaml/tests/fixtures/native
 # gazelle:exclude php/private/tool.php
 # gazelle:exclude gazelle/php/builtins_dump.php
 # gazelle:exclude haskell/tests/runtime/src

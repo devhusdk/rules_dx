@@ -7,7 +7,7 @@ load("//android:defs.bzl", "android_adb_install", "android_adb_log", "android_ad
 load("//cc:defs.bzl", "cc_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_static_library", "rust_test")
-load(":adapter_tests.bzl", "adapter_case", "adapter_tests")
+load(":adapter_tests.bzl", "adapter_case")
 load(":starlark_platforms.bzl", "starlark_platforms")
 
 package(
@@ -575,8 +575,16 @@ sh_test(
     toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
-adapter_tests(
-    cases = [
+[
+    sh_test(
+        name = case.name,
+        size = "small",
+        srcs = ["adapter_test.sh"],
+        args = case.args,
+        data = case.data,
+        env = case.env,
+    )
+    for case in [
         adapter_case(
             "install_test",
             "install",
@@ -616,8 +624,8 @@ adapter_tests(
             ":log",
             adb_exit = "7",
         ),
-    ],
-)
+    ]
+]
 
 sh_test(
     name = "device_check_test",

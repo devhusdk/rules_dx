@@ -3,7 +3,7 @@ android/tests/fixtures/adopt_android/app/BUILD.bazel sh-rule 1
 android/tests/fixtures/adopt_android/app/inspect_apk.sh shebang 1
 android/tests/fixtures/native_lib/BUILD.bazel default-shell-env 1
 android/tests/fixtures/rust_apk/BUILD.bazel genrule 1
-android/tests/fixtures/rust_apk/BUILD.bazel sh-rule 29
+android/tests/fixtures/rust_apk/BUILD.bazel sh-rule 22
 android/tests/fixtures/rust_apk/adapter_test.sh shebang 1
 android/tests/fixtures/rust_apk/apk_set_rejects.sh shebang 1
 android/tests/fixtures/rust_apk/check_aab_rejects.sh shebang 1

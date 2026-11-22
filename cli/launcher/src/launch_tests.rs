@@ -378,10 +378,21 @@ fn run_scrubs_unset_variables() {
     let launcher = dx_testing::env_file("DX_EXEC_LAUNCHER");
     let app = dir.join("app.exe");
     std::fs::copy(&launcher, &app).unwrap();
-    let status = std::process::Command::new(&app)
-        .env("EXEC_LAUNCHER_UNSET_PROBE", "1")
-        .status()
-        .unwrap();
+    // A parallel test that forks while the copy is open holds its write fd until
+    // its child execs, so exec of `app.exe` may briefly fail with ETXTBSY.
+    let mut tries = 0;
+    let status = loop {
+        match std::process::Command::new(&app)
+            .env("EXEC_LAUNCHER_UNSET_PROBE", "1")
+            .status()
+        {
+            Err(error) if error.kind() == std::io::ErrorKind::ExecutableFileBusy && tries < 50 => {
+                tries += 1;
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            other => break other.unwrap(),
+        }
+    };
     assert_eq!(status.code(), Some(0));
 }
 

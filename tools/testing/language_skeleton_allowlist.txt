@@ -39,9 +39,6 @@ fixture-name lua/tests/bench
 fixture-name lua/tests/luarocks
 fixture-name lua/tests/negative
 fixture-name lua/tests/runtime
-fixture-name ocaml/tests/native
-fixture-name ocaml/tests/negative
-fixture-name ocaml/tests/runtime
 fixture-name php/tests/bench
 fixture-name php/tests/negative
 fixture-name python/tests/analysis

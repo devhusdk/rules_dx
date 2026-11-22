@@ -1,4 +1,5 @@
 load("//cc:defs.bzl", "cc_library", "cc_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//ocaml:defs.bzl", "ocaml_module", "ocaml_test")
 load("//ocaml/tests:defs_tests.bzl", "ocaml_sys_coverage_test")
 load(":defs.bzl", "sys_cell_test")
@@ -27,8 +28,8 @@ cc_test(
 
 ocaml_module(
     name = "stub_binding",
-    struct = "stub_binding.ml",
     cc_deps = {":stub": "static"},
+    struct = "stub_binding.ml",
 )
 
 ocaml_module(
@@ -56,14 +57,14 @@ sys_cell_test(
 
 ocaml_sys_coverage_test(
     name = "native_coverage_test",
-    sources = "ocaml/tests/native/stub_binding.ml\nocaml/tests/native/native_test.ml\n",
+    sources = "ocaml/tests/fixtures/native/stub_binding.ml\nocaml/tests/fixtures/native/native_test.ml\n",
     target_under_test = ":native_test_bin",
 )
 
 sys_cell_test(
     name = "greet_test",
     size = "small",
-    target = "//ocaml/tests/runtime:greet_test",
+    target = "//ocaml/tests/fixtures/runtime:greet_test",
 )
 
 sys_cell_test(
@@ -82,4 +83,14 @@ sys_cell_test(
     name = "example_lexer_test",
     size = "small",
     target = "//ocaml/tests/fixtures/ocaml_app/lexer:lexer_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
 )

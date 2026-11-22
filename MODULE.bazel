@@ -1806,6 +1806,7 @@ single_version_override(
     patches = [
         "//patches/rules_dart:external_pkgsrcs.patch",
         "//patches/rules_dart:windows_long_dill.patch",
+        "//patches/rules_dart:windows_copy_links.patch",
         "//patches/rules_dart:summaries_scope.patch",
         "//patches/rules_dart:cross_revision.patch",
         "//patches/rules_dart:dx_bzl_srcs.patch",

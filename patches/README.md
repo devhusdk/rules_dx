@@ -57,6 +57,7 @@ Some upstream fixes are carried as rules_dx code instead of a patch, such as ext
 | `protoc-gen-validate` | 1.2.1.bcr.2 | `pip_parse_no_39_310.patch` | Root only. pgv's pip hub skips python 3.9 and 3.10, which have no aarch64-pc-windows-msvc runtime |
 | `rules_dart` | 0.9.1 | `external_pkgsrcs.patch` | Sources of packages from an external repository are staged into `.pkgsrcs`, which `copy_to_directory` otherwise drops. Consumer fix: #11387 |
 | `rules_dart` | 0.9.1 | `windows_long_dill.patch` | Root only. On Windows `test_runner.dart` resolves the symlinked kernel snapshot before starting the test |
+| `rules_dart` | 0.9.1 | `windows_copy_links.patch` | On Windows the module worker copies each declared input from its link target, because Dart's Windows file copy refuses a link as its source. Consumer fix: #11387 |
 | `rules_dart` | 0.9.1 | `summaries_scope.patch` | Root only. `analysis_summaries` has `scope = "universal"`, so the summary analyzer's exec tools keep it off under `--incompatible_exclude_starlark_flags_from_exec_config` |
 | `rules_dart` | 0.9.1 | `cross_revision.patch` | A cross `dart compile` reads the SDK's `revision` even when `sdk_cache` has the target binaries, so it is an `aot_compile` input and the compile works where only declared inputs exist, such as remote execution. Consumer fix: #11387 |
 | `rules_dart` | 0.9.1 | `dx_bzl_srcs.patch` | Root only. `dart/private` and `dart/pub/private` each have a public `dx_bzl_srcs` filegroup of their Starlark files, for `starlark_doc_extract` deps (drop with the rules_dart 0.10.0 bump) |

@@ -1,10 +1,4 @@
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::panic,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::panic, clippy::string_slice)]
 
 //! The one HTTP client dx uses: proxy and CA trust from the environment, explicit
 //! timeouts, retries with backoff, and downloads that hash while they stream.

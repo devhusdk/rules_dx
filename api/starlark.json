@@ -15318,6 +15318,13 @@
               "visibility"
             ],
             "kind": "perl_library"
+          },
+          {
+            "attrs": [
+              "tags",
+              "visibility"
+            ],
+            "kind": "perl_pod_dep"
           }
         ],
         "name": "perl_library",
@@ -15357,6 +15364,13 @@
               "upstream"
             ],
             "kind": "_perl_forward_test"
+          },
+          {
+            "attrs": [
+              "tags",
+              "visibility"
+            ],
+            "kind": "perl_pod_dep"
           },
           {
             "attrs": [
@@ -15650,6 +15664,10 @@
             "name": "from_source"
           }
         ]
+      },
+      {
+        "name": "php_coverage",
+        "tag_classes": []
       }
     ],
     "functions": [],
@@ -17060,6 +17078,23 @@
               }
             ],
             "name": "configure"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "notice",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "runtime",
+                "type": "LABEL"
+              }
+            ],
+            "name": "msvc_runtime"
           }
         ]
       }

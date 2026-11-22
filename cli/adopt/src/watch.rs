@@ -821,10 +821,10 @@ mod tests {
         let session = WatchSession::start(&root, &[], false).expect("session starts");
         let writer = root.clone();
         std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(100));
             std::fs::write(writer.join("during.txt"), "edit").expect("write during.txt");
-        });
-        std::thread::sleep(Duration::from_millis(600));
+        })
+        .join()
+        .expect("writer");
         let trigger = session.wait(Duration::from_secs(5)).expect("wait");
         assert!(
             trigger.iter().any(|path| path.ends_with("during.txt")),

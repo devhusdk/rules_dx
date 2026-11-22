@@ -1,6 +1,14 @@
 {
   "languages": [
     {
+      "depcheck": "ansible",
+      "ecosystems": [
+        "ansible"
+      ],
+      "name": "ansible",
+      "semver": false
+    },
+    {
       "depcheck": "cc",
       "ecosystems": [],
       "name": "cc",

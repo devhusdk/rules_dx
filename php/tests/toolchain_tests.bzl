@@ -2,12 +2,13 @@
 
 load("@dx_pins_data//:pins.bzl", "PINS")
 load("//core:cells.bzl", "cell_cases", "cell_setting")
-load("//php/tests:checks.bzl", "expect_contains", "expect_equal", "expect_true", "php_checks_test")
 load("//php/private:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/private:php.bzl", "NATIVE_LAUNCHER_ATTRS", "lit", "rf", "runfiles_path", "write_launcher")
-load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
+load("//php/private/coverage:repos.bzl", "COVERAGE_BUILD")
 load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
-load("//php/private/toolchain:repos.bzl", "COVERAGE_BUILD", "VERSION_FILE", "hub_build", "runtime_build")
+load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
+load("//php/private/toolchain:repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
+load("//php/tests:checks.bzl", "expect_contains", "expect_equal", "expect_true", "php_checks_test")
 
 _PHP = PINS["dx_php"]
 

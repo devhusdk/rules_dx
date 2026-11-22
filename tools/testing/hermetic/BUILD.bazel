@@ -167,7 +167,9 @@ rust_test(
     ),
     crate_name = "isolation_probe_test",
     crate_root = "isolation_test.rs",
-    tags = QUALIFICATION_TAGS,
+    # Not exclusive: the probe runs beside other tests. Still no-cache, because it checks the
+    # runner's namespaces, which are not in the cache key.
+    tags = [tag for tag in QUALIFICATION_TAGS if tag != "exclusive"],
     target_compatible_with = MANIFEST_HOSTS,
     deps = all_crate_deps(
         package_name = "tools/testing/hermetic",
@@ -433,7 +435,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "proto_bindings",
-    timeout = "long",
     files = {
         "consumers/proto_bindings/root.BUILD.bazel": "BUILD.bazel",
         "consumers/proto_bindings/go.mod": "go.mod",

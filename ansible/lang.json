@@ -6,6 +6,8 @@
   "ecosystems": [
     "ansible"
   ],
+  "depcheck": "ansible",
+  "semver": false,
   "manifests": [
     "requirements.yml"
   ],

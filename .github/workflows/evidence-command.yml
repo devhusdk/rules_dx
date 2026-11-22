@@ -64,16 +64,17 @@ jobs:
             flags+=(-f "$arg")
           done
           printf '%s\n' "${args[@]}"
-          started=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          # The new run is the one whose id was not listed before the dispatch.
+          runs() { gh run list --workflow evidence.yml --branch "$ref" --event workflow_dispatch --limit 50 --json databaseId,url "$@"; }
+          before=$(runs --jq '[.[].databaseId] | tostring')
           if ! gh workflow run evidence.yml --ref "$ref" "${flags[@]}"; then
             reply "/evidence could not dispatch evidence.yml on $ref."
             exit 1
           fi
           url=
-          for _ in 1 2 3 4 5 6; do
-            sleep 5
-            url=$(gh run list --workflow evidence.yml --branch "$ref" --event workflow_dispatch --json url,createdAt \
-              --jq "[.[] | select(.createdAt >= \"$started\")] | last | .url // empty")
+          for _ in $(seq 1 30); do
+            url=$(runs --jq "[.[] | select([.databaseId] | inside($before) | not)] | first | .url // empty")
             [ -z "$url" ] || break
+            sleep 2
           done
           reply "Evidence started on \`$ref\`: ${url:-https://github.com/$GH_REPO/actions/workflows/evidence.yml}"

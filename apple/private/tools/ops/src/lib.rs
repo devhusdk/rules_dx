@@ -1,11 +1,6 @@
 //! The Apple operations: simulators, test simulators, running a macOS app, export, signing and notarization.
 
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"

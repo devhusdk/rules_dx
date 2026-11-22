@@ -8,6 +8,7 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 
 BUILD_SCRIPT_CC_ENV = {
     "CFLAGS": "$(DX_BS_CFLAGS)",
+    "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
     "HOST_AR": "$(DX_BS_HOST_AR)",
     "HOST_CC": "$(DX_BS_HOST_CC)",
     "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -149,6 +150,7 @@ def _build_script_cc_env_impl(ctx):
     msvc = rust.target_triple.str.endswith("-windows-msvc")
     variables = {
         "DX_BS_CFLAGS": _UNDEF_ISO_STDIO if coverage and msvc else ("" if msvc else _FILE_PREFIX_MAP),
+        "DX_BS_CXXFLAGS": "" if msvc else _FILE_PREFIX_MAP,
         "DX_BS_HOST_CFLAGS": host_cflags,
         "DX_BS_HOST_CXXFLAGS": host_cxxflags,
     }

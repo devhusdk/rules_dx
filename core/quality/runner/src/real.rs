@@ -203,10 +203,13 @@ fn launcher_env(tool_id: &str, binary: &Path) -> Vec<(OsString, OsString)> {
     Vec::new()
 }
 
+/// The first line of every Unix PATH shim.
+const UNIX_SHIM_SHEBANG: &str = "#!/bin/sh\n";
+
 /// A `/bin/sh` shim that sets the launcher's env, then execs its absolute path with `args` first.
 fn unix_shim(binary: &str, args: &[String], env: &[(String, String)]) -> String {
     use dx_process::shell::quote;
-    let mut out = String::from("#!/bin/sh\n");
+    let mut out = String::from(UNIX_SHIM_SHEBANG);
     for (key, value) in env {
         out.push_str(&format!("{key}={}\nexport {key}\n", quote(value)));
     }
@@ -1115,8 +1118,10 @@ mod tests {
             &[("RUNFILES_MANIFEST_FILE".to_owned(), "/w/m".to_owned())],
         );
         assert_eq!(
-            body,
-            "#!/bin/sh\nRUNFILES_MANIFEST_FILE='/w/m'\nexport RUNFILES_MANIFEST_FILE\nunset PATH\nexec '/w/it'\\''s/bin' \"$@\"\n"
+            body.strip_prefix(super::UNIX_SHIM_SHEBANG),
+            Some(
+                "RUNFILES_MANIFEST_FILE='/w/m'\nexport RUNFILES_MANIFEST_FILE\nunset PATH\nexec '/w/it'\\''s/bin' \"$@\"\n"
+            )
         );
     }
 
@@ -1124,8 +1129,8 @@ mod tests {
     fn unix_shims_pass_quoted_leading_args_before_the_callers() {
         let body = super::unix_shim("/w/dx", &["buf_diff".to_owned(), "a b".to_owned()], &[]);
         assert_eq!(
-            body,
-            "#!/bin/sh\nunset PATH\nexec '/w/dx' 'buf_diff' 'a b' \"$@\"\n"
+            body.strip_prefix(super::UNIX_SHIM_SHEBANG),
+            Some("unset PATH\nexec '/w/dx' 'buf_diff' 'a b' \"$@\"\n")
         );
     }
 

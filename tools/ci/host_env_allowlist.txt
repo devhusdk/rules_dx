@@ -67,7 +67,7 @@ cli/cli/src/exec/stream_probe_tests.rs shebang 2
 cli/cli/src/exec/test_case_launcher_tests.rs shebang 1
 cli/cli/src/multicall.rs host-path 1
 cli/cli/tests/adopt/tests/adopt.rs shebang 1
-cli/cli/tests/agents/tests/dev_launcher.rs host-path 9
+cli/cli/tests/agents/tests/dev_launcher.rs host-path 2
 cli/cli/tests/agents/tests/dev_launcher.rs shebang 15
 cli/cli/tests/uv_sets/tests/uv_sets.rs shebang 2
 cli/env/src/lib_tests.rs shebang 2
@@ -95,7 +95,7 @@ core/quality/consumer_policy_tests.bzl shebang 1
 core/quality/runner/src/entry.rs host-path 2
 core/quality/runner/src/lib_determinism.rs host-path 3
 core/quality/runner/src/real.rs host-path 4
-core/quality/runner/src/real.rs shebang 4
+core/quality/runner/src/real.rs shebang 3
 core/quality/testdata/BUILD.bazel genrule 5
 core/quality/testdata/coverage_sources/BUILD.bazel genrule 1
 core/quality/testdata/real_clean.sh shebang 1

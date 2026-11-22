@@ -85,7 +85,7 @@ _REGO_TEST_ATTRS = {
     "data": attr.label_list(allow_files = [".json", ".yaml", ".yml"], doc = "Data files loaded with the Rego files."),
     "deps": attr.label_list(providers = [RegoInfo], doc = "Rego libraries the tests import."),
     "_opa": attr.label(default = "//config:tool_opa", allow_single_file = True, cfg = "target"),
-    "_launcher": attr.label(default = Label("@dx_prebuilt//:runtime"), executable = True, cfg = no_coverage_transition),
+    "_launcher": attr.label(default = Label("//cli/runtime:dx_runtime"), executable = True, cfg = no_coverage_transition),
     "_windows_os": attr.label(default = "@platforms//os:windows"),
 }
 

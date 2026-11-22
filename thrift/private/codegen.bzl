@@ -83,7 +83,7 @@ _cc_aspect = aspect(
     attr_aspects = ["deps"],
     attrs = {
         "_runtime": attr.label(default = Label("@dx_thrift//:cpp_runtime"), providers = [CcInfo]),
-        "_thrift": attr.label(default = Label("@dx_prebuilt//:thrift"), executable = True, cfg = "exec"),
+        "_thrift": attr.label(default = Label("@dx_thrift//:thrift_compiler"), executable = True, cfg = "exec"),
         "_zipper": attr.label(default = Label("@bazel_tools//tools/zip:zipper"), executable = True, cfg = "exec"),
     } | CC_TOOLCHAIN_ATTRS,
     required_providers = [ThriftInfo],
@@ -172,7 +172,7 @@ _java_aspect = aspect(
     attr_aspects = ["deps"],
     attrs = {
         "_runtime": attr.label(default = Label("@dx_thrift//:java_runtime"), providers = [JavaInfo]),
-        "_thrift": attr.label(default = Label("@dx_prebuilt//:thrift"), executable = True, cfg = "exec"),
+        "_thrift": attr.label(default = Label("@dx_thrift//:thrift_compiler"), executable = True, cfg = "exec"),
         "_zipper": attr.label(default = Label("@bazel_tools//tools/zip:zipper"), executable = True, cfg = "exec"),
     },
     required_providers = [ThriftInfo],
@@ -260,7 +260,7 @@ _thrift_rust_srcs = rule(
     doc = "Runs thrift --gen rs over the schemas of the deps and their includes.",
     attrs = {
         "deps": attr.label_list(providers = [ThriftInfo], doc = "thrift_library targets to generate Rust for."),
-        "_thrift": attr.label(default = Label("@dx_prebuilt//:thrift"), executable = True, cfg = "exec"),
+        "_thrift": attr.label(default = Label("@dx_thrift//:thrift_compiler"), executable = True, cfg = "exec"),
     } | CODEGEN_LIBRARY_ATTRS,
 )
 

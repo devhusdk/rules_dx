@@ -115,3 +115,7 @@ build:linux --@rules_rust_wasm_bindgen//settings:test_browser=firefox
 build --//ruby/private/quality:rubocop=@gems//bin:rubocop
 
 try-import %workspace%/user.bazelrc
+
+# Temporary on this branch: split the Windows Desugar worker crash.
+common:desugar_local --strategy=Desugar=local
+common:desugar_unsandboxed_worker --noworker_sandboxing

@@ -9686,7 +9686,7 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "shellcheck",
       "severity": {
         "categories": {},
-        "default": null,
+        "default": "warning",
         "floor": null
       },
       "support": [

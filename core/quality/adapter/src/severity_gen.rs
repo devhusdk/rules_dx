@@ -573,6 +573,14 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "shellcheck",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Warning),
+            floor: None,
+            categories: &[],
+        },
+    ),
+    (
         "spotbugs",
         crate::severity::ToolSeverityMap {
             default: Some(crate::ToolSeverity::Warning),

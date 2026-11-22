@@ -1207,11 +1207,11 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     let sh = Path::new("/scratch/run.sh");
     assert_eq!(
         argv_strings(&shfmt_check(Path::new(BIN), &[sh])),
-        vec![BIN, "-d", "/scratch/run.sh"]
+        vec![BIN, "-s", "-d", "/scratch/run.sh"]
     );
     assert_eq!(
         argv_strings(&shfmt_fix(Path::new(BIN), &[sh])),
-        vec![BIN, "-w", "/scratch/run.sh"]
+        vec![BIN, "-s", "-w", "/scratch/run.sh"]
     );
     let rb = Path::new("/scratch/Sample.rb");
     let fmt_check = [

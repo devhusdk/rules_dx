@@ -147,7 +147,7 @@ Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs
 ```diff
 --- a/core/quality/tiers/eslint/strict.mjs
 +++ b/core/quality/tiers/eslint/strict.mjs
-@@ -1,7 +1,7 @@
+@@ -1,13 +1,42 @@
  import { defineConfig } from "eslint/config";
  import globals from "globals";
  import tseslint from "typescript-eslint";
@@ -156,11 +156,58 @@ Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs
  
  const typed = process.env.DX_ESLINT_TYPED === "1";
  const typescriptFiles = ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"];
-@@ -98,33 +98,56 @@
+ 
++// Focused and skipped tests that a runner would silently narrow.
++const testOnly = [
++	{
++		selector:
++			"CallExpression[callee.object.name=/^(describe|it|test|suite)$/][callee.property.name=/^(only|skip)$/]",
++		message: "Remove .only and .skip before committing; every test runs.",
++	},
++	{
++		selector: "CallExpression[callee.name=/^(fdescribe|fit|xdescribe|xit|xtest)$/]",
++		message: "Remove focused and disabled test calls before committing; every test runs.",
++	},
++];
++
+ const core = {
+ 	"constructor-super": "error",
++	curly: "error",
++	eqeqeq: ["error", "always"],
++	"no-alert": "error",
++	"no-await-in-loop": "error",
++	"no-console": "error",
++	"no-eval": "error",
++	"no-implied-eval": "error",
++	"no-new-func": "error",
++	"no-param-reassign": ["error", { props: true }],
++	"no-restricted-syntax": ["error", ...testOnly],
++	"no-throw-literal": "error",
++	"no-var": "error",
++	"prefer-const": "error",
++	"prefer-promise-reject-errors": "error",
++	"require-atomic-updates": "error",
++	"require-await": "error",
+ 	"for-direction": "error",
+ 	"getter-return": "error",
+ 	"no-async-promise-executor": "error",
+@@ -92,39 +121,66 @@
+ 	"no-undef": "off",
+ 	"no-unreachable": "off",
+ 	"no-unsafe-negation": "off",
+-	"no-var": "error",
+ 	"no-with": "off",
+-	"prefer-const": "error",
  	"prefer-rest-params": "error",
  	"prefer-spread": "error",
  	"@typescript-eslint/await-thenable": "error",
 -	"@typescript-eslint/ban-ts-comment": "error",
++	"@typescript-eslint/consistent-type-imports": "error",
++	"@typescript-eslint/no-import-type-side-effects": "error",
++	"@typescript-eslint/switch-exhaustiveness-check": [
++		"error",
++		{ requireDefaultForNonUnion: true },
++	],
 +	"@typescript-eslint/ban-ts-comment": [
 +		"error",
 +		{
@@ -214,7 +261,7 @@ Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs
  	"@typescript-eslint/no-unsafe-enum-comparison": "error",
  	"@typescript-eslint/no-unsafe-function-type": "error",
  	"@typescript-eslint/no-unsafe-member-access": "error",
-@@ -134,19 +157,52 @@
+@@ -134,19 +190,52 @@
  	"@typescript-eslint/no-unused-expressions": "error",
  	"no-unused-vars": "off",
  	"@typescript-eslint/no-unused-vars": "error",
@@ -269,7 +316,7 @@ Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs
  };
  
  export default defineConfig(
-@@ -172,4 +228,6 @@
+@@ -172,4 +261,6 @@
  			: {},
  	},
  	frameworks,

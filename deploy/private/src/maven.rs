@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -8,8 +9,8 @@ use pgp::crypto::hash::HashAlgorithm;
 use pgp::types::Password;
 
 use crate::api_compat::{
-    ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch, fetch_to,
-    previous_git_tag, previous_release, workspace_dir,
+    ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch,
+    fetch_to, previous_git_tag, previous_release, workspace_dir,
 };
 use crate::http;
 use crate::run::{
@@ -17,6 +18,162 @@ use crate::run::{
     run_publish, scrubbed_command,
 };
 use crate::{DeployRun, copy_verified, deploy_build_mode, tempfile_stage_dir, zip_archive};
+use dx_atomic_fs::path_io::{self, PathIoError};
+use dx_process::capture::RunError;
+
+/// Why a Maven pom check, signing step, live gate, upload or API check failed.
+#[derive(Debug)]
+pub enum MavenError {
+    PomUtf8(std::str::Utf8Error),
+    PomXml(quick_xml::Error),
+    PomText(quick_xml::Error),
+    PomEntity(String),
+    PomRoot(String),
+    PomNoProject,
+    ReadPom(PathIoError),
+    /// The pom version disagrees with the BUILD file; the message names the tool.
+    PomVersion(String),
+    SigningKey(pgp::errors::Error),
+    Passphrase(pgp::errors::Error),
+    PublicKey(pgp::errors::Error),
+    Signature(pgp::errors::Error),
+    SignatureMismatch,
+    /// An owner gate or placeholder-version refusal; the message names the tool.
+    Refused(String),
+    Snapshot,
+    PassphraseWithoutKey,
+    Unsigned,
+    HttpClient(dx_http::Error),
+    Upload {
+        url: String,
+        source: dx_http::Error,
+    },
+    NoDeploymentId(String),
+    BadCredentials,
+    UploadFailed {
+        url: String,
+        status: u16,
+        text: String,
+    },
+    TempDir(io::Error),
+    Japicmp(RunError),
+    ApiCompat(ApiCompatError),
+}
+
+impl MavenError {
+    /// The message as maven_deploy prints it, starting with the tool name.
+    fn tool_message(&self) -> String {
+        match self {
+            Self::PomVersion(_) | Self::Refused(_) | Self::ApiCompat(_) => self.to_string(),
+            Self::PomUtf8(_)
+            | Self::PomXml(_)
+            | Self::PomText(_)
+            | Self::PomEntity(_)
+            | Self::PomRoot(_)
+            | Self::PomNoProject
+            | Self::ReadPom(_)
+            | Self::SigningKey(_)
+            | Self::Passphrase(_)
+            | Self::PublicKey(_)
+            | Self::Signature(_)
+            | Self::SignatureMismatch
+            | Self::Snapshot
+            | Self::PassphraseWithoutKey
+            | Self::Unsigned
+            | Self::HttpClient(_)
+            | Self::Upload { .. }
+            | Self::NoDeploymentId(_)
+            | Self::BadCredentials
+            | Self::UploadFailed { .. }
+            | Self::TempDir(_)
+            | Self::Japicmp(_) => format!("maven_deploy: {self}"),
+        }
+    }
+}
+
+impl fmt::Display for MavenError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::PomUtf8(source) => write!(f, "pom is not UTF-8: {source}"),
+            Self::PomXml(source) => write!(f, "pom is not valid XML: {source}"),
+            Self::PomText(source) => write!(f, "pom text is not valid: {source}"),
+            Self::PomEntity(name) => write!(f, "pom uses unknown entity &{name};"),
+            Self::PomRoot(root) => write!(f, "pom root is <{root}>, want <project>"),
+            Self::PomNoProject => f.write_str("pom has no <project> element"),
+            Self::ReadPom(source) => write!(f, "{source}"),
+            Self::PomVersion(message) | Self::Refused(message) => f.write_str(message),
+            Self::SigningKey(source) => write!(
+                f,
+                "MAVEN_GPG_KEY is not an armored OpenPGP secret key ({source}); refusing"
+            ),
+            Self::Passphrase(source) => write!(
+                f,
+                "MAVEN_GPG_PASSPHRASE does not unlock MAVEN_GPG_KEY ({source}); refusing"
+            ),
+            Self::PublicKey(source) => write!(f, "public key is not valid: {source}"),
+            Self::Signature(source) => write!(f, "signature is not valid: {source}"),
+            Self::SignatureMismatch => f.write_str("signature does not match the data and key"),
+            Self::Snapshot => f.write_str(
+                "live staging refuses -SNAPSHOT versions; set a release version",
+            ),
+            Self::PassphraseWithoutKey => f.write_str(
+                "MAVEN_GPG_PASSPHRASE is set without MAVEN_GPG_KEY; refusing (set MAVEN_GPG_KEY, or unset the passphrase and record unsigned staging with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)",
+            ),
+            Self::Unsigned => f.write_str(
+                "no MAVEN_GPG_KEY; refusing unsigned publish (set MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)",
+            ),
+            Self::HttpClient(source) => write!(f, "{source}"),
+            Self::Upload { url, source } => write!(f, "upload to {url} failed: {source}"),
+            Self::NoDeploymentId(url) => {
+                write!(f, "upload to {url} returned 201 without a deployment id")
+            }
+            Self::BadCredentials => f.write_str(
+                "the Central Portal rejected MAVEN_USERNAME/MAVEN_PASSWORD; refusing (set them to a Portal user token from https://central.sonatype.com/usertoken)",
+            ),
+            Self::UploadFailed { url, status, text } => {
+                write!(f, "upload to {url} failed with HTTP {status}: {text}")
+            }
+            Self::TempDir(source) => write!(f, "{source}"),
+            Self::Japicmp(source) => write!(f, "japicmp: {source}"),
+            Self::ApiCompat(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for MavenError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::PomUtf8(source) => Some(source),
+            Self::PomXml(source) | Self::PomText(source) => Some(source),
+            Self::ReadPom(source) => Some(source),
+            Self::SigningKey(source)
+            | Self::Passphrase(source)
+            | Self::PublicKey(source)
+            | Self::Signature(source) => Some(source),
+            Self::HttpClient(source) | Self::Upload { source, .. } => Some(source),
+            Self::TempDir(source) => Some(source),
+            Self::Japicmp(source) => Some(source),
+            Self::ApiCompat(source) => Some(source),
+            Self::PomEntity(_)
+            | Self::PomRoot(_)
+            | Self::PomNoProject
+            | Self::PomVersion(_)
+            | Self::SignatureMismatch
+            | Self::Refused(_)
+            | Self::Snapshot
+            | Self::PassphraseWithoutKey
+            | Self::Unsigned
+            | Self::NoDeploymentId(_)
+            | Self::BadCredentials
+            | Self::UploadFailed { .. } => None,
+        }
+    }
+}
+
+/// Prints one error with the tool name.
+fn report(error: &MavenError) {
+    eprintln!("{}", error.tool_message());
+}
 
 const MAVEN_CHECKSUMS: [&str; 4] = ["md5", "sha1", "sha256", "sha512"];
 
@@ -182,7 +339,7 @@ pub fn maven_build_file_repo(
         }
     }
     let (jar_src, pom_src) = (files.jar, files.pom);
-    let rel = PathBuf::from(artifact.to_owned() + "-repo")
+    let rel = PathBuf::from(format!("{artifact}-repo"))
         .join(maven_group_path(group))
         .join(artifact)
         .join(version);
@@ -194,7 +351,7 @@ pub fn maven_build_file_repo(
             format!("maven file repo: {artifact}:{version}: {error}"),
         ));
     }
-    let house = outdir.join(artifact.to_owned() + "-repo");
+    let house = outdir.join(format!("{artifact}-repo"));
     let dest_dir = house
         .join(maven_group_path(group))
         .join(artifact)
@@ -253,17 +410,15 @@ pub fn maven_build_file_repo(
 }
 
 /// Reads the text of every element path in one POM.
-fn maven_pom_fields(pom: &[u8]) -> Result<std::collections::HashMap<String, String>, String> {
+fn maven_pom_fields(pom: &[u8]) -> Result<std::collections::HashMap<String, String>, MavenError> {
     use quick_xml::events::Event;
-    let xml = std::str::from_utf8(pom).map_err(|error| format!("pom is not UTF-8: {error}"))?;
+    let xml = std::str::from_utf8(pom).map_err(MavenError::PomUtf8)?;
     let mut reader = quick_xml::Reader::from_str(xml);
     let mut stack: Vec<String> = Vec::new();
     let mut fields = std::collections::HashMap::new();
     let mut root: Option<String> = None;
     loop {
-        let event = reader
-            .read_event()
-            .map_err(|error| format!("pom is not valid XML: {error}"))?;
+        let event = reader.read_event().map_err(MavenError::PomXml)?;
         match event {
             Event::Start(start) => {
                 let name = String::from_utf8_lossy(start.local_name().as_ref()).into_owned();
@@ -284,7 +439,7 @@ fn maven_pom_fields(pom: &[u8]) -> Result<std::collections::HashMap<String, Stri
             Event::Text(text) => {
                 let text = text
                     .xml10_content()
-                    .map_err(|error| format!("pom text is not valid: {error}"))?;
+                    .map_err(|error| MavenError::PomText(error.into()))?;
                 if let Some(value) = fields.get_mut(&stack.join("/")) {
                     value.push_str(&text);
                 }
@@ -292,25 +447,23 @@ fn maven_pom_fields(pom: &[u8]) -> Result<std::collections::HashMap<String, Stri
             Event::CData(text) => {
                 let text = text
                     .decode()
-                    .map_err(|error| format!("pom text is not valid: {error}"))?;
+                    .map_err(|error| MavenError::PomText(error.into()))?;
                 if let Some(value) = fields.get_mut(&stack.join("/")) {
                     value.push_str(&text);
                 }
             }
             Event::GeneralRef(reference) => {
-                let resolved = if let Some(ch) = reference
-                    .resolve_char_ref()
-                    .map_err(|error| format!("pom text is not valid: {error}"))?
-                {
-                    ch.to_string()
-                } else {
-                    let name = reference
-                        .decode()
-                        .map_err(|error| format!("pom text is not valid: {error}"))?;
-                    quick_xml::escape::resolve_predefined_entity(&name)
-                        .ok_or_else(|| format!("pom uses unknown entity &{name};"))?
-                        .to_owned()
-                };
+                let resolved =
+                    if let Some(ch) = reference.resolve_char_ref().map_err(MavenError::PomText)? {
+                        ch.to_string()
+                    } else {
+                        let name = reference
+                            .decode()
+                            .map_err(|error| MavenError::PomText(error.into()))?;
+                        quick_xml::escape::resolve_predefined_entity(&name)
+                            .ok_or_else(|| MavenError::PomEntity(name.into_owned()))?
+                            .to_owned()
+                    };
                 if let Some(value) = fields.get_mut(&stack.join("/")) {
                     value.push_str(&resolved);
                 }
@@ -321,8 +474,8 @@ fn maven_pom_fields(pom: &[u8]) -> Result<std::collections::HashMap<String, Stri
     }
     match root.as_deref() {
         Some("project") => Ok(fields),
-        Some(other) => Err(format!("pom root is <{other}>, want <project>")),
-        None => Err("pom has no <project> element".to_owned()),
+        Some(other) => Err(MavenError::PomRoot(other.to_owned())),
+        None => Err(MavenError::PomNoProject),
     }
 }
 
@@ -335,7 +488,7 @@ pub fn maven_pom_metadata_error(
 ) -> Option<String> {
     let fields = match maven_pom_fields(pom) {
         Ok(fields) => fields,
-        Err(error) => return Some(error),
+        Err(error) => return Some(error.to_string()),
     };
     let text = |path: &str| {
         fields
@@ -391,13 +544,14 @@ pub fn maven_pom_metadata_error(
 }
 
 /// Returns the version to publish: the pom's, which must equal `expected` when the BUILD file declares one.
-fn maven_pom_version(pom: &[u8], expected: &str) -> Result<String, String> {
-    let fields = maven_pom_fields(pom).map_err(|error| format!("maven_deploy: {error}"))?;
+fn maven_pom_version(pom: &[u8], expected: &str) -> Result<String, MavenError> {
+    let fields = maven_pom_fields(pom)?;
     let found = fields
         .get("project/version")
         .map(|value| value.trim().to_owned())
         .filter(|value| !value.is_empty());
     resolve_version("maven_deploy", "pom", found.as_deref(), expected)
+        .map_err(MavenError::PomVersion)
 }
 
 /// Secret signing key material for Maven detached signatures.
@@ -413,12 +567,9 @@ enum MavenSigningKey {
 
 impl MavenSigner {
     /// Parses an armored secret key and unlocks its signing key with the passphrase.
-    pub fn from_armored(key: &str, passphrase: &str) -> Result<Self, String> {
-        let (secret, _) = SignedSecretKey::from_armor_single(key.as_bytes()).map_err(|error| {
-            format!(
-                "maven_deploy: MAVEN_GPG_KEY is not an armored OpenPGP secret key ({error}); refusing"
-            )
-        })?;
+    pub fn from_armored(key: &str, passphrase: &str) -> Result<Self, MavenError> {
+        let (secret, _) =
+            SignedSecretKey::from_armor_single(key.as_bytes()).map_err(MavenError::SigningKey)?;
         let password = Password::from(passphrase);
         let subkey = secret
             .secret_subkeys
@@ -432,16 +583,14 @@ impl MavenSigner {
             MavenSigningKey::Primary(primary) => primary.remove_password(&password),
             MavenSigningKey::Subkey(sub) => sub.remove_password(&password),
         };
-        unlocked.map_err(|error| {
-            format!("maven_deploy: MAVEN_GPG_PASSPHRASE does not unlock MAVEN_GPG_KEY ({error}); refusing")
-        })?;
+        unlocked.map_err(MavenError::Passphrase)?;
         Ok(Self { key })
     }
 
     /// Checks a detached signature against this signer's own public key.
-    fn verify(&self, data: &[u8], asc: &str) -> Result<(), String> {
-        let (signature, _) = DetachedSignature::from_armor_single(asc.as_bytes())
-            .map_err(|error| format!("maven verify: signature is not valid: {error}"))?;
+    fn verify(&self, data: &[u8], asc: &str) -> Result<(), MavenError> {
+        let (signature, _) =
+            DetachedSignature::from_armor_single(asc.as_bytes()).map_err(MavenError::Signature)?;
         let ok = match &self.key {
             MavenSigningKey::Primary(key) => signature.verify(&key.public_key(), data).is_ok(),
             MavenSigningKey::Subkey(key) => signature.verify(&key.public_key(), data).is_ok(),
@@ -449,7 +598,7 @@ impl MavenSigner {
         if ok {
             Ok(())
         } else {
-            Err("maven verify: signature does not match the data and key".to_owned())
+            Err(MavenError::SignatureMismatch)
         }
     }
 }
@@ -480,11 +629,15 @@ pub fn maven_sign_detached(signer: &MavenSigner, path: &Path) -> io::Result<Path
 }
 
 /// Checks one armored detached signature against an armored public key.
-pub fn maven_verify_detached(public_armored: &str, data: &[u8], asc: &str) -> Result<(), String> {
+pub fn maven_verify_detached(
+    public_armored: &str,
+    data: &[u8],
+    asc: &str,
+) -> Result<(), MavenError> {
     let (public, _) = SignedPublicKey::from_armor_single(public_armored.as_bytes())
-        .map_err(|error| format!("maven verify: public key is not valid: {error}"))?;
-    let (signature, _) = DetachedSignature::from_armor_single(asc.as_bytes())
-        .map_err(|error| format!("maven verify: signature is not valid: {error}"))?;
+        .map_err(MavenError::PublicKey)?;
+    let (signature, _) =
+        DetachedSignature::from_armor_single(asc.as_bytes()).map_err(MavenError::Signature)?;
     if signature.verify(&public, data).is_ok()
         || public
             .public_subkeys
@@ -493,7 +646,7 @@ pub fn maven_verify_detached(public_armored: &str, data: &[u8], asc: &str) -> Re
     {
         Ok(())
     } else {
-        Err("maven verify: signature does not match the data and key".to_owned())
+        Err(MavenError::SignatureMismatch)
     }
 }
 
@@ -504,10 +657,10 @@ fn maven_bundle_walk(dir: &Path, rel: &str, out: &mut Vec<(String, Vec<u8>)>) ->
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().into_owned();
-        let path = rel.to_owned() + &name;
+        let path = format!("{rel}{name}");
         let kind = entry.file_type()?;
         if kind.is_dir() {
-            maven_bundle_walk(&entry.path(), &(path + "/"), out)?;
+            maven_bundle_walk(&entry.path(), &format!("{path}/"), out)?;
         } else if kind.is_file() && name != "maven-metadata.xml" {
             out.push((path, std::fs::read(entry.path())?));
         }
@@ -527,9 +680,6 @@ pub fn maven_bundle_zip(house: &Path) -> io::Result<Vec<u8>> {
     zip_archive(&members)
 }
 
-/// Refusal for a Portal upload rejected as unauthorized.
-pub const MAVEN_BAD_CREDENTIALS: &str = "maven_deploy: the Central Portal rejected MAVEN_USERNAME/MAVEN_PASSWORD; refusing (set them to a Portal user token from https://central.sonatype.com/usertoken)";
-
 /// Uploads one bundle zip to the Publisher API as a USER_MANAGED deployment and returns its id.
 pub fn maven_upload_bundle(
     client: &dx_http::Client,
@@ -537,7 +687,7 @@ pub fn maven_upload_bundle(
     bearer: &str,
     name: &str,
     zip: &[u8],
-) -> Result<String, String> {
+) -> Result<String, MavenError> {
     let url = format!(
         "{base_url}upload?publishingType=USER_MANAGED&name={}",
         http::query_escape(name)
@@ -554,18 +704,17 @@ pub fn maven_upload_bundle(
             dx_http::Body::Bytes(&body),
             2048,
         )
-        .map_err(|error| format!("maven_deploy: upload to {url} failed: {error}"))?;
+        .map_err(|source| MavenError::Upload {
+            url: url.clone(),
+            source,
+        })?;
     let status = response.status;
     let text = response.text().trim().to_owned();
     match status {
         201 if !text.is_empty() => Ok(text),
-        201 => Err(format!(
-            "maven_deploy: upload to {url} returned 201 without a deployment id"
-        )),
-        401 | 403 => Err(MAVEN_BAD_CREDENTIALS.to_owned()),
-        _ => Err(format!(
-            "maven_deploy: upload to {url} failed with HTTP {status}: {text}"
-        )),
+        201 => Err(MavenError::NoDeploymentId(url)),
+        401 | 403 => Err(MavenError::BadCredentials),
+        _ => Err(MavenError::UploadFailed { url, status, text }),
     }
 }
 
@@ -590,17 +739,17 @@ pub struct MavenLive {
 }
 
 /// Checks every live-upload refusal and returns the upload settings.
-pub fn maven_live_gate(env: &dyn Fn(&str) -> String, version: &str) -> Result<MavenLive, String> {
+pub fn maven_live_gate(
+    env: &dyn Fn(&str) -> String,
+    version: &str,
+) -> Result<MavenLive, MavenError> {
     if let Some(error) = placeholder_refusal("maven_deploy", version) {
-        return Err(error);
+        return Err(MavenError::Refused(error));
     }
     if version.contains("-SNAPSHOT") {
-        return Err(
-            "maven_deploy: live staging refuses -SNAPSHOT versions; set a release version"
-                .to_owned(),
-        );
+        return Err(MavenError::Snapshot);
     }
-    let secrets = MAVEN_GATE.authorize(env)?;
+    let secrets = MAVEN_GATE.authorize(env).map_err(MavenError::Refused)?;
     let passphrase = env("MAVEN_GPG_PASSPHRASE");
     let key = env("MAVEN_GPG_KEY");
     let signer = if key.is_empty() {
@@ -609,15 +758,11 @@ pub fn maven_live_gate(env: &dyn Fn(&str) -> String, version: &str) -> Result<Ma
         Some(MavenSigner::from_armored(&key, &passphrase)?)
     };
     if key.is_empty() && !passphrase.is_empty() {
-        return Err(
-            "maven staging: MAVEN_GPG_PASSPHRASE is set without MAVEN_GPG_KEY; refusing (set MAVEN_GPG_KEY, or unset the passphrase and record unsigned staging with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned(),
-        );
+        return Err(MavenError::PassphraseWithoutKey);
     }
     let unsigned = signer.is_none();
     if unsigned && env("MAVEN_ALLOW_UNSIGNED") != "1" {
-        return Err(
-            "maven staging: no MAVEN_GPG_KEY; refusing unsigned publish (set MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned(),
-        );
+        return Err(MavenError::Unsigned);
     }
     Ok(MavenLive {
         username: secrets.get("MAVEN_USERNAME").to_owned(),
@@ -648,7 +793,7 @@ fn maven_api_check(
     (group, artifact, version): (&str, &str, &str),
     jar: &Path,
     base_url: &str,
-) -> Result<Outcome, String> {
+) -> Result<Outcome, MavenError> {
     let dir = format!(
         "{}/{}/{}",
         base_url.trim_end_matches('/'),
@@ -671,8 +816,7 @@ fn maven_api_check(
         return Ok(Outcome::FirstRelease);
     };
     let url = format!("{dir}/{previous}/{artifact}-{previous}.jar");
-    let staging =
-        tempfile_stage_dir("maven-api-").map_err(|error| format!("maven_deploy: {error}"))?;
+    let staging = tempfile_stage_dir("maven-api-").map_err(MavenError::TempDir)?;
     let baseline_jar = staging.join("baseline.jar");
     let outcome = match fetch_to(&url, &baseline_jar, 512 << 20) {
         Ok(true) => maven_api_compare((java, japicmp), &previous, jar, &baseline_jar),
@@ -689,7 +833,7 @@ fn maven_api_compare(
     previous: &str,
     jar: &Path,
     baseline_jar: &Path,
-) -> Result<Outcome, String> {
+) -> Result<Outcome, MavenError> {
     let mut cmd = scrubbed_command(java, &[PUBLISH_CHILD_ENV_KEEP], &[]);
     cmd.arg("-jar")
         .arg(japicmp)
@@ -703,7 +847,7 @@ fn maven_api_compare(
             "--error-on-source-incompatibility",
             "--ignore-missing-classes",
         ]);
-    let output = run_publish(&mut cmd).map_err(|error| format!("maven_deploy: {error}"))?;
+    let output = run_publish(&mut cmd).map_err(MavenError::Japicmp)?;
     let text = format!(
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
@@ -780,13 +924,13 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
     let Some(pom) = run.resolve(pom_rloc) else {
         return 1;
     };
-    let version = match std::fs::read(&pom)
-        .map_err(|error| format!("maven_deploy: cannot read pom: {error}"))
+    let version = match path_io::read(&pom)
+        .map_err(MavenError::ReadPom)
         .and_then(|bytes| maven_pom_version(&bytes, version))
     {
         Ok(version) => version,
         Err(error) => {
-            eprintln!("{error}");
+            report(&error);
             return 1;
         }
     };
@@ -825,10 +969,10 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
             MAVEN_CENTRAL_READ_URL,
         )
         .and_then(|outcome| {
-            conclude("maven_deploy", mode, version, outcome).map_err(|error| error.to_string())
+            conclude("maven_deploy", mode, version, outcome).map_err(MavenError::ApiCompat)
         });
         if let Err(error) = checked {
-            eprintln!("{error}");
+            report(&error);
             return 1;
         }
     }
@@ -842,7 +986,7 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
         let live = match maven_live_gate(&env_or_empty, version) {
             Ok(live) => live,
             Err(error) => {
-                eprintln!("{error}");
+                report(&error);
                 return 1;
             }
         };
@@ -883,7 +1027,7 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
         }
         let name = format!("{group}:{artifact}:{version}");
         match http::client()
-            .map_err(|error| error.to_string())
+            .map_err(MavenError::HttpClient)
             .and_then(|client| {
                 maven_upload_bundle(
                     &client,
@@ -904,7 +1048,7 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
                 return 0;
             }
             Err(error) => {
-                eprintln!("{error}");
+                report(&error);
                 return 1;
             }
         }
@@ -916,7 +1060,7 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
         match MavenSigner::from_armored(&key, &env_or_empty("MAVEN_GPG_PASSPHRASE")) {
             Ok(signer) => Some(signer),
             Err(error) => {
-                eprintln!("{error}");
+                report(&error);
                 return 1;
             }
         }
@@ -1007,7 +1151,9 @@ pub(crate) mod tests {
     ];
 
     fn gate_error(vars: &[(&str, &str)], version: &str) -> Option<String> {
-        maven_live_gate(&gate_env(vars), version).err()
+        maven_live_gate(&gate_env(vars), version)
+            .err()
+            .map(|error| error.tool_message())
     }
 
     #[test]
@@ -1115,10 +1261,10 @@ pub(crate) mod tests {
         maven_verify_detached(&public, &payload, &asc).expect("gnupg signature verifies");
         let mut flipped = payload.clone();
         flipped[0] ^= 1;
-        assert_eq!(
+        assert!(matches!(
             maven_verify_detached(&public, &flipped, &asc),
-            Err("maven verify: signature does not match the data and key".to_owned())
-        );
+            Err(MavenError::SignatureMismatch)
+        ));
     }
 
     #[test]
@@ -1208,14 +1354,16 @@ pub(crate) mod tests {
     fn maven_version_comes_from_the_pom() {
         let pom = central_pom("com.example", "demo", "1.2.3");
         assert_eq!(
-            maven_pom_version(pom.as_bytes(), ""),
-            Ok("1.2.3".to_owned())
+            maven_pom_version(pom.as_bytes(), "").expect("pom version"),
+            "1.2.3"
         );
         assert_eq!(
-            maven_pom_version(pom.as_bytes(), "1.2.3"),
-            Ok("1.2.3".to_owned())
+            maven_pom_version(pom.as_bytes(), "1.2.3").expect("matching version"),
+            "1.2.3"
         );
-        let mismatch = maven_pom_version(pom.as_bytes(), "2.0.0").expect_err("mismatch");
+        let mismatch = maven_pom_version(pom.as_bytes(), "2.0.0")
+            .expect_err("mismatch")
+            .to_string();
         assert!(
             mismatch.contains("pom declares version 1.2.3, BUILD declares 2.0.0"),
             "{mismatch}"
@@ -1279,7 +1427,7 @@ pub(crate) mod tests {
     fn maven_gate_rejects_unsigned_without_allow_and_accepts_with_allow() {
         assert_eq!(
             gate_error(&APPROVED, "1.0.0"),
-            Some("maven staging: no MAVEN_GPG_KEY; refusing unsigned publish (set MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned())
+            Some("maven_deploy: no MAVEN_GPG_KEY; refusing unsigned publish (set MAVEN_GPG_KEY and MAVEN_GPG_PASSPHRASE, or record unsigned staging explicitly with MAVEN_ALLOW_UNSIGNED=1 plus owner approval)".to_owned())
         );
         let mut vars = APPROVED.to_vec();
         vars.push(("MAVEN_ALLOW_UNSIGNED", "1"));
@@ -1491,7 +1639,8 @@ pub(crate) mod tests {
             let bearer = http::bearer_basic("user", "s3cret-pass");
             let error = maven_upload_bundle(&test_client(), &stub.url, &bearer, "g:a:1", b"zip")
                 .expect_err("refused");
-            assert_eq!(error, MAVEN_BAD_CREDENTIALS);
+            assert!(matches!(error, MavenError::BadCredentials), "{error}");
+            let error = error.to_string();
             assert!(
                 !error.contains("s3cret-pass")
                     && !error.contains(bearer.get(7..).expect("string slice within bounds"))
@@ -1504,12 +1653,13 @@ pub(crate) mod tests {
         let body = "x".repeat(5000);
         let stub = stub_server("400 Bad Request", body);
         let error = maven_upload_bundle(&test_client(), &stub.url, "Bearer t", "g:a:1", b"zip")
-            .expect_err("rejected");
+            .expect_err("rejected")
+            .to_string();
         let prefix = format!(
-            "maven_deploy: upload to {}upload?publishingType=USER_MANAGED&name=g%3Aa%3A1 failed with HTTP 400: ",
+            "upload to {}upload?publishingType=USER_MANAGED&name=g%3Aa%3A1 failed with HTTP 400: ",
             stub.url
         );
-        assert_eq!(error, prefix + &"x".repeat(2048));
+        assert_eq!(error, format!("{prefix}{}", "x".repeat(2048)));
     }
 
     #[test]
@@ -1519,9 +1669,10 @@ pub(crate) mod tests {
         drop(listener);
         let url = format!("http://{addr}/api/v1/publisher/");
         let error = maven_upload_bundle(&test_client(), &url, "Bearer t", "g:a:1", b"zip")
-            .expect_err("unreachable");
+            .expect_err("unreachable")
+            .to_string();
         assert!(
-            error.starts_with(&format!("maven_deploy: upload to {url}upload?")),
+            error.starts_with(&format!("upload to {url}upload?")),
             "{error}"
         );
         assert!(!error.contains("Bearer"));

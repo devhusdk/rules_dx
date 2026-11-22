@@ -37,6 +37,11 @@ fn mix_deps_block(text: &str) -> Option<String> {
     Some(block)
 }
 
+/// Reads the `deps` of a `mix.exs` manifest.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_elixir_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let entry_re =
@@ -74,6 +79,10 @@ pub fn parse_elixir_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, D
 }
 
 /// Hex lock packages as `name -> version`.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_hex_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;
@@ -143,6 +152,11 @@ fn split_elements(body: &str) -> Vec<&str> {
         .collect()
 }
 
+/// Reads the `deps` of a `rebar.config` manifest.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_erlang_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let raw = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let text: String = raw

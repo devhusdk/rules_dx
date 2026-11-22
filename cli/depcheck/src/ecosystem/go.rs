@@ -5,6 +5,11 @@ use crate::{DepInfo, DepcheckError};
 
 use super::normalize_lower;
 
+/// Reads the `require` lines of a `go.mod` manifest.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_go_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let file = dx_gomod::parse_mod(&text).map_err(DepcheckError::ManifestParse)?;
@@ -32,6 +37,11 @@ pub fn parse_go_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
     Ok(deps)
 }
 
+/// Maps every module in `go.sum` to its version.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_go_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let mut pkgs = BTreeMap::new();

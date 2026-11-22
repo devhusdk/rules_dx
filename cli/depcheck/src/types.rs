@@ -68,6 +68,10 @@ pub struct Usage {
 }
 
 /// Parses the language named by `--ecosystem`.
+///
+/// # Errors
+///
+/// Returns an error when `text` names no known ecosystem.
 pub fn language_named(text: &str) -> Result<Language, DepcheckError> {
     Language::parse(text).ok_or_else(|| DepcheckError::UnknownEcosystem(text.to_owned()))
 }

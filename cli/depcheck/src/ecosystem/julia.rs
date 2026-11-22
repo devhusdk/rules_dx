@@ -8,6 +8,10 @@ use super::put;
 
 /// Reads `[deps]`, `[weakdeps]` and `[extras]` of a Julia project manifest. Extras are test-only and
 /// weak dependencies are optional.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_julia_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let data = parse_toml_file(path)?;
     let mut deps = BTreeMap::new();
@@ -44,6 +48,10 @@ pub fn parse_julia_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, De
 
 /// Maps every package in a Julia lock manifest (format 1 or 2) to its version. Standard libraries
 /// carry no version and map to `stdlib`.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_julia_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let data = parse_toml_file(path)?;
     let mut locked = BTreeMap::new();

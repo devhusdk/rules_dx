@@ -6,6 +6,10 @@ use crate::{DepInfo, DepcheckError};
 /// Reads the `.dependencies` of a manifest. A dependency's `.hash` is its lock, so it
 /// lands in `sha256`; `.lazy = true` marks it optional. Path dependencies have no hash and are
 /// skipped.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_zig_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let text = strip_comments(&text);
@@ -55,6 +59,10 @@ pub fn parse_zig_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
 }
 
 /// Reads the lock of a zig hub: each package's `version` is the manifest `.hash` it was locked from.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_zig_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     Ok(super::lock_packages(path)?
         .into_iter()

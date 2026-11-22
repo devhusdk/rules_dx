@@ -651,6 +651,11 @@ pub(crate) fn find_first_imports(
     Ok(out)
 }
 
+/// Finds which source, test and build files under `sources_root` use each dependency.
+///
+/// # Errors
+///
+/// Returns an error when a source cannot be read.
 pub fn find_usages(
     eco: Language,
     sources_root: &Path,
@@ -711,6 +716,12 @@ pub fn find_usages(
     Ok(out)
 }
 
+/// Reports where each dependency `manifest` declares is used under `sources`.
+///
+/// # Errors
+///
+/// Returns a usage error when the manifest or sources are missing, and a failure when the
+/// manifest does not parse or a dependency has a usage failure.
 pub fn cmd_usage(
     eco: Language,
     manifest: &Path,

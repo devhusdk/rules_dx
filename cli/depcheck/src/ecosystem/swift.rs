@@ -111,6 +111,10 @@ fn package_spec(args: &str) -> Result<String, DepcheckError> {
 /// entries of the targets. A dependency is keyed by the module name its product is imported
 /// as; a package no target takes a product from is keyed by its identity. Path packages are
 /// local and skipped.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_swift_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = strip_comments(&std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?);
     let url_re =
@@ -179,6 +183,10 @@ pub fn parse_swift_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, De
 
 /// Maps every pinned package identity of a `SwiftPM` resolved file (format 1 to 3) to its version,
 /// or to its branch or revision when it has none.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_swift_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;

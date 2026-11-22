@@ -385,6 +385,7 @@ single_version_override(
         "//patches/rules_android:java8_dex_runfiles.patch",
         "//patches/rules_android:public_bzl_library.patch",
         "//patches/rules_android:r8_globals_deterministic.patch",
+        "//patches/rules_android:windows_initial_heap.patch",
     ],
     version = "0.8.1",
 )

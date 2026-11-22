@@ -5,6 +5,7 @@ exports_files([
     "public_bzl_library.patch",
     "java8_dex_runfiles.patch",
     "r8_globals_deterministic.patch",
+    "windows_initial_heap.patch",
 ])
 
 real_source_target(

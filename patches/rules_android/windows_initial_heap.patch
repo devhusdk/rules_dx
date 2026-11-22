@@ -1,0 +1,39 @@
+Upstream: none (not yet sent upstream)
+diff --git a/src/tools/java/com/google/devtools/build/android/r8/BUILD b/src/tools/java/com/google/devtools/build/android/r8/BUILD
+--- a/src/tools/java/com/google/devtools/build/android/r8/BUILD
++++ b/src/tools/java/com/google/devtools/build/android/r8/BUILD
+@@ -83,9 +83,12 @@
+         # b/71513487
+         "-XX:+TieredCompilation",
+         "-XX:TieredStopAtLevel=1",
+-        "-Xms8g",
+         "-Xmx8g",
+-    ],
++    ] + select({
++        # Windows commits the initial heap at JVM start; an 8 GB commit fails startup on 16 GB CI hosts.
++        "@platforms//os:windows": [],
++        "//conditions:default": ["-Xms8g"],
++    }),
+     main_class = "com.google.devtools.build.android.r8.Desugar",
+     visibility = [
+         "//src/tools/java/com/google/devtools/build/android:__pkg__",
+diff --git a/tools/android/BUILD b/tools/android/BUILD
+--- a/tools/android/BUILD
++++ b/tools/android/BUILD
+@@ -259,10 +259,13 @@
+ _JVM_FLAGS = [
+     "-XX:+TieredCompilation",
+     "-XX:TieredStopAtLevel=1",
+-    # Consistent with what we use for desugar.
+-    "-Xms8g",
+     "-Xmx8g",
+-]
++] + select({
++    # Windows commits the initial heap at JVM start; an 8 GB commit fails startup on 16 GB CI hosts.
++    "@platforms//os:windows": [],
++    # Consistent with what we use for desugar.
++    "//conditions:default": ["-Xms8g"],
++})
+ 
+ java_binary(
+     name = "d8",

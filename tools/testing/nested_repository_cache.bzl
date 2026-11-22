@@ -57,6 +57,37 @@ nested_repository_cache_set = repository_rule(
     },
 )
 
+_GHCR = "https://ghcr.io/v2/"
+
+def _ghcr_file_impl(rctx):
+    """Downloads one ghcr.io blob, asking for an anonymous pull token when the cache misses."""
+    url = rctx.attr.url
+
+    # ghcr.io answers 401 without a bearer token, even for public images.
+    if not rctx.download(url = url, output = "file/blob", integrity = rctx.attr.integrity, allow_fail = True).success:
+        image = url[len(_GHCR):].split("/blobs/")[0]
+        rctx.download(url = "https://ghcr.io/token?service=ghcr.io&scope=repository:%s:pull" % image, output = "token.json")
+        token = json.decode(rctx.read("token.json"))["token"]
+        rctx.delete("token.json")
+        rctx.download(url = url, output = "file/blob", integrity = rctx.attr.integrity, headers = {"Authorization": ["Bearer " + token]})
+    rctx.file("file/BUILD.bazel", "filegroup(\n    name = \"file\",\n    srcs = [\"blob\"],\n    visibility = [\"//visibility:public\"],\n)\n")
+    rctx.file("REPO.bazel", "")
+    rctx.file("BUILD.bazel", "")
+    return rctx.repo_metadata(reproducible = True)
+
+ghcr_file = repository_rule(
+    implementation = _ghcr_file_impl,
+    doc = "One ghcr.io blob of a cache set, laid out like http_file at `//file`.",
+    attrs = {
+        "url": attr.string(mandatory = True, doc = "The https://ghcr.io/v2/ blob URL."),
+        "integrity": attr.string(mandatory = True, doc = "Subresource Integrity of the blob."),
+    },
+)
+
+def is_ghcr(url):
+    """Whether a URL is a ghcr.io registry blob that needs a pull token."""
+    return url.startswith(_GHCR)
+
 _HEX = "0123456789abcdef"
 _BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 _ALGORITHMS = {64: "sha256", 96: "sha384", 128: "sha512"}

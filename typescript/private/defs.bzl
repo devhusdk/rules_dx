@@ -12,6 +12,7 @@ load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwarg
 load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//javascript:defs.bzl", "javascript_binary")
+load("//javascript/private:drivers.bzl", "javascript_driver")
 load("//javascript/private:windows_tool.bzl", "js_build_tool")
 load("//typescript/private/playwright:closure.bzl", "CLOSURE_DIR")
 load("//typescript/private/playwright:pins.bzl", "CHROMIUM_REVISION", "PLAYWRIGHT_VERSION", "playwright_compatible_with")
@@ -496,7 +497,7 @@ def typescript_bench(name, *, srcs, main = None, node_modules, data = None, args
         name = name,
         srcs = srcs,
         runner = "node",
-        main = Label("//javascript/private:bench_driver"),
+        main = javascript_driver(name, "bench", tags),
         data = list(data or []) + [node_modules],
         args = [_entry_path("typescript_bench", main or srcs[0])] + list(args or []),
         tags = merge_tags(tags, "dx-bench"),
@@ -515,7 +516,7 @@ def typescript_fuzz_test(name, *, srcs, main = None, node_modules, data = None, 
         visibility = visibility,
         fuzz_rule = javascript_binary,
         fuzz_kwargs = {
-            "main": Label("//javascript/private:fuzz_driver"),
+            "main": javascript_driver(name, "fuzz", tags),
             "data": [":" + name + "_bin", node_modules] + list(data or []),
             "fixed_args": fixed_args,
         },

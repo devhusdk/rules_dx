@@ -1,8 +1,8 @@
-//! Offline checks dx runs on Terraform files before trivy scans them.
+//! Offline checks dx runs on Terraform files before trivy or `terraform init` reads them.
 //!
-//! trivy downloads every remote `module` source it meets and has no switch to stop it, so dx
-//! lets trivy see a Terraform file only when each module it calls, and each module those
-//! call, is a local `./` or `../` directory inside the scan root.
+//! Both download every remote `module` source they meet, so dx hands a Terraform file to them
+//! only when each module it calls, and each module those call, is a local `./` or `../`
+//! directory inside the scan root.
 
 use std::collections::BTreeSet;
 use std::path::{Component, Path, PathBuf};
@@ -10,7 +10,7 @@ use std::path::{Component, Path, PathBuf};
 /// A module source that is not a local path inside the scan root, or a file dx cannot read.
 pub const RULE_MODULE_SOURCE: &str = "dx/terraform-module-source";
 
-/// One problem, placed on the owned file trivy would have scanned.
+/// One problem, placed on the owned file the tool would have read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Problem {
     pub line: u64,
@@ -26,7 +26,7 @@ pub struct ModuleSource {
     pub column: u64,
 }
 
-/// True for files trivy reads as Terraform: `.tf` and `.tf.json`.
+/// True for Terraform files: `.tf` and `.tf.json`.
 #[must_use]
 pub fn is_terraform(path: &Path) -> bool {
     let name = path
@@ -145,11 +145,13 @@ fn at(line: u64, column: u64, message: String) -> Problem {
 /// The module directory a source names, or why dx refuses it.
 fn follow(root: &Path, dir: &Path, source: &ModuleSource) -> Result<PathBuf, String> {
     let Some(value) = &source.value else {
-        return Err("module source must be a plain string: dx runs trivy offline".to_owned());
+        return Err(
+            "module source must be a plain string: dx never downloads Terraform modules".to_owned(),
+        );
     };
     let Some(rel) = local_path(value) else {
         return Err(format!(
-            "module source {value:?} is not a local ./ or ../ path: trivy would download it, and dx runs trivy offline"
+            "module source {value:?} is not a local ./ or ../ path: dx never downloads Terraform modules"
         ));
     };
     match normalize(&dir.join(rel)) {

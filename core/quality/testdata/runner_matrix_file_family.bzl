@@ -1010,6 +1010,17 @@ FILE_FAMILY_CASES = [
         tool_env = _TERRAFORM_ENV,
     ),
     matrix_case(
+        name = "matrix_terraform_typecheck_remote_module_fail",
+        capability = "typecheck",
+        tool = "terraform",
+        binary = "@dx_tools//:terraform",
+        source_class = "terraform",
+        generated = {
+            "matrix/terraform_tc_remote/main.tf": "module \"consul\" {\n  source = \"hashicorp/consul/aws\"\n}\n",
+        },
+        tool_env = _TERRAFORM_ENV,
+    ),
+    matrix_case(
         name = "matrix_terraform_typecheck_missing_provider",
         capability = "typecheck",
         tool = "terraform",

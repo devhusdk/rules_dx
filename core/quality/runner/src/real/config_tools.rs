@@ -749,8 +749,8 @@ fn scan_chart(
     Ok(findings)
 }
 
-/// Refuses a Terraform file whose modules trivy would download, as an error finding on that file.
-fn terraform_module_problem(
+/// Refuses a Terraform file whose modules the tool would download, as an error finding on that file.
+pub(super) fn terraform_module_problem(
     tool_id: &str,
     root: &Path,
     name: &str,

@@ -7,7 +7,7 @@ ide_go_tool(name = "go_tool")
 
 alias(
     name = "gopackagesdriver",
-    actual = "@rules_go//go/tools/gopackagesdriver",
+    actual = "@dx_prebuilt//:gopackagesdriver",
 )
 
 real_source_target(

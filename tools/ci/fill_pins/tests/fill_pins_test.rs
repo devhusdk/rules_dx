@@ -4,10 +4,11 @@ use std::path::Path;
 use tempfile::TempDir;
 
 /// The per-platform tools release.yml adds to the dx manifest, one asset per platform each.
-const PLATFORM_TOOLS: [&str; 7] = [
+const PLATFORM_TOOLS: [&str; 8] = [
     "capnp",
     "flatc",
     "go",
+    "gopackagesdriver",
     "ldoc_main",
     "oapi_codegen",
     "runtime",
@@ -56,6 +57,7 @@ fn manifest() -> String {
     let mut lines = vec![
         format!("{}  dx-capnp-LICENSE\n", hash(9)),
         format!("{}  dx-flatc-LICENSE\n", hash(9)),
+        format!("{}  dx-gopackagesdriver-LICENSE\n", hash(9)),
         format!("{}  dx-julia-internal-LICENSE\n", hash(9)),
         format!("{}  dx-ldoc-main-LICENSE\n", hash(9)),
         format!("{}  dx-oapi-codegen-LICENSE\n", hash(9)),

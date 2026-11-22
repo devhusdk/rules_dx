@@ -161,7 +161,6 @@ upstream_fix_signals_test = unittest.make(_upstream_fix_signals_impl)
 
 _CASES = [
     ("tsc", "//typescript/private:tsc", "@npm_typescript//:tsc"),
-    ("vite", "//javascript/private:vite_build_tool", "//javascript/private:vite_tool"),
     ("svelte_tsc", "//javascript/private/quality/bin:svelte_tsc_tool", "//javascript/private/quality/bin:svelte_tsc"),
     ("protoc_gen_es", "//javascript/private/quality/bin:protoc_gen_es_tool", "//javascript/private/quality/bin:protoc_gen_es"),
     ("typedoc", "//javascript/private/quality/bin:typedoc_tool", "//javascript/private/quality/bin:typedoc"),
@@ -213,3 +212,22 @@ def ts_project_tool_tests(name, project):
         default_select_test(name = prefix + "_default_select", target_under_test = alias, tool = upstream, size = "small")
         tests += [prefix + "_shim", prefix + "_windows_select", prefix + "_default_select"]
     native.test_suite(name = name, tests = tests)
+
+def framework_build_tool_tests(name, build):
+    """Declares the shim and select tests for the build tool of one framework build.
+
+    Args:
+        name: Name of the test suite.
+        build: Name of the framework build in the calling package.
+    """
+    alias = ":{}_dx_tool_build".format(build)
+    tool = ":{}_dx_tool".format(build)
+    shim_test(name = name + "_shim", target_under_test = alias + "_windows", tool = tool, size = "small")
+    windows_select_test(
+        name = name + "_windows_select",
+        target_under_test = alias,
+        basename = "{}_dx_tool_build_windows.bat".format(build),
+        size = "small",
+    )
+    default_select_test(name = name + "_default_select", target_under_test = alias, tool = tool, size = "small")
+    native.test_suite(name = name, tests = [name + "_shim", name + "_windows_select", name + "_default_select"])

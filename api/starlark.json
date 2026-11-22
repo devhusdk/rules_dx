@@ -17060,6 +17060,23 @@
               }
             ],
             "name": "configure"
+          },
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "notice",
+                "type": "LABEL"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "runtime",
+                "type": "LABEL"
+              }
+            ],
+            "name": "msvc_runtime"
           }
         ]
       }

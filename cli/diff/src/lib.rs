@@ -1,7 +1,5 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
-use std::fmt::Write as _;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PatchKind {
     Modify,
@@ -51,6 +49,11 @@ fn check_path(path: &str) -> Result<(), DiffError> {
     Ok(())
 }
 
+/// Renders `files` as one unified patch, ordered by path.
+///
+/// # Errors
+///
+/// Returns `Err` when a path is not valid in a patch, such as one with a tab or newline.
 pub fn render_patch(files: &[FilePatch<'_>]) -> Result<String, DiffError> {
     let mut ordered: Vec<&FilePatch<'_>> = files.iter().collect();
     ordered.sort_by(|a, b| a.path.as_bytes().cmp(b.path.as_bytes()));
@@ -127,7 +130,9 @@ fn render_file(out: &mut String, file: &FilePatch<'_>) -> Result<(), DiffError> 
         } else {
             new_start + 1
         };
-        writeln!(out, "@@ -{old_head},{old_len} +{new_head},{new_len} @@").ok();
+        out.push_str(&format!(
+            "@@ -{old_head},{old_len} +{new_head},{new_len} @@\n"
+        ));
         for change in hunk.iter_changes() {
             let tag = match change.tag() {
                 similar::ChangeTag::Equal => ' ',

@@ -1,7 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//python:defs.bzl", "python_library", "python_test")
 
-# gazelle:resolve python pytest @pypi//pytest
+# gazelle:resolve python pytest @dx_pypi_fixtures//pytest
 
 package(default_visibility = ["//visibility:public"])
 
@@ -20,7 +20,7 @@ python_test(
     imports = ["."],
     deps = [
         ":web_server",
-        "@pypi//pytest",
+        "@dx_pypi_fixtures//pytest",
     ],
 )
 

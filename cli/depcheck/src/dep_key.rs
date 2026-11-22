@@ -28,6 +28,7 @@ pub(crate) fn normalize_dep_key(eco: Language, raw: &str) -> String {
         | Language::Swift
         | Language::Haskell
         | Language::Lua
-        | Language::Ocaml => raw.to_owned(),
+        | Language::Ocaml
+        | Language::Ansible => raw.to_owned(),
     }
 }

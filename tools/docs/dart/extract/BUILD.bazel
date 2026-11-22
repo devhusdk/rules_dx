@@ -62,6 +62,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/process:dx_process",
+        "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/ir/ir:documentation_ir",
         "@crates//:serde_json",
     ],

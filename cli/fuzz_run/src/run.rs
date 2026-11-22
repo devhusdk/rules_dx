@@ -157,7 +157,7 @@ type Spawn<'a> = dyn Fn(Vec<String>, Option<&Path>) -> Result<i32, Failure> + 'a
 
 /// Runs Crowbar rounds with fresh seeds until the time is up; a failing seed is written to `crashes`.
 fn crowbar_rounds(spawn: &Spawn<'_>, options: &Options, crashes: &Path) -> Result<i32, Failure> {
-    let seconds: u64 = options.seconds.parse().map_err(|_| usage())?;
+    let seconds: u64 = options.seconds.parse().ok().ok_or_else(usage)?;
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
     loop {
         let seed = random_seed();

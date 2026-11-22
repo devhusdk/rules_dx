@@ -746,7 +746,7 @@ pub fn npm_deploy_main_checked(
         .strip_suffix(".tgz")
         .unwrap_or(&tgz_base)
         .to_owned();
-    let feed_dir = outdir.join(stem.clone() + "-feed");
+    let feed_dir = outdir.join(format!("{stem}-feed"));
     if std::fs::create_dir_all(&feed_dir).is_err() {
         eprintln!("npm_deploy: cannot create {}", feed_dir.display());
         return 1;
@@ -1471,8 +1471,11 @@ mod tests {
         );
         args.push("--dry-run".into());
         let published = run(args);
-        let text = String::from_utf8_lossy(&published.stderr).into_owned()
-            + &String::from_utf8_lossy(&published.stdout);
+        let text = format!(
+            "{}{}",
+            String::from_utf8_lossy(&published.stderr),
+            String::from_utf8_lossy(&published.stdout)
+        );
         assert!(published.status.success(), "{text}");
         assert!(text.contains("@s/npm-demo"), "{text}");
     }
@@ -1955,15 +1958,13 @@ mod tests {
         .expect("pack");
         let marker = scratch.path().join("extractor-ran");
         let extractor = runfiles.join("api-extractor");
-        std::fs::write(
+        dx_testing::executable_script(
             &extractor,
-            format!(
+            &format!(
                 "#!/bin/sh\ntouch {}\ndir=$(sed -n 's/.*\"reportFolder\":\"\\([^\"]*\\)\".*/\\1/p' \"$3\")\nmkdir -p \"$dir\"\ncase \"$PWD\" in */staged/*) echo 'export function b' ;; *) echo 'export function a' ;; esac > \"$dir/pkg.api.md\"\n",
                 marker.display()
             ),
-        )
-        .expect("fake extractor");
-        set_mode(&extractor, 0o755);
+        );
         let path = format!(
             "{}:{}",
             bin.display(),

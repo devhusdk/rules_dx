@@ -20,6 +20,7 @@ single_version_override(
         "//patches/rules_rust:cargo_build_script_apple_deployment_target.patch",
         "//patches/rules_rust:windows_exec_foreign_target_cc_linker.patch",
         "//patches/rules_rust:crate_universe_module_labels.patch",
+        "//patches/rules_rust:rust_analyzer_rustc_lib.patch",
     ],
     version = "0.75.0",
 )
@@ -3210,6 +3211,7 @@ use_repo(
     "dx_android_ndk_linux_x86_64",
     "dx_android_ndk_macos_arm64",
     "dx_android_ndk_macos_x86_64",
+    "dx_android_ndk_windows_arm64",
     "dx_android_ndk_windows_x86_64",
     "dx_android_sdk",
     "dx_androidsdk",
@@ -3656,6 +3658,10 @@ windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "win
 use_repo(windows_sdk_ext, "windows_sdk")
 
 qt = use_extension("//qt:extensions.bzl", "qt")
+qt.msvc_runtime(
+    notice = "//cc/private/toolchain:notices/MSVC_REDISTRIBUTABLE.txt",
+    runtime = "@dx_msvc_runtime//:BUILD.bazel",
+)
 use_repo(qt, "dx_qt")
 
 rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")

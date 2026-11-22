@@ -132,6 +132,9 @@ pub struct Manifest {
     pub tools: BTreeMap<String, ManifestTool>,
     #[serde(default)]
     pub runner_failure: bool,
+    /// The golden leaves out each diagnostic's message text.
+    #[serde(default)]
+    pub drop_messages: bool,
     /// Files planted in the directory the runner's scratch dirs live under, keyed by relative path.
     #[serde(default)]
     pub ambient_files: BTreeMap<String, String>,
@@ -875,7 +878,29 @@ fn run() -> Result<(), HarnessError> {
     validate_result(&out_bytes, manifest_ref)?;
     let actual = String::from_utf8_lossy(&printer_out.stdout).into_owned();
     check_printed(&actual, manifest_ref.stages.len())?;
+    if manifest_ref.drop_messages {
+        return compare_golden(&plan, &name, drop_messages(&actual).as_bytes());
+    }
     compare_golden(&plan, &name, &printer_out.stdout)
+}
+
+/// Cuts the message off each `initial` and `terminal` diagnostic row, keeping
+/// severity, tool, rule, path, byte span and `fixable`, which stay stable across tool versions.
+#[must_use]
+pub fn drop_messages(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for line in text.split_inclusive('\n') {
+        let body = line.strip_suffix('\n').unwrap_or(line);
+        let row = body.starts_with("initial ") || body.starts_with("terminal ");
+        let kept = body.find(" fixable=").filter(|_| row).and_then(|at| {
+            let flag = at + 1;
+            let end = body.get(flag..)?.find(' ')?;
+            body.get(..flag + end)
+        });
+        out.push_str(kept.unwrap_or(body));
+        out.push_str(line.get(body.len()..).unwrap_or_default());
+    }
+    out
 }
 
 /// The runner's error message without the log prefix, newline-terminated.
@@ -1075,6 +1100,27 @@ mod tests {
                 "accepted {key:?}"
             );
         }
+    }
+
+    #[test]
+    fn drop_messages_keeps_the_stable_columns_of_diagnostic_rows() {
+        let printed = "initial 1\ninitial ERROR sqlfluff PRS a.sql 0 12 fixable=false \"Line 1: x\"\nterminal 1\nterminal WARNING typos - b.rs 3 3 fixable=false \"a fixable=true \\\"b\\\"\"\nreplacement b.rs 6 8 \"ei\"\n";
+        assert_eq!(
+            drop_messages(printed),
+            "initial 1\ninitial ERROR sqlfluff PRS a.sql 0 12 fixable=false\nterminal 1\nterminal WARNING typos - b.rs 3 3 fixable=false\nreplacement b.rs 6 8 \"ei\"\n"
+        );
+        assert_eq!(drop_messages("stages 1\n"), "stages 1\n");
+    }
+
+    #[test]
+    fn drop_messages_defaults_off_and_parses_when_set() {
+        assert!(!valid().drop_messages);
+        let manifest = parse_manifest(
+            &skeleton(serde_json::json!({"drop_messages": true})),
+            "skeleton",
+        )
+        .expect("drop_messages parses");
+        assert!(manifest.drop_messages);
     }
 
     #[test]

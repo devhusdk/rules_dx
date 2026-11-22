@@ -179,7 +179,7 @@ pub fn crates_build_vendor(
     version: &str,
 ) -> io::Result<std::path::PathBuf> {
     let mapped = crates_package_paths(crate_files)?;
-    let house = outdir.join(crate_name.to_owned() + "-vendor");
+    let house = outdir.join(format!("{crate_name}-vendor"));
     let vendor_dir = house.join("vendor").join(crate_name);
     let registry_dir = house.join("registry").join(crate_name).join(version);
     std::fs::create_dir_all(&vendor_dir)?;
@@ -1275,17 +1275,15 @@ mod tests {
         let args_log = scratch.path().join("args");
         let exported = scratch.path().join("exported");
         let fake = scratch.path().join("cargo-semver-checks");
-        std::fs::write(
+        dx_testing::executable_script(
             &fake,
-            format!(
+            &format!(
                 "#!/bin/sh\necho \"$@\" > {}\nwhile [ $# -gt 0 ]; do if [ \"$1\" = --baseline-root ]; then cp \"$2/{}\" {}; fi; shift; done\necho '--- failure pub_function_missing: pub fn removed or renamed ---'\nexit 1\n",
                 args_log.display(),
                 manifest_name(),
                 exported.display()
             ),
-        )
-        .expect("fake tool");
-        set_mode(&fake, 0o755);
+        );
         let repo_dir = repo.display().to_string();
         let run_in = |dir: &str, version: &str, mode: ApiCompatMode| {
             with_env(&[("BUILD_WORKSPACE_DIRECTORY", Some(&repo_dir))], || {

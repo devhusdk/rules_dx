@@ -194,9 +194,9 @@ def _evidence_checks():
             ["small", "medium"],
         ),
         expect_equal(
-            "only the psscriptanalyzer CRLF format failure case is medium",
+            "only the slow-starting psscriptanalyzer and topiary cases are medium",
             sorted([c["name"] for c in RUNNER_MATRIX_CASES if matrix_case_size(c) != "small"]),
-            ["matrix_powershell_format_crlf_fail"],
+            ["matrix_ocaml_format_mixed", "matrix_powershell_format_crlf_fail", "matrix_powershell_format_syntax_error"],
         ),
         expect_equal(
             "matrix_case_tools plain, toolchain and upstream shapes",

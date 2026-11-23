@@ -4,7 +4,7 @@ module(
     bazel_compatibility = [">=9.3.1"],
 )
 
-# floor: equals tested; root-only patches, consumer fixes tracked in #11399
+# floor: equals tested; root-only patches
 bazel_dep(name = "rules_rust", version = "0.75.0")
 single_version_override(
     module_name = "rules_rust",
@@ -43,7 +43,7 @@ single_version_override(
 # floor: equals tested; dev only, avro-cpp builds with fmt 12
 bazel_dep(name = "fmt", version = "12.2.0.bcr.1", dev_dependency = True)
 
-# floor: equals tested; patched (#5905)
+# floor: equals tested; patched
 bazel_dep(name = "gcc_toolchain", version = "0.13.0")
 single_version_override(
     module_name = "gcc_toolchain",
@@ -167,7 +167,7 @@ _foreign_cc_tools.pkgconfig(
     mode = "noop",
 )
 
-# floor: equals tested; llvm pins the MSVC and Windows SDK payloads we link; patched for host_tools (#4835)
+# floor: equals tested; llvm pins the MSVC and Windows SDK payloads we link; patched for host_tools
 bazel_dep(name = "windows_support", version = "0.4.1")
 single_version_override(
     module_name = "windows_support",
@@ -206,7 +206,7 @@ single_version_override(
     version = "2.4.6",
 )
 
-# floor: equals tested; dev only, the kcov source build links libdw and libelf (#7327)
+# floor: equals tested; dev only, the kcov source build links libdw and libelf
 bazel_dep(name = "elfutils", version = "0.195", dev_dependency = True)
 
 # musl.patch compiles libdwfl without argp, fts and GNU strerror_r on musl.
@@ -238,7 +238,7 @@ single_version_override(
     version = "0.65.0",
 )
 
-# floor: equals tested; forced by rules_dart 0.8.1 MVS (#1783)
+# floor: equals tested; forced by rules_dart 0.8.1 MVS
 bazel_dep(name = "gazelle", version = "0.54.0")
 
 # floor: equals tested
@@ -375,7 +375,7 @@ single_version_override(
 bazel_dep(name = "grpc-java", version = "1.84.0", dev_dependency = True, repo_name = "grpc-java")
 
 # 0.8.0 needs build-tools 35 and --tool_java_language_version=17.
-# floor: equals tested; patched for key-rotation bundles (#3739)
+# floor: equals tested; patched for key-rotation bundles
 bazel_dep(name = "rules_android", version = "0.8.1")
 single_version_override(
     module_name = "rules_android",
@@ -1296,7 +1296,7 @@ dx_pins.archive(
     pins = "//ocaml:pins.json",
 )
 
-# Pinned to an upstream main commit (bazel-contrib/rules_cuda#530, after v0.4.0); #14468 moves it to the release.
+# Pinned to an upstream main commit (bazel-contrib/rules_cuda#530, after v0.4.0).
 dx_pins.archive(
     name = "rules_cuda",
     dropped = [
@@ -1362,7 +1362,7 @@ dx_pins.archive(
     pins = "//powershell:pins.json",
 )
 
-# Pinned to an upstream main commit carrying bazel-contrib/rules_ruby#435 and #440 until a release has them.
+# Pinned to an upstream main commit until a release has its fixes.
 dx_pins.archive(
     name = "rules_ruby",
     crlf = ["ruby/private/binary/binary.cmd.tpl"],
@@ -2095,7 +2095,7 @@ register_toolchains("@dx_fortran_toolchains//:all")
 
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 
-# //core/modules:versions_contract fails once the rules_zig bazel_dep lists Zig 0.17.1; then this index goes (#13964).
+# //core/modules:versions_contract fails once the rules_zig bazel_dep lists Zig 0.17.1; then this index goes.
 zig.index(file = "//zig/private:sdk_versions.json")
 zig.toolchain(zig_version = "0.17.1")
 
@@ -2292,7 +2292,7 @@ use_repo(
     "dotnet_runtime_linux_arm64",
 )
 
-# floor: equals tested; //core/hermetic_launcher registers the Windows aarch64 stubs until a release has hermetic-launcher#94 (#8379)
+# floor: equals tested; //core/hermetic_launcher registers the Windows aarch64 stubs until a release has hermetic-launcher#94
 bazel_dep(name = "hermetic_launcher", version = "0.0.17")
 
 hermetic_launcher_stubs = use_extension("@hermetic_launcher//launcher/private:extensions.bzl", "non_module_dependencies")
@@ -2300,7 +2300,7 @@ use_repo(hermetic_launcher_stubs, "finalize_stub_aarch64_linux", "finalize_stub_
 
 register_toolchains("//core/hermetic_launcher:all")
 
-# floor: equals tested; patched (#12898)
+# floor: equals tested; patched
 bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
 single_version_override(
     module_name = "rules_py",

@@ -46,6 +46,16 @@ OS_CONSTRAINTS = {
     "windows": [_WINDOWS],
 }
 
+# The full name an OS-only entry moves to when the list names no full name with that OS: the CPU most hosts and devices of that OS use.
+OS_DEFAULTS = {
+    "android": "android_arm64",
+    "ios": "ios_arm64",
+    "linux": "linux_x86_64",
+    "macos": "macos_arm64",
+    "web": "web_wasm32",
+    "windows": "windows_x86_64",
+}
+
 # Groups exist only as platform_select keys.
 GROUPS = {
     "apple": ["ios", "macos"],
@@ -86,11 +96,11 @@ def matches(entry, name):
     return entry in OS_NAMES and name in PLATFORMS and PLATFORMS[name].os == entry
 
 def full_name(entry, platforms):
-    """Returns the platform name an entry moves to; an OS-only entry takes its first listed full name, else the first in the table."""
+    """Returns the platform name an entry moves to; an OS-only entry takes its first listed full name, else OS_DEFAULTS."""
     if entry in PLATFORMS:
         return entry
     listed = [name for name in platforms if name in PLATFORMS and PLATFORMS[name].os == entry]
-    return (listed or [name for name in sorted(PLATFORMS) if PLATFORMS[name].os == entry])[0]
+    return listed[0] if listed else OS_DEFAULTS[entry]
 
 def platforms_error(platforms, native):
     """Returns why a platforms list is invalid, or "" when it is valid."""

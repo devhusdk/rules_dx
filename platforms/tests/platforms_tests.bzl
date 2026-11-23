@@ -7,7 +7,7 @@ load("//platforms/private:extension.bzl", "registration_error")
 load("//platforms/private:hub.bzl", "hub_entries", "render_hub")
 load("//platforms/private:names.bzl", "full_name", "host_name", "matches", "platforms_error")
 load("//platforms/private:select.bzl", "os_label", "resolve")
-load("//platforms/private:target.bzl", "current_error", "min_os_error", "move_to")
+load("//platforms/private:target.bzl", "current_error", "min_os_error", "move_to", "transition_error")
 load(":subject.bzl", "moved_subject", "platform_subject")
 
 _FAMILY = "@rules_dx//platforms:"
@@ -37,11 +37,13 @@ def names_unit_tests(name):
             expect_equal("os name skips other os", matches("linux", "macos_arm64"), False),
             expect_equal("full name skips its sibling", matches("ios_arm64", "ios_sim_arm64"), False),
             expect_equal("full name is itself", full_name("ios_sim_arm64", []), "ios_sim_arm64"),
-            expect_equal("os name takes its first name", [full_name(os, []) for os in ["android", "ios", "linux", "web"]], [
+            expect_equal("os name takes its default", [full_name(os, []) for os in ["android", "ios", "linux", "macos", "web", "windows"]], [
                 "android_arm64",
                 "ios_arm64",
-                "linux_arm64",
+                "linux_x86_64",
+                "macos_arm64",
                 "web_wasm32",
+                "windows_x86_64",
             ]),
             expect_equal("os name takes its listed name", full_name("ios", ["ios", "macos_arm64", "ios_sim_arm64"]), "ios_sim_arm64"),
             expect_equal("valid native list", platforms_error(["ios_arm64", "ios_sim_arm64"], True), ""),
@@ -154,6 +156,15 @@ def transition_unit_tests(name):
                 "--@rules_dx//platforms:current=android is not a platform name: use one of " + ", ".join(PLATFORM_NAMES),
             ),
             expect_equal("unknown current name does not match", matches("linux", "freebsd_x86_64"), False),
+            expect_equal("os-only linux entry moves to x86_64 from macos", move_to(["linux"], "macos_arm64"), "linux_x86_64"),
+            expect_equal("os-only windows entry moves to x86_64 from linux", move_to(["windows"], "linux_x86_64"), "windows_x86_64"),
+            expect_equal(
+                "unknown entry fails the transition with the list error",
+                transition_error("", ["linux_amd64"], {}).startswith("unknown platform linux_amd64: use one of android, android_arm64,"),
+                True,
+            ),
+            expect_equal("duplicate entry fails the transition", transition_error("", ["web", "web"], {}), "platforms lists web twice"),
+            expect_equal("valid transition inputs", transition_error("", ["android", "linux_arm64"], {"android": "29"}), ""),
             expect_equal("unlisted current moves to the first", move_to(["ios_arm64", "ios_sim_arm64"], "macos_arm64"), "ios_arm64"),
             expect_equal("valid min_os", min_os_error({"android": "29", "ios": "17.0"}), ""),
             expect_equal("unknown min_os", min_os_error({"tvos": "1"}), "min_os: unknown OS tvos: use one of android, ios, macos, windows"),

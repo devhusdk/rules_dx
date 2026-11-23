@@ -1,7 +1,7 @@
 """Platform providers, the transition that moves a target to its platform, and current_target."""
 
 load("@dx_platforms//:host.bzl", "HOST")
-load(":names.bzl", "PLATFORMS", "full_name", "matches")
+load(":names.bzl", "PLATFORMS", "full_name", "matches", "platforms_error")
 
 visibility(["//platforms/..."])
 
@@ -64,15 +64,22 @@ def min_os_error(min_os):
             return "min_os: unknown OS {}: use one of {}".format(os, ", ".join(sorted(MIN_OS_FLAGS)))
     return ""
 
+def transition_error(current, platforms, min_os):
+    """Returns why platform_transition cannot move a target, or "" when it can."""
+
+    # The incoming transition runs before the rule, so it checks the platforms list itself.
+    return current_error(current) or platforms_error(platforms, False) or min_os_error(min_os)
+
 def _transition_impl(settings, attr):
     out = {key: settings[key] for key in [_PLATFORMS, _CURRENT] + MIN_OS_FLAGS.values()}
+    platforms = getattr(attr, "platforms", None) or []
     min_os = getattr(attr, "min_os", None) or {}
-    error = current_error(settings[_CURRENT]) or min_os_error(min_os)
+    error = transition_error(settings[_CURRENT], platforms, min_os)
     if error:
         fail(error)
     for os, version in min_os.items():
         out[MIN_OS_FLAGS[os]] = version
-    target = move_to(getattr(attr, "platforms", None) or [], settings[_CURRENT])
+    target = move_to(platforms, settings[_CURRENT])
     if target:
         out[_PLATFORMS] = [str(Label("//platforms:" + target))]
         out[_CURRENT] = target

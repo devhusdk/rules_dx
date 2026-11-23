@@ -39,15 +39,51 @@ struct Lexed<'a> {
     code_lines: BTreeSet<u64>,
 }
 
+/// Keywords whose `{` opens a block or a container, never an expression.
+const BLOCK_KEYWORDS: &[&str] = &[
+    "if",
+    "while",
+    "for",
+    "else",
+    "defer",
+    "errdefer",
+    "comptime",
+    "nosuspend",
+    "suspend",
+    "struct",
+    "enum",
+    "union",
+    "opaque",
+    "catch",
+    "orelse",
+    "test",
+];
+
+/// One open `{`.
+struct Frame {
+    /// The first line of the statement that holds the `{`.
+    start: u64,
+    /// Whether that statement's header holds `fn`.
+    header_fn: bool,
+    /// A struct or array init or a `switch` body, which stays part of the statement that holds it.
+    expression: bool,
+    /// Whether the statement goes on after the `}`.
+    continues: bool,
+}
+
 /// Returns a finding for each banned pattern in one Zig source file.
 #[must_use]
 pub fn zig_guard(file: &str, source: &str) -> Vec<FileFinding> {
     let lexed = lex(source);
+    let names = StdNames::collect(&lexed.tokens);
     let mut out = Vec::new();
-    let mut depth = 0usize;
+    let mut frames: Vec<Frame> = Vec::new();
+    let mut parens: Vec<usize> = Vec::new();
+    let mut last_paren_open: Option<usize> = None;
     let mut test_depth: Option<usize> = None;
     let mut test_pending = false;
     let mut statement_line: Option<u64> = None;
+    let mut statement_fn = false;
     for (i, token) in lexed.tokens.iter().enumerate() {
         let start = *statement_line.get_or_insert(token.line);
         let rest = lexed.tokens.get(i + 1..).unwrap_or_default();
@@ -56,22 +92,22 @@ pub fn zig_guard(file: &str, source: &str) -> Vec<FileFinding> {
                 test_pending = true;
                 None
             }
-            (Kind::Word, "catch") => catch_rule(rest),
-            (Kind::Word, "std")
-                if test_depth.is_none() && is_seq(rest, &[".", "debug", ".", "print"]) =>
-            {
-                Some((
-                    "debug_print",
-                    "`std.debug.print` outside a test; write to a writer or use `std.log`"
-                        .to_owned(),
-                ))
+            (Kind::Word, "fn") => {
+                statement_fn = true;
+                None
             }
+            (Kind::Word, "catch") => catch_rule(rest),
+            _ if test_depth.is_none() && names.is_debug_print(&lexed.tokens, i) => Some((
+                "debug_print",
+                "`std.debug.print` outside a test; write to a writer or use `std.log`".to_owned(),
+            )),
             (Kind::Builtin, "@panic") if is_todo(rest) => Some((
                 "todo_panic",
                 "`@panic(\"TODO...\")` marks unfinished code".to_owned(),
             )),
             (Kind::Builtin, cast)
-                if CHECKED_CASTS.contains(&cast) && !has_safety(&lexed, start, token.line) =>
+                if CHECKED_CASTS.contains(&cast)
+                    && !cast_documented(&lexed, &frames, start, token.line) =>
             {
                 Some((
                     "unsafe_cast",
@@ -80,35 +116,49 @@ pub fn zig_guard(file: &str, source: &str) -> Vec<FileFinding> {
             }
             _ => None,
         };
-        if token.kind == Kind::Punct {
-            match token.text {
-                "{" => {
-                    depth += 1;
-                    if test_pending {
-                        test_depth = Some(depth);
-                        test_pending = false;
-                    }
-                }
-                "}" => {
-                    if test_depth == Some(depth) {
-                        test_depth = None;
-                    }
-                    depth = depth.saturating_sub(1);
-                }
-                _ => {}
-            }
-            if matches!(token.text, ";" | "{" | "}") {
-                statement_line = None;
-            }
-        }
         if let Some((rule, message)) = hit {
             out.push(finding(file, token, rule, message));
+        }
+        if token.kind != Kind::Punct {
+            continue;
+        }
+        match token.text {
+            "(" => parens.push(i),
+            ")" => last_paren_open = parens.pop(),
+            "{" => {
+                let expression = opens_expression(&lexed.tokens, i, last_paren_open, statement_fn);
+                frames.push(Frame {
+                    start,
+                    header_fn: statement_fn,
+                    expression,
+                    continues: expression || !parens.is_empty(),
+                });
+                if test_pending {
+                    test_depth = Some(frames.len());
+                    test_pending = false;
+                }
+                statement_line = None;
+                statement_fn = false;
+            }
+            "}" => {
+                if test_depth == Some(frames.len()) {
+                    test_depth = None;
+                }
+                let outer = frames.pop().filter(|f| f.continues);
+                statement_line = outer.as_ref().map(|f| f.start);
+                statement_fn = outer.is_some_and(|f| f.header_fn);
+            }
+            ";" => {
+                statement_line = None;
+                statement_fn = false;
+            }
+            _ => {}
         }
     }
     out
 }
 
-/// `catch unreachable` or `catch {}`, with or without a `|err|` payload.
+/// `catch unreachable`, `catch { unreachable; }` or `catch {}`, with or without a `|err|` payload.
 fn catch_rule(rest: &[Token<'_>]) -> Option<(&'static str, String)> {
     let mut rest = rest;
     if is_punct(rest.first(), "|") {
@@ -116,7 +166,11 @@ fn catch_rule(rest: &[Token<'_>]) -> Option<(&'static str, String)> {
         rest = rest.get(close + 2..)?;
     }
     let first = rest.first()?;
-    if first.kind == Kind::Word && first.text == "unreachable" {
+    let unreachable_body = is_punct(Some(first), "{")
+        && is_word(rest.get(1), "unreachable")
+        && (is_punct(rest.get(2), "}")
+            || (is_punct(rest.get(2), ";") && is_punct(rest.get(3), "}")));
+    if is_word(Some(first), "unreachable") || unreachable_body {
         return Some((
             "catch_unreachable",
             "`catch unreachable` turns an error into undefined behaviour; handle it or return it with `try`".to_owned(),
@@ -139,13 +193,133 @@ fn is_todo(rest: &[Token<'_>]) -> bool {
             .is_some_and(|t| t.kind == Kind::Text && t.text.starts_with("\"TODO"))
 }
 
-/// Whether the tokens start with exactly these texts.
-fn is_seq(rest: &[Token<'_>], texts: &[&str]) -> bool {
-    rest.len() >= texts.len() && rest.iter().zip(texts).all(|(t, want)| t.text == *want)
-}
-
 fn is_punct(token: Option<&Token<'_>>, text: &str) -> bool {
     token.is_some_and(|t| t.kind == Kind::Punct && t.text == text)
+}
+
+fn is_word(token: Option<&Token<'_>>, text: &str) -> bool {
+    token.is_some_and(|t| t.kind == Kind::Word && t.text == text)
+}
+
+/// Whether the `{` at `i` opens a struct or array init or a `switch` body, not a block, container or function body.
+fn opens_expression(
+    tokens: &[Token<'_>],
+    i: usize,
+    paren_open: Option<usize>,
+    header_fn: bool,
+) -> bool {
+    let Some(prev) = i.checked_sub(1).and_then(|p| tokens.get(p)) else {
+        return false;
+    };
+    let head = match (prev.kind, prev.text) {
+        (Kind::Punct, ".") => return true,
+        (Kind::Punct, ")") => {
+            match paren_open
+                .and_then(|o| o.checked_sub(1))
+                .and_then(|p| tokens.get(p))
+            {
+                Some(head) => head,
+                None => return false,
+            }
+        }
+        _ => prev,
+    };
+    matches!(head.kind, Kind::Word | Kind::Builtin)
+        && !header_fn
+        && !BLOCK_KEYWORDS.contains(&head.text)
+}
+
+/// The names that stand for `@import("std")` and for `std.debug`, so `debug_print` sees through `const` aliases.
+struct StdNames<'a> {
+    std: BTreeSet<&'a str>,
+    debug: BTreeSet<&'a str>,
+}
+
+impl<'a> StdNames<'a> {
+    /// Finds `const x = <std>;` first, then `const x = <std>.debug;`, so a debug alias may use a std alias.
+    fn collect(tokens: &[Token<'a>]) -> Self {
+        let mut names = StdNames {
+            std: BTreeSet::from(["std"]),
+            debug: BTreeSet::new(),
+        };
+        for want_debug in [false, true] {
+            for (i, token) in tokens.iter().enumerate() {
+                let (Some(name), Some(value)) = (tokens.get(i + 1), tokens.get(i + 3..)) else {
+                    continue;
+                };
+                if !is_word(Some(token), "const")
+                    || name.kind != Kind::Word
+                    || !is_punct(tokens.get(i + 2), "=")
+                {
+                    continue;
+                }
+                let len = if want_debug {
+                    names.debug_len(value)
+                } else {
+                    names.std_len(value)
+                };
+                if !len.is_some_and(|n| is_punct(value.get(n), ";")) {
+                    continue;
+                }
+                if want_debug {
+                    names.debug.insert(name.text);
+                } else {
+                    names.std.insert(name.text);
+                }
+            }
+        }
+        names
+    }
+
+    /// The token count of a `std` expression at the start of `tokens`.
+    fn std_len(&self, tokens: &[Token<'_>]) -> Option<usize> {
+        let first = tokens.first()?;
+        if first.kind == Kind::Word && self.std.contains(first.text) {
+            return Some(1);
+        }
+        let import = first.kind == Kind::Builtin
+            && first.text == "@import"
+            && is_punct(tokens.get(1), "(")
+            && tokens
+                .get(2)
+                .is_some_and(|t| t.kind == Kind::Text && t.text == "\"std\"")
+            && is_punct(tokens.get(3), ")");
+        import.then_some(4)
+    }
+
+    /// The token count of a `std.debug` expression at the start of `tokens`.
+    fn debug_len(&self, tokens: &[Token<'_>]) -> Option<usize> {
+        let first = tokens.first()?;
+        if first.kind == Kind::Word && self.debug.contains(first.text) {
+            return Some(1);
+        }
+        let n = self.std_len(tokens)?;
+        (is_punct(tokens.get(n), ".") && is_word(tokens.get(n + 1), "debug")).then_some(n + 2)
+    }
+
+    /// Whether a `std.debug.print` reference starts at token `i`; a field access such as `x.std` never does.
+    fn is_debug_print(&self, tokens: &[Token<'_>], i: usize) -> bool {
+        if i.checked_sub(1)
+            .is_some_and(|p| is_punct(tokens.get(p), "."))
+        {
+            return false;
+        }
+        let rest = tokens.get(i..).unwrap_or_default();
+        self.debug_len(rest)
+            .is_some_and(|n| is_punct(rest.get(n), ".") && is_word(rest.get(n + 1), "print"))
+    }
+}
+
+/// A `// SAFETY:` comment for the statement at `start`, or for a statement that holds it through struct inits and `switch` bodies.
+fn cast_documented(lexed: &Lexed<'_>, frames: &[Frame], start: u64, line: u64) -> bool {
+    let enclosing = frames
+        .iter()
+        .rev()
+        .take_while(|f| f.expression)
+        .map(|f| f.start);
+    std::iter::once(start)
+        .chain(enclosing)
+        .any(|s| has_safety(lexed, s, line))
 }
 
 /// A `// SAFETY:` comment on a line of the statement, or in the comment-only lines right above it.
@@ -360,6 +534,22 @@ mod tests {
     }
 
     #[test]
+    fn unreachable_catch_body_is_found() {
+        assert_eq!(
+            rules("f() catch |e| {\n    unreachable;\n};\n"),
+            one("catch_unreachable", 1, 5)
+        );
+        assert_eq!(
+            rules("f() catch { unreachable };\n"),
+            one("catch_unreachable", 1, 5)
+        );
+        assert_eq!(
+            rules("f() catch |e| {\n    unreachable;\n    log(e);\n};\n"),
+            hits(&[])
+        );
+    }
+
+    #[test]
     fn debug_print_is_found_outside_tests_only() {
         let source = "fn f() void {\n    std.debug.print(\"x\", .{});\n}\n\
                       test {\n    if (true) {\n        std.debug.print(\"x\", .{});\n    }\n}\n\
@@ -367,6 +557,30 @@ mod tests {
         assert_eq!(
             rules(source),
             hits(&[("debug_print", 2, 5), ("debug_print", 10, 5)])
+        );
+    }
+
+    #[test]
+    fn debug_print_is_found_through_aliases_and_imports() {
+        let source = "const zstd = @import(\"std\");\n\
+                      const dbg = zstd.debug;\n\
+                      fn f() void {\n\
+                      \x20   dbg.print(\"x\", .{});\n\
+                      \x20   @import(\"std\").debug.print(\"y\", .{});\n\
+                      \x20   zstd.debug.print(\"z\", .{});\n\
+                      \x20   dbg.assert(true);\n\
+                      \x20   self.dbg.print();\n\
+                      }\n\
+                      test {\n\
+                      \x20   dbg.print(\"ok\", .{});\n\
+                      }\n";
+        assert_eq!(
+            rules(source),
+            hits(&[
+                ("debug_print", 4, 5),
+                ("debug_print", 5, 5),
+                ("debug_print", 6, 5),
+            ])
         );
     }
 
@@ -390,6 +604,37 @@ mod tests {
         assert_eq!(rules(above), hits(&[]));
         let far = "// SAFETY: n fits.\nconst a = 1;\nconst x: u8 = @intCast(n);\n";
         assert_eq!(rules(far), one("unsafe_cast", 3, 15));
+        let init = "// SAFETY: n is below 256.\nconst s = S{\n    .x = @intCast(n),\n};\n";
+        assert_eq!(rules(init), hits(&[]));
+        let anonymous = "// SAFETY: n is below 256.\nconst s: S = .{\n    .x = @intCast(n),\n};\n";
+        assert_eq!(rules(anonymous), hits(&[]));
+        let switch = "// SAFETY: x is below 256.\n\
+                      const v: u8 = switch (k) {\n\
+                      \x20   .a => @intCast(x),\n\
+                      \x20   .b => 0,\n\
+                      };\n";
+        assert_eq!(rules(switch), hits(&[]));
+        let after_init = "// SAFETY: n is below 256.\nf(S{\n    .a = 1,\n}, @intCast(n));\n";
+        assert_eq!(rules(after_init), hits(&[]));
+    }
+
+    #[test]
+    fn a_safety_comment_does_not_cover_a_block() {
+        let body = "// SAFETY: n fits.\nfn f(n: u32) u8 {\n    return @intCast(n);\n}\n";
+        assert_eq!(rules(body), one("unsafe_cast", 3, 12));
+        let generic = "// SAFETY: n fits.\nfn f(n: u32) List(u8) {\n    return @intCast(n);\n}\n";
+        assert_eq!(rules(generic), one("unsafe_cast", 3, 12));
+        let branch = "// SAFETY: n fits.\nif (ok) {\n    g(@intCast(n));\n}\n";
+        assert_eq!(rules(branch), one("unsafe_cast", 3, 7));
+        let prong = "// SAFETY: x fits.\n\
+                     const v: u8 = switch (k) {\n\
+                     \x20   .a => {\n\
+                     \x20       return @intCast(x);\n\
+                     \x20   },\n\
+                     };\n";
+        assert_eq!(rules(prong), one("unsafe_cast", 4, 16));
+        let after = "fn f() void {\n    // SAFETY: inside.\n}\nconst x: u8 = @intCast(n);\n";
+        assert_eq!(rules(after), one("unsafe_cast", 4, 15));
     }
 
     #[test]

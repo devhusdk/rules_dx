@@ -9,7 +9,7 @@ load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "single_target")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 load("//tools/coverage/sancov:sancov.bzl", "dx_sancov_attrs", "dx_sancov_test_coverage")
-load(":mode.bzl", "ZigReleaseFastInfo")
+load(":mode.bzl", "ZigOptsInfo", "ZigReleaseFastInfo", "zig_opts_aspect")
 
 # Set False to tag zig tests dx-no-coverage-collector instead of running kcov or sancov.
 ZIG_COVERAGE_COLLECTOR = True
@@ -53,9 +53,13 @@ def _upstream_mode(settings, coverage = False):
     return "debug" if coverage else "release_safe"
 
 def _validate_release_fast(ctx):
-    """Fails on mode release_fast unless the target sets allow_release_fast."""
-    if single_target(ctx.attr._release_fast)[ZigReleaseFastInfo].value and not ctx.attr.allow_release_fast:
+    """Fails on ReleaseFast, from the mode or the resolved zigopts, unless the target sets allow_release_fast."""
+    if ctx.attr.allow_release_fast:
+        return
+    if single_target(ctx.attr._release_fast)[ZigReleaseFastInfo].value:
         fail("Zig mode release_fast drops safety checks; set allow_release_fast = True on the target to use it")
+    if single_target(ctx.attr.upstream)[ZigOptsInfo].release_fast:
+        fail("{}: zigopts set ReleaseFast, which drops safety checks; set allow_release_fast = True to use it".format(ctx.label))
 
 def _zig_binary_upstream_impl(settings, _attr):
     """Builds the Zig binary upstream without coverage, in ReleaseSafe unless a mode is set."""
@@ -110,6 +114,7 @@ _zig_binary_forward = dx_executable_forward_rule(
         provides = _DX_ZIG_EXEC_PROVIDES,
         extra_attrs = _release_mode_attrs(_zig_binary_upstream),
         upstream_cfg = _zig_binary_upstream,
+        upstream_aspects = [zig_opts_aspect],
         validate = _validate_release_fast,
     ),
 )
@@ -132,6 +137,7 @@ _zig_forward_test = dx_executable_forward_rule(
             "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
         },
         upstream_cfg = _zig_test_upstream,
+        upstream_aspects = [zig_opts_aspect],
         validate = _validate_release_fast,
         coverage_providers = _zig_test_coverage,
     ),
@@ -146,19 +152,11 @@ def zig_library(name, main, *, srcs = None, import_name = None, visibility = Non
     kwargs = dx_without_warnings_attr(kwargs)
     dx_wrap(name, _zig_library, _zig_library_forward, srcs, visibility = visibility, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, import_name = zig_import_name(name, import_name), **kwargs)
 
-def _zigopts(name, zigopts, allow_release_fast):
-    """Returns -j1 plus the zigopts; fails on ReleaseFast unless allow_release_fast is set."""
-    if type(zigopts) == "list" and not allow_release_fast:
-        for i, opt in enumerate(zigopts):
-            if opt == "-OReleaseFast" or (opt == "-O" and zigopts[i + 1:i + 2] == ["ReleaseFast"]):
-                fail("{}: zigopts set ReleaseFast, which drops safety checks; set allow_release_fast = True to use it".format(name))
-    return ["-j1"] + zigopts
-
 def zig_binary(name, *, srcs = None, main = None, visibility = None, allow_release_fast = False, **kwargs):
     """Minimal wrapper over zig_binary in ReleaseSafe. main is name.zig, else the single src."""
     kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("zig_binary", name, main, srcs, dx_main_candidates(name, ".zig"))
-    upstream = dict(kwargs, main = main, tags = dx_upstream_tags(kwargs.get("tags", None)), zigopts = _zigopts(name, kwargs.get("zigopts", []), allow_release_fast))
+    upstream = dict(kwargs, main = main, tags = dx_upstream_tags(kwargs.get("tags", None)), zigopts = ["-j1"] + kwargs.get("zigopts", []))
     dx_wrap_binary(name, _zig_binary, _zig_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = {"allow_release_fast": allow_release_fast}, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, **kwargs)
 
 def zig_test(name, *, srcs = None, main = None, visibility = None, allow_release_fast = False, **kwargs):
@@ -168,7 +166,7 @@ def zig_test(name, *, srcs = None, main = None, visibility = None, allow_release
     upstream = dict(
         kwargs,
         main = main,
-        zigopts = _zigopts(name, kwargs.get("zigopts", []), allow_release_fast) + select({
+        zigopts = ["-j1"] + kwargs.get("zigopts", []) + select({
             Label("//zig:sancov_build"): ["-fllvm", "-ffuzz"],
             Label("//zig:kcov_build"): ["-fllvm"],
             "//conditions:default": [],

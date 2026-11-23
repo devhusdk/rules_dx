@@ -242,11 +242,11 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 | Rule | Pattern |
 | --- | --- |
-| `catch_unreachable` | `catch unreachable` |
+| `catch_unreachable` | `catch unreachable` or `catch { unreachable; }` |
 | `empty_catch` | `catch {}` |
-| `debug_print` | `std.debug.print` outside a `test` block |
+| `debug_print` | `std.debug.print` outside a `test` block, also as `@import("std").debug.print` or through a `const` alias of `std` or `std.debug` |
 | `todo_panic` | `@panic("TODO...")` |
-| `unsafe_cast` | `@ptrCast`, `@alignCast` or `@intCast` without a `// SAFETY:` comment in the statement or in the comment lines right above it |
+| `unsafe_cast` | `@ptrCast`, `@alignCast` or `@intCast` without a `// SAFETY:` comment in the statement or in the comment lines right above it. A struct init or `switch` body counts as part of the statement that holds it |
 
 `zig`, `zig_ast_check` and `zig_fmt` report every finding as an error.
 

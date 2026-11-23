@@ -5,7 +5,7 @@ load("//core:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_with_tag")
 load("//core/private/testing:defs.bzl", "expect_equal")
 load("//zig/private:defs.bzl", "ZIG_COVERAGE_COLLECTOR", "ZIG_QUALITY_TOOLS", "zig_import_name")
 load(":hub_tests.bzl", "zig_hub_tests")
-load(":mode_tests.bzl", "zig_mode_test", "zig_release_fast_failure_test")
+load(":mode_tests.bzl", "zig_mode_test", "zig_release_fast_failure_test", "zig_zigopts_failure_test")
 load(":tier_tests.bzl", "zig_tier_tests")
 
 package(default_visibility = ["//visibility:private"])
@@ -122,6 +122,16 @@ zig_mode_test(
 zig_release_fast_failure_test(
     name = "release_fast_needs_opt_in_test",
     target = "//zig/tests/fixtures/hello",
+)
+
+zig_zigopts_failure_test(
+    name = "select_zigopts_release_fast_needs_opt_in_test",
+    target = "//zig/tests/fixtures/hello:hello_select_release_fast",
+)
+
+zig_zigopts_failure_test(
+    name = "zigopts_release_fast_needs_opt_in_test",
+    target = "//zig/tests/fixtures/hello:greet_release_fast_test",
 )
 
 zig_tier_tests(

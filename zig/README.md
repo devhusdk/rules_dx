@@ -53,7 +53,7 @@ path dependencies do not.
 - Other attributes pass through to `rules_zig`.
 
 `zig_binary` and `zig_test` build in ReleaseSafe, also under `-c opt`.
-Coverage runs build tests in Debug, which keeps the line data.
+Coverage runs build tests in Debug.
 `--@rules_zig//zig/settings:mode` picks another mode. ReleaseFast, from that
 flag or from `zigopts`, fails unless the target sets
 `allow_release_fast = True`.

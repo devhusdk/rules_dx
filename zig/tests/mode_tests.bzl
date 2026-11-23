@@ -44,14 +44,19 @@ _mode_opt_test = analysistest.make(
 
 def _failure_impl(ctx):
     env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "set allow_release_fast = True")
+    asserts.expect_failure(env, ctx.attr.message)
     return analysistest.end(env)
+
+_failure_attrs = {"message": attr.string(doc = "Text the analysis failure must contain.")}
 
 _release_fast_failure_test = analysistest.make(
     _failure_impl,
+    attrs = _failure_attrs,
     expect_failure = True,
     config_settings = {_ZIG_MODE: "release_fast"},
 )
+
+_zigopts_failure_test = analysistest.make(_failure_impl, attrs = _failure_attrs, expect_failure = True)
 
 def zig_mode_test(name, target, mode, opt = False):
     """Asserts that every Zig compile action under target passes `-O mode`, under -c opt when opt is set."""
@@ -60,4 +65,8 @@ def zig_mode_test(name, target, mode, opt = False):
 
 def zig_release_fast_failure_test(name, target):
     """Asserts that target fails analysis under mode release_fast without allow_release_fast."""
-    _release_fast_failure_test(name = name, size = "small", target_under_test = target)
+    _release_fast_failure_test(name = name, size = "small", target_under_test = target, message = "Zig mode release_fast drops safety checks")
+
+def zig_zigopts_failure_test(name, target):
+    """Asserts that target fails analysis on ReleaseFast from its resolved zigopts without allow_release_fast."""
+    _zigopts_failure_test(name = name, size = "small", target_under_test = target, message = "zigopts set ReleaseFast")

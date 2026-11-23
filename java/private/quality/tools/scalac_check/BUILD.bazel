@@ -16,7 +16,6 @@ java_binary(
     name = "scalac_check",
     srcs = ["src/dx/quality/scalac/Main.java"],
     main_class = "dx.quality.scalac.Main",
-    # The @dx_prebuilt hub aliases this tool and its deploy jar on platforms with no pinned jar.
     visibility = [
         "//:__subpackages__",
         "@dx_prebuilt//:__pkg__",

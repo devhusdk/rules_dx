@@ -27,7 +27,6 @@ java_binary(
     name = "kotlinc_check",
     srcs = ["src/dx/quality/kotlinc/Main.java"],
     main_class = "dx.quality.kotlinc.Main",
-    # The @dx_prebuilt hub aliases this tool and its deploy jar on platforms with no pinned jar.
     visibility = [
         "//:__subpackages__",
         "@dx_prebuilt//:__pkg__",

@@ -13,8 +13,14 @@ fn pins_version(pins: &str) -> String {
 #[test]
 fn the_prebuilt_pins_are_schema_1_and_empty_on_main() {
     let pins = read_runfiles(PINS);
-    assert!(pins.lines().any(|line| line == "SCHEMA = 1"), "{PINS} is not SCHEMA = 1");
-    assert!(pins.lines().any(|line| line == "PINS = {}"), "{PINS} has pins on main");
+    assert!(
+        pins.lines().any(|line| line == "SCHEMA = 1"),
+        "{PINS} is not SCHEMA = 1"
+    );
+    assert!(
+        pins.lines().any(|line| line == "PINS = {}"),
+        "{PINS} has pins on main"
+    );
 }
 
 #[test]

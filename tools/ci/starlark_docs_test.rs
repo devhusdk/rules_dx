@@ -463,10 +463,13 @@ fn an_aspect_without_doc_is_reported() {
 
 #[test]
 fn a_test_rule_is_exempt() {
-    assert_eq!(findings(
+    assert_eq!(
+        findings(
             "pkg/defs.bzl",
             "x = rule(implementation = _impl, test = True)\n"
-        ), Vec::<String>::new());
+        ),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -480,7 +483,10 @@ fn the_attr_key_is_exempt_only_in_a_tool_descriptor() {
 
 #[test]
 fn a_call_without_implementation_is_ignored() {
-    assert_eq!(findings("pkg/defs.bzl", "def f(rule):\n    rule(name = \"x\")\n"), Vec::<String>::new());
+    assert_eq!(
+        findings("pkg/defs.bzl", "def f(rule):\n    rule(name = \"x\")\n"),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -528,7 +534,10 @@ fn a_tests_path_is_skipped() {
     let source = "x = rule(implementation = _impl)\n";
     assert_eq!(findings("pkg/tests/defs.bzl", source), Vec::<String>::new());
     assert_eq!(findings("pkg/defs_tests.bzl", source), Vec::<String>::new());
-    assert_eq!(findings("third_party/x/defs.bzl", source), Vec::<String>::new());
+    assert_eq!(
+        findings("third_party/x/defs.bzl", source),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
@@ -609,15 +618,24 @@ fn a_keyword_only_wrapper_is_accepted() {
 
 #[test]
 fn a_wrapper_with_only_name_is_accepted() {
-    assert_eq!(findings("pkg/defs.bzl", "def x_test(name):\n    pass\n"), Vec::<String>::new());
+    assert_eq!(
+        findings("pkg/defs.bzl", "def x_test(name):\n    pass\n"),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
 fn a_private_wrapper_is_ignored() {
-    assert_eq!(findings("pkg/defs.bzl", "def _x_test(name, srcs):\n    pass\n"), Vec::<String>::new());
+    assert_eq!(
+        findings("pkg/defs.bzl", "def _x_test(name, srcs):\n    pass\n"),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
 fn a_def_outside_defs_bzl_is_ignored() {
-    assert_eq!(findings("pkg/other.bzl", "def x_test(name, srcs):\n    pass\n"), Vec::<String>::new());
+    assert_eq!(
+        findings("pkg/other.bzl", "def x_test(name, srcs):\n    pass\n"),
+        Vec::<String>::new()
+    );
 }

@@ -1,7 +1,6 @@
 use super::*;
 use crate::test_support::*;
 
-/// The files of one OCI layout fixture, as (path, contents) pairs.
 type LayoutFiles<'a> = Vec<(&'a str, &'a [u8])>;
 
 #[test]
@@ -808,7 +807,6 @@ fn oci_archive_image_id_reads_oci_layout_archives() {
     }
 }
 
-/// Writes member names verbatim, the way `tar -C layout .` stores them.
 fn oci_raw_tar(path: &Path, dirs: &[&str], files: &[(String, Vec<u8>)]) {
     let mut tar = dx_archive_testing::RawTar::new();
     for dir in dirs {
@@ -1003,7 +1001,6 @@ fn oci_archive_image_id_rejects_unsupported_oci_layout_archives() {
         oci_declared_image_id(&archive, "linux/amd64").expect("valid"),
         oci_digest(&fixture.config)
     );
-    // The same manifest under two tags, or twice in a nested index, is one image.
     let mut tagged = Vec::new();
     for tag in ["one", "two"] {
         let mut descriptor = image.clone();
@@ -1739,7 +1736,6 @@ fn oci_layout_keeps_every_docker_save_layer_and_the_config() {
 
 const FAKE_SECRET: &str = "s3cret-token-value";
 
-/// Runs one live push of `image` against a fake registry.
 fn fake_live_push(fake: &FakeRegistry, image: &Path, outdir: &Path, platform: &str) -> i32 {
     let target = registry::RegistryRef {
         endpoint: registry::Endpoint::for_test(&fake.origin),
@@ -2149,20 +2145,16 @@ fn oci_sign_plan_lines_name_the_two_cosign_commands() {
     );
 }
 
-/// What one signed live push left behind.
 #[cfg(unix)]
 struct SignedPush {
     code: i32,
     outdir: std::path::PathBuf,
-    /// The `DOCKER_CONFIG` the stub cosign saw, empty when it never ran with one.
     docker_config: String,
     log: String,
     sbom: std::path::PathBuf,
     digest: String,
 }
 
-/// Pushes to a fake registry and signs with a stub cosign that checks the login is a
-/// 0600 file in a 0700 dir and records where it was; `sign_exit` is the exit of `cosign sign`.
 #[cfg(unix)]
 fn oci_signed_push(scratch: &std::path::Path, sign_exit: u8) -> SignedPush {
     let (image, _) = oci_save(
@@ -2241,8 +2233,6 @@ fn oci_signed_push(scratch: &std::path::Path, sign_exit: u8) -> SignedPush {
     }
 }
 
-/// The registry login must never land in outdir, which outlives the run, and must be gone
-/// once signing returns.
 #[cfg(unix)]
 fn assert_login_cleaned_up(push: &SignedPush) {
     assert!(!push.docker_config.is_empty(), "cosign ran with a login");
@@ -2315,7 +2305,6 @@ fn oci_live_push_removes_the_login_when_signing_fails() {
     assert_login_cleaned_up(&push);
 }
 
-/// Runs the pinned cosign with `args` and returns its combined output on failure.
 #[cfg(unix)]
 fn run_cosign(cosign: &Path, args: &[&str], home: &Path) -> Result<String, String> {
     let out = std::process::Command::new(cosign)
@@ -2355,7 +2344,6 @@ fn oci_live_push_signature_and_attestation_verify_with_pinned_cosign() {
     .expect("generate-key-pair");
     let key = std::fs::read_to_string(dir.join("k.key")).expect("key");
     let public = dir.join("k.pub");
-    // The fixture key signs offline: no signing config fetch, no transparency log upload.
     let offline = dir.join("cosign-offline");
     let script = format!(
         "case \"$1\" in sign|attest) exec '{0}' \"$@\" --use-signing-config=false --tlog-upload=false ;; esac\nexec '{0}' \"$@\"\n",

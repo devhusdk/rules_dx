@@ -1,5 +1,3 @@
-//! Installs Bazel and vendored advisory snapshots from an offline bundle.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fmt;
@@ -9,16 +7,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use dx_atomic_fs::path_io::{self, PathIoError};
 
-/// The advisory sets an offline bundle may carry.
 pub const ADVISORY_SETS: [&str; 6] = ["cargo", "npm", "maven", "nuget", "go", "rubygems"];
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> String {
     "usage: bootstrap-offline --bundle DIR [--install-dir DIR] [--workspace DIR]".to_string()
 }
 
-/// Why an invocation or a bootstrap was refused.
 #[derive(Debug)]
 pub enum BootstrapError {
     FlagNeedsDir(String),
@@ -258,7 +253,6 @@ impl From<PathIoError> for BootstrapError {
     }
 }
 
-/// The parsed invocation, with defaults already applied.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Options {
     pub bundle: Option<String>,
@@ -266,20 +260,12 @@ pub struct Options {
     pub workspace: String,
 }
 
-/// What one invocation asks for.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
-    /// Print the usage line and succeed.
     Help,
-    /// Run the bootstrap with these options.
     Bootstrap(Options),
 }
 
-/// Parses argv, or returns the refusal of a bad argument.
-///
-/// # Errors
-///
-/// Returns the refusal when an argument is not recognised.
 pub fn parse_args(args: &[String]) -> Result<Command, BootstrapError> {
     let mut options = Options {
         bundle: None,
@@ -314,7 +300,6 @@ pub fn parse_args(args: &[String]) -> Result<Command, BootstrapError> {
     Ok(Command::Bootstrap(options))
 }
 
-/// Returns `bin` under `HOME`, else under `USERPROFILE` on native Windows.
 #[must_use]
 pub fn default_install_dir(home: Option<&str>, profile: Option<&str>) -> Option<String> {
     let base = home
@@ -329,7 +314,6 @@ pub fn default_install_dir(home: Option<&str>, profile: Option<&str>) -> Option<
     )
 }
 
-/// Returns the launcher file name this host needs from the bundle.
 #[must_use]
 pub fn host_launcher(os: &str, arch: &str) -> Option<&'static str> {
     match (os, arch) {
@@ -342,7 +326,6 @@ pub fn host_launcher(os: &str, arch: &str) -> Option<&'static str> {
     }
 }
 
-/// Returns today's date as `YYYY-MM-DD` in UTC.
 #[must_use]
 pub fn today_utc() -> String {
     let days = SystemTime::now()
@@ -375,7 +358,6 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
     (if month <= 2 { year + 1 } else { year }, month, day)
 }
 
-/// Returns whether one value is a real calendar day written `YYYY-MM-DD`.
 #[must_use]
 pub fn is_plain_date(value: &str) -> bool {
     let bytes = value.as_bytes();
@@ -407,11 +389,6 @@ pub fn is_plain_date(value: &str) -> bool {
     (1..=last).contains(&day)
 }
 
-/// Reads the first quoted string value of `key` from one identity file.
-///
-/// This is not a JSON reader: it takes `"key"`, optional whitespace, a colon,
-/// optional whitespace and a quoted value with no backslash. It matches the
-/// pretty and compact forms `advisory_prep` writes. The first match wins.
 #[must_use]
 pub fn recorded_field(text: &str, key: &str) -> Option<String> {
     let needle = format!("\"{key}\"");
@@ -420,7 +397,6 @@ pub fn recorded_field(text: &str, key: &str) -> Option<String> {
         let start = from + found;
         let after = text.get(start + needle.len()..)?;
         let before = text.get(..start)?.trim_end();
-        // A key opens an object or follows a comma; a value never does.
         if (before.ends_with('{') || before.ends_with(','))
             && let Some(rest) = after.trim_start().strip_prefix(':')
         {
@@ -434,7 +410,6 @@ pub fn recorded_field(text: &str, key: &str) -> Option<String> {
     None
 }
 
-/// One `SHA256SUMS` line: the wanted digest and the file it names.
 pub fn manifest_entry(line: &str) -> Option<(String, String)> {
     let line = line.trim();
     if line.is_empty() || line.starts_with('#') {
@@ -446,7 +421,6 @@ pub fn manifest_entry(line: &str) -> Option<(String, String)> {
     Some((want, name))
 }
 
-/// Returns the digest the manifest pins for one file name.
 #[must_use]
 pub fn pinned(manifest: &str, name: &str) -> Option<String> {
     manifest.lines().find_map(|line| {
@@ -455,11 +429,6 @@ pub fn pinned(manifest: &str, name: &str) -> Option<String> {
     })
 }
 
-/// Installs the host launcher and populates the advisory snapshots.
-///
-/// # Errors
-///
-/// Returns the refusal when the bundle, its manifests or the install fail.
 pub fn run(options: &Options, os: &str, arch: &str, today: &str) -> Result<(), BootstrapError> {
     let Some(raw) = options.bundle.as_deref().filter(|b| !b.is_empty()) else {
         return Err(BootstrapError::MissingBundle);
@@ -657,7 +626,6 @@ fn is_identity(path: &Path) -> bool {
         .is_some_and(|name| name.to_string_lossy().ends_with(".meta.json"))
 }
 
-/// Checks every file `dir/SHA256SUMS` names and returns the manifest text.
 fn verify(dir: &Path) -> Result<String, BootstrapError> {
     let path = dir.join("SHA256SUMS");
     if !path.is_file() {
@@ -740,8 +708,6 @@ fn copy(from: &Path, to: &Path) -> Result<(), BootstrapError> {
     })
 }
 
-/// Replaces one populated set. The old identity goes first and the new one is
-/// written last, so an interrupt leaves a missing identity, never a wrong one.
 fn publish_set(
     snapshot: &Path,
     populated: &Path,

@@ -1,5 +1,3 @@
-//! Go module API compatibility check for github_deploy, using apidiff.
-
 use crate::api_compat::{
     ApiCompatError, Baseline, Outcome, fetch, fetch_to, highest_below, previous_git_tag,
 };
@@ -12,29 +10,35 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Why the Go API check could not compare a module.
 #[derive(Debug)]
 pub(crate) enum GoApiError {
-    /// apidiff could not be started.
-    Apidiff { source: RunError },
-    /// apidiff exited with a failure.
+    Apidiff {
+        source: RunError,
+    },
     ApidiffFailed {
         dir: PathBuf,
         exit: String,
         output: String,
     },
-    /// A git invocation failed.
-    Git { source: RunError },
-    /// The scratch directory could not be created.
-    Work { source: io::Error },
-    /// A listed module has no `module` line in its manifest.
-    NoModuleLine { module: String },
-    /// The shared baseline lookup failed.
-    ApiCompat { source: ApiCompatError },
-    /// The proxy lists a version whose zip is missing.
-    ProxyMissing { url: String },
-    /// A downloaded module zip could not be extracted.
-    Extract { url: String, source: io::Error },
+    Git {
+        source: RunError,
+    },
+    Work {
+        source: io::Error,
+    },
+    NoModuleLine {
+        module: String,
+    },
+    ApiCompat {
+        source: ApiCompatError,
+    },
+    ProxyMissing {
+        url: String,
+    },
+    Extract {
+        url: String,
+        source: io::Error,
+    },
 }
 
 impl fmt::Display for GoApiError {
@@ -79,7 +83,6 @@ impl From<ApiCompatError> for GoApiError {
     }
 }
 
-/// Returns the lines under `Incompatible changes:` in apidiff output.
 pub(crate) fn incompatible_changes(output: &str) -> Vec<String> {
     let mut inside = false;
     let mut changes = Vec::new();
@@ -96,10 +99,8 @@ pub(crate) fn incompatible_changes(output: &str) -> Vec<String> {
     changes
 }
 
-/// Where module versions and zips are read from.
 const GO_PROXY: &str = "https://proxy.golang.org";
 
-/// Escapes a module path for the module proxy: each capital letter becomes `!` and its lower case.
 fn proxy_escape(path: &str) -> String {
     let mut out = String::new();
     for c in path.chars() {
@@ -113,18 +114,15 @@ fn proxy_escape(path: &str) -> String {
     out
 }
 
-/// Returns the highest `v*` version below `tag` in a proxy `@v/list` body.
 fn proxy_previous(list: &str, tag: &str) -> Option<String> {
     highest_below(list.lines().filter_map(|v| v.trim().strip_prefix('v')), tag)
         .map(|version| format!("v{version}"))
 }
 
-/// The file name of a Go module manifest.
 fn manifest_name() -> &'static str {
     Ecosystem::Go.manifest_name()
 }
 
-/// Returns the module path of a Go module manifest.
 fn module_path(go_mod: &Path) -> Option<String> {
     let text = std::fs::read_to_string(go_mod).ok()?;
     text.lines().find_map(|line| {
@@ -133,7 +131,6 @@ fn module_path(go_mod: &Path) -> Option<String> {
     })
 }
 
-/// Runs apidiff inside a module directory; apidiff shells out to `go`.
 fn run_apidiff(
     program: &Path,
     extra: &[(&str, &str)],
@@ -181,7 +178,6 @@ fn git(workspace: &Path, args: &[&str]) -> Result<String, GoApiError> {
     .map_err(|source| GoApiError::Git { source })
 }
 
-/// Returns the breaking changes of the module in `new` against the module in `old`.
 fn compare_module(
     apidiff: &Path,
     extra: &[(&str, &str)],
@@ -198,8 +194,6 @@ fn compare_module(
         .collect())
 }
 
-/// Returns the outcome of each module against the earlier version `baseline` picks.
-/// `go` is the pinned go binary apidiff runs; a module absent at the baseline is skipped.
 pub(crate) fn go_api_check(
     (apidiff, go): (&Path, Option<&Path>),
     workspace: &Path,
@@ -285,7 +279,6 @@ pub(crate) fn go_api_check(
     checked.map(|()| outcomes)
 }
 
-/// Checks out the highest `v*` tag below `tag` once under `work/tree`.
 fn go_git_baseline(
     workspace: &Path,
     work: &Path,
@@ -313,7 +306,6 @@ fn go_git_baseline(
     Ok(Some((previous, tree)))
 }
 
-/// Downloads the highest proxy version of `path` below `tag` and returns its module directory.
 fn go_proxy_baseline(
     path: &str,
     tag: &str,

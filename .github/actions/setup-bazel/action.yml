@@ -37,8 +37,7 @@ runs:
           echo "BAZEL_SH=$(cygpath -m /usr/bin/bash.exe)" >> "$GITHUB_ENV"
         fi
         if [ "$RUNNER_OS" = Windows ]; then
-          # Error 183 (already exists) means a non-directory sits where Bazel wants a
-          # directory. Replace a stray file or dangling link; fail naming a real conflict.
+          # Bazel fails with error 183 when a file or dangling link sits where it wants a directory.
           for dir in /c/bz /c/_bazel /d/bz /d/_bazel; do
             [ -d "/${dir:1:1}" ] || continue
             if [ -e "$dir" ] && [ ! -d "$dir" ]; then
@@ -46,14 +45,12 @@ runs:
             elif [ -L "$dir" ] && [ ! -e "$dir" ]; then
               rm -f "$dir"
             fi
-            # An existing directory (or junction to one) is reused as is.
             [ -d "$dir" ] || mkdir -p "$dir" || { echo "::error::cannot create $dir"; exit 1; }
           done
         fi
         if [ "$RUNNER_OS" = Windows ] && [ -d /d ]; then
           echo "startup:windows --output_user_root=D:/bz" >> user.bazelrc
         elif [ "$RUNNER_OS" = Windows ]; then
-          # windows_arm64 has no D: drive; keep the root off the preexisting c:\_bazel.
           echo "startup:windows --output_user_root=C:/bz" >> user.bazelrc
         fi
     - name: Configure the remote cache credential helper

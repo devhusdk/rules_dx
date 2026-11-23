@@ -1,5 +1,3 @@
-//! Vulnerability scan of the staged OCI layout with `trivy image`.
-
 use std::ffi::OsString;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -13,18 +11,12 @@ use dx_audit::tier_base::Tier;
 use dx_error::DxError;
 use dx_process::capture::RunError;
 
-/// A failed image scan: bad settings, a missing database, trivy or `security.toml`.
 #[derive(Debug)]
 pub enum ScanError {
-    /// The severity floor, trivy cache or trivy report was rejected.
     Audit(DxError),
-    /// The pinned trivy cache has no `db/metadata.json`.
     DatabaseMissing { cache: PathBuf },
-    /// trivy could not be run.
     Run { binary: PathBuf, source: RunError },
-    /// trivy exited nonzero.
     TrivyFailed { stderr: String },
-    /// `security.toml` is invalid.
     Policy(SecurityProblem),
 }
 
@@ -76,14 +68,11 @@ impl ScanMode {
     }
 }
 
-/// What `oci_deploy` checks about the image before it is staged or pushed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OciChecks {
     pub scan: ScanMode,
     pub scan_severity: String,
-    /// The `oci_deploy` label, matched against label patterns in `security.toml`.
     pub label: String,
-    /// How the pushed digest is signed and attested.
     pub signing: crate::signing::ImageSigning,
 }
 
@@ -98,10 +87,6 @@ impl Default for OciChecks {
     }
 }
 
-/// Drops findings covered by an unexpired `[[exception]]` naming the same advisory and
-/// package, with `versions` either `*` or the installed version, in set `oci` or in a
-/// label pattern that matches `label`. Only the exceptions are used, so the tier does
-/// not matter.
 pub fn apply_exceptions(
     findings: Vec<ImageFinding>,
     label: &str,
@@ -140,7 +125,6 @@ pub fn summary(findings: &[ImageFinding], floor: &str) -> Vec<String> {
     lines
 }
 
-/// Today as YYYY-MM-DD in UTC.
 pub fn today() -> String {
     let seconds = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -166,7 +150,6 @@ fn civil_date(days: i64) -> String {
     format!("{year:04}-{month:02}-{day:02}")
 }
 
-/// Runs trivy through `run`, which returns the JSON report for the arguments.
 pub fn scan_layout(
     layout: &Path,
     floor: &str,
@@ -190,10 +173,8 @@ pub fn scan_layout(
     apply_exceptions(findings, label, toml.as_deref(), &today())
 }
 
-/// Extra env names trivy needs to find its cache and settings.
 const TRIVY_CHILD_ENV_EXTRA: &[&str] = &["XDG_CACHE_HOME", "TRIVY_"];
 
-/// The real trivy: `DX_TRIVY` or `trivy` on the PATH, offline.
 pub fn run_trivy(args: &[OsString]) -> Result<String, ScanError> {
     let binary = std::env::var_os("DX_TRIVY").unwrap_or_else(|| "trivy".into());
     let mut cmd = scrubbed_command(
@@ -213,7 +194,6 @@ pub fn run_trivy(args: &[OsString]) -> Result<String, ScanError> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-/// Scans, prints the summary and returns the exit code the mode asks for.
 pub fn scan_and_report(
     layout: &Path,
     checks: &OciChecks,

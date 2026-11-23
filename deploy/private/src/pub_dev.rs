@@ -1,5 +1,3 @@
-//! pub.dev publisher: package staging, pubspec checks and the dart or flutter publish.
-
 use crate::api_compat::{
     ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir,
     fetch_with, highest_below, previous_git_tag, workspace_dir,
@@ -16,19 +14,16 @@ use std::fmt;
 use std::io;
 use std::path::Path;
 
-/// The file name of the manifest.
 fn manifest_name() -> &'static str {
     Ecosystem::Pub.manifest_name()
 }
 
-/// Maps package input files to package-relative paths under the manifest directory.
 pub fn pub_package_paths(
     package_files: &[std::path::PathBuf],
 ) -> io::Result<Vec<(std::path::PathBuf, String)>> {
     package_relative_paths(package_files, manifest_name(), "pub package")
 }
 
-/// Owner approval gate for pub_deploy.
 pub(crate) const PUB_GATE: OwnerGate = OwnerGate {
     tool: "pub_deploy",
     action: "publish",
@@ -36,19 +31,15 @@ pub(crate) const PUB_GATE: OwnerGate = OwnerGate {
     approved: "PUB_PUBLISH_APPROVED",
 };
 
-/// Extra env names dart and flutter keep beyond the publish base list.
 const PUB_CHILD_ENV_EXTRA: &[&str] = &["PUB_CACHE", "PUB_HOSTED_URL", "FLUTTER_ROOT"];
 
-/// Most tool output lines shown when a step fails.
 const PUB_FAILURE_LINES: usize = 40;
 
-/// Why a pub deployment failed.
 #[derive(Debug)]
 pub enum PubError {
     Stage(StageError),
     Io(PathIoError),
     TempDir(io::Error),
-    /// An already-prefixed refusal from the shared version checks.
     Refused(String),
     NameMismatch {
         found: Option<String>,
@@ -59,7 +50,6 @@ pub enum PubError {
         version: String,
     },
     Run(RunError),
-    /// A dart or flutter step failed; `lines` are token-redacted.
     ToolFailed {
         step: &'static str,
         status: String,
@@ -155,7 +145,6 @@ impl std::error::Error for PubError {
     }
 }
 
-/// Returns the unquoted value of a top-level `key:` line, None when absent or not a plain scalar.
 fn pubspec_field(text: &str, key: &str) -> Option<String> {
     for line in text.lines() {
         let Some(rest) = line.strip_prefix(key).and_then(|r| r.strip_prefix(':')) else {
@@ -171,12 +160,10 @@ fn pubspec_field(text: &str, key: &str) -> Option<String> {
     None
 }
 
-/// True when the pubspec has a top-level `flutter:` section, so `flutter pub` must publish it.
 fn pubspec_is_flutter(text: &str) -> bool {
     text.lines().any(|line| line.starts_with("flutter:"))
 }
 
-/// Returns a refusal when the pubspec is not the target package.
 fn pubspec_refusal(text: &str, package_name: &str) -> Option<PubError> {
     let name = pubspec_field(text, "name");
     if name.as_deref() == Some(package_name) {
@@ -188,7 +175,6 @@ fn pubspec_refusal(text: &str, package_name: &str) -> Option<PubError> {
     })
 }
 
-/// Returns a refusal when CHANGELOG.md has no heading for the version, which pub.dev warns about.
 fn changelog_refusal(changelog: Option<&str>, version: &str) -> Option<PubError> {
     let Some(text) = changelog else {
         return Some(PubError::NoChangelog);
@@ -205,8 +191,6 @@ fn changelog_refusal(changelog: Option<&str>, version: &str) -> Option<PubError>
     })
 }
 
-/// Stages the package, checks the manifest and CHANGELOG.md against the target and returns
-/// whether it is a flutter package with the resolved version.
 fn pub_checked_stage(
     mapped: &[(std::path::PathBuf, String)],
     staging: &Path,
@@ -236,7 +220,6 @@ fn tool_name(flutter: bool) -> &'static str {
     if flutter { "flutter" } else { "dart" }
 }
 
-/// Builds a step failure from the tool output, keeping only redacted trailing lines.
 fn tool_failed(step: &'static str, status: String, out: &[u8], token: &str) -> PubError {
     let text = crate::run::pages_redact(&String::from_utf8_lossy(out), token);
     let lines: Vec<&str> = text.lines().collect();
@@ -252,7 +235,6 @@ fn tool_failed(step: &'static str, status: String, out: &[u8], token: &str) -> P
     }
 }
 
-/// Runs `<tool> pub publish --dry-run` in the staged package.
 fn pub_dry_run(program: &Path, staging: &Path) -> Result<(), PubError> {
     let mut cmd = scrubbed_command(program, &[PUBLISH_CHILD_ENV_KEEP, PUB_CHILD_ENV_EXTRA], &[]);
     cmd.current_dir(staging)
@@ -267,7 +249,6 @@ fn pub_dry_run(program: &Path, staging: &Path) -> Result<(), PubError> {
     Err(tool_failed("pub publish --dry-run", status, &both, ""))
 }
 
-/// Publishes the staged package with a token held only in a temporary pub cache.
 fn pub_publish(
     program: &Path,
     staging: &Path,
@@ -316,7 +297,6 @@ fn pub_publish(
     Err(tool_failed("pub publish", status, &both, token))
 }
 
-/// Copies the package files into `<name>-package` under the output directory.
 fn pub_build_package(
     mapped: &[(std::path::PathBuf, String)],
     outdir: &Path,
@@ -328,7 +308,6 @@ fn pub_build_package(
     Ok(house)
 }
 
-/// Public API check settings of one pub deployment.
 pub struct PubApiCheck<'a> {
     pub mode: &'a str,
     pub baseline: &'a str,
@@ -339,7 +318,6 @@ pub struct PubApiCheck<'a> {
     pub package_dir: &'a str,
 }
 
-/// Returns one line per breaking change in a dart_apitool JSON report.
 fn apitool_changes(report: &str) -> Option<Vec<String>> {
     fn walk(node: &serde_json::Value, path: &mut Vec<String>, out: &mut Vec<String>) {
         for child in node["children"].as_array().into_iter().flatten() {
@@ -368,7 +346,6 @@ fn apitool_changes(report: &str) -> Option<Vec<String>> {
     Some(out)
 }
 
-/// Returns the highest non-retracted version below `next` in a pub `api/packages` body.
 fn pub_previous_version(body: &[u8], next: &str) -> Option<String> {
     let json: serde_json::Value = serde_json::from_slice(body).ok()?;
     let versions = json
@@ -379,7 +356,6 @@ fn pub_previous_version(body: &[u8], next: &str) -> Option<String> {
     highest_below(versions.filter_map(|entry| entry["version"].as_str()), next)
 }
 
-/// Compares the staged package with the earlier version `api_baseline` picks.
 fn pub_api_check(
     client: &dx_http::Client,
     (dart, apitool): (&Path, &Path),
@@ -422,11 +398,6 @@ fn pub_api_check(
     result
 }
 
-/// Builds a Flutter SDK shaped tree under `work` whose `bin/flutter` runs `dart pub`.
-///
-/// dart_apitool looks for `flutter` in the `bin` directories above its own dart, so the
-/// pinned dart is copied to `bin/cache/dart-sdk/bin/dart` with the rest of the SDK linked.
-/// Returns the copied dart.
 #[cfg(unix)]
 fn flutter_sdk_tree(flutter_dart: &Path, work: &Path) -> Result<std::path::PathBuf, PubError> {
     use std::os::unix::fs::{PermissionsExt, symlink};
@@ -555,7 +526,6 @@ fn pub_api_compare(
     })
 }
 
-/// Runs the pub deploy tool without an API compatibility check.
 pub fn pub_main(
     package_rlocs: &[String],
     package_name: &str,
@@ -582,7 +552,6 @@ pub fn pub_main(
     )
 }
 
-/// Runs the pub deploy tool.
 pub fn pub_main_checked(
     package_rlocs: &[String],
     package_name: &str,

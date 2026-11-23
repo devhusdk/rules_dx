@@ -1,5 +1,3 @@
-//! npm publisher: deterministic pack, pack verification and the npm publish.
-
 use crate::api_compat::{
     ApiCompatError, ApiCompatMode, Baseline, Outcome, conclude, fetch, fetch_to, highest_below,
     previous_git_tag, workspace_dir,
@@ -16,7 +14,6 @@ use std::fmt;
 use std::io;
 use std::path::Path;
 
-/// Why the npm API compatibility check failed.
 #[derive(Debug)]
 pub enum NpmError {
     TempDir(io::Error),
@@ -25,11 +22,7 @@ pub enum NpmError {
     ManifestJson(serde_json::Error),
     WriteConfig(io::Error),
     ApiExtractorRun(RunError),
-    /// api-extractor ran and failed; `exit` describes how and `stdout` is what it printed.
-    ApiExtractorFailed {
-        exit: String,
-        stdout: String,
-    },
+    ApiExtractorFailed { exit: String, stdout: String },
     ReportDir(io::Error),
     NoReport,
     ReadReport(io::Error),
@@ -79,19 +72,16 @@ impl std::error::Error for NpmError {
     }
 }
 
-/// The file name of the manifest.
 fn manifest_name() -> &'static str {
     Ecosystem::Npm.manifest_name()
 }
 
-/// Maps npm input files to package-relative paths under the manifest directory.
 pub fn npm_package_paths(
     srcs: &[std::path::PathBuf],
 ) -> io::Result<Vec<(std::path::PathBuf, String)>> {
     package_relative_paths(srcs, manifest_name(), "npm pack")
 }
 
-/// Creates one deterministic npm pack.
 #[expect(
     clippy::too_many_arguments,
     reason = "each argument is a distinct input of the call"
@@ -164,7 +154,6 @@ pub fn npm_create_pack(
     Ok(digest)
 }
 
-/// Rejects an npm access mode the package name cannot publish with.
 pub fn npm_access_error(package: &str, access: &str) -> Option<String> {
     let scoped = package.starts_with('@');
     if scoped
@@ -205,7 +194,6 @@ fn npm_registry_host(registry: &str) -> &str {
         .unwrap_or("")
 }
 
-/// Rejects a provenance policy the access mode or registry cannot honor.
 pub fn npm_provenance_error(access: &str, registry: &str, provenance: &str) -> Option<String> {
     match provenance {
         "required" if access != "public" => Some(format!(
@@ -223,7 +211,6 @@ pub fn npm_provenance_error(access: &str, registry: &str, provenance: &str) -> O
     }
 }
 
-/// Rejects a required provenance policy when no signing identity is available.
 pub fn npm_provenance_unavailable(provenance: &str) -> Option<String> {
     if provenance != "required" {
         return None;
@@ -239,7 +226,6 @@ pub fn npm_provenance_unavailable(provenance: &str) -> Option<String> {
     )
 }
 
-/// Builds the npm publish arguments for one staged tarball.
 pub fn npm_publish_args(
     tarball: &Path,
     tag: &str,
@@ -265,7 +251,6 @@ pub fn npm_publish_args(
     args
 }
 
-/// Lists one gzip tar member table.
 pub fn npm_tar_members(tgz_path: &Path) -> io::Result<Vec<String>> {
     let file = std::fs::File::open(tgz_path)?;
     let mut members = Vec::new();
@@ -281,12 +266,10 @@ pub fn npm_tar_members(tgz_path: &Path) -> io::Result<Vec<String>> {
     Ok(members)
 }
 
-/// Renders one npmrc auth line.
 pub fn npm_npmrc_line(host: &str, token: &str) -> String {
     format!("//{host}/:_authToken={token}\n")
 }
 
-/// Writes one owner-only npmrc in a private staged dir.
 pub fn npm_write_npmrc(host: &str, token: &str) -> io::Result<std::path::PathBuf> {
     let dir = tempfile_stage_dir("npm-publish-")?;
     match write_secure_file(&dir, ".npmrc", &npm_npmrc_line(host, token)) {
@@ -320,7 +303,6 @@ fn parse_npm_feed(body: &str) -> io::Result<NpmFeed> {
     })
 }
 
-/// Verifies one npm pack pair.
 pub fn npm_verify_pack(
     tgz_path: &Path,
     feed_path: &Path,
@@ -364,7 +346,6 @@ pub fn npm_verify_pack(
     Ok((name, tag, registry, access, provenance))
 }
 
-/// Refuses a staged tarball whose sha256 differs from the feed's.
 pub fn npm_check_staged(staged_tgz: &Path, feed_path: &Path) -> io::Result<()> {
     let expected = parse_npm_feed(&std::fs::read_to_string(feed_path)?)?.sha256;
     let actual = dx_digest::sha256_file_hex(staged_tgz)?;
@@ -380,7 +361,6 @@ pub fn npm_check_staged(staged_tgz: &Path, feed_path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Resolves the npm pack pair from explicit runfiles keys.
 pub fn npm_find_pack_inputs(
     feed_rloc: &str,
     tarball_rloc: &str,
@@ -390,7 +370,6 @@ pub fn npm_find_pack_inputs(
     Ok((feed_path, tgz_path))
 }
 
-/// Runs the npm pack tool.
 pub fn npm_pack_main(argv: &[String]) -> i32 {
     let [
         _,
@@ -441,7 +420,6 @@ pub fn npm_pack_main(argv: &[String]) -> i32 {
     }
 }
 
-/// Extra env names `npm` keeps: CA and node settings plus the CI identity for provenance.
 const NPM_CHILD_ENV_EXTRA: &[&str] = &[
     "CI",
     "NODE_EXTRA_CA_CERTS",
@@ -467,7 +445,6 @@ const NPM_CHILD_ENV_EXTRA: &[&str] = &[
     "GITLAB_",
 ];
 
-/// Runs npm publish with a temporary owner-only npmrc, in a cleared env.
 pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::OsString]) -> i32 {
     if let Some(refusal) = plain_token_refusal("npm_deploy", token, &[]) {
         eprintln!("{refusal}");
@@ -505,7 +482,6 @@ pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::Os
     }
 }
 
-/// Owner approval gate for npm_deploy.
 pub(crate) const NPM_GATE: OwnerGate = OwnerGate {
     tool: "npm_deploy",
     action: "publish",
@@ -513,7 +489,6 @@ pub(crate) const NPM_GATE: OwnerGate = OwnerGate {
     approved: "NPM_PUBLISH_APPROVED",
 };
 
-/// Returns the declaration lines of an api-extractor report; comments, fences and headings are dropped.
 fn api_report_declarations(report: &str) -> Vec<&str> {
     report
         .lines()
@@ -527,7 +502,6 @@ fn api_report_declarations(report: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Returns the declarations of the published report that the new report no longer has.
 fn api_breaking(published: &str, staged: &str) -> Vec<String> {
     let staged = api_report_declarations(staged);
     api_report_declarations(published)
@@ -537,7 +511,6 @@ fn api_breaking(published: &str, staged: &str) -> Vec<String> {
         .collect()
 }
 
-/// Returns the version and the `types` entry of an extracted package.
 fn package_version_and_types(package_dir: &Path) -> Result<(String, Option<String>), NpmError> {
     let body = std::fs::read_to_string(package_dir.join(manifest_name()))
         .map_err(NpmError::ManifestRead)?;
@@ -555,7 +528,6 @@ fn package_version_and_types(package_dir: &Path) -> Result<(String, Option<Strin
     Ok((version, types))
 }
 
-/// Runs api-extractor on one extracted package and returns its report.
 fn extract_api_report(
     api_extractor: &Path,
     work: &Path,
@@ -605,7 +577,6 @@ fn extract_api_report(
     std::fs::read_to_string(report).map_err(NpmError::ReadReport)
 }
 
-/// Returns the versions and their tarball URLs from a registry packument body.
 fn npm_published(body: &str) -> Vec<(String, String)> {
     let Ok(json) = serde_json::from_str::<serde_json::Value>(body) else {
         return Vec::new();
@@ -621,14 +592,12 @@ fn npm_published(body: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-/// Settings of the npm API compatibility check.
 pub struct NpmApiCheck<'a> {
     pub baseline: Baseline,
     pub registry: &'a str,
     pub api_extractor: &'a Path,
 }
 
-/// Diffs the api-extractor report of the staged tarball with the release `baseline` picks.
 fn npm_api_check(
     staged_tgz: &Path,
     name: &str,
@@ -702,7 +671,6 @@ fn npm_api_diff(
     Ok((version, Outcome::Compared { previous, changes }))
 }
 
-/// Runs the npm deploy tool.
 pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> i32 {
     let off = NpmApiSettings {
         api_compat: "off",
@@ -712,14 +680,12 @@ pub fn npm_deploy_main(argv: &[String], feed_rloc: &str, tarball_rloc: &str) -> 
     npm_deploy_main_checked(argv, feed_rloc, tarball_rloc, &off)
 }
 
-/// The `api_compat` attributes a generated npm launcher passes on.
 pub struct NpmApiSettings<'a> {
     pub api_compat: &'a str,
     pub api_baseline: &'a str,
     pub api_extractor_rloc: &'a str,
 }
 
-/// Runs the npm deploy tool with an API compatibility check for the dry run.
 pub fn npm_deploy_main_checked(
     argv: &[String],
     feed_rloc: &str,

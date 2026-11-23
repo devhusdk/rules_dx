@@ -1,10 +1,6 @@
-//! Entry points for the deploy helpers `dx` runs as subcommands. Each takes argv with the helper
-//! name first.
-
 use std::path::{Path, PathBuf};
 
 // LCOV_EXCL_START - reason: argv parsing, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-/// `archiver`: a single `@file` argument is replaced by the file's lines.
 pub fn archiver(argv: &[String]) -> i32 {
     if let [name, arg] = argv
         && let Some(path) = arg.strip_prefix('@')

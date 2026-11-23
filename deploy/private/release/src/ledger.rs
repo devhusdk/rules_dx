@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 
 pub const LEDGER_SCHEMA: &str = "release-ledger/v1";
 
-/// Outcome of one release operation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum OpState {
@@ -16,7 +15,6 @@ pub enum OpState {
     NotAuthorized,
 }
 
-/// One ledger line: what was attempted, on what, and how it ended.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OpRecord {
     pub operation: String,
@@ -37,7 +35,6 @@ impl OpRecord {
     }
 }
 
-/// Renders the records as sorted JSON under the `release-ledger/v1` schema.
 #[must_use]
 pub fn render_ledger(records: &[OpRecord]) -> String {
     let mut sorted = records.to_vec();
@@ -48,7 +45,6 @@ pub fn render_ledger(records: &[OpRecord]) -> String {
     text
 }
 
-/// Exit code for a ledger: 1 when any record failed or is partial.
 #[must_use]
 pub fn ledger_exit(records: &[OpRecord]) -> i32 {
     let bad = records
@@ -57,15 +53,11 @@ pub fn ledger_exit(records: &[OpRecord]) -> i32 {
     i32::from(bad)
 }
 
-/// A failed GitHub release read or upload.
 #[derive(Debug)]
 pub enum LedgerError {
     ReleaseJson(serde_json::Error),
     GhRun(dx_process::capture::RunError),
-    /// `gh` exited unsuccessfully; `stderr` is already scrubbed of secrets.
-    GhFailed {
-        stderr: String,
-    },
+    GhFailed { stderr: String },
 }
 
 impl fmt::Display for LedgerError {
@@ -88,7 +80,6 @@ impl std::error::Error for LedgerError {
     }
 }
 
-/// A release as read from GitHub.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RemoteRelease {
     pub draft: bool,
@@ -109,11 +100,6 @@ struct AssetJson {
     digest: Option<String>,
 }
 
-/// Parses `gh api repos/.../releases/tags/<tag>` output; digests are `sha256:<hex>`.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_release_assets(json: &str) -> Result<RemoteRelease, LedgerError> {
     let release: ReleaseJson = serde_json::from_str(json).map_err(LedgerError::ReleaseJson)?;
     let assets = release
@@ -134,7 +120,6 @@ pub fn parse_release_assets(json: &str) -> Result<RemoteRelease, LedgerError> {
     })
 }
 
-/// Compares staged `(name, sha256)` assets with the release; returns records and names still to upload.
 #[must_use]
 pub fn reconcile_assets(
     staged: &[(String, String)],
@@ -191,19 +176,11 @@ pub fn reconcile_assets(
     (records, pending)
 }
 
-/// Live GitHub calls, faked in tests.
 pub trait ReleaseBackend {
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     fn view(&self, tag: &str) -> Result<String, LedgerError>;
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     fn upload(&self, tag: &str, path: &str) -> Result<String, LedgerError>;
 }
 
-/// Uploads what reconcile asks for, re-reads the release, and reconciles again.
 pub fn sync_assets(
     backend: &dyn ReleaseBackend,
     tag: &str,

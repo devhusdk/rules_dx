@@ -1,5 +1,3 @@
-//! CPAN publisher: dist identity checks, local staging and the PAUSE upload.
-
 use crate::archive::basename;
 use crate::run::{
     DeployRun, OwnerGate, deploy_build_mode, env_or_empty, pages_redact, placeholder_refusal,
@@ -10,7 +8,6 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Owner approval gate for cpan_deploy.
 pub(crate) const CPAN_GATE: OwnerGate = OwnerGate {
     tool: "cpan_deploy",
     action: "upload",
@@ -18,10 +15,8 @@ pub(crate) const CPAN_GATE: OwnerGate = OwnerGate {
     approved: "CPAN_PUBLISH_APPROVED",
 };
 
-/// PAUSE endpoint that takes authenticated uploads.
 const PAUSE_UPLOAD_URL: &str = "https://pause.perl.org/pause/authenquery?ACTION=add_uri";
 
-/// Why a CPAN dist failed its identity check or its PAUSE upload.
 #[derive(Debug)]
 pub enum CpanError {
     NotTarGz {
@@ -54,7 +49,6 @@ pub enum CpanError {
         path: PathBuf,
     },
     Read(PathIoError),
-    /// The upload failed before a response; `message` is token-redacted.
     Transport {
         url: String,
         message: String,
@@ -62,7 +56,6 @@ pub enum CpanError {
     Rejected {
         status: u16,
     },
-    /// PAUSE answered outside 2xx; `body` is token-redacted.
     Status {
         url: String,
         status: u16,
@@ -129,9 +122,6 @@ impl std::error::Error for CpanError {
     }
 }
 
-/// Reads the distribution name and version from a `<Dist>-<version>.tar.gz` file name and checks the archive.
-///
-/// The archive must hold `<Dist>-<version>/META.json` or `<Dist>-<version>/META.yml`.
 pub fn cpan_read_identity(dist: &Path) -> Result<(String, String), CpanError> {
     let file_name = dist
         .file_name()
@@ -176,7 +166,6 @@ pub fn cpan_read_identity(dist: &Path) -> Result<(String, String), CpanError> {
     })
 }
 
-/// Checks the dist identity against the declared package and version.
 pub fn cpan_check_identity(
     actual: &(String, String),
     expected_package: &str,
@@ -197,7 +186,6 @@ pub fn cpan_check_identity(
     Ok(())
 }
 
-/// Uploads the dist to the PAUSE endpoint at `url` with HTTP basic auth.
 fn cpan_live_upload(
     client: &dx_http::Client,
     url: &str,
@@ -258,7 +246,6 @@ fn cpan_live_upload(
     })
 }
 
-/// Runs the CPAN deploy tool.
 pub fn cpan_main(
     dist_rloc: &str,
     target_name: &str,
@@ -461,7 +448,6 @@ mod tests {
     const FAKE_PAUSE_USER: &str = "fakeuser";
     const FAKE_PAUSE_TOKEN: &str = "fake-pause-token";
 
-    /// Serves one request on a loopback port with `status` and `body`, then hands back the raw request.
     fn fake_pause(status: &str, body: &str) -> (String, std::sync::mpsc::Receiver<Vec<u8>>) {
         use std::io::{Read as _, Write as _};
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");

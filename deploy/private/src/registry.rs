@@ -1,16 +1,12 @@
-//! Minimal OCI Distribution client that pushes one staged OCI image layout.
-
 use crate::http::{basic_auth, query_escape};
 use dx_atomic_fs::path_io::{self, PathIoError};
 use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Fixed message for a registry or token realm that refuses the credentials.
 pub(crate) const OCI_BAD_CREDENTIALS: &str =
     "registry refused the credentials; check OCI_API_USER and OCI_API_TOKEN";
 
-/// A failed OCI registry push or a layout it refuses.
 #[derive(Debug)]
 pub(crate) enum RegistryError {
     BadHost {
@@ -158,7 +154,6 @@ const MANIFEST_TYPES: [&str; 2] = [
     "application/vnd.docker.distribution.manifest.v2+json",
 ];
 
-/// The scheme and authority of one registry API, such as `https://ghcr.io`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Endpoint {
     origin: String,
@@ -171,7 +166,6 @@ impl Endpoint {
         }
     }
 
-    /// Uses a loopback `http://` origin; tests only.
     #[cfg(test)]
     pub(crate) fn for_test(origin: &str) -> Self {
         Self {
@@ -184,7 +178,6 @@ impl Endpoint {
     }
 }
 
-/// One repository on one registry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RegistryRef {
     pub(crate) endpoint: Endpoint,
@@ -192,7 +185,6 @@ pub(crate) struct RegistryRef {
 }
 
 impl RegistryRef {
-    /// Splits `host[:port][/path]` plus a repository into the API origin and repository name.
     pub(crate) fn parse(registry: &str, repository: &str) -> Result<Self, RegistryError> {
         let (host, prefix) = match registry.split_once('/') {
             Some((host, prefix)) => (host, Some(prefix)),
@@ -238,14 +230,12 @@ impl RegistryRef {
     }
 }
 
-/// Registry credentials: a user and a password or token.
 #[derive(Clone, Copy)]
 pub(crate) struct Credentials<'a> {
     pub(crate) user: &'a str,
     pub(crate) secret: &'a str,
 }
 
-/// One parsed `WWW-Authenticate` challenge.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Challenge {
     Bearer {
@@ -255,7 +245,6 @@ pub(crate) enum Challenge {
     Basic,
 }
 
-/// Parses one `WWW-Authenticate` value with Bearer or Basic scheme.
 pub(crate) fn parse_challenge(header: &str) -> Result<Challenge, RegistryError> {
     let header = header.trim();
     let (scheme, rest) = header.split_once(' ').unwrap_or((header, ""));
@@ -281,7 +270,6 @@ pub(crate) fn parse_challenge(header: &str) -> Result<Challenge, RegistryError> 
     })
 }
 
-/// Parses `key=value` and `key="quoted, value"` auth params separated by commas.
 fn parse_auth_params(text: &str) -> Result<Vec<(String, String)>, RegistryError> {
     let malformed = || RegistryError::MalformedChallenge;
     let mut params = Vec::new();
@@ -337,7 +325,6 @@ fn parse_auth_params(text: &str) -> Result<Vec<(String, String)>, RegistryError>
     }
 }
 
-/// Returns the lowercase `scheme://authority` of an http(s) URL, without default ports.
 fn origin_of(url: &str) -> Option<String> {
     let (scheme, rest) = url.split_once("://")?;
     let scheme = scheme.to_ascii_lowercase();
@@ -357,7 +344,6 @@ fn origin_of(url: &str) -> Option<String> {
     Some(format!("{scheme}://{authority}"))
 }
 
-/// Checks that a token realm is https or the registry's own origin.
 pub(crate) fn check_realm(endpoint: &Endpoint, realm: &str) -> Result<(), RegistryError> {
     match origin_of(realm) {
         Some(origin) if origin.starts_with("https://") || origin == endpoint.origin => Ok(()),
@@ -401,7 +387,6 @@ fn blob_path(layout: &Path, digest: &str) -> Result<PathBuf, RegistryError> {
         .join(digest.trim_start_matches("sha256:")))
 }
 
-/// One authenticated session against one repository.
 struct Session<'a> {
     client: &'a dx_http::Client,
     target: &'a RegistryRef,
@@ -508,7 +493,6 @@ impl<'a> Session<'a> {
         )
     }
 
-    /// The `Authorization` header for this session, when it has one.
     fn auth(&self) -> Vec<(&str, &str)> {
         self.authorization
             .iter()
@@ -516,7 +500,6 @@ impl<'a> Session<'a> {
             .collect()
     }
 
-    /// Resolves an upload `Location` and appends the digest query.
     fn upload_url(&self, location: &str, digest: &str) -> Result<String, RegistryError> {
         let origin = &self.target.endpoint.origin;
         let mut url = if location.starts_with("https://") || location.starts_with("http://") {
@@ -650,7 +633,6 @@ fn valid_tag(tag: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'.' | b'-'))
 }
 
-/// One image manifest staged in a layout, with the blobs it references.
 struct StagedManifest {
     digest: String,
     media_type: String,
@@ -712,7 +694,6 @@ fn staged_manifest(
     })
 }
 
-/// Pushes the single image of an OCI layout by tag and returns its manifest digest.
 pub(crate) fn push_layout(
     client: &dx_http::Client,
     target: &RegistryRef,
@@ -767,7 +748,6 @@ mod tests {
         crate::http::test_client()
     }
 
-    /// Writes a layout with one config and two layers; returns the manifest digest.
     fn write_layout(dir: &Path) -> (PathBuf, String, Vec<String>) {
         let layout = dir.join("layout");
         let blobs = layout.join("blobs").join("sha256");

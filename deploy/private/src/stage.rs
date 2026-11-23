@@ -1,5 +1,3 @@
-//! Staging helpers shared by every publisher: runfiles, outdirs, private dirs.
-
 use std::fmt;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -14,7 +12,6 @@ pub fn bin_cannot(prog: &str, action: &str, target: &Path, error: impl std::fmt:
     1
 }
 
-/// Copies one file and verifies byte identity.
 pub fn copy_verified(src: &Path, dest: &Path) -> io::Result<String> {
     dx_atomic_fs::copy_atomic(src, dest)?;
     let want = dx_digest::sha256_file_hex(src)?;
@@ -31,7 +28,6 @@ pub fn copy_verified(src: &Path, dest: &Path) -> io::Result<String> {
     Ok(want)
 }
 
-/// A package file that could not be staged.
 #[derive(Debug)]
 pub struct StageError {
     pub(crate) path: PathBuf,
@@ -50,7 +46,6 @@ impl std::error::Error for StageError {
     }
 }
 
-/// Copies each mapped source to its package-relative path under `staging`, verifying bytes.
 pub(crate) fn stage_mapped(mapped: &[(PathBuf, String)], staging: &Path) -> Result<(), StageError> {
     for (src, rel) in mapped {
         let dest = staging.join(rel);
@@ -65,7 +60,6 @@ pub(crate) fn stage_mapped(mapped: &[(PathBuf, String)], staging: &Path) -> Resu
     Ok(())
 }
 
-/// Copies each source to `<stage>/<index>` as a regular file, following symlinks.
 pub fn stage_regular_files(stage: &Path, srcs: &[String]) -> io::Result<()> {
     std::fs::create_dir_all(stage)?;
     for (index, src) in srcs.iter().enumerate() {
@@ -79,7 +73,6 @@ pub fn stage_regular_files(stage: &Path, srcs: &[String]) -> io::Result<()> {
     Ok(())
 }
 
-/// Resolves one runfiles rlocation through the Bazel runfiles library.
 pub fn resolve_runfile(rloc: &str) -> io::Result<std::path::PathBuf> {
     if rloc.is_empty() {
         return Err(io::Error::new(
@@ -102,8 +95,6 @@ pub fn resolve_runfile(rloc: &str) -> io::Result<std::path::PathBuf> {
     }
 }
 
-/// Resolves a runfiles directory, falling back to the parent of `<rloc>/<anchor>` when the
-/// manifest lists only the files inside it.
 pub fn resolve_runfile_anchored(rloc: &str, anchor: &str) -> io::Result<std::path::PathBuf> {
     let error = match resolve_runfile(rloc) {
         Ok(path) => return Ok(path),
@@ -120,7 +111,6 @@ pub fn resolve_runfile_anchored(rloc: &str, anchor: &str) -> io::Result<std::pat
     }
 }
 
-/// Returns the deploy output directory.
 pub fn deploy_outdir(argv: &[String]) -> std::path::PathBuf {
     if let Some(first) = argv.get(1) {
         return absolute_from_invocation(Path::new(first));
@@ -131,7 +121,6 @@ pub fn deploy_outdir(argv: &[String]) -> std::path::PathBuf {
     )
 }
 
-/// Resolves a relative path against the directory the user ran bazel from.
 fn absolute_from_invocation(path: &Path) -> std::path::PathBuf {
     if path.is_absolute() {
         return path.to_path_buf();
@@ -144,12 +133,10 @@ fn absolute_from_invocation(path: &Path) -> std::path::PathBuf {
     base.join(path)
 }
 
-/// Serializes one JSON document pretty-printed with a trailing newline.
 pub(crate) fn render_json(value: &serde_json::Value) -> std::io::Result<String> {
     Ok(serde_json::to_string_pretty(value)? + "\n")
 }
 
-/// Writes one owner-only file.
 pub fn write_secure_file(
     directory: &Path,
     name: &str,
@@ -250,11 +237,9 @@ pub(crate) fn package_relative_paths(
     Ok(mapped)
 }
 
-/// Creates a fresh owner-only directory in the temp dir; the caller removes it.
 pub fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf> {
     let mut builder = tempfile::Builder::new();
     builder.prefix(prefix);
-    // tempfile creates directories with the umask default unless given a mode.
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
@@ -263,7 +248,6 @@ pub fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf> {
     Ok(builder.tempdir()?.keep())
 }
 
-/// An owner-only temp directory that is removed on drop.
 pub(crate) struct PrivateConfigDir {
     path: std::path::PathBuf,
 }
@@ -280,7 +264,6 @@ impl PrivateConfigDir {
         &self.path
     }
 
-    /// Writes one owner-only file and returns its path.
     pub(crate) fn write(&self, name: &str, content: &str) -> io::Result<std::path::PathBuf> {
         write_secure_file(&self.path, name, content)
     }
@@ -292,7 +275,6 @@ impl Drop for PrivateConfigDir {
     }
 }
 
-/// Refuses a token that cannot sit inside a one-line config value.
 pub(crate) fn plain_token_refusal(tool: &str, token: &str, forbidden: &[char]) -> Option<String> {
     (token
         .chars()

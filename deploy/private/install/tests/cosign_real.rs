@@ -15,7 +15,6 @@ const UNREACHABLE_SIGNING_CONFIG: &str = r#"{
   "rekorTlogConfig": {"selector": "ANY"},
   "tsaConfig": {}
 }"#;
-// cosign reads only the subject of this unsigned JWT before it asks Fulcio for a certificate.
 const UNSIGNED_IDENTITY_TOKEN: &str = "eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4IiwiaXNzIjoiaHR0cHM6Ly9pc3N1ZXIuZXhhbXBsZSIsImF1ZCI6InNpZ3N0b3JlIn0.sig";
 
 fn cosign() -> String {

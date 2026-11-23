@@ -9,22 +9,16 @@ use serde::{Deserialize, Serialize};
 pub const MATRIX_SCHEMA: &str = "release-matrix/v1";
 pub const RECORD_SCHEMA: &str = "release-cell/v1";
 
-/// The dir name `qualify` extracts into; it holds a space and non-ASCII letters.
 pub const INSTALL_DIR: &str = "dx install \u{e9} \u{fc}";
-/// The dir name `qualify` moves the install to before running `version` again.
 pub const MOVED_DIR: &str = "moved \u{fc}";
 
-/// The ASCII dir `qualify` stages the consumer workspace in, under the work dir.
 pub const CONSUMER_DIR: &str = "consumer";
-/// The module name the staged consumer MODULE.bazel declares.
 pub const CONSUMER_MODULE: &str = "dx_release_consumer";
-/// Template file and the name it takes in the staged consumer workspace.
 pub const CONSUMER_FILES: [(&str, &str); 2] = [
     ("consumer.BUILD.bazel", "BUILD.bazel"),
     ("lib.rs", "src/lib.rs"),
 ];
 
-/// The `//config` package the root-only `@@//config:toolchains_on` labels of the repeated patches name.
 pub const CONSUMER_CONFIG_BUILD: &str = "alias(
     name = \"toolchains_on\",
     actual = \"@rules_dx//config:toolchains_on\",
@@ -32,12 +26,10 @@ pub const CONSUMER_CONFIG_BUILD: &str = "alias(
 )
 ";
 
-/// The Windows flags the repository `.bazelrc` sets: a short output root and symlinks.
 const WINDOWS_BAZELRC: &str = "startup --output_user_root=C:/bz
 startup --windows_enable_symlinks
 ";
 
-/// Every check `qualify` records, in run order.
 pub const CHECKS: [&str; 12] = [
     "format",
     "digest",
@@ -57,7 +49,6 @@ const OSES: [&str; 3] = ["linux", "macos", "windows"];
 const MACHINES: [&str; 2] = ["x86_64", "aarch64"];
 const FORMATS: [&str; 2] = ["tar.gz", "zip"];
 
-/// One release cell from release-matrix/v1.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Cell {
@@ -72,7 +63,6 @@ pub struct Cell {
 }
 
 impl Cell {
-    /// Returns the archive file name `<name>.<format>`.
     #[must_use]
     pub fn archive_name(&self) -> String {
         format!("{}.{}", self.name, self.format)
@@ -86,12 +76,9 @@ struct Matrix {
     cells: Vec<Cell>,
 }
 
-/// A failed release-cell matrix, record, flag, command or staging step.
 #[derive(Debug)]
 pub enum CellError {
-    /// A file operation failed.
     Io(PathIoError),
-    /// Staging the consumer workspace failed.
     Stage(Box<CellError>),
     InsideCheckout {
         dir: PathBuf,
@@ -106,7 +93,6 @@ pub enum CellError {
         source: std::io::Error,
     },
     InitWroteNoModule(PathIoError),
-    /// A command exited unsuccessfully; `stdout` is clipped and may be empty.
     Command {
         command: String,
         stderr: String,
@@ -154,7 +140,6 @@ pub enum CellError {
     MissingFlag {
         name: String,
     },
-    /// `--flag` was given without `--requires`.
     FlagRequires {
         flag: &'static str,
         requires: &'static str,
@@ -275,11 +260,6 @@ impl From<PathIoError> for CellError {
     }
 }
 
-/// Parses and validates one release-matrix/v1 document.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_matrix(text: &str) -> Result<Vec<Cell>, CellError> {
     let matrix: Matrix = serde_json::from_str(text).map_err(CellError::MatrixJson)?;
     if matrix.schema != MATRIX_SCHEMA {
@@ -348,7 +328,6 @@ fn cell_error(cell: &Cell) -> Option<String> {
     None
 }
 
-/// A check outcome.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Verdict {
@@ -399,7 +378,6 @@ pub struct RunnerFacts {
     pub arch: String,
 }
 
-/// One measured release-cell/v1 record.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CellRecord {
@@ -420,17 +398,11 @@ pub struct CellRecord {
 }
 
 impl CellRecord {
-    /// Renders the record as pretty ASCII JSON.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the record cannot be rendered as JSON.
     pub fn render(&self) -> Result<String, CellError> {
         crate::pretty_json(self).map_err(CellError::Render)
     }
 }
 
-/// What one command printed and whether it succeeded.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RunOutput {
     pub success: bool,
@@ -438,29 +410,23 @@ pub struct RunOutput {
     pub stderr: String,
 }
 
-/// Runs one command; tests inject a fake so no binary or Bazel runs.
 pub trait Runner {
     fn run(&self, program: &Path, args: &[&str], cwd: &Path) -> RunOutput;
 }
 
-/// The consumer template and the `rules_dx` checkout the staged workspace depends on.
 #[derive(Debug, Clone)]
 pub struct Consumer {
     pub template: PathBuf,
     pub checkout: PathBuf,
-    /// Licence ids `dx init` accepts in the staged consumer. The release workflow owns the
-    /// list, so this crate never names a licence itself.
     pub accept_licenses: Vec<String>,
 }
 
-/// The debug symbols archive of a Windows cell and its independent rebuild.
 #[derive(Debug, Clone)]
 pub struct Symbols {
     pub archive: PathBuf,
     pub rebuild: PathBuf,
 }
 
-/// Everything `qualify` needs to measure one cell on its native runner.
 #[derive(Debug, Clone)]
 pub struct QualifyInputs {
     pub cell: Cell,
@@ -529,7 +495,6 @@ fn container_for(os: &str) -> &'static str {
 const STDOUT_HEAD: usize = 3000;
 const STDOUT_TAIL: usize = 1000;
 
-/// Keeps the head and the tail of long output, cutting on char boundaries.
 fn clip(text: &str) -> String {
     if text.len() <= STDOUT_HEAD + STDOUT_TAIL {
         return text.to_owned();
@@ -559,7 +524,6 @@ fn ran(
     if out.success {
         return Ok(out.stdout);
     }
-    // `dx check` prints its findings on stdout and only the progress log on stderr.
     Err(CellError::Command {
         command: format!("{} {}", program.display(), args.join(" ")),
         stderr: out.stderr.trim().to_owned(),
@@ -571,7 +535,6 @@ fn starlark_string(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-/// The one place that says where the consumer gets `rules_dx` from.
 fn rules_dx_override(checkout: &Path) -> String {
     format!(
         "local_path_override(\n    module_name = \"rules_dx\",\n    path = {},\n)\n",
@@ -586,7 +549,6 @@ fn string_arg<'a>(call: &'a str, key: &str) -> Option<&'a str> {
     rest.split_once('"').map(|(value, _)| value)
 }
 
-/// The modules of the non-dev `bazel_dep` calls of the `rules_dx` root MODULE.bazel.
 fn shipped_deps(root_module: &str) -> Vec<&str> {
     root_module
         .lines()
@@ -595,8 +557,6 @@ fn shipped_deps(root_module: &str) -> Vec<&str> {
         .collect()
 }
 
-/// The top-level `archive_override` and `single_version_override` calls of the `rules_dx` root
-/// MODULE.bazel whose module is a non-dev `bazel_dep` of it.
 #[must_use]
 pub fn root_overrides(root_module: &str) -> Vec<String> {
     let shipped = shipped_deps(root_module);
@@ -622,11 +582,6 @@ pub fn root_overrides(root_module: &str) -> Vec<String> {
     blocks
 }
 
-/// The `(package, file)` of each `//patches/...` label in `overrides`.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn override_patches(overrides: &[String]) -> Result<Vec<(String, String)>, CellError> {
     let mut patches = Vec::new();
     for block in overrides {
@@ -650,11 +605,6 @@ pub fn override_patches(overrides: &[String]) -> Result<Vec<(String, String)>, C
     Ok(patches)
 }
 
-/// Builds the consumer MODULE.bazel from the `dx init` snippet and the `rules_dx` checkout.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn consumer_module(
     init_module: &str,
     root_module: &str,
@@ -690,13 +640,6 @@ pub fn consumer_module(
     ))
 }
 
-/// Builds the consumer workspace the way a user adopts dx and returns its dir.
-///
-/// The template supplies sources only; `exe init` writes the toolchain wiring.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn stage_consumer(
     consumer: &Consumer,
     exe: &Path,
@@ -818,7 +761,6 @@ fn installed_mode(_path: &Path) -> Option<u32> {
     Some(0o755)
 }
 
-/// Notes the member list and file modes of an extracted install.
 fn note_layout(
     cell: &Cell,
     listing: &[(String, u32, String)],
@@ -866,7 +808,6 @@ fn note_layout(
     );
 }
 
-/// Notes the identity, binary format and imports of an extracted install.
 fn note_binary(
     inputs: &QualifyInputs,
     install: &Path,
@@ -943,7 +884,6 @@ fn note_binary(
     );
 }
 
-/// Notes the sidecar digest and the rebuild determinism of the archive.
 fn note_digests(
     inputs: &QualifyInputs,
     archive: &ArchiveFacts,
@@ -990,7 +930,6 @@ fn note_digests(
     );
 }
 
-/// Builds, checks and runs one extracted install; called only after a clean extraction.
 fn installed_checks(
     inputs: &QualifyInputs,
     listing: &[(String, u32, String)],
@@ -1055,8 +994,6 @@ fn installed_checks(
 const RENAME_ATTEMPTS: u32 = 8;
 const RENAME_BACKOFF: std::time::Duration = std::time::Duration::from_millis(100);
 
-/// Renames `from` to `to`, retrying with a doubling backoff. On Windows a lingering image
-/// handle or a virus scan can make the rename fail briefly with "Access is denied".
 fn rename_with_retry(
     from: &Path,
     to: &Path,
@@ -1077,7 +1014,6 @@ fn rename_with_retry(
     }
 }
 
-/// Names the members that differ between the archive and its rebuild.
 fn differing_members(inputs: &QualifyInputs) -> String {
     let list = |archive: &Path, dir: &str| {
         dx_deploy_tools::archive_extract(archive, &inputs.work.join(dir))
@@ -1112,7 +1048,6 @@ fn differing_members(inputs: &QualifyInputs) -> String {
     }
 }
 
-/// Checks that the symbols archive equals its rebuild.
 fn symbols_match(symbols: &Symbols) -> Result<(), String> {
     let (first, _) = sha256_file(&symbols.archive)?;
     let (second, _) = sha256_file(&symbols.rebuild)?;
@@ -1125,7 +1060,6 @@ fn symbols_match(symbols: &Symbols) -> Result<(), String> {
     }
 }
 
-/// Measures one cell archive on its native runner and returns a record with a verdict per check.
 pub fn qualify(inputs: &QualifyInputs, runner: &dyn Runner) -> CellRecord {
     let cell = &inputs.cell;
     let mut verdicts = Verdicts(Vec::new());
@@ -1208,7 +1142,6 @@ pub fn qualify(inputs: &QualifyInputs, runner: &dyn Runner) -> CellRecord {
     }
 }
 
-/// The release identity every record must carry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Expected {
     pub sha: String,
@@ -1286,7 +1219,6 @@ fn read_record(path: &Path) -> Result<CellRecord, CellError> {
     Ok(record)
 }
 
-/// What verification found for one matrix cell.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CellOutcome {
     pub cell: String,
@@ -1301,7 +1233,6 @@ impl CellOutcome {
     }
 }
 
-/// Per-cell outcomes in matrix order, plus problems no cell owns.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Verification {
     pub cells: Vec<CellOutcome>,
@@ -1314,8 +1245,6 @@ impl Verification {
     }
 }
 
-/// Checks every `*.json` record in `records` against the matrix, the archives and the release identity,
-/// and reports each cell on its own instead of stopping at the first rejection.
 #[must_use]
 pub fn verify_each(
     matrix: &[Cell],
@@ -1384,11 +1313,6 @@ pub fn verify_each(
     Verification { cells, stray }
 }
 
-/// Checks every record like `verify_each` and fails on the first problem found anywhere.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn verify(
     matrix: &[Cell],
     records: &Path,
@@ -1457,11 +1381,6 @@ pub const QUALIFY_USAGE: &str = "qualify --matrix <release_matrix.json> --cell <
 
 pub const VERIFY_USAGE: &str = "verify --matrix <release_matrix.json> --records <dir> --archives <dir> --sha <commit> --version <version> --workflow-ref <ref>";
 
-/// Parses `qualify` flags into inputs for the host runner and the record path.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_qualify_args(
     args: &[String],
     runner_os: &str,
@@ -1564,7 +1483,6 @@ pub fn parse_qualify_args(
     Ok((inputs, PathBuf::from(flag(&flags, "out"))))
 }
 
-/// Splits the comma-separated `--accept-licenses` value; an empty id is a typo, not "none".
 fn parse_license_ids(list: &str) -> Result<Vec<String>, CellError> {
     list.split(',')
         .map(|id| {
@@ -1580,7 +1498,6 @@ fn parse_license_ids(list: &str) -> Result<Vec<String>, CellError> {
         .collect()
 }
 
-/// Parsed `verify` flags.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifyArgs {
     pub matrix: Vec<Cell>,
@@ -1589,11 +1506,6 @@ pub struct VerifyArgs {
     pub expected: Expected,
 }
 
-/// Parses `verify` flags and reads the matrix.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_verify_args(args: &[String]) -> Result<VerifyArgs, CellError> {
     let flags = parse_flags(
         args,
@@ -1619,11 +1531,6 @@ pub fn parse_verify_args(args: &[String]) -> Result<VerifyArgs, CellError> {
     })
 }
 
-/// Runs `qualify` from flags, writes the record and returns it.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn qualify_main(args: &[String], runner: &dyn Runner) -> Result<CellRecord, CellError> {
     let (inputs, out) = parse_qualify_args(args, std::env::consts::OS, std::env::consts::ARCH)?;
     let record = qualify(&inputs, runner);
@@ -1631,7 +1538,6 @@ pub fn qualify_main(args: &[String], runner: &dyn Runner) -> Result<CellRecord, 
     Ok(record)
 }
 
-/// Renders one block per cell in matrix order, then the problems no cell owns.
 #[must_use]
 pub fn render_verification(verification: &Verification) -> String {
     let mut text = String::new();
@@ -1662,12 +1568,6 @@ pub fn render_verification(verification: &Verification) -> String {
     text
 }
 
-/// Runs `verify` from flags and returns whether every cell qualified, with the per-cell text.
-/// `Err` is only for bad flags or a bad matrix.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn verify_main(args: &[String]) -> Result<(bool, String), CellError> {
     let parsed = parse_verify_args(args)?;
     let verification = verify_each(
@@ -1681,11 +1581,6 @@ pub fn verify_main(args: &[String]) -> Result<(bool, String), CellError> {
 
 pub const VERSION_USAGE: &str = "version --exe <path>";
 
-/// Takes the version from the first `dx <version>` line of `dx --version` output.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn printed_version(stdout: &str) -> Result<String, CellError> {
     stdout
         .lines()
@@ -1697,11 +1592,6 @@ pub fn printed_version(stdout: &str) -> Result<String, CellError> {
         })
 }
 
-/// Runs `version` from flags: asks the executable for its version and returns it.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn version_main(args: &[String], runner: &dyn Runner) -> Result<String, CellError> {
     let flags = parse_flags(args, &["exe"], &[])?;
     let stdout = ran(

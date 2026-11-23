@@ -53,39 +53,39 @@ use spdx::SpdxDocument;
 use candidate::{CandidateError, GitError};
 use cell::CellError;
 
-/// A failed BCR source metadata check or submission gate.
 #[derive(Debug)]
 pub enum BcrError {
-    /// The archive digest is not 64 lowercase hex chars.
     InvalidDigest {
         digest: String,
         source: dx_digest::DigestError,
     },
-    /// The version is the 0.0.0 shape-check placeholder.
     UnpublishableVersion,
-    /// The version is not `MAJOR.MINOR.PATCH`.
-    InvalidVersion { version: String },
-    /// The module is not `rules_dx`.
-    InvalidModule { module: String },
-    /// The candidate `source.json` is not JSON.
+    InvalidVersion {
+        version: String,
+    },
+    InvalidModule {
+        module: String,
+    },
     SourceNotJson(serde_json::Error),
-    /// The candidate `source.json` integrity is not the archive's.
     IntegrityMismatch {
         digest: String,
         want: String,
         have: String,
     },
-    /// The candidate `source.json` `strip_prefix` is wrong.
-    StripPrefixMismatch { want: String, have: String },
-    /// The candidate `source.json` url is wrong.
-    UrlMismatch { want: String, have: String },
-    /// The `source.json` document could not be rendered.
+    StripPrefixMismatch {
+        want: String,
+        have: String,
+    },
+    UrlMismatch {
+        want: String,
+        have: String,
+    },
     Render(FingerprintError),
-    /// A live run was requested; only the release-consumer workflow submits.
     SubmittedByWorkflow,
-    /// The archive could not be hashed.
-    Hash { path: PathBuf, source: io::Error },
-    /// The `source.json` document could not be written.
+    Hash {
+        path: PathBuf,
+        source: io::Error,
+    },
     Io(PathIoError),
 }
 
@@ -151,31 +151,26 @@ impl std::error::Error for BcrError {
     }
 }
 
-/// A failed release tag check.
 #[derive(Debug)]
 pub enum TagError {
-    /// `RELEASE_APPROVE` is not 1.
     NotApproved,
-    /// The tag is the dry-run placeholder.
     PlaceholderTag,
-    /// The tag does not start with `v`.
-    NotVPrefixed { tag: String },
-    /// No candidate commit was given.
-    NoCommit { tag: String },
-    /// The tag and commit do not name a candidate.
+    NotVPrefixed {
+        tag: String,
+    },
+    NoCommit {
+        tag: String,
+    },
     Candidate(CandidateError),
-    /// `git ls-remote` failed.
     RemoteUnreadable {
         tag: String,
         remote: &'static str,
         source: GitError,
     },
-    /// The `git ls-remote` output does not name the tag once.
     RemoteTag {
         remote: &'static str,
         source: CandidateError,
     },
-    /// The remote tag is not at the candidate commit.
     RemoteMismatch {
         tag: String,
         sha: String,
@@ -238,26 +233,20 @@ impl std::error::Error for TagError {
     }
 }
 
-/// A failed release binary.
 #[derive(Debug)]
 pub enum ReleaseError {
-    /// A candidate archive, registry or tag check failed.
     Candidate(CandidateError),
-    /// A release cell command failed.
     Cell(CellError),
-    /// A release tag check failed.
     Tag(TagError),
-    /// A release ledger step failed.
     Ledger(LedgerError),
-    /// A publish dry-run check failed.
     Publish(PublishError),
-    /// `publish_dry_run_check` was run without a required flag.
-    MissingFlag { name: &'static str },
-    /// `publish_dry_run_check --approve` is not true or false.
+    MissingFlag {
+        name: &'static str,
+    },
     BadApprove,
-    /// `BUILD_WORKSPACE_DIRECTORY` is not an absolute path.
-    NoWorkspace { tool: &'static str },
-    /// A file operation failed.
+    NoWorkspace {
+        tool: &'static str,
+    },
     Io {
         tool: &'static str,
         source: PathIoError,
@@ -331,7 +320,6 @@ impl From<PublishError> for ReleaseError {
     }
 }
 
-/// Why an SPDX or provenance document could not be rendered, written or verified.
 #[derive(Debug)]
 pub enum SbomError {
     Render(FingerprintError),
@@ -413,11 +401,6 @@ fn sha256_of(path: &Path) -> Result<String, SbomError> {
     })
 }
 
-/// Renders a value as pretty ASCII JSON with a trailing newline, keeping the typed error.
-///
-/// # Errors
-///
-/// Returns an error when the value cannot be serialized as JSON.
 pub(crate) fn pretty_json<T: serde::Serialize + ?Sized>(
     value: &T,
 ) -> Result<String, dx_fingerprint::FingerprintError> {
@@ -442,9 +425,6 @@ pub fn bin_error(diagnostic: impl std::fmt::Display) -> i32 {
     1
 }
 
-/// # Errors
-///
-/// Returns an error when the document cannot be rendered as JSON.
 pub fn render_spdx(
     base: &str,
     digest: &str,
@@ -454,9 +434,6 @@ pub fn render_spdx(
     render_spdx_with_crates(base, digest, package, supplier, &[])
 }
 
-/// # Errors
-///
-/// Returns an error when the document cannot be rendered as JSON.
 pub fn render_spdx_with_crates(
     base: &str,
     digest: &str,
@@ -467,9 +444,6 @@ pub fn render_spdx_with_crates(
     render_spdx_full(base, digest, package, supplier, crates, &[])
 }
 
-/// # Errors
-///
-/// Returns an error when the document cannot be rendered as JSON.
 pub fn render_spdx_full(
     base: &str,
     digest: &str,
@@ -581,9 +555,6 @@ fn add_runtimes(document: &mut spdx::Document, runtimes: &[runtimes::RuntimeReco
     }
 }
 
-/// # Errors
-///
-/// Returns an error when the document cannot be rendered as JSON.
 pub fn render_provenance(base: &str, digest: &str, builder: &str) -> Result<String, SbomError> {
     pretty_json(&serde_json::json!({
         "_type": "https://in-toto.io/Statement/v1",
@@ -603,9 +574,6 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> Result<Stri
     .map_err(SbomError::Render)
 }
 
-/// # Errors
-///
-/// Returns an error when the document cannot be rendered as JSON.
 pub fn render_bcr_source(module: &str, version: &str) -> Result<String, BcrError> {
     pretty_json(&serde_json::json!({
         "integrity": "<integrity-filled-at-release>",
@@ -633,16 +601,10 @@ fn spdx_id(kind: &str, name: &str, version: &str) -> String {
     format!("SPDXRef-{kind}-{clean}")
 }
 
-/// # Errors
-///
-/// Returns an error when the SPDX document cannot be read or written.
 pub fn write_spdx(src: &Path, dst: &Path, package: &str, supplier: &str) -> Result<(), SbomError> {
     write_spdx_with_inventory(src, dst, package, supplier, None)
 }
 
-/// # Errors
-///
-/// Returns an error when the SPDX document cannot be read or written.
 pub fn write_spdx_with_inventory(
     src: &Path,
     dst: &Path,
@@ -653,9 +615,6 @@ pub fn write_spdx_with_inventory(
     write_spdx_full(src, dst, package, supplier, inventory, None)
 }
 
-/// # Errors
-///
-/// Returns an error when the SPDX document cannot be read or written.
 pub fn write_spdx_full(
     src: &Path,
     dst: &Path,
@@ -667,11 +626,6 @@ pub fn write_spdx_full(
     write_spdx_locked(src, dst, package, supplier, inventory, runtimes, &[])
 }
 
-/// Reads the packages a lock file pins as SBOM entries; `kind` is npm, go, maven or pip.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn lock_entries(kind: &str, text: &str) -> Result<Vec<NoticeEntry>, SbomError> {
     let (set, packages) = match kind {
         "npm" => (
@@ -710,9 +664,6 @@ pub fn lock_entries(kind: &str, text: &str) -> Result<Vec<NoticeEntry>, SbomErro
         .collect())
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn write_spdx_locked(
     src: &Path,
     dst: &Path,
@@ -743,9 +694,6 @@ pub fn write_spdx_locked(
     Ok(())
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn write_provenance(src: &Path, dst: &Path, builder: &str) -> Result<(), SbomError> {
     provenance_builder_error(builder)?;
     let digest = sha256_of(src)?;
@@ -755,17 +703,11 @@ pub fn write_provenance(src: &Path, dst: &Path, builder: &str) -> Result<(), Sbo
     Ok(())
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn write_bcr_source(dst: &Path, module: &str, version: &str) -> Result<(), BcrError> {
     let text = render_bcr_source(module, version)?;
     path_io::write_scratch(dst, text.as_bytes()).map_err(BcrError::Io)
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn bcr_integrity_of_digest(digest: &str) -> Result<String, BcrError> {
     let raw = dx_digest::parse_hex(digest).map_err(|source| BcrError::InvalidDigest {
         digest: digest.to_owned(),
@@ -801,9 +743,6 @@ pub fn bcr_strip_prefix(module: &str, version: &str) -> String {
     format!("{module}-{version}")
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn render_bcr_source_for_digest(
     module: &str,
     version: &str,
@@ -824,11 +763,6 @@ pub fn render_bcr_source_for_digest(
     .map_err(BcrError::Render)
 }
 
-/// # Errors
-///
-/// Returns [`BcrError::Hash`] when the archive cannot be hashed, the version or
-/// render errors of [`render_bcr_source_for_digest`], and [`BcrError::Io`] when
-/// `dst` cannot be written.
 pub fn write_bcr_source_for_archive(
     dst: &Path,
     version: &str,
@@ -843,9 +777,6 @@ pub fn write_bcr_source_for_archive(
     bcr_integrity_of_digest(&digest)
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn bcr_candidate_error(
     source_text: &str,
     module: &str,
@@ -904,9 +835,6 @@ fn bcr_source_error(
     Ok(())
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn release_remote_error(
     candidate: &candidate::Candidate,
     ls_remote: Result<String, GitError>,
@@ -955,9 +883,6 @@ pub const SIGNING_ISSUER_DEFAULT: &str = "https://token.actions.githubuserconten
 pub const PROVENANCE_BUILDER_RELEASE: &str =
     concat!(release_repository!(), "/.github/workflows/release.yml");
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn provenance_builder_error(builder: &str) -> Result<(), SbomError> {
     if builder == PROVENANCE_BUILDER_RELEASE {
         return Ok(());
@@ -998,9 +923,6 @@ pub fn render_bcr_dry_run(module: &str, version: &str, inputs: &[String]) -> Str
     out
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn bcr_run(
     module: &str,
     version: &str,
@@ -1020,8 +942,6 @@ pub fn bcr_run(
 
 const BCR_PR_PREFIX: &str = "https://github.com/bazelbuild/bazel-central-registry/pull/";
 
-/// Ledger record for the publish-to-bcr job: executed only for a successful
-/// run that reported a pull request on the central registry.
 #[must_use]
 pub fn bcr_submit_record(subject: &str, result: &str, pr_url: &str) -> OpRecord {
     let (state, detail) = match (result, pr_url) {
@@ -1078,17 +998,13 @@ pub fn render_signing_dry_run(
     out
 }
 
-/// A failed `signing_run`.
 #[derive(Debug)]
 pub enum SigningError {
     NoAssets,
     NoIdentity,
-    /// The cosign binary does not match its pin.
     Pin(CosignError),
     Outdir(dx_atomic_fs::path_io::PathIoError),
-    /// One asset failed to sign or verify.
     Cosign(CosignError),
-    /// The detail of the first failed or partial sign record.
     Sign(String),
 }
 
@@ -1116,10 +1032,6 @@ impl std::error::Error for SigningError {
     }
 }
 
-/// # Errors
-///
-/// Returns `SigningError` when no assets or identity are given, the cosign pin
-/// does not match, the outdir cannot be created, or an asset fails to sign.
 pub fn signing_run(
     identity: &str,
     issuer: &str,
@@ -1180,7 +1092,6 @@ fn signing_live(
     Ok(out)
 }
 
-/// Ledger records for a dry run: nothing is signed, so nothing is authorized.
 #[must_use]
 pub fn signing_dry_run_records(assets: &[String]) -> Vec<OpRecord> {
     assets
@@ -1196,8 +1107,6 @@ pub fn signing_dry_run_records(assets: &[String]) -> Vec<OpRecord> {
         .collect()
 }
 
-/// Signs and verifies each asset in order, stopping at the first failure.
-/// A failure after an earlier asset was signed is `Partial`, otherwise `Failed`.
 #[must_use]
 pub fn signing_sign_assets(
     identity: &str,
@@ -1285,7 +1194,6 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
     out
 }
 
-/// Local git state checked before a live release.
 #[derive(Debug)]
 pub struct GitState {
     pub tree_dirty: bool,
@@ -1293,11 +1201,6 @@ pub struct GitState {
     pub tag_commit: Option<String>,
 }
 
-/// Returns the candidate a live release tag and commit name.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn release_candidate(
     tag: &str,
     candidate_commit: Option<&str>,
@@ -1313,9 +1216,6 @@ pub fn release_candidate(
     candidate::Candidate::new(version, commit).map_err(TagError::Candidate)
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn release_live_records(
     tag: &str,
     candidate_commit: Option<&str>,
@@ -1369,9 +1269,6 @@ pub fn release_live_records(
     )])
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn release_run(
     tag: &str,
     candidate_commit: Option<&str>,
@@ -1386,9 +1283,6 @@ pub fn release_run(
     Ok(render_ledger(&records))
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn sbom_verify_files(
     artifact: &Path,
     spdx_path: &Path,
@@ -1413,7 +1307,6 @@ pub use dx_audit::notice_manifest::{
     render_notice_manifest,
 };
 
-/// The NOTICE section header one inventory entry renders as.
 #[must_use]
 pub fn notice_entry_header(entry: &NoticeEntry) -> String {
     format!(
@@ -1422,7 +1315,6 @@ pub fn notice_entry_header(entry: &NoticeEntry) -> String {
     )
 }
 
-/// How many lines of `text` are exactly `header` (ignoring a trailing '\r').
 #[must_use]
 pub fn notice_header_count(text: &str, header: &str) -> usize {
     text.lines()
@@ -1430,7 +1322,6 @@ pub fn notice_header_count(text: &str, header: &str) -> usize {
         .count()
 }
 
-/// The body text under one NOTICE entry header, up to the next known header.
 #[must_use]
 pub fn notice_entry_body<'a>(
     notice_text: &'a str,
@@ -1453,8 +1344,6 @@ pub fn notice_entry_body<'a>(
     start.and_then(|begin| notice_text.get(begin..))
 }
 
-/// Why a NOTICE does not match its audited entries. Messages carry no prefix;
-/// the release and install sides add their own.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NoticeTextError {
     NoEntries,
@@ -1515,11 +1404,6 @@ impl fmt::Display for NoticeTextError {
 
 impl std::error::Error for NoticeTextError {}
 
-/// Shared NOTICE verifier for the release and install sides.
-///
-/// # Errors
-///
-/// Returns an error when the NOTICE does not match the entries.
 pub fn verify_notice_text(
     notice_text: &str,
     entries: &[NoticeEntry],
@@ -1604,7 +1488,6 @@ pub fn render_notice(root: &str, entries: &[(NoticeEntry, String)]) -> String {
     out
 }
 
-/// Why a NOTICE bundle could not be joined, written or verified.
 #[derive(Debug)]
 pub enum NoticeError {
     TextName {
@@ -1734,8 +1617,6 @@ fn read_texts(text_files: &[PathBuf]) -> Result<Vec<(PathBuf, String)>, NoticeEr
     Ok(texts)
 }
 
-/// The inputs whose path ends with `text_path`, compared by whole path
-/// components (so `NOTLICENSE` never matches `LICENSE`), sorted by path.
 pub fn notice_text_matches<'a, T>(
     text_path: &str,
     inputs: &'a [(std::path::PathBuf, T)],
@@ -1793,9 +1674,6 @@ pub(crate) fn join_notice_entries(
     Ok(joined)
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn write_notice(
     manifest: &Path,
     dst: &Path,
@@ -1814,9 +1692,6 @@ pub fn write_notice(
     Ok(())
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn notice_verify_files(
     notice: &Path,
     manifest: &Path,

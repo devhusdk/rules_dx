@@ -1,6 +1,3 @@
-//! `release_tool inventory`: joins shipped crates with their lockfile licenses
-//! and writes the NOTICE manifest plus one text per crate.
-
 use std::collections::BTreeMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -14,13 +11,10 @@ use crate::runtimes::{self, RuntimesError, ShippedRuntime};
 
 pub const SCHEMA: &str = "shipped-inventory/v1";
 
-/// The manifest set every shipped crate belongs to.
 const SET: &str = "cargo";
 
-/// The file name each crate's text is written under.
 pub const TEXT_NAME: &str = "LICENSE";
 
-/// One crate the aspect found in the runtime graph.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ShippedCrate {
@@ -41,12 +35,10 @@ struct ShippedDoc {
     crates: Vec<ShippedCrate>,
     #[serde(default)]
     runtimes: Vec<ShippedRuntime>,
-    /// license.toml `[[inventory]]` text paths, workspace-relative, mapped to their exec paths.
     #[serde(default)]
     vendored: BTreeMap<String, PathBuf>,
 }
 
-/// A shipped inventory that cannot be joined, read or written.
 #[derive(Debug)]
 pub enum InventoryError {
     Json(serde_json::Error),
@@ -229,11 +221,6 @@ impl From<PathIoError> for InventoryError {
     }
 }
 
-/// Parses the aspect's shipped-inventory/v1 document, sorted by crate and version.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_shipped(text: &str) -> Result<Vec<ShippedCrate>, InventoryError> {
     let doc: ShippedDoc = serde_json::from_str(text).map_err(InventoryError::Json)?;
     if doc.schema != SCHEMA {
@@ -256,33 +243,21 @@ pub fn parse_shipped(text: &str) -> Result<Vec<ShippedCrate>, InventoryError> {
     Ok(crates)
 }
 
-/// Parses the native runtimes of the shipped-inventory/v1 document.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_shipped_runtimes(text: &str) -> Result<Vec<ShippedRuntime>, InventoryError> {
     let doc: ShippedDoc = serde_json::from_str(text).map_err(InventoryError::Json)?;
     Ok(doc.runtimes)
 }
 
-/// Parses the vendored license.toml `[[inventory]]` texts of the shipped-inventory/v1 document.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_shipped_vendored(text: &str) -> Result<BTreeMap<String, PathBuf>, InventoryError> {
     let doc: ShippedDoc = serde_json::from_str(text).map_err(InventoryError::Json)?;
     Ok(doc.vendored)
 }
 
-/// The manifest text path of one crate: `cargo/<crate>-<version>/LICENSE`.
 #[must_use]
 pub fn text_path(name: &str, version: &str) -> String {
     format!("{SET}/{name}-{version}/{TEXT_NAME}")
 }
 
-/// One crate joined with its license and the words the NOTICE carries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JoinedCrate {
     pub name: String,
@@ -291,8 +266,6 @@ pub struct JoinedCrate {
     pub words: String,
 }
 
-/// Renders the NOTICE words for one crate: every shipped text in name
-/// order, each under a `--- <file> ---` line, or one line saying none ships.
 fn crate_words(krate: &ShippedCrate, license: &str, texts: &[(String, String)]) -> String {
     if texts.is_empty() {
         return format!(
@@ -312,7 +285,6 @@ fn crate_words(krate: &ShippedCrate, license: &str, texts: &[(String, String)]) 
     out
 }
 
-/// Reads one crate's texts keyed by file name, sorted.
 fn read_crate_texts(krate: &ShippedCrate) -> Result<Vec<(String, String)>, InventoryError> {
     let mut texts = BTreeMap::new();
     for path in &krate.texts {
@@ -344,7 +316,6 @@ fn read_crate_texts(krate: &ShippedCrate) -> Result<Vec<(String, String)>, Inven
     Ok(texts.into_iter().collect())
 }
 
-/// Reads the license.toml `[[inventory]]` text vendored for a crate that ships none.
 fn read_vendored_text(
     krate: &ShippedCrate,
     license: &str,
@@ -405,7 +376,6 @@ fn read_error(krate: &ShippedCrate, source: PathIoError) -> InventoryError {
     }
 }
 
-/// Whether license.toml approves a crate shipping no words for `license`.
 fn approved(policy: &dx_audit::license_policy::LicensePolicy, finding: &JoinedCrate) -> bool {
     let finding = dx_audit::license_policy::LicenseFinding {
         package: finding.name.clone(),
@@ -419,7 +389,6 @@ fn approved(policy: &dx_audit::license_policy::LicensePolicy, finding: &JoinedCr
         .any(|exception| dx_audit::license_policy::license_exception_covers(exception, &finding))
 }
 
-/// The license a crate outside the root crate universe declares in its own manifest.
 fn manifest_license(krate: &ShippedCrate) -> Result<String, InventoryError> {
     let missing = || InventoryError::NoManifestLicense {
         name: krate.name.clone(),
@@ -431,16 +400,6 @@ fn manifest_license(krate: &ShippedCrate) -> Result<String, InventoryError> {
     dx_audit::locks::cargo_manifest_license(&text).ok_or_else(missing)
 }
 
-/// Joins the shipped crates with the lockfile licenses and reads their texts.
-///
-/// Fails when a crate is missing from the lockfile, when the lockfile has no
-/// license for it, or when its license needs reproduced words, it ships none
-/// and license.toml has neither an `[[inventory]]` text nor an exception for it.
-/// An `[[inventory]]` text is read from `vendored` only when the crate ships no words.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn join(
     crates: &[ShippedCrate],
     lock_text: &str,
@@ -513,11 +472,6 @@ pub fn join(
     Ok(joined)
 }
 
-/// Renders the six-field NOTICE manifest for the joined crates.
-///
-/// # Errors
-///
-/// Returns an error when a crate name, version or license holds a manifest separator.
 pub fn render_manifest(joined: &[JoinedCrate]) -> Result<String, InventoryError> {
     let entries: Vec<crate::NoticeEntry> = joined
         .iter()
@@ -537,12 +491,6 @@ pub fn render_manifest(joined: &[JoinedCrate]) -> Result<String, InventoryError>
     .map_err(InventoryError::Manifest)
 }
 
-/// Runs the join and writes the manifest plus `<texts>/cargo/<crate>-<version>/LICENSE`.
-/// With `runtimes_out`, also writes the native runtime records with file hashes.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn write_inventory(
     shipped: &Path,
     lock: &Path,
@@ -592,7 +540,6 @@ mod tests {
         "nolicense 0.1.0": {"license": ""}
     }}"#;
 
-    /// The `cargo` hub name.
     fn cargo_hub() -> &'static str {
         dx_families::hub("cargo")
             .expect("setup.hubs entry cargo")

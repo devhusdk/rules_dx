@@ -1,5 +1,4 @@
-# gazelle:dx_rust_corpus false
-
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_test")
 load("@rules_dx//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("@rules_dx//elixir/private/toolchain:pins.bzl", "ELIXIR_VERSION")
@@ -49,4 +48,11 @@ elixir_test(
 exports_files(
     ["BUILD.bazel"],
     visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

@@ -19,9 +19,6 @@ fixture-name dart/tests/negative
 fixture-name dart/tests/runtime
 fixture-name dart/tests/tags
 fixture-name dart/tests/web
-fixture-name elixir/tests/negative
-fixture-name elixir/tests/runtime
-fixture-name elixir/tests/tags
 fixture-name flutter/tests/contract
 fixture-name flutter/tests/negative
 fixture-name flutter/tests/runtime

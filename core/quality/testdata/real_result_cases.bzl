@@ -501,7 +501,7 @@ REAL_RESULT_CASES = [
     },
     {
         "name": "real_result_dialyzer_elixir_clean",
-        "target": "//elixir/tests/runtime:erlang_app",
+        "target": "//elixir/tests/fixtures/runtime:erlang_app",
         "config": "shared",
         "tool": "dialyzer",
         "capability": "typecheck",

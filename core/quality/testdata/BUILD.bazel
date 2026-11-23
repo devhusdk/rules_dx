@@ -1380,7 +1380,7 @@ erlang_typecheck_subject(
     name = "elixir_typecheck_subject",
     testonly = True,
     tags = ["manual"],
-    target = "//elixir/tests/runtime:erlang_app",
+    target = "//elixir/tests/fixtures/runtime:erlang_app",
 )
 
 php_lint_subject(
@@ -1415,14 +1415,14 @@ elixir_subject(
     name = "elixir_subject",
     testonly = True,
     tags = ["manual"],
-    target = "//elixir/tests/runtime:erlang_app",
+    target = "//elixir/tests/fixtures/runtime:erlang_app",
 )
 
 elixir_lint_subject(
     name = "elixir_lint_subject",
     testonly = True,
     tags = ["manual"],
-    target = "//elixir/tests/runtime:erlang_app",
+    target = "//elixir/tests/fixtures/runtime:erlang_app",
 )
 
 perl_subject(

@@ -99,3 +99,7 @@ def prepend_toolchains(first, current):
         if str(t) not in toolchains:
             toolchains.append(str(t))
     return toolchains
+
+def msvc_crt_static_flag(arg):
+    """Whether a rustc argument turns on +crt-static."""
+    return arg.startswith(("-Ctarget-feature=", "--codegen=target-feature=")) and "+crt-static" in arg

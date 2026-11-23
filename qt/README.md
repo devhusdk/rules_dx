@@ -130,6 +130,15 @@ qt.configure(
 `configure` is optional, works only in the root module, and is called at
 most once.
 
+Qt tools start through a small native launcher, the pinned rules_dx
+launcher for the host. To build it from source instead, which needs Rust
+and C toolchains, add this to the root `MODULE.bazel`:
+
+```python
+qt = use_extension("@rules_dx//qt:extensions.bzl", "qt")
+qt.from_source()
+```
+
 ### Your own cell
 
 Declare your own cell with `qt.cell` in your root `MODULE.bazel`:
@@ -359,7 +368,8 @@ newer on x86_64, 2.39 or newer on arm64.
 ### Toolchain
 
 rules_dx declares the Qt SDK and registers its toolchains. You add no
-`register_toolchains` line. The one tag you may add is `qt.configure`.
+`register_toolchains` line. The tags you may add are `qt.configure`,
+`qt.cell` and `qt.from_source`.
 
 ## Platforms
 

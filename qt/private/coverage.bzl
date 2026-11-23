@@ -48,7 +48,7 @@ def qt_coverage_toolchains():
 
 def qt_coverage_attrs():
     """Returns the attributes LLVM coverage collection needs."""
-    return dx_collect_cc_coverage_attr(Label("@dx_prebuilt//:collect_native")) | {
+    return dx_collect_cc_coverage_attr() | {
         "_macos": attr.label(default = Label("@platforms//os:macos")),
         "_llvm_cov": attr.label(default = Label("@llvm//tools:llvm-cov"), executable = True, allow_files = True, cfg = config.exec(exec_group = "test")),
         "_llvm_profdata": attr.label(default = Label("@llvm//tools:llvm-profdata"), executable = True, allow_files = True, cfg = config.exec(exec_group = "test")),

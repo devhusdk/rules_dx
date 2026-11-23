@@ -1,7 +1,7 @@
 """Rules that generate CXX-Qt bridge C++ and stage the CXX-Qt runtime."""
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//core:msvc_crt.bzl", "msvc_crt_static_flag")
+load("//core:platform.bzl", "msvc_crt_static_flag")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":constants.bzl", "QT_TOOL_ENV")
 load(":text.bzl", "qt_package_path", "qt_relative", "qt_stem")

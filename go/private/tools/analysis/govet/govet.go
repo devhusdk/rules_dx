@@ -11,6 +11,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/nishanths/exhaustive"
+	"github.com/polyfloyd/go-errorlint/errorlint"
+	"github.com/ryanrolds/sqlclosecheck/pkg/analyzer"
+	"github.com/sonatard/noctx"
+	"github.com/timakin/bodyclose/passes/bodyclose"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/appends"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
@@ -95,9 +100,14 @@ var defaults = []*analysis.Analyzer{
 // strictOnly are the analyzers the strict profile adds to the defaults.
 // forvar is x/tools' successor to the copyloopvar linter.
 var strictOnly = []*analysis.Analyzer{
+	bodyclose.Analyzer,
+	errorlint.NewAnalyzer(),
+	exhaustive.Analyzer,
 	modernize.ForVarAnalyzer,
 	nilness.Analyzer,
+	noctx.Analyzer,
 	shadow.Analyzer,
+	analyzer.NewDeferOnlyAnalyzer(),
 	unusedwrite.Analyzer,
 }
 

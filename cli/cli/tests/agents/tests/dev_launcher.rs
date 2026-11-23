@@ -991,6 +991,19 @@ mod sh {
     }
 
     #[test]
+    fn with_no_dx_to_ask_and_no_git_on_path_a_checkout_refuses() {
+        let repo = source_repo("dx-launcher-primary-nogit-");
+        std::fs::create_dir_all(repo.root().join(".git")).expect("git dir");
+        let out = spawn(&mut repo.command_in(&repo.root(), &["status"]))
+            .wait_with_output()
+            .expect("launcher runs");
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(out.status.code(), Some(2), "{err}");
+        assert_eq!(repo.builds(), 0, "{err}");
+        assert!(err.starts_with("dx: refused: git is not on PATH"), "{err}");
+    }
+
+    #[test]
     fn worktree_add_and_release_rebuild_a_dx_older_than_the_worktree_sources() {
         let repo = source_repo("dx-launcher-fast-worktree-src-");
         repo.run_ok();
@@ -2731,6 +2744,20 @@ mod cmd {
                 );
             }
         }
+    }
+
+    #[test]
+    fn cmd_with_no_dx_to_ask_and_no_git_on_path_a_checkout_refuses() {
+        let repo = source_repo("dx-launcher-cmd-primary-nogit-");
+        std::fs::create_dir_all(repo.root().join(".git")).expect("git dir");
+        let out = repo
+            .command(&[], &repo.base.join("calls"))
+            .output()
+            .expect("launcher runs");
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(out.status.code(), Some(2), "{err}");
+        assert_eq!(repo.builds(), 0, "{err}");
+        assert!(err.starts_with("dx: refused: git is not on PATH"), "{err}");
     }
 
     #[test]

@@ -279,8 +279,9 @@ Only commands that only read still run: `dx status`, `dx worktree`,
 dx fails closed. Any other value of `dx.primary`, such as a typo, counts as
 `protected`, and the message names the value. When git cannot read the
 setting, dx refuses and prints why. `GIT_CONFIG`, `GIT_CONFIG_COUNT` and
-`git -c` do not change what dx reads. Without git on `PATH` nothing can set
-`dx.primary`, so nothing is refused.
+`git -c` do not change what dx reads. Without git on `PATH`, dx refuses all
+but the read-only commands in any directory with a `.git` in or above it.
+Only outside git is the check off.
 
 `CI=true` does not skip the check: CI never runs `dx worktree add`, so
 `dx.primary` stays unset there.

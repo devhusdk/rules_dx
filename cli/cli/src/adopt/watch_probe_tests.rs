@@ -79,6 +79,7 @@ impl Probe {
         fs::write(workspace.join("src/main.rs"), "fn main() {}\n").expect("source");
         fs::create_dir_all(workspace.join("app")).expect("app");
         fs::write(workspace.join("app/BUILD.bazel"), "").expect("app build file");
+        dx_testing::empty_git_repo(&workspace);
         let bazel = bin.join("bazel");
         dx_testing::executable_script(&bazel, FAKE_BAZEL);
         let log = base.join("bazel.log");
@@ -90,7 +91,7 @@ impl Probe {
             .args(words)
             .current_dir(&workspace)
             .env_clear()
-            .env("PATH", bin.as_os_str())
+            .env("PATH", dx_testing::path_with_git(&bin))
             .env("FAKE_PROBE", dx_testing::process_probe())
             .env("HOME", &base)
             .env("TMPDIR", &tmp)

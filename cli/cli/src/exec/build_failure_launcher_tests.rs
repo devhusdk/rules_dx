@@ -33,6 +33,7 @@ fn run_with(verb: &str, flags: &[&str]) -> (Option<i32>, String, String, Option<
     fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
     fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
+    dx_testing::empty_git_repo(&workspace);
     let stderr_file = base.join("action-stderr");
     fs::write(&stderr_file, format!("{DIAGNOSTIC}\n")).expect("stderr");
     let bep = serde_json::json!({
@@ -59,7 +60,7 @@ fn run_with(verb: &str, flags: &[&str]) -> (Option<i32>, String, String, Option<
         .arg("//...")
         .current_dir(&workspace)
         .env_clear()
-        .env("PATH", bin.as_os_str())
+        .env("PATH", dx_testing::path_with_git(&bin))
         .env("HOME", &base)
         .env("TMPDIR", &tmp)
         .env("FAKE_BEP_LINE", bep)
@@ -154,13 +155,14 @@ fn the_launcher_reports_a_bazel_killed_by_its_own_signal() {
     fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
     fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
+    dx_testing::empty_git_repo(&workspace);
     let bazel = bin.join("bazel");
     dx_testing::executable_script(&bazel, SIGNALLED_BAZEL);
     let output = Command::new(dx_testing::runfiles_root().join("cli/cli/dx"))
         .args(["build", "--output=json", "//..."])
         .current_dir(&workspace)
         .env_clear()
-        .env("PATH", bin.as_os_str())
+        .env("PATH", dx_testing::path_with_git(&bin))
         .env("HOME", base)
         .env("TMPDIR", &tmp)
         .stdin(Stdio::null())

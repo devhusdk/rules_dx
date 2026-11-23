@@ -56,6 +56,7 @@ fn run(
     fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
     fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
+    dx_testing::empty_git_repo(&workspace);
     let fresh = logs.join("fresh.xml");
     let warm = logs.join("warm.xml");
     fs::write(&fresh, FRESH_XML).expect("fresh xml");
@@ -84,7 +85,7 @@ fn run(
         ])
         .current_dir(&workspace)
         .env_clear()
-        .env("PATH", bin.as_os_str())
+        .env("PATH", dx_testing::path_with_git(&bin))
         .env("HOME", &base)
         .env("TMPDIR", &tmp)
         .env("FAKE_BEP", bep)

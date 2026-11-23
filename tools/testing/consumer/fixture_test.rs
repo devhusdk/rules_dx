@@ -74,12 +74,10 @@ fn init(root: &Path, licenses: &[String]) -> dx_testing::Run {
     std::fs::create_dir_all(&home).unwrap_or_else(|error| panic!("{}: {error}", home.display()));
     let home = dx_testing::path_text(&home);
     let dx = dx_testing::env_file("DX_BIN");
-    let bin = root.with_file_name("bin");
-    drop(dx_testing::fake_generate_bazel_path(
-        &bin,
+    let bin = dx_testing::fake_generate_bazel_path(
+        &root.with_file_name("bin"),
         &dx_testing::env_file("DX_FAKE_GENERATE"),
-    ));
-    let bin = dx_testing::path_text(&bin);
+    );
     let gazelle = dx_testing::resolve_runfiles(&dx_testing::env_text("DX_GAZELLE_BIN"));
     let gazelle = dx_testing::path_text(&gazelle);
     let gazelle_args = dx_testing::env_text("DX_FAKE_GAZELLE_ARGS");

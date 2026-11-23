@@ -188,7 +188,9 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
         "#!/bin/sh\nprintf '%s ' \"$@\" >> \"$STUB_ARGS\"; echo >> \"$STUB_ARGS\"\ncase \" $* \" in *\" mod \"*) exit 0;; esac\nexit 2\n",
     );
     let stub_args = stub_dir.join("args");
-    let path = stub_dir.display().to_string();
+    let path = dx_testing::path_with_git(&stub_dir)
+        .into_string()
+        .expect("PATH with git is UTF-8");
     let stub_args_text = stub_args.display().to_string();
     let env = [
         ("PATH", path.as_str()),

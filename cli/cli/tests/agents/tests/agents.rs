@@ -420,6 +420,23 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
             build.stderr
         );
     }
+    let no_git = env.base.join("no-git");
+    std::fs::create_dir_all(&no_git).expect("empty PATH dir");
+    let dx = env_file("DX_BIN");
+    let build = run_env(
+        dx.to_str().expect("utf8"),
+        &["build"],
+        &root,
+        &env,
+        "",
+        &[("PATH", no_git.to_str().expect("utf8"))],
+    );
+    assert_eq!(build.code, 2, "no git: {}{}", build.stdout, build.stderr);
+    assert!(
+        build.stderr.contains("git is not on PATH"),
+        "no git: {}",
+        build.stderr
+    );
     assert!(!preset.exists(), "a refused command writes no preset");
 }
 

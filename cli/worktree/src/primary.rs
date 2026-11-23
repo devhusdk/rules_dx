@@ -61,12 +61,9 @@ fn unreadable(detail: &str) -> String {
     )
 }
 
-/// The raw `dx.primary` value of the repository `dir` is in; none when unset or when git is not installed.
+/// The raw `dx.primary` value of the repository `dir` is in; none when unset.
 fn value(dir: &Path) -> Result<Option<String>, String> {
-    // Only git and `dx worktree add` set the key, so a machine without git has neither the key nor slots to protect.
-    let Some(output) = git::own_config(dir, &["config", "--get", KEY])? else {
-        return Ok(None);
-    };
+    let output = git::own_config(dir, &["config", "--get", KEY])?;
     match output.code {
         Some(0) => Ok(Some(output.stdout_text().trim().to_owned())),
         Some(1) if output.stdout.is_empty() => Ok(None),
@@ -106,8 +103,7 @@ fn main_checkout(dir: &Path) -> Result<Option<PathBuf>, String> {
             "--git-dir",
             "--git-common-dir",
         ],
-    )?
-    .ok_or_else(|| "git is not on PATH".to_owned())?;
+    )?;
     if output.code != Some(0) {
         return Err(format!(
             "git rev-parse failed: {}",

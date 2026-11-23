@@ -495,8 +495,8 @@ guard_temps() {
 }
 # Returns when the main-checkout rule lets this checkout build dx. A built dx answers: exit 0 builds, and a refusal
 # runs that dx, which refuses or runs the command. A dx without the bazel hook cannot answer, so the next one is asked.
-# With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses. Without git nothing can
-# set dx.primary, so the build goes on. Keep in sync with tools/dx.cmd.
+# With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses, and so does one with no
+# git on PATH, so a PATH change cannot turn the rule off. Keep in sync with tools/dx.cmd.
 primary_allows_build() {
   for pr_dx in "$state/dx$exe" "$bin"; do
     [ -x "$pr_dx" ] || continue
@@ -507,7 +507,11 @@ primary_allows_build() {
     2:*refused:*) exec "$pr_dx" "$@" ;;
     esac
   done
-  [ -d "$root/.git" ] && command -v git >/dev/null 2>&1 || return 0
+  [ -d "$root/.git" ] || return 0
+  if ! command -v git >/dev/null 2>&1; then
+    echo "dx: refused: git is not on PATH, so no one can check dx.primary in the main checkout $root, and dx is not built here. Put git on PATH, or work in a slot." >&2
+    exit 2
+  fi
   pr_ec=0
   (
     unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_CONFIG GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS

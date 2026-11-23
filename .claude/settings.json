@@ -8,7 +8,7 @@
             "type": "command"
           }
         ],
-        "matcher": "Bash"
+        "matcher": "Bash|Edit|Write|NotebookEdit"
       }
     ],
     "SubagentStop": [

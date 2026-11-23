@@ -1913,7 +1913,7 @@ mod sh {
 
     #[test]
     fn a_tool_call_hook_without_a_dx_passes_without_building() {
-        for hook in ["guard", "stop"] {
+        for hook in ["guard", "stop", "git"] {
             let (code, err, builds) = hook_without_dx(hook, "tools/dx test //cli/path:all");
             assert_eq!((code, builds), (Some(0), 0), "{hook}: {err}");
         }

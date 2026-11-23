@@ -1,0 +1,20 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "extension.bzl",
+        "hub.bzl",
+        "names.bzl",
+        "select.bzl",
+        "target.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

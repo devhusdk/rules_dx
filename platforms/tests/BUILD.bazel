@@ -1,0 +1,71 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load(
+    ":platforms_tests.bzl",
+    "hub_unit_tests",
+    "names_unit_tests",
+    "select_analysis_tests",
+    "select_unit_tests",
+    "transition_analysis_tests",
+    "transition_unit_tests",
+    "unknown_current_tests",
+)
+
+platform(
+    name = "linux_riscv64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:riscv64",
+    ],
+)
+
+names_unit_tests(
+    name = "names_unit",
+    size = "small",
+)
+
+select_unit_tests(
+    name = "select_unit",
+    size = "small",
+)
+
+hub_unit_tests(
+    name = "hub_unit",
+    size = "small",
+)
+
+transition_unit_tests(
+    name = "transition_unit",
+    size = "small",
+)
+
+transition_analysis_tests(
+    name = "transition_analysis",
+    size = "small",
+)
+
+select_analysis_tests(
+    name = "select_analysis",
+    size = "small",
+)
+
+unknown_current_tests(
+    name = "unknown_current",
+    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "platforms_tests.bzl",
+        "subject.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -28,6 +28,9 @@ def build_file(package):
         ]
     lines += [
         '    visibility = ["//visibility:public"],',
+        # A locked package is upstream code the user cannot edit, so its warnings and
+        # deprecations stay warnings.
+        "    warnings_as_errors = False,",
         ")",
         "",
     ]

@@ -1467,7 +1467,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "color-no-invalid-hex": true,
      "comment-no-empty": true,
      "custom-property-no-missing-var-function": true,
-@@ -15,15 +17,22 @@
+@@ -15,15 +17,23 @@
        true,
        { "ignore": ["consecutive-duplicates-with-different-syntaxes"] }
      ],
@@ -1485,12 +1485,13 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "keyframe-block-no-duplicate-selectors": true,
      "keyframe-declaration-no-important": true,
 +    "length-zero-no-unit": true,
++    "max-nesting-depth": 2,
      "media-feature-name-no-unknown": true,
 +    "media-feature-name-no-vendor-prefix": true,
      "media-feature-name-value-no-unknown": true,
      "media-query-no-invalid": true,
      "media-type-no-deprecated": true,
-@@ -37,6 +46,9 @@
+@@ -37,6 +47,9 @@
      "no-invalid-position-at-import-rule": true,
      "no-invalid-position-declaration": true,
      "no-irregular-whitespace": true,
@@ -1500,7 +1501,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "property-no-deprecated": true,
      "property-no-unknown": [
        true,
-@@ -45,7 +57,12 @@
+@@ -45,7 +58,12 @@
          "ignoreSelectors": [":export", "/^:import/"]
        }
      ],
@@ -1513,7 +1514,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "selector-pseudo-class-no-unknown": [
        true,
        {
-@@ -60,13 +77,15 @@
+@@ -60,13 +78,15 @@
      ],
      "selector-pseudo-element-no-unknown": true,
      "selector-type-no-unknown": [true, { "ignore": ["custom-elements"] }],
@@ -1579,7 +1580,7 @@ Source: dx. Native file: `.yamllint`.
 ```diff
 --- a/core/quality/tiers/yamllint/strict.yaml
 +++ b/core/quality/tiers/yamllint/strict.yaml
-@@ -1,6 +1,23 @@
+@@ -1,6 +1,28 @@
  rules:
 -  anchors: enable
 -  key-duplicates: enable
@@ -1587,6 +1588,9 @@ Source: dx. Native file: `.yamllint`.
 +    forbid-duplicated-anchors: true
 +    forbid-undeclared-aliases: true
 +    forbid-unused-anchors: true
++  comments:
++    require-starting-space: true
++  comments-indentation: enable
 +  document-start: enable
 +  empty-values: enable
 +  float-values:
@@ -1597,11 +1601,13 @@ Source: dx. Native file: `.yamllint`.
 +  key-duplicates:
 +    forbid-duplicated-merge-keys: true
 +  key-ordering: enable
++  new-line-at-end-of-file: enable
 +  octal-values:
 +    forbid-explicit-octal: true
 +    forbid-implicit-octal: true
 +  quoted-strings:
 +    required: only-when-needed
++  trailing-spaces: enable
    truthy:
      allowed-values: ['true', 'false']
 -    check-keys: false

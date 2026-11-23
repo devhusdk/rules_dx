@@ -66,7 +66,7 @@ It dispatches the run and replies with its URL. Each run posts the commit status
 gh pr checks <n> --watch
 ```
 
-A second run for the same platform, task and scope on one commit replaces the status. The merge-group `gate` job fails when the newest `evidence/*` status on the pull request head is `pending`, `failure` or `error`.
+A second run for the same platform, task and scope on one commit replaces the status. In the merge queue, the `check` jobs fail when the newest `evidence/*` status on the pull request head is `pending`, `failure` or `error`.
 
 ## Refresh the locks on a pull request
 
@@ -234,7 +234,6 @@ Other labels:
 - `bug`, `enhancement`, `tracking`.
 - `needs-host`: needs macOS, Windows, a GPU, or signing secrets.
 - `needs-review`: see [Get a review](#get-a-review).
-- `api`: the pull request changes the public API snapshot in `api/`. The `api-label` check fails without it.
 - `blocked`: waiting on something only the owner can do.
 - `model:haiku`, `model:sonnet`, `model:opus` and `model:human` pick which agent lane handles the issue.
 - `dogfood`: an extra label, never the only one.

@@ -77,6 +77,11 @@ pub fn pin(event: &Event) -> Result<(String, String), String> {
     if candidate.is_empty() {
         return Err(format!("gate: no base commit for event {:?}", event.name));
     }
+    while git(&["merge-base", "--is-ancestor", &candidate, &head]).code != 0
+        && git(&["rev-parse", "--is-shallow-repository"]).out == "true"
+    {
+        git_checked(&["fetch", "--no-tags", "--deepen=10", "origin", &head])?;
+    }
     let merged = git(&["merge-base", &candidate, &head]);
     let base = if merged.code == 0 {
         merged.out

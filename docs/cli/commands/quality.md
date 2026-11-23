@@ -250,6 +250,14 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `zig`, `zig_ast_check` and `zig_fmt` report every finding as an error.
 
+`hadolint` in the strict tier also fails on these patterns, each as an error.
+
+| Rule | Pattern |
+| --- | --- |
+| `guard/reasonless_ignore` | `# hadolint ignore=` or `# hadolint global ignore=` with no reason. Add one after the rule list: `# hadolint ignore=DL3008 # apt pins drift weekly` |
+| `guard/unpinned_image` | `FROM` an image without an `@sha256:` digest. `scratch` and earlier build stages pass, and `ARG` defaults declared before the first `FROM` are expanded first |
+| `guard/tls_off` | A `curl` or `wget` call in `RUN` that turns off certificate checks with curl's insecure option or wget's no-check-certificate option |
+
 `kubeconform` runs with `-strict` in the strict tier, so duplicate keys fail; the tier comes from the build, not from `kubernetes_schemas`, which carries only the schemas and `skip_kinds`.
 
 `perlcritic` takes its tier from `core/quality/tiers/perlcritic/`. Standard runs severity 3 policies. Strict runs severity 1 policies and requires `use strict` and `use warnings`, checked `open`, `close` and other builtin calls, three-argument `open` with lexical handles, and a policy name on every `## no critic`. It bans string `eval`, `return undef`, and `no strict` or `no warnings` without a category. It leaves out layout and style noise such as `ProhibitMagicNumbers`, `RequireTrailingCommas`, `ProhibitPostfixControls`, `RequireExtendedFormatting`, `RequirePodSections` and `RequireArgUnpacking`.

@@ -147,8 +147,15 @@ _cc_forward_test = dx_executable_forward_rule(
     ),
 )
 
+_CC_STRICT_WARNINGS = select({
+    Label("@rules_cc//cc/compiler:clang-cl"): ["/W4"],
+    Label("@rules_cc//cc/compiler:msvc-cl"): ["/W4"],
+    "//conditions:default": ["-Wall", "-Wextra"],
+})
+
 def _cc_warnings_as_errors(kwargs):
     rest, flag = dx_warnings_as_errors(kwargs, ["treat_warnings_as_errors"])
+    rest["copts"] = _CC_STRICT_WARNINGS + (rest.get("copts") or [])
     return dx_append_flags(rest, "features", flag)
 
 _PARAM_FILE_ATTRS = ["textual_hdrs", "includes", "copts", "conlyopts", "cxxopts", "defines", "local_defines"]

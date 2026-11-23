@@ -351,7 +351,7 @@ Source: dx. Native file: `.hlint.yaml`.
 ```diff
 --- a/core/quality/tiers/hlint/strict.yaml
 +++ b/core/quality/tiers/hlint/strict.yaml
-@@ -1,6 +1,3 @@
+@@ -1,6 +1,41 @@
 -- ignore: {name: Use camelCase}
 -- ignore: {name: Use section}
 -- ignore: {name: Use lambda-case}
@@ -361,6 +361,44 @@ Source: dx. Native file: `.hlint.yaml`.
 +- group: {name: extra, enabled: true}
 +- group: {name: generalise, enabled: true}
 +- group: {name: future, enabled: true}
++- functions:
++  - {name: head, within: []}
++  - {name: tail, within: []}
++  - {name: init, within: []}
++  - {name: last, within: []}
++  - {name: fromJust, within: []}
++  - {name: "!!", within: []}
++  - {name: read, within: []}
++  - {name: error, within: []}
++  - {name: undefined, within: []}
++  - {name: unsafePerformIO, within: []}
++  - {name: unsafeCoerce, within: []}
++  - {name: trace, within: []}
++  - {name: traceShow, within: []}
++  - {name: traceM, within: []}
++  - {name: foldl1, within: []}
++  - {name: foldr1, within: []}
++  - {name: maximum, within: []}
++  - {name: minimum, within: []}
++  - {name: genericIndex, within: []}
++- modules:
++  - {name: Debug.Trace, within: []}
++  - {name: System.IO.Unsafe, within: []}
++  - {name: Unsafe.Coerce, within: []}
++- flags:
++  - default: false
++- error: {name: Use fromMaybe}
++- error: {name: Avoid restricted function}
++- error: {name: Avoid restricted module}
++- error: {name: Avoid restricted extensions}
++- error: {name: Avoid restricted flags}
++- error: {name: Unused LANGUAGE pragma}
++- error: {name: Redundant bracket}
++- error: {name: Redundant $}
++- error: {name: Redundant id}
++- error: {name: Use null}
++- error: {name: Use isNothing}
++- error: {name: Use isJust}
 ```
 
 ### lychee
@@ -1467,7 +1505,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "color-no-invalid-hex": true,
      "comment-no-empty": true,
      "custom-property-no-missing-var-function": true,
-@@ -15,15 +17,22 @@
+@@ -15,15 +17,23 @@
        true,
        { "ignore": ["consecutive-duplicates-with-different-syntaxes"] }
      ],
@@ -1485,12 +1523,13 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "keyframe-block-no-duplicate-selectors": true,
      "keyframe-declaration-no-important": true,
 +    "length-zero-no-unit": true,
++    "max-nesting-depth": 2,
      "media-feature-name-no-unknown": true,
 +    "media-feature-name-no-vendor-prefix": true,
      "media-feature-name-value-no-unknown": true,
      "media-query-no-invalid": true,
      "media-type-no-deprecated": true,
-@@ -37,6 +46,9 @@
+@@ -37,6 +47,9 @@
      "no-invalid-position-at-import-rule": true,
      "no-invalid-position-declaration": true,
      "no-irregular-whitespace": true,
@@ -1500,7 +1539,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "property-no-deprecated": true,
      "property-no-unknown": [
        true,
-@@ -45,7 +57,12 @@
+@@ -45,7 +58,12 @@
          "ignoreSelectors": [":export", "/^:import/"]
        }
      ],
@@ -1513,7 +1552,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "selector-pseudo-class-no-unknown": [
        true,
        {
-@@ -60,13 +77,15 @@
+@@ -60,13 +78,15 @@
      ],
      "selector-pseudo-element-no-unknown": true,
      "selector-type-no-unknown": [true, { "ignore": ["custom-elements"] }],
@@ -1579,7 +1618,7 @@ Source: dx. Native file: `.yamllint`.
 ```diff
 --- a/core/quality/tiers/yamllint/strict.yaml
 +++ b/core/quality/tiers/yamllint/strict.yaml
-@@ -1,6 +1,23 @@
+@@ -1,6 +1,28 @@
  rules:
 -  anchors: enable
 -  key-duplicates: enable
@@ -1587,6 +1626,9 @@ Source: dx. Native file: `.yamllint`.
 +    forbid-duplicated-anchors: true
 +    forbid-undeclared-aliases: true
 +    forbid-unused-anchors: true
++  comments:
++    require-starting-space: true
++  comments-indentation: enable
 +  document-start: enable
 +  empty-values: enable
 +  float-values:
@@ -1597,11 +1639,13 @@ Source: dx. Native file: `.yamllint`.
 +  key-duplicates:
 +    forbid-duplicated-merge-keys: true
 +  key-ordering: enable
++  new-line-at-end-of-file: enable
 +  octal-values:
 +    forbid-explicit-octal: true
 +    forbid-implicit-octal: true
 +  quoted-strings:
 +    required: only-when-needed
++  trailing-spaces: enable
    truthy:
      allowed-values: ['true', 'false']
 -    check-keys: false

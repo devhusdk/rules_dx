@@ -56,9 +56,9 @@ func TestLoadTSPaths(t *testing.T) {
 		"esc/tsconfig.json":                         `{"compilerOptions": {"paths": {"out/*": ["../../*", "/abs/*"], "in/*": ["./*"]}}}`,
 		"mix/tsconfig.json":                         `{"extends": "./base.json", "compilerOptions": {"paths": {"@/*": ["./*"]}}}`,
 		"mix/base.json":                             `{"compilerOptions": {"baseUrl": "./root"}}`,
-		"bom/tsconfig.json": "\ufeff" + `{"compilerOptions": {"paths": {"@/*": ["./src/*"]}}}`,
-		"bomext/tsconfig.json": `{"extends": "./base.json"}`,
-		"bomext/base.json": "\ufeff" + `{"compilerOptions": {"paths": {"@/*": ["./lib/*"]}}}`,
+		"bom/tsconfig.json":                         "\ufeff" + `{"compilerOptions": {"paths": {"@/*": ["./src/*"]}}}`,
+		"bomext/tsconfig.json":                      `{"extends": "./base.json"}`,
+		"bomext/base.json":                          "\ufeff" + `{"compilerOptions": {"paths": {"@/*": ["./lib/*"]}}}`,
 		"broken/tsconfig.json":                      `{"compilerOptions": `,
 	})
 	for _, tc := range []struct{ rel, spec, want string }{

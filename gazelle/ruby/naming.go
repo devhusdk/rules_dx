@@ -13,7 +13,6 @@ var TestSourceSuffixes = []string{"_spec", "_test"}
 
 const LibraryKind = "ruby_library"
 
-// TestKind is the rule generated for each *_spec.rb and *_test.rb source.
 const TestKind = "ruby_test"
 
 func IsTestSource(name string) bool {
@@ -24,8 +23,6 @@ func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir
 
 func ClassIdentity(name string) string { return common.ClassIdentity(name, SupportedExts) }
 
-// LoadPath returns the string a Ruby file is required by: its path after the
-// last lib segment, or its package-relative path when no lib segment exists.
 func LoadPath(pkg, src string) string {
 	dir := path.Dir(src)
 	stem := common.Stem(path.Base(src), SupportedExts)
@@ -42,8 +39,6 @@ func LoadPath(pkg, src string) string {
 	return path.Join(dir, stem)
 }
 
-// RelativeKey returns the repo-path key require_relative specs resolve to:
-// "//" plus the repo-relative path of src without its extension.
 func RelativeKey(pkg, src string) string {
 	return "//" + strings.TrimSuffix(path.Join(pkg, src), path.Ext(src))
 }

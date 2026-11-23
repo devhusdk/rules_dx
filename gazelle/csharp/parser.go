@@ -12,8 +12,6 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return c_sharp.Language() })
 
-// ParseImports returns the sorted, deduplicated using targets of content.
-// Static and alias usings fold type targets to their namespace.
 func ParseImports(content []byte) []string {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -31,7 +29,6 @@ func ParseImports(content []byte) []string {
 					alias = true
 					dotted = ""
 				case "identifier", "qualified_name":
-					// For an alias the first identifier is the alias name.
 					if alias || dotted == "" {
 						dotted = tree.Dotted(c)
 					}
@@ -57,9 +54,6 @@ func ParseImports(content []byte) []string {
 	return out
 }
 
-// ParsePackage returns the namespace name, or an error when the file declares
-// more than one namespace. A namespace nested in another one is part of the
-// package: namespace A { namespace B { } } is A.B.
 func ParsePackage(content []byte) (string, error) {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -74,9 +68,6 @@ func ParsePackage(content []byte) (string, error) {
 	return names[0], nil
 }
 
-// collectNamespaces appends the full name of each namespace declared under n.
-// prefix is the full name of the enclosing namespace, if any. A namespace that
-// holds another one is named by the inner one, so A { B { } } yields A.B.
 func collectNamespaces(tree *treesitter.Tree, n *treesitter.Node, prefix string, names *[]string) {
 	if n == nil {
 		return
@@ -100,7 +91,6 @@ func collectNamespaces(tree *treesitter.Tree, n *treesitter.Node, prefix string,
 				*names = append(*names, full)
 			}
 		case "block", "class_declaration", "struct_declaration", "method_declaration":
-			// Namespaces are never declared inside these.
 		default:
 			collectNamespaces(tree, c, prefix, names)
 		}
@@ -115,8 +105,6 @@ func (e *duplicatePackageError) Error() string {
 
 func errDuplicatePackage(first string) error { return &duplicatePackageError{first: first} }
 
-// DefinesMain reports whether content has a static Main method or top-level
-// statements.
 func DefinesMain(content []byte) bool {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -127,7 +115,6 @@ func DefinesMain(content []byte) bool {
 		}
 		switch tree.Type(n) {
 		case "global_statement":
-			// A stray ";" left by error recovery is not a statement.
 			found = tree.Text(n) != ";"
 			return false
 		case "method_declaration":
@@ -153,10 +140,6 @@ func DefinesMain(content []byte) bool {
 	return found
 }
 
-// foldTypeTarget maps the target of a static or alias using to its namespace.
-// Those forms may name a type, so a target that is not a platform namespace
-// but whose parent is gets folded into the parent. A plain using always names
-// a namespace and keeps exact matching.
 func foldTypeTarget(dotted string) string {
 	if IsStdLib(dotted) {
 		return dotted
@@ -167,9 +150,6 @@ func foldTypeTarget(dotted string) string {
 	return dotted
 }
 
-// namespaceCandidates returns the parent namespace of an unmatched using
-// target, so a static or alias using of a local type reaches the library
-// that declares the type's namespace. It climbs one level only.
 func namespaceCandidates(name string) []string {
 	i := strings.LastIndexByte(name, '.')
 	if i <= 0 {

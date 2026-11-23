@@ -6,53 +6,41 @@ import (
 	"sync"
 )
 
-// PackageRef names the Bazel package a failure applies to. The zero value
-// means the package is unknown; InPackage("") is the root package.
 type PackageRef struct {
 	Rel   string
 	Known bool
 }
 
-// UnknownPackage marks a run-level failure with no single package.
 var UnknownPackage = PackageRef{}
 
-// InPackage returns a reference to the package at rel ("" is the root).
 func InPackage(rel string) PackageRef { return PackageRef{Rel: rel, Known: true} }
 
-// GenerationError is one failure a language recorded during generation.
 type GenerationError struct {
 	Language string
 	Package  PackageRef
 	Message  string
-	// Kind, Import and Fix are set for import failures and empty otherwise.
-	Kind   string
-	Import string
-	Fix    Fix
+	Kind     string
+	Import   string
+	Fix      Fix
 }
 
-// Kinds of import failure a GenerationError can carry.
 const (
 	KindUnresolvedImport = "unresolved_import"
 	KindAmbiguousImport  = "ambiguous_import"
 )
 
-// Fix names the directive that resolves a failure and the BUILD file that takes it.
 type Fix struct {
 	File      string `json:"file"`
 	Directive string `json:"directive"`
 }
 
-// ErrorSink collects generation errors from every language so the last
-// language (dispatch) can report all of them once and pick the exit code.
 type ErrorSink struct {
 	mu      sync.Mutex
 	entries []GenerationError
 }
 
-// Errors is the sink every language writes to in AfterResolvingDeps.
 var Errors = &ErrorSink{}
 
-// Add records entries.
 func (s *ErrorSink) Add(entries ...GenerationError) {
 	if len(entries) == 0 {
 		return
@@ -62,15 +50,12 @@ func (s *ErrorSink) Add(entries ...GenerationError) {
 	s.entries = append(s.entries, entries...)
 }
 
-// Reset drops every recorded error.
 func (s *ErrorSink) Reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.entries = nil
 }
 
-// Take returns the recorded errors sorted by (Language, Package, Message), unknown packages first,
-// without duplicates, and empties the sink.
 func (s *ErrorSink) Take() []GenerationError {
 	s.mu.Lock()
 	entries := s.entries
@@ -79,8 +64,6 @@ func (s *ErrorSink) Take() []GenerationError {
 	return SortErrors(entries)
 }
 
-// SortErrors orders entries by (Language, Package, Message), unknown packages first,, drops
-// duplicates, and returns nil when none remain. It reuses entries' storage.
 func SortErrors(entries []GenerationError) []GenerationError {
 	sort.Slice(entries, func(i, j int) bool {
 		a, b := entries[i], entries[j]
@@ -108,7 +91,6 @@ func SortErrors(entries []GenerationError) []GenerationError {
 	return out
 }
 
-// Report returns each entry's message, prefixed with its package label when the package is known and the message does not already name it.
 func Report(entries []GenerationError) []string {
 	msgs := make([]string, 0, len(entries))
 	for _, e := range entries {
@@ -122,7 +104,6 @@ func Report(entries []GenerationError) []string {
 	return msgs
 }
 
-// Messages returns the Message of each entry, in order.
 func Messages(entries []GenerationError) []string {
 	msgs := make([]string, 0, len(entries))
 	for _, e := range entries {

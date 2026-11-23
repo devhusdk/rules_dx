@@ -6,30 +6,22 @@ import (
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
 
-// SupportedExts lists the Haskell source extensions the generator owns.
 var SupportedExts = []string{".hs"}
 
-// TestSourceSuffixes marks module stems that belong to tests, not the library.
 var TestSourceSuffixes = []string{"Spec", "Test", "Tests"}
 
-// LibraryKind is the generated rule kind.
 const LibraryKind = "haskell_library"
 
-// IsTestSource reports whether name is a Haskell test module.
 func IsTestSource(name string) bool {
 	return common.IsTestSource(name, SupportedExts, TestSourceSuffixes)
 }
 
 func isSupported(name string) bool { return common.HasExt(name, SupportedExts) }
 
-// DirTargetName names the library generated for dir.
 func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir) }
 
-// Identity maps a source file to the module name it is indexed under.
 func Identity(name string) string { return common.Stem(name, SupportedExts) }
 
-// declaredModule returns the module name in the header of the file at path,
-// falling back to its stem.
 func declaredModule(path string) []string {
 	if content, err := common.ReadSource(path); err == nil {
 		if m := ParseModule(content); m != "" {
@@ -47,7 +39,6 @@ var stdlibModules = map[string]bool{
 	"Prelude": true, "Numeric": true, "Foreign": true, "Data": true,
 }
 
-// IsStdLib reports whether module ships with GHC's base library tree.
 func IsStdLib(module string) bool {
 	if stdlibModules[module] {
 		return true
@@ -64,9 +55,6 @@ func IsStdLib(module string) bool {
 	return false
 }
 
-// baseOnly narrows the broad prefixes to modules base, containers-free GHC
-// boot libraries, and friends actually ship, so third-party packages that
-// reuse a prefix (Data.Aeson, Control.Lens) still resolve as dependencies.
 func baseOnly(module string) bool {
 	for _, prefix := range baseModulePrefixes {
 		if module == prefix || len(module) > len(prefix) && module[:len(prefix)] == prefix && module[len(prefix)] == '.' {

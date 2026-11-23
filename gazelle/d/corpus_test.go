@@ -7,9 +7,6 @@ import (
 	"testing"
 )
 
-// TestCorpus parses every D source of the pinned tool repositories. Each file
-// must parse without error and declare the module its path spells, so a
-// grammar regression in a dependency bump fails here instead of in generation.
 func TestCorpus(t *testing.T) {
 	list := os.Getenv("D_CORPUS_FILES")
 	if list == "" {

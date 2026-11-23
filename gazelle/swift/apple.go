@@ -20,8 +20,6 @@ const (
 
 var appKindInfo = rule.KindInfo{NonEmptyAttrs: map[string]bool{"entry": true}}
 
-// AppKind returns the Apple app kind an @main source that imports UIKit or
-// AppKit names, or "" for any other source.
 func AppKind(content []byte) string {
 	if !DefinesMain(content) {
 		return ""
@@ -38,8 +36,6 @@ func AppKind(content []byte) string {
 	return ""
 }
 
-// appEntries returns the library sources in dir that hold an Apple app's
-// @main, and the one app kind they name, or nil when they name none or both.
 func appEntries(dir string, files []string) (map[string]bool, string) {
 	entries := make(map[string]bool)
 	kinds := make(map[string]bool)
@@ -65,12 +61,10 @@ func appEntries(dir string, files []string) (map[string]bool, string) {
 	return nil, ""
 }
 
-// BundleID returns the starter bundle identifier of the app over library.
 func BundleID(library string) string {
 	return "com.example." + strings.ReplaceAll(library, "_", "-")
 }
 
-// appRule returns the app of kind whose entry is the library named library.
 func appRule(kind, library string) *rule.Rule {
 	r := rule.NewRule(kind, library+"_app")
 	r.SetAttr("entry", ":"+library)

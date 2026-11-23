@@ -159,23 +159,23 @@ func TestGenerateSkipsModulesOfAncestorCrate(t *testing.T) {
 		{
 			name: "Cargo package",
 			files: map[string]string{
-				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
-				"crates/demo/src/lib.rs":              "mod real;\n",
+				"crates/demo/Cargo.toml":               "[package]\nname = \"demo\"\n",
+				"crates/demo/src/lib.rs":               "mod real;\n",
 				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
 			},
 		},
 		{
 			name: "source-only crate",
 			files: map[string]string{
-				"crates/demo/src/lib.rs":              "mod real;\n",
+				"crates/demo/src/lib.rs":               "mod real;\n",
 				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
 			},
 		},
 		{
 			name: "BUILD file between",
 			files: map[string]string{
-				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
-				"crates/demo/src/BUILD.bazel":         "",
+				"crates/demo/Cargo.toml":               "[package]\nname = \"demo\"\n",
+				"crates/demo/src/BUILD.bazel":          "",
 				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
 			},
 			want: []string{"common_test"},
@@ -183,7 +183,7 @@ func TestGenerateSkipsModulesOfAncestorCrate(t *testing.T) {
 		{
 			name: "existing package",
 			files: map[string]string{
-				"crates/demo/Cargo.toml":              "[package]\nname = \"demo\"\n",
+				"crates/demo/Cargo.toml":               "[package]\nname = \"demo\"\n",
 				"crates/demo/src/real/tests/common.rs": "#[test]\nfn t() {}\n",
 			},
 			existing: true,
@@ -326,8 +326,6 @@ func TestEffectiveCrateRoot(t *testing.T) {
 	}
 }
 
-// generateExisting runs the generator over files with existing as the BUILD
-// file of crates/demo, or without a BUILD file when existing is nil.
 func generateExisting(t *testing.T, files map[string]string, existing []*rule.Rule) language.GenerateResult {
 	t.Helper()
 	root := t.TempDir()

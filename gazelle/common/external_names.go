@@ -10,20 +10,14 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
-// namedLockManifest holds the package names of a lock whose ecosystem maps an
-// import to a package name by a fixed rule.
 type namedLockManifest struct {
-	entry    lockRegistryEntry
-	packages map[string]bool
-	// candidates lists the package names an import can mean, best first.
-	candidates func(name string) []string
-	// perPackage places each package in its own Bazel package.
-	perPackage bool
-	// groupSuffix gives the hub name suffix of the group that holds a package.
+	entry       lockRegistryEntry
+	packages    map[string]bool
+	candidates  func(name string) []string
+	perPackage  bool
 	groupSuffix map[string]string
 }
 
-// Lookup resolves name to the first candidate package the lock holds.
 func (m *namedLockManifest) Lookup(repo, name string) ([]label.Label, string) {
 	for _, pkg := range m.candidates(name) {
 		if m.packages[pkg] {
@@ -41,8 +35,6 @@ var (
 	lowerUpper = regexp.MustCompile(`([a-z\d])([A-Z])`)
 )
 
-// hexCandidates maps Phoenix.LiveView.Foo to phoenix_live_view_foo,
-// phoenix_live_view, phoenix.
 func hexCandidates(name string) []string {
 	parts := strings.Split(name, ".")
 	var out []string
@@ -79,8 +71,6 @@ func parseHexLockManifest(content []byte, path string) (externalManifest, error)
 	return m, nil
 }
 
-// nugetCandidates maps Newtonsoft.Json.Linq to newtonsoft.json.linq,
-// newtonsoft.json, newtonsoft.
 func nugetCandidates(name string) []string {
 	parts := strings.Split(strings.ToLower(name), ".")
 	var out []string

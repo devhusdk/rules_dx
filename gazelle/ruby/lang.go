@@ -35,7 +35,6 @@ func NewLanguage() language.Language {
 	})}
 }
 
-// Imports indexes each library source under its Ruby load path.
 func (l *rubyLang) Imports(_ *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() != LibraryKind {
 		return nil

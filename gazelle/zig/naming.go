@@ -19,7 +19,6 @@ var TestSourceSuffixes = []string{"_test"}
 
 const LibraryKind = "zig_library"
 
-// TestKind is the rule generated for each *_test.zig source.
 const TestKind = "zig_test"
 
 var ManifestFile = common.ManifestName("zig")
@@ -56,8 +55,6 @@ func manifestName(src []byte) string {
 	return name
 }
 
-// nameField returns the value of the .name field of the top-level initializer
-// list n. Fields nested in other values are separate nodes and never visited.
 func nameField(tree *treesitter.Tree, list *treesitter.Node) string {
 	for _, f := range list.Children() {
 		if tree.Type(f) != "assignment_expression" {

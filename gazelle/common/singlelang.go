@@ -31,8 +31,6 @@ func UnwrapImportSet(raw any) ([]string, bool) {
 	return set.Names, true
 }
 
-// RefImportSet carries the import refs of one generated rule for languages
-// that resolve relative imports with a fallback.
 type RefImportSet struct {
 	Refs []ImportRef
 }
@@ -47,52 +45,36 @@ func UnwrapRefImportSet(raw any) ([]ImportRef, bool) {
 	return set.Refs, true
 }
 
-// Roots returns the Root of each ref, in order.
 func (s RefImportSet) Roots() []string { return RefRoots(s.Refs) }
 
 type SingleLangSpec struct {
-	LanguageName string
-	DisplayName  string
-	LibraryKind  string
-	ExtraKinds   []string
-	Kinds        map[string]rule.KindInfo
-	DefsPackage  string
-	ImportAttr   string
-	// Identity maps a source file name to the import it is indexed under.
-	// Nil indexes no per-file identity, so only QualifiedIDs index the rule.
-	Identity       func(name string) string
-	PathIdentity   bool
-	IsImportSource func(name string) bool
-	IsTestSource   func(name string) bool
-	IsStdLib       func(name string) bool
-	UnresolvedHint string
-	// MissingExternalHint names where an unresolved bare import should be
-	// declared, ahead of UnresolvedHint.
+	LanguageName        string
+	DisplayName         string
+	LibraryKind         string
+	ExtraKinds          []string
+	Kinds               map[string]rule.KindInfo
+	DefsPackage         string
+	ImportAttr          string
+	Identity            func(name string) string
+	PathIdentity        bool
+	IsImportSource      func(name string) bool
+	IsTestSource        func(name string) bool
+	IsStdLib            func(name string) bool
+	UnresolvedHint      string
 	MissingExternalHint func(repoRoot, pkg, name string) string
 	QualifiedIDs        func(path string) []string
 	Candidates          func(name string) []string
-	// Fallback lists the languages a relative import also searches when the
-	// own index has no match.
-	Fallback []string
-	Lookups  func(pkg, name string) []string
-	// Find replaces Lookups and Candidates with one lookup of the whole ref.
-	Find     func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup
-	Generate func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult
+	Fallback            []string
+	Lookups             func(pkg, name string) []string
+	Find                func(c *config.Config, ix *resolve.RuleIndex, ref ImportRef) JSLookup
+	Generate            func(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep Reporter) language.GenerateResult
 
-	// KindDefs maps a kind to the defs package that exports it. Kinds without
-	// an entry load from DefsPackage.
-	KindDefs map[string]string
-	// IndexKinds are extra kinds whose ImportAttr sources Imports indexes.
-	IndexKinds []string
-	// IsIndexSource replaces IsImportSource for IndexKinds when set.
+	KindDefs      map[string]string
+	IndexKinds    []string
 	IsIndexSource func(name string) bool
-	// Directives are extra Gazelle directives the language accepts.
-	Directives []string
-	// External is the ecosystem whose dx_external sources resolve
-	// third-party imports. Empty turns the lookup off.
-	External string
-	// ConfigureExt runs at the end of Configure for the language's own state.
-	ConfigureExt func(c *config.Config, rel string, f *rule.File, rep Reporter)
+	Directives    []string
+	External      string
+	ConfigureExt  func(c *config.Config, rel string, f *rule.File, rep Reporter)
 }
 
 type SingleLang struct {
@@ -154,7 +136,6 @@ func (l *SingleLang) AfterResolvingDeps(context.Context) {
 
 func (l *SingleLang) Name() string { return l.spec.LanguageName }
 
-// Fallback returns the languages a relative import also searches.
 func (l *SingleLang) Fallback() []string { return l.spec.Fallback }
 
 func (l *SingleLang) Kinds() map[string]rule.KindInfo { return l.spec.Kinds }
@@ -170,8 +151,6 @@ func (l *SingleLang) ApparentLoads(moduleToApparentName func(string) string) []r
 	})
 }
 
-// loadLabel turns a defs value into a load label. A value of the form
-// "@module//pkg:file.bzl" names a family module; anything else is in rules_dx.
 func loadLabel(defs string, apparentName func(string) string) string {
 	if module, rest, ok := strings.Cut(strings.TrimPrefix(defs, "@"), "//"); ok && strings.HasPrefix(defs, "@") {
 		return "@" + apparentName(module) + "//" + rest
@@ -265,8 +244,6 @@ func (l *SingleLang) GenerateRules(args language.GenerateArgs) language.Generate
 	return result
 }
 
-// ShouldSetVisibility reports whether generated libraries get public
-// visibility, which they do unless the package sets default_visibility.
 func ShouldSetVisibility(args language.GenerateArgs) bool {
 	if args.File != nil && args.File.HasDefaultVisibility() {
 		return false
@@ -285,15 +262,12 @@ func (l *SingleLang) Fail(pkg PackageRef, format string, args ...interface{}) {
 
 func (l *SingleLang) Failed() bool { return len(l.errors) > 0 }
 
-// Errors returns a copy of the errors reported so far.
 func (l *SingleLang) Errors() []string { return Messages(l.errors) }
 
 func (l *SingleLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
 	ResolveSingle(c, ix, r, raw, from, l.ResolveSpecFor(c, r, from))
 }
 
-// ResolveSpecFor builds the ResolveSpec the driver resolves r with. Languages
-// that embed SingleLang adjust it for their own hooks before ResolveSingle.
 func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.Label) ResolveSpec {
 	want := l.spec.LibraryKind
 	if slices.Contains(l.spec.ExtraKinds, r.Kind()) {
@@ -360,8 +334,6 @@ func HasExt(name string, exts []string) bool {
 	return false
 }
 
-// dropKept removes generated rules whose srcs a rule marked "# keep" already
-// lists, with their imports.
 func dropKept(file *rule.File, result language.GenerateResult) language.GenerateResult {
 	if file == nil {
 		return result

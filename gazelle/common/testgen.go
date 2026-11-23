@@ -7,25 +7,15 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 )
 
-// TestSpec opts a generator into one test rule per test source. Generation
-// leaves a test source alone when a handwritten test rule already lists it.
 type TestSpec struct {
-	// Kind is the generated test rule kind, for example java_test.
-	Kind string
-	// AltKinds are the other kinds Make may return.
-	AltKinds []string
-	// IsSource reports whether a directory file is a test source.
-	IsSource func(name string) bool
-	// Name gives the target name for a test source.
-	Name func(src string) (string, error)
-	// Make builds the rule for a test source. Nil gives Kind with srcs=[src].
-	Make func(name, src string, content []byte) (*rule.Rule, error)
-	// IsImplicit reports imports the test runner supplies, which never
-	// become deps.
+	Kind       string
+	AltKinds   []string
+	IsSource   func(name string) bool
+	Name       func(src string) (string, error)
+	Make       func(name, src string, content []byte) (*rule.Rule, error)
 	IsImplicit func(imp string) bool
 }
 
-// SizeSmall gives a generated test rule size = "small" unless it sets a size.
 func SizeSmall(r *rule.Rule) {
 	if r.Attr("size") == nil {
 		r.SetAttr("size", "small")
@@ -58,8 +48,6 @@ func isLocalTestSrc(src string) bool {
 	return src != "" && !strings.ContainsAny(src, "/:\\@")
 }
 
-// generatedTest reports whether r is exactly the rule generation gives for
-// its single local source.
 func (t *TestSpec) generatedTest(r *rule.Rule) bool {
 	if !t.generatedKind(r.Kind()) {
 		return false
@@ -72,10 +60,6 @@ func (t *TestSpec) generatedTest(r *rule.Rule) bool {
 	return err == nil && name == r.Name()
 }
 
-// testOwners returns the test sources that an existing test rule other than
-// the generated one already lists. A rule of the generated test kind whose srcs
-// is not a plain list (a glob, for example) owns every test source; another
-// test kind (a sibling sh_test or py_test with a glob) owns only what it lists.
 func testOwners(file *rule.File, other []*rule.Rule, t *TestSpec, tests []string) map[string]bool {
 	isTest := make(map[string]bool, len(tests))
 	for _, src := range tests {
@@ -108,8 +92,6 @@ func testOwners(file *rule.File, other []*rule.Rule, t *TestSpec, tests []string
 	return owned
 }
 
-// handwrittenTestSources returns the local srcs of the handwritten rules of
-// the generated test kind in file.
 func handwrittenTestSources(file *rule.File, t *TestSpec) map[string]bool {
 	named := make(map[string]bool)
 	if file == nil || t == nil {
@@ -126,9 +108,6 @@ func handwrittenTestSources(file *rule.File, t *TestSpec) map[string]bool {
 	return named
 }
 
-// ownsGeneratedTest is the stale-sweep guard for generators with a TestSpec:
-// a rule of the test kind is removed only when generation could have produced
-// it, and every other kind keeps the plain sweep.
 func ownsGeneratedTest(t *TestSpec) func(*rule.Rule) bool {
 	if t == nil {
 		return nil

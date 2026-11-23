@@ -16,32 +16,17 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/config"
 )
 
-// ExternalDirective names the directive that points an ecosystem at the
-// manifest or lockfile its third-party imports resolve through:
-//
-//	# gazelle:dx_external <ecosystem> <path|off> [<repo>]
 const ExternalDirective = "dx_external"
 
-// externalParser reads one manifest or lockfile of an ecosystem.
 type externalParser struct {
-	// Discover is the file name that, present in a configured directory,
-	// feeds the ecosystem for that directory and everything below it.
-	Discover string
-	// DefaultRepo is the hub repository a source uses when the directive
-	// names none. An empty DefaultRepo means the ecosystem takes no repo.
+	Discover    string
 	DefaultRepo string
-	// Below, when set, reports whether a non-root directory may feed the
-	// ecosystem. The root needs no such check.
-	Below func(root, rel string) bool
-	// Place adjusts a discovered manifest for the directory it was found in.
-	Place func(m externalManifest, rel string) externalManifest
-	Parse    func(content []byte, path string) (externalManifest, error)
+	Below       func(root, rel string) bool
+	Place       func(m externalManifest, rel string) externalManifest
+	Parse       func(content []byte, path string) (externalManifest, error)
 }
 
-// externalManifest is a parsed source of one ecosystem.
 type externalManifest interface {
-	// Lookup returns the labels for name under repo, or a hint when the
-	// manifest knows why name has no label.
 	Lookup(repo, name string) ([]label.Label, string)
 }
 
@@ -83,23 +68,18 @@ var externalParsers = map[string]externalParser{
 	},
 }
 
-// externalSource is one manifest feeding an ecosystem.
 type externalSource struct {
 	Repo     string
 	Path     string
 	Manifest externalManifest
 }
 
-// externalIndex is the third-party lookup in effect for one directory. It is
-// copy-on-write: a child directory never mutates the index it inherited.
 type externalIndex struct {
 	rel     string
 	sources map[string][]externalSource
 	known   *externalKnown
 }
 
-// externalKnown lists every discovered source, whether in effect or not. The
-// root index creates it and every directory shares it.
 type externalKnown struct {
 	mu    sync.Mutex
 	byEco map[string][]externalSource
@@ -130,10 +110,6 @@ func inheritedExternal(c *config.Config) *externalIndex {
 	return idx
 }
 
-// ConfigureExternal records the third-party sources for rel: discovered
-// well-known files in the directory, then dx_external directives. It is
-// idempotent per rel, so every language may call it and errors are reported
-// once.
 func ConfigureExternal(c *config.Config, rel string, f *rule.File) []string {
 	parent := inheritedExternal(c)
 	if parent != nil && parent.rel == rel {
@@ -178,8 +154,6 @@ func ConfigureExternal(c *config.Config, rel string, f *rule.File) []string {
 		}
 		manifest, err := loadExternal(parser, abs, relPath)
 		if err != nil {
-			// A discovered file that does not parse is left alone; only a
-			// file a directive names is an error.
 			continue
 		}
 		if parser.Place != nil {
@@ -247,9 +221,6 @@ func hasFile(root, rel string) bool {
 	return err == nil && !info.IsDir()
 }
 
-// ExternalLabels returns the labels the ecosystem's sources give name. More
-// than one label is ambiguous. With no label, hint says why when a source
-// knows.
 func ExternalLabels(c *config.Config, ecosystem, name string) ([]label.Label, string) {
 	idx := inheritedExternal(c)
 	if idx == nil {
@@ -276,9 +247,6 @@ func ExternalLabels(c *config.Config, ecosystem, name string) ([]label.Label, st
 	return nil, hint
 }
 
-// ExternalElsewhere names the dx_external directive that would resolve name:
-// a discovered source of the ecosystem that provides it but is not in effect
-// for the configured directory. It is empty when there is none.
 func ExternalElsewhere(c *config.Config, ecosystem, name string) string {
 	idx := inheritedExternal(c)
 	if idx == nil {
@@ -300,8 +268,6 @@ func ExternalElsewhere(c *config.Config, ecosystem, name string) string {
 	return ""
 }
 
-// ExternalSources returns the repo-relative paths feeding ecosystem for the
-// configured directory.
 func ExternalSources(c *config.Config, ecosystem string) []string {
 	idx := inheritedExternal(c)
 	if idx == nil {

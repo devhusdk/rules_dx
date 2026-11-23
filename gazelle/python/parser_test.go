@@ -50,7 +50,7 @@ func TestParseImports(t *testing.T) {
 		{"list", "import a, b.c as d, e\n", []string{"a", "b", "e"}},
 		{"asPrefix", "import assignment\n", []string{"assignment"}},
 		{"spacedDot", "import a . b\n", []string{"a"}},
-		{"trailingDot", "import a . \n", nil}, // malformed: no import node
+		{"trailingDot", "import a . \n", nil},
 		{"starSkipped", "import a, *\n", []string{"a"}},
 		{"semicolons", "import a; import b\n", []string{"a", "b"}},
 		{"continuation", "import a, \\\n b\n", []string{"a", "b"}},
@@ -61,10 +61,10 @@ func TestParseImports(t *testing.T) {
 		{"fromParen", "from x import (a,\n b)\n", []string{"x"}},
 		{"fromStar", "from x import *\n", []string{"x"}},
 		{"fromNoNewline", "from foo import bar", []string{"foo"}},
-		{"fromNoImport", "from foo bar\n", nil}, // malformed
+		{"fromNoImport", "from foo bar\n", nil},
 		{"fromContinuation", "from foo \\\n import bar\n", []string{"foo"}},
 		{"namesContinuation", "from foo import \\\n bar\n", []string{"foo"}},
-		{"unclosedParen", "from foo import (a,\n b", nil}, // malformed
+		{"unclosedParen", "from foo import (a,\n b", nil},
 		{"semicolonParen", "from foo import (a; b)\n", []string{"foo"}},
 		{"typeChecking", "if TYPE_CHECKING:\n    from _typeshed import X\n", nil},
 		{"typingTypeChecking", "if typing.TYPE_CHECKING:\n    import a\n", nil},

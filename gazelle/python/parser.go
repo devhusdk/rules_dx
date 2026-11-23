@@ -13,18 +13,12 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return python.Language() })
 
-// Import is one import statement. Level is the number of leading dots of a
-// relative import. Module is the dotted module, empty for "from . import x".
-// Names are the names a from-import takes from Module.
 type Import struct {
 	Level  int
 	Module string
 	Names  []string
 }
 
-// ParseImports returns the sorted, deduplicated imports of content, including
-// import_module("x") calls and module-level pytest_plugins entries. Relative
-// dynamic imports and relative pytest_plugins entries are skipped.
 func ParseImports(content []byte) []Import {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -175,8 +169,6 @@ func addDynamic(tree *treesitter.Tree, call *ts.Node, add func(string)) {
 	}
 }
 
-// pytestBuiltinPlugins mirrors builtin_plugins in _pytest/config/__init__.py.
-// python_test already provides pytest, so these aliases need no dep.
 var pytestBuiltinPlugins = map[string]bool{
 	"mark": true, "main": true, "runner": true, "fixtures": true, "helpconfig": true,
 	"python": true, "terminal": true, "debugging": true, "unittest": true, "capture": true,
@@ -188,8 +180,6 @@ var pytestBuiltinPlugins = map[string]bool{
 	"terminalprogress": true, "nose": true, "freeze_support": true,
 }
 
-// addPytestPlugins adds the static entries of module-level pytest_plugins
-// assignments. Function- and class-local assignments are skipped.
 func addPytestPlugins(tree *treesitter.Tree, add func(string)) {
 	addName := func(name string) {
 		name = strings.TrimSpace(name)
@@ -253,8 +243,6 @@ func unparen(tree *treesitter.Tree, n *ts.Node) *ts.Node {
 	return n
 }
 
-// pythonString returns the value of a plain, raw, or unicode string literal or
-// an implicit concatenation of them. Bytes, f-strings, and escapes are rejected.
 func pythonString(tree *treesitter.Tree, n *ts.Node) (string, bool) {
 	n = unparen(tree, n)
 	if n == nil || n.HasError() {

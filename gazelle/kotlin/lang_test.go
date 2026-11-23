@@ -366,8 +366,6 @@ func TestTopLevelFunctionResolvesToPackage(t *testing.T) {
 	if lang.Failed() || strings.Join(r.AttrStrings("deps"), ",") != "//grades" {
 		t.Fatalf("grades.BuildInfo: deps = %v", r.AttrStrings("deps"))
 	}
-	// A single-segment package is never a candidate, so its top-level
-	// functions need the file's class or an explicit mapping.
 	r, lang = resolveImports(t, "", srcs, "grades.shout")
 	if !lang.Failed() || len(r.AttrStrings("deps")) != 0 {
 		t.Fatalf("grades.shout: deps = %v", r.AttrStrings("deps"))

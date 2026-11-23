@@ -92,8 +92,6 @@ func UnitTestName(target string) string {
 	return target + "_test"
 }
 
-// SnakeName names a per-source target after the file stem in snake case:
-// GreetTest.java gives greet_test and HTTPClientTest.java http_client_test.
 func SnakeName(name string, exts []string) (string, error) {
 	stem := Stem(name, exts)
 	var b strings.Builder
@@ -150,9 +148,7 @@ type Claimant struct {
 	Name   string
 	Source string
 	Kind   string
-	// Kinds are the other kinds generation owns for Name; an existing rule of
-	// one of them is replaced by Kind instead of refused.
-	Kinds []string
+	Kinds  []string
 }
 
 type CollisionError struct {
@@ -178,8 +174,6 @@ func UnionStrings(a, b []string) []string {
 	return out
 }
 
-// FixtureTestonlyDirective opts a repository into marking libraries under
-// tests/, fixtures/ or testdata/ testonly. Only rules_dx sets it.
 const FixtureTestonlyDirective = "dx_fixture_testonly"
 
 func SetFixtureTestonly(c *config.Config, on bool) {

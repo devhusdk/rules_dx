@@ -2,7 +2,6 @@ package kotlin
 
 import "github.com/devhusdk/rules_dx/gazelle/common"
 
-// Packages in kotlin-stdlib 2.4.10.
 var platformPackages = common.PackageSet(
 	"kotlin",
 	"kotlin.annotation",

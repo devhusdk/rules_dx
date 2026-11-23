@@ -8,20 +8,15 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
-// pubPackage is one entry of the pub lock.
 type pubPackage struct {
 	dependency string
 	source     string
 }
 
-// pubLockManifest holds the packages the pub lock records.
 type pubLockManifest struct {
 	packages map[string]pubPackage
 }
 
-// parsePubLockManifest reads the pub lock. The file is machine written with
-// a fixed shape, so the reader accepts only that shape and fails on anything
-// else instead of guessing.
 func parsePubLockManifest(content []byte, _ string) (externalManifest, error) {
 	m := &pubLockManifest{packages: map[string]pubPackage{}}
 	inPackages, seenPackages := false, false
@@ -86,7 +81,6 @@ func parsePubLockManifest(content []byte, _ string) (externalManifest, error) {
 	return m, nil
 }
 
-// Lookup resolves a direct package to the hub target of the same name.
 func (m *pubLockManifest) Lookup(repo, name string) ([]label.Label, string) {
 	pkg, ok := m.packages[name]
 	switch {

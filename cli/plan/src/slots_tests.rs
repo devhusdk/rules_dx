@@ -461,6 +461,8 @@ fn a_child_forked_while_a_slot_is_held_keeps_it_until_exec() {
     use std::io::{Read, Write};
     use std::os::unix::net::UnixStream;
     use std::os::unix::process::CommandExt;
+    // The child keeps every lock open in this process until it execs, so it runs alone.
+    let _spawning = dx_testing::spawning();
     let scratch = dx_test_scratch::scratch("dx-slots-fork-").unwrap();
     let dir = scratch.path().join("slots");
     std::fs::create_dir_all(&dir).expect("dir");

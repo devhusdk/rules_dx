@@ -684,12 +684,11 @@ mod tests {
         .expect("owned bat");
         let ps1 = root.join(BAZEL_WRAPPER_PS1_REL);
         std::fs::write(&ps1, "& $env:BAZEL_REAL @args\r\n").expect("ps1");
-        let check = bazel_wrapper_check(root).expect("shadowing ps1");
+        let detail = bazel_wrapper_check(root).expect("shadowing ps1").detail;
         assert!(
-            check.detail.starts_with("tools/bazel.ps1 not written by dx")
-                && check.detail.ends_with("runs tools/bazel.ps1 in place of tools/bazel.bat"),
-            "{}",
-            check.detail
+            detail.starts_with("tools/bazel.ps1 not written by dx")
+                && detail.ends_with("runs tools/bazel.ps1 in place of tools/bazel.bat"),
+            "{detail}"
         );
         std::fs::write(
             &ps1,

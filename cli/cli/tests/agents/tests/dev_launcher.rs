@@ -995,7 +995,11 @@ mod sh {
         for (code, stderr, builds) in [
             (77, "dx: refused: no Bazel in the main checkout here", 1),
             (2, "dx: refused: no Bazel in the main checkout here", 1),
-            (2, "dx: worktree: want one of: create, remove, stop, guard", 2),
+            (
+                2,
+                "dx: worktree: want one of: create, remove, stop, guard",
+                2,
+            ),
         ] {
             let repo = source_repo("dx-launcher-refused-");
             repo.run_ok();

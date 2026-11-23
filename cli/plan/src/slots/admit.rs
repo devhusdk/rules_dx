@@ -268,9 +268,9 @@ pub fn admit(
         }
         let gave_up = !(alone || fits) && expired();
         if gave_up {
-            let message = gave_up_message(free, busy, limits.servers)
-                + &super::reaped_suffix(reaped.unwrap_or(0));
-            dx_output::write_stderr(err, format_args!("dx: {message}\n"));
+            let message = gave_up_message(free, busy, limits.servers);
+            let reaped = super::reaped_suffix(reaped.unwrap_or(0));
+            dx_output::write_stderr(err, format_args!("dx: {message}{reaped}\n"));
         }
         if alone || fits || gave_up {
             if lock.is_some() {
@@ -288,9 +288,9 @@ pub fn admit(
         }
         if !told {
             told = true;
-            let message = wait_message(free, busy, limits.servers)
-                + &super::reaped_suffix(reaped.unwrap_or(0));
-            dx_output::write_stderr(err, format_args!("dx: {message}\n"));
+            let message = wait_message(free, busy, limits.servers);
+            let reaped = super::reaped_suffix(reaped.unwrap_or(0));
+            dx_output::write_stderr(err, format_args!("dx: {message}{reaped}\n"));
         }
         if let Some(signo) = machine.pause() {
             return Err(signo);
@@ -535,6 +535,8 @@ mod tests {
 
     #[test]
     fn a_recent_admission_counts_until_its_server_shows() {
+        // The second admission expects the first admit.lock free: no fork elsewhere may still hold a copy.
+        let _holding = dx_testing::holding();
         let scratch = dx_test_scratch::scratch("dx-admit-pending-").unwrap();
         let dir = scratch.path().join("slots");
         let first = Fake::new(vec![(Some(9 * GIB), vec![old(1, "/w/b")])]);

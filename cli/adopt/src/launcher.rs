@@ -1822,6 +1822,12 @@ mod tests {
                 dx_testing::executable_script(&path, body);
             }
 
+            /// Makes the launcher see a musl host: no glibc from getconf, musl from ldd.
+            fn stub_musl(&self) {
+                self.stub("getconf", "#!/bin/sh\nexit 1\n");
+                self.stub("ldd", "#!/bin/sh\necho 'musl libc (x86_64)'\n");
+            }
+
             fn set_pin(&self, text: &str) {
                 std::fs::write(self.base.join("repo/.dx/pins"), text).expect("pin");
             }
@@ -1941,8 +1947,7 @@ mod tests {
         #[test]
         fn musl_and_old_glibc_hosts_fail_before_downloading() {
             let fx = Fixture::new("sh-musl", true, None);
-            fx.stub("getconf", "#!/bin/sh\nexit 1\n");
-            fx.stub("ldd", "#!/bin/sh\necho 'musl libc (x86_64)'\n");
+            fx.stub_musl();
             let (code, _, err) = fx.run(&["status"]);
             assert_eq!(code, Some(1), "{err}");
             assert!(
@@ -1961,10 +1966,15 @@ mod tests {
         fn the_bazel_wrapper_runs_bazel_when_the_launcher_cannot_run_dx() {
             let fx = Fixture::new("sh-wrapper-no-dx", true, None);
             let repo = fx.base.join("repo");
-            write_launcher(&repo, BAZEL_WRAPPER_SH_REL, &render_bazel_wrapper_sh(), true)
-                .expect("wrapper");
+            write_launcher(
+                &repo,
+                BAZEL_WRAPPER_SH_REL,
+                &render_bazel_wrapper_sh(),
+                true,
+            )
+            .expect("wrapper");
             let real = fx.base.join("real");
-            dx_testing::executable_script(&real, "#!/bin/sh\necho bazel \"$@\"\n");
+            dx_testing::executable_script(&real, PAYLOAD);
             let home = fx.base.join("home");
             let wrapper = |envs: &[(&str, &std::path::Path)]| {
                 run_captured(
@@ -1974,7 +1984,11 @@ mod tests {
                         .env_clear()
                         .env(
                             "PATH",
-                            format!("{}:{}", fx.base.join("stub").display(), applet_dir().display()),
+                            format!(
+                                "{}:{}",
+                                fx.base.join("stub").display(),
+                                applet_dir().display()
+                            ),
                         )
                         .env("BAZEL_REAL", &real)
                         .env("STUB_LOG", fx.base.join("calls"))
@@ -1983,7 +1997,7 @@ mod tests {
             };
             let ran = |envs: &[(&str, &std::path::Path)], why: &str| {
                 let (code, out, err) = wrapper(envs);
-                assert_eq!((code, out.as_str()), (Some(0), "bazel info\n"), "{err}");
+                assert_eq!((code, out.as_str()), (Some(0), "ran info\n"), "{err}");
                 assert!(err.contains(why), "{err}");
                 assert!(
                     err.contains("failed (exit 1); running Bazel without it"),
@@ -1991,8 +2005,7 @@ mod tests {
                 );
             };
             ran(&[], "HOME is not set");
-            fx.stub("getconf", "#!/bin/sh\nexit 1\n");
-            fx.stub("ldd", "#!/bin/sh\necho 'musl libc (x86_64)'\n");
+            fx.stub_musl();
             ran(&[("HOME", &home)], "musl");
             assert_eq!(fx.downloads(), 0);
         }

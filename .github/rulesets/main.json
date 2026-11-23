@@ -17,14 +17,58 @@
         "do_not_enforce_on_create": true,
         "required_status_checks": [
           {
-            "context": "gate",
+            "context": "check (linux_x86_64)",
             "integration_id": 15368
           },
           {
-            "context": "pr-links",
+            "context": "check (linux_arm64)",
+            "integration_id": 15368
+          },
+          {
+            "context": "check (macos_arm64)",
+            "integration_id": 15368
+          },
+          {
+            "context": "check (windows_x86_64)",
+            "integration_id": 15368
+          },
+          {
+            "context": "check (windows_arm64)",
+            "integration_id": 15368
+          },
+          {
+            "context": "coverage (linux_x86_64)",
+            "integration_id": 15368
+          },
+          {
+            "context": "coverage (linux_arm64)",
+            "integration_id": 15368
+          },
+          {
+            "context": "coverage (macos_arm64)",
+            "integration_id": 15368
+          },
+          {
+            "context": "coverage (windows_x86_64)",
+            "integration_id": 15368
+          },
+          {
+            "context": "coverage (windows_arm64)",
             "integration_id": 15368
           }
         ]
+      }
+    },
+    {
+      "type": "merge_queue",
+      "parameters": {
+        "merge_method": "SQUASH",
+        "grouping_strategy": "ALLGREEN",
+        "max_entries_to_build": 5,
+        "min_entries_to_merge": 1,
+        "max_entries_to_merge": 5,
+        "min_entries_to_merge_wait_minutes": 1,
+        "check_response_timeout_minutes": 180
       }
     }
   ]

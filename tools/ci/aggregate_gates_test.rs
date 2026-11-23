@@ -7,8 +7,6 @@ use dx_testing::read_runfiles;
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
-const PR_LINKS_WORKFLOW: &str = ".github/workflows/pr-links.yml";
-
 const GATE_ACTION: &str = ".github/actions/gate/action.yml";
 
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
@@ -20,6 +18,8 @@ const GATE: &str = "ci";
 const AGGREGATE: &str = "dx-ci";
 
 const GATE_IF: &str = "${{ !cancelled() || github.event_name == 'merge_group' }}";
+
+const NIGHTLY: &str = "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'";
 
 const FAIL_IF: &str = "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}";
 
@@ -43,6 +43,8 @@ fn needs_of(workflow: &str, job: &str) -> Vec<String> {
 fn the_outer_gate_requires_every_declared_dependency() {
     let document = document(CI_WORKFLOW).unwrap();
     let wanted = json!([
+        "check",
+        "coverage",
         "coverage-cells",
         "dogfood",
         "docs",
@@ -50,7 +52,6 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "in-graph-prebuilt-guard",
         "determinism",
         "devcontainer-check",
-        "gate",
         "gcc-cross-build",
         "gcc-cross-run-arm64",
         "hermetic",
@@ -82,8 +83,8 @@ fn the_outer_gate_requires_every_declared_dependency() {
     );
     assert_eq!(
         document["jobs"][GATE]["if"],
-        json!(GATE_IF),
-        "{CI_WORKFLOW} job {GATE} must run on every dependency outcome unless the run is cancelled outside merge_group"
+        json!(format!("${{{{ !cancelled() && ({NIGHTLY}) }}}}")),
+        "{CI_WORKFLOW} job {GATE} must run on every nightly dependency outcome unless the run is cancelled"
     );
     let step = &document["jobs"][GATE]["steps"][0];
     assert_fails_when(step, FAIL_IF, CI_WORKFLOW);
@@ -232,11 +233,7 @@ fn the_native_matrix_keeps_all_five_platforms() {
 
 #[test]
 fn every_gate_workflow_runs_on_merge_group_checks_requested() {
-    for workflow in [
-        CI_WORKFLOW,
-        PR_LINKS_WORKFLOW,
-        "examples/docs-ci/caller.yml",
-    ] {
+    for workflow in [CI_WORKFLOW, "examples/docs-ci/caller.yml"] {
         let on = triggers(workflow).unwrap();
         assert_eq!(
             on["merge_group"]["types"],
@@ -275,7 +272,9 @@ fn coverage_cells_runs_only_after_dogfood_succeeds() {
     assert_eq!(job["needs"], json!(["dogfood"]));
     assert_eq!(
         job["if"],
-        json!("${{ !cancelled() && needs.dogfood.result == 'success' }}"),
+        json!(format!(
+            "${{{{ !cancelled() && ({NIGHTLY}) && needs.dogfood.result == 'success' }}}}"
+        )),
         "coverage-cells must skip when dogfood was skipped or failed, not report every cell missing"
     );
 }
@@ -291,7 +290,6 @@ fn ci_can_be_dispatched_but_takes_no_inputs() {
         on["workflow_dispatch"].get("inputs").is_none(),
         "{CI_WORKFLOW} dispatch must take no inputs so it cannot change the matrix: {on}"
     );
-    assert_eq!(on["merge_group"]["types"], json!(["checks_requested"]));
 }
 
 #[test]
@@ -346,13 +344,16 @@ fn every_matrix_cell_records_its_runner_image() {
 }
 
 #[test]
-fn one_run_per_ref_and_none_cancel() {
+fn one_run_per_ref_and_only_pull_requests_cancel() {
     let ci = document(CI_WORKFLOW).unwrap();
     assert_eq!(
         ci["concurrency"]["group"],
         json!("ci-${{ github.workflow }}-${{ github.ref }}"),
     );
-    assert_eq!(ci["concurrency"]["cancel-in-progress"], json!(false));
+    assert_eq!(
+        ci["concurrency"]["cancel-in-progress"],
+        json!("${{ github.event_name == 'pull_request' }}")
+    );
 }
 
 #[test]
@@ -394,29 +395,32 @@ fn pages_publication_stays_on_default_branch_push() {
 }
 
 #[test]
-fn the_gate_job_can_never_be_skipped() {
+fn the_check_and_coverage_jobs_run_on_every_event() {
     let document = document(CI_WORKFLOW).unwrap();
-    let job = &document["jobs"]["gate"];
-    assert_eq!(job["name"], json!("gate"));
-    assert!(job.get("if").is_none(), "gate must not have an if: {job}");
-    assert!(
-        job.get("needs").is_none(),
-        "gate must not have needs: {job}"
-    );
+    for id in REQUIRED_JOBS {
+        let job = &document["jobs"][id];
+        assert!(job.get("if").is_none(), "{id} must not have an if: {job}");
+        assert!(
+            job.get("needs").is_none(),
+            "{id} must not have needs: {job}"
+        );
+    }
 }
 
 #[test]
-fn the_gate_job_runs_the_gate_action() {
+fn every_other_job_runs_only_on_schedule_or_dispatch() {
     let document = document(CI_WORKFLOW).unwrap();
-    let steps = document["jobs"]["gate"]["steps"]
-        .as_array()
-        .expect("gate steps");
-    assert!(
-        steps
-            .iter()
-            .any(|step| step["uses"] == json!("./.github/actions/gate")),
-        "{CI_WORKFLOW} job gate must use ./.github/actions/gate: {steps:?}"
-    );
+    for (id, job) in document["jobs"].as_object().expect("jobs") {
+        if REQUIRED_JOBS.contains(&id.as_str()) {
+            continue;
+        }
+        let condition = job["if"].as_str().unwrap_or_default();
+        assert!(
+            condition.contains("github.event_name == 'schedule'")
+                && condition.contains("github.event_name == 'workflow_dispatch'"),
+            "{CI_WORKFLOW} job {id} must run only on schedule or dispatch: {condition:?}"
+        );
+    }
 }
 
 #[test]
@@ -428,7 +432,7 @@ fn the_gate_fails_when_dx_check_fails() {
         .filter(|step| {
             step["run"]
                 .as_str()
-                .is_some_and(|run| run.contains("check --affected") && run.contains('|'))
+                .is_some_and(|run| run.contains("--affected") && run.contains('|'))
         })
         .collect();
     assert!(
@@ -445,10 +449,65 @@ fn the_gate_fails_when_dx_check_fails() {
 }
 
 #[test]
-fn the_ruleset_requires_the_gate_and_pr_links_job_names() {
+fn the_gate_action_runs_dx_with_the_lock_check_and_forwards_bazel_options() {
+    let action = document(GATE_ACTION).unwrap();
+    let run = action["runs"]["steps"]
+        .as_array()
+        .expect("gate steps")
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .find(|run| run.contains("@rules_dx//:dx --"))
+        .expect("dx step");
+    assert!(
+        run.contains("set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS"),
+        "{run}"
+    );
+    assert!(run.contains("\"$COMMAND\" --affected"), "{run}");
+    assert!(run.contains("-- \"$@\""), "{run}");
+}
+
+#[test]
+fn the_gate_verifies_the_base_even_when_dx_fails() {
+    let document = document(GATE_ACTION).unwrap();
+    let verify = document["runs"]["steps"]
+        .as_array()
+        .expect("gate steps")
+        .iter()
+        .find(|step| step["name"] == "Verify the base dx compared against")
+        .expect("verify step");
+    assert_eq!(
+        verify["if"],
+        json!("${{ !cancelled() && steps.check.outcome != 'skipped' }}")
+    );
+}
+
+fn reported_contexts(id: &str, job: &Value) -> Vec<String> {
+    let name = job["name"].as_str().unwrap_or(id);
+    if !name.contains("${{ matrix.platform }}") {
+        return vec![name.to_owned()];
+    }
+    job["strategy"]["matrix"]["include"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|cell| cell["platform"].as_str())
+        .map(|platform| name.replace("${{ matrix.platform }}", platform))
+        .collect()
+}
+
+const REQUIRED_JOBS: [&str; 2] = ["check", "coverage"];
+
+fn required_contexts() -> Vec<String> {
+    let document = document(CI_WORKFLOW).unwrap();
+    REQUIRED_JOBS
+        .iter()
+        .flat_map(|id| reported_contexts(id, &document["jobs"][id]))
+        .collect()
+}
+
+#[test]
+fn the_ruleset_requires_every_check_and_coverage_job_and_queues_merges() {
     let ruleset = document(RULESET).unwrap();
-    let gate = document(CI_WORKFLOW).unwrap()["jobs"]["gate"]["name"].clone();
-    let pr_links = document(PR_LINKS_WORKFLOW).unwrap()["jobs"]["pr-links"]["name"].clone();
     assert_eq!(ruleset["enforcement"], json!("active"));
     assert_eq!(ruleset["bypass_actors"], json!([]));
     assert_eq!(ruleset["target"], json!("branch"));
@@ -456,7 +515,7 @@ fn the_ruleset_requires_the_gate_and_pr_links_job_names() {
         ruleset["conditions"]["ref_name"]["include"],
         json!(["~DEFAULT_BRANCH"])
     );
-    assert_eq!(ruleset["rules"].as_array().map(Vec::len), Some(1));
+    assert_eq!(ruleset["rules"].as_array().map(Vec::len), Some(2));
     let rule = &ruleset["rules"][0];
     assert_eq!(rule["type"], json!("required_status_checks"));
     let parameters = &rule["parameters"];
@@ -465,19 +524,28 @@ fn the_ruleset_requires_the_gate_and_pr_links_job_names() {
         json!(false)
     );
     assert_eq!(parameters["do_not_enforce_on_create"], json!(true));
+    let contexts = required_contexts();
+    assert_eq!(contexts.len(), 10, "{contexts:?}");
+    let wanted: Vec<Value> = contexts
+        .iter()
+        .map(|context| json!({"context": context, "integration_id": 15368}))
+        .collect();
+    assert_eq!(parameters["required_status_checks"], json!(wanted));
+    let queue = &ruleset["rules"][1];
+    assert_eq!(queue["type"], json!("merge_queue"));
     assert_eq!(
-        parameters["required_status_checks"],
-        json!([
-            {"context": gate, "integration_id": 15368},
-            {"context": pr_links, "integration_id": 15368}
-        ])
+        queue["parameters"],
+        json!({
+            "merge_method": "SQUASH",
+            "grouping_strategy": "ALLGREEN",
+            "max_entries_to_build": 5,
+            "min_entries_to_merge": 1,
+            "max_entries_to_merge": 5,
+            "min_entries_to_merge_wait_minutes": 1,
+            "check_response_timeout_minutes": 180
+        })
     );
 }
-
-const REQUIRED_CONTEXTS: [(&str, &str, &str); 2] = [
-    ("gate", CI_WORKFLOW, "gate"),
-    ("pr-links", PR_LINKS_WORKFLOW, "pr-links"),
-];
 
 #[test]
 fn every_required_context_is_reported_by_exactly_one_job() {
@@ -488,71 +556,25 @@ fn every_required_context_is_reported_by_exactly_one_job() {
         .iter()
         .map(|check| check["context"].as_str().unwrap_or_default())
         .collect();
-    let expected: Vec<&str> = REQUIRED_CONTEXTS
-        .iter()
-        .map(|(context, _, _)| *context)
-        .collect();
-    assert_eq!(required, expected, "{RULESET} required contexts");
     let mut names = dx_testing::workflow_files();
     names.push("examples/docs-ci/caller.yml".to_string());
-    for (context, owner, owner_job) in REQUIRED_CONTEXTS {
+    for context in required {
         let mut reporters = Vec::new();
         for name in &names {
             let document = document(name).unwrap();
             for (id, job) in document["jobs"].as_object().into_iter().flatten() {
-                let reported = job["name"].as_str().unwrap_or(id);
-                if id == context || reported == context {
+                if id == context || reported_contexts(id, job).iter().any(|c| c == context) {
                     reporters.push((name.clone(), id.clone()));
                 }
             }
         }
+        let job = context.split(' ').next().unwrap_or_default();
         assert_eq!(
             reporters,
-            vec![(owner.to_string(), owner_job.to_string())],
+            vec![(CI_WORKFLOW.to_string(), job.to_string())],
             "exactly one job must report the {context} context"
         );
     }
-}
-
-#[test]
-fn the_pr_links_check_runs_on_pull_requests_and_merge_groups() {
-    let on = triggers(PR_LINKS_WORKFLOW).unwrap();
-    assert_eq!(
-        on["pull_request"]["types"],
-        json!(["opened", "edited", "reopened", "synchronize"])
-    );
-    let document = document(PR_LINKS_WORKFLOW).unwrap();
-    let job = &document["jobs"]["pr-links"];
-    assert!(
-        job.get("if").is_none(),
-        "a skipped required check passes: {job}"
-    );
-    assert!(
-        job.get("needs").is_none(),
-        "a skipped required check passes: {job}"
-    );
-    assert_eq!(
-        document["concurrency"]["group"],
-        json!("pr-links-${{ github.event.pull_request.number || github.ref }}")
-    );
-    assert_eq!(
-        document["concurrency"]["cancel-in-progress"],
-        json!("${{ github.event_name == 'pull_request' }}")
-    );
-    let step = ci_workflow::steps_of(job)
-        .iter()
-        .find(|step| {
-            step["run"]
-                .as_str()
-                .is_some_and(|run| run.contains("--pr-links"))
-        })
-        .expect("pr-links job has a --pr-links step");
-    assert_eq!(
-        step["env"]["HEAD_REF"],
-        json!("${{ github.event.merge_group.head_ref }}")
-    );
-    let run = step["run"].as_str().unwrap_or_default();
-    assert!(run.contains("gh-readonly-queue/"), "{run}");
 }
 
 const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 16] = [

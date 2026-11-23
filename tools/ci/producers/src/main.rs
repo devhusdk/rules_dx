@@ -8,8 +8,6 @@ mod blocker_refs;
 mod evidence;
 mod evidence_inputs;
 mod lock_merge;
-mod pr_check;
-mod pr_links;
 mod release_cell;
 mod review_paths;
 mod table;
@@ -26,7 +24,6 @@ fn main() -> Result<(), String> {
         Some(("--evidence-inputs", rest)) => return evidence_inputs::check(rest),
         Some(("--table", rest)) => return table::print(rest),
         Some(("--lock-merge", rest)) => return lock_merge::merge(rest),
-        Some(("--pr-links", rest)) => return pr_links::check(rest),
         Some(("--test-log-tails", rest)) => return test_log_tails::print(rest),
         _ => {}
     }
@@ -39,10 +36,6 @@ fn main() -> Result<(), String> {
         args.split_first().map(|(mode, rest)| (mode.as_str(), rest))
     {
         return upgrade_e2e::e2e(rest);
-    }
-    if let Some(("--pr-check", rest)) = args.split_first().map(|(mode, rest)| (mode.as_str(), rest))
-    {
-        return pr_check::check(rest);
     }
     if let Some(("--release-cell", rest)) =
         args.split_first().map(|(mode, rest)| (mode.as_str(), rest))

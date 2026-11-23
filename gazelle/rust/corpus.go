@@ -62,8 +62,8 @@ func corpusLoads(rulesRepo string) rule.LoadInfo {
 }
 
 type corpusPlan struct {
-	gen   []*rule.Rule
-	errs  []error
+	gen  []*rule.Rule
+	errs []error
 }
 
 func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
@@ -72,8 +72,6 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 	if rel == "node_modules" || strings.Contains(rel, "/node_modules/") || strings.HasPrefix(rel, "node_modules/") {
 		return plan
 	}
-	// Languages that run before rust put their rules in OtherGen; they still
-	// create the BUILD file, so the corpus must land in the same pass.
 	hasOtherGen = hasOtherGen || len(args.OtherGen) > 0
 	if args.File == nil && !hasOtherGen {
 		return plan
@@ -278,8 +276,6 @@ var (
 	foreignCorpusIdx = map[string]map[string]map[string]bool{}
 )
 
-// foreignCorpusFiles returns the files of package rel that a language corpus
-// rule such as php_corpus lists by label from any package of the repository.
 func foreignCorpusFiles(c *config.Config, rel string) (map[string]bool, error) {
 	if c == nil || c.RepoRoot == "" {
 		return nil, nil

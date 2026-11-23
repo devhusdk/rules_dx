@@ -17,12 +17,10 @@ const (
 	testSuffix  = "Test.php"
 )
 
-// testDirs hold the package's tests.
 var testDirs = []string{"tests", "test"}
 
 func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir) }
 
-// TestTargetName names the php_test of a FooBarTest.php source: foo_bar_test.
 func TestTargetName(src string) (string, error) {
 	stem := strings.TrimSuffix(path.Base(src), testSuffix)
 	return common.Normalize(snake(stem) + "_test")

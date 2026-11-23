@@ -13,15 +13,12 @@ import (
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
-// Project holds the facts dx generate reads from the project file.
 type Project struct {
-	Name string
-	UUID string
-	// Deps and Extras map a package name to its UUID.
+	Name   string
+	UUID   string
 	Deps   map[string]string
 	Extras map[string]string
-	// Test lists the [targets].test names.
-	Test []string
+	Test   []string
 }
 
 type projectTOML struct {
@@ -32,7 +29,6 @@ type projectTOML struct {
 	Targets map[string][]string `toml:"targets"`
 }
 
-// IsIdentifier reports whether name is a valid Julia package name.
 func IsIdentifier(name string) bool {
 	if name == "" {
 		return false
@@ -48,8 +44,6 @@ func IsIdentifier(name string) bool {
 	return true
 }
 
-// ParseProject reads path's content. A project file without a name is an
-// environment and parses to an empty Name. Errors name path.
 func ParseProject(path string, content []byte) (Project, error) {
 	var raw projectTOML
 	if err := toml.Unmarshal(common.StripBOM(content), &raw); err != nil {
@@ -99,9 +93,6 @@ func uuidTable(path, table string, raw map[string]any) (map[string]string, error
 	return out, nil
 }
 
-// TestDeps returns the sorted package names the tests need, excluding the
-// package itself: the test project file [deps] when it exists (override), else
-// [extras] filtered by [targets].test.
 func (p Project) TestDeps(override *Project) map[string]string {
 	out := make(map[string]string)
 	if override != nil {

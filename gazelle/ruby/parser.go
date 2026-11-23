@@ -13,9 +13,6 @@ import (
 
 var grammar = sync.OnceValue(func() *ts.Language { return ruby.Language() })
 
-// ParseImports returns the require specs of content. rel is the repo-relative
-// directory of the file; require_relative specs resolve against it into
-// "//<repo path>" keys (see RelativeKey).
 func ParseImports(content []byte, rel string) []string {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -48,8 +45,6 @@ func ParseImports(content []byte, rel string) []string {
 	return out
 }
 
-// requireCall matches a receiver-less require/require_relative call with a
-// single literal string argument.
 func requireCall(tree *treesitter.Tree, n *treesitter.Node) (name, spec string, ok bool) {
 	kids := n.Children()
 	if len(kids) < 2 || tree.Type(kids[0]) != "identifier" {
@@ -88,9 +83,6 @@ func requireCall(tree *treesitter.Tree, n *treesitter.Node) (name, spec string, 
 	return "", "", false
 }
 
-// relativeImport resolves a require_relative spec to its RelativeKey. It
-// returns "" for absolute specs, specs escaping the repo, and specs in the
-// same directory: generation is SingleDir, so same-dir files share one library.
 func relativeImport(rel, spec string) string {
 	if strings.HasPrefix(spec, "/") {
 		return ""
@@ -112,8 +104,6 @@ func normalizeImport(req string) string {
 	return strings.TrimSuffix(req, ".so")
 }
 
-// DefinesMain reports whether content has a `__FILE__ == $0` (or
-// $PROGRAM_NAME) guard.
 func DefinesMain(content []byte) bool {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()

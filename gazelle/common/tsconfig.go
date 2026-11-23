@@ -14,17 +14,9 @@ import (
 	"github.com/tailscale/hujson"
 )
 
-// tsPathsKey is the c.Exts key that holds the nearest tsconfig/jsconfig state.
-// It is shared by every JavaScript-family language so a config is loaded and
-// reported once per directory.
 const tsPathsKey = "_dx_tsconfig"
 
-// TSPaths is the module-resolution part of a tsconfig.json or jsconfig.json:
-// compilerOptions.baseUrl and compilerOptions.paths, after extends is applied.
-// All paths are workspace-relative and slash-separated. A TSPaths is immutable
-// once loaded, so languages can share it.
 type TSPaths struct {
-	// Config is the workspace-relative path of the leaf config file.
 	Config  string
 	baseURL string
 	hasBase bool
@@ -37,20 +29,11 @@ type tsPattern struct {
 	targets        []string
 }
 
-// tsState is what ConfigureTSPaths stores in c.Exts. rel stamps the directory
-// that last configured it, so a second language configuring the same directory
-// does not load or report the config again.
 type tsState struct {
 	rel   string
 	paths *TSPaths
 }
 
-// ConfigureTSPaths records the nearest tsconfig.json (else jsconfig.json) for
-// directory rel in c. A directory without its own config inherits its parent's.
-// A directory with its own config uses it, even when it has no paths. The call
-// is idempotent per directory: only the call that loads the file returns its
-// error. Nearest-config is an approximation; include, files and project
-// references are not considered.
 func ConfigureTSPaths(c *config.Config, rel string) error {
 	var inherited *TSPaths
 	if st, ok := c.Exts[tsPathsKey].(*tsState); ok && st != nil {
@@ -78,8 +61,6 @@ func tsPathsFor(c *config.Config) *TSPaths {
 	return nil
 }
 
-// tsRawOptions is the part of one config file chain before ${configDir} and
-// relative paths are resolved. Dirs are absolute file system paths.
 type tsRawOptions struct {
 	hasBase  bool
 	base     string
@@ -98,8 +79,6 @@ func (o *tsRawOptions) merge(from tsRawOptions) {
 	}
 }
 
-// LoadTSPaths reads <rel>/tsconfig.json, else <rel>/jsconfig.json, and applies
-// its extends chain. The bool is false when neither file exists.
 func LoadTSPaths(repoRoot, rel string) (*TSPaths, bool, error) {
 	dir := filepath.Join(repoRoot, filepath.FromSlash(rel))
 	var file string
@@ -178,9 +157,6 @@ func loadTSConfig(repoRoot, file string, stack map[string]bool) (tsRawOptions, e
 	return out, nil
 }
 
-// resolveExtends finds the file an extends entry names. A relative or absolute
-// entry that does not exist is an error. A package entry is looked up in
-// node_modules from dir up to the repo root, and skipped when not found.
 func resolveExtends(repoRoot, dir, ext string) (string, bool, error) {
 	if ext == "" {
 		return "", false, errors.New("empty extends entry")
@@ -231,8 +207,6 @@ func relDisplay(repoRoot, file string) string {
 	return file
 }
 
-// workspaceRel turns an absolute path into a workspace-relative slash path. It
-// reports false when the path leaves the workspace.
 func workspaceRel(repoRoot, abs string) (string, bool) {
 	r, err := filepath.Rel(filepath.Clean(repoRoot), filepath.Clean(abs))
 	if err != nil {
@@ -248,8 +222,6 @@ func workspaceRel(repoRoot, abs string) (string, bool) {
 	return r, true
 }
 
-// resolveTSPath resolves a baseUrl or paths target against dir, substituting
-// ${configDir} with the leaf config's directory.
 func resolveTSPath(repoRoot, dir, leafDir, p string) (string, bool) {
 	return workspaceRel(repoRoot, resolveAbs(dir, leafDir, p))
 }
@@ -302,10 +274,6 @@ func resolveAbs(dir, leafDir, p string) string {
 	return filepath.Join(dir, filepath.FromSlash(p))
 }
 
-// Candidates returns the workspace-relative paths a bare import spec may name,
-// in TypeScript's order: the exact paths key, else the wildcard key with the
-// longest prefix (all its targets in order), then baseUrl/<spec>. Extensions
-// are left on. Paths that leave the workspace are dropped.
 func (t *TSPaths) Candidates(spec string) []string {
 	if t == nil || spec == "" {
 		return nil
@@ -347,8 +315,6 @@ func (t *TSPaths) Candidates(spec string) []string {
 	return out
 }
 
-// unmarshalJSONC decodes JSON with comments and trailing commas (as used by
-// tsconfig files) into v.
 func unmarshalJSONC(data []byte, v any) error {
 	std, err := hujson.Standardize(data)
 	if err != nil {

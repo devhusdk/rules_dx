@@ -16,12 +16,10 @@ type IgnoreEntry struct {
 	UsedBy []string
 }
 
-// MarkUsed records rel as a package that used the entry, keeping UsedBy sorted and unique.
 func (e *IgnoreEntry) MarkUsed(rel string) {
 	e.UsedBy = insertSorted(e.UsedBy, rel)
 }
 
-// Used reports whether any package used the entry.
 func (e *IgnoreEntry) Used() bool { return len(e.UsedBy) > 0 }
 
 func insertSorted(list []string, value string) []string {
@@ -109,10 +107,8 @@ func MatchingIgnore(c *config.Config, languageName, name string) *IgnoreEntry {
 	return nil
 }
 
-// GeneratedRels records the packages a run called GenerateRules for; the zero value is empty.
 type GeneratedRels struct{ m map[string]bool }
 
-// Add records rel as generated.
 func (g *GeneratedRels) Add(rel string) {
 	if g.m == nil {
 		g.m = map[string]bool{}
@@ -120,12 +116,10 @@ func (g *GeneratedRels) Add(rel string) {
 	g.m[rel] = true
 }
 
-// Has reports whether rel was generated.
 func (g GeneratedRels) Has(rel string) bool {
 	return g.m[rel]
 }
 
-// StaleIgnores reports unused entries declared in generated packages, so a scoped run only checks its own directives.
 func StaleIgnores(languageName string, declared []*IgnoreEntry, generated GeneratedRels) []GenerationError {
 	var errs []GenerationError
 	for _, ignore := range declared {
@@ -142,7 +136,6 @@ func StaleIgnores(languageName string, declared []*IgnoreEntry, generated Genera
 	return errs
 }
 
-// UsedIgnores returns the used entries visible from c, one per (Path, Value).
 func UsedIgnores(c *config.Config, languageName string) []IgnoredImport {
 	return usedImports(languageName, InheritedIgnores(c, languageName))
 }

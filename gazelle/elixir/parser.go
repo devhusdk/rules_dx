@@ -35,8 +35,6 @@ type lexer struct {
 	toks []token
 }
 
-// lex splits Elixir source into code tokens. Comments, string, charlist and
-// sigil bodies become single tokens; the code inside #{} is lexed inline.
 func lex(s string) []token {
 	l := &lexer{s: s}
 	l.code(false)
@@ -192,7 +190,6 @@ func (l *lexer) atom() {
 	}
 }
 
-// str lexes a quoted body that starts at l.i and returns its token index.
 func (l *lexer) str(q byte, interp bool) int {
 	closing := string(q)
 	if l.peek(1) == q && l.peek(2) == q {
@@ -274,9 +271,6 @@ type frame struct {
 	depth  int
 }
 
-// analyze walks the tokens of one file. The alias map is file-wide: an alias
-// applies to every reference in the file, not just the lexical scope that
-// declares it.
 func analyze(content []byte) fileInfo {
 	toks := lex(string(content))
 	var stack []frame
@@ -429,10 +423,6 @@ func sortedSet(set map[string]bool) []string {
 	return out
 }
 
-// ParseDefinitions returns the full names of every defmodule and defprotocol
-// in content, nested ones included.
 func ParseDefinitions(content []byte) []string { return analyze(content).defs }
 
-// ParseReferences returns every module content names in code, expanded
-// through its aliases. A plain alias line is not a reference by itself.
 func ParseReferences(content []byte) []string { return analyze(content).refs }

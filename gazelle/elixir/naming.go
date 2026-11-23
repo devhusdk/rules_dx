@@ -20,12 +20,10 @@ const (
 
 var MixFile = common.ManifestName("hex")
 
-// IsLibSource reports whether src is a lib/**/*.ex source of the app.
 func IsLibSource(src string) bool {
 	return isLocal(src) && strings.HasPrefix(src, LibDir+"/") && strings.HasSuffix(src, ".ex")
 }
 
-// IsTestSource reports whether src is a test/**/*_test.exs ExUnit file.
 func IsTestSource(src string) bool {
 	return isLocal(src) && strings.HasPrefix(src, TestDir+"/") && strings.HasSuffix(src, "_test.exs")
 }
@@ -38,7 +36,6 @@ func isLocal(src string) bool {
 	return src != "" && !strings.ContainsAny(src, ":\\") && !strings.HasPrefix(src, "/") && !strings.Contains("/"+src+"/", "/../")
 }
 
-// Mix holds the literal project facts dx generate reads from the manifest.
 type Mix struct {
 	App      string
 	Version  string
@@ -46,9 +43,6 @@ type Mix struct {
 	Umbrella bool
 }
 
-// ParseMix reads app:, version: (a literal or a literal @attribute), mod: and
-// apps_path: from the manifest. Comments, docs and strings never match, and
-// anything that is not a literal is left empty.
 func ParseMix(content []byte) Mix {
 	toks := lex(string(content))
 	attrs := make(map[string]string)
@@ -96,8 +90,6 @@ func ParseMix(content []byte) Mix {
 	return m
 }
 
-// Owns reports whether generation could have produced r, so a stale r may be
-// removed. The generator asks only in directories that hold a manifest.
 func Owns(r *rule.Rule) bool {
 	srcs := r.AttrStrings("srcs")
 	if len(srcs) == 0 {

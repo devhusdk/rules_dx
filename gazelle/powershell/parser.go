@@ -20,7 +20,6 @@ var (
 
 var grammar = sync.OnceValue(func() *ts.Language { return powershell.Language() })
 
-// importSwitches are Import-Module parameters that take no value.
 var importSwitches = map[string]bool{
 	"-ascustomobject":       true,
 	"-confirm":              true,
@@ -36,20 +35,12 @@ var importSwitches = map[string]bool{
 	"-whatif":               true,
 }
 
-// token is one command argument, independent of the grammar: kind is 'b' bare
-// word, 's' single-quoted, 'd' double-quoted, 'p' (...), 'a' @(...) with
-// items, or ',' comma.
 type token struct {
 	kind  byte
 	text  string
 	items []token
 }
 
-// ParseImports returns the module names a PowerShell source imports through
-// Import-Module, using module and #Requires -Modules, plus RequiredModules when
-// manifest is set (a .psd1). Literal names and paths to .psm1/.psd1 files
-// count; variables and other expressions are skipped. Comments, strings and
-// here-strings never yield imports.
 func ParseImports(content []byte, manifest bool) []string {
 	set := make(map[string]bool)
 	add := func(names []string) {
@@ -66,7 +57,6 @@ func ParseImports(content []byte, manifest bool) []string {
 	return out
 }
 
-// treeImports reports the imports found in the syntax tree through add.
 func treeImports(content []byte, manifest bool, add func([]string)) {
 	tree := treesitter.Parse(grammar(), content)
 	defer tree.Release()
@@ -130,8 +120,6 @@ func collectCommand(tree *treesitter.Tree, n *treesitter.Node, add func([]string
 	}
 }
 
-// collectRequires handles a #Requires comment, which counts only as the first
-// text on its line.
 func collectRequires(tree *treesitter.Tree, src []byte, n *treesitter.Node, add func([]string)) {
 	text := tree.Text(n)
 	trimmed := strings.TrimLeft(text, " \t\r\n")
@@ -174,8 +162,6 @@ func collectRequires(tree *treesitter.Tree, src []byte, n *treesitter.Node, add 
 	})
 }
 
-// commandTokens turns the children of a command_elements node into tokens.
-// An inline parameter value (-Name:X) is folded into the flag token.
 func commandTokens(tree *treesitter.Tree, elems *treesitter.Node) []token {
 	var out []token
 	merge := false
@@ -203,7 +189,6 @@ func commandTokens(tree *treesitter.Tree, elems *treesitter.Node) []token {
 	return out
 }
 
-// wrappers are expression layers that pass one operand through unchanged.
 var wrappers = map[string]bool{
 	"unary_expression": true, "pipeline": true, "pipeline_chain": true,
 	"logical_expression": true, "bitwise_expression": true,
@@ -212,7 +197,6 @@ var wrappers = map[string]bool{
 	"range_expression": true,
 }
 
-// nodeTokens flattens one syntax node into argument tokens.
 func nodeTokens(tree *treesitter.Tree, n *treesitter.Node) []token {
 	typ := tree.Type(n)
 	raw := func() []token { return []token{{kind: 'b', text: strings.TrimSpace(tree.Text(n))}} }
@@ -293,7 +277,6 @@ func nodeTokens(tree *treesitter.Tree, n *treesitter.Node) []token {
 	return raw()
 }
 
-// uncommented returns n's source text with comments blanked out.
 func uncommented(tree *treesitter.Tree, n *treesitter.Node) string {
 	buf := []byte(tree.Text(n))
 	base := int(n.StartByte())
@@ -319,7 +302,6 @@ func isFlag(t token) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
-// valueList collects the comma-separated values that start at args[i].
 func valueList(args []token, i int) []string {
 	var names []string
 	for ; i < len(args); i++ {
@@ -337,7 +319,6 @@ func valueList(args []token, i int) []string {
 	return names
 }
 
-// skipValue returns the index after the comma-separated value list at args[i].
 func skipValue(args []token, i int) int {
 	for i < len(args) && !isFlag(args[i]) {
 		if args[i].kind != ',' && (i+1 >= len(args) || args[i+1].kind != ',') {
@@ -382,7 +363,6 @@ func importModuleNames(args []token) []string {
 	return names
 }
 
-// moduleNames reduces one argument to module names.
 func moduleNames(t token) []string {
 	var name string
 	switch t.kind {
@@ -407,8 +387,6 @@ func moduleNames(t token) []string {
 	return []string{name}
 }
 
-// moduleFromPath turns a module name or a path to a .psm1/.psd1 file into a
-// module name, or "" when the value is computed or names no module.
 func moduleFromPath(v string) string {
 	v = strings.TrimSpace(v)
 	base := v

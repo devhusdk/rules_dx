@@ -12,7 +12,7 @@ func TestNamedLockResolvesImports(t *testing.T) {
 		unknown       string
 	}{
 		{
-			eco: "hex",
+			eco:      "hex",
 			lockText: `{"ecosystem": "hex", "packages": [{"name": "jason", "provides": ["jason"]}, {"name": "phoenix_live_view", "provides": ["phoenix_live_view"]}], "schema": 1}`,
 			imports: map[string]string{
 				"Jason":                   "@hex//jason",

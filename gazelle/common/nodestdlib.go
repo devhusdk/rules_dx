@@ -17,7 +17,6 @@ var nodeBuiltins = map[string]struct{}{
 	"worker_threads": {}, "zlib": {},
 }
 
-// nodePrefixedBuiltins only resolve with the node: prefix.
 var nodePrefixedBuiltins = map[string]struct{}{
 	"ffi": {}, "sea": {}, "sqlite": {}, "test": {}, "test/reporters": {},
 }

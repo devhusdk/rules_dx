@@ -79,7 +79,6 @@ func withBindings(kinds map[string]rule.KindInfo) map[string]rule.KindInfo {
 	return kinds
 }
 
-// extraKinds are the kinds generated next to proto_library.
 func extraKinds() []string {
 	return append(bindingExtraKinds(), rustKind, tsKind, csKind)
 }
@@ -113,8 +112,6 @@ func NewLanguage() language.Language {
 	})}
 }
 
-// Resolve sends google/protobuf/*.proto imports to the @protobuf targets
-// when no local proto_library owns them.
 func (l *protoLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.RemoteCache, r *rule.Rule, raw interface{}, from label.Label) {
 	if r.Kind() == goKind {
 		l.resolveBinding(c, ix, r, raw, from, keyGoProto, "the proto_library has no Go binding; add option go_package to it", nil)
@@ -139,8 +136,6 @@ func (l *protoLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Rem
 	common.ResolveSingle(c, ix, r, raw, from, spec)
 }
 
-// Imports indexes proto_library by its files, bindings by the code they
-// generate, and a rust_prost_library under its crate name.
 func (l *protoLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if r.Kind() == rustKind {
 		return []resolve.ImportSpec{{Lang: "rust", Imp: r.Name()}}
@@ -159,9 +154,6 @@ func (l *protoLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []reso
 	return l.SingleLang.Imports(c, r, f)
 }
 
-// resolveBinding sets the deps of a binding rule to base plus the bindings,
-// found under key, of the proto_library targets its proto imports. hint is
-// the error when an imported proto_library has no binding.
 func (l *protoLang) resolveBinding(c *config.Config, ix *resolve.RuleIndex, r *rule.Rule, raw interface{}, from label.Label, key, hint string, base []string) {
 	names, ok := common.UnwrapImportSet(raw)
 	if !ok {
@@ -230,20 +222,14 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	return addBindings(args, result)
 }
 
-// addRustLibraries adds a rust_prost_library next to each proto_library when
-// the root MODULE.bazel depends on rules_rust_prost.
 func addRustLibraries(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
 	return addProtoRefs(args, result, rustModule, rustKind, rustSuffix)
 }
 
-// addTypeScriptLibraries adds a typescript_proto_library next to each proto_library
-// when the root MODULE.bazel depends on aspect_rules_ts.
 func addTypeScriptLibraries(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
 	return addProtoRefs(args, result, tsModule, tsKind, tsSuffix)
 }
 
-// addCSharpLibraries adds a csharp_proto_library next to each proto_library
-// when the root MODULE.bazel depends on rules_dx and uses the registry nuget hub.
 func addCSharpLibraries(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
 	data, err := os.ReadFile(filepath.Join(args.Config.RepoRoot, "MODULE.bazel"))
 	if err != nil || !strings.Contains(string(data), `"`+common.HubName("nuget")+`"`) {
@@ -290,8 +276,6 @@ func addProtoRefs(args language.GenerateArgs, result language.GenerateResult, mo
 	return result
 }
 
-// tsImports indexes a typescript_proto_library by the <stem>_pb modules protoc-gen-es
-// writes for the sources of its proto_library.
 func tsImports(r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if f == nil {
 		return nil
@@ -309,8 +293,6 @@ func tsImports(r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	return specs
 }
 
-// csImports indexes a csharp_proto_library by the namespaces protoc writes for
-// the sources of its proto_library.
 func csImports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if f == nil {
 		return nil

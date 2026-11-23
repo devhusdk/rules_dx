@@ -204,12 +204,6 @@ func (l *dispatchLang) collectUsedIgnores() []common.IgnoredImport {
 	return out
 }
 
-// AfterResolvingDeps runs last in the dispatch gazelle_binary, after every
-// language has added its errors to common.Errors. It emits the manifest only
-// when no language failed, and otherwise restores every visited BUILD file,
-// reports every error once and exits 1. Gazelle 0.54 runs this hook after
-// BUILD files are written, so the restore keeps failed runs side-effect free.
-// A kill between the write and the restore is not covered.
 func (l *dispatchLang) AfterResolvingDeps(context.Context) {
 	common.Errors.Add(l.errors...)
 	all := common.Errors.Take()
@@ -232,7 +226,6 @@ func (l *dispatchLang) AfterResolvingDeps(context.Context) {
 	}
 }
 
-// reportFailure is the single failure exit for a generation run.
 func reportFailure(all []common.GenerationError) {
 	fmt.Fprintln(stderr, "Generation failed:\n"+strings.Join(common.Report(all), "\n"))
 	exitProcess(1)

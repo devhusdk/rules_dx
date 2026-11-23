@@ -14,7 +14,6 @@ import (
 //go:embed lock_registry.json
 var lockRegistryJSON []byte
 
-// lockRegistryEntry is one dx lock ecosystem of the generated registry.
 type lockRegistryEntry struct {
 	Ecosystem string `json:"ecosystem"`
 	Manifest  string `json:"manifest"`
@@ -35,7 +34,6 @@ var registryEntries = func() map[string]lockRegistryEntry {
 	return entries
 }()
 
-// registryEntry returns the registry entry of an ecosystem.
 func registryEntry(ecosystem string) lockRegistryEntry {
 	e, ok := registryEntries[ecosystem]
 	if !ok {
@@ -44,23 +42,18 @@ func registryEntry(ecosystem string) lockRegistryEntry {
 	return e
 }
 
-// ManifestName returns the manifest file name the registry gives an ecosystem.
 func ManifestName(ecosystem string) string {
 	return registryEntry(ecosystem).Manifest
 }
 
-// LockName returns the lock file name the registry gives an ecosystem.
 func LockName(ecosystem string) string {
 	return registryEntry(ecosystem).Lock
 }
 
-// HubName returns the hub repository name the registry gives an ecosystem.
 func HubName(ecosystem string) string {
 	return registryEntry(ecosystem).Hub
 }
 
-// lockRegistry lists every ecosystem whose imports resolve through the
-// provides of its lock.
 var lockRegistry = func() []lockRegistryEntry {
 	var entries []lockRegistryEntry
 	for _, e := range registryEntries {
@@ -86,12 +79,10 @@ func init() {
 	}
 }
 
-// lockManifest holds the packages a dx lock names and what each provides.
 type lockManifest struct {
 	entry    lockRegistryEntry
 	provides map[string][]string
-	// repo is the hub repository of a set that is not the root.
-	repo string
+	repo     string
 }
 
 func parseLockManifest(entry lockRegistryEntry) func([]byte, string) (externalManifest, error) {
@@ -121,7 +112,6 @@ func parseLockManifest(entry lockRegistryEntry) func([]byte, string) (externalMa
 	}
 }
 
-// placeLockManifest gives a set below the root the hub <hub>_<dir>.
 func placeLockManifest(m externalManifest, rel string) externalManifest {
 	lm, ok := m.(*lockManifest)
 	if !ok || rel == "" {
@@ -132,8 +122,6 @@ func placeLockManifest(m externalManifest, rel string) externalManifest {
 	return &placed
 }
 
-// Lookup resolves name by the longest provides entry that is name or a path
-// or namespace prefix of it. Every package providing that entry is returned.
 func (m *lockManifest) Lookup(repo, name string) ([]label.Label, string) {
 	if m.repo != "" && repo == m.entry.Hub {
 		repo = m.repo

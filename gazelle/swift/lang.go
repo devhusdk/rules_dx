@@ -40,7 +40,6 @@ func NewLanguage() language.Language {
 	})}
 }
 
-// Imports indexes a library under its module_name, or its name without one.
 func (l *swiftLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []resolve.ImportSpec {
 	if r.Kind() != LibraryKind {
 		return nil
@@ -97,7 +96,6 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 
 func init() { common.RegisterLanguage(NewLanguage) }
 
-// ownsEntry reports whether the library r lists one of the app entry sources.
 func ownsEntry(r *rule.Rule, entries map[string]bool) bool {
 	for _, src := range r.AttrStrings("srcs") {
 		if entries[src] {

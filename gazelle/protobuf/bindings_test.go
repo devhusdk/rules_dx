@@ -14,8 +14,8 @@ func TestGoImportPath(t *testing.T) {
 	cases := map[string]string{
 		`option go_package = "example.com/a;apb";`: "example.com/a",
 		`option go_package = 'example.com/b';`:     "example.com/b",
-		`// option go_package = "x";`:             "",
-		`syntax = "proto3";`:                      "",
+		`// option go_package = "x";`:              "",
+		`syntax = "proto3";`:                       "",
 	}
 	for in, want := range cases {
 		if got := GoImportPath([]byte(in)); got != want {
@@ -27,8 +27,8 @@ func TestGoImportPath(t *testing.T) {
 func TestJavaPackage(t *testing.T) {
 	cases := map[string]string{
 		"package a.b;\noption java_package = \"com.x\";": "com.x",
-		"// package no;\npackage a.b;":                 "a.b",
-		`syntax = "proto3";`:                           "",
+		"// package no;\npackage a.b;":                   "a.b",
+		`syntax = "proto3";`:                             "",
 	}
 	for in, want := range cases {
 		if got := JavaPackage([]byte(in)); got != want {

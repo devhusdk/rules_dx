@@ -466,7 +466,7 @@ func TestResolveDedupesSiblingLibDuplicate(t *testing.T) {
 	}
 	from := label.New("", "core/quality/result", "print_result")
 	deps := map[string]bool{
-		"//other/pkg:quality_result":      true,
+		"//other/pkg:quality_result":           true,
 		"@third//core/quality/result:tool":     true,
 		"//core/quality/result:quality_result": true,
 	}
@@ -881,14 +881,12 @@ func TestResolveRenamedImports(t *testing.T) {
 		t.Fatalf("errors = %v", l.errors)
 	}
 
-	// Conflicting names for one label.
 	conflict := rule.NewRule(libraryKind, "conflict")
 	l.Resolve(cfg, index, nil, conflict, targetImports{production: []string{"one", "two"}, renames: map[string]string{"one": "api", "two": "api"}}, from)
 	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "conflicting aliases") {
 		t.Errorf("conflict errors = %v", l.errors)
 	}
 
-	// Unresolved renamed import.
 	l.errors = nil
 	missing := rule.NewRule(libraryKind, "missing")
 	l.Resolve(cfg, index, nil, missing, targetImports{production: []string{"gone"}, renames: map[string]string{"gone": "nowhere"}}, from)
@@ -896,7 +894,6 @@ func TestResolveRenamedImports(t *testing.T) {
 		t.Errorf("unresolved errors = %v", l.errors)
 	}
 
-	// An override on the import name wins and adds no alias.
 	l.errors = nil
 	ocfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "rust apiv //other:x"}})
 	ocfg.Exts[languageName] = &rustConfig{}
@@ -975,7 +972,6 @@ func TestBuiltinRunfilesImport(t *testing.T) {
 		t.Errorf("example imports = %v, want runfiles kept", got.production)
 	}
 
-	// A declared crate named runfiles keeps its own dependency path, so the built-in never applies.
 	declared := &cargoManifest{packageName: "app", normalDeps: map[string]cargoDependency{"runfiles": {external: true}}, devDeps: map[string]cargoDependency{}}
 	if err := validateCargoImports(cfg, declared, libraryKind, targetImports{production: []string{"runfiles"}}); err != nil {
 		t.Errorf("declared runfiles rejected: %v", err)
@@ -997,7 +993,6 @@ func TestBuiltinRunfilesImport(t *testing.T) {
 		t.Errorf("builtin deps = %q, want %s", got, builtinRunfilesLabel)
 	}
 
-	// A local crate named runfiles found in the index still wins over the built-in.
 	local := resolverIndex(l, struct{ pkg, name string }{"lib/runfiles", "runfiles"})
 	won := rule.NewRule(binaryKind, "won")
 	l.Resolve(newCfg(), local, nil, won, targetImports{production: []string{"runfiles"}}, label.New("", "app", "won"))
@@ -1005,7 +1000,6 @@ func TestBuiltinRunfilesImport(t *testing.T) {
 		t.Errorf("local deps = %q, want //lib/runfiles", got)
 	}
 
-	// An ignore directive still suppresses the import instead of applying the built-in.
 	ignoring := newCfg()
 	ignored := &common.IgnoreEntry{Value: "runfiles"}
 	ignoring.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{ignored}}}

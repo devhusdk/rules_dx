@@ -107,6 +107,8 @@ rust_binary(
 rust_test(
     name = "dx_release_tools_test",
     size = "small",
+    data = [":host_exe_fixture"],
+    env = {"DX_RELEASE_HOST_EXE": "$(rlocationpath :host_exe_fixture)"},
     srcs = [
         "src/candidate.rs",
         "src/cell.rs",
@@ -152,6 +154,12 @@ rust_test(
         "//tools/testing:dx_testing",
         "@crates//:serde",
     ],
+)
+
+rust_binary(
+    name = "host_exe_fixture",
+    testonly = True,
+    srcs = ["host_exe_fixture.rs"],
 )
 
 rust_test(

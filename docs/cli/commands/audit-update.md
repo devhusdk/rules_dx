@@ -122,7 +122,7 @@ Reports:
 - A version dx cannot parse marks the package unassessed with `unsupported version syntax`, and the run exits `1`.
 - npm reads `pnpm-lock.yaml` (`lockfileVersion` 9.0), `package-lock.json` (`lockfileVersion` 3) and `yarn.lock`. Each finding names its lock file.
 - A lock file without a dependency set (`mix.lock`, `pubspec.lock`, `poetry.lock` and others) is a warning finding. An `[[uncovered]]` entry whose `set` is the file path silences it.
-- Each advisory has a kind: `vulnerability`, `unsound`, `unmaintained` or `notice`. Only kinds in `fail_on` of `security.toml` fail the run. The default is `vulnerability` and `unsound`, so `unmaintained` and `notice` advisories are `info`, unless `dx.toml` sets `tier = "strict"`.
+- Each advisory has a kind: `vulnerability`, `unsound`, `unmaintained` or `notice`. Only kinds in `fail_on` of `security.toml` fail the run. At the strict tier, the default, every kind fails. With `tier = "standard"` in `dx.toml`, the default is `vulnerability` and `unsound`, so `unmaintained` and `notice` advisories are `info`.
 
 Yanked versions:
 

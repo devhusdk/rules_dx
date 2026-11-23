@@ -7308,7 +7308,7 @@ Tag `zig.lock`:
 | `@rules_dx//config:buf_breaking_against` | `label_flag` | `@rules_dx//config:buf_breaking_none` |  |
 | `@rules_dx//config:clippy_flag` | `alias` | `@rules_rust//rust/settings:clippy_flag` |  |
 | `@rules_dx//config:clippy_output_diagnostics` | `alias` | `@rules_rust//rust/settings:clippy_output_diagnostics` |  |
-| `@rules_dx//config:config_tier` | `string_flag` | `standard` | `standard`, `strict` |
+| `@rules_dx//config:config_tier` | `string_flag` | `strict` | `standard`, `strict` |
 | `@rules_dx//config:extra_rustc_flag` | `alias` | `@rules_rust//rust/settings:extra_rustc_flag` |  |
 | `@rules_dx//config:rustc_output_diagnostics` | `alias` | `@rules_rust//rust/settings:rustc_output_diagnostics` |  |
 | `@rules_dx//config:tool_actionlint` | `label_flag` | `@dx_tools//:actionlint` |  |

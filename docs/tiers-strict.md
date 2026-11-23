@@ -1,6 +1,6 @@
 # Strict tiers
 
-This page shows what each lint and format tool checks on top of the standard tier when you switch to the strict tier.
+This page shows what each lint and format tool checks on top of the standard tier. Strict is the default tier.
 
 ## Pick the tier
 
@@ -14,7 +14,7 @@ This page shows what each lint and format tool checks on top of the standard tie
 
 3. Run `tools/dx config <tool>`, such as `tools/dx config ruff`, to see the files that tool now reads.
 
-Without `dx.toml`, every tool runs at the standard tier. To give one family, such as `rust`, its own tier, set `tier` under `[families.rust]`. The [config reference](cli/commands/config.md#dxtoml) lists every key.
+Without `dx.toml`, every tool runs at the strict tier. Set `tier = "standard"` to opt down. To give one family, such as `rust`, its own tier, set `tier` under `[families.rust]`. The [config reference](cli/commands/config.md#dxtoml) lists every key.
 
 To change a single setting, edit the tool's own config file at the root of your repo. The [quality page](cli/commands/quality.md) lists the file each tool reads.
 

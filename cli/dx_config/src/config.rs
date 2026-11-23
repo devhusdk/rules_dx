@@ -9,8 +9,8 @@ use crate::conventions::{self, ConventionProblem};
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum Tier {
-    #[default]
     Standard,
+    #[default]
     Strict,
 }
 

@@ -502,7 +502,7 @@ mod tests {
             "environment":[{"name":"DX_BUILD_SLOTS","shape":"auto|n|off","default_for":"--build-slots"},
                            {"name":"NO_COLOR","shape":"any","default_for":null}]}"#;
         let labels = concat!(
-            "//config:config_tier string_flag \"standard\" [\"standard\", \"strict\"]\n",
+            "//config:config_tier string_flag \"strict\" [\"standard\", \"strict\"]\n",
             "//config:tool_dart label_flag \":no_dart\"\n",
             "//config:tool_ruff label_flag \"@dx_tools//:ruff\"\n",
             "//config:tool_hlint label_flag \"//haskell/private/tools/hlint/bin\"\n",
@@ -538,7 +538,7 @@ mod tests {
             "No flags.",
             "| `DX_BUILD_SLOTS` | `auto\\|n\\|off` | `--build-slots` |",
             "| `NO_COLOR` | `any` |  |",
-            "| `@rules_dx//config:config_tier` | `string_flag` | `standard` | `standard`, `strict` |",
+            "| `@rules_dx//config:config_tier` | `string_flag` | `strict` | `standard`, `strict` |",
             "| `@rules_dx//config:tool_dart` | `label_flag` | `@rules_dx//config:no_dart` |  |",
             "| `@rules_dx//config:tool_ruff` | `label_flag` | `@dx_tools//:ruff` |  |",
             "| `@rules_dx//config:tool_hlint` | `label_flag` | pinned |  |",

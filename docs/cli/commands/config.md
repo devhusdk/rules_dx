@@ -100,17 +100,17 @@ Scopes: none. `dx config` takes a tool name, not scopes.
 
 Picks the tier, the tools of each language family, and what dx leaves out.
 
-With no `dx.toml`, every family found in the tree runs its curated tools at the `standard` tier. dx writes the `.dx/` directory from this file. Never edit `.dx/` by hand.
+With no `dx.toml`, every family found in the tree runs its curated tools at the `strict` tier. Set `tier = "standard"` to opt down. dx writes the `.dx/` directory from this file. Never edit `.dx/` by hand.
 
 Start the file with the `#:schema` line below. An editor with a TOML schema plugin then completes every family and tool id. The schema is [`dx.schema.json`](https://github.com/devhusdk/rules_dx/blob/main/cli/dx_config/schema/dx.schema.json).
 
 ```toml
 #:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/dx_config/schema/dx.schema.json
 schema_version = 1
-tier = "strict"
+tier = "standard"
 
 [families.rust]
-tier = "standard"
+tier = "strict"
 lint = ["clippy", "typos"]
 
 [families.go]
@@ -125,7 +125,7 @@ exclude = ["//third_party/..."]
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `schema_version` | integer | none | Must be `1`. |
-| `tier` | string | `"standard"` | `standard` or `strict`. The tier for every family that does not set its own, and the base for `security.toml` and `license.toml`. |
+| `tier` | string | `"strict"` | `strict` or `standard`. The tier for every family that does not set its own, and the base for `security.toml` and `license.toml`. |
 | `skip_tools` | array of strings | `[]` | Tool ids dropped from every family, such as `["typos"]`. An unknown id fails the run. |
 | `families` | table | empty | Per-family settings, keyed by family id. An unknown id fails the run. |
 | `scope` | table | empty | What dx leaves out. |

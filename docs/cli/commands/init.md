@@ -65,7 +65,7 @@ Init writes every path in the [fixed file set](#fixed-file-set). You can rerun `
 
 When the writes succeed, `--apply` runs `dx generate --apply` over the directory. That writes every `BUILD.bazel` file and every missing lockfile. A `BUILD.bazel` file declares the Bazel targets of one directory. The output and exit code then follow `dx generate`. It does not run when a write fails, or with `--no-generate`.
 
-Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json`, and no `security.toml` or `license.toml`. Those files are yours. To pick the strict tier, write `dx.toml` with a top-level `tier = "strict"`; see the [config reference](config.md). Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml`, or from the defaults when there is none, for the languages it finds.
+Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json`, and no `security.toml` or `license.toml`. Those files are yours. Without `dx.toml` every family runs at the strict tier. To opt down, write `dx.toml` with a top-level `tier = "standard"`; see the [config reference](config.md). Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml`, or from the defaults when there is none, for the languages it finds.
 
 ## Licenses
 

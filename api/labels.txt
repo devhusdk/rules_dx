@@ -1,7 +1,7 @@
 //config:buf_breaking_against label_flag ":buf_breaking_none"
 //config:clippy_flag alias "@rules_rust//rust/settings:clippy_flag"
 //config:clippy_output_diagnostics alias "@rules_rust//rust/settings:clippy_output_diagnostics"
-//config:config_tier string_flag "standard" ["standard", "strict"]
+//config:config_tier string_flag "strict" ["standard", "strict"]
 //config:extra_rustc_flag alias "@rules_rust//rust/settings:extra_rustc_flag"
 //config:rustc_output_diagnostics alias "@rules_rust//rust/settings:rustc_output_diagnostics"
 //config:tool_actionlint label_flag "@dx_tools//:actionlint"

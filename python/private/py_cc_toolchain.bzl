@@ -1,5 +1,9 @@
 """A py_cc_toolchain that sets the target platform on a rules_py interpreter's py_cc_toolchain."""
 
+# Upstream: aspect-build/rules_py#1665
+# Once a rules_py release has it, delete this file, its load and dx_py_cc_toolchain targets in
+# interpreters.bzl, and point the _py_cc toolchains there back at @<repo>//:py_cc_toolchain.
+
 load("@rules_python//python/cc:py_cc_toolchain_info.bzl", "PyCcToolchainInfo")
 
 def _dx_py_cc_toolchain_impl(ctx):

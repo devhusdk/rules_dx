@@ -21,6 +21,7 @@ def build_file(package, lang = "elixir"):
         "    target_compatible_with = %s_COMPATIBLE_WITH," % lang.upper(),
         '    visibility = ["//visibility:public"],',
         "    deps = %s," % json.encode(["//" + dep for dep in package.get("deps", [])]),
+    ] + (["    warnings_as_errors = False,"] if lang == "erlang" else []) + [
         ")",
         "",
     ])

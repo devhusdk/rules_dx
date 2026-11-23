@@ -27,6 +27,14 @@ def erlang_kwargs(kwargs):
 
 _WERROR = ["-Werror"]
 
+_TEST_WARNINGS = _WERROR + ["+warn_untyped_record", "+warn_unused_import"]
+
+_APP_WARNINGS = _TEST_WARNINGS + ["+warn_export_all"]
+
+def erlc_warning_flags(test):
+    """Returns the erlc flags warnings_as_errors turns on: test code skips the export_all check."""
+    return _TEST_WARNINGS if test else _APP_WARNINGS
+
 _PREBUILT_ATTRS = ("beam_files", "hdrs", "srcs", "priv", "license_files")
 
 def _without_werror(opts):
@@ -40,11 +48,11 @@ def erlang_default_erlc_opts(defaults):
         "//conditions:default": opts,
     })
 
-def erlang_erlc_kwargs(kwargs, defaults):
-    """Returns erlang_kwargs with -Werror on erlc_opts following warnings_as_errors."""
+def erlang_erlc_kwargs(kwargs, defaults, test = False):
+    """Returns erlang_kwargs with the strict erlc flags on erlc_opts following warnings_as_errors."""
     if any([kwargs.get(attr) != None for attr in _PREBUILT_ATTRS]):
         return erlang_kwargs(kwargs)
-    rest, flag = dx_warnings_as_errors(kwargs, _WERROR)
+    rest, flag = dx_warnings_as_errors(kwargs, erlc_warning_flags(test))
     opts = rest.get("erlc_opts")
     if opts == None:
         opts = erlang_default_erlc_opts(defaults)
@@ -54,8 +62,8 @@ def erlang_erlc_kwargs(kwargs, defaults):
     return erlang_kwargs(rest)
 
 def erlang_bytecode_kwargs(kwargs):
-    """Returns the erlang_bytecode kwargs without erlc_opts, the erlc_opts target it named, and the -Werror value."""
-    rest, flag = dx_warnings_as_errors(kwargs, _WERROR)
+    """Returns the erlang_bytecode kwargs without erlc_opts, the erlc_opts target it named, and the strict erlc flags."""
+    rest, flag = dx_warnings_as_errors(kwargs, erlc_warning_flags(kwargs.get("testonly", False)))
     base = rest.pop("erlc_opts", None)
     return erlang_kwargs(rest), base, flag
 

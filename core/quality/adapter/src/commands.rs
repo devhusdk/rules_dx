@@ -122,6 +122,11 @@ const DIALYZER_ARGS: &[&str] = &[
     "--error_location",
     "column",
     "--fullpath",
+    "-Wunmatched_returns",
+    "-Wmissing_return",
+    "-Wextra_return",
+    "-Werror_handling",
+    "-Wunderspecs",
 ];
 
 const PHPCS_ARGS: &[&str] = &["--report=json", "-q", "--no-colors", "--no-cache"];

@@ -837,8 +837,10 @@ pub fn run_worktree_hook(
         return bazel_hook(workspace, bazel_args, err);
     }
     let stdin = read_stdin();
-    if kind == HookKind::Guard {
-        return guard_hook(&stdin, &Who::from_env(&env_var), out, err);
+    match kind {
+        HookKind::Guard => return guard_hook(&stdin, &Who::from_env(&env_var), out, err),
+        HookKind::Git => return git_hook(workspace, &stdin, err),
+        HookKind::Create | HookKind::Remove | HookKind::Stop | HookKind::Bazel => {}
     }
     dx_process::configure_real(workspace);
     let who = Who::from_env(&env_var);
@@ -848,6 +850,17 @@ pub fn run_worktree_hook(
 /// Refuses a Bazel call in a refused main checkout, or `bazel clean` in a slot, with exit 2.
 fn bazel_hook(dir: &Path, bazel_args: &[String], err: &mut dyn Write) -> i32 {
     match dx_worktree::primary::bazel_refusal(dir, bazel_args, &env_var) {
+        Some(reason) => {
+            dx_output::write_stderr(err, format_args!("dx: refused: {reason}\n"));
+            dx_process::pre_exec_code()
+        }
+        None => 0,
+    }
+}
+
+/// Refuses a git reference transaction that changes a refused main checkout, with exit 2.
+fn git_hook(dir: &Path, updates: &str, err: &mut dyn Write) -> i32 {
+    match dx_worktree::primary::git_refusal(dir, updates, &env_var) {
         Some(reason) => {
             dx_output::write_stderr(err, format_args!("dx: refused: {reason}\n"));
             dx_process::pre_exec_code()
@@ -896,6 +909,7 @@ fn run_hook(
     match kind {
         HookKind::Guard => guard_hook(stdin, who, out, err),
         HookKind::Bazel => bazel_hook(workspace, &[], err),
+        HookKind::Git => git_hook(workspace, stdin, err),
         HookKind::Create => pool_hook(kind, stdin, workspace, err, |pool, input, err| {
             hook::create(pool, host, who, input).map(|added| create_output(out, err, &added))
         }),
@@ -2030,7 +2044,7 @@ mod tests {
 
     #[test]
     fn hook_names_list_every_kind() {
-        assert_eq!(HookKind::names(), "create, remove, stop, guard, bazel");
+        assert_eq!(HookKind::names(), "create, remove, stop, guard, bazel, git");
         for kind in HookKind::ALL {
             assert_eq!(HookKind::from_word(kind.word()), Some(kind));
         }

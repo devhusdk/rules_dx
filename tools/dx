@@ -89,7 +89,7 @@ if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ]; then
     esac
     exit 0
     ;;
-  stop | bazel) exit 0 ;;
+  stop | bazel | git) exit 0 ;;
   esac
 fi
 here=$(pwd -P) || here=/

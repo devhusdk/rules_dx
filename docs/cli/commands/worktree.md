@@ -22,7 +22,7 @@ dx worktree release [<path>|<slot-number>] [--force]
 dx worktree list [--disk]
 dx worktree path <branch>
 dx worktree prune [--apply] [--bases]
-dx worktree hook create|remove|stop|guard|bazel [-- <bazel-args>]
+dx worktree hook create|remove|stop|guard|bazel|git [-- <bazel-args>]
 ```
 
 A bare `dx worktree` runs `list`. Slots live in `<cache>/dx/worktrees/<repo>/<n>`.
@@ -186,7 +186,7 @@ common --experimental_disk_cache_gc_max_age=30d
 
 ## Hooks
 
-Hooks read one JSON object from stdin: the hook input of Claude Code, Codex,
+Agent hooks read one JSON object from stdin: the hook input of Claude Code, Codex,
 Cursor or Gemini CLI. They ignore `DX_*` variables and print text.
 
 | Hook | Reads | What it does |
@@ -195,7 +195,8 @@ Cursor or Gemini CLI. They ignore `DX_*` variables and print text.
 | `remove` | `worktree_path` | Releases that slot. Paths outside the pool are ignored. |
 | `stop` | `agent_id` | Marks the slots that agent holds as held by a gone holder and stops their Bazel servers. |
 | `bazel` | nothing; the Bazel arguments follow `--` | Exits `2` when the main-checkout rule refuses this Bazel call, or for `bazel clean` in a slot. |
-| `guard` | `tool_input.command` | Exits `2` for `git worktree add`, `remove` or `prune`. Exits `2` for `git checkout`, `switch`, `reset`, `rebase`, `fetch`, `pull`, `stash` or `commit`, `bazel`, and `dx build`, `test` or `check` in a slot another agent holds. Exits `2` for the same commands in the primary checkout when the caller holds a slot; the message names the slot. Read-only git, `gh` and `dx worktree add`, `release` and `list` stay allowed. |
+| `git` | `<old> <new> <ref>` lines from git | Exits `2` when the main-checkout rule refuses this update of `HEAD`, `ORIG_HEAD`, `refs/stash` or the main checkout's branch. |
+| `guard` | `tool_input.command`, `tool_input.file_path`, `tool_input.notebook_path` | Exits `2` for an edit of a file in the main checkout when the main-checkout rule refuses it there. Exits `2` for `git worktree add`, `remove` or `prune`. Exits `2` for `git checkout`, `switch`, `reset`, `rebase`, `fetch`, `pull`, `stash` or `commit`, `bazel`, and `dx build`, `test` or `check` in a slot another agent holds. Exits `2` for the same commands in the primary checkout when the caller holds a slot; the message names the slot. Read-only git, `gh` and `dx worktree add`, `release` and `list` stay allowed. |
 
 `create`, `remove` and `stop` exit `1` on any failure, including empty or
 invalid stdin. `guard` exits `0` on empty or invalid stdin. For Cursor and
@@ -212,7 +213,7 @@ not need to be on `PATH`:
     "WorktreeCreate": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook create"}]}],
     "WorktreeRemove": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook remove"}]}],
     "SubagentStop": [{"hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook stop"}]}],
-    "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard"}]}]
+    "PreToolUse": [{"matcher": "Bash|Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard"}]}]
   },
   "permissions": {
     "allow": [
@@ -229,7 +230,7 @@ not need to be on `PATH`:
 
 Codex and Gemini CLI get only the guard: `.codex/hooks.json` with event
 `PreToolUse` and matcher `Bash`, and `.gemini/settings.json` with event
-`BeforeTool` and matcher `run_shell_command`. Codex runs project hooks after
+`BeforeTool` and matcher `run_shell_command|write_file|replace`. Codex runs project hooks after
 you trust them with `/hooks`. Gemini CLI runs them in a trusted folder.
 GitHub Copilot gets `.github/hooks/dx.json` with version 1 and event
 `PreToolUse` (the Claude Code spelling, so Copilot sends the Claude payload)
@@ -296,6 +297,37 @@ refuses when it is set or unreadable. Without git, it reads `.git` as dx does.
 With `dx.primary` set, a Bazel `clean` in a slot exits `2`, through
 `dx worktree hook bazel` or [`dx clean`](clean.md). Rerun with
 `--noremote_accept_cached`, or release the slot and add a fresh one.
+
+`dx worktree add` also writes the git hook `reference-transaction` in
+`.git/hooks` of the main checkout when the file is absent or was written by
+dx. It keeps any other hook and warns. A `core.hooksPath` set in the
+repository's own config is used when it lies inside `.git`. When
+`core.hooksPath` is set in any other config, or points outside `.git`, dx
+writes no hook and warns. The hook holds the path of the main checkout and
+does nothing in any other repository. It runs
+`tools/dx worktree hook git` of that checkout. Where the rule refuses, git
+refuses `commit`, `switch`, a branch `checkout`, `reset`, `merge`, `rebase`,
+`cherry-pick`, `revert`, `am` and `stash` in the main checkout and prints
+`dx: refused: no git update of <ref> in the main checkout <path>. Work in a slot: tools/dx worktree add <branch>`.
+`git worktree add`, `fetch`, a push into the repository and every git command
+in a slot still run. When the main checkout's `tools/dx` cannot answer, or
+git cannot read `dx.primary`, the hook lets git go ahead.
+
+A refused command may have changed the files and the index, and those changes
+stay. To put them back:
+
+| Left behind | Run |
+| --- | --- |
+| `.git/rebase-merge` or `.git/rebase-apply` from `rebase` | git rebase --abort |
+| `.git/rebase-apply` from `am` | git am --abort |
+| `.git/CHERRY_PICK_HEAD` or `.git/sequencer` | git cherry-pick --abort |
+| `.git/REVERT_HEAD` | git revert --abort |
+| `.git/MERGE_HEAD` | git merge --abort |
+| Changed files after `switch`, `checkout`, `reset` or `revert` | git restore --source=HEAD --staged --worktree . |
+
+The agent guard refuses an edit of a file in the main checkout with
+`dx: refused: no edit of <file> in the main checkout <path>. Work in a slot: tools/dx worktree add <branch>`.
+Edits inside `.git`, and edits where git cannot read `dx.primary`, go ahead.
 
 ## Agent sessions
 

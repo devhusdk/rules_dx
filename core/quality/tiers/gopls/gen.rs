@@ -22,6 +22,8 @@ fn main() {
     {
         analyses.insert(name.trim_start_matches('-').to_owned(), false);
     }
+    // A "-NAME" entry turns a check off; gopls must say so, since its
+    // staticcheck switch otherwise turns on every check.
     for name in quoted_names(govet)
         .into_iter()
         .chain(quoted_names(staticcheck))

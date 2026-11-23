@@ -1,3 +1,4 @@
+# Needs the rubocop gem. Rubocop is the Ruby formatter, so Layout is on.
 AllCops:
   DisabledByDefault: true
   NewCops: disable

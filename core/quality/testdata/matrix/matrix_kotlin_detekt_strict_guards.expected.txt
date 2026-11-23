@@ -1,0 +1,13 @@
+producer //core/quality/testdata:matrix_kotlin_detekt_strict_guards
+capability LINT
+stages 1
+stage detekt classes=kotlin sources=matrix/detektguards/Guards.kt
+completed_rounds 1
+convergence STABLE
+initial 2
+initial WARNING detekt NotImplementedDeclaration matrix/detektguards/Guards.kt 106 106 fixable=false "The NotImplementedDeclaration should only be used when a method stub is necessary. This defers the development of the functionality of this function. Hence, the `NotImplementedDeclaration` should only serve as a temporary declaration. Before releasing, this type of declaration should be removed."
+initial WARNING detekt SwallowedException matrix/detektguards/Guards.kt 240 240 fixable=false "The caught exception is swallowed. The original exception could be lost."
+terminal 2
+terminal WARNING detekt NotImplementedDeclaration matrix/detektguards/Guards.kt 106 106 fixable=false "The NotImplementedDeclaration should only be used when a method stub is necessary. This defers the development of the functionality of this function. Hence, the `NotImplementedDeclaration` should only serve as a temporary declaration. Before releasing, this type of declaration should be removed."
+terminal WARNING detekt SwallowedException matrix/detektguards/Guards.kt 240 240 fixable=false "The caught exception is swallowed. The original exception could be lost."
+replacements 0

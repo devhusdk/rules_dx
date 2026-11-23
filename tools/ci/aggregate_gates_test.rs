@@ -466,6 +466,21 @@ fn the_gate_action_runs_dx_with_the_lock_check_and_forwards_bazel_options() {
     assert!(run.contains("-- \"$@\""), "{run}");
 }
 
+#[test]
+fn the_gate_verifies_the_base_even_when_dx_fails() {
+    let document = document(GATE_ACTION).unwrap();
+    let verify = document["runs"]["steps"]
+        .as_array()
+        .expect("gate steps")
+        .iter()
+        .find(|step| step["name"] == "Verify the base dx compared against")
+        .expect("verify step");
+    assert_eq!(
+        verify["if"],
+        json!("${{ !cancelled() && steps.check.outcome != 'skipped' }}")
+    );
+}
+
 fn reported_contexts(id: &str, job: &Value) -> Vec<String> {
     let name = job["name"].as_str().unwrap_or(id);
     if !name.contains("${{ matrix.platform }}") {

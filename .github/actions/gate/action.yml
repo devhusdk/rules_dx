@@ -44,6 +44,7 @@ runs:
         set -- $BAZEL_CONFIG $BB_ARGS
         bazel run --noshow_progress "$@" @rules_dx//tools/ci/producers:producers_bin -- --test-log-tails --dx "${RUNNER_TEMP:-/tmp}/gate.json"
     - name: Verify the base dx compared against
+      if: ${{ !cancelled() && steps.check.outcome != 'skipped' }}
       shell: bash
       run: |
         seen="$(jq -Rr 'fromjson? | objects | .affected? | objects | .base? // empty | strings' "${RUNNER_TEMP:-/tmp}/gate.json")"

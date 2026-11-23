@@ -38,7 +38,7 @@ fn no_file_goes_over_its_comment_budget() {
     problems.extend(over_budget(&found, &budget));
     assert!(
         problems.is_empty(),
-        "{}\nDelete the new comments, then run `{UPDATE}`.",
+        "{}\nDelete the new comments. Never raise a budget; `{UPDATE}` only lowers it.",
         problems.join("\n")
     );
 }
@@ -78,6 +78,9 @@ fn skips_keep_markers() {
                     srcs = [\"a\"],  # keep\n";
     assert_eq!(comment_lines("a/BUILD.bazel", starlark), 0);
     assert_eq!(comment_lines("a.go", "//go:build linux\n\npackage a\n"), 0);
+    let parsed = "# gazelle:ignore\n# Why: gazelle merges a and b.\n\
+                  # Upstream: a/b#1\n# dx: keep\n";
+    assert_eq!(comment_lines("a/BUILD.bazel", parsed), 0);
     assert_eq!(
         comment_lines("a.py", "#!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n"),
         0

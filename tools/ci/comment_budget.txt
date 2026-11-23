@@ -58,7 +58,6 @@ apple/tests/consumer/phone/share.rs comment 1
 apple/tests/consumer_build_test.rs comment 8
 astro/private/astro_tool.mjs comment 6
 astro/private/jest_transform.mjs comment 3
-astro/tests/conformance/BUILD.bazel comment 1
 avro/tests/conformance/BUILD.bazel comment 2
 bicep/private/tools/lock/resolve_test.rs comment 1
 bicep/private/tools/lock/src/resolve.rs comment 30
@@ -618,7 +617,7 @@ core/env/private/proto/BUILD.bazel comment 1
 core/env/private/tools/env_shard/src/writer.rs comment 1
 core/failure_test.bzl comment 1
 core/fuzz_bench_tests.bzl comment 1
-core/hermetic_launcher/BUILD.bazel comment 5
+core/hermetic_launcher/BUILD.bazel comment 4
 core/license.bzl comment 2
 core/modules/cargo_manifests_test.rs comment 4
 core/modules/consumer_deps_test.rs comment 20
@@ -920,7 +919,6 @@ d/private/tools/coverage/src/lib.rs comment 2
 d/private/tools/coverage/src/lst.rs comment 5
 d/private/tools/lock/resolve_test.rs comment 1
 d/private/tools/lock/src/resolve.rs comment 32
-d/tests/conformance/BUILD.bazel comment 1
 dart/private/defs.bzl comment 1
 dart/private/tools/analyze_cli_test.rs comment 4
 dart/private/tools/dart_apitool/BUILD.bazel comment 1
@@ -1239,7 +1237,6 @@ go/private/tools/analysis/staticcheck/staticcheck.go comment 1
 go/private/tools/gofumpt/gofumpt.go comment 7
 go/private/tools/gofumpt/gofumpt_test.go comment 2
 go/private/tools/modfmt/modfmt.go comment 2
-go/tests/conformance/BUILD.bazel comment 1
 go/tests/conformance/format_dirty.go comment 2
 go/tests/conformance/greet.go comment 2
 go/tests/conformance/lint_dirty.go comment 2
@@ -1276,7 +1273,6 @@ javascript/private/quality/bin/vue_tsc.mjs comment 1
 javascript/private/quality/launcher/src/lib.rs comment 27
 javascript/private/quality/launcher/src/main.rs comment 1
 javascript/private/vite_tool.mjs comment 2
-javascript/tests/conformance/BUILD.bazel comment 1
 javascript/tests/js_launcher_test.rs comment 4
 javascript/tests/typecheck/lib.js comment 1
 julia/extensions.bzl comment 2
@@ -1298,7 +1294,6 @@ lua/private/tools/lock/src/rockspec.rs comment 15
 lua/tests/lua_license_test.rs comment 2
 lua/tests/selene_smoke_test.rs comment 2
 mdx/private/jest_transform.mjs comment 3
-mdx/tests/conformance/BUILD.bazel comment 1
 msix/tests/BUILD.bazel comment 1
 ocaml/BUILD.bazel comment 4
 ocaml/private/coverage/collect.sh comment 3
@@ -1341,7 +1336,7 @@ pnpm-workspace.yaml comment 3
 powershell/BUILD.bazel comment 1
 powershell/private/tools/lock/resolve_test.rs comment 1
 powershell/private/tools/lock/src/resolve.rs comment 9
-python/private/py_cc_toolchain.bzl comment 3
+python/private/py_cc_toolchain.bzl comment 2
 python/tests/conformance/runfiles_main.py comment 1
 python/tests/interpreter_dylibs_test.rs comment 1
 qt/private/coverage.bzl comment 2
@@ -1388,7 +1383,6 @@ scala/private/toolchain/BUILD.bazel comment 6
 scala/private/toolchain/config_extension.bzl comment 1
 scala/tests/conformance/BUILD.bazel comment 3
 sql/private/quality/sql.bzl comment 1
-svelte/tests/conformance/BUILD.bazel comment 1
 swift/private/defs.bzl comment 4
 swift/private/toolchain/BUILD.bazel comment 3
 swift/private/toolchain/toolchain.bzl comment 4
@@ -1688,13 +1682,9 @@ tools/testing/web_hello.bzl comment 1
 tools/workspace/BUILD.bazel comment 2
 typescript/private/defs.bzl comment 1
 typescript/private/proto.bzl comment 4
-typescript/tests/conformance/BUILD.bazel comment 1
-vue/tests/conformance/BUILD.bazel comment 1
 zig/BUILD.bazel comment 1
-zig/private/BUILD.bazel comment 1
 zig/private/defs.bzl comment 2
 zig/private/tools/lock/resolve_test.rs comment 1
 zig/private/tools/lock/src/resolve.rs comment 30
-zig/tests/conformance/BUILD.bazel comment 1
 zig/tests/sancov/BUILD.bazel comment 1
 zig/tests/sancov/sancov_launcher_test.rs comment 2

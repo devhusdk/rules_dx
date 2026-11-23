@@ -11,16 +11,9 @@ This repository uses Bazel.
 - Root holds only language directories and the shared directories in `docs/design/layout.md`.
 - Docs are for people who use or release rules_dx: command pages, guides, tutorials, the generated `docs/support-matrix.md`, READMEs, `examples/`, and runbooks like `RELEASING.md`. Never write design rationale, history, alternatives, or implementation notes. One exception: the "What rules_dx replaces" section in `README.md` may state what you get and what it costs. Keep it to those two lists.
 - User docs stay complete: every command page documents its flags, scopes, output, reports, exit codes, and examples. Match `dx <command> --help`. Keep them user-facing; still no rationale, history, or issue numbers.
-- No comments in any language, including Rust `///` and `//!` and Go doc comments. Only these stay:
-  - one short plain Starlark docstring line per module, function, provider, rule and attr
-  - clap `///` `--help` lines, one short line per flag
-  - `// SAFETY:`
-  - tool directives: lint, format and gazelle directives, Actions pin comments, license headers, shebangs
-  - `LCOV_EXCL_*` with its short `reason:` and `issue:`
-  - `# floor: <reason>` above each `bazel_dep`
-  - at most one short line for a real platform quirk
-- `//tools/ci:comment_budget_test` caps comment lines per file. Lower the budget with `tools/dx run //tools/ci:comment_budget_update`.
-- Assigned strings like `_HUB_BUILD = """..."""` are code, not comments.
+- No comments in any language, Rust `///`/`//!` and Go doc comments included. Use names and tests instead. Assigned strings like `_HUB_BUILD = """..."""` are code, not comments.
+- Kept: tool directives, shebangs, license headers, lines tools parse (`# Why:`, `# Upstream:`, `# dx:`), `LCOV_EXCL_*`, `# floor:`, `// SAFETY:`, one Starlark docstring line per item, one clap `--help` line per flag.
+- `//tools/ci:comment_budget_test` caps comments per file. Never raise a budget; `tools/dx run //tools/ci:comment_budget_update` lowers it.
 - Nothing is released, so write no compatibility code: no deprecated attr, in-module `alias`, re-export `.bzl` file, version conditional, or name that says so. `//tools/ci:zero_compat_test` checks it.
 - Rules that choose what to build for take `platforms`, a string list; `target_compatible_with` only marks compatibility.
 - Write plain and human, like you are showing a colleague. Short sentences, everyday words, commands first. In docs, one line on what a thing does and when to use it is welcome. Leave out design backstory, except the "What rules_dx replaces" section in `README.md`.

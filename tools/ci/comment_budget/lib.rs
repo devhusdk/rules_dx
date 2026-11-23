@@ -25,7 +25,7 @@ const GENERATED: [&str; 3] = ["Code generated", "@generated", "DO NOT EDIT"];
 
 const LICENSE: [&str; 3] = ["Copyright", "Licensed under", "SPDX-License-Identifier"];
 
-const DIRECTIVES: [&str; 29] = [
+const DIRECTIVES: [&str; 31] = [
     "+build",
     "-*- coding",
     "@ts-",
@@ -33,6 +33,8 @@ const DIRECTIVES: [&str; 29] = [
     "NOLINT",
     "SAFETY:",
     "SPDX-License-Identifier",
+    "Upstream:",
+    "Why:",
     "buildifier:",
     "clang-format",
     "dx:",

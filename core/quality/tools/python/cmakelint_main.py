@@ -1,10 +1,4 @@
-"""cmakelint entry point.
-
-Upstream reads every file with the bare `open(filename)` builtin, which decodes with the
-locale codec and breaks on Windows code pages. The module-level `open` shim below makes
-`cmakelint.main` read sources and configs as strict UTF-8, and the standard streams are
-written as UTF-8 so non-ASCII paths in findings survive.
-"""
+"""cmakelint entry point."""
 
 import builtins
 import importlib

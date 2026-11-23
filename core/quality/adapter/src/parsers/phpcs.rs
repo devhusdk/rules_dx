@@ -4,19 +4,6 @@ use super::{FileFinding, ParseError, as_text, code_name, finding};
 
 const TOOL: &str = "phpcs";
 
-/// Findings from `phpcs --report=json`.
-///
-/// The exit code is a bitmask: 0 is clean, 1 is fixable findings, 2 is non-fixable findings and
-/// 3 is both. Anything else (16 for a process error, 64 for unmet requirements, a signal) fails
-/// the run, and so does output that is not a report. `files` is keyed by the path phpcs checked,
-/// so it may only name the owned `files`; a clean run lists none. The totals must agree with the
-/// counted messages, and a message from phpcs itself (`Internal.Exception`,
-/// `Internal.Tokenizer.Exception`) means the file was not checked, so it fails the run too. The
-/// rule is `phpcs/<source>`, the severity follows the message `type`.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_phpcs(
     stdout: &[u8],
     code: Option<i32>,
@@ -41,7 +28,6 @@ pub fn parse_phpcs(
             .ok_or_else(|| ParseError::shape(TOOL, format!("totals without {key}")))
     };
     let (total_errors, total_warnings) = (total("errors")?, total("warnings")?);
-    // PHP encodes an empty `files` as an array rather than an object.
     let empty = serde_json::Map::new();
     let by_file = match report.get("files") {
         Some(serde_json::Value::Object(by_file)) => by_file,
@@ -79,7 +65,6 @@ pub fn parse_phpcs(
             ),
         ));
     }
-    // Exit 0 can come with findings; the totals check is the guard.
     if matches!(code, Some(1..=3)) && findings.is_empty() {
         return Err(ParseError::shape(
             TOOL,
@@ -153,7 +138,6 @@ fn one(path: &str, message: &serde_json::Value) -> Result<(FileFinding, bool), P
     ))
 }
 
-/// The first lines of output, enough to name why a run failed.
 fn excerpt(out: &str) -> String {
     let text = out
         .lines()

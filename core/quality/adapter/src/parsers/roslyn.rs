@@ -9,7 +9,6 @@ const TOOL: &str = "roslyn";
 
 pub const UNUSED_REFERENCE_RULE: &str = "RT0001";
 
-// ReferenceTrimmer reports unused references without a source location.
 const REFERENCE_TRIMMER_RULES: [&str; 3] = ["RT0001", "RT0002", "RT0003"];
 
 const EXEC_ROOT: &str = "/execroot/_main/";
@@ -156,9 +155,6 @@ fn is_compiler_rule(run: &Value, result: &Value) -> bool {
         .is_some_and(|digits| !digits.is_empty() && digits.bytes().all(|b| b.is_ascii_digit()))
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_roslyn(
     sarif: &[u8],
     code: Option<i32>,
@@ -167,11 +163,6 @@ pub fn parse_roslyn(
     parse_scoped(TOOL, Scope::All, sarif, code, files)
 }
 
-/// Compiler diagnostics (CS*) only, taken from the same SARIF log as roslyn.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_csc(
     sarif: &[u8],
     code: Option<i32>,
@@ -298,7 +289,6 @@ fn parse_scoped(
         tool,
         detail: err.to_string(),
     })?;
-    // A compiler-only view already checked the exit status against every error above.
     let code = if scope == Scope::Compiler {
         Some(0)
     } else {
@@ -320,14 +310,6 @@ struct MappedDep {
     refs: Vec<String>,
 }
 
-/// Names the direct dependencies whose every reference assembly `ReferenceTrimmer` reports as unused.
-///
-/// `map` is the aspect's list of direct dependencies. `ReferenceTrimmer` words each finding
-/// "Reference <label> can be removed", with the label the aspect wrote as the spec.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_unused_references(
     sarif: &[u8],
     map: &[u8],

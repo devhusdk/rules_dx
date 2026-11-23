@@ -29,7 +29,6 @@ def uncovered_families():
     """Returns the sorted explicitly uncovered families."""
     return sorted([f for f in WRAPPER_OWNERS if WRAPPER_OWNERS[f] == "other"])
 
-# Kept apart from the colon: the consumer surface walk reads a bare colon-defs string as a load from this package.
 _PUBLIC_DEFS = "defs.bzl"
 
 def _is_owner_label(owner):

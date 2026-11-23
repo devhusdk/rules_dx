@@ -14,12 +14,6 @@ struct OutputLine {
     message: String,
 }
 
-/// Parses `quality_notebook outputs`: JSON lines on stdout, exit 0 when
-/// clean and exit 1 when there are findings. Anything else fails closed.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_notebook_outputs(
     stdout: &[u8],
     code: Option<i32>,

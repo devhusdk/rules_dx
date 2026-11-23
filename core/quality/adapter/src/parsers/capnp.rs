@@ -19,7 +19,6 @@ fn number(text: &str) -> Option<u64> {
     text.parse().ok()
 }
 
-/// Splits `path:line:col[-col]` into its parts.
 fn with_column(head: &str) -> Option<(&str, u64, u64)> {
     let (rest, span) = head.rsplit_once(':')?;
     let (path, row) = rest.rsplit_once(':')?;
@@ -27,8 +26,6 @@ fn with_column(head: &str) -> Option<(&str, u64, u64)> {
     Some((path, number(row)?, number(column)?))
 }
 
-/// Reads `path:line[:col[-col]]: error|warning: message`. Errors that span
-/// several lines carry no column and count as column 1.
 fn locate(line: &str) -> Option<Located<'_>> {
     for (kind, severity) in [
         (": error: ", ToolSeverity::Error),
@@ -54,7 +51,6 @@ fn locate(line: &str) -> Option<Located<'_>> {
     None
 }
 
-/// The first `failed:` line after an uncaught-exception banner, as a message.
 fn crash_message(stderr: &str) -> Option<String> {
     let mut lines = stderr.lines();
     lines.find(|line| line.trim() == CRASH_MARKER)?;
@@ -96,18 +92,6 @@ fn finding(
     }
 }
 
-/// Parses the stderr of one `capnp compile -o-` run over the checked files.
-///
-/// The `CodeGeneratorRequest` on stdout is binary and never read. Findings in
-/// imported schemas belong to their own targets, so only the checked files
-/// report here. Output the grammar cannot read is never clean: exit 0 allows
-/// warnings only, exit 1 needs an error in a checked file (or the compiler's
-/// uncaught-exception banner, reported on the first checked file), and
-/// anything else, including a signal, is a shape error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_capnp(
     stderr: &[u8],
     code: Option<i32>,
@@ -168,7 +152,6 @@ pub fn parse_capnp(
         if found.severity == ToolSeverity::Error {
             own_errors += 1;
         }
-        // capnp appends a freshly generated random ID; drop it so output is stable.
         let message = if found.message.starts_with("File does not declare an ID.") {
             "File does not declare an ID; generate one with `capnp id`"
         } else {

@@ -5,14 +5,6 @@ use super::{FileFinding, ParseError, as_text, code_name, columned, finding, pref
 
 const TOOL: &str = "zig_ast_check";
 
-/// Findings from `zig ast-check <file>`: `path:line:col: error:` lines on stderr.
-///
-/// Fails closed: exit 1 without a diagnostic for a passed file is a usage or IO failure
-/// (`unable to open file`), never a clean run. `note:` lines are context, not findings.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_zig_ast_check(
     stdout: &[u8],
     stderr: &[u8],
@@ -47,7 +39,6 @@ pub fn parse_zig_ast_check(
     }
 }
 
-/// `path:line:col: error: message` lines from Zig's stderr. Columns are UTF-8 bytes.
 pub(super) fn zig_errors(
     tool: &'static str,
     stderr: &[u8],
@@ -60,7 +51,6 @@ pub(super) fn zig_errors(
         let Some((file, rest)) = prefixed(line, files) else {
             continue;
         };
-        // An error without a usable position is kept at the top of its file, with the text zig wrote.
         let (start, message) = match columned(tool, line, rest) {
             Ok((row, col, tail)) => match tail.strip_prefix("error:") {
                 Some(message) => (

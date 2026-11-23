@@ -1,8 +1,5 @@
 use super::{DiffExit, FileFinding, ParseError, diff_format};
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_shfmt(
     stdout: &[u8],
     code: Option<i32>,

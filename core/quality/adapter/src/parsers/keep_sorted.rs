@@ -7,9 +7,6 @@ use super::{
 };
 use crate::ToolSeverity;
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_keep_sorted(
     stdout: &[u8],
     code: Option<i32>,
@@ -58,9 +55,6 @@ struct KeepSortedReport {
     message: String,
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_keep_sorted_lint(
     stdout: &[u8],
     code: Option<i32>,

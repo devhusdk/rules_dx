@@ -28,13 +28,6 @@ fn severity(value: u64) -> Result<ToolSeverity, ParseError> {
     }
 }
 
-/// `lsp_check` prints one JSON object per diagnostic and exits 0 when there are none, 1 when
-/// there are some. Any other exit, bad JSON, a file that was not passed, or an exit that
-/// disagrees with the lines is an error here and never a clean result.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_pkl_lsp(
     stdout: &[u8],
     code: Option<i32>,

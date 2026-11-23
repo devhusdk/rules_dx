@@ -13,11 +13,6 @@ const NOISE: &[&str] = &[
     "[warn] Code style issues found in the above file(s). Forgot to run erlfmt?",
 ];
 
-/// Findings from `erlfmt --check`: `[warn] path` lines are unformatted files, `path:line:col: message` lines are errors.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_erlfmt(
     stdout: &[u8],
     stderr: &[u8],

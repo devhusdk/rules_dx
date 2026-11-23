@@ -3,10 +3,8 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "weeder";
 
-/// The exit weeder uses when it found unused declarations.
 const WEEDS_EXIT: i32 = 228;
 
-/// Weeder says this for each root pattern that matches nothing, as `Main.main` does in a library.
 const UNMATCHED_ROOT: &str = "no declaration matches roots entry";
 
 fn weed(line: &str) -> Option<(&str, u64, u64, &str)> {
@@ -18,14 +16,6 @@ fn weed(line: &str) -> Option<(&str, u64, u64, &str)> {
     Some((parts.next()?, line_number, column, declaration.trim()))
 }
 
-/// Parses `weeder` output: one `<unit>: path:line:col: <declaration>` line per weed.
-///
-/// Weeds are reported as info. A line that is not a weed, or a weed in a file that was not
-/// passed, is an error and never a clean run.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_weeder(
     stdout: &[u8],
     stderr: &[u8],

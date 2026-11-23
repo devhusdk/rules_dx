@@ -27,11 +27,6 @@ fn forced_error(rule: &str) -> bool {
         .any(|prefix| rule == *prefix || rule.starts_with(&format!("{prefix}[")))
 }
 
-/// Parses `ansible-lint -f sarif`; only exit 0 (clean) and 2 (violations) are accepted.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ansible_lint(
     stdout: &[u8],
     stderr: &[u8],

@@ -28,7 +28,6 @@ REAL_ADAPTERS = {tool.id: tool.adapters for tool in TOOLS}
 
 REAL_CLASS_TO_FAMILY = CLASS_TO_FAMILY
 
-# Capabilities no tool can give a family, shown as `n/a` in the support matrix.
 NOT_APPLICABLE = {
     "lint": {
         "cue": "cue vet is the only CUE analysis and it is already the typecheck capability; the pinned cue binary has no separate linter",
@@ -71,7 +70,6 @@ NOT_APPLICABLE = {
     },
 }
 
-# Families missing a typecheck adapter, mapped to the tool that would fill it.
 TYPECHECK_CANDIDATES = {}
 
 def not_applicable_error(not_applicable, adapters, class_to_family):

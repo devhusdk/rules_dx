@@ -6,11 +6,6 @@ use crate::ToolSeverity;
 
 const TOOL: &str = "djlint";
 
-/// Fails when djlint reports a bad configuration or skipped the file, since both exit 0.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn djlint_ran(stderr: &[u8]) -> Result<(), ParseError> {
     let text = String::from_utf8_lossy(stderr);
     if let Some(line) = text
@@ -28,11 +23,6 @@ pub fn djlint_ran(stderr: &[u8]) -> Result<(), ParseError> {
     Ok(())
 }
 
-/// Parses `djlint --lint --quiet` findings.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_djlint(
     stdout: &[u8],
     code: Option<i32>,
@@ -72,11 +62,6 @@ pub fn parse_djlint(
     Ok(findings)
 }
 
-/// Parses `djlint --check` output.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_djlint_format(
     stdout: &[u8],
     code: Option<i32>,
@@ -156,7 +141,6 @@ fn updated_count(line: &str) -> Option<usize> {
     count.parse().ok()
 }
 
-/// The checked file a printed name stands for.
 fn named<'a>(files: &[&'a str], name: &str) -> Result<&'a str, ParseError> {
     let unknown = || ParseError::UnknownFile {
         tool: TOOL,

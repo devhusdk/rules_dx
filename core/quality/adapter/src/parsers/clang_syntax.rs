@@ -10,7 +10,6 @@ const SEVERITIES: [(&str, Option<ToolSeverity>); 5] = [
     ("remark", None),
 ];
 
-/// One located diagnostic line: file, line, column, severity (None for notes), message.
 pub(super) fn diagnostic(line: &str) -> Option<(&str, u64, u64, Option<ToolSeverity>, &str)> {
     let (at, word, severity) = SEVERITIES
         .iter()
@@ -26,7 +25,6 @@ pub(super) fn diagnostic(line: &str) -> Option<(&str, u64, u64, Option<ToolSever
     Some((file, line_no, column, severity, line.get(at + word..)?))
 }
 
-/// One `In file included from path:line:` (clang) or `from path:line,` (GCC) entry.
 pub(super) fn include_entry(line: &str) -> Option<(&str, u64)> {
     let rest = line
         .strip_prefix("In file included from ")
@@ -36,8 +34,6 @@ pub(super) fn include_entry(line: &str) -> Option<(&str, u64)> {
     Some((path, line_no.parse().ok()?))
 }
 
-/// Maps a diagnostic to a checked file. A header outside the set is reported at the
-/// include site that pulled it in, with its own location in the message.
 pub(super) fn locate<'a>(
     file: &'a str,
     line_no: u64,
@@ -62,7 +58,6 @@ pub(super) fn locate<'a>(
     ))
 }
 
-/// Splits a trailing `[-Wflag]` off the message into a rule id.
 pub(super) fn split_rule(message: &str) -> (String, String) {
     match message
         .strip_suffix(']')
@@ -73,13 +68,6 @@ pub(super) fn split_rule(message: &str) -> (String, String) {
     }
 }
 
-/// Parses `clang -fsyntax-only` (or GCC) text diagnostics. Notes, include stacks and
-/// the trailing "N errors generated." summary carry no finding; a failing exit with
-/// no located diagnostic is an error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_clang_syntax(
     stderr: &[u8],
     code: Option<i32>,
@@ -133,7 +121,6 @@ pub fn parse_clang_syntax(
     Ok(findings)
 }
 
-/// The first stderr lines of a failing run that produced no checked-file finding.
 fn unplaced_stderr(text: &[&str]) -> String {
     const SHOWN: usize = 20;
     let kept: Vec<&str> = text

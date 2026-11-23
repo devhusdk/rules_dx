@@ -1,4 +1,3 @@
-/// Runs `quality_markdown` on the process's stdio and file system and returns the exit code.
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {

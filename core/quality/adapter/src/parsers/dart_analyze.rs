@@ -5,12 +5,9 @@ use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "dart";
 
-/// Which slice of one `dart analyze` run a capability keeps.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DartAnalyzeView {
-    /// Lints, hints, static warnings and TODOs.
     Lint,
-    /// Compile-time and syntax errors.
     Typecheck,
 }
 
@@ -54,7 +51,6 @@ fn shape(detail: String) -> ParseError {
     ParseError::shape(TOOL, detail)
 }
 
-/// Whether a diagnostic type belongs to the lint view (`Some(true)`) or the typecheck view.
 fn is_lint(kind: &str) -> Result<bool, ParseError> {
     match kind {
         "LINT" | "HINT" | "STATIC_WARNING" | "STATIC_TYPE_WARNING" | "TODO" => Ok(true),
@@ -63,18 +59,6 @@ fn is_lint(kind: &str) -> Result<bool, ParseError> {
     }
 }
 
-/// Findings from `dart analyze --format=json <options> <files...>`.
-///
-/// `files` are the analyzed sources as the tool spells them (canonical paths) and `options_path`
-/// is the staged `analysis_options.yaml`, which is listed so that a broken `include:` or an
-/// unknown lint surfaces; a diagnostic on it is a configuration failure, not a finding. The exit
-/// code must agree with the worst severity: 0 for info or nothing, 2 for warnings, 3 for errors.
-/// The lint and typecheck views share one run and partition it by diagnostic type. A lint the
-/// analyzer reports at info level is a warning here; hints stay info.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_dart_analyze(
     stdout: &[u8],
     stderr: &[u8],

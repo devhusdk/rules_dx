@@ -1,5 +1,3 @@
-//! Fails when the suite membership problems file named by the first argument lists a problem.
-
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

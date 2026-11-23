@@ -2,7 +2,6 @@
 
 load("//core/quality/artifacts:acquire.bzl", "ACQUIRE_ATTRS", "acquire_tool")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 _HOST_UTILITIES = ["chmod", "python3", "sha256sum", "shasum"]

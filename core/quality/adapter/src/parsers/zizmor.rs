@@ -22,7 +22,6 @@ fn severity(name: &str) -> Result<ToolSeverity, ParseError> {
     }
 }
 
-/// The workflow path and the one-based start of the primary location of a finding.
 fn primary(entry: &serde_json::Value) -> Result<(&str, TextPosition), ParseError> {
     let locations = entry
         .get("locations")
@@ -58,12 +57,6 @@ fn primary(entry: &serde_json::Value) -> Result<(&str, TextPosition), ParseError
     ))
 }
 
-/// Parses `zizmor --format json`: one JSON array. Exit 0 is clean and 10 to 14 mean findings
-/// at the given highest severity; anything else is a failure.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_zizmor(
     stdout: &[u8],
     stderr: &[u8],

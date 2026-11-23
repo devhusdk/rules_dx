@@ -1230,7 +1230,6 @@ _zanuda_policy_test = analysistest.make(
     config_settings = {"//command_line_option:extra_execution_platforms": str(Label("//qt:windows_x86_64"))},
 )
 
-# Coverage adds the bisect_ppx driver, a dune-built tool that must still resolve on an OCaml exec cell.
 _zanuda_policy_coverage_test = analysistest.make(
     _unsupported_platform_impl,
     config_settings = {

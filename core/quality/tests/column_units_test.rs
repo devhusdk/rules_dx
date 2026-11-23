@@ -1,5 +1,3 @@
-//! Runs pinned tools on lines with an astral emoji and `é` before the finding,
-//! so each parser's column units are checked against what the tool reports.
 #![expect(
     clippy::disallowed_methods,
     reason = "tests run local programs under the Bazel test timeout"
@@ -20,7 +18,6 @@ struct Run {
     combined: String,
 }
 
-/// Runs `invocation` in `cwd`, with the launcher's own runfiles when it has them.
 fn run(invocation: &Invocation, cwd: &Path) -> Run {
     let program = Path::new(&invocation.argv[0]);
     let mut command = std::process::Command::new(program);
@@ -50,7 +47,6 @@ fn write(dir: &Path, name: &str, text: &str) -> PathBuf {
     path
 }
 
-/// The byte range of the one finding with `rule`, placed in `text`.
 fn placed(findings: &[FileFinding], rule: &str, text: &str, context: &str) -> (u64, Option<u64>) {
     let found = findings
         .iter()
@@ -70,7 +66,6 @@ fn byte_of(text: &str, marker: &str) -> u64 {
     text.find(marker).expect("marker in fixture") as u64
 }
 
-/// The SARIF driver version and whether the run states its `columnKind`.
 fn sarif_facts(stdout: &str) -> (String, Option<String>) {
     let log: Value = dx_testing::serde_json::from_str(stdout).expect("SARIF output");
     let run = &log["runs"][0];
@@ -82,8 +77,6 @@ fn sarif_facts(stdout: &str) -> (String, Option<String>) {
     (version, run["columnKind"].as_str().map(str::to_owned))
 }
 
-/// Asserts a SARIF tool's `rule` findings land on `markers` in line order,
-/// whether the run states its column units or leaves them to `absent`.
 fn assert_sarif_lands(
     out: &Run,
     name: &str,

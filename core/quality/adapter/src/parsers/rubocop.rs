@@ -2,11 +2,6 @@ use std::path::Path;
 
 use super::{FileFinding, ParseError, rubocop_json};
 
-/// Parses `rubocop --format json`, naming files as given or relative to `cwd`.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_rubocop(
     stdout: &[u8],
     stderr: &[u8],

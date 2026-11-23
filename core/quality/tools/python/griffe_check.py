@@ -1,9 +1,4 @@
-"""Runs `griffe check <package> --against <ref> --search <dir>` on the pinned griffe library.
-
-With `--old-search <dir>` instead of `--against`, the old API is loaded from that
-directory, for example an extracted wheel. Each breaking change prints as `path.py:line: object: kind`. The exit code is 1
-when there is any breaking change and 0 otherwise.
-"""
+"""Runs `griffe check <package> --against <ref> --search <dir>` on the pinned griffe library."""
 
 import argparse
 import os

@@ -7,8 +7,6 @@ use crate::{ColumnEncoding, Finding, TextPosition, ToolSeverity};
 
 const TOOL: &str = "sqlfluff";
 
-/// `sqlfluff lint --format json` prints one array with an entry per linted file. Unknown keys
-/// (`statistics`, `timings`, `fixes`) are ignored.
 #[derive(Debug, Deserialize)]
 struct Entry {
     filepath: String,
@@ -38,16 +36,6 @@ fn first_line(bytes: &[u8]) -> String {
         .to_owned()
 }
 
-/// Parses `sqlfluff lint --format json`. Exit 0 means no violation counted as an error (warnings
-/// do not change the exit code), exit 1 means at least one, and exit 2 is a usage or execution
-/// error whose reason is on stderr. Unparsable (`PRS`) and templating (`TMP`) violations are
-/// error findings. Every passed file must appear in the report: sqlfluff skips a file above
-/// `large_file_skip_byte_limit` or matched by an ignore file without reporting it, and a skipped
-/// file is never a clean one.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_sqlfluff(
     stdout: &[u8],
     stderr: &[u8],
@@ -202,10 +190,8 @@ mod tests {
 
     #[test]
     fn sqlfluff_fails_closed() {
-        // Exit and violations disagree.
         assert!(parse_sqlfluff(CLEAN.as_bytes(), b"", Some(1), &FILES).is_err());
         assert!(parse_sqlfluff(DIRTY.as_bytes(), b"", Some(0), &FILES).is_err());
-        // A usage or execution error, a signal.
         let err = parse_sqlfluff(
             b"",
             b"User Error: No dialect was specified.\n",
@@ -215,16 +201,13 @@ mod tests {
         .expect_err("exit 2");
         assert!(err.to_string().contains("No dialect"), "{err}");
         assert!(parse_sqlfluff(CLEAN.as_bytes(), b"", None, &FILES).is_err());
-        // A truncated or garbage report.
         assert!(parse_sqlfluff(&DIRTY.as_bytes()[..60], b"", Some(1), &FILES).is_err());
         assert!(parse_sqlfluff(b"error", b"", Some(1), &FILES).is_err());
         assert!(parse_sqlfluff(b"", b"", Some(0), &FILES).is_err());
         assert!(parse_sqlfluff(&[0xff, 0xfe], b"", Some(1), &FILES).is_err());
-        // A file that was not passed, or one reported twice.
         assert!(parse_sqlfluff(DIRTY.as_bytes(), b"", Some(1), &["/s/other.sql"]).is_err());
         let twice = CLEAN.replace("b.sql", "a.sql");
         assert!(parse_sqlfluff(twice.as_bytes(), b"", Some(0), &FILES).is_err());
-        // A zero position.
         let zero = DIRTY.replace(r#""start_line_pos":10"#, r#""start_line_pos":0"#);
         assert!(parse_sqlfluff(zero.as_bytes(), b"", Some(1), &FILES).is_err());
     }

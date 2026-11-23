@@ -12,7 +12,6 @@ use std::fmt::Write as _;
 
 pub(super) type Spawn = SpawnFn;
 
-/// Escapes a path for embedding in a JSON string literal.
 pub(super) fn json_escape(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     for char in raw.chars() {
@@ -57,7 +56,6 @@ pub(super) fn plain_tool() -> RealTool {
     }
 }
 
-/// A tool with its bound config staged as `rel`.
 pub(super) fn bound_tool(rel: &str, bytes: &[u8]) -> RealTool {
     RealTool {
         config_rel: Some(rel.to_owned()),
@@ -89,7 +87,6 @@ pub(super) fn upstream_file(name: &str, body: &str) -> tempfile::NamedTempFile {
     file
 }
 
-/// The tool-file key that pairs a Roslyn SARIF log with its csc exit status.
 pub(super) fn roslyn_exit_key(sarif: &Path) -> String {
     let stem = sarif
         .file_stem()
@@ -142,13 +139,10 @@ pub(super) fn file(path: &str, body: &str) -> FileInput {
     }
 }
 
-/// Hermetic launch check: HOME and USERPROFILE must never be set.
 pub(super) fn assert_hermetic(env: &[(OsString, OsString)]) {
     assert_hermetic_with(env, false);
 }
 
-/// Like `assert_hermetic`, but HOME/USERPROFILE may point inside the scratch
-/// tree. Only tools that need a scratch home opt in.
 pub(super) fn assert_hermetic_scratch_home(env: &[(OsString, OsString)]) {
     assert_hermetic_with(env, true);
 }
@@ -188,7 +182,6 @@ fn assert_hermetic_with(env: &[(OsString, OsString)], allow_scratch_home: bool) 
         "NODE_OPTIONS",
         "NODE_PATH",
     ] {
-        // A launch may pin HOME inside its own scratch tree, never to the host.
         let scratch_home = allow_scratch_home
             && matches!(denied, "HOME" | "USERPROFILE")
             && env
@@ -328,7 +321,6 @@ fn has_trailing_space(bytes: &[u8]) -> bool {
         .any(|line| line.ends_with(b" ") || line.ends_with(b"\t"))
 }
 
-/// Formats every file and resolvable module like rustfmt and fails on missing modules.
 pub(super) fn module_rustfmt(
     argv: &[OsString],
     _cwd: &Path,
@@ -373,7 +365,6 @@ pub(super) fn module_rustfmt(
     })
 }
 
-/// Fails a fix whose staged child modules carry any bytes.
 pub(super) fn placeholder_children_rustfmt(
     argv: &[OsString],
     cwd: &Path,
@@ -398,7 +389,6 @@ pub(super) fn placeholder_children_rustfmt(
     module_rustfmt(argv, cwd, env)
 }
 
-/// Reports an unclosed delimiter for every module containing `( {`.
 pub(super) fn unclosed_rustfmt(
     argv: &[OsString],
     cwd: &Path,
@@ -770,7 +760,6 @@ pub(super) fn biome_hinted(
     roundtrip_biome(argv, cwd, env)
 }
 
-/// A fake gplint: it checks the argv contract, then reports on the realpath of the file.
 pub(super) fn roundtrip_gplint(
     argv: &[OsString],
     cwd: &Path,
@@ -1185,7 +1174,6 @@ pub(super) fn ruff_behavior(argv: &[OsString]) -> io::Result<ChildOutput> {
     })
 }
 
-/// Ruff over every `.py` file in argv, the way a batched spawn hands them over.
 pub(super) fn ruff_multi_behavior(
     argv: &[OsString],
     _cwd: &Path,
@@ -1375,7 +1363,6 @@ pub(super) fn roundtrip_redocly(
     })
 }
 
-/// The `source` of one notebook cell as one string.
 fn notebook_cell_text(cell: &serde_json::Value) -> String {
     match &cell["source"] {
         serde_json::Value::String(text) => text.clone(),
@@ -1387,8 +1374,6 @@ fn notebook_cell_text(cell: &serde_json::Value) -> String {
     }
 }
 
-/// Re-serializes a notebook the way Ruff writes it: sorted keys, one-space
-/// indent and seeded cell ids.
 fn ruff_style_notebook(mut notebook: serde_json::Value) -> Vec<u8> {
     use serde::Serialize;
     if let Some(cells) = notebook["cells"].as_array_mut() {
@@ -1404,9 +1389,6 @@ fn ruff_style_notebook(mut notebook: serde_json::Value) -> Vec<u8> {
     out
 }
 
-/// Ruff lint over a mix of `.py` and `.ipynb` files. Check mode reports each
-/// `import os` line with its cell index; `--fix` drops those lines and writes
-/// notebooks back reserialized.
 pub(super) fn ruff_notebook_behavior(
     argv: &[OsString],
     _cwd: &Path,
@@ -1482,8 +1464,6 @@ pub(super) fn ruff_notebook_behavior(
     })
 }
 
-/// Runs the real `quality_notebook` CLI logic over the staged files, so the
-/// fake spawn behaves like the shipped tool.
 fn notebook_outputs_cli(argv: &[OsString]) -> ChildOutput {
     let words: Vec<String> = argv
         .iter()
@@ -1512,7 +1492,6 @@ fn notebook_outputs_cli(argv: &[OsString]) -> ChildOutput {
     }
 }
 
-/// The shipped `quality_notebook outputs` behavior.
 pub(super) fn notebook_outputs_behavior(
     argv: &[OsString],
     _cwd: &Path,
@@ -1521,7 +1500,6 @@ pub(super) fn notebook_outputs_behavior(
     Ok(notebook_outputs_cli(argv))
 }
 
-/// A misbehaving tool that also rewrites a markdown cell during `--fix`.
 pub(super) fn notebook_outputs_tampering_behavior(
     argv: &[OsString],
     _cwd: &Path,
@@ -1540,7 +1518,6 @@ pub(super) fn notebook_outputs_tampering_behavior(
     Ok(out)
 }
 
-/// A tool that exits 1 with output the parser cannot read.
 pub(super) fn notebook_outputs_malformed_behavior(
     _argv: &[OsString],
     _cwd: &Path,
@@ -1553,7 +1530,6 @@ pub(super) fn notebook_outputs_malformed_behavior(
     })
 }
 
-/// A tool that dies without a clean exit.
 pub(super) fn notebook_outputs_crash_behavior(
     _argv: &[OsString],
     _cwd: &Path,
@@ -1566,7 +1542,6 @@ pub(super) fn notebook_outputs_crash_behavior(
     })
 }
 
-/// A tool binary that cannot be started.
 pub(super) fn notebook_outputs_missing_behavior(
     _argv: &[OsString],
     _cwd: &Path,
@@ -1616,8 +1591,6 @@ fn scratch_home_checker_accepts_home_under_tmpdir() {
     assert_hermetic_scratch_home(&hermetic_env(Some("/scratch/t/home")));
 }
 
-/// The misspelling the typos fake reports. Built from parts so the repo's own
-/// typos lint does not flag the fixture.
 pub(super) const MISSPELLED: &str = concat!("te", "h");
 
 pub(super) fn typos_behavior(

@@ -24,15 +24,11 @@ def _build_file(dir):
     return None
 
 def _write_bzl_srcs(rctx):
-    # Gives starlark_doc_extract a dep that covers every loadable .bzl file: each package that holds one gets a
-    # dx_bzl_srcs filegroup, and the root one also gathers the others. Packages without .bzl files are left alone,
-    # since some upstream packages do not load.
     root = rctx.path(".")
     prefix = str(root) + "/"
     with_bzl = {}
     pending = [(root, "")]
 
-    # Starlark has no while loop; every iteration visits one directory and the tree is finite.
     for _ in range(1000000):
         if not pending:
             break

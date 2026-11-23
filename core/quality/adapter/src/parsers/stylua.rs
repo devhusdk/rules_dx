@@ -41,14 +41,6 @@ struct Location {
     start_column: u64,
 }
 
-/// `--check --output-format=json` writes one JSON object per unformatted file to stdout and exits 1.
-/// Files that do not parse are never listed there: they exit 0 and put a JSON array of located
-/// errors on stderr, so stderr is read whatever the exit code. Any other exit (2 for a missing
-/// file or bad config) or any output outside those two shapes is an error, never clean.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_stylua(
     stdout: &[u8],
     stderr: &[u8],

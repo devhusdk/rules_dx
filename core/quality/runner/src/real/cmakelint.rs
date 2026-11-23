@@ -9,14 +9,8 @@ use super::{RealBackend, RealTool, RunnerError, StagedScratch, execution, parsed
 const DEFAULT_CONFIG_REL: &str = "dx-cmakelint-default/.cmakelintrc";
 const DEFAULT_CONFIG_BYTES: &[u8] = include_bytes!("../../../tiers/cmakelint/standard.cmakelintrc");
 
-/// The `.cmakelintrc` keys dx accepts. cmakelint silently ignores any other line, so an
-/// allowlist is the only way a typo can fail instead of passing as clean.
 const CONFIG_KEYS: &[&str] = &["filter=", "spaces=", "linelength="];
 
-/// Rejects a config cmakelint would half-read.
-///
-/// Only blank lines, `#` comments and the `CONFIG_KEYS` are allowed. `quiet` is rejected
-/// because it drops the `Total Errors` summary on clean runs, which the parser requires.
 fn check_config(text: &str) -> Result<(), String> {
     for (index, raw) in text.lines().enumerate() {
         let line = raw.trim();
@@ -46,7 +40,6 @@ pub(super) const TOOL: ToolDef = ToolDef {
 };
 
 impl RealBackend {
-    /// Lints every staged `CMake` file in one cmakelint run, with a preflighted config.
     pub(super) fn check_cmakelint(
         &self,
         tool_id: &str,

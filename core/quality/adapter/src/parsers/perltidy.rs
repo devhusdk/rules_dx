@@ -5,17 +5,6 @@ use super::{FileFinding, ParseError, as_text, code_name, finding, rewrite_format
 
 const TOOL: &str = "perltidy";
 
-/// Findings from one `perltidy --standard-output <file>` run.
-///
-/// Exit 0 or 1 means perltidy formatted the file, so stdout is compared with the input and a
-/// difference is one finding. Exit 2 means the source did not parse: perltidy then echoes the
-/// input and describes the problem on stderr as `file:LINE: message`, which becomes one syntax
-/// finding at the first such line (line 1 when none parses). Any other exit, or empty output for
-/// non-empty input, is an error, never a clean file.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_perltidy(
     stdout: &[u8],
     stderr: &[u8],

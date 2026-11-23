@@ -7,7 +7,6 @@ alias(
     actual = "@dx_prebuilt//:nixfmt",
 )
 
-# Upstream prebuilt on linux_x86_64. The release ships linux_arm64 and macos_arm64; this alias is the source fallback when the hub has no pin.
 alias(
     name = "nixfmt_source",
     actual = select({

@@ -535,7 +535,7 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `swift_lint` | catalog | `*.swift-format`, `*.json` | none | dx |  |
 | `taplo` | curated | `.taplo.toml` | override copy | dx |  |
 | `tflint` | catalog | `*.hcl` | none | dx |  |
-| `trivy_config` | catalog | `*.txt` | none | dx |  |
+| `trivy_config` | curated | `*.txt` | none | dx |  |
 | `tsc` | curated | `tsconfig.json` | extends | dx |  |
 | `ty` | curated | `*.toml` | none | dx |  |
 | `typos` | curated | `typos.toml` | override copy | dx |  |

@@ -340,6 +340,7 @@ pub const CROSS_FAMILY_TOOLS: &[&str] = &[
     "lychee",
     "markdown_check",
     "prettier",
+    "trivy_config",
     "tsc",
     "typos",
     "yamlfmt",

@@ -108,6 +108,7 @@ CROSS_FAMILY_TOOLS = [
     "lychee",
     "markdown_check",
     "prettier",
+    "trivy_config",
     "tsc",
     "typos",
     "yamlfmt",

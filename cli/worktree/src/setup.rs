@@ -677,6 +677,7 @@ mod tests {
                     }
                     HookKind::Stop => "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook stop",
                     HookKind::Guard => "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard",
+                    HookKind::Bazel => continue,
                 };
                 assert_eq!(commands(&settings, event), vec![expected.to_owned()]);
             }
@@ -686,9 +687,13 @@ mod tests {
     #[test]
     fn the_claude_file_carries_every_hook_at_its_claude_event() {
         let kinds: Vec<HookKind> = CLAUDE.hooks.iter().map(|(kind, _, _)| *kind).collect();
-        assert_eq!(kinds, HookKind::ALL);
+        let agent_kinds: Vec<HookKind> = HookKind::ALL
+            .into_iter()
+            .filter(|kind| kind.event().is_some())
+            .collect();
+        assert_eq!(kinds, agent_kinds);
         for (kind, event, _) in CLAUDE.hooks {
-            assert_eq!(kind.event(), *event);
+            assert_eq!(kind.event(), Some(*event));
         }
     }
 
@@ -697,9 +702,6 @@ mod tests {
         let text = settings_text(&CLAUDE);
         let flagged = text.replace("/tools/dx worktree", "/tools/dx --verbose worktree");
         assert_ne!(flagged, text);
-        assert_eq!(
-            missing_entries(&CLAUDE, &flagged).len(),
-            HookKind::ALL.len()
-        );
+        assert_eq!(missing_entries(&CLAUDE, &flagged).len(), CLAUDE.hooks.len());
     }
 }

@@ -59,6 +59,7 @@ fn build_lines_with_env(
     fs::write(workspace.join("MODULE.bazel"), MODULE).expect("module");
     fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
     fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
+    dx_testing::empty_git_repo(&workspace);
     let bazel = bin.join("bazel");
     dx_testing::executable_script(&bazel, FAKE_BAZEL);
     let log = base.join("argv.log");

@@ -627,10 +627,11 @@ fn hook_event_names_are_stable() {
     assert_eq!(
         events,
         [
-            "WorktreeCreate",
-            "WorktreeRemove",
-            "SubagentStop",
-            "PreToolUse"
+            Some("WorktreeCreate"),
+            Some("WorktreeRemove"),
+            Some("SubagentStop"),
+            Some("PreToolUse"),
+            None
         ]
     );
 }
@@ -1486,7 +1487,11 @@ fn bazel_links_do_not_make_a_slot_dirty_and_survive_reuse() {
     );
     ops::release(&pool, &host, &me, &first.path, false).expect("release with bazel link");
     if let Err(error) = std::os::unix::fs::symlink(&target, first.path.join("bazel-bin")) {
-        assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists, "relink: {error}");
+        assert_eq!(
+            error.kind(),
+            std::io::ErrorKind::AlreadyExists,
+            "relink: {error}"
+        );
     }
     std::fs::write(first.path.join("junk.txt"), "x").expect("junk");
     let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("reuse");
@@ -6543,4 +6548,146 @@ fn without_a_process_list_stop_server_still_shuts_down_and_reports_failure() {
     assert_eq!(host.shutdown_paths(), vec![path.clone()]);
     host.shutdown_fails.store(true, Ordering::SeqCst);
     assert!(ops::stop_server(&host, &path));
+}
+
+fn primary_value(main: &Path) -> Option<String> {
+    dx_test_scratch::git(main, main, &["config", "--get", super::primary::KEY]).ok()
+}
+
+#[test]
+fn the_first_add_protects_the_main_checkout_once() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    assert_eq!(primary_value(&fixture.main), None);
+    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let notice = first.notice.expect("notice");
+    assert!(notice.contains("is now protected"), "{notice}");
+    assert_eq!(primary_value(&fixture.main).as_deref(), Some("protected"));
+    let second = ops::add(&pool, &host, &who("s1", 10), &create("feature/b")).expect("add");
+    assert_eq!(second.notice, None);
+}
+
+#[test]
+fn an_add_keeps_an_open_main_checkout_open() {
+    let fixture = Fixture::new();
+    dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["config", "dx.primary", "open"],
+    )
+    .unwrap();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    assert_eq!(added.notice, None);
+    assert_eq!(primary_value(&fixture.main).as_deref(), Some("open"));
+}
+
+#[test]
+fn the_main_checkout_rule_follows_mode_and_agent() {
+    let fixture = Fixture::new();
+    let nested = fixture.main.join("sub");
+    std::fs::create_dir_all(&nested).expect("sub dir");
+    let plain = |_: &str| None;
+    let agent = |name: &str| (name == "CODEX_SANDBOX").then(|| "seatbelt".to_owned());
+    let main_line = format!(
+        "no Bazel in the main checkout {}. Work in a slot: tools/dx worktree add <branch>",
+        fixture.main.display()
+    );
+    for (mode, agent_env, want) in [
+        (None, false, None),
+        (None, true, None),
+        (Some("protected"), false, Some(main_line.clone())),
+        (Some("protected"), true, Some(main_line.clone())),
+        (Some("open"), false, None),
+        (Some("open"), true, Some(main_line.clone())),
+        (
+            Some("protectd"),
+            false,
+            Some(format!(
+                "dx.primary is \"protectd\", which is neither protected nor open, so dx treats it as protected: {main_line}"
+            )),
+        ),
+    ] {
+        let args = match mode {
+            Some(mode) => vec!["config", "dx.primary", mode],
+            None => vec!["config", "--unset-all", "dx.primary"],
+        };
+        let set = dx_test_scratch::git(&fixture.main, &fixture.main, &args);
+        assert!(mode.is_none() || set.is_ok(), "{set:?}");
+        let env: &dyn Fn(&str) -> Option<String> = if agent_env { &agent } else { &plain };
+        let case = format!("{mode:?} agent={agent_env}");
+        assert_eq!(super::primary::refusal(&nested, env), want, "{case}");
+        let bazel = super::primary::bazel_refusal(&fixture.main, &["build".to_owned()], env);
+        assert_eq!(bazel, want, "{case}");
+    }
+}
+
+#[test]
+fn a_config_git_cannot_read_refuses_everywhere_in_the_repository() {
+    let fixture = Fixture::new();
+    let config = fixture.main.join(".git").join("config");
+    let good = std::fs::read_to_string(&config).expect("config");
+    std::fs::write(&config, format!("{good}\n[dx\n")).expect("broken config");
+    let plain = |_: &str| None;
+    let got = super::primary::refusal(&fixture.main, &plain).expect("refused");
+    assert!(
+        got.starts_with("cannot check dx.primary: git config --get dx.primary failed: "),
+        "{got}"
+    );
+    assert!(
+        got.ends_with(". dx refuses Bazel work until git can read it"),
+        "{got}"
+    );
+    std::fs::write(&config, good).expect("restore config");
+    assert_eq!(super::primary::refusal(&fixture.main, &plain), None);
+}
+
+#[test]
+fn outside_git_the_rule_is_off() {
+    let scratch = dx_test_scratch::scratch("primary-outside-").unwrap();
+    let plain = |_: &str| None;
+    assert_eq!(super::primary::refusal(scratch.path(), &plain), None);
+}
+
+#[test]
+fn a_slot_may_build_but_not_bazel_clean() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let plain = |_: &str| None;
+    let words = |line: &str| {
+        line.split_whitespace()
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(super::primary::refusal(&added.path, &plain), None);
+    for args in ["build //:all", "--output_base=/x build //...", "shutdown"] {
+        assert_eq!(
+            super::primary::bazel_refusal(&added.path, &words(args), &plain),
+            None,
+            "{args}"
+        );
+    }
+    for args in [
+        "clean",
+        "--output_base=/x clean --async",
+        "--output_base /x clean",
+        "--host_jvm_args -Xmx1g clean",
+    ] {
+        assert_eq!(
+            super::primary::bazel_refusal(&added.path, &words(args), &plain).as_deref(),
+            Some(super::primary::SLOT_CLEAN),
+            "{args}"
+        );
+    }
+    assert!(
+        super::primary::bazel_refusal(&fixture.main, &words("clean"), &plain)
+            .is_some_and(|line| line.starts_with("no Bazel in the main checkout"))
+    );
 }

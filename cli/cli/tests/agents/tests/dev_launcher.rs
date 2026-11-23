@@ -11,6 +11,32 @@ fn state(root: &Path) -> PathBuf {
     dx_path::state::launcher_dir(root)
 }
 
+/// `.git` entries a launcher without git reads: the path, its text or none for a directory, and whether it refuses.
+const NO_GIT_LAYOUTS: [(&str, Option<&str>, bool); 5] = [
+    ("objects", None, false),
+    ("config", Some("[core]\n\tbare = false\n"), false),
+    (
+        "config",
+        Some("[core]\n\tbare = false\n[dx]\n\tprimary = open\n"),
+        true,
+    ),
+    ("worktrees/1", None, true),
+    ("config", None, true),
+];
+
+/// Lays out one of `NO_GIT_LAYOUTS` in `root`.
+fn lay_out_git(root: &Path, entry: &str, text: Option<&str>) {
+    let path = root.join(".git").join(entry);
+    match text {
+        Some(text) => {
+            std::fs::create_dir_all(root.join(".git")).expect("git dir");
+            std::fs::write(&path, text)
+        }
+        None => std::fs::create_dir_all(&path),
+    }
+    .expect("git layout");
+}
+
 #[test]
 fn dev_launchers_keep_their_structure() {
     let startup = WORKFLOW_STARTUP_OPTS.join(" ");
@@ -888,6 +914,127 @@ mod sh {
         assert_eq!(repo.state_files(), files);
         repo.run_ok();
         assert_eq!(repo.builds(), 2, "a plain run still rebuilds");
+    }
+
+    #[test]
+    fn worktree_help_runs_the_built_dx_without_bazel() {
+        let repo = source_repo("dx-launcher-fast-help-");
+        repo.run_ok();
+        repo.touch_build_file();
+        let (code, out, err) = repo.run_in(&repo.root(), &["worktree", "--help"]);
+        assert_eq!(
+            (code, out.as_str()),
+            (Some(0), "ran worktree --help\n"),
+            "{err}"
+        );
+        assert!(!err.contains("dx: building"), "{err}");
+        assert_eq!(repo.builds(), 1);
+    }
+
+    #[test]
+    fn a_refused_bazel_hook_runs_the_built_dx_instead_of_a_build() {
+        for (stderr, builds) in [
+            ("dx: refused: no Bazel in the main checkout here", 1),
+            ("dx: worktree: want one of: create, remove, stop, guard", 2),
+        ] {
+            let repo = source_repo("dx-launcher-refused-");
+            repo.run_ok();
+            shell_script(
+                &state(&repo.root()).join("dx"),
+                &format!(
+                    "case \"$*\" in\n'worktree hook bazel -- build //cli/cli:dx') echo '{stderr}' >&2; exit 2 ;;\nesac\necho ran \"$@\"\n"
+                ),
+            );
+            repo.touch_build_file();
+            let (code, out, err) = repo.run_in(&repo.root(), &["status"]);
+            assert_eq!((code, out.as_str()), (Some(0), "ran status\n"), "{err}");
+            assert_eq!(repo.builds(), builds, "{stderr}: {err}");
+        }
+    }
+
+    #[test]
+    fn the_bazel_bin_dx_answers_when_the_copy_cannot() {
+        let repo = source_repo("dx-launcher-refused-bin-");
+        repo.run_ok();
+        let hook = |stderr: &str, name: &str| {
+            format!(
+                "case \"$*\" in\n'worktree hook bazel -- build //cli/cli:dx') echo '{stderr}' >&2; exit 2 ;;\nesac\necho {name} \"$@\"\n"
+            )
+        };
+        shell_script(
+            &state(&repo.root()).join("dx"),
+            &hook("dx: no such command", "copy"),
+        );
+        shell_script(
+            &repo.root().join("bazel-bin/cli/cli/dx"),
+            &hook("dx: refused: no Bazel in the main checkout here", "bin"),
+        );
+        repo.touch_build_file();
+        let (code, out, err) = repo.run_in(&repo.root(), &["status"]);
+        assert_eq!((code, out.as_str()), (Some(0), "bin status\n"), "{err}");
+        assert_eq!(repo.builds(), 1, "{err}");
+    }
+
+    #[test]
+    fn with_no_dx_to_ask_git_decides_and_injected_config_does_not_count() {
+        for (git_exit, code, builds) in [(1, Some(0), 1), (0, Some(2), 0), (128, Some(2), 0)] {
+            let repo = source_repo("dx-launcher-primary-git-");
+            std::fs::create_dir_all(repo.root().join(".git")).expect("git dir");
+            let seen = repo.base.join("git-seen");
+            repo.fake(
+                "git",
+                &format!(
+                    "echo \"${{GIT_CONFIG_COUNT:-none}} ${{GIT_CONFIG_PARAMETERS:-none}} $*\" >> '{}'\nexit {git_exit}",
+                    seen.display()
+                ),
+            );
+            let out = spawn(
+                repo.command_in(&repo.root(), &["status"])
+                    .env("GIT_CONFIG_COUNT", "1")
+                    .env("GIT_CONFIG_KEY_0", "dx.primary")
+                    .env("GIT_CONFIG_VALUE_0", "open")
+                    .env("GIT_CONFIG_PARAMETERS", "'dx.primary'='open'"),
+            )
+            .wait_with_output()
+            .expect("launcher runs");
+            let err = String::from_utf8_lossy(&out.stderr);
+            assert_eq!(out.status.code(), code, "git exit {git_exit}: {err}");
+            assert_eq!(repo.builds(), builds, "git exit {git_exit}: {err}");
+            assert_eq!(
+                std::fs::read_to_string(&seen).expect("git ran"),
+                format!(
+                    "none none -C {} -c safe.directory=* config --get dx.primary\n",
+                    repo.root().display()
+                )
+            );
+            if code == Some(2) {
+                assert!(
+                    err.starts_with("dx: refused: dx.primary is set in the main checkout "),
+                    "{err}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn with_no_dx_to_ask_and_no_git_on_path_the_launcher_reads_dot_git() {
+        for (entry, text, refuses) in super::NO_GIT_LAYOUTS {
+            let repo = source_repo("dx-launcher-primary-nogit-");
+            super::lay_out_git(&repo.root(), entry, text);
+            let out = spawn(&mut repo.command_in(&repo.root(), &["status"]))
+                .wait_with_output()
+                .expect("launcher runs");
+            let err = String::from_utf8_lossy(&out.stderr);
+            let case = format!("{entry} {text:?}: {err}");
+            if refuses {
+                assert_eq!(out.status.code(), Some(2), "{case}");
+                assert_eq!(repo.builds(), 0, "{case}");
+                assert!(err.starts_with("dx: refused: git is not on PATH"), "{case}");
+            } else {
+                assert_eq!(out.status.code(), Some(0), "{case}");
+                assert_eq!(repo.builds(), 1, "{case}");
+            }
+        }
     }
 
     #[test]
@@ -1944,7 +2091,7 @@ mod sh {
         repo.fake(
             "git",
             &format!(
-                "case $* in\n*' rev-parse -q --verify HEAD') echo aaaa ;;\n*' rev-parse -q --verify refs/tags/v1.2.3^{{commit}}') cat '{}' ;;\n*' diff --quiet HEAD --') [ ! -e '{}' ] ;;\n*) exit 9 ;;\nesac",
+                "case $* in\n*' rev-parse -q --verify HEAD') echo aaaa ;;\n*' rev-parse -q --verify refs/tags/v1.2.3^{{commit}}') cat '{}' ;;\n*' diff --quiet HEAD --') [ ! -e '{}' ] ;;\n*' config --get dx.primary') exit 1 ;;\n*) exit 9 ;;\nesac",
                 tag.display(),
                 dirty.display()
             ),
@@ -2593,6 +2740,100 @@ mod cmd {
         assert!(out.contains("running the fresh dx anyway"), "{out}");
         assert_eq!(repo.builds(), 1, "only the slot dx is built");
         assert!(!state(&repo.root()).exists());
+    }
+
+    #[test]
+    fn cmd_with_no_dx_to_ask_git_decides_and_injected_config_does_not_count() {
+        for (git_exit, code, builds) in [(1, Some(0), 1), (0, Some(2), 0), (128, Some(2), 0)] {
+            let repo = source_repo("dx-launcher-cmd-primary-git-");
+            std::fs::create_dir_all(repo.root().join(".git")).expect("git dir");
+            let seen = repo.base.join("git-seen");
+            std::fs::write(
+                repo.base.join("stub/git.cmd"),
+                format!(
+                    "@echo off\r\necho [%GIT_CONFIG_COUNT%] %*>>\"{}\"\r\nexit /b {git_exit}\r\n",
+                    seen.display()
+                ),
+            )
+            .expect("git stub");
+            let out = repo
+                .command(&[], &repo.base.join("calls"))
+                .env("GIT_CONFIG_COUNT", "1")
+                .env("GIT_CONFIG_KEY_0", "dx.primary")
+                .env("GIT_CONFIG_VALUE_0", "open")
+                .output()
+                .expect("launcher runs");
+            let err = String::from_utf8_lossy(&out.stderr);
+            assert_eq!(out.status.code(), code, "git exit {git_exit}: {err}");
+            assert_eq!(repo.builds(), builds, "git exit {git_exit}: {err}");
+            let seen = std::fs::read_to_string(&seen).expect("git ran");
+            assert!(
+                seen.starts_with("[] -C ") && seen.contains(" config --get dx.primary"),
+                "{seen}"
+            );
+            if code == Some(2) {
+                assert!(
+                    err.starts_with("dx: refused: dx.primary is set in the main checkout "),
+                    "{err}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn cmd_with_no_dx_to_ask_and_no_git_on_path_the_launcher_reads_dot_git() {
+        for (entry, text, refuses) in super::NO_GIT_LAYOUTS {
+            let repo = source_repo("dx-launcher-cmd-primary-nogit-");
+            super::lay_out_git(&repo.root(), entry, text);
+            let out = repo
+                .command(&[], &repo.base.join("calls"))
+                .output()
+                .expect("launcher runs");
+            let err = String::from_utf8_lossy(&out.stderr);
+            let case = format!("{entry} {text:?}: {err}");
+            if refuses {
+                assert_eq!(out.status.code(), Some(2), "{case}");
+                assert_eq!(repo.builds(), 0, "{case}");
+                assert!(err.starts_with("dx: refused: git is not on PATH"), "{case}");
+            } else {
+                assert_eq!(out.status.code(), Some(0), "{case}");
+                assert_eq!(repo.builds(), 1, "{case}");
+            }
+        }
+    }
+
+    #[test]
+    fn cmd_a_refused_bazel_hook_runs_the_dx_that_refused() {
+        for copy_answers in [true, false] {
+            let repo = source_repo("dx-launcher-cmd-refused-");
+            let root = repo.root();
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            let refusing = if copy_answers {
+                state(&root).join("dx.exe")
+            } else {
+                root.join("bazel-bin/cli/cli/dx.exe")
+            };
+            std::fs::copy(dx_testing::process_probe(), &refusing).expect("refusing dx");
+            touch_preset(&root);
+            let asked = repo.base.join("asked");
+            let out = repo
+                .command(&["status"], &repo.base.join("calls"))
+                .env("PROCESS_PROBE_CALL_LOG", &asked)
+                .env(
+                    "PROCESS_PROBE_CALL_STDERR",
+                    "dx: refused: no Bazel in the main checkout here",
+                )
+                .env("PROCESS_PROBE_CALL_EXIT", "2")
+                .output()
+                .expect("launcher runs");
+            let err = String::from_utf8_lossy(&out.stderr);
+            let case = format!("copy answers {copy_answers}: {err}");
+            assert_eq!(out.status.code(), Some(2), "{case}");
+            assert_eq!(repo.builds(), 1, "{case}");
+            let asked = std::fs::read_to_string(&asked).expect("the refusing dx ran");
+            assert!(asked.ends_with("\nstatus\n"), "{case}: {asked}");
+        }
     }
 
     #[test]
@@ -3275,7 +3516,7 @@ mod cmd {
         std::fs::write(
             repo.base.join("stub/git.cmd"),
             format!(
-                "@echo off\r\nif \"%3\"==\"diff\" goto diff\r\nif \"%6\"==\"HEAD\" echo aaaa\r\nif \"%6\"==\"HEAD\" exit /b 0\r\ntype \"{}\"\r\nexit /b 0\r\n:diff\r\nif exist \"{}\" exit /b 1\r\nexit /b 0\r\n",
+                "@echo off\r\nif \"%5\"==\"config\" exit /b 1\r\nif \"%3\"==\"diff\" goto diff\r\nif \"%6\"==\"HEAD\" echo aaaa\r\nif \"%6\"==\"HEAD\" exit /b 0\r\ntype \"{}\"\r\nexit /b 0\r\n:diff\r\nif exist \"{}\" exit /b 1\r\nexit /b 0\r\n",
                 tag.display(),
                 dirty.display()
             ),

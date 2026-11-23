@@ -170,8 +170,9 @@ The schema is
 
 When a coding agent runs dx, the default output is `json`. dx sees an agent
 when one of these is set to a non-empty value: `CLAUDECODE`,
-`CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, `AI_AGENT`, `AGENT`,
-`GOOSE_TERMINAL`, `OPENCODE` or `AMP_CURRENT_THREAD_ID`. In CI this default is
+`CODEX_THREAD_ID`, `CODEX_SANDBOX`, `CURSOR_AGENT`, `GEMINI_CLI`, `QWEN_CODE`,
+`AMP_CURRENT_THREAD_ID`, `AUGMENT_AGENT`, `OPENCODE`, `COPILOT_CLI`, `AI_AGENT`,
+`AGENT` or `GOOSE_TERMINAL`. In CI this default is
 off. More for agents: [`dx worktree`](worktree.md).
 
 ## Exit Codes

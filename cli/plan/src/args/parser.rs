@@ -143,7 +143,7 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
     } else {
         dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_OUTPUT_ENV)
     };
-    let agent = !is_ci && dx_adopt::defaults::is_agent(env_get);
+    let agent = !is_ci && dx_process::is_agent(env_get);
     resolve_output_name(command, None, env.as_deref(), agent) == "json"
 }
 
@@ -273,7 +273,7 @@ pub fn parse_with_ci<S: AsRef<OsStr>>(
 ) -> Result<Invocation, ArgsError> {
     if is_ci {
         let filtered = |name: &str| {
-            if ci_ignores_env(name, true) || dx_adopt::defaults::AGENT_ENVS.contains(&name) {
+            if ci_ignores_env(name, true) || dx_process::AGENT_ENVS.contains(&name) {
                 None
             } else {
                 env_get(name)
@@ -438,7 +438,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         });
     }
     let workspace = flag_workspace;
-    let agent = invocation_defaults::is_agent(env_get);
+    let agent = dx_process::is_agent(env_get);
     let output_from_flag = output.is_some();
     let fail_on_from_flag = fail_on.is_some();
     let apply_without_output_flag = command == Command::Init && apply && !output_from_flag;
@@ -1082,7 +1082,7 @@ mod startup_tests {
 
     #[test]
     fn json_intent_matches_parsed_output_across_layers() {
-        let agent_env = dx_adopt::defaults::AGENT_ENVS[0];
+        let agent_env = dx_process::AGENT_ENVS[0];
         let mut cases = 0;
         for words in [
             &["lint"][..],
@@ -1122,7 +1122,7 @@ mod startup_tests {
     #[test]
     fn json_intent_under_agents_follows_supports_json() {
         use clap::ValueEnum;
-        for marker in dx_adopt::defaults::AGENT_ENVS {
+        for marker in dx_process::AGENT_ENVS {
             let agent = |name: &str| (name == marker).then(|| "1".to_owned());
             for command in Command::value_variants() {
                 let name = command.name();

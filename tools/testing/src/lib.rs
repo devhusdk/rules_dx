@@ -877,6 +877,26 @@ pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
     dir.display().to_string()
 }
 
+/// Makes `dir` an empty git repository by writing the few entries git needs, which is
+/// faster than `git init` when many tests fork at once. A dx run in `dir` then reads
+/// its own unset `dx.primary` instead of the checkout's the test runs in.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[track_caller]
+#[expect(
+    clippy::expect_used,
+    reason = "test helper: a failed setup fails the test"
+)]
+pub fn empty_git_repo(dir: &Path) {
+    let git = dir.join(".git");
+    for sub in ["objects", "refs"] {
+        std::fs::create_dir_all(git.join(sub)).expect("git dir");
+    }
+    std::fs::write(git.join("HEAD"), "ref: refs/heads/main\n").expect("git HEAD");
+}
+
 /// Waits up to 10s for the process holding the alive lock at `lock` to die.
 ///
 /// # Panics

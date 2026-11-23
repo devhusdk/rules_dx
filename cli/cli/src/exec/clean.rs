@@ -24,6 +24,20 @@ struct Removed {
     bytes: u64,
 }
 
+/// The `bazel clean` argv `--bazel` or `--expunge` asks for; none for a dx-only clean.
+fn bazel_clean_argv(invocation: &Invocation) -> Option<Vec<String>> {
+    if !invocation.clean_bazel && !invocation.expunge {
+        return None;
+    }
+    #[expect(clippy::disallowed_methods, reason = "clean takes no build settings")]
+    let mut argv = dx_process::startup_argv(&invocation.bazel_startup_options);
+    argv.push("clean".to_owned());
+    if invocation.expunge {
+        argv.push("--expunge".to_owned());
+    }
+    Some(argv)
+}
+
 pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     let Env {
         workspace,
@@ -32,6 +46,17 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
         err,
         ..
     } = env;
+    let bazel_clean = bazel_clean_argv(invocation);
+    // The real Bazel argv after the launcher, so the slot rule sees the startup options as Bazel will.
+    if let Some(argv) = &bazel_clean
+        && let Some(reason) = dx_worktree::primary::bazel_refusal(
+            workspace,
+            argv.get(1..).unwrap_or_default(),
+            &|name| std::env::var(name).ok(),
+        )
+    {
+        return dx_exec_core::common::refusal(invocation.output, out, err, &reason);
+    }
     let json = invocation.output == dx_output::OutputMode::Json;
     if json && let Err(exit) = emit_started(invocation, out) {
         return exit;
@@ -81,14 +106,8 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
             return exit;
         }
     }
-    if invocation.clean_bazel || invocation.expunge {
-        #[expect(clippy::disallowed_methods, reason = "clean takes no build settings")]
-        let mut argv = dx_process::startup_argv(&invocation.bazel_startup_options);
-        argv.push("clean".to_owned());
-        if invocation.expunge {
-            argv.push("--expunge".to_owned());
-        }
-        match run_bazel_output(invocation.output, out, err, workspace, runner, &argv, &[]) {
+    if let Some(argv) = &bazel_clean {
+        match run_bazel_output(invocation.output, out, err, workspace, runner, argv, &[]) {
             Ok(0) => {}
             Ok(code) => {
                 let message = format!("`bazel clean` exited with {code}");
@@ -366,6 +385,64 @@ mod tests {
             let tail: Vec<_> = argv.iter().rev().take(want.len()).rev().collect();
             assert_eq!(tail, want, "{argv:?}");
         }
+    }
+
+    #[test]
+    fn bazel_clean_in_a_slot_is_refused_before_it_removes_anything() {
+        let scratch = dx_test_scratch::scratch("clean-slot-").unwrap();
+        let main = scratch.path().join("main");
+        let slot = scratch.path().join("pool").join("1");
+        std::fs::create_dir_all(&main).expect("main");
+        std::fs::create_dir_all(scratch.path().join("pool").join(".dx")).expect("meta");
+        let git = |args: &[&str]| dx_test_scratch::git(&main, scratch.path(), args).expect("git");
+        git(&["init", "--quiet", "--initial-branch=main"]);
+        git(&["commit", "--quiet", "--allow-empty", "-m", "base"]);
+        git(&["config", dx_worktree::primary::KEY, "protected"]);
+        git(&[
+            "worktree",
+            "add",
+            "--quiet",
+            "--detach",
+            slot.to_str().expect("utf8"),
+        ]);
+        let record = dx_worktree::pool::Record {
+            slot: 1,
+            held: true,
+            branch: Some("feature/a".to_owned()),
+            last_branch: None,
+            session: None,
+            agent: None,
+            pid: None,
+            pid_start: None,
+            boot_id: None,
+            gone: false,
+            stopped_at: None,
+            unclaimed: false,
+            broken: false,
+            leased_at: 0,
+            last_used: 0,
+            lock_digest: None,
+        };
+        std::fs::write(
+            scratch.path().join("pool").join(".dx").join("1.json"),
+            serde_json::to_vec(&record).expect("json"),
+        )
+        .expect("record");
+        let mut harness = Harness::new("clean-slot");
+        harness.workspace = slot.clone();
+        harness.cwd = slot;
+        fill(&harness, "bin");
+        let startup = "--bazel-startup-option=--output_base=/slot/ob";
+        let (code, out, err) = harness.run(&["clean", "--bazel", startup]);
+        assert_eq!(code, 2, "{out}{err}");
+        assert!(err.contains(dx_worktree::primary::SLOT_CLEAN), "{err}");
+        assert!(harness.build_argv.borrow().is_empty());
+        assert!(
+            local(&harness, "bin").exists(),
+            "a refused clean deletes nothing"
+        );
+        let (code, out, err) = harness.run(&["clean"]);
+        assert_eq!(code, 0, "{out}{err}");
     }
 
     #[test]

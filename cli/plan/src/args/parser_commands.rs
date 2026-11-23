@@ -1157,7 +1157,9 @@ fn worktree_hook_rejects_unknown_hook_names() {
         let error = parse(&strings(&["worktree", "hook", name])).expect_err(name);
         assert_eq!(
             error.to_string(),
-            format!("unknown dx worktree hook {name:?}: want one of: create, remove, stop, guard")
+            format!(
+                "unknown dx worktree hook {name:?}: want one of: create, remove, stop, guard, bazel"
+            )
         );
     }
 }

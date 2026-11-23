@@ -65,6 +65,7 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str, query_args: &str) -
     fs::create_dir_all(workspace.join("pkg")).expect("pkg dir");
     fs::write(workspace.join("pkg/BUILD.bazel"), "").expect("pkg build file");
     fs::write(workspace.join("pkg/a.py"), "x = 1\n").expect("pkg source");
+    dx_testing::empty_git_repo(&workspace);
     let bazel = bin.join("bazel");
     dx_testing::executable_script(&bazel, FAKE_BAZEL);
     let log = base.join("bazel.log");

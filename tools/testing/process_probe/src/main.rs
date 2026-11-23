@@ -57,17 +57,20 @@ With PROCESS_PROBE_BAZEL_DIR set, the probe acts as a fake bazel: for build and
 run it writes start-N (its arguments) in that directory; run also keeps an app
 child alive holding alive-N until the stop file appears, and waits for it.
 
-With PROCESS_PROBE_SHIM_LOG set, the probe ignores its arguments, writes the
+With PROCESS_PROBE_CALL_LOG set, the probe ignores its arguments, writes the
 working directory and then each argument to that file one per line, writes
-PROCESS_PROBE_SHIM_STDOUT to stdout, and exits with PROCESS_PROBE_SHIM_EXIT.
+PROCESS_PROBE_CALL_STDOUT to stdout and PROCESS_PROBE_CALL_STDERR to stderr, and
+exits with PROCESS_PROBE_CALL_EXIT.
 ";
 
-/// The file a shim run records its working directory and arguments into.
-const SHIM_LOG: &str = "PROCESS_PROBE_SHIM_LOG";
-/// The text a shim run writes to stdout.
-const SHIM_STDOUT: &str = "PROCESS_PROBE_SHIM_STDOUT";
-/// The exit status a shim run reports.
-const SHIM_EXIT: &str = "PROCESS_PROBE_SHIM_EXIT";
+/// The file a logged call records its working directory and arguments into.
+const CALL_LOG: &str = "PROCESS_PROBE_CALL_LOG";
+/// The text a logged call writes to stdout.
+const CALL_STDOUT: &str = "PROCESS_PROBE_CALL_STDOUT";
+/// The text a logged call writes to stderr.
+const CALL_STDERR: &str = "PROCESS_PROBE_CALL_STDERR";
+/// The exit status a logged call reports.
+const CALL_EXIT: &str = "PROCESS_PROBE_CALL_EXIT";
 /// The directory a fake bazel run records its launches and app locks into.
 const BAZEL_DIR: &str = "PROCESS_PROBE_BAZEL_DIR";
 
@@ -546,7 +549,7 @@ fn plain_cwd() -> io::Result<String> {
     Ok(cwd.to_string_lossy().into_owned())
 }
 
-fn run_shim(log: &std::ffi::OsStr) -> Result<i32, Failure> {
+fn run_logged_call(log: &std::ffi::OsStr) -> Result<i32, Failure> {
     let mut record = String::new();
     let written = plain_cwd().and_then(|cwd| {
         record.push_str(&cwd);
@@ -557,24 +560,27 @@ fn run_shim(log: &std::ffi::OsStr) -> Result<i32, Failure> {
         }
         std::fs::write(log, record.as_bytes())?;
         let mut out = io::stdout().lock();
-        out.write_all(env_value_or_empty(SHIM_STDOUT).as_bytes())?;
-        out.flush()
+        out.write_all(env_value_or_empty(CALL_STDOUT).as_bytes())?;
+        out.flush()?;
+        let mut err = io::stderr().lock();
+        err.write_all(env_value_or_empty(CALL_STDERR).as_bytes())?;
+        err.flush()
     });
     if let Err(error) = written {
         return Err(fail(
             EXIT_OUTPUT,
-            &format!("cannot record the shim run: {error}"),
+            &format!("cannot record the logged call: {error}"),
         ));
     }
-    let code = env_value_or_empty(SHIM_EXIT);
+    let code = env_value_or_empty(CALL_EXIT);
     if code.is_empty() {
         return Ok(0);
     }
-    match count::<i32>(&code, SHIM_EXIT) {
+    match count::<i32>(&code, CALL_EXIT) {
         Ok(code) if (0..=255).contains(&code) => Ok(code),
         _ => Err(fail(
             EXIT_USAGE,
-            &format!("{SHIM_EXIT} needs 0-255, got {code}"),
+            &format!("{CALL_EXIT} needs 0-255, got {code}"),
         )),
     }
 }
@@ -711,8 +717,8 @@ fn run() -> Result<i32, Failure> {
     if let Some(dir) = env::var_os(BAZEL_DIR).filter(|dir| !dir.is_empty()) {
         return run_fake_bazel(std::path::Path::new(&dir));
     }
-    if let Some(log) = env::var_os(SHIM_LOG).filter(|log| !log.is_empty()) {
-        return run_shim(&log);
+    if let Some(log) = env::var_os(CALL_LOG).filter(|log| !log.is_empty()) {
+        return run_logged_call(&log);
     }
     let args: Vec<String> = env::args().skip(1).collect();
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {

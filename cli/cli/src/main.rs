@@ -383,12 +383,18 @@ fn parse_invocation(
     is_ci: bool,
 ) -> Result<dx_plan::args::Invocation, i32> {
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
-    if let Some(kind) = dx_cli::exec::hook_kind(&args) {
+    if let Some((kind, bazel_args)) = dx_cli::exec::hook_kind(&args) {
         let hook_cwd =
             dx_process::current_directory().unwrap_or_else(|_| std::path::PathBuf::from("."));
         let stdout = io::stdout();
         let mut out = stdout.lock();
-        let code = dx_cli::exec::run_worktree_hook(kind, &hook_cwd, &mut out, &mut io::stderr());
+        let code = dx_cli::exec::run_worktree_hook(
+            kind,
+            &bazel_args,
+            &hook_cwd,
+            &mut out,
+            &mut io::stderr(),
+        );
         return Err(match flush_out(&mut out) {
             Ok(()) => code,
             Err(exit) => exit,
@@ -557,6 +563,15 @@ fn run() -> i32 {
         Ok(workspace) => workspace,
         Err(code) => return code,
     };
+    // Before the run dir, the preset sync and the first-run notice: a refused command writes nothing.
+    if let Some(code) = dx_cli::exec::refuse_main_checkout(
+        &invocation,
+        &workspace,
+        &mut io::stdout(),
+        &mut io::stderr(),
+    ) {
+        return code;
+    }
     let pid = std::process::id();
     let temp_base = std::env::temp_dir();
     let (temp_dir, nonce) = match make_run_dir(&invocation, &temp_base, pid) {

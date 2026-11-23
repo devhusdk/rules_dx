@@ -1,13 +1,13 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//flutter:defs.bzl", "flutter_android_app", "flutter_application", "flutter_font_family", "flutter_library")
 load("@rules_dx//dart:defs.bzl", "dart_package_metadata")
+load("@rules_dx//flutter:defs.bzl", "flutter_android_app", "flutter_application", "flutter_font_family", "flutter_library")
+
+package(default_visibility = ["//flutter/tests/fixtures/flutter_app:__subpackages__"])
 
 dart_package_metadata(
     name = "pubspec-metadata",
     package_name = "flutter_app_failures",
 )
-
-package(default_visibility = ["//flutter/tests/fixtures/flutter_app:__subpackages__"])
 
 exports_files(
     glob(["lib/**"]) + ["BUILD.bazel"],
@@ -18,25 +18,25 @@ exports_files(
 
 flutter_application(
     name = "type_error",
-    package = ":pubspec-metadata",
     main = "lib/type_error.dart",
+    package = ":pubspec-metadata",
     tags = ["manual"],
     deps = ["@dx_flutter_app_deps//:flutter"],
 )
 
 flutter_application(
     name = "undeclared_dep",
-    package = ":pubspec-metadata",
     main = "lib/undeclared_dep.dart",
+    package = ":pubspec-metadata",
     tags = ["manual"],
     deps = ["@dx_flutter_app_deps//:flutter"],
 )
 
 flutter_application(
     name = "missing_asset",
-    package = ":pubspec-metadata",
     assets = ["assets/missing.json"],
     main = "lib/missing_asset.dart",
+    package = ":pubspec-metadata",
     tags = ["manual"],
     deps = ["@dx_flutter_app_deps//:flutter"],
 )
@@ -50,19 +50,19 @@ flutter_font_family(
 
 flutter_library(
     name = "missing_font",
-    package = ":pubspec-metadata",
     fonts = [":foreign_font"],
+    package = ":pubspec-metadata",
     tags = ["manual"],
-    visibility = ["//flutter/tests/negative:__pkg__"],
+    visibility = ["//flutter/tests/fixtures/negative:__pkg__"],
 )
 
 flutter_android_app(
     name = "bad_abi",
-    application_id = "dk.devhus.flutterapp",
     android_abi = "x86",
     application = "//flutter/tests/fixtures/flutter_app/app:native",
+    application_id = "dk.devhus.flutterapp",
     tags = ["manual"],
-    visibility = ["//flutter/tests/negative:__pkg__"],
+    visibility = ["//flutter/tests/fixtures/negative:__pkg__"],
 )
 
 real_source_target(

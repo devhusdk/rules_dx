@@ -1,9 +1,10 @@
 # gazelle:ignore
 
-load("//flutter:defs.bzl", "flutter_library")
 load("//core:failure_test.bzl", "failure_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality/private:generated_policy.bzl", "dx_generated_policy")
 load("//dart:defs.bzl", "dart_package_metadata")
+load("//flutter:defs.bzl", "flutter_library")
 
 dart_package_metadata(
     name = "pubspec-metadata",
@@ -43,4 +44,11 @@ dx_generated_policy(
         },
     },
     tier = "standard",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

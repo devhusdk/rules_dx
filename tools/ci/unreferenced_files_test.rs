@@ -1,5 +1,3 @@
-//! Every .bzl file is loaded, every fixture file and Rust file is named by a target or a test, every filegroup and exported file has a user, and every directory belongs to a package, outside `tools/ci/unreferenced_files_allowlist.txt`.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -11,7 +9,6 @@ use serde_json as _;
 use starlark_syntax as _;
 use yaml_serde as _;
 
-/// The kinds an allowlist line may name.
 const KINDS: [&str; 5] = [
     "empty-package",
     "orphan-target",
@@ -20,7 +17,6 @@ const KINDS: [&str; 5] = [
     "unreferenced-fixture",
 ];
 
-/// Globs of the trees that hold fixtures.
 const FIXTURE_TREES: [&str; 6] = [
     "**/tests/fixtures/**",
     "core/quality/testdata/**",
@@ -30,17 +26,14 @@ const FIXTURE_TREES: [&str; 6] = [
     "tools/testing/hermetic/consumers/**",
 ];
 
-/// Calls whose first argument names a .bzl file.
 const LOADERS: [&str; 3] = ["load(", "use_extension(", "use_repo_rule("];
 
-/// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 3000;
 
 fn ident_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
-/// The directory of `path`, `""` at the root.
 fn parent(path: &str) -> &str {
     path.rsplit_once('/').map_or("", |(dir, _)| dir)
 }
@@ -57,7 +50,6 @@ fn join(dir: &str, rel: &str) -> String {
     }
 }
 
-/// `path` relative to its ancestor `dir`.
 fn below<'a>(path: &'a str, dir: &str) -> &'a str {
     if dir.is_empty() {
         path
@@ -67,7 +59,6 @@ fn below<'a>(path: &'a str, dir: &str) -> &'a str {
     }
 }
 
-/// `dir` and every directory above it, the root `""` last.
 fn ancestors(dir: &str) -> Vec<&str> {
     let mut out = vec![dir];
     let mut current = dir;
@@ -78,7 +69,6 @@ fn ancestors(dir: &str) -> Vec<&str> {
     out
 }
 
-/// `dir/rel` with `.` and `..` folded, or `None` when it leaves the tree.
 fn normal(dir: &str, rel: &str) -> Option<String> {
     let mut parts: Vec<&str> = dir.split('/').filter(|part| !part.is_empty()).collect();
     for part in rel.split('/') {
@@ -101,13 +91,11 @@ fn in_fixture_tree(path: &str) -> bool {
     FIXTURE_TREES.iter().any(|tree| glob_match(tree, path))
 }
 
-/// Whether `path` is `<lang>/defs.bzl` or `<lang>/extensions.bzl`.
 fn public_entry(path: &str) -> bool {
     let parts: Vec<&str> = path.split('/').collect();
     matches!(parts.as_slice(), [_, "defs.bzl" | "extensions.bzl"])
 }
 
-/// Every `pkg:name` that a `//pkg:name` or `//pkg` label in `text` spells.
 fn labels_in(text: &str, out: &mut BTreeSet<String>) {
     let bytes = text.as_bytes();
     for (start, _) in text.match_indices("//") {
@@ -145,7 +133,6 @@ fn labels_in(text: &str, out: &mut BTreeSet<String>) {
     }
 }
 
-/// The segments between the parentheses of each `name(` call.
 fn call_bodies(segments: &[Segment], name: &str) -> Vec<Vec<Segment>> {
     let mut out = Vec::new();
     let mut body: Option<(i32, Vec<Segment>)> = None;
@@ -198,7 +185,6 @@ fn call_bodies(segments: &[Segment], name: &str) -> Vec<Vec<Segment>> {
     out
 }
 
-/// The string that follows the code ending in `lead` in `body`.
 fn string_after<'a>(body: &'a [Segment], lead: &str) -> Option<&'a str> {
     body.windows(2).find_map(|pair| {
         let tail = pair[0].text.trim_end();
@@ -208,7 +194,6 @@ fn string_after<'a>(body: &'a [Segment], lead: &str) -> Option<&'a str> {
     })
 }
 
-/// What the tree says about which paths something names.
 #[derive(Default)]
 struct Index {
     known: BTreeSet<String>,
@@ -245,7 +230,6 @@ impl Index {
         index
     }
 
-    /// The nearest directory at or above `dir` that holds one of `names`.
     fn nearest(&self, dir: &str, names: &[&str]) -> String {
         ancestors(dir)
             .into_iter()
@@ -370,7 +354,6 @@ impl Index {
         }
     }
 
-    /// Whether a label, or a string or glob in a BUILD or .bzl file above `path`, names it or a directory above it.
     fn starlark_names(&self, path: &str) -> bool {
         let home = parent(path);
         let mut named: Vec<&str> = vec![path];
@@ -405,7 +388,6 @@ impl Index {
         false
     }
 
-    /// Whether a Rust string names `path` or a directory above it below the top level.
     fn rust_names(&self, path: &str) -> bool {
         self.rust_paths.contains(path)
             || ancestors(parent(path))
@@ -417,7 +399,6 @@ impl Index {
         self.starlark_names(path) || self.rust_names(path) || self.mods.contains(path)
     }
 
-    /// How many filegroups and exported files of the BUILD file at `path` have no user.
     fn orphans(&self, path: &str, text: &str) -> usize {
         let package = parent(path);
         let segments = starlark_segments(text);
@@ -459,7 +440,6 @@ impl Index {
     }
 }
 
-/// Counts every hit of every kind; `files` holds the Starlark and Rust text, `paths` every tracked path.
 fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
     let index = Index::new(files, paths);
     let mut counts = Counts::new();

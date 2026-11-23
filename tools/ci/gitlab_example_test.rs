@@ -14,7 +14,6 @@ const TEMPLATE: &str = ".dx";
 
 const FINISH: &str = ".dx_finish";
 
-/// Returns the `spec` header, if any, and the pipeline, each of which must be a YAML mapping.
 fn documents(path: &str) -> (Option<Value>, Value) {
     let text = read_runfiles(path);
     let (header, body) = match text.split_once("\n---\n") {
@@ -30,19 +29,16 @@ fn documents(path: &str) -> (Option<Value>, Value) {
     (header.map(parse), parse(body))
 }
 
-/// Returns the parsed pipeline after any `spec` header.
 fn document(path: &str) -> Value {
     documents(path).1
 }
 
-/// Returns the key of one mapping entry as a string.
 fn key(path: &str, name: &Value) -> String {
     name.as_str()
         .unwrap_or_else(|| panic!("{path}: non-string top-level key {name:?}"))
         .to_owned()
 }
 
-/// Returns every job in the pipeline, skipping keywords and hidden keys.
 fn jobs(path: &str, doc: &Value) -> Vec<(String, Value)> {
     let got: Vec<(String, Value)> = doc
         .as_mapping()
@@ -59,13 +55,11 @@ fn jobs(path: &str, doc: &Value) -> Vec<(String, Value)> {
     got
 }
 
-/// Returns one hidden template from the pipeline.
 fn hidden<'a>(path: &str, doc: &'a Value, name: &str) -> &'a Value {
     doc.get(name)
         .unwrap_or_else(|| panic!("{path} declares no {name} template"))
 }
 
-/// Returns the string items of one YAML list.
 fn strings(path: &str, value: &Value) -> Vec<String> {
     value
         .as_sequence()
@@ -76,7 +70,6 @@ fn strings(path: &str, value: &Value) -> Vec<String> {
         .collect()
 }
 
-/// Returns the single report a job script writes, with `--report` or by redirecting dx.
 fn report_destination(path: &str, job: &str, body: &Value) -> String {
     let lines = strings(path, &body["script"]);
     let mut reports = Vec::new();

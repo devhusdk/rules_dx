@@ -1,10 +1,3 @@
-//! Converts the JSON of `ldc2 -D -X` into one validated `DocIr` shard.
-//!
-//! The compiler JSON carries the ddoc comment, kind, protection and position of every
-//! declaration, but only mangled types. The signature text is therefore cut from the source
-//! at the declaration line, and the ddoc `Params:`, `Returns:` and `Examples:` sections fill in
-//! the parameter docs, the return doc and the examples.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use documentation_ir::proto::{
@@ -21,7 +14,6 @@ use std::path::Path;
 const LANGUAGE: &str = "d";
 const KEY_CONFIG: &str = "d.config";
 
-/// Why one compiler JSON document could not become a shard.
 #[derive(Debug)]
 pub enum DExtractError {
     Read(PathIoError),
@@ -66,7 +58,6 @@ impl std::error::Error for DExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub api: String,
@@ -76,23 +67,16 @@ pub struct Options {
     pub config: String,
 }
 
-/// Runs `d_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("d_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: d_extract --api FILE --sources FILE --out FILE --package NAME [--config TEXT]"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -107,11 +91,6 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard. Nothing is written on error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), DExtractError> {
     let read = |path: &str| path_io::read_to_string(Path::new(path)).map_err(DExtractError::Read);
     let json = read(&options.api)?;
@@ -131,11 +110,6 @@ struct Context<'a> {
     texts: &'a BTreeMap<String, String>,
 }
 
-/// Converts the compiler JSON into a validated IR shard. `texts` maps each exec path to its text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(
     json: &str,
     sources: &[Source],
@@ -385,7 +359,6 @@ fn parameter_names(node: &Value) -> Vec<String> {
         .collect()
 }
 
-/// The declaration text from `line` to the first `{`, `;` or `=>` outside parentheses.
 #[must_use]
 pub fn declaration(text: &str, line: usize) -> String {
     let mut out = String::new();
@@ -411,7 +384,6 @@ pub fn declaration(text: &str, line: usize) -> String {
     out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// The type of one parameter, read from the first parenthesis group of the signature.
 fn parameter_type(signature: &str, name: &str) -> String {
     let Some((_, inside)) = signature.split_once('(') else {
         return String::new();
@@ -444,7 +416,6 @@ fn parameter_type(signature: &str, name: &str) -> String {
     String::new()
 }
 
-/// The parts of one ddoc comment.
 #[derive(Debug, Default)]
 pub struct Sections {
     pub summary: String,
@@ -454,7 +425,6 @@ pub struct Sections {
 }
 
 impl Sections {
-    /// Splits a ddoc comment at its `Params:`, `Returns:` and `Examples:` headings.
     pub fn parse(comment: &str) -> Sections {
         let comment = comment.replace("\r\n", "\n");
         let mut sections = Sections::default();

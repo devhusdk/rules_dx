@@ -19,7 +19,6 @@ const LAUNCH_ATTEMPTS: u32 = 3;
 const STEP_TIMEOUT: Duration = Duration::from_secs(45);
 const LOG_TAIL_LINES: usize = 40;
 const POLL: Duration = Duration::from_millis(50);
-/// Firefox writes the control port it bound to this file in the profile.
 const ACTIVE_PORT_FILE: &str = "MarionetteActivePort";
 
 /// Why the browser cannot be started or driven.
@@ -429,7 +428,6 @@ impl Drop for Browser {
     }
 }
 
-/// Assembles one length-prefixed Marionette frame one byte at a time.
 #[derive(Default)]
 struct Frame {
     length: Option<usize>,
@@ -480,13 +478,11 @@ pub fn firefox_executable(root: &Path) -> String {
     String::new()
 }
 
-/// Tells a launch that cannot succeed apart from one worth retrying with a fresh profile.
 enum Launch {
     Fatal(BrowserError),
     Retry(BrowserError),
 }
 
-/// Reads the control port Firefox bound from its profile and connects to it.
 fn wait_for_control(
     child: &mut Child,
     home: &Path,
@@ -520,7 +516,6 @@ fn wait_for_control(
     }
 }
 
-/// The port in the profile's `MarionetteActivePort` file, once Firefox has written it.
 fn active_port(home: &Path) -> io::Result<u16> {
     let text = std::fs::read_to_string(home.join(ACTIVE_PORT_FILE))?;
     text.trim()
@@ -528,11 +523,8 @@ fn active_port(home: &Path) -> io::Result<u16> {
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
 }
 
-/// Marks the dynamic loader's report of a shared library it could not open.
 const MISSING_LIBRARY_MARK: &str = ": cannot open shared object file";
 
-/// Names each shared library the loader reported missing, one line per library, so the
-/// failure says which system package to install. Returns "" when the log names none.
 fn missing_libraries(log: &Path) -> String {
     let text = std::fs::read_to_string(log).unwrap_or_default();
     let mut libraries: Vec<&str> = Vec::new();

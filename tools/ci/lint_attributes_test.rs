@@ -1,5 +1,3 @@
-//! No Rust source allows a strict tier lint, every `#[expect(...)]` gives a reason, panic-family expects stay in tools/testing or `tools/ci/lint_expect_allowlist.txt`, the repo-wide clippy flags carry the strict tier, and no source discards a result where those lints cannot see it.
-
 use dx_guard::allowlist::{Counts, hit, verify};
 use dx_guard::lexer::{Token, rust_tokens};
 use dx_guard::snapshot::snapshot;
@@ -8,7 +6,6 @@ use starlark_syntax as _;
 use std::path::Path;
 use yaml_serde as _;
 
-/// The lints of core/quality/tiers/clippy/strict.txt that no source may allow.
 const LINTS: [&str; 28] = [
     "clippy::allow_attributes",
     "clippy::allow_attributes_without_reason",
@@ -40,7 +37,6 @@ const LINTS: [&str; 28] = [
     "unused_must_use",
 ];
 
-/// The lint paths named inside one parenthesised attribute argument list.
 fn lint_paths(args: &[Token]) -> Vec<String> {
     let mut out = Vec::new();
     let mut at = 0;
@@ -60,7 +56,6 @@ fn lint_paths(args: &[Token]) -> Vec<String> {
     out
 }
 
-/// The tokens between the parenthesis at `open` and its match.
 fn group(tokens: &[Token], open: usize) -> &[Token] {
     let mut depth = 0usize;
     for (at, token) in tokens.iter().enumerate().skip(open) {
@@ -78,7 +73,6 @@ fn group(tokens: &[Token], open: usize) -> &[Token] {
     tokens.get(open + 1..).unwrap_or_default()
 }
 
-/// The `allow(..)` and `expect(..)` calls inside the attributes of one Rust source, with their arguments.
 fn lint_attributes(tokens: &[Token]) -> Vec<(&str, &[Token])> {
     let mut out = Vec::new();
     let mut depth = 0usize;
@@ -108,7 +102,6 @@ fn lint_attributes(tokens: &[Token]) -> Vec<(&str, &[Token])> {
     out
 }
 
-/// The problems of one Rust source.
 fn problems(source: &str) -> Vec<String> {
     let tokens = rust_tokens(source);
     let mut out = Vec::new();
@@ -127,7 +120,6 @@ fn problems(source: &str) -> Vec<String> {
     out
 }
 
-/// The strict tier lints that only test-support code may expect.
 const PANIC_FAMILY: [&str; 15] = [
     "clippy::exit",
     "clippy::expect_used",
@@ -146,10 +138,8 @@ const PANIC_FAMILY: [&str; 15] = [
     "clippy::wildcard_enum_match_arm",
 ];
 
-/// The test-support tree, where panic-family expects need no allowlist line.
 const TEST_SUPPORT: &str = "tools/testing/";
 
-/// The panic-family lints one Rust source expects.
 fn panic_expects(source: &str) -> Vec<String> {
     let tokens = rust_tokens(source);
     lint_attributes(&tokens)
@@ -249,9 +239,6 @@ fn panic_family_names_strict_lints() {
     }
 }
 
-/// The result discards of one Rust source that `clippy::unused_result_ok` and
-/// `clippy::map_err_ignore` cannot see: `drop(write!(..))`, `drop(writeln!(..))`,
-/// `drop(fs::..)`, `drop(std::fs::..)` and `let _ = <expr>.ok();`.
 fn discards(source: &str) -> Vec<String> {
     let tokens = rust_tokens(source);
     let word =
@@ -361,10 +348,8 @@ fn passes_handled_results_and_other_drops() {
     );
 }
 
-/// Strict tier lints `.bazelrc` does not yet deny repo-wide. The list only shrinks.
 const PENDING: [&str; 0] = [];
 
-/// The lints a file denies with `-D<lint>`, as `.bazelrc` flag lines or tier list lines.
 fn denied(text: &str) -> Vec<String> {
     text.lines()
         .filter_map(|line| {

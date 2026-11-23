@@ -1,10 +1,3 @@
-//! BUILD, .bzl and Rust files outside `third_party` and patches carry no deprecated attr, in-module alias, re-export file, compat word or version conditional, outside `tools/ci/zero_compat_allowlist.txt`.
-//!
-//! Two forms of deprecation are allowed, and both must be recorded in `api/deprecations.txt`: a call of
-//! `deprecated(what, remove_in)` from `core/private/deprecate.bzl`, and native `deprecation =` on an `alias`
-//! whose message says `removed in rules_dx X.Y.Z`. Once the module version reaches `remove_in`, the test fails
-//! until the deprecated name is deleted.
-
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -16,28 +9,20 @@ use serde_json as _;
 use starlark_syntax as _;
 use yaml_serde as _;
 
-/// This file, which spells every word it bans.
 const SELF: &str = "tools/ci/zero_compat_test.rs";
 
-/// The one file that may define the deprecation helper.
 const DEPRECATE: &str = "core/private/deprecate.bzl";
 
-/// How a file loads the helper; it says the helper's name once, which is no compat word.
 const DEPRECATE_LOAD: &str = "load(\"//core/private:deprecate.bzl\", \"deprecated\")";
 
-/// What an alias deprecation message says before its removal version.
 const ALIAS_REMOVAL: &str = "removed in rules_dx ";
 
-/// The name of this guard, which is no compat word.
 const OWN_NAME: &str = "zero_compat";
 
-/// Spellings of the dx shim, the global dx launcher in `cli/shim`; its name is no compat word.
 const SHIM_NAMES: [&str; 4] = ["cli/shim", "dx_shim", "dx-shim", "dx shim"];
 
-/// What starts a Clippy lint path; a lint's name is no compat word.
 const CLIPPY_LINT: &str = "clippy::";
 
-/// The kinds an allowlist line may name.
 const KINDS: [&str; 5] = [
     "alias",
     "compat-word",
@@ -46,28 +31,22 @@ const KINDS: [&str; 5] = [
     "version-conditional",
 ];
 
-/// Words that name compatibility code.
 const COMPAT_WORDS: [&str; 5] = ["legacy", "deprecated", "shim", "backward", "compat"];
 
-/// Directory names whose files are vendored.
 const SKIPPED_DIRS: [&str; 2] = ["third_party", "patches"];
 
-/// Starlark spellings that branch on the Bazel version or its features.
 const VERSION_PROBES: [&str; 3] = ["native.bazel_version", "bazel_features.", "hasattr(native,"];
 
-/// Rust spellings that compare two values.
 const COMPARISONS: [&str; 9] = [
     " < ", " > ", " <= ", " >= ", ".cmp(", ".lt(", ".gt(", ".le(", ".ge(",
 ];
 
-/// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 3000;
 
 fn ident_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
-/// `text` without the names that only look like compat words: this guard's, the dx shim's and Clippy lints'.
 fn without_names(text: &str) -> String {
     let mut text = text.replace(OWN_NAME, "");
     for name in SHIM_NAMES {
@@ -84,7 +63,6 @@ fn without_names(text: &str) -> String {
     out
 }
 
-/// How often a compat word stands as one word of an identifier, string or comment in `text`.
 fn compat_words(text: &str) -> usize {
     let mut count = 0;
     let mut word = String::new();
@@ -104,7 +82,6 @@ fn compat_words(text: &str) -> usize {
     count
 }
 
-/// How often `needle` stands in `text` with no identifier byte before it.
 fn count_from_boundary(text: &str, needle: &str) -> usize {
     let bytes = text.as_bytes();
     text.match_indices(needle)
@@ -112,7 +89,6 @@ fn count_from_boundary(text: &str, needle: &str) -> usize {
         .count()
 }
 
-/// The code of `segments` with each string as `""` and no comment.
 fn skeleton(segments: &[Segment]) -> String {
     segments
         .iter()
@@ -124,7 +100,6 @@ fn skeleton(segments: &[Segment]) -> String {
         .collect()
 }
 
-/// How often Starlark sets `deprecation` outside an `alias` call or says deprecated in a docstring or `doc` value.
 fn starlark_deprecations(segments: &[Segment]) -> usize {
     let code = skeleton(segments);
     let bytes = code.as_bytes();
@@ -153,7 +128,6 @@ fn starlark_deprecations(segments: &[Segment]) -> usize {
     set.saturating_sub(on_aliases) + said
 }
 
-/// How often Starlark says a compat word, not counting loads and calls of the deprecation helper.
 fn starlark_compat_words(text: &str, segments: &[Segment]) -> usize {
     let code = skeleton(segments);
     let helper_calls =
@@ -163,19 +137,16 @@ fn starlark_compat_words(text: &str, segments: &[Segment]) -> usize {
         .saturating_sub(helper_calls)
 }
 
-/// One `name(...)` call: its string-literal arguments, positional and by keyword.
 #[derive(Debug, Default, PartialEq, Eq)]
 struct Call {
     positional: Vec<String>,
     keywords: BTreeMap<String, String>,
 }
 
-/// Every call of `name` (also as `native.name`) with the arguments that are a single string literal.
 fn calls(segments: &[Segment], name: &str) -> Vec<Call> {
     let mut found: Vec<Call> = Vec::new();
     let mut depth = 0_i32;
     let mut open: Option<i32> = None;
-    // The code of the current argument so far, before any string in it.
     let mut pending = String::new();
     for segment in segments {
         let direct = open.is_some_and(|level| level + 1 == depth);
@@ -193,7 +164,6 @@ fn calls(segments: &[Segment], name: &str) -> Vec<Call> {
                                 .insert(keyword.to_owned(), segment.text.clone());
                         }
                     }
-                    // Anything after the string makes the argument more than one literal.
                     pending.push('?');
                 }
             }
@@ -240,7 +210,6 @@ fn calls(segments: &[Segment], name: &str) -> Vec<Call> {
     found
 }
 
-/// Whether the label `text` names a target of this module.
 fn in_module(text: &str) -> bool {
     ["//", ":", "@rules_dx//", "@//", "@@//"]
         .iter()
@@ -248,7 +217,6 @@ fn in_module(text: &str) -> bool {
         || !text.starts_with('@')
 }
 
-/// How many `alias(` calls set `actual` to a label of this module.
 fn in_module_aliases(segments: &[Segment]) -> usize {
     let mut count = 0;
     let mut depth = 0_i32;
@@ -301,7 +269,6 @@ fn is_name(text: &str) -> bool {
         })
 }
 
-/// Whether a .bzl file holds only `load` statements and name-to-name assignments, at least one of each.
 fn reexports(segments: &[Segment]) -> bool {
     let code = skeleton(segments);
     let (mut loads, mut assigns, mut depth) = (0, 0, 0_i32);
@@ -335,13 +302,11 @@ fn reexports(segments: &[Segment]) -> bool {
     loads > 0 && assigns > 0
 }
 
-/// Whether `path` is `<lang>/defs.bzl` or `<lang>/extensions.bzl`.
 fn public_entry(path: &str) -> bool {
     let parts: Vec<&str> = path.split('/').collect();
     matches!(parts.as_slice(), [_, "defs.bzl" | "extensions.bzl"])
 }
 
-/// How many Rust lines compare against a `rules_dx` version.
 fn rust_version_comparisons(segments: &[Segment]) -> usize {
     skeleton(segments)
         .lines()
@@ -352,7 +317,6 @@ fn rust_version_comparisons(segments: &[Segment]) -> usize {
         .count()
 }
 
-/// Counts every hit of every kind in `files`.
 fn scan(files: &BTreeMap<String, String>) -> Counts {
     let mut counts = Counts::new();
     for (path, text) in files {
@@ -376,7 +340,6 @@ fn scan(files: &BTreeMap<String, String>) -> Counts {
                     starlark_deprecations(&segments),
                 );
             }
-            // A deprecated alias is how a renamed target keeps its old label for one minor release.
             let deprecated_aliases = calls(&segments, "alias")
                 .iter()
                 .filter(|call| {
@@ -427,14 +390,12 @@ fn scan(files: &BTreeMap<String, String>) -> Counts {
     counts
 }
 
-/// A `MAJOR.MINOR.PATCH` version as numbers, so `0.10.0` sorts after `0.9.0`.
 fn semver(text: &str) -> Option<(u64, u64, u64)> {
     let mut parts = text.split('.').map(|part| part.parse::<u64>().ok());
     let version = (parts.next()??, parts.next()??, parts.next()??);
     parts.next().is_none().then_some(version)
 }
 
-/// Every deprecation in Starlark outside vendored code, as `(what, remove_in)`, and the problems that keep one from being read.
 fn deprecations(files: &BTreeMap<String, String>) -> (Vec<(String, String)>, Vec<String>) {
     let (mut found, mut problems) = (Vec::new(), Vec::new());
     for (path, text) in files {
@@ -474,7 +435,6 @@ fn deprecations(files: &BTreeMap<String, String>) -> (Vec<(String, String)>, Vec
     (found, problems)
 }
 
-/// Compares the deprecations in code with the `remove_in=X deprecated_since=Y what` lines of the snapshot and the module version.
 fn deprecation_problems(found: &[(String, String)], snapshot: &str, module: &str) -> Vec<String> {
     let mut problems = Vec::new();
     let Some(now) = semver(module) else {
@@ -521,8 +481,6 @@ fn deprecation_problems(found: &[(String, String)], snapshot: &str, module: &str
                     ));
                 }
             }
-            // A line with a bad version is reported once; it is not also
-            // matched against code, so it cannot cascade into a second error.
             (None, _) | (_, None) => {
                 problems.push(format!(
                     "api/deprecations.txt: {line:?} has a version that is not MAJOR.MINOR.PATCH"

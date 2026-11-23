@@ -1,5 +1,3 @@
-//! Pins refs/remotes/origin/main to the commit the affected checks compare against.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::io::Write;
@@ -67,11 +65,6 @@ fn candidate(event: &Event, fallback: &str) -> Result<String, String> {
     }
 }
 
-/// Pins the base ref and returns the base commit and the HEAD commit.
-///
-/// # Errors
-///
-/// Returns `Err` when git cannot resolve the base or HEAD commit.
 pub fn pin(event: &Event) -> Result<(String, String), String> {
     let head = git_checked(&["rev-parse", "HEAD"])?.out;
     let parent = git(&["rev-parse", "--verify", "-q", "HEAD^1"]);
@@ -105,11 +98,6 @@ pub fn pin(event: &Event) -> Result<(String, String), String> {
     Ok((base, head))
 }
 
-/// Appends `GATE_BASE` to the GitHub env file.
-///
-/// # Errors
-///
-/// Returns `Err` when the env file cannot be written.
 pub fn export(path: &str, base: &str) -> Result<(), String> {
     let mut file = std::fs::OpenOptions::new()
         .append(true)

@@ -75,7 +75,6 @@ def _path(file):
     return file.path
 
 def _context_json(info, language, refs_file):
-    # The drivers drop the refs whose basename is a framework ref and sort the rest by path.
     framework_names = sorted([ref.basename for ref in info.framework_refs])
     if language == "fsharp":
         return {

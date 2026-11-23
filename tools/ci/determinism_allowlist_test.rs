@@ -1,5 +1,3 @@
-//! `tools/ci/determinism_allowlist.txt` is well formed and never grows past its cap.
-
 use dx_testing::exec_log::parse_allowlist;
 
 const ALLOWLIST: &str = "tools/ci/determinism_allowlist.txt";

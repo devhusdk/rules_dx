@@ -1,5 +1,3 @@
-//! Blocker references: the issues and pull requests named on a "Blocked on:" line.
-
 use std::fmt::Write as _;
 use std::io::Read;
 
@@ -46,7 +44,6 @@ fn bare_len(text: &str) -> Option<usize> {
     (digits > 0).then_some(1 + digits)
 }
 
-/// Takes every match of `matcher` out of `text`, returning the matches and what is left.
 fn take(text: &str, matcher: fn(&str) -> Option<usize>) -> (Vec<String>, String) {
     let mut found = Vec::new();
     let mut left = String::new();
@@ -64,10 +61,6 @@ fn take(text: &str, matcher: fn(&str) -> Option<usize>) -> (Vec<String>, String)
     (found, left)
 }
 
-/// One `<owner/repo> <number> <ref as written>` line per reference; URLs, then
-/// `owner/repo#N`, then bare `#N`, which belongs to `local_repo`. When the rest of
-/// the line has the word `release`, each reference outside `local_repo` gets a
-/// fourth column `release`.
 pub fn refs(local_repo: &str, line: &str) -> String {
     let (urls, rest) = take(line, url_len);
     let (shorts, rest) = take(&rest, short_len);
@@ -102,7 +95,6 @@ pub fn refs(local_repo: &str, line: &str) -> String {
     out
 }
 
-/// Reads a "Blocked on:" line on stdin and prints its references for `args` = `[local_repo]`.
 pub fn print(args: &[String]) -> Result<(), String> {
     let [local_repo] = args else {
         return Err("usage: producers_bin --blocker-refs OWNER/REPO".to_string());

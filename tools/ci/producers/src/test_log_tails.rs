@@ -1,6 +1,3 @@
-//! Prints the tail of each failing test's `test.log` into a GitHub Actions job log, one
-//! collapsed group per test, so a reader without artifact access sees why a test failed.
-
 use std::collections::BTreeMap;
 use std::io::{BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -8,36 +5,21 @@ use std::path::{Path, PathBuf};
 use dx_bep::{OutputLocations, TestResultRecord};
 use serde_json::Value;
 
-/// Lines kept from the end of each test.log.
 const TAIL_LINES: usize = 80;
 
-/// Bytes kept from those lines, so one runaway line cannot flood the job log.
 const TAIL_BYTES: usize = 16 * 1024;
 
-/// Tests printed in full; the rest are only named.
 const GROUP_LIMIT: usize = 20;
 
-/// dx `test_outcome` outcomes that count as a pass.
 const PASSING_OUTCOMES: [&str; 3] = ["passed", "passed_after_retry", "no_cases"];
 
-/// One failing test result and where its log is.
 #[derive(Debug, PartialEq, Eq)]
 struct Failure {
     title: String,
     log: Option<PathBuf>,
-    /// The tail dx already kept, for when the log is no longer on disk.
     tail: Option<String>,
 }
 
-/// Runs `--test-log-tails (--bep FILE | --dx FILE)...`.
-///
-/// `--bep` reads a Bazel `--build_event_json_file` and `--dx` reads `dx --output=json` events.
-/// A missing input is skipped and an unreadable one is reported and skipped: this runs after a
-/// step already failed and must not hide that failure behind its own.
-///
-/// # Errors
-///
-/// Returns `Err` on a usage error or when stdout cannot be written.
 pub fn print(args: &[String]) -> Result<(), String> {
     const USAGE: &str = "usage: producers_bin --test-log-tails (--bep FILE | --dx FILE)...";
     let (pairs, []) = args.as_chunks::<2>() else {
@@ -54,7 +36,6 @@ pub fn print(args: &[String]) -> Result<(), String> {
     let mut without_log = 0;
     for [kind, path] in pairs {
         let path = Path::new(path);
-        // A step can fail before Bazel or dx writes its events; that file has no tests to show.
         if !path.exists() {
             continue;
         }
@@ -76,15 +57,12 @@ pub fn print(args: &[String]) -> Result<(), String> {
         .map_err(|err| format!("test-log-tails: writing stdout: {err}"))
 }
 
-/// The failing results of one build event file and the count of those without a test.log.
 fn bep_failures(path: &Path, workspace: &Path) -> Result<(Vec<Failure>, usize), String> {
     let file = std::fs::File::open(path).map_err(|err| err.to_string())?;
     let events = dx_bep::collect_test_events(BufReader::new(file), || {
         Some(OutputLocations::new(workspace))
     })
     .map_err(|err| err.to_string())?;
-    // Only the last attempt of each run and shard decides it: earlier failed attempts of a
-    // flaky test that later passed are not failures.
     let mut last: BTreeMap<(&str, Option<&str>, u32, u32), &TestResultRecord> = BTreeMap::new();
     for result in &events.results {
         let key = (
@@ -132,13 +110,11 @@ fn bep_failures(path: &Path, workspace: &Path) -> Result<(Vec<Failure>, usize), 
     Ok((found, without_log))
 }
 
-/// The failing final `test_outcome` events of one dx event file and the count without a log.
 fn dx_failures(path: &Path) -> Result<(Vec<Failure>, usize), String> {
     let text = std::fs::read_to_string(path).map_err(|err| err.to_string())?;
     let mut found = Vec::new();
     let mut without_log = 0;
     for line in text.lines() {
-        // The file is dx's stdout, so anything that is not an event is skipped.
         let Ok(Value::Object(event)) = serde_json::from_str::<Value>(line) else {
             continue;
         };
@@ -179,10 +155,6 @@ fn dx_failures(path: &Path) -> Result<(Vec<Failure>, usize), String> {
     Ok((found, without_log))
 }
 
-/// Writes one group per failure up to `GROUP_LIMIT`, then names the rest.
-///
-/// Log text is printed between `::stop-commands::` markers so a log line such as
-/// `::endgroup::` or `::error::` is shown as text instead of run as a workflow command.
 fn render(
     out: &mut impl Write,
     failures: &[Failure],
@@ -220,7 +192,6 @@ fn render(
     Ok(())
 }
 
-/// A line naming where the tail came from, and the tail itself when there is one.
 fn tail_of(failure: &Failure) -> (String, Option<String>) {
     let Some(log) = &failure.log else {
         return (
@@ -244,14 +215,12 @@ fn tail_of(failure: &Failure) -> (String, Option<String>) {
     }
 }
 
-/// Escapes workflow command data so a title stays on its one command line.
 fn escape_data(text: &str) -> String {
     text.replace('%', "%25")
         .replace('\r', "%0D")
         .replace('\n', "%0A")
 }
 
-/// A token no test log is expected to contain, to end `::stop-commands::`.
 fn stop_token() -> String {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

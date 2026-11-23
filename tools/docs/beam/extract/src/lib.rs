@@ -1,5 +1,3 @@
-//! Converts the Elixir and Erlang doc drivers' JSON into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fmt;
@@ -16,7 +14,6 @@ const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "beam.config";
 const KEY_INCOMPLETE: &str = "beam.incomplete";
 
-/// Why one BEAM driver JSON document could not become a shard.
 #[derive(Debug)]
 pub enum BeamExtractError {
     Read(PathIoError),
@@ -85,7 +82,6 @@ impl From<JsonError> for BeamExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub json: String,
@@ -93,23 +89,16 @@ pub struct Options {
     pub out: String,
 }
 
-/// Runs `beam_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("beam_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: beam_extract --json FILE --package NAME --out FILE"
 }
 
-/// Parses argv into inputs.
-///
-/// # Errors
-///
-/// Returns an error for an unknown, missing, empty or repeated flag.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
@@ -119,11 +108,6 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), BeamExtractError> {
     let json = path_io::read_to_string(Path::new(&options.json)).map_err(BeamExtractError::Read)?;
     let shard = convert(&json, &options.package)?;
@@ -242,11 +226,6 @@ fn symbol(
     })
 }
 
-/// Converts one driver JSON document into a validated IR shard of one package.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, BeamExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(BeamExtractError::InvalidPackage {

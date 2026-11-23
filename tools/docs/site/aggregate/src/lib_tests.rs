@@ -1,5 +1,3 @@
-//! Tests for the API aggregator.
-
 use super::{AggregateError, ArgsError, Options, api_path, code, parse, relative, render, title};
 use documentation_ir::proto::{DocIr, Relations, SourceRef, Symbol, SymbolKind};
 

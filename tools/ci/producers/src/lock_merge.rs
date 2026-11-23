@@ -1,13 +1,3 @@
-//! Merges the per-platform `MODULE.bazel.lock` files of `lock-refresh.yml` into one lock.
-//! Each platform lock contributes only the module extension entries keyed by its own factor.
-//!
-//! The merged lock must come out byte for byte the way Bazel writes it. Bazel writes its
-//! records (the lock root, each extension entry) in field order, not key order, and it only
-//! rewrites the lock when the content changes. A key-sorted lock is the same content, so the
-//! workflow's normalise step leaves it alone and the pushed commit rewrites every line of the
-//! lock. That is why this file keeps its own small JSON tree that remembers key order instead
-//! of `serde_json::Value`, which sorts keys.
-
 use std::path::Path;
 
 const PLATFORMS: [(&str, &str); 5] = [
@@ -18,8 +8,6 @@ const PLATFORMS: [(&str, &str); 5] = [
     ("windows_arm64", "os:windows,arch:aarch64"),
 ];
 
-/// A JSON value that keeps object keys in file order. Scalars keep their source text, so
-/// strings come back out with the escapes Bazel chose.
 #[derive(Clone, Debug, PartialEq)]
 enum Json {
     Scalar(String),
@@ -45,8 +33,6 @@ impl Json {
         }
     }
 
-    /// The value under `key`, inserted as an empty object when missing. Bazel keeps its maps
-    /// sorted, so a new key goes before the first larger one.
     fn entry(&mut self, key: &str) -> Result<&mut Json, String> {
         let Json::Object(entries) = self else {
             return Err(format!(
@@ -101,7 +87,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Consumes a string token and returns its source text, quotes included.
     fn string_token(&mut self) -> Result<&'a str, String> {
         let start = self.pos;
         self.pos += 1;
@@ -219,8 +204,6 @@ fn parse(text: &str) -> Result<Json, String> {
     Ok(value)
 }
 
-/// Writes `value` the way Bazel's lock writer does: two-space indent, `"key": value`,
-/// empty containers on one line.
 fn write(value: &Json, indent: usize, out: &mut String) -> Result<(), String> {
     match value {
         Json::Scalar(raw) => out.push_str(raw),
@@ -374,7 +357,6 @@ pub fn merge(args: &[String]) -> Result<(), String> {
 mod tests {
     use super::*;
 
-    /// A lock shaped like Bazel's: records in field order, maps sorted, escapes as written.
     const LOCK: &str = r#"{
   "lockFileVersion": 28,
   "registryFileHashes": {

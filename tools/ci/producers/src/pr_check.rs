@@ -1,5 +1,3 @@
-//! Analysis-only checks for a pull request on `linux_x86_64`, one named set at a time.
-
 use std::process::{Command, Stdio};
 
 const BAZEL: &str = "bazel";
@@ -41,11 +39,8 @@ pub const WINDOWS_ARM64_TARGETS: &str = "//cc/tests/fixtures/hello:hello //cc/te
     //zig/tests/fixtures/hello:all //zig/tests/fixtures/zig_app/... //julia/tests/fixtures/hello:all
     //julia/tests/fixtures/julia_app/... //julia/private/tools/... //haskell/private/tools/weeder:weeder_build_test";
 
-/// Preflight labels left out of `WINDOWS_ARM64_TARGETS`.
-/// `runner_matrix_windows_arm64` has no erlang toolchain for `windows_arm64` (`//erlang/private/tools:dialyzer_bin`).
 pub const WINDOWS_ARM64_BLOCKED: &str = "//core/quality/testdata:runner_matrix_windows_arm64";
 
-/// Android is unsupported on `linux_arm64`, so every target under it must be skipped there.
 pub const ANDROID_LINUX_ARM64_FLAGS: &str = "--platforms=//tools/platforms:linux_arm64
     --host_platform=//tools/platforms:linux_arm64 //android/...";
 
@@ -63,8 +58,6 @@ const HERMETIC_TARGETS: [&str; 2] = [
     "//tools/testing/hermetic:consumer_repos_test",
 ];
 
-/// One command of a set; a query step appends the labels it prints to the next `Run` step.
-/// A `Silent` step discards its stdout and takes no query labels.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Step {
     Run(&'static str, Vec<String>),
@@ -79,11 +72,6 @@ fn words(list: &[&str], flags: &[String], tail: &str) -> Vec<String> {
     args
 }
 
-/// Returns the commands of `set` with the extra bazel `flags`.
-///
-/// # Errors
-///
-/// Returns `Err` when `set` names no set.
 pub fn plan(set: &str, flags: &[String]) -> Result<Vec<Step>, String> {
     let steps = match set {
         "workflow" => vec![Step::Run(BAZEL, words(&["test"], flags, WORKFLOW_TARGETS))],
@@ -237,11 +225,6 @@ fn execute(steps: Vec<Step>) -> Result<(), String> {
     Ok(())
 }
 
-/// Runs `pr-check SET [BAZEL_FLAGS...]`, where SET is one of `SETS` or `all`.
-///
-/// # Errors
-///
-/// Returns `Err` when the set is unknown or one of its commands fails.
 pub fn check(args: &[String]) -> Result<(), String> {
     let Some((set, flags)) = args.split_first() else {
         return Err(format!(

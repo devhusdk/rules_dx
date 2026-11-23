@@ -1,5 +1,3 @@
-//! No action leaves the sandbox, reaches the network or shares /tmp outside `tools/ci/sandbox_escape_allowlist.txt`, the allowlist holds no spare entry, and no test file calls `env::temp_dir`.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -11,10 +9,8 @@ use serde_json as _;
 use starlark_syntax::syntax::ast::{ArgumentP, AssignTargetP, AstExpr, AstStmt, ExprP, StmtP};
 use yaml_serde as _;
 
-/// The kinds an allowlist line may name.
 const KINDS: [&str; 3] = ["exec-requirement", "rc-flag", "tmp-path"];
 
-/// Execution requirements no action may carry.
 const BANNED: [&str; 5] = [
     "local",
     "no-cache",
@@ -23,13 +19,10 @@ const BANNED: [&str; 5] = [
     "requires-network",
 ];
 
-/// Words in a rule or macro name that mark it as a test.
 const TEST_WORDS: [&str; 5] = ["bench", "fuzz", "suite", "test", "tests"];
 
-/// The rc file that carries the `rc-flag` line.
 const ROOT_RC: &str = ".bazelrc";
 
-/// Flags the rc files must set, each with the spellings that set it.
 const REQUIRED: [(&str, [&str; 2]); 2] = [
     (
         "--incompatible_strict_action_env",
@@ -47,7 +40,6 @@ const REQUIRED: [(&str, [&str; 2]); 2] = [
     ),
 ];
 
-/// What the files contribute before test names resolve across them.
 #[derive(Default)]
 struct Scan {
     counts: Counts,
@@ -57,22 +49,18 @@ struct Scan {
     test_temp_dirs: Vec<(String, usize)>,
 }
 
-/// Whether `name` is a banned requirement that reads as nothing else.
 fn banned(name: &str) -> bool {
     name != "local" && BANNED.contains(&name)
 }
 
-/// Whether `name` reads as a test rule or macro.
 fn test_name(name: &str) -> bool {
     name.split('_').any(|word| TEST_WORDS.contains(&word))
 }
 
-/// Whether `text` is `/tmp` or a path under it.
 fn tmp(text: &str) -> bool {
     text == "/tmp" || text.starts_with("/tmp/")
 }
 
-/// Whether a line of shell or rc text names `/tmp` or a path under it.
 fn tmp_line(line: &str) -> bool {
     let joins = |c: char| c.is_alphanumeric() || "_-.".contains(c);
     line.match_indices("/tmp").any(|(at, found)| {
@@ -94,7 +82,6 @@ fn is_true(expr: &AstExpr) -> bool {
     matches!(&expr.node, ExprP::Identifier(ident) if ident.node.ident == "True")
 }
 
-/// Whether `name` holds execution requirements.
 fn names_requirements(name: &str) -> bool {
     name.contains("requirements")
 }
@@ -104,7 +91,6 @@ fn statements<'a>(stmt: &'a AstStmt, out: &mut Vec<&'a AstStmt>) {
     stmt.visit_stmt(|child| statements(child, out));
 }
 
-/// Keys named `local` in the dict literals under `value`.
 fn local_keys(value: &AstExpr) -> usize {
     let mut found = 0;
     if let ExprP::Dict(entries) = &value.node {
@@ -295,7 +281,6 @@ impl Scan {
         }
     }
 
-    /// Names that are tests: test-named callees, test rules, and macros that call one.
     fn tests(&self) -> BTreeSet<String> {
         let mut tests = self.test_rules.clone();
         loop {
@@ -314,7 +299,6 @@ impl Scan {
         }
     }
 
-    /// The counts, with banned tags on calls that are not test calls.
     fn finish(mut self) -> Counts {
         let tests = self.tests();
         for (path, callee, tags) in std::mem::take(&mut self.tagged) {
@@ -333,7 +317,6 @@ fn collect_strings<'a>(expr: &'a AstExpr, out: &mut Vec<&'a str>) {
     expr.visit_expr(|child| collect_strings(child, out));
 }
 
-/// Whether `rhs` is `rule(..., test = True)`.
 fn test_rule(rhs: &AstExpr) -> bool {
     let ExprP::Call(callee, args) = &rhs.node else {
         return false;
@@ -344,7 +327,6 @@ fn test_rule(rhs: &AstExpr) -> bool {
         })
 }
 
-/// Whether `path` names Rust test code.
 fn test_file(path: &str) -> bool {
     path.ends_with("_test.rs")
         || path.ends_with("_tests.rs")
@@ -360,7 +342,6 @@ fn is_word(token: Option<&Token>, wanted: &str) -> bool {
     matches!(token, Some(Token::Word(found)) if found == wanted)
 }
 
-/// Whether `#[cfg(test)]` starts at `at`.
 fn cfg_test(tokens: &[Token], at: usize) -> bool {
     is_punct(tokens.get(at), '#')
         && is_punct(tokens.get(at + 1), '[')
@@ -371,7 +352,6 @@ fn cfg_test(tokens: &[Token], at: usize) -> bool {
         && is_punct(tokens.get(at + 6), ']')
 }
 
-/// The tokens without the items under `#[cfg(test)]`.
 fn product_tokens(tokens: Vec<Token>) -> Vec<Token> {
     let mut skipped = vec![false; tokens.len()];
     let mut at = 0;
@@ -406,7 +386,6 @@ fn product_tokens(tokens: Vec<Token>) -> Vec<Token> {
         .collect()
 }
 
-/// Calls of `env::temp_dir`.
 fn temp_dir_calls(tokens: &[Token]) -> usize {
     (0..tokens.len())
         .filter(|at| {
@@ -419,12 +398,10 @@ fn temp_dir_calls(tokens: &[Token]) -> usize {
         .count()
 }
 
-/// Whether `path` is an rc file every build of this module reads.
 fn module_rc(path: &str) -> bool {
     path == ROOT_RC || (path.starts_with(".dx/bazelrc/") && path.ends_with(".bazelrc"))
 }
 
-/// The required flags no rc file sets outside a config.
 fn missing_flags(files: &BTreeMap<String, String>) -> Vec<&'static str> {
     let words: BTreeSet<&str> = files
         .iter()
@@ -487,7 +464,6 @@ fn the_tree_matches_the_allowlist() {
     allowlist::verify(&scan_files(&files), &KINDS);
 }
 
-/// Test files that call `env::temp_dir`, with the call count.
 fn test_temp_dirs(sources: &[(&str, &str)]) -> Vec<(String, usize)> {
     let mut scan = Scan::default();
     for (path, source) in sources {

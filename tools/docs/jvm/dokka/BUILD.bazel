@@ -5,7 +5,6 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
-# Dokka 2.2.0 brings kotlin-stdlib 2.0.21, so the sources keep to stable stdlib APIs.
 kotlin_library(
     name = "dokka_extract_lib",
     srcs = [
@@ -18,7 +17,6 @@ kotlin_library(
         "SourceMap.kt",
         "Types.kt",
     ],
-    # rules_kotlin cannot match an explicit resource_strip_prefix in an external repository.
     resources = ["src/main/resources/META-INF/services/org.jetbrains.dokka.plugability.DokkaPlugin"],
     runtime_deps = ["@dx_dokka//:org_jetbrains_dokka_analysis_kotlin_symbols"],
     deps = [

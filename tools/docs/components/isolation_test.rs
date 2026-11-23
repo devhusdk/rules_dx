@@ -1,5 +1,3 @@
-//! Checks that consumer configuration cannot inject plugins into the Vue, Svelte and Astro launchers and that
-//! every failure path exits nonzero without writing a stub.
 #![expect(
     clippy::disallowed_methods,
     reason = "tests run local programs under the Bazel test timeout"
@@ -12,8 +10,6 @@ fn runfile(rel: &str) -> PathBuf {
     dx_testing::resolve_runfiles(rel)
 }
 
-/// Copies the files listed in `var` (space separated rootpaths) below `root`, keeping the
-/// part of the path after `package`.
 fn stage(var: &str, package: &str, root: &Path) {
     let list = std::env::var(var).unwrap_or_else(|_| panic!("{var} must list runfiles"));
     for rel in list.split_whitespace() {

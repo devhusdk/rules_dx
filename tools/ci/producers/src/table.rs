@@ -1,5 +1,3 @@
-//! Compiler evidence table: merges evidence lines into one markdown table of compiler row x platform.
-
 use std::fmt::Write as _;
 use serde_json::Value;
 use std::collections::BTreeSet;
@@ -87,7 +85,6 @@ fn render(lines: &[Value], platforms: &[String]) -> String {
     out
 }
 
-/// `--table EVIDENCE_DIR OUT PLATFORM...`: writes the merged lines to OUT and prints the table.
 pub fn print(args: &[String]) -> Result<(), String> {
     let [dir, out, platforms @ ..] = args else {
         return Err("usage: producers_bin --table EVIDENCE_DIR OUT PLATFORM...".to_owned());

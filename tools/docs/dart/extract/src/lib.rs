@@ -1,5 +1,3 @@
-//! Converts the `index.json` of `dart doc` into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod doc;
@@ -18,7 +16,6 @@ const KEY_CONFIG: &str = "dart.config";
 const KEY_INCOMPLETE: &str = "dart.incomplete";
 const CONFIG: &str = "dartdoc=index.json";
 
-/// The `Object` members dartdoc lists under every mixin.
 const OBJECT_MEMBERS: [&str; 5] = [
     "hashCode",
     "noSuchMethod",
@@ -27,7 +24,6 @@ const OBJECT_MEMBERS: [&str; 5] = [
     "toString",
 ];
 
-/// Why one dartdoc index could not become a shard.
 #[derive(Debug)]
 pub enum DartExtractError {
     Io(PathIoError),
@@ -81,7 +77,6 @@ impl std::error::Error for DartExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub index: String,
@@ -89,23 +84,16 @@ pub struct Options {
     pub out: String,
 }
 
-/// Runs `dart_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("dart_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: dart_extract --index FILE --package NAME --out FILE"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--index", "--package", "--out"])?;
     Ok(Options {
@@ -115,18 +103,12 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard, returning the failure text on error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), DartExtractError> {
     let json = path_io::read_to_string(Path::new(&options.index)).map_err(DartExtractError::Io)?;
     let shard = convert(&json, &options.package)?;
     documentation_ir::tool::write_shard(&options.out, &shard).map_err(DartExtractError::Write)
 }
 
-/// One entry of the dartdoc index.
 struct Entry {
     name: String,
     kind: u64,
@@ -161,7 +143,6 @@ fn entry(value: &Value, at: &str) -> Result<Entry, DartExtractError> {
     })
 }
 
-/// Maps a dartdoc `Kind` number to an IR kind and the declaration keyword.
 fn kind_of(kind: u64, parent_kind: Option<u64>) -> Option<(SymbolKind, &'static str)> {
     Some(match kind {
         9 => (SymbolKind::Module, "library"),
@@ -189,11 +170,6 @@ fn extension(key: &str, value: &str) -> Extension {
     }
 }
 
-/// Converts one `index.json` document into a validated IR shard of one package.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(json: &str, package: &str) -> Result<DocIr, DartExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
         return Err(DartExtractError::InvalidPackage {

@@ -360,7 +360,6 @@ pub fn check(inputs: &Inputs) -> Result<(), CheckError> {
     Ok(())
 }
 
-/// The `url` string values of a search records JSON array.
 fn record_urls(text: &str) -> Vec<String> {
     let mut urls = Vec::new();
     let mut rest = text;
@@ -410,7 +409,6 @@ fn text_anchors(text: &str, prefix: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// The pages of one site, keyed by their route relative to the book root.
 struct Site {
     root: String,
     prose: BTreeSet<String>,
@@ -451,7 +449,6 @@ impl Site {
     }
 }
 
-/// Returns the longest directory that holds every path, "" when there is none.
 fn common_root(paths: &[String]) -> String {
     let mut dirs = paths.iter().map(|p| {
         let mut parts: Vec<&str> = p.split('/').collect();
@@ -468,7 +465,6 @@ fn common_root(paths: &[String]) -> String {
     common.join("/")
 }
 
-/// Returns a path relative to the root directory.
 fn route_under(root: &str, path: &str) -> String {
     if root.is_empty() {
         return path.to_string();
@@ -478,7 +474,6 @@ fn route_under(root: &str, path: &str) -> String {
         .to_string()
 }
 
-/// Joins a link target to the directory of its page, or None above the root.
 fn resolve_route(from: &str, target: &str) -> Option<String> {
     let mut parts: Vec<&str> = match from.rsplit_once('/') {
         Some((dir, _)) => dir.split('/').collect(),
@@ -496,7 +491,6 @@ fn resolve_route(from: &str, target: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
-/// Ports mdBook 0.4.52 `id_from_content` and `normalize_id` for a heading line.
 fn anchor_name(line: &str) -> String {
     let heading = line.trim().trim_start_matches('#').trim().replace('`', "");
     heading

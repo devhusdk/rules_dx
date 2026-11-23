@@ -14,7 +14,6 @@ def _dx_extract_test_impl(ctx):
         found = [i for i, arg in enumerate(argv) if _is_dx(arg)]
         asserts.true(env, len(found) > 0, "no dx in " + str(argv))
         if found:
-            # A shell-wrapped action passes dx and its stamp file before the subcommand.
             at = found[0] + 1 + ctx.attr.skip
             asserts.equals(env, ctx.attr.subcommand, argv[at] if at < len(argv) else None)
             asserts.true(env, ctx.attr.skip > 0 or found[0] == 0, "action runs " + argv[0])

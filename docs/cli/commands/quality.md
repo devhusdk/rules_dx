@@ -430,7 +430,7 @@ A bound regal config may not set `capabilities.from.url`, use YAML aliases, merg
 
 A bound or root `buf.yaml` may not list `deps`, in v1 or v2, or in a v2 `modules` entry, and may not use YAML aliases, merge keys or tags. `dx` runs buf offline. Declare imported protos as `proto_library` deps instead.
 
-trivy config and terraform typecheck read a Terraform file (`.tf` or `.tf.json`) only when every `module` it calls has a plain `./` or `../` string `source` that stays inside the target's files, and the same holds for every local module those call. Otherwise the file gets a `dx/terraform-module-source` error and the tool skips it (terraform typecheck skips that whole directory), because the tool would download the module and `dx` runs them offline. Vendor the module into your repo and point `source` at that directory.
+trivy config and terraform typecheck read a Terraform file (`.tf` or `.tf.json`) only when every `module` it calls has a plain `./` or `../` string `source` that stays inside the target's files, and the same holds for every local module those call. Otherwise the file gets a `dx/terraform-module-source` error and the tool skips it (terraform typecheck skips that whole directory), because the tool would download the module and `dx` runs them offline. terraform typecheck also checks the `module` blocks in the `run` blocks of test files (`.tftest.hcl` or `.tftest.json`) in the directory and in its `tests` directory, and the Terraform files a dependency keeps in the same directory. A problem in a dependency's file lands on one of your files and names the dependency's file. Vendor the module into your repo and point `source` at that directory.
 
 ### Change a rule
 

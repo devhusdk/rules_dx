@@ -2,7 +2,8 @@
 //!
 //! Both download every remote `module` source they meet, so dx hands a Terraform file to them
 //! only when each module it calls, and each module those call, is a local `./` or `../`
-//! directory inside the scan root.
+//! directory inside the scan root. `terraform init` also installs the modules that the `run`
+//! blocks of test files name, so those are checked the same way.
 
 use std::collections::BTreeSet;
 use std::path::{Component, Path, PathBuf};
@@ -10,7 +11,7 @@ use std::path::{Component, Path, PathBuf};
 /// A module source that is not a local path inside the scan root, or a file dx cannot read.
 pub const RULE_MODULE_SOURCE: &str = "dx/terraform-module-source";
 
-/// One problem, placed on the owned file the tool would have read.
+/// One problem, placed on the file the tool would have read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Problem {
     pub line: u64,
@@ -36,7 +37,21 @@ pub fn is_terraform(path: &Path) -> bool {
     name.ends_with(".tf") || name.ends_with(".tf.json")
 }
 
-/// Lists the module sources of one Terraform file, picking the syntax by its name.
+/// True for Terraform test files: `.tftest.hcl` and `.tftest.json`.
+#[must_use]
+pub fn is_terraform_test(path: &Path) -> bool {
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("");
+    name.ends_with(".tftest.hcl") || name.ends_with(".tftest.json")
+}
+
+/// The directory under a root module that `terraform init` also reads test files from.
+const TEST_DIR: &str = "tests";
+
+/// Lists the module sources of one Terraform or Terraform test file, picking the syntax by its
+/// name. In a test file these are the `module` blocks inside `run` blocks.
 ///
 /// # Errors
 ///
@@ -44,10 +59,14 @@ pub fn is_terraform(path: &Path) -> bool {
 pub fn module_sources(name: &str, bytes: &[u8]) -> Result<Vec<ModuleSource>, String> {
     let text = std::str::from_utf8(bytes).map_err(|err| format!("not valid UTF-8: {err}"))?;
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-    if name.ends_with(".tf.json") {
+    if name.ends_with(".tftest.json") {
+        json_test_sources(text)
+    } else if name.ends_with(".tftest.hcl") {
+        hcl_sources(text, &["run", "module"])
+    } else if name.ends_with(".tf.json") {
         json_sources(text)
     } else {
-        hcl_sources(text)
+        hcl_sources(text, &["module"])
     }
 }
 
@@ -69,7 +88,45 @@ pub fn check_file(root: &Path, file: &Path) -> Result<Option<Problem>, String> {
     let Some(file) = normalize(file) else {
         return Err(format!("bad Terraform path {}", file.display()));
     };
-    let bytes = std::fs::read(&file).map_err(|err| format!("read {}: {err}", file.display()))?;
+    let Some(dir) = file.parent() else {
+        return Err(format!(
+            "Terraform file {} has no directory",
+            file.display()
+        ));
+    };
+    check_sources(&root, &file, dir)
+}
+
+/// Checks every file `terraform init` reads for the root module in `dir`: its `.tf` and
+/// `.tf.json` files, and the test files in it and in its `tests` directory. Returns each file
+/// that has a problem with its first problem, in path order.
+///
+/// # Errors
+///
+/// Returns a message when a file or directory under `root` cannot be read.
+pub fn check_init_dir(root: &Path, dir: &Path) -> Result<Vec<(PathBuf, Problem)>, String> {
+    let root = normalize(root).ok_or_else(|| format!("bad scan root {}", root.display()))?;
+    let Some(dir) = normalize(dir) else {
+        return Err(format!("bad Terraform directory {}", dir.display()));
+    };
+    let mut files = files_in(&dir, |path| is_terraform(path) || is_terraform_test(path))?;
+    let tests = dir.join(TEST_DIR);
+    if tests.is_dir() {
+        files.extend(files_in(&tests, is_terraform_test)?);
+    }
+    let mut out = Vec::new();
+    for file in files {
+        // A test file in `tests` names local modules relative to the root module, not to itself.
+        if let Some(problem) = check_sources(&root, &file, &dir)? {
+            out.push((file, problem));
+        }
+    }
+    Ok(out)
+}
+
+/// Checks the sources in `file`, resolved against `dir`, and every local module they reach.
+fn check_sources(root: &Path, file: &Path, dir: &Path) -> Result<Option<Problem>, String> {
+    let bytes = std::fs::read(file).map_err(|err| format!("read {}: {err}", file.display()))?;
     let name = file.to_string_lossy();
     let sources = match module_sources(&name, &bytes) {
         Ok(sources) => sources,
@@ -81,16 +138,10 @@ pub fn check_file(root: &Path, file: &Path) -> Result<Option<Problem>, String> {
             )));
         }
     };
-    let Some(dir) = file.parent() else {
-        return Err(format!(
-            "Terraform file {} has no directory",
-            file.display()
-        ));
-    };
     let mut seen = BTreeSet::new();
     let mut queue: Vec<(PathBuf, u64, u64)> = Vec::new();
     for source in sources {
-        match follow(&root, dir, &source) {
+        match follow(root, dir, &source) {
             Ok(next) => queue.push((next, source.line, source.column)),
             Err(message) => return Ok(Some(at(source.line, source.column, message))),
         }
@@ -99,9 +150,9 @@ pub fn check_file(root: &Path, file: &Path) -> Result<Option<Problem>, String> {
         if !seen.insert(module.clone()) || !module.is_dir() {
             continue;
         }
-        for path in terraform_files(&module)? {
+        for path in files_in(&module, is_terraform)? {
             let shown = path
-                .strip_prefix(&root)
+                .strip_prefix(root)
                 .unwrap_or(&path)
                 .display()
                 .to_string();
@@ -118,7 +169,7 @@ pub fn check_file(root: &Path, file: &Path) -> Result<Option<Problem>, String> {
                 }
             };
             for source in sources {
-                match follow(&root, &module, &source) {
+                match follow(root, &module, &source) {
                     Ok(next) => queue.push((next, line, column)),
                     Err(message) => {
                         return Ok(Some(at(
@@ -179,15 +230,15 @@ fn normalize(path: &Path) -> Option<PathBuf> {
     Some(out)
 }
 
-/// The `.tf` and `.tf.json` files directly in `dir`, sorted so the first problem is stable.
-fn terraform_files(dir: &Path) -> Result<Vec<PathBuf>, String> {
+/// The files directly in `dir` that `keep` accepts, sorted so the first problem is stable.
+fn files_in(dir: &Path, keep: fn(&Path) -> bool) -> Result<Vec<PathBuf>, String> {
     let entries = std::fs::read_dir(dir).map_err(|err| format!("read {}: {err}", dir.display()))?;
     let mut files = Vec::new();
     for entry in entries {
         let path = entry
             .map_err(|err| format!("read {}: {err}", dir.display()))?
             .path();
-        if is_terraform(&path) && path.is_file() {
+        if keep(&path) && path.is_file() {
             files.push(path);
         }
     }
@@ -202,6 +253,33 @@ fn json_sources(text: &str) -> Result<Vec<ModuleSource>, String> {
     if let Some(modules) = value.get("module") {
         for body in json_bodies(modules) {
             if let Some(source) = body.get("source") {
+                out.push(ModuleSource {
+                    value: source.as_str().map(str::to_owned),
+                    line: 1,
+                    column: 1,
+                });
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// The `source` of the `module` block in every `run` block of a JSON test file.
+fn json_test_sources(text: &str) -> Result<Vec<ModuleSource>, String> {
+    let value: serde_json::Value =
+        serde_json::from_str(text).map_err(|err| format!("not valid JSON: {err}"))?;
+    let mut out = Vec::new();
+    if let Some(runs) = value.get("run") {
+        for run in json_bodies(runs) {
+            let modules: Vec<&serde_json::Value> = match run.get("module") {
+                Some(serde_json::Value::Array(items)) => items.iter().collect(),
+                Some(module) => vec![module],
+                None => Vec::new(),
+            };
+            for source in modules
+                .into_iter()
+                .filter_map(|module| module.get("source"))
+            {
                 out.push(ModuleSource {
                     value: source.as_str().map(str::to_owned),
                     line: 1,
@@ -469,8 +547,9 @@ impl Lexer {
     }
 }
 
-/// Finds the `source` of every top-level `module` block in HCL text.
-fn hcl_sources(text: &str) -> Result<Vec<ModuleSource>, String> {
+/// Finds the `source` attribute of every block nested exactly as `path` in HCL text: `["module"]`
+/// for a top-level `module` block, `["run", "module"]` for the `module` block of a test run.
+fn hcl_sources(text: &str, path: &[&str]) -> Result<Vec<ModuleSource>, String> {
     let lexer = Lexer {
         chars: text.chars().collect(),
         pos: 0,
@@ -479,37 +558,39 @@ fn hcl_sources(text: &str) -> Result<Vec<ModuleSource>, String> {
     };
     let tokens = lexer.tokens()?;
     let mut out = Vec::new();
-    let mut depth = 0_usize;
-    let mut module_depth: Option<usize> = None;
+    // The block type of each open brace, or `None` for an object or map value.
+    let mut blocks: Vec<Option<&str>> = Vec::new();
+    // A block header just read: its type and the index of the brace that opens its body.
+    let mut header: Option<(&str, usize)> = None;
     let mut statement_start = true;
     let mut index = 0;
     while let Some((token, line, column)) = tokens.get(index) {
         let at_start = statement_start;
         statement_start = matches!(token, Token::Newline | Token::Open | Token::Close);
         match token {
-            Token::Open => depth += 1,
+            Token::Open => {
+                let kind = header
+                    .take()
+                    .filter(|(_, open)| *open == index)
+                    .map(|(kind, _)| kind);
+                blocks.push(kind);
+            }
             Token::Close => {
-                depth = depth
-                    .checked_sub(1)
-                    .ok_or_else(|| format!("unbalanced braces at line {line}"))?;
-                if module_depth.is_some_and(|inside| depth < inside) {
-                    module_depth = None;
+                if blocks.pop().is_none() {
+                    return Err(format!("unbalanced braces at line {line}"));
                 }
             }
-            Token::Ident(word) if at_start && depth == 0 && word == "module" => {
-                let mut ahead = index + 1;
-                while matches!(
-                    tokens.get(ahead),
-                    Some((Token::Str(_) | Token::Ident(_), _, _))
-                ) {
-                    ahead += 1;
-                }
-                if matches!(tokens.get(ahead), Some((Token::Open, _, _))) {
-                    module_depth = Some(1);
-                }
-            }
-            Token::Ident(word) if at_start && module_depth == Some(depth) && word == "source" => {
-                if matches!(tokens.get(index + 1), Some((Token::Equals, _, _))) {
+            Token::Ident(word)
+                if at_start
+                    && word == "source"
+                    && matches!(tokens.get(index + 1), Some((Token::Equals, _, _))) =>
+            {
+                let inside = blocks.len() == path.len()
+                    && blocks
+                        .iter()
+                        .zip(path)
+                        .all(|(kind, want)| *kind == Some(*want));
+                if inside {
                     let value = match (tokens.get(index + 2), tokens.get(index + 3)) {
                         (
                             Some((Token::Str(value), _, _)),
@@ -524,6 +605,18 @@ fn hcl_sources(text: &str) -> Result<Vec<ModuleSource>, String> {
                     });
                 }
             }
+            Token::Ident(word) if at_start => {
+                let mut ahead = index + 1;
+                while matches!(
+                    tokens.get(ahead),
+                    Some((Token::Str(_) | Token::Ident(_), _, _))
+                ) {
+                    ahead += 1;
+                }
+                if matches!(tokens.get(ahead), Some((Token::Open, _, _))) {
+                    header = Some((word.as_str(), ahead));
+                }
+            }
             Token::Ident(_)
             | Token::Str(_)
             | Token::Heredoc
@@ -533,7 +626,7 @@ fn hcl_sources(text: &str) -> Result<Vec<ModuleSource>, String> {
         }
         index += 1;
     }
-    if depth != 0 {
+    if !blocks.is_empty() {
         return Err("unbalanced braces at end of file".to_owned());
     }
     Ok(out)
@@ -541,7 +634,7 @@ fn hcl_sources(text: &str) -> Result<Vec<ModuleSource>, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{ModuleSource, check_file, local_path, module_sources};
+    use super::{ModuleSource, check_file, check_init_dir, local_path, module_sources};
 
     fn values(name: &str, text: &str) -> Vec<Option<String>> {
         module_sources(name, text.as_bytes())
@@ -742,5 +835,103 @@ module "parent" {
         );
 
         check_file(root, &root.join("absent.tf")).expect_err("absent file");
+    }
+
+    #[test]
+    fn test_file_run_module_sources_are_found() {
+        let text = r#"
+module "top" { source = "not/in/a/run" }
+run "a" {
+  command = plan
+  module {
+    source  = "hashicorp/consul/aws"
+    version = "1.0.0"
+  }
+  variables {
+    source = "a variable"
+  }
+}
+run "b" {
+  module { source = "./setup" }
+}
+"#;
+        assert_eq!(
+            values("a.tftest.hcl", text),
+            vec![some("hashicorp/consul/aws"), some("./setup")]
+        );
+        let json = r#"{"run": {"a": {"module": {"source": "x/y/aws"}}, "b": [{"module": [{"source": "./s"}]}], "c": {}}}"#;
+        assert_eq!(
+            values("a.tftest.json", json),
+            vec![some("x/y/aws"), some("./s")]
+        );
+    }
+
+    #[test]
+    fn check_init_dir_reads_every_file_init_reads() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path();
+        let write = |rel: &str, text: &str| {
+            let path = root.join(rel);
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+            std::fs::write(path, text).expect("write");
+        };
+        write("infra/main.tf", "resource \"terraform_data\" \"x\" {}\n");
+        write(
+            "infra/setup/main.tf",
+            "resource \"terraform_data\" \"y\" {}\n",
+        );
+        write(
+            "infra/tests/local.tftest.hcl",
+            "run \"x\" {\n  module {\n    source = \"./setup\"\n  }\n}\n",
+        );
+        write("infra/notes.txt", "module \"m\" { source = \"x/y/aws\" }\n");
+        write(
+            "infra/tests/deeper/skip.tftest.hcl",
+            "run \"x\" {\n  module {\n    source = \"x/y/aws\"\n  }\n}\n",
+        );
+        assert_eq!(
+            check_init_dir(root, &root.join("infra")).expect("check"),
+            Vec::new()
+        );
+
+        write(
+            "infra/dep.tf",
+            "module \"consul\" {\n  source = \"hashicorp/consul/aws\"\n}\n",
+        );
+        write(
+            "infra/root.tftest.json",
+            r#"{"run": {"x": {"module": {"source": "x/y/aws"}}}}"#,
+        );
+        write(
+            "infra/tests/remote.tftest.hcl",
+            "run \"x\" {\n  module {\n    source = \"x/y/aws\"\n  }\n}\n",
+        );
+        write(
+            "infra/setup/nested.tf",
+            "module \"n\" {\n  source = \"git::https://example.com/n.git\"\n}\n",
+        );
+        let found: Vec<(String, u64, u64)> = check_init_dir(root, &root.join("infra"))
+            .expect("check")
+            .into_iter()
+            .map(|(file, problem)| {
+                let rel = file.strip_prefix(root).expect("under root");
+                (
+                    rel.to_string_lossy().replace('\\', "/"),
+                    problem.line,
+                    problem.column,
+                )
+            })
+            .collect();
+        assert_eq!(
+            found,
+            vec![
+                ("infra/dep.tf".to_owned(), 2, 3),
+                ("infra/root.tftest.json".to_owned(), 1, 1),
+                ("infra/tests/local.tftest.hcl".to_owned(), 3, 5),
+                ("infra/tests/remote.tftest.hcl".to_owned(), 3, 5),
+            ]
+        );
+
+        check_init_dir(root, &root.join("absent")).expect_err("absent dir");
     }
 }

@@ -4140,7 +4140,6 @@ LANGS = json.decode("""{
   }
 }""")
 
-# File families with no lang.json, from core/quality/core_aspects.json.
 CORE_FAMILIES = json.decode("""{
   "core": {
     "classes": [

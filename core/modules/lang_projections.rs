@@ -93,6 +93,15 @@ fn core_families(core: &Value) -> Result<Map<String, Value>, String> {
     let mut families = Map::new();
     for row in rows {
         let Some(family) = row.get("family") else {
+            let names_aspects = ["aspects", "probes"]
+                .iter()
+                .any(|key| row.get(*key).is_some_and(|value| !value.is_null()));
+            if !names_aspects {
+                return Err(format!(
+                    "core_aspects row {} names no family, aspects or probes",
+                    row["bzl"]
+                ));
+            }
             continue;
         };
         let family = str_at(family, "core_aspects family")?;
@@ -144,7 +153,7 @@ fn langs_bzl(manifests: &BTreeMap<String, Value>, core: &Value) -> Result<String
     let langs = json_decode_line("LANGS", Value::Object(langs))?;
     let core = json_decode_line("CORE_FAMILIES", Value::Object(core_families(core)?))?;
     Ok(format!(
-        "\"\"\"{REFRESH}\"\"\"\n\nvisibility([\"//core/...\", \"//ruby/...\", \"//tools/...\"])\n\n{langs}\n# File families with no lang.json, from core/quality/core_aspects.json.\n{core}"
+        "\"\"\"{REFRESH}\"\"\"\n\nvisibility([\"//core/...\", \"//ruby/...\", \"//tools/...\"])\n\n{langs}\n{core}"
     ))
 }
 
@@ -730,6 +739,11 @@ mod tests {
             ]))
             .unwrap_err(),
             "core_aspects family x is listed twice"
+        );
+        let empty = serde_json::json!({"bzl": "core/quality:families/core.bzl"});
+        assert_eq!(
+            core_families(&core(vec![empty])).unwrap_err(),
+            "core_aspects row \"core/quality:families/core.bzl\" names no family, aspects or probes"
         );
     }
 

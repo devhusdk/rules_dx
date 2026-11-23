@@ -102,7 +102,6 @@ fn core_entries_ship_apart_from_the_languages() {
         .iter()
         .filter(|files| files.aspects.is_empty() && files.probes.is_empty())
         .count();
-    // A row without aspects only describes a file family, so every such row names one.
     assert!(
         aspectless > 0 && aspectless < families,
         "{aspectless} of {families}"

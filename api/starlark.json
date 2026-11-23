@@ -2247,6 +2247,7 @@
           },
           {
             "attrs": [
+              "copts",
               "features",
               "hdrs",
               "srcs",
@@ -2320,6 +2321,7 @@
           },
           {
             "attrs": [
+              "copts",
               "deps",
               "features",
               "linkstatic",

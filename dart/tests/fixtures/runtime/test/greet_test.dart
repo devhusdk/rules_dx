@@ -10,7 +10,9 @@ void main() {
   });
 
   test('reads data through runfiles', () {
-    final path = Runfiles.create().rlocation('_main/dart/tests/runtime/data/name.txt');
+    final path = Runfiles.create().rlocation(
+      '_main/dart/tests/fixtures/runtime/data/name.txt',
+    );
     expect(File(path).readAsStringSync().trim(), 'dart');
   });
 }

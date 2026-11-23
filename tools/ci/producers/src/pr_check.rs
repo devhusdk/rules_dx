@@ -21,7 +21,7 @@ pub const WORKFLOW_TARGETS: &str = "//tools/ci:actionlint_test //tools/ci:workfl
 pub const PREFLIGHT_TARGETS: &str = "//cli/cli:dx //cc/tests/fixtures/hello:hello //cc/tests/fixtures/c_app/store:store_build_h
     //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test
     //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig_app/... //dart/tests/fixtures/dart_app/...
-    //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all
+    //dart/tests/fixtures/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all
     //julia/tests/fixtures/julia_app/... //julia/private/tools/... //deploy/private:pypi_probe_verify //haskell/private/tools/weeder:weeder_build_test
     //core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail
     //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_api_spec_openapi_pass
@@ -36,7 +36,7 @@ pub const PREFLIGHT_TARGETS: &str = "//cli/cli:dx //cc/tests/fixtures/hello:hell
 
 pub const WINDOWS_ARM64_TARGETS: &str = "//cc/tests/fixtures/hello:hello //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test
     //cc/tests/fixtures/c_app/store:store_build_h
-    //dart/tests/fixtures/dart_app/... //dart/tests/runtime:all //dart/private/tools:all
+    //dart/tests/fixtures/dart_app/... //dart/tests/fixtures/runtime:all //dart/private/tools:all
     //cli/cli:dx //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //deploy/private:pypi_probe_verify
     //zig/tests/fixtures/hello:all //zig/tests/fixtures/zig_app/... //julia/tests/fixtures/hello:all
     //julia/tests/fixtures/julia_app/... //julia/private/tools/... //haskell/private/tools/weeder:weeder_build_test";

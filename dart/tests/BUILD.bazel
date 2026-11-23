@@ -1,8 +1,8 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_main_candidates")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//dart/private:defs.bzl", "DART_SOURCE_SPECS")
 load("//dart/private:platforms.bzl", "DART_PLATFORMS")
 
@@ -95,5 +95,17 @@ test_suite(
     testonly = True,
     tests = [
         "//dart/tests/fixtures/adopt_dart/packages/greet:greet_test",
+        "//dart/tests/fixtures/bench:sum_bench_default_size",
+        "//dart/tests/fixtures/codegen:codegen_test",
+        "//dart/tests/fixtures/negative:declared_dep_is_an_input_test",
+        "//dart/tests/fixtures/negative:dependency_without_dart_info_fails_test",
+        "//dart/tests/fixtures/negative:undeclared_dep_is_not_an_input_test",
+        "//dart/tests/fixtures/runtime:greet_test",
+        "//dart/tests/fixtures/runtime:launcher_test",
+        "//dart/tests/fixtures/tags:tags_test",
+        "//dart/tests/fixtures/web:js_owns_main_test",
+        "//dart/tests/fixtures/web:js_run_test",
+        "//dart/tests/fixtures/web:wasm_owns_main_test",
+        "//dart/tests/fixtures/web:wasm_run_test",
     ],
 )

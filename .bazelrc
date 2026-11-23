@@ -4,6 +4,8 @@ try-import %workspace%/.dx/bazelrc/performance.bazelrc
 try-import %workspace%/.dx/bazelrc/resources.bazelrc
 
 coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector
+common:gate --test_tag_filters=-manual,-resources:nested_bazel:1,-starter-consumer,-network-consumer
+coverage:gate --test_tag_filters=-no-coverage,-dx-no-coverage-collector,-manual,-resources:nested_bazel:1,-starter-consumer,-network-consumer
 
 common --local_resources=nested_bazel=2
 common --local_resources=msix_package_store=1

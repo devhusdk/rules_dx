@@ -329,7 +329,7 @@ fn the_readme_quickstart_runs_as_written() {
     );
     write_text(
         &case.root().join("app/lib.rs"),
-        "//! A Rust target in a consumer with no root package.\n\n/// Returns the answer.\npub fn answer() -> u32 {\n    42\n}\n",
+        "//! A Rust target in a consumer with no root package.\n\n/// Returns the answer.\n#[must_use]\npub fn answer() -> u32 {\n    42\n}\n",
     );
     run_in(
         &case,

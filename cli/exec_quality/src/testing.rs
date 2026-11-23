@@ -1,4 +1,3 @@
-
 use dx_digest::blake3 as digest;
 use dx_testing::http::{Reply, serve};
 use dx_testing::must;

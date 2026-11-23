@@ -229,14 +229,21 @@ fn build(
     let start = Instant::now();
     run(&build_argv(bazel, out, name, patterns), workspace)?;
     println!("{name}: {}s", start.elapsed().as_secs());
+    let base = out.join(name).join("base");
     run(
         &[
             bazel.to_owned(),
-            format!("--output_base={}/{name}/base", out.display()),
+            format!("--output_base={}", base.display()),
             "shutdown".to_owned(),
         ],
         workspace,
-    )
+    )?;
+    // The exec log sits outside the base; dropping the base frees the disk the next cold build needs.
+    if dx_process::remove_tree(&base) {
+        Ok(())
+    } else {
+        Err(format!("cannot remove {}", base.display()))
+    }
 }
 
 /// Spawns `diff` reports when `--top` is not given.

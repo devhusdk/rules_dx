@@ -64,10 +64,7 @@ def _nested_cache_file_impl(rctx):
     urls = rctx.attr.urls
     ghcr = [url for url in urls if url.startswith("https://ghcr.io/")]
     output = "file/blob"
-
-    # Try without a token first so a repository cache or mirror hit needs no ghcr.io round trip.
     if not ghcr or not rctx.download(url = urls, output = output, integrity = rctx.attr.integrity, allow_fail = True).success:
-        # The token goes only to ghcr.io, never to the other URLs of the entry.
         headers = ghcr_headers(rctx, ghcr_pull_scope(ghcr[0])) if ghcr else {}
         rctx.download(url = ghcr or urls, output = output, integrity = rctx.attr.integrity, headers = headers)
     rctx.file("REPO.bazel", "")

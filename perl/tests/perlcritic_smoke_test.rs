@@ -1,6 +1,6 @@
-//! The perlcritic wrapper passes a clean file, reports RequireUseStrict on a dirty one and ignores a
-//! .perlcriticrc in the working directory under --noprofile. The strict tier profile reports each
-//! guard policy and passes a clean module.
+//! The perlcritic wrapper runs the strict tier profile dx binds: it passes a clean file, reports
+//! RequireUseStrict on a dirty one and ignores a .perlcriticrc in the working directory. The strict
+//! profile reports each guard policy and passes a clean module.
 
 use std::path::Path;
 
@@ -8,10 +8,11 @@ use dx_testing::{Run, command_for, env_file, path_text, run_command, scratch_dir
 
 fn perlcritic(source: &str, cwd: &Path) -> Run {
     let source = path_text(&env_file(source));
+    let profile = path_text(&env_file("STRICT_PROFILE"));
     let mut command = command_for(&env_file("PERLCRITIC"), &[]).expect("command");
     command.current_dir(cwd).args([
-        "--noprofile",
-        "--severity=5",
+        "--profile",
+        &profile,
         "--nocolor",
         "--quiet",
         "--verbose=%f\t%l\t%p\t%m\n",
@@ -38,7 +39,7 @@ fn dirty_file_reports_require_use_strict() {
 }
 
 #[test]
-fn noprofile_ignores_working_directory_profile() {
+fn bound_profile_ignores_working_directory_profile() {
     let work = scratch_dir("profile");
     write(
         &work.join(".perlcriticrc"),

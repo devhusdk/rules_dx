@@ -6,7 +6,12 @@
 
 static int expect(const char *what, const char *got, const char *want) {
   if (strcmp(got, want) != 0) {
-    fprintf(stderr, "%s: got '%s', want '%s'\n", what, got, want);
+    (void)fputs(what, stderr);
+    (void)fputs(": got '", stderr);
+    (void)fputs(got, stderr);
+    (void)fputs("', want '", stderr);
+    (void)fputs(want, stderr);
+    (void)fputs("'\n", stderr);
     return 1;
   }
   return 0;
@@ -18,7 +23,7 @@ static long slurp(const char *path, uint8_t *buf, size_t cap) {
     return -1;
   }
   size_t len = fread(buf, 1, cap, file);
-  fclose(file);
+  (void)fclose(file);
   return (long)len;
 }
 
@@ -26,13 +31,13 @@ int main(void) {
   const char *board_path = getenv("DX_TASKS_BOARD");
   const char *notes_path = getenv("DX_TASKS_NOTES");
   if (board_path == NULL || notes_path == NULL) {
-    fprintf(stderr, "DX_TASKS_BOARD and DX_TASKS_NOTES name the assets\n");
+    (void)fputs("DX_TASKS_BOARD and DX_TASKS_NOTES name the assets\n", stderr);
     return 2;
   }
   uint8_t board[4096];
   long board_len = slurp(board_path, board, sizeof(board));
   if (board_len < 0 || tasks_load(board, (size_t)board_len) != 4) {
-    fprintf(stderr, "the packaged board did not load four tasks\n");
+    (void)fputs("the packaged board did not load four tasks\n", stderr);
     return 1;
   }
   uint8_t out[128];
@@ -54,7 +59,7 @@ int main(void) {
   uint8_t notes[4096];
   long notes_len = slurp(notes_path, notes, sizeof(notes));
   if (notes_len < 0) {
-    fprintf(stderr, "notes asset is unreadable\n");
+    (void)fputs("notes asset is unreadable\n", stderr);
     return 1;
   }
   const char *name = "notes.txt";

@@ -26,15 +26,31 @@ if ([Environment]::CommandLine -notmatch '(?s) -File +("[^"]*"|\S+) ?(.*)$') {
     throw 'bazel.ps1 expects to be started by Bazelisk with -File'
 }
 $tail = $Matches[2]
-$dx = Join-Path $PSScriptRoot 'dx.cmd'
-if (-not $env:DX_BAZEL_CHILD -and [IO.File]::Exists($dx)) {
-    $hook = New-Object Diagnostics.ProcessStartInfo $dx, "worktree hook bazel -- $tail"
-    $hook.UseShellExecute = $false
-    $hook.EnvironmentVariables['DX_BAZEL_CHILD'] = '1'
-    $process = [Diagnostics.Process]::Start($hook)
-    $process.WaitForExit()
-    if ($process.ExitCode -ne 0) {
-        exit $process.ExitCode
+# Only a refusal (77) or a stop (130, 143) from the hook stops Bazel. Any other failure, such as a dx too old for
+# the hook, an unsupported host or a missing launcher, warns and runs Bazel, so a broken dx never blocks Bazel. The
+# hook's stdout goes to stderr, so it never mixes with the output of bazel info or query.
+if (-not $env:DX_BAZEL_CHILD) {
+    $dx = Join-Path $PSScriptRoot 'dx.cmd'
+    $code = 9009
+    try {
+        if ([IO.File]::Exists($dx)) {
+            $hook = New-Object Diagnostics.ProcessStartInfo $dx, "worktree hook bazel -- $tail"
+            $hook.UseShellExecute = $false
+            $hook.RedirectStandardOutput = $true
+            $hook.EnvironmentVariables['DX_BAZEL_CHILD'] = '1'
+            $process = [Diagnostics.Process]::Start($hook)
+            [Console]::Error.Write($process.StandardOutput.ReadToEnd())
+            $process.WaitForExit()
+            $code = $process.ExitCode
+        }
+    } catch {
+        [Console]::Error.WriteLine("bazel.ps1: $_")
+    }
+    if ($code -in 77, 130, 143) {
+        exit $code
+    }
+    if ($code -ne 0) {
+        [Console]::Error.WriteLine("bazel.ps1: tools\dx.cmd worktree hook bazel failed (exit $code); running Bazel without it")
     }
 }
 $bazel = New-Object Diagnostics.ProcessStartInfo $env:BAZEL_REAL, $tail

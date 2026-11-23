@@ -155,9 +155,14 @@ fn init_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
     }
 }
 
+/// Bazelisk on Windows runs this before `tools/bazel.bat`, so dx's wrapper never runs while it exists.
+const BAZEL_WRAPPER_PS1_REL: &str = "tools/bazel.ps1";
+
 /// Warns when a Bazel wrapper dx did not write sits where Bazelisk runs it, since it skips the dx hook.
+///
+/// A `tools/bazel.ps1` that runs the hook itself, as the one in rules_dx does, is not warned about.
 fn bazel_wrapper_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
-    let custom: Vec<&str> = [
+    let mut custom: Vec<&str> = [
         dx_adopt::BAZEL_WRAPPER_SH_REL,
         dx_adopt::BAZEL_WRAPPER_BAT_REL,
     ]
@@ -166,16 +171,26 @@ fn bazel_wrapper_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCh
         workspace.join(rel).is_file() && dx_adopt::launcher_state(workspace, rel).is_none()
     })
     .collect();
+    let ps1 = workspace.join(BAZEL_WRAPPER_PS1_REL);
+    let shadows = ps1.is_file()
+        && !std::fs::read_to_string(&ps1).is_ok_and(|text| text.contains("worktree hook bazel"));
+    if shadows {
+        custom.push(BAZEL_WRAPPER_PS1_REL);
+    }
     if custom.is_empty() {
         return None;
+    }
+    let mut detail = format!(
+        "{} not written by dx: Bazel runs without the main-checkout check and memory admission",
+        custom.join(", ")
+    );
+    if shadows {
+        detail.push_str("; Bazelisk on Windows runs tools/bazel.ps1 in place of tools/bazel.bat");
     }
     Some(dx_adopt::StatusCheck {
         name: "bazel-wrapper".to_owned(),
         status: "warn".to_owned(),
-        detail: format!(
-            "{} not written by dx: Bazel runs without the main-checkout check and memory admission",
-            custom.join(", ")
-        ),
+        detail,
         hint: "delete it and run dx init --apply, or call tools/dx worktree hook bazel -- \"$@\" from it".to_owned(),
     })
 }
@@ -655,6 +670,33 @@ mod tests {
             "{}",
             check.detail
         );
+    }
+
+    #[test]
+    fn status_warns_about_a_bazel_ps1_that_shadows_the_bat_wrapper() {
+        let scratch = dx_test_scratch::scratch("dx-status-ps1-").unwrap();
+        let root = scratch.path();
+        std::fs::create_dir_all(root.join("tools")).expect("tools");
+        std::fs::write(
+            root.join(dx_adopt::BAZEL_WRAPPER_BAT_REL),
+            dx_adopt::render_bazel_wrapper_bat(),
+        )
+        .expect("owned bat");
+        let ps1 = root.join(BAZEL_WRAPPER_PS1_REL);
+        std::fs::write(&ps1, "& $env:BAZEL_REAL @args\r\n").expect("ps1");
+        let check = bazel_wrapper_check(root).expect("shadowing ps1");
+        assert!(
+            check.detail.starts_with("tools/bazel.ps1 not written by dx")
+                && check.detail.ends_with("runs tools/bazel.ps1 in place of tools/bazel.bat"),
+            "{}",
+            check.detail
+        );
+        std::fs::write(
+            &ps1,
+            "& \"$PSScriptRoot\\dx.cmd\" worktree hook bazel -- @args\r\n& $env:BAZEL_REAL @args\r\n",
+        )
+        .expect("hooked ps1");
+        assert!(bazel_wrapper_check(root).is_none());
     }
 
     fn write_module(root: &std::path::Path) {

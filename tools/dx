@@ -536,7 +536,7 @@ primary_allows_build() {
     pr_err=$(cd "$root" && DX_BUILD_SLOTS=off "$pr_dx" worktree hook bazel -- build //cli/cli:dx 2>&1 >/dev/null) || pr_ec=$?
     case $pr_ec:$pr_err in
     0:*) return 0 ;;
-    2:*refused:*) exec "$pr_dx" "$@" ;;
+    2:*refused:* | 77:*refused:*) exec "$pr_dx" "$@" ;;
     esac
   done
   [ -d "$root/.git" ] || return 0

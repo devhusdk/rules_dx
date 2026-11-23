@@ -11,6 +11,7 @@ use std::process::{Command, Output};
 struct Host {
     _dir: dx_test_scratch::TempDir,
     root: PathBuf,
+    wrapper: PathBuf,
 }
 
 impl Host {
@@ -23,7 +24,21 @@ impl Host {
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
             std::fs::write(path, "").unwrap();
         }
-        Host { _dir: dir, root }
+        Host {
+            _dir: dir,
+            root,
+            wrapper: dx_testing::env_file("DX_BAZEL_WRAPPER"),
+        }
+    }
+
+    /// Runs a copy of the wrapper from `tools` next to a `dx.cmd` with `body`.
+    fn with_dx(mut self, body: &str) -> Host {
+        let tools = self.path("tools");
+        std::fs::create_dir_all(&tools).unwrap();
+        self.wrapper = tools.join("bazel.ps1");
+        std::fs::copy(dx_testing::env_file("DX_BAZEL_WRAPPER"), &self.wrapper).unwrap();
+        std::fs::write(tools.join("dx.cmd"), body.replace('\n', "\r\n")).unwrap();
+        self
     }
 
     fn path(&self, rel: &str) -> PathBuf {
@@ -33,7 +48,7 @@ impl Host {
     fn command(&self, path: &[&str], args: &[&str]) -> Command {
         let mut cmd = Command::new(system32().join(r"WindowsPowerShell\v1.0\powershell.exe"));
         cmd.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"])
-            .arg(dx_testing::env_file("DX_BAZEL_WRAPPER"))
+            .arg(&self.wrapper)
             .args(args)
             .env(
                 "PATH",
@@ -49,6 +64,7 @@ impl Host {
                 dx_testing::env_file("DX_FAKE_BAZEL"),
             )
             .env_remove("BAZEL_SH")
+            .env_remove("DX_BAZEL_CHILD")
             .env_remove("FAKE_BAZEL_EXIT");
         cmd
     }
@@ -150,4 +166,45 @@ fn the_bazel_exit_code_passes_through() {
     let mut cmd = host.command(&[r"Git\cmd"], &["test"]);
     let (output, _) = run(cmd.env("FAKE_BAZEL_EXIT", "3"));
     assert_eq!(output.status.code(), Some(3));
+}
+
+/// A `dx.cmd` that prints to stdout and exits with `code` for the bazel hook.
+fn hook(code: u8) -> String {
+    format!("@echo off\nif not \"%1 %2 %3 %4\"==\"worktree hook bazel --\" exit /b 9\necho hook-out\nexit /b {code}\n")
+}
+
+#[test]
+fn a_hook_that_passes_runs_bazel_and_keeps_its_stdout_off_bazel_stdout() {
+    let host = Host::new(&GIT).with_dx(&hook(0));
+    let (output, lines) = run(&mut host.command(&[r"Git\cmd"], &["info"]));
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(lines[1..], ["arg=info"]);
+    let err = String::from_utf8_lossy(&output.stderr);
+    assert!(err.contains("hook-out"), "{output:?}");
+    assert!(!err.contains("running Bazel without it"), "{output:?}");
+}
+
+#[test]
+fn a_refusal_or_a_stop_from_the_hook_stops_bazel() {
+    for code in [77, 130, 143] {
+        let host = Host::new(&GIT).with_dx(&hook(code));
+        let (output, lines) = run(&mut host.command(&[r"Git\cmd"], &["build"]));
+        assert_eq!(output.status.code(), Some(i32::from(code)), "{output:?}");
+        assert!(lines.is_empty(), "{output:?}");
+    }
+}
+
+#[test]
+fn any_other_hook_failure_warns_and_runs_bazel() {
+    for code in [1, 2, 3] {
+        let host = Host::new(&GIT).with_dx(&hook(code));
+        let (output, lines) = run(&mut host.command(&[r"Git\cmd"], &["build"]));
+        assert!(output.status.success(), "{code}: {output:?}");
+        assert_eq!(lines[1..], ["arg=build"], "{code}");
+        let err = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            err.contains(&format!("failed (exit {code}); running Bazel without it")),
+            "{output:?}"
+        );
+    }
 }

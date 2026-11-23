@@ -845,13 +845,15 @@ pub fn run_worktree_hook(
     run_hook(kind, &stdin, workspace, &SystemHost, &who, out, err)
 }
 
-/// Refuses a Bazel call in a refused main checkout, or `bazel clean` in a slot, with exit 2.
+/// Refuses a Bazel call in a refused main checkout, or `bazel clean` in a slot, with [`BAZEL_REFUSED_EXIT`].
 ///
-/// A call that may start a server then waits until the host has memory for it.
+/// A call that may start a server then waits until the host has memory for it, or the wait limit passes.
+///
+/// [`BAZEL_REFUSED_EXIT`]: dx_worktree::primary::BAZEL_REFUSED_EXIT
 fn bazel_hook(dir: &Path, bazel_args: &[String], err: &mut dyn Write) -> i32 {
     if let Some(reason) = dx_worktree::primary::bazel_refusal(dir, bazel_args, &env_var) {
         dx_output::write_stderr(err, format_args!("dx: refused: {reason}\n"));
-        return dx_process::pre_exec_code();
+        return dx_worktree::primary::BAZEL_REFUSED_EXIT;
     }
     if matches!(
         dx_worktree::primary::bazel_command(bazel_args),

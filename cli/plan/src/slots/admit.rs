@@ -13,6 +13,9 @@ pub const HEADROOM: u64 = 2 << 30;
 /// Servers younger than this count at full slot size, as they are still growing.
 pub const YOUNG: Duration = Duration::from_secs(180);
 
+/// Longest admission waits when `--build-slots-wait` is not set; then the server starts anyway.
+pub const WAIT: Duration = Duration::from_secs(60);
+
 const POLL: Duration = Duration::from_secs(2);
 
 /// What one new server needs from the host.
@@ -41,23 +44,6 @@ impl Limits {
             servers: sizing.count,
         })
     }
-
-    /// Limits for a Bazel call from `workspace` on this host; none when off or memory is unknown.
-    pub fn from_env(
-        workspace: &Path,
-        setting: BuildSlots,
-        env_get: &dyn Fn(&str) -> Option<String>,
-    ) -> Option<Limits> {
-        if setting == BuildSlots::Off {
-            return None;
-        }
-        Limits::new(
-            setting,
-            super::available_memory()?,
-            super::nested_reserve(workspace, env_get),
-            super::slot_bytes(env_get),
-        )
-    }
 }
 
 /// What admission reads from the machine.
@@ -65,6 +51,8 @@ pub trait Machine {
     /// `MemAvailable` in bytes; none where the OS does not give it.
     fn mem_available(&self) -> Option<u64>;
     fn servers(&self) -> Vec<Server>;
+    /// Whether `server` runs no command now; none when unknown.
+    fn idle(&self, server: &Server) -> Option<bool>;
     /// How long ago `server` started; none when unknown.
     fn age(&self, server: &Server) -> Option<Duration>;
     fn footprint(&self, server: &Server) -> u64;
@@ -88,6 +76,10 @@ impl Machine for SystemMachine {
 
     fn servers(&self) -> Vec<Server> {
         SystemHost.servers()
+    }
+
+    fn idle(&self, server: &Server) -> Option<bool> {
+        SystemHost.server_idle(server)
     }
 
     fn age(&self, server: &Server) -> Option<Duration> {
@@ -117,17 +109,29 @@ impl Machine for SystemMachine {
 /// The line printed once while waiting.
 #[must_use]
 pub fn wait_message(free: Option<u64>, servers: usize, max: usize) -> String {
+    format!(
+        "waiting for memory to start a Bazel server: {}",
+        load(free, servers, max)
+    )
+}
+
+/// The line printed when the wait limit ends the wait and the server starts anyway.
+#[must_use]
+pub fn gave_up_message(free: Option<u64>, servers: usize, max: usize) -> String {
+    format!(
+        "starting a Bazel server without waiting longer for memory: {}",
+        load(free, servers, max)
+    )
+}
+
+fn load(free: Option<u64>, servers: usize, max: usize) -> String {
     let servers = format!("{servers}/{max} servers");
     match free {
         Some(bytes) => {
             let tenths = bytes / ((1 << 30) / 10);
-            format!(
-                "waiting for memory to start a Bazel server: {}.{} GiB free, {servers}",
-                tenths / 10,
-                tenths % 10
-            )
+            format!("{}.{} GiB free, {servers}", tenths / 10, tenths % 10)
         }
-        None => format!("waiting for memory to start a Bazel server: {servers}"),
+        None => servers,
     }
 }
 
@@ -193,10 +197,20 @@ fn free_after_growth(
         .map(|bytes| bytes.saturating_sub(growth).saturating_sub(pending))
 }
 
-/// Waits until a new server for `workspace` fits within `limits`; `Err` carries the stop signal.
+/// How long an admission may wait, and how it frees memory before it does.
+pub struct Wait<'a> {
+    /// The server starts anyway once admission has waited this long.
+    pub limit: Duration,
+    /// Stops idle servers of other workspaces; returns how many stopped.
+    pub reap: &'a mut dyn FnMut() -> usize,
+}
+
+/// Waits until a new server for `workspace` fits within `limits`, or `wait.limit` passes; `Err` carries the stop signal.
 ///
 /// A workspace that already has a server starts at once, and so does one with no other
-/// server running. The lock in `dir` lets one admission through at a time.
+/// server running. Only busy servers count against `limits.servers`: an idle one holds
+/// memory, which `MemAvailable` already shows, but runs nothing. Before waiting, admission
+/// reaps idle servers once. The lock in `dir` lets one admission through at a time.
 ///
 /// # Errors
 ///
@@ -206,14 +220,24 @@ pub fn admit(
     dir: &Path,
     workspace: &Path,
     limits: Limits,
+    wait: Wait<'_>,
     err: &mut dyn Write,
 ) -> Result<(), i32> {
     if has_server(&machine.servers(), workspace) || std::fs::create_dir_all(dir).is_err() {
         return Ok(());
     }
-    let _lock = loop {
+    let start = machine.now();
+    let expired = || {
+        machine
+            .now()
+            .duration_since(start)
+            .is_ok_and(|waited| waited >= wait.limit)
+    };
+    // Past the limit without the lock, admission goes ahead unrecorded rather than wait on a slower admission.
+    let lock = loop {
         match dx_atomic_fs::lease::try_lock_file(&dir.join("admit.lock"), true) {
-            Ok(Some(lock)) => break lock,
+            Ok(Some(lock)) => break Some(lock),
+            Ok(None) if expired() => break None,
             Ok(None) => {
                 if let Some(signo) = machine.pause() {
                     return Err(signo);
@@ -222,6 +246,7 @@ pub fn admit(
             Err(_) => return Ok(()),
         }
     };
+    let mut reaped = None;
     let mut told = false;
     loop {
         let servers = machine.servers();
@@ -229,24 +254,42 @@ pub fn admit(
             return Ok(());
         }
         let mut pending = pending(dir, machine.now(), &servers, workspace);
-        let others = servers.len() + pending.len();
+        let busy = servers
+            .iter()
+            .filter(|server| machine.idle(server) == Some(false))
+            .count()
+            + pending.len();
         let free = free_after_growth(machine, &servers, pending.len(), limits.slot);
-        let fits = others < limits.servers && free.is_none_or(|bytes| bytes >= limits.free);
-        if others == 0 || fits {
-            pending.push((seconds(machine.now()), workspace.to_path_buf()));
-            let text: String = pending
-                .iter()
-                .map(|(at, path)| format!("{at} {}\n", path.display()))
-                .collect();
-            drop(dx_atomic_fs::write_atomic(
-                &record_path(dir),
-                text.as_bytes(),
-            ));
+        let fits = busy < limits.servers && free.is_none_or(|bytes| bytes >= limits.free);
+        let alone = servers.is_empty() && pending.is_empty();
+        if !(alone || fits) && reaped.is_none() {
+            reaped = Some((wait.reap)());
+            continue;
+        }
+        let gave_up = !(alone || fits) && expired();
+        if gave_up {
+            let message = gave_up_message(free, busy, limits.servers)
+                + &super::reaped_suffix(reaped.unwrap_or(0));
+            dx_output::write_stderr(err, format_args!("dx: {message}\n"));
+        }
+        if alone || fits || gave_up {
+            if lock.is_some() {
+                pending.push((seconds(machine.now()), workspace.to_path_buf()));
+                let text: String = pending
+                    .iter()
+                    .map(|(at, path)| format!("{at} {}\n", path.display()))
+                    .collect();
+                drop(dx_atomic_fs::write_atomic(
+                    &record_path(dir),
+                    text.as_bytes(),
+                ));
+            }
             return Ok(());
         }
         if !told {
             told = true;
-            let message = wait_message(free, others, limits.servers);
+            let message = wait_message(free, busy, limits.servers)
+                + &super::reaped_suffix(reaped.unwrap_or(0));
             dx_output::write_stderr(err, format_args!("dx: {message}\n"));
         }
         if let Some(signo) = machine.pause() {
@@ -267,6 +310,8 @@ pub fn env_setting(env_get: &dyn Fn(&str) -> Option<String>, is_ci: bool) -> Opt
 
 /// Admits a new server for a Bazel call from `workspace`; nothing to do when off, inside a slot or inside a test.
 ///
+/// It reaps and waits as a dx command's build slot does, for at most `DX_BUILD_SLOTS_WAIT`, or [`WAIT`] when unset.
+///
 /// # Errors
 ///
 /// Returns the signal number when dx was stopped while waiting.
@@ -276,17 +321,12 @@ pub fn admit_here(
     env_get: &dyn Fn(&str) -> Option<String>,
     err: &mut dyn Write,
 ) -> Result<(), i32> {
-    let set = |name: &str| env_get(name).is_some_and(|value| !value.is_empty());
-    if set(super::SLOT_ENV_VAR) || set(super::BAZEL_TEST_ENV_VAR) {
-        return Ok(());
-    }
-    let (Some(dir), Some(limits)) = (
-        super::slots_dir(env_get),
-        Limits::from_env(workspace, setting, env_get),
-    ) else {
+    let Some(gate) = super::Gate::from_args(workspace, env_get, false, &[], setting, &[]) else {
         return Ok(());
     };
-    admit(&SystemMachine, &dir, workspace, limits, err)
+    let wait = dx_adopt::defaults::env_string(env_get, dx_adopt::defaults::DX_BUILD_SLOTS_WAIT_ENV)
+        .and_then(|value| dx_adopt::defaults::parse_wait(&value));
+    gate.waiting_at_most(wait).admit(Duration::ZERO, err)
 }
 
 #[cfg(test)]
@@ -305,6 +345,8 @@ mod tests {
         now: Cell<SystemTime>,
         pauses: Cell<usize>,
         stop_after: Option<usize>,
+        /// Servers that run no command; every other one is busy.
+        idle: RefCell<Vec<u32>>,
     }
 
     fn server(pid: u32, workspace: &str, rss: u64) -> Server {
@@ -327,6 +369,7 @@ mod tests {
                 now: Cell::new(SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000)),
                 pauses: Cell::new(0),
                 stop_after: None,
+                idle: RefCell::new(Vec::new()),
             }
         }
 
@@ -345,6 +388,10 @@ mod tests {
                 .into_iter()
                 .map(|(server, _)| server)
                 .collect()
+        }
+
+        fn idle(&self, server: &Server) -> Option<bool> {
+            Some(self.idle.borrow().contains(&server.pid))
         }
 
         fn age(&self, server: &Server) -> Option<Duration> {
@@ -386,9 +433,21 @@ mod tests {
         servers: 3,
     };
 
+    /// Admits `workspace` with no wait limit to speak of and a reaper that stops nothing.
     fn run(fake: &Fake, dir: &Path, workspace: &str) -> (Result<(), i32>, String) {
+        run_for(fake, dir, workspace, Duration::from_secs(3600), &mut || 0)
+    }
+
+    fn run_for(
+        fake: &Fake,
+        dir: &Path,
+        workspace: &str,
+        limit: Duration,
+        reap: &mut dyn FnMut() -> usize,
+    ) -> (Result<(), i32>, String) {
         let mut err = Vec::new();
-        let result = admit(fake, dir, Path::new(workspace), LIMITS, &mut err);
+        let wait = Wait { limit, reap };
+        let result = admit(fake, dir, Path::new(workspace), LIMITS, wait, &mut err);
         (result, String::from_utf8(err).unwrap())
     }
 
@@ -503,7 +562,7 @@ mod tests {
     }
 
     #[test]
-    fn a_held_lock_holds_admission_back() {
+    fn a_held_lock_holds_admission_back_until_the_wait_limit() {
         let scratch = dx_test_scratch::scratch("dx-admit-lock-").unwrap();
         let dir = scratch.path().join("slots");
         std::fs::create_dir_all(&dir).unwrap();
@@ -513,6 +572,84 @@ mod tests {
         let mut fake = Fake::new(vec![(Some(64 * GIB), vec![old(1, "/w/b")])]);
         fake.stop_after = Some(2);
         assert_eq!(run(&fake, &dir, "/w/a"), (Err(15), String::new()));
+        let fake = Fake::new(vec![(Some(64 * GIB), vec![old(1, "/w/b")])]);
+        let (result, err) = run_for(&fake, &dir, "/w/a", 3 * POLL, &mut || 0);
+        assert_eq!((result, err.as_str()), (Ok(()), ""));
+        assert_eq!(fake.pauses.get(), 3);
+        assert!(!record_path(&dir).exists(), "admitted without the lock");
+    }
+
+    #[test]
+    fn idle_servers_do_not_count_against_the_server_cap() {
+        let scratch = dx_test_scratch::scratch("dx-admit-idle-").unwrap();
+        let dir = scratch.path().join("slots");
+        let full = vec![old(1, "/w/b"), old(2, "/w/c"), old(3, "/w/d")];
+        let fake = Fake::new(vec![(Some(64 * GIB), full)]);
+        fake.idle.borrow_mut().extend([1, 2]);
+        assert_eq!(run(&fake, &dir, "/w/a"), (Ok(()), String::new()));
+        assert_eq!(fake.pauses.get(), 0);
+    }
+
+    #[test]
+    fn idle_servers_are_reaped_once_before_any_wait() {
+        let scratch = dx_test_scratch::scratch("dx-admit-reap-").unwrap();
+        let dir = |name: &str| scratch.path().join(name);
+        let tight = || vec![(Some(4 * GIB), vec![old(1, "/w/b"), old(2, "/w/c")])];
+        let fake = Fake::new(tight());
+        fake.idle.borrow_mut().push(2);
+        let mut reaps = 0;
+        let mut reap = || {
+            reaps += 1;
+            *fake.free.borrow_mut() = vec![Some(7 * GIB)];
+            *fake.servers.borrow_mut() = vec![vec![old(1, "/w/b")]];
+            1
+        };
+        let (result, err) = run_for(&fake, &dir("freed"), "/w/a", WAIT, &mut reap);
+        assert_eq!((result, err.as_str()), (Ok(()), ""));
+        assert_eq!((reaps, fake.pauses.get()), (1, 0));
+
+        let mut fake = Fake::new(tight());
+        fake.idle.borrow_mut().push(2);
+        let mut reaps = 0;
+        let mut reap = || {
+            reaps += 1;
+            0
+        };
+        fake.stop_after = Some(3);
+        let (result, err) = run_for(&fake, &dir("full"), "/w/a", WAIT, &mut reap);
+        assert_eq!(result, Err(15));
+        assert_eq!(
+            err,
+            "dx: waiting for memory to start a Bazel server: 4.0 GiB free, 1/3 servers\n"
+        );
+        assert_eq!(reaps, 1, "one reap per admission");
+    }
+
+    #[test]
+    fn the_wait_limit_starts_the_server_anyway_with_a_warning() {
+        let scratch = dx_test_scratch::scratch("dx-admit-limit-").unwrap();
+        let dir = |name: &str| scratch.path().join(name);
+        let low = || Fake::new(vec![(Some(GIB), vec![old(1, "/w/b")])]);
+        let fake = low();
+        let (result, err) = run_for(&fake, &dir("short"), "/w/a", 5 * POLL, &mut || 2);
+        assert_eq!(result, Ok(()));
+        assert_eq!(
+            err,
+            "dx: waiting for memory to start a Bazel server: 1.0 GiB free, 1/3 servers; stopped 2 idle Bazel servers\n\
+             dx: starting a Bazel server without waiting longer for memory: 1.0 GiB free, 1/3 servers; stopped 2 idle Bazel servers\n"
+        );
+        assert_eq!(fake.pauses.get(), 5);
+        let record = std::fs::read_to_string(record_path(&dir("short"))).unwrap();
+        assert!(record.contains("/w/a"), "{record}");
+
+        let fake = low();
+        let (result, err) = run_for(&fake, &dir("zero"), "/w/a", Duration::ZERO, &mut || 0);
+        assert_eq!(result, Ok(()));
+        assert_eq!(
+            err,
+            "dx: starting a Bazel server without waiting longer for memory: 1.0 GiB free, 1/3 servers\n"
+        );
+        assert_eq!(fake.pauses.get(), 0);
     }
 
     #[test]

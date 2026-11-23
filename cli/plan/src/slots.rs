@@ -1507,6 +1507,7 @@ impl Gate {
         warm: Option<W>,
     ) -> Result<Option<Slot>, Stop> {
         let json = self.json;
+        let started = (self.clock.0)();
         let mut keep = warm.map(KeepWarm::new);
         let out = RefCell::new((err, events));
         let layout = self.layout();
@@ -1583,10 +1584,8 @@ impl Gate {
                     slot.token = Some(dx_process::set_share_source(move || live.share()));
                     slot.sizing = Some(sizing);
                 }
-                if let Some((workspace, limits)) = &self.admission
-                    && let Err(signo) =
-                        admit::admit(&admit::SystemMachine, &self.dir, workspace, *limits, err)
-                {
+                let waited = (self.clock.0)().saturating_duration_since(started);
+                if let Err(signo) = self.admit(waited, err) {
                     return Err(Stop::Signal(signo));
                 }
                 self.reclaim(command, err, events);
@@ -1612,6 +1611,28 @@ impl Gate {
                 Ok(None)
             }
         }
+    }
+
+    /// Waits for memory to start a new server for this gate's workspace, for what is left of the wait limit after `waited`.
+    fn admit(&self, waited: Duration, err: &mut dyn Write) -> Result<(), i32> {
+        let Some((workspace, limits)) = &self.admission else {
+            return Ok(());
+        };
+        let layout = self.layout();
+        let wait = admit::Wait {
+            limit: self
+                .wait
+                .map_or(admit::WAIT, |wait| wait.saturating_sub(waited)),
+            reap: &mut || self.reap(&layout).unwrap_or(0),
+        };
+        admit::admit(
+            &admit::SystemMachine,
+            &self.dir,
+            workspace,
+            *limits,
+            wait,
+            err,
+        )
     }
 
     /// Runs the reclaimer, printing one line and, in JSON mode, one `disk_low` notice when it reports.

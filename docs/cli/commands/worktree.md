@@ -162,7 +162,8 @@ optional `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, `entries`,
 | `0` | Success. |
 | `1` | Operational failure: branch checked out elsewhere, dirty or unpushed slot on `release`, `slot_busy`, `lease_changed`, `no_home`, `disk_full`, `path` finds no checkout, `prune` found work without `--apply`, or a `hook` failure. |
 | `2` | Usage error: unknown subcommand or hook, wrong arguments, `invalid_branch`, `not_a_slot`, a flag on the wrong subcommand, an unknown `--create` ref, `release` of another holder's slot without `--force`, any other `dx` command in a slot leased to another session, or a command the main-checkout rule refuses. |
-| `128` plus signal | Ctrl-C, `SIGTERM` or `SIGHUP` stopped `list --disk` or `prune`. |
+| `77` | `hook bazel` refused the Bazel call. |
+| `128` plus signal | Ctrl-C, `SIGTERM` or `SIGHUP` stopped `list --disk`, `prune` or the memory wait of `hook bazel`. |
 
 ## Shared disk cache
 
@@ -194,7 +195,7 @@ Cursor or Gemini CLI. They ignore `DX_*` variables and print text.
 | `create` | `name`, `cwd` | Leases a slot on branch `worktree-<name>` and prints the path. |
 | `remove` | `worktree_path` | Releases that slot. Paths outside the pool are ignored. |
 | `stop` | `agent_id` | Marks the slots that agent holds as held by a gone holder and stops their Bazel servers. |
-| `bazel` | nothing; the Bazel arguments follow `--` | Exits `2` when the main-checkout rule refuses this Bazel call, or for `bazel clean` in a slot. Otherwise waits for [memory admission](#memory-admission). The [Bazel wrapper](init.md#bazel-wrapper) runs it before every Bazel call. |
+| `bazel` | nothing; the Bazel arguments follow `--` | Exits `77` when the main-checkout rule refuses this Bazel call, or for `bazel clean` in a slot. Otherwise waits for [memory admission](#memory-admission). The [Bazel wrapper](init.md#bazel-wrapper) runs it before every Bazel call. |
 | `guard` | `tool_input.command` | Exits `2` for `git worktree add`, `remove` or `prune`. Exits `2` for `git checkout`, `switch`, `reset`, `rebase`, `fetch`, `pull`, `stash` or `commit`, `bazel`, and `dx build`, `test` or `check` in a slot another agent holds. Exits `2` for the same commands in the primary checkout when the caller holds a slot; the message names the slot. Read-only git, `gh` and `dx worktree add`, `release` and `list` stay allowed. |
 
 `create`, `remove` and `stop` exit `1` on any failure, including empty or
@@ -293,8 +294,8 @@ refuses when it is set or unreadable. Without git, it reads `.git` as dx does.
 `tools/dx.cmd` refuses a `.git/config` that has a `[dx]` section and the word
 `primary` anywhere.
 
-With `dx.primary` set, a Bazel `clean` in a slot exits `2`, through
-`dx worktree hook bazel` or [`dx clean`](clean.md). Rerun with
+With `dx.primary` set, a Bazel `clean` in a slot is refused, through
+`dx worktree hook bazel` (exit `77`) or [`dx clean`](clean.md) (exit `2`). Rerun with
 `--noremote_accept_cached`, or release the slot and add a fresh one.
 
 ## Memory admission
@@ -308,12 +309,24 @@ A new server starts when both hold:
 
 - free memory (`MemAvailable` in `/proc/meminfo`) is at least one slot's
   memory, plus the memory kept for nested Bazel, plus 2 GiB;
-- fewer Bazel servers run than there are build slots.
+- fewer Bazel servers are busy than there are build slots.
 
-A server younger than 3 minutes counts at a full slot's memory. So does a
-server admitted in the last 3 minutes that has not started yet. When no other
-server runs, the server starts at once. Admissions take turns under a lock.
-Outside Linux only the server count applies.
+A busy server runs a command now. An idle server does not count against the
+build slots, though its memory still counts in `MemAvailable`. A server younger
+than 3 minutes counts at a full slot's memory. So does a server admitted in the
+last 3 minutes that has not started yet. When no other server runs, the server
+starts at once. Admissions take turns under a lock. Outside Linux only the
+server count applies.
+
+Before it waits, admission stops idle Bazel servers of other workspaces, as a
+[build slot](README.md#build-slots) wait does. It waits at most
+`--build-slots-wait` (`DX_BUILD_SLOTS_WAIT` for `dx worktree hook bazel`), or
+60 seconds when that is unset. A dx command's wait for its build slot counts
+against `--build-slots-wait`. Then the server starts anyway, and dx prints:
+
+```text
+dx: starting a Bazel server without waiting longer for memory: <a> GiB free, <n>/<max> servers
+```
 
 While it waits, dx prints once to stderr:
 

@@ -1636,16 +1636,36 @@ mod tests {
         }
 
         #[test]
-        fn a_refusing_hook_stops_bazel_with_its_code() {
-            let wrapped = Wrapped::new(2);
-            let (code, _, _) = wrapped.run(&[], &["clean"]);
-            assert_eq!(code, Some(2));
-            assert_eq!(wrapped.log("real.log"), "");
+        fn a_refusal_or_a_stop_from_the_hook_stops_bazel_with_its_code() {
+            assert!(render_bazel_wrapper_sh().contains("77 | 130 | 143) exit"));
+            for hook_exit in [77, 130, 143] {
+                let wrapped = Wrapped::new(hook_exit);
+                let (code, _, _) = wrapped.run(&[], &["clean"]);
+                assert_eq!(code, Some(hook_exit));
+                assert_eq!(wrapped.log("real.log"), "");
+            }
         }
 
         #[test]
-        fn a_bazel_child_of_dx_or_a_checkout_without_dx_skips_the_hook() {
-            let wrapped = Wrapped::new(2);
+        fn any_other_hook_failure_warns_and_runs_bazel() {
+            // 2 is the usage error of a dx without the hook; 1 a launcher that cannot run dx.
+            for hook_exit in [1, 2, 3, 126] {
+                let wrapped = Wrapped::new(hook_exit);
+                let (code, out, err) = wrapped.run(&[], &["build"]);
+                assert_eq!((code, out.as_str()), (Some(0), "bazel out\n"), "{err}");
+                assert_eq!(
+                    err,
+                    format!(
+                        "hook out\ntools/bazel: tools/dx worktree hook bazel failed (exit {hook_exit}); running Bazel without it\n"
+                    )
+                );
+                assert_eq!(wrapped.log("real.log"), "|build|");
+            }
+        }
+
+        #[test]
+        fn a_bazel_child_of_dx_skips_the_hook_and_a_missing_dx_warns() {
+            let wrapped = Wrapped::new(77);
             let (code, _, err) = wrapped.run(&[("DX_BAZEL_CHILD", "1")], &["info"]);
             assert_eq!(code, Some(0), "{err}");
             assert_eq!(wrapped.log("hook.log"), "");
@@ -1653,6 +1673,7 @@ mod tests {
             std::fs::remove_file(wrapped.path("tools/dx")).expect("rm");
             let (code, _, err) = wrapped.run(&[], &["info"]);
             assert_eq!(code, Some(0), "{err}");
+            assert!(err.contains("failed (exit 127); running Bazel"), "{err}");
             assert_eq!(wrapped.log("real.log"), "1|info||info|");
         }
 
@@ -1933,6 +1954,46 @@ mod tests {
             let (code, _, err) = fx.run(&["status"]);
             assert_eq!(code, Some(1), "{err}");
             assert!(err.contains("glibc 2.28 or newer"), "{err}");
+            assert_eq!(fx.downloads(), 0);
+        }
+
+        #[test]
+        fn the_bazel_wrapper_runs_bazel_when_the_launcher_cannot_run_dx() {
+            let fx = Fixture::new("sh-wrapper-no-dx", true, None);
+            let repo = fx.base.join("repo");
+            write_launcher(&repo, BAZEL_WRAPPER_SH_REL, &render_bazel_wrapper_sh(), true)
+                .expect("wrapper");
+            let real = fx.base.join("real");
+            dx_testing::executable_script(&real, "#!/bin/sh\necho bazel \"$@\"\n");
+            let home = fx.base.join("home");
+            let wrapper = |envs: &[(&str, &std::path::Path)]| {
+                run_captured(
+                    Command::new(repo.join(BAZEL_WRAPPER_SH_REL))
+                        .current_dir(&repo)
+                        .arg("info")
+                        .env_clear()
+                        .env(
+                            "PATH",
+                            format!("{}:{}", fx.base.join("stub").display(), applet_dir().display()),
+                        )
+                        .env("BAZEL_REAL", &real)
+                        .env("STUB_LOG", fx.base.join("calls"))
+                        .envs(envs.iter().copied()),
+                )
+            };
+            let ran = |envs: &[(&str, &std::path::Path)], why: &str| {
+                let (code, out, err) = wrapper(envs);
+                assert_eq!((code, out.as_str()), (Some(0), "bazel info\n"), "{err}");
+                assert!(err.contains(why), "{err}");
+                assert!(
+                    err.contains("failed (exit 1); running Bazel without it"),
+                    "{err}"
+                );
+            };
+            ran(&[], "HOME is not set");
+            fx.stub("getconf", "#!/bin/sh\nexit 1\n");
+            fx.stub("ldd", "#!/bin/sh\necho 'musl libc (x86_64)'\n");
+            ran(&[("HOME", &home)], "musl");
             assert_eq!(fx.downloads(), 0);
         }
 

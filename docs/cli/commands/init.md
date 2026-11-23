@@ -373,17 +373,24 @@ Bazelisk runs `tools/bazel` on Linux and macOS and `tools/bazel.bat` on Windows
 in place of Bazel. The wrapper first runs
 `tools/dx worktree hook bazel -- <args>`, which applies the
 [main-checkout rule](worktree.md#main-checkout) and
-[memory admission](worktree.md#memory-admission). When the hook exits non-zero,
-the wrapper exits with its code and Bazel does not run. Otherwise it runs
-`$BAZEL_REAL` with the same arguments.
+[memory admission](worktree.md#memory-admission). Then it runs `$BAZEL_REAL`
+with the same arguments. The hook's output goes to stderr.
 
-The wrapper skips the hook when `DX_BAZEL_CHILD` is set or `tools/dx` is
-missing. dx sets `DX_BAZEL_CHILD=1` on every Bazel it starts. The wrapper exits
-non-zero when `BAZEL_REAL` is unset, as it is without Bazelisk.
+Only a refusal (exit `77`) or a stop (exit `130` or `143`) from the hook stops
+Bazel, and the wrapper exits with that code. On any other failure the wrapper
+prints a warning to stderr and runs Bazel anyway. Such failures include a
+`tools/dx` that is missing, a dx too old for the hook, and a launcher that
+cannot run dx (unsupported libc, `HOME` unset).
+
+The wrapper skips the hook when `DX_BAZEL_CHILD` is set. dx sets
+`DX_BAZEL_CHILD=1` on every Bazel it starts. The wrapper exits non-zero when
+`BAZEL_REAL` is unset, as it is without Bazelisk.
 
 dx treats a wrapper as its own when it starts with the template's first three
-lines. On Windows, Bazelisk runs a `tools/bazel.ps1` before `tools/bazel.bat`.
-`dx status` warns about a `tools/bazel` or `tools/bazel.bat` dx did not write.
+lines. `dx status` warns about a `tools/bazel` or `tools/bazel.bat` dx did not
+write. On Windows, Bazelisk runs a `tools/bazel.ps1` in place of
+`tools/bazel.bat`, so `dx status` also warns about a `tools/bazel.ps1` that does
+not run `worktree hook bazel`.
 
 ## Git hooks
 

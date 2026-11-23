@@ -270,7 +270,9 @@ set "DX_EC=%errorlevel%"
 set "DX_BUILD_SLOTS=%DX_SLOTS_WAS%"
 popd
 if "%DX_EC%"=="0" set "DX_VERDICT=build"
+if "%DX_EC%"=="77" goto dxaskrefused
 if not "%DX_EC%"=="2" goto dxaskdone
+:dxaskrefused
 findstr /c:"refused:" "%DX_ERR%" >nul 2>&1
 if not errorlevel 1 set "DX_VERDICT=refused"
 :dxaskdone

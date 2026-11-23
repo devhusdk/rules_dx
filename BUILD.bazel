@@ -121,7 +121,7 @@ load("//javascript:defs.bzl", "javascript_library")
 # gazelle:exclude ocaml/tests/fixtures/native
 # gazelle:exclude php/private/tool.php
 # gazelle:exclude gazelle/php/builtins_dump.php
-# gazelle:exclude haskell/tests/runtime/src
+# gazelle:exclude haskell/tests/fixtures/runtime/src
 # gazelle:exclude dotnet/private/quality/tools/fsharplint
 # gazelle:exclude dotnet/private/quality/tools/roslyn_worker
 # gazelle:exclude gazelle/astro

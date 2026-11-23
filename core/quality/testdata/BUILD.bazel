@@ -1457,7 +1457,7 @@ dart_subject(
     name = "dart_subject",
     testonly = True,
     tags = ["manual"],
-    target = "//dart/tests/runtime:greet",
+    target = "//dart/tests/fixtures/runtime:greet",
 )
 
 julia_subject(

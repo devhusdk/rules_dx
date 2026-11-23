@@ -1,0 +1,94 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_bytecode", "erlang_ct_suite_test", "erlang_erlc_opts", "erlang_eunit_test", "erlang_test_app")
+load("@rules_dx//erlang/private:defs.bzl", "DEFAULT_TEST_ERLC_OPTS")
+load("@rules_dx//erlang/private/toolchain:pins.bzl", "OTP_VERSION")
+load("@rules_dx//erlang/tests:defs_tests.bzl", "erlang_beam_info_test")
+load("@rules_dx//tools/testing/conformance:defs.bzl", "dx_coverage_test")
+
+exports_files(
+    ["src/dx_runtime_probe.erl"],
+    visibility = ["@rules_dx//core/quality/tests:__pkg__"],
+)
+
+erlang_app(
+    app_name = "dx_runtime_probe",
+    app_version = "1.0.0",
+    visibility = ["@rules_dx//core/quality/testdata:__pkg__"],
+)
+
+erlang_test_app(
+    app_name = "dx_runtime_probe",
+    app_version = "1.0.0",
+)
+
+erlang_beam_info_test(
+    name = "beam_info_test",
+    app_name = "dx_runtime_probe",
+    owned = ["dx_runtime_probe.beam"],
+    target = ":erlang_app",
+)
+
+erlang_erlc_opts(
+    name = "test_erlc_opts",
+    values = DEFAULT_TEST_ERLC_OPTS,
+)
+
+erlang_bytecode(
+    name = "test_modules",
+    testonly = True,
+    srcs = ["test/dx_runtime_probe_tests.erl"],
+    outs = ["test/dx_runtime_probe_tests.beam"],
+    erlc_opts = ":test_erlc_opts",
+    deps = [":test_erlang_app"],
+)
+
+erlang_eunit_test(
+    name = "eunit",
+    compiled_suites = [":test_modules"],
+    target = ":test_erlang_app",
+    test_env = {"DX_OTP_VERSION": OTP_VERSION},
+)
+
+erlang_ct_suite_test(
+    name = "diagnostics_SUITE",
+    app_name = "dx_runtime_probe",
+    test_env = {"DX_OTP_VERSION": OTP_VERSION},
+)
+
+[
+    dx_coverage_test(
+        name = target + "_coverage_test",
+        covered_source = "dx_runtime_probe.erl",
+        subject = ":" + target,
+    )
+    for target in [
+        "eunit",
+        "diagnostics_SUITE",
+    ]
+]
+
+dx_coverage_test(
+    name = "nif_coverage_test",
+    covered_source = "fnv1a.c",
+    instrumented_packages = ["erlang/tests/fixtures/erlang_app"],
+    subject = "//erlang/tests/fixtures/erlang_app/checksum:eunit",
+)
+
+dx_coverage_test(
+    name = "nif_cpp_coverage_test",
+    covered_source = "dx_cpp_a_nif.cc",
+    instrumented_packages = ["erlang/tests/fixtures/nif_cpp"],
+    subject = "//erlang/tests/fixtures/nif_cpp:eunit",
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

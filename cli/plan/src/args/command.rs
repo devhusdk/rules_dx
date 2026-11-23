@@ -480,7 +480,7 @@ static WORKTREE: CommandMeta = CommandMeta {
     name: "worktree",
     scope_policy: "reject",
     describe: "lease warm checkout slots (add, release, list, path, prune; prune checks by default, --apply deletes)",
-    usage: "Usage: dx worktree add <branch> [--create <ref>] [--force] | release [<path>|<slot-number>] [--force] | list [--disk] | path <branch> | prune [--apply] [--bases] | hook create|remove|stop|guard",
+    usage: "Usage: dx worktree add <branch> [--create <ref>] [--force] | release [<path>|<slot-number>] [--force] | list [--disk] | path <branch> | prune [--apply] [--bases] | hook create|remove|stop|guard|bazel|git [-- <bazel-args>]",
     scopes: "Scopes: none (worktree takes a subcommand and its arguments, not scopes).",
     is_managed: false,
     is_adoption: false,

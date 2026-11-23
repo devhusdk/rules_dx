@@ -34,6 +34,7 @@ This page fixes what a consumer writes to use rules_dx, and what rules_dx writes
 cargo.annotation(
     build_script_env = {
         "CFLAGS": "$(DX_BS_CFLAGS)",
+        "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
         "HOST_AR": "$(DX_BS_HOST_AR)",
         "HOST_CC": "$(DX_BS_HOST_CC)",
         "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -99,7 +100,7 @@ What a consumer writes beyond its sources:
 | --- | --- | --- |
 | Apple | `apple-xcode-license` | `bundle_id`, signing attributes |
 | Android | `android-sdk-license` | `app_id`, signing attributes |
-| CUDA | `cuda-eula` | `cuda_archs` |
+| CUDA | `cuda-eula` | `gpu_archs` |
 | Qt | nothing | `modules` |
 | MSIX | `windows-sdk-buildtools` | identity and signing attributes |
 | C and C++ with MSVC | `visual-studio-build-tools` | nothing |

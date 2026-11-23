@@ -78,6 +78,10 @@ fn go_imports(text: &str) -> Result<Vec<(usize, String)>, DepcheckError> {
 }
 
 /// Go imports under `sources` of a module that neither the module itself nor a `require` covers.
+///
+/// # Errors
+///
+/// Returns an error when the manifest or a source cannot be read or does not parse.
 pub fn find_missing_go(
     manifest: &Path,
     sources: &Path,
@@ -172,6 +176,7 @@ fn lock_packages(eco: Language, lock: &Path) -> Result<Vec<String>, DepcheckErro
         Language::Powershell => Ok(crate::parse_powershell_lock(lock)?.into_keys().collect()),
         Language::Lua => Ok(crate::parse_lua_lock(lock)?.into_keys().collect()),
         Language::Ocaml => Ok(crate::parse_ocaml_lock(lock)?.into_keys().collect()),
+        Language::Ansible => Ok(crate::parse_ansible_lock(lock)?.into_keys().collect()),
         Language::Go
         | Language::Java
         | Language::Kotlin
@@ -185,6 +190,10 @@ fn lock_packages(eco: Language, lock: &Path) -> Result<Vec<String>, DepcheckErro
 /// Packages in `lock` that a source under `sources` imports but `manifest` does not declare.
 /// Workspace and path members are not candidates. A package imported under a different name
 /// (`PyYAML` as `yaml`) is not found.
+///
+/// # Errors
+///
+/// Returns an error when the manifest, the lock or a source cannot be read or does not parse.
 pub fn find_missing(
     eco: Language,
     manifest: &Path,
@@ -234,6 +243,7 @@ pub fn find_missing(
             .first()
             .map_or("", String::as_str),
         Language::Ocaml => dx_families::hub("opam").map_or("", |hub| hub.manifest.as_str()),
+        Language::Ansible => Ecosystem::Ansible.manifest_name(),
         Language::Js
         | Language::Ts
         | Language::Go

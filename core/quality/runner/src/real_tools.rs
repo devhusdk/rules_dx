@@ -699,6 +699,62 @@ fn buf_lint_names_a_broken_import() {
     assert!(!text.contains("unchecked file"), "{text}");
 }
 
+#[test]
+fn buf_refuses_bsr_deps_before_spawning() {
+    const PROTO: &str = "syntax = \"proto3\";\n\npackage a.v1;\n";
+    for capability in ["format", "lint", "typecheck"] {
+        let tool = bound_tool(
+            "buf.yaml",
+            b"version: v2\ndeps:\n  - buf.build/googleapis/googleapis\n",
+        );
+        let backend = backend_for("buf", tool, |_, _, _| {
+            Err(io::Error::other("buf must not be spawned"))
+        });
+        let err = backend
+            .diagnose("buf", capability, &single("a/v1/a.proto", PROTO))
+            .expect_err("deps are refused");
+        assert!(err.to_string().contains("proto_library deps"), "{err}");
+    }
+}
+
+fn buf_format_in_scratch_cache(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let cache = env
+        .iter()
+        .find(|(key, _)| key == "BUF_CACHE_DIR")
+        .map(|(_, value)| PathBuf::from(value))
+        .expect("BUF_CACHE_DIR is set");
+    assert!(cache.is_dir(), "{}", cache.display());
+    assert!(cache.ends_with("dx-buf/cache"), "{}", cache.display());
+    let file = argv
+        .iter()
+        .position(|arg| arg == "--path")
+        .and_then(|at| argv.get(at + 1))
+        .expect("--path");
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: std::fs::read(file)?,
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn buf_runs_with_a_scratch_cache_dir() {
+    let backend = backend_for("buf", plain_tool(), buf_format_in_scratch_cache);
+    let findings = backend
+        .diagnose(
+            "buf",
+            "format",
+            &single("a/v1/a.proto", "syntax = \"proto3\";\n"),
+        )
+        .expect("formatted file passes");
+    assert!(findings.is_empty(), "{findings:?}");
+}
+
 fn buf_breaking_fake(
     argv: &[OsString],
     _cwd: &Path,
@@ -4419,6 +4475,15 @@ fn chktex_tool(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
+    // TEXMFCNF names the web2c dir of the TeX Live tree the binary sits in.
+    let texmfcnf: Vec<PathBuf> = env
+        .iter()
+        .filter(|(key, _)| key == "TEXMFCNF")
+        .map(|(_, value)| PathBuf::from(value))
+        .collect();
+    let binary = Path::new(argv.first().expect("binary"));
+    let root = binary.ancestors().nth(3).expect("TeX Live root");
+    assert_eq!(texmfcnf, [root.join("texmf-dist").join("web2c")]);
     let flag = |name: &str| argv.iter().position(|arg| arg == name);
     assert!(flag("-q").is_some() && flag("-I0").is_some());
     assert_eq!(
@@ -5097,7 +5162,11 @@ fn luals_report(
 
 fn luals_tool() -> RealTool {
     RealTool {
-        tool_files: vec![("dx-luals/mod/dep.lua".to_owned(), b"return {}\n".to_vec())],
+        config_rel: Some("cfg/luarc.json".to_owned()),
+        tool_files: vec![
+            ("cfg/luarc.json".to_owned(), b"{}".to_vec()),
+            ("dx-luals/mod/dep.lua".to_owned(), b"return {}\n".to_vec()),
+        ],
         ..plain_tool()
     }
 }

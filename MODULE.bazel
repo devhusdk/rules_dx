@@ -20,6 +20,7 @@ single_version_override(
         "//patches/rules_rust:cargo_build_script_apple_deployment_target.patch",
         "//patches/rules_rust:windows_exec_foreign_target_cc_linker.patch",
         "//patches/rules_rust:crate_universe_module_labels.patch",
+        "//patches/rules_rust:rust_analyzer_rustc_lib.patch",
     ],
     version = "0.75.0",
 )
@@ -661,6 +662,9 @@ bazel_dep(name = "bazel_features", version = "1.56.0")
 ruby_coverage = use_extension("//ruby:extensions.bzl", "ruby_coverage")
 use_repo(ruby_coverage, "dx_ruby_bench_gems", "dx_ruby_coverage_gems")
 
+dx_platforms = use_extension("//platforms:extensions.bzl", "dx_platforms")
+use_repo(dx_platforms, "dx_platforms")
+
 dx_licenses = use_extension("//core:extensions.bzl", "dx_licenses")
 use_repo(dx_licenses, "dx_licenses")
 
@@ -1138,6 +1142,8 @@ dx_pins.archive(
         "//patches/rules_haskell:cc_wrapper_darwin_ffi.patch",
         "//patches/rules_haskell:cabal_binary_dep_data.patch",
         "//patches/rules_haskell:cabal_static_exe.patch",
+        "//patches/rules_haskell:cabal_ghcversion_relpath.patch",
+        "//patches/rules_haskell:cc_wrapper_origin_rpath.patch",
         "//patches/rules_haskell:ghc_xcode_env.patch",
         "//patches/rules_haskell:llvm_backend.patch",
         "//patches/rules_haskell:toolchain_type_alias.patch",
@@ -1289,6 +1295,7 @@ dx_pins.archive(
     ],
     pins = "//ocaml:pins.json",
 )
+
 # Pinned to an upstream main commit (bazel-contrib/rules_cuda#530, after v0.4.0); #14468 moves it to the release.
 dx_pins.archive(
     name = "rules_cuda",
@@ -1354,6 +1361,7 @@ dx_pins.archive(
     patches = ["//patches/rules_powershell:inline_runfiles_sh.patch"],
     pins = "//powershell:pins.json",
 )
+
 # Pinned to an upstream main commit carrying bazel-contrib/rules_ruby#435 and #440 until a release has them.
 dx_pins.archive(
     name = "rules_ruby",
@@ -1484,19 +1492,6 @@ dx_pins.archive(
     pins = "//cc:pins.json",
 )
 dx_pins.archive(
-    name = "dx_busybox_sh",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
-    name = "dx_busybox_sh_linux_arm64",
-    build = "//core/quality/sh:busybox_apk.BUILD.bazel",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
-    name = "dx_busybox_sh_windows",
-    pins = "//core/quality:pins.json",
-)
-dx_pins.archive(
     name = "dx_selene_src",
     build = "//rust/private:selene.BUILD.bazel",
     pins = "//rust:pins.json",
@@ -1589,9 +1584,6 @@ use_repo(
     "cosign_windows_x86_64",
     "cpp_app_fmt",
     "cuda_redistrib_json",
-    "dx_busybox_sh",
-    "dx_busybox_sh_linux_arm64",
-    "dx_busybox_sh_windows",
     "dx_coreutils",
     "dx_coreutils__linux_arm64",
     "dx_coreutils__linux_x86_64",
@@ -1816,6 +1808,7 @@ single_version_override(
     patch_strip = 1,
     patches = [
         "//patches/rules_dart:windows_long_dill.patch",
+        "//patches/rules_dart:windows_copy_links.patch",
         "//patches/rules_dart:cross_revision.patch",
     ],
     version = "0.10.0",
@@ -2113,12 +2106,6 @@ zig_hub.lock(
 )
 use_repo(zig_hub, "zig_zig.tests.fixtures.zig_deps")
 
-register_toolchains(
-    "//core/quality/sh:busybox_sh_linux_arm64",
-    "//core/quality/sh:busybox_sh_linux_x86_64",
-    "//core/quality/sh:busybox_sh_windows_x86_64",
-)
-
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.5.0")
 
@@ -2135,9 +2122,12 @@ luarocks.lock(
 use_repo(luarocks, "rocks_lua.tests.luarocks")
 
 php = use_extension("//php:extensions.bzl", "php")
-use_repo(php, "dx_php_coverage_windows_x86_64", "dx_php_pcov", "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_unused_public", "dx_webmozart_assert", "php_composer", "php_launcher", "php_phpunit")
+use_repo(php, "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_unused_public", "dx_webmozart_assert", "php_composer", "php_launcher", "php_phpunit")
 
 register_toolchains("@dx_php_toolchains//:all")
+
+php_coverage = use_extension("//php:extensions.bzl", "php_coverage")
+use_repo(php_coverage, "dx_php_coverage_windows_x86_64", "dx_php_pcov")
 
 composer = use_extension("//php:extensions.bzl", "composer", dev_dependency = True)
 composer.lock(
@@ -2306,7 +2296,7 @@ use_repo(
 bazel_dep(name = "hermetic_launcher", version = "0.0.17")
 
 hermetic_launcher_stubs = use_extension("@hermetic_launcher//launcher/private:extensions.bzl", "non_module_dependencies")
-use_repo(hermetic_launcher_stubs, "finalize_stub_aarch64_windows", "runfiles_stub_aarch64_windows")
+use_repo(hermetic_launcher_stubs, "finalize_stub_aarch64_linux", "finalize_stub_aarch64_macos", "finalize_stub_aarch64_windows", "finalize_stub_s390x_linux", "finalize_stub_x86_64_linux", "finalize_stub_x86_64_macos", "finalize_stub_x86_64_windows", "runfiles_stub_aarch64_linux", "runfiles_stub_aarch64_macos", "runfiles_stub_aarch64_windows", "runfiles_stub_s390x_linux", "runfiles_stub_x86_64_linux", "runfiles_stub_x86_64_macos", "runfiles_stub_x86_64_windows")
 
 register_toolchains("//core/hermetic_launcher:all")
 
@@ -2706,6 +2696,7 @@ crate = use_extension("//third_party/rules_rust/crate_universe:extensions.bzl", 
 crate.annotation(
     build_script_env = {
         "CFLAGS": "$(DX_BS_CFLAGS)",
+        "CXXFLAGS": "$(DX_BS_CXXFLAGS)",
         "HOST_AR": "$(DX_BS_HOST_AR)",
         "HOST_CC": "$(DX_BS_HOST_CC)",
         "HOST_CFLAGS": "$(DX_BS_HOST_CFLAGS)",
@@ -2865,6 +2856,9 @@ crate.from_cargo(
         "//cli/exec_test_reports:Cargo.toml",
         "//cli/exec_quality:Cargo.toml",
         "//cli/exec_update:Cargo.toml",
+        "//cli/exec_worktree:Cargo.toml",
+        "//cli/exec_bench:Cargo.toml",
+        "//cli/exec_docs:Cargo.toml",
         "//cli/http:Cargo.toml",
         "//cli/semver:Cargo.toml",
         "//cli/dx_config:Cargo.toml",
@@ -3226,6 +3220,7 @@ use_repo(
     "dx_android_ndk_linux_x86_64",
     "dx_android_ndk_macos_arm64",
     "dx_android_ndk_macos_x86_64",
+    "dx_android_ndk_windows_arm64",
     "dx_android_ndk_windows_x86_64",
     "dx_android_sdk",
     "dx_androidsdk",
@@ -3672,7 +3667,11 @@ windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "win
 use_repo(windows_sdk_ext, "windows_sdk")
 
 qt = use_extension("//qt:extensions.bzl", "qt")
-use_repo(qt, "dx_qt")
+qt.msvc_runtime(
+    notice = "//cc/private/toolchain:notices/MSVC_REDISTRIBUTABLE.txt",
+    runtime = "@dx_msvc_runtime//:BUILD.bazel",
+)
+use_repo(qt, "dx_qt", "qt_launcher")
 
 rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")
 use_repo(rules_kotlin_extensions, "btapi_impl", "com_github_google_ksp", "com_github_jetbrains_kotlin", "com_github_jetbrains_kotlin_git", "com_github_pinterest_ktlint", "jarjar", "kotlin_build_tools_api", "kotlinx_coroutines_core_jvm", "kotlinx_serialization_core_jvm", "kotlinx_serialization_json", "kotlinx_serialization_json_jvm")

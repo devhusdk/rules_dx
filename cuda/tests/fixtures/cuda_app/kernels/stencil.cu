@@ -1,7 +1,8 @@
 #include "cuda/tests/fixtures/cuda_app/kernels/common.cuh"
 #include "cuda/tests/fixtures/cuda_app/kernels/kernels.h"
 
-__global__ void dx_stencil_kernel(int n, const int *in, int *out) {
+__global__ void __launch_bounds__(kDxBlock)
+    dx_stencil_kernel(int n, const int *in, int *out) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < n) {
     out[i] = dx_stencil_at(n, in, i);
@@ -13,7 +14,7 @@ extern "C" int dx_stencil_gpu(int n, const int *in, int *out) {
   int *dout = dx_device_copy(n, nullptr);
   int status = 1;
   if (din != nullptr && dout != nullptr) {
-    dx_stencil_kernel<<<dx_grid(n), kDxBlock>>>(n, din, dout);
+    dx_stencil_kernel<<<dx_grid(n), kDxBlock, 0, 0>>>(n, din, dout);
     if (cudaGetLastError() == cudaSuccess &&
         cudaDeviceSynchronize() == cudaSuccess &&
         cudaMemcpy(out, dout, dx_bytes(n), cudaMemcpyDeviceToHost) ==

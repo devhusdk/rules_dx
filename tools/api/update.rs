@@ -1,7 +1,5 @@
 //! `bazel run //tools/api:update` rewrites the API snapshot under `api/` and the page generated from it.
 
-#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
-
 mod page;
 mod snapshot;
 

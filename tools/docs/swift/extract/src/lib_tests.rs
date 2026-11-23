@@ -288,9 +288,45 @@ fn undocumented_symbol_has_empty_doc() {
 fn wrong_module_and_bad_json_are_rejected() {
     let (list, texts) = sources();
     let error = convert(GRAPH, &[], "Other", &list, &texts, "shapes", "").expect_err("rejected");
-    assert!(error.contains("not 'Other'"), "{error}");
+    assert!(
+        matches!(error, SwiftExtractError::WrongModule { .. }),
+        "{error}"
+    );
+    assert_eq!(
+        error.to_string(),
+        "symbol graph is for module 'Shapes', not 'Other'"
+    );
     let error = convert("{", &[], "Shapes", &list, &texts, "shapes", "").expect_err("rejected");
-    assert!(error.contains("bad symbol graph"), "{error}");
+    assert!(matches!(error, SwiftExtractError::BadGraph(_)), "{error}");
+    let extension = vec![("Swift".to_owned(), "{".to_owned())];
+    let error =
+        convert(GRAPH, &extension, "Shapes", &list, &texts, "shapes", "").expect_err("rejected");
+    assert!(
+        error
+            .to_string()
+            .starts_with("bad symbol graph for Shapes@Swift: "),
+        "{error}"
+    );
+}
+
+#[test]
+fn run_reports_the_missing_graph_path() {
+    let options = Options {
+        graphs: "/nonexistent/graphs".to_owned(),
+        sources: "/nonexistent/sources.txt".to_owned(),
+        module: "Shapes".to_owned(),
+        out: "/nonexistent/out.ir.pb".to_owned(),
+        package: "shapes".to_owned(),
+        config: String::new(),
+    };
+    let error = run(&options).expect_err("rejected");
+    assert!(matches!(error, SwiftExtractError::Io(_)), "{error}");
+    assert!(
+        error
+            .to_string()
+            .starts_with("cannot read /nonexistent/graphs/Shapes.symbols.json: "),
+        "{error}"
+    );
 }
 
 #[test]

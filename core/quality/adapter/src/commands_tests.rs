@@ -1207,11 +1207,11 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
     let sh = Path::new("/scratch/run.sh");
     assert_eq!(
         argv_strings(&shfmt_check(Path::new(BIN), &[sh])),
-        vec![BIN, "-d", "/scratch/run.sh"]
+        vec![BIN, "-s", "-d", "/scratch/run.sh"]
     );
     assert_eq!(
         argv_strings(&shfmt_fix(Path::new(BIN), &[sh])),
-        vec![BIN, "-w", "/scratch/run.sh"]
+        vec![BIN, "-s", "-w", "/scratch/run.sh"]
     );
     let rb = Path::new("/scratch/Sample.rb");
     let fmt_check = [
@@ -3587,7 +3587,7 @@ fn luals_luarc_lets_our_keys_win_over_the_consumer_config() {
     )
     .unwrap();
     let text = luals_luarc(
-        Some(&consumer),
+        &consumer,
         Some(Path::new("/s/dx-luals/mod")),
         &["dx-luals"],
     );
@@ -3605,7 +3605,7 @@ fn luals_luarc_lets_our_keys_win_over_the_consumer_config() {
         serde_json::json!(["dx-luals"])
     );
     assert!(parsed.get("$schema").is_none());
-    let bare: serde_json::Value = serde_json::from_str(&luals_luarc(None, None, &[])).unwrap();
+    let bare: serde_json::Value = serde_json::from_str(&luals_luarc(&serde_json::json!({}), None, &[])).unwrap();
     assert_eq!(bare["workspace.library"], serde_json::json!([]));
 }
 

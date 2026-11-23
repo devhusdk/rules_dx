@@ -1,6 +1,6 @@
 """Quality tool rows for the oci_image family."""
 
-load("//core/quality:tool_defs.bzl", "row", "tool")
+load("//core/quality:tool_defs.bzl", "row", "severity", "tool")
 
 visibility(["//tools/..."])
 
@@ -21,6 +21,7 @@ TOOLS = [
     ),
     tool(
         id = "trivy_image_config",
+        severity = severity(floor = "warning"),
         adapters = {"lint": ["oci_image"]},
         concerns = {"lint": "security"},
         support = [

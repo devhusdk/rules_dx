@@ -1,6 +1,7 @@
 """No-install, network-denied consumer qualification targets."""
 
 load("//cc/private/toolchain:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION", "MSVC_CL_BUILD")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:platform_support.bzl", "compatible_with", "platform_support")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
@@ -48,7 +49,7 @@ def _hermetic_manifest_impl(ctx):
     }, indent = "  ") + "\n")
     runfiles = ctx.runfiles(
         files = [out, ctx.file._bazelversion, ctx.file._module] + ([ctx.file.module_fragment] if ctx.file.module_fragment else []) + ctx.files.files + ctx.files.srcs,
-    ).merge(ctx.attr._dx[DefaultInfo].default_runfiles)
+    ).merge(ctx.attr._dx[0][DefaultInfo].default_runfiles)
     return [DefaultInfo(files = depset([out]), runfiles = runfiles)]
 
 hermetic_manifest = rule(
@@ -79,7 +80,7 @@ hermetic_manifest = rule(
         "srcs": attr.label_list(allow_files = True, doc = "rules_dx sources the consumer build reads."),
         "workspace_dir": attr.string(mandatory = True, doc = "Consumer workspace directory name."),
         "_bazelversion": attr.label(allow_single_file = True, default = "//:.bazelversion"),
-        "_dx": attr.label(cfg = "target", default = "//:dx", executable = True),
+        "_dx": attr.label(cfg = no_coverage_transition, default = "//:dx", executable = True),
         "_module": attr.label(allow_single_file = True, default = "//:MODULE.bazel"),
     },
 )
@@ -151,6 +152,8 @@ def hermetic_qualification(
         workspace_dir = workspace_dir,
     )
     if not smoke:
+        if kwargs:
+            fail("hermetic_qualification %s takes %s only with smoke = True" % (name, ", ".join(sorted(kwargs))))
         golden = "//tools/testing/hermetic:golden/%s.txt" % name
         rust_test(
             name = name,

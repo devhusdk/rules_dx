@@ -16,6 +16,10 @@ toolchain_type(name = "toolchain_type")
 
 toolchain_type(name = "profile_toolchain_type")
 
+# Resolves only on an exec platform with an OCaml cell, so dune actions never pick another exec platform.
+# Every consumer loads this package during toolchain resolution, so it must load no @rules_ocaml file.
+toolchain_type(name = "exec_toolchain_type")
+
 alias(
     name = "bisect_ppx_rewriter",
     actual = "//ocaml/private/coverage:bisect_ppx_rewriter",

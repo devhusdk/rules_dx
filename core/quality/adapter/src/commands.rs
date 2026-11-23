@@ -300,8 +300,8 @@ const YAMLFMT_DEFAULT_DOCUMENT_START_ARGS: &[&str] = &[
     "include_document_start=true",
 ];
 const YAMLFMT_DOCUMENT_START_ARGS: &[&str] = &["-formatter", "include_document_start=true"];
-const SHFMT_CHECK_ARGS: &[&str] = &["-d"];
-const SHFMT_FIX_ARGS: &[&str] = &["-w"];
+const SHFMT_CHECK_ARGS: &[&str] = &["-s", "-d"];
+const SHFMT_FIX_ARGS: &[&str] = &["-s", "-w"];
 const DJLINT_FORMAT_CHECK_ARGS: &[&str] = &["--check"];
 const DJLINT_FORMAT_FIX_ARGS: &[&str] = &["--reformat", "--quiet"];
 const DJLINT_CHECK_PREFIX: &[&str] = &[
@@ -1328,18 +1328,17 @@ pub fn luals_check(
     }
 }
 
-/// The generated `LuaLS` config. The consumer's settings (a flat `.luarc.json` object) come
+/// The generated `LuaLS` config. The bound settings (a flat `.luarc.json` object) come
 /// first; the keys below always win: the Lua version, the library directory, no diagnostics
-/// in libraries and the ignored staging directories. Without a consumer config the
-/// diagnostics are `LuaLS`'s defaults.
+/// in libraries and the ignored staging directories.
 #[must_use]
 pub fn luals_luarc(
-    consumer: Option<&serde_json::Value>,
+    consumer: &serde_json::Value,
     library: Option<&Path>,
     ignore_dirs: &[&str],
 ) -> String {
     let mut object = match consumer {
-        Some(serde_json::Value::Object(map)) => map.clone(),
+        serde_json::Value::Object(map) => map.clone(),
         _ => serde_json::Map::new(),
     };
     object.remove("$schema");

@@ -1893,6 +1893,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_exec_bench"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
 name = "dx_exec_core"
 version = "0.0.0"
 dependencies = [
@@ -1902,6 +1911,10 @@ dependencies = [
  "thiserror 2.0.20",
  "tracing",
 ]
+
+[[package]]
+name = "dx_exec_docs"
+version = "0.0.0"
 
 [[package]]
 name = "dx_exec_quality"
@@ -1938,6 +1951,14 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tracing",
+]
+
+[[package]]
+name = "dx_exec_worktree"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

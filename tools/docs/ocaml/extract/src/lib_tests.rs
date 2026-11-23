@@ -79,19 +79,43 @@ fn colliding_names_stay_unique_and_undocumented_items_are_incomplete() {
 
 #[test]
 fn rejects_bad_input() {
-    assert!(
-        convert(&pages(), "a b", "")
-            .unwrap_err()
-            .contains("invalid package")
-    );
-    assert!(convert(&[], "geo", "").unwrap_err().contains("no public"));
+    assert!(matches!(
+        convert(&pages(), "a b", ""),
+        Err(OcamlExtractError::InvalidPackage { .. })
+    ));
+    assert!(matches!(
+        convert(&[], "geo", ""),
+        Err(OcamlExtractError::NoPublicApi { .. })
+    ));
     let bad = vec![("geo/M".to_owned(), "{".to_owned())];
-    assert!(convert(&bad, "geo", "").unwrap_err().contains("malformed"));
-    let flat = vec![("M".to_owned(), page("", ""))];
+    let error = convert(&bad, "geo", "").unwrap_err();
+    assert!(matches!(error, OcamlExtractError::Malformed { .. }));
     assert!(
-        convert(&flat, "geo", "")
-            .unwrap_err()
-            .contains("package directory")
+        error
+            .to_string()
+            .starts_with("odoc page 'geo/M' is malformed: ")
+    );
+    let flat = vec![("M".to_owned(), page("", ""))];
+    assert_eq!(
+        convert(&flat, "geo", "").unwrap_err().to_string(),
+        "odoc page 'M' is not below a package directory"
+    );
+}
+
+#[test]
+fn run_reports_a_missing_html_directory() {
+    let options = Options {
+        html: vec!["/nonexistent/odoc".to_owned()],
+        package: "geo".to_owned(),
+        config: String::new(),
+        out: "/nonexistent/out.ir.pb".to_owned(),
+    };
+    let error = run(&options).unwrap_err();
+    assert!(matches!(error, OcamlExtractError::Io(_)));
+    assert!(
+        error
+            .to_string()
+            .starts_with("cannot list /nonexistent/odoc")
     );
 }
 
@@ -109,7 +133,9 @@ fn parse_args_reads_every_flag_and_requires_html() {
     let ok = parse_args(&args(&["--html", "a", "--package", "p", "--out", "o"])).unwrap();
     assert_eq!(ok.package, "p");
     assert_eq!(
-        parse_args(&args(&["--package", "p", "--out", "o"])).unwrap_err(),
+        parse_args(&args(&["--package", "p", "--out", "o"]))
+            .unwrap_err()
+            .to_string(),
         "--html is required"
     );
     assert_eq!(

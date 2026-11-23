@@ -72,6 +72,8 @@ rust_test(
     crate_root = "format_cli_test.rs",
     data = [":julia_format"],
     env = {"JULIA_FORMAT": "$(rootpath :julia_format)"},
+    # A test starts Julia up to four times; one shard per test keeps cold starts inside the small timeout.
+    shard_count = 4,
     target_compatible_with = JULIA_COMPATIBLE_WITH,
     deps = [
         "//cli/test_scratch:dx_test_scratch",

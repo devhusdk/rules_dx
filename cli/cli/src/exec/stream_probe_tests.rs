@@ -65,6 +65,7 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str, query_args: &str) -
     fs::create_dir_all(workspace.join("pkg")).expect("pkg dir");
     fs::write(workspace.join("pkg/BUILD.bazel"), "").expect("pkg build file");
     fs::write(workspace.join("pkg/a.py"), "x = 1\n").expect("pkg source");
+    dx_testing::empty_git_repo(&workspace);
     let bazel = bin.join("bazel");
     dx_testing::executable_script(&bazel, FAKE_BAZEL);
     let log = base.join("bazel.log");
@@ -354,16 +355,15 @@ fn a_stop_signal_to_dx_alone_stops_the_build_and_its_descendants() {
         ] {
             let mut run = Run::start("dx-stream-stop-", words, &|dir| {
                 format!(
-                    "--spawn-descendant --descendant-sleep-ms=30000 --descendant-marker={} --marker={}",
+                    "--spawn-descendant --descendant-sleep-ms=30000 --descendant-alive-lock={} --descendant-marker={} --marker={}",
+                    dir.join("descendant.alive").display(),
                     dir.join("descendant").display(),
                     dir.join("build").display()
                 )
             });
             let build = run.build_pid();
-            let deadline = Instant::now() + Duration::from_secs(10);
-            while !(group_alive(build) && run_dirs(&run).len() == 1) && Instant::now() < deadline {
-                std::thread::sleep(Duration::from_millis(20));
-            }
+            let alive = run.dir().join("descendant.alive");
+            wait_for_file(&mut run, &alive);
             assert!(group_alive(build), "{}", run.context());
             assert_eq!(run_dirs(&run).len(), 1, "{}", run.context());
             let sent = run.signal(signo);
@@ -1297,8 +1297,7 @@ fn write_dependency_sets(base: &Path) {
     fs::write(workspace.join("app/cargo-bazel-lock.json"), "{}\n").expect("bazel lock");
     fs::write(
         workspace.join("MODULE.bazel"),
-        MODULE.to_owned()
-            + "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//app:Cargo.lock\", lockfile = \"//app:cargo-bazel-lock.json\", manifests = [\"//app:Cargo.toml\"])\nuse_repo(crate, \"crates\")\n",
+        format!("{MODULE}crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"crates\", cargo_lockfile = \"//app:Cargo.lock\", lockfile = \"//app:cargo-bazel-lock.json\", manifests = [\"//app:Cargo.toml\"])\nuse_repo(crate, \"crates\")\n"),
     )
     .expect("module");
 }

@@ -19,7 +19,6 @@ alias(
         "@platforms//os:macos": "@dx_perl_pod//:pod",
         "//conditions:default": ":no_pod",
     }),
-    visibility = ["//visibility:public"],
 )
 
 _rules_perl_library(
@@ -30,7 +29,6 @@ perl_library(
     name = "bench",
     srcs = ["lib/DxBench.pm"],
     tags = ["manual"],
-    visibility = ["//visibility:public"],
 )
 
 real_source_target(
@@ -40,6 +38,7 @@ real_source_target(
         "defs.bzl",
         "platforms.bzl",
         "pod.bzl",
+        "pod_dep.bzl",
     ],
     tags = ["corpus"],
 )

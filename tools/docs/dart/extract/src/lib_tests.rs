@@ -139,11 +139,33 @@ fn marks_undocumented_symbols_incomplete() {
 
 #[test]
 fn rejects_bad_input() {
-    assert!(convert("{}", "ledger").is_err());
-    assert!(convert("[]", "ledger").is_err());
-    assert!(convert(&index(), "bad name").is_err());
+    assert!(matches!(
+        convert("{", "ledger"),
+        Err(DartExtractError::MalformedIndex(_))
+    ));
+    assert!(matches!(
+        convert("{}", "ledger"),
+        Err(DartExtractError::NotAList)
+    ));
+    let empty = convert("[]", "ledger").unwrap_err();
+    assert!(matches!(empty, DartExtractError::NoPublicApi { .. }));
+    assert_eq!(
+        empty.to_string(),
+        "dartdoc index lists no public Dart API of package 'ledger'"
+    );
+    let bad_name = convert(&index(), "bad name").unwrap_err();
+    assert_eq!(bad_name.to_string(), "invalid package 'bad name'");
+    assert!(matches!(
+        convert("[1]", "ledger"),
+        Err(DartExtractError::NotAnObject { .. })
+    ));
+    let nameless = convert(r#"[{"kind":3,"href":"x.html"}]"#, "ledger").unwrap_err();
+    assert!(matches!(nameless, DartExtractError::Json(_)));
+    assert_eq!(nameless.to_string(), "dartdoc index entry 0 has no 'name'");
     let orphan = json!([item("a", 3, "x.html", "", Some(("b", 9, "missing/")))]).to_string();
-    assert!(convert(&orphan, "ledger").unwrap_err().contains("unknown"));
+    let error = convert(&orphan, "ledger").unwrap_err();
+    assert!(matches!(error, DartExtractError::UnknownParent { .. }));
+    assert_eq!(error.to_string(), "'a' is enclosed by unknown 'missing/'");
 }
 
 #[test]

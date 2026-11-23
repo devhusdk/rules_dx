@@ -1,7 +1,8 @@
 """The qt module extension."""
 
+load("//cli/prebuilt:launcher.bzl", "FROM_SOURCE", "native_launcher_repos")
 load(":pins.bzl", "MODULES", "QT_VERSION")
-load(":repos.bzl", "HUB_NAME", "default_request", "cell_repository_name", "cell_spec", "consumer_cells", "effective_cells", "hub_build", "module_repository_name", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors")
+load(":repos.bzl", "HUB_NAME", "cell_repository_name", "cell_spec", "consumer_cells", "default_request", "effective_cells", "hub_build", "module_repository_name", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors")
 
 def _qt_hub_impl(rctx):
     rctx.file("REPO.bazel", "")
@@ -35,9 +36,21 @@ def _merge(requests):
         version = fields["version"],
     )
 
+def _msvc_runtime(module_ctx):
+    """Returns the one MSVC runtime the msvc_runtime tags of every module name, or None."""
+    found = None
+    for module in module_ctx.modules:
+        for tag in module.tags.msvc_runtime:
+            pair = struct(notice = tag.notice, runtime = tag.runtime)
+            if found != None and found != pair:
+                fail("qt: msvc_runtime tags name both " + str(found.runtime) + " and " + str(pair.runtime))
+            found = pair
+    return found
+
 def _qt_impl(module_ctx):
     requests = []
     tags = []
+    msvc = _msvc_runtime(module_ctx)
     for module in module_ctx.modules:
         for tag in module.tags.cell:
             if not module.is_root:
@@ -80,6 +93,9 @@ def _qt_impl(module_ctx):
                 "layout": layouts[cell],
                 "spec": cell_spec(consumer[cell]),
             })
+        windows = {}
+        if table[cell].layout.os == "windows" and msvc != None:
+            windows = {"msvc_notice": msvc.notice, "msvc_runtime": msvc.runtime}
         for module in sorted(MODULES.keys()):
             qt_cell_repo(
                 name = module_repository_name(cell, module),
@@ -90,6 +106,7 @@ def _qt_impl(module_ctx):
                 prefix = cells[cell],
                 requires = ["@" + module_repository_name(cell, required) + "//:BUILD.bazel" for required in MODULES[module].requires],
                 runtime_mirror = request.runtime_mirror,
+                **windows
             )
     _qt_hub(
         name = HUB_NAME,
@@ -100,18 +117,27 @@ def _qt_impl(module_ctx):
             no_match_error(table),
         )},
     )
+    native_launcher_repos(name = "qt_launcher", modules = module_ctx.modules, ext = "qt")
     return module_ctx.extension_metadata(reproducible = True)
 
 qt = module_extension(
     implementation = _qt_impl,
-    doc = "Acquires the pinned Qt SDK and runtime closure on first use.",
+    doc = "Acquires the pinned Qt SDK, its runtime closure and the native launcher on first use.",
     tag_classes = {
+        "from_source": FROM_SOURCE,
         "configure": tag_class(
             doc = "Requests optional mirrors.",
             attrs = {
                 "mirror": attr.string(default = "", doc = "Https mirror of the Qt online repository."),
                 "runtime_mirror": attr.string(default = "", doc = "Https mirror of vault.almalinux.org."),
                 "version": attr.string(default = QT_VERSION, doc = "Qt version; only the pinned one is accepted."),
+            },
+        ),
+        "msvc_runtime": tag_class(
+            doc = "Names the MSVC redistributable that Windows cells ship next to Qt.",
+            attrs = {
+                "notice": attr.label(mandatory = True, allow_single_file = True, doc = "Notice text shipped with the redistributable."),
+                "runtime": attr.label(mandatory = True, allow_single_file = True, doc = "BUILD.bazel file of the repository that holds the redistributable sysroot."),
             },
         ),
         "cell": tag_class(

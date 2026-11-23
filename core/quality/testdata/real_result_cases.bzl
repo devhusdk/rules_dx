@@ -82,6 +82,20 @@ def _objc_case(name, contains, absent):
         "macos_arm64": True,
     }
 
+def _objc_default_case(name, contains, absent):
+    return {
+        "name": "real_result_clang_syntax_objc_default_" + name,
+        "target": "//core/quality/testdata/clang_syntax:" + name + "_objc",
+        "config": "default",
+        "tool": "clang_syntax",
+        "capability": "typecheck",
+        "class": "objc",
+        "contains": contains,
+        "absent": absent,
+        "target_compatible_with": _MACOS_ONLY,
+        "macos_arm64": True,
+    }
+
 def _objc_tidy_case(name, target, contains, absent):
     return {
         "name": "real_result_clang_tidy_objc_" + name,
@@ -156,6 +170,8 @@ REAL_RESULT_CASES = [
     _gcc_case("clang_tidy", "lint", "clean", "clean", ["core/quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], "cc_tidy"),
     _objc_case("clean", ["clean.m"], ["undeclared_name", "Fatal error"]),
     _objc_case("dirty", ["undeclared identifier 'undeclared_name'"], []),
+    _objc_default_case("clean", ["clean.m"], ["undeclared_name", "Fatal error"]),
+    _objc_default_case("dirty", ["undeclared identifier 'undeclared_name'"], []),
     _objc_tidy_case("clean", "clean_objc", ["clean.m"], ["readability-else-after-return", "clang-diagnostic-error", "file not found"]),
     _objc_tidy_case("dirty", "tidy_dirty_objc", ["readability-else-after-return"], ["file not found"]),
     {
@@ -386,15 +402,21 @@ REAL_RESULT_CASES = [
     _go_case("govet", "lint", "deep", "//go/tests/fixtures/gotype:deep", ["govet"], ["no export data", "could not import"]),
     _go_case("staticcheck", "lint", "clean", "//go/tests/fixtures/staticcheck:clean", ["staticcheck"], ["SA4017"]),
     _go_case("staticcheck", "lint", "dirty", "//go/tests/fixtures/staticcheck:dirty", ["SA4017", "double", "U1000", "unusedHelper"], []),
-    _go_case("staticcheck", "lint", "standard_profile", "//go/tests/fixtures/staticcheck:strict_only_standard", ["staticcheck"], ["ST1003"]),
-    _go_case("staticcheck", "lint", "strict_profile", "//go/tests/fixtures/staticcheck:strict_only_strict", ["ST1003", "HttpServer"], []),
-    _go_case("staticcheck", "lint", "initialisms", "//go/tests/fixtures/staticcheck:strict_only_initialisms", ["staticcheck"], ["ST1003"]),
+    _go_case("staticcheck", "lint", "standard_profile", "//go/tests/fixtures/staticcheck:initialisms_standard", ["staticcheck"], ["ST1003"]),
+    _go_case("staticcheck", "lint", "strict_profile", "//go/tests/fixtures/staticcheck:initialisms_strict", ["staticcheck"], ["ST1003"]),
+    _go_case("staticcheck", "lint", "opt_in", "//go/tests/fixtures/staticcheck:initialisms_opt_in", ["ST1003", "HttpServer"], []),
+    _go_case("staticcheck", "lint", "initialisms", "//go/tests/fixtures/staticcheck:initialisms_custom", ["staticcheck"], ["ST1003"]),
+    _go_case("staticcheck", "lint", "unused_value", "//go/tests/fixtures/staticcheck:unused_value", ["SA4006", "this value of n is never used"], []),
     _go_case("govet", "lint", "shadow", "//go/tests/fixtures/govet:shadowed", ["declaration of"], []),
     _go_case("govet", "lint", "shadow_excluded", "//go/tests/fixtures/govet:shadowed_excluded", ["govet"], ["declaration of"]),
     _go_case("govet", "lint", "shadow_off", "//go/tests/fixtures/govet:shadowed", ["govet"], ["declaration of"], config = "shared_standard"),
+    _go_case("govet", "lint", "forvar", "//go/tests/fixtures/govet:loopvar", ["copying variable is unneeded"], []),
+    _go_case("govet", "lint", "forvar_off", "//go/tests/fixtures/govet:loopvar", ["govet"], ["copying variable is unneeded"], config = "shared_standard"),
     _go_case("errcheck", "lint", "blank", "//go/tests/fixtures/errcheck:blank", ["unchecked error"], []),
     _go_case("errcheck", "lint", "blank_excluded", "//go/tests/fixtures/errcheck:blank_excluded", ["errcheck"], ["unchecked error"]),
     _go_case("errcheck", "lint", "blank_off", "//go/tests/fixtures/errcheck:blank", ["errcheck"], ["unchecked error"], config = "shared_standard"),
+    _go_case("errcheck", "lint", "assert", "//go/tests/fixtures/errcheck:assert", ["unchecked error", "assert.go"], []),
+    _go_case("errcheck", "lint", "assert_off", "//go/tests/fixtures/errcheck:assert", ["errcheck"], ["unchecked error"], config = "shared_standard"),
     _go_case("golint", "lint", "clean", "//go/tests/fixtures/golint:clean", ["errcheck", "govet", "staticcheck"], ["unchecked error", "non-constant format string", "SA4017"]),
     _go_case("golint", "lint", "dirty", "//go/tests/fixtures/golint:app", ["unchecked error", "non-constant format string", "app.go", "SA4017", "tagged_on.go"], ["gen.go"]),
     _go_case("govet", "lint", "override", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], [], config = "tool_overrides"),
@@ -479,7 +501,7 @@ REAL_RESULT_CASES = [
     },
     {
         "name": "real_result_dialyzer_elixir_clean",
-        "target": "//elixir/tests/runtime:erlang_app",
+        "target": "//elixir/tests/fixtures/runtime:erlang_app",
         "config": "shared",
         "tool": "dialyzer",
         "capability": "typecheck",

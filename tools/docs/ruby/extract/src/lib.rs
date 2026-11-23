@@ -3,18 +3,99 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs;
+use std::fmt;
+use std::path::Path;
 
-use documentation_ir::json::{boolean, field, number, string, strings};
+use documentation_ir::json::{JsonError, boolean, field, number, string, strings};
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
 use serde_json::{Map, Value};
 
 const LANGUAGE: &str = "ruby";
 const FORMAT: u64 = 1;
 const KEY_CONFIG: &str = "ruby.config";
 const KEY_INCOMPLETE: &str = "ruby.incomplete";
+
+/// Why one YARD JSON document could not become a shard.
+#[derive(Debug)]
+pub enum RubyExtractError {
+    Read(PathIoError),
+    InvalidPackage { package: String },
+    Malformed(serde_json::Error),
+    NotObject { at: String },
+    NotList { at: String, key: &'static str },
+    BadAttribute { at: String },
+    Json(JsonError),
+    UnsupportedFormat { found: u64 },
+    UnknownType { at: String, kind: String },
+    UnknownScope { at: String, scope: String },
+    EmptyPathOrName { at: String },
+    NoPublicApi { package: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for RubyExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::InvalidPackage { package } => write!(f, "invalid package '{package}'"),
+            Self::Malformed(error) => write!(f, "YARD JSON is malformed: {error}"),
+            Self::NotObject { at } => write!(f, "{at} is not an object"),
+            Self::NotList { at, key } => write!(f, "{at} '{key}' is not a list"),
+            Self::BadAttribute { at } => {
+                write!(f, "{at} 'attribute' is neither null nor an object")
+            }
+            Self::Json(error) => error.fmt(f),
+            Self::UnsupportedFormat { found } => write!(
+                f,
+                "YARD JSON format {found} is not supported, expected {FORMAT}"
+            ),
+            Self::UnknownType { at, kind } => write!(f, "{at} has unknown type '{kind}'"),
+            Self::UnknownScope { at, scope } => write!(f, "{at} has unknown scope '{scope}'"),
+            Self::EmptyPathOrName { at } => write!(f, "{at} has an empty path or name"),
+            Self::NoPublicApi { package } => write!(
+                f,
+                "YARD JSON lists no public Ruby API of package '{package}'"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for RubyExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(error) => Some(error),
+            Self::Malformed(error) => Some(error),
+            Self::Json(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::InvalidPackage { .. }
+            | Self::NotObject { .. }
+            | Self::NotList { .. }
+            | Self::BadAttribute { .. }
+            | Self::UnsupportedFormat { .. }
+            | Self::UnknownType { .. }
+            | Self::UnknownScope { .. }
+            | Self::EmptyPathOrName { .. }
+            | Self::NoPublicApi { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
+
+impl From<JsonError> for RubyExtractError {
+    fn from(error: JsonError) -> Self {
+        Self::Json(error)
+    }
+}
+
+fn not_object(at: &str) -> RubyExtractError {
+    RubyExtractError::NotObject { at: at.to_owned() }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -41,7 +122,7 @@ pub fn usage() -> &'static str {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--package", "--out"])?;
     Ok(Options {
         json: flags.one("--json")?,
@@ -55,11 +136,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let json = fs::read_to_string(&options.json)
-        .map_err(|error| format!("cannot read {}: {error}", options.json))?;
+pub fn run(options: &Options) -> Result<(), RubyExtractError> {
+    let json = path_io::read_to_string(Path::new(&options.json)).map_err(RubyExtractError::Read)?;
     let shard = convert(&json, &options.package)?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(RubyExtractError::Write)
 }
 
 pub use documentation_ir::escape_segment;
@@ -113,17 +193,18 @@ struct Object {
     value: String,
 }
 
-fn tags(object: &Map<String, Value>, at: &str) -> Result<Vec<Tag>, String> {
+fn tags(object: &Map<String, Value>, at: &str) -> Result<Vec<Tag>, RubyExtractError> {
     let list = field(object, "tags", at)?
         .as_array()
-        .ok_or_else(|| format!("{at} 'tags' is not a list"))?;
+        .ok_or_else(|| RubyExtractError::NotList {
+            at: at.to_owned(),
+            key: "tags",
+        })?;
     list.iter()
         .enumerate()
         .map(|(index, tag)| {
             let at = format!("{at} tag {index}");
-            let tag = tag
-                .as_object()
-                .ok_or_else(|| format!("{at} is not an object"))?;
+            let tag = tag.as_object().ok_or_else(|| not_object(&at))?;
             Ok(Tag {
                 kind: string(tag, "tag", &at)?,
                 name: string(tag, "name", &at)?,
@@ -134,7 +215,7 @@ fn tags(object: &Map<String, Value>, at: &str) -> Result<Vec<Tag>, String> {
         .collect()
 }
 
-fn attribute(object: &Map<String, Value>, at: &str) -> Result<Option<Attribute>, String> {
+fn attribute(object: &Map<String, Value>, at: &str) -> Result<Option<Attribute>, RubyExtractError> {
     match field(object, "attribute", at)? {
         Value::Null => Ok(None),
         Value::Object(attribute) => {
@@ -146,31 +227,39 @@ fn attribute(object: &Map<String, Value>, at: &str) -> Result<Option<Attribute>,
             }))
         }
         Value::Bool(_) | Value::Number(_) | Value::String(_) | Value::Array(_) => {
-            Err(format!("{at} 'attribute' is neither null nor an object"))
+            Err(RubyExtractError::BadAttribute { at: at.to_owned() })
         }
     }
 }
 
-fn object(value: &Value, at: &str) -> Result<Object, String> {
-    let object = value
-        .as_object()
-        .ok_or_else(|| format!("{at} is not an object"))?;
+fn object(value: &Value, at: &str) -> Result<Object, RubyExtractError> {
+    let object = value.as_object().ok_or_else(|| not_object(at))?;
     let kind = match string(object, "type", at)?.as_str() {
         "module" => Type::Module,
         "class" => Type::Class,
         "method" => Type::Method,
         "constant" => Type::Constant,
-        other => return Err(format!("{at} has unknown type '{other}'")),
+        other => {
+            return Err(RubyExtractError::UnknownType {
+                at: at.to_owned(),
+                kind: other.to_owned(),
+            });
+        }
     };
     let singleton = match string(object, "scope", at)?.as_str() {
         "class" => true,
         "instance" | "" => false,
-        other => return Err(format!("{at} has unknown scope '{other}'")),
+        other => {
+            return Err(RubyExtractError::UnknownScope {
+                at: at.to_owned(),
+                scope: other.to_owned(),
+            });
+        }
     };
     let path = string(object, "path", at)?;
     let name = string(object, "name", at)?;
     if path.is_empty() || name.is_empty() {
-        return Err(format!("{at} has an empty path or name"));
+        return Err(RubyExtractError::EmptyPathOrName { at: at.to_owned() });
     }
     let mut mixins = strings(object, "includes", at)?;
     mixins.extend(strings(object, "extends", at)?);
@@ -373,15 +462,11 @@ fn extension(key: &str, value: &str) -> Extension {
     }
 }
 
-fn parse_document(root: &Map<String, Value>) -> Result<(String, Vec<Object>), String> {
+fn parse_document(root: &Map<String, Value>) -> Result<(String, Vec<Object>), RubyExtractError> {
     let at = "YARD JSON";
     match number(root, "format", at)? {
         FORMAT => {}
-        other => {
-            return Err(format!(
-                "YARD JSON format {other} is not supported, expected {FORMAT}"
-            ));
-        }
+        found => return Err(RubyExtractError::UnsupportedFormat { found }),
     }
     let config = format!(
         "ruby={};yard={};format={FORMAT}",
@@ -390,7 +475,10 @@ fn parse_document(root: &Map<String, Value>) -> Result<(String, Vec<Object>), St
     );
     let objects: Vec<Object> = field(root, "objects", at)?
         .as_array()
-        .ok_or("YARD JSON 'objects' is not a list")?
+        .ok_or_else(|| RubyExtractError::NotList {
+            at: at.to_owned(),
+            key: "objects",
+        })?
         .iter()
         .enumerate()
         .map(|(index, value)| object(value, &format!("YARD JSON object {index}")))
@@ -426,13 +514,14 @@ fn is_hidden(object: &Object, hidden_namespaces: &BTreeSet<&str>) -> bool {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
+pub fn convert(json: &str, package: &str) -> Result<DocIr, RubyExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
+        return Err(RubyExtractError::InvalidPackage {
+            package: package.to_owned(),
+        });
     }
-    let root: Value =
-        serde_json::from_str(json).map_err(|error| format!("YARD JSON is malformed: {error}"))?;
-    let root = root.as_object().ok_or("YARD JSON is not an object")?;
+    let root: Value = serde_json::from_str(json).map_err(RubyExtractError::Malformed)?;
+    let root = root.as_object().ok_or_else(|| not_object("YARD JSON"))?;
     let (config, objects) = parse_document(root)?;
 
     let mut owners: BTreeMap<&str, &str> = BTreeMap::new();
@@ -506,9 +595,9 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         });
     }
     if symbols.is_empty() {
-        return Err(format!(
-            "YARD JSON lists no public Ruby API of package '{package}'"
-        ));
+        return Err(RubyExtractError::NoPublicApi {
+            package: package.to_owned(),
+        });
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
@@ -516,7 +605,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(RubyExtractError::InvalidIr)?;
     Ok(shard)
 }
 

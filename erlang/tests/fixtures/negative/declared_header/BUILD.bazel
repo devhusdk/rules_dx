@@ -1,0 +1,51 @@
+load("@rules_dx//cc:defs.bzl", "cc_library")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//erlang:defs.bzl", "erlang_nif")
+load("//erlang/tests/fixtures/negative:negative_tests.bzl", "nif_define_test", "nif_header_test", "nif_lint_test")
+
+erlang_nif(
+    name = "probe_nif",
+    srcs = ["probe_nif.c"],
+    hdrs = ["hidden.h"],
+)
+
+nif_header_test(
+    name = "nif_header_visible_test",
+    file = "hidden.h",
+    present = True,
+    target = ":_probe_nif_c_upstream",
+)
+
+nif_lint_test(
+    name = "nif_lint_test",
+    target = ":_probe_nif_c",
+)
+
+erlang_nif(
+    name = "defined_nif",
+    srcs = ["probe_nif.c"],
+    hdrs = ["hidden.h"],
+    defines = ["DX_NIF_PROBE"],
+)
+
+nif_define_test(
+    name = "nif_define_passthrough_test",
+    define = "DX_NIF_PROBE",
+    target = ":_defined_nif_c_upstream",
+)
+
+# keep
+cc_library(
+    name = "declared_header",
+    testonly = True,
+    srcs = ["probe_nif.c"],
+    hdrs = ["hidden.h"],
+    deps = ["@dx_erlang_toolchains//:erl_nif"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

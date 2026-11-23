@@ -1,0 +1,23 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//erlang:defs.bzl", "erlang_app")
+load("//erlang/tests/fixtures/negative:negative_tests.bzl", "erlc_input_test")
+
+erlang_app(
+    app_name = "needs_dep",
+    app_version = "1.0.0",
+    tags = ["manual"],
+)
+
+erlc_input_test(
+    name = "undeclared_dep_hides_header_test",
+    file = "base_dep.hrl",
+    present = False,
+    target = ":beam_files",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

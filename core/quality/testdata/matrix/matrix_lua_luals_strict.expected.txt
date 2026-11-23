@@ -4,8 +4,16 @@ stages 1
 stage luals classes=lua sources=matrix/luals_profile.lua
 completed_rounds 1
 convergence STABLE
-initial 1
-initial WARNING luals luals/no-unknown matrix/luals_profile.lua 57 57 fixable=false "Cannot infer type."
-terminal 1
-terminal WARNING luals luals/no-unknown matrix/luals_profile.lua 57 57 fixable=false "Cannot infer type."
+initial 5
+initial WARNING luals luals/unused-local matrix/luals_profile.lua 36 36 fixable=false "Unused local `unused`."
+initial WARNING luals luals/lowercase-global matrix/luals_profile.lua 96 96 fixable=false "Global variable in lowercase initial, Did you miss `local` or misspell it?"
+initial WARNING luals luals/need-check-nil matrix/luals_profile.lua 133 133 fixable=false "Need check nil."
+initial WARNING luals luals/deprecated matrix/luals_profile.lua 161 161 fixable=false "Deprecated.(Defined in Lua 5.1/LuaJIT, current is Lua 5.4.)"
+initial WARNING luals luals/unknown-symbol matrix/luals_profile.lua 206 206 fixable=false "Unexpected symbol `+=`."
+terminal 5
+terminal WARNING luals luals/unused-local matrix/luals_profile.lua 36 36 fixable=false "Unused local `unused`."
+terminal WARNING luals luals/lowercase-global matrix/luals_profile.lua 96 96 fixable=false "Global variable in lowercase initial, Did you miss `local` or misspell it?"
+terminal WARNING luals luals/need-check-nil matrix/luals_profile.lua 133 133 fixable=false "Need check nil."
+terminal WARNING luals luals/deprecated matrix/luals_profile.lua 161 161 fixable=false "Deprecated.(Defined in Lua 5.1/LuaJIT, current is Lua 5.4.)"
+terminal WARNING luals luals/unknown-symbol matrix/luals_profile.lua 206 206 fixable=false "Unexpected symbol `+=`."
 replacements 0

@@ -65,7 +65,7 @@ Init writes every path in the [fixed file set](#fixed-file-set). You can rerun `
 
 When the writes succeed, `--apply` runs `dx generate --apply` over the directory. That writes every `BUILD.bazel` file and every missing lockfile. A `BUILD.bazel` file declares the Bazel targets of one directory. The output and exit code then follow `dx generate`. It does not run when a write fails, or with `--no-generate`.
 
-Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json`, and no `security.toml` or `license.toml`. Those files are yours. To pick the strict tier, write `dx.toml` with a top-level `tier = "strict"`; see the [config reference](config.md). Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml`, or from the defaults when there is none, for the languages it finds.
+Init writes no `dx.toml`, no root tool config such as `ruff.toml` or `biome.json`, and no `security.toml` or `license.toml`. Those files are yours. Without `dx.toml` every family runs at the strict tier. To opt down, write `dx.toml` with a top-level `tier = "standard"`; see the [config reference](config.md). Init then writes the [`.dx` tree](generate.md#the-dx-tree) from `dx.toml`, or from the defaults when there is none, for the languages it finds.
 
 ## Licenses
 
@@ -111,8 +111,9 @@ Each agent gets the `dx worktree` hooks:
 | Codex (`codex`) | `.codex/hooks.json` | `guard`, after you trust it with `/hooks` |
 | Gemini CLI (`gemini`) | `.gemini/settings.json` | `guard`, in a trusted folder |
 | GitHub Copilot (`copilot`) | `.github/copilot-instructions.md`, and `.github/hooks/dx.json` | `guard` |
+| Any agent and plain git | `.git/hooks/reference-transaction`, written by `dx worktree add` | `git` |
 
-See [Hooks](worktree.md#hooks). The hooks run `tools/dx`. On Windows, that also works in a Git Bash or MSYS2 shell.
+In Claude Code, Cursor and Gemini CLI, `guard` also checks file edits. See [Hooks](worktree.md#hooks). The hooks run `tools/dx`. On Windows, that also works in a Git Bash or MSYS2 shell.
 
 Init also writes a marked block to `AGENTS.md` and creates the file when it is missing; see [Agent commands block](#agent-commands-block). With `--agents claude`, it writes `CLAUDE.md` with an `@AGENTS.md` import when the import is missing.
 
@@ -278,7 +279,7 @@ with code `init_plan_partial`.
 
 ```text
 <!-- dx:begin -->
-- Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`. Mutating git, bazel and dx commands in the primary checkout are denied while you hold a slot.
+- Start: `tools/dx worktree add <branch>`. Finish: `tools/dx worktree release`. Mutating git, bazel and dx commands in the primary checkout are denied while you hold a slot. Never build, edit or commit in the main checkout.
 - Fix first: `tools/dx check --apply --affected`.
 - Then verify: `tools/dx test --affected`.
 - Before a PR: `tools/dx check --affected`. It is the gate.
@@ -368,8 +369,10 @@ before writing any file. It also fails when `MODULE.bazel` pins a different
 
 ## Git hooks
 
-dx does not install or manage Git hooks. For a commit or push hook, write a
-plain hook or use a hook tool, and have it run:
+Init does not install Git hooks. `dx worktree add` writes only the
+`reference-transaction` hook; see [Main checkout](worktree.md#main-checkout).
+For a commit or push hook, write a plain hook or use a hook tool, and have it
+run:
 
 ```sh
 tools/dx check //...

@@ -5,7 +5,7 @@ stage typos classes=text sources=matrix/typos_dirty.txt
 completed_rounds 2
 convergence STABLE
 initial 1
-initial WARNING typos - matrix/typos_dirty.txt 4 4 fixable=true "`teh` should be `the`"
+initial WARNING typos - matrix/typos_dirty.txt 4 4 fixable=true
 terminal 0
 replacements 1
 replacement matrix/typos_dirty.txt 5 7 "he"

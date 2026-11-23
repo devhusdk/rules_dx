@@ -65,6 +65,7 @@ LANGS = json.decode("""{
     }
   },
   "ansible": {
+    "depcheck": "ansible",
     "ecosystems": [
       "ansible"
     ],
@@ -111,6 +112,7 @@ LANGS = json.decode("""{
         ]
       }
     },
+    "semver": false,
     "setup": {
       "hubs": [
         {

@@ -23,6 +23,7 @@ rust_test(
     size = "small",
     srcs = ["perlcritic_smoke_test.rs"],
     data = [
+        "//core/quality/tiers/perlcritic:strict.perlcriticrc",
         "//perl/private/tools:critic/testdata/clean.pl",
         "//perl/private/tools:critic/testdata/dirty.pl",
         "//perl/private/tools:perlcritic",
@@ -31,6 +32,7 @@ rust_test(
         "CLEAN": "$(rootpath //perl/private/tools:critic/testdata/clean.pl)",
         "DIRTY": "$(rootpath //perl/private/tools:critic/testdata/dirty.pl)",
         "PERLCRITIC": "$(rootpath //perl/private/tools:perlcritic)",
+        "STRICT_PROFILE": "$(rootpath //core/quality/tiers/perlcritic:strict.perlcriticrc)",
     },
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],
@@ -45,4 +47,20 @@ real_source_target(
     ],
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
+)
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//perl/tests/fixtures/bench:bench_report_test",
+        "//perl/tests/fixtures/bench:sum_bench",
+        "//perl/tests/fixtures/bench:sum_bench_default_size",
+        "//perl/tests/fixtures/coverage:coverage_probe_test",
+        "//perl/tests/fixtures/negative:declared_module_is_a_runfile_test",
+        "//perl/tests/fixtures/negative:dependency_without_perl_info_fails_test",
+        "//perl/tests/fixtures/negative:undeclared_module_is_not_a_runfile_test",
+        "//perl/tests/fixtures/runtime:launcher_test",
+        "//perl/tests/fixtures/runtime:probe_test",
+    ],
 )

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::ecosystem::{
-    beam, cc, dart, dlang, dotnet, fortran, go, haskell, js, julia, jvm, lua, ocaml,
+    ansible, beam, cc, dart, dlang, dotnet, fortran, go, haskell, js, julia, jvm, lua, ocaml,
     parse_paren_lock, perl, php, powershell, python, ruby, rust, swift, zig,
 };
 use dx_error::DxError;
@@ -38,6 +38,7 @@ pub(crate) fn load_manifest(
         Language::Powershell => powershell::parse_powershell_manifest(manifest),
         Language::Lua => lua::parse_lua_manifest(manifest),
         Language::Ocaml => ocaml::parse_ocaml_manifest(manifest),
+        Language::Ansible => ansible::parse_ansible_manifest(manifest),
     }
 }
 
@@ -71,6 +72,7 @@ fn load_lock(eco: Language, lock: &Path) -> Result<LockVersions, DepcheckError> 
         Language::Powershell => single(powershell::parse_powershell_lock(lock)),
         Language::Lua => single(lua::parse_lua_lock(lock)),
         Language::Ocaml => single(ocaml::parse_ocaml_lock(lock)),
+        Language::Ansible => single(ansible::parse_ansible_lock(lock)),
     }
 }
 
@@ -98,6 +100,12 @@ pub(crate) fn lock_pair<'a>(eco: Language, manifest: &'a Path, lock: &'a Path) -
     }
 }
 
+/// Checks that `lock` resolves every dependency `manifest` declares.
+///
+/// # Errors
+///
+/// Returns a usage error when the manifest or lock is missing, and a failure when either does not
+/// parse or they disagree.
 pub fn cmd_consistency(
     eco: Language,
     manifest: &Path,
@@ -288,6 +296,12 @@ fn maven_lock(_eco: Language, lock: &Path) -> Result<LockVersions, DepcheckError
     single(jvm::parse_jvm_lock(lock))
 }
 
+/// Checks every manifest and lock pair of the workspace and reports each one.
+///
+/// # Errors
+///
+/// Returns the error of the worst failing pair: usage when a file is missing, failure when a file
+/// does not parse or a pair disagrees.
 pub fn cmd_locks(
     locks: &WorkspaceLocks,
     stdout: &mut dyn std::fmt::Write,

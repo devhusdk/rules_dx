@@ -73,17 +73,18 @@ gazelle/    shared Gazelle plugins
 ci/         CI templates consumers include by URL
 tools/      maintainer-only scripts and generators
 patches/    upstream patches
+platforms/  platform names, flags and hub
 third_party/ dependency manifests and lock files
 bcr_test_module/ the BCR presubmit module
 docs/       user docs
 examples/   tested examples
 ```
 
-- `core/` holds providers, the quality framework, `dx_wrap`, and the toolchain and pins factory, and holds no language code.
+- `core/` holds providers, the quality framework, `dx_wrap` and the toolchain and pins factory, and no language code.
 - `cli/` holds every Rust crate.
-- `dx/` holds only a `BUILD.bazel` with the targets `dx` runs in a consumer workspace, and no `.bzl` file.
+- `dx/` holds only a `BUILD.bazel` with the targets `dx` runs in a consumer workspace.
 - `ci/` holds one directory per CI system. Its file paths are public URLs.
-- `patches/` holds upstream patches and the rules_dx registry, and the patch table is generated from them.
+- `patches/` holds upstream patches and the rules_dx registry; the patch table is generated from them.
 - The root holds only language directories with a `lang.json` and the directories above. A test enforces this list, with no pending entries.
 - Every `.bzl` file is loaded, every fixture and Rust file is named by a target or a test, every `filegroup` and exported file has a user, and every directory belongs to a package. `//tools/ci:unreferenced_files_test` enforces it.
 

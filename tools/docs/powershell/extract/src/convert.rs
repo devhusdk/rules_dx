@@ -1,5 +1,6 @@
 //! Maps the exported functions onto the versioned documentation IR.
 
+use crate::PowershellExtractError;
 use crate::exports::{Public, public_functions, wildcard_match};
 use crate::types::{Api, Function, Names, Parameter, ParameterSet, SCHEMA, parse_api};
 use documentation_ir::proto::{
@@ -26,7 +27,7 @@ pub struct Settings {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
+pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, PowershellExtractError> {
     let api = parse_api(json)?;
     let public = public_functions(&api)?;
     let config = config_text(&api, settings);
@@ -40,7 +41,7 @@ pub fn convert(json: &str, settings: &Settings) -> Result<DocIr, String> {
         package: settings.package.clone(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(PowershellExtractError::InvalidIr)?;
     Ok(shard)
 }
 

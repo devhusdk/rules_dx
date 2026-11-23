@@ -29,7 +29,7 @@ TOOLS = [
             "typecheck": ["php"],
         },
         config = config(suffixes = [".neon", ".neon.dist"], tier_active = True, tier_source = "phpstan level 6 and phpstan-strict-rules"),
-        severity = severity(default = "error", categories = {"phpstan/public.": "info"}),
+        severity = severity(default = "error"),
         support = [
             row(
                 capability = "typecheck",

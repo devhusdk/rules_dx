@@ -219,7 +219,7 @@ jobs:
             *) echo "displays must be xcb, wayland or xcb,wayland, got '$DX_DISPLAYS'"; exit 1 ;;
           esac
           sudo apt-get update
-          sudo apt-get install -y xvfb weston
+          sudo apt-get install -y xvfb x11-utils weston
           runtime="$RUNNER_TEMP/xdg"
           mkdir -p "$runtime"
           chmod 700 "$runtime"
@@ -229,7 +229,11 @@ jobs:
             *,xcb,*)
               Xvfb :99 -screen 0 1280x720x24 > "$RUNNER_TEMP/xvfb.log" 2>&1 &
               echo "DISPLAY=:99" >> "$GITHUB_ENV"
-              sleep 3
+              for _ in $(seq 1 100); do
+                xdpyinfo -display :99 > /dev/null 2>&1 && break
+                sleep 0.2
+              done
+              xdpyinfo -display :99 > /dev/null || { cat "$RUNNER_TEMP/xvfb.log"; exit 1; }
               ;;
           esac
           case ",$DX_DISPLAYS," in
@@ -372,6 +376,44 @@ jobs:
       - name: Print the failing test log tails
         if: ${{ failure() && steps.task.outcome == 'failure' && steps.inputs.outputs.task == 'test' }}
         run: bazel run --noshow_progress //tools/ci/producers:producers_bin -- --test-log-tails --bep "$RUNNER_TEMP/bep/evidence.json" --bep "$RUNNER_TEMP/bep/relocated.json"
+      - name: Print JVM crash logs and the JDKs Android tools resolve
+        if: ${{ failure() && steps.task.outcome == 'failure' }}
+        run: |
+          out="$RUNNER_TEMP/evidence/jvm"
+          mkdir -p "$out"
+          base="$(bazel info --noshow_progress output_base)"
+          # Each probe below may fail; print what it finds and go on.
+          set +e
+          # A JVM that dies at startup writes hs_err_pid*.log to its working directory, or to TEMP when that is not writable.
+          find "$base/execroot" "$base/bazel-workers" "$base/sandbox" "${TEMP:-/tmp}" -name 'hs_err_pid*.log' 2>/dev/null | while read -r log; do
+            cp "$log" "$out/"
+            echo "== $log"
+            sed -n '1,30p' "$log"
+            grep -E 'jvm\.dll|libjvm|java_command|jvm_args|java\.home|modules' "$log" | head -n 40
+          done
+          # For each desugar or dex launcher, show the java its runfiles name and whether lib/modules sits next to it,
+          # both through the manifest and through the runfiles directory, then start the launcher once outside a worker.
+          find "$base/execroot/_main/bazel-out" -name '*.runfiles_manifest' 2>/dev/null | grep -E 'desugar|d8|dex' | while read -r manifest; do
+            grep -E '/bin/java(\.exe)? ' "$manifest" | while read -r entry path; do
+              echo "== $manifest: $entry -> $path"
+              for java in "$path" "${manifest%_manifest}/$entry"; do
+                home="$(dirname "$(dirname "$java")")"
+                ls -lL "$java" "$home/bin/server/jvm.dll" "$home/bin/server/classes.jsa" "$home/lib/server/classes.jsa" "$home/lib/modules"
+                grep JAVA_VERSION "$home/release"
+              done
+            done
+            # Start the desugar launcher, and the java launcher it runs, with the worker's runfiles env but as a plain process.
+            case "$manifest" in *desugar_java8*) ;; *) continue ;; esac
+            launchers="${manifest%.runfiles_manifest}"
+            launchers+=$'\n'"$(grep -E '/r8/desugar(\.exe)? ' "$manifest" | cut -d' ' -f2-)"
+            while read -r launcher; do
+              [ -x "$launcher" ] || continue
+              echo "== $launcher --help"
+              RUNFILES_MANIFEST_FILE="$manifest" RUNFILES_DIR="${manifest%_manifest}" JAVA_RUNFILES="${manifest%_manifest}" \
+                timeout 120 "$launcher" --help < /dev/null 2>&1 | head -n 15
+              echo "exit ${PIPESTATUS[0]}"
+            done <<< "$launchers"
+          done 2>&1 | tee "$out/java-runtimes.txt"
       - name: Record the Apple executor
         if: ${{ always() && matrix.platform == 'macos_arm64' }}
         run: |
@@ -465,6 +507,11 @@ jobs:
             set -e
             cd "$RUNNER_TEMP"
             ./dx init --apply demo-app --workspace "$RUNNER_TEMP"
+            sources="$checkout/android/tests/fixtures/consumer_android"
+            mkdir -p demo-app/src demo-app/res/values
+            cp "$sources/activity.c" demo-app/activity.c
+            cp "$sources/src/lib.rs" demo-app/src/lib.rs
+            cp "$sources/res/values/strings.xml" demo-app/res/values/strings.xml
             fixture="$checkout/android/tests/fixtures/rust_starter"
             (cd "$fixture" && find . -type f -name '*.fixture') | while read -r file; do
               dest="demo-app/${file#./}"
@@ -506,16 +553,27 @@ jobs:
           adb -s emulator-5554 logcat -c
           bazel run --noshow_progress //examples/shared-rust:install
           bazel run --noshow_progress //examples/shared-rust:start
-          sleep 5
+          # Each wait gives up after 60 s and moves on; check_lifecycle.sh then names what is missing.
+          wait_for() {
+            waited=0
+            until "$@"; do
+              [ "$waited" -lt 60 ] || return 0
+              sleep 1
+              waited=$((waited + 1))
+            done
+          }
+          focused() { adb -s emulator-5554 shell dumpsys window | grep mCurrentFocus | grep com.example.dxsharedtasks > /dev/null; }
+          logged() { adb -s emulator-5554 logcat -d -s DxSharedTasks:I | grep -- "$1" > /dev/null; }
+          wait_for focused
+          wait_for logged lifecycle=resume
           adb -s emulator-5554 shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' | tee "$RUNNER_TEMP/evidence/focus-shared-rust.txt"
           adb -s emulator-5554 shell input touchscreen swipe 200 400 200 400 200
-          sleep 2
+          wait_for logged input=touch
           adb -s emulator-5554 shell input touchscreen swipe 200 400 200 400 200
-          sleep 2
           adb -s emulator-5554 shell input keyevent KEYCODE_ENTER
-          sleep 2
+          wait_for logged input=key
           adb -s emulator-5554 shell input keyevent KEYCODE_BACK
-          sleep 2
+          wait_for logged lifecycle=destroy
           adb -s emulator-5554 logcat -d -s DxSharedTasks:I | tee "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
           sh rust/tests/fixtures/shared_rust_checks/check_lifecycle.sh "$RUNNER_TEMP/evidence/logcat-shared-rust.txt"
       - name: Run the flutter_app interaction test on the emulator

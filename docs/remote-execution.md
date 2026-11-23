@@ -64,10 +64,10 @@ The summary should list `remote` for the actions you expect. If it lists `linux-
 
 - The executor must run on a platform `dx` has pinned tools for: Linux x86_64 or arm64. See the [support matrix](support-matrix.md).
 - Bazel downloads the tools and sends them to the executor as action inputs. Compilers and interpreters come from Bazel toolchains, not the image `PATH`, so keep the image minimal.
-- A `dx lint`, `dx typecheck` or `dx format` action runs remotely only when every tool in it is remote-qualified. Today those are shfmt, shellcheck, keep-sorted, typos, taplo, buildifier, gersemi, jsonnetfmt, stylua, typstyle, yamlfmt, biome, actionlint, zizmor, ruff format and lint, hadolint, checkmake, fortitude, ffmt, cue, jsonnet-lint, opa, regal, xmllint, kubeconform, tflint, helmfmt, trivy image config and Vale on Markdown, AsciiDoc and reST. Every other action is tagged `no-remote-exec` and runs on your machine.
-- kubeconform and tflint share their lint action with trivy config, which is not remote-qualified, so those actions run on your machine.
-- Unix executor images need a writable `/tmp`, because tflint puts its plugin socket directory there.
+- A `dx lint`, `dx typecheck` or `dx format` action runs remotely only when every tool in it is remote-qualified. Today those are shfmt, shellcheck, keep-sorted, typos, taplo, buildifier, gersemi, jsonnetfmt, stylua, typstyle, yamlfmt, biome, actionlint, zizmor, ruff format and lint, hadolint, checkmake, fortitude, ffmt, cue, jsonnet-lint, opa, regal, xmllint, kubeconform, terraform fmt and validate, tflint, helmfmt, trivy config, trivy image config, buf, Bicep, ChkTeX and Vale on Markdown, AsciiDoc and reST. Every other action is tagged `no-remote-exec` and runs on your machine.
+- Unix executor images need a writable `/tmp`, because terraform and tflint put their plugin socket directory there.
 - Unix executor images need `/bin/sh`, because actionlint finds shellcheck through a `/bin/sh` shim.
+- Linux executor images need `libstdc++` and `libgcc_s`, because the pinned Bicep is a self-contained .NET app that links them.
 - Unix executor images need `bash` and coreutils in `/bin` or `/usr/bin`, because Vale's AsciiDoc and reST converters are Bazel shell launchers started with `PATH` unset.
 - Tests tagged `no-remote` or `local` run on your machine.
 

@@ -1,6 +1,6 @@
 """Rego real quality aspects."""
 
-load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_resolve_list")
 load("//rego/private:providers.bzl", "RegoInfo")
 
 TOOLS = {
@@ -40,7 +40,7 @@ SHARD_SPECS = {
 def _opa_hook(target, _ctx, _resolved, _capability, _what, _shared):
     if RegoInfo not in target:
         return real_context()
-    return real_context(resolve_lists = [(target[RegoInfo].transitive_srcs, ["rego"])])
+    return real_context(resolve_lists = [real_resolve_list(target[RegoInfo].transitive_srcs, ["rego"])])
 
 HOOK_ORDER = ["opa"]
 

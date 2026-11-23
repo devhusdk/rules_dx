@@ -6,8 +6,29 @@ This page fixes the rules for the lint and format configuration that dx ships. T
 
 - `standard` covers correctness, likely bugs, security, deprecated APIs and obvious performance problems. It stays near the upstream "recommended" set. It has no style rules.
 - `strict` enables every stable rule except preview rules, deprecated rules, rules that conflict with the formatter, all but one rule of each contradicting pair, and rules that depend on project input. Type checkers run in their strict modes.
+- Strict also turns on guard rules: checks that catch code which silences or bypasses a check, such as a suppression without a reason.
 - Tier files list their rules explicitly and are self-contained. No tier extends another.
+- A tier file names each rule it leaves out and the class of reason: preview, deprecated, formatter conflict, contradicting pair or project input.
 - Formatters run on tool defaults in both tiers.
+
+## Tier selection
+
+- `strict` is the default. With no `dx.toml`, or a `dx.toml` without `tier`, every family runs at strict.
+- `//config:config_tier` defaults to `strict`, so a plain Bazel build matches dx.
+- The root `tier` picks the audit base for `security.toml` and `license.toml`.
+- Compiler warning sets follow the root tier only.
+
+## Opting down
+
+- `tier = "standard"` at the top of `dx.toml` opts every family down.
+- `tier` under `[families.<id>]` opts one family down, or up.
+- Tier picks rule and warning sets only. It never turns gating on or off.
+
+## Gating
+
+- Compiler warnings fail the build in both tiers.
+- Lint warnings fail the run through `--fail-on=warning`, the default.
+- `@rules_dx//config:warnings_as_errors=false` or a target's `warnings_as_errors = False` is the only way to keep compiler warnings as warnings.
 
 ## Severity
 

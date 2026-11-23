@@ -1,0 +1,98 @@
+"""Analysis tests for the inputs and flags that make Erlang builds fail on bad code."""
+
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("//cc/private/quality:cc.bzl", "real_cc_lint_aspect")
+load("//core/private/testing:defs.bzl", "starlark_test")
+load("//tools/testing:action_input.bzl", "LINUX_X86_64", "action_input_test")
+
+def _inputs(env, mnemonic):
+    actions = [a for a in analysistest.target_actions(env) if a.mnemonic == mnemonic]
+    asserts.equals(env, 1, len(actions), "expected one " + mnemonic + " action")
+    return actions[0], [f.short_path for f in actions[0].inputs.to_list()]
+
+def _warnings_as_errors_impl(ctx):
+    env = analysistest.begin(ctx)
+    action, _ = _inputs(env, "ERLC")
+    asserts.equals(env, ctx.attr.expected, "-Werror" in " ".join(action.argv), "ERLC -Werror")
+    return analysistest.end(env)
+
+def _header_impl(ctx):
+    env = analysistest.begin(ctx)
+    headers = [f.short_path for f in analysistest.target_under_test(env)[CcInfo].compilation_context.headers.to_list()]
+    found = [p for p in headers if p.endswith("/" + ctx.attr.file)]
+    asserts.equals(env, ctx.attr.present, len(found) > 0, "headers: " + str(headers))
+    return analysistest.end(env)
+
+def _define_impl(ctx):
+    env = analysistest.begin(ctx)
+    defines = analysistest.target_under_test(env)[CcInfo].compilation_context.defines.to_list()
+    asserts.true(env, ctx.attr.define in defines, "defines: " + str(defines))
+    return analysistest.end(env)
+
+_define_test = analysistest.make(_define_impl, attrs = {"define": attr.string()})
+
+_WERROR_ATTRS = {"expected": attr.bool(default = True)}
+
+_warnings_as_errors_test = analysistest.make(_warnings_as_errors_impl, attrs = _WERROR_ATTRS)
+
+_warnings_flag_off_test = analysistest.make(
+    _warnings_as_errors_impl,
+    attrs = _WERROR_ATTRS,
+    config_settings = {str(Label("//config:warnings_as_errors")): False},
+)
+_has_attrs = {
+    "file": attr.string(),
+    "present": attr.bool(),
+}
+_header_test = analysistest.make(_header_impl, attrs = _has_attrs)
+
+def _nif_lint_results_impl(ctx):
+    results = ctx.attr.target[OutputGroupInfo].dx_results.to_list()
+    if len(results) != 1:
+        fail("expected one lint result for " + str(ctx.attr.target.label) + ", got " + str(len(results)))
+    out = ctx.actions.declare_file(ctx.label.name + ".txt")
+    ctx.actions.run(
+        inputs = results,
+        outputs = [out],
+        executable = ctx.executable._capture,
+        tools = [ctx.executable._printer],
+        arguments = ["capture", "--stdout", out.path, "--", ctx.executable._printer.path, results[0].path],
+        mnemonic = "NifLintResult",
+    )
+    return [DefaultInfo(files = depset([out]))]
+
+_nif_lint_results = rule(
+    implementation = _nif_lint_results_impl,
+    doc = "Renders the C lint result of one target as text.",
+    attrs = {
+        "target": attr.label(doc = "Target to lint.", aspects = [real_cc_lint_aspect], mandatory = True),
+        "_capture": attr.label(default = "@dx_prebuilt//:dx", executable = True, cfg = "exec"),
+        "_printer": attr.label(default = "//core/quality/result:print_result", executable = True, cfg = "exec"),
+    },
+)
+
+def erlc_warnings_as_errors_test(name, target, expected = True):
+    _warnings_as_errors_test(name = name, size = "small", target_under_test = target, expected = expected, target_compatible_with = LINUX_X86_64)
+
+def erlc_warnings_flag_off_test(name, target, expected = False):
+    _warnings_flag_off_test(name = name, size = "small", target_under_test = target, expected = expected, target_compatible_with = LINUX_X86_64)
+
+def erlc_input_test(name, target, file, present):
+    action_input_test(name, target, "ERLC", file, present)
+
+def nif_header_test(name, target, file, present):
+    _header_test(name = name, size = "small", target_under_test = target, file = file, present = present, target_compatible_with = LINUX_X86_64)
+
+def nif_define_test(name, target, define):
+    _define_test(name = name, size = "small", target_under_test = target, define = define, target_compatible_with = LINUX_X86_64)
+
+def nif_lint_test(name, target):
+    _nif_lint_results(name = name + "_results", testonly = True, target = target, tags = ["manual"], target_compatible_with = LINUX_X86_64)
+    starlark_test(
+        name = name,
+        size = "small",
+        mode = "execution",
+        file_checks = {name + "_results": "terminal 0"},
+        target_compatible_with = LINUX_X86_64,
+    )

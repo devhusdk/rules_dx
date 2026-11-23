@@ -3,7 +3,7 @@ android/tests/fixtures/adopt_android/app/BUILD.bazel sh-rule 1
 android/tests/fixtures/adopt_android/app/inspect_apk.sh shebang 1
 android/tests/fixtures/native_lib/BUILD.bazel default-shell-env 1
 android/tests/fixtures/rust_apk/BUILD.bazel genrule 1
-android/tests/fixtures/rust_apk/BUILD.bazel sh-rule 29
+android/tests/fixtures/rust_apk/BUILD.bazel sh-rule 22
 android/tests/fixtures/rust_apk/adapter_test.sh shebang 1
 android/tests/fixtures/rust_apk/apk_set_rejects.sh shebang 1
 android/tests/fixtures/rust_apk/check_aab_rejects.sh shebang 1
@@ -39,7 +39,6 @@ cc/tests/fixtures/cpp_app/core/BUILD.bazel genrule 1
 cc/tests/fixtures/foreign_cmake/BUILD.bazel genrule 1
 cc/tests/fixtures/foreign_cmake/transition.bzl run-shell 1
 cc/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
-cc/tests/fixtures/fuzz/run_test.sh shebang 1
 cc/tests/foreign_cmake_cross.rs host-path 2
 cc/tests/foreign_cmake_log.rs host-path 4
 cc/tests/msvc_x86_64/archive_test.rs host-path 2
@@ -49,7 +48,6 @@ cli/adopt/src/launcher.rs shebang 30
 cli/adopt/src/scaffold.rs host-path 1
 cli/adopt/src/scaffold.rs shebang 1
 cli/archive/src/tests.rs shebang 1
-cli/atomic_fs/src/lib.rs shebang 5
 cli/atomic_fs/src/managed.rs shebang 1
 cli/binfmt/src/tests.rs shebang 1
 cli/cli/BUILD.bazel genrule 1
@@ -68,7 +66,7 @@ cli/cli/src/exec/stream_probe_tests.rs shebang 2
 cli/cli/src/exec/test_case_launcher_tests.rs shebang 1
 cli/cli/src/multicall.rs host-path 1
 cli/cli/tests/adopt/tests/adopt.rs shebang 1
-cli/cli/tests/agents/tests/dev_launcher.rs host-path 9
+cli/cli/tests/agents/tests/dev_launcher.rs host-path 2
 cli/cli/tests/agents/tests/dev_launcher.rs shebang 15
 cli/cli/tests/uv_sets/tests/uv_sets.rs shebang 2
 cli/env/src/lib_tests.rs shebang 2
@@ -92,12 +90,11 @@ core/env/private/stubs/BUILD.bazel sh-rule 1
 core/env/private/stubs/BUILD.bazel shebang 1
 core/node_test.bzl env-inherit 1
 core/quality/adapter/src/exec.rs host-path 9
-core/quality/compile_check_exec.sh shebang 1
 core/quality/consumer_policy_tests.bzl shebang 1
 core/quality/runner/src/entry.rs host-path 2
 core/quality/runner/src/lib_determinism.rs host-path 3
 core/quality/runner/src/real.rs host-path 4
-core/quality/runner/src/real.rs shebang 4
+core/quality/runner/src/real.rs shebang 3
 core/quality/testdata/BUILD.bazel genrule 5
 core/quality/testdata/coverage_sources/BUILD.bazel genrule 1
 core/quality/testdata/real_clean.sh shebang 1
@@ -111,11 +108,12 @@ core/quality/tool_config_docs.bzl genrule 1
 core/quality/tools/python_bundle/BUILD.bazel sh-rule 1
 core/quality/tools/python_bundle/build_bundle.sh shebang 1
 core/tests/execution_tests.bzl home 4
+core/tests/fixtures/fuzz/run_test.sh shebang 1
 core/tests/wrapper_forward_fixture.bzl env-inherit 1
 core/tests/wrapper_forward_fixture.bzl home 2
 core/tests/wrapper_tests.bzl env-inherit 3
 core/tests/wrapper_tests.bzl home 3
-core/wrapper.bzl env-inherit 7
+core/wrapper.bzl env-inherit 3
 csharp/tests/fixtures/fuzz/BUILD.bazel sh-rule 2
 csharp/tests/fixtures/fuzz/run_test.sh shebang 1
 cuda/tests/fixtures/cuda_app/app/BUILD.bazel sh-rule 1
@@ -123,7 +121,6 @@ cuda/tests/fixtures/cuda_app/app/output_test.sh shebang 1
 d/tests/fixtures/bench/BUILD.bazel sh-rule 1
 d/tests/fixtures/bench/run_test.sh shebang 1
 d/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
-d/tests/fixtures/fuzz/run_test.sh shebang 1
 dart/tests/fixtures/dart_app/model/BUILD.bazel genrule 1
 deploy/private/BUILD.bazel genrule 26
 deploy/private/BUILD.bazel sh-rule 2
@@ -197,19 +194,16 @@ go/private/quality/gopls_tier/BUILD.bazel genrule 1
 go/tests/fixtures/bench/BUILD.bazel sh-rule 1
 go/tests/fixtures/bench/run_test.sh shebang 1
 go/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
-go/tests/fixtures/fuzz/run_test.sh shebang 1
 haskell/private/bench_run.sh shebang 1
 haskell/tests/fixtures/bench/BUILD.bazel sh-rule 1
 haskell/tests/fixtures/bench/run_test.sh shebang 1
 haskell/tests/fixtures/haskell_app/stock/BUILD.bazel genrule 1
 haskell/tests/toolchain_tests.bzl host-path 4
 java/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
-java/tests/fixtures/fuzz/run_test.sh shebang 1
 java/tests/fixtures/hello/BUILD.bazel genrule 1
 java/tests/fixtures/java_app/billing/BUILD.bazel genrule 1
 javascript/tests/defs_tests.bzl env-inherit 1
 javascript/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
-javascript/tests/fixtures/fuzz/run_test.sh shebang 1
 javascript/tests/fixtures/node_app/registry/BUILD.bazel genrule 1
 javascript/tests/fixtures/web_app/BUILD.bazel genrule 1
 javascript/tests/js_launcher_test.rs host-path 1
@@ -230,7 +224,6 @@ ocaml/tests/fixtures/ocaml_app/cli/BUILD.bazel sh-rule 1
 ocaml/tests/fixtures/ocaml_app/cli/exit_codes.sh shebang 1
 patches/BUILD.bazel genrule 1
 python/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
-python/tests/fixtures/fuzz/run_test.sh shebang 1
 python/tests/fixtures/python_service/ledger/core/BUILD.bazel genrule 1
 python/tests/sdist_native/msvc/BUILD.bazel genrule 1
 python/tests/sdist_native/msvc/BUILD.bazel shebang 1
@@ -249,7 +242,6 @@ rust/tests/fixtures/consumer_native/BUILD.bazel genrule 1
 rust/tests/fixtures/consumer_wasi/BUILD.bazel default-shell-env 1
 rust/tests/fixtures/consumer_wasi/injecting_runtime.sh shebang 1
 rust/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
-rust/tests/fixtures/fuzz/run_test.sh shebang 1
 rust/tests/fixtures/native_call/BUILD.bazel default-shell-env 2
 rust/tests/fixtures/native_call/BUILD.bazel genrule 1
 rust/tests/fixtures/native_call/BUILD.bazel sh-rule 1
@@ -263,7 +255,6 @@ swift/private/tools/swift_tool.bzl host-path 2
 swift/tests/fixtures/bench/BUILD.bazel sh-rule 1
 swift/tests/fixtures/bench/run_test.sh shebang 1
 swift/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
-swift/tests/fixtures/fuzz/run_test.sh shebang 1
 swift/tests/fixtures/hello/BUILD.bazel sh-rule 2
 swift/tests/fixtures/hello/arch_test.sh shebang 1
 swift/tests/fixtures/hello/macho_test.sh shebang 1
@@ -280,7 +271,6 @@ tools/ci/docs_scope_test.rs shebang 1
 tools/coverage/kcov/BUILD.bazel sh-rule 1
 tools/coverage/kcov/kcov.BUILD genrule 3
 tools/coverage/kcov/kcov_launcher.sh shebang 1
-tools/docs/dart/defs.bzl home 1
 tools/docs/dotnet/csharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/fsharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/pinned_driver.sh shebang 1
@@ -314,7 +304,6 @@ tools/testing/src/fatbin.rs shebang 1
 tools/testing/src/lib.rs shebang 2
 typescript/tests/fixtures/declarations/BUILD.bazel genrule 1
 typescript/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
-typescript/tests/fixtures/fuzz/run_test.sh shebang 1
 zig/private/bench_run.sh shebang 1
 zig/tests/fixtures/bench/BUILD.bazel sh-rule 1
 zig/tests/fixtures/bench/run_test.sh shebang 1

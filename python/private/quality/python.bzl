@@ -1,7 +1,7 @@
 """Python real quality aspects."""
 
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
-load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_resolve_list")
 
 TOOLS = {
     "pydoclint": {
@@ -54,7 +54,7 @@ def _ty_hook(target, _ctx, _resolved, _capability, _what, _shared):
     for f in transitive.to_list():
         if f.is_directory and f.short_path.endswith(".install"):
             search_dirs.append(f)
-    return real_context(early_inputs = search_dirs, resolve_lists = [(transitive, ["py", "pyi"])], options = {"search_paths": search_dirs})
+    return real_context(early_inputs = search_dirs, resolve_lists = [real_resolve_list(transitive, ["py", "pyi"])], options = {"search_paths": search_dirs})
 
 HOOK_ORDER = ["ty"]
 

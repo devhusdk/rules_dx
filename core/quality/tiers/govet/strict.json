@@ -11,6 +11,7 @@
   "defers": {},
   "directive": {},
   "errorsas": {},
+  "forvar": {},
   "framepointer": {},
   "hostport": {},
   "httpresponse": {},

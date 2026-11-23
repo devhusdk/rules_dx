@@ -7,6 +7,10 @@ use super::put;
 
 /// Reads the `build-depends` of every component in a `.cabal` file. Test suites and
 /// benchmarks are `dev`; `base` and the package's own library are not dependencies to check.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_haskell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let mut package = String::new();
@@ -113,6 +117,10 @@ fn haskell_spec(range: &str) -> String {
 
 /// Reads the pinned packages of the cabal freeze file (`any.text ==2.0.2`) or
 /// `stack.yaml.lock` (`hackage: text-2.0.2@sha256:...`).
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_haskell_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let freeze = regex::Regex::new(

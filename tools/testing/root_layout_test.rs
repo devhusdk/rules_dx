@@ -14,6 +14,7 @@ const SHARED: &[&str] = &[
     "examples",
     "gazelle",
     "patches",
+    "platforms",
     "third_party",
     "tools",
 ];

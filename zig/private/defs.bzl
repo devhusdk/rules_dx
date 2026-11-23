@@ -5,11 +5,11 @@ load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_configure_bina
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "single_target")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 load("//tools/coverage/sancov:sancov.bzl", "dx_sancov_attrs", "dx_sancov_test_coverage")
+load(":mode.bzl", "ZigOptsInfo", "ZigReleaseFastInfo", "zig_opts_aspect")
 
 # Set False to tag zig tests dx-no-coverage-collector instead of running kcov or sancov.
 ZIG_COVERAGE_COLLECTOR = True
@@ -43,34 +43,79 @@ _zig_library_forward = dx_library_forward_rule(
     ),
 )
 
-def _kcov_upstream_impl(settings, _attr):
-    """Builds the Zig test upstream for kcov or sancov under coverage: LLVM DWARF, unstripped."""
+_ZIG_MODE = str(Label("@rules_zig//zig/settings:mode"))
+
+def _upstream_mode(settings, coverage = False):
+    """Returns the set Zig mode, else ReleaseSafe, or Debug under coverage so the collectors keep line data."""
+    mode = settings[_ZIG_MODE]
+    if mode != "auto":
+        return mode
+    return "debug" if coverage else "release_safe"
+
+def _validate_release_fast(ctx):
+    """Fails on ReleaseFast, from the mode or the zigopts of the target or its zig_library deps, unless the target sets allow_release_fast."""
+    if ctx.attr.allow_release_fast:
+        return
+    if single_target(ctx.attr._release_fast)[ZigReleaseFastInfo].value:
+        fail("Zig mode release_fast drops safety checks; set allow_release_fast = True on the target to use it")
+    if single_target(ctx.attr.upstream)[ZigOptsInfo].release_fast:
+        fail("{}: zigopts set ReleaseFast or read an @file, on the target or a zig_library it depends on, which can drop safety checks; set allow_release_fast = True on the target to use it".format(ctx.label))
+
+def _zig_binary_upstream_impl(settings, _attr):
+    """Builds the Zig binary upstream without coverage, in ReleaseSafe unless a mode is set."""
+    return {
+        "//command_line_option:collect_code_coverage": False,
+        _ZIG_MODE: _upstream_mode(settings),
+    }
+
+_zig_binary_upstream = transition(
+    implementation = _zig_binary_upstream_impl,
+    inputs = [_ZIG_MODE],
+    outputs = ["//command_line_option:collect_code_coverage", _ZIG_MODE],
+)
+
+def _zig_test_upstream_impl(settings, _attr):
+    """Builds the Zig test upstream in ReleaseSafe, and for kcov or sancov under coverage: Debug, LLVM DWARF, unstripped."""
     coverage = settings["//command_line_option:collect_code_coverage"]
     return {
         "//command_line_option:collect_code_coverage": False,
         "//command_line_option:strip": "never" if coverage else settings["//command_line_option:strip"],
         "//zig:kcov": coverage,
+        _ZIG_MODE: _upstream_mode(settings, coverage),
     }
 
-_kcov_upstream = transition(
-    implementation = _kcov_upstream_impl,
+_zig_test_upstream = transition(
+    implementation = _zig_test_upstream_impl,
     inputs = [
         "//command_line_option:collect_code_coverage",
         "//command_line_option:strip",
+        _ZIG_MODE,
     ],
     outputs = [
         "//command_line_option:collect_code_coverage",
         "//command_line_option:strip",
         "//zig:kcov",
+        _ZIG_MODE,
     ],
 )
+
+def _release_mode_attrs(upstream_cfg):
+    """Returns the ReleaseFast opt-in attr and the mode probe, built in the upstream configuration."""
+    return {
+        "allow_release_fast": attr.bool(doc = "Allow ReleaseFast, which drops the safety checks that ReleaseSafe keeps."),
+        # Read after the upstream transition, where auto is gone, so only an explicit release_fast mode matches.
+        "_release_fast": attr.label(default = Label("//zig/private:release_fast"), cfg = upstream_cfg, providers = [ZigReleaseFastInfo]),
+    }
 
 _zig_binary_forward = dx_executable_forward_rule(
     _ZIG,
     "executable",
     dx_forward_spec(
         provides = _DX_ZIG_EXEC_PROVIDES,
-        upstream_cfg = no_coverage_transition,
+        extra_attrs = _release_mode_attrs(_zig_binary_upstream),
+        upstream_cfg = _zig_binary_upstream,
+        upstream_aspects = [zig_opts_aspect],
+        validate = _validate_release_fast,
     ),
 )
 
@@ -88,10 +133,12 @@ _zig_forward_test = dx_executable_forward_rule(
     "test",
     dx_forward_spec(
         provides = _DX_ZIG_EXEC_PROVIDES,
-        extra_attrs = dx_lcov_merger_attr() | dx_kcov_attrs() | dx_sancov_attrs() | {
+        extra_attrs = dx_lcov_merger_attr() | dx_kcov_attrs() | dx_sancov_attrs() | _release_mode_attrs(_zig_test_upstream) | {
             "deps": attr.label_list(doc = "Dependencies of the wrapped test, whose sources count for coverage."),
         },
-        upstream_cfg = _kcov_upstream,
+        upstream_cfg = _zig_test_upstream,
+        upstream_aspects = [zig_opts_aspect],
+        validate = _validate_release_fast,
         coverage_providers = _zig_test_coverage,
     ),
 )
@@ -105,37 +152,38 @@ def zig_library(name, main, *, srcs = None, import_name = None, visibility = Non
     kwargs = dx_without_warnings_attr(kwargs)
     dx_wrap(name, _zig_library, _zig_library_forward, srcs, visibility = visibility, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, import_name = zig_import_name(name, import_name), **kwargs)
 
-def zig_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
-    """Minimal wrapper over zig_binary. main is name.zig, else the single src."""
+def zig_binary(name, *, srcs = None, main = None, visibility = None, allow_release_fast = False, **kwargs):
+    """Minimal wrapper over zig_binary in ReleaseSafe. main is name.zig, else the single src."""
     kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("zig_binary", name, main, srcs, dx_main_candidates(name, ".zig"))
     upstream = dict(kwargs, main = main, tags = dx_upstream_tags(kwargs.get("tags", None)), zigopts = ["-j1"] + kwargs.get("zigopts", []))
-    dx_wrap_binary(name, _zig_binary, _zig_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, **kwargs)
+    dx_wrap_binary(name, _zig_binary, _zig_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = {"allow_release_fast": allow_release_fast}, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, **kwargs)
 
-def zig_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
-    """Minimal wrapper over zig_test. main is name.zig, else the single src; coverage builds add -fllvm, and -ffuzz on macOS."""
+def zig_test(name, *, srcs = None, main = None, visibility = None, allow_release_fast = False, **kwargs):
+    """Minimal wrapper over zig_test in ReleaseSafe. main is name.zig, else the single src; coverage builds add -fllvm, and -ffuzz on macOS."""
     kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("zig_test", name, main, srcs, dx_main_candidates(name, ".zig"))
     upstream = dict(
         kwargs,
         main = main,
         zigopts = ["-j1"] + kwargs.get("zigopts", []) + select({
-            Label("//zig/private:sancov_build"): ["-fllvm", "-ffuzz"],
+            Label("//zig:sancov_build"): ["-fllvm", "-ffuzz"],
             Label("//zig:kcov_build"): ["-fllvm"],
             "//conditions:default": [],
         }),
         test_runner = select({
-            Label("//zig/private:sancov_build"): Label("//zig/private:coverage_runner.zig"),
+            Label("//zig:sancov_build"): Label("//zig/private:coverage_runner.zig"),
             "//conditions:default": kwargs.get("test_runner"),
         }),
     )
-    dx_wrap_test(name, _zig_test, _zig_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = ZIG_COVERAGE_COLLECTOR, **kwargs)
+    dx_wrap_test(name, _zig_test, _zig_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, extra_forward_kwargs = {"allow_release_fast": allow_release_fast, "deps": kwargs.get("deps", [])}, coverage_collector = ZIG_COVERAGE_COLLECTOR, **kwargs)
 
 def _zig_bench_binary(name, tags = None, **kwargs):
     """A ReleaseFast zig_binary under `name`."""
     zig_binary(
         name = name + "_unoptimized",
         tags = tags,
+        allow_release_fast = True,
         **kwargs
     )
     _zig_configure_binary(

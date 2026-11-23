@@ -126,7 +126,7 @@ each root tool config. Never edit `.dx/`; it is generated.
 
 ```toml
 schema_version = 1
-tier = "strict"
+tier = "standard"
 
 [families.toml]
 lint = ["taplo"]
@@ -145,7 +145,8 @@ family can set its own `tier`. `[families.<id>]` replaces the tools of one
 capability (`lint`, `format`, `typecheck`, `audit`); a capability left out
 keeps the default tools. `disabled = true` turns the family off. `[scope]
 exclude` lists Bazel label patterns dx leaves out. Without `dx.toml`, every
-family found in the tree runs the default tools at the standard tier. See the
+family found in the tree runs the default tools at the strict tier. Set
+`tier = "standard"` to opt down. See the
 [config reference](config.md#dxtoml) for every key.
 
 To change a rule, edit the tool's root config file. See
@@ -168,6 +169,7 @@ To change a rule, edit the tool's root config file. See
 | `kotlin` | `ktfmt` | `detekt`, `typos` | `kotlinc` |
 | `markdown` | disabled | `lychee`, `markdown_check`, `typos` | disabled |
 | `mdx` | `remark` | `lychee`, `typos` | disabled |
+| `objc` | `clang_format` | `typos` | `clang_syntax` |
 | `python` | `ruff` | `ruff`, `typos` | `ty` |
 | `rust` | `rustfmt` | `clippy`, `typos` | `rustc` |
 | `scala` | `scalafmt` | `typos` | `scalac` |
@@ -224,7 +226,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `swift_lint` | Lint Swift | |
 | `swiftc` | Typecheck Swift (opt-in) | |
 
-`clang_syntax` replays each compile action with `-fsyntax-only`, using the command line Bazel configured. Headers are checked only when the target compiles them (`--features=parse_headers`). Toolchains without a readable command line (clang-cl, params files) fail with an explicit error. Select it with `typecheck = ["clang_syntax"]` on the `cc` family. It has no fix support.
+`clang_syntax` replays each compile action with `-fsyntax-only`, using the command line Bazel configured. Headers are checked only when the target compiles them (`--features=parse_headers`). Toolchains without a readable command line (clang-cl, params files) fail with an explicit error. Select it with `typecheck = ["clang_syntax"]` on the `cc` family. It is the default typecheck of the `objc` family. It has no fix support.
 
 `nvcc_syntax` replays each `CudaCompile` action with `-c` changed to `-cuda`. Device compilation still runs for every `-gencode` architecture, so the check is heavy. Select it with `typecheck = ["nvcc_syntax"]` on the `cuda` family. Params files and header-only `cuda_library` targets fail with an explicit error.
 
@@ -234,11 +236,31 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `standard` and `strict` clang-tidy tiers live in `core/quality/tiers/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a tier is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
 
-`clippy` takes its tier from `core/quality/tiers/clippy/`. Standard runs `clippy::all` with warnings as errors. Strict adds `clippy::pedantic` and denies `unwrap_used`, `expect_used`, `panic`, `unreachable`, `todo`, `unimplemented`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap`, `string_slice`, `fallible_impl_from`, `wildcard_enum_match_arm`, `let_underscore_must_use`, `undocumented_unsafe_blocks`, `allow_attributes_without_reason`, `allow_attributes`, `match_wildcard_for_single_variants`, `let_underscore_future`, `let_underscore_untyped`, `unchecked_time_subtraction`, `large_futures`, `try_err`, `infinite_loop`, `cast_possible_truncation`, `cast_possible_wrap`, `mem_forget`, `rc_mutex`, `multiple_unsafe_ops_per_block`, `string_add`, `create_dir`, `iter_over_hash_type`, and the rustc lints `unsafe_code`, `unsafe_op_in_unsafe_fn` and `unused_must_use`. `rust_test` targets and `testonly` crates skip `unwrap_used`, `expect_used`, `panic`, `unreachable`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap` and `string_slice`. Mark a needed exception with `#[expect(<lint>, reason = "...")]` on the item.
+`clippy` takes its tier from `core/quality/tiers/clippy/`. Standard runs `clippy::all` with warnings as errors. Strict adds `clippy::pedantic` and denies `unwrap_used`, `expect_used`, `panic`, `unreachable`, `todo`, `unimplemented`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap`, `string_slice`, `fallible_impl_from`, `wildcard_enum_match_arm`, `let_underscore_must_use`, `undocumented_unsafe_blocks`, `allow_attributes_without_reason`, `allow_attributes`, `match_wildcard_for_single_variants`, `let_underscore_future`, `let_underscore_untyped`, `unchecked_time_subtraction`, `large_futures`, `try_err`, `infinite_loop`, `cast_possible_truncation`, `cast_possible_wrap`, `mem_forget`, `rc_mutex`, `multiple_unsafe_ops_per_block`, `string_add`, `create_dir`, `iter_over_hash_type`, `map_err_ignore`, `unused_result_ok`, and the rustc lints `unsafe_code`, `unsafe_op_in_unsafe_fn` and `unused_must_use`. `rust_test` targets and `testonly` crates skip `unwrap_used`, `expect_used`, `panic`, `unreachable`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap` and `string_slice`. Mark a needed exception with `#[expect(<lint>, reason = "...")]` on the item.
+
+`zig_ast_check` in the strict tier also fails on these patterns. Comments and strings never match.
+
+| Rule | Pattern |
+| --- | --- |
+| `catch_unreachable` | `catch unreachable` or `catch { unreachable; }` |
+| `empty_catch` | `catch {}` |
+| `debug_print` | `std.debug.print` outside a `test` block, also as `@import("std").debug.print` or through a `const` alias of `std` or `std.debug` |
+| `todo_panic` | `@panic("TODO...")` |
+| `unsafe_cast` | `@ptrCast`, `@alignCast` or `@intCast` without a `// SAFETY:` comment in the statement or in the comment lines right above it. A struct init or `switch` body counts as part of the statement that holds it |
+
+`zig`, `zig_ast_check` and `zig_fmt` report every finding as an error.
 
 `kubeconform` runs with `-strict` in the strict tier, so duplicate keys fail; the tier comes from the build, not from `kubernetes_schemas`, which carries only the schemas and `skip_kinds`.
 
+`perlcritic` takes its tier from `core/quality/tiers/perlcritic/`. Standard runs severity 3 policies. Strict runs severity 1 policies and requires `use strict` and `use warnings`, checked `open`, `close` and other builtin calls, three-argument `open` with lexical handles, and a policy name on every `## no critic`. It bans string `eval`, `return undef`, and `no strict` or `no warnings` without a category. It leaves out layout and style noise such as `ProhibitMagicNumbers`, `RequireTrailingCommas`, `ProhibitPostfixControls`, `RequireExtendedFormatting`, `RequirePodSections` and `RequireArgUnpacking`.
+
+`shellcheck` reports every finding as a `warning`, style findings included, so they fail the default `--fail-on`. Both tiers set `external-sources=true`, so shellcheck follows `source` lines. Strict also turns on the optional checks `add-default-case`, `check-extra-masked-returns`, `check-set-e-suppressed`, `check-unassigned-uppercase` and `deprecate-which`.
+
+`shfmt` runs in simplify mode, so it also simplifies code. It picks the shell dialect from the shebang or the file extension.
+
 `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
+
+`govet`, `errcheck` and `staticcheck` take their tier from `core/quality/tiers/`. Standard runs the `go vet` defaults, errcheck, and staticcheck's default checks. Strict adds the vet analyzers `forvar`, `nilness`, `shadow` and `unusedwrite`. It also makes errcheck report `_ = f()`, unchecked type assertions such as `v.(string)`, and errors from `Close` and `fmt.Fprint*`. staticcheck runs the same checks in both tiers and leaves out `SA9003`, `ST1000`, `ST1003`, `ST1016` and `ST1020` to `ST1023`. Its `SA` findings are errors; `S`, `ST` and `U1000` findings are warnings.
 
 ### JVM and .NET
 
@@ -424,6 +446,10 @@ Each tool reads its own native config file at the repo root. The table lists the
 A bound ruff config runs with its own directory as the project root, the same as ruff's own discovery, so `src`, `exclude` and `per-file-ignores` resolve against that directory.
 
 A bound regal config may not set `capabilities.from.url`, use YAML aliases, merge keys or tags. `capabilities.from.file` must be a relative forward-slash path without `.` or `..` segments. Use `capabilities.from.engine` and `version` to pin capabilities.
+
+A bound or root `buf.yaml` may not list `deps`, in v1 or v2, or in a v2 `modules` entry, and may not use YAML aliases, merge keys or tags. `dx` runs buf offline. Declare imported protos as `proto_library` deps instead.
+
+trivy config and terraform typecheck read a Terraform file (`.tf` or `.tf.json`) only when every `module` it calls has a plain `./` or `../` string `source` that stays inside the target's files, and the same holds for every local module those call. Otherwise the file gets a `dx/terraform-module-source` error and the tool skips it (terraform typecheck skips that whole directory), because the tool would download the module and `dx` runs them offline. terraform typecheck also checks the `module` blocks in the `run` blocks of test files (`.tftest.hcl` or `.tftest.json`) in the directory and in its `tests` directory, and the Terraform files a dependency keeps in the same directory. A problem in a dependency's file lands on one of your files and names the dependency's file. Vendor the module into your repo and point `source` at that directory.
 
 ### Change a rule
 

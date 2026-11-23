@@ -32,7 +32,7 @@ _manifest_test = analysistest.make(
     attrs = {"expected": attr.string()},
     config_settings = {
         "//command_line_option:collect_code_coverage": True,
-        "//command_line_option:instrumentation_filter": "-//ocaml/tests/runtime",
+        "//command_line_option:instrumentation_filter": "-//ocaml/tests/fixtures/runtime",
     },
 )
 

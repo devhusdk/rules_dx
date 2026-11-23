@@ -10,6 +10,8 @@ load(":test.bzl", "testing_rust_test")
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
 # gazelle:resolve rust dx_nested //tools/testing/nested:dx_nested
+# The web app fixtures copy this test next to their site; it never runs here.
+# gazelle:exclude web_app_site_client.test.js
 
 exports_files(
     [
@@ -27,6 +29,7 @@ exports_files(
         "stub_target.bzl",
         "test_macros.bzl",
         "web_app_logo.png",
+        "web_app_site_client.test.js",
         "web_hello.bzl",
     ],
     visibility = VIS_TOOLS_PUBLIC,
@@ -378,6 +381,7 @@ rust_binary(
     crate_root = "determinism_check.rs",
     deps = [
         ":dx_testing",
+        "//cli/process:dx_process",
         "@crates//:serde_json",
     ],
 )

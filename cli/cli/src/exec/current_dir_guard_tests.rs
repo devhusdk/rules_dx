@@ -44,11 +44,14 @@ fn raw_current_dir_reads_stay_out_of_cli_production_code() {
     for (dir, sentinel) in [
         ("cli/cli/src", "exec/run.rs"),
         ("cli/exec_audit/src", "lib.rs"),
+        ("cli/exec_bench/src", "lib.rs"),
+        ("cli/exec_docs/src", "lib.rs"),
         ("cli/exec_core/src", "common.rs"),
         ("cli/exec_quality/src", "lib.rs"),
         ("cli/exec_reports/src", "pinned_tool.rs"),
         ("cli/exec_test_reports/src", "lib.rs"),
         ("cli/exec_update/src", "lib.rs"),
+        ("cli/exec_worktree/src", "lib.rs"),
     ] {
         let before = sources.len();
         rust_sources(&workspace_root().join(dir), &mut sources);

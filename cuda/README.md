@@ -30,7 +30,7 @@ Depend on the pinned labels:
 cuda_library(
     name = "gemm",
     srcs = ["gemm.cu"],
-    cuda_archs = ["sm_89"],
+    gpu_archs = ["sm_89"],
     deps = ["@rules_dx//cuda:cublas"],  # or :cufft, :curand
 )
 ```
@@ -43,6 +43,38 @@ See `cuda/tests/fixtures/cublas`.
 
 ## Quality
 
+### Warnings
+
+nvcc warnings fail the build by default. `cuda_library`, `cuda_objects`,
+`cuda_binary` and `cuda_test` pass nvcc these flags:
+
+```text
+-Werror=all-warnings,cross-execution-space-call
+-Wreorder -Wdefault-stream-launch -Wmissing-launch-bounds
+-Wext-lambda-captures-this --display-error-number
+```
+
+So give every kernel `__launch_bounds__` and every launch an explicit stream:
+
+```cuda
+__global__ void __launch_bounds__(256) saxpy(int n, float a, const float* x, float* y);
+
+saxpy<<<(n + 255) / 256, 256, 0, stream>>>(n, a, x, y);
+```
+
+On one target, set `warnings_as_errors = False` to keep the warnings but not
+fail on them. To allow warnings in the whole repository, add this line to
+`.bazelrc`:
+
+```text
+common --@rules_dx//config:warnings_as_errors=false
+```
+
+`copts` and `host_copts` may not hide warnings or relax device code. Analysis
+fails on `-w`, `--disable-warnings`, `-Wno-*`, `--diag-suppress`,
+`--expt-relaxed-constexpr` and `--use_fast_math`, also when passed to the host
+compiler through `-Xcompiler`. Fix the code instead.
+
 ### GPU tests
 
 ```python
@@ -51,7 +83,7 @@ load("@rules_dx//cuda:defs.bzl", "cuda_test")
 cuda_test(
     name = "saxpy_gpu_test",
     srcs = ["saxpy_gpu_test.cu"],
-    cuda_archs = ["compute_89:compute_89,sm_89", "sm_120"],
+    gpu_archs = ["compute_89:compute_89,sm_89", "sm_120"],
     min_compute_capability = "8.9",
     min_driver = "13.0",
     deps = [":saxpy"],
@@ -84,9 +116,9 @@ when a kernel launch fails. Return 0.
 
 Set `min_compute_capability` and `min_driver` on `cuda_test` to run it on a GPU. Set both.
 
-- `cuda_archs`: required arch specs, as for `cuda_library`.
+- `gpu_archs`: required arch specs, as for `cuda_library`.
 - `min_compute_capability`: lowest device compute capability, `X.Y`.
-  It must be at least the lowest arch in `cuda_archs`.
+  It must be at least the lowest arch in `gpu_archs`.
 - `min_driver`: lowest CUDA driver version, `X.Y`, from `13.0` to `13.4`.
 
 The runtime version is always the pinned toolkit, 13.4.
@@ -140,8 +172,9 @@ rules_dx declares the pinned nvcc toolchain; a consumer adds no
 | --- | --- |
 | `dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add dx_licenses.accept(ids = ["cuda-eula"]) to the root MODULE.bazel` | Add the license tag to the root `MODULE.bazel`. |
 | `dx_cuda: unknown license '<name>'; the only one is 'cuda-eula'` | Accept `cuda-eula`. |
-| `dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = ["sm_89"]` | Set `cuda_archs`. |
+| `dx_cuda: gpu_archs is empty; set gpu_archs, for example gpu_archs = ["sm_89"]` | Set `gpu_archs`. |
 | `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |
+| `dx_cuda: copt '<flag>' silences warnings or relaxes device code; fix the code instead` | Remove the flag from `copts`, `host_copts` or `cuda_copts` and fix the warning. |
 | `dx_cuda: @rules_cuda//cuda:compiler is '<compiler>'; dx CUDA targets compile with nvcc only` | Remove the `@rules_cuda//cuda:compiler` setting. |
 | `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); remove your own rules_cuda cuda.redist_json and cuda.toolkit tags` | Remove your own rules_cuda `cuda.redist_json` and `cuda.toolkit` tags. |
 | `dx_cuda: the CUDA toolkit is <version>; dx CUDA targets need 13.4` | Use the versions from Setup. |

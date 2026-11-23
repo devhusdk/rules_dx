@@ -1,14 +1,61 @@
 //! Vulnerability scan of the staged OCI layout with `trivy image`.
 
 use std::ffi::OsString;
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::run::{PUBLISH_CHILD_ENV_KEEP, run_publish, scrubbed_command};
-use dx_audit::exception::{load_security, validate_exception};
+use dx_audit::exception::{SecurityProblem, load_security, validate_exception};
 use dx_audit::image_scan::{
     ImageFinding, covers, parse_report, severity_list, trivy_args, trivy_cache,
 };
 use dx_audit::tier_base::Tier;
+use dx_error::DxError;
+use dx_process::capture::RunError;
+
+/// A failed image scan: bad settings, a missing database, trivy or `security.toml`.
+#[derive(Debug)]
+pub enum ScanError {
+    /// The severity floor, trivy cache or trivy report was rejected.
+    Audit(DxError),
+    /// The pinned trivy cache has no `db/metadata.json`.
+    DatabaseMissing { cache: PathBuf },
+    /// trivy could not be run.
+    Run { binary: PathBuf, source: RunError },
+    /// trivy exited nonzero.
+    TrivyFailed { stderr: String },
+    /// `security.toml` is invalid.
+    Policy(SecurityProblem),
+}
+
+impl fmt::Display for ScanError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Audit(source) => write!(f, "{source}"),
+            Self::DatabaseMissing { cache } => write!(
+                f,
+                "trivy database missing in {}: db/metadata.json; pin it with advisory_prep --trivy --pin",
+                cache.display()
+            ),
+            Self::Run { binary, source } => {
+                write!(f, "cannot run {}: {source}", binary.display())
+            }
+            Self::TrivyFailed { stderr } => write!(f, "trivy failed: {stderr}"),
+            Self::Policy(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for ScanError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Audit(source) => Some(source),
+            Self::Run { source, .. } => Some(source),
+            Self::Policy(source) => Some(source),
+            Self::DatabaseMissing { .. } | Self::TrivyFailed { .. } => None,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ScanMode {
@@ -60,8 +107,8 @@ pub fn apply_exceptions(
     label: &str,
     security_toml: Option<&str>,
     today: &str,
-) -> Result<Vec<ImageFinding>, String> {
-    let policy = load_security(security_toml, Tier::Standard).map_err(|error| error.to_string())?;
+) -> Result<Vec<ImageFinding>, ScanError> {
+    let policy = load_security(security_toml, Tier::Standard).map_err(ScanError::Policy)?;
     let label = (!label.is_empty()).then_some(label);
     let live: Vec<_> = policy
         .exceptions
@@ -125,21 +172,20 @@ pub fn scan_layout(
     floor: &str,
     label: &str,
     workspace: Option<&Path>,
-    run: impl Fn(&[OsString]) -> Result<String, String>,
-) -> Result<Vec<ImageFinding>, String> {
-    let severities = severity_list(floor).map_err(|e| e.to_string())?;
-    let cache = trivy_cache(workspace, &today(), false).map_err(|e| e.to_string())?;
+    run: impl Fn(&[OsString]) -> Result<String, ScanError>,
+) -> Result<Vec<ImageFinding>, ScanError> {
+    let severities = severity_list(floor).map_err(ScanError::Audit)?;
+    let cache = trivy_cache(workspace, &today(), false).map_err(ScanError::Audit)?;
     if let Some(cache) = cache
         .as_ref()
         .filter(|cache| !cache.join("db").join("metadata.json").is_file())
     {
-        return Err(format!(
-            "trivy database missing in {}: db/metadata.json; pin it with advisory_prep --trivy --pin",
-            cache.display()
-        ));
+        return Err(ScanError::DatabaseMissing {
+            cache: cache.clone(),
+        });
     }
     let report = run(&trivy_args(layout, &severities, cache.as_deref(), None))?;
-    let findings = parse_report(&report).map_err(|e| e.to_string())?;
+    let findings = parse_report(&report).map_err(ScanError::Audit)?;
     let toml = workspace.and_then(|root| std::fs::read_to_string(root.join("security.toml")).ok());
     apply_exceptions(findings, label, toml.as_deref(), &today())
 }
@@ -148,20 +194,21 @@ pub fn scan_layout(
 const TRIVY_CHILD_ENV_EXTRA: &[&str] = &["XDG_CACHE_HOME", "TRIVY_"];
 
 /// The real trivy: `DX_TRIVY` or `trivy` on the PATH, offline.
-pub fn run_trivy(args: &[OsString]) -> Result<String, String> {
+pub fn run_trivy(args: &[OsString]) -> Result<String, ScanError> {
     let binary = std::env::var_os("DX_TRIVY").unwrap_or_else(|| "trivy".into());
     let mut cmd = scrubbed_command(
         Path::new(&binary),
         &[PUBLISH_CHILD_ENV_KEEP, TRIVY_CHILD_ENV_EXTRA],
         &[],
     );
-    let output = run_publish(cmd.args(args))
-        .map_err(|error| format!("cannot run {}: {error}", Path::new(&binary).display()))?;
+    let output = run_publish(cmd.args(args)).map_err(|source| ScanError::Run {
+        binary: PathBuf::from(&binary),
+        source,
+    })?;
     if !output.success() {
-        return Err(format!(
-            "trivy failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
+        return Err(ScanError::TrivyFailed {
+            stderr: String::from_utf8_lossy(&output.stderr).trim().to_owned(),
+        });
     }
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
@@ -170,7 +217,7 @@ pub fn run_trivy(args: &[OsString]) -> Result<String, String> {
 pub fn scan_and_report(
     layout: &Path,
     checks: &OciChecks,
-    run: impl Fn(&[OsString]) -> Result<String, String>,
+    run: impl Fn(&[OsString]) -> Result<String, ScanError>,
 ) -> i32 {
     if checks.scan == ScanMode::Off {
         return 0;
@@ -284,7 +331,9 @@ mod tests {
         );
         assert_eq!(scan_and_report(layout, &checks, |_| Ok("{}".to_owned())), 0);
         assert_eq!(
-            scan_and_report(layout, &checks, |_| Err("no trivy".to_owned())),
+            scan_and_report(layout, &checks, |_| Err(ScanError::TrivyFailed {
+                stderr: "no trivy".to_owned()
+            })),
             1
         );
         let warn = OciChecks {

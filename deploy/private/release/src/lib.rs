@@ -1,9 +1,4 @@
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fmt;
 use std::io;
@@ -46,11 +41,11 @@ pub use ledger::{LedgerError, OpRecord, OpState, ledger_exit, render_ledger};
 pub use tool::release_tool_run;
 
 use dx_atomic_fs::path_io::{self, PathIoError};
+use dx_deploy_tools::signing::{CosignError, check_pin, sign_one};
 pub use dx_deploy_tools::signing::{
     CosignPin, cosign_git_version, sign_argv as signing_sign_argv, signing_version_ok,
     verify_argv as signing_verify_argv,
 };
-use dx_deploy_tools::signing::{check_pin, sign_one};
 use dx_error::DxError;
 use dx_fingerprint::FingerprintError;
 use spdx::SpdxDocument;
@@ -1089,8 +1084,10 @@ pub enum SigningError {
     NoAssets,
     NoIdentity,
     /// The cosign binary does not match its pin.
-    Pin(String),
+    Pin(CosignError),
     Outdir(dx_atomic_fs::path_io::PathIoError),
+    /// One asset failed to sign or verify.
+    Cosign(CosignError),
     /// The detail of the first failed or partial sign record.
     Sign(String),
 }
@@ -1102,7 +1099,8 @@ impl std::fmt::Display for SigningError {
             Self::NoIdentity => f.write_str(
                 "signing: missing SIGNING_IDENTITY (owner-approved release workflow identity)",
             ),
-            Self::Pin(message) | Self::Sign(message) => f.write_str(message),
+            Self::Pin(source) | Self::Cosign(source) => write!(f, "{source}"),
+            Self::Sign(message) => f.write_str(message),
             Self::Outdir(source) => write!(f, "signing: {source}"),
         }
     }
@@ -1112,7 +1110,8 @@ impl std::error::Error for SigningError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Outdir(source) => Some(source),
-            Self::NoAssets | Self::NoIdentity | Self::Pin(_) | Self::Sign(_) => None,
+            Self::Pin(source) | Self::Cosign(source) => Some(source),
+            Self::NoAssets | Self::NoIdentity | Self::Sign(_) => None,
         }
     }
 }
@@ -1245,7 +1244,7 @@ fn signing_sign_one(
     pin: &CosignPin<'_>,
 ) -> Result<(), SigningError> {
     let verify = signing_verify_argv(pin.path, asset, bundle, identity, issuer);
-    sign_one(pin, asset, bundle, false, Some(verify)).map_err(SigningError::Sign)
+    sign_one(pin, asset, bundle, false, Some(verify)).map_err(SigningError::Cosign)
 }
 
 #[must_use]

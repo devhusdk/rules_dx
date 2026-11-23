@@ -1,15 +1,12 @@
 """Analysis-time checks for dx CUDA targets."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("@rules_cuda//cuda/private:providers.bzl", "CudaToolkitInfo")
 load("//core/modules:cuda.bzl", "CUDA_ARCHS", "CUDA_CELLS", "CUDA_REDIST_VERSION", "CUDA_VERSION", "cuda_qualified_cells")
-
-_TOOLCHAIN_TYPE = "//cuda/private/toolchain/hub:toolchain_type"
 
 def arch_errors(archs):
     """Returns one error per arch spec token that the pinned nvcc does not support."""
     if not archs:
-        return ["dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = [\"sm_89\"]"]
+        return ["dx_cuda: gpu_archs is empty; set gpu_archs, for example gpu_archs = [\"sm_89\"]"]
     errors = []
     for spec in archs:
         for part in spec.replace(":", ",").split(","):
@@ -45,7 +42,7 @@ def gpu_requirement_errors(archs, min_compute_capability, min_driver):
     if cc == None:
         errors.append("dx_cuda: min_compute_capability '" + str(min_compute_capability) + "' is not X.Y, for example \"8.9\"")
     elif lowest != None and cc < lowest:
-        errors.append("dx_cuda: min_compute_capability " + min_compute_capability + " is below the lowest arch in cuda_archs (%d.%d)" % lowest)
+        errors.append("dx_cuda: min_compute_capability " + min_compute_capability + " is below the lowest arch in gpu_archs (%d.%d)" % lowest)
     driver = _version(min_driver)
     pinned = _version(CUDA_VERSION)
     floor = "%d.0" % pinned[0]
@@ -155,37 +152,47 @@ def component_errors(name, paths):
             return ["dx_cuda: component '" + name + "' is not the pinned redistributable (file '" + path + "'); remove your own rules_cuda cuda.redist_json and cuda.toolkit tags"]
     return []
 
+# Flags that hide nvcc or host warnings, or relax device-code semantics.
+_BANNED_COPTS = ["-w", "--disable-warnings", "--expt-relaxed-constexpr", "-expt-relaxed-constexpr", "--use_fast_math", "-use_fast_math"]
+_BANNED_COPT_PREFIXES = ["-Wno-", "--diag-suppress", "-diag-suppress", "--diag_suppress", "-diag_suppress"]
+
+def _banned_flag(flag):
+    return flag in _BANNED_COPTS or any([flag.startswith(prefix) for prefix in _BANNED_COPT_PREFIXES])
+
+def _banned_copt(flag, host):
+    """Returns whether one copt, or the host flags it passes on, is banned."""
+    for prefix in ("-Xcompiler=", "--compiler-options="):
+        if flag.startswith(prefix):
+            flag = flag[len(prefix):]
+            host = True
+    if host:
+        return any([_banned_flag(part) for part in flag.split(",")])
+    return _banned_flag(flag)
+
+def copt_errors(copts):
+    """Returns one error per copt that silences warnings or relaxes device-code checks."""
+    errors = []
+    host = False
+    for flag in copts:
+        if _banned_copt(flag, host):
+            errors.append("dx_cuda: copt '" + flag + "' silences warnings or relaxes device code; fix the code instead")
+
+        # nvcc takes the token after a bare -Xcompiler as host compiler flags.
+        host = flag in ("-Xcompiler", "--compiler-options")
+    return errors
+
 def _check_impl(ctx):
-    errors = compiler_errors(ctx.attr._compiler[BuildSettingInfo].value) + arch_errors(ctx.attr.archs)
+    errors = compiler_errors(ctx.attr._compiler[BuildSettingInfo].value) + arch_errors(ctx.attr.archs) + copt_errors(ctx.attr.copts)
     if errors:
         fail("\n".join(errors))
     return [DefaultInfo()]
 
 cuda_check = rule(
     implementation = _check_impl,
-    doc = "Fails analysis when a dx CUDA target uses an unsupported arch or compiler.",
+    doc = "Fails analysis when a dx CUDA target uses an unsupported arch, compiler or copt.",
     attrs = {
         "archs": attr.string_list(doc = "Arch specs of the checked target."),
+        "copts": attr.string_list(doc = "nvcc and host copts of the checked target."),
         "_compiler": attr.label(default = "@rules_cuda//cuda:compiler"),
     },
-)
-
-def _toolkit_check_impl(ctx):
-    toolchain = ctx.toolchains[_TOOLCHAIN_TYPE]
-    if toolchain == None:
-        fail("dx_cuda: no nvcc toolchain for this target; dx CUDA targets build for " + ", ".join(cuda_qualified_cells()))
-    toolkit = toolchain.cuda_toolkit[CudaToolkitInfo]
-    errors = toolkit_errors(
-        toolchain.compiler_executable,
-        toolkit.path,
-        "{}.{}".format(toolkit.version_major, toolkit.version_minor),
-    )
-    if errors:
-        fail("\n".join(errors))
-    return [DefaultInfo()]
-
-cuda_toolkit_check = rule(
-    implementation = _toolkit_check_impl,
-    doc = "Fails analysis when the resolved CUDA toolchain is not the pinned nvcc toolkit.",
-    toolchains = [config_common.toolchain_type(_TOOLCHAIN_TYPE, mandatory = False)],
 )

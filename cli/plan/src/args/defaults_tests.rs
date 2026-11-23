@@ -172,10 +172,7 @@ fn every_agent_has_a_marker_or_a_reason() {
             Agent::Copilot => None,
         };
         if let Some(marker) = marker {
-            assert!(
-                dx_adopt::defaults::AGENT_ENVS.contains(&marker),
-                "{agent:?}"
-            );
+            assert!(dx_process::AGENT_ENVS.contains(&marker), "{agent:?}");
         }
     }
 }
@@ -183,7 +180,7 @@ fn every_agent_has_a_marker_or_a_reason() {
 #[test]
 fn agent_markers_default_json_and_explicit_choices_win() {
     use super::parse_with_ci;
-    for marker in dx_adopt::defaults::AGENT_ENVS {
+    for marker in dx_process::AGENT_ENVS {
         let pairs = [(marker, "1")];
         let env = env_of(&pairs);
         let got = parse_with(&strings(&["test"]), &env).expect("agent");

@@ -5,7 +5,7 @@ use super::check::{CheckCall, ToolDef, in_file, real_launcher};
 use super::single_run::paths;
 use super::{
     JULIALINT_STANDARD, PKL_LSP_HOME_REL, Path, PathBuf, RealBackend, RealTool, RunnerError,
-    execution, parsed, with_stderr,
+    execution, missing_tier_base, parsed, with_stderr,
 };
 
 /// The bundled standard phpcs runs when the consumer binds no config.
@@ -345,7 +345,7 @@ fn luals(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>
     let tool = call.tool;
     let scratch = &call.staged.scratch;
     let pairs = &call.staged.pairs;
-    let config = call.config;
+    let config = call.config.ok_or_else(|| missing_tier_base(tool_id))?;
     // LuaLS reports file URIs of the real paths, so analyse and match canonical ones.
     let root = real_launcher(scratch.root());
     if !root.is_dir() {
@@ -373,25 +373,20 @@ fn luals(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>
         .iter()
         .any(|(rel, _)| rel.starts_with("dx-luals/mod/"))
         .then(|| root.join("dx-luals/mod"));
-    // A consumer config is a flat .luarc.json object; .jsonc is not read.
-    let consumer: Option<serde_json::Value> = match config {
-        Some(path) => {
-            let text = std::fs::read_to_string(path)
-                .map_err(|err| execution(tool_id, format!("read luals config: {err}")))?;
-            Some(serde_json::from_str(&text).map_err(|err| {
-                execution(
-                    tool_id,
-                    format!("luals config is not plain JSON (.jsonc is unsupported): {err}"),
-                )
-            })?)
-        }
-        None => None,
-    };
+    // The bound config is a flat .luarc.json object; .jsonc is not read.
+    let text = std::fs::read_to_string(config)
+        .map_err(|err| execution(tool_id, format!("read luals config: {err}")))?;
+    let consumer: serde_json::Value = serde_json::from_str(&text).map_err(|err| {
+        execution(
+            tool_id,
+            format!("luals config is not plain JSON (.jsonc is unsupported): {err}"),
+        )
+    })?;
     let luarc = work.join("luarc.json");
     std::fs::write(
         &luarc,
         commands::luals_luarc(
-            consumer.as_ref(),
+            &consumer,
             library.as_deref(),
             &["dx-luals", ".dx-luals"],
         ),

@@ -61,12 +61,12 @@ _NO_CONFIG = config(kind = "none")
 
 _LEVELS = ["error", "warning", "info"]
 
-def severity(default = None, categories = {}):
+def severity(default = None, categories = {}, floor = None):
     """Returns a tool's severity map, applied once after its parser has run."""
-    for level in [default] + categories.values():
+    for level in [default, floor] + categories.values():
         if level != None and level not in _LEVELS:
             fail("severity level %r is not one of %s" % (level, _LEVELS))
-    return struct(categories = categories, default = default)
+    return struct(categories = categories, default = default, floor = floor)
 
 _NO_SEVERITY = severity()
 

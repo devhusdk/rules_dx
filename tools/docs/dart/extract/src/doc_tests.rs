@@ -71,8 +71,10 @@ fn two_sources_staging_as_one_path_fail() {
         ("bazel-out/bin/a/lib/x.dart", "a/lib/x.dart"),
         ("a/lib/x.dart", "a/lib/x.dart"),
     ]);
+    let error = plan(&packages, &srcs, "p", "//a:docs").unwrap_err();
+    assert!(matches!(error, DartDocError::StageClash { .. }));
     assert_eq!(
-        plan(&packages, &srcs, "p", "//a:docs").unwrap_err(),
+        error.to_string(),
         "dart_doc_shard //a:docs: a/lib/x.dart and bazel-out/bin/a/lib/x.dart both stage as p/lib/x.dart"
     );
 }
@@ -118,7 +120,7 @@ fn parse_reads_every_flag() {
         "o",
         "--label",
         "l",
-        "--stage",
+        "--scratch",
         "st",
         "--html",
         "h",
@@ -128,6 +130,37 @@ fn parse_reads_every_flag() {
     .collect();
     let options = parse(&args).unwrap();
     assert_eq!(options.own, "o");
-    assert_eq!(options.stage, "st");
+    assert_eq!(options.scratch, "st");
     assert!(parse(&args[2..]).is_err());
+}
+
+#[test]
+fn rows_name_the_bad_line_and_the_unread_file() {
+    let scratch = dx_test_scratch::scratch("dart_doc_rows").unwrap();
+    let file = scratch.path().join("rows.tsv");
+    fs::write(&file, "a\tb\nnotab\n").unwrap();
+    let path = file.display().to_string();
+    let error = rows(&path).unwrap_err();
+    assert!(matches!(error, DartDocError::MalformedRow { .. }));
+    assert_eq!(
+        error.to_string(),
+        format!("malformed line 'notab' in {path}")
+    );
+    let missing = scratch.path().join("absent.tsv").display().to_string();
+    let error = rows(&missing).unwrap_err();
+    assert!(matches!(error, DartDocError::Io(_)));
+    assert!(error.to_string().starts_with("cannot read "), "{error}");
+}
+
+#[test]
+fn empty_dir_keeps_the_directory_and_drops_its_entries() {
+    let scratch = dx_test_scratch::scratch("dart_doc_empty_dir").unwrap();
+    let dir = scratch.path();
+    fs::create_dir_all(dir.join("stage/pkg/lib")).unwrap();
+    fs::write(dir.join("stage/pkg/lib/a.dart"), "").unwrap();
+    fs::create_dir_all(dir.join("pub")).unwrap();
+    fs::write(dir.join(".dartServer"), "").unwrap();
+    empty_dir(dir).unwrap();
+    assert!(dir.is_dir());
+    assert_eq!(fs::read_dir(dir).unwrap().count(), 0);
 }

@@ -2,7 +2,7 @@
 
 load("//bicep/private:providers.bzl", "BicepInfo")
 load("//core/quality:family_hooks.bzl", "stage")
-load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_resolve_list")
 
 TOOLS = {
     "bicep": {
@@ -42,7 +42,7 @@ def _bicep_hook(target, _ctx, _resolved, _capability, _what, _shared):
         if rel:
             stage(tool_files, inputs, "dx-bicep/home/.bicep/" + rel, f)
     closure = depset(transitive = [target[BicepInfo].transitive_srcs, target[BicepInfo].transitive_data])
-    return real_context(tool_files = tool_files, inputs = inputs, resolve_lists = [(closure, [])])
+    return real_context(tool_files = tool_files, inputs = inputs, resolve_lists = [real_resolve_list(closure)])
 
 def _trivy_hook(target, ctx, resolved, capability, what, shared):
     context = _bicep_hook(target, ctx, resolved, capability, what, shared)

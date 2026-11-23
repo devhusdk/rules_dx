@@ -19,6 +19,9 @@ pub struct RequestTool {
     pub files: Vec<(String, String)>,
     /// Files of `rel<TAB>exec` lines, staged like `files`.
     pub file_lists: Vec<PathBuf>,
+    /// Files of `rel<TAB>exec` lines for dependency files: each exec path is staged once, and
+    /// never when it is a checked source.
+    pub dep_lists: Vec<PathBuf>,
     pub env: Vec<(String, String)>,
     pub upstream: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,
@@ -57,6 +60,8 @@ pub struct RealRequest {
 pub struct ResolveList {
     pub list: PathBuf,
     pub extensions: Vec<String>,
+    /// A file of directory roots, one per line, stripped from the front of each listed path.
+    pub strip_roots: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -133,6 +138,8 @@ struct ResolveListDoc {
     list: String,
     #[serde(default)]
     extensions: Vec<String>,
+    #[serde(default)]
+    strip_roots: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -159,6 +166,8 @@ struct ToolDoc {
     files: Vec<ToolFileDoc>,
     #[serde(default)]
     file_lists: Vec<String>,
+    #[serde(default)]
+    dep_lists: Vec<String>,
     #[serde(default)]
     env: Vec<EnvDoc>,
     #[serde(default)]
@@ -260,9 +269,16 @@ fn check_resolve_lists(docs: &[ResolveListDoc]) -> Result<Vec<ResolveList>, Requ
                 workspace: doc.list.clone(),
             });
         }
+        if doc.strip_roots.as_deref() == Some("") {
+            return Err(RequestError::EmptyExec {
+                role: "resolve list strip roots".to_owned(),
+                workspace: doc.list.clone(),
+            });
+        }
         out.push(ResolveList {
             list: PathBuf::from(&doc.list),
             extensions: doc.extensions.clone(),
+            strip_roots: doc.strip_roots.as_ref().map(PathBuf::from),
         });
     }
     Ok(out)
@@ -380,6 +396,7 @@ fn check_tool(
     let upstream = non_empty_paths("upstream diagnostics", tool_id, &doc.upstream)?;
     let search_paths = non_empty_paths("tool search path", tool_id, &doc.search_paths)?;
     let file_lists = non_empty_paths("tool file list", tool_id, &doc.file_lists)?;
+    let dep_lists = non_empty_paths("tool dependency list", tool_id, &doc.dep_lists)?;
     let path_tools = check_path_tools(tool_id, doc)?;
     if binary.is_none() && upstream.is_empty() {
         return Err(RequestError::ToolWithoutBinary {
@@ -394,6 +411,7 @@ fn check_tool(
         args: doc.args.clone(),
         files,
         file_lists,
+        dep_lists,
         env,
         upstream,
         search_paths,
@@ -585,11 +603,25 @@ mod tests {
             [ResolveList {
                 list: PathBuf::from("out/ty-resolves.txt"),
                 extensions: vec!["py".to_owned(), "pyi".to_owned()],
+                strip_roots: None,
+            }]
+        );
+        doc["resolve_lists"] =
+            json!([{"list": "out/buf-resolves.txt", "strip_roots": "out/buf-roots.txt"}]);
+        let request =
+            parse_real_request(&serde_json::to_vec(&doc).expect("encodes")).expect("parses");
+        assert_eq!(
+            request.resolve_lists,
+            [ResolveList {
+                list: PathBuf::from("out/buf-resolves.txt"),
+                extensions: Vec::new(),
+                strip_roots: Some(PathBuf::from("out/buf-roots.txt")),
             }]
         );
         for bad in [
             json!({"list": ""}),
             json!({"list": "a.txt", "extensions": [""]}),
+            json!({"list": "a.txt", "strip_roots": ""}),
         ] {
             doc["resolve_lists"] = json!([bad]);
             assert!(matches!(

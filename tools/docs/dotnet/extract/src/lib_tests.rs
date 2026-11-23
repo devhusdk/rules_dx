@@ -1,5 +1,6 @@
 use super::*;
 use documentation_ir::proto::SymbolKind;
+use std::fs;
 
 fn settings() -> Settings {
     Settings {
@@ -9,12 +10,12 @@ fn settings() -> Settings {
         sources: vec![
             Source {
                 exec_path: "lib/A.cs".to_owned(),
-                file: "lib/A.cs".to_owned(),
+                rel: "lib/A.cs".to_owned(),
                 generated: false,
             },
             Source {
                 exec_path: "bazel-out/gen/G.cs".to_owned(),
-                file: "gen/G.cs".to_owned(),
+                rel: "gen/G.cs".to_owned(),
                 generated: true,
             },
         ],
@@ -82,7 +83,9 @@ fn kinds_map_onto_symbol_kinds() {
 #[test]
 fn unknown_kind_is_rejected() {
     let json = api(&[item("T:A.X", "weird", "X", None)]);
-    assert!(convert(&json, &settings()).unwrap_err().contains("weird"));
+    let error = convert(&json, &settings()).unwrap_err();
+    assert!(matches!(&error, DotnetExtractError::UnknownKind { kind } if kind == "weird"));
+    assert_eq!(error.to_string(), "unknown item kind 'weird'");
 }
 
 #[test]
@@ -152,11 +155,9 @@ fn case_folded_collisions_fail() {
         item("T:A.Foo", "class", "Foo", None),
         item("T:A.foo", "class", "foo", None),
     ]);
-    assert!(
-        convert(&json, &settings())
-            .unwrap_err()
-            .contains("case folding")
-    );
+    let error = convert(&json, &settings()).unwrap_err();
+    assert!(matches!(error, DotnetExtractError::IdCollision { .. }));
+    assert!(error.to_string().contains("case folding"), "{error}");
 }
 
 #[test]
@@ -165,11 +166,9 @@ fn duplicate_doc_ids_fail() {
         item("T:A.Foo", "class", "Foo", None),
         item("T:A.Foo", "class", "Foo", None),
     ]);
-    assert!(
-        convert(&json, &settings())
-            .unwrap_err()
-            .contains("duplicate")
-    );
+    let error = convert(&json, &settings()).unwrap_err();
+    assert!(matches!(error, DotnetExtractError::DuplicateDocId { .. }));
+    assert_eq!(error.to_string(), "duplicate doc id 'T:A.Foo'");
 }
 
 #[test]
@@ -192,10 +191,11 @@ fn sources_map_through_the_manifest() {
 #[test]
 fn sources_outside_the_manifest_fail() {
     let json = api(&[item("T:A.X", "class", "X", None)]).replace("lib/A.cs", "lib/Other.cs");
-    assert!(
-        convert(&json, &settings())
-            .unwrap_err()
-            .contains("not a declared source")
+    let error = convert(&json, &settings()).unwrap_err();
+    assert!(matches!(error, DotnetExtractError::UndeclaredSource { .. }));
+    assert_eq!(
+        error.to_string(),
+        "'T:A.X' is declared in 'lib/Other.cs', which is not a declared source"
     );
 }
 
@@ -213,37 +213,49 @@ fn incomplete_markers_and_missing_summaries_are_recorded() {
 
 #[test]
 fn empty_api_is_rejected() {
-    assert!(
-        convert(&api(&[]), &settings())
-            .unwrap_err()
-            .contains("no public items")
-    );
+    let error = convert(&api(&[]), &settings()).unwrap_err();
+    assert!(matches!(error, DotnetExtractError::NoItems));
+    assert_eq!(error.to_string(), "API JSON has no public items");
 }
 
 #[test]
 fn malformed_and_foreign_inputs_are_rejected() {
-    assert!(convert("{", &settings()).unwrap_err().contains("malformed"));
+    let malformed = convert("{", &settings()).unwrap_err();
+    assert!(matches!(malformed, DotnetExtractError::MalformedApi(_)));
+    assert!(malformed.to_string().starts_with("API JSON is malformed: "));
     let wrong = api(&[item("T:A.X", "class", "X", None)]).replace("api/1", "api/2");
-    assert!(
-        convert(&wrong, &settings())
-            .unwrap_err()
-            .contains("not supported")
+    let unsupported = convert(&wrong, &settings()).unwrap_err();
+    assert!(matches!(
+        unsupported,
+        DotnetExtractError::UnsupportedSchema { .. }
+    ));
+    assert_eq!(
+        unsupported.to_string(),
+        "API JSON schema 'dx.dotnet-api/2' is not supported, expected 'dx.dotnet-api/1'"
     );
+    let unversioned = convert(r#"{"items":[]}"#, &settings()).unwrap_err();
+    assert!(matches!(unversioned, DotnetExtractError::NoSchema));
     let extra = api(&[item("T:A.X", "class", "X", None)])
         .replace("\"assembly\"", "\"extra\":1,\"assembly\"");
+    let mismatched = convert(&extra, &settings()).unwrap_err();
+    assert!(matches!(mismatched, DotnetExtractError::ApiShape(_)));
     assert!(
-        convert(&extra, &settings())
-            .unwrap_err()
-            .contains("does not match")
+        mismatched
+            .to_string()
+            .starts_with("API JSON does not match dx.dotnet-api/1: ")
     );
     let other = Settings {
         language: "fsharp".to_owned(),
         ..settings()
     };
-    assert!(
-        convert(&api(&[item("T:A.X", "class", "X", None)]), &other)
-            .unwrap_err()
-            .contains("language")
+    let mismatch = convert(&api(&[item("T:A.X", "class", "X", None)]), &other).unwrap_err();
+    assert!(matches!(
+        mismatch,
+        DotnetExtractError::LanguageMismatch { .. }
+    ));
+    assert_eq!(
+        mismatch.to_string(),
+        "API JSON language 'csharp' does not match 'fsharp'"
     );
 }
 
@@ -266,7 +278,14 @@ fn parse_reads_flags_and_requires_a_known_language() {
     assert_eq!(options.language, "csharp");
     let mut bad = full.to_vec();
     bad[3] = "vb";
-    assert!(parse(&args(&bad)).unwrap_err().contains("csharp or fsharp"));
+    let error = parse(&args(&bad)).unwrap_err();
+    assert!(matches!(error, DotnetExtractError::UnknownLanguage { .. }));
+    assert_eq!(
+        error.to_string(),
+        "--language must be csharp or fsharp, got 'vb'"
+    );
+    let missing = parse(&args(&full[..8])).unwrap_err();
+    assert!(matches!(missing, DotnetExtractError::Flag(_)));
 }
 
 #[test]
@@ -286,8 +305,22 @@ fn run_writes_nothing_on_error() {
         config: String::new(),
         out: out.display().to_string(),
     };
-    assert!(run(&options).is_err());
+    assert!(matches!(
+        run(&options),
+        Err(DotnetExtractError::MalformedApi(_))
+    ));
     assert!(!out.exists());
+    let unread = Options {
+        api: dir.join("absent.json").display().to_string(),
+        ..options.clone()
+    };
+    let error = run(&unread).unwrap_err();
+    assert!(matches!(error, DotnetExtractError::Io(_)));
+    assert!(error.to_string().starts_with("cannot read "), "{error}");
+    fs::write(&srcs, "lib/A.cs\tlib/A.cs\n").unwrap();
+    fs::write(&api_path, api(&[item("T:A.X", "class", "X", None)])).unwrap();
+    assert!(matches!(run(&options), Err(DotnetExtractError::Sources(_))));
+    fs::write(&srcs, "lib/A.cs\tlib/A.cs\t0\n").unwrap();
     fs::write(&api_path, api(&[item("T:A.X", "class", "X", None)])).unwrap();
     run(&options).unwrap();
     assert!(documentation_ir::decode_shard(&fs::read(&out).unwrap()).is_ok());

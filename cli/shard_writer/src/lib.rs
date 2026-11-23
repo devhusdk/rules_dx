@@ -16,6 +16,11 @@ pub trait ShardKind: 'static {
 
     fn parse_entry(raw: &str) -> Option<Self::Entry>;
     fn shard(producer: String, group: String, entries: Vec<Self::Entry>) -> Self::Shard;
+    /// Encodes one shard.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` when the shard fails validation.
     fn encode(shard: &Self::Shard) -> Result<Vec<u8>, Self::Error>;
 }
 
@@ -86,6 +91,11 @@ fn parse_error<K: ShardKind>(error: &clap::Error, args: &[String]) -> String {
     }
 }
 
+/// Parses `args` and writes one shard file.
+///
+/// # Errors
+///
+/// Returns `Err` on a usage error, an entry that does not parse, or a failed write.
 pub fn run<K: ShardKind>(args: &[String]) -> Result<(), WriterError> {
     let mut matches = command::<K>()
         .try_get_matches_from(std::iter::once(K::PROGRAM).chain(args.iter().map(|arg| arg as &str)))

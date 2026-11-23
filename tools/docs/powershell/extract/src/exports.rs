@@ -1,6 +1,7 @@
 //! Resolves which functions a module exports.
 
 use crate::types::{Api, ExportKind, File, Function, Names};
+use crate::{Duplicate, PowershellExtractError as E};
 use std::collections::BTreeMap;
 
 /// One exported function and the file that defines it.
@@ -11,15 +12,15 @@ pub struct Public<'a> {
 }
 
 /// Returns the exported functions in definition order, or why the set cannot be known.
-pub fn public_functions(api: &Api) -> Result<Vec<Public<'_>>, String> {
+pub fn public_functions(api: &Api) -> Result<Vec<Public<'_>>, E> {
     if let Some(manifest) = &api.manifest
         && let Some(root) = &manifest.root_module
         && root.to_ascii_lowercase().ends_with(".dll")
     {
-        return Err(format!(
-            "{}: RootModule '{root}' is a binary module, which is not supported",
-            manifest.rel
-        ));
+        return Err(E::BinaryRootModule {
+            rel: manifest.rel.clone(),
+            root: root.clone(),
+        });
     }
     let all: Vec<Public<'_>> = api
         .files
@@ -41,10 +42,10 @@ pub fn public_functions(api: &Api) -> Result<Vec<Public<'_>>, String> {
             None => {}
             Some(Names::All(all)) if all == "*" => {}
             Some(Names::All(other)) => {
-                return Err(format!(
-                    "{}: FunctionsToExport '{other}' must be '*' or a list",
-                    manifest.rel
-                ));
+                return Err(E::BadFunctionsToExport {
+                    rel: manifest.rel.clone(),
+                    value: other.clone(),
+                });
             }
             Some(Names::List(patterns)) => {
                 require_defined(&manifest.rel, patterns, &all)?;
@@ -57,7 +58,7 @@ pub fn public_functions(api: &Api) -> Result<Vec<Public<'_>>, String> {
         }
     }
     if chosen.is_empty() {
-        return Err("the module exports no functions".to_owned());
+        return Err(E::NoExports);
     }
     reject_case_duplicates(&chosen)?;
     Ok(chosen)
@@ -67,17 +68,16 @@ fn exported_by_module<'a>(
     api: &'a Api,
     all: &[Public<'a>],
     defined: &[Public<'a>],
-) -> Result<Vec<Public<'a>>, String> {
+) -> Result<Vec<Public<'a>>, E> {
     let mut patterns: Vec<&str> = Vec::new();
     let mut literal = false;
     for file in &api.files {
         match file.exports.kind {
             ExportKind::None => {}
             ExportKind::Dynamic => {
-                return Err(format!(
-                    "{}: Export-ModuleMember -Function is not a literal list",
-                    file.rel
-                ));
+                return Err(E::DynamicExport {
+                    rel: file.rel.clone(),
+                });
             }
             ExportKind::Literal => {
                 literal = true;
@@ -104,7 +104,7 @@ fn in_module_scope(function: &Function) -> bool {
     !matches!(function.scope.as_deref(), Some("global" | "private"))
 }
 
-fn require_defined(rel: &str, patterns: &[String], defined: &[Public<'_>]) -> Result<(), String> {
+fn require_defined(rel: &str, patterns: &[String], defined: &[Public<'_>]) -> Result<(), E> {
     for pattern in patterns {
         if has_wildcard(pattern) {
             continue;
@@ -113,15 +113,16 @@ fn require_defined(rel: &str, patterns: &[String], defined: &[Public<'_>]) -> Re
             .iter()
             .any(|public| wildcard_match(pattern, &public.function.name))
         {
-            return Err(format!(
-                "{rel}: exports '{pattern}' but no source file defines it"
-            ));
+            return Err(E::UndefinedExport {
+                rel: rel.to_owned(),
+                pattern: pattern.clone(),
+            });
         }
     }
     Ok(())
 }
 
-fn reject_case_duplicates(chosen: &[Public<'_>]) -> Result<(), String> {
+fn reject_case_duplicates(chosen: &[Public<'_>]) -> Result<(), E> {
     let mut seen: BTreeMap<String, &Public<'_>> = BTreeMap::new();
     for public in chosen {
         let key = public.function.name.to_lowercase();
@@ -131,15 +132,15 @@ fn reject_case_duplicates(chosen: &[Public<'_>]) -> Result<(), String> {
             } else {
                 "differs only by case from"
             };
-            return Err(format!(
-                "{}:{}: function '{}' {reason} '{}' at {}:{}",
-                public.file.rel,
-                public.function.line,
-                public.function.name,
-                first.function.name,
-                first.file.rel,
-                first.function.line
-            ));
+            return Err(E::DuplicateFunction(Box::new(Duplicate {
+                rel: public.file.rel.clone(),
+                line: public.function.line,
+                name: public.function.name.clone(),
+                reason,
+                first: first.function.name.clone(),
+                first_rel: first.file.rel.clone(),
+                first_line: first.function.line,
+            })));
         }
         seen.insert(key, public);
     }

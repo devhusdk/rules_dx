@@ -30,6 +30,7 @@ def _checks():
         expect_contains("a package without dependencies has an empty list", _PLAIN, "    deps = [],"),
         expect_contains("a package without string imports sets none", _PLAIN, "    imports = [\"lib\"],\n    visibility"),
         expect_contains("a package is public", _PLAIN, 'visibility = ["//visibility:public"],'),
+        expect_contains("a package keeps its warnings as warnings", _PLAIN, "    warnings_as_errors = False,\n)"),
         expect_equal("the load is the d defs", _PLAIN.split("\n")[0], 'load("%s", "d_library")' % str(Label("//d:defs.bzl"))),
     ]
 

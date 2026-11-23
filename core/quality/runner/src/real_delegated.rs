@@ -638,6 +638,38 @@ pub(super) fn zig_ast_check_runs_one_process_per_file_and_never_trusts_a_failed_
     assert_eq!(both.len(), 2);
 }
 
+#[test]
+pub(super) fn zig_ast_check_runs_the_guard_on_the_strict_tier_only() {
+    let banned = "fn f() void {\n    g() catch unreachable;\n}\n";
+    let standard = backend_for("zig_ast_check", plain_tool(), zig_ast_check_behavior);
+    assert_eq!(
+        standard
+            .diagnose("zig_ast_check", "lint", &single("a.zig", banned))
+            .expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
+    let mut tool = plain_tool();
+    tool.args = vec!["strict".to_owned()];
+    let strict = backend_for("zig_ast_check", tool, zig_ast_check_behavior);
+    let found = strict
+        .diagnose("zig_ast_check", "lint", &single("a.zig", banned))
+        .expect("check");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].rule_id, "catch_unreachable");
+    assert_eq!(found[0].path, "a.zig");
+    assert_eq!(
+        found[0].severity,
+        quality_result::proto::Severity::Error as i32
+    );
+    let clean = "fn f() !void {\n    try g();\n}\n";
+    assert_eq!(
+        strict
+            .diagnose("zig_ast_check", "lint", &single("a.zig", clean))
+            .expect("check"),
+        [] as [quality_result::proto::Diagnostic; 0]
+    );
+}
+
 fn julialint_behavior(
     argv: &[OsString],
     _cwd: &Path,

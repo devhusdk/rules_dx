@@ -1,8 +1,8 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_equal", "fake_file", "label_string")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
+load("//core/private/testing:defs.bzl", "expect_equal", "fake_file", "label_string")
 load("//ocaml/private:defs.bzl", "launcher_descriptor", "owned_sources", "toolchain_choice")
 load("//ocaml/private:dune.bzl", "sdk_root", "xcode_env")
 load("//ocaml/private:kwargs.bzl", "ocaml_coverage_kwargs", "ocaml_default_module_name", "ocaml_link_kwargs", "ocaml_test_upstream_kwargs", "ocaml_upstream_tags", "ocaml_with_defaults")
@@ -29,6 +29,23 @@ test_suite(
     tests = [
         "//ocaml/tests/fixtures/dune_lib:greet_dune_native_test",
         "//ocaml/tests/fixtures/dune_lib:greet_dune_run_test",
+        "//ocaml/tests/fixtures/native:checksum_c_test",
+        "//ocaml/tests/fixtures/native:example_checksum_test",
+        "//ocaml/tests/fixtures/native:example_ledger_test",
+        "//ocaml/tests/fixtures/native:example_lexer_test",
+        "//ocaml/tests/fixtures/native:greet_test",
+        "//ocaml/tests/fixtures/native:native_coverage_test",
+        "//ocaml/tests/fixtures/native:native_test",
+        "//ocaml/tests/fixtures/native:stub_test",
+        "//ocaml/tests/fixtures/negative:declared_dep_is_a_compile_input_test",
+        "//ocaml/tests/fixtures/negative:native_link_passes_static_stub_test",
+        "//ocaml/tests/fixtures/negative:native_link_uses_hermetic_c_tools_test",
+        "//ocaml/tests/fixtures/negative:undeclared_dep_is_not_a_compile_input_test",
+        "//ocaml/tests/fixtures/runtime:app_test",
+        "//ocaml/tests/fixtures/runtime:cmt_info_test",
+        "//ocaml/tests/fixtures/runtime:greet_coverage_files_test",
+        "//ocaml/tests/fixtures/runtime:greet_coverage_filter_test",
+        "//ocaml/tests/fixtures/runtime:greet_test",
     ],
 )
 

@@ -62,6 +62,7 @@ load(":rubygems.bzl", "rubygems_deploy")
 load(":rubygems_tests.bzl", "rubygems_unit_tests")
 load(":standard_attrs_tests.bzl", "PROBE_COMPATIBLE", "PROBE_TAG", "PROBE_VISIBILITY", "standard_attrs_unit_tests")
 load(":validate_tests.bzl", "validate_unit_tests")
+load(":verify_test.bzl", "deploy_verify_test")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -251,6 +252,7 @@ rust_library(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/ecosystems:dx_ecosystems",
+        "//cli/error:dx_error",
         "//cli/http:dx_http",
         "//cli/output:dx_output",
         "//cli/process:dx_process",
@@ -396,6 +398,7 @@ rust_test(
         "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/ecosystems:dx_ecosystems",
+        "//cli/error:dx_error",
         "//cli/http:dx_http",
         "//cli/output:dx_output",
         "//cli/process:dx_process",
@@ -417,14 +420,16 @@ exports_files([
     "Cargo.toml",
 ])
 
-sh_binary(
+rust_binary(
     name = "deploy_program",
-    srcs = ["deploy_fixture.sh"],
+    srcs = ["deploy_fixture.rs"],
+    crate_root = "deploy_fixture.rs",
 )
 
-sh_binary(
+rust_binary(
     name = "deploy_app",
-    srcs = ["deploy_fixture.sh"],
+    srcs = ["deploy_fixture.rs"],
+    crate_root = "deploy_fixture.rs",
 )
 
 deployment(
@@ -682,9 +687,8 @@ resources_plain_analysis_tests(name = "resources_plain_analysis")
 
 resources_processed_analysis_tests(name = "resources_processed_analysis")
 
-rust_test(
+deploy_verify_test(
     name = "resources_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":resources_demo_plain",
         ":resources_demo_processed",
@@ -692,14 +696,11 @@ rust_test(
     env = {
         "DX_RESOURCES_PLAIN": "$(rootpaths :resources_demo_plain)",
         "DX_RESOURCES_PROCESSED": "$(rootpaths :resources_demo_processed)",
-        "DX_VERIFY_MODE": "resources",
     },
+    harness = ":helm_demo_verify",
+    mode = "resources",
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 filegroup(
@@ -840,6 +841,7 @@ deploy_analysis_test(
     subject = "release_demo_debug",
 )
 
+# Every deploy_verify_test runs this test's binary in its own mode, so verify_test.rs compiles once.
 rust_test(
     name = "helm_demo_verify",
     srcs = ["//deploy:verify_test.rs"],
@@ -865,9 +867,8 @@ rust_test(
 
 helm_unit_tests(name = "helm_unit")
 
-rust_test(
+deploy_verify_test(
     name = "oci_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":oci_demo",
         ":oci_demo_config",
@@ -875,19 +876,15 @@ rust_test(
     env = {
         "DX_OCI_CONFIG": "$(rootpath :oci_demo_config)",
         "DX_OCI_PROG": "$(rootpath :oci_demo)",
-        "DX_VERIFY_MODE": "oci",
     },
+    harness = ":helm_demo_verify",
+    mode = "oci",
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "oci_demo_layout_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":oci_demo",
         ":oci_demo_config",
@@ -900,19 +897,15 @@ rust_test(
         "DX_OCI_CONFIG": "$(rootpath :oci_demo_layout_config)",
         "DX_OCI_PROG": "$(rootpath :oci_demo_layout)",
         "DX_OCI_REF": "ghcr.io/oci_demo_layout:latest",
-        "DX_VERIFY_MODE": "oci",
     },
+    harness = ":helm_demo_verify",
+    mode = "oci",
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "release_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":release_demo_archive",
         ":release_demo_checksum",
@@ -921,19 +914,15 @@ rust_test(
         "DX_ARCHIVE_CHECKSUM": "$(rootpath :release_demo_checksum)",
         "DX_ARCHIVE_MEMBER": "deploy_program",
         "DX_ARCHIVE_TARBALL": "$(rootpath :release_demo_archive)",
-        "DX_VERIFY_MODE": "archive",
     },
+    harness = ":helm_demo_verify",
+    mode = "archive",
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "release_demo_debug_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":release_demo_debug_archive",
         ":release_demo_debug_checksum",
@@ -942,14 +931,11 @@ rust_test(
         "DX_ARCHIVE_CHECKSUM": "$(rootpath :release_demo_debug_checksum)",
         "DX_ARCHIVE_MEMBER": "deploy_program",
         "DX_ARCHIVE_TARBALL": "$(rootpath :release_demo_debug_archive)",
-        "DX_VERIFY_MODE": "archive",
     },
+    harness = ":helm_demo_verify",
+    mode = "archive",
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 test_suite(
@@ -1127,9 +1113,8 @@ failure_test(
     target = ":github_dup_config",
 )
 
-rust_test(
+deploy_verify_test(
     name = "github_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":github_demo",
         ":github_demo_config",
@@ -1139,19 +1124,15 @@ rust_test(
         "DX_GITHUB_CONFIG": "$(rootpath :github_demo_config)",
         "DX_GITHUB_PROG": "$(rootpath :github_demo)",
         "DX_GITHUB_TAG": "v0.0.0-dryrun",
-        "DX_VERIFY_MODE": "github",
     },
+    harness = ":helm_demo_verify",
+    mode = "github",
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "github_sbom_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         "//deploy/private/sbom_demo:app_release",
         "//deploy/private/sbom_demo:app_release_config",
@@ -1162,21 +1143,17 @@ rust_test(
         "DX_GITHUB_PROG": "$(rootpath //deploy/private/sbom_demo:app_release)",
         "DX_GITHUB_SBOM_PACKAGES": "2",
         "DX_GITHUB_TAG": "v0.0.0-dryrun",
-        "DX_VERIFY_MODE": "github",
     },
+    harness = ":helm_demo_verify",
+    mode = "github",
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 linux_package_unit_tests(name = "linux_package_unit")
 
-rust_test(
+deploy_verify_test(
     name = "linux_package_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         "//deploy/tests/fixtures/linux_package:demo",
         "//deploy/tests/fixtures/linux_package:demo_apk",
@@ -1193,14 +1170,11 @@ rust_test(
         "DX_PKG_DEB": "$(rootpath //deploy/tests/fixtures/linux_package:demo_deb)",
         "DX_PKG_FILES": "usr/bin/demo etc/demo/demo.conf",
         "DX_PKG_RPM": "$(rootpath //deploy/tests/fixtures/linux_package:demo_rpm)",
-        "DX_VERIFY_MODE": "linux_package",
     },
+    harness = ":helm_demo_verify",
+    mode = "linux_package",
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 genrule(
@@ -1239,9 +1213,8 @@ deploy_analysis_test(
     subject = "homebrew_demo",
 )
 
-rust_test(
+deploy_verify_test(
     name = "homebrew_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":homebrew_demo",
         ":homebrew_demo_config",
@@ -1253,14 +1226,11 @@ rust_test(
         "DX_HOMEBREW_LINUX": "$(rootpath :homebrew_demo_linux)",
         "DX_HOMEBREW_MAC": "$(rootpath :homebrew_demo_mac)",
         "DX_HOMEBREW_PROG": "$(rootpath :homebrew_demo)",
-        "DX_VERIFY_MODE": "homebrew",
     },
+    harness = ":helm_demo_verify",
+    mode = "homebrew",
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 genrule(
@@ -1444,9 +1414,8 @@ pypi_deploy(
     wheel = ":native_probe_nocore_wheel",
 )
 
-rust_test(
+deploy_verify_test(
     name = "pypi_native_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":dx_native_probe",
         ":dx_native_probe_config",
@@ -1467,17 +1436,14 @@ rust_test(
         "DX_NATIVE_WRONGABI_PROG": "$(rootpath :native_probe_wrongabi)",
         "DX_PYPI_PYTHON": "$(rootpath //cli/update:python_interpreter)",
         "DX_PYPI_UV": "$(rootpath @dx_tools//:uv)",
-        "DX_VERIFY_MODE": "pypi_native",
     },
+    harness = ":helm_demo_verify",
+    mode = "pypi_native",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = NATIVE_PROBE_COMPATIBLE,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 _WINDOWS_X64 = [
@@ -1507,9 +1473,8 @@ pypi_deploy(
 )
 
 # Run with --//cc:compiler=msvc and the dx_msvc license accepted.
-rust_test(
+deploy_verify_test(
     name = "pypi_native_msvc_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":native_probe_msvc",
         ":native_probe_msvc_config",
@@ -1526,17 +1491,14 @@ rust_test(
         "DX_MSVC_PROG": "$(rootpath :native_probe_msvc)",
         "DX_PYPI_PYTHON": "$(rootpath //cli/update:python_interpreter)",
         "DX_PYPI_UV": "$(rootpath @dx_tools//:uv)",
-        "DX_VERIFY_MODE": "pypi_native_msvc",
     },
+    harness = ":helm_demo_verify",
+    mode = "pypi_native_msvc",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = _WINDOWS_X64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 py_wheel_rule(
@@ -1588,9 +1550,8 @@ pypi_deploy(
     wheel = ":native_probe_nolib_wheel",
 )
 
-rust_test(
+deploy_verify_test(
     name = "pypi_native_linked_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":native_probe_linked",
         ":native_probe_linked_config",
@@ -1609,8 +1570,9 @@ rust_test(
         "DX_NOLIB_PROG": "$(rootpath :native_probe_nolib)",
         "DX_PYPI_PYTHON": "$(rootpath //cli/update:python_interpreter)",
         "DX_PYPI_UV": "$(rootpath @dx_tools//:uv)",
-        "DX_VERIFY_MODE": "pypi_native_linked",
     },
+    harness = ":helm_demo_verify",
+    mode = "pypi_native_linked",
     tags = [
         "block-network",
         "no-coverage",
@@ -1619,15 +1581,10 @@ rust_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "pypi_probe_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":dx_pypi_probe",
         ":dx_pypi_probe_config",
@@ -1656,15 +1613,12 @@ rust_test(
         "DX_TYPED_NODATA_CONFIG": "$(rootpath :typed_probe_nodata_config)",
         "DX_TYPED_NODATA_PROG": "$(rootpath :typed_probe_nodata)",
         "DX_TYPED_PROG": "$(rootpath :dx_typed_probe)",
-        "DX_VERIFY_MODE": "pypi",
     },
+    harness = ":helm_demo_verify",
+    mode = "pypi",
     tags = [
         "block-network",
         "no-coverage",
-    ],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
     ],
 )
 
@@ -1726,9 +1680,8 @@ failure_test(
     target = ":cloudflare_not_a_directory_config",
 )
 
-rust_test(
+deploy_verify_test(
     name = "cloudflare_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":cloudflare_default_wrangler",
         ":cloudflare_default_wrangler_config",
@@ -1744,14 +1697,11 @@ rust_test(
         "DX_CLOUDFLARE_PRODUCTION_CONFIG": "$(rootpath :cloudflare_demo_production_config)",
         "DX_CLOUDFLARE_PRODUCTION_PROG": "$(rootpath :cloudflare_demo_production)",
         "DX_CLOUDFLARE_PROG": "$(rootpath :cloudflare_demo)",
-        "DX_VERIFY_MODE": "cloudflare",
     },
+    harness = ":helm_demo_verify",
+    mode = "cloudflare",
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 cloudflare_unit_tests(name = "cloudflare_unit")
@@ -1905,9 +1855,8 @@ deploy_analysis_test(
     subject = "rubygems_demo",
 )
 
-rust_test(
+deploy_verify_test(
     name = "rubygems_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":rubygems_demo",
         ":rubygems_demo_config",
@@ -1915,17 +1864,14 @@ rust_test(
     env = {
         "DX_RUBYGEMS_CONFIG": "$(rootpath :rubygems_demo_config)",
         "DX_RUBYGEMS_PROG": "$(rootpath :rubygems_demo)",
-        "DX_VERIFY_MODE": "rubygems",
     },
+    harness = ":helm_demo_verify",
+    mode = "rubygems",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
 deploy_analysis_test(
@@ -2474,6 +2420,7 @@ real_source_target(
         "standard_attrs_tests.bzl",
         "image_providers.bzl",
         "image_quality.bzl",
+        "verify_test.bzl",
     ],
     tags = ["corpus"],
 )
@@ -2547,9 +2494,8 @@ standard_attrs_unit_tests(
     ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "crates_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":crates_demo",
         ":crates_demo_config",
@@ -2558,22 +2504,18 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :crates_demo_config)",
         "DX_DEMO_PROG": "$(rootpath :crates_demo)",
         "DX_DEMO_WANT": "crates_deploy: staged crates_demo 0.0.0",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "hex_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":hex_demo",
         ":hex_demo_config",
@@ -2582,22 +2524,18 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :hex_demo_config)",
         "DX_DEMO_PROG": "$(rootpath :hex_demo)",
         "DX_DEMO_WANT": "hex_deploy: staged hex_demo ",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "maven_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":maven_demo",
         ":maven_demo_config",
@@ -2606,22 +2544,18 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :maven_demo_config)",
         "DX_DEMO_PROG": "$(rootpath :maven_demo)",
         "DX_DEMO_WANT": "maven_deploy: staged com.example:maven_demo:0.0.0",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "npm_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":npm_demo",
         ":npm_demo_config",
@@ -2630,22 +2564,18 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :npm_demo_config)",
         "DX_DEMO_PROG": "$(rootpath :npm_demo)",
         "DX_DEMO_WANT": "npm_deploy: released npm-demo ",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "nuget_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":nuget_demo",
         ":nuget_demo_config",
@@ -2654,22 +2584,18 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :nuget_demo_config)",
         "DX_DEMO_PROG": "$(rootpath :nuget_demo)",
         "DX_DEMO_WANT": "nuget_deploy: staged ",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "octopus_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":octopus_demo",
         ":octopus_demo_config",
@@ -2678,22 +2604,18 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :octopus_demo_config)",
         "DX_DEMO_PROG": "$(rootpath :octopus_demo)",
         "DX_DEMO_WANT": "octopus_deploy: staged octopus_demo 0.0.0",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "conan_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":conan_demo",
         ":conan_demo_config",
@@ -2702,22 +2624,18 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :conan_demo_config)",
         "DX_DEMO_PROG": "$(rootpath :conan_demo)",
         "DX_DEMO_WANT": "conan_deploy: staged conan_demo/0.0.0",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "cpan_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":cpan-demo",
         ":cpan-demo_config",
@@ -2726,22 +2644,18 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :cpan-demo_config)",
         "DX_DEMO_PROG": "$(rootpath :cpan-demo)",
         "DX_DEMO_WANT": "cpan_deploy: staged Cpan-Demo 0.01",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "hackage_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":hackage-demo",
         ":hackage-demo_config",
@@ -2750,22 +2664,18 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :hackage-demo_config)",
         "DX_DEMO_PROG": "$(rootpath :hackage-demo)",
         "DX_DEMO_WANT": "hackage_deploy: staged hackage-demo 0.0.0",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "luarocks_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":luarocks_demo",
         ":luarocks_demo_config",
@@ -2774,22 +2684,18 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :luarocks_demo_config)",
         "DX_DEMO_PROG": "$(rootpath :luarocks_demo)",
         "DX_DEMO_WANT": "luarocks_deploy: staged ",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "opam_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":opam-demo",
         ":opam-demo_config",
@@ -2798,22 +2704,18 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :opam-demo_config)",
         "DX_DEMO_PROG": "$(rootpath :opam-demo)",
         "DX_DEMO_WANT": "opam_deploy: would open a pull request",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )
 
-rust_test(
+deploy_verify_test(
     name = "packagist_demo_verify",
-    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":packagist-demo",
         ":packagist-demo_config",
@@ -2822,15 +2724,12 @@ rust_test(
         "DX_DEMO_CONFIG": "$(rootpath :packagist-demo_config)",
         "DX_DEMO_PROG": "$(rootpath :packagist-demo)",
         "DX_DEMO_WANT": "packagist_deploy: would request an update of acme/demo",
-        "DX_VERIFY_MODE": "demo",
     },
+    harness = ":helm_demo_verify",
+    mode = "demo",
     tags = [
         "block-network",
         "no-coverage",
     ],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
 )

@@ -42,7 +42,7 @@ var ccKinds = map[string]rule.KindInfo{
 	},
 }
 
-const archsDirective = "dx_cuda_archs"
+const archsDirective = "dx_cuda_gpu_archs"
 
 var defaultCudaArchs = []string{"sm_89"}
 

@@ -1,11 +1,113 @@
 //! Cosign signing of release assets: the pinned binary, its argv and the identity.
 
+use std::fmt;
+use std::io;
 use std::path::{Path, PathBuf};
+
+use dx_atomic_fs::path_io::{self, PathIoError};
+use dx_process::capture::RunError;
 
 /// The OIDC issuer of GitHub Actions identity tokens.
 pub const GITHUB_OIDC_ISSUER: &str = "https://token.actions.githubusercontent.com";
 
 const SIGN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+
+/// A failed cosign pin check, signature, verification or registry login.
+#[derive(Debug)]
+pub enum CosignError {
+    /// `sign = "required"` and no identity is available.
+    NoIdentity,
+    /// An invocation has no binary.
+    EmptyArgv,
+    /// `argv` could not be run.
+    Run { argv: String, source: RunError },
+    /// The pinned cosign could not be hashed.
+    Hash { path: String, source: io::Error },
+    /// The cosign binary does not have its pinned sha256.
+    Digest {
+        path: String,
+        actual: String,
+        want: String,
+    },
+    /// `cosign version` did not print the pinned GitVersion.
+    Version { want: String, got: String },
+    /// `cosign sign-blob` exited nonzero for `asset`.
+    SignFailed { argv: String, asset: String },
+    /// `cosign verify-blob` rejected the bundle of `asset`.
+    VerifyFailed { argv: String, asset: String },
+    /// An image sign, attest or verify step exited nonzero.
+    ImageStepFailed {
+        argv: String,
+        reference: String,
+        stderr: String,
+    },
+    /// An asset path has no file name to name its bundle after.
+    NoFileName { path: PathBuf },
+    /// A directory could not be created.
+    CreateDir(PathIoError),
+    /// The registry login could not be written.
+    WriteDockerConfig { path: PathBuf, source: io::Error },
+}
+
+impl fmt::Display for CosignError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NoIdentity => f.write_str(
+                "sign = \"required\" needs a signing identity (COSIGN_KEY or ACTIONS_ID_TOKEN_REQUEST_URL); publishing nothing",
+            ),
+            Self::EmptyArgv => f.write_str("signing: invocation needs a binary"),
+            Self::Run { argv, source } => write!(f, "signing: cannot run '{argv}': {source}"),
+            Self::Hash { path, source } => {
+                write!(f, "signing: cannot hash cosign at {path}: {source}")
+            }
+            Self::Digest { path, actual, want } => write!(
+                f,
+                "signing: cosign at {path} has sha256 {actual}, want {want} (pinned per deploy/private/release/pins.json); refusing to sign"
+            ),
+            Self::Version { want, got } => write!(
+                f,
+                "signing: cosign GitVersion must be {want} (pinned per deploy/private/release/pins.json); got: {got}"
+            ),
+            Self::SignFailed { argv, asset } => {
+                write!(f, "signing: '{argv}' failed for {asset}; publishing nothing")
+            }
+            Self::VerifyFailed { argv, asset } => write!(
+                f,
+                "signing: '{argv}' failed for {asset}; bundle rejected, publishing nothing"
+            ),
+            Self::ImageStepFailed {
+                argv,
+                reference,
+                stderr,
+            } => write!(f, "signing: '{argv}' failed for {reference}: {stderr}"),
+            Self::NoFileName { path } => {
+                write!(f, "signing: {} has no file name", path.display())
+            }
+            Self::CreateDir(source) => write!(f, "signing: {source}"),
+            Self::WriteDockerConfig { path, source } => {
+                write!(f, "signing: cannot write {}: {source}", path.display())
+            }
+        }
+    }
+}
+
+impl std::error::Error for CosignError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Run { source, .. } => Some(source),
+            Self::Hash { source, .. } | Self::WriteDockerConfig { source, .. } => Some(source),
+            Self::CreateDir(source) => Some(source),
+            Self::NoIdentity
+            | Self::EmptyArgv
+            | Self::Digest { .. }
+            | Self::Version { .. }
+            | Self::SignFailed { .. }
+            | Self::VerifyFailed { .. }
+            | Self::ImageStepFailed { .. }
+            | Self::NoFileName { .. } => None,
+        }
+    }
+}
 
 /// A pinned cosign binary.
 #[derive(Clone, Copy)]
@@ -80,15 +182,12 @@ pub fn detect_identity(env: &dyn Fn(&str) -> String) -> Option<SignIdentity> {
 pub fn plan_identity(
     mode: SignMode,
     env: &dyn Fn(&str) -> String,
-) -> Result<Option<SignIdentity>, String> {
+) -> Result<Option<SignIdentity>, CosignError> {
     match (mode, detect_identity(env)) {
         (SignMode::Off, _) => Ok(None),
         (SignMode::Auto, identity) => Ok(identity),
         (SignMode::Required, Some(identity)) => Ok(Some(identity)),
-        (SignMode::Required, None) => Err(
-            "sign = \"required\" needs a signing identity (COSIGN_KEY or ACTIONS_ID_TOKEN_REQUEST_URL); publishing nothing"
-                .to_owned(),
-        ),
+        (SignMode::Required, None) => Err(CosignError::NoIdentity),
     }
 }
 
@@ -224,12 +323,14 @@ pub fn signing_version_ok(version_output: &str, want: &str) -> bool {
 }
 
 /// Runs `argv` with the inherited environment and working directory.
-pub fn run_output(argv: &[String]) -> Result<dx_process::capture::Captured, String> {
-    let (binary, args) = argv
-        .split_first()
-        .ok_or_else(|| "invocation needs a binary".to_owned())?;
-    dx_process::capture::run_captured(inherited_command(binary).args(args), SIGN_TIMEOUT)
-        .map_err(|error| error.to_string())
+pub fn run_output(argv: &[String]) -> Result<dx_process::capture::Captured, CosignError> {
+    let (binary, args) = argv.split_first().ok_or(CosignError::EmptyArgv)?;
+    dx_process::capture::run_captured(inherited_command(binary).args(args), SIGN_TIMEOUT).map_err(
+        |source| CosignError::Run {
+            argv: argv.join(" "),
+            source,
+        },
+    )
 }
 
 /// A child with the inherited environment, minus this tool's own deploy config.
@@ -240,25 +341,28 @@ fn inherited_command(binary: &str) -> std::process::Command {
 }
 
 /// Checks the cosign binary against its pinned sha256 and version.
-pub fn check_pin(pin: &CosignPin<'_>) -> Result<(), String> {
-    let actual = dx_digest::sha256_file_hex(Path::new(pin.path))
-        .map_err(|error| format!("signing: cannot hash cosign at {}: {error}", pin.path))?;
+pub fn check_pin(pin: &CosignPin<'_>) -> Result<(), CosignError> {
+    let actual =
+        dx_digest::sha256_file_hex(Path::new(pin.path)).map_err(|source| CosignError::Hash {
+            path: pin.path.to_owned(),
+            source,
+        })?;
     if actual != pin.sha256 {
-        return Err(format!(
-            "signing: cosign at {} has sha256 {actual}, want {} (pinned per deploy/private/release/pins.json); refusing to sign",
-            pin.path, pin.sha256
-        ));
+        return Err(CosignError::Digest {
+            path: pin.path.to_owned(),
+            actual,
+            want: pin.sha256.to_owned(),
+        });
     }
     let argv = vec![pin.path.to_owned(), "version".to_owned()];
-    let out = run_output(&argv)
-        .map_err(|error| format!("signing: cannot run '{} version': {error}", pin.path))?;
-    let text = out.stdout_text() + &String::from_utf8_lossy(&out.stderr);
+    let out = run_output(&argv)?;
+    let mut text = out.stdout_text();
+    text.push_str(&String::from_utf8_lossy(&out.stderr));
     if !out.success() || !signing_version_ok(&text, pin.version) {
-        return Err(format!(
-            "signing: cosign GitVersion must be {} (pinned per deploy/private/release/pins.json); got: {}",
-            pin.version,
-            cosign_git_version(&text).unwrap_or("none")
-        ));
+        return Err(CosignError::Version {
+            want: pin.version.to_owned(),
+            got: cosign_git_version(&text).unwrap_or("none").to_owned(),
+        });
     }
     Ok(())
 }
@@ -270,28 +374,26 @@ pub fn sign_one(
     bundle: &str,
     keyed: bool,
     verify: Option<Vec<String>>,
-) -> Result<(), String> {
+) -> Result<(), CosignError> {
     let sign = if keyed {
         sign_key_argv(pin.path, asset, bundle)
     } else {
         sign_argv(pin.path, asset, bundle)
     };
-    let out = run_output(&sign)
-        .map_err(|error| format!("signing: cannot run '{}': {error}", sign.join(" ")))?;
+    let out = run_output(&sign)?;
     if !out.success() {
-        return Err(format!(
-            "signing: '{}' failed for {asset}; publishing nothing",
-            sign.join(" ")
-        ));
+        return Err(CosignError::SignFailed {
+            argv: sign.join(" "),
+            asset: asset.to_owned(),
+        });
     }
     if let Some(verify) = verify {
-        let out = run_output(&verify)
-            .map_err(|error| format!("signing: cannot run '{}': {error}", verify.join(" ")))?;
+        let out = run_output(&verify)?;
         if !out.success() {
-            return Err(format!(
-                "signing: '{}' failed for {asset}; bundle rejected, publishing nothing",
-                verify.join(" ")
-            ));
+            return Err(CosignError::VerifyFailed {
+                argv: verify.join(" "),
+                asset: asset.to_owned(),
+            });
         }
     }
     Ok(())
@@ -303,16 +405,17 @@ pub fn sign_assets(
     identity: &SignIdentity,
     assets: &[PathBuf],
     outdir: &Path,
-) -> Result<Vec<PathBuf>, String> {
+) -> Result<Vec<PathBuf>, CosignError> {
     check_pin(pin)?;
-    std::fs::create_dir_all(outdir)
-        .map_err(|error| format!("signing: cannot create {}: {error}", outdir.display()))?;
+    path_io::create_dir_all(outdir).map_err(CosignError::CreateDir)?;
     let mut bundles = Vec::new();
     for asset in assets {
         let base = asset
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
-            .ok_or_else(|| format!("signing: {} has no file name", asset.display()))?;
+            .ok_or_else(|| CosignError::NoFileName {
+                path: asset.clone(),
+            })?;
         let bundle = outdir.join(bundle_name(&base));
         let (asset_text, bundle_text) = (
             asset.to_string_lossy().into_owned(),
@@ -484,10 +587,9 @@ pub fn write_docker_config(
     registry: &str,
     user: &str,
     secret: &str,
-) -> Result<(), String> {
+) -> Result<(), CosignError> {
     use base64::Engine as _;
-    std::fs::create_dir_all(dir)
-        .map_err(|error| format!("signing: cannot create {}: {error}", dir.display()))?;
+    path_io::create_dir_all(dir).map_err(CosignError::CreateDir)?;
     let auth = base64::engine::general_purpose::STANDARD.encode(format!("{user}:{secret}"));
     let body = serde_json::json!({"auths": {docker_auth_key(registry): {"auth": auth}}});
     let path = dir.join("config.json");
@@ -495,11 +597,12 @@ pub fn write_docker_config(
     options.write(true).create(true).truncate(true);
     #[cfg(unix)]
     std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
-    let mut file = options
-        .open(&path)
-        .map_err(|error| format!("signing: cannot write {}: {error}", path.display()))?;
+    let mut file = match options.open(&path) {
+        Ok(file) => file,
+        Err(source) => return Err(CosignError::WriteDockerConfig { path, source }),
+    };
     std::io::Write::write_all(&mut file, body.to_string().as_bytes())
-        .map_err(|error| format!("signing: cannot write {}: {error}", path.display()))
+        .map_err(|source| CosignError::WriteDockerConfig { path, source })
 }
 
 /// Signs and attests one pushed image with the registry login in `docker_config`.
@@ -509,22 +612,25 @@ pub fn sign_image(
     reference: &str,
     sbom: Option<&str>,
     docker_config: &Path,
-) -> Result<(), String> {
+) -> Result<(), CosignError> {
     check_pin(pin)?;
     for step in image_steps(pin.path, identity, reference, sbom) {
-        let (binary, args) = step
-            .split_first()
-            .ok_or_else(|| "invocation needs a binary".to_owned())?;
+        let (binary, args) = step.split_first().ok_or(CosignError::EmptyArgv)?;
         let mut command = std::process::Command::new(binary);
         command.args(args).env("DOCKER_CONFIG", docker_config);
-        let out = dx_process::capture::run_captured(&mut command, SIGN_TIMEOUT)
-            .map_err(|error| format!("signing: cannot run '{}': {error}", step.join(" ")))?;
+        let out =
+            dx_process::capture::run_captured(&mut command, SIGN_TIMEOUT).map_err(|source| {
+                CosignError::Run {
+                    argv: step.join(" "),
+                    source,
+                }
+            })?;
         if !out.success() {
-            return Err(format!(
-                "signing: '{}' failed for {reference}: {}",
-                step.join(" "),
-                String::from_utf8_lossy(&out.stderr).trim()
-            ));
+            return Err(CosignError::ImageStepFailed {
+                argv: step.join(" "),
+                reference: reference.to_owned(),
+                stderr: String::from_utf8_lossy(&out.stderr).trim().to_owned(),
+            });
         }
     }
     Ok(())
@@ -588,14 +694,18 @@ mod tests {
     fn modes_plan_an_identity() {
         let none = env_of(&[]);
         let key = env_of(&[("COSIGN_KEY", "k")]);
-        assert_eq!(plan_identity(SignMode::Auto, &none), Ok(None));
-        assert_eq!(plan_identity(SignMode::Off, &key), Ok(None));
+        assert_eq!(plan_identity(SignMode::Auto, &none).ok(), Some(None));
+        assert_eq!(plan_identity(SignMode::Off, &key).ok(), Some(None));
         assert_eq!(
-            plan_identity(SignMode::Required, &key),
-            Ok(Some(SignIdentity::Key))
+            plan_identity(SignMode::Required, &key).ok(),
+            Some(Some(SignIdentity::Key))
         );
         let error = plan_identity(SignMode::Required, &none).expect_err("no identity");
-        assert!(error.contains("needs a signing identity"), "{error}");
+        assert!(matches!(error, CosignError::NoIdentity), "{error}");
+        assert!(
+            error.to_string().contains("needs a signing identity"),
+            "{error}"
+        );
     }
 
     #[test]

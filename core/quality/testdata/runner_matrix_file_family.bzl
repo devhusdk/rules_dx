@@ -195,28 +195,6 @@ FILE_FAMILY_CASES = [
         },
     ),
     matrix_case(
-        name = "matrix_fortran_format_pass",
-        capability = "format",
-        tool = "ffmt",
-        binary = "@dx_tools//:ffmt",
-        source_class = "fortran",
-        generated = {
-            "matrix/fortran_format_clean.f90": "program clean\n\n    implicit none\n\n    integer :: x\n    x = 1\n    print *, x\nend program clean\n",
-        },
-        platforms = ["linux_x86_64"],
-    ),
-    matrix_case(
-        name = "matrix_fortran_format_fail",
-        capability = "format",
-        tool = "ffmt",
-        binary = "@dx_tools//:ffmt",
-        source_class = "fortran",
-        generated = {
-            "matrix/fortran_format_dirty.f90": "program dirty\nimplicit none\ninteger::x\nx=1\nprint *,x\nend program dirty\n",
-        },
-        platforms = ["linux_x86_64"],
-    ),
-    matrix_case(
         name = "matrix_fortran_format_mixed",
         capability = "format",
         tool = "ffmt",
@@ -226,28 +204,6 @@ FILE_FAMILY_CASES = [
             "matrix/fortran_format_mixed/dirty.f90": "program dirty\nimplicit none\ninteger::x\nx=1\nprint *,x\nend program dirty\n",
             "matrix/fortran_format_mixed/fixed.f": "C fixed form\n      PROGRAM T\n      X=1\n      END\n",
             "matrix/fortran_format_mixed/fixed.F": "C fixed form\n      PROGRAM T\n      X=1\n      END\n",
-        },
-        platforms = ["linux_x86_64"],
-    ),
-    matrix_case(
-        name = "matrix_fortran_lint_pass",
-        capability = "lint",
-        tool = "fortitude",
-        binary = "@dx_tools//:fortitude",
-        source_class = "fortran",
-        generated = {
-            "matrix/fortran_clean.f90": "module clean_m\n  implicit none (type, external)\n  private\n  public :: add\n\ncontains\n\n  integer function add(a, b)\n    integer, intent(in) :: a, b\n    add = a + b\n  end function add\n\nend module clean_m\n",
-        },
-        platforms = ["linux_x86_64"],
-    ),
-    matrix_case(
-        name = "matrix_fortran_lint_fail",
-        capability = "lint",
-        tool = "fortitude",
-        binary = "@dx_tools//:fortitude",
-        source_class = "fortran",
-        generated = {
-            "matrix/fortran_dirty.f90": "program dirty\n  x = 1\n  print *, x\n  stop\n  print *, x\nend program dirty\n",
         },
         platforms = ["linux_x86_64"],
     ),
@@ -295,28 +251,6 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/fortran_multi/clean.f90": "module clean_m\n  implicit none (type, external)\n  private\n  public :: add\n\ncontains\n\n  integer function add(a, b)\n    integer, intent(in) :: a, b\n    add = a + b\n  end function add\n\nend module clean_m\n",
             "matrix/fortran_multi/dirty.f90": "program dirty\n  x = 1\n  print *, x\nend program dirty\n",
-        },
-        platforms = ["linux_x86_64"],
-    ),
-    matrix_case(
-        name = "matrix_d_lint_pass",
-        capability = "lint",
-        tool = "dscanner",
-        binary = "@dx_d_dscanner//:dscanner",
-        source_class = "d",
-        generated = {
-            "matrix/d_clean.d": "module d_clean;\n\n/// Returns the sum of `a` and `b`.\nint add(int a, int b) pure @safe\n{\n    return a + b;\n}\n",
-        },
-        platforms = ["linux_x86_64"],
-    ),
-    matrix_case(
-        name = "matrix_d_lint_fail",
-        capability = "lint",
-        tool = "dscanner",
-        binary = "@dx_d_dscanner//:dscanner",
-        source_class = "d",
-        generated = {
-            "matrix/d_dirty.d": "module d_dirty;\n\n/// Runs.\nvoid run()\n{\n    int unused;\n}\n",
         },
         platforms = ["linux_x86_64"],
     ),
@@ -451,26 +385,6 @@ FILE_FAMILY_CASES = [
         platforms = ["linux_x86_64"],
     ),
     matrix_case(
-        name = "matrix_lua_format_pass",
-        capability = "format",
-        tool = "stylua",
-        binary = "@dx_tools//:stylua",
-        source_class = "lua",
-        generated = {
-            "matrix/lua_clean.lua": "local value = 1\nprint(value)\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_lua_format_fail",
-        capability = "format",
-        tool = "stylua",
-        binary = "@dx_tools//:stylua",
-        source_class = "lua",
-        generated = {
-            "matrix/lua_dirty.lua": "local   value=1\nprint( value )\n",
-        },
-    ),
-    matrix_case(
         name = "matrix_lua_format_syntax_error",
         capability = "format",
         tool = "stylua",
@@ -478,26 +392,6 @@ FILE_FAMILY_CASES = [
         source_class = "lua",
         generated = {
             "matrix/lua_broken.lua": "local = = 1\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_lua_lint_pass",
-        capability = "lint",
-        tool = "selene",
-        binary = "//rust/private/quality/tools:selene",
-        source_class = "lua",
-        generated = {
-            "matrix/selene_clean.lua": "local limit <const> = 8\nprint(limit // 2)\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_lua_lint_fail",
-        capability = "lint",
-        tool = "selene",
-        binary = "//rust/private/quality/tools:selene",
-        source_class = "lua",
-        generated = {
-            "matrix/selene_dirty.lua": "local greeting = \"é\" .. missing\nprint(greeting)\nlocal unused = 1\n",
         },
     ),
     matrix_case(
@@ -1113,6 +1007,41 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/terraform_tc_syntax_error.tf": "locals {\n  a = \n}\n",
         },
+        tool_env = _TERRAFORM_ENV,
+    ),
+    matrix_case(
+        name = "matrix_terraform_typecheck_remote_module_fail",
+        capability = "typecheck",
+        tool = "terraform",
+        binary = "@dx_tools//:terraform",
+        source_class = "terraform",
+        generated = {
+            "matrix/terraform_tc_remote/main.tf": "module \"consul\" {\n  source = \"hashicorp/consul/aws\"\n}\n",
+        },
+        tool_env = _TERRAFORM_ENV,
+    ),
+    matrix_case(
+        name = "matrix_terraform_typecheck_remote_test_module_fail",
+        capability = "typecheck",
+        tool = "terraform",
+        binary = "@dx_tools//:terraform",
+        source_class = "terraform",
+        generated = {
+            "matrix/terraform_tc_remote_test/main.tf": "resource \"terraform_data\" \"sample\" {}\n",
+            "matrix/terraform_tc_remote_test/tests/remote.tftest.hcl": "run \"remote\" {\n  module {\n    source  = \"hashicorp/consul/aws\"\n    version = \"0.12.0\"\n  }\n}\n",
+        },
+        tool_env = _TERRAFORM_ENV,
+    ),
+    matrix_case(
+        name = "matrix_terraform_typecheck_dependency_remote_module_fail",
+        capability = "typecheck",
+        tool = "terraform",
+        binary = "@dx_tools//:terraform",
+        source_class = "terraform",
+        generated = {
+            "core/quality/testdata/matrix/terraform_shared/main.tf": "resource \"terraform_data\" \"sample\" {}\n",
+        },
+        siblings = [":matrix/terraform_shared/dep.tf"],
         tool_env = _TERRAFORM_ENV,
     ),
     matrix_case(
@@ -1942,7 +1871,7 @@ FILE_FAMILY_CASES = [
         binary = "//perl/private/tools:perlcritic",
         source_class = "perl",
         generated = {
-            "matrix/perlcritic_profile.pl": "package main;\nuse strict;\nuse warnings;\nour $VERSION = '1.0';\n\nsub run {\n    my $unused;\n    return 42;\n}\n\n1;\n",
+            "matrix/perlcritic_profile.pl": "package main;\nuse strict;\nuse warnings;\nour $VERSION = '1.0';\n\nsub run {\n    my $unused;\n    unlink q{x};\n    return 42;\n}\n\n1;\n",
         },
         platforms = ["linux_x86_64"],
         config = "//core/quality/tiers/perlcritic:standard.perlcriticrc",
@@ -1955,7 +1884,7 @@ FILE_FAMILY_CASES = [
         binary = "//perl/private/tools:perlcritic",
         source_class = "perl",
         generated = {
-            "matrix/perlcritic_profile.pl": "package main;\nuse strict;\nuse warnings;\nour $VERSION = '1.0';\n\nsub run {\n    my $unused;\n    return 42;\n}\n\n1;\n",
+            "matrix/perlcritic_profile.pl": "package main;\nuse strict;\nuse warnings;\nour $VERSION = '1.0';\n\nsub run {\n    my $unused;\n    unlink q{x};\n    return 42;\n}\n\n1;\n",
         },
         platforms = ["linux_x86_64"],
         config = "//core/quality/tiers/perlcritic:strict.perlcriticrc",
@@ -2005,55 +1934,24 @@ FILE_FAMILY_CASES = [
         binary = "//lua/private/tools:luals",
         source_class = "lua",
         generated = {
-            "matrix/luals_profile.lua": "local function run(items)\n    local unused = 1\n    local first = items[1]\n    return first\nend\n\nprint(run({}))\n",
+            "matrix/luals_profile.lua": "local function run(items)\n    local unused = 1\n    local first = items[1]\n    return first\nend\n\nleaked = 1\nlocal file = io.open(\"x\")\nfile:close()\nlocal joined = loadstring(\"return 1\")\nlocal total = 0\ntotal += 1\n\nprint(run({}), joined, total)\n",
         },
         platforms = ["linux_x86_64"],
         config = "//core/quality/tiers/luals:strict.json",
         tool_env = ["luals=RUNFILES_DIR=$TEST_SRCDIR"],
     ),
     matrix_case(
-        name = "matrix_swift_format_pass",
-        capability = "format",
-        tool = "swift_format",
-        binary = "//swift/private/tools:swift_format",
-        source_class = "swift",
+        name = "matrix_lua_luals_clean_strict",
+        capability = "typecheck",
+        tool = "luals",
+        binary = "//lua/private/tools:luals",
+        source_class = "lua",
         generated = {
-            "matrix/swift_clean.swift": "func add(a: Int, b: Int) -> Int {\n  return a + b\n}\n",
+            "matrix/luals_clean.lua": "local function run(items)\n    local first = items[1]\n    return first\nend\n\nprint(run({}))\n",
         },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
-    ),
-    matrix_case(
-        name = "matrix_swift_format_fail",
-        capability = "format",
-        tool = "swift_format",
-        binary = "//swift/private/tools:swift_format",
-        source_class = "swift",
-        generated = {
-            "matrix/swift_dirty.swift": "func  add(a: Int, b: Int) -> Int {\n  return a + b\n}\n",
-        },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
-    ),
-    matrix_case(
-        name = "matrix_swift_lint_pass",
-        capability = "lint",
-        tool = "swift_lint",
-        binary = "//swift/private/tools:swift_format",
-        source_class = "swift",
-        generated = {
-            "matrix/swift_lint_clean.swift": "func add(a: Int, b: Int) -> Int {\n  return a + b\n}\n",
-        },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
-    ),
-    matrix_case(
-        name = "matrix_swift_lint_fail",
-        capability = "lint",
-        tool = "swift_lint",
-        binary = "//swift/private/tools:swift_format",
-        source_class = "swift",
-        generated = {
-            "matrix/swift_lint_dirty.swift": "func  add(a: Int, b: Int) -> Int {\n  return a + b\n}\n",
-        },
-        platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
+        platforms = ["linux_x86_64"],
+        config = "//core/quality/tiers/luals:strict.json",
+        tool_env = ["luals=RUNFILES_DIR=$TEST_SRCDIR"],
     ),
     matrix_case(
         name = "matrix_swift_lint_profile_standard",
@@ -2213,6 +2111,38 @@ FILE_FAMILY_CASES = [
         config = "//core/quality/tiers/phpcs:strict.xml",
     ),
     matrix_case(
+        name = "matrix_php_lint_strict_guards",
+        capability = "lint",
+        tool = "phpcs",
+        binary = "//php/private/tools:phpcs",
+        source_class = "php",
+        generated = {
+            "matrix/phpcs_strict_guards.php": "<?php\n\ndeclare(strict_types=1);\n\nnamespace Dx\\Math;\n\nfinal class Guards\n{\n    public function run(string $code, string $data): void\n    {\n        var_dump($code);\n        print_r($data);\n        $value = @unserialize($data);\n        extract([\"a\" => $value]);\n        shell_exec($code);\n        exit(1);\n    }\n}\n",
+        },
+        platforms = ["linux_x86_64"],
+        config = "//core/quality/tiers/phpcs:strict.xml",
+    ),
+    matrix_case(
+        name = "matrix_php_typecheck_strict_guards",
+        capability = "typecheck",
+        tool = "phpstan",
+        binary = "//php/private/tools:phpstan",
+        source_class = "php",
+        generated = {
+            "matrix/phpstan_strict_guards.php": "<?php\n\ndeclare(strict_types=1);\n\nnamespace Dx\\Math;\n\nclass Base\n{\n    public function name(): string\n    {\n        return \"base\";\n    }\n}\n\nfinal class Child extends Base\n{\n    private int $count;\n\n    public function name(): string\n    {\n        return \"child\";\n    }\n\n    public function apply(callable $fn): mixed\n    {\n        return $fn($this->count);\n    }\n\n    public function wide(): ?int\n    {\n        return 1;\n    }\n}\n",
+        },
+        platforms = ["linux_x86_64"],
+        config_tools = ["phpstan"],
+        config_files = [":phpstan_strict_root.neon"],
+        staged_siblings = {"//core/quality/tiers:all": "core/quality/tiers/:.dx/config/"},
+        toolfile_tools = ["phpstan", "phpstan"],
+        toolfile_srcs = ["//php/private/tools:phpstan_autoload.php", ":phpstan_strict_root.neon"],
+        toolfile_rels = ["dx-phpstan/ext/autoload.php", ""],
+        toolfile_group_tools = ["phpstan"],
+        toolfile_group_prefixes = ["vendor/phpstan/phpstan-strict-rules/"],
+        toolfile_group_srcs = ["@dx_phpstan_strict_rules//:files"],
+    ),
+    matrix_case(
         name = "matrix_php_typecheck_strict",
         capability = "typecheck",
         tool = "phpstan",
@@ -2233,29 +2163,6 @@ FILE_FAMILY_CASES = [
         toolfile_group_srcs = ["@dx_phpstan_strict_rules//:files"],
     ),
     matrix_case(
-        name = "matrix_powershell_format_pass",
-        capability = "format",
-        tool = "psscriptanalyzer",
-        binary = "//powershell/private/quality:psscriptanalyzer",
-        source_class = "powershell",
-        generated = {
-            "matrix/psscriptanalyzer_format_clean.ps1": "if ($a) {\n    Write-Output 1\n}\n",
-        },
-        tags = ["no-remote-exec"],
-    ),
-    matrix_case(
-        name = "matrix_powershell_format_fail",
-        capability = "format",
-        tool = "psscriptanalyzer",
-        binary = "//powershell/private/quality:psscriptanalyzer",
-        source_class = "powershell",
-        generated = {
-            "matrix/psscriptanalyzer_format_dirty.ps1": "if ($a){\nWrite-Output 1}\n",
-        },
-        size = "medium",
-        tags = ["no-remote-exec"],
-    ),
-    matrix_case(
         name = "matrix_powershell_format_syntax_error",
         capability = "format",
         tool = "psscriptanalyzer",
@@ -2264,6 +2171,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/psscriptanalyzer_format_broken.ps1": "function f {\n",
         },
+        size = "medium",
         tags = ["no-remote-exec"],
     ),
     matrix_case(
@@ -2276,28 +2184,6 @@ FILE_FAMILY_CASES = [
             "matrix/psscriptanalyzer_format_crlf.ps1": "if ($a){\r\nWrite-Output 1}\r\n",
         },
         size = "medium",
-        tags = ["no-remote-exec"],
-    ),
-    matrix_case(
-        name = "matrix_powershell_lint_pass",
-        capability = "lint",
-        tool = "psscriptanalyzer",
-        binary = "//powershell/private/quality:psscriptanalyzer",
-        source_class = "powershell",
-        generated = {
-            "matrix/psscriptanalyzer_clean.ps1": "Write-Output \"hello\"\n",
-        },
-        tags = ["no-remote-exec"],
-    ),
-    matrix_case(
-        name = "matrix_powershell_lint_fail",
-        capability = "lint",
-        tool = "psscriptanalyzer",
-        binary = "//powershell/private/quality:psscriptanalyzer",
-        source_class = "powershell",
-        generated = {
-            "matrix/psscriptanalyzer_dirty.ps1": "Write-Output \"a\"\nWrite-Output \"b\"\nWrite-Output \"c\"\nWrite-Host \"hello\"\n$unused = 1\n",
-        },
         tags = ["no-remote-exec"],
     ),
     matrix_case(
@@ -2436,46 +2322,6 @@ FILE_FAMILY_CASES = [
         platforms = ["linux_x86_64", "linux_arm64", "macos_arm64"],
         config = "//core/quality/tiers/ansible_lint:strict.yaml",
         tool_env = ["ansible_lint=RUNFILES_DIR=$TEST_SRCDIR"],
-    ),
-    matrix_case(
-        name = "matrix_bicep_format_pass",
-        capability = "format",
-        tool = "bicep",
-        binary = "@dx_tools//:bicep",
-        source_class = "bicep",
-        generated = {
-            "matrix/bicep_fmt_clean/a.bicep": "param name string\noutput value string = name\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_bicep_format_fail",
-        capability = "format",
-        tool = "bicep",
-        binary = "@dx_tools//:bicep",
-        source_class = "bicep",
-        generated = {
-            "matrix/bicep_fmt_dirty/a.bicep": "param   name   string\noutput value string   =   name\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_bicep_lint_pass",
-        capability = "lint",
-        tool = "bicep",
-        binary = "@dx_tools//:bicep",
-        source_class = "bicep",
-        generated = {
-            "matrix/bicep_clean/a.bicep": "param name string\noutput value string = name\n",
-        },
-    ),
-    matrix_case(
-        name = "matrix_bicep_lint_fail",
-        capability = "lint",
-        tool = "bicep",
-        binary = "@dx_tools//:bicep",
-        source_class = "bicep",
-        generated = {
-            "matrix/bicep_dirty/a.bicep": "param unused string\nparam name string = 1\noutput value string = name\n",
-        },
     ),
     matrix_case(
         name = "matrix_bicep_lint_config",
@@ -2748,6 +2594,7 @@ FILE_FAMILY_CASES = [
         platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
         config = ":sqlfluff_cfg/.sqlfluff",
         tool_env = ["sqlfluff=RUNFILES_DIR=$TEST_SRCDIR"],
+        drop_messages = True,
     ),
     matrix_case(
         name = "matrix_sql_lint_jinja_pass",
@@ -3010,30 +2857,6 @@ FILE_FAMILY_CASES = [
         },
     ),
     matrix_case(
-        name = "matrix_make_format_pass",
-        capability = "format",
-        tool = "mbake",
-        binary = "//core/quality/tools/python:mbake",
-        source_class = "make",
-        generated = {
-            "matrix/make_format_clean/Makefile": "CC = gcc\n\nall:\n\techo hi\n",
-        },
-        platforms = ["linux_x86_64"],
-        tool_env = ["mbake=RUNFILES_DIR=$TEST_SRCDIR"],
-    ),
-    matrix_case(
-        name = "matrix_make_format_fail",
-        capability = "format",
-        tool = "mbake",
-        binary = "//core/quality/tools/python:mbake",
-        source_class = "make",
-        generated = {
-            "matrix/make_format_dirty/Makefile": "CC=gcc\n\nall:\n    echo hi  \n",
-        },
-        platforms = ["linux_x86_64"],
-        tool_env = ["mbake=RUNFILES_DIR=$TEST_SRCDIR"],
-    ),
-    matrix_case(
         name = "matrix_rst_format_pass",
         capability = "format",
         tool = "docstrfmt",
@@ -3111,6 +2934,7 @@ FILE_FAMILY_CASES = [
             "matrix/ocaml_format_mixed/clean.ml": "let x = 1\n",
         },
         platforms = ["linux_x86_64", "linux_arm64", "macos_arm64", "windows_x86_64"],
+        size = "medium",
     ),
     matrix_case(
         name = "matrix_nix_deadnix_pass",
@@ -3214,6 +3038,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/typos_dirty.txt": "say teh word\n",  # spellchecker:disable-line
         },
+        drop_messages = True,
     ),
     matrix_case(
         name = "matrix_rust_typos_pass",
@@ -3234,6 +3059,7 @@ FILE_FAMILY_CASES = [
         generated = {
             "matrix/typos_dirty.rs": "// recieve the word\n",  # spellchecker:disable-line
         },
+        drop_messages = True,
     ),
     matrix_case(
         name = "matrix_api_spec_openapi_pass",
@@ -3574,6 +3400,27 @@ FILE_FAMILY_CASES = [
         },
         config = "//core/quality/tiers/trivy_config:strict.txt",
         toolfile_rels = [""],
+    ),
+    matrix_case(
+        name = "matrix_terraform_trivy_lint_local_module_pass",
+        capability = "lint",
+        tool = "trivy_config",
+        binary = "@dx_tools//:trivy",
+        source_class = "terraform",
+        generated = {
+            "matrix/trivy_module/main.tf": "module \"net\" {\n  source = \"./net\"\n}\n",
+            "matrix/trivy_module/net/main.tf": "variable \"name\" {\n  type = string\n}\n",
+        },
+    ),
+    matrix_case(
+        name = "matrix_terraform_trivy_lint_remote_module_fail",
+        capability = "lint",
+        tool = "trivy_config",
+        binary = "@dx_tools//:trivy",
+        source_class = "terraform",
+        generated = {
+            "matrix/trivy_remote/main.tf": "module \"consul\" {\n  source = \"hashicorp/consul/aws\"\n}\n",
+        },
     ),
     matrix_case(
         name = "matrix_cloudformation_trivy_lint_pass",

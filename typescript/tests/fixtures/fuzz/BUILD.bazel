@@ -1,8 +1,9 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 # gazelle:ignore
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
-load("//typescript:defs.bzl", "typescript_fuzz_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//typescript:defs.bzl", "typescript_fuzz_test")
 
 package(
     default_testonly = True,
@@ -12,25 +13,29 @@ package(
 typescript_fuzz_test(
     name = "parse_fuzz",
     srcs = ["parse_fuzz.ts"],
-    node_modules = "//:node_modules",
     declaration = True,
+    node_modules = "//:node_modules",
     tsconfig = "tsconfig.json",
 )
 
 sh_test(
     name = "parse_fuzz_run_test",
-    env = {"DX_RUNTIME_TOOL": "fuzz_run"},
-    srcs = ["run_test.sh"],
+    timeout = "short",
+    srcs = ["//core/tests/fixtures/fuzz:run_test.sh"],
     args = [
         "$(rlocationpath //cli/runtime:dx_runtime)",
+        "--seed",
+        "$(rootpath corpus/planted)",
+        "libfuzzer",
         "$(rootpath :parse_fuzz)",
     ],
     data = [
+        "corpus/planted",
         ":parse_fuzz",
         "//cli/runtime:dx_runtime",
     ],
+    env = {"DX_RUNTIME_TOOL": "fuzz_run"},
     target_compatible_with = ["@platforms//os:linux"],
-    timeout = "short",
 )
 
 real_source_target(

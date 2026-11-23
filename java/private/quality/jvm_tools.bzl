@@ -113,6 +113,7 @@ TOOLS = [
     ),
     tool(
         id = "scalafix",
+        severity = severity(floor = "warning"),
         adapters = {"lint": ["scala"]},
         config = config(suffixes = [".conf"], tier_active = True),
         support = [

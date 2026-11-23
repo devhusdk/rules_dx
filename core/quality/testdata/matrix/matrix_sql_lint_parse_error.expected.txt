@@ -5,7 +5,7 @@ stage sqlfluff classes=sql sources=matrix/sql_broken/a.sql
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR sqlfluff PRS matrix/sql_broken/a.sql 0 12 fixable=false "Line 1, Position 1: Found unparsable section: 'selec from ('"
+initial ERROR sqlfluff PRS matrix/sql_broken/a.sql 0 12 fixable=false
 terminal 1
-terminal ERROR sqlfluff PRS matrix/sql_broken/a.sql 0 12 fixable=false "Line 1, Position 1: Found unparsable section: 'selec from ('"
+terminal ERROR sqlfluff PRS matrix/sql_broken/a.sql 0 12 fixable=false
 replacements 0

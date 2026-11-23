@@ -34,7 +34,8 @@ def dx_forwarded_optional(upstream, providers, what = "dx wrapper"):
     """Forwards the upstream providers that are present, warning on each skip."""
     missing = [p for p in providers if p not in upstream]
     if len(missing) > 0:
-        print(dx_optional_forward_warning(  # buildifier: disable=print
+        # buildifier: disable=print
+        print(dx_optional_forward_warning(
             what,
             str(upstream.label),
             [str(p) for p in providers],
@@ -93,12 +94,20 @@ def _dx_test_exec_properties(props):
     }
     return kept if kept else None
 
+# The run environment attributes. A wrapper keeps them on exactly one of the upstream
+# target and its forwarder, so the environment is applied once.
+_RUN_ENV_KEYS = ("env", "env_inherit")
+
+def _drop_run_env(out):
+    for key in _RUN_ENV_KEYS:
+        out.pop(key, None)
+
 def dx_forwarded_test_kwargs(kwargs):
     """Extracts the standard test attributes a test forwarder preserves."""
     out = {}
     if "tags" in kwargs and kwargs["tags"] != None:
         out["tags"] = list(kwargs["tags"])
-    for key in ("timeout", "shard_count", "size", "local", "exec_compatible_with", "flaky", "args", "env", "env_inherit"):
+    for key in ("timeout", "shard_count", "size", "local", "exec_compatible_with", "flaky", "args") + _RUN_ENV_KEYS:
         if key in kwargs and kwargs[key] != None:
             out[key] = kwargs[key]
     if ("args" in out or "env" in out) and kwargs.get("data", None) != None:
@@ -208,11 +217,11 @@ def dx_lcov_merger_attr():
         ),
     }
 
-def dx_collect_cc_coverage_attr(collector):
+def dx_collect_cc_coverage_attr():
     """Returns the C/C++ coverage collector attribute for test forwarders."""
     return {
         "_collect_cc_coverage": attr.label(
-            default = collector,
+            default = Label("@dx_prebuilt//:collect_native"),
             executable = True,
             cfg = config.exec(exec_group = "test"),
         ),
@@ -642,7 +651,7 @@ def dx_wrap_forward_kwargs(kwargs):
 def dx_binary_run_kwargs(kwargs):
     """Returns args, env and env_inherit, plus data only when args or env is set, for a binary forwarder."""
     out = {}
-    for key in ("args", "env", "env_inherit"):
+    for key in ("args",) + _RUN_ENV_KEYS:
         if kwargs.get(key, None) != None:
             out[key] = kwargs[key]
     if ("args" in out or "env" in out) and kwargs.get("data", None) != None:
@@ -692,8 +701,7 @@ def dx_test_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None, ups
     out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
     out.setdefault("size", "small")
     if not upstream_env:
-        out.pop("env", None)
-        out.pop("env_inherit", None)
+        _drop_run_env(out)
     if srcs != None:
         out["srcs"] = srcs
     return out
@@ -707,8 +715,7 @@ def dx_binary_upstream_kwargs(kwargs, srcs, upstream_visibility = None):
         out.pop("srcs")
     out["tags"] = dx_upstream_tags(kwargs.get("tags", None))
     out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
-    out.pop("env", None)
-    out.pop("env_inherit", None)
+    _drop_run_env(out)
     return out
 
 def dx_wrap_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
@@ -720,9 +727,11 @@ def dx_wrap_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
     out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
     return out
 
-def dx_test_forward_kwargs(kwargs):
-    """Returns the forwarder kwargs for one test shape."""
+def dx_test_forward_kwargs(kwargs, run_env = True):
+    """Returns the forwarder kwargs for one test shape, without env and env_inherit when run_env is False."""
     out = dx_forwarded_test_kwargs(kwargs)
+    if not run_env:
+        _drop_run_env(out)
     out.setdefault("size", "small")
     tags = dx_test_resource_tags(kwargs.get("size", None), kwargs.get("tags", None))
     if tags or "tags" in out:
@@ -765,10 +774,7 @@ def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, ups
     base = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
     effective = dx_test_upstream_kwargs(base, srcs = srcs, upstream_visibility = upstream_visibility, upstream_env = upstream_env)
     forward_srcs = quality_srcs if quality_srcs != None else (srcs if srcs != None else [])
-    forward_kwargs = dx_test_forward_kwargs(kwargs)
-    if upstream_env:
-        forward_kwargs.pop("env", None)
-        forward_kwargs.pop("env_inherit", None)
+    forward_kwargs = dx_test_forward_kwargs(kwargs, run_env = not upstream_env)
     if extra_forward_kwargs:
         forward_kwargs.update(extra_forward_kwargs)
     if not coverage_collector:

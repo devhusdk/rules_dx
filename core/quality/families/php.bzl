@@ -42,26 +42,31 @@ SHARD_SPECS = {
     },
 }
 
-def _phpstan_hook(target, ctx, resolved, _capability, _what, shared):
+def _phpstan_scan_line(f):
+    return "dx-phpstan/scan/" + external_path(f.short_path) + "\t" + f.path
+
+def _phpstan_pkg_line(f):
+    if not f.path.endswith(".php"):
+        return None
+    return "dx-phpstan/pkg/" + external_path(f.short_path) + "\t" + f.path
+
+def _phpstan_hook(target, ctx, resolved, _capability, _what, _shared):
     if PhpInfo not in target:
         return without(resolved, "phpstan")
 
-    owned_paths = {f.path: True for f in shared.path_to_file.values()}
     info = target[PhpInfo]
     tool_files = []
     inputs = []
-    seen_scan = {}
-    for scan_file in sorted(info.transitive_srcs.to_list() + info.autoload_files.to_list(), key = lambda f: f.path):
-        if scan_file.path not in owned_paths and scan_file.path not in seen_scan:
-            seen_scan[scan_file.path] = True
-            stage(tool_files, inputs, "dx-phpstan/scan/" + external_path(scan_file.short_path), scan_file)
-    for pkg_file in sorted(info.package_files.to_list(), key = lambda f: f.path):
-        if pkg_file.path.endswith(".php") and pkg_file.path not in owned_paths and pkg_file.path not in seen_scan:
-            seen_scan[pkg_file.path] = True
-            stage(tool_files, inputs, "dx-phpstan/pkg/" + external_path(pkg_file.short_path), pkg_file)
     for f in ctx.files._phpstan_strict_rules:
         stage(tool_files, inputs, "vendor/phpstan/phpstan-strict-rules/" + f.short_path.split("/", 2)[2], f)
-    return real_context(tool_files = tool_files, inputs = inputs)
+    return real_context(
+        tool_files = tool_files,
+        inputs = inputs,
+        dep_lists = [
+            (depset(transitive = [info.transitive_srcs, info.autoload_files]), _phpstan_scan_line),
+            (info.package_files, _phpstan_pkg_line),
+        ],
+    )
 
 HOOK_ORDER = ["phpstan"]
 

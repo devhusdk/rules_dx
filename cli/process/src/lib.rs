@@ -301,6 +301,31 @@ pub fn is_ci() -> bool {
     is_ci_value(std::env::var("CI").ok().as_deref())
 }
 
+/// Environment variables that mark a process started by a coding agent.
+pub const AGENT_ENVS: [&str; 13] = [
+    "CLAUDECODE",
+    "CODEX_THREAD_ID",
+    "CODEX_SANDBOX",
+    "CURSOR_AGENT",
+    "GEMINI_CLI",
+    "QWEN_CODE",
+    "AMP_CURRENT_THREAD_ID",
+    "AUGMENT_AGENT",
+    "OPENCODE",
+    "COPILOT_CLI",
+    "AI_AGENT",
+    "AGENT",
+    "GOOSE_TERMINAL",
+];
+
+/// Whether any agent marker is set to a non-empty value.
+#[must_use]
+pub fn is_agent(get: &dyn Fn(&str) -> Option<String>) -> bool {
+    AGENT_ENVS
+        .iter()
+        .any(|name| get(name).is_some_and(|value| !value.is_empty()))
+}
+
 pub fn bazel_env_defaults(
     get: &dyn Fn(&str) -> Option<std::ffi::OsString>,
     linux: bool,

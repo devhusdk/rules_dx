@@ -2,7 +2,7 @@
 
 visibility(["//android/...", "//appimage/...", "//apple/...", "//cc/...", "//core/...", "//deploy/...", "//erlang/...", "//msix/...", "//qt/...", "//rust/...", "//swift/..."])
 
-DxPlatformInfo = provider(
+DxProbePlatformInfo = provider(
     doc = "Operating system and cpu of the platform a probe was built for.",
     fields = {
         "cpu": "x86_64, aarch64, or empty when the cpu is not recognised.",
@@ -57,11 +57,11 @@ def _platform_probe_impl(ctx):
     for name, constraint in [("x86_64", ctx.attr._cpu_x86_64), ("aarch64", ctx.attr._cpu_arm64)]:
         if ctx.target_platform_has_constraint(constraint[platform_common.ConstraintValueInfo]):
             cpu = name
-    return [DxPlatformInfo(os = os, cpu = cpu)]
+    return [DxProbePlatformInfo(os = os, cpu = cpu)]
 
 platform_probe = rule(
     implementation = _platform_probe_impl,
-    doc = "Reports the os and cpu of the target platform as DxPlatformInfo.",
+    doc = "Reports the os and cpu of the target platform as DxProbePlatformInfo.",
     attrs = {
         "_cpu_arm64": attr.label(default = Label("@platforms//cpu:arm64")),
         "_cpu_x86_64": attr.label(default = Label("@platforms//cpu:x86_64")),
@@ -83,8 +83,8 @@ PLATFORM_ATTRS = {
 }
 
 def platform_identity(ctx):
-    """Returns the DxPlatformInfo for ctx.attr.platform, or for the current platform when unset."""
-    return ctx.attr._platform_probe[0][DxPlatformInfo]
+    """Returns the DxProbePlatformInfo for ctx.attr.platform, or for the current platform when unset."""
+    return ctx.attr._platform_probe[0][DxProbePlatformInfo]
 
 def single_platform_error(rule, platforms):
     """Returns the error for a platforms list that does not hold exactly one item, or ""."""
@@ -99,3 +99,7 @@ def prepend_toolchains(first, current):
         if str(t) not in toolchains:
             toolchains.append(str(t))
     return toolchains
+
+def msvc_crt_static_flag(arg):
+    """Whether a rustc argument turns on +crt-static."""
+    return arg.startswith(("-Ctarget-feature=", "--codegen=target-feature=")) and "+crt-static" in arg

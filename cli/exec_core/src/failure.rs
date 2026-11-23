@@ -9,6 +9,8 @@ use std::io::Write;
 pub const CODE_INVALID_ARGUMENTS: &str = "invalid_arguments";
 pub const CODE_INVALID_SCOPE: &str = "invalid_scope";
 pub const CODE_NO_OWNER: &str = "no_owner";
+/// A command refused in the main checkout once `dx.primary` is set.
+pub const CODE_MAIN_CHECKOUT: &str = "main_checkout";
 pub const CODE_NO_TESTS: &str = "no_tests";
 pub const CODE_NOT_DEPLOYABLE: &str = "not_deployable";
 pub const CODE_QUERY_LAUNCH_FAILED: &str = "query_launch_failed";
@@ -79,7 +81,8 @@ impl Cause {
             | "not_deployable"
             | "completion_failed"
             | "unresolved_workspace"
-            | "unreadable_working_directory" => Cause::Input,
+            | "unreadable_working_directory"
+            | "main_checkout" => Cause::Input,
             "invalid_defaults" => Cause::Defaults,
             "query_launch_failed" => Cause::QueryLaunch,
             "query_failed" => Cause::Query,
@@ -390,6 +393,8 @@ pub fn report_failure(
     }
     if failure.shows_usage() || failure.code == CODE_INVALID_ARGUMENTS {
         dx_output::write_stderr(err, format_args!("dx: {}\n", failure.message));
+    } else if failure.code == CODE_MAIN_CHECKOUT {
+        dx_output::write_stderr(err, format_args!("dx: refused: {}\n", failure.message));
     } else {
         dx_output::write_stderr(
             err,

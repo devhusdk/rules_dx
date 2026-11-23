@@ -89,7 +89,7 @@ if [ "${1:-}" = worktree ] && [ "${2:-}" = hook ]; then
     esac
     exit 0
     ;;
-  stop) exit 0 ;;
+  stop | bazel | git) exit 0 ;;
   esac
 fi
 here=$(pwd -P) || here=/
@@ -273,11 +273,11 @@ input_newer() {
   done <"$state/inputs"
   return 1
 }
-# Worktree add and release must stay fast and must not wait on Bazel: run the last built dx without a stale check,
-# unless a worktree source is newer than that dx. Keep this list and the prefixes in sync with tools/dx.cmd.
+# Worktree add, release and --help must stay fast and must not wait on Bazel: run the last built dx without a stale
+# check, unless a worktree source is newer than that dx. Keep this list and the prefixes in sync with tools/dx.cmd.
 if [ "${1:-}" = worktree ]; then
   case "${2:-}" in
-  add | release)
+  add | release | --help | -h)
     if [ -s "$state/inputs" ] && [ -f "$state/built" ] && input_newer cli/worktree/ cli/process/; then
       echo "dx: worktree sources are newer than the built dx; rebuilding" >&2
     else
@@ -493,7 +493,68 @@ guard_temps() {
   trap 'on_signal TERM' TERM
   trap 'on_signal HUP' HUP
 }
+# Succeeds when $root/.git has worktrees, a config that cannot be read, or a primary entry in a [dx] section.
+primary_without_git() {
+  [ ! -e "$root/.git/worktrees" ] || return 0
+  [ -e "$root/.git/config" ] || return 1
+  [ -f "$root/.git/config" ] && [ -r "$root/.git/config" ] || return 0
+  pw_dx=0
+  while IFS= read -r pw_line || [ -n "$pw_line" ]; do
+    pw_line=${pw_line#"${pw_line%%[![:space:]]*}"}
+    case $pw_line in
+    \[*\]*)
+      pw_name=${pw_line#\[}
+      pw_name=${pw_name%%\]*}
+      pw_line=${pw_line#*\]}
+      pw_line=${pw_line#"${pw_line%%[![:space:]]*}"}
+      case $pw_name in
+      [dD][xX]) pw_dx=1 ;;
+      *) pw_dx=0 ;;
+      esac
+      ;;
+    \[*) pw_dx=0 ;;
+    *) ;;
+    esac
+    [ "$pw_dx" = 1 ] || continue
+    case $pw_line in
+    [pP][rR][iI][mM][aA][rR][yY] | [pP][rR][iI][mM][aA][rR][yY][=[:space:]]*) return 0 ;;
+    *) ;;
+    esac
+  done <"$root/.git/config"
+  return 1
+}
+# Returns when the main-checkout rule lets this checkout build dx. A built dx answers: exit 0 builds, and a refusal
+# runs that dx, which refuses or runs the command. A dx without the bazel hook cannot answer, so the next one is asked.
+# With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses. With no git on PATH, the
+# launcher reads .git itself: slots, a config it cannot read, or a primary entry in a [dx] section refuse. Keep in
+# sync with tools/dx.cmd and without_git in cli/worktree/src/primary.rs.
+primary_allows_build() {
+  for pr_dx in "$state/dx$exe" "$bin"; do
+    [ -x "$pr_dx" ] || continue
+    pr_ec=0
+    pr_err=$(cd "$root" && "$pr_dx" worktree hook bazel -- build //cli/cli:dx 2>&1 >/dev/null) || pr_ec=$?
+    case $pr_ec:$pr_err in
+    0:*) return 0 ;;
+    2:*refused:*) exec "$pr_dx" "$@" ;;
+    esac
+  done
+  [ -d "$root/.git" ] || return 0
+  if ! command -v git >/dev/null 2>&1; then
+    primary_without_git || return 0
+    echo "dx: refused: git is not on PATH, and the main checkout $root has slots, sets dx.primary, or has a .git/config dx cannot read, so dx is not built here. Put git on PATH, or work in a slot." >&2
+    exit 2
+  fi
+  pr_ec=0
+  (
+    unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_CONFIG GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS
+    git -C "$root" -c 'safe.directory=*' config --get dx.primary >/dev/null 2>&1
+  ) || pr_ec=$?
+  [ "$pr_ec" != 1 ] || return 0
+  echo "dx: refused: dx.primary is set in the main checkout $root, or git cannot read it, and no built dx can check it, so dx is not built here. Work in a slot, or run git config --unset dx.primary to build dx here." >&2
+  exit 2
+}
 if stale; then
+  primary_allows_build "$@"
   command -v bazel >/dev/null 2>&1 || die "bazel is not on PATH"
   mkdir -p "$state"
   tag_state

@@ -1,14 +1,95 @@
 //! Stages the sources of one Dart library as pub packages and runs `dart doc` over them.
 
+use std::fmt;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
-use dx_process::capture::run_captured;
+use documentation_ir::tool::{FlagError, PathIoError, path_io};
+use dx_process::capture::{RunError, run_captured};
 
 const PUBSPEC: &str = "pubspec.yaml";
 const DART_DOC_TIMEOUT: Duration = Duration::from_secs(3600);
+
+/// Why one `dart doc` run failed.
+#[derive(Debug)]
+pub enum DartDocError {
+    Io(PathIoError),
+    Remove {
+        path: PathBuf,
+        source: io::Error,
+    },
+    Cwd(io::Error),
+    Stage {
+        source_path: String,
+        at: PathBuf,
+        source: io::Error,
+    },
+    MalformedRow {
+        line: String,
+        path: String,
+    },
+    StageClash {
+        label: String,
+        first: String,
+        path: String,
+        staged: String,
+    },
+    Run(RunError),
+    DartDocFailed {
+        output: String,
+    },
+}
+
+impl fmt::Display for DartDocError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(error) => error.fmt(f),
+            Self::Remove { path, source } => {
+                write!(f, "cannot remove {}: {source}", path.display())
+            }
+            Self::Cwd(error) => write!(f, "cannot read the cwd: {error}"),
+            Self::Stage {
+                source_path,
+                at,
+                source,
+            } => write!(
+                f,
+                "cannot stage {source_path} at {}: {source}",
+                at.display()
+            ),
+            Self::MalformedRow { line, path } => write!(f, "malformed line '{line}' in {path}"),
+            Self::StageClash {
+                label,
+                first,
+                path,
+                staged,
+            } => write!(
+                f,
+                "dart_doc_shard {label}: {first} and {path} both stage as {staged}"
+            ),
+            Self::Run(error) => error.fmt(f),
+            Self::DartDocFailed { output } => write!(f, "dart doc failed:\n{output}"),
+        }
+    }
+}
+
+impl std::error::Error for DartDocError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(error) => Some(error),
+            Self::Remove { source, .. } | Self::Cwd(source) | Self::Stage { source, .. } => {
+                Some(source)
+            }
+            Self::Run(error) => Some(error),
+            Self::MalformedRow { .. } | Self::StageClash { .. } | Self::DartDocFailed { .. } => {
+                None
+            }
+        }
+    }
+}
 
 /// The inputs of one `dart doc` run.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -18,7 +99,7 @@ pub struct DocOptions {
     pub srcs: String,
     pub own: String,
     pub label: String,
-    pub stage: String,
+    pub scratch: String,
     pub html: String,
 }
 
@@ -40,7 +121,7 @@ pub fn run_process(args: &[String]) -> i32 {
 /// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
-    "usage: dart_doc --dart FILE --packages FILE --srcs FILE --own NAME --label LABEL --stage DIR --html DIR"
+    "usage: dart_doc --dart FILE --packages FILE --srcs FILE --own NAME --label LABEL --scratch DIR --html DIR"
 }
 
 /// Parses argv into inputs, or returns the rejection text.
@@ -48,7 +129,7 @@ pub fn usage() -> &'static str {
 /// # Errors
 ///
 /// Returns an error when a flag is unknown, missing or repeated.
-pub fn parse(args: &[String]) -> Result<DocOptions, String> {
+pub fn parse(args: &[String]) -> Result<DocOptions, FlagError> {
     let mut flags = documentation_ir::tool::flags(
         args,
         &[
@@ -57,7 +138,7 @@ pub fn parse(args: &[String]) -> Result<DocOptions, String> {
             "--srcs",
             "--own",
             "--label",
-            "--stage",
+            "--scratch",
             "--html",
         ],
     )?;
@@ -67,39 +148,59 @@ pub fn parse(args: &[String]) -> Result<DocOptions, String> {
         srcs: flags.one("--srcs")?,
         own: flags.one("--own")?,
         label: flags.one("--label")?,
-        stage: flags.one("--stage")?,
+        scratch: flags.one("--scratch")?,
         html: flags.one("--html")?,
     })
 }
 
-/// Stages the packages, runs `dart doc` and removes the staging tree on every path.
+/// Stages the packages under the scratch directory, runs `dart doc` with the
+/// scratch directory as its home and empties it on every path.
 ///
 /// # Errors
 ///
 /// Returns an error when an input cannot be read, two sources stage as one path,
-/// staging fails or `dart doc` fails.
-pub fn run(options: &DocOptions) -> Result<(), String> {
+/// staging fails, `dart doc` fails or the scratch directory cannot be emptied.
+pub fn run(options: &DocOptions) -> Result<(), DartDocError> {
     let packages = rows(&options.packages)?;
     let srcs = rows(&options.srcs)?;
     let plan = plan(&packages, &srcs, &options.own, &options.label)?;
-    let stage = Path::new(&options.stage);
-    let result = stage_tree(&plan, stage).and_then(|()| dart_doc(options, stage));
-    let cleanup = match fs::remove_dir_all(stage) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(format!("cannot remove {}: {error}", stage.display())),
-    };
-    result.and(cleanup)
+    let scratch = Path::new(&options.scratch);
+    let stage = scratch.join("stage");
+    let result = stage_tree(&plan, &stage).and_then(|()| dart_doc(options, scratch, &stage));
+    result.and(empty_dir(scratch))
 }
 
-fn rows(path: &str) -> Result<Vec<(String, String)>, String> {
-    let text = fs::read_to_string(path).map_err(|error| format!("cannot read {path}: {error}"))?;
+/// Removes every entry of `dir` and keeps `dir`, a declared output of the action.
+fn empty_dir(dir: &Path) -> Result<(), DartDocError> {
+    let unread = |source| {
+        DartDocError::Io(PathIoError::Read {
+            path: dir.to_path_buf(),
+            source,
+        })
+    };
+    for entry in fs::read_dir(dir).map_err(unread)? {
+        let path = entry.map_err(unread)?.path();
+        let removed = if path.is_dir() && !path.is_symlink() {
+            fs::remove_dir_all(&path)
+        } else {
+            fs::remove_file(&path)
+        };
+        removed.map_err(|source| DartDocError::Remove { path, source })?;
+    }
+    Ok(())
+}
+
+fn rows(path: &str) -> Result<Vec<(String, String)>, DartDocError> {
+    let text = path_io::read_to_string(Path::new(path)).map_err(DartDocError::Io)?;
     text.lines()
         .filter(|line| !line.is_empty())
         .map(|line| {
             line.split_once('\t')
                 .map(|(a, b)| (a.to_owned(), b.to_owned()))
-                .ok_or_else(|| format!("malformed line '{line}' in {path}"))
+                .ok_or_else(|| DartDocError::MalformedRow {
+                    line: line.to_owned(),
+                    path: path.to_owned(),
+                })
         })
         .collect()
 }
@@ -133,7 +234,7 @@ pub fn plan(
     srcs: &[(String, String)],
     own: &str,
     label: &str,
-) -> Result<Plan, String> {
+) -> Result<Plan, DartDocError> {
     let mut ordered: Vec<(String, String)> = Vec::new();
     for (name, root) in packages {
         match ordered.iter_mut().find(|(seen, _)| seen == name) {
@@ -157,9 +258,12 @@ pub fn plan(
             }
             let staged = format!("{name}/{inner}");
             if let Some((_, first)) = links.iter().find(|(seen, _)| *seen == staged) {
-                return Err(format!(
-                    "dart_doc_shard {label}: {first} and {path} both stage as {staged}"
-                ));
+                return Err(DartDocError::StageClash {
+                    label: label.to_owned(),
+                    first: first.clone(),
+                    path: path.clone(),
+                    staged,
+                });
             }
             links.push((staged, path.clone()));
             break;
@@ -202,24 +306,34 @@ pub fn plan(
     })
 }
 
-fn stage_tree(plan: &Plan, stage: &Path) -> Result<(), String> {
-    let cwd = std::env::current_dir().map_err(|error| format!("cannot read the cwd: {error}"))?;
-    for (staged, source) in &plan.links {
+fn stage_tree(plan: &Plan, stage: &Path) -> Result<(), DartDocError> {
+    let cwd = std::env::current_dir().map_err(DartDocError::Cwd)?;
+    for (staged, source_path) in &plan.links {
         let at = parent_made(&stage.join(staged))?;
-        link(&cwd.join(source), &at)
-            .map_err(|error| format!("cannot stage {source} at {}: {error}", at.display()))?;
+        if let Err(source) = link(&cwd.join(source_path), &at) {
+            return Err(DartDocError::Stage {
+                source_path: source_path.clone(),
+                at,
+                source,
+            });
+        }
     }
     for (staged, text) in &plan.files {
         let at = parent_made(&stage.join(staged))?;
-        fs::write(&at, text).map_err(|error| format!("cannot write {}: {error}", at.display()))?;
+        fs::write(&at, text)
+            .map_err(|source| DartDocError::Io(PathIoError::Write { path: at, source }))?;
     }
     Ok(())
 }
 
-fn parent_made(path: &Path) -> Result<PathBuf, String> {
+fn parent_made(path: &Path) -> Result<PathBuf, DartDocError> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|error| format!("cannot create {}: {error}", parent.display()))?;
+        fs::create_dir_all(parent).map_err(|source| {
+            DartDocError::Io(PathIoError::Create {
+                path: parent.to_path_buf(),
+                source,
+            })
+        })?;
     }
     Ok(path.to_path_buf())
 }
@@ -234,23 +348,22 @@ fn link(target: &Path, at: &Path) -> std::io::Result<()> {
     fs::copy(target, at).map(|_| ())
 }
 
-fn dart_doc(options: &DocOptions, stage: &Path) -> Result<(), String> {
+fn dart_doc(options: &DocOptions, home: &Path, stage: &Path) -> Result<(), DartDocError> {
     let mut command = Command::new(&options.dart);
     command
+        .env("HOME", home)
+        .env("PUB_CACHE", home.join("pub"))
         .arg("doc")
         .arg("--output")
         .arg(&options.html)
         .arg(stage.join(&options.own));
-    let captured =
-        run_captured(&mut command, DART_DOC_TIMEOUT).map_err(|error| error.to_string())?;
+    let captured = run_captured(&mut command, DART_DOC_TIMEOUT).map_err(DartDocError::Run)?;
     if captured.success() {
         Ok(())
     } else {
-        Err(format!(
-            "dart doc failed:\n{}{}",
-            captured.stdout_text(),
-            captured.stderr_text()
-        ))
+        Err(DartDocError::DartDocFailed {
+            output: format!("{}{}", captured.stdout_text(), captured.stderr_text()),
+        })
     }
 }
 

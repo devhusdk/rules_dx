@@ -1,9 +1,4 @@
-#![deny(
-    clippy::indexing_slicing,
-    clippy::map_err_ignore,
-    clippy::string_slice,
-    clippy::unused_result_ok
-)]
+#![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -819,9 +814,15 @@ pub fn holding() -> ForkGuard {
 )]
 pub fn executable_script(path: &Path, body: &str) {
     use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    // Only shell builtins copy stdin: a parallel test may have pointed the
+    // process PATH at a fake bin directory without `cat`. After EOF, `read`
+    // leaves a final line that has no newline in `$l`.
     let mut child = std::process::Command::new("/bin/sh")
         .arg("-c")
-        .arg("cat > \"$1\" && chmod 755 \"$1\"")
+        .arg(
+            "{ while IFS= read -r l; do printf '%s\\n' \"$l\"; done; printf '%s' \"$l\"; } > \"$1\"",
+        )
         .arg("sh")
         .arg(path)
         .stdin(std::process::Stdio::piped())
@@ -835,6 +836,7 @@ pub fn executable_script(path: &Path, body: &str) {
         .expect("write script body");
     let status = child.wait().expect("wait sh");
     assert!(status.success(), "write {}: {status}", path.display());
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod script");
 }
 
 /// [`executable_script`] of a POSIX shell script that runs `body`.
@@ -873,6 +875,26 @@ pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
         std::fs::copy(tool, &target).expect("copy fake generate tool");
     }
     dir.display().to_string()
+}
+
+/// Makes `dir` an empty git repository by writing the few entries git needs, which is
+/// faster than `git init` when many tests fork at once. A dx run in `dir` then reads
+/// its own unset `dx.primary` instead of the checkout's the test runs in.
+///
+/// # Panics
+///
+/// Panics when the operation fails.
+#[track_caller]
+#[expect(
+    clippy::expect_used,
+    reason = "test helper: a failed setup fails the test"
+)]
+pub fn empty_git_repo(dir: &Path) {
+    let git = dir.join(".git");
+    for sub in ["objects", "refs"] {
+        std::fs::create_dir_all(git.join(sub)).expect("git dir");
+    }
+    std::fs::write(git.join("HEAD"), "ref: refs/heads/main\n").expect("git HEAD");
 }
 
 /// Waits up to 10s for the process holding the alive lock at `lock` to die.

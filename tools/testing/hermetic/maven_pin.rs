@@ -3,8 +3,6 @@
 //! With `DX_HERMETIC_MANIFEST` it pins in the materialized consumer of that manifest; without it
 //! it pins the lock every nested consumer shares. `DX_MAVEN_LOCK` is the workspace path of the lock.
 
-#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
-
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::{ExitCode, Stdio};

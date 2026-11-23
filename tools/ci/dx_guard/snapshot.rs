@@ -13,7 +13,7 @@ const GUARDS: [&str; 4] = [
     "tools/ci/verbatim_prefix_test.rs",
 ];
 
-/// Endings of the scanned files that are not Starlark.
+/// Endings of the scanned files that are not Starlark. Extensionless scripts that dx installs on the host, such as `cli/*/templates/*`, are not scanned.
 const CODE: [&str; 7] = [".rs", ".sh", ".tpl", ".bazelrc", ".bat", ".cmd", ".ps1"];
 
 /// Path components that mark a file as test-only or vendored.

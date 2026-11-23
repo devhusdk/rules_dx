@@ -2,7 +2,6 @@
 
 load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
 load("//core:rlocation.bzl", "external_path")
-load("//core/quality:family_hooks.bzl", "stage")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
@@ -39,17 +38,15 @@ SHARD_SPECS = {
     },
 }
 
-def _sorbet_hook(target, _ctx, _resolved, _capability, _what, shared):
-    owned_paths = {f.path: True for f in shared.path_to_file.values()}
-    tool_files = []
-    inputs = []
-    if RubyFilesInfo in target:
-        seen_deps = {}
-        for dep_file in sorted(target[RubyFilesInfo].transitive_srcs.to_list(), key = lambda f: f.path):
-            if dep_file.path.endswith((".rb", ".rbi")) and dep_file.path not in owned_paths and dep_file.path not in seen_deps:
-                seen_deps[dep_file.path] = True
-                stage(tool_files, inputs, "dx-sorbet/dep/" + external_path(dep_file.short_path), dep_file)
-    return real_context(tool_files = tool_files, inputs = inputs)
+def _sorbet_dep_line(f):
+    if not f.path.endswith((".rb", ".rbi")):
+        return None
+    return "dx-sorbet/dep/" + external_path(f.short_path) + "\t" + f.path
+
+def _sorbet_hook(target, _ctx, _resolved, _capability, _what, _shared):
+    if RubyFilesInfo not in target:
+        return real_context()
+    return real_context(dep_lists = [(target[RubyFilesInfo].transitive_srcs, _sorbet_dep_line)])
 
 HOOK_ORDER = ["sorbet"]
 

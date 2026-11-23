@@ -1,7 +1,5 @@
 //! Renders the per-cell coverage summary comment of the consumer coverage job.
 
-#![deny(clippy::map_err_ignore, clippy::unused_result_ok)]
-
 use serde_json::Value;
 
 #[cfg(test)]

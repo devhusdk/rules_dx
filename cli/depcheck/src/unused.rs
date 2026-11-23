@@ -92,7 +92,8 @@ fn native_ignores(eco: Language, text: &str) -> Result<BTreeSet<String>, Depchec
         | Language::Swift
         | Language::Powershell
         | Language::Lua
-        | Language::Ocaml => Vec::new(),
+        | Language::Ocaml
+        | Language::Ansible => Vec::new(),
     };
     Ok(names
         .iter()
@@ -105,6 +106,10 @@ fn manifest_text(manifest: &Path) -> Result<String, DepcheckError> {
 }
 
 /// Declared dependencies of `manifest` without JS peers and natively ignored entries.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn declared(eco: Language, manifest: &Path) -> Result<Vec<DeclaredDep>, DepcheckError> {
     let mut deps = crate::consistency::load_manifest(eco, manifest)?;
     if matches!(eco, Language::Js | Language::Ts) {
@@ -133,6 +138,10 @@ pub fn declared(eco: Language, manifest: &Path) -> Result<Vec<DeclaredDep>, Depc
 }
 
 /// Declared dependencies of `manifest` that nothing under `sources` uses and no target depends on (`used`).
+///
+/// # Errors
+///
+/// Returns an error when the manifest or a source cannot be read or does not parse.
 pub fn find_unused(
     eco: Language,
     manifest: &Path,

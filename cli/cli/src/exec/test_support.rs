@@ -231,17 +231,6 @@ impl QueryRunner for ScriptQuery {
     }
 }
 
-/// Keeps the build-output guard from finding a repository above the scratch dir.
-/// Writes the few entries git needs to see a repository instead of running
-/// `git init`, which is slow when many tests fork at once.
-fn init_empty_repo(workspace: &Path) {
-    let git = workspace.join(".git");
-    for dir in ["objects", "refs"] {
-        std::fs::create_dir_all(git.join(dir)).expect("git dir");
-    }
-    std::fs::write(git.join("HEAD"), "ref: refs/heads/main\n").expect("git HEAD");
-}
-
 impl Harness {
     pub(crate) fn new(name: &str) -> Self {
         let workspace_guard = temp_dir(&format!("{name}-ws"));
@@ -249,7 +238,7 @@ impl Harness {
         let workspace = workspace_guard.path().to_path_buf();
         let temp = temp_guard.path().to_path_buf();
         let cwd = workspace.clone();
-        init_empty_repo(&workspace);
+        dx_testing::empty_git_repo(&workspace);
         let base = workspace.join(dx_audit::secrets::BASE_CONFIG_PATH);
         std::fs::create_dir_all(base.parent().expect("parent")).expect("base dir");
         std::fs::write(base, "[extend]\nuseDefault = true\n").expect("write gitleaks base");

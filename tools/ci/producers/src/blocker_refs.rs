@@ -90,7 +90,12 @@ pub fn refs(local_repo: &str, line: &str) -> String {
         writeln!(out, "{repo} {number} {short}{}", column(repo)).unwrap_or_default();
     }
     for bare in bares {
-        writeln!(out, "{local_repo} {} {bare}", bare.strip_prefix('#').unwrap_or_default()).unwrap_or_default();
+        writeln!(
+            out,
+            "{local_repo} {} {bare}",
+            bare.strip_prefix('#').unwrap_or_default()
+        )
+        .unwrap_or_default();
     }
     out
 }
@@ -170,13 +175,19 @@ mod tests {
             ),
             "bazelbuild/rules_rust 4380 https://github.com/bazelbuild/rules_rust/pull/4380 release\n"
         );
-        assert_eq!(refs(LOCAL, "Blocked on: a/b#7, Release\n"), "a/b 7 a/b#7 release\n");
+        assert_eq!(
+            refs(LOCAL, "Blocked on: a/b#7, Release\n"),
+            "a/b 7 a/b#7 release\n"
+        );
     }
 
     #[test]
     fn release_lines_leave_local_refs_unmarked() {
         assert_eq!(
-            refs(LOCAL, "Blocked on: #4, devhusdk/rules_dx#5, DevHusdk/Rules_DX#6, a/b#7 in a release\n"),
+            refs(
+                LOCAL,
+                "Blocked on: #4, devhusdk/rules_dx#5, DevHusdk/Rules_DX#6, a/b#7 in a release\n"
+            ),
             "devhusdk/rules_dx 5 devhusdk/rules_dx#5\n\
              DevHusdk/Rules_DX 6 DevHusdk/Rules_DX#6\n\
              a/b 7 a/b#7 release\n\
@@ -187,7 +198,10 @@ mod tests {
     #[test]
     fn release_must_be_a_word_outside_the_refs() {
         assert_eq!(
-            refs(LOCAL, "Blocked on: https://github.com/googleapis/release-please/pull/5\n"),
+            refs(
+                LOCAL,
+                "Blocked on: https://github.com/googleapis/release-please/pull/5\n"
+            ),
             "googleapis/release-please 5 https://github.com/googleapis/release-please/pull/5\n"
         );
         assert_eq!(refs(LOCAL, "Blocked on: a/b#1 released\n"), "a/b 1 a/b#1\n");

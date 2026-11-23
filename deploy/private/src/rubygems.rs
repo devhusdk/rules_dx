@@ -1,5 +1,3 @@
-//! RubyGems publisher: gem build from staged sources and the gem push.
-
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
     placeholder_refusal, resolve_version, run_publish, scrubbed_command,
@@ -12,7 +10,6 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Why a rubygems deployment failed.
 #[derive(Debug)]
 pub enum RubygemsError {
     Paths(io::Error),
@@ -24,7 +21,6 @@ pub enum RubygemsError {
         found: Option<String>,
         target: String,
     },
-    /// An already-prefixed refusal from the shared version, placeholder or owner checks.
     Refused(String),
     NoDataArchive {
         gem: PathBuf,
@@ -33,7 +29,6 @@ pub enum RubygemsError {
         missing: Vec<String>,
         extra: Vec<String>,
     },
-    /// A gem command failed; `lines` are token-redacted.
     GemFailed {
         step: &'static str,
         status: String,
@@ -95,7 +90,6 @@ impl std::error::Error for RubygemsError {
     }
 }
 
-/// Owner approval gate for rubygems_deploy.
 pub(crate) const RUBYGEMS_GATE: OwnerGate = OwnerGate {
     tool: "rubygems_deploy",
     action: "push",
@@ -103,13 +97,10 @@ pub(crate) const RUBYGEMS_GATE: OwnerGate = OwnerGate {
     approved: "RUBYGEMS_PUBLISH_APPROVED",
 };
 
-/// Extra env names gem keeps beyond the publish base list.
 const GEM_CHILD_ENV_EXTRA: &[&str] = &["GEM_HOME", "GEM_PATH"];
 
-/// Most gem output lines shown when a command fails.
 const GEM_FAILURE_LINES: usize = 40;
 
-/// Returns the plain string assigned to `<spec>.<field> = "..."` in a gemspec.
 fn gemspec_value(text: &str, field: &str) -> Option<String> {
     for line in text.lines() {
         let line = line.trim();
@@ -130,7 +121,6 @@ fn gemspec_value(text: &str, field: &str) -> Option<String> {
     None
 }
 
-/// Returns the version to publish, refusing a gemspec that is not the target gem or declares another version.
 fn gemspec_version(text: &str, gem_name: &str, version: &str) -> Result<String, RubygemsError> {
     let name = gemspec_value(text, "name");
     if name.as_deref() != Some(gem_name) {
@@ -148,7 +138,6 @@ fn gemspec_version(text: &str, gem_name: &str, version: &str) -> Result<String, 
     .map_err(RubygemsError::Refused)
 }
 
-/// Maps gem input files to package-relative paths under the gemspec directory.
 pub fn rubygems_package_paths(
     files: &[PathBuf],
     gem_name: &str,
@@ -156,7 +145,6 @@ pub fn rubygems_package_paths(
     package_relative_paths(files, &format!("{gem_name}.gemspec"), "rubygems_deploy")
 }
 
-/// Returns the file paths packed in the data archive of a built gem.
 fn gem_file_list(gem: &Path) -> Result<BTreeSet<String>, RubygemsError> {
     let fail = |source: io::Error| {
         RubygemsError::Io(PathIoError::Read {
@@ -201,7 +189,6 @@ fn gem_file_list(gem: &Path) -> Result<BTreeSet<String>, RubygemsError> {
     })
 }
 
-/// Returns a refusal when the gem packs a different file list than the sources.
 fn file_list_refusal(
     packed: &BTreeSet<String>,
     mapped: &[(PathBuf, String)],
@@ -221,7 +208,6 @@ fn file_list_refusal(
     })
 }
 
-/// Returns the last output lines with the token value removed.
 fn gem_failure_lines(output: &dx_process::capture::Captured, token: &str) -> Vec<String> {
     let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
     text.push_str(&String::from_utf8_lossy(&output.stderr));
@@ -236,7 +222,6 @@ fn gem_failure_lines(output: &dx_process::capture::Captured, token: &str) -> Vec
         .collect()
 }
 
-/// Returns PATH with the gem's own directory first, so its `ruby` is the one found.
 fn gem_path(program: &Path) -> String {
     let mut dirs: Vec<PathBuf> = program
         .parent()
@@ -251,7 +236,6 @@ fn gem_path(program: &Path) -> String {
         .unwrap_or_default()
 }
 
-/// Runs `gem build` in the staged tree and returns the gem path.
 fn gem_build(
     program: &Path,
     staging: &Path,
@@ -283,7 +267,6 @@ fn gem_build(
     Ok(gem)
 }
 
-/// Runs `gem push`; the key goes through GEM_HOST_API_KEY.
 fn gem_push(program: &Path, gem: &Path, token: &str) -> Result<(), RubygemsError> {
     let path = gem_path(program);
     let output = run_publish(
@@ -306,7 +289,6 @@ fn gem_push(program: &Path, gem: &Path, token: &str) -> Result<(), RubygemsError
     })
 }
 
-/// Stages the sources, checks the gemspec, builds the gem and checks its file list; returns the gem and its version.
 fn rubygems_build_checked(
     gem_program: &Path,
     mapped: &[(PathBuf, String)],
@@ -325,7 +307,6 @@ fn rubygems_build_checked(
     Ok((gem, version))
 }
 
-/// Finds `gem` next to the pinned `ruby`, or on PATH when none is pinned.
 fn find_gem(run: &DeployRun, ruby_rloc: &str) -> Option<PathBuf> {
     if ruby_rloc.is_empty() {
         let gem = which_on_path("gem");
@@ -346,7 +327,6 @@ fn find_gem(run: &DeployRun, ruby_rloc: &str) -> Option<PathBuf> {
     gem
 }
 
-/// Runs the RubyGems deploy tool.
 pub fn rubygems_main(
     gem_rlocs: &[String],
     gem_name: &str,
@@ -574,7 +554,6 @@ mod tests {
         std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
     }
 
-    /// A shell command that writes the bytes of `path` to `$4` using only builtins.
     #[cfg(unix)]
     fn emit_file(path: &Path) -> String {
         use std::fmt::Write as _;

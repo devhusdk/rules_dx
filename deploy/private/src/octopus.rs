@@ -1,5 +1,3 @@
-//! Octopus Deploy publisher: drop staging and the octo push and release.
-
 use crate::archive::*;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
@@ -10,7 +8,6 @@ use std::ffi::OsString;
 use std::io;
 use std::path::Path;
 
-/// Octopus drop inputs.
 pub struct OctopusDrop<'a> {
     pub deploy_name: &'a str,
     pub project: &'a str,
@@ -21,7 +18,6 @@ pub struct OctopusDrop<'a> {
     pub server: &'a str,
 }
 
-/// Builds the argv for `octo push`.
 pub fn octopus_push_args(package: &Path, spec: &OctopusDrop<'_>) -> Vec<OsString> {
     let mut args: Vec<OsString> = vec![
         "push".into(),
@@ -37,7 +33,6 @@ pub fn octopus_push_args(package: &Path, spec: &OctopusDrop<'_>) -> Vec<OsString
     args
 }
 
-/// Builds the argv for `octo create-release`.
 pub fn octopus_release_args(spec: &OctopusDrop<'_>) -> Vec<OsString> {
     let mut args: Vec<OsString> = vec![
         "create-release".into(),
@@ -61,7 +56,6 @@ pub fn octopus_release_args(spec: &OctopusDrop<'_>) -> Vec<OsString> {
     args
 }
 
-/// Renders an octo argv as one display line.
 fn octo_line(args: &[OsString]) -> String {
     let words: Vec<String> = args
         .iter()
@@ -70,7 +64,6 @@ fn octo_line(args: &[OsString]) -> String {
     format!("octo {}", words.join(" "))
 }
 
-/// Octopus launcher inputs.
 pub struct OctopusLaunch<'a> {
     pub package_rloc: &'a str,
     pub package: &'a str,
@@ -83,14 +76,12 @@ pub struct OctopusLaunch<'a> {
     pub url_default: &'a str,
 }
 
-/// Returns the version in an archive named `<package>.<version>.tar.gz`.
 pub fn octopus_archive_version(package: &str, filename: &str) -> Option<String> {
     let rest = filename.strip_prefix(package)?.strip_prefix('.')?;
     let version = rest.strip_suffix(".tar.gz")?;
     (!version.is_empty()).then(|| version.to_owned())
 }
 
-/// Builds one Octopus package drop.
 pub fn octopus_build_drop(
     package_src: &Path,
     outdir: &Path,
@@ -143,7 +134,6 @@ pub fn octopus_build_drop(
     Ok(drop)
 }
 
-/// Owner approval gate for octopus_deploy.
 pub(crate) const OCTOPUS_GATE: OwnerGate = OwnerGate {
     tool: "octopus_deploy",
     action: "push",
@@ -151,7 +141,6 @@ pub(crate) const OCTOPUS_GATE: OwnerGate = OwnerGate {
     approved: "OCTOPUS_PUBLISH_APPROVED",
 };
 
-/// Runs one octo step with the key in env only; true on success.
 fn octo_run(octo: &Path, args: &[OsString], api_key: &str, step: &str) -> bool {
     let mut cmd = scrubbed_command(
         octo,
@@ -179,7 +168,6 @@ fn octo_run(octo: &Path, args: &[OsString], api_key: &str, step: &str) -> bool {
     }
 }
 
-/// Names the package and the next step when the push fails.
 fn push_failed_hint(name: &str, spec: &OctopusDrop<'_>) -> String {
     format!(
         "octopus_deploy: could not push package {name} ({} {}); if this version already exists in Octopus, publish a new version or delete it in Octopus first (FailIfExists)",
@@ -187,7 +175,6 @@ fn push_failed_hint(name: &str, spec: &OctopusDrop<'_>) -> String {
     )
 }
 
-/// Pushes the package, then creates the release and queues each deployment.
 pub fn octopus_live_publish(
     octo: &Path,
     package: &Path,
@@ -222,7 +209,6 @@ pub fn octopus_live_publish(
     0
 }
 
-/// Returns why a live push cannot run with this version and server, or None.
 fn octopus_live_refusal(version: &str, server: &str) -> Option<String> {
     if let Some(refusal) = placeholder_refusal("octopus_deploy", version) {
         return Some(refusal);
@@ -253,7 +239,6 @@ fn octopus_live_refusal(version: &str, server: &str) -> Option<String> {
     }
 }
 
-/// Runs the Octopus deploy tool.
 pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
         "octopus_deploy",

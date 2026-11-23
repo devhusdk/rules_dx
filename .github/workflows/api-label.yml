@@ -1,7 +1,5 @@
 name: api-label
 
-# A pull request that changes the public API snapshot in api/ needs the `api` label.
-# It also runs on label changes, so adding the label turns the check green.
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
@@ -28,7 +26,6 @@ jobs:
           HAS_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'api') }}
         run: |
           set -euo pipefail
-          # A rename out of api/ changes the API too, so check the old name as well.
           changed=$(gh api "repos/$GH_REPO/pulls/$PR/files" --paginate \
             --jq '.[] | .filename, (.previous_filename // empty) | select(startswith("api/"))' | sort -u)
           if [ -z "$changed" ]; then

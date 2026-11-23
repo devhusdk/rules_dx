@@ -1,5 +1,3 @@
-//! OCI image publisher: layout staging, docker-save reading and the registry push.
-
 use crate::archive::*;
 use crate::oci_scan::{OciChecks, ScanMode, run_trivy, scan_and_report};
 use crate::registry;
@@ -15,27 +13,18 @@ use std::fmt;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
-/// A failed layout read, registry push or signature in `oci_deploy`.
 #[derive(Debug)]
 pub(crate) enum OciError {
-    /// The layout could not be staged from the image.
     Layout(io::Error),
-    /// A layout file could not be read.
     Read(PathIoError),
-    /// A layout file is not valid JSON.
     Parse {
         path: PathBuf,
         source: serde_json::Error,
     },
-    /// `index.json` names no manifest digest.
     NoManifestDigest,
-    /// The image manifest names no config digest.
     NoConfigDigest,
-    /// The registry push failed.
     Push(registry::RegistryError),
-    /// The private `DOCKER_CONFIG` dir for cosign could not be created.
     DockerConfigDir(io::Error),
-    /// cosign could not log in, sign or attest.
     Sign(CosignError),
 }
 
@@ -71,7 +60,6 @@ impl std::error::Error for OciError {
     }
 }
 
-/// Reads one JSON file of a staged layout.
 fn oci_layout_json(path: &Path) -> Result<serde_json::Value, OciError> {
     let bytes = path_io::read(path).map_err(OciError::Read)?;
     serde_json::from_slice(&bytes).map_err(|source| OciError::Parse {
@@ -80,7 +68,6 @@ fn oci_layout_json(path: &Path) -> Result<serde_json::Value, OciError> {
     })
 }
 
-/// Maps the platform to its os and architecture and checks the image suffix.
 fn oci_check_source(image: &Path, platform: &str) -> io::Result<(&'static str, &'static str)> {
     let (os, architecture) = match platform {
         "linux/amd64" => ("linux", "amd64"),
@@ -104,7 +91,6 @@ fn oci_check_source(image: &Path, platform: &str) -> io::Result<(&'static str, &
     Ok((os, architecture))
 }
 
-/// Builds one OCI image layout from an image archive.
 pub fn oci_build_layout(
     image_tar_src: &Path,
     outdir: &Path,
@@ -157,7 +143,6 @@ pub fn oci_build_layout(
     Ok(layout)
 }
 
-/// Writes the OCI layout for one image archive into `dst`, tagged with `reference`.
 pub fn archive_oci_layout(
     image: &Path,
     platform: &str,
@@ -168,7 +153,6 @@ pub fn archive_oci_layout(
     oci_stage_layout(image, dst, reference, os, architecture)
 }
 
-/// Checks that the image config matches the declared os and architecture.
 fn oci_check_config(archive: &OciArchive, os: &str, architecture: &str) -> io::Result<()> {
     let config: serde_json::Value = serde_json::from_slice(&archive.config).map_err(|error| {
         io::Error::new(
@@ -195,7 +179,6 @@ fn oci_check_config(archive: &OciArchive, os: &str, architecture: &str) -> io::R
     Ok(())
 }
 
-/// Writes the OCI layout for one image archive into a staging dir.
 fn oci_stage_layout(
     image: &Path,
     staging: &Path,
@@ -261,7 +244,6 @@ fn oci_stage_layout(
     Ok(())
 }
 
-/// One image layer read from an image archive.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OciLayer {
     pub digest: String,
@@ -270,7 +252,6 @@ pub struct OciLayer {
     pub diff_id: String,
 }
 
-/// The single image held by an image archive.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OciArchive {
     pub config: Vec<u8>,
@@ -288,7 +269,6 @@ fn oci_malformed(error: impl std::fmt::Display) -> io::Error {
     oci_invalid(format!("malformed image archive: {error}"))
 }
 
-/// Reads up to `buf.len()` bytes, stopping early only at end of stream.
 fn read_prefix(reader: &mut impl Read, buf: &mut [u8]) -> io::Result<usize> {
     let mut filled = 0;
     while filled < buf.len() {
@@ -305,7 +285,6 @@ fn read_prefix(reader: &mut impl Read, buf: &mut [u8]) -> io::Result<usize> {
     Ok(filled)
 }
 
-/// Opens one archive as a tar stream, unwrapping gzip by its magic bytes.
 fn oci_open_archive(image: &Path) -> io::Result<Box<dyn Read>> {
     use std::io::Seek as _;
     let opened =
@@ -328,16 +307,12 @@ fn oci_open_archive(image: &Path) -> io::Result<Box<dyn Read>> {
     Ok(reader)
 }
 
-/// Layers are streamed, not buffered, so only the entry count is capped.
 const OCI_ARCHIVE_LIMITS: dx_archive::Limits = dx_archive::Limits {
     max_entries: 1 << 20,
     max_entry_bytes: u64::MAX,
     max_total_bytes: u64::MAX,
 };
 
-/// Visits every entry of an image archive through `dx_archive`, which refuses unsafe member names.
-///
-/// Errors from `f` come back unchanged; only errors from reading the archive are reported as malformed.
 fn oci_visit_archive(
     image: &Path,
     mut f: impl FnMut(&dx_archive::Entry, &mut dyn Read) -> io::Result<()>,
@@ -359,7 +334,6 @@ fn oci_visit_archive(
     }
 }
 
-/// One image input: a tar archive or an OCI layout directory.
 #[derive(Clone, Copy)]
 enum OciSource<'a> {
     Archive(&'a Path),
@@ -376,7 +350,6 @@ impl<'a> OciSource<'a> {
     }
 }
 
-/// Maps a member name to a path under a layout directory, or None if it is not a plain relative path.
 fn oci_dir_member(root: &Path, name: &str) -> Option<std::path::PathBuf> {
     let mut path = root.to_path_buf();
     for segment in name.split('/') {
@@ -392,7 +365,6 @@ fn oci_dir_member(root: &Path, name: &str) -> Option<std::path::PathBuf> {
     Some(path)
 }
 
-/// Opens one regular-file member of a layout directory, or None when it is absent.
 fn oci_dir_open(root: &Path, name: &str) -> io::Result<Option<std::fs::File>> {
     let Some(path) = oci_dir_member(root, name) else {
         return Ok(None);
@@ -413,7 +385,6 @@ fn oci_dir_open(root: &Path, name: &str) -> io::Result<Option<std::fs::File>> {
         .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))
 }
 
-/// Visits the regular-file members named in `names`, streaming each one.
 fn oci_each_member(
     source: OciSource<'_>,
     names: &[&str],
@@ -443,7 +414,6 @@ fn oci_each_member(
     Ok(())
 }
 
-/// Joins a member path onto a base dir inside the archive, or None if it escapes.
 fn oci_member_path(base: &str, path: &str) -> Option<String> {
     if path.starts_with('/') {
         return None;
@@ -464,13 +434,11 @@ fn oci_member_path(base: &str, path: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
-/// One link member inside an archive.
 enum OciLink {
     Symbolic(String),
     Hard(String),
 }
 
-/// Follows archive links from one member name to the member that holds the bytes.
 fn oci_resolve(
     links: &std::collections::HashMap<String, OciLink>,
     name: &str,
@@ -494,7 +462,6 @@ fn oci_resolve(
     )))
 }
 
-/// Reader that hashes, counts, and optionally copies every byte it yields.
 struct OciTee<'a, R> {
     inner: R,
     hash: dx_digest::Sha256Writer,
@@ -517,7 +484,6 @@ impl<R: Read> Read for OciTee<'_, R> {
     }
 }
 
-/// Streams one layer, returning it with its blob digest and uncompressed diff_id.
 fn oci_read_layer(
     reader: impl Read,
     name: &str,
@@ -588,14 +554,12 @@ const OCI_LAYER_TYPES: [&str; 5] = [
 
 type OciLinks = std::collections::HashMap<String, OciLink>;
 
-/// Links and control files found by the first pass over an image archive.
 struct OciScan {
     links: OciLinks,
     manifest_json: Option<Vec<u8>>,
     index_json: Option<Vec<u8>>,
 }
 
-/// Member names and expected digests of the single image an archive holds.
 struct OciPlan {
     config: String,
     config_label: String,
@@ -605,7 +569,6 @@ struct OciPlan {
     layer_digests: Option<Vec<String>>,
 }
 
-/// Collects links plus the manifest.json and index.json bodies in one pass.
 fn oci_scan(source: OciSource<'_>) -> io::Result<OciScan> {
     let mut scan = OciScan {
         links: OciLinks::new(),
@@ -657,7 +620,6 @@ fn oci_scan(source: OciSource<'_>) -> io::Result<OciScan> {
     Ok(scan)
 }
 
-/// Reads the named regular-file members in one pass, keyed by the requested name.
 fn oci_read_members(
     source: OciSource<'_>,
     links: &OciLinks,
@@ -688,7 +650,6 @@ fn oci_read_members(
     Ok(found)
 }
 
-/// Builds the read plan from a docker save manifest.json.
 fn oci_docker_plan(manifest: &[u8], links: &OciLinks) -> io::Result<OciPlan> {
     let parsed: serde_json::Value = serde_json::from_slice(manifest)
         .map_err(|error| oci_invalid(format!("malformed manifest.json: {error}")))?;
@@ -737,7 +698,6 @@ fn oci_docker_plan(manifest: &[u8], links: &OciLinks) -> io::Result<OciPlan> {
     })
 }
 
-/// Maps a sha256 digest to its blob member name.
 fn oci_blob_member(digest: &str) -> io::Result<String> {
     match digest.strip_prefix("sha256:") {
         Some(hex)
@@ -754,7 +714,6 @@ fn oci_blob_member(digest: &str) -> io::Result<String> {
     }
 }
 
-/// Reads the blobs behind a set of descriptors and checks each against its digest.
 fn oci_read_descriptors(
     source: OciSource<'_>,
     links: &OciLinks,
@@ -771,7 +730,6 @@ fn oci_read_descriptors(
     let mut bodies = oci_read_members(source, links, &names)?;
     let mut read = Vec::with_capacity(names.len());
     for (position, (name, digest)) in names.iter().zip(&digests).enumerate() {
-        // A digest listed twice shares one body: clone until its last use.
         let body = if names
             .get(position + 1..)
             .is_some_and(|rest| rest.contains(name))
@@ -791,8 +749,6 @@ fn oci_read_descriptors(
     Ok(read)
 }
 
-/// Drops descriptors repeating an earlier digest; the same manifest under two
-/// `ref.name` tags or listed twice in an index is one image.
 fn oci_dedupe_by_digest(descriptors: &mut Vec<serde_json::Value>) {
     let mut seen = std::collections::HashSet::new();
     descriptors.retain(|descriptor| match descriptor["digest"].as_str() {
@@ -801,7 +757,6 @@ fn oci_dedupe_by_digest(descriptors: &mut Vec<serde_json::Value>) {
     });
 }
 
-/// Builds the read plan from an OCI layout index.json.
 fn oci_index_plan(
     source: OciSource<'_>,
     index: &[u8],
@@ -936,7 +891,6 @@ fn oci_index_plan(
     })
 }
 
-/// Reads the single image in an image archive, copying layers into `blobs` when set.
 pub fn oci_read_archive(
     image: &Path,
     blobs: Option<&Path>,
@@ -947,7 +901,6 @@ pub fn oci_read_archive(
     oci_read_plan(source, &plan, blobs)
 }
 
-/// Finds the single image in an image archive or layout directory.
 fn oci_plan(source: OciSource<'_>, target: Option<(&str, &str)>) -> io::Result<OciPlan> {
     let scan = oci_scan(source)?;
     if let Some(manifest) = &scan.manifest_json {
@@ -965,7 +918,6 @@ fn oci_plan(source: OciSource<'_>, target: Option<(&str, &str)>) -> io::Result<O
     }
 }
 
-/// Streams the config and layers named by a plan in one pass and checks their digests.
 fn oci_read_plan(
     source: OciSource<'_>,
     plan: &OciPlan,
@@ -1068,7 +1020,6 @@ fn oci_read_plan(
     })
 }
 
-/// Reads one layer, copying it into `blobs` under its digest when set.
 fn oci_copy_layer(reader: impl Read, name: &str, blobs: Option<&Path>) -> io::Result<OciLayer> {
     let Some(blobs) = blobs else {
         return oci_read_layer(reader, name, None);
@@ -1079,7 +1030,6 @@ fn oci_copy_layer(reader: impl Read, name: &str, blobs: Option<&Path>) -> io::Re
     Ok(layer)
 }
 
-/// Returns the config digest of the single image after the checks the layout enforces.
 pub fn oci_declared_image_id(image: &Path, platform: &str) -> io::Result<String> {
     let (os, architecture) = oci_check_source(image, platform)?;
     let archive = oci_read_archive(image, None, Some((os, architecture)))?;
@@ -1087,7 +1037,6 @@ pub fn oci_declared_image_id(image: &Path, platform: &str) -> io::Result<String>
     Ok(archive.config_digest)
 }
 
-/// Reads the config digest of the single manifest in a staged layout.
 fn oci_layout_config_digest(layout: &Path) -> Result<String, OciError> {
     let index = oci_layout_json(&layout.join("index.json"))?;
     let digest = index
@@ -1107,7 +1056,6 @@ fn oci_layout_config_digest(layout: &Path) -> Result<String, OciError> {
         .ok_or(OciError::NoConfigDigest)
 }
 
-/// Target and credentials for one live push.
 struct OciPush<'a> {
     registry: &'a str,
     repository: &'a str,
@@ -1117,7 +1065,6 @@ struct OciPush<'a> {
     sign: Option<OciSign<'a>>,
 }
 
-/// The pinned cosign, identity and SBOM that sign one pushed image.
 #[derive(Clone, Copy)]
 struct OciSign<'a> {
     pin: CosignPin<'a>,
@@ -1125,13 +1072,8 @@ struct OciSign<'a> {
     sbom: Option<&'a Path>,
 }
 
-/// Signs `registry/repository@digest` and attests the SBOM, with a throwaway registry login.
 fn oci_sign_pushed(sign: &OciSign<'_>, push: &OciPush<'_>, digest: &str) -> Result<(), OciError> {
     let reference = format!("{}/{}@{digest}", push.registry, push.repository);
-    // The config holds the registry user:secret. It lives in a private temp dir outside
-    // outdir, which is kept after the run, and the TempDir guard removes it on every
-    // return path, including a panic in signing. tempfile makes dirs with the default
-    // mode, so ask for 0700 explicitly; write_docker_config makes the file 0600.
     let mut builder = tempfile::Builder::new();
     builder.prefix("dx-cosign-docker-config-");
     #[cfg(unix)]
@@ -1155,8 +1097,6 @@ fn oci_sign_pushed(sign: &OciSign<'_>, push: &OciPush<'_>, digest: &str) -> Resu
     });
     let shown = docker_config.path().display().to_string();
     if let Err(error) = docker_config.close() {
-        // The push and signature already happened, so this warns instead of failing the
-        // deploy; the leftover login sits in the temp dir, never in outdir.
         eprintln!("oci_deploy: warning: cannot remove the cosign login at {shown}: {error}");
     }
     result.map_err(OciError::Sign)?;
@@ -1170,7 +1110,6 @@ fn oci_sign_pushed(sign: &OciSign<'_>, push: &OciPush<'_>, digest: &str) -> Resu
     Ok(())
 }
 
-/// Reads the manifest digest of the single image in a staged layout.
 fn oci_layout_manifest_digest(layout: &Path) -> Result<String, OciError> {
     oci_layout_json(&layout.join("index.json"))?
         .pointer("/manifests/0/digest")
@@ -1179,7 +1118,6 @@ fn oci_layout_manifest_digest(layout: &Path) -> Result<String, OciError> {
         .ok_or(OciError::NoManifestDigest)
 }
 
-/// The dry-run lines naming the identity and the cosign commands a live run runs.
 fn oci_sign_plan_lines(
     mode: &str,
     identity: Option<&SignIdentity>,
@@ -1228,7 +1166,6 @@ fn oci_live_push(image: &Path, outdir: &Path, push: &OciPush<'_>) -> i32 {
     oci_live_push_to(&client, &target, image, outdir, push)
 }
 
-/// Stages the layout and pushes exactly those bytes to the target.
 fn oci_live_push_to(
     client: &dx_http::Client,
     target: &registry::RegistryRef,
@@ -1274,7 +1211,6 @@ fn oci_live_push_to(
     }
 }
 
-/// Owner approval gate for oci_deploy.
 pub(crate) const OCI_GATE: OwnerGate = OwnerGate {
     tool: "oci_deploy",
     action: "push",
@@ -1282,7 +1218,6 @@ pub(crate) const OCI_GATE: OwnerGate = OwnerGate {
     approved: "OCI_PUBLISH_APPROVED",
 };
 
-/// Runs the OCI deploy tool.
 pub fn oci_main(
     image_rloc: &str,
     registry: &str,

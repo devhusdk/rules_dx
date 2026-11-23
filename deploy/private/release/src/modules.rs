@@ -1,15 +1,13 @@
-//! The version and dependency checks of the `rules_dx` module a release publishes.
-
 use std::fmt;
 
 use crate::candidate::{call_end, string_fields};
 
-/// A failed `MODULE.bazel` release check.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModuleError {
-    /// The `module()` version is not the release version.
-    VersionMismatch { have: String, want: String },
-    /// A root-only override replaces these `bazel_dep` modules, as (module, override function) pairs.
+    VersionMismatch {
+        have: String,
+        want: String,
+    },
     RootOnlyOverride {
         overrides: Vec<(String, &'static str)>,
     },
@@ -67,11 +65,6 @@ fn field<'a>(call: &'a Call, key: &str) -> Option<&'a str> {
         .map(|(_, value)| value.as_str())
 }
 
-/// Fails when the `module()` version of the root `MODULE.bazel` text is not `version`.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn module_version_error(text: &str, version: &str) -> Result<(), ModuleError> {
     let have = calls(text, "module")
         .iter()
@@ -86,17 +79,8 @@ pub fn module_version_error(text: &str, version: &str) -> Result<(), ModuleError
     Ok(())
 }
 
-/// Overrides that only the root module sees, so a released module that keeps one builds differently for consumers.
 const ROOT_ONLY_OVERRIDES: [&str; 2] = ["local_path_override", "git_override"];
 
-/// Fails when the root `MODULE.bazel` text overrides one of its `bazel_dep` modules with a root-only override.
-///
-/// `archive_override` and `single_version_override` are allowed: release cells copy them for patched deps
-/// (`cell.rs` `root_overrides`).
-///
-/// # Errors
-///
-/// Returns an error naming every such module and its override function.
 pub fn root_only_override_error(text: &str) -> Result<(), ModuleError> {
     let deps = calls(text, "bazel_dep");
     let overrides: Vec<(String, &'static str)> = ROOT_ONLY_OVERRIDES

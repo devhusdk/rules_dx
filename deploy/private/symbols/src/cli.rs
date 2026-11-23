@@ -1,5 +1,3 @@
-//! Flag parsing, tool runs and manifest writes shared by the split, dsym and pdb helpers.
-
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -10,7 +8,6 @@ use dx_process::capture::{Captured, RunError};
 
 use crate::SymbolsError;
 
-/// Why a symbols helper stopped.
 #[derive(Debug)]
 pub enum CliError {
     UnknownFlag(String),
@@ -73,11 +70,6 @@ impl From<PathIoError> for CliError {
     }
 }
 
-/// Reads `--flag value` pairs; every name in `names` is required, and the paths come back in that order.
-///
-/// # Errors
-///
-/// Returns an error for an unknown flag, a flag without a value, or a missing flag.
 pub fn parse_flags<const N: usize>(
     args: &[String],
     names: [&'static str; N],
@@ -101,11 +93,6 @@ pub fn parse_flags<const N: usize>(
     Ok(found.map(Option::unwrap_or_default))
 }
 
-/// Runs a tool and returns its output when it exits 0.
-///
-/// # Errors
-///
-/// Returns an error when the tool cannot start, times out or exits non-zero.
 pub fn run_tool(
     tool: &Path,
     args: &[&std::ffi::OsStr],
@@ -128,11 +115,6 @@ pub fn run_tool(
     Ok(out)
 }
 
-/// Writes a manifest as pretty JSON with a trailing newline.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be encoded or written.
 pub fn write_manifest(path: &Path, manifest: &serde_json::Value) -> Result<(), CliError> {
     let mut text = serde_json::to_string_pretty(manifest).map_err(CliError::Encode)?;
     text.push('\n');

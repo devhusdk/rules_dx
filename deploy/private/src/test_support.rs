@@ -1,9 +1,6 @@
-//! Shared test fixtures: the env lock, scratch dirs and child-process env tests.
-
 use crate::tar_archive;
 use std::path::Path;
 
-/// Gzips a one-member tar whose name is written raw, so unsafe names like `../x` survive.
 pub(crate) fn raw_tar_gz(name: &str, body: &[u8]) -> Vec<u8> {
     let mut tar = dx_archive_testing::RawTar::new();
     tar.add_file(name, body).expect("append");
@@ -12,7 +9,6 @@ pub(crate) fn raw_tar_gz(name: &str, body: &[u8]) -> Vec<u8> {
 
 static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-/// Serves the files `files(origin)` lists by path on a loopback port; anything else is 404.
 #[cfg(unix)]
 pub(crate) fn static_registry(files: impl FnOnce(&str) -> Vec<(String, Vec<u8>)>) -> String {
     use std::io::{Read as _, Write as _};
@@ -155,10 +151,8 @@ pub(crate) fn oci_test_layer(gzip: bool) -> Vec<u8> {
     }
 }
 
-/// Token the fake registry hands out from its realm.
 pub(crate) const FAKE_TOKEN: &str = "fake-bearer-token";
 
-/// Auth challenge the fake registry answers `/v2/` with.
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum FakeChallenge {
     #[default]
@@ -167,7 +161,6 @@ pub(crate) enum FakeChallenge {
     Basic,
 }
 
-/// Shape of the `Location` the fake registry returns for an upload.
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum FakeLocation {
     #[default]
@@ -177,7 +170,6 @@ pub(crate) enum FakeLocation {
     OtherHost,
 }
 
-/// `Docker-Content-Digest` the fake registry returns for a manifest.
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum FakeDigestHeader {
     #[default]
@@ -186,7 +178,6 @@ pub(crate) enum FakeDigestHeader {
     Missing,
 }
 
-/// Behaviour of one fake registry.
 pub(crate) struct FakeConfig {
     pub(crate) challenge: FakeChallenge,
     pub(crate) user: String,
@@ -194,7 +185,6 @@ pub(crate) struct FakeConfig {
     pub(crate) existing: Vec<String>,
     pub(crate) location: FakeLocation,
     pub(crate) digest_header: FakeDigestHeader,
-    /// `(method, path substring, status)` replies forced before anything else.
     pub(crate) fail: Vec<(String, String, u16)>,
 }
 
@@ -212,7 +202,6 @@ impl Default for FakeConfig {
     }
 }
 
-/// One request the fake registry saw.
 #[derive(Clone, Debug)]
 pub(crate) struct FakeRequest {
     pub(crate) method: String,
@@ -232,14 +221,11 @@ struct FakeState {
     blobs: Vec<String>,
     uploads: usize,
     requests: Vec<FakeRequest>,
-    /// Pushed blobs and manifests by digest, with the manifest media type.
     content: std::collections::HashMap<String, (Vec<u8>, Option<String>)>,
     tags: std::collections::HashMap<String, String>,
-    /// Bytes `PATCH`ed into each open upload.
     pending: std::collections::HashMap<String, Vec<u8>>,
 }
 
-/// A loopback OCI registry with a second listener that acts as another host.
 pub(crate) struct FakeRegistry {
     pub(crate) origin: String,
     pub(crate) other_origin: String,
@@ -266,8 +252,6 @@ impl FakeRegistry {
         for listener in [main, other] {
             let state = state.clone();
             std::thread::spawn(move || {
-                // One thread per connection: cosign probes https and http at once, and the
-                // stalled TLS handshake must not hold up the plain request.
                 for stream in listener.incoming() {
                     let Ok(stream) = stream else { return };
                     let state = state.clone();
@@ -287,7 +271,6 @@ impl FakeRegistry {
     }
 }
 
-/// A request the fake server read: the request line, its headers and its body.
 type RawRequest = (String, Vec<(String, String)>, Vec<u8>);
 
 fn fake_read_request(stream: &mut std::net::TcpStream) -> Option<RawRequest> {
@@ -417,7 +400,6 @@ fn fake_serve(mut stream: std::net::TcpStream, state: &std::sync::Mutex<FakeStat
     drop(stream.write_all(&bytes));
 }
 
-/// One request as the fake registry routes it.
 struct FakeCall<'a> {
     method: &'a str,
     path: &'a str,
@@ -427,7 +409,6 @@ struct FakeCall<'a> {
     body_digest: &'a str,
 }
 
-/// Replies with stored content and its digest, or 404 when nothing is stored under `digest`.
 fn fake_stored(state: &FakeState, digest: &str) -> (u16, Vec<(String, String)>, Vec<u8>) {
     let Some((bytes, media_type)) = state.content.get(digest) else {
         return (404, Vec::new(), Vec::new());

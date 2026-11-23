@@ -944,7 +944,6 @@ fn sbom_verify_reads_spdx_fields_not_text() {
     }
 }
 
-/// Renders a document with its top-level keys in reverse order and compact values.
 fn reordered_spdx(value: &serde_json::Value) -> String {
     let entries: Vec<String> = value
         .as_object()
@@ -1467,7 +1466,6 @@ fn notice_text_suffix_match_is_component_wise() {
     assert_eq!(found("a/LICENSE"), vec!["x/a/LICENSE"]);
     assert_eq!(found("x/a/LICENSE"), vec!["x/a/LICENSE"]);
     assert_eq!(found("LICENSE"), vec!["x/a/LICENSE", "x/ba/LICENSE"]);
-    // A partial last component never matches; built at runtime so the typo linter leaves it alone.
     assert_eq!(found("LICENSE".trim_start_matches('L')), [] as [String; 0]);
     assert_eq!(found("NOTLICENSE"), vec!["y/NOTLICENSE"]);
     assert_eq!(

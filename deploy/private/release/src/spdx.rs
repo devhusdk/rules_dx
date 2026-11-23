@@ -1,5 +1,3 @@
-//! Binds a release SPDX document to the artifact it describes; the model lives in `dx_sbom`.
-
 pub use dx_sbom::{
     DOCUMENT_ID, Document, NOASSERTION, SHA256, SPDX_VERSION, SpdxChecksum, SpdxDocument,
     SpdxExternalRef, SpdxFile, SpdxPackage, contains, describes, license_error, purl_name,
@@ -8,28 +6,16 @@ pub use dx_sbom::{
 
 use std::fmt;
 
-/// A release SPDX document that does not describe the artifact it ships with.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpdxError {
     Version,
     DocumentId,
-    /// The license problem as `dx_sbom` words it.
     License(String),
     UnnamedPackage,
-    NoFile {
-        base: String,
-    },
-    FileDigest {
-        digest: String,
-        base: String,
-    },
-    NoPackage {
-        digest: String,
-    },
-    PackageDigest {
-        digest: String,
-        package: String,
-    },
+    NoFile { base: String },
+    FileDigest { digest: String, base: String },
+    NoPackage { digest: String },
+    PackageDigest { digest: String, package: String },
 }
 
 impl fmt::Display for SpdxError {
@@ -57,9 +43,6 @@ impl fmt::Display for SpdxError {
 
 impl std::error::Error for SpdxError {}
 
-/// # Errors
-///
-/// Returns the first way the document fails to describe `base` with `digest`.
 pub fn document_error(document: &SpdxDocument, base: &str, digest: &str) -> Result<(), SpdxError> {
     if document.version != SPDX_VERSION {
         return Err(SpdxError::Version);

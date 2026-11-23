@@ -1,5 +1,3 @@
-//! NuGet publisher: feed staging, nuspec identity checks and the dotnet push.
-
 use crate::api_compat::{
     ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch_to_with,
     fetch_with, highest_below, previous_git_tag, workspace_dir,
@@ -16,10 +14,8 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Why a NuGet identity check or API check failed.
 #[derive(Debug)]
 pub enum NugetError {
-    /// A version that is not a NuGet version; `reason` says which rule it breaks.
     InvalidVersion {
         text: String,
         reason: &'static str,
@@ -59,7 +55,6 @@ pub enum NugetError {
         name: String,
         source: std::string::FromUtf8Error,
     },
-    /// An error found inside the nuspec called `name`.
     InNuspec {
         name: String,
         source: Box<NugetError>,
@@ -175,7 +170,6 @@ impl std::error::Error for NugetError {
     }
 }
 
-/// Returns one NuGet version with the NuGet normalization applied.
 pub fn nuget_normalize_version(raw: &str) -> Result<String, NugetError> {
     let text = raw.trim();
     let without_meta = text.split('+').next().unwrap_or("");
@@ -229,7 +223,6 @@ pub fn nuget_normalize_version(raw: &str) -> Result<String, NugetError> {
     Ok(out)
 }
 
-/// Reads the id and version declared in one nuspec document.
 fn nuget_parse_nuspec(xml: &str) -> Result<(String, String), NugetError> {
     use quick_xml::events::Event;
     let mut reader = quick_xml::Reader::from_str(xml);
@@ -309,7 +302,6 @@ fn nuget_identity_slot<'a>(
     }
 }
 
-/// Reads the package id and normalized version embedded in one nupkg.
 pub fn nuget_read_identity(nupkg: &Path) -> Result<(String, String), NugetError> {
     let file = std::fs::File::open(nupkg).map_err(|source| NugetError::Open {
         path: nupkg.to_path_buf(),
@@ -364,7 +356,6 @@ pub fn nuget_read_identity(nupkg: &Path) -> Result<(String, String), NugetError>
     Ok((id, version))
 }
 
-/// Checks one packaged identity against the declared package id and version.
 pub fn nuget_check_identity(
     actual: &(String, String),
     expected_id: &str,
@@ -388,7 +379,6 @@ pub fn nuget_check_identity(
     Ok(())
 }
 
-/// Builds one NuGet folder feed.
 pub fn nuget_build_feed(
     nupkg_src: &Path,
     outdir: &Path,
@@ -402,7 +392,6 @@ pub fn nuget_build_feed(
     Ok(feed)
 }
 
-/// Owner approval gate for nuget_deploy.
 pub(crate) const NUGET_GATE: OwnerGate = OwnerGate {
     tool: "nuget_deploy",
     action: "push",
@@ -410,7 +399,6 @@ pub(crate) const NUGET_GATE: OwnerGate = OwnerGate {
     approved: "NUGET_PUBLISH_APPROVED",
 };
 
-/// Lowest NuGet version that reads the push key from `NUGET_API_KEY`.
 const DUPLICATE_NOTICE: &str = "already exists";
 
 fn is_duplicate_notice(output: &str) -> bool {
@@ -427,7 +415,6 @@ fn push_result(duplicate: bool, id: &str, version: &str, source: &str) -> String
 
 const NUGET_ENV_KEY_MIN: (u32, u32) = (7, 6);
 
-/// Reads `MAJOR.MINOR` from the last non-empty line of `dotnet nuget --version` output.
 fn nuget_parse_version(output: &str) -> Option<(u32, u32)> {
     let last = output.lines().rev().find(|line| !line.trim().is_empty())?;
     last.split_whitespace().find_map(|token| {
@@ -439,12 +426,10 @@ fn nuget_parse_version(output: &str) -> Option<(u32, u32)> {
     })
 }
 
-/// True when the reported NuGet version reads `NUGET_API_KEY` for push.
 pub fn nuget_reads_api_key_env(version_output: &str) -> bool {
     nuget_parse_version(version_output).is_some_and(|version| version >= NUGET_ENV_KEY_MIN)
 }
 
-/// Pushes a nupkg with the key in the child env only, never in argv.
 pub fn nuget_live_push(
     dotnet: &Path,
     nupkg: &Path,
@@ -510,7 +495,6 @@ pub fn nuget_live_push(
     }
 }
 
-/// Public API check settings of one NuGet deployment.
 pub struct NugetApiCheck<'a> {
     pub mode: &'a str,
     pub baseline: &'a str,
@@ -518,7 +502,6 @@ pub struct NugetApiCheck<'a> {
     pub apicompat_rloc: &'a str,
 }
 
-/// Returns the package base URL a NuGet v3 service index lists, ending in `/`.
 fn nuget_package_base(service_index: &str) -> Option<String> {
     let json: serde_json::Value = serde_json::from_str(service_index).ok()?;
     let id = json
@@ -536,7 +519,6 @@ fn nuget_package_base(service_index: &str) -> Option<String> {
     Some(format!("{}/", id.trim_end_matches('/')))
 }
 
-/// Returns each ApiCompat `CPnnnn:` diagnostic; indented lines continue the one before.
 fn apicompat_changes(output: &str) -> Vec<String> {
     let mut changes: Vec<String> = Vec::new();
     let mut open = false;
@@ -563,7 +545,6 @@ fn apicompat_changes(output: &str) -> Vec<String> {
     changes
 }
 
-/// Compares the nupkg with the earlier release `api_baseline` picks from the feed at `source`.
 fn nuget_api_check(
     client: &dx_http::Client,
     (dotnet, apicompat): (&Path, &Path),
@@ -662,7 +643,6 @@ fn nuget_api_check(
     })
 }
 
-/// Runs the NuGet deploy tool without an API compatibility check.
 pub fn nuget_main(
     nupkg_rloc: &str,
     target_name: &str,
@@ -688,7 +668,6 @@ pub fn nuget_main(
     )
 }
 
-/// Runs the NuGet deploy tool.
 pub fn nuget_main_checked(
     nupkg_rloc: &str,
     target_name: &str,

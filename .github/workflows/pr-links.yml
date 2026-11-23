@@ -1,8 +1,5 @@
 name: pr-links
 
-# A pull request body links the issues it works on: a `Closes #N` or `Part of #N` line,
-# or a `No issue: <reason>` line. It also runs on edits, so fixing the body turns it green.
-# In a merge group it checks the body of the pull request named in the queue ref.
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]

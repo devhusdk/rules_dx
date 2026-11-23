@@ -1,7 +1,6 @@
 use dx_testing::env_file;
 use std::path::{Path, PathBuf};
 
-/// Runs `dx <subcommand> <args>`.
 fn run_dx(subcommand: &str, args: &[&str]) -> dx_testing::Run {
     let argv: Vec<&str> = std::iter::once(subcommand).chain(args.iter().copied()).collect();
     dx_testing::run(&env_file("DX"), &argv, &[]).unwrap()

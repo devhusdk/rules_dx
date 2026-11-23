@@ -248,7 +248,6 @@ rust_test(
     ],
 )
 
-# Release binaries that have a bin_test.
 rust_binary(
     name = "publish_dry_run_check",
     srcs = ["src/bin_publish_dry_run_check.rs"],

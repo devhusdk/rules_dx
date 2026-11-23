@@ -41,11 +41,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: ./.github/actions/setup-bazel
-      # Each update group runs `dx check --affected` and `dx test --affected`
-      # before it is pushed. A .bazelversion bump affects every target, and on
-      # one cold runner that never finished inside the job timeout (#13136).
-      # Build and test on remote execution, as evidence.yml does on Linux.
-      # user.bazelrc is ignored by git, so dx update still sees a clean tree.
       - name: Use BuildBuddy remote execution
         run: |
           [ -n "${BB_ARGS:-}" ] || { echo "::warning::BUILDBUDDY_API_KEY is not set, so updates are verified on this runner and may time out."; exit 0; }
@@ -54,9 +49,6 @@ jobs:
             echo "common --config=rbe"
             echo "common $BB_ARGS"
           } >> user.bazelrc
-      # Rule-set floor raises get their own pull request, 0.x minors included,
-      # and never auto-merge: a rule-set API change needs edits in <lang>/.
-      # Run it first so the full run below leaves those modules out.
       - name: Open rule-set floor-raise PRs
         env:
           GH_TOKEN: ${{ steps.app.outputs.token || github.token }}

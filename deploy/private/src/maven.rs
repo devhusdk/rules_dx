@@ -21,7 +21,6 @@ use crate::{DeployRun, copy_verified, deploy_build_mode, tempfile_stage_dir, zip
 use dx_atomic_fs::path_io::{self, PathIoError};
 use dx_process::capture::RunError;
 
-/// Why a Maven pom check, signing step, live gate, upload or API check failed.
 #[derive(Debug)]
 pub enum MavenError {
     PomUtf8(std::str::Utf8Error),
@@ -31,14 +30,12 @@ pub enum MavenError {
     PomRoot(String),
     PomNoProject,
     ReadPom(PathIoError),
-    /// The pom version disagrees with the BUILD file; the message names the tool.
     PomVersion(String),
     SigningKey(pgp::errors::Error),
     Passphrase(pgp::errors::Error),
     PublicKey(pgp::errors::Error),
     Signature(pgp::errors::Error),
     SignatureMismatch,
-    /// An owner gate or placeholder-version refusal; the message names the tool.
     Refused(String),
     Snapshot,
     PassphraseWithoutKey,
@@ -61,7 +58,6 @@ pub enum MavenError {
 }
 
 impl MavenError {
-    /// The message as maven_deploy prints it, starting with the tool name.
     fn tool_message(&self) -> String {
         match self {
             Self::PomVersion(_) | Self::Refused(_) | Self::ApiCompat(_) => self.to_string(),
@@ -170,19 +166,16 @@ impl std::error::Error for MavenError {
     }
 }
 
-/// Prints one error with the tool name.
 fn report(error: &MavenError) {
     eprintln!("{}", error.tool_message());
 }
 
 const MAVEN_CHECKSUMS: [&str; 4] = ["md5", "sha1", "sha256", "sha512"];
 
-/// Maps one Maven group to a path.
 pub fn maven_group_path(group: &str) -> String {
     group.replace('.', "/")
 }
 
-/// Rejects Maven coordinates that are not safe single path components.
 pub fn maven_coordinates_check(group: &str, artifact: &str, version: &str) -> io::Result<()> {
     let bad = |message: String| Err(io::Error::new(io::ErrorKind::InvalidInput, message));
     if group.is_empty() {
@@ -213,18 +206,14 @@ pub fn maven_coordinates_check(group: &str, artifact: &str, version: &str) -> io
     Ok(())
 }
 
-/// Classifiers Central requires on every non-pom upload.
 pub const MAVEN_CENTRAL_CLASSIFIERS: [&str; 2] = ["sources", "javadoc"];
 
-/// The files of one Maven deployment.
 pub struct MavenFiles<'a> {
     pub jar: &'a Path,
     pub pom: &'a Path,
-    /// Extra jars as `(classifier, path)`, staged as `{artifact}-{version}-{classifier}.jar`.
     pub classified: &'a [(&'a str, &'a Path)],
 }
 
-/// Names the Central-required classifiers missing from a classifier list.
 pub fn maven_central_completeness_error(classified: &[&str]) -> Option<String> {
     let missing: Vec<&str> = MAVEN_CENTRAL_CLASSIFIERS
         .into_iter()
@@ -307,7 +296,6 @@ fn maven_reject_symlinks(
     )
 }
 
-/// Returns the lowercase hex md5, sha1, sha256 and sha512 of some bytes.
 pub fn maven_checksums(bytes: &[u8]) -> [(&'static str, String); 4] {
     use sha1::Digest as _;
     [
@@ -321,7 +309,6 @@ pub fn maven_checksums(bytes: &[u8]) -> [(&'static str, String); 4] {
     ]
 }
 
-/// Builds one Maven file repo.
 pub fn maven_build_file_repo(
     files: &MavenFiles<'_>,
     outdir: &Path,
@@ -359,7 +346,6 @@ pub fn maven_build_file_repo(
     std::fs::create_dir_all(&dest_dir)?;
     let jar_base = format!("{artifact}-{version}.jar");
     let pom_base = format!("{artifact}-{version}.pom");
-    // Drop stale Central classifier files that this run does not restage.
     for known in MAVEN_CENTRAL_CLASSIFIERS {
         if files.classified.iter().any(|(c, _)| *c == known) {
             continue;
@@ -409,7 +395,6 @@ pub fn maven_build_file_repo(
     Ok(house)
 }
 
-/// Reads the text of every element path in one POM.
 fn maven_pom_fields(pom: &[u8]) -> Result<std::collections::HashMap<String, String>, MavenError> {
     use quick_xml::events::Event;
     let xml = std::str::from_utf8(pom).map_err(MavenError::PomUtf8)?;
@@ -479,7 +464,6 @@ fn maven_pom_fields(pom: &[u8]) -> Result<std::collections::HashMap<String, Stri
     }
 }
 
-/// Returns why one POM does not meet the Maven Central requirements, or None.
 pub fn maven_pom_metadata_error(
     pom: &[u8],
     group: &str,
@@ -543,7 +527,6 @@ pub fn maven_pom_metadata_error(
     }
 }
 
-/// Returns the version to publish: the pom's, which must equal `expected` when the BUILD file declares one.
 fn maven_pom_version(pom: &[u8], expected: &str) -> Result<String, MavenError> {
     let fields = maven_pom_fields(pom)?;
     let found = fields
@@ -554,19 +537,16 @@ fn maven_pom_version(pom: &[u8], expected: &str) -> Result<String, MavenError> {
         .map_err(MavenError::PomVersion)
 }
 
-/// Secret signing key material for Maven detached signatures.
 pub struct MavenSigner {
     key: MavenSigningKey,
 }
 
-/// The unlocked key that makes signatures.
 enum MavenSigningKey {
     Primary(pgp::packet::SecretKey),
     Subkey(pgp::packet::SecretSubkey),
 }
 
 impl MavenSigner {
-    /// Parses an armored secret key and unlocks its signing key with the passphrase.
     pub fn from_armored(key: &str, passphrase: &str) -> Result<Self, MavenError> {
         let (secret, _) =
             SignedSecretKey::from_armor_single(key.as_bytes()).map_err(MavenError::SigningKey)?;
@@ -587,7 +567,6 @@ impl MavenSigner {
         Ok(Self { key })
     }
 
-    /// Checks a detached signature against this signer's own public key.
     fn verify(&self, data: &[u8], asc: &str) -> Result<(), MavenError> {
         let (signature, _) =
             DetachedSignature::from_armor_single(asc.as_bytes()).map_err(MavenError::Signature)?;
@@ -603,7 +582,6 @@ impl MavenSigner {
     }
 }
 
-/// Writes an armored detached SHA-256 signature next to one file.
 pub fn maven_sign_detached(signer: &MavenSigner, path: &Path) -> io::Result<PathBuf> {
     let data = std::fs::read(path)?;
     let fail = |_| io::Error::other(format!("maven signing: cannot sign {}", path.display()));
@@ -628,7 +606,6 @@ pub fn maven_sign_detached(signer: &MavenSigner, path: &Path) -> io::Result<Path
     Ok(out)
 }
 
-/// Checks one armored detached signature against an armored public key.
 pub fn maven_verify_detached(
     public_armored: &str,
     data: &[u8],
@@ -650,7 +627,6 @@ pub fn maven_verify_detached(
     }
 }
 
-/// Central Portal Publisher API base URL.
 const MAVEN_PUBLISHER_URL: &str = "https://central.sonatype.com/api/v1/publisher/";
 
 fn maven_bundle_walk(dir: &Path, rel: &str, out: &mut Vec<(String, Vec<u8>)>) -> io::Result<()> {
@@ -668,7 +644,6 @@ fn maven_bundle_walk(dir: &Path, rel: &str, out: &mut Vec<(String, Vec<u8>)>) ->
     Ok(())
 }
 
-/// Zips one staged Maven file repo as a Central Portal bundle, without maven-metadata.xml.
 pub fn maven_bundle_zip(house: &Path) -> io::Result<Vec<u8>> {
     let mut files = Vec::new();
     maven_bundle_walk(house, "", &mut files)?;
@@ -680,7 +655,6 @@ pub fn maven_bundle_zip(house: &Path) -> io::Result<Vec<u8>> {
     zip_archive(&members)
 }
 
-/// Uploads one bundle zip to the Publisher API as a USER_MANAGED deployment and returns its id.
 pub fn maven_upload_bundle(
     client: &dx_http::Client,
     base_url: &str,
@@ -718,7 +692,6 @@ pub fn maven_upload_bundle(
     }
 }
 
-/// Owner approval gate for maven_deploy.
 pub(crate) const MAVEN_GATE: OwnerGate = OwnerGate {
     tool: "maven_deploy",
     action: "staging",
@@ -726,19 +699,13 @@ pub(crate) const MAVEN_GATE: OwnerGate = OwnerGate {
     approved: "MAVEN_PUBLISH_APPROVED",
 };
 
-/// Credentials and signing state for one live Maven upload.
 pub struct MavenLive {
-    /// Repository username.
     pub username: String,
-    /// Repository password or token.
     pub password: String,
-    /// Signer parsed from MAVEN_GPG_KEY.
     pub signer: Option<MavenSigner>,
-    /// Whether the upload carries no signature.
     pub unsigned: bool,
 }
 
-/// Checks every live-upload refusal and returns the upload settings.
 pub fn maven_live_gate(
     env: &dyn Fn(&str) -> String,
     version: &str,
@@ -772,10 +739,8 @@ pub fn maven_live_gate(
     })
 }
 
-/// Where published artifacts are read from; the publisher API only accepts uploads.
 const MAVEN_CENTRAL_READ_URL: &str = "https://repo1.maven.org/maven2";
 
-/// Returns the incompatible entries in japicmp output.
 fn japicmp_changes(output: &str) -> Vec<String> {
     output
         .lines()
@@ -786,7 +751,6 @@ fn japicmp_changes(output: &str) -> Vec<String> {
         .collect()
 }
 
-/// Compares the jar with the release `api_baseline` picks below `version` using japicmp.
 fn maven_api_check(
     (java, japicmp): (&Path, &Path),
     baseline: Baseline,
@@ -827,7 +791,6 @@ fn maven_api_check(
     outcome
 }
 
-/// Runs japicmp on the baseline jar and the new jar.
 fn maven_api_compare(
     (java, japicmp): (&Path, &Path),
     previous: &str,
@@ -864,8 +827,6 @@ fn maven_api_compare(
     })
 }
 
-/// The values a generated Maven launcher passes to [`maven_main`].
-/// An empty rlocation means the optional file is absent.
 #[derive(Default)]
 pub struct MavenLaunch<'a> {
     pub jar_rloc: &'a str,
@@ -875,15 +836,12 @@ pub struct MavenLaunch<'a> {
     pub group: &'a str,
     pub artifact: &'a str,
     pub version: &'a str,
-    /// `off`, `warn` or `fail`; empty means off.
     pub api_compat: &'a str,
-    /// `registry` or `git`; empty means registry.
     pub api_baseline: &'a str,
     pub japicmp_rloc: &'a str,
     pub java_rloc: &'a str,
 }
 
-/// Runs the Maven deploy tool.
 pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
     let MavenLaunch {
         jar_rloc,
@@ -2032,7 +1990,6 @@ pub(crate) mod tests {
                 "{want} in {names:?}"
             );
         }
-        // Restaging without sources removes the stale sources files.
         let classified = [("javadoc", doc.as_path())];
         let files = MavenFiles {
             jar: &jar,
@@ -2091,7 +2048,6 @@ pub(crate) mod tests {
             .expect_err("symlink");
         assert!(error.to_string().contains("refusing symlink"), "{error}");
         assert_eq!(std::fs::read(&victim).expect("read"), b"keep");
-        // Also refused when the staged set omits sources.
         let files = MavenFiles {
             jar: &jar,
             pom: &pom,

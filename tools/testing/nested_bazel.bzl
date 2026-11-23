@@ -2,7 +2,6 @@
 
 load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 
-# no-coverage: a nested test runs once per platform, under `dx test`, not again under `dx coverage`.
 NESTED_BAZEL_TAGS = [
     "no-coverage",
     "resources:cpu:2",

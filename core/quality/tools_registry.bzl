@@ -10777,7 +10777,7 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "zig",
       "severity": {
         "categories": {},
-        "default": null,
+        "default": "error",
         "floor": null
       },
       "support": []
@@ -10817,7 +10817,7 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "zig_ast_check",
       "severity": {
         "categories": {},
-        "default": null,
+        "default": "error",
         "floor": null
       },
       "support": []
@@ -10857,7 +10857,7 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       "id": "zig_fmt",
       "severity": {
         "categories": {},
-        "default": null,
+        "default": "error",
         "floor": null
       },
       "support": [

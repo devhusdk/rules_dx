@@ -2,8 +2,8 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_entry_quality_srcs")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//julia/private:defs.bzl", "JULIA_QUALITY_TOOLS", "JULIA_SOURCE_EXTS", "JULIA_SOURCE_SPECS")
 load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
 
@@ -32,6 +32,8 @@ def _coverage_impl(ctx):
     asserts.true(env, _JuliaFlagsInfo in target, "no upstream julia_flags reached")
     if _JuliaFlagsInfo in target:
         flags = target[_JuliaFlagsInfo].flags
+        for strict in ["--depwarn=error", "--warn-overwrite=yes"]:
+            asserts.true(env, strict in flags, str(flags))
         if ctx.attr.expect_runner:
             asserts.true(env, "--code-coverage=user" in flags, str(flags))
         else:

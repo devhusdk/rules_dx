@@ -1,6 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//svelte:defs.bzl", "svelte_build", "svelte_library")
 load("//tools/testing:web_hello.bzl", "dx_web_app")
+load("//typescript/tests:windows_tool_tests.bzl", "framework_build_tool_tests")
 
 package(
     default_testonly = True,
@@ -37,4 +38,9 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+framework_build_tool_tests(
+    name = "build_tool_tests",
+    build = "site",
 )

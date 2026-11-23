@@ -5,10 +5,13 @@
 pub mod doc;
 
 use std::collections::BTreeMap;
-use std::fs;
+use std::fmt;
+use std::path::Path;
 
+use documentation_ir::json::{self, JsonError};
 use documentation_ir::proto::{DocIr, Extension, Relations, Symbol, SymbolKind, Visibility};
-use serde_json::{Map, Value};
+use documentation_ir::tool::{FlagError, PathIoError, WriteShardError, path_io};
+use serde_json::Value;
 
 const LANGUAGE: &str = "dart";
 const KEY_CONFIG: &str = "dart.config";
@@ -23,6 +26,60 @@ const OBJECT_MEMBERS: [&str; 5] = [
     "runtimeType",
     "toString",
 ];
+
+/// Why one dartdoc index could not become a shard.
+#[derive(Debug)]
+pub enum DartExtractError {
+    Io(PathIoError),
+    InvalidPackage { package: String },
+    MalformedIndex(serde_json::Error),
+    NotAList,
+    NotAnObject { at: String },
+    Json(JsonError),
+    UnknownParent { name: String, href: String },
+    NoPublicApi { package: String },
+    InvalidIr(documentation_ir::Error),
+    Write(WriteShardError),
+}
+
+impl fmt::Display for DartExtractError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(error) => error.fmt(f),
+            Self::InvalidPackage { package } => write!(f, "invalid package '{package}'"),
+            Self::MalformedIndex(error) => write!(f, "dartdoc index is malformed: {error}"),
+            Self::NotAList => f.write_str("dartdoc index is not a list"),
+            Self::NotAnObject { at } => write!(f, "{at} is not an object"),
+            Self::Json(error) => error.fmt(f),
+            Self::UnknownParent { name, href } => {
+                write!(f, "'{name}' is enclosed by unknown '{href}'")
+            }
+            Self::NoPublicApi { package } => write!(
+                f,
+                "dartdoc index lists no public Dart API of package '{package}'"
+            ),
+            Self::InvalidIr(error) => write!(f, "invalid IR: {error:?}"),
+            Self::Write(error) => error.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for DartExtractError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io(error) => Some(error),
+            Self::MalformedIndex(error) => Some(error),
+            Self::Json(error) => Some(error),
+            Self::Write(error) => Some(error),
+            Self::InvalidPackage { .. }
+            | Self::NotAList
+            | Self::NotAnObject { .. }
+            | Self::UnknownParent { .. }
+            | Self::NoPublicApi { .. }
+            | Self::InvalidIr(_) => None,
+        }
+    }
+}
 
 /// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -49,7 +106,7 @@ pub fn usage() -> &'static str {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn parse(args: &[String]) -> Result<Options, String> {
+pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--index", "--package", "--out"])?;
     Ok(Options {
         index: flags.one("--index")?,
@@ -63,11 +120,10 @@ pub fn parse(args: &[String]) -> Result<Options, String> {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn run(options: &Options) -> Result<(), String> {
-    let json = fs::read_to_string(&options.index)
-        .map_err(|error| format!("cannot read {}: {error}", options.index))?;
+pub fn run(options: &Options) -> Result<(), DartExtractError> {
+    let json = path_io::read_to_string(Path::new(&options.index)).map_err(DartExtractError::Io)?;
     let shard = convert(&json, &options.package)?;
-    documentation_ir::tool::write_shard(&options.out, &shard).map_err(String::from)
+    documentation_ir::tool::write_shard(&options.out, &shard).map_err(DartExtractError::Write)
 }
 
 /// One entry of the dartdoc index.
@@ -79,31 +135,28 @@ struct Entry {
     parent: Option<String>,
 }
 
-fn text(object: &Map<String, Value>, key: &str, at: &str) -> Result<String, String> {
-    object
-        .get(key)
-        .and_then(Value::as_str)
-        .map(str::to_owned)
-        .ok_or_else(|| format!("{at} has no string '{key}'"))
-}
-
-fn entry(value: &Value, at: &str) -> Result<Entry, String> {
+fn entry(value: &Value, at: &str) -> Result<Entry, DartExtractError> {
     let object = value
         .as_object()
-        .ok_or_else(|| format!("{at} is not an object"))?;
+        .ok_or_else(|| DartExtractError::NotAnObject { at: at.to_owned() })?;
     let parent = match object.get("enclosedBy") {
         None | Some(Value::Null) => None,
-        Some(Value::Object(parent)) => Some(text(parent, "href", &format!("{at} enclosedBy"))?),
-        Some(_) => return Err(format!("{at} 'enclosedBy' is not an object")),
+        Some(Value::Object(parent)) => Some(
+            json::string(parent, "href", &format!("{at} enclosedBy"))
+                .map_err(DartExtractError::Json)?,
+        ),
+        Some(_) => {
+            return Err(DartExtractError::NotAnObject {
+                at: format!("{at} 'enclosedBy'"),
+            });
+        }
     };
+    let text = |key: &str| json::string(object, key, at).map_err(DartExtractError::Json);
     Ok(Entry {
-        name: text(object, "name", at)?,
-        kind: object
-            .get("kind")
-            .and_then(Value::as_u64)
-            .ok_or_else(|| format!("{at} has no numeric 'kind'"))?,
-        href: text(object, "href", at)?,
-        desc: text(object, "desc", at).unwrap_or_default(),
+        name: text("name")?,
+        kind: json::number(object, "kind", at).map_err(DartExtractError::Json)?,
+        href: text("href")?,
+        desc: text("desc").unwrap_or_default(),
         parent,
     })
 }
@@ -141,13 +194,14 @@ fn extension(key: &str, value: &str) -> Extension {
 /// # Errors
 ///
 /// Returns an error when the operation fails.
-pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
+pub fn convert(json: &str, package: &str) -> Result<DocIr, DartExtractError> {
     if package.is_empty() || package.contains(':') || package.chars().any(char::is_whitespace) {
-        return Err(format!("invalid package '{package}'"));
+        return Err(DartExtractError::InvalidPackage {
+            package: package.to_owned(),
+        });
     }
-    let root: Value = serde_json::from_str(json)
-        .map_err(|error| format!("dartdoc index is malformed: {error}"))?;
-    let list = root.as_array().ok_or("dartdoc index is not a list")?;
+    let root: Value = serde_json::from_str(json).map_err(DartExtractError::MalformedIndex)?;
+    let list = root.as_array().ok_or(DartExtractError::NotAList)?;
     let entries: Vec<Entry> = list
         .iter()
         .enumerate()
@@ -160,11 +214,12 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
     let mut symbols = Vec::new();
     for entry in &entries {
         let parent = match &entry.parent {
-            Some(href) => Some(
-                *by_href
-                    .get(href.as_str())
-                    .ok_or_else(|| format!("'{}' is enclosed by unknown '{href}'", entry.name))?,
-            ),
+            Some(href) => Some(*by_href.get(href.as_str()).ok_or_else(|| {
+                DartExtractError::UnknownParent {
+                    name: entry.name.clone(),
+                    href: href.clone(),
+                }
+            })?),
             None => None,
         };
         let Some((kind, keyword)) = kind_of(entry.kind, parent.map(|p| p.kind)) else {
@@ -210,9 +265,9 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         });
     }
     if symbols.is_empty() {
-        return Err(format!(
-            "dartdoc index lists no public Dart API of package '{package}'"
-        ));
+        return Err(DartExtractError::NoPublicApi {
+            package: package.to_owned(),
+        });
     }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
@@ -220,7 +275,7 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
         package: package.to_owned(),
         symbols,
     };
-    documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
+    documentation_ir::validate_shard(&shard).map_err(DartExtractError::InvalidIr)?;
     Ok(shard)
 }
 

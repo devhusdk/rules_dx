@@ -1,5 +1,6 @@
 """The qt module extension."""
 
+load("//cli/prebuilt:launcher.bzl", "FROM_SOURCE", "native_launcher_repos")
 load(":pins.bzl", "MODULES", "QT_VERSION")
 load(":repos.bzl", "HUB_NAME", "cell_repository_name", "cell_spec", "consumer_cells", "default_request", "effective_cells", "hub_build", "module_repository_name", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors")
 
@@ -116,12 +117,14 @@ def _qt_impl(module_ctx):
             no_match_error(table),
         )},
     )
+    native_launcher_repos(name = "qt_launcher", modules = module_ctx.modules, ext = "qt")
     return module_ctx.extension_metadata(reproducible = True)
 
 qt = module_extension(
     implementation = _qt_impl,
-    doc = "Acquires the pinned Qt SDK and runtime closure on first use.",
+    doc = "Acquires the pinned Qt SDK, its runtime closure and the native launcher on first use.",
     tag_classes = {
+        "from_source": FROM_SOURCE,
         "configure": tag_class(
             doc = "Requests optional mirrors.",
             attrs = {

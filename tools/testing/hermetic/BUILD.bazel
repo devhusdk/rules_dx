@@ -2,6 +2,7 @@ load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/tests:no_coverage_tests.bzl", "no_coverage_build_scripts_test")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV")
 load("//tools/testing/hermetic:compilers.bzl", "compiler_fixture", "starter_sources")
@@ -1205,6 +1206,12 @@ exports_files(
 exports_files(
     ["appcontainer/user.rs"],
     visibility = ["//tools/ci:__pkg__"],
+)
+
+no_coverage_build_scripts_test(
+    name = "manifest_build_scripts_no_coverage_test",
+    size = "small",
+    target_under_test = ":ocaml_manifest",
 )
 
 _HERMETIC_BINARIES = [

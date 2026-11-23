@@ -1,5 +1,6 @@
 //! The dx.powershell.api/1 contract written by extract.ps1.
 
+use crate::PowershellExtractError;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
@@ -129,18 +130,17 @@ pub struct Help {
 }
 
 /// Parses the contract, rejecting other versions before any field check.
-pub fn parse_api(json: &str) -> Result<Api, String> {
+pub fn parse_api(json: &str) -> Result<Api, PowershellExtractError> {
     let value: serde_json::Value =
-        serde_json::from_str(json).map_err(|error| format!("API JSON is malformed: {error}"))?;
+        serde_json::from_str(json).map_err(PowershellExtractError::MalformedApi)?;
     match value.get("schema").and_then(serde_json::Value::as_str) {
         Some(SCHEMA) => {}
         Some(other) => {
-            return Err(format!(
-                "API JSON schema '{other}' is not supported, expected '{SCHEMA}'"
-            ));
+            return Err(PowershellExtractError::UnsupportedSchema {
+                schema: other.to_owned(),
+            });
         }
-        None => return Err("API JSON has no schema".to_owned()),
+        None => return Err(PowershellExtractError::NoSchema),
     }
-    serde_json::from_value(value)
-        .map_err(|error| format!("API JSON does not match {SCHEMA}: {error}"))
+    serde_json::from_value(value).map_err(PowershellExtractError::ApiShape)
 }

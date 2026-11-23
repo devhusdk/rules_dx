@@ -4475,6 +4475,15 @@ fn chktex_tool(
     env: &[(OsString, OsString)],
 ) -> io::Result<ChildOutput> {
     assert_hermetic(env);
+    // TEXMFCNF names the web2c dir of the TeX Live tree the binary sits in.
+    let texmfcnf: Vec<PathBuf> = env
+        .iter()
+        .filter(|(key, _)| key == "TEXMFCNF")
+        .map(|(_, value)| PathBuf::from(value))
+        .collect();
+    let binary = Path::new(argv.first().expect("binary"));
+    let root = binary.ancestors().nth(3).expect("TeX Live root");
+    assert_eq!(texmfcnf, [root.join("texmf-dist").join("web2c")]);
     let flag = |name: &str| argv.iter().position(|arg| arg == name);
     assert!(flag("-q").is_some() && flag("-I0").is_some());
     assert_eq!(

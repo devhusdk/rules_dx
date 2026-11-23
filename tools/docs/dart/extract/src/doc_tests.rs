@@ -71,8 +71,10 @@ fn two_sources_staging_as_one_path_fail() {
         ("bazel-out/bin/a/lib/x.dart", "a/lib/x.dart"),
         ("a/lib/x.dart", "a/lib/x.dart"),
     ]);
+    let error = plan(&packages, &srcs, "p", "//a:docs").unwrap_err();
+    assert!(matches!(error, DartDocError::StageClash { .. }));
     assert_eq!(
-        plan(&packages, &srcs, "p", "//a:docs").unwrap_err(),
+        error.to_string(),
         "dart_doc_shard //a:docs: a/lib/x.dart and bazel-out/bin/a/lib/x.dart both stage as p/lib/x.dart"
     );
 }
@@ -130,6 +132,24 @@ fn parse_reads_every_flag() {
     assert_eq!(options.own, "o");
     assert_eq!(options.scratch, "st");
     assert!(parse(&args[2..]).is_err());
+}
+
+#[test]
+fn rows_name_the_bad_line_and_the_unread_file() {
+    let scratch = dx_test_scratch::scratch("dart_doc_rows").unwrap();
+    let file = scratch.path().join("rows.tsv");
+    fs::write(&file, "a\tb\nnotab\n").unwrap();
+    let path = file.display().to_string();
+    let error = rows(&path).unwrap_err();
+    assert!(matches!(error, DartDocError::MalformedRow { .. }));
+    assert_eq!(
+        error.to_string(),
+        format!("malformed line 'notab' in {path}")
+    );
+    let missing = scratch.path().join("absent.tsv").display().to_string();
+    let error = rows(&missing).unwrap_err();
+    assert!(matches!(error, DartDocError::Io(_)));
+    assert!(error.to_string().starts_with("cannot read "), "{error}");
 }
 
 #[test]

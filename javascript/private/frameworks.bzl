@@ -1,17 +1,56 @@
 """JS-framework library wrappers over js_library."""
 
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
-load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load(":defs.bzl", "javascript_forward_test", "javascript_test_rejection")
+load("//cli/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//core:entry.bzl", "dx_entry_quality_srcs")
 load("//core:node_test.bzl", "node_jest_upstream_attrs", "node_test_wrap_args")
-load("//core:wrapper.bzl", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
-load("//cli/web_server:server.bzl", "JavascriptWebAppInfo")
+load("//core:wrapper.bzl", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_private_dep_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
+load(":defs.bzl", "javascript_forward_test", "javascript_test_rejection")
+load(":windows_tool.bzl", "js_build_tool")
 
 visibility(["//..."])
+
+_framework_jest_config = dx_private_dep_rule(
+    Label("//javascript/private:framework_jest_config"),
+    [DefaultInfo],
+    "Provides the jest config helper that every framework jest config loads.",
+)
+
+_vite_tool_entry = dx_private_dep_rule(
+    Label("//javascript/private:vite_tool_entry"),
+    [DefaultInfo],
+    "Provides the script that runs one Vite build.",
+)
+
+def _jest_config_impl(ctx):
+    upstream = ctx.attr._config[DefaultInfo]
+    files = upstream.files.to_list()
+    if len(files) != 1:
+        fail(str(ctx.attr._config.label) + ": a framework jest config must be exactly one file")
+    out = ctx.actions.declare_file(ctx.label.name + ".cjs")
+
+    # rules_jest anchors rootDir at a config that sits in the test's package, so
+    # coverage globs resolve against the test's sources. This file sits there and
+    # loads the shared config the same way rules_jest loads user configs.
+    ctx.actions.write(out, "\n".join([
+        "\"use strict\";",
+        "const path = require(\"node:path\");",
+        "module.exports = require(path.join(process.env.JS_BINARY__RUNFILES, process.env.JS_BINARY__WORKSPACE, " + json.encode(files[0].short_path) + "));",
+        "",
+    ]))
+    return [DefaultInfo(files = depset([out]), runfiles = ctx.runfiles(files = [out] + files).merge(upstream.default_runfiles))]
+
+def dx_framework_jest_config_rule(config, doc):
+    """Creates the rule that loads one framework's jest config from the test's package."""
+    return rule(
+        implementation = _jest_config_impl,
+        doc = doc,
+        attrs = {"_config": attr.label(default = config)},
+    )
 
 def dx_framework_forward_rule(language, ext):
     """Creates the forwarding rule for one JS-framework wrapper."""
@@ -28,30 +67,45 @@ def dx_framework_library(name, srcs, upstream_rule, forward_rule, visibility = N
     """Instantiates one JS-framework library."""
     dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = visibility, **kwargs)
 
-def dx_framework_jest_files(transform):
-    """Declares jest_config and jest_transform for one framework."""
+def dx_framework_jest_files(name, transform):
+    """Declares the framework's jest config, with its transform in runfiles."""
     copy_to_bin(
-        name = "jest_config",
-        visibility = ["//visibility:public"],
+        name = name + "_file",
         srcs = ["jest.config.cjs"],
     )
     copy_to_bin(
         name = "jest_transform",
-        visibility = ["//visibility:public"],
         srcs = [transform],
     )
 
-def dx_framework_test(name, srcs, config, transform, packages, node_modules, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
-    """Runs jest over framework components. `transform` compiles them, `config` builds the jest config from the shared helper, and `packages` are the node_modules packages (the compiler) the transform needs."""
+    # The transform rides in the config's runfiles, not the test's data, so
+    # coverage of a test in the same package as the forwarder never instruments it.
+    native.filegroup(
+        name = name,
+        srcs = [":" + name + "_file"],
+        data = [":jest_transform"],
+    )
+
+def dx_framework_test(name, srcs, config, packages, node_modules, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
+    """Runs jest over framework components. `config` is the framework's dx_framework_jest_config_rule, whose config carries the transform that compiles them; `packages` are the node_modules packages (the compiler) the transform needs."""
     if "config" in kwargs:
         fail(name + ": config is set by the framework test rule")
     rejection = javascript_test_rejection("jest", node_modules, None, kwargs)
     if rejection != None:
         fail(rejection)
-    kwargs["config"] = config
+    upstream_tags = dx_upstream_tags(kwargs.get("tags"))
+    jest_config = name + "_dx_framework_jest_config"
+    config_name = name + "_dx_jest_config"
+    for rule, target in [(_framework_jest_config, jest_config), (config, config_name)]:
+        rule(
+            name = target,
+            tags = upstream_tags,
+            visibility = ["//visibility:private"],
+        )
+    kwargs["config"] = ":" + config_name
     kwargs["node_options"] = ["--experimental-vm-modules"]
     upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs, package_json)
-    upstream_data = list(srcs) + list(data or []) + [transform, Label("//javascript/private:framework_jest_config")] + [node_modules + "/" + package for package in packages]
+    upstream_data = list(srcs) + list(data or []) + [":" + jest_config] + [node_modules + "/" + package for package in packages]
     a = node_test_wrap_args(name, srcs, upstream_data, package_json, upstream_kwargs, env_inherit, kwargs)
     dx_wrap_test(name, _jest_test, javascript_forward_test, None, visibility = visibility, quality_srcs = dx_entry_quality_srcs(None, srcs), upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)
 
@@ -94,7 +148,32 @@ _dx_framework_web_app = rule(
     },
 )
 
-_VITE_TOOL = Label("//javascript/private:vite_build_tool")
+def _dx_framework_tool(name, entry, tags, testonly):
+    """Declares the build tool of one framework build from its entry script forwarder and returns its label."""
+    entry_name = name + "_dx_tool_entry"
+    tool = name + "_dx_tool"
+    upstream = dx_upstream_tags(tags)
+    entry(
+        name = entry_name,
+        tags = upstream,
+        testonly = testonly,
+        visibility = ["//visibility:private"],
+    )
+    js_binary(
+        name = tool,
+        entry_point = ":" + entry_name,
+        tags = upstream,
+        testonly = testonly,
+        visibility = ["//visibility:private"],
+    )
+    js_build_tool(
+        name = tool + "_build",
+        tool = ":" + tool,
+        tags = upstream,
+        testonly = testonly,
+        visibility = ["//visibility:private"],
+    )
+    return ":" + tool + "_build"
 
 def _dx_framework_vite_run(name, out, srcs, config, node_modules, packages, mnemonic, package_json, public, deps, visibility, tags, testonly, target_compatible_with, tool, ssr_entry = None):
     env = {"VITE_TOOL_PACKAGE": native.package_name()}
@@ -115,12 +194,13 @@ def _dx_framework_vite_run(name, out, srcs, config, node_modules, packages, mnem
         target_compatible_with = target_compatible_with,
     )
 
-def dx_framework_build(name, what, mnemonic, packages, srcs, config, node_modules, package_json = None, public = None, ssr_entry = None, deps = None, visibility = None, tool = _VITE_TOOL, **kwargs):
-    """Builds one framework app into a bundled web app tree and an optional SSR tree. Creates the private `<name>_dist` build target behind the web app `<name>`. With `ssr_entry` it also creates `<name>_ssr`, which takes the given visibility. `tags`, `testonly` and `target_compatible_with` reach every target."""
+def dx_framework_build(name, what, mnemonic, packages, srcs, config, node_modules, package_json = None, public = None, ssr_entry = None, deps = None, visibility = None, entry = _vite_tool_entry, **kwargs):
+    """Builds one framework app into a bundled web app tree and an optional SSR tree. Creates the private `<name>_dist` build target behind the web app `<name>`. With `ssr_entry` it also creates `<name>_ssr`, which takes the given visibility. `entry` is the forwarder rule of the tool script. `tags`, `testonly` and `target_compatible_with` reach every target."""
     tags = kwargs.get("tags", [])
     testonly = kwargs.get("testonly", False)
     compatible = kwargs.get("target_compatible_with", None)
     dist = name + "_dist"
+    tool = _dx_framework_tool(name, entry, tags, testonly)
     _dx_framework_vite_run(dist, dist + ".out", srcs, config, node_modules, packages, mnemonic, package_json, public, deps, ["//visibility:private"], tags, testonly, compatible, tool)
     _dx_framework_web_app(name = name, dist = ":" + dist, what = what, visibility = visibility, **kwargs)
     if ssr_entry:

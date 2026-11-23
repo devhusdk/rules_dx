@@ -6149,6 +6149,10 @@ Tag `qt.configure`:
 | `runtime_mirror` | `string` | no | `""` |
 | `version` | `string` | no | `"6.12.0"` |
 
+Tag `qt.from_source`:
+
+No attributes.
+
 Tag `qt.msvc_runtime`:
 
 | Attribute | Type | Required | Default |
@@ -7499,7 +7503,7 @@ Run these with `bazel run <target>`.
 | `@rules_dx//cli/coverage_summary:coverage_summary` | `rust_binary` |
 | `@rules_dx//cli/env:env` | `rust_binary` |
 | `@rules_dx//cli/launcher:exec_launcher` | `rust_binary` |
-| `@rules_dx//cli/prebuilt:guard_stub` | `native_binary` |
+| `@rules_dx//cli/prebuilt:guard_stub` | `cc_binary` |
 | `@rules_dx//cli/runtime:dx_runtime` | `rust_binary` |
 | `@rules_dx//core/quality/lsp_check:lsp_check` | `rust_binary` |
 | `@rules_dx//core/quality/markdown:quality_markdown` | `rust_binary` |

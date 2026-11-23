@@ -88,6 +88,7 @@ TOOLS = [
         severity = severity(categories = {
             "QF": "info",
             "S": "warning",
+            "SA": "error",
             "U1000": "warning",
         }),
         support = [
@@ -98,7 +99,6 @@ TOOLS = [
                 family = "go",
                 fix = "check_only",
                 platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
-                state = "known",
             ),
         ],
     ),

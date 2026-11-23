@@ -518,6 +518,7 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
             categories: &[
                 ("QF", crate::ToolSeverity::Info),
                 ("S", crate::ToolSeverity::Warning),
+                ("SA", crate::ToolSeverity::Error),
                 ("U1000", crate::ToolSeverity::Warning),
             ],
         },

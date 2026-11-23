@@ -25,8 +25,14 @@ go_test(
     name = "staticcheck_test",
     size = "small",
     srcs = ["checks_test.go"],
-    data = ["//core/quality/tiers/staticcheck:standard.conf"],
+    data = [
+        "//core/quality/tiers/staticcheck:standard.conf",
+        "//core/quality/tiers/staticcheck:strict.conf",
+    ],
     embed = [":staticcheck"],
-    env = {"STANDARD_CONF": "$(rootpath //core/quality/tiers/staticcheck:standard.conf)"},
+    env = {
+        "STANDARD_CONF": "$(rootpath //core/quality/tiers/staticcheck:standard.conf)",
+        "STRICT_CONF": "$(rootpath //core/quality/tiers/staticcheck:strict.conf)",
+    },
     deps = ["@org_golang_x_tools//go/analysis"],
 )

@@ -241,6 +241,8 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 
+`govet`, `errcheck` and `staticcheck` take their tier from `core/quality/tiers/`. Standard runs the `go vet` defaults, errcheck, and staticcheck's default checks. Strict adds the vet analyzers `forvar`, `nilness`, `shadow` and `unusedwrite`. It also makes errcheck report `_ = f()`, unchecked type assertions such as `v.(string)`, and errors from `Close` and `fmt.Fprint*`. staticcheck runs the same checks in both tiers and leaves out `SA9003`, `ST1000`, `ST1003`, `ST1016` and `ST1020` to `ST1023`. Its `SA` findings are errors; `S`, `ST` and `U1000` findings are warnings.
+
 ### JVM and .NET
 
 | Tool | Checks | Not on |

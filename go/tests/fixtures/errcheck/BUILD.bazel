@@ -27,6 +27,13 @@ go_library(
     tags = ["manual"],
 )
 
+go_library(
+    name = "assert",
+    srcs = ["assert.go"],
+    importpath = "rules_dx/go/tests/fixtures/errcheck/assert",
+    tags = ["manual"],
+)
+
 errcheck_config(
     name = "excludes",
     src = "exclude.txt",

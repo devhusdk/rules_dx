@@ -1,10 +1,13 @@
 """Wrapper conformance tests for Elixir."""
 
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal")
 load("//elixir/private:defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_sources", "elixir_escript_headers", "helper_first", "nif_priv")
-load("//elixir/private:kwargs.bzl", "elixir_app_kwargs", "elixir_app_mod_entry", "elixir_kwargs")
 load("//elixir/private:hex.bzl", "hex_metadata_entry", "hex_tarball_url")
+load("//elixir/private:kwargs.bzl", "elixir_app_kwargs", "elixir_app_mod_entry", "elixir_kwargs")
+load("//elixir/private/lock:hub.bzl", "build_file")
+
+_HEX_PACKAGE = {"deps": ["telemetry"], "name": "plug", "version": "1.16.1"}
 
 def _glob(patterns, exclude = [], **_kwargs):
     return [",".join(patterns) + "!" + ",".join(exclude)]
@@ -15,6 +18,8 @@ def elixir_wrapper_contract_tests(name):
         name,
         file_classes = ["elixir"],
         extra_checks = [
+            expect_contains("elixir hex packages build without warnings as errors", build_file(_HEX_PACKAGE, "elixir"), "elixir_app(\n    name = \"plug\",\n    app_name = \"plug\",\n    app_version = \"1.16.1\",\n    target_compatible_with = ELIXIR_COMPATIBLE_WITH,\n    visibility = [\"//visibility:public\"],\n    deps = [\"//telemetry\"],\n    warnings_as_errors = False,\n)"),
+            expect_contains("erlang hex packages build without warnings as errors", build_file(_HEX_PACKAGE, "erlang"), "erlang_app(\n    name = \"plug\",\n    app_name = \"plug\",\n    app_version = \"1.16.1\",\n    target_compatible_with = ERLANG_COMPATIBLE_WITH,\n    visibility = [\"//visibility:public\"],\n    deps = [\"//telemetry\"],\n    warnings_as_errors = False,\n)"),
             expect_equal("elixir guard is a select by default", type(elixir_kwargs({})["target_compatible_with"]), "select"),
             expect_equal("elixir guard stays with a user list", type(elixir_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]), "select"),
             expect_equal("elixir keeps user tags", elixir_kwargs({"tags": ["t"]})["tags"], ["t"]),

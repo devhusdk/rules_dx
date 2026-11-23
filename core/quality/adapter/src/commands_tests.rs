@@ -3361,6 +3361,11 @@ fn dialyzer_check_orders_plts_before_options_and_reads_beams_from_the_input_list
             "--error_location",
             "column",
             "--fullpath",
+            "-Wunmatched_returns",
+            "-Wmissing_return",
+            "-Wextra_return",
+            "-Werror_handling",
+            "-Wunderspecs",
             "--input_list_file",
             "/s/beams.txt"
         ]

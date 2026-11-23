@@ -260,6 +260,14 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 
+`credo` takes its tier from `core/quality/tiers/credo/`. Standard runs the warning and refactor checks, including `IoInspect`, `Dbg`, `IoPuts`, `UnsafeToAtom`, `UnsafeExec`, `MixEnv` and `LeakyEnvironment`. Strict runs Credo in strict mode and adds the readability and design checks, including `Specs`, `ImplTrue`, `WithCustomTaggedTuple`, `SkipTestWithoutComment`, `TagTODO`, `TagFIXME` and `UnusedVariableNames`.
+
+`elvis` takes its tier from `core/quality/tiers/elvis/`. Standard runs the `erl_files` ruleset, which already bans debug calls, `catch`, `throw`, `if`, `import`, nested `try`, receive without timeout and used ignored variables. Strict runs `erl_files_strict`, which adds `always_shortcircuit`, `no_common_caveats_call`, the function length and complexity limits, and the other stricter rules. Both tiers turn off the layout rules that `erlfmt` owns.
+
+`dialyzer` runs the same in both tiers with `-Wunmatched_returns`, `-Wmissing_return`, `-Wextra_return`, `-Werror_handling` and `-Wunderspecs`. Its findings are errors.
+
+With warnings as errors on, `erlc` compiles with `-Werror`, `+warn_untyped_record`, `+warn_unused_import` and `+warn_export_all`. Test apps, `testonly` bytecode and Common Test suites get `+nowarn_export_all` in its place. An `erlang_app` that lists `srcs`, as Gazelle writes them, compiles with the upstream rules_erlang defaults and gets none of these flags. Third-party Hex apps build with `warnings_as_errors = False`. `warnings_as_errors = False` on a target, or `--@rules_dx//config:warnings_as_errors=false`, turns all of them off.
+
 `govet`, `errcheck` and `staticcheck` take their tier from `core/quality/tiers/`. Standard runs the `go vet` defaults, errcheck, and staticcheck's default checks. Strict adds the vet analyzers `forvar`, `nilness`, `shadow` and `unusedwrite`, plus `bodyclose`, `errorlint`, `exhaustive`, `noctx` and `sqlclosecheck`. It also makes errcheck report `_ = f()`, unchecked type assertions such as `v.(string)`, and errors from `Close` and `fmt.Fprint*`. staticcheck runs the same checks in both tiers and leaves out `SA9003`, `ST1000`, `ST1003`, `ST1016` and `ST1020` to `ST1023`. Its `SA` findings are errors; `S`, `ST` and `U1000` findings are warnings.
 
 ### JVM and .NET

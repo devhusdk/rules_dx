@@ -7261,6 +7261,7 @@ Macro or function.
 | `srcs` | no | `None` |
 | `main` | no | `None` |
 | `visibility` | no | `None` |
+| `allow_release_fast` | no | `False` |
 | `kwargs` | no |  |
 
 #### `zig_library`
@@ -7286,6 +7287,7 @@ Macro or function.
 | `srcs` | no | `None` |
 | `main` | no | `None` |
 | `visibility` | no | `None` |
+| `allow_release_fast` | no | `False` |
 | `kwargs` | no |  |
 
 ### `@rules_dx//zig:extensions.bzl`

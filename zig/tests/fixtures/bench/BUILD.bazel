@@ -1,6 +1,7 @@
 # gazelle:ignore
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("@rules_dx//zig:defs.bzl", "zig_bench")
+load("@rules_dx//zig/tests:mode_tests.bzl", "zig_mode_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(
@@ -26,6 +27,12 @@ sh_test(
     ],
     target_compatible_with = ["@platforms//os:linux"],
     timeout = "short",
+)
+
+zig_mode_test(
+    name = "parse_bench_release_fast_test",
+    mode = "ReleaseFast",
+    target = ":parse_bench_bin",
 )
 
 zig_bench(

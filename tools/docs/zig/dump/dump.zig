@@ -99,6 +99,7 @@ const Walker = struct {
 
     fn imports(w: *const Walker) ![]const []const u8 {
         var out: std.ArrayList([]const u8) = .empty;
+        // SAFETY: sources are at most 64 MiB, so the token count fits the u32 TokenIndex.
         const count: Ast.TokenIndex = @intCast(w.tree.tokens.len);
         var index: Ast.TokenIndex = 0;
         while (index + 2 < count) : (index += 1) {
@@ -256,10 +257,7 @@ const Walker = struct {
 /// Parses one source file into its dump record. The source must outlive `arena`'s use.
 fn dumpSource(arena: Allocator, path: []const u8, source: [:0]const u8) !File {
     var walker: Walker = .{ .arena = arena, .tree = try Ast.parse(arena, source, parse_options) };
-    if (walker.tree.errors.len > 0) {
-        std.debug.print("zig_doc_dump: {s}: syntax error\n", .{path});
-        return error.SyntaxError;
-    }
+    if (walker.tree.errors.len > 0) return error.SyntaxError;
     const root = walker.tree.rootDecls();
     return .{
         .path = path,
@@ -273,14 +271,21 @@ fn dumpSource(arena: Allocator, path: []const u8, source: [:0]const u8) !File {
 pub fn main(init: std.process.Init) !void {
     const arena = init.arena.allocator();
     const args = try init.minimal.args.toSlice(arena);
+    const stderr = std.Io.File.stderr();
     if (args.len < 4 or !std.mem.eql(u8, args[1], "--out")) {
-        std.debug.print("{s}", .{usage});
+        try stderr.writeStreamingAll(init.io, usage);
         std.process.exit(2);
     }
     var files: std.ArrayList(File) = .empty;
     for (args[3..]) |path| {
         const source = try std.Io.Dir.cwd().readFileAllocOptions(init.io, path, arena, .limited(64 << 20), .of(u8), 0);
-        try files.append(arena, try dumpSource(arena, path, source));
+        const file = dumpSource(arena, path, source) catch |err| {
+            if (err == error.SyntaxError) {
+                try stderr.writeStreamingAll(init.io, try std.fmt.allocPrint(arena, "zig_doc_dump: {s}: syntax error\n", .{path}));
+            }
+            return err;
+        };
+        try files.append(arena, file);
     }
     const dump: Dump = .{ .files = files.items };
     const json = try std.json.Stringify.valueAlloc(arena, dump, .{ .whitespace = .indent_1 });

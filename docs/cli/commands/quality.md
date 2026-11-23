@@ -238,6 +238,18 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `clippy` takes its tier from `core/quality/tiers/clippy/`. Standard runs `clippy::all` with warnings as errors. Strict adds `clippy::pedantic` and denies `unwrap_used`, `expect_used`, `panic`, `unreachable`, `todo`, `unimplemented`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap`, `string_slice`, `fallible_impl_from`, `wildcard_enum_match_arm`, `let_underscore_must_use`, `undocumented_unsafe_blocks`, `allow_attributes_without_reason`, `allow_attributes`, `match_wildcard_for_single_variants`, `let_underscore_future`, `let_underscore_untyped`, `unchecked_time_subtraction`, `large_futures`, `try_err`, `infinite_loop`, `cast_possible_truncation`, `cast_possible_wrap`, `mem_forget`, `rc_mutex`, `multiple_unsafe_ops_per_block`, `string_add`, `create_dir`, `iter_over_hash_type`, `map_err_ignore`, `unused_result_ok`, and the rustc lints `unsafe_code`, `unsafe_op_in_unsafe_fn` and `unused_must_use`. `rust_test` targets and `testonly` crates skip `unwrap_used`, `expect_used`, `panic`, `unreachable`, `exit`, `indexing_slicing`, `unwrap_in_result`, `panic_in_result_fn`, `get_unwrap` and `string_slice`. Mark a needed exception with `#[expect(<lint>, reason = "...")]` on the item.
 
+`zig_ast_check` in the strict tier also fails on these patterns. Comments and strings never match.
+
+| Rule | Pattern |
+| --- | --- |
+| `catch_unreachable` | `catch unreachable` |
+| `empty_catch` | `catch {}` |
+| `debug_print` | `std.debug.print` outside a `test` block |
+| `todo_panic` | `@panic("TODO...")` |
+| `unsafe_cast` | `@ptrCast`, `@alignCast` or `@intCast` without a `// SAFETY:` comment in the statement or in the comment lines right above it |
+
+`zig`, `zig_ast_check` and `zig_fmt` report every finding as an error.
+
 `kubeconform` runs with `-strict` in the strict tier, so duplicate keys fail; the tier comes from the build, not from `kubernetes_schemas`, which carries only the schemas and `skip_kinds`.
 
 `perlcritic` takes its tier from `core/quality/tiers/perlcritic/`. Standard runs severity 3 policies. Strict runs severity 1 policies and requires `use strict` and `use warnings`, checked `open`, `close` and other builtin calls, three-argument `open` with lexical handles, and a policy name on every `## no critic`. It bans string `eval`, `return undef`, and `no strict` or `no warnings` without a category. It leaves out layout and style noise such as `ProhibitMagicNumbers`, `RequireTrailingCommas`, `ProhibitPostfixControls`, `RequireExtendedFormatting`, `RequirePodSections` and `RequireArgUnpacking`.

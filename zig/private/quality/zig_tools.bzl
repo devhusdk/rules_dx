@@ -1,20 +1,23 @@
 """Quality tool rows for the zig family."""
 
-load("//core/quality:tool_defs.bzl", "config", "row", "tool")
+load("//core/quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
 TOOLS = [
     tool(
         id = "zig",
         adapters = {"typecheck": ["zig"]},
+        severity = severity(default = "error"),
     ),
     tool(
         id = "zig_ast_check",
         adapters = {"lint": ["zig"]},
+        severity = severity(default = "error"),
     ),
     tool(
         id = "zig_fmt",
         adapters = {"format": ["zig"]},
         config = config(kind = "none", tier_active = True),
+        severity = severity(default = "error"),
         support = [
             row(
                 capability = "format",

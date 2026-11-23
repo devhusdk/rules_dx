@@ -163,6 +163,7 @@ rust_library(
         "src/sqlfluff_config.rs",
         "src/sqlfluff_preflight.rs",
         "src/terraform_preflight.rs",
+        "src/zig_guard.rs",
     ],
     aliases = aliases(
         package_name = "core/quality/quality_adapter",
@@ -344,6 +345,7 @@ rust_test(
         "src/sqlfluff_config.rs",
         "src/sqlfluff_preflight.rs",
         "src/terraform_preflight.rs",
+        "src/zig_guard.rs",
     ],
     aliases = aliases(
         package_name = "core/quality/quality_adapter",

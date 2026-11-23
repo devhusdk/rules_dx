@@ -90,6 +90,36 @@ pub(super) fn run_until<S: AsRef<OsStr>>(
     }
 }
 
+/// Environment variables that inject config above the repository's own.
+const CONFIG_OVERRIDES: [&str; 3] = ["GIT_CONFIG", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS"];
+
+/// A git read that sees only the repository's own config, even in a repository another user owns.
+pub(super) fn own_config_command(cwd: &Path, args: &[&str]) -> Command {
+    let mut cmd = command(cwd);
+    for name in CONFIG_OVERRIDES {
+        cmd.env_remove(name);
+    }
+    // Reading config and paths runs nothing from the repository, so an unsafe owner may not hide its config.
+    cmd.args(["-c", "safe.directory=*"]).args(args);
+    cmd
+}
+
+/// Runs `own_config_command` and returns what it wrote, none when git is not installed, or why it did not finish.
+pub(super) fn own_config(
+    cwd: &Path,
+    args: &[&str],
+) -> Result<Option<dx_process::capture::Captured>, String> {
+    match dx_process::capture::run_captured(&mut own_config_command(cwd, args), READ_TIMEOUT) {
+        Ok(output) => Ok(Some(output)),
+        Err(dx_process::capture::RunError::Spawn { source, .. })
+            if source.kind() == std::io::ErrorKind::NotFound =>
+        {
+            Ok(None)
+        }
+        Err(error) => Err(error.to_string()),
+    }
+}
+
 /// Runs git and returns trimmed stdout.
 pub(super) fn line(cwd: &Path, args: &[&str]) -> Result<String, WorktreeError> {
     run(cwd, args).map(|text| text.trim().to_owned())
@@ -280,11 +310,9 @@ pub(super) fn unpushed(
         stop,
     )?;
     let args = ["rev-list", "--count", "HEAD", "--not", "--remotes"];
-    text.trim()
-        .parse()
-        .map_err(|error| {
-            WorktreeError::git(&args, &format!("unreadable commit count {text:?}: {error}"))
-        })
+    text.trim().parse().map_err(|error| {
+        WorktreeError::git(&args, &format!("unreadable commit count {text:?}: {error}"))
+    })
 }
 
 /// Branches on origin named `stem` or `stem-*`, read from the remote itself.

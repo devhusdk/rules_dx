@@ -394,6 +394,33 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
         status.stdout,
         status.stderr
     );
+
+    let preset = root.join(".dx/bazelrc/correctness.bazelrc");
+    if preset.exists() {
+        std::fs::remove_file(&preset).expect("drop preset");
+    }
+    let empty = env.base.join("empty.gitconfig");
+    write(&empty, "");
+    let empty = empty.to_str().expect("utf8");
+    let bypass = [
+        ("CI", "true"),
+        ("GIT_CONFIG", empty),
+        ("GIT_CONFIG_COUNT", "1"),
+        ("GIT_CONFIG_KEY_0", "dx.primary"),
+        ("GIT_CONFIG_VALUE_0", "open"),
+    ];
+    for extra in [&[][..], &bypass[..]] {
+        let build = run_env(launcher, &["build"], &root, &env, "", extra);
+        assert_eq!(build.code, 2, "{extra:?}: {}{}", build.stdout, build.stderr);
+        assert!(
+            build
+                .stderr
+                .contains("refused: no Bazel in the main checkout"),
+            "{extra:?}: {}",
+            build.stderr
+        );
+    }
+    assert!(!preset.exists(), "a refused command writes no preset");
 }
 
 fn hook_repo(name: &str) -> (TempDir, PathBuf, Env) {

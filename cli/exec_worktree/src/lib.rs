@@ -847,7 +847,7 @@ pub fn run_worktree_hook(
 
 /// Refuses a Bazel call in a refused main checkout, or `bazel clean` in a slot, with exit 2.
 fn bazel_hook(dir: &Path, bazel_args: &[String], err: &mut dyn Write) -> i32 {
-    match dx_worktree::primary::bazel_refusal(dir, bazel_args, dx_process::is_ci(), &env_var) {
+    match dx_worktree::primary::bazel_refusal(dir, bazel_args, &env_var) {
         Some(reason) => {
             dx_output::write_stderr(err, format_args!("dx: refused: {reason}\n"));
             dx_process::pre_exec_code()

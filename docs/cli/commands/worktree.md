@@ -270,15 +270,30 @@ git config dx.primary open
 
 A refused command exits `2` and prints
 `dx: refused: no Bazel in the main checkout <path>. Work in a slot: tools/dx worktree add <branch>`.
-JSON reports error code `main_checkout`. `dx worktree`, `dx completion`,
-`--help` and `--version` still run. With `CI=true` nothing is refused.
+JSON reports error code `main_checkout`. A refused command writes nothing.
 
-`tools/dx` does not rebuild dx in a refused main checkout. It runs the last
-built dx instead.
+Only commands that only read still run: `dx status`, `dx worktree`,
+`dx completion`, `dx config` except `dx config override`, `--help` and
+`--version`. Every other command is refused.
 
-With `dx.primary` set, `dx worktree hook bazel -- clean` in a slot exits `2`:
-a clean drops the slot's warm outputs and does not fix a stale cache. Rerun
-with `--noremote_accept_cached`, or release the slot and add a fresh one.
+dx fails closed. Any other value of `dx.primary`, such as a typo, counts as
+`protected`, and the message names the value. When git cannot read the
+setting, dx refuses and prints why. `GIT_CONFIG`, `GIT_CONFIG_COUNT` and
+`git -c` do not change what dx reads. Without git on `PATH` nothing can set
+`dx.primary`, so nothing is refused.
+
+`CI=true` does not skip the check: CI never runs `dx worktree add`, so
+`dx.primary` stays unset there.
+
+`tools/dx` does not rebuild dx in a refused main checkout. It asks the copy
+of dx in `.dx/local/launcher`, then the one in `bazel-bin`, and runs the one
+that refuses. When neither can answer, it reads `dx.primary` with git and
+refuses when it is set or unreadable.
+
+With `dx.primary` set, a Bazel `clean` in a slot exits `2`, through
+`dx worktree hook bazel` or `dx clean --bazel`: a clean drops the slot's warm
+outputs and does not fix a stale cache. Rerun with `--noremote_accept_cached`,
+or release the slot and add a fresh one.
 
 ## Agent sessions
 

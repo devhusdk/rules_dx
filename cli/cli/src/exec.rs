@@ -99,11 +99,11 @@ pub(crate) use managed_env::{ENV_ARTIFACTS_DIR, ENV_VALUES_FILE};
 /// Runs one invocation; a `dx run` app is stopped once `withdraw` holds.
 pub(crate) fn execute_until(
     invocation: &Invocation,
-    mut env: Env<'_>,
+    env: Env<'_>,
     withdraw: &dyn Fn() -> bool,
 ) -> i32 {
     if invocation.command == Command::Run && !invocation.here {
-        if let Some(code) = refuse_main_checkout(invocation, &mut env) {
+        if let Some(code) = refuse_main_checkout(invocation, env.workspace, env.out, env.err) {
             return code;
         }
         return run::execute_run_until(invocation, env, withdraw);
@@ -119,28 +119,39 @@ fn lease_refusal(invocation: &Invocation, workspace: &std::path::Path) -> Option
     lease_refusal_for(invocation.command, workspace, &who)
 }
 
-/// The refusal for a command in a refused main checkout; `worktree` and `completion` always run.
-fn main_checkout_refusal(
-    command: Command,
-    workspace: &std::path::Path,
-    ci: bool,
-    env_get: &dyn Fn(&str) -> Option<String>,
-) -> Option<String> {
-    if slot_exempt(command) {
-        return None;
-    }
-    dx_worktree::primary::refusal(workspace, ci, env_get)
+/// Whether `invocation` only reads, so it may run in a protected main checkout. Any command not listed is refused.
+fn read_only(invocation: &Invocation) -> bool {
+    matches!(
+        invocation.command,
+        Command::Status | Command::Completion | Command::Worktree
+    ) || (invocation.command == Command::Config
+        && invocation.targets.first().map(String::as_str) != Some("override"))
 }
 
-/// Reports the main-checkout refusal for `invocation`; none when it may run.
-fn refuse_main_checkout(invocation: &Invocation, env: &mut Env<'_>) -> Option<i32> {
-    let refusal = main_checkout_refusal(invocation.command, env.workspace, env.ci, &|name| {
-        std::env::var(name).ok()
-    })?;
+/// The refusal for `invocation` in a refused main checkout; read-only commands always run.
+fn main_checkout_refusal(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    env_get: &dyn Fn(&str) -> Option<String>,
+) -> Option<String> {
+    if read_only(invocation) {
+        return None;
+    }
+    dx_worktree::primary::refusal(workspace, env_get)
+}
+
+/// Reports the main-checkout refusal for `invocation` in `workspace`; none when it may run.
+pub fn refuse_main_checkout(
+    invocation: &Invocation,
+    workspace: &std::path::Path,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+) -> Option<i32> {
+    let refusal = main_checkout_refusal(invocation, workspace, &|name| std::env::var(name).ok())?;
     Some(dx_exec_core::common::main_checkout_refusal(
         invocation.output,
-        env.out,
-        env.err,
+        out,
+        err,
         &refusal,
     ))
 }
@@ -224,7 +235,7 @@ pub fn execute(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
 }
 
-fn dispatch(invocation: &Invocation, mut env: Env<'_>) -> i32 {
+fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
         invocation.output != dx_output::OutputMode::Diff || invocation.command.supports_diff(),
         "{} rejects --diff",
@@ -239,7 +250,7 @@ fn dispatch(invocation: &Invocation, mut env: Env<'_>) -> i32 {
             "option \"--here\" needs cwd resolution",
         );
     }
-    if let Some(code) = refuse_main_checkout(invocation, &mut env) {
+    if let Some(code) = refuse_main_checkout(invocation, env.workspace, env.out, env.err) {
         return code;
     }
     let busy = match hold_slot(

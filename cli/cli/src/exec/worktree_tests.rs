@@ -72,13 +72,58 @@ fn a_protected_main_checkout_refuses_a_build_with_exit_2() {
 }
 
 #[test]
-fn ci_and_worktree_commands_pass_a_protected_main_checkout() {
-    let harness = Harness::new("wt_main_exempt");
+fn ci_does_not_pass_a_protected_main_checkout() {
+    let harness = Harness::new("wt_main_ci");
     set_primary(&harness, "protected");
-    let (_, _, stderr) = harness.run_with_ci(&["build"], true);
-    assert!(!stderr.contains("refused"), "{stderr}");
-    let (_, _, stderr) = harness.run(&["worktree", "list"]);
-    assert!(!stderr.contains("refused"), "{stderr}");
+    let (code, _, stderr) = harness.run_with_ci(&["build"], true);
+    assert_eq!(code, 2, "{stderr}");
+    assert!(stderr.contains("refused"), "{stderr}");
+}
+
+#[test]
+fn only_read_only_commands_run_in_a_protected_main_checkout() {
+    let harness = Harness::new("wt_main_read_only");
+    set_primary(&harness, "protected");
+    for words in [
+        &["status"][..],
+        &["worktree", "list"][..],
+        &["completion", "bash"][..],
+        &["config"][..],
+    ] {
+        let (_, _, stderr) = harness.run(words);
+        assert!(!stderr.contains("refused"), "{words:?}: {stderr}");
+    }
+    for words in [
+        &["config", "override", "hlint"][..],
+        &["check"][..],
+        &["lint"][..],
+        &["format", "--apply"][..],
+        &["generate"][..],
+        &["clean"][..],
+        &["fetch"][..],
+        &["docs"][..],
+    ] {
+        let (code, _, stderr) = harness.run(words);
+        assert_eq!(code, 2, "{words:?}: {stderr}");
+        assert!(
+            stderr.starts_with("dx: refused: no Bazel in the main checkout "),
+            "{words:?}: {stderr}"
+        );
+    }
+}
+
+#[test]
+fn an_unknown_mode_refuses_as_protected_and_names_the_value() {
+    let harness = Harness::new("wt_main_typo");
+    set_primary(&harness, "protectd");
+    let (code, _, stderr) = harness.run(&["build"]);
+    assert_eq!(code, 2, "{stderr}");
+    assert!(
+        stderr.starts_with(
+            "dx: refused: dx.primary is \"protectd\", which is neither protected nor open, so dx treats it as protected: no Bazel in the main checkout "
+        ),
+        "{stderr}"
+    );
 }
 
 #[test]

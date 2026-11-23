@@ -493,16 +493,32 @@ guard_temps() {
   trap 'on_signal TERM' TERM
   trap 'on_signal HUP' HUP
 }
+# Returns when the main-checkout rule lets this checkout build dx. A built dx answers: exit 0 builds, and a refusal
+# runs that dx, which refuses or runs the command. A dx without the bazel hook cannot answer, so the next one is asked.
+# With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses. Without git nothing can
+# set dx.primary, so the build goes on. Keep in sync with tools/dx.cmd.
+primary_allows_build() {
+  for pr_dx in "$state/dx$exe" "$bin"; do
+    [ -x "$pr_dx" ] || continue
+    pr_ec=0
+    pr_err=$(cd "$root" && "$pr_dx" worktree hook bazel -- build //cli/cli:dx 2>&1 >/dev/null) || pr_ec=$?
+    case $pr_ec:$pr_err in
+    0:*) return 0 ;;
+    2:*refused:*) exec "$pr_dx" "$@" ;;
+    esac
+  done
+  [ -d "$root/.git" ] && command -v git >/dev/null 2>&1 || return 0
+  pr_ec=0
+  (
+    unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_CONFIG GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS
+    git -C "$root" -c 'safe.directory=*' config --get dx.primary >/dev/null 2>&1
+  ) || pr_ec=$?
+  [ "$pr_ec" != 1 ] || return 0
+  echo "dx: refused: dx.primary is set in the main checkout $root, or git cannot read it, and no built dx can check it, so dx is not built here. Work in a slot, or run git config --unset dx.primary to build dx here." >&2
+  exit 2
+}
 if stale; then
-  # In a main checkout that dx.primary protects, run the built dx instead of Bazel; it refuses or runs the command.
-  # An older dx without the bazel hook fails without a refusal, so the build goes on.
-  hk_ec=0
-  hk_err=
-  [ ! -x "$state/dx$exe" ] ||
-    hk_err=$(cd "$root" && "$state/dx$exe" worktree hook bazel -- build //cli/cli:dx 2>&1 >/dev/null) || hk_ec=$?
-  case $hk_ec:$hk_err in
-  2:*refused:*) exec "$state/dx$exe" "$@" ;;
-  esac
+  primary_allows_build "$@"
   command -v bazel >/dev/null 2>&1 || die "bazel is not on PATH"
   mkdir -p "$state"
   tag_state

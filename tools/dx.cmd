@@ -82,17 +82,28 @@ if not "%DX_EC%"=="0" goto dxbuild
 set "BIN=%DX_STATE%\dx.exe"
 goto run
 :dxbuild
-rem In a main checkout that dx.primary protects, run the built dx instead of Bazel; it refuses or runs the command.
-rem An older dx without the bazel hook fails without a refusal, so the build goes on. Keep in sync with tools/dx.
-if not exist "%DX_STATE%\dx.exe" goto dxbuildgo
-pushd "%DX_ROOT%"
-"%DX_STATE%\dx.exe" worktree hook bazel -- build //cli/cli:dx 2>&1 >nul | findstr /c:"refused:" >nul
-set "DX_EC=%errorlevel%"
-popd
-if "%DX_EC%"=="0" (
-  set "BIN=%DX_STATE%\dx.exe"
-  goto run
-)
+rem The main-checkout rule decides whether this checkout may build dx. A built dx answers: exit 0 builds, and a
+rem refusal runs that dx, which refuses or runs the command. A dx without the bazel hook cannot answer, so the next
+rem one is asked. With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses. Without
+rem git nothing can set dx.primary, so the build goes on. Keep in sync with primary_allows_build in tools/dx.
+if not exist "%DX_STATE%" mkdir "%DX_STATE%"
+set "DX_ASK=%DX_STATE%\dx.exe"
+call :dxask
+if "%DX_VERDICT%"=="build" goto dxbuildgo
+if "%DX_VERDICT%"=="refused" goto dxrefused
+set "DX_ASK=%DX_ROOT%\bazel-bin\cli\cli\dx.exe"
+call :dxask
+if "%DX_VERDICT%"=="build" goto dxbuildgo
+if "%DX_VERDICT%"=="refused" goto dxrefused
+if not exist "%DX_ROOT%\.git\" goto dxbuildgo
+call :dxprimary
+if "%errorlevel%"=="1" goto dxbuildgo
+if "%errorlevel%"=="9009" goto dxbuildgo
+echo dx: refused: dx.primary is set in the main checkout %DX_ROOT%, or git cannot read it, and no built dx can check it, so dx is not built here. Work in a slot, or run git config --unset dx.primary to build dx here. 1>&2
+exit /b 2
+:dxrefused
+set "BIN=%DX_ASK%"
+goto run
 :dxbuildgo
 if not exist "%DX_STATE%" mkdir "%DX_STATE%"
 if not exist "%DX_STATE%\CACHEDIR.TAG" (echo Signature: 8a477f597d28d172789f06886806bc55& echo # Rebuildable copy of dx kept by tools/dx.cmd; see https://bford.info/cachedir/) > "%DX_STATE%\CACHEDIR.TAG" 2>nul
@@ -228,3 +239,33 @@ if errorlevel 1 (
 )
 call powershell -NoProfile -NonInteractive -Command "$t=$env:DX_PBT; try { $f=[IO.File]::OpenRead($t); try { $h=[BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($f)).Replace('-', '').ToLowerInvariant() } finally { $f.Dispose() }; if ($h -ne $env:DX_PBS) { [IO.File]::Delete($t); [Console]::Error.WriteLine('dx: the released dx download does not match its sha256 in cli/prebuilt/pins.bzl'); exit 1 }; try { [IO.File]::Move($t, $env:DX_PBB) } catch { [IO.File]::Delete($t); if (-not [IO.File]::Exists($env:DX_PBB)) { exit 1 } }; exit 0 } catch { try { [IO.File]::Delete($t) } catch { }; exit 1 }"
 exit /b %errorlevel%
+
+rem Asks the dx at DX_ASK whether this checkout may build dx. Sets DX_VERDICT to build or refused, or clears it when
+rem that dx is missing or cannot answer.
+:dxask
+set "DX_VERDICT="
+if not exist "%DX_ASK%" exit /b 0
+set "DX_ERR=%DX_STATE%\hook.%RANDOM%%RANDOM%"
+pushd "%DX_ROOT%"
+"%DX_ASK%" worktree hook bazel -- build //cli/cli:dx 2>"%DX_ERR%" >nul
+set "DX_EC=%errorlevel%"
+popd
+if "%DX_EC%"=="0" set "DX_VERDICT=build"
+if not "%DX_EC%"=="2" goto dxaskdone
+findstr /c:"refused:" "%DX_ERR%" >nul 2>&1
+if not errorlevel 1 set "DX_VERDICT=refused"
+:dxaskdone
+del /q "%DX_ERR%" 2>nul
+exit /b 0
+
+rem Exits 1 when git reads no dx.primary in DX_ROOT. Config the environment injects is ignored, as dx ignores it.
+:dxprimary
+setlocal
+set "GIT_DIR="
+set "GIT_WORK_TREE="
+set "GIT_COMMON_DIR="
+set "GIT_CONFIG="
+set "GIT_CONFIG_COUNT="
+set "GIT_CONFIG_PARAMETERS="
+call git -C "%DX_ROOT%" -c "safe.directory=*" config --get dx.primary >nul 2>&1
+endlocal & exit /b %errorlevel%

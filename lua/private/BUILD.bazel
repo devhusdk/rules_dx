@@ -1,3 +1,5 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
 # gazelle:exclude bench
 load(":defs.bzl", "lua_library")
 
@@ -30,17 +32,33 @@ lua_library(
 
 filegroup(
     name = "module_srcs",
-    srcs = glob([
-        "*.bzl",
+    srcs = glob(["*.bzl"]) + [
         "BUILD.bazel",
+        "bench/dx_bench.lua",
         "ldoc.BUILD.bazel",
+        "lua_LICENSE.txt",
         "luacov.BUILD.bazel",
         "luacov_reporter_lcov.BUILD.bazel",
         "luafilesystem.BUILD.bazel",
         "luals.BUILD.bazel",
         "penlight.BUILD.bazel",
-    ]) + [
-        "bench/dx_bench.lua",
     ],
     visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "ldoc.BUILD.bazel",
+        "lua.bzl",
+        "luacov.BUILD.bazel",
+        "luacov_reporter_lcov.BUILD.bazel",
+        "luafilesystem.BUILD.bazel",
+        "luals.BUILD.bazel",
+        "penlight.BUILD.bazel",
+        "providers.bzl",
+    ],
+    tags = ["corpus"],
 )

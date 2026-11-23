@@ -3586,11 +3586,7 @@ fn luals_luarc_lets_our_keys_win_over_the_consumer_config() {
         r#"{"$schema":"x","runtime.version":"LuaJIT","workspace.library":["/elsewhere"],"diagnostics.globals":["vim"]}"#,
     )
     .unwrap();
-    let text = luals_luarc(
-        &consumer,
-        Some(Path::new("/s/dx-luals/mod")),
-        &["dx-luals"],
-    );
+    let text = luals_luarc(&consumer, Some(Path::new("/s/dx-luals/mod")), &["dx-luals"]);
     let parsed: serde_json::Value = serde_json::from_str(&text).unwrap();
     assert_eq!(parsed["runtime.version"], "Lua 5.4");
     assert_eq!(
@@ -3605,7 +3601,8 @@ fn luals_luarc_lets_our_keys_win_over_the_consumer_config() {
         serde_json::json!(["dx-luals"])
     );
     assert!(parsed.get("$schema").is_none());
-    let bare: serde_json::Value = serde_json::from_str(&luals_luarc(&serde_json::json!({}), None, &[])).unwrap();
+    let bare: serde_json::Value =
+        serde_json::from_str(&luals_luarc(&serde_json::json!({}), None, &[])).unwrap();
     assert_eq!(bare["workspace.library"], serde_json::json!([]));
 }
 

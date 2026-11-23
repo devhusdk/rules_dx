@@ -279,15 +279,13 @@ fn init_and_completion_run_without_a_workspace() {
     std::fs::copy(dx_testing::process_probe(), &bazel).expect("fake bazel");
     std::fs::write(tools.join("stop"), "").expect("fake bazel stop file");
     dx_testing::empty_git_repo(root);
-    let path = dx_testing::path_with_git(&tools);
-    let path = path.to_string_lossy();
-    let probe_dir = tools.to_string_lossy();
+    let path = tools.to_string_lossy();
     let (code, out, err) = run_dx(
         root,
         &["init", "--workspace", start.as_ref(), "--apply", "demo"],
         &[
             ("PATH", path.as_ref()),
-            ("PROCESS_PROBE_BAZEL_DIR", probe_dir.as_ref()),
+            ("PROCESS_PROBE_BAZEL_DIR", path.as_ref()),
         ],
     );
     assert_eq!(

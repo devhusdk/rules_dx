@@ -852,8 +852,8 @@ pub fn shell_script(path: &Path, body: &str) {
 
 /// Places `tool`, the fake generate binary, in `dir` as `bazel`, `uv` and `python`
 /// (`.exe` on Windows) for a `dx generate` run, which answers with a clean, complete
-/// result manifest and fills the lock files `dx generate` seeds; returns the
-/// [`path_with_git`] of `dir`.
+/// result manifest and fills the lock files `dx generate` seeds; returns a PATH of
+/// `dir` alone.
 ///
 /// # Panics
 ///
@@ -874,9 +874,7 @@ pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
         #[cfg(not(unix))]
         std::fs::copy(tool, &target).expect("copy fake generate tool");
     }
-    path_with_git(dir)
-        .into_string()
-        .expect("PATH with git is UTF-8")
+    dir.display().to_string()
 }
 
 /// Makes `dir` an empty git repository by writing the few entries git needs, which is
@@ -897,39 +895,6 @@ pub fn empty_git_repo(dir: &Path) {
         std::fs::create_dir_all(git.join(sub)).expect("git dir");
     }
     std::fs::write(git.join("HEAD"), "ref: refs/heads/main\n").expect("git HEAD");
-}
-
-/// A `PATH` of `dir` and the git on this test's `PATH`. dx refuses Bazel work in a
-/// checkout without git, and a test's scratch dir sits in one when Bazel's execroot
-/// links `.git`. On unix git is linked into `dir`, so no other tool leaks in.
-///
-/// # Panics
-///
-/// Panics when git is not on this test's `PATH` or cannot be linked.
-#[must_use]
-#[track_caller]
-#[expect(
-    clippy::expect_used,
-    reason = "test helper: a failed setup fails the test"
-)]
-pub fn path_with_git(dir: &Path) -> std::ffi::OsString {
-    let name = format!("git{}", std::env::consts::EXE_SUFFIX);
-    let git = std::env::var_os("PATH")
-        .and_then(|path| {
-            std::env::split_paths(&path)
-                .map(|entry| entry.join(&name))
-                .find(|file| file.is_file())
-        })
-        .expect("git on the test PATH");
-    #[cfg(unix)]
-    {
-        let link = dir.join(&name);
-        dx_atomic_fs::discard_file(&link);
-        std::os::unix::fs::symlink(&git, &link).expect("link git");
-        dir.as_os_str().to_owned()
-    }
-    #[cfg(not(unix))]
-    std::env::join_paths([dir, git.parent().expect("git dir")]).expect("PATH with git")
 }
 
 /// Waits up to 10s for the process holding the alive lock at `lock` to die.

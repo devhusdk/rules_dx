@@ -127,7 +127,7 @@ impl Drop for Watch {
 }
 
 fn path_with(bin: &Path) -> std::ffi::OsString {
-    let mut dirs: Vec<PathBuf> = std::env::split_paths(&dx_testing::path_with_git(bin)).collect();
+    let mut dirs = vec![bin.to_path_buf()];
     if cfg!(unix) {
         dirs.extend(["/usr/bin", "/bin"].map(PathBuf::from));
     }

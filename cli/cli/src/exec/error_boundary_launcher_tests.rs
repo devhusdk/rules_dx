@@ -143,7 +143,7 @@ impl Consumer {
             .current_dir(self.workspace())
             .env_clear()
             .env("BAZEL_TEST", "1")
-            .env("PATH", dx_testing::path_with_git(&bin))
+            .env("PATH", bin.as_os_str())
             .env("FAKE_PROBE", dx_testing::process_probe())
             .env("HOME", &self.base)
             .env("TMPDIR", self.base.join("tmp"))

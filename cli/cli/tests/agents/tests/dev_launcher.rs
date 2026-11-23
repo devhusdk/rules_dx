@@ -939,10 +939,10 @@ mod sh {
         ] {
             let repo = source_repo("dx-launcher-refused-");
             repo.run_ok();
-            dx_testing::executable_script(
+            shell_script(
                 &state(&repo.root()).join("dx"),
                 &format!(
-                    "#!/bin/sh\ncase \"$*\" in\n'worktree hook bazel -- build //cli/cli:dx') echo '{stderr}' >&2; exit 2 ;;\nesac\necho ran \"$@\"\n"
+                    "case \"$*\" in\n'worktree hook bazel -- build //cli/cli:dx') echo '{stderr}' >&2; exit 2 ;;\nesac\necho ran \"$@\"\n"
                 ),
             );
             repo.touch_build_file();
@@ -958,14 +958,14 @@ mod sh {
         repo.run_ok();
         let hook = |stderr: &str, name: &str| {
             format!(
-                "#!/bin/sh\ncase \"$*\" in\n'worktree hook bazel -- build //cli/cli:dx') echo '{stderr}' >&2; exit 2 ;;\nesac\necho {name} \"$@\"\n"
+                "case \"$*\" in\n'worktree hook bazel -- build //cli/cli:dx') echo '{stderr}' >&2; exit 2 ;;\nesac\necho {name} \"$@\"\n"
             )
         };
-        dx_testing::executable_script(
+        shell_script(
             &state(&repo.root()).join("dx"),
             &hook("dx: no such command", "copy"),
         );
-        dx_testing::executable_script(
+        shell_script(
             &repo.root().join("bazel-bin/cli/cli/dx"),
             &hook("dx: refused: no Bazel in the main checkout here", "bin"),
         );
@@ -2816,23 +2816,23 @@ mod cmd {
             };
             std::fs::copy(dx_testing::process_probe(), &refusing).expect("refusing dx");
             touch_preset(&root);
-            let shim = repo.base.join("shim");
+            let asked = repo.base.join("asked");
             let out = repo
                 .command(&["status"], &repo.base.join("calls"))
-                .env("PROCESS_PROBE_SHIM_LOG", &shim)
+                .env("PROCESS_PROBE_CALL_LOG", &asked)
                 .env(
-                    "PROCESS_PROBE_SHIM_STDERR",
+                    "PROCESS_PROBE_CALL_STDERR",
                     "dx: refused: no Bazel in the main checkout here",
                 )
-                .env("PROCESS_PROBE_SHIM_EXIT", "2")
+                .env("PROCESS_PROBE_CALL_EXIT", "2")
                 .output()
                 .expect("launcher runs");
             let err = String::from_utf8_lossy(&out.stderr);
             let case = format!("copy answers {copy_answers}: {err}");
             assert_eq!(out.status.code(), Some(2), "{case}");
             assert_eq!(repo.builds(), 1, "{case}");
-            let shim = std::fs::read_to_string(&shim).expect("the refusing dx ran");
-            assert!(shim.ends_with("\nstatus\n"), "{case}: {shim}");
+            let asked = std::fs::read_to_string(&asked).expect("the refusing dx ran");
+            assert!(asked.ends_with("\nstatus\n"), "{case}: {asked}");
         }
     }
 

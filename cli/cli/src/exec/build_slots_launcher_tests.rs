@@ -68,7 +68,7 @@ fn build_lines_with_env(
         .args(args)
         .current_dir(&workspace)
         .env_clear()
-        .env("PATH", dx_testing::path_with_git(&bin))
+        .env("PATH", bin.as_os_str())
         .env("HOME", &base)
         .env("XDG_CACHE_HOME", base.join("cache"))
         .env("TMPDIR", &tmp)

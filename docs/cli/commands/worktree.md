@@ -273,14 +273,14 @@ A refused command exits `2` and prints
 JSON reports error code `main_checkout`. A refused command writes nothing.
 
 Only commands that only read still run: `dx status`, `dx worktree`,
-`dx completion`, `dx config` except `dx config override`, `--help` and
-`--version`. Every other command is refused.
+`dx completion`, `dx config` except `dx config override`, `--help` and the
+version flag. Every other command is refused.
 
 dx fails closed. Any other value of `dx.primary`, such as a typo, counts as
 `protected`, and the message names the value. When git cannot read the
 setting, dx refuses and prints why. `GIT_CONFIG`, `GIT_CONFIG_COUNT` and
-`git -c` do not change what dx reads. Without git on `PATH`, dx reads the
-nearest `.git` itself. It refuses when `.git/worktrees` exists, when
+config set on the git command line do not change what dx reads. Without git
+on `PATH`, dx reads the nearest `.git` itself. It refuses when `.git/worktrees` exists, when
 `.git/config` cannot be read, or when `.git/config` has `primary` in a `[dx]`
 section.
 
@@ -294,7 +294,7 @@ refuses when it is set or unreadable. Without git, it reads `.git` as dx does.
 `primary` anywhere.
 
 With `dx.primary` set, a Bazel `clean` in a slot exits `2`, through
-`dx worktree hook bazel` or `dx clean --bazel`. Rerun with
+`dx worktree hook bazel` or [`dx clean`](clean.md). Rerun with
 `--noremote_accept_cached`, or release the slot and add a fresh one.
 
 ## Agent sessions

@@ -98,9 +98,8 @@ call :dxask
 if "%DX_VERDICT%"=="build" goto dxbuildgo
 if "%DX_VERDICT%"=="refused" goto dxrefused
 if not exist "%DX_ROOT%\.git\" goto dxbuildgo
-set "DX_GIT="
-for %%G in (git.exe git.cmd git.bat) do if not "%%~$PATH:G"=="" set "DX_GIT=1"
-if not defined DX_GIT goto dxnogit
+where /q git
+if errorlevel 1 goto dxnogit
 call :dxprimary
 if "%errorlevel%"=="1" goto dxbuildgo
 echo dx: refused: dx.primary is set in the main checkout %DX_ROOT%, or git cannot read it, and no built dx can check it, so dx is not built here. Work in a slot, or run git config --unset dx.primary to build dx here. 1>&2

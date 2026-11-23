@@ -91,7 +91,7 @@ impl Probe {
             .args(words)
             .current_dir(&workspace)
             .env_clear()
-            .env("PATH", dx_testing::path_with_git(&bin))
+            .env("PATH", bin.as_os_str())
             .env("FAKE_PROBE", dx_testing::process_probe())
             .env("HOME", &base)
             .env("TMPDIR", &tmp)

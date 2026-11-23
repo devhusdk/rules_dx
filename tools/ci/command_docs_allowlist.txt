@@ -50,7 +50,6 @@ quality.md unknown-flag --bazelrc
 quality.md unknown-flag --conform
 quality.md unknown-flag --features
 quality.md unknown-flag -c
-quality.md unknown-flag -s
 scope-defaults.md unknown-flag --unshallow
 status.md unknown-flag --apply
 status.md unknown-flag --version

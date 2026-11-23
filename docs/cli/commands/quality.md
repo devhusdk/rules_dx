@@ -244,7 +244,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `shellcheck` reports every finding as a `warning`, style findings included, so they fail the default `--fail-on`. Both tiers set `external-sources=true`, so shellcheck follows `source` lines. Strict also turns on the optional checks `add-default-case`, `check-extra-masked-returns`, `check-set-e-suppressed`, `check-unassigned-uppercase` and `deprecate-which`.
 
-`shfmt` runs with `-s`, so it also simplifies code. It picks the shell dialect from the shebang or the file extension.
+`shfmt` runs in simplify mode, so it also simplifies code. It picks the shell dialect from the shebang or the file extension.
 
 `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 

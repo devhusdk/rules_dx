@@ -4,10 +4,12 @@ stages 1
 stage stylelint classes=css sources=matrix/stylelint_strict_rule.css
 completed_rounds 1
 convergence STABLE
-initial 2
+initial 3
 initial WARNING stylelint declaration-block-no-duplicate-properties matrix/stylelint_strict_rule.css 12 12 fixable=false "Duplicate property \"color\" (declaration-block-no-duplicate-properties)"
 initial WARNING stylelint length-zero-no-unit matrix/stylelint_strict_rule.css 51 51 fixable=false "Disallowed unit (length-zero-no-unit)"
-terminal 2
+initial WARNING stylelint max-nesting-depth matrix/stylelint_strict_rule.css 84 84 fixable=false "Too deep nesting, maximum 2 (max-nesting-depth)"
+terminal 3
 terminal WARNING stylelint declaration-block-no-duplicate-properties matrix/stylelint_strict_rule.css 12 12 fixable=false "Duplicate property \"color\" (declaration-block-no-duplicate-properties)"
 terminal WARNING stylelint length-zero-no-unit matrix/stylelint_strict_rule.css 51 51 fixable=false "Disallowed unit (length-zero-no-unit)"
+terminal WARNING stylelint max-nesting-depth matrix/stylelint_strict_rule.css 84 84 fixable=false "Too deep nesting, maximum 2 (max-nesting-depth)"
 replacements 0

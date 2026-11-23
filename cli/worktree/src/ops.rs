@@ -640,7 +640,7 @@ pub(crate) fn lease(
     lease_locked(pool, host, who, request, skip, warnings, lock)
 }
 
-/// `lease` for a caller that already holds the pool lock. Drops the lock before `switch_slot`; skips a free slot it cannot clean; turns on the main-checkout rule when `dx.primary` is unset.
+/// `lease` for a caller that already holds the pool lock. Drops the lock before `switch_slot`; skips a free slot it cannot clean; turns on the main-checkout rule when `dx.primary` is unset and writes its git hook.
 pub(crate) fn lease_locked(
     pool: &Pool,
     host: &dyn Host,
@@ -661,6 +661,20 @@ pub(crate) fn lease_locked(
                         message: format!(
                             "cannot set {} in the main checkout: {}",
                             primary::KEY,
+                            error.message
+                        ),
+                    }),
+                }
+                match primary::guard_git(&pool.main) {
+                    Ok(None) => {}
+                    Ok(Some(message)) => added.warnings.push(Warning {
+                        code: "git_hook_kept",
+                        message,
+                    }),
+                    Err(error) => added.warnings.push(Warning {
+                        code: "git_hook_failed",
+                        message: format!(
+                            "cannot write the git hook of the main checkout: {}",
                             error.message
                         ),
                     }),

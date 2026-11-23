@@ -24,7 +24,11 @@ pub const CLAUDE: HookFile = HookFile {
         (HookKind::Create, "WorktreeCreate", None),
         (HookKind::Remove, "WorktreeRemove", None),
         (HookKind::Stop, "SubagentStop", None),
-        (HookKind::Guard, "PreToolUse", Some("Bash")),
+        (
+            HookKind::Guard,
+            "PreToolUse",
+            Some("Bash|Edit|Write|NotebookEdit"),
+        ),
     ],
     allow: true,
     flat: false,
@@ -44,7 +48,11 @@ pub const CODEX: HookFile = HookFile {
 /// Gemini CLI reads the hooks in this file in trusted folders.
 pub const GEMINI: HookFile = HookFile {
     path: ".gemini/settings.json",
-    hooks: &[(HookKind::Guard, "BeforeTool", Some("run_shell_command"))],
+    hooks: &[(
+        HookKind::Guard,
+        "BeforeTool",
+        Some("run_shell_command|write_file|replace"),
+    )],
     allow: false,
     flat: false,
 };
@@ -182,26 +190,63 @@ pub fn settings_text(file: &HookFile) -> String {
     format!("{text}\n")
 }
 
-fn has_command(file: &HookFile, existing: &Value, event: &str, command: &str) -> bool {
+/// The entries under `event` that run `command`.
+fn command_entries<'a>(
+    file: &HookFile,
+    existing: &'a Value,
+    event: &str,
+    command: &str,
+) -> Vec<&'a Value> {
     let key = if file.flat { "bash" } else { "command" };
     existing
         .get("hooks")
         .and_then(|hooks| hooks.get(event))
         .and_then(Value::as_array)
-        .is_some_and(|groups| {
-            groups.iter().any(|group| {
-                if file.flat {
-                    return group.get(key).and_then(Value::as_str) == Some(command);
-                }
-                group
-                    .get("hooks")
-                    .and_then(Value::as_array)
-                    .is_some_and(|list| {
-                        list.iter()
-                            .any(|hook| hook.get(key).and_then(Value::as_str) == Some(command))
-                    })
-            })
+        .into_iter()
+        .flatten()
+        .filter(|group| {
+            if file.flat {
+                return group.get(key).and_then(Value::as_str) == Some(command);
+            }
+            group
+                .get("hooks")
+                .and_then(Value::as_array)
+                .is_some_and(|list| {
+                    list.iter()
+                        .any(|hook| hook.get(key).and_then(Value::as_str) == Some(command))
+                })
         })
+        .collect()
+}
+
+fn has_command(
+    file: &HookFile,
+    existing: &Value,
+    event: &str,
+    matcher: Option<&str>,
+    command: &str,
+) -> bool {
+    command_entries(file, existing, event, command)
+        .into_iter()
+        .any(|group| group.get("matcher").and_then(Value::as_str) == matcher)
+}
+
+/// The entries dx wrote with another matcher, which the entry with `matcher` replaces.
+fn stale_entries(
+    file: &HookFile,
+    existing: &Value,
+    event: &str,
+    matcher: Option<&str>,
+    command: &str,
+) -> Vec<Value> {
+    command_entries(file, existing, event, command)
+        .into_iter()
+        .filter(|group| {
+            let other = group.get("matcher").and_then(Value::as_str);
+            other != matcher && **group == entry_value(file, other, command)
+        })
+        .cloned()
+        .collect()
 }
 
 /// Hook entries an existing hooks file lacks, as `event: command` lines.
@@ -210,7 +255,7 @@ pub fn missing_entries(file: &HookFile, existing: &str) -> Vec<String> {
     let parsed = parse(existing);
     entries(file)
         .into_iter()
-        .filter(|(event, _, command)| !has_command(file, &parsed, event, command))
+        .filter(|(event, matcher, command)| !has_command(file, &parsed, event, *matcher, command))
         .map(|(event, matcher, command)| match matcher {
             Some(matcher) => format!("{event} ({matcher}): {command}"),
             None => format!("{event}: {command}"),
@@ -267,7 +312,11 @@ fn merge(file: &HookFile, existing: &str) -> Result<String, dx_merge::Error> {
     let parsed = parse(existing);
     let mut text = existing.to_owned();
     for (event, matcher, command) in entries(file) {
-        if !has_command(file, &parsed, event, &command) {
+        if !has_command(file, &parsed, event, matcher, &command) {
+            let stale = stale_entries(file, &parsed, event, matcher, &command);
+            if !stale.is_empty() {
+                text = dx_merge::jsonc::remove_array_values(&text, &["hooks", event], &stale)?;
+            }
             text = dx_merge::jsonc::append_missing(
                 &text,
                 &["hooks", event],
@@ -677,7 +726,7 @@ mod tests {
                     }
                     HookKind::Stop => "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook stop",
                     HookKind::Guard => "\"${CLAUDE_PROJECT_DIR:-.}\"/tools/dx worktree hook guard",
-                    HookKind::Bazel => continue,
+                    HookKind::Bazel | HookKind::Git => continue,
                 };
                 assert_eq!(commands(&settings, event), vec![expected.to_owned()]);
             }
@@ -695,6 +744,33 @@ mod tests {
         for (kind, event, _) in CLAUDE.hooks {
             assert_eq!(kind.event(), Some(*event));
         }
+    }
+
+    #[test]
+    fn a_guard_with_an_old_matcher_is_replaced_and_a_users_entry_stays() {
+        let dir = scratch("dx-worktree-setup-matcher-").unwrap();
+        std::fs::create_dir_all(dir.path().join(".claude")).expect("dir");
+        let command = hook_command(HookKind::Guard);
+        let old = entry_value(&CLAUDE, Some("Bash"), &command);
+        let mine =
+            json!({ "matcher": "Bash", "hooks": [{ "type": "command", "command": "mine" }] });
+        let own = json!({ "hooks": { "PreToolUse": [old, mine] } }).to_string();
+        std::fs::write(dir.path().join(CLAUDE.path), &own).expect("settings");
+        assert!(!missing_entries(&CLAUDE, &own).is_empty());
+        apply(dir.path(), &ALL).expect("apply");
+        let text = std::fs::read_to_string(dir.path().join(CLAUDE.path)).expect("read");
+        assert_eq!(missing_entries(&CLAUDE, &text), [] as [String; 0]);
+        let matchers: Vec<Value> = parse(&text)["hooks"]["PreToolUse"]
+            .as_array()
+            .expect("entries")
+            .iter()
+            .map(|entry| entry["matcher"].clone())
+            .collect();
+        assert_eq!(
+            matchers,
+            [json!("Bash"), json!("Bash|Edit|Write|NotebookEdit")]
+        );
+        assert!(text.contains("\"mine\""));
     }
 
     #[test]

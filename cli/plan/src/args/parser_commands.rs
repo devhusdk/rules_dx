@@ -1158,7 +1158,7 @@ fn worktree_hook_rejects_unknown_hook_names() {
         assert_eq!(
             error.to_string(),
             format!(
-                "unknown dx worktree hook {name:?}: want one of: create, remove, stop, guard, bazel"
+                "unknown dx worktree hook {name:?}: want one of: create, remove, stop, guard, bazel, git"
             )
         );
     }

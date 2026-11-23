@@ -151,8 +151,25 @@ fn read(dir: &Path) -> Reading {
     }
 }
 
-/// The top of the main checkout `dir` is in; none in a linked worktree. An error names why git could not tell.
-fn main_checkout(dir: &Path) -> Result<Option<PathBuf>, String> {
+/// The main checkout the rule refuses in, with the note that prefixes each refusal there.
+struct Main {
+    note: String,
+    top: PathBuf,
+    git_dir: PathBuf,
+}
+
+impl Main {
+    fn refusal(&self, what: &str) -> String {
+        format!(
+            "{}{what} in the main checkout {}. Work in a slot: tools/dx worktree add <branch>",
+            self.note,
+            self.top.display()
+        )
+    }
+}
+
+/// The top and git directory of the main checkout `dir` is in; none in a linked worktree. An error names why git could not tell.
+fn main_checkout(dir: &Path) -> Result<Option<(PathBuf, PathBuf)>, String> {
     let output = git::own_config(
         dir,
         &[
@@ -180,7 +197,26 @@ fn main_checkout(dir: &Path) -> Result<Option<PathBuf>, String> {
         std::fs::canonicalize(dir.join(path))
             .map_err(|error| format!("cannot resolve {path}: {error}"))
     };
-    Ok((resolve(git_dir)? == resolve(common)?).then(|| PathBuf::from(top)))
+    let git_dir = resolve(git_dir)?;
+    Ok((git_dir == resolve(common)?).then(|| (PathBuf::from(top), git_dir)))
+}
+
+/// The main checkout when a reading refuses in `dir`; an error is the refusal when the rule cannot be read.
+fn refusing_main(
+    reading: Reading,
+    dir: &Path,
+    env_get: &dyn Fn(&str) -> Option<String>,
+) -> Result<Option<Main>, String> {
+    let note = match reading {
+        Reading::Off => return Ok(None),
+        Reading::Unreadable(reason) => return Err(reason),
+        Reading::On(mode, _) if !mode.refuses(env_get) => return Ok(None),
+        Reading::On(_, note) => note.unwrap_or_default(),
+    };
+    match main_checkout(dir) {
+        Ok(found) => Ok(found.map(|(top, git_dir)| Main { note, top, git_dir })),
+        Err(detail) => Err(unreadable(&detail)),
+    }
 }
 
 /// The refusal a reading gives in `dir`; none when Bazel work may run there.
@@ -189,19 +225,9 @@ fn refusal_of(
     dir: &Path,
     env_get: &dyn Fn(&str) -> Option<String>,
 ) -> Option<String> {
-    let note = match reading {
-        Reading::Off => return None,
-        Reading::Unreadable(reason) => return Some(reason),
-        Reading::On(mode, _) if !mode.refuses(env_get) => return None,
-        Reading::On(_, note) => note.unwrap_or_default(),
-    };
-    match main_checkout(dir) {
-        Ok(None) => None,
-        Ok(Some(main)) => Some(format!(
-            "{note}no Bazel in the main checkout {}. Work in a slot: tools/dx worktree add <branch>",
-            main.display()
-        )),
-        Err(detail) => Some(unreadable(&detail)),
+    match refusing_main(reading, dir, env_get) {
+        Ok(main) => main.map(|main| main.refusal("no Bazel")),
+        Err(reason) => Some(reason),
     }
 }
 
@@ -209,6 +235,105 @@ fn refusal_of(
 #[must_use]
 pub fn refusal(dir: &Path, env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {
     refusal_of(read(dir), dir, env_get)
+}
+
+/// Why an agent edit of `path` is refused, without the `refused:` prefix; none when it may go ahead.
+#[must_use]
+pub fn edit_refusal(path: &Path, env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {
+    let dir = path.ancestors().skip(1).find(|dir| dir.is_dir())?;
+    match refusing_main(read(dir), dir, env_get) {
+        Ok(main) => main.map(|main| main.refusal(&format!("no edit of {}", path.display()))),
+        Err(reason) => Some(reason),
+    }
+}
+
+/// Refs of the main checkout that only change when its checkout or stash changes.
+const CHECKOUT_REFS: [&str; 3] = ["HEAD", "ORIG_HEAD", "refs/stash"];
+
+/// Why the `reference-transaction` hook's `<old> <new> <ref>` lines in `dir` are refused, without the `refused:` prefix.
+#[must_use]
+pub fn git_refusal(
+    dir: &Path,
+    updates: &str,
+    env_get: &dyn Fn(&str) -> Option<String>,
+) -> Option<String> {
+    let names: Vec<&str> = updates
+        .lines()
+        .filter_map(|line| line.split_whitespace().nth(2))
+        .filter(|name| CHECKOUT_REFS.contains(name) || name.starts_with("refs/heads/"))
+        .collect();
+    let first = names.first()?;
+    let main = match refusing_main(read(dir), dir, env_get) {
+        Ok(main) => main?,
+        Err(reason) => return Some(format!("no git update of {first}: {reason}")),
+    };
+    let branch = git::own_config(&main.top, &["symbolic-ref", "--quiet", "HEAD"])
+        .ok()
+        .flatten()
+        .filter(|output| output.code == Some(0))
+        .map(|output| output.stdout_text().trim().to_owned());
+    let name = names.into_iter().find(|name| match *name {
+        // `git worktree add` run here writes the new worktree's HEAD through this hook too; only
+        // a transaction that holds this checkout's own lock changes this checkout.
+        "HEAD" | "ORIG_HEAD" => {
+            main.git_dir.join(format!("{name}.lock")).exists()
+                || main.git_dir.join("reftable/tables.list.lock").exists()
+        }
+        "refs/stash" => true,
+        branch_ref => branch.as_deref() == Some(branch_ref),
+    })?;
+    Some(main.refusal(&format!("no git update of {name}")))
+}
+
+/// The `reference-transaction` hook: asks the main checkout's dx about each prepared transaction, and passes when it cannot answer.
+const GIT_HOOK: &str = r#"#!/bin/sh
+[ "$1" = prepared ] || exit 0
+main=$(git worktree list --porcelain) || exit 0
+main=${main%%"
+"*}
+dx=${main#worktree }/tools/dx
+[ -x "$dx" ] || exit 0
+out=$("$dx" worktree hook git 2>&1) && exit 0
+case $out in
+*"dx: refused: no git update of "*)
+  printf '%s\n' "$out" >&2
+  exit 1
+  ;;
+esac
+exit 0
+"#;
+
+/// Marks a hook file as dx's, so dx may rewrite it.
+const GIT_HOOK_MARK: &str = "worktree hook git";
+
+/// Writes the git hook of `main` when it is absent or dx's; returns a warning when another hook is kept.
+pub(crate) fn guard_git(main: &Path) -> Result<Option<String>, WorktreeError> {
+    let path = main.join(git::line(
+        main,
+        &["rev-parse", "--git-path", "hooks/reference-transaction"],
+    )?);
+    match std::fs::read(&path) {
+        Ok(bytes) if bytes == GIT_HOOK.as_bytes() => return Ok(None),
+        Ok(bytes) if !String::from_utf8_lossy(&bytes).contains(GIT_HOOK_MARK) => {
+            return Ok(Some(format!(
+                "kept {}: it is not dx's, so git in the main checkout is not guarded",
+                path.display()
+            )));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    dx_atomic_fs::write_atomic(&path, GIT_HOOK.as_bytes())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
+    }
+    Ok(None)
 }
 
 /// The refusal text for `bazel clean` in a slot.

@@ -13,6 +13,11 @@ fn package_name(t: &toml::map::Map<String, toml::Value>) -> String {
         .to_lowercase()
 }
 
+/// Reads the dependency tables of a Cargo manifest.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let data = parse_toml_file(path)?;
     let mut deps = BTreeMap::new();
@@ -108,6 +113,11 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
     Ok(deps)
 }
 
+/// Maps every package of a Cargo lock to its versions.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_rust_lock(path: &Path) -> Result<LockVersions, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: toml::Value = toml::from_str(&text).map_err(DepcheckError::LockToml)?;

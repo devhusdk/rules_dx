@@ -30,6 +30,10 @@ fn scoped_npm_parts(rest: &str) -> Option<(&str, &str)> {
 }
 
 /// Accepts a name using only `[A-Za-z0-9_.-]` or reports the caller's reason.
+///
+/// # Errors
+///
+/// Returns `reason` when `package` is empty or uses another character.
 pub fn validate_dotted(package: &str, reason: &'static str) -> Result<(), &'static str> {
     if dotted_name(package) {
         Ok(())
@@ -39,6 +43,10 @@ pub fn validate_dotted(package: &str, reason: &'static str) -> Result<(), &'stat
 }
 
 /// Accepts two names using only `[A-Za-z0-9_.-]` or reports the caller's reason.
+///
+/// # Errors
+///
+/// Returns `reason` when either name is empty or uses another character.
 pub fn validate_dotted_pair(
     left: &str,
     right: &str,
@@ -52,6 +60,10 @@ pub fn validate_dotted_pair(
 }
 
 /// Accepts a cargo crate name or reports why it is refused.
+///
+/// # Errors
+///
+/// Returns the reason when `package` is not a valid cargo crate name.
 pub fn validate_cargo(package: &str) -> Result<(), &'static str> {
     if cargo_name(package) {
         Ok(())
@@ -61,6 +73,10 @@ pub fn validate_cargo(package: &str) -> Result<(), &'static str> {
 }
 
 /// Accepts an npm package name or reports why it is refused.
+///
+/// # Errors
+///
+/// Returns the reason when `package` is not a valid npm package name.
 pub fn validate_npm(package: &str) -> Result<(), &'static str> {
     if package.is_empty() || package.contains(':') || package.contains(' ') {
         return Err("npm package names never contain ':' or spaces");
@@ -78,6 +94,10 @@ pub fn validate_npm(package: &str) -> Result<(), &'static str> {
 }
 
 /// Accepts a go module path or reports why it is refused.
+///
+/// # Errors
+///
+/// Returns the reason when `package` is not a valid go module path.
 pub fn validate_go(package: &str) -> Result<(), &'static str> {
     if package.is_empty() || package.contains(':') || package.contains(' ') {
         return Err("go module paths never contain ':' or spaces");
@@ -96,6 +116,10 @@ pub fn validate_go(package: &str) -> Result<(), &'static str> {
 }
 
 /// Accepts a maven identity or reports why it is refused.
+///
+/// # Errors
+///
+/// Returns the reason when `package` is not a valid maven identity.
 pub fn validate_maven(package: &str) -> Result<(), &'static str> {
     let shape = || "maven identities are group:artifact";
     let Some((group, artifact)) = package.split_once(':') else {
@@ -113,6 +137,10 @@ pub fn validate_maven(package: &str) -> Result<(), &'static str> {
 }
 
 /// Accepts a nuget id or reports why it is refused.
+///
+/// # Errors
+///
+/// Returns the reason when `package` is not a valid nuget id.
 pub fn validate_nuget(package: &str) -> Result<(), &'static str> {
     validate_dotted(package, "nuget ids use [A-Za-z0-9_.-] only")
 }

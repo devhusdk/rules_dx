@@ -19,6 +19,10 @@ const TOOLS: [&str; 8] = [
 
 /// Reads the `depends` and `depopts` lists of an opam file. A `with-test` filter marks a
 /// dependency dev, `build` marks it build, and `depopts` entries are optional.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_ocaml_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let mut deps = BTreeMap::new();
@@ -54,6 +58,10 @@ pub fn parse_ocaml_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, De
 }
 
 /// Maps each package of an `opam.locked` file to its pinned version.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_ocaml_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let version_re = regex::Regex::new(r#"=\s*"([^"]+)""#).map_err(DepcheckError::LockRegex)?;

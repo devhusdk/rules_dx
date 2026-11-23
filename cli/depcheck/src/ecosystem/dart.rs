@@ -30,11 +30,19 @@ fn constraint(value: &yaml_serde::Value) -> String {
 }
 
 /// `dependencies` and `dev_dependencies` of a pubspec manifest.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_dart_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     manifest_deps(path, true)
 }
 
 /// `dependencies` and `dev_dependencies` of a pubspec manifest without the `sdk:` ones.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_dart_manifest_packages(
     path: &Path,
 ) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
@@ -110,6 +118,10 @@ fn lock_entries(path: &Path) -> Result<Vec<(String, String, String)>, DepcheckEr
 }
 
 /// `packages.<name>.version` of a pub lock, SDK packages included.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_dart_lock(path: &Path) -> Result<LockVersions, DepcheckError> {
     let mut pkgs = LockVersions::new();
     for (name, version, _) in lock_entries(path)? {
@@ -119,6 +131,10 @@ pub fn parse_dart_lock(path: &Path) -> Result<LockVersions, DepcheckError> {
 }
 
 /// Locked packages a source can import without the manifest naming them: hosted and git ones.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn dart_lock_candidates(path: &Path) -> Result<Vec<String>, DepcheckError> {
     Ok(lock_entries(path)?
         .into_iter()

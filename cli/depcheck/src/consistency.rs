@@ -100,6 +100,12 @@ pub(crate) fn lock_pair<'a>(eco: Language, manifest: &'a Path, lock: &'a Path) -
     }
 }
 
+/// Checks that `lock` resolves every dependency `manifest` declares.
+///
+/// # Errors
+///
+/// Returns a usage error when the manifest or lock is missing, and a failure when either does not
+/// parse or they disagree.
 pub fn cmd_consistency(
     eco: Language,
     manifest: &Path,
@@ -290,6 +296,12 @@ fn maven_lock(_eco: Language, lock: &Path) -> Result<LockVersions, DepcheckError
     single(jvm::parse_jvm_lock(lock))
 }
 
+/// Checks every manifest and lock pair of the workspace and reports each one.
+///
+/// # Errors
+///
+/// Returns the error of the worst failing pair: usage when a file is missing, failure when a file
+/// does not parse or a pair disagrees.
 pub fn cmd_locks(
     locks: &WorkspaceLocks,
     stdout: &mut dyn std::fmt::Write,

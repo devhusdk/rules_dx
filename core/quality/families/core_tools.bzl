@@ -505,6 +505,7 @@ TOOLS = [
             comment = "#",
             tier_active = True,
         ),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",

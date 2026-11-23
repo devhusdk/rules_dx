@@ -258,6 +258,10 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `shfmt` runs in simplify mode, so it also simplifies code. It picks the shell dialect from the shebang or the file extension.
 
+`vale` in the strict tier runs the `Vale`, `write-good` and `Dx` styles at `MinAlertLevel = warning`, with `write-good.Passive` and `write-good.E-Prime` off and spelling left to `typos`. `Dx` findings are errors: the markers `TODO`, `FIXME`, `TBD` and `XXX`; the placeholders `lorem ipsum`, `your-*-here`, `<placeholder>` and `as an AI`; and the filler words `it is worth noting`, `delve`, `in order to`, `seamless`, `robust`, `leverage`, `comprehensive` and `game-changer`. Other `vale` findings are warnings.
+
+`typos` in the strict tier checks file names and contents in the `en-us` locale, includes hidden files, and skips lockfiles and generated files.
+
 `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 
 `govet`, `errcheck` and `staticcheck` take their tier from `core/quality/tiers/`. Standard runs the `go vet` defaults, errcheck, and staticcheck's default checks. Strict adds the vet analyzers `forvar`, `nilness`, `shadow` and `unusedwrite`, plus `bodyclose`, `errorlint`, `exhaustive`, `noctx` and `sqlclosecheck`. It also makes errcheck report `_ = f()`, unchecked type assertions such as `v.(string)`, and errors from `Close` and `fmt.Fprint*`. staticcheck runs the same checks in both tiers and leaves out `SA9003`, `ST1000`, `ST1003`, `ST1016` and `ST1020` to `ST1023`. Its `SA` findings are errors; `S`, `ST` and `U1000` findings are warnings.

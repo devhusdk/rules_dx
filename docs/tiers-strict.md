@@ -1564,7 +1564,34 @@ Source: dx. Native file: `tsconfig.json`.
 
 Source: dx. Native file: `typos.toml`.
 
-Same as the standard tier.
+```diff
+--- a/core/quality/tiers/typos/strict.toml
++++ b/core/quality/tiers/typos/strict.toml
+@@ -1,5 +1,21 @@
+ [default]
+-locale = "en"
++locale = "en-us"
++check-filename = true
++check-file = true
+ 
+ [files]
+-extend-exclude = ["*.lock", "*.min.js", "*.svg"]
++ignore-hidden = false
++extend-exclude = [
++    ".git/",
++    "*.lock",
++    "*.min.css",
++    "*.min.js",
++    "*.map",
++    "*.pb.go",
++    "*.svg",
++    "*_pb2.py",
++    "go.sum",
++    "package-lock.json",
++    "pnpm-lock.yaml",
++    "yarn.lock",
++]
+```
 
 ### yamlfmt
 

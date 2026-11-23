@@ -45,7 +45,12 @@ fn repos_bzl_defines_no_module_extension() {
             let source = std::fs::read_to_string(path).expect("read repos.bzl");
             calls_module_extension(&source)
         })
-        .map(|path| path.strip_prefix(&root).unwrap_or(path).display().to_string())
+        .map(|path| {
+            path.strip_prefix(&root)
+                .unwrap_or(path)
+                .display()
+                .to_string()
+        })
         .collect();
     assert!(
         offenders.is_empty(),

@@ -110,20 +110,23 @@ fn canonical_defaults(snapshot: &serde_json::Value) -> Vec<String> {
                     .get("load")
                     .and_then(serde_json::Value::as_str)
                     .unwrap_or(load);
-                if let Some(default) = object.get("default").and_then(serde_json::Value::as_str) {
-                    if default.contains("@@") {
-                        let name = object
-                            .get("name")
-                            .and_then(serde_json::Value::as_str)
-                            .unwrap_or_default();
-                        hits.push(format!("{load} {name}"));
-                    }
+                if let Some(default) = object.get("default").and_then(serde_json::Value::as_str)
+                    && default.contains("@@")
+                {
+                    let name = object
+                        .get("name")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or_default();
+                    hits.push(format!("{load} {name}"));
                 }
                 for item in object.values() {
                     walk(item, load, hits);
                 }
             }
-            _ => {}
+            serde_json::Value::Null
+            | serde_json::Value::Bool(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::String(_) => {}
         }
     }
     let mut hits = Vec::new();

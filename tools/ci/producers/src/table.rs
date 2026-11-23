@@ -1,15 +1,19 @@
-use std::fmt::Write as _;
 use serde_json::Value;
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 fn jsonl_files(dir: &Path, found: &mut Vec<PathBuf>) -> Result<(), String> {
-    let entries = std::fs::read_dir(dir).map_err(|error| format!("read {}: {error}", dir.display()))?;
+    let entries =
+        std::fs::read_dir(dir).map_err(|error| format!("read {}: {error}", dir.display()))?;
     for entry in entries {
         let path = entry.map_err(|error| error.to_string())?.path();
         if path.is_dir() {
             jsonl_files(&path, found)?;
-        } else if path.extension().is_some_and(|extension| extension == "jsonl") {
+        } else if path
+            .extension()
+            .is_some_and(|extension| extension == "jsonl")
+        {
             found.push(path);
         }
     }
@@ -22,8 +26,8 @@ fn merged_lines(dir: &Path) -> Result<Vec<String>, String> {
     files.sort();
     let mut lines = Vec::new();
     for file in files {
-        let text =
-            std::fs::read_to_string(&file).map_err(|error| format!("read {}: {error}", file.display()))?;
+        let text = std::fs::read_to_string(&file)
+            .map_err(|error| format!("read {}: {error}", file.display()))?;
         lines.extend(
             text.lines()
                 .map(|line| line.replace('\r', ""))

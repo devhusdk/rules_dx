@@ -57,7 +57,7 @@ The guards check the rules of `docs/design/tests.md`.
 - A 40 min step cap keeps a slow shard's log.
 - Flags precede `--`, patterns follow, so `-//pkg/...` excludes.
 - Outputs match between the logs by path; `<label> <mnemonic>` only names the action. The job fails for an output that differs or is in one log only, and for a stale allowlist line.
-- `tools/ci/determinism_allowlist.txt` lists the actions that differ; `//tools/ci:determinism_allowlist_test` holds its cap.
+- `tools/ci/determinism_allowlist.txt` lists the actions that differ; `//tools/ci:determinism_allowlist_test` keeps it empty.
 
 ## Analysis scaling
 

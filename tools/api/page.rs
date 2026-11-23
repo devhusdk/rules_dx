@@ -441,9 +441,9 @@ fn row(page: &mut String, cells: &[String]) {
 
 fn default_cell(value: &str) -> String {
     let private = value.match_indices("/private").any(|(at, word)| {
-        value[at + word.len()..]
-            .chars()
-            .next()
+        value
+            .get(at + word.len()..)
+            .and_then(|rest| rest.chars().next())
             .is_none_or(|next| !(next.is_ascii_alphanumeric() || "_-.".contains(next)))
     });
     if private {

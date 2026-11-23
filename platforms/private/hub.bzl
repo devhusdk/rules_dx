@@ -64,7 +64,6 @@ platforms_hub = repository_rule(
     implementation = _hub_impl,
     doc = "Writes one platform and config_setting per platform name for the current host.",
     attrs = {
-        # The extension reads the host so the repo is a function of its attrs and can be cached.
         "host": attr.string(doc = "Platform name of the host, or \"\" when the host has none."),
         "registered": attr.string(doc = "JSON map from a family platform name to its dx.platform tag."),
     },

@@ -36,7 +36,7 @@ fn manifest_spec(
         .ok_or_else(|| DepcheckError::ManifestParse(format!("{field}.{name} must be a string")))
 }
 
-/// Reads the dependency sections of a `package.json` manifest.
+/// Reads the dependency sections of an npm package manifest.
 ///
 /// # Errors
 ///

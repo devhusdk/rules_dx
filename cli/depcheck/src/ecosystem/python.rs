@@ -70,7 +70,7 @@ pub fn satisfies_py(spec: &str, locked: &str) -> Option<bool> {
     Some(specifiers.contains(&version))
 }
 
-/// Reads the dependencies of a `pyproject.toml` manifest.
+/// Reads the dependencies of a Python project manifest.
 ///
 /// # Errors
 ///

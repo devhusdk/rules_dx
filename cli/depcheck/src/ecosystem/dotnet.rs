@@ -5,7 +5,7 @@ use crate::{DepInfo, DepcheckError};
 
 use super::normalize_lower;
 
-/// Reads the `nuget` lines of a `paket.dependencies` manifest, with their groups.
+/// Reads the `nuget` lines of a Paket manifest, with their groups.
 ///
 /// # Errors
 ///

@@ -13,7 +13,7 @@ fn package_name(t: &toml::map::Map<String, toml::Value>) -> String {
         .to_lowercase()
 }
 
-/// Reads the dependency tables of a `Cargo.toml` manifest.
+/// Reads the dependency tables of a Cargo manifest.
 ///
 /// # Errors
 ///
@@ -113,7 +113,7 @@ pub fn parse_rust_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Dep
     Ok(deps)
 }
 
-/// Maps every package of a `Cargo.lock` to its versions.
+/// Maps every package of a Cargo lock to its versions.
 ///
 /// # Errors
 ///

@@ -5,7 +5,7 @@ use crate::{DepInfo, DepcheckError};
 
 use super::normalize_lower;
 
-/// Reads the `require` lines of a `go.mod` manifest.
+/// Reads the `require` lines of a Go module manifest.
 ///
 /// # Errors
 ///
@@ -37,7 +37,7 @@ pub fn parse_go_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
     Ok(deps)
 }
 
-/// Maps every module in `go.sum` to its version.
+/// Maps every module in a Go checksum lock to its version.
 ///
 /// # Errors
 ///

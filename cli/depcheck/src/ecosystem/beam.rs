@@ -37,7 +37,7 @@ fn mix_deps_block(text: &str) -> Option<String> {
     Some(block)
 }
 
-/// Reads the `deps` of a `mix.exs` manifest.
+/// Reads the `deps` of a Mix manifest.
 ///
 /// # Errors
 ///

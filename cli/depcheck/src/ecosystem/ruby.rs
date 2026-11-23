@@ -5,7 +5,7 @@ use crate::{DepInfo, DepcheckError};
 
 use super::normalize_lower;
 
-/// Reads the `gem` lines of a Gemfile, with their optional and platform marks.
+/// Reads the `gem` lines of a Bundler manifest, with their optional and platform marks.
 ///
 /// # Errors
 ///

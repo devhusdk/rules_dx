@@ -11,7 +11,7 @@ diff -ruN a/dotnet/private/compiler_wrapper.bat b/dotnet/private/compiler_wrappe
  goto loop
  :afterloop
  
-@@ -35,4 +37,44 @@
+@@ -35,4 +37,45 @@
    set args=!args:"=\"!
  )
  
@@ -31,9 +31,10 @@ diff -ruN a/dotnet/private/compiler_wrapper.bat b/dotnet/private/compiler_wrappe
 +  echo compiler_wrapper: cannot create a directory under %SystemRoot%\Temp 1>&2
 +  exit /b 1
 +)
++rem cmd seeds RANDOM per second; the centiseconds keep same-second actions apart.
 +set "N1=0000!RANDOM!"
 +set "N2=0000!RANDOM!"
-+set "LINK_DIR=%SystemRoot%\Temp\dx_fsc.!N1:~-5!!N2:~-5!"
++set "LINK_DIR=%SystemRoot%\Temp\dx_fsc.!TIME:~-2!!N1:~-5!!N2:~-5!"
 +mkdir "!LINK_DIR!" 2>nul || goto mkroot
 +mklink /J "!LINK_DIR!\r" "%cd%" >nul || (
 +  rmdir "!LINK_DIR!"

@@ -194,9 +194,6 @@ fn stdout_conflict(error: OutputError) -> ReportError {
     }
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_reports(
     workspace: &Path,
     command: Command,

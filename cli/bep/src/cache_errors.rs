@@ -6,15 +6,11 @@ use serde_json::Value;
 const TEST_OUTPUT_START: &str = "==================== Test output for ";
 const SIGNATURES: &[&str] = &["remote cache", "does not exist remotely", "cachenotfound"];
 
-/// Reports whether Bazel's own output in the stream at `path` holds a remote cache error line.
-///
-/// Test output blocks are skipped. A missing file is an `io::ErrorKind::NotFound` error.
 pub fn stream_remote_cache_error(path: &Path) -> std::io::Result<bool> {
     let reader = std::io::BufReader::new(std::fs::File::open(path)?);
     Ok(has_remote_cache_error(reader))
 }
 
-/// Reports whether the progress output of a build event stream holds a remote cache error line.
 pub fn has_remote_cache_error(reader: impl BufRead) -> bool {
     let mut text = String::new();
     for line in crate::readable_lines(reader) {

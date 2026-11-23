@@ -1,5 +1,3 @@
-//! Bounded subprocess capture and the shared git launcher.
-
 use std::ffi::OsStr;
 use std::fmt;
 use std::io;
@@ -11,7 +9,6 @@ use crate::lifecycle::{
     CapturePolicy, ChildOutcome, CleanupBudget, Descendants, Exit, run_command_with_input,
 };
 
-/// Bound applied by callers that have no better figure for a short query.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 
 const GIT_ENV: [&str; 5] = [
@@ -22,7 +19,6 @@ const GIT_ENV: [&str; 5] = [
     "GIT_OBJECT_DIRECTORY",
 ];
 
-/// A git command in `cwd`, inheriting the environment.
 #[must_use]
 pub fn git(cwd: &Path) -> Command {
     let mut command = Command::new("git");
@@ -30,7 +26,6 @@ pub fn git(cwd: &Path) -> Command {
     command
 }
 
-/// A git command in `cwd` without the inherited repository selection.
 #[must_use]
 pub fn git_isolated(cwd: &Path) -> Command {
     let mut command = git(cwd);
@@ -40,21 +35,15 @@ pub fn git_isolated(cwd: &Path) -> Command {
     command
 }
 
-/// How a captured run behaves beyond its timeout.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RunOptions {
-    /// Keep the child in dx's process group so terminal signals and prompts reach it.
     pub foreground: bool,
-    /// Fail with `RunError::OutputTooLarge` once a stream exceeds this many bytes.
     pub max_bytes: Option<usize>,
 }
 
-/// What a finished child wrote.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Captured {
-    /// The command line, for messages.
     pub command: String,
-    /// The exit code, or `None` when a signal ended the child.
     pub code: Option<i32>,
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
@@ -76,7 +65,6 @@ impl Captured {
         String::from_utf8_lossy(&self.stderr).trim().to_owned()
     }
 
-    /// Turns a non-zero exit into `RunError::Failed`.
     pub fn into_success(self) -> Result<Self, RunError> {
         if self.success() {
             return Ok(self);
@@ -89,7 +77,6 @@ impl Captured {
     }
 }
 
-/// Why a captured run produced no usable result.
 #[derive(Debug)]
 pub enum RunError {
     Spawn {
@@ -112,7 +99,6 @@ pub enum RunError {
 }
 
 impl RunError {
-    /// The captured stderr of a failed run, empty for the other kinds.
     #[must_use]
     pub fn stderr(&self) -> &str {
         match self {
@@ -175,15 +161,10 @@ fn describe(command: &Command) -> String {
         .join(" ")
 }
 
-/// Runs `command` with stdin null and both output streams captured.
-///
-/// The child and its descendants stop once `timeout` passes. A non-zero exit
-/// is a result; use `Captured::into_success` or `run_checked` to reject it.
 pub fn run_captured(command: &mut Command, timeout: Duration) -> Result<Captured, RunError> {
     run_captured_with_input(command, None, timeout)
 }
 
-/// Like `run_captured`, and writes `input` to the child's stdin.
 pub fn run_captured_with_input(
     command: &mut Command,
     input: Option<&[u8]>,
@@ -192,7 +173,6 @@ pub fn run_captured_with_input(
     run_captured_with(command, input, timeout, RunOptions::default())
 }
 
-/// Like `run_captured_with_input`, with `options`.
 pub fn run_captured_with(
     command: &mut Command,
     input: Option<&[u8]>,
@@ -245,12 +225,10 @@ pub fn run_captured_with(
     }
 }
 
-/// Like `run_captured`, and a non-zero exit is `RunError::Failed`.
 pub fn run_checked(command: &mut Command, timeout: Duration) -> Result<Captured, RunError> {
     run_captured(command, timeout)?.into_success()
 }
 
-/// Like `run_checked`, with `options`.
 pub fn run_checked_with(
     command: &mut Command,
     timeout: Duration,

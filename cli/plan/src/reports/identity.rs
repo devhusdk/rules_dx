@@ -1,7 +1,6 @@
 use dx_fingerprint::finding::{Finding, line_context_digest, normalize_message};
 use dx_output::DiagnosticEvent;
 
-/// Builds the identity of a finding from its file bytes.
 pub fn finding_identity(diagnostic: &DiagnosticEvent, bytes: Option<&[u8]>) -> Finding {
     let target = match (&diagnostic.path, diagnostic.origins.first()) {
         (None, Some(origin)) => origin.target.clone(),

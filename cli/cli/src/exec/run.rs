@@ -18,7 +18,6 @@ pub(crate) fn execute_run(invocation: &Invocation, env: Env<'_>) -> i32 {
     run_app(invocation, env, None)
 }
 
-/// Runs the app like `dx run` and stops its process tree once `withdraw` holds.
 pub(crate) fn execute_run_until(
     invocation: &Invocation,
     env: Env<'_>,
@@ -85,7 +84,6 @@ struct Launcher<'a> {
 }
 
 impl Launcher<'_> {
-    /// Builds the targets, under a slot when one is free; `Some` is the exit when dx must not launch.
     fn prebuild(
         &self,
         out: &mut dyn Write,
@@ -272,9 +270,6 @@ fn withdrawn(invocation: &Invocation, out: &mut dyn Write, err: &mut dyn Write) 
     code
 }
 
-/// Correlation for one target's run events. `check_correlation` admits only `[A-Za-z0-9/_:.-]`
-/// in at most 128 bytes, so a target like `@repo//x` gets a mapped form (disallowed bytes become
-/// `_`) ending in a digest of the full target.
 fn run_correlation(target: &str) -> String {
     let plain = format!("run:{target}");
     if dx_output::validation::check_correlation(&plain).is_ok() {
@@ -323,7 +318,6 @@ fn application_failed_event(
     Ok(dx_output::with_correlation(event.clone(), &run_correlation(target)).unwrap_or(event))
 }
 
-/// Writes the ending for a run: the JSON failure event and `command_finished`, or just the code in text mode.
 fn finish_run(
     invocation: &Invocation,
     out: &mut dyn Write,

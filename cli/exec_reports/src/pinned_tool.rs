@@ -1,11 +1,6 @@
-//! Resolves one pinned tool: an absolute environment path wins, an unset
-//! variable falls back to Bazel, a relative one is rejected, and `PATH` is
-//! never searched. The runner reads the variable once.
-
 use dx_plan::resolve::QueryRunner;
 use std::path::{Path, PathBuf};
 
-/// Runs the cquery and info calls tool resolution needs through dx's own Bazel launcher.
 pub struct QueryBazel<'a> {
     pub query_runner: &'a dyn QueryRunner,
     pub workspace: &'a Path,
@@ -83,23 +78,17 @@ impl QueryBazel<'_> {
     }
 }
 
-/// One pinned tool: the variable that overrides it and the Bazel label that pins it.
 pub struct PinnedTool<'a> {
     pub var: &'a str,
     pub label: &'a str,
 }
 
-/// Why a pinned tool could not be resolved.
 #[derive(Debug, Eq, PartialEq)]
 pub enum PinnedToolError {
-    /// The variable is set but not to an absolute path.
     Invalid,
-    /// The variable is unset and Bazel could not resolve the label.
     Unresolved { detail: String },
 }
 
-/// Resolves `tool` from its variable, else through Bazel. Under `offline` the
-/// resolution cquery disables repository downloads but still uses cached repos.
 pub fn resolve_pinned(
     runner: &dyn dx_process::Runner,
     bazel: &dyn dx_tool_resolve::Bazel,
@@ -155,7 +144,6 @@ mod tests {
         generated: bool,
     }
 
-    /// An output base holding the file the fake cquery names.
     fn base() -> (tempfile::TempDir, String) {
         let dir = dx_test_scratch::scratch("dx-exec-test-pinned-tool-").unwrap();
         for rel in ["external/tool/bin", "bazel-out/k8-fastbuild/bin/tool"] {

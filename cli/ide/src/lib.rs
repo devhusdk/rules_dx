@@ -1,5 +1,3 @@
-//! Editor support files under `.dx/local/ide/`, refreshed from `dx sync` and `dx upgrade`.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 mod cc;
@@ -19,7 +17,6 @@ pub use link::link;
 
 pub const IDE_DIR: &str = ".dx/local/ide";
 pub const STATE_FILE: &str = ".dx/local/ide/state.json";
-/// Paths under `IDE_DIR` that the plug-ins write and editor settings point at.
 pub const OUTPUTS: [&str; 9] = [
     "cc",
     "cc/clangd",
@@ -32,7 +29,6 @@ pub const OUTPUTS: [&str; 9] = [
     "typescript/lib",
 ];
 
-/// Everything one plug-in sees when it writes.
 pub struct Ctx<'a> {
     pub workspace: &'a Path,
     pub dir: &'a Path,
@@ -40,23 +36,15 @@ pub struct Ctx<'a> {
     pub runner: &'a dyn Runner,
 }
 
-/// One editor integration: what turns it on, what it needs built, and how it writes.
 pub struct Plugin {
     pub name: &'static str,
     pub extensions: &'static [&'static str],
-    /// `(language, tool)` keys of the `lang.json` `commands` the plug-in builds.
     pub commands: &'static [(&'static str, &'static str)],
-    /// Paths the plug-in writes, relative to `.dx/local/ide/<name>`.
     pub outputs: &'static [&'static str],
     pub write: fn(&Ctx<'_>) -> Result<(), DxError>,
 }
 
 impl Plugin {
-    /// The `rules_dx`-relative labels of `commands`.
-    ///
-    /// # Errors
-    ///
-    /// When a `commands` key names no `lang.json` command.
     pub fn labels(&self) -> Result<Vec<&'static str>, DxError> {
         self.commands
             .iter()
@@ -71,18 +59,13 @@ impl Plugin {
     }
 }
 
-/// Builds `rules_dx` labels and returns the absolute paths of their files.
 pub trait Runner {
     fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, DxError>;
-    /// Builds labels as they are written and returns the files of one output group.
     fn build_group(&self, labels: &[String], group: &str) -> Result<Vec<PathBuf>, DxError>;
-    /// Runs `bazel aquery --output=jsonproto` on an expression and returns the output.
     fn aquery(&self, expr: &str) -> Result<String, DxError>;
-    /// The absolute execution root of the workspace.
     fn execution_root(&self) -> Result<PathBuf, DxError>;
 }
 
-/// What one refresh did.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct Report {
     pub ran: bool,
@@ -90,7 +73,6 @@ pub struct Report {
 }
 
 impl Report {
-    /// One line naming every failed plug-in, or `None` when all are fine.
     #[must_use]
     pub fn warning(&self) -> Option<String> {
         if self.failed.is_empty() {
@@ -115,7 +97,6 @@ const PLUGINS: &[&Plugin] = &[
     &rust_analyzer::PLUGIN,
 ];
 
-/// Refreshes `.dx/local/ide/` for the plug-ins that apply; a second run with the same inputs does nothing.
 pub fn refresh(workspace: &Path, runner: &dyn Runner) -> Result<Report, DxError> {
     refresh_with(workspace, runner, PLUGINS)
 }
@@ -307,7 +288,6 @@ fn remove_stale(workspace: &Path, all: &[&Plugin], active: &[&Plugin]) {
     }
 }
 
-/// Reads the plug-in results from `state.json`: `None` when it has never run.
 #[must_use]
 pub fn failed_plugins(workspace: &Path) -> Option<Vec<(String, String)>> {
     let value: serde_json::Value =
@@ -331,7 +311,6 @@ fn missing_outputs_of(workspace: &Path, plugin: &Plugin) -> Vec<String> {
         .collect()
 }
 
-/// Output files of plug-ins that last ran fine but are gone now, as workspace-relative paths.
 #[must_use]
 pub fn missing_outputs(workspace: &Path) -> Vec<String> {
     let Some(state) = read_state(&workspace.join(STATE_FILE)) else {

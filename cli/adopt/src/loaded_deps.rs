@@ -1,9 +1,3 @@
-//! Plans a `bazel_dep` for each rule set the workspace's BUILD files load from that the root
-//! module does not declare, at the version `rules_dx` itself depends on, and the TypeScript
-//! compiler repository `ts_project` reads when BUILD files load `aspect_rules_ts`. BUILD files that load
-//! from an `npm_translate_lock` hub get `aspect_rules_js`, whose platform labels the hub's links
-//! select on.
-
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -32,8 +26,6 @@ fn refuse(detail: impl std::fmt::Display) -> AdoptError {
     }
 }
 
-/// Plans the `bazel_dep` lines for the rule sets BUILD files load from but `MODULE.bazel` and
-/// its includes do not declare. Writes nothing.
 pub fn plan_loaded_deps(root: &Path) -> Result<LockHubs, AdoptError> {
     let Ok(text) = std::fs::read_to_string(root.join(MODULE_FILE)) else {
         return Ok(LockHubs::default());
@@ -231,7 +223,6 @@ mod tests {
         }
     }
 
-    /// The npm hub of the lock registry and its `npm_translate_lock` block.
     fn npm_hub() -> (&'static str, String) {
         let hub = dx_families::hub("npm").expect("npm hub");
         let lock = hub.lock.as_deref().expect("npm lock");

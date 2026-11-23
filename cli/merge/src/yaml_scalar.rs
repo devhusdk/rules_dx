@@ -1,6 +1,3 @@
-//! One-line edits of YAML scalar values.
-
-/// The text with the `@<ref>` of every `uses:` line for `action` replaced.
 #[must_use]
 pub fn set_uses_ref(text: &str, action: &str, reference: &str) -> String {
     let mut out = String::with_capacity(text.len());

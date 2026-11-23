@@ -44,7 +44,6 @@ fn without_bom(text: &str) -> &str {
     text.strip_prefix('\u{feff}').unwrap_or(text)
 }
 
-/// The text of a file, or `None` when it is missing; any other read failure is an error.
 fn read_optional(path: &Path) -> Result<Option<String>, ShimError> {
     match std::fs::read_to_string(path) {
         Ok(text) => Ok(Some(text)),
@@ -56,7 +55,6 @@ fn read_optional(path: &Path) -> Result<Option<String>, ShimError> {
     }
 }
 
-/// The sha256 on the `<version> <sha256> <asset>` line of a `.dx/pins` file.
 #[must_use]
 pub fn pinned_hash(text: &str, version: &str, asset: &str) -> Option<String> {
     without_bom(text).lines().find_map(|line| {
@@ -69,8 +67,6 @@ pub fn pinned_hash(text: &str, version: &str, asset: &str) -> Option<String> {
     })
 }
 
-/// The version of the single root `bazel_dep(name = "rules_dx", ...)` line, by the
-/// same rules as the `tools/dx` launchers. `None` sends the call through Bazel.
 #[must_use]
 pub fn module_version(text: &str) -> Option<String> {
     let text = without_bom(text);
@@ -115,9 +111,7 @@ impl std::fmt::Display for VersionSource {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Route {
-    /// `DX_VERSION` bootstrap: the checksum comes from the release sidecar.
     Env(String),
-    /// Version from MODULE.bazel; `pins` is the raw `.dx/pins` file.
     Module {
         version: String,
         pins: Option<String>,
@@ -198,7 +192,6 @@ pub fn unsupported_platform(version: &str, os: &str, arch: &str) -> ShimError {
         "no dx {version} binary for {os} {arch}; supported: {SUPPORTED}; use bazel run @rules_dx//:dx -- ..."
     ))
 }
-/// An `x86_64` process on an Apple silicon Mac (Rosetta) runs on arm64 hardware.
 pub fn effective_arch(
     os: &'static str,
     arch: &'static str,
@@ -241,7 +234,6 @@ pub fn cache_file_name(platform: Platform) -> String {
     let exe = if platform.os == "windows" { ".exe" } else { "" };
     format!("{}{exe}", asset_name(platform))
 }
-/// The dx cache root; a relative `DX_CACHE_DIR` is an error and a relative `XDG_CACHE_HOME` is skipped.
 pub fn cache_root(env_get: EnvGet, windows: bool) -> Result<Option<PathBuf>, ShimError> {
     let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
     if let Some(dir) = non_empty("DX_CACHE_DIR") {

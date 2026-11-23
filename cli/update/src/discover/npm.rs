@@ -1,5 +1,3 @@
-//! Lists npm dependencies whose latest registry version is outside the declared range.
-
 use dx_error::DxError;
 
 use super::{Candidate, Fetch, Findings, LookupError, wanted};
@@ -21,7 +19,6 @@ const SKIPPED_PREFIXES: [&str; 9] = [
     "http",
 ];
 
-/// Checks each registry dependency of the manifest files against the registry at `base`.
 pub fn outdated(
     set: &str,
     manifests: &[String],
@@ -98,7 +95,6 @@ pub fn outdated(
     found
 }
 
-/// The `latest` stable version of package `name` in the registry at `base`.
 pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     let body = fetch.get(&format!("{base}/{name}"))?;
     match latest(&body, false)? {

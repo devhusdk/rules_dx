@@ -6,17 +6,14 @@ const OWNER_NOTE: &str =
 const SECURITY_SCHEMA: &str = "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json";
 const LICENSE_SCHEMA: &str = "#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/license.schema.json";
 
-/// A vulnerability finding that an `--accept` can turn into an exception.
 pub(super) struct VulnCandidate {
     pub(super) advisory: String,
     pub(super) package: String,
     pub(super) set: String,
-    /// The lock set whose matcher reads the written version scope.
     pub(super) lock_set: String,
     pub(super) version: String,
 }
 
-/// A license finding that an `--accept` can turn into an exception.
 pub(super) struct LicenseCandidate {
     pub(super) package: String,
     pub(super) set: String,
@@ -45,7 +42,6 @@ impl Acceptance<'_> {
     }
 }
 
-/// Writes the matching findings to `security.toml`; returns one line per entry.
 pub(super) fn accept_security(
     workspace: &Path,
     accept: &Acceptance<'_>,
@@ -108,7 +104,6 @@ pub(super) fn accept_security(
     Ok(lines)
 }
 
-/// Writes the matching findings to `license.toml`; returns one line per entry.
 pub(super) fn accept_license(
     workspace: &Path,
     accept: &Acceptance<'_>,

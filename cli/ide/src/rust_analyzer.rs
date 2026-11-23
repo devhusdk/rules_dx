@@ -27,8 +27,6 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
         .map_err(|e| DxError::infra(format!("writing user_config.json: {e}")))
 }
 
-/// Copies the built launcher to `<name>.exe`. A copy, because `rules_rust` finds its sidecar files
-/// next to the resolved executable.
 fn copy(ctx: &Ctx<'_>, name: &str) -> Result<(), DxError> {
     let exe = format!("{name}.exe");
     let source: &PathBuf = ctx

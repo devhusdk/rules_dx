@@ -7,7 +7,6 @@ use crate::DepcheckError;
 use crate::consistency::reported;
 use dx_ecosystems::{Ecosystem, Language};
 
-/// Whether `dir` holds a file named `manifest`, where a leading `*` matches any stem.
 pub(crate) fn holds(dir: &Path, manifest: &str) -> bool {
     let Some(suffix) = manifest.strip_prefix('*') else {
         return dir.join(manifest).is_file();
@@ -23,7 +22,6 @@ pub(crate) fn holds(dir: &Path, manifest: &str) -> bool {
     })
 }
 
-/// Entries of `dir`. A directory that is gone lists as empty; any other read error fails.
 pub(crate) fn list_dir(dir: &Path) -> Result<Vec<std::fs::DirEntry>, DepcheckError> {
     let unreadable = |source| DepcheckError::SourcesIo {
         path: dir.to_path_buf(),
@@ -37,7 +35,6 @@ pub(crate) fn list_dir(dir: &Path) -> Result<Vec<std::fs::DirEntry>, DepcheckErr
     entries.map(|entry| entry.map_err(unreadable)).collect()
 }
 
-/// Bytes of the source at `path`, or `None` when it vanished after the walk listed it.
 pub(crate) fn read_source(path: &Path) -> Result<Option<Vec<u8>>, DepcheckError> {
     match std::fs::read(path) {
         Ok(bytes) => Ok(Some(bytes)),
@@ -87,7 +84,6 @@ pub(crate) fn collect_sources(
     Ok(out)
 }
 
-/// Source text with invalid UTF-8 replaced and a leading byte order mark dropped.
 fn source_text(bytes: &[u8]) -> String {
     let text = String::from_utf8_lossy(bytes);
     text.strip_prefix('\u{feff}').unwrap_or(&text).to_owned()
@@ -174,7 +170,6 @@ pub fn is_test_file(eco: Language, path: &Path) -> bool {
     }
 }
 
-/// File name endings depcheck scans for imports. Ansible names collections in its YAML playbooks.
 fn source_suffixes(eco: Language) -> BTreeSet<&'static str> {
     let mut suffixes: BTreeSet<&'static str> = [
         ".rs",
@@ -257,7 +252,6 @@ fn skip_names() -> BTreeSet<&'static str> {
     .collect()
 }
 
-/// Rocks whose module name is unrelated to the rock name.
 fn lua_module_alias(rock: &str) -> Option<&'static str> {
     match rock {
         "penlight" => Some("pl"),
@@ -297,7 +291,6 @@ impl DepPatterns {
 }
 
 impl DepPatterns {
-    /// Byte offset of the first import, honouring the same shadow rule as `is_match`.
     fn first_match(&self, text: &str) -> Option<usize> {
         let first = |patterns: &[regex::Regex]| {
             patterns
@@ -347,8 +340,6 @@ fn jvm_patterns(dep: &str) -> Vec<String> {
         .collect()
 }
 
-/// Composer names are `vendor/package`; namespaces follow the vendor (`GuzzleHttp\\`) or put the
-/// package below it (`Symfony\\Component\\Console`). Matching is case-insensitive.
 fn php_patterns(dep: &str) -> Vec<String> {
     let (vendor, package) = dep.split_once('/').unwrap_or((dep, dep));
     let separators = |name: &str| {
@@ -371,8 +362,6 @@ fn php_patterns(dep: &str) -> Vec<String> {
     patterns
 }
 
-/// The modules a dependency is called by: `ex_doc` is `ExDoc`, and `plug_cowboy` is also `Plug`
-/// because its modules live under `Plug.Cowboy`.
 fn elixir_modules(dep: &str) -> Vec<String> {
     let camel = |part: &str| {
         let mut chars = part.chars();
@@ -389,7 +378,6 @@ fn elixir_modules(dep: &str) -> Vec<String> {
     modules
 }
 
-/// Extra spellings a source can use for a package: a dub package `vibe-d` is imported as `vibe`.
 fn module_forms(eco: Language, dep: &str) -> Vec<String> {
     if eco != Language::D {
         return Vec::new();
@@ -589,8 +577,6 @@ fn dep_patterns(eco: Language, dep: &str) -> Result<DepPatterns, DepcheckError> 
     })
 }
 
-/// First `file:line` under `root` that imports each of `names`. Directories holding their own
-/// `nested` manifest are not entered.
 pub(crate) fn find_first_imports(
     eco: Language,
     root: &Path,
@@ -651,11 +637,6 @@ pub(crate) fn find_first_imports(
     Ok(out)
 }
 
-/// Finds which source, test and build files under `sources_root` use each dependency.
-///
-/// # Errors
-///
-/// Returns an error when a source cannot be read.
 pub fn find_usages(
     eco: Language,
     sources_root: &Path,
@@ -716,12 +697,6 @@ pub fn find_usages(
     Ok(out)
 }
 
-/// Reports where each dependency `manifest` declares is used under `sources`.
-///
-/// # Errors
-///
-/// Returns a usage error when the manifest or sources are missing, and a failure when the
-/// manifest does not parse or a dependency has a usage failure.
 pub fn cmd_usage(
     eco: Language,
     manifest: &Path,

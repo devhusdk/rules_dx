@@ -80,7 +80,6 @@ pub fn refusal(os: &str, arch: &str) -> Option<String> {
     }
 }
 
-/// Refuses a host dx does not run on; Rosetta counts as the arm64 Mac it runs on.
 #[must_use]
 pub fn host_refusal() -> Option<String> {
     let (os, arch) = dx_shim::protocol::host_platform();

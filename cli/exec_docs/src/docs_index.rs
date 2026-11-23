@@ -1,5 +1,3 @@
-//! Builds one browsable index from the Rust API shards a `dx docs` build produced.
-
 use dx_exec_core::common::collect_output_account;
 use dx_plan::plan::{DOCS_SHARD_OUTPUT_GROUP, DOCS_TOOLS_OUTPUT_GROUP};
 use std::path::{Path, PathBuf};
@@ -18,7 +16,6 @@ fn failed(detail: String) -> dx_error::DxError {
     dx_error::DxError::failure(detail)
 }
 
-/// The shard files the build reported, sorted and without repeats.
 pub(crate) fn built_shards(
     bep: &Path,
     workspace: &Path,
@@ -35,7 +32,6 @@ pub(crate) fn built_shards(
     Ok(shards)
 }
 
-/// Resolves an exec path; files of other repos sit in the execution root, not the workspace.
 fn tool_path(workspace: &Path, execution_root: Option<&Path>, path: &str) -> PathBuf {
     match execution_root {
         Some(root) if path.starts_with("external/") => {
@@ -45,7 +41,6 @@ fn tool_path(workspace: &Path, execution_root: Option<&Path>, path: &str) -> Pat
     }
 }
 
-/// The execution root `bazel info` reports, or `None` when it cannot be read.
 #[expect(clippy::disallowed_methods, reason = "info takes no build settings")]
 pub(crate) fn execution_root(
     query_runner: &dyn dx_plan::resolve::QueryRunner,
@@ -60,7 +55,6 @@ pub(crate) fn execution_root(
     (result.code == Some(0) && !line.is_empty()).then(|| PathBuf::from(line))
 }
 
-/// The mdBook binary the docs build reported in its tools manifest.
 fn built_mdbook(
     bep: &Path,
     workspace: &Path,
@@ -111,7 +105,6 @@ fn site_build_options(mdbook: &Path, work: &Path, out: &Path) -> dx_site_build::
     }
 }
 
-/// Turns a tool's refusal into an error named after the tool.
 fn refused<E: std::fmt::Display>(
     tool: &str,
     result: Result<(), E>,
@@ -119,7 +112,6 @@ fn refused<E: std::fmt::Display>(
     result.map_err(|refusal| failed(format!("{tool}: {refusal}")))
 }
 
-/// Renders the shards into `<workspace>/.dx/local/docs/index` and returns that tree.
 pub(crate) fn build_index(
     bep: &Path,
     workspace: &Path,

@@ -1,5 +1,3 @@
-//! The marked `exports_files` block in the root BUILD file that lets `//.dx` read root configs.
-
 use std::collections::BTreeSet;
 
 use dx_merge::block;
@@ -9,7 +7,6 @@ use crate::{GenerateError, RootBuild};
 pub const BEGIN: &str = "# dx:begin exports";
 pub const END: &str = "# dx:end exports";
 
-/// Visibilities that already let `//.dx` read an exported file.
 const SEEN_BY_DX: &[&str] = &[
     "//visibility:public",
     "//:__subpackages__",
@@ -17,7 +14,6 @@ const SEEN_BY_DX: &[&str] = &[
     "//.dx:__subpackages__",
 ];
 
-/// The root BUILD path and its text, or `None` when it needs no block and has none.
 pub fn render(
     build: Option<&RootBuild>,
     wanted: &BTreeSet<&str>,
@@ -75,7 +71,6 @@ pub fn render(
     Ok(Some((build.name.clone(), text)))
 }
 
-/// `before` joined to `after` with the block between them dropped, leaving no extra blank line behind.
 fn without_block(text: &str, before: &str, after: &str) -> String {
     let eol = block::eol(text);
     if after.is_empty() {
@@ -102,10 +97,8 @@ fn block_text(files: &BTreeSet<&str>) -> String {
     )
 }
 
-/// One literal `exports_files` call.
 struct Export {
     files: Vec<String>,
-    /// `None` when the call sets no visibility, which exports publicly.
     visibility: Option<Vec<String>>,
 }
 
@@ -116,7 +109,6 @@ enum Token {
     Punct(char),
 }
 
-/// The tokens of a BUILD file, without comments.
 fn tokens(text: &str) -> Vec<Token> {
     let chars: Vec<char> = text.chars().collect();
     let mut out = Vec::new();
@@ -174,7 +166,6 @@ fn tokens(text: &str) -> Vec<Token> {
     out
 }
 
-/// The literal `exports_files` calls, and the first argument of a call that is not literal.
 fn exports(text: &str) -> (Vec<Export>, Option<String>) {
     let tokens = tokens(text);
     let mut out = Vec::new();
@@ -195,8 +186,6 @@ fn exports(text: &str) -> (Vec<Export>, Option<String>) {
     (out, non_literal)
 }
 
-/// Parses the arguments of one call, up to its closing parenthesis, or names the first
-/// argument that is not literal.
 fn call(tokens: &[Token]) -> Result<Export, dx_error::DxError> {
     let non_literal = |at: usize| {
         dx_error::DxError::failure(match tokens.get(at) {
@@ -244,7 +233,6 @@ fn call(tokens: &[Token]) -> Result<Export, dx_error::DxError> {
     }
 }
 
-/// A literal list of strings starting at `at`, and the index after it.
 fn strings(tokens: &[Token], at: usize) -> Option<(Vec<String>, usize)> {
     if tokens.get(at) != Some(&Token::Punct('[')) {
         return None;

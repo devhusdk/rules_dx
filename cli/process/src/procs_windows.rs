@@ -48,7 +48,6 @@ pub fn command_lines() -> Vec<ProcessInfo> {
     infos
 }
 
-/// A running process with its command line and resident memory.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProcessInfo {
     pub pid: u32,

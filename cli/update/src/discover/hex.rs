@@ -1,5 +1,3 @@
-//! Lists locked hex packages whose newest release on hex.pm is newer than the one in the lock.
-
 use dx_error::DxError;
 
 use super::{Fetch, Findings, Latest, compare_declared, release_cmp};
@@ -7,7 +5,6 @@ use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://hex.pm";
 
-/// Checks each package of the lock files against the API at `base`.
 pub fn outdated(
     set: &str,
     lockfiles: &[String],
@@ -31,7 +28,6 @@ pub fn outdated(
     })
 }
 
-/// Reads `(package, version)` of every package of a hex lock.
 fn locked_packages(lock: &str) -> Vec<(String, String)> {
     let Ok(json) = serde_json::from_str::<serde_json::Value>(lock) else {
         return Vec::new();

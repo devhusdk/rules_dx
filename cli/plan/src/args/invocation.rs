@@ -3,18 +3,12 @@ use dx_output::{ColorMode, OutputMode, Threshold, dx_text_visible};
 use super::Command;
 use super::build_mode::{BuildMode, resolve_build_mode};
 
-/// Typed marker that an invocation was handed off from an affected plan,
-/// carrying the planned test targets and the merge base the plan started from.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AffectedHandoff {
     pub tests: Vec<String>,
     pub base: Option<String>,
-    /// Package patterns of the changed files, the scope of the generate phase.
     pub generate: Vec<String>,
-    /// Rules that own the changed files, the scope of the format phase.
     pub format: Vec<String>,
-    /// The only paths `--apply` may write: the changed files and their packages' BUILD files.
-    /// `None` leaves writes to the scope.
     pub writable: Option<Vec<String>>,
 }
 
@@ -24,7 +18,6 @@ pub struct ReportRequest {
     pub destination: String,
 }
 
-/// How the invocation may touch the world.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OperationMode {
     Check,
@@ -45,7 +38,6 @@ impl OperationMode {
 pub struct CommonOptions {
     pub output: OutputMode,
     pub include_edits: bool,
-    /// `--max-findings`: findings per tool in JSON output; `None` is the default cap.
     pub max_findings: Option<u32>,
     pub reports: Vec<ReportRequest>,
     pub quiet: bool,
@@ -53,14 +45,12 @@ pub struct CommonOptions {
     pub color: ColorMode,
 }
 
-/// The scope a dx check run was given.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HintScope {
     Affected,
     Targets(Vec<String>),
 }
 
-/// The umbrella command and scope a phase runs under.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UmbrellaOrigin {
     pub command: Command,
@@ -78,11 +68,8 @@ pub struct QualityRequest {
     pub common: CommonOptions,
     pub fail_on: Threshold,
     pub origin: Option<UmbrellaOrigin>,
-    /// `--unsafe`: fixes include the ones the tool marks unsafe.
     pub unsafe_fixes: bool,
-    /// `--online`: lychee also checks external links, on the host after the build.
     pub online: bool,
-    /// See [`AffectedHandoff::writable`].
     pub writable: Option<Vec<String>>,
 }
 
@@ -94,7 +81,6 @@ pub struct GenerateRequest {
     pub bazel_startup_options: Vec<String>,
     pub workspace: Option<String>,
     pub common: CommonOptions,
-    /// See [`AffectedHandoff::writable`].
     pub writable: Option<Vec<String>>,
 }
 
@@ -114,9 +100,7 @@ pub struct UmbrellaRequest {
     pub common: CommonOptions,
     pub fail_on: Threshold,
     pub unsafe_fixes: bool,
-    /// `dx check --affected`: the merge base whose later commit subjects are linted.
     pub commits_base: Option<String>,
-    /// See [`AffectedHandoff::writable`].
     pub writable: Option<Vec<String>>,
 }
 
@@ -160,7 +144,6 @@ impl GenerateRequest {
         self.common.chatty()
     }
 
-    /// The startup flags and build mode config a generate Bazel call starts with.
     #[must_use]
     pub fn bazel_head(&self) -> dx_process::BazelHead {
         dx_process::BazelHead {
@@ -182,9 +165,6 @@ impl UmbrellaRequest {
         self.mode == OperationMode::Apply
     }
 
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn phase_quality_request(
         &self,
         phase: Command,
@@ -198,9 +178,6 @@ impl UmbrellaRequest {
         self.generate_request(self.mode, reports)
     }
 
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn verify_quality_request(
         &self,
         phase: Command,
@@ -300,107 +277,67 @@ pub struct Invocation {
     pub output: OutputMode,
     pub reports: Vec<ReportRequest>,
     pub fail_on: Threshold,
-    /// How many build slots this process sizes its gate with; `None` when neither flag nor env set it.
     pub build_slots: Option<dx_adopt::defaults::BuildSlots>,
-    /// How long to wait for a build slot before giving up; `None` waits for ever.
     pub build_slots_wait: Option<std::time::Duration>,
-    /// `dx watch --poll`: poll the tree on every platform.
     pub poll: bool,
     pub include_edits: bool,
     pub max_findings: Option<u32>,
-    /// `--unsafe`: fixes include the ones the tool marks unsafe.
     pub unsafe_fixes: bool,
     pub online: bool,
     pub min_coverage: Option<u32>,
-    /// The `--min-changed-line-coverage` percent gate on lines changed since the merge-base.
     pub min_changed_line_coverage: Option<u32>,
     pub targets: Vec<String>,
     pub(super) bazel_options: Vec<String>,
     pub(super) app_args: Vec<String>,
-    /// `dx init --agents`: agent tools whose files init adds, without repeats.
     pub agents: Vec<crate::args::Agent>,
-    /// `dx init --ci`: the CI provider to write a workflow for; `None` detects it.
     pub ci: Option<crate::args::Ci>,
-    /// `dx init --no-generate`: the apply stops after the scaffold.
     pub no_generate: bool,
-    /// `dx init --accept-license`: license ids init writes into the `dx_licenses` tag.
     pub accept_license: Vec<String>,
     pub to: Option<String>,
     pub here: bool,
     pub affected: bool,
-    /// `--since`: the ref `--affected` compares against instead of the merge-base.
     pub since: Option<String>,
-    /// `--base`: the branch whose merge-base `--affected` compares against.
     pub base: Option<String>,
     pub affected_handoff: Option<AffectedHandoff>,
     pub serve: bool,
     pub port: Option<u16>,
     pub host: Option<String>,
     pub open: bool,
-    /// The network policy: no rules_dx-controlled network acquisition when set.
     pub offline: bool,
-    /// `dx fetch --vendor`: the directory `bazel vendor` writes to.
     pub vendor: Option<String>,
-    /// The resolution policy: no manifest or lock resolution changes when set.
     pub frozen: bool,
-    /// `dx update --outdated`: list packages whose newest stable version is out of range.
     pub outdated: bool,
-    /// `dx update --apply --prune`: remove unused dependencies from the manifests.
     pub prune: bool,
-    /// `dx clean --bazel`: also run `bazel clean`.
     pub clean_bazel: bool,
-    /// `dx clean --expunge`: also run `bazel clean --expunge`.
     pub expunge: bool,
-    /// `dx update --apply --add-missing`: declare imported but undeclared dependencies.
     pub add_missing: bool,
-    /// `dx update --pr`: open or refresh one pull request per group.
     pub pr: bool,
-    /// `dx update --automerge`: `none`, `patch`, `minor` or `all`; `patch` when absent.
     pub automerge: Option<String>,
-    /// `dx update --min-age`: days a version must have been published; 3 when absent.
     pub min_age: Option<u32>,
-    /// `dx update --allow-major`: include major updates.
     pub allow_major: bool,
-    /// `dx update --max-prs`: open dx-update pull requests allowed; 5 when absent.
     pub max_prs: Option<u16>,
-    /// `dx update --floor`: edit the `bazel_dep` floor instead of the tested override.
     pub floor: bool,
-    /// `dx update --reason`: why the floor is the oldest supported version.
     pub reason: Option<String>,
-    /// `dx security --accept` and `dx license --accept`: the findings to write as exceptions.
     pub accept: Vec<String>,
-    /// `--accept --expires`: the review date written to each exception.
     pub expires: Option<String>,
-    /// `dx security --verify`: the downloaded asset to verify.
     pub verify: Option<String>,
-    /// `--verify --repo`: the GitHub repository, `owner/name`, that must have signed it.
     pub repo: Option<String>,
-    /// `--verify --bundle`: the Sigstore bundle; unset means `<file>.sigstore.json`.
     pub bundle: Option<String>,
     pub cases: bool,
     pub create: Option<String>,
     pub force: bool,
     pub disk: bool,
     pub bases: bool,
-    /// `dx status --capabilities`: add capability records.
     pub capabilities: bool,
-    /// `dx status --files`: add one record per file dx init writes.
     pub files: bool,
-    /// `build`/`test`/`coverage --timings`: print where build time went.
     pub timings: bool,
-    /// `--no-retry`: do not rerun once without the remote cache after a remote cache error.
     pub no_retry: bool,
-    /// `dx fuzz --budget`: the budget per target; 60s when absent.
     pub budget: Option<String>,
-    /// `dx fuzz --jobs`: jobs each fuzz runner may use.
     pub jobs: Option<u16>,
-    /// `dx bench --max-regression <pct>`: the slowdown percent that fails the run.
     pub bench_regression: Option<u32>,
-    /// `dx bench --compare`: a `dx-bench/v1` file path or a git ref.
     pub bench_compare: Option<String>,
     pub path_only: bool,
     pub agent: bool,
-    /// Stdout is not a terminal.
     pub piped: bool,
     pub bazel_startup_options: Vec<String>,
 }
@@ -415,14 +352,12 @@ pub const AGENT_QUIET_FLAGS: [&str; 6] = [
 ];
 
 impl Invocation {
-    /// Whether `dx update` names one `<set:package> <version>` to widen or add.
     #[must_use]
     pub fn edits_version(&self) -> bool {
         self.command == Command::Update
             && matches!(self.targets.as_slice(), [_, version] if is_version(version))
     }
 
-    /// Bazel UI flags that silence progress output in agent JSON sessions and piped runs; `-v` keeps Bazel output.
     #[must_use]
     pub fn agent_quiet_flags(&self) -> Vec<String> {
         let agent_json = self.agent && self.output == OutputMode::Json;
@@ -436,7 +371,6 @@ impl Invocation {
         }
     }
 
-    /// Bazel options for the run: agent JSON sessions and piped runs get no progress output.
     #[must_use]
     pub fn quiet_bazel_options(&self) -> Vec<String> {
         let mut options = self.agent_quiet_flags();
@@ -444,19 +378,16 @@ impl Invocation {
         options
     }
 
-    /// Bazel options as typed, without agent quiet flags; not for build argv.
     #[must_use]
     pub fn raw_bazel_options(&self) -> &[String] {
         &self.bazel_options
     }
 
-    /// The `--` payload `dx run` and `dx deploy` hand to the app.
     #[must_use]
     pub fn app_args(&self) -> &[String] {
         &self.app_args
     }
 
-    /// The `command_started` mode: check unless `--apply` authorizes writing.
     #[must_use]
     pub fn started_mode(&self) -> &'static str {
         if self.command.supports_apply() && !self.applies() {
@@ -466,7 +397,6 @@ impl Invocation {
         }
     }
 
-    /// The operation the flags authorize: explicit `--apply` opts into mutation, else check. `dx sync` always applies.
     #[must_use]
     pub fn operation(&self) -> OperationMode {
         if self.apply || self.command == Command::Sync {
@@ -476,7 +406,6 @@ impl Invocation {
         }
     }
 
-    /// Whether the flags authorize writing sources: explicit `--apply` only.
     #[must_use]
     pub fn applies(&self) -> bool {
         self.operation() == OperationMode::Apply
@@ -502,7 +431,6 @@ impl Invocation {
         )
     }
 
-    /// The startup flags and build mode config every update Bazel call starts with.
     #[must_use]
     pub fn bazel_head(&self) -> dx_process::BazelHead {
         dx_process::BazelHead {
@@ -512,7 +440,6 @@ impl Invocation {
         }
     }
 
-    /// Reports whether chatty dx text prints: text output, no `--quiet`.
     #[must_use]
     pub fn chatty(&self) -> bool {
         dx_text_visible(&self.output) && !self.quiet
@@ -531,9 +458,6 @@ impl Invocation {
         }
     }
 
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn quality_request(&self) -> Result<QualityRequest, dx_error::DxError> {
         if !matches!(
             self.command,
@@ -560,9 +484,6 @@ impl Invocation {
         })
     }
 
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn generate_request(&self) -> Result<GenerateRequest, dx_error::DxError> {
         if self.command != Command::Generate {
             return Err(dx_error::DxError::usage(format!(
@@ -581,15 +502,11 @@ impl Invocation {
         })
     }
 
-    /// Reports whether the targets came from an affected plan.
     #[must_use]
     pub fn is_affected_plan(&self) -> bool {
         self.affected_handoff.is_some()
     }
 
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn umbrella_request(&self) -> Result<UmbrellaRequest, dx_error::DxError> {
         if self.command != Command::Check {
             return Err(dx_error::DxError::usage(format!(
@@ -655,9 +572,6 @@ impl Invocation {
     }
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn here_scope(
     workspace: &std::path::Path,
     cwd: &std::path::Path,
@@ -707,9 +621,6 @@ pub fn here_scope(
     Ok(parts.join("/"))
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn apply_here(
     invocation: &Invocation,
     workspace: &std::path::Path,
@@ -738,7 +649,6 @@ pub fn apply_here(
     Ok(next)
 }
 
-/// One stderr line for a bare scoped command run below the workspace root.
 #[must_use]
 pub fn bare_scope_note(
     invocation: &Invocation,
@@ -761,7 +671,6 @@ pub fn bare_scope_note(
     ))
 }
 
-/// The command that owns `--here` and the index where its scopes start.
 fn here_owner(invocation: &Invocation) -> (Command, usize) {
     if invocation.command == Command::Watch
         && let Some(wrapped) = invocation
@@ -775,7 +684,6 @@ fn here_owner(invocation: &Invocation) -> (Command, usize) {
     (invocation.command, 0)
 }
 
-/// Whether a word reads as a version, like `1.2.3`, `v4` or a commit SHA.
 pub(crate) fn is_version(word: &str) -> bool {
     let digits = word.strip_prefix('v').unwrap_or(word);
     let sha = word.len() >= 7 && word.chars().all(|c| c.is_ascii_hexdigit());

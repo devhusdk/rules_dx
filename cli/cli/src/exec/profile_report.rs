@@ -1,5 +1,3 @@
-//! The `--timings` report: where a build's time went, read from Bazel's JSON trace profile.
-
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::io::Read;
@@ -21,7 +19,6 @@ pub(crate) fn profile_path(workspace: &Path, run_id: &str) -> PathBuf {
     dir(workspace).join(format!("{run_id}{TRACE_SUFFIX}"))
 }
 
-/// Deletes the oldest traces so that, with the one about to be written, `KEPT_TRACES` remain.
 pub(crate) fn prune(workspace: &Path) {
     let Ok(entries) = std::fs::read_dir(dir(workspace)) else {
         return;
@@ -38,7 +35,6 @@ pub(crate) fn prune(workspace: &Path) {
     }
 }
 
-/// Reads a trace file, unpacking it when Bazel wrote it gzipped.
 pub(crate) fn read_trace(path: &Path) -> std::io::Result<String> {
     let bytes = std::fs::read(path)?;
     if !bytes.starts_with(&[0x1f, 0x8b]) {
@@ -80,7 +76,6 @@ struct EventArgs {
     mnemonic: Option<String>,
 }
 
-/// One timed item, in microseconds as Bazel records it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Timed {
     pub(crate) name: String,
@@ -97,7 +92,6 @@ impl Timed {
     }
 }
 
-/// What the cache did for the run's actions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct CacheUse {
     pub(crate) executed: u64,
@@ -119,7 +113,6 @@ pub(crate) struct Report {
     pub(crate) totals: Option<dx_bep::BuildTotals>,
 }
 
-/// Builds the report from the trace profile text.
 #[expect(clippy::cast_sign_loss, reason = "display only")]
 pub(crate) fn build(
     trace: &str,

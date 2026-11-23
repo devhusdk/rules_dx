@@ -183,7 +183,6 @@ fn an_unreadable_slot_file_keeps_the_permission_error() {
     std::fs::write(&path, "").expect("file");
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).expect("chmod");
     let result = lock_slot(&path, true);
-    // Root opens a mode-000 file, so for root the lock is taken.
     if dx_test_scratch::running_as_root() {
         assert!(matches!(result, Ok(Some(_))));
         return;

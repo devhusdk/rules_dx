@@ -38,7 +38,6 @@ pub fn parse_cargo_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     Ok(out)
 }
 
-/// One `[[package]]` of a lock with the keys that decide its build.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CargoLockEntry {
     pub name: String,

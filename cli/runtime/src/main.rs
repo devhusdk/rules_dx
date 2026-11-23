@@ -1,18 +1,10 @@
-//! `dx-runtime`, the runtime helpers rules_dx rules run, as one binary.
-//!
-//! Each rule names its helper in `DX_RUNTIME_TOOL` through `RunEnvironmentInfo`.
-
 use std::ffi::OsStr;
 use std::process::ExitCode;
 
-/// The environment variable that names the helper to run.
 const TOOL_ENV: &str = "DX_RUNTIME_TOOL";
 
-/// The entry point of one helper.
 type Helper = fn() -> ExitCode;
 
-/// The helpers, by the name a rule sets in `DX_RUNTIME_TOOL`.
-/// `apple_ops` is left out on Windows, where it does not build.
 const TOOLS: &[(&str, Helper)] = &[
     ("android_ops", dx_android_ops::main),
     #[cfg(not(windows))]
@@ -29,7 +21,6 @@ const TOOLS: &[(&str, Helper)] = &[
     ("to_lcov", dx_lcov::to_lcov::main),
 ];
 
-/// The helper a rule named, if there is one.
 fn find(tool: &OsStr) -> Option<Helper> {
     TOOLS
         .iter()

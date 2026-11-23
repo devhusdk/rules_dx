@@ -4,7 +4,6 @@
 )]
 mod support;
 
-// Only the Unix stub_bazel fixture calls dx_testing.
 #[cfg(windows)]
 use dx_testing as _;
 

@@ -1,5 +1,3 @@
-//! Leases that let the next dx run stop process groups a dead dx left behind.
-
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -13,14 +11,12 @@ const GROUPS_DIR_NAME: &str = "process-groups";
 static LEASE_DIR: OnceLock<PathBuf> = OnceLock::new();
 static SEQUENCE: AtomicU32 = AtomicU32::new(0);
 
-/// One process group stopped by [`reap_orphans`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Reaped {
     pub pid: u32,
     pub pgid: i32,
 }
 
-/// Sets the managed root that holds this worktree's group leases; the first call wins.
 pub fn set_lease_root(root: &Path) {
     drop(
         LEASE_DIR.set(
@@ -30,13 +26,11 @@ pub fn set_lease_root(root: &Path) {
     );
 }
 
-/// A held lease for one owned process group; dropping removes it.
 pub(crate) struct GroupLease {
     file: File,
     path: PathBuf,
 }
 
-/// The directory set by [`set_lease_root`], if any.
 pub(crate) fn lease_dir() -> Option<&'static Path> {
     LEASE_DIR.get().map(PathBuf::as_path)
 }
@@ -59,7 +53,6 @@ impl GroupLease {
         self.write_line(lease_line(pgid))
     }
 
-    /// Records `pgid` unless the child already wrote the lease.
     pub(crate) fn record_unwritten(&self, pgid: i32) -> std::io::Result<()> {
         if self.file.metadata().is_ok_and(|meta| meta.len() == 0) {
             self.record(pgid)?;
@@ -67,15 +60,12 @@ impl GroupLease {
         Ok(())
     }
 
-    /// The lease file path.
     pub(crate) fn path(&self) -> &Path {
         &self.path
     }
 
-    /// Makes the spawned child write this lease for its own group before it execs.
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     pub(crate) fn record_from_child(&self, command: &mut std::process::Command) {
-        // Without a duplicate the parent still records the lease after spawn.
         if let Ok(file) = self.file.try_clone() {
             dx_os_sys::spawn::record_start(command, file, sys::namespace(), sys::boot_id());
         }
@@ -99,8 +89,6 @@ impl Drop for GroupLease {
     }
 }
 
-/// The lease text for a group, or `None` when its start time is unknown: such a line could
-/// never prove the group is still the recorded one, so nothing is written.
 pub(crate) fn lease_line(pgid: i32) -> Option<String> {
     sys::start_time(pgid).map(|start| lease_text(pgid, &start))
 }
@@ -109,7 +97,6 @@ fn lease_text(pgid: i32, start: &str) -> String {
     format!("{pgid} {} {start} {}", sys::namespace(), sys::boot_id())
 }
 
-/// What is known about the process whose pid equals a recorded group number.
 #[cfg_attr(
     all(not(unix), not(test)),
     expect(dead_code, reason = "only unix observes a present or absent leader")
@@ -129,7 +116,6 @@ mod sys {
         pgid > 1 && dx_os_sys::process::probe(-pgid) == Presence::Reachable
     }
 
-    /// Groups the running dx belongs to, which it must never stop.
     pub fn own_groups() -> Vec<i32> {
         let parent = i32::try_from(std::os::unix::process::parent_id()).unwrap_or(0);
         vec![
@@ -143,7 +129,6 @@ mod sys {
         crate::procs::boot_id().unwrap_or_else(|| "-".to_owned())
     }
 
-    /// True when no process has `pid`; a zombie still counts as present.
     pub fn gone(pid: i32) -> bool {
         dx_os_sys::process::probe(pid) == Presence::Missing
     }
@@ -156,7 +141,6 @@ mod sys {
         )
     }
 
-    /// An unreadable stat of a leader that is gone by now is an absent leader.
     #[cfg(target_os = "linux")]
     pub(super) fn settle_leader(read: super::Leader, gone: impl FnOnce() -> bool) -> super::Leader {
         match read {
@@ -190,7 +174,6 @@ mod sys {
 
     pub fn signal_group(pgid: i32, signo: i32) {
         if pgid > 1 {
-            // A group that is already gone needs no signal.
             drop(dx_os_sys::process::signal(-pgid, signo));
         }
     }
@@ -261,7 +244,6 @@ fn group_alive(pgid: i32) -> bool {
     sys::group_alive(pgid)
 }
 
-/// Stops every recorded group whose dx is gone, and returns the groups it stopped.
 #[must_use]
 pub fn reap_orphans() -> Vec<Reaped> {
     match lease_dir() {
@@ -287,7 +269,6 @@ fn parse_lease(text: &str) -> Option<Recorded> {
     })
 }
 
-/// What the reaper sees right now; gathered by syscalls so [`verdict`] can stay pure.
 #[derive(Debug, Clone)]
 struct Observed {
     namespace: String,
@@ -299,16 +280,11 @@ struct Observed {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Verdict {
-    /// Signal the group.
     Stop,
-    /// Forget the lease without signalling anything.
     Drop,
-    /// Leave the lease for a later run.
     Keep,
 }
 
-/// Decides whether a recorded group may be stopped. It signals only when the group is
-/// provably the recorded one; anything unproven never becomes `Stop`.
 fn verdict(recorded: &Recorded, now: &Observed) -> Verdict {
     if recorded.namespace != now.namespace {
         return Verdict::Keep;
@@ -332,7 +308,6 @@ fn verdict(recorded: &Recorded, now: &Observed) -> Verdict {
         Leader::Present(start) if *start == recorded.start => Verdict::Stop,
         Leader::Present(_) => Verdict::Drop,
         Leader::Unknown => Verdict::Keep,
-        // A live group with a gone leader is still the recorded one.
         Leader::Absent => Verdict::Stop,
     }
 }
@@ -350,7 +325,6 @@ fn observe(recorded: &Recorded) -> Observed {
 const LOG_NAME: &str = "reaped.log";
 const LOG_CAP: u64 = 64 * 1024;
 
-/// Appends one decision line to `reaped.log`, never slowing startup; a full log that cannot rotate takes no more.
 fn log_decision(dir: &Path, what: &str, pid: u32, recorded: &Recorded, now: &Observed) {
     let log = dir.join(LOG_NAME);
     if std::fs::metadata(&log).is_ok_and(|meta| meta.len() > LOG_CAP)
@@ -440,7 +414,6 @@ fn lease_pid(path: &Path) -> Option<u32> {
     stem.split_once('-')?.0.parse().ok()
 }
 
-/// True while the recorded group's leader is still provably the recorded one or gone.
 #[cfg(unix)]
 fn still_recorded(recorded: &Recorded) -> bool {
     leader_matches(&sys::leader(recorded.pgid), &recorded.start)
@@ -471,14 +444,11 @@ fn stop_group(recorded: &Recorded) {
     }
 }
 
-/// Windows never signals a group: a job object ends the tree with the run.
 #[cfg(not(unix))]
 fn stop_group(_recorded: &Recorded) {}
 
-/// Notice code for a leftover process group dx stopped at startup.
 pub const CODE_ORPHAN_PROCESS_GROUP_STOPPED: &str = "orphan_process_group_stopped";
 
-/// The one line printed for a stopped group.
 #[must_use]
 pub fn reaped_message(group: &Reaped) -> String {
     format!(

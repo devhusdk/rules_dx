@@ -253,7 +253,6 @@ fn a_terminal_run_takes_no_lease() {
         outcome,
         crate::lifecycle::StreamOutcome::Exited(_)
     ));
-    // A Terminal run must never create the lease dir.
     assert!(
         !dir.exists(),
         "a Terminal run must not call GroupLease::acquire_in, which creates the lease dir"

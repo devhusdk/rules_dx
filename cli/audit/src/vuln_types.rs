@@ -13,7 +13,6 @@ pub struct LockedPackage {
 }
 
 impl LockedPackage {
-    /// Builds a registry package: not git, not private, no location or platform.
     pub fn new(
         set: impl Into<String>,
         name: impl Into<String>,
@@ -85,8 +84,6 @@ pub const REASON_GIT: &str = "unsupported git revision";
 pub const REASON_PRIVATE: &str = "unidentified private package";
 pub const REASON_VERSION_SYNTAX: &str = "unsupported version syntax";
 
-/// Outcome of matching a locked version against an advisory scope.
-/// `Incomplete` means dx could not parse the scope or the locked version.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum VersionScope {
     Affected,
@@ -94,7 +91,6 @@ pub enum VersionScope {
     Incomplete,
 }
 
-/// Three-valued OR: any Affected wins, else any Incomplete, else Unaffected.
 pub fn any_scope(outcomes: impl IntoIterator<Item = VersionScope>) -> VersionScope {
     let mut result = VersionScope::Unaffected;
     for outcome in outcomes {

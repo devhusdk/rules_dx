@@ -31,7 +31,6 @@ fn add(selector: &str, version: &str, content: &str) -> Result<String, AddError>
     request(selector, version).plan_insert(content)
 }
 
-/// A widen reads what an add wrote: the same version is current, a higher one widens.
 fn assert_edit_round_trip(selector: &str, version: &str, higher: &str, written: &str) {
     let same = parse(selector, version);
     assert_eq!(

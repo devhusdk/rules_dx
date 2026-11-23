@@ -4,11 +4,6 @@ use std::num::NonZeroU32;
 use crate::LcovError;
 use crate::xml::{attribute, tags, unescape};
 
-/// Converts a Cobertura XML report (kcov, coverage.py) to LCOV text.
-///
-/// Only class-level `line` elements count; lines listed under `methods` repeat them.
-/// A relative `filename` is joined to the first `source`.
-/// Files appear in path order, lines in line order.
 pub fn cobertura_to_lcov(xml: &str) -> Result<String, LcovError> {
     let mut files: BTreeMap<String, BTreeMap<u32, u64>> = BTreeMap::new();
     let mut current: Option<String> = None;

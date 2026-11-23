@@ -9,7 +9,6 @@ use std::path::Path;
 pub(crate) use crate::test_support::parsed as invocation;
 pub(crate) use dx_testing::cli::{event, event_kinds, events_of_kind, json_events};
 
-/// A query runner that reports one target and nothing else.
 pub(crate) struct NullQuery;
 
 impl QueryRunner for NullQuery {
@@ -22,7 +21,6 @@ impl QueryRunner for NullQuery {
     }
 }
 
-/// A runner that succeeds without running anything.
 pub(crate) struct NoRunner;
 
 impl Runner for NoRunner {
@@ -31,7 +29,6 @@ impl Runner for NoRunner {
     }
 }
 
-/// A runner that records every argv and answers with scripted exit codes, then 0.
 #[derive(Default)]
 pub(crate) struct Recorder {
     pub(crate) calls: RefCell<Vec<Vec<String>>>,
@@ -39,7 +36,6 @@ pub(crate) struct Recorder {
 }
 
 impl Recorder {
-    /// Answers the first calls with `codes`.
     pub(crate) fn scripted(codes: &[i32]) -> Self {
         Self {
             calls: RefCell::default(),
@@ -56,7 +52,6 @@ impl Runner for Recorder {
     }
 }
 
-/// The adoption environment wired to the null query runner.
 pub(crate) fn env<'a>(
     root: &'a Path,
     out: &'a mut dyn Write,
@@ -71,12 +66,10 @@ pub(crate) fn env<'a>(
     }
 }
 
-/// Runs one adoption against the null runners and reports code, stdout and stderr.
 pub(crate) fn run(inv: &Invocation, root: &Path) -> (i32, String, String) {
     run_with(inv, root, &NoRunner)
 }
 
-/// Runs one adoption with `runner` and reports code, stdout and stderr.
 pub(crate) fn run_with(
     inv: &Invocation,
     root: &Path,
@@ -94,7 +87,6 @@ pub(crate) fn run_with(
     spoken(code, out, err)
 }
 
-/// Reads one run's exit code and both streams back as text.
 fn spoken(code: i32, out: Vec<u8>, err: Vec<u8>) -> (i32, String, String) {
     (
         code,
@@ -103,21 +95,18 @@ fn spoken(code: i32, out: Vec<u8>, err: Vec<u8>) -> (i32, String, String) {
     )
 }
 
-/// Counts the budget of a truncated writer.
 #[derive(Clone, Copy)]
 enum Unit {
     Bytes,
     Lines,
 }
 
-/// Writes a budget of bytes or of newlines, then reports a broken pipe.
 pub(crate) struct Truncated {
     remaining: usize,
     unit: Unit,
 }
 
 impl Truncated {
-    /// Accepts `bytes` more bytes, then breaks.
     pub(crate) fn after_bytes(bytes: usize) -> Self {
         Self {
             remaining: bytes,
@@ -125,7 +114,6 @@ impl Truncated {
         }
     }
 
-    /// Accepts `lines` more newlines, then breaks.
     pub(crate) fn after_lines(lines: usize) -> Self {
         Self {
             remaining: lines,
@@ -156,7 +144,6 @@ impl Write for Truncated {
     }
 }
 
-/// The drift of `root` against the files init plans for it.
 pub(crate) fn drift_of(root: &Path) -> super::init_files::Drift {
     let files =
         super::init_files::plan(root, "refresh", dx_adopt::is_fresh_dir(root), &[]).expect("plan");

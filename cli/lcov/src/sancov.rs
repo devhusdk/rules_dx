@@ -2,12 +2,6 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::LcovError;
 
-/// Converts sancov PCs and their llvm-symbolizer output to LCOV text.
-///
-/// `pcs` holds one `<address> <0|1>` line per instrumented PC.
-/// `symbolized` is `llvm-symbolizer --addresses` output for those PCs: per address, the address,
-/// then a function line and a `file:line:column` line for each inlined frame, then a blank line.
-/// A line counts 1 when any PC on it ran. Frames with no file or line 0 are skipped.
 pub fn sancov_to_lcov(pcs: &str, symbolized: &str) -> Result<String, LcovError> {
     let mut ran: HashMap<u64, bool> = HashMap::new();
     for line in pcs.lines().filter(|line| !line.trim().is_empty()) {
@@ -73,7 +67,6 @@ fn parse_address(text: &str) -> Option<u64> {
     u64::from_str_radix(digits, 16).ok()
 }
 
-/// Splits `file:line:column` from the right, so a Windows drive colon stays in the path.
 fn file_line(location: &str) -> Option<(&str, u32)> {
     let mut parts = location.rsplitn(3, ':');
     let _column = parts.next()?;

@@ -1,9 +1,6 @@
-//! Managed filesystem operations with explicit link and replacement semantics.
-
 use std::io;
 use std::path::Path;
 
-/// What a managed path is, classified without following a link.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryKind {
     Missing,
@@ -12,30 +9,24 @@ pub enum EntryKind {
     Link,
 }
 
-/// How a materialized file may be represented at its destination.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LinkPolicy {
-    /// The destination must become a link; a refused link is the caller's error.
     RequireLink,
-    /// Prefer a link and copy the bytes when the host refuses to create one.
     LinkOrCopy,
 }
 
-/// The representation one materialization actually used.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mechanism {
     Linked,
     Copied,
 }
 
-/// Whether a managed pointer names a file or a directory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PointerKind {
     File,
     Directory,
 }
 
-/// Classifies one managed path without following a link.
 pub fn classify(path: &Path) -> io::Result<EntryKind> {
     match std::fs::symlink_metadata(path) {
         Ok(meta) if meta.file_type().is_symlink() => Ok(EntryKind::Link),
@@ -46,7 +37,6 @@ pub fn classify(path: &Path) -> io::Result<EntryKind> {
     }
 }
 
-/// Materializes an immutable file at its destination under an explicit policy.
 pub fn materialize_file(
     source: &Path,
     destination: &Path,
@@ -55,7 +45,6 @@ pub fn materialize_file(
     materialize_file_with(source, destination, policy, &link_file)
 }
 
-/// Materializes a file with the link attempt supplied by the caller.
 pub fn materialize_file_with(
     source: &Path,
     destination: &Path,
@@ -108,7 +97,6 @@ pub fn materialize_file_with(
     Ok(Mechanism::Linked)
 }
 
-/// Removes one managed entry without following it into its target.
 pub fn remove_managed(path: &Path) -> io::Result<()> {
     match classify(path)? {
         EntryKind::Missing => Err(io::Error::new(
@@ -152,7 +140,6 @@ fn link_file(target: &Path, link: &Path) -> io::Result<()> {
     }
 }
 
-/// Creates a new link at `pointer` naming `target`; never overwrites an existing entry.
 pub fn create_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::Result<()> {
     #[cfg(windows)]
     {
@@ -168,7 +155,6 @@ pub fn create_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::R
     }
 }
 
-/// Points `pointer` at `target` by renaming a freshly made sibling link over it.
 pub fn replace_pointer(target: &Path, pointer: &Path, kind: PointerKind) -> io::Result<()> {
     let parent = pointer
         .parent()
@@ -643,7 +629,6 @@ mod tests {
             std::fs::set_permissions(&parent, std::fs::Permissions::from_mode(0o755))
                 .expect("chmod back");
         }
-        // Root may write into a read-only directory, so for root the file lands.
         if dx_test_scratch::running_as_root() {
             result.expect("root writes through the mode");
         } else {

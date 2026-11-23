@@ -26,11 +26,6 @@ impl ShardKind for CodegenKind {
     }
 }
 
-/// Converts raw OS arguments to text; a non-UTF-8 argument is an error, not a lossy copy.
-///
-/// # Errors
-///
-/// Returns `Err` naming the first argument that is not UTF-8.
 pub fn utf8_args(args: &[std::ffi::OsString]) -> Result<Vec<String>, WriterError> {
     args.iter()
         .map(|arg| {
@@ -45,13 +40,11 @@ pub fn utf8_args(args: &[std::ffi::OsString]) -> Result<Vec<String>, WriterError
 }
 
 // LCOV_EXCL_START - reason: process shim, issue: 9370, policy: docs/cli/commands/build-test-coverage.md
-/// Runs the writer on the given arguments and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     dx_shard_writer::run_process::<CodegenKind>(args)
 }
 
-/// Runs the writer on raw OS arguments and returns the exit code.
 #[must_use]
 pub fn run_os_process(args: &[std::ffi::OsString]) -> i32 {
     use std::io::Write;

@@ -184,10 +184,7 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
 
 
 def check_manifest(root):
-    """Fails when a staged Wasm manifest names files the directory lacks.
-
-    Other manifest.json files, such as a PWA manifest, are not ours.
-    """
+    """Fails when a staged Wasm manifest names files the directory lacks."""
     manifest = os.path.join(root, "manifest.json")
     if not os.path.isfile(manifest):
         return None

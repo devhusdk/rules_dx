@@ -1,6 +1,5 @@
 use std::path::Path;
 
-/// Lock and manifest names dx knows an ecosystem for but no workspace set owns. The flag marks ecosystems that have a set kind; the others show `none` in the Dependencies column of docs/support-matrix.md.
 const FIXED_NAMES: &[(&str, &str, bool)] = &[
     ("stack.yaml.lock", "hackage", false),
     ("opam.locked", "opam", true),
@@ -53,7 +52,6 @@ impl UnownedLock {
     }
 }
 
-/// Lock files under `workspace` that no entry of `owned` names, sorted by path.
 pub(super) fn find_unowned(
     workspace: &Path,
     owned: &[&str],

@@ -26,7 +26,6 @@ fn git_failure(what: &str, detail: &str) -> dx_error::DxError {
     dx_error::DxError::infra(format!("git {what} failed: {detail}"))
 }
 
-/// What a failed Git run said and how it ended; a leading `warning:` line names no cause, so the `fatal:` or `error:` line wins.
 #[must_use]
 pub fn git_exit_detail(stderr: &[u8], code: Option<i32>) -> String {
     let text = String::from_utf8_lossy(stderr);
@@ -82,9 +81,6 @@ pub fn missing_base_shallow_error() -> String {
     "git history is shallow and the base branch is missing: set `fetch-depth: 0` in actions/checkout, run `git fetch origin <base>`, or pass --base".to_owned()
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn diff_name_status(
     git: &Path,
     workspace: &Path,
@@ -108,9 +104,6 @@ pub fn diff_name_status(
     dx_adopt::parse_name_status_nul(&result.stdout)
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn merge_base(
     git: &Path,
     workspace: &Path,
@@ -180,9 +173,6 @@ fn parse_untracked(output: &[u8]) -> Result<Vec<dx_adopt::GitChange>, dx_error::
     Ok(changes)
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn collect_working_tree(
     git: &Path,
     workspace: &Path,
@@ -233,9 +223,6 @@ pub fn collect_working_tree(
     Ok(dx_adopt::dedupe_changes(changes))
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn collect_range(
     git: &Path,
     workspace: &Path,
@@ -308,9 +295,6 @@ fn repo_relative(prefix: &str, path: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn local_override_changes(
     git: &Path,
     workspace: &Path,
@@ -402,7 +386,6 @@ fn file_name_of(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
 }
 
-/// Workspace-relative paths named by `import` and `try-import %workspace%/...` lines.
 fn rc_import_paths(content: &str) -> Vec<String> {
     let joined = content.replace("\\\r\n", " ").replace("\\\n", " ");
     let mut out = Vec::new();
@@ -436,7 +419,6 @@ fn rc_import_paths(content: &str) -> Vec<String> {
     out
 }
 
-/// Rc files the workspace `.bazelrc` and `BAZELRC` or `--bazelrc` name, with their workspace imports.
 fn workspace_rc_files(workspace: &Path, startup_options: &[String]) -> BTreeSet<String> {
     let mut seen: BTreeSet<String> = BTreeSet::new();
     let mut visited: BTreeSet<String> = BTreeSet::from([".bazelrc".to_owned()]);
@@ -528,9 +510,6 @@ impl ModuleInputPaths {
     }
 }
 
-/// Lock and manifest inputs of the crate extension are handled by the lock
-/// narrowing; other tags (such as `crate.annotation` patches and
-/// `additive_build_file`) change repo contents and widen like any input.
 fn is_crate_lock_input(extension: Option<&(String, String)>, tag: &str) -> bool {
     extension.is_some_and(|(bzl, name)| {
         lock_inputs::is_crate_extension(bzl, name) && matches!(tag, "from_cargo" | "from_specs")
@@ -590,7 +569,6 @@ fn module_inputs_of(workspace: &Path) -> (Vec<Hub>, ModuleInputPaths) {
     (hubs, inputs)
 }
 
-/// Text of a file at the base commit, or None when it is absent there.
 pub(crate) fn show_at_base(
     git: &Path,
     workspace: &Path,
@@ -661,7 +639,6 @@ fn lock_change(
 const ROOT_MODULE: &str = "MODULE.bazel";
 const ROOT_LOCK: &str = "MODULE.bazel.lock";
 
-/// The modules a root MODULE.bazel update changes, and the repositories they own.
 struct ModuleEdit {
     path: String,
     modules: BTreeSet<String>,
@@ -844,11 +821,9 @@ fn is_starlark_module(path: &str) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("bzl") || ext.eq_ignore_ascii_case("scl"))
 }
 
-/// The `:all` pattern of the package that holds `label`.
 fn package_all(label: &str) -> String {
     match Label::parse(label) {
         Some(parsed) if !parsed.relative => format!("{}//{}:all", parsed.repo, parsed.package),
-        // `file_label` always answers `//package:name`; anything else widens, the safe direction.
         _ => "//...".to_owned(),
     }
 }
@@ -958,8 +933,6 @@ fn widen_impact(
     }
 }
 
-/// Widens to everything when the changed labels reach a toolchain, or a target that dx's
-/// aspects or the bazelrc flags use: their users have no rule edge in the query graph.
 fn widen_implicit_users(
     workspace: &Path,
     aspect_labels: &[String],
@@ -1003,9 +976,6 @@ fn widen_implicit_users(
     }
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 #[expect(
     clippy::too_many_lines,
     reason = "one linear sequence of steps read top to bottom"
@@ -1253,7 +1223,6 @@ pub fn resolve_affected(
                 repos.extend(crates.keys().map(|name| format!("@{hub}//:{name}")));
                 repos.extend(aliases.iter().map(|name| format!("@{hub}//:{name}")));
             }
-            // Bazel picks a toolchain through resolution, so its users have no edge to it.
             if let Some(toolchain) = loaded
                 .reached_of_kind(&seeds, |kind| kind == "toolchain")
                 .first()
@@ -1365,7 +1334,6 @@ mod tests {
     }
     use dx_testing::cli::strings;
 
-    /// `@<hub><rest>` for the `setup.hubs` hub of `ecosystem`.
     fn hub_label(ecosystem: &str, rest: &str) -> String {
         let hub =
             dx_families::hub(ecosystem).unwrap_or_else(|| panic!("setup.hubs entry {ecosystem}"));

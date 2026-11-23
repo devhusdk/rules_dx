@@ -113,7 +113,6 @@ fn load_snapshots(
     (snapshots, Ok(()))
 }
 
-/// Loads every source snapshot a finding or related location points into, when its digest verifies.
 pub(crate) fn verified_snapshots(
     workspace: &Path,
     collected: &Collected,

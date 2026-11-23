@@ -1,5 +1,3 @@
-//! The effective Bazel `build` options from rc files, sections, and configs.
-
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -7,7 +5,6 @@ use super::{MAX_IMPORT_DEPTH, flag_value, import_path, sets_flag, tokenize, unqu
 
 const MAX_CONFIG_DEPTH: usize = 32;
 
-/// The command names whose lines apply to `command`, least specific first.
 fn levels(command: &str) -> &'static [&'static [&'static str]] {
     match command {
         "test" => &[&["common", "always"], &["build"], &["test"]],
@@ -17,7 +14,6 @@ fn levels(command: &str) -> &'static [&'static [&'static str]] {
     }
 }
 
-/// One rc line: its command, optional `:config`, and flag tokens.
 pub(super) struct Line {
     command: String,
     config: Option<String>,
@@ -25,23 +21,19 @@ pub(super) struct Line {
 }
 
 impl Line {
-    /// The flag tokens after the command.
     pub(super) fn tokens(&self) -> &[String] {
         &self.tokens
     }
 
-    /// Whether this is a plain `startup` line.
     pub(super) fn is_startup(&self) -> bool {
         self.command == "startup" && self.config.is_none()
     }
 
-    /// Whether this is a `startup` line, with or without a `:config`.
     pub(super) fn is_startup_any(&self) -> bool {
         self.command == "startup"
     }
 }
 
-/// The logical rc lines in `text`: backslash-newline joins lines and an unquoted `#` ends one.
 fn logical_lines(text: &str) -> Vec<String> {
     let joined = text.replace("\\\r\n", "").replace("\\\n", "");
     joined
@@ -66,7 +58,6 @@ fn logical_lines(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// Whether the effective `build` options set a non-empty `--remote_executor`.
 pub fn remote_execution(
     env_get: &dyn Fn(&str) -> Option<String>,
     workspace: &Path,
@@ -80,19 +71,12 @@ pub fn remote_execution(
     last_value(&options, "--remote_executor").is_some_and(|value| !value.is_empty())
 }
 
-/// The Bazel startup output paths in effect, as written (relative paths joined to the workspace).
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct StartupPaths {
     pub output_user_root: Option<PathBuf>,
     pub output_base: Option<PathBuf>,
 }
 
-/// The `--output_user_root` and `--output_base` startup options Bazel would use: rc files in
-/// read order, then `startup` (the command line), last one wins and an empty value clears it.
-///
-/// Applies `startup` and `startup:<host os>` lines; named `startup:<config>` lines are ignored,
-/// as Bazel does. `startup:<os>` needs Bazel 9.0.2 or later; on older Bazel the guess is wrong
-/// and the only effect is that keep-warm finds no server.
 pub fn startup_output_paths(
     env_get: &dyn Fn(&str) -> Option<String>,
     workspace: &Path,
@@ -150,7 +134,6 @@ fn startup_output_paths_for_os(
 
 const NESTED_BAZEL_TAG: &str = "resources:nested_bazel";
 
-/// Whether the effective `test` options leave `resources:nested_bazel` tests selected by `--test_tag_filters`.
 pub fn nested_bazel_selected(
     env_get: &dyn Fn(&str) -> Option<String>,
     workspace: &Path,
@@ -183,7 +166,6 @@ pub fn nested_bazel_selected(
     included || !any_included
 }
 
-/// Every rc line Bazel would read, imports inlined, in read order.
 pub(super) fn load_rc(
     env_get: &dyn Fn(&str) -> Option<String>,
     workspace: &Path,
@@ -199,7 +181,6 @@ pub(super) fn load_rc(
     lines
 }
 
-/// The options Bazel would apply to `command`, rc files first and `flags` last.
 pub(super) fn effective_options(lines: &[Line], command: &str, flags: &[String]) -> Vec<String> {
     let levels = levels(command);
     let mut out = Vec::new();
@@ -212,7 +193,6 @@ pub(super) fn effective_options(lines: &[Line], command: &str, flags: &[String])
     out
 }
 
-/// The distinct config names the rc lines define, sorted.
 pub(super) fn config_names(lines: &[Line]) -> Vec<String> {
     let names: std::collections::BTreeSet<&str> = lines
         .iter()
@@ -221,14 +201,12 @@ pub(super) fn config_names(lines: &[Line]) -> Vec<String> {
     names.into_iter().map(str::to_owned).collect()
 }
 
-/// The options `--config=<name>` expands to for `command`.
 pub(super) fn config_options(lines: &[Line], command: &str, name: &str) -> Vec<String> {
     let mut out = Vec::new();
     expand_config(lines, levels(command), name, &mut Vec::new(), &mut out);
     out
 }
 
-/// Whether any rc line, in any section or config, names one of `names`.
 pub(super) fn any_line_sets(lines: &[Line], names: &[&str]) -> bool {
     lines.iter().any(|line| {
         line.tokens
@@ -237,7 +215,6 @@ pub(super) fn any_line_sets(lines: &[Line], names: &[&str]) -> bool {
     })
 }
 
-/// The last disk cache setting in `options`: `Some(None)` for `--nodisk_cache` or an empty value.
 pub(super) fn last_disk_cache(options: &[String]) -> Option<Option<&str>> {
     let mut winner = None;
     for (index, option) in options.iter().enumerate() {
@@ -252,7 +229,6 @@ pub(super) fn last_disk_cache(options: &[String]) -> Option<Option<&str>> {
     winner
 }
 
-/// The rc files in Bazel's read order: system, workspace, home, `BAZELRC`, then `--bazelrc`.
 fn rc_files(
     env_get: &dyn Fn(&str) -> Option<String>,
     workspace: &Path,
@@ -273,7 +249,6 @@ fn rc_files(
     files
 }
 
-/// The files named by `BAZELRC` (comma-separated) and then each `--bazelrc`. `/dev/null` ends a list.
 pub fn explicit_rc_files(
     env_get: &dyn Fn(&str) -> Option<String>,
     startup: &[String],

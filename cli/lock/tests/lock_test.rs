@@ -1,5 +1,3 @@
-//! The lock step writes the golden lock from the registry fixture, reuses it, and reports a stale one.
-
 use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -26,7 +24,6 @@ fn spec() -> Spec {
     }
 }
 
-/// Starts the fixture resolver in the scratch directory and counts the starts.
 struct Registry {
     starts: Cell<usize>,
 }
@@ -63,7 +60,6 @@ fn a_failing_resolver_reports_its_exit_and_output() {
     assert!(error.contains("fixture_resolver: "), "{error}");
 }
 
-/// Returns a closure given by the test.
 struct Fixed(Vec<Package>);
 
 impl Resolver for Fixed {
@@ -75,7 +71,6 @@ impl Resolver for Fixed {
     }
 }
 
-/// Records whether the resolver got the previous lock and which packages it held.
 #[derive(Default)]
 struct Remembers(RefCell<Vec<Option<Vec<String>>>>);
 
@@ -95,7 +90,6 @@ impl Resolver for Remembers {
     }
 }
 
-/// Reads archives from the registry fixture and records every URL asked for.
 #[derive(Default)]
 struct Archives {
     asked: Mutex<Vec<String>>,
@@ -117,7 +111,6 @@ impl Fetch for Archives {
 }
 
 impl Archives {
-    /// The URLs asked for, sorted: the downloads run in parallel.
     fn asked(&self) -> Vec<String> {
         let mut asked = self.asked.lock().expect("asked").clone();
         asked.sort();
@@ -125,7 +118,6 @@ impl Archives {
     }
 }
 
-/// A set directory holding the fixture manifest.
 fn set() -> tempfile::TempDir {
     let dir = tempfile::tempdir().expect("set directory");
     std::fs::write(dir.path().join("fixture.json"), text(&runfile("MANIFEST"))).expect("manifest");
@@ -528,7 +520,6 @@ fn a_manifest_pattern_takes_every_matching_file() {
     );
 }
 
-/// Records the files the scratch set holds and asks for every `*.part` file.
 #[derive(Default)]
 struct Parts(RefCell<Vec<String>>);
 

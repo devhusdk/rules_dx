@@ -42,8 +42,6 @@ pub fn ensure(request: &Request<'_>) -> Result<PathBuf, ShimError> {
     install(request)
 }
 
-/// Whether `dest` can run as is: it exists and, for a pinned hash, its stamp holds that hash.
-/// A binary without a stamp is hashed once and stamped when it matches.
 #[must_use]
 pub fn cached(dest: &Path, checksum: Option<&ChecksumSource>) -> bool {
     if !dest.is_file() {
@@ -65,7 +63,6 @@ pub fn cached(dest: &Path, checksum: Option<&ChecksumSource>) -> bool {
     false
 }
 
-/// The file beside a cached binary that records the sha256 it was verified against.
 #[must_use]
 pub fn stamp_path(dest: &Path) -> PathBuf {
     let mut name = dest.as_os_str().to_owned();
@@ -77,7 +74,6 @@ fn file_matches(path: &Path, want: &str) -> bool {
     dx_digest::sha256_file_hex(path).is_ok_and(|got| dx_digest::verify(want, &got))
 }
 
-/// A missing stamp only costs one hash on the next run, so a failed write is a warning.
 fn write_stamp(dest: &Path, sha256: &str) {
     let stamp = stamp_path(dest);
     if let Err(err) = dx_atomic_fs::write_atomic(&stamp, format!("{sha256}\n").as_bytes()) {
@@ -88,7 +84,6 @@ fn write_stamp(dest: &Path, sha256: &str) {
     }
 }
 
-/// Drops the old stamp before the binary changes, so it never vouches for the new one.
 fn remove_stamp(dest: &Path) -> std::io::Result<()> {
     match std::fs::remove_file(stamp_path(dest)) {
         Err(err) if err.kind() != std::io::ErrorKind::NotFound => Err(err),
@@ -139,8 +134,6 @@ pub fn install(request: &Request<'_>) -> Result<PathBuf, ShimError> {
     Ok(dest.to_path_buf())
 }
 
-/// Release downloads may follow a plain `http://` base URL, such as a local mirror,
-/// but an `https://` one never downgrades on a redirect.
 fn client(url: &str) -> Result<dx_http::Client, ShimError> {
     dx_http::Client::new(dx_http::Settings {
         https_only: url.starts_with("https://"),
@@ -227,7 +220,6 @@ mod interrupt {
 
     static PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
 
-    /// Removes the part file being downloaded and exits with the signal exit code.
     struct RemovePart;
 
     impl CtrlHandler for RemovePart {
@@ -275,13 +267,11 @@ mod interrupt {
     pub fn clear() {}
 }
 
-/// A download staged beside its destination that an interrupt removes until it is published.
 struct PartFile {
     staged: dx_atomic_fs::StagedFile,
     _watch: Watch,
 }
 
-/// Stops the interrupt handler from removing the part file once dropped.
 struct Watch;
 
 impl Drop for Watch {
@@ -292,8 +282,6 @@ impl Drop for Watch {
 
 impl PartFile {
     fn create(dest: &Path) -> std::io::Result<Self> {
-        // A stop signal after the part file appears but before the handler is armed
-        // would leave the part file behind, so hold stop signals until both are done.
         #[cfg(unix)]
         let _held = dx_os_sys::signals::hold_stop();
         let staged = dx_atomic_fs::StagedFile::create(dest)?;
@@ -304,7 +292,6 @@ impl PartFile {
         })
     }
 
-    /// A failed rename is fine only when a racing install already put the same binary there.
     fn persist(self, dest: &Path, want: &str) -> std::io::Result<()> {
         let Self { staged, _watch } = self;
         drop(_watch);

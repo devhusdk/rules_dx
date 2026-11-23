@@ -560,7 +560,6 @@ fn unwritable_report_destination_fails_with_cause() {
         "//test:corpus".to_owned(),
         harness.valid_result(vec![], vec![]),
     );
-    // A name longer than NAME_MAX fails the write even for root, which ignores mode bits.
     let name = format!("{}.sarif", "x".repeat(300));
     let (code, _, err) = harness.run(&["lint", "--output=text", &format!("--report=sarif={name}")]);
     assert_eq!(code, 1, "{err}");
@@ -596,7 +595,6 @@ fn failed_report_write_keeps_stale_report_bytes() {
     std::fs::set_permissions(&reports, permissions).expect("writable");
     let report =
         std::fs::read_to_string(harness.workspace.join("reports/out.sarif")).expect("report");
-    // Root may replace a file in a read-only directory, so for root the write lands.
     if dx_test_scratch::running_as_root() {
         assert_eq!(code, 0, "{err}");
         assert_ne!(report, "stale\n");

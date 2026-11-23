@@ -1,6 +1,3 @@
-//! Brings `.dx/local` up to date after a command that built something, when the
-//! sync fingerprint says the generated files or their inputs changed.
-
 use std::io::Write;
 
 use dx_output::OutputMode;
@@ -10,7 +7,6 @@ use super::sync_fingerprint::{self, Check, Record};
 use dx_exec_core::common::{ActionTally, Env};
 use dx_exec_core::notice_codes::CODE_SYNC_FAILED;
 
-/// Runs after `invocation` exited 0; never changes its exit code.
 #[expect(
     clippy::needless_pass_by_value,
     reason = "the bundle is built for this one call"

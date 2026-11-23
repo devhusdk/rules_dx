@@ -239,7 +239,6 @@ pub fn list_workflows(workspace: &std::path::Path) -> std::io::Result<Vec<String
     Ok(names)
 }
 
-// Framing only: trims quote delimiters off the span; the YAML event parser reads the pins.
 fn scalar_span(content: &str, start: usize, end: usize, style: ScalarStyle) -> Range<usize> {
     let quote = match style {
         ScalarStyle::SingleQuoted => '\'',

@@ -36,7 +36,6 @@ pub struct RelatedEvent {
     pub applicability: Option<String>,
 }
 
-/// One configured producer that reported a finding.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Origin {
     pub producer: String,
@@ -44,7 +43,6 @@ pub struct Origin {
     pub configuration: Option<String>,
 }
 
-/// A 1-based line and a 1-based column counted in Unicode scalar values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Position {
     pub line: u64,
@@ -53,7 +51,6 @@ pub struct Position {
 
 pub type Span = (Position, Position);
 
-/// One emitted finding: the diagnostic, its verified lines, its folded count.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FindingRecord {
     pub diagnostic: DiagnosticEvent,
@@ -74,7 +71,6 @@ impl FindingRecord {
     }
 }
 
-/// The dependency a vulnerability or license finding is about.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackageRef {
     pub name: String,
@@ -101,7 +97,6 @@ pub struct DiagnosticEvent {
 }
 
 impl DiagnosticEvent {
-    /// Builds a terminal diagnostic with no rule, location, fix, resolution, related items, origins or package.
     pub fn new(severity: Severity, tool: impl Into<String>, message: impl Into<String>) -> Self {
         DiagnosticEvent {
             severity,
@@ -121,7 +116,6 @@ impl DiagnosticEvent {
     }
 }
 
-/// Validates and builds the event for a producer with no validator of its own.
 pub fn diagnostic_event(diagnostic: &DiagnosticEvent) -> Result<Value, OutputError> {
     check_diagnostic(diagnostic)?;
     Ok(finding_value(&FindingRecord::single(diagnostic.clone())))
@@ -195,7 +189,6 @@ fn range_value(range: (u64, u64), span: Option<Span>) -> Value {
     }
 }
 
-/// Builds the event for one finding whose producer already validated it.
 #[must_use]
 pub fn finding_value(record: &FindingRecord) -> Value {
     let diagnostic = &record.diagnostic;
@@ -402,12 +395,10 @@ pub struct NoticeEvent {
 }
 
 impl NoticeEvent {
-    /// An `info` notice with no related command, scope, or path.
     pub fn info(code: &str, message: impl Into<String>) -> Self {
         Self::at_severity("info", code, message.into())
     }
 
-    /// A `warning` notice with no related command, scope, or path.
     pub fn warning(code: &str, message: impl Into<String>) -> Self {
         Self::at_severity("warning", code, message.into())
     }
@@ -463,7 +454,6 @@ fn check_notice(notice: &NoticeEvent) -> Result<(), OutputError> {
     Ok(())
 }
 
-/// Builds the event for a notice whose producer already validated it.
 #[must_use]
 pub fn notice_value(notice: &NoticeEvent) -> Value {
     let mut map = base("notice");

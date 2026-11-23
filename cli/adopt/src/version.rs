@@ -74,11 +74,6 @@ pub fn write_version_pin(root: &Path, version: &str) -> Result<(), AdoptError> {
     write_version_pins(root, version, &crate::release_pins(version)?)
 }
 
-/// Under `bazel run`, rewrites a stale `.dx/pins` to `module_version` so the next
-/// launcher call skips Bazel. A file is current when it names `module_version` and
-/// holds a hash for every release asset. Does nothing when the file is missing,
-/// current, or when `pins` lacks a hash for any release asset. A failed write is reported
-/// on stderr.
 pub fn refresh_stale_pins(
     workspace: Option<&Path>,
     module_version: &str,
@@ -110,8 +105,6 @@ pub fn refresh_stale_pins(
     }
 }
 
-/// `refresh_stale_pins` for the running binary: the `BUILD_WORKSPACE_DIRECTORY`
-/// tree and this module's release pins.
 pub fn refresh_stale_pins_from_env() {
     let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY").map(std::path::PathBuf::from);
     refresh_stale_pins(workspace.as_deref(), MODULE_VERSION, || {
@@ -156,7 +149,6 @@ pub struct ModuleDependency {
 }
 
 impl ModuleDependency {
-    /// Returns the `rules_dx` version Bazel resolves.
     #[must_use]
     pub fn resolved_version(&self) -> Option<&str> {
         match (
@@ -171,7 +163,6 @@ impl ModuleDependency {
     }
 }
 
-/// Reads the `rules_dx` dependency from MODULE.bazel and every file it includes.
 pub fn parse_module_dependency(
     text: &str,
     read_include: &dyn Fn(&str) -> Result<String, DxError>,
@@ -250,7 +241,6 @@ pub fn read_module_dependency(root: &Path) -> Result<ModuleDependency, AdoptErro
     })
 }
 
-/// The `rules_dx` version `MODULE.bazel` asks for; `None` without a usable version.
 pub fn module_rules_dx_version(root: &Path) -> Option<String> {
     let dependency = read_module_dependency(root).ok()?;
     let resolved = dependency.resolved_version().filter(|v| pin_is_valid(v));

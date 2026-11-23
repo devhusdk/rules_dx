@@ -6,11 +6,6 @@ use crate::{DepInfo, DepcheckError};
 
 use super::normalize_snake;
 
-/// Reads the dependencies of a cc manifest.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read, does not parse, or has an entry without a name.
 pub fn parse_cc_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let data: toml::Value = toml::from_str(&text).map_err(DepcheckError::ManifestToml)?;
@@ -70,11 +65,6 @@ pub fn parse_cc_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depch
     Ok(deps)
 }
 
-/// Maps every package of a cc lock to its version.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_cc_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;

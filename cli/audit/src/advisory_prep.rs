@@ -16,7 +16,6 @@ pub const DEFAULT_RETRIES: u32 = 3;
 
 pub const DEFAULT_RETRY_DELAY_SECONDS: u32 = 5;
 
-/// One prepared snapshot, its canonical bytes and the sidecar that binds them.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PreparedSnapshot {
     pub snapshot: AdvisorySnapshot,
@@ -24,7 +23,6 @@ pub struct PreparedSnapshot {
     pub advisories: usize,
 }
 
-/// The bounded limits one download may spend.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FetchLimits {
     pub connect_timeout_seconds: u32,
@@ -40,7 +38,6 @@ pub const DEFAULT_LIMITS: FetchLimits = FetchLimits {
     retry_delay_seconds: DEFAULT_RETRY_DELAY_SECONDS,
 };
 
-/// One download, as the program and the arguments it fetches it with.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FetchPlan {
     pub program: String,
@@ -93,7 +90,6 @@ pub enum PrepError {
     Usage { detail: String },
 }
 
-/// Every dependency set the audit reads lockfiles for.
 pub const AUDITED_SETS: &[&str] = &[
     "cargo",
     "npm",
@@ -107,7 +103,6 @@ pub const AUDITED_SETS: &[&str] = &[
     "ruby",
 ];
 
-/// The advisory families the dependency sets in one workspace need.
 pub fn needed_families(workspace: &Path) -> Result<Vec<&'static str>, PrepError> {
     let mut families: Vec<&'static str> = Vec::new();
     for set in AUDITED_SETS {
@@ -132,7 +127,6 @@ fn lock_is_present(workspace: &Path, set: &str) -> Result<bool, PrepError> {
         .any(|rel| workspace.join(rel).is_file()))
 }
 
-/// Merges archive entries into one canonical snapshot and the sidecar that binds it.
 pub fn convert_entries(
     family: &str,
     url: &str,
@@ -199,7 +193,6 @@ pub fn convert_entries(
     })
 }
 
-/// Builds a yanked-version snapshot: one synthetic advisory per locked (name, version) that is yanked.
 pub fn yanked_snapshot(
     key: &str,
     url: &str,
@@ -247,7 +240,6 @@ pub fn yanked_snapshot(
     })
 }
 
-/// Checks one prepared snapshot the way the audit backend checks it later.
 pub fn validate_prepared(snapshot: &AdvisorySnapshot, payload: &[u8]) -> Result<(), PrepError> {
     advisory::validate_snapshot(snapshot).map_err(|error| PrepError::BadIdentity {
         family: snapshot.set.clone(),
@@ -262,7 +254,6 @@ pub fn validate_prepared(snapshot: &AdvisorySnapshot, payload: &[u8]) -> Result<
     Ok(())
 }
 
-/// The canonical sidecar bytes one snapshot identity serializes to.
 pub fn identity_bytes(snapshot: &AdvisorySnapshot) -> Result<Vec<u8>, PrepError> {
     let mut bytes =
         serde_json::to_vec_pretty(snapshot).map_err(|error| PrepError::BadIdentity {
@@ -273,7 +264,6 @@ pub fn identity_bytes(snapshot: &AdvisorySnapshot) -> Result<Vec<u8>, PrepError>
     Ok(bytes)
 }
 
-/// The bounded download that fetches one snapshot archive.
 #[cfg(test)]
 pub fn fetch_plan(
     url: &str,
@@ -283,7 +273,6 @@ pub fn fetch_plan(
     fetch_many_plan(&[(url.to_owned(), destination.to_path_buf())], limits, 1)
 }
 
-/// The bounded download that fetches several files in one parallel curl run.
 pub fn fetch_many_plan(
     downloads: &[(String, PathBuf)],
     limits: FetchLimits,
@@ -338,7 +327,6 @@ pub fn fetch_many_plan(
 
 pub const CPANSA_URL: &str = "https://metacpan.org/release/CPANSA-DB";
 
-/// Splits the output of `//perl/private/tools:cpansa_dump` into the `CPANSA::DB` version and the database text.
 pub fn split_cpansa_output(output: &str) -> Result<(&str, &str), PrepError> {
     match output.split_once('\n') {
         Some((version, database)) if !version.trim().is_empty() => Ok((version.trim(), database)),
@@ -348,7 +336,6 @@ pub fn split_cpansa_output(output: &str) -> Result<(&str, &str), PrepError> {
     }
 }
 
-/// Builds the cpan snapshot; the CPANSA-DB release that produced it is recorded in the sidecar URL.
 pub fn cpan_snapshot(
     database: &str,
     version: &str,
@@ -378,7 +365,6 @@ pub fn cpan_snapshot(
     })
 }
 
-/// Turns the CPANSA advisory database, keyed by distribution, into the cpan snapshot payload.
 pub fn cpan_audit_payload(text: &str) -> Result<Vec<u8>, PrepError> {
     let bad = |detail: String| PrepError::BadEntryJson {
         family: "cpan".to_owned(),

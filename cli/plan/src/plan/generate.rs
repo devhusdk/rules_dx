@@ -24,10 +24,8 @@ pub struct GenerateScopeElement {
     pub dirs: Vec<String>,
 }
 
-/// One directory Gazelle visits, and whether it visits the packages below it too.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Traversal {
-    /// Workspace-relative; `""` is the root package.
     dir: String,
     recursive: bool,
 }
@@ -44,7 +42,6 @@ impl Traversal {
         self.recursive && self.dir.is_empty()
     }
 
-    /// Whether `self` visits every package `other` visits.
     fn covers(&self, other: &Traversal) -> bool {
         if self.dir == other.dir {
             return self.recursive || !other.recursive;
@@ -61,15 +58,6 @@ impl Traversal {
     }
 }
 
-/// Maps one scope label to what Gazelle traverses.
-///
-/// `//pkg/...` is the `pkg` tree; any other label in the main repository is its
-/// package alone, so `//pkg:x` and `//:x` never reach the packages below.
-/// `@//` and `@@//` name the main repository and are read as `//`. Any other
-/// `@repo//` label falls back to repo-wide: Gazelle cannot walk an external
-/// repository, and `dx generate` refuses such labels at parse time, so only
-/// the `--affected` umbrella path reaches this fallback, where widening is
-/// the safe direction.
 fn generate_traversal(target: &str) -> Traversal {
     let Some(label) = Label::parse(target) else {
         return Traversal::repo_wide();
@@ -78,8 +66,6 @@ fn generate_traversal(target: &str) -> Traversal {
         Repo::Local | Repo::Apparent("") | Repo::Canonical("") if !label.relative => {}
         Repo::Local | Repo::Apparent(_) | Repo::Canonical(_) => return Traversal::repo_wide(),
     }
-    // `//...` and `//pkg/...` keep the wildcard in the package; the name (`all`,
-    // `*`, `all-targets` or a target) never narrows the directory further.
     if label.package == "..." {
         return Traversal::repo_wide();
     }
@@ -99,7 +85,6 @@ fn generate_traversal_dir(target: &str) -> String {
     generate_traversal(target).dir
 }
 
-/// Sorted traversals with every one another already visits left out.
 fn collapse(mut traversals: Vec<Traversal>) -> Vec<Traversal> {
     if traversals.iter().any(Traversal::is_repo_wide) {
         return vec![Traversal::repo_wide()];
@@ -118,8 +103,6 @@ fn collapse(mut traversals: Vec<Traversal>) -> Vec<Traversal> {
     kept
 }
 
-/// Collapses target labels into sorted, non-overlapping Gazelle package
-/// patterns: `//pkg/...` for a tree, `//pkg:all` for one package.
 pub fn generate_package_scope(targets: &[String]) -> Vec<String> {
     collapse(
         targets
@@ -132,8 +115,6 @@ pub fn generate_package_scope(targets: &[String]) -> Vec<String> {
     .collect()
 }
 
-/// The part of the generate `patterns` that lies inside `scope`, as package patterns:
-/// `//...` within a `//svc:bin` scope is `//svc:all`, never the whole repository.
 pub fn generate_package_scope_within(patterns: &[String], scope: &[String]) -> Vec<String> {
     let scope: Vec<Traversal> = scope
         .iter()
@@ -186,7 +167,6 @@ fn generate_traversals(resolved: &ResolvedScope) -> Vec<Traversal> {
     )
 }
 
-/// Whether the generate walk of `resolved` visits the package in `dir`; `.` is the root.
 #[must_use]
 pub fn generate_scope_visits(resolved: &ResolvedScope, dir: &str) -> bool {
     let package = Traversal {
@@ -210,10 +190,6 @@ pub fn generate_traversal_dirs(resolved: &ResolvedScope) -> Vec<String> {
         .collect()
 }
 
-/// Workspace-relative directories under `[scope] exclude`, as Gazelle `-exclude` values.
-///
-/// Only recursive patterns count: a single-package or external pattern must
-/// not hide a whole directory tree from the generator.
 pub fn generate_exclude_dirs(resolved: &ResolvedScope) -> Vec<String> {
     let mut dirs: Vec<String> = resolved
         .excluded
@@ -226,9 +202,6 @@ pub fn generate_exclude_dirs(resolved: &ResolvedScope) -> Vec<String> {
     dirs
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_generate(
     resolved: &ResolvedScope,
     bazel_options: &[String],
@@ -259,8 +232,6 @@ pub fn plan_generate(
         }
         argv.extend(excludes.iter().map(|dir| format!("-exclude={dir}")));
         if !root_only {
-            // Gazelle has one recursion switch for every directory it is given, so a
-            // scope that names any tree visits the packages below a lone package too.
             if !walks.iter().any(|walk| walk.recursive) {
                 argv.push("-r=false".to_owned());
             }
@@ -426,7 +397,6 @@ mod tests {
     fn generate_plan_forwards_scoped_traversal_dirs() {
         let plan =
             plan_generate(&resolved(&["//b/...", "//a:one"]), &[], false, &[], None).expect("plan");
-        // A tree in the scope keeps Gazelle recursive for every directory.
         assert_eq!(
             plan.argv,
             strings(&[

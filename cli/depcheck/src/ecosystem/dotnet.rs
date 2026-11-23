@@ -5,11 +5,6 @@ use crate::{DepInfo, DepcheckError};
 
 use super::normalize_lower;
 
-/// Reads the `nuget` lines of a Paket manifest, with their groups.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_dotnet_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let mut deps = BTreeMap::new();

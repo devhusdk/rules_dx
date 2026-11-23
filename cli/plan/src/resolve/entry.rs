@@ -7,11 +7,6 @@ use super::{
     classify_generate_scopes, classify_scopes, exclude, owners_in_graph, tests_for_owners,
 };
 
-/// Expands `scopes` into Bazel targets, leaving out the `dx.toml` excludes.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn resolve(
     scopes: &[String],
     workspace: &Path,
@@ -23,12 +18,6 @@ pub fn resolve(
     exclude::apply(resolved, &excludes, scopes)
 }
 
-/// Like [`resolve`], but files and directories map to their package directory
-/// without a Bazel query, so new files and packages without a BUILD file work.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn resolve_for_generate(
     scopes: &[String],
     workspace: &Path,
@@ -44,11 +33,6 @@ pub fn resolve_for_generate(
     exclude::apply(resolved, &excludes, scopes)
 }
 
-/// Like [`resolve`], but files map to the tests that depend on their owners.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn resolve_for_test_with_selection(
     scopes: &[String],
     workspace: &Path,

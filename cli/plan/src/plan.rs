@@ -48,7 +48,6 @@ static RULES_DX_REPO: OnceLock<String> = OnceLock::new();
 
 static LAYER_SETS_DIAGNOSTICS: OnceLock<bool> = OnceLock::new();
 
-/// Records the name the workspace MODULE.bazel (and the files it includes) gives `rules_dx`.
 pub fn set_rules_dx_repo(workspace: &Path) {
     let repo = dx_module_bazel::rules_dx_repo(workspace);
     LAYER_SETS_DIAGNOSTICS
@@ -57,7 +56,6 @@ pub fn set_rules_dx_repo(workspace: &Path) {
     drop(RULES_DX_REPO.set(repo));
 }
 
-/// Whether the root `.bazelrc` imports a current correctness layer, which sets the diagnostics flags.
 #[must_use]
 pub fn correctness_layer_imported(workspace: &Path, repo: &str) -> bool {
     let rc_text = std::fs::read_to_string(workspace.join(".bazelrc")).unwrap_or_default();
@@ -79,24 +77,20 @@ pub fn correctness_layer_imported(workspace: &Path, repo: &str) -> bool {
     })
 }
 
-/// Returns the recorded name for `rules_dx`, or `rules_dx`.
 pub(crate) fn rules_dx_repo() -> &'static str {
     RULES_DX_REPO.get().map_or(RULES_DX, String::as_str)
 }
 
-/// Returns the name a MODULE.bazel source gives `rules_dx`, ignoring any includes.
 #[must_use]
 pub fn rules_dx_repo_of(module_text: &str) -> String {
     dx_module_bazel::rules_dx_repo_of(module_text)
 }
 
-/// Returns a label in the `rules_dx` repository.
 #[must_use]
 pub fn rules_dx_label(rest: &str) -> String {
     format!("@{}//{rest}", rules_dx_repo())
 }
 
-/// Returns the shared settings for a Bazel command, spelled with `repo`.
 #[must_use]
 pub fn settings_for(repo: &str, bazel_command: &str) -> Vec<String> {
     settings_in(repo, bazel_command, layer_sets_diagnostics())
@@ -106,9 +100,6 @@ fn layer_sets_diagnostics() -> bool {
     LAYER_SETS_DIAGNOSTICS.get().copied().unwrap_or(false)
 }
 
-/// `dx fetch` and `dx fetch --vendor` analyze their targets like a build, so they carry the
-/// shared settings to fetch what that build needs. Other `fetch` calls, such as
-/// `bazel fetch --repo`, analyze nothing and keep the plain head.
 fn takes_settings(bazel_command: &str) -> bool {
     dx_process::takes_shared_settings(bazel_command) || matches!(bazel_command, "fetch" | "vendor")
 }
@@ -121,13 +112,11 @@ fn settings_in(repo: &str, bazel_command: &str, layered: bool) -> Vec<String> {
     }
 }
 
-/// Returns the settings every build-like Bazel command shares.
 #[must_use]
 pub fn shared_settings(bazel_command: &str) -> Vec<String> {
     settings_for(rules_dx_repo(), bazel_command)
 }
 
-/// Puts the build mode config first so user options can override it.
 pub(crate) fn build_mode_options(
     build_mode: Option<crate::args::BuildMode>,
     options: &[String],
@@ -140,11 +129,6 @@ pub(crate) fn build_mode_options(
     leading
 }
 
-/// Builds a Bazel argv with the shared settings and their guards.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn bazel_argv(
     bazel_command: &str,
     user_options: &[String],
@@ -165,8 +149,6 @@ pub fn bazel_argv(
     )
 }
 
-/// Builds a Bazel argv whose shared settings are spelled with `repo`, and guards them.
-/// With `layered`, the settings come from the correctness layer and are only guarded.
 #[expect(
     clippy::disallowed_methods,
     clippy::too_many_arguments,
@@ -218,20 +200,15 @@ fn bazel_argv_in(
 
 pub const OUTPUT_GROUP: &str = "dx_results";
 
-/// The output group of manifests naming the site trees `dx docs --serve` previews.
 pub const DOCS_SITE_OUTPUT_GROUP: &str = "dx_docs_sites";
 
-/// The output group of the Rust library shards `dx docs` turns into one index.
 pub const DOCS_SHARD_OUTPUT_GROUP: &str = "dx_docs_shards";
 
-/// The output group of the manifest naming the tools that build that index.
 pub const DOCS_TOOLS_OUTPUT_GROUP: &str = "dx_docs_tools";
 
-/// The output group of notes naming the tools a target dropped because none is pinned for the platform.
 pub const SKIP_OUTPUT_GROUP: &str = "dx_skips";
 pub const LINK_REQUEST_OUTPUT_GROUP: &str = "dx_link_requests";
 
-/// The output group the shard probe writes `{"shards":[...]}` files to.
 pub const SHARD_OUTPUT_GROUP: &str = "dx_shards";
 
 pub const KEEP_GOING_FLAG: &str = "--keep_going";
@@ -242,8 +219,6 @@ pub const DOWNLOAD_ALL_FLAG: &str = "--remote_download_outputs=all";
 
 pub const DOWNLOAD_TOPLEVEL_FLAG: &str = "--remote_download_outputs=toplevel";
 
-/// The download mode for every command that reads outputs: all if the user's last choice was
-/// all, else toplevel. Minimal is never allowed, since dx reads reports from the outputs.
 pub(crate) fn download_flag(user_options: &[String]) -> &'static str {
     let mut flag = DOWNLOAD_TOPLEVEL_FLAG;
     for option in user_options {
@@ -256,8 +231,6 @@ pub(crate) fn download_flag(user_options: &[String]) -> &'static str {
     flag
 }
 
-/// Guards that keep user flags from selecting a download mode dx cannot read reports under.
-/// The bare `--remote_download_toplevel` and `--remote_download_all` forms are unguarded.
 pub(crate) fn download_guards() -> Vec<ProtectedFlag> {
     vec![
         ProtectedFlag {
@@ -280,7 +253,6 @@ pub const BEP_FLAG_NAME: &str = "build_event_json_file";
 
 pub const BEP_PATH_CONVERSION_FLAG: &str = "--build_event_json_file_path_conversion=false";
 
-/// The flags that write the build event file with local file paths.
 pub(crate) fn bep_options(path: &str) -> Vec<String> {
     vec![
         format!("--{BEP_FLAG_NAME}={path}"),
@@ -288,7 +260,6 @@ pub(crate) fn bep_options(path: &str) -> Vec<String> {
     ]
 }
 
-/// Guards that keep user flags from moving or rewriting the build event file.
 pub(crate) fn bep_guards() -> Vec<ProtectedFlag> {
     vec![
         ProtectedFlag {

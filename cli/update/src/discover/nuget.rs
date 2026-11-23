@@ -1,5 +1,3 @@
-//! Lists `NuGet` packages whose newest stable version on nuget.org is newer than the manifest requirement.
-
 use dx_error::DxError;
 
 use super::{Fetch, Findings, Latest, compare_declared, release_cmp, semver_cmp};
@@ -8,7 +6,6 @@ use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://api.nuget.org/v3-flatcontainer";
 
-/// Checks each `nuget` line of the manifest files against the feed at `base`.
 pub fn outdated(
     set: &str,
     files: &[String],

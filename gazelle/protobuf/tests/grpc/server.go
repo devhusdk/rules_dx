@@ -19,7 +19,7 @@ func (greeter) SayHello(_ context.Context, req *pb.HelloRequest) (*pb.HelloReply
 }
 
 func main() {
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	lis, err := new(net.ListenConfig).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(err)
 	}

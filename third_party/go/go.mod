@@ -21,6 +21,16 @@ require (
 )
 
 require (
+	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect
+	github.com/gostaticanalysis/comment v1.5.0 // indirect
+	github.com/nishanths/exhaustive v0.17.1
+	github.com/polyfloyd/go-errorlint v1.8.0
+	github.com/ryanrolds/sqlclosecheck v0.6.0
+	github.com/sonatard/noctx v0.5.1
+	github.com/timakin/bodyclose v0.0.0-20261107224203-8bb60b19bea4
+)
+
+require (
 	golang.org/x/sys v0.49.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260817212433-ac3dfec99bb1 // indirect
 	google.golang.org/grpc v1.85.0

@@ -7,6 +7,11 @@ go_library(
     visibility = ["//go/private/tools/analysis/dx_go:__pkg__"],
     deps = [
         "//go/private/tools/analysis/unit",
+        "@com_github_nishanths_exhaustive//:exhaustive",
+        "@com_github_polyfloyd_go_errorlint//errorlint",
+        "@com_github_ryanrolds_sqlclosecheck//pkg/analyzer",
+        "@com_github_sonatard_noctx//:noctx",
+        "@com_github_timakin_bodyclose//passes/bodyclose",
         "@org_golang_x_tools//go/analysis",
         "@org_golang_x_tools//go/analysis/passes/appends",
         "@org_golang_x_tools//go/analysis/passes/asmdecl",

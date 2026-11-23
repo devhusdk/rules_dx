@@ -20,6 +20,8 @@ func has(list []*analysis.Analyzer, name string) bool {
 	return false
 }
 
+var strictNames = []string{"bodyclose", "errorlint", "exhaustive", "forvar", "nilness", "noctx", "shadow", "sqlclosecheck", "unusedwrite"}
+
 func TestStandardRunsTheDefaults(t *testing.T) {
 	if err := configure([]string{"-profile=standard"}); err != nil {
 		t.Fatal(err)
@@ -27,18 +29,18 @@ func TestStandardRunsTheDefaults(t *testing.T) {
 	if !has(active, "printf") {
 		t.Error("printf should run")
 	}
-	for _, name := range []string{"forvar", "shadow", "nilness", "unusedwrite"} {
+	for _, name := range strictNames {
 		if has(active, name) {
 			t.Errorf("%s must be off under standard", name)
 		}
 	}
 }
 
-func TestStrictAddsForvarShadowNilnessUnusedwrite(t *testing.T) {
+func TestStrictAddsStrictOnly(t *testing.T) {
 	if err := configure([]string{"-profile=strict"}); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"printf", "forvar", "shadow", "nilness", "unusedwrite"} {
+	for _, name := range append([]string{"printf"}, strictNames...) {
 		if !has(active, name) {
 			t.Errorf("%s should run under strict", name)
 		}

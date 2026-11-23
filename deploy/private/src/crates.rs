@@ -491,7 +491,7 @@ fn check_crate_members(
         };
         pinned.insert(key, digest);
     }
-    let generated = [manifest_name(), "Cargo.lock", ".cargo_vcs_info.json"];
+    let generated = [manifest_name(), Ecosystem::Cargo.lockfile(), ".cargo_vcs_info.json"];
     let open = std::fs::File::open(path).map_err(invalid)?;
     let mut foreign: Option<(String, &'static str)> = None;
     dx_archive::visit(
@@ -1419,11 +1419,11 @@ mod tests {
     fn pinned_members(manifest: &str) -> Vec<(&str, &str)> {
         vec![
             (
-                "Cargo.toml",
+                manifest_name(),
                 "[package]\nname = \"crates_demo\"\nversion = \"0.0.0\"\nedition = \"2021\"\n# normalized\n",
             ),
             ("Cargo.toml.orig", manifest),
-            ("Cargo.lock", "version = 4\n"),
+            (Ecosystem::Cargo.lockfile(), "version = 4\n"),
             (".cargo_vcs_info.json", "{}\n"),
             ("src/lib.rs", "pub mod parser;\npub mod lexer;\n"),
             ("src/parser/mod.rs", "pub fn parse() -> u8 { 1 }\n"),

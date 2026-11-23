@@ -22,8 +22,8 @@ def _dx_extract_test_impl(ctx):
 dx_extract_test = analysistest.make(
     _dx_extract_test_impl,
     attrs = {
-        "mnemonic": attr.string(mandatory = True),
+        "mnemonic": attr.string(mandatory = True, doc = "Mnemonic of the action under test."),
         "skip": attr.int(doc = "Arguments between dx and the subcommand."),
-        "subcommand": attr.string(mandatory = True),
+        "subcommand": attr.string(mandatory = True, doc = "dx subcommand the action runs."),
     },
 )

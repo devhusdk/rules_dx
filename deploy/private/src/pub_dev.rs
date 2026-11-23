@@ -744,7 +744,7 @@ mod tests {
         );
         assert_eq!(
             wrong.to_string(),
-            "pub_deploy: pubspec.yaml is pub_demo, target is other; refusing"
+            format!("pub_deploy: {} is pub_demo, target is other; refusing", manifest_name())
         );
         let missing = pubspec_refusal("version: 1.2.3\n", "pub_demo").expect("missing");
         assert!(missing.to_string().contains("(missing)"), "{missing}");

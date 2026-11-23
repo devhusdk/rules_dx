@@ -124,7 +124,7 @@ _python_coverage_sitecustomize = dx_private_dep_rule(
     "Provides the sitecustomize python_test loads to collect coverage.",
 )
 
-_python_bench_plugin = dx_private_dep_rule(
+_python_runner_plugin = dx_private_dep_rule(
     Label("//python/private:bench_plugin"),
     _DX_PY_LIBRARY_PROVIDES,
     "Provides the pytest plugin python_bench loads.",
@@ -168,7 +168,7 @@ def python_fuzz_test(name, *, srcs = None, visibility = None, tags = None, **kwa
 
 def python_bench(name, *, srcs = None, args = None, tags = None, deps = None, **kwargs):
     """python_test run by dx bench: pytest-benchmark numbers land in dx-bench.json."""
-    _python_bench_plugin(
+    _python_runner_plugin(
         name = name + "_bench_plugin",
         testonly = True,
         tags = dx_upstream_tags(tags),

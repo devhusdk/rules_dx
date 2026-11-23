@@ -29,7 +29,7 @@ _guard_view_test = analysistest.make(
     config_settings = {str(Label("//cli/prebuilt:guard_view")): True},
 )
 
-def guard_view_tests(name):
+def guard_view_tests(name, size = "small"):
     """Declares the test that exec-configured hub tools resolve to guard_stub under guard_view."""
     _exec_tools(
         name = name + "_tools",
@@ -42,4 +42,4 @@ def guard_view_tests(name):
         tags = ["manual"],
         testonly = True,
     )
-    _guard_view_test(name = name, size = "small", target_under_test = ":" + name + "_tools")
+    _guard_view_test(name = name, size = size, target_under_test = ":" + name + "_tools")

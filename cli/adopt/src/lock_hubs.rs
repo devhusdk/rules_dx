@@ -175,7 +175,7 @@ pub fn resolver_sets(root: &Path) -> Result<Vec<ResolverSet>, AdoptError> {
         let Some(resolver) = hub.resolver.as_deref() else {
             continue;
         };
-        if hub.ecosystem == "maven" && pinned_by_rules_jvm_external(root, &set.locks) {
+        if set.ecosystem.name() == "maven" && pinned_by_rules_jvm_external(root, &set.locks) {
             continue;
         }
         let dir = crate::dependency_sets::manifest_dir(&set.manifests);

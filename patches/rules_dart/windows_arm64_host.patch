@@ -1,0 +1,68 @@
+Upstream: aran/rules_dart@24cb055ea302bc7aeb493163382b27b11ca73c86
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -171,6 +171,7 @@ use_repo(
+     "dart_linux-x64",
+     "dart_macos-arm64",
+     "dart_macos-x64",
++    "dart_windows-arm64",
+     "dart_windows-x64",
+ )
+ 
+@@ -197,6 +198,7 @@ use_repo(
+     "pubspec_reader_linux-x64",
+     "pubspec_reader_macos-arm64",
+     "pubspec_reader_macos-x64",
++    "pubspec_reader_windows-arm64",
+     "pubspec_reader_windows-x64",
+ )
+ 
+diff --git a/dart/private/toolchains_repo.bzl b/dart/private/toolchains_repo.bzl
+--- a/dart/private/toolchains_repo.bzl
++++ b/dart/private/toolchains_repo.bzl
+@@ -66,6 +66,14 @@ PLATFORMS = {
+         dart_os = "windows",
+         dart_arch = "x64",
+     ),
++    "windows-arm64": struct(
++        compatible_with = [
++            "@platforms//os:windows",
++            "@platforms//cpu:aarch64",
++        ],
++        dart_os = "windows",
++        dart_arch = "arm64",
++    ),
+ }
+ 
+ # Cross-compilation destinations with no SDK download and no host support.
+@@ -114,6 +122,7 @@ CROSS_TARGETS = {
+     "linux-x64": ["linux-arm64", "linux-riscv64", "linux-arm"],
+     "linux-arm64": ["linux-x64", "linux-riscv64", "linux-arm"],
+     "windows-x64": ["linux-x64", "linux-arm64", "linux-riscv64", "linux-arm"],
++    "windows-arm64": ["linux-x64", "linux-arm64", "linux-riscv64", "linux-arm"],
+ }
+ 
+ # Where dartdev's `SdkCache` looks for a cross target's files, under `$HOME`
+diff --git a/dart/private/versions.bzl b/dart/private/versions.bzl
+--- a/dart/private/versions.bzl
++++ b/dart/private/versions.bzl
+@@ -9,6 +9,7 @@ TOOL_VERSIONS = {
+         "linux-x64": "eb99aed266efbcb615c6ae21c12f52cfe935b9f208bccc5fea7f64c21e867229",
+         "linux-arm64": "887cbb763bc4a1d6f3d7c34a6ea08f0f05211807abf98c06d6e4263907ccac1a",
+         "windows-x64": "3b31d9f90b27861f29842d378f39f98ce9e60910042334f950ef5702f174fb81",
++        "windows-arm64": "02d1dcf26438dfd65be6cc3075c3b7f23fdef84d2601b488e59aa8aa8cd742b5",
+     },
+     "3.13.5": {
+         "macos-arm64": "9dfe7d6f2558816c2a978aff6c80e8a4509c6cb726c0702a616c64d286f60e88",
+@@ -58,6 +59,10 @@ CROSS_TOOL_VERSIONS = {
+         "gen_snapshot_macos_x64_linux_arm64": "ffd03d896e350d98544de6320320b17adb8f18036d6194271df889f38da6d297",
+         "gen_snapshot_macos_x64_linux_riscv64": "9d43ada694336db5236cc9b637dd2fa8d578b44248118c77bc2382b6be98a3ef",
+         "gen_snapshot_macos_x64_linux_x64": "6d29717205e2968f236bd2d41528e84d5c2edac52838e6ea76d5a941aa7c5de5",
++        "gen_snapshot_windows_arm64_linux_arm.exe": "ec27605b9a836647df8aaf426364359d74c9ba0f3a8c223dea3b833d4daf7c98",
++        "gen_snapshot_windows_arm64_linux_arm64.exe": "ec466cd4afd54dd296fa2098ed3c0dbf73a327b20dc43b14a6a3a7370fdd196f",
++        "gen_snapshot_windows_arm64_linux_riscv64.exe": "cdee5cddfeff84808ac566f2ad88dd5ec75bcf9b1dd4d056e42643431e6f909d",
++        "gen_snapshot_windows_arm64_linux_x64.exe": "57b968e1eb5b34b9d70170aa440f73343f28463e6cd86c7ae1fc3b1fc8584b83",
+         "gen_snapshot_windows_x64_linux_arm.exe": "31a089af2abd1298d7a447a31143b5393a1ac49bba7dc0c74afa76fd6e84637f",
+         "gen_snapshot_windows_x64_linux_arm64.exe": "3ee911e06e22efc46d70a7607f8aaf892d023a5664e652e418535ab5d1db2a59",
+         "gen_snapshot_windows_x64_linux_riscv64.exe": "1c77d9a526d5d4b8e6627b6b7b801531795f4d49578ad8a88e08dc091d3c0bc5",

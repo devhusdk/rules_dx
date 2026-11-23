@@ -942,7 +942,7 @@
     },
     "@@rules_flutter+//flutter:extensions.bzl%flutter": {
       "general": {
-        "bzlTransitiveDigest": "ijCU4aUQvOqHD/VPDBc/2ibFWqajsjvi6OcYRtuzSJY=",
+        "bzlTransitiveDigest": "DS+Z7cFkBQVtjJnM6NWRtafgup9qiVhEYYSK6f3YtqE=",
         "usagesDigest": "cvYDphjkB4lcyuxkt6mvGFLE0SZuqAR8sIGMLgBmMd8=",
         "recordedInputs": [
           "REPO_MAPPING:apple_support+,bazel_skylib bazel_skylib+",
@@ -976,6 +976,7 @@
           "REPO_MAPPING:rules_dart+,pubspec_reader_linux-x64 rules_dart++pubspec_reader+pubspec_reader_linux-x64",
           "REPO_MAPPING:rules_dart+,pubspec_reader_macos-arm64 rules_dart++pubspec_reader+pubspec_reader_macos-arm64",
           "REPO_MAPPING:rules_dart+,pubspec_reader_macos-x64 rules_dart++pubspec_reader+pubspec_reader_macos-x64",
+          "REPO_MAPPING:rules_dart+,pubspec_reader_windows-arm64 rules_dart++pubspec_reader+pubspec_reader_windows-arm64",
           "REPO_MAPPING:rules_dart+,pubspec_reader_windows-x64 rules_dart++pubspec_reader+pubspec_reader_windows-x64",
           "REPO_MAPPING:rules_dart+,rules_cc rules_cc+",
           "REPO_MAPPING:rules_dart+,yaml.bzl yaml.bzl+",
@@ -71794,7 +71795,7 @@
     },
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
-        "bzlTransitiveDigest": "G84r4UeipnXhQ/Y/XacaHSd5Gzk0QQlqPaSspxzY8GQ=",
+        "bzlTransitiveDigest": "WPE624aKGA4ZLjqURuhELRJK4xwnxO/8Pgga+cGd/Xk=",
         "usagesDigest": "/bGmDj4Nr856OGWTjcSOPnxG0gSTFtYse380wG1a98A=",
         "recordedInputs": [
           "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",

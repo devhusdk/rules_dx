@@ -26,8 +26,6 @@ _SCALA3_GUARDS = [
     "-Wnonunit-statement",
 ]
 
-_UNUSED_AS_INFO = "-Wconf:cat=unused:info"
-
 def _is_scala3(version):
     parts = version.split(".")
     return len(parts) >= 2 and parts[0] == "3" and parts[1].isdigit() and int(parts[1]) >= 3
@@ -146,7 +144,8 @@ def _scalac_check(target, ctx, attrs):
 
     # rules_scala loads the semanticdb plugin itself; this compile does not, and
     # scalac rejects options for a plugin it has not loaded.
-    options = [o for o in options if not o.startswith("-P:semanticdb:") and o != _UNUSED_AS_INFO]
+    options = [o for o in options if not o.startswith("-P:semanticdb:")]
+    options.append("-Wconf:cat=unused:w")
 
     if [o for o in options if "$(" in o]:
         return []

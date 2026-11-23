@@ -385,11 +385,7 @@ fn luals(backend: &RealBackend, call: &CheckCall<'_>) -> Result<Vec<FileFinding>
     let luarc = work.join("luarc.json");
     std::fs::write(
         &luarc,
-        commands::luals_luarc(
-            &consumer,
-            library.as_deref(),
-            &["dx-luals", ".dx-luals"],
-        ),
+        commands::luals_luarc(&consumer, library.as_deref(), &["dx-luals", ".dx-luals"]),
     )
     .map_err(|err| execution(tool_id, format!("write luals config: {err}")))?;
     let report = work.join("check.json");

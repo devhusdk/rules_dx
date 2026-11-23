@@ -1,5 +1,3 @@
-//! Checks that the fixture shard carries the symbol graph docs and the source lines of the fixture module.
-
 use dx_testing as _;
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
 use documentation_ir::validate_shard;

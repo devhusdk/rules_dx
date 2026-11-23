@@ -19,20 +19,16 @@ const GATE: &str = "ci";
 
 const AGGREGATE: &str = "dx-ci";
 
-/// Runs a gate on every dependency outcome, except a cancelled run outside `merge_group`.
 const GATE_IF: &str = "${{ !cancelled() || github.event_name == 'merge_group' }}";
 
-/// Fails a gate when any needed job failed, was cancelled or was skipped.
 const FAIL_IF: &str = "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}";
 
-/// Asserts one gate step carries the exact `if:` and exits 1.
 fn assert_fails_when(step: &Value, condition: &str, context: &str) {
     assert_eq!(step["if"], json!(condition), "{context} step if");
     let run = step["run"].as_str().unwrap_or_default();
     assert!(run.contains("exit 1"), "{context} step must exit 1: {run}");
 }
 
-/// Returns the declared needs of one job as names.
 fn needs_of(workflow: &str, job: &str) -> Vec<String> {
     let document = document(workflow).unwrap();
     document["jobs"][job]["needs"]
@@ -134,7 +130,6 @@ fn the_consumer_gate_requires_every_declared_check() {
     assert_eq!(steps[2]["env"]["NEEDS_JSON"], json!("${{ toJSON(needs) }}"));
 }
 
-/// Returns the job ids one job needs, whether `needs` is one name or a list.
 fn job_needs(workflow: &str, id: &str, job: &Value) -> Vec<String> {
     match &job["needs"] {
         Value::Null => Vec::new(),
@@ -153,7 +148,6 @@ fn job_needs(workflow: &str, id: &str, job: &Value) -> Vec<String> {
     }
 }
 
-/// Returns true when a job reads `NEEDS_*` results, so it aggregates its dependencies.
 fn aggregates_needs(job: &Value) -> bool {
     serde_json::to_string(job)
         .expect("serialize job")
@@ -197,7 +191,6 @@ fn every_aggregate_job_needs_every_other_job() {
     }
 }
 
-/// Keeps every native platform in the dogfood and preflight matrices at full coverage.
 #[test]
 fn the_native_matrix_keeps_all_five_platforms() {
     let document = document(CI_WORKFLOW).unwrap();
@@ -352,7 +345,6 @@ fn every_matrix_cell_records_its_runner_image() {
     }
 }
 
-/// One run per ref, and nothing is cancelled.
 #[test]
 fn one_run_per_ref_and_none_cancel() {
     let ci = document(CI_WORKFLOW).unwrap();
@@ -482,7 +474,6 @@ fn the_ruleset_requires_the_gate_and_pr_links_job_names() {
     );
 }
 
-/// Each required context and the one (workflow, job id) that reports it.
 const REQUIRED_CONTEXTS: [(&str, &str, &str); 2] = [
     ("gate", CI_WORKFLOW, "gate"),
     ("pr-links", PR_LINKS_WORKFLOW, "pr-links"),
@@ -564,7 +555,6 @@ fn the_pr_links_check_runs_on_pull_requests_and_merge_groups() {
     assert!(run.contains("gh-readonly-queue/"), "{run}");
 }
 
-/// Failures the workflows may swallow: (workflow file, job, step, kind, reason).
 const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 16] = [
     (
         "ci.yml",

@@ -1,4 +1,3 @@
-// Package godoc extracts one Go package's exported API with go/doc and writes it as JSON.
 package godoc
 
 import (
@@ -23,10 +22,8 @@ import (
 	"strings"
 )
 
-// Schema is the version of the JSON document the driver writes.
 const Schema = 1
 
-// Options are the inputs of one extraction.
 type Options struct {
 	ImportPath string
 	GOOS       string
@@ -35,14 +32,12 @@ type Options struct {
 	Srcs       []Src
 }
 
-// Src is one source file of the package.
 type Src struct {
 	Exec      string
 	Rel       string
 	Generated bool
 }
 
-// Output is the JSON document the driver writes.
 type Output struct {
 	Schema     int      `json:"schema"`
 	ImportPath string   `json:"importpath"`
@@ -56,7 +51,6 @@ type Output struct {
 	Items      []Item   `json:"items"`
 }
 
-// Item is one exported declaration.
 type Item struct {
 	Kind      string `json:"kind"`
 	Name      string `json:"name"`
@@ -69,12 +63,10 @@ type Item struct {
 	Generated bool   `json:"generated"`
 }
 
-// Config returns the configuration identity of one extraction.
 func Config(opts Options) string {
 	return "goos=" + opts.GOOS + ";goarch=" + opts.GOARCH + ";tags=" + strings.Join(opts.Tags, ",") + ";cgo=0;json=" + strconv.Itoa(Schema)
 }
 
-// Main runs the driver on argv and returns the process exit code.
 func Main(args []string, stderr io.Writer) int {
 	flags := flag.NewFlagSet("godoc_json", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -128,7 +120,6 @@ func splitTags(tags string) []string {
 	return result
 }
 
-// ReadManifest reads the tab-separated srcs manifest.
 func ReadManifest(path string) ([]Src, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -156,7 +147,6 @@ type parsed struct {
 	file *ast.File
 }
 
-// Extract reads, filters and documents one package.
 func Extract(opts Options) (*Output, error) {
 	if opts.ImportPath == "" {
 		return nil, errors.New("the import path is empty")

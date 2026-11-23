@@ -1,5 +1,3 @@
-//! Checks that the fixture shard carries the `doc` text of the fixture's .avsc and .avdl files.
-
 use dx_testing as _;
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
 use documentation_ir::validate_shard;
@@ -17,7 +15,6 @@ fn the_fixture_shard_documents_the_avsc_and_the_avdl() {
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "avro");
     assert_eq!(shard.package, "shop");
-    // Enum symbols have no doc attribute in Avro; every other item in the fixture has one.
     for symbol in &shard.symbols {
         if symbol.kind != SymbolKind::EnumVariant as i32 {
             assert!(!symbol.doc_markdown.is_empty(), "{} has no doc", symbol.id);

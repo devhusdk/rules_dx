@@ -1,5 +1,3 @@
-//! Writes `row_labels.json`, `consumer_labels.json` and `row_tests/<platform>.json` from Bazel queries.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,

@@ -1,5 +1,3 @@
-//! Every command page under docs/cli/commands documents the commands, flags and exit codes that `dx <command> --help` prints and no other flag, outside `tools/ci/command_docs_allowlist.txt`, and every `dx <command>` in the code of any tracked Markdown file names a command and flags the grammar has.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -9,10 +7,8 @@ use dx_testing::allowlist::parse_lines;
 use starlark_syntax as _;
 use yaml_serde as _;
 
-/// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/ci/command_docs_allowlist.txt";
 
-/// The kinds an allowlist line may name.
 const KINDS: [&str; 4] = [
     "missing-exit-code",
     "missing-page",
@@ -20,10 +16,8 @@ const KINDS: [&str; 4] = [
     "unknown-flag",
 ];
 
-/// Programs whose flags a page may show without dx having them.
 const OTHER_PROGRAMS: [&str; 2] = ["bazel", "bazelisk"];
 
-/// The inline code spans and fenced code lines of one page.
 fn code_text(page: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut fenced = false;
@@ -44,16 +38,10 @@ fn code_text(page: &str) -> Vec<String> {
     out
 }
 
-/// The command the dx shim answers itself; it never reaches the CLI grammar.
 const LAUNCHER_COMMAND: &str = "dx shim";
 
-/// Shell words that end one command.
 const COMMAND_ENDS: [&str; 7] = ["|", "||", "&&", ";", ">", ">>", "2>&1"];
 
-/// The words after each `dx` or `tools/dx` that starts a command in one code text, up to the end of that command.
-///
-/// Only a command position counts: the start of the text, or after `$` or a shell word that ends a command.
-/// A `dx` inside a sentence or a log line, such as `dx: warning: ... which dx does not render`, is prose.
 fn invocations(code: &str) -> Vec<Vec<&str>> {
     let words: Vec<&str> = code
         .split_whitespace()
@@ -80,7 +68,6 @@ fn invocations(code: &str) -> Vec<Vec<&str>> {
     out
 }
 
-/// Whether `word` is spelled like a command name rather than a placeholder such as `<command>`.
 fn is_name(word: &str) -> bool {
     word.starts_with(|letter: char| letter.is_ascii_lowercase())
         && word
@@ -88,7 +75,6 @@ fn is_name(word: &str) -> bool {
             .all(|letter| letter.is_ascii_lowercase() || letter.is_ascii_digit() || letter == '-')
 }
 
-/// Every `dx <command>` in the code of `files` whose command the grammar lacks, or whose `--flag` neither the command, its subcommands nor `dx` itself takes.
 fn unknown_invocations(
     surface: &[HelpSurface],
     files: &BTreeMap<String, String>,
@@ -141,7 +127,6 @@ fn unknown_invocations(
     out
 }
 
-/// The `--flag` and `-f` words of one code text, up to a bare `--`; none when it runs another program.
 fn flags_in(code: &str) -> Vec<String> {
     let mut out = Vec::new();
     let words: Vec<&str> = code
@@ -172,7 +157,6 @@ fn flags_in(code: &str) -> Vec<String> {
     out
 }
 
-/// The text under each heading of `page` that names exit codes.
 fn exit_code_sections(page: &str) -> String {
     let mut out = String::new();
     let mut inside = false;
@@ -196,14 +180,12 @@ fn has_number(text: &str, number: &str) -> bool {
         .any(|word| word == number)
 }
 
-/// Every spelling of one flag.
 fn spellings(flag: &HelpFlag) -> impl Iterator<Item = &str> {
     std::iter::once(&flag.name)
         .chain(&flag.aliases)
         .map(String::as_str)
 }
 
-/// Every gap between `surface` and `pages` as one allowlist line each.
 fn gaps(surface: &[HelpSurface], pages: &BTreeMap<String, String>) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     let mut page_flags: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
@@ -260,18 +242,15 @@ fn gaps(surface: &[HelpSurface], pages: &BTreeMap<String, String>) -> BTreeSet<S
     out
 }
 
-/// Whether `line` is `<page> <kind> <flag or command>`.
 fn well_formed(line: &str) -> bool {
     matches!(line.splitn(3, ' ').collect::<Vec<&str>>().as_slice(),
         [page, kind, what] if !page.is_empty() && KINDS.contains(kind) && !what.is_empty())
 }
 
-/// What to do about a new gap.
 fn fix(_line: &str) -> String {
     "fix the page or the grammar".to_owned()
 }
 
-/// The spellings every command takes.
 const HELP_FLAGS: [&str; 2] = ["--help", "-h"];
 
 fn read_runfile(key: &str) -> String {

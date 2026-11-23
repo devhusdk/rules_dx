@@ -2,7 +2,6 @@ use std::fmt;
 
 use serde_json::{Map, Value};
 
-/// What is wrong with one key of a JSON object.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JsonProblem {
     Missing,
@@ -13,7 +12,6 @@ pub enum JsonProblem {
     NonStringItem,
 }
 
-/// A missing or mistyped key of a JSON object, with the object's description.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JsonError {
     pub at: String,
@@ -47,16 +45,12 @@ impl fmt::Display for JsonError {
 
 impl std::error::Error for JsonError {}
 
-/// Bridge for callers that still return `String`.
 impl From<JsonError> for String {
     fn from(error: JsonError) -> Self {
         error.to_string()
     }
 }
 
-/// # Errors
-///
-/// Returns [`JsonProblem::Missing`] when the key is absent.
 pub fn field<'a>(
     object: &'a Map<String, Value>,
     key: &str,
@@ -67,9 +61,6 @@ pub fn field<'a>(
         .ok_or_else(|| JsonError::new(at, key, JsonProblem::Missing))
 }
 
-/// # Errors
-///
-/// Returns an error when the key is absent or not a string.
 pub fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String, JsonError> {
     field(object, key, at)?
         .as_str()
@@ -77,27 +68,18 @@ pub fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String
         .ok_or_else(|| JsonError::new(at, key, JsonProblem::NotString))
 }
 
-/// # Errors
-///
-/// Returns an error when the key is absent or not an unsigned number.
 pub fn number(object: &Map<String, Value>, key: &str, at: &str) -> Result<u64, JsonError> {
     field(object, key, at)?
         .as_u64()
         .ok_or_else(|| JsonError::new(at, key, JsonProblem::NotNumber))
 }
 
-/// # Errors
-///
-/// Returns an error when the key is absent or not a boolean.
 pub fn boolean(object: &Map<String, Value>, key: &str, at: &str) -> Result<bool, JsonError> {
     field(object, key, at)?
         .as_bool()
         .ok_or_else(|| JsonError::new(at, key, JsonProblem::NotBoolean))
 }
 
-/// # Errors
-///
-/// Returns an error when the key is absent or not a list.
 pub fn array<'a>(
     object: &'a Map<String, Value>,
     key: &str,
@@ -108,9 +90,6 @@ pub fn array<'a>(
         .ok_or_else(|| JsonError::new(at, key, JsonProblem::NotList))
 }
 
-/// # Errors
-///
-/// Returns an error when the key is absent, not a list, or holds a non-string.
 pub fn strings(object: &Map<String, Value>, key: &str, at: &str) -> Result<Vec<String>, JsonError> {
     array(object, key, at)?
         .iter()

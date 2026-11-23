@@ -170,7 +170,6 @@ fn starlark_list_items(text: &str, name: &str) -> Vec<String> {
     json_strings(text.get(open..close).expect("string slice within bounds"))
 }
 
-/// Tool ids the runner names in a `"<tool> requires a config"` error.
 fn runner_config_refusals(source: &str) -> Vec<String> {
     let mut found = Vec::new();
     let mut rest = source;
@@ -189,7 +188,6 @@ fn runner_config_refusals(source: &str) -> Vec<String> {
     found
 }
 
-/// Quoted ids in the `TIER_BASE_TOOLS` const of `staging.rs`.
 fn runner_tier_base_tools(source: &str) -> Vec<String> {
     let marker = "const TIER_BASE_TOOLS: &[&str] = &[";
     let open = source.find(marker).expect("TIER_BASE_TOOLS is missing") + marker.len();
@@ -202,7 +200,6 @@ fn runner_tier_base_tools(source: &str) -> Vec<String> {
     json_strings(source.get(open..close).expect("string slice within bounds"))
 }
 
-/// Tool ids whose generated config metadata sets `tier_base: true`.
 fn bound_tier_base_tools(generated: &str) -> Vec<String> {
     let mut id = "";
     let mut found = Vec::new();
@@ -325,7 +322,6 @@ fn release_consumer_writes_the_bazelversion_floor() {
 fn docs_name_the_bazel_floor() {
     let floor = bazel_floor(&read_runfiles("MODULE.bazel"));
     let readme = read_runfiles("README.md");
-    // The quickstart shows the .bazelversion contents in the first text block after its name.
     let quickstart = readme
         .split_once("`.bazelversion`")
         .and_then(|(_, rest)| rest.split_once("```text\n"))
@@ -468,7 +464,6 @@ fn biome_policy_matches_the_hinted_fixture() {
 
 const SHELL_CONFIGS: [&str; 2] = [".editorconfig", ".shellcheckrc"];
 
-/// Comment words that name a file inside the workspace.
 fn named_files(text: &str) -> Vec<String> {
     text.lines()
         .map(str::trim)
@@ -509,7 +504,6 @@ fn the_shell_configs_never_restate_the_shfmt_invocation() {
     }
 }
 
-/// Every code named on the shellcheckrc disable line.
 fn disabled_shellcheck_codes(text: &str) -> Vec<&str> {
     let list = text
         .lines()
@@ -556,7 +550,6 @@ fn is_comment(line: &str) -> bool {
     line.trim_start().starts_with('#')
 }
 
-/// Returns the name of the dx state directory, read from its constant in `dx_path`.
 fn dx_dir_name() -> String {
     const SOURCE: &str = "cli/path/src/state.rs";
     const PREFIX: &str = "pub const DX_DIR: &str = \"";
@@ -567,7 +560,6 @@ fn dx_dir_name() -> String {
         .to_owned()
 }
 
-/// Returns true when an ignore file ignores `dir/` itself or one of its parents.
 fn ignored_dir(text: &str, dir: &str) -> bool {
     let wanted = format!("{dir}/");
     text.lines()
@@ -579,7 +571,6 @@ fn ignored_dir(text: &str, dir: &str) -> bool {
         .any(|line| wanted.starts_with(line))
 }
 
-/// Returns the dot directories `.bazelignore` lists, without a trailing slash.
 fn bazelignored_dirs(text: &str) -> Vec<String> {
     let mut dirs: Vec<String> = text
         .lines()
@@ -603,7 +594,6 @@ fn dx_state_dir_is_ignored_by_git_bazel_and_editors() {
         ignored_dir(&gitignore, &local),
         ".gitignore never ignores {local}/"
     );
-    // rules_dx commits its generated .dx/bazelrc, so only Bazel skips it.
     for state in ["local", "bazelrc"] {
         let state = format!("{dir}/{state}");
         assert!(
@@ -641,7 +631,6 @@ fn every_dot_dir_bazel_ignores_is_ignored_by_git_and_editors() {
     }
 }
 
-/// Returns every workflow with its string values joined, so the scans skip comments.
 fn workflow_values() -> Vec<(String, String)> {
     let found: Vec<(String, String)> = dx_testing::workflow_files()
         .into_iter()
@@ -658,7 +647,6 @@ fn label_chars(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || matches!(ch, '/' | ':' | '_' | '.' | '-')
 }
 
-/// The three preset layers as the generator renders them for `rules_dx`, in import order.
 fn preset_layers() -> Vec<(String, String)> {
     dx_preset::Layer::ALL
         .iter()
@@ -680,7 +668,6 @@ fn preset_layer(layer: dx_preset::Layer) -> String {
     dx_preset::render_layer_with(layer, "rules_dx", None)
 }
 
-/// Returns every `--min-coverage` value on a line that names coverage.
 fn coverage_floors(text: &str) -> Vec<String> {
     let mut found: Vec<String> = Vec::new();
     for line in text.lines() {
@@ -709,7 +696,6 @@ fn coverage_floors(text: &str) -> Vec<String> {
     found
 }
 
-/// Returns the coverage floor ci.yml passes to the required check.
 fn required_coverage_floor() -> String {
     const CI: &str = ".github/workflows/ci.yml";
     let floors: Vec<String> = ci_workflow::jobs(CI)
@@ -774,7 +760,6 @@ fn release_dry_run_enforces_the_required_coverage_floor() {
     );
 }
 
-/// Returns every `--config=` name `text` passes, sorted and deduplicated.
 fn workflow_bazel_configs(text: &str) -> Vec<String> {
     let mut found = Vec::new();
     let mut rest = text;
@@ -797,7 +782,6 @@ fn workflow_bazel_configs(text: &str) -> Vec<String> {
     found
 }
 
-/// Returns every config name a bazelrc defines with a `command:name` line.
 fn bazelrc_configs(rc: &str) -> Vec<String> {
     let mut found = Vec::new();
     for line in rc.lines() {
@@ -818,7 +802,6 @@ fn bazelrc_configs(rc: &str) -> Vec<String> {
     found
 }
 
-/// Returns whether a config needs a docs stanza: preset configs do not, `.bazelrc` ones do.
 fn config_needs_doc_stanza(config: &str, rc: &str, preset: &str) -> Result<bool, String> {
     if bazelrc_configs(preset).iter().any(|name| name == config) {
         return Ok(false);
@@ -843,10 +826,8 @@ fn preset_configs_need_no_doc_stanza() {
     assert!(config_needs_doc_stanza("missing", rc, preset).is_err());
 }
 
-/// Configs the starter fixtures define in the generated workspace's own `.bazelrc`.
 const STARTER_CONFIGS: &[&str] = &["android"];
 
-/// Configs only `rules_dx`'s own evidence workflow passes, defined in the root `.bazelrc`.
 const REPO_ONLY_CONFIGS: &[&str] = &["rbe"];
 
 #[test]
@@ -875,7 +856,6 @@ fn every_workflow_bazel_config_is_defined_and_documented() {
     assert!(passes > 0, "no workflow passes a Bazel config");
 }
 
-/// Every `--override_repository` in `.bazelrc` that points into the workspace, as a workspace path.
 fn workspace_overrides(rc: &str) -> Vec<(String, String)> {
     rc.lines()
         .filter(|line| !is_comment(line))
@@ -899,12 +879,10 @@ fn windows_overrides_point_at_tracked_dirs() {
     );
     for (repo, dir) in overrides {
         for name in ["BUILD.bazel", "REPO.bazel"] {
-            // Without a repo boundary file Bazel refuses the directory as a repository.
             let file = resolve_runfiles(&format!("{dir}/{name}"));
             assert!(file.is_file(), "{} is not a file", file.display());
         }
         if repo.ends_with("local_config_winsdk") {
-            // bazel_tools loads register_local_rc_exe_toolchains from the replacement.
             let bzl = read_runfiles(&format!("{dir}/toolchains.bzl"));
             assert!(
                 bzl.contains("def register_local_rc_exe_toolchains("),
@@ -923,7 +901,6 @@ fn ci_config_leaves_remote_downloads_to_dx() {
             "{path} sets --remote_download_outputs=all"
         );
     }
-    // dx refuses --remote_download_minimal, so only evidence.yml passes it, on bazel itself.
     assert!(
         !read_runfiles(".bazelrc").contains("remote_download_minimal"),
         ".bazelrc sets --remote_download_minimal, which dx refuses"
@@ -931,7 +908,6 @@ fn ci_config_leaves_remote_downloads_to_dx() {
 }
 
 #[test]
-// The preset turns the cache on, so local runs and consumers get it without a CI echo.
 fn remote_repo_contents_cache_comes_from_the_preset() {
     let flag = "startup --experimental_remote_repo_contents_cache";
     let performance = preset_layer(dx_preset::Layer::Performance);
@@ -1255,7 +1231,6 @@ fn bazelisk_pins_match_pin_env() {
     );
 }
 
-/// Returns the `cli/exec_*` package dirs that `cli/cli/BUILD.bazel` depends on.
 fn exec_crate_dirs(build: &str) -> std::collections::BTreeSet<String> {
     build
         .lines()
@@ -1277,14 +1252,12 @@ fn the_cli_clippy_configs_extend_the_workspace_one() {
         cli.contains("path = \"std::fs::write\""),
         "cli/cli/clippy.toml must disallow std::fs::write"
     );
-    // The dx_exec_* crates hold verb code, so they need the dx_cli bans; without a config they get the workspace one.
     let dirs = exec_crate_dirs(&read_runfiles("cli/cli/BUILD.bazel"));
     assert!(
         !dirs.is_empty(),
         "cli/cli/BUILD.bazel names no cli/exec_* crate"
     );
     for dir in dirs {
-        // A missing file fails here: copy cli/cli/clippy.toml, list it in compile_data and in this test's data.
         let path = format!("{dir}/clippy.toml");
         assert_eq!(
             read_runfiles(&path),

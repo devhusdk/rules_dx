@@ -1,5 +1,3 @@
-//! Generates `docs/support-matrix.md` from CI workflows, per-platform row test queries and the quality registry.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 pub mod render;
@@ -13,7 +11,6 @@ use serde::Deserialize;
 
 pub use workflows::WorkflowError;
 
-/// Why the support matrix cannot be generated.
 #[derive(Debug)]
 pub enum SupportMatrixError {
     Runfiles(runfiles::RunfilesError),
@@ -143,46 +140,35 @@ impl From<WorkflowError> for SupportMatrixError {
     }
 }
 
-/// The page this crate generates, relative to the workspace root.
 pub const MATRIX_PATH: &str = "docs/support-matrix.md";
 
-/// The skip reasons dx reads at run time, relative to the workspace root.
 pub const UNSUPPORTED_PATH: &str = "cli/exec_reports/src/unsupported.json";
 
-/// The command that refreshes the page.
 pub const UPDATE_COMMAND: &str = "bazel run //tools/docs/support_matrix:update";
 
 const CI_WORKFLOW: &str = ".github/workflows/ci.yml";
 
-/// The command that refreshes one platform's row test file.
-/// Row to the labels tagged with it.
 pub const ROW_LABELS_PATH: &str = "tools/docs/support_matrix/row_labels.json";
-/// Row to the labels tagged `consumer-row:<row>`.
 pub const CONSUMER_LABELS_PATH: &str = "tools/docs/support_matrix/consumer_labels.json";
 pub const ROW_TESTS_COMMAND: &str = "bazel run //tools/docs/support_matrix:row_tests -- <platform>";
 
-/// One CI platform from the language list.
 #[derive(Clone, Debug, Deserialize)]
 pub struct PlatformFact {
     pub id: String,
     pub os: String,
     pub cpu: String,
-    /// Constraint values the CI host platform adds beyond os and cpu.
     #[serde(default)]
     pub constraints: Vec<String>,
 }
 
-/// One row of the language list.
 #[derive(Clone, Debug, Deserialize)]
 pub struct Row {
     pub name: String,
     pub title: String,
     pub section: String,
     pub families: Vec<String>,
-    /// The API doc tool; empty when the language has none, absent when docs do not apply.
     #[serde(default)]
     pub doc: Option<String>,
-    /// The unused-code tools and rules; empty when the language has none yet, absent when it does not apply.
     #[serde(default)]
     pub dead_code: Option<Vec<String>>,
     #[serde(default)]
@@ -190,40 +176,33 @@ pub struct Row {
     pub workflows: Vec<String>,
 }
 
-/// The compiler identity of a compiler row; empty for other rows.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Identity {
     #[serde(default)]
     pub driver: String,
     #[serde(default)]
     pub coverage: String,
-    /// The identity test per platform where it differs from the row's probe.
     #[serde(default)]
     pub platform_probes: BTreeMap<String, String>,
 }
 
-/// One row of the conformance manifest: a suite test of a language on a platform.
 #[derive(Clone, Debug, Deserialize)]
 pub struct ConformanceEntry {
     pub lang: String,
     pub capability: String,
     pub platform: String,
-    /// `run`, `n/a` or `pending`.
     pub status: String,
     pub reason: String,
     #[serde(default)]
     pub label: String,
 }
 
-/// The conformance manifest: every suite test per language and platform, and the `lang.json` platforms.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct Conformance {
     pub entries: Vec<ConformanceEntry>,
-    /// Language to its `lang.json` platforms; empty means every platform.
     pub platforms: BTreeMap<String, Vec<String>>,
 }
 
-/// One explicit tool support record.
 #[derive(Clone, Debug, Deserialize)]
 pub struct Support {
     pub family: String,
@@ -232,7 +211,6 @@ pub struct Support {
     pub platforms: Vec<String>,
 }
 
-/// The facts the Starlark rule writes.
 #[derive(Clone, Debug, Deserialize)]
 pub struct Facts {
     pub platforms: Vec<PlatformFact>,
@@ -243,72 +221,46 @@ pub struct Facts {
     pub quality: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     pub support: Vec<Support>,
     pub deferred_families: Vec<String>,
-    /// Capability, then family, then the reason the capability never applies.
     #[serde(default)]
     pub not_applicable: BTreeMap<String, BTreeMap<String, String>>,
-    /// Row name, then platform, then the reason the row cannot support that platform.
     #[serde(default)]
     pub platform_not_applicable: BTreeMap<String, BTreeMap<String, String>>,
-    /// Compiler row name, then platform, then what the row's evidence on that platform still waits on.
     #[serde(default)]
     pub compiler_blockers: BTreeMap<String, BTreeMap<String, String>>,
-    /// Family, capability, tool, then platform, then the reason the tool cannot run there.
     #[serde(default)]
     pub tool_not_applicable: ToolNotApplicable,
-    /// Row name to the label of its unsupported `constraint_value`.
     #[serde(default)]
     pub unsupported_constraints: BTreeMap<String, String>,
-    /// Language row name to the cell of its dependency sets, or none with the reason.
     #[serde(default)]
     pub dependencies: BTreeMap<String, String>,
-    /// Language row name to its `*_bench` macro.
     #[serde(default)]
     pub bench: BTreeMap<String, String>,
-    /// Language row name to its `*_fuzz_test` macro.
     #[serde(default)]
     pub fuzz: BTreeMap<String, String>,
-    /// Publishing rule to the tool its `api_compat` check runs, or "not available".
     #[serde(default)]
     pub api_compat_tools: BTreeMap<String, String>,
     pub not_languages: Vec<String>,
 }
 
-/// Reads workspace files by their repository-relative path.
 pub trait Source {
-    /// # Errors
-    ///
-    /// Returns a [`SupportMatrixError`] when the file cannot be found or read.
     fn read(&self, path: &str) -> Result<String, SupportMatrixError>;
 }
 
-/// The platforms each row is tested on.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct RowPlatforms {
     pub build: Vec<String>,
     pub consumer: Vec<String>,
 }
 
-/// Family, then capability, then tool, then platform, to the reason.
 pub type ToolNotApplicable =
     BTreeMap<String, BTreeMap<String, BTreeMap<String, BTreeMap<String, String>>>>;
 
-/// Parses the facts JSON.
-///
-/// # Errors
-///
-/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
 pub fn parse_facts(text: &str) -> Result<Facts, SupportMatrixError> {
     serde_json::from_str(text).map_err(SupportMatrixError::Facts)
 }
 
-/// Row test label to its tags, for the row tests compatible with one platform.
 pub type RowTests = BTreeMap<String, Vec<String>>;
 
-/// Reads `tools/docs/support_matrix/row_tests/<platform>.json` for every platform.
-///
-/// # Errors
-///
-/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
 pub fn read_row_tests(
     facts: &Facts,
     source: &dyn Source,
@@ -323,22 +275,12 @@ pub fn read_row_tests(
     Ok(out)
 }
 
-/// Reads `tools/docs/support_matrix/row_labels.json`: row name to the sorted labels tagged `row:<name>`.
-///
-/// # Errors
-///
-/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
 pub fn read_row_labels(
     source: &dyn Source,
 ) -> Result<BTreeMap<String, Vec<String>>, SupportMatrixError> {
     read_labels(source, ROW_LABELS_PATH)
 }
 
-/// Reads `tools/docs/support_matrix/consumer_labels.json`: row name to the sorted labels tagged `consumer-row:<name>`.
-///
-/// # Errors
-///
-/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
 pub fn read_consumer_labels(
     source: &dyn Source,
 ) -> Result<BTreeMap<String, Vec<String>>, SupportMatrixError> {
@@ -432,11 +374,6 @@ impl Context {
     }
 }
 
-/// Reads every source and returns the platforms of each row.
-///
-/// # Errors
-///
-/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
 pub fn row_platforms(
     facts: &Facts,
     source: &dyn Source,
@@ -517,11 +454,6 @@ pub fn row_platforms(
     Ok(out)
 }
 
-/// Checks that every `lang.json` language has one manifest entry per suite column and `lang.json` platform, and that each run entry names its test.
-///
-/// # Errors
-///
-/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
 pub fn check_conformance(facts: &Facts) -> Result<(), SupportMatrixError> {
     let every = vec!["*".to_owned()];
     for row in facts.rows.iter().filter(|row| row.section == "languages") {
@@ -564,11 +496,6 @@ pub fn check_conformance(facts: &Facts) -> Result<(), SupportMatrixError> {
     Ok(())
 }
 
-/// Generates the page from the facts and the workspace sources.
-///
-/// # Errors
-///
-/// Returns a [`SupportMatrixError`] naming the input that is missing, invalid or inconsistent.
 pub fn generate(facts_json: &str, source: &dyn Source) -> Result<String, SupportMatrixError> {
     let facts = parse_facts(facts_json)?;
     check_conformance(&facts)?;
@@ -576,7 +503,6 @@ pub fn generate(facts_json: &str, source: &dyn Source) -> Result<String, Support
     Ok(render::render(&facts, &platforms))
 }
 
-/// Renders the per-language skip reasons as JSON keyed by the unsupported constraint label.
 #[must_use]
 pub fn unsupported_json(facts: &Facts) -> String {
     let mut out = serde_json::Map::new();
@@ -605,7 +531,6 @@ pub fn unsupported_json(facts: &Facts) -> String {
     text
 }
 
-/// Returns a short line diff of `want` against `have`, or None when equal.
 #[must_use]
 pub fn diff(have: &str, want: &str) -> Option<String> {
     if have == want {

@@ -20,7 +20,6 @@ def _consumer_directory(path):
 def skipped(path, entry, ignored):
     """True when the walk leaves out the entry at the root-relative path: an ignored path other than a language tests/consumer directory, a skipped name, a root bazel-* output link, or a directory symlink."""
 
-    # Bazel writes its bazel-* convenience links only at the root; a source file such as docs/bazel-for-dx-users.md keeps its place.
     if (path in ignored and not _consumer_directory(path)) or path == ".dx/local" or entry.name in _SKIPPED_NAMES or (path == entry.name and entry.name.startswith("bazel-")):
         return True
     return entry.is_dir and entry.is_link
@@ -91,7 +90,6 @@ def _lock_scan(path, name):
         return not name.endswith("_test.go") and not any([part in _TEST_DIRS for part in path.split("/")])
     return name.endswith(("module_fragment.bazel", "MODULE.bazel.fixture"))
 
-# Keep in sync with _DIFF_START in patches/upstream.py.
 _DIFF_START = ("--- ", "diff ")
 
 def patch_header(text):
@@ -172,7 +170,6 @@ test_tags_sources = repository_rule(
     doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, .bazelignore, workflow, non-test .rs, non-test Go, module fragment, Rust, shell, template and rc code, patch header, language README, repository BUILD, language page and consumer fixture files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists other than the language tests/consumer directories, .git, node_modules, target, bazel-* and directory symlinks.",
 )
 
-# real_source_target is a fixture-only //core/quality macro that snapshot.rs would reject as non-public.
 _API_INTERNAL_MACROS = ["real_source_target"]
 
 _API_SCOPE = """

@@ -1,8 +1,3 @@
-//! Maps `dx-component-meta/1` JSON onto the versioned documentation IR.
-//!
-//! The framework is data: the converter never branches on it, it only checks that
-//! it equals the language the shard is built for.
-
 use documentation_ir::escape_segment;
 use documentation_ir::proto::{
     DocIr, Extension, Relations, SourceRef, Symbol, SymbolKind, Visibility,

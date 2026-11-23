@@ -1,8 +1,5 @@
-//! Checks that a pull request body links the issues its work is for.
-
 use std::collections::BTreeSet;
 
-/// Phrases that, placed before `#N`, say the pull request does that issue's work.
 const BEFORE: [&str; 8] = [
     "slice",
     "draft for",
@@ -14,10 +11,8 @@ const BEFORE: [&str; 8] = [
     "part of",
 ];
 
-/// Phrases that, placed after `#N`, say the pull request does that issue's work.
 const AFTER: [&str; 2] = ["fixed by this pr", "done by this pr"];
 
-/// One `#N` reference on a line, with the text since the previous one and up to the next one.
 struct Ref<'a> {
     number: u64,
     before: &'a str,
@@ -67,13 +62,11 @@ fn refs(line: &str) -> Vec<Ref<'_>> {
     found
 }
 
-/// True when `text` holds only list separators, so a reference after it shares the one before.
 fn list_gap(text: &str) -> bool {
     text.split(|c: char| c.is_whitespace() || matches!(c, ',' | '&'))
         .all(|word| word.is_empty() || word.eq_ignore_ascii_case("and"))
 }
 
-/// True when `text` ends with `phrase` as whole words, followed by at most a count and "of" or "for".
 fn ends_with_phrase(text: &str, phrase: &str) -> bool {
     let text = text.to_ascii_lowercase();
     let Some(at) = text.rfind(phrase) else {
@@ -96,7 +89,6 @@ fn ends_with_phrase(text: &str, phrase: &str) -> bool {
             })
 }
 
-/// True when `text` starts with `phrase` as whole words, ignoring leading punctuation and spaces.
 fn starts_with_phrase(text: &str, phrase: &str) -> bool {
     let text = text
         .trim_start_matches(|c: char| c.is_whitespace() || matches!(c, ')' | ']' | '`' | ':' | '-'))
@@ -105,7 +97,6 @@ fn starts_with_phrase(text: &str, phrase: &str) -> bool {
         .is_some_and(|rest| !rest.chars().next().is_some_and(char::is_alphanumeric))
 }
 
-/// The issue numbers on `line` that a work phrase names, and the phrase for each.
 fn worked(line: &str) -> Vec<(u64, &'static str)> {
     let mut found = Vec::new();
     let mut carried: Option<&'static str> = None;
@@ -125,7 +116,6 @@ fn worked(line: &str) -> Vec<(u64, &'static str)> {
     found
 }
 
-/// The numbers a `Closes #N` or `Part of #N` line links, or `None` when `line` is not one.
 fn link_line(line: &str) -> Option<Vec<u64>> {
     let trimmed =
         line.trim_start_matches(|c: char| c.is_whitespace() || matches!(c, '-' | '*' | '>'));
@@ -148,7 +138,6 @@ fn no_issue_line(line: &str) -> bool {
         .is_some_and(|reason| !reason.trim().is_empty())
 }
 
-/// The lines of `text` outside fenced code blocks.
 fn prose_lines(text: &str) -> Vec<&str> {
     let mut fenced = false;
     let mut lines = Vec::new();
@@ -162,7 +151,6 @@ fn prose_lines(text: &str) -> Vec<&str> {
     lines
 }
 
-/// Every problem with the links in a pull request `body`, given the text of its `commits`.
 pub fn problems(body: &str, commits: &str) -> Vec<String> {
     let body_lines = prose_lines(body);
     let mut linked = BTreeSet::new();
@@ -201,7 +189,6 @@ pub fn problems(body: &str, commits: &str) -> Vec<String> {
     problems
 }
 
-/// Reads the pull request body from `GITHUB_EVENT_PATH` and the commit messages from an optional file.
 pub fn check(args: &[String]) -> Result<(), String> {
     let commits = match args {
         [] => String::new(),
@@ -236,7 +223,6 @@ pub fn check(args: &[String]) -> Result<(), String> {
 mod tests {
     use super::problems;
 
-    /// The body of a merged pull request that fixed an issue only its commits named.
     const COVERAGE_BODY: &str = "Part of #13106.
 
 - `cli/hpc_coverage` now runs the instrumented Haskell test binary directly.
@@ -254,7 +240,6 @@ haskell: ghc actions carry the Xcode env on macOS (part of #13106, #13172)
 haskell: static library action carries the Xcode env on macOS (part of #13106, #13172)
 ";
 
-    /// The body of a merged pull request with no link line at all.
     const BOOTSTRAP_BODY: &str = "A fresh Linux container can now reach a first `tools/dx test` with one command.
 
 ## Changes

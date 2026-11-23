@@ -1,5 +1,3 @@
-//! Feeds the Vue, Svelte, Astro and MDX fixture shards to the site aggregator.
-
 use dx_testing as _;
 use shard_test_support::shard;
 

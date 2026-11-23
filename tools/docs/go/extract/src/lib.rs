@@ -1,5 +1,3 @@
-//! Converts the Go doc driver's JSON into one validated `DocIr` shard.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fmt;
@@ -17,7 +15,6 @@ const SCHEMA: u64 = 1;
 const KEY_CONFIG: &str = "go.config";
 const KEY_EXCLUDED: &str = "go.excluded";
 
-/// Why one Go doc JSON document could not become a shard.
 #[derive(Debug)]
 pub enum GoExtractError {
     Read(PathIoError),
@@ -91,30 +88,22 @@ impl From<JsonError> for GoExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub json: String,
     pub out: String,
 }
 
-/// Runs `go_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("go_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: go_extract --json FILE --out FILE"
 }
 
-/// Parses argv into inputs.
-///
-/// # Errors
-///
-/// Returns an error for an unknown, missing, empty or repeated flag.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(args, &["--json", "--out"])?;
     Ok(Options {
@@ -123,11 +112,6 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard.
-///
-/// # Errors
-///
-/// Returns an error when the input cannot be read or converted or the shard cannot be written.
 pub fn run(options: &Options) -> Result<(), GoExtractError> {
     let json = path_io::read_to_string(Path::new(&options.json)).map_err(GoExtractError::Read)?;
     let shard = convert(&json)?;
@@ -222,11 +206,6 @@ fn item_symbol(
     })
 }
 
-/// Converts one driver JSON document into a validated IR shard.
-///
-/// # Errors
-///
-/// Returns an error when the document is malformed, has an unsupported schema or shape, or yields invalid IR.
 pub fn convert(json: &str) -> Result<DocIr, GoExtractError> {
     let at = "Go doc JSON";
     let root: Value = serde_json::from_str(json).map_err(GoExtractError::Malformed)?;

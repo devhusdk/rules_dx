@@ -1,5 +1,3 @@
-//! Rule-set files load only same-language files, a fixed set of external repos and `RULES_DX_ALLOW`, name no label outside their rule set or in a `dx_` repo, and nothing in `RULES_DX_ALLOW` reaches them, outside `tools/ci/rule_set_loads_allowlist.txt`.
-
 use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 
 use dx_guard::allowlist::{Counts, REMOVE, add, render};
@@ -10,7 +8,6 @@ use serde_json as _;
 use starlark_syntax::syntax::ast::{AstExpr, ExprP};
 use yaml_serde as _;
 
-/// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/ci/rule_set_loads_allowlist.txt";
 
 const FOREIGN: &str = "foreign-load";
@@ -18,13 +15,10 @@ const FOREIGN_LABEL: &str = "foreign-label";
 const REACHES: &str = "reaches-rule-set";
 const KINDS: [&str; 3] = [FOREIGN, FOREIGN_LABEL, REACHES];
 
-/// Label names that stand for a package or tree, not a target.
 const PACKAGE_NAMES: [&str; 2] = ["__pkg__", "__subpackages__"];
 
-/// Built-in `rules_dx`-shaped packages that are not source packages.
 const BUILTIN_PACKAGES: [&str; 3] = ["visibility", "conditions", "command_line_option"];
 
-/// Path prefixes of the files that become the `rules_<lang>` modules, per language. A prefix ending in `/` is a directory; any other is one file.
 const RULE_SETS: [(&str, &[&str]); 3] = [
     (
         "php",
@@ -64,7 +58,6 @@ const RULE_SETS: [(&str, &[&str]); 3] = [
     ),
 ];
 
-/// The only `rules_dx` files a rule-set file may load, as `//` labels.
 const RULES_DX_ALLOW: [&str; 9] = [
     "//cli/prebuilt:launcher.bzl",
     "//core:cells.bzl",
@@ -77,7 +70,6 @@ const RULES_DX_ALLOW: [&str; 9] = [
     "//rust:defs.bzl",
 ];
 
-/// External repos a rule-set file may load from.
 const EXTERNAL_ALLOW: [&str; 8] = [
     "bazel_lib",
     "bazel_skylib",
@@ -89,10 +81,8 @@ const EXTERNAL_ALLOW: [&str; 8] = [
     "rules_shell",
 ];
 
-/// Fewer scanned rule-set files than this means the sweep lost the tree.
 const MIN_FILES: usize = 40;
 
-/// The language that owns `path` as a rule-set file.
 fn rule_set_of(path: &str) -> Option<&'static str> {
     RULE_SETS.iter().find_map(|(lang, prefixes)| {
         prefixes
@@ -108,7 +98,6 @@ fn rule_set_of(path: &str) -> Option<&'static str> {
     })
 }
 
-/// The first string literal of a `load(` call.
 fn first_literal(args: &str) -> Option<&str> {
     let args = args.trim_start();
     let quote = args.chars().next().filter(|c| *c == '"' || *c == '\'')?;
@@ -116,7 +105,6 @@ fn first_literal(args: &str) -> Option<&str> {
     rest.get(..rest.find(quote)?)
 }
 
-/// A load label as `//pkg:file` for `rules_dx` files and relative loads, or `@repo//pkg:file` for other repos.
 fn normalize(label: &str, dir: &str) -> String {
     if let Some(rest) = label.strip_prefix(':') {
         return format!("//{dir}:{rest}");
@@ -129,7 +117,6 @@ fn normalize(label: &str, dir: &str) -> String {
     label.to_owned()
 }
 
-/// The repo path of an in-repo `//pkg:file` label.
 fn file_of(label: &str) -> Option<String> {
     let rest = label.strip_prefix("//")?;
     Some(match rest.split_once(':') {
@@ -139,12 +126,10 @@ fn file_of(label: &str) -> Option<String> {
     })
 }
 
-/// The directory of a repo path.
 fn dir_of(path: &str) -> &str {
     path.rsplit_once('/').map_or("", |(dir, _)| dir)
 }
 
-/// Normalised labels loaded by `text`, whose file lives in `path`.
 fn loads(path: &str, text: &str) -> Vec<String> {
     let source = masked(text);
     calls(&source, "load")
@@ -154,7 +139,6 @@ fn loads(path: &str, text: &str) -> Vec<String> {
         .collect()
 }
 
-/// String literals of `text` outside `+` or `%` operands; `load` statements carry no expressions, so their labels stay out.
 fn label_strings(path: &str, text: &str) -> Vec<String> {
     let module = parse(path, text).unwrap_or_else(|error| panic!("{error}"));
     let all = exprs(module.statement());
@@ -175,7 +159,6 @@ fn label_strings(path: &str, text: &str) -> Vec<String> {
         .collect()
 }
 
-/// True when `s` is a `[@[@]repo]//pkg[:name]` label a rule-set file of `lang` must not name: a `dx_` repo, or a `rules_dx` package outside the rule set.
 fn foreign_label(lang: &str, s: &str) -> bool {
     if s.chars()
         .any(|c| c.is_whitespace() || matches!(c, '%' | '{' | '$'))
@@ -213,7 +196,6 @@ fn foreign_label(lang: &str, s: &str) -> bool {
     rule_set_of(&build) != Some(lang)
 }
 
-/// True when a rule-set file of `lang` may load `label`.
 fn allowed(lang: &str, label: &str) -> bool {
     if let Some(rest) = label.strip_prefix("//") {
         let package = rest.split(':').next().unwrap_or(rest);
@@ -227,7 +209,6 @@ fn allowed(lang: &str, label: &str) -> bool {
         .is_some_and(|repo| EXTERNAL_ALLOW.contains(&repo))
 }
 
-/// The hits in `files`, a `(path, text)` list, and a line per hit that names the file and the load.
 fn scan_files(files: &[(String, String)]) -> (Counts, Vec<String>) {
     let mut counts = Counts::new();
     let mut details = Vec::new();

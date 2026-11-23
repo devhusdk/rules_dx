@@ -1,9 +1,3 @@
-//! Converts the symbol graph of `swift-symbolgraph-extract` into one validated `DocIr` shard.
-//!
-//! A symbol graph carries each public declaration with its doc comment, declaration fragments
-//! and parameter list, but no source locations, so each declaration is located in the library's
-//! own sources by matching its keyword and name.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use documentation_ir::proto::{
@@ -21,7 +15,6 @@ const LANGUAGE: &str = "swift";
 const KEY_CONFIG: &str = "swift.config";
 const KEY_EXTENDS: &str = "swift.extends";
 
-/// Why one symbol graph could not become a shard.
 #[derive(Debug)]
 pub enum SwiftExtractError {
     Io(PathIoError),
@@ -82,7 +75,6 @@ impl std::error::Error for SwiftExtractError {
     }
 }
 
-/// The inputs of one conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     pub graphs: String,
@@ -93,23 +85,16 @@ pub struct Options {
     pub config: String,
 }
 
-/// Runs `swift_extract` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     documentation_ir::tool::run_process("swift_extract", usage(), parse, run, args)
 }
 
-/// The usage line shown for a rejected invocation.
 #[must_use]
 pub fn usage() -> &'static str {
     "usage: swift_extract --graphs DIR --sources FILE --module NAME --out FILE --package NAME [--config TEXT]"
 }
 
-/// Parses argv into inputs, or returns the rejection text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     let mut flags = documentation_ir::tool::flags(
         args,
@@ -132,11 +117,6 @@ pub fn parse(args: &[String]) -> Result<Options, FlagError> {
     })
 }
 
-/// Reads, converts, validates and writes one shard. Nothing is written on error.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn run(options: &Options) -> Result<(), SwiftExtractError> {
     let read = |path: &str| path_io::read_to_string(Path::new(path)).map_err(SwiftExtractError::Io);
     let graph = read(&format!(
@@ -161,7 +141,6 @@ pub fn run(options: &Options) -> Result<(), SwiftExtractError> {
     documentation_ir::tool::write_shard(&options.out, &shard).map_err(SwiftExtractError::Write)
 }
 
-/// Reads every `<module>@<Other>.symbols.json` of `dir` as (Other, text), ordered by name.
 fn read_extension_graphs(
     dir: &str,
     module: &str,
@@ -186,7 +165,6 @@ fn read_extension_graphs(
     Ok(found)
 }
 
-/// The IR kind and the declaration keywords of a symbol graph kind, or None when it is not documented.
 fn kind_of(identifier: &str) -> Option<(SymbolKind, &'static [&'static str])> {
     Some(match identifier.strip_prefix("swift.")? {
         "struct" => (SymbolKind::Class, &["struct"]),
@@ -206,9 +184,7 @@ fn kind_of(identifier: &str) -> Option<(SymbolKind, &'static [&'static str])> {
 }
 
 struct Entry<'a> {
-    /// The module whose type this entry extends, or None for the library's own declarations.
     other: Option<String>,
-    /// The precise identifier of the extended type.
     extends: Option<String>,
     precise: String,
     path: Vec<String>,
@@ -217,10 +193,8 @@ struct Entry<'a> {
     node: &'a Value,
 }
 
-/// A declaration's place in the sources: index into `sources` and 1-based line.
 type Place = (usize, usize);
 
-/// Collects the public documented declarations of one symbol graph.
 fn collect<'a>(root: &'a Value, other: Option<&str>, entries: &mut Vec<Entry<'a>>) {
     let extended: BTreeMap<&str, &str> = root
         .get("relationships")
@@ -284,12 +258,6 @@ fn collect<'a>(root: &'a Value, other: Option<&str>, entries: &mut Vec<Entry<'a>
     }
 }
 
-/// Converts one module's symbol graph, and the `<module>@<Other>` graphs of its extensions of other
-/// modules' types, into a validated IR shard. `texts` maps each exec path to its text.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn convert(
     graph: &str,
     extension_graphs: &[(String, String)],
@@ -495,7 +463,6 @@ impl Assembly<'_> {
     }
 }
 
-/// Rewrites each resolvable `DocC` symbol link ``` ``Path/To/Symbol`` ``` to a `dx:` link; others stay code.
 fn link_symbols(text: &str, module: &str, links: &BTreeMap<String, String>) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
@@ -596,7 +563,6 @@ fn source_ref(sources: &[Source], place: Place) -> Result<SourceRef, SwiftExtrac
     })
 }
 
-/// The spellings of declaration fragments, joined.
 fn fragments(value: Option<&Value>) -> String {
     value
         .and_then(Value::as_array)
@@ -630,7 +596,6 @@ fn doc_lines(node: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Splits a doc comment into its markdown, its `Parameter` entries and its `Returns` entry.
 fn split_doc(lines: &[String]) -> (String, Vec<(String, String)>, Option<String>) {
     #[derive(PartialEq)]
     enum Open {
@@ -701,7 +666,6 @@ fn split_doc(lines: &[String]) -> (String, Vec<(String, String)>, Option<String>
     (doc, params, returns)
 }
 
-/// The parameters a function signature lists, with the doc text matched from `documented`.
 fn signature_params(node: &Value, documented: &mut Vec<(String, String)>) -> Vec<Param> {
     let listed = node
         .pointer("/functionSignature/parameters")
@@ -750,7 +714,6 @@ fn is_ident(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
 }
 
-/// Whether `line` declares `name` with one of `keywords`.
 fn declares(line: &str, keywords: &[&str], name: &str) -> bool {
     let trimmed = line.trim_start();
     if trimmed.starts_with("//") || trimmed.starts_with('*') || trimmed.starts_with("/*") {
@@ -799,7 +762,6 @@ fn declares(line: &str, keywords: &[&str], name: &str) -> bool {
     false
 }
 
-/// The first unused declaration of `name`, searched from the parent's line when it is known.
 fn locate(
     lines: &[Vec<&str>],
     order: &[usize],

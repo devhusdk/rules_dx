@@ -1,5 +1,3 @@
-//! The shared guard helpers split source, check allowlists and match paths as the guards expect.
-
 use dx_guard::allowlist::{
     Counts, REMOVE, add, check, check_lines, line_differences, parse, render,
 };

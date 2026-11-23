@@ -284,7 +284,6 @@ fn the_workflow_validates_with_producers_bin_after_setting_up_bazel() {
 }
 
 #[test]
-// A cold producers_bin build takes minutes; the release cell still builds before the cache is on.
 fn the_workflow_validates_with_the_remote_cache_when_it_has_one() {
     let steps = ci_workflow::steps(WORKFLOW, "evidence").unwrap();
     let validate = steps

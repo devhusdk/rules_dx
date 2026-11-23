@@ -1,5 +1,3 @@
-//! Tests for the rendered-site inspector.
-
 use std::fs;
 use std::path::Path;
 

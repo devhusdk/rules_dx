@@ -1,6 +1,5 @@
 use dx_testing::read_runfiles;
 
-/// Bazel re-checks action outputs by digest, so they need the atomic replace but not the syncs.
 const SCRATCH: &str = "dx_atomic_fs::write_scratch(";
 const SHARD: &str = "documentation_ir::tool::write_shard(";
 const SYNCED: &str = "dx_atomic_fs::write_atomic(";
@@ -9,7 +8,6 @@ const COPY_SYNCED: &str = "dx_atomic_fs::copy_atomic(";
 const IN_PLACE: &str = "fs::write(";
 const HAND_RENAME: &str = "fs::rename(";
 
-/// Sources that write a whole file, with the dx_atomic_fs call each must commit it through.
 const WRITERS: [(&str, &str); 11] = [
     ("android/private/packaging/ops/src/sign.rs", COPY_SYNCED),
     ("appimage/private/tools/packer/src/lib.rs", SCRATCH),
@@ -24,8 +22,6 @@ const WRITERS: [(&str, &str); 11] = [
     ("tools/testing/hermetic/appcontainer/user.rs", SYNCED),
 ];
 
-/// Sources that stage a file or tree and publish it with a dx_atomic_fs commit, which
-/// they must use in place of their own rename.
 const STAGED_WRITERS: [(&str, &str); 3] = [
     ("cli/shim/src/fetch.rs", "dx_atomic_fs::StagedFile::create("),
     (
@@ -38,14 +34,12 @@ const STAGED_WRITERS: [(&str, &str); 3] = [
     ),
 ];
 
-/// Sources that replace a link or a tree through dx_atomic_fs instead of renaming by hand.
 const NO_HAND_RENAME: [&str; 3] = [
     "cli/audit/src/image_scan.rs",
     "cli/env/src/lib.rs",
     "cli/ide/src/link.rs",
 ];
 
-/// Returns a writer's production half: everything above its test module.
 fn production(writer: &str) -> String {
     let text = read_runfiles(writer);
     match text.find("#[cfg(test)]") {

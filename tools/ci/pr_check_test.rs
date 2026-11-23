@@ -17,7 +17,6 @@ const SETS: [&str; 8] = [
     "kotlin-bench",
 ];
 
-/// Returns the text of `pub const NAME` in the source, up to the end of its statement.
 fn constant(source: &str, name: &str) -> String {
     let start = source
         .find(&format!("pub const {name}: "))
@@ -29,7 +28,6 @@ fn constant(source: &str, name: &str) -> String {
         .to_owned()
 }
 
-/// Returns every `//` label in the text.
 fn labels(text: &str) -> Vec<String> {
     text.split(|c: char| c.is_whitespace() || c == '"' || c == '\'')
         .filter(|word| {
@@ -203,7 +201,6 @@ fn workflow_builds_the_tool_before_the_sets() {
     assert!(SETS.iter().all(|set| tool < position(set)));
 }
 
-/// Returns the `affected tests` step of the `affected` job.
 fn affected_step() -> serde_json::Value {
     steps(WORKFLOW, "affected")
         .unwrap()
@@ -212,7 +209,6 @@ fn affected_step() -> serde_json::Value {
         .expect("affected tests step")
 }
 
-/// Returns the `plan` step of the `affected-plan` job.
 fn plan_step() -> serde_json::Value {
     steps(WORKFLOW, "affected-plan")
         .unwrap()
@@ -234,7 +230,6 @@ fn jobs_stay_inside_the_time_budget() {
         .expect("timeout-minutes");
     let step = affected_step();
     let step_minutes = step["timeout-minutes"].as_u64().expect("step timeout");
-    // Checkout and Bazel setup run before the step.
     assert!(
         step_minutes + 3 <= job_minutes,
         "step timeout {step_minutes}"
@@ -250,8 +245,6 @@ fn jobs_stay_inside_the_time_budget() {
     let run = step["run"].as_str().expect("run");
     assert!(run.contains("pipefail"), "pipefail missing");
     assert!(!run.contains("|grpc"), "retry must not match test output");
-    // One deadline bounds the run and its retry, ending before the step timeout
-    // so an overrun is reported instead of the runner killing the step.
     let budget: u64 = run
         .lines()
         .find_map(|line| line.trim().strip_prefix("budget="))
@@ -298,8 +291,6 @@ fn affected_tests_build_dx_through_the_launcher_with_the_remote_cache() {
 
 #[test]
 fn shards_come_from_the_plan() {
-    // A large change reaches thousands of tests, more than one runner tests inside
-    // the job timeout, so the plan splits them.
     let plan = plan_step();
     let plan_run = plan["run"].as_str().expect("run");
     let per: u64 = plan_run
@@ -309,11 +300,8 @@ fn shards_come_from_the_plan() {
         .parse()
         .expect("per labels");
     assert!((1..=300).contains(&per), "per {per}");
-    // A widened plan is //..., which the query would otherwise expand to every
-    // target, 25,758 of them, instead of the tests `bazel test //...` runs.
     assert!(plan_run.contains("let t = tests(set("), "{plan_run}");
     assert!(plan_run.contains("(manual|"), "{plan_run}");
-    // dx test takes main-workspace labels only.
     assert!(plan_run.contains("($t intersect //...)"), "{plan_run}");
     assert!(plan_run.contains("range(0; length; $per)"), "{plan_run}");
     assert!(plan_run.contains("echo \"labels=$slices\""), "{plan_run}");
@@ -355,7 +343,6 @@ fn cacheless_retry_drops_the_remote_downloader() {
 
 #[test]
 fn affected_tests_do_not_wait_on_the_sets() {
-    // A failing or slow set must neither skip the affected tests nor eat their time.
     let analysis = steps(WORKFLOW, "analysis").unwrap();
     assert!(
         analysis

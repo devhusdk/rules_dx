@@ -1,4 +1,3 @@
-//! Runs the rustdoc JSON converter on the fixture crate and on broken inputs.
 #![expect(
     clippy::disallowed_methods,
     reason = "tests run local programs under the Bazel test timeout"

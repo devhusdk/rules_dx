@@ -1,26 +1,20 @@
-//! Starlark text with comments and strings blanked, and the calls found in it.
-
-/// Starlark text with comments blanked, and the same text with string contents blanked too.
 pub struct Masked {
     pub code: String,
     pub mask: String,
 }
 
-/// Sets the byte at `at` to `with` when it exists.
 fn blank(bytes: &mut [u8], at: usize, with: u8) {
     if let Some(byte) = bytes.get_mut(at) {
         *byte = with;
     }
 }
 
-/// Whether `bytes` holds `pattern` at `at`.
 fn holds(bytes: &[u8], at: usize, pattern: &[u8]) -> bool {
     bytes
         .get(at..)
         .is_some_and(|rest| rest.starts_with(pattern))
 }
 
-/// Blanks comments in `code` and comments plus string contents in `mask`, keeping every byte offset.
 pub fn masked(text: &str) -> Masked {
     let bytes = text.as_bytes();
     let mut code = bytes.to_vec();
@@ -61,7 +55,6 @@ pub fn masked(text: &str) -> Masked {
             _ => at += 1,
         }
     }
-    // Blanking swaps whole characters inside comments and strings, so both stay UTF-8.
     Masked {
         code: String::from_utf8_lossy(&code).into_owned(),
         mask: String::from_utf8_lossy(&mask).into_owned(),
@@ -72,13 +65,11 @@ fn is_ident(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
-/// One call: its arguments with strings intact and with strings blanked.
 pub struct CallArgs<'a> {
     pub code: &'a str,
     pub mask: &'a str,
 }
 
-/// The arguments of every call of `name` in `source`. A `name` that starts with a dot matches any receiver; any other must stand alone or follow an underscore prefix, and never follows `def`.
 pub fn calls<'a>(source: &'a Masked, name: &str) -> Vec<CallArgs<'a>> {
     let mask = source.mask.as_bytes();
     let needle = format!("{name}(");
@@ -123,7 +114,6 @@ pub fn calls<'a>(source: &'a Masked, name: &str) -> Vec<CallArgs<'a>> {
 }
 
 impl CallArgs<'_> {
-    /// The text after `key =` up to the next top-level comma, trimmed, or None when the call has no such keyword argument.
     pub fn keyword(&self, key: &str) -> Option<&str> {
         let mut depth = 0usize;
         let mut starts = vec![0usize];

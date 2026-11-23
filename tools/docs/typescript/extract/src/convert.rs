@@ -1,5 +1,3 @@
-//! Maps `TypeDoc` JSON onto the versioned documentation IR.
-
 use crate::types::{
     call_signature, comment_text, flag, list, modifiers, object_literal, parameters, render_type,
     text, type_parameters,
@@ -345,7 +343,6 @@ impl Walker<'_> {
         Ok(())
     }
 
-    /// Records one re-export as an alias id on its target. The site renders the alias pages.
     fn reference(&mut self, node: &Value, parent: &str) -> Result<(), String> {
         let name = text(node, "name");
         let target = node
@@ -370,7 +367,6 @@ impl Walker<'_> {
         Ok(())
     }
 
-    /// Adds every alias to its target's `reexported_as`, sorted and unique.
     fn link_aliases(&mut self) -> Result<(), String> {
         for (target, alias) in std::mem::take(&mut self.aliases) {
             let Some(found) = self.symbols.iter_mut().find(|s| s.id == target) else {

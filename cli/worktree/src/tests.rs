@@ -6731,14 +6731,17 @@ fn fake_main_dx(main: &Path) {
 
 #[cfg(unix)]
 fn git_hook_path(main: &Path) -> PathBuf {
-    main.join(
-        dx_test_scratch::git(
-            main,
-            main,
-            &["rev-parse", "--git-path", "hooks/reference-transaction"],
-        )
-        .unwrap(),
-    )
+    main.join(".git/hooks/reference-transaction")
+}
+
+/// The warning dx gave when it wrote no git hook.
+#[cfg(unix)]
+fn skipped_hook(added: &ops::Added) -> Option<&str> {
+    added
+        .warnings
+        .iter()
+        .find(|w| w.code == "git_hook_skipped")
+        .map(|w| w.message.as_str())
 }
 
 #[cfg(unix)]
@@ -6822,27 +6825,176 @@ fn the_git_hook_keeps_a_foreign_hook_and_rewrites_its_own() {
     host.live(10);
     let path = git_hook_path(&fixture.main);
     std::fs::create_dir_all(path.parent().expect("hooks dir")).expect("hooks dir");
-    std::fs::write(&path, "exit 0\n").expect("foreign hook");
+    let foreign = "exit 0\ntools/dx worktree hook git\n";
+    std::fs::write(&path, foreign).expect("foreign hook");
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    let kept = added
-        .warnings
-        .iter()
-        .find(|w| w.code == "git_hook_kept")
-        .expect("kept warning");
-    assert!(kept.message.contains("is not dx's"), "{}", kept.message);
-    assert_eq!(std::fs::read_to_string(&path).expect("hook"), "exit 0\n");
-    std::fs::write(&path, "tools/dx worktree hook git\n").expect("old hook");
+    let kept = skipped_hook(&added).expect("kept warning");
+    assert!(kept.contains("is not dx's"), "{kept}");
+    assert_eq!(std::fs::read_to_string(&path).expect("hook"), foreign);
+    let mark = "# Written by dx worktree add, which rewrites it.";
+    std::fs::write(&path, format!("exit 0\n{mark}\n")).expect("old hook");
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/b")).expect("add");
-    assert!(
-        added
-            .warnings
-            .iter()
-            .all(|w| !w.code.starts_with("git_hook")),
-        "{:?}",
-        added.warnings
-    );
+    assert_eq!(skipped_hook(&added), None, "{:?}", added.warnings);
     let hook = std::fs::read_to_string(&path).expect("hook");
     assert!(hook.contains("\"$dx\" worktree hook git"), "{hook}");
+    assert_eq!(hook.lines().nth(1), Some(mark));
+}
+
+#[cfg(unix)]
+#[test]
+fn the_git_hook_goes_only_into_the_hooks_dir_of_its_own_repository() {
+    let fixture = Fixture::new();
+    let root = fixture.cache.parent().expect("root").to_path_buf();
+    let main = &fixture.main;
+    let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, &root, args);
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    git(main, &["config", "core.hooksPath", ".githooks"]).unwrap();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let skipped = skipped_hook(&added).expect("skipped");
+    assert!(skipped.contains("outside"), "{skipped}");
+    assert!(!main.join(".githooks").exists());
+    assert!(!git_hook_path(main).exists());
+
+    git(main, &["config", "--unset", "core.hooksPath"]).unwrap();
+    git(main, &["config", "extensions.worktreeConfig", "true"]).unwrap();
+    git(
+        main,
+        &["config", "--worktree", "core.hooksPath", ".git/hooks"],
+    )
+    .unwrap();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/b")).expect("add");
+    let skipped = skipped_hook(&added).expect("skipped");
+    assert!(skipped.contains("set in the worktree config"), "{skipped}");
+    assert!(!git_hook_path(main).exists());
+
+    git(main, &["config", "--worktree", "--unset", "core.hooksPath"]).unwrap();
+    let own = main.join(".git/own-hooks");
+    git(main, &["config", "core.hooksPath", &own.to_string_lossy()]).unwrap();
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/c")).expect("add");
+    assert_eq!(skipped_hook(&added), None, "{:?}", added.warnings);
+    let hook = std::fs::read(own.join("reference-transaction")).expect("hook");
+
+    // A copy of the hook in another repository must not run that repository's tools/dx.
+    let other = root.join("other");
+    git(
+        &root,
+        &["init", "--quiet", "--initial-branch=main", "other"],
+    )
+    .unwrap();
+    git(
+        &other,
+        &["commit", "--quiet", "--allow-empty", "-m", "first"],
+    )
+    .unwrap();
+    std::fs::create_dir_all(other.join("tools")).expect("tools dir");
+    let ran = root.join("other-dx-ran");
+    dx_testing::shell_script(
+        &other.join("tools/dx"),
+        &format!("touch '{}'\nexit 1\n", ran.display()),
+    );
+    let copy = git_hook_path(&other);
+    std::fs::create_dir_all(copy.parent().expect("hooks dir")).expect("hooks dir");
+    std::fs::write(&copy, hook).expect("copy");
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&copy, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    }
+    git(
+        &other,
+        &["commit", "--quiet", "--allow-empty", "-m", "second"],
+    )
+    .unwrap();
+    assert!(!ran.exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn a_refused_rebase_or_cherry_pick_in_the_main_checkout_can_be_aborted() {
+    let fixture = Fixture::new();
+    fake_main_dx(&fixture.main);
+    let root = fixture.cache.parent().expect("root").to_path_buf();
+    let main = &fixture.main;
+    let git = |args: &[&str]| dx_test_scratch::git(main, &root, args);
+    git(&["switch", "--quiet", "-c", "topic"]).unwrap();
+    std::fs::write(main.join("a.txt"), "topic\n").expect("write");
+    git(&["commit", "--quiet", "-am", "topic"]).unwrap();
+    git(&["switch", "--quiet", "main"]).unwrap();
+    std::fs::write(main.join("c.txt"), "main\n").expect("write");
+    git(&["add", "c.txt"]).unwrap();
+    git(&["commit", "--quiet", "-m", "main"]).unwrap();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    let head = git(&["rev-parse", "HEAD"]).unwrap();
+    let status = git(&["status", "--porcelain"]).unwrap();
+    for (start, mark, abort) in [
+        (
+            &["rebase", "--quiet", "topic"][..],
+            "rebase-merge",
+            "rebase",
+        ),
+        (&["cherry-pick", "topic"], "CHERRY_PICK_HEAD", "cherry-pick"),
+    ] {
+        let error = git(start).expect_err("refused");
+        assert!(
+            error.contains("dx: refused: no git update of "),
+            "{start:?}: {error}"
+        );
+        assert!(main.join(".git").join(mark).exists(), "{start:?}");
+        git(&[abort, "--abort"]).unwrap();
+        assert!(!main.join(".git").join(mark).exists(), "{start:?}");
+        assert_eq!(git(&["rev-parse", "HEAD"]).unwrap(), head);
+        assert_eq!(git(&["status", "--porcelain"]).unwrap(), status);
+        assert_eq!(git(&["symbolic-ref", "HEAD"]).unwrap(), "refs/heads/main");
+    }
+    let error = git(&["commit", "--quiet", "--allow-empty", "-m", "x"]).expect_err("refused");
+    assert!(error.contains("dx: refused: no git update of "), "{error}");
+}
+
+#[cfg(unix)]
+#[test]
+fn the_git_hook_passes_a_push_into_the_main_checkout() {
+    let fixture = Fixture::new();
+    fake_main_dx(&fixture.main);
+    let root = fixture.cache.parent().expect("root").to_path_buf();
+    let main = &fixture.main;
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    std::fs::write(added.path.join("b.txt"), "two\n").expect("write");
+    dx_test_scratch::git(&added.path, &root, &["add", "b.txt"]).unwrap();
+    dx_test_scratch::git(&added.path, &root, &["commit", "--quiet", "-m", "slot"]).unwrap();
+    dx_test_scratch::git(
+        &added.path,
+        &root,
+        &[
+            "push",
+            "--quiet",
+            &main.to_string_lossy(),
+            "HEAD:refs/heads/pushed",
+        ],
+    )
+    .unwrap();
+    let new = dx_test_scratch::git(&added.path, &root, &["rev-parse", "HEAD"]).unwrap();
+    assert_eq!(
+        dx_test_scratch::git(main, &root, &["rev-parse", "pushed"]).unwrap(),
+        new
+    );
+    let update = format!("0000000000000000000000000000000000000000 {new} refs/heads/main\n");
+    let plain = |_: &str| None;
+    assert!(super::primary::git_refusal(main, &update, &plain).is_some());
+    assert_eq!(
+        super::primary::git_refusal(&main.join(".git"), &update, &plain),
+        None
+    );
+    assert_eq!(
+        super::primary::edit_refusal(&main.join(".git/config"), &plain),
+        None
+    );
 }
 
 #[test]

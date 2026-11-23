@@ -1,9 +1,12 @@
 #!/bin/sh
+# Written by dx worktree add, which rewrites it.
+main=@MAIN@
 [ "$1" = prepared ] || exit 0
-main=$(git worktree list --porcelain) || exit 0
-main=${main%%"
+here=$(git worktree list --porcelain) || exit 0
+here=${here%%"
 "*}
-dx=${main#worktree }/tools/dx
+[ "$here" = "worktree $main" ] || exit 0
+dx=$main/tools/dx
 [ -x "$dx" ] || exit 0
 out=$("$dx" worktree hook git 2>&1) && exit 0
 case $out in

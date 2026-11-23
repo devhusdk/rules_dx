@@ -668,7 +668,7 @@ pub(crate) fn lease_locked(
                 match primary::guard_git(&pool.main) {
                     Ok(None) => {}
                     Ok(Some(message)) => added.warnings.push(Warning {
-                        code: "git_hook_kept",
+                        code: "git_hook_skipped",
                         message,
                     }),
                     Err(error) => added.warnings.push(Warning {

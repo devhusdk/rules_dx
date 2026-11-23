@@ -298,20 +298,36 @@ With `dx.primary` set, a Bazel `clean` in a slot exits `2`, through
 `dx worktree hook bazel` or [`dx clean`](clean.md). Rerun with
 `--noremote_accept_cached`, or release the slot and add a fresh one.
 
-`dx worktree add` also writes the git hook `reference-transaction` in the
-hooks directory of the main checkout, or of `core.hooksPath` when set, when the
-file is absent or was written by dx. It keeps any other hook and warns. The hook runs
-`tools/dx worktree hook git` of the main checkout. Where the rule refuses, git
-refuses `commit`, `switch`, a branch `checkout`, `reset`, `merge`, `rebase`
-and `stash` in the main checkout and prints
+`dx worktree add` also writes the git hook `reference-transaction` in
+`.git/hooks` of the main checkout when the file is absent or was written by
+dx. It keeps any other hook and warns. A `core.hooksPath` set in the
+repository's own config is used when it lies inside `.git`. When
+`core.hooksPath` is set in any other config, or points outside `.git`, dx
+writes no hook and warns. The hook holds the path of the main checkout and
+does nothing in any other repository. It runs
+`tools/dx worktree hook git` of that checkout. Where the rule refuses, git
+refuses `commit`, `switch`, a branch `checkout`, `reset`, `merge`, `rebase`,
+`cherry-pick`, `revert`, `am` and `stash` in the main checkout and prints
 `dx: refused: no git update of <ref> in the main checkout <path>. Work in a slot: tools/dx worktree add <branch>`.
-`switch`, `checkout` and `reset` change the files and the index before git
-refuses, and those changes stay.
-`git worktree add`, `fetch` and every git command in a slot still run. When
-the main checkout's `tools/dx` cannot answer, the hook lets git go ahead.
+`git worktree add`, `fetch`, a push into the repository and every git command
+in a slot still run. When the main checkout's `tools/dx` cannot answer, or
+git cannot read `dx.primary`, the hook lets git go ahead.
+
+A refused command may have changed the files and the index, and those changes
+stay. To put them back:
+
+| Left behind | Run |
+| --- | --- |
+| `.git/rebase-merge` or `.git/rebase-apply` from `rebase` | git rebase --abort |
+| `.git/rebase-apply` from `am` | git am --abort |
+| `.git/CHERRY_PICK_HEAD` or `.git/sequencer` | git cherry-pick --abort |
+| `.git/REVERT_HEAD` | git revert --abort |
+| `.git/MERGE_HEAD` | git merge --abort |
+| Changed files after `switch`, `checkout`, `reset` or `revert` | git restore --source=HEAD --staged --worktree . |
 
 The agent guard refuses an edit of a file in the main checkout with
 `dx: refused: no edit of <file> in the main checkout <path>. Work in a slot: tools/dx worktree add <branch>`.
+Edits inside `.git`, and edits where git cannot read `dx.primary`, go ahead.
 
 ## Agent sessions
 

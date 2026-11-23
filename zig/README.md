@@ -56,7 +56,8 @@ path dependencies do not.
 Coverage runs build tests in Debug.
 `--@rules_zig//zig/settings:mode` picks another mode. ReleaseFast, from that
 flag or from the `zigopts` of the target or of a `zig_library` it depends on,
-fails unless the binary or test sets `allow_release_fast = True`.
+fails unless the binary or test sets `allow_release_fast = True`. So does an
+`@file` in `zigopts`.
 
 ## Generate
 

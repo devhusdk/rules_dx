@@ -66,6 +66,14 @@ zig_binary(
     deps = [":greet"],
 )
 
+zig_binary(
+    name = "hello_response_file",
+    main = "main.zig",
+    tags = ["manual"],
+    zigopts = ["@zig/tests/fixtures/hello/opts.txt"],
+    deps = [":greet"],
+)
+
 zig_make_variables(
     name = "zmode_release_fast",
     variables = {"ZMODE": "ReleaseFast"},

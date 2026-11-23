@@ -11,12 +11,12 @@ zig_release_fast = rule(
     attrs = {"value": attr.bool(mandatory = True)},
 )
 
-ZigOptsInfo = provider(doc = "Whether the Zig compile command line of a target sets ReleaseFast.", fields = {"release_fast": "bool"})
+ZigOptsInfo = provider(doc = "Whether the Zig compile command line of a target sets ReleaseFast or reads a response file that may.", fields = {"release_fast": "bool"})
 
 def _sets_release_fast(argv):
-    """Whether argv holds -OReleaseFast or -O ReleaseFast."""
+    """Whether argv holds -OReleaseFast, -O ReleaseFast or an @file response file, whose contents analysis cannot read."""
     for i, arg in enumerate(argv):
-        if arg == "-OReleaseFast" or (arg == "-O" and argv[i + 1:i + 2] == ["ReleaseFast"]):
+        if arg == "-OReleaseFast" or (arg == "-O" and argv[i + 1:i + 2] == ["ReleaseFast"]) or arg.startswith("@"):
             return True
     return False
 

@@ -76,6 +76,6 @@ def zig_release_fast_failure_test(name, target):
     """Asserts that target fails analysis under mode release_fast without allow_release_fast."""
     _release_fast_failure_test(name = name, size = "small", target_under_test = target, message = "Zig mode release_fast drops safety checks")
 
-def zig_zigopts_failure_test(name, target):
+def zig_zigopts_failure_test(name, target, message = "zigopts set ReleaseFast"):
     """Asserts that target fails analysis on ReleaseFast from zigopts without allow_release_fast."""
-    _zigopts_failure_test(name = name, size = "small", target_under_test = target, message = "zigopts set ReleaseFast")
+    _zigopts_failure_test(name = name, size = "small", target_under_test = target, message = message)

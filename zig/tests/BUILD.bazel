@@ -144,6 +144,12 @@ zig_zigopts_failure_test(
     target = "//zig/tests/fixtures/hello:hello_make_var_release_fast",
 )
 
+zig_zigopts_failure_test(
+    name = "response_file_zigopts_need_opt_in_test",
+    message = "read an @file",
+    target = "//zig/tests/fixtures/hello:hello_response_file",
+)
+
 zig_tier_tests(
     name = "guard_tier_test",
     target = "//zig/tests/fixtures/hello:greet",

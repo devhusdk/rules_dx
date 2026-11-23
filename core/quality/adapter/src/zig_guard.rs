@@ -133,11 +133,12 @@ pub fn zig_guard(file: &str, source: &str) -> Vec<FileFinding> {
                 let expression = opens_expression(head, statement_fn);
                 let opens_type =
                     head.is_some_and(|h| h.kind == Kind::Word && TYPE_KEYWORDS.contains(&h.text));
+                let in_header = statement_fn && !opens_fn_body(head);
                 frames.push(Frame {
                     start,
                     header_fn: statement_fn,
                     expression,
-                    continues: expression || opens_type || !parens.is_empty(),
+                    continues: expression || opens_type || in_header || !parens.is_empty(),
                 });
                 if test_pending {
                     test_depth = Some(frames.len());
@@ -218,6 +219,20 @@ fn brace_head<'t, 'a>(
         return tokens.get(paren_open?.checked_sub(1)?);
     }
     Some(prev)
+}
+
+/// Whether a `{` in a `fn` header opens the body: its head ends a return type, as a name, a call such as `List(u8)` or a `}`.
+fn opens_fn_body(head: Option<&Token<'_>>) -> bool {
+    head.is_some_and(|h| match h.kind {
+        Kind::Punct => h.text == "}",
+        Kind::Word => {
+            h.text != "switch"
+                && !BLOCK_KEYWORDS.contains(&h.text)
+                && !TYPE_KEYWORDS.contains(&h.text)
+        }
+        Kind::Builtin => true,
+        Kind::Text => false,
+    })
 }
 
 /// Whether a `{` with this head opens a struct or array init or a `switch` body, not a block, type or function body.
@@ -636,6 +651,25 @@ mod tests {
         let error_set =
             "// SAFETY: n fits.\nfn f(n: u32) error{Bad}!u8 {\n    return @intCast(n);\n}\n";
         assert_eq!(rules(error_set), one("unsafe_cast", 3, 12));
+        let switch_type = "// SAFETY: n fits.\n\
+                           fn f(comptime k: u1, n: u32) switch (k) { 0 => error{A}, 1 => error{B} }!u8 {\n\
+                           \x20   return @intCast(n);\n\
+                           }\n";
+        assert_eq!(rules(switch_type), one("unsafe_cast", 3, 12));
+        let block_type = "// SAFETY: n fits.\n\
+                          fn f(n: u32) blk: { break :blk error{Bad}; }!u8 {\n\
+                          \x20   return @intCast(n);\n\
+                          }\n";
+        assert_eq!(rules(block_type), one("unsafe_cast", 3, 12));
+        let struct_type = "// SAFETY: n fits.\n\
+                           fn f(n: u32) struct { a: u8 } {\n\
+                           \x20   return .{ .a = @intCast(n) };\n\
+                           }\n\
+                           const s = S{\n\
+                           \x20   // SAFETY: m fits.\n\
+                           \x20   .a = @intCast(m),\n\
+                           };\n";
+        assert_eq!(rules(struct_type), one("unsafe_cast", 3, 20));
         let method = "// SAFETY: n fits.\n\
                       const S = struct {\n\
                       \x20   fn g(n: u32) u8 {\n\

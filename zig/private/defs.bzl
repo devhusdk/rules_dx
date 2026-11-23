@@ -59,7 +59,7 @@ def _validate_release_fast(ctx):
     if single_target(ctx.attr._release_fast)[ZigReleaseFastInfo].value:
         fail("Zig mode release_fast drops safety checks; set allow_release_fast = True on the target to use it")
     if single_target(ctx.attr.upstream)[ZigOptsInfo].release_fast:
-        fail("{}: zigopts set ReleaseFast, on the target or a zig_library it depends on, which drops safety checks; set allow_release_fast = True on the target to use it".format(ctx.label))
+        fail("{}: zigopts set ReleaseFast or read an @file, on the target or a zig_library it depends on, which can drop safety checks; set allow_release_fast = True on the target to use it".format(ctx.label))
 
 def _zig_binary_upstream_impl(settings, _attr):
     """Builds the Zig binary upstream without coverage, in ReleaseSafe unless a mode is set."""

@@ -1,8 +1,7 @@
-load("//java:defs.bzl", "java_binary", "java_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
+load("//java:defs.bzl", "java_binary", "java_library")
 
-package(default_visibility = VIS_TOOLS_PUBLIC)
+package(default_visibility = ["//:__subpackages__"])
 
 java_library(
     name = "scalac_check_lib",
@@ -17,6 +16,11 @@ java_binary(
     name = "scalac_check",
     srcs = ["src/dx/quality/scalac/Main.java"],
     main_class = "dx.quality.scalac.Main",
+    # The @dx_prebuilt hub aliases this tool and its deploy jar on platforms with no pinned jar.
+    visibility = [
+        "//:__subpackages__",
+        "@dx_prebuilt//:__pkg__",
+    ],
     deps = [
         ":scalac_check_lib",
         "//java/private/quality/tools/worker",

@@ -56,8 +56,6 @@ Minitest/NoAssertions:
 # the guards below are on.
 Sorbet:
   Enabled: false
-Sorbet/IgnoreSigil:
-  Enabled: true
 Sorbet/StrictSigil:
   Enabled: true
 Sorbet/ForbidTUnsafe:

@@ -4,12 +4,10 @@ stages 1
 stage rubocop classes=ruby sources=matrix/rubocop_profile_strict.rb
 completed_rounds 1
 convergence STABLE
-initial 3
-initial WARNING rubocop Sorbet/IgnoreSigil matrix/rubocop_profile_strict.rb 0 0 fixable=false "No Sorbet sigil found in file. Try a `typed: ignore` to start (you can also use `rubocop -a` to automatically add this)."
+initial 2
 initial WARNING rubocop Sorbet/StrictSigil matrix/rubocop_profile_strict.rb 0 0 fixable=false "No Sorbet sigil found in file. Try a `typed: strict` to start (you can also use `rubocop -a` to automatically add this)."
 initial WARNING rubocop Style/FrozenStringLiteralComment matrix/rubocop_profile_strict.rb 0 0 fixable=false "Missing frozen string literal comment."
-terminal 3
-terminal WARNING rubocop Sorbet/IgnoreSigil matrix/rubocop_profile_strict.rb 0 0 fixable=false "No Sorbet sigil found in file. Try a `typed: ignore` to start (you can also use `rubocop -a` to automatically add this)."
+terminal 2
 terminal WARNING rubocop Sorbet/StrictSigil matrix/rubocop_profile_strict.rb 0 0 fixable=false "No Sorbet sigil found in file. Try a `typed: strict` to start (you can also use `rubocop -a` to automatically add this)."
 terminal WARNING rubocop Style/FrozenStringLiteralComment matrix/rubocop_profile_strict.rb 0 0 fixable=false "Missing frozen string literal comment."
 replacements 0

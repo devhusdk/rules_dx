@@ -1,5 +1,3 @@
-//! Builds an `AppDir`, runs appimagetool and writes the identity file.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -347,17 +345,14 @@ fn check_desktop(desktop: &Path, name: &str) -> Result<(), String> {
     }
 }
 
-/// The `file` command appimagetool finds on its PATH: dx itself, which answers to that name.
 pub const FILE_COMMAND: &str = "file";
 
-/// Runs as `file`; appimagetool calls it only when ARCH is unset or appstream checks run.
 #[must_use]
 pub fn refuse_file() -> u8 {
     eprintln!("dx_appimage: the file command is not provided; set ARCH and pass --no-appstream");
     2
 }
 
-/// Runs `dx appimage_packer ARG...`: packs one AppImage and writes its identity file.
 #[must_use]
 pub fn run(args: &[String]) -> u8 {
     match parse(args).and_then(|request| pack(&request)) {

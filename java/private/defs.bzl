@@ -72,7 +72,6 @@ def java_deploy_jar_alias(name, visibility, kwargs, from_runtime_deps = False):
     common = {key: kwargs[key] for key in ("testonly", "target_compatible_with") if kwargs.get(key) != None}
     actual = name + "_upstream"
 
-    # kt_jvm_binary has no deploy jar, so a private java_binary over its runtime classpath builds it.
     if from_runtime_deps:
         _java_binary(
             name = name + "_upstream_fat",

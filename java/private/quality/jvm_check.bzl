@@ -9,9 +9,6 @@ load("//java/private/quality:jvm_info.bzl", "JvmAndroidSdkInfo", "android_sdk_ja
 
 visibility(["//android/...", "//java/...", "//kotlin/...", "//scala/..."])
 
-# The check drivers speak Bazel's JSON worker protocol (java/private/quality/tools/worker), so local
-# builds keep one warm JVM, and for kotlinc and scalac one loaded compiler, per mnemonic instead of a
-# cold start per target. Singleplex: --worker_sandboxing in the generated bazelrc sandboxes it.
 JVM_CHECK_WORKER = {
     "requires-worker-protocol": "json",
     "supports-workers": "1",
@@ -26,7 +23,6 @@ JvmCheckInfo = provider(
     },
 )
 
-# Flags the Bazel javac toolchain passes to JavaBuilder that plain javac rejects or that run ErrorProne.
 _JAVABUILDER_ONLY_PREFIXES = ["-Xep", "-Xplugin:ErrorProne", "--should-stop=", "-XDshould-stop"]
 
 def javac_options(tokens):
@@ -45,15 +41,11 @@ def _classpath_line(jar):
     return json.encode({"jar": jar.path, "label": str(jar.owner)})
 
 def unused_deps_map(target, ctx, attrs, known, known_infos = []):
-    """Writes the direct dependencies with their compile jars, the known jars and the transitive classpath.
-
-    The known jars are the depsets in `known` plus the compile classpath of each JavaInfo in `known_infos`.
-    """
+    """Writes the direct dependencies with their compile jars, the known jars and the transitive classpath."""
     known = known + [info.transitive_compile_time_jars for info in known_infos]
     name = target.label.name.removesuffix("_upstream")
     header = {"package": target.label.package, "target": name, "label": str(target.label)}
 
-    # Args expand the depsets only when the file is written, so analysis never flattens the classpath.
     content = ctx.actions.args()
     content.set_param_file_format("multiline")
     content.add(json.encode(header))

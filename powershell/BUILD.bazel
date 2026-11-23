@@ -15,7 +15,6 @@ alias(
     actual = "//powershell/private/gallery:pester",
 )
 
-# Programs put this in deps to find their runfiles with Resolve-BazelRunfile.
 alias(
     name = "runfiles",
     actual = "//powershell/private/runfiles",

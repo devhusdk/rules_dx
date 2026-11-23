@@ -1,20 +1,14 @@
-//! Checks that imported Mach-O libraries and framework binaries belong to one app cell.
-
 use std::path::Path;
 
 use crate::util::{Failure, Outcome, has_extension, reject, usage};
 use crate::xcode::{Tools, components};
 
-/// What one Mach-O file declares: platforms and minimum OS versions, in load-command order.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Declared {
     pub platforms: Vec<String>,
     pub versions: Vec<String>,
 }
 
-/// Reads the build platforms and minimum versions out of `otool -l` text.
-///
-/// `version_min` is the platform number the old iOS version-min command stands for.
 #[must_use]
 pub fn declared(loads: &str, version_min: &str) -> Declared {
     let mut found = Declared::default();
@@ -53,7 +47,6 @@ fn platform_name(number: &str) -> String {
     }
 }
 
-/// The newest of `versions`, or empty when there is none.
 fn newest(versions: &[String]) -> &str {
     versions.iter().fold("", |best, version| {
         if best.is_empty() || components(version) > components(best) {
@@ -64,12 +57,7 @@ fn newest(versions: &[String]) -> &str {
     })
 }
 
-/// Checks the inputs `args` name and writes the cell report on success.
-///
-/// Failures read `<what> ...`; the caller prefixes the kind.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
     let [

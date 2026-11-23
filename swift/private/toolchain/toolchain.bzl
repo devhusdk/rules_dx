@@ -124,10 +124,6 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
     _swift_cross_toolchain("swift_cross_" + pair, exec_cpu, target_cpu)
     runtime = None if exec_cpu == target_cpu else ":swift_cross_" + target_cpu + "_" + target_cpu
 
-    # Passed for native builds too. Without it the frontend derives the
-    # resource dir from the real path of its own binary, which is in the output
-    # base and outside the execroot that `-file-prefix-map` rewrites, so every
-    # object and index record would hold the output base path.
     resource_dir = Label("@dx_swift_linux_" + target_cpu + "//:files").workspace_root + "/usr/lib/swift"
 
     _with_link_libs(

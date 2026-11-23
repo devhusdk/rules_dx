@@ -1,5 +1,3 @@
-//! Native and WASI entry point over the shared task board.
-
 use std::path::Path;
 use std::process::ExitCode;
 

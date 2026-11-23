@@ -10,7 +10,6 @@ exports_files([
     "extensions.bzl",
 ])
 
-# One alias per platform name. The hub writes a real, wrong-host or stub platform behind each.
 [
     alias(
         name = name,
@@ -19,7 +18,6 @@ exports_files([
     for name in PLATFORMS
 ]
 
-# One config_setting per OS, for OS and group keys in platform_select.
 [
     config_setting(
         name = "os_" + os,
@@ -28,26 +26,22 @@ exports_files([
     for os, constraints in OS_CONSTRAINTS.items()
 ]
 
-# The platform name a build is for. Empty means the host.
 string_flag(
     name = "current",
     build_setting_default = "",
     values = [""] + sorted(PLATFORMS),
 )
 
-# Minimum Android API level for the whole closure. Empty means the family floor.
 string_flag(
     name = "min_os_android",
     build_setting_default = "",
 )
 
-# Minimum Windows version for the whole closure. Empty means the family floor.
 string_flag(
     name = "min_os_windows",
     build_setting_default = "",
 )
 
-# A stub or wrong-host platform carries a value other than family_ok, so targets that need family_ok become incompatible.
 constraint_setting(
     name = "family",
     default_constraint_value = ":family_ok",
@@ -73,7 +67,6 @@ constraint_value(
     constraint_setting = ":family",
 )
 
-# Families register toolchains of this type that return ToolchainInfo(dx_target = DxTargetInfo(...)).
 toolchain_type(name = "target_toolchain_type")
 
 current_target(name = "current_target")

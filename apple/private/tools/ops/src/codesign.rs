@@ -1,5 +1,3 @@
-//! Signs a built macOS app with a Developer ID.
-
 use std::path::{Path, PathBuf};
 
 use crate::signing::{
@@ -226,10 +224,7 @@ fn identity_sha1(
     }
 }
 
-/// Signs the app `args[1]` for bundle id `args[0]` with entitlements `args[2]`; the flags follow.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     private_files();

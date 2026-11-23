@@ -1,5 +1,3 @@
-//! `:lock` runs the cpan resolver through `dx perl_lock`.
-
 use std::process::Command;
 
 #[test]

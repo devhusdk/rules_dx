@@ -1,9 +1,3 @@
-// Isolated MDX metadata launcher for mdx_doc_shard.
-//
-// MDX files are compiled and parsed, never evaluated. Imports in them are only type-checked.
-//
-// usage: mdx_component_meta.mjs --tsconfig FILE --out FILE --entry FILE [--entry FILE]...
-// Exit codes: 0 ok, 1 usage or configuration error, 2 extraction error.
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";

@@ -1,5 +1,3 @@
-//! Tests the Xcode lookup and the tool runner.
-
 mod fake;
 
 use std::path::PathBuf;

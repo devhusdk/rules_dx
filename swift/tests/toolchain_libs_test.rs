@@ -1,6 +1,3 @@
-//! Every shared library a Swift toolchain binary needs resolves inside the toolchain's RUNPATH
-//! directories; only the glibc runtime comes from the host. Skipped: lldb and repl_swift.
-
 use std::collections::{BTreeSet, VecDeque};
 use std::io::Read;
 use std::path::{Path, PathBuf};

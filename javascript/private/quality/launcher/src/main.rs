@@ -1,5 +1,3 @@
-//! Runs a generated JavaScript tool through the node runtime beside it.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,

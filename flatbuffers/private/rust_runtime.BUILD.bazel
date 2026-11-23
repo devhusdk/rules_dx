@@ -1,6 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
 
-# build.rs only sets cfg(nightly), so it is skipped.
 rust_library(
     name = "flatbuffers",
     srcs = glob(["src/**/*.rs"]),

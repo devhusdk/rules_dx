@@ -1,5 +1,3 @@
-//! Notarizes and staples a signed macOS app.
-
 use std::path::PathBuf;
 
 use crate::signing::{
@@ -16,10 +14,7 @@ fn combined(out: &crate::util::Output) -> String {
     format!("{}{}", out.stdout, out.stderr)
 }
 
-/// Notarizes the app `--app` names; `args[0]` is the declared bundle id.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     private_files();

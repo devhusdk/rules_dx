@@ -20,7 +20,6 @@ JULIA_SOURCE_EXTS = [".jl"]
 
 JULIA_COMPATIBLE_WITH = compatible_with(JULIA_SUPPORT)
 
-# A deprecated call throws, and redefining a method warns.
 JULIA_STRICT_FLAGS = ["--depwarn=error", "--warn-overwrite=yes"]
 
 def julia_run_kwargs(kwargs):

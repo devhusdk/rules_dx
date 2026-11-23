@@ -14,7 +14,6 @@ _CACHE = "vendor/cache"
 
 _BINSTUBS = "bin/private"
 
-# On Windows, Bundler.setup adds x64-mingw-ucrt to a ruby-only lock and tries to rewrite the read-only Gemfile.lock.
 _RUNTIME_ENV = {"BUNDLE_FROZEN": "true"}
 
 def _gemfile(packages):

@@ -19,7 +19,6 @@ _LINUX_X86_64 = [
     "@platforms//cpu:x86_64",
 ]
 
-# macOS has no gcc that targets Linux.
 _SOURCE_EXEC = ["@platforms//os:linux"]
 
 exports_files(glob(["*.BUILD.bazel"]))
@@ -28,7 +27,6 @@ _MAJOR_MINOR = ".".join(JULIA_RUNTIME_VERSION.split(".")[:2])
 
 _LIBJULIA_INTERNAL = "libjulia-internal.so." + JULIA_RUNTIME_VERSION
 
-# Set by the runtime rules so they resolve the downloaded Julia release, not :source_toolchain.
 bool_flag(
     name = "stock",
     build_setting_default = False,
@@ -49,10 +47,8 @@ julia_source_toolchain(
     target_compatible_with = _LINUX_X86_64,
 )
 
-# On Linux x86_64 every Julia action and binary runs on the source-built libjulia-internal.
 toolchain(
     name = "source_toolchain",
-    # A downloaded libjulia-internal serves any exec host; the source build needs a Linux gcc.
     exec_compatible_with = source_exec_compatible_with(DOWNLOADED, _SOURCE_EXEC),
     target_compatible_with = _LINUX_X86_64,
     target_settings = [

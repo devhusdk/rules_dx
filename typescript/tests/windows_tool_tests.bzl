@@ -63,15 +63,7 @@ _RUN_SCRIPT_RLOCATION = "if not exist \"!run_script!\" call :rlocation"
 _RUNFILES_UNSET = "RUNFILES environment variable is not set"
 
 def _upstream_fix_signals(bat_content, init_runfiles):
-    """Lists the ways the upstream launcher pair differs from the broken one; empty while it is still broken.
-
-    Args:
-        bat_content: Content of bazel-lib's generated `.bat` launcher.
-        init_runfiles: rules_js's `{{initialize_runfiles}}` substitution, or None if absent.
-
-    Returns:
-        A list of signal strings.
-    """
+    """Lists the ways the upstream launcher pair differs from the broken one; empty while it is still broken."""
     signals = []
     if _RLOCATION_START not in bat_content or _RLOCATION_END not in bat_content:
         signals.append("bat: rlocation markers missing")
@@ -168,11 +160,7 @@ _CASES = [
 ]
 
 def windows_tool_tests(name):
-    """Declares the shim and select tests for each js_build_tool case.
-
-    Args:
-        name: Name of the test suite.
-    """
+    """Declares the shim and select tests for each js_build_tool case."""
     tests = []
     for case, alias, tool in _CASES:
         prefix = "{}_{}".format(name, case)
@@ -191,12 +179,7 @@ def windows_tool_tests(name):
     native.test_suite(name = name, tests = tests)
 
 def ts_project_tool_tests(name, project):
-    """Declares the shim and select tests for the per-project tsc and validator tools.
-
-    Args:
-        name: Name of the test suite.
-        project: Name of the ts_project in the calling package.
-    """
+    """Declares the shim and select tests for the per-project tsc and validator tools."""
     tests = []
     for tool in ["tsc", "validator"]:
         prefix = "{}_{}".format(name, tool)
@@ -214,12 +197,7 @@ def ts_project_tool_tests(name, project):
     native.test_suite(name = name, tests = tests)
 
 def framework_build_tool_tests(name, build):
-    """Declares the shim and select tests for the build tool of one framework build.
-
-    Args:
-        name: Name of the test suite.
-        build: Name of the framework build in the calling package.
-    """
+    """Declares the shim and select tests for the build tool of one framework build."""
     alias = ":{}_dx_tool_build".format(build)
     tool = ":{}_dx_tool".format(build)
     shim_test(name = name + "_shim", target_under_test = alias + "_windows", tool = tool, size = "small")

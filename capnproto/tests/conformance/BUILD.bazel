@@ -2,8 +2,6 @@ load("//capnproto:defs.bzl", "capnproto_cc_library", "capnproto_java_library", "
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite")
 
-# The dirty fixtures stay in their own manual targets; gazelle would merge them
-# into the clean library.
 # gazelle:exclude lint_dirty.capnp
 
 package(

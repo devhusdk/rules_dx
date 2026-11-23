@@ -3,7 +3,6 @@ load("//java:defs.bzl", "java_library")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# The one-shot and persistent worker entry point the JVM check drivers share.
 java_library(
     name = "worker",
     srcs = [

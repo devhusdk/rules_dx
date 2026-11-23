@@ -1,11 +1,3 @@
-// Isolated svelte2tsx launcher for svelte_doc_shard.
-//
-// Turns each .svelte entry into TypeScript with svelte2tsx, reads the props from the
-// TypeScript checker and maps lines back through the source map. It never reads
-// svelte.config.js and a module-load guard refuses any module outside its node_modules.
-//
-// usage: svelte_component_meta.mjs --tsconfig FILE --out FILE --entry FILE [--entry FILE]...
-// Exit codes: 0 ok, 1 usage or configuration error, 2 extraction error.
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -66,7 +58,6 @@ async function main() {
   const parsed = ts.parseJsonConfigFileContent(json, ts.sys, path.dirname(tsconfigPath), {}, tsconfigPath);
   const options = { ...parsed.options, noEmit: true, allowArbitraryExtensions: true };
 
-  // Generated TypeScript by `<file>.svelte.ts` path.
   const generated = new Map();
   function generate(svelteFile, shown) {
     const key = `${svelteFile}.ts`;

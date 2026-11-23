@@ -1,5 +1,3 @@
-//! Runs a Rust benchmark binary and writes its bencher output as `dx-bench.json`.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -17,7 +15,6 @@ struct Measurement {
     stddev: f64,
 }
 
-/// Parses `test NAME ... bench: 1,234 ns/iter (+/- 56)` lines.
 fn parse_bencher(output: &str) -> Vec<Measurement> {
     output.lines().filter_map(parse_line).collect()
 }
@@ -101,7 +98,6 @@ fn run(args: &[String]) -> Result<(), String> {
         .map_err(|error| format!("could not write dx-bench.json: {error}"))
 }
 
-/// Runs one benchmark binary; the `bench_report` helper of dx-runtime.
 pub fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     match run(&args) {

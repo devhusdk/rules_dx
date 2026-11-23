@@ -19,7 +19,6 @@ exports_files([
     "lang.json",
 ])
 
-# Profile mode for flutter_application, as a transition output: `"@rules_dx//flutter:profile": True`.
 alias(
     name = "profile",
     actual = "@rules_flutter//flutter:profile",

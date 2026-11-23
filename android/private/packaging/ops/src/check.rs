@@ -1,5 +1,3 @@
-//! Checks that a package is an unsigned APK or a valid App Bundle.
-
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -11,17 +9,13 @@ pub const PREFIX: &str = "dx-android-check";
 const USAGE: &str =
     "usage: check <bundletool> <package> [--abi <abi>]... [--resource <type/name>]...";
 
-/// What a check requires of an App Bundle.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Wants {
     pub abis: Vec<String>,
     pub resources: Vec<String>,
 }
 
-/// Reads the `--abi` and `--resource` flags.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn parse(args: &[String]) -> Result<Wants, String> {
     let mut wants = Wants::default();
@@ -40,7 +34,6 @@ pub fn parse(args: &[String]) -> Result<Wants, String> {
     Ok(wants)
 }
 
-/// Whether `name` is a v1 signature file.
 #[must_use]
 pub fn signature_entry(name: &str) -> bool {
     name.strip_prefix("META-INF/").is_some_and(|file| {
@@ -51,7 +44,6 @@ pub fn signature_entry(name: &str) -> bool {
     })
 }
 
-/// Whether `name` is a native library of `abi` in the base module.
 #[must_use]
 pub fn base_library(name: &str, abi: &str) -> bool {
     name.strip_prefix("base/lib/")
@@ -66,14 +58,12 @@ pub fn base_library(name: &str, abi: &str) -> bool {
         })
 }
 
-/// Caps for reading an APK or App Bundle.
 const PACKAGE_LIMITS: dx_archive::Limits = dx_archive::Limits {
     max_entries: 1 << 20,
     max_entry_bytes: 4 << 30,
     max_total_bytes: 16 << 30,
 };
 
-/// Whether every entry of the zip file has a safe name and reads back with its recorded checksum.
 #[must_use]
 pub fn entries_intact(package: &Path) -> bool {
     std::fs::File::open(package)
@@ -178,7 +168,6 @@ fn check_aab(bundletool: &Path, package: &Path, wants: &Wants) -> Outcome {
 }
 
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(args: &[String]) -> Outcome {
     let [bundletool, package, rest @ ..] = args else {

@@ -1,23 +1,17 @@
-//! Resolves an fpm package set from the git dependencies of its manifest and of every archive they name.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use std::collections::{BTreeMap, VecDeque};
 
-/// Downloads archives.
 pub trait Download {
-    /// The bytes at `url`.
-    ///
     /// # Errors
     /// Fails when the download does.
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// Downloads over HTTPS.
 pub struct Github(HttpFetch);
 
 impl Github {
-    /// A downloader that refuses plain HTTP.
     #[must_use]
     pub fn new() -> Self {
         Self(HttpFetch::new())
@@ -36,19 +30,13 @@ impl Download for Github {
     }
 }
 
-/// One git dependency of an fpm manifest.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Dependency {
-    /// The dependency name.
     pub name: String,
-    /// The tag or commit.
     pub reference: String,
-    /// The source archive of `reference`.
     pub url: String,
 }
 
-/// The source archive URL of `reference` in the GitHub repository `git`.
-///
 /// # Errors
 /// Fails when `git` is not an `https://github.com/<owner>/<repo>` URL.
 pub fn archive_url(git: &str, reference: &str) -> Result<String, Error> {
@@ -69,8 +57,6 @@ pub fn archive_url(git: &str, reference: &str) -> Result<String, Error> {
     ))
 }
 
-/// The git dependencies of an fpm manifest; path dependencies are skipped.
-///
 /// # Errors
 /// Fails when the text is not TOML or a dependency is not a GitHub git URL pinned to a tag or rev.
 pub fn parse_dependencies(text: &str, with_dev: bool) -> Result<Vec<Dependency>, Error> {
@@ -114,11 +100,8 @@ pub fn parse_dependencies(text: &str, with_dev: bool) -> Result<Vec<Dependency>,
     Ok(out)
 }
 
-/// The most bytes read from one archive member.
 const MEMBER_LIMIT: u64 = 8 << 20;
 
-/// The top directory of a `.tar.gz` and the `manifest` file inside it.
-///
 /// # Errors
 /// Fails when the archive is unreadable, has no single top directory, or has no `manifest`.
 pub fn read_archive(bytes: &[u8], manifest_name: &str) -> Result<(String, String), Error> {
@@ -159,14 +142,12 @@ pub fn read_archive(bytes: &[u8], manifest_name: &str) -> Result<(String, String
     Ok((top, manifest))
 }
 
-/// The resolver of the fpm ecosystem.
 pub struct Fpm<'a> {
     manifest: String,
     download: &'a dyn Download,
 }
 
 impl<'a> Fpm<'a> {
-    /// A resolver that downloads with `download`.
     #[must_use]
     pub fn new(spec: &Spec, download: &'a dyn Download) -> Self {
         Self {
@@ -175,7 +156,6 @@ impl<'a> Fpm<'a> {
         }
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -276,7 +256,6 @@ impl Resolver for Fpm<'_> {
     }
 }
 
-/// Runs the fpm lock step with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("fpm") else {

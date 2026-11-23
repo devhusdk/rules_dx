@@ -1,5 +1,4 @@
 # gazelle:ignore
-# Why: gazelle replaces the pass/fail subject tests and fixtures with per-file targets.
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 load("//typescript:defs.bzl", "typescript_binary", "typescript_library", "typescript_test")
 

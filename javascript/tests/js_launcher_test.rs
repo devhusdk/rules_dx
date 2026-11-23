@@ -1,4 +1,3 @@
-//! Tests for reading a generated launcher's own runfiles.
 #![expect(
     clippy::disallowed_methods,
     reason = "tests run local programs under the Bazel test timeout"
@@ -8,7 +7,6 @@ use std::path::{Path, PathBuf};
 
 use dx_js_launcher::{Descriptor, descriptor, descriptor_path, plan, plan_in};
 
-/// Writes one runfiles manifest line, escaping a key the way Bazel does.
 fn manifest_line(key: &str, target: &Path) -> String {
     if key.contains(' ') {
         format!(" {} {}\n", key.replace(' ', "\\s"), target.display())
@@ -17,7 +15,6 @@ fn manifest_line(key: &str, target: &Path) -> String {
     }
 }
 
-/// One staged launcher with its own runfiles.
 struct Fixture {
     exe: PathBuf,
     entry: PathBuf,
@@ -26,7 +23,6 @@ struct Fixture {
     wrapper: PathBuf,
 }
 
-/// Stages a launcher whose own runfiles name one tool, and returns its files.
 fn staged(dir: &Path, name: &str, entry_key: &str) -> Fixture {
     let relative = entry_key.strip_prefix("_main/").unwrap_or(entry_key);
     let exe = write(dir, &format!("{name}.exe"), "launcher\n");

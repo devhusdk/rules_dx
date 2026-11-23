@@ -65,7 +65,6 @@ OPT_IN_PACKAGES = [
 
 _NDK_PINS = DATA["dx_android"]["archives"]
 
-# windows_arm64 runs the x64 NDK under emulation; Google ships no arm64 Windows NDK.
 NDK_ARTIFACTS = {
     "linux_x86_64": struct(
         anchor = "source.properties",
@@ -217,8 +216,6 @@ BUILD_TOOLS_ARCHIVE_SEPARATOR = "_"
 
 PLATFORM_TOOLS_ARCHIVE_PREFIX = "platform-tools_r" + PLATFORM_TOOLS
 
-# Host cell to the host whose build-tools and platform-tools it runs.
-# windows_arm64 runs the x64 archives under emulation.
 SDK_HOSTS = {
     "linux_x86_64": "linux_x86_64",
     "macos_arm64": "macos_arm64",
@@ -234,21 +231,18 @@ PLATFORM_CONSTRAINTS = {
     "windows_x86_64": ["@platforms//os:windows", "@platforms//cpu:x86_64"],
 }
 
-# Hosts Google ships no SDK for; every hub alias resolves to an incompatible target there.
 SDK_UNSUPPORTED_HOSTS = {
     "linux_arm64": ["@platforms//os:linux", "@platforms//cpu:arm64"],
 }
 
 _NO_SDK_HOST_COMPATIBLE_WITH = [str(Label("@platforms//:incompatible")), str(unsupported_constraint("android"))]
 
-# Libraries each build-tools binary loads from the archive; the Windows tools need only the system CRT.
 BUILD_TOOLS_LIBS = {
     "linux_x86_64": ["lib64/libc++.so", "lib64/libc++.so.1"],
     "macos_arm64": ["lib64/libc++.dylib"],
     "windows_x86_64": [],
 }
 
-# Libraries adb loads from the archive.
 PLATFORM_TOOLS_LIBS = {
     "linux_x86_64": [],
     "macos_arm64": [],
@@ -961,7 +955,6 @@ def unavailable_hub_build(empty_template, rule_bzl):
     sdk = 'unavailable_android_sdk(name = "sdk")'
     build = 'load("%s", "unavailable_android_sdk")\n\n' % rule_bzl + empty_template.replace(_EMPTY_SDK_TARGET, sdk)
 
-    # bazel query loads every target rules_android names, on every host.
     stubs = [
         'filegroup(\n    name = "%s",\n    srcs = [":error_message"],\n)\n' % name
         for name in APP_SDK_FORWARDED

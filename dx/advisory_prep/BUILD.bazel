@@ -2,9 +2,6 @@ load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 
-# Maintainer runnable: `bazel run @rules_dx//dx/advisory_prep`. It lives under
-# dx/ so the public label set holds only what users build; the library stays
-# in //cli/advisory_prep because the CLI links it.
 package(default_visibility = ["//visibility:private"])
 
 exports_files(

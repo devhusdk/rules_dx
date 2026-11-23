@@ -1,5 +1,3 @@
-//! The lua lock step writes the golden lock from the registry fixture with an empty `PATH` and no network.
-
 use dx_lock::{Args, Error, Outcome, run};
 use dx_lock_testing::FixtureFetch;
 use lua_lock::{BASE, Download, Lua};

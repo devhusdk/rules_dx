@@ -1,5 +1,3 @@
-//! Tests exporting a device app into a signed IPA.
-
 mod fake;
 
 use std::path::Path;

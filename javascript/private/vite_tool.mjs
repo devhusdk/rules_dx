@@ -73,8 +73,6 @@ async function build(out, config, ssrEntry) {
 		"vite",
 	);
 	const outDir = path.resolve(root, out);
-	// Rolldown canonicalizes the HTML entry through the real execroot inside a
-	// sandbox, which makes Vite derive an escaping asset name from it.
 	const entry = path.join(root, "index.html");
 	const keepEntryPath = {
 		name: "vite-tool:keep-entry-path",

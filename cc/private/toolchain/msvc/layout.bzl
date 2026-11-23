@@ -1,6 +1,5 @@
 """Paths of an MSVC toolset and Windows SDK in the windows_support layout."""
 
-# (host, target) pairs with a complete tool closure in the VS manifest.
 SUPPORTED_CELLS = [("x64", "x64"), ("x64", "arm64"), ("arm64", "arm64"), ("arm64", "x64")]
 
 def msvc_layout(msvc_version, sdk_version, host = "x64", target = "x64", vc_root = "", sdk_root = ""):

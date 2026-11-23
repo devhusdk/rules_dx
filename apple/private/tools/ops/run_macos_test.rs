@@ -1,5 +1,3 @@
-//! Tests running a built macOS app.
-
 mod fake;
 
 use std::path::PathBuf;

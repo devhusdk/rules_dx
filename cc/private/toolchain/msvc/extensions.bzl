@@ -7,11 +7,7 @@ load(":repos.bzl", "HUB_NAME", "LICENSE", "LICENSE_URL", "hub_build")
 
 
 def msvc_hub(mctx):
-    """Declares the MSVC toolchain hub repository.
-
-    Args:
-        mctx: the module extension context.
-    """
+    """Declares the MSVC toolchain hub repository."""
     if accepted(mctx, LICENSE):
         files = {
             "BUILD.bazel": hub_build(True, Label("@dx_msvc_runtime//:BUILD.bazel").repo_name, Label("@dx_windows_sdk//:BUILD.bazel").repo_name),

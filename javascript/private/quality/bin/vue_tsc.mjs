@@ -6,7 +6,6 @@ const require = createRequire(import.meta.url);
 const core = createRequire(createRequire(require.resolve("vue-tsc/package.json")).resolve("@vue/language-core"));
 const compiler = core("@vue/compiler-dom");
 
-// vue-tsc recovers from a malformed SFC without a diagnostic, so parse every listed file first.
 function parseErrors() {
   const flag = process.argv.indexOf("--project");
   if (flag < 0) return [];

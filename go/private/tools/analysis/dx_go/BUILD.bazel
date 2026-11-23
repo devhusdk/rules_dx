@@ -24,7 +24,6 @@ go_binary(
     visibility = ["//:__subpackages__"],
 )
 
-# Release assets, one per host and tool; .github/workflows/release-tools.yml builds them.
 [
     go_cross_binary(
         name = name + "_" + host,
@@ -55,7 +54,6 @@ go_test(
     deps = ["//go/private/tools/analysis/unit"],
 )
 
-# dx_go picks the tool from the name it runs as.
 [
     native_binary(
         name = tool,

@@ -1,4 +1,3 @@
-//! Runs flatc --conform on a schema that deleted a field and expects it to fail.
 #![expect(
     clippy::disallowed_methods,
     reason = "tests run local programs under the Bazel test timeout"

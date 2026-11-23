@@ -21,7 +21,6 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
-# A zig_test coverage build on macOS: -ffuzz sancov counters read by coverage_runner.zig, as kcov is Linux-only.
 config_setting(
     name = "sancov_build",
     constraint_values = ["@platforms//os:macos"],

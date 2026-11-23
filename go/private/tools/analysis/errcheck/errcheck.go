@@ -10,7 +10,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// strictFlags are the errcheck bool flags the strict profile turns on.
 var strictFlags = []string{"blank", "assert"}
 
 func configure(extra []string) error {
@@ -37,7 +36,6 @@ func configure(extra []string) error {
 	return errcheck.Analyzer.Flags.Set("exclude", *exclude)
 }
 
-// Main runs errcheck as a unitchecker over args and returns the exit code.
 func Main(args []string, stdout, stderr io.Writer) int {
 	opts := unit.Options{Configure: configure}
 	return unit.Run("errcheck", []*analysis.Analyzer{errcheck.Analyzer}, opts, args, stdout, stderr)

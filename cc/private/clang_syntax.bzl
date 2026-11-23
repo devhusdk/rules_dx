@@ -34,12 +34,10 @@ _MNEMONICS = ["CppCompile", "ObjcCompile", "CudaCompile"]
 _CUDA_VALUE_FLAGS = ["-I", "-isystem", "-iquote", "-D", "-U", "-include"]
 _CUDA_PASS_THROUGH = ["-Xcompiler", "--compiler-options", "-Xcudafe"]
 
-# Host compiler flags that set the header search and target; a hermetic host toolchain needs them to find its libc and libc++ headers.
 _CUDA_HOST_VALUE_FLAGS = ["-I", "-isystem", "-iquote", "-D", "-U", "-target"]
 _CUDA_HOST_FLAGS = ["-nostdinc", "-nostdinc++", "-nostdlibinc"]
 _CUDA_HOST_PREFIXES = ("-I", "-D", "-U", "-isystem", "-std=", "-iquote", "--sysroot=", "-resource-dir=", "--target=")
 
-# Flags that produce build outputs and are not wanted for a syntax-only run.
 _DROP = ["-MD", "-MMD", "-MG", "-MP", "-fcolor-diagnostics", "-fdiagnostics-color"]
 _DROP_WITH_VALUE = ["-o", "-MF", "-MT", "-MQ", "--serialize-diagnostics"]
 _GCC_ONLY = ["-fno-canonical-system-headers", "-fcanonical-system-headers", "-fno-diagnostics-show-caret", "-fdiagnostics-color=never"]
@@ -181,10 +179,7 @@ def _msvc_tidy_argv(tidy, argv, src, identity, config, env):
     return struct(argv = [tidy] + _config_flag(config) + [src, "--", "--driver-mode=cl"] + target + imsvc + flags, error = "")
 
 def clang_tidy_argv(tidy, argv, src, identity, config = "", env = {}, resource_dir = ""):
-    """Projects a compile command line into a clang-tidy command line.
-
-    `resource_dir` is the builtin header directory of `tidy`; it is added when the compile command names none.
-    """
+    """Projects a compile command line into a clang-tidy command line."""
     if identity.driver == "msvc":
         return _msvc_tidy_argv(tidy, argv, src, identity, config, env)
     rewritten = clang_syntax_argv(argv, src, identity)
@@ -213,7 +208,6 @@ def cuda_tidy_argv(tidy, argv, src, config = "", extra_includes = []):
         return struct(argv = [], error = "the source " + src + " is not on the compile command line")
     root = argv[0].replace("\\", "/").rpartition("/")[0].rpartition("/")[0]
 
-    # nvcc redacts __DATE__ and friends with -D; clang warns on that redefinition, nvcc does not.
     flags = ["-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version", "-Wno-builtin-macro-redefined"]
     for include in extra_includes:
         flags += ["-isystem", include]
@@ -221,7 +215,6 @@ def cuda_tidy_argv(tidy, argv, src, config = "", extra_includes = []):
         flags.append("--cuda-path=" + root)
     i = 1
 
-    # A separated host flag value arrives in the next -Xcompiler part, often in a later -Xcompiler argument.
     host_value = False
     for _ in range(len(argv)):
         if i >= len(argv):

@@ -1,4 +1,3 @@
-//! Resolves the rocks a rockspec depends on from the luarocks.org manifest and the rockspecs it serves.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 mod rockspec;
@@ -10,26 +9,19 @@ use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Sc
 use rockspec::Value;
 use serde_json::{Value as Json, json};
 
-/// The site rocks are resolved from.
 pub const BASE: &str = "https://luarocks.org";
 
-/// The manifest of the Lua version the rules build for.
 pub const MANIFEST: &str = "manifest-5.5.json";
 
-/// Downloads files.
 pub trait Download {
-    /// The bytes at `url`.
-    ///
     /// # Errors
     /// Fails when the download does.
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// Downloads over HTTPS.
 pub struct Site(HttpFetch);
 
 impl Site {
-    /// A downloader that refuses plain HTTP.
     #[must_use]
     pub fn new() -> Self {
         Self(HttpFetch::new())
@@ -50,7 +42,6 @@ impl Download for Site {
 
 const WIDTH: usize = 16;
 
-/// A rock version: numeric and named parts, then the rock revision.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Version {
     parts: Vec<(i64, u64)>,
@@ -155,7 +146,6 @@ enum Op {
     Pessimistic,
 }
 
-/// One version bound of a dependency.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Bound {
     op: Op,
@@ -181,7 +171,6 @@ impl Bound {
     }
 }
 
-/// A dependency: a rock and the bounds on its version.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Need {
     name: String,
@@ -249,7 +238,6 @@ fn needs_of(table: Option<&Value>) -> Result<Vec<Need>, String> {
     Ok(needs)
 }
 
-/// What a rockspec says about one rock.
 struct Described {
     urls: Vec<String>,
     strip_prefix: String,
@@ -373,7 +361,6 @@ fn describe(rock: &str, version: &str, text: &str) -> Result<Described, String> 
     })
 }
 
-/// The directory of the source the module names start from.
 fn root_of(rock: &str, modules: &BTreeMap<String, String>) -> Result<String, String> {
     let mut root: Option<String> = None;
     for (module, path) in modules {
@@ -393,7 +380,6 @@ fn root_of(rock: &str, modules: &BTreeMap<String, String>) -> Result<String, Str
     Ok(root.unwrap_or_default())
 }
 
-/// The resolver of the luarocks ecosystem.
 pub struct Lua<'a> {
     manifest: String,
     base: String,
@@ -401,7 +387,6 @@ pub struct Lua<'a> {
 }
 
 impl<'a> Lua<'a> {
-    /// A resolver that downloads from `base` with `download`.
     #[must_use]
     pub fn new(spec: &Spec, base: &str, download: &'a dyn Download) -> Self {
         Self {
@@ -411,7 +396,6 @@ impl<'a> Lua<'a> {
         }
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -573,8 +557,6 @@ impl Resolver for Lua<'_> {
     }
 }
 
-/// Runs the luarocks lock step on `args`, the arguments after `dx lua_lock`: 0 when the lock is
-/// fresh or written, 1 when stale, 2 on failure.
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("luarocks") else {
         eprintln!("luarocks has no registry entry");

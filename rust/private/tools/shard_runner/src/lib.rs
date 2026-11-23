@@ -1,8 +1,3 @@
-//! Runs one Bazel test shard of a libtest binary.
-//!
-//! The binary comes from the `DX_TEST_BINARY` runfiles key. Its tests are listed with
-//! `--list --format terse`; the shard keeps the tests whose index `i` satisfies
-//! `i % TEST_TOTAL_SHARDS == TEST_SHARD_INDEX` and runs them with `--exact`.
 #![expect(
     clippy::disallowed_methods,
     reason = "runs local tools that exit on their own"
@@ -14,10 +9,8 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
-/// Bytes of test names passed to one child process, below the Windows command line limit.
 const BATCH_BYTES: usize = 24 * 1024;
 
-/// Runs the shard and returns the exit code of the last failing batch.
 pub fn main() -> ExitCode {
     match run() {
         Ok(code) => code,
@@ -138,7 +131,6 @@ impl Shard {
     }
 }
 
-/// Test names from libtest's terse listing, in listing order.
 fn test_names(listing: &str) -> Vec<&str> {
     listing
         .lines()
@@ -149,7 +141,6 @@ fn test_names(listing: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Splits names into runs whose summed length stays within limit; a longer name gets its own run.
 fn batches<'a>(names: &[&'a str], limit: usize) -> Vec<Vec<&'a str>> {
     let mut out: Vec<Vec<&str>> = Vec::new();
     let mut size = 0;

@@ -1,24 +1,17 @@
-//! Stages the files of one `rego_test` target and runs `opa test` over them.
-
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use dx_path::Resolver;
 
-/// Names the environment entry holding the runfiles key of the descriptor.
 pub const MANIFEST_ENV: &str = "DX_REGO_TEST_MANIFEST";
 
-/// The staging plan one `rego_test` target writes.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Descriptor {
-    /// Runfiles key of the opa binary.
     pub opa: String,
-    /// Runfiles key and workspace-relative destination of each staged file.
     pub files: Vec<(String, String)>,
 }
 
-/// What one `opa test` run printed and exited with.
 #[derive(Debug)]
 pub struct Outcome {
     pub code: u8,
@@ -30,7 +23,6 @@ fn bad(message: impl std::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message.to_string())
 }
 
-/// Parses the line-based descriptor, rejecting anything unexpected.
 pub fn parse(text: &str) -> io::Result<Descriptor> {
     let mut opa: Option<String> = None;
     let mut files: Vec<(String, String)> = Vec::new();
@@ -76,7 +68,6 @@ fn check_dest(dest: &str) -> io::Result<()> {
     Ok(())
 }
 
-/// Builds the `opa` arguments for one run.
 pub fn opa_args(test_only: Option<&str>, user_args: &[String]) -> Vec<String> {
     let mut args = vec![
         "test".to_owned(),
@@ -92,7 +83,6 @@ pub fn opa_args(test_only: Option<&str>, user_args: &[String]) -> Vec<String> {
     args
 }
 
-/// Copies every described file into a fresh tree at `root`.
 pub fn stage(resolver: &Resolver, descriptor: &Descriptor, root: &Path) -> io::Result<()> {
     if root.exists() {
         std::fs::remove_dir_all(root)?;
@@ -114,7 +104,6 @@ pub fn stage(resolver: &Resolver, descriptor: &Descriptor, root: &Path) -> io::R
     Ok(())
 }
 
-/// Stages one target and runs `opa test` over the tree.
 pub fn run(
     exe: &Path,
     manifest_key: &str,
@@ -157,7 +146,6 @@ pub fn run(
     })
 }
 
-/// Runs the target named by the process environment and prints opa's output.
 pub fn run_from_env() -> io::Result<u8> {
     let argv: Vec<String> = std::env::args().collect();
     let exe = argv.first().ok_or_else(|| bad("no argv[0]"))?;

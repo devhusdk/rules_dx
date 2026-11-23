@@ -1,5 +1,3 @@
-//! Boots, installs on and launches one named simulator.
-
 use std::path::Path;
 
 use crate::util::{
@@ -9,7 +7,6 @@ use crate::xcode::{Tools, XCRUN};
 
 pub const PREFIX: &str = "dx-apple-simctl";
 
-/// The `(name, udid)` of a line of `simctl list devices`.
 #[must_use]
 pub fn device(line: &str) -> Option<(&str, &str)> {
     let first = line.strip_prefix(' ')?.trim_start().chars().next()?;
@@ -25,10 +22,7 @@ pub fn device(line: &str) -> Option<(&str, &str)> {
     hex.then_some((name, udid))
 }
 
-/// The stdout of `xcrun simctl list <what>`, or why it failed.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn list(tools: &Tools<'_>, what: &[&str], noun: &str) -> Result<String, Failure> {
     let mut args = vec!["simctl", "list"];
@@ -106,10 +100,7 @@ fn install(tools: &Tools<'_>, env: Env<'_>, udid: &str, app: &str) -> Outcome {
     done(tools.xcrun_inherit(&["simctl", "install", udid, &bundle]))
 }
 
-/// Runs `simctl <op> [app]`.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(tools: &Tools<'_>, args: &[String], env: Env<'_>) -> Outcome {
     let Some((op, rest)) = args.split_first() else {

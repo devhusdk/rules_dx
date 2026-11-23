@@ -1,32 +1,22 @@
-//! Resolves a Hex package set from the Mix or rebar3 lock next to its manifest.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use std::collections::BTreeMap;
 
-/// The tarball URL prefix of repo.hex.pm.
 pub const HEX_REPO: &str = "https://repo.hex.pm/tarballs/";
 
-/// The `rebar.config` state file.
 pub const REBAR_LOCK: &str = "rebar.lock";
 
-/// One Erlang or Elixir term.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Term {
-    /// A string or binary.
     Text(String),
-    /// An atom, number or other bare word.
     Atom(String),
-    /// A tuple.
     Tuple(Vec<Term>),
-    /// A list; a keyword entry is a two element tuple.
     List(Vec<Term>),
-    /// A map, in source order.
     Map(Vec<(Term, Term)>),
 }
 
 impl Term {
-    /// The text of a string, binary or atom.
     #[must_use]
     pub fn text(&self) -> Option<&str> {
         match self {
@@ -238,8 +228,6 @@ impl Parser<'_> {
     }
 }
 
-/// The one term of an Elixir file such as a Mix lock.
-///
 /// # Errors
 /// Fails when the text is not one term.
 pub fn parse_elixir(text: &str) -> Result<Term, Error> {
@@ -256,8 +244,6 @@ pub fn parse_elixir(text: &str) -> Result<Term, Error> {
     Ok(term)
 }
 
-/// The dot terminated terms of an Erlang file such as `rebar.lock`.
-///
 /// # Errors
 /// Fails when the text is not a list of terms each ended by `.`.
 pub fn parse_erlang(text: &str) -> Result<Vec<Term>, Error> {
@@ -322,8 +308,6 @@ fn mix_dependency(dep: &Term) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// The packages of a Mix lock.
-///
 /// # Errors
 /// Fails when the text is not a map of hexpm entries.
 pub fn mix_packages(text: &str) -> Result<Vec<Package>, Error> {
@@ -363,8 +347,6 @@ pub fn mix_packages(text: &str) -> Result<Vec<Package>, Error> {
     Ok(packages)
 }
 
-/// The packages of a `rebar.lock` in lock format 1.2.0.
-///
 /// # Errors
 /// Fails when the text is not a 1.2.0 lock of pkg entries with `pkg_hash_ext` checksums.
 pub fn rebar_packages(text: &str) -> Result<Vec<Package>, Error> {
@@ -418,13 +400,11 @@ pub fn rebar_packages(text: &str) -> Result<Vec<Package>, Error> {
     Ok(packages)
 }
 
-/// The resolver of the hex ecosystem.
 pub struct Hex {
     mix: String,
 }
 
 impl Hex {
-    /// The resolver that reads the Mix lock named first in `spec.state`.
     #[must_use]
     pub fn new(spec: &Spec) -> Self {
         Self {
@@ -432,7 +412,6 @@ impl Hex {
         }
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -469,7 +448,6 @@ impl Resolver for Hex {
     }
 }
 
-/// Runs the hex lock step with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("hex") else {

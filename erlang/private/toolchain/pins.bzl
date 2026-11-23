@@ -9,7 +9,6 @@ _ARCHIVES = _PINS["archives"]
 
 OTP_VERSION = _PINS["version"]
 
-# Moves with OTP_VERSION: the erts-* directory of the pinned OTP archive.
 ERTS_VERSION = _PINS["erts_version"]
 
 OTP_RELEASE = _PINS["otp_release"]
@@ -18,7 +17,6 @@ ELVIS_VERSION = _ARCHIVES["dx_elvis"]["version"]
 
 ELVIS_CORE_VERSION = _ARCHIVES["dx_elvis_core"]["version"]
 
-# Hex releases fetched for erlang_bench: erlperf and its one dependency.
 HEX_SOURCES = {
     name: struct(package = pin["package"], sha256 = pin["sha256"], version = pin["version"])
     for name, pin in _PINS["hex"].items()
@@ -69,14 +67,12 @@ CELLS = {
     ),
 }
 
-# Cells whose OTP is pinned but cannot run Erlang yet: the launchers are POSIX sh.
 OTP_UNPORTED_CELLS = []
 
 OTP_NIF_UNPORTED_CELLS = []
 
 OTP_DIALYZER_UNPORTED_CELLS = []
 
-# OTP applications in the dialyzer base PLT.
 DIALYZER_PLT_CORE = ["erts", "kernel", "stdlib"]
 
 DIALYZER_PLT_APPS = ["compiler", "crypto", "syntax_tools", "sasl", "public_key", "ssl", "inets", "tools", "runtime_tools", "eunit"]

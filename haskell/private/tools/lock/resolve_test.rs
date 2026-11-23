@@ -1,5 +1,3 @@
-//! Tests the cabal lock step against a plan and a Hackage index fixture.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 

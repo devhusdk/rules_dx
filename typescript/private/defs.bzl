@@ -25,7 +25,6 @@ visibility(["//..."])
 _TS_BUILD_TOOLS = ["tsc", "validator"]
 
 def _dx_ts_project(**kwargs):
-    # Per-project tool aliases keep //typescript/private private; they go with the shim in #13889.
     for key in _TS_BUILD_TOOLS:
         if key in kwargs:
             continue

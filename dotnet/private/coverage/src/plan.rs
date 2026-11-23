@@ -1,22 +1,15 @@
-//! Plans a writable mirror of a runfiles tree; language-neutral.
-
 use std::collections::BTreeSet;
 
-/// One runfiles entry: its rlocation and the file it points at (None for an empty file).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     pub rlocation: String,
     pub target: Option<String>,
 }
 
-/// How each entry lands in the mirror.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct MirrorPlan {
-    /// Entries copied as real, writable files.
     pub copy: Vec<Entry>,
-    /// Entries linked to the original file.
     pub link: Vec<Entry>,
-    /// Entries that are empty files.
     pub empty: Vec<String>,
 }
 
@@ -48,7 +41,6 @@ fn escape(raw: &str) -> String {
         .replace(' ', "\\s")
 }
 
-/// Parses a Bazel runfiles MANIFEST, including its escaped-line form.
 pub fn parse_manifest(text: &str) -> Vec<Entry> {
     let mut entries = Vec::new();
     for line in text.lines() {
@@ -78,7 +70,6 @@ pub fn parse_manifest(text: &str) -> Vec<Entry> {
     entries
 }
 
-/// Renders a MANIFEST whose entries point into the mirror rooted at `root`.
 pub fn render_manifest(entries: &[Entry], root: &str) -> String {
     let mut out = String::new();
     for entry in entries {
@@ -102,7 +93,6 @@ pub fn render_manifest(entries: &[Entry], root: &str) -> String {
     out
 }
 
-/// Splits entries into the copy, link and empty sets.
 pub fn plan(entries: &[Entry], copies: &BTreeSet<String>) -> MirrorPlan {
     let mut plan = MirrorPlan::default();
     for entry in entries {
@@ -115,7 +105,6 @@ pub fn plan(entries: &[Entry], copies: &BTreeSet<String>) -> MirrorPlan {
     plan
 }
 
-/// Returns the rlocations that must be real copies: each assembly plus its PDB when present.
 pub fn copy_set(entries: &[Entry], assemblies: &[String]) -> BTreeSet<String> {
     let present: BTreeSet<&str> = entries.iter().map(|e| e.rlocation.as_str()).collect();
     let mut out = BTreeSet::new();
@@ -134,12 +123,10 @@ pub fn copy_set(entries: &[Entry], assemblies: &[String]) -> BTreeSet<String> {
     out
 }
 
-/// Returns the parent rlocation directory of one rlocation.
 pub fn parent(rlocation: &str) -> &str {
     rlocation.rsplit_once('/').map_or("", |(dir, _)| dir)
 }
 
-/// Returns the assembly name coverlet filters on: the file name without its extension.
 pub fn assembly_name(rlocation: &str) -> &str {
     let file = rlocation.rsplit_once('/').map_or(rlocation, |(_, f)| f);
     file.rsplit_once('.').map_or(file, |(stem, _)| stem)

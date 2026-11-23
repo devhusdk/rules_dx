@@ -1,5 +1,3 @@
-//! The fpm lock step writes the golden lock from pinned archives with an empty `PATH` and no network.
-
 use dx_lock::{Args, Error, Outcome, run};
 use dx_lock_testing::{FixtureFetch, NoFetch};
 use fpm_lock::{Download, Fpm, read_archive};

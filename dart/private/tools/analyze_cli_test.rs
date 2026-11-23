@@ -1,5 +1,3 @@
-//! Pins the `dart analyze --format=json` contract the quality parser relies on. dart.dev documents
-//! neither the exit codes nor the JSON shape, so an SDK bump that changes them fails here first.
 #![expect(
     clippy::disallowed_methods,
     reason = "tests run local programs under the Bazel test timeout"
@@ -37,7 +35,6 @@ impl Project {
         path
     }
 
-    /// Runs the analyzer with no HOME, as the quality runner does.
     fn analyze(&self, paths: &[&Path]) -> Output {
         let bin = env_file("DART");
         Command::new(bin)
@@ -155,7 +152,6 @@ fn columns_count_utf16_units() {
         .iter()
         .find(|d| d["code"] == "invalid_assignment")
         .expect("invalid_assignment");
-    // `  var s = '<U+1F600>'; int x = ` puts the literal after one astral char (2 UTF-16 units).
     let line = ASTRAL.lines().nth(1).expect("line");
     let scalars = line.find("'a'").expect("literal");
     let before = line.get(..scalars).expect("string slice within bounds");

@@ -43,8 +43,6 @@ def _ts_proto_srcs_impl(ctx):
     windows = ctx.attr._exec_os[ExecOsInfo].windows
     plugin_path = plugin.path
     if windows:
-        # On Windows the plugin is the js_build_tool .bat shim, which protoc starts through cmd.exe.
-        # cmd.exe reads a forward slash as a switch, so "bazel-out/..." would run "bazel-out".
         plugin_path = plugin_path.replace("/", "\\")
     args = ctx.actions.args()
     args.add("--plugin=protoc-gen-es=" + plugin_path)
@@ -53,7 +51,6 @@ def _ts_proto_srcs_impl(ctx):
     args.add_all(protos)
     ctx.actions.run(
         executable = ctx.toolchains[_PROTO_TOOLCHAIN].proto.proto_compiler,
-        # Run on the same exec platform as _exec_os and _plugin.
         toolchain = None,
         arguments = [args],
         inputs = descriptors,
@@ -83,7 +80,6 @@ ts_proto_srcs = rule(
             cfg = "exec",
         ),
     },
-    # The resolved toolchain is the prebuilt protoc binary where one exists, so no protobuf C++ builds.
     toolchains = [config_common.toolchain_type(_PROTO_TOOLCHAIN, mandatory = True)],
     doc = "Generates the <name>_pb.ts modules of one proto_library.",
 )

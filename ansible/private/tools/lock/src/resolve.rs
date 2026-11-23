@@ -1,13 +1,10 @@
-//! Resolves the collections the ansible manifest pins to their Galaxy archives.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use dx_lock::{Archive, Error, Lock, Package, Resolution, Resolver, Scratch, Spec};
 
-/// The Galaxy endpoint the collection archives are downloaded from.
 pub const SOURCE: &str =
     "https://galaxy.ansible.com/api/v3/plugin/ansible/content/published/collections/artifacts";
 
-/// The resolver of the ansible ecosystem.
 pub struct Ansible;
 
 fn valid_part(part: &str) -> bool {
@@ -40,8 +37,6 @@ fn scalar(text: &str) -> &str {
         .unwrap_or(text)
 }
 
-/// The `name` and `version` of each entry under `collections:`, comments skipped.
-///
 /// # Errors
 /// Fails when an entry has a key other than `name` or `version`, lacks an exact version, names a
 /// collection that is not `namespace.collection`, a collection is listed twice, or no collection is
@@ -110,7 +105,6 @@ pub fn parse_requirements(text: &str) -> Result<Vec<(String, String)>, Error> {
 }
 
 impl Ansible {
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -155,7 +149,6 @@ impl Resolver for Ansible {
     }
 }
 
-/// Runs the ansible lock step with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("ansible") else {

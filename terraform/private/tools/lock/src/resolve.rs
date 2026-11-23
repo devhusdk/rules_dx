@@ -1,4 +1,3 @@
-//! Resolves the `required_providers` of the `*.tf` files of a set to registry provider archives, one per platform.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -6,10 +5,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use dx_semver::Version;
 
-/// The only registry host the resolver reads.
 pub const HOST: &str = "registry.terraform.io";
 
-/// The registry operating systems and architectures, and the lock platform of each.
 const PLATFORMS: [(&str, &str, &str); 6] = [
     ("linux", "amd64", "linux_x86_64"),
     ("linux", "arm64", "linux_arm64"),
@@ -19,20 +16,15 @@ const PLATFORMS: [(&str, &str, &str); 6] = [
     ("windows", "arm64", "windows_arm64"),
 ];
 
-/// Reads JSON documents from a registry.
 pub trait Registry {
-    /// The bytes at `url`.
-    ///
     /// # Errors
     /// Fails when the download does.
     fn get(&self, url: &str) -> Result<Vec<u8>, Error>;
 }
 
-/// Reads documents over HTTPS.
 pub struct Site(HttpFetch);
 
 impl Site {
-    /// A registry client that refuses plain HTTP.
     #[must_use]
     pub fn new() -> Self {
         Self(HttpFetch::new())
@@ -51,7 +43,6 @@ impl Registry for Site {
     }
 }
 
-/// The source text with comments blanked, strings kept.
 fn uncommented(text: &str) -> String {
     let mut out = String::new();
     let mut chars = text.chars().peekable();
@@ -96,7 +87,6 @@ fn skip_line(chars: &mut impl Iterator<Item = char>, out: &mut String) {
     }
 }
 
-/// One token of the block grammar the resolver reads.
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum Token {
     Word(String),
@@ -143,12 +133,9 @@ fn tokens(text: &str) -> Vec<Token> {
     out
 }
 
-/// One `required_providers` entry: the provider source address and the version constraint.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Requirement {
-    /// `HOST/NAMESPACE/TYPE`.
     pub source: String,
-    /// The constraint, empty for any version.
     pub constraint: String,
 }
 
@@ -179,8 +166,6 @@ fn source_address(name: &str, source: Option<&str>) -> Result<String, Error> {
     }
 }
 
-/// The provider requirements of Terraform source, in source order.
-///
 /// # Errors
 /// Fails on a provider source that is not on the public registry.
 pub fn requirements(text: &str) -> Result<Vec<Requirement>, Error> {
@@ -272,9 +257,6 @@ fn entries(block: &[Token]) -> Result<Vec<Requirement>, Error> {
     Ok(out)
 }
 
-/// Whether the release `version` satisfies every comma separated clause of `constraint`.
-/// Prereleases satisfy nothing, so the resolver only picks releases.
-///
 /// # Errors
 /// Fails on a clause the resolver does not read.
 pub fn satisfies(version: &str, constraint: &str) -> Result<bool, Error> {
@@ -305,7 +287,6 @@ pub fn satisfies(version: &str, constraint: &str) -> Result<bool, Error> {
             ">=" => have >= want,
             "<" => have < want,
             "<=" => have <= want,
-            // `~> 3.2.1` lets only the last written part rise: at least 3.2.1, still 3.2.
             _ => have >= want && have.same_prefix(&want, want.parts().saturating_sub(1).max(1)),
         };
         if !holds {
@@ -326,14 +307,12 @@ fn text<'a>(value: &'a serde_json::Value, key: &str, what: &str) -> Result<&'a s
         .ok_or_else(|| Error::new(format!("{what}: no {key}")))
 }
 
-/// The resolver of the terraform ecosystem.
 pub struct Terraform<'a> {
     registry: &'a dyn Registry,
     state: String,
 }
 
 impl<'a> Terraform<'a> {
-    /// A resolver that reads documents from `registry` and keeps the state the registry entry names.
     #[must_use]
     pub fn new(registry: &'a dyn Registry, hub: &dx_families::Hub) -> Self {
         Self {
@@ -342,7 +321,6 @@ impl<'a> Terraform<'a> {
         }
     }
 
-    /// The lock step values of the registry entry.
     #[must_use]
     pub fn spec(hub: &dx_families::Hub) -> Spec {
         Spec {
@@ -469,7 +447,6 @@ fn read_requirements(scratch: &Scratch) -> Result<BTreeMap<String, BTreeSet<Stri
     Ok(found)
 }
 
-/// The text of the state file for the resolved providers.
 #[must_use]
 pub fn state(packages: &[Package], constraints: &BTreeMap<String, BTreeSet<String>>) -> String {
     let mut out =
@@ -566,8 +543,6 @@ impl Resolver for Terraform<'_> {
     }
 }
 
-/// Runs the terraform lock step on `args`, the arguments after `dx terraform_lock`: 0 when the lock is
-/// fresh or written, 1 when stale, 2 on failure.
 pub fn run_process(args: &[String]) -> i32 {
     let Some(hub) = dx_families::hub("terraform") else {
         eprintln!("terraform has no registry entry");

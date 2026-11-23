@@ -1,5 +1,3 @@
-//! Host-run qualifier: checks exported compile commands against Bazel's own action argv.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -71,7 +69,6 @@ fn run(args: Vec<String>) -> Result<(), Error> {
         return Ok(());
     }
     let mut targets = Vec::new();
-    // The version probe runs the compiler itself, so its files must be on local disk.
     let mut flags =
         vec!["--modify_execution_info=CppCompile=+no-remote,CppCompile=+no-cache".to_string()];
     let mut output = None;

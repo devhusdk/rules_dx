@@ -1,5 +1,3 @@
-//! Checks one ad hoc signed macOS application archive and writes its identity.
-
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -15,7 +13,6 @@ const LOAD_COMMANDS: [&str; 4] = [
     "LC_LOAD_UPWARD_DYLIB",
 ];
 
-/// What `otool -l` text declares: build platforms, minimum versions, rpaths and loaded libraries.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Loads {
     pub platforms: BTreeSet<String>,
@@ -24,7 +21,6 @@ pub struct Loads {
     pub loads: Vec<String>,
 }
 
-/// Reads the load commands out of `otool -l` text.
 #[must_use]
 pub fn parse_loads(text: &str) -> Loads {
     let mut found = Loads::default();
@@ -60,7 +56,6 @@ fn newest(versions: &[String]) -> &str {
     })
 }
 
-/// `text` as a quoted JSON string, control characters escaped.
 fn quote(text: &str) -> String {
     serde_json::Value::from(text).to_string()
 }
@@ -154,7 +149,6 @@ impl Check<'_> {
         Ok(())
     }
 
-    /// The linkage of one file, or `None` when it is not Mach-O.
     fn mach_o(
         &self,
         file: &Path,
@@ -391,12 +385,7 @@ fn verify(tools: &Tools<'_>, args: &[String], scratch: &Path) -> Result<(), Fail
     )
 }
 
-/// Checks the app archive `args` name, publishes the zip and writes the identity on success.
-///
-/// Failures read `<what> ...`; the caller prefixes [`PREFIX`].
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
     let identity = args.first().map_or("", String::as_str);

@@ -1,4 +1,3 @@
-//! Prepares the advisory snapshots one CI run shares with every audit cell.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::BTreeMap;
@@ -154,7 +153,6 @@ fn run(cli: Cli) -> Result<Vec<String>, PrepError> {
     Ok(lines)
 }
 
-/// Applies the `--ci` steps; `Some` lines mean there is nothing to prepare.
 fn ci_setup(
     options: &mut PrepareOptions,
     status_file: Option<&Path>,

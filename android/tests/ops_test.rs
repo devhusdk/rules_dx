@@ -1,5 +1,3 @@
-//! Tests the Android packaging operations.
-
 use dx_android_ops::util::Captured;
 use dx_android_ops::{adb, apk_set, check, sign};
 

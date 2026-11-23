@@ -1,6 +1,5 @@
 """The source repository dune builds OCaml tools from."""
 
-# Test, doc and bench directories, dropped from the source filegroup.
 _PRUNED = ["test", "tests", "doc", "docs", "bench", "example", "examples", "review_tests"]
 
 _BUILD = """package(default_visibility = ["//visibility:public"])

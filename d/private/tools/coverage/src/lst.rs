@@ -1,9 +1,3 @@
-//! Converts the `.lst` files a D program built with `-cov` writes into LCOV.
-
-/// Returns the LCOV record for one `.lst` file, or None when the file has no code.
-///
-/// Each line is `count|source`; the count is blank for lines without code. The last
-/// line names the source file: `<path> is 80% covered` or `<path> has no code`.
 pub fn lst_to_lcov(text: &str) -> Option<String> {
     let mut lines: Vec<&str> = text.lines().collect();
     let summary = lines.pop()?;

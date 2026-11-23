@@ -1,12 +1,9 @@
-//! What codesign, export and notarize share: flags, paths, plists, certificates and keychains.
-
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
 use crate::util::{Env, Failure, exit_code, usage};
 use crate::xcode::{OPENSSL, PLUTIL, SECURITY, Tools};
 
-/// Makes every file this operation creates private to the user.
 #[expect(unsafe_code, reason = "umask has no safe std API")]
 pub fn private_files() {
     // SAFETY: umask has no failure mode and only changes the creation mask of this process.
@@ -15,20 +12,15 @@ pub fn private_files() {
     }
 }
 
-/// The text of a path.
 #[must_use]
 pub fn text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
-/// The flags of one invocation by name without the leading dashes.
 pub struct Flags(HashMap<String, String>);
 
 impl Flags {
-    /// Reads `--name value` and `--name=value` for the `names` given.
-    ///
     /// # Errors
-    ///
     /// Returns an error when the operation fails.
     pub fn parse(args: &[String], names: &[&str], help: &str) -> Result<Flags, Failure> {
         let mut found = HashMap::new();
@@ -56,13 +48,11 @@ impl Flags {
         Ok(Flags(found))
     }
 
-    /// The value of `name`, empty when it is not given.
     pub fn get(&self, name: &str) -> &str {
         self.0.get(name).map_or("", String::as_str)
     }
 }
 
-/// The directory the user ran the program from.
 pub fn caller(env: Env<'_>) -> PathBuf {
     env("BUILD_WORKING_DIRECTORY")
         .map(PathBuf::from)
@@ -70,7 +60,6 @@ pub fn caller(env: Env<'_>) -> PathBuf {
         .unwrap_or_default()
 }
 
-/// `path` below `base` unless it is absolute.
 #[must_use]
 pub fn absolute(path: &str, base: &Path) -> PathBuf {
     let path = Path::new(path);
@@ -81,10 +70,7 @@ pub fn absolute(path: &str, base: &Path) -> PathBuf {
     }
 }
 
-/// The checked location of the file or bundle `out`: its directory exists and is outside bazel-out.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn output_path(out: &Path, env: Env<'_>, suffix: &str, what: &str) -> Result<PathBuf, Failure> {
     if !text(out).ends_with(suffix) {
@@ -102,10 +88,7 @@ pub fn output_path(out: &Path, env: Env<'_>, suffix: &str, what: &str) -> Result
     Ok(out)
 }
 
-/// Fails when `dir` is inside the Bazel output base.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn outside_bazel_out(
     dir: &Path,
@@ -135,7 +118,6 @@ pub fn outside_bazel_out(
     Ok(())
 }
 
-/// The sorted entries of `dir`.
 #[must_use]
 pub fn entries(dir: &Path) -> Vec<PathBuf> {
     let mut found: Vec<PathBuf> = std::fs::read_dir(dir)
@@ -149,14 +131,12 @@ pub fn entries(dir: &Path) -> Vec<PathBuf> {
     found
 }
 
-/// Whether `path` is a symbolic link.
 #[must_use]
 pub fn is_link(path: &Path) -> bool {
     path.symlink_metadata()
         .is_ok_and(|meta| meta.file_type().is_symlink())
 }
 
-/// Every file or directory below `dir`, without following links.
 #[must_use]
 pub fn descendants(dir: &Path) -> Vec<PathBuf> {
     let mut found = Vec::new();
@@ -170,7 +150,6 @@ pub fn descendants(dir: &Path) -> Vec<PathBuf> {
     found
 }
 
-/// Whether `path` is a regular file that starts with a Mach-O or universal magic.
 #[must_use]
 pub fn macho(path: &Path) -> bool {
     use std::io::Read;
@@ -188,7 +167,6 @@ pub fn macho(path: &Path) -> bool {
         )
 }
 
-/// The value of `key` in the plist `file`.
 #[must_use]
 pub fn value(tools: &Tools<'_>, key: &str, file: &Path) -> Option<String> {
     let out = tools.tool(PLUTIL, &["-extract", key, "raw", "-o", "-", &text(file)]);
@@ -196,7 +174,6 @@ pub fn value(tools: &Tools<'_>, key: &str, file: &Path) -> Option<String> {
         .then(|| out.stdout.trim_end_matches('\n').to_owned())
 }
 
-/// The top-level keys of an XML plist.
 #[must_use]
 pub fn keys(plist: &str) -> BTreeSet<String> {
     let mut depth = 0i32;
@@ -219,14 +196,12 @@ pub fn keys(plist: &str) -> BTreeSet<String> {
     found
 }
 
-/// Whether the entitlements plist sets `com.apple.security.get-task-allow` to true.
 #[must_use]
 pub fn debuggable(plist: &str) -> bool {
     let squeezed: String = plist.chars().filter(|c| !" \t\r\n".contains(*c)).collect();
     squeezed.contains("<key>com.apple.security.get-task-allow</key><true/>")
 }
 
-/// The first value of `name=` in codesign details.
 #[must_use]
 pub fn detail(details: &str, name: &str) -> String {
     details
@@ -236,7 +211,6 @@ pub fn detail(details: &str, name: &str) -> String {
         .to_owned()
 }
 
-/// Whether the codesign details show the hardened runtime flag.
 #[must_use]
 pub fn hardened(details: &str) -> bool {
     details.lines().any(|line| {
@@ -249,7 +223,6 @@ pub fn hardened(details: &str) -> bool {
     })
 }
 
-/// Reads the base64 `encoded` text.
 #[must_use]
 pub fn base64_decode(encoded: &str) -> Option<Vec<u8>> {
     let mut bytes = Vec::new();
@@ -273,7 +246,6 @@ pub fn base64_decode(encoded: &str) -> Option<Vec<u8>> {
     Some(bytes)
 }
 
-/// The SHA-1 fingerprint of the certificate in `file`, upper case without colons.
 #[must_use]
 pub fn fingerprint(tools: &Tools<'_>, file: &Path, form: &str) -> Option<String> {
     let out = tools.tool(
@@ -300,7 +272,6 @@ pub fn fingerprint(tools: &Tools<'_>, file: &Path, form: &str) -> Option<String>
     (out.success() && !print.is_empty()).then_some(print)
 }
 
-/// A random hex string from openssl.
 fn random(tools: &Tools<'_>) -> Result<String, Failure> {
     let out = tools.tool(OPENSSL, &["rand", "-hex", "24"]);
     let secret = out.stdout.trim().to_owned();
@@ -311,17 +282,13 @@ fn random(tools: &Tools<'_>) -> Result<String, Failure> {
     }
 }
 
-/// A signing identity re-encrypted for `security import`.
 pub struct Identity {
     pub p12: PathBuf,
     pub password: String,
     pub sha1: String,
 }
 
-/// Reads the .p12 `cert` with the password in `password_file`.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn read_identity(
     tools: &Tools<'_>,
@@ -414,7 +381,6 @@ pub fn read_identity(
     })
 }
 
-/// A throwaway keychain on the user's search list, removed when dropped.
 pub struct Keychain<'a> {
     tools: &'a Tools<'a>,
     pub path: PathBuf,
@@ -430,10 +396,7 @@ fn search_list(listing: &str) -> Vec<String> {
 }
 
 impl<'a> Keychain<'a> {
-    /// Imports `identity` into a new keychain called `label` and searches it first.
-    ///
     /// # Errors
-    ///
     /// Returns an error when the operation fails.
     pub fn open(
         tools: &'a Tools<'a>,
@@ -536,10 +499,7 @@ impl Drop for Keychain<'_> {
     }
 }
 
-/// Runs codesign with `args`; prints its errors and maps a missing timestamp service to exit code 3.
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn codesign(tools: &Tools<'_>, args: &[&str]) -> Result<(), Failure> {
     let out = tools.tool(crate::xcode::CODESIGN, args);
@@ -559,7 +519,6 @@ pub fn codesign(tools: &Tools<'_>, args: &[&str]) -> Result<(), Failure> {
     })
 }
 
-/// The combined output of codesign when it describes `target`.
 #[must_use]
 pub fn describe(tools: &Tools<'_>, flags: &[&str], target: &Path) -> Option<String> {
     let mut args = flags.to_vec();

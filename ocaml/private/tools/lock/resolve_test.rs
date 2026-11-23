@@ -1,5 +1,3 @@
-//! The opam lock step writes the golden lock with an empty `PATH`; opam files and archives come from fakes.
-
 use std::cell::RefCell;
 
 use dx_lock::{Args, Error, Outcome, run};

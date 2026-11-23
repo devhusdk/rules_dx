@@ -13,7 +13,6 @@ visibility(["//android/tests/...", "//kotlin/..."])
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
 
-# The jars of the Kotlin compiler distribution the kotlinc driver loads, in the toolchain's kotlin_home.
 _KOTLINC_JARS = [
     "annotations-13.0.jar",
     "kotlin-compiler.jar",
@@ -48,7 +47,6 @@ def _kotlin_plugins(attrs):
     targets = list(getattr(attrs, "plugins", []))
     for dep in getattr(attrs, "deps", []):
         if KtJvmInfo in dep:
-            # Bounded by the direct deps' exported plugins: each needs its Target providers.
             targets += dep[KtJvmInfo].exported_compiler_plugins.to_list()
     plugins = {}
     configs = {}

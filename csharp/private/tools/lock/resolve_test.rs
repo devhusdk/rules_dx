@@ -1,5 +1,3 @@
-//! The nuget lock step writes the golden lock from registry fixtures with an empty `PATH` and no network.
-
 use dx_lock::{Args, Error, Outcome, run};
 use dx_lock_testing::{FixtureFetch, NoFetch};
 use nuget_lock::{

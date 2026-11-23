@@ -1,5 +1,4 @@
 # gazelle:ignore
-# Why: gazelle fails here: no module root among greet.zig and the dirty fixtures.
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 load("//zig:defs.bzl", "zig_binary", "zig_library", "zig_test")
 

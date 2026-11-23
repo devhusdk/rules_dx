@@ -2,9 +2,6 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# Public so users can register their own OTP toolchain. Register it for both
-# types: the target type is the OTP runtime erlang binaries and tests ship, the
-# exec type is the OTP build actions run on the execution platform.
 toolchain_type(
     name = "toolchain_type",
     visibility = ["//visibility:public"],

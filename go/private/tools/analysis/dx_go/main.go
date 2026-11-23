@@ -1,4 +1,3 @@
-// Command dx_go runs one of the rules_dx Go tools, chosen by the name it is invoked as.
 package main
 
 import (
@@ -30,15 +29,12 @@ var tools = map[string]tool{
 	"dx_staticcheck": staticcheck.Main,
 }
 
-// toolName maps an argv[0] such as /x/dx-govet.exe to the tool key dx_govet.
 func toolName(argv0 string) string {
 	name := filepath.Base(argv0)
 	name = strings.TrimSuffix(strings.TrimSuffix(name, ".exe"), ".EXE")
 	return strings.ReplaceAll(name, "-", "_")
 }
 
-// run picks the tool from argv[0], or from argv[1] when invoked as dx_go itself.
-// In the second case it sets os.Args[0] to the tool name.
 func run(argv []string, stdout, stderr io.Writer) int {
 	name := toolName(argv[0])
 	args := argv[1:]

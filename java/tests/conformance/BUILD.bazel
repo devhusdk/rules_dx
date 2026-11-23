@@ -71,7 +71,6 @@ java_binary(
     deps = ["@maven//:junit_junit"],
 )
 
-# Fails analysis when java_binary stops exposing <name>_deploy.jar.
 filegroup(
     name = "hello_deploy_jar",
     srcs = [":hello_deploy.jar"],

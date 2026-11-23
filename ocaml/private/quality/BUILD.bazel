@@ -21,7 +21,6 @@ dx_dune_build(
     workspace = "@dx_ocaml_tools_duniverse//:dune-project",
 )
 
-# Real zanuda on linux_x86_64, linux_arm64 and macos_arm64; a marked stub elsewhere.
 alias(
     name = "zanuda_tool",
     actual = select({

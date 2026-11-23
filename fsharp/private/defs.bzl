@@ -10,7 +10,6 @@ load("//dotnet/private:benchmarkdotnet.bzl", "BENCHMARKDOTNET")
 load("//dotnet/private:sharpfuzz.bzl", "sharpfuzz_fuzz")
 load(":kwargs.bzl", "fsharp_tfm_with_defaults", "fsharp_with_core")
 
-# Set False to tag fsharp tests dx-no-coverage-collector instead of running coverlet.
 FSHARP_COVERAGE_COLLECTOR = True
 
 _DX_FSHARP_LIBRARY_PROVIDES = [

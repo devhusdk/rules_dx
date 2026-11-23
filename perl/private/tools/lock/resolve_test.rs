@@ -1,5 +1,3 @@
-//! The cpan lock step writes the golden lock with an empty `PATH`; the archives come from the fetcher.
-
 use dx_lock::{Args, Error, Outcome, run};
 use dx_lock_testing::FixtureFetch;
 use perl_lock::{Cpan, packages, parse_requires, parse_snapshot};

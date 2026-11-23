@@ -2,7 +2,6 @@ load("@bazel_skylib//rules:build_test.bzl", "build_test")
 
 exports_files(["pubspec.lock"])
 
-# nested@1.0.0 has bytes after its gzip stream, which only the pinned bsdtar extracts.
 build_test(
     name = "padded_pub_archive_test",
     targets = ["@dx_flutter_padded_archive//:nested"],

@@ -299,7 +299,6 @@ _FEATURE_ATTRS = {
     ),
 }
 
-# Attributes of the hub's `toolchain` declarations.
 _TOOLCHAIN_DECLARATION_ATTRS = {
     "extra_target_compatible_with": attr.label_list(
         doc = "Additional constraint_values appended to target_compatible_with of the toolchain," +
@@ -521,7 +520,6 @@ ARCHS = struct(
     x86_64 = "x86_64",
 )
 
-# Public targets of a toolchain repository, aliased by the hub to the selected version.
 _HUB_ALIASED_TARGETS = [
     "_cc_toolchain",
     "all_files",

@@ -1,4 +1,3 @@
-// Runs Jazzer.js on the fuzz target in argv[2]; the remaining arguments go to libFuzzer.
 const { createRequire } = require("node:module");
 const path = require("node:path");
 

@@ -9,7 +9,6 @@ exports_files([
     "NOTICE",
 ])
 
-# Generators register by static constructor, so all sources compile into the binary.
 cc_binary(
     name = "thrift_compiler",
     srcs = glob([
@@ -18,7 +17,6 @@ cc_binary(
         "compiler/cpp/src/thrift/**/*.h",
         "compiler/cpp/src/thrift/**/*.hh",
     ], exclude = [
-        # Test-only duplicate of the diagnostics main.cc defines.
         "compiler/cpp/src/thrift/logging.cc",
     ]),
     copts = select({
@@ -36,7 +34,6 @@ cc_binary(
     visibility = ["//visibility:public"],
 )
 
-# A real upstream schema, used by the thrift_library cross-repo analysis test.
 filegroup(
     name = "sample_schema",
     srcs = ["test/ThriftTest.thrift"],

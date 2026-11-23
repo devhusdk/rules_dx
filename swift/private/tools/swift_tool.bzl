@@ -47,10 +47,6 @@ swift_format_tool = rule(
 
 def _swift_format_windows_impl(ctx):
     program = ctx.file.program
-    # swift-format.exe names the Swift runtime as side-by-side assemblies, which Windows looks up
-    # in real directories beside the real executable. A runfiles tree holds them as symlinks and
-    # the lookup fails there with os error 14001, so run the executable from where it really sits,
-    # as swiftc runs.
     launcher, _, launcher_runfiles = write_native_launcher(ctx, "real_program=" + rlocation_path(ctx, program) + "\n")
     runfiles = launcher_runfiles.merge(ctx.runfiles(files = [program], transitive_files = depset(ctx.files.data)))
     return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles)]

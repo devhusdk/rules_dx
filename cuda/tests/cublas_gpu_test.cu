@@ -23,7 +23,6 @@ bool Cublas(const char* name, int n, float a, uint32_t seed) {
   }
   std::vector<float> want = y;
   std::vector<float> got = y;
-  // The reference is the fixture's own kernel; the CPU loop is the fallback without a device.
   if (dx_cublas_kernel_gpu(n, a, x.data(), want.data()) != 0) {
     want = y;
     dx_cublas_saxpy_cpu(n, a, x.data(), want.data());

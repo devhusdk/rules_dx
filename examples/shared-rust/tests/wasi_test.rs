@@ -1,5 +1,3 @@
-//! Runs the WASI task board under Wasmtime with only the declared capabilities.
-
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 

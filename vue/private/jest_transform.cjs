@@ -3,9 +3,6 @@
 const { createRequire } = require("node:module");
 const path = require("node:path");
 
-// Compiles one .vue file for jest with the @vue/compiler-sfc the test links.
-// The source map lets jest's coverage report the lines of the component, not
-// of the generated code.
 function process(src, filename, options) {
 	const req = createRequire(path.join(options.config.rootDir, "package.json"));
 	const { parse, compileScript } = req("@vue/compiler-sfc");

@@ -1,5 +1,3 @@
-//! Tests signing a built macOS app.
-
 mod fake;
 
 use std::path::{Path, PathBuf};

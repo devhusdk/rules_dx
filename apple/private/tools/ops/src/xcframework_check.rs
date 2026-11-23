@@ -1,5 +1,3 @@
-//! Checks the slices of one iOS `XCFramework` archive and publishes it.
-
 use std::path::{Path, PathBuf};
 
 use crate::util::{Failure, Outcome, reject, unzip, usage};
@@ -7,7 +5,6 @@ use crate::xcode::{PLUTIL, Tools, components};
 
 pub const PREFIX: &str = "apple_ios_xcframework";
 
-/// What `otool -l` declares for one slice.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Slice {
     pub platforms: Vec<String>,
@@ -15,7 +12,6 @@ pub struct Slice {
     pub install_name: String,
 }
 
-/// Reads the build platforms, newest minimum version and install name out of `otool -l` text.
 #[must_use]
 pub fn parse_slice(loads: &str) -> Slice {
     let mut found = Slice::default();
@@ -322,12 +318,7 @@ fn verify(tools: &Tools<'_>, args: &[String], work: &Path) -> Result<(), Failure
     )
 }
 
-/// Checks the `XCFramework` archive `args` name, publishes it and writes the slice report on success.
-///
-/// Failures read `<what> ...`; the caller prefixes [`PREFIX`].
-///
 /// # Errors
-///
 /// Returns an error when the operation fails.
 pub fn run(tools: &Tools<'_>, args: &[String]) -> Outcome {
     let report = args.first().map_or("", String::as_str);

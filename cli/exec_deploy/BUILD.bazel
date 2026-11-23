@@ -1,0 +1,77 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI")
+
+package(default_visibility = VIS_CLI)
+
+rust_library(
+    name = "dx_exec_deploy",
+    srcs = ["src/lib.rs"],
+    aliases = {},  # keep
+    # Clippy reads this config for dx_exec_deploy instead of the workspace one.
+    compile_data = ["clippy.toml"],
+    crate_name = "dx_exec_deploy",
+    crate_root = "src/lib.rs",
+    # keep
+    deps = [
+        "//cli/error:dx_error",
+        "//cli/exec_core:dx_exec_core",
+        "//cli/output:dx_output",
+        "//cli/plan:dx_plan",
+        "//cli/process:dx_process",
+        "//cli/sbom:dx_sbom",
+    ],
+)
+
+rust_test(
+    name = "dx_exec_deploy_test",
+    size = "small",
+    aliases = {},  # keep
+    compile_data = ["clippy.toml"],
+    crate = ":dx_exec_deploy",
+    # keep
+    deps = [
+        "//cli/error:dx_error",
+        "//cli/exec_core:dx_exec_core",
+        "//cli/output:dx_output",
+        "//cli/plan:dx_plan",
+        "//cli/process:dx_process",
+        "//cli/sbom:dx_sbom",
+    ],
+)
+
+# Read by the dx_cli source guards, which scan every production CLI file.
+filegroup(
+    name = "rust_srcs",
+    srcs = glob(["src/**/*.rs"]),
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = [
+        "Cargo.toml",
+        "clippy.toml",
+    ],
+)
+
+exports_files(
+    [
+        "Cargo.toml",
+        "clippy.toml",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

@@ -3587,7 +3587,7 @@ fn luals_luarc_lets_our_keys_win_over_the_consumer_config() {
     )
     .unwrap();
     let text = luals_luarc(
-        Some(&consumer),
+        &consumer,
         Some(Path::new("/s/dx-luals/mod")),
         &["dx-luals"],
     );
@@ -3605,7 +3605,7 @@ fn luals_luarc_lets_our_keys_win_over_the_consumer_config() {
         serde_json::json!(["dx-luals"])
     );
     assert!(parsed.get("$schema").is_none());
-    let bare: serde_json::Value = serde_json::from_str(&luals_luarc(None, None, &[])).unwrap();
+    let bare: serde_json::Value = serde_json::from_str(&luals_luarc(&serde_json::json!({}), None, &[])).unwrap();
     assert_eq!(bare["workspace.library"], serde_json::json!([]));
 }
 

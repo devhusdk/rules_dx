@@ -25,11 +25,7 @@ def dx_kcov_attrs():
     }
 
 def dx_kcov_test_coverage(ctx, upstream, sources, dependency_attributes = ["upstream"]):
-    """Returns coverage providers that run the upstream test under kcov over sources.
-
-    Returns None off Linux and when _dx_kcov has no executable, as in a consumer with
-    no kcov pin for the platform.
-    """
+    """Returns coverage providers that run the upstream test under kcov over sources."""
     if not ctx.target_platform_has_constraint(ctx.attr._dx_kcov_linux[platform_common.ConstraintValueInfo]):
         return None
     kcov = ctx.attr._dx_kcov[DefaultInfo].files_to_run.executable

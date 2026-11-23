@@ -1,5 +1,3 @@
-//! Renders the public API snapshot that `api/` checks in.
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_module_bazel::{ModuleFile, Value as Arg};
@@ -10,10 +8,8 @@ use stardoc_output_proto::stardoc_output::{
     AttributeInfo, FunctionParamInfo, FunctionParamRole, ModuleInfo, StarlarkFunctionInfo,
 };
 
-/// The files under `api/` this crate writes, in the order `update` writes them.
 pub const FILES: [&str; 4] = ["cli.json", "labels.txt", "schemas.txt", "starlark.json"];
 
-/// The rules in `config/BUILD.bazel` whose targets are public flags.
 const FLAG_RULES: [&str; 5] = [
     "alias",
     "bool_flag",
@@ -28,22 +24,14 @@ const CONFIG_BUILD: &str = include_str!("../../config/BUILD.bazel");
 
 const PUBLIC: &str = "//visibility:public";
 
-/// The `tools/visibility` constant that names `//visibility:public`.
 const PUBLIC_CONSTANT: &str = "VIS_PUBLIC";
 
-/// Each package and the text of its `BUILD.bazel`, by the part of the API it feeds.
 pub struct Builds {
-    /// Language packages, for their platforms and toolchain types.
     pub langs: Vec<(String, String)>,
-    /// Command packages, for every public target.
     pub commands: Vec<(String, String)>,
-    /// Every package outside `private/`, `tests/` and `tools/`, for its runnable targets.
     pub packages: Vec<(String, String)>,
 }
 
-/// Every file under `api/`, by name, as `update` writes it. `starlark` holds the `starlark_doc_extract` binaryproto
-/// of each public `.bzl` file and `forwards` the `streamed_jsonproto` query output of the targets macros create in
-/// the consumer fixtures.
 pub fn render(
     builds: &Builds,
     starlark: &[Vec<u8>],
@@ -60,10 +48,6 @@ pub fn render(
     ]))
 }
 
-/// One entry per public `.bzl` file with the signatures of its symbols: rule, macro, aspect, repository rule and tag
-/// class attrs, function params and provider fields. Docstrings and attrs Bazel defines for every rule are left out.
-/// Each function with a `**kwargs` param also lists, under `forwards`, the rule kinds and set attrs of the targets it
-/// creates in the consumer fixtures.
 fn starlark_json(
     modules: &[Vec<u8>],
     forwards: &[String],
@@ -89,7 +73,6 @@ fn starlark_json(
     for name in forwards.keys() {
         match kwargs_modules.get(name.as_str()).map(Vec::as_slice) {
             Some([_]) => {}
-            // A public function without **kwargs forwards nothing a consumer picks; its params are already listed.
             None if public_functions.contains(name.as_str()) => {}
             Some(files) => {
                 return Err(format!(
@@ -230,8 +213,6 @@ fn starlark_json(
     Ok(text)
 }
 
-/// The name a query reports as `generator_function`: the name the function was declared under, which differs
-/// from its public name when the public name aliases an upstream macro.
 fn declared_name(function: &StarlarkFunctionInfo) -> &str {
     function
         .origin_key
@@ -247,11 +228,8 @@ fn has_kwargs(params: &[FunctionParamInfo]) -> bool {
         .any(|param| param.role() == FunctionParamRole::ParamRoleKwargs)
 }
 
-/// The rule kinds a macro creates, each with the attr names set on it.
 type Forwards = BTreeMap<String, BTreeSet<String>>;
 
-/// The rule kinds and explicitly set attr names of the targets each macro creates, keyed by the macro's
-/// `generator_function`, from `streamed_jsonproto` query output. Hidden attrs, `name` and `generator_*` are left out.
 fn forwards_by_function(
     outputs: &[String],
 ) -> Result<BTreeMap<String, Forwards>, Box<dyn std::error::Error>> {
@@ -325,7 +303,6 @@ fn attrs_json(attrs: &[AttributeInfo]) -> Vec<Value> {
     )
 }
 
-/// Params stay in declaration order: callers may pass them by position.
 fn params_json(params: &[FunctionParamInfo]) -> Vec<Value> {
     params
         .iter()
@@ -339,17 +316,14 @@ fn params_json(params: &[FunctionParamInfo]) -> Vec<Value> {
         .collect()
 }
 
-/// The `$(rootpaths)` of every language `BUILD.bazel`, from `DX_API_LANG_BUILDS`.
 pub fn lang_build_paths() -> Result<Vec<String>, std::env::VarError> {
     build_paths("DX_API_LANG_BUILDS")
 }
 
-/// The `$(rootpaths)` of every command package `BUILD.bazel`, from `DX_API_COMMAND_BUILDS`.
 pub fn command_build_paths() -> Result<Vec<String>, std::env::VarError> {
     build_paths("DX_API_COMMAND_BUILDS")
 }
 
-/// The `$(rootpaths)` of every public package `BUILD.bazel`, from `DX_API_PACKAGE_BUILDS`.
 pub fn package_build_paths() -> Result<Vec<String>, std::env::VarError> {
     build_paths("DX_API_PACKAGE_BUILDS")
 }
@@ -361,8 +335,6 @@ fn build_paths(var: &str) -> Result<Vec<String>, std::env::VarError> {
         .collect())
 }
 
-/// The package of a `<package>/BUILD.bazel` root path; the root `BUILD.bazel` (`./BUILD.bazel` as a `$(rootpath)`)
-/// is the package `""`.
 pub fn package_of(path: &str) -> Result<String, String> {
     if path.strip_prefix("./").unwrap_or(path) == "BUILD.bazel" {
         return Ok(String::new());
@@ -372,9 +344,6 @@ pub fn package_of(path: &str) -> Result<String, String> {
         .ok_or_else(|| format!("{path} is not a package BUILD.bazel"))
 }
 
-/// One line per public target the API holds, with its label and rule, and for a flag its default and allowed
-/// values: every named target other than a runnable one in each language and command package, and
-/// `<label> runnable <rule>` for each runnable target in any public package.
 fn target_labels_txt(builds: &Builds) -> Result<String, Box<dyn std::error::Error>> {
     let mut rows = Vec::new();
     for (package, build) in builds.langs.iter().chain(&builds.commands) {
@@ -391,14 +360,11 @@ fn target_labels_txt(builds: &Builds) -> Result<String, Box<dyn std::error::Erro
     Ok(rows.into_iter().map(|row| format!("{row}\n")).collect())
 }
 
-/// Whether `bazel run` runs targets of `rule`: every `*_binary` rule except `run_binary`, and
-/// the `write_source_files` regenerators.
 fn runnable(rule: &str) -> bool {
     (rule.ends_with("_binary") && rule != "run_binary")
         || matches!(rule, "write_source_files" | "write_source_file")
 }
 
-/// A row for each public named target in `build` whose rule `keep` accepts.
 fn public_targets(
     package: &str,
     build: &str,
@@ -425,8 +391,6 @@ fn public_targets(
         .collect())
 }
 
-/// One line per hub repository a language extension makes: its default `use_repo` name and the extension. A `*`
-/// hub names one repository per dependency.
 fn hub_labels_txt(hubs: &[dx_families::Hub]) -> String {
     let mut rows: Vec<String> = hubs
         .iter()
@@ -446,7 +410,6 @@ fn lists_public(visibility: &Arg) -> bool {
     }
 }
 
-/// One line per flag in `config/BUILD.bazel`.
 fn labels_txt(build: &str) -> Result<String, dx_module_bazel::ModuleError> {
     let file = ModuleFile::parse_build(build)?;
     let mut rows: Vec<String> = file
@@ -459,7 +422,6 @@ fn labels_txt(build: &str) -> Result<String, dx_module_bazel::ModuleError> {
     Ok(rows.into_iter().map(|row| format!("{row}\n")).collect())
 }
 
-/// A flag's label, rule, default (or alias target) and allowed values. Values the BUILD file computes are left out.
 fn flag_row(package: &str, name: &str, call: &dx_module_bazel::Call) -> String {
     let default = call
         .arg("build_setting_default")
@@ -473,7 +435,6 @@ fn flag_row(package: &str, name: &str, call: &dx_module_bazel::Call) -> String {
     row
 }
 
-/// An argument as written in the BUILD file.
 fn literal(value: &Arg) -> String {
     match value {
         Arg::Str(text) => format!("{:?}", text.value),
@@ -494,8 +455,6 @@ fn literal(value: &Arg) -> String {
     }
 }
 
-/// Each `dx` command and subcommand with its flags and positionals, their accepted values and defaults, and exit
-/// codes, then the environment variables `dx --help` documents.
 fn cli_json() -> Result<String, serde_json::Error> {
     let commands: Vec<Value> = help_surface()
         .into_iter()
@@ -551,7 +510,6 @@ fn cli_json() -> Result<String, serde_json::Error> {
     Ok(text)
 }
 
-/// One line per public schema: its name, the version code declares, and the digest of its text.
 pub fn schemas_txt() -> String {
     let rows = [
         (
@@ -577,7 +535,6 @@ pub fn schemas_txt() -> String {
         .collect()
 }
 
-/// Schemas whose text changed while their version stayed the same, compared with the checked-in `schemas.txt`.
 #[must_use]
 pub fn unbumped_schemas(checked_in: &str, current: &str) -> Vec<String> {
     let rows = |text: &str| -> BTreeMap<String, (String, String)> {

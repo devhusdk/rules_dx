@@ -1,26 +1,14 @@
-//! A loopback HTTP/1.1 server for tests that need a fake package index or
-//! static file host.
-
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
-/// Request targets (path plus query) seen by a server, in arrival order.
 pub type RequestLog = Arc<Mutex<Vec<String>>>;
 
-/// A successful response: content type and body.
 pub struct Reply {
     pub content_type: &'static str,
     pub body: Vec<u8>,
 }
 
-/// Starts a server on an ephemeral loopback port. `respond` maps a request
-/// target to a [`Reply`], or `None` for a 404. Returns the base URL and the
-/// request log.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn serve<F>(respond: F) -> std::io::Result<(String, RequestLog)>
 where
     F: Fn(&str) -> Option<Reply> + Send + Sync + 'static,
@@ -41,7 +29,6 @@ where
     Ok((format!("http://127.0.0.1:{port}"), log))
 }
 
-/// Snapshot of the request targets seen so far.
 pub fn requests(log: &RequestLog) -> Vec<String> {
     log.lock().map(|log| log.clone()).unwrap_or_default()
 }

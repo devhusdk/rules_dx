@@ -3,7 +3,6 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":clippy_tests.bzl", "clippy_config_test")
 
-# Outside the root package, whose loading fetches every npm link repo.
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
@@ -31,7 +30,6 @@ write_file(
     content = [],
 )
 
-# Rust tests must not depend on a //: label: loading the root package fetches every npm repo.
 diff_test(
     name = "dx_process_root_deps_test",
     file1 = ":dx_process_root_deps",

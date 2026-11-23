@@ -1,7 +1,6 @@
 bazel_dep(name = "llvm", version = "0.8.27")
 bazel_dep(name = "rules_shell", version = "0.10.0")
 
-# The CUDA Toolkit is licensed under the NVIDIA EULA: https://docs.nvidia.com/cuda/eula/index.html
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
 dx_licenses.accept(ids = [
     "cuda-eula",

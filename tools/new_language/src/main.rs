@@ -1,5 +1,3 @@
-//! Creates the directory for a new language.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fs;

@@ -1,16 +1,9 @@
-//! Runs every check on a rule-set plain fixture: the consumer shape and the footprint budget.
-
 use std::path::Path;
 
 use serde_json::Value;
 
 use crate::{Case, footprint, plain_consumer};
 
-/// Returns `Ok` when the fixture is a plain consumer of `rules_<lang>` and its measured footprint matches `budget`.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn check_fixture(
     lang: &str,
     module_bazel: &str,
@@ -40,7 +33,6 @@ pub fn check_fixture(
     }
 }
 
-/// Returns the paths below `root` relative to it, dotfiles and dot directories included.
 #[must_use]
 pub fn fixture_files(root: &Path) -> Vec<String> {
     let mut found = Vec::new();
@@ -65,11 +57,6 @@ fn collect(dir: &Path, prefix: &str, found: &mut Vec<String>) {
     }
 }
 
-/// Measures the footprint of the module the case's nested Bazel resolved.
-///
-/// # Errors
-///
-/// Returns `Err` when a Bazel command fails or the measurement cannot be read.
 pub fn measure_case(case: &Case) -> Result<footprint::Footprint, String> {
     let graph = run_ok(case, &["mod", "graph", "--output=json"], "mod graph")?;
     let info = run_ok(case, &["info", "output_base"], "info output_base")?;
@@ -78,11 +65,6 @@ pub fn measure_case(case: &Case) -> Result<footprint::Footprint, String> {
     footprint::measure(&graph.stdout, &lock, &external)
 }
 
-/// Returns `Ok` when every C++ toolchain selected in `resolution` comes from a `local_config_cc` repository.
-///
-/// # Errors
-///
-/// Returns `Err` when no C++ toolchain was selected or one comes from another repository.
 pub fn check_own_cc(resolution: &str) -> Result<(), String> {
     let selected: Vec<&str> = resolution
         .lines()
@@ -108,11 +90,6 @@ fn selected_repo(line: &str) -> Option<&str> {
     label.trim_start_matches('@').split("//").next()
 }
 
-/// Checks that `target` in the case resolves its C++ toolchain to `local_config_cc`.
-///
-/// # Errors
-///
-/// Returns `Err` when the cquery fails or another C++ toolchain is selected.
 pub fn assert_own_cc(case: &Case, target: &str) -> Result<(), String> {
     let run = run_ok(
         case,

@@ -1,5 +1,3 @@
-//! Checks the pinned Maven lock that every nested consumer copies into its workspace.
-
 use dx_nested::{CONSUMER_MAVEN_LOCK_ENV, consumer_maven};
 use dx_testing::{read, rlocation};
 use serde_json::Value;

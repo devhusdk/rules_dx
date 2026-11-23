@@ -1,12 +1,8 @@
-//! The repository cache of a nested Bazel: built from declared downloads, and listed from a consumer lock.
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-/// The variable naming the runfiles keys of the `nested_repository_cache` manifests, space separated.
 pub const MANIFESTS_ENV: &str = "DX_NESTED_REPOSITORY_CACHE";
 
-/// The checksum algorithm of a lowercase hex digest, named as in the repository cache.
 fn algorithm(digest: &str) -> Option<&'static str> {
     if !digest
         .bytes()
@@ -22,7 +18,6 @@ fn algorithm(digest: &str) -> Option<&'static str> {
     }
 }
 
-/// One download of a cache set: its hex digest, the file that has it, and the URLs it is fetched from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Download<F> {
     pub digest: String,
@@ -30,11 +25,6 @@ pub struct Download<F> {
     pub urls: Vec<String>,
 }
 
-/// Parses a manifest: one `<hex digest> <runfiles key> <url>...` per line.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn parse_manifest(text: &str) -> Result<Vec<Download<String>>, String> {
     let mut entries = Vec::new();
     for line in text.lines().filter(|line| !line.trim().is_empty()) {
@@ -53,7 +43,6 @@ pub fn parse_manifest(text: &str) -> Result<Vec<Download<String>>, String> {
     Ok(entries)
 }
 
-/// The place Bazel looks up a download with the hex `digest` in the repository cache at `cache`.
 #[must_use]
 pub fn entry(cache: &Path, digest: &str) -> PathBuf {
     cache
@@ -74,7 +63,6 @@ fn place(src: &Path, dst: &Path) -> std::io::Result<()> {
     std::fs::copy(src, dst).map(|_| ())
 }
 
-/// The hex digest, in the algorithm of `digest`, of a canonical id.
 fn id_hash(digest: &str, canonical_id: &str) -> Option<String> {
     let bytes = canonical_id.as_bytes();
     match algorithm(digest)? {
@@ -84,10 +72,8 @@ fn id_hash(digest: &str, canonical_id: &str) -> Option<String> {
     }
 }
 
-/// The prefix of a canonical id hash file in a repository cache entry and of its cache list token.
 pub const ID_PREFIX: &str = "id-";
 
-/// The `id-<hex>` canonical id hashes in the cache entry of `digest` that no URL in `urls` accounts for.
 #[must_use]
 pub fn extra_ids(cache: &Path, digest: &str, urls: &[&str]) -> Vec<String> {
     let known: Vec<String> = urls.iter().filter_map(|url| id_hash(digest, url)).collect();
@@ -110,12 +96,6 @@ pub fn extra_ids(cache: &Path, digest: &str, urls: &[&str]) -> Vec<String> {
     ids
 }
 
-/// Builds the repository cache at `cache` from `files`; each URL is also recorded as a canonical id
-/// and each `id-<hex>` token is recorded as that canonical id hash.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn install(cache: &Path, files: &[Download<PathBuf>]) -> Result<(), String> {
     std::fs::create_dir_all(cache)
         .map_err(|error| format!("cannot create {}: {error}", cache.display()))?;
@@ -164,7 +144,6 @@ fn base64_value(byte: u8) -> Option<u32> {
     }
 }
 
-/// Turns a `sha256-`, `sha384-` or `sha512-<base64>` integrity into its hex digest.
 #[must_use]
 pub fn integrity_hex(integrity: &str) -> Option<String> {
     let (name, encoded) = integrity.split_once('-')?;
@@ -190,7 +169,6 @@ fn quoted_after<'a>(text: &'a str, key: &str) -> Option<&'a str> {
     Some(value)
 }
 
-/// The `(url, sha256)` of every `archive_override` in a MODULE.bazel text.
 pub fn archive_overrides(module: &str) -> Vec<(String, String)> {
     let mut found = Vec::new();
     for block in module.split("archive_override(").skip(1) {
@@ -204,14 +182,6 @@ pub fn archive_overrides(module: &str) -> Vec<(String, String)> {
     found
 }
 
-/// Renders the cache list of a consumer: every registry file of `lock`, plus every module archive,
-/// patch, overlay file and `archive_override` archive that `fetched` holds.
-///
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
-/// `fetched` returns the bytes of a download by sha256, read from the repository cache of an online run.
 pub fn list(
     lock: &str,
     module: &str,

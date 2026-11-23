@@ -1,16 +1,10 @@
-//! Record mode: reads the downloads a nested Bazel logged with `--experimental_workspace_rules_log_file`.
-
 use std::collections::BTreeSet;
 
 use crate::cache;
 
-/// The `WorkspaceEvent` field of the rule context.
 const CONTEXT: u64 = 2;
-/// The `WorkspaceEvent` field of a `DownloadEvent`.
 const DOWNLOAD: u64 = 4;
-/// The `WorkspaceEvent` field of a `DownloadAndExtractEvent`.
 const DOWNLOAD_AND_EXTRACT: u64 = 5;
-/// What Bazel puts before the canonical repository name in a repository rule's context.
 const REPOSITORY: &str = "repository @@";
 
 struct Reader<'a> {
@@ -41,7 +35,6 @@ impl<'a> Reader<'a> {
         Some(head)
     }
 
-    /// The next field as (number, length-delimited payload); other wire types give an empty payload.
     fn field(&mut self) -> Option<(u64, &'a [u8])> {
         let tag = self.varint()?;
         let payload: &[u8] = match tag & 7 {
@@ -62,7 +55,6 @@ impl<'a> Reader<'a> {
     }
 }
 
-/// The first URL and the checksum of one download message; `integrity` is the field number of the integrity.
 fn download(message: &[u8], integrity: u64) -> Option<(String, String)> {
     let mut reader = Reader { bytes: message };
     let mut url = None;
@@ -86,7 +78,6 @@ fn download(message: &[u8], integrity: u64) -> Option<(String, String)> {
     Some((url?, sha256))
 }
 
-/// The `(url, sha256)` of every download with a checksum in a delimited `WorkspaceEvent` log.
 #[must_use]
 pub fn downloads(log: &[u8]) -> Vec<(String, String)> {
     let mut found = BTreeSet::new();
@@ -110,7 +101,6 @@ pub fn downloads(log: &[u8]) -> Vec<(String, String)> {
     found.into_iter().collect()
 }
 
-/// The sorted, unique `WorkspaceEvent.context` values of a delimited log: the repository rules that ran.
 #[must_use]
 pub fn contexts(log: &[u8]) -> Vec<String> {
     let mut found = BTreeSet::new();
@@ -131,17 +121,13 @@ pub fn contexts(log: &[u8]) -> Vec<String> {
     found.into_iter().collect()
 }
 
-/// The repositories whose rule ran during one or more logged commands, and which of them downloaded.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Fetches {
-    /// Canonical names of the repositories whose rule ran.
     pub ran: BTreeSet<String>,
-    /// Canonical names of the repositories whose rule called `download` or `download_and_extract`.
     pub downloaded: BTreeSet<String>,
 }
 
 impl Fetches {
-    /// Adds the repository rules of a delimited `WorkspaceEvent` log; other contexts are skipped.
     pub fn add(&mut self, log: &[u8]) {
         let mut reader = Reader { bytes: log };
         while !reader.bytes.is_empty() {
@@ -173,8 +159,6 @@ impl Fetches {
         }
     }
 
-    /// Whether `repo` was made by its own rule without a download. A repository that came from a
-    /// cache ran no rule, so it does not count: its rule may well download.
     #[must_use]
     pub fn download_free(&self, repo: &str) -> bool {
         self.ran.contains(repo) && !self.downloaded.contains(repo)

@@ -42,7 +42,6 @@ pub(crate) const CREATE_SUSPENDED: u32 = 0x4;
 pub(crate) const CREATE_UNICODE_ENVIRONMENT: u32 = 0x400;
 pub(crate) const STARTF_USESTDHANDLES: u32 = 0x100;
 const FILE_ALL_ACCESS: u32 = 0x001F_01FF;
-// FILE_GENERIC_READ | FILE_TRAVERSE: list a directory and pass through it.
 const FILE_LIST_TRAVERSE: u32 = 0x0012_00A9;
 const NO_INHERITANCE: u32 = 0;
 const SECURITY_DESCRIPTOR_REVISION: u32 = 1;
@@ -59,10 +58,8 @@ const UNPROTECTED_DACL_SECURITY_INFORMATION: u32 = 0x2000_0000;
 const PROTECTED_DACL_SECURITY_INFORMATION: u32 = 0x8000_0000;
 const READ_CONTROL: u32 = 0x0002_0000;
 const WRITE_DAC: u32 = 0x0004_0000;
-// GetFinalPathNameByHandleW asks the mount manager for drive letters.
 const MOUNT_MANAGER: &str = r"\\.\MountPointManager";
 
-// S-1-15-3-1 internetClient, S-1-15-3-3 privateNetworkClientServer.
 const NET_CAPABILITIES: [&str; 2] = ["S-1-15-3-1", "S-1-15-3-3"];
 
 pub(crate) fn wide(text: &str) -> Vec<u16> {
@@ -80,7 +77,6 @@ pub(crate) fn check(code: u32, what: &str) -> Result<(), String> {
     }
 }
 
-/// Memory a Win32 call allocated for the caller to release with `LocalFree`, freed on drop.
 pub(crate) struct LocalMem<T>(*mut T);
 
 impl<T> LocalMem<T> {
@@ -88,7 +84,6 @@ impl<T> LocalMem<T> {
         Self(null_mut())
     }
 
-    /// The out-pointer for the one call that allocates this memory.
     pub(crate) fn out(&mut self) -> *mut *mut T {
         &mut self.0
     }
@@ -107,7 +102,6 @@ impl<T> Drop for LocalMem<T> {
     }
 }
 
-/// An AppContainer SID, which the profile calls allocate for `FreeSid`.
 struct ContainerSid(*mut c_void);
 
 impl Drop for ContainerSid {
@@ -119,7 +113,6 @@ impl Drop for ContainerSid {
     }
 }
 
-/// An environment block from `CreateEnvironmentBlock`, destroyed on drop.
 struct EnvironmentBlock(*mut c_void);
 
 impl Drop for EnvironmentBlock {
@@ -129,8 +122,6 @@ impl Drop for EnvironmentBlock {
     }
 }
 
-/// The number of UTF-16 units before the NUL that ends `text`.
-///
 /// # Safety
 /// `text` must point to a NUL-terminated UTF-16 string.
 pub(crate) unsafe fn wide_len(text: *const u16) -> usize {
@@ -142,8 +133,6 @@ pub(crate) unsafe fn wide_len(text: *const u16) -> usize {
     len
 }
 
-/// Reads a NUL-terminated UTF-16 string.
-///
 /// # Safety
 /// `text` must point to a NUL-terminated UTF-16 string.
 pub(crate) unsafe fn wide_text(text: *const u16) -> String {
@@ -153,7 +142,6 @@ pub(crate) unsafe fn wide_text(text: *const u16) -> String {
     String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(text, len) })
 }
 
-/// Opens this process's token with `access`.
 pub(crate) fn process_token(access: TOKEN_ACCESS_MASK) -> Result<OwnedHandle, String> {
     let mut token: HANDLE = null_mut();
     // SAFETY: GetCurrentProcess takes no arguments and returns a pseudo handle.
@@ -169,7 +157,6 @@ pub(crate) fn process_token(access: TOKEN_ACCESS_MASK) -> Result<OwnedHandle, St
     Ok(unsafe { OwnedHandle::from_raw_handle(token) })
 }
 
-/// The standard input, output and error handles of this process.
 pub(crate) fn std_handles() -> [HANDLE; 3] {
     [STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE].map(|which| {
         // SAFETY: GetStdHandle takes a plain constant and has no preconditions.
@@ -177,8 +164,6 @@ pub(crate) fn std_handles() -> [HANDLE; 3] {
     })
 }
 
-/// Takes ownership of the handles a suspended `CreateProcess*W` call returned, puts the
-/// process in `job` and resumes it.
 pub(crate) fn start_in_job(
     info: &PROCESS_INFORMATION,
     job: &JobObject,
@@ -194,7 +179,6 @@ pub(crate) fn start_in_job(
     Ok(process)
 }
 
-/// Waits for `process` to exit and returns its exit code.
 pub(crate) fn wait_exit(process: BorrowedHandle<'_>) -> Result<i32, String> {
     win32::wait(process, None).map_err(|err| format!("cannot wait for the command: {err}"))?;
     let code = win32::exit_code(process)
@@ -202,7 +186,6 @@ pub(crate) fn wait_exit(process: BorrowedHandle<'_>) -> Result<i32, String> {
     Ok(code as i32)
 }
 
-/// The user's default environment, used to fill in what the parent lacks.
 pub(crate) fn user_defaults() -> Result<Vec<(String, String)>, String> {
     let token = process_token(TOKEN_QUERY | TOKEN_DUPLICATE)?;
     let mut raw: *mut c_void = null_mut();
@@ -268,8 +251,6 @@ fn profile_sid(name: &str) -> Result<ContainerSid, String> {
     Ok(ContainerSid(sid))
 }
 
-/// Adds (or removes) an inheritable full-access entry for the container on one path.
-/// Concurrent qualifications rewrite the same trees, so each path has its own machine-wide lock.
 pub(crate) fn set_access(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
     with_acl_lock(&path_lock_name(path), || set_access_locked(path, sid, mode))
 }
@@ -287,7 +268,6 @@ fn set_access_locked(path: &str, sid: *mut c_void, mode: i32) -> Result<(), Stri
     apply_access(path, sid, mode, true)
 }
 
-/// Applies `mode` for `sid` to `path`, and with `tree` to everything below it as well.
 fn apply_access(path: &str, sid: *mut c_void, mode: i32, tree: bool) -> Result<(), String> {
     let wpath = wide(path);
     let mut old: *mut ACL = null_mut();
@@ -343,8 +323,6 @@ fn apply_access(path: &str, sid: *mut c_void, mode: i32, tree: bool) -> Result<(
     })
 }
 
-/// Writes `acl` to `path` and its descendants in the inheritance form of `descriptor`.
-/// Where that form is not auto-inherited, `below` makes the same change to each descendant.
 pub(crate) fn write_acl(
     path: &str,
     descriptor: *mut c_void,
@@ -380,7 +358,6 @@ pub(crate) fn write_acl(
     )
 }
 
-/// Writes `acl` to `path` alone in the inheritance form of `descriptor`.
 pub(crate) fn write_acl_here(
     path: &str,
     descriptor: *mut c_void,
@@ -389,7 +366,6 @@ pub(crate) fn write_acl_here(
     write_dacl_here(path, dacl_control(path, descriptor)?, acl)
 }
 
-/// Calls `edit` on every file and directory below `dir`, without following links.
 fn for_each_below(
     dir: &std::path::Path,
     edit: &dyn Fn(&str) -> Result<(), String>,
@@ -429,7 +405,6 @@ fn dacl_control(path: &str, descriptor: *mut c_void) -> Result<u16, String> {
     Ok(control)
 }
 
-/// Writes `acl` to `path` alone with the protection and auto-inherit bits of `control`.
 fn write_dacl_here(path: &str, control: u16, acl: *mut ACL) -> Result<(), String> {
     let wpath = wide(path);
     // SAFETY: SECURITY_DESCRIPTOR is plain C data for which all-zero is valid.
@@ -454,7 +429,6 @@ fn write_dacl_here(path: &str, control: u16, acl: *mut ACL) -> Result<(), String
     }
 }
 
-/// Deletes every inherited entry from `acl`, leaving only the explicit ones.
 fn drop_inherited(acl: *mut ACL) {
     if acl.is_null() {
         return;
@@ -475,11 +449,9 @@ fn drop_inherited(acl: *mut ACL) {
     }
 }
 
-/// An owned named mutex, released on drop.
 pub(crate) struct NamedLock(OwnedHandle);
 
 impl NamedLock {
-    /// Opens or creates the machine-wide mutex `name` and waits until this process owns it.
     pub(crate) fn acquire(name: &str) -> Result<Self, String> {
         let wname = wide(name);
         // SAFETY: wname is NUL-terminated and outlives the call.
@@ -505,7 +477,6 @@ impl Drop for NamedLock {
     }
 }
 
-/// Holds the named lock while one ACL is read, changed and written back.
 pub(crate) fn with_acl_lock<T>(
     name: &str,
     work: impl FnOnce() -> Result<T, String>,
@@ -514,8 +485,6 @@ pub(crate) fn with_acl_lock<T>(
     work()
 }
 
-/// Adds (or removes) a list-and-traverse entry for the container on one directory only.
-/// SetFileSecurityW writes just this directory, so nothing below it is touched.
 fn set_traverse(path: &str, sid: *mut c_void, mode: i32) -> Result<(), String> {
     let wpath = wide(path);
     let mut old: *mut ACL = null_mut();
@@ -562,8 +531,6 @@ pub(crate) fn trustee_entry(sid: *mut c_void, access: u32, mode: i32) -> EXPLICI
     }
 }
 
-/// Adds (or removes) a read entry for the container on the mount manager device, so the
-/// container can turn volume paths into drive letter paths. It lasts until reboot at most.
 fn set_mount_manager(sid: *mut c_void, mode: i32) -> Result<(), String> {
     use std::os::windows::fs::OpenOptionsExt;
     let device = std::fs::OpenOptions::new()

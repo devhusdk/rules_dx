@@ -1,10 +1,3 @@
-//! Floor checks for consumer `bazel_dep`s.
-//!
-//! A consumer that depends on `rules_dx` must resolve every `CONSUMER_BAZEL_DEPS` module at its
-//! floor, the oldest version `rules_dx` supports. This crate holds the pure pieces: the candidate
-//! overrides (`DX_CONSUMER_OVERRIDES`), the MODULE.bazel edits they imply, and the comparison of
-//! a `bazel mod graph --output=json --verbose` result against the floors.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -12,30 +5,20 @@ use std::collections::{BTreeMap, BTreeSet};
 use dx_module_bazel::{ModuleError, ModuleFile, compare_module_versions};
 use std::cmp::Ordering;
 
-/// The environment variable that carries candidate versions into floor runs.
 pub const OVERRIDES_ENV: &str = "DX_CONSUMER_OVERRIDES";
 
-/// The keyword that selects every table module at its tested version.
 pub const TESTED_KEYWORD: &str = "tested";
 
-/// One module's floor and tested versions.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Pins {
     pub floor: String,
     pub tested: String,
 }
 
-/// `{module: {floor, tested}}`, as `//core/modules:consumer_deps_json` writes it.
 pub type Table = BTreeMap<String, Pins>;
 
-/// Module name to the version a run forces it to.
 pub type Overrides = BTreeMap<String, String>;
 
-/// Parses the `{module: {floor, tested}}` JSON.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn parse_table(json: &str) -> Result<Table, String> {
     let value: serde_json::Value =
         serde_json::from_str(json).map_err(|error| format!("table JSON: {error}"))?;
@@ -66,13 +49,6 @@ fn safe(token: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || b"._+-".contains(&byte))
 }
 
-/// Parses `module=version,...` without checking the modules against the table. The hermetic
-/// consumer suites use it: they have no table, and a module the consumer does not declare is
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
-/// left out of its `bazel_dep`s but still forced by the override.
 pub fn parse_pairs(spec: &str) -> Result<Overrides, String> {
     let mut overrides = Overrides::new();
     for item in spec
@@ -101,11 +77,6 @@ pub fn parse_pairs(spec: &str) -> Result<Overrides, String> {
     Ok(overrides)
 }
 
-/// Parses `DX_CONSUMER_OVERRIDES`: empty, the keyword `tested`, or `module=version,...`.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn parse_overrides(spec: &str, table: &Table) -> Result<Overrides, String> {
     let spec = spec.trim();
     if spec.is_empty() {
@@ -146,7 +117,6 @@ pub fn parse_overrides(spec: &str, table: &Table) -> Result<Overrides, String> {
     Ok(overrides)
 }
 
-/// `single_version_override` calls that force each module to its version.
 #[must_use]
 pub fn render_overrides(overrides: &Overrides) -> String {
     let mut text = String::new();
@@ -158,15 +128,6 @@ pub fn render_overrides(overrides: &Overrides) -> String {
     text
 }
 
-/// Applies `overrides` to a consumer MODULE.bazel.
-///
-/// Direct `bazel_dep`s of an overridden module are set to the override version, because
-/// `--check_direct_dependencies=error` rejects a direct dep that resolves to another version.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
-/// The override calls are appended.
 pub fn apply_overrides(module_bazel: &str, overrides: &Overrides) -> Result<String, String> {
     let mut text = module_bazel.to_owned();
     for (module, version) in overrides {
@@ -195,11 +156,6 @@ fn collect<'a>(node: &'a serde_json::Value, found: &mut Vec<&'a serde_json::Valu
     }
 }
 
-/// Every way the `bazel mod graph --output=json --verbose` result `graph` leaves a table
-/// module off its expected version; empty when the consumer resolves as intended.
-///
-/// The expected version is the override when one is given, else the floor. A module that resolves higher is named together with the modules that requested the
-/// version it resolved to, from the `resolvedRequestedBy` field.
 pub fn check_graph(graph: &str, table: &Table, overrides: &Overrides) -> Vec<String> {
     let root: serde_json::Value = match serde_json::from_str(graph) {
         Ok(root) => root,

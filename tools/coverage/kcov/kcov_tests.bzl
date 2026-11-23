@@ -83,7 +83,6 @@ def _no_kcov_probe_impl(ctx):
     coverage = dx_kcov_test_coverage(ctx, ctx.attr.upstream, [])
     return [coverage.env] if coverage else []
 
-# Runs dx_kcov_test_coverage with the kcov a consumer hub serves on a platform with no pin.
 _no_kcov_probe = rule(
     implementation = _no_kcov_probe_impl,
     attrs = dx_kcov_attrs() | {

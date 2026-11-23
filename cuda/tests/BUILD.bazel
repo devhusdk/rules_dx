@@ -366,6 +366,7 @@ strict_flags_test(
         ),
         failure_test(
             name = "banned_copt_" + name + "_failure_test",
+            size = "small",
             expected_failure_substring = "dx_cuda: copt '" + copts[-1] + "' silences warnings or relaxes device code",
             target = ":banned_copt_" + name,
             target_compatible_with = CUDA_COMPATIBLE_WITH,
@@ -378,7 +379,7 @@ strict_flags_test(
         ),
         (
             "wno",
-            ["-Wno-deprecated-declarations"],
+            ["-Wno-unused-variable"],
         ),
         (
             "w",

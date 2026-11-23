@@ -286,22 +286,7 @@ pub fn git_refusal(
 }
 
 /// The `reference-transaction` hook: asks the main checkout's dx about each prepared transaction, and passes when it cannot answer.
-const GIT_HOOK: &str = r#"#!/bin/sh
-[ "$1" = prepared ] || exit 0
-main=$(git worktree list --porcelain) || exit 0
-main=${main%%"
-"*}
-dx=${main#worktree }/tools/dx
-[ -x "$dx" ] || exit 0
-out=$("$dx" worktree hook git 2>&1) && exit 0
-case $out in
-*"dx: refused: no git update of "*)
-  printf '%s\n' "$out" >&2
-  exit 1
-  ;;
-esac
-exit 0
-"#;
+const GIT_HOOK: &str = include_str!("../templates/reference-transaction");
 
 /// Marks a hook file as dx's, so dx may rewrite it.
 const GIT_HOOK_MARK: &str = "worktree hook git";

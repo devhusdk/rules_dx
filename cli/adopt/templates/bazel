@@ -1,8 +1,6 @@
 #!/bin/sh
 set -eu
 real=${BAZEL_REAL:?tools/bazel runs under Bazelisk, which sets BAZEL_REAL}
-# Only a refusal (77) or a stop (130, 143) from the hook stops Bazel. Any other failure, such as a dx too old for
-# the hook, an unsupported host or a missing launcher, warns and runs Bazel, so a broken dx never blocks Bazel.
 if [ -z "${DX_BAZEL_CHILD:-}" ]; then
   case $0 in
   */*) dx=${0%/*}/dx ;;

@@ -1614,8 +1614,9 @@ impl Gate {
     }
 
     /// Waits for memory to start a new server for this gate's workspace, for what is left of the wait limit after `waited`.
+    /// A remote gate starts at once: its server builds remotely, so local limits do not apply.
     fn admit(&self, waited: Duration, err: &mut dyn Write) -> Result<(), i32> {
-        let Some((workspace, limits)) = &self.admission else {
+        let Some((workspace, limits)) = self.admission.as_ref().filter(|_| !self.remote) else {
             return Ok(());
         };
         let layout = self.layout();

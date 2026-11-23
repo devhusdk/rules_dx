@@ -1,8 +1,6 @@
 @echo off
 setlocal
 if defined DX_BAZEL_CHILD goto bazel
-rem Only a refusal (77) or a stop (130, 143) from the hook stops Bazel. Any other failure, such as a dx too old for
-rem the hook, an unsupported host or a missing launcher, warns and runs Bazel, so a broken dx never blocks Bazel.
 set "DX_HOOK_EXIT=9009"
 if not exist "%~dp0dx.cmd" goto hookfailed
 set "DX_BAZEL_CHILD=1"

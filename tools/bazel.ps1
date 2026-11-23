@@ -26,9 +26,6 @@ if ([Environment]::CommandLine -notmatch '(?s) -File +("[^"]*"|\S+) ?(.*)$') {
     throw 'bazel.ps1 expects to be started by Bazelisk with -File'
 }
 $tail = $Matches[2]
-# Only a refusal (77) or a stop (130, 143) from the hook stops Bazel. Any other failure, such as a dx too old for
-# the hook, an unsupported host or a missing launcher, warns and runs Bazel, so a broken dx never blocks Bazel. The
-# hook's stdout goes to stderr, so it never mixes with the output of bazel info or query.
 if (-not $env:DX_BAZEL_CHILD) {
     $dx = Join-Path $PSScriptRoot 'dx.cmd'
     $code = 9009

@@ -9,6 +9,7 @@ TOOLS = [
     ),
     tool(
         id = "hlint",
+        severity = severity(categories = {"Avoid restricted": "error"}),
         adapters = {"lint": ["haskell"]},
         config = config(
             suffixes = [".yaml"],

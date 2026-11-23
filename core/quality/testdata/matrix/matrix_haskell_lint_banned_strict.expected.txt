@@ -1,0 +1,19 @@
+producer //core/quality/testdata:matrix_haskell_lint_banned_strict
+capability LINT
+stages 1
+stage hlint classes=haskell sources=matrix/hlint_banned_strict.hs
+completed_rounds 1
+convergence STABLE
+initial 5
+initial ERROR hlint Avoid restricted flags matrix/hlint_banned_strict.hs 0 22 fixable=false "Avoid restricted flags: found `{-# OPTIONS_GHC -w #-}`, perhaps remove it"
+initial ERROR hlint Avoid restricted module matrix/hlint_banned_strict.hs 96 122 fixable=false "Avoid restricted module: found `import Debug.Trace ( trace )`, perhaps remove it"
+initial ERROR hlint Avoid restricted function matrix/hlint_banned_strict.hs 154 158 fixable=false "Avoid restricted function: found `head`, perhaps remove it"
+initial ERROR hlint Avoid restricted function matrix/hlint_banned_strict.hs 196 204 fixable=false "Avoid restricted function: found `fromJust`, perhaps remove it"
+initial ERROR hlint Avoid restricted function matrix/hlint_banned_strict.hs 234 239 fixable=false "Avoid restricted function: found `trace`, perhaps remove it"
+terminal 5
+terminal ERROR hlint Avoid restricted flags matrix/hlint_banned_strict.hs 0 22 fixable=false "Avoid restricted flags: found `{-# OPTIONS_GHC -w #-}`, perhaps remove it"
+terminal ERROR hlint Avoid restricted module matrix/hlint_banned_strict.hs 96 122 fixable=false "Avoid restricted module: found `import Debug.Trace ( trace )`, perhaps remove it"
+terminal ERROR hlint Avoid restricted function matrix/hlint_banned_strict.hs 154 158 fixable=false "Avoid restricted function: found `head`, perhaps remove it"
+terminal ERROR hlint Avoid restricted function matrix/hlint_banned_strict.hs 196 204 fixable=false "Avoid restricted function: found `fromJust`, perhaps remove it"
+terminal ERROR hlint Avoid restricted function matrix/hlint_banned_strict.hs 234 239 fixable=false "Avoid restricted function: found `trace`, perhaps remove it"
+replacements 0

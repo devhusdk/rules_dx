@@ -38,8 +38,8 @@ dart_package_metadata(
 
 dart_library(
     name = "consumer",
-    package = ":pubspec-metadata",
     srcs = ["lib/greet.dart"],
+    package = ":pubspec-metadata",
     visibility = ["//visibility:public"],
 )
 

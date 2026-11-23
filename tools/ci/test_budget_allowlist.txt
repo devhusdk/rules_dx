@@ -169,7 +169,6 @@ d/tests/fixtures/fuzz/BUILD.bazel no-size 6
 d/tests/fixtures/hello/BUILD.bazel no-size 1
 dart/tests/BUILD.bazel no-size 1
 dart/tests/bench/BUILD.bazel no-size 2
-dart/tests/codegen/BUILD.bazel no-size 1
 dart/tests/fixtures/adopt_dart/packages/greet/BUILD.bazel no-size 1
 dart/tests/fixtures/dart_app/cli/BUILD.bazel no-size 1
 dart/tests/fixtures/dart_app/ledger/BUILD.bazel no-size 1

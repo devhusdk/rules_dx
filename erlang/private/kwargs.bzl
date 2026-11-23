@@ -27,12 +27,14 @@ def erlang_kwargs(kwargs):
 
 _WERROR = ["-Werror"]
 
-_TEST_WARNINGS = _WERROR + ["+warn_untyped_record", "+warn_unused_import"]
+_WARNINGS = _WERROR + ["+warn_untyped_record", "+warn_unused_import"]
 
-_APP_WARNINGS = _TEST_WARNINGS + ["+warn_export_all"]
+_APP_WARNINGS = _WARNINGS + ["+warn_export_all"]
+
+_TEST_WARNINGS = _WARNINGS + ["+nowarn_export_all"]
 
 def erlc_warning_flags(test):
-    """Returns the erlc flags warnings_as_errors turns on: test code skips the export_all check."""
+    """Returns the erlc flags warnings_as_errors turns on: test code may export_all."""
     return _TEST_WARNINGS if test else _APP_WARNINGS
 
 _PREBUILT_ATTRS = ("beam_files", "hdrs", "srcs", "priv", "license_files")

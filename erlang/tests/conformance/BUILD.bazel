@@ -36,6 +36,7 @@ erlang_erlc_opts(
 
 erlang_bytecode(
     name = "pass_modules",
+    testonly = True,
     srcs = ["test/greet_tests.erl"],
     outs = ["test/greet_tests.beam"],
     erlc_opts = ":test_erlc_opts",
@@ -44,6 +45,7 @@ erlang_bytecode(
 
 erlang_bytecode(
     name = "fail_modules",
+    testonly = True,
     srcs = ["test/hello_tests.erl"],
     outs = ["test/hello_tests.beam"],
     erlc_opts = ":test_erlc_opts",

@@ -4,9 +4,9 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "windows_tree_home_commands")
 load("//cli/launcher:defs.bzl", "native_launch_descriptor_path")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal")
 load("//core:failure_test.bzl", "failure_test")
 load("//core:rlocation.bzl", "runfiles_path")
+load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal")
 load("//erlang/private:defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor")
 load("//erlang/private:kwargs.bzl", "erlang_app_forward_kwargs", "erlang_bytecode_kwargs", "erlang_erlc_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path")
 load("//erlang/private:providers.bzl", "BeamInfo")
@@ -26,13 +26,13 @@ def erlang_wrapper_contract_tests(name, size):
             expect_equal("erlang guard is a select by default", type(erlang_kwargs({})["target_compatible_with"]), "select"),
             expect_equal("erlang guard stays with a user list", type(erlang_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]), "select"),
             expect_equal("warnings_as_errors adds -Werror once with the strict app warnings", erlang_erlc_kwargs({"warnings_as_errors": True, "erlc_opts": ["-Werror", "+debug_info"]}, [])["erlc_opts"], ["+debug_info", "-Werror", "+warn_untyped_record", "+warn_unused_import", "+warn_export_all"]),
-            expect_equal("test code skips the export_all warning", erlang_erlc_kwargs({"warnings_as_errors": True, "erlc_opts": ["+debug_info"]}, [], test = True)["erlc_opts"], ["+debug_info", "-Werror", "+warn_untyped_record", "+warn_unused_import"]),
+            expect_equal("test code may export_all", erlang_erlc_kwargs({"warnings_as_errors": True, "erlc_opts": ["+debug_info"]}, [], test = True)["erlc_opts"], ["+debug_info", "-Werror", "+warn_untyped_record", "+warn_unused_import", "+nowarn_export_all"]),
             expect_equal("warnings_as_errors False drops -Werror", erlang_erlc_kwargs({"warnings_as_errors": False, "erlc_opts": ["-Werror", "+debug_info"]}, [])["erlc_opts"], ["+debug_info"]),
             expect_equal("unset erlc_opts follow the flag", type(erlang_erlc_kwargs({}, ["+debug_info"])["erlc_opts"]), "select"),
             expect_equal("erlc kwargs drop the attribute", "warnings_as_errors" in erlang_erlc_kwargs({"warnings_as_errors": True}, []), False),
             expect_equal("apps with listed sources keep erlc_opts unset", "erlc_opts" in erlang_erlc_kwargs({"warnings_as_errors": True, "srcs": ["src/a.erl"]}, []), False),
             expect_equal("bytecode hands back its erlc_opts target", erlang_bytecode_kwargs({"warnings_as_errors": True, "erlc_opts": ":opts"})[1:], (":opts", ["-Werror", "+warn_untyped_record", "+warn_unused_import", "+warn_export_all"])),
-            expect_equal("testonly bytecode skips the export_all warning", erlang_bytecode_kwargs({"warnings_as_errors": True, "testonly": True})[2], ["-Werror", "+warn_untyped_record", "+warn_unused_import"]),
+            expect_equal("testonly bytecode may export_all", erlang_bytecode_kwargs({"warnings_as_errors": True, "testonly": True})[2], ["-Werror", "+warn_untyped_record", "+warn_unused_import", "+nowarn_export_all"]),
             expect_equal("bytecode kwargs drop erlc_opts", "erlc_opts" in erlang_bytecode_kwargs({"erlc_opts": ":opts"})[0], False),
             expect_equal("erlang keeps user tags", erlang_kwargs({"tags": ["t"]})["tags"], ["t"]),
             expect_equal("native priv keeps libraries", native_priv_files(["priv/a.so", "priv/b.dylib", "priv/c.dll", "priv/d.txt", "priv/e.so.1"]), ["priv/a.so", "priv/b.dylib", "priv/c.dll"]),

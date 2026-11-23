@@ -1,5 +1,3 @@
-//! The `@AGENTS.md` import in `CLAUDE.md`.
-
 use std::io;
 use std::path::Path;
 
@@ -9,20 +7,14 @@ pub(crate) const FILE: &str = "CLAUDE.md";
 const NESTED: &str = ".claude/CLAUDE.md";
 const IMPORT: &str = "@AGENTS.md";
 
-/// How the workspace memory file relates to AGENTS.md.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum State {
-    /// A CLAUDE.md imports AGENTS.md.
     Imported,
-    /// CLAUDE.md is a symlink to AGENTS.md.
     Linked,
-    /// A CLAUDE.md exists without the import.
     Missing,
-    /// No CLAUDE.md exists.
     Absent,
 }
 
-/// Whether `text` has `token` outside fenced code blocks and backticks.
 fn has_token(text: &str, tokens: &[&str]) -> bool {
     let mut fence: Option<char> = None;
     for line in text.lines() {
@@ -88,7 +80,6 @@ fn links_to_agents(workspace: &Path) -> bool {
     }
 }
 
-/// Whether the workspace CLAUDE.md files import AGENTS.md.
 pub(crate) fn state(workspace: &Path) -> io::Result<State> {
     if links_to_agents(workspace) {
         return Ok(State::Linked);
@@ -111,7 +102,6 @@ pub(crate) fn state(workspace: &Path) -> io::Result<State> {
     })
 }
 
-/// Adds the import when absent, keeping every other byte. True when the file changed.
 pub(crate) fn write(workspace: &Path) -> io::Result<bool> {
     match state(workspace)? {
         State::Imported | State::Linked => return Ok(false),
@@ -132,7 +122,6 @@ pub(crate) fn write(workspace: &Path) -> io::Result<bool> {
     Ok(true)
 }
 
-/// Like [`write`], but leaves an absent file absent.
 pub(crate) fn refresh(workspace: &Path) -> io::Result<bool> {
     if std::fs::symlink_metadata(workspace.join(FILE)).is_err() {
         return Ok(false);

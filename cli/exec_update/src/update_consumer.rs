@@ -95,14 +95,12 @@ pub(super) fn execute_configured(
     })
 }
 
-/// What each set run reports back.
 #[derive(Default)]
 struct Outcomes {
     attempted: Vec<dx_update::outcome::SetOutcome>,
     details: BTreeMap<String, SetDetail>,
 }
 
-/// The stop behind a gate error code: the busy holders when the wait ran out, else the signal.
 fn stop_of(gate: &mut SlotGate<'_>, code: i32) -> dx_plan::slots::Stop {
     gate.busy.take().map_or(
         dx_plan::slots::Stop::Signal(code),
@@ -133,7 +131,6 @@ fn run_configured_target(
         record_backend_error(attempted, details, &error, verb, &set.name);
         return Ok(());
     }
-    // An apply the plan rejects anyway never needs the tools, so skip Bazel.
     let rejected = mode == RunMode::Update && (invocation.offline || invocation.frozen);
     let closure = closure_for(set.ecosystem, tools, rejected);
     let planned = plan_target(workspace, target, invocation, mode, &closure);
@@ -408,8 +405,6 @@ fn check_wrote_hint(ecosystem: Ecosystem) -> &'static str {
     }
 }
 
-/// Runs `argv` in the workspace, in a Bazel slot when it is a Bazel command. The caller has
-/// already passed `gate.before`.
 fn launch(
     gate: &mut SlotGate<'_>,
     runner: &dyn dx_process::Runner,
@@ -436,8 +431,6 @@ fn launch(
     }
 }
 
-/// Runs a generator on copies of the set's inputs and compares what it wrote with the
-/// declared locks. Check reports drift; apply writes only the declared files that differ.
 fn run_staged(
     outcomes: &mut Outcomes,
     target: &ResolvedTarget,
@@ -519,9 +512,6 @@ fn run_staged(
     Ok(())
 }
 
-/// The bytes of a set's manifests and locks before a Bazel-run check, so a check that writes
-/// is caught, undone and failed instead of reported current.
-/// `(rel, resolved path before the check, bytes before the check)`.
 type GuardedFile = (String, Option<std::path::PathBuf>, Option<Vec<u8>>);
 
 struct CheckGuard {
@@ -537,7 +527,6 @@ impl CheckGuard {
             files: paths
                 .into_iter()
                 .map(|rel| {
-                    // A path that does not resolve inside the workspace is never restored.
                     let resolved =
                         dx_path::workspace::resolve_target_in_workspace(workspace, rel).ok();
                     let before = resolved.as_ref().and_then(|path| std::fs::read(path).ok());
@@ -547,8 +536,6 @@ impl CheckGuard {
         }
     }
 
-    /// Restores every changed file and names them; `None` when the check wrote nothing.
-    /// Never writes through a path that was not re-resolved inside the workspace.
     fn restore(self, workspace: &std::path::Path) -> Option<Vec<String>> {
         let mut wrote = Vec::new();
         for (rel, stored, before) in self.files {
@@ -557,7 +544,6 @@ impl CheckGuard {
             };
             let now = dx_path::workspace::resolve_target_in_workspace(workspace, &rel);
             if now.as_ref().ok() != Some(&stored) {
-                // The check swapped in a link that leaves the workspace or points elsewhere.
                 let link = workspace.join(&rel);
                 if std::fs::symlink_metadata(&link)
                     .is_ok_and(|metadata| metadata.file_type().is_symlink())

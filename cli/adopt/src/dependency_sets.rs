@@ -16,7 +16,6 @@ pub fn cpanfile_snapshot() -> Result<&'static str, AdoptError> {
     state_of("cpan")
 }
 
-/// The Bundler state file name.
 pub fn gemfile_lock() -> Result<&'static str, AdoptError> {
     state_of("ruby")
 }
@@ -33,23 +32,19 @@ pub fn julia_manifest() -> Result<&'static str, AdoptError> {
     state_of("julia")
 }
 
-/// The dub state file name.
 pub fn dub_selections() -> Result<&'static str, AdoptError> {
     state_of("dub")
 }
 
-/// The dub manifest names, preferred first.
 fn dub_manifests() -> Result<impl Iterator<Item = &'static str>, AdoptError> {
     Ok(std::iter::once(manifest_of("dub")?)
         .chain(Ecosystem::Dub.alt_manifests().iter().map(String::as_str)))
 }
 
-/// The luarocks lock file name.
 pub fn luarocks_lock() -> Result<&'static str, AdoptError> {
     lock_of("luarocks")
 }
 
-/// The composer state file name.
 pub fn composer_lock() -> Result<&'static str, AdoptError> {
     state_of("composer")
 }
@@ -265,7 +260,6 @@ const UV_PROJECT_KEYS: &[&str] = &[
     "workspace",
 ];
 
-/// Reads the dependency sets from the hubs in the root MODULE.bazel and its includes.
 pub fn load(workspace: &Path) -> Result<Option<Registry>, DependencySetsError> {
     let root = match std::fs::read_to_string(workspace.join(MODULE_BAZEL)) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -282,7 +276,6 @@ pub fn load(workspace: &Path) -> Result<Option<Registry>, DependencySetsError> {
     })
 }
 
-/// The dependency sets of the hubs in `root`; `read` returns a workspace file by its path.
 pub fn discover(
     root: &str,
     read: &dyn Fn(&str) -> Result<String, String>,
@@ -550,7 +543,6 @@ fn beside(file: &str, name: &str) -> String {
     in_dir(&manifest_dir(&[file.to_owned()]), name)
 }
 
-/// One set for a hub: scopes are the directories of its files.
 fn hub_set(
     name: &str,
     ecosystem: Ecosystem,
@@ -616,7 +608,6 @@ fn validate_set(set: &DependencySet) -> Result<(), DependencySetsError> {
     Ok(())
 }
 
-/// Accepts a Bazel apparent repository name; it flows into argv and env, so no '@', ',' or '/'.
 fn valid_repository(repository: &str) -> bool {
     let mut chars = repository.chars();
     match chars.next() {
@@ -1023,8 +1014,6 @@ fn scope_covers(scope: &str, package: &str) -> bool {
     }
 }
 
-/// Returns the workspace-relative file a path or `//pkg:file` label names, before
-/// `normalize_scope` drops the label's target name.
 fn declared_file_path(target: &str) -> Option<String> {
     if target.ends_with("...") {
         return None;
@@ -1079,7 +1068,6 @@ pub fn owning_sets<'a>(registry: &'a Registry, target: &str) -> Vec<&'a str> {
         if recursive || target.contains("MODULE.bazel") {
             return registry.sets.iter().map(|set| set.name.as_str()).collect();
         }
-        // A root-package label (`//:x`, `//:`, `.`) belongs only to sets scoped `.`.
         return registry
             .sets
             .iter()
@@ -1116,10 +1104,6 @@ pub fn owning_sets<'a>(registry: &'a Registry, target: &str) -> Vec<&'a str> {
     ordered
 }
 
-/// Fails closed before any backend launches: manifests must exist and every
-/// manifest and lock must stay inside the workspace after links resolve.
-/// `need_lock` only controls whether a lock must exist; containment of a lock
-/// is always checked. A link created after this check is not caught.
 pub fn check_files(
     workspace: &Path,
     set: &ResolvedSet,
@@ -1200,7 +1184,6 @@ fn parent_dirs(dir: &str) -> Vec<&str> {
     out
 }
 
-/// The `*.opam` manifests and `*.opam.locked` state files the opam lock at `dir` lists as inputs.
 fn opam_lock_inputs(dir: &str, lock_text: &str) -> (Vec<String>, Vec<String>) {
     let json: serde_json::Value = serde_json::from_str(lock_text).unwrap_or_default();
     let names: Vec<&str> = json
@@ -1225,7 +1208,6 @@ fn in_dir(dir: &str, file: &str) -> String {
     }
 }
 
-/// Refuses a set whose backend would read settings or write files outside the set.
 pub fn check_backend_settings(
     workspace: &Path,
     set: &ResolvedSet,
@@ -1269,7 +1251,6 @@ pub fn check_backend_settings(
     }
 }
 
-/// A cabal set keeps its state file and its json lock on the same versions.
 fn check_cabal_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     check_pinned_lock(set, cabal_freeze()?)?;
     let Some(sidecar) = set.locks.iter().find(|lock| {
@@ -1321,7 +1302,6 @@ fn check_cabal_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
     Ok(())
 }
 
-/// The `.json` lock `cpan.lock` reads, beside the cpan state file.
 fn cpan_json_lock(set: &ResolvedSet) -> Option<&String> {
     set.locks.iter().find(|lock| {
         std::path::Path::new(lock)
@@ -1330,13 +1310,11 @@ fn cpan_json_lock(set: &ResolvedSet) -> Option<&String> {
     })
 }
 
-/// The `//pkg:name` of the first `rule` call in the BUILD file of the set's directory.
 #[must_use]
 pub fn julia_target_label(workspace: &Path, set: &ResolvedSet, rule: &str) -> Option<String> {
     target_label_in(workspace, &set.dir, rule)
 }
 
-/// The `//pkg:name` of the first `rule` call in the BUILD file of `dir`.
 #[must_use]
 pub fn target_label_in(workspace: &Path, dir: &str, rule: &str) -> Option<String> {
     let package = if dir == "." { "" } else { dir };
@@ -1468,11 +1446,6 @@ fn check_composer_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
     check_pinned_lock(set, composer_lock()?)
 }
 
-/// The name `@<name>` resolves the set's `crate_universe` hub by in the root module.
-///
-/// This is the `use_repo` name, which differs from the hub's own `name` (the value
-/// `CARGO_BAZEL_REPIN_ONLY` must carry) when the module renames it. None when the set
-/// is not a valid cargo set; callers run `check_backend_settings` first.
 #[must_use]
 pub fn cargo_fetch_repository(workspace: &Path, set: &ResolvedSet) -> Option<String> {
     check_cargo_hub(workspace, set).ok()
@@ -1570,9 +1543,6 @@ fn check_cargo_hub(workspace: &Path, set: &ResolvedSet) -> Result<String, Depend
     Ok(visible.to_owned())
 }
 
-/// Whether `set` is a maven set the java lock step writes: its manifest is an existing version
-/// catalog named like the one of the maven `setup.hubs` entry, and `rules_jvm_external` did not
-/// sign its lock.
 #[must_use]
 pub fn maven_resolver_set(workspace: &Path, set: &ResolvedSet) -> bool {
     let catalog = dx_families::hub(Ecosystem::Maven.name()).map(|hub| hub.manifest.as_str());
@@ -1589,7 +1559,6 @@ pub fn maven_resolver_set(workspace: &Path, set: &ResolvedSet) -> bool {
 
 const MAVEN_SIGNATURES: [&str; 2] = ["__INPUT_ARTIFACTS_HASH", "__RESOLVED_ARTIFACTS_HASH"];
 
-/// What check mode needs from the maven hub beyond what both modes need.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct MavenHub {
     lock: String,
@@ -1668,10 +1637,6 @@ fn check_maven_hub(workspace: &Path, set: &ResolvedSet) -> Result<MavenHub, Depe
     Ok(MavenHub { lock, policy })
 }
 
-/// Refuses a check when the pinned state cannot prove a stale lock fails closed.
-///
-/// `rules_jvm_external` only fails a stale lock when `fail_if_repin_required` is true and the
-/// lock carries its signatures; an empty or old-format lock merely prints a note.
 pub fn check_lock_ready(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     match set.ecosystem {
         Ecosystem::Maven if maven_resolver_set(workspace, set) => Ok(()),
@@ -1734,7 +1699,6 @@ pub fn check_lock_ready(workspace: &Path, set: &ResolvedSet) -> Result<(), Depen
     }
 }
 
-/// Refuses a go set whose staged `go mod download all` could not stay inside the declared locks.
 fn check_go_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), DependencySetsError> {
     let unsupported = |detail: String| DependencySetsError::UnsupportedGoLayout {
         name: set.name.clone(),
@@ -1790,7 +1754,6 @@ fn check_pinned_lock(set: &ResolvedSet, file: &str) -> Result<(), DependencySets
     })
 }
 
-/// An ansible set has exactly the one collections lock its tag names.
 fn check_ansible_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
     if matches!(set.locks.as_slice(), [lock] if std::path::Path::new(lock)
         .extension()
@@ -1805,7 +1768,6 @@ fn check_ansible_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
     })
 }
 
-/// An opam set keeps `<name>.opam.locked` beside its `<name>.opam`.
 fn check_opam_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
     for manifest in &set.manifests {
         let lock = format!("{manifest}.locked");
@@ -1820,7 +1782,6 @@ fn check_opam_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
     Ok(())
 }
 
-/// The package manager a configured npm set runs, chosen by the lock its `locks` list.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NpmBackend {
     Pnpm,
@@ -1828,7 +1789,6 @@ pub enum NpmBackend {
     Npm,
 }
 
-/// Picks the backend from the locks beside the manifest; pnpm wins over yarn over npm.
 pub fn npm_backend(set: &ResolvedSet) -> Result<Option<NpmBackend>, AdoptError> {
     Ok([
         (lock_of("npm")?, NpmBackend::Pnpm),
@@ -1840,14 +1800,12 @@ pub fn npm_backend(set: &ResolvedSet) -> Result<Option<NpmBackend>, AdoptError> 
     .map(|(_, backend)| backend))
 }
 
-/// The package manager a configured hex set runs, chosen by the lock its `locks` list.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum HexBackend {
     Mix,
     Rebar3,
 }
 
-/// Picks the backend from the locks beside the manifest.
 pub fn hex_backend(set: &ResolvedSet) -> Result<Option<HexBackend>, AdoptError> {
     Ok([
         (mix_lock()?, HexBackend::Mix),
@@ -1883,11 +1841,6 @@ fn check_npm_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependenc
     }
 }
 
-/// The nearest `pnpm-workspace.yaml` above a pnpm set, as `(path, is_root_only)`.
-///
-/// A set with its own workspace file is its own root and has no parent to find.
-/// `is_root_only` is true when the parent lists only `.` as a package, so the
-/// set is not a member and pnpm needs `--ignore-workspace` to stay out of it.
 fn nearest_parent_pnpm_workspace(workspace: &Path, set: &ResolvedSet) -> Option<(String, bool)> {
     if workspace.join(in_dir(&set.dir, PNPM_WORKSPACE)).is_file() {
         return None;
@@ -1902,15 +1855,12 @@ fn nearest_parent_pnpm_workspace(workspace: &Path, set: &ResolvedSet) -> Option<
     None
 }
 
-/// Whether pnpm runs for this set need `--ignore-workspace`: the set has no
-/// workspace file of its own and the nearest parent workspace lists only `.`.
 pub fn npm_ignore_workspace(workspace: &Path, set: &ResolvedSet) -> Result<bool, AdoptError> {
     Ok(set.ecosystem == Ecosystem::Npm
         && npm_backend(set)? == Some(NpmBackend::Pnpm)
         && nearest_parent_pnpm_workspace(workspace, set).is_some_and(|(_, root_only)| root_only))
 }
 
-/// The `packages` globs of a `pnpm-workspace.yaml`, read without a YAML parser.
 fn pnpm_workspace_packages(text: &str) -> Vec<String> {
     let clean = |item: &str| {
         item.split(" #")

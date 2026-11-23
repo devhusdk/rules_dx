@@ -13,7 +13,6 @@ pub const OUTPUT_GROUP: &str = "dx_env_plans";
 
 pub const SHARD_SUFFIX: &str = ".dxenv.pb";
 
-/// Repo-relative label; qualify it with [`aspect_label`].
 pub const ENV_ASPECT: &str = "core/env/private:plan.bzl%dx_env_plan_aspect";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,13 +43,11 @@ pub fn resolve_scope(targets: &[String]) -> Result<EnvScope, ScopeError> {
     }
 }
 
-/// Returns the aspect label in the `rules_dx` repository named `repo`.
 #[must_use]
 pub fn aspect_label(repo: &str) -> String {
     format!("@{repo}//{ENV_ASPECT}")
 }
 
-/// Returns the repository target in the `rules_dx` repository named `repo`.
 #[must_use]
 pub fn repository_target(repo: &str) -> String {
     format!("@{repo}//{}", dx_families::repo_relative(dx_families::ENV))

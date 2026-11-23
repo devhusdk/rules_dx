@@ -1,9 +1,3 @@
-//! Plans the `MODULE.bazel` stanzas for the uv and pnpm lock files anywhere in the repo and the
-//! root cargo lock file. Other cargo lock files are reported.
-//!
-//! A lock file counts when its manifest sits next to it. A lock that an existing stanza
-//! already names is left alone, so a second run plans nothing.
-
 use std::path::Path;
 
 use dx_families::Hub;
@@ -14,7 +8,6 @@ use crate::module_pin::ModuleEdit;
 
 const MODULE_FILE: &str = "MODULE.bazel";
 
-/// The keys of `BUILD_SCRIPT_CC_ENV` in `rust/private/build_script_cc_env.bzl`.
 const BUILD_SCRIPT_CC_ENV: [&str; 10] = [
     "CFLAGS",
     "CXXFLAGS",
@@ -30,7 +23,6 @@ const BUILD_SCRIPT_CC_ENV: [&str; 10] = [
 
 const BUILD_SCRIPT_CC_ENV_TOOLCHAIN: &str = "@rules_dx//rust:build_script_cc_env";
 
-/// The planned `MODULE.bazel` edit, if any, and what the planner could not do.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct LockHubs {
     pub edit: Option<ModuleEdit>,
@@ -41,7 +33,6 @@ fn registry(ecosystem: &str) -> Result<&'static Hub, AdoptError> {
     hub_of(ecosystem)
 }
 
-/// The lock file name of the `setup.hubs` entry of `ecosystem`.
 pub fn lock_of(ecosystem: &str) -> Result<&'static str, AdoptError> {
     registry(ecosystem)?
         .lock
@@ -49,12 +40,10 @@ pub fn lock_of(ecosystem: &str) -> Result<&'static str, AdoptError> {
         .ok_or_else(|| refuse(format!("setup.hubs entry {ecosystem} has no lock")))
 }
 
-/// The manifest file name of the `setup.hubs` entry of `ecosystem`.
 pub fn manifest_of(ecosystem: &str) -> Result<&'static str, AdoptError> {
     Ok(&registry(ecosystem)?.manifest)
 }
 
-/// The state file name of the `setup.hubs` entry of `ecosystem`.
 pub fn state_of(ecosystem: &str) -> Result<&'static str, AdoptError> {
     registry(ecosystem)?
         .state
@@ -112,7 +101,6 @@ fn tag(name: &str, args: Vec<(&str, Arg)>) -> NewTag {
     }
 }
 
-/// The `cargo.annotation` that gives every crate build script of a hub the `rules_dx` cc env.
 fn build_script_cc_env_annotation() -> NewTag {
     let env = BUILD_SCRIPT_CC_ENV
         .iter()
@@ -131,9 +119,6 @@ fn build_script_cc_env_annotation() -> NewTag {
     )
 }
 
-/// The root manifests that `dx generate --apply` can lock: a cargo manifest without a cargo lock
-/// (an empty one counts as missing), a uv manifest without a uv lock, a pnpm manifest
-/// without a pnpm lock, and a composer, dub, luarocks or maven manifest without its lock.
 pub fn unlocked_manifests(root: &Path) -> Result<Vec<&'static str>, AdoptError> {
     let mut out = Vec::new();
     let cargo_lock = std::fs::metadata(root.join(lock_of("cargo")?));
@@ -166,31 +151,18 @@ pub fn unlocked_manifests(root: &Path) -> Result<Vec<&'static str>, AdoptError> 
     Ok(out)
 }
 
-/// True when the pubspec at `path` lists a package; one that cannot be parsed counts, so the resolver reports it.
-///
-/// A Dart package often has a pubspec only for its name or SDK dependencies. Like an npm manifest with no dependency, it gets no lock and no hub.
 fn pubspec_declares_dependency(path: &Path) -> bool {
     !dx_depcheck::parse_dart_manifest_packages(path).is_ok_and(|deps| deps.is_empty())
 }
 
-/// One `MODULE.bazel` dependency set whose lock comes from the resolver of its `setup.hubs` entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResolverSet {
-    /// The set name.
     pub name: String,
-    /// The set directory relative to the workspace; `.` is the root.
     pub dir: String,
-    /// The manifest file name of the `setup.hubs` entry.
     pub manifest: &'static str,
-    /// The resolver label.
     pub resolver: &'static str,
 }
 
-/// The `MODULE.bazel` sets whose `setup.hubs` entry has a resolver and whose directory holds the
-/// manifest.
-///
-/// A maven set whose lock carries `__INPUT_ARTIFACTS_HASH` is pinned by `rules_jvm_external` and
-/// is left out.
 pub fn resolver_sets(root: &Path) -> Result<Vec<ResolverSet>, AdoptError> {
     let Some(registry) = crate::dependency_sets::load(root).map_err(refuse)? else {
         return Ok(Vec::new());
@@ -219,7 +191,6 @@ pub fn resolver_sets(root: &Path) -> Result<Vec<ResolverSet>, AdoptError> {
     Ok(out)
 }
 
-/// Whether the first of `locks` carries the `__INPUT_ARTIFACTS_HASH` that `rules_jvm_external` writes.
 pub(crate) fn pinned_by_rules_jvm_external(root: &Path, locks: &[String]) -> bool {
     locks.first().is_some_and(|lock| {
         std::fs::read(root.join(lock))
@@ -229,10 +200,8 @@ pub(crate) fn pinned_by_rules_jvm_external(root: &Path, locks: &[String]) -> boo
     })
 }
 
-/// The ecosystems whose lock comes from the pinned resolver of their `setup.hubs` entry.
 pub const RESOLVER_LOCKS: [&str; 5] = ["composer", "dub", "luarocks", "maven", "pub"];
 
-/// The file at the root of `root` matching `pattern`, which is a file name or `*<suffix>`.
 fn root_match(root: &Path, pattern: &str) -> Option<String> {
     let Some(suffix) = pattern.strip_prefix('*') else {
         return root.join(pattern).is_file().then(|| pattern.to_owned());
@@ -248,7 +217,6 @@ fn root_match(root: &Path, pattern: &str) -> Option<String> {
     names.into_iter().next()
 }
 
-/// True when the npm manifest at `path` lists a package in a dependency table.
 fn declares_dependency(path: &Path) -> bool {
     let Ok(text) = std::fs::read_to_string(path) else {
         return false;
@@ -286,15 +254,12 @@ fn wants_pnpm_lock(root: &Path) -> Result<bool, AdoptError> {
     Ok(((declared && depends) || workspace) && !other_lock)
 }
 
-/// Plans the `pnpm` extension and hub repo that `bazel run` of the hermetic pnpm needs.
 pub fn plan_pnpm_tool(root: &Path) -> Result<LockHubs, AdoptError> {
     plan_with(root, |plan| plan.pnpm())
 }
 
-/// The `pnpm-workspace.yaml` written beside a wired pnpm lock whose settings have no `allowBuilds`.
 pub const PNPM_SETTINGS: &str = "packages:\n  - .\nallowBuilds: {}\n";
 
-/// The `pnpm-workspace.yaml` paths that the wired pnpm locks of `root` lack. Writes nothing.
 pub fn plan_pnpm_settings(root: &Path) -> Result<Vec<String>, AdoptError> {
     let mut paths = Vec::new();
     plan_with(root, |plan| {
@@ -304,7 +269,6 @@ pub fn plan_pnpm_settings(root: &Path) -> Result<Vec<String>, AdoptError> {
     Ok(paths)
 }
 
-/// Plans the stanzas for the lock files at the root of `root`. Writes nothing.
 pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
     plan_with(root, |plan| {
         plan.report_missing_locks();
@@ -321,7 +285,6 @@ pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
     })
 }
 
-/// The ecosystems whose `setup.hubs` tag takes a `name` and a root `lock` label.
 const LOCK_TAG_ECOSYSTEMS: [&str; 10] = [
     "composer", "luarocks", "dub", "zig", "swiftpm", "hex", "cabal", "opam", "cpan", "ruby",
 ];
@@ -526,7 +489,6 @@ impl Planner<'_> {
         Ok(manifests)
     }
 
-    /// Directories under the root (as `""` or `a/b`) holding `lock` next to `manifest`.
     fn lock_dirs(&self, lock: &str, manifest: &str) -> Vec<String> {
         let mut found = Vec::new();
         let mut excluded: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -679,7 +641,6 @@ impl Planner<'_> {
                 ));
                 continue;
             }
-            // Folder names map to hubs many-to-one: `web/app` and `web_app` both give `npm_web_app`.
             if hubs.contains(&hub) {
                 self.notes.push(format!(
                     "npm hub \"{hub}\" is planned for another lock; {} in {dir} not wired",
@@ -752,7 +713,6 @@ impl Planner<'_> {
         self.add(go, &tags, &[])
     }
 
-    /// False only when the go manifest at `rel` parses and requires no module.
     fn go_requires_modules(&self, rel: &str) -> bool {
         std::fs::read_to_string(self.root.join(rel))
             .ok()
@@ -760,7 +720,6 @@ impl Planner<'_> {
             .is_none_or(|parsed| !parsed.require.is_empty())
     }
 
-    /// The root file matching `pattern`, which is a file name or `*<suffix>`.
     fn root_file(&self, pattern: &str) -> Option<String> {
         root_match(self.root, pattern)
     }
@@ -865,7 +824,6 @@ impl Planner<'_> {
     }
 }
 
-/// A relative path without `./` prefixes or leading and trailing `/`; `"."` for the root.
 fn clean_rel(path: &str) -> &str {
     let mut rest = path.trim_matches('/');
     while let Some(stripped) = rest.strip_prefix("./") {
@@ -1170,7 +1128,6 @@ mod tests {
         );
     }
 
-    /// A `MODULE.bazel` stanza for `ecosystem` naming the set `name` whose lock sits in `dir`.
     fn lock_stanza(ecosystem: &str, name: &str, dir: &str) -> String {
         let hub = dx_families::hub(ecosystem).expect("hub");
         format!(
@@ -1182,7 +1139,6 @@ mod tests {
         )
     }
 
-    /// A `rules_jvm_external` hub named `name` whose catalog and lock sit in the directory `name`.
     fn maven_stanza(name: &str) -> String {
         format!(
             "maven.from_toml(name = \"{name}\", libs_versions_toml = \"//{name}:{}\")\nmaven.install(name = \"{name}\", lock_file = \"//{name}:{}\")\n",

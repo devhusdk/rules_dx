@@ -3,7 +3,6 @@ use dx_error::DxError;
 
 pub const DUB_SET: &str = "dub";
 
-/// Reads the `versions` of a lock. A version is a string or `{"version": ...}`.
 pub fn parse_dub_selections(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let text = crate::locks::strip_bom(text);
     let root: serde_json::Value = serde_json::from_str(text)

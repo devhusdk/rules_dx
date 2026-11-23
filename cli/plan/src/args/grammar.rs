@@ -6,7 +6,6 @@ use clap::{Args, Parser, ValueEnum};
 use super::command::COMMANDS;
 use super::invocation::ReportRequest;
 
-/// An agent tool whose files `dx init --agents` adds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 pub enum Agent {
     Claude,
@@ -16,10 +15,8 @@ pub enum Agent {
 }
 
 impl Agent {
-    /// Every agent.
     pub const ALL: [Self; 4] = [Self::Claude, Self::Codex, Self::Gemini, Self::Copilot];
 
-    /// The word `--agents` takes for this agent.
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
@@ -31,7 +28,6 @@ impl Agent {
     }
 }
 
-/// A CI provider whose workflow `dx init --ci` writes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
 pub enum Ci {
     Github,
@@ -39,7 +35,6 @@ pub enum Ci {
     None,
 }
 
-/// A report request.
 fn report_request(raw: &str) -> Result<ReportRequest, dx_error::DxError> {
     match raw.split_once('=') {
         Some((format, destination)) if !format.is_empty() && !destination.is_empty() => {
@@ -54,7 +49,6 @@ fn report_request(raw: &str) -> Result<ReportRequest, dx_error::DxError> {
     }
 }
 
-/// A value that must not be empty.
 fn non_empty(raw: &str) -> Result<String, dx_error::DxError> {
     if raw.is_empty() {
         Err(dx_error::DxError::usage("want a value".to_owned()))
@@ -63,7 +57,6 @@ fn non_empty(raw: &str) -> Result<String, dx_error::DxError> {
     }
 }
 
-/// A coverage percent between 0 and 100.
 fn percent(raw: &str) -> Result<u32, dx_error::DxError> {
     match raw.parse::<u32>() {
         Ok(value) if value <= 100 => Ok(value),
@@ -71,14 +64,12 @@ fn percent(raw: &str) -> Result<u32, dx_error::DxError> {
     }
 }
 
-/// The seconds in a fuzz budget such as `90`, `90s`, `5m` or `1h`.
 #[must_use]
 pub fn fuzz_seconds(raw: &str) -> Option<u64> {
     let (digits, unit) = match raw.strip_suffix(['s', 'm', 'h']) {
         Some(digits) => (digits, raw.chars().last()),
         None => (raw, Some('s')),
     };
-    // `u64::parse` takes a leading `+`; a budget is plain digits only.
     if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
     }
@@ -88,7 +79,6 @@ pub fn fuzz_seconds(raw: &str) -> Option<u64> {
         'h' => 3600,
         _ => 1,
     };
-    // libFuzzer reads `-max_total_time` as a C `int`.
     let max_seconds = u64::try_from(i32::MAX).ok()?;
     count
         .checked_mul(scale)
@@ -104,18 +94,15 @@ fn fuzz_duration(raw: &str) -> Result<String, dx_error::DxError> {
     }
 }
 
-/// The usage line clap renders for one command.
 fn usage_of(command: super::command::Command) -> String {
     let usage = command.meta().usage;
     usage.strip_prefix("Usage: ").unwrap_or(usage).to_owned()
 }
 
-/// The prose clap prints under one command's options.
 fn after_help_of(command: super::command::Command) -> String {
     super::help::after_long_help(command)
 }
 
-/// Every flag the normalized invocation carries, whether or not one command takes it.
 #[derive(Debug, Default)]
 #[expect(
     clippy::struct_excessive_bools,
@@ -194,7 +181,6 @@ pub(crate) struct Flags {
     pub(crate) bazel_options: Vec<String>,
 }
 
-/// One flag group: a clap argument group that writes into the normalized invocation flags.
 macro_rules! flag_group {
     ($(#[$group_attr:meta])* $name:ident, { $(#[$attr:meta])* $field:ident : $ty:ty $(,)? }) => {
         $(#[$group_attr])*
@@ -206,7 +192,6 @@ macro_rules! flag_group {
         }
 
         impl $name {
-            /// Writes this flag into the invocation.
             pub(crate) fn put(self, flags: &mut Flags) {
                 flags.$field = self.$field;
             }
@@ -214,7 +199,6 @@ macro_rules! flag_group {
     };
 }
 
-/// One group of other groups, whose flags are all written through `put`.
 macro_rules! composite_group {
     ($(#[$group_attr:meta])* $name:ident, { $( $(#[$attr:meta])* $field:ident : $ty:ty ),* $(,)? }) => {
         $(#[$group_attr])*
@@ -224,7 +208,6 @@ macro_rules! composite_group {
         }
 
         impl $name {
-            /// Writes every flag this group carries into the invocation.
             pub(crate) fn put(self, flags: &mut Flags) {
                 $( self.$field.put(flags); )*
             }
@@ -368,7 +351,6 @@ flag_group! {
 }
 
 composite_group! {
-    /// The flags every command accepts.
     CommonArgs, {
         workspace: WorkspaceFlag,
         quiet: QuietFlag,
@@ -713,7 +695,6 @@ flag_group! {
 flag_group! {
     /// Skip versions published fewer than this many days ago (needs --pr; default 3; max 36500).
     MinAgeFlag, {
-        // A larger age has no cutoff date in chrono, which would turn the filter off.
         #[arg(
             long,
             value_name = "DAYS",
@@ -786,7 +767,6 @@ flag_group! {
 }
 
 composite_group! {
-    /// The flags that accept a finding.
     AcceptArgs, {
         accept: AcceptFlag,
         reason: AcceptReasonFlag,
@@ -819,7 +799,6 @@ flag_group! {
 }
 
 composite_group! {
-    /// The flags that verify a downloaded asset.
     VerifyArgs, {
         verify: VerifyFlag,
         repo: RepoFlag,
@@ -828,7 +807,6 @@ composite_group! {
 }
 
 composite_group! {
-    /// The floor flags.
     FloorArgs, {
         floor: FloorFlag,
         reason: ReasonFlag,
@@ -884,7 +862,6 @@ flag_group! {
 }
 
 composite_group! {
-    /// The build mode flags the workflow commands share.
     BuildModeArgs, {
         debug: DebugFlag,
         release: ReleaseFlag,
@@ -892,7 +869,6 @@ composite_group! {
 }
 
 composite_group! {
-    /// The docs serve flags.
     ServeArgs, {
         serve: ServeFlag,
         port: PortFlag,
@@ -939,14 +915,12 @@ flag_group! {
 }
 
 composite_group! {
-    /// The fuzz budget flags.
     FuzzArgs, {
         budget: BudgetFlag,
         jobs: JobsFlag,
     }
 }
 
-/// Scopes and the Bazel passthrough.
 #[derive(Args)]
 pub(crate) struct BazelTail {
     /// Scopes to run on.
@@ -957,13 +931,11 @@ pub(crate) struct BazelTail {
 }
 
 impl BazelTail {
-    /// The scopes and the `--` payload.
     pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
         (self.targets, self.passthrough)
     }
 }
 
-/// Scopes and the app passthrough.
 #[derive(Args)]
 pub(crate) struct AppTail {
     /// Targets to run.
@@ -975,13 +947,11 @@ pub(crate) struct AppTail {
 }
 
 impl AppTail {
-    /// The scopes and the app arguments.
     pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
         (self.targets, self.passthrough)
     }
 }
 
-/// Scopes and the `--` payload this command refuses.
 #[derive(Args)]
 pub(crate) struct NoPassthroughTail {
     /// Scopes to run on.
@@ -992,15 +962,11 @@ pub(crate) struct NoPassthroughTail {
 }
 
 impl NoPassthroughTail {
-    /// The scopes and the `--` payload.
     pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
         (self.targets, self.passthrough)
     }
 }
 
-/// Stray scopes and the `--` payload a no-scope command refuses.
-///
-/// Both stay hidden from help but still parse, so the dispatch layer reports its usual errors.
 #[derive(Args)]
 pub(crate) struct NoScopeTail {
     /// Stray scopes, collected only so they can be rejected.
@@ -1012,7 +978,6 @@ pub(crate) struct NoScopeTail {
 }
 
 impl NoScopeTail {
-    /// The stray scopes and the `--` payload.
     pub(crate) fn split(self) -> (Vec<OsString>, Vec<String>) {
         (self.targets, self.passthrough)
     }
@@ -1039,7 +1004,6 @@ macro_rules! command_args {
             }
 
             impl $variant {
-                /// The flags, scopes and `--` payload one command carries.
                 pub(crate) fn split(self) -> (Flags, Vec<OsString>, Vec<String>) {
                     let Self { common, tail, $($field,)* } = self;
                     let (targets, passthrough) = tail.split();
@@ -1065,7 +1029,6 @@ macro_rules! command_args {
         }
 
         impl Verb {
-            /// The registry command and the arguments one verb carries.
             pub(crate) fn into_parts(self) -> (super::command::Command, Flags, Vec<OsString>, Vec<String>) {
                 match self {
                     $(
@@ -1078,7 +1041,6 @@ macro_rules! command_args {
             }
         }
 
-        /// The arguments one command's subcommand carries, without help prose.
         pub(crate) fn subcommand_args(command: super::command::Command) -> clap::Command {
             match command {
                 $(
@@ -1092,7 +1054,6 @@ macro_rules! command_args {
 }
 
 command_args! {
-    /// The flags `dx security` accepts.
     Security => 0, NoPassthroughTail, {
         output: OutputFlag,
         offline: OfflineFlag,
@@ -1106,7 +1067,6 @@ command_args! {
         since: SinceFlag,
         base: BaseFlag,
     };
-    /// The flags `dx license` accepts.
     License => 1, NoPassthroughTail, {
         output: OutputFlag,
         offline: OfflineFlag,
@@ -1119,7 +1079,6 @@ command_args! {
         since: SinceFlag,
         base: BaseFlag,
     };
-    /// The flags `dx lint` accepts.
     Lint => 2, BazelTail, {
         output: OutputFlag,
         diff: DiffFlag,
@@ -1136,7 +1095,6 @@ command_args! {
         since: SinceFlag,
         base: BaseFlag,
     };
-    /// The flags `dx typecheck` accepts.
     Typecheck => 3, BazelTail, {
         output: OutputFlag,
         diff: DiffFlag,
@@ -1151,7 +1109,6 @@ command_args! {
         since: SinceFlag,
         base: BaseFlag,
     };
-    /// The flags `dx format` accepts.
     Format => 4, BazelTail, {
         output: OutputFlag,
         diff: DiffFlag,
@@ -1165,7 +1122,6 @@ command_args! {
         since: SinceFlag,
         base: BaseFlag,
     };
-    /// The flags `dx generate` accepts.
     Generate => 5, BazelTail, {
         output: OutputFlag,
         diff: DiffFlag,
@@ -1173,7 +1129,6 @@ command_args! {
         here: HereFlag,
         affected: AffectedFlag,
     };
-    /// The flags `dx build` accepts.
     Build => 6, BazelTail, {
         output: OutputFlag,
         offline: BazelOfflineFlag,
@@ -1186,7 +1141,6 @@ command_args! {
         since: SinceFlag,
         base: BaseFlag,
     };
-    /// The flags `dx test` accepts.
     Test => 7, BazelTail, {
         output: OutputFlag,
         offline: BazelOfflineFlag,
@@ -1199,7 +1153,6 @@ command_args! {
         since: SinceFlag,
         base: BaseFlag,
     };
-    /// The flags `dx coverage` accepts.
     #[expect(clippy::struct_field_names, reason = "the fields are the clap argument ids")]
     Coverage => 8, BazelTail, {
         output: OutputFlag,
@@ -1214,21 +1167,18 @@ command_args! {
         since: SinceFlag,
         base: BaseFlag,
     };
-    /// The flags `dx bench` accepts.
     Bench => 9, BazelTail, {
         output: OutputFlag,
         max_regression: MaxRegressionFlag,
         compare: CompareFlag,
         here: HereFlag,
     };
-    /// The flags `dx run` accepts.
     Run => 10, AppTail, {
         output: OutputFlag,
         own: BuildModeArgs,
         timings: TimingsFlag,
         bazel_option: BazelOptionFlag,
     };
-    /// The flags `dx deploy` accepts.
     Deploy => 11, AppTail, {
         own: BuildModeArgs,
         apply: ApplyFlag,
@@ -1236,7 +1186,6 @@ command_args! {
         since: SinceFlag,
         base: BaseFlag,
     };
-    /// The flags `dx check` accepts.
     Check => 12, BazelTail, {
         output: OutputFlag,
         diff: DiffFlag,
@@ -1252,14 +1201,12 @@ command_args! {
         since: SinceFlag,
         base: BaseFlag,
     };
-    /// The flags `dx clean` accepts.
     #[expect(clippy::struct_field_names, reason = "the fields are the clap argument ids")]
     Clean => 13, NoScopeTail, {
         output: OutputFlag,
         clean_bazel: CleanBazelFlag,
         expunge: ExpungeFlag,
     };
-    /// The flags `dx update` accepts.
     Update => 14, NoPassthroughTail, {
         output: OutputFlag,
         fail_on: FailOnFlag,
@@ -1276,9 +1223,7 @@ command_args! {
         max_prs: MaxPrsFlag,
         floor: FloorArgs,
     };
-    /// The flags `dx sync` accepts.
     Sync => 15, BazelTail, { output: OutputFlag, };
-    /// The flags `dx init` accepts.
     Init => 16, NoPassthroughTail, {
         output: OutputFlag,
         apply: ApplyFlag,
@@ -1287,15 +1232,12 @@ command_args! {
         no_generate: NoGenerateFlag,
         accept_license: AcceptLicenseFlag,
     };
-    /// The flags `dx upgrade` accepts.
     Upgrade => 17, NoScopeTail, { output: OutputFlag, apply: ApplyFlag, own: ToFlag, };
-    /// The flags `dx status` accepts.
     Status => 18, NoScopeTail, {
         output: OutputFlag,
         capabilities: CapabilitiesFlag,
         files: FilesFlag,
     };
-    /// The flags `dx watch` accepts.
     Watch => 19, BazelTail, {
         output: OutputFlag,
         diff: DiffFlag,
@@ -1312,15 +1254,12 @@ command_args! {
         poll: PollFlag,
         own: BuildModeArgs,
     };
-    /// The flags `dx completion` accepts.
     Completion => 20, NoPassthroughTail, {};
-    /// The flags `dx docs` accepts.
     Docs => 21, BazelTail, {
         output: OutputFlag,
         here: HereFlag,
         own: ServeArgs,
     };
-    /// The flags `dx worktree` accepts.
     Worktree => 22, NoPassthroughTail, {
         output: OutputFlag,
         path_only: PathOnlyFlag,
@@ -1330,11 +1269,8 @@ command_args! {
         disk: DiskFlag,
         bases: BasesFlag,
     };
-    /// The flags `dx fuzz` accepts.
     Fuzz => 23, NoPassthroughTail, { output: OutputFlag, own: FuzzArgs, here: HereFlag, };
-    /// The flags `dx config` accepts.
     Config => 24, NoPassthroughTail, { output: OutputFlag, };
-    /// The flags `dx fetch` accepts.
     Fetch => 25, BazelTail, {
         output: OutputFlag,
         vendor: VendorFlag,
@@ -1373,11 +1309,6 @@ pub fn cli_command() -> clap::Command {
     )
 }
 
-/// Renders the section 1 man page for the dx command.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn man_page() -> std::io::Result<Vec<u8>> {
     let mut buffer = Vec::new();
     clap_mangen::Man::new(cli_command())
@@ -1386,7 +1317,6 @@ pub fn man_page() -> std::io::Result<Vec<u8>> {
     Ok(buffer)
 }
 
-/// Every long and short option in the clap command tree that takes a value, e.g. `--output` and `-o`.
 pub(crate) fn value_options() -> &'static BTreeSet<String> {
     static OPTIONS: std::sync::OnceLock<BTreeSet<String>> = std::sync::OnceLock::new();
     OPTIONS.get_or_init(|| {
@@ -1398,7 +1328,6 @@ pub(crate) fn value_options() -> &'static BTreeSet<String> {
     })
 }
 
-/// Adds the value-taking options of one command and its subcommands.
 fn collect_value_options(command: &clap::Command, options: &mut BTreeSet<String>) {
     for arg in command.get_arguments().filter(|arg| takes_next_word(arg)) {
         if let Some(short) = arg.get_short() {
@@ -1413,7 +1342,6 @@ fn collect_value_options(command: &clap::Command, options: &mut BTreeSet<String>
     }
 }
 
-/// Whether an argument takes its value from the next word, not only after `=`.
 fn takes_next_word(arg: &clap::Arg) -> bool {
     !arg.is_require_equals_set()
         && arg.get_action().takes_values()
@@ -1422,7 +1350,6 @@ fn takes_next_word(arg: &clap::Arg) -> bool {
             .is_some_and(|range| range.min_values() >= 1)
 }
 
-/// Every short letter in the clap command tree.
 pub(crate) fn short_flags() -> &'static [char] {
     static SHORTS: std::sync::OnceLock<Vec<char>> = std::sync::OnceLock::new();
     SHORTS.get_or_init(|| {
@@ -1436,7 +1363,6 @@ pub(crate) fn short_flags() -> &'static [char] {
     })
 }
 
-/// Adds the short letters of one command and its subcommands.
 fn collect_shorts(command: &clap::Command, letters: &mut Vec<char>) {
     letters.extend(command.get_arguments().filter_map(clap::Arg::get_short));
     for sub in command.get_subcommands() {
@@ -1444,7 +1370,6 @@ fn collect_shorts(command: &clap::Command, letters: &mut Vec<char>) {
     }
 }
 
-/// One option word: its name, inline value, and whether it took the next word.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct OptionWord {
     pub(crate) name: String,
@@ -1452,7 +1377,6 @@ pub(crate) struct OptionWord {
     pub(crate) used_next: bool,
 }
 
-/// Reads `word` as an option the way clap does; `next` is the word after it.
 pub(crate) fn option_at(word: &str, next: Option<&str>) -> Option<OptionWord> {
     let raw = clap_lex::RawArgs::new([word]);
     let arg = raw.next(&mut raw.cursor())?;
@@ -1492,7 +1416,6 @@ pub(crate) fn option_at(word: &str, next: Option<&str>) -> Option<OptionWord> {
     })
 }
 
-/// Whether `next` can be the separate value of the option `name`.
 fn next_is_value(name: &str, next: &str) -> bool {
     if next.is_empty() {
         return false;
@@ -1509,7 +1432,6 @@ fn next_is_value(name: &str, next: &str) -> bool {
         })
 }
 
-/// The value options that accept hyphen values, and those that accept negative numbers.
 fn hyphen_value_options() -> &'static (BTreeSet<String>, BTreeSet<String>) {
     static OPTIONS: std::sync::OnceLock<(BTreeSet<String>, BTreeSet<String>)> =
         std::sync::OnceLock::new();
@@ -1522,7 +1444,6 @@ fn hyphen_value_options() -> &'static (BTreeSet<String>, BTreeSet<String>) {
     })
 }
 
-/// Adds the hyphen-accepting value options of one command and its subcommands.
 fn collect_hyphen_options(
     command: &clap::Command,
     sets: &mut (BTreeSet<String>, BTreeSet<String>),
@@ -1543,7 +1464,6 @@ fn collect_hyphen_options(
     }
 }
 
-/// The long names the grammar gives the flags that belong to some commands only.
 #[must_use]
 pub fn advertised_flags(command: super::command::Command) -> Vec<String> {
     let sub = subcommand_args(command);
@@ -1561,7 +1481,6 @@ pub fn advertised_flags(command: super::command::Command) -> Vec<String> {
     flags
 }
 
-/// Whether `dx <command>` parses `--<long>`, hidden arguments included.
 #[must_use]
 pub fn accepts_long(command: super::command::Command, long: &str) -> bool {
     subcommand_args(command)
@@ -1569,7 +1488,6 @@ pub fn accepts_long(command: super::command::Command, long: &str) -> bool {
         .any(|arg| arg.get_long() == Some(long))
 }
 
-/// Whether the grammar lets `dx <command> -- <bazel-options>` through.
 #[must_use]
 pub fn advertises_passthrough(command: super::command::Command) -> bool {
     subcommand_args(command)
@@ -1577,7 +1495,6 @@ pub fn advertises_passthrough(command: super::command::Command) -> bool {
         .any(|arg| arg.is_last_set() && !arg.is_hide_set())
 }
 
-/// Whether the `--` payload of `dx <command>` goes to the app rather than to Bazel.
 pub(crate) fn takes_app_args(command: super::command::Command) -> bool {
     subcommand_args(command).get_arguments().any(|arg| {
         arg.is_last_set()

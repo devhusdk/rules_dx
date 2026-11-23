@@ -1,21 +1,14 @@
-//! The machine-wide build slot pool: slot files under the user cache, their sizing, and the range of
-//! indices kept back for nested Bazel test servers.
-
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-/// Memory one Bazel server plus its build is planned to use.
 pub const BYTES_PER_SLOT: u64 = 3 << 30;
 
-/// Memory one nested Bazel test server is planned to use.
 pub const BYTES_PER_NESTED_BAZEL: u64 = 2 << 30;
 
-/// Most slots dx ever offers.
 pub const MAX_SLOTS: usize = 16;
 
-/// Slots for a machine with `memory` bytes, `reserved` of them kept aside.
 #[must_use]
 pub fn slot_count(memory: u64, reserved: u64) -> usize {
     usize::try_from(memory.saturating_sub(reserved) / BYTES_PER_SLOT)
@@ -23,7 +16,6 @@ pub fn slot_count(memory: u64, reserved: u64) -> usize {
         .clamp(1, MAX_SLOTS)
 }
 
-/// The slot directory under the user cache.
 pub fn slots_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
     let cache = crate::user_cache_dir(env_get)?;
     Some(cache.join("dx").join("slots"))
@@ -34,7 +26,6 @@ pub fn slot_path(dir: &Path, index: usize) -> PathBuf {
     dir.join(format!("slot-{index}.lock"))
 }
 
-/// Locks a slot file shared or exclusive, falling back to a read-only open when it cannot be written.
 pub fn lock_slot(path: &Path, shared: bool) -> io::Result<Option<File>> {
     let locked = if shared {
         dx_atomic_fs::lease::try_lock_file_shared(path, true)
@@ -63,7 +54,6 @@ pub fn lock_slot(path: &Path, shared: bool) -> io::Result<Option<File>> {
     }
 }
 
-/// The smaller of the two limits that are known.
 #[cfg(target_os = "linux")]
 fn tightest(total: Option<u64>, limit: Option<u64>) -> Option<u64> {
     match (total, limit) {
@@ -72,7 +62,6 @@ fn tightest(total: Option<u64>, limit: Option<u64>) -> Option<u64> {
     }
 }
 
-/// Total memory visible to this process, honoring a cgroup limit.
 #[cfg(target_os = "linux")]
 #[must_use]
 pub fn available_memory() -> Option<u64> {
@@ -82,13 +71,11 @@ pub fn available_memory() -> Option<u64> {
     tightest(total, cgroup_limit())
 }
 
-/// Physical memory reported by `hw.memsize`.
 #[cfg(target_os = "macos")]
 pub fn available_memory() -> Option<u64> {
     dx_os_sys::macos::memsize()
 }
 
-/// Physical memory reported by `GlobalMemoryStatusEx`.
 #[cfg(windows)]
 pub fn available_memory() -> Option<u64> {
     dx_os_sys::win32::total_physical_memory().ok()
@@ -99,7 +86,6 @@ pub fn available_memory() -> Option<u64> {
     None
 }
 
-/// Reads `MemTotal` from `/proc/meminfo` text, in bytes.
 #[must_use]
 pub fn parse_meminfo(text: &str) -> Option<u64> {
     let line = text.lines().find(|line| line.starts_with("MemTotal:"))?;
@@ -107,7 +93,6 @@ pub fn parse_meminfo(text: &str) -> Option<u64> {
     kib.checked_mul(1024)
 }
 
-/// Reads a cgroup memory limit; `max` or the v1 unlimited value means no limit.
 #[must_use]
 pub fn parse_cgroup_limit(text: &str) -> Option<u64> {
     text.trim().parse().ok().filter(|value| *value < 1 << 62)
@@ -119,7 +104,6 @@ fn cgroup_limit() -> Option<u64> {
     cgroup_limit_in(&own, Path::new("/sys/fs/cgroup"))
 }
 
-/// Reads the memory limit of the cgroup named in `own` under `root`.
 #[must_use]
 pub fn cgroup_limit_in(own: &str, root: &Path) -> Option<u64> {
     let v2 = own
@@ -162,28 +146,18 @@ fn walk_limit(base: &Path, relative: &str, file: &str) -> Option<u64> {
     }
 }
 
-/// The slot indices kept for `servers` nested Bazel test servers on a machine with `memory` bytes.
-///
-/// Empty when `servers` is 0. dx gates leave these indices to nested test harnesses.
 #[must_use]
 pub fn reserve_range(memory: u64, servers: u64) -> Range<usize> {
     let reserved = servers.saturating_mul(BYTES_PER_NESTED_BAZEL);
     slot_count(memory, reserved)..slot_count(memory, 0)
 }
 
-/// What [`hold_reserve`] took.
 #[derive(Debug, Default)]
 pub struct Reserve {
-    /// The locked slot files; dropping them releases the locks.
     pub held: Vec<File>,
-    /// Indices another process holds exclusively, or that could not be locked.
     pub busy: Vec<usize>,
 }
 
-/// Takes shared locks on the `range` slot files in `dir` without waiting.
-///
-/// Shared locks coexist with other reserve holders and with dx runs inside a gated run, and block
-/// consumer dx runs from taking those indices exclusively.
 #[must_use]
 pub fn hold_reserve(dir: &Path, range: Range<usize>) -> Reserve {
     let mut reserve = Reserve::default();

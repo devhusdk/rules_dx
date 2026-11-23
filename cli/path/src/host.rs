@@ -1,16 +1,11 @@
-//! Host facts about naming an executable.
-
-/// Suffixes the host runs a file under.
 pub const EXECUTABLE_SUFFIXES: &[&str] = &[".exe", ".bat", ".cmd", ".com"];
 
-/// Names Windows reserves for devices.
 pub const RESERVED_STEMS: &[&str] = &[
     "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
     "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9", "com¹", "com²",
     "com³", "lpt¹", "lpt²", "lpt³",
 ];
 
-/// Maps one logical tool name to its filename on the named platform.
 #[must_use]
 pub fn host_filename_for(name: &str, windows: bool) -> String {
     if windows {
@@ -20,7 +15,6 @@ pub fn host_filename_for(name: &str, windows: bool) -> String {
     }
 }
 
-/// Returns the executable suffix one name carries.
 #[must_use]
 pub fn executable_suffix(name: &str) -> Option<&'static str> {
     let lower = name.to_ascii_lowercase();
@@ -30,7 +24,6 @@ pub fn executable_suffix(name: &str) -> Option<&'static str> {
         .find(|suffix| lower.ends_with(suffix))
 }
 
-/// Reports whether one name is a device Windows reserves.
 #[must_use]
 pub fn is_reserved_device(name: &str) -> bool {
     let stem = name

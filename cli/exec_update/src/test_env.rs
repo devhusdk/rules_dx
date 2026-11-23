@@ -1,5 +1,3 @@
-//! A workspace, runners and a dispatch for driving the update verb in tests.
-
 use dx_exec_core::common::{ActionTally, Env};
 use dx_plan::args::{Command, Invocation};
 use dx_plan::resolve::{QueryResult, QueryRunner};
@@ -11,7 +9,6 @@ pub(crate) fn temp_dir(prefix: &str) -> tempfile::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-update-test-{prefix}-")).unwrap()
 }
 
-/// Answers every query with an empty success.
 pub(crate) struct NoQuery;
 
 impl QueryRunner for NoQuery {
@@ -24,7 +21,6 @@ impl QueryRunner for NoQuery {
     }
 }
 
-/// Exits 0 for every launch.
 pub(crate) struct ExitZero;
 
 impl Runner for ExitZero {
@@ -33,7 +29,6 @@ impl Runner for ExitZero {
     }
 }
 
-/// A scratch workspace that git sees as a repository, plus a scratch temp dir.
 pub(crate) struct TestEnv {
     pub(crate) workspace: PathBuf,
     pub(crate) temp: PathBuf,
@@ -49,7 +44,6 @@ impl TestEnv {
         let workspace_guard = temp_dir(&format!("{name}-ws"));
         let temp_guard = temp_dir(&format!("{name}-tmp"));
         let workspace = workspace_guard.path().to_path_buf();
-        // Keeps git from finding a repository above the scratch dir without running `git init`.
         let git = workspace.join(".git");
         for dir in ["objects", "refs"] {
             std::fs::create_dir_all(git.join(dir)).expect("git dir");
@@ -94,7 +88,6 @@ impl TestEnv {
     }
 }
 
-/// Runs inner update invocations through the verb; every other command fails.
 pub(crate) fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.command == Command::Update {
         crate::execute_update(invocation, env, &dispatch)

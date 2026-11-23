@@ -5,7 +5,6 @@ use super::{
     Write, emit_built, notice_event, parse_test_xml, test_result_record,
 };
 
-/// Returns one exec path spelled without the build directory, so a report reads the same on every host.
 pub(super) fn stable_exec_path(exec_path: &Path) -> String {
     let text = dx_path::posix(exec_path);
     if let Some((_, rest)) = text.split_once("/bazel-testlogs/") {
@@ -29,10 +28,8 @@ pub(super) fn stable_exec_path(exec_path: &Path) -> String {
         .unwrap_or(text)
 }
 
-/// Bazel's exit code when every test built and ran but some failed.
 pub(super) const BAZEL_TESTS_FAILED: i32 = 3;
 
-/// Whether a test outcome counts as a failed test.
 pub(super) fn is_failed(outcome: &str) -> bool {
     matches!(outcome, "failed" | "timeout")
 }
@@ -45,17 +42,14 @@ pub(super) fn unusable_detail(count: usize, first: &str) -> String {
     }
 }
 
-/// True for the names Bazel reports a test's coverage result under.
 pub(super) fn is_coverage_output(name: &str) -> bool {
     name == "coverage.dat" || name == "test.lcov"
 }
 
-/// True for result files that carry coverage evidence.
 pub(super) fn is_coverage_file(file: &TestResultFile) -> bool {
     is_coverage_output(&file.name)
 }
 
-/// The latest attempt Bazel reported for each result's named coverage output.
 pub(super) fn final_coverage_attempts(
     results: &[TestResultRecord],
 ) -> BTreeMap<(&str, u32, u32, &str), u32> {
@@ -78,7 +72,6 @@ pub(super) fn final_coverage_attempts(
     finals
 }
 
-/// Marks each outcome a later attempt of the same target, configuration, run and shard replaced.
 pub(super) fn mark_superseded_attempts(reported: &mut [TestOutcome]) {
     let mut latest: BTreeMap<(String, Option<String>, u32, u32), u32> = BTreeMap::new();
     for outcome in reported.iter() {
@@ -126,11 +119,9 @@ pub struct TestReportsRequest<'a> {
     pub query_runner: &'a dyn QueryRunner,
     pub results_complete: &'a mut bool,
     pub actions: Option<ActionCounts>,
-    /// True when the run resolved to exactly `//...`, so every tracked source is in scope.
     pub whole_repo: bool,
 }
 
-/// Reads the output roots `bazel info` reports for this run, or workspace-only locations.
 #[expect(clippy::disallowed_methods, reason = "info takes no build settings")]
 pub fn output_locations(
     invocation: &Invocation,
@@ -156,11 +147,6 @@ pub fn output_locations(
     locations
 }
 
-/// The machine outcome for one BEP test status: Bazel stays authoritative.
-///
-/// Passing after retry is distinct from a clean pass, and any other reported
-/// status keeps its own lowercased token so new Bazel statuses stay distinct.
-/// A missing status is unknown, never a fabricated zero value.
 pub(super) fn status_outcome(status: Option<&str>) -> String {
     match status {
         None => "unknown".to_owned(),
@@ -170,12 +156,6 @@ pub(super) fn status_outcome(status: Option<&str>) -> String {
     }
 }
 
-/// The machine outcome for one test result beside its target summary.
-///
-/// Bazel reports per-attempt `testResult` statuses, so a retried attempt that
-/// passes reads `PASSED` on its own line; only the `testSummary`
-/// `overallStatus` says the target passed after retry. A passed attempt under
-/// a `FLAKY` summary is `passed_after_retry`, never an ordinary pass.
 pub(super) fn result_outcome(status: Option<&str>, summary: Option<&str>) -> String {
     if status == Some("PASSED") && summary == Some("FLAKY") {
         return "passed_after_retry".to_owned();
@@ -183,7 +163,6 @@ pub(super) fn result_outcome(status: Option<&str>, summary: Option<&str>) -> Str
     status_outcome(status)
 }
 
-/// Indexes `testSummary` overall statuses by target and configuration.
 pub(super) fn summary_statuses(events: &TestEvents) -> BTreeMap<(&str, Option<&str>), &str> {
     let mut statuses = BTreeMap::new();
     for summary in &events.summaries {
@@ -197,7 +176,6 @@ pub(super) fn summary_statuses(events: &TestEvents) -> BTreeMap<(&str, Option<&s
     statuses
 }
 
-/// Names one test result's file so a missing artifact is traceable to its run, shard, and attempt.
 pub(super) fn result_where(label: &str, name: &str, run: u32, shard: u32, attempt: u32) -> String {
     format!("{name} for {label} (run {run}, shard {shard}, attempt {attempt})")
 }
@@ -210,12 +188,10 @@ pub(super) const LOG_TAIL_LINES: usize = 40;
 
 pub(super) const LOG_TAIL_BYTES: usize = 8192;
 
-/// The last `LOG_TAIL_LINES` lines of a test log, at most `LOG_TAIL_BYTES` long.
 pub(super) fn log_tail(bytes: &[u8]) -> Option<String> {
     dx_bep::log_tail(bytes, LOG_TAIL_LINES, LOG_TAIL_BYTES)
 }
 
-/// Adds one parsed test.xml's cases to the outcome's counts and bounded case list.
 pub(super) fn tally_cases(
     outcome: &mut TestOutcome,
     cases: &[JunitCase],
@@ -240,8 +216,6 @@ pub(super) fn tally_cases(
     }
 }
 
-/// Points a result that did not pass at its test.log and keeps the log's tail. The undeclared
-/// outputs zip, where traces and screenshots land, is listed beside it.
 pub(super) fn attach_log(
     outcome: &mut TestOutcome,
     result: &TestResultRecord,
@@ -252,7 +226,6 @@ pub(super) fn attach_log(
     }
     if let Some(log) = result.files.iter().find(|file| file.name == "test.log") {
         outcome.log_path = Some(log.exec_path.to_string_lossy().into_owned());
-        // An unreadable test log leaves the outcome without a log tail.
         outcome.log_tail = reader
             .read_artifact(&log.exec_path)
             .ok()
@@ -267,7 +240,6 @@ pub(super) fn attach_log(
     }
 }
 
-/// Counts every missing or invalid piece of required evidence and keeps the first one.
 #[derive(Default)]
 pub(super) struct Evidence {
     pub(super) count: usize,
@@ -283,7 +255,6 @@ impl Evidence {
     }
 }
 
-/// The machine outcome of one native test case.
 pub(super) fn case_outcome(case: &JunitCase) -> &'static str {
     if case.error.is_some() {
         "error"
@@ -296,7 +267,6 @@ pub(super) fn case_outcome(case: &JunitCase) -> &'static str {
     }
 }
 
-/// Cuts text to at most `limit` bytes on a character boundary.
 pub(super) fn bounded(text: &str, limit: usize) -> (String, bool) {
     if text.len() <= limit {
         return (text.to_owned(), false);
@@ -309,7 +279,6 @@ pub(super) fn bounded(text: &str, limit: usize) -> (String, bool) {
     (head.to_owned(), true)
 }
 
-/// The reason a native report gave for one case, when it gave one.
 pub(super) fn case_message(case: &JunitCase) -> Option<&str> {
     let note: &JunitMessage = case
         .error
@@ -324,13 +293,11 @@ pub(super) fn case_message(case: &JunitCase) -> Option<&str> {
     (!text.is_empty()).then_some(text)
 }
 
-/// The first workspace-relative `path:line` in a failure text, such as `foo_test.go:42:` or `(Foo.java:17)`.
 pub(super) fn text_location(text: &str) -> Option<(String, u64)> {
     text.split(|c: char| c.is_whitespace() || matches!(c, '(' | ')' | '"' | '\'' | ',' | '<' | '>'))
         .find_map(|token| {
             let mut parts = token.split(':');
             let path = parts.next()?;
-            // A token without a numeric line is not a source location.
             let line: u64 = parts.next()?.parse().ok()?;
             let relative = !path.starts_with('/') && !path.starts_with('\\');
             let named = path
@@ -341,7 +308,6 @@ pub(super) fn text_location(text: &str) -> Option<(String, u64)> {
         })
 }
 
-/// Where a case failed: the report's `file` and `line` attributes, else the first location in its failure text.
 pub(super) fn case_location(case: &JunitCase) -> (Option<String>, Option<u64>) {
     if case.file.is_some() {
         return (case.file.clone(), case.line);
@@ -359,7 +325,6 @@ pub(super) fn case_location(case: &JunitCase) -> (Option<String>, Option<u64>) {
     }
 }
 
-/// One case read from a result's native report.
 pub(super) fn test_case(case: &JunitCase) -> TestCase {
     let message = case_message(case).map(|text| bounded(text, CASE_MESSAGE_LIMIT).0);
     let (file, line) = case_location(case);
@@ -373,7 +338,6 @@ pub(super) fn test_case(case: &JunitCase) -> TestCase {
     }
 }
 
-/// The machine outcome for a target Bazel summarized without any test result.
 pub(super) fn summary_outcome(status: Option<&str>) -> String {
     match status {
         Some("FAILED_TO_BUILD") => "failed_to_build".to_owned(),
@@ -381,7 +345,6 @@ pub(super) fn summary_outcome(status: Option<&str>) -> String {
     }
 }
 
-/// Accounts for undelivered events, summaries without results, unbuilt tests and skipped targets.
 pub(super) fn account_stream(
     events: &TestEvents,
     evidence: &mut Evidence,
@@ -517,7 +480,6 @@ pub(super) fn filtered_notice(
     Ok(())
 }
 
-/// The results report: every outcome of the run, passed ones included.
 pub(super) fn results_document(
     reported: &[TestOutcome],
     complete: bool,
@@ -535,14 +497,11 @@ pub(super) fn results_document(
         "complete": complete,
         "results": results,
     });
-    // a serde_json::Value always serializes
     Ok(serde_json::to_string_pretty(&document).unwrap_or_default())
 }
 
-/// `testSummary` overall statuses keyed by target and configuration.
 pub(super) type Summaries<'a> = BTreeMap<(&'a str, Option<&'a str>), &'a str>;
 
-/// The outcome of one test result before any of its artifacts are read.
 pub(super) fn outcome_for(result: &TestResultRecord, summaries: &Summaries<'_>) -> TestOutcome {
     let summary = summaries
         .get(&(result.label.as_str(), result.configuration.as_deref()))
@@ -561,7 +520,6 @@ pub(super) fn outcome_for(result: &TestResultRecord, summaries: &Summaries<'_>) 
     }
 }
 
-/// Reads one result artifact, or counts it missing and records why.
 pub(super) fn read_or_record(
     reader: &dyn ArtifactReader,
     file: &TestResultFile,
@@ -582,7 +540,6 @@ pub(super) fn read_or_record(
     }
 }
 
-/// Parses one result's test.xml and stamps each case with the result's run and configuration.
 pub(super) fn parse_cases(
     result: &TestResultRecord,
     bytes: &[u8],
@@ -597,7 +554,6 @@ pub(super) fn parse_cases(
     Ok(cases)
 }
 
-/// Why the results are incomplete: no artifacts at all, or any missing or invalid evidence.
 pub(super) fn evidence_gap(empty: bool, evidence: &Evidence, missing_text: &str) -> Option<String> {
     if empty {
         Some(if evidence.first.is_empty() {

@@ -8,7 +8,6 @@ use super::envelope::Envelope;
 use super::validators::{ValidationError, validate, validate_path};
 
 pub trait FileSystem {
-    /// Maps one validated workspace-relative path to the file to touch.
     fn resolve(&self, root: &Path, relative: &str) -> io::Result<PathBuf> {
         Ok(root.join(relative))
     }

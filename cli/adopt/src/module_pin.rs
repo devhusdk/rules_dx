@@ -1,5 +1,3 @@
-//! Edits the version of the `rules_dx` `bazel_dep` in `MODULE.bazel` or an included file.
-
 use std::path::Path;
 
 use dx_module_bazel::ModuleFile;
@@ -8,7 +6,6 @@ use crate::AdoptError;
 
 const MODULE_FILE: &str = "MODULE.bazel";
 
-/// One planned file change: the workspace-relative path and its text before and after.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModuleEdit {
     pub path: String,
@@ -30,7 +27,6 @@ fn is_one_line_dep(line: &str) -> bool {
         .is_some_and(|version| !version.contains('"'))
 }
 
-/// Plans setting the `rules_dx` `bazel_dep` version to `version`. Writes nothing.
 pub fn plan_rules_dx_version(root: &Path, version: &str) -> Result<ModuleEdit, AdoptError> {
     if version.is_empty() {
         return Err(AdoptError::EmptyVersion);
@@ -103,7 +99,6 @@ pub fn plan_rules_dx_version(root: &Path, version: &str) -> Result<ModuleEdit, A
     }
 }
 
-/// Writes a planned edit, refusing when the file changed since it was planned.
 pub fn write_module_edit(root: &Path, edit: &ModuleEdit) -> Result<(), AdoptError> {
     let full = root.join(&edit.path);
     let current = std::fs::read_to_string(&full).map_err(|e| AdoptError::ReadFile {
@@ -119,7 +114,6 @@ pub fn write_module_edit(root: &Path, edit: &ModuleEdit) -> Result<(), AdoptErro
     })
 }
 
-/// Writes a planned edit; a file planned from nothing is created with its directories.
 pub fn write_edit_or_create(root: &Path, edit: &ModuleEdit) -> Result<(), AdoptError> {
     let full = root.join(&edit.path);
     if !edit.old.is_empty() || full.exists() {
@@ -252,7 +246,6 @@ mod tests {
         let result = write_module_edit(root, &edit);
         std::fs::set_permissions(root, std::fs::Permissions::from_mode(0o755)).expect("chmod");
         let text = std::fs::read_to_string(root.join("MODULE.bazel")).expect("read");
-        // Root may write into a read-only directory, so for root the edit lands.
         if dx_test_scratch::running_as_root() {
             result.expect("root writes through the mode");
             assert_eq!(text, edit.new);

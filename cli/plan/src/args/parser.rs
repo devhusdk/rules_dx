@@ -9,11 +9,8 @@ use super::tokenizer::tokenize;
 use super::{ArgsError, Invocation};
 use dx_worktree::HookKind;
 
-/// The build setting `--breaking-against` sets. The runner replaces the ref with a base image path.
 pub const BREAKING_AGAINST_OPTION: &str = "--//config:buf_breaking_against";
 
-/// What `dx build --offline` and `dx test --offline` ask of Bazel. Not `--nofetch`, which
-/// also refuses to extract repositories that `dx fetch` left in the repository cache.
 pub const OFFLINE_OPTION: &str = "--repository_disable_download";
 
 fn decode_scope(value: &OsStr) -> Result<String, ArgsError> {
@@ -25,10 +22,6 @@ fn decode_scope(value: &OsStr) -> Result<String, ArgsError> {
     }
 }
 
-/// Names the positionals the command's own usage line requires.
-/// Whether `--affected` with scopes keeps only the affected targets inside them.
-/// Deploy takes a single label, and security and license take dependency-set
-/// selectors rather than Bazel patterns, so for those the two still conflict.
 fn affected_narrows_by_scope(command: Command) -> bool {
     matches!(
         command,
@@ -49,7 +42,6 @@ fn missing_positional(command: Command) -> ArgsError {
     }
 }
 
-/// Names the flag the command does not take.
 fn unsupported(command: Command, option: impl Into<String>) -> ArgsError {
     ArgsError::UnsupportedOption {
         command: command.name(),
@@ -57,19 +49,14 @@ fn unsupported(command: Command, option: impl Into<String>) -> ArgsError {
     }
 }
 
-/// Names the one positional the command does not take.
 fn extra_positional(command: Command, token: &str) -> ArgsError {
     unsupported(command, token)
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None)
 }
 
-/// Reads the last output value before `--`, short clusters included; an empty value counts.
 pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     let words: Vec<&str> = args
         .iter()
@@ -94,7 +81,6 @@ pub fn early_output_flag<S: AsRef<OsStr>>(args: &[S]) -> Option<String> {
     seen
 }
 
-/// Whether a default output value applies to the command.
 fn output_supported(command: Command, name: &str) -> bool {
     match name {
         "json" => command.supports_json(),
@@ -102,11 +88,6 @@ fn output_supported(command: Command, name: &str) -> bool {
     }
 }
 
-/// The one output resolution shared by startup guessing and full parsing.
-///
-/// Precedence is flag, then `DX_OUTPUT`, then the agent default. A non-flag value that does not apply to the command (or
-/// the worktree verb) falls back to the agent default. `command` is `None`
-/// while it is still unknown, in which case every value applies.
 fn resolve_output_name(
     command: Option<Command>,
     flag: Option<&str>,
@@ -128,7 +109,6 @@ fn resolve_output_name(
     }
 }
 
-/// Whether a startup failure may report structured JSON events on stdout.
 pub fn json_output_intent<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -147,7 +127,6 @@ pub fn json_output_intent<S: AsRef<OsStr>>(
     resolve_output_name(command, None, env.as_deref(), agent) == "json"
 }
 
-/// Whether the command runs without MODULE.bazel discovery.
 #[must_use]
 pub fn is_discovery_exempt(command: Command) -> bool {
     matches!(
@@ -156,7 +135,6 @@ pub fn is_discovery_exempt(command: Command) -> bool {
     )
 }
 
-/// Parses a watch line as the command it wraps, then marks it as a watch.
 fn wrapped_invocation<S: AsRef<OsStr>>(
     args: &[S],
     tokenized: &super::tokenizer::Tokenized,
@@ -175,7 +153,6 @@ fn wrapped_invocation<S: AsRef<OsStr>>(
         .skip(watch_at + 1)
         .find(|(_, word)| word.as_ref().to_str() == Some(wrapped.as_str()))?
         .0;
-    // `--poll` is watch's own flag, so the wrapped command never sees it; words after `--` go to Bazel.
     let dashes_at = args
         .iter()
         .position(|word| word.as_ref().to_str() == Some("--"))
@@ -203,9 +180,6 @@ fn wrapped_invocation<S: AsRef<OsStr>>(
     }))
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_with<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -263,9 +237,6 @@ fn validate_worktree(targets: &[String]) -> Result<(), ArgsError> {
     Ok(())
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn parse_with_ci<S: AsRef<OsStr>>(
     args: &[S],
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -284,7 +255,6 @@ pub fn parse_with_ci<S: AsRef<OsStr>>(
     parse_inner(args, env_get)
 }
 
-/// Whether CI ignores this environment default.
 #[must_use]
 pub fn ci_ignores_env(name: &str, is_ci: bool) -> bool {
     is_ci
@@ -296,7 +266,6 @@ pub fn ci_ignores_env(name: &str, is_ci: bool) -> bool {
         )
 }
 
-/// Resolve `--build-slots` across flag, `DX_BUILD_SLOTS`, then unset.
 fn resolve_build_slots(
     flag: Option<String>,
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -315,7 +284,6 @@ fn resolve_build_slots(
         })
 }
 
-/// Resolve `--build-slots-wait` across flag, `DX_BUILD_SLOTS_WAIT`, then unset.
 fn resolve_build_slots_wait(
     flag: Option<String>,
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -529,8 +497,6 @@ fn parse_inner<S: AsRef<OsStr>>(
     if let Some(reference) = breaking_against {
         bazel_options.insert(0, format!("{BREAKING_AGAINST_OPTION}={reference}"));
     }
-    // A Bazel option rather than a dx-only flag, so the queries that resolve scopes and the
-    // follow-up sync carry it too.
     if offline && matches!(command, Command::Build | Command::Test) {
         bazel_options.insert(0, OFFLINE_OPTION.to_owned());
     }

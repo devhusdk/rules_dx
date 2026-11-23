@@ -1,8 +1,3 @@
-//! Replays the lychee stage of the lint requests on the host with external links
-//! enabled. The build graph stays offline: its lint shards publish their runner
-//! requests in `dx_link_requests`, and this module runs the lychee stage of each
-//! with the exec paths made absolute.
-
 use dx_exec_core::common::set_field;
 use dx_tool_resolve::Bazel;
 use serde_json::{Value, json};
@@ -12,7 +7,6 @@ use std::path::{Path, PathBuf};
 pub(crate) const TOOL: &str = "lychee";
 const ONLINE_ENV: &str = "DX_LINT_ONLINE";
 
-/// Where relative exec paths of a request resolve on the host.
 pub(crate) struct Roots {
     pub(crate) output_base: PathBuf,
     pub(crate) execution_root: PathBuf,
@@ -42,14 +36,12 @@ impl Roots {
     }
 }
 
-/// What the replay produced: encoded results and the problems that stopped a request.
 #[derive(Default)]
 pub(crate) struct Outcome {
     pub(crate) results: Vec<Vec<u8>>,
     pub(crate) problems: Vec<String>,
 }
 
-/// The runner request files the build published, each once.
 pub(crate) fn read_requests(
     bep: &Path,
     foreign: &BTreeSet<String>,
@@ -104,8 +96,6 @@ fn rewrite_tool(tool: &mut Value, roots: &Roots) {
     rewrite_list(tool, "search_paths", roots);
 }
 
-/// The lychee stage of one request with absolute exec paths and online mode on,
-/// or None when the request runs no lychee stage.
 pub(crate) fn prepare(
     bytes: &[u8],
     roots: &Roots,
@@ -176,8 +166,6 @@ pub(crate) fn prepare(
         .map_err(|error| error.to_string())
 }
 
-/// Runs the lychee stage of every request through `run_request(request, output)`.
-/// Files go under `dir`, named by `tag`, and are removed afterwards.
 pub(crate) fn run(
     requests: &[(String, Vec<u8>)],
     roots: &Roots,

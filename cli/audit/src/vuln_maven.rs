@@ -107,8 +107,6 @@ fn maven_bound(bound: &str) -> Option<String> {
     }
 }
 
-/// Outer `None` means the scope as a whole is malformed; an inner `None`
-/// is one malformed interval inside an otherwise well-formed list.
 fn maven_intervals(scope: &str) -> Option<Vec<Option<MavenInterval>>> {
     let chars: Vec<char> = scope.chars().collect();
     let mut intervals: Vec<Option<MavenInterval>> = Vec::new();

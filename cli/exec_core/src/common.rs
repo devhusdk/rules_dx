@@ -28,14 +28,10 @@ pub fn stdout_output_code(error: &dx_output::OutputError) -> i32 {
     }
 }
 
-/// # Errors
-///
-/// Returns the exit code for a failed stdout write.
 pub fn emit_event(out: &mut dyn Write, event: &serde_json::Value) -> Result<(), i32> {
     write_event(out, event).map_err(|error| stdout_output_code(&error))
 }
 
-/// Writes one built event, or ends the stream with `invalid_result` when it failed to build.
 pub fn emit_built(
     out: &mut dyn Write,
     built: Result<serde_json::Value, dx_output::OutputError>,
@@ -56,7 +52,6 @@ pub fn emit_built(
     }
 }
 
-/// Drops every stdout write after the first failure, so no later record lands.
 pub struct LatchedOut<'a> {
     inner: &'a mut dyn Write,
     failed: Option<(io::ErrorKind, String)>,
@@ -70,9 +65,7 @@ impl<'a> LatchedOut<'a> {
         }
     }
 
-    /// The run's exit code, or the stdout failure code once a write failed.
     pub fn exit_code(&mut self, code: i32) -> i32 {
-        // A failed flush is latched in `failed` and reported below.
         self.flush().unwrap_or(());
         match &self.failed {
             Some((kind, message)) => stdout_io_code(&io::Error::new(*kind, message.clone())),
@@ -132,7 +125,6 @@ pub fn check_stdout_write(result: io::Result<()>) -> Result<(), i32> {
 
 const OFFLINE_MARKER: &str = " (offline, cache-only)";
 
-/// Marks one summary line as cache-only when the invocation ran offline.
 pub fn offline_summary(summary: String, offline: bool) -> String {
     if offline {
         format!("{summary}{OFFLINE_MARKER}")
@@ -143,7 +135,6 @@ pub fn offline_summary(summary: String, offline: bool) -> String {
 
 const FROZEN_MARKER: &str = " (frozen, no resolution changes)";
 
-/// Marks one summary line as resolution-locked when the invocation runs frozen.
 pub fn frozen_summary(summary: String, frozen: bool) -> String {
     if frozen {
         format!("{summary}{FROZEN_MARKER}")
@@ -152,9 +143,6 @@ pub fn frozen_summary(summary: String, frozen: bool) -> String {
     }
 }
 
-/// # Errors
-///
-/// Returns the exit code for a failed stdout flush.
 pub fn flush_out(out: &mut dyn Write) -> Result<(), i32> {
     out.flush().map_err(|error| stdout_io_code(&error))
 }
@@ -163,7 +151,6 @@ pub fn emit_started(invocation: &Invocation, out: &mut dyn Write) -> Result<(), 
     emit_built(out, command_started(invocation.command.name(), "default"))
 }
 
-/// Writes the `error` event for a Bazel run that exited nonzero, keeping its native status.
 pub fn bazel_failure_code(bazel_code: i32) -> &'static str {
     if bazel_code == BAZEL_OUT_OF_MEMORY {
         CODE_SERVER_OUT_OF_MEMORY
@@ -211,9 +198,6 @@ pub use crate::notice_codes::*;
 
 pub const CODE_LAUNCH_FAILED: &str = "launch_failed";
 pub const CODE_BAZEL_SIGNALLED: &str = "bazel_signalled";
-/// Fires before a Bazel run at `dx_worktree::disk::DISK_FULL_BYTES` (1 GiB). Worktree
-/// reclaim uses the looser `dx_worktree::disk::is_low` rule instead, so the two are
-/// distinct signals.
 pub const CODE_DISK_LOW: &str = "disk_low";
 pub const CODE_SCOPE_EXCLUDED: &str = "scope_excluded";
 pub const CODE_UNREADABLE_BEP: &str = "unreadable_bep";
@@ -242,7 +226,6 @@ pub const CODE_UPDATE_WIDEN_FAILED: &str = "update_widen_failed";
 pub const CODE_OFFLINE_REQUIRED: &str = "offline_required";
 pub const CODE_FROZEN_LOCKED: &str = "frozen_locked";
 pub const CODE_DEPLOY_NEEDS_HUMAN: &str = "deploy_needs_human";
-/// Runs `git` in `workspace` and returns its stdout; a launch error or a non-zero exit is an error.
 pub fn git_output(
     runner: &dyn QueryRunner,
     workspace: &Path,
@@ -265,7 +248,6 @@ pub fn git_output(
 
 pub const CODE_BACKEND_UNAVAILABLE: &str = "backend_unavailable";
 
-/// How one umbrella phase ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PhaseKind {
     Clean,
@@ -275,16 +257,12 @@ pub enum PhaseKind {
     Tool,
     Incomplete,
     Report,
-    /// Every failed Bazel action was a compile error.
     Compile,
-    /// Bazel could not start, was signalled, or the disk is full.
     Host,
     Cancelled,
-    /// Generation failed, so later phases would run on stale files.
     GenerateFailed,
 }
 
-/// Bazel exit codes shared by every Bazel-backed phase.
 pub const BAZEL_BUILD_FAILED: i32 = 1;
 pub const BAZEL_USAGE: i32 = 2;
 pub const BAZEL_TESTS_FAILED: i32 = 3;
@@ -292,13 +270,11 @@ pub const BAZEL_NO_TESTS: i32 = 4;
 pub const BAZEL_INTERRUPTED: i32 = 8;
 pub const BAZEL_OUT_OF_MEMORY: i32 = 33;
 
-/// Reports whether Bazel's server ran out of memory or died; a fresh server will not help later phases.
 pub fn server_died(code: i32) -> bool {
     code == BAZEL_OUT_OF_MEMORY || code == crate::bazel_restart::RESTART_EXIT
 }
 
 impl PhaseKind {
-    /// Classifies a Bazel exit code; `findings` is the phase's own verdict that the code means findings.
     pub fn from_bazel_exit(code: i32, findings: bool) -> PhaseKind {
         match code {
             0 => PhaseKind::Clean,
@@ -311,7 +287,6 @@ impl PhaseKind {
         }
     }
 
-    /// Reports whether later phases still run after a phase of this kind.
     pub fn continues(self, apply: bool) -> bool {
         match self {
             PhaseKind::Selection
@@ -328,7 +303,6 @@ impl PhaseKind {
         }
     }
 
-    /// Names why the run stopped after a phase of this kind.
     pub fn stop_reason(self) -> &'static str {
         match self {
             PhaseKind::Clean | PhaseKind::Findings => "finished",
@@ -345,7 +319,6 @@ impl PhaseKind {
     }
 }
 
-/// What one umbrella phase changed or refused in the workspace.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct PhaseEffects {
     pub changes: u64,
@@ -354,13 +327,11 @@ pub struct PhaseEffects {
 }
 
 impl PhaseEffects {
-    /// Reports whether the phase changed or refused anything.
     pub fn touched(&self) -> bool {
         self.changes > 0 || self.not_applied > 0
     }
 }
 
-/// How one umbrella phase ended and what it changed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PhaseRun {
     pub code: i32,
@@ -368,10 +339,8 @@ pub struct PhaseRun {
     pub effects: PhaseEffects,
 }
 
-/// Runs one inner invocation; a verb that steps through other verbs is handed this.
 pub type Dispatch<'a> = &'a dyn Fn(&Invocation, Env<'_>) -> i32;
 
-/// The host variables a hermetic tool still needs on Windows; none elsewhere.
 pub fn windows_env() -> Vec<(&'static str, String)> {
     if !cfg!(windows) {
         return Vec::new();
@@ -392,16 +361,12 @@ pub struct Env<'a> {
     pub out: &'a mut dyn Write,
     pub err: &'a mut dyn Write,
     pub ci: bool,
-    /// The pinned audit date, if any.
     pub audit_today: Option<&'a str>,
-    /// Bazel action counts summed over the run's builds.
     pub actions: &'a ActionTally,
-    /// The process table `dx sync` observes for live leases; `/proc` in production.
     pub proc_root: &'a Path,
     pub edit_commit_json: Option<&'a str>,
 }
 
-/// Sums the Bazel action counts of every build in one run.
 #[derive(Debug, Default)]
 pub struct ActionTally(Cell<Option<ActionCounts>>);
 
@@ -416,7 +381,6 @@ impl ActionTally {
     }
 }
 
-/// Reads the action counts of one build event file and records them in `tally`.
 pub fn read_actions(bep: &Path, tally: &ActionTally) -> Option<ActionCounts> {
     let file = std::fs::File::open(bep).ok()?;
     let summary = dx_bep::collect_action_summary(BufReader::new(file))?;
@@ -431,7 +395,6 @@ pub fn read_actions(bep: &Path, tally: &ActionTally) -> Option<ActionCounts> {
     Some(counts)
 }
 
-/// Prints the run's action total on stderr in visible text mode.
 pub fn print_actions(output: OutputMode, tally: &ActionTally, err: &mut dyn Write) {
     if !dx_output::dx_text_visible(&output) {
         return;
@@ -441,7 +404,6 @@ pub fn print_actions(output: OutputMode, tally: &ActionTally, err: &mut dyn Writ
     }
 }
 
-/// Prints on stderr in visible text mode that `retries` calls ran again without the remote cache.
 pub fn print_cache_retries(output: OutputMode, retries: u32, err: &mut dyn Write) {
     if retries > 0 && dx_output::dx_text_visible(&output) {
         dx_output::write_stderr(
@@ -472,7 +434,6 @@ impl ArtifactReader for FsArtifacts {
 
 const UNREADABLE_BEP_PREFIX: &str = "failed to read build events: ";
 
-/// The stable code for a [`collect_targets`] error.
 pub fn bep_error_code(error: &dx_error::DxError) -> &'static str {
     if error.message().starts_with(UNREADABLE_BEP_PREFIX) {
         CODE_UNREADABLE_BEP
@@ -481,7 +442,6 @@ pub fn bep_error_code(error: &dx_error::DxError) -> &'static str {
     }
 }
 
-/// Reads one build event file and returns the target outputs of one output group.
 pub fn collect_targets(
     bep: &Path,
     group: &str,
@@ -496,7 +456,6 @@ pub fn collect_targets(
     Ok(account.targets)
 }
 
-/// Reads one build event file and returns one output group's outputs with the stream's gaps.
 pub fn collect_output_account(
     bep: &Path,
     group: &str,
@@ -505,7 +464,6 @@ pub fn collect_output_account(
     collect_own_account(bep, group, workspace, &BTreeSet::new())
 }
 
-/// Like [`collect_output_account`], leaving out the targets and gaps of the `foreign` aspects.
 pub fn collect_own_account(
     bep: &Path,
     group: &str,
@@ -547,7 +505,6 @@ pub fn read_verified(file: &Path, expected: &[u8; 32]) -> SourceRead {
     }
 }
 
-/// Sets one field of a JSON object; other values are left as they are.
 pub fn set_field(value: &mut serde_json::Value, key: &str, field: impl Into<serde_json::Value>) {
     if let Some(map) = value.as_object_mut() {
         map.insert(key.to_owned(), field.into());
@@ -597,7 +554,6 @@ fn severity_word(severity: Severity, color: bool) -> String {
     }
 }
 
-/// The closing stderr line of a text-mode lint, typecheck or format run.
 pub fn findings_summary(diagnostics: &[DiagnosticEvent], targets: usize) -> String {
     let count = |severity: Severity| {
         diagnostics
@@ -687,7 +643,6 @@ fn text_finding_colored(record: &FindingRecord, color: bool) -> String {
     line
 }
 
-/// Reports one failure found before the command executes.
 pub fn pre_exec(
     output: OutputMode,
     out: &mut dyn Write,
@@ -702,7 +657,6 @@ pub fn pre_exec(
     )
 }
 
-/// Reports a [`dx_error::DxError`] refusal without usage text, exiting with the code its kind maps to.
 pub fn refusal_dx_error(
     output: OutputMode,
     out: &mut dyn Write,
@@ -717,7 +671,6 @@ pub fn refusal_dx_error(
     )
 }
 
-/// Reports a command refused in the main checkout; it exits 2.
 pub fn main_checkout_refusal(
     output: OutputMode,
     out: &mut dyn Write,
@@ -732,7 +685,6 @@ pub fn main_checkout_refusal(
     )
 }
 
-/// Reports a refusal that is not an argument error, without usage text.
 pub fn refusal(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, message: &str) -> i32 {
     report_failure(
         output,
@@ -742,7 +694,6 @@ pub fn refusal(output: OutputMode, out: &mut dyn Write, err: &mut dyn Write, mes
     )
 }
 
-/// Reports a scope that did not resolve; a failed query never becomes an empty selection.
 pub fn resolve_failed(
     output: OutputMode,
     out: &mut dyn Write,
@@ -752,7 +703,6 @@ pub fn resolve_failed(
     report_failure(output, out, err, &Failure::resolve(error))
 }
 
-/// The `error` event for a Bazel run or application that exited nonzero, keeping its status.
 pub fn bazel_exit_event(
     code: &str,
     message: &str,
@@ -772,7 +722,6 @@ pub fn bazel_exit_event(
     )
 }
 
-/// Reports one failed report as a `dx: report_failed:` line and, in JSON mode, an error event.
 pub fn report_failed(
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -782,7 +731,6 @@ pub fn report_failed(
     report_failed_with_next(out, err, output, detail, None)
 }
 
-/// Like `report_failed`, with a next step that fits the cause instead of the default.
 pub fn report_failed_with_next(
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -810,7 +758,6 @@ pub fn report_failed_with_next(
     )
 }
 
-/// Writes one report document to its resolved destination and reports whether it landed.
 pub fn write_report_file(
     workspace: &Path,
     destination: &str,
@@ -845,7 +792,6 @@ pub fn write_report_file(
         })
 }
 
-/// Writes one report document to its planned destination and reports whether it landed.
 pub fn write_report_document(
     out: &mut dyn Write,
     workspace: &Path,
@@ -864,7 +810,6 @@ pub fn write_report_document(
     }
 }
 
-/// Names the resolved report destination and why its write failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReportWriteError {
     pub destination: String,
@@ -902,7 +847,6 @@ pub fn operational(
     operational_output(invocation.output, out, err, code, message)
 }
 
-/// Reports a [`dx_error::DxError`] under `code`, exiting with the code its kind maps to.
 pub fn report_dx_error(
     output: OutputMode,
     out: &mut dyn Write,
@@ -918,10 +862,6 @@ pub fn report_dx_error(
     )
 }
 
-/// Emits the `error` and `command_finished` pair for a failure before the command starts.
-/// # Errors
-///
-/// Returns the exit code for a failed stdout write.
 pub fn emit_startup_outcome(
     out: &mut dyn Write,
     code: &str,
@@ -931,7 +871,6 @@ pub fn emit_startup_outcome(
     emit_failure_events(out, &Failure::new(code, message, exit))
 }
 
-/// Runs one Bazel argv and maps a spawn failure and a signalled Bazel to operational exits.
 pub fn run_bazel_output(
     output: OutputMode,
     out: &mut dyn Write,
@@ -946,7 +885,6 @@ pub fn run_bazel_output(
     bazel_exit(output, out, err, runner, workspace, argv, status)
 }
 
-/// Runs one Bazel argv that stops early once `withdraw` holds; `Ok(None)` means withdrawn.
 pub fn run_bazel_withdrawable(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -968,8 +906,6 @@ pub fn run_bazel_withdrawable(
     }
 }
 
-/// Notes on stderr, and with a JSON notice, each named target a `dx.toml` exclude covers.
-/// Named targets still run: the command line beats the config.
 pub fn warn_scope_excluded(
     output: OutputMode,
     out: &mut dyn Write,
@@ -991,7 +927,6 @@ pub fn warn_scope_excluded(
     Ok(())
 }
 
-/// Warns on stderr, and with a JSON notice, when a disk Bazel writes to is nearly full.
 fn warn_low_disk(
     output: OutputMode,
     out: &mut dyn Write,
@@ -1017,7 +952,6 @@ fn warn_low_disk(
     flush_out(out)
 }
 
-/// Reports a Bazel host failure, such as a full disk, that the exit code alone cannot name.
 fn host_failure(
     output: OutputMode,
     out: &mut dyn Write,
@@ -1088,7 +1022,6 @@ fn bazel_exit(
     }
 }
 
-/// Runs one Bazel argv and maps a spawn failure and a signalled Bazel to operational exits.
 pub fn run_bazel(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -1101,12 +1034,9 @@ pub fn run_bazel(
     run_bazel_output(invocation.output, out, err, workspace, runner, argv, env)
 }
 
-/// How one `bazel run` app went out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AppExit {
-    /// The app's exit code, or 128 plus the signal that ended it.
     pub code: i32,
-    /// The signal that ended the app, when it died by one.
     pub signal: Option<i32>,
 }
 
@@ -1129,7 +1059,6 @@ fn app_exit(
     child_exit(output, out, err, status).map(|code| AppExit { code, signal: None })
 }
 
-/// Writes the text line for an app that died by `signo`.
 pub fn app_signalled_line(err: &mut dyn Write, label: &str, signo: i32) {
     dx_output::write_stderr(
         err,
@@ -1137,12 +1066,10 @@ pub fn app_signalled_line(err: &mut dyn Write, label: &str, signo: i32) {
     );
 }
 
-/// Writes the text line for an app that exited with `code`.
 pub fn app_exited_line(err: &mut dyn Write, label: &str, code: i32) {
     dx_output::write_stderr(err, format_args!("dx: {label} exited {code}\n"));
 }
 
-/// Launches one `bazel run` app; its exit is the app's, and a signalled app exits 128 plus the signal.
 pub fn run_bazel_app(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -1158,7 +1085,6 @@ pub fn run_bazel_app(
     app_exit(invocation.output, out, err, status)
 }
 
-/// Launches one `bazel run` app that stops early once `withdraw` holds; `Ok(None)` means withdrawn.
 pub fn run_bazel_app_withdrawable(
     invocation: &Invocation,
     out: &mut dyn Write,
@@ -1194,7 +1120,6 @@ pub fn change_event_for(change: &FileChange) -> ChangeEvent {
     }
 }
 
-/// Removes one scratch file; a missing file is fine and any other failure is logged.
 pub fn remove_scratch(path: &Path) {
     match std::fs::remove_file(path) {
         Ok(()) => {}
@@ -1203,7 +1128,6 @@ pub fn remove_scratch(path: &Path) {
     }
 }
 
-/// The environment variable that sets the temporary directory on this host.
 pub fn temp_var() -> &'static str {
     if cfg!(windows) {
         "TMP or TEMP"
@@ -1222,14 +1146,12 @@ pub fn temp_path_not_utf8() -> String {
 
 static PRESET_REWRITTEN: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
 
-/// Records `.dx` files the preset sync in this invocation wrote or deleted.
 pub fn record_preset_rewritten(paths: impl IntoIterator<Item = String>) {
     if let Ok(mut list) = PRESET_REWRITTEN.lock() {
         list.extend(paths);
     }
 }
 
-/// The `.dx` files the preset sync in this invocation wrote or deleted.
 pub fn preset_rewritten() -> Vec<String> {
     PRESET_REWRITTEN
         .lock()

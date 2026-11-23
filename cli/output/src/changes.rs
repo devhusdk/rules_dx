@@ -56,7 +56,6 @@ fn check_change(change: &ChangeEvent) -> Result<(), OutputError> {
     Ok(())
 }
 
-/// What happened to one proposed file change.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChangeEffect {
     Proposed,
@@ -88,7 +87,6 @@ fn check_effect(path: &str, effect: ChangeEffect, reason: Option<&str>) -> Resul
     }
 }
 
-/// Validates one change record before building it.
 pub fn change_event(
     change: &ChangeEvent,
     effect: ChangeEffect,
@@ -100,7 +98,6 @@ pub fn change_event(
     Ok(change_value(change, effect, reason, include_edits))
 }
 
-/// Builds the record for a change whose producer already validated it.
 #[must_use]
 pub fn change_value(
     change: &ChangeEvent,
@@ -139,7 +136,6 @@ pub fn change_value(
     Value::Object(map)
 }
 
-/// Builds a refused change that has no single edit set.
 #[must_use]
 pub fn refusal_value(path: &str, kind: ChangeKind, reason: &str) -> Value {
     Value::Object(record(path, kind, 0, ChangeEffect::Refused, Some(reason)))

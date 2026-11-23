@@ -65,7 +65,6 @@ fn sibling_dir(path: &Path) -> std::path::PathBuf {
     }
 }
 
-/// True when candidate is a staging file that `write_atomic` makes next to target.
 pub fn is_staging_sibling(target: &Path, candidate: &Path) -> bool {
     if candidate == target || sibling_dir(candidate) != sibling_dir(target) {
         return false;
@@ -79,19 +78,16 @@ pub fn is_staging_sibling(target: &Path, candidate: &Path) -> bool {
         && name.ends_with(STAGING_SUFFIX)
 }
 
-/// Removes a scratch file. A missing file counts as removed; any other error is logged with the path.
 pub fn discard_file(path: impl AsRef<Path>) {
     let path = path.as_ref();
     log_discard_error(path, std::fs::remove_file(path));
 }
 
-/// Removes a scratch directory tree. A missing tree counts as removed; any other error is logged with the path.
 pub fn discard_dir(path: impl AsRef<Path>) {
     let path = path.as_ref();
     log_discard_error(path, std::fs::remove_dir_all(path));
 }
 
-/// Writes a file that readers treat as a hint, such as a holder label; an error is logged with the path.
 pub fn write_hint(path: impl AsRef<Path>, content: impl AsRef<[u8]>) {
     let path = path.as_ref();
     if let Err(error) = std::fs::write(path, content) {
@@ -109,8 +105,6 @@ fn log_discard_error(path: &Path, result: io::Result<()>) {
 
 const STALE_STAGING_AGE: Duration = Duration::from_hours(1);
 
-/// Removes staging files next to target that an interrupted write left behind.
-/// Files younger than an hour are kept since another process may still be writing them.
 pub fn remove_stale_staging(target: &Path) {
     let parent = sibling_dir(target);
     let Ok(entries) = std::fs::read_dir(&parent) else {
@@ -132,15 +126,10 @@ pub fn remove_stale_staging(target: &Path) {
     }
 }
 
-/// Writes content to path so readers see the old or the new file, never a partial one,
-/// and syncs it so the new file survives a crash.
-/// An existing file keeps its mode; a new one gets 0644.
 pub fn write_atomic(path: &Path, content: &[u8]) -> io::Result<()> {
     write_staged(path, content, Durability::Synced)
 }
 
-/// Like [`write_atomic`] without the disk syncs, for files a crash may lose: scratch trees
-/// thrown away after the run, and Bazel action outputs, which Bazel re-checks by digest.
 pub fn write_scratch(path: &Path, content: &[u8]) -> io::Result<()> {
     write_staged(path, content, Durability::Unsynced)
 }
@@ -161,17 +150,12 @@ fn write_staged(path: &Path, content: &[u8], durability: Durability) -> io::Resu
     persist(staging, path, durability)
 }
 
-/// Whether a staged file is flushed to disk around its rename.
 #[derive(Clone, Copy)]
 pub(crate) enum Durability {
     Synced,
-    /// For files a crash may lose: scratch trees, and copies that stand in for a link,
-    /// since links are not synced either.
     Unsynced,
 }
 
-/// Renames staging over dest. Synced flushes staging first, since without it a crash
-/// after the rename can leave dest empty, then syncs dest's directory.
 fn persist(
     staging: tempfile::NamedTempFile,
     dest: &Path,
@@ -185,9 +169,6 @@ fn persist(
     }
 }
 
-/// Flushes staging when Synced and closes its write handle, keeping the file on disk.
-/// The handle must close before the rename: Linux refuses to exec a file that is still
-/// open for writing (ETXTBSY), and another process may exec dest as soon as it appears.
 fn seal(
     staging: tempfile::NamedTempFile,
     durability: Durability,
@@ -198,8 +179,6 @@ fn seal(
     Ok(staging.into_temp_path())
 }
 
-/// The result of a sync, where a filesystem that cannot sync counts as done, as it did
-/// before writes were synced. macOS SMB shares fail F_FULLFSYNC with ENOTSUP.
 fn sync_outcome(result: io::Result<()>) -> io::Result<()> {
     match result {
         Err(error) if cannot_sync(&error) => Ok(()),
@@ -207,8 +186,6 @@ fn sync_outcome(result: io::Result<()>) -> io::Result<()> {
     }
 }
 
-/// Like [`sync_outcome`] for a directory. Linux filesystems without directory sync, such
-/// as some shared-folder mounts, fail it with EINVAL.
 #[cfg(unix)]
 fn dir_sync_outcome(result: io::Result<()>) -> io::Result<()> {
     match result {
@@ -218,29 +195,23 @@ fn dir_sync_outcome(result: io::Result<()>) -> io::Result<()> {
 }
 
 fn cannot_sync(error: &io::Error) -> bool {
-    // ENOTSUP in <sys/errno.h>. std maps it to Uncategorized there; only EOPNOTSUPP (102)
-    // becomes Unsupported.
     const APPLE_ENOTSUP: i32 = 45;
     error.kind() == io::ErrorKind::Unsupported
         || (cfg!(target_vendor = "apple") && error.raw_os_error() == Some(APPLE_ENOTSUP))
 }
 
-/// Syncs the directory that holds path, so the renamed entry survives a crash.
 #[cfg(unix)]
 fn sync_parent(path: &Path) -> io::Result<()> {
     let parent = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
-    // A directory the caller may write but not read (mode 0300 or 0711) cannot be opened.
-    // The rename has already landed, so skip the sync rather than report a failed write.
     match File::open(parent) {
         Ok(dir) => dir_sync_outcome(dir.sync_all()),
         Err(_) => Ok(()),
     }
 }
 
-/// Nothing to do: Windows cannot open a directory as a plain file to sync it.
 #[cfg(not(unix))]
 fn sync_parent(_path: &Path) -> io::Result<()> {
     Ok(())
@@ -281,27 +252,22 @@ pub(crate) fn persist_copy(
     persist(staging, dest, durability)
 }
 
-/// Copies src to dest through a temp file, staged 0644 or 0755 when src is executable.
 pub fn copy_atomic(src: &Path, dest: &Path) -> io::Result<()> {
     let source = open_source(src)?;
     persist_copy(source, staging_for(dest)?, dest, Durability::Synced)
 }
 
-/// Copies src to dest like [`copy_atomic`] without syncing, for files a crash may lose.
 pub fn copy_scratch(src: &Path, dest: &Path) -> io::Result<()> {
     let source = open_source(src)?;
     persist_copy(source, staging_for(dest)?, dest, Durability::Unsynced)
 }
 
-/// A file written in place beside `dest` and renamed over it on [`StagedFile::commit`].
-/// Dropping it without a commit removes the staging file and leaves `dest` untouched.
 pub struct StagedFile {
     staging: tempfile::NamedTempFile,
     dest: std::path::PathBuf,
 }
 
 impl StagedFile {
-    /// Opens a 0644 staging file beside `dest`, creating `dest`'s parent directories.
     pub fn create(dest: &Path) -> io::Result<Self> {
         let staging = staging_for(dest)?;
         #[cfg(unix)]
@@ -321,30 +287,24 @@ impl StagedFile {
         self.staging.as_file_mut()
     }
 
-    /// The staging file's own path.
     pub fn path(&self) -> &Path {
         self.staging.path()
     }
 
-    /// Syncs the staging file and renames it over `dest`.
     pub fn commit(self) -> io::Result<()> {
         persist(self.staging, &self.dest, Durability::Synced)
     }
 
-    /// Like [`StagedFile::commit`] onto `dest`, a path in the directory of the one given
-    /// to [`StagedFile::create`], for content whose name is known only once written.
     pub fn commit_as(self, dest: &Path) -> io::Result<()> {
         persist(self.staging, dest, Durability::Synced)
     }
 }
 
-/// The path spelled so Windows accepts it past the legacy length limit.
 #[cfg(windows)]
 fn long_path(path: &Path) -> io::Result<std::path::PathBuf> {
     Ok(dx_path::verbatim(&std::path::absolute(path)?))
 }
 
-/// The path unchanged, since only Windows limits its length.
 #[cfg(not(windows))]
 fn long_path(path: &Path) -> io::Result<std::path::PathBuf> {
     Ok(path.to_owned())
@@ -356,7 +316,6 @@ pub fn lock_exclusive(file: &File, timeout: Duration) -> Result<(), std::fs::Try
     lock_exclusive_waiting(file, timeout, &mut || {})
 }
 
-/// Like `lock_exclusive`, calling `on_wait` each time the lock is busy and it is about to sleep.
 fn lock_exclusive_waiting(
     file: &File,
     timeout: Duration,
@@ -485,7 +444,6 @@ mod tests {
         assert_eq!(dir_entries(scratch.path()), vec!["abc".to_owned()]);
     }
 
-    /// Paths of the files this process holds open.
     #[cfg(target_os = "linux")]
     fn open_paths() -> Vec<PathBuf> {
         std::fs::read_dir("/proc/self/fd")

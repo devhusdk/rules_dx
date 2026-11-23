@@ -1,8 +1,5 @@
-//! The pinned uv and interpreter a configured uv set refreshes with.
-
 use crate::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
 
-/// The pinned uv and interpreter a configured uv set refreshes with.
 pub fn configured_uv_closure(
     runner: &dyn dx_process::Runner,
     query_runner: &dyn dx_plan::resolve::QueryRunner,
@@ -18,11 +15,8 @@ pub fn configured_uv_closure(
     UvTools::new(runner, &bazel, offline).closure()
 }
 
-/// One resolved tool: its path and, when Bazel was tried and failed, why.
 type Resolved = (Option<String>, Option<String>);
 
-/// Resolves uv and its interpreter at most once per run, from the environment
-/// first and Bazel second. `PATH` is never searched.
 pub struct UvTools<'a> {
     runner: &'a dyn dx_process::Runner,
     bazel: &'a dyn dx_tool_resolve::Bazel,
@@ -73,7 +67,6 @@ impl<'a> UvTools<'a> {
             (path, detail)
         };
         self.uv = Some((uv.clone(), uv_detail.clone()));
-        // A missing uv already fails the set, so skip resolving the interpreter.
         let (python, python_detail) = if uv.is_some() {
             let done = match self.python.take() {
                 Some(done) => done,

@@ -1216,15 +1216,11 @@ fn non_semver_grammar_reads_four_parts_and_release_flavors() {
 
 #[test]
 fn non_semver_grammar_reads_suffixes_semver_rejects() {
-    // A `-` between numbers is a revision part, not a prerelease.
     assert!(!satisfies_non_semver(">= 1.2.3-1", "1.2.3"));
-    // Homebrew revisions and Java update suffixes compare as their release.
     assert!(satisfies_non_semver("~> 1.2", "1.9.0_1"));
     assert!(satisfies_non_semver(">= 1.0", "1.2.3_beta"));
-    // A wildcard part bounds at the parts before it.
     assert!(satisfies_non_semver(">= 1.x", "1.5.0"));
     assert!(satisfies_non_semver("< 2.*", "1.5.0"));
-    // Exact pins with such suffixes still have to match exactly.
     assert!(!satisfies_non_semver("1.8.0_292", "1.9.0"));
     assert!(satisfies_non_semver("1.8.0_292", "1.8.0_292"));
     assert!(!satisfies_non_semver("2.0.0_1", "2.5.0"));
@@ -1798,7 +1794,6 @@ fn find_usages_walks_odd_files() {
     {
         use std::os::unix::ffi::OsStrExt;
         let odd = dir.path().join(std::ffi::OsStr::from_bytes(b"bad\xff"));
-        // Filesystems that reject non-UTF-8 names leave the case without the odd file.
         if let Err(error) = std::fs::write(&odd, "fn odd() {}\n") {
             eprintln!("cannot create a non-UTF-8 file name: {error}");
         }
@@ -3575,7 +3570,6 @@ fn a_symlink_back_to_an_ancestor_is_not_walked() {
     assert_eq!(found, vec![dir.path().join("main.go")]);
 }
 
-/// Takes every permission off `path`. Returns false when it stays readable, as it does for root.
 #[cfg(unix)]
 fn lock_down(path: &Path) -> bool {
     use std::os::unix::fs::PermissionsExt;

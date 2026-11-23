@@ -26,7 +26,6 @@ fn every_listed_file_was_followed_without_reaching_a_dev_only_repository() {
     }
 }
 
-/// Returns `<dir>:<file>` for each tracked top-level `<dir>/<file>`.
 fn top_level(paths: &[String], file: &str) -> BTreeSet<String> {
     let suffix = format!("/{file}");
     paths

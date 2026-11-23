@@ -1,5 +1,3 @@
-//! `dx fuzz`: runs dx-fuzz targets for a time budget and keeps their crashes.
-
 use std::io::Write;
 use std::path::Path;
 
@@ -24,7 +22,6 @@ fn runner_label(label: &str) -> String {
 }
 
 fn out_dir(label: &str) -> String {
-    // Resolved fuzz targets are always labels; anything else names its own directory.
     let (package, name) =
         Label::parse(label).map_or(("", label), |parsed| (parsed.package, parsed.name));
     if package.is_empty() || package == name {

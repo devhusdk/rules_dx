@@ -16,7 +16,6 @@ const STALE_AFTER_SECS: u64 = 30 * 24 * 60 * 60;
 const EXTERNAL_GRACE_SECS: u64 = 24 * 60 * 60;
 const FREE_LOCK_REASON: &str = "dx: free";
 
-/// What a slot is doing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum State {
     Held,
@@ -37,14 +36,12 @@ impl State {
     }
 }
 
-/// Where a new branch starts.
 enum Start {
     Create(String),
     Local,
     Remote,
 }
 
-/// A request to lease a slot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AddRequest {
     pub branch: String,
@@ -53,7 +50,6 @@ pub struct AddRequest {
     pub unclaimed: bool,
 }
 
-/// The slot an `add` handed out.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Added {
     pub slot: u32,
@@ -61,27 +57,22 @@ pub struct Added {
     pub reused: bool,
     pub base: Option<String>,
     pub warnings: Vec<Warning>,
-    /// Set when this add turned on the main-checkout rule.
     pub notice: Option<String>,
 }
 
-/// A problem `add` worked around.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Warning {
     pub code: &'static str,
     pub message: String,
 }
 
-/// What a low-disk reclaim did.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Reclaim {
     pub(crate) warning: Warning,
     pub(crate) removed: bool,
-    /// Whether a free slot's output base was kept because its Bazel server would not stop.
     pub(crate) skipped: bool,
 }
 
-/// The slot a `release` freed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Released {
     pub slot: Option<u32>,
@@ -92,7 +83,6 @@ pub struct Released {
     pub warnings: Vec<Warning>,
 }
 
-/// One row of `list`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Row {
     pub slot: Option<u32>,
@@ -102,14 +92,11 @@ pub struct Row {
     pub state: State,
     pub reason: Option<&'static str>,
     pub server: bool,
-    /// A dx command is running in the slot, whether or not it is held.
     pub busy: bool,
     pub disk_bytes: Option<u64>,
-    /// Whether `add` would delete the slot: idle for 30 days, or surplus with every commit pushed.
     pub prunable: bool,
 }
 
-/// The slots plus the machine totals.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Listing {
     pub rows: Vec<Row>,
@@ -119,7 +106,6 @@ pub struct Listing {
     pub disk_cache_bytes: Option<u64>,
 }
 
-/// One slot `prune` would delete.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PruneSlot {
     pub slot: u32,
@@ -128,17 +114,13 @@ pub struct PruneSlot {
     pub bytes: u64,
 }
 
-/// Whose output base `prune` lists, keeps or skips.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BaseOwner {
-    /// Its workspace is gone.
     Orphan,
-    /// A free slot of the pool.
     Slot(u32),
 }
 
 impl BaseOwner {
-    /// The pool slot, if a pool slot owns the base.
     #[must_use]
     pub fn slot(&self) -> Option<u32> {
         match self {
@@ -148,7 +130,6 @@ impl BaseOwner {
     }
 }
 
-/// One output base whose workspace is gone, of a free slot when its disk is low.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PruneBase {
     pub dir: PathBuf,
@@ -157,7 +138,6 @@ pub struct PruneBase {
     pub owner: BaseOwner,
 }
 
-/// One rebuildable cache directory in a free slot's `.dx` that `prune` would remove.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PruneCache {
     pub slot: u32,
@@ -165,7 +145,6 @@ pub struct PruneCache {
     pub bytes: u64,
 }
 
-/// One cache `prune` could not remove.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PruneSkippedCache {
     pub slot: u32,
@@ -173,7 +152,6 @@ pub struct PruneSkippedCache {
     pub reason: &'static str,
 }
 
-/// One output base `prune` keeps.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PruneKeptBase {
     pub dir: PathBuf,
@@ -182,7 +160,6 @@ pub struct PruneKeptBase {
     pub reason: &'static str,
 }
 
-/// One external worktree `prune` would remove.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PruneExternal {
     pub path: PathBuf,
@@ -190,7 +167,6 @@ pub struct PruneExternal {
     pub bytes: u64,
 }
 
-/// One external worktree `prune` keeps, with the reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PruneKept {
     pub path: PathBuf,
@@ -198,7 +174,6 @@ pub struct PruneKept {
     pub reason: &'static str,
 }
 
-/// The downloads in one repository cache that no build used for 30 days.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PruneDownloads {
     pub cache: PathBuf,
@@ -206,7 +181,6 @@ pub struct PruneDownloads {
     pub bytes: u64,
 }
 
-/// One slot `prune --apply` could not delete.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PruneSkippedSlot {
     pub slot: u32,
@@ -214,7 +188,6 @@ pub struct PruneSkippedSlot {
     pub reason: &'static str,
 }
 
-/// What `prune_apply` kept or could not delete.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct Applied {
     pub(crate) kept: Vec<PruneKept>,
@@ -224,7 +197,6 @@ pub(crate) struct Applied {
     pub(crate) used_downloads: Vec<PathBuf>,
 }
 
-/// What `prune` deleted or would delete, and what it kept.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Pruned {
     pub plan: PrunePlan,
@@ -234,7 +206,6 @@ pub struct Pruned {
     pub skipped_caches: Vec<PruneSkippedCache>,
 }
 
-/// What `prune` found.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PrunePlan {
     pub slots: Vec<PruneSlot>,
@@ -274,18 +245,12 @@ impl PrunePlan {
     }
 }
 
-/// How long a stopped or dead holder keeps its slot before another agent may reclaim it.
 pub const STOP_GRACE_SECS: u64 = 30 * 60;
 
-/// Whether the lease holder still runs.
-///
-/// A holder that looks gone (stopped, or its process died) still counts for
-/// `STOP_GRACE_SECS` after its last activity: a stop ends a turn, and the agent may resume.
 pub(crate) fn holder_alive(host: &dyn Host, record: &Record) -> bool {
     holder_running(host, record) || holder_recent(host, record)
 }
 
-/// Whether the holder's process runs and its agent has not stopped.
 pub(crate) fn holder_running(host: &dyn Host, record: &Record) -> bool {
     let Some(pid) = record.pid.filter(|pid| host.process_alive(*pid)) else {
         return false;
@@ -296,19 +261,16 @@ pub(crate) fn holder_running(host: &dyn Host, record: &Record) -> bool {
         && !differs(&record.pid_start, host.process_start(pid))
 }
 
-/// Records the holder's start time and the boot id next to its pid.
 fn stamp(host: &dyn Host, record: &mut Record) {
     record.pid_start = record.pid.and_then(|pid| host.process_start(pid));
     record.boot_id = host.boot_id();
 }
 
-/// Whether the lease saw activity within the quiet period.
 fn holder_recent(host: &dyn Host, record: &Record) -> bool {
     let last = record.stopped_at.unwrap_or(0).max(record.last_used);
     host.now().saturating_sub(last) < STOP_GRACE_SECS
 }
 
-/// How a slot record is held.
 enum Hold {
     Free,
     Alive,
@@ -316,7 +278,6 @@ enum Hold {
     Waiting(&'static str),
 }
 
-/// Classifies a slot record, checking its holder and git state once.
 fn hold(pool: &Pool, host: &dyn Host, record: &Record) -> Hold {
     hold_known(pool, host, record, record.held && pool.busy(record.slot))
 }
@@ -338,20 +299,14 @@ fn hold_known(pool: &Pool, host: &dyn Host, record: &Record, busy: bool) -> Hold
     Hold::Reclaimable
 }
 
-/// What `surplus_slots` weighs.
 struct SurplusLimit {
-    /// The slot `add` just used.
     keep: u32,
-    /// The slots that stay once the stale and broken ones are gone.
     total: usize,
     low_disk: bool,
 }
 
-/// Candidates `surplus_slots` examines beyond the number it needs.
 const SCAN_EXTRA: usize = 4;
 
-/// The oldest slots to delete so the pool fits `Host::max_slots`, or one when the disk is low.
-/// A slot qualifies only when `deletable`; it runs git in each examined slot, so call it without the pool lock.
 fn surplus_slots(
     pool: &Pool,
     host: &dyn Host,
@@ -386,8 +341,6 @@ fn surplus_slots(
     picked
 }
 
-/// Whether nobody holds the slot, no process or dx command runs in it, nothing is in progress,
-/// the tree holds no file but `bazel-*` links and every commit is on a remote.
 fn deletable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
     if record.held || record.broken {
         return false;
@@ -402,8 +355,6 @@ fn deletable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
         && matches!(git::unpushed(&path, &stop), Ok(0))
 }
 
-/// Deletes the surplus slots after `add` has switched `keep`: scans without the pool lock, then
-/// takes it and checks each slot again before deleting it.
 fn delete_surplus(pool: &Pool, host: &dyn Host, keep: u32, low_disk: bool) {
     let records = pool.records();
     let total = records.iter().filter(|record| !record.broken).count();
@@ -429,7 +380,6 @@ fn delete_surplus(pool: &Pool, host: &dyn Host, keep: u32, low_disk: bool) {
             continue;
         };
         if slot != keep && deletable(pool, host, &record) {
-            // A slot that cannot be deleted stays recorded as broken.
             drop(delete_slot(pool, host, slot, &bases));
         }
     }
@@ -502,7 +452,6 @@ fn busy_error(pool: &Pool, slot: u32) -> WorktreeError {
     )
 }
 
-/// The first of `ranked` with no dx command running, locked into `quiet`.
 fn first_quiet<'a>(
     pool: &Pool,
     ranked: &[&'a Record],
@@ -517,14 +466,12 @@ fn first_quiet<'a>(
     Ok(None)
 }
 
-/// Finds the held record on a branch.
 pub(crate) fn held_on<'a>(records: &'a [Record], branch: &str) -> Option<&'a Record> {
     records
         .iter()
         .find(|record| record.held && record.branch.as_deref() == Some(branch))
 }
 
-/// Re-pins a dead holder pid to the live caller; the caller holds the pool lock and already matched session and agent.
 fn renew(
     pool: &Pool,
     host: &dyn Host,
@@ -550,7 +497,6 @@ fn renew(
     }))
 }
 
-/// Returns the slot the caller already holds on a branch, before any fetch.
 fn reuse_held(
     pool: &Pool,
     host: &dyn Host,
@@ -576,7 +522,6 @@ fn reuse_held(
     }))
 }
 
-/// Leases a slot for a branch and switches it there.
 pub fn add(
     pool: &Pool,
     host: &dyn Host,
@@ -591,7 +536,6 @@ pub fn add(
     lease(pool, host, who, request, &[], warnings)
 }
 
-/// Rejects a name that git does not accept as a branch.
 pub(crate) fn check_branch(pool: &Pool, branch: &str) -> Result<(), WorktreeError> {
     if branch.is_empty() || !git::succeeds(&pool.main, &["check-ref-format", "--branch", branch]) {
         return Err(WorktreeError::usage(
@@ -604,12 +548,10 @@ pub(crate) fn check_branch(pool: &Pool, branch: &str) -> Result<(), WorktreeErro
     Ok(())
 }
 
-/// Fetches origin before a lease; `lease` reclaims disk once it has picked a slot.
 pub(crate) fn refresh(pool: &Pool, host: &dyn Host) -> Result<Vec<Warning>, WorktreeError> {
     let mut warnings = Vec::new();
     stop_check(host)?;
     if git::succeeds(&pool.main, &["remote", "get-url", "origin"]) {
-        // No `--prune`: `git::unpushed` relies on stale remote refs of deleted branches.
         let fetched = git::run_until(
             &pool.main,
             &["fetch", "--quiet", "origin"],
@@ -627,7 +569,6 @@ pub(crate) fn refresh(pool: &Pool, host: &dyn Host) -> Result<Vec<Warning>, Work
     Ok(warnings)
 }
 
-/// Leases a slot for a checked branch, never handing out one of the `skip` slots.
 pub(crate) fn lease(
     pool: &Pool,
     host: &dyn Host,
@@ -640,7 +581,6 @@ pub(crate) fn lease(
     lease_locked(pool, host, who, request, skip, warnings, lock)
 }
 
-/// `lease` for a caller that already holds the pool lock. Drops the lock before `switch_slot`; skips a free slot it cannot clean; turns on the main-checkout rule when `dx.primary` is unset and writes its git hook.
 pub(crate) fn lease_locked(
     pool: &Pool,
     host: &dyn Host,
@@ -702,10 +642,8 @@ pub(crate) fn lease_locked(
     }
 }
 
-/// Why one lease attempt handed out no slot.
 enum Missed {
     Failed(WorktreeError),
-    /// The free slot it picked cannot be cleaned; the slot stays free and the pool lock is released.
     Unclean {
         slot: u32,
         error: WorktreeError,
@@ -901,7 +839,6 @@ fn lease_once(
         scan_output_bases(&host.output_roots(&host.servers()))
     };
     for slot in &stale {
-        // A stale slot that cannot be deleted stays recorded as broken; `add` goes on with its own slot.
         drop(delete_slot(pool, host, *slot, &bases));
     }
     drop(lock);
@@ -919,7 +856,6 @@ fn lease_once(
                     path.as_os_str(),
                 ],
             ));
-            // Best-effort cleanup of the slot this call failed to set up.
             if host.remove_tree(&path) {
             } else {
                 Default::default()
@@ -966,10 +902,8 @@ fn lease_once(
     })
 }
 
-/// The error code of a free slot that `clean_slot` could not clean.
 const SLOT_UNCLEAN: &str = "slot_unclean";
 
-/// Removes untracked and ignored files from a slot, including read-only trees, and keeps the root `bazel-*` links.
 fn clean_slot(host: &dyn Host, path: &Path) -> Result<(), WorktreeError> {
     const CLEAN: [&str; 4] = ["clean", "-ffdxq", "-e", "/bazel-*"];
     let unclean = |reason: String| {
@@ -997,7 +931,6 @@ fn clean_slot(host: &dyn Host, path: &Path) -> Result<(), WorktreeError> {
     Ok(())
 }
 
-/// Refuses a lease on a full disk, first dropping the output bases of `reuse`, the free slot being reused, as a last resort.
 fn make_room(
     pool: &Pool,
     host: &dyn Host,
@@ -1016,7 +949,6 @@ fn make_room(
             .filter(|base| disk_low(host, &base.dir))
             .collect();
         if !owned.is_empty() && !stop_server(host, &path) {
-            // The free-space reading below decides whether this helped.
             let _: bool = drop_bases(host, &owned);
             let after = host.disk_space(&pool.base);
             if let Some(still) = full(after) {
@@ -1107,7 +1039,6 @@ fn switch_slot(
     Ok(())
 }
 
-/// Copies the ignored files that `.worktreeinclude` names into a checkout.
 pub(crate) fn copy_includes(main: &Path, dest: &Path) -> Result<usize, WorktreeError> {
     if !main.join(".worktreeinclude").is_file() {
         return Ok(0);
@@ -1149,10 +1080,8 @@ pub(crate) fn copy_includes(main: &Path, dest: &Path) -> Result<usize, WorktreeE
     Ok(copied)
 }
 
-/// The root bazelrc a checkout keeps out of git; `.bazelrc` imports it.
 const USER_BAZELRC: &str = "user.bazelrc";
 
-/// Drops `startup` lines that set `--output_base`, since each slot needs its own output base.
 fn without_output_base(text: &str) -> String {
     text.split_inclusive('\n')
         .filter(|line| {
@@ -1166,7 +1095,6 @@ fn without_output_base(text: &str) -> String {
         .collect()
 }
 
-/// Gives `who` the unclaimed lease of the slot it works in.
 pub fn claim(
     pool: &Pool,
     host: &dyn Host,
@@ -1192,7 +1120,6 @@ pub fn claim(
     Ok(Some(slot))
 }
 
-/// Frees the slot at `path`, refusing to lose work unless forced.
 pub fn release(
     pool: &Pool,
     host: &dyn Host,
@@ -1213,7 +1140,6 @@ pub fn release(
     Ok(released)
 }
 
-/// Frees a slot only if it still holds the given lease.
 pub(crate) fn release_lease(
     pool: &Pool,
     host: &dyn Host,
@@ -1224,8 +1150,6 @@ pub(crate) fn release_lease(
     release_locked(pool, host, who, lease.slot, Some(lease), false)
 }
 
-/// A lease record for a slot checkout whose record file is missing. The holder is unknown, so the
-/// releaser gets no ownership: it must pass the reclaimable checks (clean, pushed) or `--force`.
 fn orphan_record(pool: &Pool, slot: u32) -> Option<Record> {
     let path = pool.slot_path(slot);
     let checkout = pool
@@ -1253,10 +1177,8 @@ fn orphan_record(pool: &Pool, slot: u32) -> Option<Record> {
     })
 }
 
-/// The outcome for a slot whose directory is already gone: only git's registration is left to drop.
 fn gone_slot(pool: &Pool, slot: u32, path: PathBuf, branch: Option<String>) -> Released {
     pool.remove(slot);
-    // A free slot is locked in git and prune skips locked worktrees, so unlock it first.
     drop(git::run(
         &pool.main,
         &[
@@ -1401,7 +1323,6 @@ fn bases_of<'a>(bases: &'a [OutputBase], path: &Path) -> Vec<&'a OutputBase> {
         .collect()
 }
 
-/// Stops, unregisters and deletes one checkout, then tries every owned output base; returns whether the tree is gone and the bases still on disk.
 fn teardown(
     pool: &Pool,
     host: &dyn Host,
@@ -1410,7 +1331,6 @@ fn teardown(
 ) -> Result<(bool, Vec<OutputBase>), WorktreeError> {
     stop_check(host)?;
     stop_server(host, path);
-    // The commit point: a stop before it leaves the checkout untouched, after it teardown runs to the end.
     stop_check(host)?;
     let arg = path.as_os_str();
     drop(git::run(
@@ -1436,7 +1356,6 @@ fn teardown(
     Ok((gone, stuck))
 }
 
-/// Removes an external worktree and its output bases, and reports whether all of it is gone.
 fn remove_external(
     pool: &Pool,
     host: &dyn Host,
@@ -1504,11 +1423,6 @@ fn release_external(
     })
 }
 
-/// Why `prune` keeps an external checkout, or `None` when it may remove it.
-///
-/// A branch checkout is removable when its branch tracks `origin/<branch>` and is merged into `base` or its
-/// upstream is gone. A detached checkout is removable when HEAD is in `base` and git has not touched it for
-/// `EXTERNAL_GRACE_SECS`. Any git or file error keeps the checkout.
 fn external_plan_reason(
     pool: &Pool,
     host: &dyn Host,
@@ -1543,7 +1457,6 @@ fn external_plan_reason(
     }
 }
 
-/// Whether git touched the checkout within `EXTERNAL_GRACE_SECS`, or its times cannot be read.
 fn checkout_recent(host: &dyn Host, checkout: &Path) -> bool {
     let Some(admin) = git::admin_dir(checkout) else {
         return true;
@@ -1593,8 +1506,6 @@ fn server_in(servers: &[Server], path: &Path) -> bool {
     })
 }
 
-/// Stops the Bazel server of path and reports whether one may still run.
-/// Without a process list the shutdown is best effort and a failure counts as still running.
 pub(crate) fn stop_server(host: &dyn Host, path: &Path) -> bool {
     if !host.servers_known() {
         return !host.bazel_shutdown(path);
@@ -1606,7 +1517,6 @@ pub(crate) fn stop_server(host: &dyn Host, path: &Path) -> bool {
     server_in(&host.servers(), path)
 }
 
-/// Lists every slot and hand-made checkout, with disk use when asked.
 pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, WorktreeError> {
     pool.forget_missing();
     let servers = host.servers();
@@ -1719,7 +1629,6 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
     })
 }
 
-/// The size of the disk cache Bazel uses for `build`; 0 when it is off or missing.
 pub fn disk_cache_bytes(host: &dyn Host) -> Result<u64, WorktreeError> {
     match host.disk_cache().filter(|dir| dir.is_dir()) {
         Some(dir) => measure(host, &dir),
@@ -1741,7 +1650,6 @@ fn measure(host: &dyn Host, path: &Path) -> Result<u64, WorktreeError> {
     Ok(bytes)
 }
 
-/// The checkout that holds a branch.
 pub fn path_of(pool: &Pool, branch: &str) -> Result<PathBuf, WorktreeError> {
     pool.forget_missing();
     if let Some(record) = pool
@@ -1762,7 +1670,6 @@ pub fn path_of(pool: &Pool, branch: &str) -> Result<PathBuf, WorktreeError> {
     ))
 }
 
-/// Plans `prune` and, with `apply`, deletes the plan under the pool lock.
 pub fn prune(
     pool: &Pool,
     host: &dyn Host,
@@ -1824,16 +1731,12 @@ pub fn prune(
     })
 }
 
-/// What makes a free slot's output base a candidate for deletion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Trigger {
-    /// The base's disk is low.
     LowDisk,
-    /// The caller asked for it, whatever the disk state.
     OnDemand,
 }
 
-/// Free slots' output bases that `trigger` selects, least recently used slot first.
 fn free_slot_bases<'a>(
     pool: &Pool,
     host: &dyn Host,
@@ -1858,8 +1761,6 @@ fn free_slot_bases<'a>(
         .collect()
 }
 
-/// Finds idle free slots, removable external worktrees (and the reason it keeps each other one), orphaned
-/// output bases, free slots' output bases when `trigger` selects them, and stale repository cache downloads.
 pub(crate) fn prune_plan(
     pool: &Pool,
     host: &dyn Host,
@@ -1983,7 +1884,6 @@ fn base_in_use(servers: &[Server], base: &OutputBase) -> bool {
     })
 }
 
-/// Deletes what `prune_plan` found while the caller holds the pool lock, and returns what it kept.
 pub(crate) fn prune_apply(
     pool: &Pool,
     host: &dyn Host,
@@ -2108,7 +2008,6 @@ pub(crate) fn prune_apply(
     })
 }
 
-/// The downloads under `roots` that no build used for 30 days, grouped by repository cache.
 fn stale_downloads(
     host: &dyn Host,
     roots: &[PathBuf],
@@ -2137,7 +2036,6 @@ fn stale_downloads(
     Ok(groups)
 }
 
-/// Deletes one download if no build used it since it went stale, checking right before the delete.
 fn drop_download(host: &dyn Host, entry: &Download) -> bool {
     let Some(used) = download_used(&entry.dir) else {
         return false;
@@ -2152,18 +2050,14 @@ fn is_low(space: DiskSpace) -> bool {
     super::disk::is_low(space.free, space.total)
 }
 
-/// Whether the disk holding `path` has under 20 GiB and under 10% free, or under 1 GiB.
 pub(crate) fn disk_low(host: &dyn Host, path: &Path) -> bool {
     host.disk_space(path).is_some_and(is_low)
 }
 
-/// The low disk holding `base`, or else the low Bazel output root with the least free
-/// space.
 pub(crate) fn low_disk(host: &dyn Host, base: &Path) -> Option<(PathBuf, DiskSpace)> {
     low_disk_reading(host, base).1
 }
 
-/// The reading of the disk holding `base`, and the low disk `low_disk` finds from it.
 fn low_disk_reading(
     host: &dyn Host,
     base: &Path,
@@ -2191,7 +2085,6 @@ fn low_disk_reading(
     (Some(space), lowest(host.output_roots(&host.servers())))
 }
 
-/// Deletes the output bases and reports whether all of them are gone.
 fn drop_bases(host: &dyn Host, owned: &[&OutputBase]) -> bool {
     let mut gone = true;
     for base in owned {
@@ -2200,7 +2093,6 @@ fn drop_bases(host: &dyn Host, owned: &[&OutputBase]) -> bool {
     gone
 }
 
-/// Reclaims output bases on low disk, reporting a failure as a `disk_low` warning.
 pub(crate) fn reclaim(pool: &Pool, host: &dyn Host, keep: Option<u32>) -> Option<Reclaim> {
     match reclaim_if_low(pool, host, keep) {
         Ok(reclaimed) => reclaimed,
@@ -2212,7 +2104,6 @@ pub(crate) fn reclaim(pool: &Pool, host: &dyn Host, keep: Option<u32>) -> Option
     }
 }
 
-/// The `disk_low` warning for a reclaim that could not run.
 pub(crate) fn reclaim_failed(error: &WorktreeError) -> Warning {
     Warning {
         code: "disk_low",
@@ -2220,8 +2111,6 @@ pub(crate) fn reclaim_failed(error: &WorktreeError) -> Warning {
     }
 }
 
-/// Drops orphaned output bases, then repository cache downloads no build used for 30 days, then free slots' output bases, each oldest first, while the disk each one
-/// is on is low.
 pub(crate) fn reclaim_if_low(
     pool: &Pool,
     host: &dyn Host,
@@ -2235,7 +2124,6 @@ pub(crate) fn reclaim_if_low(
     Ok(Some(reclaim_locked(pool, host, keep, low, &lock)))
 }
 
-/// Reclaims on the low disk `low` for a caller that holds the pool lock, never touching the `keep` slot.
 fn reclaim_locked(
     pool: &Pool,
     host: &dyn Host,
@@ -2246,13 +2134,10 @@ fn reclaim_locked(
     reclaim_host_wide(Some((pool, keep)), host, low)
 }
 
-/// Reclaims on the low disk `low` for a workspace without a pool: orphaned output bases, stale downloads belong to the
-/// host, not a repository, so they need no pool and no lock; there are no free slots to drop.
 pub(crate) fn reclaim_unpooled(host: &dyn Host, low: (PathBuf, DiskSpace)) -> Reclaim {
     reclaim_host_wide(None, host, low)
 }
 
-/// The shared reclaim; `slots` is the pool (holding its lock) and the slot to keep, when there is one.
 fn reclaim_host_wide(
     slots_of: Option<(&Pool, Option<u32>)>,
     host: &dyn Host,
@@ -2351,7 +2236,6 @@ fn reclaim_host_wide(
     }
 }
 
-/// A byte count in binary units.
 #[must_use]
 pub fn size(bytes: u64) -> String {
     const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
@@ -2371,16 +2255,12 @@ pub fn size(bytes: u64) -> String {
     }
 }
 
-/// What `delete_slot` could not delete.
 #[derive(Debug, Default)]
 struct Leftover {
-    /// Why the slot is still there, recorded as broken or untouched.
     slot: Option<&'static str>,
-    /// Output bases left behind by a slot that is gone.
     bases: Vec<OutputBase>,
 }
 
-/// Deletes a slot and its output bases, and returns what is still on disk.
 fn delete_slot(
     pool: &Pool,
     host: &dyn Host,
@@ -2409,14 +2289,12 @@ fn delete_slot(
     })
 }
 
-/// Keeps a half-deleted slot recorded so `prune` retries it, but out of `add`'s reach.
 fn mark_broken(pool: &Pool, slot: u32) {
     let Some(mut record) = pool.record(slot) else {
         return;
     };
     record.broken = true;
     if pool.write(&record).is_err() {
-        // A free record would hand the partial tree out again; `next_slot` skips the leftover dir.
         pool.remove(slot);
     }
 }

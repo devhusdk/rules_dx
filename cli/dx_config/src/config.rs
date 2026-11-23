@@ -126,7 +126,6 @@ pub enum LoadProblem {
     Invalid { message: String },
 }
 
-/// Reads `dx.toml` in `workspace`. A missing file is `None`, which means the standard tier.
 pub fn load(workspace: &Path) -> Result<Option<DxConfig>, LoadProblem> {
     let path = workspace.join("dx.toml");
     let text = match std::fs::read_to_string(&path) {
@@ -147,7 +146,6 @@ pub fn load(workspace: &Path) -> Result<Option<DxConfig>, LoadProblem> {
     parse(&text).map(Some)
 }
 
-/// Prefixes `message` with `dx.toml:<line>:<column>:` when the error has a position.
 fn located(text: &str, error: &toml::de::Error, message: String) -> String {
     let Some(span) = error.span() else {
         return message;
@@ -162,7 +160,6 @@ fn located(text: &str, error: &toml::de::Error, message: String) -> String {
     format!("dx.toml:{line}:{column}: {message}")
 }
 
-/// Parses and validates the text of a `dx.toml`.
 pub fn parse(text: &str) -> Result<DxConfig, LoadProblem> {
     let table: toml::Table =
         text.parse()

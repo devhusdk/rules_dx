@@ -18,7 +18,6 @@ const OVERRIDES: &[&str] = &[
     "multiple_version_override",
 ];
 
-/// Where one selected Bazel input comes from.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BazelSource {
     Registry,
@@ -45,7 +44,6 @@ impl BazelSource {
     }
 }
 
-/// One selected module, overridden module, or downloaded archive with its origin facts.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BazelInput {
     pub name: String,
@@ -57,7 +55,6 @@ pub struct BazelInput {
 }
 
 impl BazelInput {
-    /// The origin, digest, and patch facts as one line.
     #[must_use]
     pub fn provenance(&self) -> String {
         let mut text = format!("{} {}", self.source.as_str(), self.origin);
@@ -89,15 +86,12 @@ struct Selected {
     digest: String,
 }
 
-/// The inputs read from a Bazel module graph, plus what the lock does not cover.
 #[derive(Debug)]
 pub struct BazelInventory {
     pub inputs: Vec<BazelInput>,
-    /// Root `use_extension` entries (`<label>%<name>`) with no entry in `moduleExtensions`.
     pub unrecorded_extensions: Vec<String>,
 }
 
-/// Reads the selected modules, overrides, and downloads from `MODULE.bazel`, its includes, and the lock.
 pub fn parse_bazel_inputs(
     module_text: &str,
     lock_text: &str,
@@ -200,7 +194,6 @@ pub fn parse_bazel_inputs(
     })
 }
 
-/// Lists root `use_extension` entries that the lock's `moduleExtensions` has no key for.
 fn unrecorded_extensions(modules: &[ModuleFile], lock: &serde_json::Value) -> Vec<String> {
     let keys: Vec<&str> = lock
         .get("moduleExtensions")
@@ -487,7 +480,6 @@ fn digest_of(call: &Call) -> Result<String, DxError> {
     .ok_or_else(|| DxError::failure(format!("{label} has no sha256 or integrity")))
 }
 
-/// Validates an integrity or sha256 value and returns it in provenance form.
 fn checked_digest(
     sha256: Option<&str>,
     integrity: Option<&str>,
@@ -594,7 +586,6 @@ fn repo_rule_input(call: &Call, file: &str, rule: &str) -> Result<BazelInput, Dx
     })
 }
 
-/// Lists the downloaded repos that module extensions record in `MODULE.bazel.lock`.
 fn extension_inputs(root: &serde_json::Value) -> Result<Vec<BazelInput>, DxError> {
     let Some(extensions) = root.get("moduleExtensions") else {
         return Ok(Vec::new());
@@ -630,7 +621,6 @@ fn extension_inputs(root: &serde_json::Value) -> Result<Vec<BazelInput>, DxError
     Ok(found.into_values().map(|(_, input)| input).collect())
 }
 
-/// Builds the input for one generated repo spec, or None when it downloads nothing.
 fn extension_input(
     extension: &str,
     repo: &str,
@@ -707,7 +697,6 @@ fn extension_input(
     }))
 }
 
-/// Returns the value as a JSON object or names the lock path that is not one.
 fn lock_object<'a>(
     value: &'a serde_json::Value,
     place: &str,
@@ -719,7 +708,6 @@ fn lock_object<'a>(
     })
 }
 
-/// Reads an optional non-empty string field, failing on any other JSON type.
 fn lock_str<'a>(
     object: &'a serde_json::Map<String, serde_json::Value>,
     key: &str,
@@ -741,7 +729,6 @@ fn is_sha256_hex(text: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
-/// Orders two Bazel module versions the way Bazel does.
 #[must_use]
 pub fn bazel_version_cmp(left: &str, right: &str) -> Ordering {
     fn split(version: &str) -> (&str, &str) {

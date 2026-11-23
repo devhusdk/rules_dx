@@ -1,14 +1,3 @@
-//! Restarts a Bazel call that crashed before its command started.
-//!
-//! Bazel can crash its server while it takes the shared lock on the repo
-//! contents cache ("could not acquire lock on repo contents cache", then
-//! "Server terminated abruptly"). The client exits 37. The command never ran,
-//! so running it again is safe. A crash after the command started is never
-//! repeated.
-//!
-//! A `build`, `test` or `coverage` call that fails with a remote cache error
-//! line in Bazel's own output runs once more with the remote cache off.
-
 use std::cell::{Cell, RefCell};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -17,10 +6,8 @@ use std::time::Duration;
 use dx_plan::resolve::{QueryResult, QueryRunner};
 use dx_process::{ChildStatus, Runner};
 
-/// The client exit code for a server that died abruptly.
 pub const RESTART_EXIT: i32 = 37;
 
-/// The most restarts after the first attempt.
 pub const MAX_RESTARTS: u32 = 2;
 
 const SIGNATURES: &[&str] = &[
@@ -28,13 +15,11 @@ const SIGNATURES: &[&str] = &[
     "Server terminated abruptly",
 ];
 
-/// The wait before restart number `n` (1-based), without jitter.
 #[must_use]
 pub fn backoff(n: u32) -> Duration {
     Duration::from_secs(if n <= 1 { 2 } else { 5 })
 }
 
-/// The path of the build event file named in `argv`.
 #[must_use]
 pub fn bep_path_of(argv: &[String]) -> Option<&str> {
     let prefix = format!("--{}=", dx_plan::plan::BEP_FLAG_NAME);
@@ -43,7 +28,6 @@ pub fn bep_path_of(argv: &[String]) -> Option<&str> {
         .find_map(|arg| arg.strip_prefix(prefix.as_str()))
 }
 
-/// What shows whether the crashed command had started.
 pub enum Evidence<'a> {
     NotStarted,
     Started,
@@ -51,7 +35,6 @@ pub enum Evidence<'a> {
     Stderr(&'a [u8]),
 }
 
-/// Reports whether a call that ended with `code` may run again.
 #[must_use]
 #[expect(
     clippy::needless_pass_by_value,
@@ -71,12 +54,10 @@ pub fn restartable(code: Option<i32>, evidence: Evidence<'_>) -> bool {
     }
 }
 
-/// The Bazel options that turn the remote cache off.
 pub const CACHE_OFF_FLAGS: [&str; 2] = ["--remote_cache=", "--noremote_accept_cached"];
 
 const CACHE_COMMANDS: [&str; 3] = ["build", "test", "coverage"];
 
-/// `argv` with the remote cache turned off, or `None` when it is not a `build`, `test` or `coverage` call.
 pub fn cache_off_argv(argv: &[String]) -> Option<Vec<String>> {
     if !is_bazel(argv) {
         return None;
@@ -135,7 +116,6 @@ impl Policy {
         }
     }
 
-    /// Announces restart `n` and waits; false when a stop arrived first.
     fn pause(&self, code: i32, n: u32) -> bool {
         let wait = jittered(n);
         dx_output::write_stderr(
@@ -150,7 +130,6 @@ impl Policy {
     }
 }
 
-/// A `Runner` that restarts Bazel calls that crashed before they started.
 pub struct RestartingRunner<R> {
     inner: R,
     policy: Policy,
@@ -168,14 +147,12 @@ impl<R: Runner> RestartingRunner<R> {
         }
     }
 
-    /// Turns the retry without the remote cache on or off; it starts off.
     #[must_use]
     pub fn with_cache_retry(mut self, on: bool) -> Self {
         self.cache_retry = on;
         self
     }
 
-    /// How many calls ran again without the remote cache.
     pub fn cache_retries(&self) -> u32 {
         self.cache_retries.get()
     }
@@ -305,7 +282,6 @@ impl<R: Runner> Runner for RestartingRunner<R> {
         withdraw: Option<&dyn Fn() -> bool>,
         held: &[&std::fs::File],
     ) -> io::Result<Option<ChildStatus>> {
-        // Only the first attempt carries the handles.
         let first = Cell::new(true);
         self.attempts(argv, cwd, withdraw.unwrap_or(&|| false), &|argv| {
             let carried: &[&std::fs::File] = if first.replace(false) { held } else { &[] };
@@ -326,7 +302,6 @@ impl<R: Runner> Runner for RestartingRunner<R> {
     }
 }
 
-/// A `QueryRunner` that restarts captured Bazel calls that crashed on startup.
 pub struct RestartingQueryRunner<Q> {
     inner: Q,
     policy: Policy,

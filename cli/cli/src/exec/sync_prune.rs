@@ -1,5 +1,3 @@
-//! Prunes setup generations a sync superseded. Never changes the exit code.
-
 use std::io::Write;
 use std::path::Path;
 

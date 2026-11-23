@@ -1,4 +1,3 @@
-/// Parse test words into one invocation, panicking on a failure.
 pub(crate) fn parsed(words: &[&str]) -> dx_plan::args::Invocation {
     dx_plan::args::parse(&dx_testing::cli::strings(words)).expect("parse")
 }
@@ -6,8 +5,6 @@ pub(crate) fn parsed(words: &[&str]) -> dx_plan::args::Invocation {
 const SETTLE_LIMIT: std::time::Duration = std::time::Duration::from_secs(1);
 const SETTLE_POLL: std::time::Duration = std::time::Duration::from_millis(10);
 
-/// Waits for `count` slots to look free, since a forked child can briefly hold a released slot's lock.
-/// See `a_child_forked_while_a_slot_is_held_keeps_it_until_exec` in `dx_plan::slots`.
 pub(crate) fn slot_settles_free(dir: &std::path::Path, count: usize) -> bool {
     let start = std::time::Instant::now();
     loop {

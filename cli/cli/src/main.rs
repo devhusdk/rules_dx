@@ -271,7 +271,6 @@ fn run_as_tool() -> Option<i32> {
 }
 // LCOV_EXCL_STOP - reason: end thin multicall shim, issue: 6517, policy: docs/cli/commands/build-test-coverage.md
 
-/// Decides `BAZEL_SH` for the Bazel calls this run makes; `dx_process` applies it per child.
 fn apply_bazel_sh(invocation: &dx_plan::args::Invocation) -> Option<i32> {
     use dx_process::EnvChange;
     use dx_process::bazel_sh::{BazelSh, resolve_bazel_sh};
@@ -279,7 +278,6 @@ fn apply_bazel_sh(invocation: &dx_plan::args::Invocation) -> Option<i32> {
         return None;
     }
     let exists = |path: &Path| path.is_file();
-    // An unreadable candidate is treated like a missing one; resolution moves to the next.
     let read = |path: &Path| std::fs::read(path).ok();
     match resolve_bazel_sh(&|name| std::env::var_os(name), &exists, &read) {
         Ok(BazelSh::Set(bash)) => {
@@ -549,7 +547,6 @@ fn locate_workspace(invocation: &mut dx_plan::args::Invocation) -> Result<PathBu
 }
 
 fn run() -> i32 {
-    // An unset or non-UTF-8 variable counts as unset.
     let env_get = |name: &str| std::env::var(name).ok();
     let is_ci = dx_process::is_ci();
     let mut invocation = match parse_invocation(&env_get, is_ci) {
@@ -563,7 +560,6 @@ fn run() -> i32 {
         Ok(workspace) => workspace,
         Err(code) => return code,
     };
-    // Before the run dir, the preset sync and the first-run notice: a refused command writes nothing.
     if let Some(code) = dx_cli::exec::refuse_main_checkout(
         &invocation,
         &workspace,
@@ -595,7 +591,6 @@ fn run() -> i32 {
     let bazel_query_runner = RestartingQueryRunner::new(BinaryQueryRunner {
         runner: dx_process::BinaryRunner::new(inherit_stdout, die_by_signal),
     });
-    // A warm run whose BUILD inputs are unchanged reads the rule graph from disk.
     let query_runner = dx_plan::resolve::PersistentGraphQuery::new(&bazel_query_runner);
     let stdout = io::stdout();
     let mut out = stdout.lock();
@@ -625,7 +620,6 @@ fn run() -> i32 {
         write_stderr(&mut err, format_args!("{notice}\n"));
     }
     let mut after_first = dx_plan::slots::AfterFirstLine::new(&mut out, pending);
-    // Unset or non-UTF-8 test overrides fall back to the defaults.
     let audit_today = std::env::var(dx_cli::exec::AUDIT_TODAY_ENV).ok();
     let edit_commit_json = std::env::var(dx_cli::exec::EDIT_COMMIT_JSON_ENV).ok();
     let actions = ActionTally::default();

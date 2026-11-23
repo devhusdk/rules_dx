@@ -15,7 +15,6 @@ pub struct Resolved {
     pub checksum: Option<ChecksumSource>,
 }
 
-/// `None` means the call goes through `bazel run @rules_dx//:dx`.
 pub fn resolve(env_get: protocol::EnvGet, cwd: &Path) -> Result<Option<Resolved>, ShimError> {
     resolve_on(env_get, cwd, protocol::host_platform())
 }
@@ -119,7 +118,6 @@ fn emit(out: &mut dyn Write, text: std::fmt::Arguments<'_>) -> Result<(), ShimEr
     write_line(out, text).map_err(|e| ShimError::failure(format!("cannot write to stdout: {e}")))
 }
 
-/// Writes `label` and the path's own bytes, so a non-UTF-8 path survives a copy from the output.
 fn emit_path(out: &mut dyn Write, label: &str, path: &Path) -> Result<(), ShimError> {
     let mut bytes = label.as_bytes().to_vec();
     bytes.extend_from_slice(path.as_os_str().as_encoded_bytes());
@@ -178,7 +176,6 @@ fn shim_command_to(args: &[OsString], out: &mut dyn Write) -> Result<i32, ShimEr
     }
 }
 
-/// `dx_families::DX`; the shim does not link `dx_families`.
 const DX: &str = "@rules_dx//:dx";
 
 fn via_bazel(args: Vec<OsString>) -> Result<i32, ShimError> {
@@ -204,7 +201,6 @@ fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
 fn exec(bin: &Path, args: Vec<OsString>) -> Result<i32, ShimError> {
     use dx_os_sys::console::{CtrlEvent, CtrlHandler, add_handler};
 
-    /// Swallows every console event for the shim only; the child gets its own copy.
     struct Swallow;
 
     impl CtrlHandler for Swallow {

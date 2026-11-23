@@ -25,21 +25,17 @@ pub enum BackendPlan {
         argv: Vec<String>,
         env: Vec<(String, String)>,
     },
-    /// Runs a generator against a staged copy of its inputs; the caller compares the output.
     Staged(StagedRun),
-    /// Commands run in order; the first failure stops the rest.
     Sequence(Vec<Run>),
     Noop,
 }
 
-/// One command of a [`BackendPlan::Sequence`].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Run {
     pub argv: Vec<String>,
     pub env: Vec<(String, String)>,
 }
 
-/// The generator a [`StagedRun`] launches.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StagedTool {
     GoModDownload,
@@ -47,20 +43,15 @@ pub enum StagedTool {
     Rebar3,
 }
 
-/// A generator run on copies of `inputs` in a scratch directory, never in the workspace.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StagedRun {
     pub tool: StagedTool,
-    /// The command up to, not including, the paths into the scratch directory.
     pub argv_head: Vec<String>,
     pub env: Vec<(String, String)>,
-    /// Workspace-relative files copied into the scratch directory by file name.
     pub inputs: Vec<String>,
-    /// Workspace-relative locks the run may produce; compared by file name against `out/`.
     pub outputs: Vec<String>,
 }
 
-/// Host variables that redirect or weaken go module fetching; dx cannot override them.
 const GO_HOST_ENV: [&str; 9] = [
     "GOPROXY",
     "GOPRIVATE",
@@ -73,7 +64,6 @@ const GO_HOST_ENV: [&str; 9] = [
     "GOAUTH",
 ];
 
-/// Host variables that change which packages uv resolves or from where; dx cannot override them.
 const UV_HOST_ENV: [&str; 11] = [
     "UV_INDEX_URL",
     "UV_EXTRA_INDEX_URL",
@@ -91,7 +81,6 @@ const UV_HOST_ENV: [&str; 11] = [
 const UV_HOST_ENV_REASON: &str = "unset UV_INDEX_URL, UV_EXTRA_INDEX_URL, UV_DEFAULT_INDEX, UV_INDEX, UV_FIND_LINKS, UV_NO_INDEX, UV_INDEX_STRATEGY, UV_CONFIG_FILE, UV_EXCLUDE_NEWER, UV_INSECURE_HOST and UV_NO_BUILD_ISOLATION: uv reads them from the environment even with --no-config, and they change which packages resolve";
 
 impl StagedRun {
-    /// The full command for a scratch directory (an absolute path).
     pub fn argv(&self, scratch: &Path) -> Result<Vec<String>, BackendError> {
         let mut argv = self.argv_head.clone();
         match self.tool {
@@ -101,7 +90,6 @@ impl StagedRun {
                 argv.extend(["mod", "download", "all"].map(str::to_owned));
             }
             StagedTool::MixDeps | StagedTool::Rebar3 => {
-                // mix and rebar3 have no -C; run the target from the staged directory.
                 let target = argv
                     .iter()
                     .position(|arg| arg == "--")
@@ -114,7 +102,6 @@ impl StagedRun {
         Ok(argv)
     }
 
-    /// The environment for a scratch directory: the planned env plus what the tool forces.
     #[must_use]
     pub fn env(&self, scratch: &Path) -> Vec<(String, String)> {
         let mut env = self.env.clone();
@@ -151,7 +138,6 @@ impl StagedRun {
         env
     }
 
-    /// Names the tool in messages.
     #[must_use]
     pub fn tool_name(&self) -> &'static str {
         match self.tool {
@@ -161,7 +147,6 @@ impl StagedRun {
         }
     }
 
-    /// The directory under `scratch` the inputs are copied into and the outputs are read from.
     #[must_use]
     pub fn inputs_dir(&self, scratch: &Path) -> std::path::PathBuf {
         scratch.join("out")
@@ -194,7 +179,6 @@ pub enum BackendError {
         tool: &'static str,
         var: &'static str,
         what: &'static str,
-        /// Why the Bazel fallback could not resolve the tool, when it was tried.
         detail: Option<String>,
     },
 }
@@ -207,8 +191,6 @@ fn resolution_suffix(detail: &Option<String>) -> String {
 }
 
 impl BackendError {
-    /// The stable machine code each message starts with (`unsupported` for
-    /// the selective-update refusal, whose message reads "unsupported selective update").
     #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
@@ -244,7 +226,6 @@ pub const UV_PYTHON_VAR: &str = "DX_UV_PYTHON";
 
 pub const UV_LABEL: &str = "@dx_tools//:uv";
 
-/// The label of the Python interpreter uv runs under.
 #[must_use]
 pub fn uv_python_label() -> Option<&'static str> {
     dx_families::command("python", "python_interpreter")
@@ -260,13 +241,9 @@ const UV_PYTHON_WHAT: &str = "a pinned Python interpreter";
 pub struct UvClosure {
     pub uv: Option<String>,
     pub python: Option<String>,
-    /// Why the Bazel fallback could not resolve uv, when it was tried.
     pub uv_detail: Option<String>,
-    /// Why the Bazel fallback could not resolve the interpreter, when it was tried.
     pub python_detail: Option<String>,
-    /// Absolute path from `DX_YARN_BIN`, for yarn.lock npm sets.
     pub yarn: Option<String>,
-    /// Absolute path from `DX_NPM_BIN`, for package-lock.json npm sets.
     pub npm: Option<String>,
 }
 
@@ -293,7 +270,6 @@ fn node_tool(
     }
 }
 
-/// The `commands` label the `lang.json` of `lang` names for `tool`.
 pub(crate) fn lang_command(
     set: &ResolvedSet,
     lang: &str,
@@ -305,7 +281,6 @@ pub(crate) fn lang_command(
     })
 }
 
-/// The set directory as UTF-8, or an error naming the path.
 fn set_dir(workspace: &Path, set: &ResolvedSet) -> Result<String, BackendError> {
     let path = match set.dir.as_str() {
         "." => workspace.to_path_buf(),
@@ -320,7 +295,6 @@ fn set_dir(workspace: &Path, set: &ResolvedSet) -> Result<String, BackendError> 
     }
 }
 
-/// Builds the yarn or npm argv for a configured npm set; `None` means pnpm.
 fn configured_node_argv(
     workspace: &Path,
     set: &ResolvedSet,
@@ -367,7 +341,6 @@ pub enum CheckPlan {
 
 pub const NPM_CONFIG_ENV: [&str; 2] = ["npm_config_globalconfig", "npm_config_userconfig"];
 
-/// Names the OS null device the npm config variables point at.
 #[must_use]
 pub fn null_device() -> &'static str {
     if cfg!(windows) { "NUL" } else { "/dev/null" }
@@ -380,10 +353,6 @@ fn npm_env() -> Vec<(String, String)> {
         .collect()
 }
 
-/// The env `crate_universe` reads to decide whether to repin; `repin` may also be one crate name,
-/// which `crate_universe` turns into `cargo update --package <name>`. Both triggers are forced so a host
-/// `REPIN` or `CARGO_BAZEL_REPIN` cannot turn a check into a write. A check (`repin == "false"`) also
-/// sets `CARGO_BAZEL_DIGEST_CHECK`, because `crate_universe` otherwise renders from a stale lock unchecked.
 #[must_use]
 pub fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
     let mut env = vec![
@@ -398,9 +367,6 @@ pub fn cargo_env(repin: &str, repository: &str) -> Vec<(String, String)> {
     env
 }
 
-/// The env `rules_jvm_external`'s pin script reads. Only the maven-specific variable is set: `REPIN`
-/// would also trigger `crate_universe`. A check sets nothing, and `host_env_refusal` keeps the host
-/// from supplying either variable, because any value suppresses the stale-lock failure.
 #[must_use]
 pub fn maven_env(apply: bool) -> Vec<(String, String)> {
     if apply {
@@ -410,8 +376,6 @@ pub fn maven_env(apply: bool) -> Vec<(String, String)> {
     }
 }
 
-/// `bazel run @<repository>//:pin`, `rules_jvm_external`'s pin script. It needs no `rules_dx`
-/// diagnostics settings, and a consumer without `rules_dx` cannot resolve them.
 #[must_use]
 pub fn maven_pin_argv(head: &dx_process::BazelHead, repository: &str) -> Vec<String> {
     let pin_head = dx_process::BazelHead {
@@ -423,7 +387,6 @@ pub fn maven_pin_argv(head: &dx_process::BazelHead, repository: &str) -> Vec<Str
 
 const MAVEN_REPIN_ENV: [&str; 2] = ["REPIN", "RULES_JVM_EXTERNAL_REPIN"];
 
-/// Coursier settings that would redirect where the pin resolves from; dx cannot neutralise them.
 const MAVEN_COURSIER_ENV: [&str; 5] = [
     "COURSIER_MIRRORS",
     "COURSIER_REPOSITORIES",
@@ -434,8 +397,6 @@ const MAVEN_COURSIER_ENV: [&str; 5] = [
 
 const GO_HOST_ENV_REASON: &str = "unset GOPROXY, GOPRIVATE, GONOPROXY, GONOSUMDB, GONOSUMCHECK, GOSUMDB, GOINSECURE, GOVCS and GOAUTH: go sets always use the default public proxy and checksum database, dx does not read go_deps.config(go_env=...), and private modules are not supported; host values can also weaken checksum verification";
 
-/// Refuses sets whose backend would read host env dx cannot override (the runner only adds env).
-/// `lookup` tells whether a variable is set in the host environment.
 pub fn host_env_refusal(
     set: &ResolvedSet,
     check: bool,
@@ -468,8 +429,6 @@ pub fn host_env_refusal(
     }
 }
 
-/// Fetches a configured hub repository (cargo or maven), re-evaluating its module extension.
-/// `bazel fetch` of one `crate_universe` repository; `cargo_env` decides whether it repins.
 #[must_use]
 pub fn configured_fetch_argv(
     head: &dx_process::BazelHead,
@@ -517,7 +476,6 @@ const CARGO_ONE_PACKAGE: &str = "crate_universe repins one crate per run; select
 const CARGO_RESERVED: &str =
     "crate_universe reads this crate name as a repin mode; select the set without a package";
 
-/// Values `crate_universe` reads as a repin mode (or as "skip the repin") instead of a crate name.
 #[must_use]
 pub fn cargo_reserved_repin(name: &str) -> bool {
     const WORDS: [&str; 13] = [
@@ -550,14 +508,12 @@ fn configured_pnpm_argv(
     Ok(pnpm_run_argv(head, offline, &dir, ignore, command))
 }
 
-/// `@<pnpm hub>//:pnpm`, the hermetic pnpm binary.
 #[must_use]
 pub fn pnpm_label() -> String {
     let hub = dx_families::hub("pnpm").map_or("", |hub| hub.hub.as_str());
     format!("@{hub}//:pnpm")
 }
 
-/// `bazel run <pnpm label> -- --dir <dir> <command>`, the hermetic pnpm.
 #[must_use]
 pub fn pnpm_run_argv(
     head: &dx_process::BazelHead,
@@ -586,26 +542,18 @@ pub fn pnpm_run_argv(
     .concat()
 }
 
-/// `bazel run <resolver> -- --dir <dir>`, the pinned resolver that writes a lock beside its manifest.
 #[must_use]
 pub fn resolver_run_argv(head: &dx_process::BazelHead, resolver: &str, dir: &str) -> Vec<String> {
     bazel(head, "run", &[resolver, "--", "--dir", dir])
 }
 
-/// A process to run in a directory other than the workspace root.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DirRun {
     pub argv: Vec<String>,
     pub env: Vec<(String, String)>,
-    /// The directory to run in, relative to the workspace.
     pub dir: String,
 }
 
-/// The `bazel mod deps` run that refreshes the lock of a configured bazel-modules set.
-///
-/// The set's only lock must sit beside its manifest, or Bazel would write a file dx
-/// does not track. A nested workspace gets its own short-lived server and none of the
-/// user's `--output_base` or `--config`, which belong to the root workspace.
 pub fn plan_configured_bazel_lock(
     set: &ResolvedSet,
     offline: bool,
@@ -642,7 +590,6 @@ pub fn plan_configured_bazel_lock(
             dir: ".".to_owned(),
         });
     }
-    // A nested workspace must not inherit the root's startup options.
     #[expect(
         clippy::disallowed_methods,
         reason = "the argv carries no build settings"
@@ -657,7 +604,6 @@ pub fn plan_configured_bazel_lock(
     })
 }
 
-/// The pinned ruby resolver run that re-resolves `gem` of a ruby set and writes its locks.
 pub fn plan_ruby_lock(
     workspace: &Path,
     set: &ResolvedSet,
@@ -692,10 +638,8 @@ pub fn plan_ruby_lock(
     })
 }
 
-/// The variable that names the downloader config Bazel uses; lock tools fetch through it.
 pub const DOWNLOADER_CONFIG_ENV: &str = "DX_DOWNLOADER_CONFIG";
 
-/// The environment a resolver run adds: the absolute downloader config `bazel run` uses, if any.
 #[must_use]
 pub fn resolver_env(workspace: &Path, head: &dx_process::BazelHead) -> Vec<(String, String)> {
     dx_process::downloader_config(
@@ -719,7 +663,6 @@ fn with_env(env: &mut Vec<(String, String)>, extra: &[(String, String)]) {
     env.extend(extra.iter().cloned());
 }
 
-/// Adds `extra` to the environment of every command in `plan`.
 fn plan_with_env(mut plan: BackendPlan, extra: &[(String, String)]) -> BackendPlan {
     match &mut plan {
         BackendPlan::Run { env, .. } => with_env(env, extra),
@@ -732,7 +675,6 @@ fn plan_with_env(mut plan: BackendPlan, extra: &[(String, String)]) -> BackendPl
     plan
 }
 
-/// Adds `extra` to the environment of every command in `plan`.
 fn check_with_env(mut plan: CheckPlan, extra: &[(String, String)]) -> CheckPlan {
     match &mut plan {
         CheckPlan::Run { env, .. } => with_env(env, extra),
@@ -745,7 +687,6 @@ fn check_with_env(mut plan: CheckPlan, extra: &[(String, String)]) -> CheckPlan 
     plan
 }
 
-/// The plan that refreshes `set`. Every command it runs gets [`resolver_env`].
 pub fn plan_configured(
     workspace: &Path,
     set: &ResolvedSet,
@@ -789,7 +730,6 @@ fn plan_backend(
     }
 }
 
-/// The plan that checks `set`. Every command it runs gets [`resolver_env`].
 pub fn check_configured(
     workspace: &Path,
     set: &ResolvedSet,
@@ -832,11 +772,6 @@ fn check_backend(
     }
 }
 
-/// The backend that runs for `set`, given its `ecosystems.json` column.
-///
-/// The dart lock step has only the Dart SDK, so pub sets on the Flutter SDK run `pub` from
-/// rules_flutter. Maven sets the java lock step writes go through the registry resolver; sets
-/// pinned by `rules_jvm_external` keep their `pin` run.
 fn backend_of(workspace: &Path, set: &ResolvedSet, column: &'static str) -> &'static str {
     if set.ecosystem == Ecosystem::Pub && uses_flutter(workspace, set) {
         "pub_dev"
@@ -847,7 +782,6 @@ fn backend_of(workspace: &Path, set: &ResolvedSet, column: &'static str) -> &'st
     }
 }
 
-/// Whether the pubspec of `set` depends on the Flutter SDK.
 fn uses_flutter(workspace: &Path, set: &ResolvedSet) -> bool {
     set.manifests.first().is_some_and(|manifest| {
         std::fs::read_to_string(workspace.join(manifest))
@@ -855,7 +789,6 @@ fn uses_flutter(workspace: &Path, set: &ResolvedSet) -> bool {
     })
 }
 
-/// Refuses a set whose `ecosystems.json` row names a backend this crate does not have.
 fn no_backend(set: &ResolvedSet) -> BackendError {
     BackendError::Unsupported {
         set: set.name.clone(),
@@ -911,13 +844,11 @@ fn go_whole_graph() -> Result<&'static str, BackendError> {
     Ok(TEXT.get_or_init(|| text))
 }
 
-/// Plans `go mod download all` on a staged copy of the go manifest and sum file.
 fn go_staged(
     set: &ResolvedSet,
     head: &dx_process::BazelHead,
     offline: bool,
 ) -> Result<StagedRun, BackendError> {
-    // Every run starts from an empty module cache, so it always needs the network.
     if offline {
         return Err(BackendError::OfflineRequired {
             set: set.name.clone(),
@@ -953,8 +884,6 @@ fn is_rebar(set: &ResolvedSet) -> Result<bool, BackendError> {
     Ok(dependency_sets::hex_backend(set)? == Some(dependency_sets::HexBackend::Rebar3))
 }
 
-/// Plans a mix deps command on a staged copy of the hex manifest and lock, with the pinned Elixir
-/// and empty mix and hex homes.
 fn hex_staged(
     set: &ResolvedSet,
     head: &dx_process::BazelHead,
@@ -999,8 +928,6 @@ fn hex_staged(
     })
 }
 
-/// Plans a rebar3 command on a staged copy of rebar.config and rebar.lock, with the pinned
-/// OTP and empty rebar3 and hex homes.
 fn rebar_staged(
     set: &ResolvedSet,
     head: &dx_process::BazelHead,
@@ -1070,7 +997,6 @@ fn configured_uv_argv(
     uv_lock_argv(&set.name, &set.dir, closure, check, offline)
 }
 
-/// `uv lock` in `dir` with the pinned uv and interpreter; `name` names the set in errors.
 pub fn uv_lock_argv(
     name: &str,
     dir: &str,
@@ -1111,7 +1037,6 @@ pub fn uv_lock_argv(
     Ok(argv)
 }
 
-/// Reports whether the planned argv runs Bazel.
 #[must_use]
 pub fn runs_bazel(argv: &[String]) -> bool {
     argv.first()
@@ -1122,9 +1047,6 @@ fn strings(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
 }
 
-/// A `carton` run from the toolchain in the set's directory.
-///
-/// `bazel run` starts in the runfiles tree, so `--run_under` moves into the set first.
 fn carton_argv(
     workspace: &Path,
     set: &ResolvedSet,
@@ -1156,7 +1078,6 @@ fn composer_argv(
     Ok(argv)
 }
 
-/// Keeps Composer's home and download cache out of the workspace.
 fn composer_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
     Ok(vec![
         (
@@ -1170,8 +1091,6 @@ fn composer_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError
     ])
 }
 
-/// A directory for one resolver's state under the user cache dir, so it stays out of the workspace
-/// and out of the shared temp dir, where another user could create it first.
 fn tool_cache(set: &ResolvedSet, tool: &'static str, name: &str) -> Result<String, BackendError> {
     let cache =
         dx_process::rc::user_cache_dir(&|var| std::env::var(var).ok()).ok_or_else(|| {
@@ -1189,15 +1108,12 @@ fn tool_cache(set: &ResolvedSet, tool: &'static str, name: &str) -> Result<Strin
         })
 }
 
-/// Runs the script in a temp copy of the set directory, then compares or copies back the state file `$state`.
 const SWIFT_SCRIPT: &str = r#"dir=$1; apply=$2; shift 2; tmp=$(mktemp -d) || exit 1; cp -R "$dir"/. "$tmp"; (cd "$tmp" && "$@"); code=$?; if [ $code -eq 0 ] && ! cmp -s "$tmp/$state" "$dir/$state"; then if [ "$apply" = apply ]; then cp "$tmp/$state" "$dir/$state"; code=$?; else echo "$state is out of date; run dx update" >&2; code=1; fi; fi; rm -rf "$tmp"; exit $code"#;
 
-/// The `SwiftPM` identity of a package named by host and path: the lowercase last segment.
 fn swift_identity(name: &str) -> String {
     name.rsplit('/').next().unwrap_or(name).to_ascii_lowercase()
 }
 
-/// The managed Swift run on a temp copy of the set directory.
 fn swift_argv(
     workspace: &Path,
     set: &ResolvedSet,
@@ -1221,7 +1137,6 @@ fn swift_argv(
     Ok(argv)
 }
 
-/// Keeps carton's `local/` install tree out of the workspace.
 fn carton_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
     Ok(vec![(
         "PERL_CARTON_PATH".to_owned(),
@@ -1229,7 +1144,6 @@ fn carton_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> 
     )])
 }
 
-/// Keeps the Julia package depot out of the workspace.
 fn julia_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
     Ok(vec![(
         "JULIA_DEPOT_PATH".to_owned(),
@@ -1237,7 +1151,6 @@ fn julia_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
     )])
 }
 
-/// An `opam` run from the pinned binary and opam-repository snapshot in the set's directory.
 fn opam_argv(
     workspace: &Path,
     set: &ResolvedSet,
@@ -1255,7 +1168,6 @@ fn opam_argv(
     Ok(argv)
 }
 
-/// Keeps the opam root, with the snapshot as its only repository, out of the workspace.
 fn opam_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
     Ok(vec![(
         "OPAMROOT".to_owned(),
@@ -1263,8 +1175,6 @@ fn opam_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
     )])
 }
 
-/// A `pub` run of a Flutter set through `@rules_flutter//flutter/pub`, which points
-/// `FLUTTER_ROOT` at a tree for the pinned Flutter version.
 fn pub_argv(
     workspace: &Path,
     set: &ResolvedSet,
@@ -1278,7 +1188,6 @@ fn pub_argv(
     Ok(argv)
 }
 
-/// Keeps pub's package cache out of the workspace.
 fn pub_env(set: &ResolvedSet) -> Result<Vec<(String, String)>, BackendError> {
     Ok(vec![(
         "PUB_CACHE".to_owned(),

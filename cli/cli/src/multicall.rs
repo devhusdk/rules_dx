@@ -1,10 +1,3 @@
-//! `dx` runs a bundled tool when started under that tool's name, so the prebuilt hub can ship one
-//! binary and expose it as `quality_runner`, `quality_markdown`, `quality_notebook`, `lsp_check`,
-//! `collect_native`, `env_shard_writer`, `codegen_shard_writer`, `deploy_tool` and the
-//! `conda-ocaml-{ar,as,cc,ld,mkdll,mkexe,ranlib}` names the OCaml compiler calls, and `file`, which
-//! `dx appimage_packer` puts on appimagetool's PATH. Rule helpers
-//! that need no alias run as `dx <tool> [ARG]...`, so a host without symlinks keeps one copy of dx.
-
 use std::ffi::OsStr;
 use std::path::Path;
 
@@ -94,7 +87,6 @@ pub enum Tool {
     ApplePostAction,
 }
 
-/// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
 #[must_use]
 pub fn tool_for(argv0: &OsStr) -> Option<Tool> {
     match Path::new(argv0).file_stem()?.to_str()? {
@@ -116,7 +108,6 @@ pub fn tool_for(argv0: &OsStr) -> Option<Tool> {
     }
 }
 
-/// The helper named by dx's first argument.
 #[must_use]
 pub fn subcommand_for(arg1: &OsStr) -> Option<Tool> {
     match arg1.to_str()? {

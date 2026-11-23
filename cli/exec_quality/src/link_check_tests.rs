@@ -55,7 +55,6 @@ fn prepare_keeps_only_the_lychee_stage_and_goes_online() {
 
 #[test]
 fn prepare_makes_every_exec_path_absolute() {
-    // Joined with the host separator, so Windows sees `/exec\README.md`.
     let under = |root: &str, rel: &str| Path::new(root).join(rel).to_string_lossy().into_owned();
     let bytes = prepare(&request(), &roots(), "/scratch").unwrap().unwrap();
     let doc: Value = serde_json::from_slice(&bytes).unwrap();

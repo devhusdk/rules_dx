@@ -1,6 +1,4 @@
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
-//! Warm checkout slots for `dx worktree`: the slot pool and its leases, the
-//! Claude Code worktree hooks, and the disk reclaim that runs before a build.
 
 mod cache;
 pub mod disk;
@@ -20,7 +18,6 @@ use std::path::Path;
 pub use hook::HookKind;
 pub use pool::{Record, Who, hold_busy, lease_for_dir, lease_for_workspace, slots_for_primary};
 
-/// Reclaims output bases before a build on low disk (without a pool, only host-wide leftovers); returns a message only when it acted or failed.
 #[must_use]
 pub fn reclaim_for_build(workspace: &Path) -> Option<String> {
     let env = |name: &str| std::env::var(name).ok();
@@ -35,7 +32,6 @@ fn reclaim_for_build_with(
 ) -> Option<String> {
     let low = ops::low_disk(host, cache_base)?;
     let Some(pool) = pool::Pool::find(workspace, cache_base) else {
-        // No pool: only host-wide leftovers (orphans, downloads) can go; nothing is created.
         let reclaimed = ops::reclaim_unpooled(host, low);
         return (reclaimed.removed || reclaimed.skipped).then_some(reclaimed.warning.message);
     };
@@ -47,7 +43,6 @@ fn reclaim_for_build_with(
     }
 }
 
-/// Why a worktree command stopped.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorktreeError {
     pub(crate) code: &'static str,
@@ -76,7 +71,6 @@ impl WorktreeError {
         }
     }
 
-    /// A stop by `signo` before the command finished.
     #[must_use]
     pub fn stopped(signo: i32) -> WorktreeError {
         WorktreeError {

@@ -1,15 +1,11 @@
-//! The directory `dx init <dir>` starts or adopts, and the files a fresh one gets.
-
 use std::path::Path;
 
 use super::AdoptError;
 use crate::Ownership;
 use crate::scaffold::{FileKind, ScaffoldFile, with_header};
 
-/// The module name `dx init` uses for the current directory.
 pub const DEFAULT_INIT_MODULE: &str = "my_project";
 
-/// The Bazel version a fresh workspace pins in `.bazelversion`.
 pub const FRESH_BAZEL_VERSION: &str = dx_preset::PRESET_BAZEL_VERSION;
 
 fn segment_reason(segment: &str) -> Option<String> {
@@ -36,9 +32,6 @@ fn segment_reason(segment: &str) -> Option<String> {
     None
 }
 
-/// The `/`-separated directory `dx init <dir>` works in, or `""` for the current one.
-///
-/// The directory stays inside the current directory: no absolute paths, `..`, or `\`.
 pub fn validate_init_dir(dir: &str) -> Result<String, AdoptError> {
     if dir.is_empty() || dir == "." {
         return Ok(String::new());
@@ -71,8 +64,6 @@ pub fn validate_init_dir(dir: &str) -> Result<String, AdoptError> {
     Ok(dir.to_owned())
 }
 
-/// The module name for `dir`: its last segment folded to `[a-z0-9._-]` from its first letter, or
-/// [`DEFAULT_INIT_MODULE`] for the current directory.
 #[must_use]
 pub fn init_dir_module(dir: &str) -> String {
     let Some(stem) = dir.rsplit('/').next().filter(|stem| !stem.is_empty()) else {
@@ -95,16 +86,11 @@ pub fn init_dir_module(dir: &str) -> String {
         .to_owned()
 }
 
-/// Whether `root` is missing or holds nothing but `.git`, repository files and the files a
-/// fresh init writes itself: a workspace to start, not adopt. A run cut short after
-/// `MODULE.bazel` stays fresh.
 #[must_use]
 pub fn is_fresh_dir(root: &Path) -> bool {
     fresh_blocker(root).is_none()
 }
 
-/// The first entry in `root` that makes it an existing tree rather than a fresh workspace, with
-/// a trailing `/` for a directory. `None` when `root` is fresh.
 pub fn fresh_blocker(root: &Path) -> Option<String> {
     match std::fs::read_dir(root) {
         Ok(entries) => entries
@@ -130,7 +116,6 @@ pub fn fresh_blocker(root: &Path) -> Option<String> {
     }
 }
 
-/// Files GitHub or an editor adds when a repository is created; they do not make a tree an adopt.
 fn is_repo_file(name: &str) -> bool {
     name.starts_with("README")
         || name.starts_with("LICENSE")
@@ -140,7 +125,6 @@ fn is_repo_file(name: &str) -> bool {
         )
 }
 
-/// Whether the file is exactly the `MODULE.bazel` a fresh init writes.
 fn is_fresh_module(path: &Path) -> bool {
     let Ok(text) = std::fs::read_to_string(path) else {
         return false;
@@ -160,8 +144,6 @@ fn is_fresh_module(path: &Path) -> bool {
         .is_some_and(|file| file.content == text)
 }
 
-/// The files only a fresh workspace gets: a `MODULE.bazel` that depends on `rules_dx` and
-/// a `.bazelversion`. Language rules come from `rules_dx` once sources appear.
 #[must_use]
 pub fn plan_fresh_files(module: &str) -> Vec<ScaffoldFile> {
     vec![

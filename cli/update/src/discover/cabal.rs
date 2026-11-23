@@ -1,5 +1,3 @@
-//! Lists cabal packages whose newest preferred release on Hackage is newer than the freeze file pin.
-
 use dx_error::DxError;
 
 use super::{Fetch, Findings, Latest, compare_declared, semver_cmp};
@@ -7,15 +5,12 @@ use std::collections::BTreeSet;
 
 pub const DEFAULT_BASE: &str = "https://hackage.haskell.org";
 
-/// One package named in a `build-depends` field of a `.cabal` file.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Depend {
     pub name: String,
-    /// Byte range of the version bound after the name; empty when the package has none.
     pub bound: std::ops::Range<usize>,
 }
 
-/// Checks each package of the `.cabal` files that the freeze files pin against Hackage at `base`.
 pub fn outdated(
     set: &str,
     cabal_files: &[String],
@@ -45,7 +40,6 @@ pub fn outdated(
     })
 }
 
-/// Reads the `any.<name> ==<version>` entries of a cabal freeze file.
 fn frozen(text: &str) -> Vec<(String, String)> {
     let mut constraints = String::new();
     let mut inside = false;
@@ -69,7 +63,6 @@ fn frozen(text: &str) -> Vec<(String, String)> {
         .collect()
 }
 
-/// The highest version Hackage lists as normal, which leaves out deprecated ones.
 fn newest(body: &str) -> Result<String, DxError> {
     let json: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
@@ -83,7 +76,6 @@ fn newest(body: &str) -> Result<String, DxError> {
         .ok_or_else(|| DxError::failure("no preferred version"))
 }
 
-/// Reads every package of the `build-depends` fields of a `.cabal` file, with the byte range of its bound.
 pub(crate) fn build_depends(text: &str) -> Vec<Depend> {
     let mut out = Vec::new();
     let mut offset = 0;
@@ -153,7 +145,6 @@ fn comment_start(line: &str) -> Option<usize> {
     None
 }
 
-/// Keeps the first non-blank piece of an entry; a bound has to sit on the line of the name.
 fn extend(text: &str, entry: &mut Option<(usize, usize)>, start: usize, end: usize) {
     if entry.is_none()
         && start < end
@@ -189,7 +180,6 @@ fn parse_entry(text: &str, start: usize, end: usize) -> Option<Depend> {
     })
 }
 
-/// The `.cabal` files next to each cabal project file.
 pub fn cabal_files(workspace: &std::path::Path, projects: &[String]) -> Vec<String> {
     let mut files = Vec::new();
     for project in projects {

@@ -1,5 +1,3 @@
-//! The calling thread's signal mask.
-
 #![expect(unsafe_code, reason = "signal masks have no safe std or rustix API")]
 
 use std::ffi::{CString, c_char};
@@ -10,13 +8,11 @@ use std::sync::atomic::{AtomicPtr, Ordering};
 
 static UNLINK_ON_STOP: AtomicPtr<c_char> = AtomicPtr::new(std::ptr::null_mut());
 
-/// Blocks signals in the calling thread until dropped.
 pub struct Blocked {
     previous: libc::sigset_t,
 }
 
 impl Blocked {
-    /// Blocks `signals` in the calling thread; async-signal-safe.
     #[must_use = "the signals are unblocked again when the guard drops"]
     pub fn new(signals: &[i32]) -> Blocked {
         let set = set_of(signals);
@@ -40,14 +36,12 @@ impl Drop for Blocked {
     }
 }
 
-/// Lets the calling thread write to the terminal while the process is in the background.
 pub fn allow_background_tty_writes() {
     let set = set_of(&[libc::SIGTTOU]);
     // SAFETY: set is a valid, initialized sigset_t and a null old-set pointer is permitted.
     unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, &raw const set, std::ptr::null_mut()) };
 }
 
-/// Whether `signo` is blocked in the calling thread.
 #[must_use]
 pub fn blocked(signo: i32) -> bool {
     let mut current = empty_set();
@@ -56,7 +50,6 @@ pub fn blocked(signo: i32) -> bool {
     member(&current, signo)
 }
 
-/// Which of `signals` are pending for the calling thread or process; async-signal-safe.
 pub fn pending(signals: &[i32]) -> impl Iterator<Item = i32> {
     let mut set = empty_set();
     // SAFETY: set is a valid sigset_t out-pointer.
@@ -68,8 +61,6 @@ pub fn pending(signals: &[i32]) -> impl Iterator<Item = i32> {
 }
 
 // LCOV_EXCL_START - reason: replaces the test process's own stop handlers, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-/// Installs `handler` for SIGINT, SIGTERM and SIGHUP with `SA_RESTART`; an inherited ignored SIGHUP stays ignored.
-///
 /// # Safety
 ///
 /// `handler` must call only async-signal-safe functions.
@@ -93,7 +84,6 @@ pub unsafe fn handle_stops(handler: extern "C" fn(i32)) -> io::Result<()> {
 }
 // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
-/// Restores the default disposition of `signo` and raises it in the calling process.
 pub fn raise_default(signo: i32) -> io::Result<()> {
     // SAFETY: SIG_DFL installs no handler code.
     if unsafe { libc::signal(signo, libc::SIG_DFL) } == libc::SIG_ERR {
@@ -103,7 +93,6 @@ pub fn raise_default(signo: i32) -> io::Result<()> {
     check(unsafe { libc::raise(signo) })
 }
 
-/// Ignores `signo` in the calling process; async-signal-safe.
 pub fn ignore(signo: i32) -> io::Result<()> {
     // SAFETY: SIG_IGN installs no handler code.
     if unsafe { libc::signal(signo, libc::SIG_IGN) } == libc::SIG_ERR {
@@ -122,8 +111,6 @@ extern "C" fn unlink_and_exit(signo: i32) {
     unsafe { libc::_exit(128 + signo) }
 }
 
-/// On SIGINT or SIGTERM, removes `path` and exits with 128 plus the signal number.
-/// A later call replaces the path; [`keep_on_stop`] clears it.
 pub fn unlink_on_stop(path: &Path) -> io::Result<()> {
     let path = CString::new(path.as_os_str().as_bytes()).map_err(|error| {
         io::Error::new(
@@ -135,7 +122,6 @@ pub fn unlink_on_stop(path: &Path) -> io::Result<()> {
             ),
         )
     })?;
-    // Any earlier path is leaked: the handler may be reading it right now.
     UNLINK_ON_STOP.store(path.into_raw(), Ordering::SeqCst);
     // SAFETY: sigaction is plain C data for which all-zero is valid.
     let mut action: libc::sigaction = unsafe { std::mem::zeroed() };
@@ -148,13 +134,11 @@ pub fn unlink_on_stop(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Holds SIGINT and SIGTERM in the calling thread until dropped; a held signal then lands.
 #[must_use = "the stop signals are released again when the guard drops"]
 pub fn hold_stop() -> Blocked {
     Blocked::new(&[libc::SIGINT, libc::SIGTERM])
 }
 
-/// Stops [`unlink_on_stop`] from removing its path; the signals still exit the process.
 pub fn keep_on_stop() {
     UNLINK_ON_STOP.store(std::ptr::null_mut(), Ordering::SeqCst);
 }

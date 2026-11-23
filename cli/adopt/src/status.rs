@@ -92,14 +92,11 @@ fn check(name: &str, status: &str, detail: String, hint: &str) -> StatusCheck {
     }
 }
 
-/// The file name of the first of `names` found on `path`.
 fn on_path(names: &[&str], path: Option<std::ffi::OsString>) -> Option<String> {
     let found = dx_path::lookup::find_in(&path?, names)?;
     Some(found.file_name()?.to_string_lossy().into_owned())
 }
 
-/// Returns the warning when `pin` is a version older than the Bazel the preset targets.
-/// A pin that is not a version, such as `latest` or `8.x`, gets no warning.
 pub(crate) fn old_pin_note(pin: &str) -> Option<String> {
     let preset = dx_preset::PRESET_BAZEL_VERSION;
     let (pinned, target) = (
@@ -234,7 +231,6 @@ fn module_check(root: &Path) -> StatusCheck {
     }
 }
 
-/// MODULE.bazel and every file it includes, or the reason they do not load.
 fn load_modules(root: &Path) -> Result<Vec<ModuleFile>, String> {
     let text = std::fs::read_to_string(root.join("MODULE.bazel")).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
@@ -254,7 +250,6 @@ fn load_modules(root: &Path) -> Result<Vec<ModuleFile>, String> {
     })
 }
 
-/// Whether one file binds the rules_rust `rust` extension, and the versions its tags declare.
 fn rust_toolchain_versions(module: &ModuleFile) -> (bool, Vec<&str>) {
     let binding =
         module
@@ -546,7 +541,6 @@ fn exec_tools_check(root: &Path) -> StatusCheck {
     }
 }
 
-/// What `dx init` would conflict with, from the declared files only; never runs Bazel.
 fn init_plan_check(root: &Path) -> StatusCheck {
     let hint = "tools/dx init";
     let plan = super::preflight::preflight(root, &super::render_consumer_module_setup());

@@ -23,7 +23,6 @@ SOURCE_TOOLS = {
 
 _GO_PACKAGE = "@rules_dx//go/private/tools/analysis/dx_go:"
 
-# The names the dx_go multicall runs as, each with its source build.
 GO_TOOLS = {tool: _GO_PACKAGE + tool for tool in [
     "dx_errcheck",
     "dx_godoc_json",
@@ -34,7 +33,6 @@ GO_TOOLS = {tool: _GO_PACKAGE + tool for tool in [
     "dx_staticcheck",
 ]}
 
-# With --//cli/prebuilt:guard_view, a root-mode hub serves every source-built tool as this stub.
 GUARD_VIEW = "@rules_dx//cli/prebuilt:guard_view_set"
 GUARD_STUB = "@rules_dx//cli/prebuilt:guard_stub"
 
@@ -101,13 +99,7 @@ def _planned(os, cpu, exe, repo_prefix, asset, sha256, url, library = ""):
     )
 
 def plan_assets(tool, version, pins, url_template, overrides, exe = "dx", repo_prefix = "dx_prebuilt_", library = ""):
-    """Returns one struct per platform of tool, sorted by key: its platform and, when pinned, a verified download.
-
-    A library asset is downloaded as the file name library, not executable.
-
-    pins is pins.bzl's PINS; overrides comes from plan_root. A platform with no pin
-    takes its registry fallback's download, and failing that builds from source.
-    """
+    """Returns one struct per platform of tool, sorted by key: its platform and, when pinned, a verified download."""
     entry = TOOLS[tool]
     tool_pins = pins.get(tool, {})
     planned = {}
@@ -127,7 +119,6 @@ def plan_assets(tool, version, pins, url_template, overrides, exe = "dx", repo_p
         fallback_os, fallback_cpu = split_key(fallback_key)
         fallback = planned["{}_{}".format(RELEASE_OS[fallback_os], RELEASE_CPU[fallback_cpu])]
         if not own.repo and fallback.repo:
-            # Same download, so the same repo: http_file runs once for both platforms.
             own = struct(
                 asset = fallback.asset,
                 cpu = own.cpu,
@@ -168,10 +159,7 @@ def _source_actual(source, guard):
     return _select([(GUARD_VIEW, GUARD_STUB)], source) if guard else '"{}"'.format(source)
 
 def with_jars(build, jars, guard = False):
-    """Returns the hub BUILD text build plus three targets per pinned jar tool: `<tool>_jvm`, the pinned jar on the JVM, `<tool>`, its alias, and `<tool>_deploy.jar`, the jar file. An unpinned jar tool aliases `<tool>` to its source.
-
-    With guard, an unpinned jar tool selects GUARD_STUB under GUARD_VIEW.
-    """
+    """Returns the hub BUILD text build plus `<tool>_jvm`, `<tool>` and `<tool>_deploy.jar` per jar tool."""
     loads = []
     lines = []
     for jar in jars:
@@ -199,8 +187,6 @@ def with_jars(build, jars, guard = False):
             '    jars = ["@{}//file:{}"],'.format(jar.repo, jar.asset),
             ")",
             "",
-            # java_binary declares <name>_deploy.jar itself, so the binary takes a
-            # suffix and the hub names the tool and its deploy jar with aliases.
             "java_binary(",
             '    name = "{}_jvm",'.format(jar.tool),
             '    main_class = "{}",'.format(jar.main_class),
@@ -231,13 +217,7 @@ def plan_native_tools(version, pins, url_template, overrides):
 _NATIVE_BINARY_LOAD = 'load("@bazel_skylib//rules:native_binary.bzl", "native_binary")'
 
 def with_native_tools(build, native_tools, consumer = False, guard = False):
-    """Returns the hub BUILD text build plus one target per native tool.
-
-    A tool selects its download on the platform it runs on and builds from source on
-    any platform with no download. A library tool selects the downloaded file itself. In a consumer hub a tool in DEV_SOURCE_FALLBACK
-    serves its fallback label there instead of its source build. With guard, an unpinned
-    tool selects GUARD_STUB under GUARD_VIEW.
-    """
+    """Returns the hub BUILD text build plus one target per native tool."""
     lines = []
     keys = {}
     binaries = False
@@ -321,12 +301,7 @@ def plan_python_tools(version, pins, url_template, overrides):
 _BUNDLE_LOAD = 'load("@rules_dx//cli/prebuilt:bundle.bzl", "dx_bundle_tool", "dx_bundle_tree")'
 
 def with_python_tools(build, assets, guard = False):
-    """Returns the hub BUILD text build plus python_tool_<name> for each bundled Python tool.
-
-    A tool selects the pinned bundle of the platform it runs on and builds from
-    source on any platform with no bundle or whose bundle leaves it out. With guard, an
-    unpinned tool selects GUARD_STUB under GUARD_VIEW.
-    """
+    """Returns the hub BUILD text build plus python_tool_<name> for each bundled Python tool."""
     pinned = [a for a in assets if a.repo]
     lines = []
     for name, tool in sorted(PYTHON_BUNDLE_TOOLS.items()):
@@ -386,11 +361,7 @@ def _select(entries, default):
     return "\n".join(lines)
 
 def consumer_build(assets, go_assets = []):
-    """Returns the hub BUILD text that selects a prebuilt dx and Go lint tools by os and cpu.
-
-    The Go tools select on the platform of the configuration that depends on
-    them; a platform with no download builds them from source.
-    """
+    """Returns the hub BUILD text that selects a prebuilt dx and Go lint tools by os and cpu."""
     if not [a for a in assets + go_assets if a.repo]:
         return alias_build(SOURCE_LABEL)
     lines = [

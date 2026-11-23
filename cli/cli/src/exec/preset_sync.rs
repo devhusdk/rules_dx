@@ -1,12 +1,9 @@
-//! Brings `.dx` in step with `dx.toml` before a command runs.
-
 use std::io::Write;
 use std::path::Path;
 
 use dx_generate::Mode;
 use dx_plan::args::{Command, Invocation};
 
-/// Syncs `.dx`; a failure prints one warning and changes nothing else.
 pub fn sync_preset_layers(invocation: &Invocation, workspace: &Path, err: &mut dyn Write) {
     if matches!(
         invocation.command,

@@ -18,11 +18,6 @@ fn field(input: &Value, name: &str) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// The agent whose hook payload a hook reads.
-///
-/// Codex sends the Claude Code shape. Cursor runs the hooks in
-/// `.claude/settings.json` and sends its own fields. Gemini CLI names the
-/// event `BeforeTool`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Dialect {
     Claude,
@@ -31,7 +26,6 @@ pub enum Dialect {
 }
 
 impl Dialect {
-    /// The dialect of a hook payload.
     pub fn of(input: &Value) -> Dialect {
         if input.get("hook_event_name").and_then(Value::as_str) == Some("BeforeTool") {
             Dialect::Gemini
@@ -42,7 +36,6 @@ impl Dialect {
         }
     }
 
-    /// The session a payload names, when the agent's shells carry no session variable.
     fn session(self, input: &Value) -> Option<String> {
         match self {
             Dialect::Claude => None,
@@ -52,7 +45,6 @@ impl Dialect {
         }
     }
 
-    /// The hook output that replaces the tool input.
     fn rewrite(self, updated: &Value) -> Value {
         match self {
             Dialect::Claude | Dialect::Cursor => serde_json::json!({
@@ -71,21 +63,17 @@ impl Dialect {
     }
 }
 
-/// One agent hook that `dx worktree hook` serves.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HookKind {
     Create,
     Remove,
     Stop,
     Guard,
-    /// Runs before a Bazel call, not from an agent.
     Bazel,
-    /// Runs from git's `reference-transaction` hook, not from an agent.
     Git,
 }
 
 impl HookKind {
-    /// Every hook kind, in the order help text lists them.
     pub const ALL: [HookKind; 6] = [
         HookKind::Create,
         HookKind::Remove,
@@ -95,13 +83,11 @@ impl HookKind {
         HookKind::Git,
     ];
 
-    /// The hook kind a command-line word names.
     #[must_use]
     pub fn from_word(word: &str) -> Option<HookKind> {
         Self::ALL.into_iter().find(|kind| kind.word() == word)
     }
 
-    /// The command-line word for this hook kind.
     #[must_use]
     pub fn word(self) -> &'static str {
         match self {
@@ -114,7 +100,6 @@ impl HookKind {
         }
     }
 
-    /// The Claude Code event that runs this hook, for error text; none for a hook no agent runs.
     #[must_use]
     pub fn event(self) -> Option<&'static str> {
         match self {
@@ -126,7 +111,6 @@ impl HookKind {
         }
     }
 
-    /// The hook words joined for a usage message.
     pub fn names() -> String {
         Self::ALL.map(HookKind::word).join(", ")
     }
@@ -143,7 +127,6 @@ fn missing(kind: HookKind, field: &str) -> WorktreeError {
     )
 }
 
-/// Reads the JSON a hook gets on stdin.
 pub fn parse(stdin: &str) -> Result<Value, WorktreeError> {
     serde_json::from_str(stdin).map_err(|error| {
         WorktreeError::usage(
@@ -153,12 +136,10 @@ pub fn parse(stdin: &str) -> Result<Value, WorktreeError> {
     })
 }
 
-/// The directory a hook payload says it runs in.
 pub fn cwd(input: &Value) -> Option<PathBuf> {
     field(input, "cwd").map(PathBuf::from)
 }
 
-/// The branch a named agent worktree uses.
 #[must_use]
 pub fn branch_for(name: &str) -> String {
     let cleaned: String = name
@@ -177,9 +158,6 @@ pub fn branch_for(name: &str) -> String {
     )
 }
 
-/// The first agent branch name no pool record holds, no checkout has, and
-/// origin does not carry (unless it is also local with unmerged work). `remote` is the live
-/// origin branch set, or `None` to fall back to local `origin/*` refs.
 fn free_branch(
     main: &Path,
     stem: &str,
@@ -205,7 +183,6 @@ fn free_branch(
                 return false;
             }
             if git::branch_exists(main, candidate) {
-                // A leftover already merged into the base is stale.
                 return base
                     .as_deref()
                     .is_none_or(|base| !git::branch_behind(main, candidate, base));
@@ -250,7 +227,6 @@ fn recycle_gone(pool: &Pool, host: &dyn Host, who: &Who) -> Vec<u32> {
     freed
 }
 
-/// Leases a slot for a new agent worktree.
 pub fn create(
     pool: &Pool,
     host: &dyn Host,
@@ -261,7 +237,6 @@ pub fn create(
     let freed = recycle_gone(pool, host, who);
     let warnings = ops::refresh(pool, host)?;
     let stem = branch_for(&name);
-    // Every `-N` form of a valid stem is valid too.
     ops::check_branch(pool, &stem)?;
     let has_origin = git::succeeds(&pool.main, &["remote", "get-url", "origin"]);
     let fetched = !warnings.iter().any(|w| w.code == "fetch_failed");
@@ -297,8 +272,6 @@ pub fn create(
     ops::lease_locked(pool, host, &owner, &request, &freed, warnings, lock)
 }
 
-/// Frees the slot of an agent worktree and returns what the release did,
-/// warnings included. Paths outside the pool are left alone.
 pub fn remove(
     pool: &Pool,
     host: &dyn Host,
@@ -319,9 +292,6 @@ pub fn remove(
     Ok(Some(released))
 }
 
-/// Whether a hook has nothing to do for this payload.
-///
-/// Cursor runs `SubagentStop` without an `agent_id`; its subagents hold no slots.
 #[must_use]
 pub fn ignored(kind: HookKind, input: &Value) -> bool {
     kind == HookKind::Stop
@@ -329,7 +299,6 @@ pub fn ignored(kind: HookKind, input: &Value) -> bool {
         && Dialect::of(input) != Dialect::Claude
 }
 
-/// Marks the slots of a finished subagent as held by a gone holder and stops their Bazel servers.
 pub fn stop(
     pool: &Pool,
     host: &dyn Host,
@@ -386,7 +355,6 @@ const GIT_VALUES: &[&str] = &[
     "--super-prefix",
 ];
 
-/// Options that take a value, and plain words that follow a wrapper's options.
 struct Wrapper {
     values: &'static [&'static str],
     positionals: usize,
@@ -702,8 +670,6 @@ fn commands(script: &str) -> Vec<Vec<String>> {
 const SHELLS: &[&str] = &["sh", "bash", "zsh", "dash", "ksh"];
 const MAX_SHELL_DEPTH: usize = 4;
 
-/// Every simple command in `script` as its program and arguments, with wrappers skipped
-/// and the scripts of `sh -c` and friends followed. Knows nothing about dx or git.
 fn segments(script: &str) -> Vec<Vec<String>> {
     let mut out = Vec::new();
     collect_segments(script, 0, &mut out);
@@ -763,7 +729,6 @@ fn runs_dx(command: &str) -> bool {
     })
 }
 
-/// True when the command runs `dx deploy` with `--apply` among its words before any `--`.
 fn deploys_with_apply(command: &str) -> bool {
     segments(command).iter().any(|segment| {
         let Some((first, rest)) = segment.split_first() else {
@@ -794,33 +759,24 @@ fn deploy_apply_deny(command: &str) -> String {
     )
 }
 
-/// What the guard does with one tool call.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Guard {
     Allow,
     Block(String),
     Rewrite(Value),
-    /// Ask the user before the command runs; carries the hook output.
     Ask(Value),
 }
 
-/// Looks up the lease of the slot a directory is in.
 pub type LeaseLookup<'a> = &'a dyn Fn(&Path) -> Option<(PathBuf, Record)>;
 
-/// Git subcommands that change the checkout they run in.
 const SLOT_SWITCHING: &[&str] = &[
     "checkout", "switch", "reset", "rebase", "fetch", "pull", "stash", "commit",
 ];
 
-/// `dx` subcommands that build or change the checkout they run in.
 const DX_MUTATING: &[&str] = &["build", "test", "check"];
 
-/// Looks up the slots of the pool whose primary checkout holds a directory; none when the
-/// directory is not in a primary checkout.
 pub type SlotsLookup<'a> = &'a dyn Fn(&Path) -> Option<Vec<(PathBuf, Record)>>;
 
-/// The refusal for a mutating command that runs in the primary checkout while the caller
-/// holds a slot. The lookup is only called for such commands whose directory is known.
 pub fn primary_checkout(input: &Value, who: &Who, slots: SlotsLookup) -> Option<String> {
     let command = input
         .get("tool_input")
@@ -847,20 +803,10 @@ pub fn primary_checkout(input: &Value, who: &Who, slots: SlotsLookup) -> Option<
     })
 }
 
-/// Blocks a file edit in a refused main checkout, blocks `git worktree add|remove|prune`, blocks a
-/// mutating git, bazel or dx command in a slot another agent holds, names the subagent for every dx
-/// command, and names the session for dx when the agent's shells do not. `who` carries the
-/// environment's session and pid; the agent comes from the payload, because the rewrite below only
-/// reaches later dx commands.
 pub fn guard(input: &Value, who: &Who, lease: LeaseLookup) -> Guard {
     guard_with(input, who, lease, &|name| std::env::var(name).ok())
 }
 
-/// `guard` with the environment passed in.
-///
-/// Codex sends no `agent_id`, and its shells share one `CODEX_THREAD_ID`. A
-/// payload `session_id` that differs from that thread id names a subagent's
-/// own thread, so it becomes the holder.
 pub fn guard_with(
     input: &Value,
     who: &Who,
@@ -926,7 +872,6 @@ pub fn guard_with(
     Guard::Rewrite(dialect.rewrite(&Value::Object(updated)))
 }
 
-/// The refusal for a file edit in a refused main checkout; a relative `file_path` or `notebook_path` is read from `cwd`.
 fn main_checkout_edit(input: &Value, env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {
     let tool = input.get("tool_input")?;
     let path = field(tool, "file_path").or_else(|| field(tool, "notebook_path"))?;
@@ -941,8 +886,6 @@ fn codex_thread(env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {
     env_get("CODEX_THREAD_ID").filter(|id| !id.is_empty())
 }
 
-/// The refusal for a `git checkout|switch|reset|rebase` that runs in a slot someone else holds.
-/// The lookup is only called for such commands whose directory is known.
 fn foreign_slot(input: &Value, who: &Who, lease: LeaseLookup) -> Option<String> {
     let command = input
         .get("tool_input")
@@ -969,8 +912,6 @@ fn foreign_slot(input: &Value, who: &Who, lease: LeaseLookup) -> Option<String> 
     })
 }
 
-/// The directories where `command` runs a mutating git, bazel or dx command. Directories
-/// follow `cd` and `git -C`; a call whose directory cannot be told statically is left out.
 fn switching_dirs(command: &str, start: Option<PathBuf>) -> Vec<PathBuf> {
     let mut current = start;
     let mut found = Vec::new();
@@ -1032,7 +973,6 @@ fn switching_dirs(command: &str, start: Option<PathBuf>) -> Vec<PathBuf> {
     found
 }
 
-/// `target` seen from `from`, or none when the path depends on the shell or on `from`.
 fn move_to(from: Option<&Path>, target: &str) -> Option<PathBuf> {
     if target == "-" || target.starts_with('~') || target.contains(['$', '`']) {
         return None;
@@ -1040,7 +980,6 @@ fn move_to(from: Option<&Path>, target: &str) -> Option<PathBuf> {
     Some(from?.join(target))
 }
 
-/// The line that blocks a `git worktree add|remove|prune` command, if the command is one.
 fn blocked(input: &Value) -> Option<String> {
     let command = input
         .get("tool_input")

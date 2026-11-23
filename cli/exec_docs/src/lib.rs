@@ -7,8 +7,6 @@
     clippy::wildcard_enum_match_arm
 )]
 
-//! The `dx docs` verb: builds the docs in scope, writes the code index and serves a preview.
-
 mod docs_index;
 
 use docs_index::{CODE_INDEX_FAILED, build_index, built_shards, execution_root};
@@ -48,7 +46,6 @@ fn opener_argv(url: &str) -> Vec<String> {
     opener_argv_for(std::env::consts::OS, url)
 }
 
-/// Binds the docs preview. The seam lets tests swap the real server for a fake.
 pub trait PreviewServer {
     fn bind(&self, host: &str, port: u16, root: &Path) -> std::io::Result<Box<dyn RunningPreview>>;
 }
@@ -74,7 +71,6 @@ impl RunningPreview for StdRunning {
     }
 }
 
-/// The site trees the docs aspect named in its site manifests.
 fn built_sites(bep: &Path, workspace: &Path) -> Result<Vec<PathBuf>, dx_error::DxError> {
     let account = collect_output_account(bep, DOCS_SITE_OUTPUT_GROUP, workspace)?;
     let mut sites: Vec<PathBuf> = account
@@ -88,7 +84,6 @@ fn built_sites(bep: &Path, workspace: &Path) -> Result<Vec<PathBuf>, dx_error::D
     Ok(sites)
 }
 
-/// The tree to preview: the one built site, else the API index.
 #[expect(
     clippy::needless_pass_by_value,
     reason = "the value is built for this one call"

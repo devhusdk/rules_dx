@@ -686,11 +686,9 @@ fn a_live_share_source_is_read_on_every_call() {
         !first.contains("cpu=8") || second.contains("cpu=3"),
         "{second}"
     );
-    // A stale token must not remove a newer source.
     let newer = set_share_source(|| SHARE_4);
     clear_share_source(token);
     assert_eq!(share(), Some(SHARE_4));
-    // A fixed share replaces a live source.
     set_share(Some(LocalShare {
         cpus: 2,
         memory_mb: 1,

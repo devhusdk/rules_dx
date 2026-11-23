@@ -8,12 +8,10 @@ case " $* " in *" build "*) printf '%s\n' "$*" >> "$ARGV_LOG" ;; esac
 exit 0
 "#;
 
-/// Runs `dx build` against a fake Bazel; returns every recorded build argv line and stderr.
 fn build_lines(args: &[&str], in_slot: bool) -> (Vec<String>, String) {
     build_lines_with_env(args, in_slot, &[])
 }
 
-/// Like `build_lines`; with `in_slot` the workspace is a free `dx worktree` pool slot.
 fn build_lines_with_env(
     args: &[&str],
     in_slot: bool,

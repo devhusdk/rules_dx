@@ -1,5 +1,3 @@
-//! Windows Job objects.
-
 #![expect(unsafe_code, reason = "Job objects have no safe std API")]
 
 use crate::win32::{Access, open, owned_or_last_error, struct_size};
@@ -16,28 +14,22 @@ use windows_sys::Win32::System::JobObjects::{
 };
 use windows_sys::Win32::System::Threading::TerminateProcess;
 
-// The process id list is a u32 pair followed by usize ids, read here as whole words.
 const _: () = assert!(size_of::<usize>() == 8, "dx supports only 64-bit Windows");
 
 const LIST_ATTEMPTS: usize = 8;
 
-/// The one limit a new job carries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Limit {
-    /// Closing the last handle kills every process in the job.
     KillOnClose,
-    /// Members may start children outside the job with `CREATE_BREAKAWAY_FROM_JOB`.
     BreakawayOk,
 }
 
-/// An owned Job object, closed on drop.
 #[derive(Debug)]
 pub struct JobObject {
     handle: OwnedHandle,
 }
 
 impl JobObject {
-    /// Creates an unnamed job with `limit`.
     pub fn new(limit: Limit) -> io::Result<JobObject> {
         // SAFETY: CreateJobObjectW accepts null attributes and a null name.
         let raw = unsafe { CreateJobObjectW(null(), null()) };
@@ -65,7 +57,6 @@ impl JobObject {
         Ok(JobObject { handle })
     }
 
-    /// Puts `process` in the job.
     pub fn assign(&self, process: BorrowedHandle<'_>) -> io::Result<()> {
         // SAFETY: both handles are live for the call.
         let assigned = unsafe {
@@ -77,7 +68,6 @@ impl JobObject {
         Ok(())
     }
 
-    /// Ends every process in the job with `exit_code`.
     pub fn terminate(&self, exit_code: u32) -> io::Result<()> {
         // SAFETY: the job handle is live.
         let ended = unsafe { TerminateJobObject(self.handle.as_raw_handle(), exit_code) };
@@ -87,7 +77,6 @@ impl JobObject {
         Ok(())
     }
 
-    /// The ids of the processes in the job.
     pub fn process_ids(&self) -> io::Result<Vec<u32>> {
         let mut capacity = 64usize;
         for _ in 0..LIST_ATTEMPTS {
@@ -104,7 +93,6 @@ impl JobObject {
                 )
             } != 0;
             let err = io::Error::last_os_error();
-            // The header word holds NumberOfAssignedProcesses, then NumberOfProcessIdsInList.
             let header = buffer.first().copied().unwrap_or(0);
             let assigned = header & 0xffff_ffff;
             let listed = header >> 32;
@@ -126,7 +114,6 @@ impl JobObject {
         // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
     }
 
-    /// How many processes in the job are still running.
     pub fn active_processes(&self) -> io::Result<u32> {
         let mut info = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
         let size = struct_size::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>()?;
@@ -146,7 +133,6 @@ impl JobObject {
         Ok(info.ActiveProcesses)
     }
 
-    /// Ends process `pid` with exit code 1 if it is in the job; a process outside is left alone.
     pub fn terminate_member(&self, pid: u32) -> io::Result<()> {
         let process = open(pid, Access::Terminate)?;
         let mut inside = 0;

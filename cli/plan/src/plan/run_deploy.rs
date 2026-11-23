@@ -1,9 +1,6 @@
 use super::BuildPlan;
 use dx_error::DxError;
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_run_targets(
     targets: &[String],
     bazel_options: &[String],
@@ -30,11 +27,6 @@ pub fn plan_run_targets(
     Ok(BuildPlan { argv, summary })
 }
 
-/// Builds the run targets without starting them.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_run_build(
     targets: &[String],
     bazel_options: &[String],
@@ -56,9 +48,6 @@ pub fn plan_run_build(
     Ok(BuildPlan { argv, summary })
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_run(
     target: &str,
     bazel_options: &[String],
@@ -77,9 +66,6 @@ pub fn plan_run(
 
 pub use dx_process::shell::{join as shell_join, word as shell_quote};
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_deploy_build(
     label: &str,
     build_mode: crate::args::BuildMode,
@@ -93,9 +79,6 @@ pub fn plan_deploy_build(
     })
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_deploy_run(
     label: &str,
     app_args: &[String],

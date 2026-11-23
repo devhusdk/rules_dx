@@ -1,9 +1,7 @@
-//! Lenient version parsing on top of `semver`: `8.4` reads as `8.4.0` and `8.4.0rc1` as `8.4.0-rc1`.
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::cmp::Ordering;
 
-/// Why a version did not parse.
 #[derive(Debug, thiserror::Error)]
 pub enum VersionError {
     #[error("invalid version {text:?}: it does not start with a number")]
@@ -24,26 +22,14 @@ pub enum VersionError {
     },
 }
 
-/// A version read leniently.
-///
-/// Equality and order follow semver precedence: missing parts count as zero, numeric parts past
-/// the patch compare in turn, a prerelease sorts below its release, and build metadata is ignored.
 #[derive(Debug, Clone)]
 pub struct Version {
     core: semver::Version,
-    /// Numeric parts after the patch, as in `7.0.8.1`.
     extra: Vec<u64>,
-    /// How many numeric parts the text wrote.
     parts: usize,
 }
 
 impl Version {
-    /// Reads `text` such as `8.4`, `v1.2.3`, `8.4.0rc1`, `8.4.0-rc1` or `7.0.8.1`.
-    ///
-    /// # Errors
-    /// Fails when `text` does not start with a number, a part overflows `u64`, a part after a
-    /// dot is not a number (a wildcard like `8.x`, or PEP 440's `1.5.0.post1`, which sorts above
-    /// its release), or the suffix is not a valid semver prerelease or build.
     pub fn parse(text: &str) -> Result<Self, VersionError> {
         let trimmed = text.trim();
         let body = match trimmed.strip_prefix('v') {
@@ -83,7 +69,6 @@ impl Version {
                 _ => VersionError::NotNumber { text, part },
             });
         }
-        // `8.4.0-rc1` and `8.4.0rc1` both name the prerelease `rc1`.
         let pre = rest.strip_prefix('-').unwrap_or(rest);
         if !rest.is_empty() && pre.is_empty() {
             return Err(VersionError::Separator {
@@ -131,13 +116,11 @@ impl Version {
         self.core.patch
     }
 
-    /// The prerelease label, empty for a release.
     #[must_use]
     pub fn prerelease(&self) -> &str {
         self.core.pre.as_str()
     }
 
-    /// The build metadata after `+`, empty when there is none. Order ignores it.
     #[must_use]
     pub fn build(&self) -> &str {
         self.core.build.as_str()
@@ -148,16 +131,11 @@ impl Version {
         !self.core.pre.is_empty()
     }
 
-    /// How many numeric parts the text wrote: 2 for `8.4`, 3 for `8.4.0`.
     #[must_use]
     pub fn parts(&self) -> usize {
         self.parts
     }
 
-    /// Whether the first `count` numeric parts match `other`'s, missing parts counting as zero.
-    ///
-    /// With `self >= other` this is the pessimistic `~>` range: `~> 3.2.1` holds for versions
-    /// at least `3.2.1` that start with `3.2`.
     #[must_use]
     pub fn same_prefix(&self, other: &Self, count: usize) -> bool {
         self.numbers()
@@ -166,7 +144,6 @@ impl Version {
             .all(|(left, right)| left == right)
     }
 
-    /// Every numeric part, then zeros forever, so versions of different lengths line up.
     fn numbers(&self) -> impl Iterator<Item = u64> + '_ {
         [self.core.major, self.core.minor, self.core.patch]
             .into_iter()
@@ -235,7 +212,6 @@ mod tests {
         assert!(parse("8.4.0-pre.20250101.1") > parse("8.3.9"));
         assert_eq!(parse("8.4.0rc1"), parse("8.4.0-rc1"));
         assert_eq!(parse("8.4.0rc1").prerelease(), "rc1");
-        // Only a numeric position can hold a wildcard; `x` is a valid prerelease label.
         assert!(parse("1.2.3-x").is_prerelease());
         assert!(parse("1.0.0-alpha.x") < parse("1.0.0"));
     }

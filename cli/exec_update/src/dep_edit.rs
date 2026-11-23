@@ -1,5 +1,3 @@
-//! The write, refresh and report tail shared by the dependency verbs (`dx update`).
-
 use dx_error::DxError;
 use dx_exec_core::common::{
     CODE_FROZEN_LOCKED, CODE_OFFLINE_REQUIRED, CODE_UPDATE_FAILED, CODE_UPDATE_SET_SUCCESS,
@@ -10,42 +8,29 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 
-/// The words and codes one dependency verb reports with.
 pub(crate) struct EditVerb {
-    /// The command name, e.g. in `related_command`.
     pub(crate) command: &'static str,
-    /// The noun for one edit, as in "(no widen performed)".
     pub(crate) noun: &'static str,
-    /// The notice code for a written manifest edit.
     pub(crate) notice_code: &'static str,
-    /// The error code for a failed edit.
     pub(crate) failure_code: &'static str,
-    /// What a no-op refresh of a pinned module lock reports.
     pub(crate) noop_note: &'static str,
 }
 
-/// One planned manifest edit and how to report it.
 pub(crate) struct DepEdit<'a> {
     pub(crate) verb: &'a EditVerb,
     pub(crate) target: &'a dx_update::edit::DepTarget,
     pub(crate) selector: &'a str,
-    /// The edit itself, e.g. "widened cargo:anyhow to 1.2.3 in the manifest".
     pub(crate) edited: String,
-    /// Where the edit stays when the refresh fails, e.g. "widen kept in the manifest".
     pub(crate) kept: String,
 }
 
-/// A dependency set a dependency verb edits.
 pub(crate) struct ConfiguredTarget {
     pub(crate) name: String,
-    /// Every manifest of the set; a bazel, uv, npm, maven or nuget set has exactly one.
     pub(crate) manifests: Vec<String>,
     pub(crate) kind: dx_update::edit::ConfiguredKind,
-    /// The hub repository a maven set names.
     pub(crate) repository: Option<String>,
 }
 
-/// The error for a selector whose set is neither declared nor built in.
 pub(crate) fn unknown_set_error(workspace: &std::path::Path, head: &str) -> String {
     let mut names: Vec<String> = match dx_adopt::dependency_sets::load(workspace) {
         Ok(Some(registry)) => registry.names().into_iter().map(String::from).collect(),
@@ -139,10 +124,6 @@ fn configured_kind(
     }
 }
 
-/// The single manifest of a dependency set the selector names, if any.
-///
-/// Bazel sets always qualify; uv, npm, cargo, maven and nuget sets only when `foreign`
-/// is set, and then their kind comes back.
 pub(crate) fn configured_set(
     verb: &EditVerb,
     invocation: &Invocation,
@@ -218,7 +199,6 @@ pub(crate) fn configured_set(
     }
 }
 
-/// Fails before any write when `--frozen` is set or `--offline` cannot refresh the set.
 pub(crate) fn preflight(
     verb: &EditVerb,
     invocation: &Invocation,
@@ -288,7 +268,6 @@ pub(crate) fn preflight(
                 | dx_update::edit::ConfiguredKind::Go
         ))
     {
-        // A foreign lock layout or a vanished set would only fail after the write.
         if let Some((_, Err(dx_update::backend::BackendError::Unsupported { reason, .. }))) =
             refresh_plan(workspace, invocation, target, None)
         {
@@ -307,10 +286,6 @@ pub(crate) fn preflight(
     Ok(())
 }
 
-/// Why a configured cargo, maven or go set cannot be refreshed, checked before any write.
-///
-/// These are the same refusals `dx update` makes for the set: missing files, an
-/// unsupported lock layout and host environment that redirects resolution.
 fn hub_gate_refusal(
     workspace: &std::path::Path,
     target: &dx_update::edit::DepTarget,
@@ -337,7 +312,6 @@ fn hub_gate_refusal(
         .map(|error| error.to_string())
 }
 
-/// The workspace, updater runner and output streams one edit uses.
 pub(crate) struct EditIo<'a> {
     pub(crate) workspace: &'a std::path::Path,
     pub(crate) runner: &'a dyn dx_process::Runner,
@@ -346,7 +320,6 @@ pub(crate) struct EditIo<'a> {
     pub(crate) err: &'a mut dyn std::io::Write,
 }
 
-/// Writes every planned manifest, then refreshes the set's locks through `dx update`.
 pub(crate) fn write_and_refresh(
     edit: &DepEdit<'_>,
     invocation: &Invocation,
@@ -418,7 +391,6 @@ pub(crate) fn write_and_refresh(
     run_refresh(edit, invocation, io, manifest, &update_name, plan, verbose)
 }
 
-/// Reports an edit that needs no lock refresh.
 fn report_edit_only(
     edit: &DepEdit<'_>,
     invocation: &Invocation,
@@ -461,7 +433,6 @@ fn report_edit_only(
     0
 }
 
-/// Maps a backend refusal to the failure the edit reports.
 fn report_plan_failure(
     edit: &DepEdit<'_>,
     invocation: &Invocation,
@@ -514,7 +485,6 @@ fn report_plan_failure(
     }
 }
 
-/// Runs the planned refresh and reports the edit.
 fn run_refresh(
     edit: &DepEdit<'_>,
     invocation: &Invocation,
@@ -560,7 +530,6 @@ fn run_refresh(
         RefreshPlan::Backend(dx_update::backend::BackendPlan::Noop) => {
             finish(Ok(()), refreshed(verb.noop_note))
         }
-        // Only a go set plans a staged run here; nuget updates never plan a refresh.
         RefreshPlan::Backend(dx_update::backend::BackendPlan::Staged(run)) => {
             let result = refresh_staged(
                 &run,
@@ -619,7 +588,6 @@ fn run_refresh(
     }
 }
 
-/// The lockfile an in-directory refresh rewrites, relative to the workspace.
 fn in_dir_lock(request: &dx_update::edit::DepTarget, dir: &str) -> String {
     let lock_name = if request.is_configured_ruby() {
         dx_adopt::dependency_sets::Ecosystem::Ruby
@@ -635,10 +603,6 @@ fn in_dir_lock(request: &dx_update::edit::DepTarget, dir: &str) -> String {
     }
 }
 
-/// Refreshes a go set's lock through the staged runner `dx update` uses.
-///
-/// Nothing but the declared lock is written; when go fails or edits the manifest the widen stays
-/// and the message names the manual next step.
 fn refresh_staged(
     run: &dx_update::backend::StagedRun,
     runner: &dyn dx_process::Runner,
@@ -676,7 +640,6 @@ fn refresh_staged(
     }
 }
 
-/// Runs one refresh process in `cwd`; the error is the full failure message.
 fn launch_refresh(
     runner: &dyn dx_process::Runner,
     argv: &[String],
@@ -818,10 +781,6 @@ fn backend_failed(
     )
 }
 
-/// The updater plan that refreshes the locks of `target`'s set, with the set name.
-///
-/// `tools` resolves the pinned uv for a configured uv set; without it the plan is only
-/// a feasibility probe (offline and frozen are refused before any tool is needed).
 fn refresh_plan(
     workspace: &std::path::Path,
     invocation: &Invocation,
@@ -867,7 +826,6 @@ fn refresh_plan(
             dx_adopt::dependency_sets::Selection::Packages(vec![target.package.clone()]),
             dx_update::backend::UvClosure::default(),
         ),
-        // A hub repin re-resolves the whole lock.
         dx_update::edit::ConfiguredKind::Cargo
         | dx_update::edit::ConfiguredKind::Maven
         | dx_update::edit::ConfiguredKind::Cabal
@@ -886,7 +844,6 @@ fn refresh_plan(
             );
             return Some((name, plan.map(RefreshPlan::InDir)));
         }
-        // Nothing re-resolves the paket lock, so a nuget update never plans a refresh.
         dx_update::edit::ConfiguredKind::Nuget => return None,
         dx_update::edit::ConfiguredKind::Uv => (
             dx_adopt::dependency_sets::Selection::Full,
@@ -916,13 +873,11 @@ fn refresh_plan(
     Some((name, plan.map(RefreshPlan::Backend)))
 }
 
-/// What refreshes a dependency's lock: an updater plan, or `bazel mod deps` in a directory.
 enum RefreshPlan {
     Backend(dx_update::backend::BackendPlan),
     InDir(dx_update::backend::DirRun),
 }
 
-/// Names the manifests a configured set must have.
 fn manifest_need(
     ecosystem: dx_adopt::dependency_sets::Ecosystem,
     kind: dx_update::edit::ConfiguredKind,

@@ -42,8 +42,6 @@ pub fn retry_sets(report: &UpdateReport) -> Vec<String> {
     sets.into_iter().collect()
 }
 
-/// Lock paths to restore for every Updated outcome, looked up by set name in
-/// `locks`; sets missing from the map contribute nothing.
 #[must_use]
 pub fn restore_paths(report: &UpdateReport, locks: &BTreeMap<String, Vec<String>>) -> Vec<String> {
     let mut paths = BTreeSet::new();

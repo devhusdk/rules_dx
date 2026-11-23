@@ -16,8 +16,6 @@ use dx_exec_core::common::{check_stdout_write, emit_built, report_dx_error};
 const CODE_CONFIG_FAILED: &str = "config_failed";
 const TIER_BASE: &str = "tier base";
 
-/// One tool: its root file when the workspace has one, the base it reads and whether you
-/// edited the root file.
 struct Entry {
     tool: &'static str,
     root: Option<String>,
@@ -52,7 +50,6 @@ impl Entry {
 pub(super) fn root_names(workspace: &Path) -> BTreeSet<String> {
     std::fs::read_dir(workspace)
         .map(|entries| {
-            // An entry that vanished or cannot be read mid-listing is not a root file.
             entries
                 .filter_map(|entry| Some(entry.ok()?.file_name().to_string_lossy().into_owned()))
                 .collect()
@@ -171,8 +168,6 @@ pub(super) fn blob_sha(workspace: &Path, base: &str) -> Result<String, DxError> 
     Ok(output.stdout_text().trim().to_owned())
 }
 
-/// Copies the base to the tool's root file behind a `dx: override of base <sha>` comment and
-/// returns the file written.
 fn override_tool(workspace: &Path, tool: &str) -> Result<String, DxError> {
     let config = tool_config(tool)?;
     let base = dx_generate::base_path(config).ok_or_else(|| DxError::failure("no base"))?;

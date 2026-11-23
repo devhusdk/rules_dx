@@ -54,8 +54,6 @@ fn finish_incomplete_generate(
     code
 }
 
-/// Adds the `MODULE.bazel` stanzas for the root lock files with `--apply`, first creating the root locks that are missing; otherwise says what
-/// `--apply` would do. Every step is said on `err` and kept as a notice for the run.
 fn wire_module(request: &GenerateRequest, env: &mut Env<'_>, resolved: &ResolvedScope) -> Wiring {
     let mut wiring = Wiring::default();
     let workspace = env.workspace;
@@ -115,9 +113,6 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>, resolved: &Resolved
     wiring
 }
 
-/// Runs the pinned resolver of every lock set in the generate scope: a check compares the lock
-/// with its inputs offline, `--apply` writes a stale lock. A root manifest seeded above
-/// is skipped.
 fn lock_sets(
     request: &GenerateRequest,
     env: &mut Env<'_>,
@@ -186,7 +181,6 @@ fn lock_sets(
     }
 }
 
-/// Writes the `pnpm-workspace.yaml` with `allowBuilds` that `rules_js` requires beside each wired pnpm lock.
 fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mut Wiring) {
     let paths = match dx_adopt::plan_pnpm_settings(workspace) {
         Ok(paths) => paths,
@@ -211,7 +205,6 @@ fn wire_pnpm_settings(workspace: &Path, apply: bool, err: &mut dyn Write, wiring
     }
 }
 
-/// Creates the files and `MODULE.bazel` lines `avro_cc_library` needs.
 fn wire_avro_cpp(workspace: &Path, apply: bool, err: &mut dyn Write, wiring: &mut Wiring) {
     let plan = match dx_adopt::plan_avro_cpp(workspace) {
         Ok(plan) => plan,
@@ -260,7 +253,6 @@ fn resolver_hub(manifest: &str) -> Option<&'static dx_families::Hub> {
         .find(|hub| hub.manifest == manifest && hub.resolver.is_some())
 }
 
-/// Runs the pinned resolver of `hub` at the root.
 fn seed_resolver_lock(
     request: &GenerateRequest,
     env: &mut Env<'_>,
@@ -299,7 +291,6 @@ fn has_root_build(workspace: &Path) -> bool {
     workspace.join("BUILD").exists() || workspace.join("BUILD.bazel").exists()
 }
 
-/// Runs `uv lock` at the root with the pinned uv and interpreter.
 fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let closure = dx_exec_reports::uv_tools::configured_uv_closure(
         env.runner,
@@ -339,7 +330,6 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wirin
     );
 }
 
-/// Makes `@pnpm` visible to the root module, then runs `pnpm install --lockfile-only` with it.
 fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let tool = dx_adopt::plan_pnpm_tool(env.workspace).map(|plan| (plan.notes, plan.edit));
     wire(
@@ -371,7 +361,6 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wir
     );
 }
 
-/// Fills the empty cargo lock with the `crate_universe` repin `dx update` runs.
 fn fill_cargo_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wiring) {
     let hub = dx_families::hub("cargo").map_or("", |hub| hub.hub.as_str());
     let argv = dx_update::backend::configured_fetch_argv(&request.bazel_head(), hub, false);
@@ -454,7 +443,6 @@ fn wire(
     }
 }
 
-/// What the module and lock wiring said, kept for the JSON stream and the exit code.
 #[derive(Default)]
 struct Wiring {
     notices: Vec<dx_output::NoticeEvent>,
@@ -488,7 +476,6 @@ impl Wiring {
         self.notices.push(notice);
     }
 
-    /// A step that failed, or a check with edits left to make, is not clean.
     fn dirty(&self, apply: bool) -> bool {
         self.failed || (!apply && self.pending)
     }
@@ -596,8 +583,6 @@ fn run_generate_request(
     code
 }
 
-/// Gazelle writes the workspace itself only when every path is writable; otherwise it
-/// runs as a check and [`apply_within`] writes the writable part of its result.
 fn gazelle_writes(request: &GenerateRequest) -> bool {
     request.applies() && request.writable.is_none()
 }
@@ -979,7 +964,6 @@ mod tests {
         harness
     }
 
-    /// The `cargo` hub name.
     fn cargo_hub() -> &'static str {
         dx_families::hub("cargo")
             .expect("setup.hubs entry cargo")
@@ -1045,7 +1029,6 @@ mod tests {
         );
     }
 
-    /// A workspace with one `ecosystem` set named `web` in `php` whose manifest is `manifest`.
     fn lock_set(
         name: &str,
         ecosystem: &str,

@@ -12,14 +12,12 @@ struct Call {
     expression: String,
 }
 
-/// Query runner that replays queued results in order and records each call.
 pub(crate) struct FakeQuery {
     calls: RefCell<Vec<Call>>,
     outputs: RefCell<Vec<QueryResult>>,
 }
 
 impl FakeQuery {
-    /// Builds a fake that returns `outputs` one per query, first to last.
     pub(crate) fn new(outputs: Vec<QueryResult>) -> Self {
         FakeQuery {
             calls: RefCell::new(Vec::new()),
@@ -27,17 +25,14 @@ impl FakeQuery {
         }
     }
 
-    /// A successful result whose stdout is `lines`.
     pub(crate) fn ok(lines: &str) -> QueryResult {
         FakeQuery::raw(lines.as_bytes().to_vec())
     }
 
-    /// A successful result whose stdout is the given graph rule lines.
     pub(crate) fn graph(lines: &[String]) -> QueryResult {
         FakeQuery::ok(&graph_stdout(lines))
     }
 
-    /// A failed result (exit code 2) whose stderr is `stderr`.
     pub(crate) fn failed(stderr: &str) -> QueryResult {
         QueryResult {
             code: Some(2),
@@ -46,7 +41,6 @@ impl FakeQuery {
         }
     }
 
-    /// A successful result with raw stdout bytes.
     pub(crate) fn raw(stdout: Vec<u8>) -> QueryResult {
         QueryResult {
             code: Some(0),
@@ -55,7 +49,6 @@ impl FakeQuery {
         }
     }
 
-    /// The argv and cwd of every query run so far.
     pub(crate) fn calls(&self) -> Vec<(Vec<String>, PathBuf)> {
         self.calls
             .borrow()
@@ -64,7 +57,6 @@ impl FakeQuery {
             .collect()
     }
 
-    /// The query expression of every query run so far.
     pub(crate) fn expressions(&self) -> Vec<String> {
         self.calls
             .borrow()
@@ -73,7 +65,6 @@ impl FakeQuery {
             .collect()
     }
 
-    /// The bazel verb (`query` or `cquery`) of every query run so far.
     pub(crate) fn verbs(&self) -> Vec<String> {
         self.calls
             .borrow()

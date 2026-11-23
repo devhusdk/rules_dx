@@ -7,14 +7,12 @@ use dx_process::shell::word as shell_word;
 
 use crate::rule_keys::{rule_report, rule_settings};
 
-/// What the caller asked for: whether it applies and which workspace it named.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct UpgradeIntent {
     pub apply: bool,
     pub workspace: Option<String>,
 }
 
-/// The command that reruns this upgrade.
 #[must_use]
 pub fn upgrade_retry_command(to: &str, intent: &UpgradeIntent) -> String {
     let mut command = format!("dx upgrade --to {}", shell_word(to));
@@ -28,7 +26,6 @@ pub fn upgrade_retry_command(to: &str, intent: &UpgradeIntent) -> String {
     command
 }
 
-/// The recovery line for an upgrade that stopped part way.
 #[must_use]
 pub fn upgrade_recovery_message(to: &str, intent: &UpgradeIntent) -> String {
     format!(
@@ -37,8 +34,6 @@ pub fn upgrade_recovery_message(to: &str, intent: &UpgradeIntent) -> String {
     )
 }
 
-/// The lines that report how the bases differ between two `.dx/config` snapshots keyed by path.
-/// A changed base with rule keys gets a rule summary and one line per rule.
 #[must_use]
 pub fn base_changes(
     old: &BTreeMap<String, Vec<u8>>,
@@ -88,10 +83,8 @@ fn rule_report_for(config: &ToolConfig, old: &[u8], new: &[u8]) -> Option<Vec<St
     (!report.is_empty()).then_some(report)
 }
 
-/// Family tool selections keyed by family, then capability.
 pub type Selections = BTreeMap<String, BTreeMap<String, Vec<String>>>;
 
-/// A tool a family's capability dropped for another one.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ToolSwap {
     pub family: String,
@@ -115,7 +108,6 @@ impl ToolSwap {
     }
 }
 
-/// Each tool a family's capability dropped for another one.
 pub fn tool_swaps(old: &Selections, new: &Selections) -> Vec<ToolSwap> {
     let mut swaps = Vec::new();
     for (family, capabilities) in old {
@@ -142,8 +134,6 @@ pub fn tool_swaps(old: &Selections, new: &Selections) -> Vec<ToolSwap> {
 
 const SUPPRESSION_LIMIT: usize = 50;
 
-/// The `path:line` of each inline suppression of `tool` in `files`, capped at 50 with a
-/// closing `... and N more` line.
 pub fn suppression_lines<'a>(
     tool: &str,
     files: impl IntoIterator<Item = (&'a str, &'a str)>,
@@ -179,9 +169,6 @@ pub fn suppression_lines<'a>(
     lines
 }
 
-/// Merges the change from the old base to `new_base` into an override copy. The
-/// `dx: override of base <old_sha>` header line stays out of the merge and comes back
-/// pointing at `new_sha`.
 #[must_use]
 pub fn merge_override(
     root: &str,
@@ -211,13 +198,11 @@ pub fn merge_override(
     }
 }
 
-/// The line for an override copy left with conflict markers.
 #[must_use]
 pub fn override_conflict_message(file: &str) -> String {
     format!("{file}: merge conflict, resolve the markers")
 }
 
-/// The note for an override copy whose old base cannot be found.
 #[must_use]
 pub fn override_missing_base_message(file: &str, sha: &str, tool: &str) -> String {
     format!("{file}: base {sha} not in history; compare with dx config diff {tool}")

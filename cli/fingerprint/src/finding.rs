@@ -16,9 +16,6 @@ pub fn normalize_message(message: &str) -> String {
 #[must_use]
 pub fn line_context_digest(file_bytes: &[u8], start_byte: u64) -> Option<[u8; 32]> {
     let start: usize = start_byte.try_into().ok()?;
-    // An offset of exactly `len` sits on the last line: the empty line after a
-    // trailing newline, or the unterminated last line. Tools report findings
-    // like "missing final newline" there.
     if start > file_bytes.len() {
         return None;
     }

@@ -5,12 +5,6 @@ use crate::{DepInfo, DepcheckError};
 
 use super::put;
 
-/// Reads the `dependencies`, `build_dependencies` and `test_dependencies` tables of a
-/// `*.rockspec`. The `lua` entry only pins the interpreter and is skipped.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_lua_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let text = strip_comments(&text);
@@ -54,11 +48,6 @@ pub fn parse_lua_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
     Ok(deps)
 }
 
-/// Reads a lock: the name and version of each package. The rock revision is dropped.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_lua_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     Ok(super::lock_packages(path)?
         .into_iter()

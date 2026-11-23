@@ -1,5 +1,3 @@
-//! The `dx tool_resolve` command line: parses the flags, resolves one label and exports it.
-
 use std::ffi::OsStr;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -54,7 +52,6 @@ struct Cli {
     bazel_args: Vec<String>,
 }
 
-/// Runs `dx tool_resolve` with the arguments after its name and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     let cli = match Cli::try_parse_from(

@@ -3,8 +3,6 @@
     reason = "test fixtures: a failed setup fails the test"
 )]
 
-//! Workspace, file system and `quality_result` fixtures for quality phase tests.
-
 use dx_digest::blake3 as digest;
 use dx_testing::http::{Reply, serve};
 use quality_result::encode_validated;
@@ -13,23 +11,18 @@ use serde_json::json;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// The event Bazel ends every complete build event stream with.
 pub const LAST_EVENT: &str = r#"{"id":{"buildMetrics":{}},"lastMessage":true}"#;
 
-/// A scratch dir removed when the guard drops.
 #[must_use]
 pub fn temp_dir(prefix: &str) -> dx_test_scratch::TempDir {
     dx_test_scratch::scratch(&format!("dx-exec-quality-test-{prefix}-")).expect("scratch dir")
 }
 
-/// A real file system whose atomic writes fail for the listed paths, so tests
-/// can make one apply write fail without chmod tricks.
 pub struct FailingWrites {
     failing: Vec<PathBuf>,
 }
 
 impl FailingWrites {
-    /// Canonicalizes each path, since writes go to the resolved file.
     #[must_use]
     pub fn new(failing: &[PathBuf]) -> Self {
         Self {
@@ -54,7 +47,6 @@ impl dx_apply::FileSystem for FailingWrites {
     }
 }
 
-/// A scratch workspace and temp dir, both removed on drop.
 pub struct QualityWorkspace {
     pub workspace: PathBuf,
     pub temp: PathBuf,
@@ -105,7 +97,6 @@ pub fn write_source(workspace: &Path, path: &str, text: &str) {
     std::fs::write(full, text).expect("write source");
 }
 
-/// A result for `src/a.py` that snapshots its current bytes.
 #[must_use]
 pub fn valid_result(
     workspace: &Path,
@@ -124,7 +115,6 @@ pub fn valid_result(
     )
 }
 
-/// A result with one fixable warning and snapshot per path, changes in the order given.
 #[must_use]
 pub fn paths_result(workspace: &Path, paths: &[&str], changes: Vec<proto::FileEdits>) -> Vec<u8> {
     let initial = paths
@@ -209,7 +199,6 @@ pub fn diagnostic_with(
     }
 }
 
-/// A 0..1 edit of `path` against its current digest.
 #[must_use]
 pub fn replacement_in(workspace: &Path, path: &str, replacement: &[u8]) -> proto::FileEdits {
     let original = std::fs::read(workspace.join(path)).expect("source");
@@ -237,7 +226,6 @@ pub fn replacement_at(
     }
 }
 
-/// A loopback link host: `/ok` answers 200, every other target 404. Returns the base URL.
 #[must_use]
 pub fn serve_links() -> String {
     let (base, _) = serve(|target| {
@@ -250,7 +238,6 @@ pub fn serve_links() -> String {
     base
 }
 
-/// A runner request for `docs/README.md` whose lychee stage uses `lychee`.
 #[must_use]
 pub fn online_link_request(lychee: &Path) -> Vec<u8> {
     serde_json::to_vec(&json!({

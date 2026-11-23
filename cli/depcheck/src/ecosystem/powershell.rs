@@ -5,12 +5,6 @@ use crate::{DepInfo, DepcheckError};
 
 use super::put;
 
-/// Reads `RequiredModules` of a `*.psd1`: bare names or `@{ ModuleName = ...; ModuleVersion = ... }`.
-/// `ModuleVersion` is a minimum, `RequiredVersion` an exact pin, `MaximumVersion` a ceiling.
-///
-/// # Errors
-///
-/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_powershell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let text = strip_comments(&text);
@@ -95,12 +89,6 @@ pub fn parse_powershell_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo
     Ok(deps)
 }
 
-/// Reads the lock: the name and version of each package under the lowercase name, as the
-/// manifest keys are.
-///
-/// # Errors
-///
-/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_powershell_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     Ok(super::lock_packages(path)?
         .into_iter()
@@ -126,7 +114,6 @@ fn strip_comments(text: &str) -> String {
         .join("\n")
 }
 
-/// Offset of the `}` closing an already opened brace, or the text length when unclosed.
 fn brace_end(text: &str) -> usize {
     let mut depth = 1usize;
     for (at, ch) in text.char_indices() {

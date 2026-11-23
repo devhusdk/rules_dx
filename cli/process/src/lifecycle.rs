@@ -1,5 +1,3 @@
-//! Synchronous child lifecycle shared below domain adapters.
-
 use dx_os_sys::console::CtrlEvent;
 use std::ffi::OsString;
 use std::io;
@@ -11,41 +9,24 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-/// How the child sees the environment.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EnvPolicy {
-    /// Keep the parent environment and add these entries on top.
-    /// Bazel passthrough uses this so terminal, signal, and auth state flow through.
     Inherited { extra: Vec<(OsString, OsString)> },
-    /// Start from an empty environment with exactly these entries.
-    /// Controlled tool execution uses this so only pinned values reach the tool.
     Controlled { vars: Vec<(OsString, OsString)> },
 }
 
-/// How much tool output the caller is willing to hold.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CapturePolicy {
-    /// Per-stream byte bound supplied by the caller. The domain parser
-    /// limit is passed in here, never imported by this module.
     pub max_bytes: usize,
 }
 
-/// Whether processes the child starts stay owned by the run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Descendants {
-    /// Every descendant ends with the run.
     Owned,
-    /// Descendants that leave the console or session, like a Bazel server, may outlive the run.
-    /// On Windows, a forced stop without a console also ends them (see `attached_targets`).
     Detachable,
-    /// The child stays in dx's process group, so terminal signals reach it and it may read the terminal.
-    /// A stop signals the child alone.
     Foreground,
 }
 
-/// The job members a Detachable stop kills: those on dx's console, except dx itself.
-/// `None` means the attached members cannot be told apart (no member list, or dx has no
-/// console), so a forced stop falls back to ending the whole job, detached server included.
 #[cfg(windows)]
 fn attached_targets(own: u32, members: Option<&[u32]>, console: &[u32]) -> Option<Vec<u32>> {
     let members = members?;
@@ -61,25 +42,16 @@ fn attached_targets(own: u32, members: Option<&[u32]>, console: &[u32]) -> Optio
     )
 }
 
-/// Everything one spawn needs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpawnSpec {
-    /// The binary followed by its arguments. Empty is rejected before spawning.
     pub argv: Vec<OsString>,
-    /// The directory the child starts in.
     pub cwd: PathBuf,
-    /// Inherited or controlled environment.
     pub env: EnvPolicy,
-    /// Per-stream capture bound.
     pub capture: CapturePolicy,
-    /// Monotonic bound for the child to exit on its own. Cleanup and
-    /// draining after the deadline are bounded separately below.
     pub timeout: Duration,
-    /// Whether detached descendants may outlive the run.
     pub descendants: Descendants,
 }
 
-/// How a reaped child went out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Exit {
     Code(i32),
@@ -96,7 +68,6 @@ impl Exit {
     }
 }
 
-/// What one bounded spawn produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ChildOutcome {
     Finished {
@@ -112,7 +83,6 @@ pub enum ChildOutcome {
 
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
 
-/// `at` plus `span`, capped at about a century so a huge span never overflows `Instant`.
 fn after(at: Instant, span: Duration) -> Instant {
     const CENTURY: Duration = Duration::from_secs(100 * 365 * 24 * 3600);
     at.checked_add(span)
@@ -120,26 +90,20 @@ fn after(at: Instant, span: Duration) -> Instant {
         .unwrap_or(at)
 }
 
-/// How long cleanup may take once the deadline passes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CleanupBudget {
-    /// Wait after asking the owned tree to stop.
     pub graceful: Duration,
-    /// Wait after forcing the owned tree to stop.
     pub forced: Duration,
-    /// Wait for the pipes to close.
     pub drain: Duration,
 }
 
 impl CleanupBudget {
-    /// The budget for tool runs and passthrough.
     pub const STANDARD: CleanupBudget = CleanupBudget {
         graceful: Duration::from_secs(2),
         forced: Duration::from_secs(2),
         drain: Duration::from_secs(5),
     };
 
-    /// The whole cleanup bound.
     #[must_use]
     pub fn total(&self) -> Duration {
         self.graceful
@@ -148,26 +112,14 @@ impl CleanupBudget {
     }
 }
 
-/// Run one child to a bounded outcome under the standard cleanup budget.
 pub fn run(spec: &SpawnSpec) -> io::Result<ChildOutcome> {
     run_within(spec, CleanupBudget::STANDARD)
 }
 
-/// Run one child to a bounded outcome.
-///
-/// The child waits at most `timeout`. Then the owned tree is asked to stop
-/// gracefully where the platform can (Unix), and is forced otherwise or
-/// when it does not stop in time. Then the pipes are drained. The call returns no
-/// later than the timeout plus the cleanup budget. Spawn and wait failures
-/// are I/O errors. A tree that escapes its owner is reported as a timeout,
-/// never as success.
 pub fn run_within(spec: &SpawnSpec, cleanup: CleanupBudget) -> io::Result<ChildOutcome> {
     run_within_until(spec, cleanup, &|| None)
 }
 
-/// Like `run_within`, and also stops the child once `stop` returns a signal.
-///
-/// A stopped child is reported as `TimedOut`.
 pub fn run_within_until(
     spec: &SpawnSpec,
     cleanup: CleanupBudget,
@@ -195,9 +147,6 @@ pub fn run_within_until(
     )
 }
 
-/// Like `run_within_until`, for a `Command` the caller has already set up
-/// (program, args, cwd, env). Stdin is set to null and stdout and stderr are
-/// piped here. A stopped child is reported as `TimedOut`.
 pub fn run_command_until(
     command: &mut Command,
     capture: &CapturePolicy,
@@ -209,8 +158,6 @@ pub fn run_command_until(
     run_command_with_input(command, None, capture, timeout, descendants, cleanup, stop)
 }
 
-/// Like `run_command_until`, and feeds `input` to the child's stdin, then closes it.
-/// Without input, stdin is null. A child that stops reading early is not an error.
 pub fn run_command_with_input(
     command: &mut Command,
     input: Option<&[u8]>,
@@ -401,80 +348,43 @@ fn drain_pipe<R: io::Read + Send + 'static>(
     rx
 }
 
-/// Where one of a streamed child's output streams goes.
 pub enum StreamOutput {
-    /// The child writes to the parent's stream directly.
     Inherit,
-    /// The parent copies the child's stream into this sink.
     Forward(Box<dyn io::Write + Send>),
 }
 
-/// What a streamed child reads on stdin.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StreamStdin {
-    /// The child reads the parent's stdin.
     Inherit,
-    /// The child reads nothing.
     Null,
 }
 
-/// Who owns a streamed child's process tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StreamGroup {
-    /// The child runs in its own foreground group on the parent's terminal.
     Terminal,
-    /// The child leads its own group, which the parent signals and cleans up.
     Owned,
 }
 
-/// One streamed child with no deadline.
 pub struct StreamSpec {
-    /// The binary followed by its arguments. Empty is rejected before spawning.
     pub argv: Vec<OsString>,
-    /// The directory the child starts in.
     pub cwd: PathBuf,
-    /// Inherited or controlled environment.
     pub env: EnvPolicy,
-    /// What stdin the child reads.
     pub stdin: StreamStdin,
-    /// Where stdout goes.
     pub stdout: StreamOutput,
-    /// Where stderr goes.
     pub stderr: StreamOutput,
-    /// Who owns the process tree.
     pub group: StreamGroup,
-    /// Open files whose locks must last as long as the child tree.
-    ///
-    /// On Unix each handle is inherited by the child only (never by sibling
-    /// spawns), so a `flock` lock on it stays held by the child and every
-    /// descendant that keeps the descriptor, even after this process exits
-    /// or crashes. A child that closes inherited descriptors (some daemons
-    /// close everything above fd 2) drops that protection.
-    ///
-    /// On Windows a `LockFileEx` lock is not shared through inherited
-    /// handles, so this process keeps the handles until the run ends and
-    /// puts the child in a kill-on-close job: when the run ends, or this
-    /// process dies, the whole tree ends with the lock.
-    ///
-    /// The handles are dropped only after the tree is settled.
     pub held: Vec<std::fs::File>,
 }
 
-/// How a streamed run ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StreamOutcome {
-    /// The child exited on its own.
     Exited(Exit),
-    /// A stop signal arrived before the run completed.
     Cancelled { signal: i32 },
-    /// The caller withdrew the run; its tree got SIGTERM and is gone.
     Withdrawn,
 }
 
 const WITHDRAW_SIGNAL: i32 = 15;
 
-/// How many streamed runs can have stop signals forwarded to them at once.
-/// A run that finds the table full is not forwarded to.
 const FORWARD_SLOTS: usize = 8;
 
 struct Slot {
@@ -496,11 +406,9 @@ static REGISTER: Mutex<()> = Mutex::new(());
 
 pub use dx_os_sys::STOP_SIGNALS;
 
-/// Makes Ctrl-C and Ctrl-Break record a stop like SIGINT.
 #[cfg(windows)]
 pub use backend::install_console_stop;
 
-/// Maps a Windows console control event to the signal it acts as: Ctrl-C and Ctrl-Break are SIGINT.
 #[must_use]
 pub fn console_stop_signal(event: CtrlEvent) -> Option<i32> {
     match event {
@@ -509,7 +417,6 @@ pub fn console_stop_signal(event: CtrlEvent) -> Option<i32> {
     }
 }
 
-/// Records a stop signal and forwards it once to each running child's group; safe inside a signal handler.
 // LCOV_EXCL_START - reason: the signal handler entry records a process-wide interrupt, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 pub fn forward_stop(signo: i32) {
     forward_from(&FORWARDS, signo, crate::record_interrupt, backend::send);
@@ -533,13 +440,11 @@ fn forward_from(slots: &[Slot], signo: i32, record: fn(i32), send: fn(i32, i32))
     }
 }
 
-/// Whether this process is in the foreground group of its controlling terminal.
 #[must_use]
 pub fn terminal_foreground() -> bool {
     backend::terminal_foreground()
 }
 
-/// The group a streamed child joins: the terminal foreground when this process holds it, else its own.
 #[must_use]
 pub fn stream_group() -> StreamGroup {
     stream_group_for(terminal_foreground())
@@ -553,7 +458,6 @@ fn stream_group_for(foreground: bool) -> StreamGroup {
     }
 }
 
-/// The only writer to `FORWARDS`.
 struct Forwarding {
     target: i32,
     slot: Option<&'static Slot>,
@@ -582,7 +486,6 @@ impl Forwarding {
         Forwarding { target, slot }
     }
 
-    /// Whether the signal handler already sent a stop signal to this run.
     fn claimed(&self) -> bool {
         self.slot
             .is_some_and(|slot| slot.claimed.load(Ordering::SeqCst))
@@ -604,8 +507,6 @@ impl Drop for Forwarding {
     }
 }
 
-/// The stdin a streamed child gets. A child alone in a background group would be stopped by
-/// SIGTTIN on a terminal it does not own, so it reads nothing there.
 fn stream_stdin(requested: StreamStdin, own_group: bool, stdin_tty: bool) -> StreamStdin {
     if requested == StreamStdin::Inherit && own_group && stdin_tty {
         StreamStdin::Null
@@ -614,7 +515,6 @@ fn stream_stdin(requested: StreamStdin, own_group: bool, stdin_tty: bool) -> Str
     }
 }
 
-/// Run one streamed child until it exits, or stop its owned tree once `stop` reports a signal.
 pub fn run_streamed(
     spec: StreamSpec,
     cleanup: CleanupBudget,
@@ -623,7 +523,6 @@ pub fn run_streamed(
     run_streamed_until(spec, cleanup, stop, &|| false)
 }
 
-/// Like `run_streamed`, and also stops the tree with SIGTERM once `withdraw` returns true.
 pub fn run_streamed_until(
     spec: StreamSpec,
     cleanup: CleanupBudget,
@@ -633,7 +532,6 @@ pub fn run_streamed_until(
     run_streamed_in(spec, cleanup, stop, withdraw, crate::groups::lease_dir())
 }
 
-/// Like `run_streamed_until`, with owned group leases kept in `lease_dir`.
 pub(crate) fn run_streamed_in(
     spec: StreamSpec,
     cleanup: CleanupBudget,
@@ -687,7 +585,6 @@ pub(crate) fn run_streamed_in(
         lease.record_from_child(&mut command);
     }
     let (mut child, tree) = backend::spawn_streamed(&mut command, group, &held)?;
-    // The spawn hooks own descriptor duplicates; close them now rather than at return.
     drop(command);
     if let Some(lease) = lease.as_ref()
         && let Err(error) = lease.record_unwritten(child.id().cast_signed())
@@ -811,7 +708,6 @@ pub(crate) fn run_streamed_in(
     })
 }
 
-/// The stop signal that ended a child in the terminal's foreground group.
 fn group_stop(terminal: bool, exit: Option<Exit>) -> Option<i32> {
     match exit {
         Some(Exit::Signal(signo)) if terminal && STOP_SIGNALS.contains(&signo) => Some(signo),
@@ -819,7 +715,6 @@ fn group_stop(terminal: bool, exit: Option<Exit>) -> Option<i32> {
     }
 }
 
-/// Records the stop signals the terminal delivered straight to the child's group; they are not forwarded again.
 // LCOV_EXCL_START - reason: needs a controlling terminal, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 fn record_reported(job: &backend::TerminalJob) {
     while let Some(signo) = job.take_reported() {
@@ -827,7 +722,6 @@ fn record_reported(job: &backend::TerminalJob) {
     }
 }
 
-/// Records every stop signal the group got before the child exited, then any still unread.
 fn settle_reported(job: &backend::TerminalJob) {
     for signo in job.settle() {
         crate::record_interrupt(signo);
@@ -836,7 +730,6 @@ fn settle_reported(job: &backend::TerminalJob) {
 }
 // LCOV_EXCL_STOP - reason: end of excluded branch, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 
-/// How the run reaches an owned tree; tests swap in fakes.
 struct Tree {
     alive: fn(i32) -> bool,
     send: fn(i32, i32),
@@ -849,7 +742,6 @@ const OS_TREE: Tree = Tree {
     kill: backend::send_kill,
 };
 
-/// Asks an owned tree that is still running to withdraw; false when it is gone.
 fn withdraw_leftover(tree: &Tree, target: i32) -> bool {
     let alive = (tree.alive)(target);
     if alive {
@@ -932,14 +824,10 @@ pub(crate) mod test_exports {
 }
 
 mod backend {
-    /// Which process group a streamed child joins.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum Group {
-        /// It leads its own group, which the parent owns and cleans up.
         Owned,
-        /// It joins this terminal job's foreground group.
         Join(i32),
-        /// It leads its own group and nobody cleans up after it.
         Own,
     }
 

@@ -35,7 +35,6 @@ fn required_options(
     )
 }
 
-/// The required options of one quality build; probe and build differ only in the aspects, output group and event file.
 fn shaped_options(
     aspects: &str,
     group: &str,
@@ -52,18 +51,13 @@ fn shaped_options(
     required
 }
 
-/// The shard name of one real aspect label: `...rust/private/quality/rust.bzl%real_rust_lint_aspect` is `real_rust_lint`.
 fn shard_name(aspect: &str) -> &str {
     let name = aspect.rsplit_once('%').map_or(aspect, |(_, name)| name);
     name.strip_suffix("_aspect").unwrap_or(name)
 }
 
-/// The core shard of each capability runs on every target, so the probe never drops it.
 const CORE_SHARDS: [&str; 3] = ["real_lint", "real_format", "real_typecheck"];
 
-/// The registry aspects to pass: all of them, or the core ones, the helpers and the shards the
-/// probe named. A helper aspect, one whose name lacks the `real_` prefix of a shard, provides for
-/// the shards after it, so the probe never drops it.
 #[must_use]
 pub fn select_aspects(
     aspects: Vec<&'static str>,
@@ -91,9 +85,6 @@ pub(crate) fn setting_name(option: &str) -> Result<String, DxError> {
     Ok(name.to_owned())
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn protected_flags(required: &[String]) -> Result<Vec<ProtectedFlag>, DxError> {
     let keep_going = required
         .iter()
@@ -135,7 +126,6 @@ pub(crate) fn workflow_scope_labels(resolved: &ResolvedScope) -> (Scope, Vec<Str
     }
 }
 
-/// Like [`workflow_scope_labels`], with `-pattern` terms for the `dx.toml` excludes.
 pub(crate) fn workflow_bazel_labels(resolved: &ResolvedScope) -> (Scope, Vec<String>) {
     let (scope, labels) = workflow_scope_labels(resolved);
     if resolved.targets.is_empty() {
@@ -145,9 +135,6 @@ pub(crate) fn workflow_bazel_labels(resolved: &ResolvedScope) -> (Scope, Vec<Str
     }
 }
 
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_build(
     command: Command,
     resolved: &ResolvedScope,
@@ -165,24 +152,14 @@ pub fn plan_build(
     )
 }
 
-/// Which aspects a quality build passes; the default passes all of them.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Selection<'a> {
-    /// The shards the probe named; `None` passes every shard.
     pub shards: Option<&'a BTreeSet<String>>,
-    /// The consumer's `bazel_dep` names and file extensions; `None` keeps every aspect.
     pub consumer: Option<Consumer<'a>>,
-    /// `--unsafe`: the aspects also compute the fixes tools mark unsafe.
     pub unsafe_fixes: bool,
-    /// `--online`: the build also publishes the lint requests the host link check replays.
     pub online: bool,
 }
 
-/// Plans the quality build over the aspects `selection` keeps.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_build_with(
     command: Command,
     resolved: &ResolvedScope,
@@ -206,7 +183,6 @@ pub fn plan_build_with(
     )
 }
 
-/// The registry aspects `command` passes for `consumer`, or all of them without one.
 #[must_use]
 pub fn command_aspects(command: Command, consumer: Option<Consumer<'_>>) -> Vec<&'static str> {
     match consumer {
@@ -215,14 +191,6 @@ pub fn command_aspects(command: Command, consumer: Option<Consumer<'_>>) -> Vec<
     }
 }
 
-/// Plans one build that runs the aspects of every command in `commands` that `selection` keeps.
-///
-/// Each command's outputs keep their own aspect in the build events, so a reader can split
-/// them back per command.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_shared_build(
     commands: &[Command],
     resolved: &ResolvedScope,
@@ -250,7 +218,6 @@ pub fn plan_shared_build(
     )
 }
 
-/// The labels in first-seen order without repeats.
 fn union(labels: impl Iterator<Item = &'static str>) -> Vec<&'static str> {
     let mut seen: Vec<&'static str> = Vec::new();
     for label in labels {
@@ -283,11 +250,6 @@ fn selected_plan(
     shaped_plan(command, resolved, bazel_options, startup_options, &required)
 }
 
-/// Plans the docs build: the docs aspect over the scope, with the site manifests beside the results.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_docs(
     resolved: &ResolvedScope,
     bazel_options: &[String],
@@ -317,11 +279,6 @@ pub fn plan_docs(
     Ok(plan)
 }
 
-/// Plans the shard probe; its argv matches `plan_build`'s apart from the aspects, output group and event file.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_probe(
     command: Command,
     resolved: &ResolvedScope,
@@ -340,12 +297,6 @@ pub fn plan_probe(
     )
 }
 
-/// Plans one shard probe over the probes of every command in `commands`, for the build
-/// `plan_shared_build` plans over the same commands.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn plan_shared_probe(
     commands: &[Command],
     resolved: &ResolvedScope,
@@ -433,7 +384,6 @@ fn provenance_keyed_names() -> &'static [&'static str] {
     &["define", "build_metadata"]
 }
 
-/// Matches user-chosen names (define keys, Starlark flag targets) by `_`-separated segment.
 fn secret_key(name: &str) -> bool {
     let normalized = name.to_lowercase().replace(['-', '.'], "_");
     normalized.split('_').any(|segment| {
@@ -444,7 +394,6 @@ fn secret_key(name: &str) -> bool {
     })
 }
 
-/// True when `text` holds a `KEY=` assignment whose key names a secret, such as `-DAPI_KEY=x`.
 fn embedded_secret(text: &str) -> bool {
     text.match_indices('=').any(|(at, _)| {
         let head = text.get(..at).unwrap_or_default();
@@ -461,7 +410,6 @@ fn embedded_secret(text: &str) -> bool {
     })
 }
 
-/// Returns the target name of a Starlark flag such as `//pkg:flag` or `no@repo//:flag`.
 fn starlark_target(name: &str) -> Option<&str> {
     let rest = match name.strip_prefix("no") {
         Some(rest) if rest.starts_with("//") || rest.starts_with('@') => rest,
@@ -498,7 +446,6 @@ enum Pending {
     Keyed(String),
 }
 
-/// Splits Bazel options into ones safe to echo and redacted stand-ins for secrets.
 #[must_use]
 pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<String>) {
     let mut safe = Vec::new();

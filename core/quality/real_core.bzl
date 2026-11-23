@@ -174,6 +174,10 @@ def _real_attrs_for(table, tools):
     """Builds one shard attr set from the attrs in the tool table."""
     return _REAL_BASE_ATTRS | {"_" + tool: table[tool]["attr"] for tool in tools if "attr" in table[tool]}
 
+def real_resolve_list(files, extensions = [], map_each = None, strip_roots = None):
+    """A depset the runner resolves as map_each `workspace<TAB>exec` lines, less the longest strip_roots prefix."""
+    return struct(files = files, extensions = extensions, map_each = map_each or _resolve_line, strip_roots = strip_roots)
+
 def real_context(
         resolved = None,
         early_inputs = [],
@@ -192,7 +196,7 @@ def real_context(
         run_tools = [],
         options = {},
         delegated = False):
-    """Builds what one tool's context hook hands the core; resolve_lists holds (depset, extensions) pairs and dep_lists (depset, map_each) pairs."""
+    """Builds what one tool's context hook hands the core; resolve_lists holds real_resolve_list entries and dep_lists (depset, map_each) pairs."""
     return struct(
         resolved = resolved,
         early_inputs = early_inputs,
@@ -224,21 +228,17 @@ def _resolve_line(f):
         return None
     return f.short_path + "\t" + f.path
 
-def _resolve_list(ctx, name, files):
-    """Writes one `workspace<TAB>exec path` line per in-workspace file without flattening the depset."""
-    out = ctx.actions.declare_file(name)
-    args = ctx.actions.args()
-    args.set_param_file_format("multiline")
-    args.add_all(files, map_each = _resolve_line, expand_directories = False, uniquify = True)
-    ctx.actions.write(out, args)
-    return out
+def _root_line(root):
+    if root == ".":
+        return None
+    return root
 
-def _dep_list(ctx, name, files, map_each):
-    """Writes the `rel<TAB>exec path` lines map_each makes from a depset without flattening it."""
+def _resolve_list(ctx, name, values, map_each):
+    """Writes the lines map_each makes from a depset without flattening it."""
     out = ctx.actions.declare_file(name)
     args = ctx.actions.args()
     args.set_param_file_format("multiline")
-    args.add_all(files, map_each = map_each, expand_directories = False, uniquify = True)
+    args.add_all(values, map_each = map_each, expand_directories = False, uniquify = True)
     ctx.actions.write(out, args)
     return out
 
@@ -512,11 +512,17 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
                     fail(what + ": " + tool + " would stage two different files at " + ws_path + ": " + staged_as.path + " and " + f.path)
                 continue
             resolve_pairs[ws_path] = f
-        for (index, (files, extensions)) in enumerate(found.resolve_lists):
-            listed = _resolve_list(ctx, target.label.name + "-real-" + capability + output_suffix + "-" + tool + "-resolves-" + str(index) + ".txt", files)
-            request_resolve_lists.append({"extensions": extensions, "list": listed.path})
+        for (index, entry) in enumerate(found.resolve_lists):
+            prefix = target.label.name + "-real-" + capability + output_suffix + "-" + tool + "-resolves-" + str(index)
+            listed = _resolve_list(ctx, prefix + ".txt", entry.files, entry.map_each)
+            request_list = {"extensions": entry.extensions, "list": listed.path}
             inputs.append(listed)
-            staged_inputs.append(files)
+            if entry.strip_roots != None:
+                roots = _resolve_list(ctx, prefix + "-roots.txt", entry.strip_roots, _root_line)
+                request_list["strip_roots"] = roots.path
+                inputs.append(roots)
+            request_resolve_lists.append(request_list)
+            staged_inputs.append(entry.files)
         for (ws_path, error) in found.reserved:
             if _staged([path_to_file, sibling_pairs, resolve_pairs], ws_path) != None:
                 fail(what + ": " + error)
@@ -582,7 +588,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
                 inputs.append(file_lists[-1])
                 staged_inputs.extend(found.late_staged)
             for (index, (files, map_each)) in enumerate(found.dep_lists):
-                dep_lists.append(_dep_list(ctx, target.label.name + "-real-" + capability + output_suffix + "-" + tool + "-deps-" + str(index) + ".txt", files, map_each))
+                dep_lists.append(_resolve_list(ctx, target.label.name + "-real-" + capability + output_suffix + "-" + tool + "-deps-" + str(index) + ".txt", files, map_each))
                 inputs.append(dep_lists[-1])
                 staged_inputs.append(files)
         request_tools[tool] = real_request_tool(

@@ -1,0 +1,17 @@
+producer //core/quality/testdata:matrix_php_typecheck_strict_guards
+capability TYPECHECK
+stages 1
+stage phpstan classes=php sources=matrix/phpstan_strict_guards.php
+completed_rounds 1
+convergence STABLE
+initial 4
+initial ERROR phpstan phpstan/property.uninitialized matrix/phpstan_strict_guards.php 172 172 fixable=false "Class Dx\\Math\\Child has an uninitialized property $count. Give it default value or assign it in the constructor."
+initial ERROR phpstan phpstan/method.missingOverride matrix/phpstan_strict_guards.php 197 197 fixable=false "Method Dx\\Math\\Child::name() overrides method Dx\\Math\\Base::name() but is missing the #[\\Override] attribute."
+initial ERROR phpstan phpstan/missingType.callable matrix/phpstan_strict_guards.php 269 269 fixable=false "Method Dx\\Math\\Child::apply() has parameter $fn with no signature specified for callable."
+initial ERROR phpstan phpstan/return.unusedType matrix/phpstan_strict_guards.php 363 363 fixable=false "Method Dx\\Math\\Child::wide() never returns null so it can be removed from the return type."
+terminal 4
+terminal ERROR phpstan phpstan/property.uninitialized matrix/phpstan_strict_guards.php 172 172 fixable=false "Class Dx\\Math\\Child has an uninitialized property $count. Give it default value or assign it in the constructor."
+terminal ERROR phpstan phpstan/method.missingOverride matrix/phpstan_strict_guards.php 197 197 fixable=false "Method Dx\\Math\\Child::name() overrides method Dx\\Math\\Base::name() but is missing the #[\\Override] attribute."
+terminal ERROR phpstan phpstan/missingType.callable matrix/phpstan_strict_guards.php 269 269 fixable=false "Method Dx\\Math\\Child::apply() has parameter $fn with no signature specified for callable."
+terminal ERROR phpstan phpstan/return.unusedType matrix/phpstan_strict_guards.php 363 363 fixable=false "Method Dx\\Math\\Child::wide() never returns null so it can be removed from the return type."
+replacements 0

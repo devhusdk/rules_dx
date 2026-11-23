@@ -164,7 +164,7 @@ starlark_test(
         "//dart/private:defs.bzl": "dx_without_warnings_attr(",
         "//elixir/private:kwargs.bzl": "dx_warnings_as_errors(",
         "//erlang/private:kwargs.bzl": "dx_warnings_as_errors(",
-        "//fortran/private:kwargs.bzl": "dx_warnings_flags(",
+        "//fortran/private:kwargs.bzl": "dx_warnings_as_errors(",
         "//fsharp/private:kwargs.bzl": "dx_warnings_as_errors(",
         "//go/private:defs.bzl": "dx_warnings_flags(",
         "//haskell/private:kwargs.bzl": "dx_warnings_as_errors(",

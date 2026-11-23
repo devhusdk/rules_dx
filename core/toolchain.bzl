@@ -5,7 +5,7 @@ load(":ghcr.bzl", "ghcr_headers")
 load(":host.bzl", "host_cell")
 load(":repo.bzl", "gem_extract")
 
-visibility(["//cc/...", "//core/...", "//d/...", "//elixir/...", "//erlang/...", "//fortran/...", "//haskell/...", "//lua/...", "//msix/...", "//ocaml/...", "//powershell/...", "//swift/..."])
+visibility(["//cc/...", "//core/...", "//cuda/...", "//d/...", "//elixir/...", "//erlang/...", "//fortran/...", "//haskell/...", "//lua/...", "//msix/...", "//ocaml/...", "//powershell/...", "//swift/..."])
 
 _HEX = "0123456789abcdef"
 

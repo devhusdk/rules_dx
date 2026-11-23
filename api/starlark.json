@@ -5338,6 +5338,10 @@
         ]
       },
       {
+        "name": "dx_launchers",
+        "tag_classes": []
+      },
+      {
         "name": "dx_licenses",
         "tag_classes": [
           {
@@ -13948,6 +13952,10 @@
             "name": "pkg_annotation"
           }
         ]
+      },
+      {
+        "name": "julia_runtime",
+        "tag_classes": []
       },
       {
         "name": "julia_toolchain",

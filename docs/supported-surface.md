@@ -2573,6 +2573,12 @@ Tag `dx_gazelle.language`:
 | --- | --- | --- | --- |
 | `library` | `label` | yes |  |
 
+#### `dx_launchers`
+
+Module extension.
+
+No tags.
+
 #### `dx_licenses`
 
 Module extension.
@@ -5162,6 +5168,12 @@ Tag `julia.pkg_annotation`:
 | `patch_args` | `string_list` | no | `[]` |
 | `patch_tool` | `string` | no | `""` |
 | `patches` | `label_list` | no | `[]` |
+
+#### `julia_runtime`
+
+Module extension.
+
+No tags.
 
 #### `julia_toolchain`
 

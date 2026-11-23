@@ -2,6 +2,7 @@
 
 load("//cli/prebuilt:extension.bzl", _dx_prebuilt = "dx_prebuilt")
 load("//cli/prebuilt:gazelle.bzl", _dx_gazelle = "dx_gazelle")
+load("//core/hermetic_launcher:hub.bzl", _dx_launchers = "dx_launchers")
 load(":license.bzl", "LICENSE_IDS", "TERMS_LABEL", "accepted_terms", "terms_errors", "unknown_ids")
 load(":repo.bzl", "ARCHIVE_TYPES", "hub_repo", "pinned_archive")
 load(":root_only.bzl", "warn_dropped_tags")
@@ -173,3 +174,5 @@ dx_licenses = module_extension(
 dx_prebuilt = _dx_prebuilt
 
 dx_gazelle = _dx_gazelle
+
+dx_launchers = _dx_launchers

@@ -12,7 +12,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "bicep",
-        lint: &["bicep", "typos"],
+        lint: &["bicep", "trivy_config", "typos"],
         format: &["bicep"],
         typecheck: &[],
         audit: &[],
@@ -26,7 +26,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "cloudformation",
-        lint: &["cfn_lint", "typos"],
+        lint: &["cfn_lint", "trivy_config", "typos"],
         format: &[],
         typecheck: &[],
         audit: &[],
@@ -103,7 +103,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "helm",
-        lint: &["helm", "typos"],
+        lint: &["helm", "trivy_config", "typos"],
         format: &[],
         typecheck: &[],
         audit: &[],
@@ -152,7 +152,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
     },
     CuratedFamily {
         id: "kubernetes",
-        lint: &["kubeconform", "typos"],
+        lint: &["kubeconform", "trivy_config", "typos"],
         format: &[],
         typecheck: &[],
         audit: &[],

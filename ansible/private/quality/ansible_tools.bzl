@@ -7,7 +7,18 @@ TOOLS = [
         id = "ansible_lint",
         adapters = {"lint": ["ansible"]},
         config = config(suffixes = [".ansible-lint", ".yml", ".yaml"], tier_active = True, tier_source = "ansible-lint moderate and production profiles"),
-        severity = severity(default = "warning", categories = {"internal-error": "error", "load-failure": "error", "syntax-check": "error"}),
+        severity = severity(default = "warning", categories = {
+            "command-instead-of-module": "error",
+            "internal-error": "error",
+            "latest": "error",
+            "load-failure": "error",
+            "no-changed-when": "error",
+            "no-log-password": "error",
+            "package-latest": "error",
+            "risky-file-permissions": "error",
+            "risky-shell-pipe": "error",
+            "syntax-check": "error",
+        }),
         support = [
             row(
                 capability = "lint",

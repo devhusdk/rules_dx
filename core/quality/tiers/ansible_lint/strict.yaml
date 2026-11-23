@@ -1,1 +1,11 @@
 profile: production
+strict: true
+warn_list: []
+skip_list: []
+enable_list:
+  - args
+  - empty-string-compare
+  - galaxy-version-incorrect
+  - name[prefix]
+  - no-log-password
+  - no-same-owner

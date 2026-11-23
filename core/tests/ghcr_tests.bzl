@@ -31,9 +31,10 @@ def _headers_checks():
         ]),
     ]
 
-def ghcr_unit_tests(name):
+def ghcr_unit_tests(name, size):
     starlark_test(
         name = name,
+        size = size,
         mode = "unit",
         checks = [
             expect_equal(

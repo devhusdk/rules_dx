@@ -95,7 +95,10 @@ arithmetic_unit_tests(name = "arithmetic_unit")
 
 repo_unit_tests(name = "repo_unit")
 
-ghcr_unit_tests(name = "ghcr_unit")
+ghcr_unit_tests(
+    name = "ghcr_unit",
+    size = "small",
+)
 
 arithmetic_load_tests(name = "arithmetic_load")
 

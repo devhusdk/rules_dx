@@ -1,8 +1,8 @@
 {
   "ecosystem": "ruby",
   "inputs": {
-    "Gemfile": "28e7526e40264f9282f79f9c3c71611261f2f4406c2ee64d4afb7283ae192b92",
-    "Gemfile.lock": "a66ea92ceb963f10892379abe6b916f6da4783c26dfe197de253a1d2181b0a85"
+    "Gemfile": "85241f8c66054dd8f0eae4f3bcf17ac311202c07d48373ee907708db18b1cd01",
+    "Gemfile.lock": "d8e1dd288c0ef0abb71878446b06306f24d99142259ec72803d5ad370b4ba9a6"
   },
   "packages": [
     {
@@ -364,6 +364,35 @@
     {
       "archives": [
         {
+          "sha256": "dcdcc2c835a859193e50bc67296daaf95ac99f6410838119374df31490460d36",
+          "urls": [
+            "https://rubygems.org/gems/rubocop-minitest-0.37.1.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "lint_roller",
+        "rubocop",
+        "rubocop-ast"
+      ],
+      "extra": {
+        "gem_deps": {
+          "lint_roller": "~> 1.1",
+          "rubocop": ">= 1.72.1, < 2.0",
+          "rubocop-ast": ">= 1.38.0, < 2.0"
+        }
+      },
+      "name": "rubocop-minitest",
+      "provides": [
+        "rubocop-minitest",
+        "rubocop/cop",
+        "rubocop/minitest"
+      ],
+      "version": "0.37.1"
+    },
+    {
+      "archives": [
+        {
           "sha256": "e5bd39ff3e368395b9af886927cc37f5892f43db4bd6c8526594352d5b4440b5",
           "urls": [
             "https://rubygems.org/gems/rubocop-performance-1.24.0.gem"
@@ -389,6 +418,60 @@
         "rubocop/performance"
       ],
       "version": "1.24.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "710c942fe1af884ba8eea75cbb8bdbb051929a2208880a6fc2e2dce1eed5304c",
+          "urls": [
+            "https://rubygems.org/gems/rubocop-rspec-3.5.0.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "lint_roller",
+        "rubocop"
+      ],
+      "extra": {
+        "gem_deps": {
+          "lint_roller": "~> 1.1",
+          "rubocop": "~> 1.72, >= 1.72.1"
+        }
+      },
+      "name": "rubocop-rspec",
+      "provides": [
+        "rubocop-rspec",
+        "rubocop/cop",
+        "rubocop/rspec"
+      ],
+      "version": "3.5.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "39f38e5b6c57860d89a0cda358a0d4457d88a6017ebc4797fc11c3256a0a1d4d",
+          "urls": [
+            "https://rubygems.org/gems/rubocop-sorbet-0.9.0.gem"
+          ]
+        }
+      ],
+      "deps": [
+        "lint_roller",
+        "rubocop"
+      ],
+      "extra": {
+        "gem_deps": {
+          "lint_roller": "~> 1.1",
+          "rubocop": ">= 1"
+        }
+      },
+      "name": "rubocop-sorbet",
+      "provides": [
+        "rubocop-sorbet",
+        "rubocop/cop",
+        "rubocop/sorbet"
+      ],
+      "version": "0.9.0"
     },
     {
       "archives": [

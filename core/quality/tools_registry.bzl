@@ -5119,7 +5119,11 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
       },
       "id": "fortitude",
       "severity": {
-        "categories": {},
+        "categories": {
+          "C": "error",
+          "OB": "error",
+          "PORT": "error"
+        },
         "default": "warning",
         "floor": null
       },

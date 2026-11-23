@@ -14,9 +14,11 @@ LIBRARY_ATTRS = ["copts", "defines", "deps", "hdrs", "includes", "srcs"]
 
 SHARED_ATTRS = ["tags", "target_compatible_with", "testonly"]
 
+STRICT_COPTS = ["-fimplicit-none", "-fimplicit-none-ext", "-std=f2018", "-Werror"]
+
 def fortran_with_defaults(kwargs):
-    """Returns kwargs with the qualified Fortran cell appended to target_compatible_with and the quality skip tags."""
-    out = dx_language_kwargs(dx_warnings_flags(kwargs, "copts", ["-Werror"]), SKIP_TAGS, FORTRAN_COMPATIBLE_WITH)
+    """Returns kwargs with the strict copts, the qualified Fortran cell in target_compatible_with and the quality skip tags."""
+    out = dx_language_kwargs(dx_warnings_flags(kwargs, "copts", STRICT_COPTS), SKIP_TAGS, FORTRAN_COMPATIBLE_WITH)
     out["copts"] = (out.get("copts") or []) + select({
         Label("//fortran:kcov_build"): ["-g"],
         "//conditions:default": [],

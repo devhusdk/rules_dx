@@ -1,0 +1,17 @@
+producer //core/quality/testdata:matrix_fortran_lint_strict_guards
+capability LINT
+stages 1
+stage fortitude classes=fortran sources=matrix/fortran_strict_guards.f90
+completed_rounds 1
+convergence STABLE
+initial 4
+initial ERROR fortitude C003 matrix/fortran_strict_guards.f90 18 31 fixable=false "'implicit none' missing 'external'"
+initial ERROR fortitude PORT011 matrix/fortran_strict_guards.f90 67 68 fixable=false "real kind set with number literal '8'"
+initial ERROR fortitude OB011 matrix/fortran_strict_guards.f90 81 102 fixable=false "common blocks are obsolescent, prefer modules or derived types"
+initial ERROR fortitude C061 matrix/fortran_strict_guards.f90 146 147 fixable=false "subroutine argument 'a' missing 'intent' attribute"
+terminal 4
+terminal ERROR fortitude C003 matrix/fortran_strict_guards.f90 18 31 fixable=false "'implicit none' missing 'external'"
+terminal ERROR fortitude PORT011 matrix/fortran_strict_guards.f90 67 68 fixable=false "real kind set with number literal '8'"
+terminal ERROR fortitude OB011 matrix/fortran_strict_guards.f90 81 102 fixable=false "common blocks are obsolescent, prefer modules or derived types"
+terminal ERROR fortitude C061 matrix/fortran_strict_guards.f90 146 147 fixable=false "subroutine argument 'a' missing 'intent' attribute"
+replacements 0

@@ -262,6 +262,8 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `govet`, `errcheck` and `staticcheck` take their tier from `core/quality/tiers/`. Standard runs the `go vet` defaults, errcheck, and staticcheck's default checks. Strict adds the vet analyzers `forvar`, `nilness`, `shadow` and `unusedwrite`, plus `bodyclose`, `errorlint`, `exhaustive`, `noctx` and `sqlclosecheck`. It also makes errcheck report `_ = f()`, unchecked type assertions such as `v.(string)`, and errors from `Close` and `fmt.Fprint*`. staticcheck runs the same checks in both tiers and leaves out `SA9003`, `ST1000`, `ST1003`, `ST1016` and `ST1020` to `ST1023`. Its `SA` findings are errors; `S`, `ST` and `U1000` findings are warnings.
 
+`fortitude` takes its tier from `core/quality/tiers/fortitude/`. Standard runs a fixed list of correctness, obsolescence and portability rules. Strict runs every stable rule with a 100-column line limit and leaves out `C021`, `C022`, `C031`, `C032`, `C183`, `MOD001`, `MOD002`, `S082`, `S102` to `S105`, `S211`, `S212`, `S221`, `S251` to `S255`, `S271`, `S901` and `S902`. Its `C`, `OB` and `PORT` findings are errors; the rest are warnings.
+
 ### JVM and .NET
 
 | Tool | Checks | Not on |

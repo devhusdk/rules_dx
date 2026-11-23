@@ -1,9 +1,10 @@
 program calls_c_test
-  use iso_c_binding, only: c_int
-  implicit none
+  use, intrinsic :: iso_c_binding, only: c_int
+  implicit none (type, external)
   interface
     function dx_c_add(a, b) bind(c, name="dx_c_add") result(total)
       import :: c_int
+      implicit none (type, external)
       integer(c_int), value :: a, b
       integer(c_int) :: total
     end function dx_c_add

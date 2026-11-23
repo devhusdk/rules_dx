@@ -258,7 +258,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `shfmt` runs in simplify mode, so it also simplifies code. It picks the shell dialect from the shebang or the file extension.
 
-`vale` in the strict tier runs the `Vale`, `write-good` and `Dx` styles at `MinAlertLevel = warning`, with `write-good.Passive` and `write-good.E-Prime` off and spelling left to `typos`. `Dx` findings are errors: the markers `TODO`, `FIXME`, `TBD` and `XXX`; the placeholders `lorem ipsum`, `your-*-here`, `<placeholder>` and `as an AI`; and the filler words `it is worth noting`, `delve`, `in order to`, `seamless`, `robust`, `leverage`, `comprehensive` and `game-changer`. Other `vale` findings are warnings.
+`vale` in the strict tier runs the `Vale`, `write-good` and `Dx` styles at `MinAlertLevel = warning`, with `write-good.Passive` and `write-good.E-Prime` off and spelling left to `typos`. `Dx` findings are errors: the markers `TODO`, `FIXME`, `TBD` and `XXX`; the placeholders `lorem ipsum`, `your-*-here`, `<placeholder>` and `as an AI`; and the filler words `it is worth noting`, `delve`, `seamless`, `robust`, `leverage`, `comprehensive` and `game-changer`. Other `vale` findings are warnings.
 
 `typos` in the strict tier checks file names and contents in the `en-us` locale, includes hidden files, and skips lockfiles and generated files.
 

@@ -27,6 +27,13 @@ go_library(
     tags = ["manual"],
 )
 
+go_library(
+    name = "loopvar",
+    srcs = ["loopvar.go"],
+    importpath = "rules_dx/go/tests/fixtures/govet/loopvar",
+    tags = ["manual"],
+)
+
 govet_config(
     name = "excludes",
     src = "govet.json",

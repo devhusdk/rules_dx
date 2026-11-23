@@ -123,3 +123,20 @@ func TestDefaultMatchesStandardProfile(t *testing.T) {
 		}
 	}
 }
+
+func TestStrictProfileIsAllButTheExcluded(t *testing.T) {
+	profile, err := loadConfig(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("TEST_WORKSPACE"), os.Getenv("STRICT_CONF")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	excluded := []string{"SA9003", "ST1000", "ST1003", "ST1016", "ST1020", "ST1021", "ST1022", "ST1023"}
+	var want []string
+	for _, a := range allAnalyzers() {
+		if !slices.Contains(excluded, a.Analyzer.Name) {
+			want = append(want, a.Analyzer.Name)
+		}
+	}
+	if got := names2(selectAnalyzers(profile)); !reflect.DeepEqual(got, want) {
+		t.Errorf("strict.conf checks:\n%v\nwant every check but %v:\n%v", got, excluded, want)
+	}
+}

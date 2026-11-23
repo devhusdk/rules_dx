@@ -26,6 +26,7 @@ go_library(
         "@org_golang_x_tools//go/analysis/passes/ifaceassert",
         "@org_golang_x_tools//go/analysis/passes/loopclosure",
         "@org_golang_x_tools//go/analysis/passes/lostcancel",
+        "@org_golang_x_tools//go/analysis/passes/modernize",
         "@org_golang_x_tools//go/analysis/passes/nilfunc",
         "@org_golang_x_tools//go/analysis/passes/nilness",
         "@org_golang_x_tools//go/analysis/passes/printf",

@@ -85,6 +85,24 @@ mod tests {
     }
 
     #[test]
+    fn staticcheck_sa_is_an_error_and_style_a_warning() {
+        let level = |rule| resolve(TOOL_SEVERITIES, "staticcheck", rule, ToolSeverity::Info);
+        assert_eq!(level("SA4006"), ToolSeverity::Error);
+        assert_eq!(level("S1000"), ToolSeverity::Warning);
+        assert_eq!(level("ST1005"), ToolSeverity::Warning);
+        assert_eq!(level("U1000"), ToolSeverity::Warning);
+        assert_eq!(
+            resolve(
+                TOOL_SEVERITIES,
+                "staticcheck",
+                "QF1001",
+                ToolSeverity::Error
+            ),
+            ToolSeverity::Info
+        );
+    }
+
+    #[test]
     fn default_applies_when_no_prefix_matches() {
         let table = [(
             "t",

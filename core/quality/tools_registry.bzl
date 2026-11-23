@@ -5433,6 +5433,7 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
         "categories": {
           "QF": "info",
           "S": "warning",
+          "SA": "error",
           "U1000": "warning"
         },
         "default": null
@@ -5453,7 +5454,7 @@ FAMILY_TOOL_ROWS = json.decode(r"""{
             "windows_arm64",
             "windows_x86_64"
           ],
-          "state": "known",
+          "state": "supported",
           "tool": "staticcheck",
           "transport": "batched"
         }

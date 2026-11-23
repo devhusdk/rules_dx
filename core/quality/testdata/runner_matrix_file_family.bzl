@@ -1679,7 +1679,7 @@ FILE_FAMILY_CASES = [
         binary = "//javascript/private/quality/bin:stylelint",
         source_class = "css",
         generated = {
-            "matrix/stylelint_strict_rule.css": ".sample {\n  color: #fff;\n  color: #000;\n  margin: 0px;\n}\n",
+            "matrix/stylelint_strict_rule.css": ".sample {\n  color: #fff;\n  color: #000;\n  margin: 0px;\n}\n.a {\n  .b {\n    .c {\n      .d {\n        color: #000;\n      }\n    }\n  }\n}\n",
         },
         platforms = ["linux_x86_64"],
         toolfile_tools = ["stylelint", "stylelint", "stylelint"],
@@ -2697,7 +2697,7 @@ FILE_FAMILY_CASES = [
         binary = "//core/quality/tools/python:yamllint",
         source_class = "yaml",
         generated = {
-            "matrix/yamllint_profile_strict.yaml": "---\non: push\nkey: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+            "matrix/yamllint_profile_strict.yaml": "---\non: push\nkey: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n#nospace\nzone: x  \n",
         },
         tool_env = ["yamllint=RUNFILES_DIR=$TEST_SRCDIR"],
         toolfile_tools = ["yamllint", "yamllint"],

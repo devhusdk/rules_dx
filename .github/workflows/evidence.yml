@@ -376,6 +376,44 @@ jobs:
       - name: Print the failing test log tails
         if: ${{ failure() && steps.task.outcome == 'failure' && steps.inputs.outputs.task == 'test' }}
         run: bazel run --noshow_progress //tools/ci/producers:producers_bin -- --test-log-tails --bep "$RUNNER_TEMP/bep/evidence.json" --bep "$RUNNER_TEMP/bep/relocated.json"
+      - name: Print JVM crash logs and the JDKs Android tools resolve
+        if: ${{ failure() && steps.task.outcome == 'failure' }}
+        run: |
+          out="$RUNNER_TEMP/evidence/jvm"
+          mkdir -p "$out"
+          base="$(bazel info --noshow_progress output_base)"
+          # Each probe below may fail; print what it finds and go on.
+          set +e
+          # A JVM that dies at startup writes hs_err_pid*.log to its working directory, or to TEMP when that is not writable.
+          find "$base/execroot" "$base/bazel-workers" "$base/sandbox" "${TEMP:-/tmp}" -name 'hs_err_pid*.log' 2>/dev/null | while read -r log; do
+            cp "$log" "$out/"
+            echo "== $log"
+            sed -n '1,30p' "$log"
+            grep -E 'jvm\.dll|libjvm|java_command|jvm_args|java\.home|modules' "$log" | head -n 40
+          done
+          # For each desugar or dex launcher, show the java its runfiles name and whether lib/modules sits next to it,
+          # both through the manifest and through the runfiles directory, then start the launcher once outside a worker.
+          find "$base/execroot/_main/bazel-out" -name '*.runfiles_manifest' 2>/dev/null | grep -E 'desugar|d8|dex' | while read -r manifest; do
+            grep -E '/bin/java(\.exe)? ' "$manifest" | while read -r entry path; do
+              echo "== $manifest: $entry -> $path"
+              for java in "$path" "${manifest%_manifest}/$entry"; do
+                home="$(dirname "$(dirname "$java")")"
+                ls -lL "$java" "$home/bin/server/jvm.dll" "$home/bin/server/classes.jsa" "$home/lib/server/classes.jsa" "$home/lib/modules"
+                grep JAVA_VERSION "$home/release"
+              done
+            done
+            # Start the desugar launcher, and the java launcher it runs, with the worker's runfiles env but as a plain process.
+            case "$manifest" in *desugar_java8*) ;; *) continue ;; esac
+            launchers="${manifest%.runfiles_manifest}"
+            launchers+=$'\n'"$(grep -E '/r8/desugar(\.exe)? ' "$manifest" | cut -d' ' -f2-)"
+            while read -r launcher; do
+              [ -x "$launcher" ] || continue
+              echo "== $launcher --help"
+              RUNFILES_MANIFEST_FILE="$manifest" RUNFILES_DIR="${manifest%_manifest}" JAVA_RUNFILES="${manifest%_manifest}" \
+                timeout 120 "$launcher" --help < /dev/null 2>&1 | head -n 15
+              echo "exit ${PIPESTATUS[0]}"
+            done <<< "$launchers"
+          done 2>&1 | tee "$out/java-runtimes.txt"
       - name: Record the Apple executor
         if: ${{ always() && matrix.platform == 'macos_arm64' }}
         run: |

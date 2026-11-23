@@ -1934,7 +1934,20 @@ FILE_FAMILY_CASES = [
         binary = "//lua/private/tools:luals",
         source_class = "lua",
         generated = {
-            "matrix/luals_profile.lua": "local function run(items)\n    local unused = 1\n    local first = items[1]\n    return first\nend\n\nprint(run({}))\n",
+            "matrix/luals_profile.lua": "local function run(items)\n    local unused = 1\n    local first = items[1]\n    return first\nend\n\nleaked = 1\nlocal file = io.open(\"x\")\nfile:close()\nlocal joined = loadstring(\"return 1\")\nlocal total = 0\ntotal += 1\n\nprint(run({}), joined, total)\n",
+        },
+        platforms = ["linux_x86_64"],
+        config = "//core/quality/tiers/luals:strict.json",
+        tool_env = ["luals=RUNFILES_DIR=$TEST_SRCDIR"],
+    ),
+    matrix_case(
+        name = "matrix_lua_luals_clean_strict",
+        capability = "typecheck",
+        tool = "luals",
+        binary = "//lua/private/tools:luals",
+        source_class = "lua",
+        generated = {
+            "matrix/luals_clean.lua": "local function run(items)\n    local first = items[1]\n    return first\nend\n\nprint(run({}))\n",
         },
         platforms = ["linux_x86_64"],
         config = "//core/quality/tiers/luals:strict.json",

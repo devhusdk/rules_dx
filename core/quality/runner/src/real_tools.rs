@@ -5162,7 +5162,11 @@ fn luals_report(
 
 fn luals_tool() -> RealTool {
     RealTool {
-        tool_files: vec![("dx-luals/mod/dep.lua".to_owned(), b"return {}\n".to_vec())],
+        config_rel: Some("cfg/luarc.json".to_owned()),
+        tool_files: vec![
+            ("cfg/luarc.json".to_owned(), b"{}".to_vec()),
+            ("dx-luals/mod/dep.lua".to_owned(), b"return {}\n".to_vec()),
+        ],
         ..plain_tool()
     }
 }

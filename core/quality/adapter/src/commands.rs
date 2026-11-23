@@ -1328,18 +1328,17 @@ pub fn luals_check(
     }
 }
 
-/// The generated `LuaLS` config. The consumer's settings (a flat `.luarc.json` object) come
+/// The generated `LuaLS` config. The bound settings (a flat `.luarc.json` object) come
 /// first; the keys below always win: the Lua version, the library directory, no diagnostics
-/// in libraries and the ignored staging directories. Without a consumer config the
-/// diagnostics are `LuaLS`'s defaults.
+/// in libraries and the ignored staging directories.
 #[must_use]
 pub fn luals_luarc(
-    consumer: Option<&serde_json::Value>,
+    consumer: &serde_json::Value,
     library: Option<&Path>,
     ignore_dirs: &[&str],
 ) -> String {
     let mut object = match consumer {
-        Some(serde_json::Value::Object(map)) => map.clone(),
+        serde_json::Value::Object(map) => map.clone(),
         _ => serde_json::Map::new(),
     };
     object.remove("$schema");

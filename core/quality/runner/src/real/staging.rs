@@ -24,6 +24,7 @@ pub(super) const TIER_BASE_TOOLS: &[&str] = &[
     "gplint",
     "hadolint",
     "hlint",
+    "luals",
     "mbake",
     "pmd",
     "redocly",

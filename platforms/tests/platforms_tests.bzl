@@ -21,10 +21,11 @@ _SIM_TAG = {
     "parent": "@apple_support//platforms:ios_sim_arm64",
 }
 
-def names_unit_tests(name):
+def names_unit_tests(name, size):
     """Checks host names, entry matching and platforms list errors."""
     starlark_test(
         name = name,
+        size = size,
         mode = "unit",
         checks = [
             expect_equal("linux amd64 host", host_name("Linux", "amd64"), "linux_x86_64"),
@@ -62,13 +63,14 @@ def names_unit_tests(name):
         ],
     )
 
-def select_unit_tests(name):
+def select_unit_tests(name, size):
     """Checks which platform_select key wins for each name."""
     resolved = resolve({"apple": "a", "default": "d", "ios": "i", "ios_sim_arm64": "s", "windows": "w"})
     wasm = resolve({"wasm": "wasm", "web": "web"})
     web_names = resolve({"web": "os", "web_wasm32": "full"})
     starlark_test(
         name = name,
+        size = size,
         mode = "unit",
         checks = [
             expect_equal("full name keys use the hub", resolved.names, {"ios_sim_arm64": "s"}),
@@ -84,7 +86,7 @@ def select_unit_tests(name):
         ],
     )
 
-def hub_unit_tests(name):
+def hub_unit_tests(name, size):
     """Checks the hub entries for core, stub, registered and wrong-host names, and tag errors."""
     stubs = hub_entries({}, "linux_x86_64")
     real = hub_entries({"ios_sim_arm64": _SIM_TAG}, "macos_arm64")
@@ -92,6 +94,7 @@ def hub_unit_tests(name):
     no_parent = hub_entries({"android_arm64": _SIM_TAG | {"parent": "", "constraint_values": ["@platforms//os:android", "@platforms//cpu:arm64"], "hosts": ["linux_x86_64"]}}, "linux_x86_64")
     starlark_test(
         name = name,
+        size = size,
         mode = "unit",
         checks = [
             expect_equal("core name", stubs["linux_arm64"].platform, ["@platforms//os:linux", "@platforms//cpu:arm64"]),
@@ -135,10 +138,11 @@ def hub_unit_tests(name):
         ],
     )
 
-def transition_unit_tests(name):
+def transition_unit_tests(name, size):
     """Checks when platform_transition moves a target and which min_os keys it takes."""
     starlark_test(
         name = name,
+        size = size,
         mode = "unit",
         checks = [
             expect_equal("no platforms stays", move_to([], "ios_arm64"), ""),
@@ -178,7 +182,7 @@ _SELECT = {
     "default": "host",
 }
 
-def transition_analysis_tests(name):
+def transition_analysis_tests(name, size):
     """Moves subjects with platform_transition and reads the flags and a platform_select value."""
     moved_subject(name = name + "_stay", value = platform_select(_SELECT))
     moved_subject(name = name + "_os_only", platforms = ["linux", "macos", "windows"], value = platform_select(_SELECT))
@@ -215,21 +219,22 @@ def transition_analysis_tests(name):
         ]
     starlark_test(
         name = name,
+        size = size,
         mode = "analysis",
         subjects = [":{}_{}".format(name, subject) for subject in subjects],
         expected_observations = "\n".join(observations),
     )
 
-def unknown_current_tests(name):
+def unknown_current_tests(name, size):
     """Checks that the current flag names the valid platforms when it holds an unknown name."""
     _unknown_current_test(
         name = name,
-        size = "small",
+        size = size,
         target_under_test = "//platforms:current",
         expected_failure_substring = "invalid value 'android'. Allowed values are [\"\", \"android_arm64\", \"android_x86_64\",",
     )
 
-def select_analysis_tests(name):
+def select_analysis_tests(name, size):
     """Resolves platform_select on a linux platform rules_dx has no name for and on a named one."""
     riscv = str(Label(":linux_riscv64"))
     linux = str(Label("//platforms:linux_x86_64"))
@@ -255,6 +260,7 @@ def select_analysis_tests(name):
         ]
     starlark_test(
         name = name,
+        size = size,
         mode = "analysis",
         subjects = [":{}_{}".format(name, case[0]) for case in cases],
         expected_observations = "\n".join(observations),

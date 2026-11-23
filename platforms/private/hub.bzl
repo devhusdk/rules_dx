@@ -1,6 +1,6 @@
 """The @dx_platforms hub: one platform and one config_setting per platform name."""
 
-load(":names.bzl", "PLATFORMS", "STUB_MARKS", "host_name")
+load(":names.bzl", "PLATFORMS", "STUB_MARKS")
 
 visibility(["//platforms/..."])
 
@@ -54,15 +54,18 @@ def render_hub(registered, host):
     return "".join(out)
 
 def _hub_impl(rctx):
-    host = host_name(rctx.os.name, rctx.os.arch)
+    host = rctx.attr.host
     registered = json.decode(rctx.attr.registered)
     rctx.file("BUILD.bazel", render_hub(registered, host))
     rctx.file("host.bzl", '"""The platform name of the host this hub was written on."""\n\nHOST = {}\n'.format(json.encode(host)))
+    return rctx.repo_metadata(reproducible = True)
 
 platforms_hub = repository_rule(
     implementation = _hub_impl,
     doc = "Writes one platform and config_setting per platform name for the current host.",
     attrs = {
+        # The extension reads the host so the repo is a function of its attrs and can be cached.
+        "host": attr.string(doc = "Platform name of the host, or \"\" when the host has none."),
         "registered": attr.string(doc = "JSON map from a family platform name to its dx.platform tag."),
     },
 )

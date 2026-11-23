@@ -1,7 +1,7 @@
 """The dx_platforms module extension: families register the platform names they build for."""
 
 load(":hub.bzl", "platforms_hub")
-load(":names.bzl", "PLATFORMS")
+load(":names.bzl", "PLATFORMS", "host_name")
 
 visibility(["//platforms/..."])
 
@@ -33,7 +33,11 @@ def _dx_platforms_impl(mctx):
                 "module": mod.name,
                 "parent": str(tag.parent) if tag.parent else "",
             }
-    platforms_hub(name = "dx_platforms", registered = json.encode(registered))
+    platforms_hub(
+        name = "dx_platforms",
+        host = host_name(mctx.os.name, mctx.os.arch),
+        registered = json.encode(registered),
+    )
     return mctx.extension_metadata(reproducible = True)
 
 _platform = tag_class(

@@ -18,19 +18,40 @@ platform(
     ],
 )
 
-names_unit_tests(name = "names_unit")
+names_unit_tests(
+    name = "names_unit",
+    size = "small",
+)
 
-select_unit_tests(name = "select_unit")
+select_unit_tests(
+    name = "select_unit",
+    size = "small",
+)
 
-hub_unit_tests(name = "hub_unit")
+hub_unit_tests(
+    name = "hub_unit",
+    size = "small",
+)
 
-transition_unit_tests(name = "transition_unit")
+transition_unit_tests(
+    name = "transition_unit",
+    size = "small",
+)
 
-transition_analysis_tests(name = "transition_analysis")
+transition_analysis_tests(
+    name = "transition_analysis",
+    size = "small",
+)
 
-select_analysis_tests(name = "select_analysis")
+select_analysis_tests(
+    name = "select_analysis",
+    size = "small",
+)
 
-unknown_current_tests(name = "unknown_current")
+unknown_current_tests(
+    name = "unknown_current",
+    size = "small",
+)
 
 real_source_target(
     name = "corpus_starlark",

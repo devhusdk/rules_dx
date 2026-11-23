@@ -2757,7 +2757,7 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `srcs` | yes |  |
-| `cuda_archs` | yes |  |
+| `gpu_archs` | yes |  |
 | `deps` | no | `None` |
 | `hdrs` | no | `None` |
 | `visibility` | no | `None` |
@@ -2786,7 +2786,7 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `srcs` | yes |  |
-| `cuda_archs` | yes |  |
+| `gpu_archs` | yes |  |
 | `hdrs` | no | `None` |
 | `visibility` | no | `None` |
 | `tags` | no | `None` |
@@ -2802,7 +2802,7 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `srcs` | yes |  |
-| `cuda_archs` | yes |  |
+| `gpu_archs` | yes |  |
 | `hdrs` | no | `None` |
 | `deps` | no | `None` |
 | `visibility` | no | `None` |
@@ -2818,7 +2818,7 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `srcs` | yes |  |
-| `cuda_archs` | yes |  |
+| `gpu_archs` | yes |  |
 | `deps` | no | `None` |
 | `hdrs` | no | `None` |
 | `visibility` | no | `None` |
@@ -5750,6 +5750,52 @@ Module extension.
 
 No tags.
 
+### `@rules_dx//platforms:defs.bzl`
+
+#### `platform_select`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `branches` | yes |  |
+
+#### `platforms_error`
+
+Macro or function.
+
+| Argument | Required | Default |
+| --- | --- | --- |
+| `platforms` | yes |  |
+| `native` | yes |  |
+
+#### `DxPlatformInfo`
+
+Provider.
+
+Fields: `name`, `platforms`.
+
+#### `DxTargetInfo`
+
+Provider.
+
+Fields: `check`, `java_deps`, `link_flags`, `min_os_floor`, `runner`.
+
+### `@rules_dx//platforms:extensions.bzl`
+
+#### `dx_platforms`
+
+Module extension.
+
+Tag `dx_platforms.platform`:
+
+| Attribute | Type | Required | Default |
+| --- | --- | --- | --- |
+| `constraint_values` | `label_list` | yes |  |
+| `hosts` | `string_list` | no | `[]` |
+| `name` | `name` | yes |  |
+| `parent` | `label` | no | `None` |
+
 ### `@rules_dx//powershell:defs.bzl`
 
 #### `powershell_doc_shard`
@@ -6148,6 +6194,10 @@ Tag `qt.configure`:
 | `mirror` | `string` | no | `""` |
 | `runtime_mirror` | `string` | no | `""` |
 | `version` | `string` | no | `"6.12.0"` |
+
+Tag `qt.from_source`:
+
+No attributes.
 
 Tag `qt.msvc_runtime`:
 
@@ -7257,6 +7307,7 @@ Macro or function.
 | `srcs` | no | `None` |
 | `main` | no | `None` |
 | `visibility` | no | `None` |
+| `allow_release_fast` | no | `False` |
 | `kwargs` | no |  |
 
 #### `zig_library`
@@ -7282,6 +7333,7 @@ Macro or function.
 | `srcs` | no | `None` |
 | `main` | no | `None` |
 | `visibility` | no | `None` |
+| `allow_release_fast` | no | `False` |
 | `kwargs` | no |  |
 
 ### `@rules_dx//zig:extensions.bzl`
@@ -7304,7 +7356,7 @@ Tag `zig.lock`:
 | `@rules_dx//config:buf_breaking_against` | `label_flag` | `@rules_dx//config:buf_breaking_none` |  |
 | `@rules_dx//config:clippy_flag` | `alias` | `@rules_rust//rust/settings:clippy_flag` |  |
 | `@rules_dx//config:clippy_output_diagnostics` | `alias` | `@rules_rust//rust/settings:clippy_output_diagnostics` |  |
-| `@rules_dx//config:config_tier` | `string_flag` | `standard` | `standard`, `strict` |
+| `@rules_dx//config:config_tier` | `string_flag` | `strict` | `standard`, `strict` |
 | `@rules_dx//config:extra_rustc_flag` | `alias` | `@rules_rust//rust/settings:extra_rustc_flag` |  |
 | `@rules_dx//config:rustc_output_diagnostics` | `alias` | `@rules_rust//rust/settings:rustc_output_diagnostics` |  |
 | `@rules_dx//config:tool_actionlint` | `label_flag` | `@dx_tools//:actionlint` |  |
@@ -7402,6 +7454,7 @@ Use a toolchain type when you register your own toolchain.
 - `@rules_dx//haskell:toolchain_type`
 - `@rules_dx//lua:toolchain_type`
 - `@rules_dx//msix:toolchain_type`
+- `@rules_dx//ocaml:exec_toolchain_type`
 - `@rules_dx//ocaml:profile_toolchain_type`
 - `@rules_dx//ocaml:toolchain_type`
 - `@rules_dx//php:exec_toolchain_type`
@@ -7499,7 +7552,7 @@ Run these with `bazel run <target>`.
 | `@rules_dx//cli/coverage_summary:coverage_summary` | `rust_binary` |
 | `@rules_dx//cli/env:env` | `rust_binary` |
 | `@rules_dx//cli/launcher:exec_launcher` | `rust_binary` |
-| `@rules_dx//cli/prebuilt:guard_stub` | `native_binary` |
+| `@rules_dx//cli/prebuilt:guard_stub` | `cc_binary` |
 | `@rules_dx//cli/runtime:dx_runtime` | `rust_binary` |
 | `@rules_dx//core/quality/lsp_check:lsp_check` | `rust_binary` |
 | `@rules_dx//core/quality/markdown:quality_markdown` | `rust_binary` |

@@ -11,6 +11,7 @@ dx_web_app(
     size = "small",
     srcs = glob(["src/**"]) + ["index.html"],
     build = vue_build,
+    client_test = True,
     config = "vite.config.mjs",
     library = vue_library,
     library_srcs = glob(["src/**/*.vue"]),
@@ -24,10 +25,6 @@ dx_web_app(
             "//:node_modules/@vue/devtools-api",
             "//:node_modules/pinia",
             "//:node_modules/vue",
-        ],
-        "site_client.test.js": [
-            ":site",
-            "//:node_modules/jest-environment-jsdom",
         ],
     },
     deps = [

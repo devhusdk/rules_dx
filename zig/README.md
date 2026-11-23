@@ -52,6 +52,13 @@ path dependencies do not.
 - `extra_srcs` holds files read with `@embedFile`.
 - Other attributes pass through to `rules_zig`.
 
+`zig_binary` and `zig_test` build in ReleaseSafe, also under `-c opt`.
+Coverage runs build tests in Debug.
+`--@rules_zig//zig/settings:mode` picks another mode. ReleaseFast, from that
+flag or from the `zigopts` of the target or of a `zig_library` it depends on,
+fails unless the binary or test sets `allow_release_fast = True`. So does an
+`@file` in `zigopts`.
+
 ## Generate
 
 `dx generate` writes one `zig_library` per directory:
@@ -86,7 +93,10 @@ dx lint
 ```
 
 `zig_fmt` runs `zig fmt`. `zig_ast_check` runs `zig ast-check` once per file
-and reports syntax and AST errors.
+and reports syntax and AST errors. In the strict tier it also fails on
+`catch unreachable`, `catch {}`, `std.debug.print` outside tests,
+`@panic("TODO...")`, and `@ptrCast`, `@alignCast` or `@intCast` without a
+`// SAFETY:` comment. `docs/cli/commands/quality.md` lists the rule IDs.
 
 To typecheck, turn on `zig` in `dx.toml`:
 

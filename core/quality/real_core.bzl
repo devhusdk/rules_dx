@@ -1,5 +1,6 @@
 """The real aspect engine: request building and shard aspects. Families reach it through hooks."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//core:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load("//core/quality:adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//core/quality:execution_requirements.bzl", "dx_stage_execution_requirements")
@@ -173,6 +174,10 @@ def _real_attrs_for(table, tools):
     """Builds one shard attr set from the attrs in the tool table."""
     return _REAL_BASE_ATTRS | {"_" + tool: table[tool]["attr"] for tool in tools if "attr" in table[tool]}
 
+def real_resolve_list(files, extensions = [], map_each = None, strip_roots = None):
+    """A depset the runner resolves as map_each `workspace<TAB>exec` lines, less the longest strip_roots prefix."""
+    return struct(files = files, extensions = extensions, map_each = map_each or _resolve_line, strip_roots = strip_roots)
+
 def real_context(
         resolved = None,
         early_inputs = [],
@@ -184,13 +189,14 @@ def real_context(
         late_tool_files = [],
         late_inputs = [],
         late_staged = [],
+        dep_lists = [],
         upstream = [],
         with_config = None,
         env = [],
         run_tools = [],
         options = {},
         delegated = False):
-    """Builds what one tool's context hook hands the core; resolve_lists holds (depset, extensions) pairs."""
+    """Builds what one tool's context hook hands the core; resolve_lists holds real_resolve_list entries and dep_lists (depset, map_each) pairs."""
     return struct(
         resolved = resolved,
         early_inputs = early_inputs,
@@ -202,6 +208,7 @@ def real_context(
         late_tool_files = late_tool_files,
         late_inputs = late_inputs,
         late_staged = late_staged,
+        dep_lists = dep_lists,
         upstream = upstream,
         with_config = with_config,
         env = env,
@@ -221,12 +228,17 @@ def _resolve_line(f):
         return None
     return f.short_path + "\t" + f.path
 
-def _resolve_list(ctx, name, files):
-    """Writes one `workspace<TAB>exec path` line per in-workspace file without flattening the depset."""
+def _root_line(root):
+    if root == ".":
+        return None
+    return root
+
+def _resolve_list(ctx, name, values, map_each):
+    """Writes the lines map_each makes from a depset without flattening it."""
     out = ctx.actions.declare_file(name)
     args = ctx.actions.args()
     args.set_param_file_format("multiline")
-    args.add_all(files, map_each = _resolve_line, expand_directories = False, uniquify = True)
+    args.add_all(values, map_each = map_each, expand_directories = False, uniquify = True)
     ctx.actions.write(out, args)
     return out
 
@@ -288,6 +300,13 @@ def real_config(tools, shard_specs, hook_order = [], context_hooks = {}, source_
         toolchain = toolchain,
         check_policy = check_policy,
     )
+
+def real_family_tier(ctx, family_id):
+    """Returns the family's own tier, else the workspace tier; the shard needs a `_config_tier` attr."""
+    section = ctx.attr._policy[QualityPolicyInfo].families.get(family_id)
+    if section != None and section.tier:
+        return section.tier
+    return ctx.attr._config_tier[BuildSettingInfo].value
 
 def real_wired_tools(cfg):
     """Maps each capability to the sorted tool names the table wires for it."""
@@ -493,11 +512,17 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
                     fail(what + ": " + tool + " would stage two different files at " + ws_path + ": " + staged_as.path + " and " + f.path)
                 continue
             resolve_pairs[ws_path] = f
-        for (index, (files, extensions)) in enumerate(found.resolve_lists):
-            listed = _resolve_list(ctx, target.label.name + "-real-" + capability + output_suffix + "-" + tool + "-resolves-" + str(index) + ".txt", files)
-            request_resolve_lists.append({"extensions": extensions, "list": listed.path})
+        for (index, entry) in enumerate(found.resolve_lists):
+            prefix = target.label.name + "-real-" + capability + output_suffix + "-" + tool + "-resolves-" + str(index)
+            listed = _resolve_list(ctx, prefix + ".txt", entry.files, entry.map_each)
+            request_list = {"extensions": entry.extensions, "list": listed.path}
             inputs.append(listed)
-            staged_inputs.append(files)
+            if entry.strip_roots != None:
+                roots = _resolve_list(ctx, prefix + "-roots.txt", entry.strip_roots, _root_line)
+                request_list["strip_roots"] = roots.path
+                inputs.append(roots)
+            request_resolve_lists.append(request_list)
+            staged_inputs.append(entry.files)
         for (ws_path, error) in found.reserved:
             if _staged([path_to_file, sibling_pairs, resolve_pairs], ws_path) != None:
                 fail(what + ": " + error)
@@ -523,6 +548,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
     for tool in stage_tools:
         found = contexts.get(tool)
         file_lists = []
+        dep_lists = []
         binary_path = None
         if tool not in delegated and cfg.tools[tool]["kind"] != "upstream":
             binary = tool_binaries[tool]
@@ -561,6 +587,10 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
                 file_lists.append(_staged_file_list(ctx, target.label.name + "-real-" + capability + output_suffix + "-" + tool + "-staged.txt", found.late_staged))
                 inputs.append(file_lists[-1])
                 staged_inputs.extend(found.late_staged)
+            for (index, (files, map_each)) in enumerate(found.dep_lists):
+                dep_lists.append(_resolve_list(ctx, target.label.name + "-real-" + capability + output_suffix + "-" + tool + "-deps-" + str(index) + ".txt", files, map_each))
+                inputs.append(dep_lists[-1])
+                staged_inputs.append(files)
         request_tools[tool] = real_request_tool(
             binary_path = binary_path,
             config_rel = config_rel,
@@ -569,6 +599,7 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
             args = options.get("args", []),
             files = [real_request_tool_file(rel, f.path) for (rel, f) in tool_files],
             file_lists = [f.path for f in file_lists],
+            dep_lists = [f.path for f in dep_lists],
             env = tool_env_entries.get(tool, []),
             upstream = [f.path for f in (found.upstream if found != None else [])],
             search_paths = [f.path for f in options.get("search_paths", [])],

@@ -30,6 +30,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/ifaceassert"
 	"golang.org/x/tools/go/analysis/passes/loopclosure"
 	"golang.org/x/tools/go/analysis/passes/lostcancel"
+	"golang.org/x/tools/go/analysis/passes/modernize"
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
 	"golang.org/x/tools/go/analysis/passes/nilness"
 	"golang.org/x/tools/go/analysis/passes/printf"
@@ -92,7 +93,9 @@ var defaults = []*analysis.Analyzer{
 }
 
 // strictOnly are the analyzers the strict profile adds to the defaults.
+// forvar is x/tools' successor to the copyloopvar linter.
 var strictOnly = []*analysis.Analyzer{
+	modernize.ForVarAnalyzer,
 	nilness.Analyzer,
 	shadow.Analyzer,
 	unusedwrite.Analyzer,

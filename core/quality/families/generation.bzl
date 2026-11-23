@@ -4,7 +4,7 @@ load("@rules_proto//proto:defs.bzl", "ProtoInfo")
 load("//avro/private:providers.bzl", "AvroInfo")
 load("//capnproto/private:providers.bzl", "CapnprotoInfo")
 load("//core/quality:family_hooks.bzl", "upstream_files")
-load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_resolve_list")
 load("//flatbuffers:defs.bzl", "FlatBuffersInfo")
 load("//thrift:defs.bzl", "ThriftInfo")
 
@@ -113,16 +113,18 @@ SHARD_SPECS = {
 def _capnp_closure(target):
     return [(i.path, i.file) for i in target[CapnprotoInfo].transitive_imports.to_list()]
 
-def _flatc_closure(target):
-    staged = []
-    for f in target[FlatBuffersInfo].transitive_srcs.to_list():
-        ws_path = f.short_path
-        if ws_path.startswith("../"):
-            ws_path = "_external/" + ws_path[3:]
-        if ".." in ws_path.split("/"):
-            continue
-        staged.append((ws_path, f))
-    return staged
+def _flatc_line(f):
+    ws_path = f.short_path
+    if ws_path.startswith("../"):
+        ws_path = "_external/" + ws_path[3:]
+    if ".." in ws_path.split("/"):
+        return None
+    return ws_path + "\t" + f.path
+
+def _flatc_hook(target, _ctx, _resolved, _capability, _what, _shared):
+    if FlatBuffersInfo not in target:
+        return real_context()
+    return real_context(resolve_lists = [real_resolve_list(target[FlatBuffersInfo].transitive_srcs, map_each = _flatc_line)])
 
 def _avro_closure(target):
     return [(f.short_path, f) for f in target[AvroInfo].transitive_srcs.to_list() if ".." not in f.short_path.split("/")]
@@ -133,7 +135,6 @@ def _thrift_closure(target):
 # tool -> (provider, closure(target) -> [(staged path, File)], strict).
 _CLOSURE_STAGING = {
     "capnp": (CapnprotoInfo, _capnp_closure, True),
-    "flatc": (FlatBuffersInfo, _flatc_closure, False),
     "thrift": (ThriftInfo, _thrift_closure, True),
     "avro_tools": (AvroInfo, _avro_closure, True),
 }
@@ -157,21 +158,14 @@ def _buf_format_context(ctx, capability):
         "options": {"path_tools": [("diff", ctx.executable._dx, ["buf_diff"])]},
     }
 
+def _exec_line(f):
+    return f.path + "\t" + f.path
+
 def _buf_hook(target, ctx, _resolved, capability, _what, _shared):
     if ProtoInfo not in target:
         return real_context(**_buf_format_context(ctx, capability))
-    pairs = []
-    proto_roots = sorted([r for r in target[ProtoInfo].transitive_proto_path.to_list() if r != "."], key = lambda r: -len(r))
-    for f in target[ProtoInfo].transitive_sources.to_list():
-        ws_path = f.path
-        for root in proto_roots:
-            if ws_path.startswith(root + "/"):
-                ws_path = ws_path[len(root) + 1:]
-                break
-        if ".." in ws_path.split("/"):
-            continue
-        pairs.append((ws_path, f, False))
-    return real_context(resolve_pairs = pairs, **_buf_format_context(ctx, capability))
+    info = target[ProtoInfo]
+    return real_context(resolve_lists = [real_resolve_list(info.transitive_sources, map_each = _exec_line, strip_roots = info.transitive_proto_path)], **_buf_format_context(ctx, capability))
 
 def _proto_sources(target, ctx):
     if ProtoInfo not in target:
@@ -180,7 +174,7 @@ def _proto_sources(target, ctx):
 
 HOOK_ORDER = ["capnp", "flatc", "thrift", "avro_tools", "buf"]
 
-HOOKS = {"buf": _buf_hook} | {tool: _closure_hook(tool) for tool in _CLOSURE_STAGING.keys()}
+HOOKS = {"buf": _buf_hook, "flatc": _flatc_hook} | {tool: _closure_hook(tool) for tool in _CLOSURE_STAGING.keys()}
 
 RECOGNIZERS = [_proto_sources]
 

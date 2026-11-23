@@ -115,6 +115,7 @@ impl Consumer {
         fs::write(workspace.join(".dx/pins"), "0.0.0\n").expect("pin");
         fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
         fs::write(workspace.join("src/main.rs"), "fn main() {}\n").expect("source");
+        dx_testing::empty_git_repo(&workspace);
         let bazel = base.join("bin/bazel");
         dx_testing::executable_script(&bazel, FAKE_BAZEL);
         Consumer {

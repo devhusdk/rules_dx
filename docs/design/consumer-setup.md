@@ -100,7 +100,7 @@ What a consumer writes beyond its sources:
 | --- | --- | --- |
 | Apple | `apple-xcode-license` | `bundle_id`, signing attributes |
 | Android | `android-sdk-license` | `app_id`, signing attributes |
-| CUDA | `cuda-eula` | `cuda_archs` |
+| CUDA | `cuda-eula` | `gpu_archs` |
 | Qt | nothing | `modules` |
 | MSIX | `windows-sdk-buildtools` | identity and signing attributes |
 | C and C++ with MSVC | `visual-studio-build-tools` | nothing |

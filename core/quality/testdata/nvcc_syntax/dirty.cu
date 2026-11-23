@@ -3,4 +3,6 @@
 
 // A __global__ call into a __host__ function: only a full front end catches it,
 // -fdevice-syntax-only does not.
-__global__ void dirty_kernel(int *out) { *out = dep_value() + host_only(); }
+__global__ void __launch_bounds__(1) dirty_kernel(int *out) {
+  *out = dep_value() + host_only();
+}

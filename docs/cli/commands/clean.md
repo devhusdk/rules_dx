@@ -35,6 +35,8 @@ dx clean [--bazel | --expunge]
 
 `--bazel` and `--expunge` use your `--bazel-startup-option` values. Bazel keeps its build outputs in an *output base* directory. In a `dx worktree` slot, pass the slot's `--output_base`, and only that slot's output base is cleaned.
 
+Once `dx.primary` is set, `dx clean --bazel`, `dx clean --expunge` and `dx worktree hook bazel` refuse a Bazel `clean` in a slot, and nothing is removed. Rerun with `--noremote_accept_cached`, or release the slot and add a fresh one. See [Main checkout](worktree.md#main-checkout).
+
 ## Scopes
 
 None. A scope is a usage error.

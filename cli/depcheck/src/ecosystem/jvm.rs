@@ -8,6 +8,11 @@ use crate::{DepInfo, DepcheckError};
 
 use super::normalize_lower;
 
+/// Reads the dependencies of a JVM manifest.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read, does not parse, or has a malformed entry.
 pub fn parse_jvm_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let data: toml::Value = toml::from_str(&text).map_err(DepcheckError::ManifestToml)?;
@@ -68,6 +73,11 @@ pub fn parse_jvm_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, Depc
     Ok(deps)
 }
 
+/// Maps every artifact of a Maven lock to its version.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_jvm_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;
@@ -169,6 +179,11 @@ fn catalog_coords(text: &str) -> Result<Vec<String>, DepcheckError> {
     Ok(coords)
 }
 
+/// Reads the Maven coordinates of a `maven.install` artifacts list or a version catalog.
+///
+/// # Errors
+///
+/// Returns an error when the list cannot be read or names no Maven coordinates.
 pub fn parse_maven_artifacts_list(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let coords = if path.extension().is_some_and(|ext| ext == "toml") {

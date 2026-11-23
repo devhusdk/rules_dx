@@ -1,10 +1,11 @@
 """Quality tool rows for the cloudformation family."""
 
-load("//core/quality:tool_defs.bzl", "config", "row", "tool")
+load("//core/quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
 TOOLS = [
     tool(
         id = "cfn_lint",
+        severity = severity(floor = "warning"),
         adapters = {"lint": ["cloudformation"]},
         config = config(suffixes = [".cfnlintrc", ".yaml", ".yml"], tier_active = True),
         support = [

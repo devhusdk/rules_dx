@@ -10,6 +10,7 @@ use super::host::{
     scan_output_bases,
 };
 use super::pool::{Pool, Record, Who};
+use super::primary;
 
 const STALE_AFTER_SECS: u64 = 30 * 24 * 60 * 60;
 const EXTERNAL_GRACE_SECS: u64 = 24 * 60 * 60;
@@ -60,6 +61,8 @@ pub struct Added {
     pub reused: bool,
     pub base: Option<String>,
     pub warnings: Vec<Warning>,
+    /// Set when this add turned on the main-checkout rule.
+    pub notice: Option<String>,
 }
 
 /// A problem `add` worked around.
@@ -569,6 +572,7 @@ fn reuse_held(
         reused: true,
         base: None,
         warnings,
+        notice: None,
     }))
 }
 
@@ -636,7 +640,7 @@ pub(crate) fn lease(
     lease_locked(pool, host, who, request, skip, warnings, lock)
 }
 
-/// `lease` for a caller that already holds the pool lock. Drops the lock before `switch_slot`; skips a free slot it cannot clean.
+/// `lease` for a caller that already holds the pool lock. Drops the lock before `switch_slot`; skips a free slot it cannot clean; turns on the main-checkout rule when `dx.primary` is unset and writes its git hook.
 pub(crate) fn lease_locked(
     pool: &Pool,
     host: &dyn Host,
@@ -649,7 +653,34 @@ pub(crate) fn lease_locked(
     let mut skip = skip.to_vec();
     loop {
         match lease_once(pool, host, who, request, &skip, warnings, lock) {
-            Ok(added) => return Ok(added),
+            Ok(mut added) => {
+                match primary::protect(&pool.main) {
+                    Ok(notice) => added.notice = notice,
+                    Err(error) => added.warnings.push(Warning {
+                        code: "protect_failed",
+                        message: format!(
+                            "cannot set {} in the main checkout: {}",
+                            primary::KEY,
+                            error.message
+                        ),
+                    }),
+                }
+                match primary::guard_git(&pool.main) {
+                    Ok(None) => {}
+                    Ok(Some(message)) => added.warnings.push(Warning {
+                        code: "git_hook_skipped",
+                        message,
+                    }),
+                    Err(error) => added.warnings.push(Warning {
+                        code: "git_hook_failed",
+                        message: format!(
+                            "cannot write the git hook of the main checkout: {}",
+                            error.message
+                        ),
+                    }),
+                }
+                return Ok(added);
+            }
             Err(Missed::Failed(error)) => return Err(error),
             Err(Missed::Unclean {
                 slot,
@@ -712,6 +743,7 @@ fn lease_once(
                 reused: true,
                 base: None,
                 warnings,
+                notice: None,
             });
         }
         if request.force {
@@ -729,6 +761,7 @@ fn lease_once(
                 reused: true,
                 base: None,
                 warnings,
+                notice: None,
             });
         }
         let held = hold(pool, host, record);
@@ -929,6 +962,7 @@ fn lease_once(
             Start::Local | Start::Remote => None,
         },
         warnings,
+        notice: None,
     })
 }
 

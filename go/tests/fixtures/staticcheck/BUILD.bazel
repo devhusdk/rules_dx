@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("//go:defs.bzl", "go_library")
-load("//core/quality:native_config.bzl", "staticcheck_config")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:native_config.bzl", "staticcheck_config")
+load("//go:defs.bzl", "go_library")
 
 package(
     default_testonly = True,
@@ -67,18 +67,31 @@ staticcheck_config(
 )
 
 go_library(
-    name = "strict_only_standard",
-    srcs = ["strict_only.go"],
+    name = "initialisms_standard",
+    srcs = ["initialisms.go"],
     aspect_hints = [":standard_config"],
-    importpath = "rules_dx/go/tests/fixtures/staticcheck/strictonly",
+    importpath = "rules_dx/go/tests/fixtures/staticcheck/initialisms",
     tags = ["manual"],
 )
 
 go_library(
-    name = "strict_only_strict",
-    srcs = ["strict_only.go"],
+    name = "initialisms_strict",
+    srcs = ["initialisms.go"],
     aspect_hints = [":strict_config"],
-    importpath = "rules_dx/go/tests/fixtures/staticcheck/strictonly",
+    importpath = "rules_dx/go/tests/fixtures/staticcheck/initialisms",
+    tags = ["manual"],
+)
+
+staticcheck_config(
+    name = "opt_in_config",
+    src = "opt_in/staticcheck.conf",
+)
+
+go_library(
+    name = "initialisms_opt_in",
+    srcs = ["initialisms.go"],
+    aspect_hints = [":opt_in_config"],
+    importpath = "rules_dx/go/tests/fixtures/staticcheck/initialisms",
     tags = ["manual"],
 )
 
@@ -88,9 +101,16 @@ staticcheck_config(
 )
 
 go_library(
-    name = "strict_only_initialisms",
-    srcs = ["strict_only.go"],
+    name = "initialisms_custom",
+    srcs = ["initialisms.go"],
     aspect_hints = [":initialisms_config"],
-    importpath = "rules_dx/go/tests/fixtures/staticcheck/strictonly",
+    importpath = "rules_dx/go/tests/fixtures/staticcheck/initialisms",
+    tags = ["manual"],
+)
+
+go_library(
+    name = "unused_value",
+    srcs = ["unused_value.go"],
+    importpath = "rules_dx/go/tests/fixtures/staticcheck/unusedvalue",
     tags = ["manual"],
 )

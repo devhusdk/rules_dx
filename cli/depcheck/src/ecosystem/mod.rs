@@ -84,6 +84,10 @@ pub fn normalize_snake(name: &str) -> String {
 
 /// Parses a paren-style lock (a paket or bundler lock): every 4-space
 /// indented `name (version)` line, keyed by `normalize_lower`.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_paren_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let re = regex::Regex::new(r"^    ([A-Za-z0-9_.\-]+) \(([^)]+)\)")

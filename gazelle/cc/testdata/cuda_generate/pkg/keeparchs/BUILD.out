@@ -6,6 +6,6 @@ cuda_library(
         "a.cu",
         "b.cu",
     ],
-    cuda_archs = ["sm_120"],
+    gpu_archs = ["sm_120"],
     visibility = ["//visibility:public"],
 )

@@ -163,6 +163,7 @@ rust_library(
         "src/sqlfluff_config.rs",
         "src/sqlfluff_preflight.rs",
         "src/terraform_preflight.rs",
+        "src/zig_guard.rs",
     ],
     aliases = aliases(
         package_name = "core/quality/quality_adapter",
@@ -344,6 +345,7 @@ rust_test(
         "src/sqlfluff_config.rs",
         "src/sqlfluff_preflight.rs",
         "src/terraform_preflight.rs",
+        "src/zig_guard.rs",
     ],
     aliases = aliases(
         package_name = "core/quality/quality_adapter",
@@ -358,8 +360,9 @@ rust_test(
         "//javascript/private/ide:node_tool",
         "//python/private/ide:python_tool",
         "//tools/testing/process_probe",
-    ],
+    ] + glob(["src/parsers/*.rs"]),
     env = {
+        "DX_PARSER_MOD": "$(rootpath src/parsers/mod.rs)",
         "DX_PROCESS_PROBE": "$(rootpath //tools/testing/process_probe:process_probe)",
         "DX_TOOL_CONFIGS": "$(rootpath //cli/generate:src/tools_gen.rs)",
         "DX_TEST_NODE": "$(rootpath //javascript/private/ide:node_tool)",

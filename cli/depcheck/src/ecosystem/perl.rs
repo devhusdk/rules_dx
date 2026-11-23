@@ -7,6 +7,10 @@ use super::put;
 
 /// Reads a cpan manifest: `requires`, `recommends`, `suggests`, `test_requires`,
 /// `build_requires` and `configure_requires`, also inside `on 'phase' => sub { ... }`.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_perl_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let on_re =
@@ -79,6 +83,10 @@ fn perl_spec(version: &str) -> String {
 }
 
 /// Maps every module a cpan snapshot distribution provides to its version.
+///
+/// # Errors
+///
+/// Returns an error when the lock cannot be read or does not parse.
 pub fn parse_perl_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let mut modules = BTreeMap::new();

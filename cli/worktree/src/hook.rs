@@ -78,15 +78,21 @@ pub enum HookKind {
     Remove,
     Stop,
     Guard,
+    /// Runs before a Bazel call, not from an agent.
+    Bazel,
+    /// Runs from git's `reference-transaction` hook, not from an agent.
+    Git,
 }
 
 impl HookKind {
     /// Every hook kind, in the order help text lists them.
-    pub const ALL: [HookKind; 4] = [
+    pub const ALL: [HookKind; 6] = [
         HookKind::Create,
         HookKind::Remove,
         HookKind::Stop,
         HookKind::Guard,
+        HookKind::Bazel,
+        HookKind::Git,
     ];
 
     /// The hook kind a command-line word names.
@@ -103,17 +109,20 @@ impl HookKind {
             HookKind::Remove => "remove",
             HookKind::Stop => "stop",
             HookKind::Guard => "guard",
+            HookKind::Bazel => "bazel",
+            HookKind::Git => "git",
         }
     }
 
-    /// The Claude Code event that runs this hook, for error text.
+    /// The Claude Code event that runs this hook, for error text; none for a hook no agent runs.
     #[must_use]
-    pub fn event(self) -> &'static str {
+    pub fn event(self) -> Option<&'static str> {
         match self {
-            HookKind::Create => "WorktreeCreate",
-            HookKind::Remove => "WorktreeRemove",
-            HookKind::Stop => "SubagentStop",
-            HookKind::Guard => "PreToolUse",
+            HookKind::Create => Some("WorktreeCreate"),
+            HookKind::Remove => Some("WorktreeRemove"),
+            HookKind::Stop => Some("SubagentStop"),
+            HookKind::Guard => Some("PreToolUse"),
+            HookKind::Bazel | HookKind::Git => None,
         }
     }
 
@@ -129,7 +138,7 @@ fn missing(kind: HookKind, field: &str) -> WorktreeError {
         &format!(
             "hook input has no {field}; run dx worktree hook {} from the {} hook",
             kind.word(),
-            kind.event()
+            kind.event().unwrap_or("agent")
         ),
     )
 }
@@ -785,7 +794,7 @@ fn deploy_apply_deny(command: &str) -> String {
     )
 }
 
-/// What the Bash guard does with one command.
+/// What the guard does with one tool call.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Guard {
     Allow,
@@ -838,10 +847,11 @@ pub fn primary_checkout(input: &Value, who: &Who, slots: SlotsLookup) -> Option<
     })
 }
 
-/// Blocks `git worktree add|remove|prune`, blocks a mutating git, bazel or dx command in a slot
-/// another agent holds, names the subagent for every dx command, and names the session for dx
-/// when the agent's shells do not. `who` carries the environment's session and pid; the agent
-/// comes from the payload, because the rewrite below only reaches later dx commands.
+/// Blocks a file edit in a refused main checkout, blocks `git worktree add|remove|prune`, blocks a
+/// mutating git, bazel or dx command in a slot another agent holds, names the subagent for every dx
+/// command, and names the session for dx when the agent's shells do not. `who` carries the
+/// environment's session and pid; the agent comes from the payload, because the rewrite below only
+/// reaches later dx commands.
 pub fn guard(input: &Value, who: &Who, lease: LeaseLookup) -> Guard {
     guard_with(input, who, lease, &|name| std::env::var(name).ok())
 }
@@ -857,6 +867,9 @@ pub fn guard_with(
     lease: LeaseLookup,
     env_get: &dyn Fn(&str) -> Option<String>,
 ) -> Guard {
+    if let Some(line) = main_checkout_edit(input, env_get) {
+        return Guard::Block(line);
+    }
     if let Some(line) = blocked(input) {
         return Guard::Block(line);
     }
@@ -911,6 +924,17 @@ pub fn guard_with(
         return Guard::Ask(serde_json::json!({ "hookSpecificOutput": specific }));
     }
     Guard::Rewrite(dialect.rewrite(&Value::Object(updated)))
+}
+
+/// The refusal for a file edit in a refused main checkout; a relative `file_path` or `notebook_path` is read from `cwd`.
+fn main_checkout_edit(input: &Value, env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {
+    let tool = input.get("tool_input")?;
+    let path = field(tool, "file_path").or_else(|| field(tool, "notebook_path"))?;
+    let path = match cwd(input) {
+        Some(dir) => dir.join(path),
+        None => PathBuf::from(path),
+    };
+    super::primary::edit_refusal(&path, env_get).map(|reason| format!("dx: refused: {reason}"))
 }
 
 fn codex_thread(env_get: &dyn Fn(&str) -> Option<String>) -> Option<String> {

@@ -1,8 +1,8 @@
 //! npm publisher: deterministic pack, pack verification and the npm publish.
 
 use crate::api_compat::{
-    ApiCompatMode, Baseline, Outcome, conclude, fetch, fetch_to, highest_below, previous_git_tag,
-    workspace_dir,
+    ApiCompatError, ApiCompatMode, Baseline, Outcome, conclude, fetch, fetch_to, highest_below,
+    previous_git_tag, workspace_dir,
 };
 use crate::archive::*;
 use crate::run::{
@@ -11,8 +11,73 @@ use crate::run::{
 };
 use crate::stage::*;
 use dx_ecosystems::Ecosystem;
+use dx_process::capture::RunError;
+use std::fmt;
 use std::io;
 use std::path::Path;
+
+/// Why the npm API compatibility check failed.
+#[derive(Debug)]
+pub enum NpmError {
+    TempDir(io::Error),
+    Extract(io::Error),
+    ManifestRead(io::Error),
+    ManifestJson(serde_json::Error),
+    WriteConfig(io::Error),
+    ApiExtractorRun(RunError),
+    /// api-extractor ran and failed; `exit` describes how and `stdout` is what it printed.
+    ApiExtractorFailed {
+        exit: String,
+        stdout: String,
+    },
+    ReportDir(io::Error),
+    NoReport,
+    ReadReport(io::Error),
+    ApiCompat(ApiCompatError),
+}
+
+impl fmt::Display for NpmError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::TempDir(source) | Self::Extract(source) => write!(f, "npm_deploy: {source}"),
+            Self::ManifestRead(source) => write!(f, "npm_deploy: {}: {source}", manifest_name()),
+            Self::ManifestJson(source) => write!(f, "npm_deploy: {}: {source}", manifest_name()),
+            Self::WriteConfig(source) | Self::ReadReport(source) => {
+                write!(f, "npm_deploy: api compat: {source}")
+            }
+            Self::ApiExtractorRun(source) => {
+                write!(f, "npm_deploy: api compat: api-extractor: {source}")
+            }
+            Self::ApiExtractorFailed { exit, stdout } => write!(
+                f,
+                "npm_deploy: api compat: api-extractor failed with {exit}: {stdout}"
+            ),
+            Self::ReportDir(source) => write!(
+                f,
+                "npm_deploy: api compat: api-extractor wrote no report: {source}"
+            ),
+            Self::NoReport => f.write_str("npm_deploy: api compat: api-extractor wrote no report"),
+            Self::ApiCompat(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for NpmError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::TempDir(source)
+            | Self::Extract(source)
+            | Self::ManifestRead(source)
+            | Self::WriteConfig(source)
+            | Self::ReportDir(source)
+            | Self::ReadReport(source) => Some(source),
+            Self::ManifestJson(source) => Some(source),
+            Self::ApiExtractorRun(source) => Some(source),
+            Self::ApiCompat(source) => Some(source),
+            Self::ApiExtractorFailed { .. } | Self::NoReport => None,
+        }
+    }
+}
 
 /// The file name of the manifest.
 fn manifest_name() -> &'static str {
@@ -473,11 +538,10 @@ fn api_breaking(published: &str, staged: &str) -> Vec<String> {
 }
 
 /// Returns the version and the `types` entry of an extracted package.
-fn package_version_and_types(package_dir: &Path) -> Result<(String, Option<String>), String> {
+fn package_version_and_types(package_dir: &Path) -> Result<(String, Option<String>), NpmError> {
     let body = std::fs::read_to_string(package_dir.join(manifest_name()))
-        .map_err(|error| format!("{}: {error}", manifest_name()))?;
-    let json: serde_json::Value =
-        serde_json::from_str(&body).map_err(|error| format!("{}: {error}", manifest_name()))?;
+        .map_err(NpmError::ManifestRead)?;
+    let json: serde_json::Value = serde_json::from_str(&body).map_err(NpmError::ManifestJson)?;
     let version = json
         .get("version")
         .and_then(serde_json::Value::as_str)
@@ -497,7 +561,7 @@ fn extract_api_report(
     work: &Path,
     package_dir: &Path,
     types: &str,
-) -> Result<String, String> {
+) -> Result<String, NpmError> {
     let report_dir = work.join("report");
     let config = serde_json::json!({
         "projectFolder": package_dir,
@@ -518,28 +582,27 @@ fn extract_api_report(
         "tsdocMetadata": {"enabled": false},
     });
     let config_path = work.join("api-extractor.json");
-    std::fs::write(&config_path, config.to_string()).map_err(|error| error.to_string())?;
+    std::fs::write(&config_path, config.to_string()).map_err(NpmError::WriteConfig)?;
     let output = run_publish(
         scrubbed_command(api_extractor, &[PUBLISH_CHILD_ENV_KEEP], &[])
             .args(["run", "--local", "--config"])
             .arg(&config_path)
             .current_dir(package_dir),
     )
-    .map_err(|error| format!("api-extractor: {error}"))?;
+    .map_err(NpmError::ApiExtractorRun)?;
     if !output.success() {
-        return Err(format!(
-            "api-extractor failed with {}: {}",
-            exit_text(&output),
-            String::from_utf8_lossy(&output.stdout)
-        ));
+        return Err(NpmError::ApiExtractorFailed {
+            exit: exit_text(&output),
+            stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        });
     }
     let report = std::fs::read_dir(&report_dir)
-        .map_err(|error| format!("api-extractor wrote no report: {error}"))?
+        .map_err(NpmError::ReportDir)?
         .filter_map(Result::ok)
         .map(|entry| entry.path())
         .find(|path| path.to_string_lossy().ends_with(".api.md"))
-        .ok_or("api-extractor wrote no report")?;
-    std::fs::read_to_string(report).map_err(|error| error.to_string())
+        .ok_or(NpmError::NoReport)?;
+    std::fs::read_to_string(report).map_err(NpmError::ReadReport)
 }
 
 /// Returns the versions and their tarball URLs from a registry packument body.
@@ -570,8 +633,8 @@ fn npm_api_check(
     staged_tgz: &Path,
     name: &str,
     check: &NpmApiCheck,
-) -> Result<(String, Outcome), String> {
-    let work = tempfile_stage_dir("npm-api-").map_err(|error| format!("npm_deploy: {error}"))?;
+) -> Result<(String, Outcome), NpmError> {
+    let work = tempfile_stage_dir("npm-api-").map_err(NpmError::TempDir)?;
     let result = npm_api_diff(staged_tgz, name, check, &work);
     dx_atomic_fs::discard_dir(&work);
     result
@@ -582,12 +645,11 @@ fn npm_api_diff(
     name: &str,
     check: &NpmApiCheck,
     work: &Path,
-) -> Result<(String, Outcome), String> {
+) -> Result<(String, Outcome), NpmError> {
     let staged_dir = work.join("staged");
-    archive_extract(staged_tgz, &staged_dir).map_err(|error| format!("npm_deploy: {error}"))?;
+    archive_extract(staged_tgz, &staged_dir).map_err(NpmError::Extract)?;
     let staged_pkg = staged_dir.join("package");
-    let (version, types) =
-        package_version_and_types(&staged_pkg).map_err(|error| format!("npm_deploy: {error}"))?;
+    let (version, types) = package_version_and_types(&staged_pkg)?;
     let skipped = |why: String| Ok((version.clone(), Outcome::Skipped(why)));
     let Some(types) = types else {
         return skipped("package has no types entry".to_owned());
@@ -623,23 +685,19 @@ fn npm_api_diff(
         Ok(false) => return skipped(format!("{tarball} not found")),
         Err(error) => return skipped(error.to_string()),
     }
-    archive_extract(&published_tgz, &published_dir)
-        .map_err(|error| format!("npm_deploy: {error}"))?;
+    archive_extract(&published_tgz, &published_dir).map_err(NpmError::Extract)?;
     let published_pkg = published_dir.join("package");
-    let (_, published_types) = package_version_and_types(&published_pkg)
-        .map_err(|error| format!("npm_deploy: {error}"))?;
+    let (_, published_types) = package_version_and_types(&published_pkg)?;
     let Some(published_types) = published_types else {
         return skipped(format!("published {previous} has no types entry"));
     };
-    let staged_report = extract_api_report(check.api_extractor, &staged_dir, &staged_pkg, &types)
-        .map_err(|error| format!("npm_deploy: api compat: {error}"))?;
+    let staged_report = extract_api_report(check.api_extractor, &staged_dir, &staged_pkg, &types)?;
     let published_report = extract_api_report(
         check.api_extractor,
         &published_dir,
         &published_pkg,
         &published_types,
-    )
-    .map_err(|error| format!("npm_deploy: api compat: {error}"))?;
+    )?;
     let changes = api_breaking(&published_report, &staged_report);
     Ok((version, Outcome::Compared { previous, changes }))
 }
@@ -709,7 +767,7 @@ pub fn npm_deploy_main_checked(
     if mode != ApiCompatMode::Off {
         let checked = if api_extractor_rloc.is_empty() {
             let outcome = Outcome::Skipped("api-extractor is not available".to_owned());
-            conclude("npm_deploy", mode, "", outcome).map_err(|error| error.to_string())
+            conclude("npm_deploy", mode, "", outcome).map_err(NpmError::ApiCompat)
         } else {
             let Some(api_extractor) = run.resolve(api_extractor_rloc) else {
                 return 1;
@@ -720,7 +778,7 @@ pub fn npm_deploy_main_checked(
                 api_extractor: &api_extractor,
             };
             npm_api_check(&tgz_path, &name, &check).and_then(|(version, outcome)| {
-                conclude("npm_deploy", mode, &version, outcome).map_err(|error| error.to_string())
+                conclude("npm_deploy", mode, &version, outcome).map_err(NpmError::ApiCompat)
             })
         };
         if let Err(message) = checked {

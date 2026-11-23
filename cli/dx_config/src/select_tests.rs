@@ -7,10 +7,17 @@ fn problem(text: &str) -> SelectionProblem {
 }
 
 #[test]
-fn no_file_is_the_curated_standard_tier() {
+fn no_file_is_the_curated_strict_tier() {
     let selection = effective(None).unwrap();
     assert_eq!(selection.families.len(), FAMILIES.len());
     assert_eq!(selection.families["rust"].format, ["rustfmt"]);
+    assert_eq!(selection.families["rust"].tier.as_str(), "strict");
+}
+
+#[test]
+fn a_standard_root_tier_opts_every_family_down() {
+    let config = parse("schema_version = 1\ntier = \"standard\"\n").unwrap();
+    let selection = effective(Some(&config)).unwrap();
     assert_eq!(selection.families["rust"].tier.as_str(), "standard");
 }
 
@@ -62,7 +69,7 @@ fn an_opt_in_family_runs_only_the_tools_it_names() {
     let selection = effective(Some(&config)).unwrap();
     assert_eq!(selection.families["lua"].format, ["stylua"]);
     assert_eq!(selection.families["lua"].lint, [] as [String; 0]);
-    assert_eq!(selection.families["lua"].tier.as_str(), "standard");
+    assert_eq!(selection.families["lua"].tier.as_str(), "strict");
     assert_eq!(selection.families["flatbuffers"].lint, ["flatc"]);
     let unlisted = effective(None).unwrap();
     assert!(!unlisted.families.contains_key("lua"));
@@ -86,12 +93,12 @@ fn an_unknown_tool_gets_a_hint() {
 #[test]
 fn two_tiers_on_one_shared_tool_conflict() {
     let error = problem(
-        "schema_version = 1\n[families.go]\ntier = \"strict\"\nlint = [\"yamllint\"]\n[families.rust]\nlint = [\"yamllint\"]\n",
+        "schema_version = 1\n[families.go]\ntier = \"standard\"\nlint = [\"yamllint\"]\n[families.rust]\nlint = [\"yamllint\"]\n",
     );
     let text = error.to_string();
     assert!(text.contains("`yamllint`"), "{text}");
     assert!(
-        text.contains("`go` (strict)") && text.contains("`rust` (standard)"),
+        text.contains("`go` (standard)") && text.contains("`rust` (strict)"),
         "{text}"
     );
     assert!(text.contains("the same `tier`"), "{text}");

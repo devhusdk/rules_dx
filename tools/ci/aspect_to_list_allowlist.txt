@@ -2,8 +2,6 @@ bicep/private/quality/bicep.bzl aspect-to-list 1
 cc/private/clang_syntax.bzl aspect-to-list 2
 cc/private/quality/cc.bzl aspect-to-list 2
 core/codegen/codegen.bzl aspect-to-list 1
-core/quality/families/generation.bzl aspect-to-list 2
-core/quality/families/php.bzl aspect-to-list 3
 core/quality/pipeline.bzl aspect-to-list 1
 core/quality/sources.bzl aspect-to-list 1
 core/quality/testdata/upstream_ownership.bzl aspect-to-list 1
@@ -19,7 +17,6 @@ kotlin/private/quality/kotlinc_check.bzl aspect-to-list 1
 lua/private/quality/lua.bzl aspect-to-list 1
 powershell/private/quality/powershell.bzl aspect-to-list 2
 python/private/quality/python.bzl aspect-to-list 1
-ruby/private/quality/ruby.bzl aspect-to-list 1
 rust/private/quality/rust.bzl aspect-to-list 1
 rust/private/quality/rust_clippy.bzl aspect-to-list 1
 terraform/private/quality/terraform.bzl aspect-to-list 2

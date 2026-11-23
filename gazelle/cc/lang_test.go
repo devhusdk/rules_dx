@@ -301,8 +301,8 @@ func TestCudaGenerateOwnedByDirectory(t *testing.T) {
 	if got := strings.Join(r.AttrStrings("hdrs"), ","); got != "k.cuh" {
 		t.Errorf("hdrs = %q", got)
 	}
-	if got := strings.Join(r.AttrStrings("cuda_archs"), "|"); got != "compute_89:compute_89,sm_89|sm_120" {
-		t.Errorf("cuda_archs = %q", got)
+	if got := strings.Join(r.AttrStrings("gpu_archs"), "|"); got != "compute_89:compute_89,sm_89|sm_120" {
+		t.Errorf("gpu_archs = %q", got)
 	}
 	if len(res.Imports) != 1 {
 		t.Errorf("imports = %v", res.Imports)
@@ -314,8 +314,8 @@ func TestCudaMissingDirectiveUsesDefault(t *testing.T) {
 	if len(res.Gen) != 1 {
 		t.Fatalf("gen = %+v", res.Gen)
 	}
-	if got := strings.Join(res.Gen[0].AttrStrings("cuda_archs"), "|"); got != "sm_89" {
-		t.Errorf("cuda_archs = %q", got)
+	if got := strings.Join(res.Gen[0].AttrStrings("gpu_archs"), "|"); got != "sm_89" {
+		t.Errorf("gpu_archs = %q", got)
 	}
 }
 
@@ -325,19 +325,19 @@ func TestCudaMainRefuses(t *testing.T) {
 }
 
 func TestCudaBinaryNameClashRefuses(t *testing.T) {
-	lang, _ := cudaFixture(t, "cuda_binary(name = \"demo\", srcs = [\"main.cu\"], cuda_archs = [\"sm_89\"])\n", []string{"sm_89"}, map[string]string{"main.cu": "int main() {}\n", "k.cu": "\n"})
+	lang, _ := cudaFixture(t, "cuda_binary(name = \"demo\", srcs = [\"main.cu\"], gpu_archs = [\"sm_89\"])\n", []string{"sm_89"}, map[string]string{"main.cu": "int main() {}\n", "k.cu": "\n"})
 	wantRefusal(t, refusal(t, lang), "already creates demo_cuda")
 }
 
 func TestCudaOwnedFilesProduceNothing(t *testing.T) {
-	_, res := cudaFixture(t, "cuda_library(name = \"kernel\", srcs = [\"k.cu\"], hdrs = [\"k.cuh\"], cuda_archs = [\"sm_89\"])\n", nil, map[string]string{"k.cu": "\n", "k.cuh": "\n"})
+	_, res := cudaFixture(t, "cuda_library(name = \"kernel\", srcs = [\"k.cu\"], hdrs = [\"k.cuh\"], gpu_archs = [\"sm_89\"])\n", nil, map[string]string{"k.cu": "\n", "k.cuh": "\n"})
 	if len(res.Gen) != 0 || len(res.Empty) != 0 {
 		t.Fatalf("result = %+v", res)
 	}
 }
 
 func TestCudaStaleOwnedTargetIsEmptied(t *testing.T) {
-	_, res := cudaFixture(t, "cuda_library(name = \"demo_cuda\", srcs = [\"gone.cu\"], cuda_archs = [\"sm_89\"])\ncuda_library(name = \"hand\", srcs = [\"h.cu\"])\n", nil, map[string]string{"h.cu": "\n"})
+	_, res := cudaFixture(t, "cuda_library(name = \"demo_cuda\", srcs = [\"gone.cu\"], gpu_archs = [\"sm_89\"])\ncuda_library(name = \"hand\", srcs = [\"h.cu\"])\n", nil, map[string]string{"h.cu": "\n"})
 	if len(res.Gen) != 0 || len(res.Empty) != 1 || res.Empty[0].Name() != "demo_cuda" {
 		t.Fatalf("result = %+v", res)
 	}

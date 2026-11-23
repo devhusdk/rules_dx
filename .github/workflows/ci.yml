@@ -322,18 +322,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - shard: 0/6
+          - shard: 0/7
             patterns: //appimage/...
-          - shard: 1/6
+          - shard: 1/7
             patterns: //cli/archive/...
-          - shard: 2/6
+          - shard: 2/7
             patterns: //android/private/packaging/...
-          - shard: 3/6
+          - shard: 3/7
             patterns: //msix/tests/...
-          - shard: 4/6
+          - shard: 4/7
             patterns: ""
-          - shard: 5/6
-            patterns: //deploy/private/...
+          - shard: 5/7
+            patterns: //deploy/private:all
+          - shard: 6/7
+            patterns: //deploy/private/... -//deploy/private:all
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

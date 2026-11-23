@@ -19,14 +19,6 @@ fixture-name dart/tests/negative
 fixture-name dart/tests/runtime
 fixture-name dart/tests/tags
 fixture-name dart/tests/web
-fixture-name elixir/tests/negative
-fixture-name elixir/tests/runtime
-fixture-name elixir/tests/tags
-fixture-name erlang/tests/negative
-fixture-name erlang/tests/nif_cpp
-fixture-name erlang/tests/nif_escript
-fixture-name erlang/tests/runtime
-fixture-name erlang/tests/tags
 fixture-name flutter/tests/contract
 fixture-name flutter/tests/negative
 fixture-name flutter/tests/runtime
@@ -132,7 +124,6 @@ fixture-referenced zig/tests/fixtures/bench
 fixture-referenced zig/tests/fixtures/calc
 outside-lang core/quality/tools/python
 private-visibility apple/private/provisioning/BUILD.bazel
-private-visibility astro/private/BUILD.bazel
 private-visibility cc/private/toolchain/BUILD.bazel
 private-visibility cc/private/toolchain/gcc_features/BUILD.bazel
 private-visibility cuda/private/toolchain/BUILD.bazel
@@ -146,7 +137,6 @@ private-visibility java/private/quality/tools/javac_check/BUILD.bazel
 private-visibility java/private/quality/tools/kotlinc_check/BUILD.bazel
 private-visibility java/private/quality/tools/scalac_check/BUILD.bazel
 private-visibility java/private/quality/tools/worker/BUILD.bazel
-private-visibility javascript/private/BUILD.bazel
 private-visibility javascript/private/quality/bin/BUILD.bazel
 private-visibility kotlin/private/BUILD.bazel
 private-visibility lua/private/toolchain/BUILD.bazel

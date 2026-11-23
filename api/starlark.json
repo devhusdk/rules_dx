@@ -5857,7 +5857,7 @@
           {
             "default": "",
             "mandatory": true,
-            "name": "cuda_archs"
+            "name": "gpu_archs"
           },
           {
             "default": "None",
@@ -5944,6 +5944,7 @@
           {
             "attrs": [
               "archs",
+              "copts",
               "tags",
               "target_compatible_with",
               "visibility"
@@ -5953,6 +5954,7 @@
           {
             "attrs": [
               "archs",
+              "copts",
               "features",
               "hdrs",
               "rdc",
@@ -5979,7 +5981,7 @@
           {
             "default": "",
             "mandatory": true,
-            "name": "cuda_archs"
+            "name": "gpu_archs"
           },
           {
             "default": "None",
@@ -6030,7 +6032,7 @@
           {
             "default": "",
             "mandatory": true,
-            "name": "cuda_archs"
+            "name": "gpu_archs"
           },
           {
             "default": "None",
@@ -6081,7 +6083,7 @@
           {
             "default": "",
             "mandatory": true,
-            "name": "cuda_archs"
+            "name": "gpu_archs"
           },
           {
             "default": "None",
@@ -15682,6 +15684,105 @@
     "extensions": [],
     "functions": [
       {
+        "name": "platform_select",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "branches"
+          }
+        ]
+      },
+      {
+        "name": "platforms_error",
+        "params": [
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "platforms"
+          },
+          {
+            "default": "",
+            "mandatory": true,
+            "name": "native"
+          }
+        ]
+      }
+    ],
+    "load": "@rules_dx//platforms:defs.bzl",
+    "macros": [],
+    "providers": [
+      {
+        "fields": [
+          "name",
+          "platforms"
+        ],
+        "name": "DxPlatformInfo"
+      },
+      {
+        "fields": [
+          "check",
+          "java_deps",
+          "link_flags",
+          "min_os_floor",
+          "runner"
+        ],
+        "name": "DxTargetInfo"
+      }
+    ],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [
+      {
+        "name": "dx_platforms",
+        "tag_classes": [
+          {
+            "attrs": [
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "constraint_values",
+                "type": "LABEL_LIST"
+              },
+              {
+                "default": "[]",
+                "mandatory": false,
+                "name": "hosts",
+                "type": "STRING_LIST"
+              },
+              {
+                "default": "",
+                "mandatory": true,
+                "name": "name",
+                "type": "NAME"
+              },
+              {
+                "default": "None",
+                "mandatory": false,
+                "name": "parent",
+                "type": "LABEL"
+              }
+            ],
+            "name": "platform"
+          }
+        ]
+      }
+    ],
+    "functions": [],
+    "load": "@rules_dx//platforms:extensions.bzl",
+    "macros": [],
+    "providers": [],
+    "repository_rules": [],
+    "rules": []
+  },
+  {
+    "aspects": [],
+    "extensions": [],
+    "functions": [
+      {
         "forwards": [],
         "name": "powershell_binary",
         "params": [
@@ -17078,6 +17179,10 @@
               }
             ],
             "name": "configure"
+          },
+          {
+            "attrs": [],
+            "name": "from_source"
           },
           {
             "attrs": [
@@ -21054,6 +21159,11 @@
             "name": "visibility"
           },
           {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_release_fast"
+          },
+          {
             "default": "",
             "mandatory": false,
             "name": "kwargs"
@@ -21118,6 +21228,7 @@
         "forwards": [
           {
             "attrs": [
+              "allow_release_fast",
               "deps",
               "size",
               "srcs",
@@ -21160,6 +21271,11 @@
             "default": "None",
             "mandatory": false,
             "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_release_fast"
           },
           {
             "default": "",

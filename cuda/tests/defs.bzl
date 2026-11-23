@@ -100,6 +100,27 @@ coverage_keep_test = analysistest.make(
     extra_target_under_test_aspects = [_compile_aspect],
 )
 
+def _strict_flags_impl(ctx):
+    env = analysistest.begin(ctx)
+    commands = analysistest.target_under_test(env)[CudaCompileInfo].commands
+    asserts.true(env, len(commands) > 0, "expected at least one CudaCompile action")
+    for _, argv in commands:
+        for flag in ctx.attr.present:
+            asserts.true(env, flag in argv, "nvcc must get " + flag)
+        for flag in ctx.attr.absent:
+            asserts.false(env, flag in argv, "nvcc must not get " + flag)
+    return analysistest.end(env)
+
+strict_flags_test = analysistest.make(
+    _strict_flags_impl,
+    doc = "Asserts which strict warning flags reach nvcc.",
+    attrs = {
+        "absent": attr.string_list(doc = "Flags nvcc must not get."),
+        "present": attr.string_list(doc = "Flags nvcc must get."),
+    },
+    extra_target_under_test_aspects = [_compile_aspect],
+)
+
 def _component_sources_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)

@@ -5,6 +5,6 @@ load("@rules_dx//cuda:defs.bzl", "cuda_library")
 cuda_library(
     name = "my_project_cuda",
     srcs = ["kernel.cu"],
-    cuda_archs = ["sm_89"],
+    gpu_archs = ["sm_89"],
     visibility = ["//visibility:public"],
 )

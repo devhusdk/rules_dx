@@ -1,0 +1,15 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//erlang:defs.bzl", "erlang_app")
+
+erlang_app(
+    app_name = "base_dep",
+    app_version = "1.0.0",
+    visibility = ["//erlang/tests/fixtures/negative:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -38,6 +38,7 @@ impl Watch {
         fs::write(workspace.join("BUILD.bazel"), "").expect("build file");
         fs::write(workspace.join("app/BUILD.bazel"), "").expect("app build file");
         fs::write(workspace.join("src/main.rs"), "fn main() {}\n").expect("source");
+        dx_testing::empty_git_repo(&workspace);
         fs::copy(
             dx_testing::process_probe(),
             bin.join(format!("bazel{}", std::env::consts::EXE_SUFFIX)),

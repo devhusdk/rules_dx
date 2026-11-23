@@ -96,12 +96,12 @@ fn case(name: &str) -> Inputs {
             ..inputs(None, &["python"], &["ruff.toml"])
         },
         "mixed_tiers" => inputs(
-            Some("schema_version = 1\n[families.python]\ntier = \"strict\"\n"),
+            Some("schema_version = 1\ntier = \"standard\"\n[families.python]\ntier = \"strict\"\n"),
             &["python"],
             &["ruff.toml"],
         ),
         "rust" => inputs(
-            Some("schema_version = 1\n[families.rust]\ntier = \"strict\"\n"),
+            Some("schema_version = 1\ntier = \"standard\"\n[families.rust]\ntier = \"strict\"\n"),
             &["rust"],
             &[],
         ),
@@ -264,7 +264,7 @@ fn renders_no_dx_toml() {
                 "typecheck": ["ty"],
             },
         },
-        tier = "standard",
+        tier = "strict",
     )
     == .dx/bazelrc/correctness.bazelrc
 
@@ -278,7 +278,7 @@ fn renders_no_dx_toml() {
     == .dx/config/gitleaks/base.toml
     <standard and strict tier>
     == .dx/config/ruff/base.toml
-    <standard tier>
+    <strict tier>
     == .dx/config/typos/base.toml
     <standard and strict tier>
     == .dx/config/yamlfmt/base.yaml
@@ -337,7 +337,7 @@ fn renders_existing_exports() {
                 "typecheck": ["ty"],
             },
         },
-        tier = "standard",
+        tier = "strict",
     )
     == .dx/bazelrc/correctness.bazelrc
 
@@ -351,7 +351,7 @@ fn renders_existing_exports() {
     == .dx/config/gitleaks/base.toml
     <standard and strict tier>
     == .dx/config/ruff/base.toml
-    <standard tier>
+    <strict tier>
     == .dx/config/typos/base.toml
     <standard and strict tier>
     == .dx/config/yamlfmt/base.yaml
@@ -399,7 +399,7 @@ fn renders_no_root_build() {
                 "typecheck": ["ty"],
             },
         },
-        tier = "standard",
+        tier = "strict",
     )
     == .dx/bazelrc/correctness.bazelrc
 
@@ -413,7 +413,7 @@ fn renders_no_root_build() {
     == .dx/config/gitleaks/base.toml
     <standard and strict tier>
     == .dx/config/ruff/base.toml
-    <standard tier>
+    <strict tier>
     == .dx/config/typos/base.toml
     <standard and strict tier>
     == BUILD.bazel
@@ -563,6 +563,8 @@ fn renders_rust() {
     common --@rules_dx//config:clippy_flag=-Dclippy::string_add
     common --@rules_dx//config:clippy_flag=-Dclippy::create_dir
     common --@rules_dx//config:clippy_flag=-Dclippy::iter_over_hash_type
+    common --@rules_dx//config:clippy_flag=-Dclippy::map_err_ignore
+    common --@rules_dx//config:clippy_flag=-Dclippy::unused_result_ok
     common --@rules_dx//config:clippy_flag=-Dunsafe_code
     common --@rules_dx//config:clippy_flag=-Dunsafe_op_in_unsafe_fn
     common --@rules_dx//config:clippy_flag=-Dunused_must_use

@@ -1,10 +1,10 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/modules:versions.bzl", "JAVA_MAJOR")
-load("//core/private/testing:defs.bzl", "expect_equal")
+load("//core/private/testing:defs.bzl", "expect_equal", "expect_true")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//java:defs.bzl", "java_test")
 load("//java/private:jazzer.bzl", "jazzer_target_class")
-load("//java/private:kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors", "java_test_main_class")
+load("//java/private:kwargs.bzl", "JAVA_ERROR_PRONE_CHECKS", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors", "java_test_main_class")
 load("//rust:defs.bzl", "rust_test")
 load("//scala/private/quality:scalac_jars.bzl", "runtime_jars_rule", "scalac_toolchain_jars_rule")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
@@ -137,17 +137,25 @@ filegroup(
 
 _ON = {"warnings_as_errors": True}
 
+_LINT = [
+    "-Xlint:all,-processing,-serial",
+    "-parameters",
+]
+
+_EP_ERROR = ["-Xep:" + check + ":ERROR" for check in JAVA_ERROR_PRONE_CHECKS]
+
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",
     size = "small",
     extra_checks = [
         expect_equal(
-            "empty gains warnings-as-errors and lint",
+            "empty gains lint, -parameters, -Werror and the Error Prone errors",
             java_javacopts_with_warnings_as_errors(_ON)["javacopts"],
-            [
-                "-Xlint:all",
-                "-Werror",
-            ],
+            _LINT + ["-Werror"] + _EP_ERROR,
+        ),
+        expect_true(
+            "an empty catch fails the build",
+            "-Xep:EmptyCatch:ERROR" in java_javacopts_with_warnings_as_errors(_ON)["javacopts"],
         ),
         expect_equal(
             "existing warnings-as-errors is kept without duplication",
@@ -155,40 +163,20 @@ dx_wrapper_contract_tests(
                 _ON,
                 javacopts = ["-Werror"],
             ))["javacopts"],
-            [
-                "-Werror",
-                "-Xlint:all",
-            ],
+            ["-Werror"] + _LINT + _EP_ERROR,
         ),
         expect_equal(
-            "existing lint gains warnings-as-errors",
+            "existing lint stays and gains the dx lint set",
             java_javacopts_with_warnings_as_errors(dict(
                 _ON,
                 javacopts = ["-Xlint:all"],
             ))["javacopts"],
-            [
-                "-Xlint:all",
-                "-Werror",
-            ],
+            ["-Xlint:all"] + _LINT + ["-Werror"] + _EP_ERROR,
         ),
         expect_equal(
-            "both flags stay unchanged",
-            java_javacopts_with_warnings_as_errors(dict(
-                _ON,
-                javacopts = [
-                    "-Werror",
-                    "-Xlint:all",
-                ],
-            ))["javacopts"],
-            [
-                "-Werror",
-                "-Xlint:all",
-            ],
-        ),
-        expect_equal(
-            "turned off keeps lint without warnings-as-errors",
+            "turned off keeps lint and makes the Error Prone checks warnings",
             java_javacopts_with_warnings_as_errors({"warnings_as_errors": False})["javacopts"],
-            ["-Xlint:all"],
+            _LINT + ["-Xep:" + check + ":WARN" for check in JAVA_ERROR_PRONE_CHECKS],
         ),
         expect_equal(
             "attribute is consumed",
@@ -528,10 +516,7 @@ dx_wrapper_contract_tests(
                 java_javacopts_with_warnings_as_errors(_ON),
                 "main_class",
             )["javacopts"],
-            [
-                "-Xlint:all",
-                "-Werror",
-            ],
+            _LINT + ["-Werror"] + _EP_ERROR,
         ),
     ],
     file_classes = ["java"],

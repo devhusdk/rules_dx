@@ -1,4 +1,4 @@
-use super::{AUDIT_TODAY_ENV, PolicyError, load_security_policy, today_utc};
+use super::{AUDIT_TODAY_ENV, PolicyError, audit_tier, load_security_policy, today_utc};
 
 #[test]
 fn a_pinned_date_makes_the_audit_date_reproducible() {
@@ -53,5 +53,24 @@ fn an_invalid_dx_toml_fails_the_security_policy() {
         security.to_string().contains("dx.toml: ")
             && security.to_string().contains("schema_version is missing"),
         "{security}"
+    );
+}
+
+#[test]
+fn the_audit_tier_is_strict_without_dx_toml() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let workspace = dir.path();
+    assert_eq!(
+        audit_tier(workspace).expect("no dx.toml"),
+        dx_audit::tier_base::Tier::Strict
+    );
+    std::fs::write(
+        workspace.join("dx.toml"),
+        "schema_version = 1\ntier = \"standard\"\n",
+    )
+    .expect("dx.toml");
+    assert_eq!(
+        audit_tier(workspace).expect("standard dx.toml"),
+        dx_audit::tier_base::Tier::Standard
     );
 }

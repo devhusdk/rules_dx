@@ -1,7 +1,7 @@
 //config:buf_breaking_against label_flag ":buf_breaking_none"
 //config:clippy_flag alias "@rules_rust//rust/settings:clippy_flag"
 //config:clippy_output_diagnostics alias "@rules_rust//rust/settings:clippy_output_diagnostics"
-//config:config_tier string_flag "standard" ["standard", "strict"]
+//config:config_tier string_flag "strict" ["standard", "strict"]
 //config:extra_rustc_flag alias "@rules_rust//rust/settings:extra_rustc_flag"
 //config:rustc_output_diagnostics alias "@rules_rust//rust/settings:rustc_output_diagnostics"
 //config:tool_actionlint label_flag "@dx_tools//:actionlint"
@@ -88,7 +88,7 @@
 //cli/coverage_summary:coverage_summary runnable rust_binary
 //cli/env:env runnable rust_binary
 //cli/launcher:exec_launcher runnable rust_binary
-//cli/prebuilt:guard_stub runnable native_binary
+//cli/prebuilt:guard_stub runnable cc_binary
 //cli/runtime:dx_runtime runnable rust_binary
 //core/quality/lsp_check:lsp_check runnable rust_binary
 //core/quality/markdown:quality_markdown runnable rust_binary
@@ -142,6 +142,7 @@
 //ocaml:bisect_ppx_rewriter alias
 //ocaml:dune alias
 //ocaml:emitter alias
+//ocaml:exec_toolchain_type toolchain_type
 //ocaml:profile_toolchain_type toolchain_type
 //ocaml:toolchain_type toolchain_type
 //php:exec_toolchain_type toolchain_type

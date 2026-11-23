@@ -1,5 +1,6 @@
 //! The perlcritic wrapper passes a clean file, reports RequireUseStrict on a dirty one and ignores a
-//! .perlcriticrc in the working directory under --noprofile.
+//! .perlcriticrc in the working directory under --noprofile. The strict tier profile reports each
+//! guard policy and passes a clean module.
 
 use std::path::Path;
 
@@ -50,4 +51,98 @@ fn noprofile_ignores_working_directory_profile() {
         "{}",
         out.combined()
     );
+}
+
+fn strict_findings(name: &str, text: &str) -> Run {
+    let work = scratch_dir(name);
+    let source = work.join(name);
+    write(&source, text);
+    let profile = path_text(&env_file("STRICT_PROFILE"));
+    let mut command = command_for(&env_file("PERLCRITIC"), &[]).expect("command");
+    command.current_dir(&work).args([
+        "--profile",
+        &profile,
+        "--nocolor",
+        "--quiet",
+        "--verbose=%l\t%p\n",
+        &path_text(&source),
+    ]);
+    run_command(&mut command, std::time::Duration::from_secs(120)).expect("perlcritic runs")
+}
+
+const GUARDED: &str = "package Guard;
+use strict;
+use warnings;
+
+sub run {
+    my ($path) = @_;
+    eval q{1};
+    open my $fh, q{<}, $path;
+    open FH, $path or die;
+    unlink $path;
+    {
+        no warnings;
+        ## no critic
+        my $x = 1;
+    }
+    {
+        no warnings q{once};
+    }
+    return undef;
+}
+
+1;
+";
+
+#[test]
+fn strict_profile_reports_each_guard_policy() {
+    let out = strict_findings("Guard.pm", GUARDED);
+    assert_eq!(out.status.code(), Some(2), "{}", out.combined());
+    for expected in [
+        "7\tBuiltinFunctions::ProhibitStringyEval",
+        "8\tInputOutput::RequireCheckedOpen",
+        "9\tInputOutput::ProhibitBarewordFileHandles",
+        "9\tInputOutput::ProhibitTwoArgOpen",
+        "10\tInputOutput::RequireCheckedSyscalls",
+        "12\tTestingAndDebugging::ProhibitNoWarnings",
+        "13\tMiscellanea::ProhibitUnrestrictedNoCritic",
+        "19\tSubroutines::ProhibitExplicitReturnUndef",
+    ] {
+        assert!(
+            out.stdout.contains(expected),
+            "{expected}: {}",
+            out.combined()
+        );
+    }
+    assert!(
+        !out.stdout
+            .contains("17\tTestingAndDebugging::ProhibitNoWarnings"),
+        "a category-restricted no warnings is allowed: {}",
+        out.combined()
+    );
+}
+
+#[test]
+fn strict_profile_requires_strict_and_warnings() {
+    let out = strict_findings("script.pl", "print q{hi};\n");
+    assert_eq!(out.status.code(), Some(2), "{}", out.combined());
+    for expected in [
+        "TestingAndDebugging::RequireUseStrict",
+        "TestingAndDebugging::RequireUseWarnings",
+    ] {
+        assert!(
+            out.stdout.contains(expected),
+            "{expected}: {}",
+            out.combined()
+        );
+    }
+}
+
+#[test]
+fn strict_profile_passes_a_clean_module() {
+    let out = strict_findings(
+        "Clean.pm",
+        "package Clean;\nuse strict;\nuse warnings;\n\nour $VERSION = q{1.0};\n\nsub double {\n    my ($value) = @_;\n    return $value * 2;\n}\n\n1;\n",
+    );
+    assert!(out.status.success(), "{}", out.combined());
 }

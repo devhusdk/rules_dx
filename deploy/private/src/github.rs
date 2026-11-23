@@ -8,8 +8,72 @@ use crate::run::{
 };
 use crate::signing::{CosignPin, SignMode, bundle_name, plan_identity, sign_assets};
 use crate::stage::*;
+use dx_atomic_fs::path_io::{self, PathIoError};
+use dx_process::capture::RunError;
+use std::fmt;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// Why a release tag, release body or previous release could not be read.
+#[derive(Debug)]
+pub enum GithubError {
+    /// A runfiles location did not resolve.
+    Unresolved(String),
+    CrateVersion(crate::crates::CratesError),
+    NoFileName(PathBuf),
+    UnknownRegistry(String),
+    Git(RunError),
+    NoTagAtHead,
+    Gh(RunError),
+    /// `gh release view` exited non-zero; the text names the exit.
+    GhFailed(String),
+    AssetSize {
+        name: String,
+        source: std::num::ParseIntError,
+    },
+    UnexpectedGhOutput(String),
+    NoRelease,
+    Notes(PathIoError),
+}
+
+impl fmt::Display for GithubError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unresolved(rloc) => write!(f, "cannot resolve {rloc}"),
+            Self::CrateVersion(source) => write!(f, "{source}"),
+            Self::NoFileName(path) => write!(f, "{} has no file name", path.display()),
+            Self::UnknownRegistry(registry) => {
+                write!(f, "unknown attestation registry '{registry}'")
+            }
+            Self::Git(source) => write!(f, "{source}"),
+            Self::NoTagAtHead => f.write_str("tag = \"current\" but no tag points at HEAD"),
+            Self::Gh(source) => write!(f, "{source}"),
+            Self::GhFailed(exit) => write!(f, "gh release view failed with {exit}"),
+            Self::AssetSize { name, source } => write!(f, "asset {name} size: {source}"),
+            Self::UnexpectedGhOutput(line) => write!(f, "unexpected gh output: {line}"),
+            Self::NoRelease => f.write_str("gh returned no release"),
+            Self::Notes(source) => write!(f, "release notes: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for GithubError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::CrateVersion(source) => Some(source),
+            Self::Git(source) | Self::Gh(source) => Some(source),
+            Self::AssetSize { source, .. } => Some(source),
+            Self::Notes(source) => Some(source),
+            Self::Unresolved(_)
+            | Self::NoFileName(_)
+            | Self::UnknownRegistry(_)
+            | Self::NoTagAtHead
+            | Self::GhFailed(_)
+            | Self::UnexpectedGhOutput(_)
+            | Self::NoRelease => None,
+        }
+    }
+}
 
 /// Where the release body comes from.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -75,7 +139,7 @@ fn attached_crate_lines(crates: &[AttachedCrate]) -> Vec<String> {
 fn attached_crates(
     attestations: &[Attestation],
     resolve: &dyn Fn(&str) -> Option<std::path::PathBuf>,
-) -> Result<Vec<AttachedCrate>, String> {
+) -> Result<Vec<AttachedCrate>, GithubError> {
     let mut crates = Vec::new();
     for attestation in attestations
         .iter()
@@ -83,11 +147,11 @@ fn attached_crates(
     {
         let mut files = Vec::new();
         for rloc in &attestation.rlocs {
-            files.push(resolve(rloc).ok_or_else(|| format!("cannot resolve {rloc}"))?);
+            files.push(resolve(rloc).ok_or_else(|| GithubError::Unresolved(rloc.clone()))?);
         }
         let version =
             crate::crates::crates_version(&files, &attestation.crate_name, &attestation.version)
-                .map_err(|error| error.to_string())?;
+                .map_err(GithubError::CrateVersion)?;
         crates.push(AttachedCrate {
             name: attestation.crate_name.clone(),
             version,
@@ -101,12 +165,12 @@ fn attached_crates(
 fn attested_names(
     attestations: &[Attestation],
     resolve: &dyn Fn(&str) -> Option<std::path::PathBuf>,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, GithubError> {
     let mut names = Vec::new();
     for attestation in attestations {
         let mut paths = Vec::new();
         for rloc in &attestation.rlocs {
-            paths.push(resolve(rloc).ok_or_else(|| format!("cannot resolve {rloc}"))?);
+            paths.push(resolve(rloc).ok_or_else(|| GithubError::Unresolved(rloc.clone()))?);
         }
         match attestation.registry.as_str() {
             "crates" => {
@@ -115,7 +179,7 @@ fn attested_names(
                     &attestation.crate_name,
                     &attestation.version,
                 )
-                .map_err(|error| error.to_string())?;
+                .map_err(GithubError::CrateVersion)?;
                 names.push(format!("{}-{version}.crate", attestation.crate_name));
             }
             "maven" => {
@@ -123,11 +187,11 @@ fn attested_names(
                     let name = path
                         .file_name()
                         .map(|name| name.to_string_lossy().into_owned())
-                        .ok_or_else(|| format!("{} has no file name", path.display()))?;
+                        .ok_or_else(|| GithubError::NoFileName(path.clone()))?;
                     names.push(name);
                 }
             }
-            other => return Err(format!("unknown attestation registry '{other}'")),
+            other => return Err(GithubError::UnknownRegistry(other.to_owned())),
         }
     }
     Ok(names)
@@ -188,13 +252,16 @@ fn release_command(tag: &str, asset_bases: &[String], with_notes: bool) -> Strin
     cmd
 }
 
-fn git_output(workspace: Option<&std::ffi::OsString>, args: &[&str]) -> Result<String, String> {
+fn git_output(
+    workspace: Option<&std::ffi::OsString>,
+    args: &[&str],
+) -> Result<String, GithubError> {
     let dir = workspace.map_or_else(|| std::path::PathBuf::from("."), std::path::PathBuf::from);
     let out = dx_process::capture::run_checked(
         dx_process::capture::git(&dir).args(args),
         dx_process::capture::DEFAULT_TIMEOUT,
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(GithubError::Git)?;
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
@@ -202,7 +269,7 @@ fn git_output(workspace: Option<&std::ffi::OsString>, args: &[&str]) -> Result<S
 pub(crate) fn resolve_tag(
     tag: &str,
     workspace: Option<&std::ffi::OsString>,
-) -> Result<String, String> {
+) -> Result<String, GithubError> {
     if tag != "current" {
         return Ok(tag.to_owned());
     }
@@ -214,7 +281,7 @@ pub(crate) fn resolve_tag(
         .map(str::trim)
         .find(|line| !line.is_empty())
         .map(str::to_owned)
-        .ok_or_else(|| "tag = \"current\" but no tag points at HEAD".to_owned())
+        .ok_or(GithubError::NoTagAtHead)
 }
 
 /// Renders the grouped commit list between the tag before `tag` and `tag`, then the diff of
@@ -223,7 +290,7 @@ pub(crate) fn commit_notes(
     tag: &str,
     diff_paths: &[String],
     workspace: Option<&std::ffi::OsString>,
-) -> Result<String, String> {
+) -> Result<String, GithubError> {
     let previous = git_output(
         workspace,
         &[
@@ -390,7 +457,7 @@ const PREVIOUS_RELEASE_JQ: &str =
 /// Reads the latest published release with `gh release view`: its tag and each asset's size.
 fn previous_release(
     workspace: Option<std::ffi::OsString>,
-) -> Result<(String, Vec<(String, u64)>), String> {
+) -> Result<(String, Vec<(String, u64)>), GithubError> {
     let mut cmd = scrubbed_command(
         Path::new("gh"),
         &[PUBLISH_CHILD_ENV_KEEP, GH_CHILD_ENV_EXTRA],
@@ -407,9 +474,9 @@ fn previous_release(
     if let Some(dir) = workspace {
         cmd.current_dir(dir);
     }
-    let out = run_publish(&mut cmd).map_err(|error| error.to_string())?;
+    let out = run_publish(&mut cmd).map_err(GithubError::Gh)?;
     if !out.success() {
-        return Err(format!("gh release view failed with {}", exit_text(&out)));
+        return Err(GithubError::GhFailed(exit_text(&out)));
     }
     let mut tag = None;
     let mut assets = Vec::new();
@@ -417,15 +484,16 @@ fn previous_release(
         match line.split('\t').collect::<Vec<_>>().as_slice() {
             ["tag", value] => tag = Some((*value).to_owned()),
             ["asset", name, size] => {
-                let size = size
-                    .parse()
-                    .map_err(|error| format!("asset {name} size: {error}"))?;
+                let size = size.parse().map_err(|source| GithubError::AssetSize {
+                    name: (*name).to_owned(),
+                    source,
+                })?;
                 assets.push(((*name).to_owned(), size));
             }
-            _ => return Err(format!("unexpected gh output: {line}")),
+            _ => return Err(GithubError::UnexpectedGhOutput(line.to_owned())),
         }
     }
-    let tag = tag.ok_or_else(|| "gh returned no release".to_owned())?;
+    let tag = tag.ok_or(GithubError::NoRelease)?;
     Ok((tag, assets))
 }
 
@@ -560,25 +628,25 @@ pub fn github_main_checked(
     };
     let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty());
     let live = OwnerGate::requested(env_or_empty);
-    let resolved = resolve_tag(tag, workspace.as_ref());
-    let tag_text = match &resolved {
-        Ok(tag) => tag.as_str(),
-        Err(_) if !live => tag,
+    let (tag_text, tag_error) = match resolve_tag(tag, workspace.as_ref()) {
+        Ok(resolved) => (resolved, None),
+        Err(error) if !live => (tag.to_owned(), Some(error)),
         Err(error) => {
             eprintln!("github_deploy: {error}");
             return 1;
         }
     };
-    let notes_text: Result<Option<String>, String> = match notes {
+    let tag_text = tag_text.as_str();
+    let notes_text: Result<Option<String>, GithubError> = match notes {
         Notes::None => Ok(None),
-        Notes::Commits(diff) => resolved
-            .clone()
-            .and_then(|tag| commit_notes(&tag, diff, workspace.as_ref()))
-            .map(Some),
+        Notes::Commits(diff) => match tag_error {
+            None => commit_notes(tag_text, diff, workspace.as_ref()).map(Some),
+            Some(error) => Err(error),
+        },
         Notes::File(rloc) => match run.resolve(rloc) {
-            Some(path) => std::fs::read_to_string(&path)
+            Some(path) => path_io::read_to_string(&path)
                 .map(Some)
-                .map_err(|error| format!("cannot read notes {}: {error}", path.display())),
+                .map_err(GithubError::Notes),
             None => return 1,
         },
     };
@@ -1211,7 +1279,7 @@ esac
             notes.contains("## Fixes\n\n- stop crash (bbbbbbb)\n- second (ccccccc)"),
             "{notes}"
         );
-        assert_eq!(resolve_tag("v2", None), Ok("v2".to_owned()));
+        assert_eq!(resolve_tag("v2", None).ok().as_deref(), Some("v2"));
     }
 
     #[cfg(unix)]
@@ -1421,5 +1489,36 @@ mod attestation_tests {
                 ]
             )
         );
+    }
+
+    #[test]
+    fn attested_names_type_unresolved_and_unknown_registries() {
+        let attestation = |registry: &str| Attestation {
+            registry: registry.to_owned(),
+            rlocs: vec!["pkg/a.jar".to_owned()],
+            crate_name: String::new(),
+            version: String::new(),
+            attach: false,
+        };
+        let error = attested_names(&[attestation("maven")], &|_| None).expect_err("unresolved");
+        assert!(
+            matches!(&error, GithubError::Unresolved(rloc) if rloc == "pkg/a.jar"),
+            "{error:?}"
+        );
+        assert_eq!(error.to_string(), "cannot resolve pkg/a.jar");
+        let error = attested_names(&[attestation("npm")], &|rloc| {
+            Some(std::path::PathBuf::from(rloc))
+        })
+        .expect_err("unknown registry");
+        assert!(
+            matches!(&error, GithubError::UnknownRegistry(registry) if registry == "npm"),
+            "{error:?}"
+        );
+        assert_eq!(error.to_string(), "unknown attestation registry 'npm'");
+        let names = attested_names(&[attestation("maven")], &|rloc| {
+            Some(std::path::PathBuf::from(rloc))
+        })
+        .expect("maven names");
+        assert_eq!(names, ["a.jar"]);
     }
 }

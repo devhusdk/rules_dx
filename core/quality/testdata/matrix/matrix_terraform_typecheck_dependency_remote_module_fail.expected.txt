@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_terraform_typecheck_dependency_remote_module_fail
+capability TYPECHECK
+stages 1
+stage terraform classes=terraform sources=core/quality/testdata/matrix/terraform_shared/main.tf
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR terraform dx/terraform-module-source core/quality/testdata/matrix/terraform_shared/main.tf 0 0 fixable=false "core/quality/testdata/matrix/terraform_shared/dep.tf:2: module source \"hashicorp/consul/aws\" is not a local ./ or ../ path: dx never downloads Terraform modules"
+terminal 1
+terminal ERROR terraform dx/terraform-module-source core/quality/testdata/matrix/terraform_shared/main.tf 0 0 fixable=false "core/quality/testdata/matrix/terraform_shared/dep.tf:2: module source \"hashicorp/consul/aws\" is not a local ./ or ../ path: dx never downloads Terraform modules"
+replacements 0

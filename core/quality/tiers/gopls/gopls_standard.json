@@ -163,6 +163,7 @@
     "defers": true,
     "directive": true,
     "errorsas": true,
+    "forvar": false,
     "framepointer": true,
     "hostport": true,
     "httpresponse": true,

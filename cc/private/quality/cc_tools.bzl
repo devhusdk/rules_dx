@@ -67,6 +67,7 @@ TOOLS = [
             "bugprone-": "warning",
             "cert-": "warning",
             "clang-analyzer-": "warning",
+            "clang-diagnostic-": "warning",
             "clang-diagnostic-error": "error",
             "cppcoreguidelines-": "warning",
             "misc-": "warning",

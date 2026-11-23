@@ -2,13 +2,6 @@ use super::clang_syntax::{diagnostic, include_entry, split_rule};
 use super::{FileFinding, ParseError, finding, lines, missing, require_findings};
 use crate::{ColumnEncoding, TextPosition, ToolSeverity};
 
-const INFO_RULES: &[&str] = &[
-    "clang-diagnostic-unused-function",
-    "misc-unused-parameters",
-    "misc-unused-using-decls",
-    "readability-redundant-declaration",
-];
-
 // `1 warning generated.`, or for CUDA `2 warnings and 1 error generated when compiling for host.`
 fn is_count_trailer(line: &str) -> bool {
     let line = line.trim_end();
@@ -88,11 +81,6 @@ pub fn parse_clang_tidy(
             if message.is_empty() {
                 return Err(missing(TOOL, "message", line));
             }
-            let severity = if INFO_RULES.contains(&rule_id.as_str()) {
-                ToolSeverity::Info
-            } else {
-                severity
-            };
             findings.push(finding(
                 TOOL,
                 file,
@@ -165,11 +153,11 @@ mod tests {
     }
 
     #[test]
-    fn clang_tidy_reports_unused_code_rules_as_info() {
+    fn clang_tidy_keeps_the_reported_level_for_unused_code_rules() {
         let text = "a.c:1:14: warning: parameter 'x' is unused [misc-unused-parameters]\na.c:4:12: warning: unused function 'f' [clang-diagnostic-unused-function]\na.c:2:3: warning: do not use 'else' after 'return' [readability-else-after-return]\n";
         let findings = parse_clang_tidy(text.as_bytes(), Some(0), &["a.c"]).expect("parsed");
-        assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
-        assert_eq!(findings[1].finding.severity, ToolSeverity::Info);
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Warning);
+        assert_eq!(findings[1].finding.severity, ToolSeverity::Warning);
         assert_eq!(findings[2].finding.severity, ToolSeverity::Warning);
     }
 
@@ -178,7 +166,7 @@ mod tests {
         let text = "a.c:1:14: error: parameter 'x' is unused [misc-unused-parameters,-warnings-as-errors]\n";
         let findings = parse_clang_tidy(text.as_bytes(), Some(1), &["a.c"]).expect("parsed");
         assert_eq!(findings[0].finding.rule_id, "misc-unused-parameters");
-        assert_eq!(findings[0].finding.severity, ToolSeverity::Info);
+        assert_eq!(findings[0].finding.severity, ToolSeverity::Error);
     }
 
     #[test]

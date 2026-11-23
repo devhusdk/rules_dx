@@ -60,7 +60,7 @@ dx_generated_policy(
             "lint": ["yamllint"],
         },
     },
-    tier = "standard",
+    tier = "strict",
 )
 === .dx/bazelrc/correctness.bazelrc
 # Vendored Bazel execution preset -- GENERATED, do not edit.
@@ -151,6 +151,9 @@ build --tool_java_language_version=17
 # Run persistent workers, such as the JVM checks, in a sandbox like other local actions.
 build --worker_sandboxing
 
+# On Windows, run persistent workers unsandboxed, since the rules_android Desugar worker JVM fails at startup in a Windows worker sandbox.
+build:windows --noworker_sandboxing
+
 # Opt out of aspect_tools_telemetry usage reports.
 common --repo_env=DO_NOT_TRACK=1
 
@@ -170,8 +173,8 @@ common:ci --repo_env=JAVA_HOME=dx-no-local-jdk
 common:ci --nobuild_runfile_links
 
 # Compiler warnings fail the build under the strict profile.
-common --@rules_dx//config:warnings_as_errors=false
-common --@rules_dx//config:config_tier=standard
+common --@rules_dx//config:warnings_as_errors=true
+common --@rules_dx//config:config_tier=strict
 
 # The workspace policy dx generates from dx.toml.
 common --@rules_dx//config:workspace=//.dx:policy
@@ -278,16 +281,16 @@ build --experimental_total_worker_memory_limit_mb=4096
 common:ci --local_resources=cpu=HOST_CPUS
 === .dx/config/buildifier/base.json
 {
-  "warnings": "default"
+  "warnings": "all"
 }
 === .dx/config/gitleaks/base.toml
 [extend]
 useDefault = true
 === .dx/config/lychee/base.toml
-# Link checks use lychee's defaults, written down so no other config is read.
-timeout = 20
-max_retries = 3
-max_redirects = 10
+# Fail sooner on slow or redirecting links.
+timeout = 10
+max_retries = 1
+max_redirects = 5
 === .dx/config/typos/base.toml
 [default]
 locale = "en"
@@ -302,8 +305,25 @@ formatter:
   retain_line_breaks: false
 === .dx/config/yamllint/base.yaml
 rules:
-  anchors: enable
-  key-duplicates: enable
+  anchors:
+    forbid-duplicated-anchors: true
+    forbid-undeclared-aliases: true
+    forbid-unused-anchors: true
+  document-start: enable
+  empty-values: enable
+  float-values:
+    forbid-inf: true
+    forbid-nan: true
+    forbid-scientific-notation: true
+    require-numeral-before-decimal: true
+  key-duplicates:
+    forbid-duplicated-merge-keys: true
+  key-ordering: enable
+  octal-values:
+    forbid-explicit-octal: true
+    forbid-implicit-octal: true
+  quoted-strings:
+    required: only-when-needed
   truthy:
     allowed-values: ['true', 'false']
-    check-keys: false
+    check-keys: true

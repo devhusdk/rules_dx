@@ -18,25 +18,25 @@ cuda_library(
     name = "greet",
     srcs = ["greet.cu"],
     hdrs = ["greet.h"],
-    cuda_archs = _ARCHS,
+    gpu_archs = _ARCHS,
 )
 
 cuda_library(
     name = "format_dirty",
     srcs = ["format_dirty.cu"],
-    cuda_archs = _ARCHS,
+    gpu_archs = _ARCHS,
 )
 
 cuda_library(
     name = "lint_dirty",
     srcs = ["lint_dirty.cu"],
-    cuda_archs = _ARCHS,
+    gpu_archs = _ARCHS,
 )
 
 cuda_binary(
     name = "hello",
     srcs = ["main.cc"],
-    cuda_archs = _ARCHS,
+    gpu_archs = _ARCHS,
     deps = [":greet"],
 )
 
@@ -44,7 +44,7 @@ cuda_test(
     name = "pass_subject_test",
     size = "small",
     srcs = ["pass_test.cc"],
-    cuda_archs = _ARCHS,
+    gpu_archs = _ARCHS,
     target_compatible_with = subject_compatible_with() + CUDA_COMPATIBLE_WITH,
     deps = [":greet"],
 )
@@ -53,7 +53,7 @@ cuda_test(
     name = "fail_subject_test",
     size = "small",
     srcs = ["fail_test.cc"],
-    cuda_archs = _ARCHS,
+    gpu_archs = _ARCHS,
     target_compatible_with = subject_compatible_with() + CUDA_COMPATIBLE_WITH,
     deps = [":greet"],
 )
@@ -61,8 +61,8 @@ cuda_test(
 cuda_binary(
     name = "runfiles_hello",
     srcs = ["runfiles_main.cc"],
-    cuda_archs = _ARCHS,
     data = ["data.txt"],
+    gpu_archs = _ARCHS,
     deps = ["@rules_cc//cc/runfiles"],
 )
 

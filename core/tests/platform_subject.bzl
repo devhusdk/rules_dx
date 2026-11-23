@@ -1,7 +1,7 @@
 """Subject that reports what platform_identity returns for a platform."""
 
+load("//core:platform.bzl", "DxProbePlatformInfo", "PLATFORM_ATTRS", "platform_identity", "platforms_transition")
 load("//core/private/testing:defs.bzl", "DxSubjectInfo")
-load("//core:platform.bzl", "DxPlatformInfo", "PLATFORM_ATTRS", "platform_identity", "platforms_transition")
 
 def _platform_subject_impl(ctx):
     """Reports the os and cpu seen for one platform."""
@@ -19,7 +19,7 @@ platform_subject = rule(
 
 def _platforms_subject_impl(ctx):
     """Reports the os and cpu of each configuration the probe was built in."""
-    ids = sorted([probe[DxPlatformInfo].os + "_" + probe[DxPlatformInfo].cpu for probe in ctx.attr.probe])
+    ids = sorted([probe[DxProbePlatformInfo].os + "_" + probe[DxProbePlatformInfo].cpu for probe in ctx.attr.probe])
     return [
         DefaultInfo(files = depset([])),
         DxSubjectInfo(fields = {"configurations": ",".join(ids)}),

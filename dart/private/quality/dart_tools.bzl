@@ -1,10 +1,11 @@
 """Quality tool rows for the dart family."""
 
-load("//core/quality:tool_defs.bzl", "config", "row", "tool")
+load("//core/quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
 TOOLS = [
     tool(
         id = "dart",
+        severity = severity(floor = "warning"),
         adapters = {
             "format": ["dart"],
             "lint": ["dart"],

@@ -5,6 +5,11 @@ use crate::{DepInfo, DepcheckError};
 
 use super::normalize_lower;
 
+/// Reads the `gem` lines of a Bundler manifest, with their optional and platform marks.
+///
+/// # Errors
+///
+/// Returns an error when the manifest cannot be read or does not parse.
 pub fn parse_ruby_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
     let gem_re = regex::Regex::new(r#"(?m)^\s*gem\s+["']([^"']+)["']\s*(?:,\s*["']([^"']*)["'])?"#)

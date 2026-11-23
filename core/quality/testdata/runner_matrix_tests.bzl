@@ -2,6 +2,7 @@
 
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//core:canonical.bzl", "is_canonical", "strip_canonical")
+load("//core:no_coverage.bzl", "no_coverage_transition")
 load("//core:rlocation.bzl", "rlocation_path", "runfiles_path")
 load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
 load("//core/quality:pipeline.bzl", "real_request_stage")
@@ -279,7 +280,7 @@ def _runner_matrix_test_impl(ctx):
         ctx.attr.toolfile_group_srcs +
         ctx.attr.config_files +
         ctx.attr.upstream_srcs +
-        [ctx.attr._runner, ctx.attr._printer, ctx.attr._harness]
+        ctx.attr._runner + ctx.attr._printer + ctx.attr._harness
     ):
         if DefaultInfo in target:
             runfiles = runfiles.merge(target[DefaultInfo].default_runfiles)
@@ -386,17 +387,17 @@ _runner_matrix_test = rule(
         "_runner": attr.label(
             default = "//core/quality/runner:quality_runner",
             executable = True,
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
         "_printer": attr.label(
             default = "//core/quality/result:print_result",
             executable = True,
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
         "_harness": attr.label(
             default = "//core/quality/runner:matrix_harness",
             executable = True,
-            cfg = "target",
+            cfg = no_coverage_transition,
         ),
         "_runfiles_lib": attr.label(
             default = "@rules_shell//shell/runfiles",

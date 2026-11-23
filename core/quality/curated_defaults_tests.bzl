@@ -1,15 +1,95 @@
 """Unit tests for the curated defaults."""
 
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
+load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
 load(":curated_defaults.bzl", "CURATED_DEFAULTS", "LANG_JSON_DEFAULTS", "OTHER_DEFAULTS", "curated_schema_error")
+load(":tools.bzl", "TOOLS")
 
 visibility("private")
+
+_OPT_IN = "opt-in family with no curated defaults"
+
+# Families whose default lint is typos alone or that have no defaults, and why. Remove an
+# entry when the family gets a real default linter; never add one.
+LINT_DEBT = {
+    "ansible": _OPT_IN,
+    "api_spec": _OPT_IN,
+    "asciidoc": _OPT_IN,
+    "astro": "no Astro linter is pinned",
+    "avro": _OPT_IN,
+    "capnp": _OPT_IN,
+    "cmake": _OPT_IN,
+    "csharp": _OPT_IN,
+    "css": _OPT_IN,
+    "cue": _OPT_IN,
+    "elixir": _OPT_IN,
+    "erlang": _OPT_IN,
+    "flatbuffers": _OPT_IN,
+    "fsharp": _OPT_IN,
+    "gherkin": _OPT_IN,
+    "go_module": "modfmt formats go.mod; no go.mod linter is pinned",
+    "graphql": "graphql_eslint is opt-in",
+    "haskell": "hlint is opt-in",
+    "html": "no plain HTML linter is pinned",
+    "html_template": _OPT_IN,
+    "jsonnet": _OPT_IN,
+    "jupyter": _OPT_IN,
+    "latex": _OPT_IN,
+    "lua": _OPT_IN,
+    "make": _OPT_IN,
+    "objc": "clang_tidy is opt-in for Objective-C",
+    "ocaml": "zanuda is opt-in",
+    "perl": _OPT_IN,
+    "php": _OPT_IN,
+    "pkl": _OPT_IN,
+    "powershell": "psscriptanalyzer is opt-in",
+    "protobuf": _OPT_IN,
+    "qml": _OPT_IN,
+    "rego": _OPT_IN,
+    "rst": _OPT_IN,
+    "ruby": _OPT_IN,
+    "scala": "scalafix is opt-in",
+    "sql": _OPT_IN,
+    "svelte": "no Svelte linter is pinned",
+    "swift": "swift_lint is opt-in",
+    "terraform": _OPT_IN,
+    "thrift": _OPT_IN,
+    "typst": _OPT_IN,
+    "vue": "no Vue linter is pinned",
+    "xml": _OPT_IN,
+}
+
+def _families():
+    found = {family: True for family in CURATED_DEFAULTS}
+    for tool in TOOLS:
+        for classes in tool.adapters.values():
+            for class_id in classes:
+                found[REAL_CLASS_TO_FAMILY[class_id]] = True
+    return sorted(found.keys())
+
+def _lint_debt():
+    """Returns the families with no default linter besides typos."""
+    return [
+        family
+        for family in _families()
+        if not [tool for tool in CURATED_DEFAULTS.get(family, {"lint": []})["lint"] if tool != "typos"]
+    ]
 
 def curated_defaults_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "every family's default lint holds more than typos, or is lint debt",
+                [family for family in _lint_debt() if family not in LINT_DEBT],
+                [],
+            ),
+            expect_equal(
+                "every lint debt entry is still needed",
+                [family for family in LINT_DEBT if family not in _lint_debt()],
+                [],
+            ),
             expect_equal(
                 "curated manifest schema validates",
                 curated_schema_error(),

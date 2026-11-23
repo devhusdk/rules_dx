@@ -23,6 +23,7 @@ rust_test(
     size = "small",
     srcs = ["perlcritic_smoke_test.rs"],
     data = [
+        "//core/quality/tiers/perlcritic:strict.perlcriticrc",
         "//perl/private/tools:critic/testdata/clean.pl",
         "//perl/private/tools:critic/testdata/dirty.pl",
         "//perl/private/tools:perlcritic",
@@ -31,6 +32,7 @@ rust_test(
         "CLEAN": "$(rootpath //perl/private/tools:critic/testdata/clean.pl)",
         "DIRTY": "$(rootpath //perl/private/tools:critic/testdata/dirty.pl)",
         "PERLCRITIC": "$(rootpath //perl/private/tools:perlcritic)",
+        "STRICT_PROFILE": "$(rootpath //core/quality/tiers/perlcritic:strict.perlcriticrc)",
     },
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],

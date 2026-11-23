@@ -45,5 +45,5 @@ dx_generated_policy(
             "typecheck": ["ty"],
         },
     },
-    tier = "standard",
+    tier = "strict",
 )

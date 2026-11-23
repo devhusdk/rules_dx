@@ -13,9 +13,6 @@ exports_files([
     "repos.bzl",
 ])
 
-# Resolves only on an exec platform with an OCaml cell, so dune actions never pick another exec platform.
-toolchain_type(name = "exec_toolchain_type")
-
 cell_settings(
     name = "cell",
     cells = OCAML_CELLS,

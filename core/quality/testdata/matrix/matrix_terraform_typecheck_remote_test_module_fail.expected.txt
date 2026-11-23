@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_terraform_typecheck_remote_test_module_fail
+capability TYPECHECK
+stages 1
+stage terraform classes=terraform sources=matrix/terraform_tc_remote_test/main.tf,matrix/terraform_tc_remote_test/tests/remote.tftest.hcl
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR terraform dx/terraform-module-source matrix/terraform_tc_remote_test/tests/remote.tftest.hcl 30 30 fixable=false "module source \"hashicorp/consul/aws\" is not a local ./ or ../ path: dx never downloads Terraform modules"
+terminal 1
+terminal ERROR terraform dx/terraform-module-source matrix/terraform_tc_remote_test/tests/remote.tftest.hcl 30 30 fixable=false "module source \"hashicorp/consul/aws\" is not a local ./ or ../ path: dx never downloads Terraform modules"
+replacements 0

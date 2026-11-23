@@ -65,9 +65,9 @@ pub fn oci_build_layout(
         ));
     }
     let base = repository.rsplit('/').next().unwrap_or(repository);
-    let layout = outdir.join(base.to_owned() + "-oci-layout");
-    let staging = outdir.join(base.to_owned() + "-oci-layout.tmp");
-    let prev = outdir.join(base.to_owned() + "-oci-layout.prev");
+    let layout = outdir.join(format!("{base}-oci-layout"));
+    let staging = outdir.join(format!("{base}-oci-layout.tmp"));
+    let prev = outdir.join(format!("{base}-oci-layout.prev"));
     let swap = dx_atomic_fs::commit::TreeSwap {
         current: layout.clone(),
         retired: prev.clone(),
@@ -81,9 +81,7 @@ pub fn oci_build_layout(
     }
     let reference = format!("{registry}/{repository}:{tag}");
     let staged = oci_stage_layout(image_tar_src, &staging, &reference, os, architecture)
-        .and_then(|()| {
-            dx_atomic_fs::commit::publish_tree_swap(&swap).map_err(io::Error::other)
-        });
+        .and_then(|()| dx_atomic_fs::commit::publish_tree_swap(&swap).map_err(io::Error::other));
     if let Err(error) = staged {
         dx_atomic_fs::discard_dir(&staging);
         return Err(error);
@@ -567,7 +565,8 @@ fn oci_scan(source: OciSource<'_>) -> io::Result<OciScan> {
         let target = entry.link_target.unwrap_or_default().to_owned();
         match entry.kind {
             dx_archive::EntryKind::Symlink => {
-                scan.links.insert(name.to_owned(), OciLink::Symbolic(target));
+                scan.links
+                    .insert(name.to_owned(), OciLink::Symbolic(target));
             }
             dx_archive::EntryKind::HardLink => {
                 scan.links.insert(name.to_owned(), OciLink::Hard(target));
@@ -581,7 +580,9 @@ fn oci_scan(source: OciSource<'_>) -> io::Result<OciScan> {
                     scan.index_json = Some(bytes);
                 }
             }
-            _ => {}
+            dx_archive::EntryKind::File
+            | dx_archive::EntryKind::Dir
+            | dx_archive::EntryKind::Other => {}
         }
         Ok(())
     })?;
@@ -594,7 +595,8 @@ fn oci_read_members(
     links: &OciLinks,
     names: &[String],
 ) -> io::Result<std::collections::HashMap<String, Vec<u8>>> {
-    let mut wanted: std::collections::BTreeMap<String, Vec<&str>> = std::collections::BTreeMap::new();
+    let mut wanted: std::collections::BTreeMap<String, Vec<&str>> =
+        std::collections::BTreeMap::new();
     for name in names {
         wanted
             .entry(oci_resolve(links, name)?)
@@ -1097,7 +1099,7 @@ fn oci_sign_pushed(sign: &OciSign<'_>, push: &OciPush<'_>, digest: &str) -> Resu
         // deploy; the leftover login sits in the temp dir, never in outdir.
         eprintln!("oci_deploy: warning: cannot remove the cosign login at {shown}: {error}");
     }
-    result?;
+    result.map_err(|error| error.to_string())?;
     println!(
         "oci_deploy: signed {reference} ({})",
         sign.identity.describe()

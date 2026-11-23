@@ -4,10 +4,10 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
 load("@rules_pkg//pkg:providers.bzl", "PackageFilesInfo")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
-load(":image_quality.bzl", "oci_image_quality")
-load(":validate_image.bzl", "IMAGE_BASES", "IMAGE_LABEL_PLATFORMS", "IMAGE_PLATFORM_LABELS", "IMAGE_RUNTIMES", "image_options_error")
-load("//core:msvc_crt.bzl", "msvc_crt_static_flag")
+load("//core:platform.bzl", "msvc_crt_static_flag")
 load("//core/quality:sources.bzl", "single_target")
+load(":image_quality.bzl", "oci_image_quality")
+load(":validate_image.bzl", "IMAGE_BASES", "IMAGE_LABEL_PLATFORMS", "IMAGE_RUNTIMES", "image_options_error")
 
 _RUNTIME_LAYOUT = {
     "dotnet": {"include": ["dotnet", "host/", "shared/Microsoft.NETCore.App/"], "strip": ""},

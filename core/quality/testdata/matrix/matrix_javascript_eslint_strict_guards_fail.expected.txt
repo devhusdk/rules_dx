@@ -1,0 +1,23 @@
+producer //core/quality/testdata:matrix_javascript_eslint_strict_guards_fail
+capability LINT
+stages 1
+stage eslint classes=javascript sources=core/quality/testdata/eslint_guards/a.js
+completed_rounds 1
+convergence STABLE
+initial 7
+initial WARNING eslint no-console core/quality/testdata/eslint_guards/a.js 70 81 fixable=false "Unexpected console statement."
+initial WARNING eslint eqeqeq core/quality/testdata/eslint_guards/a.js 109 111 fixable=false "Expected '===' and instead saw '=='."
+initial WARNING eslint no-alert core/quality/testdata/eslint_guards/a.js 121 135 fixable=false "Unexpected alert."
+initial WARNING eslint no-eval core/quality/testdata/eslint_guards/a.js 143 147 fixable=false "`eval` can be harmful."
+initial WARNING eslint no-restricted-syntax core/quality/testdata/eslint_guards/a.js 156 184 fixable=false "Remove .only and .skip before committing; every test runs."
+initial WARNING eslint no-restricted-syntax core/quality/testdata/eslint_guards/a.js 188 210 fixable=false "Remove .only and .skip before committing; every test runs."
+initial WARNING eslint no-await-in-loop core/quality/testdata/eslint_guards/a.js 246 260 fixable=false "Unexpected `await` inside a loop."
+terminal 7
+terminal WARNING eslint no-console core/quality/testdata/eslint_guards/a.js 70 81 fixable=false "Unexpected console statement."
+terminal WARNING eslint eqeqeq core/quality/testdata/eslint_guards/a.js 109 111 fixable=false "Expected '===' and instead saw '=='."
+terminal WARNING eslint no-alert core/quality/testdata/eslint_guards/a.js 121 135 fixable=false "Unexpected alert."
+terminal WARNING eslint no-eval core/quality/testdata/eslint_guards/a.js 143 147 fixable=false "`eval` can be harmful."
+terminal WARNING eslint no-restricted-syntax core/quality/testdata/eslint_guards/a.js 156 184 fixable=false "Remove .only and .skip before committing; every test runs."
+terminal WARNING eslint no-restricted-syntax core/quality/testdata/eslint_guards/a.js 188 210 fixable=false "Remove .only and .skip before committing; every test runs."
+terminal WARNING eslint no-await-in-loop core/quality/testdata/eslint_guards/a.js 246 260 fixable=false "Unexpected `await` inside a loop."
+replacements 0

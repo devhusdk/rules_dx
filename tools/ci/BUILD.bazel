@@ -8,11 +8,6 @@ load(":repos_tests.bzl", "repos_tests")
 
 package(default_visibility = VIS_TOOLS)
 
-filegroup(
-    name = "release_jars",
-    srcs = [deploy_jar(tool) for tool in JAR_TOOLS],
-)
-
 # "<label> <asset>" per jar tool, the pairs the release-tools.yml jars job builds.
 write_file(
     name = "release_jars_list",

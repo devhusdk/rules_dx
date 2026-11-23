@@ -1,5 +1,5 @@
 use crate::api_compat::{
-    ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir,
+    ApiCheckError, ApiCheckMode, Baseline, Outcome, changes_or_failure, conclude, export_git_dir,
     fetch_with, highest_below, previous_git_tag, workspace_dir,
 };
 use crate::run::{
@@ -66,10 +66,10 @@ pub enum PubError {
         path: std::path::PathBuf,
     },
     FlutterUnsupported,
-    BaselineExport(ApiCompatError),
+    BaselineExport(ApiCheckError),
     JoinPaths(std::env::JoinPathsError),
     Apitool(RunError),
-    ApiCompat(ApiCompatError),
+    ApiCheck(ApiCheckError),
 }
 
 impl fmt::Display for PubError {
@@ -118,7 +118,7 @@ impl fmt::Display for PubError {
             Self::BaselineExport(source) => write!(f, "pub_deploy: api compat: {source}"),
             Self::JoinPaths(source) => write!(f, "pub_deploy: {source}"),
             Self::Apitool(source) => write!(f, "pub_deploy: dart_apitool: {source}"),
-            Self::ApiCompat(source) => write!(f, "{source}"),
+            Self::ApiCheck(source) => write!(f, "{source}"),
         }
     }
 }
@@ -130,7 +130,7 @@ impl std::error::Error for PubError {
             Self::Io(source) => Some(source),
             Self::TempDir(source) | Self::FlutterSdk(source) => Some(source),
             Self::Run(source) | Self::Apitool(source) => Some(source),
-            Self::BaselineExport(source) | Self::ApiCompat(source) => Some(source),
+            Self::BaselineExport(source) | Self::ApiCheck(source) => Some(source),
             Self::JoinPaths(source) => Some(source),
             Self::Refused(_)
             | Self::NameMismatch { .. }
@@ -581,12 +581,12 @@ pub fn pub_main_checked(
             return 1;
         }
     };
-    let Some(mode) = ApiCompatMode::parse(api.mode) else {
+    let Some(mode) = ApiCheckMode::parse(api.mode) else {
         eprintln!("pub_deploy: invalid api_compat '{}'", api.mode);
         return 1;
     };
     let tools =
-        if mode == ApiCompatMode::Off || api.dart_rloc.is_empty() || api.apitool_rloc.is_empty() {
+        if mode == ApiCheckMode::Off || api.dart_rloc.is_empty() || api.apitool_rloc.is_empty() {
             None
         } else {
             run.resolve(api.dart_rloc)
@@ -603,7 +603,7 @@ pub fn pub_main_checked(
             })
     };
     let api_check = |staging: &Path, version: &str| -> Result<(), PubError> {
-        if mode == ApiCompatMode::Off {
+        if mode == ApiCheckMode::Off {
             return Ok(());
         }
         let outcome = match &tools {
@@ -626,7 +626,7 @@ pub fn pub_main_checked(
             )),
         };
         outcome.and_then(|outcome| {
-            conclude("pub_deploy", mode, version, outcome).map_err(PubError::ApiCompat)
+            conclude("pub_deploy", mode, version, outcome).map_err(PubError::ApiCheck)
         })
     };
     let live = OwnerGate::requested(env_or_empty);
@@ -992,9 +992,9 @@ mod tests {
             "{env}"
         );
         assert!(!env.contains("sekret"), "{env}");
-        assert!(conclude("pub_deploy", ApiCompatMode::Fail, "1.1.0", outcome).is_err());
+        assert!(conclude("pub_deploy", ApiCheckMode::Fail, "1.1.0", outcome).is_err());
         let major = run("pub_demo", "2.0.0", &staging);
-        assert!(conclude("pub_deploy", ApiCompatMode::Fail, "2.0.0", major).is_ok());
+        assert!(conclude("pub_deploy", ApiCheckMode::Fail, "2.0.0", major).is_ok());
         assert_eq!(run("missing", "1.0.0", &staging), Outcome::FirstRelease);
         let flutter = scratch.path().join("flutter");
         write_crate_file(
@@ -1022,13 +1022,13 @@ mod tests {
         let root = scratch.path().join("flutter_root");
         let pinned_sdk = Some((pinned.as_path(), root.as_path()));
         let breaking = run_with("pub_demo", "1.1.0", &flutter, pinned_sdk);
-        assert!(conclude("pub_deploy", ApiCompatMode::Fail, "1.1.0", breaking).is_err());
+        assert!(conclude("pub_deploy", ApiCheckMode::Fail, "1.1.0", breaking).is_err());
         assert_eq!(
             std::fs::read_to_string(&seen).expect("seen").trim(),
             format!("shim {}", root.display())
         );
         let major = run_with("pub_demo", "2.0.0", &flutter, pinned_sdk);
-        assert!(conclude("pub_deploy", ApiCompatMode::Fail, "2.0.0", major).is_ok());
+        assert!(conclude("pub_deploy", ApiCheckMode::Fail, "2.0.0", major).is_ok());
     }
 
     #[cfg(unix)]

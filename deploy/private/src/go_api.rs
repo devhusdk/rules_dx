@@ -1,5 +1,5 @@
 use crate::api_compat::{
-    ApiCompatError, Baseline, Outcome, fetch, fetch_to, highest_below, previous_git_tag,
+    ApiCheckError, Baseline, Outcome, fetch, fetch_to, highest_below, previous_git_tag,
 };
 use crate::archive::archive_extract;
 use crate::run::{PUBLISH_CHILD_ENV_KEEP, exit_text, run_publish, scrubbed_command};
@@ -20,25 +20,12 @@ pub(crate) enum GoApiError {
         exit: String,
         output: String,
     },
-    Git {
-        source: RunError,
-    },
-    Work {
-        source: io::Error,
-    },
-    NoModuleLine {
-        module: String,
-    },
-    ApiCompat {
-        source: ApiCompatError,
-    },
-    ProxyMissing {
-        url: String,
-    },
-    Extract {
-        url: String,
-        source: io::Error,
-    },
+    Git { source: RunError },
+    Work { source: io::Error },
+    NoModuleLine { module: String },
+    ApiCheck { source: ApiCheckError },
+    ProxyMissing { url: String },
+    Extract { url: String, source: io::Error },
 }
 
 impl fmt::Display for GoApiError {
@@ -57,7 +44,7 @@ impl fmt::Display for GoApiError {
                 "github_deploy: no module line in {module}/{}",
                 manifest_name()
             ),
-            Self::ApiCompat { source } => write!(f, "{source}"),
+            Self::ApiCheck { source } => write!(f, "{source}"),
             Self::ProxyMissing { url } => write!(f, "{url} not found"),
             Self::Extract { url, source } => write!(f, "{url}: {source}"),
         }
@@ -69,7 +56,7 @@ impl std::error::Error for GoApiError {
         match self {
             Self::Apidiff { source } | Self::Git { source } => Some(source),
             Self::Work { source } | Self::Extract { source, .. } => Some(source),
-            Self::ApiCompat { source } => Some(source),
+            Self::ApiCheck { source } => Some(source),
             Self::ApidiffFailed { .. } | Self::NoModuleLine { .. } | Self::ProxyMissing { .. } => {
                 None
             }
@@ -77,9 +64,9 @@ impl std::error::Error for GoApiError {
     }
 }
 
-impl From<ApiCompatError> for GoApiError {
-    fn from(source: ApiCompatError) -> Self {
-        Self::ApiCompat { source }
+impl From<ApiCheckError> for GoApiError {
+    fn from(source: ApiCheckError) -> Self {
+        Self::ApiCheck { source }
     }
 }
 

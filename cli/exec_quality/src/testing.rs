@@ -1,10 +1,7 @@
-#![expect(
-    clippy::expect_used,
-    reason = "test fixtures: a failed setup fails the test"
-)]
 
 use dx_digest::blake3 as digest;
 use dx_testing::http::{Reply, serve};
+use dx_testing::must;
 use quality_result::encode_validated;
 use quality_result::proto::{self, Capability, Convergence, FileSnapshot, QualityResult, Stage};
 use serde_json::json;
@@ -15,7 +12,10 @@ pub const LAST_EVENT: &str = r#"{"id":{"buildMetrics":{}},"lastMessage":true}"#;
 
 #[must_use]
 pub fn temp_dir(prefix: &str) -> dx_test_scratch::TempDir {
-    dx_test_scratch::scratch(&format!("dx-exec-quality-test-{prefix}-")).expect("scratch dir")
+    must(
+        dx_test_scratch::scratch(&format!("dx-exec-quality-test-{prefix}-")),
+        "scratch dir",
+    )
 }
 
 pub struct FailingWrites {
@@ -92,9 +92,7 @@ impl QualityWorkspace {
 }
 
 pub fn write_source(workspace: &Path, path: &str, text: &str) {
-    let full = workspace.join(path);
-    std::fs::create_dir_all(full.parent().expect("parent")).expect("parent dir");
-    std::fs::write(full, text).expect("write source");
+    dx_testing::write_text(&workspace.join(path), text);
 }
 
 #[must_use]
@@ -133,7 +131,7 @@ pub fn paths_result(workspace: &Path, paths: &[&str], changes: Vec<proto::FileEd
         .iter()
         .map(|path| FileSnapshot {
             path: (*path).to_owned(),
-            digest: digest(&std::fs::read(workspace.join(path)).expect("source")).to_vec(),
+            digest: digest(&must(std::fs::read(workspace.join(path)), "source")).to_vec(),
         })
         .collect();
     result_full(initial, vec![], changes, snapshots)
@@ -162,7 +160,7 @@ pub fn result_full(
         terminal_diagnostics: terminal,
         replacements,
     };
-    encode_validated(&result).expect("encode")
+    must(encode_validated(&result), "encode")
 }
 
 #[must_use]
@@ -201,7 +199,7 @@ pub fn diagnostic_with(
 
 #[must_use]
 pub fn replacement_in(workspace: &Path, path: &str, replacement: &[u8]) -> proto::FileEdits {
-    let original = std::fs::read(workspace.join(path)).expect("source");
+    let original = must(std::fs::read(workspace.join(path)), "source");
     replacement_at(
         path,
         digest(&original).to_vec(),
@@ -228,31 +226,35 @@ pub fn replacement_at(
 
 #[must_use]
 pub fn serve_links() -> String {
-    let (base, _) = serve(|target| {
-        (target == "/ok").then(|| Reply {
-            content_type: "text/plain",
-            body: Vec::new(),
-        })
-    })
-    .expect("link server");
+    let (base, _) = must(
+        serve(|target| {
+            (target == "/ok").then(|| Reply {
+                content_type: "text/plain",
+                body: Vec::new(),
+            })
+        }),
+        "link server",
+    );
     base
 }
 
 #[must_use]
 pub fn online_link_request(lychee: &Path) -> Vec<u8> {
-    serde_json::to_vec(&json!({
-        "schema_version": 1,
-        "producer": "//docs:readme",
-        "capability": "lint",
-        "stages": [
-            {"tool": "lychee", "classes": ["markdown"], "sources": ["docs/README.md"]},
-            {"tool": "typos", "classes": ["markdown"], "sources": ["docs/README.md"]},
-        ],
-        "sources": [{"workspace": "docs/README.md", "exec": "docs/README.md"}],
-        "tools": {
-            "lychee": {"binary": lychee.to_string_lossy()},
-            "typos": {"binary": "external/typos+/typos"},
-        },
-    }))
-    .expect("encode link request")
+    must(
+        serde_json::to_vec(&json!({
+            "schema_version": 1,
+            "producer": "//docs:readme",
+            "capability": "lint",
+            "stages": [
+                {"tool": "lychee", "classes": ["markdown"], "sources": ["docs/README.md"]},
+                {"tool": "typos", "classes": ["markdown"], "sources": ["docs/README.md"]},
+            ],
+            "sources": [{"workspace": "docs/README.md", "exec": "docs/README.md"}],
+            "tools": {
+                "lychee": {"binary": lychee.to_string_lossy()},
+                "typos": {"binary": "external/typos+/typos"},
+            },
+        })),
+        "encode link request",
+    )
 }

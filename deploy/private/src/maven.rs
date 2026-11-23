@@ -9,8 +9,8 @@ use pgp::crypto::hash::HashAlgorithm;
 use pgp::types::Password;
 
 use crate::api_compat::{
-    ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch,
-    fetch_to, previous_git_tag, previous_release, workspace_dir,
+    ApiCheckError, ApiCheckMode, Baseline, Outcome, changes_or_failure, conclude, fetch, fetch_to,
+    previous_git_tag, previous_release, workspace_dir,
 };
 use crate::http;
 use crate::run::{
@@ -54,13 +54,13 @@ pub enum MavenError {
     },
     TempDir(io::Error),
     Japicmp(RunError),
-    ApiCompat(ApiCompatError),
+    ApiCheck(ApiCheckError),
 }
 
 impl MavenError {
     fn tool_message(&self) -> String {
         match self {
-            Self::PomVersion(_) | Self::Refused(_) | Self::ApiCompat(_) => self.to_string(),
+            Self::PomVersion(_) | Self::Refused(_) | Self::ApiCheck(_) => self.to_string(),
             Self::PomUtf8(_)
             | Self::PomXml(_)
             | Self::PomText(_)
@@ -131,7 +131,7 @@ impl fmt::Display for MavenError {
             }
             Self::TempDir(source) => write!(f, "{source}"),
             Self::Japicmp(source) => write!(f, "japicmp: {source}"),
-            Self::ApiCompat(source) => write!(f, "{source}"),
+            Self::ApiCheck(source) => write!(f, "{source}"),
         }
     }
 }
@@ -149,7 +149,7 @@ impl std::error::Error for MavenError {
             Self::HttpClient(source) | Self::Upload { source, .. } => Some(source),
             Self::TempDir(source) => Some(source),
             Self::Japicmp(source) => Some(source),
-            Self::ApiCompat(source) => Some(source),
+            Self::ApiCheck(source) => Some(source),
             Self::PomEntity(_)
             | Self::PomRoot(_)
             | Self::PomNoProject
@@ -907,14 +907,14 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
         };
         extra.push((classifier, path));
     }
-    let mode = ApiCompatMode::parse(api_compat);
+    let mode = ApiCheckMode::parse(api_compat);
     let (Some(mode), Some(baseline)) = (mode, Baseline::parse(api_baseline)) else {
         eprintln!(
             "maven_deploy: invalid api_compat '{api_compat}' or api_baseline '{api_baseline}'"
         );
         return 1;
     };
-    if mode != ApiCompatMode::Off {
+    if mode != ApiCheckMode::Off {
         let tools = (run.resolve(java_rloc), run.resolve(japicmp_rloc));
         let (Some(java), Some(japicmp)) = tools else {
             return 1;
@@ -927,7 +927,7 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
             MAVEN_CENTRAL_READ_URL,
         )
         .and_then(|outcome| {
-            conclude("maven_deploy", mode, version, outcome).map_err(MavenError::ApiCompat)
+            conclude("maven_deploy", mode, version, outcome).map_err(MavenError::ApiCheck)
         });
         if let Err(error) = checked {
             report(&error);
@@ -1764,7 +1764,7 @@ pub(crate) mod tests {
         let new_jar = resolve("MAVEN_API_NEW_JAR");
         let outcome =
             maven_api_compare((&java, &japicmp), "1.2.0", &new_jar, &old_jar).expect("ran");
-        let fail = ApiCompatMode::Fail;
+        let fail = ApiCheckMode::Fail;
         let refused = conclude("maven_deploy", fail, "1.3.0", outcome)
             .expect_err("minor refused")
             .to_string();

@@ -2,8 +2,9 @@
 
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/private/testing:defs.bzl", "expect_contains", "expect_equal")
+load("//elixir:repositories.bzl", "hex_package")
 load("//elixir/private:defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_sources", "elixir_escript_headers", "helper_first", "nif_priv")
-load("//elixir/private:hex.bzl", "hex_metadata_entry", "hex_tarball_url")
+load("//elixir/private:hex.bzl", "hex_metadata_entry", "hex_tarball_url", _hex_package = "hex_package")
 load("//elixir/private:kwargs.bzl", "elixir_app_kwargs", "elixir_app_mod_entry", "elixir_kwargs")
 load("//elixir/private/lock:hub.bzl", "build_file")
 
@@ -23,6 +24,7 @@ def elixir_wrapper_contract_tests(name):
             expect_equal("elixir guard is a select by default", type(elixir_kwargs({})["target_compatible_with"]), "select"),
             expect_equal("elixir guard stays with a user list", type(elixir_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]), "select"),
             expect_equal("elixir keeps user tags", elixir_kwargs({"tags": ["t"]})["tags"], ["t"]),
+            expect_equal("the public hex_package is the private rule", hex_package == _hex_package, True),
             expect_equal("apps own lib sources", ELIXIR_SOURCE_GLOBS, ["lib/**/*.ex"]),
             expect_equal("default apps own the glob", app_sources({}, _glob), ["lib/**/*.ex!"]),
             expect_equal("explicit srcs are the owned files", app_sources({"srcs": ["lib/a.ex"]}, _glob), ["lib/a.ex"]),

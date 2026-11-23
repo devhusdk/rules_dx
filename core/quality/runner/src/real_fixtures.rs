@@ -917,7 +917,7 @@ pub(super) fn roundtrip_prettier(
         for reserved in ["--config", "--no-config", "--ignore-path"] {
             assert!(
                 arg != reserved && !arg.starts_with(&format!("{reserved}=")),
-                "{reserved} is owned by the prettier shim"
+                "{reserved} is owned by the prettier wrapper"
             );
         }
     }

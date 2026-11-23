@@ -67,7 +67,7 @@ def java_library(name, srcs = None, visibility = None, **kwargs):
     upstream_kwargs = java_javacopts_with_warnings_as_errors(kwargs)
     dx_wrap(name, _java_library, _java_library_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
 
-def java_deploy_jar_alias(name, visibility, kwargs, from_runtime_deps = False):
+def java_deploy_jar_target(name, visibility, kwargs, from_runtime_deps = False):
     """Declares <name>_deploy.jar for a wrapped JVM binary whose real rule is <name>_upstream."""
     common = {key: kwargs[key] for key in ("testonly", "target_compatible_with") if kwargs.get(key) != None}
     actual = name + "_upstream"
@@ -83,9 +83,9 @@ def java_deploy_jar_alias(name, visibility, kwargs, from_runtime_deps = False):
             **common
         )
         actual = name + "_upstream_fat"
-    native.alias(
+    native.filegroup(
         name = name + "_deploy.jar",
-        actual = ":" + actual + "_deploy.jar",
+        srcs = [":" + actual + "_deploy.jar"],
         tags = kwargs.get("tags"),
         visibility = visibility,
         **common
@@ -95,7 +95,7 @@ def java_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Wrapper over java_binary that infers main_class."""
     upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_warnings_as_errors(kwargs), "main_class")
     dx_wrap_binary(name, _java_binary, _java_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
-    java_deploy_jar_alias(name, visibility, kwargs)
+    java_deploy_jar_target(name, visibility, kwargs)
 
 def java_test(name, *, srcs = None, visibility = None, **kwargs):
     """Wrapper over java_test that infers test_class."""

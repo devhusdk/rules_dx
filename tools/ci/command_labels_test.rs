@@ -29,7 +29,7 @@ const DIRS: [&str; 16] = [
 
 /// `(path, label)` pairs that may stay inline.
 const EXEMPT: [(&str, &str); 2] = [
-    // The shim does not link dx_families; its test pins the label to `dx_families::DX`.
+    // The dx shim does not link dx_families; its test pins the label to `dx_families::DX`.
     ("cli/shim/src/run.rs", "@rules_dx//:dx"),
     // A toolchain written into the consumer's MODULE.bazel, not a target dx runs.
     (

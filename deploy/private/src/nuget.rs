@@ -1,5 +1,5 @@
 use crate::api_compat::{
-    ApiCompatError, ApiCompatMode, Baseline, Outcome, changes_or_failure, conclude, fetch_to_with,
+    ApiCheckError, ApiCheckMode, Baseline, Outcome, changes_or_failure, conclude, fetch_to_with,
     fetch_with, highest_below, previous_git_tag, workspace_dir,
 };
 use crate::archive::*;
@@ -73,9 +73,9 @@ pub enum NugetError {
     },
     InvalidBaseline(String),
     TempDir(io::Error),
-    ApiCompatHome(PathIoError),
-    ApiCompatRun(RunError),
-    ApiCompat(ApiCompatError),
+    ApiCheckHome(PathIoError),
+    ApiCheckRun(RunError),
+    ApiCheck(ApiCheckError),
 }
 
 impl fmt::Display for NugetError {
@@ -132,9 +132,9 @@ impl fmt::Display for NugetError {
                 write!(f, "nuget_deploy: invalid api_baseline '{baseline}'")
             }
             Self::TempDir(source) => write!(f, "nuget_deploy: {source}"),
-            Self::ApiCompatHome(source) => write!(f, "nuget_deploy: ApiCompat: {source}"),
-            Self::ApiCompatRun(source) => write!(f, "nuget_deploy: ApiCompat: {source}"),
-            Self::ApiCompat(source) => write!(f, "{source}"),
+            Self::ApiCheckHome(source) => write!(f, "nuget_deploy: ApiCompat: {source}"),
+            Self::ApiCheckRun(source) => write!(f, "nuget_deploy: ApiCompat: {source}"),
+            Self::ApiCheck(source) => write!(f, "{source}"),
         }
     }
 }
@@ -151,9 +151,9 @@ impl std::error::Error for NugetError {
             Self::TempDir(source) => Some(source),
             Self::NuspecUtf8 { source, .. } => Some(source),
             Self::InNuspec { source, .. } => Some(source.as_ref()),
-            Self::ApiCompatHome(source) => Some(source),
-            Self::ApiCompatRun(source) => Some(source),
-            Self::ApiCompat(source) => Some(source),
+            Self::ApiCheckHome(source) => Some(source),
+            Self::ApiCheckRun(source) => Some(source),
+            Self::ApiCheck(source) => Some(source),
             Self::InvalidVersion { .. }
             | Self::NuspecEntity
             | Self::NuspecMissing(_)
@@ -605,7 +605,7 @@ fn nuget_api_check(
     }
     let home = work.join("home");
     let output = path_io::create_dir_all(&home)
-        .map_err(NugetError::ApiCompatHome)
+        .map_err(NugetError::ApiCheckHome)
         .and_then(|()| {
             let home = home.display().to_string();
             run_publish(
@@ -627,7 +627,7 @@ fn nuget_api_check(
                 .arg("--baseline-package")
                 .arg(&old_nupkg),
             )
-            .map_err(NugetError::ApiCompatRun)
+            .map_err(NugetError::ApiCheckRun)
         });
     dx_atomic_fs::discard_dir(&work);
     let output = output?;
@@ -698,11 +698,11 @@ pub fn nuget_main_checked(
         }
     };
     let (package_id, package_version) = (identity.0.as_str(), identity.1.as_str());
-    let Some(mode) = ApiCompatMode::parse(api.mode) else {
+    let Some(mode) = ApiCheckMode::parse(api.mode) else {
         eprintln!("nuget_deploy: invalid api_compat '{}'", api.mode);
         return 1;
     };
-    if mode != ApiCompatMode::Off {
+    if mode != ApiCheckMode::Off {
         let tools = if api.dotnet_rloc.is_empty() || api.apicompat_rloc.is_empty() {
             None
         } else {
@@ -726,7 +726,7 @@ pub fn nuget_main_checked(
             )),
         };
         if let Err(error) = outcome.and_then(|outcome| {
-            conclude("nuget_deploy", mode, package_version, outcome).map_err(NugetError::ApiCompat)
+            conclude("nuget_deploy", mode, package_version, outcome).map_err(NugetError::ApiCheck)
         }) {
             eprintln!("{error}");
             return 1;
@@ -897,9 +897,9 @@ API breaking changes found. If those are intentional, the APICompat suppression 
         let env = std::fs::read_to_string(&env_log).expect("env");
         assert!(env.contains("DOTNET_ROLL_FORWARD=Major"), "{env}");
         assert!(!env.contains("NUGET_API_KEY"), "{env}");
-        assert!(conclude("nuget_deploy", ApiCompatMode::Fail, "1.1.0", outcome).is_err());
+        assert!(conclude("nuget_deploy", ApiCheckMode::Fail, "1.1.0", outcome).is_err());
         let major = run("Demo", "2.0.0");
-        assert!(conclude("nuget_deploy", ApiCompatMode::Fail, "2.0.0", major).is_ok());
+        assert!(conclude("nuget_deploy", ApiCheckMode::Fail, "2.0.0", major).is_ok());
         assert_eq!(run("Missing", "1.0.0"), Outcome::FirstRelease);
     }
 

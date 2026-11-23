@@ -465,7 +465,7 @@ fn prettier_config_argv_ending(
             !words
                 .iter()
                 .any(|arg| arg == reserved || arg.starts_with(&format!("{reserved}="))),
-            "{reserved} is owned by the prettier shim"
+            "{reserved} is owned by the prettier wrapper"
         );
     }
     let cfg = Path::new(bound[0]);

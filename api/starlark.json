@@ -20408,7 +20408,7 @@
               "tool",
               "visibility"
             ],
-            "kind": "windows_js_tool_shim"
+            "kind": "windows_js_tool_launcher"
           }
         ],
         "name": "typescript_binary",
@@ -20678,7 +20678,7 @@
               "tool",
               "visibility"
             ],
-            "kind": "windows_js_tool_shim"
+            "kind": "windows_js_tool_launcher"
           }
         ],
         "name": "typescript_library",

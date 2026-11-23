@@ -252,6 +252,14 @@ def execution_requirements_unit_tests(name):
                 [{}, {}],
             ),
             expect_equal(
+                "the chktex lint stage runs remotely; latexindent format stays local",
+                [
+                    dx_stage_execution_requirements(["chktex"], "lint"),
+                    dx_stage_execution_requirements(["latexindent"], "format"),
+                ],
+                [{}, {DX_NO_REMOTE_EXEC: "1"}],
+            ),
+            expect_equal(
                 "a PATH helper that is an adapter with no qualified capability keeps the stage local",
                 dx_stage_execution_requirements(["shellcheck"], "lint", [], ["lychee"]),
                 {DX_NO_REMOTE_EXEC: "1"},

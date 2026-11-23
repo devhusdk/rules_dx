@@ -1,7 +1,7 @@
 """Module extension for tools/testing."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
-load(":nested_repository_cache.bzl", "digest_integrity", "nested_repository_cache_set", "parse_cache_list")
+load(":nested_repository_cache.bzl", "digest_integrity", "nested_cache_file", "nested_repository_cache_set", "parse_cache_list")
 
 _PLATFORMS = ["darwin-arm64", "darwin-x86_64", "linux-arm64", "linux-x86_64", "windows-x86_64"]
 
@@ -47,7 +47,7 @@ nested_bazel = module_extension(
 )
 
 def _nested_repository_cache_impl(mctx):
-    """Declares one http_file per list entry and one `cache` repository per set."""
+    """Declares one nested_cache_file per list entry and one `cache` repository per set."""
     declared = {}
     for module in mctx.modules:
         for cache_set in module.tags.set:
@@ -58,9 +58,8 @@ def _nested_repository_cache_impl(mctx):
                 repos[digest] = repo
                 if digest not in declared:
                     declared[digest] = urls
-                    http_file(
+                    nested_cache_file(
                         name = repo,
-                        downloaded_file_path = "blob",
                         integrity = digest_integrity(digest),
                         urls = [url for url in urls if url.startswith("https://")],
                     )

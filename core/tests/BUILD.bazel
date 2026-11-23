@@ -13,6 +13,7 @@ load(":config_tests.bzl", "config_subject_tests")
 load(":entry_tests.bzl", "entry_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
 load(":fuzz_tests.bzl", "fuzz_binary_tests")
+load(":ghcr_tests.bzl", "ghcr_unit_tests")
 load(":harness_link_tests.bzl", "harness_link_tests")
 load(":hermetic_launcher_tests.bzl", "hermetic_launcher_tests")
 load(":jammy_runtime_tests.bzl", "jammy_runtime_tests")
@@ -93,6 +94,8 @@ config_group(
 arithmetic_unit_tests(name = "arithmetic_unit")
 
 repo_unit_tests(name = "repo_unit")
+
+ghcr_unit_tests(name = "ghcr_unit")
 
 arithmetic_load_tests(name = "arithmetic_load")
 
@@ -309,6 +312,7 @@ real_source_target(
         "entry_tests.bzl",
         "execution_tests.bzl",
         "fuzz_tests.bzl",
+        "ghcr_tests.bzl",
         "jammy_runtime_tests.bzl",
         "license_tests.bzl",
         "lock_hub_tests.bzl",

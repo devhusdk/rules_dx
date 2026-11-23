@@ -1,6 +1,7 @@
 """Pinned-toolchain factory: one repository per host cell, plus the checks every pin table shares."""
 
 load("//core/private/testing:defs.bzl", "expect_equal", "expect_true")
+load(":ghcr.bzl", "ghcr_headers")
 load(":host.bzl", "host_cell")
 load(":repo.bzl", "gem_extract")
 
@@ -36,11 +37,7 @@ def _fetch(rctx, tool, pin, build):
         archive_type = pin.get("type", "")
         strip_prefix = pin.get("strip_prefix", "")
         if not pin.get("ghcr_scope") or not rctx.download_and_extract(url = pin["urls"], sha256 = pin["sha256"], type = archive_type, stripPrefix = strip_prefix, allow_fail = True).success:
-            headers = {}
-            if pin.get("ghcr_scope"):
-                rctx.download(url = "https://ghcr.io/token?service=ghcr.io&scope=" + pin["ghcr_scope"], output = "token.json")
-                headers["Authorization"] = ["Bearer " + json.decode(rctx.read("token.json"))["token"]]
-                rctx.delete("token.json")
+            headers = ghcr_headers(rctx, pin["ghcr_scope"]) if pin.get("ghcr_scope") else {}
             rctx.download_and_extract(url = pin["urls"], sha256 = pin["sha256"], type = archive_type, stripPrefix = strip_prefix, headers = headers)
         if not rctx.path(binary).exists:
             fail("{} archive {} has no {}".format(tool, pin["urls"][0], binary))

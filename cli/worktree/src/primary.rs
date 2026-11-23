@@ -47,10 +47,11 @@ enum Reading {
     Unreadable(String),
 }
 
-/// Whether `dir` or a parent holds a `.git` entry; without one there is no repository to read.
-fn in_git(dir: &Path) -> bool {
+/// The nearest `.git` entry in `dir` or a parent; without one there is no repository to read.
+fn dot_git(dir: &Path) -> Option<PathBuf> {
     dir.ancestors()
-        .any(|parent| parent.join(".git").symlink_metadata().is_ok())
+        .map(|parent| parent.join(".git"))
+        .find(|entry| entry.symlink_metadata().is_ok())
 }
 
 /// The reason given when git cannot tell whether the rule applies.
@@ -63,7 +64,9 @@ fn unreadable(detail: &str) -> String {
 
 /// The raw `dx.primary` value of the repository `dir` is in; none when unset.
 fn value(dir: &Path) -> Result<Option<String>, String> {
-    let output = git::own_config(dir, &["config", "--get", KEY])?;
+    let Some(output) = git::own_config(dir, &["config", "--get", KEY])? else {
+        return without_git(dir).map(|()| None);
+    };
     match output.code {
         Some(0) => Ok(Some(output.stdout_text().trim().to_owned())),
         Some(1) if output.stdout.is_empty() => Ok(None),
@@ -74,8 +77,63 @@ fn value(dir: &Path) -> Result<Option<String>, String> {
     }
 }
 
+/// Without git, refuses when the nearest `.git` directory has worktrees, an unreadable config, or `dx.primary`.
+fn without_git(dir: &Path) -> Result<(), String> {
+    let Some(dot_git) = dot_git(dir).filter(|entry| entry.is_dir()) else {
+        return Ok(());
+    };
+    if dot_git.join("worktrees").symlink_metadata().is_ok() {
+        return Err(format!(
+            "git is not on PATH, and {} has worktrees",
+            dot_git.display()
+        ));
+    }
+    let config = dot_git.join("config");
+    let text = match std::fs::read(&config) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(format!(
+                "git is not on PATH, and {} cannot be read: {error}",
+                config.display()
+            ));
+        }
+    };
+    if sets_primary(&String::from_utf8_lossy(&text)) {
+        return Err(format!(
+            "git is not on PATH, and {} sets {KEY}",
+            config.display()
+        ));
+    }
+    Ok(())
+}
+
+/// Whether git config `text` has a `primary` entry in a `[dx]` section; names compare without case, as git does.
+fn sets_primary(text: &str) -> bool {
+    let mut in_dx = false;
+    for line in text.lines() {
+        let mut rest = line.trim_start();
+        if let Some(header) = rest.strip_prefix('[') {
+            let Some((name, after)) = header.split_once(']') else {
+                in_dx = false;
+                continue;
+            };
+            in_dx = name.eq_ignore_ascii_case("dx");
+            rest = after.trim_start();
+        }
+        let key = rest
+            .split(|c: char| c == '=' || c.is_whitespace())
+            .next()
+            .unwrap_or_default();
+        if in_dx && key.eq_ignore_ascii_case("primary") {
+            return true;
+        }
+    }
+    false
+}
+
 fn read(dir: &Path) -> Reading {
-    if !in_git(dir) {
+    if dot_git(dir).is_none() {
         return Reading::Off;
     }
     match value(dir) {
@@ -103,7 +161,8 @@ fn main_checkout(dir: &Path) -> Result<Option<PathBuf>, String> {
             "--git-dir",
             "--git-common-dir",
         ],
-    )?;
+    )?
+    .ok_or_else(|| "git is not on PATH".to_owned())?;
     if output.code != Some(0) {
         return Err(format!(
             "git rev-parse failed: {}",
@@ -232,6 +291,60 @@ mod tests {
 
     fn words(line: &str) -> Vec<String> {
         line.split_whitespace().map(str::to_owned).collect()
+    }
+
+    #[test]
+    fn without_git_only_a_set_primary_slots_or_an_unreadable_config_refuse() {
+        let scratch = dx_test_scratch::scratch("primary-without-git").unwrap();
+        let config = |name: &str, text: &str| {
+            let root = scratch.path().join(name);
+            std::fs::create_dir_all(root.join(".git")).unwrap();
+            std::fs::write(root.join(".git/config"), text).unwrap();
+            root
+        };
+        let empty = scratch.path().join("empty");
+        std::fs::create_dir_all(empty.join(".git/objects")).unwrap();
+        let sub = empty.join("pkg");
+        std::fs::create_dir_all(&sub).unwrap();
+        let linked = scratch.path().join("linked");
+        std::fs::create_dir_all(&linked).unwrap();
+        std::fs::write(linked.join(".git"), "gitdir: /elsewhere\n").unwrap();
+        for root in [
+            empty.clone(),
+            sub,
+            linked,
+            config("core", "[core]\n\tbare = false\n"),
+            config(
+                "elsewhere",
+                "[dx \"x\"]\n\tprimary = open\n[remote \"primary\"]\n\turl = u\n[dxx]\n\tprimary = open\n",
+            ),
+        ] {
+            assert_eq!(without_git(&root), Ok(()), "{root:?}");
+        }
+        for (root, reason) in [
+            (
+                config("set", "[core]\n[DX]\n\tPrimary = open\n"),
+                "sets dx.primary",
+            ),
+            (config("inline", "[dx] primary\n"), "sets dx.primary"),
+            (
+                config("bare-key", "[dx]\nprimary=protected"),
+                "sets dx.primary",
+            ),
+        ] {
+            let refusal = without_git(&root).unwrap_err();
+            assert!(refusal.contains(reason), "{root:?}: {refusal}");
+        }
+        let slots = config("slots", "");
+        std::fs::create_dir_all(slots.join(".git/worktrees/1")).unwrap();
+        assert!(without_git(&slots).unwrap_err().contains("has worktrees"));
+        let unreadable = scratch.path().join("unreadable");
+        std::fs::create_dir_all(unreadable.join(".git/config")).unwrap();
+        assert!(
+            without_git(&unreadable)
+                .unwrap_err()
+                .contains("cannot be read")
+        );
     }
 
     #[test]

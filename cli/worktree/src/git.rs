@@ -104,17 +104,17 @@ pub(super) fn own_config_command(cwd: &Path, args: &[&str]) -> Command {
     cmd
 }
 
-/// Runs `own_config_command` and returns what it wrote, or why it did not finish.
+/// Runs `own_config_command` and returns what it wrote, none when git is not on PATH, or why it did not finish.
 pub(super) fn own_config(
     cwd: &Path,
     args: &[&str],
-) -> Result<dx_process::capture::Captured, String> {
+) -> Result<Option<dx_process::capture::Captured>, String> {
     match dx_process::capture::run_captured(&mut own_config_command(cwd, args), READ_TIMEOUT) {
-        Ok(output) => Ok(output),
+        Ok(output) => Ok(Some(output)),
         Err(dx_process::capture::RunError::Spawn { source, .. })
             if source.kind() == std::io::ErrorKind::NotFound =>
         {
-            Err("git is not on PATH".to_owned())
+            Ok(None)
         }
         Err(error) => Err(error.to_string()),
     }

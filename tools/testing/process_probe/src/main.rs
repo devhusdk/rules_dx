@@ -59,13 +59,16 @@ child alive holding alive-N until the stop file appears, and waits for it.
 
 With PROCESS_PROBE_SHIM_LOG set, the probe ignores its arguments, writes the
 working directory and then each argument to that file one per line, writes
-PROCESS_PROBE_SHIM_STDOUT to stdout, and exits with PROCESS_PROBE_SHIM_EXIT.
+PROCESS_PROBE_SHIM_STDOUT to stdout and PROCESS_PROBE_SHIM_STDERR to stderr, and
+exits with PROCESS_PROBE_SHIM_EXIT.
 ";
 
 /// The file a shim run records its working directory and arguments into.
 const SHIM_LOG: &str = "PROCESS_PROBE_SHIM_LOG";
 /// The text a shim run writes to stdout.
 const SHIM_STDOUT: &str = "PROCESS_PROBE_SHIM_STDOUT";
+/// The text a shim run writes to stderr.
+const SHIM_STDERR: &str = "PROCESS_PROBE_SHIM_STDERR";
 /// The exit status a shim run reports.
 const SHIM_EXIT: &str = "PROCESS_PROBE_SHIM_EXIT";
 /// The directory a fake bazel run records its launches and app locks into.
@@ -558,7 +561,10 @@ fn run_shim(log: &std::ffi::OsStr) -> Result<i32, Failure> {
         std::fs::write(log, record.as_bytes())?;
         let mut out = io::stdout().lock();
         out.write_all(env_value_or_empty(SHIM_STDOUT).as_bytes())?;
-        out.flush()
+        out.flush()?;
+        let mut err = io::stderr().lock();
+        err.write_all(env_value_or_empty(SHIM_STDERR).as_bytes())?;
+        err.flush()
     });
     if let Err(error) = written {
         return Err(fail(

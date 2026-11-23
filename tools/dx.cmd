@@ -84,9 +84,10 @@ goto run
 :dxbuild
 rem The main-checkout rule decides whether this checkout may build dx. A built dx answers: exit 0 builds, and a
 rem refusal runs that dx, which refuses or runs the command. A dx without the bazel hook cannot answer, so the next
-rem one is asked. With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses, and so
-rem does one with no git on PATH, so a PATH change cannot turn the rule off. Keep in sync with primary_allows_build
-rem in tools/dx.
+rem one is asked. With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses. With no
+rem git on PATH, the launcher reads .git itself: slots or a config it cannot read refuse, and so does a config with a
+rem [dx] section that names primary anywhere, which is coarser than tools/dx and refuses more. Keep in sync with
+rem primary_allows_build in tools/dx.
 if not exist "%DX_STATE%" mkdir "%DX_STATE%"
 set "DX_ASK=%DX_STATE%\dx.exe"
 call :dxask
@@ -105,7 +106,17 @@ if "%errorlevel%"=="1" goto dxbuildgo
 echo dx: refused: dx.primary is set in the main checkout %DX_ROOT%, or git cannot read it, and no built dx can check it, so dx is not built here. Work in a slot, or run git config --unset dx.primary to build dx here. 1>&2
 exit /b 2
 :dxnogit
-echo dx: refused: git is not on PATH, so no one can check dx.primary in the main checkout %DX_ROOT%, and dx is not built here. Put git on PATH, or work in a slot. 1>&2
+if exist "%DX_ROOT%\.git\worktrees" goto dxnogitrefused
+if not exist "%DX_ROOT%\.git\config" goto dxbuildgo
+if exist "%DX_ROOT%\.git\config\" goto dxnogitrefused
+type "%DX_ROOT%\.git\config" >nul 2>&1
+if errorlevel 1 goto dxnogitrefused
+findstr /l /i /c:"[dx]" "%DX_ROOT%\.git\config" >nul 2>&1
+if errorlevel 1 goto dxbuildgo
+findstr /l /i /c:"primary" "%DX_ROOT%\.git\config" >nul 2>&1
+if errorlevel 1 goto dxbuildgo
+:dxnogitrefused
+echo dx: refused: git is not on PATH, and the main checkout %DX_ROOT% has slots, sets dx.primary, or has a .git/config dx cannot read, so dx is not built here. Put git on PATH, or work in a slot. 1>&2
 exit /b 2
 :dxrefused
 set "BIN=%DX_ASK%"

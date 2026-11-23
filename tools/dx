@@ -493,10 +493,41 @@ guard_temps() {
   trap 'on_signal TERM' TERM
   trap 'on_signal HUP' HUP
 }
+# Succeeds when $root/.git has worktrees, a config that cannot be read, or a primary entry in a [dx] section.
+primary_without_git() {
+  [ ! -e "$root/.git/worktrees" ] || return 0
+  [ -e "$root/.git/config" ] || return 1
+  [ -f "$root/.git/config" ] && [ -r "$root/.git/config" ] || return 0
+  pw_dx=0
+  while IFS= read -r pw_line || [ -n "$pw_line" ]; do
+    pw_line=${pw_line#"${pw_line%%[![:space:]]*}"}
+    case $pw_line in
+    \[*\]*)
+      pw_name=${pw_line#\[}
+      pw_name=${pw_name%%\]*}
+      pw_line=${pw_line#*\]}
+      pw_line=${pw_line#"${pw_line%%[![:space:]]*}"}
+      case $pw_name in
+      [dD][xX]) pw_dx=1 ;;
+      *) pw_dx=0 ;;
+      esac
+      ;;
+    \[*) pw_dx=0 ;;
+    *) ;;
+    esac
+    [ "$pw_dx" = 1 ] || continue
+    case $pw_line in
+    [pP][rR][iI][mM][aA][rR][yY] | [pP][rR][iI][mM][aA][rR][yY][=[:space:]]*) return 0 ;;
+    *) ;;
+    esac
+  done <"$root/.git/config"
+  return 1
+}
 # Returns when the main-checkout rule lets this checkout build dx. A built dx answers: exit 0 builds, and a refusal
 # runs that dx, which refuses or runs the command. A dx without the bazel hook cannot answer, so the next one is asked.
-# With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses, and so does one with no
-# git on PATH, so a PATH change cannot turn the rule off. Keep in sync with tools/dx.cmd.
+# With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses. With no git on PATH, the
+# launcher reads .git itself: slots, a config it cannot read, or a primary entry in a [dx] section refuse. Keep in
+# sync with tools/dx.cmd and without_git in cli/worktree/src/primary.rs.
 primary_allows_build() {
   for pr_dx in "$state/dx$exe" "$bin"; do
     [ -x "$pr_dx" ] || continue
@@ -509,7 +540,8 @@ primary_allows_build() {
   done
   [ -d "$root/.git" ] || return 0
   if ! command -v git >/dev/null 2>&1; then
-    echo "dx: refused: git is not on PATH, so no one can check dx.primary in the main checkout $root, and dx is not built here. Put git on PATH, or work in a slot." >&2
+    primary_without_git || return 0
+    echo "dx: refused: git is not on PATH, and the main checkout $root has slots, sets dx.primary, or has a .git/config dx cannot read, so dx is not built here. Put git on PATH, or work in a slot." >&2
     exit 2
   fi
   pr_ec=0

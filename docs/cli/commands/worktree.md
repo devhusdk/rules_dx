@@ -279,22 +279,23 @@ Only commands that only read still run: `dx status`, `dx worktree`,
 dx fails closed. Any other value of `dx.primary`, such as a typo, counts as
 `protected`, and the message names the value. When git cannot read the
 setting, dx refuses and prints why. `GIT_CONFIG`, `GIT_CONFIG_COUNT` and
-`git -c` do not change what dx reads. Without git on `PATH`, dx refuses all
-but the read-only commands in any directory with a `.git` in or above it.
-Only outside git is the check off.
+`git -c` do not change what dx reads. Without git on `PATH`, dx reads the
+nearest `.git` itself. It refuses when `.git/worktrees` exists, when
+`.git/config` cannot be read, or when `.git/config` has `primary` in a `[dx]`
+section.
 
-`CI=true` does not skip the check: CI never runs `dx worktree add`, so
-`dx.primary` stays unset there.
+`CI=true` does not skip the check.
 
 `tools/dx` does not rebuild dx in a refused main checkout. It asks the copy
 of dx in `.dx/local/launcher`, then the one in `bazel-bin`, and runs the one
 that refuses. When neither can answer, it reads `dx.primary` with git and
-refuses when it is set or unreadable.
+refuses when it is set or unreadable. Without git, it reads `.git` as dx does.
+`tools/dx.cmd` refuses a `.git/config` that has a `[dx]` section and the word
+`primary` anywhere.
 
 With `dx.primary` set, a Bazel `clean` in a slot exits `2`, through
-`dx worktree hook bazel` or `dx clean --bazel`: a clean drops the slot's warm
-outputs and does not fix a stale cache. Rerun with `--noremote_accept_cached`,
-or release the slot and add a fresh one.
+`dx worktree hook bazel` or `dx clean --bazel`. Rerun with
+`--noremote_accept_cached`, or release the slot and add a fresh one.
 
 ## Agent sessions
 

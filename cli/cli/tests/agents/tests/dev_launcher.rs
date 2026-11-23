@@ -11,6 +11,32 @@ fn state(root: &Path) -> PathBuf {
     dx_path::state::launcher_dir(root)
 }
 
+/// `.git` entries a launcher without git reads: the path, its text or none for a directory, and whether it refuses.
+const NO_GIT_LAYOUTS: [(&str, Option<&str>, bool); 5] = [
+    ("objects", None, false),
+    ("config", Some("[core]\n\tbare = false\n"), false),
+    (
+        "config",
+        Some("[core]\n\tbare = false\n[dx]\n\tprimary = open\n"),
+        true,
+    ),
+    ("worktrees/1", None, true),
+    ("config", None, true),
+];
+
+/// Lays out one of `NO_GIT_LAYOUTS` in `root`.
+fn lay_out_git(root: &Path, entry: &str, text: Option<&str>) {
+    let path = root.join(".git").join(entry);
+    match text {
+        Some(text) => {
+            std::fs::create_dir_all(root.join(".git")).expect("git dir");
+            std::fs::write(&path, text)
+        }
+        None => std::fs::create_dir_all(&path),
+    }
+    .expect("git layout");
+}
+
 #[test]
 fn dev_launchers_keep_their_structure() {
     let startup = WORKFLOW_STARTUP_OPTS.join(" ");
@@ -991,16 +1017,24 @@ mod sh {
     }
 
     #[test]
-    fn with_no_dx_to_ask_and_no_git_on_path_a_checkout_refuses() {
-        let repo = source_repo("dx-launcher-primary-nogit-");
-        std::fs::create_dir_all(repo.root().join(".git")).expect("git dir");
-        let out = spawn(&mut repo.command_in(&repo.root(), &["status"]))
-            .wait_with_output()
-            .expect("launcher runs");
-        let err = String::from_utf8_lossy(&out.stderr);
-        assert_eq!(out.status.code(), Some(2), "{err}");
-        assert_eq!(repo.builds(), 0, "{err}");
-        assert!(err.starts_with("dx: refused: git is not on PATH"), "{err}");
+    fn with_no_dx_to_ask_and_no_git_on_path_the_launcher_reads_dot_git() {
+        for (entry, text, refuses) in super::NO_GIT_LAYOUTS {
+            let repo = source_repo("dx-launcher-primary-nogit-");
+            super::lay_out_git(&repo.root(), entry, text);
+            let out = spawn(&mut repo.command_in(&repo.root(), &["status"]))
+                .wait_with_output()
+                .expect("launcher runs");
+            let err = String::from_utf8_lossy(&out.stderr);
+            let case = format!("{entry} {text:?}: {err}");
+            if refuses {
+                assert_eq!(out.status.code(), Some(2), "{case}");
+                assert_eq!(repo.builds(), 0, "{case}");
+                assert!(err.starts_with("dx: refused: git is not on PATH"), "{case}");
+            } else {
+                assert_eq!(out.status.code(), Some(0), "{case}");
+                assert_eq!(repo.builds(), 1, "{case}");
+            }
+        }
     }
 
     #[test]
@@ -2747,17 +2781,59 @@ mod cmd {
     }
 
     #[test]
-    fn cmd_with_no_dx_to_ask_and_no_git_on_path_a_checkout_refuses() {
-        let repo = source_repo("dx-launcher-cmd-primary-nogit-");
-        std::fs::create_dir_all(repo.root().join(".git")).expect("git dir");
-        let out = repo
-            .command(&[], &repo.base.join("calls"))
-            .output()
-            .expect("launcher runs");
-        let err = String::from_utf8_lossy(&out.stderr);
-        assert_eq!(out.status.code(), Some(2), "{err}");
-        assert_eq!(repo.builds(), 0, "{err}");
-        assert!(err.starts_with("dx: refused: git is not on PATH"), "{err}");
+    fn cmd_with_no_dx_to_ask_and_no_git_on_path_the_launcher_reads_dot_git() {
+        for (entry, text, refuses) in super::NO_GIT_LAYOUTS {
+            let repo = source_repo("dx-launcher-cmd-primary-nogit-");
+            super::lay_out_git(&repo.root(), entry, text);
+            let out = repo
+                .command(&[], &repo.base.join("calls"))
+                .output()
+                .expect("launcher runs");
+            let err = String::from_utf8_lossy(&out.stderr);
+            let case = format!("{entry} {text:?}: {err}");
+            if refuses {
+                assert_eq!(out.status.code(), Some(2), "{case}");
+                assert_eq!(repo.builds(), 0, "{case}");
+                assert!(err.starts_with("dx: refused: git is not on PATH"), "{case}");
+            } else {
+                assert_eq!(out.status.code(), Some(0), "{case}");
+                assert_eq!(repo.builds(), 1, "{case}");
+            }
+        }
+    }
+
+    #[test]
+    fn cmd_a_refused_bazel_hook_runs_the_dx_that_refused() {
+        for copy_answers in [true, false] {
+            let repo = source_repo("dx-launcher-cmd-refused-");
+            let root = repo.root();
+            let (code, out) = repo.run(&[]);
+            assert_eq!(code, Some(0), "{out}");
+            let refusing = if copy_answers {
+                state(&root).join("dx.exe")
+            } else {
+                root.join("bazel-bin/cli/cli/dx.exe")
+            };
+            std::fs::copy(dx_testing::process_probe(), &refusing).expect("refusing dx");
+            touch_preset(&root);
+            let shim = repo.base.join("shim");
+            let out = repo
+                .command(&["status"], &repo.base.join("calls"))
+                .env("PROCESS_PROBE_SHIM_LOG", &shim)
+                .env(
+                    "PROCESS_PROBE_SHIM_STDERR",
+                    "dx: refused: no Bazel in the main checkout here",
+                )
+                .env("PROCESS_PROBE_SHIM_EXIT", "2")
+                .output()
+                .expect("launcher runs");
+            let err = String::from_utf8_lossy(&out.stderr);
+            let case = format!("copy answers {copy_answers}: {err}");
+            assert_eq!(out.status.code(), Some(2), "{case}");
+            assert_eq!(repo.builds(), 1, "{case}");
+            let shim = std::fs::read_to_string(&shim).expect("the refusing dx ran");
+            assert!(shim.ends_with("\nstatus\n"), "{case}: {shim}");
+        }
     }
 
     #[test]

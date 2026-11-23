@@ -224,11 +224,13 @@ fn a_shim_run_records_its_call_and_answers_from_the_environment() {
         &[
             ("PROCESS_PROBE_SHIM_LOG", &log_text),
             ("PROCESS_PROBE_SHIM_STDOUT", "//pkg:alpha\n"),
+            ("PROCESS_PROBE_SHIM_STDERR", "shim: refused\n"),
             ("PROCESS_PROBE_SHIM_EXIT", "3"),
         ],
     );
     assert_eq!(run.status.code(), Some(3), "{}", run.stderr);
     assert_eq!(run.stdout, "//pkg:alpha\n");
+    assert_eq!(run.stderr, "shim: refused\n");
     let cwd = std::env::current_dir().expect("readable working directory");
     let recorded = std::fs::read_to_string(&log).expect("shim log");
     assert_eq!(

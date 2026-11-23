@@ -1,5 +1,6 @@
 """The real aspect engine: request building and shard aspects. Families reach it through hooks."""
 
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//core:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load("//core/quality:adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//core/quality:execution_requirements.bzl", "dx_stage_execution_requirements")
@@ -299,6 +300,13 @@ def real_config(tools, shard_specs, hook_order = [], context_hooks = {}, source_
         toolchain = toolchain,
         check_policy = check_policy,
     )
+
+def real_family_tier(ctx, family_id):
+    """Returns the family's own tier, else the workspace tier; the shard needs a `_config_tier` attr."""
+    section = ctx.attr._policy[QualityPolicyInfo].families.get(family_id)
+    if section != None and section.tier:
+        return section.tier
+    return ctx.attr._config_tier[BuildSettingInfo].value
 
 def real_wired_tools(cfg):
     """Maps each capability to the sorted tool names the table wires for it."""

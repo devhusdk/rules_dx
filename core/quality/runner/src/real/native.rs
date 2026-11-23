@@ -1,4 +1,5 @@
 use quality_adapter::parsers::{self, FileFinding};
+use quality_adapter::zig_guard;
 
 use super::check::{CheckCall, ToolDef, in_file};
 use super::{
@@ -53,6 +54,38 @@ fn per_file(
         merged.extend(parse(&out, name).map_err(|err| in_file(err, name))?);
     }
     Ok(merged)
+}
+
+/// `zig ast-check`, plus the banned-pattern guard when the family passes `strict`.
+fn zig_ast_check(
+    backend: &RealBackend,
+    call: &CheckCall<'_>,
+) -> Result<Vec<FileFinding>, RunnerError> {
+    // One process per file: `zig ast-check` rejects a second positional file.
+    let mut findings = per_file(
+        backend,
+        call,
+        |path| commands::zig_ast_check(&call.tool.binary, path),
+        |out, name| {
+            parsed(
+                call.tool_id,
+                parsers::parse_zig_ast_check(&out.stdout, &out.stderr, out.code, &[name]),
+            )
+        },
+    )?;
+    if !call.tool.args.iter().any(|arg| arg == "strict") {
+        return Ok(findings);
+    }
+    let (refs, names) = paths(call);
+    for (name, path) in names.iter().zip(refs) {
+        let bytes = std::fs::read(path)
+            .map_err(|err| execution(call.tool_id, format!("read {name}: {err}")))?;
+        // Zig rejects source that is not UTF-8, and ast-check above already reported it.
+        if let Ok(source) = std::str::from_utf8(&bytes) {
+            findings.extend(zig_guard::zig_guard(name, source));
+        }
+    }
+    Ok(findings)
 }
 
 fn buildifier(
@@ -442,20 +475,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
     },
     ToolDef {
         id: "zig_ast_check",
-        run: |backend, call| {
-            // One process per file: `zig ast-check` rejects a second positional file.
-            per_file(
-                backend,
-                call,
-                |path| commands::zig_ast_check(&call.tool.binary, path),
-                |out, name| {
-                    parsed(
-                        call.tool_id,
-                        parsers::parse_zig_ast_check(&out.stdout, &out.stderr, out.code, &[name]),
-                    )
-                },
-            )
-        },
+        run: zig_ast_check,
     },
     ToolDef {
         id: "zig_fmt",

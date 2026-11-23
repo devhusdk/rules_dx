@@ -21159,6 +21159,11 @@
             "name": "visibility"
           },
           {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_release_fast"
+          },
+          {
             "default": "",
             "mandatory": false,
             "name": "kwargs"
@@ -21223,6 +21228,7 @@
         "forwards": [
           {
             "attrs": [
+              "allow_release_fast",
               "deps",
               "size",
               "srcs",
@@ -21265,6 +21271,11 @@
             "default": "None",
             "mandatory": false,
             "name": "visibility"
+          },
+          {
+            "default": "False",
+            "mandatory": false,
+            "name": "allow_release_fast"
           },
           {
             "default": "",

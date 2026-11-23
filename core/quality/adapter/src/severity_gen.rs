@@ -695,6 +695,30 @@ pub const TOOL_SEVERITIES: &[(&str, crate::severity::ToolSeverityMap)] = &[
         },
     ),
     (
+        "zig",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
+            floor: None,
+            categories: &[],
+        },
+    ),
+    (
+        "zig_ast_check",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
+            floor: None,
+            categories: &[],
+        },
+    ),
+    (
+        "zig_fmt",
+        crate::severity::ToolSeverityMap {
+            default: Some(crate::ToolSeverity::Error),
+            floor: None,
+            categories: &[],
+        },
+    ),
+    (
         "zizmor",
         crate::severity::ToolSeverityMap {
             default: None,

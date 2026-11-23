@@ -1,6 +1,7 @@
 # gazelle:exclude coverage_runner.zig
 # Why: a zig_test coverage build passes it as test_runner; it is no module.
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":mode.bzl", "zig_release_fast")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -32,11 +33,20 @@ platform(
     visibility = ["//tools/coverage/kcov:__pkg__"],
 )
 
+zig_release_fast(
+    name = "release_fast",
+    value = select({
+        "@rules_zig//zig/config/mode:release_fast": True,
+        "//conditions:default": False,
+    }),
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "mode.bzl",
     ],
     tags = ["corpus"],
 )

@@ -1,10 +1,12 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
-load("//core/private/testing:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_entry_quality_srcs")
 load("//core:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_with_tag")
+load("//core/private/testing:defs.bzl", "expect_equal")
 load("//zig/private:defs.bzl", "ZIG_COVERAGE_COLLECTOR", "ZIG_QUALITY_TOOLS", "zig_import_name")
 load(":hub_tests.bzl", "zig_hub_tests")
+load(":mode_tests.bzl", "zig_mode_test", "zig_release_fast_failure_test", "zig_zigopts_failure_test")
+load(":tier_tests.bzl", "zig_tier_tests")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -98,12 +100,85 @@ zig_hub_tests(
     size = "small",
 )
 
+zig_mode_test(
+    name = "binary_release_safe_test",
+    size = "small",
+    mode = "ReleaseSafe",
+    target = "//zig/tests/fixtures/hello",
+)
+
+zig_mode_test(
+    name = "test_release_safe_test",
+    size = "small",
+    mode = "ReleaseSafe",
+    target = "//zig/tests/fixtures/hello:greet_test",
+)
+
+zig_mode_test(
+    name = "opt_release_safe_test",
+    size = "small",
+    mode = "ReleaseSafe",
+    opt = True,
+    target = "//zig/tests/fixtures/hello",
+)
+
+zig_release_fast_failure_test(
+    name = "release_fast_needs_opt_in_test",
+    size = "small",
+    target = "//zig/tests/fixtures/hello",
+)
+
+zig_release_fast_failure_test(
+    name = "test_release_fast_needs_opt_in_test",
+    size = "small",
+    target = "//zig/tests/fixtures/hello:greet_test",
+)
+
+zig_zigopts_failure_test(
+    name = "select_zigopts_release_fast_needs_opt_in_test",
+    size = "small",
+    target = "//zig/tests/fixtures/hello:hello_select_release_fast",
+)
+
+zig_zigopts_failure_test(
+    name = "zigopts_release_fast_needs_opt_in_test",
+    size = "small",
+    target = "//zig/tests/fixtures/hello:hello_split_release_fast",
+)
+
+zig_zigopts_failure_test(
+    name = "library_zigopts_release_fast_needs_opt_in_test",
+    size = "small",
+    target = "//zig/tests/fixtures/hello:hello_release_fast_dep",
+)
+
+zig_zigopts_failure_test(
+    name = "make_var_zigopts_release_fast_needs_opt_in_test",
+    size = "small",
+    target = "//zig/tests/fixtures/hello:hello_make_var_release_fast",
+)
+
+zig_zigopts_failure_test(
+    name = "response_file_zigopts_need_opt_in_test",
+    size = "small",
+    message = "read an @file",
+    target = "//zig/tests/fixtures/hello:hello_response_file",
+)
+
+zig_tier_tests(
+    name = "guard_tier_test",
+    size = "small",
+    target = "//zig/tests/fixtures/hello:greet",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
         "hub_tests.bzl",
+        "mode_tests.bzl",
+        "tier_tests.bzl",
     ],
     tags = ["corpus"],
 )

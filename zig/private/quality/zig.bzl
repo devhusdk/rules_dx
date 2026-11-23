@@ -1,7 +1,7 @@
 """Zig real quality aspects."""
 
 load("//core/quality:compile_check.bzl", "compile_check_aspect", "compile_check_hook")
-load("//core/quality:real_core.bzl", "real_config", "real_make_aspect", "real_make_probe_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_family_tier", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "zig": {
@@ -34,6 +34,9 @@ SHARD_SPECS = {
     "real_zig_lint": {
         "capability": "lint",
         "doc": "Additive Zig lint family aspect (zig ast-check).",
+        "extra_attrs": {
+            "_config_tier": attr.label(default = "//config:config_tier"),
+        },
         "shard": "zig",
     },
     "real_zig_typecheck": {
@@ -48,11 +51,15 @@ HOOK_ORDER = []
 
 HOOKS = {}
 
+def _zig_ast_check_hook(_target, ctx, _resolved, _capability, _what, _shared):
+    """Passes `strict` on the strict tier, which turns on the banned-pattern guard."""
+    return real_context(options = {"args": ["strict"] if real_family_tier(ctx, "zig") == "strict" else []})
+
 _CFG = real_config(
     tools = TOOLS,
     shard_specs = SHARD_SPECS,
-    hook_order = ["zig"],
-    context_hooks = {"zig": compile_check_hook("zig")},
+    hook_order = ["zig", "zig_ast_check"],
+    context_hooks = {"zig": compile_check_hook("zig"), "zig_ast_check": _zig_ast_check_hook},
 )
 
 real_zig_format_aspect = real_make_aspect(_CFG, "real_zig_format")

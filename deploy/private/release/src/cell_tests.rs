@@ -243,7 +243,8 @@ fn synthetic_exe() -> Vec<u8> {
 }
 
 fn host_cell(format: &str) -> (Cell, Vec<u8>) {
-    let exe = dx_testing::rlocation(&dx_testing::env_text("DX_RELEASE_HOST_EXE")).expect("host exe");
+    let exe =
+        dx_testing::rlocation(&dx_testing::env_text("DX_RELEASE_HOST_EXE")).expect("host exe");
     let bytes = std::fs::read(exe).expect("read exe");
     let images = dx_binfmt::inspect(&bytes).expect("inspect");
     let image = &images[0];

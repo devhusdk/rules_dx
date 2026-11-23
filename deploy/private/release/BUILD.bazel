@@ -107,8 +107,6 @@ rust_binary(
 rust_test(
     name = "dx_release_tools_test",
     size = "small",
-    data = [":host_exe_fixture"],
-    env = {"DX_RELEASE_HOST_EXE": "$(rlocationpath :host_exe_fixture)"},
     srcs = [
         "src/candidate.rs",
         "src/cell.rs",
@@ -134,6 +132,8 @@ rust_test(
     coverage_lib = ":dx_release_tools",
     crate_name = "dx_release_tools",
     crate_root = "src/lib.rs",
+    data = [":host_exe_fixture"],
+    env = {"DX_RELEASE_HOST_EXE": "$(rlocationpath :host_exe_fixture)"},
     deps = all_crate_deps(
         package_name = "deploy/private/dx_release_tools",
         normal = True,

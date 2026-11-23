@@ -9,6 +9,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:native_config.bzl", "biome_config", "buildifier_config", "eslint_config", "pmd_config", "ruff_config", "rustfmt_config", "scalafix_config", "scalafmt_config", "vale_config")
 load("//core/quality:policy.bzl", "quality_family")
 load("//core/quality:suite_membership.bzl", "suite_membership_test")
+load("//core/tests:no_coverage_tests.bzl", "no_coverage_build_scripts_test")
 load("//java:defs.bzl", "java_library")
 load("//javascript/private/quality:defs.bzl", "js_tool_binary")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
@@ -1889,4 +1890,10 @@ write_source_files(
     name = "update_all_languages",
     files = {"all_languages.bzl": "//core/modules:generated/all_languages.bzl"},
     visibility = ["//core/modules:__pkg__"],
+)
+
+no_coverage_build_scripts_test(
+    name = "runner_matrix_build_scripts_no_coverage_test",
+    size = "small",
+    target_under_test = ":matrix_gherkin_format_fail",
 )

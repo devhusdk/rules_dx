@@ -1,4 +1,4 @@
-"""Gate: the combined tool list keeps its tool ids, and each family file owns distinct tools."""
+"""Gate: the combined tool list keeps its tool ids, each family file owns distinct tools, and checkers have tiers."""
 
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
 load(":tools.bzl", "FAMILY_TOOLS", "TOOLS")
@@ -142,6 +142,56 @@ EXPECTED_IDS = [
     "zizmor",
 ]
 
+_COMPILER = "compiler or compile check; its warnings follow the tier through compiler flags"
+_SCHEMA = "schema compiler or validator with no rule set to tier"
+_FIXED = "checks one fixed property with no rule set to tier"
+
+# Lint and typecheck tools with no standard and strict tier files, and why.
+TIER_EXEMPT = {
+    "avro_tools": _SCHEMA,
+    "capnp": _SCHEMA,
+    "clang_syntax": _COMPILER,
+    "container_structure_test": "runs the image tests the user writes",
+    "csc": _COMPILER,
+    "cue": _SCHEMA,
+    "elixirc": _COMPILER,
+    "erlc": _COMPILER,
+    "flang": _COMPILER,
+    "flatc": _SCHEMA,
+    "fsc": _COMPILER,
+    "ghc": _COMPILER,
+    "gotype": _COMPILER,
+    "helm": "helm lint validates chart structure with no rule set to tier",
+    "javac": _COMPILER,
+    "keep_sorted": _FIXED,
+    "kotlinc": _COMPILER,
+    "ldc": _COMPILER,
+    "notebook_outputs": _FIXED,
+    "nvcc_syntax": _COMPILER,
+    "ocaml": _COMPILER,
+    "pkl": "evaluates modules with no rule set to tier",
+    "rustc": _COMPILER,
+    "scalac": _COMPILER,
+    "swiftc": _COMPILER,
+    "terraform": "terraform validate checks configuration with no rule set to tier",
+    "thrift": _SCHEMA,
+    "zig": _COMPILER,
+    "zig_ast_check": _COMPILER,
+}
+
+# Checkers that still owe tier files. Remove an entry when its tiers land; never add one.
+TIER_DEBT = {
+    "dialyzer": "warning flags are fixed in the adapter",
+    "dscanner": "runs its built-in check set with no dscanner.ini",
+    "jet": "runs report_package with fixed options",
+    "sorbet": "the strictness sigil lives in each file",
+    "trivy_image_config": "runs trivy's built-in image checks",
+    "weeder": "roots come from the target, with no weeder.toml",
+}
+
+def _checkers():
+    return [t for t in TOOLS if "lint" in t.adapters or "typecheck" in t.adapters]
+
 def _ids(tools):
     return [t.id for t in tools]
 
@@ -153,5 +203,20 @@ def tools_unit_tests(name):
         checks = [
             expect_equal("the combined tool ids are the expected set, ordered by id", _ids(TOOLS), EXPECTED_IDS),
             expect_equal("each tool is defined in exactly one family file", sorted(owned), EXPECTED_IDS),
+            expect_equal(
+                "every lint and typecheck tool has standard and strict tiers, or an exemption",
+                sorted([t.id for t in _checkers() if not t.config.tier_active and t.id not in TIER_EXEMPT and t.id not in TIER_DEBT]),
+                [],
+            ),
+            expect_equal(
+                "every tier exemption and debt entry is still needed",
+                sorted([id for id in TIER_EXEMPT.keys() + TIER_DEBT.keys() if id not in [t.id for t in _checkers() if not t.config.tier_active]]),
+                [],
+            ),
+            expect_equal(
+                "no tool is both exempt and tier debt",
+                [id for id in TIER_DEBT if id in TIER_EXEMPT],
+                [],
+            ),
         ],
     )

@@ -5,7 +5,6 @@ ignorecase: true
 tokens:
   - it is worth noting
   - delv(?:e|es|ed|ing)
-  - in order to
   - seamless(?:ly)?
   - robust(?:ly|ness)?
   - leverag(?:e|es|ed|ing)

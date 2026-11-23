@@ -258,6 +258,8 @@ public final class KotlincCheck {
       this.names = names;
     }
 
+    // A proxy's equals is identity: the proxy equals only itself.
+    @SuppressWarnings("ReferenceEquality")
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
       switch (method.getName()) {

@@ -1,10 +1,25 @@
-load("//core:wrapper.bzl", "dx_append_flags", "dx_src_path", "dx_warnings_as_errors")
 load("@rules_java//java/common/rules:java_helper.bzl", "helper")
+load("//core:wrapper.bzl", "dx_append_flags", "dx_src_path", "dx_warnings_as_errors")
+
+# Error Prone checks that catch swallowed errors, dropped results and dead code; JavaBuilder runs Error Prone.
+JAVA_ERROR_PRONE_CHECKS = [
+    "EmptyCatch",
+    "CatchAndPrintStackTrace",
+    "InterruptedExceptionSwallowed",
+    "ReturnValueIgnored",
+    "CheckReturnValue",
+    "FutureReturnValueIgnored",
+    "ReferenceEquality",
+    "UnusedVariable",
+    "UnusedMethod",
+]
 
 def java_javacopts_with_warnings_as_errors(kwargs):
-    """Returns kwargs with -Xlint:all and, unless turned off, -Werror on javacopts."""
-    out, warning_flags = dx_warnings_as_errors(kwargs, ["-Werror"])
-    out = dx_append_flags(out, "javacopts", ["-Xlint:all"])
+    """Returns kwargs with -Xlint:all, the Error Prone checks and, unless turned off, -Werror on javacopts."""
+    on = ["-Werror"] + ["-Xep:" + check + ":ERROR" for check in JAVA_ERROR_PRONE_CHECKS]
+    off = ["-Xep:" + check + ":WARN" for check in JAVA_ERROR_PRONE_CHECKS]
+    out, warning_flags = dx_warnings_as_errors(kwargs, on, off)
+    out = dx_append_flags(out, "javacopts", ["-Xlint:all,-processing,-serial", "-parameters"])
     return dx_append_flags(out, "javacopts", warning_flags)
 
 def java_entry_class(name, srcs, package):

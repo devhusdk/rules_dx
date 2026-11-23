@@ -1,5 +1,5 @@
 {
-  "checksum": "afc2f3187522639baf5f20357121668137c892e338dadfa59ec874d0f278f1e5",
+  "checksum": "50977b6804cb17b44ac053647a6e80b03feb183cdd249fe346a67e386196518d",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -8713,6 +8713,27 @@
         {
           "Library": {
             "crate_name": "dx_exec_core",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_exec_docs 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "dx_exec_docs",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_exec_docs",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_exec_docs",
             "crate_root": "src/lib.rs"
           }
         }
@@ -33619,6 +33640,7 @@
     "dx_exec_audit 0.0.0": "cli/dx_exec_audit",
     "dx_exec_bench 0.0.0": "cli/dx_exec_bench",
     "dx_exec_core 0.0.0": "cli/dx_exec_core",
+    "dx_exec_docs 0.0.0": "cli/dx_exec_docs",
     "dx_exec_quality 0.0.0": "cli/dx_exec_quality",
     "dx_exec_reports 0.0.0": "cli/dx_exec_reports",
     "dx_exec_test_reports 0.0.0": "cli/dx_exec_test_reports",

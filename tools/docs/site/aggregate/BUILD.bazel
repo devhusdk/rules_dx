@@ -23,7 +23,10 @@ rust_library(
     ),
     crate_name = "dx_site_aggregate",
     crate_root = "src/lib.rs",
-    visibility = VIS_TOOLS_PUBLIC + ["//cli/cli:__pkg__"],
+    visibility = VIS_TOOLS_PUBLIC + [
+        "//cli/cli:__pkg__",
+        "//cli/exec_docs:__pkg__",
+    ],
     deps = all_crate_deps(
         package_name = "tools/docs/site/site_aggregate",
         normal = True,

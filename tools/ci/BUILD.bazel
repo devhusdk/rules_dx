@@ -487,6 +487,7 @@ rust_test(
         "//cli/exec_audit:clippy.toml",
         "//cli/exec_bench:clippy.toml",
         "//cli/exec_core:clippy.toml",
+        "//cli/exec_docs:clippy.toml",
         "//cli/exec_quality:clippy.toml",
         "//cli/exec_reports:clippy.toml",
         "//cli/exec_test_reports:clippy.toml",

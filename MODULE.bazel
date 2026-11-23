@@ -398,18 +398,16 @@ single_version_override(
     version = "2.4.21",
 )
 
+# needed: @rules_scala (dx_pins archive) loads @bazel_worker_api
 # floor: equals tested
 bazel_dep(name = "bazel_worker_api", version = "0.0.11")
 
 scala_config = use_extension("//scala:extensions.bzl", "scala_config")
-use_repo(scala_config, "dx_scala_toolchains", "rules_scala_config")
-
-# A third Scala version for //scala/tests:third_version_test; consumers set their own.
-scala_config_dev = use_extension("//scala:extensions.bzl", "scala_config", dev_dependency = True)
-scala_config_dev.settings(scala_versions = [
+scala_config.settings(scala_versions = [
     "3.3.9",
     "2.12.21",
 ])
+use_repo(scala_config, "dx_scala_toolchains", "rules_scala_config")
 
 scala = use_extension("//scala/private/toolchain:deps_extension.bzl", "scala")
 use_repo(
@@ -1503,7 +1501,7 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "julia_src",
-    build = "//julia/private/runtime:julia_src.BUILD.bazel",
+    build = "//julia/private:julia_src.BUILD.bazel",
     patches = [
         "//patches/julia:deterministic_image_fields.patch",
         "//patches/julia:deterministic_objectid.patch",
@@ -1512,32 +1510,32 @@ dx_pins.archive(
 )
 dx_pins.archive(
     name = "julia_src_libllvm",
-    build = "//julia/private/runtime:libllvm.BUILD.bazel",
+    build = "//julia/private:libllvm.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "julia_src_libunwind",
-    build = "//julia/private/runtime:libunwind.BUILD.bazel",
+    build = "//julia/private:libunwind.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "julia_src_libuv",
-    build = "//julia/private/runtime:libuv.BUILD.bazel",
+    build = "//julia/private:libuv.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "julia_src_libuv_aarch64",
-    build = "//julia/private/runtime:libuv.BUILD.bazel",
+    build = "//julia/private:libuv.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "julia_src_utf8proc",
-    build = "//julia/private/runtime:utf8proc.BUILD.bazel",
+    build = "//julia/private:utf8proc.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
     name = "julia_src_zstd",
-    build = "//julia/private/runtime:zstd.BUILD.bazel",
+    build = "//julia/private:zstd.BUILD.bazel",
     pins = "//julia:pins.json",
 )
 dx_pins.archive(
@@ -2560,11 +2558,7 @@ use_repo(
     rust_sdist_pypi = "dx_pypi_rust_sdist",
 )
 
-sdist_cargo_vendor = use_extension(
-    "//python/tests:sdist_cargo_vendor.bzl",
-    "sdist_cargo_vendor",
-    dev_dependency = True,
-)
+sdist_cargo_vendor = use_extension("//tools/testing:extensions.bzl", "sdist_cargo_vendor", dev_dependency = True)
 sdist_cargo_vendor.crates(
     name = "dx_rust_sdist_crates",
     lock = "//python/tests/fixtures/rust_sdist:uv.lock",
@@ -2689,7 +2683,7 @@ use_repo(
 rust_host_tools = use_extension("@rules_rust//rust:extensions.bzl", "rust_host_tools")
 use_repo(rust_host_tools, "rust_host_tools")
 
-cargo_bazel = use_extension("//third_party/rules_rust/crate_universe:generator.bzl", "cargo_bazel")
+cargo_bazel = use_extension("//third_party/rules_rust/crate_universe:extensions.bzl", "cargo_bazel")
 use_repo(cargo_bazel, "dx_cargo_bazel")
 
 crate = use_extension("//third_party/rules_rust/crate_universe:extensions.bzl", "crate")

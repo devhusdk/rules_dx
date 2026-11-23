@@ -182,3 +182,12 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//zig/tests/fixtures/sancov:sancov_launcher_test",
+        "//zig/tests/fixtures/sancov:sancov_subject_test",
+    ],
+)

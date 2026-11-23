@@ -8,7 +8,13 @@ package(default_visibility = [
 
 exports_files([
     "defs.bzl",
+    "julia_src.BUILD.bazel",
+    "libllvm.BUILD.bazel",
+    "libunwind.BUILD.bazel",
+    "libuv.BUILD.bazel",
     "platforms.bzl",
+    "utf8proc.BUILD.bazel",
+    "zstd.BUILD.bazel",
 ])
 
 real_source_target(
@@ -16,13 +22,22 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "julia_src.BUILD.bazel",
+        "libllvm.BUILD.bazel",
+        "libunwind.BUILD.bazel",
+        "libuv.BUILD.bazel",
         "platforms.bzl",
+        "utf8proc.BUILD.bazel",
+        "zstd.BUILD.bazel",
     ],
     tags = ["corpus"],
 )
 
 filegroup(
     name = "module_srcs",
-    srcs = ["BUILD.bazel"] + glob(["*.bzl"]),
+    srcs = ["BUILD.bazel"] + glob([
+        "*.bzl",
+        "*.BUILD.bazel",
+    ]),
     visibility = ["//:__subpackages__"],
 )

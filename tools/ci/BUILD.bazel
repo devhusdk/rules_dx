@@ -101,7 +101,10 @@ rust_test(
     ),
     crate_name = "evidence_inputs_test",
     crate_root = "evidence_inputs_test.rs",
-    data = ["//.github:workflows/evidence.yml"],
+    data = [
+        "//.github:workflows/evidence.yml",
+        "//android/tests/fixtures/rust_starter:MODULE.bazel.fixture",
+    ],
     deps = [
         "//tools/ci/ci_workflow",
         "//tools/ci/evidence_inputs",

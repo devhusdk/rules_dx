@@ -67,15 +67,15 @@ zig_make_variables = rule(
     attrs = {"variables": attr.string_dict(doc = "Make variable names and values.")},
 )
 
-def zig_mode_test(name, target, mode, opt = False):
+def zig_mode_test(name, target, mode, size, opt = False):
     """Asserts that every Zig compile action under target passes `-O mode`, under -c opt when opt is set."""
     rule = _mode_opt_test if opt else _mode_test
-    rule(name = name, size = "small", target_under_test = target, mode = mode)
+    rule(name = name, size = size, target_under_test = target, mode = mode)
 
-def zig_release_fast_failure_test(name, target):
+def zig_release_fast_failure_test(name, target, size):
     """Asserts that target fails analysis under mode release_fast without allow_release_fast."""
-    _release_fast_failure_test(name = name, size = "small", target_under_test = target, message = "Zig mode release_fast drops safety checks")
+    _release_fast_failure_test(name = name, size = size, target_under_test = target, message = "Zig mode release_fast drops safety checks")
 
-def zig_zigopts_failure_test(name, target, message = "zigopts set ReleaseFast"):
+def zig_zigopts_failure_test(name, target, size, message = "zigopts set ReleaseFast"):
     """Asserts that target fails analysis on ReleaseFast from zigopts without allow_release_fast."""
-    _zigopts_failure_test(name = name, size = "small", target_under_test = target, message = message)
+    _zigopts_failure_test(name = name, size = size, target_under_test = target, message = message)

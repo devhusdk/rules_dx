@@ -34,8 +34,8 @@ _strict_test = analysistest.make(_tier_impl, attrs = _attrs, config_settings = {
 
 _standard_test = analysistest.make(_tier_impl, attrs = _attrs, config_settings = {_TIER: "standard"})
 
-def zig_tier_tests(name, target):
+def zig_tier_tests(name, target, size):
     """Asserts that the lint request of target turns on the guard on the strict tier only."""
     _subject(name = name + "_subject", target = target, testonly = True)
-    _strict_test(name = name + "_strict", size = "small", target_under_test = name + "_subject", want = ["strict"])
-    _standard_test(name = name + "_standard", size = "small", target_under_test = name + "_subject", want = [])
+    _strict_test(name = name + "_strict", size = size, target_under_test = name + "_subject", want = ["strict"])
+    _standard_test(name = name + "_standard", size = size, target_under_test = name + "_subject", want = [])

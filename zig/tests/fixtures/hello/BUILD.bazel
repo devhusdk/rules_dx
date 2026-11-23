@@ -32,14 +32,15 @@ zig_binary(
     deps = [":greet"],
 )
 
-zig_test(
-    name = "greet_release_fast_test",
-    main = "greet.zig",
+zig_binary(
+    name = "hello_split_release_fast",
+    main = "main.zig",
     tags = ["manual"],
     zigopts = [
         "-O",
         "ReleaseFast",
     ],
+    deps = [":greet"],
 )
 
 zig_library(

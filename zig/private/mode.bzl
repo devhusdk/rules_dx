@@ -8,7 +8,7 @@ def _zig_release_fast_impl(ctx):
 zig_release_fast = rule(
     implementation = _zig_release_fast_impl,
     doc = "Carries a select on the rules_zig mode, so a rule can read the mode without depending on the private flag.",
-    attrs = {"value": attr.bool(mandatory = True)},
+    attrs = {"value": attr.bool(doc = "Whether the selected mode is ReleaseFast.", mandatory = True)},
 )
 
 ZigOptsInfo = provider(doc = "Whether the Zig compile command line of a target sets ReleaseFast or reads a response file that may.", fields = {"release_fast": "bool"})

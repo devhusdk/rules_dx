@@ -254,6 +254,10 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `perlcritic` takes its tier from `core/quality/tiers/perlcritic/`. Standard runs severity 3 policies. Strict runs severity 1 policies and requires `use strict` and `use warnings`, checked `open`, `close` and other builtin calls, three-argument `open` with lexical handles, and a policy name on every `## no critic`. It bans string `eval`, `return undef`, and `no strict` or `no warnings` without a category. It leaves out layout and style noise such as `ProhibitMagicNumbers`, `RequireTrailingCommas`, `ProhibitPostfixControls`, `RequireExtendedFormatting`, `RequirePodSections` and `RequireArgUnpacking`.
 
+`shellcheck` reports every finding as a `warning`, style findings included, so they fail the default `--fail-on`. Both tiers set `external-sources=true`, so shellcheck follows `source` lines. Strict also turns on the optional checks `add-default-case`, `check-extra-masked-returns`, `check-set-e-suppressed`, `check-unassigned-uppercase` and `deprecate-which`.
+
+`shfmt` runs in simplify mode, so it also simplifies code. It picks the shell dialect from the shebang or the file extension.
+
 `spotbugs` runs at default effort in standard and max effort in strict, and the tier's filter XML sets the confidence threshold. A bound `spotbugs_config` is used as an `-exclude` filter with `-low`, so it exposes every low-confidence finding.
 
 `govet`, `errcheck` and `staticcheck` take their tier from `core/quality/tiers/`. Standard runs the `go vet` defaults, errcheck, and staticcheck's default checks. Strict adds the vet analyzers `forvar`, `nilness`, `shadow` and `unusedwrite`. It also makes errcheck report `_ = f()`, unchecked type assertions such as `v.(string)`, and errors from `Close` and `fmt.Fprint*`. staticcheck runs the same checks in both tiers and leaves out `SA9003`, `ST1000`, `ST1003`, `ST1016` and `ST1020` to `ST1023`. Its `SA` findings are errors; `S`, `ST` and `U1000` findings are warnings.

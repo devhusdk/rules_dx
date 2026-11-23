@@ -1,6 +1,6 @@
 """Quality tool rows for the shell family."""
 
-load("//core/quality:tool_defs.bzl", "config", "row", "tool")
+load("//core/quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
 visibility(["//tools/..."])
 
@@ -9,6 +9,7 @@ TOOLS = [
         id = "shellcheck",
         adapters = {"lint": ["shell"]},
         config = config(suffixes = [".shellcheckrc", "shellcheckrc"], files = [".shellcheckrc"], tier_active = True),
+        severity = severity(default = "warning"),
         support = [
             row(
                 capability = "lint",

@@ -46,7 +46,7 @@ cuda_library(
     name = "gpu_main",
     testonly = True,
     srcs = ["gpu_main.cu"],
-    cuda_archs = ["compute_75"],
+    gpu_archs = ["compute_75"],
     deps = [
         ":gpu_check",
         ":gpu_device",

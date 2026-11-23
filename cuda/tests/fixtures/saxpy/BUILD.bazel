@@ -9,7 +9,7 @@ cuda_library(
         "saxpy.cuh",
         "saxpy.h",
     ],
-    cuda_archs = [
+    gpu_archs = [
         "compute_89:compute_89,sm_89",
         "sm_120",
     ],
@@ -18,7 +18,7 @@ cuda_library(
 cuda_binary(
     name = "saxpy_app",
     srcs = ["main.cc"],
-    cuda_archs = [
+    gpu_archs = [
         "compute_89:compute_89,sm_89",
         "sm_120",
     ],

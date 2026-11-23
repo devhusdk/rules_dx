@@ -2757,7 +2757,7 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `srcs` | yes |  |
-| `cuda_archs` | yes |  |
+| `gpu_archs` | yes |  |
 | `deps` | no | `None` |
 | `hdrs` | no | `None` |
 | `visibility` | no | `None` |
@@ -2786,7 +2786,7 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `srcs` | yes |  |
-| `cuda_archs` | yes |  |
+| `gpu_archs` | yes |  |
 | `hdrs` | no | `None` |
 | `visibility` | no | `None` |
 | `tags` | no | `None` |
@@ -2802,7 +2802,7 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `srcs` | yes |  |
-| `cuda_archs` | yes |  |
+| `gpu_archs` | yes |  |
 | `hdrs` | no | `None` |
 | `deps` | no | `None` |
 | `visibility` | no | `None` |
@@ -2818,7 +2818,7 @@ Macro or function.
 | --- | --- | --- |
 | `name` | yes |  |
 | `srcs` | yes |  |
-| `cuda_archs` | yes |  |
+| `gpu_archs` | yes |  |
 | `deps` | no | `None` |
 | `hdrs` | no | `None` |
 | `visibility` | no | `None` |

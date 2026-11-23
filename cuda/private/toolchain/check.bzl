@@ -6,7 +6,7 @@ load("//core/modules:cuda.bzl", "CUDA_ARCHS", "CUDA_CELLS", "CUDA_REDIST_VERSION
 def arch_errors(archs):
     """Returns one error per arch spec token that the pinned nvcc does not support."""
     if not archs:
-        return ["dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = [\"sm_89\"]"]
+        return ["dx_cuda: gpu_archs is empty; set gpu_archs, for example gpu_archs = [\"sm_89\"]"]
     errors = []
     for spec in archs:
         for part in spec.replace(":", ",").split(","):
@@ -42,7 +42,7 @@ def gpu_requirement_errors(archs, min_compute_capability, min_driver):
     if cc == None:
         errors.append("dx_cuda: min_compute_capability '" + str(min_compute_capability) + "' is not X.Y, for example \"8.9\"")
     elif lowest != None and cc < lowest:
-        errors.append("dx_cuda: min_compute_capability " + min_compute_capability + " is below the lowest arch in cuda_archs (%d.%d)" % lowest)
+        errors.append("dx_cuda: min_compute_capability " + min_compute_capability + " is below the lowest arch in gpu_archs (%d.%d)" % lowest)
     driver = _version(min_driver)
     pinned = _version(CUDA_VERSION)
     floor = "%d.0" % pinned[0]

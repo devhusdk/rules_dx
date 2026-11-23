@@ -153,15 +153,15 @@ def cuda_split_srcs(srcs):
             host.append(src)
     return device, host
 
-def cuda_library(name, srcs, cuda_archs, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, **kwargs):
-    """Minimal wrapper over rules_cuda cuda_library; cuda_archs is required and rdc enables relocatable device code."""
+def cuda_library(name, srcs, gpu_archs, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, **kwargs):
+    """Minimal wrapper over rules_cuda cuda_library; gpu_archs is required and rdc enables relocatable device code."""
     features = _cuda_features(kwargs.pop("features", None))
     compatible = _cuda_library_compatible_with(target_compatible_with)
     _cuda_library(
         name = name + "_upstream",
         srcs = srcs if srcs else _EMPTY_SRCS,
         hdrs = hdrs or [],
-        archs = cuda_archs,
+        archs = gpu_archs,
         rdc = rdc,
         tags = dx_upstream_tags(tags),
         target_compatible_with = compatible + _UPSTREAM_ONLY_UNDER_TRANSITION,
@@ -171,7 +171,7 @@ def cuda_library(name, srcs, cuda_archs, hdrs = None, visibility = None, tags = 
     )
     cuda_check(
         name = name + "_cuda_check",
-        archs = cuda_archs,
+        archs = gpu_archs,
         tags = ["manual"],
         target_compatible_with = compatible,
         testonly = kwargs.get("testonly", None),
@@ -195,7 +195,7 @@ def cuda_library(name, srcs, cuda_archs, hdrs = None, visibility = None, tags = 
         **forward_kwargs
     )
 
-def cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = None, tags = None, target_compatible_with = None, **kwargs):
+def cuda_objects(name, srcs, gpu_archs, hdrs = None, deps = None, visibility = None, tags = None, target_compatible_with = None, **kwargs):
     """Compiles .cu sources to relocatable device objects for the deps of an rdc cuda_library."""
     features = _cuda_features(kwargs.pop("features", None))
     compatible = _cuda_library_compatible_with(target_compatible_with)
@@ -203,7 +203,7 @@ def cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = 
         name = name + "_upstream",
         srcs = srcs,
         hdrs = hdrs or [],
-        archs = cuda_archs,
+        archs = gpu_archs,
         deps = list(deps or []) + [Label("@rules_cuda//cuda:runtime")],
         tags = dx_upstream_tags(tags),
         target_compatible_with = compatible + _UPSTREAM_ONLY_UNDER_TRANSITION,
@@ -213,7 +213,7 @@ def cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = 
     )
     cuda_check(
         name = name + "_cuda_check",
-        archs = cuda_archs,
+        archs = gpu_archs,
         tags = ["manual"],
         target_compatible_with = compatible,
         testonly = kwargs.get("testonly", None),
@@ -237,14 +237,14 @@ def cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = 
         **forward_kwargs
     )
 
-def _cuda_executable(cc_rule, forward_rule, test, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, library_tags = None, rdc = False, cuda_copts = None, executable_compatible_with = []):
+def _cuda_executable(cc_rule, forward_rule, test, name, srcs, gpu_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, library_tags = None, rdc = False, cuda_copts = None, executable_compatible_with = []):
     device, host = cuda_split_srcs(srcs)
     compatible = cuda_target_compatible_with(target_compatible_with)
     cuda_library(
         name = name + "_cuda",
         srcs = device,
         hdrs = hdrs,
-        cuda_archs = cuda_archs,
+        gpu_archs = gpu_archs,
         rdc = rdc,
         deps = deps,
         defines = kwargs.get("defines", []),
@@ -283,9 +283,9 @@ def _cuda_executable(cc_rule, forward_rule, test, name, srcs, cuda_archs, deps, 
         **forward_kwargs
     )
 
-def cuda_binary(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, cuda_copts = None, **kwargs):
+def cuda_binary(name, *, srcs, gpu_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, cuda_copts = None, **kwargs):
     """Compiles .cu sources with nvcc and links them into a cc_binary; cuda_copts go to nvcc."""
-    _cuda_executable(_cc_binary, _cuda_binary_forward, False, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc, cuda_copts = cuda_copts)
+    _cuda_executable(_cc_binary, _cuda_binary_forward, False, name, srcs, gpu_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc, cuda_copts = cuda_copts)
 
 _GPU_TAGS = ["requires-gpu", "resources:gpu:1"]
 
@@ -308,7 +308,7 @@ _cuda_gpu_main = dx_private_dep_rule(
     "Provides the GPU test entry point cuda_test links.",
 )
 
-def cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, min_compute_capability = None, min_driver = None, env = None, data = None, cuda_copts = None, **kwargs):
+def cuda_test(name, *, srcs, gpu_archs, deps = None, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, min_compute_capability = None, min_driver = None, env = None, data = None, cuda_copts = None, **kwargs):
     """Compiles .cu sources into a cc_test; min_compute_capability."""
     if (min_compute_capability == None) != (min_driver == None):
         fail("cuda_test //{}:{}: set both min_compute_capability and min_driver for a GPU test".format(native.package_name(), name))
@@ -318,12 +318,12 @@ def cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = 
         if data != None:
             kwargs["data"] = data
         kwargs["testonly"] = True
-        _cuda_executable(_cc_test, _cuda_forward_test, True, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc, cuda_copts = cuda_copts)
+        _cuda_executable(_cc_test, _cuda_forward_test, True, name, srcs, gpu_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc, cuda_copts = cuda_copts)
         return
     compatible = cuda_target_compatible_with(target_compatible_with)
     cuda_gpu_check(
         name = name + "_gpu_check",
-        archs = cuda_archs,
+        archs = gpu_archs,
         min_compute_capability = min_compute_capability,
         min_driver = min_driver,
         tags = ["manual"],
@@ -348,7 +348,7 @@ def cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = 
         True,
         name,
         srcs,
-        cuda_archs,
+        gpu_archs,
         list(deps or []) + [":" + name + "_gpu_main"],
         hdrs,
         visibility,

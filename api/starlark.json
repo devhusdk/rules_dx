@@ -5857,7 +5857,7 @@
           {
             "default": "",
             "mandatory": true,
-            "name": "cuda_archs"
+            "name": "gpu_archs"
           },
           {
             "default": "None",
@@ -5979,7 +5979,7 @@
           {
             "default": "",
             "mandatory": true,
-            "name": "cuda_archs"
+            "name": "gpu_archs"
           },
           {
             "default": "None",
@@ -6030,7 +6030,7 @@
           {
             "default": "",
             "mandatory": true,
-            "name": "cuda_archs"
+            "name": "gpu_archs"
           },
           {
             "default": "None",
@@ -6081,7 +6081,7 @@
           {
             "default": "",
             "mandatory": true,
-            "name": "cuda_archs"
+            "name": "gpu_archs"
           },
           {
             "default": "None",

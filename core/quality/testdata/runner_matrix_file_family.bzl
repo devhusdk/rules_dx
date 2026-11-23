@@ -1010,6 +1010,41 @@ FILE_FAMILY_CASES = [
         tool_env = _TERRAFORM_ENV,
     ),
     matrix_case(
+        name = "matrix_terraform_typecheck_remote_module_fail",
+        capability = "typecheck",
+        tool = "terraform",
+        binary = "@dx_tools//:terraform",
+        source_class = "terraform",
+        generated = {
+            "matrix/terraform_tc_remote/main.tf": "module \"consul\" {\n  source = \"hashicorp/consul/aws\"\n}\n",
+        },
+        tool_env = _TERRAFORM_ENV,
+    ),
+    matrix_case(
+        name = "matrix_terraform_typecheck_remote_test_module_fail",
+        capability = "typecheck",
+        tool = "terraform",
+        binary = "@dx_tools//:terraform",
+        source_class = "terraform",
+        generated = {
+            "matrix/terraform_tc_remote_test/main.tf": "resource \"terraform_data\" \"sample\" {}\n",
+            "matrix/terraform_tc_remote_test/tests/remote.tftest.hcl": "run \"remote\" {\n  module {\n    source  = \"hashicorp/consul/aws\"\n    version = \"0.12.0\"\n  }\n}\n",
+        },
+        tool_env = _TERRAFORM_ENV,
+    ),
+    matrix_case(
+        name = "matrix_terraform_typecheck_dependency_remote_module_fail",
+        capability = "typecheck",
+        tool = "terraform",
+        binary = "@dx_tools//:terraform",
+        source_class = "terraform",
+        generated = {
+            "core/quality/testdata/matrix/terraform_shared/main.tf": "resource \"terraform_data\" \"sample\" {}\n",
+        },
+        siblings = [":matrix/terraform_shared/dep.tf"],
+        tool_env = _TERRAFORM_ENV,
+    ),
+    matrix_case(
         name = "matrix_terraform_typecheck_missing_provider",
         capability = "typecheck",
         tool = "terraform",

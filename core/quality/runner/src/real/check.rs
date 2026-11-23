@@ -319,10 +319,13 @@ impl RealBackend {
     ///
     /// Init is offline: every provider comes from the `-plugin-dir` mirrors the request names
     /// in `DX_TERRAFORM_PLUGIN_DIRS` (an empty directory when there are none, so init never
-    /// reaches a registry). Init findings (syntax and configuration errors) skip validate for
-    /// that directory. A failure that names no file is an execution error, never clean. The
-    /// root run and a child module's own run both see the child's errors, so findings are
-    /// de-duplicated. An error only in a non-owned file is an execution error, as for pkl.
+    /// reaches a registry), and a directory where any file init reads (a dependency's files
+    /// and test files included) calls a module init would download gets a module-source
+    /// finding instead of an init. Init findings (syntax and configuration errors) skip
+    /// validate for that directory. A failure that names no file is an execution error, never
+    /// clean. The root run and a child module's own run both see the child's errors, so
+    /// findings are de-duplicated. An error only in a non-owned file is an execution error, as
+    /// for pkl.
     pub(super) fn check_terraform_validate(
         &self,
         tool_id: &str,
@@ -368,12 +371,30 @@ impl RealBackend {
             .collect();
         let mut findings: Vec<FileFinding> = Vec::new();
         let mut reported = Vec::new();
-        for (dir, _) in group_by_parent(scratch.root(), &sources) {
+        for (dir, members) in group_by_parent(scratch.root(), &sources) {
             let abs_dir = if dir == "." {
                 scratch.root().to_path_buf()
             } else {
                 scratch.root().join(&dir)
             };
+            let Some((_, _, first)) = members.first() else {
+                continue;
+            };
+            let refused = super::config_tools::terraform_init_problems(
+                tool_id,
+                scratch.root(),
+                &abs_dir,
+                &owned,
+                first,
+            )?;
+            if !refused.is_empty() {
+                for item in refused {
+                    if !findings.contains(&item) {
+                        findings.push(item);
+                    }
+                }
+                continue;
+            }
             let init = commands::terraform_init(&tool.binary, &abs_dir, &mirror_refs);
             let out = self.run(tool_id, tool, &init, scratch)?;
             let mut found = parsed(

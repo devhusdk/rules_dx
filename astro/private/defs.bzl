@@ -1,13 +1,23 @@
 """Astro component libraries and app builds."""
 
 load("@aspect_rules_js//js:defs.bzl", _js_library = "js_library")
-load("//javascript/private:frameworks.bzl", "dx_framework_forward_rule", "dx_framework_library", "dx_framework_build", "dx_framework_test")
+load("//core:wrapper.bzl", "dx_private_dep_rule")
+load("//javascript/private:frameworks.bzl", "dx_framework_build", "dx_framework_forward_rule", "dx_framework_jest_config_rule", "dx_framework_library", "dx_framework_test")
 
 visibility(["//..."])
 
+_jest_config = dx_framework_jest_config_rule(
+    Label("//astro/private:jest_config"),
+    "Provides the Astro jest config.",
+)
+
 _astro_library_forward = dx_framework_forward_rule("astro", ".astro")
 
-_ASTRO_TOOL = Label("//astro/private:astro_build_tool")
+_astro_tool_entry = dx_private_dep_rule(
+    Label("//astro/private:astro_tool_entry"),
+    [DefaultInfo],
+    "Provides the script that runs one Astro build.",
+)
 
 def astro_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over js_library for Astro components."""
@@ -15,8 +25,8 @@ def astro_library(name, srcs, visibility = None, **kwargs):
 
 def astro_build(name, srcs, config, node_modules, package_json = None, public = None, ssr_entry = None, deps = None, visibility = None, **kwargs):
     """Builds one Astro site into a bundled web app tree and an optional SSR tree."""
-    dx_framework_build(name, "astro_build", "Astro", ["astro"], srcs, config, node_modules, package_json = package_json, public = public, ssr_entry = ssr_entry, deps = deps, visibility = visibility, tool = _ASTRO_TOOL, **kwargs)
+    dx_framework_build(name, "astro_build", "Astro", ["astro"], srcs, config, node_modules, package_json = package_json, public = public, ssr_entry = ssr_entry, deps = deps, visibility = visibility, entry = _astro_tool_entry, **kwargs)
 
 def astro_test(name, *, srcs, node_modules, data = None, **kwargs):
     """Runs jest over Astro components, compiled by the linked @astrojs/compiler-rs."""
-    dx_framework_test(name, srcs, Label("//astro/private:jest_config"), Label("//astro/private:jest_transform"), ["@astrojs/compiler-rs", "astro"], node_modules, data = data, **kwargs)
+    dx_framework_test(name, srcs, _jest_config, ["@astrojs/compiler-rs", "astro"], node_modules, data = data, **kwargs)

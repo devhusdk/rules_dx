@@ -79,6 +79,12 @@ toolchain_type(name = "target_toolchain_type")
 current_target(name = "current_target")
 
 real_source_target(
+    name = "corpus_markdown",
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",

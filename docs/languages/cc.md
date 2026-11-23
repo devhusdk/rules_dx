@@ -110,7 +110,8 @@ the file of Bazel flags at the root of your repository:
 common --@rules_dx//config:warnings_as_errors=false
 ```
 
-GCC and Clang get `-Wall -Werror`. MSVC gets `/W4 /WX`. C sources never get a
+GCC and Clang get `-Wall -Wextra -Werror`. MSVC and clang-cl get `/W4 /WX`.
+With warnings allowed, the same warnings still print. C sources never get a
 C++-only flag.
 
 ## Coverage

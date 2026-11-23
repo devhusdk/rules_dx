@@ -37,7 +37,7 @@ core/env/private/tools/env_shard/src/writer.rs compat-word 2
 core/quality/adapter/src/commands.rs compat-word 2
 core/quality/adapter/src/commands_tests.rs compat-word 1
 core/quality/adapter/src/parsers/ldc.rs compat-word 1
-core/quality/adapter/src/parsers/ocaml_compile.rs compat-word 3
+core/quality/adapter/src/parsers/ocaml_compile.rs compat-word 2
 core/quality/adapter/src/parsers/rubocop.rs compat-word 1
 core/quality/adapter/src/parsers/terraform_validate.rs compat-word 1
 core/quality/artifacts/ocaml_duniverse.bzl compat-word 1
@@ -81,7 +81,7 @@ deploy/private/release/src/bin_release_deploy_tool.rs compat-word 2
 deploy/private/release/src/bin_release_driver.rs compat-word 2
 deploy/private/release/src/bin_release_tool.rs compat-word 2
 deploy/private/release/src/bin_source_archive.rs compat-word 2
-deploy/private/src/api_compat.rs compat-word 13
+deploy/private/src/api_compat.rs compat-word 8
 deploy/private/src/bin_deploy_tool.rs compat-word 2
 deploy/private/src/config.rs compat-word 41
 deploy/private/src/crates.rs compat-word 8
@@ -90,8 +90,8 @@ deploy/private/src/go_api.rs compat-word 2
 deploy/private/src/homebrew.rs compat-word 2
 deploy/private/src/lib.rs compat-word 7
 deploy/private/src/maven.rs compat-word 9
-deploy/private/src/npm.rs compat-word 14
-deploy/private/src/nuget.rs compat-word 7
+deploy/private/src/npm.rs compat-word 13
+deploy/private/src/nuget.rs compat-word 6
 deploy/private/src/oci_tests.rs compat-word 8
 deploy/private/src/pub_dev.rs compat-word 8
 deploy/private/src/pypi.rs compat-word 3
@@ -101,8 +101,7 @@ javascript/private/dev_hub.bzl compat-word 4
 javascript/tests/dev_hub_tests.bzl compat-word 2
 ocaml/BUILD.bazel alias 3
 ocaml/private/afl-persistent.BUILD.bazel alias 1
-ocaml/private/providers.bzl compat-word 1
-ocaml/tests/BUILD.bazel compat-word 2
+ocaml/tests/BUILD.bazel compat-word 1
 powershell/BUILD.bazel alias 2
 powershell/private/quality/BUILD.bazel alias 1
 qt/BUILD.bazel alias 1

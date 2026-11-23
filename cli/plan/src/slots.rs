@@ -73,6 +73,7 @@ fn per_slot_scaled(bytes: u64, per_slot: u64) -> u64 {
     u64::try_from(scaled).unwrap_or(u64::MAX)
 }
 
+pub mod admit;
 pub mod pressure;
 
 use pressure::{HostPressure, NoSignal, PRESSURE_WAIT, Pressure, PressurePause};
@@ -1189,6 +1190,7 @@ pub struct Gate {
     reaper: Option<Reaper>,
     wait: Option<Duration>,
     slot_bytes: u64,
+    admission: Option<(PathBuf, admit::Limits)>,
 }
 
 /// The time source a gate paces its pressure pause by.
@@ -1251,6 +1253,7 @@ impl Gate {
             reaper: None,
             wait: None,
             slot_bytes: BYTES_PER_SLOT,
+            admission: None,
         }
     }
 
@@ -1432,8 +1435,11 @@ impl Gate {
             default_roots,
         });
         let reclaim_in = workspace.to_path_buf();
+        let admission = admit::Limits::new(setting, memory, reserved, per_slot)
+            .map(|limits| (workspace.to_path_buf(), limits));
         Some(Gate {
             warm,
+            admission,
             ..Gate::new(dir, count, workspace.display().to_string(), json)
                 .reserving(pool)
                 .slot_memory(per_slot)
@@ -1576,6 +1582,12 @@ impl Gate {
                     let live = Arc::clone(&sizing);
                     slot.token = Some(dx_process::set_share_source(move || live.share()));
                     slot.sizing = Some(sizing);
+                }
+                if let Some((workspace, limits)) = &self.admission
+                    && let Err(signo) =
+                        admit::admit(&admit::SystemMachine, &self.dir, workspace, *limits, err)
+                {
+                    return Err(Stop::Signal(signo));
                 }
                 self.reclaim(command, err, events);
                 Ok(Some(slot))

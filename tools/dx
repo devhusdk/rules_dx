@@ -526,13 +526,14 @@ primary_without_git() {
 # Returns when the main-checkout rule lets this checkout build dx. A built dx answers: exit 0 builds, and a refusal
 # runs that dx, which refuses or runs the command. A dx without the bazel hook cannot answer, so the next one is asked.
 # With no answer, a main checkout whose dx.primary is set, or that git cannot read, refuses. With no git on PATH, the
-# launcher reads .git itself: slots, a config it cannot read, or a primary entry in a [dx] section refuse. Keep in
-# sync with tools/dx.cmd and without_git in cli/worktree/src/primary.rs.
+# launcher reads .git itself: slots, a config it cannot read, or a primary entry in a [dx] section refuse. The check
+# skips memory admission, which tools/bazel does when the build starts. Keep in sync with tools/dx.cmd and without_git
+# in cli/worktree/src/primary.rs.
 primary_allows_build() {
   for pr_dx in "$state/dx$exe" "$bin"; do
     [ -x "$pr_dx" ] || continue
     pr_ec=0
-    pr_err=$(cd "$root" && "$pr_dx" worktree hook bazel -- build //cli/cli:dx 2>&1 >/dev/null) || pr_ec=$?
+    pr_err=$(cd "$root" && DX_BUILD_SLOTS=off "$pr_dx" worktree hook bazel -- build //cli/cli:dx 2>&1 >/dev/null) || pr_ec=$?
     case $pr_ec:$pr_err in
     0:*) return 0 ;;
     2:*refused:*) exec "$pr_dx" "$@" ;;

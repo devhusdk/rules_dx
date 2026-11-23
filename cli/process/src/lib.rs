@@ -326,17 +326,20 @@ pub fn is_agent(get: &dyn Fn(&str) -> Option<String>) -> bool {
         .any(|name| get(name).is_some_and(|value| !value.is_empty()))
 }
 
+/// Set on every Bazel dx starts, so a `tools/bazel` wrapper runs the real Bazel without its hook.
+pub const BAZEL_CHILD_ENV: &str = "DX_BAZEL_CHILD";
+
 pub fn bazel_env_defaults(
     get: &dyn Fn(&str) -> Option<std::ffi::OsString>,
     linux: bool,
 ) -> Vec<(&'static str, &'static str)> {
     let tunables = get("GLIBC_TUNABLES")
         .is_some_and(|value| value.to_string_lossy().contains("glibc.malloc.arena_max"));
+    let mut defaults = vec![(BAZEL_CHILD_ENV, "1")];
     if linux && get("MALLOC_ARENA_MAX").is_none() && !tunables {
-        vec![("MALLOC_ARENA_MAX", "2")]
-    } else {
-        Vec::new()
+        defaults.push(("MALLOC_ARENA_MAX", "2"));
     }
+    defaults
 }
 
 /// One change dx makes to the environment of each Bazel it starts.

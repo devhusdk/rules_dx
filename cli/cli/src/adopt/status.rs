@@ -155,6 +155,31 @@ fn init_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
     }
 }
 
+/// Warns when a Bazel wrapper dx did not write sits where Bazelisk runs it, since it skips the dx hook.
+fn bazel_wrapper_check(workspace: &std::path::Path) -> Option<dx_adopt::StatusCheck> {
+    let custom: Vec<&str> = [
+        dx_adopt::BAZEL_WRAPPER_SH_REL,
+        dx_adopt::BAZEL_WRAPPER_BAT_REL,
+    ]
+    .into_iter()
+    .filter(|rel| {
+        workspace.join(rel).is_file() && dx_adopt::launcher_state(workspace, rel).is_none()
+    })
+    .collect();
+    if custom.is_empty() {
+        return None;
+    }
+    Some(dx_adopt::StatusCheck {
+        name: "bazel-wrapper".to_owned(),
+        status: "warn".to_owned(),
+        detail: format!(
+            "{} not written by dx: Bazel runs without the main-checkout check and memory admission",
+            custom.join(", ")
+        ),
+        hint: "delete it and run dx init --apply, or call tools/dx worktree hook bazel -- \"$@\" from it".to_owned(),
+    })
+}
+
 /// One file dx init writes, its ownership label and whether it is in step with this dx.
 fn owned_files(workspace: &std::path::Path) -> Result<Vec<OwnedFileEvent>, dx_error::DxError> {
     let files =
@@ -545,6 +570,7 @@ pub(crate) fn execute_status(
         dx_adopt::observed_status_checks(workspace, dx_adopt::read_version_pin(workspace), tools);
     checks.extend(bound.problem.take());
     checks.push(init_check(workspace));
+    checks.extend(bazel_wrapper_check(workspace));
     if let Some(check) = lease_check(workspace) {
         checks.push(check);
     }
@@ -581,12 +607,54 @@ mod tests {
         .into_iter()
         .map(|file| file.path)
         .collect();
-        for path in [dx_adopt::LAUNCHER_SH_REL, dx_adopt::LAUNCHER_CMD_REL] {
+        for path in [
+            dx_adopt::LAUNCHER_SH_REL,
+            dx_adopt::LAUNCHER_CMD_REL,
+            dx_adopt::BAZEL_WRAPPER_SH_REL,
+            dx_adopt::BAZEL_WRAPPER_BAT_REL,
+        ] {
             assert!(owned.iter().any(|p| p == path), "{path}");
         }
         for path in dx_adopt::preset_paths() {
             assert!(owned.contains(&path), "{path}");
         }
+    }
+
+    #[test]
+    fn status_warns_about_a_bazel_wrapper_dx_does_not_own() {
+        let scratch = dx_test_scratch::scratch("dx-status-wrapper-").unwrap();
+        let root = scratch.path();
+        assert!(bazel_wrapper_check(root).is_none());
+        std::fs::create_dir_all(root.join("tools")).expect("tools");
+        std::fs::write(
+            root.join(dx_adopt::BAZEL_WRAPPER_SH_REL),
+            dx_adopt::render_bazel_wrapper_sh(),
+        )
+        .expect("owned");
+        std::fs::write(
+            root.join(dx_adopt::BAZEL_WRAPPER_BAT_REL),
+            "@echo off\r\n\"%BAZEL_REAL%\" %*\r\n",
+        )
+        .expect("custom");
+        let check = bazel_wrapper_check(root).expect("custom wrapper");
+        assert_eq!(
+            (check.name.as_str(), check.status.as_str()),
+            ("bazel-wrapper", "warn")
+        );
+        assert!(
+            check
+                .detail
+                .starts_with("tools/bazel.bat not written by dx"),
+            "{}",
+            check.detail
+        );
+        std::fs::write(root.join(dx_adopt::BAZEL_WRAPPER_SH_REL), "exec bazel\n").expect("sh");
+        let check = bazel_wrapper_check(root).expect("both custom");
+        assert!(
+            check.detail.starts_with("tools/bazel, tools/bazel.bat not"),
+            "{}",
+            check.detail
+        );
     }
 
     fn write_module(root: &std::path::Path) {

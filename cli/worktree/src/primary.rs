@@ -239,7 +239,8 @@ const STARTUP_VALUES: &[&str] = &[
 ];
 
 /// The Bazel command in `args`: the first word that is neither a startup option nor its value.
-fn bazel_command(args: &[String]) -> Option<&str> {
+#[must_use]
+pub fn bazel_command(args: &[String]) -> Option<&str> {
     let mut words = args.iter().map(String::as_str);
     while let Some(word) = words.next() {
         if let Some(option) = word.strip_prefix("--") {

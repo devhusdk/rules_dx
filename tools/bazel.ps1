@@ -1,4 +1,5 @@
-# Bazelisk runs this instead of Bazel on Windows, see .bazeliskrc.
+# Bazelisk runs this instead of Bazel on Windows. It runs the dx hook first, as
+# tools/bazel does, unless dx itself started this Bazel.
 # When BAZEL_SH is unset, Bazel runs genrules with the first bash.exe on PATH,
 # which is the WSL launcher on hosts with WSL (#3377). This picks Git bash with
 # the rule in cli/process/src/bazel_sh.rs; keep the two in sync.
@@ -24,7 +25,19 @@ if (-not $env:BAZEL_SH) {
 if ([Environment]::CommandLine -notmatch '(?s) -File +("[^"]*"|\S+) ?(.*)$') {
     throw 'bazel.ps1 expects to be started by Bazelisk with -File'
 }
-$bazel = New-Object Diagnostics.ProcessStartInfo $env:BAZEL_REAL, $Matches[2]
+$tail = $Matches[2]
+$dx = Join-Path $PSScriptRoot 'dx.cmd'
+if (-not $env:DX_BAZEL_CHILD -and [IO.File]::Exists($dx)) {
+    $hook = New-Object Diagnostics.ProcessStartInfo $dx, "worktree hook bazel -- $tail"
+    $hook.UseShellExecute = $false
+    $hook.EnvironmentVariables['DX_BAZEL_CHILD'] = '1'
+    $process = [Diagnostics.Process]::Start($hook)
+    $process.WaitForExit()
+    if ($process.ExitCode -ne 0) {
+        exit $process.ExitCode
+    }
+}
+$bazel = New-Object Diagnostics.ProcessStartInfo $env:BAZEL_REAL, $tail
 $bazel.UseShellExecute = $false
 $process = [Diagnostics.Process]::Start($bazel)
 $process.WaitForExit()

@@ -677,6 +677,37 @@ mod sh {
     }
 
     #[test]
+    fn self_build_through_the_bazel_wrapper_does_not_loop() {
+        let repo = source_repo("dx-launcher-wrapper-");
+        let base = &repo.base;
+        let wrapper = std::fs::read_to_string(env_file("DX_BAZEL_WRAPPER")).expect("wrapper");
+        dx_testing::executable_script(&repo.root().join("tools/bazel"), &wrapper);
+        let real = base.join("stub/bazel.real");
+        std::fs::rename(base.join("stub/bazel"), &real).expect("keep the real stub");
+        repo.fake(
+            "bazel",
+            &format!("BAZEL_REAL='{}' exec ./tools/bazel \"$@\"", real.display()),
+        );
+        std::fs::write(
+            base.join("payload"),
+            format!("{PAYLOAD}[ \"$1\" != worktree ] || echo \"hook $5\" >> \"$STUB_LOG\"\n"),
+        )
+        .expect("payload");
+        repo.run_ok();
+        repo.run_ok();
+        assert_eq!(repo.builds(), 1);
+        let calls = std::fs::read_to_string(base.join("calls")).expect("calls");
+        assert_eq!(
+            calls
+                .lines()
+                .filter(|l| l.starts_with("hook"))
+                .collect::<Vec<_>>(),
+            ["hook cquery", "hook query"],
+            "{calls}"
+        );
+    }
+
+    #[test]
     fn source_launcher_rebuilds_after_the_root_build_file_changes() {
         let repo = source_repo("dx-launcher-root-build-");
         repo.run_ok();

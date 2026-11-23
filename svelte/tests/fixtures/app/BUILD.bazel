@@ -12,6 +12,7 @@ dx_web_app(
     size = "small",
     srcs = glob(["src/**"]) + ["index.html"],
     build = svelte_build,
+    client_test = True,
     config = "vite.config.mjs",
     library = svelte_library,
     library_srcs = glob(["src/**/*.svelte"]),
@@ -24,10 +25,6 @@ dx_web_app(
             ":site_ssr",
             "//:node_modules/clsx",
             "//:node_modules/svelte",
-        ],
-        "site_client.test.js": [
-            ":site",
-            "//:node_modules/jest-environment-jsdom",
         ],
     },
     deps = ["//:node_modules/clsx"],

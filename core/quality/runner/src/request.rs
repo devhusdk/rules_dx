@@ -19,6 +19,9 @@ pub struct RequestTool {
     pub files: Vec<(String, String)>,
     /// Files of `rel<TAB>exec` lines, staged like `files`.
     pub file_lists: Vec<PathBuf>,
+    /// Files of `rel<TAB>exec` lines for dependency files: each exec path is staged once, and
+    /// never when it is a checked source.
+    pub dep_lists: Vec<PathBuf>,
     pub env: Vec<(String, String)>,
     pub upstream: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,
@@ -159,6 +162,8 @@ struct ToolDoc {
     files: Vec<ToolFileDoc>,
     #[serde(default)]
     file_lists: Vec<String>,
+    #[serde(default)]
+    dep_lists: Vec<String>,
     #[serde(default)]
     env: Vec<EnvDoc>,
     #[serde(default)]
@@ -380,6 +385,7 @@ fn check_tool(
     let upstream = non_empty_paths("upstream diagnostics", tool_id, &doc.upstream)?;
     let search_paths = non_empty_paths("tool search path", tool_id, &doc.search_paths)?;
     let file_lists = non_empty_paths("tool file list", tool_id, &doc.file_lists)?;
+    let dep_lists = non_empty_paths("tool dependency list", tool_id, &doc.dep_lists)?;
     let path_tools = check_path_tools(tool_id, doc)?;
     if binary.is_none() && upstream.is_empty() {
         return Err(RequestError::ToolWithoutBinary {
@@ -394,6 +400,7 @@ fn check_tool(
         args: doc.args.clone(),
         files,
         file_lists,
+        dep_lists,
         env,
         upstream,
         search_paths,

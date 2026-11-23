@@ -1,7 +1,7 @@
 """Platform providers, the transition that moves a target to its platform, and current_target."""
 
 load("@dx_platforms//:host.bzl", "HOST")
-load(":names.bzl", "PLATFORMS", "matches")
+load(":names.bzl", "PLATFORMS", "full_name", "matches")
 
 visibility(["//platforms/..."])
 
@@ -43,16 +43,19 @@ def current_name(current):
 
 def move_to(platforms, current):
     """Returns the platform name a target with this platforms list moves to, or "" when it stays."""
+    if not platforms:
+        return ""
     name = current_name(current)
     for entry in platforms:
         if name and matches(entry, name):
             return ""
+    return full_name(platforms[0], platforms)
 
-    # An OS-only name has no platform of its own, so only a full name can move the target.
-    for entry in platforms:
-        if entry in PLATFORMS:
-            return entry
-    return ""
+def current_error(current):
+    """Returns why a current flag value is not a platform name, or "" when it is one or empty."""
+    if not current or current in PLATFORMS:
+        return ""
+    return "--@rules_dx//platforms:current={} is not a platform name: use one of {}".format(current, ", ".join(sorted(PLATFORMS)))
 
 def min_os_error(min_os):
     """Returns why a min_os dict is invalid, or "" when it is valid."""
@@ -64,7 +67,7 @@ def min_os_error(min_os):
 def _transition_impl(settings, attr):
     out = {key: settings[key] for key in [_PLATFORMS, _CURRENT] + MIN_OS_FLAGS.values()}
     min_os = getattr(attr, "min_os", None) or {}
-    error = min_os_error(min_os)
+    error = current_error(settings[_CURRENT]) or min_os_error(min_os)
     if error:
         fail(error)
     for os, version in min_os.items():

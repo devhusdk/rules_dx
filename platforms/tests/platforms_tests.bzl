@@ -1,15 +1,18 @@
 """Unit and analysis tests for platform names, platform_select, the hub and platform_transition."""
 
+load("//core:failure_test.bzl", "failure_test_rule")
 load("//core/private/testing:defs.bzl", "expect_equal", "starlark_test")
-load("//platforms:defs.bzl", "platform_select")
+load("//platforms:defs.bzl", "PLATFORM_NAMES", "platform_select")
 load("//platforms/private:extension.bzl", "registration_error")
 load("//platforms/private:hub.bzl", "hub_entries", "render_hub")
-load("//platforms/private:names.bzl", "host_name", "matches", "platforms_error")
+load("//platforms/private:names.bzl", "full_name", "host_name", "matches", "platforms_error")
 load("//platforms/private:select.bzl", "os_label", "resolve")
-load("//platforms/private:target.bzl", "min_os_error", "move_to")
-load(":subject.bzl", "moved_subject")
+load("//platforms/private:target.bzl", "current_error", "min_os_error", "move_to")
+load(":subject.bzl", "moved_subject", "platform_subject")
 
 _FAMILY = "@rules_dx//platforms:"
+
+_unknown_current_test = failure_test_rule(config_settings = {str(Label("//platforms:current")): "android"})
 
 _SIM_TAG = {
     "constraint_values": ["@platforms//os:ios", "@platforms//cpu:arm64", "@apple_support//constraints:simulator"],
@@ -33,6 +36,14 @@ def names_unit_tests(name):
             expect_equal("os name matches its cpus", matches("android", "android_x86_64"), True),
             expect_equal("os name skips other os", matches("linux", "macos_arm64"), False),
             expect_equal("full name skips its sibling", matches("ios_arm64", "ios_sim_arm64"), False),
+            expect_equal("full name is itself", full_name("ios_sim_arm64", []), "ios_sim_arm64"),
+            expect_equal("os name takes its first name", [full_name(os, []) for os in ["android", "ios", "linux", "web"]], [
+                "android_arm64",
+                "ios_arm64",
+                "linux_arm64",
+                "web_wasm32",
+            ]),
+            expect_equal("os name takes its listed name", full_name("ios", ["ios", "macos_arm64", "ios_sim_arm64"]), "ios_sim_arm64"),
             expect_equal("valid native list", platforms_error(["ios_arm64", "ios_sim_arm64"], True), ""),
             expect_equal("os name on a jvm rule", platforms_error(["android"], False), ""),
             expect_equal(
@@ -131,9 +142,17 @@ def transition_unit_tests(name):
             expect_equal("no platforms stays", move_to([], "ios_arm64"), ""),
             expect_equal("listed current stays", move_to(["ios_arm64", "ios_sim_arm64"], "ios_sim_arm64"), ""),
             expect_equal("os entry covers current", move_to(["android"], "android_x86_64"), ""),
-            expect_equal("os-only entry never moves", move_to(["android"], "linux_x86_64"), ""),
-            expect_equal("os-only entry on an unknown host stays", move_to(["android"], ""), ""),
-            expect_equal("first full name wins over an os-only entry", move_to(["android", "android_arm64"], "linux_x86_64"), "android_arm64"),
+            expect_equal("os-only entry moves to its first name", move_to(["android"], "linux_x86_64"), "android_arm64"),
+            expect_equal("os-only entry moves from an unknown host", move_to(["android"], ""), "android_arm64"),
+            expect_equal("os-only entry takes its listed name", move_to(["android", "android_x86_64"], "linux_x86_64"), "android_x86_64"),
+            expect_equal("os-only web entry", move_to(["web", "linux"], "windows_x86_64"), "web_wasm32"),
+            expect_equal("empty current is valid", current_error(""), ""),
+            expect_equal("full current is valid", current_error("ios_sim_arm64"), ""),
+            expect_equal(
+                "os-only current",
+                current_error("android"),
+                "--@rules_dx//platforms:current=android is not a platform name: use one of " + ", ".join(PLATFORM_NAMES),
+            ),
             expect_equal("unknown current name does not match", matches("linux", "freebsd_x86_64"), False),
             expect_equal("unlisted current moves to the first", move_to(["ios_arm64", "ios_sim_arm64"], "macos_arm64"), "ios_arm64"),
             expect_equal("valid min_os", min_os_error({"android": "29", "ios": "17.0"}), ""),
@@ -155,18 +174,22 @@ def transition_analysis_tests(name):
     moved_subject(name = name + "_wasi", platforms = ["wasip1_wasm32"], value = platform_select(_SELECT))
     moved_subject(name = name + "_web", platforms = ["web_wasm32"], value = platform_select(_SELECT))
     moved_subject(name = name + "_min_os", min_os = {"android": "29"}, value = platform_select(_SELECT))
+    moved_subject(name = name + "_android", platforms = ["android"], value = platform_select(_SELECT))
+    moved_subject(name = name + "_web_os", platforms = ["web"], value = platform_select(_SELECT))
 
     # The host is linux, macos or windows, so an OS key matches it whatever its CPU.
     moved_subject(name = name + "_os_key", value = platform_select({"linux": "os", "macos": "os", "windows": "os"}))
-    subjects = ["min_os", "os_key", "os_only", "stay", "wasi", "web"]
+    subjects = ["android", "min_os", "os_key", "os_only", "stay", "wasi", "web", "web_os"]
     observations = []
     for subject, fields in [
+        ("android", {"current": "android_arm64", "min_os_android": "", "value": "host"}),
         ("min_os", {"current": "", "min_os_android": "29", "value": "host"}),
         ("os_key", {"current": "", "min_os_android": "", "value": "os"}),
         ("os_only", {"current": "", "min_os_android": "", "value": "host"}),
         ("stay", {"current": "", "min_os_android": "", "value": "host"}),
         ("wasi", {"current": "wasip1_wasm32", "min_os_android": "", "value": "wasm"}),
         ("web", {"current": "web_wasm32", "min_os_android": "", "value": "web_wasm32"}),
+        ("web_os", {"current": "web_wasm32", "min_os_android": "", "value": "web_wasm32"}),
     ]:
         label = "//platforms/tests:{}_{}".format(name, subject)
         observations.append("subject " + label)
@@ -183,5 +206,45 @@ def transition_analysis_tests(name):
         name = name,
         mode = "analysis",
         subjects = [":{}_{}".format(name, subject) for subject in subjects],
+        expected_observations = "\n".join(observations),
+    )
+
+def unknown_current_tests(name):
+    """Checks that the current flag names the valid platforms when it holds an unknown name."""
+    _unknown_current_test(
+        name = name,
+        size = "small",
+        target_under_test = "//platforms:current",
+        expected_failure_substring = "invalid value 'android'. Allowed values are [\"\", \"android_arm64\", \"android_x86_64\",",
+    )
+
+def select_analysis_tests(name):
+    """Resolves platform_select on a linux platform rules_dx has no name for and on a named one."""
+    riscv = str(Label(":linux_riscv64"))
+    linux = str(Label("//platforms:linux_x86_64"))
+    cases = [
+        ("riscv_no_default", riscv, {"linux": "linux", "windows": "windows"}, "linux"),
+        ("riscv_default", riscv, {"default": "default", "linux": "linux"}, "linux"),
+        ("riscv_group", riscv, {"posix": "posix", "wasm": "wasm"}, "posix"),
+        ("full_name_beats_os", linux, {"default": "default", "linux": "linux", "linux_x86_64": "x86_64"}, "x86_64"),
+        ("os_beats_sibling", linux, {"linux": "linux", "linux_arm64": "arm64"}, "linux"),
+    ]
+    observations = []
+    for case, platform, branches, value in sorted(cases):
+        platform_subject(name = "{}_{}".format(name, case), platform = platform, value = platform_select(branches))
+        label = "//platforms/tests:{}_{}".format(name, case)
+        observations += [
+            "subject " + label,
+            "field value=" + value,
+            "aspect_field aspect_seen=True",
+            "aspect_field field_count=1",
+            "aspect_field has_subject=True",
+            "aspect_field subject_label=" + label,
+            "aspect_field transitive_count=0",
+        ]
+    starlark_test(
+        name = name,
+        mode = "analysis",
+        subjects = [":{}_{}".format(name, case[0]) for case in cases],
         expected_observations = "\n".join(observations),
     )

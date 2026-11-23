@@ -85,6 +85,13 @@ def matches(entry, name):
         return True
     return entry in OS_NAMES and name in PLATFORMS and PLATFORMS[name].os == entry
 
+def full_name(entry, platforms):
+    """Returns the platform name an entry moves to; an OS-only entry takes its first listed full name, else the first in the table."""
+    if entry in PLATFORMS:
+        return entry
+    listed = [name for name in platforms if name in PLATFORMS and PLATFORMS[name].os == entry]
+    return (listed or [name for name in sorted(PLATFORMS) if PLATFORMS[name].os == entry])[0]
+
 def platforms_error(platforms, native):
     """Returns why a platforms list is invalid, or "" when it is valid."""
     seen = {}

@@ -1,5 +1,22 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load(":platforms_tests.bzl", "hub_unit_tests", "names_unit_tests", "select_unit_tests", "transition_analysis_tests", "transition_unit_tests")
+load(
+    ":platforms_tests.bzl",
+    "hub_unit_tests",
+    "names_unit_tests",
+    "select_analysis_tests",
+    "select_unit_tests",
+    "transition_analysis_tests",
+    "transition_unit_tests",
+    "unknown_current_tests",
+)
+
+platform(
+    name = "linux_riscv64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:riscv64",
+    ],
+)
 
 names_unit_tests(name = "names_unit")
 
@@ -10,6 +27,10 @@ hub_unit_tests(name = "hub_unit")
 transition_unit_tests(name = "transition_unit")
 
 transition_analysis_tests(name = "transition_analysis")
+
+select_analysis_tests(name = "select_analysis")
+
+unknown_current_tests(name = "unknown_current")
 
 real_source_target(
     name = "corpus_starlark",

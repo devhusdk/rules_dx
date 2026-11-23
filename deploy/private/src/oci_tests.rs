@@ -207,6 +207,7 @@ fn oci_declared_image_id_rejects_unsupported_archives() {
     assert!(
         oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("empty")
+            .to_string()
             .contains("exactly one")
     );
     oci_tar(
@@ -224,6 +225,7 @@ fn oci_declared_image_id_rejects_unsupported_archives() {
     assert!(
         oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("many")
+            .to_string()
             .contains("2 images")
     );
     oci_tar(
@@ -241,6 +243,7 @@ fn oci_declared_image_id_rejects_unsupported_archives() {
     assert!(
         oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("missing config")
+            .to_string()
             .contains("missing its config")
     );
     oci_tar(
@@ -254,12 +257,14 @@ fn oci_declared_image_id_rejects_unsupported_archives() {
     assert!(
         oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("no layers")
+            .to_string()
             .contains("missing Layers")
     );
     oci_tar(&archive, &[("manifest.json", b"{not json")], &[]);
     assert!(
         oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("malformed")
+            .to_string()
             .contains("malformed manifest.json")
     );
     std::fs::write(&archive, b"image").expect("rootfs");
@@ -274,6 +279,7 @@ fn oci_declared_image_id_rejects_unsupported_archives() {
     assert!(
         oci_declared_image_id(&archive, "linux/amd64")
             .expect_err("rootfs layer")
+            .to_string()
             .contains("no manifest.json or index.json")
     );
 }
@@ -665,19 +671,25 @@ fn oci_archive_image_id_rejects_unsupported_oci_layout_directories() {
     ];
     for (case, extra, want) in cases {
         oci_index_dir(&dir, &layers, "amd64", false, &extra, &[]);
-        let error = oci_declared_image_id(&dir, "linux/amd64").expect_err(case);
+        let error = oci_declared_image_id(&dir, "linux/amd64")
+            .expect_err(case)
+            .to_string();
         assert!(error.contains(want), "{case}: {error}");
     }
     std::fs::remove_dir_all(&dir).expect("clear");
     std::fs::create_dir_all(&dir).expect("empty dir");
     assert_eq!(
-        oci_declared_image_id(&dir, "linux/amd64").expect_err("empty"),
+        oci_declared_image_id(&dir, "linux/amd64")
+            .expect_err("empty")
+            .to_string(),
         "image directory has no index.json or manifest.json; want an OCI image layout directory"
     );
     let bare = scratch.path().join("layout.bin");
     std::fs::write(&bare, b"image").expect("bare");
     assert_eq!(
-        oci_declared_image_id(&bare, "linux/amd64").expect_err("suffix"),
+        oci_declared_image_id(&bare, "linux/amd64")
+            .expect_err("suffix")
+            .to_string(),
         format!(
             "oci image: want a .tar or .tar.gz archive or an OCI layout directory, got '{}'",
             bare.display()
@@ -836,7 +848,9 @@ fn oci_archive_image_id_refuses_escaping_members() {
         files.push((name.to_owned(), b"x".to_vec()));
         let archive = scratch.path().join("escape.tar");
         oci_raw_tar(&archive, &[], &files);
-        let message = oci_declared_image_id(&archive, "linux/amd64").expect_err(name);
+        let message = oci_declared_image_id(&archive, "linux/amd64")
+            .expect_err(name)
+            .to_string();
         assert!(
             message.contains("malformed image archive: ") && message.contains("'..'"),
             "{name}: {message}"
@@ -979,7 +993,9 @@ fn oci_archive_image_id_rejects_unsupported_oci_layout_archives() {
     ];
     for (case, extra, want) in cases {
         oci_index_tar(&archive, &layers, "amd64", false, &extra, &[]);
-        let error = oci_declared_image_id(&archive, "linux/amd64").expect_err(case);
+        let error = oci_declared_image_id(&archive, "linux/amd64")
+            .expect_err(case)
+            .to_string();
         assert!(error.contains(want), "{case}: {error}");
     }
     oci_index_tar(&archive, &layers, "amd64", false, &[], &[]);
@@ -1346,7 +1362,9 @@ fn oci_paths_reject_invalid_zstd() {
             !message.contains("diff_ids do not match"),
             "{name}: {message}"
         );
-        let id_error = oci_declared_image_id(&image, "linux/amd64").expect_err(name);
+        let id_error = oci_declared_image_id(&image, "linux/amd64")
+            .expect_err(name)
+            .to_string();
         assert!(id_error.contains(want), "{name}: {id_error}");
         assert!(
             std::fs::read_dir(&outdir).expect("outdir").next().is_none(),
@@ -1829,7 +1847,9 @@ fn oci_live_push_rejects_what_the_layout_rejects() {
             0,
             "{name}"
         );
-        let declared = oci_declared_image_id(image, platform).expect_err(name);
+        let declared = oci_declared_image_id(image, platform)
+            .expect_err(name)
+            .to_string();
         if name == "arm64 image" {
             assert!(layout.to_string().contains("linux/arm64"), "{layout}");
             assert!(declared.contains("linux/arm64"), "{declared}");
@@ -1970,7 +1990,7 @@ fn oci_paths_reject_rootfs_and_inconsistent_archives() {
         ("escape.tar", "escapes the archive"),
     ] {
         let (id, layout, outdir) = both(name);
-        let id = id.expect_err(name);
+        let id = id.expect_err(name).to_string();
         assert!(id.contains(want), "{name}: {id}");
         let error = layout.expect_err(name);
         assert_eq!(error.kind(), io::ErrorKind::InvalidData, "{name}");
@@ -2305,8 +2325,8 @@ fn run_cosign(cosign: &Path, args: &[&str], home: &Path) -> Result<String, Strin
         .env("HOME", home)
         .output()
         .expect("spawn cosign");
-    let text =
-        String::from_utf8_lossy(&out.stdout).into_owned() + &String::from_utf8_lossy(&out.stderr);
+    let mut text = String::from_utf8_lossy(&out.stdout).into_owned();
+    text.push_str(&String::from_utf8_lossy(&out.stderr));
     if out.status.success() {
         Ok(text)
     } else {

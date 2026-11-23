@@ -7,10 +7,78 @@ use crate::run::{
     DeployRun, OwnerGate, deploy_build_mode, env_or_empty, placeholder_refusal, tree_bytes,
 };
 use crate::signing::{
-    CosignPin, SignIdentity, SignMode, image_steps, plan_identity, sign_image, write_docker_config,
+    CosignError, CosignPin, SignIdentity, SignMode, image_steps, plan_identity, sign_image,
+    write_docker_config,
 };
+use dx_atomic_fs::path_io::{self, PathIoError};
+use std::fmt;
 use std::io::{self, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+/// A failed layout read, registry push or signature in `oci_deploy`.
+#[derive(Debug)]
+pub(crate) enum OciError {
+    /// The layout could not be staged from the image.
+    Layout(io::Error),
+    /// A layout file could not be read.
+    Read(PathIoError),
+    /// A layout file is not valid JSON.
+    Parse {
+        path: PathBuf,
+        source: serde_json::Error,
+    },
+    /// `index.json` names no manifest digest.
+    NoManifestDigest,
+    /// The image manifest names no config digest.
+    NoConfigDigest,
+    /// The registry push failed.
+    Push(registry::RegistryError),
+    /// The private `DOCKER_CONFIG` dir for cosign could not be created.
+    DockerConfigDir(io::Error),
+    /// cosign could not log in, sign or attest.
+    Sign(CosignError),
+}
+
+impl fmt::Display for OciError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Layout(source) => write!(f, "{source}"),
+            Self::Read(source) => write!(f, "oci layout: {source}"),
+            Self::Parse { path, source } => {
+                write!(f, "oci layout: malformed {}: {source}", path.display())
+            }
+            Self::NoManifestDigest => f.write_str("oci layout: index.json has no manifest digest"),
+            Self::NoConfigDigest => f.write_str("oci layout: manifest has no config digest"),
+            Self::Push(source) => write!(f, "{source}"),
+            Self::DockerConfigDir(source) => {
+                write!(f, "signing: cannot create a DOCKER_CONFIG dir: {source}")
+            }
+            Self::Sign(source) => write!(f, "{source}"),
+        }
+    }
+}
+
+impl std::error::Error for OciError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Layout(source) | Self::DockerConfigDir(source) => Some(source),
+            Self::Read(source) => Some(source),
+            Self::Parse { source, .. } => Some(source),
+            Self::Push(source) => Some(source),
+            Self::Sign(source) => Some(source),
+            Self::NoManifestDigest | Self::NoConfigDigest => None,
+        }
+    }
+}
+
+/// Reads one JSON file of a staged layout.
+fn oci_layout_json(path: &Path) -> Result<serde_json::Value, OciError> {
+    let bytes = path_io::read(path).map_err(OciError::Read)?;
+    serde_json::from_slice(&bytes).map_err(|source| OciError::Parse {
+        path: path.to_path_buf(),
+        source,
+    })
+}
 
 /// Maps the platform to its os and architecture and checks the image suffix.
 fn oci_check_source(image: &Path, platform: &str) -> io::Result<(&'static str, &'static str)> {
@@ -1012,27 +1080,21 @@ fn oci_copy_layer(reader: impl Read, name: &str, blobs: Option<&Path>) -> io::Re
 }
 
 /// Returns the config digest of the single image after the checks the layout enforces.
-pub fn oci_declared_image_id(image: &Path, platform: &str) -> Result<String, String> {
-    let (os, architecture) =
-        oci_check_source(image, platform).map_err(|error| error.to_string())?;
-    let archive = oci_read_archive(image, None, Some((os, architecture)))
-        .map_err(|error| error.to_string())?;
-    oci_check_config(&archive, os, architecture).map_err(|error| error.to_string())?;
+pub fn oci_declared_image_id(image: &Path, platform: &str) -> io::Result<String> {
+    let (os, architecture) = oci_check_source(image, platform)?;
+    let archive = oci_read_archive(image, None, Some((os, architecture)))?;
+    oci_check_config(&archive, os, architecture)?;
     Ok(archive.config_digest)
 }
 
 /// Reads the config digest of the single manifest in a staged layout.
-fn oci_layout_config_digest(layout: &Path) -> Result<String, String> {
-    let read = |path: &Path| -> Result<serde_json::Value, String> {
-        let bytes = std::fs::read(path).map_err(|error| format!("oci layout: {error}"))?;
-        serde_json::from_slice(&bytes).map_err(|error| format!("oci layout: {error}"))
-    };
-    let index = read(&layout.join("index.json"))?;
+fn oci_layout_config_digest(layout: &Path) -> Result<String, OciError> {
+    let index = oci_layout_json(&layout.join("index.json"))?;
     let digest = index
         .pointer("/manifests/0/digest")
         .and_then(serde_json::Value::as_str)
         .unwrap_or("");
-    let manifest = read(
+    let manifest = oci_layout_json(
         &layout
             .join("blobs")
             .join("sha256")
@@ -1042,7 +1104,7 @@ fn oci_layout_config_digest(layout: &Path) -> Result<String, String> {
         .pointer("/config/digest")
         .and_then(serde_json::Value::as_str)
         .map(str::to_owned)
-        .ok_or_else(|| "oci layout: manifest has no config digest".to_owned())
+        .ok_or(OciError::NoConfigDigest)
 }
 
 /// Target and credentials for one live push.
@@ -1064,7 +1126,7 @@ struct OciSign<'a> {
 }
 
 /// Signs `registry/repository@digest` and attests the SBOM, with a throwaway registry login.
-fn oci_sign_pushed(sign: &OciSign<'_>, push: &OciPush<'_>, digest: &str) -> Result<(), String> {
+fn oci_sign_pushed(sign: &OciSign<'_>, push: &OciPush<'_>, digest: &str) -> Result<(), OciError> {
     let reference = format!("{}/{}@{digest}", push.registry, push.repository);
     // The config holds the registry user:secret. It lives in a private temp dir outside
     // outdir, which is kept after the run, and the TempDir guard removes it on every
@@ -1074,9 +1136,7 @@ fn oci_sign_pushed(sign: &OciSign<'_>, push: &OciPush<'_>, digest: &str) -> Resu
     builder.prefix("dx-cosign-docker-config-");
     #[cfg(unix)]
     builder.permissions(std::os::unix::fs::PermissionsExt::from_mode(0o700));
-    let docker_config = builder
-        .tempdir()
-        .map_err(|error| format!("signing: cannot create a DOCKER_CONFIG dir: {error}"))?;
+    let docker_config = builder.tempdir().map_err(OciError::DockerConfigDir)?;
     let result = write_docker_config(
         docker_config.path(),
         push.registry,
@@ -1099,7 +1159,7 @@ fn oci_sign_pushed(sign: &OciSign<'_>, push: &OciPush<'_>, digest: &str) -> Resu
         // deploy; the leftover login sits in the temp dir, never in outdir.
         eprintln!("oci_deploy: warning: cannot remove the cosign login at {shown}: {error}");
     }
-    result.map_err(|error| error.to_string())?;
+    result.map_err(OciError::Sign)?;
     println!(
         "oci_deploy: signed {reference} ({})",
         sign.identity.describe()
@@ -1111,16 +1171,12 @@ fn oci_sign_pushed(sign: &OciSign<'_>, push: &OciPush<'_>, digest: &str) -> Resu
 }
 
 /// Reads the manifest digest of the single image in a staged layout.
-fn oci_layout_manifest_digest(layout: &Path) -> Result<String, String> {
-    let bytes = std::fs::read(layout.join("index.json"))
-        .map_err(|error| format!("oci layout: cannot read index.json: {error}"))?;
-    let index: serde_json::Value = serde_json::from_slice(&bytes)
-        .map_err(|error| format!("oci layout: malformed index.json: {error}"))?;
-    index
+fn oci_layout_manifest_digest(layout: &Path) -> Result<String, OciError> {
+    oci_layout_json(&layout.join("index.json"))?
         .pointer("/manifests/0/digest")
         .and_then(serde_json::Value::as_str)
         .map(str::to_owned)
-        .ok_or_else(|| "oci layout: index.json has no manifest digest".to_owned())
+        .ok_or(OciError::NoManifestDigest)
 }
 
 /// The dry-run lines naming the identity and the cosign commands a live run runs.
@@ -1189,11 +1245,11 @@ fn oci_live_push_to(
         sign,
     } = *push;
     let pushed = oci_build_layout(image, outdir, registry, repository, tag, platform)
-        .map_err(|error| error.to_string())
+        .map_err(OciError::Layout)
         .and_then(|layout| {
             let config = oci_layout_config_digest(&layout)?;
             let digest = registry::push_layout(client, target, tag, &layout, creds)
-                .map_err(|error| error.to_string())?;
+                .map_err(OciError::Push)?;
             Ok((digest, config))
         });
     match pushed {

@@ -25,7 +25,7 @@ module(name = "my_project")
 
 bazel_dep(name = "rules_dx", version = "<release>")
 dx_licenses = use_extension("@rules_dx//core:extensions.bzl", "dx_licenses")
-dx_licenses.accept(ids = ["cuda-eula"], terms_sha256 = {"cuda-eula": "d6de69eacd5644f0f84d2289a54d07d29017377d37ab28d0227b3df3509b1a60"})
+dx_licenses.accept(ids = ["cuda-eula", "visual-studio-build-tools"], terms_sha256 = {"cuda-eula": "d6de69eacd5644f0f84d2289a54d07d29017377d37ab28d0227b3df3509b1a60", "visual-studio-build-tools": "9284a30da91bfdf5c56a681a6c007a0376cec75f069596dc6d28c3218c9e23d3"})
 ```
 
 A `BUILD.bazel` file declares targets: the libraries, binaries and tests that Bazel builds. This one is a small CUDA package from [`cuda/tests/consumer`](https://github.com/devhusdk/rules_dx/blob/main/cuda/tests/consumer/BUILD.bazel):
@@ -74,6 +74,38 @@ every component. The `cufft` and `curand` targets are tagged `manual`.
 See `cuda/tests/fixtures/cublas`.
 
 ## Quality
+
+### Warnings
+
+nvcc warnings fail the build by default. `cuda_library`, `cuda_objects`,
+`cuda_binary` and `cuda_test` pass nvcc these flags:
+
+```text
+-Werror=all-warnings,cross-execution-space-call
+-Wreorder -Wdefault-stream-launch -Wmissing-launch-bounds
+-Wext-lambda-captures-this --display-error-number
+```
+
+So give every kernel `__launch_bounds__` and every launch an explicit stream:
+
+```cuda
+__global__ void __launch_bounds__(256) saxpy(int n, float a, const float* x, float* y);
+
+saxpy<<<(n + 255) / 256, 256, 0, stream>>>(n, a, x, y);
+```
+
+On one target, set `warnings_as_errors = False` to keep the warnings but not
+fail on them. To allow warnings in the whole repository, add this line to
+`.bazelrc`:
+
+```text
+common --@rules_dx//config:warnings_as_errors=false
+```
+
+`copts` and `host_copts` may not hide warnings or relax device code. Analysis
+fails on `-w`, `--disable-warnings`, `-Wno-*`, `--diag-suppress`,
+`--expt-relaxed-constexpr` and `--use_fast_math`, also when passed to the host
+compiler through `-Xcompiler`. Fix the code instead.
 
 ### GPU tests
 
@@ -174,6 +206,7 @@ rules_dx declares the pinned nvcc toolchain; a consumer adds no
 | `dx_cuda: unknown license '<name>'; the only one is 'cuda-eula'` | Accept `cuda-eula`. |
 | `dx_cuda: gpu_archs is empty; set gpu_archs, for example gpu_archs = ["sm_89"]` | Set `gpu_archs`. |
 | `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |
+| `dx_cuda: copt '<flag>' silences warnings or relaxes device code; fix the code instead` | Remove the flag from `copts`, `host_copts` or `cuda_copts` and fix the warning. |
 | `dx_cuda: @rules_cuda//cuda:compiler is '<compiler>'; dx CUDA targets compile with nvcc only` | Remove the `@rules_cuda//cuda:compiler` setting. |
 | `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); remove your own rules_cuda cuda.redist_json and cuda.toolkit tags` | Remove your own rules_cuda `cuda.redist_json` and `cuda.toolkit` tags. |
 | `dx_cuda: the CUDA toolkit is <version>; dx CUDA targets need 13.4` | Use the versions from Setup. |
@@ -238,6 +271,14 @@ Forwards one pinned CUDA library component after the pin check.
 | `component` | `label` | yes | The rules_cuda component target, for example @cuda//:cublas. |
 | `component_name` | `string` | yes | rules_cuda short name of the component. |
 
+### `cuda_doc_shard`
+
+```python
+cuda_doc_shard(name, lib, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one CUDA library.
+
 ## Tools and package files
 
 dx runs these tools and reads these package files for CUDA:
@@ -262,6 +303,9 @@ See the [support matrix](https://github.com/devhusdk/rules_dx/blob/main/docs/sup
 
 On Windows, nvcc compiles with `cl.exe` from the hermetic Visual Studio Build Tools, so you don't set `--//cc:compiler`. `cuda_binary` and `cuda_test` build and link everything in them with `cl.exe`. Link a `cuda_library` into a `cuda_binary` or `cuda_test`: on Windows a `cc_binary` or `cc_test` only takes one under `--//cc:compiler=msvc`. Accept both licenses in the root `MODULE.bazel`: `dx_licenses.accept(ids = ["cuda-eula", "visual-studio-build-tools"])`.
 
+`bazel coverage` reports CUDA on Linux only. The host side of a `.cu` file is
+reported against that `.cu` file.
+
 ## API docs
 
 `tools/dx docs` builds the API docs with `doxygen`; see [docs](../cli/commands/docs.md).
@@ -269,13 +313,5 @@ On Windows, nvcc compiles with `cl.exe` from the hermetic Visual Studio Build To
 To declare a docs target yourself, load the rule behind it:
 
 ```python
-load("@rules_dx//tools/docs/cc:defs.bzl", "cuda_doc_shard")
+load("@rules_dx//cuda:defs.bzl", "cuda_doc_shard")
 ```
-
-### `cuda_doc_shard`
-
-```python
-cuda_doc_shard(name, lib, package = "", **kwargs)
-```
-
-Declares the DocIr shard of one CUDA library.

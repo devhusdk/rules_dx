@@ -346,6 +346,7 @@ TOOLS = [
     ),
     tool(
         id = "qmllint",
+        severity = severity(floor = "warning"),
         adapters = {
             "lint": ["qml"],
             "typecheck": ["qml"],
@@ -446,6 +447,7 @@ TOOLS = [
     ),
     tool(
         id = "trivy_config",
+        severity = severity(floor = "warning"),
         adapters = {"lint": ["bicep", "cloudformation", "helm", "kubernetes", "terraform"]},
         concerns = {"lint": "security"},
         config = config(suffixes = [".txt"], tier_active = True),
@@ -517,6 +519,7 @@ TOOLS = [
     ),
     tool(
         id = "zizmor",
+        severity = severity(floor = "warning"),
         adapters = {"lint": ["github_workflow"]},
         concerns = {"lint": "security"},
         config = config(suffixes = [".txt"], tier_active = True),

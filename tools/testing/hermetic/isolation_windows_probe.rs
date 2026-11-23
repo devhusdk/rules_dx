@@ -1,7 +1,3 @@
-//! Runs inside the isolated account: `connect ADDR`, `resolve HOST`, `loopback`, `serve`, `parent`,
-//! `read PATH` or `canon PATH`.
-
-
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
 use std::process::{Command, ExitCode, Stdio};

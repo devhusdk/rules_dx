@@ -1,5 +1,3 @@
-//! `pending.bzl` is sorted, unique, names only known languages, tests and platforms, and has no stale line.
-
 use serde_json::Value;
 
 const TESTS: [&str; 11] = [

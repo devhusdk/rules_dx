@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 
-/// Registrations for toolchain types `rules_dx` defines.
 const OWN_TYPES: &[&str] = &[
     "@dx_coreutils//:all",
     "@dx_d_toolchains//:all",
@@ -16,7 +15,6 @@ const OWN_TYPES: &[&str] = &[
     "@julia_toolchains//:all",
 ];
 
-/// Registrations that carry `//config:toolchains_on` or `//cc:compiler` in `target_settings`.
 const GATED: &[&str] = &[
     "//core/hermetic_launcher:all",
     "//cuda/private/toolchain/hub:all",
@@ -37,10 +35,8 @@ const GATED: &[&str] = &[
     "@rust_toolchains//:all",
 ];
 
-/// Ungated registrations for shared toolchain types; entries are only removed.
 const UNGATED: &[&str] = &[];
 
-/// Labels of every `register_toolchains` call that is not `dev_dependency = True`.
 fn registered(module: &str) -> BTreeSet<String> {
     let mut labels = BTreeSet::new();
     let mut rest = module;

@@ -1,15 +1,3 @@
-//! With rules_dx as the root module and `--//cli/prebuilt:guard_view`, the consumer fixtures of the
-//! `DX_IN_GRAPH_GUARD_LANGS` languages, or of the space-separated `--langs` list, compile no
-//! rules_dx tool.
-//!
-//! For each language the checker writes a `<lang>` package of `<out>/roots`: its `check` and
-//! `docs` targets depend on every non-manual consumer rule of `@dx_api_fixtures//<lang>/tests/consumer`
-//! through a `deps` attribute that carries the aspects `dx check` and `dx docs` pick for the
-//! fixture's files. It injects `<out>/roots` as `@dx_guard_roots` and runs `bazel cquery
-//! 'deps(...)'` over both targets and the language's hub resolvers with the flag set, so the hubs
-//! serve a stub for every tool they would build from source. Labels are mapped to the form a consumer of rules_dx sees, and the
-//! compiled binaries are checked against `prebuilt_guard_allowlist.txt` by the rules of the nested
-//! prebuilt guards.
 #![expect(
     clippy::disallowed_methods,
     reason = "runs the bazel of `bazel run` on its own workspace"
@@ -27,7 +15,6 @@ use prebuilt_guard::{
 
 const ROOTS_REPO: &str = "dx_guard_roots";
 
-/// The filegroup `@dx_api_fixtures` appends to each BUILD file; it is not a consumer target.
 const API_SCOPE: &str = "dx_api_forwards_scope";
 
 fn runfile(var: &str) -> Result<String, String> {
@@ -36,7 +23,6 @@ fn runfile(var: &str) -> Result<String, String> {
     Ok(dx_testing::read_text(&path))
 }
 
-/// The bazel stdout of `args` in `workspace`, or its stderr as the error.
 fn bazel(bazel: &str, workspace: &Path, args: &[String]) -> Result<String, String> {
     let output = Command::new(bazel)
         .args(args)
@@ -55,7 +41,6 @@ fn bazel(bazel: &str, workspace: &Path, args: &[String]) -> Result<String, Strin
     }
 }
 
-/// The `consumer.json` files of `lang`'s fixture, keyed by their path under the fixture.
 fn fixture_files(consumer: &BTreeMap<String, String>, lang: &str) -> BTreeMap<String, String> {
     let prefix = format!("{lang}/tests/consumer/");
     consumer
@@ -64,7 +49,6 @@ fn fixture_files(consumer: &BTreeMap<String, String>, lang: &str) -> BTreeMap<St
         .collect()
 }
 
-/// The canonical repo of the first label in `labels`, as `bazel query --consistent_labels` prints it.
 fn canonical_repo(labels: &[&str]) -> Option<String> {
     let label = labels.first()?.strip_prefix("@@")?;
     Some(label.split("//").next()?.to_owned())
@@ -74,7 +58,6 @@ fn args(items: &[&str]) -> Vec<String> {
     items.iter().map(|item| (*item).to_owned()).collect()
 }
 
-/// The languages to check: those of `--langs` when given, else those of `DX_IN_GRAPH_GUARD_LANGS`.
 fn guard_langs(langs: Option<&str>, default: &str) -> Result<Vec<String>, String> {
     let (source, text) = match langs {
         Some(langs) => ("--langs", langs),
@@ -270,7 +253,6 @@ mod tests {
         assert_eq!(canonical_repo(&[]), None);
     }
 
-    /// Every consumer fixture is held by exactly one guard list or the pending list.
     #[test]
     fn the_guard_lists_partition_the_consumer_fixtures() {
         let fixtures: BTreeSet<String> = dx_testing::env_text("DX_CONSUMER_FIXTURES")
@@ -325,8 +307,6 @@ mod tests {
         );
     }
 
-    /// The macos_arm64 and windows_x86_64 legs of the ci.yml job pass their OS list with
-    /// `--langs` through bash, and the linux_x86_64 leg passes none.
     #[test]
     fn each_os_leg_runs_its_list() {
         let workflow = dx_testing::env_text("DX_CI_WORKFLOW");

@@ -1,4 +1,3 @@
-//! Runs `collect_native` on a binary built with GCC coverage instrumentation.
 #![expect(
     clippy::disallowed_methods,
     reason = "tests run local programs under the Bazel test timeout"

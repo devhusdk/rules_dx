@@ -36,14 +36,6 @@ impl Run {
     }
 }
 
-/// Runs one tool on the runfiles built beside it, never on the runfiles of this process.
-///
-/// Returns a `Command` for `bin` with `envs` set and the runfiles variables pointing at `bin`'s own
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
-/// runfiles, so callers can add arguments and choose how to collect output.
 pub fn command_for(bin: &Path, envs: &[(&str, &str)]) -> std::io::Result<std::process::Command> {
     let mut command = std::process::Command::new(bin);
     command.envs(envs.iter().copied());
@@ -74,11 +66,6 @@ fn child_timeout() -> std::time::Duration {
     std::time::Duration::from_secs(secs)
 }
 
-/// Runs `bin` like `run`, with a default deadline of 120s (`DX_TESTING_CHILD_TIMEOUT_SECS`).
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn run(bin: &Path, args: &[&str], envs: &[(&str, &str)]) -> std::io::Result<Run> {
     run_within(bin, args, envs, child_timeout())
 }
@@ -119,11 +106,6 @@ fn wait_for(handle: std::thread::JoinHandle<()>, limit: std::time::Duration) {
     }
 }
 
-/// Runs `bin` and kills it when it outlives `limit`, returning `TimedOut` with the output so far.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn run_within(
     bin: &Path,
     args: &[&str],
@@ -133,11 +115,6 @@ pub fn run_within(
     run_command(command_for(bin, envs)?.args(args), limit)
 }
 
-/// Like `run_within` for a prepared command; the caller sets any platform flags.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn run_command(
     command: &mut std::process::Command,
     limit: std::time::Duration,
@@ -171,7 +148,6 @@ pub fn run_command(
         drop(child.kill());
         status = Some(child.wait()?);
     }
-    // A descendant may still hold the pipes open after the child is gone.
     let grace = if timed_out {
         std::time::Duration::from_secs(2)
     } else {
@@ -199,11 +175,6 @@ pub fn run_command(
     Ok(run)
 }
 
-/// Copies the directory `from` into `to`, keeping files, directories and symlinks.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn copy_tree(from: &Path, to: &Path) {
@@ -250,20 +221,10 @@ fn symlink(destination: &Path, link: &Path, source: &Path) {
     result.unwrap_or_else(|error| panic!("link {}: {error}", source.display()));
 }
 
-/// Returns the SHA-256 of the file at `path` as lowercase hex.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn sha256_file(path: &Path) -> Result<String, String> {
     dx_digest::sha256_file_hex(path).map_err(|error| format!("read {}: {error}", path.display()))
 }
 
-/// Reads the JSON file at `path`.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn read_json(path: &Path) -> Result<serde_json::Value, String> {
     let text = std::fs::read_to_string(path)
         .map_err(|err| format!("cannot read {}: {err}", path.display()))?;
@@ -271,11 +232,6 @@ pub fn read_json(path: &Path) -> Result<serde_json::Value, String> {
         .map_err(|err| format!("{} is not valid JSON: {err}", path.display()))
 }
 
-/// Writes `value` as JSON to `path`.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn write_json(path: &Path, value: &serde_json::Value) -> Result<(), String> {
     let mut text = serde_json::to_string_pretty(value).map_err(|err| err.to_string())?;
     text.push('\n');
@@ -283,11 +239,6 @@ pub fn write_json(path: &Path, value: &serde_json::Value) -> Result<(), String> 
         .map_err(|err| format!("cannot write {}: {err}", path.display()))
 }
 
-/// Writes `text` to `path`, creating its parents and panicking with the path on failure.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn write(path: &Path, text: &str) {
@@ -298,11 +249,6 @@ pub fn write(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
 }
 
-/// Reads `path` as UTF-8 text, panicking with the path on failure.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -345,7 +291,6 @@ fn workspace() -> String {
         .unwrap_or_else(|| "_main".to_owned())
 }
 
-/// Returns the runfiles key that one `$(rootpath)` or `$(rlocationpath)` spells.
 #[must_use]
 pub fn rlocation_key(rel: &str) -> String {
     if let Some(external) = rel.strip_prefix("../") {
@@ -385,11 +330,6 @@ fn existing(runfiles: &runfiles::Runfiles, key: &str) -> Option<PathBuf> {
         .filter(|path| path.exists())
 }
 
-/// Resolves one runfiles key through the Bazel runfiles of this process.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn rlocation(key: &str) -> std::io::Result<PathBuf> {
     let opened = runfiles::Runfiles::create();
     if let Some(found) = opened
@@ -412,11 +352,6 @@ pub fn rlocation(key: &str) -> std::io::Result<PathBuf> {
     Err(std::io::Error::new(std::io::ErrorKind::NotFound, detail))
 }
 
-/// Resolves one `$(rootpath)` or `$(rlocationpath)` test input, panicking with its key when absent.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -424,17 +359,11 @@ pub fn resolve_runfiles(rel: &str) -> PathBuf {
     find_runfile(rel).unwrap_or_else(|error| panic!("runfile {rel}: {error}"))
 }
 
-/// Resolves the runfile named by environment variable `var`, panicking when it is unset.
 #[must_use]
 pub fn env_file(var: &str) -> PathBuf {
     resolve_runfiles(&env_text(var))
 }
 
-/// Reads environment variable `var`, panicking when it is unset.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -442,7 +371,6 @@ pub fn env_text(var: &str) -> String {
     std::env::var(var).unwrap_or_else(|_| panic!("{var} is set"))
 }
 
-/// Resolves every whitespace separated runfile named by environment variable `var`.
 pub fn env_files(var: &str) -> Vec<PathBuf> {
     env_text(var)
         .split_whitespace()
@@ -450,17 +378,11 @@ pub fn env_files(var: &str) -> Vec<PathBuf> {
         .collect()
 }
 
-/// Renders a path as an owned string.
 #[must_use]
 pub fn path_text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
-/// Creates and returns the directory `name` under `TEST_TMPDIR`.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -470,11 +392,6 @@ pub fn scratch_dir(name: &str) -> PathBuf {
     dir
 }
 
-/// Joins the runfiles named by environment variables `vars` into a classpath string.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -484,11 +401,6 @@ pub fn classpath(vars: &[&str]) -> String {
     joined.to_string_lossy().into_owned()
 }
 
-/// Reads one test input resolved through `resolve_runfiles`, panicking when it cannot be read.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -497,7 +409,6 @@ pub fn read_runfile(rel: &str) -> Vec<u8> {
     std::fs::read(&resolved).unwrap_or_else(|e| panic!("read {}: {e}", resolved.display()))
 }
 
-/// Reports whether `needle` occurs in `haystack`.
 #[must_use]
 pub fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
     haystack.windows(needle.len()).any(|w| w == needle)
@@ -519,11 +430,6 @@ fn find_runfile(rel: &str) -> std::io::Result<PathBuf> {
         .ok_or(error)
 }
 
-/// Names the `rules_dx` checkout behind the `//:MODULE.bazel` runfile of the calling test.
-///
-/// # Errors
-///
-/// Returns `Err` when the runfile is missing or has no checkout above it.
 pub fn rules_dx_source() -> Result<PathBuf, String> {
     let module = find_runfile("MODULE.bazel").map_err(|error| {
         format!(
@@ -538,11 +444,6 @@ pub fn rules_dx_source() -> Result<PathBuf, String> {
     Ok(dx_path::without_verbatim(checkout))
 }
 
-/// Writes the `@dx_test_tags_sources` snapshot named by `DX_SOURCES_JSON`, `DX_FILES_JSON` and, when set, `DX_RUST_JSON` and `DX_PROSE_JSON` into a scratch tree and names its root.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn source_snapshot() -> PathBuf {
@@ -575,11 +476,6 @@ pub fn source_snapshot() -> PathBuf {
     .clone()
 }
 
-/// Every path in the `@dx_test_tags_sources` snapshot named by `DX_PATHS_JSON`, sorted.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -589,11 +485,6 @@ pub fn source_paths() -> Vec<String> {
     serde_json::from_str(&read_text(&path)).unwrap_or_else(|error| panic!("DX_PATHS_JSON: {error}"))
 }
 
-/// Writes `text` to `path`, creating its parent directories, and panics with the path on failure.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn write_text(path: &Path, text: &str) {
@@ -604,11 +495,6 @@ pub fn write_text(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap_or_else(|error| panic!("write {}: {error}", path.display()));
 }
 
-/// Reads `path` as text and panics with the path on failure.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -616,13 +502,11 @@ pub fn read_text(path: &Path) -> String {
     std::fs::read_to_string(path).unwrap_or_else(|error| panic!("read {}: {error}", path.display()))
 }
 
-/// One preset layer as `rules_dx` renders it for its own tests, with warnings as errors.
 #[must_use]
 pub fn preset_layer(layer: dx_preset::Layer) -> String {
     dx_preset::render_layer_with(layer, dx_preset::DEFAULT_REPO, Some(true))
 }
 
-/// The preset layers joined in import order.
 pub fn preset_rc() -> String {
     dx_preset::Layer::ALL
         .into_iter()
@@ -630,17 +514,11 @@ pub fn preset_rc() -> String {
         .collect()
 }
 
-/// Names the Bazel-built process probe from the runfiles of the calling test.
 #[must_use]
 pub fn process_probe() -> PathBuf {
     env_file("DX_PROCESS_PROBE")
 }
 
-/// Reports whether a live process still holds the alive lock at `lock`.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -659,14 +537,10 @@ pub fn alive_lock_held(lock: &Path) -> bool {
     }
 }
 
-/// Which side of the fork guard a test is on.
 #[derive(Clone, Copy)]
 enum ForkSide {
-    /// Starts child processes and holds no lock it expects free.
     Forking,
-    /// Holds a lock it expects free and starts no child.
     Holding,
-    /// Does both, so it runs alone.
     Exclusive,
 }
 
@@ -693,9 +567,6 @@ impl ForkState {
         self.forking > 0 || self.holding > 0 || self.exclusive
     }
 
-    // A side joins a running group of its own kind only while no other side
-    // waits, and an idle guard goes to a waiting exclusive test first, so no
-    // side starves.
     fn admits(&self, side: ForkSide) -> bool {
         let (compatible, others_waiting) = match side {
             ForkSide::Forking => (
@@ -746,7 +617,6 @@ fn fork_state() -> std::sync::MutexGuard<'static, ForkState> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-/// Keeps a test on one side of the fork guard until it is dropped.
 #[must_use = "the guard protects the test only while it is held"]
 pub struct ForkGuard(ForkSide);
 
@@ -763,8 +633,6 @@ impl ForkGuard {
         *waiting = waiting.saturating_sub(1);
         state.enter(side);
         drop(state);
-        // A waiter of another side may now be the only thing keeping this
-        // side's peers out, so let everyone re-check.
         FORK_CHANGED.notify_all();
         Self(side)
     }
@@ -777,35 +645,19 @@ impl Drop for ForkGuard {
     }
 }
 
-// The guard is not reentrant: a test takes exactly one of these. A fork copies
-// every open lock handle until exec, so a spawn must never overlap a test that
-// holds a lock and then expects it free.
-
-/// Taken by a test that starts a child process while it holds a lock it later
-/// expects free. It runs alone.
 pub fn spawning() -> ForkGuard {
     ForkGuard::take(ForkSide::Exclusive)
 }
 
-/// Taken by a test that starts a child process and holds no lock it expects
-/// free. Such tests run alongside each other, never during a `holding` test.
 pub fn forking() -> ForkGuard {
     ForkGuard::take(ForkSide::Forking)
 }
 
-/// Taken for the whole of a test that holds a lock and then expects it free.
-/// Such tests run alongside each other, never during a spawn.
 pub fn holding() -> ForkGuard {
     ForkGuard::take(ForkSide::Holding)
 }
 
-/// Writes `body` to `path` and marks it executable, without the test process
-/// ever opening the file for writing. A thread that forks meanwhile cannot
-/// inherit a write fd, so exec-ing the file never fails with ETXTBSY.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
+/// A forked thread must not inherit a write fd to the file, or exec fails with ETXTBSY.
 #[cfg(unix)]
 #[track_caller]
 #[expect(
@@ -815,9 +667,6 @@ pub fn holding() -> ForkGuard {
 pub fn executable_script(path: &Path, body: &str) {
     use std::io::Write;
     use std::os::unix::fs::PermissionsExt;
-    // Only shell builtins copy stdin: a parallel test may have pointed the
-    // process PATH at a fake bin directory without `cat`. After EOF, `read`
-    // leaves a final line that has no newline in `$l`.
     let mut child = std::process::Command::new("/bin/sh")
         .arg("-c")
         .arg(
@@ -839,25 +688,12 @@ pub fn executable_script(path: &Path, body: &str) {
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod script");
 }
 
-/// [`executable_script`] of a POSIX shell script that runs `body`.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[cfg(unix)]
 #[track_caller]
 pub fn shell_script(path: &Path, body: &str) {
     executable_script(path, &format!("#!/bin/sh\n{body}"));
 }
 
-/// Places `tool`, the fake generate binary, in `dir` as `bazel`, `uv` and `python`
-/// (`.exe` on Windows) for a `dx generate` run, which answers with a clean, complete
-/// result manifest and fills the lock files `dx generate` seeds; returns a PATH of
-/// `dir` alone.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(
@@ -877,13 +713,6 @@ pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
     dir.display().to_string()
 }
 
-/// Makes `dir` an empty git repository by writing the few entries git needs, which is
-/// faster than `git init` when many tests fork at once. A dx run in `dir` then reads
-/// its own unset `dx.primary` instead of the checkout's the test runs in.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[track_caller]
 #[expect(
     clippy::expect_used,
@@ -897,11 +726,6 @@ pub fn empty_git_repo(dir: &Path) {
     std::fs::write(git.join("HEAD"), "ref: refs/heads/main\n").expect("git HEAD");
 }
 
-/// Waits up to 10s for the process holding the alive lock at `lock` to die.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 pub fn assert_alive_lock_released(lock: &Path) {
     assert!(lock.exists(), "the probe never armed: {}", lock.display());
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
@@ -915,11 +739,6 @@ pub fn assert_alive_lock_released(lock: &Path) {
     }
 }
 
-/// Waits up to 10s for the probe to create its alive lock at `lock`.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 pub fn wait_armed(lock: &Path) {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
     while !lock.exists() {
@@ -932,11 +751,6 @@ pub fn wait_armed(lock: &Path) {
     }
 }
 
-/// Asserts the alive lock at `lock` stays held for 2s after the probe armed.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 pub fn assert_still_held(lock: &Path) {
     wait_armed(lock);
     let end = std::time::Instant::now() + std::time::Duration::from_secs(2);
@@ -954,11 +768,6 @@ pub fn assert_still_held(lock: &Path) {
 }
 
 #[must_use]
-/// Returns the runfiles root of the running test.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn runfiles_root() -> PathBuf {
@@ -970,11 +779,6 @@ pub fn runfiles_root() -> PathBuf {
 }
 
 #[must_use]
-/// Reads the runfile `rel` as text.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn read_runfiles(rel: &str) -> String {
@@ -982,11 +786,6 @@ pub fn read_runfiles(rel: &str) -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("read {rel}: {error}"))
 }
 
-/// Returns the value of the string constant `name` in `file`.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
 pub fn starlark_const(text: &str, name: &str, file: &str) -> String {
@@ -999,11 +798,6 @@ pub fn starlark_const(text: &str, name: &str, file: &str) -> String {
         .to_owned()
 }
 
-/// Returns the workflow runfiles paths that `DX_WORKFLOWS` lists.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 #[must_use]
 #[track_caller]
 #[expect(clippy::panic, reason = "test helper: a failed setup fails the test")]
@@ -1016,11 +810,6 @@ pub fn workflow_files() -> Vec<String> {
     workflow_paths(&list, "DX_WORKFLOWS")
 }
 
-/// Parses a whitespace-separated workflow list into sorted, unique paths.
-///
-/// # Panics
-///
-/// Panics when the operation fails.
 pub fn workflow_paths(list: &str, source: &str) -> Vec<String> {
     let mut paths: Vec<String> = list.split_whitespace().map(str::to_owned).collect();
     paths.sort();
@@ -1041,11 +830,6 @@ pub fn workflow_paths(list: &str, source: &str) -> Vec<String> {
     paths
 }
 
-/// Checks that every one of `patterns` occurs in the file at `path`.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn expect_contains(path: &Path, patterns: &[&str]) -> Result<(), String> {
     if !path.is_file() {
         return Err(format!("missing file {}", path.display()));
@@ -1068,11 +852,6 @@ pub fn expect_contains(path: &Path, patterns: &[&str]) -> Result<(), String> {
     }
 }
 
-/// Checks that none of `patterns` occurs in the file at `path`.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn expect_absent(path: &Path, patterns: &[&str]) -> Result<(), String> {
     if !path.is_file() {
         return Err(format!("missing file {}", path.display()));
@@ -1156,11 +935,6 @@ fn unified_diff(expected: &str, actual: &str) -> String {
     out.join("\n")
 }
 
-/// Compares a snapshot against the files on disk.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn snapshot_diff(
     expected: &Path,
     actual: &Path,
@@ -1216,11 +990,6 @@ pub fn snapshot_diff(
     ))
 }
 
-/// Checks that the file at `path` holds valid JSON.
-///
-/// # Errors
-///
-/// Returns `Err` when the operation fails.
 pub fn assert_valid_json(path: &Path) -> Result<(), String> {
     let text = std::fs::read_to_string(path)
         .map_err(|err| format!("cannot read {}: {err}", path.display()))?;
@@ -1229,8 +998,6 @@ pub fn assert_valid_json(path: &Path) -> Result<(), String> {
         .map_err(|err| format!("{} is not valid JSON: {err}", path.display()))
 }
 
-/// Copies every consumer `test.log` under `testlogs` to `dest`, keeping the
-/// relative layout, and returns the first 40 lines of each for the error text.
 #[must_use]
 pub fn copy_test_logs(testlogs: &Path, dest: &Path) -> String {
     let mut found = Vec::new();

@@ -382,7 +382,6 @@ fn runfile_keys<'a>(manifest: &'a str, name: &str) -> Vec<&'a str> {
         .collect()
 }
 
-/// A `tree_only` reason inverts the manifest-only check so the exemption fails once the run passes.
 fn manifest_only_verdict(tree_only: Option<&str>, passed: bool) -> Result<(), String> {
     match (tree_only, passed) {
         (None, false) => Err("manifest-only run failed or printed unexpected output".to_owned()),
@@ -615,8 +614,6 @@ fn manifest_target_drops_verbatim_prefix() {
     }
 }
 
-/// Runs depcheck on the fresh lock, which must pass, and on the stale one, which must name the
-/// package it lacks.
 fn assert_lock_check() {
     let lock_input = |var: &str| {
         let key = std::env::var(var).unwrap_or_else(|_| panic!("{var} must be set"));
@@ -768,8 +765,6 @@ fn stage(
             if wanted && !dir.join(file).exists() {
                 std::fs::copy(sibling.path(), dir.join(file)).expect("sibling must copy");
             }
-            // A macOS rpath like @loader_path/<stem>_qt_frameworks points at a
-            // directory beside the binary, so the staged copy needs it too.
             let beside_dir = cfg!(unix)
                 && sibling.path().is_dir()
                 && file.starts_with(&format!("{stem}_"))
@@ -836,7 +831,6 @@ fn link_entry(target: &std::path::Path, link: &std::path::Path) -> std::io::Resu
     }
 }
 
-/// Points each virtualenv manifest entry the runfiles tree holds at its path in the tree.
 fn tree_rooted_manifest(text: &str, tree: &std::path::Path) -> String {
     let rooted = !tree.as_os_str().is_empty() && tree.is_dir();
     let root = tree.to_string_lossy();

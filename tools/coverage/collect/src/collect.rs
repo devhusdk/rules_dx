@@ -28,7 +28,6 @@ pub fn resolve(root: &Path, path: &str) -> PathBuf {
     }
 }
 
-/// Where a report the test itself wrote to `COVERAGE_OUTPUT_FILE` is kept so the merger still sees it.
 pub fn preserved_report(output: &Path, coverage_dir: &Path) -> Option<PathBuf> {
     if output.starts_with(coverage_dir) {
         return None;
@@ -54,8 +53,6 @@ pub fn export_args(profdata: &Path, root: &Path, objects: &[PathBuf]) -> Vec<Str
     args
 }
 
-/// Makes every SF: path relative to the execroot with forward slashes, as the
-/// coverage manifest spells it. llvm-cov on Windows writes backslashes.
 #[must_use]
 pub fn rewrite_paths(report: &str, root: &Path) -> String {
     let root = root.display().to_string().replace('\\', "/");

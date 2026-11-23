@@ -1,5 +1,3 @@
-//! Forwards a repin request to dx update, which owns the pinned versions.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 #![expect(
     clippy::disallowed_methods,
@@ -28,7 +26,6 @@ fn main() -> ExitCode {
     let user_args: Vec<OsString> = std::env::args_os().skip(1).collect();
     let mut command = Command::new(&dx);
     command.arg("update");
-    // The outer `bazel run` may use a non-default output base.
     if !names_output_base(&user_args)
         && let Some(output_base) = dx_process::run_output_base()
     {
@@ -60,7 +57,6 @@ fn resolve_dx() -> Option<PathBuf> {
     runfiles.rlocation(rel).filter(|path| path.exists())
 }
 
-/// Reports whether the user already passed a `--bazel-startup-option` naming `output_base`.
 fn names_output_base(args: &[OsString]) -> bool {
     let mut previous_is_flag = false;
     for arg in args {

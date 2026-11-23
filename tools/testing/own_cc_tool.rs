@@ -1,5 +1,3 @@
-//! The compiler of the nested `own_cc` toolchain: writes `own_cc` to every `-o` output and an empty `-MF` file, also inside `@` parameter files.
-
 use std::fs;
 use std::process::ExitCode;
 

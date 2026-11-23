@@ -106,7 +106,6 @@ rust_test(
     ],
 )
 
-# Fails on a `# gazelle:ignore` in a conformance BUILD file without a reason on the next line.
 rust_test(
     name = "gazelle_ignore_test",
     size = "small",

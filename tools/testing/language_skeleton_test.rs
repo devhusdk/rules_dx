@@ -1,5 +1,3 @@
-//! Every language directory follows docs/design/language-skeleton.md outside `tools/testing/language_skeleton_allowlist.txt`, and the allowlist holds no spare line.
-
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -13,10 +11,8 @@ use starlark_syntax::syntax::ast::{
     ArgumentP, AssignTargetP, AstExpr, AstStmt, ExprP, ParameterP, StmtP,
 };
 
-/// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/testing/language_skeleton_allowlist.txt";
 
-/// Every rule id an allowlist line may name.
 const RULES: [&str; 25] = [
     "defs-reexport",
     "dev-proxy-tags",
@@ -45,10 +41,8 @@ const RULES: [&str; 25] = [
     "wrap",
 ];
 
-/// Fewer language directories than this means the snapshot lost the tree.
 const MIN_LANGS: usize = 10;
 
-/// Entries a language directory may hold.
 const ENTRIES: [&str; 9] = [
     "BUILD.bazel",
     "README.md",
@@ -61,19 +55,14 @@ const ENTRIES: [&str; 9] = [
     "tests",
 ];
 
-/// Entries every language directory holds.
 const REQUIRED_ENTRIES: [&str; 5] = ["BUILD.bazel", "defs.bzl", "lang.json", "private", "tests"];
 
-/// Directory names `private/` never holds.
 const BANNED_PRIVATE: [&str; 5] = ["fixtures", "testdata", "testing", "tests", "toolchains"];
 
-/// Directories whose children named like a language hold that language's code.
 const OUTSIDE_PARENTS: [&str; 2] = ["core/quality/tools", "tools/coverage"];
 
-/// Directories of `tests/` that are not under `fixtures/`.
 const TEST_DIRS: [&str; 3] = ["conformance", "consumer", "fixtures"];
 
-/// The `##` headings of a language README, in order.
 const HEADINGS: [&str; 10] = [
     "Dependencies",
     "Generate",
@@ -87,14 +76,11 @@ const HEADINGS: [&str; 10] = [
     "License",
 ];
 
-/// Suffixes of executable macro names.
 const EXECUTABLE: [&str; 4] = ["_binary", "_test", "_bench", "_fuzz_test"];
 
-/// The file and the macros every executable macro reaches.
 const WRAPPER: &str = "core/wrapper.bzl";
 const WRAPS: [&str; 2] = ["dx_wrap_binary", "dx_wrap_test"];
 
-/// Tags that declare a development hub or test dependencies.
 const DEV_TAGS: [&str; 7] = [
     "annotation",
     "crates",
@@ -105,10 +91,8 @@ const DEV_TAGS: [&str; 7] = [
     "provider",
 ];
 
-/// The option only `core/platform.bzl` names.
 const PLATFORMS_OPTION: &str = "//command_line_option:platforms";
 
-/// What a top-level name is assigned.
 #[derive(Clone)]
 enum Rhs {
     Name(String),
@@ -116,14 +100,12 @@ enum Rhs {
     Value,
 }
 
-/// One function: its parameter names and the names its body uses.
 #[derive(Default)]
 struct Def {
     params: Vec<String>,
     names: BTreeSet<String>,
 }
 
-/// What one BUILD or .bzl file declares.
 #[derive(Default)]
 struct Module {
     loads: BTreeMap<String, (String, String)>,
@@ -134,7 +116,6 @@ struct Module {
     reexports_only: bool,
 }
 
-/// Where a name leads after following assignments and loads.
 enum Located {
     Def(String, String),
     Call(String),
@@ -142,7 +123,6 @@ enum Located {
     Outside,
 }
 
-/// What an exported name is.
 #[derive(Clone, Copy, PartialEq)]
 enum Kind {
     Rule,
@@ -155,7 +135,6 @@ enum Kind {
     Other,
 }
 
-/// One `use_extension` proxy of the root `MODULE.bazel`.
 struct Usage {
     proxy: String,
     label: String,
@@ -163,7 +142,6 @@ struct Usage {
     dev: bool,
 }
 
-/// What the root `MODULE.bazel` declares.
 #[derive(Default)]
 struct RootModule {
     usages: Vec<Usage>,
@@ -172,7 +150,6 @@ struct RootModule {
     tags: Vec<(String, String)>,
 }
 
-/// Violations keyed by rule id and path, each with what is wrong.
 #[derive(Default)]
 struct Found(BTreeMap<(String, String), Vec<String>>);
 
@@ -197,7 +174,6 @@ impl Found {
     }
 }
 
-/// The attr kind of `attr.<kind>(...)`.
 fn attr_kind(expr: &AstExpr) -> Option<String> {
     let ExprP::Call(callee, _) = &expr.node else {
         return None;
@@ -234,7 +210,6 @@ fn rhs_of(expr: &AstExpr) -> Rhs {
     }
 }
 
-/// Walks one file and fills its `Module`.
 struct Scanner<'a> {
     module: &'a mut Module,
     def: Option<String>,
@@ -508,7 +483,6 @@ fn basename(path: &str) -> &str {
     path.rsplit_once('/').map_or(path, |(_, name)| name)
 }
 
-/// The path a `rules_dx` label names: `//a/b:c.bzl` gives `a/b/c.bzl`.
 fn label_path(from: &str, label: &str) -> Option<String> {
     let label = label.strip_prefix("@rules_dx").unwrap_or(label);
     if label.starts_with('@') {
@@ -534,7 +508,6 @@ fn is_build(path: &str) -> bool {
     matches!(basename(path), "BUILD" | "BUILD.bazel")
 }
 
-/// Whether a file can name a fixture: a `BUILD`, `.bzl` or `MODULE.bazel` file.
 fn names_fixtures(path: &str) -> bool {
     is_build(path)
         || Path::new(&path)
@@ -547,7 +520,6 @@ fn is_word(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
-/// The kind a name reads as when its definition is out of reach.
 fn kind_by_name(name: &str) -> Kind {
     let first_upper = name
         .chars()
@@ -562,7 +534,6 @@ fn kind_by_name(name: &str) -> Kind {
     }
 }
 
-/// The sources the lint reads: every path under a language directory and the text of the snapshot files.
 struct Tree {
     paths: BTreeSet<String>,
     text: BTreeMap<String, String>,
@@ -602,7 +573,6 @@ impl Tree {
         self.under(dir).next().is_some()
     }
 
-    /// The entries of `dir`, each with whether it is a directory.
     fn children(&self, dir: &str) -> BTreeMap<String, bool> {
         let skip = dir.len() + 1;
         let mut out = BTreeMap::new();
@@ -624,7 +594,6 @@ impl Tree {
         out
     }
 
-    /// Every directory below `dir`.
     fn dirs(&self, dir: &str) -> BTreeSet<String> {
         let mut out = BTreeSet::new();
         for path in self.under(dir) {
@@ -711,7 +680,6 @@ impl Tree {
         }
     }
 
-    /// The public names of one .bzl file with their kinds.
     fn exports(&self, file: &str) -> BTreeMap<String, Kind> {
         let Some(module) = self.module(file) else {
             return BTreeMap::new();
@@ -725,7 +693,6 @@ impl Tree {
             .collect()
     }
 
-    /// Whether `name` in `file` is a function that reaches a wrapper macro.
     fn wraps(&self, file: &str, name: &str, seen: &mut BTreeSet<(String, String)>) -> bool {
         let Located::Def(file, def) = self.locate(file, name) else {
             return false;
@@ -824,17 +791,14 @@ fn check_outside_lang(tree: &Tree, lang: &str, found: &mut Found) {
     }
 }
 
-/// The files that define the shared visibility scopes.
 const VISIBILITY_BUILD: &str = "tools/visibility/BUILD.bazel";
 const VISIBILITY_BZL: &str = "tools/visibility/visibility.bzl";
 
-/// What grants public visibility: labels a BUILD file may name and `tools/visibility/visibility.bzl` constants it may load.
 struct PublicMarkers {
     labels: BTreeSet<String>,
     constants: BTreeSet<String>,
 }
 
-/// The top-level statements of a parsed Starlark file.
 fn top_statements(ast: &AstModule) -> Vec<&AstStmt> {
     match &ast.statement().node {
         StmtP::Statements(stmts) => stmts.iter().collect(),
@@ -853,7 +817,6 @@ fn top_statements(ast: &AstModule) -> Vec<&AstStmt> {
     }
 }
 
-/// Every string literal and identifier in `expr`.
 fn mentions(expr: &AstExpr, strings: &mut BTreeSet<String>, names: &mut BTreeSet<String>) {
     if let Some(text) = string(expr) {
         strings.insert(text.to_owned());
@@ -935,7 +898,6 @@ fn public_markers(tree: &Tree) -> PublicMarkers {
     PublicMarkers { labels, constants }
 }
 
-/// Whether `text` names `label` as a whole label, alone or after a repository name.
 fn names_label(text: &str, label: &str) -> bool {
     text.match_indices(label).any(|(start, _)| {
         text.as_bytes()
@@ -1094,7 +1056,6 @@ fn check_platforms(tree: &Tree, lang: &str, found: &mut Found) {
     }
 }
 
-/// Whether a file name reads as a test.
 fn test_file(name: &str) -> bool {
     if Path::new(&name)
         .extension()
@@ -1153,7 +1114,6 @@ fn fixture_name(name: &str) -> bool {
             .all(|letter| letter.is_ascii_lowercase() || letter.is_ascii_digit() || letter == '_')
 }
 
-/// Fixture directories named by a build file outside themselves.
 fn referenced_fixtures(tree: &Tree) -> BTreeSet<String> {
     const MARK: &str = "/tests/fixtures/";
     let mut out = BTreeSet::new();
@@ -1451,7 +1411,6 @@ fn check_root_module(langs: &[String], root: &RootModule, found: &mut Found) {
     }
 }
 
-/// Every violation in `tree`.
 fn lint(tree: &Tree) -> Found {
     let mut found = Found::default();
     let langs = tree.langs();
@@ -1481,7 +1440,6 @@ fn lint(tree: &Tree) -> Found {
     found
 }
 
-/// The lines of the allowlist and what is wrong with its form.
 fn parse_allowlist(text: &str) -> (BTreeSet<String>, Vec<String>) {
     parse_lines(text, |line| {
         let fields: Vec<&str> = line.split(' ').collect();
@@ -1489,7 +1447,6 @@ fn parse_allowlist(text: &str) -> (BTreeSet<String>, Vec<String>) {
     })
 }
 
-/// What differs between the violations and the allowlist.
 fn differences(found: &Found, allowed: &BTreeSet<String>) -> Vec<String> {
     let mut out = Vec::new();
     for ((rule, path), details) in &found.0 {
@@ -1652,7 +1609,6 @@ register_toolchains("@dx_toy_toolchains//:all")
 const TOY_README: &str =
     "# Toy\n\n## Dependencies\n\n```\n## not a heading\n```\n\n### Extra\n\n## Toolchain\n";
 
-/// A language directory that follows the page.
 fn toy() -> BTreeMap<String, String> {
     [
         ("MODULE.bazel", TOY_MODULE),
@@ -1701,7 +1657,6 @@ fn lines_of(files: &BTreeMap<String, String>) -> BTreeSet<String> {
     lint(&tree).lines()
 }
 
-/// Lints the toy language after `change` and returns the lines of `rule`.
 fn broken(rule: &str, change: impl FnOnce(&mut BTreeMap<String, String>)) -> Vec<String> {
     let mut files = toy();
     change(&mut files);
@@ -1778,7 +1733,6 @@ VIS_TOOLS_PUBLIC = ["//tools/visibility:tools_public"]
 VIS_WIDE = VIS_TOOLS + VIS_TOOLS_PUBLIC
 "#;
 
-/// Lints the toy language with `tools/visibility` beside it and `private_build` as `toy/private/BUILD.bazel`.
 fn private_visibility_with_scopes(private_build: &str) -> Vec<String> {
     broken("private-visibility", |files| {
         put(files, VISIBILITY_BUILD, TOY_VISIBILITY_BUILD);

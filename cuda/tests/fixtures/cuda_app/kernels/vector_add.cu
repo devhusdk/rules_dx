@@ -1,8 +1,8 @@
 #include "cuda/tests/fixtures/cuda_app/kernels/common.cuh"
 #include "cuda/tests/fixtures/cuda_app/kernels/kernels.h"
 
-__global__ void dx_vector_add_kernel(int n, const int *a, const int *b,
-                                     int *out) {
+__global__ void __launch_bounds__(kDxBlock)
+    dx_vector_add_kernel(int n, const int *a, const int *b, int *out) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < n) {
     out[i] = dx_add(a[i], b[i]);
@@ -23,7 +23,7 @@ extern "C" int dx_vector_add_gpu(int n, const int *a, const int *b, int *out) {
   int *dout = dx_device_copy(n, nullptr);
   int status = 1;
   if (da != nullptr && db != nullptr && dout != nullptr) {
-    dx_vector_add_kernel<<<dx_grid(n), kDxBlock>>>(n, da, db, dout);
+    dx_vector_add_kernel<<<dx_grid(n), kDxBlock, 0, 0>>>(n, da, db, dout);
     if (cudaGetLastError() == cudaSuccess &&
         cudaDeviceSynchronize() == cudaSuccess &&
         cudaMemcpy(out, dout, dx_bytes(n), cudaMemcpyDeviceToHost) ==

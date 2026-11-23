@@ -1,7 +1,8 @@
 #include "cuda/tests/fixtures/cuda_app/kernels/common.cuh"
 #include "cuda/tests/fixtures/cuda_app/kernels/kernels.h"
 
-__global__ void dx_reduce_kernel(int n, const int *x, unsigned long long *sum) {
+__global__ void __launch_bounds__(kDxBlock)
+    dx_reduce_kernel(int n, const int *x, unsigned long long *sum) {
   __shared__ long long partial[kDxBlock];
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   partial[threadIdx.x] = i < n ? x[i] : 0;
@@ -23,7 +24,7 @@ extern "C" int dx_reduce_sum_gpu(int n, const int *x, long long *sum) {
   int status = 1;
   if (dx != nullptr && cudaMalloc(&dsum, sizeof(*dsum)) == cudaSuccess &&
       cudaMemset(dsum, 0, sizeof(*dsum)) == cudaSuccess) {
-    dx_reduce_kernel<<<dx_grid(n), kDxBlock>>>(n, dx, dsum);
+    dx_reduce_kernel<<<dx_grid(n), kDxBlock, 0, 0>>>(n, dx, dsum);
     unsigned long long host = 0;
     if (cudaGetLastError() == cudaSuccess &&
         cudaDeviceSynchronize() == cudaSuccess &&

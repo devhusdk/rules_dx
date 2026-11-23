@@ -6,7 +6,7 @@ load("@rules_cuda//cuda/private:providers.bzl", "CudaInfo")
 load("//cc:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
 load("//cc/private:defs.bzl", "CC_TEST_COVERAGE_ATTRS", "CC_TEST_COVERAGE_TOOLCHAINS")
 load("//core:platform_support.bzl", "compatible_with")
-load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_private_dep_rule", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags")
+load("//core:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_spec", "dx_language_spec", "dx_library_forward_rule", "dx_private_dep_rule", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_flags")
 load("//core/modules:cuda.bzl", "CUDA_VERSION")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 load("//cuda/private:components.bzl", _cuda_component_library = "cuda_component_library")
@@ -132,6 +132,15 @@ def _cuda_features(features):
         return features + _ALLOW_UNSUPPORTED_COMPILER + _STATIC_MSVCRT
     return list(features) + _ALLOW_UNSUPPORTED_COMPILER + _STATIC_MSVCRT
 
+# nvcc warnings that are off by default but catch real device-code bugs.
+_NVCC_WARNINGS = ["-Wreorder", "-Wdefault-stream-launch", "-Wmissing-launch-bounds", "-Wext-lambda-captures-this", "--display-error-number"]
+
+def _cuda_copts(kwargs):
+    """Returns kwargs with the dx nvcc warnings, -Werror unless warnings_as_errors is off, and the copts to check."""
+    checked = (kwargs.get("copts") or []) + (kwargs.get("host_copts") or [])
+    out = dx_warnings_flags(kwargs, "copts", ["-Werror=all-warnings,cross-execution-space-call"])
+    return dx_append_flags(out, "copts", _NVCC_WARNINGS), checked
+
 def _cuda_library_compatible_with(target_compatible_with):
     return cuda_target_compatible_with(target_compatible_with) + _MSVC_LINK_ON_WINDOWS
 
@@ -156,6 +165,7 @@ def cuda_split_srcs(srcs):
 def cuda_library(name, srcs, gpu_archs, hdrs = None, visibility = None, tags = None, target_compatible_with = None, rdc = False, **kwargs):
     """Minimal wrapper over rules_cuda cuda_library; gpu_archs is required and rdc enables relocatable device code."""
     features = _cuda_features(kwargs.pop("features", None))
+    kwargs, checked_copts = _cuda_copts(kwargs)
     compatible = _cuda_library_compatible_with(target_compatible_with)
     _cuda_library(
         name = name + "_upstream",
@@ -172,6 +182,7 @@ def cuda_library(name, srcs, gpu_archs, hdrs = None, visibility = None, tags = N
     cuda_check(
         name = name + "_cuda_check",
         archs = gpu_archs,
+        copts = checked_copts,
         tags = ["manual"],
         target_compatible_with = compatible,
         testonly = kwargs.get("testonly", None),
@@ -198,6 +209,7 @@ def cuda_library(name, srcs, gpu_archs, hdrs = None, visibility = None, tags = N
 def cuda_objects(name, srcs, gpu_archs, hdrs = None, deps = None, visibility = None, tags = None, target_compatible_with = None, **kwargs):
     """Compiles .cu sources to relocatable device objects for the deps of an rdc cuda_library."""
     features = _cuda_features(kwargs.pop("features", None))
+    kwargs, checked_copts = _cuda_copts(kwargs)
     compatible = _cuda_library_compatible_with(target_compatible_with)
     _cuda_objects(
         name = name + "_upstream",
@@ -214,6 +226,7 @@ def cuda_objects(name, srcs, gpu_archs, hdrs = None, deps = None, visibility = N
     cuda_check(
         name = name + "_cuda_check",
         archs = gpu_archs,
+        copts = checked_copts,
         tags = ["manual"],
         target_compatible_with = compatible,
         testonly = kwargs.get("testonly", None),
@@ -250,6 +263,7 @@ def _cuda_executable(cc_rule, forward_rule, test, name, srcs, gpu_archs, deps, h
         defines = kwargs.get("defines", []),
         local_defines = kwargs.get("local_defines", []),
         copts = cuda_copts or [],
+        warnings_as_errors = kwargs.get("warnings_as_errors", None),
         tags = dx_upstream_tags(library_tags if library_tags != None else tags),
         target_compatible_with = compatible,
         testonly = kwargs.get("testonly", None),

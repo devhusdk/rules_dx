@@ -11,11 +11,19 @@ This repository uses Bazel.
 - Root holds only language directories and the shared directories in `docs/design/layout.md`.
 - Docs are for people who use or release rules_dx: command pages, guides, tutorials, the generated `docs/support-matrix.md`, READMEs, `examples/`, and runbooks like `RELEASING.md`. Never write design rationale, history, alternatives, or implementation notes. One exception: the "What rules_dx replaces" section in `README.md` may state what you get and what it costs. Keep it to those two lists.
 - User docs stay complete: every command page documents its flags, scopes, output, reports, exit codes, and examples. Match `dx <command> --help`. Keep them user-facing; still no rationale, history, or issue numbers.
-- Comments: none by default, in every language. That includes Rust `///` and `//!` and Go doc comments. Keep only what tools read: one short plain Starlark docstring line per module, function, provider, rule and attr; clap `///` help lines; `// SAFETY:`; lint, format and gazelle directives; `LCOV_EXCL_*`; `# floor:`; Actions pin comments; license headers; shebangs. Where the code truly cannot say it, write at most one short line. No issue numbers, links, ADRs or `See:`/`Contract:`/`policy:` chains; `//tools/ci:prose_rules_test` checks them. `//tools/ci:comment_budget_test` caps comment lines per top-level directory. Assigned strings like `_HUB_BUILD = """..."""` are code, not comments.
+- No comments in any language, including Rust `///` and `//!` and Go doc comments. Only these stay:
+  - one short plain Starlark docstring line per module, function, provider, rule and attr
+  - clap `///` `--help` lines, one short line per flag
+  - `// SAFETY:`
+  - tool directives: lint, format and gazelle directives, Actions pin comments, license headers, shebangs
+  - `LCOV_EXCL_*` with its short `reason:` and `issue:`
+  - `# floor: <reason>` above each `bazel_dep`
+  - at most one short line for a real platform quirk
+- `//tools/ci:comment_budget_test` caps comment lines per file. Lower the budget with `tools/dx run //tools/ci:comment_budget_update`.
+- Assigned strings like `_HUB_BUILD = """..."""` are code, not comments.
 - Nothing is released, so write no compatibility code: no deprecated attr, in-module `alias`, re-export `.bzl` file, version conditional, or name that says so. `//tools/ci:zero_compat_test` checks it.
 - Rules that choose what to build for take `platforms`, a string list; `target_compatible_with` only marks compatibility.
-- Three exceptions only: `--help` text stays one short line per flag, `LCOV_EXCL_*` markers keep their required short `reason:` plus `issue:`, and `# floor: <reason>` stays above each `bazel_dep`. Tools parse it.
-- Write plain and human, like you are showing a colleague. Short sentences, everyday words, commands first. One line on what a thing does and when to use it is welcome. Leave out design backstory, except the "What rules_dx replaces" section in `README.md`.
+- Write plain and human, like you are showing a colleague. Short sentences, everyday words, commands first. In docs, one line on what a thing does and when to use it is welcome. Leave out design backstory, except the "What rules_dx replaces" section in `README.md`.
 - Don't wait on upstream. Patch it here, or fetch the fixed rule set in rules_dx's own module extension, so consumers get the fix now. Then fix it upstream too: open an upstream issue first, then a small PR that follows that repo's contributing guide and style and includes a regression test. Link both from the rules_dx issue. Delete our patch once a release carries the fix.
 - No `actions: write`? Comment `/evidence platforms=["macos_arm64"] task=test scope=//pkg/...` on the issue or PR. It dispatches `evidence.yml` and replies with the run URL. Wait with `gh pr checks <n> --watch`.
 - Need a nested lock re-record? Comment `/lock-refresh nested=true` on the PR. It dispatches `lock-refresh.yml` on the PR branch, which commits the refreshed locks and nested cache sets there, and replies with the run URL.

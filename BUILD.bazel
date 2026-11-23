@@ -486,6 +486,7 @@ filegroup(
         "//cli/exec_audit:module_srcs",
         "//cli/exec_bench:module_srcs",
         "//cli/exec_core:module_srcs",
+        "//cli/exec_docs:module_srcs",
         "//cli/exec_os:module_srcs",
         "//cli/exec_quality:module_srcs",
         "//cli/exec_reports:module_srcs",

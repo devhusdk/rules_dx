@@ -20,8 +20,8 @@ mod current_dir_guard_tests;
 #[cfg(test)]
 mod delivery_sink;
 mod deploy;
-mod docs;
-mod docs_index;
+#[cfg(test)]
+mod docs_tests;
 mod dx_asset;
 #[cfg(test)]
 mod failure_reports_tests;
@@ -434,7 +434,7 @@ fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
         }
         Command::Security | Command::License => dx_exec_audit::execute_audit(invocation, env),
         Command::Update => dx_exec_update::execute_update(invocation, env, &dispatch_inner),
-        Command::Docs => docs::execute_docs(invocation, env),
+        Command::Docs => dx_exec_docs::execute_docs(invocation, env),
         Command::Lint | Command::Typecheck | Command::Format => {
             dx_exec_quality::execute_quality(invocation, env)
         }

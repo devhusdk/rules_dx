@@ -32,6 +32,23 @@ python_test(
     deps = ["@rust_sdist_pypi//rpds_py"],
 )
 
+python_test(
+    name = "warnings_test",
+    size = "small",
+    srcs = ["warnings_test.py"],
+    main = "warnings_test.py",
+    runner = "plain",
+)
+
+python_test(
+    name = "warnings_allowed_test",
+    size = "small",
+    srcs = ["warnings_allowed_test.py"],
+    main = "warnings_allowed_test.py",
+    runner = "plain",
+    warnings_as_errors = False,
+)
+
 cc_toolchain_test(
     name = "rust_sdist_msvc_test",
     compiler = "msvc",

@@ -1,4 +1,4 @@
-"""Whether a Zig target builds in ReleaseFast, from the mode or from its resolved zigopts."""
+"""Whether a Zig target builds in ReleaseFast, from the mode or from the zigopts on its compile command line."""
 
 ZigReleaseFastInfo = provider(doc = "Whether the Zig mode is ReleaseFast.", fields = {"value": "bool"})
 
@@ -11,19 +11,21 @@ zig_release_fast = rule(
     attrs = {"value": attr.bool(mandatory = True)},
 )
 
-ZigOptsInfo = provider(doc = "Whether the resolved zigopts of a Zig target set ReleaseFast.", fields = {"release_fast": "bool"})
+ZigOptsInfo = provider(doc = "Whether the Zig compile command line of a target sets ReleaseFast.", fields = {"release_fast": "bool"})
 
-def _sets_release_fast(opts):
-    """Whether opts hold -OReleaseFast or -O ReleaseFast."""
-    for i, opt in enumerate(opts):
-        if opt == "-OReleaseFast" or (opt == "-O" and opts[i + 1:i + 2] == ["ReleaseFast"]):
+def _sets_release_fast(argv):
+    """Whether argv holds -OReleaseFast or -O ReleaseFast."""
+    for i, arg in enumerate(argv):
+        if arg == "-OReleaseFast" or (arg == "-O" and argv[i + 1:i + 2] == ["ReleaseFast"]):
             return True
     return False
 
-def _zig_opts_aspect_impl(_target, ctx):
-    return [ZigOptsInfo(release_fast = _sets_release_fast(getattr(ctx.rule.attr, "zigopts", None) or []))]
+def _zig_opts_aspect_impl(target, _ctx):
+    """Checks each Zig compile argv, which holds the expanded zigopts of the target and of every zig_library it imports."""
+    release_fast = [a for a in target.actions if a.mnemonic.startswith("ZigBuild") and _sets_release_fast(a.argv)]
+    return [ZigOptsInfo(release_fast = len(release_fast) > 0)]
 
 zig_opts_aspect = aspect(
     implementation = _zig_opts_aspect_impl,
-    doc = "Reads the zigopts of a Zig target after their selects resolve.",
+    doc = "Reads whether the Zig compile command line of a target sets ReleaseFast.",
 )

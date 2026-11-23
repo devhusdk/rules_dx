@@ -1,6 +1,7 @@
 # gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//zig:defs.bzl", "zig_binary", "zig_library", "zig_test")
+load("@rules_dx//zig/tests:mode_tests.bzl", "zig_make_variables")
 
 package(
     default_testonly = True,
@@ -39,6 +40,35 @@ zig_test(
         "-O",
         "ReleaseFast",
     ],
+)
+
+zig_library(
+    name = "greet_release_fast",
+    import_name = "greet",
+    main = "greet.zig",
+    tags = ["manual"],
+    zigopts = ["-OReleaseFast"],
+)
+
+zig_binary(
+    name = "hello_release_fast_dep",
+    main = "main.zig",
+    tags = ["manual"],
+    deps = [":greet_release_fast"],
+)
+
+zig_binary(
+    name = "hello_make_var_release_fast",
+    main = "main.zig",
+    tags = ["manual"],
+    toolchains = [":zmode_release_fast"],
+    zigopts = ["-O$(ZMODE)"],
+    deps = [":greet"],
+)
+
+zig_make_variables(
+    name = "zmode_release_fast",
+    variables = {"ZMODE": "ReleaseFast"},
 )
 
 real_source_target(

@@ -58,6 +58,15 @@ _release_fast_failure_test = analysistest.make(
 
 _zigopts_failure_test = analysistest.make(_failure_impl, attrs = _failure_attrs, expect_failure = True)
 
+def _make_variables_impl(ctx):
+    return [platform_common.TemplateVariableInfo(ctx.attr.variables)]
+
+zig_make_variables = rule(
+    implementation = _make_variables_impl,
+    doc = "Supplies make variables to a target through its toolchains attribute.",
+    attrs = {"variables": attr.string_dict(doc = "Make variable names and values.")},
+)
+
 def zig_mode_test(name, target, mode, opt = False):
     """Asserts that every Zig compile action under target passes `-O mode`, under -c opt when opt is set."""
     rule = _mode_opt_test if opt else _mode_test
@@ -68,5 +77,5 @@ def zig_release_fast_failure_test(name, target):
     _release_fast_failure_test(name = name, size = "small", target_under_test = target, message = "Zig mode release_fast drops safety checks")
 
 def zig_zigopts_failure_test(name, target):
-    """Asserts that target fails analysis on ReleaseFast from its resolved zigopts without allow_release_fast."""
+    """Asserts that target fails analysis on ReleaseFast from zigopts without allow_release_fast."""
     _zigopts_failure_test(name = name, size = "small", target_under_test = target, message = "zigopts set ReleaseFast")

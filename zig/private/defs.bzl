@@ -53,13 +53,13 @@ def _upstream_mode(settings, coverage = False):
     return "debug" if coverage else "release_safe"
 
 def _validate_release_fast(ctx):
-    """Fails on ReleaseFast, from the mode or the resolved zigopts, unless the target sets allow_release_fast."""
+    """Fails on ReleaseFast, from the mode or the zigopts of the target or its zig_library deps, unless the target sets allow_release_fast."""
     if ctx.attr.allow_release_fast:
         return
     if single_target(ctx.attr._release_fast)[ZigReleaseFastInfo].value:
         fail("Zig mode release_fast drops safety checks; set allow_release_fast = True on the target to use it")
     if single_target(ctx.attr.upstream)[ZigOptsInfo].release_fast:
-        fail("{}: zigopts set ReleaseFast, which drops safety checks; set allow_release_fast = True to use it".format(ctx.label))
+        fail("{}: zigopts set ReleaseFast, on the target or a zig_library it depends on, which drops safety checks; set allow_release_fast = True on the target to use it".format(ctx.label))
 
 def _zig_binary_upstream_impl(settings, _attr):
     """Builds the Zig binary upstream without coverage, in ReleaseSafe unless a mode is set."""

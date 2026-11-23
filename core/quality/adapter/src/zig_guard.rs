@@ -39,6 +39,9 @@ struct Lexed<'a> {
     code_lines: BTreeSet<u64>,
 }
 
+/// Keywords whose `{` opens a type, which stays part of the statement that holds it, as in `fn f() error{Bad}!u8 {`.
+const TYPE_KEYWORDS: &[&str] = &["error", "struct", "enum", "union", "opaque"];
+
 /// Keywords whose `{` opens a block or a container, never an expression.
 const BLOCK_KEYWORDS: &[&str] = &[
     "if",
@@ -126,12 +129,15 @@ pub fn zig_guard(file: &str, source: &str) -> Vec<FileFinding> {
             "(" => parens.push(i),
             ")" => last_paren_open = parens.pop(),
             "{" => {
-                let expression = opens_expression(&lexed.tokens, i, last_paren_open, statement_fn);
+                let head = brace_head(&lexed.tokens, i, last_paren_open);
+                let expression = opens_expression(head, statement_fn);
+                let opens_type =
+                    head.is_some_and(|h| h.kind == Kind::Word && TYPE_KEYWORDS.contains(&h.text));
                 frames.push(Frame {
                     start,
                     header_fn: statement_fn,
                     expression,
-                    continues: expression || !parens.is_empty(),
+                    continues: expression || opens_type || !parens.is_empty(),
                 });
                 if test_pending {
                     test_depth = Some(frames.len());
@@ -201,32 +207,26 @@ fn is_word(token: Option<&Token<'_>>, text: &str) -> bool {
     token.is_some_and(|t| t.kind == Kind::Word && t.text == text)
 }
 
-/// Whether the `{` at `i` opens a struct or array init or a `switch` body, not a block, container or function body.
-fn opens_expression(
-    tokens: &[Token<'_>],
+/// The token that tells what the `{` at `i` opens: the one before it, or before the `(` that matches a `)` before it.
+fn brace_head<'t, 'a>(
+    tokens: &'t [Token<'a>],
     i: usize,
     paren_open: Option<usize>,
-    header_fn: bool,
-) -> bool {
-    let Some(prev) = i.checked_sub(1).and_then(|p| tokens.get(p)) else {
-        return false;
-    };
-    let head = match (prev.kind, prev.text) {
-        (Kind::Punct, ".") => return true,
-        (Kind::Punct, ")") => {
-            match paren_open
-                .and_then(|o| o.checked_sub(1))
-                .and_then(|p| tokens.get(p))
-            {
-                Some(head) => head,
-                None => return false,
-            }
-        }
-        _ => prev,
-    };
-    matches!(head.kind, Kind::Word | Kind::Builtin)
-        && !header_fn
-        && !BLOCK_KEYWORDS.contains(&head.text)
+) -> Option<&'t Token<'a>> {
+    let prev = tokens.get(i.checked_sub(1)?)?;
+    if is_punct(Some(prev), ")") {
+        return tokens.get(paren_open?.checked_sub(1)?);
+    }
+    Some(prev)
+}
+
+/// Whether a `{` with this head opens a struct or array init or a `switch` body, not a block, type or function body.
+fn opens_expression(head: Option<&Token<'_>>, header_fn: bool) -> bool {
+    head.is_some_and(|h| match h.kind {
+        Kind::Punct => h.text == ".",
+        Kind::Word | Kind::Builtin => !header_fn && !BLOCK_KEYWORDS.contains(&h.text),
+        Kind::Text => false,
+    })
 }
 
 /// The names that stand for `@import("std")` and for `std.debug`, so `debug_print` sees through `const` aliases.
@@ -633,6 +633,16 @@ mod tests {
                      \x20   },\n\
                      };\n";
         assert_eq!(rules(prong), one("unsafe_cast", 4, 16));
+        let error_set =
+            "// SAFETY: n fits.\nfn f(n: u32) error{Bad}!u8 {\n    return @intCast(n);\n}\n";
+        assert_eq!(rules(error_set), one("unsafe_cast", 3, 12));
+        let method = "// SAFETY: n fits.\n\
+                      const S = struct {\n\
+                      \x20   fn g(n: u32) u8 {\n\
+                      \x20       return @intCast(n);\n\
+                      \x20   }\n\
+                      };\n";
+        assert_eq!(rules(method), one("unsafe_cast", 4, 16));
         let after = "fn f() void {\n    // SAFETY: inside.\n}\nconst x: u8 = @intCast(n);\n";
         assert_eq!(rules(after), one("unsafe_cast", 4, 15));
     }

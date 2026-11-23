@@ -10,7 +10,6 @@ use super::{
     execution, parsed, reanchor, staging, yamlfmt_document_start,
 };
 
-/// Config, policy and text tools that build their own invocation and parse.
 pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "cue",
@@ -304,7 +303,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     &severities,
                 );
                 let out = backend.run(tool_id, tool, &invocation, scratch)?;
-                // A single-file scan names the target by its file name alone.
                 let base = Path::new(name)
                     .file_name()
                     .map_or(name.as_str(), |base| base.to_str().unwrap_or(name));
@@ -697,7 +695,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
     },
 ];
 
-/// The chart root from the helm context the aspect stages for a `helm_library` target.
 fn helm_chart_root(tool: &RealTool) -> Option<String> {
     let (_, bytes) = tool
         .tool_files
@@ -707,8 +704,6 @@ fn helm_chart_root(tool: &RealTool) -> Option<String> {
     Some(doc.get("chart_root")?.as_str()?.to_owned())
 }
 
-/// Trivy renders a chart itself, so the chart directory is scanned once and each finding
-/// lands on the chart file it names. Lines refer to the rendered manifest, so they reset to 1.
 fn scan_chart(
     backend: &RealBackend,
     call: &super::check::CheckCall<'_>,
@@ -749,7 +744,6 @@ fn scan_chart(
     Ok(findings)
 }
 
-/// Refuses a Terraform file whose modules trivy would download, as an error finding on that file.
 fn terraform_module_problem(
     tool_id: &str,
     root: &Path,
@@ -764,9 +758,6 @@ fn terraform_module_problem(
     Ok(problem.map(|problem| module_source_finding(tool_id, name, problem)))
 }
 
-/// Refuses a `terraform init` directory when a file init reads there calls a module init would
-/// download. A problem in an owned file lands on that file; one in a dependency's file sharing
-/// the directory lands on `fallback`, an owned file of the directory, and names the file.
 pub(super) fn terraform_init_problems(
     tool_id: &str,
     root: &Path,
@@ -830,7 +821,6 @@ fn module_source_finding(
 const TRIVY_DEFAULT_SEVERITIES: &str = include_str!("../../../tiers/trivy_config/standard.txt");
 const ZIZMOR_DEFAULT_PERSONA: &str = include_str!("../../../tiers/zizmor/standard.txt");
 
-/// The non-empty lines of the bound tier file, or of the standard tier when none is bound.
 fn tier_lines(
     tool_id: &str,
     config: Option<&Path>,
@@ -875,9 +865,6 @@ fn digest_of<'a>(value: &'a serde_json::Value, what: &str) -> std::io::Result<&'
         .ok_or_else(|| invalid(format!("{what} has no digest")))
 }
 
-/// Writes the first image of an OCI layout as the docker archive the tar driver reads: a
-/// `manifest.json` naming the config and layer blobs, followed by those blobs. An index is
-/// followed to its first manifest.
 fn layout_to_docker_archive(layout: &Path, archive: &Path) -> std::io::Result<()> {
     let read_json = |path: &Path| -> std::io::Result<serde_json::Value> {
         serde_json::from_slice(&std::fs::read(path)?)
@@ -941,7 +928,6 @@ fn layout_to_docker_archive(layout: &Path, archive: &Path) -> std::io::Result<()
 
 const OCI_LAYOUT_DIR_REL: &str = "dx-oci-layout";
 
-/// Copies the layout with its symlinked blobs resolved to regular files.
 fn copy_layout(from: &Path, to: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(to)?;
     for entry in std::fs::read_dir(from)? {
@@ -956,8 +942,6 @@ fn copy_layout(from: &Path, to: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Trivy does not read Bicep, so each file is built to ARM JSON and the staged templates are
-/// scanned together. ARM lines do not map to Bicep lines, so findings land on line 1.
 fn scan_bicep(
     backend: &RealBackend,
     call: &super::check::CheckCall<'_>,

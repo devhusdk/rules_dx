@@ -51,7 +51,6 @@ pub(crate) fn collect_diagnostics(tool_id: &str, path: &str, text: &str) -> Vec<
     out
 }
 
-/// Lifts a per-file fixer into a stage batch fixer that runs it once per target.
 pub(crate) fn per_path(
     mut apply: impl FnMut(&str, &str, &str) -> Result<String, RunnerError>,
 ) -> impl FnMut(usize, &StageSpec, &Texts, &[String]) -> Result<Texts, RunnerError> {

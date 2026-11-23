@@ -1,9 +1,3 @@
-//! Jupyter notebook scanner: preflight, location mapping and source splicing.
-//!
-//! Std plus `serde_json` only, so the module stays free of adapter types and
-//! can move to its own crate. The scanner keeps byte spans into the original
-//! text so a rewrite can touch only the bytes of the edited cells.
-
 #![deny(clippy::indexing_slicing, clippy::string_slice)]
 
 use std::fmt;
@@ -19,16 +13,11 @@ pub(crate) type Span = (usize, usize);
 
 const MAX_DEPTH: usize = 128;
 
-/// Why a notebook was rejected or could not be mapped.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NotebookError {
-    /// The text is not valid JSON.
     Json(String),
-    /// The JSON is not an nbformat 4 notebook.
     Format(String),
-    /// The notebook language is not Python.
     Language(String),
-    /// The original and the rewritten notebook cannot be spliced.
     Splice(String),
 }
 
@@ -48,23 +37,16 @@ impl fmt::Display for NotebookError {
 
 impl std::error::Error for NotebookError {}
 
-/// What a successful preflight learned about a notebook.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Info {
-    /// Number of cells of every type.
     pub cells: usize,
 }
 
-/// Spans of one cell, kept so other tools can edit single fields later.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CellIndex {
-    /// The `cell_type` value.
     pub kind: String,
-    /// Byte span of the `source` value.
     pub source: Option<(usize, usize)>,
-    /// Byte span of the `outputs` value.
     pub outputs: Option<(usize, usize)>,
-    /// Byte span of the `execution_count` value.
     pub execution_count: Option<(usize, usize)>,
 }
 
@@ -211,8 +193,6 @@ impl Scanner<'_> {
     }
 }
 
-/// Decodes the JSON string at `span` (quotes included) into scalars paired
-/// with the byte offset where each scalar starts in the raw text.
 fn decode_string(text: &str, span: Span) -> Vec<(char, usize)> {
     let inner = text.get(span.0 + 1..span.1 - 1).unwrap_or_default();
     let base = span.0 + 1;
@@ -282,7 +262,6 @@ pub(crate) struct Cell {
     pub(crate) execution_count: Option<Span>,
 }
 
-/// A scanned notebook borrowing its original text.
 #[derive(Debug)]
 pub struct Notebook<'a> {
     pub(crate) text: &'a str,
@@ -302,11 +281,6 @@ fn member<'n>(node: &'n Node, key: &str) -> Option<&'n Node> {
 }
 
 impl<'a> Notebook<'a> {
-    /// Parses a notebook without checking its format version or language.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the operation fails.
     pub fn parse(text: &'a str) -> Result<Self, NotebookError> {
         serde_json::from_str::<serde_json::Value>(text)
             .map_err(|err| NotebookError::Json(err.to_string()))?;
@@ -375,9 +349,6 @@ impl<'a> Notebook<'a> {
         }
     }
 
-    /// Follows Ruff's `is_python_notebook`: `language_info.name`, then
-    /// `kernelspec.language`, then Python by default. Returns the offending
-    /// language name when it is not Python.
     fn language(&self, root: &Node) -> Option<String> {
         let metadata = self.present(member(root, "metadata"));
         let name = |node: &Node, key: &str| {
@@ -437,7 +408,6 @@ impl<'a> Notebook<'a> {
         })
     }
 
-    /// Per-cell spans, in file order.
     #[must_use]
     pub fn index(&self) -> Vec<CellIndex> {
         self.cells
@@ -451,8 +421,6 @@ impl<'a> Notebook<'a> {
             .collect()
     }
 
-    /// The decoded source of a cell with each scalar's raw byte offset, plus
-    /// the raw offset just past the last scalar.
     fn source_chars(&self, cell: &Cell) -> Option<(Vec<(char, usize)>, usize)> {
         match cell.source.as_ref()? {
             Source::Single(span) => Some((decode_string(self.text, *span), span.1 - 1)),
@@ -472,11 +440,6 @@ impl<'a> Notebook<'a> {
             .map(|(chars, _)| chars.into_iter().map(|(c, _)| c).collect())
     }
 
-    /// The notebook's code cells as one Python script for a type checker.
-    ///
-    /// IPython line magics and shell escapes become `pass`, cell magics are blanked, and a
-    /// one-line prelude declares the names IPython injects. Returns `None` when a code cell
-    /// has no readable source.
     #[must_use]
     pub fn python_script(&self) -> Option<PythonScript> {
         let mut source = String::from(PYTHON_PRELUDE);
@@ -513,10 +476,6 @@ impl<'a> Notebook<'a> {
         Some(PythonScript { source, cells })
     }
 
-    /// Maps a Ruff `(cell, row, column)` (all 1-based, columns in scalars) to
-    /// a 1-based line and scalar column in the notebook file. A row or column
-    /// past the end clamps to the end of the cell source; anything else out of
-    /// range returns `None`.
     #[must_use]
     pub fn locate(&self, cell: u64, row: u64, column: u64) -> Option<(u64, u64)> {
         let index = usize::try_from(cell.checked_sub(1)?).ok()?;
@@ -571,11 +530,6 @@ fn source_span(source: &Source) -> Span {
     }
 }
 
-/// Checks that `text` is an nbformat 4 notebook in any language.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn validate(text: &str) -> Result<Info, NotebookError> {
     let notebook = Notebook::parse(text)?;
     Ok(Info {
@@ -583,11 +537,6 @@ pub fn validate(text: &str) -> Result<Info, NotebookError> {
     })
 }
 
-/// Checks that `text` is an nbformat 4 notebook in Python.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn preflight(text: &str) -> Result<Info, NotebookError> {
     let notebook = Notebook::parse(text)?;
     if let Some(language) = notebook.python {
@@ -598,7 +547,6 @@ pub fn preflight(text: &str) -> Result<Info, NotebookError> {
     })
 }
 
-/// One-shot form of [`Notebook::locate`].
 #[must_use]
 pub fn locate(text: &str, cell: u64, row: u64, column: u64) -> Option<(u64, u64)> {
     Notebook::parse(text).ok()?.locate(cell, row, column)
@@ -622,7 +570,6 @@ fn encode_string(text: &str) -> String {
     out
 }
 
-/// Splits text into lines that keep their `\n`, the nbformat array layout.
 fn split_lines(text: &str) -> Vec<&str> {
     text.split_inclusive('\n').collect()
 }
@@ -681,12 +628,6 @@ fn render_lines(original: &str, source: &Source, new_text: &str, eol: &str) -> S
     format!("[{eol}{}{eol}{close}]", body.join(&format!(",{eol}")))
 }
 
-/// Copies the sources of changed code cells from `rewritten` into
-/// `original` and leaves every other byte alone.
-///
-/// # Errors
-///
-/// Returns an error when the operation fails.
 pub fn splice_sources(original: &str, rewritten: &str) -> Result<String, NotebookError> {
     let before = Notebook::parse(original)?;
     let after = Notebook::parse(rewritten)?;
@@ -760,16 +701,12 @@ pub fn splice_sources(original: &str, rewritten: &str) -> Result<String, Noteboo
 
 const PYTHON_PRELUDE: &str = "from typing import Any; get_ipython: Any; display: Any";
 
-/// Where one notebook code cell starts inside a [`PythonScript`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScriptCell {
-    /// 1-based position in the notebook's cell list.
     pub cell: u64,
-    /// 1-based script line of the cell's first source line.
     pub first_line: u64,
 }
 
-/// Python extracted from a notebook, with the cell boundaries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PythonScript {
     pub source: String,
@@ -777,7 +714,6 @@ pub struct PythonScript {
 }
 
 impl PythonScript {
-    /// Maps a script line to `(cell, row)` inside that cell; `None` for the prelude.
     #[must_use]
     pub fn cell_row(&self, line: u64) -> Option<(u64, u64)> {
         let cell = self.cells.iter().rev().find(|c| c.first_line <= line)?;
@@ -789,7 +725,6 @@ impl PythonScript {
 mod tests {
     use super::*;
 
-    /// Turns a 1-based line or column from `locate` into a `usize` index base.
     fn idx(n: u64) -> usize {
         usize::try_from(n).expect("position fits in usize")
     }
@@ -841,7 +776,6 @@ mod tests {
     #[test]
     fn escapes_and_non_ascii_count_as_scalars() {
         let text = nb(&code("[\"s = \\\"é\\\" + \\u00e9 + x\"]"), "{}");
-        // s = "é" + é + x  ->  `x` is the 15th scalar.
         let (line, col) = locate(&text, 1, 1, 15).unwrap();
         let raw = text.lines().nth(idx(line) - 1).unwrap();
         let tail: String = raw.chars().skip(idx(col) - 1).collect();
@@ -905,7 +839,6 @@ mod tests {
         assert!(preflight(&nb(&code("[\"x\"]"), "{}")).is_ok());
     }
 
-    /// Re-serializes the way Ruff does: sorted keys, 1-space indent, ids.
     fn ruff_style(source: &str) -> String {
         format!(
             "{{\n \"cells\": [\n  {{\n   \"cell_type\": \"markdown\",\n   \"id\": \"a1\",\n   \"metadata\": {{}},\n   \"source\": [\n    \"# hi\"\n   ]\n  }},\n  {{\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"b2\",\n   \"metadata\": {{}},\n   \"outputs\": [],\n   \"source\": {source}\n  }}\n ],\n \"metadata\": {{}},\n \"nbformat\": 4,\n \"nbformat_minor\": 5\n}}\n"

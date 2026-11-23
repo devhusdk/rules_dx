@@ -5,11 +5,9 @@ use quality_adapter::{commands, parsers};
 use super::check::ToolDef;
 use super::{Path, PathBuf, RealBackend, execution, missing_tier_base, parsed, reanchor};
 
-/// The standard tier's kinds, used when the consumer binds no `markdown_check` config.
 const MARKDOWN_CHECK_DEFAULT_KINDS: &str =
     include_str!("../../../tiers/markdown_check/standard.txt");
 
-/// Web, docs and config linters that build their own invocation and parse.
 pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "markdown_check",
@@ -93,7 +91,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 if batch.is_ok() || refs.len() < 2 {
                     return batch;
                 }
-                // Re-check each file alone to name the file taplo rejected.
                 let mut merged = Vec::new();
                 for (name, path) in strs.iter().zip(refs.iter()) {
                     let single = commands::taplo_format(
@@ -140,7 +137,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 None => return Err(missing_tier_base(tool_id)),
             };
             let out = backend.run(tool_id, tool, &invocation, scratch)?;
-            // Vale prints a runtime error envelope on stderr when stdout is empty or `{}`.
             let stdout_empty = out.stdout.iter().all(u8::is_ascii_whitespace)
                 || (out.stdout.trim_ascii() == b"{}"
                     && !out.stderr.iter().all(u8::is_ascii_whitespace));
@@ -225,7 +221,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let scratch = &call.staged.scratch;
             let pairs = &call.staged.pairs;
             let config = call.config;
-            // gplint reports realpaths, so lint and match the canonical ones.
             let launch = ResolvedTool::javascript(tool_id, &tool.binary);
             let Some(cfg) = config else {
                 return Err(missing_tier_base(tool_id));
@@ -241,7 +236,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 .map_err(|err| execution(tool_id, err.to_string()))?;
             let out = backend.run(tool_id, tool, &invocation, scratch)?;
             if out.stdout.is_empty() {
-                // A crash or a configuration error: gplint prints no report, and a crash exits 0.
                 return Err(execution(
                     tool_id,
                     format!(
@@ -261,7 +255,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 parsers::parse_gplint(&out.stdout, out.code, &real_strs),
             )?;
             for found in &mut findings {
-                // Messages such as the duplicate-name rules quote realpaths; name the workspace path.
                 for ((real, _), (workspace, _)) in owned.iter().zip(pairs.iter()) {
                     found.finding.message = found
                         .finding

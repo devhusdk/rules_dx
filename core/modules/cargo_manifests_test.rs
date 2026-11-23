@@ -1,14 +1,10 @@
-//! Every Cargo.toml in the checkout is a `crate.from_cargo` manifest in MODULE.bazel, and the reverse.
-
 use std::collections::BTreeSet;
 use std::path::Path;
 
 use dx_module_bazel::ModuleFile;
 
-/// Directories never searched.
 const SKIPPED_DIRS: &[&str] = &["node_modules", "target", ".git"];
 
-/// Path components whose undeclared Cargo.toml files are inputs to tools, not workspace crates.
 const UNLISTED_OK_DIRS: &[&str] = &["testdata", "fixtures", "examples"];
 
 fn walk(dir: &Path, root: &Path, found: &mut BTreeSet<String>) {
@@ -32,7 +28,6 @@ fn walk(dir: &Path, root: &Path, found: &mut BTreeSet<String>) {
     }
 }
 
-/// The repo-relative paths of every literal `from_cargo` manifest in `source`.
 fn declared(source: &str) -> BTreeSet<String> {
     let module = ModuleFile::parse(source).expect("MODULE.bazel parses");
     module

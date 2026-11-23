@@ -55,9 +55,6 @@ fn ty_diagnostic<'a>(
     }
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ty(
     stdout: &[u8],
     code: Option<i32>,

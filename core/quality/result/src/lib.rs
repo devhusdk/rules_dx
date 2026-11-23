@@ -118,7 +118,6 @@ fn known_convergence(value: i32) -> bool {
     )
 }
 
-/// Names the convergence of a pipeline that did not settle, or None when it is STABLE.
 #[must_use]
 pub fn unstable(convergence: i32) -> Option<&'static str> {
     match Convergence::try_from(convergence) {
@@ -255,11 +254,6 @@ fn check_edits(file: &FileEdits) -> Result<(), Error> {
     Ok(())
 }
 
-/// Checks a result for structural validity.
-///
-/// # Errors
-///
-/// Returns the first violated rule.
 pub fn validate(result: &QualityResult) -> Result<(), Error> {
     if result.producer.is_empty() {
         return Err(Error::EmptyProducer);
@@ -329,29 +323,14 @@ fn validate_stage(stage: &Stage, index: usize) -> Result<(), Error> {
     Ok(())
 }
 
-/// Validates and encodes a result.
-///
-/// # Errors
-///
-/// Returns the validation or encoding error.
 pub fn encode_validated(result: &QualityResult) -> Result<Vec<u8>, Error> {
     dx_path::proto_validate::encode_with_validation(result, validate)
 }
 
-/// Decodes and validates a result.
-///
-/// # Errors
-///
-/// Returns the decoding or validation error.
 pub fn decode_validated(bytes: &[u8]) -> Result<QualityResult, Error> {
     dx_path::proto_validate::decode_with_validation(bytes, validate, Error::Decode)
 }
 
-/// Asserts that every item equals the first.
-///
-/// # Panics
-///
-/// Panics when `items` is empty or any item differs.
 pub fn assert_all_equal<T: PartialEq + std::fmt::Debug>(items: &[T]) {
     assert!(
         !items.is_empty(),

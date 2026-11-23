@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate checked-in artifact metadata.
-
-Host tools: `file` (and `zstd` for zstd assets) on PATH. ELF and PE headers are parsed in Python, so no
-readelf or objdump is needed (macOS maintainers can run this).
-"""
+"""Regenerate checked-in artifact metadata."""
 
 import gzip
 import hashlib
@@ -617,7 +613,6 @@ def _collect(tool, platform_key, spec, workdir):
             for line in handle.read().splitlines():
                 parts = line.split()
                 if len(parts) == 4 and parts[1].startswith("(") and parts[2] == "=":
-                    # BSD style: SHA256 (name) = digest
                     published[parts[1].strip("()")] = parts[3]
                 elif len(parts) == 2:
                     published[os.path.basename(parts[1].lstrip("*"))] = parts[0]

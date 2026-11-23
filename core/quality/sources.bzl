@@ -4,7 +4,6 @@ load("//core/modules:langs.bzl", "LANGS")
 load(":taxonomy.bzl", "TAXONOMY_CLASSES")
 load(":tool_defs.bzl", "is_canonical_token")
 
-# Loaded from outside rules_dx (consumer fixtures, generated BUILD files or docs).
 visibility("public")
 
 QualitySourcesInfo = provider(
@@ -97,7 +96,6 @@ def dockerfile_name_error(basename):
         return ""
     return "'" + basename + "' is not a Dockerfile name; accepted names: " + ", ".join(DOCKERFILE_NAME_PATTERNS)
 
-# Classes matched by exact, case-sensitive basename or suffix.
 NAMED_SOURCE_CLASSES = {
     lang: {
         "names": row["quality"]["file_names"],
@@ -157,7 +155,6 @@ def named_source_library(class_id, doc, srcs_doc, name_error = None):
         },
     )
 
-# Checked before the extension table, so a workflow file leaves the `yaml` class.
 PATH_SOURCE_CLASSES = {
     "github_workflow": {
         "dirs": [".github/workflows"],

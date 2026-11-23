@@ -94,10 +94,8 @@ fn state_digest(files: &BTreeMap<String, String>) -> [u8; 32] {
     digest(&canonical)
 }
 
-/// File texts keyed by workspace path.
 pub(crate) type Texts = BTreeMap<String, String>;
 
-/// Selects every stage source for the first convergence round.
 pub(crate) fn full_selection(stages: &[StageSpec]) -> Vec<BTreeSet<String>> {
     stages
         .iter()

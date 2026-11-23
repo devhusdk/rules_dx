@@ -1,4 +1,3 @@
-# Rules of package:lints 6.1.0 recommended.yaml (which includes core.yaml), inlined.
 linter:
   rules:
     - annotate_overrides

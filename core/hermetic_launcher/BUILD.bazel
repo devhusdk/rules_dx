@@ -3,10 +3,6 @@ load("@hermetic_launcher//launcher/private:stub_template_toolchain.bzl", "stub_t
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 # Upstream: hermeticbuild/hermetic-launcher#94
-# Once a hermetic_launcher release has it, bump hermetic_launcher in MODULE.bazel and delete this
-# package, its hermetic_launcher_stubs and register_toolchains lines in MODULE.bazel, the
-# //core/hermetic_launcher:module_srcs entry in BUILD.bazel and its GATED entry in
-# tools/testing/toolchain_gate_test.rs (#8379).
 
 _CONSTRAINTS = [
     "@platforms//cpu:aarch64",

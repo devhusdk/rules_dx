@@ -1,5 +1,3 @@
-//! Every base image in the root MODULE.bazel is pinned by digest for both Linux CPUs.
-
 use dx_module_bazel::ModuleFile;
 
 const BASES: [(&str, &str); 6] = [

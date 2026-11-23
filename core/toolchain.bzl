@@ -56,7 +56,6 @@ _UNPINNED_GENRULE = """genrule(
 )"""
 
 def _unpinned(rctx, tool, cell, cells, build):
-    # A genquery loads every select branch, so the repo must load on every host; only building the binary fails.
     if _EXPORT_LINE not in build:
         fail("{}: the BUILD file has no {} line".format(tool, _EXPORT_LINE))
     binary = cells[sorted(cells)[0]]["binary"]
@@ -113,10 +112,7 @@ def is_sha256(value):
     return type(value) == "string" and len(value) == 64 and all([c in _HEX for c in value.elems()])
 
 def digest_problems(name, value):
-    """Returns the sorted "<path>: <problem>" strings for every sha256 and urls nested in value.
-
-    A sha256 is one digest or a dict of digests; urls is a non-empty list of https urls.
-    """
+    """Returns the sorted "<path>: <problem>" strings for every sha256 and urls nested in value."""
     problems = []
     stack = [(name, value)]
     for _ in range(_WALK_LIMIT):

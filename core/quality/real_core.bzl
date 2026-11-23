@@ -18,7 +18,6 @@ _REAL_TOOL_KINDS = ["executable", "file", "setting", "toolchain", "upstream"]
 
 _REAL_TOOLCHAIN_FILES = ["clippy_driver", "rustc", "rustfmt"]
 
-# Where each wrapper-carried tool comes from: (wrappers, defs.bzl, tool label).
 _TARGET_TOOL_OWNERS = {
     "dart": ("dart_library, dart_binary or dart_test", "@rules_dx//dart:defs.bzl", "@rules_dx//dart/private/tools:dart"),
     "swift_format": ("swift_library, swift_binary or swift_test", "@rules_dx//swift:defs.bzl", "@rules_dx//swift/private/tools:swift_format"),
@@ -263,7 +262,6 @@ def _shard_tools(tools, shard, capability):
     """Lists wired tools for one shard and capability, or for every capability when capability is None."""
     return sorted([tool for tool in tools if tools[tool]["shard"] == shard and (capability == None or capability in tools[tool]["capabilities"])])
 
-# `dx <quality> --unsafe` sets this through --aspects_parameters; only those runs key on it.
 _UNSAFE_FIXES_ATTR = {"unsafe_fixes": attr.string(doc = "Whether the run applies unsafe fixes.", values = ["false", "true"], default = "false")}
 
 def _expand_shard(tools_table, spec):

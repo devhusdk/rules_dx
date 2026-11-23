@@ -20,7 +20,6 @@ pub struct MirrorFile {
     pub contents: MirrorContents,
 }
 
-/// How one mirror file reached the scratch tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StagedContents {
     Bytes,
@@ -28,7 +27,6 @@ pub enum StagedContents {
     Copied,
 }
 
-/// One mirror file materialized into the scratch tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StagedFile {
     pub mirror_rel: PathBuf,
@@ -62,9 +60,6 @@ fn canonical_root(dir: &Path) -> io::Result<PathBuf> {
 }
 
 impl Scratch {
-    /// # Errors
-    ///
-    /// Returns an I/O error when the filesystem or process operation fails.
     pub fn create(parent: &Path) -> io::Result<Scratch> {
         let dir = tempfile::Builder::new()
             .prefix("dx-scratch-")
@@ -78,9 +73,6 @@ impl Scratch {
         &self.root
     }
 
-    /// # Errors
-    ///
-    /// Returns an I/O error when the filesystem or process operation fails.
     pub fn resolve(&self, rel: &Path) -> io::Result<PathBuf> {
         let root = self.root.as_path();
         let raw = rel.as_os_str().as_encoded_bytes();
@@ -133,9 +125,6 @@ impl Scratch {
         Ok(absolute)
     }
 
-    /// # Errors
-    ///
-    /// Returns an I/O error when the filesystem or process operation fails.
     pub fn materialize(&self, files: &[MirrorFile]) -> io::Result<Vec<StagedFile>> {
         let root = self.root.as_path();
         let mut staged = Vec::with_capacity(files.len());
@@ -180,9 +169,6 @@ impl Scratch {
         Ok(staged)
     }
 
-    /// # Errors
-    ///
-    /// Returns an I/O error when the filesystem or process operation fails.
     pub fn close(self) -> io::Result<()> {
         remove_scratch(&self.dir.keep())
     }
@@ -201,7 +187,6 @@ fn held(err: &io::Error) -> bool {
     err.kind() == io::ErrorKind::PermissionDenied
 }
 
-/// Removes a closed scratch tree, clearing read-only entries and retrying while entries are held.
 fn remove_scratch(path: &Path) -> io::Result<()> {
     let mut outcome = std::fs::remove_dir_all(path);
     for delay in SCRATCH_REMOVE_BACKOFF_MS {
@@ -330,9 +315,6 @@ fn build_env(
 
 pub const SPAWN_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// # Errors
-///
-/// Returns an I/O error when the filesystem or process operation fails.
 pub fn spawn(
     argv: &[impl AsRef<OsStr>],
     cwd: &Path,
@@ -341,9 +323,6 @@ pub fn spawn(
     spawn_with_timeout(argv, cwd, env, SPAWN_TIMEOUT)
 }
 
-/// # Errors
-///
-/// Returns an I/O error when the filesystem or process operation fails.
 pub fn spawn_with_timeout(
     argv: &[impl AsRef<OsStr>],
     cwd: &Path,
@@ -1011,9 +990,6 @@ mod tests {
         if cfg!(windows) {
             allowed.push("SystemRoot");
         }
-        // CoreFoundation writes this into the process's own environment when
-        // it initialises, so the probe lists it even though the adapter
-        // cleared the environment and never passed it.
         if cfg!(target_vendor = "apple") {
             allowed.push("__CF_USER_TEXT_ENCODING");
         }

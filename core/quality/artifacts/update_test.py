@@ -378,8 +378,7 @@ class LockTest(unittest.TestCase):
 
 
 def _elf(path, *, dynamic):
-    """Writes a minimal ELF64 file; dynamic ones carry an interpreter, a
-    needed library, a GLIBC version need and an ABI tag."""
+    """Writes a minimal ELF64 file; a dynamic one also carries an interpreter, DT_NEEDED, a GLIBC need and an ABI tag."""
     interp = b"/lib64/ld-linux-x86-64.so.2\0"
     strtab = b"\0libc.so.6\0GLIBC_2.17\0GLIBC_2.34\0GLIBCXX_3.4.29\0"
     note = struct.pack("<III", 4, 16, 1) + b"GNU\0" + struct.pack("<IIII", 0, 3, 2, 0)

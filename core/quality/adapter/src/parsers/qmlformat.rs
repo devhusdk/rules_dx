@@ -1,9 +1,6 @@
 use super::{FileFinding, ParseError, rewrite_format};
 use crate::ColumnEncoding;
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_qmlformat(
     stdout: &[u8],
     code: Option<i32>,

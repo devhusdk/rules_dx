@@ -43,15 +43,6 @@ fn position(what: &str, at: &Position) -> Result<TextPosition, ParseError> {
     })
 }
 
-/// `fortitude check --output-format json` prints one JSON array on stdout: `[]` and exit 0 when
-/// every file is clean, a non-empty array and exit 1 otherwise. Syntax errors (`E001`) and
-/// unreadable files (`E000`) are diagnostics in the same array, so they are findings, not
-/// failures to run. Any other exit (2 is a usage error) or an exit that disagrees with the array
-/// is an error here and never a clean result.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_fortitude(
     stdout: &[u8],
     code: Option<i32>,
@@ -144,21 +135,16 @@ mod tests {
 
     #[test]
     fn fortitude_fails_closed() {
-        // Exit and array disagree.
         assert!(parse_fortitude(b"[]", Some(1), &FILES).is_err());
         assert!(parse_fortitude(DIRTY.as_bytes(), Some(0), &FILES).is_err());
-        // Unknown exits, including a usage error and a signal.
         assert!(parse_fortitude(b"[]", Some(2), &FILES).is_err());
         assert!(parse_fortitude(DIRTY.as_bytes(), Some(2), &FILES).is_err());
         assert!(parse_fortitude(b"[]", None, &FILES).is_err());
-        // A truncated or garbage report.
         assert!(parse_fortitude(&DIRTY.as_bytes()[..60], Some(1), &FILES).is_err());
         assert!(parse_fortitude(b"error: bad flag", Some(1), &FILES).is_err());
         assert!(parse_fortitude(b"", Some(0), &FILES).is_err());
         assert!(parse_fortitude(&[0xff, 0xfe], Some(1), &FILES).is_err());
-        // A finding in a file that was not passed.
         assert!(parse_fortitude(DIRTY.as_bytes(), Some(1), &["/s/other.f90"]).is_err());
-        // A zero position, or a severity this parser does not know.
         let zero = DIRTY.replace(r#""column":1,"row":1"#, r#""column":0,"row":1"#);
         assert!(parse_fortitude(zero.as_bytes(), Some(1), &FILES).is_err());
         let odd = DIRTY.replace("\"error\"", "\"fatal\"");

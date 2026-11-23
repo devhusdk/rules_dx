@@ -7,9 +7,6 @@ use crate::{ColumnEncoding, TextPosition};
 
 const TOOL: &str = "prettier";
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_prettier_check(
     stderr: &[u8],
     code: Option<i32>,
@@ -18,14 +15,6 @@ pub fn parse_prettier_check(
     parse_prettier_check_with_sources(stderr, code, files, |_| None)
 }
 
-/// Parses `prettier --check` stderr. `source` returns the original text of a checked file; it is
-/// used only to place a `prettier-plugin-svelte` syntax error, whose code frame numbers the lines
-/// of a copy with every `<script>` and `<style>` body collapsed onto one line. Without the source,
-/// or when the frame does not match exactly one place in it, the error stays at 1:1.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_prettier_check_with_sources(
     stderr: &[u8],
     code: Option<i32>,
@@ -143,8 +132,6 @@ fn syntax_error(
     Ok(())
 }
 
-/// The Svelte compiler's code frame under the last syntax error: the shown lines in order, and
-/// the index and display offset of the caret line once the `^` row has been seen.
 #[derive(Debug, Default)]
 struct SvelteFrame {
     lines: Vec<String>,
@@ -201,10 +188,6 @@ fn svelte_frame(raw: &str, frame: &mut Option<SvelteFrame>, findings: &[FileFind
     true
 }
 
-/// Moves the last finding, a Svelte syntax error still at 1:1, to the original line and column
-/// of its frame. The frame's lines between collapsed `<script>`/`<style>` rows are verbatim
-/// source lines (leading tabs shown as two spaces), so they must match exactly one run of lines
-/// in the original file; anything else leaves the error at 1:1.
 fn place_svelte_error(
     frame: Option<SvelteFrame>,
     findings: &mut [FileFinding],
@@ -511,8 +494,6 @@ mod tests {
         );
     }
 
-    /// Real `prettier-plugin-svelte` 4.1.1 output: the frame shows blank source lines as a bare
-    /// `N:` (trailing space trimmed), and numbers lines with the 3-line `<script>` collapsed.
     #[test]
     fn prettier_check_places_a_svelte_error_framed_by_blank_lines_after_a_script() {
         let stderr = "[error] app/A.svelte: element_invalid_closing_tag: `</p>` attempted to close an element that was not open\n[error] https://svelte.dev/e/element_invalid_closing_tag\n[error] 2: \n[error] 3: <div>\n[error] 4: </p>\n[error]    ^\n[error] 5: \n[error] 6: <b></b>\n[warn] app/Dirty.svelte\n";

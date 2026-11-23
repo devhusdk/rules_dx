@@ -8,11 +8,6 @@ use crate::ToolSeverity;
 
 const TOOL: &str = "terraform";
 
-/// Exit 0 is clean, 3 lists unformatted files, and 2 reports located syntax errors.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_terraform(
     stdout: &[u8],
     stderr: &[u8],
@@ -73,7 +68,6 @@ fn syntax_errors(
     Ok(findings)
 }
 
-/// The path and line from a `  on <path> line <n>[, in <block>]:` header.
 fn located(line: &str) -> Option<(&str, u64)> {
     let rest = line.strip_prefix("  on ")?;
     rest.match_indices(" line ").find_map(|(at, marker)| {
@@ -91,8 +85,6 @@ fn located(line: &str) -> Option<(&str, u64)> {
 mod tests {
     use super::*;
 
-    /// `terraform fmt -check` output, verbatim from terraform 1.16.1, which names each
-    /// file by its path from the working directory rather than the one it was handed.
     const DIRTY: &str = "sub/main.tf\nsub/Other.tf\n";
 
     fn scratch() -> &'static Path {
@@ -119,7 +111,6 @@ mod tests {
         assert!(parse_terraform(&[0xff], b"", Some(0), &["x"], scratch()).is_err());
     }
 
-    /// A file the run was never given is still rejected, relative or absolute.
     #[test]
     fn terraform_cannot_report_a_file_outside_the_run() {
         let err = parse_terraform(b"sub/elsewhere.tf\n", b"", Some(3), &files(), scratch())
@@ -139,7 +130,6 @@ mod tests {
         assert!(matches!(err, ParseError::UnknownFile { .. }));
     }
 
-    /// A checked file already spelled the way the run spelled it matches without the cwd.
     #[test]
     fn terraform_accepts_the_path_the_run_handed_it() {
         let findings = parse_terraform(
@@ -153,7 +143,6 @@ mod tests {
         assert_eq!(findings[0].file, "/tmp/dx-scratch/sub/main.tf");
     }
 
-    /// `terraform fmt -check -no-color` stderr for a syntax error, verbatim from 1.16.1.
     const BROKEN: &str = "\nError: Invalid expression\n\n  on sub/main.tf line 2, in resource \"a\" \"b\":\n   2:   x = \n   3: }\n\nExpected the start of an expression, but found an invalid expression token.\n\n\nError: Unclosed configuration block\n\n  on sub/Other.tf line 1, in a:\n   1: a {\n\nThere is no closing brace for this block before the end of the file.\n";
 
     #[test]

@@ -10,8 +10,6 @@ fn file_name(path: &str) -> Option<&str> {
     Path::new(path).file_name()?.to_str()
 }
 
-/// The checked file a package-relative `SpotBugs` URI names when its directory does not
-/// follow the package.
 fn package_relative(uri: &str, files: &[&str]) -> Option<String> {
     if uri.starts_with('/') || uri.contains(':') || uri.split('/').any(|part| part == "..") {
         return None;
@@ -52,9 +50,6 @@ fn relocate(locations: Option<&mut Vec<Location>>, files: &[&str]) {
     }
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_spotbugs(
     stdout: &[u8],
     code: Option<i32>,

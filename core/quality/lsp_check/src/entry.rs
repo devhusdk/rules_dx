@@ -70,7 +70,6 @@ fn run(args: &[String]) -> Result<bool, String> {
         .iter()
         .map(|file| std::path::absolute(file).map_err(|error| error.to_string()))
         .collect::<Result<_, _>>()?;
-    // Streams LSP over piped stdio for the whole session, so it is not a capture launch.
     let Some((program, program_args)) = server.split_first() else {
         return Err("missing server command".to_string());
     };
@@ -135,7 +134,6 @@ fn run(args: &[String]) -> Result<bool, String> {
 }
 
 // LCOV_EXCL_START - reason: thin shim, issue: 6553, policy: docs/cli/commands/build-test-coverage.md
-/// Runs `lsp_check` on the given arguments and returns the exit code.
 #[must_use]
 pub fn run_process(args: &[String]) -> i32 {
     match run(args) {

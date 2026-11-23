@@ -59,9 +59,6 @@ fn biome_position(
     })
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_biome_lint(
     stdout: &[u8],
     code: Option<i32>,
@@ -114,16 +111,12 @@ pub fn parse_biome_lint(
     Ok(findings)
 }
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_biome_format(
     stdout: &[u8],
     code: Option<i32>,
     files: &[&str],
 ) -> Result<Vec<FileFinding>, ParseError> {
     const TOOL: &str = "biome_format";
-    /// The id the registry knows biome by, which both of its capabilities report under.
     const REGISTRY: &str = "biome";
     check_output_size(TOOL, stdout)?;
     let report: BiomeReport = serde_json::from_slice(stdout).map_err(|err| ParseError::Json {

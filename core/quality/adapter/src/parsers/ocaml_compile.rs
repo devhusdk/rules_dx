@@ -5,7 +5,6 @@ use super::{FileFinding, ParseError, as_text, code_name, finding};
 
 const TOOL: &str = "ocaml";
 
-/// One diagnostic being read: where it starts and the lines of its message so far.
 struct Pending {
     file: String,
     line: u64,
@@ -13,17 +12,6 @@ struct Pending {
     message: Vec<String>,
 }
 
-/// `ocamlc|ocamlopt -stop-after typing -error-style short` output.
-///
-/// Each diagnostic is a `File "p", line N, characters A-B:` header (or `lines N-M,`)
-/// followed by an `Error:`, `Warning N [name]:` or `Alert name:` message that continues on
-/// indented lines. Columns are 0-based bytes. Fails closed: a diagnostic in a file that is
-/// not owned, a nonzero exit without an error for an owned file, and exit 0 with an error
-/// are never a clean run.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_ocaml_compile(
     output: &[u8],
     code: Option<i32>,
@@ -88,7 +76,6 @@ pub fn parse_ocaml_compile(
     }
 }
 
-/// `File "p", line N, characters A-B:` or `File "p", lines N-M, characters A-B:`.
 fn header(line: &str) -> Option<(&str, u64, u64)> {
     let rest = line.strip_prefix("File \"")?;
     let (path, rest) = rest.split_once("\", line")?;
@@ -129,8 +116,6 @@ fn flush(pending: &mut Option<Pending>, found: &mut Vec<FileFinding>) {
     ));
 }
 
-/// Splits `Error: m`, `Error (warning 26 [unused-var]): m`, `Warning 26 [unused-var]: m`
-/// and `Alert deprecated: m` into severity, rule and message.
 fn classify(text: &str) -> Option<(ToolSeverity, String, String)> {
     if let Some(message) = text.strip_prefix("Error:") {
         return Some((
@@ -166,7 +151,6 @@ fn classify(text: &str) -> Option<(ToolSeverity, String, String)> {
     None
 }
 
-/// The bracketed warning name, or `warning-N`, or `alert-name` for `alert name`.
 fn rule_of(what: &str) -> String {
     if let (Some(open), Some(close)) = (what.find('['), what.rfind(']'))
         && open < close

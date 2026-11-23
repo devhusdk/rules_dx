@@ -5,7 +5,6 @@ use quality_result::proto::{BuildDep, Diagnostic, Severity};
 use super::check::ToolDef;
 use super::{PathBuf, RealBackend, RealTool, RunnerError, execution, parsed, reanchor};
 
-/// Tools that only replay what their compiler already reported.
 pub(super) const TOOLS: &[ToolDef] = &[
     ToolDef {
         id: "clippy",
@@ -155,7 +154,6 @@ pub(super) const TOOLS: &[ToolDef] = &[
 
 type LogParser = fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
 
-/// Where a .NET compiler log comes from and how to read it.
 struct DotnetLog {
     what: &'static str,
     aspect: &'static str,
@@ -165,7 +163,6 @@ struct DotnetLog {
 }
 
 impl DotnetLog {
-    /// The csc SARIF log of the C# aspect.
     fn csc_sarif(parse: LogParser) -> Self {
         Self {
             what: "SARIF log",
@@ -183,8 +180,6 @@ enum ReplayParser {
     ByDriver { gnu: LogParser, msvc: LogParser },
 }
 
-/// The unused `deps` entries the tool's upstream diagnostics name, as findings without a path.
-/// The CLI places them on the BUILD file line, which the runner never sees.
 pub(super) fn build_dep_diagnostics(
     tool_id: &str,
     tool: &RealTool,
@@ -349,7 +344,6 @@ fn scalac_inputs(tool_id: &str, tool: &RealTool) -> Result<ScalacInputs, RunnerE
     Ok(Some((read(map)?, read(log)?)))
 }
 
-/// The C# `deps` entries that `ReferenceTrimmer` reports as unused in every target framework.
 fn csharp_unused(
     tool_id: &str,
     tool: &RealTool,
@@ -514,7 +508,6 @@ impl RealBackend {
         self.check_dotnet_log(tool_id, tool, pairs, &source)
     }
 
-    /// Parses the per-TFM compiler logs of the C# or F# aspect and merges them.
     #[expect(
         clippy::unused_self,
         reason = "same receiver shape as the sibling tool methods"
@@ -587,10 +580,6 @@ impl RealBackend {
         Ok(findings)
     }
 
-    /// Reads the JSON log of a JVM compiler check (javac, kotlinc, scalac).
-    ///
-    /// A failed driver fails its Bazel action, so the log's own exit status carries javac's result
-    /// and the process exit status is always zero here.
     #[expect(
         clippy::unused_self,
         reason = "same receiver shape as the sibling tool methods"
@@ -866,7 +855,6 @@ impl RealBackend {
         )
     }
 
-    /// Reads the logs and exit codes of a compile-replay aspect (`<prefix>/<stem>/exit`).
     #[expect(
         clippy::unused_self,
         reason = "same receiver shape as the sibling tool methods"
@@ -1085,19 +1073,11 @@ impl RealBackend {
     }
 }
 
-/// Merges the findings of one tool run once per pivot (for example one
-/// target framework each) into a union that reports each finding once.
-///
-/// Pivots arrive in their reporting order. A finding that only some pivots
-/// report gets the sorted list of those pivots appended to its message, as
-/// ` [net8.0]`. A finding every pivot reports keeps its message, so a single
-/// pivot reproduces its own findings byte for byte.
 pub(super) fn merge_pivot_findings(pivots: Vec<(String, Vec<FileFinding>)>) -> Vec<FileFinding> {
     let total = pivots.len();
     let mut merged: Vec<(FileFinding, Vec<String>)> = Vec::new();
     for (pivot, findings) in pivots {
         for found in findings {
-            // A repeat inside one pivot is the tool's own output, so it stays.
             let existing = merged
                 .iter_mut()
                 .find(|(seen, seen_in)| !seen_in.contains(&pivot) && same_finding(seen, &found));
@@ -1127,7 +1107,6 @@ fn same_finding(left: &FileFinding, right: &FileFinding) -> bool {
         && left.finding.message == right.finding.message
 }
 
-/// Whether the bytes are one unitchecker report, which has no top-level `code` field.
 fn is_unit_report(bytes: &[u8]) -> bool {
     serde_json::from_slice::<serde_json::Value>(bytes).is_ok_and(|value| {
         value

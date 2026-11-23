@@ -14,22 +14,16 @@ pub struct RequestTool {
     pub config_rel: Option<String>,
     pub edition: Option<String>,
     pub dialect: Option<String>,
-    /// Extra tool arguments from build settings; each tool decides which it accepts.
     pub args: Vec<String>,
     pub files: Vec<(String, String)>,
-    /// Files of `rel<TAB>exec` lines, staged like `files`.
     pub file_lists: Vec<PathBuf>,
-    /// Files of `rel<TAB>exec` lines for dependency files: each exec path is staged once, and
-    /// never when it is a checked source.
     pub dep_lists: Vec<PathBuf>,
     pub env: Vec<(String, String)>,
     pub upstream: Vec<PathBuf>,
     pub search_paths: Vec<PathBuf>,
-    /// Helper executables the tool finds by name on its own `PATH`.
     pub path_tools: Vec<PathTool>,
 }
 
-/// Helper names each tool may be given on its `PATH`. One row per tool that shells out.
 pub const PATH_TOOL_ALLOWLIST: &[(&str, &[&str])] = &[
     ("vale", &["rst2html", "asciidoctor"]),
     ("helm", &["kubeconform"]),
@@ -47,20 +41,16 @@ pub struct RealRequest {
     pub sources: Vec<(String, String)>,
     pub siblings: Vec<(String, String)>,
     pub resolves: Vec<(String, String)>,
-    /// Files of `workspace<TAB>exec` lines, resolved like `resolves` unless a mapping holds the path.
     pub resolve_lists: Vec<ResolveList>,
     pub tools: BTreeMap<String, RequestTool>,
     pub scratch_parent: Option<String>,
-    /// `dx <quality> --unsafe`: adapters may also apply the fixes the tool marks unsafe.
     pub unsafe_fixes: bool,
 }
 
-/// One resolve list file and the extensions it keeps; empty keeps every file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolveList {
     pub list: PathBuf,
     pub extensions: Vec<String>,
-    /// A file of directory roots, one per line, stripped from the front of each listed path.
     pub strip_roots: Option<PathBuf>,
 }
 
@@ -419,11 +409,6 @@ fn check_tool(
     })
 }
 
-/// Returns the result of the call.
-///
-/// # Errors
-///
-/// Returns the error describing the first step that failed.
 pub fn parse_real_request(bytes: &[u8]) -> Result<RealRequest, RequestError> {
     let doc: RequestDoc = serde_json::from_slice(bytes).map_err(|error| RequestError::Json {
         detail: error.to_string(),

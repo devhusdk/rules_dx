@@ -1,4 +1,3 @@
-# Project marker rule: tracked docs carry no TODO/FIXME/XXX placeholders.
 extends: existence
 message: "Remove '%s' markers before merging."
 level: error

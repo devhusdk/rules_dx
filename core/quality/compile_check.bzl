@@ -114,7 +114,6 @@ def zig_check_argv(argv, scratch):
         out.append("-fno-emit-bin")
     return struct(argv = out, error = "", source = source)
 
-# Flags that name an output or only matter to one: each is dropped, with its value when it takes one.
 _SWIFTC_DROP = ["-emit-object", "-enable-batch-mode", "-whole-module-optimization", "-wmo", "-index-ignore-system-modules", "-color-diagnostics", "-emit-module", "-emit-library", "-static"]
 
 _SWIFTC_DROP_WITH_VALUE = ["-output-file-map", "-emit-module-path", "-emit-const-values-path", "-index-store-path", "-emit-module-interface-path", "-emit-objc-header-path", "-emit-private-module-interface-path", "-emit-module-source-info-path", "-num-threads", "-o"]
@@ -293,7 +292,6 @@ _SPECS = {
     "ZigBuildTest": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
 }
 
-# The quality tool ids whose logs the replay produces, derived from _SPECS.
 COMPILE_CHECK_TOOLS = sorted({spec.tool: True for spec in _SPECS.values()}.keys())
 
 def _forwarded(info):

@@ -4,15 +4,6 @@ use super::{FileFinding, ParseError, as_text, code_name, finding};
 
 const TOOL: &str = "julialint";
 
-/// Findings from the JSON-lines report the pinned `lint.jl` driver writes.
-///
-/// Each line is `{"v":1,"file":..,"line":..,"col":..,"severity":..,"rule":..,"message":..}`.
-/// The rule is `julialint/<rule>`. The driver only reports the files it was given, so a
-/// line for any other file, a bad line, an unknown version or a nonzero exit fails the run.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_julialint(
     report: &[u8],
     code: Option<i32>,

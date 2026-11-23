@@ -14,15 +14,6 @@ const SYNTAX: Dialect = Dialect {
     bracket_rule: false,
 };
 
-/// Findings from one `swift-format format <file>` run, which writes the formatted text to stdout.
-///
-/// Exit 0 means the file parsed, so stdout is compared with the input and a difference is one
-/// finding. Exit 1 means a syntax error: each `file:LINE:COL: error: message` stderr line becomes
-/// one syntax finding. Any other exit, or exit 1 without such a line, is an error.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_swift_format(
     stdout: &[u8],
     stderr: &[u8],

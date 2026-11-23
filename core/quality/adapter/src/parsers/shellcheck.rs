@@ -4,9 +4,6 @@ use super::{
 use crate::ToolSeverity;
 use crate::{ColumnEncoding, TextPosition};
 
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_shellcheck(
     stdout: &[u8],
     code: Option<i32>,

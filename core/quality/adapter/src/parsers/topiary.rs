@@ -5,19 +5,6 @@ use crate::ColumnEncoding;
 
 const TOOL: &str = "topiary";
 
-/// Parses `dx_topiary <files>`.
-///
-/// Contract of `dx_topiary` (//rust/private/tools/topiary):
-/// - exit 0 is clean and prints nothing;
-/// - exit 1 prints the path of each file that would change on stdout, one per line, as given;
-/// - exit 2 is a syntax error, an unsupported extension or a tool failure (details on stderr).
-///
-/// Anything other than exit 0 with no output, or exit 1 with at least one path that this run
-/// named, is an error and never a clean result.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_topiary(
     stdout: &[u8],
     code: Option<i32>,
@@ -82,10 +69,8 @@ mod tests {
 
     #[test]
     fn exit_codes_that_disagree_with_the_output_are_errors() {
-        // Exit 2 is a config or usage failure, including "no OCaml files found".
         assert!(parse_topiary(b"", Some(2), &FILES).is_err());
         assert!(parse_topiary(b"/w/a.ml\n", Some(2), &FILES).is_err());
-        // Exit 1 with nothing to name, and findings under exit 0.
         assert!(parse_topiary(b"", Some(1), &FILES).is_err());
         assert!(parse_topiary(b"/w/a.ml\n", Some(0), &FILES).is_err());
         assert!(parse_topiary(b"", None, &FILES).is_err());

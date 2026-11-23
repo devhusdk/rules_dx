@@ -125,7 +125,6 @@ pub(crate) struct CodeRegion {
 }
 
 pub(crate) fn code_regions(text: &str, starts: &[usize]) -> Vec<CodeRegion> {
-    // (start_line, info, opening fence (char, len), end of opening line, last text end)
     type Open = (u32, Option<String>, Option<(char, usize)>, usize, usize);
     let mut regions = Vec::new();
     let mut open: Option<Open> = None;
@@ -204,7 +203,6 @@ pub(crate) fn code_regions(text: &str, starts: &[usize]) -> Vec<CodeRegion> {
     regions
 }
 
-/// Slug a heading the way GitHub does: lowercase, keep letters, marks, digits, `-` and `_`, and turn each space into `-`.
 #[must_use]
 pub fn slug(text: &str) -> String {
     text.to_lowercase()

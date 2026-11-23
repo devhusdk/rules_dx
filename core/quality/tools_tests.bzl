@@ -146,7 +146,6 @@ _COMPILER = "compiler or compile check; its warnings follow the tier through com
 _SCHEMA = "schema compiler or validator with no rule set to tier"
 _FIXED = "checks one fixed property with no rule set to tier"
 
-# Lint and typecheck tools with no standard and strict tier files, and why.
 TIER_EXEMPT = {
     "avro_tools": _SCHEMA,
     "capnp": _SCHEMA,
@@ -179,7 +178,6 @@ TIER_EXEMPT = {
     "zig_ast_check": _COMPILER,
 }
 
-# Checkers that still owe tier files. Remove an entry when its tiers land; never add one.
 TIER_DEBT = {
     "dialyzer": "warning flags are fixed in the adapter",
     "dscanner": "runs its built-in check set with no dscanner.ini",

@@ -3,14 +3,6 @@ use crate::{ColumnEncoding, Finding, ToolSeverity};
 
 const TOOL: &str = "lychee";
 
-/// Parses `lychee --format json`: stdout is one report, exit 2 means some link failed.
-///
-/// Failed links sit under `error_map` (`fail_map` before 0.20) and `timeout_map`, keyed by
-/// the file lychee was given.
-///
-/// # Errors
-///
-/// Returns [`ParseError`] when the tool output cannot be parsed.
 pub fn parse_lychee(
     stdout: &[u8],
     stderr: &[u8],

@@ -75,7 +75,7 @@ Describe "Resolve-BazelRunfile" {
     }
 
     It "finds this test's own runfiles from the environment" {
-        $path = Resolve-BazelRunfile '_main/powershell/tests/runfiles/Runfiles.Describe.ps1'
+        $path = Resolve-BazelRunfile '_main/powershell/tests/fixtures/runfiles/Runfiles.Describe.ps1'
         Test-Path -LiteralPath $path -PathType Leaf | Should -BeTrue
     }
 }

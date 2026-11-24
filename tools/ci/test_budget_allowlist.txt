@@ -253,10 +253,9 @@ examples/adopt-polyglot/pytools/BUILD.bazel no-size 1
 examples/adopt-polyglot/widgets/BUILD.bazel no-size 1
 examples/shared-rust/BUILD.bazel no-size 13
 flatbuffers/tests/BUILD.bazel no-size 22
-flutter/tests/contract/BUILD.bazel no-size 1
 flutter/tests/fixtures/flutter_app/app/BUILD.bazel no-size 2
 flutter/tests/fixtures/flutter_app/web/BUILD.bazel no-size 1
-flutter/tests/negative/BUILD.bazel no-size 2
+flutter/tests/fixtures/negative/BUILD.bazel no-size 2
 flutter/tests/runtime/BUILD.bazel no-size 1
 fortran/tests/fixtures/calc/BUILD.bazel no-size 2
 fortran/tests/fixtures/negative/BUILD.bazel no-size 3

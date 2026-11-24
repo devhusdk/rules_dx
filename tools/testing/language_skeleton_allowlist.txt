@@ -13,8 +13,6 @@ fixture-name cc/tests/gcc_linux_x86_64
 fixture-name cc/tests/msvc_cross
 fixture-name cc/tests/msvc_x86_64
 fixture-name cc/tests/tags
-fixture-name flutter/tests/contract
-fixture-name flutter/tests/negative
 fixture-name flutter/tests/runtime
 fixture-name javascript/tests/typecheck
 fixture-name lua/tests/analysis
@@ -150,7 +148,6 @@ test-location api_spec/private/codegen/BUILD.bazel
 test-location astro/private/ide/BUILD.bazel
 test-location csharp/private/ide/BUILD.bazel
 test-location erlang/private/toolchain/BUILD.bazel
-test-location flutter/tests/BUILD.bazel
 test-location fsharp/private/ide/BUILD.bazel
 test-location lua/private/runtime/BUILD.bazel
 test-location lua/private/runtime/launcher_test.lua

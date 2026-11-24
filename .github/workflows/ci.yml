@@ -85,7 +85,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//:dx -- generate -- "$@" < /dev/null
+          "$RUNNER_TEMP/dx-bin/dx" generate -- "$@" < /dev/null
   coverage:
     name: coverage (${{ matrix.platform }})
     timeout-minutes: 120

@@ -83,7 +83,7 @@ fn check_verifies_every_generated_file_on_one_platform() {
         .find(|step| {
             step["run"]
                 .as_str()
-                .is_some_and(|run| run.contains("@rules_dx//:dx -- generate -- \"$@\""))
+                .is_some_and(|run| run.contains("/dx-bin/dx\" generate -- \"$@\""))
         })
         .expect("whole-repo generate step");
     assert_eq!(

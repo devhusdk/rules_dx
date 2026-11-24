@@ -63,6 +63,19 @@ runs:
         path: .dx/local/rule_graph
         key: ${{ steps.graph-key.outputs.key }}
         restore-keys: ${{ steps.graph-key.outputs.prefix }}
+    - name: Build the gate tools
+      shell: bash
+      run: |
+        # shellcheck disable=SC2086
+        set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+        tools=(@rules_dx//tools/ci/gate_base:gate_base_bin @rules_dx//:dx @rules_dx//tools/ci/producers:producers_bin)
+        bazel build "$@" "${tools[@]}"
+        root="$(bazel info "$@" execution_root)"
+        bin="${RUNNER_TEMP:-/tmp}/dx-bin"
+        mkdir -p "$bin"
+        bazel cquery "$@" --output=files "${tools[@]}" | grep -E '/(gate_base_bin|dx|producers_bin)(\.exe)?$' | while read -r built; do
+          cp -L "$root/$built" "$bin/${built##*/}"
+        done
     - name: Pin the affected base
       env:
         EVENT_NAME: ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') && 'push' || github.event_name }}
@@ -70,9 +83,7 @@ runs:
         MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
       shell: bash
       run: |
-        # shellcheck disable=SC2086
-        set -- $BAZEL_CONFIG $BB_ARGS
-        bazel run "$@" @rules_dx//tools/ci/gate_base:gate_base_bin
+        "${RUNNER_TEMP:-/tmp}/dx-bin/gate_base_bin"
     - name: dx ${{ inputs.command }} --affected
       id: check
       env:
@@ -94,11 +105,7 @@ runs:
           mkdir -p "$(dirname "$LCOV")"
           report+=(--report "lcov=$LCOV")
         fi
-        bazel build "$@" @rules_dx//:dx
-        built="$(bazel cquery "$@" --output=files @rules_dx//:dx | grep -E '/dx(\.exe)?$')"
-        dx="${RUNNER_TEMP:-/tmp}/dx-bin/${built##*/}"
-        mkdir -p "${dx%/*}"
-        cp -L "$(bazel info "$@" execution_root)/$built" "$dx"
+        dx="${RUNNER_TEMP:-/tmp}/dx-bin/dx"
         "$dx" "$COMMAND" --affected --output=json "${report[@]}" -- "$@" --keep_going "--test_tag_filters=$tags" < /dev/null | tee "${RUNNER_TEMP:-/tmp}/gate.json"
     - name: Save the dx rule graph
       if: ${{ !cancelled() && steps.check.outcome != 'skipped' && steps.graph.outputs.cache-hit != 'true' && hashFiles('.dx/local/rule_graph') != '' }}
@@ -110,9 +117,7 @@ runs:
       if: ${{ failure() && steps.check.outcome == 'failure' }}
       shell: bash
       run: |
-        # shellcheck disable=SC2086
-        set -- $BAZEL_CONFIG $BB_ARGS
-        bazel run --noshow_progress "$@" @rules_dx//tools/ci/producers:producers_bin -- --test-log-tails --dx "${RUNNER_TEMP:-/tmp}/gate.json"
+        "${RUNNER_TEMP:-/tmp}/dx-bin/producers_bin" --test-log-tails --dx "${RUNNER_TEMP:-/tmp}/gate.json"
     - name: Record the failing labels
       id: failing
       if: ${{ !cancelled() && inputs.baseline != '' }}
@@ -135,9 +140,7 @@ runs:
         if [ -n "$previous" ]; then
           args+=(--previous "$previous")
         fi
-        # shellcheck disable=SC2086
-        set -- $BAZEL_CONFIG $BB_ARGS
-        bazel run --noshow_progress "$@" @rules_dx//tools/ci/producers:producers_bin -- "${args[@]}"
+        "$RUNNER_TEMP/dx-bin/producers_bin" "${args[@]}"
     - name: Check the failing labels hold no secret
       id: scan-failing
       if: ${{ !cancelled() && steps.failing.outcome == 'success' }}
